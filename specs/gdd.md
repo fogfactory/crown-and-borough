@@ -78,6 +78,7 @@ La vitesse de déplacement des armées et la propagation des messagers dépenden
 - **Puissance d'attaque :** taille de la pile attaquante (les armées alliées ciblant la même case s'additionnent).
 - **Puissance de soutien :** taille de la pile soutenante (coupée si la pile est attaquée ce tour).
 - **Résolution (manière Diplomacy) :** l'ensemble des intentions (attaques, soutiens, déplacements pacifiques) est calculé et itéré jusqu'à stabilité AVANT d'exécuter les mouvements. Force égale = Statu quo. Supériorité numérique = Victoire.
+- **Multi-contendants :** quand plusieurs joueurs attaquent la même case, toutes les forces s'affrontent dans une comparaison unique (chaque groupe d'attaquants allié fusionné + la défense). La force **strictement la plus haute** l'emporte et occupe la case ; **toute égalité au sommet = statu quo** : la défense tient et tous les attaquants échouent, même si leur force est supérieure à la défense.
 - **Déplacements pacifiques (Jonction, Dispersion) :** puissance 0 ; repoussés si leur destination est contestée par une attaque ce tour.
 
 ### Ravitaillement Exponentiel
