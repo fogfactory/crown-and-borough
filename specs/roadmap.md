@@ -32,7 +32,7 @@ Trois paliers de "testable" successifs, chacun validé avant le suivant :
 |---|---|---|---|---|
 | P1.1 | Modèles métier | Territoire, Armée, Noble, Infrastructure, Ressources, GameState | Compile + tests modèles | — |
 | P1.2 | Génération de carte Voronoï | Graphe d'adjacence seedé, terrains, ~25 % lieux-dits, nommage des territoires | Carte déterministe par seed, invariants (connexité, degré ≥ 2, unicité trigrammes, % lieux-dits) | Endpoint dev `/api/map` (map.json statique) → la vraie carte s'affiche |
-| P1.3 | Ordres & chaînes | 6 types d'ordres, séquences O1→O2→O3, liaisons unique/boucle, ordres invalides | Tests par type de liaison et cas d'échec | — |
+| P1.3 | Ordres & chaînes | Parser texte des chaînes (format specs/architecture.md §6), 6 symboles A/S/H/J/P/D, liaison par transition (single/loop), chaîne reçue par l'armée sur le territoire FROM de la 1re ligne | Tests : parsing, progression O1→O2→O3, single/loop par transition, invalide brise toujours, capacité noble 1/tour, validation par type | — |
 | P1.4 | Résolution mouvement & combat | Mouvement, attaque, maintien, soutien, jonction, séparation, retraites | Scénarios de combat (égalité, supériorité, retraites, destructions) | — |
 | P1.5 | Ravitaillement & famine | Coût 2^(N-1), flux BFS portée 3/5, stocks, algorithme famine | Tests : déficits, ordre d'épuisement, famine | — |
 | P1.6 | Phase d'Hiver | Conservation 50 %, recrutement Nobles, construction Infrastructures | Test : année complète sans perte | — |

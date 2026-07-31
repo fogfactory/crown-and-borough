@@ -96,18 +96,21 @@ Coût en R = 2^(N-1)
 
 ### Types d'Ordres
 
-- **Mouvement / Attaque / Maintien / Soutien** (règles type *Diplomacy*).
-- **Jonction :** Regrouper des armées.
-- **Séparation :** Diviser une pile d'armées.
+- **Mouvement / Attaque / Maintien / Soutien** (règles type *Diplomacy*). Le mouvement et l'attaque partagent la même mécanique de déplacement (le combat n'intervient que si la case est occupée par l'ennemi).
+- **Jonction :** Regrouper des armées. L'armée reste sur sa case et la verrouille, bloquant l'entrée à l'ennemi sans se déplacer.
+- **Séparation / Dispersion :** Diviser une pile d'armées. Chaque armée se voit assigner un territoire (libre et non ciblé par une attaque ce tour) vers lequel elle se déplace pacifiquement ; le territoire d'origine est autorisé.
 - **Pillage :** Détruire l'infrastructure d'une case pour gagner un bonus immédiat en R.
 
 ### Chaînes d'Ordres et Liaisons
 
-Un joueur peut programmer des séquences d'ordres successives (O1 → O2 → O3).
+Un joueur peut programmer des séquences d'ordres successives (O1 → O2 → O3). **Chaque transition (chaque ordre) possède sa propre liaison** : unique ou boucle.
 
 - **Liaison Unique :** En cas d'échec de Ox, la chaîne brise. L'armée passe *Sans Ordre*.
 - **Liaison Boucle :** En cas d'échec de Ox, l'armée retente Ox au tour suivant jusqu'à réussite.
-- **Ordre Invalide :** Tout ordre rendu physiquement ou mécaniquement impossible **brise immédiatement** la chaîne d'ordres.
+- **Ordre Invalide :** Tout ordre rendu physiquement ou mécaniquement impossible **brise immédiatement** la chaîne d'ordres, quel que soit le mode de liaison.
+- **Position manquante :** si l'armée n'est pas sur le territoire d'origine de l'ordre quand celui-ci s'exécute → échec (single : brise ; boucle : retente).
+- **Maintien en boucle** : garde indéfinie (la chaîne reste en veille jusqu'à réception d'un nouvel ordre).
+- **Dispersion en boucle** : retente jusqu'à résolution intégrale ; en single, la chaîne avance même si la dispersion est partielle.
 
 ### Armées "Sans Ordre" (IA Défensive Auto-équilibrée)
 

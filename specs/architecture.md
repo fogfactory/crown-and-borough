@@ -186,7 +186,48 @@ Le front combine les deux documents : `map.json` fournit géométrie et fond (te
 
 ---
 
-## 6. Stratégie d'Exécution avec les Agents
+## 6. Format des chaînes d'ordres (texte)
+
+Les joueurs (et les agents) expriment les chaînes d'ordres en texte brut, facile à taper. Une chaîne = un en-tête (le noble qui émet) + une ligne par ordre.
+
+### Syntaxe
+
+```
+JEST # Jean d'Estaing          <- en-tête : code du noble (commentaire ignoré)
+BRI A ATL # attaque depuis BRI, single
+(ATL S NOR) # soutien en boucle
+(ATL A NOR) # déplacement en boucle
+BRI H      # maintien, single
+BRI J      # jonction / blocage
+BRI P ROS  # pillage, single
+BRI D ATL NOR ROS  # dispersion : 1 territoire par armée
+```
+
+- **En-tête (1re ligne)** : code trigramme du noble émetteur. Une chaîne = une émission (capacité : 1 chaîne émise ou modifiée par noble et par tour).
+- **Ordres** : `CODE_FROM SYMBOLE [CODE_CIBLE...]`. Le code `FROM` est le territoire où l'armée doit se trouver quand l'ordre s'exécute ; la chaîne est reçue par l'armée présente sur le territoire `FROM` de la **première ligne**, au moment où l'ordre lui parvient (la transmission différée est P2.3).
+- **Liaison par transition** : ordre **entre parenthèses** = boucle (`loop`) ; **sans parenthèses** = unique (`single`). Chaque ligne a sa propre liaison.
+- `#` : commentaire (ignoré jusqu'à fin de ligne). Lignes vides ignorées. Insensible à la casse (normalisé en MAJUSCULES). Codes invalides → erreur de parsing (avec numéro de ligne).
+
+### Symboles et sémantique
+
+| Symbole | Ordre | Syntaxe | Réussite | Échec (single) | Boucle (loop) |
+|---|---|---|---|---|---|
+| `A` | Attaque / atteindre | `BRI A ATL` | L'armée se déplace vers une case adjacente (combat si occupée) | Chaîne brisée | Retente jusqu'à réussite |
+| `S` | Soutien | `(ATL S NOR)` | Soutient les armées alliées attaquant la case cible | Chaîne brisée | Soutient tant qu'une attaque cible la case ; sort quand plus aucune |
+| `H` | Maintien | `BRI H` | L'armée reste sur place | Chaîne brisée | **Garde indéfinie** : la chaîne reste en veille jusqu'à réception d'un nouvel ordre |
+| `J` | Jonction / blocage | `BRI J` | L'armée reste et verrouille sa case (bloque l'entrée sans se déplacer) | Chaîne brisée | Comme H : veille indéfinie |
+| `P` | Pillage | `BRI P ROS` | Détruit l'infrastructure de la case cible + bonus R ; **aucune infrastructure → ordre invalide** | Chaîne brisée | Retente jusqu'à destruction |
+| `D` | Dispersion | `BRI D ATL NOR ROS` | 1 territoire par armée de la pile ; chaque destination **libre et non ciblée par une attaque** ce tour → l'armée s'y déplace (déplacement pacifique, pas une attaque) ; le territoire d'origine est autorisé | Avance même si partielle | Retente jusqu'à résolution **intégrale** |
+
+**Ordre invalide** (physiquement ou mécaniquement impossible : cible inexistante, armée détruite, pillage sans infrastructure...) : **brise immédiatement** la chaîne, quel que soit le mode de liaison.
+
+**Armée sans chaîne** : une armée sans chaîne associée est *Sans Ordre* (pas de statut dédié : `army.chain == nil` suffit).
+
+**Position `FROM` manquante** : si l'armée n'est pas sur le territoire `FROM` quand l'ordre s'exécute → **failure** (single : chaîne brisée ; loop : retente).
+
+---
+
+## 7. Stratégie d'Exécution avec les Agents
 
 Pour faire produire ce projet par des agents sans perdre le contrôle :
 
