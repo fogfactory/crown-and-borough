@@ -75,7 +75,10 @@ La vitesse de déplacement des armées et la propagation des messagers dépenden
 
 - **Force de base :** 1 armée = 1 force.
 - **Jonction :** Deux armées ciblant la même case au même tour fusionnent (N armées).
-- **Résolution :** Force égale = Statu quo. Supériorité numérique = Victoire.
+- **Puissance d'attaque :** taille de la pile attaquante (les armées alliées ciblant la même case s'additionnent).
+- **Puissance de soutien :** taille de la pile soutenante (coupée si la pile est attaquée ce tour).
+- **Résolution (manière Diplomacy) :** l'ensemble des intentions (attaques, soutiens, déplacements pacifiques) est calculé et itéré jusqu'à stabilité AVANT d'exécuter les mouvements. Force égale = Statu quo. Supériorité numérique = Victoire.
+- **Déplacements pacifiques (Jonction, Dispersion) :** puissance 0 ; repoussés si leur destination est contestée par une attaque ce tour.
 
 ### Ravitaillement Exponentiel
 
@@ -96,7 +99,7 @@ Coût en R = 2^(N-1)
 
 ### Types d'Ordres
 
-- **Mouvement / Attaque / Maintien / Soutien** (règles type *Diplomacy*). Le mouvement et l'attaque partagent la même mécanique de déplacement (le combat n'intervient que si la case est occupée par l'ennemi). Le **soutien est défensif** : il renforce l'armée alliée occupant la case ciblée contre les attaques ; en boucle, il s'interrompt quand plus aucune attaque ne cible la case.
+- **Mouvement / Attaque / Maintien / Soutien** (règles type *Diplomacy*). Le mouvement et l'attaque partagent la même mécanique de déplacement (le combat n'intervient que si la case est occupée par l'ennemi). Le **soutien** renforce le contendant **allié** de la case ciblée : l'attaque d'un allié qui s'y déplace, sinon la défense de l'allié qui l'occupe ; sa puissance = la taille de la pile soutenante ; il est **coupé** si la pile soutenante est elle-même attaquée ce tour ; en boucle, il s'interrompt quand plus aucune attaque ne cible la case.
 - **Jonction :** Déplacement **pacifique** (pas une attaque) vers une case adjacente. Si une armée alliée s'y trouve (déjà présente, ou arrivée au même tour par une attaque ou une autre jonction), les armées **fusionnent**. Une case occupée par l'ennemi rend la jonction impossible.
 - **Séparation / Dispersion :** Diviser une pile d'armées. Chaque armée se voit assigner une destination (adjacente ou la case d'origine, autorisée) libre et non ciblée par une attaque ce tour, vers laquelle elle se déplace pacifiquement. La chaîne d'ordres reste sur l'armée d'origine, qui prend la première destination listée.
 - **Pillage :** Détruire une infrastructure de **la case où se trouve l'armée** pour gagner un bonus immédiat en R.
