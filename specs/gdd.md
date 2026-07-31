@@ -97,20 +97,21 @@ Coût en R = 2^(N-1)
 ### Types d'Ordres
 
 - **Mouvement / Attaque / Maintien / Soutien** (règles type *Diplomacy*). Le mouvement et l'attaque partagent la même mécanique de déplacement (le combat n'intervient que si la case est occupée par l'ennemi).
-- **Jonction :** Regrouper des armées. L'armée reste sur sa case et la verrouille, bloquant l'entrée à l'ennemi sans se déplacer.
-- **Séparation / Dispersion :** Diviser une pile d'armées. Chaque armée se voit assigner un territoire (libre et non ciblé par une attaque ce tour) vers lequel elle se déplace pacifiquement ; le territoire d'origine est autorisé.
-- **Pillage :** Détruire l'infrastructure d'une case pour gagner un bonus immédiat en R.
+- **Jonction :** Déplacement **pacifique** (pas une attaque) vers une case adjacente. Si une armée alliée s'y trouve (déjà présente, ou arrivée au même tour par une attaque ou une autre jonction), les armées **fusionnent**. Une case occupée par l'ennemi rend la jonction impossible.
+- **Séparation / Dispersion :** Diviser une pile d'armées. Chaque armée se voit assigner une destination (adjacente ou la case d'origine, autorisée) libre et non ciblée par une attaque ce tour, vers laquelle elle se déplace pacifiquement.
+- **Pillage :** Détruire une infrastructure de **la case où se trouve l'armée** pour gagner un bonus immédiat en R.
 
 ### Chaînes d'Ordres et Liaisons
 
-Un joueur peut programmer des séquences d'ordres successives (O1 → O2 → O3). **Chaque transition (chaque ordre) possède sa propre liaison** : unique ou boucle.
+Un joueur peut programmer des séquences d'ordres successives (O1 → O2 → O3). **Chaque transition (chaque ordre) possède sa propre liaison** : unique ou boucle. **Il n'existe pas de modification de chaîne** : une armée qui reçoit une chaîne remplace la précédente.
 
 - **Liaison Unique :** En cas d'échec de Ox, la chaîne brise. L'armée passe *Sans Ordre*.
 - **Liaison Boucle :** En cas d'échec de Ox, l'armée retente Ox au tour suivant jusqu'à réussite.
 - **Ordre Invalide :** Tout ordre rendu physiquement ou mécaniquement impossible **brise immédiatement** la chaîne d'ordres, quel que soit le mode de liaison.
-- **Position manquante :** si l'armée n'est pas sur le territoire d'origine de l'ordre quand celui-ci s'exécute → échec (single : brise ; boucle : retente).
+- **Position manquante :** chaque ordre précise explicitement la position de l'armée ; si l'armée n'y est pas quand l'ordre s'exécute → échec (single : brise ; boucle : retente).
 - **Maintien en boucle** : garde indéfinie (la chaîne reste en veille jusqu'à réception d'un nouvel ordre).
 - **Dispersion en boucle** : retente jusqu'à résolution intégrale ; en single, la chaîne avance même si la dispersion est partielle.
+- **Progression simultanée :** la progression des chaînes prend en compte toutes les chaînes du tour pour résoudre combats, retraites et jonctions.
 
 ### Armées "Sans Ordre" (IA Défensive Auto-équilibrée)
 

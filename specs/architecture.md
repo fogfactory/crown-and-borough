@@ -194,36 +194,45 @@ Les joueurs (et les agents) expriment les chaînes d'ordres en texte brut, facil
 
 ```
 JEST # Jean d'Estaing          <- en-tête : code du noble (commentaire ignoré)
-BRI A ATL # attaque depuis BRI, single
+BRI A ATL # attaque single
 (ATL S NOR) # soutien en boucle
 (ATL A NOR) # déplacement en boucle
-BRI H      # maintien, single
-BRI J      # jonction / blocage
-BRI P ROS  # pillage, single
-BRI D ATL NOR ROS  # dispersion : 1 territoire par armée
+H BRI      # maintien, single
+BRI J ROS  # jonction, single
+P BRI      # pillage de la case de l'armée, single
+BRI D BRI ATL NOR  # dispersion : 1 destination par armée de la pile
 ```
 
-- **En-tête (1re ligne)** : code trigramme du noble émetteur. Une chaîne = une émission (capacité : 1 chaîne émise ou modifiée par noble et par tour).
-- **Ordres** : `CODE_FROM SYMBOLE [CODE_CIBLE...]`. Le code `FROM` est le territoire où l'armée doit se trouver quand l'ordre s'exécute ; la chaîne est reçue par l'armée présente sur le territoire `FROM` de la **première ligne**, au moment où l'ordre lui parvient (la transmission différée est P2.3).
+- **En-tête (1re ligne)** : code trigramme du noble émetteur. Une chaîne = une **émission** (capacité : 1 émission par noble et par tour). **Pas de modification de chaîne** : une armée qui reçoit une chaîne remplace la précédente.
+- **Ordres** : chaque ligne explicite la **position** de l'armée (le territoire où elle doit se trouver à l'exécution) — jamais implicite. Formats par symbole :
+  - `XXX A YYY` — atteindre/attaquer depuis XXX vers YYY
+  - `XXX S YYY` — soutien depuis XXX vers YYY
+  - `H XXX` — maintien sur XXX (position de l'armée)
+  - `XXX J YYY` — jonction depuis XXX vers YYY
+  - `P XXX` — pillage, XXX = case où l'armée se trouve
+  - `XXX D XXX YYY ZZZ ...` — dispersion : XXX = position, puis une destination par armée de la pile (le nombre de destinations = taille de la pile ; la case de l'armée est une destination valide, listée explicitement)
 - **Liaison par transition** : ordre **entre parenthèses** = boucle (`loop`) ; **sans parenthèses** = unique (`single`). Chaque ligne a sa propre liaison.
+- **Position exigée** : si l'armée n'est pas sur la position indiquée quand l'ordre s'exécute → **failure** (single : chaîne brisée ; loop : retente).
 - `#` : commentaire (ignoré jusqu'à fin de ligne). Lignes vides ignorées. Insensible à la casse (normalisé en MAJUSCULES). Codes invalides → erreur de parsing (avec numéro de ligne).
 
 ### Symboles et sémantique
 
 | Symbole | Ordre | Syntaxe | Réussite | Échec (single) | Boucle (loop) |
 |---|---|---|---|---|---|
-| `A` | Attaque / atteindre | `BRI A ATL` | L'armée se déplace vers une case adjacente (combat si occupée) | Chaîne brisée | Retente jusqu'à réussite |
-| `S` | Soutien | `(ATL S NOR)` | Soutient les armées alliées attaquant la case cible | Chaîne brisée | Soutient tant qu'une attaque cible la case ; sort quand plus aucune |
-| `H` | Maintien | `BRI H` | L'armée reste sur place | Chaîne brisée | **Garde indéfinie** : la chaîne reste en veille jusqu'à réception d'un nouvel ordre |
-| `J` | Jonction / blocage | `BRI J` | L'armée reste et verrouille sa case (bloque l'entrée sans se déplacer) | Chaîne brisée | Comme H : veille indéfinie |
-| `P` | Pillage | `BRI P ROS` | Détruit l'infrastructure de la case cible + bonus R ; **aucune infrastructure → ordre invalide** | Chaîne brisée | Retente jusqu'à destruction |
-| `D` | Dispersion | `BRI D ATL NOR ROS` | 1 territoire par armée de la pile ; chaque destination **libre et non ciblée par une attaque** ce tour → l'armée s'y déplace (déplacement pacifique, pas une attaque) ; le territoire d'origine est autorisé | Avance même si partielle | Retente jusqu'à résolution **intégrale** |
+| `A` | Attaque / atteindre | `XXX A YYY` | Déplacement vers une case **adjacente** (combat si occupée — résolution P1.4) | Chaîne brisée | Retente jusqu'à réussite |
+| `S` | Soutien | `XXX S YYY` | Soutient les armées alliées attaquant YYY (case **adjacente**) | Chaîne brisée | Soutient tant qu'une attaque cible la case ; sort quand plus aucune |
+| `H` | Maintien | `H XXX` | L'armée reste sur XXX (sa position) | Chaîne brisée | **Garde indéfinie** : chaîne en veille jusqu'à réception d'un nouvel ordre |
+| `J` | Jonction | `XXX J YYY` | **Déplacement pacifique** (pas une attaque) vers YYY **adjacente** ; si une armée alliée est sur YYY (déjà présente, ou arrivée au même tour par attaque ou autre jonction), les armées **fusionnent** ; case occupée par l'ennemi → échec | Chaîne brisée | Retente jusqu'à réussite |
+| `P` | Pillage | `P XXX` | XXX = case où l'armée se trouve : détruit une infrastructure de SA case + bonus R ; **aucune infrastructure → ordre invalide** | Chaîne brisée | Retente jusqu'à destruction |
+| `D` | Dispersion | `XXX D XXX YYY ZZZ ...` | Une destination **par armée de la pile** (nombre = taille de la pile) ; chaque destination est **adjacente** ou égale à la position ; à la résolution (P1.4), chaque destination **libre et non ciblée par une attaque** → l'armée s'y déplace pacifiquement ; la case de l'armée est valide | Avance même si partielle | Retente jusqu'à résolution **intégrale** |
 
-**Ordre invalide** (physiquement ou mécaniquement impossible : cible inexistante, armée détruite, pillage sans infrastructure...) : **brise immédiatement** la chaîne, quel que soit le mode de liaison.
+**Ordre invalide** (physiquement ou mécaniquement impossible : cible inexistante, cible non adjacente, armée détruite, pillage sans infrastructure...) : **brise immédiatement** la chaîne, quel que soit le mode de liaison.
 
 **Armée sans chaîne** : une armée sans chaîne associée est *Sans Ordre* (pas de statut dédié : `army.chain == nil` suffit).
 
-**Position `FROM` manquante** : si l'armée n'est pas sur le territoire `FROM` quand l'ordre s'exécute → **failure** (single : chaîne brisée ; loop : retente).
+**Réception de la chaîne** : la chaîne est reçue par l'armée présente sur la position de la **première ligne** (XXX pour `XXX A YYY`, le territoire de `H XXX` ou `P XXX`), au moment où l'ordre lui parvient (vision T0 au MVP ; transmission différée en P2.3). Aucune armée sur cette position → erreur de soumission. La nouvelle chaîne **remplace** l'ancienne.
+
+**Progression** : la progression des chaînes prend en compte **toutes les chaînes d'ordres simultanément** (résolution des combats, retraites, jonctions) — traitée dans le moteur de résolution P1.4.
 
 ---
 
