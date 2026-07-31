@@ -219,7 +219,7 @@ BRI D BRI ATL NOR  # dispersion : 1 destination par armée de la pile
 
 | Symbole | Ordre | Syntaxe | Réussite | Échec (single) | Boucle (loop) |
 |---|---|---|---|---|---|
-| `A` | Attaque / atteindre | `XXX A YYY` | Déplacement vers une case **adjacente** (combat si occupée — résolution P1.4) | Chaîne brisée | Retente jusqu'à réussite |
+| `A` | Attaque / atteindre | `XXX A YYY` | Déplacement vers une case **adjacente** (combat si occupée — résolution P1.4). **Les attaques de piles d'origines différentes ne se combinent pas** : chacune est un contendant distinct (à égalité au sommet → statu quo) ; pour cumuler, un soutien S | Chaîne brisée | Retente jusqu'à réussite |
 | `S` | Soutien | `XXX S YYY` | **Soutien au contendant allié** de YYY (case **adjacente**) : si un allié ATTAQUE YYY → +taille de la pile à sa force d'attaque ; sinon si un allié OCCUPE YYY → +taille de la pile à sa défense ; sans contendant allié → échec ; si aucune attaque ne cible YYY, le soutien est gaspillé mais l'ordre réussit ; **coupé** si la pile soutenante est elle-même attaquée ce tour | Chaîne brisée | Soutient tant qu'une attaque cible YYY (index figé) ; sort quand plus aucune attaque |
 | `H` | Maintien | `H XXX` | L'armée reste sur XXX (sa position) | Chaîne brisée | **Garde indéfinie** : chaîne en veille jusqu'à réception d'un nouvel ordre |
 | `J` | Jonction | `XXX J YYY` | **Déplacement pacifique** (pas une attaque, puissance 0) vers YYY **adjacente** ; si une armée alliée est sur YYY (déjà présente, ou arrivée au même tour par attaque ou autre jonction), les armées **fusionnent** ; case occupée par l'ennemi → échec ; case **contestée** par une attaque ce tour → **repoussé** (bounce, échec) | Chaîne brisée | Retente jusqu'à réussite |

@@ -74,11 +74,11 @@ La vitesse de déplacement des armées et la propagation des messagers dépenden
 ### Combats et Force
 
 - **Force de base :** 1 armée = 1 force.
-- **Jonction :** Deux armées ciblant la même case au même tour fusionnent (N armées).
-- **Puissance d'attaque :** taille de la pile attaquante (les armées alliées ciblant la même case s'additionnent).
+- **Pas de fusion des attaques :** deux attaques alliées sur la même case ne se combinent PAS : chaque pile attaquante est un contendant distinct (la fusion n'existe que via l'ordre de Jonction J, déplacement pacifique).
+- **Puissance d'attaque :** taille de la pile attaquante (les armées d'une même pile ciblant la même case s'additionnent). Des piles d'origines différentes ne se combinent jamais : pour cumuler des forces sur une case, il faut un **soutien S**.
 - **Puissance de soutien :** taille de la pile soutenante (coupée si la pile est attaquée ce tour).
 - **Résolution (manière Diplomacy) :** l'ensemble des intentions (attaques, soutiens, déplacements pacifiques) est calculé et itéré jusqu'à stabilité AVANT d'exécuter les mouvements. Force égale = Statu quo. Supériorité numérique = Victoire.
-- **Multi-contendants :** quand plusieurs joueurs attaquent la même case, toutes les forces s'affrontent dans une comparaison unique (chaque groupe d'attaquants allié fusionné + la défense). La force **strictement la plus haute** l'emporte et occupe la case ; **toute égalité au sommet = statu quo** : la défense tient et tous les attaquants échouent, même si leur force est supérieure à la défense.
+- **Multi-contendants :** quand plusieurs joueurs attaquent la même case, toutes les forces s'affrontent dans une comparaison unique (chaque pile attaquante + la défense). La force **strictement la plus haute** l'emporte et occupe la case ; **toute égalité au sommet = statu quo** : la défense tient et tous les attaquants échouent, même si leur force est supérieure à la défense — y compris deux attaques alliées à égalité entre elles (ex. 1 + 1 contre 1 : statu quo ; pour prendre la case, faire une attaque soutenue).
 - **Déplacements pacifiques (Jonction, Dispersion) :** puissance 0 ; repoussés si leur destination est contestée par une attaque ce tour.
 
 ### Ravitaillement Exponentiel
