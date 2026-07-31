@@ -96,9 +96,9 @@ Coût en R = 2^(N-1)
 
 ### Types d'Ordres
 
-- **Mouvement / Attaque / Maintien / Soutien** (règles type *Diplomacy*). Le mouvement et l'attaque partagent la même mécanique de déplacement (le combat n'intervient que si la case est occupée par l'ennemi).
+- **Mouvement / Attaque / Maintien / Soutien** (règles type *Diplomacy*). Le mouvement et l'attaque partagent la même mécanique de déplacement (le combat n'intervient que si la case est occupée par l'ennemi). Le **soutien est défensif** : il renforce l'armée alliée occupant la case ciblée contre les attaques ; en boucle, il s'interrompt quand plus aucune attaque ne cible la case.
 - **Jonction :** Déplacement **pacifique** (pas une attaque) vers une case adjacente. Si une armée alliée s'y trouve (déjà présente, ou arrivée au même tour par une attaque ou une autre jonction), les armées **fusionnent**. Une case occupée par l'ennemi rend la jonction impossible.
-- **Séparation / Dispersion :** Diviser une pile d'armées. Chaque armée se voit assigner une destination (adjacente ou la case d'origine, autorisée) libre et non ciblée par une attaque ce tour, vers laquelle elle se déplace pacifiquement.
+- **Séparation / Dispersion :** Diviser une pile d'armées. Chaque armée se voit assigner une destination (adjacente ou la case d'origine, autorisée) libre et non ciblée par une attaque ce tour, vers laquelle elle se déplace pacifiquement. La chaîne d'ordres reste sur l'armée d'origine, qui prend la première destination listée.
 - **Pillage :** Détruire une infrastructure de **la case où se trouve l'armée** pour gagner un bonus immédiat en R.
 
 ### Chaînes d'Ordres et Liaisons

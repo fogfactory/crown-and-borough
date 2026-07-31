@@ -220,11 +220,11 @@ BRI D BRI ATL NOR  # dispersion : 1 destination par armée de la pile
 | Symbole | Ordre | Syntaxe | Réussite | Échec (single) | Boucle (loop) |
 |---|---|---|---|---|---|
 | `A` | Attaque / atteindre | `XXX A YYY` | Déplacement vers une case **adjacente** (combat si occupée — résolution P1.4) | Chaîne brisée | Retente jusqu'à réussite |
-| `S` | Soutien | `XXX S YYY` | Soutient les armées alliées attaquant YYY (case **adjacente**) | Chaîne brisée | Soutient tant qu'une attaque cible la case ; sort quand plus aucune |
+| `S` | Soutien | `XXX S YYY` | **Soutien défensif** : renforce l'armée **alliée occupant YYY** (case **adjacente**) contre les attaques ; sans allié sur YYY → échec ; si YYY n'est pas attaquée, le soutien est gaspillé mais l'ordre réussit | Chaîne brisée | Soutient tant qu'une attaque cible YYY (index figé) ; sort quand plus aucune attaque |
 | `H` | Maintien | `H XXX` | L'armée reste sur XXX (sa position) | Chaîne brisée | **Garde indéfinie** : chaîne en veille jusqu'à réception d'un nouvel ordre |
 | `J` | Jonction | `XXX J YYY` | **Déplacement pacifique** (pas une attaque) vers YYY **adjacente** ; si une armée alliée est sur YYY (déjà présente, ou arrivée au même tour par attaque ou autre jonction), les armées **fusionnent** ; case occupée par l'ennemi → échec | Chaîne brisée | Retente jusqu'à réussite |
-| `P` | Pillage | `P XXX` | XXX = case où l'armée se trouve : détruit une infrastructure de SA case + bonus R ; **aucune infrastructure → ordre invalide** | Chaîne brisée | Retente jusqu'à destruction |
-| `D` | Dispersion | `XXX D XXX YYY ZZZ ...` | Une destination **par armée de la pile** (nombre = taille de la pile) ; chaque destination est **adjacente** ou égale à la position ; à la résolution (P1.4), chaque destination **libre et non ciblée par une attaque** → l'armée s'y déplace pacifiquement ; la case de l'armée est valide | Avance même si partielle | Retente jusqu'à résolution **intégrale** |
+| `P` | Pillage | `P XXX` | XXX = case où l'armée se trouve : détruit une infrastructure de SA case + bonus R (constante moteur, défaut 2) ; **aucune infrastructure → ordre invalide** | Chaîne brisée | Retente jusqu'à destruction |
+| `D` | Dispersion | `XXX D XXX YYY ZZZ ...` | Une destination **par armée de la pile** (nombre = taille de la pile) ; chaque destination est **adjacente** ou égale à la position ; à la résolution (P1.4), chaque destination **libre et non ciblée par une attaque** → l'armée s'y déplace pacifiquement ; la case de l'armée est valide ; **la chaîne reste sur l'armée d'origine, qui prend la première destination listée** (les autres armées sont créées) | Avance même si partielle | Retente jusqu'à résolution **intégrale** |
 
 **Ordre invalide** (physiquement ou mécaniquement impossible : cible inexistante, cible non adjacente, armée détruite, pillage sans infrastructure...) : **brise immédiatement** la chaîne, quel que soit le mode de liaison.
 
