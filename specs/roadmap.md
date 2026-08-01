@@ -66,3 +66,11 @@ Trois paliers de "testable" successifs, chacun validé avant le suivant :
 | P3.3 | Persistance JSON | 1 fichier par partie, sauvegarde/restauration | Redémarrage sans perte | — |
 | P3.4 | Polish front | Correction des retours de test local | Parcours complet fluide | — |
 | P3.5 | Déploiement | Cloud Run + Artifact Registry + CI auto | Lien public jouable entre amis | — |
+
+### Détail P3 — choix actés
+
+- **API (P3.1) :** router **chi** (1re dépendance tierce autorisée) ; parties en mémoire ; soumission **par joueur** ; résolution **synchrone à la dernière soumission** (pas de deadline au MVP) ; endpoints : POST/GET /api/games, GET /api/games/{id}, /map, /state (vue par joueur P2.2), POST /orders, /reports ; endpoints dev P1.7 conservés.
+- **Élimination / victoire (P3.1, à valider — à reporter au GDD) :** un joueur est éliminé quand il ne contrôle aucun territoire, n'a plus d'armée ni de noble ; dernier joueur vivant = gagnant.
+- **Auth (P3.2) :** inscription sans mot de passe (nom + token Bearer en localStorage), sessions en mémoire (perdues au restart), code d'invitation 6 caractères par partie (le créateur = P1, join tant que la partie n'est pas commencée, 5 joueurs max), accès 403 hors membres, `?player=` retiré (identité par token).
+- **Persistance (P3.3) :** 1 fichier JSON par partie (`game-<uuid>.json` dans `DATA_DIR`), écriture atomique (tmp + rename + fsync), sauvegarde après chaque mutation (soumissions comprises), restauration au démarrage, fichier corrompu → `.corrupt` (serveur démarre).
+- **Déploiement (P3.5) :** un seul conteneur (front `go:embed web/dist` + API, same-origin, pas de CORS) ; Cloud Run + Artifact Registry + bucket GCS monté en gcsfuse sur `/data` (DATA_DIR) ; CI : tests/build → push AR (tag sha) → `gcloud run deploy` via workload identity federation ; pas de Terraform au MVP.
