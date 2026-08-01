@@ -17,7 +17,7 @@ Une année de jeu se compose de **4 tours** : trois tours d'action (**Printemps,
 
 ### Tours d'Action (Printemps, Été, Automne)
 
-1. **Réception des rapports :** Le joueur prend connaissance de la carte selon l'ancienneté des messagers parvenus à sa Capitale ou à ses Nobles.
+1. **Réception des rapports :** Le joueur prend connaissance de la carte selon l'ancienneté des messagers parvenus à ses Nobles (libres ou otages).
 2. **Ordres & Diplomatie :** Négociations privées, programmation des chaînes d'ordres et des axes logistiques.
 3. **Résolution serveur simultanée :**
    - *Traçage des flux :* Établissement automatique des lignes de ravitaillement.
@@ -25,7 +25,7 @@ Une année de jeu se compose de **4 tours** : trois tours d'action (**Printemps,
    - *Exécution :* Application des ordres reçus ce tour-ci par les armées.
    - *Combats & Retraites :* Résolution des affrontements et replis obligatoires.
    - *Ravitaillement & Carence :* Consommation des ressources R, prélèvement sur les stocks en cas de déficit, basculement en famine si pénurie.
-   - *Émission :* Départ des nouveaux rapports d'information du terrain vers la Capitale.
+   - *Émission :* Départ des nouveaux rapports d'information (armées, lieux-dits contrôlés, tours de guet) vers le noble le plus proche (récepteur).
 
 ### Phase d'Hiver (Bilan, Conservations et Investissements)
 
@@ -78,6 +78,8 @@ La vitesse de déplacement des armées et la propagation des messagers dépenden
 | **Forêt / Colline** | 1 case / tour | **1 case / tour** |
 | **Montagne / Marécage** | 1 case / 2 tours | **0,5 case / tour** (1 case tous les 2 tours) |
 
+*(Les coûts de trajet des messagers — rapports et ordres — sont paramétrés dans les assets d'équilibrage `assets/balance.json` : coût par case selon le terrain, divisé par 2 sur un Relais de Poste.)*
+
 ### Lieux-dits et Maillage Territorial
 
 - **Zones Sauvages (~75 % de la carte) :** Produisent **0 R**. Servent de zones de transit, de combat ou d'infrastructures isolées.
@@ -89,9 +91,11 @@ La vitesse de déplacement des armées et la propagation des messagers dépenden
 
 ## 4. Latence d'Information et Transmission des Ordres
 
-- **Vision Temps Réel (T0) :** Accordée uniquement sur les cases contenant la **Capitale**, un **Noble**, ou une **Tour de Guet**.
-- **Information Différée (T-x) :** Le joueur voit l'état le plus récent apporté par ses messagers sur le reste de la carte.
-- **Ordres par Messager :** Les ordres émis depuis la Capitale voyagent à la vitesse du terrain jusqu'à l'armée ciblée. Une armée poursuit son ancienne chaîne tant qu'aucun nouvel ordre ne l'a atteinte.
+- **Vision Temps Réel (T0) :** Accordée sur les cases contenant un **Noble** du joueur (libre ou otage) et sur les cases d'une **Tour de Guet** du joueur et leurs **adjacentes**. Le château du joueur n'est PAS en T0 par défaut (sauf si un noble y est présent).
+- **Rapports :** chaque **armée**, chaque **lieu-dit contrôlé** et chaque **Tour de Guet** produit un rapport **chaque tour**, contenant l'état des **cases adjacentes**. Le temps de transit d'un rapport est calculé vers le **noble le plus proche** du joueur (coûts par terrain, cf. §3 — dans les assets d'équilibrage). Les rapports reçus sont **consolidés** dans la vue du joueur avec la **fraîcheur** de l'information (la date d'émission du rapport).
+- **Projection :** en plus des rapports consolidés, la vue du joueur consolide la **projection** : l'emplacement de ses armées SI les chaînes d'ordres valides et actives depuis leur dernier rapport ont été réussies. La vue distingue clairement l'**observé** (fraîcheur de l'information) de la **projection**.
+- **Nobles prisonniers :** un noble capturé compte dans le calcul de la vue de son **propriétaire** (il est un récepteur de rapports, il en produit, et sa case est en T0 pour lui) — **sauf** si son **geôlier** l'a mis **au cachot** : il ne produit alors plus rien (ni récepteur, ni rapport, ni T0). Deux ordres d'armées font passer un noble prisonnier d'un état à l'autre : `XXX O <noble>` (otage, état par défaut) et `XXX K <noble>` (cachot) — ils peuvent faire partie des chaînes d'ordres.
+- **Ordres par Messager :** les ordres partent du **noble émetteur** (celui de l'en-tête de la feuille) et voyagent à la vitesse du terrain (cf. §3) vers le **premier territoire de la feuille** d'ordres. **L'arrivée est calculée au moment de l'émission** (temps de trajet fixé). Si une armée **passe par ce territoire** entre le moment de l'arrivée et l'hiver suivant, elle **remplace sa chaîne d'ordres** par celle-ci. Une armée poursuit son ancienne chaîne tant qu'aucun nouvel ordre ne l'a atteinte. **Pas d'interception** des ordres au MVP.
 
 ---
 
@@ -130,6 +134,7 @@ Coût en R = 2^(N-1)
 - **Jonction :** Déplacement **pacifique** (pas une attaque) vers une case adjacente. Si une armée alliée s'y trouve (déjà présente, ou arrivée au même tour par une attaque ou une autre jonction), les armées **fusionnent**. Une case occupée par l'ennemi rend la jonction impossible.
 - **Séparation / Dispersion :** Diviser une pile d'armées. Chaque armée se voit assigner une destination (adjacente ou la case d'origine, autorisée) libre et non ciblée par une attaque ce tour, vers laquelle elle se déplace pacifiquement. La chaîne d'ordres reste sur l'armée d'origine, qui prend la première destination listée.
 - **Pillage :** Détruire une infrastructure de **la case où se trouve l'armée** pour gagner un bonus immédiat en R.
+- **Otage / Cachot :** `XXX O <noble>` / `XXX K <noble>` — régit l'état d'un noble **prisonnier** détenu par la pile de XXX : *otage* (état par défaut — il produit des rapports pour son propriétaire et compte en T0) ou *au cachot* (il ne produit plus rien). Requis : noble prisonnier du joueur de la pile, sur la case de la pile.
 
 ### Chaînes d'Ordres et Liaisons
 
@@ -145,7 +150,13 @@ Un joueur peut programmer des séquences d'ordres successives (O1 → O2 → O3)
 
 ### Armées "Sans Ordre" (IA Défensive Auto-équilibrée)
 
-Une armée sans ordre apporte son soutien à l'armée alliée la plus proche qui possède le moins de soutien, stabilisant automatiquement la ligne de front.
+Une armée sans ordre apporte un **soutien défensif** à la **pile alliée la plus proche** qui possède le **moins de soutien**, stabilisant automatiquement la ligne de front.
+
+- **Candidats :** piles alliées **en défense** (leur case est contestée par une attaque ennemie) ou **elles-mêmes sans chaîne**. Une pile qui attaque n'est jamais ciblée.
+- **Exclusivement défensif :** le soutien automatique renforce la **défense** de la cible, jamais sa force d'attaque.
+- **Puissance :** taille complète de la pile soutenante (même règle que l'ordre S — les ordres s'appliquent aux piles).
+- **Sélection (déterministe) :** par matricule croissant — (1) cible la plus proche (distance BFS, départage ID croissant), (2) moins soutenue (ordres S reçus + soutiens automatiques déjà assignés ce tour, compteurs mis à jour au fil de la sélection), (3) matricule croissant.
+- **Coupure :** le soutien automatique d'une pile est coupé si cette pile est elle-même attaquée ce tour (même règle que S). La pile soutenante n'émet aucun mouvement et reste Sans Ordre.
 
 ### Capacité des Nobles
 

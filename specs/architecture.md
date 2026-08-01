@@ -179,6 +179,7 @@ Ce qui vit sur la carte : armées, infrastructures, contrôle, ressources. C'est
 
 - `asOf` : tour auquel chaque territoire a été observé (permet d'afficher la fraîcheur de l'information en P2)
 - `armies`, `infrastructures`, `nobles`, `owner`, `resources` : couche dynamique
+- **Coûts de trajet** (rapports P2.2 et ordres P2.3) : coût par case traversée selon le terrain, lu dans `assets/balance.json` (section travel : plaine/route 0,5 — 2 cases/tour ; forêt/colline 1 ; montagne/marécage 2 ; divisé par 2 sur un Relais de Poste)
 
 ### Rendu côté front
 
@@ -224,13 +225,15 @@ BRI D BRI ATL NOR  # dispersion : 1 destination par armée de la pile
 | `H` | Maintien | `H XXX` | L'armée reste sur XXX (sa position) | Chaîne brisée | **Garde indéfinie** : chaîne en veille jusqu'à réception d'un nouvel ordre |
 | `J` | Jonction | `XXX J YYY` | **Déplacement pacifique** (pas une attaque, puissance 0) vers YYY **adjacente** ; si une armée alliée est sur YYY (déjà présente, ou arrivée au même tour par attaque ou autre jonction), les armées **fusionnent** ; case occupée par l'ennemi → échec ; case **contestée** par une attaque ce tour → **repoussé** (bounce, échec) | Chaîne brisée | Retente jusqu'à réussite |
 | `P` | Pillage | `P XXX` | XXX = case où l'armée se trouve : détruit une infrastructure de SA case + bonus R (constante moteur, défaut 2) ; **aucune infrastructure → ordre invalide** | Chaîne brisée | Retente jusqu'à destruction |
+| `O` | Otage | `XXX O YYY` | YYY = code du noble prisonnier détenu par la pile de XXX (la case de l'armée) : il passe à l'état **otage** (état par défaut — il produit des rapports pour son propriétaire et compte en T0) ; noble non prisonnier, d'un autre joueur ou absent → **invalide** | Chaîne brisée | Retente |
+| `K` | Cachot | `XXX K YYY` | YYY = code du noble prisonnier détenu par la pile de XXX : il passe **au cachot** (plus aucun rapport, ni récepteur, ni T0 pour son propriétaire) ; mêmes conditions d'invalidité que O | Chaîne brisée | Retente |
 | `D` | Dispersion | `XXX D XXX YYY ZZZ ...` | Une destination **par armée de la pile** (nombre = taille de la pile) ; chaque destination est **adjacente** ou égale à la position ; à la résolution (P1.4), chaque destination **libre et non ciblée par une attaque** → l'armée s'y déplace pacifiquement ; la case de l'armée est valide ; **la chaîne reste sur l'armée d'origine, qui prend la première destination listée** (les autres armées sont créées). **Répartition des nobles par astérisque** : `XXX D YYY XXX*` = tous les nobles en XXX ; `YYY*JEST` = Jean d'Estaing en YYY ; `YYY*JEST*ANOT` = Jean d'Estaing et Anne de Notombes en YYY ; `*` seul = tous les nobles restants ; chaque noble au plus une fois ; **si des nobles chevauchent la pile et que l'ordre ne les assigne pas tous → ordre INVALIDE** (aucune armée d'origine par défaut) | Avance même si partielle | Retente jusqu'à résolution **intégrale** |
 
 **Ordre invalide** (physiquement ou mécaniquement impossible : cible inexistante, cible non adjacente, armée détruite, pillage sans infrastructure...) : **brise immédiatement** la chaîne, quel que soit le mode de liaison.
 
 **Armée sans chaîne** : une armée sans chaîne associée est *Sans Ordre* (pas de statut dédié : `army.chain == nil` suffit).
 
-**Réception de la chaîne** : la chaîne est reçue par l'armée présente sur la position de la **première ligne** (XXX pour `XXX A YYY`, le territoire de `H XXX` ou `P XXX`), au moment où l'ordre lui parvient (vision T0 au MVP ; transmission différée en P2.3). Aucune armée sur cette position → erreur de soumission. La nouvelle chaîne **remplace** l'ancienne.
+**Réception de la chaîne (P2.3)** : la chaîne est émise par le **noble de l'en-tête** depuis SA position ; elle voyage à la vitesse du terrain (coûts des assets d'équilibrage, cf. §5 de l'architecture) vers le **premier territoire de la feuille** (XXX de `XXX A YYY`, le territoire de `H XXX` ou `P XXX`). **L'arrivée est calculée à l'émission** (temps de trajet fixé). Entre l'arrivée et l'hiver suivant, la **première armée du joueur émetteur** présente sur ce territoire reçoit la chaîne et **remplace** la sienne (départage : plus petit matricule). Aucune armée requise à l'émission (l'armée peut arriver plus tard). Chaîne jamais reçue → **perdue** à la fin de l'hiver. Pas d'interception au MVP.
 
 **Progression** : la progression des chaînes prend en compte **toutes les chaînes d'ordres simultanément** (résolution des combats, retraites, jonctions) — traitée dans le moteur de résolution P1.4.
 

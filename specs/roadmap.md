@@ -53,9 +53,9 @@ Trois paliers de "testable" successifs, chacun validé avant le suivant :
 
 | ID | Tâche | Livrable | Critère de test | Front |
 |---|---|---|---|---|
-| P2.1 | IA "sans ordre" | Soutien auto à l'allié le plus proche le moins soutenu | Tests sur lignes de front | — |
-| P2.2 | Messagers & rapports (vision T-x) | Propagation des rapports, vision T0 (capitale, noble, tour de guet) ; `state.json` devient la vue par joueur (`asOf` par territoire) | Tests : fraîcheur d'information par case | Carte affichant l'état stale (T-x) via `asOf` |
-| P2.3 | Transmission différée des ordres | Ordres voyageant à vitesse terrain, poursuite ancienne chaîne | Tests : délais, interception de chaîne | — |
+| P2.1 | IA "sans ordre" | Soutien défensif auto à la pile alliée la plus proche la moins soutenue (défense ou Sans Ordre uniquement, puissance = pile) | Tests sur lignes de front | — |
+| P2.2 | Messagers & rapports (vision T-x) | Rapports des armées/lieux-dits/tours (cases adjacentes, fraîcheur = émission), T0 (noble libre ou otage, tour de guet + adjacentes), projection des armées ; `state.json` devient la vue par joueur (`asOf` par territoire) | Tests : fraîcheur d'information par case | Carte affichant l'état stale (T-x) via `asOf` + projection distincte |
+| P2.3 | Transmission différée des ordres | Ordres partant du noble émetteur vers le 1er territoire de la feuille (arrivée fixée à l'émission), 1re armée du territoire dans la fenêtre jusqu'à l'hiver, chaîne perdue sinon ; pas d'interception | Tests : délais, réception en fenêtre, perte à l'hiver | — |
 
 ## P3 — Serveur jouable (palier 3)
 
