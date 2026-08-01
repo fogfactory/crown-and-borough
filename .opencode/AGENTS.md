@@ -12,10 +12,25 @@ front React/Vite/TypeScript. Toute la conception vit dans `specs/` :
 - `specs/roadmap.md` — plan d'implémentation (paliers P0→P3) et décisions actées
 - `specs/prompts/` — un fichier markdown par tâche du roadmap, prêt à copier
   dans un agent ; à tenir à jour quand une tâche change
+- `specs/plans/` — un plan d'implémentation détaillé par prompt de
+  `specs/prompts/`, écrit au format `<palier>-<tâche>-implementation-plan.md`
+  (ex. `p0.1-implementation-plan.md`)
 
 Avant d'implémenter une règle de jeu, lire le GDD. Avant de toucher la stack
 ou les contrats d'API, lire l'architecture. Toute décision de conception
 nouvelle ou modifiée doit être reportée dans les specs correspondantes.
+
+## Plans d'implémentation
+
+- Quand un agent crée un plan d'implémentation pour un prompt de
+  `specs/prompts/`, le plan est TOUJOURS écrit dans `specs/plans/` — jamais
+  ailleurs, jamais dans `specs/prompts/`.
+- Chaque plan contient une section « Difficulté et modèle recommandé » :
+  difficulté de la tâche sur 5 (1 = scaffolding trivial, 5 = conception
+  complexe), accompagnée d'une suggestion de modèle d'exécution (provider et
+  modèle précis) adaptée à cette difficulté, pour optimiser le compromis
+  précision/coût. Exemple : difficulté 1/5 → modèle léger et bon marché,
+  difficulté 4-5/5 → modèle haut de gamme.
 
 ## Conventions de code
 
