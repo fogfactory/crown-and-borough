@@ -1,0 +1,15 @@
+# Go
+bin/
+*.test
+*.out
+
+# Node
+node_modules/
+dist/
+
+# Environment
+.env
+
+# OS
+.DS_Store
+Thumbs.db
