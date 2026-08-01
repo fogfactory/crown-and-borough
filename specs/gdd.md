@@ -38,6 +38,7 @@ Une année de jeu se compose de **4 tours** : trois tours d'action (**Printemps,
   - `C R <territoire>` — construire un **Relais de Poste**
   - `C T <territoire>` — construire une **Tour de Guet**
   - `C D <territoire>` — construire un **Dépôt de Vivres**
+  - `E C <territoire>` — désigner le château de ce territoire comme **Capitale**
 - **Coûts des investissements :**
 
   | Investissement | Coût (R) |
@@ -52,13 +53,14 @@ Une année de jeu se compose de **4 tours** : trois tours d'action (**Printemps,
 
   *(Toutes les métriques d'équilibrage sont stockées dans `assets/balance.json`, facilement éditables.)*
 - **Paiement de proche en proche :** le coût d'un investissement est prélevé d'abord sur le stock du territoire ciblé (s'il stocke), puis sur le lieu-dit contrôlé le plus proche, et ainsi de suite. Réserves totales insuffisantes → ordre rejeté (aucun prélèvement partiel).
-- **Conservation des stocks (Règle des 50 %) :** sur chaque lieu-dit (Capitale comprise), les ressources non consommées durant l'année subissent une perte hivernale après investissement :
+- **Capitale :** la capitale d'un joueur n'est PAS un territoire fixe : c'est un **château qu'il considère comme sa capitale**. Par défaut, son **premier château**. Un ordre d'Hiver `E C <territoire>` désigne un autre de ses châteaux comme capitale. La capitale ne peut jamais être ennemie : la désignation exige le contrôle de la case. Si le château désigné est détruit, la désignation est perdue (le prochain château construit redevient capitale par défaut).
+- **Conservation des stocks (Règle des 50 %) :** sur chaque lieu-dit, les ressources non consommées durant l'année subissent une perte hivernale après investissement :
 
   Stock Conservé au Printemps = ceil(R_restant / 2)
 
   *(Arrondi à l'entier supérieur sur chaque lieu-dit).*
 
-- **Rapatriement des stocks :** les stocks sont automatiquement rapatriés vers la Capitale, en laissant au maximum **1 R par lieu-dit** et **2 R par château** (le surplus va à la Capitale).
+- **Rapatriement des stocks :** les stocks sont automatiquement rapatriés vers la case de la capitale du joueur, en laissant au maximum **1 R par lieu-dit** et **2 R par château** (hors capitale : elle accumule tout le surplus). Si le joueur ne contrôle plus aucun château, ses stocks **ne sont pas rapatriés** (ils restent sur place).
 - **Ordre de la phase :** investissements → conservation 50 % → rapatriement.
 
 ---

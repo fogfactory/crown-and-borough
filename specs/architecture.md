@@ -245,6 +245,7 @@ L'hiver, le joueur soumet une **liste d'ordres** (même mécanique de soumission
 - `C R XXX` — construire un **Relais de Poste** sur XXX
 - `C T XXX` — construire une **Tour de Guet** sur XXX
 - `C D XXX` — construire un **Dépôt de Vivres** sur XXX
+- `E C XXX` — désigner le château de XXX comme **Capitale** du joueur (remplace la désignation actuelle ; exige de contrôler la case ; par défaut, la capitale est le premier château construit)
 
 XXX = code du territoire ciblé (4 lettres). Pas de chaîne, pas de position, pas de liaison : un ordre d'hiver s'applique directement ou est **rejeté** (événement explicite ; ordre rejeté = investissement perdu). Coûts et métriques d'équilibrage : `assets/balance.json` (toutes les constantes du moteur, éditables sans recompiler le code).
 
