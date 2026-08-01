@@ -177,4 +177,4 @@ Si la production instantanée ne suffit pas à alimenter toutes les armées :
    ► Départage final : Numéro de matricule d'armée DÉCROISSANT.
 ```
 
-**Effets de la famine :** une armée famélique ne peut que se déplacer à force 0 (elle ne se bat ni en attaque, ni en défense, ni en soutien) ; si elle se trouve sur une case avec une infrastructure, elle la **pille automatiquement** (détruit l'infrastructure la plus récente).
+**Effets de la famine :** une armée famélique ne peut que se déplacer à force 0 (elle ne se bat ni en attaque, ni en défense, ni en soutien) ; si elle se trouve sur une case avec une infrastructure, elle la **pille automatiquement** (détruit l'infrastructure la plus récente). Le pillage lui rapporte le bonus R du pillage **moins sa consommation** (2^(N-1)) : si le gain est positif ou nul, la pile se nourrit et n'est plus famélique (l'excédent est conservé sur place) ; sinon elle reste famélique sans rien gagner.
