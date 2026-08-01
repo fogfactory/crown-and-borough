@@ -62,6 +62,7 @@ Une année de jeu se compose de **4 tours** : trois tours d'action (**Printemps,
 
 - **Rapatriement des stocks :** les stocks sont automatiquement rapatriés vers la case de la capitale du joueur, en laissant au maximum **1 R par lieu-dit** et **2 R par château** (hors capitale : elle accumule tout le surplus). Si le joueur ne contrôle plus aucun château, ses stocks **ne sont pas rapatriés** (ils restent sur place).
 - **Ordre de la phase :** investissements → conservation 50 % → rapatriement.
+- **Départ de la partie :** chaque joueur commence sur un **lieu-dit distinct**, où un **château est construit automatiquement** (sa capitale par défaut — son premier château), avec **au moins une armée** et un **stock de ressources initial** (valeurs d'équilibrage dans `assets/balance.json` : armées et ressources de départ).
 
 ---
 
