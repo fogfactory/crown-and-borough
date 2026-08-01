@@ -3,8 +3,25 @@ name: CI
 on:
   push:
     branches: [main]
+    # Skip CI on pushes touching no build artifacts (docs, specs, etc.)
+    paths-ignore:
+      - "specs/**"
+      - ".opencode/**"
+      - "LICENSE"
+      - "*.md"
+      - ".gitignore"
   pull_request:
     branches: [main]
+    # Run CI only when the PR touches build-relevant files
+    paths:
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
+      - "Dockerfile"
+      - ".dockerignore"
+      - "Makefile"
+      - "web/**"
+      - ".github/workflows/ci.yml"
 
 jobs:
   go:
