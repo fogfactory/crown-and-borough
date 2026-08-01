@@ -174,7 +174,7 @@ Ce qui vit sur la carte : armées, infrastructures, contrôle, ressources. C'est
       "owner": "P1",
       "resources": 4,
       "armies": [{ "id": "A1", "owner": "P1" }],
-      "infrastructures": [{ "type": "moulin", "level": 2 }]
+      "infrastructures": [{ "type": "mill", "level": 2 }]
     }
   ],
   "nobles": [{ "id": "N1", "name": "Hugues", "owner": "P1", "location": "T01" }]

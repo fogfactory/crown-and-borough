@@ -1,4 +1,4 @@
-.PHONY: build run test vet clean
+.PHONY: build run test vet clean web-dev
 
 build:
 	go build -o bin/server ./cmd/server
@@ -14,3 +14,6 @@ vet:
 
 clean:
 	rm -rf bin
+
+web-dev:
+	cd web && npm run dev

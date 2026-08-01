@@ -6,6 +6,7 @@ bin/
 # Node
 node_modules/
 dist/
+tmp/
 
 # Environment
 .env
