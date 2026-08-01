@@ -224,7 +224,7 @@ BRI D BRI ATL NOR  # dispersion : 1 destination par armée de la pile
 | `H` | Maintien | `H XXX` | L'armée reste sur XXX (sa position) | Chaîne brisée | **Garde indéfinie** : chaîne en veille jusqu'à réception d'un nouvel ordre |
 | `J` | Jonction | `XXX J YYY` | **Déplacement pacifique** (pas une attaque, puissance 0) vers YYY **adjacente** ; si une armée alliée est sur YYY (déjà présente, ou arrivée au même tour par attaque ou autre jonction), les armées **fusionnent** ; case occupée par l'ennemi → échec ; case **contestée** par une attaque ce tour → **repoussé** (bounce, échec) | Chaîne brisée | Retente jusqu'à réussite |
 | `P` | Pillage | `P XXX` | XXX = case où l'armée se trouve : détruit une infrastructure de SA case + bonus R (constante moteur, défaut 2) ; **aucune infrastructure → ordre invalide** | Chaîne brisée | Retente jusqu'à destruction |
-| `D` | Dispersion | `XXX D XXX YYY ZZZ ...` | Une destination **par armée de la pile** (nombre = taille de la pile) ; chaque destination est **adjacente** ou égale à la position ; à la résolution (P1.4), chaque destination **libre et non ciblée par une attaque** → l'armée s'y déplace pacifiquement ; la case de l'armée est valide ; **la chaîne reste sur l'armée d'origine, qui prend la première destination listée** (les autres armées sont créées) | Avance même si partielle | Retente jusqu'à résolution **intégrale** |
+| `D` | Dispersion | `XXX D XXX YYY ZZZ ...` | Une destination **par armée de la pile** (nombre = taille de la pile) ; chaque destination est **adjacente** ou égale à la position ; à la résolution (P1.4), chaque destination **libre et non ciblée par une attaque** → l'armée s'y déplace pacifiquement ; la case de l'armée est valide ; **la chaîne reste sur l'armée d'origine, qui prend la première destination listée** (les autres armées sont créées). **Répartition des nobles par astérisque** : `XXX D YYY XXX*` = tous les nobles en XXX ; `YYY*JEST` = Jean d'Estaing en YYY ; `YYY*JEST*ANOT` = Jean d'Estaing et Anne de Notombes en YYY ; `*` seul = tous les nobles restants ; nobles non désignés (ou aucune astérisque) = armée d'origine | Avance même si partielle | Retente jusqu'à résolution **intégrale** |
 
 **Ordre invalide** (physiquement ou mécaniquement impossible : cible inexistante, cible non adjacente, armée détruite, pillage sans infrastructure...) : **brise immédiatement** la chaîne, quel que soit le mode de liaison.
 
@@ -246,6 +246,7 @@ L'hiver, le joueur soumet une **liste d'ordres** (même mécanique de soumission
 - `C T XXX` — construire une **Tour de Guet** sur XXX
 - `C D XXX` — construire un **Dépôt de Vivres** sur XXX
 - `E C XXX` — désigner le château de XXX comme **Capitale** du joueur (remplace la désignation actuelle ; exige de contrôler la case ; par défaut, la capitale est le premier château construit)
+- `L N XXX` — libérer le noble prisonnier XXX (le noble réapparaît à la capitale de son propriétaire ; requis : noble prisonnier appartenant au joueur)
 
 XXX = code du territoire ciblé (4 lettres). Pas de chaîne, pas de position, pas de liaison : un ordre d'hiver s'applique directement ou est **rejeté** (événement explicite ; ordre rejeté = investissement perdu). Coûts et métriques d'équilibrage : `assets/balance.json` (toutes les constantes du moteur, éditables sans recompiler le code).
 

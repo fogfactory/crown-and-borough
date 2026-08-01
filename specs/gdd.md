@@ -149,7 +149,19 @@ Une armée sans ordre apporte son soutien à l'armée alliée la plus proche qui
 
 ### Capacité des Nobles
 
-Un noble ne peut émettre ou modifier qu'**une seule chaîne d'ordres par tour** (T0).
+Un noble ne peut émettre ou modifier qu'**une seule chaîne d'ordres par tour** (T0). Un noble **prisonnier** ne peut émettre aucune chaîne.
+
+### Nobles : Chevauchée, Capture et Libération
+
+- **Chevauchée :** un noble se déplace AVEC les armées de sa case : quand une pile quitte sa case (A, J, ou retraite), le noble la suit. En cas de **dispersion (D)**, une **astérisque** sur une destination désigne les nobles qui s'y rendent :
+  - `XXX D YYY XXX*` — tous les nobles en XXX
+  - `XXX D YYY*JEST ZZZ*` — Jean d'Estaing en YYY, les autres en ZZZ
+  - `XXX D YYY*JEST*ANOT ZZZ*` — Jean d'Estaing et Anne de Notombes en YYY, les autres en ZZZ
+  `*` seul = tous les nobles restants ; `*CODE` = le noble désigné ; un noble au plus par désignation ; un noble non désigné (ou aucune astérisque dans l'ordre) chevauche avec l'armée d'origine (1re destination). Si les armées de la case se séparent par des A vers des destinations différentes (pile éclatée sans D), le noble suit l'armée au plus petit matricule (déterministe).
+- **Jamais seul :** un noble ne peut pas être seul : toute destination désignée porte au moins une armée, et un noble ne peut être recruté que sur une case contenant une armée du joueur. (Cas limite toléré : pile détruite sur une case restée vide, le noble y demeure seul.)
+- **Jamais une armée :** le noble ne compte pas dans les forces, ne consomme pas de ravitaillement et n'est jamais détruit dans un combat.
+- **Capture :** un noble n'est capturé que si la pile qu'il chevauche est **détruite au combat** (pas de retraite possible, ou collision) ET qu'une armée **ennemie** occupe sa case : il est alors **récupéré par l'armée gagnante** — il devient **prisonnier**, chevauche cette armée (il se déplace selon les ordres du joueur qui la possède) et ne peut plus émettre de chaîne. Pile détruite sur une case restée vide ou alliée : le noble reste sur place.
+- **Libération :** le **propriétaire** peut libérer un noble prisonnier par un ordre d'Hiver `L N <code noble>` ; le noble réapparaît libre à la **capitale de son propriétaire** (coût : 0 — à équilibrer).
 
 ### Phase de Retraite
 
