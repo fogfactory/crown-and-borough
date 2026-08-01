@@ -234,6 +234,20 @@ BRI D BRI ATL NOR  # dispersion : 1 destination par armée de la pile
 
 **Progression** : la progression des chaînes prend en compte **toutes les chaînes d'ordres simultanément** (résolution des combats, retraites, jonctions) — traitée dans le moteur de résolution P1.4.
 
+### Ordres d'Hiver (phase de gestion)
+
+L'hiver, le joueur soumet une **liste d'ordres** (même mécanique de soumission que les chaînes ; une ligne = un investissement ; traités dans l'ordre saisi) :
+
+- `R N XXX` — recruter un **Noble** sur XXX (nom = prénom tiré + "de \<nom du territoire\>", ex. "Jacques de Notombes")
+- `R A XXX` — recruter une **Armée** sur XXX
+- `C M XXX` — construire un **Moulin** sur XXX (améliore le moulin existant si déjà présent)
+- `C C XXX` — construire un **Château** sur XXX (rend la case lieu-dit)
+- `C R XXX` — construire un **Relais de Poste** sur XXX
+- `C T XXX` — construire une **Tour de Guet** sur XXX
+- `C D XXX` — construire un **Dépôt de Vivres** sur XXX
+
+XXX = code du territoire ciblé (4 lettres). Pas de chaîne, pas de position, pas de liaison : un ordre d'hiver s'applique directement ou est **rejeté** (événement explicite ; ordre rejeté = investissement perdu). Coûts et métriques d'équilibrage : `assets/balance.json` (toutes les constantes du moteur, éditables sans recompiler le code).
+
 ---
 
 ## 7. Stratégie d'Exécution avec les Agents

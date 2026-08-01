@@ -29,14 +29,37 @@ Une année de jeu se compose de **4 tours** : trois tours d'action (**Printemps,
 
 ### Phase d'Hiver (Bilan, Conservations et Investissements)
 
-- **Trêve hivernale :** Mouvements militaires gelés.
-- **Conservation des stocks (Règle des 50 %) :** Sur chaque lieu-dit, les ressources non consommées durant l'année subissent une perte hivernale après investissement :
+- **Trêve hivernale :** Mouvements militaires gelés (aucune chaîne traitée, aucun combat, aucun ravitaillement).
+- **Ordres d'Hiver :** le joueur soumet une liste d'ordres (même mécanique que les tours d'action), une ligne = un investissement, traités dans l'ordre saisi :
+  - `R N <territoire>` — recruter un **Noble** sur le territoire (nom = prénom tiré + "de \<nom du territoire\>", ex. "Jacques de Notombes")
+  - `R A <territoire>` — recruter une **Armée** sur le territoire
+  - `C M <territoire>` — construire un **Moulin** (améliore le moulin existant)
+  - `C C <territoire>` — construire un **Château**
+  - `C R <territoire>` — construire un **Relais de Poste**
+  - `C T <territoire>` — construire une **Tour de Guet**
+  - `C D <territoire>` — construire un **Dépôt de Vivres**
+- **Coûts des investissements :**
+
+  | Investissement | Coût (R) |
+  |---|---|
+  | Château | 10 |
+  | Moulin | 3 |
+  | Armée | 1 |
+  | Noble | 2 |
+  | Relais de Poste | 2 |
+  | Tour de Guet | 4 |
+  | Dépôt de Vivres | 3 |
+
+  *(Toutes les métriques d'équilibrage sont stockées dans `assets/balance.json`, facilement éditables.)*
+- **Paiement de proche en proche :** le coût d'un investissement est prélevé d'abord sur le stock du territoire ciblé (s'il stocke), puis sur le lieu-dit contrôlé le plus proche, et ainsi de suite. Réserves totales insuffisantes → ordre rejeté (aucun prélèvement partiel).
+- **Conservation des stocks (Règle des 50 %) :** sur chaque lieu-dit (Capitale comprise), les ressources non consommées durant l'année subissent une perte hivernale après investissement :
 
   Stock Conservé au Printemps = ceil(R_restant / 2)
 
   *(Arrondi à l'entier supérieur sur chaque lieu-dit).*
 
-- **Investissements :** Dépense des réserves pour recruter des **Nobles** ou construire des **Infrastructures**.
+- **Rapatriement des stocks :** les stocks sont automatiquement rapatriés vers la Capitale, en laissant au maximum **1 R par lieu-dit** et **2 R par château** (le surplus va à la Capitale).
+- **Ordre de la phase :** investissements → conservation 50 % → rapatriement.
 
 ---
 
@@ -136,13 +159,13 @@ Une armée défaite doit battre en retraite sur une case adjacente valide (non o
 
 ## 7. Infrastructures et Maillage Productif
 
-| Infrastructure | Nécessite un Lieu-dit ? | Effet principal |
-| --- | --- | --- |
-| **Moulin / Domaine** | **Oui** (Sur ou relié par adjacence) | Augmente la production de R (+1 R / niveau). |
-| **Relais de Poste** | Non | Doubler la vitesse des messagers sur la case. |
-| **Tour de Guet** | Non | Donne la vision T0 permanente sur la case et adjacentes. |
-| **Dépôt de Vivres** | Non | Étend la portée de la ligne de ravitaillement (+2 cases). |
-| **Château** | Non (Rend la case Lieu-dit) | Apporte **+1 de force défensive** fixe (sans coût de R). |
+| Infrastructure | Nécessite un Lieu-dit ? | Effet principal | Coût (R) |
+| --- | --- | --- | --- |
+| **Moulin / Domaine** | **Oui** (Sur ou relié par adjacence) | Augmente la production de R (+1 R / niveau). | 3 |
+| **Relais de Poste** | Non | Doubler la vitesse des messagers sur la case. | 2 |
+| **Tour de Guet** | Non | Donne la vision T0 permanente sur la case et adjacentes. | 4 |
+| **Dépôt de Vivres** | Non | Étend la portée de la ligne de ravitaillement (+2 cases). | 3 |
+| **Château** | Non (Rend la case Lieu-dit) | Apporte **+1 de force défensive** fixe (sans coût de R). | 10 |
 
 ### Dépendance et Lieux-dits Orphelins
 
