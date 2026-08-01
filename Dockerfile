@@ -18,6 +18,9 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/server 
 FROM scratch
 
 COPY --from=build /out/server /server
+COPY --from=build /app/assets /assets
+
+ENV ASSETS_DIR=/assets
 
 EXPOSE 8080
 
