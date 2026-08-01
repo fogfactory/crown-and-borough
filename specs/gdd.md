@@ -172,5 +172,9 @@ Si la production instantanée ne suffit pas à alimenter toutes les armées :
        ▼ (Si stocks totalement épuisés)
 [2. Armées en Famine (Force = 0)]
    ► Ordre : Armées les PLUS ÉLOIGNÉES de leur source.
-   ► Départage : Numéro de matricule d'armée DÉCROISSANT.
+   ► Départage : Les piles les PLUS GROSSES d'abord
+     (les plus coûteuses en nourriture).
+   ► Départage final : Numéro de matricule d'armée DÉCROISSANT.
 ```
+
+**Effets de la famine :** une armée famélique ne peut que se déplacer à force 0 (elle ne se bat ni en attaque, ni en défense, ni en soutien) ; si elle se trouve sur une case avec une infrastructure, elle la **pille automatiquement** (détruit l'infrastructure la plus récente).
