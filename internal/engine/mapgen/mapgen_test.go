@@ -295,6 +295,22 @@ func TestRepairGraphUsesNonGeometricRoutes(t *testing.T) {
 	}
 }
 
+func TestRepairGraphWithoutGeometry(t *testing.T) {
+	centroids := [][2]float64{
+		{0, 0},
+		{10, 0},
+		{20, 0},
+		{30, 0},
+		{40, 0},
+		{50, 0},
+	}
+	edges := [][2]int{{0, 1}, {1, 2}, {3, 4}}
+	repaired := repairGraph(edges, centroids, len(centroids))
+	if err := validateGraph(repaired, len(centroids)); err != nil {
+		t.Fatalf("geometry-agnostic repaired graph violates invariants: %v", err)
+	}
+}
+
 func loadTestAssets(t *testing.T) assetgen.Assets {
 	t.Helper()
 	assets, err := assetgen.Load("../../../assets")
