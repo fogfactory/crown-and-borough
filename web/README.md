@@ -23,9 +23,10 @@ repository root.
 - On the map, the middle mouse button selects a territory, while the left mouse
   button pans the view.
 - `src/components/ui/` contains the shadcn/ui components used by the application.
-- `src/fixtures/` contains temporary map and player-state data for the P0.3 view.
+- `src/App.tsx` loads the static map from `/api/map` and combines it with the
+  temporary state placeholder.
+- `src/fixtures/state.ts` contains the empty temporary state placeholder until
+  the P1.7 state API is available.
 - `src/types.ts` defines the map and state contracts shared by the frontend.
-- `src/App.tsx` combines the temporary data with the map and territory detail view.
 
-The fixtures will be replaced by the `map.json` and `state.json` API documents in
-later implementation stages.
+The Vite development server proxies `/api` to `http://localhost:8080`.

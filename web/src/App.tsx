@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -16,9 +16,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { MapViewer } from '@/components/MapViewer'
-import { mapFixture } from '@/fixtures/map'
 import { stateFixture } from '@/fixtures/state'
-import type { InfraType, PlayerId, Season, Terrain } from '@/types'
+import type { InfraType, MapData, PlayerId, Season, Terrain } from '@/types'
 
 const TERRAIN_LABELS: Record<Terrain, string> = {
   plain: 'Plaine',
@@ -49,14 +48,42 @@ function ownerLabel(owner: PlayerId | null): string {
 
 function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const selectedTerritory = mapFixture.territories.find(
+  const [map, setMap] = useState<MapData | null>(null)
+  const [mapError, setMapError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    const loadMap = async () => {
+      try {
+        const response = await fetch('/api/map', { signal: controller.signal })
+        if (!response.ok) {
+          throw new Error(`Map request failed with status ${response.status}`)
+        }
+
+        const data = (await response.json()) as MapData
+        if (!controller.signal.aborted) {
+          setMap(data)
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setMapError(error instanceof Error ? error.message : 'Unable to load the map')
+        }
+      }
+    }
+
+    void loadMap()
+    return () => controller.abort()
+  }, [])
+
+  const selectedTerritory = map?.territories.find(
     (territory) => territory.id === selectedId,
   )
   const selectedState = stateFixture.territories.find(
     (territory) => territory.id === selectedId,
   )
-  const observedTurn = selectedId
-    ? (stateFixture.asOf[selectedId] ?? stateFixture.turn)
+  const observedTurn = selectedState
+    ? (stateFixture.asOf[selectedState.id] ?? stateFixture.turn)
     : stateFixture.turn
   const isStale = observedTurn < stateFixture.turn
 
@@ -124,7 +151,24 @@ function App() {
               zoomer
             </p>
           </div>
-          <MapViewer map={mapFixture} state={stateFixture} onSelect={setSelectedId} />
+          {mapError ? (
+            <div
+              role="alert"
+              className="flex h-full items-center justify-center px-6 text-center"
+            >
+              <p className="font-serif text-lg text-[#a84632]">
+                Impossible de charger la carte : {mapError}
+              </p>
+            </div>
+          ) : map ? (
+            <MapViewer map={map} state={stateFixture} onSelect={setSelectedId} />
+          ) : (
+            <div className="flex h-full items-center justify-center px-6 text-center">
+              <p className="font-serif text-lg italic text-[#806f57]">
+                Chargement de la carte…
+              </p>
+            </div>
+          )}
         </section>
 
         <aside className="w-full shrink-0 lg:w-80 xl:w-96">
@@ -140,7 +184,7 @@ function App() {
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-5">
-              {selectedTerritory && selectedState ? (
+              {selectedTerritory ? (
                 <div className="space-y-5">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#a84632]">
@@ -160,79 +204,92 @@ function App() {
                     <dd className="font-medium">
                       {selectedTerritory.lieuDit ? 'Oui' : 'Non'}
                     </dd>
-                    <dt className="text-[#806f57]">Contrôle</dt>
-                    <dd className="font-medium">{ownerLabel(selectedState.owner)}</dd>
-                    <dt className="text-[#806f57]">Ressources</dt>
-                    <dd className="font-medium">{selectedState.resources} R</dd>
                   </dl>
 
-                  <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">
-                    <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
-                      Armées
-                    </h3>
-                    {selectedState.armies.length > 0 ? (
-                      <ul className="space-y-1.5 text-sm">
-                        {selectedState.armies.map((army) => (
-                          <li
-                            key={army.id}
-                            className="flex items-center justify-between rounded-md bg-[#f3ead9] px-3 py-2"
-                          >
-                            <span className="font-semibold">{army.id}</span>
-                            <span className="text-xs text-[#806f57]">{army.owner}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-sm italic text-[#806f57]">Aucune armée</p>
-                    )}
-                  </div>
+                  {selectedState && (
+                    <>
+                      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-3 text-sm">
+                        <dt className="text-[#806f57]">Contrôle</dt>
+                        <dd className="font-medium">{ownerLabel(selectedState.owner)}</dd>
+                        <dt className="text-[#806f57]">Ressources</dt>
+                        <dd className="font-medium">{selectedState.resources} R</dd>
+                      </dl>
 
-                  <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">
-                    <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
-                      Infrastructures
-                    </h3>
-                    {selectedState.infrastructures.length > 0 ? (
-                      <ul className="space-y-1.5 text-sm">
-                        {selectedState.infrastructures.map((infrastructure, index) => (
-                          <li
-                            key={`${infrastructure.type}-${index}`}
-                            className="flex items-center justify-between rounded-md bg-[#f3ead9] px-3 py-2"
-                          >
-                            <span className="font-medium">
-                              {INFRASTRUCTURE_LABELS[infrastructure.type]}
-                            </span>
-                            <span className="text-xs text-[#806f57]">
-                              Niveau {infrastructure.level}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-sm italic text-[#806f57]">
-                        Aucune infrastructure
+                      <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">
+                        <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
+                          Armées
+                        </h3>
+                        {selectedState.armies.length > 0 ? (
+                          <ul className="space-y-1.5 text-sm">
+                            {selectedState.armies.map((army) => (
+                              <li
+                                key={army.id}
+                                className="flex items-center justify-between rounded-md bg-[#f3ead9] px-3 py-2"
+                              >
+                                <span className="font-semibold">{army.id}</span>
+                                <span className="text-xs text-[#806f57]">
+                                  {army.owner}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-sm italic text-[#806f57]">Aucune armée</p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">
+                        <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
+                          Infrastructures
+                        </h3>
+                        {selectedState.infrastructures.length > 0 ? (
+                          <ul className="space-y-1.5 text-sm">
+                            {selectedState.infrastructures.map(
+                              (infrastructure, index) => (
+                                <li
+                                  key={`${infrastructure.type}-${index}`}
+                                  className="flex items-center justify-between rounded-md bg-[#f3ead9] px-3 py-2"
+                                >
+                                  <span className="font-medium">
+                                    {INFRASTRUCTURE_LABELS[infrastructure.type]}
+                                  </span>
+                                  <span className="text-xs text-[#806f57]">
+                                    Niveau {infrastructure.level}
+                                  </span>
+                                </li>
+                              ),
+                            )}
+                          </ul>
+                        ) : (
+                          <p className="text-sm italic text-[#806f57]">
+                            Aucune infrastructure
+                          </p>
+                        )}
+                      </div>
+
+                      <div
+                        className={`rounded-lg border px-3 py-3 text-sm ${
+                          isStale
+                            ? 'border-[#c98d45]/50 bg-[#fbefd9] text-[#805521]'
+                            : 'border-[#6d9b73]/50 bg-[#e8f1e3] text-[#376341]'
+                        }`}
+                      >
+                        <p className="font-semibold">Fraîcheur</p>
+                        <p className="mt-1 text-xs leading-relaxed">
+                          {isStale
+                            ? `Observé au tour ${observedTurn} — il y a ${stateFixture.turn - observedTurn} tours`
+                            : 'À jour'}
+                        </p>
+                      </div>
+
+                      <Button disabled className="w-full">
+                        Donner un ordre
+                      </Button>
+                      <p className="text-center text-xs text-[#806f57]">
+                        Bientôt disponible
                       </p>
-                    )}
-                  </div>
-
-                  <div
-                    className={`rounded-lg border px-3 py-3 text-sm ${
-                      isStale
-                        ? 'border-[#c98d45]/50 bg-[#fbefd9] text-[#805521]'
-                        : 'border-[#6d9b73]/50 bg-[#e8f1e3] text-[#376341]'
-                    }`}
-                  >
-                    <p className="font-semibold">Fraîcheur</p>
-                    <p className="mt-1 text-xs leading-relaxed">
-                      {isStale
-                        ? `Observé au tour ${observedTurn} — il y a ${stateFixture.turn - observedTurn} tours`
-                        : 'À jour'}
-                    </p>
-                  </div>
-
-                  <Button disabled className="w-full">
-                    Donner un ordre
-                  </Button>
-                  <p className="text-center text-xs text-[#806f57]">Bientôt disponible</p>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="flex min-h-72 items-center justify-center rounded-lg border border-dashed border-[#b7a786] bg-[#f8f0e2] px-6 text-center">

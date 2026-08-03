@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -15,8 +16,6 @@ import {
 } from '@/components/ui/tooltip'
 import type { Infrastructure, MapData, Noble, Point, StateData, Terrain } from '@/types'
 
-const VIEWBOX_WIDTH = 640
-const VIEWBOX_HEIGHT = 480
 const MIN_ZOOM = 0.5
 const MAX_ZOOM = 4
 const DRAG_THRESHOLD = 4
@@ -96,14 +95,20 @@ function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(Math.max(value, minimum), maximum)
 }
 
-function clientToSvgPoint(svg: SVGSVGElement, clientX: number, clientY: number): Point {
+function clientToSvgPoint(
+  svg: SVGSVGElement,
+  clientX: number,
+  clientY: number,
+  mapWidth: number,
+  mapHeight: number,
+): Point {
   const bounds = svg.getBoundingClientRect()
   const width = bounds.width || 1
   const height = bounds.height || 1
 
   return [
-    ((clientX - bounds.left) / width) * VIEWBOX_WIDTH,
-    ((clientY - bounds.top) / height) * VIEWBOX_HEIGHT,
+    ((clientX - bounds.left) / width) * mapWidth,
+    ((clientY - bounds.top) / height) * mapHeight,
   ]
 }
 
@@ -206,6 +211,19 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
   const [view, setView] = useState<ViewState>({ x: 0, y: 0, k: 1 })
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const { mapWidth, mapHeight } = useMemo(() => {
+    let mapWidth = 1
+    let mapHeight = 1
+
+    for (const territory of map.territories) {
+      for (const [x, y] of territory.points) {
+        mapWidth = Math.max(mapWidth, x)
+        mapHeight = Math.max(mapHeight, y)
+      }
+    }
+
+    return { mapWidth, mapHeight }
+  }, [map])
 
   const owners = new Set<string>()
   state.territories.forEach((territoryState) => {
@@ -230,7 +248,13 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
 
     const handleWheel = (event: WheelEvent) => {
       event.preventDefault()
-      const cursor = clientToSvgPoint(svg, event.clientX, event.clientY)
+      const cursor = clientToSvgPoint(
+        svg,
+        event.clientX,
+        event.clientY,
+        mapWidth,
+        mapHeight,
+      )
       const zoomFactor = event.deltaY < 0 ? 1.15 : 1 / 1.15
 
       setView((current) => {
@@ -247,7 +271,7 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
 
     svg.addEventListener('wheel', handleWheel, { passive: false })
     return () => svg.removeEventListener('wheel', handleWheel)
-  }, [])
+  }, [mapHeight, mapWidth])
 
   const handlePointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
     const mode = event.button === 0 ? 'pan' : event.button === 1 ? 'select' : null
@@ -255,7 +279,13 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
       return
     }
 
-    const point = clientToSvgPoint(event.currentTarget, event.clientX, event.clientY)
+    const point = clientToSvgPoint(
+      event.currentTarget,
+      event.clientX,
+      event.clientY,
+      mapWidth,
+      mapHeight,
+    )
     event.currentTarget.setPointerCapture(event.pointerId)
     event.preventDefault()
     dragRef.current = {
@@ -275,7 +305,13 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
       return
     }
 
-    const point = clientToSvgPoint(event.currentTarget, event.clientX, event.clientY)
+    const point = clientToSvgPoint(
+      event.currentTarget,
+      event.clientX,
+      event.clientY,
+      mapWidth,
+      mapHeight,
+    )
     const distance = Math.hypot(
       point[0] - activeDrag.start[0],
       point[1] - activeDrag.start[1],
@@ -350,7 +386,7 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
         <svg
           ref={svgRef}
           className="h-full w-full select-none"
-          viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
+          viewBox={`0 0 ${mapWidth} ${mapHeight}`}
           preserveAspectRatio="none"
           role="group"
           aria-label="Carte des territoires"
@@ -360,7 +396,7 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
           onPointerCancel={handlePointerCancel}
           style={{ touchAction: 'none' }}
         >
-          <rect width={VIEWBOX_WIDTH} height={VIEWBOX_HEIGHT} fill="#e6d8bb" />
+          <rect width={mapWidth} height={mapHeight} fill="#e6d8bb" />
           <g transform={`translate(${view.x} ${view.y}) scale(${view.k})`}>
             <g aria-label="Terrains">
               {map.territories.map((territory) => (
