@@ -30,9 +30,9 @@ Trois paliers de "testable" successifs, chacun validé avant le suivant :
 
 | ID | Tâche | Livrable | Critère de test | Front |
 |---|---|---|---|---|
-| P1.1 | Modèles métier | Territoire, Armée, Noble, Infrastructure, Ressources, GameState | Compile + tests modèles | — |
+| P1.1 | Modèles métier | Territoire, Troupe, Noble, Infrastructure, Ressources, GameState | Compile + tests modèles | — |
 | P1.2 | Génération de carte Voronoï | Graphe d'adjacence seedé, terrains, ~25 % lieux-dits, nommage des territoires | Carte déterministe par seed, invariants (connexité, degré ≥ 2, unicité trigrammes, % lieux-dits) | Endpoint dev `/api/map` (map.json statique) → la vraie carte s'affiche |
-| P1.3 | Parser & modèles d'ordres | Parser texte des chaînes (format specs/architecture.md §6), 8 symboles A/S/H/J/P/D/O/K, liaison par transition (single/loop), réception (pile sur la position de la 1re ligne, remplacement de chaîne), capacité noble 1 émission/tour | Tests : parsing, validation par type, réception, remplacement, capacité, round-trip JSON | — |
+| P1.3 | Parser & modèles d'ordres | Parser texte des chaînes (format specs/architecture.md §6), 8 symboles A/S/H/J/P/D/O/K, liaison par transition (single/loop), réception (armée sur la position de la 1re ligne, remplacement de chaîne), capacité noble 1 émission/tour | Tests : parsing, validation par type, réception, remplacement, capacité, round-trip JSON | — |
 | P1.4 | Résolution : progression, mouvement & combat | Progression de TOUTES les chaînes simultanément, mouvement, attaque, soutien, jonction (fusion), dispersion, pillage, combats & retraites | Scénarios de combat (égalité, supériorité, soutiens, retraites, destructions), progression single/loop appliquée | — |
 | P1.5 | Ravitaillement & famine | Coût 2^(N-1), flux BFS portée 3/5, stocks, algorithme famine | Tests : déficits, ordre d'épuisement, famine | — |
 | P1.6 | Phase d'Hiver | Conservation 50 %, recrutement Nobles, construction Infrastructures | Test : année complète sans perte | — |
@@ -53,9 +53,9 @@ Trois paliers de "testable" successifs, chacun validé avant le suivant :
 
 | ID | Tâche | Livrable | Critère de test | Front |
 |---|---|---|---|---|
-| P2.1 | IA "sans ordre" | Soutien défensif auto à la pile alliée la plus proche la moins soutenue (défense ou Sans Ordre uniquement, puissance = pile) | Tests sur lignes de front | — |
-| P2.2 | Messagers & rapports (vision T-x) | Rapports des armées/lieux-dits/tours (cases adjacentes, fraîcheur = émission), T0 (noble libre ou otage, tour de guet + adjacentes), projection des armées ; `state.json` devient la vue par joueur (`asOf` par territoire) | Tests : fraîcheur d'information par case | Carte affichant l'état stale (T-x) via `asOf` + projection distincte |
-| P2.3 | Transmission différée des ordres | Ordres partant du noble émetteur vers le 1er territoire de la feuille (arrivée fixée à l'émission), 1re armée du territoire dans la fenêtre jusqu'à l'hiver, chaîne perdue sinon ; pas d'interception | Tests : délais, réception en fenêtre, perte à l'hiver | — |
+| P2.1 | IA "sans ordre" | Soutien défensif auto à l'armée alliée la plus proche la moins soutenue (défense ou Sans Ordre uniquement, puissance = armée) | Tests sur lignes de front | — |
+| P2.2 | Messagers & rapports (vision T-x) | Rapports des troupes/lieux-dits/tours (cases adjacentes, fraîcheur = émission), T0 (noble libre ou otage, tour de guet + adjacentes), projection des troupes ; `state.json` devient la vue par joueur (`asOf` par territoire) | Tests : fraîcheur d'information par case | Carte affichant l'état stale (T-x) via `asOf` + projection distincte |
+| P2.3 | Transmission différée des ordres | Ordres partant du noble émetteur vers le 1er territoire de la feuille (arrivée fixée à l'émission), 1re troupe du territoire dans la fenêtre jusqu'à l'hiver, chaîne perdue sinon ; pas d'interception | Tests : délais, réception en fenêtre, perte à l'hiver | — |
 
 ## P3 — Serveur jouable (palier 3)
 
@@ -70,7 +70,7 @@ Trois paliers de "testable" successifs, chacun validé avant le suivant :
 ### Détail P3 — choix actés
 
 - **API (P3.1) :** router **chi** (1re dépendance tierce autorisée) ; parties en mémoire ; soumission **par joueur** ; résolution **synchrone à la dernière soumission** (pas de deadline au MVP) ; endpoints : POST/GET /api/games, GET /api/games/{id}, /map, /state (vue par joueur P2.2), POST /orders, /reports ; endpoints dev P1.7 conservés.
-- **Élimination / victoire (P3.1 — acté, GDD §2) :** un joueur est éliminé quand il ne contrôle aucun territoire ET n'a plus aucune armée (les nobles, immortels, ne comptent pas) ; dernier joueur vivant = gagnant.
+- **Élimination / victoire (P3.1 — acté, GDD §2) :** un joueur est éliminé quand il ne contrôle aucun territoire ET n'a plus aucune troupe (les nobles, immortels, ne comptent pas) ; dernier joueur vivant = gagnant.
 - **Auth (P3.2) :** inscription sans mot de passe (nom + token Bearer en localStorage), sessions en mémoire (perdues au restart — reprise de slot par nom + code d'invitation, même en partie commencée), code d'invitation 6 caractères par partie (le créateur = P1, join tant que la partie n'est pas commencée, 5 joueurs max), accès 403 hors membres, `?player=` retiré (identité par token).
 - **Persistance (P3.3) :** 1 fichier JSON par partie (`game-<uuid>.json` dans `DATA_DIR`), écriture atomique (tmp + rename + fsync), sauvegarde après chaque mutation (soumissions comprises), restauration au démarrage, fichier corrompu → `.corrupt` (serveur démarre).
 - **Déploiement (P3.5) :** un seul conteneur (front `go:embed web/dist` + API, same-origin, pas de CORS) ; Cloud Run + Artifact Registry + bucket GCS monté en gcsfuse sur `/data` (DATA_DIR) ; CI : tests/build → push AR (tag sha) → `gcloud run deploy` via workload identity federation ; pas de Terraform au MVP.

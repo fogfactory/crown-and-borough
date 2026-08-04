@@ -255,7 +255,7 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
     if (territoryState.owner) {
       owners.add(territoryState.owner)
     }
-    territoryState.armies.forEach((army) => owners.add(army.owner))
+    territoryState.troops.forEach((troop) => owners.add(troop.owner))
   })
   state.nobles.forEach((noble) => owners.add(noble.owner))
 
@@ -551,14 +551,14 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
                         y={centerY - 25}
                       />
                     ))}
-                    {territoryState.armies.map((army, index) => (
-                      <g key={army.id}>
-                        <title>{`${army.id}, ${army.owner}`}</title>
+                    {territoryState.troops.map((troop, index) => (
+                      <g key={troop.id}>
+                        <title>{`${troop.id}, ${troop.owner}`}</title>
                         <circle
                           cx={centerX - 8 + index * 16}
                           cy={centerY + 26}
                           r="7"
-                          fill={playerColors.get(army.owner) ?? '#475569'}
+                          fill={playerColors.get(troop.owner) ?? '#475569'}
                           stroke="#fff8e7"
                           strokeWidth="2"
                         />
@@ -570,7 +570,7 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
                           fontWeight="700"
                           textAnchor="middle"
                         >
-                          {army.id.slice(1)}
+                          {troop.id.slice(2)}
                         </text>
                       </g>
                     ))}

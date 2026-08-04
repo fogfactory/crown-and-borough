@@ -20,18 +20,18 @@ Une année de jeu se compose de **4 tours** : trois tours d'action (**Printemps,
 1. **Réception des rapports :** Le joueur prend connaissance de la carte selon l'ancienneté des messagers parvenus à ses Nobles (libres ou otages).
 2. **Ordres & Diplomatie :** Négociations privées, programmation des chaînes d'ordres et des axes logistiques.
 3. **Résolution serveur simultanée :**
-   - *Ravitaillement & Carence :* Traçage des flux, consommation des ressources R, prélèvement sur les stocks en cas de déficit, basculement en famine si pénurie (une pile famélique combat à force 0 CE tour-ci).
+   - *Ravitaillement & Carence :* Traçage des flux, consommation des ressources R, prélèvement sur les stocks en cas de déficit, basculement en famine si pénurie (une armée famélique combat à force 0 CE tour-ci).
    - *Propagation :* Avancée des messagers (ordres et rapports).
-   - *Exécution :* Application des ordres reçus ce tour-ci par les armées.
-   - *Combats & Retraites :* Résolution des affrontements et replis obligatoires.
-   - *Émission :* Départ des nouveaux rapports d'information (armées, lieux-dits contrôlés, tours de guet) vers le noble le plus proche (récepteur).
+- *Exécution :* Application des ordres reçus ce tour-ci par les armées.
+- *Combats & Retraites :* Résolution des affrontements et replis obligatoires.
+- *Émission :* Départ des nouveaux rapports d'information (troupes, lieux-dits contrôlés, tours de guet) vers le noble le plus proche (récepteur).
 
 ### Phase d'Hiver (Bilan, Conservations et Investissements)
 
 - **Trêve hivernale :** Mouvements militaires gelés (aucune chaîne traitée, aucun combat, aucun ravitaillement).
-- **Ordres d'Hiver :** le joueur soumet une liste d'ordres (même mécanique de soumission textuelle que les chaînes ; application **directe** — sans messager ni noble émetteur), une ligne = un ordre, traités dans l'ordre saisi. **Tout investissement exige le contrôle du territoire ciblé** (et la présence d'une armée du joueur sur la case pour le recrutement d'un noble — un noble n'est jamais seul, cf. §6) :
+- **Ordres d'Hiver :** le joueur soumet une liste d'ordres (même mécanique de soumission textuelle que les chaînes ; application **directe** — sans messager ni noble émetteur), une ligne = un ordre, traités dans l'ordre saisi. **Tout investissement exige le contrôle du territoire ciblé** (et la présence d'une troupe du joueur sur la case pour le recrutement d'un noble — un noble n'est jamais seul, cf. §6) :
   - `R N <territoire>` — recruter un **Noble** sur le territoire (nom = prénom tiré + "de \<nom du territoire\>", ex. "Jacques de Notombes")
-  - `R A <territoire>` — recruter une **Armée** sur le territoire
+  - `R T <territoire>` — recruter une **Troupe** sur le territoire
   - `C M <territoire>` — construire un **Moulin** (améliore le moulin existant)
   - `C C <territoire>` — construire un **Château**
   - `C R <territoire>` — construire un **Relais de Poste**
@@ -45,7 +45,7 @@ Une année de jeu se compose de **4 tours** : trois tours d'action (**Printemps,
   |---|---|
   | Château | 10 |
   | Moulin | 3 |
-  | Armée | 1 |
+  | Troupe | 1 |
   | Noble | 2 |
   | Relais de Poste | 2 |
   | Tour de Guet | 4 |
@@ -63,8 +63,8 @@ Une année de jeu se compose de **4 tours** : trois tours d'action (**Printemps,
 
 - **Rapatriement des stocks :** les stocks sont automatiquement rapatriés vers la case de la capitale du joueur, en laissant au maximum **1 R par lieu-dit** et **2 R par château** (hors capitale : elle accumule tout le surplus). Si le joueur n'a **aucune capitale désignée** (aucun château contrôlé, ou désignation perdue et non redésignée), ses stocks **ne sont pas rapatriés** (ils restent sur place).
 - **Ordre de la phase :** investissements → conservation 50 % → rapatriement.
-- **Départ de la partie :** de 2 à 5 joueurs. Chaque joueur commence sur un **lieu-dit distinct**, où un **château est construit automatiquement** (sa capitale par défaut — son premier château), avec **un noble**, **au moins une armée** et un **stock de ressources initial** (valeurs d'équilibrage dans `assets/balance.json` : nobles, armées et ressources de départ).
-- **Élimination & Victoire :** un joueur est **éliminé** quand il ne contrôle plus **aucun territoire** ET n'a plus **aucune armée** (ses nobles, immortels, ne comptent pas) ; il ne soumet plus d'ordres. Le dernier joueur en lice **remporte** la partie.
+- **Départ de la partie :** de 2 à 5 joueurs. Chaque joueur commence sur un **lieu-dit distinct**, où un **château est construit automatiquement** (sa capitale par défaut — son premier château), avec **un noble**, **au moins une troupe** et un **stock de ressources initial** (valeurs d'équilibrage dans `assets/balance.json` : nobles, troupes et ressources de départ).
+- **Élimination & Victoire :** un joueur est **éliminé** quand il ne contrôle plus **aucun territoire** ET n'a plus **aucune troupe** (ses nobles, immortels, ne comptent pas) ; il ne soumet plus d'ordres. Le dernier joueur en lice **remporte** la partie.
 
 ---
 
@@ -72,7 +72,7 @@ Une année de jeu se compose de **4 tours** : trois tours d'action (**Printemps,
 
 ### Types de Terrains (Vitesse des Messagers)
 
-La propagation des messagers (rapports et ordres) dépend du relief — les armées, elles, se déplacent toujours d'**1 case par tour** :
+La propagation des messagers (rapports et ordres) dépend du relief — les troupes, elles, se déplacent toujours d'**1 case par tour** :
 
 | Terrain | Vitesse du Messager |
 | --- | --- |
@@ -84,10 +84,10 @@ La propagation des messagers (rapports et ordres) dépend du relief — les arm�
 
 ### Graphe franchissable : frontières et routes
 
-Le graphe de déplacement (armées, messagers, flux) n'épouse pas exactement la géographie :
+Le graphe de déplacement (troupes, messagers, flux) n'épouse pas exactement la géographie :
 
 - **Frontières infranchissables :** certaines adjacences géométriques (crêtes montagneuses, marécages) ne sont PAS franchissables — elles ne figurent pas dans le graphe.
-- **Routes :** arêtes reliant des territoires NON adjacents géométriquement (cols, ponts). Franchissables par les armées comme toute autre adjacence ; un messager y circule à 2 cases / tour (coût 0,5 par route).
+- **Routes :** arêtes reliant des territoires NON adjacents géométriquement (cols, ponts). Franchissables par les troupes comme toute autre adjacence ; un messager y circule à 2 cases / tour (coût 0,5 par route).
 
 ### Lieux-dits et Maillage Territorial
 
@@ -101,32 +101,32 @@ Le graphe de déplacement (armées, messagers, flux) n'épouse pas exactement la
 ## 4. Latence d'Information et Transmission des Ordres
 
 - **Vision Temps Réel (T0) :** Accordée sur les cases contenant un **Noble** du joueur (libre ou otage) et sur les cases d'une **Tour de Guet** du joueur et leurs **adjacentes**. Le château du joueur n'est PAS en T0 par défaut (sauf si un noble y est présent).
-- **Rapports :** chaque **armée**, chaque **lieu-dit contrôlé** et chaque **Tour de Guet** produit un rapport **chaque tour**, contenant l'état des **cases adjacentes**. Le temps de transit d'un rapport est calculé vers le **noble le plus proche** du joueur (coûts par terrain, cf. §3 — dans les assets d'équilibrage). Les rapports reçus sont **consolidés** dans la vue du joueur avec la **fraîcheur** de l'information (la date d'émission du rapport).
-- **Projection :** en plus des rapports consolidés, la vue du joueur consolide la **projection** : l'emplacement de ses armées SI les chaînes d'ordres valides et actives depuis leur dernier rapport ont été réussies. La vue distingue clairement l'**observé** (fraîcheur de l'information) de la **projection**.
-- **Nobles prisonniers :** un noble capturé compte dans le calcul de la vue de son **propriétaire** (il est un récepteur de rapports, il en produit, et sa case est en T0 pour lui) — **sauf** si son **geôlier** l'a mis **au cachot** : il ne produit alors plus rien (ni récepteur, ni rapport, ni T0). Deux ordres d'armées font passer un noble prisonnier d'un état à l'autre : `XXX O <noble>` (otage, état par défaut) et `XXX K <noble>` (cachot) — ils peuvent faire partie des chaînes d'ordres.
-- **Ordres par Messager :** les ordres partent du **noble émetteur** (celui de l'en-tête de la feuille) et voyagent à la vitesse du terrain (cf. §3) vers le **premier territoire de la feuille** d'ordres. **L'arrivée est calculée au moment de l'émission** (temps de trajet fixé). La **première armée du joueur émetteur présente sur ce territoire** entre le moment de l'arrivée et la fin de l'hiver suivant (départage : plus petit matricule) **remplace la chaîne d'ordres de sa pile** par celle-ci — aucune armée n'est requise à l'émission (elle peut arriver plus tard) ; une chaîne jamais reçue est **perdue** à la fin de l'hiver. Une armée poursuit son ancienne chaîne tant qu'aucun nouvel ordre ne l'a atteinte. **Pas d'interception** des ordres au MVP.
+- **Rapports :** chaque **troupe**, chaque **lieu-dit contrôlé** et chaque **Tour de Guet** produit un rapport **chaque tour**, contenant l'état des **cases adjacentes**. Le temps de transit d'un rapport est calculé vers le **noble le plus proche** du joueur (coûts par terrain, cf. §3 — dans les assets d'équilibrage). Les rapports reçus sont **consolidés** dans la vue du joueur avec la **fraîcheur** de l'information (la date d'émission du rapport).
+- **Projection :** en plus des rapports consolidés, la vue du joueur consolide la **projection** : l'emplacement de ses troupes SI les chaînes d'ordres valides et actives depuis leur dernier rapport ont été réussies. La vue distingue clairement l'**observé** (fraîcheur de l'information) de la **projection**.
+- **Nobles prisonniers :** un noble capturé compte dans le calcul de la vue de son **propriétaire** (il est un récepteur de rapports, il en produit, et sa case est en T0 pour lui) — **sauf** si son **geôlier** l'a mis **au cachot** : il ne produit alors plus rien (ni récepteur, ni rapport, ni T0). Deux ordres de troupes font passer un noble prisonnier d'un état à l'autre : `XXX O <noble>` (otage, état par défaut) et `XXX K <noble>` (cachot) — ils peuvent faire partie des chaînes d'ordres.
+- **Ordres par Messager :** les ordres partent du **noble émetteur** (celui de l'en-tête de la feuille) et voyagent à la vitesse du terrain (cf. §3) vers le **premier territoire de la feuille** d'ordres. **L'arrivée est calculée au moment de l'émission** (temps de trajet fixé). La **première troupe du joueur émetteur présente sur ce territoire** entre le moment de l'arrivée et la fin de l'hiver suivant (départage : plus petit matricule) **remplace la chaîne d'ordres de son armée** par celle-ci — aucune troupe n'est requise à l'émission (elle peut arriver plus tard) ; une chaîne jamais reçue est **perdue** à la fin de l'hiver. Une troupe poursuit son ancienne chaîne tant qu'aucun nouvel ordre ne l'a atteinte. **Pas d'interception** des ordres au MVP.
 
 ---
 
-## 5. Armées, Combats et Logistics
+## 5. Combats et Logistique
 
 ### Combats et Force
 
-- **Force de base :** 1 armée = 1 force. **Les ordres s'appliquent aux piles** : toutes les armées d'une pile partagent le même ordre courant — il n'existe jamais d'ordres mixtes au sein d'une pile.
-- **Pas de fusion des attaques :** deux attaques sur la même case ne se combinent PAS : chaque pile attaquante est un contendant distinct (la fusion n'existe que via l'ordre de Jonction J, déplacement pacifique) — **y compris entre piles d'un même joueur** : deux de ses piles convergeant par A sur une même case se disputent la case (comparaison des contendents ; pour converger vraiment, il faut la Jonction J). Pour cumuler des forces sur une case, il faut un **soutien S** explicite.
-- **Puissance d'attaque :** taille de la pile attaquante.
-- **Puissance de soutien :** taille de la pile soutenante. Coupure (règle Diplomacy) : le soutien est coupé si la pile soutenante est attaquée ce tour **depuis une case différente de celle vers laquelle elle soutient** (la cible de l'attaque soutenue en offensif, la case tenue en défensif) — une attaque venue de cette case-là ne coupe PAS le soutien.
-- **Résolution (manière Diplomacy) :** l'ensemble des intentions (attaques, soutiens, déplacements pacifiques) est calculé et itéré jusqu'à stabilité AVANT d'exécuter les mouvements. Force égale = Statu quo. Supériorité numérique = Victoire. Une pile dont la case est **prise** est délogée : son propre ordre de mouvement est annulé (elle bat en retraite) ; si la case tient, son mouvement s'exécute normalement.
-- **Multi-contendants :** quand plusieurs piles attaquent la même case, toutes les forces s'affrontent dans une comparaison unique (chaque pile attaquante + la défense). La force **strictement la plus haute** l'emporte et occupe la case ; **toute égalité au sommet = statu quo** : la défense tient et tous les attaquants échouent, même si leur force est supérieure à la défense — y compris deux attaques à égalité entre elles, fût-ce du même joueur (ex. 1 + 1 contre 1 : statu quo ; sur une case vide, deux attaquants à égalité échouent tous les deux ; pour prendre la case, faire une attaque soutenue).
+- **Force de base :** 1 troupe = 1 force. **Les ordres s'appliquent aux armées** : toutes les troupes d'une armée partagent le même ordre courant — il n'existe jamais d'ordres mixtes au sein d'une armée.
+- **Pas de fusion des attaques :** deux attaques sur la même case ne se combinent PAS : chaque armée attaquante est un contendant distinct (la fusion n'existe que via l'ordre de Jonction J, déplacement pacifique) — **y compris entre armées d'un même joueur** : deux de ses armées convergeant par A sur une même case se disputent la case (comparaison des contendents ; pour converger vraiment, il faut la Jonction J). Pour cumuler des forces sur une case, il faut un **soutien S** explicite.
+- **Puissance d'attaque :** taille de l'armée attaquante.
+- **Puissance de soutien :** taille de l'armée soutenante. Coupure (règle Diplomacy) : le soutien est coupé si l'armée soutenante est attaquée ce tour **depuis une case différente de celle vers laquelle elle soutient** (la cible de l'attaque soutenue en offensif, la case tenue en défensif) — une attaque venue de cette case-là ne coupe PAS le soutien.
+- **Résolution (manière Diplomacy) :** l'ensemble des intentions (attaques, soutiens, déplacements pacifiques) est calculé et itéré jusqu'à stabilité AVANT d'exécuter les mouvements. Force égale = Statu quo. Supériorité numérique = Victoire. Une armée dont la case est **prise** est délogée : son propre ordre de mouvement est annulé (elle bat en retraite) ; si la case tient, son mouvement s'exécute normalement.
+- **Multi-contendants :** quand plusieurs armées attaquent la même case, toutes les forces s'affrontent dans une comparaison unique (chaque armée attaquante + la défense). La force **strictement la plus haute** l'emporte et occupe la case ; **toute égalité au sommet = statu quo** : la défense tient et tous les attaquants échouent, même si leur force est supérieure à la défense — y compris deux attaques à égalité entre elles, fût-ce du même joueur (ex. 1 + 1 contre 1 : statu quo ; sur une case vide, deux attaquants à égalité échouent tous les deux ; pour prendre la case, faire une attaque soutenue).
 - **Déplacements pacifiques (Jonction, Dispersion) :** puissance 0 ; repoussés si leur destination est contestée par une attaque ce tour.
 
 ### Ravitaillement Exponentiel
 
-Une pile de N armées sur une même case consomme :
+Une armée de N troupes sur une même case consomme :
 
 Coût en R = 2^(N-1)
 
-*(1 armée = 1 R | 2 armées = 2 R | 3 armées = 4 R | 4 armées = 8 R)*
+*(1 troupe = 1 R | 2 troupes = 2 R | 3 troupes = 4 R | 4 troupes = 8 R)*
 
 ### Portée des Flux
 
@@ -140,37 +140,37 @@ Coût en R = 2^(N-1)
 ### Types d'Ordres
 
 - **Mouvement / Attaque / Maintien** (règles type *Diplomacy*). Le mouvement et l'attaque partagent la même mécanique de déplacement (le combat n'intervient que si la case est occupée par l'ennemi).
-- **Soutien :** `XXX S YYY - ZZZ` (**offensif**) ou `XXX S YYY` (**défensif**), façon *Diplomacy* et **explicite** — on désigne la pile soutenue, de **toute nationalité** (on peut soutenir l'attaque d'un autre joueur, y compris contre soi).
-  - *Offensif* `XXX S YYY - ZZZ` : la pile en XXX soutient l'attaque de la pile en YYY vers ZZZ. Requis : ZZZ adjacente à XXX (et YYY–ZZZ adjacentes). Sans effet si la pile de YYY n'attaque pas ZZZ ce tour (gaspillé, mais l'ordre réussit).
-  - *Défensif* `XXX S YYY` : la pile en XXX soutient la pile en YYY qui **tient** (ordre sans déplacement : maintien, soutien ou pillage — pas A/J/D). Requis : YYY adjacente à XXX. Sans effet si la pile de YYY se déplace (gaspillé, mais l'ordre réussit).
-  - Puissance = taille de la pile soutenante ; **coupure** : la pile soutenante est attaquée depuis une case **différente** de celle vers laquelle elle soutient (cf. §5). En boucle : l'offensif soutient tant que la pile soutenue attaque ZZZ, le défensif tant que YYY est attaquée — la chaîne avance sinon.
+- **Soutien :** `XXX S YYY - ZZZ` (**offensif**) ou `XXX S YYY` (**défensif**), façon *Diplomacy* et **explicite** — on désigne l'armée soutenue, de **toute nationalité** (on peut soutenir l'attaque d'un autre joueur, y compris contre soi).
+  - *Offensif* `XXX S YYY - ZZZ` : l'armée en XXX soutient l'attaque de l'armée en YYY vers ZZZ. Requis : ZZZ adjacente à XXX (et YYY–ZZZ adjacentes). Sans effet si l'armée de YYY n'attaque pas ZZZ ce tour (gaspillé, mais l'ordre réussit).
+  - *Défensif* `XXX S YYY` : l'armée en XXX soutient l'armée en YYY qui **tient** (ordre sans déplacement : maintien, soutien ou pillage — pas A/J/D). Requis : YYY adjacente à XXX. Sans effet si l'armée de YYY se déplace (gaspillé, mais l'ordre réussit).
+  - Puissance = taille de l'armée soutenante ; **coupure** : l'armée soutenante est attaquée depuis une case **différente** de celle vers laquelle elle soutient (cf. §5). En boucle : l'offensif soutient tant que l'armée soutenue attaque ZZZ, le défensif tant que YYY est attaquée — la chaîne avance sinon.
   - On ne peut soutenir sa propre case (YYY ≠ XXX) ni un J/D.
-- **Jonction :** déplacement **pacifique** (pas une attaque, puissance 0) vers une case adjacente, **obligatoirement en dernier ordre d'une chaîne** (la jonction achève toujours une chaîne). Destination contestée par une attaque ce tour → **repoussé** ; occupée par l'ennemi → impossible. Sinon la jonctionnante s'y rend et **fusionne** si une armée alliée s'y trouve déjà, **ou** si exactement une armée alliée y arrive au même tour **sans contestation** (aucune autre armée n'y converge — deux jonctions mutuelles J+J fusionnent aussi ; sinon, convergence multiple → repoussé). En cas de fusion, **la chaîne de l'hôte est conservée** — celle de la jonctionnante est de toute façon consommée, J étant le dernier ordre ; l'arrivant par A est l'hôte ; un rendez-vous J+J, qui fusionne deux chaînes achevées, laisse la pile fusionnée **Sans Ordre**.
-- **Séparation / Dispersion :** Diviser une pile d'armées. Chaque armée se voit assigner une destination (adjacente ou la case d'origine, autorisée) libre et non ciblée par une attaque ce tour, vers laquelle elle se déplace pacifiquement. La chaîne d'ordres reste sur l'armée d'origine, qui prend la première destination listée.
-- **Pillage :** Détruire l'infrastructure de **la case où se trouve l'armée** ; le bonus en R (valeur d'équilibrage) est crédité au **lieu-dit contrôlé le plus proche** du joueur (perdu s'il n'en contrôle aucun).
-- **Otage / Cachot :** `XXX O <noble>` / `XXX K <noble>` — régit l'état d'un noble **prisonnier** détenu par la pile de XXX : *otage* (état par défaut — il produit des rapports pour son propriétaire et compte en T0) ou *au cachot* (il ne produit plus rien). Requis : noble prisonnier du joueur de la pile, sur la case de la pile.
+- **Jonction :** déplacement **pacifique** (pas une attaque, puissance 0) vers une case adjacente, **obligatoirement en dernier ordre d'une chaîne** (la jonction achève toujours une chaîne). Destination contestée par une attaque ce tour → **repoussé** ; occupée par l'ennemi → impossible. Sinon la jonctionnante s'y rend et **fusionne** si une troupe alliée s'y trouve déjà, **ou** si exactement une troupe alliée y arrive au même tour **sans contestation** (aucune autre troupe n'y converge — deux jonctions mutuelles J+J fusionnent aussi ; sinon, convergence multiple → repoussé). En cas de fusion, **la chaîne de l'hôte est conservée** — celle de la jonctionnante est de toute façon consommée, J étant le dernier ordre ; l'arrivant par A est l'hôte ; un rendez-vous J+J, qui fusionne deux chaînes achevées, laisse l'armée fusionnée **Sans Ordre**.
+- **Séparation / Dispersion :** Diviser une armée de troupes. Chaque troupe se voit assigner une destination (adjacente ou la case d'origine, autorisée) libre et non ciblée par une attaque ce tour, vers laquelle elle se déplace pacifiquement. La chaîne d'ordres reste sur la troupe d'origine, qui prend la première destination listée.
+- **Pillage :** Détruire l'infrastructure de **la case où se trouve la troupe** ; le bonus en R (valeur d'équilibrage) est crédité au **lieu-dit contrôlé le plus proche** du joueur (perdu s'il n'en contrôle aucun).
+- **Otage / Cachot :** `XXX O <noble>` / `XXX K <noble>` — régit l'état d'un noble **prisonnier** détenu par l'armée de XXX : *otage* (état par défaut — il produit des rapports pour son propriétaire et compte en T0) ou *au cachot* (il ne produit plus rien). Requis : noble prisonnier du joueur de l'armée, sur la case de l'armée.
 
 ### Chaînes d'Ordres et Liaisons
 
-Un joueur peut programmer des séquences d'ordres successives (O1 → O2 → O3). **Chaque transition (chaque ordre) possède sa propre liaison** : unique ou boucle. **Il n'existe pas de modification de chaîne** : une pile qui reçoit une chaîne remplace la précédente. Une chaîne est portée par une **pile** (représentée par son armée au plus petit matricule) et s'applique à **toutes** les armées de la pile — jamais d'ordres mixtes. La **jonction (J)** ne peut figurer qu'en **dernier ordre** d'une chaîne.
+Un joueur peut programmer des séquences d'ordres successives (O1 → O2 → O3). **Chaque transition (chaque ordre) possède sa propre liaison** : unique ou boucle. **Il n'existe pas de modification de chaîne** : une armée qui reçoit une chaîne remplace la précédente. Une chaîne est portée par une **armée** (représentée par sa troupe au plus petit matricule) et s'applique à **toutes** les troupes de l'armée — jamais d'ordres mixtes. La **jonction (J)** ne peut figurer qu'en **dernier ordre** d'une chaîne.
 
-- **Liaison Unique :** En cas d'échec de Ox, la chaîne brise. La pile passe *Sans Ordre*.
-- **Liaison Boucle :** En cas d'échec de Ox, la pile retente Ox au tour suivant jusqu'à réussite.
+- **Liaison Unique :** En cas d'échec de Ox, la chaîne brise. L'armée passe *Sans Ordre*.
+- **Liaison Boucle :** En cas d'échec de Ox, l'armée retente Ox au tour suivant jusqu'à réussite.
 - **Ordre Invalide :** Tout ordre rendu physiquement ou mécaniquement impossible **brise immédiatement** la chaîne d'ordres, quel que soit le mode de liaison.
-- **Position manquante :** chaque ordre précise explicitement la position de l'armée ; si l'armée n'y est pas quand l'ordre s'exécute → échec (single : brise ; boucle : retente).
+- **Position manquante :** chaque ordre précise explicitement la position de la troupe ; si la troupe n'y est pas quand l'ordre s'exécute → échec (single : brise ; boucle : retente).
 - **Maintien en boucle** : garde indéfinie (la chaîne reste en veille jusqu'à réception d'un nouvel ordre).
 - **Dispersion en boucle** : retente jusqu'à résolution intégrale ; en single, la chaîne avance même si la dispersion est partielle.
 - **Progression simultanée :** la progression des chaînes prend en compte toutes les chaînes du tour pour résoudre combats, retraites et jonctions.
 
 ### Armées "Sans Ordre" (IA Défensive Auto-équilibrée)
 
-Une pile sans ordre apporte un **soutien défensif** (équivalent d'un `XXX S YYY`) à la **pile alliée la plus proche** qui possède le **moins de soutien**, stabilisant automatiquement la ligne de front.
+Une armée sans ordre apporte un **soutien défensif** (équivalent d'un `XXX S YYY`) à l'**armée alliée la plus proche** qui possède le **moins de soutien**, stabilisant automatiquement la ligne de front.
 
-- **Candidats :** piles alliées **en défense** (leur case est contestée par une attaque ennemie) ou **elles-mêmes sans chaîne**. Une pile qui attaque n'est jamais ciblée.
+- **Candidats :** armées alliées **en défense** (leur case est contestée par une attaque ennemie) ou **elles-mêmes sans chaîne**. Une armée qui attaque n'est jamais ciblée.
 - **Exclusivement défensif :** le soutien automatique renforce la **défense** de la cible, jamais sa force d'attaque.
-- **Puissance :** taille complète de la pile soutenante (même règle que l'ordre S — les ordres s'appliquent aux piles).
+- **Puissance :** taille complète de l'armée soutenante (même règle que l'ordre S — les ordres s'appliquent aux armées).
 - **Sélection (déterministe) :** par matricule croissant — (1) cible la plus proche (distance BFS, départage ID croissant), (2) moins soutenue (ordres S reçus + soutiens automatiques déjà assignés ce tour, compteurs mis à jour au fil de la sélection), (3) matricule croissant.
-- **Coupure :** le soutien automatique d'une pile est coupé si cette pile est attaquée ce tour depuis une case différente de celle qu'elle soutient (même règle que S). La pile soutenante n'émet aucun mouvement et reste Sans Ordre.
+- **Coupure :** le soutien automatique d'une armée est coupé si cette armée est attaquée ce tour depuis une case différente de celle qu'elle soutient (même règle que S). L'armée soutenante n'émet aucun mouvement et reste Sans Ordre.
 
 ### Capacité des Nobles
 
@@ -178,22 +178,22 @@ Un noble ne peut émettre qu'**une seule chaîne d'ordres par tour** (remplacer 
 
 ### Nobles : Chevauchée, Capture et Libération
 
-- **Chevauchée :** un noble se déplace AVEC les armées de sa case : quand une pile quitte sa case (A, J, ou retraite), le noble la suit — la pile se déplace toujours en bloc, la dispersion D est la seule façon de la séparer. En cas de **dispersion (D)**, une **astérisque** sur une destination désigne les nobles qui s'y rendent :
+- **Chevauchée :** un noble se déplace AVEC les troupes de sa case : quand une armée quitte sa case (A, J, ou retraite), le noble la suit — l'armée se déplace toujours en bloc, la dispersion D est la seule façon de la séparer. En cas de **dispersion (D)**, une **astérisque** sur une destination désigne les nobles qui s'y rendent :
   - `XXX D YYY XXX*` — tous les nobles en XXX
   - `XXX D YYY*JEA ZZZ*` — Jean en YYY, les autres en ZZZ
   - `XXX D YYY*JEA*ANN ZZZ*` — Jean et Anne en YYY, les autres en ZZZ
-  `*` seul = tous les nobles restants ; `*CODE` = le noble désigné (trigramme du prénom) ; chaque noble au plus une fois. **Si des nobles chevauchent la pile et que l'ordre ne les mentionne pas TOUS** (aucune astérisque, ou nobles non couverts) → l'ordre est **INVALIDE** (il n'existe aucune armée d'origine par défaut).
-- **Jamais seul :** un noble ne peut pas être seul : toute destination désignée porte au moins une armée, et un noble ne peut être recruté que sur une case contenant une armée du joueur. (Cas limite toléré : pile détruite sur une case restée vide, le noble y demeure seul.)
+  `*` seul = tous les nobles restants ; `*CODE` = le noble désigné (trigramme du prénom) ; chaque noble au plus une fois. **Si des nobles chevauchent l'armée et que l'ordre ne les mentionne pas TOUS** (aucune astérisque, ou nobles non couverts) → l'ordre est **INVALIDE** (il n'existe aucune troupe d'origine par défaut).
+- **Jamais seul :** un noble ne peut pas être seul : toute destination désignée porte au moins une troupe, et un noble ne peut être recruté que sur une case contenant une troupe du joueur. (Cas limite toléré : armée détruite sur une case restée vide, le noble y demeure seul.)
 - **Jamais une armée :** le noble ne compte pas dans les forces, ne consomme pas de ravitaillement et n'est jamais détruit dans un combat.
-- **Capture :** un noble n'est capturé que si la pile qu'il chevauche est **détruite au combat** (pas de retraite possible, ou collision) ET qu'une armée **ennemie** occupe sa case : il est alors **récupéré par l'armée gagnante** — il devient **prisonnier**, chevauche cette armée (il se déplace selon les ordres du joueur qui la possède) et ne peut plus émettre de chaîne. Pile détruite sur une case restée vide ou alliée : le noble reste sur place.
+- **Capture :** un noble n'est capturé que si l'armée qu'il chevauche est **détruite au combat** (pas de retraite possible, ou collision) ET qu'une troupe **ennemie** occupe sa case : il est alors **récupéré par l'armée gagnante** — il devient **prisonnier**, chevauche cette armée (il se déplace selon les ordres du joueur qui la possède) et ne peut plus émettre de chaîne. Armée détruite sur une case restée vide ou alliée : le noble reste sur place.
 - **Libération :** le **propriétaire** peut libérer un noble prisonnier par un ordre d'Hiver `L N <code noble>` ; le noble réapparaît libre à la **capitale de son propriétaire** (requis : une capitale désignée, sinon rejet ; coût : `assets/balance.json`, défaut 0).
 
 ### Phase de Retraite
 
-Une pile défaite doit battre en retraite **en bloc** sur une case adjacente valide (non occupée, sans combat ce tour-ci, et différente de la case d'origine de l'attaquant). Les retraites sont traitées par matricule croissant : une pile évite une case déjà choisie par une retraite précédente si une autre case est valide.
+Une armée défaite doit battre en retraite **en bloc** sur une case adjacente valide (non occupée, sans combat ce tour-ci, et différente de la case d'origine de l'attaquant). Les retraites sont traitées par matricule croissant : une armée évite une case déjà choisie par une retraite précédente si une autre case est valide.
 
-- Si deux piles se replient sur la même case **sans autre option** : **les deux sont détruites**.
-- Si aucune case n'est valide : **la pile est détruite**.
+- Si deux armées se replient sur la même case **sans autre option** : **les deux sont détruites**.
+- Si aucune case n'est valide : **l'armée est détruite**.
 
 ---
 
@@ -217,12 +217,12 @@ Un Moulin doit se trouver **sur un lieu-dit ou directement adjacent à un lieu-d
 
 ### Contrôle des Territoires
 
-- Tout territoire bascule sous le contrôle d'un joueur dès qu'une de ses armées s'y arrête (l'occupe en fin de résolution). Seuls les lieux-dits produisent et stockent, mais le contrôle gouverne aussi la construction et le passage des flux.
-- **Rémanence :** Le contrôle est conservé même après le départ de l'armée, jusqu'à l'arrêt d'une armée ennemie.
+- Tout territoire bascule sous le contrôle d'un joueur dès qu'une de ses troupes s'y arrête (l'occupe en fin de résolution). Seuls les lieux-dits produisent et stockent, mais le contrôle gouverne aussi la construction et le passage des flux.
+- **Rémanence :** Le contrôle est conservé même après le départ de la troupe, jusqu'à l'arrêt d'une troupe ennemie.
 
 ### Algorithme de Carence Alimentaire (Famine)
 
-Si la production instantanée ne suffit pas à alimenter toutes les armées :
+Si la production instantanée ne suffit pas à alimenter toutes les troupes :
 
 ```
 [Déficit de Ravitaillement]
@@ -235,9 +235,9 @@ Si la production instantanée ne suffit pas à alimenter toutes les armées :
        ▼ (Si stocks totalement épuisés)
 [2. Armées en Famine (Force = 0)]
    ► Ordre : Armées les PLUS ÉLOIGNÉES de leur source.
-   ► Départage : Les piles les PLUS GROSSES d'abord
+   ► Départage : Les armées les PLUS GROSSES d'abord
      (les plus coûteuses en nourriture).
-   ► Départage final : Numéro de matricule d'armée DÉCROISSANT.
+   ► Départage final : Numéro de matricule de troupe DÉCROISSANT.
 ```
 
-**Effets de la famine :** une pile famélique ne peut que se déplacer à force 0 (elle ne se bat ni en attaque, ni en défense, ni en soutien ; si elle est battue, elle bat en retraite normalement) ; si elle se trouve sur une case avec une infrastructure, elle la **pille automatiquement** (détruit l'infrastructure de la case — celle-ci ne peut être repillée ensuite). Le pillage lui rapporte le bonus R du pillage **moins sa consommation** (2^(N-1)) : si le gain est positif ou nul, la pile se nourrit et n'est plus famélique (l'excédent est crédité au lieu-dit contrôlé le plus proche du joueur, perdu s'il n'en contrôle aucun) ; sinon elle reste famélique sans rien gagner (l'infrastructure est détruite quand même).
+**Effets de la famine :** une armée famélique ne peut que se déplacer à force 0 (elle ne se bat ni en attaque, ni en défense, ni en soutien ; si elle est battue, elle bat en retraite normalement) ; si elle se trouve sur une case avec une infrastructure, elle la **pille automatiquement** (détruit l'infrastructure de la case — celle-ci ne peut être repillée ensuite). Le pillage lui rapporte le bonus R du pillage **moins sa consommation** (2^(N-1)) : si le gain est positif ou nul, l'armée se nourrit et n'est plus famélique (l'excédent est crédité au lieu-dit contrôlé le plus proche du joueur, perdu s'il n'en contrôle aucun) ; sinon elle reste famélique sans rien gagner (l'infrastructure est détruite quand même).

@@ -217,24 +217,24 @@ function App() {
 
                       <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">
                         <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
-                          Armées
+                          Troupes
                         </h3>
-                        {selectedState.armies.length > 0 ? (
+                        {selectedState.troops.length > 0 ? (
                           <ul className="space-y-1.5 text-sm">
-                            {selectedState.armies.map((army) => (
+                            {selectedState.troops.map((troop) => (
                               <li
-                                key={army.id}
+                                key={troop.id}
                                 className="flex items-center justify-between rounded-md bg-[#f3ead9] px-3 py-2"
                               >
-                                <span className="font-semibold">{army.id}</span>
+                                <span className="font-semibold">{troop.id}</span>
                                 <span className="text-xs text-[#806f57]">
-                                  {army.owner}
+                                  {troop.owner}
                                 </span>
                               </li>
                             ))}
                           </ul>
                         ) : (
-                          <p className="text-sm italic text-[#806f57]">Aucune armée</p>
+                          <p className="text-sm italic text-[#806f57]">Aucune troupe</p>
                         )}
                       </div>
 

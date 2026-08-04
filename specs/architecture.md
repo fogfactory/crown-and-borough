@@ -85,7 +85,7 @@ Une structure standard (*Standard Go Project Layout*) simple et efficace pour la
 │   ├── api/             # Handlers HTTP, middleware, routes
 │   ├── engine/          # Moteur de jeu pur (Graphes, Résolution, Combat, Famine)
 │   ├── db/              # Chargement des assets (CSV, balance.json) — sqlc/Postgres différé
-│   ├── models/          # Structures de données métier (Ordres, Territoires, Armées)
+│   ├── models/          # Structures de données métier (Ordres, Territoires, Troupes)
 │   └── server/          # Sessions de jeu, store des parties, persistance JSON (P3)
 ├── assets/              # Données statiques du monde et équilibrage
 │   ├── communes.csv     # Noms de lieux-dits
@@ -161,7 +161,7 @@ La géographie est une connaissance commune : aucun joueur ne peut ignorer le te
 
 ### state.json (dynamique, privé, par joueur et par fraîcheur de rapport)
 
-Ce qui vit sur la carte : armées, infrastructures, contrôle, ressources. C'est la **vue** d'un joueur : en P2, l'API ne sert que ce que ses messagers ont rapporté (vision T-x), chaque territoire est horodaté (fraîcheur).
+Ce qui vit sur la carte : troupes, infrastructures, contrôle, ressources. C'est la **vue** d'un joueur : en P2, l'API ne sert que ce que ses messagers ont rapporté (vision T-x), chaque territoire est horodaté (fraîcheur).
 
 ```json
 {
@@ -173,7 +173,7 @@ Ce qui vit sur la carte : armées, infrastructures, contrôle, ressources. C'est
       "id": "T01",
       "owner": "P1",
       "resources": 4,
-      "armies": [{ "id": "A1", "owner": "P1" }],
+      "troops": [{ "id": "TR1", "owner": "P1" }],
       "infrastructures": [{ "type": "mill", "level": 2 }]
     }
   ],
@@ -182,12 +182,12 @@ Ce qui vit sur la carte : armées, infrastructures, contrôle, ressources. C'est
 ```
 
 - `asOf` : tour auquel chaque territoire a été observé (permet d'afficher la fraîcheur de l'information en P2)
-- `armies`, `infrastructures`, `nobles`, `owner`, `resources` : couche dynamique
+- `troops`, `infrastructures`, `nobles`, `owner`, `resources` : couche dynamique
 - **Coûts de trajet** (rapports P2.2 et ordres P2.3) : coût par case traversée selon le terrain, lu dans `assets/balance.json` (section travel : plaine/route 0,5 — 2 cases/tour ; forêt/colline 1 ; montagne/marécage 2 ; divisé par 2 sur un Relais de Poste)
 
 ### Rendu côté front
 
-Le front combine les deux documents : `map.json` fournit géométrie et fond (terrains, lieux-dits, labels), `state.json` fournit la couche vivante (armées, constructions, contrôle, stocks). Cette séparation permet de **rendre plusieurs versions d'un même rapport** (comparer la vue fraîche et la vue datée), le calcul d'affichage restant entièrement côté client.
+Le front combine les deux documents : `map.json` fournit géométrie et fond (terrains, lieux-dits, labels), `state.json` fournit la couche vivante (troupes, constructions, contrôle, stocks). Cette séparation permet de **rendre plusieurs versions d'un même rapport** (comparer la vue fraîche et la vue datée), le calcul d'affichage restant entièrement côté client.
 
 ---
 
@@ -200,46 +200,46 @@ Les joueurs (et les agents) expriment les chaînes d'ordres en texte brut, facil
 ```
 JEA # Jean                     <- en-tête : code trigramme du noble (commentaire ignoré)
 BRI A ATL # attaque single
-BRI S ATL - NOR # soutien offensif (la pile de BRI soutient l'attaque ATL → NOR), single
-(BRI S ATL) # soutien défensif (soutient la tenue de la pile d'ATL), boucle
+BRI S ATL - NOR # soutien offensif (l'armée de BRI soutient l'attaque ATL → NOR), single
+(BRI S ATL) # soutien défensif (soutient la tenue de l'armée d'ATL), boucle
 (ATL A NOR) # déplacement en boucle
 H BRI      # maintien, single
 BRI J ROS  # jonction, single — toujours en DERNIER ordre d'une chaîne
-P BRI      # pillage de la case de l'armée, single
-BRI D BRI ATL NOR  # dispersion : 1 destination par armée de la pile
+P BRI      # pillage de la case de la troupe, single
+BRI D BRI ATL NOR  # dispersion : 1 destination par troupe de l'armée
 ```
 
-- **En-tête (1re ligne)** : code trigramme du noble émetteur. Une chaîne = une **émission** (capacité : 1 émission par noble et par tour). **Pas de modification de chaîne** : une pile qui reçoit une chaîne remplace la précédente. Une chaîne s'applique à une **pile entière** (jamais d'ordres mixtes) ; elle est portée par l'armée au plus petit matricule de la pile.
-- **Ordres** : chaque ligne explicite la **position** de l'armée (le territoire où elle doit se trouver à l'exécution) — jamais implicite. Formats par symbole :
+- **En-tête (1re ligne)** : code trigramme du noble émetteur. Une chaîne = une **émission** (capacité : 1 émission par noble et par tour). **Pas de modification de chaîne** : une armée qui reçoit une chaîne remplace la précédente. Une chaîne s'applique à une **armée entière** (jamais d'ordres mixtes) ; elle est portée par la troupe au plus petit matricule de l'armée.
+- **Ordres** : chaque ligne explicite la **position** de la troupe (le territoire où elle doit se trouver à l'exécution) — jamais implicite. Formats par symbole :
   - `XXX A YYY` — atteindre/attaquer depuis XXX vers YYY
   - `XXX S YYY` — soutien **défensif** depuis XXX vers YYY (YYY adjacente, YYY ≠ XXX)
-  - `XXX S YYY - ZZZ` — soutien **offensif** : la pile de XXX soutient l'attaque de la pile de YYY vers ZZZ (ZZZ adjacente à XXX, YYY–ZZZ adjacentes)
-  - `H XXX` — maintien sur XXX (position de l'armée)
+  - `XXX S YYY - ZZZ` — soutien **offensif** : l'armée de XXX soutient l'attaque de l'armée de YYY vers ZZZ (ZZZ adjacente à XXX, YYY–ZZZ adjacentes)
+  - `H XXX` — maintien sur XXX (position de la troupe)
   - `XXX J YYY` — jonction depuis XXX vers YYY (**toujours en dernier ordre d'une chaîne**)
-  - `P XXX` — pillage, XXX = case où l'armée se trouve
-  - `XXX D XXX YYY ZZZ ...` — dispersion : XXX = position, puis une destination par armée de la pile (le nombre de destinations = taille de la pile ; la case de l'armée est une destination valide, listée explicitement)
+  - `P XXX` — pillage, XXX = case où la troupe se trouve
+  - `XXX D XXX YYY ZZZ ...` — dispersion : XXX = position, puis une destination par troupe de l'armée (le nombre de destinations = taille de l'armée ; la case de l'armée est une destination valide, listée explicitement)
 - **Liaison par transition** : ordre **entre parenthèses** = boucle (`loop`) ; **sans parenthèses** = unique (`single`). Chaque ligne a sa propre liaison.
-- **Position exigée** : si l'armée n'est pas sur la position indiquée quand l'ordre s'exécute → **failure** (single : chaîne brisée ; loop : retente).
+- **Position exigée** : si la troupe n'est pas sur la position indiquée quand l'ordre s'exécute → **failure** (single : chaîne brisée ; loop : retente).
 - `#` : commentaire (ignoré jusqu'à fin de ligne). Lignes vides ignorées. Insensible à la casse (normalisé en MAJUSCULES). Codes invalides → erreur de parsing (avec numéro de ligne).
 
 ### Symboles et sémantique
 
 | Symbole | Ordre | Syntaxe | Réussite | Échec (single) | Boucle (loop) |
 |---|---|---|---|---|---|
-| `A` | Attaque / atteindre | `XXX A YYY` | Déplacement vers une case **adjacente** (combat si occupée — résolution P1.4). **Les attaques de piles d'origines différentes ne se combinent pas** : chacune est un contendant distinct (à égalité au sommet → statu quo), **y compris entre piles d'un même joueur** (deux piles convergeant par A sur une case vide : la plus grosse entre, l'autre reste ; à égalité, statu quo — pour converger vraiment, il faut J) ; pour cumuler des forces, un soutien S | Chaîne brisée | Retente jusqu'à réussite |
-| `S` | Soutien | `XXX S YYY` (défensif) ou `XXX S YYY - ZZZ` (offensif) | **Soutien explicite, toute nationalité** (même contre soi). *Défensif* : +taille de la pile à la défense de la pile en YYY (adjacente, ≠ XXX) qui **tient** (ordre sans déplacement H/S/P ; sans effet — gaspillé mais réussi — si elle se déplace ou est absente). *Offensif* : +taille de la pile à l'attaque de la pile de YYY vers ZZZ (ZZZ adjacente à XXX, YYY–ZZZ adjacentes ; sans effet — gaspillé mais réussi — si elle n'attaque pas ZZZ). **Coupé** si la pile soutenante est attaquée depuis une case **différente** de celle vers laquelle elle soutient (ZZZ en offensif, YYY en défensif) | Chaîne brisée | Offensif : index figé tant que la pile de YYY attaque ZZZ, avance sinon ; défensif : index figé tant que YYY est attaquée, avance sinon |
-| `H` | Maintien | `H XXX` | L'armée reste sur XXX (sa position) | Chaîne brisée | **Garde indéfinie** : chaîne en veille jusqu'à réception d'un nouvel ordre |
-| `J` | Jonction | `XXX J YYY` | **Déplacement pacifique** (pas une attaque, puissance 0) vers YYY **adjacente**, toujours en **dernier ordre d'une chaîne** (sinon chaîne invalide). **Fusionne** si une armée alliée est déjà sur YYY, ou si exactement une armée alliée y arrive au même tour **sans contestation** (aucune autre armée n'y converge — deux jonctions mutuelles J+J fusionnent) ; la **chaîne de l'hôte est conservée** (celle de la jonctionnante est consommée par ce J ; l'arrivant par A est l'hôte ; un rendez-vous J+J laisse la pile **Sans Ordre**) ; case occupée par l'ennemi → échec ; case **contestée** par une attaque ce tour, ou **convergence de plusieurs armées** → **repoussé** (échec) | Chaîne brisée | Retente jusqu'à réussite (puis chaîne consommée) |
-| `P` | Pillage | `P XXX` | XXX = case où l'armée se trouve : détruit l'infrastructure de SA case (une seule par case, GDD §3) + bonus R (balance.json) **crédité au lieu-dit contrôlé le plus proche** du joueur (perdu s'il n'en contrôle aucun) ; **aucune infrastructure → ordre invalide** | Chaîne brisée | Retente jusqu'à destruction |
-| `O` | Otage | `XXX O YYY` | YYY = code du noble prisonnier détenu par la pile de XXX (la case de l'armée) : il passe à l'état **otage** (état par défaut — il produit des rapports pour son propriétaire et compte en T0) ; noble non prisonnier, d'un autre joueur ou absent → **invalide** | Chaîne brisée | Retente |
-| `K` | Cachot | `XXX K YYY` | YYY = code du noble prisonnier détenu par la pile de XXX : il passe **au cachot** (plus aucun rapport, ni récepteur, ni T0 pour son propriétaire) ; mêmes conditions d'invalidité que O | Chaîne brisée | Retente |
-| `D` | Dispersion | `XXX D XXX YYY ZZZ ...` | Une destination **par armée de la pile** (nombre = taille de la pile) ; chaque destination est **adjacente** ou égale à la position ; à la résolution (P1.4), chaque destination **libre et non ciblée par une attaque** → l'armée s'y déplace pacifiquement ; la case de l'armée est valide ; **la chaîne reste sur l'armée d'origine, qui prend la première destination listée** (les autres armées sont créées). **Répartition des nobles par astérisque** : `XXX D YYY XXX*` = tous les nobles en XXX ; `YYY*JEA` = Jean en YYY ; `YYY*JEA*ANN` = Jean et Anne en YYY ; `*` seul = tous les nobles restants ; chaque noble au plus une fois ; **si des nobles chevauchent la pile et que l'ordre ne les assigne pas tous → ordre INVALIDE** (aucune armée d'origine par défaut) | Avance même si partielle | Retente jusqu'à résolution **intégrale** |
+| `A` | Attaque / atteindre | `XXX A YYY` | Déplacement vers une case **adjacente** (combat si occupée — résolution P1.4). **Les attaques d'armées d'origines différentes ne se combinent pas** : chacune est un contendant distinct (à égalité au sommet → statu quo), **y compris entre armées d'un même joueur** (deux armées convergeant par A sur une case vide : la plus grosse entre, l'autre reste ; à égalité, statu quo — pour converger vraiment, il faut J) ; pour cumuler des forces, un soutien S | Chaîne brisée | Retente jusqu'à réussite |
+| `S` | Soutien | `XXX S YYY` (défensif) ou `XXX S YYY - ZZZ` (offensif) | **Soutien explicite, toute nationalité** (même contre soi). *Défensif* : +taille de l'armée à la défense de l'armée en YYY (adjacente, ≠ XXX) qui **tient** (ordre sans déplacement H/S/P ; sans effet — gaspillé mais réussi — si elle se déplace ou est absente). *Offensif* : +taille de l'armée à l'attaque de l'armée de YYY vers ZZZ (ZZZ adjacente à XXX, YYY–ZZZ adjacentes ; sans effet — gaspillé mais réussi — si elle n'attaque pas ZZZ). **Coupé** si l'armée soutenante est attaquée depuis une case **différente** de celle vers laquelle elle soutient (ZZZ en offensif, YYY en défensif) | Chaîne brisée | Offensif : index figé tant que l'armée de YYY attaque ZZZ, avance sinon ; défensif : index figé tant que YYY est attaquée, avance sinon |
+| `H` | Maintien | `H XXX` | La troupe reste sur XXX (sa position) | Chaîne brisée | **Garde indéfinie** : chaîne en veille jusqu'à réception d'un nouvel ordre |
+| `J` | Jonction | `XXX J YYY` | **Déplacement pacifique** (pas une attaque, puissance 0) vers YYY **adjacente**, toujours en **dernier ordre d'une chaîne** (sinon chaîne invalide). **Fusionne** si une troupe alliée est déjà sur YYY, ou si exactement une troupe alliée y arrive au même tour **sans contestation** (aucune autre troupe n'y converge — deux jonctions mutuelles J+J fusionnent) ; la **chaîne de l'hôte est conservée** (celle de la jonctionnante est consommée par ce J ; l'arrivant par A est l'hôte ; un rendez-vous J+J laisse l'armée **Sans Ordre**) ; case occupée par l'ennemi → échec ; case **contestée** par une attaque ce tour, ou **convergence de plusieurs armées** → **repoussé** (échec) | Chaîne brisée | Retente jusqu'à réussite (puis chaîne consommée) |
+| `P` | Pillage | `P XXX` | XXX = case où la troupe se trouve : détruit l'infrastructure de SA case (une seule par case, GDD §3) + bonus R (balance.json) **crédité au lieu-dit contrôlé le plus proche** du joueur (perdu s'il n'en contrôle aucun) ; **aucune infrastructure → ordre invalide** | Chaîne brisée | Retente jusqu'à destruction |
+| `O` | Otage | `XXX O YYY` | YYY = code du noble prisonnier détenu par l'armée de XXX (la case de l'armée) : il passe à l'état **otage** (état par défaut — il produit des rapports pour son propriétaire et compte en T0) ; noble non prisonnier, d'un autre joueur ou absent → **invalide** | Chaîne brisée | Retente |
+| `K` | Cachot | `XXX K YYY` | YYY = code du noble prisonnier détenu par l'armée de XXX : il passe **au cachot** (plus aucun rapport, ni récepteur, ni T0 pour son propriétaire) ; mêmes conditions d'invalidité que O | Chaîne brisée | Retente |
+| `D` | Dispersion | `XXX D XXX YYY ZZZ ...` | Une destination **par troupe de l'armée** (nombre = taille de l'armée) ; chaque destination est **adjacente** ou égale à la position ; à la résolution (P1.4), chaque destination **libre et non ciblée par une attaque** → la troupe s'y déplace pacifiquement ; la case de l'armée est valide ; **la chaîne reste sur la troupe d'origine, qui prend la première destination listée** (les autres troupes sont créées). **Répartition des nobles par astérisque** : `XXX D YYY XXX*` = tous les nobles en XXX ; `YYY*JEA` = Jean en YYY ; `YYY*JEA*ANN` = Jean et Anne en YYY ; `*` seul = tous les nobles restants ; chaque noble au plus une fois ; **si des nobles chevauchent l'armée et que l'ordre ne les assigne pas tous → ordre INVALIDE** (aucune troupe d'origine par défaut) | Avance même si partielle | Retente jusqu'à résolution **intégrale** |
 
-**Ordre invalide** (physiquement ou mécaniquement impossible : cible inexistante, cible non adjacente, armée détruite, pillage sans infrastructure...) : **brise immédiatement** la chaîne, quel que soit le mode de liaison.
+**Ordre invalide** (physiquement ou mécaniquement impossible : cible inexistante, cible non adjacente, troupe détruite, pillage sans infrastructure...) : **brise immédiatement** la chaîne, quel que soit le mode de liaison.
 
-**Armée sans chaîne** : une armée sans chaîne associée est *Sans Ordre* (pas de statut dédié : `army.chain == nil` suffit).
+**Armée sans chaîne** : une armée sans chaîne associée est *Sans Ordre* (pas de statut dédié : `troop.chain == nil` suffit).
 
-**Réception de la chaîne (P2.3)** : la chaîne est émise par le **noble de l'en-tête** depuis SA position ; elle voyage à la vitesse du terrain (coûts des assets d'équilibrage, cf. §5 de l'architecture) vers le **premier territoire de la feuille** (XXX de `XXX A YYY`, le territoire de `H XXX` ou `P XXX`). **L'arrivée est calculée à l'émission** (temps de trajet fixé). Entre l'arrivée et l'hiver suivant, la **première armée du joueur émetteur** présente sur ce territoire reçoit la chaîne — appliquée à **toute sa pile** — et **remplace** la sienne (départage : plus petit matricule). Une chaîne qui échoue la validation de réception (D ≠ taille de la pile, nobles non couverts) est **perdue**. Aucune armée requise à l'émission (l'armée peut arriver plus tard). Chaîne jamais reçue → **perdue** à la fin de l'hiver. Pas d'interception au MVP.
+**Réception de la chaîne (P2.3)** : la chaîne est émise par le **noble de l'en-tête** depuis SA position ; elle voyage à la vitesse du terrain (coûts des assets d'équilibrage, cf. §5 de l'architecture) vers le **premier territoire de la feuille** (XXX de `XXX A YYY`, le territoire de `H XXX` ou `P XXX`). **L'arrivée est calculée à l'émission** (temps de trajet fixé). Entre l'arrivée et l'hiver suivant, la **première troupe du joueur émetteur** présente sur ce territoire reçoit la chaîne — appliquée à **toute son armée** — et **remplace** la sienne (départage : plus petit matricule). Une chaîne qui échoue la validation de réception (D ≠ taille de l'armée, nobles non couverts) est **perdue**. Aucune troupe requise à l'émission (la troupe peut arriver plus tard). Chaîne jamais reçue → **perdue** à la fin de l'hiver. Pas d'interception au MVP.
 
 **Progression** : la progression des chaînes prend en compte **toutes les chaînes d'ordres simultanément** (résolution des combats, retraites, jonctions) — traitée dans le moteur de résolution P1.4.
 
@@ -248,7 +248,7 @@ BRI D BRI ATL NOR  # dispersion : 1 destination par armée de la pile
 L'hiver, le joueur soumet une **liste d'ordres** (même mécanique de soumission que les chaînes ; une ligne = un investissement ; traités dans l'ordre saisi) :
 
 - `R N XXX` — recruter un **Noble** sur XXX (nom = prénom tiré + "de \<nom du territoire\>", ex. "Jacques de Notombes")
-- `R A XXX` — recruter une **Armée** sur XXX
+- `R T XXX` — recruter une **Troupe** sur XXX
 - `C M XXX` — construire un **Moulin** sur XXX (améliore le moulin existant si déjà présent)
 - `C C XXX` — construire un **Château** sur XXX (rend la case lieu-dit)
 - `C R XXX` — construire un **Relais de Poste** sur XXX
