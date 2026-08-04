@@ -4,7 +4,6 @@ package mapgen
 
 import (
 	"fmt"
-	"math"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/models"
@@ -19,17 +18,22 @@ const (
 type Config struct {
 	Width, Height int
 	SiteCount     int
-	LieuDitRatio  float64
+	VillageCount  int
 }
 
 // Territory is the static map representation of a territory. Geometry belongs
 // here rather than in models.Territory, which represents the game domain.
+// Village is STATIC SEED DATA: game creation (NewGame, P1.6/P1.7, P1.2f)
+// materializes each flag as an ownerless village Infrastructure on the
+// uncontrolled territory. The flag never changes: a tile stays "village" in
+// map.json even when a castle replaces the village (the state layer is
+// authoritative for the real situation).
 type Territory struct {
 	ID          string         `json:"id"`
 	Code        string         `json:"code"`
 	Name        string         `json:"name"`
 	Terrain     models.Terrain `json:"terrain"`
-	LieuDit     bool           `json:"lieuDit"`
+	Village     bool           `json:"village"`
 	Points      [][2]int       `json:"points"`
 	Adjacencies []string       `json:"adjacencies"`
 }
@@ -46,11 +50,7 @@ func Generate(seed string, assets assetgen.Assets, cfg Config) (MapData, error) 
 		return MapData{}, err
 	}
 
-	lieuDitCount := int(math.Round(float64(cfg.SiteCount) * cfg.LieuDitRatio))
-	if lieuDitCount == 0 {
-		return MapData{}, fmt.Errorf("mapgen: configuration produces no lieu-dits")
-	}
-	if err := validateAssets(assets, lieuDitCount); err != nil {
+	if err := validateAssets(assets, cfg.VillageCount); err != nil {
 		return MapData{}, err
 	}
 
@@ -73,11 +73,14 @@ func Generate(seed string, assets assetgen.Assets, cfg Config) (MapData, error) 
 		return MapData{}, err
 	}
 
-	lieuDits := assignLieuDits(newRNG(seed, "lieudit"), len(sites), cfg.LieuDitRatio)
+	villages, err := assignVillages(newRNG(seed, "village"), terrain, centroids, cfg.VillageCount)
+	if err != nil {
+		return MapData{}, err
+	}
 	names, err := nameTerritories(
 		newRNG(seed, "naming"),
 		assets,
-		lieuDits,
+		villages,
 		terrain,
 		polygons,
 		centroids,
@@ -96,7 +99,7 @@ func Generate(seed string, assets assetgen.Assets, cfg Config) (MapData, error) 
 			Code:        names[i].code,
 			Name:        names[i].name,
 			Terrain:     terrain[i],
-			LieuDit:     lieuDits[i],
+			Village:     villages[i],
 			Points:      polygons[i],
 			Adjacencies: adjacency[i],
 		}
@@ -118,8 +121,11 @@ func validateConfig(cfg Config) error {
 	if cfg.SiteCount > gridW*gridH {
 		return fmt.Errorf("mapgen: site count must not exceed raster capacity %d", gridW*gridH)
 	}
-	if !(cfg.LieuDitRatio > 0 && cfg.LieuDitRatio <= 0.5) {
-		return fmt.Errorf("mapgen: lieu-dit ratio must be in (0, 0.5]")
+	if cfg.VillageCount < 1 {
+		return fmt.Errorf("mapgen: village count must be at least 1")
+	}
+	if cfg.VillageCount > cfg.SiteCount {
+		return fmt.Errorf("mapgen: village count %d exceeds site count %d", cfg.VillageCount, cfg.SiteCount)
 	}
 	return nil
 }

@@ -40,6 +40,7 @@ const INFRASTRUCTURE_LABELS: Record<InfraType, string> = {
   watchtower: 'Tour de guet',
   supply_depot: 'Dépôt de vivres',
   castle: 'Château',
+  village: 'Village',
 }
 
 function ownerLabel(owner: PlayerId | null): string {
@@ -199,10 +200,6 @@ function App() {
                     <dt className="text-[#806f57]">Terrain</dt>
                     <dd className="font-medium">
                       {TERRAIN_LABELS[selectedTerritory.terrain]}
-                    </dd>
-                    <dt className="text-[#806f57]">Lieu-dit</dt>
-                    <dd className="font-medium">
-                      {selectedTerritory.lieuDit ? 'Oui' : 'Non'}
                     </dd>
                   </dl>
 

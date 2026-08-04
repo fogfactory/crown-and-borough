@@ -88,7 +88,7 @@ Une structure standard (*Standard Go Project Layout*) simple et efficace pour la
 │   ├── models/          # Structures de données métier (Ordres, Territoires, Troupes)
 │   └── server/          # Sessions de jeu, store des parties, persistance JSON (P3)
 ├── assets/              # Données statiques du monde et équilibrage
-│   ├── communes.csv     # Noms de lieux-dits
+│   ├── communes.csv     # Noms de communes/villages
 │   ├── qualificatifs.csv # Qualificatifs de territoires (prefixe + terrain)
 │   ├── prenoms.csv      # Prénoms de nobles
 │   └── balance.json     # Toutes les constantes d'équilibrage du moteur
@@ -103,13 +103,13 @@ Les fichiers `assets/*.csv` fournissent les noms et codes identifiants des entit
 
 | Fichier | Contenu | Utilisation |
 | --- | --- | --- |
-| `communes.csv` | Noms générés de communes | Nommer les lieux-dits |
+| `communes.csv` | Noms générés de communes | Nommer les villages |
 | `qualificatifs.csv` | Qualificatifs de territoires (lettre + terrain d'application) | Nommer les territoires, à la génération de carte |
 | `prenoms.csv` | Prénoms générés | Nommer les Nobles |
 
 **Codes identifiants uniques et humainement lisibles :** chaque entité reçoit un code court (trigramme strict de 3 lettres, ex. `VIL` pour Villeneuve) aligné sur le *départage alphabétique des trigrammes* du GDD. Les codes sont uniques **au sein de chaque catégorie** (communes entre elles, prénoms entre eux, préfixes de qualificatifs entre eux) ; le type d'entité lève toute ambiguïté entre catégories. Ces codes sont utilisés dans les ordres et les rapports pour que les joueurs (et les agents) puissent référencer une entité sans avoir à retenir un UUID ou un nom complet. Les UUID internes restent la clé primaire ; les codes servent d'identifiant d'usage dans l'UI et les messages.
 
-**Noms de territoires générés à la carte :** les territoires ne sont pas nommés dans les assets. À la génération de carte (P1.2), chaque territoire reçoit un qualificatif selon son terrain dominant (`qualificatifs.csv`) et le nom d'une commune adjacente : *"Forêt de Rosemont"* → code `F` + `ROS` = `FROS`. Les codes des territoires non lieux-dits font donc 4 lettres (les lieux-dits gardent le trigramme de leur commune, 3 lettres) et restent uniques par construction (préfixes et trigrammes uniques).
+**Noms de territoires générés à la carte :** les territoires ne sont pas nommés dans les assets. À la génération de carte (P1.2), chaque territoire reçoit un qualificatif selon son terrain dominant (`qualificatifs.csv`) et le nom d'une commune adjacente : *"Forêt de Rosemont"* → code `F` + `ROS` = `FROS`. Les codes des territoires autres que les villages font donc 4 lettres (les villages gardent le trigramme de leur commune, 3 lettres) et restent uniques par construction (préfixes et trigrammes uniques).
 
 **Format attendu (CSV simple, en-tête en première ligne) :**
 
@@ -148,7 +148,7 @@ La géographie est une connaissance commune : aucun joueur ne peut ignorer le te
       "code": "FROS",
       "name": "Forêt de Rosemont",
       "terrain": "forest",
-      "lieuDit": true,
+      "village": true,
       "points": [[x, y], [x, y], ...],
       "adjacencies": ["T02", "T05"]
     }
@@ -183,11 +183,12 @@ Ce qui vit sur la carte : troupes, infrastructures, contrôle, ressources. C'est
 
 - `asOf` : tour auquel chaque territoire a été observé (permet d'afficher la fraîcheur de l'information en P2)
 - `troops`, `infrastructures`, `nobles`, `owner`, `resources` : couche dynamique
+- **Les infrastructures n'ont pas de propriétaire** : elles appartiennent à leur case (pas de champ `owner` sur une infrastructure) — celui qui contrôle la case en bénéficie
 - **Coûts de trajet** (rapports P2.2 et ordres P2.3) : coût par case traversée selon le terrain, lu dans `assets/balance.json` (section travel : plaine/route 0,5 — 2 cases/tour ; forêt/colline 1 ; montagne/marécage 2 ; divisé par 2 sur un Relais de Poste)
 
 ### Rendu côté front
 
-Le front combine les deux documents : `map.json` fournit géométrie et fond (terrains, lieux-dits, labels), `state.json` fournit la couche vivante (troupes, constructions, contrôle, stocks). Cette séparation permet de **rendre plusieurs versions d'un même rapport** (comparer la vue fraîche et la vue datée), le calcul d'affichage restant entièrement côté client.
+Le front combine les deux documents : `map.json` fournit géométrie et fond (terrains, villages, labels), `state.json` fournit la couche vivante (troupes, constructions, contrôle, stocks). Cette séparation permet de **rendre plusieurs versions d'un même rapport** (comparer la vue fraîche et la vue datée), le calcul d'affichage restant entièrement côté client.
 
 ---
 
@@ -230,7 +231,7 @@ BRI D BRI ATL NOR  # dispersion : 1 destination par troupe de l'armée
 | `S` | Soutien | `XXX S YYY` (défensif) ou `XXX S YYY - ZZZ` (offensif) | **Soutien explicite, toute nationalité** (même contre soi). *Défensif* : +taille de l'armée à la défense de l'armée en YYY (adjacente, ≠ XXX) qui **tient** (ordre sans déplacement H/S/P ; sans effet — gaspillé mais réussi — si elle se déplace ou est absente). *Offensif* : +taille de l'armée à l'attaque de l'armée de YYY vers ZZZ (ZZZ adjacente à XXX, YYY–ZZZ adjacentes ; sans effet — gaspillé mais réussi — si elle n'attaque pas ZZZ). **Coupé** si l'armée soutenante est attaquée depuis une case **différente** de celle vers laquelle elle soutient (ZZZ en offensif, YYY en défensif) | Chaîne brisée | Offensif : index figé tant que l'armée de YYY attaque ZZZ, avance sinon ; défensif : index figé tant que YYY est attaquée, avance sinon |
 | `H` | Maintien | `H XXX` | La troupe reste sur XXX (sa position) | Chaîne brisée | **Garde indéfinie** : chaîne en veille jusqu'à réception d'un nouvel ordre |
 | `J` | Jonction | `XXX J YYY` | **Déplacement pacifique** (pas une attaque, puissance 0) vers YYY **adjacente**, toujours en **dernier ordre d'une chaîne** (sinon chaîne invalide). **Fusionne** si une troupe alliée est déjà sur YYY, ou si exactement une troupe alliée y arrive au même tour **sans contestation** (aucune autre troupe n'y converge — deux jonctions mutuelles J+J fusionnent) ; la **chaîne de l'hôte est conservée** (celle de la jonctionnante est consommée par ce J ; l'arrivant par A est l'hôte ; un rendez-vous J+J laisse l'armée **Sans Ordre**) ; case occupée par l'ennemi → échec ; case **contestée** par une attaque ce tour, ou **convergence de plusieurs armées** → **repoussé** (échec) | Chaîne brisée | Retente jusqu'à réussite (puis chaîne consommée) |
-| `P` | Pillage | `P XXX` | XXX = case où la troupe se trouve : détruit l'infrastructure de SA case (une seule par case, GDD §3) + bonus R (balance.json) **crédité au lieu-dit contrôlé le plus proche** du joueur (perdu s'il n'en contrôle aucun) ; **aucune infrastructure → ordre invalide** | Chaîne brisée | Retente jusqu'à destruction |
+| `P` | Pillage | `P XXX` | XXX = case où la troupe se trouve : détruit l'infrastructure de SA case (une seule par case, GDD §3) + bonus R (balance.json) **crédité au château ou village contrôlé le plus proche** du joueur (perdu s'il n'en contrôle aucun) ; **aucune infrastructure → ordre invalide** | Chaîne brisée | Retente jusqu'à destruction |
 | `O` | Otage | `XXX O YYY` | YYY = code du noble prisonnier détenu par l'armée de XXX (la case de l'armée) : il passe à l'état **otage** (état par défaut — il produit des rapports pour son propriétaire et compte en T0) ; noble non prisonnier, d'un autre joueur ou absent → **invalide** | Chaîne brisée | Retente |
 | `K` | Cachot | `XXX K YYY` | YYY = code du noble prisonnier détenu par l'armée de XXX : il passe **au cachot** (plus aucun rapport, ni récepteur, ni T0 pour son propriétaire) ; mêmes conditions d'invalidité que O | Chaîne brisée | Retente |
 | `D` | Dispersion | `XXX D XXX YYY ZZZ ...` | Une destination **par troupe de l'armée** (nombre = taille de l'armée) ; chaque destination est **adjacente** ou égale à la position ; à la résolution (P1.4), chaque destination **libre et non ciblée par une attaque** → la troupe s'y déplace pacifiquement ; la case de l'armée est valide ; **la chaîne reste sur la troupe d'origine, qui prend la première destination listée** (les autres troupes sont créées). **Répartition des nobles par astérisque** : `XXX D YYY XXX*` = tous les nobles en XXX ; `YYY*JEA` = Jean en YYY ; `YYY*JEA*ANN` = Jean et Anne en YYY ; `*` seul = tous les nobles restants ; chaque noble au plus une fois ; **si des nobles chevauchent l'armée et que l'ordre ne les assigne pas tous → ordre INVALIDE** (aucune troupe d'origine par défaut) | Avance même si partielle | Retente jusqu'à résolution **intégrale** |
@@ -250,14 +251,14 @@ L'hiver, le joueur soumet une **liste d'ordres** (même mécanique de soumission
 - `R N XXX` — recruter un **Noble** sur XXX (nom = prénom tiré + "de \<nom du territoire\>", ex. "Jacques de Notombes")
 - `R T XXX` — recruter une **Troupe** sur XXX
 - `C M XXX` — construire un **Moulin** sur XXX (améliore le moulin existant si déjà présent)
-- `C C XXX` — construire un **Château** sur XXX (rend la case lieu-dit)
+- `C C XXX` — construire un **Château** sur XXX (rend la case productive et remplace un éventuel village ; aucune infrastructure village n'est constructible au MVP — réservé)
 - `C R XXX` — construire un **Relais de Poste** sur XXX
 - `C T XXX` — construire une **Tour de Guet** sur XXX
 - `C D XXX` — construire un **Dépôt de Vivres** sur XXX
 - `E C XXX` — désigner le château de XXX comme **Capitale** du joueur (remplace la désignation actuelle ; exige de contrôler la case ; par défaut, la capitale est le premier château construit)
 - `L N XXX` — libérer le noble prisonnier XXX (le noble réapparaît à la capitale de son propriétaire ; requis : noble prisonnier appartenant au joueur)
 
-XXX = code du territoire ciblé (3 lettres pour un lieu-dit, 4 sinon). Pas de chaîne, pas de position, pas de liaison : un ordre d'hiver s'applique directement ou est **rejeté** (événement explicite ; ordre rejeté = investissement perdu). Coûts et métriques d'équilibrage : `assets/balance.json` (toutes les constantes du moteur, éditables sans recompiler le code).
+XXX = code du territoire ciblé (3 lettres pour un village, 4 sinon). Pas de chaîne, pas de position, pas de liaison : un ordre d'hiver s'applique directement ou est **rejeté** (événement explicite ; ordre rejeté = investissement perdu). Coûts et métriques d'équilibrage : `assets/balance.json` (toutes les constantes du moteur, éditables sans recompiler le code).
 
 ---
 

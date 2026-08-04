@@ -15,12 +15,12 @@ type nameCode struct {
 	code string
 }
 
-func validateAssets(assets assetgen.Assets, lieuDitCount int) error {
+func validateAssets(assets assetgen.Assets, villageCount int) error {
 	if len(assets.Communes) == 0 {
 		return fmt.Errorf("mapgen: no communes available for naming")
 	}
-	if len(assets.Communes) < lieuDitCount {
-		return fmt.Errorf("mapgen: need at least %d communes for lieu-dits, have %d", lieuDitCount, len(assets.Communes))
+	if len(assets.Communes) < villageCount {
+		return fmt.Errorf("mapgen: need at least %d communes for villages, have %d", villageCount, len(assets.Communes))
 	}
 	if len(assets.Qualificatifs) == 0 {
 		return fmt.Errorf("mapgen: no qualifiers available for naming")
@@ -74,33 +74,86 @@ func isQualifierTerrain(value string) bool {
 	return value == "any"
 }
 
-// assignLieuDits selects the rounded requested count without changing terrain.
-func assignLieuDits(rng *rand.Rand, n int, ratio float64) []bool {
-	indexes := make([]int, n)
-	for i := range indexes {
-		indexes[i] = i
+// assignVillages spreads count neutral villages over the map, maximizing the
+// minimum distance between them (greedy max-min): the first village is drawn
+// seeded at random, then each next village is the site whose distance to its
+// nearest already-placed village is the largest. Every terrain is eligible.
+// Ties break on the lowest site index for determinism.
+func assignVillages(rng *rand.Rand, terrain []models.Terrain, centroids [][2]float64, count int) ([]bool, error) {
+	n := len(terrain)
+	if count < 1 || count > n {
+		return nil, fmt.Errorf("mapgen: cannot place %d villages on %d sites", count, n)
 	}
-	shuffle(rng, indexes)
+	if len(centroids) != n {
+		return nil, fmt.Errorf("mapgen: internal village input length mismatch")
+	}
+
+	eligible := make([]int, 0, n)
+	for site := 0; site < n; site++ {
+		if !terrain[site].IsValid() {
+			return nil, fmt.Errorf("mapgen: invalid terrain %q on site %d", terrain[site], site)
+		}
+		eligible = append(eligible, site)
+	}
+	if count > len(eligible) {
+		return nil, fmt.Errorf("mapgen: need at least %d eligible sites for villages, have %d", count, len(eligible))
+	}
 
 	selected := make([]bool, n)
-	count := int(math.Round(float64(n) * ratio))
-	for _, index := range indexes[:count] {
-		selected[index] = true
+	first := eligible[rng.IntN(len(eligible))]
+	selected[first] = true
+	chosen := []int{first}
+
+	for len(chosen) < count {
+		bestSite := -1
+		bestDistance := -1.0
+		for _, site := range eligible {
+			if selected[site] {
+				continue
+			}
+			nearest := squaredDistanceToChosen(centroids, site, chosen)
+			if bestSite == -1 || nearest > bestDistance ||
+				(nearest == bestDistance && site < bestSite) {
+				bestSite = site
+				bestDistance = nearest
+			}
+		}
+		selected[bestSite] = true
+		chosen = append(chosen, bestSite)
 	}
-	return selected
+	return selected, nil
 }
 
+// squaredDistanceToChosen returns the squared centroid distance from site to
+// its nearest already-chosen village site.
+func squaredDistanceToChosen(centroids [][2]float64, site int, chosen []int) float64 {
+	nearest := math.Inf(1)
+	for _, other := range chosen {
+		distance := centroidDistanceSquared(centroids, site, other)
+		if distance < nearest {
+			nearest = distance
+		}
+	}
+	return nearest
+}
+
+// nameTerritories names territories. TRANSITIONAL naming (bridge to P1.2c,
+// which switches every territory to a commune code): a village tile receives
+// the name of a commune (code trigram), every other tile receives
+// "{Qualificatif} de {Commune of the nearest/adjacent village}" (existing
+// pattern). P1.2c replaces the whole system with "commune for all
+// territories": do not go further here.
 func nameTerritories(
 	rng *rand.Rand,
 	assets assetgen.Assets,
-	lieuDits []bool,
+	villages []bool,
 	terrain []models.Terrain,
 	polygons [][][2]int,
 	centroids [][2]float64,
 	edges [][2]int,
 	cfg Config,
 ) ([]nameCode, error) {
-	n := len(lieuDits)
+	n := len(villages)
 	if len(terrain) != n || len(polygons) != n || len(centroids) != n {
 		return nil, fmt.Errorf("mapgen: internal naming input length mismatch")
 	}
@@ -109,34 +162,34 @@ func nameTerritories(
 	shuffle(rng, communes)
 	names := make([]nameCode, n)
 	communesBySite := make([]assetgen.Asset, n)
-	lieuSites := make([]int, 0)
+	villageSites := make([]int, 0)
 	usedCodes := make(map[string]bool)
 	nextCommune := 0
-	for site, isLieuDit := range lieuDits {
-		if !isLieuDit {
+	for site, isVillage := range villages {
+		if !isVillage {
 			continue
 		}
 		if nextCommune >= len(communes) {
-			return nil, fmt.Errorf("mapgen: exhausted communes while naming lieu-dits")
+			return nil, fmt.Errorf("mapgen: exhausted communes while naming villages")
 		}
 		commune := communes[nextCommune]
 		nextCommune++
 		if usedCodes[commune.Code] {
-			return nil, fmt.Errorf("mapgen: duplicate lieu-dit code %q", commune.Code)
+			return nil, fmt.Errorf("mapgen: duplicate village code %q", commune.Code)
 		}
 		names[site] = nameCode{name: commune.Name, code: commune.Code}
 		communesBySite[site] = commune
 		usedCodes[commune.Code] = true
-		lieuSites = append(lieuSites, site)
+		villageSites = append(villageSites, site)
 	}
-	if len(lieuSites) == 0 {
-		return nil, fmt.Errorf("mapgen: cannot name territories without a lieu-dit")
+	if len(villageSites) == 0 {
+		return nil, fmt.Errorf("mapgen: cannot name territories without a village")
 	}
 
 	adjacency := edgeMatrix(n, edges)
 	usedPairs := make(map[string]bool)
-	for site, isLieuDit := range lieuDits {
-		if isLieuDit {
+	for site, isVillage := range villages {
+		if isVillage {
 			continue
 		}
 
@@ -145,26 +198,55 @@ func nameTerritories(
 			return nil, fmt.Errorf("mapgen: no qualifier available for terrain %q on territory %s", terrain[site], territoryID(site))
 		}
 
+		assign := func(qualifier assetgen.Qualificatif, commune assetgen.Asset) bool {
+			pair := qualifier.Prefix + "\x00" + commune.Code
+			code := qualifier.Prefix + commune.Code
+			if usedPairs[pair] || usedCodes[code] {
+				return false
+			}
+			names[site] = nameCode{
+				name: qualifier.Name + " de " + commune.Name,
+				code: code,
+			}
+			usedPairs[pair] = true
+			usedCodes[code] = true
+			return true
+		}
+
 		assigned := false
-		for _, lieuSite := range orderedLieuDits(site, lieuSites, adjacency, centroids, n) {
-			commune := communesBySite[lieuSite]
+		for _, villageSite := range orderedVillages(site, villageSites, adjacency, centroids, n) {
+			commune := communesBySite[villageSite]
 			for _, qualifier := range qualifiers {
-				pair := qualifier.Prefix + "\x00" + commune.Code
-				code := qualifier.Prefix + commune.Code
-				if usedPairs[pair] || usedCodes[code] {
-					continue
+				if assign(qualifier, commune) {
+					assigned = true
+					break
 				}
-				names[site] = nameCode{
-					name: qualifier.Name + " de " + commune.Name,
-					code: code,
-				}
-				usedPairs[pair] = true
-				usedCodes[code] = true
-				assigned = true
-				break
 			}
 			if assigned {
 				break
+			}
+		}
+		// Fallback (transitional, documented): with only a handful of
+		// villages the (qualifier × village commune) pairs can be exhausted;
+		// name the tile after an unused commune from the pool to keep codes
+		// unique. P1.2c replaces this whole scheme with a commune for every
+		// territory.
+		if !assigned {
+			for _, qualifier := range qualifiers {
+				for nextCommune < len(communes) {
+					commune := communes[nextCommune]
+					nextCommune++
+					if usedCodes[commune.Code] {
+						continue
+					}
+					if assign(qualifier, commune) {
+						assigned = true
+						break
+					}
+				}
+				if assigned {
+					break
+				}
 			}
 		}
 		if !assigned {
@@ -189,20 +271,20 @@ func compatibleQualifiers(
 	return compatible
 }
 
-func orderedLieuDits(
+func orderedVillages(
 	site int,
-	lieuSites []int,
+	villageSites []int,
 	adjacency []bool,
 	centroids [][2]float64,
 	n int,
 ) []int {
 	adjacent := make([]int, 0)
 	fallback := make([]int, 0)
-	for _, lieuSite := range lieuSites {
-		if matrixHasEdge(adjacency, n, site, lieuSite) {
-			adjacent = append(adjacent, lieuSite)
+	for _, villageSite := range villageSites {
+		if matrixHasEdge(adjacency, n, site, villageSite) {
+			adjacent = append(adjacent, villageSite)
 		} else {
-			fallback = append(fallback, lieuSite)
+			fallback = append(fallback, villageSite)
 		}
 	}
 	sortLieuSites(adjacent, site, centroids)

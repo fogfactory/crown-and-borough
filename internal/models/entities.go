@@ -21,14 +21,12 @@ type Player struct {
 
 // Territory is the static geography of the map: the walkable adjacency graph
 // (not every frontier is passable, GDD §3). Geometry (points) is a P1.2
-// mapgen concern and does not belong to the model. IsLieuDit gates resource
-// production and storage (GDD §3): only lieu-dits generate and hold R.
+// mapgen concern and does not belong to the model.
 type Territory struct {
 	ID          TerritoryID   `json:"id"`
 	Code        string        `json:"code"`
 	Name        string        `json:"name"`
 	Terrain     Terrain       `json:"terrain"`
-	IsLieuDit   bool          `json:"lieuDit"`
 	Adjacencies []TerritoryID `json:"adjacencies"`
 }
 
@@ -56,13 +54,14 @@ type Noble struct {
 
 // Infrastructure is a buildable structure. Level is >= 1: a mill yields +1 R
 // per level and a castle honours its defensive bonus regardless of its level
-// (GDD §7, §8). Owners keep their construction even on neutral or hostile
-// territory: territorial control and construction ownership are independent.
+// (GDD §7, §8). An infrastructure belongs to its tile, not to a player: there
+// is no owner, whoever controls the territory benefits from it. A neutral
+// village is simply a village infrastructure on an uncontrolled territory
+// (its owner field no longer exists).
 type Infrastructure struct {
 	ID          InfraID     `json:"id"`
 	Type        InfraType   `json:"type"`
 	Level       int         `json:"level"` // >= 1; mill yields +1 R per level (GDD §7)
-	OwnerID     PlayerID    `json:"owner"`
 	TerritoryID TerritoryID `json:"territory"`
 }
 

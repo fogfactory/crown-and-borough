@@ -17,6 +17,7 @@ Trois paliers de "testable" successifs, chacun validé avant le suivant :
 - La carte est générée par **algorithme de Voronoï seedé** : territoires inégaux, graphe **connexe et sans cul-de-sac sur toutes les cellules, bords compris** (degré ≥ 2 partout). Les adjacences géométriques ne sont pas toutes franchissables (frontières infranchissables : crêtes, marécages) et des **routes** relient des territoires non adjacents géométriquement (le graphe final n'est pas planaire).
 - Persistance : **JSON d'abord** (1 fichier par partie), migration **Postgres/sqlc** ensuite.
 - Le **front est construit au fur et à mesure** du plan pour tester localement dès que possible.
+- Les **infrastructures n'ont pas de propriétaire** : elles appartiennent à leur case (celui qui contrôle la case en bénéficie). Construire un château sur un village le **remplace** (jamais deux structures par case).
 
 ## P0 — Fondations
 
@@ -31,12 +32,12 @@ Trois paliers de "testable" successifs, chacun validé avant le suivant :
 | ID | Tâche | Livrable | Critère de test | Front |
 |---|---|---|---|---|
 | P1.1 | Modèles métier | Territoire, Troupe, Noble, Infrastructure, Ressources, GameState | Compile + tests modèles | — |
-| P1.2 | Génération de carte Voronoï | Graphe d'adjacence seedé, terrains, ~25 % lieux-dits, nommage des territoires | Carte déterministe par seed, invariants (connexité, degré ≥ 2, unicité trigrammes, % lieux-dits) | Endpoint dev `/api/map` (map.json statique) → la vraie carte s'affiche |
+| P1.2 | Génération de carte Voronoï | Graphe d'adjacence seedé, terrains, villages neutres rares, nommage des territoires | Carte déterministe par seed, invariants (connexité, degré ≥ 2, unicité trigrammes, nombre et répartition des villages) | Endpoint dev `/api/map` (map.json statique) → la vraie carte s'affiche |
 | P1.3 | Parser & modèles d'ordres | Parser texte des chaînes (format specs/architecture.md §6), 8 symboles A/S/H/J/P/D/O/K, liaison par transition (single/loop), réception (armée sur la position de la 1re ligne, remplacement de chaîne), capacité noble 1 émission/tour | Tests : parsing, validation par type, réception, remplacement, capacité, round-trip JSON | — |
 | P1.4 | Résolution : progression, mouvement & combat | Progression de TOUTES les chaînes simultanément, mouvement, attaque, soutien, jonction (fusion), dispersion, pillage, combats & retraites | Scénarios de combat (égalité, supériorité, soutiens, retraites, destructions), progression single/loop appliquée | — |
-| P1.5 | Ravitaillement & famine | Coût 2^(N-1), flux BFS portée 3/5, stocks, algorithme famine | Tests : déficits, ordre d'épuisement, famine | — |
-| P1.6 | Phase d'Hiver | Conservation 50 %, recrutement Nobles, construction Infrastructures | Test : année complète sans perte | — |
-| P1.7 | Rapport de tour + intégration | TurnReport, simulation d'une année complète multi-joueurs | Test de bout en bout d'une année type | Endpoints dev `/api/map` + `/api/state` + `/api/orders` → boucle locale hotseat : ordres via le front, résolution, rapport affiché |
+| P1.5 | Ravitaillement & famine | Coût 2^(N-1), flux BFS depuis les châteaux/villages contrôlés, portée 3/5, stocks, algorithme famine | Tests : déficits, ordre d'épuisement, famine | — |
+| P1.6 | Phase d'Hiver | Conservation 50 %, recrutement Nobles, construction Infrastructures, départ des joueurs sur villages distincts (château auto-construit) | Test : année complète sans perte | — |
+| P1.7 | Rapport de tour + intégration | TurnReport (rapports des châteaux/villages contrôlés), simulation d'une année complète multi-joueurs | Test de bout en bout d'une année type | Endpoints dev `/api/map` + `/api/state` + `/api/orders` → boucle locale hotseat : ordres via le front, résolution, rapport affiché |
 
 ### P1.2 détaillé — Carte Voronoï
 
@@ -45,16 +46,16 @@ Trois paliers de "testable" successifs, chacun validé avant le suivant :
 3. **Frontières infranchissables** (crêtes montagneuses, marécages) → suppression d'adjacences.
 4. **Routes** reliant des territoires non adjacents géométriquement (cols, ponts).
 5. **Invariant :** le graphe final (adjacences franchissables + routes) est connexe, sans cul-de-sac sur aucune cellule, bords compris (degré ≥ 2 partout). Les cellules de bord forment un anneau ; toute feuille résiduelle est corrigée par ajout de route.
-6. Attribution des terrains (plaine, forêt, colline, montagne, marécage) + répartition ~25 % lieux-dits.
-7. **Nommage des territoires :** chaque territoire reçoit un qualificatif de `qualificatifs.csv` selon son terrain dominant (+ "Marches" en bordure) et le nom d'une commune adjacente → "Forêt de Rosemont" / code `FROS` (préfixe + trigramme commune, 4 lettres ; les lieux-dits gardent le trigramme de leur commune, 3 lettres).
-8. Tests : seed → même carte, connexité, degrés, unicité trigrammes et codes de territoires, % lieux-dits.
+6. Attribution des terrains (plaine, forêt, colline, montagne, marécage) + placement de villages neutres rares, bien répartis (maximisation de la distance minimale).
+7. **Nommage des territoires :** chaque territoire reçoit un qualificatif de `qualificatifs.csv` selon son terrain dominant (+ "Marches" en bordure) et le nom d'une commune adjacente → "Forêt de Rosemont" / code `FROS` (préfixe + trigramme commune, 4 lettres ; les villages gardent le trigramme de leur commune, 3 lettres).
+8. Tests : seed → même carte, connexité, degrés, unicité trigrammes et codes de territoires, nombre et répartition des villages.
 
 ## P2 — Latence d'information (palier 2)
 
 | ID | Tâche | Livrable | Critère de test | Front |
 |---|---|---|---|---|
 | P2.1 | IA "sans ordre" | Soutien défensif auto à l'armée alliée la plus proche la moins soutenue (défense ou Sans Ordre uniquement, puissance = armée) | Tests sur lignes de front | — |
-| P2.2 | Messagers & rapports (vision T-x) | Rapports des troupes/lieux-dits/tours (cases adjacentes, fraîcheur = émission), T0 (noble libre ou otage, tour de guet + adjacentes), projection des troupes ; `state.json` devient la vue par joueur (`asOf` par territoire) | Tests : fraîcheur d'information par case | Carte affichant l'état stale (T-x) via `asOf` + projection distincte |
+| P2.2 | Messagers & rapports (vision T-x) | Rapports des troupes/châteaux/villages/tours (cases adjacentes, fraîcheur = émission), T0 (noble libre ou otage, tour de guet + adjacentes), projection des troupes ; `state.json` devient la vue par joueur (`asOf` par territoire) | Tests : fraîcheur d'information par case | Carte affichant l'état stale (T-x) via `asOf` + projection distincte |
 | P2.3 | Transmission différée des ordres | Ordres partant du noble émetteur vers le 1er territoire de la feuille (arrivée fixée à l'émission), 1re troupe du territoire dans la fenêtre jusqu'à l'hiver, chaîne perdue sinon ; pas d'interception | Tests : délais, réception en fenêtre, perte à l'hiver | — |
 
 ## P3 — Serveur jouable (palier 3)

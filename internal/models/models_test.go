@@ -16,8 +16,9 @@ func ptrID(id string) *models.PlayerID {
 }
 
 // validState returns a complete, valid state: 2 players, 4 territories in a
-// ring (1 lieu-dit), 2 troops, 1 noble, 1 mill level 2 and 1 castle, 1 neutral
-// territory, resources. Tests mutate a fresh instance to build negative cases.
+// ring (1 village-named territory, code trigram), 2 troops, 1 noble, 1 mill
+// level 2 and 1 castle, 1 neutral territory, resources. Tests mutate a fresh
+// instance to build negative cases.
 func validState() *models.GameState {
 	g := models.NewGameState()
 	g.ID = "game-1"
@@ -27,7 +28,7 @@ func validState() *models.GameState {
 		{ID: "P2", Name: "Beta", Color: "blue"},
 	}
 	g.Territories = []models.Territory{
-		{ID: "T01", Code: "ROS", Name: "Rosemont", Terrain: models.TerrainPlain, IsLieuDit: true, Adjacencies: []models.TerritoryID{"T02", "T04"}},
+		{ID: "T01", Code: "ROS", Name: "Rosemont", Terrain: models.TerrainPlain, Adjacencies: []models.TerritoryID{"T02", "T04"}},
 		{ID: "T02", Code: "FROS", Name: "Foret de Rosemont", Terrain: models.TerrainForest, Adjacencies: []models.TerritoryID{"T01", "T03"}},
 		{ID: "T03", Code: "MHIL", Name: "Monts d'Hilaire", Terrain: models.TerrainHill, Adjacencies: []models.TerritoryID{"T02", "T04"}},
 		{ID: "T04", Code: "MSWA", Name: "Marais des Saules", Terrain: models.TerrainSwamp, Adjacencies: []models.TerritoryID{"T03", "T01"}},
@@ -40,8 +41,8 @@ func validState() *models.GameState {
 		{ID: "N1", Code: "HUG", Name: "Hugues", OwnerID: "P1", LocationID: "T01"},
 	}
 	g.Infrastructures = []models.Infrastructure{
-		{ID: "I1", Type: models.InfraTypeMill, Level: 2, OwnerID: "P1", TerritoryID: "T01"},
-		{ID: "I2", Type: models.InfraTypeCastle, Level: 1, OwnerID: "P1", TerritoryID: "T03"},
+		{ID: "I1", Type: models.InfraTypeMill, Level: 2, TerritoryID: "T01"},
+		{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T03"},
 	}
 	g.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
 		"T01": {OwnerID: ptrID("P1"), Resources: 5, Troops: []models.TroopID{"TR1"}, Infrastructures: []models.InfraID{"I1"}},
@@ -86,7 +87,7 @@ func TestSeasonIsValid(t *testing.T) {
 func TestInfraTypeIsValid(t *testing.T) {
 	for _, valid := range []models.InfraType{
 		models.InfraTypeMill, models.InfraTypePostRelay, models.InfraTypeWatchtower,
-		models.InfraTypeSupplyDepot, models.InfraTypeCastle,
+		models.InfraTypeSupplyDepot, models.InfraTypeCastle, models.InfraTypeVillage,
 	} {
 		if !valid.IsValid() {
 			t.Errorf("InfraType %q: want valid", valid)
@@ -220,11 +221,10 @@ func TestValidateErrors(t *testing.T) {
 		{"noble unknown owner", func(g *models.GameState) { g.Nobles[0].OwnerID = "P9" }, "unknown owner"},
 		{"noble unknown territory", func(g *models.GameState) { g.Nobles[0].LocationID = "T99" }, "unknown territory"},
 		{"duplicate infrastructure id", func(g *models.GameState) {
-			g.Infrastructures = append(g.Infrastructures, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, OwnerID: "P2", TerritoryID: "T02"})
+			g.Infrastructures = append(g.Infrastructures, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "T02"})
 		}, "duplicate id"},
 		{"invalid infra type", func(g *models.GameState) { g.Infrastructures[0].Type = "bank" }, "invalid type"},
 		{"infra level zero", func(g *models.GameState) { g.Infrastructures[0].Level = 0 }, "level"},
-		{"infra unknown owner", func(g *models.GameState) { g.Infrastructures[0].OwnerID = "P9" }, "unknown owner"},
 		{"infra unknown territory", func(g *models.GameState) { g.Infrastructures[0].TerritoryID = "T99" }, "unknown territory"},
 		{"infra not listed in territory state", func(g *models.GameState) {
 			g.TerritoryStates["T01"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 5, Troops: []models.TroopID{"TR1"}}
@@ -266,18 +266,20 @@ func TestValidateErrors(t *testing.T) {
 	}
 }
 
-// TestCodeInvariants pins the code shapes: 3 uppercase letters for a
-// lieu-dit territory, 4 for any other territory, 3 for a noble.
+// TestCodeInvariants pins the code shapes: territories accept 3 or 4
+// uppercase letters (TRANSITIONAL since P1.2b: village tiles keep their
+// commune trigram, other territories the qualifier-prefixed form; P1.2c
+// restores 3 letters everywhere), and 3 uppercase letters for a noble.
 func TestCodeInvariants(t *testing.T) {
 	cases := []struct {
 		name   string
 		mutate func(g *models.GameState)
 		want   string
 	}{
-		{"lieu-dit with 4-letter code", func(g *models.GameState) { g.Territories[0].Code = "MROS" }, "lieu-dit code"},
-		{"non-lieu-dit with 3-letter code", func(g *models.GameState) { g.Territories[1].Code = "RIV" }, "4 uppercase"},
-		{"lieu-dit with lowercase code", func(g *models.GameState) { g.Territories[0].Code = "ros" }, "lieu-dit code"},
-		{"territory code with digit", func(g *models.GameState) { g.Territories[1].Code = "FR0S" }, "4 uppercase"},
+		{"territory with 2-letter code", func(g *models.GameState) { g.Territories[0].Code = "RO" }, "3 or 4 uppercase"},
+		{"territory with 5-letter code", func(g *models.GameState) { g.Territories[1].Code = "FROSA" }, "3 or 4 uppercase"},
+		{"territory with lowercase code", func(g *models.GameState) { g.Territories[0].Code = "ros" }, "3 or 4 uppercase"},
+		{"territory code with digit", func(g *models.GameState) { g.Territories[1].Code = "FR0S" }, "3 or 4 uppercase"},
 		{"noble with 4-letter code", func(g *models.GameState) { g.Nobles[0].Code = "HUGU" }, "3 uppercase"},
 		{"noble with lowercase code", func(g *models.GameState) { g.Nobles[0].Code = "hug" }, "3 uppercase"},
 	}
@@ -301,6 +303,16 @@ func TestGameStateJSONRoundTrip(t *testing.T) {
 	data, err := json.Marshal(g)
 	if err != nil {
 		t.Fatalf("Marshal: %v", err)
+	}
+	if bytes.Contains(data, []byte(`"lieuDit"`)) {
+		t.Error("JSON still contains the removed lieuDit flag")
+	}
+	infraJSON, err := json.Marshal(g.Infrastructures[0])
+	if err != nil {
+		t.Fatalf("Marshal infrastructure: %v", err)
+	}
+	if bytes.Contains(infraJSON, []byte(`"owner"`)) {
+		t.Errorf("infrastructure JSON %s still contains an owner field", infraJSON)
 	}
 	var got models.GameState
 	if err := json.Unmarshal(data, &got); err != nil {

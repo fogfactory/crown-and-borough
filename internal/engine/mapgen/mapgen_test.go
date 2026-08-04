@@ -17,7 +17,7 @@ var testConfig = Config{
 	Width:        1000,
 	Height:       700,
 	SiteCount:    64,
-	LieuDitRatio: 0.25,
+	VillageCount: 5,
 }
 
 var testSeeds = []string{"alpha", "beta", "gamma", "delta", "epsilon"}
@@ -41,6 +41,9 @@ func TestDeterminism(t *testing.T) {
 	if !bytes.Equal(firstJSON, secondJSON) {
 		t.Fatal("JSON output differs for the same seed")
 	}
+	if bytes.Contains(firstJSON, []byte("lieuDit")) {
+		t.Fatal("map JSON still contains the removed lieuDit flag")
+	}
 
 	different := generateTestMap(t, "beta", assets)
 	differentJSON, err := json.Marshal(different)
@@ -61,20 +64,48 @@ func TestGraphInvariants(t *testing.T) {
 	}
 }
 
-func TestLieuDitRatio(t *testing.T) {
+func TestVillageCount(t *testing.T) {
 	assets := loadTestAssets(t)
 	for _, seed := range testSeeds {
 		t.Run(seed, func(t *testing.T) {
 			data := generateTestMap(t, seed, assets)
 			count := 0
 			for _, territory := range data.Territories {
-				if territory.LieuDit {
+				if territory.Village {
 					count++
 				}
 			}
-			ratio := float64(count) / float64(len(data.Territories))
-			if ratio < 0.20 || ratio > 0.30 {
-				t.Fatalf("lieu-dit ratio = %.2f, want between 0.20 and 0.30", ratio)
+			if count != testConfig.VillageCount {
+				t.Fatalf("village count = %d, want %d", count, testConfig.VillageCount)
+			}
+		})
+	}
+}
+
+func TestVillageSpread(t *testing.T) {
+	assets := loadTestAssets(t)
+	diagonal := math.Hypot(float64(testConfig.Width), float64(testConfig.Height))
+	// Villages are spread by a greedy max-min placement: no two villages may
+	// sit closer than 15% of the viewport diagonal.
+	minDistance := 0.15 * diagonal
+	for _, seed := range testSeeds {
+		t.Run(seed, func(t *testing.T) {
+			data := generateTestMap(t, seed, assets)
+			var villages []int
+			for i, territory := range data.Territories {
+				if territory.Village {
+					villages = append(villages, i)
+				}
+			}
+			for a, first := range villages {
+				for _, second := range villages[a+1:] {
+					c1 := polygonCentroid(data.Territories[first].Points)
+					c2 := polygonCentroid(data.Territories[second].Points)
+					actual := math.Hypot(c1[0]-c2[0], c1[1]-c2[1])
+					if actual < minDistance {
+						t.Errorf("villages %s and %s are %v apart, want >= %v", data.Territories[first].ID, data.Territories[second].ID, actual, minDistance)
+					}
+				}
 			}
 		})
 	}
@@ -82,7 +113,7 @@ func TestLieuDitRatio(t *testing.T) {
 
 func TestCodes(t *testing.T) {
 	assets := loadTestAssets(t)
-	lieuDitCode := regexp.MustCompile(`^[A-Z]{3}$`)
+	villageCode := regexp.MustCompile(`^[A-Z]{3}$`)
 	territoryCode := regexp.MustCompile(`^[A-Z]{4}$`)
 	for _, seed := range testSeeds {
 		t.Run(seed, func(t *testing.T) {
@@ -90,8 +121,8 @@ func TestCodes(t *testing.T) {
 			seen := make(map[string]bool, len(data.Territories))
 			for _, territory := range data.Territories {
 				valid := territoryCode.MatchString(territory.Code)
-				if territory.LieuDit {
-					valid = lieuDitCode.MatchString(territory.Code)
+				if territory.Village {
+					valid = villageCode.MatchString(territory.Code)
 				}
 				if !valid {
 					t.Errorf("%s has invalid code %q", territory.ID, territory.Code)
@@ -116,7 +147,7 @@ func TestNaming(t *testing.T) {
 					t.Errorf("%s has an empty name", territory.ID)
 				}
 				seenTerrain[territory.Terrain] = true
-				if !territory.LieuDit && !validTerritoryName(territory, assets, testConfig) {
+				if !territory.Village && !validTerritoryName(territory, assets, testConfig) {
 					t.Errorf("%s has an invalid generated name %q", territory.ID, territory.Name)
 				}
 			}
@@ -140,7 +171,7 @@ func TestNamingCollisions(t *testing.T) {
 			{Prefix: "B", Name: "Bois", Terrain: "plain"},
 		},
 	}
-	lieuDits := []bool{true, true, false, false, false, false}
+	villages := []bool{true, true, false, false, false, false}
 	terrain := []models.Terrain{
 		models.TerrainPlain,
 		models.TerrainPlain,
@@ -149,8 +180,8 @@ func TestNamingCollisions(t *testing.T) {
 		models.TerrainPlain,
 		models.TerrainPlain,
 	}
-	polygons := make([][][2]int, len(lieuDits))
-	centroids := make([][2]float64, len(lieuDits))
+	polygons := make([][][2]int, len(villages))
+	centroids := make([][2]float64, len(villages))
 	for i := range polygons {
 		polygons[i] = [][2]int{{10, 10}, {20, 10}, {20, 20}, {10, 20}}
 		centroids[i] = [2]float64{float64(i * 10), 0}
@@ -161,7 +192,7 @@ func TestNamingCollisions(t *testing.T) {
 	first, err := nameTerritories(
 		newRNG("collision", "naming"),
 		assets,
-		lieuDits,
+		villages,
 		terrain,
 		polygons,
 		centroids,
@@ -174,7 +205,7 @@ func TestNamingCollisions(t *testing.T) {
 	second, err := nameTerritories(
 		newRNG("collision", "naming"),
 		assets,
-		lieuDits,
+		villages,
 		terrain,
 		polygons,
 		centroids,
@@ -241,12 +272,12 @@ func TestGeometry(t *testing.T) {
 func TestConfigValidation(t *testing.T) {
 	assets := loadTestAssets(t)
 	invalid := []Config{
-		{Width: 99, Height: 700, SiteCount: 64, LieuDitRatio: 0.25},
-		{Width: 1000, Height: 99, SiteCount: 64, LieuDitRatio: 0.25},
-		{Width: 1000, Height: 700, SiteCount: 7, LieuDitRatio: 0.25},
-		{Width: 1000, Height: 700, SiteCount: 64, LieuDitRatio: 0},
-		{Width: 1000, Height: 700, SiteCount: 64, LieuDitRatio: 0.51},
-		{Width: 1000, Height: 700, SiteCount: 64, LieuDitRatio: math.NaN()},
+		{Width: 99, Height: 700, SiteCount: 64, VillageCount: 5},
+		{Width: 1000, Height: 99, SiteCount: 64, VillageCount: 5},
+		{Width: 1000, Height: 700, SiteCount: 7, VillageCount: 5},
+		{Width: 1000, Height: 700, SiteCount: 64, VillageCount: 0},
+		{Width: 1000, Height: 700, SiteCount: 64, VillageCount: -1},
+		{Width: 1000, Height: 700, SiteCount: 64, VillageCount: 65},
 	}
 	for _, cfg := range invalid {
 		if _, err := Generate("invalid", assets, cfg); err == nil {
@@ -260,7 +291,7 @@ func TestConfigValidation(t *testing.T) {
 
 func TestMinimumConfig(t *testing.T) {
 	assets := loadTestAssets(t)
-	cfg := Config{Width: 100, Height: 100, SiteCount: 8, LieuDitRatio: 0.5}
+	cfg := Config{Width: 100, Height: 100, SiteCount: 8, VillageCount: 1}
 	for _, seed := range testSeeds {
 		t.Run(seed, func(t *testing.T) {
 			data, err := Generate(seed, assets, cfg)

@@ -17,7 +17,7 @@ func TestMapHandler(t *testing.T) {
 			Code:        "ROS",
 			Name:        "Rosemont",
 			Terrain:     "plain",
-			LieuDit:     true,
+			Village:     true,
 			Points:      [][2]int{{0, 0}, {100, 0}, {0, 100}},
 			Adjacencies: []string{"T02", "T03"},
 		},

@@ -67,8 +67,10 @@ func SeasonForTurn(turn int) Season {
 // InfraType identifies an infrastructure. Each type has a distinct effect on
 // the economy or information layer (GDD §7): the mill yields +1 R per level,
 // the post relay doubles messenger speed, the watchtower grants permanent T0
-// vision, the supply depot extends supply-line reach and the castle turns its
-// territory into a lieu-dit.
+// vision, the supply depot extends supply-line reach, the castle makes its
+// tile productive and anchors supply (a castle built on a village replaces
+// it) and the village yields rations and anchors supply: it is a rare neutral
+// seed on the initial map, not buildable at MVP.
 type InfraType string
 
 const (
@@ -77,12 +79,13 @@ const (
 	InfraTypeWatchtower  InfraType = "watchtower"
 	InfraTypeSupplyDepot InfraType = "supply_depot"
 	InfraTypeCastle      InfraType = "castle"
+	InfraTypeVillage     InfraType = "village"
 )
 
 // IsValid reports whether the infra type is a known value.
 func (i InfraType) IsValid() bool {
 	switch i {
-	case InfraTypeMill, InfraTypePostRelay, InfraTypeWatchtower, InfraTypeSupplyDepot, InfraTypeCastle:
+	case InfraTypeMill, InfraTypePostRelay, InfraTypeWatchtower, InfraTypeSupplyDepot, InfraTypeCastle, InfraTypeVillage:
 		return true
 	}
 	return false

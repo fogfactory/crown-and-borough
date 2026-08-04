@@ -80,8 +80,10 @@ func (g *GameState) Validate() error {
 		players[p.ID] = true
 	}
 
-	// 3. Territories: unique ids, unique codes, valid terrain, code shape
-	// dictated by IsLieuDit (3 uppercase letters for a lieu-dit, 4 otherwise).
+	// 3. Territories: unique ids, unique codes, valid terrain, code shape 3
+	// or 4 uppercase letters. TRANSITIONAL (P1.2b): village tiles keep their
+	// commune trigram (3 letters) and other territories the qualifier-prefixed
+	// 4-letter form; P1.2c restores "3 letters everywhere".
 	terrs := make(map[TerritoryID]*Territory, len(g.Territories))
 	codes := make(map[string]TerritoryID, len(g.Territories))
 	for i := range g.Territories {
@@ -98,12 +100,8 @@ func (g *GameState) Validate() error {
 		if !t.Terrain.IsValid() {
 			return fmt.Errorf("models: territory %q: invalid terrain %q", t.ID, t.Terrain)
 		}
-		if t.IsLieuDit {
-			if !isCode(t.Code, 3) {
-				return fmt.Errorf("models: territory %q: invalid lieu-dit code %q (want exactly 3 uppercase letters)", t.ID, t.Code)
-			}
-		} else if !isCode(t.Code, 4) {
-			return fmt.Errorf("models: territory %q: invalid code %q (want exactly 4 uppercase letters)", t.ID, t.Code)
+		if !isCode(t.Code, 3) && !isCode(t.Code, 4) {
+			return fmt.Errorf("models: territory %q: invalid code %q (want 3 or 4 uppercase letters)", t.ID, t.Code)
 		}
 		terrs[t.ID] = t
 		codes[t.Code] = t.ID
@@ -197,8 +195,9 @@ func (g *GameState) Validate() error {
 		nobles[n.ID] = true
 	}
 
-	// 7. Infrastructures: unique ids, valid type, level >= 1, existing owner
-	// and territory, presence in the territory state's infrastructure list.
+	// 7. Infrastructures: unique ids, valid type, level >= 1, existing
+	// territory, presence in the territory state's infrastructure list.
+	// Infrastructures have no owner: they belong to their tile (GDD §3).
 	infras := make(map[InfraID]*Infrastructure, len(g.Infrastructures))
 	for i := range g.Infrastructures {
 		in := &g.Infrastructures[i]
@@ -213,9 +212,6 @@ func (g *GameState) Validate() error {
 		}
 		if in.Level < 1 {
 			return fmt.Errorf("models: infrastructure %q: level must be >= 1, got %d", in.ID, in.Level)
-		}
-		if !players[in.OwnerID] {
-			return fmt.Errorf("models: infrastructure %q: unknown owner %q", in.ID, in.OwnerID)
 		}
 		if terrs[in.TerritoryID] == nil {
 			return fmt.Errorf("models: infrastructure %q: unknown territory %q", in.ID, in.TerritoryID)

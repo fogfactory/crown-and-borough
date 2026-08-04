@@ -46,6 +46,7 @@ const INFRASTRUCTURE_LABELS: Record<Infrastructure['type'], string> = {
   watchtower: 'Tour de guet',
   supply_depot: 'Dépôt de vivres',
   castle: 'Château',
+  village: 'Village',
 }
 
 interface ViewState {
@@ -169,6 +170,13 @@ function InfrastructureMarker({ infrastructure, x, y }: InfrastructureMarkerProp
           <path d="M-9-4H9M0-9V8" stroke="#705a36" />
         </>
       )}
+      {infrastructure.type === 'village' && (
+        <>
+          <path d="M-9 8V-1L0-10L9-1V8Z" fill="#fff8e7" stroke="#6b4c28" />
+          <rect x="-4" y="1" width="8" height="7" fill="#b7834e" />
+          <path d="M-5-1H0L3-4" fill="none" stroke="#6b4c28" strokeWidth="1.5" />
+        </>
+      )}
       {infrastructure.level > 1 && (
         <text
           x="11"
@@ -181,16 +189,6 @@ function InfrastructureMarker({ infrastructure, x, y }: InfrastructureMarkerProp
           {infrastructure.level}
         </text>
       )}
-    </g>
-  )
-}
-
-function LieuDitMarker({ x, y }: { x: number; y: number }) {
-  return (
-    <g transform={`translate(${x} ${y})`} pointerEvents="none">
-      <title>Lieu-dit</title>
-      <path d="M-8 0L0-8L8 0V8H-8Z" fill="#fff8e7" stroke="#785b36" />
-      <rect x="-2" y="3" width="4" height="5" fill="#b7834e" />
     </g>
   )
 }
@@ -525,7 +523,7 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
 
                 return (
                   <g key={territory.id}>
-                    {territory.lieuDit && territoryState.resources > 0 && (
+                    {territoryState.resources > 0 && (
                       <text
                         x={centerX + 30}
                         y={centerY - 20}
@@ -539,9 +537,6 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
                       >
                         {`×${territoryState.resources}`}
                       </text>
-                    )}
-                    {territory.lieuDit && (
-                      <LieuDitMarker x={centerX - 29} y={centerY - 18} />
                     )}
                     {territoryState.infrastructures.map((infrastructure, index) => (
                       <InfrastructureMarker
@@ -587,7 +582,7 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
               })}
             </g>
 
-            <g aria-label="Lieux-dits et codes" pointerEvents="none">
+            <g aria-label="Codes des territoires" pointerEvents="none">
               {map.territories.map((territory) => {
                 const [centerX, centerY] = centroid(territory.points)
                 return (
@@ -648,6 +643,22 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
                   <span>{TERRAIN_LABELS[terrain]}</span>
                 </div>
               ))}
+              <div className="flex items-center gap-2">
+                <svg
+                  className="size-3 shrink-0"
+                  viewBox="-10 -10 20 20"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M-9 8V-1L0-10L9-1V8Z"
+                    fill="#fff8e7"
+                    stroke="#6b4c28"
+                    strokeWidth="1.5"
+                  />
+                  <rect x="-4" y="1" width="8" height="7" fill="#b7834e" />
+                </svg>
+                <span>Village</span>
+              </div>
             </div>
             <p className="border-t border-[#b7a786]/60 pt-2 leading-relaxed">
               Trait pointillé = adjacence franchissable
