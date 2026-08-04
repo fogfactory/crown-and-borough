@@ -69,6 +69,12 @@ interface InfrastructureMarkerProps {
   y: number
 }
 
+interface AdjacencyArc {
+  key: string
+  from: Point
+  to: Point
+}
+
 function pointsToPath(points: Point[]): string {
   if (points.length === 0) {
     return ''
@@ -211,18 +217,37 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
   const [view, setView] = useState<ViewState>({ x: 0, y: 0, k: 1 })
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
-  const { mapWidth, mapHeight } = useMemo(() => {
+  const { mapWidth, mapHeight, adjacencyArcs } = useMemo(() => {
     let mapWidth = 1
     let mapHeight = 1
+    const territoryIndexes = new Map<string, number>()
+    const centers = map.territories.map((territory, index) => {
+      territoryIndexes.set(territory.id, index)
 
-    for (const territory of map.territories) {
       for (const [x, y] of territory.points) {
         mapWidth = Math.max(mapWidth, x)
         mapHeight = Math.max(mapHeight, y)
       }
+
+      return centroid(territory.points)
+    })
+    const adjacencyArcs: AdjacencyArc[] = []
+    for (const [territoryIndex, territory] of map.territories.entries()) {
+      for (const adjacentID of territory.adjacencies) {
+        const adjacentIndex = territoryIndexes.get(adjacentID)
+        if (adjacentIndex === undefined || adjacentIndex <= territoryIndex) {
+          continue
+        }
+
+        adjacencyArcs.push({
+          key: `${territory.id}-${adjacentID}`,
+          from: centers[territoryIndex],
+          to: centers[adjacentIndex],
+        })
+      }
     }
 
-    return { mapWidth, mapHeight }
+    return { mapWidth, mapHeight, adjacencyArcs }
   }, [map])
 
   const owners = new Set<string>()
@@ -466,6 +491,24 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
               })}
             </g>
 
+            <g aria-label="Adjacences franchissables" pointerEvents="none">
+              {adjacencyArcs.map((arc) => (
+                <line
+                  key={arc.key}
+                  x1={arc.from[0]}
+                  y1={arc.from[1]}
+                  x2={arc.to[0]}
+                  y2={arc.to[1]}
+                  stroke="#39271b"
+                  strokeOpacity="0.85"
+                  strokeWidth="2"
+                  strokeDasharray="6 3"
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+              ))}
+            </g>
+
             <g aria-label="Couche vivante" pointerEvents="none">
               {map.territories.map((territory) => {
                 const territoryState = state.territories.find(
@@ -607,8 +650,9 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
               ))}
             </div>
             <p className="border-t border-[#b7a786]/60 pt-2 leading-relaxed">
-              Territoire assombri = données anciennes
+              Trait pointillé = adjacence franchissable
             </p>
+            <p className="leading-relaxed">Territoire assombri = données anciennes</p>
           </CardContent>
         </Card>
       </div>
