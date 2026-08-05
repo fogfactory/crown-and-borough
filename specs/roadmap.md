@@ -3,6 +3,10 @@
 Plan d'implémentation pour atteindre le plus rapidement possible un prototype testable.
 Sources : `specs/gdd.md` (règles) et `specs/architecture.md` (stack).
 
+Suivi d'exécution : chaque ID est lié à son prompt dans `specs/prompts/`.
+Statuts : `Prompt écrit`, `Plan prêt`, `En cours`, `Fait` et `Bloqué`.
+Toute transition de statut doit être reportée ici.
+
 ## Stratégie globale
 
 Trois paliers de "testable" successifs, chacun validé avant le suivant :
@@ -21,25 +25,36 @@ Trois paliers de "testable" successifs, chacun validé avant le suivant :
 
 ## P0 — Fondations
 
-| ID | Tâche | Livrable | Critère de test | Front |
-|---|---|---|---|---|
-| P0.1 | Squelette repo Go | Structure standard, go.mod, Makefile, Dockerfile multi-stage, CI GitHub Actions | `make build` vert, CI verte | — |
-| P0.2 | Assets CSV + loader Go | communes.csv (`code;nom;terrain`) et prenoms.csv (médiévaux français), codes trigrammes uniques par catégorie ; loader Go vérifiant les invariants | Tests unitaires : unicité par fichier, terrains valides, couverture des affinités | — |
-| P0.3 | Scaffold front | Vite + React + TypeScript + Tailwind + shadcn/ui | App dev se lance | MapViewer v0 sur fixtures `map.ts` (statique) + `state.ts` (dynamique) : fond + couche vivante superposés |
+| ID | Tâche | Livrable | Critère de test | Front | Statut |
+|---|---|---|---|---|---|
+| [P0.1](prompts/p0.1-squelette-repo.md) | Squelette repo Go | Structure standard, go.mod, Makefile, Dockerfile multi-stage, CI GitHub Actions | `make build` vert, CI verte | — | Fait |
+| [P0.2](prompts/p0.2-assets-csv.md) | Assets CSV + loader Go | communes.csv (`code;nom;terrain`) et prenoms.csv (médiévaux français), codes trigrammes uniques par catégorie ; loader Go vérifiant les invariants | Tests unitaires : unicité par fichier, terrains valides, couverture des affinités | — | Fait |
+| [P0.3](prompts/p0.3-scaffold-front.md) | Scaffold front | Vite + React + TypeScript + Tailwind + shadcn/ui | App dev se lance | MapViewer v0 sur fixtures `map.ts` (statique) + `state.ts` (dynamique) : fond + couche vivante superposés | Fait |
 
 ## P1 — Moteur de jeu (palier 1)
 
-| ID | Tâche | Livrable | Critère de test | Front |
-|---|---|---|---|---|
-| P1.1 | Modèles métier | Territoire, Troupe, Noble, Infrastructure, Ressources, GameState | Compile + tests modèles | — |
-| P1.2 | Génération de carte Voronoï | Arcs géométriques qualifiés, terrains, villages neutres rares, nommage des territoires | Carte déterministe par seed et nombre de joueurs, invariants (arcs géométriques, connexité, degré [2, max(terrain)], unicité trigrammes, nombre et répartition des villages) | Endpoint dev `/api/map?players=N` (2..5, défaut 4, cache mémoire) → la vraie carte s'affiche |
-| P1.3 | Parser & modèles d'ordres | Parser texte des chaînes (format specs/architecture.md §6), 8 symboles A/S/H/J/P/D/O/K, liaison par transition (single/loop), réception (armée sur la position de la 1re ligne, remplacement de chaîne), capacité noble 1 émission/tour | Tests : parsing, validation par type, réception, remplacement, capacité, round-trip JSON | — |
-| P1.4 | Résolution : progression, mouvement & combat | Progression de TOUTES les chaînes simultanément, mouvement, attaque, soutien, jonction (fusion), dispersion, pillage, combats & retraites | Scénarios de combat (égalité, supériorité, soutiens, retraites, destructions), progression single/loop appliquée | — |
-| P1.5 | Ravitaillement & famine | Coût 2^(N-1), flux BFS depuis les châteaux/villages contrôlés, portée 3/5, stocks, algorithme famine | Tests : déficits, ordre d'épuisement, famine | — |
-| P1.6 | Phase d'Hiver | Conservation 50 %, recrutement Nobles, construction Infrastructures, départ des joueurs sur villages distincts (château auto-construit) | Test : année complète sans perte | — |
-| P1.7 | Rapport de tour + intégration | TurnReport (rapports des châteaux/villages contrôlés), simulation d'une année complète multi-joueurs | Test de bout en bout d'une année type | Endpoints dev `/api/map` + `/api/state` + `/api/orders` → boucle locale hotseat : ordres via le front, résolution, rapport affiché ; `/api/state` est créé en avance par P1.2f comme état d'exemple statique et évolue ici vers l'état hotseat dynamique |
+| ID | Tâche | Livrable | Critère de test | Front | Statut |
+|---|---|---|---|---|---|
+| [P1.1](prompts/p1.1-modeles-metier.md) | Modèles métier | Territoire, Troupe, Noble, Infrastructure, Ressources, GameState | Compile + tests modèles | — | Fait |
+| [P1.2](prompts/p1.2-generation-carte.md) | Génération de carte Voronoï | Arcs géométriques qualifiés, terrains, villages neutres rares, nommage des territoires | Carte déterministe par seed et nombre de joueurs, invariants (arcs géométriques, connexité, degré [2, max(terrain)], unicité trigrammes, nombre et répartition des villages) | Endpoint dev `/api/map?players=N` (2..5, défaut 4, cache mémoire) → la vraie carte s'affiche | Fait |
+| [P1.3](prompts/p1.3-ordres-chaines.md) | Parser & modèles d'ordres | Parser texte des chaînes (format specs/architecture.md §6), 8 symboles A/S/H/J/P/D/O/K, liaison par transition (single/loop), réception (armée sur la position de la 1re ligne, remplacement de chaîne), capacité noble 1 émission/tour | Tests : parsing, validation par type, réception, remplacement, capacité, round-trip JSON | — | Prompt écrit |
+| [P1.4](prompts/p1.4-resolution-combat.md) | Résolution : progression, mouvement & combat | Progression de TOUTES les chaînes simultanément, mouvement, attaque, soutien, jonction (fusion), dispersion, pillage, combats & retraites | Scénarios de combat (égalité, supériorité, soutiens, retraites, destructions), progression single/loop appliquée | — | Prompt écrit |
+| [P1.5](prompts/p1.5-ravitaillement-famine.md) | Ravitaillement & famine | Coût 2^(N-1), flux BFS depuis les châteaux/villages contrôlés, portée 3/5, stocks, algorithme famine | Tests : déficits, ordre d'épuisement, famine | — | Prompt écrit |
+| [P1.6](prompts/p1.6-hiver-investissements.md) | Phase d'Hiver | Conservation 50 %, recrutement Nobles, construction Infrastructures, départ des joueurs sur villages distincts (château auto-construit) | Test : année complète sans perte | — | Prompt écrit |
+| [P1.7](prompts/p1.7-rapport-tour-hotseat.md) | Rapport de tour + intégration | TurnReport (rapports des châteaux/villages contrôlés), simulation d'une année complète multi-joueurs | Test de bout en bout d'une année type | Endpoints dev `/api/map` + `/api/state` + `/api/orders` → boucle locale hotseat : ordres via le front, résolution, rapport affiché ; `/api/state` est créé en avance par P1.2f comme état d'exemple statique et évolue ici vers l'état hotseat dynamique | Prompt écrit |
 
 ### P1.2 détaillé — Carte Voronoï
+
+Les raffinements P1.2a à P1.2f sont également suivis individuellement :
+
+| Sous-tâche | Prompt | Statut |
+|---|---|---|
+| P1.2a — Vocabulaire troupe/armée | [prompt](prompts/p1.2a-vocabulaire-troupe-armee.md) | Fait |
+| P1.2b — Villages neutres | [prompt](prompts/p1.2b-lieux-dits-villages.md) | Fait |
+| P1.2c — Nommage des communes | [prompt](prompts/p1.2c-nommage-communes.md) | Fait |
+| P1.2d — Géométrie et graphe | [prompt](prompts/p1.2d-geometrie-graphe.md) | Fait |
+| P1.2e — Production vivrière | [prompt](prompts/p1.2e-production-vivriere.md) | Fait |
+| P1.2f — État d'exemple | [prompt](prompts/p1.2f-etat-exemple.md) | Fait |
 
 1. Cellules Voronoï déterministes (seed) → territoires de tailles inégales.
 2. Extraction des arcs géométriques : toute paire de territoires intérieurs partageant au moins `minSharedEdges = 3` arêtes de grille forme un arc.
@@ -52,21 +67,21 @@ Trois paliers de "testable" successifs, chacun validé avant le suivant :
 
 ## P2 — Latence d'information (palier 2)
 
-| ID | Tâche | Livrable | Critère de test | Front |
-|---|---|---|---|---|
-| P2.1 | IA "sans ordre" | Soutien défensif auto à l'armée alliée la plus proche la moins soutenue (défense ou Sans Ordre uniquement, puissance = armée) | Tests sur lignes de front | — |
-| P2.2 | Messagers & rapports (vision T-x) | Rapports des troupes/châteaux/villages/tours (cases adjacentes, fraîcheur = émission), T0 (noble libre ou otage, tour de guet + adjacentes), projection des troupes ; `state.json` devient la vue par joueur (`asOf` par territoire) | Tests : fraîcheur d'information par case | Carte affichant l'état stale (T-x) via `asOf` + projection distincte |
-| P2.3 | Transmission différée des ordres | Ordres partant du noble émetteur vers le 1er territoire de la feuille (arrivée fixée à l'émission), 1re troupe du territoire dans la fenêtre jusqu'à l'hiver, chaîne perdue sinon ; pas d'interception | Tests : délais, réception en fenêtre, perte à l'hiver | — |
+| ID | Tâche | Livrable | Critère de test | Front | Statut |
+|---|---|---|---|---|---|
+| [P2.1](prompts/p2.1-ia-sans-ordre.md) | IA "sans ordre" | Soutien défensif auto à l'armée alliée la plus proche la moins soutenue (défense ou Sans Ordre uniquement, puissance = armée) | Tests sur lignes de front | — | Prompt écrit |
+| [P2.2](prompts/p2.2-messagers-vision-tx.md) | Messagers & rapports (vision T-x) | Rapports des troupes/châteaux/villages/tours (cases adjacentes, fraîcheur = émission), T0 (noble libre ou otage, tour de guet + adjacentes), projection des troupes ; `state.json` devient la vue par joueur (`asOf` par territoire) | Tests : fraîcheur d'information par case | Carte affichant l'état stale (T-x) via `asOf` + projection distincte | Prompt écrit |
+| [P2.3](prompts/p2.3-transmission-ordres.md) | Transmission différée des ordres | Ordres partant du noble émetteur vers le 1er territoire de la feuille (arrivée fixée à l'émission), 1re troupe du territoire dans la fenêtre jusqu'à l'hiver, chaîne perdue sinon ; pas d'interception | Tests : délais, réception en fenêtre, perte à l'hiver | — | Prompt écrit |
 
 ## P3 — Serveur jouable (palier 3)
 
-| ID | Tâche | Livrable | Critère de test | Front |
-|---|---|---|---|---|
-| P3.1 | API REST complète (chi) | Parties multiples, inscription, état, ordres, résolution, rapports | Tests API | Migration des endpoints dev vers l'API réelle |
-| P3.2 | Auth & sessions | Code d'invitation par partie, session simple | Deux joueurs jouent une partie | Écran partie + code d'invitation |
-| P3.3 | Persistance JSON | 1 fichier par partie, sauvegarde/restauration | Redémarrage sans perte | — |
-| P3.4 | Polish front | Correction des retours de test local | Parcours complet fluide | — |
-| P3.5 | Déploiement | Cloud Run + Artifact Registry + CI auto | Lien public jouable entre amis | — |
+| ID | Tâche | Livrable | Critère de test | Front | Statut |
+|---|---|---|---|---|---|
+| [P3.1](prompts/p3.1-api-rest.md) | API REST complète (chi) | Parties multiples, inscription, état, ordres, résolution, rapports | Tests API | Migration des endpoints dev vers l'API réelle | Prompt écrit |
+| [P3.2](prompts/p3.2-auth-sessions.md) | Auth & sessions | Code d'invitation par partie, session simple | Deux joueurs jouent une partie | Écran partie + code d'invitation | Prompt écrit |
+| [P3.3](prompts/p3.3-persistance-json.md) | Persistance JSON | 1 fichier par partie, sauvegarde/restauration | Redémarrage sans perte | — | Prompt écrit |
+| [P3.4](prompts/p3.4-polish-front.md) | Polish front | Correction des retours de test local | Parcours complet fluide | — | Prompt écrit |
+| [P3.5](prompts/p3.5-deploiement.md) | Déploiement | Cloud Run + Artifact Registry + CI auto | Lien public jouable entre amis | — | Prompt écrit |
 
 ### Détail P3 — choix actés
 

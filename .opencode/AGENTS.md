@@ -9,9 +9,11 @@ front React/Vite/TypeScript. Toute la conception vit dans `specs/` :
 
 - `specs/gdd.md` — règles du jeu (la source de vérité du gameplay)
 - `specs/architecture.md` — stack, structure du repo, contrats map.json/state.json
-- `specs/roadmap.md` — plan d'implémentation (paliers P0→P3) et décisions actées
-- `specs/prompts/` — un fichier markdown par tâche du roadmap, prêt à copier
-  dans un agent ; à tenir à jour quand une tâche change
+- `specs/roadmap.md` — plan d'implémentation (paliers P0→P3), décisions actées
+  et suivi d'exécution par statut
+- `specs/prompts/` — phase de conception : un fichier markdown par tâche du
+  roadmap, référencé dans `specs/roadmap.md` et à tenir à jour quand la tâche
+  change
 - `specs/plans/` — un plan d'implémentation détaillé par prompt de
   `specs/prompts/`, écrit au format `<palier>-<tâche>-implementation-plan.md`
   (ex. `p0.1-implementation-plan.md`)
@@ -20,17 +22,55 @@ Avant d'implémenter une règle de jeu, lire le GDD. Avant de toucher la stack
 ou les contrats d'API, lire l'architecture. Toute décision de conception
 nouvelle ou modifiée doit être reportée dans les specs correspondantes.
 
-## Plans d'implémentation
+## Workflow : prompt → plan → évaluation → implémentation
 
-- Quand un agent crée un plan d'implémentation pour un prompt de
-  `specs/prompts/`, le plan est TOUJOURS écrit dans `specs/plans/` — jamais
-  ailleurs, jamais dans `specs/prompts/`.
-- Chaque plan contient une section « Difficulté et modèle recommandé » :
-  difficulté de la tâche sur 5 (1 = scaffolding trivial, 5 = conception
-  complexe), accompagnée d'une suggestion de modèle d'exécution (provider et
-  modèle précis) adaptée à cette difficulté, pour optimiser le compromis
-  précision/coût. Exemple : difficulté 1/5 → modèle léger et bon marché,
-  difficulté 4-5/5 → modèle haut de gamme.
+Toute tâche suit ce workflow dans l'ordre. `specs/roadmap.md` est le document
+de suivi d'exécution : chaque création, transition et clôture y est reportée.
+
+1. **Prompt** (`specs/prompts/<id>-<slug>.md`) :
+   - créer un fichier par tâche, avec un `<id>` identique à celui du roadmap ;
+   - décrire le contexte, le périmètre, les étapes, les critères d'acceptation
+     et les tests attendus ;
+   - lister explicitement les specs à mettre à jour si la tâche les impacte,
+     notamment `specs/gdd.md`, `specs/architecture.md` et
+     `specs/roadmap.md` ;
+   - plusieurs prompts peuvent être créés à la suite avant de passer à la
+     phase de planification ;
+   - mettre à jour `specs/roadmap.md` immédiatement : chaque prompt doit y
+     être référencé et passer au statut `Prompt écrit`.
+2. **Plan** (`specs/plans/<id>-implementation-plan.md`) :
+   - partir du prompt et le raffiner avec les questions à l'utilisateur
+     (`ask_user`) et le modèle de planification haut de gamme ;
+   - écrire le plan TOUJOURS dans `specs/plans/`, jamais dans
+     `specs/prompts/` ni ailleurs ;
+   - inclure les fichiers concernés, les étapes d'implémentation, les tests,
+     les mises à jour de specs et les risques ;
+   - inclure une section « Difficulté et modèle recommandé » avec une note de
+     difficulté sur 5 et un provider/modèle précis pour l'exécution ;
+   - passer le statut du roadmap à `Plan prêt` quand le plan est exploitable.
+3. **Évaluation et délégation** :
+   - évaluer la difficulté, les risques et les critères du plan avant de
+     déléguer ;
+   - choisir le modèle le moins cher capable de réussir la tâche, plutôt que
+     d'utiliser systématiquement le modèle le plus puissant ;
+   - difficulté 1-2 : modèle léger ; difficulté 3 : modèle intermédiaire ;
+     difficulté 4-5 : modèle haut de gamme ;
+   - passer le statut du roadmap à `En cours` au début de l'implémentation.
+4. **Implémentation** : utiliser le plan comme brief d'exécution. Toute
+   déviation nécessaire doit d'abord être répercutée dans le plan et, si elle
+   modifie une décision de conception, dans les specs concernées.
+5. **Clôture** : vérifier les critères d'acceptation, les tests et les
+   changements de documentation, puis passer la tâche à `Fait` dans
+   `specs/roadmap.md`. En cas de blocage, utiliser `Bloqué` et documenter la
+   cause dans le roadmap ou le plan.
+
+### Statuts du roadmap
+
+- `Prompt écrit` — le prompt existe dans `specs/prompts/`, sans plan finalisé
+- `Plan prêt` — le plan existe dans `specs/plans/` et peut être délégué
+- `En cours` — l'implémentation a été déléguée ou est en cours
+- `Fait` — l'implémentation et ses vérifications sont terminées
+- `Bloqué` — une décision, une dépendance ou une correction empêche la suite
 
 ## Conventions de code
 
