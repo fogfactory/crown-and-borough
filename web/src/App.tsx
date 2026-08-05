@@ -16,8 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { MapViewer } from '@/components/MapViewer'
-import { stateFixture } from '@/fixtures/state'
-import type { InfraType, MapData, PlayerId, Season, Terrain } from '@/types'
+import type { InfraType, MapData, PlayerId, Season, StateData, Terrain } from '@/types'
 
 const TERRAIN_LABELS: Record<Terrain, string> = {
   plain: 'Plaine',
@@ -50,43 +49,52 @@ function ownerLabel(owner: PlayerId | null): string {
 function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [map, setMap] = useState<MapData | null>(null)
-  const [mapError, setMapError] = useState<string | null>(null)
+  const [state, setState] = useState<StateData | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
 
-    const loadMap = async () => {
+    const loadData = async () => {
       try {
-        const response = await fetch('/api/map', { signal: controller.signal })
-        if (!response.ok) {
-          throw new Error(`Map request failed with status ${response.status}`)
+        const [mapResponse, stateResponse] = await Promise.all([
+          fetch('/api/map', { signal: controller.signal }),
+          fetch('/api/state', { signal: controller.signal }),
+        ])
+        if (!mapResponse.ok) {
+          throw new Error(`Map request failed with status ${mapResponse.status}`)
+        }
+        if (!stateResponse.ok) {
+          throw new Error(`State request failed with status ${stateResponse.status}`)
         }
 
-        const data = (await response.json()) as MapData
+        const [mapData, stateData] = (await Promise.all([
+          mapResponse.json(),
+          stateResponse.json(),
+        ])) as [MapData, StateData]
+
         if (!controller.signal.aborted) {
-          setMap(data)
+          setMap(mapData)
+          setState(stateData)
         }
       } catch (error) {
         if (!controller.signal.aborted) {
-          setMapError(error instanceof Error ? error.message : 'Unable to load the map')
+          setLoadError(error instanceof Error ? error.message : 'Unable to load the game data')
         }
       }
     }
 
-    void loadMap()
+    void loadData()
     return () => controller.abort()
   }, [])
 
   const selectedTerritory = map?.territories.find(
     (territory) => territory.id === selectedId,
   )
-  const selectedState = stateFixture.territories.find(
-    (territory) => territory.id === selectedId,
-  )
-  const observedTurn = selectedState
-    ? (stateFixture.asOf[selectedState.id] ?? stateFixture.turn)
-    : stateFixture.turn
-  const isStale = observedTurn < stateFixture.turn
+  const selectedState = state?.territories.find((territory) => territory.id === selectedId)
+  const observedTurn =
+    state && selectedState ? (state.asOf[selectedState.id] ?? state.turn) : null
+  const isStale = state !== null && observedTurn !== null && observedTurn < state.turn
 
   return (
     <div className="min-h-screen bg-[#efe7d8] text-[#30291f]">
@@ -112,7 +120,9 @@ function App() {
                 Saison
               </p>
               <p className="font-serif text-base font-semibold">
-                Tour {stateFixture.turn} · {SEASON_LABELS[stateFixture.season]}
+                {state
+                  ? `Tour ${state.turn} · ${SEASON_LABELS[state.season]}`
+                  : 'Chargement…'}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -152,21 +162,21 @@ function App() {
               zoomer
             </p>
           </div>
-          {mapError ? (
+          {loadError ? (
             <div
               role="alert"
               className="flex h-full items-center justify-center px-6 text-center"
             >
               <p className="font-serif text-lg text-[#a84632]">
-                Impossible de charger la carte : {mapError}
+                Impossible de charger les données de la partie : {loadError}
               </p>
             </div>
-          ) : map ? (
-            <MapViewer map={map} state={stateFixture} onSelect={setSelectedId} />
+          ) : map && state ? (
+            <MapViewer map={map} state={state} onSelect={setSelectedId} />
           ) : (
             <div className="flex h-full items-center justify-center px-6 text-center">
               <p className="font-serif text-lg italic text-[#806f57]">
-                Chargement de la carte…
+                Chargement de la carte et de l'état…
               </p>
             </div>
           )}
@@ -203,7 +213,7 @@ function App() {
                     </dd>
                   </dl>
 
-                  {selectedState && (
+                  {selectedState && state && observedTurn !== null && (
                     <>
                       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-3 text-sm">
                         <dt className="text-[#806f57]">Contrôle</dt>
@@ -274,7 +284,7 @@ function App() {
                         <p className="font-semibold">Fraîcheur</p>
                         <p className="mt-1 text-xs leading-relaxed">
                           {isStale
-                            ? `Observé au tour ${observedTurn} — il y a ${stateFixture.turn - observedTurn} tours`
+                            ? `Observé au tour ${observedTurn} — il y a ${state.turn - observedTurn} tours`
                             : 'À jour'}
                         </p>
                       </div>

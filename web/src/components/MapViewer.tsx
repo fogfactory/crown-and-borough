@@ -760,6 +760,45 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
                 </svg>
                 <span>Village</span>
               </div>
+              <div className="flex items-center gap-2">
+                <svg
+                  className="size-3 shrink-0"
+                  viewBox="-11 -11 22 22"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M-9 9V-3H-5V-9H-1V-3H3V-9H7V-3H10V9Z"
+                    fill="#efe6d0"
+                    stroke="#5f4936"
+                    strokeWidth="1.5"
+                  />
+                </svg>
+                <span>Château</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="size-3 shrink-0 rounded-full border-2 border-[#fff8e7] bg-[#a84632]" />
+                <span>Troupe</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <svg
+                  className="size-3 shrink-0"
+                  viewBox="-10 -10 20 20"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M0-8L8 0L0 8L-8 0Z"
+                    fill="#f2c14e"
+                    stroke="#815f1e"
+                    strokeWidth="1.5"
+                  />
+                  <circle cx="0" cy="0" r="2" fill="#fff3c4" />
+                </svg>
+                <span>Noble</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="size-3 shrink-0 rounded-sm border border-[#a84632]/30 bg-[#a84632]/20" />
+                <span>Contrôle territorial</span>
+              </div>
             </div>
             <p className="border-t border-[#b7a786]/60 pt-2 leading-relaxed">
               Trait épais continu = frontière infranchissable · Trait fin pointillé =

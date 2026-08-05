@@ -24,15 +24,23 @@ type mapResolver struct {
 	mu sync.Mutex
 	// A resolver owns one fixed seed, so players is the remaining component of
 	// the semantic (seed, players) cache key.
-	cache map[int][]byte
+	cache map[int]mapgen.MapData
 }
 
 func (r *mapResolver) resolve(players int) ([]byte, error) {
+	mapData, err := r.resolveData(players)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(mapData)
+}
+
+func (r *mapResolver) resolveData(players int) (mapgen.MapData, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if mapJSON, ok := r.cache[players]; ok {
-		return mapJSON, nil
+	if mapData, ok := r.cache[players]; ok {
+		return mapData, nil
 	}
 
 	generate := r.generate
@@ -46,27 +54,27 @@ func (r *mapResolver) resolve(players int) ([]byte, error) {
 		VillageCount: players + 1,
 	})
 	if err != nil {
-		return nil, err
-	}
-	mapJSON, err := json.Marshal(mapData)
-	if err != nil {
-		return nil, err
+		return mapgen.MapData{}, err
 	}
 
 	if r.cache == nil {
-		r.cache = make(map[int][]byte)
+		r.cache = make(map[int]mapgen.MapData)
 	}
-	r.cache[players] = mapJSON
+	r.cache[players] = mapData
 	log.Printf("map generated: seed=%q players=%d", r.seed, players)
-	return mapJSON, nil
+	return mapData, nil
 }
 
-func newServer(resolve func(players int) ([]byte, error)) *http.ServeMux {
+func newServer(
+	resolveMap func(players int) ([]byte, error),
+	resolveState func(players int) ([]byte, error),
+) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	mux.Handle("GET /api/map", api.MapHandler(resolve))
+	mux.Handle("GET /api/map", api.MapHandler(resolveMap))
+	mux.Handle("GET /api/state", api.StateHandler(resolveState))
 	return mux
 }
 
@@ -89,6 +97,7 @@ func main() {
 	if _, err := resolver.resolve(api.DefaultPlayers); err != nil {
 		log.Fatalf("failed to generate map: %v", err)
 	}
+	resolveState := api.StateResolver(resolver.resolveData, seed, assets)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -97,7 +106,7 @@ func main() {
 
 	addr := ":" + port
 	log.Printf("starting server on %s", addr)
-	if err := http.ListenAndServe(addr, api.WithCORS(newServer(resolver.resolve))); err != nil {
+	if err := http.ListenAndServe(addr, api.WithCORS(newServer(resolver.resolve, resolveState))); err != nil {
 		log.Fatal(err)
 	}
 }

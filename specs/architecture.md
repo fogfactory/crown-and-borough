@@ -165,6 +165,12 @@ La géographie est une connaissance commune : aucun joueur ne peut ignorer le te
 
 `GET /api/map?players=N` génère ou renvoie la carte pour `N` joueurs. Sans paramètre, `N = 4` ; seules les valeurs entières de 2 à 5 sont acceptées, toute autre valeur renvoie `400`. La génération utilise `8 × players` territoires et `players + 1` villages. Les cartes sont générées à la demande et mises en cache en mémoire par clé `(seed, players)` ; le seed de développement étant fixé au démarrage, une même clé renvoie les mêmes octets de `map.json`.
 
+### Endpoint de développement `/api/state`
+
+`GET /api/state?players=N` est le pendant de développement de `/api/map` et accepte les mêmes valeurs de joueurs. Il sert un état d'exemple statique et déterministe, projeté par le DTO explicite `StateView`, jamais par la sérialisation directe de `GameState`. La réponse contient toujours `turn: 5`, `season: "spring"` et un `asOf` pour chaque territoire dont la valeur est `turn` ou `turn - 2`.
+
+Le résolveur partage avec `/api/map` le cache en mémoire du `MapData` généré pour le même `(seed, players)` : servir l'état ne régénère donc pas la carte. Ce n'est pas encore la vue dynamique réelle : le résolveur de la boucle hotseat reste à P1.7, puis la vue privée par joueur et la fraîcheur de rapport réelle restent à P2.
+
 ### state.json (dynamique, privé, par joueur et par fraîcheur de rapport)
 
 Ce qui vit sur la carte : troupes, infrastructures, contrôle, ressources. C'est la **vue** d'un joueur : en P2, l'API ne sert que ce que ses messagers ont rapporté (vision T-x), chaque territoire est horodaté (fraîcheur).
