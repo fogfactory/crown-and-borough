@@ -82,12 +82,14 @@ La propagation des messagers (rapports et ordres) dépend du relief — les trou
 
 *(Les coûts de trajet des messagers — rapports et ordres — sont paramétrés dans les assets d'équilibrage `assets/balance.json` : coût par case selon le terrain — plaine 0,5, forêt/colline 1, montagne/marécage 2 —, divisé par 2 sur un Relais de Poste.)*
 
-### Graphe franchissable : frontières et routes
+### Graphe franchissable : frontières géométriques
 
-Le graphe de déplacement (troupes, messagers, flux) n'épouse pas exactement la géographie :
+Le graphe de déplacement (troupes, messagers, flux) est formé des frontières réellement partagées entre territoires. Chaque arc géométrique est conservé et reçoit une qualification :
 
-- **Frontières infranchissables :** certaines adjacences géométriques (crêtes montagneuses, marécages) ne sont PAS franchissables — elles ne figurent pas dans le graphe.
-- **Routes :** arêtes reliant des territoires NON adjacents géométriquement (cols, ponts). Franchissables par les troupes comme toute autre adjacence ; un messager y circule à 2 cases / tour (coût 0,5 par route).
+- **Frontières franchissables :** les arcs listés dans les adjacences sont franchissables par les troupes, les messagers et les flux.
+- **Frontières infranchissables :** certaines frontières géométriques (crêtes montagneuses, marécages) sont classées infranchissables ; elles ne figurent pas dans le graphe franchissable.
+- **Contraintes de degré :** le graphe franchissable reste connexe et chaque territoire a un degré d'au moins 2. Son degré maximal est de 3 en montagne, marécage ou colline, et de 5 en plaine ou forêt.
+- **Pas de routes au MVP :** aucune arête ne relie des territoires sans frontière géométrique commune. Une évolution ultérieure pourra ajouter le qualificatif `route` à une frontière infranchissable pour représenter un pont ou un col et la rendre franchissable ; elle est hors MVP.
 
 ### Villages et Maillage Territorial
 

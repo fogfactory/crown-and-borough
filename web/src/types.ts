@@ -2,7 +2,8 @@ export type Terrain = 'plain' | 'forest' | 'hill' | 'mountain' | 'swamp'
 
 export type Season = 'spring' | 'summer' | 'autumn' | 'winter'
 
-export type InfraType = 'mill' | 'post_relay' | 'watchtower' | 'supply_depot' | 'castle' | 'village'
+export type InfraType =
+  'mill' | 'post_relay' | 'watchtower' | 'supply_depot' | 'castle' | 'village'
 
 export type PlayerId = string
 
@@ -33,6 +34,7 @@ export interface Territory {
   village: boolean
   points: Point[]
   adjacencies: string[]
+  impassable: string[]
 }
 
 export interface MapData {

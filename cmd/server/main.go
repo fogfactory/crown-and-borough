@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 
 	"github.com/fogfactory/crown-and-borough/internal/api"
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
@@ -13,17 +14,59 @@ import (
 
 const defaultSeed = "crown-and-borough-dev"
 
-// devVillageCount scales the number of neutral villages laid on the map for
-// the dev server. Fixed at 5 for now; P1.2d will introduce ?players=N and
-// tie VillageCount = players + 1 (player starts land on distinct villages).
-const devVillageCount = 5
+type mapGenerator func(string, assetgen.Assets, mapgen.Config) (mapgen.MapData, error)
 
-func newServer(mapJSON []byte) *http.ServeMux {
+type mapResolver struct {
+	seed     string
+	assets   assetgen.Assets
+	generate mapGenerator
+
+	mu sync.Mutex
+	// A resolver owns one fixed seed, so players is the remaining component of
+	// the semantic (seed, players) cache key.
+	cache map[int][]byte
+}
+
+func (r *mapResolver) resolve(players int) ([]byte, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if mapJSON, ok := r.cache[players]; ok {
+		return mapJSON, nil
+	}
+
+	generate := r.generate
+	if generate == nil {
+		generate = mapgen.Generate
+	}
+	mapData, err := generate(r.seed, r.assets, mapgen.Config{
+		Width:        1000,
+		Height:       700,
+		SiteCount:    mapgen.TerritoriesPerPlayer * players,
+		VillageCount: players + 1,
+	})
+	if err != nil {
+		return nil, err
+	}
+	mapJSON, err := json.Marshal(mapData)
+	if err != nil {
+		return nil, err
+	}
+
+	if r.cache == nil {
+		r.cache = make(map[int][]byte)
+	}
+	r.cache[players] = mapJSON
+	log.Printf("map generated: seed=%q players=%d", r.seed, players)
+	return mapJSON, nil
+}
+
+func newServer(resolve func(players int) ([]byte, error)) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	mux.Handle("GET /api/map", api.MapHandler(mapJSON))
+	mux.Handle("GET /api/map", api.MapHandler(resolve))
 	return mux
 }
 
@@ -42,19 +85,9 @@ func main() {
 	if seed == "" {
 		seed = defaultSeed
 	}
-	log.Printf("generating map with seed %q", seed)
-	mapData, err := mapgen.Generate(seed, assets, mapgen.Config{
-		Width:        1000,
-		Height:       700,
-		SiteCount:    64,
-		VillageCount: devVillageCount,
-	})
-	if err != nil {
+	resolver := &mapResolver{seed: seed, assets: assets}
+	if _, err := resolver.resolve(api.DefaultPlayers); err != nil {
 		log.Fatalf("failed to generate map: %v", err)
-	}
-	mapJSON, err := json.Marshal(mapData)
-	if err != nil {
-		log.Fatalf("failed to marshal map: %v", err)
 	}
 
 	port := os.Getenv("PORT")
@@ -64,7 +97,7 @@ func main() {
 
 	addr := ":" + port
 	log.Printf("starting server on %s", addr)
-	if err := http.ListenAndServe(addr, api.WithCORS(newServer(mapJSON))); err != nil {
+	if err := http.ListenAndServe(addr, api.WithCORS(newServer(resolver.resolve))); err != nil {
 		log.Fatal(err)
 	}
 }

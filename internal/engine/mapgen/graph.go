@@ -7,84 +7,201 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
-// filterFrontiers removes selected geometric borders according to terrain.
-// Its input and output edge lists are sorted by their site indexes.
-func filterFrontiers(rng *rand.Rand, edges [][2]int, terrains []models.Terrain) [][2]int {
-	passable := make([][2]int, 0, len(edges))
-	for _, edge := range edges {
-		removalChance := frontierRemovalChance(terrains[edge[0]], terrains[edge[1]])
-		if rng.Float64() >= removalChance {
-			passable = append(passable, edge)
+// pruneFrontiers starts with every geometric arc traversable. It consumes one
+// seeded draw per sorted arc, but only reclassifies an arc when doing so keeps
+// the traversable graph connected and both endpoint degrees at least two.
+func pruneFrontiers(
+	rng *rand.Rand,
+	arcs [][2]int,
+	terrain []models.Terrain,
+) (passable, impassable [][2]int) {
+	n := len(terrain)
+	matrix := edgeMatrix(n, arcs)
+	for _, arc := range arcs {
+		roll := rng.Float64()
+		if roll >= frontierRemovalChance(terrain[arc[0]], terrain[arc[1]]) {
+			continue
+		}
+		if canDowngradeArc(matrix, n, arc[0], arc[1]) {
+			matrixClearEdge(matrix, n, arc[0], arc[1])
 		}
 	}
-	return passable
+	passable = edgesFromMatrix(matrix, n)
+	return passable, differenceEdges(arcs, passable)
 }
 
 func frontierRemovalChance(first, second models.Terrain) float64 {
 	if first == models.TerrainPlain && second == models.TerrainPlain {
 		return 0
 	}
-	if (first == models.TerrainMountain && second == models.TerrainMountain) ||
-		(first == models.TerrainMountain && second == models.TerrainSwamp) ||
-		(first == models.TerrainSwamp && second == models.TerrainMountain) {
+	if difficultFrontier(first, second) {
 		return 0.75
 	}
 	return 0.15
 }
 
-// repairGraph adds deterministic routes until the movement graph is connected
-// and every territory has degree at least two.
-func repairGraph(edges [][2]int, centroids [][2]float64, n int) [][2]int {
-	return repairGraphWithGeometry(edges, nil, centroids, n)
+func difficultFrontier(first, second models.Terrain) bool {
+	return (first == models.TerrainMountain && second == models.TerrainMountain) ||
+		(first == models.TerrainMountain && second == models.TerrainSwamp) ||
+		(first == models.TerrainSwamp && second == models.TerrainMountain)
 }
 
-// repairGraphWithGeometry keeps geometric borders separate so routes prefer
-// genuinely non-geometric pairs.
-func repairGraphWithGeometry(edges, geometricEdges [][2]int, centroids [][2]float64, n int) [][2]int {
-	matrix := edgeMatrix(n, edges)
-	geometric := edgeMatrix(n, geometricEdges)
-
-	for {
-		sets := componentsFromMatrix(matrix, n)
-		if len(sets) <= 1 {
-			break
-		}
-		first, second, found := closestAcrossComponents(sets, matrix, geometric, centroids, n, true)
-		if !found {
-			// A complete geometric graph leaves no non-geometric route candidate.
-			// Preserving the connectivity invariant is more important in that case.
-			first, second, found = closestAcrossComponents(sets, matrix, geometric, centroids, n, false)
-		}
-		if !found {
-			break
-		}
-		matrixSetEdge(matrix, n, first, second)
+// capDegrees demotes only existing passable geometric arcs. Candidate order is
+// difficult terrain pairs, then longest centroid distance, then lower indexes.
+func capDegrees(
+	passable [][2]int,
+	terrain []models.Terrain,
+	centroids [][2]float64,
+) ([][2]int, [][2]int, error) {
+	n := len(terrain)
+	if len(centroids) != n {
+		return nil, nil, fmt.Errorf("mapgen: centroid count does not match terrain count")
 	}
-
+	matrix := edgeMatrix(n, passable)
 	for {
 		degree := degreesFromMatrix(matrix, n)
-		territory := -1
-		for i, value := range degree {
-			if value < 2 {
-				territory = i
+		overfull := -1
+		for territory, value := range degree {
+			if value > maxDegree(terrain[territory]) {
+				overfull = territory
 				break
 			}
 		}
-		if territory < 0 {
-			break
+		if overfull < 0 {
+			final := edgesFromMatrix(matrix, n)
+			return final, differenceEdges(passable, final), nil
 		}
 
-		target, found := closestRouteTarget(territory, matrix, geometric, centroids, n, true)
+		first, second, found := bestDegreeCapCandidate(matrix, terrain, centroids, overfull)
 		if !found {
-			target, found = closestRouteTarget(territory, matrix, geometric, centroids, n, false)
+			return nil, nil, fmt.Errorf(
+				"mapgen: cannot enforce max degree for territory %s (degree %d, max %d)",
+				territoryID(overfull), degree[overfull], maxDegree(terrain[overfull]),
+			)
 		}
-		if !found {
-			break
-		}
-		matrixSetEdge(matrix, n, territory, target)
+		matrixClearEdge(matrix, n, first, second)
+	}
+}
+
+// enforceDegreeCaps keeps stochastic pruning from turning an otherwise valid
+// geometric graph into an irreducible degree-cap configuration. A downgrade is
+// restored only when the cap phase proves it needs additional structure; a
+// graph that remains impossible after every restoration returns the explicit
+// cap error unchanged.
+func enforceDegreeCaps(
+	passable, impassable [][2]int,
+	terrain []models.Terrain,
+	centroids [][2]float64,
+) ([][2]int, [][2]int, error) {
+	capped, demoted, err := capDegrees(passable, terrain, centroids)
+	if err == nil {
+		return capped, mergeEdges(impassable, demoted), nil
 	}
 
-	return edgesFromMatrix(matrix, n)
+	restored := append([][2]int(nil), passable...)
+	for index, edge := range impassable {
+		restored = mergeEdges(restored, [][2]int{edge})
+		capped, demoted, capErr := capDegrees(restored, terrain, centroids)
+		if capErr == nil {
+			return capped, mergeEdges(impassable[index+1:], demoted), nil
+		}
+	}
+	return nil, nil, err
+}
+
+func maxDegree(terrain models.Terrain) int {
+	switch terrain {
+	case models.TerrainMountain, models.TerrainSwamp, models.TerrainHill:
+		return 3
+	case models.TerrainPlain, models.TerrainForest:
+		return 5
+	default:
+		return 0
+	}
+}
+
+func bestDegreeCapCandidate(
+	matrix []bool,
+	terrain []models.Terrain,
+	centroids [][2]float64,
+	overfull int,
+) (int, int, bool) {
+	n := len(terrain)
+	bestFirst, bestSecond := -1, -1
+	bestDifficult := false
+	bestDistance := 0.0
+	for other := 0; other < n; other++ {
+		if other == overfull || !matrixHasEdge(matrix, n, overfull, other) ||
+			!canDowngradeArc(matrix, n, overfull, other) {
+			continue
+		}
+		first, second := orderedPair(overfull, other)
+		difficult := difficultFrontier(terrain[first], terrain[second])
+		distance := centroidDistanceSquared(centroids, first, second)
+		if bestFirst < 0 ||
+			(difficult && !bestDifficult) ||
+			(difficult == bestDifficult && (distance > bestDistance ||
+				(distance == bestDistance && (first < bestFirst || (first == bestFirst && second < bestSecond))))) {
+			bestFirst, bestSecond = first, second
+			bestDifficult = difficult
+			bestDistance = distance
+		}
+	}
+	return bestFirst, bestSecond, bestFirst >= 0
+}
+
+func canDowngradeArc(matrix []bool, n, first, second int) bool {
+	if !matrixHasEdge(matrix, n, first, second) {
+		return false
+	}
+	degree := degreesFromMatrix(matrix, n)
+	if degree[first] < 3 || degree[second] < 3 {
+		return false
+	}
+	matrixClearEdge(matrix, n, first, second)
+	connected := len(componentsFromMatrix(matrix, n)) == 1
+	matrixSetEdge(matrix, n, first, second)
+	return connected
+}
+
+func differenceEdges(all, included [][2]int) [][2]int {
+	result := make([][2]int, 0, len(all))
+	index := 0
+	for _, edge := range all {
+		for index < len(included) && edgeLess(included[index], edge) {
+			index++
+		}
+		if index >= len(included) || included[index] != edge {
+			result = append(result, edge)
+		}
+	}
+	return result
+}
+
+func mergeEdges(first, second [][2]int) [][2]int {
+	merged := make([][2]int, 0, len(first)+len(second))
+	left, right := 0, 0
+	for left < len(first) && right < len(second) {
+		switch {
+		case first[left] == second[right]:
+			merged = append(merged, first[left])
+			left++
+			right++
+		case edgeLess(first[left], second[right]):
+			merged = append(merged, first[left])
+			left++
+		default:
+			merged = append(merged, second[right])
+			right++
+		}
+	}
+	merged = append(merged, first[left:]...)
+	merged = append(merged, second[right:]...)
+	return merged
+}
+
+func edgeLess(first, second [2]int) bool {
+	return first[0] < second[0] || (first[0] == second[0] && first[1] < second[1])
 }
 
 func components(edges [][2]int, n int) [][]int {
@@ -134,62 +251,6 @@ func degreesFromMatrix(matrix []bool, n int) []int {
 	return degree
 }
 
-func closestAcrossComponents(
-	sets [][]int,
-	matrix, geometric []bool,
-	centroids [][2]float64,
-	n int,
-	nonGeometricOnly bool,
-) (int, int, bool) {
-	firstBest, secondBest := -1, -1
-	var bestDistance float64
-	found := false
-	for firstSet := 0; firstSet < len(sets); firstSet++ {
-		for secondSet := firstSet + 1; secondSet < len(sets); secondSet++ {
-			for _, first := range sets[firstSet] {
-				for _, second := range sets[secondSet] {
-					if matrixHasEdge(matrix, n, first, second) ||
-						(nonGeometricOnly && matrixHasEdge(geometric, n, first, second)) {
-						continue
-					}
-					first, second = orderedPair(first, second)
-					distance := centroidDistanceSquared(centroids, first, second)
-					if !found || distance < bestDistance ||
-						(distance == bestDistance && (first < firstBest || (first == firstBest && second < secondBest))) {
-						firstBest, secondBest = first, second
-						bestDistance = distance
-						found = true
-					}
-				}
-			}
-		}
-	}
-	return firstBest, secondBest, found
-}
-
-func closestRouteTarget(
-	from int,
-	matrix, geometric []bool,
-	centroids [][2]float64,
-	n int,
-	nonGeometricOnly bool,
-) (int, bool) {
-	bestTarget := -1
-	var bestDistance float64
-	for target := 0; target < n; target++ {
-		if target == from || matrixHasEdge(matrix, n, from, target) ||
-			(nonGeometricOnly && matrixHasEdge(geometric, n, from, target)) {
-			continue
-		}
-		distance := centroidDistanceSquared(centroids, from, target)
-		if bestTarget < 0 || distance < bestDistance || (distance == bestDistance && target < bestTarget) {
-			bestTarget = target
-			bestDistance = distance
-		}
-	}
-	return bestTarget, bestTarget >= 0
-}
-
 func orderedPair(first, second int) (int, int) {
 	if first > second {
 		return second, first
@@ -206,13 +267,23 @@ func centroidDistanceSquared(centroids [][2]float64, first, second int) float64 
 	)
 }
 
-func validateGraph(edges [][2]int, n int) error {
+func validateGraph(edges [][2]int, terrain []models.Terrain, n int) error {
+	if len(terrain) != n {
+		return fmt.Errorf("mapgen: terrain count does not match graph size")
+	}
 	if len(components(edges, n)) != 1 {
 		return fmt.Errorf("mapgen: final graph is disconnected")
 	}
 	for index, degree := range degrees(edges, n) {
+		maximum := maxDegree(terrain[index])
+		if maximum == 0 {
+			return fmt.Errorf("mapgen: territory %s has invalid terrain %q", territoryID(index), terrain[index])
+		}
 		if degree < 2 {
 			return fmt.Errorf("mapgen: territory %s has degree %d, want at least 2", territoryID(index), degree)
+		}
+		if degree > maximum {
+			return fmt.Errorf("mapgen: territory %s has degree %d, want at most %d", territoryID(index), degree, maximum)
 		}
 	}
 	return nil
@@ -236,6 +307,11 @@ func matrixHasEdge(matrix []bool, n, first, second int) bool {
 func matrixSetEdge(matrix []bool, n, first, second int) {
 	matrix[first*n+second] = true
 	matrix[second*n+first] = true
+}
+
+func matrixClearEdge(matrix []bool, n, first, second int) {
+	matrix[first*n+second] = false
+	matrix[second*n+first] = false
 }
 
 func edgesFromMatrix(matrix []bool, n int) [][2]int {

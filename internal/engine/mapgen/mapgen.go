@@ -12,9 +12,14 @@ import (
 const (
 	gridW = 256
 	gridH = 160
+	// TerritoriesPerPlayer is the fixed development map scale.
+	TerritoriesPerPlayer = 8
 )
 
-// Config controls the generated map viewport and population.
+// Config controls the raster-generation viewport and delivered population.
+// Width and Height are not serialized: final dimensions are derived from the
+// re-anchored interior polygons. SiteCount is the number of delivered interior
+// territories; sacrificial frame sites exist only during raster generation.
 type Config struct {
 	Width, Height int
 	SiteCount     int
@@ -36,6 +41,7 @@ type Territory struct {
 	Village     bool           `json:"village"`
 	Points      [][2]int       `json:"points"`
 	Adjacencies []string       `json:"adjacencies"`
+	Impassable  []string       `json:"impassable"`
 }
 
 // MapData is the complete static map document exposed by the development API.
@@ -56,24 +62,30 @@ func Generate(seed string, assets assetgen.Assets, cfg Config) (MapData, error) 
 
 	sites := generateSites(newRNG(seed, "sites"), cfg)
 	grid := assignRaster(sites, cfg)
-	if !rasterHasEveryRegion(grid, len(sites)) {
-		return MapData{}, fmt.Errorf("mapgen: raster left at least one site without a region")
+	if !rasterHasEveryRegion(grid, cfg.SiteCount) {
+		return MapData{}, fmt.Errorf("mapgen: raster left at least one interior site without a region")
 	}
 
-	polygons, centroids := extractPolygons(grid, sites, cfg)
-	if err := validateGeometry(polygons, cfg); err != nil {
+	geometry, err := extractInteriorFrontiers(grid, len(sites), cfg.SiteCount, cfg, seed)
+	if err != nil {
+		return MapData{}, err
+	}
+	if err := validateGeometry(geometry.polygons, geometry.padding); err != nil {
 		return MapData{}, err
 	}
 
-	geometricEdges := extractAdjacency(grid)
-	terrain := assignTerrains(newRNG(seed, "terrain"), sites)
-	passableEdges := filterFrontiers(newRNG(seed, "frontiers"), geometricEdges, terrain)
-	finalEdges := repairGraphWithGeometry(passableEdges, geometricEdges, centroids, len(sites))
-	if err := validateGraph(finalEdges, len(sites)); err != nil {
+	geometricEdges := extractAdjacency(grid, cfg.SiteCount)
+	terrain := assignTerrains(newRNG(seed, "terrain"), sites[:cfg.SiteCount])
+	passableEdges, impassableEdges := pruneFrontiers(newRNG(seed, "frontiers"), geometricEdges, terrain)
+	passableEdges, impassableEdges, err = enforceDegreeCaps(passableEdges, impassableEdges, terrain, geometry.centroids)
+	if err != nil {
+		return MapData{}, err
+	}
+	if err := validateGraph(passableEdges, terrain, cfg.SiteCount); err != nil {
 		return MapData{}, err
 	}
 
-	villages, err := assignVillages(newRNG(seed, "village"), terrain, centroids, cfg.VillageCount)
+	villages, err := assignVillages(newRNG(seed, "village"), terrain, geometry.centroids, cfg.VillageCount)
 	if err != nil {
 		return MapData{}, err
 	}
@@ -82,8 +94,9 @@ func Generate(seed string, assets assetgen.Assets, cfg Config) (MapData, error) 
 		return MapData{}, err
 	}
 
-	adjacency := adjacencyIDs(finalEdges, len(sites))
-	territories := make([]Territory, len(sites))
+	adjacency := adjacencyIDs(passableEdges, cfg.SiteCount)
+	impassable := adjacencyIDs(impassableEdges, cfg.SiteCount)
+	territories := make([]Territory, cfg.SiteCount)
 	for i := range territories {
 		territories[i] = Territory{
 			ID:          territoryID(i),
@@ -91,8 +104,9 @@ func Generate(seed string, assets assetgen.Assets, cfg Config) (MapData, error) 
 			Name:        names[i].name,
 			Terrain:     terrain[i],
 			Village:     villages[i],
-			Points:      polygons[i],
+			Points:      geometry.polygons[i],
 			Adjacencies: adjacency[i],
+			Impassable:  impassable[i],
 		}
 	}
 
@@ -121,7 +135,20 @@ func validateConfig(cfg Config) error {
 	return nil
 }
 
-func validateGeometry(polygons [][][2]int, cfg Config) error {
+func validateGeometry(polygons [][][2]int, padding int) error {
+	maxX, maxY := padding, padding
+	for _, points := range polygons {
+		for _, point := range points {
+			if point[0] > maxX {
+				maxX = point[0]
+			}
+			if point[1] > maxY {
+				maxY = point[1]
+			}
+		}
+	}
+	width := maxX + padding
+	height := maxY + padding
 	for i, points := range polygons {
 		if len(points) < 3 {
 			return fmt.Errorf("mapgen: territory %s has fewer than three polygon points", territoryID(i))
@@ -129,13 +156,68 @@ func validateGeometry(polygons [][][2]int, cfg Config) error {
 		if polygonAreaTwice(points) <= 0 {
 			return fmt.Errorf("mapgen: territory %s has a degenerate polygon", territoryID(i))
 		}
+		if !isSimplePolygon(points) {
+			return fmt.Errorf("mapgen: territory %s has a self-intersecting polygon", territoryID(i))
+		}
 		for _, point := range points {
-			if point[0] < 0 || point[0] > cfg.Width || point[1] < 0 || point[1] > cfg.Height {
-				return fmt.Errorf("mapgen: territory %s has a polygon point outside the viewport", territoryID(i))
+			if point[0] < padding || point[0] > width-padding || point[1] < padding || point[1] > height-padding {
+				return fmt.Errorf("mapgen: territory %s has a polygon point outside the derived viewport", territoryID(i))
 			}
 		}
 	}
 	return nil
+}
+
+func isSimplePolygon(points [][2]int) bool {
+	if len(points) < 3 {
+		return false
+	}
+	for first := range points {
+		firstNext := (first + 1) % len(points)
+		if points[first] == points[firstNext] {
+			return false
+		}
+		for second := first + 1; second < len(points); second++ {
+			secondNext := (second + 1) % len(points)
+			if firstNext == second || secondNext == first {
+				continue
+			}
+			if segmentsIntersect(points[first], points[firstNext], points[second], points[secondNext]) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func segmentsIntersect(firstStart, firstEnd, secondStart, secondEnd [2]int) bool {
+	first := orientation(firstStart, firstEnd, secondStart)
+	second := orientation(firstStart, firstEnd, secondEnd)
+	third := orientation(secondStart, secondEnd, firstStart)
+	fourth := orientation(secondStart, secondEnd, firstEnd)
+	if first == 0 && pointOnSegment(firstStart, firstEnd, secondStart) {
+		return true
+	}
+	if second == 0 && pointOnSegment(firstStart, firstEnd, secondEnd) {
+		return true
+	}
+	if third == 0 && pointOnSegment(secondStart, secondEnd, firstStart) {
+		return true
+	}
+	if fourth == 0 && pointOnSegment(secondStart, secondEnd, firstEnd) {
+		return true
+	}
+	return (first > 0) != (second > 0) && (third > 0) != (fourth > 0)
+}
+
+func orientation(first, second, third [2]int) int64 {
+	return int64(second[0]-first[0])*int64(third[1]-first[1]) -
+		int64(second[1]-first[1])*int64(third[0]-first[0])
+}
+
+func pointOnSegment(first, second, point [2]int) bool {
+	return point[0] >= min(first[0], second[0]) && point[0] <= max(first[0], second[0]) &&
+		point[1] >= min(first[1], second[1]) && point[1] <= max(first[1], second[1])
 }
 
 func territoryID(index int) string {
@@ -146,6 +228,7 @@ func adjacencyIDs(edges [][2]int, n int) [][]string {
 	matrix := edgeMatrix(n, edges)
 	adjacency := make([][]string, n)
 	for i := 0; i < n; i++ {
+		adjacency[i] = make([]string, 0)
 		for j := 0; j < n; j++ {
 			if matrixHasEdge(matrix, n, i, j) {
 				adjacency[i] = append(adjacency[i], territoryID(j))

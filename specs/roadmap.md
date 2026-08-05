@@ -14,7 +14,7 @@ Trois paliers de "testable" successifs, chacun validé avant le suivant :
 **Décisions actées :**
 
 - La latence d'information est différée au palier 2 : la boucle de jeu démarre en vision T0 partout.
-- La carte est générée par **algorithme de Voronoï seedé** : territoires inégaux, graphe **connexe et sans cul-de-sac sur toutes les cellules, bords compris** (degré ≥ 2 partout). Les adjacences géométriques ne sont pas toutes franchissables (frontières infranchissables : crêtes, marécages) et des **routes** relient des territoires non adjacents géométriquement (le graphe final n'est pas planaire).
+- La carte est générée par **algorithme de Voronoï seedé** : un anneau de sites « cadre » absorbe les bords, puis les territoires intérieurs sont ré-ancrés avec un padding ; aucun territoire livré ne touche le bord. Elle compte **8 territoires par joueur**. Chaque frontière géométrique retenue est un arc qualifié franchissable ou infranchissable (crêtes, marécages) : le graphe est planaire et connexe, avec un degré franchissable compris entre 2 et le maximum du terrain (3 en montagne, marécage ou colline ; 5 en plaine ou forêt).
 - Persistance : **JSON d'abord** (1 fichier par partie), migration **Postgres/sqlc** ensuite.
 - Le **front est construit au fur et à mesure** du plan pour tester localement dès que possible.
 - Les **infrastructures n'ont pas de propriétaire** : elles appartiennent à leur case (celui qui contrôle la case en bénéficie). Construire un château sur un village le **remplace** (jamais deux structures par case).
@@ -32,7 +32,7 @@ Trois paliers de "testable" successifs, chacun validé avant le suivant :
 | ID | Tâche | Livrable | Critère de test | Front |
 |---|---|---|---|---|
 | P1.1 | Modèles métier | Territoire, Troupe, Noble, Infrastructure, Ressources, GameState | Compile + tests modèles | — |
-| P1.2 | Génération de carte Voronoï | Graphe d'adjacence seedé, terrains, villages neutres rares, nommage des territoires | Carte déterministe par seed, invariants (connexité, degré ≥ 2, unicité trigrammes, nombre et répartition des villages) | Endpoint dev `/api/map` (map.json statique) → la vraie carte s'affiche |
+| P1.2 | Génération de carte Voronoï | Arcs géométriques qualifiés, terrains, villages neutres rares, nommage des territoires | Carte déterministe par seed et nombre de joueurs, invariants (arcs géométriques, connexité, degré [2, max(terrain)], unicité trigrammes, nombre et répartition des villages) | Endpoint dev `/api/map?players=N` (2..5, défaut 4, cache mémoire) → la vraie carte s'affiche |
 | P1.3 | Parser & modèles d'ordres | Parser texte des chaînes (format specs/architecture.md §6), 8 symboles A/S/H/J/P/D/O/K, liaison par transition (single/loop), réception (armée sur la position de la 1re ligne, remplacement de chaîne), capacité noble 1 émission/tour | Tests : parsing, validation par type, réception, remplacement, capacité, round-trip JSON | — |
 | P1.4 | Résolution : progression, mouvement & combat | Progression de TOUTES les chaînes simultanément, mouvement, attaque, soutien, jonction (fusion), dispersion, pillage, combats & retraites | Scénarios de combat (égalité, supériorité, soutiens, retraites, destructions), progression single/loop appliquée | — |
 | P1.5 | Ravitaillement & famine | Coût 2^(N-1), flux BFS depuis les châteaux/villages contrôlés, portée 3/5, stocks, algorithme famine | Tests : déficits, ordre d'épuisement, famine | — |
@@ -42,13 +42,13 @@ Trois paliers de "testable" successifs, chacun validé avant le suivant :
 ### P1.2 détaillé — Carte Voronoï
 
 1. Cellules Voronoï déterministes (seed) → territoires de tailles inégales.
-2. Extraction du graphe d'adjacence géométrique.
-3. **Frontières infranchissables** (crêtes montagneuses, marécages) → suppression d'adjacences.
-4. **Routes** reliant des territoires non adjacents géométriquement (cols, ponts).
-5. **Invariant :** le graphe final (adjacences franchissables + routes) est connexe, sans cul-de-sac sur aucune cellule, bords compris (degré ≥ 2 partout). Les cellules de bord forment un anneau ; toute feuille résiduelle est corrigée par ajout de route.
+2. Extraction des arcs géométriques : toute paire de territoires intérieurs partageant au moins `minSharedEdges = 3` arêtes de grille forme un arc.
+3. **Frontières infranchissables** (crêtes montagneuses, marécages) : les arcs géométriques sont qualifiés franchissables ou infranchissables, sans être supprimés.
+4. **Pas de routes au MVP :** aucun arc ne relie des territoires non adjacents géométriquement. Le qualificatif futur `route` pourra rendre franchissable une frontière infranchissable (pont, col), hors MVP.
+5. **Invariant :** le sous-graphe des adjacences franchissables est connexe et chaque territoire a un degré compris entre 2 et son maximum de terrain : 3 en montagne, marécage ou colline ; 5 en plaine ou forêt. L'union des arcs franchissables et infranchissables est exactement le graphe géométrique planaire.
 6. Attribution des terrains (plaine, forêt, colline, montagne, marécage) + placement de villages neutres rares, bien répartis (maximisation de la distance minimale).
 7. **Nommage des territoires :** chaque territoire reçoit une commune non encore utilisée ; l'affinité correspondant à son terrain dominant est privilégiée, puis `any`, avec un repli déterministe. Son code est le trigramme de cette commune, unique sur la carte.
-8. Tests : seed → même carte, connexité, degrés, unicité trigrammes et codes de territoires, nombre et répartition des villages.
+8. Tests : seed et nombre de joueurs → même carte, absorption des bords et padding, arcs tous géométriques et classés de manière exclusive, connexité et degrés par terrain, unicité trigrammes et codes de territoires, nombre et répartition des villages.
 
 ## P2 — Latence d'information (palier 2)
 

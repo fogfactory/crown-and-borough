@@ -133,7 +133,7 @@ ADE;Adélaïde
 
 Le front consomme **deux documents JSON distincts**, séparant l'immobile du vivant :
 
-### map.json (statique, constant, public)
+### map.json (statique après génération, public)
 
 La géographie est une connaissance commune : aucun joueur ne peut ignorer le terrain. Ce document est identique pour tous et ne change jamais après la génération de la partie.
 
@@ -147,14 +147,23 @@ La géographie est une connaissance commune : aucun joueur ne peut ignorer le te
       "terrain": "plain",
       "village": true,
       "points": [[x, y], [x, y], ...],
-      "adjacencies": ["T02", "T05"]
+      "adjacencies": ["T02", "T05"],
+      "impassable": ["T03"]
     }
   ]
 }
 ```
 
-- `points` : polygone de la forme (géométrie du territoire)
-- `adjacencies` : graphe d'adjacence franchissable (toutes les frontières ne sont pas franchissables)
+- `points` : polygone de la forme (géométrie du territoire). Les sommets d'une frontière partagée sont exactement les mêmes dans les deux polygones.
+- `adjacencies` : arcs géométriques franchissables.
+- `impassable` : arcs géométriques infranchissables.
+- Une paire de territoires intérieurs forme un arc si elle partage au moins `minSharedEdges = 3` arêtes de grille. Chaque arc appartient exactement à `adjacencies` ou à `impassable` ; les deux listes sont disjointes, triées et symétriques. Il n'existe pas d'arc non géométrique ni de route au MVP.
+- Le sous-graphe `adjacencies` est connexe. Chaque territoire y a un degré compris entre 2 et son maximum de terrain : 3 pour `mountain`, `swamp` et `hill` ; 5 pour `plain` et `forest`.
+- Aucune taille explicite n'est transportée par `map.json`. Le front déduit les bornes à partir de tous les `points`, avec des marges symétriques : `mapWidth = maxX + minX` et `mapHeight = maxY + minY`.
+
+### Endpoint de développement `/api/map`
+
+`GET /api/map?players=N` génère ou renvoie la carte pour `N` joueurs. Sans paramètre, `N = 4` ; seules les valeurs entières de 2 à 5 sont acceptées, toute autre valeur renvoie `400`. La génération utilise `8 × players` territoires et `players + 1` villages. Les cartes sont générées à la demande et mises en cache en mémoire par clé `(seed, players)` ; le seed de développement étant fixé au démarrage, une même clé renvoie les mêmes octets de `map.json`.
 
 ### state.json (dynamique, privé, par joueur et par fraîcheur de rapport)
 
@@ -181,7 +190,7 @@ Ce qui vit sur la carte : troupes, infrastructures, contrôle, ressources. C'est
 - `asOf` : tour auquel chaque territoire a été observé (permet d'afficher la fraîcheur de l'information en P2)
 - `troops`, `infrastructures`, `nobles`, `owner`, `resources` : couche dynamique
 - **Les infrastructures n'ont pas de propriétaire** : elles appartiennent à leur case (pas de champ `owner` sur une infrastructure) — celui qui contrôle la case en bénéficie
-- **Coûts de trajet** (rapports P2.2 et ordres P2.3) : coût par case traversée selon le terrain, lu dans `assets/balance.json` (section travel : plaine/route 0,5 — 2 cases/tour ; forêt/colline 1 ; montagne/marécage 2 ; divisé par 2 sur un Relais de Poste)
+- **Coûts de trajet** (rapports P2.2 et ordres P2.3) : coût par case traversée selon le terrain, lu dans `assets/balance.json` (section travel : plaine 0,5 — 2 cases/tour ; forêt/colline 1 ; montagne/marécage 2 ; divisé par 2 sur un Relais de Poste)
 
 ### Rendu côté front
 

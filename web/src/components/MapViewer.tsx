@@ -70,12 +70,6 @@ interface InfrastructureMarkerProps {
   y: number
 }
 
-interface AdjacencyArc {
-  key: string
-  from: Point
-  to: Point
-}
-
 function pointsToPath(points: Point[]): string {
   if (points.length === 0) {
     return ''
@@ -83,6 +77,28 @@ function pointsToPath(points: Point[]): string {
 
   const [first, ...rest] = points
   return `M ${first[0]},${first[1]} ${rest.map(([x, y]) => `L ${x},${y}`).join(' ')} Z`
+}
+
+function pointKey([x, y]: Point): string {
+  return `${x},${y}`
+}
+
+function edgeKey(from: Point, to: Point): string {
+  const fromKey = pointKey(from)
+  const toKey = pointKey(to)
+
+  return fromKey < toKey ? `${fromKey}|${toKey}` : `${toKey}|${fromKey}`
+}
+
+function polygonEdges(points: Point[]): Array<[Point, Point]> {
+  if (points.length < 2) {
+    return []
+  }
+
+  return points.map((point, index): [Point, Point] => [
+    point,
+    points[(index + 1) % points.length],
+  ])
 }
 
 function centroid(points: Point[]): Point {
@@ -215,37 +231,106 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
   const [view, setView] = useState<ViewState>({ x: 0, y: 0, k: 1 })
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
-  const { mapWidth, mapHeight, adjacencyArcs } = useMemo(() => {
-    let mapWidth = 1
-    let mapHeight = 1
-    const territoryIndexes = new Map<string, number>()
-    const centers = map.territories.map((territory, index) => {
-      territoryIndexes.set(territory.id, index)
+  const { mapWidth, mapHeight, outerBorders, sharedBorders } = useMemo(() => {
+    let minX = Infinity
+    let minY = Infinity
+    let maxX = -Infinity
+    let maxY = -Infinity
+    const territoriesById = new Map(
+      map.territories.map((territory) => [territory.id, territory]),
+    )
+    const edges = new Map<string, { from: Point; to: Point; occurrences: number }>()
+    const pairs = new Map<string, { ids: [string, string]; passable: boolean }>()
 
-      for (const [x, y] of territory.points) {
-        mapWidth = Math.max(mapWidth, x)
-        mapHeight = Math.max(mapHeight, y)
+    const addPair = (firstId: string, secondId: string, passable: boolean) => {
+      if (firstId === secondId || !territoriesById.has(secondId)) {
+        return
       }
 
-      return centroid(territory.points)
-    })
-    const adjacencyArcs: AdjacencyArc[] = []
-    for (const [territoryIndex, territory] of map.territories.entries()) {
-      for (const adjacentID of territory.adjacencies) {
-        const adjacentIndex = territoryIndexes.get(adjacentID)
-        if (adjacentIndex === undefined || adjacentIndex <= territoryIndex) {
+      const ids: [string, string] =
+        firstId < secondId ? [firstId, secondId] : [secondId, firstId]
+      const key = JSON.stringify(ids)
+      const pair = pairs.get(key)
+      if (pair) {
+        pair.passable = pair.passable && passable
+        return
+      }
+
+      pairs.set(key, { ids, passable })
+    }
+
+    for (const territory of map.territories) {
+      for (const [x, y] of territory.points) {
+        minX = Math.min(minX, x)
+        minY = Math.min(minY, y)
+        maxX = Math.max(maxX, x)
+        maxY = Math.max(maxY, y)
+      }
+
+      for (const [from, to] of polygonEdges(territory.points)) {
+        const key = edgeKey(from, to)
+        const edge = edges.get(key)
+        if (edge) {
+          edge.occurrences += 1
+        } else {
+          edges.set(key, { from, to, occurrences: 1 })
+        }
+      }
+
+      for (const adjacentId of territory.adjacencies) {
+        addPair(territory.id, adjacentId, true)
+      }
+      for (const impassableId of territory.impassable) {
+        addPair(territory.id, impassableId, false)
+      }
+    }
+
+    const outerBorders: Array<{ key: string; from: Point; to: Point }> = []
+    for (const [key, edge] of edges) {
+      if (edge.occurrences === 1) {
+        outerBorders.push({ key, from: edge.from, to: edge.to })
+      }
+    }
+
+    const sharedBorders: Array<{
+      key: string
+      from: Point
+      to: Point
+      passable: boolean
+    }> = []
+    const renderedEdges = new Set<string>()
+    for (const [pairKey, pair] of pairs) {
+      const first = territoriesById.get(pair.ids[0])
+      const second = territoriesById.get(pair.ids[1])
+      if (!first || !second) {
+        continue
+      }
+
+      const secondEdges = new Set(
+        polygonEdges(second.points).map(([from, to]) => edgeKey(from, to)),
+      )
+      for (const [from, to] of polygonEdges(first.points)) {
+        const key = edgeKey(from, to)
+        if (!secondEdges.has(key) || renderedEdges.has(key)) {
           continue
         }
 
-        adjacencyArcs.push({
-          key: `${territory.id}-${adjacentID}`,
-          from: centers[territoryIndex],
-          to: centers[adjacentIndex],
+        renderedEdges.add(key)
+        sharedBorders.push({
+          key: `${pairKey}-${key}`,
+          from,
+          to,
+          passable: pair.passable,
         })
       }
     }
 
-    return { mapWidth, mapHeight, adjacencyArcs }
+    return {
+      mapWidth: Number.isFinite(minX) ? maxX + minX : 1,
+      mapHeight: Number.isFinite(minY) ? maxY + minY : 1,
+      outerBorders,
+      sharedBorders,
+    }
   }, [map])
 
   const owners = new Set<string>()
@@ -429,8 +514,7 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
                       data-territory-id={territory.id}
                       d={pointsToPath(territory.points)}
                       fill={TERRAIN_COLORS[territory.terrain]}
-                      stroke="#594b3c"
-                      strokeWidth="1.5"
+                      stroke="none"
                       tabIndex={0}
                       role="button"
                       aria-label={`${territory.name}, ${TERRAIN_LABELS[territory.terrain]}`}
@@ -489,18 +573,35 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
               })}
             </g>
 
-            <g aria-label="Adjacences franchissables" pointerEvents="none">
-              {adjacencyArcs.map((arc) => (
+            <g aria-label="Contours extérieurs" pointerEvents="none">
+              {outerBorders.map((border) => (
                 <line
-                  key={arc.key}
-                  x1={arc.from[0]}
-                  y1={arc.from[1]}
-                  x2={arc.to[0]}
-                  y2={arc.to[1]}
+                  key={border.key}
+                  x1={border.from[0]}
+                  y1={border.from[1]}
+                  x2={border.to[0]}
+                  y2={border.to[1]}
+                  stroke="#594b3c"
+                  strokeOpacity="0.85"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+              ))}
+            </g>
+
+            <g aria-label="Frontières" pointerEvents="none">
+              {sharedBorders.map((border) => (
+                <line
+                  key={border.key}
+                  x1={border.from[0]}
+                  y1={border.from[1]}
+                  x2={border.to[0]}
+                  y2={border.to[1]}
                   stroke="#39271b"
                   strokeOpacity="0.85"
-                  strokeWidth="2"
-                  strokeDasharray="6 3"
+                  strokeWidth={border.passable ? 1 : 2.5}
+                  strokeDasharray={border.passable ? '4 3' : undefined}
                   strokeLinecap="round"
                   vectorEffect="non-scaling-stroke"
                 />
@@ -661,7 +762,8 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
               </div>
             </div>
             <p className="border-t border-[#b7a786]/60 pt-2 leading-relaxed">
-              Trait pointillé = adjacence franchissable
+              Trait épais continu = frontière infranchissable · Trait fin pointillé =
+              frontière franchissable
             </p>
             <p className="leading-relaxed">Territoire assombri = données anciennes</p>
           </CardContent>
