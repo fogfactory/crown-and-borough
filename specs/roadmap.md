@@ -35,7 +35,7 @@ Trois paliers de "testable" successifs, chacun validé avant le suivant :
 
 | ID | Tâche | Livrable | Critère de test | Front | Statut |
 |---|---|---|---|---|---|
-| [P1.1](prompts/p1.1-modeles-metier.md) | Modèles métier | Territoire, Troupe, Noble, Infrastructure, Ressources, GameState | Compile + tests modèles | — | Fait |
+| [P1.1](prompts/p1.1-modeles-metier.md) | Modèles métier | Territoire, Armée (owner + taille, une par territoire — P1.2g), Noble, Infrastructure, Ressources, GameState | Compile + tests modèles | — | Fait |
 | [P1.2](prompts/p1.2-generation-carte.md) | Génération de carte Voronoï | Arcs géométriques qualifiés, terrains, villages neutres rares, nommage des territoires | Carte déterministe par seed et nombre de joueurs, invariants (arcs géométriques, connexité, degré [2, max(terrain)], unicité trigrammes, nombre et répartition des villages) | Endpoint dev `/api/map?players=N` (2..5, défaut 4, cache mémoire) → la vraie carte s'affiche | Fait |
 | [P1.3](prompts/p1.3-ordres-chaines.md) | Parser & modèles d'ordres | Parser texte des chaînes (format specs/architecture.md §6), 8 symboles A/S/H/J/P/D/O/K, liaison par transition (single/loop), réception (armée sur la position de la 1re ligne, remplacement de chaîne), capacité noble 1 émission/tour | Tests : parsing, validation par type, réception, remplacement, capacité, round-trip JSON | — | Prompt écrit |
 | [P1.4](prompts/p1.4-resolution-combat.md) | Résolution : progression, mouvement & combat | Progression de TOUTES les chaînes simultanément, mouvement, attaque, soutien, jonction (fusion), dispersion, pillage, combats & retraites | Scénarios de combat (égalité, supériorité, soutiens, retraites, destructions), progression single/loop appliquée | — | Prompt écrit |
@@ -45,7 +45,7 @@ Trois paliers de "testable" successifs, chacun validé avant le suivant :
 
 ### P1.2 détaillé — Carte Voronoï
 
-Les raffinements P1.2a à P1.2f sont également suivis individuellement :
+Les raffinements P1.2a à P1.2g sont également suivis individuellement :
 
 | Sous-tâche | Prompt | Statut |
 |---|---|---|
@@ -55,6 +55,7 @@ Les raffinements P1.2a à P1.2f sont également suivis individuellement :
 | P1.2d — Géométrie et graphe | [prompt](prompts/p1.2d-geometrie-graphe.md) | Fait |
 | P1.2e — Production vivrière | [prompt](prompts/p1.2e-production-vivriere.md) | Fait |
 | P1.2f — État d'exemple | [prompt](prompts/p1.2f-etat-exemple.md) | Fait |
+| P1.2g — Armée : une par territoire (owner + taille) | [prompt](prompts/p1.2g-armee-unique-territoire.md) | Prompt écrit |
 
 1. Cellules Voronoï déterministes (seed) → territoires de tailles inégales.
 2. Extraction des arcs géométriques : toute paire de territoires intérieurs partageant au moins `minSharedEdges = 3` arêtes de grille forme un arc.
@@ -86,7 +87,7 @@ Les raffinements P1.2a à P1.2f sont également suivis individuellement :
 ### Détail P3 — choix actés
 
 - **API (P3.1) :** router **chi** (1re dépendance tierce autorisée) ; parties en mémoire ; soumission **par joueur** ; résolution **synchrone à la dernière soumission** (pas de deadline au MVP) ; endpoints : POST/GET /api/games, GET /api/games/{id}, /map, /state (vue par joueur P2.2), POST /orders, /reports ; endpoints dev P1.7 conservés.
-- **Élimination / victoire (P3.1 — acté, GDD §2) :** un joueur est éliminé quand il ne contrôle aucun territoire ET n'a plus aucune troupe (les nobles, immortels, ne comptent pas) ; dernier joueur vivant = gagnant.
+- **Élimination / victoire (P3.1 — acté, GDD §2) :** un joueur est éliminé quand il ne contrôle aucun territoire ET n'a plus aucune armée (les nobles, immortels, ne comptent pas) ; dernier joueur vivant = gagnant.
 - **Auth (P3.2) :** inscription sans mot de passe (nom + token Bearer en localStorage), sessions en mémoire (perdues au restart — reprise de slot par nom + code d'invitation, même en partie commencée), code d'invitation 6 caractères par partie (le créateur = P1, join tant que la partie n'est pas commencée, 5 joueurs max), accès 403 hors membres, `?player=` retiré (identité par token).
 - **Persistance (P3.3) :** 1 fichier JSON par partie (`game-<uuid>.json` dans `DATA_DIR`), écriture atomique (tmp + rename + fsync), sauvegarde après chaque mutation (soumissions comprises), restauration au démarrage, fichier corrompu → `.corrupt` (serveur démarre).
 - **Déploiement (P3.5) :** un seul conteneur (front `go:embed web/dist` + API, same-origin, pas de CORS) ; Cloud Run + Artifact Registry + bucket GCS monté en gcsfuse sur `/data` (DATA_DIR) ; CI : tests/build → push AR (tag sha) → `gcloud run deploy` via workload identity federation ; pas de Terraform au MVP.
