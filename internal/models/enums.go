@@ -7,7 +7,7 @@ package models
 
 // Terrain describes the dominant relief of a territory. It gates messenger
 // speed: plains 2 cases/turn, forest and hill 1 case/turn, mountain and swamp
-// 0.5 case/turn (GDD §3). Values align with assets/qualificatifs.csv.
+// 0.5 case/turn (GDD §3). Values align with the terrain column in communes.csv.
 type Terrain string
 
 const (
@@ -19,7 +19,7 @@ const (
 )
 
 // IsValid reports whether the terrain is a known value. Note that "any",
-// used in the qualificatifs.csv terrain column, is NOT a game Terrain.
+// used for commune terrain affinity, is NOT a game Terrain.
 func (t Terrain) IsValid() bool {
 	switch t {
 	case TerrainPlain, TerrainForest, TerrainHill, TerrainMountain, TerrainSwamp:

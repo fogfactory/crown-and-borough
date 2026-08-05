@@ -24,7 +24,7 @@ Trois paliers de "testable" successifs, chacun validé avant le suivant :
 | ID | Tâche | Livrable | Critère de test | Front |
 |---|---|---|---|---|
 | P0.1 | Squelette repo Go | Structure standard, go.mod, Makefile, Dockerfile multi-stage, CI GitHub Actions | `make build` vert, CI verte | — |
-| P0.2 | Assets CSV + loader Go | communes.csv, prenoms.csv (médiévaux français), qualificatifs.csv + codes trigrammes uniques par catégorie ; loader Go vérifiant les invariants | Tests unitaires : unicité par fichier, unicité des préfixes, terrains valides | — |
+| P0.2 | Assets CSV + loader Go | communes.csv (`code;nom;terrain`) et prenoms.csv (médiévaux français), codes trigrammes uniques par catégorie ; loader Go vérifiant les invariants | Tests unitaires : unicité par fichier, terrains valides, couverture des affinités | — |
 | P0.3 | Scaffold front | Vite + React + TypeScript + Tailwind + shadcn/ui | App dev se lance | MapViewer v0 sur fixtures `map.ts` (statique) + `state.ts` (dynamique) : fond + couche vivante superposés |
 
 ## P1 — Moteur de jeu (palier 1)
@@ -47,7 +47,7 @@ Trois paliers de "testable" successifs, chacun validé avant le suivant :
 4. **Routes** reliant des territoires non adjacents géométriquement (cols, ponts).
 5. **Invariant :** le graphe final (adjacences franchissables + routes) est connexe, sans cul-de-sac sur aucune cellule, bords compris (degré ≥ 2 partout). Les cellules de bord forment un anneau ; toute feuille résiduelle est corrigée par ajout de route.
 6. Attribution des terrains (plaine, forêt, colline, montagne, marécage) + placement de villages neutres rares, bien répartis (maximisation de la distance minimale).
-7. **Nommage des territoires :** chaque territoire reçoit un qualificatif de `qualificatifs.csv` selon son terrain dominant (+ "Marches" en bordure) et le nom d'une commune adjacente → "Forêt de Rosemont" / code `FROS` (préfixe + trigramme commune, 4 lettres ; les villages gardent le trigramme de leur commune, 3 lettres).
+7. **Nommage des territoires :** chaque territoire reçoit une commune non encore utilisée ; l'affinité correspondant à son terrain dominant est privilégiée, puis `any`, avec un repli déterministe. Son code est le trigramme de cette commune, unique sur la carte.
 8. Tests : seed → même carte, connexité, degrés, unicité trigrammes et codes de territoires, nombre et répartition des villages.
 
 ## P2 — Latence d'information (palier 2)

@@ -6,7 +6,6 @@ import (
 	"math"
 	"reflect"
 	"regexp"
-	"strings"
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
@@ -113,18 +112,13 @@ func TestVillageSpread(t *testing.T) {
 
 func TestCodes(t *testing.T) {
 	assets := loadTestAssets(t)
-	villageCode := regexp.MustCompile(`^[A-Z]{3}$`)
-	territoryCode := regexp.MustCompile(`^[A-Z]{4}$`)
+	territoryCode := regexp.MustCompile(`^[A-Z]{3}$`)
 	for _, seed := range testSeeds {
 		t.Run(seed, func(t *testing.T) {
 			data := generateTestMap(t, seed, assets)
 			seen := make(map[string]bool, len(data.Territories))
 			for _, territory := range data.Territories {
-				valid := territoryCode.MatchString(territory.Code)
-				if territory.Village {
-					valid = villageCode.MatchString(territory.Code)
-				}
-				if !valid {
+				if !territoryCode.MatchString(territory.Code) {
 					t.Errorf("%s has invalid code %q", territory.ID, territory.Code)
 				}
 				if seen[territory.Code] {
@@ -138,18 +132,32 @@ func TestCodes(t *testing.T) {
 
 func TestNaming(t *testing.T) {
 	assets := loadTestAssets(t)
+	communesByName := make(map[string]assetgen.Commune, len(assets.Communes))
+	for _, commune := range assets.Communes {
+		communesByName[commune.Name] = commune
+	}
 	for _, seed := range testSeeds {
 		t.Run(seed, func(t *testing.T) {
 			data := generateTestMap(t, seed, assets)
 			seenTerrain := make(map[models.Terrain]bool, len(allTerrains))
+			seenNames := make(map[string]bool, len(data.Territories))
 			for _, territory := range data.Territories {
 				if territory.Name == "" {
 					t.Errorf("%s has an empty name", territory.ID)
 				}
 				seenTerrain[territory.Terrain] = true
-				if !territory.Village && !validTerritoryName(territory, assets, testConfig) {
-					t.Errorf("%s has an invalid generated name %q", territory.ID, territory.Name)
+				commune, ok := communesByName[territory.Name]
+				if !ok {
+					t.Errorf("%s has name %q outside communes.csv", territory.ID, territory.Name)
+					continue
 				}
+				if territory.Code != commune.Code {
+					t.Errorf("%s has code %q, want commune code %q", territory.ID, territory.Code, commune.Code)
+				}
+				if seenNames[territory.Name] {
+					t.Errorf("duplicate territory name %q", territory.Name)
+				}
+				seenNames[territory.Name] = true
 			}
 			for _, terrain := range allTerrains {
 				if !seenTerrain[terrain] {
@@ -160,18 +168,53 @@ func TestNaming(t *testing.T) {
 	}
 }
 
+func TestNamingAffinity(t *testing.T) {
+	assets := loadTestAssets(t)
+	communesByName := make(map[string]assetgen.Commune, len(assets.Communes))
+	for _, commune := range assets.Communes {
+		communesByName[commune.Name] = commune
+	}
+	for _, seed := range testSeeds {
+		t.Run(seed, func(t *testing.T) {
+			data := generateTestMap(t, seed, assets)
+			seenTerrain := make(map[models.Terrain]bool, len(allTerrains))
+			usedAffinity := make(map[models.Terrain]bool, len(allTerrains))
+			affine := 0
+			for _, territory := range data.Territories {
+				commune := communesByName[territory.Name]
+				seenTerrain[territory.Terrain] = true
+				if commune.Terrain == string(territory.Terrain) || commune.Terrain == "any" {
+					affine++
+				}
+				if commune.Terrain == string(territory.Terrain) {
+					usedAffinity[territory.Terrain] = true
+				}
+			}
+			ratio := float64(affine) / float64(len(data.Territories))
+			if ratio < 0.90 {
+				t.Errorf("affinity ratio = %.2f, want >= 0.90", ratio)
+			}
+			for _, terrain := range allTerrains {
+				if seenTerrain[terrain] && !usedAffinity[terrain] {
+					t.Errorf("no %q-affinity commune used for present terrain", terrain)
+				}
+			}
+		})
+	}
+}
+
 func TestNamingCollisions(t *testing.T) {
 	assets := assetgen.Assets{
-		Communes: []assetgen.Asset{
-			{Code: "AAA", Name: "Aubeterre"},
-			{Code: "BBB", Name: "Bellac"},
-		},
-		Qualificatifs: []assetgen.Qualificatif{
-			{Prefix: "F", Name: "Forêt", Terrain: "plain"},
-			{Prefix: "B", Name: "Bois", Terrain: "plain"},
+		Communes: []assetgen.Commune{
+			{Code: "AAP", Name: "Aubepine", Terrain: "plain"},
+			{Code: "BEP", Name: "Beaupre", Terrain: "plain"},
+			{Code: "BOF", Name: "Boisfort", Terrain: "forest"},
+			{Code: "BRH", Name: "Bruyeres", Terrain: "hill"},
+			{Code: "MOM", Name: "Montdore", Terrain: "mountain"},
+			{Code: "FOS", Name: "Fougeres", Terrain: "swamp"},
+			{Code: "ANY", Name: "Belval", Terrain: "any"},
 		},
 	}
-	villages := []bool{true, true, false, false, false, false}
 	terrain := []models.Terrain{
 		models.TerrainPlain,
 		models.TerrainPlain,
@@ -179,39 +222,14 @@ func TestNamingCollisions(t *testing.T) {
 		models.TerrainPlain,
 		models.TerrainPlain,
 		models.TerrainPlain,
+		models.TerrainForest,
 	}
-	polygons := make([][][2]int, len(villages))
-	centroids := make([][2]float64, len(villages))
-	for i := range polygons {
-		polygons[i] = [][2]int{{10, 10}, {20, 10}, {20, 20}, {10, 20}}
-		centroids[i] = [2]float64{float64(i * 10), 0}
-	}
-	edges := [][2]int{{0, 2}, {1, 3}, {0, 4}, {1, 5}}
-	cfg := Config{Width: 100, Height: 100}
 
-	first, err := nameTerritories(
-		newRNG("collision", "naming"),
-		assets,
-		villages,
-		terrain,
-		polygons,
-		centroids,
-		edges,
-		cfg,
-	)
+	first, err := nameTerritories(newRNG("collision", "naming"), assets, terrain)
 	if err != nil {
 		t.Fatalf("first naming pass: %v", err)
 	}
-	second, err := nameTerritories(
-		newRNG("collision", "naming"),
-		assets,
-		villages,
-		terrain,
-		polygons,
-		centroids,
-		edges,
-		cfg,
-	)
+	second, err := nameTerritories(newRNG("collision", "naming"), assets, terrain)
 	if err != nil {
 		t.Fatalf("second naming pass: %v", err)
 	}
@@ -221,12 +239,22 @@ func TestNamingCollisions(t *testing.T) {
 
 	seenNames := make(map[string]bool)
 	seenCodes := make(map[string]bool)
-	for site := 2; site < len(first); site++ {
-		if seenNames[first[site].name] || seenCodes[first[site].code] {
-			t.Fatalf("duplicate collision result for %q / %q", first[site].name, first[site].code)
+	for _, name := range first {
+		if seenNames[name.name] || seenCodes[name.code] {
+			t.Fatalf("duplicate collision result for %q / %q", name.name, name.code)
 		}
-		seenNames[first[site].name] = true
-		seenCodes[first[site].code] = true
+		seenNames[name.name] = true
+		seenCodes[name.code] = true
+	}
+	for _, code := range []string{"BRH", "MOM", "FOS"} {
+		if !seenCodes[code] {
+			t.Fatalf("naming did not use fallback commune %q", code)
+		}
+	}
+
+	exhaustedTerrain := append(append([]models.Terrain(nil), terrain...), models.TerrainPlain)
+	if _, err := nameTerritories(newRNG("collision", "naming"), assets, exhaustedTerrain); err == nil {
+		t.Fatal("naming with more sites than communes returned no error")
 	}
 }
 
@@ -286,6 +314,9 @@ func TestConfigValidation(t *testing.T) {
 	}
 	if _, err := Generate("assets", assetgen.Assets{}, testConfig); err == nil {
 		t.Error("Generate with empty assets returned no error")
+	}
+	if _, err := Generate("assets", assetgen.Assets{Communes: assets.Communes[:testConfig.SiteCount-1]}, testConfig); err == nil {
+		t.Error("Generate with too few communes returned no error")
 	}
 }
 
@@ -433,26 +464,6 @@ func containsEdge(edges [][2]int, wanted [2]int) bool {
 	for _, edge := range edges {
 		if edge == wanted {
 			return true
-		}
-	}
-	return false
-}
-
-func validTerritoryName(territory Territory, assets assetgen.Assets, cfg Config) bool {
-	for _, qualifier := range assets.Qualificatifs {
-		if qualifier.Terrain != string(territory.Terrain) &&
-			!(qualifier.Terrain == "any" && isBorder(territory.Points, cfg)) {
-			continue
-		}
-		prefix := qualifier.Name + " de "
-		if !strings.HasPrefix(territory.Name, prefix) {
-			continue
-		}
-		communeName := strings.TrimPrefix(territory.Name, prefix)
-		for _, commune := range assets.Communes {
-			if commune.Name == communeName {
-				return true
-			}
 		}
 	}
 	return false

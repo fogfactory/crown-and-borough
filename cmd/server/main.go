@@ -36,8 +36,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to load assets: %v", err)
 	}
-	log.Printf("assets loaded from %s: %d communes, %d prenoms, %d qualificatifs",
-		assetsDir, len(assets.Communes), len(assets.Prenoms), len(assets.Qualificatifs))
+	log.Printf("assets loaded from %s: %d communes, %d prenoms", assetsDir, len(assets.Communes), len(assets.Prenoms))
 
 	seed := os.Getenv("SEED")
 	if seed == "" {

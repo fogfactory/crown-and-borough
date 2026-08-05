@@ -16,9 +16,9 @@ func ptrID(id string) *models.PlayerID {
 }
 
 // validState returns a complete, valid state: 2 players, 4 territories in a
-// ring (1 village-named territory, code trigram), 2 troops, 1 noble, 1 mill
-// level 2 and 1 castle, 1 neutral territory, resources. Tests mutate a fresh
-// instance to build negative cases.
+// ring with commune trigrams, 2 troops, 1 noble, 1 mill level 2 and 1 castle,
+// 1 neutral territory, resources. Tests mutate a fresh instance to build
+// negative cases.
 func validState() *models.GameState {
 	g := models.NewGameState()
 	g.ID = "game-1"
@@ -29,9 +29,9 @@ func validState() *models.GameState {
 	}
 	g.Territories = []models.Territory{
 		{ID: "T01", Code: "ROS", Name: "Rosemont", Terrain: models.TerrainPlain, Adjacencies: []models.TerritoryID{"T02", "T04"}},
-		{ID: "T02", Code: "FROS", Name: "Foret de Rosemont", Terrain: models.TerrainForest, Adjacencies: []models.TerritoryID{"T01", "T03"}},
-		{ID: "T03", Code: "MHIL", Name: "Monts d'Hilaire", Terrain: models.TerrainHill, Adjacencies: []models.TerritoryID{"T02", "T04"}},
-		{ID: "T04", Code: "MSWA", Name: "Marais des Saules", Terrain: models.TerrainSwamp, Adjacencies: []models.TerritoryID{"T03", "T01"}},
+		{ID: "T02", Code: "BCL", Name: "Boisclair", Terrain: models.TerrainForest, Adjacencies: []models.TerritoryID{"T01", "T03"}},
+		{ID: "T03", Code: "BRU", Name: "Bruyères", Terrain: models.TerrainHill, Adjacencies: []models.TerritoryID{"T02", "T04"}},
+		{ID: "T04", Code: "FOU", Name: "Fougères", Terrain: models.TerrainSwamp, Adjacencies: []models.TerritoryID{"T03", "T01"}},
 	}
 	g.Troops = []models.Troop{
 		{ID: "TR1", Matricule: 1, OwnerID: "P1", TerritoryID: "T01"},
@@ -176,10 +176,10 @@ func TestValidateErrors(t *testing.T) {
 			g.Players = append(g.Players, models.Player{ID: "P1", Name: "Alpha2", Color: "green"})
 		}, "duplicate id"},
 		{"duplicate territory id", func(g *models.GameState) {
-			g.Territories = append(g.Territories, models.Territory{ID: "T01", Code: "XROS", Name: "X", Terrain: models.TerrainPlain})
+			g.Territories = append(g.Territories, models.Territory{ID: "T01", Code: "XRO", Name: "X", Terrain: models.TerrainPlain})
 		}, "duplicate id"},
 		{"duplicate territory code", func(g *models.GameState) {
-			g.Territories = append(g.Territories, models.Territory{ID: "T05", Code: "FROS", Name: "X", Terrain: models.TerrainPlain})
+			g.Territories = append(g.Territories, models.Territory{ID: "T05", Code: "BCL", Name: "X", Terrain: models.TerrainPlain})
 		}, "duplicate code"},
 		{"invalid terrain", func(g *models.GameState) { g.Territories[1].Terrain = "MARSH" }, "invalid terrain"},
 		{"asymmetric adjacency", func(g *models.GameState) { g.Territories[0].Adjacencies = []models.TerritoryID{"T02"} }, "asymmetric"},
@@ -266,20 +266,17 @@ func TestValidateErrors(t *testing.T) {
 	}
 }
 
-// TestCodeInvariants pins the code shapes: territories accept 3 or 4
-// uppercase letters (TRANSITIONAL since P1.2b: village tiles keep their
-// commune trigram, other territories the qualifier-prefixed form; P1.2c
-// restores 3 letters everywhere), and 3 uppercase letters for a noble.
+// TestCodeInvariants pins the trigram requirement for territories and nobles.
 func TestCodeInvariants(t *testing.T) {
 	cases := []struct {
 		name   string
 		mutate func(g *models.GameState)
 		want   string
 	}{
-		{"territory with 2-letter code", func(g *models.GameState) { g.Territories[0].Code = "RO" }, "3 or 4 uppercase"},
-		{"territory with 5-letter code", func(g *models.GameState) { g.Territories[1].Code = "FROSA" }, "3 or 4 uppercase"},
-		{"territory with lowercase code", func(g *models.GameState) { g.Territories[0].Code = "ros" }, "3 or 4 uppercase"},
-		{"territory code with digit", func(g *models.GameState) { g.Territories[1].Code = "FR0S" }, "3 or 4 uppercase"},
+		{"territory with 2-letter code", func(g *models.GameState) { g.Territories[0].Code = "RO" }, "3 uppercase"},
+		{"territory with 4-letter code", func(g *models.GameState) { g.Territories[1].Code = "FROS" }, "3 uppercase"},
+		{"territory with lowercase code", func(g *models.GameState) { g.Territories[0].Code = "ros" }, "3 uppercase"},
+		{"territory code with digit", func(g *models.GameState) { g.Territories[1].Code = "FR0" }, "3 uppercase"},
 		{"noble with 4-letter code", func(g *models.GameState) { g.Nobles[0].Code = "HUGU" }, "3 uppercase"},
 		{"noble with lowercase code", func(g *models.GameState) { g.Nobles[0].Code = "hug" }, "3 uppercase"},
 	}

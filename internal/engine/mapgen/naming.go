@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"math/rand/v2"
-	"sort"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/models"
@@ -15,37 +14,37 @@ type nameCode struct {
 	code string
 }
 
-func validateAssets(assets assetgen.Assets, villageCount int) error {
+var affinityOrder = [...]string{
+	"plain",
+	"forest",
+	"hill",
+	"mountain",
+	"swamp",
+	"any",
+}
+
+func validateAssets(assets assetgen.Assets, siteCount int) error {
 	if len(assets.Communes) == 0 {
 		return fmt.Errorf("mapgen: no communes available for naming")
 	}
-	if len(assets.Communes) < villageCount {
-		return fmt.Errorf("mapgen: need at least %d communes for villages, have %d", villageCount, len(assets.Communes))
-	}
-	if len(assets.Qualificatifs) == 0 {
-		return fmt.Errorf("mapgen: no qualifiers available for naming")
+	if len(assets.Communes) < siteCount {
+		return fmt.Errorf("mapgen: need at least %d communes for territories, have %d", siteCount, len(assets.Communes))
 	}
 
 	communeCodes := make(map[string]bool, len(assets.Communes))
+	communeNames := make(map[string]bool, len(assets.Communes))
 	for _, commune := range assets.Communes {
-		if !isTrigram(commune.Code) || commune.Name == "" {
+		if !isTrigram(commune.Code) || commune.Name == "" || !isCommuneTerrain(commune.Terrain) {
 			return fmt.Errorf("mapgen: invalid commune asset")
 		}
 		if communeCodes[commune.Code] {
 			return fmt.Errorf("mapgen: duplicate commune code %q", commune.Code)
 		}
+		if communeNames[commune.Name] {
+			return fmt.Errorf("mapgen: duplicate commune name %q", commune.Name)
+		}
 		communeCodes[commune.Code] = true
-	}
-
-	prefixes := make(map[string]bool, len(assets.Qualificatifs))
-	for _, qualifier := range assets.Qualificatifs {
-		if !isPrefix(qualifier.Prefix) || qualifier.Name == "" || !isQualifierTerrain(qualifier.Terrain) {
-			return fmt.Errorf("mapgen: invalid qualifier asset")
-		}
-		if prefixes[qualifier.Prefix] {
-			return fmt.Errorf("mapgen: duplicate qualifier prefix %q", qualifier.Prefix)
-		}
-		prefixes[qualifier.Prefix] = true
+		communeNames[commune.Name] = true
 	}
 	return nil
 }
@@ -62,16 +61,13 @@ func isTrigram(value string) bool {
 	return true
 }
 
-func isPrefix(value string) bool {
-	return len(value) == 1 && value[0] >= 'A' && value[0] <= 'Z'
-}
-
-func isQualifierTerrain(value string) bool {
-	switch models.Terrain(value) {
-	case models.TerrainPlain, models.TerrainForest, models.TerrainHill, models.TerrainMountain, models.TerrainSwamp:
-		return true
+func isCommuneTerrain(value string) bool {
+	for _, terrain := range affinityOrder {
+		if value == terrain {
+			return true
+		}
 	}
-	return value == "any"
+	return false
 }
 
 // assignVillages spreads count neutral villages over the map, maximizing the
@@ -137,177 +133,84 @@ func squaredDistanceToChosen(centroids [][2]float64, site int, chosen []int) flo
 	return nearest
 }
 
-// nameTerritories names territories. TRANSITIONAL naming (bridge to P1.2c,
-// which switches every territory to a commune code): a village tile receives
-// the name of a commune (code trigram), every other tile receives
-// "{Qualificatif} de {Commune of the nearest/adjacent village}" (existing
-// pattern). P1.2c replaces the whole system with "commune for all
-// territories": do not go further here.
+// nameTerritories assigns each territory a distinct commune. It first ensures
+// that every terrain present has a commune with the matching affinity, then
+// prioritizes matching affinities, any-terrain communes, and a fixed fallback
+// order. Each bucket is shuffled from the naming RNG for deterministic variety.
 func nameTerritories(
 	rng *rand.Rand,
 	assets assetgen.Assets,
-	villages []bool,
 	terrain []models.Terrain,
-	polygons [][][2]int,
-	centroids [][2]float64,
-	edges [][2]int,
-	cfg Config,
 ) ([]nameCode, error) {
-	n := len(villages)
-	if len(terrain) != n || len(polygons) != n || len(centroids) != n {
-		return nil, fmt.Errorf("mapgen: internal naming input length mismatch")
+	for site, siteTerrain := range terrain {
+		if !siteTerrain.IsValid() {
+			return nil, fmt.Errorf("mapgen: invalid terrain %q on site %d", siteTerrain, site)
+		}
 	}
 
-	communes := append([]assetgen.Asset(nil), assets.Communes...)
-	shuffle(rng, communes)
-	names := make([]nameCode, n)
-	communesBySite := make([]assetgen.Asset, n)
-	villageSites := make([]int, 0)
-	usedCodes := make(map[string]bool)
-	nextCommune := 0
-	for site, isVillage := range villages {
-		if !isVillage {
-			continue
-		}
-		if nextCommune >= len(communes) {
-			return nil, fmt.Errorf("mapgen: exhausted communes while naming villages")
-		}
-		commune := communes[nextCommune]
-		nextCommune++
-		if usedCodes[commune.Code] {
-			return nil, fmt.Errorf("mapgen: duplicate village code %q", commune.Code)
-		}
-		names[site] = nameCode{name: commune.Name, code: commune.Code}
-		communesBySite[site] = commune
-		usedCodes[commune.Code] = true
-		villageSites = append(villageSites, site)
+	buckets := make(map[string][]assetgen.Commune, len(affinityOrder))
+	for _, commune := range assets.Communes {
+		buckets[commune.Terrain] = append(buckets[commune.Terrain], commune)
 	}
-	if len(villageSites) == 0 {
-		return nil, fmt.Errorf("mapgen: cannot name territories without a village")
+	for _, affinity := range affinityOrder {
+		shuffle(rng, buckets[affinity])
 	}
 
-	adjacency := edgeMatrix(n, edges)
-	usedPairs := make(map[string]bool)
-	for site, isVillage := range villages {
-		if isVillage {
-			continue
-		}
-
-		qualifiers := compatibleQualifiers(assets.Qualificatifs, terrain[site], isBorder(polygons[site], cfg))
-		if len(qualifiers) == 0 {
-			return nil, fmt.Errorf("mapgen: no qualifier available for terrain %q on territory %s", terrain[site], territoryID(site))
-		}
-
-		assign := func(qualifier assetgen.Qualificatif, commune assetgen.Asset) bool {
-			pair := qualifier.Prefix + "\x00" + commune.Code
-			code := qualifier.Prefix + commune.Code
-			if usedPairs[pair] || usedCodes[code] {
-				return false
-			}
-			names[site] = nameCode{
-				name: qualifier.Name + " de " + commune.Name,
-				code: code,
-			}
-			usedPairs[pair] = true
-			usedCodes[code] = true
-			return true
-		}
-
-		assigned := false
-		for _, villageSite := range orderedVillages(site, villageSites, adjacency, centroids, n) {
-			commune := communesBySite[villageSite]
-			for _, qualifier := range qualifiers {
-				if assign(qualifier, commune) {
-					assigned = true
-					break
-				}
-			}
-			if assigned {
+	names := make([]nameCode, len(terrain))
+	named := make([]bool, len(terrain))
+	for _, affinity := range affinityOrder[:len(affinityOrder)-1] {
+		site := -1
+		for index, siteTerrain := range terrain {
+			if !named[index] && string(siteTerrain) == affinity {
+				site = index
 				break
 			}
 		}
-		// Fallback (transitional, documented): with only a handful of
-		// villages the (qualifier × village commune) pairs can be exhausted;
-		// name the tile after an unused commune from the pool to keep codes
-		// unique. P1.2c replaces this whole scheme with a commune for every
-		// territory.
+		if site == -1 {
+			continue
+		}
+		commune, ok := popCommune(buckets, affinity)
+		if !ok {
+			return nil, fmt.Errorf("mapgen: exhausted communes with terrain %q during affinity coverage", affinity)
+		}
+		names[site] = nameCode{name: commune.Name, code: commune.Code}
+		named[site] = true
+	}
+
+	for site, siteTerrain := range terrain {
+		if named[site] {
+			continue
+		}
+		priorities := [...]string{string(siteTerrain), "any"}
+		var commune assetgen.Commune
+		assigned := false
+		for _, affinity := range priorities {
+			if commune, assigned = popCommune(buckets, affinity); assigned {
+				break
+			}
+		}
 		if !assigned {
-			for _, qualifier := range qualifiers {
-				for nextCommune < len(communes) {
-					commune := communes[nextCommune]
-					nextCommune++
-					if usedCodes[commune.Code] {
-						continue
-					}
-					if assign(qualifier, commune) {
-						assigned = true
-						break
-					}
-				}
-				if assigned {
+			for _, affinity := range affinityOrder {
+				if commune, assigned = popCommune(buckets, affinity); assigned {
 					break
 				}
 			}
 		}
 		if !assigned {
-			return nil, fmt.Errorf("mapgen: exhausted qualifier and commune combinations for territory %s", territoryID(site))
+			return nil, fmt.Errorf("mapgen: exhausted communes while naming territory %s", territoryID(site))
 		}
+		names[site] = nameCode{name: commune.Name, code: commune.Code}
 	}
-
 	return names, nil
 }
 
-func compatibleQualifiers(
-	qualifiers []assetgen.Qualificatif,
-	terrain models.Terrain,
-	border bool,
-) []assetgen.Qualificatif {
-	compatible := make([]assetgen.Qualificatif, 0)
-	for _, qualifier := range qualifiers {
-		if qualifier.Terrain == string(terrain) || (border && qualifier.Terrain == "any") {
-			compatible = append(compatible, qualifier)
-		}
+func popCommune(buckets map[string][]assetgen.Commune, affinity string) (assetgen.Commune, bool) {
+	communes := buckets[affinity]
+	if len(communes) == 0 {
+		return assetgen.Commune{}, false
 	}
-	return compatible
-}
-
-func orderedVillages(
-	site int,
-	villageSites []int,
-	adjacency []bool,
-	centroids [][2]float64,
-	n int,
-) []int {
-	adjacent := make([]int, 0)
-	fallback := make([]int, 0)
-	for _, villageSite := range villageSites {
-		if matrixHasEdge(adjacency, n, site, villageSite) {
-			adjacent = append(adjacent, villageSite)
-		} else {
-			fallback = append(fallback, villageSite)
-		}
-	}
-	sortLieuSites(adjacent, site, centroids)
-	sortLieuSites(fallback, site, centroids)
-	return append(adjacent, fallback...)
-}
-
-func sortLieuSites(sites []int, from int, centroids [][2]float64) {
-	sort.Slice(sites, func(first, second int) bool {
-		firstDistance := centroidDistanceSquared(centroids, from, sites[first])
-		secondDistance := centroidDistanceSquared(centroids, from, sites[second])
-		if firstDistance == secondDistance {
-			return sites[first] < sites[second]
-		}
-		return firstDistance < secondDistance
-	})
-}
-
-func isBorder(points [][2]int, cfg Config) bool {
-	for _, point := range points {
-		if point[0] == 0 || point[0] == cfg.Width || point[1] == 0 || point[1] == cfg.Height {
-			return true
-		}
-	}
-	return false
+	last := len(communes) - 1
+	commune := communes[last]
+	buckets[affinity] = communes[:last]
+	return commune, true
 }

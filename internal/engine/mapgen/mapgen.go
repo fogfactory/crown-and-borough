@@ -50,7 +50,7 @@ func Generate(seed string, assets assetgen.Assets, cfg Config) (MapData, error) 
 		return MapData{}, err
 	}
 
-	if err := validateAssets(assets, cfg.VillageCount); err != nil {
+	if err := validateAssets(assets, cfg.SiteCount); err != nil {
 		return MapData{}, err
 	}
 
@@ -77,16 +77,7 @@ func Generate(seed string, assets assetgen.Assets, cfg Config) (MapData, error) 
 	if err != nil {
 		return MapData{}, err
 	}
-	names, err := nameTerritories(
-		newRNG(seed, "naming"),
-		assets,
-		villages,
-		terrain,
-		polygons,
-		centroids,
-		finalEdges,
-		cfg,
-	)
+	names, err := nameTerritories(newRNG(seed, "naming"), assets, terrain)
 	if err != nil {
 		return MapData{}, err
 	}

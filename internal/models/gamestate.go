@@ -80,10 +80,7 @@ func (g *GameState) Validate() error {
 		players[p.ID] = true
 	}
 
-	// 3. Territories: unique ids, unique codes, valid terrain, code shape 3
-	// or 4 uppercase letters. TRANSITIONAL (P1.2b): village tiles keep their
-	// commune trigram (3 letters) and other territories the qualifier-prefixed
-	// 4-letter form; P1.2c restores "3 letters everywhere".
+	// 3. Territories: unique ids, unique codes, valid terrain and trigram codes.
 	terrs := make(map[TerritoryID]*Territory, len(g.Territories))
 	codes := make(map[string]TerritoryID, len(g.Territories))
 	for i := range g.Territories {
@@ -100,8 +97,8 @@ func (g *GameState) Validate() error {
 		if !t.Terrain.IsValid() {
 			return fmt.Errorf("models: territory %q: invalid terrain %q", t.ID, t.Terrain)
 		}
-		if !isCode(t.Code, 3) && !isCode(t.Code, 4) {
-			return fmt.Errorf("models: territory %q: invalid code %q (want 3 or 4 uppercase letters)", t.ID, t.Code)
+		if !isCode(t.Code, 3) {
+			return fmt.Errorf("models: territory %q: invalid code %q (want exactly 3 uppercase letters)", t.ID, t.Code)
 		}
 		terrs[t.ID] = t
 		codes[t.Code] = t.ID

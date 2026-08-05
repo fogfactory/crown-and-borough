@@ -88,8 +88,7 @@ Une structure standard (*Standard Go Project Layout*) simple et efficace pour la
 │   ├── models/          # Structures de données métier (Ordres, Territoires, Troupes)
 │   └── server/          # Sessions de jeu, store des parties, persistance JSON (P3)
 ├── assets/              # Données statiques du monde et équilibrage
-│   ├── communes.csv     # Noms de communes/villages
-│   ├── qualificatifs.csv # Qualificatifs de territoires (prefixe + terrain)
+│   ├── communes.csv     # Noms de communes et affinité de terrain
 │   ├── prenoms.csv      # Prénoms de nobles
 │   └── balance.json     # Toutes les constantes d'équilibrage du moteur
 ├── web/                 # Application Frontend React (Vite)
@@ -103,29 +102,27 @@ Les fichiers `assets/*.csv` fournissent les noms et codes identifiants des entit
 
 | Fichier | Contenu | Utilisation |
 | --- | --- | --- |
-| `communes.csv` | Noms générés de communes | Nommer les villages |
-| `qualificatifs.csv` | Qualificatifs de territoires (lettre + terrain d'application) | Nommer les territoires, à la génération de carte |
+| `communes.csv` | Noms de communes + affinité de terrain | Nommer les territoires, à la génération de carte |
 | `prenoms.csv` | Prénoms générés | Nommer les Nobles |
 
-**Codes identifiants uniques et humainement lisibles :** chaque entité reçoit un code court (trigramme strict de 3 lettres, ex. `VIL` pour Villeneuve) aligné sur le *départage alphabétique des trigrammes* du GDD. Les codes sont uniques **au sein de chaque catégorie** (communes entre elles, prénoms entre eux, préfixes de qualificatifs entre eux) ; le type d'entité lève toute ambiguïté entre catégories. Ces codes sont utilisés dans les ordres et les rapports pour que les joueurs (et les agents) puissent référencer une entité sans avoir à retenir un UUID ou un nom complet. Les UUID internes restent la clé primaire ; les codes servent d'identifiant d'usage dans l'UI et les messages.
+**Codes identifiants uniques et humainement lisibles :** chaque entité reçoit un code court (trigramme strict de 3 lettres, ex. `VIL` pour Villeneuve) aligné sur le *départage alphabétique des trigrammes* du GDD. Les codes des communes et des prénoms sont uniques **au sein de leur catégorie** ; le type d'entité lève toute ambiguïté entre catégories. Le code territorial reprend le trigramme de sa commune et est unique sur la carte. Ces codes sont utilisés dans les ordres et les rapports pour que les joueurs (et les agents) puissent référencer une entité sans avoir à retenir un UUID ou un nom complet. Les UUID internes restent la clé primaire ; les codes servent d'identifiant d'usage dans l'UI et les messages.
 
-**Noms de territoires générés à la carte :** les territoires ne sont pas nommés dans les assets. À la génération de carte (P1.2), chaque territoire reçoit un qualificatif selon son terrain dominant (`qualificatifs.csv`) et le nom d'une commune adjacente : *"Forêt de Rosemont"* → code `F` + `ROS` = `FROS`. Les codes des territoires autres que les villages font donc 4 lettres (les villages gardent le trigramme de leur commune, 3 lettres) et restent uniques par construction (préfixes et trigrammes uniques).
+**Noms de territoires générés à la carte :** chaque territoire reçoit le nom et le trigramme d'une commune de `communes.csv`. L'affinité correspondant à son terrain dominant est privilégiée, puis `any`, avec un repli déterministe si nécessaire ; chaque commune n'est employée qu'une fois. Tous les codes territoriaux ont exactement 3 lettres.
 
 **Format attendu (CSV simple, en-tête en première ligne) :**
 
 ```csv
-# communes.csv / prenoms.csv
-code;nom
-VIL;Villeneuve
-ROS;Rosemont
-GRI;Griffecourt
+# communes.csv — terrain: plain|forest|hill|mountain|swamp|any
+code;nom;terrain
+MDO;Mont-Dore;mountain
+ROS;Rosemont;plain
 ```
 
 ```csv
-# qualificatifs.csv — prefix:une lettre | terrain: plain|forest|hill|mountain|swamp|any
-prefix;qualificatif;terrain
-F;Forêt;forest
-M;Monts;mountain
+# prenoms.csv
+code;nom
+JEA;Jean
+ADE;Adélaïde
 ```
 
 **Convention de code :** le code est exclusivement en anglais (identifiants, commentaires, messages, valeurs d'enums) ; seules les chaînes de contenu de jeu (noms, labels UI) sont en français.
@@ -145,9 +142,9 @@ La géographie est une connaissance commune : aucun joueur ne peut ignorer le te
   "territories": [
     {
       "id": "T01",
-      "code": "FROS",
-      "name": "Forêt de Rosemont",
-      "terrain": "forest",
+      "code": "ROS",
+      "name": "Rosemont",
+      "terrain": "plain",
       "village": true,
       "points": [[x, y], [x, y], ...],
       "adjacencies": ["T02", "T05"]
@@ -258,7 +255,7 @@ L'hiver, le joueur soumet une **liste d'ordres** (même mécanique de soumission
 - `E C XXX` — désigner le château de XXX comme **Capitale** du joueur (remplace la désignation actuelle ; exige de contrôler la case ; par défaut, la capitale est le premier château construit)
 - `L N XXX` — libérer le noble prisonnier XXX (le noble réapparaît à la capitale de son propriétaire ; requis : noble prisonnier appartenant au joueur)
 
-XXX = code du territoire ciblé (3 lettres pour un village, 4 sinon). Pas de chaîne, pas de position, pas de liaison : un ordre d'hiver s'applique directement ou est **rejeté** (événement explicite ; ordre rejeté = investissement perdu). Coûts et métriques d'équilibrage : `assets/balance.json` (toutes les constantes du moteur, éditables sans recompiler le code).
+XXX = code du territoire ciblé (trigramme de 3 lettres). Pas de chaîne, pas de position, pas de liaison : un ordre d'hiver s'applique directement ou est **rejeté** (événement explicite ; ordre rejeté = investissement perdu). Coûts et métriques d'équilibrage : `assets/balance.json` (toutes les constantes du moteur, éditables sans recompiler le code).
 
 ---
 

@@ -1,12 +1,11 @@
-// Package assetgen loads the static world assets (commune names, noble
-// first names and territory qualifiers) from CSV files and validates the
+// Package assetgen loads the static world assets (communes with terrain
+// affinities and noble first names) from CSV files and validates the
 // invariants they must satisfy at startup.
 //
-// The CSV files live in the assets directory and use a semicolon separator
-// with a header line. Codes are strict uppercase trigrams for communes and
-// first names, and a single uppercase letter for qualifier prefixes. Codes
-// and names must be unique within each file (no cross-file uniqueness: the
-// entity type disambiguates).
+// The two CSV files live in the assets directory and use a semicolon separator
+// with a header line. Codes are strict uppercase trigrams. Codes and names
+// must be unique within each file (no cross-file uniqueness: the entity type
+// disambiguates).
 package assetgen
 
 import (
@@ -18,24 +17,23 @@ import (
 	"strings"
 )
 
-// Asset is a named entity (commune or first name) with its trigram code.
+// Asset is a noble first name with its trigram code.
 type Asset struct {
 	Code string
 	Name string
 }
 
-// Qualificatif is a territory qualifier: a single-letter prefix, a French
-// display name and the terrain type it applies to.
-type Qualificatif struct {
-	Prefix  string
+// Commune is a territory name with its trigram code and preferred terrain.
+type Commune struct {
+	Code    string
 	Name    string
 	Terrain string
 }
 
 // Assets holds all the world data loaded from the assets directory.
 type Assets struct {
-	Communes, Prenoms []Asset
-	Qualificatifs     []Qualificatif
+	Communes []Commune
+	Prenoms  []Asset
 }
 
 var validTerrains = map[string]bool{
@@ -47,23 +45,69 @@ var validTerrains = map[string]bool{
 	"any":      true,
 }
 
-// Load reads communes.csv, prenoms.csv and qualificatifs.csv from dir and
-// validates them, failing fast at the first invalid record. A missing or
-// empty file is an explicit error.
+var communeTerrains = [...]string{
+	"plain",
+	"forest",
+	"hill",
+	"mountain",
+	"swamp",
+	"any",
+}
+
+// Load reads communes.csv and prenoms.csv from dir and validates them, failing
+// fast at the first invalid record. A missing or empty file is an explicit
+// error.
 func Load(dir string) (Assets, error) {
 	var a Assets
 	var err error
 
-	if a.Communes, err = loadAssets(filepath.Join(dir, "communes.csv")); err != nil {
+	if a.Communes, err = loadCommunes(filepath.Join(dir, "communes.csv")); err != nil {
 		return Assets{}, err
 	}
 	if a.Prenoms, err = loadAssets(filepath.Join(dir, "prenoms.csv")); err != nil {
 		return Assets{}, err
 	}
-	if a.Qualificatifs, err = loadQualificatifs(filepath.Join(dir, "qualificatifs.csv")); err != nil {
-		return Assets{}, err
-	}
 	return a, nil
+}
+
+func loadCommunes(path string) ([]Commune, error) {
+	rows, err := loadCSV(path, 3)
+	if err != nil {
+		return nil, err
+	}
+	communes := make([]Commune, 0, len(rows))
+	seenCodes := make(map[string]bool, len(rows))
+	seenNames := make(map[string]bool, len(rows))
+	terrainCounts := make(map[string]int, len(communeTerrains))
+	for i, row := range rows {
+		line := i + 2 // header is line 1
+		code, name, terrain := strings.TrimSpace(row[0]), strings.TrimSpace(row[1]), strings.TrimSpace(row[2])
+		if !isTrigram(code) {
+			return nil, fmt.Errorf("assetgen: %s: line %d: invalid code %q (want exactly 3 uppercase letters)", path, line, code)
+		}
+		if name == "" {
+			return nil, fmt.Errorf("assetgen: %s: line %d: empty name", path, line)
+		}
+		if !validTerrains[terrain] {
+			return nil, fmt.Errorf("assetgen: %s: line %d: invalid terrain %q (want one of plain|forest|hill|mountain|swamp|any)", path, line, terrain)
+		}
+		if seenCodes[code] {
+			return nil, fmt.Errorf("assetgen: %s: line %d: duplicate code %q", path, line, code)
+		}
+		if seenNames[name] {
+			return nil, fmt.Errorf("assetgen: %s: line %d: duplicate name %q", path, line, name)
+		}
+		seenCodes[code] = true
+		seenNames[name] = true
+		terrainCounts[terrain]++
+		communes = append(communes, Commune{Code: code, Name: name, Terrain: terrain})
+	}
+	for _, terrain := range communeTerrains {
+		if terrainCounts[terrain] == 0 {
+			return nil, fmt.Errorf("assetgen: %s: no commune with terrain %q (want at least one per affinity)", path, terrain)
+		}
+	}
+	return communes, nil
 }
 
 func loadAssets(path string) ([]Asset, error) {
@@ -94,39 +138,6 @@ func loadAssets(path string) ([]Asset, error) {
 		assets = append(assets, Asset{Code: code, Name: name})
 	}
 	return assets, nil
-}
-
-func loadQualificatifs(path string) ([]Qualificatif, error) {
-	rows, err := loadCSV(path, 3)
-	if err != nil {
-		return nil, err
-	}
-	quals := make([]Qualificatif, 0, len(rows))
-	seenPrefixes := make(map[string]bool, len(rows))
-	seenNames := make(map[string]bool, len(rows))
-	for i, row := range rows {
-		line := i + 2 // header is line 1
-		prefix, name, terrain := strings.TrimSpace(row[0]), strings.TrimSpace(row[1]), strings.TrimSpace(row[2])
-		if !isPrefix(prefix) {
-			return nil, fmt.Errorf("assetgen: %s: line %d: invalid prefix %q (want a single uppercase letter)", path, line, prefix)
-		}
-		if name == "" {
-			return nil, fmt.Errorf("assetgen: %s: line %d: empty qualificatif name", path, line)
-		}
-		if !validTerrains[terrain] {
-			return nil, fmt.Errorf("assetgen: %s: line %d: invalid terrain %q (want one of plain|forest|hill|mountain|swamp|any)", path, line, terrain)
-		}
-		if seenPrefixes[prefix] {
-			return nil, fmt.Errorf("assetgen: %s: line %d: duplicate prefix %q", path, line, prefix)
-		}
-		if seenNames[name] {
-			return nil, fmt.Errorf("assetgen: %s: line %d: duplicate qualificatif %q", path, line, name)
-		}
-		seenPrefixes[prefix] = true
-		seenNames[name] = true
-		quals = append(quals, Qualificatif{Prefix: prefix, Name: name, Terrain: terrain})
-	}
-	return quals, nil
 }
 
 func loadCSV(path string, fieldsPerRecord int) ([][]string, error) {
@@ -174,8 +185,4 @@ func isTrigram(s string) bool {
 		}
 	}
 	return true
-}
-
-func isPrefix(s string) bool {
-	return len(s) == 1 && s[0] >= 'A' && s[0] <= 'Z'
 }

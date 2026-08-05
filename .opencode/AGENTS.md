@@ -37,7 +37,7 @@ nouvelle ou modifiée doit être reportée dans les specs correspondantes.
 - **Code exclusivement en anglais** : identifiants, noms de fichiers,
   commentaires, messages d'erreur/log, valeurs d'enums.
 - Seules les chaînes de **contenu de jeu** sont en français (noms de communes,
-  prénoms, qualificatifs, labels UI) — le jeu est en français.
+  prénoms, labels UI) — le jeu est en français.
 - Backend Go : stdlib-first, pas d'ORM (sqlc prévu), structure
   `cmd/server` + `internal/{api,engine,db,models}`, module
   `github.com/fogfactory/crown-and-borough`.
@@ -73,10 +73,10 @@ nouvelle ou modifiée doit être reportée dans les specs correspondantes.
 - Carte : Voronoï seedé, graphe connexe **sans cul-de-sac sur aucune cellule,
   bords compris** (degré ≥ 2 partout) ; adjacences géométriques non toutes
   franchissables + routes reliant des territoires non adjacents.
-- Noms de territoires générés à la carte à partir des communes adjacentes et
-  des qualificatifs (`qualificatifs.csv`) ; codes 4 lettres (préfixe +
-  trigramme commune) ; codes communes/prénoms : trigrammes stricts 3 lettres,
-  uniques par catégorie.
+- Chaque territoire porte le nom d'une commune ; son affinité de terrain est
+  privilégiée avec un repli déterministe. Le code territorial est le trigramme
+  de la commune, à trois lettres et unique sur la carte ; les codes de communes
+  et prénoms restent uniques dans leur catégorie.
 - Persistance JSON d'abord (1 fichier par partie), Postgres/sqlc ensuite.
 - Contrats front : `map.json` statique/public vs `state.json` dynamique/privé
   (vue par joueur, horodatage `asOf` par territoire en P2).

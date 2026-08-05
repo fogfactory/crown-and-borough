@@ -98,6 +98,13 @@ Le graphe de déplacement (troupes, messagers, flux) n'épouse pas exactement la
 
 Les infrastructures **appartiennent à leur case** : elles n'ont pas de propriétaire — celui qui contrôle la case en bénéficie.
 
+### Nommage des territoires
+
+Chaque territoire porte le nom d'une commune de `communes.csv`. L'affinité de
+terrain de la commune est privilégiée, puis l'affinité `any`, avec un repli
+déterministe si nécessaire. Le code du territoire est le trigramme de sa
+commune, unique sur la carte, et chaque commune est utilisée au plus une fois.
+
 ---
 
 ## 4. Latence d'Information et Transmission des Ordres
