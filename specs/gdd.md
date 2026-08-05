@@ -93,10 +93,11 @@ Le graphe de déplacement (troupes, messagers, flux) est formé des frontières 
 
 ### Villages et Maillage Territorial
 
-- **Zones Sauvages (~75 % de la carte) :** Produisent **0 R**. Servent de zones de transit, de combat ou d'infrastructures isolées.
-- **Villages :** Infrastructure **rare**, **neutre à l'origine** (non constructible au MVP, réservé) : elle **produit des rations** et sert d'**ancre de ravitaillement** (détails des règles vivrières en P1.2e). Un village est porté par un territoire non contrôlé.
+- **Zones Sauvages (~75 % de la carte) :** Produisent **0 R stockable**. Servent de zones de transit, de combat ou d'infrastructures isolées. La production de rations du terrain s'applique néanmoins à toutes les cases.
+- **Production vivrière (rations) :** chaque territoire produit instantanément, à chaque tour, `RationTerrain[terrain]` rations (plaine/forêt/colline : 1 ; montagne/marais : 0), plus **2 rations** si la case porte un château **ou** un village. La règle de structure unique signifie que le bonus d'infrastructure ne s'applique qu'une fois : un château construit sur un village le remplace. Les rations sont **non stockables**, consommées sur place par les armées présentes quelle que soit leur nationalité ou le contrôle de la case ; les rations non distribuées sont perdues.
+- **Villages :** Infrastructure **rare**, **neutre à l'origine** (non constructible au MVP, réservé) : **+2 rations vivrières** ; si contrôlé, **1 R stockable/tour** et ancre de ravitaillement. Un village est porté par un territoire non contrôlé.
 - **Règle de la Structure Unique :** Une seule infrastructure par case.
-- **Château :** Un château construit sur une case la rend **productive** (elle produit et stocke, comme un village) et sert d'ancre de ravitaillement. Construit sur un village, il le **remplace** (jamais deux structures par case).
+- **Château :** **+2 rations vivrières** ; un château construit sur une case la rend **productive** et stocke **1 R stockable/tour si elle est contrôlée** ; il sert d'ancre de ravitaillement. Construit sur un village, il le **remplace** (jamais deux structures par case).
 
 Les infrastructures **appartiennent à leur case** : elles n'ont pas de propriétaire — celui qui contrôle la case en bénéficie.
 
@@ -139,9 +140,17 @@ Coût en R = 2^(N-1)
 
 *(1 troupe = 1 R | 2 troupes = 2 R | 3 troupes = 4 R | 4 troupes = 8 R)*
 
+Avant de tracer une ligne, la production de rations vivrières de la case est
+distribuée aux armées présentes, toute nationalité confondue, à raison d'une
+ration par armée au plus, en commençant par l'armée la plus grosse (départage
+par matricule de troupe décroissant). La demande à ravitailler est le coût
+moins les rations reçues. Une armée dont la demande résiduelle est nulle est
+autonome pour le tour et ne requiert aucune ligne de ravitaillement.
+
 ### Portée des Flux
 
-- Les lignes de flux sont tracées automatiquement depuis les châteaux et villages contrôlés à travers des territoires alliés ou neutres (une case contrôlée par un ennemi bloque le flux).
+- Les lignes de flux sont tracées automatiquement depuis les châteaux et villages contrôlés à travers des territoires alliés ou neutres (une case contrôlée par un ennemi bloque le flux). La demande couverte est la **demande résiduelle**, après déduction des rations vivrières de la case.
+- Un château ou village neutre n'est pas une source de ligne de ravitaillement : ses rations restent territoriales et nourrissent les armées présentes sur sa case, sans alimenter les flux.
 - **Portée de base :** 3 cases. Chaque **Dépôt de Vivres sur une case contrôlée par le joueur** rencontré sur le trajet prolonge la portée de +2 cases (effets cumulables).
 
 ---
@@ -214,12 +223,12 @@ Les infrastructures **appartiennent à leur case** : elles n'ont pas de proprié
 
 | Infrastructure | Nécessite un château/village ? | Effet principal | Coût (R) |
 | --- | --- | --- | --- |
-| **Moulin / Domaine** | **Oui** (sur le château/village ou directement adjacent) | Augmente la production de R du château/village (+1 R / niveau). | 3 |
+| **Moulin / Domaine** | **Oui** (sur le château/village ou directement adjacent) | Augmente la production de R **stockable** du château/village (+1 R / niveau, sur le château/village ou directement adjacent). | 3 |
 | **Relais de Poste** | Non | Doubler la vitesse des messagers sur la case (tout messager, même ennemi, au MVP). | 2 |
 | **Tour de Guet** | Non | Donne la vision T0 permanente sur la case et adjacentes. | 4 |
 | **Dépôt de Vivres** | Non | Prolonge de +2 cases la portée des lignes de ravitaillement **sur une case contrôlée par le joueur** passant par sa case (cumulable). | 3 |
-| **Château** | Non (Rend la case productive) | Apporte **+1 de force défensive** fixe (sans coût de R), **même sans garnison** : une case-château n'est jamais « vide » pour un attaquant. Construit sur un village, il le remplace. | 10 |
-| **Village** | — | Non constructible au MVP (réservé) : produit 2 rations par tour et sert d'ancre de ravitaillement (comme un château) ; un château construit sur un village le remplace. | — |
+| **Château** | Non (Rend la case productive) | Apporte **+1 de force défensive** fixe (sans coût de R), **même sans garnison** : une case-château n'est jamais « vide » pour un attaquant ; +2 rations vivrières ; rend la case productive (**1 R stockable/tour si elle est contrôlée**). Construit sur un village, il le remplace. | 10 |
+| **Village** | — | Non constructible au MVP (réservé) : **+2 rations vivrières par tour (non stockables)** ; si contrôlé, **1 R stockable/tour** et ancre de ravitaillement ; un château construit sur un village le remplace. | — |
 
 ### Dépendance et Moulins Orphelins
 
@@ -231,12 +240,14 @@ Un Moulin doit se trouver **sur un château/village ou directement adjacent à u
 
 ### Contrôle des Territoires
 
-- Tout territoire bascule sous le contrôle d'un joueur dès qu'une de ses troupes s'y arrête (l'occupe en fin de résolution). Seuls les châteaux et villages produisent et stockent, mais le contrôle gouverne aussi la construction et le passage des flux.
+- Tout territoire bascule sous le contrôle d'un joueur dès qu'une de ses troupes s'y arrête (l'occupe en fin de résolution). Seuls les châteaux et villages produisent et stockent du R, mais le contrôle gouverne aussi la construction et le passage des flux.
 - **Rémanence :** Le contrôle est conservé même après le départ de la troupe, jusqu'à l'arrêt d'une troupe ennemie.
 
 ### Algorithme de Carence Alimentaire (Famine)
 
-Si la production instantanée ne suffit pas à alimenter toutes les troupes :
+Si la production instantanée de R stockable ne suffit pas à couvrir toutes les
+demandes **résiduelles**, après déduction des rations vivrières produites sur
+les cases :
 
 ```
 [Déficit de Ravitaillement]
@@ -254,4 +265,4 @@ Si la production instantanée ne suffit pas à alimenter toutes les troupes :
    ► Départage final : Numéro de matricule de troupe DÉCROISSANT.
 ```
 
-**Effets de la famine :** une armée famélique ne peut que se déplacer à force 0 (elle ne se bat ni en attaque, ni en défense, ni en soutien ; si elle est battue, elle bat en retraite normalement) ; si elle se trouve sur une case avec une infrastructure, elle la **pille automatiquement** (détruit l'infrastructure de la case — celle-ci ne peut être repillée ensuite). Le pillage lui rapporte le bonus R du pillage **moins sa consommation** (2^(N-1)) : si le gain est positif ou nul, l'armée se nourrit et n'est plus famélique (l'excédent est crédité au château ou village contrôlé le plus proche du joueur, perdu s'il n'en contrôle aucun) ; sinon elle reste famélique sans rien gagner (l'infrastructure est détruite quand même).
+**Effets de la famine :** une armée famélique ne peut que se déplacer à force 0 (elle ne se bat ni en attaque, ni en défense, ni en soutien ; si elle est battue, elle bat en retraite normalement) ; si elle se trouve sur une case avec une infrastructure, elle la **pille automatiquement** (détruit l'infrastructure de la case — celle-ci ne peut être repillée ensuite). Le pillage lui rapporte le bonus R du pillage **moins la demande résiduelle de l'armée** : si le gain est positif ou nul, l'armée se nourrit et n'est plus famélique (l'excédent est crédité au château ou village contrôlé le plus proche du joueur, perdu s'il n'en contrôle aucun) ; sinon elle reste famélique sans rien gagner (l'infrastructure est détruite quand même).

@@ -190,6 +190,7 @@ Ce qui vit sur la carte : troupes, infrastructures, contrôle, ressources. C'est
 - `asOf` : tour auquel chaque territoire a été observé (permet d'afficher la fraîcheur de l'information en P2)
 - `troops`, `infrastructures`, `nobles`, `owner`, `resources` : couche dynamique
 - **Les infrastructures n'ont pas de propriétaire** : elles appartiennent à leur case (pas de champ `owner` sur une infrastructure) — celui qui contrôle la case en bénéficie
+- **Les rations vivrières ne font pas partie du contrat `state.json`** : leur production (terrain + bonus d'infrastructure château/village) est non stockable et recalculée par le moteur à chaque tour depuis le terrain de `map.json` et la présence actuelle d'un château ou d'un village dans la couche `infrastructures` de `state.json`. Le flag `village` de `map.json` est une donnée statique de génération et ne fait pas autorité après remplacement ou destruction ; il n'y a donc rien à transporter et aucune accumulation possible.
 - **Coûts de trajet** (rapports P2.2 et ordres P2.3) : coût par case traversée selon le terrain, lu dans `assets/balance.json` (section travel : plaine 0,5 — 2 cases/tour ; forêt/colline 1 ; montagne/marécage 2 ; divisé par 2 sur un Relais de Poste)
 
 ### Rendu côté front
