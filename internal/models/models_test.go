@@ -20,6 +20,11 @@ func ptrArmyID(id string) *models.ArmyID {
 	return &a
 }
 
+func ptrChainID(id string) *models.ChainID {
+	c := models.ChainID(id)
+	return &c
+}
+
 // validState returns a complete, valid state: 2 players, 4 territories in a
 // ring with commune trigrams, 2 armies, 1 noble, 1 mill level 2 and 1 castle,
 // 1 neutral territory, resources. Tests mutate a fresh instance to build
@@ -43,7 +48,7 @@ func validState() *models.GameState {
 		{ID: "A2", OwnerID: "P2", TerritoryID: "T02", Size: 2},
 	}
 	g.Nobles = []models.Noble{
-		{ID: "N1", Code: "HUG", Name: "Hugues", OwnerID: "P1", LocationID: "T01"},
+		{ID: "N1", Code: "HUG", Name: "Hugues", OwnerID: "P1", LocationID: "T01", Status: models.NobleStatusFree},
 	}
 	g.Infrastructures = []models.Infrastructure{
 		{ID: "I1", Type: models.InfraTypeMill, Level: 2, TerritoryID: "T01"},
@@ -105,6 +110,21 @@ func TestInfraTypeIsValid(t *testing.T) {
 	}
 }
 
+func TestNobleStatusIsValid(t *testing.T) {
+	for _, valid := range []models.NobleStatus{
+		models.NobleStatusFree, models.NobleStatusHostage, models.NobleStatusDungeon,
+	} {
+		if !valid.IsValid() {
+			t.Errorf("NobleStatus %q: want valid", valid)
+		}
+	}
+	for _, invalid := range []models.NobleStatus{"", "captured", "FREE", "free "} {
+		if invalid.IsValid() {
+			t.Errorf("NobleStatus %q: want invalid", invalid)
+		}
+	}
+}
+
 func TestSeasonForTurn(t *testing.T) {
 	cases := []struct {
 		turn int
@@ -160,6 +180,25 @@ func TestValidateValidState(t *testing.T) {
 	}
 }
 
+func TestValidateAssignedChain(t *testing.T) {
+	g := validState()
+	g.Armies[0].ChainID = ptrChainID("C1")
+	g.Chains = []models.Chain{{
+		ID:           "C1",
+		NobleID:      "N1",
+		ArmyID:       "A1",
+		CurrentIndex: 0,
+		Orders: []models.Order{
+			{ID: "O1", Type: models.OrderTypeAttack, ArmyID: "A1", PositionID: "T01", TargetIDs: []models.TerritoryID{"T02"}, NobleTargetIDs: []models.NobleID{}, NobleAssignments: nil, Liaison: models.LiaisonModeSingle},
+			{ID: "O2", Type: models.OrderTypeDisperse, ArmyID: "A1", PositionID: "T02", TargetIDs: []models.TerritoryID{"T02"}, NobleTargetIDs: []models.NobleID{}, NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"BCL": {"HUG"}}, Liaison: models.LiaisonModeLoop},
+		},
+	}}
+	g.NextChainID = 2
+	if err := g.Validate(); err != nil {
+		t.Fatalf("Validate() = %v, want nil", err)
+	}
+}
+
 func TestValidateErrors(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -212,6 +251,10 @@ func TestValidateErrors(t *testing.T) {
 		}, "duplicate code"},
 		{"noble unknown owner", func(g *models.GameState) { g.Nobles[0].OwnerID = "P9" }, "unknown owner"},
 		{"noble unknown territory", func(g *models.GameState) { g.Nobles[0].LocationID = "T99" }, "unknown territory"},
+		{"noble invalid status", func(g *models.GameState) { g.Nobles[0].Status = "captured" }, "invalid status"},
+		{"noble negative last emission turn", func(g *models.GameState) { g.Nobles[0].LastEmissionTurn = -1 }, "last emission turn"},
+		{"noble future last emission turn", func(g *models.GameState) { g.Nobles[0].LastEmissionTurn = g.Turn + 1 }, "last emission turn"},
+		{"next chain id zero", func(g *models.GameState) { g.NextChainID = 0 }, "next chain id"},
 		{"duplicate infrastructure id", func(g *models.GameState) {
 			g.Infrastructures = append(g.Infrastructures, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "T02"})
 		}, "duplicate id"},
@@ -258,6 +301,95 @@ func TestValidateErrors(t *testing.T) {
 	}
 }
 
+func TestValidateChainErrors(t *testing.T) {
+	validChain := func(g *models.GameState) {
+		g.Armies[0].ChainID = ptrChainID("C1")
+		g.Chains = []models.Chain{{
+			ID: "C1", NobleID: "N1", ArmyID: "A1", CurrentIndex: 0,
+			Orders: []models.Order{{
+				ID: "O1", Type: models.OrderTypeAttack, ArmyID: "A1", PositionID: "T01",
+				TargetIDs: []models.TerritoryID{"T02"}, NobleTargetIDs: []models.NobleID{}, Liaison: models.LiaisonModeSingle,
+			}},
+		}}
+		g.NextChainID = 2
+	}
+	cases := []struct {
+		name   string
+		mutate func(g *models.GameState)
+		want   string
+	}{
+		{"empty chain", func(g *models.GameState) {
+			validChain(g)
+			g.Chains[0].Orders = nil
+		}, "no orders"},
+		{"duplicate chain id", func(g *models.GameState) {
+			validChain(g)
+			g.Chains = append(g.Chains, g.Chains[0])
+		}, "duplicate id"},
+		{"unknown chain noble", func(g *models.GameState) {
+			validChain(g)
+			g.Chains[0].NobleID = "N9"
+		}, "unknown noble"},
+		{"unknown chain army", func(g *models.GameState) {
+			validChain(g)
+			g.Chains[0].ArmyID = "A9"
+		}, "unknown army"},
+		{"out of range current index", func(g *models.GameState) {
+			validChain(g)
+			g.Chains[0].CurrentIndex = 1
+		}, "current index"},
+		{"invalid order type", func(g *models.GameState) {
+			validChain(g)
+			g.Chains[0].Orders[0].Type = "march"
+		}, "invalid type"},
+		{"invalid liaison", func(g *models.GameState) {
+			validChain(g)
+			g.Chains[0].Orders[0].Liaison = "retry"
+		}, "invalid liaison"},
+		{"unknown order position", func(g *models.GameState) {
+			validChain(g)
+			g.Chains[0].Orders[0].PositionID = "T99"
+		}, "unknown position"},
+		{"unknown order target", func(g *models.GameState) {
+			validChain(g)
+			g.Chains[0].Orders[0].TargetIDs = []models.TerritoryID{"T99"}
+		}, "unknown target"},
+		{"unknown noble target", func(g *models.GameState) {
+			validChain(g)
+			g.Chains[0].Orders[0].NobleTargetIDs = []models.NobleID{"N9"}
+		}, "unknown noble target"},
+		{"chain noble does not own army", func(g *models.GameState) {
+			validChain(g)
+			g.Chains[0].ArmyID = "A2"
+			g.Chains[0].Orders[0].ArmyID = "A2"
+			g.Armies[0].ChainID = nil
+			g.Armies[1].ChainID = ptrChainID("C1")
+		}, "does not own army"},
+		{"next chain id collides with stored chain", func(g *models.GameState) {
+			validChain(g)
+			g.NextChainID = 1
+		}, "next chain id"},
+		{"missing inverse army link", func(g *models.GameState) {
+			validChain(g)
+			g.Armies[0].ChainID = nil
+		}, "does not reference it"},
+		{"unknown army chain link", func(g *models.GameState) {
+			validChain(g)
+			g.Armies[0].ChainID = ptrChainID("C9")
+		}, "references unknown chain"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			g := validState()
+			tc.mutate(g)
+			err := g.Validate()
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("Validate() = %v, want error containing %q", err, tc.want)
+			}
+		})
+	}
+}
+
 // TestCodeInvariants pins the trigram requirement for territories and nobles.
 func TestCodeInvariants(t *testing.T) {
 	cases := []struct {
@@ -289,6 +421,18 @@ func TestCodeInvariants(t *testing.T) {
 
 func TestGameStateJSONRoundTrip(t *testing.T) {
 	g := validState()
+	g.Armies[0].ChainID = ptrChainID("C1")
+	g.Chains = []models.Chain{{
+		ID: "C1", NobleID: "N1", ArmyID: "A1", CurrentIndex: 0,
+		Orders: []models.Order{{
+			ID: "O1", Type: models.OrderTypeDisperse, ArmyID: "A1", PositionID: "T01",
+			TargetIDs: []models.TerritoryID{"T01"}, NobleTargetIDs: []models.NobleID{},
+			NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"ROS": {"HUG", "*"}},
+			Liaison:          models.LiaisonModeLoop,
+		}},
+	}}
+	g.Nobles[0].LastEmissionTurn = 1
+	g.NextChainID = 2
 	data, err := json.Marshal(g)
 	if err != nil {
 		t.Fatalf("Marshal: %v", err)
@@ -325,7 +469,7 @@ func TestNewGameStateJSONEmptyCollections(t *testing.T) {
 	}
 	for _, key := range []string{
 		`"players":[]`, `"territories":[]`, `"nobles":[]`, `"armies":[]`,
-		`"infrastructures":[]`, `"territoryStates":{}`,
+		`"chains":[]`, `"infrastructures":[]`, `"territoryStates":{}`,
 	} {
 		if !bytes.Contains(data, []byte(key)) {
 			t.Errorf("JSON %s does not contain %s", data, key)

@@ -29,25 +29,31 @@ type Territory struct {
 	Adjacencies []TerritoryID `json:"adjacencies"`
 }
 
-// Army is the single force entity stationed on a territory. Size is the
-// number of units in the army. When equal-size armies must be ordered, the
-// territory code is the lexicographic tie-break (GDD §4, §8).
+// Army is the single force entity stationed on a territory. Size is the number
+// of abstract troops in the army. ChainID is nil when the army is Sans Ordre.
+// When equal-size armies must be ordered, the territory code is the
+// lexicographic tie-break (GDD §4, §8).
 type Army struct {
 	ID          ArmyID      `json:"id"`
 	OwnerID     PlayerID    `json:"owner"`
 	TerritoryID TerritoryID `json:"territory"`
 	Size        int         `json:"size"`
+	ChainID     *ChainID    `json:"chain"`
 }
 
 // Noble is an immortal, non-combatant entity that emits at most one order
 // chain per turn (GDD §6). Its Code is the first-name trigram used to address
-// it in orders and reports (GDD §6); codes are unique within a game.
+// it in orders and reports (GDD §6); codes are unique within a game. The army
+// it rides is derived from LocationID because only one army may occupy a
+// territory; a noble can deliberately remain alone after that army is lost.
 type Noble struct {
-	ID         NobleID     `json:"id"`
-	Code       string      `json:"code"` // first-name trigram (GDD §6), unique within a game
-	Name       string      `json:"name"`
-	OwnerID    PlayerID    `json:"owner"`
-	LocationID TerritoryID `json:"location"`
+	ID               NobleID     `json:"id"`
+	Code             string      `json:"code"` // first-name trigram (GDD §6), unique within a game
+	Name             string      `json:"name"`
+	OwnerID          PlayerID    `json:"owner"`
+	LocationID       TerritoryID `json:"location"`
+	Status           NobleStatus `json:"status"`
+	LastEmissionTurn int         `json:"lastEmissionTurn"`
 }
 
 // Infrastructure is a buildable structure. Level is >= 1: a mill yields +1 R

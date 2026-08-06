@@ -5,6 +5,20 @@ export type Season = 'spring' | 'summer' | 'autumn' | 'winter'
 export type InfraType =
   'mill' | 'post_relay' | 'watchtower' | 'supply_depot' | 'castle' | 'village'
 
+export type NobleStatus = 'free' | 'hostage' | 'dungeon'
+
+export type OrderType =
+  | 'attack'
+  | 'support'
+  | 'hold'
+  | 'join'
+  | 'pillage'
+  | 'disperse'
+  | 'hostage'
+  | 'dungeon'
+
+export type LiaisonMode = 'single' | 'loop'
+
 export type PlayerId = string
 
 export type Point = [number, number]
@@ -12,6 +26,22 @@ export type Point = [number, number]
 export interface Army {
   owner: PlayerId
   size: number
+  chain: Chain | null
+}
+
+export interface Order {
+  type: OrderType
+  position: string
+  targets?: string[]
+  nobleTargets?: string[]
+  nobleAssignments?: Record<string, string[]>
+  liaison: LiaisonMode
+}
+
+export interface Chain {
+  noble: string
+  currentIndex: number
+  orders: Order[]
 }
 
 export interface Infrastructure {
@@ -21,9 +51,11 @@ export interface Infrastructure {
 
 export interface Noble {
   id: string
+  code: string
   name: string
   owner: PlayerId
   location: string
+  status: NobleStatus
 }
 
 export interface Territory {

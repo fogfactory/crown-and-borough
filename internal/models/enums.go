@@ -90,3 +90,23 @@ func (i InfraType) IsValid() bool {
 	}
 	return false
 }
+
+// NobleStatus describes whether a noble is free or held by another army.
+// Hostage and dungeon are both prisoner states; dungeon additionally disables
+// the information effects documented in the GDD.
+type NobleStatus string
+
+const (
+	NobleStatusFree    NobleStatus = "free"
+	NobleStatusHostage NobleStatus = "hostage"
+	NobleStatusDungeon NobleStatus = "dungeon"
+)
+
+// IsValid reports whether the noble status is known to the command model.
+func (s NobleStatus) IsValid() bool {
+	switch s {
+	case NobleStatusFree, NobleStatusHostage, NobleStatusDungeon:
+		return true
+	}
+	return false
+}

@@ -169,6 +169,12 @@ La géographie est une connaissance commune : aucun joueur ne peut ignorer le te
 
 `GET /api/state?players=N` est le pendant de développement de `/api/map` et accepte les mêmes valeurs de joueurs. Il sert un état d'exemple statique et déterministe, projeté par le DTO explicite `StateView`, jamais par la sérialisation directe de `GameState`. La réponse contient toujours `turn: 5`, `season: "spring"` et un `asOf` pour chaque territoire dont la valeur est `turn` ou `turn - 2`.
 
+Cet endpoint dev n'a pas d'identité de joueur : `players` indique seulement un
+nombre de joueurs. À partir de P1.3, il expose donc toutes les chaînes sous
+`StateView.army.chain`, sans filtrage. Cette visibilité globale est une exception
+de développement ; elle ne préjuge pas de la vue privée, de la fraîcheur ni de la
+politique de divulgation de P2.2, P2.2a ou P3.2.
+
 Le résolveur partage avec `/api/map` le cache en mémoire du `MapData` généré pour le même `(seed, players)` : servir l'état ne régénère donc pas la carte. Ce n'est pas encore la vue dynamique réelle : le résolveur de la boucle hotseat reste à P1.7, puis la vue privée par joueur et la fraîcheur de rapport réelle restent à P2.
 
 ### state.json (dynamique, privé, par joueur et par fraîcheur de rapport)
@@ -185,17 +191,34 @@ Ce qui vit sur la carte : armées, infrastructures, contrôle, ressources. C'est
       "id": "T01",
       "owner": "P1",
       "resources": 4,
-      "army": { "owner": "P1", "size": 2 },
+      "army": {
+        "owner": "P1",
+        "size": 2,
+        "chain": {
+          "noble": "HUG",
+          "currentIndex": 0,
+          "orders": [
+            {
+              "type": "attack",
+              "position": "ROS",
+              "targets": ["BOI"],
+              "liaison": "single"
+            }
+          ]
+        }
+      },
       "infrastructures": [{ "type": "mill", "level": 2 }]
     }
   ],
-  "nobles": [{ "id": "N1", "name": "Hugues", "owner": "P1", "location": "T01" }]
+  "nobles": [{ "id": "N1", "code": "HUG", "name": "Hugues", "owner": "P1", "location": "T01", "status": "free" }]
 }
 ```
 
 - `asOf` : tour auquel chaque territoire a été observé (permet d'afficher la fraîcheur de l'information en P2)
 - `army`, `infrastructures`, `nobles`, `owner`, `resources` : couche dynamique
-- `army` vaut `null` lorsqu'aucune armée n'occupe le territoire ; sinon il contient uniquement `owner` et `size`.
+- `army` vaut `null` lorsqu'aucune armée n'occupe le territoire ; sinon il contient `owner`, `size` et `chain`. `chain` vaut `null` si l'armée ne porte aucune chaîne ; sinon il expose le code du noble émetteur, `currentIndex` et les ordres en cours.
+- Dans une chaîne de `StateView`, les positions et `targets` sont des codes de territoire, `nobleTargets` des codes de noble pour O/K et `nobleAssignments` conserve la répartition D par codes. Les `ArmyID` et `ChainID` internes ne sont jamais exposés.
+- `nobles` expose notamment `code` et `status`. Les seules valeurs de statut sont `free`, `hostage` et `dungeon` ; les deux dernières désignent un noble prisonnier.
 - Une seule armée peut occuper un territoire. Le front et les ordres l'adressent par le territoire : son identifiant interne n'est pas exposé dans `state.json`. Le `GameState` de stockage conserve la liste interne `armies` et un index `ArmyID` sur chaque `TerritoryState`.
 - **Les infrastructures n'ont pas de propriétaire** : elles appartiennent à leur case (pas de champ `owner` sur une infrastructure) — celui qui contrôle la case en bénéficie
 - **Les rations vivrières ne font pas partie du contrat `state.json`** : leur production (terrain + bonus d'infrastructure château/village) est non stockable et recalculée par le moteur à chaque tour depuis le terrain de `map.json` et la présence actuelle d'un château ou d'un village dans la couche `infrastructures` de `state.json`. Le flag `village` de `map.json` est une donnée statique de génération et ne fait pas autorité après remplacement ou destruction ; il n'y a donc rien à transporter et aucune accumulation possible.
@@ -247,13 +270,21 @@ BRI D BRI ATL NOR  # dispersion : une destination par unité de l'armée
 | `H` | Maintien | `H XXX` | L'armée reste sur XXX (sa position) | Chaîne brisée | **Garde indéfinie** : chaîne en veille jusqu'à réception d'un nouvel ordre |
 | `J` | Jonction | `XXX J YYY` | **Déplacement pacifique** (pas une attaque, puissance 0) vers YYY **adjacente**, toujours en **dernier ordre d'une chaîne** (sinon chaîne invalide). **Fusionne** si une armée alliée est déjà sur YYY, ou si exactement une armée alliée y arrive au même tour **sans contestation** (aucune autre armée n'y converge — deux jonctions mutuelles J+J fusionnent) ; la **chaîne de l'hôte est conservée** (celle de la jonctionnante est consommée par ce J ; l'arrivant par A est l'hôte ; un rendez-vous J+J laisse l'armée **Sans Ordre**) ; case occupée par l'ennemi → échec ; case **contestée** par une attaque ce tour, ou **convergence de plusieurs armées** → **repoussé** (échec) | Chaîne brisée | Retente jusqu'à réussite (puis chaîne consommée) |
 | `P` | Pillage | `P XXX` | XXX = case où l'armée se trouve : détruit l'infrastructure de SA case (une seule par case, GDD §3) + bonus R (balance.json) **crédité au château ou village contrôlé le plus proche** du joueur (perdu s'il n'en contrôle aucun) ; **aucune infrastructure → ordre invalide** | Chaîne brisée | Retente jusqu'à destruction |
-| `O` | Otage | `XXX O YYY` | YYY = code du noble prisonnier détenu par l'armée de XXX (la case de l'armée) : il passe à l'état **otage** (état par défaut — il produit des rapports pour son propriétaire et compte en T0) ; noble non prisonnier, d'un autre joueur ou absent → **invalide** | Chaîne brisée | Retente |
-| `K` | Cachot | `XXX K YYY` | YYY = code du noble prisonnier détenu par l'armée de XXX : il passe **au cachot** (plus aucun rapport, ni récepteur, ni T0 pour son propriétaire) ; mêmes conditions d'invalidité que O | Chaîne brisée | Retente |
-| `D` | Dispersion | `XXX D XXX YYY ZZZ ...` | Une destination **par unité de l'armée** (nombre = taille de l'armée) ; chaque destination est **adjacente** ou égale à la position ; à la résolution (P1.4), chaque destination **libre et non ciblée par une attaque** reçoit la part de taille qui lui est attribuée ; la case de l'armée est valide ; **l'armée de la première destination conserve la chaîne** (les autres armées sont créées). **Répartition des nobles par astérisque** : `XXX D YYY XXX*` = tous les nobles en XXX ; `YYY*JEA` = Jean en YYY ; `YYY*JEA*ANN` = Jean et Anne en YYY ; `*` seul = tous les nobles restants ; chaque noble au plus une fois ; **si des nobles chevauchent l'armée et que l'ordre ne les assigne pas tous → ordre INVALIDE** (aucune destination par défaut) | Avance même si partielle | Retente jusqu'à résolution **intégrale** |
+| `O` | Otage | `XXX O YYY` | YYY = code du noble prisonnier détenu par l'armée de XXX (la case de l'armée) : il passe au statut `hostage` (état par défaut — il produit des rapports pour son propriétaire et compte en T0) ; noble non prisonnier, d'un autre joueur ou absent → **invalide** | Chaîne brisée | Retente |
+| `K` | Cachot | `XXX K YYY` | YYY = code du noble prisonnier détenu par l'armée de XXX : il passe au statut `dungeon` (plus aucun rapport, ni récepteur, ni T0 pour son propriétaire) ; mêmes conditions d'invalidité que O | Chaîne brisée | Retente |
+| `D` | Dispersion | `XXX D XXX YYY ZZZ ...` | Une destination **par unité de l'armée** (nombre = taille de l'armée) ; chaque destination est **adjacente** ou égale à la position ; à la résolution (P1.4), chaque destination **libre et non ciblée par une attaque** reçoit la part de taille qui lui est attribuée ; la case de l'armée est valide ; **l'armée de la première destination conserve la chaîne** (les autres armées sont créées). **Répartition des nobles par astérisque** : `XXX D YYY XXX*` = tous les nobles en XXX ; `YYY*JEA` = Jean en YYY ; `YYY*JEA*ANN` = Jean et Anne en YYY ; le suffixe `*` seul dans `XXX*` = tous les nobles restants ; chaque noble au plus une fois ; **si des nobles chevauchent l'armée et que l'ordre ne les assigne pas tous → ordre INVALIDE** (aucune destination par défaut) | Avance même si partielle | Retente jusqu'à résolution **intégrale** |
 
 **Ordre invalide** (physiquement ou mécaniquement impossible : cible inexistante, cible non adjacente, armée détruite, pillage sans infrastructure...) : **brise immédiatement** la chaîne, quel que soit le mode de liaison.
 
-**Armée sans chaîne** : une armée sans chaîne associée est *Sans Ordre* (pas de statut dédié : `army.chain == nil` suffit).
+### Modèle interne des chaînes
+
+Le parser résout les codes de la syntaxe dans les identifiants internes sans
+modifier cette syntaxe. `Order.TargetIDs []TerritoryID` contient uniquement les
+cibles territoriales des ordres A, S, J et D. `Order.NobleTargetIDs []NobleID`
+contient l'unique cible noble des ordres O/K : le code de noble de `XXX O YYY`
+ou `XXX K YYY` ne doit donc jamais être placé dans `TargetIDs`.
+
+**Armée sans chaîne** : une armée sans chaîne associée est *Sans Ordre* (pas de statut dédié : dans le modèle interne, `Army.ChainID == nil` suffit ; dans `StateView`, cela se projette par `army.chain: null`).
 
 **Réception de la chaîne (P2.3)** : la chaîne est émise par le **noble de l'en-tête** depuis SA position ; elle voyage à la vitesse du terrain (coûts des assets d'équilibrage, cf. §5 de l'architecture) vers le **premier territoire de la feuille** (XXX de `XXX A YYY`, le territoire de `H XXX` ou `P XXX`). **L'arrivée est calculée à l'émission** (temps de trajet fixé). Entre l'arrivée et l'hiver suivant, **l'armée du joueur émetteur présente sur ce territoire** reçoit la chaîne — adressée par la case, appliquée à toute l'armée — et **remplace** la sienne. Une chaîne qui échoue la validation de réception (D ≠ taille de l'armée, nobles non couverts) est **perdue**. Aucune armée requise à l'émission (elle peut arriver plus tard). Chaîne jamais reçue → **perdue** à la fin de l'hiver. Pas d'interception au MVP.
 

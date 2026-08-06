@@ -45,6 +45,8 @@ func DemoState(seed string, assets assetgen.Assets, mapData mapgen.MapData, play
 		Territories:     make([]models.Territory, 0, len(mapData.Territories)),
 		Nobles:          make([]models.Noble, 0, players),
 		Armies:          make([]models.Army, 0, players*2),
+		Chains:          []models.Chain{},
+		NextChainID:     1,
 		Infrastructures: make([]models.Infrastructure, 0, players+len(mapData.Territories)+3),
 		TerritoryStates: make(map[models.TerritoryID]models.TerritoryState, len(mapData.Territories)),
 	}
@@ -196,6 +198,7 @@ func DemoState(seed string, assets assetgen.Assets, mapData mapgen.MapData, play
 			Name:       fmt.Sprintf("%s de %s", noble.name, territoriesByID[start].Name),
 			OwnerID:    state.Players[index].ID,
 			LocationID: start,
+			Status:     models.NobleStatusFree,
 		})
 	}
 

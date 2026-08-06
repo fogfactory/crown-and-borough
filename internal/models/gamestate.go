@@ -3,6 +3,7 @@ package models
 import (
 	"fmt"
 	"slices"
+	"strconv"
 )
 
 // GameState is the whole game: the immutable world layout plus the evolving
@@ -20,6 +21,8 @@ type GameState struct {
 	Territories     []Territory                    `json:"territories"`
 	Nobles          []Noble                        `json:"nobles"`
 	Armies          []Army                         `json:"armies"`
+	Chains          []Chain                        `json:"chains"`
+	NextChainID     int                            `json:"nextChainId"`
 	Infrastructures []Infrastructure               `json:"infrastructures"`
 	TerritoryStates map[TerritoryID]TerritoryState `json:"territoryStates"`
 }
@@ -35,6 +38,8 @@ func NewGameState() *GameState {
 		Territories:     []Territory{},
 		Nobles:          []Noble{},
 		Armies:          []Army{},
+		Chains:          []Chain{},
+		NextChainID:     1,
 		Infrastructures: []Infrastructure{},
 		TerritoryStates: map[TerritoryID]TerritoryState{},
 	}
@@ -63,6 +68,9 @@ func (g *GameState) Validate() error {
 	}
 	if !g.Season.IsValid() {
 		return fmt.Errorf("models: season: invalid season %q", g.Season)
+	}
+	if g.NextChainID < 1 {
+		return fmt.Errorf("models: next chain id: must be >= 1, got %d", g.NextChainID)
 	}
 	if want := SeasonForTurn(g.Turn); g.Season != want {
 		return fmt.Errorf("models: season: %q does not match turn %d (want %q)", g.Season, g.Turn, want)
@@ -155,8 +163,10 @@ func (g *GameState) Validate() error {
 	}
 
 	// 6. Nobles: unique ids, trigram code unique within the game, existing
-	// owner and location.
+	// owner and location, a persistent valid status, and an emission record
+	// that cannot be in the future.
 	nobles := make(map[NobleID]bool, len(g.Nobles))
+	nobleOwners := make(map[NobleID]PlayerID, len(g.Nobles))
 	nobleCodes := make(map[string]NobleID, len(g.Nobles))
 	for i := range g.Nobles {
 		n := &g.Nobles[i]
@@ -179,10 +189,98 @@ func (g *GameState) Validate() error {
 		if terrs[n.LocationID] == nil {
 			return fmt.Errorf("models: noble %q: unknown territory %q", n.ID, n.LocationID)
 		}
+		if !n.Status.IsValid() {
+			return fmt.Errorf("models: noble %q: invalid status %q", n.ID, n.Status)
+		}
+		if n.LastEmissionTurn < 0 || n.LastEmissionTurn > g.Turn {
+			return fmt.Errorf("models: noble %q: last emission turn %d must be between 0 and %d", n.ID, n.LastEmissionTurn, g.Turn)
+		}
 		nobles[n.ID] = true
+		nobleOwners[n.ID] = n.OwnerID
 	}
 
-	// 7. Infrastructures: unique ids, valid type, level >= 1, existing
+	// 7. Chains: unique ids, valid references and complete stored orders. The
+	// parser may produce an unassigned chain, but every chain in GameState has
+	// already passed reception and must be fully linked to its army.
+	chains := make(map[ChainID]*Chain, len(g.Chains))
+	for i := range g.Chains {
+		chain := &g.Chains[i]
+		if chain.ID == "" {
+			return fmt.Errorf("models: chain: empty id")
+		}
+		if _, duplicate := chains[chain.ID]; duplicate {
+			return fmt.Errorf("models: chain %q: duplicate id", chain.ID)
+		}
+		if !nobles[chain.NobleID] {
+			return fmt.Errorf("models: chain %q: unknown noble %q", chain.ID, chain.NobleID)
+		}
+		if armies[chain.ArmyID] == nil {
+			return fmt.Errorf("models: chain %q: unknown army %q", chain.ID, chain.ArmyID)
+		}
+		if nobleOwners[chain.NobleID] != armies[chain.ArmyID].OwnerID {
+			return fmt.Errorf("models: chain %q: noble %q does not own army %q", chain.ID, chain.NobleID, chain.ArmyID)
+		}
+		if len(chain.Orders) == 0 {
+			return fmt.Errorf("models: chain %q: no orders", chain.ID)
+		}
+		if chain.CurrentIndex < 0 || chain.CurrentIndex >= len(chain.Orders) {
+			return fmt.Errorf("models: chain %q: current index %d is outside its %d orders", chain.ID, chain.CurrentIndex, len(chain.Orders))
+		}
+
+		orderIDs := make(map[OrderID]bool, len(chain.Orders))
+		for _, order := range chain.Orders {
+			if order.ID == "" {
+				return fmt.Errorf("models: chain %q: order with empty id", chain.ID)
+			}
+			if orderIDs[order.ID] {
+				return fmt.Errorf("models: chain %q: duplicate order id %q", chain.ID, order.ID)
+			}
+			orderIDs[order.ID] = true
+			if !order.Type.IsValid() {
+				return fmt.Errorf("models: chain %q: order %q has invalid type %q", chain.ID, order.ID, order.Type)
+			}
+			if order.ArmyID != chain.ArmyID {
+				return fmt.Errorf("models: chain %q: order %q references army %q instead of %q", chain.ID, order.ID, order.ArmyID, chain.ArmyID)
+			}
+			if !order.Liaison.IsValid() {
+				return fmt.Errorf("models: chain %q: order %q has invalid liaison %q", chain.ID, order.ID, order.Liaison)
+			}
+			if terrs[order.PositionID] == nil {
+				return fmt.Errorf("models: chain %q: order %q references unknown position %q", chain.ID, order.ID, order.PositionID)
+			}
+			for _, targetID := range order.TargetIDs {
+				if terrs[targetID] == nil {
+					return fmt.Errorf("models: chain %q: order %q references unknown target %q", chain.ID, order.ID, targetID)
+				}
+			}
+			for _, nobleTargetID := range order.NobleTargetIDs {
+				if !nobles[nobleTargetID] {
+					return fmt.Errorf("models: chain %q: order %q references unknown noble target %q", chain.ID, order.ID, nobleTargetID)
+				}
+			}
+			for destinationCode, assignedCodes := range order.NobleAssignments {
+				if _, exists := codes[string(destinationCode)]; !exists {
+					return fmt.Errorf("models: chain %q: order %q references unknown assignment destination %q", chain.ID, order.ID, destinationCode)
+				}
+				for _, nobleCode := range assignedCodes {
+					if nobleCode == "*" {
+						continue
+					}
+					if _, exists := nobleCodes[string(nobleCode)]; !exists {
+						return fmt.Errorf("models: chain %q: order %q references unknown assigned noble %q", chain.ID, order.ID, nobleCode)
+					}
+				}
+			}
+		}
+		chains[chain.ID] = chain
+	}
+	for chainID := range chains {
+		if sequence, isAllocatedID := chainSequence(chainID); isAllocatedID && sequence >= g.NextChainID {
+			return fmt.Errorf("models: next chain id %d must be greater than stored chain %q", g.NextChainID, chainID)
+		}
+	}
+
+	// 8. Infrastructures: unique ids, valid type, level >= 1, existing
 	// territory, presence in the territory state's infrastructure list.
 	// Infrastructures have no owner: they belong to their tile (GDD §3).
 	infras := make(map[InfraID]*Infrastructure, len(g.Infrastructures))
@@ -213,7 +311,7 @@ func (g *GameState) Validate() error {
 		infras[in.ID] = in
 	}
 
-	// 8. Territory states: exact coverage, valid owners, and a valid army
+	// 9. Territory states: exact coverage, valid owners, and a valid army
 	// pointer whose territory agrees with the map key. At most one
 	// infrastructure is allowed per territory (GDD §3), and resources are
 	// non-negative.
@@ -255,6 +353,24 @@ func (g *GameState) Validate() error {
 			return fmt.Errorf("models: army %q: territory %q does not reference it", id, army.TerritoryID)
 		}
 	}
+	for id, army := range armies {
+		if army.ChainID == nil {
+			continue
+		}
+		chain := chains[*army.ChainID]
+		if chain == nil {
+			return fmt.Errorf("models: army %q: references unknown chain %q", id, *army.ChainID)
+		}
+		if chain.ArmyID != id {
+			return fmt.Errorf("models: army %q: chain %q belongs to army %q", id, *army.ChainID, chain.ArmyID)
+		}
+	}
+	for id, chain := range chains {
+		army := armies[chain.ArmyID]
+		if army.ChainID == nil || *army.ChainID != id {
+			return fmt.Errorf("models: chain %q: army %q does not reference it", id, chain.ArmyID)
+		}
+	}
 	for id := range terrs {
 		if _, ok := g.TerritoryStates[id]; !ok {
 			return fmt.Errorf("models: territory %q: missing TerritoryState entry", id)
@@ -274,4 +390,16 @@ func isCode(s string, n int) bool {
 		}
 	}
 	return true
+}
+
+func chainSequence(id ChainID) (int, bool) {
+	value := string(id)
+	if len(value) < 2 || value[0] != 'C' {
+		return 0, false
+	}
+	sequence, err := strconv.Atoi(value[1:])
+	if err != nil || sequence < 1 {
+		return 0, false
+	}
+	return sequence, true
 }

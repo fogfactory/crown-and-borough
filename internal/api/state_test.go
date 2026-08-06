@@ -38,8 +38,24 @@ func TestProjectStateMatchesStateContract(t *testing.T) {
 	if got := view.Territories[0]; got.Owner == nil || *got.Owner != "P1" || got.Resources != 3 {
 		t.Errorf("T01 view = %+v, want P1 with 3 resources", got)
 	}
-	if got := view.Territories[0].Army; got == nil || !reflect.DeepEqual(*got, ArmyView{Owner: "P1", Size: 1}) {
-		t.Errorf("T01 army = %#v, want owner P1 and size 1", got)
+	if got := view.Territories[0].Army; got == nil || got.Owner != "P1" || got.Size != 1 || got.Chain == nil {
+		t.Errorf("T01 army = %#v, want owner P1, size 1, and a chain", got)
+	} else {
+		want := &ChainView{
+			Noble:        "HUG",
+			CurrentIndex: 1,
+			Orders: []OrderView{
+				{Type: models.OrderTypeAttack, Position: "ROS", Targets: []models.TerritoryCode{"BOI"}, Liaison: models.LiaisonModeSingle},
+				{Type: models.OrderTypeDisperse, Position: "BOI", Targets: []models.TerritoryCode{"BOI"}, NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"BOI": {"HUG"}}, Liaison: models.LiaisonModeLoop},
+				{Type: models.OrderTypeHostage, Position: "BOI", NobleTargets: []models.NobleCode{"HUG"}, Liaison: models.LiaisonModeSingle},
+			},
+		}
+		if !reflect.DeepEqual(got.Chain, want) {
+			t.Errorf("T01 chain = %#v, want %#v", got.Chain, want)
+		}
+	}
+	if got := view.Territories[1].Army; got == nil || got.Chain != nil {
+		t.Errorf("T02 army = %#v, want an army with chain nil", got)
 	}
 	if view.Territories[2].Army != nil {
 		t.Errorf("T03 army = %#v, want nil", view.Territories[2].Army)
@@ -47,7 +63,7 @@ func TestProjectStateMatchesStateContract(t *testing.T) {
 	if got := view.Territories[0].Infrastructures; !reflect.DeepEqual(got, []InfraView{{Type: models.InfraTypeCastle, Level: 1}}) {
 		t.Errorf("T01 infrastructure = %#v, want nested castle", got)
 	}
-	if len(view.Nobles) != 1 || view.Nobles[0] != (NobleView{ID: "N1", Name: "Hugues de Rosemont", Owner: "P1", Location: "T01"}) {
+	if len(view.Nobles) != 1 || view.Nobles[0] != (NobleView{ID: "N1", Code: "HUG", Name: "Hugues de Rosemont", Owner: "P1", Location: "T01", Status: models.NobleStatusFree}) {
 		t.Errorf("nobles = %#v, want N1", view.Nobles)
 	}
 
@@ -240,12 +256,21 @@ func projectTestState() *models.GameState {
 			{ID: "T04", Code: "FOU", Name: "Fougères", Terrain: models.TerrainSwamp, Adjacencies: []models.TerritoryID{"T03", "T01"}},
 		},
 		Nobles: []models.Noble{
-			{ID: "N1", Code: "HUG", Name: "Hugues de Rosemont", OwnerID: p1, LocationID: "T01"},
+			{ID: "N1", Code: "HUG", Name: "Hugues de Rosemont", OwnerID: p1, LocationID: "T01", Status: models.NobleStatusFree},
 		},
 		Armies: []models.Army{
-			{ID: "A1", OwnerID: p1, TerritoryID: "T01", Size: 1},
+			{ID: "A1", OwnerID: p1, TerritoryID: "T01", Size: 1, ChainID: ptrChainID("C1")},
 			{ID: "A2", OwnerID: p2, TerritoryID: "T02", Size: 2},
 		},
+		Chains: []models.Chain{{
+			ID: "C1", NobleID: "N1", ArmyID: "A1", CurrentIndex: 1,
+			Orders: []models.Order{
+				{ID: "O1", Type: models.OrderTypeAttack, ArmyID: "A1", PositionID: "T01", TargetIDs: []models.TerritoryID{"T02"}, NobleTargetIDs: []models.NobleID{}, Liaison: models.LiaisonModeSingle},
+				{ID: "O2", Type: models.OrderTypeDisperse, ArmyID: "A1", PositionID: "T02", TargetIDs: []models.TerritoryID{"T02"}, NobleTargetIDs: []models.NobleID{}, NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"BOI": {"HUG"}}, Liaison: models.LiaisonModeLoop},
+				{ID: "O3", Type: models.OrderTypeHostage, ArmyID: "A1", PositionID: "T02", TargetIDs: []models.TerritoryID{}, NobleTargetIDs: []models.NobleID{"N1"}, Liaison: models.LiaisonModeSingle},
+			},
+		}},
+		NextChainID: 2,
 		Infrastructures: []models.Infrastructure{
 			{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T01"},
 			{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "T04"},
@@ -266,6 +291,11 @@ func projectTestState() *models.GameState {
 func ptrArmyID(id string) *models.ArmyID {
 	armyID := models.ArmyID(id)
 	return &armyID
+}
+
+func ptrChainID(id string) *models.ChainID {
+	chainID := models.ChainID(id)
+	return &chainID
 }
 
 func assertStateJSONTypes(t *testing.T, document map[string]any) {
@@ -300,22 +330,64 @@ func assertStateJSONTypes(t *testing.T, document map[string]any) {
 		if _, ok := army["size"].(float64); !ok {
 			t.Errorf("army size JSON type = %T, want number", army["size"])
 		}
+		chain, ok := army["chain"].(map[string]any)
+		if !ok {
+			t.Errorf("army chain JSON type = %T, want object", army["chain"])
+		} else {
+			if _, hasID := chain["id"]; hasID {
+				t.Error("chain JSON must not expose its internal id")
+			}
+			if _, hasArmy := chain["army"]; hasArmy {
+				t.Error("chain JSON must not expose its internal army id")
+			}
+			if _, ok := chain["noble"].(string); !ok {
+				t.Errorf("chain noble JSON type = %T, want string", chain["noble"])
+			}
+			if _, ok := chain["currentIndex"].(float64); !ok {
+				t.Errorf("chain currentIndex JSON type = %T, want number", chain["currentIndex"])
+			}
+			orders, ok := chain["orders"].([]any)
+			if !ok || len(orders) == 0 {
+				t.Errorf("chain orders JSON = %#v, want non-empty array", chain["orders"])
+			} else if first, ok := orders[0].(map[string]any); !ok {
+				t.Errorf("first chain order JSON = %#v, want object", orders[0])
+			} else if _, hasID := first["id"]; hasID {
+				t.Error("chain order JSON must not expose its internal id")
+			}
+		}
 	}
 	if _, ok := territory["infrastructures"].([]any); !ok {
 		t.Errorf("infrastructures JSON type = %T, want array", territory["infrastructures"])
 	}
 	for _, rawTerritory := range territories {
 		candidate, ok := rawTerritory.(map[string]any)
-		if !ok || candidate["id"] != "T03" {
+		if !ok {
 			continue
 		}
-		if candidate["army"] != nil {
+		if candidate["id"] == "T03" && candidate["army"] != nil {
 			t.Errorf("T03 army JSON = %#v, want null", candidate["army"])
+		}
+		if candidate["id"] == "T02" {
+			army, ok := candidate["army"].(map[string]any)
+			if !ok {
+				t.Errorf("T02 army JSON = %#v, want object", candidate["army"])
+			} else if army["chain"] != nil {
+				t.Errorf("T02 chain JSON = %#v, want null", army["chain"])
+			}
 		}
 	}
 	nobles, ok := document["nobles"].([]any)
 	if !ok || len(nobles) != 1 {
 		t.Errorf("nobles JSON = %#v, want one-item array", document["nobles"])
+	} else if noble, ok := nobles[0].(map[string]any); !ok {
+		t.Errorf("first noble JSON = %#v, want object", nobles[0])
+	} else {
+		if _, ok := noble["code"].(string); !ok {
+			t.Errorf("noble code JSON type = %T, want string", noble["code"])
+		}
+		if _, ok := noble["status"].(string); !ok {
+			t.Errorf("noble status JSON type = %T, want string", noble["status"])
+		}
 	}
 }
 
