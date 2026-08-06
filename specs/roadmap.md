@@ -22,6 +22,7 @@ Trois paliers de "testable" successifs, chacun validé avant le suivant :
 - Persistance : **JSON d'abord** (1 fichier par partie), migration **Postgres/sqlc** ensuite.
 - Le **front est construit au fur et à mesure** du plan pour tester localement dès que possible.
 - Les **infrastructures n'ont pas de propriétaire** : elles appartiennent à leur case (celui qui contrôle la case en bénéficie). Construire un château sur un village le **remplace** (jamais deux structures par case).
+- **P1.2g — Armée unique par territoire :** le modèle conserve une armée `{owner, size}` au plus par territoire, avec un `ArmyID` interne global (`A1`, `A2`, …). Le front l'adresse par territoire et la caractérisation individuelle est différée.
 
 ## P0 — Fondations
 
@@ -55,7 +56,7 @@ Les raffinements P1.2a à P1.2g sont également suivis individuellement :
 | P1.2d — Géométrie et graphe | [prompt](prompts/p1.2d-geometrie-graphe.md) | Fait |
 | P1.2e — Production vivrière | [prompt](prompts/p1.2e-production-vivriere.md) | Fait |
 | P1.2f — État d'exemple | [prompt](prompts/p1.2f-etat-exemple.md) | Fait |
-| P1.2g — Armée : une par territoire (owner + taille) | [prompt](prompts/p1.2g-armee-unique-territoire.md) | Prompt écrit |
+| P1.2g — Armée : une par territoire (owner + taille) | [prompt](prompts/p1.2g-armee-unique-territoire.md) | Fait |
 
 1. Cellules Voronoï déterministes (seed) → territoires de tailles inégales.
 2. Extraction des arcs géométriques : toute paire de territoires intérieurs partageant au moins `minSharedEdges = 3` arêtes de grille forme un arc.

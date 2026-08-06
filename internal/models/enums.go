@@ -1,5 +1,5 @@
 // Package models defines the pure business model of the game engine: the
-// static entities (players, territories, nobles, troops, infrastructures), the
+// static entities (players, territories, nobles, armies, infrastructures), the
 // dynamic layer (territory state) and the invariants validated on the whole
 // GameState. It is stdlib-only (no web dependency, no ORM): JSON tags drive
 // serialization against the map.json and state.json contracts.

@@ -19,7 +19,7 @@ type GameState struct {
 	Players         []Player                       `json:"players"`
 	Territories     []Territory                    `json:"territories"`
 	Nobles          []Noble                        `json:"nobles"`
-	Troops          []Troop                        `json:"troops"`
+	Armies          []Army                         `json:"armies"`
 	Infrastructures []Infrastructure               `json:"infrastructures"`
 	TerritoryStates map[TerritoryID]TerritoryState `json:"territoryStates"`
 }
@@ -34,7 +34,7 @@ func NewGameState() *GameState {
 		Players:         []Player{},
 		Territories:     []Territory{},
 		Nobles:          []Noble{},
-		Troops:          []Troop{},
+		Armies:          []Army{},
 		Infrastructures: []Infrastructure{},
 		TerritoryStates: map[TerritoryID]TerritoryState{},
 	}
@@ -127,41 +127,31 @@ func (g *GameState) Validate() error {
 		}
 	}
 
-	// 5. Troops: unique ids, matricule unique per owner, existing owner and
-	// territory, and presence in the territory state's troop list.
-	troops := make(map[TroopID]*Troop, len(g.Troops))
-	matricules := make(map[PlayerID]map[int]bool)
-	for i := range g.Troops {
-		t := &g.Troops[i]
-		if t.ID == "" {
-			return fmt.Errorf("models: troop: empty id")
+	// 5. Armies: unique ids, existing owner and territory, positive size, and
+	// a TerritoryState entry for the army's territory. The reverse index check
+	// is completed after territory states have validated their pointers.
+	armies := make(map[ArmyID]*Army, len(g.Armies))
+	for i := range g.Armies {
+		army := &g.Armies[i]
+		if army.ID == "" {
+			return fmt.Errorf("models: army: empty id")
 		}
-		if _, dup := troops[t.ID]; dup {
-			return fmt.Errorf("models: troop %q: duplicate id", t.ID)
+		if _, dup := armies[army.ID]; dup {
+			return fmt.Errorf("models: army %q: duplicate id", army.ID)
 		}
-		if !players[t.OwnerID] {
-			return fmt.Errorf("models: troop %q: unknown owner %q", t.ID, t.OwnerID)
+		if !players[army.OwnerID] {
+			return fmt.Errorf("models: army %q: unknown owner %q", army.ID, army.OwnerID)
 		}
-		if terrs[t.TerritoryID] == nil {
-			return fmt.Errorf("models: troop %q: unknown territory %q", t.ID, t.TerritoryID)
+		if terrs[army.TerritoryID] == nil {
+			return fmt.Errorf("models: army %q: unknown territory %q", army.ID, army.TerritoryID)
 		}
-		seen, ok := matricules[t.OwnerID]
-		if !ok {
-			seen = make(map[int]bool)
-			matricules[t.OwnerID] = seen
+		if army.Size < 1 {
+			return fmt.Errorf("models: army %q: size must be >= 1, got %d", army.ID, army.Size)
 		}
-		if seen[t.Matricule] {
-			return fmt.Errorf("models: troop %q: duplicate matricule %d for owner %q", t.ID, t.Matricule, t.OwnerID)
+		if _, ok := g.TerritoryStates[army.TerritoryID]; !ok {
+			return fmt.Errorf("models: army %q: missing TerritoryState for territory %q", army.ID, army.TerritoryID)
 		}
-		seen[t.Matricule] = true
-		st, ok := g.TerritoryStates[t.TerritoryID]
-		if !ok {
-			return fmt.Errorf("models: troop %q: missing TerritoryState for territory %q", t.ID, t.TerritoryID)
-		}
-		if !slices.Contains(st.Troops, t.ID) {
-			return fmt.Errorf("models: troop %q: territory %q does not list it in its troops", t.ID, t.TerritoryID)
-		}
-		troops[t.ID] = t
+		armies[army.ID] = army
 	}
 
 	// 6. Nobles: unique ids, trigram code unique within the game, existing
@@ -223,10 +213,10 @@ func (g *GameState) Validate() error {
 		infras[in.ID] = in
 	}
 
-	// 8. Territory states: exact coverage, valid owners, existing and
-	// consistent entity ids in both directions, no duplicate troop id within
-	// a list, at most one infrastructure per territory (GDD §3), non-negative
-	// resources.
+	// 8. Territory states: exact coverage, valid owners, and a valid army
+	// pointer whose territory agrees with the map key. At most one
+	// infrastructure is allowed per territory (GDD §3), and resources are
+	// non-negative.
 	for id, st := range g.TerritoryStates {
 		if terrs[id] == nil {
 			return fmt.Errorf("models: territoryState: %q references unknown territory", id)
@@ -237,18 +227,13 @@ func (g *GameState) Validate() error {
 		if st.OwnerID != nil && !players[*st.OwnerID] {
 			return fmt.Errorf("models: territoryState %q: unknown owner %q", id, *st.OwnerID)
 		}
-		seenTroops := make(map[TroopID]bool, len(st.Troops))
-		for _, tid := range st.Troops {
-			if seenTroops[tid] {
-				return fmt.Errorf("models: territoryState %q: duplicate troop %q", id, tid)
+		if st.Army != nil {
+			army := armies[*st.Army]
+			if army == nil {
+				return fmt.Errorf("models: territoryState %q: unknown army %q", id, *st.Army)
 			}
-			seenTroops[tid] = true
-			t := troops[tid]
-			if t == nil {
-				return fmt.Errorf("models: territoryState %q: unknown troop %q", id, tid)
-			}
-			if t.TerritoryID != id {
-				return fmt.Errorf("models: territoryState %q: troop %q is stationed in territory %q", id, tid, t.TerritoryID)
+			if army.TerritoryID != id {
+				return fmt.Errorf("models: territoryState %q: army %q is stationed in territory %q", id, *st.Army, army.TerritoryID)
 			}
 		}
 		if len(st.Infrastructures) > 1 {
@@ -262,6 +247,12 @@ func (g *GameState) Validate() error {
 			if in.TerritoryID != id {
 				return fmt.Errorf("models: territoryState %q: infrastructure %q is built in territory %q", id, iid, in.TerritoryID)
 			}
+		}
+	}
+	for id, army := range armies {
+		st := g.TerritoryStates[army.TerritoryID]
+		if st.Army == nil || *st.Army != id {
+			return fmt.Errorf("models: army %q: territory %q does not reference it", id, army.TerritoryID)
 		}
 	}
 	for id := range terrs {

@@ -44,7 +44,7 @@ func DemoState(seed string, assets assetgen.Assets, mapData mapgen.MapData, play
 		Players:         make([]models.Player, 0, players),
 		Territories:     make([]models.Territory, 0, len(mapData.Territories)),
 		Nobles:          make([]models.Noble, 0, players),
-		Troops:          make([]models.Troop, 0, players*3),
+		Armies:          make([]models.Army, 0, players*2),
 		Infrastructures: make([]models.Infrastructure, 0, players+len(mapData.Territories)+3),
 		TerritoryStates: make(map[models.TerritoryID]models.TerritoryState, len(mapData.Territories)),
 	}
@@ -74,7 +74,6 @@ func DemoState(seed string, assets assetgen.Assets, mapData mapgen.MapData, play
 			Adjacencies: adjacencies,
 		})
 		state.TerritoryStates[id] = models.TerritoryState{
-			Troops:          []models.TroopID{},
 			Infrastructures: []models.InfraID{},
 		}
 		territoriesByID[id] = territory
@@ -166,27 +165,26 @@ func DemoState(seed string, assets assetgen.Assets, mapData mapgen.MapData, play
 
 	secondArmyLocations := make([]models.TerritoryID, players)
 	for index, territories := range controlled {
-		location := controlledTroopLocation(starts[index], territories, territoriesByID)
-		if location == "" {
-			return nil, fmt.Errorf("demo: player %s: cannot place a second army on an adjacent controlled territory", state.Players[index].ID)
-		}
-		secondArmyLocations[index] = location
+		secondArmyLocations[index] = controlledArmyLocation(
+			starts[index],
+			territories,
+			territoriesByID,
+			newRNG(seed, fmt.Sprintf("army-location-%d", index)),
+		)
 	}
 
-	nextTroopID := 1
+	nextArmyID := 1
 	for index := range controlled {
 		owner := state.Players[index].ID
 		start := starts[index]
-		if err := addTroop(state, &nextTroopID, owner, 1, start); err != nil {
+		if err := addArmy(state, &nextArmyID, owner, start, 1); err != nil {
 			return nil, err
 		}
 
-		troopLocation := secondArmyLocations[index]
-		if err := addTroop(state, &nextTroopID, owner, 2, troopLocation); err != nil {
-			return nil, err
-		}
-		if err := addTroop(state, &nextTroopID, owner, 3, troopLocation); err != nil {
-			return nil, err
+		if armyLocation := secondArmyLocations[index]; armyLocation != "" {
+			if err := addArmy(state, &nextArmyID, owner, armyLocation, 2); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -493,29 +491,36 @@ func withoutTerritory(territories []models.TerritoryID, excluded models.Territor
 	return filtered
 }
 
-func addTroop(state *models.GameState, nextID *int, owner models.PlayerID, matricule int, territoryID models.TerritoryID) error {
+func addArmy(state *models.GameState, nextID *int, owner models.PlayerID, territoryID models.TerritoryID, size int) error {
 	territoryState, ok := state.TerritoryStates[territoryID]
 	if !ok {
 		return fmt.Errorf("demo: unknown territory %q", territoryID)
 	}
+	if territoryState.Army != nil {
+		return fmt.Errorf("demo: territory %q already has an army", territoryID)
+	}
+	if size < 1 {
+		return fmt.Errorf("demo: army size must be >= 1, got %d", size)
+	}
 
-	id := models.TroopID(fmt.Sprintf("TR%d", *nextID))
-	state.Troops = append(state.Troops, models.Troop{
+	id := models.ArmyID(fmt.Sprintf("A%d", *nextID))
+	state.Armies = append(state.Armies, models.Army{
 		ID:          id,
-		Matricule:   matricule,
 		OwnerID:     owner,
 		TerritoryID: territoryID,
+		Size:        size,
 	})
-	territoryState.Troops = append(territoryState.Troops, id)
+	territoryState.Army = &id
 	state.TerritoryStates[territoryID] = territoryState
 	*nextID = *nextID + 1
 	return nil
 }
 
-func controlledTroopLocation(
+func controlledArmyLocation(
 	start models.TerritoryID,
 	controlled []models.TerritoryID,
 	territoriesByID map[models.TerritoryID]mapgen.Territory,
+	rng *rand.Rand,
 ) models.TerritoryID {
 	if len(controlled) < 2 {
 		return ""
@@ -524,12 +529,17 @@ func controlledTroopLocation(
 	for _, territoryID := range controlled[1:] {
 		controlledSet[territoryID] = true
 	}
+	candidates := make([]models.TerritoryID, 0, len(controlledSet))
 	for _, adjacent := range territoriesByID[start].Adjacencies {
 		if territoryID := models.TerritoryID(adjacent); controlledSet[territoryID] {
-			return territoryID
+			candidates = append(candidates, territoryID)
 		}
 	}
-	return ""
+	if len(candidates) == 0 {
+		return ""
+	}
+	shuffle(rng, candidates)
+	return candidates[0]
 }
 
 func playerIDPointer(id models.PlayerID) *models.PlayerID {

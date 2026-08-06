@@ -38,8 +38,11 @@ func TestProjectStateMatchesStateContract(t *testing.T) {
 	if got := view.Territories[0]; got.Owner == nil || *got.Owner != "P1" || got.Resources != 3 {
 		t.Errorf("T01 view = %+v, want P1 with 3 resources", got)
 	}
-	if got := view.Territories[0].Troops; !reflect.DeepEqual(got, []TroopView{{ID: "TR1", Owner: "P1"}}) {
-		t.Errorf("T01 troops = %#v, want nested TR1", got)
+	if got := view.Territories[0].Army; got == nil || !reflect.DeepEqual(*got, ArmyView{Owner: "P1", Size: 1}) {
+		t.Errorf("T01 army = %#v, want owner P1 and size 1", got)
+	}
+	if view.Territories[2].Army != nil {
+		t.Errorf("T03 army = %#v, want nil", view.Territories[2].Army)
 	}
 	if got := view.Territories[0].Infrastructures; !reflect.DeepEqual(got, []InfraView{{Type: models.InfraTypeCastle, Level: 1}}) {
 		t.Errorf("T01 infrastructure = %#v, want nested castle", got)
@@ -89,15 +92,10 @@ func TestProjectStateFreshnessAndNesting(t *testing.T) {
 	for _, territory := range view.Territories {
 		viewByID[territory.ID] = territory
 	}
-	for _, troop := range state.Troops {
-		found := false
-		for _, projected := range viewByID[troop.TerritoryID].Troops {
-			if projected.ID == troop.ID && projected.Owner == troop.OwnerID {
-				found = true
-			}
-		}
-		if !found {
-			t.Errorf("troop %s is not nested in %s", troop.ID, troop.TerritoryID)
+	for _, army := range state.Armies {
+		projected := viewByID[army.TerritoryID].Army
+		if projected == nil || projected.Owner != army.OwnerID || projected.Size != army.Size {
+			t.Errorf("army %s is not nested in %s as owner %s size %d", army.ID, army.TerritoryID, army.OwnerID, army.Size)
 		}
 	}
 	for _, infrastructure := range state.Infrastructures {
@@ -244,25 +242,30 @@ func projectTestState() *models.GameState {
 		Nobles: []models.Noble{
 			{ID: "N1", Code: "HUG", Name: "Hugues de Rosemont", OwnerID: p1, LocationID: "T01"},
 		},
-		Troops: []models.Troop{
-			{ID: "TR1", Matricule: 1, OwnerID: p1, TerritoryID: "T01"},
-			{ID: "TR2", Matricule: 1, OwnerID: p2, TerritoryID: "T02"},
+		Armies: []models.Army{
+			{ID: "A1", OwnerID: p1, TerritoryID: "T01", Size: 1},
+			{ID: "A2", OwnerID: p2, TerritoryID: "T02", Size: 2},
 		},
 		Infrastructures: []models.Infrastructure{
 			{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T01"},
 			{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "T04"},
 		},
 		TerritoryStates: map[models.TerritoryID]models.TerritoryState{
-			"T01": {OwnerID: &p1, Resources: 3, Troops: []models.TroopID{"TR1"}, Infrastructures: []models.InfraID{"I1"}},
-			"T02": {OwnerID: &p2, Resources: 0, Troops: []models.TroopID{"TR2"}, Infrastructures: []models.InfraID{}},
-			"T03": {OwnerID: nil, Resources: 0, Troops: []models.TroopID{}, Infrastructures: []models.InfraID{}},
-			"T04": {OwnerID: nil, Resources: 0, Troops: []models.TroopID{}, Infrastructures: []models.InfraID{"I2"}},
+			"T01": {OwnerID: &p1, Resources: 3, Army: ptrArmyID("A1"), Infrastructures: []models.InfraID{"I1"}},
+			"T02": {OwnerID: &p2, Resources: 0, Army: ptrArmyID("A2"), Infrastructures: []models.InfraID{}},
+			"T03": {OwnerID: nil, Resources: 0, Infrastructures: []models.InfraID{}},
+			"T04": {OwnerID: nil, Resources: 0, Infrastructures: []models.InfraID{"I2"}},
 		},
 	}
 	if err := state.Validate(); err != nil {
 		panic(err)
 	}
 	return state
+}
+
+func ptrArmyID(id string) *models.ArmyID {
+	armyID := models.ArmyID(id)
+	return &armyID
 }
 
 func assertStateJSONTypes(t *testing.T, document map[string]any) {
@@ -284,11 +287,31 @@ func assertStateJSONTypes(t *testing.T, document map[string]any) {
 	if !ok {
 		t.Fatalf("first territory JSON = %#v, want object", territories[0])
 	}
-	if _, ok := territory["troops"].([]any); !ok {
-		t.Errorf("troops JSON type = %T, want array", territory["troops"])
+	army, ok := territory["army"].(map[string]any)
+	if !ok {
+		t.Errorf("army JSON type = %T, want object", territory["army"])
+	} else {
+		if _, hasID := army["id"]; hasID {
+			t.Error("army JSON must not expose its internal id")
+		}
+		if _, ok := army["owner"].(string); !ok {
+			t.Errorf("army owner JSON type = %T, want string", army["owner"])
+		}
+		if _, ok := army["size"].(float64); !ok {
+			t.Errorf("army size JSON type = %T, want number", army["size"])
+		}
 	}
 	if _, ok := territory["infrastructures"].([]any); !ok {
 		t.Errorf("infrastructures JSON type = %T, want array", territory["infrastructures"])
+	}
+	for _, rawTerritory := range territories {
+		candidate, ok := rawTerritory.(map[string]any)
+		if !ok || candidate["id"] != "T03" {
+			continue
+		}
+		if candidate["army"] != nil {
+			t.Errorf("T03 army JSON = %#v, want null", candidate["army"])
+		}
 	}
 	nobles, ok := document["nobles"].([]any)
 	if !ok || len(nobles) != 1 {

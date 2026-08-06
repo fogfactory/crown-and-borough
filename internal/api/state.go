@@ -27,14 +27,15 @@ type TerritoryView struct {
 	ID              models.TerritoryID `json:"id"`
 	Owner           *models.PlayerID   `json:"owner"`
 	Resources       int                `json:"resources"`
-	Troops          []TroopView        `json:"troops"`
+	Army            *ArmyView          `json:"army"`
 	Infrastructures []InfraView        `json:"infrastructures"`
 }
 
-// TroopView contains the visible identity and owner of a troop.
-type TroopView struct {
-	ID    models.TroopID  `json:"id"`
+// ArmyView contains the visible owner and size of an army. Its ID is an
+// internal storage detail: the frontend addresses an army by territory.
+type ArmyView struct {
 	Owner models.PlayerID `json:"owner"`
+	Size  int             `json:"size"`
 }
 
 // InfraView contains the visible kind and level of an infrastructure.
@@ -67,9 +68,9 @@ func projectState(state *models.GameState, freshness map[models.TerritoryID]int)
 	view.Territories = make([]TerritoryView, 0, len(state.Territories))
 	view.Nobles = make([]NobleView, 0, len(state.Nobles))
 
-	troopsByID := make(map[models.TroopID]models.Troop, len(state.Troops))
-	for _, troop := range state.Troops {
-		troopsByID[troop.ID] = troop
+	armiesByID := make(map[models.ArmyID]models.Army, len(state.Armies))
+	for _, army := range state.Armies {
+		armiesByID[army.ID] = army
 	}
 	infrastructuresByID := make(map[models.InfraID]models.Infrastructure, len(state.Infrastructures))
 	for _, infrastructure := range state.Infrastructures {
@@ -88,15 +89,14 @@ func projectState(state *models.GameState, freshness map[models.TerritoryID]int)
 			ID:              territory.ID,
 			Owner:           territoryState.OwnerID,
 			Resources:       territoryState.Resources,
-			Troops:          make([]TroopView, 0, len(territoryState.Troops)),
 			Infrastructures: make([]InfraView, 0, len(territoryState.Infrastructures)),
 		}
-		for _, troopID := range territoryState.Troops {
-			if troop, ok := troopsByID[troopID]; ok {
-				territoryView.Troops = append(territoryView.Troops, TroopView{
-					ID:    troop.ID,
-					Owner: troop.OwnerID,
-				})
+		if territoryState.Army != nil {
+			if army, ok := armiesByID[*territoryState.Army]; ok {
+				territoryView.Army = &ArmyView{
+					Owner: army.OwnerID,
+					Size:  army.Size,
+				}
 			}
 		}
 		for _, infrastructureID := range territoryState.Infrastructures {

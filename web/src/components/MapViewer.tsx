@@ -338,7 +338,9 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
     if (territoryState.owner) {
       owners.add(territoryState.owner)
     }
-    territoryState.troops.forEach((troop) => owners.add(troop.owner))
+    if (territoryState.army) {
+      owners.add(territoryState.army.owner)
+    }
   })
   state.nobles.forEach((noble) => owners.add(noble.owner))
 
@@ -647,29 +649,29 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
                         y={centerY - 25}
                       />
                     ))}
-                    {territoryState.troops.map((troop, index) => (
-                      <g key={troop.id}>
-                        <title>{`${troop.id}, ${troop.owner}`}</title>
+                    {territoryState.army && (
+                      <g key={`${territory.id}-army`}>
+                        <title>{`Armée de ${territoryState.army.owner}, taille ${territoryState.army.size}`}</title>
                         <circle
-                          cx={centerX - 8 + index * 16}
+                          cx={centerX - 9}
                           cy={centerY + 26}
-                          r="7"
-                          fill={playerColors.get(troop.owner) ?? '#475569'}
+                          r="9"
+                          fill={playerColors.get(territoryState.army.owner) ?? '#475569'}
                           stroke="#fff8e7"
                           strokeWidth="2"
                         />
                         <text
-                          x={centerX - 8 + index * 16}
+                          x={centerX - 9}
                           y={centerY + 29}
                           fill="#fff8e7"
-                          fontSize="7"
-                          fontWeight="700"
+                          fontSize="9"
+                          fontWeight="800"
                           textAnchor="middle"
                         >
-                          {troop.id.slice(2)}
+                          {territoryState.army.size}
                         </text>
                       </g>
-                    ))}
+                    )}
                     {territoryNobles.map((noble, index) => (
                       <NobleMarker
                         key={noble.id}
@@ -777,7 +779,7 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
               </div>
               <div className="flex items-center gap-2">
                 <span className="size-3 shrink-0 rounded-full border-2 border-[#fff8e7] bg-[#a84632]" />
-                <span>Troupe</span>
+                <span>Armée (pastille numérotée)</span>
               </div>
               <div className="flex items-center gap-2">
                 <svg

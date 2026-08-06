@@ -9,9 +9,9 @@ export type PlayerId = string
 
 export type Point = [number, number]
 
-export interface Troop {
-  id: string
+export interface Army {
   owner: PlayerId
+  size: number
 }
 
 export interface Infrastructure {
@@ -45,7 +45,7 @@ export interface TerritoryState {
   id: string
   owner: PlayerId | null
   resources: number
-  troops: Troop[]
+  army: Army | null
   infrastructures: Infrastructure[]
 }
 

@@ -3,6 +3,7 @@ package demo
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -55,9 +56,10 @@ func TestDemoStateStagesAPlausibleMidGame(t *testing.T) {
 			if len(state.Nobles) != players {
 				t.Errorf("nobles = %d, want %d", len(state.Nobles), players)
 			}
-			if len(state.Troops) != players*3 {
-				t.Errorf("troops = %d, want %d", len(state.Troops), players*3)
+			if len(state.Armies) != players*2 {
+				t.Errorf("armies = %d, want %d", len(state.Armies), players*2)
 			}
+			assertArmySizes(t, state, players*2)
 			assertStateReferences(t, state, mapData)
 			assertPlayerStaging(t, state)
 			assertVillageMaterialization(t, state, mapData)
@@ -180,14 +182,54 @@ func TestDemoStateFallsBackWhenVillagesAreScarce(t *testing.T) {
 	}
 }
 
-func TestControlledTroopLocationRequiresAdjacency(t *testing.T) {
+func TestDemoStateFallsBackToOneArmyWithoutAdjacentControlledTerritory(t *testing.T) {
+	assets := loadTestAssets(t)
+	mapData := fallbackMapData()
+	for index := 1; index < 3; index++ {
+		mapData.Territories[index].Village = true
+	}
+
+	var fallback *models.GameState
+	for index := 0; index < 20; index++ {
+		state, err := DemoState(fmt.Sprintf("fallback-army-%d", index), assets, mapData, 2)
+		if err != nil {
+			t.Fatalf("DemoState fallback candidate %d: %v", index, err)
+		}
+		armiesByOwner := make(map[models.PlayerID][]models.Army)
+		for _, army := range state.Armies {
+			armiesByOwner[army.OwnerID] = append(armiesByOwner[army.OwnerID], army)
+		}
+		for _, armies := range armiesByOwner {
+			if len(armies) == 1 && armies[0].Size == 1 {
+				fallback = state
+				break
+			}
+		}
+		if fallback != nil {
+			break
+		}
+	}
+	if fallback == nil {
+		t.Fatal("no deterministic fallback seed produced a player without an adjacent controlled territory")
+	}
+	if err := fallback.Validate(); err != nil {
+		t.Fatalf("fallback state validation: %v", err)
+	}
+	for _, army := range fallback.Armies {
+		if army.Size < 1 {
+			t.Errorf("fallback army %s has invalid size %d", army.ID, army.Size)
+		}
+	}
+}
+
+func TestControlledArmyLocationRequiresAdjacency(t *testing.T) {
 	mapData := fallbackMapData()
 	territoriesByID := make(map[models.TerritoryID]mapgen.Territory, len(mapData.Territories))
 	for _, territory := range mapData.Territories {
 		territoriesByID[models.TerritoryID(territory.ID)] = territory
 	}
-	if location := controlledTroopLocation("T01", []models.TerritoryID{"T01", "T03"}, territoriesByID); location != "" {
-		t.Errorf("non-adjacent troop location = %s, want none", location)
+	if location := controlledArmyLocation("T01", []models.TerritoryID{"T01", "T03"}, territoriesByID, newRNG("location-test", "army")); location != "" {
+		t.Errorf("non-adjacent army location = %s, want none", location)
 	}
 }
 
@@ -216,9 +258,26 @@ func assertStateReferences(t *testing.T, state *models.GameState, mapData mapgen
 	if len(state.TerritoryStates) != len(territories) {
 		t.Errorf("territory state coverage = %d, want %d", len(state.TerritoryStates), len(territories))
 	}
-	for _, troop := range state.Troops {
-		if !territories[troop.TerritoryID] {
-			t.Errorf("troop %s references unknown territory %s", troop.ID, troop.TerritoryID)
+	for _, army := range state.Armies {
+		if !territories[army.TerritoryID] {
+			t.Errorf("army %s references unknown territory %s", army.ID, army.TerritoryID)
+		}
+	}
+	for territoryID, territoryState := range state.TerritoryStates {
+		if territoryState.Army == nil {
+			continue
+		}
+		found := false
+		for _, army := range state.Armies {
+			if army.ID == *territoryState.Army {
+				found = true
+				if army.TerritoryID != territoryID {
+					t.Errorf("army %s is indexed by %s but stationed in %s", army.ID, territoryID, army.TerritoryID)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("territory %s references missing army %s", territoryID, *territoryState.Army)
 		}
 	}
 	for _, noble := range state.Nobles {
@@ -233,6 +292,33 @@ func assertStateReferences(t *testing.T, state *models.GameState, mapData mapgen
 	}
 }
 
+func assertArmySizes(t *testing.T, state *models.GameState, wantCount int) {
+	t.Helper()
+	if len(state.Armies) != wantCount {
+		return
+	}
+	seenIDs := make(map[models.ArmyID]bool, len(state.Armies))
+	seenTerritories := make(map[models.TerritoryID]bool, len(state.Armies))
+	totalSize := 0
+	for _, army := range state.Armies {
+		if seenIDs[army.ID] {
+			t.Errorf("duplicate army id %s", army.ID)
+		}
+		seenIDs[army.ID] = true
+		if seenTerritories[army.TerritoryID] {
+			t.Errorf("multiple armies on %s", army.TerritoryID)
+		}
+		seenTerritories[army.TerritoryID] = true
+		if army.Size != 1 && army.Size != 2 {
+			t.Errorf("army %s size = %d, want 1 or 2", army.ID, army.Size)
+		}
+		totalSize += army.Size
+	}
+	if totalSize != wantCount+wantCount/2 {
+		t.Errorf("total army size = %d, want %d", totalSize, wantCount+wantCount/2)
+	}
+}
+
 func assertPlayerStaging(t *testing.T, state *models.GameState) {
 	t.Helper()
 	infrastructures := make(map[models.InfraID]models.Infrastructure, len(state.Infrastructures))
@@ -243,7 +329,7 @@ func assertPlayerStaging(t *testing.T, state *models.GameState) {
 		controlled := 0
 		castles := 0
 		castleTerritory := models.TerritoryID("")
-		troops := 0
+		totalSize := 0
 		armyLocations := make(map[models.TerritoryID]bool)
 		nobles := 0
 		for territoryID, territoryState := range state.TerritoryStates {
@@ -257,10 +343,10 @@ func assertPlayerStaging(t *testing.T, state *models.GameState) {
 					castleTerritory = territoryID
 				}
 			}
-			for _, troopID := range territoryState.Troops {
-				for _, troop := range state.Troops {
-					if troop.ID == troopID && troop.OwnerID == player.ID {
-						troops++
+			if territoryState.Army != nil {
+				for _, army := range state.Armies {
+					if army.ID == *territoryState.Army && army.OwnerID == player.ID {
+						totalSize += army.Size
 						armyLocations[territoryID] = true
 					}
 				}
@@ -277,15 +363,15 @@ func assertPlayerStaging(t *testing.T, state *models.GameState) {
 		if castles != 1 {
 			t.Errorf("%s castles = %d, want 1", player.ID, castles)
 		}
-		if troops != 3 || len(armyLocations) != 2 {
-			t.Errorf("%s troops = %d across %d armies, want 3 across 2", player.ID, troops, len(armyLocations))
+		if totalSize != 3 || len(armyLocations) != 2 {
+			t.Errorf("%s total army size = %d across %d armies, want 3 across 2", player.ID, totalSize, len(armyLocations))
 		}
 		if nobles != 1 {
 			t.Errorf("%s nobles = %d, want 1", player.ID, nobles)
 		}
-		for _, troop := range state.Troops {
-			if troop.OwnerID == player.ID && troop.Matricule > 1 && !adjacentTerritories(state, castleTerritory, troop.TerritoryID) {
-				t.Errorf("%s troop %s is not adjacent to its castle", player.ID, troop.ID)
+		for _, army := range state.Armies {
+			if army.OwnerID == player.ID && army.Size > 1 && !adjacentTerritories(state, castleTerritory, army.TerritoryID) {
+				t.Errorf("%s army %s is not adjacent to its castle", player.ID, army.ID)
 			}
 		}
 	}

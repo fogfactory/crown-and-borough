@@ -1,13 +1,12 @@
 package models
 
 // ID types. UUIDs are not needed yet: short, readable identifiers such as
-// "T01", "TR1", "N1" identify the entities (architecture §4). "A*" ids are
-// retired (army now means the group of troops occupying a tile); "T" is
-// reserved for territories, so troops use the "TR" prefix. Distinct named
+// "T01", "A1", "N1" identify the entities (architecture §4). Army IDs use a
+// global A-prefix counter; T is reserved for territories. Distinct named
 // string types keep the domain explicit and prevent cross-type mixups.
 type PlayerID string
 type TerritoryID string
-type TroopID string
+type ArmyID string
 type NobleID string
 type InfraID string
 
@@ -30,15 +29,14 @@ type Territory struct {
 	Adjacencies []TerritoryID `json:"adjacencies"`
 }
 
-// Troop is a unit of force. Matricule is the troop number used for
-// tie-breaks: famine resolution starves the largest armies (groups) and then
-// the highest matricule (GDD §8), and the chain-reception rule picks the
-// troop with the lowest matricule (GDD §4).
-type Troop struct {
-	ID          TroopID     `json:"id"`
-	Matricule   int         `json:"matricule"` // troop number; famine tie-break (GDD §8)
+// Army is the single force entity stationed on a territory. Size is the
+// number of units in the army. When equal-size armies must be ordered, the
+// territory code is the lexicographic tie-break (GDD §4, §8).
+type Army struct {
+	ID          ArmyID      `json:"id"`
 	OwnerID     PlayerID    `json:"owner"`
 	TerritoryID TerritoryID `json:"territory"`
+	Size        int         `json:"size"`
 }
 
 // Noble is an immortal, non-combatant entity that emits at most one order
@@ -66,15 +64,15 @@ type Infrastructure struct {
 }
 
 // TerritoryState is the dynamic layer attached to a single territory: who
-// controls it, its stock of R, the troops stationed on it and the
+// controls it, its stock of R, the army stationed on it and the
 // infrastructures built on it. OwnerID is nil when the territory is neutral;
-// a castle construction does not imply control. Troops list the stationed
-// entities. Infrastructures follow the "Règle de la Structure Unique": at
-// most one per territory (GDD §3), which the pillage order then destroys
-// outright (GDD §6, §8) — no ordering or choice is ever needed.
+// a castle construction does not imply control. Army is nil when the territory
+// is empty. Infrastructures follow the "Règle de la Structure Unique": at most
+// one per territory (GDD §3), which the pillage order then destroys outright
+// (GDD §6, §8) — no ordering or choice is ever needed.
 type TerritoryState struct {
 	OwnerID         *PlayerID `json:"owner"` // nil = neutral
 	Resources       int       `json:"resources"`
-	Troops          []TroopID `json:"troops"`
+	Army            *ArmyID   `json:"army"`            // nil = no army
 	Infrastructures []InfraID `json:"infrastructures"` // at most one per territory (GDD §3)
 }

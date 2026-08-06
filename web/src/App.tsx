@@ -224,24 +224,21 @@ function App() {
 
                       <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">
                         <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
-                          Troupes
+                          Armée
                         </h3>
-                        {selectedState.troops.length > 0 ? (
-                          <ul className="space-y-1.5 text-sm">
-                            {selectedState.troops.map((troop) => (
-                              <li
-                                key={troop.id}
-                                className="flex items-center justify-between rounded-md bg-[#f3ead9] px-3 py-2"
-                              >
-                                <span className="font-semibold">{troop.id}</span>
-                                <span className="text-xs text-[#806f57]">
-                                  {troop.owner}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
+                        {selectedState.army ? (
+                          <div className="flex items-center justify-between rounded-md bg-[#f3ead9] px-3 py-2 text-sm">
+                            <span className="font-semibold">
+                              {ownerLabel(selectedState.army.owner)}
+                            </span>
+                            <span className="text-xs text-[#806f57]">
+                              {selectedState.army.size === 1
+                                ? '1 troupe'
+                                : `${selectedState.army.size} troupes`}
+                            </span>
+                          </div>
                         ) : (
-                          <p className="text-sm italic text-[#806f57]">Aucune troupe</p>
+                          <p className="text-sm italic text-[#806f57]">Aucune armée</p>
                         )}
                       </div>
 

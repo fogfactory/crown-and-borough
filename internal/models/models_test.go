@@ -15,8 +15,13 @@ func ptrID(id string) *models.PlayerID {
 	return &p
 }
 
+func ptrArmyID(id string) *models.ArmyID {
+	a := models.ArmyID(id)
+	return &a
+}
+
 // validState returns a complete, valid state: 2 players, 4 territories in a
-// ring with commune trigrams, 2 troops, 1 noble, 1 mill level 2 and 1 castle,
+// ring with commune trigrams, 2 armies, 1 noble, 1 mill level 2 and 1 castle,
 // 1 neutral territory, resources. Tests mutate a fresh instance to build
 // negative cases.
 func validState() *models.GameState {
@@ -33,9 +38,9 @@ func validState() *models.GameState {
 		{ID: "T03", Code: "BRU", Name: "Bruyères", Terrain: models.TerrainHill, Adjacencies: []models.TerritoryID{"T02", "T04"}},
 		{ID: "T04", Code: "FOU", Name: "Fougères", Terrain: models.TerrainSwamp, Adjacencies: []models.TerritoryID{"T03", "T01"}},
 	}
-	g.Troops = []models.Troop{
-		{ID: "TR1", Matricule: 1, OwnerID: "P1", TerritoryID: "T01"},
-		{ID: "TR2", Matricule: 1, OwnerID: "P2", TerritoryID: "T02"},
+	g.Armies = []models.Army{
+		{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1},
+		{ID: "A2", OwnerID: "P2", TerritoryID: "T02", Size: 2},
 	}
 	g.Nobles = []models.Noble{
 		{ID: "N1", Code: "HUG", Name: "Hugues", OwnerID: "P1", LocationID: "T01"},
@@ -45,8 +50,8 @@ func validState() *models.GameState {
 		{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T03"},
 	}
 	g.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
-		"T01": {OwnerID: ptrID("P1"), Resources: 5, Troops: []models.TroopID{"TR1"}, Infrastructures: []models.InfraID{"I1"}},
-		"T02": {OwnerID: ptrID("P2"), Resources: 0, Troops: []models.TroopID{"TR2"}},
+		"T01": {OwnerID: ptrID("P1"), Resources: 5, Army: ptrArmyID("A1"), Infrastructures: []models.InfraID{"I1"}},
+		"T02": {OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A2")},
 		"T03": {OwnerID: ptrID("P1"), Resources: 1, Infrastructures: []models.InfraID{"I2"}},
 		"T04": {OwnerID: nil, Resources: 0},
 	}
@@ -155,14 +160,6 @@ func TestValidateValidState(t *testing.T) {
 	}
 }
 
-// Two troops may share a matricule when they belong to different owners: the
-// tie-breaks (famine, chain reception) apply within a single owner.
-func TestValidateSameMatriculeAcrossOwners(t *testing.T) {
-	if err := validState().Validate(); err != nil {
-		t.Errorf("Validate() = %v, want nil (TR1 and TR2 both use matricule 1)", err)
-	}
-}
-
 func TestValidateErrors(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -192,26 +189,21 @@ func TestValidateErrors(t *testing.T) {
 		{"duplicate adjacency", func(g *models.GameState) {
 			g.Territories[0].Adjacencies = []models.TerritoryID{"T02", "T02"}
 		}, "duplicate adjacency"},
-		{"duplicate troop id", func(g *models.GameState) {
-			g.Troops = append(g.Troops, models.Troop{ID: "TR1", Matricule: 9, OwnerID: "P1", TerritoryID: "T02"})
+		{"duplicate army id", func(g *models.GameState) {
+			g.Armies = append(g.Armies, models.Army{ID: "A1", OwnerID: "P1", TerritoryID: "T02", Size: 1})
 		}, "duplicate id"},
-		{"duplicate matricule for same owner", func(g *models.GameState) {
-			g.Troops[1].OwnerID = "P1"
-		}, "duplicate matricule"},
-		{"troop unknown owner", func(g *models.GameState) { g.Troops[0].OwnerID = "P9" }, "unknown owner"},
-		{"troop unknown territory", func(g *models.GameState) { g.Troops[0].TerritoryID = "T99" }, "unknown territory"},
-		{"troop not listed in territory state", func(g *models.GameState) {
+		{"army size zero", func(g *models.GameState) { g.Armies[0].Size = 0 }, "size"},
+		{"army unknown owner", func(g *models.GameState) { g.Armies[0].OwnerID = "P9" }, "unknown owner"},
+		{"army unknown territory", func(g *models.GameState) { g.Armies[0].TerritoryID = "T99" }, "unknown territory"},
+		{"army not referenced by territory state", func(g *models.GameState) {
 			g.TerritoryStates["T01"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 5, Infrastructures: []models.InfraID{"I1"}}
-		}, "does not list it"},
-		{"state lists troop stationed elsewhere", func(g *models.GameState) {
-			g.TerritoryStates["T02"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Troops: []models.TroopID{"TR2", "TR1"}}
+		}, "does not reference it"},
+		{"state references army stationed elsewhere", func(g *models.GameState) {
+			g.TerritoryStates["T02"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A1")}
 		}, "stationed in"},
-		{"state lists unknown troop", func(g *models.GameState) {
-			g.TerritoryStates["T02"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Troops: []models.TroopID{"TR2", "TR9"}}
-		}, "unknown troop"},
-		{"duplicate troop in territory state", func(g *models.GameState) {
-			g.TerritoryStates["T02"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Troops: []models.TroopID{"TR2", "TR2"}}
-		}, "duplicate troop"},
+		{"state references unknown army", func(g *models.GameState) {
+			g.TerritoryStates["T02"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A9")}
+		}, "unknown army"},
 		{"duplicate noble id", func(g *models.GameState) {
 			g.Nobles = append(g.Nobles, models.Noble{ID: "N1", Code: "ANN", Name: "Anne", OwnerID: "P2", LocationID: "T02"})
 		}, "duplicate id"},
@@ -227,16 +219,16 @@ func TestValidateErrors(t *testing.T) {
 		{"infra level zero", func(g *models.GameState) { g.Infrastructures[0].Level = 0 }, "level"},
 		{"infra unknown territory", func(g *models.GameState) { g.Infrastructures[0].TerritoryID = "T99" }, "unknown territory"},
 		{"infra not listed in territory state", func(g *models.GameState) {
-			g.TerritoryStates["T01"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 5, Troops: []models.TroopID{"TR1"}}
+			g.TerritoryStates["T01"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 5, Army: ptrArmyID("A1")}
 		}, "does not list it"},
 		{"state lists infra built elsewhere", func(g *models.GameState) {
-			g.TerritoryStates["T02"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Troops: []models.TroopID{"TR2"}, Infrastructures: []models.InfraID{"I2"}}
+			g.TerritoryStates["T02"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A2"), Infrastructures: []models.InfraID{"I2"}}
 		}, "built in"},
 		{"state lists unknown infra", func(g *models.GameState) {
-			g.TerritoryStates["T02"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Troops: []models.TroopID{"TR2"}, Infrastructures: []models.InfraID{"I9"}}
+			g.TerritoryStates["T02"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A2"), Infrastructures: []models.InfraID{"I9"}}
 		}, "unknown infrastructure"},
 		{"multiple infrastructures in territory state", func(g *models.GameState) {
-			g.TerritoryStates["T01"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 5, Troops: []models.TroopID{"TR1"}, Infrastructures: []models.InfraID{"I1", "I2"}}
+			g.TerritoryStates["T01"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 5, Army: ptrArmyID("A1"), Infrastructures: []models.InfraID{"I1", "I2"}}
 		}, "multiple infrastructures"},
 		{"missing territory state entry", func(g *models.GameState) {
 			delete(g.TerritoryStates, "T04")
@@ -248,7 +240,7 @@ func TestValidateErrors(t *testing.T) {
 			g.TerritoryStates["T04"] = models.TerritoryState{OwnerID: ptrID("P9")}
 		}, "unknown owner"},
 		{"negative resources", func(g *models.GameState) {
-			g.TerritoryStates["T01"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: -1, Troops: []models.TroopID{"TR1"}, Infrastructures: []models.InfraID{"I1"}}
+			g.TerritoryStates["T01"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: -1, Army: ptrArmyID("A1"), Infrastructures: []models.InfraID{"I1"}}
 		}, "negative resources"},
 	}
 	for _, tc := range cases {
@@ -311,6 +303,9 @@ func TestGameStateJSONRoundTrip(t *testing.T) {
 	if bytes.Contains(infraJSON, []byte(`"owner"`)) {
 		t.Errorf("infrastructure JSON %s still contains an owner field", infraJSON)
 	}
+	if !bytes.Contains(data, []byte(`"armies"`)) || !bytes.Contains(data, []byte(`"army":"A1"`)) || !bytes.Contains(data, []byte(`"army":null`)) {
+		t.Errorf("GameState JSON %s does not contain the army list and nullable territory army pointers", data)
+	}
 	var got models.GameState
 	if err := json.Unmarshal(data, &got); err != nil {
 		t.Fatalf("Unmarshal: %v", err)
@@ -329,7 +324,7 @@ func TestNewGameStateJSONEmptyCollections(t *testing.T) {
 		t.Fatalf("Marshal: %v", err)
 	}
 	for _, key := range []string{
-		`"players":[]`, `"territories":[]`, `"nobles":[]`, `"troops":[]`,
+		`"players":[]`, `"territories":[]`, `"nobles":[]`, `"armies":[]`,
 		`"infrastructures":[]`, `"territoryStates":{}`,
 	} {
 		if !bytes.Contains(data, []byte(key)) {
