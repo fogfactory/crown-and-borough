@@ -47,6 +47,7 @@ func validState() *models.GameState {
 		{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1},
 		{ID: "A2", OwnerID: "P2", TerritoryID: "T02", Size: 2},
 	}
+	g.NextArmyID = 3
 	g.Nobles = []models.Noble{
 		{ID: "N1", Code: "HUG", Name: "Hugues", OwnerID: "P1", LocationID: "T01", Status: models.NobleStatusFree},
 	}
@@ -169,6 +170,9 @@ func TestNewGameState(t *testing.T) {
 	if g.Season != models.SeasonSpring {
 		t.Errorf("Season = %q, want %q", g.Season, models.SeasonSpring)
 	}
+	if g.NextArmyID != 1 {
+		t.Errorf("NextArmyID = %d, want 1", g.NextArmyID)
+	}
 	if err := g.Validate(); err != nil {
 		t.Errorf("Validate() = %v, want nil", err)
 	}
@@ -255,6 +259,8 @@ func TestValidateErrors(t *testing.T) {
 		{"noble negative last emission turn", func(g *models.GameState) { g.Nobles[0].LastEmissionTurn = -1 }, "last emission turn"},
 		{"noble future last emission turn", func(g *models.GameState) { g.Nobles[0].LastEmissionTurn = g.Turn + 1 }, "last emission turn"},
 		{"next chain id zero", func(g *models.GameState) { g.NextChainID = 0 }, "next chain id"},
+		{"next army id zero", func(g *models.GameState) { g.NextArmyID = 0 }, "next army id"},
+		{"next army id collides with stored army", func(g *models.GameState) { g.NextArmyID = 2 }, "next army id"},
 		{"duplicate infrastructure id", func(g *models.GameState) {
 			g.Infrastructures = append(g.Infrastructures, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "T02"})
 		}, "duplicate id"},

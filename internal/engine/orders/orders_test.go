@@ -473,6 +473,7 @@ func orderTestState() *models.GameState {
 		{ID: a1, OwnerID: p1, TerritoryID: "T01", Size: 2},
 		{ID: a2, OwnerID: p2, TerritoryID: "T02", Size: 1},
 	}
+	game.NextArmyID = 3
 	game.Nobles = []models.Noble{
 		{ID: "N1", Code: "JEA", Name: "Jean", OwnerID: p1, LocationID: "T01", Status: models.NobleStatusFree},
 		{ID: "N2", Code: "ANN", Name: "Anne", OwnerID: p1, LocationID: "T01", Status: models.NobleStatusFree},

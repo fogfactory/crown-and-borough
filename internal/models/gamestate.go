@@ -23,6 +23,7 @@ type GameState struct {
 	Armies          []Army                         `json:"armies"`
 	Chains          []Chain                        `json:"chains"`
 	NextChainID     int                            `json:"nextChainId"`
+	NextArmyID      int                            `json:"nextArmyId"`
 	Infrastructures []Infrastructure               `json:"infrastructures"`
 	TerritoryStates map[TerritoryID]TerritoryState `json:"territoryStates"`
 }
@@ -40,6 +41,7 @@ func NewGameState() *GameState {
 		Armies:          []Army{},
 		Chains:          []Chain{},
 		NextChainID:     1,
+		NextArmyID:      1,
 		Infrastructures: []Infrastructure{},
 		TerritoryStates: map[TerritoryID]TerritoryState{},
 	}
@@ -71,6 +73,9 @@ func (g *GameState) Validate() error {
 	}
 	if g.NextChainID < 1 {
 		return fmt.Errorf("models: next chain id: must be >= 1, got %d", g.NextChainID)
+	}
+	if g.NextArmyID < 1 {
+		return fmt.Errorf("models: next army id: must be >= 1, got %d", g.NextArmyID)
 	}
 	if want := SeasonForTurn(g.Turn); g.Season != want {
 		return fmt.Errorf("models: season: %q does not match turn %d (want %q)", g.Season, g.Turn, want)
@@ -161,6 +166,11 @@ func (g *GameState) Validate() error {
 		}
 		armies[army.ID] = army
 	}
+	for armyID := range armies {
+		if sequence, isAllocatedID := armySequence(armyID); isAllocatedID && sequence >= g.NextArmyID {
+			return fmt.Errorf("models: next army id %d must be greater than stored army %q", g.NextArmyID, armyID)
+		}
+	}
 
 	// 6. Nobles: unique ids, trigram code unique within the game, existing
 	// owner and location, a persistent valid status, and an emission record
@@ -203,6 +213,7 @@ func (g *GameState) Validate() error {
 	// parser may produce an unassigned chain, but every chain in GameState has
 	// already passed reception and must be fully linked to its army.
 	chains := make(map[ChainID]*Chain, len(g.Chains))
+	pendingArmies := make(map[ArmyID]ChainID, len(g.Chains))
 	for i := range g.Chains {
 		chain := &g.Chains[i]
 		if chain.ID == "" {
@@ -268,6 +279,57 @@ func (g *GameState) Validate() error {
 					}
 					if _, exists := nobleCodes[string(nobleCode)]; !exists {
 						return fmt.Errorf("models: chain %q: order %q references unknown assigned noble %q", chain.ID, order.ID, nobleCode)
+					}
+				}
+			}
+		}
+		if chain.PendingDisperse != nil {
+			pending := chain.PendingDisperse
+			if chain.Orders[chain.CurrentIndex].Type != OrderTypeDisperse || chain.Orders[chain.CurrentIndex].Liaison != LiaisonModeLoop {
+				return fmt.Errorf("models: chain %q: pending dispersion does not match a D order", chain.ID)
+			}
+			pendingArmy := armies[pending.ArmyID]
+			if pendingArmy == nil {
+				return fmt.Errorf("models: chain %q: pending dispersion references unknown army %q", chain.ID, pending.ArmyID)
+			}
+			if terrs[pending.SourceID] == nil || pendingArmy.TerritoryID != pending.SourceID {
+				return fmt.Errorf("models: chain %q: pending dispersion army %q is not at source %q", chain.ID, pending.ArmyID, pending.SourceID)
+			}
+			carrier := armies[chain.ArmyID]
+			if carrier == nil || carrier.OwnerID != pendingArmy.OwnerID {
+				return fmt.Errorf("models: chain %q: pending dispersion army %q does not share its carrier owner", chain.ID, pending.ArmyID)
+			}
+			if pending.ArmyID != chain.ArmyID && pendingArmy.ChainID != nil {
+				return fmt.Errorf("models: chain %q: pending dispersion army %q already carries chain %q", chain.ID, pending.ArmyID, *pendingArmy.ChainID)
+			}
+			if existingChainID, exists := pendingArmies[pending.ArmyID]; exists {
+				return fmt.Errorf("models: chain %q: pending dispersion army %q is already used by chain %q", chain.ID, pending.ArmyID, existingChainID)
+			}
+			pendingArmies[pending.ArmyID] = chain.ID
+			if len(pending.TargetIDs) == 0 {
+				return fmt.Errorf("models: chain %q: pending dispersion has no targets", chain.ID)
+			}
+			if len(pending.TargetIDs) != pendingArmy.Size {
+				return fmt.Errorf("models: chain %q: pending dispersion has %d targets for army %q of size %d", chain.ID, len(pending.TargetIDs), pending.ArmyID, pendingArmy.Size)
+			}
+			pendingTargets := make(map[TerritoryID]bool, len(pending.TargetIDs))
+			for _, targetID := range pending.TargetIDs {
+				if terrs[targetID] == nil {
+					return fmt.Errorf("models: chain %q: pending dispersion references unknown target %q", chain.ID, targetID)
+				}
+				if pendingTargets[targetID] {
+					return fmt.Errorf("models: chain %q: pending dispersion duplicates target %q", chain.ID, targetID)
+				}
+				pendingTargets[targetID] = true
+			}
+			for destinationCode, assignedCodes := range pending.NobleAssignments {
+				destinationID, exists := codes[string(destinationCode)]
+				if !exists || !pendingTargets[destinationID] {
+					return fmt.Errorf("models: chain %q: pending dispersion references invalid assignment destination %q", chain.ID, destinationCode)
+				}
+				for _, nobleCode := range assignedCodes {
+					if _, exists := nobleCodes[string(nobleCode)]; !exists {
+						return fmt.Errorf("models: chain %q: pending dispersion references unknown assigned noble %q", chain.ID, nobleCode)
 					}
 				}
 			}
@@ -395,6 +457,18 @@ func isCode(s string, n int) bool {
 func chainSequence(id ChainID) (int, bool) {
 	value := string(id)
 	if len(value) < 2 || value[0] != 'C' {
+		return 0, false
+	}
+	sequence, err := strconv.Atoi(value[1:])
+	if err != nil || sequence < 1 {
+		return 0, false
+	}
+	return sequence, true
+}
+
+func armySequence(id ArmyID) (int, bool) {
+	value := string(id)
+	if len(value) < 2 || value[0] != 'A' {
 		return 0, false
 	}
 	sequence, err := strconv.Atoi(value[1:])

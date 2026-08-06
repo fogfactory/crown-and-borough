@@ -82,6 +82,16 @@ type Order struct {
 	Liaison LiaisonMode `json:"liaison"`
 }
 
+// PendingDisperse records unresolved branches of a looped dispersion after
+// completed branches have already left the source army. The command chain stays
+// with its original carrier while the residual army retries these branches.
+type PendingDisperse struct {
+	ArmyID           ArmyID                        `json:"army"`
+	SourceID         TerritoryID                   `json:"source"`
+	TargetIDs        []TerritoryID                 `json:"targets"`
+	NobleAssignments map[TerritoryCode][]NobleCode `json:"nobleAssignments"`
+}
+
 // Chain is a received sequence of orders carried by one army.
 type Chain struct {
 	// ID is allocated by reception and remains stable while the chain exists.
@@ -96,4 +106,7 @@ type Chain struct {
 	Orders []Order `json:"orders"`
 	// CurrentIndex is set to zero by reception and advanced by P1.4 resolution.
 	CurrentIndex int `json:"currentIndex"`
+	// PendingDisperse is set only while a looped D retries its unresolved
+	// residual branches. It is internal resolution state, not source syntax.
+	PendingDisperse *PendingDisperse `json:"pendingDisperse,omitempty"`
 }

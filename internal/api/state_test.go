@@ -271,6 +271,7 @@ func projectTestState() *models.GameState {
 			},
 		}},
 		NextChainID: 2,
+		NextArmyID:  3,
 		Infrastructures: []models.Infrastructure{
 			{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T01"},
 			{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "T04"},

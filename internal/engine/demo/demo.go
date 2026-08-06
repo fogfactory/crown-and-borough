@@ -47,6 +47,7 @@ func DemoState(seed string, assets assetgen.Assets, mapData mapgen.MapData, play
 		Armies:          make([]models.Army, 0, players*2),
 		Chains:          []models.Chain{},
 		NextChainID:     1,
+		NextArmyID:      1,
 		Infrastructures: make([]models.Infrastructure, 0, players+len(mapData.Territories)+3),
 		TerritoryStates: make(map[models.TerritoryID]models.TerritoryState, len(mapData.Territories)),
 	}
@@ -175,16 +176,15 @@ func DemoState(seed string, assets assetgen.Assets, mapData mapgen.MapData, play
 		)
 	}
 
-	nextArmyID := 1
 	for index := range controlled {
 		owner := state.Players[index].ID
 		start := starts[index]
-		if err := addArmy(state, &nextArmyID, owner, start, 1); err != nil {
+		if err := addArmy(state, owner, start, 1); err != nil {
 			return nil, err
 		}
 
 		if armyLocation := secondArmyLocations[index]; armyLocation != "" {
-			if err := addArmy(state, &nextArmyID, owner, armyLocation, 2); err != nil {
+			if err := addArmy(state, owner, armyLocation, 2); err != nil {
 				return nil, err
 			}
 		}
@@ -494,7 +494,7 @@ func withoutTerritory(territories []models.TerritoryID, excluded models.Territor
 	return filtered
 }
 
-func addArmy(state *models.GameState, nextID *int, owner models.PlayerID, territoryID models.TerritoryID, size int) error {
+func addArmy(state *models.GameState, owner models.PlayerID, territoryID models.TerritoryID, size int) error {
 	territoryState, ok := state.TerritoryStates[territoryID]
 	if !ok {
 		return fmt.Errorf("demo: unknown territory %q", territoryID)
@@ -506,7 +506,7 @@ func addArmy(state *models.GameState, nextID *int, owner models.PlayerID, territ
 		return fmt.Errorf("demo: army size must be >= 1, got %d", size)
 	}
 
-	id := models.ArmyID(fmt.Sprintf("A%d", *nextID))
+	id := models.ArmyID(fmt.Sprintf("A%d", state.NextArmyID))
 	state.Armies = append(state.Armies, models.Army{
 		ID:          id,
 		OwnerID:     owner,
@@ -515,7 +515,7 @@ func addArmy(state *models.GameState, nextID *int, owner models.PlayerID, territ
 	})
 	territoryState.Army = &id
 	state.TerritoryStates[territoryID] = territoryState
-	*nextID = *nextID + 1
+	state.NextArmyID++
 	return nil
 }
 
