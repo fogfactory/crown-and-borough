@@ -22,6 +22,7 @@ type resolutionContext struct {
 
 	startArmiesByID      map[models.ArmyID]models.Army
 	startArmyAtTerritory map[models.TerritoryID]models.ArmyID
+	famished             map[models.ArmyID]bool
 
 	records             map[models.ArmyID]*orderRecord
 	attacks             map[models.ArmyID]*attackIntent
@@ -41,6 +42,7 @@ func newResolutionContext(state *models.GameState) *resolutionContext {
 		state:                state,
 		startArmiesByID:      make(map[models.ArmyID]models.Army, len(state.Armies)),
 		startArmyAtTerritory: make(map[models.TerritoryID]models.ArmyID, len(state.Armies)),
+		famished:             make(map[models.ArmyID]bool),
 		records:              make(map[models.ArmyID]*orderRecord),
 		attacks:              make(map[models.ArmyID]*attackIntent),
 		joins:                make(map[models.ArmyID]*joinIntent),

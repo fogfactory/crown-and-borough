@@ -128,7 +128,11 @@ func (ctx *resolutionContext) enumerateOrder(record *orderRecord, army models.Ar
 			record.fail("allied_destination")
 			return
 		}
-		ctx.attacks[army.ID] = &attackIntent{armyID: army.ID, source: army.TerritoryID, target: targetID, size: army.Size}
+		strength := army.Size
+		if ctx.famished[army.ID] {
+			strength = 0
+		}
+		ctx.attacks[army.ID] = &attackIntent{armyID: army.ID, source: army.TerritoryID, target: targetID, size: strength}
 		ctx.attackedTerritories[targetID] = true
 	case models.OrderTypeJoin:
 		if !isLastOrder {

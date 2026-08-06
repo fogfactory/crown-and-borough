@@ -155,8 +155,10 @@ func (ctx *resolutionContext) resolveTerritoryContest(
 	defenderID := models.ArmyID("")
 	defenderOwnerID := models.PlayerID("")
 	if defender != nil {
-		baseDefense += defender.Size
-		defense += defender.Size
+		if !ctx.famished[defender.ID] {
+			baseDefense += defender.Size
+			defense += defender.Size
+		}
 		defenderID = defender.ID
 		defenderOwnerID = defender.OwnerID
 		defense += ctx.defensiveSupportStrength(defender.ID, cuts, previouslyDislodged)
@@ -194,7 +196,9 @@ func (ctx *resolutionContext) resolveTerritoryContest(
 			tied = true
 		}
 	}
-	if !tied && bestArmyID != "" {
+	if defender == nil && castleBonus == 0 && len(attacks) == 1 && result.contenders[1].Force == 0 {
+		result.winnerID = attacks[0].armyID
+	} else if !tied && bestArmyID != "" {
 		result.winnerID = bestArmyID
 		if defender != nil {
 			result.dislodgedArmyID = defender.ID
@@ -227,7 +231,9 @@ func (ctx *resolutionContext) offensiveSupportStrength(armyID models.ArmyID, cut
 		if !support.applies || !support.offensive || support.targetArmyID != armyID || cuts[supportID] || previouslyDislodged[supportID] {
 			continue
 		}
-		strength += ctx.startArmiesByID[supportID].Size
+		if !ctx.famished[supportID] {
+			strength += ctx.startArmiesByID[supportID].Size
+		}
 	}
 	return strength
 }
@@ -239,7 +245,9 @@ func (ctx *resolutionContext) defensiveSupportStrength(armyID models.ArmyID, cut
 		if !support.applies || support.offensive || support.targetArmyID != armyID || cuts[supportID] || previouslyDislodged[supportID] {
 			continue
 		}
-		strength += ctx.startArmiesByID[supportID].Size
+		if !ctx.famished[supportID] {
+			strength += ctx.startArmiesByID[supportID].Size
+		}
 	}
 	return strength
 }

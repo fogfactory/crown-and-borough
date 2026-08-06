@@ -3,7 +3,7 @@ package engine
 import "github.com/fogfactory/crown-and-borough/internal/models"
 
 // Resolution is the deterministic result of resolving one game state. State is
-// a deep clone of the input after all five phases have completed.
+// a deep clone of the input after all resolution phases have completed.
 type Resolution struct {
 	State  *models.GameState `json:"state"`
 	Events []Event           `json:"events"`
@@ -25,6 +25,8 @@ const (
 	EventTypeCapture          EventType = "capture"
 	EventTypeControlChanged   EventType = "control_changed"
 	EventTypeChainProgression EventType = "chain_progression"
+	EventTypeSupply           EventType = "supply"
+	EventTypeFamine           EventType = "famine"
 )
 
 // Outcome is the execution result of one current order.
@@ -87,10 +89,16 @@ type Event struct {
 	Resolved          bool               `json:"resolved,omitempty"`
 	RemainingStrength int                `json:"remainingStrength,omitempty"`
 
-	InfrastructureID   models.InfraID     `json:"infrastructure,omitempty"`
-	InfrastructureType models.InfraType   `json:"infrastructureType,omitempty"`
-	ResourceCredit     int                `json:"resourceCredit,omitempty"`
-	CreditTerritoryID  models.TerritoryID `json:"creditTerritory,omitempty"`
+	InfrastructureID   models.InfraID             `json:"infrastructure,omitempty"`
+	InfrastructureType models.InfraType           `json:"infrastructureType,omitempty"`
+	ResourceCredit     int                        `json:"resourceCredit,omitempty"`
+	CreditTerritoryID  models.TerritoryID         `json:"creditTerritory,omitempty"`
+	Production         int                        `json:"production,omitempty"`
+	Demand             int                        `json:"demand,omitempty"`
+	Rations            map[models.TerritoryID]int `json:"rations,omitempty"`
+	StockConsumed      int                        `json:"stockConsumed,omitempty"`
+	Troops             int                        `json:"troops,omitempty"`
+	SavedByPillage     bool                       `json:"savedByPillage,omitempty"`
 
 	NobleID         models.NobleID     `json:"noble,omitempty"`
 	PreviousStatus  models.NobleStatus `json:"previousStatus,omitempty"`

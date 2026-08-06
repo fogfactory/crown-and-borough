@@ -6,8 +6,8 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
-// Resolve resolves every current chain simultaneously. It validates and deep
-// clones game before running the five P1.4 phases, so game is never mutated.
+// Resolve resolves supply and every current chain simultaneously. It validates
+// and deep clones game before running its phases, so game is never mutated.
 func Resolve(game *models.GameState) (Resolution, error) {
 	if game == nil {
 		return Resolution{}, fmt.Errorf("engine: resolve: nil game state")
@@ -18,8 +18,9 @@ func Resolve(game *models.GameState) (Resolution, error) {
 	state := cloneGameState(game)
 	ctx := newResolutionContext(state)
 
-	// P1.5 supply will run before this phase; P2.3 can prepare delivered chains
-	// before Resolve is called without changing this simultaneous core.
+	resolveSupply(ctx)
+	// P2.3 can prepare delivered chains before Resolve is called without
+	// changing this simultaneous core.
 	enumerateIntentions(ctx)
 	calculateSupports(ctx)
 	if err := resolveContests(ctx); err != nil {

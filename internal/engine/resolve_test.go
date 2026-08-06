@@ -648,6 +648,7 @@ func TestResolveLoopDisperseMovesResolvedBranchesAndRetriesResidual(t *testing.T
 	attackerState.Army = &attackerID
 	attackerState.OwnerID = &attackerOwner
 	carrierDefeat.TerritoryStates["T05"] = attackerState
+	addInfrastructure(carrierDefeat, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T05"})
 	carrierDefeat.NextArmyID = 5
 	addNoble(carrierDefeat, "N4", "FOU", "P2", "T05")
 	addChain(t, carrierDefeat, "A4", "N4", models.Order{Type: models.OrderTypeAttack, PositionID: "T05", TargetIDs: []models.TerritoryID{"T02"}})
@@ -733,6 +734,7 @@ func TestResolveInvalidPillageBreaksLoopWhenDislodged(t *testing.T) {
 	)
 	addNoble(state, "N1", "ONE", "P1", "T01")
 	addNoble(state, "N2", "TWO", "P2", "T02")
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T02"})
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypePillage, PositionID: "T01", Liaison: models.LiaisonModeLoop})
 	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "T02", TargetIDs: []models.TerritoryID{"T01"}})
 	validateTestState(t, state)
@@ -771,8 +773,8 @@ func TestResolvePillageCreditsNearestControlledSettlement(t *testing.T) {
 	if len(resolution.State.Infrastructures) != 1 || resolution.State.Infrastructures[0].ID != "I2" {
 		t.Errorf("infrastructures = %#v, want only I2", resolution.State.Infrastructures)
 	}
-	if got := resolution.State.TerritoryStates["T02"].Resources; got != PillageBonus {
-		t.Errorf("castle resources = %d, want %d", got, PillageBonus)
+	if got := resolution.State.TerritoryStates["T02"].Resources; got != PillageBonus+BaseProduction+1 {
+		t.Errorf("castle resources = %d, want %d", got, PillageBonus+BaseProduction+1)
 	}
 	if !containsEvent(resolution.Events, EventTypePillage) {
 		t.Errorf("events = %#v, want a pillage event", resolution.Events)
@@ -813,6 +815,7 @@ func TestResolveNobleStatusAndCapture(t *testing.T) {
 		)
 		addNoble(state, "N1", "ONE", "P1", "T01")
 		addNoble(state, "N2", "TWO", "P2", "T02")
+		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T02"})
 		addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "T02", TargetIDs: []models.TerritoryID{"T01"}})
 		validateTestState(t, state)
 
@@ -866,6 +869,7 @@ func TestResolveLoopProgression(t *testing.T) {
 		)
 		addNoble(state, "N1", "ONE", "P1", "T01")
 		addNoble(state, "N3", "THR", "P1", "T03")
+		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T02"})
 		addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "T01", TargetIDs: []models.TerritoryID{"T02"}, Liaison: models.LiaisonModeLoop})
 		addChain(t, state, "A3", "N3", models.Order{Type: models.OrderTypeSupport, PositionID: "T03", TargetIDs: []models.TerritoryID{"T01", "T02"}, Liaison: models.LiaisonModeLoop})
 		validateTestState(t, state)
