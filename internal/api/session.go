@@ -176,7 +176,7 @@ func (s *Session) OrdersHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	s.pending[request.Player] = input
 	submitted, remaining := s.pendingPlayersLocked()
-	if len(remaining) != 0 {
+	if len(remaining) != 0 && !request.Force {
 		state := projectState(s.game, nil)
 		s.mu.Unlock()
 		writeJSON(w, http.StatusOK, ordersResponse{
@@ -210,6 +210,7 @@ type ordersRequest struct {
 	Player models.PlayerID           `json:"player,omitempty"`
 	Chains []engine.ChainSubmission  `json:"chains"`
 	Winter []engine.WinterSubmission `json:"winter"`
+	Force  bool                      `json:"force,omitempty"`
 }
 
 type ordersResponse struct {

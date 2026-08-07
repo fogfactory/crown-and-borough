@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,
@@ -200,7 +201,7 @@ function App() {
       ?.focus()
   }
 
-  const submitOrders = async () => {
+  const submitOrders = async (force = false) => {
     if (!state) return
     setResolving(true)
     setActionError(null)
@@ -232,7 +233,7 @@ function App() {
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ player: selectedPlayer, chains, winter }),
+        body: JSON.stringify({ player: selectedPlayer, chains, winter, force }),
       })
       if (!response.ok) throw new Error(await responseError(response))
       const payload = (await response.json()) as OrdersResponse
@@ -310,6 +311,16 @@ function App() {
                   ))}
                 </SelectContent>
               </Select>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={resolving || !state}
+                title="Résoudre le tour immédiatement, même si tous les joueurs n'ont pas soumis leurs ordres"
+                onClick={() => void submitOrders(true)}
+              >
+                Résoudre
+              </Button>
             </div>
           </div>
         </div>
