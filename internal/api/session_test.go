@@ -11,6 +11,7 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
+	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
 func TestHotseatSessionResolvesAndRecreatesGame(t *testing.T) {
@@ -249,5 +250,92 @@ func TestHotseatSessionResolvesAndRecreatesGame(t *testing.T) {
 	session.OrdersHTTP(outOfSeasonRecorder, httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(`{"chains":[],"winter":[{"player":"P1","lines":"R T `+winterCode+`"}]}`)))
 	if outOfSeasonRecorder.Code != http.StatusBadRequest {
 		t.Fatalf("winter orders out of season = %d, want 400", outOfSeasonRecorder.Code)
+	}
+}
+
+func TestHotseatSessionServesSupplyLine(t *testing.T) {
+	assets, err := assetgen.Load("../../assets")
+	if err != nil {
+		t.Fatalf("load assets: %v", err)
+	}
+	balance, err := assetgen.LoadBalance("../../assets")
+	if err != nil {
+		t.Fatalf("load balance: %v", err)
+	}
+	session, err := NewSession("supply-line-test", []engine.PlayerInit{{Name: "One"}, {Name: "Two"}}, balance, assets)
+	if err != nil {
+		t.Fatalf("NewSession: %v", err)
+	}
+
+	stateRecorder := httptest.NewRecorder()
+	session.StateHTTP(stateRecorder, httptest.NewRequest(http.MethodGet, "/api/state", nil))
+	var state StateView
+	if err := json.Unmarshal(stateRecorder.Body.Bytes(), &state); err != nil {
+		t.Fatalf("decode state: %v", err)
+	}
+	var armyTerritory string
+	var emptyTerritory string
+	for _, territory := range state.Territories {
+		if territory.Army != nil && armyTerritory == "" {
+			armyTerritory = string(territory.ID)
+		}
+		if territory.Army == nil && len(territory.Infrastructures) == 0 && emptyTerritory == "" {
+			emptyTerritory = string(territory.ID)
+		}
+	}
+	if armyTerritory == "" || emptyTerritory == "" {
+		t.Fatalf("state does not contain both an army and an empty territory: %#v", state.Territories)
+	}
+
+	recorder := httptest.NewRecorder()
+	session.SupplyHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/supply?territory="+armyTerritory, nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("GET supply = %d: %s", recorder.Code, recorder.Body.String())
+	}
+	var line engine.SupplyLine
+	if err := json.Unmarshal(recorder.Body.Bytes(), &line); err != nil {
+		t.Fatalf("decode supply line: %v", err)
+	}
+	if line.Kind != engine.SupplyLineKindArmy || string(line.Territory) != armyTerritory || line.ArmySize < 1 {
+		t.Errorf("supply line = %#v, want army at %s", line, armyTerritory)
+	}
+
+	missing := httptest.NewRecorder()
+	session.SupplyHTTP(missing, httptest.NewRequest(http.MethodGet, "/api/supply", nil))
+	if missing.Code != http.StatusBadRequest {
+		t.Errorf("missing territory = %d, want %d", missing.Code, http.StatusBadRequest)
+	}
+	empty := httptest.NewRecorder()
+	session.SupplyHTTP(empty, httptest.NewRequest(http.MethodGet, "/api/supply?territory="+emptyTerritory, nil))
+	if empty.Code != http.StatusNotFound {
+		t.Errorf("empty territory = %d, want %d", empty.Code, http.StatusNotFound)
+	}
+
+	session.mu.Lock()
+	sourceTerritoryID := models.TerritoryID(emptyTerritory)
+	sourceOwner := models.PlayerID("P1")
+	sourceState := session.game.TerritoryStates[sourceTerritoryID]
+	sourceState.OwnerID = &sourceOwner
+	sourceState.Infrastructures = append(sourceState.Infrastructures, models.InfraID("I-supply-test"))
+	session.game.TerritoryStates[sourceTerritoryID] = sourceState
+	session.game.Infrastructures = append(session.game.Infrastructures, models.Infrastructure{
+		ID:          "I-supply-test",
+		Type:        models.InfraTypeCastle,
+		Level:       1,
+		TerritoryID: sourceTerritoryID,
+	})
+	session.mu.Unlock()
+
+	sourceRecorder := httptest.NewRecorder()
+	session.SupplyHTTP(sourceRecorder, httptest.NewRequest(http.MethodGet, "/api/supply?territory="+emptyTerritory, nil))
+	if sourceRecorder.Code != http.StatusOK {
+		t.Fatalf("source supply = %d: %s", sourceRecorder.Code, sourceRecorder.Body.String())
+	}
+	var sourceZone engine.SupplyLine
+	if err := json.Unmarshal(sourceRecorder.Body.Bytes(), &sourceZone); err != nil {
+		t.Fatalf("decode source supply zone: %v", err)
+	}
+	if sourceZone.Kind != engine.SupplyLineKindSource || sourceZone.Source == nil || *sourceZone.Source != sourceTerritoryID {
+		t.Errorf("source zone = %#v, want source %s", sourceZone, sourceTerritoryID)
 	}
 }

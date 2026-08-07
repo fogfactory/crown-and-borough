@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import App from '@/App'
-import type { MapData, StateData, TurnReport } from '@/types'
+import type { MapData, StateData, SupplyLine, TurnReport } from '@/types'
 
 const map: MapData = {
   territories: [
@@ -100,6 +100,20 @@ const resolvedReport: TurnReport = {
   nobles: [],
 }
 
+const supplyLine: SupplyLine = {
+  kind: 'army',
+  territory: 'T1',
+  armyOwner: 'P1',
+  armySize: 2,
+  rations: 1,
+  demand: 1,
+  source: 'T1',
+  distance: 0,
+  path: ['T1'],
+  reachable: ['T1'],
+  selfSupplied: false,
+}
+
 afterEach(() => {
   vi.unstubAllGlobals()
 })
@@ -110,7 +124,8 @@ describe('App command/report tabs', () => {
       const url = String(input)
       return Promise.resolve({
         ok: true,
-        json: async () => (url.includes('/map') ? map : state),
+        json: async () =>
+          url.includes('/map') ? map : url.includes('/supply') ? supplyLine : state,
       } as Response)
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -142,6 +157,8 @@ describe('App command/report tabs', () => {
       'step',
     )
     expect(screen.getByLabelText('Couleur de One')).toBeInTheDocument()
+    expect(await screen.findByText(/Source :/)).toBeInTheDocument()
+    expect(screen.getByText(/ROS · Rosemont/)).toBeInTheDocument()
 
     const draft = screen.getByLabelText('Chaîne de JEA')
     fireEvent.change(draft, { target: { value: 'ROS A BRU' } })
@@ -170,7 +187,8 @@ describe('App command/report tabs', () => {
       }
       return Promise.resolve({
         ok: true,
-        json: async () => (url.includes('/map') ? map : state),
+        json: async () =>
+          url.includes('/map') ? map : url.includes('/supply') ? supplyLine : state,
       } as Response)
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -189,6 +207,66 @@ describe('App command/report tabs', () => {
     await waitFor(() => {
       expect(screen.queryByText('Nouveau')).not.toBeInTheDocument()
     })
+  })
+
+  it('loads the reachable zone when a controlled source is selected', async () => {
+    const sourceState: StateData = {
+      ...state,
+      territories: [
+        state.territories[0],
+        {
+          ...state.territories[1],
+          owner: 'P1',
+          infrastructures: [{ type: 'castle', level: 1 }],
+        },
+      ],
+    }
+    const sourceZone: SupplyLine = {
+      kind: 'source',
+      territory: 'T2',
+      armyOwner: 'P1',
+      armySize: 0,
+      rations: 0,
+      demand: 0,
+      source: 'T2',
+      distance: 0,
+      path: [],
+      reachable: ['T1', 'T2'],
+      selfSupplied: false,
+    }
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      return Promise.resolve({
+        ok: true,
+        json: async () =>
+          url.includes('/map') ? map : url.includes('/supply') ? sourceZone : sourceState,
+      } as Response)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { container } = render(<App />)
+    const sourceTerritory = await waitFor(() => {
+      const territory = container.querySelector('[data-territory-id="T2"]')
+      if (!territory) throw new Error('source territory did not render')
+      return territory
+    })
+    fireEvent.keyDown(sourceTerritory, { key: 'Enter', code: 'Enter' })
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/supply?territory=T2',
+        expect.objectContaining({ signal: expect.anything() }),
+      )
+    })
+    await waitFor(() => {
+      expect(
+        container.querySelector('g[aria-label="Zone de ravitaillement"]'),
+      ).toBeInTheDocument()
+    })
+    expect(await screen.findByText('2 territoires atteignables.')).toBeInTheDocument()
+    expect(
+      container.querySelector('g[aria-label="Ligne de ravitaillement"]'),
+    ).not.toBeInTheDocument()
   })
 
   it('starts a new game with the chosen seed and player count', async () => {
@@ -274,7 +352,8 @@ describe('App command/report tabs', () => {
       }
       return Promise.resolve({
         ok: true,
-        json: async () => (url.includes('/map') ? map : state),
+        json: async () =>
+          url.includes('/map') ? map : url.includes('/supply') ? supplyLine : state,
       } as Response)
     })
     vi.stubGlobal('fetch', fetchMock)

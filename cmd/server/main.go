@@ -88,6 +88,7 @@ func newHotseatServer(session *api.Session) *http.ServeMux {
 	})
 	mux.HandleFunc("GET /api/map", session.MapHTTP)
 	mux.HandleFunc("GET /api/state", session.StateHTTP)
+	mux.HandleFunc("GET /api/supply", session.SupplyHTTP)
 	mux.HandleFunc("POST /api/game", session.GameHTTP)
 	mux.HandleFunc("POST /api/orders", session.OrdersHTTP)
 	mux.HandleFunc("POST /api/reset", session.ResetHTTP)

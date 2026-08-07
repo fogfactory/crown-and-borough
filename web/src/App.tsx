@@ -4,6 +4,7 @@ import { MapViewer } from '@/components/MapViewer'
 import { OrdersPanel } from '@/components/OrdersPanel'
 import { ReportPanel } from '@/components/ReportPanel'
 import { formatOrderLabel } from '@/lib/order-label'
+import { hasSupplySource } from '@/lib/supply'
 import {
   Card,
   CardContent,
@@ -26,6 +27,7 @@ import type {
   PlayerId,
   Season,
   StateData,
+  SupplyLine,
   TurnReport,
   OrdersResponse,
 } from '@/types'
@@ -107,6 +109,9 @@ function App() {
   const [map, setMap] = useState<MapData | null>(null)
   const [state, setState] = useState<StateData | null>(null)
   const [report, setReport] = useState<TurnReport | null>(null)
+  const [supplyLine, setSupplyLine] = useState<SupplyLine | null>(null)
+  const [supplyLoading, setSupplyLoading] = useState(false)
+  const [supplyError, setSupplyError] = useState<string | null>(null)
   const [chainDrafts, setChainDrafts] = useState<
     Record<PlayerId, Record<string, string>>
   >({})
@@ -178,6 +183,67 @@ function App() {
   const selectedChain = selectedState?.army?.chain ?? null
   const presentNobles =
     state?.nobles.filter((noble) => noble.location === selectedId) ?? []
+  const supplySelectionAllowed =
+    (supplyLine?.kind === 'army' && Boolean(selectedState?.army)) ||
+    (supplyLine?.kind === 'source' &&
+      !selectedState?.army &&
+      hasSupplySource(selectedState))
+  const selectedSupplyLine =
+    supplySelectionAllowed && supplyLine?.territory === selectedId ? supplyLine : null
+  const supplySourceTerritory = map?.territories.find(
+    (territory) => territory.id === selectedSupplyLine?.source,
+  )
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const armySelected = Boolean(selectedState?.army)
+    const sourceSelected = hasSupplySource(selectedState)
+
+    setSupplyLine(null)
+    setSupplyError(null)
+    if (
+      !state ||
+      !selectedId ||
+      (!armySelected && !sourceSelected) ||
+      state.season === 'winter'
+    ) {
+      setSupplyLoading(false)
+      return () => controller.abort()
+    }
+
+    setSupplyLoading(true)
+    const loadSupplyLine = async () => {
+      try {
+        const response = await fetch(
+          `/api/supply?territory=${encodeURIComponent(selectedId)}`,
+          { signal: controller.signal },
+        )
+        if (!response.ok) {
+          throw new Error(`Supply request failed with status ${response.status}`)
+        }
+        const payload = (await response.json()) as SupplyLine
+        if (!Array.isArray(payload.path) || !Array.isArray(payload.reachable)) {
+          throw new Error('Invalid supply response')
+        }
+        if (!controller.signal.aborted) {
+          setSupplyLine(payload)
+          setSupplyLoading(false)
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setSupplyError(
+            error instanceof Error
+              ? error.message
+              : 'Impossible de calculer le ravitaillement',
+          )
+          setSupplyLoading(false)
+        }
+      }
+    }
+
+    void loadSupplyLine()
+    return () => controller.abort()
+  }, [selectedId, selectedState, state])
 
   const updateChainDraft = (noble: string, text: string) => {
     setChainDrafts((drafts) => ({
@@ -450,7 +516,12 @@ function App() {
               </p>
             </div>
           ) : map && state ? (
-            <MapViewer map={map} state={state} onSelect={setSelectedId} />
+            <MapViewer
+              map={map}
+              state={state}
+              supply={selectedSupplyLine}
+              onSelect={setSelectedId}
+            />
           ) : (
             <div className="flex h-full items-center justify-center px-6 text-center">
               <p className="font-serif text-lg italic text-[#806f57]">
@@ -640,6 +711,91 @@ function App() {
                             </div>
                           ) : (
                             <p className="text-sm italic text-[#806f57]">Aucune armée</p>
+                          )}
+                          {selectedState.army && state?.season === 'winter' && (
+                            <p className="rounded-md border border-[#b7a786]/50 bg-[#fffaf0] px-3 py-2 text-xs text-[#806f57]">
+                              Pas de phase de ravitaillement en hiver.
+                            </p>
+                          )}
+                          {selectedState.army && state?.season !== 'winter' && (
+                            <div className="rounded-md border border-[#b7a786]/50 bg-[#fffaf0] px-3 py-2 text-xs text-[#594b3c]">
+                              <p className="font-semibold uppercase tracking-[0.12em] text-[#806f57]">
+                                Ravitaillement
+                              </p>
+                              {supplyLoading ? (
+                                <p className="mt-1 italic text-[#806f57]">
+                                  Calcul en cours…
+                                </p>
+                              ) : supplyError ? (
+                                <p className="mt-1 text-[#8d321e]">{supplyError}</p>
+                              ) : selectedSupplyLine?.selfSupplied ? (
+                                <p className="mt-1 text-[#376341]">
+                                  Rations locales suffisantes pour cette armée.
+                                </p>
+                              ) : selectedSupplyLine?.source ? (
+                                <>
+                                  <p className="mt-1">
+                                    Source :{' '}
+                                    <strong>
+                                      {supplySourceTerritory?.code ??
+                                        selectedSupplyLine.source}
+                                      {supplySourceTerritory
+                                        ? ` · ${supplySourceTerritory.name}`
+                                        : ''}
+                                    </strong>
+                                  </p>
+                                  <p className="mt-1">
+                                    Distance :{' '}
+                                    <strong>{selectedSupplyLine.distance}</strong>{' '}
+                                    territoire
+                                    {selectedSupplyLine.distance > 1 ? 's' : ''}
+                                  </p>
+                                </>
+                              ) : selectedSupplyLine ? (
+                                <p className="mt-1 text-[#8d321e]">
+                                  Aucune source accessible : famine possible.
+                                </p>
+                              ) : null}
+                              {selectedSupplyLine && (
+                                <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t border-[#b7a786]/40 pt-2">
+                                  <dt className="text-[#806f57]">Rations locales</dt>
+                                  <dd className="font-medium">
+                                    {selectedSupplyLine.rations}
+                                  </dd>
+                                  <dt className="text-[#806f57]">Besoin à couvrir</dt>
+                                  <dd className="font-medium">
+                                    {selectedSupplyLine.demand}
+                                  </dd>
+                                </dl>
+                              )}
+                            </div>
+                          )}
+                          {!selectedState.army && hasSupplySource(selectedState) && (
+                            <div className="rounded-md border border-[#b7a786]/50 bg-[#fffaf0] px-3 py-2 text-xs text-[#594b3c]">
+                              <p className="font-semibold uppercase tracking-[0.12em] text-[#806f57]">
+                                Zone de ravitaillement
+                              </p>
+                              {state?.season === 'winter' ? (
+                                <p className="mt-1 italic text-[#806f57]">
+                                  Pas de phase de ravitaillement en hiver.
+                                </p>
+                              ) : supplyLoading ? (
+                                <p className="mt-1 italic text-[#806f57]">
+                                  Calcul en cours…
+                                </p>
+                              ) : supplyError ? (
+                                <p className="mt-1 text-[#8d321e]">{supplyError}</p>
+                              ) : selectedSupplyLine ? (
+                                <p className="mt-1 text-[#376341]">
+                                  {selectedSupplyLine.reachable.length} territoire
+                                  {selectedSupplyLine.reachable.length > 1
+                                    ? 's'
+                                    : ''}{' '}
+                                  atteignable
+                                  {selectedSupplyLine.reachable.length > 1 ? 's' : ''}.
+                                </p>
+                              ) : null}
+                            </div>
                           )}
                         </div>
 

@@ -102,6 +102,34 @@ func (s *Session) StateHTTP(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, state)
 }
 
+// SupplyHTTP serves the current supply assignment for an army, or the
+// reachable zone of a controlled source selected without an army. The
+// calculation is read-only and follows the next resolution's supply rules.
+func (s *Session) SupplyHTTP(w http.ResponseWriter, r *http.Request) {
+	territoryID := models.TerritoryID(r.URL.Query().Get("territory"))
+	if territoryID == "" {
+		writeAPIError(w, http.StatusBadRequest, "territory_required", "a territory is required")
+		return
+	}
+
+	s.mu.RLock()
+	line, err := engine.FindSupply(s.game, s.balance, territoryID)
+	s.mu.RUnlock()
+	if err != nil {
+		switch {
+		case errors.Is(err, engine.ErrSupplyLineWinter):
+			writeAPIError(w, http.StatusConflict, "supply_unavailable", err.Error())
+		case errors.Is(err, engine.ErrSupplyLineUnknownTerritory),
+			errors.Is(err, engine.ErrSupplyLineNoSource):
+			writeAPIError(w, http.StatusNotFound, "supply_target_not_found", err.Error())
+		default:
+			writeAPIError(w, http.StatusInternalServerError, "supply_failed", err.Error())
+		}
+		return
+	}
+	writeJSON(w, http.StatusOK, line)
+}
+
 // GameHTTP creates a new in-memory game from a seed and player list.
 func (s *Session) GameHTTP(w http.ResponseWriter, r *http.Request) {
 	request, err := decodeGameRequest(r)

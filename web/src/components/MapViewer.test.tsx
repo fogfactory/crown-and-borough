@@ -2,7 +2,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { MapViewer } from '@/components/MapViewer'
-import type { MapData, StateData } from '@/types'
+import type { MapData, StateData, SupplyLine } from '@/types'
 
 const map: MapData = {
   territories: [
@@ -55,8 +55,11 @@ function renderMap(
   testMap: MapData = map,
   testState: StateData = state,
   onSelect = vi.fn(),
+  supply: SupplyLine | null = null,
 ) {
-  const result = render(<MapViewer map={testMap} state={testState} onSelect={onSelect} />)
+  const result = render(
+    <MapViewer map={testMap} state={testState} onSelect={onSelect} supply={supply} />,
+  )
   const svg = result.container.querySelector(
     'svg[aria-label="Carte des territoires"]',
   ) as SVGSVGElement | null
@@ -170,6 +173,202 @@ describe('MapViewer selection and panning', () => {
 })
 
 describe('MapViewer territorial overlays', () => {
+  it('renders the selected army supply zone and path', () => {
+    const supplyState: StateData = {
+      ...state,
+      players: [{ id: 'P1', name: 'One', color: '#a84632' }],
+      territories: [
+        {
+          id: 'T1',
+          owner: 'P1',
+          resources: 0,
+          army: { owner: 'P1', size: 2, chain: null },
+          infrastructures: [],
+        },
+        {
+          id: 'T2',
+          owner: 'P1',
+          resources: 0,
+          army: null,
+          infrastructures: [{ type: 'castle', level: 1 }],
+        },
+      ],
+    }
+    const supply: SupplyLine = {
+      kind: 'army',
+      territory: 'T1',
+      armyOwner: 'P1',
+      armySize: 2,
+      rations: 1,
+      demand: 1,
+      source: 'T2',
+      distance: 1,
+      path: ['T2', 'T1'],
+      reachable: ['T1', 'T2'],
+      selfSupplied: false,
+    }
+    const { svg } = renderMap(map, supplyState, vi.fn(), supply)
+    const armyTerritory = svg.querySelector('[data-territory-id="T1"]')
+
+    if (!armyTerritory) {
+      throw new Error('Supply test fixture did not render the army territory')
+    }
+    clickTarget(svg, armyTerritory)
+
+    const supplyZone = svg.querySelector('g[aria-label="Zone de ravitaillement"]')
+    const supplyPath = svg.querySelector('g[aria-label="Ligne de ravitaillement"]')
+    expect(supplyZone).toBeInTheDocument()
+    expect(supplyZone?.querySelectorAll('[data-supply-territory-id]')).toHaveLength(2)
+    expect(supplyZone?.querySelector('path')).toHaveAttribute(
+      'fill',
+      'url(#supply-zone-hatch)',
+    )
+    expect(svg.querySelector('#supply-zone-hatch line')).toHaveAttribute(
+      'stroke-opacity',
+      '0.5',
+    )
+    expect(svg.querySelector('#supply-zone-hatch line')).toHaveAttribute(
+      'stroke',
+      '#808080',
+    )
+    expect(supplyPath).toBeInTheDocument()
+    expect(supplyPath?.querySelector('polyline')).toHaveAttribute('points', '75,25 25,25')
+    expect(supplyPath).toHaveAttribute('pointer-events', 'none')
+  })
+
+  it('renders the reachable zone when a source territory is selected', () => {
+    const sourceState: StateData = {
+      ...state,
+      players: [{ id: 'P1', name: 'One', color: '#a84632' }],
+      territories: [
+        {
+          id: 'T1',
+          owner: 'P1',
+          resources: 0,
+          army: null,
+          infrastructures: [{ type: 'castle', level: 1 }],
+        },
+        { id: 'T2', owner: 'P1', resources: 0, army: null, infrastructures: [] },
+      ],
+    }
+    const sourceZone: SupplyLine = {
+      kind: 'source',
+      territory: 'T1',
+      armyOwner: 'P1',
+      armySize: 0,
+      rations: 0,
+      demand: 0,
+      source: 'T1',
+      distance: 0,
+      path: [],
+      reachable: ['T1', 'T2'],
+      selfSupplied: false,
+    }
+    const { firstTerritory, svg } = renderMap(map, sourceState, vi.fn(), sourceZone)
+    clickTarget(svg, firstTerritory)
+
+    expect(
+      svg.querySelector('g[aria-label="Zone de ravitaillement"]'),
+    ).toBeInTheDocument()
+    expect(svg.querySelectorAll('[data-supply-territory-id]')).toHaveLength(2)
+    expect(
+      svg.querySelector('g[aria-label="Ligne de ravitaillement"]'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('does not render a supply overlay for a selected territory without an army', () => {
+    const { firstTerritory, svg } = renderMap(map, state, vi.fn(), {
+      kind: 'army',
+      territory: 'T1',
+      armyOwner: 'P1',
+      armySize: 1,
+      rations: 1,
+      demand: 0,
+      source: null,
+      distance: 0,
+      path: [],
+      reachable: ['T1'],
+      selfSupplied: true,
+    })
+    clickTarget(svg, firstTerritory)
+
+    expect(
+      svg.querySelector('g[aria-label="Zone de ravitaillement"]'),
+    ).not.toBeInTheDocument()
+    expect(
+      svg.querySelector('g[aria-label="Ligne de ravitaillement"]'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('does not treat a depot as a supply source', () => {
+    const depotState: StateData = {
+      ...state,
+      players: [{ id: 'P1', name: 'One', color: '#a84632' }],
+      territories: [
+        {
+          ...state.territories[0],
+          owner: 'P1',
+          infrastructures: [{ type: 'supply_depot', level: 1 }],
+        },
+        state.territories[1],
+      ],
+    }
+    const { firstTerritory, svg } = renderMap(map, depotState, vi.fn(), {
+      kind: 'source',
+      territory: 'T1',
+      armyOwner: 'P1',
+      armySize: 0,
+      rations: 0,
+      demand: 0,
+      source: 'T1',
+      distance: 0,
+      path: [],
+      reachable: ['T1', 'T2'],
+      selfSupplied: false,
+    })
+    clickTarget(svg, firstTerritory)
+
+    expect(
+      svg.querySelector('g[aria-label="Zone de ravitaillement"]'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('does not render a stale supply overlay from another territory', () => {
+    const armyState: StateData = {
+      ...state,
+      players: [{ id: 'P1', name: 'One', color: '#a84632' }],
+      territories: [
+        {
+          ...state.territories[0],
+          owner: 'P1',
+          army: { owner: 'P1', size: 2, chain: null },
+        },
+        state.territories[1],
+      ],
+    }
+    const { firstTerritory, svg } = renderMap(map, armyState, vi.fn(), {
+      kind: 'army',
+      territory: 'T2',
+      armyOwner: 'P1',
+      armySize: 2,
+      rations: 1,
+      demand: 1,
+      source: 'T2',
+      distance: 0,
+      path: ['T2'],
+      reachable: ['T2'],
+      selfSupplied: false,
+    })
+    clickTarget(svg, firstTerritory)
+
+    expect(
+      svg.querySelector('g[aria-label="Zone de ravitaillement"]'),
+    ).not.toBeInTheDocument()
+    expect(
+      svg.querySelector('g[aria-label="Ligne de ravitaillement"]'),
+    ).not.toBeInTheDocument()
+  })
+
   it('adds a light winter veil without changing the non-winter map', () => {
     const { svg: winterSvg } = renderMap(map, { ...state, season: 'winter' })
     const winterVeil = winterSvg.querySelector('g[aria-label="Voile hivernal"]')
