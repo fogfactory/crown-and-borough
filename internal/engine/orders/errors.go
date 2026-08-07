@@ -61,6 +61,11 @@ func (e ParseError) Error() string {
 	return fmt.Sprintf("line %d: %s: %s", e.Line, e.Code, e.Message)
 }
 
+// ValidationCodeNotAdjacent is the static adjacency diagnostic. It is
+// deferrable: reception keeps the chain and P1.4 revalidates the order
+// against the real army position, breaking the chain at that order.
+const ValidationCodeNotAdjacent = "not_adjacent"
+
 // ValidationError describes an intrinsic chain validation error. OrderID is
 // empty only when the error applies to the chain header rather than one order.
 type ValidationError struct {
@@ -75,6 +80,14 @@ func (e ValidationError) Error() string {
 		return fmt.Sprintf("%s: %s", e.Code, e.Message)
 	}
 	return fmt.Sprintf("order %s: %s: %s", e.OrderID, e.Code, e.Message)
+}
+
+// Deferrable reports whether the validation error is deferred to execution
+// time instead of rejecting the chain at reception. Only static non-adjacency
+// is deferrable: the order is revalidated during P1.4 resolution, which
+// invalidates it and breaks the chain there.
+func (e ValidationError) Deferrable() bool {
+	return e.Code == ValidationCodeNotAdjacent
 }
 
 // AssignmentError describes a reception failure. It unwraps to a stable

@@ -190,6 +190,100 @@ func TestResolveTurnReportsLostReception(t *testing.T) {
 	}
 }
 
+func TestResolveTurnDefersNonAdjacentOrderAndBreaksChain(t *testing.T) {
+	assets := loadGameTestAssets(t)
+	game, err := CreateGame("deferred-non-adjacency", []PlayerInit{{Name: "One"}, {Name: "Two"}}, testBalance(), assets)
+	if err != nil {
+		t.Fatalf("CreateGame: %v", err)
+	}
+	noble := game.Nobles[0]
+	start := territoryByID(game.Territories, noble.LocationID)
+	nextID := models.TerritoryID("")
+	for _, adjacentID := range start.Adjacencies {
+		if game.TerritoryStates[adjacentID].Army == nil {
+			nextID = adjacentID
+			break
+		}
+	}
+	if nextID == "" {
+		t.Fatal("starting territory has no unoccupied adjacent territory")
+	}
+	next := territoryByID(game.Territories, nextID)
+	farID := models.TerritoryID("")
+	for _, territory := range game.Territories {
+		if territory.ID == next.ID {
+			continue
+		}
+		adjacentToNext := false
+		for _, adjacentID := range next.Adjacencies {
+			if adjacentID == territory.ID {
+				adjacentToNext = true
+				break
+			}
+		}
+		if !adjacentToNext {
+			farID = territory.ID
+			break
+		}
+	}
+	if farID == "" {
+		t.Fatal("map has no territory beyond the second territory's neighbors")
+	}
+	far := territoryByID(game.Territories, farID)
+
+	report, err := ResolveTurn(game, testBalance(), OrdersInput{
+		Chains: []ChainSubmission{{
+			Player: noble.OwnerID,
+			Noble:  models.NobleCode(noble.Code),
+			Text:   noble.Code + "\n" + start.Code + " A " + next.Code + "\nH " + next.Code + "\n" + next.Code + " A " + far.Code,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("ResolveTurn: %v", err)
+	}
+	if len(report.Receptions) != 1 || !report.Receptions[0].Received {
+		t.Fatalf("receptions = %#v, want the non-adjacent chain received", report.Receptions)
+	}
+	if len(report.Orders) != 1 || report.Orders[0].Outcome != OutcomeSuccess {
+		t.Fatalf("orders = %#v, want O1 success", report.Orders)
+	}
+	serializable := report
+	serializable.State = nil
+	if _, err := json.Marshal(serializable); err != nil {
+		t.Fatalf("marshal report: %v", err)
+	}
+
+	second, err := ResolveTurn(report.State, testBalance(), OrdersInput{})
+	if err != nil {
+		t.Fatalf("second ResolveTurn: %v", err)
+	}
+	if len(second.Orders) != 1 || second.Orders[0].Outcome != OutcomeSuccess || second.Orders[0].Progression != ProgressionAdvanced {
+		t.Fatalf("second orders = %#v, want O2 hold success advanced", second.Orders)
+	}
+
+	third, err := ResolveTurn(second.State, testBalance(), OrdersInput{})
+	if err != nil {
+		t.Fatalf("third ResolveTurn: %v", err)
+	}
+	if len(third.Orders) != 1 || third.Orders[0].Outcome != OutcomeInvalid || third.Orders[0].Progression != ProgressionBroken {
+		t.Fatalf("third orders = %#v, want O3 invalid and chain broken", third.Orders)
+	}
+	if third.Orders[0].Reason != "non_adjacent_destination" {
+		t.Errorf("O3 reason = %q, want non_adjacent_destination", third.Orders[0].Reason)
+	}
+	if len(third.State.Chains) != 0 {
+		t.Errorf("chains after break = %#v, want none", third.State.Chains)
+	}
+
+	fourth, err := ResolveTurn(third.State, testBalance(), OrdersInput{})
+	if err != nil {
+		t.Fatalf("fourth ResolveTurn: %v", err)
+	}
+	if len(fourth.Orders) != 0 {
+		t.Errorf("fourth orders = %#v, want O4 never executed", fourth.Orders)
+	}
+}
+
 func TestFullYearDeterminism(t *testing.T) {
 	assets := loadGameTestAssets(t)
 	balance := testBalance()

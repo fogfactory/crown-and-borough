@@ -9,8 +9,10 @@ import (
 // AssignChain validates current reception conditions and atomically replaces
 // the receiving army's chain. Callers must reject a chain returned by
 // ParseChain when that call returned any ParseError before calling AssignChain.
-// A returned error leaves the state, its chain ID counter, and the emitter's
-// capacity unchanged.
+// Static non-adjacency diagnostics are deferrable: reception keeps the chain
+// and P1.4 invalidates the offending order at execution, breaking the chain
+// there. Any other validation or reception error leaves the state, its chain
+// ID counter, and the emitter's capacity unchanged.
 func AssignChain(game *models.GameState, chain models.Chain) error {
 	if game == nil {
 		return assignmentError(ErrInvalidChain, "game state is nil")
@@ -19,7 +21,12 @@ func AssignChain(game *models.GameState, chain models.Chain) error {
 		return assignmentError(ErrInvalidChain, fmt.Sprintf("game state is invalid: %v", err))
 	}
 	if validationErrors := ValidateChain(game, chain); len(validationErrors) != 0 {
-		return assignmentError(ErrInvalidChain, fmt.Sprintf("chain validation failed: %s", validationErrors[0]))
+		for _, validationError := range validationErrors {
+			if validationError.Deferrable() {
+				continue
+			}
+			return assignmentError(ErrInvalidChain, fmt.Sprintf("chain validation failed: %s", validationError))
+		}
 	}
 
 	indexes := indexGame(game)

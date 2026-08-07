@@ -308,6 +308,64 @@ func TestAssignChainReceptionFailuresAreAtomic(t *testing.T) {
 	}
 }
 
+func TestAssignChainDefersNonAdjacentDiagnostic(t *testing.T) {
+	game := orderTestState()
+	text := "JEA\nROS A BOI\nBOI S ROS\nBOI A FOU"
+	chain := mustParseChain(t, game, text)
+	validationErrors := ValidateChain(game, chain)
+	if !hasValidationCode(validationErrors, "not_adjacent") {
+		t.Fatalf("ValidateChain() = %#v, want a not_adjacent diagnostic", validationErrors)
+	}
+	for _, validationError := range validationErrors {
+		if !validationError.Deferrable() {
+			t.Fatalf("ValidateChain() = %#v, want only deferrable errors", validationErrors)
+		}
+	}
+	if err := AssignChain(game, chain); err != nil {
+		t.Fatalf("AssignChain() = %v, want reception to defer not_adjacent", err)
+	}
+	if len(game.Chains) != 1 || game.Chains[0].ID != "C1" || game.Chains[0].ArmyID != "A1" {
+		t.Fatalf("stored chains = %#v, want C1 carried by A1", game.Chains)
+	}
+	if game.Chains[0].Orders[2].ID != "O3" || len(game.Chains[0].Orders[2].TargetIDs) != 1 || game.Chains[0].Orders[2].TargetIDs[0] != "T04" {
+		t.Errorf("stored O3 = %#v, want preserved T04 target", game.Chains[0].Orders[2])
+	}
+	if err := game.Validate(); err != nil {
+		t.Fatalf("state after deferred reception is invalid: %v", err)
+	}
+}
+
+func TestAssignChainRejectsDeferrableMixedWithBlockingErrors(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		text   string
+		mutate func(*models.Chain)
+		want   error
+	}{
+		{"duplicate order id after non-adjacent order", "JEA\nROS A BOI\nBOI A FOU", func(chain *models.Chain) {
+			chain.Orders[1].ID = chain.Orders[0].ID
+		}, ErrInvalidChain},
+		{"join not last and not adjacent", "JEA\nROS J BRU\nH BRU", nil, ErrInvalidChain},
+		{"disperse size and not adjacent", "JEA\nROS A BOI\nBOI D FOU", nil, ErrDisperseSize},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			game := orderTestState()
+			chain := mustParseChain(t, game, test.text)
+			if test.mutate != nil {
+				test.mutate(&chain)
+			}
+			if validationErrors := ValidateChain(game, chain); !hasValidationCode(validationErrors, "not_adjacent") {
+				t.Fatalf("ValidateChain() = %#v, want a not_adjacent diagnostic", validationErrors)
+			}
+			before := marshalGame(t, game)
+			assertAssignmentCategory(t, AssignChain(game, chain), test.want)
+			if after := marshalGame(t, game); !bytes.Equal(before, after) {
+				t.Fatalf("rejected mixed chain mutated game:\n before=%s\n after=%s", before, after)
+			}
+		})
+	}
+}
+
 func TestAssignChainDisperseAndImmediatePrisonerChecks(t *testing.T) {
 	game := orderTestState()
 	if err := AssignChain(game, mustParseChain(t, game, "JEA\nROS D ROS* BOI")); err != nil {

@@ -100,19 +100,28 @@ func addNoble(state *models.GameState, id models.NobleID, code string, ownerID m
 
 func addChain(t *testing.T, state *models.GameState, armyID models.ArmyID, nobleID models.NobleID, order models.Order) {
 	t.Helper()
+	addChainOrders(t, state, armyID, nobleID, order)
+}
+
+func addChainOrders(t *testing.T, state *models.GameState, armyID models.ArmyID, nobleID models.NobleID, orders ...models.Order) {
+	t.Helper()
 	chainID := models.ChainID(fmt.Sprintf("C%d", state.NextChainID))
-	order.ArmyID = armyID
-	if order.ID == "" {
-		order.ID = "O1"
-	}
-	if order.Liaison == "" {
-		order.Liaison = models.LiaisonModeSingle
+	stored := make([]models.Order, len(orders))
+	for index, order := range orders {
+		order.ArmyID = armyID
+		if order.ID == "" {
+			order.ID = models.OrderID(fmt.Sprintf("O%d", index+1))
+		}
+		if order.Liaison == "" {
+			order.Liaison = models.LiaisonModeSingle
+		}
+		stored[index] = order
 	}
 	state.Chains = append(state.Chains, models.Chain{
 		ID:           chainID,
 		NobleID:      nobleID,
 		ArmyID:       armyID,
-		Orders:       []models.Order{order},
+		Orders:       stored,
 		CurrentIndex: 0,
 	})
 	for index := range state.Armies {
@@ -122,6 +131,24 @@ func addChain(t *testing.T, state *models.GameState, armyID models.ArmyID, noble
 		}
 	}
 	state.NextChainID++
+}
+
+func chainOf(state *models.GameState, armyID models.ArmyID) *models.Chain {
+	for index := range state.Chains {
+		if state.Chains[index].ArmyID == armyID {
+			return &state.Chains[index]
+		}
+	}
+	return nil
+}
+
+func findOutcome(events []Event, orderID models.OrderID) (Event, bool) {
+	for _, event := range events {
+		if event.Type == EventTypeOrderOutcome && event.OrderID == orderID {
+			return event, true
+		}
+	}
+	return Event{}, false
 }
 
 func addInfrastructure(state *models.GameState, infrastructure models.Infrastructure) {

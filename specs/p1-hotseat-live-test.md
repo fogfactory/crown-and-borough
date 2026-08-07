@@ -62,5 +62,5 @@ Notes prises pendant une partie en hotseat, au fil des observations.
 
 ## Identification des territoires
 
-- Les messages d'erreur (ex. `Perdue · invalid_chain: chain validation failed: order O3: not_adjacent: A target "T24" is not adjacent to "T21"`) affichent le **matricule** du territoire au lieu du **trigramme** : il faudrait afficher le trigramme (ex. `ROS`).
+- Les messages d'erreur (ex. `Perdue · invalid_chain: chain validation failed: order O3: not_adjacent: A target "T24" is not adjacent to "T21"`) affichent le **matricule** du territoire au lieu du **trigramme** : il faudrait afficher le trigramme (ex. `ROS`). Depuis P1.9, la non-adjacence statique n'est plus rejetée à la réception : elle est reportée dans le rapport d'ordre à l'exécution (`non_adjacent_destination`, chaîne brisée) ; la réception affiche `Reçue`, pas `Perdue`.
 - Plus généralement : le **matricule de territoire n'a aucun sens**, seul le **trigramme** devrait exister (remise en cause du modèle `TerritoryID` « T24 » face à `Code`/trigramme).
