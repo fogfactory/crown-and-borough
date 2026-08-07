@@ -2,6 +2,7 @@ package engine
 
 import (
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -182,6 +183,10 @@ func TestResolveWinterPaymentOrder(t *testing.T) {
 		if got := resolution.State.TerritoryStates["T02"].Resources; got != 1 {
 			t.Errorf("castle stock = %d, want 1 after paying the remainder then conserving", got)
 		}
+		recruits := eventsOfType(resolution.Events, EventTypeRecruit)
+		if len(recruits) != 1 || recruits[0].OrderID != "O1" || recruits[0].ResourceSpent != 4 {
+			t.Errorf("recruit events = %#v, want order O1 and resource spend 4", recruits)
+		}
 	})
 
 	t.Run("equidistant sources use territory code", func(t *testing.T) {
@@ -252,6 +257,8 @@ func TestResolveWinterPaymentOrder(t *testing.T) {
 		}
 		if event := firstRejectedEvent(t, resolution.Events); event.Reason != "insufficient_resources" {
 			t.Errorf("rejection reason = %q, want insufficient_resources", event.Reason)
+		} else if event.ResourceSpent != 0 {
+			t.Errorf("rejected resource spend = %d, want 0", event.ResourceSpent)
 		}
 	})
 
@@ -329,6 +336,12 @@ func TestResolveWinterRecruitNoble(t *testing.T) {
 		recruits := eventsOfType(first.Events, EventTypeRecruit)
 		if len(recruits) != 2 || recruits[0].NobleCode == "" || recruits[0].NobleName == "" {
 			t.Errorf("recruit events = %#v, want noble code and name", recruits)
+		}
+		for index, recruit := range recruits {
+			wantOrderID := models.OrderID("O" + strconv.Itoa(index+1))
+			if recruit.OrderID != wantOrderID || recruit.ResourceSpent != testBalance().Costs.Noble {
+				t.Errorf("recruit[%d] = %#v, want order %s and resource spend %d", index, recruit, wantOrderID, testBalance().Costs.Noble)
+			}
 		}
 	})
 
@@ -423,8 +436,8 @@ func TestResolveWinterLiberateNoble(t *testing.T) {
 			t.Errorf("liberated noble = %#v, want free at T01", noble)
 		}
 		liberations := eventsOfType(resolution.Events, EventTypeLiberation)
-		if len(liberations) != 1 || liberations[0].PreviousStatus != models.NobleStatusHostage {
-			t.Errorf("liberation events = %#v", liberations)
+		if len(liberations) != 1 || liberations[0].PreviousStatus != models.NobleStatusHostage || liberations[0].OrderID != "O1" || liberations[0].ResourceSpent != 0 {
+			t.Errorf("liberation events = %#v, want order O1 and resource spend 0", liberations)
 		}
 	})
 
@@ -509,8 +522,8 @@ func TestResolveWinterRecruitTroop(t *testing.T) {
 			t.Errorf("new army = %#v", army)
 		}
 		recruits := eventsOfType(resolution.Events, EventTypeRecruit)
-		if len(recruits) != 1 || recruits[0].ArmyID != "A1" {
-			t.Errorf("recruit events = %#v, want matricule A1", recruits)
+		if len(recruits) != 1 || recruits[0].ArmyID != "A1" || recruits[0].OrderID != "O1" || recruits[0].ResourceSpent != 1 {
+			t.Errorf("recruit events = %#v, want matricule A1, order O1, and resource spend 1", recruits)
 		}
 	})
 
@@ -562,6 +575,7 @@ func TestResolveWinterConstruction(t *testing.T) {
 			models.InfraTypeSupplyDepot,
 		} {
 			t.Run(string(infrastructureType), func(t *testing.T) {
+				balance := testBalance()
 				state := winterTestState(t,
 					[]models.Territory{
 						territory("T01", "AAA", "T02"),
@@ -575,7 +589,7 @@ func TestResolveWinterConstruction(t *testing.T) {
 				setTerritoryResources(state, "T01", 20)
 				validateTestState(t, state)
 
-				resolution, err := ResolveWinter(state, testBalance(), map[models.PlayerID][]models.WinterOrder{
+				resolution, err := ResolveWinter(state, balance, map[models.PlayerID][]models.WinterOrder{
 					"P1": {{ID: "O1", Type: models.WinterOrderTypeBuild, TerritoryID: "T02", InfraType: infrastructureType}},
 				})
 				if err != nil {
@@ -586,8 +600,12 @@ func TestResolveWinterConstruction(t *testing.T) {
 					t.Errorf("infrastructure = %#v, want %q level 1", infrastructure, infrastructureType)
 				}
 				builds := eventsOfType(resolution.Events, EventTypeBuild)
-				if len(builds) != 1 || builds[0].InfrastructureType != infrastructureType || builds[0].Level != 1 {
+				if len(builds) != 1 || builds[0].InfrastructureType != infrastructureType || builds[0].Level != 1 || builds[0].OrderID != "O1" {
 					t.Errorf("build events = %#v", builds)
+				}
+				wantCost, exists := infrastructureCost(balance.Costs, infrastructureType)
+				if !exists || builds[0].ResourceSpent != wantCost {
+					t.Errorf("build resource spend = %d, want %d", builds[0].ResourceSpent, wantCost)
 				}
 			})
 		}
@@ -618,7 +636,7 @@ func TestResolveWinterConstruction(t *testing.T) {
 			t.Errorf("mill level = %d, want 2", got)
 		}
 		upgrades := eventsOfType(resolution.Events, EventTypeUpgrade)
-		if len(upgrades) != 1 || upgrades[0].Level != 2 {
+		if len(upgrades) != 1 || upgrades[0].Level != 2 || upgrades[0].OrderID != "O1" || upgrades[0].ResourceSpent != testBalance().Costs.Mill {
 			t.Errorf("upgrade events = %#v", upgrades)
 		}
 	})
@@ -712,8 +730,10 @@ func TestResolveWinterConstruction(t *testing.T) {
 		if got := capitalID(t, resolution.State, "P1"); got != infrastructure.ID {
 			t.Errorf("capital = %q, want new castle %q", got, infrastructure.ID)
 		}
-		if len(eventsOfType(resolution.Events, EventTypeCapitalElected)) != 1 {
-			t.Errorf("events = %#v, want automatic capital event", resolution.Events)
+		capitalEvents := eventsOfType(resolution.Events, EventTypeCapitalElected)
+		buildEvents := eventsOfType(resolution.Events, EventTypeBuild)
+		if len(capitalEvents) != 1 || len(buildEvents) != 1 || capitalEvents[0].OrderID != "O1" || buildEvents[0].OrderID != "O1" || !capitalEvents[0].Automatic || buildEvents[0].ResourceSpent != testBalance().Costs.Castle {
+			t.Errorf("events = %#v, want automatic capital and build events for order O1", resolution.Events)
 		}
 	})
 
@@ -995,7 +1015,7 @@ func TestResolveWinterCapital(t *testing.T) {
 			t.Errorf("capital = %q, want I2", got)
 		}
 		events := eventsOfType(resolution.Events, EventTypeCapitalElected)
-		if len(events) != 1 || events[0].InfrastructureID != "I2" {
+		if len(events) != 1 || events[0].InfrastructureID != "I2" || events[0].OrderID != "O1" || events[0].ResourceSpent != 0 || events[0].Automatic {
 			t.Errorf("capital events = %#v", events)
 		}
 	})

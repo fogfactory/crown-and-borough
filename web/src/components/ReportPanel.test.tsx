@@ -114,6 +114,7 @@ const report: TurnReport = {
         kind: 'rejected',
         player: 'P1',
         outcome: 'failure',
+        cost: 0,
         territory: 'T1',
         reason: 'insufficient_resources',
         order: { type: 'build', territory: 'T1', infrastructureType: 'mill' },
@@ -122,9 +123,17 @@ const report: TurnReport = {
         kind: 'upgrade',
         player: 'P1',
         outcome: 'success',
+        cost: 3,
         territory: 'T1',
         type: 'mill',
         level: 2,
+      },
+      {
+        kind: 'capital_elected',
+        player: 'P1',
+        outcome: 'success',
+        cost: 0,
+        territory: 'T1',
       },
     ],
     stocks: [],
@@ -144,6 +153,9 @@ describe('ReportPanel', () => {
     expect(screen.getByText('Invalidé')).toBeInTheDocument()
     expect(screen.getAllByText('C M ROS')).toHaveLength(2)
     expect(screen.getByText(/Niveau 2/)).toBeInTheDocument()
+    expect(screen.getByText('coût : 3 R')).toBeInTheDocument()
+    expect(screen.getByText('aucun coût')).toBeInTheDocument()
+    expect(screen.queryByText('coût : 0 R')).not.toBeInTheDocument()
     expect(screen.getByText(/insufficient_resources/)).toBeInTheDocument()
     expect(screen.getAllByLabelText('Couleur de One')).not.toHaveLength(0)
   })

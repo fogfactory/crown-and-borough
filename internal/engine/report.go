@@ -170,6 +170,7 @@ type WinterInvestmentReport struct {
 	Kind           EventType           `json:"kind"`
 	Player         models.PlayerID     `json:"player"`
 	Outcome        Outcome             `json:"outcome"`
+	Cost           int                 `json:"cost"`
 	Territory      models.TerritoryID  `json:"territory,omitempty"`
 	Infrastructure models.InfraID      `json:"infrastructure,omitempty"`
 	Type           models.InfraType    `json:"type,omitempty"`
@@ -326,6 +327,7 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 				report.Winter.Investments = append(report.Winter.Investments, WinterInvestmentReport{
 					Kind: event.Type, Player: event.OwnerID, Outcome: OutcomeSuccess, Territory: event.TerritoryID,
 					Noble: event.NobleID, NobleCode: event.NobleCode, NobleName: event.NobleName,
+					Cost: event.ResourceSpent,
 				})
 			}
 		case EventTypeWinterStock, EventTypeRecruit, EventTypeBuild, EventTypeUpgrade,
@@ -340,15 +342,20 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 				})
 				continue
 			}
+			if event.Type == EventTypeCapitalElected && event.Automatic {
+				continue
+			}
 			investment := WinterInvestmentReport{
 				Kind: event.Type, Player: event.OwnerID, Territory: event.TerritoryID,
 				Outcome:        OutcomeSuccess,
+				Cost:           event.ResourceSpent,
 				Infrastructure: event.InfrastructureID, Type: event.InfrastructureType,
 				Level: event.Level, Noble: event.NobleID, NobleCode: event.NobleCode,
 				NobleName: event.NobleName, Reason: event.Reason,
 			}
 			if event.Type == EventTypeRejected {
 				investment.Outcome = OutcomeFailure
+				investment.Cost = 0
 			}
 			if event.WinterOrder != nil {
 				order := *event.WinterOrder

@@ -598,6 +598,12 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
               ))}
             </g>
 
+            {state.season === 'winter' && (
+              <g aria-label="Voile hivernal" pointerEvents="none">
+                <rect width={mapWidth} height={mapHeight} fill="#eaf3ff" opacity="0.14" />
+              </g>
+            )}
+
             <g aria-label="Données anciennes" pointerEvents="none">
               {map.territories.map((territory) => {
                 const observedTurn = state.asOf[territory.id] ?? state.turn

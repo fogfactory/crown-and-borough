@@ -201,3 +201,154 @@ func TestBuildTurnReportMarksWinterInvestmentOutcomes(t *testing.T) {
 		t.Errorf("rejected winter outcome = %q, want failure", report.Winter.Investments[1].Outcome)
 	}
 }
+
+func TestWinterInvestmentReportCosts(t *testing.T) {
+	newSingleStockState := func(t *testing.T) *models.GameState {
+		t.Helper()
+		state := winterTestState(t, []models.Territory{territory("T01", "AAA")}, nil)
+		setTerritoryOwner(state, "T01", "P1")
+		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "T01"})
+		setTerritoryResources(state, "T01", 2)
+		validateTestState(t, state)
+		return state
+	}
+
+	findInvestment := func(t *testing.T, report TurnReport) WinterInvestmentReport {
+		t.Helper()
+		if report.Winter == nil || len(report.Winter.Investments) != 1 {
+			t.Fatalf("winter investments = %#v, want one investment", report.Winter)
+		}
+		return report.Winter.Investments[0]
+	}
+
+	t.Run("records a payment from one stock", func(t *testing.T) {
+		state := newSingleStockState(t)
+		resolution, err := ResolveWinter(state, testBalance(), map[models.PlayerID][]models.WinterOrder{
+			"P1": {{ID: "O1", Type: models.WinterOrderTypeRecruitTroop, TerritoryID: "T01"}},
+		})
+		if err != nil {
+			t.Fatalf("ResolveWinter: %v", err)
+		}
+		investment := findInvestment(t, BuildTurnReport(state, resolution.State, resolution.Events, nil))
+		if investment.Outcome != OutcomeSuccess || investment.Cost != 1 {
+			t.Errorf("investment = %#v, want success with cost 1", investment)
+		}
+	})
+
+	t.Run("aggregates payments from multiple stocks", func(t *testing.T) {
+		balance := testBalance()
+		balance.Costs.Troop = 4
+		state := winterTestState(t,
+			[]models.Territory{
+				territory("T01", "BBB", "T02"),
+				territory("T02", "AAA", "T01"),
+			},
+			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1}},
+		)
+		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "T01"})
+		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T02"})
+		setTerritoryOwner(state, "T02", "P1")
+		setTerritoryResources(state, "T01", 3)
+		setTerritoryResources(state, "T02", 3)
+		validateTestState(t, state)
+
+		resolution, err := ResolveWinter(state, balance, map[models.PlayerID][]models.WinterOrder{
+			"P1": {{ID: "O1", Type: models.WinterOrderTypeRecruitTroop, TerritoryID: "T01"}},
+		})
+		if err != nil {
+			t.Fatalf("ResolveWinter: %v", err)
+		}
+		investment := findInvestment(t, BuildTurnReport(state, resolution.State, resolution.Events, nil))
+		if investment.Outcome != OutcomeSuccess || investment.Cost != 4 {
+			t.Errorf("investment = %#v, want success with cost 4", investment)
+		}
+	})
+
+	t.Run("does not report a cost for an insufficient order", func(t *testing.T) {
+		balance := testBalance()
+		balance.Costs.Troop = 5
+		state := newSingleStockState(t)
+		setTerritoryResources(state, "T01", 0)
+		resolution, err := ResolveWinter(state, balance, map[models.PlayerID][]models.WinterOrder{
+			"P1": {{ID: "O1", Type: models.WinterOrderTypeRecruitTroop, TerritoryID: "T01"}},
+		})
+		if err != nil {
+			t.Fatalf("ResolveWinter: %v", err)
+		}
+		investment := findInvestment(t, BuildTurnReport(state, resolution.State, resolution.Events, nil))
+		if investment.Outcome != OutcomeFailure || investment.Cost != 0 {
+			t.Errorf("investment = %#v, want failure with cost 0", investment)
+		}
+	})
+
+	t.Run("records a free order with zero cost", func(t *testing.T) {
+		state := newSingleStockState(t)
+		balance := testBalance()
+		balance.Costs.Troop = 0
+		resolution, err := ResolveWinter(state, balance, map[models.PlayerID][]models.WinterOrder{
+			"P1": {{ID: "O1", Type: models.WinterOrderTypeRecruitTroop, TerritoryID: "T01"}},
+		})
+		if err != nil {
+			t.Fatalf("ResolveWinter: %v", err)
+		}
+		investment := findInvestment(t, BuildTurnReport(state, resolution.State, resolution.Events, nil))
+		if investment.Outcome != OutcomeSuccess || investment.Cost != 0 {
+			t.Errorf("investment = %#v, want success with cost 0", investment)
+		}
+	})
+}
+
+func TestBuildTurnReportDoesNotDuplicateAutomaticCapital(t *testing.T) {
+	before := models.NewGameState()
+	before.Turn = 4
+	before.Season = models.SeasonWinter
+	before.Players = []models.Player{{ID: "P1", Name: "One"}, {ID: "P2", Name: "Two"}}
+	before.Territories = []models.Territory{{ID: "T01", Code: "ROS", Name: "Rosemont", Terrain: models.TerrainPlain}}
+	before.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
+		"T01": {Infrastructures: []models.InfraID{}},
+	}
+	report := BuildTurnReport(before, nil, []Event{
+		{
+			Type:               EventTypeBuild,
+			OwnerID:            "P1",
+			OrderID:            "O1",
+			TerritoryID:        "T01",
+			InfrastructureType: models.InfraTypeCastle,
+			ResourceSpent:      10,
+		},
+		{
+			Type:               EventTypeCapitalElected,
+			OwnerID:            "P1",
+			OrderID:            "O1",
+			TerritoryID:        "T01",
+			InfrastructureType: models.InfraTypeCastle,
+			Automatic:          true,
+		},
+		{
+			Type:               EventTypeCapitalElected,
+			OwnerID:            "P1",
+			OrderID:            "O2",
+			TerritoryID:        "T01",
+			InfrastructureType: models.InfraTypeCastle,
+		},
+		{
+			Type:               EventTypeCapitalElected,
+			OwnerID:            "P2",
+			OrderID:            "O1",
+			TerritoryID:        "T01",
+			InfrastructureType: models.InfraTypeCastle,
+		},
+	}, nil)
+	if report.Winter == nil || len(report.Winter.Investments) != 3 {
+		t.Fatalf("winter investments = %#v, want build and two explicit capital entries", report.Winter)
+	}
+	if report.Winter.Investments[0].Kind != EventTypeBuild || report.Winter.Investments[0].Cost != 10 {
+		t.Errorf("build investment = %#v, want cost 10", report.Winter.Investments[0])
+	}
+	if report.Winter.Investments[1].Player != "P1" || report.Winter.Investments[1].Kind != EventTypeCapitalElected || report.Winter.Investments[1].Cost != 0 {
+		t.Errorf("explicit capital investment = %#v, want P1 free capital entry", report.Winter.Investments[1])
+	}
+	if report.Winter.Investments[2].Player != "P2" || report.Winter.Investments[2].Kind != EventTypeCapitalElected || report.Winter.Investments[2].Cost != 0 {
+		t.Errorf("explicit capital investment = %#v, want P2 free capital entry", report.Winter.Investments[2])
+	}
+}

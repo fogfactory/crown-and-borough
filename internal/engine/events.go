@@ -78,6 +78,7 @@ type Event struct {
 	OrderID     models.OrderID   `json:"order,omitempty"`
 	OrderType   models.OrderType `json:"orderType,omitempty"`
 	Outcome     Outcome          `json:"outcome,omitempty"`
+	Automatic   bool             `json:"automatic,omitempty"`
 	Reason      string           `json:"reason,omitempty"`
 	Progression Progression      `json:"progression,omitempty"`
 
@@ -107,6 +108,7 @@ type Event struct {
 	StockConsumed      int                        `json:"stockConsumed,omitempty"`
 	StockBefore        int                        `json:"stockBefore,omitempty"`
 	StockAfter         int                        `json:"stockAfter,omitempty"`
+	ResourceSpent      int                        `json:"resourceSpent,omitempty"`
 	Troops             int                        `json:"troops,omitempty"`
 	SavedByPillage     bool                       `json:"savedByPillage,omitempty"`
 

@@ -170,9 +170,50 @@ describe('MapViewer selection and panning', () => {
 })
 
 describe('MapViewer territorial overlays', () => {
+  it('adds a light winter veil without changing the non-winter map', () => {
+    const { svg: winterSvg } = renderMap(map, { ...state, season: 'winter' })
+    const winterVeil = winterSvg.querySelector('g[aria-label="Voile hivernal"]')
+
+    expect(winterVeil).toBeInTheDocument()
+    expect(winterVeil?.querySelector('rect')).toHaveAttribute('fill', '#eaf3ff')
+    expect(winterVeil?.querySelector('rect')).toHaveAttribute('opacity', '0.14')
+    expect(winterVeil).toHaveAttribute('pointer-events', 'none')
+
+    const { svg: springSvg } = renderMap()
+    expect(
+      springSvg.querySelector('g[aria-label="Voile hivernal"]'),
+    ).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['plain', '#b8d99a'],
+    ['forest', '#3f7854'],
+    ['hill', '#ad8565'],
+    ['mountain', '#89929a'],
+    ['swamp', '#66a6a0'],
+  ] as const)(
+    'keeps the %s terrain readable through the winter veil',
+    (terrain, color) => {
+      const testMap: MapData = {
+        territories: [{ ...map.territories[0], terrain }],
+      }
+      const testState: StateData = {
+        ...state,
+        season: 'winter',
+        territories: [state.territories[0]],
+      }
+      const { svg } = renderMap(testMap, testState)
+      const terrainPath = svg.querySelector('[data-territory-id="T1"]')
+
+      expect(terrainPath).toHaveAttribute('fill', color)
+      expect(svg.querySelector('g[aria-label="Voile hivernal"]')).toBeInTheDocument()
+    },
+  )
+
   it('renders clipped interior control and selection strokes above terrain', () => {
-    const { firstTerritory, svg } = renderMap()
+    const { firstTerritory, svg } = renderMap(map, { ...state, season: 'winter' })
     const controlPath = svg.querySelector('g[aria-label="Contrôle territorial"] path')
+    const winterVeil = svg.querySelector('g[aria-label="Voile hivernal"]')
 
     if (!controlPath) {
       throw new Error('Map test fixture did not render the control stroke')
@@ -183,6 +224,9 @@ describe('MapViewer territorial overlays', () => {
     expect(controlPath).toHaveAttribute('clip-path', 'url(#territory-clip-T1)')
     expect(controlPath).not.toHaveAttribute('opacity')
     expect(svg.querySelector('#territory-clip-T1')).toBeInTheDocument()
+    expect(winterVeil?.compareDocumentPosition(controlPath as Node)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
 
     clickTarget(svg, firstTerritory)
     const selectionPath = svg.querySelector('g[aria-label="Sélection"] path')
@@ -224,11 +268,16 @@ describe('MapViewer territorial overlays', () => {
         impassable: [territory.id === 'T1' ? 'T2' : 'T1'],
       })),
     }
-    const { svg } = renderMap(impassableMap)
+    const { svg } = renderMap(impassableMap, { ...state, season: 'winter' })
     const impassableBorder = svg.querySelector('g[aria-label="Frontières"] line')
+    const winterVeil = svg.querySelector('g[aria-label="Voile hivernal"]')
 
     expect(impassableBorder).toHaveAttribute('stroke-width', '4')
     expect(impassableBorder).not.toHaveAttribute('stroke-dasharray')
+    expect(winterVeil).toBeInTheDocument()
+    expect(winterVeil?.compareDocumentPosition(impassableBorder as Node)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
     expect(
       svg.querySelector('g[aria-label="Contrôle territorial"] path[stroke-dasharray]'),
     ).not.toBeInTheDocument()

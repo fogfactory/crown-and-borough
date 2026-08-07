@@ -301,6 +301,11 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                 </span>
                 <span className={`shrink-0 text-xs ${outcomeClass(investment.outcome)}`}>
                   {outcomeLabel(investment.outcome)}
+                  {investment.outcome === 'success' && (
+                    <span className="mt-1 block text-right text-[10px] text-[#806f57]">
+                      {investment.cost > 0 ? `coût : ${investment.cost} R` : 'aucun coût'}
+                    </span>
+                  )}
                 </span>
               </div>
             ))}

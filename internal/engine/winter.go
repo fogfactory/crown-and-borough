@@ -117,7 +117,8 @@ func (ctx *resolutionContext) resolveRecruitNoble(playerID models.PlayerID, orde
 		ctx.rejectWinterOrder(playerID, order, "no_available_first_name")
 		return
 	}
-	if !ctx.payWinterCost(playerID, order.TerritoryID, ctx.balance.Costs.Noble) {
+	spent, paid := ctx.payWinterCost(playerID, order.TerritoryID, ctx.balance.Costs.Noble)
+	if !paid {
 		ctx.rejectWinterOrder(playerID, order, "insufficient_resources")
 		return
 	}
@@ -135,13 +136,15 @@ func (ctx *resolutionContext) resolveRecruitNoble(playerID models.PlayerID, orde
 	ctx.state.Nobles = append(ctx.state.Nobles, noble)
 	ctx.rebuildIndexes()
 	ctx.events = append(ctx.events, Event{
-		Type:        EventTypeRecruit,
-		Phase:       winterPhase,
-		OwnerID:     playerID,
-		TerritoryID: order.TerritoryID,
-		NobleID:     noble.ID,
-		NobleCode:   models.NobleCode(noble.Code),
-		NobleName:   noble.Name,
+		Type:          EventTypeRecruit,
+		Phase:         winterPhase,
+		OwnerID:       playerID,
+		OrderID:       order.ID,
+		TerritoryID:   order.TerritoryID,
+		NobleID:       noble.ID,
+		NobleCode:     models.NobleCode(noble.Code),
+		NobleName:     noble.Name,
+		ResourceSpent: spent,
 	})
 }
 
@@ -159,19 +162,22 @@ func (ctx *resolutionContext) resolveRecruitTroop(playerID models.PlayerID, orde
 		ctx.rejectWinterOrder(playerID, order, "territory_occupied_by_other_player")
 		return
 	}
-	if !ctx.payWinterCost(playerID, order.TerritoryID, ctx.balance.Costs.Troop) {
+	spent, paid := ctx.payWinterCost(playerID, order.TerritoryID, ctx.balance.Costs.Troop)
+	if !paid {
 		ctx.rejectWinterOrder(playerID, order, "insufficient_resources")
 		return
 	}
 	if army != nil {
 		army.Size++
 		ctx.events = append(ctx.events, Event{
-			Type:        EventTypeRecruit,
-			Phase:       winterPhase,
-			OwnerID:     playerID,
-			TerritoryID: order.TerritoryID,
-			ArmyID:      army.ID,
-			Troops:      1,
+			Type:          EventTypeRecruit,
+			Phase:         winterPhase,
+			OwnerID:       playerID,
+			OrderID:       order.ID,
+			TerritoryID:   order.TerritoryID,
+			ArmyID:        army.ID,
+			Troops:        1,
+			ResourceSpent: spent,
 		})
 		return
 	}
@@ -188,12 +194,14 @@ func (ctx *resolutionContext) resolveRecruitTroop(playerID models.PlayerID, orde
 	ctx.state.TerritoryStates[order.TerritoryID] = state
 	ctx.rebuildIndexes()
 	ctx.events = append(ctx.events, Event{
-		Type:        EventTypeRecruit,
-		Phase:       winterPhase,
-		OwnerID:     playerID,
-		TerritoryID: order.TerritoryID,
-		ArmyID:      newArmy.ID,
-		Troops:      1,
+		Type:          EventTypeRecruit,
+		Phase:         winterPhase,
+		OwnerID:       playerID,
+		OrderID:       order.ID,
+		TerritoryID:   order.TerritoryID,
+		ArmyID:        newArmy.ID,
+		Troops:        1,
+		ResourceSpent: spent,
 	})
 }
 
@@ -217,7 +225,8 @@ func (ctx *resolutionContext) resolveBuild(playerID models.PlayerID, order model
 	existing := ctx.infrastructureAt(order.TerritoryID)
 	if existing != nil {
 		if existing.Type == models.InfraTypeMill && order.InfraType == models.InfraTypeMill {
-			if !ctx.payWinterCost(playerID, order.TerritoryID, ctx.balance.Costs.Mill) {
+			spent, paid := ctx.payWinterCost(playerID, order.TerritoryID, ctx.balance.Costs.Mill)
+			if !paid {
 				ctx.rejectWinterOrder(playerID, order, "insufficient_resources")
 				return
 			}
@@ -226,10 +235,12 @@ func (ctx *resolutionContext) resolveBuild(playerID models.PlayerID, order model
 				Type:               EventTypeUpgrade,
 				Phase:              winterPhase,
 				OwnerID:            playerID,
+				OrderID:            order.ID,
 				TerritoryID:        order.TerritoryID,
 				InfrastructureID:   existing.ID,
 				InfrastructureType: existing.Type,
 				Level:              existing.Level,
+				ResourceSpent:      spent,
 			})
 			return
 		}
@@ -243,7 +254,8 @@ func (ctx *resolutionContext) resolveBuild(playerID models.PlayerID, order model
 		ctx.rejectWinterOrder(playerID, order, "invalid_infrastructure")
 		return
 	}
-	if !ctx.payWinterCost(playerID, order.TerritoryID, cost) {
+	spent, paid := ctx.payWinterCost(playerID, order.TerritoryID, cost)
+	if !paid {
 		ctx.rejectWinterOrder(playerID, order, "insufficient_resources")
 		return
 	}
@@ -262,19 +274,24 @@ func (ctx *resolutionContext) resolveBuild(playerID models.PlayerID, order model
 		Type:               EventTypeBuild,
 		Phase:              winterPhase,
 		OwnerID:            playerID,
+		OrderID:            order.ID,
 		TerritoryID:        order.TerritoryID,
 		InfrastructureID:   infrastructure.ID,
 		InfrastructureType: infrastructure.Type,
 		Level:              infrastructure.Level,
+		ResourceSpent:      spent,
 	})
 	if capitalAssigned {
 		ctx.events = append(ctx.events, Event{
 			Type:               EventTypeCapitalElected,
 			Phase:              winterPhase,
 			OwnerID:            playerID,
+			OrderID:            order.ID,
 			TerritoryID:        order.TerritoryID,
 			InfrastructureID:   infrastructure.ID,
 			InfrastructureType: infrastructure.Type,
+			ResourceSpent:      0,
+			Automatic:          true,
 		})
 	}
 }
@@ -298,9 +315,11 @@ func (ctx *resolutionContext) resolveElectCapital(playerID models.PlayerID, orde
 		Type:               EventTypeCapitalElected,
 		Phase:              winterPhase,
 		OwnerID:            playerID,
+		OrderID:            order.ID,
 		TerritoryID:        order.TerritoryID,
 		InfrastructureID:   infrastructure.ID,
 		InfrastructureType: infrastructure.Type,
+		ResourceSpent:      0,
 	})
 }
 
@@ -324,7 +343,8 @@ func (ctx *resolutionContext) resolveLiberateNoble(playerID models.PlayerID, ord
 		ctx.rejectWinterOrder(playerID, order, "no_capital")
 		return
 	}
-	if !ctx.payWinterCost(playerID, capitalTerritoryID, ctx.balance.Costs.Liberation) {
+	spent, paid := ctx.payWinterCost(playerID, capitalTerritoryID, ctx.balance.Costs.Liberation)
+	if !paid {
 		ctx.rejectWinterOrder(playerID, order, "insufficient_resources")
 		return
 	}
@@ -335,24 +355,27 @@ func (ctx *resolutionContext) resolveLiberateNoble(playerID models.PlayerID, ord
 		Type:           EventTypeLiberation,
 		Phase:          winterPhase,
 		OwnerID:        playerID,
+		OrderID:        order.ID,
 		NobleID:        noble.ID,
 		NobleCode:      models.NobleCode(noble.Code),
 		NobleName:      noble.Name,
 		PreviousStatus: previousStatus,
 		Status:         noble.Status,
 		TerritoryID:    capitalTerritoryID,
+		ResourceSpent:  spent,
 	})
 }
 
 func (ctx *resolutionContext) rejectWinterOrder(playerID models.PlayerID, order models.WinterOrder, reason string) {
 	orderCopy := order
 	ctx.events = append(ctx.events, Event{
-		Type:        EventTypeRejected,
-		Phase:       winterPhase,
-		OwnerID:     playerID,
-		OrderID:     order.ID,
-		Reason:      reason,
-		WinterOrder: &orderCopy,
+		Type:          EventTypeRejected,
+		Phase:         winterPhase,
+		OwnerID:       playerID,
+		OrderID:       order.ID,
+		ResourceSpent: 0,
+		Reason:        reason,
+		WinterOrder:   &orderCopy,
 	})
 }
 
@@ -422,9 +445,9 @@ func newWinterRNG(seed string, turn int) *rand.Rand {
 	return rand.New(rand.NewPCG(lo, hi))
 }
 
-func (ctx *resolutionContext) payWinterCost(playerID models.PlayerID, targetID models.TerritoryID, cost int) bool {
+func (ctx *resolutionContext) payWinterCost(playerID models.PlayerID, targetID models.TerritoryID, cost int) (int, bool) {
 	if cost == 0 {
-		return true
+		return 0, true
 	}
 	sources := ctx.winterPaymentSources(playerID, targetID)
 	total := 0
@@ -432,9 +455,10 @@ func (ctx *resolutionContext) payWinterCost(playerID models.PlayerID, targetID m
 		total += ctx.state.TerritoryStates[sourceID].Resources
 	}
 	if total < cost {
-		return false
+		return 0, false
 	}
 	remaining := cost
+	spent := 0
 	for _, sourceID := range sources {
 		if remaining == 0 {
 			break
@@ -444,8 +468,9 @@ func (ctx *resolutionContext) payWinterCost(playerID models.PlayerID, targetID m
 		state.Resources -= paid
 		ctx.state.TerritoryStates[sourceID] = state
 		remaining -= paid
+		spent += paid
 	}
-	return true
+	return spent, true
 }
 
 func (ctx *resolutionContext) winterPaymentSources(playerID models.PlayerID, targetID models.TerritoryID) []models.TerritoryID {

@@ -271,6 +271,7 @@ export interface WinterInvestmentReport {
   kind: string
   player: PlayerId
   outcome: Outcome
+  cost: number
   territory?: string
   infrastructure?: string
   type?: InfraType
