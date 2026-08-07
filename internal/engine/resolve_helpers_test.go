@@ -5,8 +5,59 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
+
+func testBalance() assetgen.Balance {
+	return assetgen.Balance{
+		BaseProduction:     1,
+		SupplyRange:        3,
+		DepotRangeBonus:    2,
+		InfraRationsBonus:  2,
+		CostBase:           2,
+		PillageBonus:       2,
+		CastleDefenseBonus: 1,
+		RationTerrain: map[models.Terrain]int{
+			models.TerrainPlain:    1,
+			models.TerrainForest:   1,
+			models.TerrainHill:     1,
+			models.TerrainMountain: 0,
+			models.TerrainSwamp:    0,
+		},
+		WinterStockDivisor: 2,
+		VillageStockCap:    1,
+		CastleStockCap:     2,
+		Costs: assetgen.Costs{
+			Castle:      10,
+			Mill:        3,
+			Troop:       1,
+			Noble:       2,
+			PostRelay:   2,
+			Watchtower:  4,
+			SupplyDepot: 3,
+			Liberation:  0,
+		},
+		Travel: assetgen.Travel{
+			TerrainCosts: map[models.Terrain]float64{
+				models.TerrainPlain:    0.5,
+				models.TerrainForest:   1,
+				models.TerrainHill:     1,
+				models.TerrainMountain: 2,
+				models.TerrainSwamp:    2,
+			},
+			RelayDivisor: 2,
+		},
+		StartingNobles:    1,
+		StartingTroops:    1,
+		StartingResources: 10,
+		FirstNames: []assetgen.Asset{
+			{Code: "ADE", Name: "Adelaide"},
+			{Code: "GUI", Name: "Guillaume"},
+			{Code: "MAH", Name: "Mahaut"},
+		},
+	}
+}
 
 func testState(t *testing.T, territories []models.Territory, armies []models.Army) *models.GameState {
 	t.Helper()

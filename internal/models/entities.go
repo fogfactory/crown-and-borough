@@ -10,12 +10,13 @@ type ArmyID string
 type NobleID string
 type InfraID string
 
-// Player is a human participant. Its capital — the castle it designates as its
-// stronghold (CapitalCastleID) — arrives in P1.6 and is not modelled here.
+// Player is a human participant. CapitalCastleID identifies the castle it
+// designates as its stronghold, or is nil when it has no designated capital.
 type Player struct {
-	ID    PlayerID `json:"id"`
-	Name  string   `json:"name"`
-	Color string   `json:"color"`
+	ID              PlayerID `json:"id"`
+	Name            string   `json:"name"`
+	Color           string   `json:"color"`
+	CapitalCastleID *InfraID `json:"capitalCastle,omitempty"`
 }
 
 // Territory is the static geography of the map: the walkable adjacency graph
@@ -75,7 +76,8 @@ type Infrastructure struct {
 // a castle construction does not imply control. Army is nil when the territory
 // is empty. Infrastructures follow the "Règle de la Structure Unique": at most
 // one per territory (GDD §3), which the pillage order then destroys outright
-// (GDD §6, §8) — no ordering or choice is ever needed.
+// (GDD §6, §8) — no ordering or choice is ever needed. Only a village or
+// castle may retain a positive resource stock.
 type TerritoryState struct {
 	OwnerID         *PlayerID `json:"owner"` // nil = neutral
 	Resources       int       `json:"resources"`

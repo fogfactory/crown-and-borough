@@ -20,7 +20,7 @@ func TestResolveAttackIsPureAndUpdatesControl(t *testing.T) {
 	validateTestState(t, state)
 	before := cloneGameState(state)
 
-	resolution, err := Resolve(state)
+	resolution, err := Resolve(state, testBalance())
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
@@ -66,7 +66,7 @@ func TestResolveSupportedCombatRetreatsDefender(t *testing.T) {
 	addChain(t, state, "A3", "N3", models.Order{Type: models.OrderTypeSupport, PositionID: "T03", TargetIDs: []models.TerritoryID{"T01", "T02"}})
 	validateTestState(t, state)
 
-	resolution, err := Resolve(state)
+	resolution, err := Resolve(state, testBalance())
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
@@ -94,7 +94,7 @@ func TestResolveCastleBlocksEqualAttack(t *testing.T) {
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "T01", TargetIDs: []models.TerritoryID{"T02"}})
 	validateTestState(t, state)
 
-	resolution, err := Resolve(state)
+	resolution, err := Resolve(state, testBalance())
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
@@ -136,7 +136,7 @@ func TestResolveSupportCutAndDefensiveSupport(t *testing.T) {
 		addChain(t, state, "A4", "N4", models.Order{Type: models.OrderTypeAttack, PositionID: "T04", TargetIDs: []models.TerritoryID{"T03"}})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -180,7 +180,7 @@ func TestResolveSupportCutAndDefensiveSupport(t *testing.T) {
 		addChain(t, state, "A3", "N3", models.Order{Type: models.OrderTypeSupport, PositionID: "T03", TargetIDs: []models.TerritoryID{"T02"}})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -209,7 +209,7 @@ func TestResolveJoinPairAndCrossing(t *testing.T) {
 		addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeJoin, PositionID: "T02", TargetIDs: []models.TerritoryID{"T03"}})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -239,7 +239,7 @@ func TestResolveJoinPairAndCrossing(t *testing.T) {
 		addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeJoin, PositionID: "T02", TargetIDs: []models.TerritoryID{"T01"}})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -278,7 +278,7 @@ func TestResolvePartialDisperseAllocatesStableArmyIDs(t *testing.T) {
 	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "T04", TargetIDs: []models.TerritoryID{"T03"}})
 	validateTestState(t, state)
 
-	resolution, err := Resolve(state)
+	resolution, err := Resolve(state, testBalance())
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
@@ -324,7 +324,7 @@ func TestResolveRejectsConflictingDisperseDestinations(t *testing.T) {
 	})
 	validateTestState(t, state)
 
-	resolution, err := Resolve(state)
+	resolution, err := Resolve(state, testBalance())
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
@@ -361,7 +361,7 @@ func TestResolveJoinUsesFailedJoinerAsHost(t *testing.T) {
 	addChain(t, state, "A3", "N3", models.Order{Type: models.OrderTypeAttack, PositionID: "T04", TargetIDs: []models.TerritoryID{"T03"}})
 	validateTestState(t, state)
 
-	resolution, err := Resolve(state)
+	resolution, err := Resolve(state, testBalance())
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
@@ -401,7 +401,7 @@ func TestResolveJoinAndDisperseDependencies(t *testing.T) {
 		})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -439,7 +439,7 @@ func TestResolveJoinAndDisperseDependencies(t *testing.T) {
 		})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -479,7 +479,7 @@ func TestResolveJoinAndDisperseDependencies(t *testing.T) {
 		})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -514,7 +514,7 @@ func TestResolveJoinAndDisperseDependencies(t *testing.T) {
 		addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeJoin, PositionID: "T03", TargetIDs: []models.TerritoryID{"T01"}})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -565,7 +565,7 @@ func TestResolveJoinPairWaitsForOutgoingJoinFailure(t *testing.T) {
 	addChain(t, state, "A5", "N5", models.Order{Type: models.OrderTypeJoin, PositionID: "T06", TargetIDs: []models.TerritoryID{"T05"}})
 	validateTestState(t, state)
 
-	resolution, err := Resolve(state)
+	resolution, err := Resolve(state, testBalance())
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
@@ -616,7 +616,7 @@ func TestResolveLoopDisperseMovesResolvedBranchesAndRetriesResidual(t *testing.T
 	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "T04", TargetIDs: []models.TerritoryID{"T03"}})
 	validateTestState(t, state)
 
-	first, err := Resolve(state)
+	first, err := Resolve(state, testBalance())
 	if err != nil {
 		t.Fatalf("first Resolve: %v", err)
 	}
@@ -630,7 +630,7 @@ func TestResolveLoopDisperseMovesResolvedBranchesAndRetriesResidual(t *testing.T
 	if len(first.State.Chains) != 1 || first.State.Chains[0].ArmyID != "A1" || first.State.Chains[0].CurrentIndex != 0 || first.State.Chains[0].PendingDisperse == nil || first.State.Chains[0].PendingDisperse.ArmyID != "A3" || !reflect.DeepEqual(first.State.Chains[0].PendingDisperse.TargetIDs, []models.TerritoryID{"T03"}) {
 		t.Errorf("pending D chain = %#v, want C1 on A1 with A3 retrying T03", first.State.Chains)
 	}
-	second, err := Resolve(first.State)
+	second, err := Resolve(first.State, testBalance())
 	if err != nil {
 		t.Fatalf("second Resolve: %v", err)
 	}
@@ -653,7 +653,7 @@ func TestResolveLoopDisperseMovesResolvedBranchesAndRetriesResidual(t *testing.T
 	addNoble(carrierDefeat, "N4", "FOU", "P2", "T05")
 	addChain(t, carrierDefeat, "A4", "N4", models.Order{Type: models.OrderTypeAttack, PositionID: "T05", TargetIDs: []models.TerritoryID{"T02"}})
 	validateTestState(t, carrierDefeat)
-	cancelled, err := Resolve(carrierDefeat)
+	cancelled, err := Resolve(carrierDefeat, testBalance())
 	if err != nil {
 		t.Fatalf("carrier defeat Resolve: %v", err)
 	}
@@ -682,7 +682,7 @@ func TestResolveLoopDisperseMovesResolvedBranchesAndRetriesResidual(t *testing.T
 	addNoble(residualJoin, "N4", "FOU", "P1", "T05")
 	addChain(t, residualJoin, "A4", "N4", models.Order{Type: models.OrderTypeJoin, PositionID: "T05", TargetIDs: []models.TerritoryID{"T01"}})
 	validateTestState(t, residualJoin)
-	joined, err := Resolve(residualJoin)
+	joined, err := Resolve(residualJoin, testBalance())
 	if err != nil {
 		t.Fatalf("pending residual J Resolve: %v", err)
 	}
@@ -704,14 +704,14 @@ func TestResolveLoopDisperseMovesResolvedBranchesAndRetriesResidual(t *testing.T
 	cleared.Army = nil
 	retry.TerritoryStates["T03"] = cleared
 	validateTestState(t, retry)
-	completed, err := Resolve(retry)
+	completed, err := Resolve(retry, testBalance())
 	if err != nil {
 		t.Fatalf("completed pending D Resolve: %v", err)
 	}
 	if chain := completed.State.Chains[0]; chain.ArmyID != "A1" || chain.CurrentIndex != 1 || chain.PendingDisperse != nil {
 		t.Errorf("completed chain = %#v, want original carrier advanced to H", chain)
 	}
-	final, err := Resolve(completed.State)
+	final, err := Resolve(completed.State, testBalance())
 	if err != nil {
 		t.Fatalf("future H Resolve: %v", err)
 	}
@@ -739,7 +739,7 @@ func TestResolveInvalidPillageBreaksLoopWhenDislodged(t *testing.T) {
 	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "T02", TargetIDs: []models.TerritoryID{"T01"}})
 	validateTestState(t, state)
 
-	resolution, err := Resolve(state)
+	resolution, err := Resolve(state, testBalance())
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
@@ -766,15 +766,16 @@ func TestResolvePillageCreditsNearestControlledSettlement(t *testing.T) {
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypePillage, PositionID: "T01"})
 	validateTestState(t, state)
 
-	resolution, err := Resolve(state)
+	resolution, err := Resolve(state, testBalance())
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
 	if len(resolution.State.Infrastructures) != 1 || resolution.State.Infrastructures[0].ID != "I2" {
 		t.Errorf("infrastructures = %#v, want only I2", resolution.State.Infrastructures)
 	}
-	if got := resolution.State.TerritoryStates["T02"].Resources; got != PillageBonus+BaseProduction+1 {
-		t.Errorf("castle resources = %d, want %d", got, PillageBonus+BaseProduction+1)
+	wantResources := testBalance().PillageBonus + testBalance().BaseProduction + 1
+	if got := resolution.State.TerritoryStates["T02"].Resources; got != wantResources {
+		t.Errorf("castle resources = %d, want %d", got, wantResources)
 	}
 	if !containsEvent(resolution.Events, EventTypePillage) {
 		t.Errorf("events = %#v, want a pillage event", resolution.Events)
@@ -793,7 +794,7 @@ func TestResolveNobleStatusAndCapture(t *testing.T) {
 		addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeHostage, PositionID: "T01", NobleTargetIDs: []models.NobleID{"N2"}})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -819,7 +820,7 @@ func TestResolveNobleStatusAndCapture(t *testing.T) {
 		addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "T02", TargetIDs: []models.TerritoryID{"T01"}})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -845,7 +846,7 @@ func TestResolveLoopProgression(t *testing.T) {
 		addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeHold, PositionID: "T01", Liaison: models.LiaisonModeLoop})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -874,7 +875,7 @@ func TestResolveLoopProgression(t *testing.T) {
 		addChain(t, state, "A3", "N3", models.Order{Type: models.OrderTypeSupport, PositionID: "T03", TargetIDs: []models.TerritoryID{"T01", "T02"}, Liaison: models.LiaisonModeLoop})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -908,11 +909,11 @@ func TestResolveIsDeterministic(t *testing.T) {
 	addChain(t, state, "A3", "N3", models.Order{Type: models.OrderTypeAttack, PositionID: "T03", TargetIDs: []models.TerritoryID{"T02"}})
 	validateTestState(t, state)
 
-	first, err := Resolve(state)
+	first, err := Resolve(state, testBalance())
 	if err != nil {
 		t.Fatalf("first Resolve: %v", err)
 	}
-	second, err := Resolve(state)
+	second, err := Resolve(state, testBalance())
 	if err != nil {
 		t.Fatalf("second Resolve: %v", err)
 	}

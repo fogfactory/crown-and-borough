@@ -147,6 +147,7 @@ func updateTerritorialControl(ctx *resolutionContext) {
 		ownerID := army.OwnerID
 		state.OwnerID = &ownerID
 		ctx.state.TerritoryStates[army.TerritoryID] = state
+		ctx.clearCapitalOnControlLoss(previousOwnerID, army.TerritoryID)
 		ctx.events = append(ctx.events, Event{
 			Type:            EventTypeControlChanged,
 			Phase:           5,
@@ -154,5 +155,21 @@ func updateTerritorialControl(ctx *resolutionContext) {
 			PreviousOwnerID: previousOwnerID,
 			OwnerID:         ownerID,
 		})
+	}
+}
+
+func (ctx *resolutionContext) clearCapitalOnControlLoss(previousOwnerID models.PlayerID, territoryID models.TerritoryID) {
+	if previousOwnerID == "" {
+		return
+	}
+	for index := range ctx.state.Players {
+		player := &ctx.state.Players[index]
+		if player.ID != previousOwnerID || player.CapitalCastleID == nil {
+			continue
+		}
+		infrastructure := ctx.infrastructuresByID[*player.CapitalCastleID]
+		if infrastructure != nil && infrastructure.TerritoryID == territoryID {
+			player.CapitalCastleID = nil
+		}
 	}
 }

@@ -3,20 +3,24 @@ package engine
 import (
 	"fmt"
 
+	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
 // Resolve resolves supply and every current chain simultaneously. It validates
 // and deep clones game before running its phases, so game is never mutated.
-func Resolve(game *models.GameState) (Resolution, error) {
+func Resolve(game *models.GameState, balance assetgen.Balance) (Resolution, error) {
 	if game == nil {
 		return Resolution{}, fmt.Errorf("engine: resolve: nil game state")
 	}
 	if err := game.Validate(); err != nil {
 		return Resolution{}, fmt.Errorf("engine: resolve: invalid game state: %w", err)
 	}
+	if game.Season == models.SeasonWinter {
+		return Resolution{}, fmt.Errorf("engine: resolve: winter state must use ResolveWinter")
+	}
 	state := cloneGameState(game)
-	ctx := newResolutionContext(state)
+	ctx := newResolutionContext(state, balance)
 
 	resolveSupply(ctx)
 	// P2.3 can prepare delivered chains before Resolve is called without

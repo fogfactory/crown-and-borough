@@ -86,10 +86,10 @@ func resolveRations(ctx *resolutionContext) map[models.ArmyID]int {
 
 // armyCost returns the exponential stockable-resource cost before local rations
 // are deducted.
-func armyCost(size int) int {
+func armyCost(size, costBase int) int {
 	cost := 1
 	for troops := 1; troops < size; troops++ {
-		cost *= CostBase
+		cost *= costBase
 	}
 	return cost
 }
@@ -121,9 +121,9 @@ func rationProduction(ctx *resolutionContext, territoryID models.TerritoryID) in
 	if territory == nil {
 		return 0
 	}
-	production := RationTerrain[territory.Terrain]
+	production := ctx.balance.RationTerrain[territory.Terrain]
 	if ctx.hasSettlement(territoryID) {
-		production += InfraRationsBonus
+		production += ctx.balance.InfraRationsBonus
 	}
 	return production
 }
@@ -147,7 +147,7 @@ func controlledSupplySources(ctx *resolutionContext, ownerID models.PlayerID) []
 }
 
 func sourceProduction(ctx *resolutionContext, territoryID models.TerritoryID) int {
-	production := BaseProduction
+	production := ctx.balance.BaseProduction
 	locations := append([]models.TerritoryID{territoryID}, ctx.sortedNeighbors(territoryID)...)
 	for _, locationID := range locations {
 		infrastructure := ctx.infrastructureAt(locationID)
@@ -169,7 +169,7 @@ func supplyNetwork(ctx *resolutionContext, sourceID models.TerritoryID, ownerID 
 	}
 
 	reachable := map[models.TerritoryID]int{sourceID: 0}
-	queue := []visit{{territoryID: sourceID, remaining: SupplyRange}}
+	queue := []visit{{territoryID: sourceID, remaining: ctx.balance.SupplyRange}}
 	for len(queue) > 0 {
 		current := queue[0]
 		queue = queue[1:]
@@ -186,7 +186,7 @@ func supplyNetwork(ctx *resolutionContext, sourceID models.TerritoryID, ownerID 
 			}
 			remaining := current.remaining - 1
 			if ctx.isControlledDepot(neighborID, ownerID) {
-				remaining += DepotRangeBonus
+				remaining += ctx.balance.DepotRangeBonus
 			}
 			reachable[neighborID] = current.distance + 1
 			queue = append(queue, visit{
@@ -208,7 +208,7 @@ func assignSupply(
 	assignments := make([]supplyAssignment, 0)
 	direct := make([]famineCandidate, 0)
 	for _, army := range startArmiesForPlayer(ctx, ownerID) {
-		demand := armyCost(army.Size) - receivedRations[army.ID]
+		demand := armyCost(army.Size, ctx.balance.CostBase) - receivedRations[army.ID]
 		if demand == 0 {
 			continue
 		}
@@ -357,7 +357,7 @@ func (ctx *resolutionContext) resolveFamine(candidate famineCandidate) {
 		event.InfrastructureID = infrastructure.ID
 		event.InfrastructureType = infrastructure.Type
 		ctx.removeInfrastructure(infrastructure.ID)
-		gain := PillageBonus - candidate.demand
+		gain := ctx.balance.PillageBonus - candidate.demand
 		if gain >= 0 {
 			event.SavedByPillage = true
 			if gain > 0 {

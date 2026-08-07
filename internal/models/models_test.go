@@ -25,9 +25,14 @@ func ptrChainID(id string) *models.ChainID {
 	return &c
 }
 
+func ptrInfraID(id string) *models.InfraID {
+	infrastructureID := models.InfraID(id)
+	return &infrastructureID
+}
+
 // validState returns a complete, valid state: 2 players, 4 territories in a
 // ring with commune trigrams, 2 armies, 1 noble, 1 mill level 2 and 1 castle,
-// 1 neutral territory, resources. Tests mutate a fresh instance to build
+// 1 neutral territory, and stock on its castle. Tests mutate a fresh instance to build
 // negative cases.
 func validState() *models.GameState {
 	g := models.NewGameState()
@@ -56,9 +61,9 @@ func validState() *models.GameState {
 		{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T03"},
 	}
 	g.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
-		"T01": {OwnerID: ptrID("P1"), Resources: 5, Army: ptrArmyID("A1"), Infrastructures: []models.InfraID{"I1"}},
+		"T01": {OwnerID: ptrID("P1"), Resources: 0, Army: ptrArmyID("A1"), Infrastructures: []models.InfraID{"I1"}},
 		"T02": {OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A2")},
-		"T03": {OwnerID: ptrID("P1"), Resources: 1, Infrastructures: []models.InfraID{"I2"}},
+		"T03": {OwnerID: ptrID("P1"), Resources: 5, Infrastructures: []models.InfraID{"I2"}},
 		"T04": {OwnerID: nil, Resources: 0},
 	}
 	return g
@@ -126,6 +131,25 @@ func TestNobleStatusIsValid(t *testing.T) {
 	}
 }
 
+func TestWinterOrderTypeIsValid(t *testing.T) {
+	for _, valid := range []models.WinterOrderType{
+		models.WinterOrderTypeRecruitNoble,
+		models.WinterOrderTypeRecruitTroop,
+		models.WinterOrderTypeBuild,
+		models.WinterOrderTypeElectCapital,
+		models.WinterOrderTypeLiberateNoble,
+	} {
+		if !valid.IsValid() {
+			t.Errorf("WinterOrderType %q: want valid", valid)
+		}
+	}
+	for _, invalid := range []models.WinterOrderType{"", "recruit", "E C"} {
+		if invalid.IsValid() {
+			t.Errorf("WinterOrderType %q: want invalid", invalid)
+		}
+	}
+}
+
 func TestSeasonForTurn(t *testing.T) {
 	cases := []struct {
 		turn int
@@ -179,7 +203,9 @@ func TestNewGameState(t *testing.T) {
 }
 
 func TestValidateValidState(t *testing.T) {
-	if err := validState().Validate(); err != nil {
+	g := validState()
+	g.Players[0].CapitalCastleID = ptrInfraID("I2")
+	if err := g.Validate(); err != nil {
 		t.Errorf("Validate() = %v, want nil", err)
 	}
 }
@@ -239,7 +265,7 @@ func TestValidateErrors(t *testing.T) {
 		{"army unknown owner", func(g *models.GameState) { g.Armies[0].OwnerID = "P9" }, "unknown owner"},
 		{"army unknown territory", func(g *models.GameState) { g.Armies[0].TerritoryID = "T99" }, "unknown territory"},
 		{"army not referenced by territory state", func(g *models.GameState) {
-			g.TerritoryStates["T01"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 5, Infrastructures: []models.InfraID{"I1"}}
+			g.TerritoryStates["T01"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 0, Infrastructures: []models.InfraID{"I1"}}
 		}, "does not reference it"},
 		{"state references army stationed elsewhere", func(g *models.GameState) {
 			g.TerritoryStates["T02"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A1")}
@@ -267,8 +293,14 @@ func TestValidateErrors(t *testing.T) {
 		{"invalid infra type", func(g *models.GameState) { g.Infrastructures[0].Type = "bank" }, "invalid type"},
 		{"infra level zero", func(g *models.GameState) { g.Infrastructures[0].Level = 0 }, "level"},
 		{"infra unknown territory", func(g *models.GameState) { g.Infrastructures[0].TerritoryID = "T99" }, "unknown territory"},
+		{"capital castle does not exist", func(g *models.GameState) { g.Players[0].CapitalCastleID = ptrInfraID("I9") }, "capital castle"},
+		{"capital references noncastle", func(g *models.GameState) { g.Players[0].CapitalCastleID = ptrInfraID("I1") }, "capital infrastructure"},
+		{"capital castle is enemy controlled", func(g *models.GameState) {
+			g.Players[0].CapitalCastleID = ptrInfraID("I2")
+			g.TerritoryStates["T03"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 5, Infrastructures: []models.InfraID{"I2"}}
+		}, "not controlled by its owner"},
 		{"infra not listed in territory state", func(g *models.GameState) {
-			g.TerritoryStates["T01"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 5, Army: ptrArmyID("A1")}
+			g.TerritoryStates["T01"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 0, Army: ptrArmyID("A1")}
 		}, "does not list it"},
 		{"state lists infra built elsewhere", func(g *models.GameState) {
 			g.TerritoryStates["T02"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A2"), Infrastructures: []models.InfraID{"I2"}}
@@ -291,6 +323,9 @@ func TestValidateErrors(t *testing.T) {
 		{"negative resources", func(g *models.GameState) {
 			g.TerritoryStates["T01"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: -1, Army: ptrArmyID("A1"), Infrastructures: []models.InfraID{"I1"}}
 		}, "negative resources"},
+		{"positive resources outside a settlement", func(g *models.GameState) {
+			g.TerritoryStates["T01"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 1, Army: ptrArmyID("A1"), Infrastructures: []models.InfraID{"I1"}}
+		}, "positive resources require"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

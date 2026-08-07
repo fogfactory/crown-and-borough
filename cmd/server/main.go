@@ -87,6 +87,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to load assets: %v", err)
 	}
+	if _, err := assetgen.LoadBalance(assetsDir); err != nil {
+		log.Fatalf("failed to load balance: %v", err)
+	}
 	log.Printf("assets loaded from %s: %d communes, %d prenoms", assetsDir, len(assets.Communes), len(assets.Prenoms))
 
 	seed := os.Getenv("SEED")

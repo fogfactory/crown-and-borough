@@ -807,7 +807,7 @@ func (ctx *resolutionContext) executePillage(record *orderRecord, army *models.A
 	creditTerritoryID := ctx.closestControlledSettlement(army.TerritoryID, army.OwnerID)
 	if creditTerritoryID != "" {
 		creditState := ctx.state.TerritoryStates[creditTerritoryID]
-		creditState.Resources += PillageBonus
+		creditState.Resources += ctx.balance.PillageBonus
 		ctx.state.TerritoryStates[creditTerritoryID] = creditState
 	}
 	record.outcome = OutcomeSuccess
@@ -819,17 +819,17 @@ func (ctx *resolutionContext) executePillage(record *orderRecord, army *models.A
 		TerritoryID:        army.TerritoryID,
 		InfrastructureID:   infrastructureID,
 		InfrastructureType: infrastructureType,
-		ResourceCredit:     creditAmount(creditTerritoryID),
+		ResourceCredit:     ctx.creditAmount(creditTerritoryID),
 		CreditTerritoryID:  creditTerritoryID,
 		Outcome:            OutcomeSuccess,
 	})
 }
 
-func creditAmount(territoryID models.TerritoryID) int {
+func (ctx *resolutionContext) creditAmount(territoryID models.TerritoryID) int {
 	if territoryID == "" {
 		return 0
 	}
-	return PillageBonus
+	return ctx.balance.PillageBonus
 }
 
 func (ctx *resolutionContext) closestControlledSettlement(startID models.TerritoryID, ownerID models.PlayerID) models.TerritoryID {

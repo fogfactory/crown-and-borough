@@ -41,6 +41,27 @@ func (t OrderType) IsValid() bool {
 	return false
 }
 
+// WinterOrderType identifies an immediate winter management instruction.
+type WinterOrderType string
+
+const (
+	WinterOrderTypeRecruitNoble  WinterOrderType = "recruit_noble"
+	WinterOrderTypeRecruitTroop  WinterOrderType = "recruit_troop"
+	WinterOrderTypeBuild         WinterOrderType = "build"
+	WinterOrderTypeElectCapital  WinterOrderType = "elect_capital"
+	WinterOrderTypeLiberateNoble WinterOrderType = "liberate_noble"
+)
+
+// IsValid reports whether a winter order type is known to the winter resolver.
+func (t WinterOrderType) IsValid() bool {
+	switch t {
+	case WinterOrderTypeRecruitNoble, WinterOrderTypeRecruitTroop, WinterOrderTypeBuild,
+		WinterOrderTypeElectCapital, WinterOrderTypeLiberateNoble:
+		return true
+	}
+	return false
+}
+
 // LiaisonMode controls P1.4 progression after an order succeeds or fails.
 type LiaisonMode string
 
@@ -80,6 +101,16 @@ type Order struct {
 	// Liaison comes from parentheses around an order line and is consumed by P1.4
 	// progression after the order outcome is known.
 	Liaison LiaisonMode `json:"liaison"`
+}
+
+// WinterOrder is one direct winter management instruction. Fields irrelevant
+// to Type are left at their zero value.
+type WinterOrder struct {
+	ID          OrderID         `json:"id"`
+	Type        WinterOrderType `json:"type"`
+	TerritoryID TerritoryID     `json:"territory,omitempty"`
+	InfraType   InfraType       `json:"infrastructureType,omitempty"`
+	NobleCode   NobleCode       `json:"nobleCode,omitempty"`
 }
 
 // PendingDisperse records unresolved branches of a looped dispersion after

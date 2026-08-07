@@ -5,11 +5,13 @@ import (
 	"sort"
 	"strconv"
 
+	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
 type resolutionContext struct {
-	state *models.GameState
+	state   *models.GameState
+	balance assetgen.Balance
 
 	armiesByID          map[models.ArmyID]*models.Army
 	armyAtTerritory     map[models.TerritoryID]models.ArmyID
@@ -37,9 +39,10 @@ type resolutionContext struct {
 	events              []Event
 }
 
-func newResolutionContext(state *models.GameState) *resolutionContext {
+func newResolutionContext(state *models.GameState, balance assetgen.Balance) *resolutionContext {
 	ctx := &resolutionContext{
 		state:                state,
+		balance:              balance,
 		startArmiesByID:      make(map[models.ArmyID]models.Army, len(state.Armies)),
 		startArmyAtTerritory: make(map[models.TerritoryID]models.ArmyID, len(state.Armies)),
 		famished:             make(map[models.ArmyID]bool),
@@ -182,9 +185,25 @@ func (ctx *resolutionContext) rebuildOccupancy() error {
 }
 
 func (ctx *resolutionContext) removeInfrastructure(infrastructureID models.InfraID) {
+	ctx.removeInfrastructureWithStock(infrastructureID, false)
+}
+
+func (ctx *resolutionContext) removeInfrastructurePreservingStock(infrastructureID models.InfraID) {
+	ctx.removeInfrastructureWithStock(infrastructureID, true)
+}
+
+func (ctx *resolutionContext) removeInfrastructureWithStock(infrastructureID models.InfraID, preserveStock bool) {
 	infrastructure := ctx.infrastructuresByID[infrastructureID]
 	if infrastructure == nil {
 		return
+	}
+	if infrastructure.Type == models.InfraTypeCastle {
+		for index := range ctx.state.Players {
+			player := &ctx.state.Players[index]
+			if player.CapitalCastleID != nil && *player.CapitalCastleID == infrastructureID {
+				player.CapitalCastleID = nil
+			}
+		}
 	}
 	filtered := make([]models.Infrastructure, 0, len(ctx.state.Infrastructures)-1)
 	for _, candidate := range ctx.state.Infrastructures {
@@ -195,6 +214,9 @@ func (ctx *resolutionContext) removeInfrastructure(infrastructureID models.Infra
 	ctx.state.Infrastructures = filtered
 	state := ctx.state.TerritoryStates[infrastructure.TerritoryID]
 	state.Infrastructures = removeInfraID(state.Infrastructures, infrastructureID)
+	if !preserveStock && (infrastructure.Type == models.InfraTypeCastle || infrastructure.Type == models.InfraTypeVillage) {
+		state.Resources = 0
+	}
 	ctx.state.TerritoryStates[infrastructure.TerritoryID] = state
 	ctx.rebuildIndexes()
 }

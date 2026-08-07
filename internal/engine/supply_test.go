@@ -17,7 +17,7 @@ func TestArmyCostAndRationDistribution(t *testing.T) {
 		{size: 3, want: 4},
 		{size: 4, want: 8},
 	} {
-		if got := armyCost(test.size); got != test.want {
+		if got := armyCost(test.size, testBalance().CostBase); got != test.want {
 			t.Errorf("armyCost(%d) = %d, want %d", test.size, got, test.want)
 		}
 	}
@@ -63,7 +63,7 @@ func TestResolveSupplyRationsAndEvents(t *testing.T) {
 			)
 			validateTestState(t, state)
 
-			resolution, err := Resolve(state)
+			resolution, err := Resolve(state, testBalance())
 			if err != nil {
 				t.Fatalf("Resolve: %v", err)
 			}
@@ -85,7 +85,7 @@ func TestResolveSupplyRationsAndEvents(t *testing.T) {
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "T01"})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -109,7 +109,7 @@ func TestResolveSupplyRationsAndEvents(t *testing.T) {
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T02"})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -144,7 +144,7 @@ func TestResolveSupplyProductionAndStocks(t *testing.T) {
 		state.TerritoryStates["T03"] = neutralState
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -183,15 +183,14 @@ func TestResolveSupplyProductionAndStocks(t *testing.T) {
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T01"})
 		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "T02"})
 		addInfrastructure(state, models.Infrastructure{ID: "I3", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "T05"})
-		setTerritoryOwner(state, "T06", "P2")
-		addInfrastructure(state, models.Infrastructure{ID: "I4", Type: models.InfraTypeMill, Level: 1, TerritoryID: "T06"})
+		addInfrastructure(state, models.Infrastructure{ID: "I4", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "T06"})
 		setTerritoryResources(state, "T01", 1)
 		setTerritoryResources(state, "T02", 1)
 		setTerritoryResources(state, "T05", 7)
 		setTerritoryResources(state, "T06", 9)
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -205,7 +204,7 @@ func TestResolveSupplyProductionAndStocks(t *testing.T) {
 			t.Errorf("neutral stock = %d, want unchanged 7", got)
 		}
 		if got := resolution.State.TerritoryStates["T06"].Resources; got != 9 {
-			t.Errorf("enemy non-source stock = %d, want unchanged 9", got)
+			t.Errorf("neutral non-source stock = %d, want unchanged 9", got)
 		}
 		if event := supplyEventForSource(t, resolution.Events, "T01"); event.StockConsumed != 0 {
 			t.Errorf("T01 stock consumed = %d, want 0", event.StockConsumed)
@@ -238,7 +237,7 @@ func TestResolveSupplyNetworks(t *testing.T) {
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T01"})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -265,7 +264,7 @@ func TestResolveSupplyNetworks(t *testing.T) {
 		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "T03"})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -300,7 +299,7 @@ func TestResolveSupplyNetworks(t *testing.T) {
 		addInfrastructure(state, models.Infrastructure{ID: "I3", Type: models.InfraTypeSupplyDepot, Level: 1, TerritoryID: "T06"})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -326,7 +325,7 @@ func TestResolveSupplyNetworks(t *testing.T) {
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T01"})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -356,7 +355,7 @@ func TestResolveSupplyIsolatedByOwner(t *testing.T) {
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T01"})
 	validateTestState(t, state)
 
-	resolution, err := Resolve(state)
+	resolution, err := Resolve(state, testBalance())
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
@@ -384,7 +383,7 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T03"})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -419,7 +418,7 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 		addInfrastructure(state, models.Infrastructure{ID: "I3", Type: models.InfraTypeMill, Level: 1, TerritoryID: "T04"})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -443,7 +442,7 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "T01"})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -473,7 +472,7 @@ func TestResolveSupplyFamineEventOrder(t *testing.T) {
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T01"})
 	validateTestState(t, state)
 
-	resolution, err := Resolve(state)
+	resolution, err := Resolve(state, testBalance())
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
@@ -505,7 +504,7 @@ func TestResolveAssignedFamineTieBreaksAndHasZeroStrength(t *testing.T) {
 	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "T03", TargetIDs: []models.TerritoryID{"T05"}})
 	validateTestState(t, state)
 
-	resolution, err := Resolve(state)
+	resolution, err := Resolve(state, testBalance())
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
@@ -540,7 +539,7 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 		addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "T01", TargetIDs: []models.TerritoryID{"T02"}})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -568,7 +567,7 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 		addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "T02", TargetIDs: []models.TerritoryID{"T01"}})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -599,7 +598,7 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 		addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeSupport, PositionID: "T03", TargetIDs: []models.TerritoryID{"T01", "T02"}})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -623,7 +622,7 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 		addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "T01", TargetIDs: []models.TerritoryID{"T02"}})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -644,7 +643,7 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 		addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeJoin, PositionID: "T01", TargetIDs: []models.TerritoryID{"T02"}})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -670,7 +669,7 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 		})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -695,7 +694,7 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 		addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "T01", TargetIDs: []models.TerritoryID{"T02"}})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state)
+		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -726,11 +725,11 @@ func TestResolveSupplyIsPureAndDeterministic(t *testing.T) {
 	validateTestState(t, state)
 	before := cloneGameState(state)
 
-	first, err := Resolve(state)
+	first, err := Resolve(state, testBalance())
 	if err != nil {
 		t.Fatalf("first Resolve: %v", err)
 	}
-	second, err := Resolve(state)
+	second, err := Resolve(state, testBalance())
 	if err != nil {
 		t.Fatalf("second Resolve: %v", err)
 	}

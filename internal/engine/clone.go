@@ -5,6 +5,12 @@ import "github.com/fogfactory/crown-and-borough/internal/models"
 func cloneGameState(source *models.GameState) *models.GameState {
 	clone := *source
 	clone.Players = cloneSlice(source.Players)
+	for i, player := range source.Players {
+		if player.CapitalCastleID != nil {
+			capitalCastleID := *player.CapitalCastleID
+			clone.Players[i].CapitalCastleID = &capitalCastleID
+		}
+	}
 	clone.Territories = make([]models.Territory, len(source.Territories))
 	for i, territory := range source.Territories {
 		clone.Territories[i] = territory

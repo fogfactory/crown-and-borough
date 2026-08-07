@@ -148,7 +148,7 @@ func (ctx *resolutionContext) resolveTerritoryContest(
 	defender := ctx.startArmyAt(territoryID)
 	castleBonus := 0
 	if ctx.hasCastle(territoryID) {
-		castleBonus = 1
+		castleBonus = ctx.balance.CastleDefenseBonus
 	}
 	baseDefense := castleBonus
 	defense := baseDefense

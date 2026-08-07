@@ -372,6 +372,18 @@ func (g *GameState) Validate() error {
 		}
 		infras[in.ID] = in
 	}
+	for _, player := range g.Players {
+		if player.CapitalCastleID == nil {
+			continue
+		}
+		infrastructure := infras[*player.CapitalCastleID]
+		if infrastructure == nil {
+			return fmt.Errorf("models: player %q: capital castle %q does not exist", player.ID, *player.CapitalCastleID)
+		}
+		if infrastructure.Type != InfraTypeCastle {
+			return fmt.Errorf("models: player %q: capital infrastructure %q is %q, want %q", player.ID, *player.CapitalCastleID, infrastructure.Type, InfraTypeCastle)
+		}
+	}
 
 	// 9. Territory states: exact coverage, valid owners, and a valid army
 	// pointer whose territory agrees with the map key. At most one
@@ -399,6 +411,7 @@ func (g *GameState) Validate() error {
 		if len(st.Infrastructures) > 1 {
 			return fmt.Errorf("models: territoryState %q: multiple infrastructures (want at most one per territory)", id)
 		}
+		stockable := false
 		for _, iid := range st.Infrastructures {
 			in := infras[iid]
 			if in == nil {
@@ -407,6 +420,12 @@ func (g *GameState) Validate() error {
 			if in.TerritoryID != id {
 				return fmt.Errorf("models: territoryState %q: infrastructure %q is built in territory %q", id, iid, in.TerritoryID)
 			}
+			if in.Type == InfraTypeCastle || in.Type == InfraTypeVillage {
+				stockable = true
+			}
+		}
+		if st.Resources > 0 && !stockable {
+			return fmt.Errorf("models: territoryState %q: positive resources require a castle or village", id)
 		}
 	}
 	for id, army := range armies {
@@ -436,6 +455,16 @@ func (g *GameState) Validate() error {
 	for id := range terrs {
 		if _, ok := g.TerritoryStates[id]; !ok {
 			return fmt.Errorf("models: territory %q: missing TerritoryState entry", id)
+		}
+	}
+	for _, player := range g.Players {
+		if player.CapitalCastleID == nil {
+			continue
+		}
+		infrastructure := infras[*player.CapitalCastleID]
+		state := g.TerritoryStates[infrastructure.TerritoryID]
+		if state.OwnerID == nil || *state.OwnerID != player.ID {
+			return fmt.Errorf("models: player %q: capital castle %q is not controlled by its owner", player.ID, *player.CapitalCastleID)
 		}
 	}
 	return nil

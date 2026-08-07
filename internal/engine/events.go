@@ -27,6 +27,13 @@ const (
 	EventTypeChainProgression EventType = "chain_progression"
 	EventTypeSupply           EventType = "supply"
 	EventTypeFamine           EventType = "famine"
+	EventTypeWinterStock      EventType = "winter_stock"
+	EventTypeRecruit          EventType = "recruit"
+	EventTypeBuild            EventType = "build"
+	EventTypeUpgrade          EventType = "upgrade"
+	EventTypeRejected         EventType = "rejected"
+	EventTypeCapitalElected   EventType = "capital_elected"
+	EventTypeLiberation       EventType = "liberation"
 )
 
 // Outcome is the execution result of one current order.
@@ -91,21 +98,27 @@ type Event struct {
 
 	InfrastructureID   models.InfraID             `json:"infrastructure,omitempty"`
 	InfrastructureType models.InfraType           `json:"infrastructureType,omitempty"`
+	Level              int                        `json:"level,omitempty"`
 	ResourceCredit     int                        `json:"resourceCredit,omitempty"`
 	CreditTerritoryID  models.TerritoryID         `json:"creditTerritory,omitempty"`
 	Production         int                        `json:"production,omitempty"`
 	Demand             int                        `json:"demand,omitempty"`
 	Rations            map[models.TerritoryID]int `json:"rations,omitempty"`
 	StockConsumed      int                        `json:"stockConsumed,omitempty"`
+	StockBefore        int                        `json:"stockBefore,omitempty"`
+	StockAfter         int                        `json:"stockAfter,omitempty"`
 	Troops             int                        `json:"troops,omitempty"`
 	SavedByPillage     bool                       `json:"savedByPillage,omitempty"`
 
-	NobleID         models.NobleID     `json:"noble,omitempty"`
-	PreviousStatus  models.NobleStatus `json:"previousStatus,omitempty"`
-	Status          models.NobleStatus `json:"status,omitempty"`
-	CaptorPlayerID  models.PlayerID    `json:"captorPlayer,omitempty"`
-	PreviousOwnerID models.PlayerID    `json:"previousOwner,omitempty"`
-	OwnerID         models.PlayerID    `json:"owner,omitempty"`
-	IndexBefore     int                `json:"indexBefore,omitempty"`
-	IndexAfter      int                `json:"indexAfter,omitempty"`
+	NobleID         models.NobleID      `json:"noble,omitempty"`
+	NobleCode       models.NobleCode    `json:"nobleCode,omitempty"`
+	NobleName       string              `json:"nobleName,omitempty"`
+	PreviousStatus  models.NobleStatus  `json:"previousStatus,omitempty"`
+	Status          models.NobleStatus  `json:"status,omitempty"`
+	CaptorPlayerID  models.PlayerID     `json:"captorPlayer,omitempty"`
+	PreviousOwnerID models.PlayerID     `json:"previousOwner,omitempty"`
+	OwnerID         models.PlayerID     `json:"owner,omitempty"`
+	IndexBefore     int                 `json:"indexBefore,omitempty"`
+	IndexAfter      int                 `json:"indexAfter,omitempty"`
+	WinterOrder     *models.WinterOrder `json:"winterOrder,omitempty"`
 }
