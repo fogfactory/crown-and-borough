@@ -19,6 +19,22 @@ export type OrderType =
 
 export type LiaisonMode = 'single' | 'loop'
 
+export type Outcome = 'success' | 'failure' | 'invalid'
+
+export type Progression = 'advanced' | 'retried' | 'broken' | 'consumed'
+
+export type EventType =
+  | 'movement'
+  | 'fusion'
+  | 'dispersion'
+  | 'pillage'
+  | 'retreat'
+  | 'army_destroyed'
+  | 'control_changed'
+  | 'noble_movement'
+  | 'capture'
+  | 'liberation'
+
 export type PlayerId = string
 
 export type Point = [number, number]
@@ -73,6 +89,12 @@ export interface MapData {
   territories: Territory[]
 }
 
+export interface Player {
+  id: PlayerId
+  name: string
+  color: string
+}
+
 export interface TerritoryState {
   id: string
   owner: PlayerId | null
@@ -85,6 +107,193 @@ export interface StateData {
   turn: number
   season: Season
   asOf: Record<string, number>
+  players: Player[]
   territories: TerritoryState[]
   nobles: Noble[]
+}
+
+export interface ChainSubmission {
+  player: PlayerId
+  noble: string
+  text: string
+}
+
+export interface WinterSubmission {
+  player: PlayerId
+  lines: string
+}
+
+export interface OrdersInput {
+  chains: ChainSubmission[]
+  winter: WinterSubmission[]
+}
+
+export interface ReceptionReport {
+  player: PlayerId
+  noble: string
+  received: boolean
+  reason?: string
+}
+
+export interface ReportHeader {
+  year: number
+  season: Season
+  turn: number
+}
+
+export interface ReportArmy {
+  id: string
+  owner: PlayerId
+  territory: string
+  size: number
+}
+
+export interface ReportNoble {
+  kind?: EventType
+  noble: string
+  code?: string
+  name?: string
+  owner?: PlayerId
+  army?: string
+  territory?: string
+  source?: string
+  destination?: string
+  previousStatus?: NobleStatus
+  status?: NobleStatus
+  captor?: PlayerId
+}
+
+export interface ReportInfrastructure {
+  id: string
+  type: InfraType
+  level: number
+  territory: string
+}
+
+export interface PlayerReport {
+  id: PlayerId
+  name: string
+  resourcesBefore: number
+  resourcesAfter: number
+  controlledBefore: number
+  controlledAfter: number
+  armies: ReportArmy[]
+  nobles: ReportNoble[]
+  infrastructures: ReportInfrastructure[]
+}
+
+export interface SupplyReport {
+  source: string
+  owner: PlayerId
+  production: number
+  demand: number
+  rations: Record<string, number>
+  stockConsumed: number
+}
+
+export interface FamineReport {
+  army: string
+  owner: PlayerId
+  territory: string
+  source: string
+  troops: number
+  savedByPillage: boolean
+  infrastructure?: string
+  infrastructureType?: InfraType
+  resourceCredit?: number
+  creditTerritory?: string
+}
+
+export interface CombatContender {
+  army?: string
+  owner?: PlayerId
+  force: number
+  defender: boolean
+}
+
+export interface CombatReport {
+  territory: string
+  baseDefense: number
+  defense: number
+  castleBonus: number
+  contenders: CombatContender[]
+  winner?: string
+  dislodged?: string
+  cutSupporters: string[]
+  reason: string
+  standoff: boolean
+}
+
+export interface OrderReport {
+  army: string
+  chain: string
+  order: string
+  type: OrderType
+  source: string
+  target?: string
+  outcome: Outcome
+  reason?: string
+  progression: Progression
+  indexBefore: number
+  indexAfter: number
+}
+
+export interface MoveReport {
+  kind: EventType
+  army?: string
+  otherArmy?: string
+  armies?: string[]
+  territory?: string
+  source?: string
+  target?: string
+  destination?: string
+  orderType?: OrderType
+  outcome?: Outcome
+  reason?: string
+  resolved?: boolean
+  infrastructure?: string
+  infrastructureType?: InfraType
+  resourceCredit?: number
+  creditTerritory?: string
+  previousOwner?: PlayerId
+  owner?: PlayerId
+}
+
+export interface WinterInvestmentReport {
+  kind: string
+  player: PlayerId
+  territory?: string
+  infrastructure?: string
+  type?: InfraType
+  level?: number
+  noble?: string
+  nobleCode?: string
+  nobleName?: string
+  reason?: string
+  order?: Record<string, unknown>
+}
+
+export interface WinterStockReport {
+  territory: string
+  owner?: PlayerId
+  stockBefore: number
+  stockAfter: number
+}
+
+export interface WinterReport {
+  investments: WinterInvestmentReport[]
+  stocks: WinterStockReport[]
+}
+
+export interface TurnReport {
+  header: ReportHeader
+  players: PlayerReport[]
+  receptions: ReceptionReport[]
+  supply: SupplyReport[]
+  famines: FamineReport[]
+  combats: CombatReport[]
+  orders: OrderReport[]
+  moves: MoveReport[]
+  nobles: ReportNoble[]
+  winter?: WinterReport
 }

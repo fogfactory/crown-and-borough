@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -9,7 +10,9 @@ import (
 
 	"github.com/fogfactory/crown-and-borough/internal/api"
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
+	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
+	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
 const defaultSeed = "crown-and-borough-dev"
@@ -78,6 +81,19 @@ func newServer(
 	return mux
 }
 
+func newHotseatServer(session *api.Session) *http.ServeMux {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	mux.HandleFunc("GET /api/map", session.MapHTTP)
+	mux.HandleFunc("GET /api/state", session.StateHTTP)
+	mux.HandleFunc("POST /api/game", session.GameHTTP)
+	mux.HandleFunc("POST /api/orders", session.OrdersHTTP)
+	mux.HandleFunc("POST /api/reset", session.ResetHTTP)
+	return mux
+}
+
 func main() {
 	assetsDir := os.Getenv("ASSETS_DIR")
 	if assetsDir == "" {
@@ -87,7 +103,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to load assets: %v", err)
 	}
-	if _, err := assetgen.LoadBalance(assetsDir); err != nil {
+	balance, err := assetgen.LoadBalance(assetsDir)
+	if err != nil {
 		log.Fatalf("failed to load balance: %v", err)
 	}
 	log.Printf("assets loaded from %s: %d communes, %d prenoms", assetsDir, len(assets.Communes), len(assets.Prenoms))
@@ -96,11 +113,18 @@ func main() {
 	if seed == "" {
 		seed = defaultSeed
 	}
-	resolver := &mapResolver{seed: seed, assets: assets}
-	if _, err := resolver.resolve(api.DefaultPlayers); err != nil {
-		log.Fatalf("failed to generate map: %v", err)
+	playerCount, err := api.ParsePlayerCount(os.Getenv("PLAYERS"), api.DefaultPlayers)
+	if err != nil {
+		log.Fatalf("failed to parse PLAYERS: %v", err)
 	}
-	resolveState := api.StateResolver(resolver.resolveData, seed, assets)
+	players := make([]engine.PlayerInit, playerCount)
+	for index := range players {
+		players[index] = engine.PlayerInit{ID: enginePlayerID(index + 1), Name: enginePlayerName(index + 1)}
+	}
+	session, err := api.NewSession(seed, players, balance, assets)
+	if err != nil {
+		log.Fatalf("failed to create default game: %v", err)
+	}
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -109,7 +133,15 @@ func main() {
 
 	addr := ":" + port
 	log.Printf("starting server on %s", addr)
-	if err := http.ListenAndServe(addr, api.WithCORS(newServer(resolver.resolve, resolveState))); err != nil {
+	if err := http.ListenAndServe(addr, api.WithCORS(newHotseatServer(session))); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func enginePlayerID(index int) models.PlayerID {
+	return models.PlayerID(fmt.Sprintf("P%d", index))
+}
+
+func enginePlayerName(index int) string {
+	return fmt.Sprintf("P%d", index)
 }

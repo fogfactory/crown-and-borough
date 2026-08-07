@@ -18,8 +18,17 @@ type StateView struct {
 	Turn        int                        `json:"turn"`
 	Season      models.Season              `json:"season"`
 	AsOf        map[models.TerritoryID]int `json:"asOf"`
+	Players     []PlayerView               `json:"players"`
 	Territories []TerritoryView            `json:"territories"`
 	Nobles      []NobleView                `json:"nobles"`
+}
+
+// PlayerView contains the public player metadata needed by the hotseat
+// selector. Player-specific visibility is deferred to the information layer.
+type PlayerView struct {
+	ID    models.PlayerID `json:"id"`
+	Name  string          `json:"name"`
+	Color string          `json:"color"`
 }
 
 // TerritoryView is the live state displayed on one map territory.
@@ -80,6 +89,7 @@ type NobleView struct {
 func projectState(state *models.GameState, freshness map[models.TerritoryID]int) StateView {
 	view := StateView{
 		AsOf:        make(map[models.TerritoryID]int),
+		Players:     []PlayerView{},
 		Territories: []TerritoryView{},
 		Nobles:      []NobleView{},
 	}
@@ -89,6 +99,10 @@ func projectState(state *models.GameState, freshness map[models.TerritoryID]int)
 
 	view.Turn = state.Turn
 	view.Season = state.Season
+	view.Players = make([]PlayerView, 0, len(state.Players))
+	for _, player := range state.Players {
+		view.Players = append(view.Players, PlayerView{ID: player.ID, Name: player.Name, Color: player.Color})
+	}
 	view.AsOf = make(map[models.TerritoryID]int, len(state.Territories))
 	view.Territories = make([]TerritoryView, 0, len(state.Territories))
 	view.Nobles = make([]NobleView, 0, len(state.Nobles))
@@ -223,8 +237,9 @@ func StateHandler(resolve func(players int) ([]byte, error)) http.HandlerFunc {
 	}
 }
 
-// StateResolver serves a static development state only. P1.7 replaces this
-// with the dynamic resolver driven by turn reports and hotseat play.
+// StateResolver remains available for fixture-oriented tests and tools. The
+// production hotseat server uses Session.StateHTTP instead, so this resolver is
+// never the source of the live game state.
 func StateResolver(
 	mapData func(players int) (mapgen.MapData, error),
 	seed string,
