@@ -231,7 +231,7 @@ Les infrastructures **appartiennent à leur case** : elles n'ont pas de proprié
 | **Tour de Guet** | Non | Donne la vision T0 permanente sur la case et adjacentes. | 4 |
 | **Dépôt de Vivres** | Non | Prolonge de +2 cases la portée des lignes de ravitaillement **sur une case contrôlée par le joueur** passant par sa case (cumulable). | 3 |
 | **Château** | Non (Rend la case productive) | Apporte **+1 de force défensive** fixe (sans coût de R), **même sans garnison** : une case-château n'est jamais « vide » pour un attaquant ; +2 rations vivrières ; rend la case productive (**1 R stockable/tour si elle est contrôlée**). Construit sur un village, il le remplace. | 10 |
-| **Village** | — | Non constructible au MVP (réservé) : **+2 rations vivrières par tour (non stockables)** ; si contrôlé, **1 R stockable/tour** et ancre de ravitaillement ; un château construit sur un village le remplace. | — |
+| **Village** | — | Non constructible au MVP (réservé) : **+2 rations vivrières par tour (non stockables)** ; produit **1 R stockable/tour**, qu'il soit neutre ou contrôlé ; à la capture, son stock devient disponible et le village devient une ancre de ravitaillement ; un château construit sur un village le remplace. | — |
 
 ### Dépendance et Moulins Orphelins
 

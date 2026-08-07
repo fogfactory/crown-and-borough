@@ -55,7 +55,17 @@ const report: TurnReport = {
     },
   ],
   receptions: [],
-  supply: [],
+  supply: [
+    {
+      source: 'T1',
+      owner: '',
+      production: 1,
+      demand: 0,
+      rations: {},
+      stockConsumed: 0,
+      stockAfter: 3,
+    },
+  ],
   famines: [],
   combats: [],
   orders: [
@@ -158,6 +168,8 @@ describe('ReportPanel', () => {
     expect(screen.queryByText('coût : 0 R')).not.toBeInTheDocument()
     expect(screen.getByText(/insufficient_resources/)).toBeInTheDocument()
     expect(screen.getAllByLabelText('Couleur de One')).not.toHaveLength(0)
+    expect(screen.getByText('ROS · Neutre')).toBeInTheDocument()
+    expect(screen.getByText(/3 R en stock/)).toBeInTheDocument()
   })
 
   it('does not display storage identifiers in visible report text', () => {

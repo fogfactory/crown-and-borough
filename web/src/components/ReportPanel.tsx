@@ -259,7 +259,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                 </span>
                 <span className="text-right text-xs text-[#806f57]">
                   {supply.production} produits · {supply.demand} demandés ·{' '}
-                  {supply.stockConsumed} stock consommé
+                  {supply.stockConsumed} stock consommé · {supply.stockAfter} R en stock
                 </span>
               </div>
             ))}

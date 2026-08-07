@@ -34,6 +34,7 @@ type famineCandidate struct {
 // order can move an army or change control.
 func resolveSupply(ctx *resolutionContext) {
 	receivedRations := resolveRations(ctx)
+	produceNeutralVillageStocks(ctx)
 	allSources := make([]*supplySource, 0)
 	directFamine := make([]famineCandidate, 0)
 	assignedFamine := make([]famineCandidate, 0)
@@ -57,6 +58,7 @@ func resolveSupply(ctx *resolutionContext) {
 			Demand:        source.demand,
 			Rations:       cloneRations(source.rations),
 			StockConsumed: source.stockConsumed,
+			StockAfter:    ctx.state.TerritoryStates[source.territoryID].Resources,
 		})
 	}
 
@@ -67,6 +69,38 @@ func resolveSupply(ctx *resolutionContext) {
 	sortAssignedFamine(ctx, assignedFamine)
 	for _, candidate := range assignedFamine {
 		ctx.resolveFamine(candidate)
+	}
+	updateSupplyEventStocks(ctx)
+}
+
+func produceNeutralVillageStocks(ctx *resolutionContext) {
+	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
+		state := ctx.state.TerritoryStates[territoryID]
+		if state.OwnerID != nil || !ctx.hasInfrastructure(territoryID, models.InfraTypeVillage) {
+			continue
+		}
+		production := sourceProduction(ctx, territoryID)
+		state.Resources += production
+		ctx.state.TerritoryStates[territoryID] = state
+		ctx.events = append(ctx.events, Event{
+			Type:       EventTypeSupply,
+			Phase:      0,
+			SourceID:   territoryID,
+			Production: production,
+			StockAfter: state.Resources,
+		})
+	}
+}
+
+func updateSupplyEventStocks(ctx *resolutionContext) {
+	for index := range ctx.events {
+		if ctx.events[index].Type != EventTypeSupply {
+			continue
+		}
+		state, exists := ctx.state.TerritoryStates[ctx.events[index].SourceID]
+		if exists {
+			ctx.events[index].StockAfter = state.Resources
+		}
 	}
 }
 

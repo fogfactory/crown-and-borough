@@ -912,6 +912,10 @@ func TestResolveWinterStocksAndRepatriation(t *testing.T) {
 		if got := resolution.State.TerritoryStates["T01"].Resources; got != 0 {
 			t.Errorf("capital stock = %d, want no transfer from uncontrolled village", got)
 		}
+		stocks := eventsOfType(resolution.Events, EventTypeWinterStock)
+		if len(stocks) != 2 || stocks[1].TerritoryID != "T02" || stocks[1].OwnerID != "" || stocks[1].StockBefore != 5 || stocks[1].StockAfter != 3 {
+			t.Errorf("neutral winter stock events = %#v, want neutral owner and conservation", stocks)
+		}
 	})
 
 	t.Run("a player without a capital keeps its controlled stock in place", func(t *testing.T) {

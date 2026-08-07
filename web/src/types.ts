@@ -191,6 +191,7 @@ export interface SupplyReport {
   demand: number
   rations: Record<string, number>
   stockConsumed: number
+  stockAfter: number
 }
 
 export interface FamineReport {

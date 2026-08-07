@@ -76,7 +76,7 @@ func TestResolveSupplyRationsAndEvents(t *testing.T) {
 		})
 	}
 
-	t.Run("neutral village grants local rations but is not a source", func(t *testing.T) {
+	t.Run("neutral village stores production without supplying an army", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{supplyTerritory("T01", "AAA", models.TerrainMountain)},
 			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1}},
@@ -89,11 +89,37 @@ func TestResolveSupplyRationsAndEvents(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
-		if len(supplyEvents(resolution.Events)) != 0 || hasFamineEvent(resolution.Events, "A1") {
-			t.Errorf("events = %#v, want neither source nor famine event", resolution.Events)
+		if hasFamineEvent(resolution.Events, "A1") {
+			t.Errorf("events = %#v, want no famine event", resolution.Events)
 		}
-		if got := resolution.State.TerritoryStates["T01"].Resources; got != 0 {
-			t.Errorf("neutral village resources = %d, want 0", got)
+		event := supplyEventForSource(t, resolution.Events, "T01")
+		if event.OwnerID != "" || event.Production != 1 || event.Demand != 0 || event.StockAfter != 1 {
+			t.Errorf("neutral supply event = %#v, want neutral production and stock", event)
+		}
+		if got := resolution.State.TerritoryStates["T01"].Resources; got != 1 {
+			t.Errorf("neutral village resources = %d, want 1", got)
+		}
+	})
+
+	t.Run("neutral supply event reflects auto-pillage in the same phase", func(t *testing.T) {
+		state := testState(t,
+			[]models.Territory{supplyTerritory("T01", "AAA", models.TerrainMountain)},
+			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 3}},
+		)
+		clearTerritoryOwner(state, "T01")
+		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "T01"})
+		validateTestState(t, state)
+
+		resolution, err := Resolve(state, testBalance())
+		if err != nil {
+			t.Fatalf("Resolve: %v", err)
+		}
+		event := supplyEventForSource(t, resolution.Events, "T01")
+		if event.StockAfter != 0 {
+			t.Errorf("neutral supply event stock = %d, want 0 after auto-pillage", event.StockAfter)
+		}
+		if !hasFamineEvent(resolution.Events, "A1") || ctxInfrastructurePresent(resolution.State, "I1") {
+			t.Errorf("events/state = %#v/%#v, want famine and destroyed village", resolution.Events, resolution.State)
 		}
 	})
 
@@ -129,8 +155,8 @@ func TestResolveSupplyProductionAndStocks(t *testing.T) {
 			[]models.Territory{
 				supplyTerritory("T01", "AAA", models.TerrainPlain, "T02"),
 				supplyTerritory("T02", "BBB", models.TerrainPlain, "T01"),
-				supplyTerritory("T03", "CCC", models.TerrainPlain),
-				supplyTerritory("T04", "DDD", models.TerrainPlain),
+				supplyTerritory("T03", "CCC", models.TerrainPlain, "T04"),
+				supplyTerritory("T04", "DDD", models.TerrainPlain, "T03"),
 			},
 			nil,
 		)
@@ -151,15 +177,19 @@ func TestResolveSupplyProductionAndStocks(t *testing.T) {
 		if got := resolution.State.TerritoryStates["T01"].Resources; got != 3 {
 			t.Errorf("controlled castle stock = %d, want base 1 plus adjacent mill level 2", got)
 		}
-		if got := resolution.State.TerritoryStates["T03"].Resources; got != 7 {
-			t.Errorf("neutral village stock = %d, want persisted 7", got)
+		if got := resolution.State.TerritoryStates["T03"].Resources; got != 11 {
+			t.Errorf("neutral village stock = %d, want persisted 7 plus base and mill production", got)
 		}
 		event := supplyEventForSource(t, resolution.Events, "T01")
 		if event.Production != 3 || event.Demand != 0 {
 			t.Errorf("source event = %#v, want production 3 and no demand", event)
 		}
-		if len(supplyEvents(resolution.Events)) != 1 {
-			t.Errorf("supply events = %#v, want no event for neutral village or orphan mill", resolution.Events)
+		neutralEvent := supplyEventForSource(t, resolution.Events, "T03")
+		if neutralEvent.OwnerID != "" || neutralEvent.Production != 4 || neutralEvent.StockAfter != 11 {
+			t.Errorf("neutral event = %#v, want base plus adjacent mill production", neutralEvent)
+		}
+		if len(supplyEvents(resolution.Events)) != 2 {
+			t.Errorf("supply events = %#v, want controlled and neutral village events", resolution.Events)
 		}
 	})
 
@@ -200,11 +230,11 @@ func TestResolveSupplyProductionAndStocks(t *testing.T) {
 		if got := resolution.State.TerritoryStates["T02"].Resources; got != 0 {
 			t.Errorf("T02 stock = %d, want 0", got)
 		}
-		if got := resolution.State.TerritoryStates["T05"].Resources; got != 7 {
-			t.Errorf("neutral stock = %d, want unchanged 7", got)
+		if got := resolution.State.TerritoryStates["T05"].Resources; got != 8 {
+			t.Errorf("neutral stock = %d, want persisted 7 plus production", got)
 		}
-		if got := resolution.State.TerritoryStates["T06"].Resources; got != 9 {
-			t.Errorf("neutral non-source stock = %d, want unchanged 9", got)
+		if got := resolution.State.TerritoryStates["T06"].Resources; got != 10 {
+			t.Errorf("neutral non-source stock = %d, want persisted 9 plus production", got)
 		}
 		if event := supplyEventForSource(t, resolution.Events, "T01"); event.StockConsumed != 0 {
 			t.Errorf("T01 stock consumed = %d, want 0", event.StockConsumed)
@@ -216,6 +246,124 @@ func TestResolveSupplyProductionAndStocks(t *testing.T) {
 			t.Errorf("events = %#v, want stocks to cover the deficit", resolution.Events)
 		}
 	})
+
+	t.Run("neutral village accumulates production on every action turn", func(t *testing.T) {
+		state := testState(t,
+			[]models.Territory{supplyTerritory("T01", "AAA", models.TerrainPlain)},
+			nil,
+		)
+		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "T01"})
+		validateTestState(t, state)
+
+		first, err := Resolve(state, testBalance())
+		if err != nil {
+			t.Fatalf("first Resolve: %v", err)
+		}
+		second, err := Resolve(first.State, testBalance())
+		if err != nil {
+			t.Fatalf("second Resolve: %v", err)
+		}
+		if got := first.State.TerritoryStates["T01"].Resources; got != 1 {
+			t.Errorf("first neutral stock = %d, want 1", got)
+		}
+		if got := second.State.TerritoryStates["T01"].Resources; got != 2 {
+			t.Errorf("second neutral stock = %d, want 2", got)
+		}
+	})
+
+	t.Run("neutral village resolution is deterministic", func(t *testing.T) {
+		state := testState(t,
+			[]models.Territory{
+				supplyTerritory("T01", "AAA", models.TerrainPlain, "T02"),
+				supplyTerritory("T02", "BBB", models.TerrainPlain, "T01"),
+			},
+			nil,
+		)
+		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "T01"})
+		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 2, TerritoryID: "T02"})
+		setTerritoryResources(state, "T01", 7)
+		validateTestState(t, state)
+
+		first, err := Resolve(state, testBalance())
+		if err != nil {
+			t.Fatalf("first Resolve: %v", err)
+		}
+		second, err := Resolve(state, testBalance())
+		if err != nil {
+			t.Fatalf("second Resolve: %v", err)
+		}
+		if !reflect.DeepEqual(first.State, second.State) || !reflect.DeepEqual(first.Events, second.Events) {
+			t.Fatalf("neutral village resolutions differ:\nfirst=%#v\nsecond=%#v", first, second)
+		}
+	})
+}
+
+func TestNeutralVillageCapturePreservesStockAndDelaysSupply(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			supplyTerritory("T01", "AAA", models.TerrainPlain, "T02"),
+			supplyTerritory("T02", "BBB", models.TerrainMountain, "T01"),
+		},
+		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1}},
+	)
+	addNoble(state, "N1", "ONE", "P1", "T01")
+	addInfrastructure(state, models.Infrastructure{ID: "I0", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T01"})
+	setCapital(state, "P1", "I0")
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "T02"})
+	setTerritoryResources(state, "T02", 3)
+	addChain(t, state, "A1", "N1", models.Order{
+		Type:       models.OrderTypeAttack,
+		PositionID: "T01",
+		TargetIDs:  []models.TerritoryID{"T02"},
+	})
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve capture: %v", err)
+	}
+	target := resolution.State.TerritoryStates["T02"]
+	if target.OwnerID == nil || *target.OwnerID != "P1" {
+		t.Errorf("captured village owner = %v, want P1", target.OwnerID)
+	}
+	if target.Resources != 4 {
+		t.Errorf("captured village stock = %d, want preloaded 3 plus neutral production", target.Resources)
+	}
+	neutralEvent := supplyEventForSource(t, resolution.Events, "T02")
+	if neutralEvent.OwnerID != "" || neutralEvent.Demand != 0 || neutralEvent.StockAfter != 4 {
+		t.Errorf("capture-turn supply event = %#v, want neutral stock before capture", neutralEvent)
+	}
+
+	next, err := Resolve(resolution.State, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve after capture: %v", err)
+	}
+	controlledEvent := supplyEventForSource(t, next.Events, "T02")
+	if controlledEvent.OwnerID != "P1" || controlledEvent.Production != 1 || controlledEvent.StockAfter != 5 {
+		t.Errorf("post-capture supply event = %#v, want controlled production on next turn", controlledEvent)
+	}
+	if got := next.State.TerritoryStates["T02"].Resources; got != 5 {
+		t.Errorf("post-capture village stock = %d, want 5", got)
+	}
+	if got := next.State.TerritoryStates["T01"].Resources; got != 2 {
+		t.Errorf("capital stock before winter = %d, want 2", got)
+	}
+
+	winter := cloneGameState(next.State)
+	winter.Turn = 4
+	winter.Season = models.SeasonWinter
+	winterResolution, err := ResolveWinter(winter, testBalance(), map[models.PlayerID][]models.WinterOrder{
+		"P1": {{ID: "W1", Type: models.WinterOrderTypeRecruitTroop, TerritoryID: "T02"}},
+	})
+	if err != nil {
+		t.Fatalf("ResolveWinter after capture: %v", err)
+	}
+	if got := winterResolution.State.TerritoryStates["T02"].Resources; got != 1 {
+		t.Errorf("captured village stock after winter = %d, want 1 after payment and conservation", got)
+	}
+	if got := winterResolution.State.TerritoryStates["T01"].Resources; got != 2 {
+		t.Errorf("capital stock after winter = %d, want 2 after repatriation", got)
+	}
 }
 
 func TestResolveSupplyNetworks(t *testing.T) {
@@ -396,6 +544,9 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 		}
 		if got := resolution.State.TerritoryStates["T03"].Resources; got != 2 {
 			t.Errorf("credited source resources = %d, want local production plus pillage credit", got)
+		}
+		if event := supplyEventForSource(t, resolution.Events, "T03"); event.StockAfter != 2 {
+			t.Errorf("credited source event stock = %d, want 2", event.StockAfter)
 		}
 	})
 

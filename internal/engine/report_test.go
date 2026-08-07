@@ -8,6 +8,29 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
+func TestBuildTurnReportIncludesNeutralSupplyStock(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{supplyTerritory("T01", "AAA", models.TerrainPlain)},
+		nil,
+	)
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "T01"})
+	setTerritoryResources(state, "T01", 3)
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	report := BuildTurnReport(state, resolution.State, resolution.Events, nil)
+	if len(report.Supply) != 1 {
+		t.Fatalf("supply report = %#v, want one neutral village", report.Supply)
+	}
+	supply := report.Supply[0]
+	if supply.Source != "T01" || supply.Owner != "" || supply.Production != 1 || supply.Demand != 0 || supply.StockAfter != 4 {
+		t.Errorf("neutral supply report = %#v, want production 1 and stock 4 without owner", supply)
+	}
+}
+
 func TestTurnReportContainsResolutionSectionsAndRoundTrips(t *testing.T) {
 	assets := loadGameTestAssets(t)
 	balance := testBalance()

@@ -74,6 +74,7 @@ type SupplyReport struct {
 	Demand        int                        `json:"demand"`
 	Rations       map[models.TerritoryID]int `json:"rations"`
 	StockConsumed int                        `json:"stockConsumed"`
+	StockAfter    int                        `json:"stockAfter"`
 }
 
 type FamineReport struct {
@@ -246,6 +247,7 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 			report.Supply = append(report.Supply, SupplyReport{
 				Source: event.SourceID, Owner: event.OwnerID, Production: event.Production,
 				Demand: event.Demand, Rations: cloneRationMap(event.Rations), StockConsumed: event.StockConsumed,
+				StockAfter: event.StockAfter,
 			})
 		case EventTypeFamine:
 			report.Famines = append(report.Famines, FamineReport{
