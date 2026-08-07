@@ -109,7 +109,7 @@ func TestMapHandlerRejectsInvalidPlayers(t *testing.T) {
 		rawQuery string
 	}{
 		{name: "below range", rawQuery: "players=1"},
-		{name: "above range", rawQuery: "players=6"},
+		{name: "above range", rawQuery: "players=17"},
 		{name: "not a number", rawQuery: "players=abc"},
 		{name: "empty", rawQuery: "players="},
 		{name: "multiple values", rawQuery: "players=2&players=3"},

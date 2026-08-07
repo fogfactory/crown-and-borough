@@ -11,10 +11,10 @@ const (
 	developmentOrigin = "http://localhost:5173"
 	// DefaultPlayers is the player count served when ?players is absent. The
 	// development map variants are deliberately bounded so the in-memory cache
-	// contains the supported two-to-five-player maps only.
+	// contains the supported two-to-sixteen-player maps only.
 	DefaultPlayers = 4
 	minimumPlayers = 2
-	maximumPlayers = 5
+	maximumPlayers = 16
 )
 
 // MapHandler resolves and serves a map for the requested player count.

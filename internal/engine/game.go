@@ -15,7 +15,7 @@ import (
 
 const (
 	minimumGamePlayers = 2
-	maximumGamePlayers = 5
+	maximumGamePlayers = 16
 )
 
 var defaultPlayerColors = [...]string{
@@ -24,6 +24,17 @@ var defaultPlayerColors = [...]string{
 	"#7052a1",
 	"#34775c",
 	"#ad7a25",
+	"#b3546e",
+	"#1f7a8c",
+	"#7a6b2d",
+	"#c05621",
+	"#4262c0",
+	"#8f3b8f",
+	"#5c8a3a",
+	"#96663d",
+	"#3d8fae",
+	"#a64d79",
+	"#6e7f9e",
 }
 
 // PlayerInit describes one player at game creation. IDs are optional; when an

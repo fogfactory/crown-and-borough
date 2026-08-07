@@ -15,6 +15,8 @@ class ResizeObserverStub {
 
 globalThis.ResizeObserver = ResizeObserverStub
 
+HTMLElement.prototype.scrollIntoView = () => undefined
+
 Object.defineProperty(SVGElement.prototype, 'getBoundingClientRect', {
   configurable: true,
   value: () => ({

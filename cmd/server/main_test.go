@@ -78,10 +78,10 @@ func TestServerMapPlayerValidation(t *testing.T) {
 	}{
 		{path: "/api/map", wantStatus: http.StatusOK, wantCalls: []int{4}},
 		{path: "/api/map?players=2", wantStatus: http.StatusOK, wantCalls: []int{4, 2}},
-		{path: "/api/map?players=5", wantStatus: http.StatusOK, wantCalls: []int{4, 2, 5}},
-		{path: "/api/map?players=1", wantStatus: http.StatusBadRequest, wantCalls: []int{4, 2, 5}},
-		{path: "/api/map?players=6", wantStatus: http.StatusBadRequest, wantCalls: []int{4, 2, 5}},
-		{path: "/api/map?players=abc", wantStatus: http.StatusBadRequest, wantCalls: []int{4, 2, 5}},
+		{path: "/api/map?players=16", wantStatus: http.StatusOK, wantCalls: []int{4, 2, 16}},
+		{path: "/api/map?players=1", wantStatus: http.StatusBadRequest, wantCalls: []int{4, 2, 16}},
+		{path: "/api/map?players=17", wantStatus: http.StatusBadRequest, wantCalls: []int{4, 2, 16}},
+		{path: "/api/map?players=abc", wantStatus: http.StatusBadRequest, wantCalls: []int{4, 2, 16}},
 	}
 	for _, test := range tests {
 		recorder := httptest.NewRecorder()
@@ -150,9 +150,9 @@ func TestServerStatePlayerValidationAndErrors(t *testing.T) {
 	}{
 		{path: "/api/state", wantStatus: http.StatusOK, wantCalls: []int{4}},
 		{path: "/api/state?players=2", wantStatus: http.StatusOK, wantCalls: []int{4, 2}},
-		{path: "/api/state?players=5", wantStatus: http.StatusOK, wantCalls: []int{4, 2, 5}},
-		{path: "/api/state?players=1", wantStatus: http.StatusBadRequest, wantCalls: []int{4, 2, 5}},
-		{path: "/api/state?players=6", wantStatus: http.StatusBadRequest, wantCalls: []int{4, 2, 5}},
+		{path: "/api/state?players=16", wantStatus: http.StatusOK, wantCalls: []int{4, 2, 16}},
+		{path: "/api/state?players=1", wantStatus: http.StatusBadRequest, wantCalls: []int{4, 2, 16}},
+		{path: "/api/state?players=17", wantStatus: http.StatusBadRequest, wantCalls: []int{4, 2, 16}},
 	} {
 		recorder := httptest.NewRecorder()
 		server.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, test.path, nil))
@@ -188,7 +188,7 @@ func TestMapResolverConfiguration(t *testing.T) {
 		assets: loadTestAssets(t),
 	}
 
-	for _, players := range []int{2, 3, 4, 5} {
+	for _, players := range []int{2, 3, 4, 5, 16} {
 		mapJSON, err := resolver.resolve(players)
 		if err != nil {
 			t.Fatalf("resolve(%d): %v", players, err)

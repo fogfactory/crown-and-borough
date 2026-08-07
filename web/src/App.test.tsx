@@ -190,4 +190,122 @@ describe('App command/report tabs', () => {
       expect(screen.queryByText('Nouveau')).not.toBeInTheDocument()
     })
   })
+
+  it('starts a new game with the chosen seed and player count', async () => {
+    const newMap: MapData = {
+      territories: [
+        {
+          id: 'T1',
+          code: 'ROS',
+          name: 'Rosemont',
+          terrain: 'plain',
+          village: true,
+          points: [
+            [0, 0],
+            [50, 0],
+            [50, 50],
+            [0, 50],
+          ],
+          adjacencies: ['T2'],
+          impassable: [],
+        },
+        {
+          id: 'T2',
+          code: 'BRU',
+          name: 'Bruyères',
+          terrain: 'forest',
+          village: false,
+          points: [
+            [50, 0],
+            [100, 0],
+            [100, 50],
+            [50, 50],
+          ],
+          adjacencies: ['T1'],
+          impassable: [],
+        },
+        {
+          id: 'T3',
+          code: 'CHA',
+          name: 'Champvert',
+          terrain: 'hill',
+          village: false,
+          points: [
+            [50, 50],
+            [100, 50],
+            [100, 100],
+            [50, 100],
+          ],
+          adjacencies: ['T2'],
+          impassable: [],
+        },
+      ],
+    }
+    const newPlayers = Array.from({ length: 6 }, (_, index) => ({
+      id: `P${index + 1}`,
+      name: `Joueur ${index + 1}`,
+      color: '#a84632',
+    }))
+    const newState: StateData = {
+      turn: 1,
+      season: 'spring',
+      asOf: { T1: 1, T2: 1, T3: 1 },
+      players: newPlayers,
+      territories: [
+        {
+          id: 'T1',
+          owner: 'P1',
+          resources: 10,
+          army: null,
+          infrastructures: [],
+        },
+        { id: 'T2', owner: null, resources: 0, army: null, infrastructures: [] },
+        { id: 'T3', owner: null, resources: 0, army: null, infrastructures: [] },
+      ],
+      nobles: [],
+    }
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (init?.method === 'POST') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ map: newMap, state: newState }),
+        } as Response)
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => (url.includes('/map') ? map : state),
+      } as Response)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { container } = render(<App />)
+    await screen.findByText('Tour 1 · Printemps')
+
+    const newGameButton = screen.getByRole('button', { name: 'Nouvelle partie' })
+    expect(newGameButton).toBeDisabled()
+
+    fireEvent.change(screen.getByLabelText('Graine'), {
+      target: { value: 'nouvelle-graine' },
+    })
+    await waitFor(() => {
+      expect(newGameButton).not.toBeDisabled()
+    })
+    fireEvent.click(screen.getByRole('combobox', { name: 'Joueurs' }))
+    fireEvent.click(await screen.findByRole('option', { name: '6' }))
+    fireEvent.click(newGameButton)
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/game',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ seed: 'nouvelle-graine', players: 6 }),
+        }),
+      )
+    })
+    await waitFor(() => {
+      expect(container.querySelectorAll('[data-territory-id]')).toHaveLength(3)
+    })
+  })
 })

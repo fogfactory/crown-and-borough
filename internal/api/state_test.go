@@ -184,7 +184,7 @@ func TestStateHandlerPlayers(t *testing.T) {
 }
 
 func TestStateHandlerErrors(t *testing.T) {
-	for _, rawQuery := range []string{"players=1", "players=6", "players=abc", "players=", "players=2&players=3", "players=%zz"} {
+	for _, rawQuery := range []string{"players=1", "players=17", "players=abc", "players=", "players=2&players=3", "players=%zz"} {
 		t.Run(rawQuery, func(t *testing.T) {
 			called := false
 			recorder := httptest.NewRecorder()

@@ -63,6 +63,13 @@ const NOBLE_STATUS_LABELS: Record<NobleStatus, string> = {
 const PANEL_ORDER = ['command', 'report'] as const
 type Panel = (typeof PANEL_ORDER)[number]
 
+const MIN_PLAYERS = 2
+const MAX_PLAYERS = 16
+const PLAYER_COUNT_OPTIONS = Array.from(
+  { length: MAX_PLAYERS - MIN_PLAYERS + 1 },
+  (_, index) => MIN_PLAYERS + index,
+)
+
 function ownerLabel(owner: PlayerId | null, state: StateData | null): string {
   if (!owner) return 'Personne'
   return state?.players.find((player) => player.id === owner)?.name ?? `Joueur ${owner}`
@@ -107,7 +114,11 @@ function App() {
   const [submittedPlayers, setSubmittedPlayers] = useState<PlayerId[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [createError, setCreateError] = useState<string | null>(null)
   const [resolving, setResolving] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [playerCount, setPlayerCount] = useState(4)
+  const [seed, setSeed] = useState('')
   const [activePanel, setActivePanel] = useState<Panel>('command')
   const [viewedReportTurn, setViewedReportTurn] = useState<number | null>(null)
 
@@ -253,6 +264,35 @@ function App() {
     }
   }
 
+  const startNewGame = async () => {
+    if (!state) return
+    setCreating(true)
+    setCreateError(null)
+    try {
+      const response = await fetch('/api/game', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seed: seed.trim(), players: playerCount }),
+      })
+      if (!response.ok) throw new Error(await responseError(response))
+      const payload = (await response.json()) as { map: MapData; state: StateData }
+      setMap(payload.map)
+      setState(payload.state)
+      setReport(null)
+      setChainDrafts({})
+      setWinterDrafts({})
+      setSubmittedPlayers([])
+      setSelectedId(null)
+      setActivePanel('command')
+    } catch (error) {
+      setCreateError(
+        error instanceof Error ? error.message : 'La création de la partie a échoué',
+      )
+    } finally {
+      setCreating(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#efe7d8] text-[#30291f]">
       <header className="border-b border-[#b7a786]/60 bg-[#fffaf0]/90 px-4 py-4 shadow-sm backdrop-blur-sm sm:px-6">
@@ -269,6 +309,69 @@ function App() {
                 Chroniques du royaume
               </p>
             </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-x-4">
+            <div>
+              <label
+                htmlFor="player-count"
+                className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#806f57]"
+              >
+                Joueurs
+              </label>
+              <Select
+                value={String(playerCount)}
+                onValueChange={(value) => setPlayerCount(Number(value))}
+              >
+                <SelectTrigger
+                  id="player-count"
+                  className="w-[76px] border-[#b7a786] bg-[#fffaf0] text-[#30291f]"
+                >
+                  <SelectValue placeholder="Joueurs" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PLAYER_COUNT_OPTIONS.map((count) => (
+                    <SelectItem key={count} value={String(count)}>
+                      {count}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label
+                htmlFor="game-seed"
+                className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#806f57]"
+              >
+                Graine
+              </label>
+              <input
+                id="game-seed"
+                type="text"
+                value={seed}
+                onChange={(event) => setSeed(event.target.value)}
+                placeholder="ex. crown-and-borough-dev"
+                className="h-8 w-44 rounded-lg border border-[#b7a786] bg-[#fffaf0] px-2.5 text-sm text-[#30291f] outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20 sm:w-52"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={creating || !state || seed.trim() === ''}
+              title="Démarrer une nouvelle partie avec ces paramètres"
+              onClick={() => void startNewGame()}
+            >
+              {creating ? 'Création…' : 'Nouvelle partie'}
+            </Button>
+            {createError && (
+              <p
+                role="alert"
+                className="w-full rounded-md border border-[#a84632]/30 bg-[#f8e5dd] px-2 py-1 text-xs text-[#8d321e]"
+              >
+                {createError}
+              </p>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-3 sm:gap-5">

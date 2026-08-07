@@ -236,7 +236,7 @@ func TestControlledArmyLocationRequiresAdjacency(t *testing.T) {
 func TestDemoStateRejectsUnsupportedInput(t *testing.T) {
 	assets := loadTestAssets(t)
 	mapData := generateTestMap(t, assets)
-	for _, players := range []int{1, 6} {
+	for _, players := range []int{1, 17} {
 		if _, err := DemoState("invalid-player-count", assets, mapData, players); err == nil {
 			t.Errorf("DemoState(%d) = nil error, want error", players)
 		}
