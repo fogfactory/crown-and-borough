@@ -182,8 +182,10 @@ function App() {
   const selectedChain = selectedState?.army?.chain ?? null
   const presentNobles =
     state?.nobles.filter((noble) => noble.location === selectedId) ?? []
+  const selectedSupplyLine =
+    selectedState?.army && supplyLine?.territory === selectedId ? supplyLine : null
   const supplySourceTerritory = map?.territories.find(
-    (territory) => territory.id === supplyLine?.source,
+    (territory) => territory.id === selectedSupplyLine?.source,
   )
 
   useEffect(() => {
@@ -505,7 +507,7 @@ function App() {
             <MapViewer
               map={map}
               state={state}
-              supply={supplyLine}
+              supply={selectedSupplyLine}
               onSelect={setSelectedId}
             />
           ) : (
@@ -714,38 +716,44 @@ function App() {
                                 </p>
                               ) : supplyError ? (
                                 <p className="mt-1 text-[#8d321e]">{supplyError}</p>
-                              ) : supplyLine?.selfSupplied ? (
+                              ) : selectedSupplyLine?.selfSupplied ? (
                                 <p className="mt-1 text-[#376341]">
                                   Rations locales suffisantes pour cette armée.
                                 </p>
-                              ) : supplyLine?.source ? (
+                              ) : selectedSupplyLine?.source ? (
                                 <>
                                   <p className="mt-1">
                                     Source :{' '}
                                     <strong>
-                                      {supplySourceTerritory?.code ?? supplyLine.source}
+                                      {supplySourceTerritory?.code ??
+                                        selectedSupplyLine.source}
                                       {supplySourceTerritory
                                         ? ` · ${supplySourceTerritory.name}`
                                         : ''}
                                     </strong>
                                   </p>
                                   <p className="mt-1">
-                                    Distance : <strong>{supplyLine.distance}</strong>{' '}
+                                    Distance :{' '}
+                                    <strong>{selectedSupplyLine.distance}</strong>{' '}
                                     territoire
-                                    {supplyLine.distance > 1 ? 's' : ''}
+                                    {selectedSupplyLine.distance > 1 ? 's' : ''}
                                   </p>
                                 </>
-                              ) : supplyLine ? (
+                              ) : selectedSupplyLine ? (
                                 <p className="mt-1 text-[#8d321e]">
                                   Aucune source accessible : famine possible.
                                 </p>
                               ) : null}
-                              {supplyLine && (
+                              {selectedSupplyLine && (
                                 <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t border-[#b7a786]/40 pt-2">
                                   <dt className="text-[#806f57]">Rations locales</dt>
-                                  <dd className="font-medium">{supplyLine.rations}</dd>
+                                  <dd className="font-medium">
+                                    {selectedSupplyLine.rations}
+                                  </dd>
                                   <dt className="text-[#806f57]">Besoin à couvrir</dt>
-                                  <dd className="font-medium">{supplyLine.demand}</dd>
+                                  <dd className="font-medium">
+                                    {selectedSupplyLine.demand}
+                                  </dd>
                                 </dl>
                               )}
                             </div>

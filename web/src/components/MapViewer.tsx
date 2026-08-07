@@ -396,9 +396,14 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
       .sort((first, second) => first.localeCompare(second))
       .map((owner, index) => [owner, PLAYER_PALETTE[index % PLAYER_PALETTE.length]]),
   )
-  const supplyReachable = new Set(supply?.reachable ?? [])
-  const supplyColor = playerColors.get(supply?.armyOwner ?? '') ?? '#a84632'
-  const supplyPathPoints = (supply?.path ?? []).flatMap((territoryID) => {
+  const selectedTerritoryState = state.territories.find(
+    (territoryState) => territoryState.id === selectedId,
+  )
+  const selectedSupply =
+    selectedTerritoryState?.army && supply?.territory === selectedId ? supply : null
+  const supplyReachable = new Set(selectedSupply?.reachable ?? [])
+  const supplyColor = playerColors.get(selectedSupply?.armyOwner ?? '') ?? '#a84632'
+  const supplyPathPoints = (selectedSupply?.path ?? []).flatMap((territoryID) => {
     const territory = map.territories.find((candidate) => candidate.id === territoryID)
     return territory ? [centroid(territory.points)] : []
   })
@@ -582,6 +587,23 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
                   <path d={pointsToPath(territory.points)} />
                 </clipPath>
               ))}
+              <pattern
+                id="supply-zone-hatch"
+                width="8"
+                height="8"
+                patternUnits="userSpaceOnUse"
+                patternTransform="rotate(45)"
+              >
+                <line
+                  x1="4"
+                  y1="0"
+                  x2="4"
+                  y2="8"
+                  stroke="#808080"
+                  strokeWidth="2"
+                  strokeOpacity="0.5"
+                />
+              </pattern>
             </defs>
 
             <g aria-label="Terrains">
@@ -694,12 +716,7 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
                       key={territory.id}
                       data-supply-territory-id={territory.id}
                       d={pointsToPath(territory.points)}
-                      fill={supplyColor}
-                      fillOpacity="0.2"
-                      stroke={supplyColor}
-                      strokeOpacity="0.35"
-                      strokeWidth="1"
-                      vectorEffect="non-scaling-stroke"
+                      fill="url(#supply-zone-hatch)"
                     />
                   )
                 })}
