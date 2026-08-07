@@ -51,8 +51,12 @@ const state: StateData = {
   nobles: [],
 }
 
-function renderMap(onSelect = vi.fn()) {
-  const result = render(<MapViewer map={map} state={state} onSelect={onSelect} />)
+function renderMap(
+  testMap: MapData = map,
+  testState: StateData = state,
+  onSelect = vi.fn(),
+) {
+  const result = render(<MapViewer map={testMap} state={testState} onSelect={onSelect} />)
   const svg = result.container.querySelector(
     'svg[aria-label="Carte des territoires"]',
   ) as SVGSVGElement | null
@@ -189,11 +193,47 @@ describe('MapViewer territorial overlays', () => {
 
     expect(selectionPath).toHaveAttribute('fill', 'none')
     expect(selectionPath).toHaveAttribute('clip-path', 'url(#territory-clip-T1)')
+    expect(
+      svg.querySelector('g[aria-label="Sélection"] path[stroke-dasharray]'),
+    ).toHaveAttribute('stroke-dasharray', '4 3')
 
     const borderGroup = svg.querySelector('g[aria-label="Frontières"]')
+    const passableBorder = borderGroup?.querySelector('line')
+    const outerBorder = svg.querySelector('g[aria-label="Contours extérieurs"] line')
     expect(borderGroup).toBeInTheDocument()
+    expect(passableBorder).toHaveAttribute('stroke-width', '2')
+    expect(passableBorder).toHaveAttribute('stroke-dasharray', '4 3')
+    expect(outerBorder).toHaveAttribute('stroke-width', '2')
     expect(selectionPath.compareDocumentPosition(borderGroup as Node)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     )
+    expect(controlPath.compareDocumentPosition(borderGroup as Node)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+    expect(
+      svg.querySelector('g[aria-label="Contrôle territorial"] path[stroke-dasharray]'),
+    ).toHaveAttribute('stroke-dasharray', '4 3')
+  })
+
+  it('uses a thicker continuous stroke for impassable borders', () => {
+    const impassableMap: MapData = {
+      ...map,
+      territories: map.territories.map((territory) => ({
+        ...territory,
+        adjacencies: [],
+        impassable: [territory.id === 'T1' ? 'T2' : 'T1'],
+      })),
+    }
+    const { svg } = renderMap(impassableMap)
+    const impassableBorder = svg.querySelector('g[aria-label="Frontières"] line')
+
+    expect(impassableBorder).toHaveAttribute('stroke-width', '4')
+    expect(impassableBorder).not.toHaveAttribute('stroke-dasharray')
+    expect(
+      svg.querySelector('g[aria-label="Contrôle territorial"] path[stroke-dasharray]'),
+    ).not.toBeInTheDocument()
+    expect(
+      svg.querySelector('g[aria-label="Sélection"] path[stroke-dasharray]'),
+    ).not.toBeInTheDocument()
   })
 })

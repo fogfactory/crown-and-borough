@@ -19,6 +19,10 @@ import type { Infrastructure, MapData, Noble, Point, StateData, Terrain } from '
 const MIN_ZOOM = 0.5
 const MAX_ZOOM = 4
 const DRAG_THRESHOLD = 4
+const OUTER_BORDER_WIDTH = 2
+const PASSABLE_BORDER_WIDTH = 2
+const IMPASSABLE_BORDER_WIDTH = 4
+const PASSABLE_BORDER_DASH = '4 3'
 
 const TERRAIN_LABELS: Record<Terrain, string> = {
   plain: 'Plaine',
@@ -99,6 +103,34 @@ function polygonEdges(points: Point[]): Array<[Point, Point]> {
     point,
     points[(index + 1) % points.length],
   ])
+}
+
+function segmentsToPath(segments: Array<[Point, Point]>): string {
+  return segments
+    .map(([[fromX, fromY], [toX, toY]]) => `M ${fromX},${fromY} L ${toX},${toY}`)
+    .join(' ')
+}
+
+function splitBoundaryPaths(
+  points: Point[],
+  passableBoundaryKeys: Set<string>,
+): { solidPath: string; passablePath: string } {
+  const solidSegments: Array<[Point, Point]> = []
+  const passableSegments: Array<[Point, Point]> = []
+
+  for (const segment of polygonEdges(points)) {
+    const [from, to] = segment
+    if (passableBoundaryKeys.has(edgeKey(from, to))) {
+      passableSegments.push(segment)
+    } else {
+      solidSegments.push(segment)
+    }
+  }
+
+  return {
+    solidPath: segmentsToPath(solidSegments),
+    passablePath: segmentsToPath(passableSegments),
+  }
 }
 
 function centroid(points: Point[]): Point {
@@ -231,107 +263,113 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
   const [view, setView] = useState<ViewState>({ x: 0, y: 0, k: 1 })
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
-  const { mapWidth, mapHeight, outerBorders, sharedBorders } = useMemo(() => {
-    let minX = Infinity
-    let minY = Infinity
-    let maxX = -Infinity
-    let maxY = -Infinity
-    const territoriesById = new Map(
-      map.territories.map((territory) => [territory.id, territory]),
-    )
-    const edges = new Map<string, { from: Point; to: Point; occurrences: number }>()
-    const pairs = new Map<string, { ids: [string, string]; passable: boolean }>()
+  const { mapWidth, mapHeight, outerBorders, sharedBorders, passableBoundaryKeys } =
+    useMemo(() => {
+      let minX = Infinity
+      let minY = Infinity
+      let maxX = -Infinity
+      let maxY = -Infinity
+      const territoriesById = new Map(
+        map.territories.map((territory) => [territory.id, territory]),
+      )
+      const edges = new Map<string, { from: Point; to: Point; occurrences: number }>()
+      const pairs = new Map<string, { ids: [string, string]; passable: boolean }>()
 
-    const addPair = (firstId: string, secondId: string, passable: boolean) => {
-      if (firstId === secondId || !territoriesById.has(secondId)) {
-        return
+      const addPair = (firstId: string, secondId: string, passable: boolean) => {
+        if (firstId === secondId || !territoriesById.has(secondId)) {
+          return
+        }
+
+        const ids: [string, string] =
+          firstId < secondId ? [firstId, secondId] : [secondId, firstId]
+        const key = JSON.stringify(ids)
+        const pair = pairs.get(key)
+        if (pair) {
+          pair.passable = pair.passable && passable
+          return
+        }
+
+        pairs.set(key, { ids, passable })
       }
 
-      const ids: [string, string] =
-        firstId < secondId ? [firstId, secondId] : [secondId, firstId]
-      const key = JSON.stringify(ids)
-      const pair = pairs.get(key)
-      if (pair) {
-        pair.passable = pair.passable && passable
-        return
-      }
+      for (const territory of map.territories) {
+        for (const [x, y] of territory.points) {
+          minX = Math.min(minX, x)
+          minY = Math.min(minY, y)
+          maxX = Math.max(maxX, x)
+          maxY = Math.max(maxY, y)
+        }
 
-      pairs.set(key, { ids, passable })
-    }
+        for (const [from, to] of polygonEdges(territory.points)) {
+          const key = edgeKey(from, to)
+          const edge = edges.get(key)
+          if (edge) {
+            edge.occurrences += 1
+          } else {
+            edges.set(key, { from, to, occurrences: 1 })
+          }
+        }
 
-    for (const territory of map.territories) {
-      for (const [x, y] of territory.points) {
-        minX = Math.min(minX, x)
-        minY = Math.min(minY, y)
-        maxX = Math.max(maxX, x)
-        maxY = Math.max(maxY, y)
-      }
-
-      for (const [from, to] of polygonEdges(territory.points)) {
-        const key = edgeKey(from, to)
-        const edge = edges.get(key)
-        if (edge) {
-          edge.occurrences += 1
-        } else {
-          edges.set(key, { from, to, occurrences: 1 })
+        for (const adjacentId of territory.adjacencies) {
+          addPair(territory.id, adjacentId, true)
+        }
+        for (const impassableId of territory.impassable) {
+          addPair(territory.id, impassableId, false)
         }
       }
 
-      for (const adjacentId of territory.adjacencies) {
-        addPair(territory.id, adjacentId, true)
-      }
-      for (const impassableId of territory.impassable) {
-        addPair(territory.id, impassableId, false)
-      }
-    }
-
-    const outerBorders: Array<{ key: string; from: Point; to: Point }> = []
-    for (const [key, edge] of edges) {
-      if (edge.occurrences === 1) {
-        outerBorders.push({ key, from: edge.from, to: edge.to })
-      }
-    }
-
-    const sharedBorders: Array<{
-      key: string
-      from: Point
-      to: Point
-      passable: boolean
-    }> = []
-    const renderedEdges = new Set<string>()
-    for (const [pairKey, pair] of pairs) {
-      const first = territoriesById.get(pair.ids[0])
-      const second = territoriesById.get(pair.ids[1])
-      if (!first || !second) {
-        continue
+      const outerBorders: Array<{ key: string; from: Point; to: Point }> = []
+      for (const [key, edge] of edges) {
+        if (edge.occurrences === 1) {
+          outerBorders.push({ key, from: edge.from, to: edge.to })
+        }
       }
 
-      const secondEdges = new Set(
-        polygonEdges(second.points).map(([from, to]) => edgeKey(from, to)),
-      )
-      for (const [from, to] of polygonEdges(first.points)) {
-        const key = edgeKey(from, to)
-        if (!secondEdges.has(key) || renderedEdges.has(key)) {
+      const sharedBorders: Array<{
+        key: string
+        from: Point
+        to: Point
+        passable: boolean
+      }> = []
+      const renderedEdges = new Set<string>()
+      for (const [pairKey, pair] of pairs) {
+        const first = territoriesById.get(pair.ids[0])
+        const second = territoriesById.get(pair.ids[1])
+        if (!first || !second) {
           continue
         }
 
-        renderedEdges.add(key)
-        sharedBorders.push({
-          key: `${pairKey}-${key}`,
-          from,
-          to,
-          passable: pair.passable,
-        })
-      }
-    }
+        const secondEdges = new Set(
+          polygonEdges(second.points).map(([from, to]) => edgeKey(from, to)),
+        )
+        for (const [from, to] of polygonEdges(first.points)) {
+          const key = edgeKey(from, to)
+          if (!secondEdges.has(key) || renderedEdges.has(key)) {
+            continue
+          }
 
-    return {
-      mapWidth: Number.isFinite(minX) ? maxX + minX : 1,
-      mapHeight: Number.isFinite(minY) ? maxY + minY : 1,
-      outerBorders,
-      sharedBorders,
-    }
-  }, [map])
+          renderedEdges.add(key)
+          sharedBorders.push({
+            key: `${pairKey}-${key}`,
+            from,
+            to,
+            passable: pair.passable,
+          })
+        }
+      }
+
+      return {
+        mapWidth: Number.isFinite(minX) ? maxX + minX : 1,
+        mapHeight: Number.isFinite(minY) ? maxY + minY : 1,
+        outerBorders,
+        sharedBorders,
+        passableBoundaryKeys: new Set(
+          sharedBorders
+            .filter((border) => border.passable)
+            .map((border) => edgeKey(border.from, border.to)),
+        ),
+      }
+    }, [map])
 
   const owners = new Set<string>()
   state.territories.forEach((territoryState) => {
@@ -588,16 +626,37 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
                   return null
                 }
 
+                const { solidPath, passablePath } = splitBoundaryPaths(
+                  territory.points,
+                  passableBoundaryKeys,
+                )
+
                 return (
-                  <path
-                    key={territory.id}
-                    d={pointsToPath(territory.points)}
-                    fill="none"
-                    stroke={playerColors.get(owner) ?? '#475569'}
-                    strokeWidth="8"
-                    clipPath={`url(#territory-clip-${territory.id})`}
-                    vectorEffect="non-scaling-stroke"
-                  />
+                  <g key={territory.id}>
+                    {solidPath && (
+                      <path
+                        d={solidPath}
+                        fill="none"
+                        stroke={playerColors.get(owner) ?? '#475569'}
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        clipPath={`url(#territory-clip-${territory.id})`}
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    )}
+                    {passablePath && (
+                      <path
+                        d={passablePath}
+                        fill="none"
+                        stroke={playerColors.get(owner) ?? '#475569'}
+                        strokeWidth="8"
+                        strokeDasharray={PASSABLE_BORDER_DASH}
+                        strokeLinecap="round"
+                        clipPath={`url(#territory-clip-${territory.id})`}
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    )}
+                  </g>
                 )
               })}
             </g>
@@ -608,16 +667,37 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
                   return null
                 }
 
+                const { solidPath, passablePath } = splitBoundaryPaths(
+                  territory.points,
+                  passableBoundaryKeys,
+                )
+
                 return (
-                  <path
-                    key={territory.id}
-                    d={pointsToPath(territory.points)}
-                    fill="none"
-                    stroke="#d28b22"
-                    strokeWidth="5"
-                    clipPath={`url(#territory-clip-${territory.id})`}
-                    vectorEffect="non-scaling-stroke"
-                  />
+                  <g key={territory.id}>
+                    {solidPath && (
+                      <path
+                        d={solidPath}
+                        fill="none"
+                        stroke="#d28b22"
+                        strokeWidth="5"
+                        strokeLinecap="round"
+                        clipPath={`url(#territory-clip-${territory.id})`}
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    )}
+                    {passablePath && (
+                      <path
+                        d={passablePath}
+                        fill="none"
+                        stroke="#d28b22"
+                        strokeWidth="5"
+                        strokeDasharray={PASSABLE_BORDER_DASH}
+                        strokeLinecap="round"
+                        clipPath={`url(#territory-clip-${territory.id})`}
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    )}
+                  </g>
                 )
               })}
             </g>
@@ -632,7 +712,7 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
                   y2={border.to[1]}
                   stroke="#594b3c"
                   strokeOpacity="0.85"
-                  strokeWidth="1.5"
+                  strokeWidth={OUTER_BORDER_WIDTH}
                   strokeLinecap="round"
                   vectorEffect="non-scaling-stroke"
                 />
@@ -649,8 +729,10 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
                   y2={border.to[1]}
                   stroke="#39271b"
                   strokeOpacity="0.85"
-                  strokeWidth={border.passable ? 1 : 2.5}
-                  strokeDasharray={border.passable ? '4 3' : undefined}
+                  strokeWidth={
+                    border.passable ? PASSABLE_BORDER_WIDTH : IMPASSABLE_BORDER_WIDTH
+                  }
+                  strokeDasharray={border.passable ? PASSABLE_BORDER_DASH : undefined}
                   strokeLinecap="round"
                   vectorEffect="non-scaling-stroke"
                 />
@@ -841,7 +923,7 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
               </div>
             </div>
             <p className="border-t border-[#b7a786]/60 pt-2 leading-relaxed">
-              Trait épais continu = frontière infranchissable · Trait fin pointillé =
+              Trait continu épais = frontière infranchissable · Trait pointillé =
               frontière franchissable
             </p>
             <p className="leading-relaxed">Territoire assombri = données anciennes</p>
