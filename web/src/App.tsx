@@ -26,6 +26,7 @@ import type {
   PlayerId,
   Season,
   StateData,
+  SupplyLine,
   TurnReport,
   OrdersResponse,
 } from '@/types'
@@ -107,6 +108,9 @@ function App() {
   const [map, setMap] = useState<MapData | null>(null)
   const [state, setState] = useState<StateData | null>(null)
   const [report, setReport] = useState<TurnReport | null>(null)
+  const [supplyLine, setSupplyLine] = useState<SupplyLine | null>(null)
+  const [supplyLoading, setSupplyLoading] = useState(false)
+  const [supplyError, setSupplyError] = useState<string | null>(null)
   const [chainDrafts, setChainDrafts] = useState<
     Record<PlayerId, Record<string, string>>
   >({})
@@ -178,6 +182,54 @@ function App() {
   const selectedChain = selectedState?.army?.chain ?? null
   const presentNobles =
     state?.nobles.filter((noble) => noble.location === selectedId) ?? []
+  const supplySourceTerritory = map?.territories.find(
+    (territory) => territory.id === supplyLine?.source,
+  )
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const armySelected = Boolean(selectedState?.army)
+
+    setSupplyLine(null)
+    setSupplyError(null)
+    if (!state || !selectedId || !armySelected || state.season === 'winter') {
+      setSupplyLoading(false)
+      return () => controller.abort()
+    }
+
+    setSupplyLoading(true)
+    const loadSupplyLine = async () => {
+      try {
+        const response = await fetch(
+          `/api/supply?territory=${encodeURIComponent(selectedId)}`,
+          { signal: controller.signal },
+        )
+        if (!response.ok) {
+          throw new Error(`Supply request failed with status ${response.status}`)
+        }
+        const payload = (await response.json()) as SupplyLine
+        if (!Array.isArray(payload.path) || !Array.isArray(payload.reachable)) {
+          throw new Error('Invalid supply response')
+        }
+        if (!controller.signal.aborted) {
+          setSupplyLine(payload)
+          setSupplyLoading(false)
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setSupplyError(
+            error instanceof Error
+              ? error.message
+              : 'Impossible de calculer le ravitaillement',
+          )
+          setSupplyLoading(false)
+        }
+      }
+    }
+
+    void loadSupplyLine()
+    return () => controller.abort()
+  }, [selectedId, selectedState?.army, state])
 
   const updateChainDraft = (noble: string, text: string) => {
     setChainDrafts((drafts) => ({
@@ -450,7 +502,12 @@ function App() {
               </p>
             </div>
           ) : map && state ? (
-            <MapViewer map={map} state={state} onSelect={setSelectedId} />
+            <MapViewer
+              map={map}
+              state={state}
+              supply={supplyLine}
+              onSelect={setSelectedId}
+            />
           ) : (
             <div className="flex h-full items-center justify-center px-6 text-center">
               <p className="font-serif text-lg italic text-[#806f57]">
@@ -640,6 +697,58 @@ function App() {
                             </div>
                           ) : (
                             <p className="text-sm italic text-[#806f57]">Aucune armée</p>
+                          )}
+                          {selectedState.army && state?.season === 'winter' && (
+                            <p className="rounded-md border border-[#b7a786]/50 bg-[#fffaf0] px-3 py-2 text-xs text-[#806f57]">
+                              Pas de phase de ravitaillement en hiver.
+                            </p>
+                          )}
+                          {selectedState.army && state?.season !== 'winter' && (
+                            <div className="rounded-md border border-[#b7a786]/50 bg-[#fffaf0] px-3 py-2 text-xs text-[#594b3c]">
+                              <p className="font-semibold uppercase tracking-[0.12em] text-[#806f57]">
+                                Ravitaillement
+                              </p>
+                              {supplyLoading ? (
+                                <p className="mt-1 italic text-[#806f57]">
+                                  Calcul en cours…
+                                </p>
+                              ) : supplyError ? (
+                                <p className="mt-1 text-[#8d321e]">{supplyError}</p>
+                              ) : supplyLine?.selfSupplied ? (
+                                <p className="mt-1 text-[#376341]">
+                                  Rations locales suffisantes pour cette armée.
+                                </p>
+                              ) : supplyLine?.source ? (
+                                <>
+                                  <p className="mt-1">
+                                    Source :{' '}
+                                    <strong>
+                                      {supplySourceTerritory?.code ?? supplyLine.source}
+                                      {supplySourceTerritory
+                                        ? ` · ${supplySourceTerritory.name}`
+                                        : ''}
+                                    </strong>
+                                  </p>
+                                  <p className="mt-1">
+                                    Distance : <strong>{supplyLine.distance}</strong>{' '}
+                                    territoire
+                                    {supplyLine.distance > 1 ? 's' : ''}
+                                  </p>
+                                </>
+                              ) : supplyLine ? (
+                                <p className="mt-1 text-[#8d321e]">
+                                  Aucune source accessible : famine possible.
+                                </p>
+                              ) : null}
+                              {supplyLine && (
+                                <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t border-[#b7a786]/40 pt-2">
+                                  <dt className="text-[#806f57]">Rations locales</dt>
+                                  <dd className="font-medium">{supplyLine.rations}</dd>
+                                  <dt className="text-[#806f57]">Besoin à couvrir</dt>
+                                  <dd className="font-medium">{supplyLine.demand}</dd>
+                                </dl>
+                              )}
+                            </div>
                           )}
                         </div>
 

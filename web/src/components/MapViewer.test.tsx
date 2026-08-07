@@ -2,7 +2,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { MapViewer } from '@/components/MapViewer'
-import type { MapData, StateData } from '@/types'
+import type { MapData, StateData, SupplyLine } from '@/types'
 
 const map: MapData = {
   territories: [
@@ -55,8 +55,11 @@ function renderMap(
   testMap: MapData = map,
   testState: StateData = state,
   onSelect = vi.fn(),
+  supply: SupplyLine | null = null,
 ) {
-  const result = render(<MapViewer map={testMap} state={testState} onSelect={onSelect} />)
+  const result = render(
+    <MapViewer map={testMap} state={testState} onSelect={onSelect} supply={supply} />,
+  )
   const svg = result.container.querySelector(
     'svg[aria-label="Carte des territoires"]',
   ) as SVGSVGElement | null
@@ -170,6 +173,44 @@ describe('MapViewer selection and panning', () => {
 })
 
 describe('MapViewer territorial overlays', () => {
+  it('renders the selected army supply zone and path', () => {
+    const supplyState: StateData = {
+      ...state,
+      players: [{ id: 'P1', name: 'One', color: '#a84632' }],
+      territories: [
+        {
+          id: 'T1',
+          owner: 'P1',
+          resources: 0,
+          army: { owner: 'P1', size: 2, chain: null },
+          infrastructures: [{ type: 'castle', level: 1 }],
+        },
+        { id: 'T2', owner: 'P1', resources: 0, army: null, infrastructures: [] },
+      ],
+    }
+    const supply: SupplyLine = {
+      territory: 'T2',
+      armyOwner: 'P1',
+      armySize: 2,
+      rations: 1,
+      demand: 1,
+      source: 'T1',
+      distance: 1,
+      path: ['T1', 'T2'],
+      reachable: ['T1', 'T2'],
+      selfSupplied: false,
+    }
+    const { svg } = renderMap(map, supplyState, vi.fn(), supply)
+
+    const supplyZone = svg.querySelector('g[aria-label="Zone de ravitaillement"]')
+    const supplyPath = svg.querySelector('g[aria-label="Ligne de ravitaillement"]')
+    expect(supplyZone).toBeInTheDocument()
+    expect(supplyZone?.querySelectorAll('[data-supply-territory-id]')).toHaveLength(2)
+    expect(supplyPath).toBeInTheDocument()
+    expect(supplyPath?.querySelector('polyline')).toHaveAttribute('points', '25,25 75,25')
+    expect(supplyPath).toHaveAttribute('pointer-events', 'none')
+  })
+
   it('adds a light winter veil without changing the non-winter map', () => {
     const { svg: winterSvg } = renderMap(map, { ...state, season: 'winter' })
     const winterVeil = winterSvg.querySelector('g[aria-label="Voile hivernal"]')

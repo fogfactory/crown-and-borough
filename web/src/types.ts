@@ -105,6 +105,19 @@ export interface StateData {
   nobles: Noble[]
 }
 
+export interface SupplyLine {
+  territory: string
+  armyOwner: PlayerId
+  armySize: number
+  rations: number
+  demand: number
+  source: string | null
+  distance: number
+  path: string[]
+  reachable: string[]
+  selfSupplied: boolean
+}
+
 export interface ChainSubmission {
   player: PlayerId
   noble: string

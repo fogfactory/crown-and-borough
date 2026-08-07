@@ -14,7 +14,15 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import type { Infrastructure, MapData, Noble, Point, StateData, Terrain } from '@/types'
+import type {
+  Infrastructure,
+  MapData,
+  Noble,
+  Point,
+  StateData,
+  SupplyLine,
+  Terrain,
+} from '@/types'
 
 const MIN_ZOOM = 0.5
 const MAX_ZOOM = 4
@@ -255,9 +263,10 @@ interface MapViewerProps {
   map: MapData
   state: StateData
   onSelect?: (id: string | null) => void
+  supply?: SupplyLine | null
 }
 
-export function MapViewer({ map, state, onSelect }: MapViewerProps) {
+export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
   const svgRef = useRef<SVGSVGElement>(null)
   const dragRef = useRef<DragState | null>(null)
   const [view, setView] = useState<ViewState>({ x: 0, y: 0, k: 1 })
@@ -387,6 +396,12 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
       .sort((first, second) => first.localeCompare(second))
       .map((owner, index) => [owner, PLAYER_PALETTE[index % PLAYER_PALETTE.length]]),
   )
+  const supplyReachable = new Set(supply?.reachable ?? [])
+  const supplyColor = playerColors.get(supply?.armyOwner ?? '') ?? '#a84632'
+  const supplyPathPoints = (supply?.path ?? []).flatMap((territoryID) => {
+    const territory = map.territories.find((candidate) => candidate.id === territoryID)
+    return territory ? [centroid(territory.points)] : []
+  })
 
   useEffect(() => {
     const svg = svgRef.current
@@ -667,6 +682,30 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
               })}
             </g>
 
+            {supplyReachable.size > 0 && (
+              <g aria-label="Zone de ravitaillement" pointerEvents="none">
+                {map.territories.map((territory) => {
+                  if (!supplyReachable.has(territory.id)) {
+                    return null
+                  }
+
+                  return (
+                    <path
+                      key={territory.id}
+                      data-supply-territory-id={territory.id}
+                      d={pointsToPath(territory.points)}
+                      fill={supplyColor}
+                      fillOpacity="0.2"
+                      stroke={supplyColor}
+                      strokeOpacity="0.35"
+                      strokeWidth="1"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  )
+                })}
+              </g>
+            )}
+
             <g aria-label="Sélection" pointerEvents="none">
               {map.territories.map((territory) => {
                 if (territory.id !== selectedId) {
@@ -744,6 +783,42 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
                 />
               ))}
             </g>
+
+            {supplyPathPoints.length > 0 && (
+              <g aria-label="Ligne de ravitaillement" pointerEvents="none">
+                <polyline
+                  points={supplyPathPoints.map(([x, y]) => `${x},${y}`).join(' ')}
+                  fill="none"
+                  stroke={supplyColor}
+                  strokeWidth="5"
+                  strokeDasharray="8 5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+                <circle
+                  cx={supplyPathPoints[0][0]}
+                  cy={supplyPathPoints[0][1]}
+                  r="7"
+                  fill="#fff8e7"
+                  stroke={supplyColor}
+                  strokeWidth="3"
+                  vectorEffect="non-scaling-stroke"
+                />
+                {supplyPathPoints.length > 1 && (
+                  <circle
+                    cx={supplyPathPoints[supplyPathPoints.length - 1][0]}
+                    cy={supplyPathPoints[supplyPathPoints.length - 1][1]}
+                    r="13"
+                    fill="none"
+                    stroke={supplyColor}
+                    strokeWidth="2"
+                    strokeDasharray="3 3"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                )}
+              </g>
+            )}
 
             <g aria-label="Couche vivante" pointerEvents="none">
               {map.territories.map((territory) => {

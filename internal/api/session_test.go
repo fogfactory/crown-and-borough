@@ -251,3 +251,62 @@ func TestHotseatSessionResolvesAndRecreatesGame(t *testing.T) {
 		t.Fatalf("winter orders out of season = %d, want 400", outOfSeasonRecorder.Code)
 	}
 }
+
+func TestHotseatSessionServesSupplyLine(t *testing.T) {
+	assets, err := assetgen.Load("../../assets")
+	if err != nil {
+		t.Fatalf("load assets: %v", err)
+	}
+	balance, err := assetgen.LoadBalance("../../assets")
+	if err != nil {
+		t.Fatalf("load balance: %v", err)
+	}
+	session, err := NewSession("supply-line-test", []engine.PlayerInit{{Name: "One"}, {Name: "Two"}}, balance, assets)
+	if err != nil {
+		t.Fatalf("NewSession: %v", err)
+	}
+
+	stateRecorder := httptest.NewRecorder()
+	session.StateHTTP(stateRecorder, httptest.NewRequest(http.MethodGet, "/api/state", nil))
+	var state StateView
+	if err := json.Unmarshal(stateRecorder.Body.Bytes(), &state); err != nil {
+		t.Fatalf("decode state: %v", err)
+	}
+	var armyTerritory string
+	var emptyTerritory string
+	for _, territory := range state.Territories {
+		if territory.Army != nil && armyTerritory == "" {
+			armyTerritory = string(territory.ID)
+		}
+		if territory.Army == nil && emptyTerritory == "" {
+			emptyTerritory = string(territory.ID)
+		}
+	}
+	if armyTerritory == "" || emptyTerritory == "" {
+		t.Fatalf("state does not contain both an army and an empty territory: %#v", state.Territories)
+	}
+
+	recorder := httptest.NewRecorder()
+	session.SupplyHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/supply?territory="+armyTerritory, nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("GET supply = %d: %s", recorder.Code, recorder.Body.String())
+	}
+	var line engine.SupplyLine
+	if err := json.Unmarshal(recorder.Body.Bytes(), &line); err != nil {
+		t.Fatalf("decode supply line: %v", err)
+	}
+	if string(line.Territory) != armyTerritory || line.ArmySize < 1 {
+		t.Errorf("supply line = %#v, want army at %s", line, armyTerritory)
+	}
+
+	missing := httptest.NewRecorder()
+	session.SupplyHTTP(missing, httptest.NewRequest(http.MethodGet, "/api/supply", nil))
+	if missing.Code != http.StatusBadRequest {
+		t.Errorf("missing territory = %d, want %d", missing.Code, http.StatusBadRequest)
+	}
+	empty := httptest.NewRecorder()
+	session.SupplyHTTP(empty, httptest.NewRequest(http.MethodGet, "/api/supply?territory="+emptyTerritory, nil))
+	if empty.Code != http.StatusNotFound {
+		t.Errorf("empty territory = %d, want %d", empty.Code, http.StatusNotFound)
+	}
+}

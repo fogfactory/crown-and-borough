@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import App from '@/App'
-import type { MapData, StateData, TurnReport } from '@/types'
+import type { MapData, StateData, SupplyLine, TurnReport } from '@/types'
 
 const map: MapData = {
   territories: [
@@ -100,6 +100,19 @@ const resolvedReport: TurnReport = {
   nobles: [],
 }
 
+const supplyLine: SupplyLine = {
+  territory: 'T1',
+  armyOwner: 'P1',
+  armySize: 2,
+  rations: 1,
+  demand: 1,
+  source: 'T1',
+  distance: 0,
+  path: ['T1'],
+  reachable: ['T1'],
+  selfSupplied: false,
+}
+
 afterEach(() => {
   vi.unstubAllGlobals()
 })
@@ -110,7 +123,8 @@ describe('App command/report tabs', () => {
       const url = String(input)
       return Promise.resolve({
         ok: true,
-        json: async () => (url.includes('/map') ? map : state),
+        json: async () =>
+          url.includes('/map') ? map : url.includes('/supply') ? supplyLine : state,
       } as Response)
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -142,6 +156,8 @@ describe('App command/report tabs', () => {
       'step',
     )
     expect(screen.getByLabelText('Couleur de One')).toBeInTheDocument()
+    expect(await screen.findByText(/Source :/)).toBeInTheDocument()
+    expect(screen.getByText(/ROS · Rosemont/)).toBeInTheDocument()
 
     const draft = screen.getByLabelText('Chaîne de JEA')
     fireEvent.change(draft, { target: { value: 'ROS A BRU' } })
@@ -170,7 +186,8 @@ describe('App command/report tabs', () => {
       }
       return Promise.resolve({
         ok: true,
-        json: async () => (url.includes('/map') ? map : state),
+        json: async () =>
+          url.includes('/map') ? map : url.includes('/supply') ? supplyLine : state,
       } as Response)
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -274,7 +291,8 @@ describe('App command/report tabs', () => {
       }
       return Promise.resolve({
         ok: true,
-        json: async () => (url.includes('/map') ? map : state),
+        json: async () =>
+          url.includes('/map') ? map : url.includes('/supply') ? supplyLine : state,
       } as Response)
     })
     vi.stubGlobal('fetch', fetchMock)
