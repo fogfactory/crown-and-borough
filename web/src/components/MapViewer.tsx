@@ -222,7 +222,7 @@ function NobleMarker({ noble, x, y }: { noble: Noble; x: number; y: number }) {
 interface MapViewerProps {
   map: MapData
   state: StateData
-  onSelect?: (id: string) => void
+  onSelect?: (id: string | null) => void
 }
 
 export function MapViewer({ map, state, onSelect }: MapViewerProps) {
@@ -384,8 +384,10 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
   }, [mapHeight, mapWidth])
 
   const handlePointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
-    const mode = event.button === 0 ? 'pan' : event.button === 1 ? 'select' : null
-    if (!mode) {
+    if (event.button !== 0) {
+      if (event.button === 1) {
+        event.preventDefault()
+      }
       return
     }
 
@@ -400,13 +402,13 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
     event.preventDefault()
     dragRef.current = {
       pointerId: event.pointerId,
-      mode,
+      mode: event.pointerType === 'touch' ? 'pan' : 'select',
       territoryId: getTerritoryIdFromTarget(event.target),
       start: point,
       last: point,
       dragged: false,
     }
-    setIsDragging(mode === 'pan')
+    setIsDragging(event.pointerType === 'touch')
   }
 
   const handlePointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
@@ -428,28 +430,36 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
     )
     if (distance >= DRAG_THRESHOLD) {
       activeDrag.dragged = true
+      if (activeDrag.mode === 'select') {
+        activeDrag.mode = 'pan'
+        setIsDragging(true)
+      }
     }
 
+    const deltaX = point[0] - activeDrag.last[0]
+    const deltaY = point[1] - activeDrag.last[1]
     if (activeDrag.mode === 'pan' && activeDrag.dragged) {
-      setView((current) => ({
-        ...current,
-        x: current.x + point[0] - activeDrag.last[0],
-        y: current.y + point[1] - activeDrag.last[1],
-      }))
+      setView((current) => {
+        return {
+          ...current,
+          x: current.x + deltaX,
+          y: current.y + deltaY,
+        }
+      })
     }
     activeDrag.last = point
   }
 
   const handlePointerUp = (event: ReactPointerEvent<SVGSVGElement>) => {
     const activeDrag = dragRef.current
-    if (!activeDrag || activeDrag.pointerId !== event.pointerId) {
+    if (event.button !== 0 || !activeDrag || activeDrag.pointerId !== event.pointerId) {
       return
     }
 
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
     }
-    if (activeDrag.mode === 'select' && !activeDrag.dragged && activeDrag.territoryId) {
+    if (activeDrag.mode === 'select' && !activeDrag.dragged) {
       selectTerritory(activeDrag.territoryId)
     }
     dragRef.current = null
@@ -469,9 +479,10 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
     setIsDragging(false)
   }
 
-  const selectTerritory = (id: string) => {
-    setSelectedId(id)
-    onSelect?.(id)
+  const selectTerritory = (id: string | null) => {
+    const nextId = id !== null && id !== selectedId ? id : null
+    setSelectedId(nextId)
+    onSelect?.(nextId)
   }
 
   const handleTerritoryKeyDown = (
@@ -508,6 +519,18 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
         >
           <rect width={mapWidth} height={mapHeight} fill="#e6d8bb" />
           <g transform={`translate(${view.x} ${view.y}) scale(${view.k})`}>
+            <defs>
+              {map.territories.map((territory) => (
+                <clipPath
+                  key={territory.id}
+                  id={`territory-clip-${territory.id}`}
+                  clipPathUnits="userSpaceOnUse"
+                >
+                  <path d={pointsToPath(territory.points)} />
+                </clipPath>
+              ))}
+            </defs>
+
             <g aria-label="Terrains">
               {map.territories.map((territory) => (
                 <Tooltip key={territory.id}>
@@ -519,6 +542,7 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
                       stroke="none"
                       tabIndex={0}
                       role="button"
+                      aria-pressed={territory.id === selectedId}
                       aria-label={`${territory.name}, ${TERRAIN_LABELS[territory.terrain]}`}
                       onKeyDown={(event) => handleTerritoryKeyDown(event, territory.id)}
                     />
@@ -536,6 +560,24 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
               ))}
             </g>
 
+            <g aria-label="Données anciennes" pointerEvents="none">
+              {map.territories.map((territory) => {
+                const observedTurn = state.asOf[territory.id] ?? state.turn
+                if (observedTurn >= state.turn) {
+                  return null
+                }
+
+                return (
+                  <path
+                    key={territory.id}
+                    d={pointsToPath(territory.points)}
+                    fill="black"
+                    opacity="0.3"
+                  />
+                )
+              })}
+            </g>
+
             <g aria-label="Contrôle territorial" pointerEvents="none">
               {map.territories.map((territory) => {
                 const territoryState = state.territories.find(
@@ -550,17 +592,19 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
                   <path
                     key={territory.id}
                     d={pointsToPath(territory.points)}
-                    fill={playerColors.get(owner) ?? '#475569'}
-                    opacity="0.13"
+                    fill="none"
+                    stroke={playerColors.get(owner) ?? '#475569'}
+                    strokeWidth="8"
+                    clipPath={`url(#territory-clip-${territory.id})`}
+                    vectorEffect="non-scaling-stroke"
                   />
                 )
               })}
             </g>
 
-            <g aria-label="Données anciennes" pointerEvents="none">
+            <g aria-label="Sélection" pointerEvents="none">
               {map.territories.map((territory) => {
-                const observedTurn = state.asOf[territory.id] ?? state.turn
-                if (observedTurn >= state.turn) {
+                if (territory.id !== selectedId) {
                   return null
                 }
 
@@ -568,8 +612,11 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
                   <path
                     key={territory.id}
                     d={pointsToPath(territory.points)}
-                    fill="black"
-                    opacity="0.3"
+                    fill="none"
+                    stroke="#d28b22"
+                    strokeWidth="5"
+                    clipPath={`url(#territory-clip-${territory.id})`}
+                    vectorEffect="non-scaling-stroke"
                   />
                 )
               })}
@@ -707,25 +754,6 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
                 )
               })}
             </g>
-
-            <g aria-label="Sélection" pointerEvents="none">
-              {map.territories.map((territory) => {
-                if (territory.id !== selectedId) {
-                  return null
-                }
-
-                return (
-                  <path
-                    key={territory.id}
-                    d={pointsToPath(territory.points)}
-                    fill="none"
-                    stroke="#d28b22"
-                    strokeWidth="4"
-                    vectorEffect="non-scaling-stroke"
-                  />
-                )
-              })}
-            </g>
           </g>
         </svg>
 
@@ -798,8 +826,18 @@ export function MapViewer({ map, state, onSelect }: MapViewerProps) {
                 <span>Noble</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="size-3 shrink-0 rounded-sm border border-[#a84632]/30 bg-[#a84632]/20" />
-                <span>Contrôle territorial</span>
+                <svg className="size-3 shrink-0" viewBox="0 0 16 16" aria-hidden="true">
+                  <rect
+                    x="3"
+                    y="3"
+                    width="10"
+                    height="10"
+                    fill="none"
+                    stroke="#a84632"
+                    strokeWidth="3"
+                  />
+                </svg>
+                <span>Liséré coloré = contrôle territorial</span>
               </div>
             </div>
             <p className="border-t border-[#b7a786]/60 pt-2 leading-relaxed">

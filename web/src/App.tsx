@@ -235,7 +235,7 @@ function App() {
         <section className="relative h-[620px] min-h-0 flex-1 overflow-hidden rounded-2xl border border-[#b7a786] bg-[#e6d8bb] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)] lg:h-[calc(100vh-8.5rem)]">
           <div className="pointer-events-none absolute left-5 top-5 z-10">
             <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#806f57]">Carte publique · vision T0</p>
-            <p className="mt-1 text-xs text-[#594b3c]">Clic milieu pour sélectionner · clic gauche pour déplacer · molette pour zoomer</p>
+            <p className="mt-1 text-xs text-[#594b3c]">Clic gauche pour sélectionner · maintenir puis glisser pour déplacer la carte · molette pour zoomer</p>
           </div>
           {loadError ? (
             <div role="alert" className="flex h-full items-center justify-center px-6 text-center">

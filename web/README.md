@@ -20,8 +20,9 @@ repository root.
 
 - `src/components/MapViewer.tsx` renders generic map and state data as an
   interactive SVG with terrain, live markers, freshness overlays, and tooltips.
-- On the map, the middle mouse button selects a territory, while the left mouse
-  button pans the view.
+- On the map, a left click selects or deselects a territory. Holding the left
+  button and dragging past the movement threshold pans the view without
+  selecting a territory.
 - `src/components/ui/` contains the shadcn/ui components used by the application.
 - `src/App.tsx` loads the static map from `/api/map` and combines it with the
   temporary state placeholder.

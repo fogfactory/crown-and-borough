@@ -11,7 +11,8 @@ Notes prises pendant une partie en hotseat, au fil des observations.
 - Clic gauche sur un territoire : le sélectionne.
 - Re-clic sur le territoire sélectionné : le désélectionne.
 - Clic gauche en dehors de la carte : supprime la sélection.
-- Déplacement de la carte : clic gauche avec la touche Ctrl (contrôle-clic).
+- Déplacement de la carte : clic gauche maintenu puis glissé au-delà du seuil
+  anti-drag, sans sélection du territoire sous le pointeur.
 
 ## Rendu
 
