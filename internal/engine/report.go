@@ -103,17 +103,23 @@ type CombatReport struct {
 }
 
 type OrderReport struct {
-	Army        models.ArmyID      `json:"army"`
-	Chain       models.ChainID     `json:"chain"`
-	Order       models.OrderID     `json:"order"`
-	Type        models.OrderType   `json:"type"`
-	Source      models.TerritoryID `json:"source"`
-	Target      models.TerritoryID `json:"target,omitempty"`
-	Outcome     Outcome            `json:"outcome"`
-	Reason      string             `json:"reason,omitempty"`
-	Progression Progression        `json:"progression"`
-	IndexBefore int                `json:"indexBefore"`
-	IndexAfter  int                `json:"indexAfter"`
+	Army             models.ArmyID                               `json:"army"`
+	Chain            models.ChainID                              `json:"chain"`
+	Order            models.OrderID                              `json:"order"`
+	Owner            models.PlayerID                             `json:"owner"`
+	Noble            models.NobleCode                            `json:"noble"`
+	Type             models.OrderType                            `json:"type"`
+	Source           models.TerritoryID                          `json:"source"`
+	Target           models.TerritoryID                          `json:"target,omitempty"`
+	Targets          []models.TerritoryID                        `json:"targets,omitempty"`
+	NobleTargets     []models.NobleCode                          `json:"nobleTargets,omitempty"`
+	NobleAssignments map[models.TerritoryCode][]models.NobleCode `json:"nobleAssignments,omitempty"`
+	Liaison          models.LiaisonMode                          `json:"liaison"`
+	Outcome          Outcome                                     `json:"outcome"`
+	Reason           string                                      `json:"reason,omitempty"`
+	Progression      Progression                                 `json:"progression"`
+	IndexBefore      int                                         `json:"indexBefore"`
+	IndexAfter       int                                         `json:"indexAfter"`
 }
 
 // MoveReport is a discriminated event projection. Kind is one of movement,
@@ -163,6 +169,7 @@ type WinterReport struct {
 type WinterInvestmentReport struct {
 	Kind           EventType           `json:"kind"`
 	Player         models.PlayerID     `json:"player"`
+	Outcome        Outcome             `json:"outcome"`
 	Territory      models.TerritoryID  `json:"territory,omitempty"`
 	Infrastructure models.InfraID      `json:"infrastructure,omitempty"`
 	Type           models.InfraType    `json:"type,omitempty"`
@@ -202,6 +209,21 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 		}
 	}
 	report.Players = buildPlayerReports(before, after)
+
+	armiesByID := make(map[models.ArmyID]models.Army)
+	chainsByID := make(map[models.ChainID]models.Chain)
+	noblesByID := make(map[models.NobleID]models.Noble)
+	if before != nil {
+		for _, army := range before.Armies {
+			armiesByID[army.ID] = army
+		}
+		for _, chain := range before.Chains {
+			chainsByID[chain.ID] = chain
+		}
+		for _, noble := range before.Nobles {
+			noblesByID[noble.ID] = noble
+		}
+	}
 
 	afterNobles := make(map[models.NobleID]models.Noble)
 	if after != nil {
@@ -247,6 +269,33 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 				Source: event.SourceID, Target: event.TargetID, Outcome: event.Outcome,
 				Reason: event.Reason, Progression: event.Progression,
 			}
+			if army, exists := armiesByID[event.ArmyID]; exists {
+				entry.Owner = army.OwnerID
+			}
+			if chain, exists := chainsByID[event.ChainID]; exists {
+				if noble, nobleExists := noblesByID[chain.NobleID]; nobleExists {
+					entry.Noble = models.NobleCode(noble.Code)
+				}
+				for _, order := range chain.Orders {
+					if order.ID != event.OrderID {
+						continue
+					}
+					entry.Type = order.Type
+					entry.Source = order.PositionID
+					entry.Targets = append([]models.TerritoryID(nil), order.TargetIDs...)
+					if len(entry.Targets) > 0 {
+						entry.Target = entry.Targets[0]
+					}
+					for _, nobleTargetID := range order.NobleTargetIDs {
+						if noble, nobleExists := noblesByID[nobleTargetID]; nobleExists {
+							entry.NobleTargets = append(entry.NobleTargets, models.NobleCode(noble.Code))
+						}
+					}
+					entry.NobleAssignments = cloneNobleAssignments(order.NobleAssignments)
+					entry.Liaison = order.Liaison
+					break
+				}
+			}
 			if progression, exists := progressions[eventKey(event.ChainID, event.OrderID)]; exists {
 				entry.IndexBefore = progression.IndexBefore
 				entry.IndexAfter = progression.IndexAfter
@@ -275,7 +324,7 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 			})
 			if event.Type == EventTypeLiberation && report.Winter != nil {
 				report.Winter.Investments = append(report.Winter.Investments, WinterInvestmentReport{
-					Kind: event.Type, Player: event.OwnerID, Territory: event.TerritoryID,
+					Kind: event.Type, Player: event.OwnerID, Outcome: OutcomeSuccess, Territory: event.TerritoryID,
 					Noble: event.NobleID, NobleCode: event.NobleCode, NobleName: event.NobleName,
 				})
 			}
@@ -293,9 +342,13 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 			}
 			investment := WinterInvestmentReport{
 				Kind: event.Type, Player: event.OwnerID, Territory: event.TerritoryID,
+				Outcome:        OutcomeSuccess,
 				Infrastructure: event.InfrastructureID, Type: event.InfrastructureType,
 				Level: event.Level, Noble: event.NobleID, NobleCode: event.NobleCode,
 				NobleName: event.NobleName, Reason: event.Reason,
+			}
+			if event.Type == EventTypeRejected {
+				investment.Outcome = OutcomeFailure
 			}
 			if event.WinterOrder != nil {
 				order := *event.WinterOrder

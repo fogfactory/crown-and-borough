@@ -32,28 +32,28 @@ func AssignChain(game *models.GameState, chain models.Chain) error {
 	indexes := indexGame(game)
 	noble := indexes.noblesByID[chain.NobleID]
 	if noble == nil {
-		return assignmentError(ErrInvalidChain, fmt.Sprintf("emitting noble %q does not exist", chain.NobleID))
+		return assignmentError(ErrInvalidChain, fmt.Sprintf("emitting noble %q does not exist", nobleReference(indexes, chain.NobleID)))
 	}
 	if noble.Status != models.NobleStatusFree {
-		return assignmentError(ErrNoblePrisoner, fmt.Sprintf("noble %q is a prisoner", noble.ID))
+		return assignmentError(ErrNoblePrisoner, fmt.Sprintf("noble %q is a prisoner", nobleReference(indexes, noble.ID)))
 	}
 	if noble.LastEmissionTurn == game.Turn {
-		return assignmentError(ErrEmissionCapacity, fmt.Sprintf("noble %q has already emitted in turn %d", noble.ID, game.Turn))
+		return assignmentError(ErrEmissionCapacity, fmt.Sprintf("noble %q has already emitted in turn %d", nobleReference(indexes, noble.ID), game.Turn))
 	}
 
 	positionID := chain.Orders[0].PositionID
 	army := armyAtTerritory(game, indexes, positionID)
 	if army == nil {
-		return assignmentError(ErrNoArmyOnPosition, fmt.Sprintf("no army occupies receiving position %q", positionID))
+		return assignmentError(ErrNoArmyOnPosition, fmt.Sprintf("no army occupies receiving position %q", territoryReference(indexes, positionID)))
 	}
 	if army.OwnerID != noble.OwnerID {
-		return assignmentError(ErrArmyNotOwned, fmt.Sprintf("army at receiving position %q belongs to %q, not emitting noble owner %q", positionID, army.OwnerID, noble.OwnerID))
+		return assignmentError(ErrArmyNotOwned, fmt.Sprintf("army at receiving position %q belongs to %q, not emitting noble owner %q", territoryReference(indexes, positionID), army.OwnerID, noble.OwnerID))
 	}
 
 	for orderIndex, order := range chain.Orders {
 		if order.Type == models.OrderTypeDisperse {
 			if len(order.TargetIDs) != army.Size {
-				return assignmentError(ErrDisperseSize, fmt.Sprintf("D has %d destinations for army %q of size %d", len(order.TargetIDs), army.ID, army.Size))
+				return assignmentError(ErrDisperseSize, fmt.Sprintf("D has %d destinations for army at %q of size %d", len(order.TargetIDs), territoryReference(indexes, army.TerritoryID), army.Size))
 			}
 			if err := validateNobleCoverage(game, indexes, army, order); err != nil {
 				return err
@@ -130,12 +130,12 @@ func validateNobleCoverage(game *models.GameState, indexes gameIndexes, army *mo
 	}
 	for nobleID := range coLocated {
 		if assignmentCounts[nobleID] != 1 {
-			return assignmentError(ErrNoblesNotCovered, fmt.Sprintf("noble %q must be assigned exactly once by D", nobleID))
+			return assignmentError(ErrNoblesNotCovered, fmt.Sprintf("noble %q must be assigned exactly once by D", nobleReference(indexes, nobleID)))
 		}
 	}
 	for nobleID, count := range assignmentCounts {
 		if !coLocated[nobleID] || count != 1 {
-			return assignmentError(ErrNoblesNotCovered, fmt.Sprintf("noble %q is not a valid single assignment on army %q", nobleID, army.ID))
+			return assignmentError(ErrNoblesNotCovered, fmt.Sprintf("noble %q is not a valid single assignment on army at %q", nobleReference(indexes, nobleID), territoryReference(indexes, army.TerritoryID)))
 		}
 	}
 	return nil
@@ -144,7 +144,7 @@ func validateNobleCoverage(game *models.GameState, indexes gameIndexes, army *mo
 func validateImmediatePrisonerTarget(indexes gameIndexes, army *models.Army, order models.Order) error {
 	target := indexes.noblesByID[order.NobleTargetIDs[0]]
 	if target == nil || target.Status == models.NobleStatusFree || target.LocationID != army.TerritoryID || target.OwnerID == army.OwnerID {
-		return assignmentError(ErrNobleNotPrisoner, fmt.Sprintf("noble target %q is not a prisoner held by army %q", order.NobleTargetIDs[0], army.ID))
+		return assignmentError(ErrNobleNotPrisoner, fmt.Sprintf("noble target %q is not a prisoner held by army at %q", nobleReference(indexes, order.NobleTargetIDs[0]), territoryReference(indexes, army.TerritoryID)))
 	}
 	return nil
 }

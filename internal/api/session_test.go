@@ -111,7 +111,6 @@ func TestHotseatSessionResolvesAndRecreatesGame(t *testing.T) {
 	if !bytes.Contains(invalidRecorder.Body.Bytes(), []byte(`"line":1`)) {
 		t.Fatalf("invalid response = %s, want line number", invalidRecorder.Body.String())
 	}
-
 	for index := 0; index < 2; index++ {
 		status, body = submit("P1", `{"player":"P1","chains":[],"winter":[]}`)
 		if status != http.StatusOK {
@@ -171,6 +170,80 @@ func TestHotseatSessionResolvesAndRecreatesGame(t *testing.T) {
 	}
 	if resetResponse.State.Turn != 1 || len(resetResponse.State.Players) != 2 {
 		t.Fatalf("reset state = %#v, want default game", resetResponse.State)
+	}
+	resetMapRecorder := httptest.NewRecorder()
+	session.MapHTTP(resetMapRecorder, httptest.NewRequest(http.MethodGet, "/api/map", nil))
+	var resetMap mapgen.MapData
+	if err := json.Unmarshal(resetMapRecorder.Body.Bytes(), &resetMap); err != nil {
+		t.Fatalf("decode reset map: %v", err)
+	}
+	if len(resetMap.Territories) == 0 {
+		t.Fatal("reset map has no territories")
+	}
+	winterCode = resetMap.Territories[0].Code
+	emitter := NobleView{}
+	for _, noble := range resetResponse.State.Nobles {
+		if noble.Owner == "P1" && noble.Status == "free" {
+			emitter = noble
+			break
+		}
+	}
+	if emitter.Code == "" {
+		t.Fatal("could not find a free P1 noble for the visible reception error test")
+	}
+	emptyTerritory := mapgen.Territory{}
+	for _, candidate := range resetMap.Territories {
+		for _, stateTerritory := range resetResponse.State.Territories {
+			if string(stateTerritory.ID) == candidate.ID && stateTerritory.Army == nil && len(candidate.Adjacencies) > 0 {
+				emptyTerritory = candidate
+				break
+			}
+		}
+		if emptyTerritory.ID != "" {
+			break
+		}
+	}
+	if emptyTerritory.ID == "" {
+		t.Fatal("could not find an empty territory for the visible reception error test")
+	}
+	emptyTarget := mapgen.Territory{}
+	for _, candidate := range resetMap.Territories {
+		if candidate.ID == emptyTerritory.Adjacencies[0] {
+			emptyTarget = candidate
+			break
+		}
+	}
+	if emptyTarget.ID == "" {
+		t.Fatalf("could not resolve adjacency %s on reset map", emptyTerritory.Adjacencies[0])
+	}
+	visibleErrorRecorder := httptest.NewRecorder()
+	visibleErrorBody := `{"player":"P1","chains":[{"player":"P1","noble":"` + string(emitter.Code) + `","text":"` + string(emitter.Code) + `\n` + emptyTerritory.Code + ` A ` + emptyTarget.Code + `"}],"winter":[]}`
+	session.OrdersHTTP(visibleErrorRecorder, httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(visibleErrorBody)))
+	if visibleErrorRecorder.Code != http.StatusOK {
+		t.Fatalf("empty receiving position submission = %d: %s", visibleErrorRecorder.Code, visibleErrorRecorder.Body.String())
+	}
+	visibleErrorRecorder = httptest.NewRecorder()
+	session.OrdersHTTP(visibleErrorRecorder, httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(`{"player":"P2","chains":[],"winter":[]}`)))
+	if visibleErrorRecorder.Code != http.StatusOK {
+		t.Fatalf("empty receiving position resolution = %d: %s", visibleErrorRecorder.Code, visibleErrorRecorder.Body.String())
+	}
+	var visibleResponse struct {
+		Report struct {
+			Receptions []engine.ReceptionReport `json:"receptions"`
+		} `json:"report"`
+	}
+	if err := json.Unmarshal(visibleErrorRecorder.Body.Bytes(), &visibleResponse); err != nil {
+		t.Fatalf("decode visible reception response: %v", err)
+	}
+	if len(visibleResponse.Report.Receptions) != 1 {
+		t.Fatalf("visible reception response = %s, want one reception", visibleErrorRecorder.Body.String())
+	}
+	reason := visibleResponse.Report.Receptions[0].Reason
+	if strings.Contains(reason, emptyTerritory.ID) {
+		t.Fatalf("visible reception reason = %q, must not expose %s", reason, emptyTerritory.ID)
+	}
+	if !strings.Contains(reason, emptyTerritory.Code) {
+		t.Fatalf("visible reception reason = %q, want code %s", reason, emptyTerritory.Code)
 	}
 	outOfSeasonRecorder := httptest.NewRecorder()
 	session.OrdersHTTP(outOfSeasonRecorder, httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(`{"chains":[],"winter":[{"player":"P1","lines":"R T `+winterCode+`"}]}`)))

@@ -14,7 +14,7 @@ func ValidateChain(game *models.GameState, chain models.Chain) []ValidationError
 	indexes := indexGame(game)
 	errors := []ValidationError{}
 	if _, exists := indexes.noblesByID[chain.NobleID]; !exists {
-		errors = append(errors, chainValidationError("unknown_noble", fmt.Sprintf("noble %q does not exist", chain.NobleID)))
+		errors = append(errors, chainValidationError("unknown_noble", fmt.Sprintf("noble %q does not exist", nobleReference(indexes, chain.NobleID))))
 	}
 	if len(chain.Orders) == 0 {
 		errors = append(errors, chainValidationError("empty_chain", "a chain must contain at least one order"))
@@ -56,16 +56,16 @@ func validateOrder(indexes gameIndexes, order models.Order, last bool) []Validat
 	}
 	positionExists := indexes.territoriesByID[order.PositionID] != nil
 	if !positionExists {
-		errors = append(errors, orderValidationError(order, "unknown_position", fmt.Sprintf("position %q does not exist", order.PositionID)))
+		errors = append(errors, orderValidationError(order, "unknown_position", fmt.Sprintf("position %q does not exist", territoryReference(indexes, order.PositionID))))
 	}
 	for _, targetID := range order.TargetIDs {
 		if indexes.territoriesByID[targetID] == nil {
-			errors = append(errors, orderValidationError(order, "unknown_target", fmt.Sprintf("territory target %q does not exist", targetID)))
+			errors = append(errors, orderValidationError(order, "unknown_target", fmt.Sprintf("territory target %q does not exist", territoryReference(indexes, targetID))))
 		}
 	}
 	for _, nobleTargetID := range order.NobleTargetIDs {
 		if _, exists := indexes.noblesByID[nobleTargetID]; !exists {
-			errors = append(errors, orderValidationError(order, "unknown_noble_target", fmt.Sprintf("noble target %q does not exist", nobleTargetID)))
+			errors = append(errors, orderValidationError(order, "unknown_noble_target", fmt.Sprintf("noble target %q does not exist", nobleReference(indexes, nobleTargetID))))
 		}
 	}
 
@@ -108,7 +108,7 @@ func validateSingleTerritoryOrder(indexes gameIndexes, order models.Order, posit
 	}
 	targetID := order.TargetIDs[0]
 	if positionExists && indexes.territoriesByID[targetID] != nil && !adjacent(indexes, order.PositionID, targetID) {
-		errors = append(errors, orderValidationError(order, ValidationCodeNotAdjacent, fmt.Sprintf("%s target %q is not adjacent to %q", symbol, targetID, order.PositionID)))
+		errors = append(errors, orderValidationError(order, ValidationCodeNotAdjacent, fmt.Sprintf("%s target %q is not adjacent to %q", symbol, territoryReference(indexes, targetID), territoryReference(indexes, order.PositionID))))
 	}
 	return errors
 }
@@ -130,16 +130,16 @@ func validateSupport(indexes gameIndexes, order models.Order, positionExists boo
 			errors = append(errors, orderValidationError(order, "support_same_position", "defensive S cannot support its own position"))
 		}
 		if positionExists && indexes.territoriesByID[supportedID] != nil && !adjacent(indexes, order.PositionID, supportedID) {
-			errors = append(errors, orderValidationError(order, ValidationCodeNotAdjacent, fmt.Sprintf("defensive S target %q is not adjacent to %q", supportedID, order.PositionID)))
+			errors = append(errors, orderValidationError(order, ValidationCodeNotAdjacent, fmt.Sprintf("defensive S target %q is not adjacent to %q", territoryReference(indexes, supportedID), territoryReference(indexes, order.PositionID))))
 		}
 		return errors
 	}
 	destinationID := order.TargetIDs[1]
 	if positionExists && indexes.territoriesByID[destinationID] != nil && !adjacent(indexes, order.PositionID, destinationID) {
-		errors = append(errors, orderValidationError(order, ValidationCodeNotAdjacent, fmt.Sprintf("offensive S destination %q is not adjacent to %q", destinationID, order.PositionID)))
+		errors = append(errors, orderValidationError(order, ValidationCodeNotAdjacent, fmt.Sprintf("offensive S destination %q is not adjacent to %q", territoryReference(indexes, destinationID), territoryReference(indexes, order.PositionID))))
 	}
 	if indexes.territoriesByID[supportedID] != nil && indexes.territoriesByID[destinationID] != nil && !adjacent(indexes, supportedID, destinationID) {
-		errors = append(errors, orderValidationError(order, ValidationCodeNotAdjacent, fmt.Sprintf("offensive S supported position %q is not adjacent to %q", supportedID, destinationID)))
+		errors = append(errors, orderValidationError(order, ValidationCodeNotAdjacent, fmt.Sprintf("offensive S supported position %q is not adjacent to %q", territoryReference(indexes, supportedID), territoryReference(indexes, destinationID))))
 	}
 	return errors
 }
@@ -154,7 +154,7 @@ func validateDisperse(indexes gameIndexes, order models.Order, positionExists bo
 	}
 	for _, targetID := range order.TargetIDs {
 		if positionExists && indexes.territoriesByID[targetID] != nil && targetID != order.PositionID && !adjacent(indexes, order.PositionID, targetID) {
-			errors = append(errors, orderValidationError(order, ValidationCodeNotAdjacent, fmt.Sprintf("D destination %q is not adjacent to %q", targetID, order.PositionID)))
+			errors = append(errors, orderValidationError(order, ValidationCodeNotAdjacent, fmt.Sprintf("D destination %q is not adjacent to %q", territoryReference(indexes, targetID), territoryReference(indexes, order.PositionID))))
 		}
 	}
 

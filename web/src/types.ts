@@ -8,14 +8,7 @@ export type InfraType =
 export type NobleStatus = 'free' | 'hostage' | 'dungeon'
 
 export type OrderType =
-  | 'attack'
-  | 'support'
-  | 'hold'
-  | 'join'
-  | 'pillage'
-  | 'disperse'
-  | 'hostage'
-  | 'dungeon'
+  'attack' | 'support' | 'hold' | 'join' | 'pillage' | 'disperse' | 'hostage' | 'dungeon'
 
 export type LiaisonMode = 'single' | 'loop'
 
@@ -237,9 +230,15 @@ export interface OrderReport {
   army: string
   chain: string
   order: string
+  owner: PlayerId
+  noble: string
   type: OrderType
   source: string
   target?: string
+  targets?: string[]
+  nobleTargets?: string[]
+  nobleAssignments?: Record<string, string[]>
+  liaison: LiaisonMode
   outcome: Outcome
   reason?: string
   progression: Progression
@@ -271,6 +270,7 @@ export interface MoveReport {
 export interface WinterInvestmentReport {
   kind: string
   player: PlayerId
+  outcome: Outcome
   territory?: string
   infrastructure?: string
   type?: InfraType
@@ -279,7 +279,18 @@ export interface WinterInvestmentReport {
   nobleCode?: string
   nobleName?: string
   reason?: string
-  order?: Record<string, unknown>
+  order?: WinterOrder
+}
+
+export type WinterOrderType =
+  'recruit_noble' | 'recruit_troop' | 'build' | 'elect_capital' | 'liberate_noble'
+
+export interface WinterOrder {
+  id?: string
+  type: WinterOrderType
+  territory?: string
+  infrastructureType?: InfraType
+  nobleCode?: string
 }
 
 export interface WinterStockReport {

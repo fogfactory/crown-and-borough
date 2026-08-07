@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 
 import { MapViewer } from '@/components/MapViewer'
 import { OrdersPanel } from '@/components/OrdersPanel'
 import { ReportPanel } from '@/components/ReportPanel'
+import { formatOrderLabel } from '@/lib/order-label'
 import {
   Card,
   CardContent,
@@ -20,7 +21,7 @@ import {
 import type {
   InfraType,
   MapData,
-  Order,
+  NobleStatus,
   PlayerId,
   Season,
   StateData,
@@ -52,14 +53,18 @@ const INFRASTRUCTURE_LABELS: Record<InfraType, string> = {
   village: 'Village',
 }
 
+const NOBLE_STATUS_LABELS: Record<NobleStatus, string> = {
+  free: 'Libre',
+  hostage: 'Otage',
+  dungeon: 'Donjon',
+}
+
+const PANEL_ORDER = ['command', 'report'] as const
+type Panel = (typeof PANEL_ORDER)[number]
+
 function ownerLabel(owner: PlayerId | null, state: StateData | null): string {
   if (!owner) return 'Personne'
   return state?.players.find((player) => player.id === owner)?.name ?? `Joueur ${owner}`
-}
-
-function orderLabel(order: Order): string {
-  const targets = order.targets?.join(' → ')
-  return [order.type, order.position, targets].filter(Boolean).join(' ')
 }
 
 function escapeRegExp(value: string): string {
@@ -79,9 +84,10 @@ function addNobleHeader(nobleCode: string, text: string): string {
 }
 
 async function responseError(response: Response): Promise<string> {
-  const payload = (await response.json().catch(() => null)) as
-    | { message?: string; errors?: Array<{ line?: number; message?: string }> }
-    | null
+  const payload = (await response.json().catch(() => null)) as {
+    message?: string
+    errors?: Array<{ line?: number; message?: string }>
+  } | null
   const first = payload?.errors?.[0]
   if (first?.line) return `Ligne ${first.line} : ${first.message ?? 'ordre invalide'}`
   return payload?.message ?? `La requête a échoué (${response.status})`
@@ -93,12 +99,16 @@ function App() {
   const [map, setMap] = useState<MapData | null>(null)
   const [state, setState] = useState<StateData | null>(null)
   const [report, setReport] = useState<TurnReport | null>(null)
-  const [chainDrafts, setChainDrafts] = useState<Record<PlayerId, Record<string, string>>>({})
+  const [chainDrafts, setChainDrafts] = useState<
+    Record<PlayerId, Record<string, string>>
+  >({})
   const [winterDrafts, setWinterDrafts] = useState<Record<PlayerId, string>>({})
   const [submittedPlayers, setSubmittedPlayers] = useState<PlayerId[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [resolving, setResolving] = useState(false)
+  const [activePanel, setActivePanel] = useState<Panel>('command')
+  const [viewedReportTurn, setViewedReportTurn] = useState<number | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -108,8 +118,10 @@ function App() {
           fetch('/api/map', { signal: controller.signal }),
           fetch('/api/state', { signal: controller.signal }),
         ])
-        if (!mapResponse.ok) throw new Error(`Map request failed with status ${mapResponse.status}`)
-        if (!stateResponse.ok) throw new Error(`State request failed with status ${stateResponse.status}`)
+        if (!mapResponse.ok)
+          throw new Error(`Map request failed with status ${mapResponse.status}`)
+        if (!stateResponse.ok)
+          throw new Error(`State request failed with status ${stateResponse.status}`)
         const [mapData, stateData] = (await Promise.all([
           mapResponse.json(),
           stateResponse.json(),
@@ -120,7 +132,9 @@ function App() {
         }
       } catch (error) {
         if (!controller.signal.aborted) {
-          setLoadError(error instanceof Error ? error.message : 'Impossible de charger la partie')
+          setLoadError(
+            error instanceof Error ? error.message : 'Impossible de charger la partie',
+          )
         }
       }
     }
@@ -134,12 +148,24 @@ function App() {
     }
   }, [selectedPlayer, state])
 
-  const selectedTerritory = map?.territories.find((territory) => territory.id === selectedId)
-  const selectedState = state?.territories.find((territory) => territory.id === selectedId)
-  const observedTurn = state && selectedState ? (state.asOf[selectedState.id] ?? state.turn) : null
+  useEffect(() => {
+    if (activePanel === 'report' && report) {
+      setViewedReportTurn(report.header.turn)
+    }
+  }, [activePanel, report])
+
+  const selectedTerritory = map?.territories.find(
+    (territory) => territory.id === selectedId,
+  )
+  const selectedState = state?.territories.find(
+    (territory) => territory.id === selectedId,
+  )
+  const observedTurn =
+    state && selectedState ? (state.asOf[selectedState.id] ?? state.turn) : null
   const isStale = state !== null && observedTurn !== null && observedTurn < state.turn
   const selectedChain = selectedState?.army?.chain ?? null
-  const currentOrder = selectedChain?.orders[selectedChain.currentIndex]
+  const presentNobles =
+    state?.nobles.filter((noble) => noble.location === selectedId) ?? []
 
   const updateChainDraft = (noble: string, text: string) => {
     setChainDrafts((drafts) => ({
@@ -152,23 +178,55 @@ function App() {
     setWinterDrafts((drafts) => ({ ...drafts, [selectedPlayer]: text }))
   }
 
+  const handlePanelKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    const currentIndex = PANEL_ORDER.indexOf(activePanel)
+    let nextIndex: number | null = null
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      nextIndex = (currentIndex + 1) % PANEL_ORDER.length
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      nextIndex = (currentIndex - 1 + PANEL_ORDER.length) % PANEL_ORDER.length
+    } else if (event.key === 'Home') {
+      nextIndex = 0
+    } else if (event.key === 'End') {
+      nextIndex = PANEL_ORDER.length - 1
+    }
+    if (nextIndex === null) return
+
+    event.preventDefault()
+    const nextPanel = PANEL_ORDER[nextIndex]
+    setActivePanel(nextPanel)
+    event.currentTarget.parentElement
+      ?.querySelector<HTMLButtonElement>(`[data-panel-tab="${nextPanel}"]`)
+      ?.focus()
+  }
+
   const submitOrders = async () => {
     if (!state) return
     setResolving(true)
     setActionError(null)
-    const chains = state.season === 'winter'
-      ? []
-      : state.nobles
-          .filter((noble) => noble.owner === selectedPlayer && noble.status === 'free')
-          .map((noble) => ({
-            player: selectedPlayer,
-            noble: noble.code,
-            text: addNobleHeader(noble.code, chainDrafts[selectedPlayer]?.[noble.code] ?? ''),
-          }))
-          .filter((submission) => submission.text.replace(new RegExp(`^${escapeRegExp(submission.noble)}\\s*`), '').trim() !== '')
-    const winter = state.season === 'winter' && (winterDrafts[selectedPlayer] ?? '').trim() !== ''
-      ? [{ player: selectedPlayer, lines: winterDrafts[selectedPlayer] ?? '' }]
-      : []
+    const chains =
+      state.season === 'winter'
+        ? []
+        : state.nobles
+            .filter((noble) => noble.owner === selectedPlayer && noble.status === 'free')
+            .map((noble) => ({
+              player: selectedPlayer,
+              noble: noble.code,
+              text: addNobleHeader(
+                noble.code,
+                chainDrafts[selectedPlayer]?.[noble.code] ?? '',
+              ),
+            }))
+            .filter(
+              (submission) =>
+                submission.text
+                  .replace(new RegExp(`^${escapeRegExp(submission.noble)}\\s*`), '')
+                  .trim() !== '',
+            )
+    const winter =
+      state.season === 'winter' && (winterDrafts[selectedPlayer] ?? '').trim() !== ''
+        ? [{ player: selectedPlayer, lines: winterDrafts[selectedPlayer] ?? '' }]
+        : []
 
     try {
       const response = await fetch('/api/orders', {
@@ -182,6 +240,7 @@ function App() {
       setSubmittedPlayers(payload.submitted)
       if (payload.status === 'resolved' && payload.report) {
         setReport(payload.report)
+        setActivePanel('report')
         setChainDrafts({})
         setWinterDrafts({})
         setSubmittedPlayers([])
@@ -202,27 +261,52 @@ function App() {
               C&amp;B
             </div>
             <div>
-              <h1 className="font-serif text-xl font-semibold tracking-tight sm:text-2xl">Crown &amp; Borough</h1>
-              <p className="text-xs uppercase tracking-[0.18em] text-[#806f57]">Chroniques du royaume</p>
+              <h1 className="font-serif text-xl font-semibold tracking-tight sm:text-2xl">
+                Crown &amp; Borough
+              </h1>
+              <p className="text-xs uppercase tracking-[0.18em] text-[#806f57]">
+                Chroniques du royaume
+              </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 sm:gap-5">
             <div className="border-l border-[#b7a786]/60 pl-3 sm:pl-5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#806f57]">Saison</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#806f57]">
+                Saison
+              </p>
               <p className="font-serif text-base font-semibold">
-                {state ? `Tour ${state.turn} · ${SEASON_LABELS[state.season]}` : 'Chargement…'}
+                {state
+                  ? `Tour ${state.turn} · ${SEASON_LABELS[state.season]}`
+                  : 'Chargement…'}
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <label htmlFor="player-view" className="text-xs font-medium text-[#806f57]">Joueur actif</label>
+              <span
+                role="img"
+                className="size-3 shrink-0 rounded-full border border-[#30291f]/30 shadow-inner"
+                style={{
+                  backgroundColor:
+                    state?.players.find((player) => player.id === selectedPlayer)
+                      ?.color ?? '#b7a786',
+                }}
+                aria-label={`Couleur de ${ownerLabel(selectedPlayer, state)}`}
+              />
+              <label htmlFor="player-view" className="text-xs font-medium text-[#806f57]">
+                Joueur actif
+              </label>
               <Select value={selectedPlayer} onValueChange={setSelectedPlayer}>
-                <SelectTrigger id="player-view" className="w-[172px] border-[#b7a786] bg-[#fffaf0] text-[#30291f]">
+                <SelectTrigger
+                  id="player-view"
+                  className="w-[172px] border-[#b7a786] bg-[#fffaf0] text-[#30291f]"
+                >
                   <SelectValue placeholder="Choisir un joueur" />
                 </SelectTrigger>
                 <SelectContent>
                   {state?.players.map((player) => (
-                    <SelectItem key={player.id} value={player.id}>{player.id} · {player.name}</SelectItem>
+                    <SelectItem key={player.id} value={player.id}>
+                      {player.id} · {player.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -234,118 +318,310 @@ function App() {
       <main className="mx-auto flex min-h-[calc(100vh-6.5rem)] max-w-[1800px] flex-col gap-4 p-4 sm:p-6 lg:flex-row">
         <section className="relative h-[620px] min-h-0 flex-1 overflow-hidden rounded-2xl border border-[#b7a786] bg-[#e6d8bb] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)] lg:h-[calc(100vh-8.5rem)]">
           <div className="pointer-events-none absolute left-5 top-5 z-10">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#806f57]">Carte publique · vision T0</p>
-            <p className="mt-1 text-xs text-[#594b3c]">Clic gauche pour sélectionner · maintenir puis glisser pour déplacer la carte · molette pour zoomer</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#806f57]">
+              Carte publique · vision T0
+            </p>
+            <p className="mt-1 text-xs text-[#594b3c]">
+              Clic gauche pour sélectionner · maintenir puis glisser pour déplacer la
+              carte · molette pour zoomer
+            </p>
           </div>
           {loadError ? (
-            <div role="alert" className="flex h-full items-center justify-center px-6 text-center">
-              <p className="font-serif text-lg text-[#a84632]">Impossible de charger la partie : {loadError}</p>
+            <div
+              role="alert"
+              className="flex h-full items-center justify-center px-6 text-center"
+            >
+              <p className="font-serif text-lg text-[#a84632]">
+                Impossible de charger la partie : {loadError}
+              </p>
             </div>
           ) : map && state ? (
             <MapViewer map={map} state={state} onSelect={setSelectedId} />
           ) : (
             <div className="flex h-full items-center justify-center px-6 text-center">
-              <p className="font-serif text-lg italic text-[#806f57]">Chargement de la carte et de l&apos;état…</p>
+              <p className="font-serif text-lg italic text-[#806f57]">
+                Chargement de la carte et de l&apos;état…
+              </p>
             </div>
           )}
         </section>
 
-        <aside className="w-full shrink-0 space-y-4 lg:w-96 xl:w-[27rem]">
+        <aside className="w-full shrink-0 lg:w-96 xl:w-[27rem]">
           <Card className="border-[#b7a786] bg-[#fffaf0] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)]">
             <CardHeader className="border-b border-[#b7a786]/50 pb-4">
-              <CardTitle className="font-serif text-xl text-[#30291f]">Poste de commandement</CardTitle>
-              <CardDescription className="text-[#806f57]">Joueur sélectionné : {selectedPlayer}</CardDescription>
+              <CardTitle className="font-serif text-xl text-[#30291f]">
+                {activePanel === 'command' ? 'Poste de commandement' : 'Rapport du tour'}
+              </CardTitle>
+              <CardDescription className="text-[#806f57]">
+                Joueur sélectionné : {selectedPlayer}
+              </CardDescription>
+              <div
+                role="tablist"
+                aria-label="Vues du panneau latéral"
+                className="mt-3 grid grid-cols-2 gap-1 rounded-lg bg-[#f3ead9] p-1"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activePanel === 'command'}
+                  aria-controls="command-panel"
+                  tabIndex={activePanel === 'command' ? 0 : -1}
+                  data-panel-tab="command"
+                  className={`rounded-md px-2 py-2 text-xs font-semibold transition ${activePanel === 'command' ? 'bg-[#fffaf0] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:text-[#30291f]'}`}
+                  onClick={() => setActivePanel('command')}
+                  onKeyDown={handlePanelKeyDown}
+                >
+                  Poste de commandement
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activePanel === 'report'}
+                  aria-controls="report-panel"
+                  tabIndex={activePanel === 'report' ? 0 : -1}
+                  data-panel-tab="report"
+                  className={`rounded-md px-2 py-2 text-xs font-semibold transition ${activePanel === 'report' ? 'bg-[#fffaf0] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:text-[#30291f]'}`}
+                  onClick={() => setActivePanel('report')}
+                  onKeyDown={handlePanelKeyDown}
+                >
+                  Rapport{' '}
+                  {report && viewedReportTurn !== report.header.turn ? (
+                    <span className="ml-1 rounded-full bg-[#a84632] px-1.5 py-0.5 text-[10px] text-[#fffaf0]">
+                      Nouveau
+                    </span>
+                  ) : null}
+                </button>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-5 pt-5">
-              {selectedTerritory ? (
-                <div className="space-y-5">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#a84632]">{selectedTerritory.code}</p>
-                    <h2 className="mt-1 font-serif text-2xl font-semibold leading-tight">{selectedTerritory.name}</h2>
-                  </div>
-                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-3 text-sm">
-                    <dt className="text-[#806f57]">Terrain</dt>
-                    <dd className="font-medium">{TERRAIN_NAMES[selectedTerritory.terrain]}</dd>
+            <CardContent className="min-w-0 space-y-5 pt-5">
+              <div
+                id="command-panel"
+                role="tabpanel"
+                aria-label="Poste de commandement"
+                hidden={activePanel !== 'command'}
+                className="space-y-5"
+              >
+                {selectedTerritory ? (
+                  <div className="space-y-5">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#a84632]">
+                        {selectedTerritory.code}
+                      </p>
+                      <h2 className="mt-1 font-serif text-2xl font-semibold leading-tight">
+                        {selectedTerritory.name}
+                      </h2>
+                    </div>
+                    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-3 text-sm">
+                      <dt className="text-[#806f57]">Terrain</dt>
+                      <dd className="font-medium">
+                        {TERRAIN_NAMES[selectedTerritory.terrain]}
+                      </dd>
+                      {selectedState && (
+                        <>
+                          <dt className="text-[#806f57]">Contrôle</dt>
+                          <dd className="font-medium">
+                            {ownerLabel(selectedState.owner, state)}
+                          </dd>
+                          <dt className="text-[#806f57]">Ressources</dt>
+                          <dd className="font-medium">{selectedState.resources} R</dd>
+                        </>
+                      )}
+                    </dl>
+
+                    <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">
+                      <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
+                        Nobles présents
+                      </h3>
+                      {presentNobles.length > 0 ? (
+                        <ul className="space-y-1.5 text-sm">
+                          {presentNobles.map((noble) => (
+                            <li
+                              key={noble.id}
+                              className="flex items-center justify-between gap-3 rounded-md bg-[#f3ead9] px-3 py-2"
+                            >
+                              <span className="min-w-0">
+                                <strong>{noble.code}</strong> · {noble.name}
+                              </span>
+                              <span
+                                className={`shrink-0 text-xs ${noble.status === 'free' ? 'text-[#376341]' : 'text-[#a84632]'}`}
+                              >
+                                {NOBLE_STATUS_LABELS[noble.status]}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm italic text-[#806f57]">
+                          Aucun noble présent
+                        </p>
+                      )}
+                    </div>
+
                     {selectedState && (
                       <>
-                        <dt className="text-[#806f57]">Contrôle</dt>
-                        <dd className="font-medium">{ownerLabel(selectedState.owner, state)}</dd>
-                        <dt className="text-[#806f57]">Ressources</dt>
-                        <dd className="font-medium">{selectedState.resources} R</dd>
+                        <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">
+                          <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
+                            Armée
+                          </h3>
+                          {selectedState.army ? (
+                            <div className="rounded-md bg-[#f3ead9] px-3 py-2 text-sm">
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="font-semibold">
+                                  {ownerLabel(selectedState.army.owner, state)}
+                                </span>
+                                <span className="shrink-0 text-xs text-[#806f57]">
+                                  {selectedState.army.size} troupe
+                                  {selectedState.army.size > 1 ? 's' : ''}
+                                </span>
+                              </div>
+                              <div className="mt-2 border-t border-[#b7a786]/40 pt-2 text-xs text-[#806f57]">
+                                {selectedChain ? (
+                                  <>
+                                    <p>
+                                      Noble émetteur :{' '}
+                                      <strong>{selectedChain.noble}</strong>
+                                    </p>
+                                    <p>
+                                      Index courant :{' '}
+                                      <strong>
+                                        {selectedChain.currentIndex <
+                                        selectedChain.orders.length
+                                          ? selectedChain.currentIndex + 1
+                                          : 'Terminé'}
+                                      </strong>
+                                    </p>
+                                    <div className="mt-2 space-y-1.5">
+                                      <p className="font-semibold uppercase tracking-[0.12em] text-[#806f57]">
+                                        Pile d&apos;ordres
+                                      </p>
+                                      <ol className="space-y-1.5">
+                                        {selectedChain.orders.map((order, index) => {
+                                          const current =
+                                            index === selectedChain.currentIndex
+                                          return (
+                                            <li
+                                              key={`${order.type}-${order.position}-${index}`}
+                                              aria-current={current ? 'step' : undefined}
+                                              className={`rounded-md border px-2 py-1.5 ${current ? 'border-[#a84632]/60 bg-[#f8e5dd] text-[#8d321e]' : 'border-[#b7a786]/40 bg-[#fffaf0]'}`}
+                                            >
+                                              <span className="mr-1.5 font-semibold">
+                                                {index + 1}.
+                                              </span>
+                                              <span>{formatOrderLabel(order)}</span>
+                                              {current && (
+                                                <span className="ml-1.5 font-semibold">
+                                                  · En cours
+                                                </span>
+                                              )}
+                                            </li>
+                                          )
+                                        })}
+                                      </ol>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <p>Sans Ordre</p>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-sm italic text-[#806f57]">Aucune armée</p>
+                          )}
+                        </div>
+
+                        <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">
+                          <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
+                            Infrastructures
+                          </h3>
+                          {selectedState.infrastructures.length > 0 ? (
+                            <ul className="space-y-1.5 text-sm">
+                              {selectedState.infrastructures.map(
+                                (infrastructure, index) => (
+                                  <li
+                                    key={`${infrastructure.type}-${index}`}
+                                    className="flex items-center justify-between gap-3 rounded-md bg-[#f3ead9] px-3 py-2"
+                                  >
+                                    <span className="font-medium">
+                                      {INFRASTRUCTURE_LABELS[infrastructure.type]}
+                                    </span>
+                                    <span className="shrink-0 text-xs text-[#806f57]">
+                                      Niveau {infrastructure.level}
+                                    </span>
+                                  </li>
+                                ),
+                              )}
+                            </ul>
+                          ) : (
+                            <p className="text-sm italic text-[#806f57]">
+                              Aucune infrastructure
+                            </p>
+                          )}
+                        </div>
+
+                        {state && observedTurn !== null && (
+                          <div
+                            className={`rounded-lg border px-3 py-3 text-sm ${isStale ? 'border-[#c98d45]/50 bg-[#fbefd9] text-[#805521]' : 'border-[#6d9b73]/50 bg-[#e8f1e3] text-[#376341]'}`}
+                          >
+                            <p className="font-semibold">Fraîcheur</p>
+                            <p className="mt-1 text-xs leading-relaxed">
+                              {isStale
+                                ? `Observé au tour ${observedTurn} — il y a ${state.turn - observedTurn} tours`
+                                : 'À jour'}
+                            </p>
+                          </div>
+                        )}
                       </>
                     )}
-                  </dl>
+                  </div>
+                ) : (
+                  <div className="flex min-h-36 items-center justify-center rounded-lg border border-dashed border-[#b7a786] bg-[#f8f0e2] px-6 text-center">
+                    <p className="font-serif text-lg italic text-[#806f57]">
+                      Sélectionnez un territoire
+                    </p>
+                  </div>
+                )}
 
-                  {selectedState && (
-                    <>
-                      <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">
-                        <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">Armée</h3>
-                        {selectedState.army ? (
-                          <div className="rounded-md bg-[#f3ead9] px-3 py-2 text-sm">
-                            <div className="flex items-center justify-between">
-                              <span className="font-semibold">{ownerLabel(selectedState.army.owner, state)}</span>
-                              <span className="text-xs text-[#806f57]">{selectedState.army.size} troupe{selectedState.army.size > 1 ? 's' : ''}</span>
-                            </div>
-                            <div className="mt-2 border-t border-[#b7a786]/40 pt-2 text-xs text-[#806f57]">
-                              {selectedChain ? (
-                                <>
-                                  <p>Noble émetteur : <strong>{selectedChain.noble}</strong></p>
-                                  <p>Index : <strong>{selectedChain.currentIndex}</strong></p>
-                                  <p>Ordre courant : <strong>{currentOrder ? orderLabel(currentOrder) : 'Terminé'}</strong></p>
-                                </>
-                              ) : <p>Sans Ordre</p>}
-                            </div>
-                          </div>
-                        ) : <p className="text-sm italic text-[#806f57]">Aucune armée</p>}
-                      </div>
-
-                      <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">
-                        <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">Infrastructures</h3>
-                        {selectedState.infrastructures.length > 0 ? (
-                          <ul className="space-y-1.5 text-sm">
-                            {selectedState.infrastructures.map((infrastructure, index) => (
-                              <li key={`${infrastructure.type}-${index}`} className="flex items-center justify-between rounded-md bg-[#f3ead9] px-3 py-2">
-                                <span className="font-medium">{INFRASTRUCTURE_LABELS[infrastructure.type]}</span>
-                                <span className="text-xs text-[#806f57]">Niveau {infrastructure.level}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : <p className="text-sm italic text-[#806f57]">Aucune infrastructure</p>}
-                      </div>
-
-                      {state && observedTurn !== null && (
-                        <div className={`rounded-lg border px-3 py-3 text-sm ${isStale ? 'border-[#c98d45]/50 bg-[#fbefd9] text-[#805521]' : 'border-[#6d9b73]/50 bg-[#e8f1e3] text-[#376341]'}`}>
-                          <p className="font-semibold">Fraîcheur</p>
-                          <p className="mt-1 text-xs leading-relaxed">{isStale ? `Observé au tour ${observedTurn} — il y a ${state.turn - observedTurn} tours` : 'À jour'}</p>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              ) : <div className="flex min-h-36 items-center justify-center rounded-lg border border-dashed border-[#b7a786] bg-[#f8f0e2] px-6 text-center"><p className="font-serif text-lg italic text-[#806f57]">Sélectionnez un territoire</p></div>}
-
-              {state && (
-                <OrdersPanel
-                  state={state}
-                  player={selectedPlayer}
-                  chainDrafts={chainDrafts[selectedPlayer] ?? {}}
-                  winterDraft={winterDrafts[selectedPlayer] ?? ''}
-                  submitted={submittedPlayers.includes(selectedPlayer)}
-                  submitting={resolving}
-                  onChainChange={updateChainDraft}
-                  onWinterChange={updateWinterDraft}
-                  onSubmit={() => void submitOrders()}
-                />
-              )}
-              {actionError && <p role="alert" className="rounded-md border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 text-xs text-[#8d321e]">{actionError}</p>}
+                {state && (
+                  <OrdersPanel
+                    state={state}
+                    player={selectedPlayer}
+                    chainDrafts={chainDrafts[selectedPlayer] ?? {}}
+                    winterDraft={winterDrafts[selectedPlayer] ?? ''}
+                    submitted={submittedPlayers.includes(selectedPlayer)}
+                    submitting={resolving}
+                    onChainChange={updateChainDraft}
+                    onWinterChange={updateWinterDraft}
+                    onSubmit={() => void submitOrders()}
+                  />
+                )}
+                {actionError && (
+                  <p
+                    role="alert"
+                    className="rounded-md border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 text-xs text-[#8d321e]"
+                  >
+                    {actionError}
+                  </p>
+                )}
+              </div>
+              <div
+                id="report-panel"
+                role="tabpanel"
+                aria-label="Rapport du tour"
+                hidden={activePanel !== 'report'}
+                className="min-w-0"
+              >
+                {report ? (
+                  <ReportPanel report={report} map={map} players={state?.players ?? []} />
+                ) : (
+                  <div className="flex min-h-36 items-center justify-center rounded-lg border border-dashed border-[#b7a786] bg-[#f8f0e2] px-6 text-center">
+                    <p className="font-serif text-lg italic text-[#806f57]">
+                      Aucun rapport disponible
+                    </p>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
-
-          {report && (
-            <Card className="border-[#b7a786] bg-[#fffaf0] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)]">
-              <CardContent className="pt-5"><ReportPanel report={report} map={map} /></CardContent>
-            </Card>
-          )}
         </aside>
       </main>
     </div>

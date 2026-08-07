@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/models"
@@ -225,6 +226,39 @@ func TestValidateChainStaticRulesAndPurity(t *testing.T) {
 				t.Fatalf("ValidateChain() = %#v, want code %q", validationErrors, test.code)
 			}
 		})
+	}
+}
+
+func TestVisibleOrderMessagesUseTerritoryCodes(t *testing.T) {
+	game := orderTestState()
+	chain := mustParseChain(t, game, "JEA\nROS A BRU")
+	validationErrors := ValidateChain(game, chain)
+	if len(validationErrors) == 0 {
+		t.Fatal("ValidateChain() returned no errors, want non-adjacent diagnostic")
+	}
+	message := validationErrors[0].Error()
+	if !strings.Contains(message, `"BRU"`) || !strings.Contains(message, `"ROS"`) {
+		t.Errorf("validation message = %q, want territory codes", message)
+	}
+	for _, internalID := range []string{"T01", "T02", "T03", "T04", "T05"} {
+		if strings.Contains(message, internalID) {
+			t.Errorf("validation message = %q, must not expose %s", message, internalID)
+		}
+	}
+
+	noArmyChain := mustParseChain(t, game, "JEA\nBRU A BOI")
+	assignmentError := AssignChain(game, noArmyChain)
+	if assignmentError == nil {
+		t.Fatal("AssignChain() returned nil, want no-army reception error")
+	}
+	assignmentMessage := assignmentError.Error()
+	if !strings.Contains(assignmentMessage, `"BRU"`) {
+		t.Errorf("assignment message = %q, want receiving territory code", assignmentMessage)
+	}
+	for _, internalID := range []string{"T01", "T02", "T03", "T04", "T05"} {
+		if strings.Contains(assignmentMessage, internalID) {
+			t.Errorf("assignment message = %q, must not expose %s", assignmentMessage, internalID)
+		}
 	}
 }
 

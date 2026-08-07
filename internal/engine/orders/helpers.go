@@ -48,6 +48,20 @@ func indexGame(game *models.GameState) gameIndexes {
 	return indexes
 }
 
+func territoryReference(indexes gameIndexes, territoryID models.TerritoryID) string {
+	if territory := indexes.territoriesByID[territoryID]; territory != nil && territory.Code != "" {
+		return territory.Code
+	}
+	return string(territoryID)
+}
+
+func nobleReference(indexes gameIndexes, nobleID models.NobleID) string {
+	if noble := indexes.noblesByID[nobleID]; noble != nil && noble.Code != "" {
+		return noble.Code
+	}
+	return string(nobleID)
+}
+
 func isCode(code string) bool {
 	if len(code) != 3 {
 		return false
