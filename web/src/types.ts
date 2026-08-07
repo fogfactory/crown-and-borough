@@ -106,6 +106,7 @@ export interface StateData {
 }
 
 export interface SupplyLine {
+  kind: 'army' | 'source'
   territory: string
   armyOwner: PlayerId
   armySize: number

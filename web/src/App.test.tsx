@@ -101,6 +101,7 @@ const resolvedReport: TurnReport = {
 }
 
 const supplyLine: SupplyLine = {
+  kind: 'army',
   territory: 'T1',
   armyOwner: 'P1',
   armySize: 2,
@@ -206,6 +207,66 @@ describe('App command/report tabs', () => {
     await waitFor(() => {
       expect(screen.queryByText('Nouveau')).not.toBeInTheDocument()
     })
+  })
+
+  it('loads the reachable zone when a controlled source is selected', async () => {
+    const sourceState: StateData = {
+      ...state,
+      territories: [
+        state.territories[0],
+        {
+          ...state.territories[1],
+          owner: 'P1',
+          infrastructures: [{ type: 'castle', level: 1 }],
+        },
+      ],
+    }
+    const sourceZone: SupplyLine = {
+      kind: 'source',
+      territory: 'T2',
+      armyOwner: 'P1',
+      armySize: 0,
+      rations: 0,
+      demand: 0,
+      source: 'T2',
+      distance: 0,
+      path: [],
+      reachable: ['T1', 'T2'],
+      selfSupplied: false,
+    }
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      return Promise.resolve({
+        ok: true,
+        json: async () =>
+          url.includes('/map') ? map : url.includes('/supply') ? sourceZone : sourceState,
+      } as Response)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { container } = render(<App />)
+    const sourceTerritory = await waitFor(() => {
+      const territory = container.querySelector('[data-territory-id="T2"]')
+      if (!territory) throw new Error('source territory did not render')
+      return territory
+    })
+    fireEvent.keyDown(sourceTerritory, { key: 'Enter', code: 'Enter' })
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/supply?territory=T2',
+        expect.objectContaining({ signal: expect.anything() }),
+      )
+    })
+    await waitFor(() => {
+      expect(
+        container.querySelector('g[aria-label="Zone de ravitaillement"]'),
+      ).toBeInTheDocument()
+    })
+    expect(await screen.findByText('2 territoires atteignables.')).toBeInTheDocument()
+    expect(
+      container.querySelector('g[aria-label="Ligne de ravitaillement"]'),
+    ).not.toBeInTheDocument()
   })
 
   it('starts a new game with the chosen seed and player count', async () => {

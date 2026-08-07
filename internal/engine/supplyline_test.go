@@ -67,6 +67,27 @@ func TestFindSupplyLineHandlesLocalRationsAndMissingSources(t *testing.T) {
 		}
 	})
 
+	t.Run("source zone on a self-supplied army territory", func(t *testing.T) {
+		state := testState(t,
+			[]models.Territory{
+				supplyTerritory("T01", "AAA", models.TerrainPlain, "T02"),
+				supplyTerritory("T02", "BBB", models.TerrainPlain, "T01"),
+			},
+			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1}},
+		)
+		setTerritoryOwner(state, "T02", "P1")
+		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T01"})
+		validateTestState(t, state)
+
+		line, err := FindSupplyLine(state, testBalance(), "T01")
+		if err != nil {
+			t.Fatalf("FindSupplyLine: %v", err)
+		}
+		if !line.SelfSupplied || !reflect.DeepEqual(line.Reachable, []models.TerritoryID{"T01", "T02"}) {
+			t.Errorf("line = %#v, want self-supply and source zone", line)
+		}
+	})
+
 	t.Run("no reachable source", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{supplyTerritory("T01", "AAA", models.TerrainMountain)},
@@ -110,6 +131,104 @@ func TestFindSupplyLineBreaksEqualDistanceByTerritoryCode(t *testing.T) {
 	}
 }
 
+func TestFindSupplyZoneForControlledCastleAndVillage(t *testing.T) {
+	for _, test := range []struct {
+		name          string
+		kind          models.InfraType
+		wantReachable []models.TerritoryID
+	}{
+		{
+			name:          "castle",
+			kind:          models.InfraTypeCastle,
+			wantReachable: []models.TerritoryID{"T01", "T02", "T03", "T04"},
+		},
+		{
+			name:          "village",
+			kind:          models.InfraTypeVillage,
+			wantReachable: []models.TerritoryID{"T01", "T02", "T03", "T04"},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			state := testState(t,
+				[]models.Territory{
+					supplyTerritory("T01", "AAA", models.TerrainPlain, "T02"),
+					supplyTerritory("T02", "BBB", models.TerrainPlain, "T01", "T03"),
+					supplyTerritory("T03", "CCC", models.TerrainPlain, "T02", "T04"),
+					supplyTerritory("T04", "DDD", models.TerrainPlain, "T03", "T05"),
+					supplyTerritory("T05", "EEE", models.TerrainPlain, "T04", "T06"),
+					supplyTerritory("T06", "FFF", models.TerrainPlain, "T05"),
+				},
+				nil,
+			)
+			setTerritoryOwner(state, "T01", "P1")
+			addInfrastructure(state, models.Infrastructure{ID: "I1", Type: test.kind, Level: 1, TerritoryID: "T01"})
+			validateTestState(t, state)
+
+			zone, err := FindSupplyZone(state, testBalance(), "T01")
+			if err != nil {
+				t.Fatalf("FindSupplyZone: %v", err)
+			}
+			if zone.Kind != SupplyLineKindSource || zone.ArmyOwner != "P1" || zone.Source == nil || *zone.Source != "T01" {
+				t.Errorf("zone = %#v, want source T01 owned by P1", zone)
+			}
+			if !reflect.DeepEqual(zone.Reachable, test.wantReachable) {
+				t.Errorf("reachable = %v, want %v", zone.Reachable, test.wantReachable)
+			}
+			if len(zone.Path) != 0 {
+				t.Errorf("source zone path = %v, want no army path", zone.Path)
+			}
+		})
+	}
+
+	t.Run("depot is not a source", func(t *testing.T) {
+		state := testState(t,
+			[]models.Territory{supplyTerritory("T01", "AAA", models.TerrainPlain)},
+			nil,
+		)
+		setTerritoryOwner(state, "T01", "P1")
+		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeSupplyDepot, Level: 1, TerritoryID: "T01"})
+		validateTestState(t, state)
+
+		if _, err := FindSupplyZone(state, testBalance(), "T01"); !errors.Is(err, ErrSupplyLineNoSource) {
+			t.Errorf("depot source error = %v, want ErrSupplyLineNoSource", err)
+		}
+	})
+
+	t.Run("depot is not an army source", func(t *testing.T) {
+		state := testState(t,
+			[]models.Territory{supplyTerritory("T01", "AAA", models.TerrainMountain)},
+			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 2}},
+		)
+		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeSupplyDepot, Level: 1, TerritoryID: "T01"})
+		validateTestState(t, state)
+
+		line, err := FindSupplyLine(state, testBalance(), "T01")
+		if err != nil {
+			t.Fatalf("FindSupplyLine: %v", err)
+		}
+		if line.Source != nil || len(line.Reachable) != 0 {
+			t.Errorf("line = %#v, want no army source or reachable source zone", line)
+		}
+	})
+}
+
+func TestFindSupplyPrefersArmyOnAControlledSource(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{supplyTerritory("T01", "AAA", models.TerrainPlain)},
+		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 2}},
+	)
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T01"})
+	validateTestState(t, state)
+
+	selection, err := FindSupply(state, testBalance(), "T01")
+	if err != nil {
+		t.Fatalf("FindSupply: %v", err)
+	}
+	if selection.Kind != SupplyLineKindArmy || selection.ArmySize != 2 {
+		t.Errorf("selection = %#v, want army selection to take precedence", selection)
+	}
+}
+
 func TestFindSupplyLineRejectsUnavailableTargets(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
@@ -125,8 +244,17 @@ func TestFindSupplyLineRejectsUnavailableTargets(t *testing.T) {
 	if _, err := FindSupplyLine(state, testBalance(), "T02"); !errors.Is(err, ErrSupplyLineNoArmy) {
 		t.Errorf("empty territory error = %v, want ErrSupplyLineNoArmy", err)
 	}
+	if _, err := FindSupplyZone(state, testBalance(), "T02"); !errors.Is(err, ErrSupplyLineNoSource) {
+		t.Errorf("empty source error = %v, want ErrSupplyLineNoSource", err)
+	}
 	state.Season = models.SeasonWinter
 	if _, err := FindSupplyLine(state, testBalance(), "T01"); !errors.Is(err, ErrSupplyLineWinter) {
 		t.Errorf("winter error = %v, want ErrSupplyLineWinter", err)
+	}
+	if _, err := FindSupplyZone(state, testBalance(), "T01"); !errors.Is(err, ErrSupplyLineWinter) {
+		t.Errorf("winter source error = %v, want ErrSupplyLineWinter", err)
+	}
+	if _, err := FindSupply(state, testBalance(), "T01"); !errors.Is(err, ErrSupplyLineWinter) {
+		t.Errorf("winter selection error = %v, want ErrSupplyLineWinter", err)
 	}
 }

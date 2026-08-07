@@ -102,9 +102,9 @@ func (s *Session) StateHTTP(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, state)
 }
 
-// SupplyHTTP serves the current supply assignment for the army at one
-// territory. The calculation is read-only and follows the next resolution's
-// supply rules.
+// SupplyHTTP serves the current supply assignment for an army, or the
+// reachable zone of a controlled source selected without an army. The
+// calculation is read-only and follows the next resolution's supply rules.
 func (s *Session) SupplyHTTP(w http.ResponseWriter, r *http.Request) {
 	territoryID := models.TerritoryID(r.URL.Query().Get("territory"))
 	if territoryID == "" {
@@ -113,13 +113,14 @@ func (s *Session) SupplyHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.mu.RLock()
-	line, err := engine.FindSupplyLine(s.game, s.balance, territoryID)
+	line, err := engine.FindSupply(s.game, s.balance, territoryID)
 	s.mu.RUnlock()
 	if err != nil {
 		switch {
 		case errors.Is(err, engine.ErrSupplyLineWinter):
 			writeAPIError(w, http.StatusConflict, "supply_unavailable", err.Error())
-		case errors.Is(err, engine.ErrSupplyLineUnknownTerritory), errors.Is(err, engine.ErrSupplyLineNoArmy):
+		case errors.Is(err, engine.ErrSupplyLineUnknownTerritory),
+			errors.Is(err, engine.ErrSupplyLineNoSource):
 			writeAPIError(w, http.StatusNotFound, "supply_target_not_found", err.Error())
 		default:
 			writeAPIError(w, http.StatusInternalServerError, "supply_failed", err.Error())

@@ -4,6 +4,7 @@ import { MapViewer } from '@/components/MapViewer'
 import { OrdersPanel } from '@/components/OrdersPanel'
 import { ReportPanel } from '@/components/ReportPanel'
 import { formatOrderLabel } from '@/lib/order-label'
+import { hasSupplySource } from '@/lib/supply'
 import {
   Card,
   CardContent,
@@ -182,8 +183,13 @@ function App() {
   const selectedChain = selectedState?.army?.chain ?? null
   const presentNobles =
     state?.nobles.filter((noble) => noble.location === selectedId) ?? []
+  const supplySelectionAllowed =
+    (supplyLine?.kind === 'army' && Boolean(selectedState?.army)) ||
+    (supplyLine?.kind === 'source' &&
+      !selectedState?.army &&
+      hasSupplySource(selectedState))
   const selectedSupplyLine =
-    selectedState?.army && supplyLine?.territory === selectedId ? supplyLine : null
+    supplySelectionAllowed && supplyLine?.territory === selectedId ? supplyLine : null
   const supplySourceTerritory = map?.territories.find(
     (territory) => territory.id === selectedSupplyLine?.source,
   )
@@ -191,10 +197,16 @@ function App() {
   useEffect(() => {
     const controller = new AbortController()
     const armySelected = Boolean(selectedState?.army)
+    const sourceSelected = hasSupplySource(selectedState)
 
     setSupplyLine(null)
     setSupplyError(null)
-    if (!state || !selectedId || !armySelected || state.season === 'winter') {
+    if (
+      !state ||
+      !selectedId ||
+      (!armySelected && !sourceSelected) ||
+      state.season === 'winter'
+    ) {
       setSupplyLoading(false)
       return () => controller.abort()
     }
@@ -231,7 +243,7 @@ function App() {
 
     void loadSupplyLine()
     return () => controller.abort()
-  }, [selectedId, selectedState?.army, state])
+  }, [selectedId, selectedState, state])
 
   const updateChainDraft = (noble: string, text: string) => {
     setChainDrafts((drafts) => ({
@@ -756,6 +768,33 @@ function App() {
                                   </dd>
                                 </dl>
                               )}
+                            </div>
+                          )}
+                          {!selectedState.army && hasSupplySource(selectedState) && (
+                            <div className="rounded-md border border-[#b7a786]/50 bg-[#fffaf0] px-3 py-2 text-xs text-[#594b3c]">
+                              <p className="font-semibold uppercase tracking-[0.12em] text-[#806f57]">
+                                Zone de ravitaillement
+                              </p>
+                              {state?.season === 'winter' ? (
+                                <p className="mt-1 italic text-[#806f57]">
+                                  Pas de phase de ravitaillement en hiver.
+                                </p>
+                              ) : supplyLoading ? (
+                                <p className="mt-1 italic text-[#806f57]">
+                                  Calcul en cours…
+                                </p>
+                              ) : supplyError ? (
+                                <p className="mt-1 text-[#8d321e]">{supplyError}</p>
+                              ) : selectedSupplyLine ? (
+                                <p className="mt-1 text-[#376341]">
+                                  {selectedSupplyLine.reachable.length} territoire
+                                  {selectedSupplyLine.reachable.length > 1
+                                    ? 's'
+                                    : ''}{' '}
+                                  atteignable
+                                  {selectedSupplyLine.reachable.length > 1 ? 's' : ''}.
+                                </p>
+                              ) : null}
                             </div>
                           )}
                         </div>

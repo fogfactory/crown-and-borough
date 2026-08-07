@@ -8,6 +8,7 @@ import {
 } from 'react'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { hasSupplySource } from '@/lib/supply'
 import {
   Tooltip,
   TooltipContent,
@@ -400,7 +401,13 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
     (territoryState) => territoryState.id === selectedId,
   )
   const selectedSupply =
-    selectedTerritoryState?.army && supply?.territory === selectedId ? supply : null
+    supply?.territory === selectedId &&
+    ((supply.kind === 'army' && Boolean(selectedTerritoryState?.army)) ||
+      (supply.kind === 'source' &&
+        !selectedTerritoryState?.army &&
+        hasSupplySource(selectedTerritoryState)))
+      ? supply
+      : null
   const supplyReachable = new Set(selectedSupply?.reachable ?? [])
   const supplyColor = playerColors.get(selectedSupply?.armyOwner ?? '') ?? '#a84632'
   const supplyPathPoints = (selectedSupply?.path ?? []).flatMap((territoryID) => {

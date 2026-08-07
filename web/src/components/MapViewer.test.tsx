@@ -195,6 +195,7 @@ describe('MapViewer territorial overlays', () => {
       ],
     }
     const supply: SupplyLine = {
+      kind: 'army',
       territory: 'T1',
       armyOwner: 'P1',
       armySize: 2,
@@ -235,8 +236,49 @@ describe('MapViewer territorial overlays', () => {
     expect(supplyPath).toHaveAttribute('pointer-events', 'none')
   })
 
+  it('renders the reachable zone when a source territory is selected', () => {
+    const sourceState: StateData = {
+      ...state,
+      players: [{ id: 'P1', name: 'One', color: '#a84632' }],
+      territories: [
+        {
+          id: 'T1',
+          owner: 'P1',
+          resources: 0,
+          army: null,
+          infrastructures: [{ type: 'castle', level: 1 }],
+        },
+        { id: 'T2', owner: 'P1', resources: 0, army: null, infrastructures: [] },
+      ],
+    }
+    const sourceZone: SupplyLine = {
+      kind: 'source',
+      territory: 'T1',
+      armyOwner: 'P1',
+      armySize: 0,
+      rations: 0,
+      demand: 0,
+      source: 'T1',
+      distance: 0,
+      path: [],
+      reachable: ['T1', 'T2'],
+      selfSupplied: false,
+    }
+    const { firstTerritory, svg } = renderMap(map, sourceState, vi.fn(), sourceZone)
+    clickTarget(svg, firstTerritory)
+
+    expect(
+      svg.querySelector('g[aria-label="Zone de ravitaillement"]'),
+    ).toBeInTheDocument()
+    expect(svg.querySelectorAll('[data-supply-territory-id]')).toHaveLength(2)
+    expect(
+      svg.querySelector('g[aria-label="Ligne de ravitaillement"]'),
+    ).not.toBeInTheDocument()
+  })
+
   it('does not render a supply overlay for a selected territory without an army', () => {
     const { firstTerritory, svg } = renderMap(map, state, vi.fn(), {
+      kind: 'army',
       territory: 'T1',
       armyOwner: 'P1',
       armySize: 1,
@@ -258,6 +300,39 @@ describe('MapViewer territorial overlays', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('does not treat a depot as a supply source', () => {
+    const depotState: StateData = {
+      ...state,
+      players: [{ id: 'P1', name: 'One', color: '#a84632' }],
+      territories: [
+        {
+          ...state.territories[0],
+          owner: 'P1',
+          infrastructures: [{ type: 'supply_depot', level: 1 }],
+        },
+        state.territories[1],
+      ],
+    }
+    const { firstTerritory, svg } = renderMap(map, depotState, vi.fn(), {
+      kind: 'source',
+      territory: 'T1',
+      armyOwner: 'P1',
+      armySize: 0,
+      rations: 0,
+      demand: 0,
+      source: 'T1',
+      distance: 0,
+      path: [],
+      reachable: ['T1', 'T2'],
+      selfSupplied: false,
+    })
+    clickTarget(svg, firstTerritory)
+
+    expect(
+      svg.querySelector('g[aria-label="Zone de ravitaillement"]'),
+    ).not.toBeInTheDocument()
+  })
+
   it('does not render a stale supply overlay from another territory', () => {
     const armyState: StateData = {
       ...state,
@@ -272,6 +347,7 @@ describe('MapViewer territorial overlays', () => {
       ],
     }
     const { firstTerritory, svg } = renderMap(map, armyState, vi.fn(), {
+      kind: 'army',
       territory: 'T2',
       armyOwner: 'P1',
       armySize: 2,

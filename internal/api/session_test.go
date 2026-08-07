@@ -11,6 +11,7 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
+	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
 func TestHotseatSessionResolvesAndRecreatesGame(t *testing.T) {
@@ -278,7 +279,7 @@ func TestHotseatSessionServesSupplyLine(t *testing.T) {
 		if territory.Army != nil && armyTerritory == "" {
 			armyTerritory = string(territory.ID)
 		}
-		if territory.Army == nil && emptyTerritory == "" {
+		if territory.Army == nil && len(territory.Infrastructures) == 0 && emptyTerritory == "" {
 			emptyTerritory = string(territory.ID)
 		}
 	}
@@ -295,7 +296,7 @@ func TestHotseatSessionServesSupplyLine(t *testing.T) {
 	if err := json.Unmarshal(recorder.Body.Bytes(), &line); err != nil {
 		t.Fatalf("decode supply line: %v", err)
 	}
-	if string(line.Territory) != armyTerritory || line.ArmySize < 1 {
+	if line.Kind != engine.SupplyLineKindArmy || string(line.Territory) != armyTerritory || line.ArmySize < 1 {
 		t.Errorf("supply line = %#v, want army at %s", line, armyTerritory)
 	}
 
@@ -308,5 +309,33 @@ func TestHotseatSessionServesSupplyLine(t *testing.T) {
 	session.SupplyHTTP(empty, httptest.NewRequest(http.MethodGet, "/api/supply?territory="+emptyTerritory, nil))
 	if empty.Code != http.StatusNotFound {
 		t.Errorf("empty territory = %d, want %d", empty.Code, http.StatusNotFound)
+	}
+
+	session.mu.Lock()
+	sourceTerritoryID := models.TerritoryID(emptyTerritory)
+	sourceOwner := models.PlayerID("P1")
+	sourceState := session.game.TerritoryStates[sourceTerritoryID]
+	sourceState.OwnerID = &sourceOwner
+	sourceState.Infrastructures = append(sourceState.Infrastructures, models.InfraID("I-supply-test"))
+	session.game.TerritoryStates[sourceTerritoryID] = sourceState
+	session.game.Infrastructures = append(session.game.Infrastructures, models.Infrastructure{
+		ID:          "I-supply-test",
+		Type:        models.InfraTypeCastle,
+		Level:       1,
+		TerritoryID: sourceTerritoryID,
+	})
+	session.mu.Unlock()
+
+	sourceRecorder := httptest.NewRecorder()
+	session.SupplyHTTP(sourceRecorder, httptest.NewRequest(http.MethodGet, "/api/supply?territory="+emptyTerritory, nil))
+	if sourceRecorder.Code != http.StatusOK {
+		t.Fatalf("source supply = %d: %s", sourceRecorder.Code, sourceRecorder.Body.String())
+	}
+	var sourceZone engine.SupplyLine
+	if err := json.Unmarshal(sourceRecorder.Body.Bytes(), &sourceZone); err != nil {
+		t.Fatalf("decode source supply zone: %v", err)
+	}
+	if sourceZone.Kind != engine.SupplyLineKindSource || sourceZone.Source == nil || *sourceZone.Source != sourceTerritoryID {
+		t.Errorf("source zone = %#v, want source %s", sourceZone, sourceTerritoryID)
 	}
 }
