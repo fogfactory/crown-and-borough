@@ -39,12 +39,19 @@ func TestHotseatServerRoutes(t *testing.T) {
 		t.Fatalf("GET state = %d", stateRecorder.Code)
 	}
 
-	ordersRecorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(`{"chains":[],"winter":[]}`))
-	request.Header.Set("Content-Type", "application/json")
-	server.ServeHTTP(ordersRecorder, request)
+	submit := func(player string) *httptest.ResponseRecorder {
+		recorder := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(`{"player":"`+player+`","chains":[],"winter":[]}`))
+		request.Header.Set("Content-Type", "application/json")
+		server.ServeHTTP(recorder, request)
+		return recorder
+	}
+	if pendingRecorder := submit("P1"); pendingRecorder.Code != http.StatusOK {
+		t.Fatalf("P1 POST orders = %d: %s", pendingRecorder.Code, pendingRecorder.Body.String())
+	}
+	ordersRecorder := submit("P2")
 	if ordersRecorder.Code != http.StatusOK {
-		t.Fatalf("POST orders = %d: %s", ordersRecorder.Code, ordersRecorder.Body.String())
+		t.Fatalf("P2 POST orders = %d: %s", ordersRecorder.Code, ordersRecorder.Body.String())
 	}
 	var response struct {
 		State struct {

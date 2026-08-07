@@ -15,9 +15,11 @@ created at startup with `SEED` and `PLAYERS` (an integer from 2 to 5, default
 4). `POST /api/game` replaces it, while `POST /api/reset` restores the startup
 game. In the browser, choose a player, enter one complete chain per available
 noble (header plus order lines), or winter investment lines during winter, then
-click **Résoudre le tour**. The frontend submits all players' orders together,
-advances spring → summer → autumn → winter automatically, and displays the
-typed turn report. A syntactically valid chain that cannot be received by an
-army is lost and reported without blocking the other players' turn. This mode
-will be replaced by the online, private-vision flow when the P2/P3 server work
-is implemented.
+click **Soumettre**. The button becomes **Modifier** after submission; the turn
+is resolved only when the last player submits, and a later click replaces that
+player's pending orders. The noble header is added automatically before the
+request is sent. The game then advances spring → summer → autumn → winter and
+displays the typed turn report. A syntactically valid chain that cannot be
+received by an army is lost and reported without blocking the other players'
+turn. This mode will be replaced by the online, private-vision flow when the
+P2/P3 server work is implemented.

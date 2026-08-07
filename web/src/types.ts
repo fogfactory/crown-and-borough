@@ -128,6 +128,15 @@ export interface OrdersInput {
   winter: WinterSubmission[]
 }
 
+export interface OrdersResponse {
+  status: 'pending' | 'resolved'
+  player?: PlayerId
+  submitted: PlayerId[]
+  remaining: PlayerId[]
+  report?: TurnReport
+  state: StateData
+}
+
 export interface ReceptionReport {
   player: PlayerId
   noble: string

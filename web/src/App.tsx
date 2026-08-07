@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react'
 import { MapViewer } from '@/components/MapViewer'
 import { OrdersPanel } from '@/components/OrdersPanel'
 import { ReportPanel } from '@/components/ReportPanel'
-import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -26,6 +25,7 @@ import type {
   Season,
   StateData,
   TurnReport,
+  OrdersResponse,
 } from '@/types'
 
 const TERRAIN_NAMES = {
@@ -62,6 +62,22 @@ function orderLabel(order: Order): string {
   return [order.type, order.position, targets].filter(Boolean).join(' ')
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function addNobleHeader(nobleCode: string, text: string): string {
+  const lines = text.replace(/\r\n/g, '\n').split('\n')
+  const firstContentIndex = lines.findIndex((line) => line.split('#', 1)[0].trim() !== '')
+  if (firstContentIndex >= 0) {
+    const headerPattern = new RegExp(`^${escapeRegExp(nobleCode)}(?:\\s+#.*)?$`, 'i')
+    if (headerPattern.test(lines[firstContentIndex].trim())) {
+      lines.splice(firstContentIndex, 1)
+    }
+  }
+  return `${nobleCode}\n${lines.join('\n')}`.trimEnd()
+}
+
 async function responseError(response: Response): Promise<string> {
   const payload = (await response.json().catch(() => null)) as
     | { message?: string; errors?: Array<{ line?: number; message?: string }> }
@@ -79,6 +95,7 @@ function App() {
   const [report, setReport] = useState<TurnReport | null>(null)
   const [chainDrafts, setChainDrafts] = useState<Record<PlayerId, Record<string, string>>>({})
   const [winterDrafts, setWinterDrafts] = useState<Record<PlayerId, string>>({})
+  const [submittedPlayers, setSubmittedPlayers] = useState<PlayerId[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [resolving, setResolving] = useState(false)
@@ -135,36 +152,40 @@ function App() {
     setWinterDrafts((drafts) => ({ ...drafts, [selectedPlayer]: text }))
   }
 
-  const resolveTurn = async () => {
+  const submitOrders = async () => {
     if (!state) return
     setResolving(true)
     setActionError(null)
-    const chains = state.players.flatMap((player) =>
-      state.nobles
-        .filter((noble) => noble.owner === player.id && noble.status === 'free')
-        .map((noble) => ({
-          player: player.id,
-          noble: noble.code,
-          text: chainDrafts[player.id]?.[noble.code] ?? '',
-        }))
-        .filter((submission) => submission.text.trim() !== ''),
-    )
-    const winter = state.players
-      .map((player) => ({ player: player.id, lines: winterDrafts[player.id] ?? '' }))
-      .filter((submission) => submission.lines.trim() !== '')
+    const chains = state.season === 'winter'
+      ? []
+      : state.nobles
+          .filter((noble) => noble.owner === selectedPlayer && noble.status === 'free')
+          .map((noble) => ({
+            player: selectedPlayer,
+            noble: noble.code,
+            text: addNobleHeader(noble.code, chainDrafts[selectedPlayer]?.[noble.code] ?? ''),
+          }))
+          .filter((submission) => submission.text.replace(new RegExp(`^${escapeRegExp(submission.noble)}\\s*`), '').trim() !== '')
+    const winter = state.season === 'winter' && (winterDrafts[selectedPlayer] ?? '').trim() !== ''
+      ? [{ player: selectedPlayer, lines: winterDrafts[selectedPlayer] ?? '' }]
+      : []
 
     try {
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chains, winter }),
+        body: JSON.stringify({ player: selectedPlayer, chains, winter }),
       })
       if (!response.ok) throw new Error(await responseError(response))
-      const payload = (await response.json()) as { report: TurnReport; state: StateData }
-      setReport(payload.report)
+      const payload = (await response.json()) as OrdersResponse
       setState(payload.state)
-      setChainDrafts({})
-      setWinterDrafts({})
+      setSubmittedPlayers(payload.submitted)
+      if (payload.status === 'resolved' && payload.report) {
+        setReport(payload.report)
+        setChainDrafts({})
+        setWinterDrafts({})
+        setSubmittedPlayers([])
+      }
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'La résolution a échoué')
     } finally {
@@ -309,14 +330,14 @@ function App() {
                   player={selectedPlayer}
                   chainDrafts={chainDrafts[selectedPlayer] ?? {}}
                   winterDraft={winterDrafts[selectedPlayer] ?? ''}
+                  submitted={submittedPlayers.includes(selectedPlayer)}
+                  submitting={resolving}
                   onChainChange={updateChainDraft}
                   onWinterChange={updateWinterDraft}
+                  onSubmit={() => void submitOrders()}
                 />
               )}
               {actionError && <p role="alert" className="rounded-md border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 text-xs text-[#8d321e]">{actionError}</p>}
-              <Button className="w-full" disabled={!state || resolving} onClick={() => void resolveTurn()}>
-                {resolving ? 'Résolution en cours…' : 'Résoudre le tour'}
-              </Button>
             </CardContent>
           </Card>
 

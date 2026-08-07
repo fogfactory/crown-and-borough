@@ -27,6 +27,7 @@ type Session struct {
 
 	defaultSeed    string
 	defaultPlayers []engine.PlayerInit
+	pending        map[models.PlayerID]engine.OrdersInput
 }
 
 // GameSession is an explicit alias for callers that prefer the longer name.
@@ -80,6 +81,7 @@ func (s *Session) replaceGame(seed string, players []engine.PlayerInit) error {
 	s.mu.Lock()
 	s.game = game
 	s.mapData = mapData
+	s.pending = make(map[models.PlayerID]engine.OrdersInput)
 	s.mu.Unlock()
 	return nil
 }
@@ -129,32 +131,148 @@ func (s *Session) ResetHTTP(w http.ResponseWriter, _ *http.Request) {
 	s.writeGameResponse(w)
 }
 
-// OrdersHTTP resolves one complete hotseat turn and returns both report and
-// projected state.
+// OrdersHTTP records one player's orders. The turn is resolved only when every
+// player has submitted once for the current turn; submitting again replaces
+// that player's pending orders.
 func (s *Session) OrdersHTTP(w http.ResponseWriter, r *http.Request) {
-	var input engine.OrdersInput
+	var request ordersRequest
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&input); err != nil {
+	if err := decoder.Decode(&request); err != nil {
 		writeAPIError(w, http.StatusBadRequest, "invalid_orders_request", err.Error())
 		return
 	}
 
-	s.mu.Lock()
-	report, err := engine.ResolveTurn(s.game, s.balance, input)
-	if err == nil {
-		s.game = report.State
+	if request.Player == "" {
+		writeResolutionError(w, &engine.InputErrors{Errors: []engine.InputError{{
+			Code: "player_required", Message: "one player's orders must be submitted at a time",
+		}}})
+		return
 	}
-	state := projectState(s.game, nil)
-	s.mu.Unlock()
-	if err != nil {
+
+	s.mu.Lock()
+	if !s.hasPlayerLocked(request.Player) {
+		s.mu.Unlock()
+		writeResolutionError(w, &engine.InputErrors{Errors: []engine.InputError{{
+			Player: request.Player, Code: "unknown_player",
+			Message: fmt.Sprintf("player %q does not exist", request.Player),
+		}}})
+		return
+	}
+
+	input, inputErr := normalizePlayerOrders(request.Player, request.Chains, request.Winter)
+	if inputErr != nil {
+		s.mu.Unlock()
+		writeResolutionError(w, inputErr)
+		return
+	}
+	if _, err := engine.ResolveTurn(s.game, s.balance, input); err != nil {
+		s.mu.Unlock()
 		writeResolutionError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, struct {
-		Report engine.TurnReport `json:"report"`
-		State  StateView         `json:"state"`
-	}{Report: report, State: state})
+	if s.pending == nil {
+		s.pending = make(map[models.PlayerID]engine.OrdersInput)
+	}
+	s.pending[request.Player] = input
+	submitted, remaining := s.pendingPlayersLocked()
+	if len(remaining) != 0 {
+		state := projectState(s.game, nil)
+		s.mu.Unlock()
+		writeJSON(w, http.StatusOK, ordersResponse{
+			Status: "pending", Player: request.Player, Submitted: submitted, Remaining: remaining, State: state,
+		})
+		return
+	}
+
+	combined := engine.OrdersInput{Chains: []engine.ChainSubmission{}, Winter: []engine.WinterSubmission{}}
+	for _, player := range s.game.Players {
+		playerOrders := s.pending[player.ID]
+		combined.Chains = append(combined.Chains, playerOrders.Chains...)
+		combined.Winter = append(combined.Winter, playerOrders.Winter...)
+	}
+	report, err := engine.ResolveTurn(s.game, s.balance, combined)
+	if err != nil {
+		s.mu.Unlock()
+		writeResolutionError(w, err)
+		return
+	}
+	s.game = report.State
+	s.pending = make(map[models.PlayerID]engine.OrdersInput)
+	state := projectState(s.game, nil)
+	s.mu.Unlock()
+	writeJSON(w, http.StatusOK, ordersResponse{
+		Status: "resolved", Player: request.Player, Submitted: submitted, State: state, Report: &report,
+	})
+}
+
+type ordersRequest struct {
+	Player models.PlayerID           `json:"player,omitempty"`
+	Chains []engine.ChainSubmission  `json:"chains"`
+	Winter []engine.WinterSubmission `json:"winter"`
+}
+
+type ordersResponse struct {
+	Status    string             `json:"status"`
+	Player    models.PlayerID    `json:"player,omitempty"`
+	Submitted []models.PlayerID  `json:"submitted"`
+	Remaining []models.PlayerID  `json:"remaining"`
+	Report    *engine.TurnReport `json:"report,omitempty"`
+	State     StateView          `json:"state"`
+}
+
+func (s *Session) hasPlayerLocked(playerID models.PlayerID) bool {
+	for _, player := range s.game.Players {
+		if player.ID == playerID {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Session) pendingPlayersLocked() ([]models.PlayerID, []models.PlayerID) {
+	submitted := make([]models.PlayerID, 0, len(s.pending))
+	remaining := make([]models.PlayerID, 0, len(s.game.Players))
+	for _, player := range s.game.Players {
+		if _, exists := s.pending[player.ID]; exists {
+			submitted = append(submitted, player.ID)
+		} else {
+			remaining = append(remaining, player.ID)
+		}
+	}
+	return submitted, remaining
+}
+
+func normalizePlayerOrders(playerID models.PlayerID, chains []engine.ChainSubmission, winter []engine.WinterSubmission) (engine.OrdersInput, *engine.InputErrors) {
+	input := engine.OrdersInput{
+		Chains: append([]engine.ChainSubmission(nil), chains...),
+		Winter: append([]engine.WinterSubmission(nil), winter...),
+	}
+	inputErrors := &engine.InputErrors{Errors: []engine.InputError{}}
+	for index := range input.Chains {
+		if input.Chains[index].Player != "" && input.Chains[index].Player != playerID {
+			inputErrors.Errors = append(inputErrors.Errors, engine.InputError{
+				Player: playerID, Noble: input.Chains[index].Noble, Code: "foreign_player_order",
+				Message: fmt.Sprintf("chain %d belongs to player %q", index+1, input.Chains[index].Player),
+			})
+			continue
+		}
+		input.Chains[index].Player = playerID
+	}
+	for index := range input.Winter {
+		if input.Winter[index].Player != "" && input.Winter[index].Player != playerID {
+			inputErrors.Errors = append(inputErrors.Errors, engine.InputError{
+				Player: playerID, Code: "foreign_player_order",
+				Message: fmt.Sprintf("winter submission %d belongs to player %q", index+1, input.Winter[index].Player),
+			})
+			continue
+		}
+		input.Winter[index].Player = playerID
+	}
+	if len(inputErrors.Errors) != 0 {
+		return engine.OrdersInput{}, inputErrors
+	}
+	return input, nil
 }
 
 func (s *Session) writeGameResponse(w http.ResponseWriter) {

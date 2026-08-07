@@ -46,25 +46,56 @@ func TestHotseatSessionResolvesAndRecreatesGame(t *testing.T) {
 		t.Fatalf("decode map: %v", err)
 	}
 	winterCode := mapDocument.Territories[0].Code
+	submit := func(player string, body string) (int, []byte) {
+		t.Helper()
+		recorder := httptest.NewRecorder()
+		session.OrdersHTTP(recorder, httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(body)))
+		return recorder.Code, recorder.Body.Bytes()
+	}
 
-	ordersRecorder := httptest.NewRecorder()
-	session.OrdersHTTP(ordersRecorder, httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(`{"chains":[],"winter":[]}`)))
-	if ordersRecorder.Code != http.StatusOK {
-		t.Fatalf("POST orders = %d: %s", ordersRecorder.Code, ordersRecorder.Body.String())
+	status, body := submit("P1", `{"player":"P1","chains":[],"winter":[]}`)
+	if status != http.StatusOK {
+		t.Fatalf("P1 POST orders = %d: %s", status, body)
 	}
 	var response struct {
-		Report struct {
+		Status    string   `json:"status"`
+		Submitted []string `json:"submitted"`
+		Remaining []string `json:"remaining"`
+		Report    struct {
 			Header struct {
 				Turn int `json:"turn"`
 			} `json:"header"`
 		} `json:"report"`
 		State StateView `json:"state"`
 	}
-	if err := json.Unmarshal(ordersRecorder.Body.Bytes(), &response); err != nil {
+	if err := json.Unmarshal(body, &response); err != nil {
 		t.Fatalf("decode orders response: %v", err)
 	}
-	if response.Report.Header.Turn != 1 || response.State.Turn != 2 {
-		t.Fatalf("orders response = %#v, want report turn 1 and state turn 2", response)
+	if response.Status != "pending" || len(response.Submitted) != 1 || len(response.Remaining) != 1 || response.State.Turn != 1 {
+		t.Fatalf("P1 response = %#v, want pending turn 1", response)
+	}
+	// Updating an already submitted player replaces its pending input without
+	// resolving the turn.
+	status, body = submit("P1", `{"player":"P1","chains":[],"winter":[]}`)
+	if status != http.StatusOK {
+		t.Fatalf("P1 update = %d: %s", status, body)
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		t.Fatalf("decode P1 update: %v", err)
+	}
+	if response.Status != "pending" || response.State.Turn != 1 {
+		t.Fatalf("P1 update response = %#v, want pending turn 1", response)
+	}
+
+	status, body = submit("P2", `{"player":"P2","chains":[],"winter":[]}`)
+	if status != http.StatusOK {
+		t.Fatalf("P2 POST orders = %d: %s", status, body)
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		t.Fatalf("decode resolved orders: %v", err)
+	}
+	if response.Status != "resolved" || response.Report.Header.Turn != 1 || response.State.Turn != 2 {
+		t.Fatalf("resolved response = %#v, want report turn 1 and state turn 2", response)
 	}
 	mapAfter := httptest.NewRecorder()
 	session.MapHTTP(mapAfter, httptest.NewRequest(http.MethodGet, "/api/map", nil))
@@ -73,7 +104,7 @@ func TestHotseatSessionResolvesAndRecreatesGame(t *testing.T) {
 	}
 
 	invalidRecorder := httptest.NewRecorder()
-	session.OrdersHTTP(invalidRecorder, httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(`{"chains":[{"player":"P1","noble":"BAD","text":"BAD"}],"winter":[]}`)))
+	session.OrdersHTTP(invalidRecorder, httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(`{"player":"P1","chains":[{"player":"P1","noble":"BAD","text":"BAD"}],"winter":[]}`)))
 	if invalidRecorder.Code != http.StatusBadRequest {
 		t.Fatalf("invalid POST orders = %d, want 400", invalidRecorder.Code)
 	}
@@ -82,21 +113,32 @@ func TestHotseatSessionResolvesAndRecreatesGame(t *testing.T) {
 	}
 
 	for index := 0; index < 2; index++ {
-		advanceRecorder := httptest.NewRecorder()
-		session.OrdersHTTP(advanceRecorder, httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(`{"chains":[],"winter":[]}`)))
-		if advanceRecorder.Code != http.StatusOK {
-			t.Fatalf("advance turn %d = %d: %s", index, advanceRecorder.Code, advanceRecorder.Body.String())
+		status, body = submit("P1", `{"player":"P1","chains":[],"winter":[]}`)
+		if status != http.StatusOK {
+			t.Fatalf("advance P1 turn %d = %d: %s", index, status, body)
+		}
+		status, body = submit("P2", `{"player":"P2","chains":[],"winter":[]}`)
+		if status != http.StatusOK {
+			t.Fatalf("advance P2 turn %d = %d: %s", index, status, body)
 		}
 	}
-	winterChainRecorder := httptest.NewRecorder()
-	session.OrdersHTTP(winterChainRecorder, httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(`{"chains":[{}],"winter":[]}`)))
-	if winterChainRecorder.Code != http.StatusBadRequest {
-		t.Fatalf("chains in winter = %d, want 400", winterChainRecorder.Code)
+	status, body = submit("P1", `{"player":"P1","chains":[{}],"winter":[]}`)
+	if status != http.StatusBadRequest {
+		t.Fatalf("chains in winter = %d, want 400: %s", status, body)
 	}
-	winterOrdersRecorder := httptest.NewRecorder()
-	session.OrdersHTTP(winterOrdersRecorder, httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(`{"chains":[],"winter":[{"player":"P1","lines":"R T `+winterCode+`"}]}`)))
-	if winterOrdersRecorder.Code != http.StatusOK {
-		t.Fatalf("winter orders = %d, want 200: %s", winterOrdersRecorder.Code, winterOrdersRecorder.Body.String())
+	status, body = submit("P1", `{"player":"P1","chains":[],"winter":[{"player":"P1","lines":"R T `+winterCode+`"}]}`)
+	if status != http.StatusOK {
+		t.Fatalf("winter P1 orders = %d, want 200: %s", status, body)
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		t.Fatalf("decode pending winter response: %v", err)
+	}
+	if response.Status != "pending" || response.State.Turn != 4 {
+		t.Fatalf("pending winter response = %#v, want turn 4", response)
+	}
+	status, body = submit("P2", `{"player":"P2","chains":[],"winter":[]}`)
+	if status != http.StatusOK {
+		t.Fatalf("winter P2 orders = %d, want 200: %s", status, body)
 	}
 
 	gameRecorder := httptest.NewRecorder()
