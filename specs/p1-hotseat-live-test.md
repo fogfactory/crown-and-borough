@@ -2,9 +2,9 @@
 
 Notes prises pendant une partie en hotseat, au fil des observations.
 
-> **Traçabilité :** ce test live a été réalisé après la finalisation du prompt
-> P1.7, « Rapport de tour, cycle des saisons et boucle hotseat ». Ces notes
-> recensent les écarts et améliorations observés après cette étape.
+> **Traçabilité :** ce test live a été réalisé après la finalisation de la
+> boucle hotseat et du rapport de tour. Ces notes recensent les écarts et
+> améliorations observés pendant cette étape.
 
 ## Interaction
 
@@ -17,12 +17,7 @@ Notes prises pendant une partie en hotseat, au fil des observations.
 ## Rendu
 
 - Le cadre de sélection d'un territoire ne devrait pas masquer les frontières : cela empêche de voir si elles sont franchissables ou non.
-- Rendu de la fraîcheur de l'information actuel (voile noir opaque par-dessus le territoire, `MapViewer.tsx` couche « Données anciennes ») : **pas satisfaisant** — il assombrit la couleur du terrain et nuit à la lisibilité de la nature du terrain.
-  - Solution retenue : **pois de taille variable** (plutôt que des hachures) — des pois plus ou moins gros superposés au territoire (SVG pattern), sans changer la teinte du terrain :
-    - plus les pois sont **gros**, moins l'information est fraîche ;
-    - taille maximale atteinte à **3 tours** de retard — l'information est alors considérée **non fiable**.
-  - À compléter éventuellement plus tard par un badge d'âge (« T-2 » / « il y a N tours », déjà prévu en P3.4) et/ou des frontières estompées.
-- Rendu du contrôle territorial actuel (remplissage teinté de la couleur du joueur à 13 % d'opacité, `MapViewer.tsx` couche « Contrôle territorial ») : **pas satisfaisant** — mêmes raisons que la fraîcheur : cela modifie la couleur du terrain.
+- Rendu du contrôle territorial actuel (remplissage teinté de la couleur du joueur à 13 % d'opacité, `MapViewer.tsx` couche « Contrôle territorial ») : **pas satisfaisant** — cela modifie la couleur du terrain.
   - Solution retenue : **contour coloré** — le contour du territoire est dessiné avec la couleur du joueur (trait épais), le remplissage du terrain reste intact.
     - Le contour doit être un **liséré à l'intérieur du territoire** : il ne doit pas masquer la frontière (qui porte l'information franchissable/non franchissable), ni produire un effet bizarre à la frontière entre deux joueurs.
 

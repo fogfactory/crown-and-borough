@@ -26,8 +26,6 @@ const OUTCOME_LABELS: Record<Outcome, string> = {
 const WINTER_INFRA_SYMBOLS: Partial<Record<InfraType, string>> = {
   mill: 'M',
   castle: 'C',
-  post_relay: 'R',
-  watchtower: 'T',
   supply_depot: 'D',
   village: 'V',
 }

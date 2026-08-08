@@ -543,8 +543,7 @@ func (ctx *resolutionContext) millCanBeBuiltAt(territoryID models.TerritoryID) b
 
 func isBuildableInfrastructure(infrastructureType models.InfraType) bool {
 	switch infrastructureType {
-	case models.InfraTypeMill, models.InfraTypeCastle, models.InfraTypePostRelay,
-		models.InfraTypeWatchtower, models.InfraTypeSupplyDepot:
+	case models.InfraTypeMill, models.InfraTypeCastle, models.InfraTypeSupplyDepot:
 		return true
 	}
 	return false
@@ -556,10 +555,6 @@ func infrastructureCost(costs assetgen.Costs, infrastructureType models.InfraTyp
 		return costs.Mill, true
 	case models.InfraTypeCastle:
 		return costs.Castle, true
-	case models.InfraTypePostRelay:
-		return costs.PostRelay, true
-	case models.InfraTypeWatchtower:
-		return costs.Watchtower, true
 	case models.InfraTypeSupplyDepot:
 		return costs.SupplyDepot, true
 	}

@@ -2,8 +2,7 @@ export type Terrain = 'plain' | 'forest' | 'hill' | 'mountain' | 'swamp'
 
 export type Season = 'spring' | 'summer' | 'autumn' | 'winter'
 
-export type InfraType =
-  'mill' | 'post_relay' | 'watchtower' | 'supply_depot' | 'castle' | 'village'
+export type InfraType = 'mill' | 'supply_depot' | 'castle' | 'village'
 
 export type NobleStatus = 'free' | 'hostage' | 'dungeon'
 
@@ -99,7 +98,6 @@ export interface TerritoryState {
 export interface StateData {
   turn: number
   season: Season
-  asOf: Record<string, number>
   players: Player[]
   territories: TerritoryState[]
   nobles: Noble[]

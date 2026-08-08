@@ -97,7 +97,7 @@ func (s *Session) MapHTTP(w http.ResponseWriter, _ *http.Request) {
 // StateHTTP serves the current global T0 state projection.
 func (s *Session) StateHTTP(w http.ResponseWriter, _ *http.Request) {
 	s.mu.RLock()
-	state := projectState(s.game, nil)
+	state := projectState(s.game)
 	s.mu.RUnlock()
 	writeJSON(w, http.StatusOK, state)
 }
@@ -205,7 +205,7 @@ func (s *Session) OrdersHTTP(w http.ResponseWriter, r *http.Request) {
 	s.pending[request.Player] = input
 	submitted, remaining := s.pendingPlayersLocked()
 	if len(remaining) != 0 && !request.Force {
-		state := projectState(s.game, nil)
+		state := projectState(s.game)
 		s.mu.Unlock()
 		writeJSON(w, http.StatusOK, ordersResponse{
 			Status: "pending", Player: request.Player, Submitted: submitted, Remaining: remaining, State: state,
@@ -227,7 +227,7 @@ func (s *Session) OrdersHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	s.game = report.State
 	s.pending = make(map[models.PlayerID]engine.OrdersInput)
-	state := projectState(s.game, nil)
+	state := projectState(s.game)
 	s.mu.Unlock()
 	writeJSON(w, http.StatusOK, ordersResponse{
 		Status: "resolved", Player: request.Player, Submitted: submitted, State: state, Report: &report,
@@ -309,7 +309,7 @@ func (s *Session) writeGameResponse(w http.ResponseWriter) {
 	response := struct {
 		Map   mapgen.MapData `json:"map"`
 		State StateView      `json:"state"`
-	}{Map: s.mapData, State: projectState(s.game, nil)}
+	}{Map: s.mapData, State: projectState(s.game)}
 	s.mu.RUnlock()
 	writeJSON(w, http.StatusOK, response)
 }

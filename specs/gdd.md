@@ -1,271 +1,328 @@
-# Game Design Document : Crown & Borough (MVP)
+# Game Design Document : Crown & Borough v1
+
+Ce document fixe le cœur de règles de la v1. Les futures politiques, les
+ordres spéciaux et les autres compléments seront ajoutés séparément. Ils
+devront préserver les invariants décrits ici plutôt que redéfinir les
+mécaniques de base.
+
+## 1. Vision et principes
+
+`Crown & Borough` est un jeu de stratégie médiévale par tours, sur une carte
+de territoires reliés par un graphe. Les joueurs programment des chaînes
+d'ordres pour leurs armées ; toutes les chaînes sont résolues simultanément.
+
+La tension de la v1 repose sur deux piliers :
+
+- la résolution simultanée des intentions, des soutiens et des combats ;
+- la logistique exponentielle, qui rend les grandes concentrations de troupes
+  coûteuses et vulnérables.
+
+La géographie est une connaissance commune. Les données chiffrées de la carte
+(propriétaires, tailles d'armées, stocks, infrastructures et nobles) sont
+visibles par tous dans la v1 actuelle. Une politique de divulgation plus
+restrictive pourra être ajoutée plus tard sans modifier les combats ni le
+ravitaillement.
+
+## 2. Cycle du jeu et saisons
+
+Une année comprend quatre tours : printemps, été, automne et hiver. Le compteur
+`turn` progresse d'une unité à chaque saison, hiver compris.
+
+### Tours d'action
+
+Au printemps, en été et en automne :
+
+1. Chaque joueur prépare et soumet ses chaînes d'ordres pour ses nobles libres
+   et ses armées.
+2. Le moteur vérifie les soumissions. Une erreur de syntaxe ou de réception
+   empêche la résolution de la soumission concernée sans modifier l'état.
+3. Le moteur résout simultanément le ravitaillement, les intentions, les
+   soutiens, les combats, les déplacements, les retraites, les jonctions, les
+   dispersions et la progression des chaînes.
+4. Le contrôle territorial, les déplacements de nobles et les événements sont
+   mis à jour.
+5. Le serveur construit un rapport de tour typé à partir des événements de la
+   résolution.
+
+La chaîne soumise est attachée immédiatement à l'armée présente sur la
+position de son premier ordre. Elle remplace la chaîne précédente de cette
+armée. Il n'y a pas de délai entre la soumission et la réception.
+
+### Phase d'hiver
+
+L'hiver est une trêve de gestion : aucune chaîne d'action, aucun mouvement,
+aucun combat et aucun ravitaillement ne sont résolus. Le joueur soumet une
+liste d'investissements directs, traités dans l'ordre saisi :
+
+- `R N XXX` — recruter un noble sur `XXX` ;
+- `R T XXX` — recruter une troupe sur `XXX` ;
+- `C M XXX` — construire ou améliorer un moulin sur `XXX` ;
+- `C C XXX` — construire un château sur `XXX` ;
+- `C D XXX` — construire un dépôt de vivres sur `XXX` ;
+- `E C XXX` — désigner le château de `XXX` comme capitale ;
+- `L N XXX` — libérer le noble de code `XXX`.
+
+`XXX` est le trigramme du territoire ciblé, sauf pour `L N`, qui cible un
+noble. Chaque investissement exige le contrôle du territoire ciblé. Le
+recrutement d'un noble ou d'une troupe exige également une armée du joueur sur
+la case. Un ordre rejeté est signalé dans le rapport et son investissement est
+perdu.
+
+| Investissement | Coût en R |
+|---|---:|
+| Château | 10 |
+| Moulin | 3 |
+| Troupe | 1 |
+| Noble | 2 |
+| Dépôt de vivres | 3 |
+| Libération d'un noble | 0 |
+
+Les coûts sont prélevés d'abord sur le stock de la case ciblée, puis sur la
+source contrôlée la plus proche. Si la réserve totale est insuffisante, aucun
+prélèvement partiel n'est effectué.
+
+À la fin de l'hiver :
+
+- chaque stock restant est conservé à hauteur de `ceil(stock / 2)` ;
+- les stocks sont rapatriés vers la capitale, en laissant au maximum 1 R par
+  village et 2 R par château hors capitale ;
+- sans capitale, les stocks restent sur place ;
+- la saison suivante est le printemps.
+
+Une partie accepte de 2 à 16 joueurs. Chaque joueur commence sur un village
+distinct : un château y est construit gratuitement, devient la capitale par
+défaut, et le joueur reçoit ses nobles, ses armées et ses ressources de départ
+selon `assets/balance.json`.
+
+Un joueur est éliminé lorsqu'il ne contrôle plus aucun territoire et ne possède
+plus aucune armée. Les nobles seuls ne maintiennent pas un joueur en lice. Le
+dernier joueur vivant gagne la partie.
+
+## 3. Carte, terrains et villages
+
+### Génération et graphe
+
+La carte est générée de manière déterministe à partir d'une seed. Elle contient
+8 territoires par joueur, avec `joueurs + 1` villages neutres. Les territoires
+sont des polygones nommés par une commune de `communes.csv` ; le trigramme de la
+commune est unique sur la carte.
+
+Chaque frontière géométrique commune à deux territoires est conservée et
+qualifiée :
+
+- une frontière franchissable appartient au graphe des déplacements ;
+- une frontière infranchissable reste visible mais ne permet pas le passage ;
+- il n'existe pas de liaison artificielle sans frontière commune ;
+- le graphe franchissable est connexe ;
+- le degré franchissable de chaque territoire est compris entre 2 et le maximum
+  du terrain : 3 en montagne, marécage ou colline, 5 en plaine ou forêt.
+
+Les armées se déplacent d'une case adjacente au plus par résolution, quelle que
+soit la nature du terrain. Le terrain influence la production de rations et les
+contraintes de génération, pas une vitesse de déplacement cachée.
+
+### Production
 
-## 1. Vision & Concept Cœur
+Les territoires sauvages ne produisent pas de ressource `R` stockable. La
+production vivrière instantanée, consommée sur place et perdue si elle n'est
+pas utilisée, vaut :
 
-Un jeu de stratégie asynchrone sur carte, croisant la tension politique de *Fief* et la résolution simultanée de *Diplomacy*.
+- 1 ration en plaine, forêt ou colline ;
+- 0 ration en montagne ou marécage ;
+- 2 rations supplémentaires si la case porte un château ou un village.
 
-La spécificité stratégique repose sur deux piliers système :
-
-- **La latence de l'information et des ordres :** L'information voyage physiquement sur la carte.
-- **Les contraintes logistiques exponentielles :** Concentration de troupes coûteuse et lignes de flux vulnérables.
-
----
-
-## 2. Le Cœur de Loop & Saisons
-
-Une année de jeu se compose de **4 tours** : trois tours d'action (**Printemps, Été, Automne**) et un tour de gestion (**Hiver**).
-
-### Tours d'Action (Printemps, Été, Automne)
-
-1. **Réception des rapports :** Le joueur prend connaissance de la carte selon l'ancienneté des messagers parvenus à ses Nobles (libres ou otages).
-2. **Ordres & Diplomatie :** Négociations privées, programmation des chaînes d'ordres et des axes logistiques.
-3. **Résolution serveur simultanée :**
-   - *Ravitaillement & Carence :* Traçage des flux, consommation des ressources R, prélèvement sur les stocks en cas de déficit, basculement en famine si pénurie (une armée famélique combat à force 0 CE tour-ci).
-   - *Propagation :* Avancée des messagers (ordres et rapports).
-- *Exécution :* Application des ordres reçus ce tour-ci par les armées.
-- *Combats & Retraites :* Résolution des affrontements et replis obligatoires.
-- *Émission :* Départ des nouveaux rapports d'information (armées, châteaux et villages contrôlés, tours de guet) vers le noble le plus proche (récepteur).
-
-### Phase d'Hiver (Bilan, Conservations et Investissements)
-
-- **Trêve hivernale :** Mouvements militaires gelés (aucune chaîne traitée, aucun combat, aucun ravitaillement).
-- **Ordres d'Hiver :** le joueur soumet une liste d'ordres (même mécanique de soumission textuelle que les chaînes ; application **directe** — sans messager ni noble émetteur), une ligne = un ordre, traités dans l'ordre saisi. **Tout investissement exige le contrôle du territoire ciblé** (et la présence d'une armée du joueur sur la case pour le recrutement d'un noble — un noble n'est jamais seul, cf. §6) :
-  - `R N <territoire>` — recruter un **Noble** sur le territoire (nom = prénom tiré + "de \<nom du territoire\>", ex. "Jacques de Notombes")
-  - `R T <territoire>` — recruter une **Troupe** sur le territoire
-  - `C M <territoire>` — construire un **Moulin** (améliore le moulin existant)
-  - `C C <territoire>` — construire un **Château**
-  - `C R <territoire>` — construire un **Relais de Poste**
-  - `C T <territoire>` — construire une **Tour de Guet**
-  - `C D <territoire>` — construire un **Dépôt de Vivres**
-  - `E C <territoire>` — désigner le château de ce territoire comme **Capitale**
-  - `L N <code noble>` — libérer un **Noble prisonnier** du joueur (réapparaît libre à la capitale ; requis : une capitale désignée)
-- **Coûts des investissements :**
-
-  | Investissement | Coût (R) |
-  |---|---|
-  | Château | 10 |
-  | Moulin | 3 |
-  | Troupe | 1 |
-  | Noble | 2 |
-  | Relais de Poste | 2 |
-  | Tour de Guet | 4 |
-  | Dépôt de Vivres | 3 |
-  | Libération d'un noble (`L N`) | 0 |
-
-  *(Toutes les métriques d'équilibrage sont stockées dans `assets/balance.json`, facilement éditables.)*
-- **Paiement de proche en proche :** le coût d'un investissement est prélevé d'abord sur le stock du territoire ciblé (s'il stocke), puis sur le château ou village contrôlé le plus proche, et ainsi de suite. Réserves totales insuffisantes → ordre rejeté (aucun prélèvement partiel).
-- **Capitale :** la capitale d'un joueur n'est PAS un territoire fixe : c'est un **château qu'il considère comme sa capitale**. Par défaut, son **premier château** (le château de départ compte). Un ordre d'Hiver `E C <territoire>` désigne un autre de ses châteaux comme capitale. La capitale ne peut jamais être ennemie : la désignation exige le contrôle de la case. Si le château désigné est détruit, la désignation est perdue et le joueur n'a **plus de capitale** — pas de rapatriement entre-temps (les stocks restent en place) et `L N` est rejeté — jusqu'à ce qu'un ordre `E C` ou un nouveau château construit (capitale par défaut) la redésigne.
-- **Conservation des stocks (Règle des 50 %) :** sur chaque château ou village, les ressources non consommées durant l'année subissent une perte hivernale après investissement :
-
-  Stock Conservé au Printemps = ceil(R_restant / 2)
-
-  *(Arrondi à l'entier supérieur sur chaque château ou village).*
-
-- **Rapatriement des stocks :** les stocks sont automatiquement rapatriés vers la case de la capitale du joueur, en laissant au maximum **1 R par village** et **2 R par château** (hors capitale : elle accumule tout le surplus). Si le joueur n'a **aucune capitale désignée** (aucun château contrôlé, ou désignation perdue et non redésignée), ses stocks **ne sont pas rapatriés** (ils restent sur place).
-- **Ordre de la phase :** investissements → conservation 50 % → rapatriement.
-- **Départ de la partie :** de 2 à 5 joueurs. Chaque joueur commence sur un **village distinct**, où un **château est construit automatiquement** (il remplace le village ; sa capitale par défaut — son premier château), avec **un noble**, **au moins une armée** et un **stock de ressources initial** (valeurs d'équilibrage dans `assets/balance.json` : nobles, armées et ressources de départ).
-- **Élimination & Victoire :** un joueur est **éliminé** quand il ne contrôle plus **aucun territoire** ET n'a plus **aucune armée** (ses nobles, immortels, ne comptent pas) ; il ne soumet plus d'ordres. Le dernier joueur en lice **remporte** la partie.
-
----
-
-## 3. Carte, Terrains et Villages
-
-### Types de Terrains (Vitesse des Messagers)
-
-La propagation des messagers (rapports et ordres) dépend du relief — les armées, elles, se déplacent toujours d'**1 case par tour** :
-
-| Terrain | Vitesse du Messager |
-| --- | --- |
-| **Plaine** | **2 cases / tour** |
-| **Forêt / Colline** | **1 case / tour** |
-| **Montagne / Marécage** | **0,5 case / tour** (1 case tous les 2 tours) |
-
-*(Les coûts de trajet des messagers — rapports et ordres — sont paramétrés dans les assets d'équilibrage `assets/balance.json` : coût par case selon le terrain — plaine 0,5, forêt/colline 1, montagne/marécage 2 —, divisé par 2 sur un Relais de Poste.)*
-
-### Graphe franchissable : frontières géométriques
-
-Le graphe de déplacement (armées, messagers, flux) est formé des frontières réellement partagées entre territoires. Chaque arc géométrique est conservé et reçoit une qualification :
-
-- **Frontières franchissables :** les arcs listés dans les adjacences sont franchissables par les armées, les messagers et les flux.
-- **Frontières infranchissables :** certaines frontières géométriques (crêtes montagneuses, marécages) sont classées infranchissables ; elles ne figurent pas dans le graphe franchissable.
-- **Contraintes de degré :** le graphe franchissable reste connexe et chaque territoire a un degré d'au moins 2. Son degré maximal est de 3 en montagne, marécage ou colline, et de 5 en plaine ou forêt.
-- **Pas de routes au MVP :** aucune arête ne relie des territoires sans frontière géométrique commune. Une évolution ultérieure pourra ajouter le qualificatif `route` à une frontière infranchissable pour représenter un pont ou un col et la rendre franchissable ; elle est hors MVP.
-
-### Villages et Maillage Territorial
-
-- **Zones Sauvages (~75 % de la carte) :** Produisent **0 R stockable**. Servent de zones de transit, de combat ou d'infrastructures isolées. La production de rations du terrain s'applique néanmoins à toutes les cases.
-- **Production vivrière (rations) :** chaque territoire produit instantanément, à chaque tour, `RationTerrain[terrain]` rations (plaine/forêt/colline : 1 ; montagne/marais : 0), plus **2 rations** si la case porte un château **ou** un village. La règle de structure unique signifie que le bonus d'infrastructure ne s'applique qu'une fois : un château construit sur un village le remplace. Les rations sont **non stockables**, consommées sur place par les armées présentes quelle que soit leur nationalité ou le contrôle de la case ; les rations non distribuées sont perdues.
-- **Villages :** Infrastructure **rare**, **neutre à l'origine** (non constructible au MVP, réservé) : **+2 rations vivrières** et **1 R stockable/tour**, qu'il soit neutre ou contrôlé. Tant qu'il est neutre, son stock n'est disponible pour aucun joueur et il ne constitue pas une source de ravitaillement ; à la capture, le stock reste sur place et devient disponible au nouveau contrôleur. Un village est porté par un territoire non contrôlé à la génération.
-- **Règle de la Structure Unique :** Une seule infrastructure par case.
-- **Château :** **+2 rations vivrières** ; un château construit sur une case la rend **productive** et stocke **1 R stockable/tour si elle est contrôlée** ; il sert d'ancre de ravitaillement. Construit sur un village, il le **remplace** (jamais deux structures par case).
-
-Les infrastructures **appartiennent à leur case** : elles n'ont pas de propriétaire — celui qui contrôle la case en bénéficie.
-
-### Nommage des territoires
-
-Chaque territoire porte le nom d'une commune de `communes.csv`. L'affinité de
-terrain de la commune est privilégiée, puis l'affinité `any`, avec un repli
-déterministe si nécessaire. Le code du territoire est le trigramme de sa
-commune, unique sur la carte, et chaque commune est utilisée au plus une fois.
-
----
-
-## 4. Latence d'Information et Transmission des Ordres
-
-- **Vision Temps Réel (T0) :** Accordée sur les cases contenant un **Noble** du joueur (libre ou otage) et sur les cases d'une **Tour de Guet sur une case contrôlée par le joueur** et leurs **adjacentes**. Le château d'un joueur (sur une case qu'il contrôle) n'est PAS en T0 par défaut (sauf si un noble y est présent).
-- **Rapports :** chaque **armée**, chaque **château ou village contrôlé** et chaque **Tour de Guet** produit un rapport **chaque tour**, contenant l'état des **cases adjacentes**. Le temps de transit d'un rapport est calculé vers le **noble le plus proche** du joueur (coûts par terrain, cf. §3 — dans les assets d'équilibrage). Les rapports reçus sont **consolidés** dans la vue du joueur avec la **fraîcheur** de l'information (la date d'émission du rapport).
-- **Projection :** en plus des rapports consolidés, la vue du joueur consolide la **projection** : l'emplacement de ses armées SI les chaînes d'ordres valides et actives depuis leur dernier rapport ont été réussies. La vue distingue clairement l'**observé** (fraîcheur de l'information) de la **projection**.
-- **Statut et localisation des Nobles :** `NobleStatus` a exactement trois valeurs : `free` (noble libre), `hostage` (otage, état de prisonnier par défaut) et `dungeon` (au cachot). `hostage` et `dungeon` forment l'ensemble désigné par **prisonnier** ; seul `free` peut émettre une chaîne. `Noble.LocationID` est le territoire du noble : le modèle autorisant au plus une `Army` par territoire, il permet de retrouver l'armée chevauchée lorsqu'elle existe. Il n'y a pas de `Noble.ArmyID` : le geôlier est dérivé du propriétaire de l'armée présente sur `LocationID`, sans être dupliqué dans le noble.
-- **Nobles prisonniers :** un noble `hostage` compte dans le calcul de la vue de son **propriétaire** (il est un récepteur de rapports, il en produit, et sa case est en T0 pour lui) — un noble `dungeon` ne produit alors plus rien (ni récepteur, ni rapport, ni T0). Deux ordres d'armées font passer un noble prisonnier d'un état à l'autre : `XXX O <noble>` (`hostage`) et `XXX K <noble>` (`dungeon`) — ils peuvent faire partie des chaînes d'ordres.
-- **Renseignement des otages :** la divulgation à son propriétaire de la chaîne de l'armée geôlière par un noble `hostage` est une évolution P2.2a. P1.3 ne fournit ni renseignement d'otage, ni projection associée, ni filtrage privé des chaînes.
-- **Ordres par Messager :** les ordres partent du **noble émetteur** (celui de l'en-tête de la feuille) et voyagent à la vitesse du terrain (cf. §3) vers le **premier territoire de la feuille** d'ordres. **L'arrivée est calculée au moment de l'émission** (temps de trajet fixé). **L'armée du joueur émetteur présente sur ce territoire** entre le moment de l'arrivée et la fin de l'hiver suivant reçoit la chaîne et **remplace la chaîne d'ordres de son armée** par celle-ci — aucune armée n'est requise à l'émission (elle peut arriver plus tard) ; une chaîne jamais reçue est **perdue** à la fin de l'hiver. Une armée poursuit son ancienne chaîne tant qu'aucun nouvel ordre ne l'a atteinte. **Pas d'interception** des ordres au MVP.
-
----
-
-## 5. Combats et Logistique
-
-### Combats et Force
-
-- **Force de base :** 1 troupe = 1 force. **Les ordres s'appliquent aux armées** : toutes les troupes d'une armée partagent le même ordre courant — il n'existe jamais d'ordres mixtes au sein d'une armée.
-- **Entité Armée :** une armée est l'unique entité de force d'un territoire ; elle porte un **propriétaire** (`owner`) et une **taille** (`size`, nombre de troupes abstraites). Les ordres, le ravitaillement et les combats adressent l'armée par son territoire, jamais une troupe individuelle. Une armée est donc au plus une par case.
-- **Pas de fusion des attaques :** deux attaques sur la même case ne se combinent PAS : chaque armée attaquante est un contendant distinct (la fusion n'existe que via l'ordre de Jonction J, déplacement pacifique) — **y compris entre armées d'un même joueur** : deux de ses armées convergeant par A sur une même case se disputent la case (comparaison des contendents ; pour converger vraiment, il faut la Jonction J). Pour cumuler des forces sur une case, il faut un **soutien S** explicite.
-- **Puissance d'attaque :** taille de l'armée attaquante.
-- **Puissance de soutien :** taille de l'armée soutenante. Coupure (règle Diplomacy) : le soutien est coupé si l'armée soutenante est attaquée ce tour **depuis une case différente de celle vers laquelle elle soutient** (la cible de l'attaque soutenue en offensif, la case tenue en défensif) — une attaque venue de cette case-là ne coupe PAS le soutien.
-- **Résolution (manière Diplomacy) :** l'ensemble des intentions (attaques, soutiens, déplacements pacifiques) est calculé et itéré jusqu'à stabilité AVANT d'exécuter les mouvements. Force égale = Statu quo. Supériorité numérique = Victoire. Une armée dont la case est **prise** est délogée : son propre ordre de mouvement est annulé (elle bat en retraite) ; si la case tient, son mouvement s'exécute normalement.
-- **Multi-contendants :** quand plusieurs armées attaquent la même case, toutes les forces s'affrontent dans une comparaison unique (chaque armée attaquante + la défense). La force **strictement la plus haute** l'emporte et occupe la case ; **toute égalité au sommet = statu quo** : la défense tient et tous les attaquants échouent, même si leur force est supérieure à la défense — y compris deux attaques à égalité entre elles, fût-ce du même joueur (ex. 1 + 1 contre 1 : statu quo ; sur une case vide, deux attaquants à égalité échouent tous les deux ; pour prendre la case, faire une attaque soutenue).
-- **Déplacements pacifiques (Jonction, Dispersion) :** puissance 0 ; repoussés si leur destination est contestée par une attaque ce tour.
-
-### Ravitaillement Exponentiel
-
-Une armée de N troupes sur une même case consomme :
-
-Coût en R = 2^(N-1)
-
-*(1 troupe = 1 R | 2 troupes = 2 R | 3 troupes = 4 R | 4 troupes = 8 R)*
-
-Avant de tracer une ligne, la production de rations vivrières de la case est
-distribuée aux armées présentes, toute nationalité confondue, à raison d'une
-ration par armée au plus, en commençant par l'armée la plus grosse (départage
-par trigramme du territoire décroissant). La demande à ravitailler est le coût
-moins les rations reçues. Une armée dont la demande résiduelle est nulle est
-autonome pour le tour et ne requiert aucune ligne de ravitaillement.
-
-### Portée des Flux
-
-- Les lignes de flux sont tracées automatiquement depuis les châteaux et villages contrôlés à travers des territoires alliés ou neutres (une case contrôlée par un ennemi bloque le flux). La demande couverte est la **demande résiduelle**, après déduction des rations vivrières de la case.
-- Un château ou village neutre n'est pas une source de ligne de ravitaillement : ses rations restent territoriales et nourrissent les armées présentes sur sa case, sans alimenter les flux.
-- **Portée de base :** 3 cases. Chaque **Dépôt de Vivres sur une case contrôlée par le joueur** rencontré sur le trajet prolonge la portée de +2 cases (effets cumulables).
-
----
-
-## 6. Ordres, Chaînes de Commandement & Retraites
-
-### Types d'Ordres
-
-- **Mouvement / Attaque / Maintien** (règles type *Diplomacy*). Le mouvement et l'attaque partagent la même mécanique de déplacement (le combat n'intervient que si la case est occupée par l'ennemi).
-- **Soutien :** `XXX S YYY - ZZZ` (**offensif**) ou `XXX S YYY` (**défensif**), façon *Diplomacy* et **explicite** — on désigne l'armée soutenue, de **toute nationalité** (on peut soutenir l'attaque d'un autre joueur, y compris contre soi).
-  - *Offensif* `XXX S YYY - ZZZ` : l'armée en XXX soutient l'attaque de l'armée en YYY vers ZZZ. Requis : ZZZ adjacente à XXX (et YYY–ZZZ adjacentes). Sans effet si l'armée de YYY n'attaque pas ZZZ ce tour (gaspillé, mais l'ordre réussit).
-  - *Défensif* `XXX S YYY` : l'armée en XXX soutient l'armée en YYY qui **tient** (ordre sans déplacement : maintien, soutien ou pillage — pas A/J/D). Requis : YYY adjacente à XXX. Sans effet si l'armée de YYY se déplace (gaspillé, mais l'ordre réussit).
-  - Puissance = taille de l'armée soutenante ; **coupure** : l'armée soutenante est attaquée depuis une case **différente** de celle vers laquelle elle soutient (cf. §5). En boucle : l'offensif soutient tant que l'armée soutenue attaque ZZZ, le défensif tant que YYY est attaquée — la chaîne avance sinon.
-  - On ne peut soutenir sa propre case (YYY ≠ XXX) ni un J/D.
-- **Jonction :** déplacement **pacifique** (pas une attaque, puissance 0) vers une case adjacente, **obligatoirement en dernier ordre d'une chaîne** (la jonction achève toujours une chaîne). Destination contestée par une attaque ce tour → **repoussé** ; occupée par l'ennemi → impossible. Sinon la jonctionnante s'y rend et **fusionne** si une armée alliée s'y trouve déjà, **ou** si exactement une armée alliée y arrive au même tour **sans contestation** (aucune autre armée n'y converge — deux jonctions mutuelles J+J fusionnent aussi ; sinon, convergence multiple → repoussé). En cas de fusion, **la chaîne de l'hôte est conservée** — celle de la jonctionnante est de toute façon consommée, J étant le dernier ordre ; l'arrivant par A est l'hôte ; un rendez-vous J+J, qui fusionne deux chaînes achevées, laisse l'armée fusionnée **Sans Ordre**.
-- **Séparation / Dispersion :** Diviser une armée. Le nombre de destinations doit être égal à sa taille ; chaque destination (adjacente ou la case d'origine, autorisée) libre et non ciblée par une attaque reçoit la part de taille qui lui est assignée, avec au plus une armée par territoire. La chaîne d'ordres reste sur l'armée de la première destination listée ; la résolution P1.4 crée les autres armées.
-- **Pillage :** Détruire l'infrastructure de **la case où se trouve l'armée** ; le bonus en R (valeur d'équilibrage) est crédité au **château ou village contrôlé le plus proche** du joueur (perdu s'il n'en contrôle aucun).
-- **Otage / Cachot :** `XXX O <noble>` / `XXX K <noble>` — régit l'état d'un noble **prisonnier** détenu par l'armée de XXX : `hostage` (état par défaut — il produit des rapports pour son propriétaire et compte en T0) ou `dungeon` (il ne produit plus rien). Requis : noble prisonnier du joueur de l'armée, sur la case de l'armée.
-
-### Chaînes d'Ordres et Liaisons
-
-Un joueur peut programmer des séquences d'ordres successives (O1 → O2 → O3). **Chaque transition (chaque ordre) possède sa propre liaison** : unique ou boucle. **Il n'existe pas de modification de chaîne** : une armée qui reçoit une chaîne remplace la précédente. Une chaîne est portée par une **Army**, adressée par le territoire, et s'applique à toute sa `Size` de troupes abstraites — jamais d'ordres mixtes. La **jonction (J)** ne peut figurer qu'en **dernier ordre** d'une chaîne.
-
-- **Liaison Unique :** En cas d'échec de Ox, la chaîne brise. L'armée passe *Sans Ordre*.
-- **Liaison Boucle :** En cas d'échec de Ox, l'armée retente Ox au tour suivant jusqu'à réussite.
-- **Ordre Invalide :** Tout ordre rendu physiquement ou mécaniquement impossible **brise immédiatement** la chaîne d'ordres, quel que soit le mode de liaison.
-- **Position manquante :** chaque ordre précise explicitement la position de l'armée ; si l'armée n'y est pas quand l'ordre s'exécute → échec (single : brise ; boucle : retente).
-- **Maintien en boucle** : garde indéfinie (la chaîne reste en veille jusqu'à réception d'un nouvel ordre).
-- **Dispersion en boucle** : retente jusqu'à résolution intégrale ; en single, la chaîne avance même si la dispersion est partielle.
-- **Progression simultanée :** la progression des chaînes prend en compte toutes les chaînes du tour pour résoudre combats, retraites et jonctions.
-
-### Armées "Sans Ordre" (IA Défensive Auto-équilibrée)
-
-Une armée sans ordre apporte un **soutien défensif** (équivalent d'un `XXX S YYY`) à l'**armée alliée la plus proche** qui possède le **moins de soutien**, stabilisant automatiquement la ligne de front.
-
-- **Candidats :** armées alliées **en défense** (leur case est contestée par une attaque ennemie) ou **elles-mêmes sans chaîne**. Une armée qui attaque n'est jamais ciblée.
-- **Exclusivement défensif :** le soutien automatique renforce la **défense** de la cible, jamais sa force d'attaque.
-- **Puissance :** taille complète de l'armée soutenante (même règle que l'ordre S — les ordres s'appliquent aux armées).
-- **Sélection (déterministe) :** par trigramme du territoire croissant — (1) cible la plus proche (distance BFS, départage par trigramme croissant), (2) moins soutenue (ordres S reçus + soutiens automatiques déjà assignés ce tour, compteurs mis à jour au fil de la sélection), (3) trigramme du territoire croissant.
-- **Coupure :** le soutien automatique d'une armée est coupé si cette armée est attaquée ce tour depuis une case différente de celle qu'elle soutient (même règle que S). L'armée soutenante n'émet aucun mouvement et reste Sans Ordre.
-
-### Capacité des Nobles
-
-Un noble ne peut émettre qu'**une seule chaîne d'ordres par tour** (remplacer une chaîne compte comme une émission). Un noble `hostage` ou `dungeon` (un noble **prisonnier**) ne peut émettre aucune chaîne.
-
-### Nobles : Chevauchée, Capture et Libération
-
-- **Chevauchée :** un noble se déplace AVEC l'armée de sa case : quand une armée quitte sa case (A, J, ou retraite), le noble la suit — l'armée se déplace toujours en bloc, la dispersion D est la seule façon de la séparer. En cas de **dispersion (D)**, une **astérisque** sur une destination désigne les nobles qui s'y rendent :
-  - `XXX D YYY XXX*` — tous les nobles en XXX
-  - `XXX D YYY*JEA ZZZ*` — Jean en YYY, les autres en ZZZ
-  - `XXX D YYY*JEA*ANN ZZZ*` — Jean et Anne en YYY, les autres en ZZZ
-  le suffixe `*` seul dans `XXX*` = tous les nobles restants ; `*CODE` = le noble désigné (trigramme du prénom) ; chaque noble au plus une fois. **Si des nobles chevauchent l'armée et que l'ordre ne les mentionne pas TOUS** (aucune astérisque, ou nobles non couverts) → l'ordre est **INVALIDE** (aucune destination par défaut).
-- **Jamais seul :** un noble ne peut pas être seul : toute destination désignée porte au moins une troupe abstraite, et un noble ne peut être recruté que sur une case contenant une armée du joueur. (Cas limite toléré : armée détruite sur une case restée vide ou alliée, le noble y demeure seul ; son `LocationID` reste valide même sans armée à cette case.)
-- **Jamais une armée :** le noble ne compte pas dans les forces, ne consomme pas de ravitaillement et n'est jamais détruit dans un combat.
-- **Capture :** un noble n'est capturé que si l'armée qu'il chevauche est **détruite au combat** (pas de retraite possible, ou collision) ET qu'une armée **ennemie** occupe sa case : il est alors **récupéré par l'armée gagnante** — il devient `hostage` (donc **prisonnier**), chevauche cette armée (il se déplace selon les ordres du joueur qui la possède) et ne peut plus émettre de chaîne. Armée détruite sur une case restée vide ou alliée : le noble reste sur place ; cette exception ne rend pas son `LocationID` invalide et n'exige pas de pointeur d'armée.
-- **Libération :** le **propriétaire** peut libérer un noble prisonnier par un ordre d'Hiver `L N <code noble>` ; le noble réapparaît libre à la **capitale de son propriétaire** (requis : une capitale désignée, sinon rejet ; coût : `assets/balance.json`, défaut 0).
-
-### Phase de Retraite
-
-Une armée défaite doit battre en retraite **en bloc** sur une case adjacente valide (non occupée, sans combat ce tour-ci, et différente de la case d'origine de l'attaquant). Les retraites sont traitées par trigramme du territoire croissant : une armée évite une case déjà choisie par une retraite précédente si une autre case est valide.
-
-- Si deux armées se replient sur la même case **sans autre option** : **les deux sont détruites**.
-- Si aucune case n'est valide : **l'armée est détruite**.
-
----
-
-## 7. Infrastructures et Maillage Productif
-
-Les infrastructures **appartiennent à leur case** : elles n'ont pas de propriétaire — celui qui contrôle la case en bénéficie.
-
-| Infrastructure | Nécessite un château/village ? | Effet principal | Coût (R) |
-| --- | --- | --- | --- |
-| **Moulin / Domaine** | **Oui** (sur le château/village ou directement adjacent) | Augmente la production de R **stockable** du château/village (+1 R / niveau, sur le château/village ou directement adjacent). | 3 |
-| **Relais de Poste** | Non | Doubler la vitesse des messagers sur la case (tout messager, même ennemi, au MVP). | 2 |
-| **Tour de Guet** | Non | Donne la vision T0 permanente sur la case et adjacentes. | 4 |
-| **Dépôt de Vivres** | Non | Prolonge de +2 cases la portée des lignes de ravitaillement **sur une case contrôlée par le joueur** passant par sa case (cumulable). | 3 |
-| **Château** | Non (Rend la case productive) | Apporte **+1 de force défensive** fixe (sans coût de R), **même sans garnison** : une case-château n'est jamais « vide » pour un attaquant ; +2 rations vivrières ; rend la case productive (**1 R stockable/tour si elle est contrôlée**). Construit sur un village, il le remplace. | 10 |
-| **Village** | — | Non constructible au MVP (réservé) : **+2 rations vivrières par tour (non stockables)** ; produit **1 R stockable/tour**, qu'il soit neutre ou contrôlé ; à la capture, son stock devient disponible et le village devient une ancre de ravitaillement ; un château construit sur un village le remplace. | — |
-
-### Dépendance et Moulins Orphelins
-
-Un Moulin doit se trouver **sur un château/village ou directement adjacent à un château/village** : un moulin hors de ces cases est **orphelin** et ne produit rien (règle MVP ; le maillage de moulins en chaîne — infrastructures intermédiaires et dépendances de proche en proche — est post-MVP).
-
----
-
-## 8. Contrôle Territorial et Carence Alimentaire
-
-### Contrôle des Territoires
-
-- Tout territoire bascule sous le contrôle d'un joueur dès qu'une de ses armées s'y arrête (l'occupe en fin de résolution). Seuls les châteaux et villages produisent et stockent du R, mais le contrôle gouverne aussi la construction et le passage des flux.
-- **Rémanence :** Le contrôle est conservé même après le départ de l'armée, jusqu'à l'arrêt d'une armée ennemie.
-
-### Algorithme de Carence Alimentaire (Famine)
-
-Si la production instantanée de R stockable ne suffit pas à couvrir toutes les
-demandes **résiduelles**, après déduction des rations vivrières produites sur
-les cases :
-
-```
-[Déficit de Ravitaillement]
-       │
-       ▼
-[1. Épuisement des Stocks (châteaux et villages contrôlés du joueur)]
-   ► Ordre : Du plus PETIT stock au plus GRAND.
-   ► Départage : Ordre alphabétique du trigramme du territoire.
-       │
-       ▼ (Si stocks totalement épuisés)
-[2. Armées en Famine (Force = 0)]
-   ► Ordre : Armées les PLUS ÉLOIGNÉES de leur source.
-   ► Départage : Les armées les PLUS GROSSES d'abord
-     (les plus coûteuses en nourriture).
-   ► Départage final : trigramme du territoire DÉCROISSANT.
+Une case ne porte qu'une seule infrastructure.
+
+Un village est une infrastructure rare et neutre à la génération. Il produit 1
+R stockable par tour et conserve son stock, qu'il soit neutre ou contrôlé. Un
+joueur ne peut utiliser le stock d'un village neutre qu'après sa capture. Un
+château construit sur un village le remplace et conserve le stock de la case.
+
+## 4. Information et divulgation par joueur
+
+La géographie de `map.json` est commune. Dans la v1, les éléments de la couche
+dynamique restent également visibles : contrôle, ressources, taille des
+armées, infrastructures et localisation des nobles. Le brouillard de guerre
+qui pourrait réduire ces informations est une extension séparée.
+
+La divulgation des ordres et des combats suit cependant une règle distincte.
+Elle limite les chiffres qui décrivent les intentions et les affrontements :
+
+- **Chaînes connues :** un joueur connaît les chaînes qu'il a lancées. Il
+  connaît aussi les chaînes lancées par un noble qui lui appartient alors que
+  ce noble est détenu en otage. Cette connaissance reste valable tant que la
+  chaîne reste compatible avec la progression de l'armée. Si une chaîne
+  différente, lancée par un noble adverse, remplace celle-ci, l'ancienne
+  connaissance ne décrit plus la chaîne courante et la nouvelle chaîne n'est
+  pas révélée par ce simple remplacement.
+- **Combats impliqués :** un joueur reçoit le résultat exact d'une attaque dans
+  laquelle il intervient comme attaquant, défenseur ou soutien. Cela comprend
+  les forces pertinentes et le résultat du combat.
+- **Combats non impliqués :** le joueur voit que les ordres ont été traités et
+  leur résultat général, mais pas le détail des puissances engagées.
+
+Cette règle concerne les chaînes et les combats. Elle ne constitue pas encore
+un brouillard de guerre général sur les tailles d'armées ou les ressources.
+La projection serveur filtrée par joueur est une fonctionnalité online à
+réaliser ; le serveur v1 actuel renvoie encore la projection globale.
+
+## 5. Armées, combats et logistique
+
+### Armées et force
+
+Une armée est l'unique entité de force d'un territoire. Elle porte un
+propriétaire et une taille abstraite en troupes. Toutes les troupes d'une armée
+partagent la même chaîne ; il n'existe pas d'ordres mixtes au sein d'une armée.
+
+Une attaque est un déplacement vers une case adjacente. Deux attaques qui
+convergent vers une même case restent des contendantes distinctes, même si
+elles appartiennent au même joueur. Pour cumuler des forces, il faut un soutien
+explicite.
+
+Les règles de combat sont les suivantes :
+
+- la force d'attaque est la taille de l'armée attaquante ;
+- la force d'un soutien est la taille de l'armée soutenante ;
+- une attaque peut couper un soutien si elle vient d'une case différente de la
+  cible soutenue ;
+- toutes les intentions sont calculées ensemble avant les déplacements ;
+- la plus haute force strictement unique gagne ;
+- une égalité au sommet produit un statu quo, y compris sur une case vide ;
+- une armée délogée perd son déplacement et doit battre en retraite ;
+- une jonction et une dispersion ont une puissance de déplacement pacifique,
+  n'attaquent pas et sont repoussées par une destination contestée ;
+- un château apporte son bonus défensif fixe, même sans armée.
+
+### Ravitaillement exponentiel
+
+Une armée de `N` troupes sur une case demande :
+
+`coût = 2^(N - 1)`
+
+La production vivrière de la case est distribuée aux armées présentes, toutes
+nationalités confondues, au plus une ration par armée et en commençant par la
+plus grosse. Le reste constitue la demande à ravitailler.
+
+Les châteaux et les villages contrôlés sont les sources de ravitaillement. Le
+flux traverse les cases alliées ou neutres et s'arrête devant une case ennemie.
+La portée de base est de 3 cases ; chaque dépôt de vivres contrôlé rencontré
+sur le trajet ajoute 2 cases.
+
+En cas de déficit :
+
+1. les stocks des châteaux et villages contrôlés sont épuisés du plus petit au
+   plus grand, avec le trigramme territorial comme départage ;
+2. les armées restantes passent en famine, en commençant par les plus éloignées
+   de leur source, puis les plus grosses, puis le trigramme décroissant.
+
+Une armée en famine combat à force 0 pour le tour et ne peut que se déplacer à
+force 0. Si elle se trouve sur une infrastructure, elle la pille
+automatiquement. Le bonus de pillage, diminué de sa demande résiduelle, peut la
+sortir de famine.
+
+## 6. Ordres et chaînes de commandement
+
+### Syntaxe
+
+Une chaîne commence par le trigramme du noble émetteur, suivi d'une ligne par
+ordre. Les commentaires commençant par `#`, les lignes vides et la casse sont
+normalisés par le parser.
+
+```text
+JEA # noble émetteur
+BRI A ATL
+BRI S ATL - NOR
+(BRI S ATL)
+(ATL A NOR)
+H BRI
+BRI J ROS
+P BRI
+BRI O HUG
+BRI K HUG
+BRI D BRI ATL NOR
 ```
 
-**Effets de la famine :** une armée famélique ne peut que se déplacer à force 0 (elle ne se bat ni en attaque, ni en défense, ni en soutien ; si elle est battue, elle bat en retraite normalement) ; si elle se trouve sur une case avec une infrastructure, elle la **pille automatiquement** (détruit l'infrastructure de la case — celle-ci ne peut être repillée ensuite). Le pillage lui rapporte le bonus R du pillage **moins la demande résiduelle de l'armée** : si le gain est positif ou nul, l'armée se nourrit et n'est plus famélique (l'excédent est crédité au château ou village contrôlé le plus proche du joueur, perdu s'il n'en contrôle aucun) ; sinon elle reste famélique sans rien gagner (l'infrastructure est détruite quand même).
+Une ligne entre parenthèses est une transition `loop`. Une ligne sans
+parenthèses est `single`.
+
+Les ordres sont :
+
+| Symbole | Syntaxe | Effet |
+|---|---|---|
+| `A` | `XXX A YYY` | Déplacement ou attaque vers `YYY` adjacente. |
+| `S` | `XXX S YYY` ou `XXX S YYY - ZZZ` | Soutien défensif de `YYY`, ou soutien offensif de l'attaque `YYY` vers `ZZZ`. |
+| `H` | `H XXX` | Maintien sur `XXX`. |
+| `J` | `XXX J YYY` | Déplacement pacifique et jonction ; doit être le dernier ordre de la chaîne. |
+| `P` | `P XXX` | Détruit l'infrastructure de la case occupée et crédite le bonus de pillage à la source alliée la plus proche. |
+| `O` | `XXX O NNN` | Place le noble prisonnier `NNN` en statut `hostage`. |
+| `K` | `XXX K NNN` | Place le noble prisonnier `NNN` en statut `dungeon`. |
+| `D` | `XXX D XXX YYY ...` | Dispersion avec une destination par unité et une affectation explicite des nobles. |
+
+Un soutien défensif renforce une armée qui tient sa case. Un soutien offensif
+renforce une attaque précise. Un soutien peut viser toute nationalité et ne
+produit aucun effet si l'armée soutenue n'accomplit pas l'action annoncée.
+
+Une chaîne `single` se casse au premier échec. Une chaîne `loop` retente l'ordre
+jusqu'à sa réussite. Un maintien en boucle met l'armée en veille jusqu'à la
+réception d'une nouvelle chaîne. Une dispersion en boucle retente jusqu'à une
+résolution intégrale ; en mode `single`, une dispersion partielle peut faire
+progresser la chaîne.
+
+Une armée sans chaîne est Sans Ordre et ne reçoit aucun soutien automatique.
+Une erreur mécaniquement impossible casse immédiatement la chaîne, quel que
+soit son mode de liaison. La non-adjacence d'un ordre est contrôlée lors de son
+exécution : les ordres antérieurs restent valides et le suffixe est abandonné.
+
+### Réception et capacité des nobles
+
+Une chaîne est une émission complète. Un noble libre ne peut en émettre qu'une
+par tour ; une nouvelle chaîne remplace celle portée par l'armée ciblée. La
+chaîne s'applique à l'armée entière et son premier ordre indique explicitement
+la position de réception.
+
+Un noble `hostage` ou `dungeon` est prisonnier et ne peut pas émettre une
+nouvelle chaîne. Les ordres `O` et `K` ne ciblent qu'un noble prisonnier détenu
+sur la case de l'armée qui les exécute. `hostage` est l'état de prison par
+défaut ; `dungeon` retire en plus le noble de toute émission.
+
+Les nobles chevauchent les armées : ils suivent les déplacements et les
+retraites. Une dispersion doit affecter explicitement tous les nobles présents,
+avec `*` pour tous les nobles ou `*NNN` pour un noble précis. Un noble ne compte
+ni dans la force, ni dans le ravitaillement, ni dans les pertes d'un combat.
+
+Lorsqu'une armée est détruite sur une case occupée par une armée ennemie, les
+nobles qu'elle portait sont capturés et deviennent `hostage`. Le propriétaire
+peut les libérer en hiver avec `L N NNN` ; ils réapparaissent libres dans sa
+capitale.
+
+### Retraites
+
+Une armée défaite bat en retraite en bloc vers une case adjacente libre, non
+combattue pendant le tour et différente de la case d'origine de l'attaquant.
+Les retraites sont départagées par trigramme croissant. Deux armées qui doivent
+reculer sur la même case sont détruites si aucune alternative ne subsiste.
+
+## 7. Infrastructures et contrôle
+
+Les infrastructures appartiennent à leur case. Le joueur qui contrôle la case
+en bénéficie ; il n'y a pas de propriétaire stocké sur l'infrastructure.
+
+| Infrastructure | Condition | Effet v1 | Coût |
+|---|---|---|---:|
+| Moulin | Sur ou adjacent à un château ou un village | +1 R stockable par niveau au point de production associé | 3 |
+| Dépôt de vivres | Aucune condition structurelle | +2 cases de portée de ravitaillement lorsqu'il est contrôlé | 3 |
+| Château | Aucune | +1 défense, +2 rations, production de 1 R stockable par tour, ancre de ravitaillement | 10 |
+| Village | Généré neutre, non constructible | +2 rations, production de 1 R stockable par tour, ancre après capture | — |
+
+Un moulin isolé est orphelin et ne produit rien. Une construction remplace la
+structure existante uniquement lorsque la règle de l'ordre le prévoit : un
+château construit sur un village remplace le village et conserve le stock de
+la case. Le contrôle reste acquis après le départ d'une armée jusqu'à l'arrêt
+d'une armée ennemie.
+
+## 8. Évolution du document
+
+Le cœur décrit dans les sections 1 à 7 constitue la base v1. Les ajouts futurs
+doivent être introduits sous forme de règles complémentaires : politiques,
+ordres spéciaux, diplomatie enrichie ou brouillard de guerre. Ils seront
+proposés et suivis dans GitHub avant d'être intégrés au document.

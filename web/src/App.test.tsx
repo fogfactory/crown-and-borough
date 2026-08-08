@@ -42,7 +42,6 @@ const map: MapData = {
 const state: StateData = {
   turn: 1,
   season: 'spring',
-  asOf: { T1: 1, T2: 1 },
   players: [
     { id: 'P1', name: 'One', color: '#a84632' },
     { id: 'P2', name: 'Two', color: '#2d5f9e' },
@@ -327,7 +326,6 @@ describe('App command/report tabs', () => {
     const newState: StateData = {
       turn: 1,
       season: 'spring',
-      asOf: { T1: 1, T2: 1, T3: 1 },
       players: newPlayers,
       territories: [
         {

@@ -97,23 +97,19 @@ func TestParseWinterOrders(t *testing.T) {
             R T BBB # troop
             c m ccc
             C C DDD
-            c r eee
-            C T FFF
-            c d ggg
+			c d ggg
             e c hhh
             l n nob
         `, state)
 		if len(parseErrors) != 0 {
 			t.Fatalf("ParseWinterOrders errors = %#v", parseErrors)
 		}
-		if len(parsed) != 9 {
-			t.Fatalf("len(parsed) = %d, want 9", len(parsed))
+		if len(parsed) != 7 {
+			t.Fatalf("len(parsed) = %d, want 7", len(parsed))
 		}
 		wantTypes := []models.WinterOrderType{
 			models.WinterOrderTypeRecruitNoble,
 			models.WinterOrderTypeRecruitTroop,
-			models.WinterOrderTypeBuild,
-			models.WinterOrderTypeBuild,
 			models.WinterOrderTypeBuild,
 			models.WinterOrderTypeBuild,
 			models.WinterOrderTypeBuild,
@@ -128,11 +124,11 @@ func TestParseWinterOrders(t *testing.T) {
 				t.Errorf("parsed[%d].ID = %q, want %q", index, parsed[index].ID, wantID)
 			}
 		}
-		if parsed[2].InfraType != models.InfraTypeMill || parsed[6].InfraType != models.InfraTypeSupplyDepot {
+		if parsed[2].InfraType != models.InfraTypeMill || parsed[4].InfraType != models.InfraTypeSupplyDepot {
 			t.Errorf("build infrastructure types = %#v", parsed)
 		}
-		if parsed[8].NobleCode != "NOB" {
-			t.Errorf("liberation code = %q, want NOB", parsed[8].NobleCode)
+		if parsed[6].NobleCode != "NOB" {
+			t.Errorf("liberation code = %q, want NOB", parsed[6].NobleCode)
 		}
 	})
 
@@ -568,10 +564,8 @@ func TestResolveWinterRecruitTroop(t *testing.T) {
 }
 
 func TestResolveWinterConstruction(t *testing.T) {
-	t.Run("builds relay tower and depot on controlled empty tiles", func(t *testing.T) {
+	t.Run("builds depot on controlled empty tiles", func(t *testing.T) {
 		for _, infrastructureType := range []models.InfraType{
-			models.InfraTypePostRelay,
-			models.InfraTypeWatchtower,
 			models.InfraTypeSupplyDepot,
 		} {
 			t.Run(string(infrastructureType), func(t *testing.T) {
@@ -770,8 +764,8 @@ func TestResolveWinterConstruction(t *testing.T) {
 		validateTestState(t, state)
 		resolution, err := ResolveWinter(state, testBalance(), map[models.PlayerID][]models.WinterOrder{
 			"P1": {
-				{ID: "O1", Type: models.WinterOrderTypeBuild, TerritoryID: "T01", InfraType: models.InfraTypeWatchtower},
-				{ID: "O2", Type: models.WinterOrderTypeBuild, TerritoryID: "T02", InfraType: models.InfraTypeWatchtower},
+				{ID: "O1", Type: models.WinterOrderTypeBuild, TerritoryID: "T01", InfraType: models.InfraTypeSupplyDepot},
+				{ID: "O2", Type: models.WinterOrderTypeBuild, TerritoryID: "T02", InfraType: models.InfraTypeSupplyDepot},
 			},
 		})
 		if err != nil {

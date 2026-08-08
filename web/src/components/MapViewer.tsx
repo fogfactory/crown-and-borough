@@ -55,8 +55,6 @@ const PLAYER_PALETTE = ['#a84632', '#2d5f9e', '#7052a1', '#34775c', '#ad7a25']
 
 const INFRASTRUCTURE_LABELS: Record<Infrastructure['type'], string> = {
   mill: 'Moulin',
-  post_relay: 'Relais de poste',
-  watchtower: 'Tour de guet',
   supply_depot: 'Dépôt de vivres',
   castle: 'Château',
   village: 'Village',
@@ -207,18 +205,6 @@ function InfrastructureMarker({ infrastructure, x, y }: InfrastructureMarkerProp
           <line x1="0" y1="0" x2="-9" y2="7" stroke="#efe6d0" strokeWidth="3" />
           <line x1="0" y1="0" x2="9" y2="7" stroke="#efe6d0" strokeWidth="3" />
           <circle cx="0" cy="0" r="3" fill="#8b5e3c" stroke="#4e3828" />
-        </>
-      )}
-      {infrastructure.type === 'post_relay' && (
-        <>
-          <path d="M-9 8V-1L0-9L9-1V8Z" fill="#efe6d0" stroke="#5f4936" />
-          <path d="M-3 8V1H3V8" fill="#9d7048" stroke="#5f4936" />
-        </>
-      )}
-      {infrastructure.type === 'watchtower' && (
-        <>
-          <path d="M-7 9L-4-7H4L7 9Z" fill="#d9e0e3" stroke="#53606a" />
-          <path d="M-7-7H7M-5-11H5" stroke="#53606a" strokeWidth="2" />
         </>
       )}
       {infrastructure.type === 'supply_depot' && (
@@ -633,9 +619,6 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
                     <div className="space-y-0.5">
                       <p className="font-semibold">{territory.name}</p>
                       <p>{TERRAIN_LABELS[territory.terrain]}</p>
-                      {(state.asOf[territory.id] ?? state.turn) < state.turn && (
-                        <p>Données du tour {state.asOf[territory.id]}</p>
-                      )}
                     </div>
                   </TooltipContent>
                 </Tooltip>
@@ -647,24 +630,6 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
                 <rect width={mapWidth} height={mapHeight} fill="#eaf3ff" opacity="0.14" />
               </g>
             )}
-
-            <g aria-label="Données anciennes" pointerEvents="none">
-              {map.territories.map((territory) => {
-                const observedTurn = state.asOf[territory.id] ?? state.turn
-                if (observedTurn >= state.turn) {
-                  return null
-                }
-
-                return (
-                  <path
-                    key={territory.id}
-                    d={pointsToPath(territory.points)}
-                    fill="black"
-                    opacity="0.3"
-                  />
-                )
-              })}
-            </g>
 
             <g aria-label="Contrôle territorial" pointerEvents="none">
               {map.territories.map((territory) => {
@@ -1031,7 +996,6 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
               Trait continu épais = frontière infranchissable · Trait pointillé =
               frontière franchissable
             </p>
-            <p className="leading-relaxed">Territoire assombri = données anciennes</p>
           </CardContent>
         </Card>
       </div>

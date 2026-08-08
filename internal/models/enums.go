@@ -5,9 +5,8 @@
 // serialization against the map.json and state.json contracts.
 package models
 
-// Terrain describes the dominant relief of a territory. It gates messenger
-// speed: plains 2 cases/turn, forest and hill 1 case/turn, mountain and swamp
-// 0.5 case/turn (GDD §3). Values align with the terrain column in communes.csv.
+// Terrain describes the dominant relief of a territory. Values align with the
+// terrain column in communes.csv.
 type Terrain string
 
 const (
@@ -64,19 +63,16 @@ func SeasonForTurn(turn int) Season {
 	}
 }
 
-// InfraType identifies an infrastructure. Each type has a distinct effect on
-// the economy or information layer (GDD §7): the mill yields +1 R per level,
-// the post relay doubles messenger speed, the watchtower grants permanent T0
-// vision, the supply depot extends supply-line reach, the castle makes its
-// tile productive and anchors supply (a castle built on a village replaces
-// it) and the village yields rations and anchors supply: it is a rare neutral
-// seed on the initial map, not buildable at MVP.
+// InfraType identifies an infrastructure. Each type has a distinct economic
+// or logistical effect (GDD §7): the mill yields +1 R per level, the supply
+// depot extends supply-line reach, the castle makes its tile productive and
+// anchors supply (a castle built on a village replaces it) and the village
+// yields rations and anchors supply: it is a rare neutral seed on the initial
+// map, not buildable at MVP.
 type InfraType string
 
 const (
 	InfraTypeMill        InfraType = "mill"
-	InfraTypePostRelay   InfraType = "post_relay"
-	InfraTypeWatchtower  InfraType = "watchtower"
 	InfraTypeSupplyDepot InfraType = "supply_depot"
 	InfraTypeCastle      InfraType = "castle"
 	InfraTypeVillage     InfraType = "village"
@@ -85,15 +81,15 @@ const (
 // IsValid reports whether the infra type is a known value.
 func (i InfraType) IsValid() bool {
 	switch i {
-	case InfraTypeMill, InfraTypePostRelay, InfraTypeWatchtower, InfraTypeSupplyDepot, InfraTypeCastle, InfraTypeVillage:
+	case InfraTypeMill, InfraTypeSupplyDepot, InfraTypeCastle, InfraTypeVillage:
 		return true
 	}
 	return false
 }
 
 // NobleStatus describes whether a noble is free or held by another army.
-// Hostage and dungeon are both prisoner states; dungeon additionally disables
-// the information effects documented in the GDD.
+// Hostage and dungeon are both prisoner states; only a free noble can emit a
+// new order chain.
 type NobleStatus string
 
 const (

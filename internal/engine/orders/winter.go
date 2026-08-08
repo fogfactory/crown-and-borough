@@ -72,8 +72,6 @@ func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (mod
 		infrastructureType, exists := map[string]models.InfraType{
 			"M": models.InfraTypeMill,
 			"C": models.InfraTypeCastle,
-			"R": models.InfraTypePostRelay,
-			"T": models.InfraTypeWatchtower,
 			"D": models.InfraTypeSupplyDepot,
 		}[fields[1]]
 		if !exists {

@@ -162,7 +162,6 @@ func DemoState(seed string, assets assetgen.Assets, mapData mapgen.MapData, play
 	}
 	for index, infrastructureType := range []models.InfraType{
 		models.InfraTypeMill,
-		models.InfraTypeWatchtower,
 		models.InfraTypeSupplyDepot,
 	} {
 		if err := addInfrastructure(state, &nextInfrastructureID, infrastructureType, extraLocations[index]); err != nil {
@@ -210,36 +209,6 @@ func DemoState(seed string, assets assetgen.Assets, mapData mapgen.MapData, play
 		return nil, fmt.Errorf("demo: invalid generated state: %w", err)
 	}
 	return state, nil
-}
-
-// DemoFreshness returns a complete, deterministic freshness map. One or two
-// witness territories deliberately lag two turns so the frontend can render
-// stale intelligence before reports become dynamic in P1.7/P2.
-func DemoFreshness(state *models.GameState) map[models.TerritoryID]int {
-	freshness := make(map[models.TerritoryID]int)
-	if state == nil {
-		return freshness
-	}
-
-	territoryIDs := make([]models.TerritoryID, 0, len(state.Territories))
-	for _, territory := range state.Territories {
-		freshness[territory.ID] = state.Turn
-		territoryIDs = append(territoryIDs, territory.ID)
-	}
-	if len(territoryIDs) == 0 {
-		return freshness
-	}
-
-	rng := newRNG(state.Seed, "freshness")
-	shuffle(rng, territoryIDs)
-	witnesses := 1 + rng.IntN(2)
-	if witnesses > len(territoryIDs) {
-		witnesses = len(territoryIDs)
-	}
-	for _, territoryID := range territoryIDs[:witnesses] {
-		freshness[territoryID] = state.Turn - 2
-	}
-	return freshness
 }
 
 func selectStarts(allTerritoryIDs, villageIDs []models.TerritoryID, players int, rng *rand.Rand) ([]models.TerritoryID, error) {

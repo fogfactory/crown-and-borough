@@ -127,35 +127,6 @@ func TestDemoStateJSONRoundTrip(t *testing.T) {
 	}
 }
 
-func TestDemoFreshnessDeterministicAndBounded(t *testing.T) {
-	assets := loadTestAssets(t)
-	state, err := DemoState("demo-freshness", assets, generateTestMap(t, assets), 4)
-	if err != nil {
-		t.Fatalf("DemoState: %v", err)
-	}
-	first := DemoFreshness(state)
-	second := DemoFreshness(state)
-	if !reflect.DeepEqual(first, second) {
-		t.Fatal("DemoFreshness changed for the same state")
-	}
-	if len(first) != len(state.Territories) {
-		t.Errorf("freshness coverage = %d, want %d", len(first), len(state.Territories))
-	}
-	stale := 0
-	for _, territory := range state.Territories {
-		value := first[territory.ID]
-		if value != state.Turn && value != state.Turn-2 {
-			t.Errorf("freshness[%s] = %d, want %d or %d", territory.ID, value, state.Turn, state.Turn-2)
-		}
-		if value == state.Turn-2 {
-			stale++
-		}
-	}
-	if stale < 1 || stale > 2 {
-		t.Errorf("stale territories = %d, want 1 or 2", stale)
-	}
-}
-
 func TestDemoStateFallsBackWhenVillagesAreScarce(t *testing.T) {
 	assets := loadTestAssets(t)
 	mapData := fallbackMapData()
@@ -405,7 +376,7 @@ func assertPlayerStaging(t *testing.T, state *models.GameState) {
 	if mills != 1 {
 		t.Errorf("mills = %d, want 1", mills)
 	}
-	for _, infrastructureType := range []models.InfraType{models.InfraTypeWatchtower, models.InfraTypeSupplyDepot} {
+	for _, infrastructureType := range []models.InfraType{models.InfraTypeSupplyDepot} {
 		if extras[infrastructureType] != 1 {
 			t.Errorf("%s infrastructures = %d, want 1", infrastructureType, extras[infrastructureType])
 		}

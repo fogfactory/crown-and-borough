@@ -49,8 +49,6 @@ const SEASON_LABELS: Record<Season, string> = {
 
 const INFRASTRUCTURE_LABELS: Record<InfraType, string> = {
   mill: 'Moulin',
-  post_relay: 'Relais de poste',
-  watchtower: 'Tour de guet',
   supply_depot: 'Dépôt de vivres',
   castle: 'Château',
   village: 'Village',
@@ -177,9 +175,6 @@ function App() {
   const selectedState = state?.territories.find(
     (territory) => territory.id === selectedId,
   )
-  const observedTurn =
-    state && selectedState ? (state.asOf[selectedState.id] ?? state.turn) : null
-  const isStale = state !== null && observedTurn !== null && observedTurn < state.turn
   const selectedChain = selectedState?.army?.chain ?? null
   const presentNobles =
     state?.nobles.filter((noble) => noble.location === selectedId) ?? []
@@ -827,19 +822,6 @@ function App() {
                             </p>
                           )}
                         </div>
-
-                        {state && observedTurn !== null && (
-                          <div
-                            className={`rounded-lg border px-3 py-3 text-sm ${isStale ? 'border-[#c98d45]/50 bg-[#fbefd9] text-[#805521]' : 'border-[#6d9b73]/50 bg-[#e8f1e3] text-[#376341]'}`}
-                          >
-                            <p className="font-semibold">Fraîcheur</p>
-                            <p className="mt-1 text-xs leading-relaxed">
-                              {isStale
-                                ? `Observé au tour ${observedTurn} — il y a ${state.turn - observedTurn} tours`
-                                : 'À jour'}
-                            </p>
-                          </div>
-                        )}
                       </>
                     )}
                   </div>

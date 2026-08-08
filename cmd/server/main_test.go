@@ -103,7 +103,7 @@ func TestServerMapPlayerValidation(t *testing.T) {
 }
 
 func TestState(t *testing.T) {
-	stateJSON := []byte(`{"turn":5,"season":"spring","asOf":{},"territories":[],"nobles":[]}`)
+	stateJSON := []byte(`{"turn":5,"season":"spring","territories":[],"nobles":[]}`)
 	resolvedPlayers := 0
 	resolve := func(players int) ([]byte, error) {
 		resolvedPlayers = players

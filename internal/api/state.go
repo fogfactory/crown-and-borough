@@ -15,16 +15,15 @@ import (
 // dynamic entities nested under their territory instead of serializing the
 // storage-oriented GameState directly.
 type StateView struct {
-	Turn        int                        `json:"turn"`
-	Season      models.Season              `json:"season"`
-	AsOf        map[models.TerritoryID]int `json:"asOf"`
-	Players     []PlayerView               `json:"players"`
-	Territories []TerritoryView            `json:"territories"`
-	Nobles      []NobleView                `json:"nobles"`
+	Turn        int             `json:"turn"`
+	Season      models.Season   `json:"season"`
+	Players     []PlayerView    `json:"players"`
+	Territories []TerritoryView `json:"territories"`
+	Nobles      []NobleView     `json:"nobles"`
 }
 
 // PlayerView contains the public player metadata needed by the hotseat
-// selector. Player-specific visibility is deferred to the information layer.
+// selector. Player-specific filtering is a future server concern.
 type PlayerView struct {
 	ID    models.PlayerID `json:"id"`
 	Name  string          `json:"name"`
@@ -42,8 +41,8 @@ type TerritoryView struct {
 
 // ArmyView contains the visible owner, size, and current chain of an army. Its
 // ID is an internal storage detail: the frontend addresses an army by territory.
-// The development endpoint deliberately exposes every chain until a player
-// identity and private projection arrive in P2.2/P3.2.
+// The current v1 endpoint exposes every chain; server-side player filtering is
+// tracked as a later online feature.
 type ArmyView struct {
 	Owner models.PlayerID `json:"owner"`
 	Size  int             `json:"size"`
@@ -86,9 +85,8 @@ type NobleView struct {
 	Status   models.NobleStatus `json:"status"`
 }
 
-func projectState(state *models.GameState, freshness map[models.TerritoryID]int) StateView {
+func projectState(state *models.GameState) StateView {
 	view := StateView{
-		AsOf:        make(map[models.TerritoryID]int),
 		Players:     []PlayerView{},
 		Territories: []TerritoryView{},
 		Nobles:      []NobleView{},
@@ -103,7 +101,6 @@ func projectState(state *models.GameState, freshness map[models.TerritoryID]int)
 	for _, player := range state.Players {
 		view.Players = append(view.Players, PlayerView{ID: player.ID, Name: player.Name, Color: player.Color})
 	}
-	view.AsOf = make(map[models.TerritoryID]int, len(state.Territories))
 	view.Territories = make([]TerritoryView, 0, len(state.Territories))
 	view.Nobles = make([]NobleView, 0, len(state.Nobles))
 
@@ -130,12 +127,6 @@ func projectState(state *models.GameState, freshness map[models.TerritoryID]int)
 
 	for _, territory := range state.Territories {
 		territoryState := state.TerritoryStates[territory.ID]
-		observedTurn, ok := freshness[territory.ID]
-		if !ok {
-			observedTurn = state.Turn
-		}
-		view.AsOf[territory.ID] = observedTurn
-
 		territoryView := TerritoryView{
 			ID:              territory.ID,
 			Owner:           territoryState.OwnerID,
@@ -264,7 +255,7 @@ func StateResolver(
 		if err != nil {
 			return nil, err
 		}
-		stateJSON, err := json.Marshal(projectState(state, demo.DemoFreshness(state)))
+		stateJSON, err := json.Marshal(projectState(state))
 		if err != nil {
 			return nil, err
 		}

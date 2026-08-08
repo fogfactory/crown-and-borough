@@ -26,7 +26,6 @@ type Balance struct {
 	VillageStockCap    int                    `json:"village_stock_cap"`
 	CastleStockCap     int                    `json:"castle_stock_cap"`
 	Costs              Costs                  `json:"costs"`
-	Travel             Travel                 `json:"travel"`
 	StartingNobles     int                    `json:"starting_nobles"`
 	StartingTroops     int                    `json:"starting_troops"`
 	StartingResources  int                    `json:"starting_resources"`
@@ -39,17 +38,8 @@ type Costs struct {
 	Mill        int `json:"mill"`
 	Troop       int `json:"troop"`
 	Noble       int `json:"noble"`
-	PostRelay   int `json:"post_relay"`
-	Watchtower  int `json:"watchtower"`
 	SupplyDepot int `json:"supply_depot"`
 	Liberation  int `json:"liberation"`
-}
-
-// Travel contains P2 messenger values that must remain editable from the
-// shared balance asset even before the travel resolver exists.
-type Travel struct {
-	TerrainCosts map[models.Terrain]float64 `json:"terrain_costs"`
-	RelayDivisor float64                    `json:"relay_divisor"`
 }
 
 type rawBalance struct {
@@ -65,7 +55,6 @@ type rawBalance struct {
 	VillageStockCap    *int            `json:"village_stock_cap"`
 	CastleStockCap     *int            `json:"castle_stock_cap"`
 	Costs              *rawCosts       `json:"costs"`
-	Travel             *rawTravel      `json:"travel"`
 	StartingNobles     *int            `json:"starting_nobles"`
 	StartingTroops     *int            `json:"starting_troops"`
 	StartingResources  *int            `json:"starting_resources"`
@@ -76,15 +65,8 @@ type rawCosts struct {
 	Mill        *int `json:"mill"`
 	Troop       *int `json:"troop"`
 	Noble       *int `json:"noble"`
-	PostRelay   *int `json:"post_relay"`
-	Watchtower  *int `json:"watchtower"`
 	SupplyDepot *int `json:"supply_depot"`
 	Liberation  *int `json:"liberation"`
-}
-
-type rawTravel struct {
-	TerrainCosts map[string]*float64 `json:"terrain_costs"`
-	RelayDivisor *float64            `json:"relay_divisor"`
 }
 
 var balanceTerrains = [...]models.Terrain{
@@ -191,10 +173,6 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 	if err != nil {
 		return Balance{}, err
 	}
-	travel, err := raw.travel(path)
-	if err != nil {
-		return Balance{}, err
-	}
 	return Balance{
 		BaseProduction:     baseProduction,
 		SupplyRange:        supplyRange,
@@ -208,7 +186,6 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 		VillageStockCap:    villageStockCap,
 		CastleStockCap:     castleStockCap,
 		Costs:              costs,
-		Travel:             travel,
 		StartingNobles:     startingNobles,
 		StartingTroops:     startingTroops,
 		StartingResources:  startingResources,
@@ -235,14 +212,6 @@ func (raw rawBalance) costs(path string) (Costs, error) {
 	if err != nil {
 		return Costs{}, err
 	}
-	postRelay, err := requiredNonNegativeInt(path, "costs.post_relay", raw.Costs.PostRelay)
-	if err != nil {
-		return Costs{}, err
-	}
-	watchtower, err := requiredNonNegativeInt(path, "costs.watchtower", raw.Costs.Watchtower)
-	if err != nil {
-		return Costs{}, err
-	}
 	supplyDepot, err := requiredNonNegativeInt(path, "costs.supply_depot", raw.Costs.SupplyDepot)
 	if err != nil {
 		return Costs{}, err
@@ -256,28 +225,9 @@ func (raw rawBalance) costs(path string) (Costs, error) {
 		Mill:        mill,
 		Troop:       troop,
 		Noble:       noble,
-		PostRelay:   postRelay,
-		Watchtower:  watchtower,
 		SupplyDepot: supplyDepot,
 		Liberation:  liberation,
 	}, nil
-}
-
-func (raw rawBalance) travel(path string) (Travel, error) {
-	if raw.Travel == nil {
-		return Travel{}, missingBalanceValue(path, "travel")
-	}
-	if raw.Travel.RelayDivisor == nil {
-		return Travel{}, missingBalanceValue(path, "travel.relay_divisor")
-	}
-	if *raw.Travel.RelayDivisor <= 0 {
-		return Travel{}, fmt.Errorf("assetgen: %s: value %q must be > 0", path, "travel.relay_divisor")
-	}
-	terrainCosts, err := requiredFloatTerrainMap(path, "travel.terrain_costs", raw.Travel.TerrainCosts)
-	if err != nil {
-		return Travel{}, err
-	}
-	return Travel{TerrainCosts: terrainCosts, RelayDivisor: *raw.Travel.RelayDivisor}, nil
 }
 
 func requiredNonNegativeInt(path, name string, value *int) (int, error) {
@@ -309,29 +259,6 @@ func requiredIntTerrainMap(path, name string, values map[string]*int) (map[model
 		return nil, missingBalanceValue(path, name)
 	}
 	result := make(map[models.Terrain]int, len(balanceTerrains))
-	for _, terrain := range balanceTerrains {
-		value, exists := values[string(terrain)]
-		if !exists || value == nil {
-			return nil, missingBalanceValue(path, name+"."+string(terrain))
-		}
-		if *value < 0 {
-			return nil, fmt.Errorf("assetgen: %s: value %q must be >= 0", path, name+"."+string(terrain))
-		}
-		result[terrain] = *value
-	}
-	for terrain := range values {
-		if !isBalanceTerrain(terrain) {
-			return nil, fmt.Errorf("assetgen: %s: invalid terrain %q in %s", path, terrain, name)
-		}
-	}
-	return result, nil
-}
-
-func requiredFloatTerrainMap(path, name string, values map[string]*float64) (map[models.Terrain]float64, error) {
-	if values == nil {
-		return nil, missingBalanceValue(path, name)
-	}
-	result := make(map[models.Terrain]float64, len(balanceTerrains))
 	for _, terrain := range balanceTerrains {
 		value, exists := values[string(terrain)]
 		if !exists || value == nil {

@@ -19,15 +19,14 @@ repository root.
 ## Structure
 
 - `src/components/MapViewer.tsx` renders generic map and state data as an
-  interactive SVG with terrain, live markers, freshness overlays, and tooltips.
+  interactive SVG with terrain, live markers, control overlays, and tooltips.
 - On the map, a left click selects or deselects a territory. Holding the left
   button and dragging past the movement threshold pans the view without
   selecting a territory.
 - `src/components/ui/` contains the shadcn/ui components used by the application.
-- `src/App.tsx` loads the static map from `/api/map` and combines it with the
-  temporary state placeholder.
-- `src/fixtures/state.ts` contains the empty temporary state placeholder until
-  the P1.7 state API is available.
+- `src/App.tsx` loads the static map and live state from `/api/map` and
+  `/api/state`.
+- `src/fixtures/` contains static data used by component tests.
 - `src/types.ts` defines the map and state contracts shared by the frontend.
 
 The Vite development server proxies `/api` to `http://localhost:8080`.

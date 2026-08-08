@@ -16,13 +16,7 @@ import (
 
 func TestProjectStateMatchesStateContract(t *testing.T) {
 	state := projectTestState()
-	freshness := map[models.TerritoryID]int{
-		"T01": state.Turn,
-		"T02": state.Turn - 2,
-		"T03": state.Turn,
-		"T04": state.Turn,
-	}
-	view := projectState(state, freshness)
+	view := projectState(state)
 
 	if view.Turn != state.Turn || view.Season != state.Season {
 		t.Errorf("view metadata = %d/%s, want %d/%s", view.Turn, view.Season, state.Turn, state.Season)
@@ -85,24 +79,9 @@ func TestProjectStateMatchesStateContract(t *testing.T) {
 	}
 }
 
-func TestProjectStateFreshnessAndNesting(t *testing.T) {
+func TestProjectStateNesting(t *testing.T) {
 	state := projectTestState()
-	view := projectState(state, map[models.TerritoryID]int{
-		"T01": state.Turn,
-		"T02": state.Turn - 2,
-		"T03": state.Turn,
-		"T04": state.Turn - 2,
-	})
-
-	if len(view.AsOf) != len(state.Territories) {
-		t.Errorf("asOf coverage = %d, want %d", len(view.AsOf), len(state.Territories))
-	}
-	for _, territory := range state.Territories {
-		observed := view.AsOf[territory.ID]
-		if observed != state.Turn && observed != state.Turn-2 {
-			t.Errorf("asOf[%s] = %d, want %d or %d", territory.ID, observed, state.Turn, state.Turn-2)
-		}
-	}
+	view := projectState(state)
 
 	viewByID := make(map[models.TerritoryID]TerritoryView, len(view.Territories))
 	for _, territory := range view.Territories {
@@ -128,7 +107,7 @@ func TestProjectStateFreshnessAndNesting(t *testing.T) {
 }
 
 func TestStateHandler(t *testing.T) {
-	want := []byte(`{"turn":5,"season":"spring","asOf":{},"territories":[],"nobles":[]}`)
+	want := []byte(`{"turn":5,"season":"spring","territories":[],"nobles":[]}`)
 	resolvedPlayers := 0
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/api/state", nil)
@@ -306,9 +285,6 @@ func assertStateJSONTypes(t *testing.T, document map[string]any) {
 	}
 	if _, ok := document["season"].(string); !ok {
 		t.Errorf("season JSON type = %T, want string", document["season"])
-	}
-	if _, ok := document["asOf"].(map[string]any); !ok {
-		t.Errorf("asOf JSON type = %T, want object", document["asOf"])
 	}
 	territories, ok := document["territories"].([]any)
 	if !ok || len(territories) == 0 {

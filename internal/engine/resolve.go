@@ -23,8 +23,8 @@ func Resolve(game *models.GameState, balance assetgen.Balance) (Resolution, erro
 	ctx := newResolutionContext(state, balance)
 
 	resolveSupply(ctx)
-	// P2.3 can prepare delivered chains before Resolve is called without
-	// changing this simultaneous core.
+	// Chains are attached before Resolve is called; this function only handles
+	// the simultaneous resolution core.
 	enumerateIntentions(ctx)
 	calculateSupports(ctx)
 	if err := resolveContests(ctx); err != nil {

@@ -1,141 +1,106 @@
-# Architecture : Crown & Borough (MVP)
+# Architecture : Crown & Borough v1
 
-Pour faire tourner un prototype rapidement avec une demi-douzaine d'amis tout en gardant une base propre, lisible et facile à faire produire par des agents, la meilleure approche est un **monolithe modulaire en Go** hébergé sur **GCP Cloud Run**.
+Cette architecture décrit le système réellement livré en v1 : un serveur Go
+avec une session de partie en mémoire, un moteur pur, une API HTTP et un front
+React. La persistance, l'authentification, les parties multiples et le
+déploiement public sont des évolutions suivies dans GitHub.
 
-Go est idéal ici : typage strict, compilation rapide, conteneurs ultra-légers et excellente gestion des structures de données (graphes pour la carte, algorithmes de résolution).
+## 1. Vue d'ensemble
 
----
+Le jeu est résolu par saisons. Les joueurs préparent leurs ordres, les
+soumettent au serveur, puis le moteur résout un tour complet de manière
+déterministe. Le protocole HTTP suffit au mode online actuel : il n'y a pas de
+simulation temps réel ni de canal permanent à maintenir.
 
-## 1. Architecture Globale
-
-Le modèle de jeu est asynchrone à résolution par tours. Il n'y a pas besoin de WebSockets complexes à maintenir en état constant : une API REST/HTTP classique avec du *polling* léger ou des requêtes simples suffit amplement pour le MVP.
-
+```text
+┌──────────────────────────────────────────────────────────┐
+│ Frontend Vite / React / TypeScript                        │
+│ Carte SVG, poste de commandement, ordres, rapport         │
+└───────────────────────────┬──────────────────────────────┘
+                            │ HTTP + JSON
+┌───────────────────────────▼──────────────────────────────┐
+│ Serveur Go                                                │
+│ net/http ServeMux · Session · endpoints de partie         │
+│                                                            │
+│ ┌─────────────────────┐  ┌─────────────────────────────┐ │
+│ │ Projection API       │  │ Moteur pur                   │ │
+│ │ map/state/orders     │  │ résolution, carte, rapports  │ │
+│ └─────────────────────┘  └─────────────────────────────┘ │
+└───────────────────────────┬──────────────────────────────┘
+                            │
+┌───────────────────────────▼──────────────────────────────┐
+│ Assets statiques                                          │
+│ communes.csv · prenoms.csv · balance.json                 │
+└──────────────────────────────────────────────────────────┘
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    Frontend (Web)                       │
-│        React / Vite + SVG / Tailwind (PWA)              │
-└────────────────────────────┬────────────────────────────┘
-                             │ REST API / JSON
-┌────────────────────────────▼────────────────────────────┐
-│                  Backend (Go Monolith)                  │
-│  ┌──────────────┐  ┌──────────────────┐  ┌───────────┐  │
-│  │ API / Auth   │  │ State Machine    │  │ Resolution│  │
-│  │ (Gin / Chi)  │  │ & Engine (Graphe)│  │ Engine    │  │
-│  └──────────────┘  └──────────────────┘  └───────────┘  │
-└────────────────────────────┬────────────────────────────┘
-                             │
-┌────────────────────────────▼────────────────────────────┐
-│              Persistance & Infra                        │
-│   Fichiers JSON (1 fichier / partie, volume GCS)        │
-│   + GCP Cloud Run — PostgreSQL en migration ultérieure  │
-└─────────────────────────────────────────────────────────┘
-```
 
----
+La session actuelle contient une seule partie en mémoire. Chaque joueur
+soumet séparément ses ordres avec son identifiant. La résolution intervient
+quand tous les joueurs ont soumis, ou lorsqu'un client utilise `force`.
 
-## 2. Stack Technique Recommandée
+## 2. Stack technique
 
-### Backend : Go
+### Backend
 
-- **Router / API :** `chi` ou `gin`. `chi` est extrêmement minimaliste, idiomatique et lisible.
-- **Persistance :** fichiers **JSON au MVP** (1 fichier par partie, écriture atomique) — migration **PostgreSQL/`sqlc` différée** (cf. roadmap). `sqlc` génère du code Go type-safe à partir de requêtes SQL brutes, sans magie noire d'ORM, quand le besoin s'en fera sentir.
-- **Moteur de résolution (Core Engine) :**
-  - Un package pur Go sans dépendances web (`pkg/engine`).
-  - Les territoires sont représentés sous forme de **graphe d'adjacence**.
-  - La résolution d'un tour est une fonction pure : `Resolve(CurrentState, Orders) -> (NextState, TurnReport)`. Cela facilite énormément les tests unitaires automatisés.
+- Go 1.26 ;
+- `net/http` et `http.ServeMux` avec les patterns de routes du standard ;
+- aucune dépendance Go tierce au runtime ;
+- moteur sans dépendance web dans `internal/engine` ;
+- JSON pour les contrats HTTP et les assets de balance ;
+- mutex de session autour de l'état et de la carte correspondante.
 
-### Frontend : React + TypeScript + SVG Interactif
+La résolution est organisée autour des fonctions pures du moteur, notamment
+`Resolve`, `ResolveWinter`, `ResolveTurn`, `CreateGame` et `GenerateMap`. Les
+tests couvrent les invariants du modèle, la génération déterministe, les
+scénarios de combat, la logistique, l'hiver, les rapports et les handlers HTTP.
 
-Puisque le front sera produit par des agents, TypeScript + React est le combo sur lequel les LLM sont le mieux entraînés.
+### Frontend
 
-- **Bundler & Framework :** **Vite + React (TypeScript)**.
-- **Rendu de la Carte :** **SVG Interactif**. Pour une carte de type *Diplomacy/Fief* basée sur des graphes/territoires :
-  - Pas de Canvas/Phaser/Three.js au début.
-  - Une carte en SVG où chaque territoire est un composant (`<path id="TER_01" onClick={...} />`) est ultra simple à manipuler en React, réactive, zoomable nativement et parfaitement lisible pour un agent.
-- **UI & Styles :** **Tailwind CSS** + **shadcn/ui**. Rendu propre, responsive (mobile/PC) et accessible sans écrire de CSS complexe.
+- Vite ;
+- React et TypeScript strict ;
+- Tailwind CSS et composants shadcn/ui ;
+- carte SVG interactive ;
+- appels HTTP vers le serveur Go.
 
----
+Le front est lancé séparément en développement avec le proxy Vite. Le serveur
+Go v1 expose l'API de partie ; l'intégration d'un bundle frontend dans le
+conteneur et le déploiement public restent à traiter.
 
-## 3. Déploiement & Infrastructure (GCP)
-
-Pour limiter les coûts et la complexité d'exploitation :
-
-1. **Calcul : GCP Cloud Run**
-   - Image Docker minimale (Go multi-stage build → conteneur `scratch` ou `alpine` de ~15 Mo).
-   - **Scale to zero :** réduction des coûts à 0 € quand personne ne joue.
-
-2. **Persistance : fichiers JSON**
-   - **1 fichier par partie** (`DATA_DIR`, écriture atomique tmp + rename), monté sur un **bucket GCS** (gcsfuse) en production pour survivre aux restarts Cloud Run.
-   - **Cloud SQL for PostgreSQL** (ou Neon / Supabase) : migration ultérieure, hors MVP.
-
-3. **CI/CD : GitHub Actions**
-   - Un workflow simple : à chaque push sur `main`, build du conteneur, push sur GCP Artifact Registry et déploiement automatique sur Cloud Run.
-
----
-
-## 4. Organisation du Projet (Repository Go)
-
-Une structure standard (*Standard Go Project Layout*) simple et efficace pour la lisibilité :
+## 3. Organisation du dépôt
 
 ```text
 .
-├── cmd/
-│   └── server/          # Main entrypoint (HTTP server)
+├── assets/
+│   ├── balance.json       # paramètres numériques v1
+│   ├── communes.csv       # communes et affinités de terrain
+│   └── prenoms.csv        # prénoms de nobles
+├── cmd/server/
+│   └── main.go            # démarrage HTTP et session par défaut
 ├── internal/
-│   ├── api/             # Handlers HTTP, middleware, routes
-│   ├── engine/          # Moteur de jeu pur (Graphes, Résolution, Combat, Famine)
-│   ├── db/              # Chargement des assets (CSV, balance.json) — sqlc/Postgres différé
-│   ├── models/          # Structures de données métier (Ordres, Territoires, Armées)
-│   └── server/          # Sessions de jeu, store des parties, persistance JSON (P3)
-├── assets/              # Données statiques du monde et équilibrage
-│   ├── communes.csv     # Noms de communes et affinité de terrain
-│   ├── prenoms.csv      # Prénoms de nobles
-│   └── balance.json     # Toutes les constantes d'équilibrage du moteur
-├── web/                 # Application Frontend React (Vite)
-├── Dockerfile           # Multi-stage build (build front + build Go)
-└── Makefile             # Commandes de dev (run, test, migrate)
+│   ├── api/               # handlers, DTO, session et CORS de développement
+│   ├── db/assetgen/       # chargement et validation des assets
+│   ├── engine/            # résolution, rapports, logistique et carte
+│   │   ├── demo/           # état de démonstration pour les outils de dev
+│   │   ├── mapgen/         # génération géométrique et graphe
+│   │   └── orders/         # parsing et validation des ordres
+│   └── models/            # modèles et invariants métier
+├── web/
+│   ├── src/                # application React et tests front
+│   └── dist/               # sortie Vite locale quand elle est générée
+├── Dockerfile
+└── Makefile
 ```
 
-### Assets (Données statiques du monde)
+Les identifiants internes restent distincts des codes d'usage. Une carte porte
+actuellement un `TerritoryID` séquentiel interne (`T01`) et un trigramme public
+de commune (`ROS`). Les ordres et les labels utilisent le trigramme ; la
+suppression du double identifiant est suivie comme une évolution online.
 
-Les fichiers `assets/*.csv` fournissent les noms et codes identifiants des entités du monde, embarqués dans le conteneur et chargés au démarrage du serveur :
+## 4. Contrats JSON
 
-| Fichier | Contenu | Utilisation |
-| --- | --- | --- |
-| `communes.csv` | Noms de communes + affinité de terrain | Nommer les territoires, à la génération de carte |
-| `prenoms.csv` | Prénoms générés | Nommer les Nobles |
+### `map.json`
 
-**Codes identifiants uniques et humainement lisibles :** chaque entité reçoit un code court (trigramme strict de 3 lettres, ex. `VIL` pour Villeneuve) aligné sur le *départage alphabétique des trigrammes* du GDD. Les codes des communes et des prénoms sont uniques **au sein de leur catégorie** ; le type d'entité lève toute ambiguïté entre catégories. Le code territorial reprend le trigramme de sa commune et est unique sur la carte. Ces codes sont utilisés dans les ordres et les rapports pour que les joueurs (et les agents) puissent référencer une entité sans avoir à retenir un UUID ou un nom complet. Les UUID internes restent la clé primaire ; les codes servent d'identifiant d'usage dans l'UI et les messages.
-
-**Noms de territoires générés à la carte :** chaque territoire reçoit le nom et le trigramme d'une commune de `communes.csv`. L'affinité correspondant à son terrain dominant est privilégiée, puis `any`, avec un repli déterministe si nécessaire ; chaque commune n'est employée qu'une fois. Tous les codes territoriaux ont exactement 3 lettres.
-
-**Format attendu (CSV simple, en-tête en première ligne) :**
-
-```csv
-# communes.csv — terrain: plain|forest|hill|mountain|swamp|any
-code;nom;terrain
-MDO;Mont-Dore;mountain
-ROS;Rosemont;plain
-```
-
-```csv
-# prenoms.csv
-code;nom
-JEA;Jean
-ADE;Adélaïde
-```
-
-**Convention de code :** le code est exclusivement en anglais (identifiants, commentaires, messages, valeurs d'enums) ; seules les chaînes de contenu de jeu (noms, labels UI) sont en français.
-
----
-
-## 5. Contrats Serveur → Front : map.json / state.json
-
-Le front consomme **deux documents JSON distincts**, séparant l'immobile du vivant :
-
-### map.json (statique après génération, public)
-
-La géographie est une connaissance commune : aucun joueur ne peut ignorer le terrain. Ce document est identique pour tous et ne change jamais après la génération de la partie.
+La carte est statique pour une partie et commune à tous les clients :
 
 ```json
 {
@@ -146,46 +111,35 @@ La géographie est une connaissance commune : aucun joueur ne peut ignorer le te
       "name": "Rosemont",
       "terrain": "plain",
       "village": true,
-      "points": [[x, y], [x, y], ...],
-      "adjacencies": ["T02", "T05"],
+      "points": [[0, 0], [100, 0], [100, 80]],
+      "adjacencies": ["T02"],
       "impassable": ["T03"]
     }
   ]
 }
 ```
 
-- `points` : polygone de la forme (géométrie du territoire). Les sommets d'une frontière partagée sont exactement les mêmes dans les deux polygones.
-- `adjacencies` : arcs géométriques franchissables.
-- `impassable` : arcs géométriques infranchissables.
-- Une paire de territoires intérieurs forme un arc si elle partage au moins `minSharedEdges = 3` arêtes de grille. Chaque arc appartient exactement à `adjacencies` ou à `impassable` ; les deux listes sont disjointes, triées et symétriques. Il n'existe pas d'arc non géométrique ni de route au MVP.
-- Le sous-graphe `adjacencies` est connexe. Chaque territoire y a un degré compris entre 2 et son maximum de terrain : 3 pour `mountain`, `swamp` et `hill` ; 5 pour `plain` et `forest`.
-- Aucune taille explicite n'est transportée par `map.json`. Le front déduit les bornes à partir de tous les `points`, avec des marges symétriques : `mapWidth = maxX + minX` et `mapHeight = maxY + minY`.
+- `points` décrit le polygone SVG ;
+- `adjacencies` contient les frontières géométriques franchissables ;
+- `impassable` contient les frontières géométriques infranchissables ;
+- les deux listes sont triées, symétriques et disjointes ;
+- `village` décrit le point de génération ; l'état courant des infrastructures
+  est porté par `state.json`.
 
-### Endpoint de développement `/api/map`
+La génération utilise 8 territoires par joueur et `joueurs + 1` villages. Le
+serveur de partie sert la carte courante après `POST /api/game`.
 
-`GET /api/map?players=N` génère ou renvoie la carte pour `N` joueurs. Sans paramètre, `N = 4` ; seules les valeurs entières de 2 à 5 sont acceptées, toute autre valeur renvoie `400`. La génération utilise `8 × players` territoires et `players + 1` villages. Les cartes sont générées à la demande et mises en cache en mémoire par clé `(seed, players)` ; le seed de développement étant fixé au démarrage, une même clé renvoie les mêmes octets de `map.json`.
+### `state.json`
 
-### Endpoint de développement `/api/state`
-
-`GET /api/state?players=N` est le pendant de développement de `/api/map` et accepte les mêmes valeurs de joueurs. Il sert un état d'exemple statique et déterministe, projeté par le DTO explicite `StateView`, jamais par la sérialisation directe de `GameState`. La réponse contient toujours `turn: 5`, `season: "spring"` et un `asOf` pour chaque territoire dont la valeur est `turn` ou `turn - 2`.
-
-Cet endpoint dev n'a pas d'identité de joueur : `players` indique seulement un
-nombre de joueurs. À partir de P1.3, il expose donc toutes les chaînes sous
-`StateView.army.chain`, sans filtrage. Cette visibilité globale est une exception
-de développement ; elle ne préjuge pas de la vue privée, de la fraîcheur ni de la
-politique de divulgation de P2.2, P2.2a ou P3.2.
-
-Le résolveur partage avec `/api/map` le cache en mémoire du `MapData` généré pour le même `(seed, players)` : servir l'état ne régénère donc pas la carte. Ce n'est pas encore la vue dynamique réelle : le résolveur de la boucle hotseat reste à P1.7, puis la vue privée par joueur et la fraîcheur de rapport réelle restent à P2.
-
-### state.json (dynamique, privé, par joueur et par fraîcheur de rapport)
-
-Ce qui vit sur la carte : armées, infrastructures, contrôle, ressources. C'est la **vue** d'un joueur : en P2, l'API ne sert que ce que ses messagers ont rapporté (vision T-x), chaque territoire est horodaté (fraîcheur).
+L'état projeté sépare la couche dynamique du `GameState` de stockage :
 
 ```json
 {
-  "turn": 12,
+  "turn": 5,
   "season": "spring",
-  "asOf": { "T01": 11, "T02": 9, ... },
+  "players": [
+    { "id": "P1", "name": "Joueur 1", "color": "#a84632" }
+  ],
   "territories": [
     {
       "id": "T01",
@@ -207,111 +161,154 @@ Ce qui vit sur la carte : armées, infrastructures, contrôle, ressources. C'est
           ]
         }
       },
-      "infrastructures": [{ "type": "mill", "level": 2 }]
+      "infrastructures": [{ "type": "castle", "level": 1 }]
     }
   ],
-  "nobles": [{ "id": "N1", "code": "HUG", "name": "Hugues", "owner": "P1", "location": "T01", "status": "free" }]
+  "nobles": [
+    {
+      "id": "N1",
+      "code": "HUG",
+      "name": "Hugues de Rosemont",
+      "owner": "P1",
+      "location": "T01",
+      "status": "free"
+    }
+  ]
 }
 ```
 
-- `asOf` : tour auquel chaque territoire a été observé (permet d'afficher la fraîcheur de l'information en P2)
-- `army`, `infrastructures`, `nobles`, `owner`, `resources` : couche dynamique
-- `army` vaut `null` lorsqu'aucune armée n'occupe le territoire ; sinon il contient `owner`, `size` et `chain`. `chain` vaut `null` si l'armée ne porte aucune chaîne ; sinon il expose le code du noble émetteur, `currentIndex` et les ordres en cours.
-- Dans une chaîne de `StateView`, les positions et `targets` sont des codes de territoire, `nobleTargets` des codes de noble pour O/K et `nobleAssignments` conserve la répartition D par codes. Les `ArmyID` et `ChainID` internes ne sont jamais exposés.
-- `nobles` expose notamment `code` et `status`. Les seules valeurs de statut sont `free`, `hostage` et `dungeon` ; les deux dernières désignent un noble prisonnier.
-- Une seule armée peut occuper un territoire. Le front et les ordres l'adressent par le territoire : son identifiant interne n'est pas exposé dans `state.json`. Le `GameState` de stockage conserve la liste interne `armies` et un index `ArmyID` sur chaque `TerritoryState`.
-- **Les infrastructures n'ont pas de propriétaire** : elles appartiennent à leur case (pas de champ `owner` sur une infrastructure) — celui qui contrôle la case en bénéficie
-- **Les rations vivrières ne font pas partie du contrat `state.json`** : leur production (terrain + bonus d'infrastructure château/village) est non stockable et recalculée par le moteur à chaque tour depuis le terrain de `map.json` et la présence actuelle d'un château ou d'un village dans la couche `infrastructures` de `state.json`. Le flag `village` de `map.json` est une donnée statique de génération et ne fait pas autorité après remplacement ou destruction ; il n'y a donc rien à transporter et aucune accumulation possible.
-- **Coûts de trajet** (rapports P2.2 et ordres P2.3) : coût par case traversée selon le terrain, lu dans `assets/balance.json` (section travel : plaine 0,5 — 2 cases/tour ; forêt/colline 1 ; montagne/marécage 2 ; divisé par 2 sur un Relais de Poste)
+`army` vaut `null` lorsqu'aucune armée n'occupe la case. Les identifiants
+d'armée, de chaîne et d'ordre internes ne sont pas exposés dans cette vue. Les
+positions et les cibles des ordres utilisent les trigrammes territoriaux.
 
-### Rendu côté front
+La v1 actuelle expose cette projection globalement, ce qui permet au front
+hotseat d'afficher la partie complète. La politique de divulgation cible est
+la suivante :
 
-Le front combine les deux documents : `map.json` fournit géométrie et fond (terrains, villages, labels), `state.json` fournit la couche vivante (armées, constructions, contrôle, stocks). Cette séparation permet de **rendre plusieurs versions d'un même rapport** (comparer la vue fraîche et la vue datée), le calcul d'affichage restant entièrement côté client.
+- la carte et les valeurs dynamiques chiffrées restent communes ;
+- un joueur voit le détail des chaînes qu'il a émises, ainsi que celles émises
+  par un noble qui lui appartient et qui est devenu otage, tant que la chaîne
+  reste compatible avec la progression de l'armée ;
+- un joueur voit les forces et le résultat exact d'un combat s'il intervient
+  comme attaquant, défenseur ou soutien ;
+- pour un combat auquel il ne participe pas, il voit le traitement général des
+  ordres, mais pas le détail des puissances.
 
----
+Le filtrage de cette vue doit être fait côté serveur, avec l'identité du joueur.
+Il n'est pas délégué au front et constitue une tâche de l'issue online.
 
-## 6. Format des chaînes d'ordres (texte)
+## 5. API v1
 
-Les joueurs (et les agents) expriment les chaînes d'ordres en texte brut, facile à taper. Une chaîne = un en-tête (le noble qui émet) + une ligne par ordre.
+Toutes les réponses sont JSON. Le serveur est configuré par `ASSETS_DIR`,
+`SEED`, `PLAYERS` et `PORT` ; la partie initiale est créée au démarrage.
 
-### Syntaxe
+| Méthode | Route | Comportement |
+|---|---|---|
+| `GET` | `/healthz` | Vérifie que le serveur répond. |
+| `GET` | `/api/map` | Renvoie la carte de la session courante. |
+| `GET` | `/api/state` | Renvoie l'état projeté de la session courante. |
+| `GET` | `/api/supply?territory=T01` | Calcule la ligne ou la zone de ravitaillement sélectionnée. |
+| `POST` | `/api/game` | Remplace la session par une nouvelle partie en mémoire. |
+| `POST` | `/api/orders` | Enregistre la soumission d'un joueur et résout si tous ont soumis. |
+| `POST` | `/api/reset` | Recrée la partie initiale configurée au démarrage. |
 
+`POST /api/game` accepte une seed et une liste de joueurs. Les joueurs peuvent
+être des objets `{id,name,color}`, des noms ou un nombre. Le moteur refuse les
+parties hors de la plage 2–16 joueurs.
+
+`POST /api/orders` accepte :
+
+```json
+{
+  "player": "P1",
+  "chains": [
+    { "player": "P1", "noble": "HUG", "text": "HUG\nROS A BOI" }
+  ],
+  "winter": [],
+  "force": false
+}
 ```
-JEA # Jean                     <- en-tête : code trigramme du noble (commentaire ignoré)
-BRI A ATL # attaque single
-BRI S ATL - NOR # soutien offensif (l'armée de BRI soutient l'attaque ATL → NOR), single
-(BRI S ATL) # soutien défensif (soutient la tenue de l'armée d'ATL), boucle
-(ATL A NOR) # déplacement en boucle
-H BRI      # maintien, single
-BRI J ROS  # jonction, single — toujours en DERNIER ordre d'une chaîne
-P BRI      # pillage de la case de l'armée, single
-BRI D BRI ATL NOR  # dispersion : une destination par unité de l'armée
+
+Une soumission remplace la soumission précédente du même joueur pour le tour.
+Tant que des joueurs manquent, la réponse contient `status: "pending"`, les
+listes `submitted` et `remaining`, ainsi que l'état courant. Lorsque le tour
+est résolu, la réponse contient `status: "resolved"`, le rapport et le nouvel
+état. `force: true` permet de résoudre avec les soumissions déjà présentes.
+
+Le serveur v1 ne fournit pas encore d'identité fiable : `player` est une
+identité de développement déclarée par le client. L'authentification, les
+sessions, les codes d'invitation et les parties multiples font partie des
+évolutions online.
+
+## 6. Moteur et résolution
+
+Les modèles métier sont dans `internal/models`. Ils valident notamment :
+
+- l'unicité des joueurs, territoires, trigrammes, armées, nobles et
+  infrastructures ;
+- la symétrie du graphe et l'existence des références ;
+- une seule armée et une seule infrastructure par territoire ;
+- la cohérence entre les index de `GameState` et les entités ;
+- la saison calculée à partir du tour absolu.
+
+`ResolveTurn` choisit la résolution d'action ou d'hiver selon la saison, avance
+le calendrier et renvoie un `TurnReport`. Le rapport contient des sections
+typées pour les joueurs, ordres, combats, mouvements, ravitaillement, famine,
+nobles et investissements d'hiver. Le moteur ne dépend ni du HTTP ni du rendu
+front.
+
+La réception des chaînes est immédiate et atomique. La validation statique
+conserve volontairement la non-adjacence jusqu'à l'exécution : un ordre
+non-adjacent casse la chaîne à l'endroit où il est rencontré, sans annuler les
+ordres précédents.
+
+## 7. Format des ordres
+
+Une chaîne est composée du code du noble émetteur puis d'une ligne par ordre.
+Les lignes entre parenthèses sont en boucle ; les autres sont uniques. Les
+positions de l'armée sont explicites.
+
+```text
+JEA
+BRI A ATL
+BRI S ATL - NOR
+(BRI S ATL)
+(ATL A NOR)
+H BRI
+BRI J ROS
+P BRI
+BRI O HUG
+BRI K HUG
+BRI D BRI ATL NOR
 ```
 
-- **En-tête (1re ligne)** : code trigramme du noble émetteur. Une chaîne = une **émission** (capacité : 1 émission par noble et par tour). **Pas de modification de chaîne** : une armée qui reçoit une chaîne remplace la précédente. Une chaîne s'applique à une **armée entière** (jamais d'ordres mixtes) et l'armée est adressée par le trigramme de son territoire.
-- **Ordres** : chaque ligne explicite la **position** de l'armée (le territoire où elle doit se trouver à l'exécution) — jamais implicite. Formats par symbole :
-  - `XXX A YYY` — atteindre/attaquer depuis XXX vers YYY
-  - `XXX S YYY` — soutien **défensif** depuis XXX vers YYY (YYY adjacente, YYY ≠ XXX)
-  - `XXX S YYY - ZZZ` — soutien **offensif** : l'armée de XXX soutient l'attaque de l'armée de YYY vers ZZZ (ZZZ adjacente à XXX, YYY–ZZZ adjacentes)
-  - `H XXX` — maintien sur XXX (position de l'armée)
-  - `XXX J YYY` — jonction depuis XXX vers YYY (**toujours en dernier ordre d'une chaîne**)
-  - `P XXX` — pillage, XXX = case où l'armée se trouve
-  - `XXX D XXX YYY ZZZ ...` — dispersion : XXX = position, puis une destination par unité de l'armée (le nombre de destinations = taille de l'armée ; la case de l'armée est une destination valide, listée explicitement)
-- **Liaison par transition** : ordre **entre parenthèses** = boucle (`loop`) ; **sans parenthèses** = unique (`single`). Chaque ligne a sa propre liaison.
-- **Position exigée** : si l'armée n'est pas sur la position indiquée quand l'ordre s'exécute → **failure** (single : chaîne brisée ; loop : retente).
-- `#` : commentaire (ignoré jusqu'à fin de ligne). Lignes vides ignorées. Insensible à la casse (normalisé en MAJUSCULES). Codes invalides → erreur de parsing (avec numéro de ligne).
+Les ordres d'hiver v1 sont limités à `R N`, `R T`, `C M`, `C C`, `C D`, `E C`
+et `L N`. Les infrastructures absentes du modèle v1 ne possèdent ni symbole
+de parser ni coût dans `balance.json`.
 
-### Symboles et sémantique
+## 8. Assets et balance
 
-| Symbole | Ordre | Syntaxe | Réussite | Échec (single) | Boucle (loop) |
-|---|---|---|---|---|---|
-| `A` | Attaque / atteindre | `XXX A YYY` | Déplacement vers une case **adjacente** (combat si occupée — résolution P1.4). **Les attaques d'armées d'origines différentes ne se combinent pas** : chacune est un contendant distinct (à égalité au sommet → statu quo), **y compris entre armées d'un même joueur** (deux armées convergeant par A sur une case vide : la plus grosse entre, l'autre reste ; à égalité, statu quo — pour converger vraiment, il faut J) ; pour cumuler des forces, un soutien S | Chaîne brisée | Retente jusqu'à réussite |
-| `S` | Soutien | `XXX S YYY` (défensif) ou `XXX S YYY - ZZZ` (offensif) | **Soutien explicite, toute nationalité** (même contre soi). *Défensif* : +taille de l'armée à la défense de l'armée en YYY (adjacente, ≠ XXX) qui **tient** (ordre sans déplacement H/S/P ; sans effet — gaspillé mais réussi — si elle se déplace ou est absente). *Offensif* : +taille de l'armée à l'attaque de l'armée de YYY vers ZZZ (ZZZ adjacente à XXX, YYY–ZZZ adjacentes ; sans effet — gaspillé mais réussi — si elle n'attaque pas ZZZ). **Coupé** si l'armée soutenante est attaquée depuis une case **différente** de celle vers laquelle elle soutient (ZZZ en offensif, YYY en défensif) | Chaîne brisée | Offensif : index figé tant que l'armée de YYY attaque ZZZ, avance sinon ; défensif : index figé tant que YYY est attaquée, avance sinon |
-| `H` | Maintien | `H XXX` | L'armée reste sur XXX (sa position) | Chaîne brisée | **Garde indéfinie** : chaîne en veille jusqu'à réception d'un nouvel ordre |
-| `J` | Jonction | `XXX J YYY` | **Déplacement pacifique** (pas une attaque, puissance 0) vers YYY **adjacente**, toujours en **dernier ordre d'une chaîne** (sinon chaîne invalide). **Fusionne** si une armée alliée est déjà sur YYY, ou si exactement une armée alliée y arrive au même tour **sans contestation** (aucune autre armée n'y converge — deux jonctions mutuelles J+J fusionnent) ; la **chaîne de l'hôte est conservée** (celle de la jonctionnante est consommée par ce J ; l'arrivant par A est l'hôte ; un rendez-vous J+J laisse l'armée **Sans Ordre**) ; case occupée par l'ennemi → échec ; case **contestée** par une attaque ce tour, ou **convergence de plusieurs armées** → **repoussé** (échec) | Chaîne brisée | Retente jusqu'à réussite (puis chaîne consommée) |
-| `P` | Pillage | `P XXX` | XXX = case où l'armée se trouve : détruit l'infrastructure de SA case (une seule par case, GDD §3) + bonus R (balance.json) **crédité au château ou village contrôlé le plus proche** du joueur (perdu s'il n'en contrôle aucun) ; **aucune infrastructure → ordre invalide** | Chaîne brisée | Retente jusqu'à destruction |
-| `O` | Otage | `XXX O YYY` | YYY = code du noble prisonnier détenu par l'armée de XXX (la case de l'armée) : il passe au statut `hostage` (état par défaut — il produit des rapports pour son propriétaire et compte en T0) ; noble non prisonnier, d'un autre joueur ou absent → **invalide** | Chaîne brisée | Retente |
-| `K` | Cachot | `XXX K YYY` | YYY = code du noble prisonnier détenu par l'armée de XXX : il passe au statut `dungeon` (plus aucun rapport, ni récepteur, ni T0 pour son propriétaire) ; mêmes conditions d'invalidité que O | Chaîne brisée | Retente |
-| `D` | Dispersion | `XXX D XXX YYY ZZZ ...` | Une destination **par unité de l'armée** (nombre = taille de l'armée) ; chaque destination est **adjacente** ou égale à la position ; à la résolution (P1.4), chaque destination **libre et non ciblée par une attaque** reçoit la part de taille qui lui est attribuée ; la case de l'armée est valide ; **l'armée de la première destination conserve la chaîne** (les autres armées sont créées). **Répartition des nobles par astérisque** : `XXX D YYY XXX*` = tous les nobles en XXX ; `YYY*JEA` = Jean en YYY ; `YYY*JEA*ANN` = Jean et Anne en YYY ; le suffixe `*` seul dans `XXX*` = tous les nobles restants ; chaque noble au plus une fois ; **si des nobles chevauchent l'armée et que l'ordre ne les assigne pas tous → ordre INVALIDE** (aucune destination par défaut) | Avance même si partielle | Retente jusqu'à résolution **intégrale** |
+Les assets sont chargés au démarrage et validés avant de créer la session :
 
-**Ordre invalide** (physiquement ou mécaniquement impossible : cible inexistante, cible non adjacente, armée détruite, pillage sans infrastructure...) : **brise immédiatement** la chaîne, quel que soit le mode de liaison.
+- `communes.csv` fournit les noms, codes et affinités de terrain ;
+- `prenoms.csv` fournit les noms et codes de nobles ;
+- `balance.json` fournit les coûts, productions, portées, rations, bonus de
+  défense et valeurs de départ utilisés par le moteur.
 
-### Modèle interne des chaînes
+Les paramètres numériques ne doivent pas être recopiés dans les handlers ou
+le front. Le moteur reçoit une `assetgen.Balance` déjà chargée.
 
-Le parser résout les codes de la syntaxe dans les identifiants internes sans
-modifier cette syntaxe. `Order.TargetIDs []TerritoryID` contient uniquement les
-cibles territoriales des ordres A, S, J et D. `Order.NobleTargetIDs []NobleID`
-contient l'unique cible noble des ordres O/K : le code de noble de `XXX O YYY`
-ou `XXX K YYY` ne doit donc jamais être placé dans `TargetIDs`.
+## 9. Évolutions d'infrastructure
 
-**Armée sans chaîne** : une armée sans chaîne associée est *Sans Ordre* (pas de statut dédié : dans le modèle interne, `Army.ChainID == nil` suffit ; dans `StateView`, cela se projette par `army.chain: null`).
+Les fonctionnalités suivantes ne font pas partie de la session v1 en mémoire
+et sont suivies par l'issue online :
 
-**Réception de la chaîne (P2.3)** : la chaîne est émise par le **noble de l'en-tête** depuis SA position ; elle voyage à la vitesse du terrain (coûts des assets d'équilibrage, cf. §5 de l'architecture) vers le **premier territoire de la feuille** (XXX de `XXX A YYY`, le territoire de `H XXX` ou `P XXX`). **L'arrivée est calculée à l'émission** (temps de trajet fixé). Entre l'arrivée et l'hiver suivant, **l'armée du joueur émetteur présente sur ce territoire** reçoit la chaîne — adressée par la case, appliquée à toute l'armée — et **remplace** la sienne. Une erreur de réception non différable (D ≠ taille de l'armée, nobles non couverts, cible de réception invalide) rend la chaîne **perdue**. Depuis P1.9, une non-adjacence n'est pas une erreur de réception bloquante : la chaîne peut être reçue, puis être brisée à l'ordre non adjacent pendant la résolution ; les ordres précédents restent valides et le suffixe postérieur n'est pas exécuté. Aucune armée requise à l'émission (elle peut arriver plus tard). Chaîne jamais reçue → **perdue** à la fin de l'hiver. Pas d'interception au MVP.
+- identifiant territorial unique fondé sur le trigramme ;
+- filtre serveur des vues par joueur ;
+- gestion de plusieurs parties et authentification ;
+- persistance JSON atomique ;
+- bundle frontend servi par le serveur et déploiement public.
 
-**Progression** : la progression des chaînes prend en compte **toutes les chaînes d'ordres simultanément** (résolution des combats, retraites, jonctions) — traitée dans le moteur de résolution P1.4.
-
-### Ordres d'Hiver (phase de gestion)
-
-L'hiver, le joueur soumet une **liste d'ordres** (même mécanique de soumission que les chaînes ; une ligne = un investissement ; traités dans l'ordre saisi) :
-
-- `R N XXX` — recruter un **Noble** sur XXX (nom = prénom tiré + "de \<nom du territoire\>", ex. "Jacques de Notombes")
-- `R T XXX` — recruter une **Troupe** sur XXX
-- `C M XXX` — construire un **Moulin** sur XXX (améliore le moulin existant si déjà présent)
-- `C C XXX` — construire un **Château** sur XXX (rend la case productive et remplace un éventuel village ; aucune infrastructure village n'est constructible au MVP — réservé)
-- `C R XXX` — construire un **Relais de Poste** sur XXX
-- `C T XXX` — construire une **Tour de Guet** sur XXX
-- `C D XXX` — construire un **Dépôt de Vivres** sur XXX
-- `E C XXX` — désigner le château de XXX comme **Capitale** du joueur (remplace la désignation actuelle ; exige de contrôler la case ; par défaut, la capitale est le premier château construit)
-- `L N XXX` — libérer le noble prisonnier XXX (le noble réapparaît à la capitale de son propriétaire ; requis : noble prisonnier appartenant au joueur)
-
-XXX = code du territoire ciblé (trigramme de 3 lettres). Pas de chaîne, pas de position, pas de liaison : un ordre d'hiver s'applique directement ou est **rejeté** (événement explicite ; ordre rejeté = investissement perdu). Coûts et métriques d'équilibrage : `assets/balance.json` (toutes les constantes du moteur, éditables sans recompiler le code).
-
----
-
-## 7. Stratégie d'Exécution avec les Agents
-
-Pour faire produire ce projet par des agents sans perdre le contrôle :
-
-1. **Découper le moteur (`internal/engine`) en premier :** faire écrire les règles métier en Go pur avec des tests unitaires systématiques (`engine_test.go`).
-2. **API REST (chi) :** contrats d'interface JSON explicites (DTO), testés via `httptest` (pas d'OpenAPI au MVP).
-3. **Frontend SVG :** demander à l'agent de créer un composant `MapViewer` qui prend un JSON de territoires/unités et affiche le SVG avec gestion de la sélection de cases pour donner les ordres.
+Un brouillard de guerre général pourra éventuellement réintroduire des
+infrastructures de vision dédiées. Cela constituera une extension de règles et
+un contrat de vue distinct, pas une modification silencieuse du cœur v1.

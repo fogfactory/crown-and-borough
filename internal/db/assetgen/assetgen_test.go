@@ -39,25 +39,13 @@ const (
   "village_stock_cap": 1,
   "castle_stock_cap": 2,
   "costs": {
-    "castle": 10,
-    "mill": 3,
-    "troop": 1,
-    "noble": 2,
-    "post_relay": 2,
-    "watchtower": 4,
-    "supply_depot": 3,
-    "liberation": 0
-  },
-  "travel": {
-    "terrain_costs": {
-      "plain": 0.5,
-      "forest": 1,
-      "hill": 1,
-      "mountain": 2,
-      "swamp": 2
-    },
-    "relay_divisor": 2
-  },
+		"castle": 10,
+		"mill": 3,
+		"troop": 1,
+		"noble": 2,
+		"supply_depot": 3,
+		"liberation": 0
+	},
   "starting_nobles": 1,
   "starting_troops": 1,
   "starting_resources": 10
@@ -100,9 +88,6 @@ func TestLoadRealBalance(t *testing.T) {
 	if balance.BaseProduction != 1 || balance.WinterStockDivisor != 2 || balance.VillageStockCap != 1 || balance.CastleStockCap != 2 || balance.Costs.Castle != 10 || balance.Costs.Liberation != 0 {
 		t.Errorf("loaded costs = %#v / %#v", balance, balance.Costs)
 	}
-	if balance.Travel.TerrainCosts["plain"] != 0.5 || balance.Travel.RelayDivisor != 2 {
-		t.Errorf("loaded travel = %#v", balance.Travel)
-	}
 	if len(balance.FirstNames) < 100 {
 		t.Errorf("len(FirstNames) = %d, want >= 100", len(balance.FirstNames))
 	}
@@ -133,8 +118,8 @@ func TestLoadBalanceInvalid(t *testing.T) {
 	}{
 		{
 			name:    "missing explicit zero cost",
-			content: strings.Replace(validBalance, "    \"supply_depot\": 3,\n    \"liberation\": 0\n", "    \"supply_depot\": 3\n", 1),
-			want:    "costs.liberation",
+			content: strings.Replace(validBalance, "\"supply_depot\": 3,\n", "", 1),
+			want:    "costs.supply_depot",
 		},
 		{
 			name:    "missing terrain value",
@@ -145,11 +130,6 @@ func TestLoadBalanceInvalid(t *testing.T) {
 			name:    "unknown setting",
 			content: strings.Replace(validBalance, "  \"base_production\": 1,", "  \"unknown_setting\": 1,\n  \"base_production\": 1,", 1),
 			want:    "unknown field",
-		},
-		{
-			name:    "invalid travel divisor",
-			content: strings.Replace(validBalance, "\"relay_divisor\": 2", "\"relay_divisor\": 0", 1),
-			want:    "travel.relay_divisor",
 		},
 	}
 	for _, tt := range tests {

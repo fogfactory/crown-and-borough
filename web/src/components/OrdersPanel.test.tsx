@@ -7,7 +7,6 @@ import type { StateData } from '@/types'
 const state: StateData = {
   turn: 4,
   season: 'spring',
-  asOf: {},
   players: [{ id: 'P1', name: 'One', color: '#a84632' }],
   territories: [],
   nobles: [],

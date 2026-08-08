@@ -42,7 +42,6 @@ const map: MapData = {
 const state: StateData = {
   turn: 1,
   season: 'spring',
-  asOf: { T1: 1, T2: 1 },
   players: [],
   territories: [
     { id: 'T1', owner: 'P1', resources: 0, army: null, infrastructures: [] },

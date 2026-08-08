@@ -102,8 +102,7 @@ func TestSeasonIsValid(t *testing.T) {
 
 func TestInfraTypeIsValid(t *testing.T) {
 	for _, valid := range []models.InfraType{
-		models.InfraTypeMill, models.InfraTypePostRelay, models.InfraTypeWatchtower,
-		models.InfraTypeSupplyDepot, models.InfraTypeCastle, models.InfraTypeVillage,
+		models.InfraTypeMill, models.InfraTypeSupplyDepot, models.InfraTypeCastle, models.InfraTypeVillage,
 	} {
 		if !valid.IsValid() {
 			t.Errorf("InfraType %q: want valid", valid)

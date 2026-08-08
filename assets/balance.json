@@ -20,27 +20,13 @@
 
   // Winter investment costs.
   "costs": {
-    "castle": 10,
-    "mill": 3,
-    "troop": 1,
-    "noble": 2,
-    "post_relay": 2,
-    "watchtower": 4,
-    "supply_depot": 3,
-    "liberation": 0
-  },
-
-  // Messenger travel values, reserved for P2.
-  "travel": {
-    "terrain_costs": {
-      "plain": 0.5,
-      "forest": 1,
-      "hill": 1,
-      "mountain": 2,
-      "swamp": 2
-    },
-    "relay_divisor": 2
-  },
+		"castle": 10,
+		"mill": 3,
+		"troop": 1,
+		"noble": 2,
+		"supply_depot": 3,
+		"liberation": 0
+	},
 
   // P1.7 game setup values.
   "starting_nobles": 1,
