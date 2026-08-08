@@ -1,4 +1,4 @@
-# Prompt P3.2 — Auth & sessions : inscription, code d'invitation, parties entre amis
+# Prompt : authentification et sessions entre amis
 
 ```
 Tu travailles sur "Crown & Borough", un jeu de stratégie par tours.

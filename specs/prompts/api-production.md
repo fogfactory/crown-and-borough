@@ -1,4 +1,4 @@
-# Prompt P3.1 — API REST complète : multi-parties, soumission par joueur
+# Prompt : API REST complète, multi-parties et soumission par joueur
 
 ```
 Tu travailles sur "Crown & Borough", un jeu de stratégie par tours.

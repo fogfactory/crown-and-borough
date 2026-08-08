@@ -1,4 +1,4 @@
-# Prompt P3.5 — Déploiement : Cloud Run + Artifact Registry + CI automatique
+# Prompt : déploiement et CI automatique
 
 ```
 Tu travailles sur "Crown & Borough", un jeu de stratégie par tours.

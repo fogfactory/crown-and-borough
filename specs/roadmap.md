@@ -1,4 +1,4 @@
-# Roadmap produit : Crown & Borough v1
+# Roadmap produit : Crown & Borough
 
 Ce document décrit l'état de référence de la v1 et les évolutions qui restent
 à suivre dans GitHub. Les plans d'implémentation et les prompts correspondant
@@ -30,7 +30,7 @@ online à réaliser et à suivre par issue.
 | Domaine | Fonctionnalités v1 | État |
 |---|---|---|
 | Fondations | Module Go, chargement des assets CSV, balance JSON, front Vite/React/TypeScript | Fait |
-| Carte | Génération Voronoï seedée, territoires nommés par trigramme, frontières franchissables ou infranchissables, graphe connexe, villages neutres | Fait |
+| Carte | Génération Voronoï seedée, territoires nommés par trigramme, frontières franchissables ou infranchissables, graphe connexe, villages neutres | Partiel : la génération produit `N + 1` villages, mais le setup actuel en remplace `N` par les châteaux de départ ; voir l'issue #21 |
 | Modèle | Joueurs, territoires, armées uniques par territoire, nobles, infrastructures, stocks, chaînes | Fait |
 | Ordres | Parser texte, ordres A/S/H/J/P/O/K/D, liaisons `single` et `loop`, validation et remplacement atomique des chaînes | Fait |
 | Résolution | Progression simultanée, attaques, soutiens, combats multi-contendants, retraites, jonctions, dispersions, contrôle territorial | Fait |
@@ -45,6 +45,8 @@ online à réaliser et à suivre par issue.
 - Une partie accepte de 2 à 16 joueurs.
 - La carte contient 8 territoires par joueur et `joueurs + 1` villages
   neutres.
+- Les `N` châteaux de départ sont placés sur des territoires qui ne portent pas
+  ces villages neutres ; ils ne consomment donc aucun des `N + 1` villages.
 - Les villages neutres produisent et stockent leur production. Leur stock est
   inaccessible avant capture et reste sur place lors de la capture.
 - Une seule infrastructure occupe une case. Les infrastructures appartiennent
@@ -64,10 +66,18 @@ online à réaliser et à suivre par issue.
   village. Les anciennes structures liées à une couche d'information ne font
   pas partie de la v1.
 
+## Organisation des spécifications
+
+L'index thématique est disponible dans [`specs/README.md`](README.md). Les
+documents ne portent pas de numéro de version dans leur nom : les versions
+d'atterrissage seront décidées dans GitHub lorsque les dépendances seront mieux
+stabilisées.
+
 ## Fonctionnalités online à suivre
 
-Les prompts `p3.x` restent temporairement dans `specs/prompts/` comme matériau
-de travail. Leur réalisation doit être suivie dans une issue GitHub dédiée,
+Les prompts liés au mode online restent temporairement dans
+[`specs/prompts/`](prompts/) comme matériau de travail. Leur réalisation est
+suivie dans [l'issue #2](https://github.com/fogfactory/crown-and-borough/issues/2),
 avec une issue séparée pour chaque bug ou fonctionnalité qui le nécessite.
 
 | Sujet | Périmètre | État |
@@ -88,5 +98,7 @@ pas modifier les invariants de base : résolution simultanée, armée unique par
 territoire, chaînes d'ordres, ravitaillement, famine, hiver et contrôle
 territorial.
 
-Tout ajout ou bug découvert après la v1 est suivi dans GitHub plutôt que par un
-nouveau plan d'implémentation local.
+Tout ajout ou bug découvert après le socle actuel est suivi dans GitHub plutôt
+que par un nouveau plan d'implémentation local. Les spécifications thématiques
+servent à conserver les règles et les décisions ; les issues servent à planifier
+et livrer le travail.

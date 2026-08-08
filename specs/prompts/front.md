@@ -1,4 +1,4 @@
-# Prompt P3.4 — Polish du front : parcours complet fluide entre amis
+# Prompt : parcours front complet entre amis
 
 ```
 Tu travailles sur "Crown & Borough", un jeu de stratégie par tours.

@@ -1,4 +1,4 @@
-# Prompt P3.3 — Persistance JSON : 1 fichier par partie, sauvegarde/restauration
+# Prompt : persistance, sauvegarde et restauration d'une partie
 
 ```
 Tu travailles sur "Crown & Borough", un jeu de stratégie asynchrone par tours.

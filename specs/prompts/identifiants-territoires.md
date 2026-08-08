@@ -1,4 +1,4 @@
-# Prompt P3.0 - Contrat territorial fondé sur les trigrammes
+# Prompt : contrat territorial fondé sur les trigrammes
 
 ```
 Tu travailles sur "Crown & Borough", un jeu de stratégie par tours.

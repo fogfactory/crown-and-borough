@@ -89,10 +89,12 @@ prélèvement partiel n'est effectué.
 - sans capitale, les stocks restent sur place ;
 - la saison suivante est le printemps.
 
-Une partie accepte de 2 à 16 joueurs. Chaque joueur commence sur un village
-distinct : un château y est construit gratuitement, devient la capitale par
-défaut, et le joueur reçoit ses nobles, ses armées et ses ressources de départ
-selon `assets/balance.json`.
+Une partie accepte de 2 à 16 joueurs. Chaque joueur commence sur un territoire
+distinct qui n'est pas un village neutre : un château y est construit
+gratuitement, devient la capitale par défaut, et le joueur reçoit ses nobles,
+ses armées et ses ressources de départ selon `assets/balance.json`. Les `N + 1`
+villages neutres générés sur la carte restent distincts des `N` châteaux de
+départ.
 
 Un joueur est éliminé lorsqu'il ne contrôle plus aucun territoire et ne possède
 plus aucune armée. Les nobles seuls ne maintiennent pas un joueur en lice. Le
