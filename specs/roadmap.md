@@ -59,7 +59,8 @@ online à réaliser et à suivre par issue.
 - Une non-adjacence rencontrée pendant la résolution casse la chaîne à cet
   ordre ; les ordres précédents restent valides et le suffixe n'est pas joué.
 - Une chaîne reçue remplace immédiatement la chaîne précédente de l'armée
-  concernée. Il n'existe pas de mécanisme de modification partielle.
+  concernée. Plusieurs chaînes ciblant la même armée au même tour sont toutes
+  rejetées ; il n'existe pas de mécanisme de modification partielle.
 - Une armée sans chaîne est simplement Sans Ordre : elle ne reçoit aucune
   action automatique.
 - Les infrastructures v1 sont le moulin, le dépôt de vivres, le château et le
