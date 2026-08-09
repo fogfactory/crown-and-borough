@@ -352,6 +352,7 @@ func TestNeutralVillageCapturePreservesStockAndDelaysSupply(t *testing.T) {
 	winter := cloneGameState(next.State)
 	winter.Turn = 4
 	winter.Season = models.SeasonWinter
+	addNoble(winter, "N2", "TWO", "P1", "T01")
 	winterResolution, err := ResolveWinter(winter, testBalance(), map[models.PlayerID][]models.WinterOrder{
 		"P1": {{ID: "W1", Type: models.WinterOrderTypeRecruitTroop, TerritoryID: "T02"}},
 	})

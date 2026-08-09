@@ -64,8 +64,11 @@ liste d'investissements directs, traités dans l'ordre saisi :
 
 `XXX` est le trigramme du territoire ciblé, sauf pour `L N`, qui cible un
 noble. Chaque investissement exige le contrôle du territoire ciblé. Le
-recrutement d'un noble ou d'une troupe exige également une armée du joueur sur
-la case. Un ordre rejeté est signalé dans le rapport et son investissement est
+recrutement d'une troupe exige en outre un noble libre du joueur, situé sur la
+cible ou sur un territoire adjacent à celle-ci par une frontière franchissable.
+Le recrutement d'un noble exige une
+infrastructure de peuplement (château ou village) et une armée du joueur sur la
+case. Un ordre rejeté est signalé dans le rapport et son investissement est
 perdu.
 
 | Investissement | Coût en R |
