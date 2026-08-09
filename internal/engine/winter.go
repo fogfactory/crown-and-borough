@@ -162,6 +162,10 @@ func (ctx *resolutionContext) resolveRecruitTroop(playerID models.PlayerID, orde
 		ctx.rejectWinterOrder(playerID, order, "territory_occupied_by_other_player")
 		return
 	}
+	if !ctx.hasEligibleTroopNoble(playerID, order.TerritoryID) {
+		ctx.rejectWinterOrder(playerID, order, "troop_requires_adjacent_noble")
+		return
+	}
 	spent, paid := ctx.payWinterCost(playerID, order.TerritoryID, ctx.balance.Costs.Troop)
 	if !paid {
 		ctx.rejectWinterOrder(playerID, order, "insufficient_resources")
@@ -203,6 +207,18 @@ func (ctx *resolutionContext) resolveRecruitTroop(playerID models.PlayerID, orde
 		Troops:        1,
 		ResourceSpent: spent,
 	})
+}
+
+func (ctx *resolutionContext) hasEligibleTroopNoble(playerID models.PlayerID, targetID models.TerritoryID) bool {
+	for _, noble := range ctx.state.Nobles {
+		if noble.OwnerID != playerID || noble.Status != models.NobleStatusFree {
+			continue
+		}
+		if noble.LocationID == targetID || ctx.isAdjacent(noble.LocationID, targetID) {
+			return true
+		}
+	}
+	return false
 }
 
 func (ctx *resolutionContext) resolveBuild(playerID models.PlayerID, order models.WinterOrder) {

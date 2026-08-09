@@ -65,6 +65,9 @@ online à réaliser et à suivre par issue.
 - Les infrastructures v1 sont le moulin, le dépôt de vivres, le château et le
   village. Les anciennes structures liées à une couche d'information ne font
   pas partie de la v1.
+- Lever une troupe exige un noble libre du joueur sur la cible ou un territoire
+  adjacent à celle-ci par une frontière franchissable ; recruter un noble
+  conserve les exigences du château ou village et de l'armée sur la cible.
 
 ## Organisation des spécifications
 

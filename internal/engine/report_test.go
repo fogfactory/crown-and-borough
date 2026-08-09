@@ -228,10 +228,18 @@ func TestBuildTurnReportMarksWinterInvestmentOutcomes(t *testing.T) {
 func TestWinterInvestmentReportCosts(t *testing.T) {
 	newSingleStockState := func(t *testing.T) *models.GameState {
 		t.Helper()
-		state := winterTestState(t, []models.Territory{territory("T01", "AAA")}, nil)
+		state := winterTestState(t,
+			[]models.Territory{
+				territory("T01", "AAA", "T02"),
+				territory("T02", "BBB", "T01"),
+			},
+			nil,
+		)
 		setTerritoryOwner(state, "T01", "P1")
+		setTerritoryOwner(state, "T02", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "T01"})
 		setTerritoryResources(state, "T01", 2)
+		addNoble(state, "N1", "ONE", "P1", "T02")
 		validateTestState(t, state)
 		return state
 	}
@@ -273,6 +281,7 @@ func TestWinterInvestmentReportCosts(t *testing.T) {
 		setTerritoryOwner(state, "T02", "P1")
 		setTerritoryResources(state, "T01", 3)
 		setTerritoryResources(state, "T02", 3)
+		addNoble(state, "N1", "ONE", "P1", "T02")
 		validateTestState(t, state)
 
 		resolution, err := ResolveWinter(state, balance, map[models.PlayerID][]models.WinterOrder{
