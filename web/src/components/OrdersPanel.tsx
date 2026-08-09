@@ -1,6 +1,7 @@
 import type { ChangeEvent } from 'react'
 import { Snowflake } from 'lucide-react'
 
+import { OrderReference } from '@/components/OrderReference'
 import { Button } from '@/components/ui/button'
 import type { Noble, PlayerId, StateData } from '@/types'
 
@@ -79,6 +80,7 @@ export function OrdersPanel({
               ? "Modifier les ordres d'hiver"
               : "Soumettre les ordres d'hiver"}
         </Button>
+        <OrderReference season={state.season} />
       </section>
     )
   }
@@ -129,6 +131,7 @@ export function OrdersPanel({
       <Button type="button" className="w-full" disabled={submitting} onClick={onSubmit}>
         {submitting ? 'Envoi…' : submitted ? 'Modifier' : 'Soumettre'}
       </Button>
+      <OrderReference season={state.season} />
     </section>
   )
 }
