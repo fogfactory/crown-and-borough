@@ -87,6 +87,15 @@ func adjacent(indexes gameIndexes, from, to models.TerritoryID) bool {
 	return false
 }
 
+// ReceivingArmy resolves the army that a chain targets at reception. The first
+// order position identifies the receiving territory.
+func ReceivingArmy(game *models.GameState, chain models.Chain) *models.Army {
+	if game == nil || len(chain.Orders) == 0 {
+		return nil
+	}
+	return armyAtTerritory(game, indexGame(game), chain.Orders[0].PositionID)
+}
+
 // armyAtTerritory resolves both storage indexes: the TerritoryState pointer
 // and the Army record must agree before an army can receive a chain.
 func armyAtTerritory(game *models.GameState, indexes gameIndexes, territoryID models.TerritoryID) *models.Army {

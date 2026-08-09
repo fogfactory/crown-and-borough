@@ -285,6 +285,11 @@ par tour ; une nouvelle chaîne remplace celle portée par l'armée ciblée. La
 chaîne s'applique à l'armée entière et son premier ordre indique explicitement
 la position de réception.
 
+Si plusieurs chaînes ciblent la même armée au même tour, leur réception
+concurrente est invalidée : aucune de ces chaînes n'est reçue et l'armée ne
+reçoit aucune nouvelle chaîne pour ce tour. Une chaîne déjà portée reste
+inchangée.
+
 Un noble `hostage` ou `dungeon` est prisonnier et ne peut pas émettre une
 nouvelle chaîne. Les ordres `O` et `K` ne ciblent qu'un noble prisonnier détenu
 sur la case de l'armée qui les exécute. `hostage` est l'état de prison par

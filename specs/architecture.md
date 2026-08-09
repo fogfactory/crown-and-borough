@@ -262,6 +262,10 @@ conserve volontairement la non-adjacence jusqu'à l'exécution : un ordre
 non-adjacent casse la chaîne à l'endroit où il est rencontré, sans annuler les
 ordres précédents.
 
+Plusieurs chaînes ciblant la même armée au même tour constituent une réception
+concurrente : elles sont toutes rejetées avant la résolution et aucune nouvelle
+chaîne n'est attachée à cette armée. Une chaîne déjà portée reste inchangée.
+
 ## 7. Format des ordres
 
 Une chaîne est composée du code du noble émetteur puis d'une ligne par ordre.

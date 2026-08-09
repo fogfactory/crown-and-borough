@@ -411,7 +411,37 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 
 	working := cloneGameState(game)
 	receptions := make([]ReceptionReport, 0, len(parsedChains))
-	for _, submission := range parsedChains {
+	// Find target collisions before AssignChain can replace a previous chain or
+	// consume an emitter's capacity.
+	receivingArmies := make([]*models.Army, len(parsedChains))
+	receptionCounts := make(map[models.ArmyID]int, len(parsedChains))
+	for index, submission := range parsedChains {
+		army := orders.ReceivingArmy(working, submission.chain)
+		receivingArmies[index] = army
+		if army != nil {
+			receptionCounts[army.ID]++
+		}
+	}
+	for index, submission := range parsedChains {
+		if army := receivingArmies[index]; army != nil && receptionCounts[army.ID] > 1 {
+			position := territoryByID(working.Territories, army.TerritoryID)
+			positionReference := position.Code
+			if positionReference == "" {
+				positionReference = string(position.ID)
+			}
+			receptions = append(receptions, ReceptionReport{
+				Player:   submission.input.Player,
+				Noble:    models.NobleCode(submission.noble.Code),
+				Received: false,
+				Reason: fmt.Sprintf(
+					"concurrent_reception: army at %q was targeted by %d chains in turn %d",
+					positionReference,
+					receptionCounts[army.ID],
+					working.Turn,
+				),
+			})
+			continue
+		}
 		if err := orders.AssignChain(working, submission.chain); err != nil {
 			receptions = append(receptions, ReceptionReport{
 				Player:   submission.input.Player,
