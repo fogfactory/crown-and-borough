@@ -217,12 +217,31 @@ function InfrastructureMarker({ infrastructure, x, y }: InfrastructureMarkerProp
   )
 }
 
-function NobleMarker({ noble, x, y }: { noble: Noble; x: number; y: number }) {
+function NobleMarker({
+  noble,
+  x,
+  y,
+  color,
+}: {
+  noble: Noble
+  x: number
+  y: number
+  color: string
+}) {
+  const prisoner = noble.status !== 'free'
   return (
     <g transform={`translate(${x} ${y})`} pointerEvents="none">
-      <title>{`${noble.name} (${noble.id})`}</title>
-      <path d="M0-8L8 0L0 8L-8 0Z" fill="#f2c14e" stroke="#815f1e" strokeWidth="1.5" />
+      <title>{`${noble.name} (${noble.id})${prisoner ? ` · ${noble.status}` : ''}`}</title>
+      <path
+        d="M0-8L8 0L0 8L-8 0Z"
+        fill={color}
+        stroke={prisoner ? '#8d321e' : '#815f1e'}
+        strokeWidth="1.5"
+      />
       <circle cx="0" cy="0" r="2" fill="#fff3c4" />
+      {prisoner && (
+        <circle cx="0" cy="0" r="4.5" fill="none" stroke="#8d321e" strokeWidth="1.5" />
+      )}
     </g>
   )
 }
@@ -348,21 +367,24 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
       }
     }, [map])
 
-  const owners = new Set<string>()
-  state.territories.forEach((territoryState) => {
-    if (territoryState.owner) {
-      owners.add(territoryState.owner)
-    }
-    if (territoryState.army) {
-      owners.add(territoryState.army.owner)
-    }
-  })
-  state.nobles.forEach((noble) => owners.add(noble.owner))
-
+  const colorsByPlayer = new Map(state.players.map((player) => [player.id, player.color]))
+  const owners = Array.from(
+    new Set<string>([
+      ...state.players.map((player) => player.id),
+      ...state.territories.flatMap((territoryState) =>
+        territoryState.owner ? [territoryState.owner] : [],
+      ),
+      ...state.territories.flatMap((territoryState) =>
+        territoryState.army ? [territoryState.army.owner] : [],
+      ),
+      ...state.nobles.map((noble) => noble.owner),
+    ]),
+  ).sort((first, second) => first.localeCompare(second))
   const playerColors = new Map(
-    Array.from(owners)
-      .sort((first, second) => first.localeCompare(second))
-      .map((owner, index) => [owner, PLAYER_PALETTE[index % PLAYER_PALETTE.length]]),
+    owners.map((owner, index) => [
+      owner,
+      colorsByPlayer.get(owner) ?? PLAYER_PALETTE[index % PLAYER_PALETTE.length],
+    ]),
   )
   const selectedTerritoryState = state.territories.find(
     (territoryState) => territoryState.id === selectedId,
@@ -858,6 +880,7 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
                         noble={noble}
                         x={centerX + 28 + index * 16}
                         y={centerY + 20}
+                        color={playerColors.get(noble.owner) ?? '#475569'}
                       />
                     ))}
                   </g>

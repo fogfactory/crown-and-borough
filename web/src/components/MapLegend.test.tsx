@@ -16,4 +16,11 @@ describe('MapLegend', () => {
       container.querySelector('svg[aria-label="Carte des territoires"]'),
     ).not.toBeInTheDocument()
   })
+
+  it('documents noble affiliation and prisoner marks', () => {
+    render(<MapLegend />)
+
+    expect(screen.getByText('Noble (couleur du propriétaire)')).toBeInTheDocument()
+    expect(screen.getByText('Noble prisonnier (otage / donjon)')).toBeInTheDocument()
+  })
 })

@@ -50,6 +50,11 @@ const state: StateData = {
   nobles: [],
 }
 
+function nobleMarkers(svg: SVGSVGElement): Element[] {
+  const livingLayer = svg.querySelector('g[aria-label="Couche vivante"]')
+  return Array.from(livingLayer?.querySelectorAll(':scope > g > g[transform]') ?? [])
+}
+
 function renderMap(
   testMap: MapData = map,
   testState: StateData = state,
@@ -488,5 +493,77 @@ describe('MapViewer territorial overlays', () => {
     expect(
       svg.querySelector('g[aria-label="Sélection"] path[stroke-dasharray]'),
     ).not.toBeInTheDocument()
+  })
+})
+
+describe('MapViewer noble affiliation', () => {
+  const nobleState: StateData = {
+    ...state,
+    players: [
+      { id: 'P1', name: 'One', color: '#a84632' },
+      { id: 'P2', name: 'Two', color: '#2d5f9e' },
+    ],
+    nobles: [
+      {
+        id: 'N1',
+        code: 'JEA',
+        name: 'Jean de Rosemont',
+        owner: 'P1',
+        location: 'T1',
+        status: 'free',
+      },
+      {
+        id: 'N2',
+        code: 'BOB',
+        name: 'Robert de Rosemont',
+        owner: 'P2',
+        location: 'T1',
+        status: 'hostage',
+      },
+    ],
+  }
+
+  it('colors noble markers with the owner color from the state', () => {
+    const { svg } = renderMap(map, nobleState)
+    const markers = nobleMarkers(svg)
+
+    expect(markers).toHaveLength(2)
+    expect(markers[0].querySelector('path')).toHaveAttribute('fill', '#a84632')
+    expect(markers[1].querySelector('path')).toHaveAttribute('fill', '#2d5f9e')
+  })
+
+  it('marks prisoner nobles with a red ring, stroke, and status tooltip', () => {
+    const { svg } = renderMap(map, nobleState)
+    const [freeMarker, prisonerMarker] = nobleMarkers(svg)
+
+    expect(prisonerMarker.querySelector('path')).toHaveAttribute('stroke', '#8d321e')
+    expect(
+      prisonerMarker.querySelector('circle[stroke="#8d321e"]'),
+    ).toBeInTheDocument()
+    expect(prisonerMarker.querySelector('title')).toHaveTextContent(
+      'Robert de Rosemont (N2) · hostage',
+    )
+    expect(freeMarker.querySelector('path')).toHaveAttribute('stroke', '#815f1e')
+    expect(freeMarker.querySelector('circle[stroke="#8d321e"]')).not.toBeInTheDocument()
+    expect(freeMarker.querySelector('title')).toHaveTextContent('Jean de Rosemont (N1)')
+  })
+
+  it('falls back to the local palette when the state has no player color', () => {
+    const { svg } = renderMap(map, { ...nobleState, players: [] })
+    const markers = nobleMarkers(svg)
+
+    expect(markers[0].querySelector('path')).toHaveAttribute('fill', '#a84632')
+    expect(markers[1].querySelector('path')).toHaveAttribute('fill', '#2d5f9e')
+  })
+
+  it('prefers the state color over the palette', () => {
+    const { svg } = renderMap(map, {
+      ...nobleState,
+      players: [{ id: 'P1', name: 'One', color: '#123456' }],
+    })
+    const markers = nobleMarkers(svg)
+
+    expect(markers[0].querySelector('path')).toHaveAttribute('fill', '#123456')
+    expect(markers[1].querySelector('path')).toHaveAttribute('fill', '#2d5f9e')
   })
 })
