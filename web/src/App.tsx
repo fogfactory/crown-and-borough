@@ -922,19 +922,12 @@ function App() {
                     winterDraft={winterDrafts[selectedPlayer] ?? ''}
                     submitted={submittedPlayers.includes(selectedPlayer)}
                     submitting={resolving}
+                    error={actionError}
                     onChainChange={updateChainDraft}
                     onWinterChange={updateWinterDraft}
                     onSubmit={() => void submitOrders()}
                     onOpenRules={openRules}
                   />
-                )}
-                {actionError && (
-                  <p
-                    role="alert"
-                    className="rounded-md border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 text-xs text-[#8d321e]"
-                  >
-                    {actionError}
-                  </p>
                 )}
               </div>
               <div

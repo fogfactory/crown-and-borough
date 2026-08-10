@@ -285,6 +285,43 @@ describe('App command/report tabs', () => {
     })
   })
 
+  it('shows order validation errors above the order rules shortcut', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (init?.method === 'POST') {
+        return Promise.resolve({
+          ok: false,
+          status: 400,
+          json: async () => ({
+            errors: [{ line: 2, message: 'ordre invalide' }],
+          }),
+        } as Response)
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => (url.includes('/map') ? map : state),
+        text: async () => rulesDocument,
+      } as Response)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+    await screen.findByLabelText('Chaîne de JEA')
+    fireEvent.click(screen.getByRole('button', { name: 'Soumettre' }))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Ligne 2 : ordre invalide')
+
+    const rulesShortcut = screen.getByRole('button', {
+      name: 'Aide-mémoire des ordres',
+    })
+    expect(
+      Boolean(
+        alert.compareDocumentPosition(rulesShortcut) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ),
+    ).toBe(true)
+  })
+
   it('loads the reachable zone when a controlled source is selected', async () => {
     const sourceState: StateData = {
       ...state,
