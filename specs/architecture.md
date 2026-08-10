@@ -138,7 +138,12 @@ L'état projeté sépare la couche dynamique du `GameState` de stockage :
   "turn": 5,
   "season": "spring",
   "players": [
-    { "id": "P1", "name": "Joueur 1", "color": "#a84632" }
+    {
+      "id": "P1",
+      "name": "Joueur 1",
+      "color": "#a84632",
+      "capitalTerritory": "T01"
+    }
   ],
   "territories": [
     {
@@ -180,6 +185,8 @@ L'état projeté sépare la couche dynamique du `GameState` de stockage :
 `army` vaut `null` lorsqu'aucune armée n'occupe la case. Les identifiants
 d'armée, de chaîne et d'ordre internes ne sont pas exposés dans cette vue. Les
 positions et les cibles des ordres utilisent les trigrammes territoriaux.
+`capitalTerritory` désigne le territoire du château actuellement choisi comme
+capitale par le joueur ; le champ est absent lorsqu'il n'a pas de capitale.
 
 La v1 actuelle expose cette projection globalement, ce qui permet au front
 hotseat d'afficher la partie complète. La politique de divulgation cible est

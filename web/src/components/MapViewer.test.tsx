@@ -178,6 +178,37 @@ describe('MapViewer selection and panning', () => {
 })
 
 describe('MapViewer territorial overlays', () => {
+  it('marks the capital castle with a crown', () => {
+    const capitalState: StateData = {
+      ...state,
+      players: [
+        { id: 'P1', name: 'One', color: '#a84632', capitalTerritory: 'T1' },
+        { id: 'P2', name: 'Two', color: '#2d5f9e', capitalTerritory: 'T2' },
+      ],
+      territories: [
+        {
+          id: 'T1',
+          owner: 'P1',
+          resources: 0,
+          army: null,
+          infrastructures: [{ type: 'castle', level: 1 }],
+        },
+        {
+          id: 'T2',
+          owner: 'P2',
+          resources: 0,
+          army: null,
+          infrastructures: [{ type: 'village', level: 1 }],
+        },
+      ],
+    }
+
+    const { svg } = renderMap(map, capitalState)
+
+    expect(svg.querySelectorAll('[data-capital-marker="true"]')).toHaveLength(1)
+    expect(svg.querySelector('title')).toHaveTextContent(/Capitale/)
+  })
+
   it('renders the selected army supply zone and path', () => {
     const supplyState: StateData = {
       ...state,

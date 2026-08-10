@@ -60,6 +60,7 @@ interface InfrastructureMarkerProps {
   infrastructure: Infrastructure
   x: number
   y: number
+  isCapital: boolean
 }
 
 function pointsToPath(points: Point[]): string {
@@ -165,19 +166,37 @@ function getTerritoryIdFromTarget(target: EventTarget | null): string | null {
   )
 }
 
-function InfrastructureMarker({ infrastructure, x, y }: InfrastructureMarkerProps) {
-  const label = `${INFRASTRUCTURE_LABELS[infrastructure.type]} niveau ${infrastructure.level}`
+function InfrastructureMarker({
+  infrastructure,
+  x,
+  y,
+  isCapital,
+}: InfrastructureMarkerProps) {
+  const label = `${INFRASTRUCTURE_LABELS[infrastructure.type]} niveau ${infrastructure.level}${isCapital ? ' · Capitale' : ''}`
 
   return (
     <g transform={`translate(${x} ${y})`} pointerEvents="none">
       <title>{label}</title>
       {infrastructure.type === 'castle' && (
-        <path
-          d="M-9 9V-3H-5V-9H-1V-3H3V-9H7V-3H10V9Z"
-          fill="#efe6d0"
-          stroke="#5f4936"
-          strokeWidth="1.5"
-        />
+        <>
+          <path
+            d="M-9 9V-3H-5V-9H-1V-3H3V-9H7V-3H10V9Z"
+            fill="#efe6d0"
+            stroke="#5f4936"
+            strokeWidth="1.5"
+          />
+          {isCapital && (
+            <g data-capital-marker="true" transform="translate(0 -7)">
+              <path
+                d="M-8 1L-6-7L-1-1L0-8L1-1L6-7L8 1Z"
+                fill="#f2c14e"
+                stroke="#815f1e"
+                strokeWidth="1.25"
+              />
+              <path d="M-8 1H8" stroke="#815f1e" strokeWidth="1.25" />
+            </g>
+          )}
+        </>
       )}
       {infrastructure.type === 'mill' && (
         <>
@@ -827,6 +846,12 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
                         infrastructure={infrastructure}
                         x={centerX + index * 18 - 6}
                         y={centerY - 25}
+                        isCapital={
+                          infrastructure.type === 'castle' &&
+                          state.players.some(
+                            (player) => player.capitalTerritory === territory.id,
+                          )
+                        }
                       />
                     ))}
                     {territoryState.army && (

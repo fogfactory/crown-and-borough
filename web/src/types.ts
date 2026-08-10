@@ -85,6 +85,7 @@ export interface Player {
   id: PlayerId
   name: string
   color: string
+  capitalTerritory?: string
 }
 
 export interface TerritoryState {
