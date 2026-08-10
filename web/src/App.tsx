@@ -1,8 +1,11 @@
 import { useEffect, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { BookOpen } from 'lucide-react'
 
+import { MapLegend } from '@/components/MapLegend'
 import { MapViewer } from '@/components/MapViewer'
 import { OrdersPanel } from '@/components/OrdersPanel'
 import { ReportPanel } from '@/components/ReportPanel'
+import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
 import { formatOrderLabel } from '@/lib/order-label'
 import { hasSupplySource } from '@/lib/supply'
 import {
@@ -60,7 +63,7 @@ const NOBLE_STATUS_LABELS: Record<NobleStatus, string> = {
   dungeon: 'Donjon',
 }
 
-const PANEL_ORDER = ['command', 'report'] as const
+const PANEL_ORDER = ['command', 'report', 'rules'] as const
 type Panel = (typeof PANEL_ORDER)[number]
 
 const MIN_PLAYERS = 2
@@ -124,6 +127,10 @@ function App() {
   const [seed, setSeed] = useState('')
   const [activePanel, setActivePanel] = useState<Panel>('command')
   const [viewedReportTurn, setViewedReportTurn] = useState<number | null>(null)
+  const [rulesNavigation, setRulesNavigation] = useState<{
+    section: RulesSection
+    key: number
+  } | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -249,6 +256,14 @@ function App() {
 
   const updateWinterDraft = (text: string) => {
     setWinterDrafts((drafts) => ({ ...drafts, [selectedPlayer]: text }))
+  }
+
+  const openRules = (section: RulesSection) => {
+    setRulesNavigation((current) => ({
+      section,
+      key: (current?.key ?? 0) + 1,
+    }))
+    setActivePanel('rules')
   }
 
   const handlePanelKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
@@ -526,11 +541,15 @@ function App() {
           )}
         </section>
 
-        <aside className="w-full shrink-0 lg:w-96 xl:w-[27rem]">
+        <aside className="w-full shrink-0 space-y-4 lg:w-96 xl:w-[27rem]">
           <Card className="border-[#b7a786] bg-[#fffaf0] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)]">
             <CardHeader className="border-b border-[#b7a786]/50 pb-4">
               <CardTitle className="font-serif text-xl text-[#30291f]">
-                {activePanel === 'command' ? 'Poste de commandement' : 'Rapport du tour'}
+                {activePanel === 'command'
+                  ? 'Poste de commandement'
+                  : activePanel === 'report'
+                    ? 'Rapport du tour'
+                    : 'Règles du jeu'}
               </CardTitle>
               <CardDescription className="text-[#806f57]">
                 Joueur sélectionné : {selectedPlayer}
@@ -538,7 +557,7 @@ function App() {
               <div
                 role="tablist"
                 aria-label="Vues du panneau latéral"
-                className="mt-3 grid grid-cols-2 gap-1 rounded-lg bg-[#f3ead9] p-1"
+                className="mt-3 grid grid-cols-3 gap-1 rounded-lg bg-[#f3ead9] p-1"
               >
                 <button
                   type="button"
@@ -570,6 +589,22 @@ function App() {
                       Nouveau
                     </span>
                   ) : null}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activePanel === 'rules'}
+                  aria-controls="rules-panel"
+                  tabIndex={activePanel === 'rules' ? 0 : -1}
+                  data-panel-tab="rules"
+                  className={`rounded-md px-2 py-2 text-xs font-semibold transition ${activePanel === 'rules' ? 'bg-[#fffaf0] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:text-[#30291f]'}`}
+                  onClick={() => setActivePanel('rules')}
+                  onKeyDown={handlePanelKeyDown}
+                >
+                  <span className="inline-flex items-center gap-1.5">
+                    <BookOpen aria-hidden="true" className="size-3.5" />
+                    Règles
+                  </span>
                 </button>
               </div>
             </CardHeader>
@@ -844,6 +879,7 @@ function App() {
                     onChainChange={updateChainDraft}
                     onWinterChange={updateWinterDraft}
                     onSubmit={() => void submitOrders()}
+                    onOpenRules={openRules}
                   />
                 )}
                 {actionError && (
@@ -872,8 +908,21 @@ function App() {
                   </div>
                 )}
               </div>
+              <div
+                id="rules-panel"
+                role="tabpanel"
+                aria-label="Règles du jeu"
+                hidden={activePanel !== 'rules'}
+                className="min-w-0"
+              >
+                <RulesPanel
+                  targetSection={rulesNavigation?.section}
+                  navigationKey={rulesNavigation?.key}
+                />
+              </div>
             </CardContent>
           </Card>
+          <MapLegend />
         </aside>
       </main>
     </div>

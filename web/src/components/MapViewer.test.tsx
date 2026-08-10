@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { MapViewer } from '@/components/MapViewer'
@@ -87,6 +87,12 @@ function clickTarget(svg: SVGSVGElement, target: Element, clientX = 100) {
 }
 
 describe('MapViewer selection and panning', () => {
+  it('does not render the legend inside the map canvas', () => {
+    renderMap()
+
+    expect(screen.queryByText('Légende')).not.toBeInTheDocument()
+  })
+
   it('selects and toggles a territory with a left click', () => {
     const { firstTerritory, onSelect, svg } = renderMap()
 

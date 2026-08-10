@@ -81,7 +81,7 @@ func newServer(
 	return mux
 }
 
-func newHotseatServer(session *api.Session) *http.ServeMux {
+func newHotseatServer(session *api.Session, rules assetgen.Rules) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -89,6 +89,7 @@ func newHotseatServer(session *api.Session) *http.ServeMux {
 	mux.HandleFunc("GET /api/map", session.MapHTTP)
 	mux.HandleFunc("GET /api/state", session.StateHTTP)
 	mux.HandleFunc("GET /api/supply", session.SupplyHTTP)
+	mux.Handle("GET /api/rules", api.RulesHandler(rules))
 	mux.HandleFunc("POST /api/game", session.GameHTTP)
 	mux.HandleFunc("POST /api/orders", session.OrdersHTTP)
 	mux.HandleFunc("POST /api/reset", session.ResetHTTP)
@@ -107,6 +108,10 @@ func main() {
 	balance, err := assetgen.LoadBalance(assetsDir)
 	if err != nil {
 		log.Fatalf("failed to load balance: %v", err)
+	}
+	rules, err := assetgen.LoadRules(assetsDir)
+	if err != nil {
+		log.Fatalf("failed to load player rules: %v", err)
 	}
 	log.Printf("assets loaded from %s: %d communes, %d prenoms", assetsDir, len(assets.Communes), len(assets.Prenoms))
 
@@ -134,7 +139,7 @@ func main() {
 
 	addr := ":" + port
 	log.Printf("starting server on %s", addr)
-	if err := http.ListenAndServe(addr, api.WithCORS(newHotseatServer(session))); err != nil {
+	if err := http.ListenAndServe(addr, api.WithCORS(newHotseatServer(session, rules))); err != nil {
 		log.Fatal(err)
 	}
 }
