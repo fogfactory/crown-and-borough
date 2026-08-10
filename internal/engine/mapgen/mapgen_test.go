@@ -3,6 +3,7 @@ package mapgen
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"math"
 	"reflect"
 	"regexp"
@@ -207,6 +208,35 @@ func TestVillageCount(t *testing.T) {
 	})
 }
 
+func TestDedicatedVillageSites(t *testing.T) {
+	assets := loadTestAssets(t)
+	for _, players := range []int{2, 4, 8, 16} {
+		players := players
+		t.Run(fmt.Sprintf("players-%d", players), func(t *testing.T) {
+			cfg := playerTestConfig(players)
+			for _, seed := range testSeeds[:4] {
+				data := generateMap(t, seed, assets, cfg)
+				if got, want := len(data.Territories), cfg.SiteCount; got != want {
+					t.Fatalf("territory count = %d, want %d", got, want)
+				}
+				villages := 0
+				for index, territory := range data.Territories {
+					if !territory.Village {
+						continue
+					}
+					villages++
+					if index < cfg.VillageSitesFrom {
+						t.Errorf("village %s is in the non-dedicated site range", territory.ID)
+					}
+				}
+				if villages != cfg.VillageCount {
+					t.Errorf("village count = %d, want %d", villages, cfg.VillageCount)
+				}
+			}
+		})
+	}
+}
+
 func TestVillageSpread(t *testing.T) {
 	assets := loadTestAssets(t)
 	forEachTestSeed(t, func(t *testing.T, seed string) {
@@ -394,6 +424,9 @@ func TestConfigValidation(t *testing.T) {
 		{Width: 1000, Height: 700, SiteCount: 32, VillageCount: 0},
 		{Width: 1000, Height: 700, SiteCount: 32, VillageCount: -1},
 		{Width: 1000, Height: 700, SiteCount: 32, VillageCount: 33},
+		{Width: 1000, Height: 700, SiteCount: 32, VillageCount: 5, VillageSitesFrom: -1},
+		{Width: 1000, Height: 700, SiteCount: 32, VillageCount: 5, VillageSitesFrom: 32},
+		{Width: 1000, Height: 700, SiteCount: 32, VillageCount: 5, VillageSitesFrom: 29},
 	}
 	for _, cfg := range invalid {
 		if _, err := Generate("invalid", assets, cfg); err == nil {
@@ -452,11 +485,13 @@ func generateMap(t *testing.T, seed string, assets assetgen.Assets, cfg Config) 
 }
 
 func playerTestConfig(players int) Config {
+	baseTerritories := TerritoriesPerPlayer * players
 	return Config{
-		Width:        testConfig.Width,
-		Height:       testConfig.Height,
-		SiteCount:    TerritoriesPerPlayer * players,
-		VillageCount: players + 1,
+		Width:            testConfig.Width,
+		Height:           testConfig.Height,
+		SiteCount:        baseTerritories + TerritoriesPerVillage*(players+1),
+		VillageCount:     players + 1,
+		VillageSitesFrom: baseTerritories,
 	}
 }
 

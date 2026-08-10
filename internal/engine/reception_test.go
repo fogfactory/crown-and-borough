@@ -54,7 +54,7 @@ func TestResolveTurnRejectsConcurrentReceptionsFromTwoNobles(t *testing.T) {
 	}
 }
 
-func TestResolveTurnRejectsConcurrentReceptionsFromDistinctPlayers(t *testing.T) {
+func TestResolveTurnChecksOwnershipBeforeConcurrentReception(t *testing.T) {
 	assets := loadGameTestAssets(t)
 	game, err := CreateGame("concurrent-reception-players", []PlayerInit{{Name: "One"}, {Name: "Two"}}, testBalance(), assets)
 	if err != nil {
@@ -86,21 +86,23 @@ func TestResolveTurnRejectsConcurrentReceptionsFromDistinctPlayers(t *testing.T)
 		t.Fatalf("ResolveTurn: %v", err)
 	}
 
-	assertReceptionResults(t, report, map[models.NobleCode]bool{
-		models.NobleCode(p1Noble.Code): false,
-		models.NobleCode(p2Noble.Code): false,
-	})
+	receptions := make(map[models.NobleCode]ReceptionReport, len(report.Receptions))
 	for _, reception := range report.Receptions {
-		wantPlayer := p1
-		if reception.Noble == models.NobleCode(p2Noble.Code) {
-			wantPlayer = p2
-		}
-		if reception.Player != wantPlayer {
-			t.Errorf("reception for %s belongs to %s, want %s", reception.Noble, reception.Player, wantPlayer)
-		}
+		receptions[reception.Noble] = reception
 	}
-	if len(report.State.Chains) != 0 {
-		t.Fatalf("chains after cross-player conflict = %#v, want none", report.State.Chains)
+	ownerReception := receptions[models.NobleCode(p1Noble.Code)]
+	if !ownerReception.Received || ownerReception.Player != p1 {
+		t.Errorf("owner reception = %#v, want received by %s", ownerReception, p1)
+	}
+	nonOwnerReception := receptions[models.NobleCode(p2Noble.Code)]
+	if nonOwnerReception.Received || nonOwnerReception.Player != p2 {
+		t.Errorf("non-owner reception = %#v, want rejected for %s", nonOwnerReception, p2)
+	}
+	if !strings.HasPrefix(nonOwnerReception.Reason, "army_not_owned:") {
+		t.Errorf("non-owner reception reason = %q, want army_not_owned", nonOwnerReception.Reason)
+	}
+	if len(report.Orders) != 1 || report.Orders[0].Army != army.ID {
+		t.Fatalf("orders after non-owner submission = %#v, want owner's order on %s", report.Orders, army.ID)
 	}
 }
 

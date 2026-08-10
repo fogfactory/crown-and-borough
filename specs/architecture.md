@@ -126,8 +126,9 @@ La carte est statique pour une partie et commune à tous les clients :
 - `village` décrit le point de génération ; l'état courant des infrastructures
   est porté par `state.json`.
 
-La génération utilise 8 territoires par joueur et `joueurs + 1` villages. Le
-serveur de partie sert la carte courante après `POST /api/game`.
+La génération utilise `8 x joueurs` territoires de jeu et `(joueurs + 1) x 4`
+territoires supplémentaires dédiés aux `joueurs + 1` villages. Le serveur de
+partie sert la carte courante après `POST /api/game`.
 
 ### `state.json`
 

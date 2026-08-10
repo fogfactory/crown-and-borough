@@ -183,6 +183,65 @@ describe('MapViewer selection and panning', () => {
 })
 
 describe('MapViewer territorial overlays', () => {
+  it('scales map annotations with the mean territory area', () => {
+    const scaledState: StateData = {
+      ...state,
+      players: Array.from({ length: 16 }, (_, index) => ({
+        id: `P${index + 1}`,
+        name: `Player ${index + 1}`,
+        color: '#a84632',
+      })),
+      territories: [
+        {
+          id: 'T1',
+          owner: 'P1',
+          resources: 3,
+          army: { owner: 'P1', size: 4, chain: null },
+          infrastructures: [{ type: 'castle', level: 2 }],
+        },
+        {
+          id: 'T2',
+          owner: null,
+          resources: 0,
+          army: null,
+          infrastructures: [],
+        },
+      ],
+      nobles: [
+        {
+          id: 'N1',
+          code: 'ALP',
+          name: 'Noble Alp',
+          owner: 'P1',
+          location: 'T1',
+          status: 'free',
+        },
+      ],
+    }
+
+    const { svg } = renderMap(map, scaledState)
+    const livingLayer = svg.querySelector('g[aria-label="Couche vivante"]')
+    const resourceLabel = Array.from(livingLayer?.querySelectorAll('text') ?? []).find(
+      (element) => element.textContent === '×3',
+    )
+    const armyMarker = livingLayer?.querySelector('circle')
+    const infrastructureMarker = livingLayer?.querySelector('g[transform*="scale("]')
+    const codeLabel = svg.querySelector('g[aria-label="Codes des territoires"] text')
+    const referenceMeanArea = (1000 * 700) / (8 * 4 + 4 * (4 + 1))
+    const expectedScale = Math.sqrt((50 * 50) / referenceMeanArea)
+
+    expect(Number(resourceLabel?.getAttribute('font-size'))).toBeCloseTo(11 * expectedScale)
+    expect(Number(resourceLabel?.getAttribute('stroke-width'))).toBeCloseTo(3 * expectedScale)
+    expect(Number(armyMarker?.getAttribute('r'))).toBeCloseTo(9 * expectedScale)
+    expect(Number(armyMarker?.getAttribute('stroke-width'))).toBeCloseTo(2 * expectedScale)
+    expect(infrastructureMarker?.getAttribute('transform')).toContain(
+      `scale(${expectedScale})`,
+    )
+    expect(Number(codeLabel?.getAttribute('font-size'))).toBeCloseTo(13 * expectedScale)
+    expect(Number(codeLabel?.getAttribute('stroke-width'))).toBeCloseTo(3 * expectedScale)
+    expect(Number(codeLabel?.getAttribute('letter-spacing'))).toBeCloseTo(0.5 * expectedScale)
+  })
+
   it('marks the capital castle with a crown', () => {
     const capitalState: StateData = {
       ...state,
@@ -452,6 +511,9 @@ describe('MapViewer territorial overlays', () => {
 
   it('renders clipped interior control and selection strokes above terrain', () => {
     const { firstTerritory, svg } = renderMap(map, { ...state, season: 'winter' })
+    const referenceMeanArea = (1000 * 700) / (8 * 4 + 4 * (4 + 1))
+    const expectedScale = Math.sqrt((50 * 50) / referenceMeanArea)
+    const expectedDash = `${4 * expectedScale} ${3 * expectedScale}`
     const controlPath = svg.querySelector('g[aria-label="Contrôle territorial"] path')
     const winterVeil = svg.querySelector('g[aria-label="Voile hivernal"]')
 
@@ -479,14 +541,14 @@ describe('MapViewer territorial overlays', () => {
     expect(selectionPath).toHaveAttribute('clip-path', 'url(#territory-clip-T1)')
     expect(
       svg.querySelector('g[aria-label="Sélection"] path[stroke-dasharray]'),
-    ).toHaveAttribute('stroke-dasharray', '4 3')
+    ).toHaveAttribute('stroke-dasharray', expectedDash)
 
     const borderGroup = svg.querySelector('g[aria-label="Frontières"]')
     const passableBorder = borderGroup?.querySelector('line')
     const outerBorder = svg.querySelector('g[aria-label="Contours extérieurs"] line')
     expect(borderGroup).toBeInTheDocument()
     expect(passableBorder).toHaveAttribute('stroke-width', '2')
-    expect(passableBorder).toHaveAttribute('stroke-dasharray', '4 3')
+    expect(passableBorder).toHaveAttribute('stroke-dasharray', expectedDash)
     expect(outerBorder).toHaveAttribute('stroke-width', '2')
     expect(selectionPath.compareDocumentPosition(borderGroup as Node)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
@@ -496,7 +558,7 @@ describe('MapViewer territorial overlays', () => {
     )
     expect(
       svg.querySelector('g[aria-label="Contrôle territorial"] path[stroke-dasharray]'),
-    ).toHaveAttribute('stroke-dasharray', '4 3')
+    ).toHaveAttribute('stroke-dasharray', expectedDash)
   })
 
   it('uses a thicker continuous stroke for impassable borders', () => {

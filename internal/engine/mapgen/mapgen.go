@@ -14,16 +14,22 @@ const (
 	gridH = 160
 	// TerritoriesPerPlayer is the fixed development map scale.
 	TerritoriesPerPlayer = 8
+	// TerritoriesPerVillage reserves four additional territories for each
+	// generated neutral village.
+	TerritoriesPerVillage = 4
 )
 
 // Config controls the raster-generation viewport and delivered population.
 // Width and Height are not serialized: final dimensions are derived from the
 // re-anchored interior polygons. SiteCount is the number of delivered interior
 // territories; sacrificial frame sites exist only during raster generation.
+// VillageSitesFrom reserves the suffix beginning at this index for village
+// flags; zero leaves all delivered territories eligible.
 type Config struct {
-	Width, Height int
-	SiteCount     int
-	VillageCount  int
+	Width, Height    int
+	SiteCount        int
+	VillageCount     int
+	VillageSitesFrom int
 }
 
 // Territory is the static map representation of a territory. Geometry belongs
@@ -85,7 +91,7 @@ func Generate(seed string, assets assetgen.Assets, cfg Config) (MapData, error) 
 		return MapData{}, err
 	}
 
-	villages, err := assignVillages(newRNG(seed, "village"), terrain, geometry.centroids, cfg.VillageCount)
+	villages, err := assignVillages(newRNG(seed, "village"), terrain, geometry.centroids, cfg.VillageCount, cfg.VillageSitesFrom)
 	if err != nil {
 		return MapData{}, err
 	}
@@ -131,6 +137,12 @@ func validateConfig(cfg Config) error {
 	}
 	if cfg.VillageCount > cfg.SiteCount {
 		return fmt.Errorf("mapgen: village count %d exceeds site count %d", cfg.VillageCount, cfg.SiteCount)
+	}
+	if cfg.VillageSitesFrom < 0 || (cfg.VillageSitesFrom != 0 && cfg.VillageSitesFrom >= cfg.SiteCount) {
+		return fmt.Errorf("mapgen: village site start %d is outside site range [0, %d)", cfg.VillageSitesFrom, cfg.SiteCount)
+	}
+	if cfg.VillageSitesFrom > 0 && cfg.SiteCount-cfg.VillageSitesFrom < cfg.VillageCount {
+		return fmt.Errorf("mapgen: village site range has %d sites, need at least %d", cfg.SiteCount-cfg.VillageSitesFrom, cfg.VillageCount)
 	}
 	return nil
 }

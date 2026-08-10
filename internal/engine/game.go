@@ -14,8 +14,11 @@ import (
 )
 
 const (
-	minimumGamePlayers = 2
-	maximumGamePlayers = 16
+	minimumGamePlayers  = 2
+	maximumGamePlayers  = 16
+	mapReferencePlayers = 4
+	mapReferenceWidth   = 1000
+	mapReferenceHeight  = 700
 )
 
 var defaultPlayerColors = [...]string{
@@ -93,13 +96,16 @@ func (e *InputErrors) Error() string {
 
 // GameMapConfig returns the deterministic map-generation settings used by a
 // game with playerCount players. Keeping this in the engine prevents the API
-// from having a second, subtly different map configuration.
+// from having a second, subtly different map configuration. The viewport is
+// 1000x700 at four players and scales linearly with the player count.
 func GameMapConfig(playerCount int) mapgen.Config {
+	baseTerritories := mapgen.TerritoriesPerPlayer * playerCount
 	return mapgen.Config{
-		Width:        1000,
-		Height:       700,
-		SiteCount:    mapgen.TerritoriesPerPlayer * playerCount,
-		VillageCount: playerCount + 1,
+		Width:            mapReferenceWidth * playerCount / mapReferencePlayers,
+		Height:           mapReferenceHeight * playerCount / mapReferencePlayers,
+		SiteCount:        baseTerritories + mapgen.TerritoriesPerVillage*(playerCount+1),
+		VillageCount:     playerCount + 1,
+		VillageSitesFrom: baseTerritories,
 	}
 }
 
@@ -112,8 +118,8 @@ func GenerateMap(seed string, playerCount int, assets assetgen.Assets) (mapgen.M
 }
 
 // CreateGame creates the deterministic initial state for one game. Each player
-// receives a distinct generated village, ordered by territory ID and sampled
-// at regular intervals through the sorted village list.
+// receives a distinct non-village starting territory, ordered by territory ID
+// and sampled at regular intervals through the sorted eligible territory list.
 func CreateGame(seed string, players []PlayerInit, balance assetgen.Balance, assets assetgen.Assets) (*models.GameState, error) {
 	if len(players) < minimumGamePlayers || len(players) > maximumGamePlayers {
 		return nil, fmt.Errorf("engine: player count must be between %d and %d, got %d", minimumGamePlayers, maximumGamePlayers, len(players))
@@ -134,6 +140,7 @@ func CreateGame(seed string, players []PlayerInit, balance assetgen.Balance, ass
 	state.TerritoryStates = make(map[models.TerritoryID]models.TerritoryState, len(mapData.Territories))
 
 	villageIDs := make([]models.TerritoryID, 0)
+	nonVillageIDs := make([]models.TerritoryID, 0)
 	for _, generated := range mapData.Territories {
 		territoryID := models.TerritoryID(generated.ID)
 		adjacencies := make([]models.TerritoryID, len(generated.Adjacencies))
@@ -152,12 +159,21 @@ func CreateGame(seed string, players []PlayerInit, balance assetgen.Balance, ass
 		}
 		if generated.Village {
 			villageIDs = append(villageIDs, territoryID)
+		} else {
+			nonVillageIDs = append(nonVillageIDs, territoryID)
 		}
 	}
-	if len(villageIDs) < len(players) {
-		return nil, fmt.Errorf("engine: map generated %d villages for %d players", len(villageIDs), len(players))
+	if len(villageIDs) != len(players)+1 {
+		return nil, fmt.Errorf("engine: map generated %d villages for %d players, want %d", len(villageIDs), len(players), len(players)+1)
 	}
-	sort.Slice(villageIDs, func(i, j int) bool { return villageIDs[i] < villageIDs[j] })
+	if len(nonVillageIDs) < len(players) {
+		return nil, fmt.Errorf("engine: map generated %d non-village territories for %d players", len(nonVillageIDs), len(players))
+	}
+	sort.Slice(nonVillageIDs, func(i, j int) bool { return nonVillageIDs[i] < nonVillageIDs[j] })
+	adjacencies := make(map[models.TerritoryID][]models.TerritoryID, len(state.Territories))
+	for _, territory := range state.Territories {
+		adjacencies[territory.ID] = territory.Adjacencies
+	}
 
 	state.Players = make([]models.Player, 0, len(players))
 	for index, init := range players {
@@ -181,12 +197,9 @@ func CreateGame(seed string, players []PlayerInit, balance assetgen.Balance, ass
 		state.Players = append(state.Players, models.Player{ID: playerID, Name: name, Color: color})
 	}
 
-	starts := make([]models.TerritoryID, len(players))
-	startSet := make(map[models.TerritoryID]bool, len(players))
-	for index := range players {
-		startIndex := index * len(villageIDs) / len(players)
-		starts[index] = villageIDs[startIndex]
-		startSet[starts[index]] = true
+	starts, err := SelectStartingTerritories(nonVillageIDs, adjacencies, len(players))
+	if err != nil {
+		return nil, fmt.Errorf("engine: select starting territories: %w", err)
 	}
 
 	nextInfrastructureID := 1
@@ -229,7 +242,7 @@ func CreateGame(seed string, players []PlayerInit, balance assetgen.Balance, ass
 
 	for _, generated := range mapData.Territories {
 		territoryID := models.TerritoryID(generated.ID)
-		if !generated.Village || startSet[territoryID] {
+		if !generated.Village {
 			continue
 		}
 		infrastructure := models.Infrastructure{
@@ -306,9 +319,10 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 	}
 
 	type parsedSubmission struct {
-		input ChainSubmission
-		chain models.Chain
-		noble models.Noble
+		input          ChainSubmission
+		chain          models.Chain
+		noble          models.Noble
+		receptionError error
 	}
 	parsedChains := make([]parsedSubmission, 0, len(input.Chains))
 	seenNobles := make(map[models.NobleID]bool)
@@ -378,7 +392,13 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 			continue
 		}
 		seenNobles[noble.ID] = true
-		parsedChains = append(parsedChains, parsedSubmission{input: submission, chain: chain, noble: noble})
+		receptionError := orders.ValidateReceivingArmyOwnership(game, chain, noble.OwnerID)
+		parsedChains = append(parsedChains, parsedSubmission{
+			input:          submission,
+			chain:          chain,
+			noble:          noble,
+			receptionError: receptionError,
+		})
 	}
 
 	winterOrders := make(map[models.PlayerID][]models.WinterOrder)
@@ -416,6 +436,9 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 	receivingArmies := make([]*models.Army, len(parsedChains))
 	receptionCounts := make(map[models.ArmyID]int, len(parsedChains))
 	for index, submission := range parsedChains {
+		if submission.receptionError != nil {
+			continue
+		}
 		army := orders.ReceivingArmy(working, submission.chain)
 		receivingArmies[index] = army
 		if army != nil {
@@ -423,6 +446,15 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 		}
 	}
 	for index, submission := range parsedChains {
+		if submission.receptionError != nil {
+			receptions = append(receptions, ReceptionReport{
+				Player:   submission.input.Player,
+				Noble:    models.NobleCode(submission.noble.Code),
+				Received: false,
+				Reason:   submission.receptionError.Error(),
+			})
+			continue
+		}
 		if army := receivingArmies[index]; army != nil && receptionCounts[army.ID] > 1 {
 			position := territoryByID(working.Territories, army.TerritoryID)
 			positionReference := position.Code

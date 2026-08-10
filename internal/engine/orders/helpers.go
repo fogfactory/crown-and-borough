@@ -1,6 +1,10 @@
 package orders
 
-import "github.com/fogfactory/crown-and-borough/internal/models"
+import (
+	"fmt"
+
+	"github.com/fogfactory/crown-and-borough/internal/models"
+)
 
 type gameIndexes struct {
 	territoriesByCode map[string]models.TerritoryID
@@ -94,6 +98,26 @@ func ReceivingArmy(game *models.GameState, chain models.Chain) *models.Army {
 		return nil
 	}
 	return armyAtTerritory(game, indexGame(game), chain.Orders[0].PositionID)
+}
+
+// ValidateReceivingArmyOwnership checks whether the chain's receiving army is
+// owned by ownerID. A missing army is left to AssignChain's regular reception
+// validation; this helper only establishes ownership before collision checks.
+func ValidateReceivingArmyOwnership(game *models.GameState, chain models.Chain, ownerID models.PlayerID) error {
+	if game == nil || len(chain.Orders) == 0 {
+		return nil
+	}
+	indexes := indexGame(game)
+	positionID := chain.Orders[0].PositionID
+	army := armyAtTerritory(game, indexes, positionID)
+	return receivingArmyOwnershipError(indexes, positionID, army, ownerID)
+}
+
+func receivingArmyOwnershipError(indexes gameIndexes, positionID models.TerritoryID, army *models.Army, ownerID models.PlayerID) error {
+	if army == nil || army.OwnerID == ownerID {
+		return nil
+	}
+	return assignmentError(ErrArmyNotOwned, fmt.Sprintf("army at receiving position %q belongs to %q, not emitting noble owner %q", territoryReference(indexes, positionID), army.OwnerID, ownerID))
 }
 
 // armyAtTerritory resolves both storage indexes: the TerritoryState pointer

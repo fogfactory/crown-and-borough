@@ -10,7 +10,8 @@ source de vérité pour les fonctionnalités livrées.
 La v1 comprend :
 
 - le moteur de jeu en Go pur ;
-- la génération déterministe d'une carte de 8 territoires par joueur ;
+- la génération déterministe d'une carte de `8 x N` territoires de jeu et de
+  `(N + 1) x 4` territoires dédiés aux villages ;
 - les chaînes d'ordres, leur progression simultanée, les combats, les retraites,
   les jonctions, les dispersions et le pillage ;
 - le ravitaillement, la famine et la résolution des ordres d'hiver ;
@@ -30,7 +31,7 @@ online à réaliser et à suivre par issue.
 | Domaine | Fonctionnalités v1 | État |
 |---|---|---|
 | Fondations | Module Go, chargement des assets CSV, balance JSON, front Vite/React/TypeScript | Fait |
-| Carte | Génération Voronoï seedée, territoires nommés par trigramme, frontières franchissables ou infranchissables, graphe connexe, villages neutres | Partiel : la génération produit `N + 1` villages, mais le setup actuel en remplace `N` par les châteaux de départ ; voir l'issue #21 |
+| Carte | Génération Voronoï seedée, territoires nommés par trigramme, frontières franchissables ou infranchissables, graphe connexe, villages neutres et territoires dédiés | Fait |
 | Modèle | Joueurs, territoires, armées uniques par territoire, nobles, infrastructures, stocks, chaînes | Fait |
 | Ordres | Parser texte, ordres A/S/H/J/P/O/K/D, liaisons `single` et `loop`, validation et remplacement atomique des chaînes | Fait |
 | Résolution | Progression simultanée, attaques, soutiens, combats multi-contendants, retraites, jonctions, dispersions, contrôle territorial | Fait |
@@ -43,10 +44,11 @@ online à réaliser et à suivre par issue.
 ## Contraintes et décisions v1
 
 - Une partie accepte de 2 à 16 joueurs.
-- La carte contient 8 territoires par joueur et `joueurs + 1` villages
-  neutres.
+- La carte contient `8 x N` territoires de jeu et `(N + 1) x 4` territoires
+  supplémentaires dédiés aux `N + 1` villages neutres.
 - Les `N` châteaux de départ sont placés sur des territoires qui ne portent pas
-  ces villages neutres ; ils ne consomment donc aucun des `N + 1` villages.
+  ces villages neutres, avec au moins 4 étapes franchissables entre deux
+  départs ; ils ne consomment donc aucun des `N + 1` villages.
 - Les villages neutres produisent et stockent leur production. Leur stock est
   inaccessible avant capture et reste sur place lors de la capture.
 - Une seule infrastructure occupe une case. Les infrastructures appartiennent

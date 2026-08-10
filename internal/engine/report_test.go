@@ -43,7 +43,18 @@ func TestTurnReportContainsResolutionSectionsAndRoundTrips(t *testing.T) {
 	if len(start.Adjacencies) == 0 {
 		t.Fatalf("starting territory %s has no adjacency", start.ID)
 	}
-	target := territoryByID(game.Territories, start.Adjacencies[0])
+	var target models.Territory
+	for _, adjacentID := range start.Adjacencies {
+		candidate := territoryByID(game.Territories, adjacentID)
+		candidateState := game.TerritoryStates[candidate.ID]
+		if candidateState.OwnerID == nil && candidateState.Army == nil {
+			target = candidate
+			break
+		}
+	}
+	if target.ID == "" {
+		t.Fatalf("starting territory %s has no unoccupied adjacent territory", start.ID)
+	}
 	report, err := ResolveTurn(game, balance, OrdersInput{
 		Chains: []ChainSubmission{{
 			Player: noble.OwnerID,

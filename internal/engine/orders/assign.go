@@ -46,8 +46,8 @@ func AssignChain(game *models.GameState, chain models.Chain) error {
 	if army == nil {
 		return assignmentError(ErrNoArmyOnPosition, fmt.Sprintf("no army occupies receiving position %q", territoryReference(indexes, positionID)))
 	}
-	if army.OwnerID != noble.OwnerID {
-		return assignmentError(ErrArmyNotOwned, fmt.Sprintf("army at receiving position %q belongs to %q, not emitting noble owner %q", territoryReference(indexes, positionID), army.OwnerID, noble.OwnerID))
+	if err := receivingArmyOwnershipError(indexes, positionID, army, noble.OwnerID); err != nil {
+		return err
 	}
 	for _, existing := range game.Chains {
 		if existing.PendingDisperse != nil && existing.PendingDisperse.ArmyID == army.ID && existing.ArmyID != army.ID {
