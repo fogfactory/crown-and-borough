@@ -118,6 +118,47 @@ afterEach(() => {
 })
 
 describe('App command/report tabs', () => {
+  it('identifies a selected capital in the command post', async () => {
+    const capitalState: StateData = {
+      ...state,
+      players: [
+        { id: 'P1', name: 'One', color: '#a84632', capitalTerritory: 'T1' },
+        state.players[1],
+      ],
+      territories: [
+        {
+          ...state.territories[0],
+          infrastructures: [{ type: 'castle', level: 1 }],
+        },
+        state.territories[1],
+      ],
+    }
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      return Promise.resolve({
+        ok: true,
+        json: async () =>
+          url.includes('/map')
+            ? map
+            : url.includes('/supply')
+              ? supplyLine
+              : capitalState,
+      } as Response)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { container } = render(<App />)
+    const firstTerritory = await waitFor(() => {
+      const territory = container.querySelector('[data-territory-id="T1"]')
+      if (!territory) throw new Error('territory did not render')
+      return territory
+    })
+    fireEvent.keyDown(firstTerritory, { key: 'Enter', code: 'Enter' })
+
+    expect(await screen.findByText('Capitale de One')).toBeInTheDocument()
+    expect(screen.getByText('Capitale', { exact: true })).toBeInTheDocument()
+  })
+
   it('keeps selection and drafts while switching between tabs', async () => {
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
       const url = String(input)

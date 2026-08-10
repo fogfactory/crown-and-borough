@@ -175,6 +175,9 @@ function App() {
   const selectedState = state?.territories.find(
     (territory) => territory.id === selectedId,
   )
+  const selectedCapitalPlayer = state?.players.find(
+    (player) => player.capitalTerritory === selectedId,
+  )
   const selectedChain = selectedState?.army?.chain ?? null
   const presentNobles =
     state?.nobles.filter((noble) => noble.location === selectedId) ?? []
@@ -590,6 +593,11 @@ function App() {
                       <h2 className="mt-1 font-serif text-2xl font-semibold leading-tight">
                         {selectedTerritory.name}
                       </h2>
+                      {selectedCapitalPlayer && (
+                        <p className="mt-2 inline-flex items-center rounded-full border border-[#815f1e]/40 bg-[#f8e8ae]/60 px-2.5 py-1 text-xs font-semibold text-[#6d5118]">
+                          Capitale de {selectedCapitalPlayer.name}
+                        </p>
+                      )}
                     </div>
                     <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-3 text-sm">
                       <dt className="text-[#806f57]">Terrain</dt>
@@ -806,8 +814,16 @@ function App() {
                                     key={`${infrastructure.type}-${index}`}
                                     className="flex items-center justify-between gap-3 rounded-md bg-[#f3ead9] px-3 py-2"
                                   >
-                                    <span className="font-medium">
-                                      {INFRASTRUCTURE_LABELS[infrastructure.type]}
+                                    <span className="flex min-w-0 items-center gap-2 font-medium">
+                                      <span>
+                                        {INFRASTRUCTURE_LABELS[infrastructure.type]}
+                                      </span>
+                                      {infrastructure.type === 'castle' &&
+                                        selectedCapitalPlayer && (
+                                          <span className="shrink-0 rounded-full bg-[#f8e8ae] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#6d5118]">
+                                            Capitale
+                                          </span>
+                                        )}
                                     </span>
                                     <span className="shrink-0 text-xs text-[#806f57]">
                                       Niveau {infrastructure.level}
