@@ -35,10 +35,6 @@ var (
 	ErrNoblePrisoner = errors.New("noble_prisoner")
 	// ErrEmissionCapacity reports a second emission by one noble in the same turn.
 	ErrEmissionCapacity = errors.New("emission_capacity")
-	// ErrDisperseSize reports a D order whose destinations do not match army size.
-	ErrDisperseSize = errors.New("disperse_size")
-	// ErrNoblesNotCovered reports invalid dispersion assignments for co-located nobles.
-	ErrNoblesNotCovered = errors.New("nobles_not_covered")
 	// ErrNobleNotPrisoner reports an immediate O or K target not held by the army.
 	ErrNobleNotPrisoner = errors.New("noble_not_prisoner")
 	// ErrInvalidChain reports a malformed or statically invalid submitted chain.
