@@ -258,8 +258,8 @@ func TestMapResolverCachesStableBytes(t *testing.T) {
 		if cfg != want {
 			t.Errorf("generation config for %d players = %+v, want %+v", players, cfg, want)
 		}
-		if cfg.Width != 1000 || cfg.Height != 700 {
-			t.Errorf("generation viewport = %dx%d, want 1000x700", cfg.Width, cfg.Height)
+		if cfg.Width != want.Width || cfg.Height != want.Height {
+			t.Errorf("generation viewport = %dx%d, want %dx%d", cfg.Width, cfg.Height, want.Width, want.Height)
 		}
 		if cfg.VillageCount != players+1 {
 			t.Errorf("village count = %d for %d players, want %d", cfg.VillageCount, players, players+1)

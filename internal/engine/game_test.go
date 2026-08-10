@@ -179,6 +179,17 @@ func TestCreateGameCountsCastlesVillagesAndStartingTerritories(t *testing.T) {
 	}
 }
 
+func TestGameMapConfigScalesViewportWithPlayers(t *testing.T) {
+	for _, playerCount := range []int{2, 4, 16} {
+		config := GameMapConfig(playerCount)
+		wantWidth := 1000 * playerCount / 4
+		wantHeight := 700 * playerCount / 4
+		if config.Width != wantWidth || config.Height != wantHeight {
+			t.Errorf("players=%d: viewport = %dx%d, want %dx%d", playerCount, config.Width, config.Height, wantWidth, wantHeight)
+		}
+	}
+}
+
 func TestResolveTurnAdvancesEverySeasonAndIsPure(t *testing.T) {
 	assets := loadGameTestAssets(t)
 	game, err := CreateGame("cycle-test", []PlayerInit{{Name: "One"}, {Name: "Two"}}, testBalance(), assets)

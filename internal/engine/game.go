@@ -14,8 +14,11 @@ import (
 )
 
 const (
-	minimumGamePlayers = 2
-	maximumGamePlayers = 16
+	minimumGamePlayers  = 2
+	maximumGamePlayers  = 16
+	mapReferencePlayers = 4
+	mapReferenceWidth   = 1000
+	mapReferenceHeight  = 700
 )
 
 var defaultPlayerColors = [...]string{
@@ -93,12 +96,13 @@ func (e *InputErrors) Error() string {
 
 // GameMapConfig returns the deterministic map-generation settings used by a
 // game with playerCount players. Keeping this in the engine prevents the API
-// from having a second, subtly different map configuration.
+// from having a second, subtly different map configuration. The viewport is
+// 1000x700 at four players and scales linearly with the player count.
 func GameMapConfig(playerCount int) mapgen.Config {
 	baseTerritories := mapgen.TerritoriesPerPlayer * playerCount
 	return mapgen.Config{
-		Width:            1000,
-		Height:           700,
+		Width:            mapReferenceWidth * playerCount / mapReferencePlayers,
+		Height:           mapReferenceHeight * playerCount / mapReferencePlayers,
 		SiteCount:        baseTerritories + mapgen.TerritoriesPerVillage*(playerCount+1),
 		VillageCount:     playerCount + 1,
 		VillageSitesFrom: baseTerritories,
