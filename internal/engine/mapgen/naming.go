@@ -73,9 +73,10 @@ func isCommuneTerrain(value string) bool {
 // assignVillages spreads count neutral villages over the map, maximizing the
 // minimum distance between them (greedy max-min): the first village is drawn
 // seeded at random, then each next village is the site whose distance to its
-// nearest already-placed village is the largest. Every terrain is eligible.
-// Ties break on the lowest site index for determinism.
-func assignVillages(rng *rand.Rand, terrain []models.Terrain, centroids [][2]float64, count int) ([]bool, error) {
+// nearest already-placed village is the largest. When villageSitesFrom is
+// non-zero, only that suffix of the map is eligible. Ties break on the lowest
+// site index for determinism.
+func assignVillages(rng *rand.Rand, terrain []models.Terrain, centroids [][2]float64, count, villageSitesFrom int) ([]bool, error) {
 	n := len(terrain)
 	if count < 1 || count > n {
 		return nil, fmt.Errorf("mapgen: cannot place %d villages on %d sites", count, n)
@@ -83,11 +84,17 @@ func assignVillages(rng *rand.Rand, terrain []models.Terrain, centroids [][2]flo
 	if len(centroids) != n {
 		return nil, fmt.Errorf("mapgen: internal village input length mismatch")
 	}
+	if villageSitesFrom < 0 || (villageSitesFrom != 0 && villageSitesFrom >= n) {
+		return nil, fmt.Errorf("mapgen: village site start %d is outside site range [0, %d)", villageSitesFrom, n)
+	}
 
-	eligible := make([]int, 0, n)
+	eligible := make([]int, 0, n-villageSitesFrom)
 	for site := 0; site < n; site++ {
 		if !terrain[site].IsValid() {
 			return nil, fmt.Errorf("mapgen: invalid terrain %q on site %d", terrain[site], site)
+		}
+		if villageSitesFrom > 0 && site < villageSitesFrom {
+			continue
 		}
 		eligible = append(eligible, site)
 	}

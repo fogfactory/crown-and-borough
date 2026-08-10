@@ -10,6 +10,7 @@ import (
 
 	"github.com/fogfactory/crown-and-borough/internal/api"
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
+	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
 )
 
@@ -198,7 +199,7 @@ func TestMapResolverConfiguration(t *testing.T) {
 		if err := json.Unmarshal(mapJSON, &data); err != nil {
 			t.Fatalf("unmarshal resolve(%d): %v", players, err)
 		}
-		if got, want := len(data.Territories), mapgen.TerritoriesPerPlayer*players; got != want {
+		if got, want := len(data.Territories), engine.GameMapConfig(players).SiteCount; got != want {
 			t.Errorf("resolve(%d) territories = %d, want %d", players, got, want)
 		}
 		villages := 0
@@ -248,8 +249,15 @@ func TestMapResolverCachesStableBytes(t *testing.T) {
 	if got := len(resolver.cache); got != 2 {
 		t.Errorf("cache size = %d, want 2", got)
 	}
-	for _, cfg := range configs {
-		players := cfg.SiteCount / mapgen.TerritoriesPerPlayer
+	if len(configs) != 2 {
+		t.Fatalf("captured configs = %d, want 2", len(configs))
+	}
+	for index, cfg := range configs {
+		players := []int{4, 2}[index]
+		want := engine.GameMapConfig(players)
+		if cfg != want {
+			t.Errorf("generation config for %d players = %+v, want %+v", players, cfg, want)
+		}
 		if cfg.Width != 1000 || cfg.Height != 700 {
 			t.Errorf("generation viewport = %dx%d, want 1000x700", cfg.Width, cfg.Height)
 		}

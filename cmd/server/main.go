@@ -50,12 +50,7 @@ func (r *mapResolver) resolveData(players int) (mapgen.MapData, error) {
 	if generate == nil {
 		generate = mapgen.Generate
 	}
-	mapData, err := generate(r.seed, r.assets, mapgen.Config{
-		Width:        1000,
-		Height:       700,
-		SiteCount:    mapgen.TerritoriesPerPlayer * players,
-		VillageCount: players + 1,
-	})
+	mapData, err := generate(r.seed, r.assets, engine.GameMapConfig(players))
 	if err != nil {
 		return mapgen.MapData{}, err
 	}

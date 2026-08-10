@@ -52,8 +52,8 @@ func TestCreateGameInitialSetupAndDeterminism(t *testing.T) {
 		if castle.Type != models.InfraTypeCastle {
 			t.Fatalf("player %s capital is %s, want castle", player.ID, castle.Type)
 		}
-		if !villages[castle.TerritoryID] {
-			t.Fatalf("player %s capital %s was not placed on a generated village", player.ID, castle.TerritoryID)
+		if villages[castle.TerritoryID] {
+			t.Fatalf("player %s capital %s was placed on a generated village", player.ID, castle.TerritoryID)
 		}
 		if starts[castle.TerritoryID] {
 			t.Fatalf("starting territory %s was assigned twice", castle.TerritoryID)
@@ -89,6 +89,93 @@ func TestCreateGameInitialSetupAndDeterminism(t *testing.T) {
 	}
 	if err := first.Validate(); err != nil {
 		t.Fatalf("created state is invalid: %v", err)
+	}
+}
+
+func TestCreateGameCountsCastlesVillagesAndStartingTerritories(t *testing.T) {
+	assets := loadGameTestAssets(t)
+	balance := testBalance()
+
+	for playerCount := 2; playerCount <= 16; playerCount++ {
+		players := make([]PlayerInit, playerCount)
+		game, err := CreateGame("setup-counts", players, balance, assets)
+		if err != nil {
+			t.Fatalf("CreateGame(%d): %v", playerCount, err)
+		}
+		mapData, err := GenerateMap("setup-counts", playerCount, assets)
+		if err != nil {
+			t.Fatalf("GenerateMap(%d): %v", playerCount, err)
+		}
+
+		villageFlags := make(map[models.TerritoryID]bool, len(mapData.Territories))
+		for _, territory := range mapData.Territories {
+			villageFlags[models.TerritoryID(territory.ID)] = territory.Village
+		}
+		adjacencies := make(map[models.TerritoryID][]models.TerritoryID, len(game.Territories))
+		for _, territory := range game.Territories {
+			adjacencies[territory.ID] = territory.Adjacencies
+		}
+
+		infrastructures := make(map[models.InfraID]models.Infrastructure, len(game.Infrastructures))
+		for _, infrastructure := range game.Infrastructures {
+			infrastructures[infrastructure.ID] = infrastructure
+		}
+
+		castleCount := 0
+		villageCount := 0
+		startingTerritories := make(map[models.TerritoryID]bool, playerCount)
+		startingIDs := make([]models.TerritoryID, 0, playerCount)
+		for _, infrastructure := range game.Infrastructures {
+			switch infrastructure.Type {
+			case models.InfraTypeCastle:
+				castleCount++
+				startingIDs = append(startingIDs, infrastructure.TerritoryID)
+				if villageFlags[infrastructure.TerritoryID] {
+					t.Errorf("players=%d: castle %s is on village territory %s", playerCount, infrastructure.ID, infrastructure.TerritoryID)
+				}
+				if startingTerritories[infrastructure.TerritoryID] {
+					t.Errorf("players=%d: starting territory %s was assigned twice", playerCount, infrastructure.TerritoryID)
+				}
+				startingTerritories[infrastructure.TerritoryID] = true
+			case models.InfraTypeVillage:
+				villageCount++
+				if !villageFlags[infrastructure.TerritoryID] {
+					t.Errorf("players=%d: village infrastructure %s is not on a generated village", playerCount, infrastructure.ID)
+				}
+				territoryState := game.TerritoryStates[infrastructure.TerritoryID]
+				if territoryState.OwnerID != nil {
+					t.Errorf("players=%d: village territory %s is controlled by %s", playerCount, infrastructure.TerritoryID, *territoryState.OwnerID)
+				}
+			}
+		}
+
+		if castleCount != playerCount {
+			t.Errorf("players=%d: castles = %d, want %d", playerCount, castleCount, playerCount)
+		}
+		if len(startingTerritories) != playerCount {
+			t.Errorf("players=%d: starting territories = %d, want %d", playerCount, len(startingTerritories), playerCount)
+		}
+		for firstIndex, firstID := range startingIDs {
+			for _, secondID := range startingIDs[firstIndex+1:] {
+				distance := testGraphDistance(adjacencies, firstID, secondID)
+				if distance < MinimumStartingDistance {
+					t.Errorf("players=%d: starting territories %s and %s have distance %d, want at least %d", playerCount, firstID, secondID, distance, MinimumStartingDistance)
+				}
+			}
+		}
+		if villageCount != playerCount+1 {
+			t.Errorf("players=%d: neutral villages = %d, want %d", playerCount, villageCount, playerCount+1)
+		}
+		for territoryID, territoryState := range game.TerritoryStates {
+			if len(territoryState.Infrastructures) > 1 {
+				t.Errorf("players=%d: territory %s has %d infrastructures", playerCount, territoryID, len(territoryState.Infrastructures))
+			}
+			for _, infrastructureID := range territoryState.Infrastructures {
+				if infrastructure, ok := infrastructures[infrastructureID]; !ok || infrastructure.TerritoryID != territoryID {
+					t.Errorf("players=%d: infrastructure %s is not indexed by territory %s", playerCount, infrastructureID, territoryID)
+				}
+			}
+		}
 	}
 }
 
@@ -346,6 +433,26 @@ func infrastructureByID(state *models.GameState, id models.InfraID) models.Infra
 		}
 	}
 	return models.Infrastructure{}
+}
+
+func testGraphDistance(adjacencies map[models.TerritoryID][]models.TerritoryID, start, target models.TerritoryID) int {
+	distances := map[models.TerritoryID]int{start: 0}
+	queue := []models.TerritoryID{start}
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		if current == target {
+			return distances[current]
+		}
+		for _, adjacent := range adjacencies[current] {
+			if _, visited := distances[adjacent]; visited {
+				continue
+			}
+			distances[adjacent] = distances[current] + 1
+			queue = append(queue, adjacent)
+		}
+	}
+	return -1
 }
 
 func loadGameTestAssets(t *testing.T) assetgen.Assets {

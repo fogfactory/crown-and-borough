@@ -93,11 +93,12 @@ prélèvement partiel n'est effectué.
 - la saison suivante est le printemps.
 
 Une partie accepte de 2 à 16 joueurs. Chaque joueur commence sur un territoire
-distinct qui n'est pas un village neutre : un château y est construit
-gratuitement, devient la capitale par défaut, et le joueur reçoit ses nobles,
-ses armées et ses ressources de départ selon `assets/balance.json`. Les `N + 1`
-villages neutres générés sur la carte restent distincts des `N` châteaux de
-départ.
+distinct qui n'est pas un village neutre. Les territoires de départ sont séparés
+d'au moins quatre étapes dans le graphe des frontières franchissables. Un
+château y est construit gratuitement, devient la capitale par défaut, et le
+joueur reçoit ses nobles, ses armées et ses ressources de départ selon
+`assets/balance.json`. Les `N + 1` villages neutres générés sur la carte restent
+distincts des `N` châteaux de départ.
 
 Un joueur est éliminé lorsqu'il ne contrôle plus aucun territoire et ne possède
 plus aucune armée. Les nobles seuls ne maintiennent pas un joueur en lice. Le
@@ -108,8 +109,9 @@ dernier joueur vivant gagne la partie.
 ### Génération et graphe
 
 La carte est générée de manière déterministe à partir d'une seed. Elle contient
-8 territoires par joueur, avec `joueurs + 1` villages neutres. Les territoires
-sont des polygones nommés par une commune de `communes.csv` ; le trigramme de la
+`8 x joueurs` territoires de jeu et `(joueurs + 1) x 4` territoires
+supplémentaires dédiés aux `joueurs + 1` villages neutres. Les territoires sont
+des polygones nommés par une commune de `communes.csv` ; le trigramme de la
 commune est unique sur la carte.
 
 Chaque frontière géométrique commune à deux territoires est conservée et

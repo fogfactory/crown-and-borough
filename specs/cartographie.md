@@ -17,18 +17,18 @@ la représentation graphique des ponts.
 
 ## Villages neutres du socle
 
-Le socle doit déjà conserver `N + 1` villages neutres en plus des `N` châteaux
-de départ. Comme une case ne porte qu'une seule infrastructure, les territoires
-de départ des joueurs doivent être choisis hors des territoires marqués comme
-villages. Cette correction est suivie dans [l'issue #21](https://github.com/fogfactory/crown-and-borough/issues/21)
-du milestone v1.
+Le socle conserve `N + 1` villages neutres en plus des `N` châteaux de départ.
+Comme une case ne porte qu'une seule infrastructure, les territoires de départ
+des joueurs sont choisis hors des territoires marqués comme villages et sont
+séparés d'au moins quatre étapes dans le graphe franchissable.
 
 ## Carte élargie
 
-Après la correction du socle, la carte devra pouvoir accueillir `(N + 1) x 4`
-territoires supplémentaires dédiés aux villages neutres. Le placement devra
-rester déterministe, connexe et compatible avec les contraintes de degré et de
-terrain existantes.
+La carte du socle contient `8 x N` territoires de jeu et `(N + 1) x 4`
+territoires supplémentaires dédiés aux villages neutres. Elle porte toujours
+`N + 1` villages, placés uniquement dans cette plage dédiée. Le placement reste
+déterministe, connexe et compatible avec les contraintes de degré et de terrain
+existantes.
 
 Les lacs et la mer sont conservés comme possibilités de conception, mais ne font
 pas partie du périmètre minimal des rivières et des ponts.

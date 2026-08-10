@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
+	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
@@ -62,6 +63,7 @@ func TestDemoStateStagesAPlausibleMidGame(t *testing.T) {
 			assertArmySizes(t, state, players*2)
 			assertStateReferences(t, state, mapData)
 			assertPlayerStaging(t, state)
+			assertStartingCastleDistance(t, state)
 			assertVillageMaterialization(t, state, mapData)
 		})
 	}
@@ -127,7 +129,7 @@ func TestDemoStateJSONRoundTrip(t *testing.T) {
 	}
 }
 
-func TestDemoStateFallsBackWhenVillagesAreScarce(t *testing.T) {
+func TestDemoStateKeepsStartsOffVillagesWhenVillagesAreScarce(t *testing.T) {
 	assets := loadTestAssets(t)
 	mapData := fallbackMapData()
 	state, err := DemoState("fallback-starts", assets, mapData, 2)
@@ -148,15 +150,15 @@ func TestDemoStateFallsBackWhenVillagesAreScarce(t *testing.T) {
 			}
 		}
 	}
-	if castles != 2 || castleOnVillage != 1 {
-		t.Errorf("castles = %d, castles on the only village = %d, want 2 and 1", castles, castleOnVillage)
+	if castles != 2 || castleOnVillage != 0 {
+		t.Errorf("castles = %d, castles on the only village = %d, want 2 and 0", castles, castleOnVillage)
 	}
 }
 
 func TestDemoStateFallsBackToOneArmyWithoutAdjacentControlledTerritory(t *testing.T) {
 	assets := loadTestAssets(t)
 	mapData := fallbackMapData()
-	for index := 1; index < 3; index++ {
+	for _, index := range []int{1, 2, 4} {
 		mapData.Territories[index].Village = true
 	}
 
@@ -397,6 +399,48 @@ func adjacentTerritories(state *models.GameState, first, second models.Territory
 	return false
 }
 
+func assertStartingCastleDistance(t *testing.T, state *models.GameState) {
+	t.Helper()
+	castleTerritories := make([]models.TerritoryID, 0, len(state.Players))
+	adjacencies := make(map[models.TerritoryID][]models.TerritoryID, len(state.Territories))
+	for _, territory := range state.Territories {
+		adjacencies[territory.ID] = territory.Adjacencies
+	}
+	for _, infrastructure := range state.Infrastructures {
+		if infrastructure.Type == models.InfraTypeCastle {
+			castleTerritories = append(castleTerritories, infrastructure.TerritoryID)
+		}
+	}
+	for firstIndex, firstID := range castleTerritories {
+		for _, secondID := range castleTerritories[firstIndex+1:] {
+			distance := demoGraphDistance(adjacencies, firstID, secondID)
+			if distance < engine.MinimumStartingDistance {
+				t.Errorf("castles %s and %s have distance %d, want at least %d", firstID, secondID, distance, engine.MinimumStartingDistance)
+			}
+		}
+	}
+}
+
+func demoGraphDistance(adjacencies map[models.TerritoryID][]models.TerritoryID, start, target models.TerritoryID) int {
+	distances := map[models.TerritoryID]int{start: 0}
+	queue := []models.TerritoryID{start}
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		if current == target {
+			return distances[current]
+		}
+		for _, adjacent := range adjacencies[current] {
+			if _, visited := distances[adjacent]; visited {
+				continue
+			}
+			distances[adjacent] = distances[current] + 1
+			queue = append(queue, adjacent)
+		}
+	}
+	return -1
+}
+
 func hasAdjacentCastle(state *models.GameState, territoryID models.TerritoryID) bool {
 	castles := make(map[models.TerritoryID]bool)
 	for _, infrastructure := range state.Infrastructures {
@@ -433,8 +477,8 @@ func assertVillageMaterialization(t *testing.T, state *models.GameState, mapData
 			continue
 		}
 		infrastructure := infrastructures[stateForTerritory.Infrastructures[0]]
-		if infrastructure.Type != models.InfraTypeVillage && infrastructure.Type != models.InfraTypeCastle {
-			t.Errorf("village territory %s has %s, want village or castle", territory.ID, infrastructure.Type)
+		if infrastructure.Type != models.InfraTypeVillage {
+			t.Errorf("village territory %s has %s, want village", territory.ID, infrastructure.Type)
 		}
 		if infrastructure.Type == models.InfraTypeVillage && stateForTerritory.OwnerID != nil {
 			t.Errorf("remaining village %s is controlled by %s", territory.ID, *stateForTerritory.OwnerID)
@@ -461,12 +505,7 @@ func generatePlayerTestMap(t *testing.T, assets assetgen.Assets, players int) ma
 
 func generatePlayerMap(t *testing.T, seed string, assets assetgen.Assets, players int) mapgen.MapData {
 	t.Helper()
-	mapData, err := mapgen.Generate(seed, assets, mapgen.Config{
-		Width:        1000,
-		Height:       700,
-		SiteCount:    mapgen.TerritoriesPerPlayer * players,
-		VillageCount: players + 1,
-	})
+	mapData, err := mapgen.Generate(seed, assets, engine.GameMapConfig(players))
 	if err != nil {
 		t.Fatalf("generate map: %v", err)
 	}
@@ -474,18 +513,19 @@ func generatePlayerMap(t *testing.T, seed string, assets assetgen.Assets, player
 }
 
 func fallbackMapData() mapgen.MapData {
-	territories := make([]mapgen.Territory, 8)
-	codes := []string{"AAA", "AAB", "AAC", "AAD", "AAE", "AAF", "AAG", "AAH"}
+	territories := make([]mapgen.Territory, 10)
+	codes := []string{"AAA", "AAB", "AAC", "AAD", "AAE", "AAF", "AAG", "AAH", "AAI", "AAJ"}
 	for index := range territories {
 		previous := (index + len(territories) - 1) % len(territories)
 		next := (index + 1) % len(territories)
+		territoryID := fmt.Sprintf("T%02d", index+1)
 		territories[index] = mapgen.Territory{
-			ID:          "T0" + string(rune('1'+index)),
+			ID:          territoryID,
 			Code:        codes[index],
-			Name:        "Territory " + string(rune('A'+index)),
+			Name:        fmt.Sprintf("Territory %c", 'A'+index),
 			Terrain:     models.TerrainPlain,
 			Village:     index == 0,
-			Adjacencies: []string{"T0" + string(rune('1'+previous)), "T0" + string(rune('1'+next))},
+			Adjacencies: []string{fmt.Sprintf("T%02d", previous+1), fmt.Sprintf("T%02d", next+1)},
 			Impassable:  []string{},
 		}
 	}

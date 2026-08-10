@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
+	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
@@ -102,7 +103,7 @@ func DemoState(seed string, assets assetgen.Assets, mapData mapgen.MapData, play
 		})
 	}
 
-	starts, err := selectStarts(allTerritoryIDs, villageIDs, players, newRNG(seed, "starts"))
+	starts, err := selectStarts(allTerritoryIDs, villageIDs, territoriesByID, players, newRNG(seed, "starts"))
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +150,7 @@ func DemoState(seed string, assets assetgen.Assets, mapData mapgen.MapData, play
 	}
 	for _, territory := range mapData.Territories {
 		territoryID := models.TerritoryID(territory.ID)
-		if territory.Village && !startSet[territoryID] {
+		if territory.Village {
 			if err := addInfrastructure(state, &nextInfrastructureID, models.InfraTypeVillage, territoryID); err != nil {
 				return nil, err
 			}
@@ -211,40 +212,41 @@ func DemoState(seed string, assets assetgen.Assets, mapData mapgen.MapData, play
 	return state, nil
 }
 
-func selectStarts(allTerritoryIDs, villageIDs []models.TerritoryID, players int, rng *rand.Rand) ([]models.TerritoryID, error) {
-	villages := append([]models.TerritoryID(nil), villageIDs...)
-	shuffle(rng, villages)
-
-	starts := make([]models.TerritoryID, 0, players)
-	selected := make(map[models.TerritoryID]bool, players)
-	for _, territoryID := range villages {
-		if len(starts) == players {
-			break
-		}
-		starts = append(starts, territoryID)
-		selected[territoryID] = true
-	}
-	if len(starts) == players {
-		return starts, nil
+func selectStarts(
+	allTerritoryIDs, villageIDs []models.TerritoryID,
+	territoriesByID map[models.TerritoryID]mapgen.Territory,
+	players int,
+	rng *rand.Rand,
+) ([]models.TerritoryID, error) {
+	villages := make(map[models.TerritoryID]bool, len(villageIDs))
+	for _, territoryID := range villageIDs {
+		villages[territoryID] = true
 	}
 
-	fallback := make([]models.TerritoryID, 0, len(allTerritoryIDs)-len(starts))
+	starts := make([]models.TerritoryID, 0, len(allTerritoryIDs))
 	for _, territoryID := range allTerritoryIDs {
-		if !selected[territoryID] {
-			fallback = append(fallback, territoryID)
+		if !villages[territoryID] {
+			starts = append(starts, territoryID)
 		}
 	}
-	shuffle(rng, fallback)
-	for _, territoryID := range fallback {
-		if len(starts) == players {
-			break
+	if len(starts) < players {
+		return nil, fmt.Errorf("demo: cannot select %d non-village starting territories from %d", players, len(starts))
+	}
+	shuffle(rng, starts)
+
+	adjacencies := make(map[models.TerritoryID][]models.TerritoryID, len(territoriesByID))
+	for territoryID, territory := range territoriesByID {
+		adjacentIDs := make([]models.TerritoryID, len(territory.Adjacencies))
+		for index, adjacentID := range territory.Adjacencies {
+			adjacentIDs[index] = models.TerritoryID(adjacentID)
 		}
-		starts = append(starts, territoryID)
+		adjacencies[territoryID] = adjacentIDs
 	}
-	if len(starts) != players {
-		return nil, fmt.Errorf("demo: cannot select %d distinct starting territories", players)
+	selected, err := engine.SelectStartingTerritories(starts, adjacencies, players)
+	if err != nil {
+		return nil, fmt.Errorf("demo: select starting territories: %w", err)
 	}
-	return starts, nil
+	return selected, nil
 }
 
 func selectControlTerritories(
@@ -294,7 +296,10 @@ func selectControlTerritories(
 		frontier = next
 	}
 	if len(selected) != count {
-		return nil, fmt.Errorf("cannot expand control to %d territories without taking a village", count+1)
+		// Small fixture maps may not have enough non-village territory for the
+		// requested staging size. Keep the reachable partial expansion so the
+		// demo can still exercise its one-army fallback.
+		return selected, nil
 	}
 	return selected, nil
 }
