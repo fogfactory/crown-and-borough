@@ -21,6 +21,7 @@ function renderOrdersPanel(season: StateData['season'], onOpenRules = vi.fn()) {
       winterDraft=""
       submitted={false}
       submitting={false}
+      error={null}
       onChainChange={vi.fn()}
       onWinterChange={vi.fn()}
       onSubmit={vi.fn()}

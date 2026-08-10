@@ -12,6 +12,7 @@ interface OrdersPanelProps {
   winterDraft: string
   submitted: boolean
   submitting: boolean
+  error: string | null
   onChainChange: (noble: string, text: string) => void
   onWinterChange: (text: string) => void
   onSubmit: () => void
@@ -46,6 +47,19 @@ function RulesButton({
   )
 }
 
+function OrderError({ error }: { error: string | null }) {
+  if (!error) return null
+
+  return (
+    <p
+      role="alert"
+      className="rounded-md border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 text-xs text-[#8d321e]"
+    >
+      {error}
+    </p>
+  )
+}
+
 export function OrdersPanel({
   state,
   player,
@@ -53,6 +67,7 @@ export function OrdersPanel({
   winterDraft,
   submitted,
   submitting,
+  error,
   onChainChange,
   onWinterChange,
   onSubmit,
@@ -102,6 +117,7 @@ export function OrdersPanel({
               ? "Modifier les ordres d'hiver"
               : "Soumettre les ordres d'hiver"}
         </Button>
+        <OrderError error={error} />
         <RulesButton section="winter-orders" onOpenRules={onOpenRules} />
       </section>
     )
@@ -153,6 +169,7 @@ export function OrdersPanel({
       <Button type="button" className="w-full" disabled={submitting} onClick={onSubmit}>
         {submitting ? 'Envoi…' : submitted ? 'Modifier' : 'Soumettre'}
       </Button>
+      <OrderError error={error} />
       <RulesButton section="action-orders" onOpenRules={onOpenRules} />
     </section>
   )
