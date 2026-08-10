@@ -113,6 +113,8 @@ const supplyLine: SupplyLine = {
   selfSupplied: false,
 }
 
+const rulesDocument = '# Règles du jeu\n\nLes ordres sont résolus simultanément.\n'
+
 afterEach(() => {
   vi.unstubAllGlobals()
 })
@@ -125,6 +127,7 @@ describe('App command/report tabs', () => {
         ok: true,
         json: async () =>
           url.includes('/map') ? map : url.includes('/supply') ? supplyLine : state,
+        text: async () => rulesDocument,
       } as Response)
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -147,6 +150,7 @@ describe('App command/report tabs', () => {
     fireEvent.keyDown(firstTerritory, { key: 'Enter', code: 'Enter' })
 
     expect(await screen.findByText('Nobles présents')).toBeInTheDocument()
+    expect(screen.getByText('Légende').closest('aside')).toBeInTheDocument()
     expect(screen.getByText('JEA · Jean de Rosemont')).toBeInTheDocument()
     expect(screen.getAllByText(/Robert de Rosemont/)).not.toHaveLength(0)
     expect(screen.getByText('Otage')).toBeInTheDocument()
@@ -163,6 +167,16 @@ describe('App command/report tabs', () => {
     fireEvent.change(draft, { target: { value: 'ROS A BRU' } })
     fireEvent.click(screen.getByRole('tab', { name: /Rapport/ }))
     expect(screen.getByText('Aucun rapport disponible')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: /Poste de commandement/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Aide-mémoire des ordres' }))
+    expect(screen.getByRole('tab', { name: /Règles/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(
+      await screen.findByText('Les ordres sont résolus simultanément.'),
+    ).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('tab', { name: /Poste de commandement/ }))
     expect(screen.getByLabelText('Chaîne de JEA')).toHaveValue('ROS A BRU')
@@ -188,6 +202,7 @@ describe('App command/report tabs', () => {
         ok: true,
         json: async () =>
           url.includes('/map') ? map : url.includes('/supply') ? supplyLine : state,
+        text: async () => rulesDocument,
       } as Response)
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -239,6 +254,7 @@ describe('App command/report tabs', () => {
         ok: true,
         json: async () =>
           url.includes('/map') ? map : url.includes('/supply') ? sourceZone : sourceState,
+        text: async () => rulesDocument,
       } as Response)
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -352,6 +368,7 @@ describe('App command/report tabs', () => {
         ok: true,
         json: async () =>
           url.includes('/map') ? map : url.includes('/supply') ? supplyLine : state,
+        text: async () => rulesDocument,
       } as Response)
     })
     vi.stubGlobal('fetch', fetchMock)

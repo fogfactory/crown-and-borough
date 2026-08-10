@@ -1,8 +1,8 @@
 import type { ChangeEvent } from 'react'
-import { Snowflake } from 'lucide-react'
+import { BookOpen, Snowflake } from 'lucide-react'
 
-import { OrderReference } from '@/components/OrderReference'
 import { Button } from '@/components/ui/button'
+import type { RulesSection } from '@/components/RulesPanel'
 import type { Noble, PlayerId, StateData } from '@/types'
 
 interface OrdersPanelProps {
@@ -15,6 +15,7 @@ interface OrdersPanelProps {
   onChainChange: (noble: string, text: string) => void
   onWinterChange: (text: string) => void
   onSubmit: () => void
+  onOpenRules: (section: RulesSection) => void
 }
 
 function ownedNobles(state: StateData, player: PlayerId): Noble[] {
@@ -23,6 +24,26 @@ function ownedNobles(state: StateData, player: PlayerId): Noble[] {
 
 function chainPlaceholder(): string {
   return 'XXX A YYY'
+}
+
+function RulesButton({
+  section,
+  onOpenRules,
+}: {
+  section: RulesSection
+  onOpenRules: (section: RulesSection) => void
+}) {
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      className="w-full border-[#b7a786] bg-[#fffaf0] text-[#594b3c] hover:bg-[#f3ead9] hover:text-[#30291f]"
+      onClick={() => onOpenRules(section)}
+    >
+      <BookOpen aria-hidden="true" className="size-4" />
+      Aide-mémoire des ordres
+    </Button>
+  )
 }
 
 export function OrdersPanel({
@@ -35,6 +56,7 @@ export function OrdersPanel({
   onChainChange,
   onWinterChange,
   onSubmit,
+  onOpenRules,
 }: OrdersPanelProps) {
   const handleChainChange =
     (noble: Noble) => (event: ChangeEvent<HTMLTextAreaElement>) => {
@@ -80,7 +102,7 @@ export function OrdersPanel({
               ? "Modifier les ordres d'hiver"
               : "Soumettre les ordres d'hiver"}
         </Button>
-        <OrderReference season={state.season} />
+        <RulesButton section="winter-orders" onOpenRules={onOpenRules} />
       </section>
     )
   }
@@ -131,7 +153,7 @@ export function OrdersPanel({
       <Button type="button" className="w-full" disabled={submitting} onClick={onSubmit}>
         {submitting ? 'Envoi…' : submitted ? 'Modifier' : 'Soumettre'}
       </Button>
-      <OrderReference season={state.season} />
+      <RulesButton section="action-orders" onOpenRules={onOpenRules} />
     </section>
   )
 }

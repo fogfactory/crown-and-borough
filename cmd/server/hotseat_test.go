@@ -21,11 +21,15 @@ func TestHotseatServerRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load balance: %v", err)
 	}
+	rules, err := assetgen.LoadRules("../../assets")
+	if err != nil {
+		t.Fatalf("load player rules: %v", err)
+	}
 	session, err := api.NewSession("route-test", []engine.PlayerInit{{Name: "One"}, {Name: "Two"}}, balance, assets)
 	if err != nil {
 		t.Fatalf("NewSession: %v", err)
 	}
-	server := api.WithCORS(newHotseatServer(session))
+	server := api.WithCORS(newHotseatServer(session, rules))
 
 	mapRecorder := httptest.NewRecorder()
 	server.ServeHTTP(mapRecorder, httptest.NewRequest(http.MethodGet, "/api/map", nil))
@@ -37,6 +41,15 @@ func TestHotseatServerRoutes(t *testing.T) {
 	server.ServeHTTP(stateRecorder, httptest.NewRequest(http.MethodGet, "/api/state", nil))
 	if stateRecorder.Code != http.StatusOK {
 		t.Fatalf("GET state = %d", stateRecorder.Code)
+	}
+
+	rulesRecorder := httptest.NewRecorder()
+	server.ServeHTTP(rulesRecorder, httptest.NewRequest(http.MethodGet, "/api/rules", nil))
+	if rulesRecorder.Code != http.StatusOK {
+		t.Fatalf("GET rules = %d", rulesRecorder.Code)
+	}
+	if !strings.Contains(rulesRecorder.Body.String(), "# Règles du jeu") {
+		t.Error("GET rules does not contain the player rules heading")
 	}
 
 	submit := func(player string) *httptest.ResponseRecorder {

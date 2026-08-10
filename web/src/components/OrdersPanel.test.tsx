@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { OrdersPanel } from '@/components/OrdersPanel'
@@ -12,7 +12,7 @@ const state: StateData = {
   nobles: [],
 }
 
-function renderOrdersPanel(season: StateData['season']) {
+function renderOrdersPanel(season: StateData['season'], onOpenRules = vi.fn()) {
   return render(
     <OrdersPanel
       state={{ ...state, season }}
@@ -24,6 +24,7 @@ function renderOrdersPanel(season: StateData['season']) {
       onChainChange={vi.fn()}
       onWinterChange={vi.fn()}
       onSubmit={vi.fn()}
+      onOpenRules={onOpenRules}
     />,
   )
 }
@@ -53,5 +54,23 @@ describe('OrdersPanel seasonal presentation', () => {
     expect(
       screen.queryByText(/Investissements directs uniquement/),
     ).not.toBeInTheDocument()
+  })
+
+  it('targets the winter rules section from the winter shortcut', () => {
+    const onOpenRules = vi.fn()
+    renderOrdersPanel('winter', onOpenRules)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Aide-mémoire des ordres' }))
+
+    expect(onOpenRules).toHaveBeenCalledWith('winter-orders')
+  })
+
+  it('targets the action-order rules section outside winter', () => {
+    const onOpenRules = vi.fn()
+    renderOrdersPanel('spring', onOpenRules)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Aide-mémoire des ordres' }))
+
+    expect(onOpenRules).toHaveBeenCalledWith('action-orders')
   })
 })
