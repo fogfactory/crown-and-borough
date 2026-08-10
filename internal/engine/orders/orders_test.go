@@ -321,8 +321,6 @@ func TestAssignChainReceptionFailuresAreAtomic(t *testing.T) {
 		{"foreign army at first position", nil, "JEA\nBOI A ROS", ErrArmyNotOwned},
 		{"prisoner emitter", func(game *models.GameState) { game.Nobles[0].Status = models.NobleStatusHostage }, "JEA\nROS A BOI", ErrNoblePrisoner},
 		{"dungeon emitter", func(game *models.GameState) { game.Nobles[0].Status = models.NobleStatusDungeon }, "JEA\nROS A BOI", ErrNoblePrisoner},
-		{"wrong D size", nil, "JEA\nROS D ROS", ErrDisperseSize},
-		{"D does not cover nobles", nil, "JEA\nROS D ROS BOI", ErrNoblesNotCovered},
 		{"O target is free", nil, "JEA\nROS O CAL", ErrNobleNotPrisoner},
 		{"O target held elsewhere", func(game *models.GameState) { game.Nobles[2].LocationID = "T02" }, "JEA\nROS O BOB", ErrNobleNotPrisoner},
 		{"static invalid chain", nil, "JEA\nROS J BOI\nH BOI", ErrInvalidChain},
@@ -380,7 +378,6 @@ func TestAssignChainRejectsDeferrableMixedWithBlockingErrors(t *testing.T) {
 			chain.Orders[1].ID = chain.Orders[0].ID
 		}, ErrInvalidChain},
 		{"join not last and not adjacent", "JEA\nROS J BRU\nH BRU", nil, ErrInvalidChain},
-		{"disperse size and not adjacent", "JEA\nROS A BOI\nBOI D FOU", nil, ErrDisperseSize},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			game := orderTestState()
@@ -428,6 +425,75 @@ func TestAssignChainDisperseAndImmediatePrisonerChecks(t *testing.T) {
 	}
 }
 
+func TestAssignChainDefersDisperseSizeAndNobleCoverage(t *testing.T) {
+	for _, text := range []string{
+		"JEA\nROS D ROS",
+		"JEA\nROS D ROS BOI",
+		"JEA\nROS A BOI\nBOI D FOU",
+	} {
+		t.Run(text, func(t *testing.T) {
+			game := orderTestState()
+			if err := AssignChain(game, mustParseChain(t, game, text)); err != nil {
+				t.Fatalf("AssignChain() = %v, want execution-time dispersion validation", err)
+			}
+		})
+	}
+}
+
+func TestAssignChainAcceptsRepeatedDisperseDestination(t *testing.T) {
+	game := orderTestState()
+	if err := AssignChain(game, mustParseChain(t, game, "JEA\nROS D BOI BOI")); err != nil {
+		t.Fatalf("AssignChain() = %v, want repeated D destination to be accepted", err)
+	}
+	if got, want := game.Chains[0].Orders[0].TargetIDs, []models.TerritoryID{"T02", "T02"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("stored D targets = %#v, want %#v", got, want)
+	}
+}
+
+func TestAssignChainRejectsPendingDisperseExecutor(t *testing.T) {
+	game := orderTestState()
+	chainID := models.ChainID("C1")
+	game.Armies = append(game.Armies, models.Army{ID: "A3", OwnerID: "P1", TerritoryID: "T04", Size: 1})
+	state := game.TerritoryStates["T04"]
+	armyID := models.ArmyID("A3")
+	ownerID := models.PlayerID("P1")
+	state.Army = &armyID
+	state.OwnerID = &ownerID
+	game.TerritoryStates["T04"] = state
+	game.Armies[0].ChainID = &chainID
+	game.Chains = []models.Chain{{
+		ID:           chainID,
+		NobleID:      "N1",
+		ArmyID:       "A1",
+		CurrentIndex: 0,
+		Orders: []models.Order{{
+			ID:               "O1",
+			Type:             models.OrderTypeDisperse,
+			ArmyID:           "A1",
+			PositionID:       "T01",
+			TargetIDs:        []models.TerritoryID{"T02"},
+			NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"BOI": {"JEA"}},
+			Liaison:          models.LiaisonModeLoop,
+		}},
+		PendingDisperse: &models.PendingDisperse{
+			ArmyID:           "A3",
+			SourceID:         "T04",
+			TargetIDs:        []models.TerritoryID{"T05"},
+			NobleAssignments: map[models.TerritoryCode][]models.NobleCode{},
+		},
+	}}
+	game.NextArmyID = 4
+	game.NextChainID = 2
+	if err := game.Validate(); err != nil {
+		t.Fatalf("prepared game state is invalid: %v", err)
+	}
+	before := marshalGame(t, game)
+	assertAssignmentCategory(t, AssignChain(game, mustParseChain(t, game, "ANN\nH FOU")), ErrInvalidChain)
+	if after := marshalGame(t, game); !bytes.Equal(before, after) {
+		t.Fatalf("rejected pending executor assignment mutated game:\n before=%s\n after=%s", before, after)
+	}
+}
+
 func TestAssignChainFailurePreservesExistingChain(t *testing.T) {
 	game := orderTestState()
 	if err := AssignChain(game, mustParseChain(t, game, "JEA\nROS A BOI")); err != nil {
@@ -436,7 +502,7 @@ func TestAssignChainFailurePreservesExistingChain(t *testing.T) {
 	game.Turn = 2
 	game.Season = models.SeasonForTurn(game.Turn)
 	before := marshalGame(t, game)
-	assertAssignmentCategory(t, AssignChain(game, mustParseChain(t, game, "ANN\nROS D ROS")), ErrDisperseSize)
+	assertAssignmentCategory(t, AssignChain(game, mustParseChain(t, game, "ANN\nROS J BOI\nH BOI")), ErrInvalidChain)
 	if after := marshalGame(t, game); !bytes.Equal(before, after) {
 		t.Fatalf("failed replacement mutated existing chain:\n before=%s\n after=%s", before, after)
 	}

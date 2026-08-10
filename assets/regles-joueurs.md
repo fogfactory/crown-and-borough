@@ -128,7 +128,7 @@ noble. Aucun ne coûte de ressource en saison d'action.
 | `P` | `P XXX` | Pillage de l'infrastructure de la case occupée. |
 | `O` | `XXX O NNN` | Place le noble prisonnier `NNN` en statut `hostage` (otage). |
 | `K` | `XXX K NNN` | Place le noble prisonnier `NNN` en statut `dungeon` (donjon). |
-| `D` | `XXX D DEST1 DEST2 ...` | Dispersion : une destination par troupe, nobles affectés. |
+| `D` | `XXX D DEST1 DEST2 ...` | Dispersion pacifique : les destinations sont traitées dans leur ordre d'apparition, peuvent se répéter et les troupes arrivant sur une même case sont empilées. |
 
 ### Attaque (`A`) et jonction (`J`)
 
@@ -163,20 +163,32 @@ de nouvelle chaîne tant qu'il est détenu.
 
 ### Dispersion (`D`)
 
-`XXX D DEST1 DEST2 ...` sépare l'armée en une unité par destination :
+`XXX D DEST1 DEST2 ...` traite les destinations dans leur ordre d'apparition,
+avec au plus une troupe par destination :
 
-- il faut **une destination par troupe** (le nombre de destinations égale la
-  taille de l'armée) ;
-- chaque destination est adjacente à `XXX` ou égale à `XXX`, sans doublon ;
-- chaque noble présent sur la case doit être affecté **exactement une fois** :
-  `*` affecte tous les nobles restants, `*NNN` affecte le noble `NNN` ;
-- en `single`, une dispersion peut progresser partiellement ; en `loop`, elle
-  est retentée jusqu'à la répartition intégrale.
+- une destination est adjacente à `XXX` ou égale à `XXX` ; les destinations
+  peuvent se répéter ;
+- une destination occupée, combattue ou sans troupe disponible ne consomme pas
+  de troupe ; une destination suivante peut néanmoins recevoir une troupe ;
+- les troupes qui ne peuvent pas être envoyées restent sur la case d'origine ;
+  une liste plus courte que l'armée laisse donc un résidu sur place ;
+- les troupes arrivées sur une même destination sont empilées dans une seule
+  armée ;
+- les nobles explicitement affectés suivent le groupe produit : `*` affecte
+  tous les nobles restants, `*NNN` affecte le noble `NNN` ; les nobles non
+  mentionnés restent à l'origine tant qu'une troupe y demeure ;
+- si toutes les troupes quittent l'origine et qu'un noble présent n'a pas de
+  groupe produit, l'ordre est invalide à l'exécution ;
+- en `single`, les destinations non traitées produisent une dispersion
+  partielle et la chaîne progresse ; en `loop`, le résidu retente jusqu'à
+  l'arrivée d'une armée sur chaque destination ; si l'armée est épuisée avant
+  d'avoir traité toutes les destinations, l'ordre est invalide.
 
 Exemples :
 
 ```text
-BRI D ATL NOR              # deux destinations pour deux troupes
+BRI D ATL ATL              # deux troupes empilées dans l'armée arrivée à ATL
+BRI D ATL                  # une troupe vers ATL, le résidu reste sur BRI
 BRI D ATL*HUG NOR          # HUG vers ATL, l'autre unité vers NOR
 (BRI D ATL NOR)            # dispersion en boucle
 ```

@@ -39,6 +39,7 @@ type disperseIntent struct {
 	source       models.TerritoryID
 	targets      []models.TerritoryID
 	assignments  map[models.TerritoryID][]models.NobleID
+	nobles       []models.NobleID
 	pending      bool
 }
 
@@ -112,6 +113,7 @@ func (ctx *resolutionContext) enumeratePendingDisperse(record *orderRecord, chai
 		source:       army.TerritoryID,
 		targets:      append([]models.TerritoryID(nil), record.order.TargetIDs...),
 		assignments:  assignments,
+		nobles:       ctx.noblesAt(army.TerritoryID),
 		pending:      true,
 	}
 }
@@ -159,6 +161,7 @@ func (ctx *resolutionContext) enumerateOrder(record *orderRecord, army models.Ar
 			source:       army.TerritoryID,
 			targets:      append([]models.TerritoryID(nil), order.TargetIDs...),
 			assignments:  assignments,
+			nobles:       ctx.noblesAt(army.TerritoryID),
 		}
 	case models.OrderTypeSupport:
 		ctx.validateSupport(record, army)
@@ -221,18 +224,14 @@ func (ctx *resolutionContext) validateSupport(record *orderRecord, army models.A
 
 func (ctx *resolutionContext) validateDisperse(record *orderRecord, army models.Army) (map[models.TerritoryID][]models.NobleID, bool) {
 	order := record.order
-	if len(order.NobleTargetIDs) != 0 || len(order.TargetIDs) != army.Size {
-		record.invalidate("invalid_disperse_size")
+	if len(order.NobleTargetIDs) != 0 {
+		record.invalidate("invalid_disperse_shape")
 		return nil, false
 	}
 	targetSet := make(map[models.TerritoryID]bool, len(order.TargetIDs))
 	for _, targetID := range order.TargetIDs {
 		if ctx.territoriesByID[targetID] == nil || (targetID != army.TerritoryID && !ctx.isAdjacent(army.TerritoryID, targetID)) {
 			record.invalidate("non_adjacent_disperse_destination")
-			return nil, false
-		}
-		if targetSet[targetID] {
-			record.invalidate("duplicate_disperse_destination")
 			return nil, false
 		}
 		targetSet[targetID] = true
@@ -277,12 +276,6 @@ func (ctx *resolutionContext) validateDisperse(record *orderRecord, army models.
 				assigned[nobleID] = true
 				assignments[wildcardDestination] = append(assignments[wildcardDestination], nobleID)
 			}
-		}
-	}
-	for _, nobleID := range coLocated {
-		if !assigned[nobleID] {
-			record.invalidate("incomplete_disperse_noble_assignment")
-			return nil, false
 		}
 	}
 	return assignments, true

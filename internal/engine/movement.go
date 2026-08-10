@@ -8,8 +8,10 @@ import (
 )
 
 type disperseResolution struct {
-	intent   *disperseIntent
-	resolved []bool
+	intent    *disperseIntent
+	resolved  []bool
+	remaining int
+	invalid   bool
 }
 
 type joinResolution struct {
@@ -29,6 +31,7 @@ func executeMovementsAndRetreats(ctx *resolutionContext) error {
 	resolveDispersions(ctx)
 	resolveJoins(ctx)
 	resolveVacatedDisperseDestinations(ctx)
+	finalizeDispersions(ctx)
 	riders := startingRiders(ctx)
 	for _, armyID := range sortedArmyMap(ctx.dislodged) {
 		displaced := ctx.dislodged[armyID]
@@ -57,61 +60,95 @@ func startingRiders(ctx *resolutionContext) map[models.ArmyID][]models.NobleID {
 }
 
 func resolveDispersions(ctx *resolutionContext) {
-	type claim struct {
-		armyID models.ArmyID
-		index  int
+	invalid := make(map[models.ArmyID]string)
+	for {
+		results, candidates, claims := ctx.disperseCandidates(invalid)
+		for _, armyID := range sortedArmyMap(results) {
+			result := results[armyID]
+			available := ctx.startArmiesByID[result.intent.armyID].Size
+			for index, targetID := range result.intent.targets {
+				if !candidates[armyID][index] || available < 1 {
+					continue
+				}
+				if targetID != result.intent.source && len(claims[targetID]) > 1 {
+					continue
+				}
+				result.resolved[index] = true
+				available--
+			}
+		}
+
+		addedInvalid := false
+		for _, armyID := range sortedArmyMap(results) {
+			if reason := ctx.disperseInvalidReason(ctx.records[armyID], results[armyID]); reason != "" {
+				invalid[armyID] = reason
+				addedInvalid = true
+			}
+		}
+		if addedInvalid {
+			continue
+		}
+
+		ctx.disperseResults = results
+		for _, armyID := range sortedArmyMap(ctx.disperseResults) {
+			refreshDisperseOutcome(ctx, ctx.records[armyID], ctx.disperseResults[armyID])
+		}
+		for _, armyID := range sortedArmyMap(invalid) {
+			ctx.records[armyID].invalidate(invalid[armyID])
+		}
+		return
 	}
-	claims := make(map[models.TerritoryID][]claim)
+}
+
+func (ctx *resolutionContext) disperseCandidates(invalid map[models.ArmyID]string) (map[models.ArmyID]*disperseResolution, map[models.ArmyID][]bool, map[models.TerritoryID]map[models.ArmyID]bool) {
+	results := make(map[models.ArmyID]*disperseResolution, len(ctx.disperses))
+	candidates := make(map[models.ArmyID][]bool, len(ctx.disperses))
+	claims := make(map[models.TerritoryID]map[models.ArmyID]bool)
 	for _, armyID := range sortedArmyMap(ctx.disperses) {
 		record := ctx.records[armyID]
-		if record == nil || record.outcome != "" {
+		if record == nil || record.outcome != "" || invalid[armyID] != "" {
 			continue
 		}
 		intent := ctx.disperses[armyID]
-		resolution := &disperseResolution{
+		result := &disperseResolution{
 			intent:   intent,
 			resolved: make([]bool, len(intent.targets)),
 		}
+		candidate := make([]bool, len(intent.targets))
 		for index, targetID := range intent.targets {
-			resolved := !ctx.attackedTerritories[targetID]
-			if targetID != intent.source {
+			candidate[index] = !ctx.attackedTerritories[targetID]
+			if candidate[index] && targetID != intent.source {
 				if occupant := ctx.startArmyAt(targetID); occupant != nil && !ctx.vacatesForDisperse(occupant.ID) {
-					resolved = false
+					candidate[index] = false
 				}
 			}
-			if resolved && targetID != intent.source {
-				claims[targetID] = append(claims[targetID], claim{armyID: armyID, index: index})
+			if candidate[index] && targetID != intent.source {
+				if claims[targetID] == nil {
+					claims[targetID] = make(map[models.ArmyID]bool)
+				}
+				claims[targetID][armyID] = true
 			}
-			resolution.resolved[index] = resolved
 		}
-		ctx.disperseResults[armyID] = resolution
+		results[armyID] = result
+		candidates[armyID] = candidate
 	}
-	for _, targetID := range sortedTerritoryMap(claims) {
-		if len(claims[targetID]) < 2 {
+	return results, candidates, claims
+}
+
+func finalizeDispersions(ctx *resolutionContext) {
+	for _, armyID := range sortedArmyMap(ctx.disperseResults) {
+		result := ctx.disperseResults[armyID]
+		record := ctx.records[armyID]
+		if result.invalid || record.outcome == OutcomeInvalid {
 			continue
 		}
-		for _, conflicting := range claims[targetID] {
-			ctx.disperseResults[conflicting.armyID].resolved[conflicting.index] = false
+		if reason := ctx.disperseInvalidReason(record, result); reason != "" {
+			record.invalidate(reason)
+			record.partialD = false
+			result.invalid = true
+			continue
 		}
-	}
-	for _, armyID := range sortedArmyMap(ctx.disperseResults) {
-		record := ctx.records[armyID]
-		resolution := ctx.disperseResults[armyID]
-		complete := true
-		for _, resolved := range resolution.resolved {
-			if !resolved {
-				complete = false
-				break
-			}
-		}
-		if complete {
-			record.outcome = OutcomeSuccess
-			record.reason = "disperse_complete"
-		} else {
-			record.outcome = OutcomeFailure
-			record.reason = "disperse_partial"
-			record.partialD = true
-		}
+		refreshDisperseOutcome(ctx, record, result)
 	}
 }
 
@@ -207,34 +244,34 @@ func pendingJoinMembers(ctx *resolutionContext, candidates []models.ArmyID) []mo
 }
 
 func resolveVacatedDisperseDestinations(ctx *resolutionContext) {
-	claims := make(map[models.TerritoryID]int)
-	for _, armyID := range sortedArmyMap(ctx.disperseResults) {
-		result := ctx.disperseResults[armyID]
-		for _, targetID := range result.intent.targets {
-			if targetID != result.intent.source {
-				claims[targetID]++
-			}
-		}
-	}
+	claims := disperseTargetClaimants(ctx)
 	for {
 		changed := false
 		for _, armyID := range sortedArmyMap(ctx.disperseResults) {
 			result := ctx.disperseResults[armyID]
-			record := ctx.records[armyID]
+			if result.invalid {
+				continue
+			}
+			available := result.remaining
 			for index, targetID := range result.intent.targets {
-				if result.resolved[index] || targetID == result.intent.source || claims[targetID] != 1 || ctx.attackedTerritories[targetID] || ctx.hasPendingJoinTarget(targetID) {
+				if result.resolved[index] || targetID == result.intent.source || len(claims[targetID]) != 1 || ctx.attackedTerritories[targetID] || ctx.hasPendingJoinTarget(targetID) {
 					continue
 				}
 				occupant := ctx.startArmyAt(targetID)
 				if occupant == nil {
 					continue
 				}
-				if _, moved := ctx.joinResults[occupant.ID]; moved && ctx.records[occupant.ID].outcome == OutcomeSuccess || ctx.disperseVacatesSource(occupant.ID, targetID) {
-					result.resolved[index] = true
-					changed = true
+				if !ctx.disperseOccupantVacates(occupant.ID, targetID) || available < 1 {
+					continue
 				}
+				if !ctx.canResolveVacatedDisperseTarget(ctx.records[armyID], result, index) {
+					continue
+				}
+				result.resolved[index] = true
+				available--
+				changed = true
 			}
-			refreshDisperseOutcome(record, result)
+			result.remaining = available
 		}
 		if !changed {
 			return
@@ -242,11 +279,54 @@ func resolveVacatedDisperseDestinations(ctx *resolutionContext) {
 	}
 }
 
+func (ctx *resolutionContext) canResolveVacatedDisperseTarget(record *orderRecord, result *disperseResolution, index int) bool {
+	result.resolved[index] = true
+	invalid := ctx.disperseInvalidReason(record, result) != ""
+	result.resolved[index] = false
+	return !invalid
+}
+
+func disperseTargetClaimants(ctx *resolutionContext) map[models.TerritoryID]map[models.ArmyID]bool {
+	claims := make(map[models.TerritoryID]map[models.ArmyID]bool)
+	for _, armyID := range sortedArmyMap(ctx.disperseResults) {
+		result := ctx.disperseResults[armyID]
+		if result.invalid {
+			continue
+		}
+		intent := result.intent
+		for _, targetID := range intent.targets {
+			if targetID == intent.source {
+				continue
+			}
+			if claims[targetID] == nil {
+				claims[targetID] = make(map[models.ArmyID]bool)
+			}
+			claims[targetID][armyID] = true
+		}
+	}
+	return claims
+}
+
+func (ctx *resolutionContext) disperseOccupantVacates(armyID models.ArmyID, territoryID models.TerritoryID) bool {
+	if _, moved := ctx.joinResults[armyID]; moved {
+		if record := ctx.records[armyID]; record != nil && record.outcome == OutcomeSuccess {
+			return true
+		}
+	}
+	return ctx.disperseVacatesSource(armyID, territoryID)
+}
+
 func (ctx *resolutionContext) disperseVacatesSource(armyID models.ArmyID, territoryID models.TerritoryID) bool {
 	for _, carrierID := range sortedArmyMap(ctx.disperseResults) {
 		result := ctx.disperseResults[carrierID]
+		if result.invalid {
+			continue
+		}
 		if result.intent.armyID != armyID || result.intent.source != territoryID {
 			continue
+		}
+		if result.remaining != 0 {
+			return false
 		}
 		for index, targetID := range result.intent.targets {
 			if !result.resolved[index] || targetID == territoryID {
@@ -269,14 +349,9 @@ func (ctx *resolutionContext) hasPendingJoinTarget(targetID models.TerritoryID) 
 	return false
 }
 
-func refreshDisperseOutcome(record *orderRecord, result *disperseResolution) {
-	complete := true
-	for _, resolved := range result.resolved {
-		if !resolved {
-			complete = false
-			break
-		}
-	}
+func refreshDisperseOutcome(ctx *resolutionContext, record *orderRecord, result *disperseResolution) {
+	result.remaining = ctx.disperseRemaining(result)
+	complete := !hasUnresolvedDisperse(result)
 	record.partialD = !complete
 	if complete {
 		record.outcome = OutcomeSuccess
@@ -285,6 +360,79 @@ func refreshDisperseOutcome(record *orderRecord, result *disperseResolution) {
 		record.outcome = OutcomeFailure
 		record.reason = "disperse_partial"
 	}
+}
+
+func (ctx *resolutionContext) disperseInvalidReason(record *orderRecord, result *disperseResolution) string {
+	army := ctx.startArmiesByID[result.intent.armyID]
+	if record.order.Liaison == models.LiaisonModeLoop {
+		if len(result.intent.targets) > army.Size {
+			return "disperse_no_residual"
+		}
+	}
+	if ctx.disperseRemaining(result) == 0 && hasUnresolvedDisperse(result) && record.order.Liaison == models.LiaisonModeLoop {
+		return "disperse_no_residual"
+	}
+	if ctx.disperseOriginStrength(result) == 0 && hasOrphanedDisperseNobles(result) {
+		return "disperse_noble_left_behind"
+	}
+	return ""
+}
+
+func (ctx *resolutionContext) disperseRemaining(result *disperseResolution) int {
+	return ctx.startArmiesByID[result.intent.armyID].Size - countResolvedDisperse(result)
+}
+
+func countResolvedDisperse(result *disperseResolution) int {
+	count := 0
+	for _, resolved := range result.resolved {
+		if resolved {
+			count++
+		}
+	}
+	return count
+}
+
+func hasUnresolvedDisperse(result *disperseResolution) bool {
+	for _, resolved := range result.resolved {
+		if !resolved {
+			return true
+		}
+	}
+	return false
+}
+
+func (ctx *resolutionContext) disperseOriginStrength(result *disperseResolution) int {
+	originStrength := ctx.disperseRemaining(result)
+	for index, resolved := range result.resolved {
+		if resolved && result.intent.targets[index] == result.intent.source {
+			originStrength++
+		}
+	}
+	return originStrength
+}
+
+func hasOrphanedDisperseNobles(result *disperseResolution) bool {
+	assigned := make(map[models.NobleID]bool)
+	resolvedTargets := make(map[models.TerritoryID]bool)
+	for index, resolved := range result.resolved {
+		if resolved {
+			resolvedTargets[result.intent.targets[index]] = true
+		}
+	}
+	for targetID, nobleIDs := range result.intent.assignments {
+		for _, nobleID := range nobleIDs {
+			assigned[nobleID] = true
+			if !resolvedTargets[targetID] {
+				return true
+			}
+		}
+	}
+	for _, nobleID := range result.intent.nobles {
+		if !assigned[nobleID] {
+			return true
+		}
+	}
+	return false
 }
 
 func (ctx *resolutionContext) resolveJoinAtAttackTarget(targetID models.TerritoryID, members []models.ArmyID) {
@@ -372,6 +520,9 @@ func (ctx *resolutionContext) attacksTargeting(targetID models.TerritoryID) []mo
 func (ctx *resolutionContext) hasDisperseArrival(targetID models.TerritoryID) bool {
 	for _, armyID := range sortedArmyMap(ctx.disperseResults) {
 		result := ctx.disperseResults[armyID]
+		if result.invalid {
+			continue
+		}
 		for index, destinationID := range result.intent.targets {
 			if destinationID == targetID && result.resolved[index] && destinationID != result.intent.source {
 				return true
@@ -388,6 +539,9 @@ func (ctx *resolutionContext) hasActiveDisperseAt(territoryID models.TerritoryID
 	}
 	for _, carrierID := range sortedArmyMap(ctx.disperseResults) {
 		result := ctx.disperseResults[carrierID]
+		if result.invalid {
+			continue
+		}
 		if result.intent.armyID == army.ID && !ctx.disperseVacatesSource(army.ID, territoryID) {
 			return true
 		}
@@ -494,7 +648,7 @@ func executeNormalMovements(ctx *resolutionContext, riders map[models.ArmyID][]m
 	}
 	for _, armyID := range sortedArmyMap(ctx.disperseResults) {
 		result := ctx.disperseResults[armyID]
-		if err := applyDisperse(ctx, live, result, riders[result.intent.armyID]); err != nil {
+		if err := applyDisperse(ctx, live, result); err != nil {
 			return err
 		}
 	}
@@ -539,7 +693,6 @@ func applyDisperse(
 	ctx *resolutionContext,
 	live map[models.ArmyID]models.Army,
 	result *disperseResolution,
-	riders []models.NobleID,
 ) error {
 	intent := result.intent
 	record := ctx.records[intent.recordArmyID]
@@ -550,107 +703,100 @@ func applyDisperse(
 	if !exists {
 		return fmtMissingArmy(intent.armyID)
 	}
-	remaining := 0
-	for _, resolved := range result.resolved {
+	remaining := result.remaining
+	resolvedCount := countResolvedDisperse(result)
+	if resolvedCount == 0 && remaining != army.Size {
+		return fmt.Errorf("engine: dispersion %q has inconsistent remaining strength", record.armyID)
+	}
+	targetCounts := make(map[models.TerritoryID]int)
+	firstResolvedIndex := -1
+	for index, resolved := range result.resolved {
 		if !resolved {
-			remaining++
-		}
-	}
-	sourceArmyID := models.ArmyID("")
-	createdArmyIDs := make([]models.ArmyID, 0)
-	if result.resolved[0] {
-		army.TerritoryID = intent.targets[0]
-		army.Size = 1
-		live[army.ID] = army
-		if army.TerritoryID == intent.source {
-			sourceArmyID = army.ID
-		}
-		ctx.moveNobles(intent.assignments[intent.targets[0]], intent.targets[0], army.ID)
-		ctx.events = append(ctx.events, Event{
-			Type:          EventTypeDispersion,
-			Phase:         4,
-			ArmyID:        army.ID,
-			SourceID:      intent.source,
-			DestinationID: intent.targets[0],
-			Resolved:      true,
-			Outcome:       record.outcome,
-		})
-	} else {
-		army.TerritoryID = intent.source
-		army.Size = remaining
-		live[army.ID] = army
-		sourceArmyID = army.ID
-		ctx.events = append(ctx.events, Event{
-			Type:          EventTypeDispersion,
-			Phase:         4,
-			ArmyID:        army.ID,
-			SourceID:      intent.source,
-			DestinationID: intent.targets[0],
-			Resolved:      false,
-			Outcome:       record.outcome,
-		})
-	}
-	for index := 1; index < len(intent.targets); index++ {
-		targetID := intent.targets[index]
-		if !result.resolved[index] {
-			ctx.events = append(ctx.events, Event{
-				Type:          EventTypeDispersion,
-				Phase:         4,
-				ArmyID:        army.ID,
-				SourceID:      intent.source,
-				DestinationID: targetID,
-				Resolved:      false,
-				Outcome:       record.outcome,
-			})
 			continue
 		}
-		branchArmyID := models.ArmyID("")
-		if targetID == intent.source && sourceArmyID != "" {
-			sourceArmy := live[sourceArmyID]
-			sourceArmy.Size++
-			live[sourceArmyID] = sourceArmy
-			branchArmyID = sourceArmyID
+		if firstResolvedIndex == -1 {
+			firstResolvedIndex = index
+		}
+		targetCounts[intent.targets[index]]++
+	}
+
+	originalTarget := intent.source
+	if firstResolvedIndex != -1 && (firstResolvedIndex == 0 || remaining == 0) {
+		originalTarget = intent.targets[firstResolvedIndex]
+	}
+
+	delete(live, army.ID)
+	groupIDs := make(map[models.TerritoryID]models.ArmyID)
+	groupOrder := make([]models.TerritoryID, 0, len(targetCounts)+1)
+	createdArmyIDs := make([]models.ArmyID, 0, len(targetCounts))
+	sourceArmyID := models.ArmyID("")
+	initialized := make(map[models.TerritoryID]bool)
+	ensureGroup := func(targetID models.TerritoryID) models.ArmyID {
+		if initialized[targetID] {
+			return groupIDs[targetID]
+		}
+		groupID := models.ArmyID("")
+		if targetID == originalTarget {
+			groupID = army.ID
 		} else {
-			branchArmyID = ctx.allocateArmyID()
-			live[branchArmyID] = models.Army{
-				ID:          branchArmyID,
-				OwnerID:     army.OwnerID,
-				TerritoryID: targetID,
-				Size:        1,
-			}
-			createdArmyIDs = append(createdArmyIDs, branchArmyID)
-			if targetID == intent.source {
-				sourceArmyID = branchArmyID
+			groupID = ctx.allocateArmyID()
+			createdArmyIDs = append(createdArmyIDs, groupID)
+		}
+		groupSize := targetCounts[targetID]
+		if targetID == intent.source {
+			groupSize += remaining
+		}
+		group := army
+		group.ID = groupID
+		group.TerritoryID = targetID
+		group.Size = groupSize
+		if groupID != army.ID {
+			group.ChainID = nil
+		}
+		live[groupID] = group
+		groupIDs[targetID] = groupID
+		groupOrder = append(groupOrder, targetID)
+		initialized[targetID] = true
+		if targetID == intent.source {
+			sourceArmyID = groupID
+		}
+		return groupID
+	}
+
+	if firstResolvedIndex == -1 || originalTarget == intent.source {
+		ensureGroup(intent.source)
+	}
+	for index, targetID := range intent.targets {
+		if !result.resolved[index] {
+			continue
+		}
+		ensureGroup(targetID)
+	}
+	if remaining > 0 && sourceArmyID == "" {
+		ensureGroup(intent.source)
+	}
+	for _, targetID := range groupOrder {
+		ctx.moveNobles(intent.assignments[targetID], targetID, groupIDs[targetID])
+	}
+	for index, targetID := range intent.targets {
+		resolved := result.resolved[index]
+		otherArmyID := models.ArmyID("")
+		if resolved {
+			groupID := groupIDs[targetID]
+			if groupID != army.ID {
+				otherArmyID = groupID
 			}
 		}
-		ctx.moveNobles(intent.assignments[targetID], targetID, branchArmyID)
 		ctx.events = append(ctx.events, Event{
 			Type:          EventTypeDispersion,
 			Phase:         4,
 			ArmyID:        army.ID,
-			OtherArmyID:   branchArmyID,
+			OtherArmyID:   otherArmyID,
 			SourceID:      intent.source,
 			DestinationID: targetID,
-			Resolved:      true,
+			Resolved:      resolved,
 			Outcome:       record.outcome,
 		})
-	}
-	if result.resolved[0] && remaining > 0 {
-		if sourceArmyID != "" {
-			sourceArmy := live[sourceArmyID]
-			sourceArmy.Size += remaining
-			live[sourceArmyID] = sourceArmy
-		} else {
-			residualID := ctx.allocateArmyID()
-			live[residualID] = models.Army{
-				ID:          residualID,
-				OwnerID:     army.OwnerID,
-				TerritoryID: intent.source,
-				Size:        remaining,
-			}
-			createdArmyIDs = append(createdArmyIDs, residualID)
-			sourceArmyID = residualID
-		}
 	}
 	if record.partialD && record.order.Liaison == models.LiaisonModeLoop {
 		if err := ctx.updateLoopDispersePending(record, result, sourceArmyID); err != nil {
@@ -670,7 +816,7 @@ func applyDisperse(
 		ArmyIDs:           append([]models.ArmyID(nil), createdArmyIDs...),
 		ChainID:           record.chainID,
 		SourceID:          intent.source,
-		DestinationID:     army.TerritoryID,
+		DestinationID:     live[army.ID].TerritoryID,
 		Outcome:           record.outcome,
 		RemainingStrength: remaining,
 		Reason:            "disperse_summary",
@@ -703,7 +849,7 @@ func (ctx *resolutionContext) updateLoopDispersePending(
 func pendingDisperseTargets(result *disperseResolution) []models.TerritoryID {
 	targets := make([]models.TerritoryID, 0, len(result.intent.targets))
 	for index, targetID := range result.intent.targets {
-		if !result.resolved[index] || targetID == result.intent.source {
+		if !result.resolved[index] {
 			targets = append(targets, targetID)
 		}
 	}
@@ -712,35 +858,35 @@ func pendingDisperseTargets(result *disperseResolution) []models.TerritoryID {
 
 func (ctx *resolutionContext) pendingDisperseAssignments(result *disperseResolution, targets []models.TerritoryID) map[models.TerritoryCode][]models.NobleCode {
 	assignments := make(map[models.TerritoryCode][]models.NobleCode)
-	assigned := make(map[models.NobleID]bool)
+	record := ctx.records[result.intent.recordArmyID]
+	if record == nil {
+		return assignments
+	}
+	pendingCodes := make(map[models.TerritoryCode]bool, len(targets))
 	for _, targetID := range targets {
-		nobleIDs := append([]models.NobleID(nil), result.intent.assignments[targetID]...)
-		sortNobleIDs(nobleIDs)
-		for _, nobleID := range nobleIDs {
-			if assigned[nobleID] {
+		territory := ctx.territoriesByID[targetID]
+		if territory != nil {
+			pendingCodes[models.TerritoryCode(territory.Code)] = true
+		}
+	}
+	for destinationCode, nobleCodes := range record.order.NobleAssignments {
+		if !pendingCodes[destinationCode] {
+			continue
+		}
+		for _, nobleCode := range nobleCodes {
+			if nobleCode == "*" {
+				assignments[destinationCode] = append(assignments[destinationCode], nobleCode)
+				continue
+			}
+			nobleID, exists := ctx.noblesByCode[nobleCode]
+			if !exists {
 				continue
 			}
 			noble := ctx.noblesByID[nobleID]
-			if noble == nil || noble.LocationID != result.intent.source {
-				continue
+			if noble != nil && noble.LocationID == result.intent.source {
+				assignments[destinationCode] = append(assignments[destinationCode], nobleCode)
 			}
-			code := models.TerritoryCode(ctx.territoriesByID[targetID].Code)
-			assignments[code] = append(assignments[code], models.NobleCode(noble.Code))
-			assigned[nobleID] = true
 		}
-	}
-	if len(targets) == 0 {
-		return assignments
-	}
-	fallbackID := targets[0]
-	fallbackCode := models.TerritoryCode(ctx.territoriesByID[fallbackID].Code)
-	for _, nobleID := range ctx.noblesAt(result.intent.source) {
-		if assigned[nobleID] {
-			continue
-		}
-		noble := ctx.noblesByID[nobleID]
-		assignments[fallbackCode] = append(assignments[fallbackCode], models.NobleCode(noble.Code))
-		assigned[nobleID] = true
 	}
 	return assignments
 }

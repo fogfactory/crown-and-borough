@@ -309,16 +309,10 @@ func (g *GameState) Validate() error {
 			if len(pending.TargetIDs) == 0 {
 				return fmt.Errorf("models: chain %q: pending dispersion has no targets", chain.ID)
 			}
-			if len(pending.TargetIDs) != pendingArmy.Size {
-				return fmt.Errorf("models: chain %q: pending dispersion has %d targets for army %q of size %d", chain.ID, len(pending.TargetIDs), pending.ArmyID, pendingArmy.Size)
-			}
 			pendingTargets := make(map[TerritoryID]bool, len(pending.TargetIDs))
 			for _, targetID := range pending.TargetIDs {
 				if terrs[targetID] == nil {
 					return fmt.Errorf("models: chain %q: pending dispersion references unknown target %q", chain.ID, targetID)
-				}
-				if pendingTargets[targetID] {
-					return fmt.Errorf("models: chain %q: pending dispersion duplicates target %q", chain.ID, targetID)
 				}
 				pendingTargets[targetID] = true
 			}
@@ -328,6 +322,9 @@ func (g *GameState) Validate() error {
 					return fmt.Errorf("models: chain %q: pending dispersion references invalid assignment destination %q", chain.ID, destinationCode)
 				}
 				for _, nobleCode := range assignedCodes {
+					if nobleCode == "*" {
+						continue
+					}
 					if _, exists := nobleCodes[string(nobleCode)]; !exists {
 						return fmt.Errorf("models: chain %q: pending dispersion references unknown assigned noble %q", chain.ID, nobleCode)
 					}

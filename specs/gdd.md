@@ -261,7 +261,7 @@ Les ordres sont :
 | `P` | `P XXX` | Détruit l'infrastructure de la case occupée et crédite le bonus de pillage à la source alliée la plus proche. |
 | `O` | `XXX O NNN` | Place le noble prisonnier `NNN` en statut `hostage`. |
 | `K` | `XXX K NNN` | Place le noble prisonnier `NNN` en statut `dungeon`. |
-| `D` | `XXX D XXX YYY ...` | Dispersion avec une destination par unité et une affectation explicite des nobles. |
+| `D` | `XXX D XXX YYY ...` | Dispersion pacifique : les destinations sont traitées dans leur ordre d'apparition, peuvent se répéter et reçoivent au plus une unité chacune ; les unités arrivées sur une même case sont empilées dans une seule armée. |
 
 Un soutien défensif renforce une armée qui tient sa case. Un soutien offensif
 renforce une attaque précise. Un soutien peut viser toute nationalité et ne
@@ -269,9 +269,14 @@ produit aucun effet si l'armée soutenue n'accomplit pas l'action annoncée.
 
 Une chaîne `single` se casse au premier échec. Une chaîne `loop` retente l'ordre
 jusqu'à sa réussite. Un maintien en boucle met l'armée en veille jusqu'à la
-réception d'une nouvelle chaîne. Une dispersion en boucle retente jusqu'à une
-résolution intégrale ; en mode `single`, une dispersion partielle peut faire
-progresser la chaîne.
+réception d'une nouvelle chaîne. Une dispersion traite chaque destination dans
+son ordre d'apparition, sans introduire d'attaque : une destination occupée,
+combattue ou sans unité disponible ne consomme pas d'unité et les unités
+restantes demeurent à l'origine. En mode `single`, les destinations non traitées
+font progresser la chaîne avec une dispersion partielle. En mode `loop`, le
+résidu retente jusqu'à l'arrivée d'une armée sur toutes les destinations ; une
+liste qui épuise l'armée avant d'avoir traité toutes ses destinations est
+invalide à l'exécution.
 
 Une armée sans chaîne est Sans Ordre et ne reçoit aucun soutien automatique.
 Une erreur mécaniquement impossible casse immédiatement la chaîne, quel que
@@ -296,9 +301,12 @@ sur la case de l'armée qui les exécute. `hostage` est l'état de prison par
 défaut ; `dungeon` retire en plus le noble de toute émission.
 
 Les nobles chevauchent les armées : ils suivent les déplacements et les
-retraites. Une dispersion doit affecter explicitement tous les nobles présents,
-avec `*` pour tous les nobles ou `*NNN` pour un noble précis. Un noble ne compte
-ni dans la force, ni dans le ravitaillement, ni dans les pertes d'un combat.
+retraites. Une dispersion peut affecter explicitement les nobles présents, avec
+`*` pour tous les nobles restants ou `*NNN` pour un noble précis. Les nobles non
+mentionnés restent à l'origine tant qu'une troupe y demeure ; si toutes les
+troupes quittent l'origine et qu'un noble présent n'a pas de groupe produit,
+l'ordre est invalide à l'exécution. Un noble ne compte ni dans la force, ni dans
+le ravitaillement, ni dans les pertes d'un combat.
 
 Lorsqu'une armée est détruite sur une case occupée par une armée ennemie, les
 nobles qu'elle portait sont capturés et deviennent `hostage`. Le propriétaire

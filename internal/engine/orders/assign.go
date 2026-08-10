@@ -49,16 +49,13 @@ func AssignChain(game *models.GameState, chain models.Chain) error {
 	if army.OwnerID != noble.OwnerID {
 		return assignmentError(ErrArmyNotOwned, fmt.Sprintf("army at receiving position %q belongs to %q, not emitting noble owner %q", territoryReference(indexes, positionID), army.OwnerID, noble.OwnerID))
 	}
+	for _, existing := range game.Chains {
+		if existing.PendingDisperse != nil && existing.PendingDisperse.ArmyID == army.ID && existing.ArmyID != army.ID {
+			return assignmentError(ErrInvalidChain, fmt.Sprintf("army at receiving position %q executes pending dispersion for chain %q", territoryReference(indexes, positionID), existing.ID))
+		}
+	}
 
 	for orderIndex, order := range chain.Orders {
-		if order.Type == models.OrderTypeDisperse {
-			if len(order.TargetIDs) != army.Size {
-				return assignmentError(ErrDisperseSize, fmt.Sprintf("D has %d destinations for army at %q of size %d", len(order.TargetIDs), territoryReference(indexes, army.TerritoryID), army.Size))
-			}
-			if err := validateNobleCoverage(game, indexes, army, order); err != nil {
-				return err
-			}
-		}
 		if orderIndex == 0 && (order.Type == models.OrderTypeHostage || order.Type == models.OrderTypeDungeon) {
 			if err := validateImmediatePrisonerTarget(indexes, army, order); err != nil {
 				return err
@@ -98,46 +95,6 @@ func AssignChain(game *models.GameState, chain models.Chain) error {
 	game.NextChainID++
 	army.ChainID = &receivedID
 	noble.LastEmissionTurn = game.Turn
-	return nil
-}
-
-func validateNobleCoverage(game *models.GameState, indexes gameIndexes, army *models.Army, order models.Order) error {
-	coLocated := make(map[models.NobleID]bool)
-	for _, noble := range game.Nobles {
-		if noble.LocationID == army.TerritoryID {
-			coLocated[noble.ID] = true
-		}
-	}
-
-	assignmentCounts := make(map[models.NobleID]int)
-	wildcard := false
-	for _, destination := range sortedDestinations(order.NobleAssignments) {
-		for _, nobleCode := range order.NobleAssignments[destination] {
-			if nobleCode == "*" {
-				wildcard = true
-				continue
-			}
-			nobleID := indexes.noblesByCode[string(nobleCode)]
-			assignmentCounts[nobleID]++
-		}
-	}
-	if wildcard {
-		for _, noble := range game.Nobles {
-			if coLocated[noble.ID] && assignmentCounts[noble.ID] == 0 {
-				assignmentCounts[noble.ID]++
-			}
-		}
-	}
-	for nobleID := range coLocated {
-		if assignmentCounts[nobleID] != 1 {
-			return assignmentError(ErrNoblesNotCovered, fmt.Sprintf("noble %q must be assigned exactly once by D", nobleReference(indexes, nobleID)))
-		}
-	}
-	for nobleID, count := range assignmentCounts {
-		if !coLocated[nobleID] || count != 1 {
-			return assignmentError(ErrNoblesNotCovered, fmt.Sprintf("noble %q is not a valid single assignment on army at %q", nobleReference(indexes, nobleID), territoryReference(indexes, army.TerritoryID)))
-		}
-	}
 	return nil
 }
 
