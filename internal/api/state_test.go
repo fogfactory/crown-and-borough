@@ -21,6 +21,12 @@ func TestProjectStateMatchesStateContract(t *testing.T) {
 	if view.Turn != state.Turn || view.Season != state.Season {
 		t.Errorf("view metadata = %d/%s, want %d/%s", view.Turn, view.Season, state.Turn, state.Season)
 	}
+	if got := view.Players[0].CapitalTerritory; got == nil || *got != "T01" {
+		t.Errorf("P1 capital territory = %v, want T01", got)
+	}
+	if got := view.Players[1].CapitalTerritory; got != nil {
+		t.Errorf("P2 capital territory = %v, want nil", got)
+	}
 	if len(view.Territories) != len(state.Territories) {
 		t.Fatalf("view territories = %d, want %d", len(view.Territories), len(state.Territories))
 	}
@@ -103,6 +109,31 @@ func TestProjectStateNesting(t *testing.T) {
 		if !found {
 			t.Errorf("infrastructure %s is not nested in %s", infrastructure.ID, infrastructure.TerritoryID)
 		}
+	}
+}
+
+func TestProjectStateOmitsUnavailableCapital(t *testing.T) {
+	state := projectTestState()
+	missingCapitalID := models.InfraID("missing")
+	state.Players[0].CapitalCastleID = &missingCapitalID
+
+	view := projectState(state)
+	if got := view.Players[0].CapitalTerritory; got != nil {
+		t.Errorf("unavailable capital territory = %v, want nil", got)
+	}
+
+	data, err := json.Marshal(view)
+	if err != nil {
+		t.Fatalf("marshal StateView: %v", err)
+	}
+	var document struct {
+		Players []map[string]any `json:"players"`
+	}
+	if err := json.Unmarshal(data, &document); err != nil {
+		t.Fatalf("unmarshal StateView document: %v", err)
+	}
+	if _, exists := document.Players[0]["capitalTerritory"]; exists {
+		t.Error("unavailable capital must be omitted from the JSON view")
 	}
 }
 
@@ -219,13 +250,14 @@ func TestStateResolverCachesBytes(t *testing.T) {
 func projectTestState() *models.GameState {
 	p1 := models.PlayerID("P1")
 	p2 := models.PlayerID("P2")
+	capitalID := models.InfraID("I1")
 	state := &models.GameState{
 		ID:     "state-view",
 		Seed:   "state-view",
 		Turn:   5,
 		Season: models.SeasonSpring,
 		Players: []models.Player{
-			{ID: p1, Name: "Hugues", Color: "#a84632"},
+			{ID: p1, Name: "Hugues", Color: "#a84632", CapitalCastleID: &capitalID},
 			{ID: p2, Name: "Aliénor", Color: "#2d5f9e"},
 		},
 		Territories: []models.Territory{

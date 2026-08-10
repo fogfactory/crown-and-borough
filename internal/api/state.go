@@ -25,9 +25,10 @@ type StateView struct {
 // PlayerView contains the public player metadata needed by the hotseat
 // selector. Player-specific filtering is a future server concern.
 type PlayerView struct {
-	ID    models.PlayerID `json:"id"`
-	Name  string          `json:"name"`
-	Color string          `json:"color"`
+	ID               models.PlayerID     `json:"id"`
+	Name             string              `json:"name"`
+	Color            string              `json:"color"`
+	CapitalTerritory *models.TerritoryID `json:"capitalTerritory,omitempty"`
 }
 
 // TerritoryView is the live state displayed on one map territory.
@@ -98,9 +99,6 @@ func projectState(state *models.GameState) StateView {
 	view.Turn = state.Turn
 	view.Season = state.Season
 	view.Players = make([]PlayerView, 0, len(state.Players))
-	for _, player := range state.Players {
-		view.Players = append(view.Players, PlayerView{ID: player.ID, Name: player.Name, Color: player.Color})
-	}
 	view.Territories = make([]TerritoryView, 0, len(state.Territories))
 	view.Nobles = make([]NobleView, 0, len(state.Nobles))
 
@@ -123,6 +121,16 @@ func projectState(state *models.GameState) StateView {
 	infrastructuresByID := make(map[models.InfraID]models.Infrastructure, len(state.Infrastructures))
 	for _, infrastructure := range state.Infrastructures {
 		infrastructuresByID[infrastructure.ID] = infrastructure
+	}
+	for _, player := range state.Players {
+		playerView := PlayerView{ID: player.ID, Name: player.Name, Color: player.Color}
+		if player.CapitalCastleID != nil {
+			if infrastructure, ok := infrastructuresByID[*player.CapitalCastleID]; ok && infrastructure.Type == models.InfraTypeCastle {
+				capitalTerritory := infrastructure.TerritoryID
+				playerView.CapitalTerritory = &capitalTerritory
+			}
+		}
+		view.Players = append(view.Players, playerView)
 	}
 
 	for _, territory := range state.Territories {
