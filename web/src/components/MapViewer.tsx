@@ -30,7 +30,13 @@ const DRAG_THRESHOLD = 4
 const OUTER_BORDER_WIDTH = 2
 const PASSABLE_BORDER_WIDTH = 2
 const IMPASSABLE_BORDER_WIDTH = 4
-const PASSABLE_BORDER_DASH = '4 3'
+const REFERENCE_MAP_PLAYERS = 4
+const REFERENCE_MAP_WIDTH = 1000
+const REFERENCE_MAP_HEIGHT = 700
+const REFERENCE_MAP_TERRITORIES =
+  8 * REFERENCE_MAP_PLAYERS + 4 * (REFERENCE_MAP_PLAYERS + 1)
+const REFERENCE_MEAN_TERRITORY_AREA =
+  (REFERENCE_MAP_WIDTH * REFERENCE_MAP_HEIGHT) / REFERENCE_MAP_TERRITORIES
 
 const PLAYER_PALETTE = ['#a84632', '#2d5f9e', '#7052a1', '#34775c', '#ad7a25']
 
@@ -61,6 +67,7 @@ interface InfrastructureMarkerProps {
   x: number
   y: number
   isCapital: boolean
+  scale: number
 }
 
 function pointsToPath(points: Point[]): string {
@@ -135,6 +142,28 @@ function centroid(points: Point[]): Point {
   return [total.x / points.length, total.y / points.length]
 }
 
+function polygonArea(points: Point[]): number {
+  if (points.length < 3) {
+    return 0
+  }
+
+  let twiceArea = 0
+  for (let index = 0; index < points.length; index += 1) {
+    const [x, y] = points[index]
+    const [nextX, nextY] = points[(index + 1) % points.length]
+    twiceArea += x * nextY - nextX * y
+  }
+  return Math.abs(twiceArea) / 2
+}
+
+function meanTerritoryArea(territories: MapData['territories']): number {
+  if (territories.length === 0) {
+    return 0
+  }
+
+  return territories.reduce((total, territory) => total + polygonArea(territory.points), 0) / territories.length
+}
+
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(Math.max(value, minimum), maximum)
 }
@@ -171,11 +200,12 @@ function InfrastructureMarker({
   x,
   y,
   isCapital,
+  scale,
 }: InfrastructureMarkerProps) {
   const label = `${INFRASTRUCTURE_LABELS[infrastructure.type]} niveau ${infrastructure.level}${isCapital ? ' · Capitale' : ''}`
 
   return (
-    <g transform={`translate(${x} ${y})`} pointerEvents="none">
+    <g transform={`translate(${x} ${y}) scale(${scale})`} pointerEvents="none">
       <title>{label}</title>
       {infrastructure.type === 'castle' && (
         <>
@@ -241,15 +271,17 @@ function NobleMarker({
   x,
   y,
   color,
+  scale,
 }: {
   noble: Noble
   x: number
   y: number
   color: string
+  scale: number
 }) {
   const prisoner = noble.status !== 'free'
   return (
-    <g transform={`translate(${x} ${y})`} pointerEvents="none">
+    <g transform={`translate(${x} ${y}) scale(${scale})`} pointerEvents="none">
       <title>{`${noble.name} (${noble.id})${prisoner ? ` · ${noble.status}` : ''}`}</title>
       <path
         d="M0-8L8 0L0 8L-8 0Z"
@@ -422,6 +454,13 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
     const territory = map.territories.find((candidate) => candidate.id === territoryID)
     return territory ? [centroid(territory.points)] : []
   })
+  const meanArea = meanTerritoryArea(map.territories)
+  // Scale annotations from the actual territory footprint, not the player count.
+  const annotationScale =
+    meanArea > 0 ? Math.sqrt(meanArea / REFERENCE_MEAN_TERRITORY_AREA) : 1
+  const passableBorderDash = `${4 * annotationScale} ${3 * annotationScale}`
+  const supplyPathDash = `${8 * annotationScale} ${5 * annotationScale}`
+  const supplyEndpointDash = `${3 * annotationScale} ${3 * annotationScale}`
 
   useEffect(() => {
     const svg = svgRef.current
@@ -604,18 +643,18 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
               ))}
               <pattern
                 id="supply-zone-hatch"
-                width="8"
-                height="8"
+                width={8 * annotationScale}
+                height={8 * annotationScale}
                 patternUnits="userSpaceOnUse"
                 patternTransform="rotate(45)"
               >
                 <line
-                  x1="4"
+                  x1={4 * annotationScale}
                   y1="0"
-                  x2="4"
-                  y2="8"
+                  x2={4 * annotationScale}
+                  y2={8 * annotationScale}
                   stroke="#808080"
-                  strokeWidth="2"
+                  strokeWidth={2 * annotationScale}
                   strokeOpacity="0.5"
                 />
               </pattern>
@@ -687,7 +726,7 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
                         fill="none"
                         stroke={playerColors.get(owner) ?? '#475569'}
                         strokeWidth="8"
-                        strokeDasharray={PASSABLE_BORDER_DASH}
+                        strokeDasharray={passableBorderDash}
                         strokeLinecap="round"
                         clipPath={`url(#territory-clip-${territory.id})`}
                         vectorEffect="non-scaling-stroke"
@@ -747,7 +786,7 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
                         fill="none"
                         stroke="#d28b22"
                         strokeWidth="5"
-                        strokeDasharray={PASSABLE_BORDER_DASH}
+                        strokeDasharray={passableBorderDash}
                         strokeLinecap="round"
                         clipPath={`url(#territory-clip-${territory.id})`}
                         vectorEffect="non-scaling-stroke"
@@ -788,7 +827,7 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
                   strokeWidth={
                     border.passable ? PASSABLE_BORDER_WIDTH : IMPASSABLE_BORDER_WIDTH
                   }
-                  strokeDasharray={border.passable ? PASSABLE_BORDER_DASH : undefined}
+                  strokeDasharray={border.passable ? passableBorderDash : undefined}
                   strokeLinecap="round"
                   vectorEffect="non-scaling-stroke"
                 />
@@ -802,7 +841,7 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
                   fill="none"
                   stroke={supplyColor}
                   strokeWidth="5"
-                  strokeDasharray="8 5"
+                  strokeDasharray={supplyPathDash}
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   vectorEffect="non-scaling-stroke"
@@ -810,7 +849,7 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
                 <circle
                   cx={supplyPathPoints[0][0]}
                   cy={supplyPathPoints[0][1]}
-                  r="7"
+                  r={7 * annotationScale}
                   fill="#fff8e7"
                   stroke={supplyColor}
                   strokeWidth="3"
@@ -820,11 +859,11 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
                   <circle
                     cx={supplyPathPoints[supplyPathPoints.length - 1][0]}
                     cy={supplyPathPoints[supplyPathPoints.length - 1][1]}
-                    r="13"
+                    r={13 * annotationScale}
                     fill="none"
                     stroke={supplyColor}
                     strokeWidth="2"
-                    strokeDasharray="3 3"
+                    strokeDasharray={supplyEndpointDash}
                     vectorEffect="non-scaling-stroke"
                   />
                 )}
@@ -849,14 +888,14 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
                   <g key={territory.id}>
                     {territoryState.resources > 0 && (
                       <text
-                        x={centerX + 30}
-                        y={centerY - 20}
+                        x={centerX + 30 * annotationScale}
+                        y={centerY - 20 * annotationScale}
                         fill="#59401f"
-                        fontSize="11"
+                        fontSize={11 * annotationScale}
                         fontWeight="700"
                         textAnchor="middle"
                         stroke="#fff8e7"
-                        strokeWidth="3"
+                        strokeWidth={3 * annotationScale}
                         paintOrder="stroke"
                       >
                         {`×${territoryState.resources}`}
@@ -866,32 +905,33 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
                       <InfrastructureMarker
                         key={`${territory.id}-${infrastructure.type}-${index}`}
                         infrastructure={infrastructure}
-                        x={centerX + index * 18 - 6}
-                        y={centerY - 25}
+                        x={centerX + (index * 18 - 6) * annotationScale}
+                        y={centerY - 25 * annotationScale}
                         isCapital={
                           infrastructure.type === 'castle' &&
                           state.players.some(
                             (player) => player.capitalTerritory === territory.id,
                           )
                         }
+                        scale={annotationScale}
                       />
                     ))}
                     {territoryState.army && (
                       <g key={`${territory.id}-army`}>
                         <title>{`Armée de ${territoryState.army.owner}, taille ${territoryState.army.size}`}</title>
                         <circle
-                          cx={centerX - 9}
-                          cy={centerY + 26}
-                          r="9"
+                          cx={centerX - 9 * annotationScale}
+                          cy={centerY + 26 * annotationScale}
+                          r={9 * annotationScale}
                           fill={playerColors.get(territoryState.army.owner) ?? '#475569'}
                           stroke="#fff8e7"
-                          strokeWidth="2"
+                          strokeWidth={2 * annotationScale}
                         />
                         <text
-                          x={centerX - 9}
-                          y={centerY + 29}
+                          x={centerX - 9 * annotationScale}
+                          y={centerY + 29 * annotationScale}
                           fill="#fff8e7"
-                          fontSize="9"
+                          fontSize={9 * annotationScale}
                           fontWeight="800"
                           textAnchor="middle"
                         >
@@ -903,9 +943,10 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
                       <NobleMarker
                         key={noble.id}
                         noble={noble}
-                        x={centerX + 28 + index * 16}
-                        y={centerY + 20}
+                        x={centerX + (28 + index * 16) * annotationScale}
+                        y={centerY + 20 * annotationScale}
                         color={playerColors.get(noble.owner) ?? '#475569'}
+                        scale={annotationScale}
                       />
                     ))}
                   </g>
@@ -920,14 +961,14 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
                   <text
                     key={territory.id}
                     x={centerX}
-                    y={centerY + 4}
+                    y={centerY + 4 * annotationScale}
                     fill="#30291f"
-                    fontSize="13"
+                    fontSize={13 * annotationScale}
                     fontWeight="800"
-                    letterSpacing="0.5"
+                    letterSpacing={0.5 * annotationScale}
                     textAnchor="middle"
                     stroke="#f5ecd9"
-                    strokeWidth="3"
+                    strokeWidth={3 * annotationScale}
                     paintOrder="stroke"
                   >
                     {territory.code}
