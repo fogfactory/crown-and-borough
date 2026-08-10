@@ -72,13 +72,25 @@ export function MapLegend() {
             <svg className="size-3 shrink-0" viewBox="-10 -10 20 20" aria-hidden="true">
               <path
                 d="M0-8L8 0L0 8L-8 0Z"
-                fill="#f2c14e"
+                fill="#a84632"
                 stroke="#815f1e"
                 strokeWidth="1.5"
               />
               <circle cx="0" cy="0" r="2" fill="#fff3c4" />
             </svg>
-            <span>Noble</span>
+            <span>Noble (couleur du propriétaire)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <svg className="size-3 shrink-0" viewBox="-10 -10 20 20" aria-hidden="true">
+              <path
+                d="M0-8L8 0L0 8L-8 0Z"
+                fill="#a84632"
+                stroke="#8d321e"
+                strokeWidth="1.5"
+              />
+              <circle cx="0" cy="0" r="4.5" fill="none" stroke="#8d321e" strokeWidth="1.5" />
+            </svg>
+            <span>Noble prisonnier (otage / donjon)</span>
           </div>
           <div className="flex items-center gap-2">
             <svg className="size-3 shrink-0" viewBox="0 0 16 16" aria-hidden="true">

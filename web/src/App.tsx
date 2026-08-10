@@ -657,12 +657,24 @@ function App() {
                       </h3>
                       {presentNobles.length > 0 ? (
                         <ul className="space-y-1.5 text-sm">
-                          {presentNobles.map((noble) => (
-                            <li
-                              key={noble.id}
-                              className="flex items-center justify-between gap-3 rounded-md bg-[#f3ead9] px-3 py-2"
-                            >
+                          {presentNobles.map((noble) => {
+                        const owner = state?.players.find(
+                          (player) => player.id === noble.owner,
+                        )
+                        const holder =
+                          noble.status !== 'free' ? (selectedState?.army?.owner ?? null) : null
+                        return (
+                          <li
+                            key={noble.id}
+                            className="rounded-md bg-[#f3ead9] px-3 py-2 text-sm"
+                          >
+                            <div className="flex items-center justify-between gap-3">
                               <span className="min-w-0">
+                                <span
+                                  className="mr-2 inline-block size-3 shrink-0 rounded-full border border-[#30291f]/30 align-[-1px]"
+                                  style={{ backgroundColor: owner?.color ?? '#b7a786' }}
+                                  aria-label={`Couleur de ${ownerLabel(noble.owner, state)}`}
+                                />
                                 <strong>{noble.code}</strong> · {noble.name}
                               </span>
                               <span
@@ -670,8 +682,26 @@ function App() {
                               >
                                 {NOBLE_STATUS_LABELS[noble.status]}
                               </span>
-                            </li>
-                          ))}
+                            </div>
+                            <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 border-t border-[#b7a786]/40 pt-1 text-xs text-[#806f57]">
+                              <dt>Propriétaire</dt>
+                              <dd className="font-medium text-[#594b3c]">
+                                {ownerLabel(noble.owner, state)}
+                              </dd>
+                              {holder && (
+                                <>
+                                  <dt>Détenteur</dt>
+                                  <dd className="font-medium text-[#594b3c]">
+                                    {noble.status === 'hostage'
+                                      ? `invité par ${ownerLabel(holder, state)}`
+                                      : `emprisonné par ${ownerLabel(holder, state)}`}
+                                  </dd>
+                                </>
+                              )}
+                            </dl>
+                          </li>
+                        )
+                      })}
                         </ul>
                       ) : (
                         <p className="text-sm italic text-[#806f57]">

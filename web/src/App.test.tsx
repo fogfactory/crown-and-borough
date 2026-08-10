@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import App from '@/App'
@@ -83,6 +83,14 @@ const state: StateData = {
       owner: 'P2',
       location: 'T1',
       status: 'hostage',
+    },
+    {
+      id: 'N3',
+      code: 'KAR',
+      name: 'Karin de Bruyères',
+      owner: 'P2',
+      location: 'T1',
+      status: 'dungeon',
     },
   ],
 }
@@ -195,12 +203,25 @@ describe('App command/report tabs', () => {
     expect(screen.getByText('JEA · Jean de Rosemont')).toBeInTheDocument()
     expect(screen.getAllByText(/Robert de Rosemont/)).not.toHaveLength(0)
     expect(screen.getByText('Otage')).toBeInTheDocument()
+    const noblesSection = screen.getByText('Nobles présents').closest('div')
+    if (!noblesSection) {
+      throw new Error('nobles section did not render')
+    }
+    expect(within(noblesSection).getAllByText('Propriétaire')).toHaveLength(3)
+    expect(within(noblesSection).getAllByText('Détenteur')).toHaveLength(2)
+    expect(within(noblesSection).getAllByText('One')).toHaveLength(1)
+    expect(within(noblesSection).getAllByText('Two')).toHaveLength(2)
+    expect(within(noblesSection).getByText('invité par One')).toBeInTheDocument()
+    expect(within(noblesSection).getByText('emprisonné par One')).toBeInTheDocument()
+    expect(within(noblesSection).queryByText('—')).not.toBeInTheDocument()
+    expect(within(noblesSection).getAllByText('Détenteur')).toHaveLength(2)
+    expect(screen.getAllByLabelText('Couleur de One')).toHaveLength(2)
+    expect(screen.getAllByLabelText('Couleur de Two')).toHaveLength(2)
     expect(screen.getByText('ROS A BRU')).toBeInTheDocument()
     expect(screen.getByText('(H ROS)').closest('li')).toHaveAttribute(
       'aria-current',
       'step',
     )
-    expect(screen.getByLabelText('Couleur de One')).toBeInTheDocument()
     expect(await screen.findByText(/Source :/)).toBeInTheDocument()
     expect(screen.getByText(/ROS · Rosemont/)).toBeInTheDocument()
 
