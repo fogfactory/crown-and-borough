@@ -319,9 +319,10 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 	}
 
 	type parsedSubmission struct {
-		input ChainSubmission
-		chain models.Chain
-		noble models.Noble
+		input          ChainSubmission
+		chain          models.Chain
+		noble          models.Noble
+		receptionError error
 	}
 	parsedChains := make([]parsedSubmission, 0, len(input.Chains))
 	seenNobles := make(map[models.NobleID]bool)
@@ -391,7 +392,13 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 			continue
 		}
 		seenNobles[noble.ID] = true
-		parsedChains = append(parsedChains, parsedSubmission{input: submission, chain: chain, noble: noble})
+		receptionError := orders.ValidateReceivingArmyOwnership(game, chain, noble.OwnerID)
+		parsedChains = append(parsedChains, parsedSubmission{
+			input:          submission,
+			chain:          chain,
+			noble:          noble,
+			receptionError: receptionError,
+		})
 	}
 
 	winterOrders := make(map[models.PlayerID][]models.WinterOrder)
@@ -429,6 +436,9 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 	receivingArmies := make([]*models.Army, len(parsedChains))
 	receptionCounts := make(map[models.ArmyID]int, len(parsedChains))
 	for index, submission := range parsedChains {
+		if submission.receptionError != nil {
+			continue
+		}
 		army := orders.ReceivingArmy(working, submission.chain)
 		receivingArmies[index] = army
 		if army != nil {
@@ -436,6 +446,15 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 		}
 	}
 	for index, submission := range parsedChains {
+		if submission.receptionError != nil {
+			receptions = append(receptions, ReceptionReport{
+				Player:   submission.input.Player,
+				Noble:    models.NobleCode(submission.noble.Code),
+				Received: false,
+				Reason:   submission.receptionError.Error(),
+			})
+			continue
+		}
 		if army := receivingArmies[index]; army != nil && receptionCounts[army.ID] > 1 {
 			position := territoryByID(working.Territories, army.TerritoryID)
 			positionReference := position.Code
