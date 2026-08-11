@@ -52,6 +52,7 @@ func resolveContests(ctx *resolutionContext) error {
 		active[armyID] = true
 	}
 	dislodged := map[models.ArmyID]bool{}
+	// Start optimistically so pure departure cycles, such as swaps, can resolve.
 	vacated := make(map[models.ArmyID]bool, len(ctx.attacks))
 	for armyID := range ctx.attacks {
 		vacated[armyID] = true
@@ -91,13 +92,14 @@ func resolveContests(ctx *resolutionContext) error {
 		}
 	}
 	ctx.removeAlliedDestinationAttacks()
+	ctx.clearSupportsForRemovedAttacks()
 	ctx.emitCombatEvents()
 	ctx.applyContestOutcomes()
 	return nil
 }
 
 func (ctx *resolutionContext) evaluateContests(active, previouslyDislodged, vacated map[models.ArmyID]bool) contestState {
-	excluded := ctx.alliedDestinationAttacks(vacated)
+	excluded := ctx.alliedDestinationAttacks(vacated, previouslyDislodged)
 	cuts := ctx.calculateSupportCuts(active, excluded)
 	results := make(map[models.TerritoryID]contestResult)
 	attacksByTarget := make(map[models.TerritoryID][]*attackIntent)
@@ -138,12 +140,12 @@ func (ctx *resolutionContext) evaluateContests(active, previouslyDislodged, vaca
 	}
 }
 
-func (ctx *resolutionContext) alliedDestinationAttacks(vacated map[models.ArmyID]bool) map[models.ArmyID]bool {
+func (ctx *resolutionContext) alliedDestinationAttacks(vacated, previouslyDislodged map[models.ArmyID]bool) map[models.ArmyID]bool {
 	excluded := make(map[models.ArmyID]bool)
 	for _, armyID := range sortedArmyMap(ctx.attacks) {
 		attack := ctx.attacks[armyID]
 		defender := ctx.startArmyAt(attack.target)
-		if defender == nil || vacated[defender.ID] {
+		if defender == nil || vacated[defender.ID] || previouslyDislodged[defender.ID] {
 			continue
 		}
 		attacker := ctx.startArmiesByID[armyID]
@@ -210,20 +212,26 @@ func (ctx *resolutionContext) resolveTerritoryContest(
 		baseDefense: baseDefense,
 		defense:     defense,
 		castleBonus: castleBonus,
-		contenders: []CombatContender{{
+	}
+	if defender != nil || castleBonus > 0 {
+		result.contenders = append(result.contenders, CombatContender{
 			ArmyID:   defenderID,
 			OwnerID:  defenderOwnerID,
 			Force:    defense,
 			Defender: true,
-		}},
+		})
 	}
 
 	bestForce := defense
 	bestArmyID := models.ArmyID("")
 	tied := false
+	singleAttackForce := -1
 	for _, attack := range attacks {
 		attacker := ctx.startArmiesByID[attack.armyID]
 		force := attack.size + ctx.offensiveSupportStrength(attack.armyID, cuts, previouslyDislodged)
+		if len(attacks) == 1 {
+			singleAttackForce = force
+		}
 		result.contenders = append(result.contenders, CombatContender{
 			ArmyID:  attack.armyID,
 			OwnerID: attacker.OwnerID,
@@ -237,7 +245,7 @@ func (ctx *resolutionContext) resolveTerritoryContest(
 			tied = true
 		}
 	}
-	if defender == nil && castleBonus == 0 && len(attacks) == 1 && result.contenders[1].Force == 0 {
+	if defender == nil && castleBonus == 0 && len(attacks) == 1 && singleAttackForce == 0 {
 		result.winnerID = attacks[0].armyID
 	} else if !tied && bestArmyID != "" {
 		result.winnerID = bestArmyID
@@ -280,6 +288,17 @@ func (ctx *resolutionContext) removeAlliedDestinationAttacks() {
 	for targetID := range removedTargets {
 		if !ctx.hasAttackTarget(targetID) {
 			delete(ctx.attackedTerritories, targetID)
+		}
+	}
+}
+
+func (ctx *resolutionContext) clearSupportsForRemovedAttacks() {
+	for _, support := range ctx.supports {
+		if support.targetArmyID == "" {
+			continue
+		}
+		if _, exists := ctx.attacks[support.targetArmyID]; !exists {
+			support.applies = false
 		}
 	}
 }

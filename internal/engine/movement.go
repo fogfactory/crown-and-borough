@@ -443,7 +443,7 @@ func (ctx *resolutionContext) resolveJoinAtAttackTarget(targetID models.Territor
 		result := ctx.contest.results[targetID]
 		winner := ctx.startArmiesByID[result.winnerID]
 		defender := ctx.startArmyAt(targetID)
-		defenderVacated := defender == nil || ctx.contest.vacated[defender.ID]
+		defenderVacated := defender == nil || ctx.contest.vacated[defender.ID] || ctx.contest.dislodged[defender.ID]
 		if len(attacks) == 1 && result.winnerID != "" && defenderVacated && winner.OwnerID == joiningArmy.OwnerID {
 			ctx.joinResults[joiningID] = &joinResolution{targetID: targetID, hostID: winner.ID, fuse: true}
 			record := ctx.records[joiningID]
