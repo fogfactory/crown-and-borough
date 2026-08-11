@@ -1,17 +1,22 @@
 package engine
 
-import (
-	"fmt"
-
-	"github.com/fogfactory/crown-and-borough/internal/models"
-)
+import "github.com/fogfactory/crown-and-borough/internal/models"
 
 type contestState struct {
-	active    map[models.ArmyID]bool
-	dislodged map[models.ArmyID]bool
-	vacated   map[models.ArmyID]bool
-	cuts      map[models.ArmyID]bool
-	results   map[models.TerritoryID]contestResult
+	active           map[models.ArmyID]bool
+	dislodged        map[models.ArmyID]bool
+	vacated          map[models.ArmyID]bool
+	disperseResidual map[models.ArmyID]int
+	ghosted          map[models.ArmyID]bool
+	retiredGhosts    map[models.ArmyID]bool
+	cuts             map[models.ArmyID]bool
+	voidedSupports   map[models.ArmyID]bool
+	results          map[models.TerritoryID]contestResult
+}
+
+type peacefulDepartureState struct {
+	vacated          map[models.ArmyID]bool
+	disperseResidual map[models.ArmyID]int
 }
 
 type contestResult struct {
@@ -35,109 +40,183 @@ type dislodgedArmy struct {
 	nobleIDs         []models.NobleID
 }
 
-func resolveContests(ctx *resolutionContext) error {
-	if len(ctx.attacks) == 0 {
-		ctx.contest = contestState{
-			active:    map[models.ArmyID]bool{},
-			dislodged: map[models.ArmyID]bool{},
-			vacated:   map[models.ArmyID]bool{},
-			cuts:      map[models.ArmyID]bool{},
-			results:   map[models.TerritoryID]contestResult{},
-		}
-		return nil
-	}
+func (ctx *resolutionContext) predictPeacefulDepartures(current contestState, vacated map[models.ArmyID]bool, disperseResidual map[models.ArmyID]int) peacefulDepartureState {
+	temp := ctx.cloneForDeparturePrediction()
+	effectiveVacated := mergeBooleanMaps(vacated, current.vacated)
+	temp.contest = current
+	temp.contest.vacated = effectiveVacated
+	temp.contest.disperseResidual = copyIntegerMap(disperseResidual)
+	temp.dislodged = dislodgedFromContest(temp, current.results)
+	temp.attackedTerritories = ctx.attackedTerritoriesFor(effectiveVacated, current.dislodged)
+	temp.applyContestOutcomes()
+	resolveDispersions(temp)
+	resolveJoins(temp)
+	resolveVacatedDisperseDestinations(temp)
+	finalizeDispersions(temp)
 
-	active := make(map[models.ArmyID]bool, len(ctx.attacks))
-	for armyID := range ctx.attacks {
-		active[armyID] = true
+	result := peacefulDepartureState{
+		vacated:          make(map[models.ArmyID]bool),
+		disperseResidual: make(map[models.ArmyID]int),
 	}
-	dislodged := map[models.ArmyID]bool{}
-	// Start optimistically so pure departure cycles, such as swaps, can resolve.
-	vacated := make(map[models.ArmyID]bool, len(ctx.attacks))
-	for armyID := range ctx.attacks {
-		vacated[armyID] = true
-	}
-	var previous contestState
-	hasPrevious := false
-	moveOrderCount := len(ctx.attacks) + len(ctx.joins) + len(ctx.disperses)
-	maxPasses := 2*moveOrderCount + 2
-	for pass := 0; ; pass++ {
-		current := ctx.evaluateContests(active, dislodged, vacated)
-		if hasPrevious && sameContestState(previous, current) {
-			ctx.contest = current
-			break
+	for armyID, residual := range disperseResidual {
+		if current.dislodged[armyID] {
+			result.disperseResidual[armyID] = residual
 		}
-		if pass >= maxPasses {
-			return fmt.Errorf("engine: combat resolution did not converge after %d passes", maxPasses+1)
-		}
-		previous = current
-		hasPrevious = true
-		active = current.active
-		dislodged = current.dislodged
-		vacated = current.vacated
 	}
+	for _, armyID := range sortedArmyMap(ctx.joins) {
+		record := temp.records[armyID]
+		if record != nil && record.outcome == OutcomeSuccess && !current.dislodged[armyID] {
+			result.vacated[armyID] = true
+		}
+	}
+	for _, recordArmyID := range sortedArmyMap(temp.disperseResults) {
+		disperse := temp.disperseResults[recordArmyID]
+		record := temp.records[recordArmyID]
+		if record == nil || record.outcome == OutcomeInvalid || disperse.invalid {
+			continue
+		}
+		if temp.disperseVacatesSource(disperse.intent.armyID, disperse.intent.source) {
+			result.vacated[disperse.intent.armyID] = true
+		} else if record.partialD {
+			result.disperseResidual[disperse.intent.armyID] = disperse.remaining
+		}
+	}
+	return result
+}
 
-	for territoryID, result := range ctx.contest.results {
+func (ctx *resolutionContext) cloneForDeparturePrediction() *resolutionContext {
+	temp := newResolutionContext(cloneGameState(ctx.state), ctx.balance)
+	temp.famished = copyBooleanMap(ctx.famished)
+	temp.records = make(map[models.ArmyID]*orderRecord, len(ctx.records))
+	for armyID, record := range ctx.records {
+		copyRecord := *record
+		copyRecord.order.TargetIDs = append([]models.TerritoryID(nil), record.order.TargetIDs...)
+		copyRecord.order.NobleTargetIDs = append([]models.NobleID(nil), record.order.NobleTargetIDs...)
+		temp.records[armyID] = &copyRecord
+	}
+	temp.attacks = copyAttackIntents(ctx.attacks)
+	temp.joins = copyJoinIntents(ctx.joins)
+	temp.disperses = copyDisperseIntents(ctx.disperses)
+	temp.supports = copySupportIntents(ctx.supports)
+	temp.attackedTerritories = copyBooleanTerritories(ctx.attackedTerritories)
+	return temp
+}
+
+func (ctx *resolutionContext) attackedTerritoriesFor(vacated, dislodged map[models.ArmyID]bool) map[models.TerritoryID]bool {
+	attacked := make(map[models.TerritoryID]bool)
+	excluded := ctx.alliedDestinationAttacks(vacated, dislodged)
+	for _, armyID := range sortedArmyMap(ctx.attacks) {
+		if excluded[armyID] {
+			continue
+		}
+		attacked[ctx.attacks[armyID].target] = true
+	}
+	return attacked
+}
+
+func dislodgedFromContest(ctx *resolutionContext, results map[models.TerritoryID]contestResult) map[models.ArmyID]*dislodgedArmy {
+	dislodged := make(map[models.ArmyID]*dislodgedArmy)
+	for territoryID, result := range results {
 		if result.dislodgedArmyID == "" {
 			continue
 		}
 		army, exists := ctx.startArmiesByID[result.dislodgedArmyID]
 		if !exists {
-			return fmt.Errorf("engine: combat dislodged unknown army %q", result.dislodgedArmyID)
+			continue
 		}
-		ctx.dislodged[army.ID] = &dislodgedArmy{
+		dislodged[army.ID] = &dislodgedArmy{
 			army:             army,
 			originID:         territoryID,
 			attackerOriginID: result.attackerOriginID,
 		}
 	}
-	ctx.removeAlliedDestinationAttacks()
-	ctx.clearSupportsForRemovedAttacks()
-	ctx.emitCombatEvents()
-	ctx.applyContestOutcomes()
-	return nil
+	return dislodged
 }
 
-func (ctx *resolutionContext) evaluateContests(active, previouslyDislodged, vacated map[models.ArmyID]bool) contestState {
-	excluded := ctx.alliedDestinationAttacks(vacated, previouslyDislodged)
-	cuts := ctx.calculateSupportCuts(active, excluded)
-	results := make(map[models.TerritoryID]contestResult)
-	attacksByTarget := make(map[models.TerritoryID][]*attackIntent)
-	for _, armyID := range sortedArmyMap(ctx.attacks) {
-		if !active[armyID] || excluded[armyID] {
-			continue
-		}
-		attack := ctx.attacks[armyID]
-		attacksByTarget[attack.target] = append(attacksByTarget[attack.target], attack)
-	}
-	for _, territoryID := range sortedTerritoryMap(attacksByTarget) {
-		attacks := attacksByTarget[territoryID]
-		result := ctx.resolveTerritoryContest(territoryID, attacks, cuts, previouslyDislodged, vacated)
-		results[territoryID] = result
-	}
-	dislodged := make(map[models.ArmyID]bool)
-	for _, result := range results {
-		if result.dislodgedArmyID != "" {
-			dislodged[result.dislodgedArmyID] = true
+func mergeBooleanMaps(left, right map[models.ArmyID]bool) map[models.ArmyID]bool {
+	merged := make(map[models.ArmyID]bool, len(left)+len(right))
+	for key, value := range left {
+		if value {
+			merged[key] = true
 		}
 	}
-	nextActive := make(map[models.ArmyID]bool, len(ctx.attacks))
-	for armyID := range ctx.attacks {
-		nextActive[armyID] = !dislodged[armyID]
-	}
-	nextVacated := make(map[models.ArmyID]bool)
-	for _, result := range results {
-		if result.winnerID != "" && !dislodged[result.winnerID] {
-			nextVacated[result.winnerID] = true
+	for key, value := range right {
+		if value {
+			merged[key] = true
 		}
 	}
-	return contestState{
-		active:    nextActive,
-		dislodged: dislodged,
-		vacated:   nextVacated,
-		cuts:      cuts,
-		results:   results,
+	return merged
+}
+
+func copyBooleanMap(source map[models.ArmyID]bool) map[models.ArmyID]bool {
+	copyMap := make(map[models.ArmyID]bool, len(source))
+	for key, value := range source {
+		copyMap[key] = value
 	}
+	return copyMap
+}
+
+func copyBooleanTerritories(source map[models.TerritoryID]bool) map[models.TerritoryID]bool {
+	copyMap := make(map[models.TerritoryID]bool, len(source))
+	for key, value := range source {
+		copyMap[key] = value
+	}
+	return copyMap
+}
+
+func copyIntegerMap(source map[models.ArmyID]int) map[models.ArmyID]int {
+	copyMap := make(map[models.ArmyID]int, len(source))
+	for key, value := range source {
+		copyMap[key] = value
+	}
+	return copyMap
+}
+
+func copyAttackIntents(source map[models.ArmyID]*attackIntent) map[models.ArmyID]*attackIntent {
+	copyMap := make(map[models.ArmyID]*attackIntent, len(source))
+	for key, intent := range source {
+		copyIntent := *intent
+		copyMap[key] = &copyIntent
+	}
+	return copyMap
+}
+
+func copyJoinIntents(source map[models.ArmyID]*joinIntent) map[models.ArmyID]*joinIntent {
+	copyMap := make(map[models.ArmyID]*joinIntent, len(source))
+	for key, intent := range source {
+		copyIntent := *intent
+		copyMap[key] = &copyIntent
+	}
+	return copyMap
+}
+
+func copyDisperseIntents(source map[models.ArmyID]*disperseIntent) map[models.ArmyID]*disperseIntent {
+	copyMap := make(map[models.ArmyID]*disperseIntent, len(source))
+	for key, intent := range source {
+		copyIntent := *intent
+		copyIntent.targets = append([]models.TerritoryID(nil), intent.targets...)
+		copyIntent.nobles = append([]models.NobleID(nil), intent.nobles...)
+		copyIntent.assignments = copyNobleAssignments(intent.assignments)
+		copyMap[key] = &copyIntent
+	}
+	return copyMap
+}
+
+func copyNobleAssignments(source map[models.TerritoryID][]models.NobleID) map[models.TerritoryID][]models.NobleID {
+	copyMap := make(map[models.TerritoryID][]models.NobleID, len(source))
+	for territoryID, nobleIDs := range source {
+		copyMap[territoryID] = append([]models.NobleID(nil), nobleIDs...)
+	}
+	return copyMap
+}
+
+func copySupportIntents(source map[models.ArmyID]*supportIntent) map[models.ArmyID]*supportIntent {
+	copyMap := make(map[models.ArmyID]*supportIntent, len(source))
+	for key, intent := range source {
+		copyIntent := *intent
+		copyMap[key] = &copyIntent
+	}
+	return copyMap
 }
 
 func (ctx *resolutionContext) alliedDestinationAttacks(vacated, previouslyDislodged map[models.ArmyID]bool) map[models.ArmyID]bool {
@@ -156,7 +235,7 @@ func (ctx *resolutionContext) alliedDestinationAttacks(vacated, previouslyDislod
 	return excluded
 }
 
-func (ctx *resolutionContext) calculateSupportCuts(active map[models.ArmyID]bool, excluded map[models.ArmyID]bool) map[models.ArmyID]bool {
+func (ctx *resolutionContext) calculateSupportCuts(excluded map[models.ArmyID]bool) map[models.ArmyID]bool {
 	cuts := make(map[models.ArmyID]bool, len(ctx.supports))
 	for _, supportID := range sortedArmyMap(ctx.supports) {
 		support := ctx.supports[supportID]
@@ -165,104 +244,19 @@ func (ctx *resolutionContext) calculateSupportCuts(active map[models.ArmyID]bool
 			exemptOriginID = support.destinationID
 		}
 		for _, attackID := range sortedArmyMap(ctx.attacks) {
-			if !active[attackID] || excluded[attackID] {
+			if excluded[attackID] {
 				continue
 			}
 			attack := ctx.attacks[attackID]
-			if attack.target == support.source && attack.source != exemptOriginID {
+			attacker := ctx.startArmiesByID[attackID]
+			supporter := ctx.startArmiesByID[supportID]
+			if attack.target == support.source && attack.source != exemptOriginID && attacker.OwnerID != supporter.OwnerID {
 				cuts[supportID] = true
 				break
 			}
 		}
 	}
 	return cuts
-}
-
-func (ctx *resolutionContext) resolveTerritoryContest(
-	territoryID models.TerritoryID,
-	attacks []*attackIntent,
-	cuts map[models.ArmyID]bool,
-	previouslyDislodged map[models.ArmyID]bool,
-	vacated map[models.ArmyID]bool,
-) contestResult {
-	defender := ctx.startArmyAt(territoryID)
-	if defender != nil && vacated[defender.ID] {
-		defender = nil
-	}
-	castleBonus := 0
-	if ctx.hasCastle(territoryID) {
-		castleBonus = ctx.balance.CastleDefenseBonus
-	}
-	baseDefense := castleBonus
-	defense := baseDefense
-	defenderID := models.ArmyID("")
-	defenderOwnerID := models.PlayerID("")
-	if defender != nil {
-		if !ctx.famished[defender.ID] {
-			baseDefense += defender.Size
-			defense += defender.Size
-		}
-		defenderID = defender.ID
-		defenderOwnerID = defender.OwnerID
-		defense += ctx.defensiveSupportStrength(defender.ID, cuts, previouslyDislodged)
-	}
-	result := contestResult{
-		territoryID: territoryID,
-		defenderID:  defenderID,
-		baseDefense: baseDefense,
-		defense:     defense,
-		castleBonus: castleBonus,
-	}
-	if defender != nil || castleBonus > 0 {
-		result.contenders = append(result.contenders, CombatContender{
-			ArmyID:   defenderID,
-			OwnerID:  defenderOwnerID,
-			Force:    defense,
-			Defender: true,
-		})
-	}
-
-	bestForce := defense
-	bestArmyID := models.ArmyID("")
-	tied := false
-	singleAttackForce := -1
-	for _, attack := range attacks {
-		attacker := ctx.startArmiesByID[attack.armyID]
-		force := attack.size + ctx.offensiveSupportStrength(attack.armyID, cuts, previouslyDislodged)
-		if len(attacks) == 1 {
-			singleAttackForce = force
-		}
-		result.contenders = append(result.contenders, CombatContender{
-			ArmyID:  attack.armyID,
-			OwnerID: attacker.OwnerID,
-			Force:   force,
-		})
-		if force > bestForce {
-			bestForce = force
-			bestArmyID = attack.armyID
-			tied = false
-		} else if force == bestForce {
-			tied = true
-		}
-	}
-	if defender == nil && castleBonus == 0 && len(attacks) == 1 && singleAttackForce == 0 {
-		result.winnerID = attacks[0].armyID
-	} else if !tied && bestArmyID != "" {
-		result.winnerID = bestArmyID
-		if defender != nil {
-			result.dislodgedArmyID = defender.ID
-			result.attackerOriginID = ctx.attacks[bestArmyID].source
-		}
-	} else if tied {
-		result.standoff = true
-	}
-	for _, supportID := range sortedArmyMap(ctx.supports) {
-		support := ctx.supports[supportID]
-		if cuts[supportID] && supportRelevantToTerritory(ctx, support, territoryID) {
-			result.cutSupporterIDs = append(result.cutSupporterIDs, supportID)
-		}
-	}
-	return result
 }
 
 func (ctx *resolutionContext) removeAlliedDestinationAttacks() {
@@ -288,6 +282,7 @@ func (ctx *resolutionContext) removeAlliedDestinationAttacks() {
 	for targetID := range removedTargets {
 		if !ctx.hasAttackTarget(targetID) {
 			delete(ctx.attackedTerritories, targetID)
+			delete(ctx.contest.results, targetID)
 		}
 	}
 }
@@ -318,20 +313,6 @@ func supportRelevantToTerritory(ctx *resolutionContext, support *supportIntent, 
 		return attack != nil && attack.target == territoryID
 	}
 	return support.targetID == territoryID
-}
-
-func (ctx *resolutionContext) offensiveSupportStrength(armyID models.ArmyID, cuts, previouslyDislodged map[models.ArmyID]bool) int {
-	strength := 0
-	for _, supportID := range sortedArmyMap(ctx.supports) {
-		support := ctx.supports[supportID]
-		if !support.applies || !support.offensive || support.targetArmyID != armyID || cuts[supportID] || previouslyDislodged[supportID] {
-			continue
-		}
-		if !ctx.famished[supportID] {
-			strength += ctx.startArmiesByID[supportID].Size
-		}
-	}
-	return strength
 }
 
 func (ctx *resolutionContext) defensiveSupportStrength(armyID models.ArmyID, cuts, previouslyDislodged map[models.ArmyID]bool) int {
@@ -417,7 +398,7 @@ func (ctx *resolutionContext) clearPendingDisperse(record *orderRecord) {
 }
 
 func sameContestState(left, right contestState) bool {
-	if !sameBooleanMap(left.active, right.active) || !sameBooleanMap(left.dislodged, right.dislodged) || !sameBooleanMap(left.vacated, right.vacated) || !sameBooleanMap(left.cuts, right.cuts) || len(left.results) != len(right.results) {
+	if !sameBooleanMap(left.active, right.active) || !sameBooleanMap(left.dislodged, right.dislodged) || !sameBooleanMap(left.vacated, right.vacated) || !sameIntegerMap(left.disperseResidual, right.disperseResidual) || !sameBooleanMap(left.ghosted, right.ghosted) || !sameBooleanMap(left.retiredGhosts, right.retiredGhosts) || !sameBooleanMap(left.cuts, right.cuts) || !sameBooleanMap(left.voidedSupports, right.voidedSupports) || len(left.results) != len(right.results) {
 		return false
 	}
 	for territoryID, leftResult := range left.results {
@@ -430,6 +411,18 @@ func sameContestState(left, right contestState) bool {
 }
 
 func sameBooleanMap(left, right map[models.ArmyID]bool) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for key, value := range left {
+		if right[key] != value {
+			return false
+		}
+	}
+	return true
+}
+
+func sameIntegerMap(left, right map[models.ArmyID]int) bool {
 	if len(left) != len(right) {
 		return false
 	}
