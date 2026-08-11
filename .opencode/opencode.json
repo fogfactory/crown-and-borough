@@ -4,13 +4,13 @@
   "default_agent": "build",
   "agent": {
     "plan": {
-      "model": "openrouter/qwen/qwen3.8-max"
+      "model": "openrouter/moonshotai/kimi-k3"
     },
     "build": {
       "model": "openrouter/openai/gpt-5.6-luna"
     },
     "review": {
-      "model": "openrouter/qwen/qwen3.8-max",
+      "model": "openrouter/moonshotai/kimi-k3",
       "mode": "subagent",
       "description": "Reviews code, plans and specs against the project conventions."
     }
