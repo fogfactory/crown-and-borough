@@ -10,10 +10,10 @@ front prévue, commentaire en place), la CI GitHub Actions existe depuis P0.1
 Références : specs/roadmap.md (P3.5) et specs/architecture.md (stack).
 
 PÉRIMÈTRE : empaqueter l'application en UN conteneur (front + API), la
-déployer sur Cloud Run, automatiser build+push+deploy dans la CI, persister
-sur un bucket GCS (le disque de Cloud Run est éphémère : P3.3 sans volume
-perdrait les parties à chaque instance). Le but : un LIEN PUBLIC jouable
-entre amis.
+déployer d'abord sur Cloud Run, automatiser build+push+deploy dans la CI,
+persister sur un bucket GCS si le spike de durabilité le valide, et fournir un
+workflow Compute Engine de repli avec Persistent Disk. Le but : un LIEN PUBLIC
+jouable entre amis, avec une seule partie active au MVP.
 
 RÈGLE DE CODE : code EXCLUSIVEMENT en anglais (identifiants, commentaires,
 messages, enums). Seuls les labels UI restent en français.
@@ -37,17 +37,18 @@ messages, enums). Seuls les labels UI restent en français.
      écriture ; documente le mode (gcsfuse, cache: stat-cache-max-ttl court
      — les fichiers changent au fil des tours)
    - DATA_DIR=/data via variable d'environnement du service ; P3.3
-     fonctionne tel quel (aucune modification de code de persistance)
+     fonctionne avec le backend choisi par le workflow
+   - Le smoke test doit provoquer un redémarrage et vérifier que la dernière
+     génération JSON complète est restaurée. Cloud Run n'est pas certifié si
+     cette vérification échoue.
 
 3. INFRASTRUCTURE (gcloud, projet GCP — nom à mettre en secret/variable) :
    - Artifact Registry : repository docker nommé crown-and-borough, région
      (ex. europe-west1)
    - Cloud Run : service crown-and-borough (region, cpu 1, mem 512 Mi,
-     min-instances 0, max-instances 2 (auto-scale sur une partie entre
-     amis), no-allow-unauthenticated → l'accès public se fait par IAM
-     invoker OU --no-allow-unauthenticated + auth infra (choisis et
-     documente ; le plus simple au MVP : allow-unauthenticated si le jeu
-     n'a pas besoin de secrets — décision de sécurité à assumer)
+     min-instances 0, max-instances 1, une seule révision active sans split
+     de trafic) ; l'accès public Cloud Run est autorisé car
+     l'authentification et les invitations sont gérées par l'application
    - Tout se fait via la CLI gcloud (pas de Terraform au MVP — choix
      documenté), les commandes sont reproductibles (fichier deploy.md ou
      script deploy.sh versionné)
@@ -80,16 +81,19 @@ messages, enums). Seuls les labels UI restent en français.
      public répond (healthz + inscription + création de partie). Sinon :
      documente précisément les étapes pour le faire (le propriétaire du
      projet le fera)
+   - Si le test GCS échoue, déploie la même image sur une VM Compute Engine
+     e2-micro avec un Persistent Disk monté sur DATA_DIR et rejoue le test.
 
 Critères d'acceptation :
 - make test passe (avec -race) ; make vet passe ; docker build OK
 - Le conteneur sert front + API en same-origin (aucun CORS)
 - Le workflow CI étendu est vert (au moins la partie tests/build) ;
   le déploiement automatique est prêt (workflow + documentation)
-- La persistance survit aux restarts Cloud Run grâce au bucket monté
+- La persistance survit aux redémarrages Cloud Run grâce au backend GCS validé,
+  ou au workflow Compute Engine si le smoke test GCS échoue
 
-Note : documente dans ta réponse finale les choix ouverts que tu as tranchés
-(région, allow-unauthenticated vs IAM, Terraform différé, un conteneur
-unique, gcsfuse) pour mise à jour des specs (ne modifie pas les specs
-toi-même). Ne commite pas : je m'en charge.
+Note : documente dans la réponse finale les choix tranchés (région,
+allow-unauthenticated, Terraform différé, une partie active, max-instances 1,
+gcsfuse et workflow Compute Engine de repli). Ne commite pas sans instruction
+explicite.
 ```
