@@ -9,6 +9,7 @@ import (
 type contestState struct {
 	active    map[models.ArmyID]bool
 	dislodged map[models.ArmyID]bool
+	vacated   map[models.ArmyID]bool
 	cuts      map[models.ArmyID]bool
 	results   map[models.TerritoryID]contestResult
 }
@@ -39,6 +40,7 @@ func resolveContests(ctx *resolutionContext) error {
 		ctx.contest = contestState{
 			active:    map[models.ArmyID]bool{},
 			dislodged: map[models.ArmyID]bool{},
+			vacated:   map[models.ArmyID]bool{},
 			cuts:      map[models.ArmyID]bool{},
 			results:   map[models.TerritoryID]contestResult{},
 		}
@@ -50,12 +52,16 @@ func resolveContests(ctx *resolutionContext) error {
 		active[armyID] = true
 	}
 	dislodged := map[models.ArmyID]bool{}
+	vacated := make(map[models.ArmyID]bool, len(ctx.attacks))
+	for armyID := range ctx.attacks {
+		vacated[armyID] = true
+	}
 	var previous contestState
 	hasPrevious := false
 	moveOrderCount := len(ctx.attacks) + len(ctx.joins) + len(ctx.disperses)
-	maxPasses := moveOrderCount + 1
+	maxPasses := 2*moveOrderCount + 2
 	for pass := 0; ; pass++ {
-		current := ctx.evaluateContests(active, dislodged)
+		current := ctx.evaluateContests(active, dislodged, vacated)
 		if hasPrevious && sameContestState(previous, current) {
 			ctx.contest = current
 			break
@@ -67,6 +73,7 @@ func resolveContests(ctx *resolutionContext) error {
 		hasPrevious = true
 		active = current.active
 		dislodged = current.dislodged
+		vacated = current.vacated
 	}
 
 	for territoryID, result := range ctx.contest.results {
@@ -83,17 +90,19 @@ func resolveContests(ctx *resolutionContext) error {
 			attackerOriginID: result.attackerOriginID,
 		}
 	}
+	ctx.removeAlliedDestinationAttacks()
 	ctx.emitCombatEvents()
 	ctx.applyContestOutcomes()
 	return nil
 }
 
-func (ctx *resolutionContext) evaluateContests(active, previouslyDislodged map[models.ArmyID]bool) contestState {
-	cuts := ctx.calculateSupportCuts(active)
+func (ctx *resolutionContext) evaluateContests(active, previouslyDislodged, vacated map[models.ArmyID]bool) contestState {
+	excluded := ctx.alliedDestinationAttacks(vacated)
+	cuts := ctx.calculateSupportCuts(active, excluded)
 	results := make(map[models.TerritoryID]contestResult)
 	attacksByTarget := make(map[models.TerritoryID][]*attackIntent)
 	for _, armyID := range sortedArmyMap(ctx.attacks) {
-		if !active[armyID] {
+		if !active[armyID] || excluded[armyID] {
 			continue
 		}
 		attack := ctx.attacks[armyID]
@@ -101,7 +110,7 @@ func (ctx *resolutionContext) evaluateContests(active, previouslyDislodged map[m
 	}
 	for _, territoryID := range sortedTerritoryMap(attacksByTarget) {
 		attacks := attacksByTarget[territoryID]
-		result := ctx.resolveTerritoryContest(territoryID, attacks, cuts, previouslyDislodged)
+		result := ctx.resolveTerritoryContest(territoryID, attacks, cuts, previouslyDislodged, vacated)
 		results[territoryID] = result
 	}
 	dislodged := make(map[models.ArmyID]bool)
@@ -114,10 +123,38 @@ func (ctx *resolutionContext) evaluateContests(active, previouslyDislodged map[m
 	for armyID := range ctx.attacks {
 		nextActive[armyID] = !dislodged[armyID]
 	}
-	return contestState{active: nextActive, dislodged: dislodged, cuts: cuts, results: results}
+	nextVacated := make(map[models.ArmyID]bool)
+	for _, result := range results {
+		if result.winnerID != "" && !dislodged[result.winnerID] {
+			nextVacated[result.winnerID] = true
+		}
+	}
+	return contestState{
+		active:    nextActive,
+		dislodged: dislodged,
+		vacated:   nextVacated,
+		cuts:      cuts,
+		results:   results,
+	}
 }
 
-func (ctx *resolutionContext) calculateSupportCuts(active map[models.ArmyID]bool) map[models.ArmyID]bool {
+func (ctx *resolutionContext) alliedDestinationAttacks(vacated map[models.ArmyID]bool) map[models.ArmyID]bool {
+	excluded := make(map[models.ArmyID]bool)
+	for _, armyID := range sortedArmyMap(ctx.attacks) {
+		attack := ctx.attacks[armyID]
+		defender := ctx.startArmyAt(attack.target)
+		if defender == nil || vacated[defender.ID] {
+			continue
+		}
+		attacker := ctx.startArmiesByID[armyID]
+		if attacker.OwnerID == defender.OwnerID {
+			excluded[armyID] = true
+		}
+	}
+	return excluded
+}
+
+func (ctx *resolutionContext) calculateSupportCuts(active map[models.ArmyID]bool, excluded map[models.ArmyID]bool) map[models.ArmyID]bool {
 	cuts := make(map[models.ArmyID]bool, len(ctx.supports))
 	for _, supportID := range sortedArmyMap(ctx.supports) {
 		support := ctx.supports[supportID]
@@ -126,7 +163,7 @@ func (ctx *resolutionContext) calculateSupportCuts(active map[models.ArmyID]bool
 			exemptOriginID = support.destinationID
 		}
 		for _, attackID := range sortedArmyMap(ctx.attacks) {
-			if !active[attackID] {
+			if !active[attackID] || excluded[attackID] {
 				continue
 			}
 			attack := ctx.attacks[attackID]
@@ -144,8 +181,12 @@ func (ctx *resolutionContext) resolveTerritoryContest(
 	attacks []*attackIntent,
 	cuts map[models.ArmyID]bool,
 	previouslyDislodged map[models.ArmyID]bool,
+	vacated map[models.ArmyID]bool,
 ) contestResult {
 	defender := ctx.startArmyAt(territoryID)
+	if defender != nil && vacated[defender.ID] {
+		defender = nil
+	}
 	castleBonus := 0
 	if ctx.hasCastle(territoryID) {
 		castleBonus = ctx.balance.CastleDefenseBonus
@@ -214,6 +255,42 @@ func (ctx *resolutionContext) resolveTerritoryContest(
 		}
 	}
 	return result
+}
+
+func (ctx *resolutionContext) removeAlliedDestinationAttacks() {
+	removedTargets := make(map[models.TerritoryID]bool)
+	for _, armyID := range sortedArmyMap(ctx.attacks) {
+		attack := ctx.attacks[armyID]
+		defender := ctx.startArmyAt(attack.target)
+		if defender == nil || ctx.contest.vacated[defender.ID] || ctx.contest.dislodged[defender.ID] {
+			continue
+		}
+		attacker := ctx.startArmiesByID[armyID]
+		if attacker.OwnerID != defender.OwnerID || ctx.contest.dislodged[armyID] {
+			continue
+		}
+		record := ctx.records[armyID]
+		if record == nil || record.outcome != "" {
+			continue
+		}
+		record.fail("allied_destination")
+		delete(ctx.attacks, armyID)
+		removedTargets[attack.target] = true
+	}
+	for targetID := range removedTargets {
+		if !ctx.hasAttackTarget(targetID) {
+			delete(ctx.attackedTerritories, targetID)
+		}
+	}
+}
+
+func (ctx *resolutionContext) hasAttackTarget(targetID models.TerritoryID) bool {
+	for _, attack := range ctx.attacks {
+		if attack.target == targetID {
+			return true
+		}
+	}
+	return false
 }
 
 func supportRelevantToTerritory(ctx *resolutionContext, support *supportIntent, territoryID models.TerritoryID) bool {
@@ -321,7 +398,7 @@ func (ctx *resolutionContext) clearPendingDisperse(record *orderRecord) {
 }
 
 func sameContestState(left, right contestState) bool {
-	if !sameBooleanMap(left.active, right.active) || !sameBooleanMap(left.dislodged, right.dislodged) || !sameBooleanMap(left.cuts, right.cuts) || len(left.results) != len(right.results) {
+	if !sameBooleanMap(left.active, right.active) || !sameBooleanMap(left.dislodged, right.dislodged) || !sameBooleanMap(left.vacated, right.vacated) || !sameBooleanMap(left.cuts, right.cuts) || len(left.results) != len(right.results) {
 		return false
 	}
 	for territoryID, leftResult := range left.results {

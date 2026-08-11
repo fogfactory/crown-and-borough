@@ -126,10 +126,6 @@ func (ctx *resolutionContext) enumerateOrder(record *orderRecord, army models.Ar
 		if !valid {
 			return
 		}
-		if defender := ctx.startArmyAt(targetID); defender != nil && defender.OwnerID == army.OwnerID {
-			record.fail("allied_destination")
-			return
-		}
 		strength := army.Size
 		if ctx.famished[army.ID] {
 			strength = 0
@@ -143,10 +139,6 @@ func (ctx *resolutionContext) enumerateOrder(record *orderRecord, army models.Ar
 		}
 		targetID, valid := ctx.singleAdjacentTarget(record, army, false)
 		if !valid {
-			return
-		}
-		if defender := ctx.startArmyAt(targetID); defender != nil && defender.OwnerID != army.OwnerID {
-			record.fail("enemy_destination")
 			return
 		}
 		ctx.joins[army.ID] = &joinIntent{armyID: army.ID, source: army.TerritoryID, target: targetID}
