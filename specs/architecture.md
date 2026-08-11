@@ -317,10 +317,31 @@ et sont suivies par l'issue online :
 
 - identifiant territorial unique fondé sur le trigramme ;
 - filtre serveur des vues par joueur ;
-- gestion de plusieurs parties et authentification ;
-- persistance JSON atomique ;
+- gestion d'une partie active et authentification ;
+- persistance JSON avec backend filesystem et backend snapshot pour GCS FUSE ;
 - bundle frontend servi par le serveur et déploiement public.
 
 Un brouillard de guerre général pourra éventuellement réintroduire des
 infrastructures de vision dédiées. Cela constituera une extension de règles et
 un contrat de vue distinct, pas une modification silencieuse du cœur v1.
+
+## 10. Cible online MVP
+
+Le déploiement online cible une seule partie active et deux à cinq joueurs.
+L'identifiant de partie est conservé dans les routes `/api/games/{id}` afin de
+permettre une évolution multi-parties sans changer les contrats publics.
+
+Le serveur porte l'identité du joueur à partir d'un token Bearer. Le paramètre
+`player` peut exister dans un mode de test local, mais il n'est jamais utilisé
+par l'API publique authentifiée. Les endpoints hotseat sont désactivés dans le
+déploiement public.
+
+La projection serveur conserve les informations dynamiques publiques mais
+filtre les chaînes et les combats selon le joueur. La connaissance des chaînes
+et les audiences des rapports sont des métadonnées de serveur, indépendantes du
+rendu React et persistées avec la partie.
+
+`DATA_DIR` est la frontière de portabilité de la persistance. Un filesystem
+local ou un Persistent Disk peut garantir `fsync` et `rename`. Un volume GCS
+FUSE doit utiliser une stratégie de snapshots complets validée par un smoke
+test de redémarrage ; Cloud Run n'est pas certifié si ce test échoue.

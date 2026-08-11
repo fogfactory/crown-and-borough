@@ -2,7 +2,7 @@
 
 **Milestone lié :** [Brouillard de guerre](https://github.com/fogfactory/crown-and-borough/milestone/9)
 
-**Dépend de :** la vue privée côté serveur de [l'issue #2](https://github.com/fogfactory/crown-and-borough/issues/2).
+**Dépend de :** la vue privée côté serveur de [l'issue #42](https://github.com/fogfactory/crown-and-borough/issues/42).
 
 ## Visibilité
 

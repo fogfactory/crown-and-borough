@@ -2,19 +2,20 @@
 
 ```
 Tu travailles sur "Crown & Borough", un jeu de stratégie par tours.
-L'API REST existe (P3.1 : multi-parties, soumission par joueur, résolution au
+L'API REST existe (P3.1 : une partie active, soumission par joueur, résolution au
 dernier submit, endpoints /api/games/*), le moteur v1 est complet et testé, le
 front consomme l'API réelle.
 Références : specs/gdd.md (§2), specs/architecture.md (§5, §6) et
 specs/roadmap.md (P3.2).
 
 PÉRIMÈTRE : inscription simple (sans mot de passe), sessions en mémoire,
-code d'invitation par partie, contrôle d'accès sur tous les endpoints
-(créer, rejoindre, soumettre, consulter). La persistance des sessions et des
-parties est HORS périmètre (P3.3 persistera les parties ; les sessions
-restent en mémoire au MVP — un redémarrage déconnecte tout le monde, mais
-les joueurs reprennent leur slot par nom + code d'invitation, cf. join —
-choix documenté).
+code et lien d'invitation par partie, contrôle d'accès sur tous les endpoints
+(créer, rejoindre, soumettre, consulter). Le MVP hébergé ne garde qu'une
+partie active, avec un identifiant stable pour une évolution multi-parties
+ultérieure. La persistance des sessions et des parties est HORS périmètre
+(P3.3 persistera les parties ; les sessions restent en mémoire au MVP — un
+redémarrage déconnecte tout le monde, mais les joueurs reprennent leur slot par
+nom + code d'invitation, cf. join — choix documenté).
 
 RÈGLE DE CODE : code EXCLUSIVEMENT en anglais (identifiants, commentaires,
 messages, enums). Seules les chaînes de contenu de jeu (noms, labels UI)
@@ -37,10 +38,11 @@ sont en français.
      code de 6 caractères, alphabet sans ambiguïté (ex. ABCDEFGHJKMNPQRSTUVWXYZ
      23456789), unique en mémoire, renvoyé au créateur dans la réponse de
      POST /api/games
-   - POST /api/games — { name, seed } → 201 { ..., inviteCode } : le
+   - POST /api/games — { name, seed } → 201 { ..., inviteCode, inviteUrl } : le
      créateur devient automatiquement le joueur P1 de la partie
-   - POST /api/games/{id}/join — { inviteCode, playerName? } → 200 {
-     player: { id, name } } : le code doit correspondre à la partie (403
+   - POST /api/games/{id}/join — { inviteCode, playerName } → 200 {
+     player: { id, name } } : l'identité de session est fournie par le token
+     Bearer issu de register ; le code doit correspondre à la partie (403
      sinon) ; partie EN ATTENTE : le joueur rejoint la partie dans le
      premier slot libre (P2, P3...) avec son nom inscrit ; partie déjà
      pleine (5 joueurs max au MVP — constante) → 409 ; partie COMMENCÉE :
@@ -51,7 +53,7 @@ sont en français.
    - GET /api/games/{id} — expose inviteCode au créateur uniquement (les
      autres joueurs voient les joueurs, pas le code)
 
-3. CONTRÔLE D'ACCÈS (middleware chi) :
+3. CONTRÔLE D'ACCÈS (middleware net/http) :
    - Requêtes protégées (tout sauf register/join) : token requis et
      valide → le player est résolu (contexte de requête) ; sinon 401
    - POST /api/games/{id}/orders : le joueur ne soumet que SES ordres
@@ -63,8 +65,8 @@ sont en français.
       rapport, filtrée selon les règles d'implication du GDD v1
    - Un joueur non membre de la partie → 403 sur tout endpoint de
      cette partie (sauf /join)
-   - GET /api/games — ne liste que les parties du joueur connecté (ses
-     parties + celles où il est invité par un code qu'il a déjà rejoint)
+   - GET /api/games — ne renvoie au plus que la partie active et uniquement si
+     le joueur connecté en est membre
 
 4. SESSIONS EN MÉMOIRE (internal/server) :
    - Sessions map[token]playerID + mutex ; token renvoyé UNE fois à
@@ -72,6 +74,8 @@ sont en français.
      localStorage est plus simple pour le front SPA et le test API)
    - Pas de déconnexion au MVP (choix documenté) ; pas d'expiration
      (les tokens meurent avec le serveur)
+   - Le lien d'invitation est un bearer capability ; il ne remplace pas le
+     contrôle d'appartenance ni le token de session.
 
 5. FRONT (web/) :
    - Écran d'accueil : inscription (nom) → token stocké (localStorage) →
@@ -81,7 +85,8 @@ sont en français.
      copier), la liste des joueurs (moi + slots libres), l'état des
      soumissions (qui a soumis), la carte (vue du joueur), le panneau
      d'ordres, le rapport du dernier tour
-   - 401 sur le chargement → retour à l'écran d'accueil
+   - L'URL d'invitation est détectée au chargement et préremplit l'écran de
+     rejoint ; 401 sur le chargement → retour à l'écran d'accueil
    - Message d'erreur convivial sur 403/404/409/409 (partie pleine,
      commencée, code invalide)
 
@@ -91,7 +96,8 @@ sont en français.
    - Token : requête sans token → 401 ; token invalide → 401 ; le token
      d'un joueur ne peut pas soumettre pour un autre (il n'y a plus de
      champ player : un joueur ne soumet que le sien)
-   - Création : le créateur est P1, inviteCode renvoyé et unique
+   - Création : le créateur est P1, inviteCode et inviteUrl renvoyés et
+     uniques ; une seconde partie active → 409
    - Join : code correct → slot P2 ; code faux → 403 ; partie pleine →
      409 ; partie commencée + nom inconnu → 409 ; partie commencée + nom
      d'un slot existant → REPRISE du slot (reconnexion)
@@ -110,7 +116,8 @@ Critères d'acceptation :
   différents : inscription → création (code) → join → soumissions
   séparées → résolution automatique → rapports visibles des deux côtés
 - Aucune identité ne peut soumettre ou lire pour un autre joueur
-- Le moteur (internal/engine) n'est PAS modifié
+- Le moteur (internal/engine) n'est PAS modifié après la refonte d'identité
+  territoriale O2
 
 Note : documente dans ta réponse finale les choix ouverts que tu as tranchés
  (session token localStorage, pas de mot de passe, code 6 caractères, reprise
