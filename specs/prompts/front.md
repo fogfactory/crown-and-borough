@@ -81,8 +81,8 @@ Critères d'acceptation :
   du moteur ; l'API n'est modifiée qu'en cas de bug documenté
 - TESTING.md rempli et commité avec le code
 
-Note : documente dans ta réponse finale ce qui a été corrigé (avec les
-scénarios de reproduction des bugs moteur/API éventuels) pour mise à jour
-des specs (ne modifie pas les specs toi-même). Ne commite pas : je m'en
-charge.
+Note : documente dans la réponse finale ce qui a été corrigé (avec les
+scénarios de reproduction des bugs moteur/API éventuels) et mets à jour
+`TESTING.md` et les spécifications si un contrat change. Ne commite pas sans
+instruction explicite.
 ```

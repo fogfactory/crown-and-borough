@@ -1,4 +1,4 @@
-# Prompt : API REST complète, multi-parties et soumission par joueur
+# Prompt : API REST online, partie active et soumission par joueur
 
 ```
 Tu travailles sur "Crown & Borough", un jeu de stratégie par tours.
@@ -8,13 +8,14 @@ Le serveur Go actuel (cmd/server, P0.1) sert les endpoints dev en stdlib.
 Références : specs/gdd.md (§2), specs/architecture.md (§5 contrats
 map.json/state.json, §6 ordres) et specs/roadmap.md (P3.1).
 
-PÉRIMÈTRE : API REST réelle multi-parties avec `net/http` — création de
-parties, inscription des joueurs (PAS d'auth : P3.2), soumission d'ordres
-PAR JOUEUR et par tour, résolution automatique quand TOUS ont soumis,
-consultation des rapports de tour et des vues par joueur selon la politique du
-GDD v1. L'auth
-(P3.2), la persistance (P3.3) et le déploiement (P3.5) sont HORS périmètre :
-tout est en mémoire, un serveur, une liste de parties.
+PÉRIMÈTRE : API REST réelle avec `net/http` pour une seule partie active —
+création d'une partie, inscription des joueurs par slots (PAS d'auth : P3.2),
+soumission d'ordres PAR JOUEUR et par tour, résolution automatique quand TOUS
+ont soumis, résolution forcée explicite, consultation des rapports et vues par
+joueur selon la politique du GDD v1. L'auth (P3.2), la persistance (P3.3) et
+le déploiement (P3.5) sont HORS périmètre : tout est en mémoire. Les routes
+conservent `/api/games/{id}` afin de permettre une évolution multi-parties
+ultérieure, mais une seconde partie active renvoie `409` au MVP.
 
 RÈGLE DE CODE : code EXCLUSIVEMENT en anglais (identifiants, commentaires,
 messages, enums). Seules les chaînes de contenu de jeu (noms, labels UI)
@@ -29,23 +30,28 @@ sont en français.
      l'inscription/join — P3.2), Name, Color }, Status (waiting |
      playing | finished), InviteCode (prévu pour P3.2 : champ présent dès
      maintenant, généré à la création, non utilisé), TurnSubmissions
-     map[PlayerID]OrdersInput, Reports []TurnReport, Winner *PlayerID }
-   - Games map[GameID]*GameSession + mutex (le moteur est PURE : toute
-     mutation passe par ResolveTurn/CreateGame, jamais d'écriture directe)
+     map[PlayerID]OrdersInput, Reports []TurnReport, Winner *PlayerID,
+     PrivacyMetadata }
+   - ActiveGame *GameSession + mutex ; l'interface du store garde un
+     GameID pour permettre plusieurs parties plus tard
+   - Le moteur est PURE : toute mutation passe par ResolveTurn/CreateGame,
+     jamais d'écriture directe
    - Les players sont fournis à la création (P3.1 : liste de noms ; P3.2
      remplacera par inscription/join)
 
 3. ENDPOINTS (tous JSON, erreurs en { "error": "..." }, codes HTTP propres ;
    préfixe /api) :
    - POST /api/games — { name, seed, players: ["Nom1", "Nom2"] } → 201 {
-     id, name, seed, players, status } ; ≥ 2 joueurs requis (400 sinon) ;
+     id, name, seed, players, status } ; 2 à 5 joueurs online requis (400
+     sinon), partie active existante → 409 ;
      le seed est optionnel (généré côté serveur si absent, renvoyé dans la
      réponse)
-   - GET /api/games — liste des parties (id, name, status, players,
-     turn, season)
+   - GET /api/games — liste contenant au plus la partie active (id, name,
+     status, players, turn, season)
    - GET /api/games/{id} — détail : players (id, name, color, submitted ?),
      turn, season, status, winner, nom de la saison courante
    - GET /api/games/{id}/map — map.json (inchangé depuis P1.2)
+   - GET /api/games/{id}/supply?territory=XXX — calcul de ravitaillement
     - GET /api/games/{id}/state?player=P1 — la vue du joueur selon les règles
       du GDD v1 (chaînes connues et détails de combats impliquant le joueur) ;
      player requis (400 sinon) ; hors périmètre la vérification du droit à
@@ -67,10 +73,13 @@ sont en français.
           libre (elle remplace la précédente)
        * sinon → { submitted: true, resolved: false,
          awaiting: ["P2", ...] } (joueurs restants)
+   - POST /api/games/{id}/resolve — résolution forcée avec les soumissions
+     présentes et des ordres vides pour les joueurs manquants ;
    - GET /api/games/{id}/reports — liste des rapports (year/season,
      index)
    - GET /api/games/{id}/reports/{index} — un rapport complet
-   - 404 sur partie inconnue ; 409 si le tour courant est déjà résolu
+   - GET /api/rules?lang=fr — règles publiques du jeu ;
+    - 404 sur partie inconnue ; 409 si le tour courant est déjà résolu
      pour ce joueur (il ne peut pas soumettre pour un tour passé)
 
 4. MODÈLE ASYNCHRONE (choix documentés) :
@@ -87,9 +96,9 @@ sont en français.
      récupèrent via GET /api/games/{id}/reports (ou l'état)
    - En HIVER : mêmes règles (winter orders par joueur)
 
-5. ENDPOINTS DEV (P1.7) : conservés TELLS QUELS (hotseat de debug) — le
-   front migre vers la nouvelle API (point 6), les endpoints dev restent
-   disponibles pour les tests locaux (documente-le)
+5. ENDPOINTS DEV (P1.7) : conservés derrière un flag explicite de
+   développement uniquement. Ils ne doivent pas être montés dans le serveur
+   public, car ils font confiance au champ `player` fourni par le client.
 
 6. FRONT (web/) — migration vers l'API réelle :
    - Écran "Nouvelle partie" : nom + liste de joueurs (2+) → POST
@@ -103,7 +112,8 @@ sont en français.
      bouton manuel — choisis, documente)
     - L'affichage de la vue par joueur suit les règles de divulgation du GDD v1
 
-7. TESTS (internal/server/api_test.go, httptest sur le routeur chi) :
+7. TESTS (internal/server/api_test.go, httptest sur `net/http` et
+   `http.ServeMux`) :
    - CRUD : création (201, ≥ 2 joueurs, seed renvoyé), liste, détail, 404
    - SOUMISSION : un seul joueur soumet → resolved: false + awaiting ;
      resoumission remplace ; parsing invalide → 400 (aucune soumission
@@ -115,6 +125,8 @@ sont en français.
      bloque pas la résolution ; partie finie quand un seul vivant → winner
     - VUES : GET state?player= rend des vues différentes pour P1 et P2 ; les
       chaînes et les détails de combat sont filtrés selon l'implication
+   - PARTIE UNIQUE : une seconde création pendant une partie active → 409 ;
+   - RÉSOLUTION FORCÉE : les ordres manquants sont vides et le tour avance ;
    - CONCURRENCE : deux POST /orders simultanés (goroutines) sur la même
      partie → état cohérent (pas de double résolution, mutex OK) — test
      avec -race
@@ -123,16 +135,17 @@ sont en français.
 
 Critères d'acceptation :
 - make test passe (avec -race) ; make vet passe ; le serveur reste en stdlib
-- Le front joue une partie complète de 2 joueurs sur deux onglets
-  (hotseat via ?player=) avec la vraie API : création → soumissions →
-  résolution automatique → rapports
-- Le moteur (internal/engine) n'est PAS modifié : l'API ne fait que
+- L'API permet à deux clients de jouer une partie complète : création →
+  soumissions → résolution automatique → rapports
+- Le moteur (internal/engine) n'est PAS modifié après O2 : l'API ne fait que
   dispatcher vers CreateGame/ResolveTurn et les projections dédiées
-- L'état des parties est en mémoire (aucune persistance)
+- L'état d'une partie est en mémoire (aucune persistance)
+- Une seconde partie active n'est pas créée au MVP ; la route conserve toutefois
+  un identifiant de partie stable pour l'évolution future.
 
-Note : documente dans ta réponse finale les choix ouverts que tu as tranchés
-(résolution synchrone à la dernière soumission, pas de deadline, règle
-d'élimination/victoire — propose un texte pour le GDD, format de réponses,
-poller vs bouton manuel, endpoints dev conservés) pour mise à jour des specs
-(ne modifie pas les specs toi-même). Ne commite pas : je m'en charge.
+Note : documente dans la réponse finale les choix tranchés (résolution
+synchrone à la dernière soumission, résolution forcée, pas de deadline, règle
+d'élimination/victoire, format de réponses, poller et endpoints dev). Mets à
+jour les spécifications correspondantes dans le cadre de O1. Ne commite pas
+sans instruction explicite.
 ```

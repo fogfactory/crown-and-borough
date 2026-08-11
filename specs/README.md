@@ -12,7 +12,7 @@ réordonnancement.
 |---|---|---|
 | Ravitaillement et famine | [`gdd.md`](gdd.md), sections 3 et 5 ; [`ravitaillement.md`](ravitaillement.md) | [Milestone v1](https://github.com/fogfactory/crown-and-borough/milestone/1) |
 | Architecture | [`architecture.md`](architecture.md) | [Milestone v1](https://github.com/fogfactory/crown-and-borough/milestone/1) |
-| Online | [`online.md`](online.md), [`prompts/`](prompts/) | [Issue #2](https://github.com/fogfactory/crown-and-borough/issues/2), [Milestone v1](https://github.com/fogfactory/crown-and-borough/milestone/1) |
+| Online | [`online.md`](online.md), [`online-plan.md`](online-plan.md), [`prompts/`](prompts/) | [Issue #2](https://github.com/fogfactory/crown-and-borough/issues/2), [Online Foundations](https://github.com/fogfactory/crown-and-borough/milestone/11), [Online Friends MVP](https://github.com/fogfactory/crown-and-borough/milestone/12), [Online Hosted](https://github.com/fogfactory/crown-and-borough/milestone/10) |
 | Tests live | [`hotseat-live-test.md`](hotseat-live-test.md) | [Milestone v1](https://github.com/fogfactory/crown-and-borough/milestone/1) |
 
 ## Thèmes futurs
@@ -26,7 +26,7 @@ réordonnancement.
 | Politique royale | [`politique.md`](politique.md) | [Politique royale](https://github.com/fogfactory/crown-and-borough/milestone/6) | Titres, Religieux |
 | Succession | [`succession.md`](succession.md) | [Succession](https://github.com/fogfactory/crown-and-borough/milestone/7) | Titres, Religieux, Politique, cartes spéciales |
 | Économie et prospérité | [`economie.md`](economie.md) | [Économie & Prospérité](https://github.com/fogfactory/crown-and-borough/milestone/8) | Socle actuel ; Titres pour les seigneuries |
-| Information | [`information.md`](information.md) | [Brouillard de guerre](https://github.com/fogfactory/crown-and-borough/milestone/9) | Issue #2 et vue privée online |
+| Information | [`information.md`](information.md) | [Brouillard de guerre](https://github.com/fogfactory/crown-and-borough/milestone/9) | [Vue privée online #42](https://github.com/fogfactory/crown-and-borough/issues/42) |
 
 ## Dépendances proposées
 
@@ -38,7 +38,7 @@ Socle actuel
 └── Ordres spéciaux             │       │              │                    │
                                 └───────┴──────────────┴────────────────────┘
 
-Issue #2 / vue privée online ─── Brouillard de guerre
+Issue #2 / vue privée online (O4) ─── Brouillard de guerre
 ```
 
 Ce graphe est une recommandation de planification, pas un ordre de sortie

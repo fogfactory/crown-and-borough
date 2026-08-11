@@ -84,17 +84,19 @@ stabilisées.
 Les prompts liés au mode online restent temporairement dans
 [`specs/prompts/`](prompts/) comme matériau de travail. Leur réalisation est
 suivie dans [l'issue #2](https://github.com/fogfactory/crown-and-borough/issues/2),
-avec une issue séparée pour chaque bug ou fonctionnalité qui le nécessite.
+avec une sous-issue testable pour chaque étape du plan
+[`specs/online-plan.md`](online-plan.md). Les étapes sont regroupées dans les
+milestones GitHub `Online Foundations`, `Online Friends MVP` et `Online Hosted`.
 
 | Sujet | Périmètre | État |
 |---|---|---|
-| Identité territoriale | Remplacer le couple `TerritoryID`/`Code` par le trigramme territorial dans le domaine et les contrats | À suivre |
-| Vue privée par joueur | Filtrer côté serveur les chaînes connues et les détails des combats selon le joueur | À suivre |
-| API de production | Parties multiples, ressources d'une partie, contrats REST stabilisés et gestion des erreurs | À suivre |
-| Authentification | Identité, sessions, invitation et reprise d'un emplacement de joueur | À suivre |
-| Persistance | Sauvegarde et restauration JSON d'une partie sans perte après redémarrage | À suivre |
-| Front | Retours de tests, accessibilité, parcours multi-joueur et affichage des vues privées | À suivre |
-| Déploiement | Image de production, stockage durable et déploiement public | À suivre |
+| Identité territoriale | Remplacer le couple `TerritoryID`/`Code` par le trigramme territorial dans le domaine et les contrats | Planifié : O2-O3 |
+| Vue privée par joueur | Filtrer côté serveur les chaînes connues et les détails des combats selon le joueur | Planifié : O4 |
+| API de production | Une partie active, ressources d'une partie, contrats REST stabilisés et gestion des erreurs | Planifié : O5 |
+| Authentification | Identité, sessions, invitation et reprise d'un emplacement de joueur | Planifié : O6 |
+| Persistance | Sauvegarde et restauration JSON d'une partie sans perte après redémarrage | Planifié : O8 |
+| Front | Retours de tests, accessibilité, parcours multi-joueur et affichage des vues privées | Planifié : O7 |
+| Déploiement | Image de production, stockage durable et déploiement public | Planifié : O9-O10 |
 
 ## Extensions de règles
 
