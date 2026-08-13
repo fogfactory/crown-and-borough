@@ -890,6 +890,299 @@ func TestResolveLoopProgression(t *testing.T) {
 	})
 }
 
+func TestResolveLoopSupport(t *testing.T) {
+	t.Run("offensive advances when attack succeeds", func(t *testing.T) {
+		state := testState(t,
+			[]models.Territory{
+				territory("T01", "AAA", "T02"),
+				territory("T02", "BBB", "T01", "T03"),
+				territory("T03", "CCC", "T02"),
+			},
+			[]models.Army{
+				{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1},
+				{ID: "A2", OwnerID: "P2", TerritoryID: "T02", Size: 1},
+				{ID: "A3", OwnerID: "P1", TerritoryID: "T03", Size: 1},
+			},
+		)
+		addNoble(state, "N1", "ONE", "P1", "T01")
+		addNoble(state, "N3", "THR", "P1", "T03")
+		addChain(t, state, "A1", "N1", models.Order{ID: "A1O", Type: models.OrderTypeAttack, PositionID: "T01", TargetIDs: []models.TerritoryID{"T02"}, Liaison: models.LiaisonModeLoop})
+		addChainOrders(t, state, "A3", "N3",
+			models.Order{ID: "S1", Type: models.OrderTypeSupport, PositionID: "T03", TargetIDs: []models.TerritoryID{"T01", "T02"}, Liaison: models.LiaisonModeLoop},
+			models.Order{ID: "S2", Type: models.OrderTypeHold, PositionID: "T03"},
+		)
+		validateTestState(t, state)
+
+		resolution, err := Resolve(state, testBalance())
+		if err != nil {
+			t.Fatalf("Resolve: %v", err)
+		}
+		if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "T02" {
+			t.Errorf("A1 territory = %q, want T02 after the supported attack", army.TerritoryID)
+		}
+		if chain := chainOf(resolution.State, "A3"); chain == nil || chain.CurrentIndex != 1 {
+			t.Errorf("support chain = %#v, want index 1 after attack success", chain)
+		}
+		if event, found := findOutcome(resolution.Events, "S1"); !found || event.Progression != ProgressionAdvanced {
+			t.Errorf("S1 event = %#v, found=%t, want advanced", event, found)
+		}
+
+		second, err := Resolve(resolution.State, testBalance())
+		if err != nil {
+			t.Fatalf("second Resolve: %v", err)
+		}
+		if _, replayed := findOutcome(second.Events, "S1"); replayed {
+			t.Errorf("S1 replayed after attack success: %#v", second.Events)
+		}
+		if event, found := findOutcome(second.Events, "S2"); !found || event.Outcome != OutcomeSuccess {
+			t.Errorf("S2 event = %#v, found=%t, want suffix executed", event, found)
+		}
+	})
+
+	t.Run("offensive retries while attack repelled", func(t *testing.T) {
+		state := testState(t,
+			[]models.Territory{
+				territory("T01", "AAA", "T02"),
+				territory("T02", "BBB", "T01", "T03"),
+				territory("T03", "CCC", "T02"),
+			},
+			[]models.Army{
+				{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1},
+				{ID: "A2", OwnerID: "P2", TerritoryID: "T02", Size: 2},
+				{ID: "A3", OwnerID: "P1", TerritoryID: "T03", Size: 1},
+			},
+		)
+		addNoble(state, "N1", "ONE", "P1", "T01")
+		addNoble(state, "N3", "THR", "P1", "T03")
+		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T02"})
+		addChain(t, state, "A1", "N1", models.Order{ID: "A1O", Type: models.OrderTypeAttack, PositionID: "T01", TargetIDs: []models.TerritoryID{"T02"}, Liaison: models.LiaisonModeLoop})
+		addChainOrders(t, state, "A3", "N3",
+			models.Order{ID: "S1", Type: models.OrderTypeSupport, PositionID: "T03", TargetIDs: []models.TerritoryID{"T01", "T02"}, Liaison: models.LiaisonModeLoop},
+			models.Order{ID: "S2", Type: models.OrderTypeHold, PositionID: "T03"},
+		)
+		validateTestState(t, state)
+
+		resolution, err := Resolve(state, testBalance())
+		if err != nil {
+			t.Fatalf("Resolve: %v", err)
+		}
+		if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "T01" {
+			t.Errorf("A1 territory = %q, want T01 after the repelled attack", army.TerritoryID)
+		}
+		if chain := chainOf(resolution.State, "A3"); chain == nil || chain.CurrentIndex != 0 {
+			t.Errorf("support chain = %#v, want index 0 while attack repelled", chain)
+		}
+		if event, found := findOutcome(resolution.Events, "S1"); !found || event.Progression != ProgressionRetried {
+			t.Errorf("S1 event = %#v, found=%t, want retried", event, found)
+		}
+	})
+
+	t.Run("offensive retries while attacker dislodged", func(t *testing.T) {
+		state := testState(t,
+			[]models.Territory{
+				territory("T01", "AAA", "T02", "T05", "T04"),
+				territory("T02", "BBB", "T01", "T03"),
+				territory("T03", "CCC", "T02"),
+				territory("T04", "DDD", "T01"),
+				territory("T05", "EEE", "T01"),
+			},
+			[]models.Army{
+				{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1},
+				{ID: "A2", OwnerID: "P2", TerritoryID: "T02", Size: 2},
+				{ID: "A3", OwnerID: "P1", TerritoryID: "T03", Size: 1},
+				{ID: "A4", OwnerID: "P2", TerritoryID: "T04", Size: 2},
+			},
+		)
+		addNoble(state, "N1", "ONE", "P1", "T01")
+		addNoble(state, "N3", "THR", "P1", "T03")
+		addNoble(state, "N4", "FOU", "P2", "T04")
+		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T02"})
+		addInfrastructure(state, models.Infrastructure{ID: "I4", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T04"})
+		addChain(t, state, "A1", "N1", models.Order{ID: "A1O", Type: models.OrderTypeAttack, PositionID: "T01", TargetIDs: []models.TerritoryID{"T02"}, Liaison: models.LiaisonModeLoop})
+		addChain(t, state, "A4", "N4", models.Order{ID: "A4O", Type: models.OrderTypeAttack, PositionID: "T04", TargetIDs: []models.TerritoryID{"T01"}})
+		addChainOrders(t, state, "A3", "N3",
+			models.Order{ID: "S1", Type: models.OrderTypeSupport, PositionID: "T03", TargetIDs: []models.TerritoryID{"T01", "T02"}, Liaison: models.LiaisonModeLoop},
+			models.Order{ID: "S2", Type: models.OrderTypeHold, PositionID: "T03"},
+		)
+		validateTestState(t, state)
+
+		resolution, err := Resolve(state, testBalance())
+		if err != nil {
+			t.Fatalf("Resolve: %v", err)
+		}
+		if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "T05" {
+			t.Errorf("A1 territory = %q, want T05 after retreat", army.TerritoryID)
+		}
+		if army := armyByID(t, resolution.State, "A4"); army.TerritoryID != "T01" {
+			t.Errorf("A4 territory = %q, want T01 after dislodging A1", army.TerritoryID)
+		}
+		if chain := chainOf(resolution.State, "A3"); chain == nil || chain.CurrentIndex != 0 {
+			t.Errorf("support chain = %#v, want index 0 while attack failed by dislodgement", chain)
+		}
+		if event, found := findOutcome(resolution.Events, "S1"); !found || event.Progression != ProgressionRetried {
+			t.Errorf("S1 event = %#v, found=%t, want retried", event, found)
+		}
+	})
+
+	t.Run("defensive retries while supported army holds", func(t *testing.T) {
+		t.Run("under attack", func(t *testing.T) {
+			state := testState(t,
+				[]models.Territory{
+					territory("T01", "AAA", "T02"),
+					territory("T02", "BBB", "T01", "T03"),
+					territory("T03", "CCC", "T02"),
+				},
+				[]models.Army{
+					{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1},
+					{ID: "A2", OwnerID: "P2", TerritoryID: "T02", Size: 1},
+					{ID: "A3", OwnerID: "P3", TerritoryID: "T03", Size: 1},
+				},
+			)
+			addNoble(state, "N1", "ONE", "P1", "T01")
+			addNoble(state, "N2", "TWO", "P2", "T02")
+			addNoble(state, "N3", "THR", "P3", "T03")
+			addChain(t, state, "A2", "N2", models.Order{ID: "A2O", Type: models.OrderTypeHold, PositionID: "T02"})
+			addChain(t, state, "A3", "N3", models.Order{ID: "A3O", Type: models.OrderTypeAttack, PositionID: "T03", TargetIDs: []models.TerritoryID{"T02"}})
+			addChainOrders(t, state, "A1", "N1",
+				models.Order{ID: "S1", Type: models.OrderTypeSupport, PositionID: "T01", TargetIDs: []models.TerritoryID{"T02"}, Liaison: models.LiaisonModeLoop},
+				models.Order{ID: "S2", Type: models.OrderTypeHold, PositionID: "T01"},
+			)
+			validateTestState(t, state)
+
+			resolution, err := Resolve(state, testBalance())
+			if err != nil {
+				t.Fatalf("Resolve: %v", err)
+			}
+			if chain := chainOf(resolution.State, "A1"); chain == nil || chain.CurrentIndex != 0 {
+				t.Errorf("support chain = %#v, want index 0 while army holds", chain)
+			}
+			if event, found := findOutcome(resolution.Events, "S1"); !found || event.Progression != ProgressionRetried {
+				t.Errorf("S1 event = %#v, found=%t, want retried", event, found)
+			}
+		})
+
+		t.Run("unattacked", func(t *testing.T) {
+			state := testState(t,
+				[]models.Territory{
+					territory("T01", "AAA", "T02"),
+					territory("T02", "BBB", "T01"),
+				},
+				[]models.Army{
+					{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1},
+					{ID: "A2", OwnerID: "P2", TerritoryID: "T02", Size: 1},
+				},
+			)
+			addNoble(state, "N1", "ONE", "P1", "T01")
+			addNoble(state, "N2", "TWO", "P2", "T02")
+			addChain(t, state, "A2", "N2", models.Order{ID: "A2O", Type: models.OrderTypeHold, PositionID: "T02"})
+			addChainOrders(t, state, "A1", "N1",
+				models.Order{ID: "S1", Type: models.OrderTypeSupport, PositionID: "T01", TargetIDs: []models.TerritoryID{"T02"}, Liaison: models.LiaisonModeLoop},
+				models.Order{ID: "S2", Type: models.OrderTypeHold, PositionID: "T01"},
+			)
+			validateTestState(t, state)
+
+			resolution, err := Resolve(state, testBalance())
+			if err != nil {
+				t.Fatalf("Resolve: %v", err)
+			}
+			if chain := chainOf(resolution.State, "A1"); chain == nil || chain.CurrentIndex != 0 {
+				t.Errorf("support chain = %#v, want index 0 while army holds", chain)
+			}
+			if event, found := findOutcome(resolution.Events, "S1"); !found || event.Progression != ProgressionRetried {
+				t.Errorf("S1 event = %#v, found=%t, want retried", event, found)
+			}
+		})
+	})
+
+	t.Run("defensive advances when supported army moves away", func(t *testing.T) {
+		state := testState(t,
+			[]models.Territory{
+				territory("T01", "AAA", "T02"),
+				territory("T02", "BBB", "T01", "T03", "T04"),
+				territory("T03", "CCC", "T02"),
+				territory("T04", "DDD", "T02"),
+			},
+			[]models.Army{
+				{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1},
+				{ID: "A2", OwnerID: "P2", TerritoryID: "T02", Size: 1},
+				{ID: "A4", OwnerID: "P1", TerritoryID: "T03", Size: 1},
+			},
+		)
+		addNoble(state, "N1", "ONE", "P1", "T01")
+		addNoble(state, "N2", "TWO", "P2", "T02")
+		addNoble(state, "N4", "FOU", "P1", "T03")
+		addChainOrders(t, state, "A1", "N1",
+			models.Order{ID: "S1", Type: models.OrderTypeSupport, PositionID: "T01", TargetIDs: []models.TerritoryID{"T02"}, Liaison: models.LiaisonModeLoop},
+			models.Order{ID: "S2", Type: models.OrderTypeHold, PositionID: "T01"},
+		)
+		addChain(t, state, "A2", "N2", models.Order{ID: "A2O", Type: models.OrderTypeAttack, PositionID: "T02", TargetIDs: []models.TerritoryID{"T04"}})
+		addChain(t, state, "A4", "N4", models.Order{ID: "A4O", Type: models.OrderTypeAttack, PositionID: "T03", TargetIDs: []models.TerritoryID{"T02"}})
+		validateTestState(t, state)
+
+		resolution, err := Resolve(state, testBalance())
+		if err != nil {
+			t.Fatalf("Resolve: %v", err)
+		}
+		if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "T04" {
+			t.Errorf("A2 territory = %q, want T04 after moving away", army.TerritoryID)
+		}
+		if chain := chainOf(resolution.State, "A1"); chain == nil || chain.CurrentIndex != 1 {
+			t.Errorf("support chain = %#v, want index 1 after supported army left", chain)
+		}
+		if event, found := findOutcome(resolution.Events, "S1"); !found || event.Progression != ProgressionAdvanced {
+			t.Errorf("S1 event = %#v, found=%t, want advanced", event, found)
+		}
+	})
+
+	t.Run("defensive advances when supported army dislodged", func(t *testing.T) {
+		state := testState(t,
+			[]models.Territory{
+				territory("T01", "AAA", "T02"),
+				territory("T02", "BBB", "T01", "T03", "T04", "T05"),
+				territory("T03", "CCC", "T02"),
+				territory("T04", "DDD", "T02", "T05"),
+				territory("T05", "EEE", "T02", "T04"),
+			},
+			[]models.Army{
+				{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1},
+				{ID: "A2", OwnerID: "P2", TerritoryID: "T02", Size: 1},
+				{ID: "A4", OwnerID: "P1", TerritoryID: "T04", Size: 2},
+				{ID: "A5", OwnerID: "P1", TerritoryID: "T05", Size: 1},
+			},
+		)
+		addNoble(state, "N1", "ONE", "P1", "T01")
+		addNoble(state, "N2", "TWO", "P2", "T02")
+		addNoble(state, "N4", "FOU", "P1", "T04")
+		addNoble(state, "N5", "FIV", "P1", "T05")
+		addInfrastructure(state, models.Infrastructure{ID: "I4", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T04"})
+		addChainOrders(t, state, "A1", "N1",
+			models.Order{ID: "S1", Type: models.OrderTypeSupport, PositionID: "T01", TargetIDs: []models.TerritoryID{"T02"}, Liaison: models.LiaisonModeLoop},
+			models.Order{ID: "S2", Type: models.OrderTypeHold, PositionID: "T01"},
+		)
+		addChain(t, state, "A2", "N2", models.Order{ID: "A2O", Type: models.OrderTypeHold, PositionID: "T02"})
+		addChain(t, state, "A4", "N4", models.Order{ID: "A4O", Type: models.OrderTypeAttack, PositionID: "T04", TargetIDs: []models.TerritoryID{"T02"}})
+		addChain(t, state, "A5", "N5", models.Order{ID: "A5O", Type: models.OrderTypeSupport, PositionID: "T05", TargetIDs: []models.TerritoryID{"T04", "T02"}})
+		validateTestState(t, state)
+
+		resolution, err := Resolve(state, testBalance())
+		if err != nil {
+			t.Fatalf("Resolve: %v", err)
+		}
+		if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "T03" {
+			t.Errorf("A2 territory = %q, want T03 after retreat", army.TerritoryID)
+		}
+		if chain := chainOf(resolution.State, "A1"); chain == nil || chain.CurrentIndex != 1 {
+			t.Errorf("support chain = %#v, want index 1 after supported army dislodged", chain)
+		}
+		if event, found := findOutcome(resolution.Events, "S1"); !found || event.Progression != ProgressionAdvanced {
+			t.Errorf("S1 event = %#v, found=%t, want advanced", event, found)
+		}
+		if event, found := findOutcome(resolution.Events, "S1"); !found || event.Reason != "support_applied" {
+			t.Errorf("S1 event = %#v, found=%t, want support_applied", event, found)
+		}
+	})
+}
+
 func TestResolveIsDeterministic(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{

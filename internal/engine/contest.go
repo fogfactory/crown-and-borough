@@ -289,7 +289,7 @@ func (ctx *resolutionContext) removeAlliedDestinationAttacks() {
 
 func (ctx *resolutionContext) clearSupportsForRemovedAttacks() {
 	for _, support := range ctx.supports {
-		if support.targetArmyID == "" {
+		if support.targetArmyID == "" || !support.offensive {
 			continue
 		}
 		if _, exists := ctx.attacks[support.targetArmyID]; !exists {
