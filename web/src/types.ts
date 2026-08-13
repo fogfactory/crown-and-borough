@@ -146,6 +146,8 @@ export interface ReceptionReport {
   noble: string
   received: boolean
   reason?: string
+  reasonKey?: string
+  reasonArgs?: unknown[]
 }
 
 export interface ReportHeader {

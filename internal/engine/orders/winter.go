@@ -36,18 +36,12 @@ func ParseWinterOrders(text string, game *models.GameState) ([]models.WinterOrde
 func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
 	fields := strings.Fields(line)
 	if len(fields) < 3 {
-		return models.WinterOrder{}, &ParseError{
-			Line:    lineNumber,
-			Code:    ParseCodeMissingTarget,
-			Message: "a winter order requires a symbol, a subtype, and one target code",
-		}
+		error := parseMessage(lineNumber, ParseCodeMissingTarget, "error.winter.order_shape")
+		return models.WinterOrder{}, &error
 	}
 	if len(fields) > 3 {
-		return models.WinterOrder{}, &ParseError{
-			Line:    lineNumber,
-			Code:    ParseCodeTooManyTargets,
-			Message: "a winter order accepts exactly one target code",
-		}
+		error := parseMessage(lineNumber, ParseCodeTooManyTargets, "error.winter.target_only_one")
+		return models.WinterOrder{}, &error
 	}
 
 	switch fields[0] {
@@ -108,55 +102,37 @@ func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (mod
 		}
 		return models.WinterOrder{Type: orderType, NobleCode: models.NobleCode(fields[2])}, nil
 	default:
-		return models.WinterOrder{}, &ParseError{
-			Line:    lineNumber,
-			Code:    ParseCodeUnknownSymbol,
-			Message: fmt.Sprintf("unknown winter order symbol %q", fields[0]),
-		}
+		error := parseMessage(lineNumber, ParseCodeUnknownSymbol, "error.winter.unknown_symbol", fields[0])
+		return models.WinterOrder{}, &error
 	}
 }
 
 func winterTerritoryID(code string, lineNumber int, indexes gameIndexes) (models.TerritoryID, *ParseError) {
 	if !isCode(code) {
-		return "", &ParseError{
-			Line:    lineNumber,
-			Code:    ParseCodeInvalidCode,
-			Message: fmt.Sprintf("territory code %q must contain exactly three uppercase letters", code),
-		}
+		error := parseMessage(lineNumber, ParseCodeInvalidCode, "error.winter.territory_code_format", code)
+		return "", &error
 	}
 	territoryID, exists := indexes.territoriesByCode[code]
 	if !exists {
-		return "", &ParseError{
-			Line:    lineNumber,
-			Code:    ParseCodeInvalidCode,
-			Message: fmt.Sprintf("territory code %q does not exist", code),
-		}
+		error := parseMessage(lineNumber, ParseCodeInvalidCode, "error.winter.territory_unknown", code)
+		return "", &error
 	}
 	return territoryID, nil
 }
 
 func winterNobleCode(code string, lineNumber int, indexes gameIndexes) *ParseError {
 	if !isCode(code) {
-		return &ParseError{
-			Line:    lineNumber,
-			Code:    ParseCodeInvalidCode,
-			Message: fmt.Sprintf("noble code %q must contain exactly three uppercase letters", code),
-		}
+		error := parseMessage(lineNumber, ParseCodeInvalidCode, "error.winter.noble_code_format", code)
+		return &error
 	}
 	if _, exists := indexes.noblesByCode[code]; !exists {
-		return &ParseError{
-			Line:    lineNumber,
-			Code:    ParseCodeInvalidCode,
-			Message: fmt.Sprintf("noble code %q does not exist", code),
-		}
+		error := parseMessage(lineNumber, ParseCodeInvalidCode, "error.winter.noble_unknown", code)
+		return &error
 	}
 	return nil
 }
 
 func unknownWinterSubtype(lineNumber int, symbol, subtype string) *ParseError {
-	return &ParseError{
-		Line:    lineNumber,
-		Code:    ParseCodeUnknownSymbol,
-		Message: fmt.Sprintf("unknown winter order %s %s", symbol, subtype),
-	}
+	error := parseMessage(lineNumber, ParseCodeUnknownSymbol, "error.winter.unknown_subtype", symbol, subtype)
+	return &error
 }

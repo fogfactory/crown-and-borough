@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/fogfactory/crown-and-borough/internal/i18n"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
@@ -42,9 +43,11 @@ var (
 // ParseError describes one source-text error. Line is the original one-based
 // line number, or zero when no input line could be identified.
 type ParseError struct {
-	Line    int
-	Code    string
-	Message string
+	Line        int
+	Code        string
+	Message     string
+	MessageKey  string `json:"-"`
+	MessageArgs []any  `json:"-"`
 }
 
 // Error returns a compact, human-readable representation of a parser error.
@@ -63,9 +66,11 @@ const ValidationCodeNotAdjacent = "not_adjacent"
 // ValidationError describes an intrinsic chain validation error. OrderID is
 // empty only when the error applies to the chain header rather than one order.
 type ValidationError struct {
-	OrderID models.OrderID
-	Code    string
-	Message string
+	OrderID     models.OrderID
+	Code        string
+	Message     string
+	MessageKey  string `json:"-"`
+	MessageArgs []any  `json:"-"`
 }
 
 // Error returns a compact, human-readable representation of a validation error.
@@ -87,9 +92,11 @@ func (e ValidationError) Deferrable() bool {
 // AssignmentError describes a reception failure. It unwraps to a stable
 // sentinel so callers can classify it with errors.Is.
 type AssignmentError struct {
-	Code    string
-	Message string
-	cause   error
+	Code        string
+	Message     string
+	MessageKey  string
+	MessageArgs []any
+	cause       error
 }
 
 // Error returns the stable code and its English explanatory message.
@@ -102,6 +109,45 @@ func (e *AssignmentError) Unwrap() error {
 	return e.cause
 }
 
-func assignmentError(cause error, message string) error {
-	return &AssignmentError{Code: cause.Error(), Message: message, cause: cause}
+func assignmentError(cause error, key string, args ...any) error {
+	message := i18n.Message{Key: key, Args: args}
+	return &AssignmentError{
+		Code:        cause.Error(),
+		Message:     i18n.EnglishText(message),
+		MessageKey:  key,
+		MessageArgs: append([]any(nil), args...),
+		cause:       cause,
+	}
+}
+
+// CatalogMessage extracts the player-facing catalog message carried by an
+// assignment failure without changing the stable errors.Is category.
+func CatalogMessage(err error) (i18n.Message, bool) {
+	var assignment *AssignmentError
+	if !errors.As(err, &assignment) || assignment.MessageKey == "" {
+		return i18n.Message{}, false
+	}
+	return i18n.Message{Key: assignment.MessageKey, Args: append([]any(nil), assignment.MessageArgs...)}, true
+}
+
+func parseMessage(line int, code, key string, args ...any) ParseError {
+	message := i18n.Message{Key: key, Args: args}
+	return ParseError{
+		Line:        line,
+		Code:        code,
+		Message:     i18n.EnglishText(message),
+		MessageKey:  key,
+		MessageArgs: append([]any(nil), args...),
+	}
+}
+
+func validationMessage(orderID models.OrderID, code, key string, args ...any) ValidationError {
+	message := i18n.Message{Key: key, Args: args}
+	return ValidationError{
+		OrderID:     orderID,
+		Code:        code,
+		Message:     i18n.EnglishText(message),
+		MessageKey:  key,
+		MessageArgs: append([]any(nil), args...),
+	}
 }

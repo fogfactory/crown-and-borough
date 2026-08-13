@@ -10,6 +10,7 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine/orders"
+	"github.com/fogfactory/crown-and-borough/internal/i18n"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
@@ -73,11 +74,13 @@ type OrdersInput struct {
 // InputError identifies a client-side submission error. Line is the source
 // line in the submitted chain or winter text, and is zero for batch errors.
 type InputError struct {
-	Player  models.PlayerID  `json:"player,omitempty"`
-	Noble   models.NobleCode `json:"noble,omitempty"`
-	Line    int              `json:"line,omitempty"`
-	Code    string           `json:"code"`
-	Message string           `json:"message"`
+	Player      models.PlayerID  `json:"player,omitempty"`
+	Noble       models.NobleCode `json:"noble,omitempty"`
+	Line        int              `json:"line,omitempty"`
+	Code        string           `json:"code"`
+	Message     string           `json:"message"`
+	MessageKey  string           `json:"-"`
+	MessageArgs []any            `json:"-"`
 }
 
 // InputErrors groups all errors found before a turn can be resolved. Parsing
@@ -85,6 +88,19 @@ type InputError struct {
 // game remains untouched.
 type InputErrors struct {
 	Errors []InputError `json:"errors"`
+}
+
+func newInputError(player models.PlayerID, noble models.NobleCode, line int, code, key string, args ...any) InputError {
+	message := i18n.Message{Key: key, Args: args}
+	return InputError{
+		Player:      player,
+		Noble:       noble,
+		Line:        line,
+		Code:        code,
+		Message:     i18n.EnglishText(message),
+		MessageKey:  key,
+		MessageArgs: append([]any(nil), args...),
+	}
 }
 
 func (e *InputErrors) Error() string {
@@ -307,10 +323,10 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 
 	inputErrors := &InputErrors{Errors: []InputError{}}
 	if game.Season == models.SeasonWinter && len(input.Chains) != 0 {
-		inputErrors.Errors = append(inputErrors.Errors, InputError{Code: "chains_in_winter", Message: "chains cannot be submitted during winter"})
+		inputErrors.Errors = append(inputErrors.Errors, newInputError("", "", 0, "chains_in_winter", i18n.ErrorChainsInWinter))
 	}
 	if game.Season != models.SeasonWinter && len(input.Winter) != 0 {
-		inputErrors.Errors = append(inputErrors.Errors, InputError{Code: "winter_out_of_season", Message: "winter orders can only be submitted during winter"})
+		inputErrors.Errors = append(inputErrors.Errors, newInputError("", "", 0, "winter_out_of_season", i18n.ErrorWinterOutOfSeason))
 	}
 
 	players := make(map[models.PlayerID]bool, len(game.Players))
@@ -328,23 +344,12 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 	seenNobles := make(map[models.NobleID]bool)
 	for _, submission := range input.Chains {
 		if !players[submission.Player] {
-			inputErrors.Errors = append(inputErrors.Errors, InputError{
-				Player:  submission.Player,
-				Noble:   submission.Noble,
-				Code:    "unknown_player",
-				Message: fmt.Sprintf("player %q does not exist", submission.Player),
-			})
+			inputErrors.Errors = append(inputErrors.Errors, newInputError(submission.Player, submission.Noble, 0, "unknown_player", i18n.ErrorUnknownPlayer, submission.Player))
 			continue
 		}
 		chain, parseErrors := orders.ParseChain(submission.Text, game)
 		for _, parseError := range parseErrors {
-			inputErrors.Errors = append(inputErrors.Errors, InputError{
-				Player:  submission.Player,
-				Noble:   submission.Noble,
-				Line:    parseError.Line,
-				Code:    "parse_" + parseError.Code,
-				Message: parseError.Error(),
-			})
+			inputErrors.Errors = append(inputErrors.Errors, newInputError(submission.Player, submission.Noble, parseError.Line, "parse_"+parseError.Code, parseError.MessageKey, parseError.MessageArgs...))
 		}
 		if len(parseErrors) != 0 {
 			continue
@@ -352,43 +357,19 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 
 		noble, exists := findNoble(game.Nobles, chain.NobleID)
 		if !exists {
-			inputErrors.Errors = append(inputErrors.Errors, InputError{
-				Player:  submission.Player,
-				Noble:   submission.Noble,
-				Line:    1,
-				Code:    "unknown_noble",
-				Message: "chain header noble does not exist",
-			})
+			inputErrors.Errors = append(inputErrors.Errors, newInputError(submission.Player, submission.Noble, 1, "unknown_noble", i18n.ErrorNobleUnknown))
 			continue
 		}
 		if submission.Noble != "" && submission.Noble != models.NobleCode(noble.Code) {
-			inputErrors.Errors = append(inputErrors.Errors, InputError{
-				Player:  submission.Player,
-				Noble:   submission.Noble,
-				Line:    1,
-				Code:    "noble_mismatch",
-				Message: fmt.Sprintf("submission noble %q does not match chain header %q", submission.Noble, noble.Code),
-			})
+			inputErrors.Errors = append(inputErrors.Errors, newInputError(submission.Player, submission.Noble, 1, "noble_mismatch", i18n.ErrorNobleMismatch, submission.Noble, noble.Code))
 			continue
 		}
 		if noble.OwnerID != submission.Player {
-			inputErrors.Errors = append(inputErrors.Errors, InputError{
-				Player:  submission.Player,
-				Noble:   models.NobleCode(noble.Code),
-				Line:    1,
-				Code:    "noble_not_owned",
-				Message: fmt.Sprintf("noble %q belongs to player %q", noble.Code, noble.OwnerID),
-			})
+			inputErrors.Errors = append(inputErrors.Errors, newInputError(submission.Player, models.NobleCode(noble.Code), 1, "noble_not_owned", i18n.ErrorNobleNotOwned, noble.Code, noble.OwnerID))
 			continue
 		}
 		if seenNobles[noble.ID] {
-			inputErrors.Errors = append(inputErrors.Errors, InputError{
-				Player:  submission.Player,
-				Noble:   models.NobleCode(noble.Code),
-				Line:    1,
-				Code:    "duplicate_emission",
-				Message: fmt.Sprintf("noble %q appears more than once", noble.Code),
-			})
+			inputErrors.Errors = append(inputErrors.Errors, newInputError(submission.Player, models.NobleCode(noble.Code), 1, "duplicate_emission", i18n.ErrorDuplicateEmission, noble.Code))
 			continue
 		}
 		seenNobles[noble.ID] = true
@@ -404,21 +385,12 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 	winterOrders := make(map[models.PlayerID][]models.WinterOrder)
 	for _, submission := range input.Winter {
 		if !players[submission.Player] {
-			inputErrors.Errors = append(inputErrors.Errors, InputError{
-				Player:  submission.Player,
-				Code:    "unknown_player",
-				Message: fmt.Sprintf("player %q does not exist", submission.Player),
-			})
+			inputErrors.Errors = append(inputErrors.Errors, newInputError(submission.Player, "", 0, "unknown_player", i18n.ErrorUnknownPlayer, submission.Player))
 			continue
 		}
 		parsed, parseErrors := orders.ParseWinterOrders(submission.Lines, game)
 		for _, parseError := range parseErrors {
-			inputErrors.Errors = append(inputErrors.Errors, InputError{
-				Player:  submission.Player,
-				Line:    parseError.Line,
-				Code:    "parse_" + parseError.Code,
-				Message: parseError.Error(),
-			})
+			inputErrors.Errors = append(inputErrors.Errors, newInputError(submission.Player, "", parseError.Line, "parse_"+parseError.Code, parseError.MessageKey, parseError.MessageArgs...))
 		}
 		if len(parseErrors) == 0 {
 			winterOrders[submission.Player] = append(winterOrders[submission.Player], parsed...)
@@ -447,12 +419,17 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 	}
 	for index, submission := range parsedChains {
 		if submission.receptionError != nil {
-			receptions = append(receptions, ReceptionReport{
+			reception := ReceptionReport{
 				Player:   submission.input.Player,
 				Noble:    models.NobleCode(submission.noble.Code),
 				Received: false,
 				Reason:   submission.receptionError.Error(),
-			})
+			}
+			if message, ok := orders.CatalogMessage(submission.receptionError); ok {
+				reception.ReasonKey = message.Key
+				reception.ReasonArgs = message.Args
+			}
+			receptions = append(receptions, reception)
 			continue
 		}
 		if army := receivingArmies[index]; army != nil && receptionCounts[army.ID] > 1 {
@@ -471,16 +448,23 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 					receptionCounts[army.ID],
 					working.Turn,
 				),
+				ReasonKey:  i18n.ReceptionConcurrent,
+				ReasonArgs: []any{positionReference, receptionCounts[army.ID], working.Turn},
 			})
 			continue
 		}
 		if err := orders.AssignChain(working, submission.chain); err != nil {
-			receptions = append(receptions, ReceptionReport{
+			reception := ReceptionReport{
 				Player:   submission.input.Player,
 				Noble:    models.NobleCode(submission.noble.Code),
 				Received: false,
 				Reason:   err.Error(),
-			})
+			}
+			if message, ok := orders.CatalogMessage(err); ok {
+				reception.ReasonKey = message.Key
+				reception.ReasonArgs = message.Args
+			}
+			receptions = append(receptions, reception)
 			continue
 		}
 		receptions = append(receptions, ReceptionReport{

@@ -54,6 +54,42 @@ func TestPendingPlayersSkipsPlayersWithoutEmittingNobleOnActionTurns(t *testing.
 	}
 }
 
+func TestOrdersHTTPLocalizesValidationErrors(t *testing.T) {
+	assets, err := assetgen.Load("../../assets")
+	if err != nil {
+		t.Fatalf("load assets: %v", err)
+	}
+	balance, err := assetgen.LoadBalance("../../assets")
+	if err != nil {
+		t.Fatalf("load balance: %v", err)
+	}
+	session, err := NewSession("localized-errors", []engine.PlayerInit{{Name: "One"}, {Name: "Two"}}, balance, assets)
+	if err != nil {
+		t.Fatalf("NewSession: %v", err)
+	}
+
+	for _, test := range []struct {
+		name     string
+		language string
+		contains string
+	}{
+		{name: "English", language: "en", contains: "the first content line must contain exactly one noble code"},
+		{name: "French", language: "fr", contains: "la première ligne de contenu doit contenir exactement un code de noble"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodPost, "/api/orders?lang="+test.language, strings.NewReader(`{"player":"P1","chains":[{"noble":"BAD","text":"BAD EXTRA"}],"winter":[]}`))
+			session.OrdersHTTP(recorder, request)
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("POST orders = %d: %s", recorder.Code, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), test.contains) {
+				t.Fatalf("localized error = %s, want %q", recorder.Body.String(), test.contains)
+			}
+		})
+	}
+}
+
 func TestHotseatSessionResolvesAndRecreatesGame(t *testing.T) {
 	assets, err := assetgen.Load("../../assets")
 	if err != nil {

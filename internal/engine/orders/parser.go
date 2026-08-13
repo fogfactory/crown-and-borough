@@ -40,11 +40,7 @@ func ParseChain(text string, game *models.GameState) (models.Chain, []ParseError
 		chain.Orders = append(chain.Orders, order)
 	}
 	if !headerSeen {
-		errors = append(errors, ParseError{
-			Line:    0,
-			Code:    ParseCodeNoHeader,
-			Message: "an order chain requires a noble header",
-		})
+		errors = append(errors, parseMessage(0, ParseCodeNoHeader, "error.parse.no_header"))
 	}
 	return chain, errors
 }
@@ -59,19 +55,13 @@ func normalizeLine(line string) string {
 func parseHeader(line string, lineNumber int, indexes gameIndexes) (models.NobleID, *ParseError) {
 	fields := strings.Fields(line)
 	if len(fields) != 1 || !isCode(line) {
-		return "", &ParseError{
-			Line:    lineNumber,
-			Code:    ParseCodeBadHeader,
-			Message: "the first content line must contain exactly one noble code",
-		}
+		error := parseMessage(lineNumber, ParseCodeBadHeader, "error.parse.bad_header")
+		return "", &error
 	}
 	nobleID, exists := indexes.noblesByCode[line]
 	if !exists {
-		return "", &ParseError{
-			Line:    lineNumber,
-			Code:    ParseCodeNobleNotFound,
-			Message: fmt.Sprintf("noble code %q does not exist", line),
-		}
+		error := parseMessage(lineNumber, ParseCodeNobleNotFound, "error.parse.noble_not_found", line)
+		return "", &error
 	}
 	return nobleID, nil
 }
@@ -83,11 +73,7 @@ func parseOrderLine(line string, lineNumber int, indexes gameIndexes) (models.Or
 	}
 	fields := strings.Fields(content)
 	if len(fields) == 0 {
-		return models.Order{}, []ParseError{{
-			Line:    lineNumber,
-			Code:    ParseCodeUnknownSymbol,
-			Message: "an order line must contain an order symbol",
-		}}
+		return models.Order{}, []ParseError{parseMessage(lineNumber, ParseCodeUnknownSymbol, "error.parse.order_symbol_missing")}
 	}
 
 	if fields[0] == "H" || fields[0] == "P" {
@@ -101,29 +87,18 @@ func parseLiaison(line string, lineNumber int) (string, models.LiaisonMode, *Par
 		return line, models.LiaisonModeSingle, nil
 	}
 	if !strings.HasPrefix(line, "(") || !strings.HasSuffix(line, ")") || strings.Count(line, "(") != 1 || strings.Count(line, ")") != 1 {
-		return "", "", &ParseError{
-			Line:    lineNumber,
-			Code:    ParseCodeUnclosedParenthesis,
-			Message: "parentheses must enclose one complete order line",
-		}
+		error := parseMessage(lineNumber, ParseCodeUnclosedParenthesis, "error.parse.unclosed_parenthesis")
+		return "", "", &error
 	}
 	return strings.TrimSpace(line[1 : len(line)-1]), models.LiaisonModeLoop, nil
 }
 
 func parsePrefixOrder(fields []string, lineNumber int, liaison models.LiaisonMode, indexes gameIndexes) (models.Order, []ParseError) {
 	if len(fields) == 1 {
-		return models.Order{}, []ParseError{{
-			Line:    lineNumber,
-			Code:    ParseCodeMissingTarget,
-			Message: fmt.Sprintf("%s requires a position code", fields[0]),
-		}}
+		return models.Order{}, []ParseError{parseMessage(lineNumber, ParseCodeMissingTarget, "error.parse.position_required", fields[0])}
 	}
 	if len(fields) > 2 {
-		return models.Order{}, []ParseError{{
-			Line:    lineNumber,
-			Code:    ParseCodeTooManyTargets,
-			Message: fmt.Sprintf("%s accepts only one position code", fields[0]),
-		}}
+		return models.Order{}, []ParseError{parseMessage(lineNumber, ParseCodeTooManyTargets, "error.parse.position_only_one", fields[0])}
 	}
 	positionID, codeErrors := parseTerritory(fields[1], lineNumber, "position", indexes)
 	if len(codeErrors) != 0 {
@@ -143,11 +118,7 @@ func parsePrefixOrder(fields []string, lineNumber int, liaison models.LiaisonMod
 
 func parsePositionOrder(fields []string, lineNumber int, liaison models.LiaisonMode, indexes gameIndexes) (models.Order, []ParseError) {
 	if len(fields) < 2 {
-		return models.Order{}, []ParseError{{
-			Line:    lineNumber,
-			Code:    ParseCodeUnknownSymbol,
-			Message: "an order line requires a position code and order symbol",
-		}}
+		return models.Order{}, []ParseError{parseMessage(lineNumber, ParseCodeUnknownSymbol, "error.parse.order_position_required")}
 	}
 	positionID, codeErrors := parseTerritory(fields[0], lineNumber, "position", indexes)
 	if len(codeErrors) != 0 {
@@ -164,11 +135,7 @@ func parsePositionOrder(fields []string, lineNumber int, liaison models.LiaisonM
 	case "D":
 		return parseDisperse(fields, lineNumber, liaison, positionID, indexes)
 	default:
-		return models.Order{}, []ParseError{{
-			Line:    lineNumber,
-			Code:    ParseCodeUnknownSymbol,
-			Message: fmt.Sprintf("%q is not a supported order symbol", fields[1]),
-		}}
+		return models.Order{}, []ParseError{parseMessage(lineNumber, ParseCodeUnknownSymbol, "error.parse.unsupported_order_symbol", fields[1])}
 	}
 }
 
@@ -181,18 +148,10 @@ func parseSingleTerritoryTarget(
 	indexes gameIndexes,
 ) (models.Order, []ParseError) {
 	if len(fields) == 2 {
-		return models.Order{}, []ParseError{{
-			Line:    lineNumber,
-			Code:    ParseCodeMissingTarget,
-			Message: fmt.Sprintf("%s requires one destination code", fields[1]),
-		}}
+		return models.Order{}, []ParseError{parseMessage(lineNumber, ParseCodeMissingTarget, "error.parse.destination_required", fields[1])}
 	}
 	if len(fields) > 3 {
-		return models.Order{}, []ParseError{{
-			Line:    lineNumber,
-			Code:    ParseCodeTooManyTargets,
-			Message: fmt.Sprintf("%s accepts exactly one destination code", fields[1]),
-		}}
+		return models.Order{}, []ParseError{parseMessage(lineNumber, ParseCodeTooManyTargets, "error.parse.destination_only_one", fields[1])}
 	}
 	targetID, codeErrors := parseTerritory(fields[2], lineNumber, "target", indexes)
 	if len(codeErrors) != 0 {
@@ -208,32 +167,16 @@ func parseSingleTerritoryTarget(
 
 func parseSupport(fields []string, lineNumber int, liaison models.LiaisonMode, positionID models.TerritoryID, indexes gameIndexes) (models.Order, []ParseError) {
 	if len(fields) == 2 {
-		return models.Order{}, []ParseError{{
-			Line:    lineNumber,
-			Code:    ParseCodeMissingTarget,
-			Message: "S requires a supported army position",
-		}}
+		return models.Order{}, []ParseError{parseMessage(lineNumber, ParseCodeMissingTarget, "error.parse.support_position_required")}
 	}
 	if len(fields) == 4 && fields[3] == "-" {
-		return models.Order{}, []ParseError{{
-			Line:    lineNumber,
-			Code:    ParseCodeMissingTarget,
-			Message: "offensive S requires an attack destination after -",
-		}}
+		return models.Order{}, []ParseError{parseMessage(lineNumber, ParseCodeMissingTarget, "error.parse.offensive_support_destination")}
 	}
 	if len(fields) != 3 && len(fields) != 5 {
-		return models.Order{}, []ParseError{{
-			Line:    lineNumber,
-			Code:    ParseCodeTooManyTargets,
-			Message: "S accepts either one supported position or one position and attack destination",
-		}}
+		return models.Order{}, []ParseError{parseMessage(lineNumber, ParseCodeTooManyTargets, "error.parse.support_shape")}
 	}
 	if len(fields) == 5 && fields[3] != "-" {
-		return models.Order{}, []ParseError{{
-			Line:    lineNumber,
-			Code:    ParseCodeUnknownSymbol,
-			Message: "offensive S requires - before its attack destination",
-		}}
+		return models.Order{}, []ParseError{parseMessage(lineNumber, ParseCodeUnknownSymbol, "error.parse.offensive_support_dash")}
 	}
 	supportedID, codeErrors := parseTerritory(fields[2], lineNumber, "supported position", indexes)
 	if len(codeErrors) != 0 {
@@ -257,11 +200,7 @@ func parseSupport(fields []string, lineNumber int, liaison models.LiaisonMode, p
 
 func parseDisperse(fields []string, lineNumber int, liaison models.LiaisonMode, positionID models.TerritoryID, indexes gameIndexes) (models.Order, []ParseError) {
 	if len(fields) == 2 {
-		return models.Order{}, []ParseError{{
-			Line:    lineNumber,
-			Code:    ParseCodeMissingTarget,
-			Message: "D requires at least one destination code",
-		}}
+		return models.Order{}, []ParseError{parseMessage(lineNumber, ParseCodeMissingTarget, "error.parse.disperse_destination_required")}
 	}
 
 	order := models.Order{
@@ -292,11 +231,7 @@ func parseDisperse(fields []string, lineNumber int, liaison models.LiaisonMode, 
 func parseDisperseTarget(token string, lineNumber int, indexes gameIndexes) (models.TerritoryID, models.TerritoryCode, []models.NobleCode, []ParseError) {
 	parts := strings.Split(token, "*")
 	if len(parts) == 0 || parts[0] == "" {
-		return "", "", nil, []ParseError{{
-			Line:    lineNumber,
-			Code:    ParseCodeInvalidCode,
-			Message: "a dispersion assignment requires a destination code before *",
-		}}
+		return "", "", nil, []ParseError{parseMessage(lineNumber, ParseCodeInvalidCode, "error.parse.assignment_destination")}
 	}
 	territoryID, territoryErrors := parseTerritory(parts[0], lineNumber, "dispersion destination", indexes)
 	if len(territoryErrors) != 0 {
@@ -313,25 +248,13 @@ func parseDisperseTarget(token string, lineNumber int, indexes gameIndexes) (mod
 				assignedCodes = append(assignedCodes, models.NobleCode("*"))
 				continue
 			}
-			return "", "", nil, []ParseError{{
-				Line:    lineNumber,
-				Code:    ParseCodeInvalidCode,
-				Message: "a dispersion assignment contains an empty noble code",
-			}}
+			return "", "", nil, []ParseError{parseMessage(lineNumber, ParseCodeInvalidCode, "error.parse.assignment_empty_noble")}
 		}
 		if !isCode(nobleCode) {
-			return "", "", nil, []ParseError{{
-				Line:    lineNumber,
-				Code:    ParseCodeInvalidCode,
-				Message: fmt.Sprintf("invalid noble code %q in dispersion assignment", nobleCode),
-			}}
+			return "", "", nil, []ParseError{parseMessage(lineNumber, ParseCodeInvalidCode, "error.parse.assignment_invalid_noble", nobleCode)}
 		}
 		if _, exists := indexes.noblesByCode[nobleCode]; !exists {
-			return "", "", nil, []ParseError{{
-				Line:    lineNumber,
-				Code:    ParseCodeInvalidCode,
-				Message: fmt.Sprintf("noble code %q does not exist", nobleCode),
-			}}
+			return "", "", nil, []ParseError{parseMessage(lineNumber, ParseCodeInvalidCode, "error.parse.assignment_unknown_noble", nobleCode)}
 		}
 		assignedCodes = append(assignedCodes, models.NobleCode(nobleCode))
 	}
@@ -340,19 +263,11 @@ func parseDisperseTarget(token string, lineNumber int, indexes gameIndexes) (mod
 
 func parseTerritory(code string, lineNumber int, role string, indexes gameIndexes) (models.TerritoryID, []ParseError) {
 	if !isCode(code) {
-		return "", []ParseError{{
-			Line:    lineNumber,
-			Code:    ParseCodeInvalidCode,
-			Message: fmt.Sprintf("%s code %q must contain exactly three uppercase letters", role, code),
-		}}
+		return "", []ParseError{parseMessage(lineNumber, ParseCodeInvalidCode, "error.parse.code_format", role, code)}
 	}
 	id, exists := indexes.territoriesByCode[code]
 	if !exists {
-		return "", []ParseError{{
-			Line:    lineNumber,
-			Code:    ParseCodeInvalidCode,
-			Message: fmt.Sprintf("territory code %q does not exist", code),
-		}}
+		return "", []ParseError{parseMessage(lineNumber, ParseCodeInvalidCode, "error.parse.territory_unknown", code)}
 	}
 	return id, nil
 }

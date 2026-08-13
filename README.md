@@ -6,7 +6,7 @@
 2. Run `make web-dev` to start the frontend on port 5173.
 3. Open http://localhost:5173 in a browser.
 
-## Mode multijoueur v1
+## Multiplayer Mode v1
 
 The development server runs one in-memory game. Players can submit their orders
 separately through the HTTP API or the browser; the turn is resolved when every
@@ -17,11 +17,16 @@ startup game.
 
 In the browser, choose a player, enter one complete chain per available noble
 (header plus order lines), or winter investment lines during winter, then click
-**Soumettre**. The button becomes **Modifier** after submission; a later click
-replaces that player's pending orders. The noble header is added automatically
-before the request is sent. The game advances spring → summer → autumn → winter
-and displays the typed turn report. A syntactically valid chain that cannot be
-received by an army is reported without blocking the other players' turn.
+**Submit**. The button becomes **Edit** after submission; a later click replaces
+that player's pending orders. The noble header is added automatically before the
+request is sent. The game advances spring → summer → autumn → winter and displays
+the typed turn report. A syntactically valid chain that cannot be received by an
+army is reported without blocking the other players' turn.
+
+The interface defaults to English and includes an **EN / FR** language switcher.
+The selected language is kept in the browser and is used for the interface,
+player-facing validation errors, reports, and the rules document. Order symbols
+and memorable command terms remain identical in both languages.
 
 The current state projection is shared by the v1 session. Server-side filtering
 of known chains and combat details is specified in `specs/gdd.md` and tracked as

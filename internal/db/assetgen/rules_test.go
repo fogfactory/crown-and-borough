@@ -93,4 +93,18 @@ func TestLoadRealRules(t *testing.T) {
 	if !ok || !strings.Contains(string(document), "# Règles du jeu") {
 		t.Errorf("French document = %q, %t", document, ok)
 	}
+	english, ok := rules.Document("en")
+	if !ok || !strings.Contains(string(english), "# Game Rules") {
+		t.Errorf("English document = %q, %t", english, ok)
+	}
+	for _, heading := range []string{"## 4. Aide-mémoire des ordres", "## 5. Ordres d'hiver"} {
+		if !strings.Contains(string(document), heading) {
+			t.Errorf("French document does not contain %q", heading)
+		}
+	}
+	for _, heading := range []string{"## 4. Order Cheat Sheet", "## 5. Winter Orders"} {
+		if !strings.Contains(string(english), heading) {
+			t.Errorf("English document does not contain %q", heading)
+		}
+	}
 }

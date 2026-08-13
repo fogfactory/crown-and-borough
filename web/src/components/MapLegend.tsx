@@ -1,12 +1,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useLanguage } from '@/i18n/LanguageContext'
+import type { MessageKey } from '@/i18n/messages'
 import type { Terrain } from '@/types'
 
-export const TERRAIN_LABELS: Record<Terrain, string> = {
-  plain: 'Plaine',
-  forest: 'Forêt',
-  hill: 'Colline',
-  mountain: 'Montagne',
-  swamp: 'Marécage',
+export const TERRAIN_LABEL_KEYS: Record<Terrain, MessageKey> = {
+  plain: 'terrain.plain',
+  forest: 'terrain.forest',
+  hill: 'terrain.hill',
+  mountain: 'terrain.mountain',
+  swamp: 'terrain.swamp',
 }
 
 export const TERRAIN_COLORS: Record<Terrain, string> = {
@@ -20,14 +22,16 @@ export const TERRAIN_COLORS: Record<Terrain, string> = {
 const TERRAIN_ORDER: Terrain[] = ['plain', 'forest', 'hill', 'mountain', 'swamp']
 
 export function MapLegend() {
+  const { t } = useLanguage()
+
   return (
     <Card
-      aria-label="Légende de la carte"
+      aria-label={t('legend.title')}
       className="w-full border-[#b7a786] bg-[#fffaf0] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)]"
     >
       <CardHeader className="gap-0 pb-2">
         <CardTitle className="text-sm uppercase tracking-[0.16em] text-[#594b3c]">
-          Légende
+          {t('legend.title')}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2 text-xs text-[#594b3c]">
@@ -38,7 +42,7 @@ export function MapLegend() {
                 className="size-3 shrink-0 rounded-full border border-[#594b3c]/30"
                 style={{ backgroundColor: TERRAIN_COLORS[terrain] }}
               />
-              <span>{TERRAIN_LABELS[terrain]}</span>
+              <span>{t(TERRAIN_LABEL_KEYS[terrain])}</span>
             </div>
           ))}
           <div className="flex items-center gap-2">
@@ -51,7 +55,7 @@ export function MapLegend() {
               />
               <rect x="-4" y="1" width="8" height="7" fill="#b7834e" />
             </svg>
-            <span>Village</span>
+            <span>{t('legend.village')}</span>
           </div>
           <div className="flex items-center gap-2">
             <svg className="size-3 shrink-0" viewBox="-11 -11 22 22" aria-hidden="true">
@@ -62,11 +66,11 @@ export function MapLegend() {
                 strokeWidth="1.5"
               />
             </svg>
-            <span>Château</span>
+            <span>{t('legend.castle')}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="size-3 shrink-0 rounded-full border-2 border-[#fff8e7] bg-[#a84632]" />
-            <span>Armée (pastille numérotée)</span>
+            <span>{t('legend.army')}</span>
           </div>
           <div className="flex items-center gap-2">
             <svg className="size-3 shrink-0" viewBox="-10 -10 20 20" aria-hidden="true">
@@ -78,7 +82,7 @@ export function MapLegend() {
               />
               <circle cx="0" cy="0" r="2" fill="#fff3c4" />
             </svg>
-            <span>Noble (couleur du propriétaire)</span>
+            <span>{t('legend.noble')}</span>
           </div>
           <div className="flex items-center gap-2">
             <svg className="size-3 shrink-0" viewBox="-10 -10 20 20" aria-hidden="true">
@@ -88,9 +92,16 @@ export function MapLegend() {
                 stroke="#8d321e"
                 strokeWidth="1.5"
               />
-              <circle cx="0" cy="0" r="4.5" fill="none" stroke="#8d321e" strokeWidth="1.5" />
+              <circle
+                cx="0"
+                cy="0"
+                r="4.5"
+                fill="none"
+                stroke="#8d321e"
+                strokeWidth="1.5"
+              />
             </svg>
-            <span>Noble prisonnier (otage / donjon)</span>
+            <span>{t('legend.prisoner')}</span>
           </div>
           <div className="flex items-center gap-2">
             <svg className="size-3 shrink-0" viewBox="0 0 16 16" aria-hidden="true">
@@ -104,12 +115,11 @@ export function MapLegend() {
                 strokeWidth="3"
               />
             </svg>
-            <span>Liséré coloré = contrôle territorial</span>
+            <span>{t('legend.control')}</span>
           </div>
         </div>
         <p className="border-t border-[#b7a786]/60 pt-2 leading-relaxed">
-          Trait continu épais = frontière infranchissable · Trait pointillé = frontière
-          franchissable
+          {t('legend.passable')}
         </p>
       </CardContent>
     </Card>

@@ -12,6 +12,7 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
+	"github.com/fogfactory/crown-and-borough/internal/i18n"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
@@ -164,6 +165,7 @@ func (s *Session) ResetHTTP(w http.ResponseWriter, _ *http.Request) {
 // every player.
 // Submitting again replaces that player's pending orders.
 func (s *Session) OrdersHTTP(w http.ResponseWriter, r *http.Request) {
+	language := i18n.FromRequest(r)
 	var request ordersRequest
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
@@ -174,8 +176,8 @@ func (s *Session) OrdersHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if request.Player == "" {
 		writeResolutionError(w, &engine.InputErrors{Errors: []engine.InputError{{
-			Code: "player_required", Message: "one player's orders must be submitted at a time",
-		}}})
+			Code: "player_required", Message: i18n.EnglishText(i18n.Message{Key: i18n.ErrorPlayerRequired}), MessageKey: i18n.ErrorPlayerRequired,
+		}}}, language)
 		return
 	}
 
@@ -184,20 +186,21 @@ func (s *Session) OrdersHTTP(w http.ResponseWriter, r *http.Request) {
 		s.mu.Unlock()
 		writeResolutionError(w, &engine.InputErrors{Errors: []engine.InputError{{
 			Player: request.Player, Code: "unknown_player",
-			Message: fmt.Sprintf("player %q does not exist", request.Player),
-		}}})
+			Message:    i18n.EnglishText(i18n.Message{Key: i18n.ErrorUnknownPlayer, Args: []any{request.Player}}),
+			MessageKey: i18n.ErrorUnknownPlayer, MessageArgs: []any{request.Player},
+		}}}, language)
 		return
 	}
 
 	input, inputErr := normalizePlayerOrders(request.Player, request.Chains, request.Winter)
 	if inputErr != nil {
 		s.mu.Unlock()
-		writeResolutionError(w, inputErr)
+		writeResolutionError(w, inputErr, language)
 		return
 	}
 	if _, err := engine.ResolveTurn(s.game, s.balance, input); err != nil {
 		s.mu.Unlock()
-		writeResolutionError(w, err)
+		writeResolutionError(w, err, language)
 		return
 	}
 	if s.pending == nil {
@@ -223,7 +226,7 @@ func (s *Session) OrdersHTTP(w http.ResponseWriter, r *http.Request) {
 	report, err := engine.ResolveTurn(s.game, s.balance, combined)
 	if err != nil {
 		s.mu.Unlock()
-		writeResolutionError(w, err)
+		writeResolutionError(w, err, language)
 		return
 	}
 	s.game = report.State
@@ -295,7 +298,8 @@ func normalizePlayerOrders(playerID models.PlayerID, chains []engine.ChainSubmis
 		if input.Chains[index].Player != "" && input.Chains[index].Player != playerID {
 			inputErrors.Errors = append(inputErrors.Errors, engine.InputError{
 				Player: playerID, Noble: input.Chains[index].Noble, Code: "foreign_player_order",
-				Message: fmt.Sprintf("chain %d belongs to player %q", index+1, input.Chains[index].Player),
+				Message:    i18n.EnglishText(i18n.Message{Key: i18n.ErrorForeignChain, Args: []any{index + 1, input.Chains[index].Player}}),
+				MessageKey: i18n.ErrorForeignChain, MessageArgs: []any{index + 1, input.Chains[index].Player},
 			})
 			continue
 		}
@@ -305,7 +309,8 @@ func normalizePlayerOrders(playerID models.PlayerID, chains []engine.ChainSubmis
 		if input.Winter[index].Player != "" && input.Winter[index].Player != playerID {
 			inputErrors.Errors = append(inputErrors.Errors, engine.InputError{
 				Player: playerID, Code: "foreign_player_order",
-				Message: fmt.Sprintf("winter submission %d belongs to player %q", index+1, input.Winter[index].Player),
+				Message:    i18n.EnglishText(i18n.Message{Key: i18n.ErrorForeignWinter, Args: []any{index + 1, input.Winter[index].Player}}),
+				MessageKey: i18n.ErrorForeignWinter, MessageArgs: []any{index + 1, input.Winter[index].Player},
 			})
 			continue
 		}
@@ -376,18 +381,25 @@ func decodePlayers(raw json.RawMessage) ([]engine.PlayerInit, error) {
 	return nil, fmt.Errorf("players must be an array of player objects, names, or a count")
 }
 
-func writeResolutionError(w http.ResponseWriter, err error) {
+func writeResolutionError(w http.ResponseWriter, err error, language i18n.Language) {
 	var inputErrors *engine.InputErrors
 	if errors.As(err, &inputErrors) {
-		message := "invalid order submission"
-		if len(inputErrors.Errors) > 0 {
-			message = inputErrors.Errors[0].Message
+		localized := engine.InputErrors{Errors: append([]engine.InputError(nil), inputErrors.Errors...)}
+		for index := range localized.Errors {
+			inputError := &localized.Errors[index]
+			if inputError.MessageKey != "" {
+				inputError.Message = i18n.Translate(language, i18n.Message{Key: inputError.MessageKey, Args: inputError.MessageArgs})
+			}
+		}
+		message := i18n.Translate(language, i18n.Message{Key: i18n.ErrorPlayerRequired})
+		if len(localized.Errors) > 0 {
+			message = localized.Errors[0].Message
 		}
 		writeJSON(w, http.StatusBadRequest, struct {
 			Error   string              `json:"error"`
 			Message string              `json:"message"`
 			Errors  []engine.InputError `json:"errors"`
-		}{Error: "invalid_orders", Message: message, Errors: inputErrors.Errors})
+		}{Error: "invalid_orders", Message: message, Errors: localized.Errors})
 		return
 	}
 	writeAPIError(w, http.StatusInternalServerError, "resolution_failed", err.Error())
