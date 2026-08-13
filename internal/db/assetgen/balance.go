@@ -2,71 +2,71 @@ package assetgen
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 
 	"github.com/fogfactory/crown-and-borough/internal/models"
+	"gopkg.in/yaml.v3"
 )
 
 // Balance contains every editable numerical game rule. FirstNames is loaded
-// alongside balance.json so pure engine resolvers can create nobles without I/O.
+// alongside balance.yaml so pure engine resolvers can create nobles without I/O.
 type Balance struct {
-	BaseProduction     int                    `json:"base_production"`
-	SupplyRange        int                    `json:"supply_range"`
-	DepotRangeBonus    int                    `json:"depot_range_bonus"`
-	InfraRationsBonus  int                    `json:"infra_rations_bonus"`
-	CostBase           int                    `json:"cost_base"`
-	PillageBonus       int                    `json:"pillage_bonus"`
-	CastleDefenseBonus int                    `json:"castle_defense_bonus"`
-	RationTerrain      map[models.Terrain]int `json:"ration_terrain"`
-	WinterStockDivisor int                    `json:"winter_stock_divisor"`
-	VillageStockCap    int                    `json:"village_stock_cap"`
-	CastleStockCap     int                    `json:"castle_stock_cap"`
-	Costs              Costs                  `json:"costs"`
-	StartingNobles     int                    `json:"starting_nobles"`
-	StartingTroops     int                    `json:"starting_troops"`
-	StartingResources  int                    `json:"starting_resources"`
-	FirstNames         []Asset                `json:"-"`
+	BaseProduction     int                    `json:"base_production" yaml:"base_production"`
+	SupplyRange        int                    `json:"supply_range" yaml:"supply_range"`
+	DepotRangeBonus    int                    `json:"depot_range_bonus" yaml:"depot_range_bonus"`
+	InfraRationsBonus  int                    `json:"infra_rations_bonus" yaml:"infra_rations_bonus"`
+	CostBase           int                    `json:"cost_base" yaml:"cost_base"`
+	PillageBonus       int                    `json:"pillage_bonus" yaml:"pillage_bonus"`
+	CastleDefenseBonus int                    `json:"castle_defense_bonus" yaml:"castle_defense_bonus"`
+	RationTerrain      map[models.Terrain]int `json:"ration_terrain" yaml:"ration_terrain"`
+	WinterStockDivisor int                    `json:"winter_stock_divisor" yaml:"winter_stock_divisor"`
+	VillageStockCap    int                    `json:"village_stock_cap" yaml:"village_stock_cap"`
+	CastleStockCap     int                    `json:"castle_stock_cap" yaml:"castle_stock_cap"`
+	Costs              Costs                  `json:"costs" yaml:"costs"`
+	StartingNobles     int                    `json:"starting_nobles" yaml:"starting_nobles"`
+	StartingTroops     int                    `json:"starting_troops" yaml:"starting_troops"`
+	StartingResources  int                    `json:"starting_resources" yaml:"starting_resources"`
+	FirstNames         []Asset                `json:"-" yaml:"-"`
 }
 
 // Costs groups all resource costs used by winter investments.
 type Costs struct {
-	Castle      int `json:"castle"`
-	Mill        int `json:"mill"`
-	Troop       int `json:"troop"`
-	Noble       int `json:"noble"`
-	SupplyDepot int `json:"supply_depot"`
-	Liberation  int `json:"liberation"`
+	Castle      int `json:"castle" yaml:"castle"`
+	Mill        int `json:"mill" yaml:"mill"`
+	Troop       int `json:"troop" yaml:"troop"`
+	Noble       int `json:"noble" yaml:"noble"`
+	SupplyDepot int `json:"supply_depot" yaml:"supply_depot"`
+	Liberation  int `json:"liberation" yaml:"liberation"`
 }
 
 type rawBalance struct {
-	BaseProduction     *int            `json:"base_production"`
-	SupplyRange        *int            `json:"supply_range"`
-	DepotRangeBonus    *int            `json:"depot_range_bonus"`
-	InfraRationsBonus  *int            `json:"infra_rations_bonus"`
-	CostBase           *int            `json:"cost_base"`
-	PillageBonus       *int            `json:"pillage_bonus"`
-	CastleDefenseBonus *int            `json:"castle_defense_bonus"`
-	RationTerrain      map[string]*int `json:"ration_terrain"`
-	WinterStockDivisor *int            `json:"winter_stock_divisor"`
-	VillageStockCap    *int            `json:"village_stock_cap"`
-	CastleStockCap     *int            `json:"castle_stock_cap"`
-	Costs              *rawCosts       `json:"costs"`
-	StartingNobles     *int            `json:"starting_nobles"`
-	StartingTroops     *int            `json:"starting_troops"`
-	StartingResources  *int            `json:"starting_resources"`
+	BaseProduction     *int            `yaml:"base_production"`
+	SupplyRange        *int            `yaml:"supply_range"`
+	DepotRangeBonus    *int            `yaml:"depot_range_bonus"`
+	InfraRationsBonus  *int            `yaml:"infra_rations_bonus"`
+	CostBase           *int            `yaml:"cost_base"`
+	PillageBonus       *int            `yaml:"pillage_bonus"`
+	CastleDefenseBonus *int            `yaml:"castle_defense_bonus"`
+	RationTerrain      map[string]*int `yaml:"ration_terrain"`
+	WinterStockDivisor *int            `yaml:"winter_stock_divisor"`
+	VillageStockCap    *int            `yaml:"village_stock_cap"`
+	CastleStockCap     *int            `yaml:"castle_stock_cap"`
+	Costs              *rawCosts       `yaml:"costs"`
+	StartingNobles     *int            `yaml:"starting_nobles"`
+	StartingTroops     *int            `yaml:"starting_troops"`
+	StartingResources  *int            `yaml:"starting_resources"`
 }
 
 type rawCosts struct {
-	Castle      *int `json:"castle"`
-	Mill        *int `json:"mill"`
-	Troop       *int `json:"troop"`
-	Noble       *int `json:"noble"`
-	SupplyDepot *int `json:"supply_depot"`
-	Liberation  *int `json:"liberation"`
+	Castle      *int `yaml:"castle"`
+	Mill        *int `yaml:"mill"`
+	Troop       *int `yaml:"troop"`
+	Noble       *int `yaml:"noble"`
+	SupplyDepot *int `yaml:"supply_depot"`
+	Liberation  *int `yaml:"liberation"`
 }
 
 var balanceTerrains = [...]models.Terrain{
@@ -77,27 +77,33 @@ var balanceTerrains = [...]models.Terrain{
 	models.TerrainSwamp,
 }
 
-// LoadBalance reads balance.json and the noble first-name asset from dir. The
+// LoadBalance reads balance.yaml and the noble first-name asset from dir. The
 // balance file permits documentation comments while requiring every setting.
 func LoadBalance(dir string) (Balance, error) {
-	path := filepath.Join(dir, "balance.json")
+	path := filepath.Join(dir, "balance.yaml")
 	source, err := os.ReadFile(path)
 	if err != nil {
 		return Balance{}, fmt.Errorf("assetgen: %s: %w", path, err)
 	}
-	stripped, err := stripJSONComments(source)
-	if err != nil {
-		return Balance{}, fmt.Errorf("assetgen: %s: %w", path, err)
+	if len(bytes.TrimSpace(source)) == 0 {
+		return Balance{}, fmt.Errorf("assetgen: %s: empty file", path)
 	}
 
-	decoder := json.NewDecoder(bytes.NewReader(stripped))
-	decoder.DisallowUnknownFields()
+	decoder := yaml.NewDecoder(bytes.NewReader(source))
+	decoder.KnownFields(true)
 	var raw rawBalance
 	if err := decoder.Decode(&raw); err != nil {
-		return Balance{}, fmt.Errorf("assetgen: %s: invalid JSON: %w", path, err)
+		if err == io.EOF {
+			return Balance{}, fmt.Errorf("assetgen: %s: empty file", path)
+		}
+		return Balance{}, fmt.Errorf("assetgen: %s: invalid YAML: %w", path, err)
 	}
-	if err := decoder.Decode(&struct{}{}); err != io.EOF {
-		return Balance{}, fmt.Errorf("assetgen: %s: invalid JSON: multiple values", path)
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		if err == nil {
+			return Balance{}, fmt.Errorf("assetgen: %s: invalid YAML: multiple documents", path)
+		}
+		return Balance{}, fmt.Errorf("assetgen: %s: invalid YAML: %w", path, err)
 	}
 
 	balance, err := raw.balance(path)
@@ -284,67 +290,4 @@ func isBalanceTerrain(value string) bool {
 		}
 	}
 	return false
-}
-
-func stripJSONComments(source []byte) ([]byte, error) {
-	stripped := make([]byte, 0, len(source))
-	inString := false
-	escaped := false
-	for index := 0; index < len(source); {
-		character := source[index]
-		if inString {
-			stripped = append(stripped, character)
-			index++
-			if escaped {
-				escaped = false
-				continue
-			}
-			if character == '\\' {
-				escaped = true
-			} else if character == '"' {
-				inString = false
-			}
-			continue
-		}
-		if character == '"' {
-			inString = true
-			stripped = append(stripped, character)
-			index++
-			continue
-		}
-		if character != '/' || index+1 == len(source) {
-			stripped = append(stripped, character)
-			index++
-			continue
-		}
-		next := source[index+1]
-		switch next {
-		case '/':
-			index += 2
-			for index < len(source) && source[index] != '\n' {
-				index++
-			}
-		case '*':
-			index += 2
-			closed := false
-			for index < len(source) {
-				if source[index] == '\n' {
-					stripped = append(stripped, '\n')
-				}
-				if source[index] == '*' && index+1 < len(source) && source[index+1] == '/' {
-					index += 2
-					closed = true
-					break
-				}
-				index++
-			}
-			if !closed {
-				return nil, fmt.Errorf("unterminated block comment")
-			}
-		default:
-			stripped = append(stripped, character)
-			index++
-		}
-	}
-	return stripped, nil
 }

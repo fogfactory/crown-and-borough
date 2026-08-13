@@ -19,37 +19,33 @@ const (
 		"GUI;Guillaume\n" +
 		"ADE;Adélaïde\n" +
 		"MAH;Mahaut\n"
-	validBalance = `{
-  // The loader accepts documentation comments.
-  "base_production": 1,
-  "supply_range": 3,
-  "depot_range_bonus": 2,
-  "infra_rations_bonus": 2,
-  "cost_base": 2,
-  "pillage_bonus": 2,
-  "castle_defense_bonus": 1,
-  "ration_terrain": {
-    "plain": 1,
-    "forest": 1,
-    "hill": 1,
-    "mountain": 0,
-    "swamp": 0
-  },
-  "winter_stock_divisor": 2,
-  "village_stock_cap": 1,
-  "castle_stock_cap": 2,
-  "costs": {
-		"castle": 10,
-		"mill": 3,
-		"troop": 1,
-		"noble": 2,
-		"supply_depot": 3,
-		"liberation": 0
-	},
-  "starting_nobles": 1,
-  "starting_troops": 1,
-  "starting_resources": 10
-}`
+	validBalance = `# The loader accepts YAML documentation comments.
+base_production: 1
+supply_range: 3
+depot_range_bonus: 2
+infra_rations_bonus: 2
+cost_base: 2
+pillage_bonus: 2
+castle_defense_bonus: 1
+ration_terrain:
+  plain: 1
+  forest: 1
+  hill: 1
+  mountain: 0
+  swamp: 0
+winter_stock_divisor: 2
+village_stock_cap: 1
+castle_stock_cap: 2
+costs:
+  castle: 10
+  mill: 3
+  troop: 1
+  noble: 2
+  supply_depot: 3
+  liberation: 0
+starting_nobles: 1
+starting_troops: 1
+starting_resources: 10`
 )
 
 func writeAssets(t *testing.T, dir, communes, prenoms string) {
@@ -75,8 +71,8 @@ func writeBalance(t *testing.T, dir, content string) {
 	if content == "" {
 		content = validBalance
 	}
-	if err := os.WriteFile(filepath.Join(dir, "balance.json"), []byte(content), 0o644); err != nil {
-		t.Fatalf("write balance.json: %v", err)
+	if err := os.WriteFile(filepath.Join(dir, "balance.yaml"), []byte(content), 0o644); err != nil {
+		t.Fatalf("write balance.yaml: %v", err)
 	}
 }
 
@@ -85,7 +81,7 @@ func TestLoadRealBalance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadBalance(real asset) = %v", err)
 	}
-	if balance.BaseProduction != 1 || balance.WinterStockDivisor != 2 || balance.VillageStockCap != 1 || balance.CastleStockCap != 2 || balance.Costs.Castle != 10 || balance.Costs.Liberation != 0 {
+	if balance.BaseProduction != 1 || balance.DepotRangeBonus != 2 || balance.WinterStockDivisor != 2 || balance.VillageStockCap != 1 || balance.CastleStockCap != 2 || balance.Costs.Castle != 10 || balance.Costs.Liberation != 0 {
 		t.Errorf("loaded costs = %#v / %#v", balance, balance.Costs)
 	}
 	if len(balance.FirstNames) < 100 {
@@ -118,18 +114,23 @@ func TestLoadBalanceInvalid(t *testing.T) {
 	}{
 		{
 			name:    "missing explicit zero cost",
-			content: strings.Replace(validBalance, "\"supply_depot\": 3,\n", "", 1),
+			content: strings.Replace(validBalance, "  supply_depot: 3\n", "", 1),
 			want:    "costs.supply_depot",
 		},
 		{
 			name:    "missing terrain value",
-			content: strings.Replace(validBalance, "    \"mountain\": 0,\n    \"swamp\": 0\n", "    \"mountain\": 0\n", 1),
+			content: strings.Replace(validBalance, "  mountain: 0\n  swamp: 0\n", "  mountain: 0\n", 1),
 			want:    "ration_terrain.swamp",
 		},
 		{
 			name:    "unknown setting",
-			content: strings.Replace(validBalance, "  \"base_production\": 1,", "  \"unknown_setting\": 1,\n  \"base_production\": 1,", 1),
-			want:    "unknown field",
+			content: strings.Replace(validBalance, "base_production: 1\n", "unknown_setting: 1\nbase_production: 1\n", 1),
+			want:    "unknown_setting",
+		},
+		{
+			name:    "malformed YAML",
+			content: "base_production: [\n",
+			want:    "invalid YAML",
 		},
 	}
 	for _, tt := range tests {

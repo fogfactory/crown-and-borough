@@ -101,7 +101,7 @@ distinct qui n'est pas un village neutre. Les territoires de départ sont sépar
 d'au moins quatre étapes dans le graphe des frontières franchissables. Un
 château y est construit gratuitement, devient la capitale par défaut, et le
 joueur reçoit ses nobles, ses armées et ses ressources de départ selon
-`assets/balance.json`. Les `N + 1` villages neutres générés sur la carte restent
+`assets/balance.yaml`. Les `N + 1` villages neutres générés sur la carte restent
 distincts des `N` châteaux de départ.
 
 Un joueur est éliminé lorsqu'il ne contrôle plus aucun territoire et ne possède
