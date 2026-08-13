@@ -58,10 +58,11 @@ const (
 // CombatContender is one independent attacking or defending force in a combat
 // event. An empty ArmyID denotes castle-only defense.
 type CombatContender struct {
-	ArmyID   models.ArmyID   `json:"army,omitempty"`
-	OwnerID  models.PlayerID `json:"owner,omitempty"`
-	Force    int             `json:"force"`
-	Defender bool            `json:"defender"`
+	ArmyID     models.ArmyID   `json:"army,omitempty"`
+	OwnerID    models.PlayerID `json:"owner,omitempty"`
+	Force      int             `json:"force"`
+	NobleBonus int             `json:"nobleBonus,omitempty"`
+	Defender   bool            `json:"defender"`
 }
 
 // Event is a value-only report of one resolution decision. Fields irrelevant

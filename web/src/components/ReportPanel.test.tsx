@@ -183,4 +183,28 @@ describe('ReportPanel', () => {
     expect(text).not.toMatch(/C\d+/)
     expect(text).not.toMatch(/O\d+/)
   })
+
+  it('displays the noble command bonus in combat forces', () => {
+    const combatReport: TurnReport = {
+      ...report,
+      combats: [
+        {
+          territory: 'T2',
+          baseDefense: 1,
+          defense: 1,
+          castleBonus: 0,
+          contenders: [
+            { army: 'A1', owner: 'P1', force: 2, nobleBonus: 1, defender: false },
+          ],
+          cutSupporters: [],
+          reason: 'attack_wins',
+          standoff: false,
+        },
+      ],
+    }
+
+    render(<ReportPanel report={combatReport} map={map} players={players} />)
+
+    expect(screen.getByText('2 (+1 noble)')).toBeInTheDocument()
+  })
 })

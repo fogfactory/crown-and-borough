@@ -17,6 +17,7 @@ func testBalance() assetgen.Balance {
 		InfraRationsBonus:  2,
 		CostBase:           2,
 		PillageBonus:       2,
+		NobleCommandBonus:  1,
 		CastleDefenseBonus: 1,
 		RationTerrain: map[models.Terrain]int{
 			models.TerrainPlain:    1,
@@ -105,6 +106,15 @@ func addNoble(state *models.GameState, id models.NobleID, code string, ownerID m
 		LocationID: territoryID,
 		Status:     models.NobleStatusFree,
 	})
+}
+
+func setNobleStatus(state *models.GameState, id models.NobleID, status models.NobleStatus) {
+	for index := range state.Nobles {
+		if state.Nobles[index].ID == id {
+			state.Nobles[index].Status = status
+			return
+		}
+	}
 }
 
 func addChain(t *testing.T, state *models.GameState, armyID models.ArmyID, nobleID models.NobleID, order models.Order) {

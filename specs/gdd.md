@@ -192,8 +192,12 @@ explicite.
 
 Les règles de combat sont les suivantes :
 
-- la force d'attaque est la taille de l'armée attaquante ;
-- la force d'un soutien est la taille de l'armée soutenante ;
+- la force d'attaque est la taille de l'armée attaquante, augmentée de `+1` si
+  elle est commandée par un noble ;
+- la force d'un soutien est la taille de l'armée soutenante, augmentée de `+1`
+  si elle est commandée par un noble ;
+- la défense d'une armée inclut le même bonus de commandement de `+1`, en plus
+  du bonus fixe d'un château le cas échéant ;
 - une attaque peut couper un soutien si elle vient d'une case différente de la
   cible soutenue ;
 - toutes les intentions sont calculées ensemble avant les déplacements ;
@@ -227,7 +231,8 @@ En cas de déficit :
    de leur source, puis les plus grosses, puis le trigramme décroissant.
 
 Une armée en famine combat à force 0 pour le tour et ne peut que se déplacer à
-force 0. Si elle se trouve sur une infrastructure, elle la pille
+force 0, même si elle est commandée par un noble. Si elle se trouve sur une
+infrastructure, elle la pille
 automatiquement. Le bonus de pillage, diminué de sa demande résiduelle, peut la
 sortir de famine. Si le pillage est insuffisant ou impossible, elle perd une
 troupe, sans jamais descendre sous 1 troupe. Elle reste
@@ -312,8 +317,9 @@ retraites. Une dispersion peut affecter explicitement les nobles présents, avec
 `*` pour tous les nobles restants ou `*NNN` pour un noble précis. Les nobles non
 mentionnés restent à l'origine tant qu'une troupe y demeure ; si toutes les
 troupes quittent l'origine et qu'un noble présent n'a pas de groupe produit,
-l'ordre est invalide à l'exécution. Un noble ne compte ni dans la force, ni dans
-le ravitaillement, ni dans les pertes d'un combat.
+l'ordre est invalide à l'exécution. Un noble ne compte ni dans le ravitaillement
+ni dans les pertes d'un combat ; un noble libre commandant fournit uniquement le
+bonus fixe de `+1` décrit à la section 5.
 
 Lorsqu'une armée est détruite sur une case occupée par une armée ennemie, les
 nobles qu'elle portait sont capturés et deviennent `hostage`. Ils peuvent encore

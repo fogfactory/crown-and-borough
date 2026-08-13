@@ -223,6 +223,7 @@ export interface CombatContender {
   army?: string
   owner?: PlayerId
   force: number
+  nobleBonus?: number
   defender: boolean
 }
 

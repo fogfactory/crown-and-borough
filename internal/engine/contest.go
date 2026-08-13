@@ -322,7 +322,8 @@ func (ctx *resolutionContext) defensiveSupportStrength(armyID models.ArmyID, cut
 			continue
 		}
 		if !ctx.famished[supportID] {
-			strength += ctx.startArmiesByID[supportID].Size
+			supporter := ctx.startArmiesByID[supportID]
+			strength += supporter.Size + nobleCommandBonus(ctx, supporter)
 		}
 	}
 	return strength

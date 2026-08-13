@@ -15,6 +15,7 @@ depot_range_bonus: 2
 infra_rations_bonus: 2
 cost_base: 2
 pillage_bonus: 2
+noble_command_bonus: 1
 castle_defense_bonus: 1
 ration_terrain:
   plain: 1

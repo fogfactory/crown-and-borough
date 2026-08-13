@@ -240,8 +240,12 @@ Une armée est l'unique entité de force d'un territoire : elle porte un
 propriétaire et une taille en troupes. Toutes ses troupes partagent la même
 chaîne ; il n'existe pas d'ordres mixtes au sein d'une armée.
 
-- la force d'une attaque est la **taille** de l'armée attaquante ;
-- la force d'un soutien est la taille de l'armée soutenante ;
+- la force d'une attaque est la **taille** de l'armée attaquante, avec **+1** si
+  un noble libre allié est présent sur sa case ;
+- la force d'un soutien est la taille de l'armée soutenante, avec **+1** si un
+  noble libre allié est présent sur sa case ;
+- la défense d'une armée reçoit le même bonus de **+1** lorsqu'elle est
+  commandée par un noble libre allié ;
 - un château apporte un bonus défensif fixe de **+1**, même sans armée ;
 - la plus haute force **strictement unique** gagne ; une égalité au sommet
   produit un **statu quo**, y compris sur une case vide ;
@@ -291,8 +295,9 @@ En cas de déficit :
    éloignées de leur source, puis les plus grosses, puis le trigramme
    décroissant.
 
-Une armée en famine **combat et se défend à force 0** pour le tour. Si elle se
-trouve sur une infrastructure, elle la **pille automatiquement** ; le bonus de
+Une armée en famine **combat et se défend à force 0** pour le tour, même si elle
+porte un noble libre. Si elle se trouve sur une infrastructure, elle la **pille
+automatiquement** ; le bonus de
 pillage, diminué de sa demande résiduelle, peut la sortir de famine.
 
 L'endpoint `GET /api/supply?territory=XXX` permet de prévisualiser le
@@ -316,8 +321,10 @@ Une case ne porte qu'**une seule infrastructure**.
 
 Les nobles **chevauchent les armées** : ils suivent les déplacements, les
 attaques, les jonctions, les dispersions et les retraites. Un noble ne compte ni
-dans la force, ni dans le ravitaillement, ni dans les pertes d'un combat. Un
-noble peut rester seul sur une case après la perte de son armée.
+dans le ravitaillement ni dans les pertes d'un combat. Un noble libre du joueur,
+présent sur la case de son armée, lui donne une seule fois **+1 de puissance** ;
+les nobles adverses détenus, les nobles otages et les nobles au cachot ne donnent
+pas ce bonus. Un noble peut rester seul sur une case après la perte de son armée.
 
 **Capacité de commandement** :
 
