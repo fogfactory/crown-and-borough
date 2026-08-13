@@ -128,9 +128,17 @@ func (ctx *resolutionContext) freezeLoopSupport(armyID models.ArmyID) bool {
 	}
 	if support.offensive {
 		attack := ctx.attacks[support.targetArmyID]
-		return attack != nil && attack.target == support.destinationID && ctx.contest.active[attack.armyID]
+		if attack == nil || attack.target != support.destinationID {
+			return false
+		}
+		record := ctx.records[attack.armyID]
+		return record == nil || record.outcome != OutcomeSuccess
 	}
-	return ctx.attackedTerritories[support.targetID]
+	if support.targetArmyID == "" {
+		return false
+	}
+	army := ctx.armiesByID[support.targetArmyID]
+	return army != nil && army.TerritoryID == support.targetID
 }
 
 func updateTerritorialControl(ctx *resolutionContext) {
