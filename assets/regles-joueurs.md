@@ -2,7 +2,7 @@
 
 **Version sociable (joueurs humains).** Ce document décrit les règles
 actuellement actives dans le serveur de jeu. Les valeurs chiffrées proviennent
-d'`assets/balance.json`, qui reste la source des nombres à jouer ; en cas de
+d'`assets/balance.yaml`, qui reste la source des nombres à jouer ; en cas de
 divergence, le moteur fait foi.
 
 ---

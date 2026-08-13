@@ -30,7 +30,7 @@ simulation temps réel ni de canal permanent à maintenir.
                             │
 ┌───────────────────────────▼──────────────────────────────┐
 │ Assets statiques                                          │
-│ communes.csv · prenoms.csv · balance.json                 │
+│ communes.csv · prenoms.csv · balance.yaml                 │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -44,9 +44,9 @@ quand tous les joueurs ont soumis, ou lorsqu'un client utilise `force`.
 
 - Go 1.26 ;
 - `net/http` et `http.ServeMux` avec les patterns de routes du standard ;
-- aucune dépendance Go tierce au runtime ;
+- dépendance runtime `gopkg.in/yaml.v3` limitée au chargement strict de la balance ;
 - moteur sans dépendance web dans `internal/engine` ;
-- JSON pour les contrats HTTP et les assets de balance ;
+- JSON pour les contrats HTTP et YAML pour l'asset de balance ;
 - mutex de session autour de l'état et de la carte correspondante.
 
 La résolution est organisée autour des fonctions pures du moteur, notamment
@@ -71,7 +71,7 @@ conteneur et le déploiement public restent à traiter.
 ```text
 .
 ├── assets/
-│   ├── balance.json       # paramètres numériques v1
+│   ├── balance.yaml       # paramètres numériques v1
 │   ├── communes.csv       # communes et affinités de terrain
 │   └── prenoms.csv        # prénoms de nobles
 ├── cmd/server/
@@ -294,7 +294,7 @@ BRI D BRI ATL NOR
 
 Les ordres d'hiver v1 sont limités à `R N`, `R T`, `C M`, `C C`, `C D`, `E C`,
 `O N`, `P N` et `L N`. Les infrastructures absentes du modèle v1 ne possèdent
-ni symbole de parser ni coût dans `balance.json`.
+ni symbole de parser ni coût dans `balance.yaml`.
 
 ## 8. Assets et balance
 
@@ -302,7 +302,7 @@ Les assets sont chargés au démarrage et validés avant de créer la session :
 
 - `communes.csv` fournit les noms, codes et affinités de terrain ;
 - `prenoms.csv` fournit les noms et codes de nobles ;
-- `balance.json` fournit les coûts, productions, portées, rations, bonus de
+- `balance.yaml` fournit les coûts, productions, portées, rations, bonus de
   défense et valeurs de départ utilisés par le moteur.
 
 Les paramètres numériques ne doivent pas être recopiés dans les handlers ou
