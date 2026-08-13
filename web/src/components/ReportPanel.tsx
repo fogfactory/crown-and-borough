@@ -272,6 +272,9 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                 Famine de l&apos;armée de {famine.owner} à{' '}
                 {territoryLabel(map, famine.territory)} ({famine.troops} troupes)
                 {famine.savedByPillage ? ' · sauvée par pillage' : ''}
+                {(famine.troopsLost ?? 0) > 0
+                  ? ` · perd ${famine.troopsLost} troupe${famine.troopsLost === 1 ? '' : 's'}`
+                  : ''}
               </div>
             ))}
           </div>

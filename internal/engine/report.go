@@ -83,6 +83,7 @@ type FamineReport struct {
 	Territory          models.TerritoryID `json:"territory"`
 	Source             models.TerritoryID `json:"source"`
 	Troops             int                `json:"troops"`
+	TroopsLost         int                `json:"troopsLost,omitempty"`
 	SavedByPillage     bool               `json:"savedByPillage"`
 	Infrastructure     models.InfraID     `json:"infrastructure,omitempty"`
 	InfrastructureType models.InfraType   `json:"infrastructureType,omitempty"`
@@ -251,7 +252,7 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 		case EventTypeFamine:
 			report.Famines = append(report.Famines, FamineReport{
 				Army: event.ArmyID, Owner: event.OwnerID, Territory: event.TerritoryID, Source: event.SourceID,
-				Troops: event.Troops, SavedByPillage: event.SavedByPillage,
+				Troops: event.Troops, TroopsLost: event.TroopsLost, SavedByPillage: event.SavedByPillage,
 				Infrastructure: event.InfrastructureID, InfrastructureType: event.InfrastructureType,
 				ResourceCredit: event.ResourceCredit, CreditTerritory: event.CreditTerritoryID,
 			})

@@ -75,6 +75,27 @@ func testState(t *testing.T, territories []models.Territory, armies []models.Arm
 	return state
 }
 
+func keepTestArmiesSupplied(state *models.GameState) {
+	balance := testBalance()
+	for _, army := range state.Armies {
+		territoryState := state.TerritoryStates[army.TerritoryID]
+		if len(territoryState.Infrastructures) != 0 {
+			continue
+		}
+		infrastructureID := models.InfraID("S" + string(army.ID))
+		addInfrastructure(state, models.Infrastructure{
+			ID: infrastructureID, Type: models.InfraTypeVillage, Level: 1, TerritoryID: army.TerritoryID,
+		})
+		stock := armyCost(army.Size, balance.CostBase) - balance.BaseProduction - 1
+		if stock < 0 {
+			stock = 0
+		}
+		territoryState = state.TerritoryStates[army.TerritoryID]
+		territoryState.Resources = stock
+		state.TerritoryStates[army.TerritoryID] = territoryState
+	}
+}
+
 func addNoble(state *models.GameState, id models.NobleID, code string, ownerID models.PlayerID, territoryID models.TerritoryID) {
 	state.Nobles = append(state.Nobles, models.Noble{
 		ID:         id,

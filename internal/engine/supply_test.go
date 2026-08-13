@@ -70,6 +70,15 @@ func TestResolveSupplyRationsAndEvents(t *testing.T) {
 			if got := hasFamineEvent(resolution.Events, "A1"); got != test.wantFamine {
 				t.Errorf("famine = %t, want %t", got, test.wantFamine)
 			}
+			if test.wantFamine {
+				event := famineEventForArmy(t, resolution.Events, "A1")
+				if event.TroopsLost != 0 {
+					t.Errorf("famine event = %#v, want no loss at the one-troop minimum", event)
+				}
+				if army := armyByID(t, resolution.State, "A1"); army.Size != 1 {
+					t.Errorf("A1 size = %d, want the one-troop minimum", army.Size)
+				}
+			}
 			if got := resolution.State.TerritoryStates["T01"].Resources; got != 0 {
 				t.Errorf("resources = %d, want rations never to change stock", got)
 			}
@@ -586,7 +595,7 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 		}
 	})
 
-	t.Run("negative gain preserves famine after destroying the infrastructure", func(t *testing.T) {
+	t.Run("negative pillage gain starves a size-three army down to two", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{supplyTerritory("T01", "AAA", models.TerrainPlain)},
 			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 3}},
@@ -599,8 +608,15 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 			t.Fatalf("Resolve: %v", err)
 		}
 		event := famineEventForArmy(t, resolution.Events, "A1")
-		if event.SavedByPillage || event.InfrastructureID != "I1" || event.Troops != 3 {
-			t.Errorf("famine event = %#v, want unsaved three-troop army after its local ration", event)
+		if event.SavedByPillage || event.InfrastructureID != "I1" || event.InfrastructureType != models.InfraTypeMill || event.Troops != 3 || event.TroopsLost != 1 {
+			t.Errorf("famine event = %#v, want an unsaved three-troop army with one troop lost", event)
+		}
+		if army := armyByID(t, resolution.State, "A1"); army.Size != 2 {
+			t.Errorf("A1 size = %d, want 2 after one famine turn", army.Size)
+		}
+		report := BuildTurnReport(state, resolution.State, resolution.Events, nil)
+		if len(report.Famines) != 1 || report.Famines[0].Troops != 3 || report.Famines[0].TroopsLost != 1 {
+			t.Errorf("famine report = %#v, want initial size 3 and one lost troop", report.Famines)
 		}
 		if len(resolution.State.Infrastructures) != 0 {
 			t.Errorf("infrastructures = %#v, want auto-pillage to remove I1", resolution.State.Infrastructures)
@@ -676,6 +692,39 @@ func TestResolveAssignedFamineTieBreaksAndHasZeroStrength(t *testing.T) {
 }
 
 func TestResolveFamineCombatEffects(t *testing.T) {
+	t.Run("one-troop swamp army has zero famine force", func(t *testing.T) {
+		state := testState(t,
+			[]models.Territory{
+				supplyTerritory("T01", "AAA", models.TerrainSwamp, "T02"),
+				supplyTerritory("T02", "BBB", models.TerrainPlain, "T01"),
+			},
+			[]models.Army{
+				{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1},
+				{ID: "A2", OwnerID: "P2", TerritoryID: "T02", Size: 1},
+			},
+		)
+		addNoble(state, "N1", "ONE", "P1", "T01")
+		addChain(t, state, "A1", "N1", models.Order{
+			Type: models.OrderTypeAttack, PositionID: "T01", TargetIDs: []models.TerritoryID{"T02"},
+		})
+		validateTestState(t, state)
+
+		resolution, err := Resolve(state, testBalance())
+		if err != nil {
+			t.Fatalf("Resolve: %v", err)
+		}
+		famine := famineEventForArmy(t, resolution.Events, "A1")
+		if famine.Troops != 1 || famine.TroopsLost != 0 || !hasFamineEvent(resolution.Events, "A1") {
+			t.Errorf("famine event = %#v, want one troop, no physical loss, and famine", famine)
+		}
+		if army := armyByID(t, resolution.State, "A1"); army.Size != 1 || army.TerritoryID != "T01" {
+			t.Errorf("A1 = %+v, want one troop remaining at T01", army)
+		}
+		if got := combatContenderForce(t, resolution.Events, "T02", "A1"); got != 0 {
+			t.Errorf("A1 attack force = %d, want famine force 0", got)
+		}
+	})
+
 	t.Run("famine removes attack strength", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{
@@ -695,8 +744,8 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
-		if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "T01" || army.Size != 2 {
-			t.Errorf("A1 = %+v, want a zero-strength attack to fail without changing size", army)
+		if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "T01" || army.Size != 1 {
+			t.Errorf("A1 = %+v, want a zero-strength attack and one lost troop", army)
 		}
 		if got := combatContenderForce(t, resolution.Events, "T02", "A1"); got != 0 {
 			t.Errorf("A1 combat force = %d, want 0", got)
@@ -723,8 +772,8 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
-		if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "T03" || army.Size != 2 {
-			t.Errorf("A1 = %+v, want normal retreat with unchanged size", army)
+		if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "T03" || army.Size != 1 {
+			t.Errorf("A1 = %+v, want normal retreat after one lost troop", army)
 		}
 		if got := combatContenderForce(t, resolution.Events, "T01", "A1"); got != 0 {
 			t.Errorf("A1 defense force = %d, want 0", got)
@@ -778,8 +827,8 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
-		if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "T02" || army.Size != 2 {
-			t.Errorf("A1 = %+v, want famished army to move into empty territory", army)
+		if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "T02" || army.Size != 1 {
+			t.Errorf("A1 = %+v, want famished army to move after losing one troop", army)
 		}
 	})
 
@@ -799,8 +848,8 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
-		if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "T02" || army.Size != 2 {
-			t.Errorf("A1 = %+v, want famished join to move normally", army)
+		if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "T02" || army.Size != 1 {
+			t.Errorf("A1 = %+v, want famished join to move after losing one troop", army)
 		}
 	})
 
@@ -826,10 +875,10 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 			t.Fatalf("Resolve: %v", err)
 		}
 		if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "T01" || army.Size != 1 {
-			t.Errorf("carrier = %+v, want one famished branch at T01", army)
+			t.Errorf("carrier = %+v, want the famine minimum at T01", army)
 		}
-		if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "T02" || army.Size != 1 {
-			t.Errorf("branch = %+v, want a branch at T02", army)
+		if hasArmy(resolution.State, "A2") {
+			t.Error("famine attrition should leave only one troop to disperse")
 		}
 	})
 

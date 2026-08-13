@@ -229,7 +229,11 @@ En cas de déficit :
 Une armée en famine combat à force 0 pour le tour et ne peut que se déplacer à
 force 0. Si elle se trouve sur une infrastructure, elle la pille
 automatiquement. Le bonus de pillage, diminué de sa demande résiduelle, peut la
-sortir de famine.
+sortir de famine. Si le pillage est insuffisant ou impossible, elle perd une
+troupe, sans jamais descendre sous 1 troupe. Elle reste
+néanmoins en famine pour le tour en cours : même si cette perte rendait sa
+demande future soutenable, la désorganisation lui conserve une force de 0 pour
+ce tour.
 
 ## 6. Ordres et chaînes de commandement
 

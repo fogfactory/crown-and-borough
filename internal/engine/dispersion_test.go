@@ -24,6 +24,7 @@ func TestResolveDisperseRepeatedDestinationStacksTroops(t *testing.T) {
 			"BBB": {"ONE", "TWO"},
 		},
 	})
+	keepTestArmiesSupplied(state)
 	validateTestState(t, state)
 
 	resolution, err := Resolve(state, testBalance())
@@ -62,6 +63,7 @@ func TestResolveDisperseOccupiedDestinationDoesNotConsumeUnit(t *testing.T) {
 		TargetIDs:        []models.TerritoryID{"T02", "T03"},
 		NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"CCC": {"ONE"}},
 	})
+	keepTestArmiesSupplied(state)
 	validateTestState(t, state)
 
 	resolution, err := Resolve(state, testBalance())
@@ -96,6 +98,7 @@ func TestResolveDisperseShortListLeavesUnitsAndUnassignedNobles(t *testing.T) {
 		PositionID: "T01",
 		TargetIDs:  []models.TerritoryID{"T02"},
 	})
+	keepTestArmiesSupplied(state)
 	validateTestState(t, state)
 
 	resolution, err := Resolve(state, testBalance())
@@ -166,6 +169,7 @@ func TestResolveDisperseLongListLoopBreaksWithoutMovement(t *testing.T) {
 		NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"BBB": {"ONE"}},
 		Liaison:          models.LiaisonModeLoop,
 	})
+	keepTestArmiesSupplied(state)
 	validateTestState(t, state)
 
 	resolution, err := Resolve(state, testBalance())
@@ -241,6 +245,7 @@ func TestResolveLoopDisperseRetriesRepeatedDestinationAndStacks(t *testing.T) {
 		NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"BBB": {"ONE"}},
 		Liaison:          models.LiaisonModeLoop,
 	})
+	keepTestArmiesSupplied(state)
 	validateTestState(t, state)
 
 	first, err := Resolve(state, testBalance())
@@ -291,6 +296,7 @@ func TestResolveLoopDispersePreservesWildcardInPendingState(t *testing.T) {
 		NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"BBB": {"*"}},
 		Liaison:          models.LiaisonModeLoop,
 	})
+	keepTestArmiesSupplied(state)
 	validateTestState(t, state)
 
 	resolution, err := Resolve(state, testBalance())
@@ -332,6 +338,7 @@ func TestResolveInvalidDisperseDoesNotVacateOrigin(t *testing.T) {
 		TargetIDs:        []models.TerritoryID{"T01"},
 		NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"AAA": {"TWO"}},
 	})
+	keepTestArmiesSupplied(state)
 	validateTestState(t, state)
 
 	resolution, err := Resolve(state, testBalance())
@@ -415,6 +422,7 @@ func TestResolveShortDisperseResidualBlocksArrivals(t *testing.T) {
 			TargetIDs:        []models.TerritoryID{"T01"},
 			NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"AAA": {"TWO"}},
 		})
+		keepTestArmiesSupplied(state)
 		validateTestState(t, state)
 
 		resolution, err := Resolve(state, testBalance())
@@ -456,6 +464,7 @@ func TestResolveShortDisperseResidualBlocksArrivals(t *testing.T) {
 			PositionID: "T03",
 			TargetIDs:  []models.TerritoryID{"T01"},
 		})
+		keepTestArmiesSupplied(state)
 		validateTestState(t, state)
 
 		resolution, err := Resolve(state, testBalance())
@@ -493,6 +502,7 @@ func TestResolveDisperseSourceTargetKeepsSourceGroup(t *testing.T) {
 			"BBB": {"TWO"},
 		},
 	})
+	keepTestArmiesSupplied(state)
 	validateTestState(t, state)
 
 	resolution, err := Resolve(state, testBalance())
@@ -652,6 +662,7 @@ func TestResolveLateVacatedDestinationCannotOrphanNoble(t *testing.T) {
 		TargetIDs:        []models.TerritoryID{"T01"},
 		NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"AAA": {"THR"}},
 	})
+	keepTestArmiesSupplied(state)
 	validateTestState(t, state)
 
 	resolution, err := Resolve(state, testBalance())
