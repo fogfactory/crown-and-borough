@@ -47,7 +47,7 @@ Notes prises pendant une partie en hotseat, au fil des observations.
 - Le **rapport d'hiver** doit préciser les **consommations de ressources pour chaque ordre réussi**.
 - Chaque ligne d'ordre doit avoir une **pastille ou un marqueur coloré à la couleur du joueur**.
 - La liste des **ordres exécutés** doit afficher :
-  - le **label complet de l'ordre** (`XXX O YYY`) ;
+  - le **label complet de l'ordre** (par exemple `XXX A YYY`) ;
   - une **pastille colorée** indiquant le noble (son trigramme, à la couleur du joueur) ;
   - son **résultat**.
 

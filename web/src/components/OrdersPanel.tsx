@@ -3,6 +3,7 @@ import { BookOpen, Snowflake } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import type { RulesSection } from '@/components/RulesPanel'
+import { NOBLE_STATUS_LABELS } from '@/lib/noble-label'
 import type { Noble, PlayerId, StateData } from '@/types'
 
 interface OrdersPanelProps {
@@ -96,7 +97,7 @@ export function OrdersPanel({
           value={winterDraft}
           onChange={(event) => onWinterChange(event.target.value)}
           className="min-h-36 w-full resize-y rounded-lg border border-[#9bbbd3] bg-[#f7fbff] p-3 font-mono text-xs text-[#263f52] outline-none transition focus:border-[#5c94bd] focus:ring-2 focus:ring-[#5c94bd]/20"
-          placeholder={'R T ROS\nC M ROS\nE C ROS'}
+          placeholder={'R T ROS\nO N NNN\nP N NNN\nL N NNN'}
           aria-label={`Ordres d'hiver de ${player}`}
         />
         {submitted && (
@@ -124,6 +125,7 @@ export function OrdersPanel({
   }
 
   const nobles = ownedNobles(state, player)
+  const hasEmittingNoble = nobles.some((noble) => noble.status !== 'dungeon')
   return (
     <section className="space-y-3 border-t border-[#b7a786]/50 pt-5">
       <div>
@@ -145,15 +147,15 @@ export function OrdersPanel({
                 {noble.code} · {noble.name}
               </span>
               <span
-                className={noble.status === 'free' ? 'text-[#376341]' : 'text-[#a84632]'}
+                className={noble.status === 'dungeon' ? 'text-[#a84632]' : 'text-[#376341]'}
               >
-                {noble.status === 'free' ? 'Libre' : noble.status}
+                {NOBLE_STATUS_LABELS[noble.status]}
               </span>
             </span>
             <textarea
               value={chainDrafts[noble.code] ?? ''}
               onChange={handleChainChange(noble)}
-              disabled={noble.status !== 'free'}
+              disabled={noble.status === 'dungeon'}
               className="min-h-32 w-full resize-y rounded-lg border border-[#b7a786] bg-[#f8f0e2] p-3 font-mono text-xs text-[#30291f] outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20 disabled:cursor-not-allowed disabled:opacity-50"
               placeholder={chainPlaceholder()}
               aria-label={`Chaîne de ${noble.code}`}
@@ -166,7 +168,17 @@ export function OrdersPanel({
           Ordres soumis. Vous pouvez encore les modifier.
         </p>
       )}
-      <Button type="button" className="w-full" disabled={submitting} onClick={onSubmit}>
+      {!hasEmittingNoble && (
+        <p className="rounded-lg border border-dashed border-[#b7a786] bg-[#f8f0e2] p-3 text-sm italic text-[#806f57]">
+          Aucun noble apte à émettre : vos ordres d&apos;action ne sont pas requis.
+        </p>
+      )}
+      <Button
+        type="button"
+        className="w-full"
+        disabled={submitting || !hasEmittingNoble}
+        onClick={onSubmit}
+      >
         {submitting ? 'Envoi…' : submitted ? 'Modifier' : 'Soumettre'}
       </Button>
       <OrderError error={error} />

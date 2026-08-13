@@ -27,15 +27,13 @@ const (
 	OrderTypeJoin     OrderType = "join"
 	OrderTypePillage  OrderType = "pillage"
 	OrderTypeDisperse OrderType = "disperse"
-	OrderTypeHostage  OrderType = "hostage"
-	OrderTypeDungeon  OrderType = "dungeon"
 )
 
 // IsValid reports whether the order type is known to the command model.
 func (t OrderType) IsValid() bool {
 	switch t {
 	case OrderTypeAttack, OrderTypeSupport, OrderTypeHold, OrderTypeJoin,
-		OrderTypePillage, OrderTypeDisperse, OrderTypeHostage, OrderTypeDungeon:
+		OrderTypePillage, OrderTypeDisperse:
 		return true
 	}
 	return false
@@ -50,13 +48,16 @@ const (
 	WinterOrderTypeBuild         WinterOrderType = "build"
 	WinterOrderTypeElectCapital  WinterOrderType = "elect_capital"
 	WinterOrderTypeLiberateNoble WinterOrderType = "liberate_noble"
+	WinterOrderTypeHostage       WinterOrderType = "hostage"
+	WinterOrderTypeDungeon       WinterOrderType = "dungeon"
 )
 
 // IsValid reports whether a winter order type is known to the winter resolver.
 func (t WinterOrderType) IsValid() bool {
 	switch t {
 	case WinterOrderTypeRecruitNoble, WinterOrderTypeRecruitTroop, WinterOrderTypeBuild,
-		WinterOrderTypeElectCapital, WinterOrderTypeLiberateNoble:
+		WinterOrderTypeElectCapital, WinterOrderTypeLiberateNoble,
+		WinterOrderTypeHostage, WinterOrderTypeDungeon:
 		return true
 	}
 	return false
@@ -92,9 +93,6 @@ type Order struct {
 	// TargetIDs come from territory codes in A, S, J, and D orders. Validation
 	// checks them and P1.4 resolution consumes them.
 	TargetIDs []TerritoryID `json:"targets"`
-	// NobleTargetIDs come from the noble code in O or K orders. Validation and
-	// P1.4 resolution use this separate target domain.
-	NobleTargetIDs []NobleID `json:"nobleTargets"`
 	// NobleAssignments comes from D-order asterisks and is consumed by reception
 	// coverage checks and P1.4 dispersion resolution.
 	NobleAssignments map[TerritoryCode][]NobleCode `json:"nobleAssignments"`

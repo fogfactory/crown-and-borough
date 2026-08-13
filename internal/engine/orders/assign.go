@@ -34,8 +34,8 @@ func AssignChain(game *models.GameState, chain models.Chain) error {
 	if noble == nil {
 		return assignmentError(ErrInvalidChain, fmt.Sprintf("emitting noble %q does not exist", nobleReference(indexes, chain.NobleID)))
 	}
-	if noble.Status != models.NobleStatusFree {
-		return assignmentError(ErrNoblePrisoner, fmt.Sprintf("noble %q is a prisoner", nobleReference(indexes, noble.ID)))
+	if noble.Status == models.NobleStatusDungeon {
+		return assignmentError(ErrNoblePrisoner, fmt.Sprintf("noble %q is in a dungeon", nobleReference(indexes, noble.ID)))
 	}
 	if noble.LastEmissionTurn == game.Turn {
 		return assignmentError(ErrEmissionCapacity, fmt.Sprintf("noble %q has already emitted in turn %d", nobleReference(indexes, noble.ID), game.Turn))
@@ -52,14 +52,6 @@ func AssignChain(game *models.GameState, chain models.Chain) error {
 	for _, existing := range game.Chains {
 		if existing.PendingDisperse != nil && existing.PendingDisperse.ArmyID == army.ID && existing.ArmyID != army.ID {
 			return assignmentError(ErrInvalidChain, fmt.Sprintf("army at receiving position %q executes pending dispersion for chain %q", territoryReference(indexes, positionID), existing.ID))
-		}
-	}
-
-	for orderIndex, order := range chain.Orders {
-		if orderIndex == 0 && (order.Type == models.OrderTypeHostage || order.Type == models.OrderTypeDungeon) {
-			if err := validateImmediatePrisonerTarget(indexes, army, order); err != nil {
-				return err
-			}
 		}
 	}
 
@@ -95,13 +87,5 @@ func AssignChain(game *models.GameState, chain models.Chain) error {
 	game.NextChainID++
 	army.ChainID = &receivedID
 	noble.LastEmissionTurn = game.Turn
-	return nil
-}
-
-func validateImmediatePrisonerTarget(indexes gameIndexes, army *models.Army, order models.Order) error {
-	target := indexes.noblesByID[order.NobleTargetIDs[0]]
-	if target == nil || target.Status == models.NobleStatusFree || target.LocationID != army.TerritoryID || target.OwnerID == army.OwnerID {
-		return assignmentError(ErrNobleNotPrisoner, fmt.Sprintf("noble target %q is not a prisoner held by army at %q", nobleReference(indexes, order.NobleTargetIDs[0]), territoryReference(indexes, army.TerritoryID)))
-	}
 	return nil
 }

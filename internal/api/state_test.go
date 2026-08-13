@@ -47,7 +47,6 @@ func TestProjectStateMatchesStateContract(t *testing.T) {
 			Orders: []OrderView{
 				{Type: models.OrderTypeAttack, Position: "ROS", Targets: []models.TerritoryCode{"BOI"}, Liaison: models.LiaisonModeSingle},
 				{Type: models.OrderTypeDisperse, Position: "BOI", Targets: []models.TerritoryCode{"BOI"}, NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"BOI": {"HUG"}}, Liaison: models.LiaisonModeLoop},
-				{Type: models.OrderTypeHostage, Position: "BOI", NobleTargets: []models.NobleCode{"HUG"}, Liaison: models.LiaisonModeSingle},
 			},
 		}
 		if !reflect.DeepEqual(got.Chain, want) {
@@ -276,9 +275,8 @@ func projectTestState() *models.GameState {
 		Chains: []models.Chain{{
 			ID: "C1", NobleID: "N1", ArmyID: "A1", CurrentIndex: 1,
 			Orders: []models.Order{
-				{ID: "O1", Type: models.OrderTypeAttack, ArmyID: "A1", PositionID: "T01", TargetIDs: []models.TerritoryID{"T02"}, NobleTargetIDs: []models.NobleID{}, Liaison: models.LiaisonModeSingle},
-				{ID: "O2", Type: models.OrderTypeDisperse, ArmyID: "A1", PositionID: "T02", TargetIDs: []models.TerritoryID{"T02"}, NobleTargetIDs: []models.NobleID{}, NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"BOI": {"HUG"}}, Liaison: models.LiaisonModeLoop},
-				{ID: "O3", Type: models.OrderTypeHostage, ArmyID: "A1", PositionID: "T02", TargetIDs: []models.TerritoryID{}, NobleTargetIDs: []models.NobleID{"N1"}, Liaison: models.LiaisonModeSingle},
+				{ID: "O1", Type: models.OrderTypeAttack, ArmyID: "A1", PositionID: "T01", TargetIDs: []models.TerritoryID{"T02"}, Liaison: models.LiaisonModeSingle},
+				{ID: "O2", Type: models.OrderTypeDisperse, ArmyID: "A1", PositionID: "T02", TargetIDs: []models.TerritoryID{"T02"}, NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"BOI": {"HUG"}}, Liaison: models.LiaisonModeLoop},
 			},
 		}},
 		NextChainID: 2,

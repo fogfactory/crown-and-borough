@@ -87,9 +87,9 @@ func (i InfraType) IsValid() bool {
 	return false
 }
 
-// NobleStatus describes whether a noble is free or held by another army.
-// Hostage and dungeon are both prisoner states; only a free noble can emit a
-// new order chain.
+// NobleStatus describes whether a noble is free, held as a hostage, or locked
+// in a dungeon. Free and hostage nobles can emit a new order chain; a dungeon
+// noble cannot.
 type NobleStatus string
 
 const (

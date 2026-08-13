@@ -60,10 +60,13 @@ liste d'investissements directs, traités dans l'ordre saisi :
 - `C C XXX` — construire un château sur `XXX` ;
 - `C D XXX` — construire un dépôt de vivres sur `XXX` ;
 - `E C XXX` — désigner le château de `XXX` comme capitale ;
-- `L N XXX` — libérer le noble de code `XXX`.
+- `O N NNN` — placer le noble prisonnier `NNN` en statut `hostage` ;
+- `P N NNN` — placer le noble prisonnier `NNN` en statut `dungeon` ;
+- `L N NNN` — libérer le noble de code `NNN`.
 
-`XXX` est le trigramme du territoire ciblé, sauf pour `L N`, qui cible un
-noble. Chaque investissement exige le contrôle du territoire ciblé. Le
+`XXX` est le trigramme du territoire ciblé, sauf pour `O N`, `P N` et `L N`,
+qui ciblent un noble. Les investissements territoriaux exigent le contrôle du
+territoire ciblé. Le
 recrutement d'une troupe exige en outre un noble libre du joueur, situé sur la
 cible ou sur un territoire adjacent à celle-ci par une frontière franchissable.
 Le recrutement d'un noble exige une
@@ -78,6 +81,7 @@ perdu.
 | Troupe | 1 |
 | Noble | 2 |
 | Dépôt de vivres | 3 |
+| Changement de statut d'un noble | 0 |
 | Libération d'un noble | 0 |
 
 Les coûts sont prélevés d'abord sur le stock de la case ciblée, puis sur la
@@ -155,13 +159,13 @@ qui pourrait réduire ces informations est une extension séparée.
 La divulgation des ordres et des combats suit cependant une règle distincte.
 Elle limite les chiffres qui décrivent les intentions et les affrontements :
 
-- **Chaînes connues :** un joueur connaît les chaînes qu'il a lancées. Il
-  connaît aussi les chaînes lancées par un noble qui lui appartient alors que
-  ce noble est détenu en otage. Cette connaissance reste valable tant que la
-  chaîne reste compatible avec la progression de l'armée. Si une chaîne
-  différente, lancée par un noble adverse, remplace celle-ci, l'ancienne
-  connaissance ne décrit plus la chaîne courante et la nouvelle chaîne n'est
-  pas révélée par ce simple remplacement.
+- **Chaînes connues :** un joueur connaît les chaînes qu'il a lancées. Le
+  détenteur d'un noble otage connaît également les chaînes émises par ce noble,
+  même lorsqu'elles sont lancées par son propriétaire. Cette connaissance reste
+  valable tant que la chaîne reste compatible avec la progression de l'armée.
+  Si une chaîne différente, lancée par un noble adverse, remplace celle-ci,
+  l'ancienne connaissance ne décrit plus la chaîne courante et la nouvelle
+  chaîne n'est pas révélée par ce simple remplacement.
 - **Combats impliqués :** un joueur reçoit le résultat exact d'une attaque dans
   laquelle il intervient comme attaquant, défenseur ou soutien. Cela comprend
   les forces pertinentes et le résultat du combat.
@@ -244,8 +248,6 @@ BRI S ATL - NOR
 H BRI
 BRI J ROS
 P BRI
-BRI O HUG
-BRI K HUG
 BRI D BRI ATL NOR
 ```
 
@@ -261,8 +263,6 @@ Les ordres sont :
 | `H` | `H XXX` | Maintien sur `XXX`. |
 | `J` | `XXX J YYY` | Déplacement pacifique et jonction ; doit être le dernier ordre de la chaîne. |
 | `P` | `P XXX` | Détruit l'infrastructure de la case occupée et crédite le bonus de pillage à la source alliée la plus proche. |
-| `O` | `XXX O NNN` | Place le noble prisonnier `NNN` en statut `hostage`. |
-| `K` | `XXX K NNN` | Place le noble prisonnier `NNN` en statut `dungeon`. |
 | `D` | `XXX D XXX YYY ...` | Dispersion pacifique : les destinations sont traitées dans leur ordre d'apparition, peuvent se répéter et reçoivent au plus une unité chacune ; les unités arrivées sur une même case sont empilées dans une seule armée. |
 
 Un soutien défensif renforce une armée qui tient sa case. Un soutien offensif
@@ -287,8 +287,8 @@ exécution : les ordres antérieurs restent valides et le suffixe est abandonné
 
 ### Réception et capacité des nobles
 
-Une chaîne est une émission complète. Un noble libre ne peut en émettre qu'une
-par tour ; une nouvelle chaîne remplace celle portée par l'armée ciblée. La
+Une chaîne est une émission complète. Un noble libre ou otage ne peut en émettre
+qu'une par tour ; une nouvelle chaîne remplace celle portée par l'armée ciblée. La
 chaîne s'applique à l'armée entière et son premier ordre indique explicitement
 la position de réception.
 
@@ -297,10 +297,11 @@ concurrente est invalidée : aucune de ces chaînes n'est reçue et l'armée ne
 reçoit aucune nouvelle chaîne pour ce tour. Une chaîne déjà portée reste
 inchangée.
 
-Un noble `hostage` ou `dungeon` est prisonnier et ne peut pas émettre une
-nouvelle chaîne. Les ordres `O` et `K` ne ciblent qu'un noble prisonnier détenu
-sur la case de l'armée qui les exécute. `hostage` est l'état de prison par
-défaut ; `dungeon` retire en plus le noble de toute émission.
+Un noble `hostage` est détenu mais peut encore émettre une chaîne. Un noble
+`dungeon` est au cachot et ne peut plus émettre. Les ordres d'hiver `O N NNN` et
+`P N NNN` ne ciblent qu'un noble adverse détenu sur la case d'une armée du
+joueur ; ils peuvent faire passer le statut de `hostage` à `dungeon` et
+inversement. `hostage` est l'état par défaut après capture.
 
 Les nobles chevauchent les armées : ils suivent les déplacements et les
 retraites. Une dispersion peut affecter explicitement les nobles présents, avec
@@ -311,9 +312,12 @@ l'ordre est invalide à l'exécution. Un noble ne compte ni dans la force, ni da
 le ravitaillement, ni dans les pertes d'un combat.
 
 Lorsqu'une armée est détruite sur une case occupée par une armée ennemie, les
-nobles qu'elle portait sont capturés et deviennent `hostage`. Le propriétaire
-peut les libérer en hiver avec `L N NNN` ; ils réapparaissent libres dans sa
-capitale.
+nobles qu'elle portait sont capturés et deviennent `hostage`. Ils peuvent encore
+émettre des chaînes, dont le détail sera connu du détenteur dans les parties en
+ligne. Le détenteur peut les libérer en hiver avec `L N NNN` ; si la capitale du
+propriétaire existe et contient une armée de celui-ci, ils réapparaissent libres
+dans cette capitale. Un joueur sans noble libre ou otage apte à émettre n'a pas
+à soumettre de chaînes pendant une saison d'action.
 
 ### Retraites
 

@@ -63,12 +63,6 @@ func validateOrder(indexes gameIndexes, order models.Order, last bool) []Validat
 			errors = append(errors, orderValidationError(order, "unknown_target", fmt.Sprintf("territory target %q does not exist", territoryReference(indexes, targetID))))
 		}
 	}
-	for _, nobleTargetID := range order.NobleTargetIDs {
-		if _, exists := indexes.noblesByID[nobleTargetID]; !exists {
-			errors = append(errors, orderValidationError(order, "unknown_noble_target", fmt.Sprintf("noble target %q does not exist", nobleReference(indexes, nobleTargetID))))
-		}
-	}
-
 	switch order.Type {
 	case models.OrderTypeAttack:
 		errors = append(errors, validateSingleTerritoryOrder(indexes, order, positionExists, "A")...)
@@ -83,13 +77,8 @@ func validateOrder(indexes gameIndexes, order models.Order, last bool) []Validat
 		if len(order.TargetIDs) != 0 {
 			errors = append(errors, orderValidationError(order, "unexpected_target", fmt.Sprintf("%s does not accept territory targets", order.Type)))
 		}
-		if len(order.NobleTargetIDs) != 0 {
-			errors = append(errors, orderValidationError(order, "unexpected_noble_target", fmt.Sprintf("%s does not accept noble targets", order.Type)))
-		}
 	case models.OrderTypeDisperse:
 		errors = append(errors, validateDisperse(indexes, order, positionExists)...)
-	case models.OrderTypeHostage, models.OrderTypeDungeon:
-		errors = append(errors, validateNobleTargetOrder(order)...)
 	}
 	return errors
 }
@@ -102,9 +91,6 @@ func validateSingleTerritoryOrder(indexes gameIndexes, order models.Order, posit
 	}
 	if len(order.TargetIDs) > 1 {
 		errors = append(errors, orderValidationError(order, "too_many_targets", fmt.Sprintf("%s accepts one territory target", symbol)))
-	}
-	if len(order.NobleTargetIDs) != 0 {
-		errors = append(errors, orderValidationError(order, "unexpected_noble_target", fmt.Sprintf("%s does not accept noble targets", symbol)))
 	}
 	targetID := order.TargetIDs[0]
 	if positionExists && indexes.territoriesByID[targetID] != nil && !adjacent(indexes, order.PositionID, targetID) {
@@ -120,9 +106,6 @@ func validateSupport(indexes gameIndexes, order models.Order, positionExists boo
 	}
 	if len(order.TargetIDs) > 2 {
 		errors = append(errors, orderValidationError(order, "too_many_targets", "S accepts one supported position and one optional attack destination"))
-	}
-	if len(order.NobleTargetIDs) != 0 {
-		errors = append(errors, orderValidationError(order, "unexpected_noble_target", "S does not accept noble targets"))
 	}
 	supportedID := order.TargetIDs[0]
 	if len(order.TargetIDs) == 1 {
@@ -148,9 +131,6 @@ func validateDisperse(indexes gameIndexes, order models.Order, positionExists bo
 	errors := []ValidationError{}
 	if len(order.TargetIDs) == 0 {
 		errors = append(errors, orderValidationError(order, "missing_target", "D requires at least one destination"))
-	}
-	if len(order.NobleTargetIDs) != 0 {
-		errors = append(errors, orderValidationError(order, "unexpected_noble_target", "D does not accept noble targets"))
 	}
 	for _, targetID := range order.TargetIDs {
 		if positionExists && indexes.territoriesByID[targetID] != nil && targetID != order.PositionID && !adjacent(indexes, order.PositionID, targetID) {
@@ -190,20 +170,6 @@ func validateDisperse(indexes gameIndexes, order models.Order, positionExists bo
 	}
 	if wildcards > 1 {
 		errors = append(errors, orderValidationError(order, "multiple_wildcards", "D accepts at most one remaining-nobles wildcard"))
-	}
-	return errors
-}
-
-func validateNobleTargetOrder(order models.Order) []ValidationError {
-	errors := []ValidationError{}
-	if len(order.TargetIDs) != 0 {
-		errors = append(errors, orderValidationError(order, "unexpected_target", fmt.Sprintf("%s does not accept territory targets", order.Type)))
-	}
-	if len(order.NobleTargetIDs) == 0 {
-		errors = append(errors, orderValidationError(order, "missing_target", fmt.Sprintf("%s requires one noble target", order.Type)))
-	}
-	if len(order.NobleTargetIDs) > 1 {
-		errors = append(errors, orderValidationError(order, "too_many_targets", fmt.Sprintf("%s accepts one noble target", order.Type)))
 	}
 	return errors
 }

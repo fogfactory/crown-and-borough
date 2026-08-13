@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { OrdersPanel } from '@/components/OrdersPanel'
-import type { StateData } from '@/types'
+import type { Noble, StateData } from '@/types'
 
 const state: StateData = {
   turn: 4,
@@ -12,10 +12,14 @@ const state: StateData = {
   nobles: [],
 }
 
-function renderOrdersPanel(season: StateData['season'], onOpenRules = vi.fn()) {
+function renderOrdersPanel(
+  season: StateData['season'],
+  onOpenRules = vi.fn(),
+  nobles: Noble[] = state.nobles,
+) {
   return render(
     <OrdersPanel
-      state={{ ...state, season }}
+      state={{ ...state, season, nobles }}
       player="P1"
       chainDrafts={{}}
       winterDraft=""
@@ -55,6 +59,49 @@ describe('OrdersPanel seasonal presentation', () => {
     expect(
       screen.queryByText(/Investissements directs uniquement/),
     ).not.toBeInTheDocument()
+  })
+
+  it('allows hostage chains but blocks dungeon chains', () => {
+    renderOrdersPanel('spring', vi.fn(), [
+      {
+        id: 'N1',
+        code: 'HOS',
+        name: 'Hostage',
+        owner: 'P1',
+        location: 'T01',
+        status: 'hostage',
+      },
+      {
+        id: 'N2',
+        code: 'DUN',
+        name: 'Dungeon',
+        owner: 'P1',
+        location: 'T01',
+        status: 'dungeon',
+      },
+    ])
+
+    const textareas = screen.getAllByRole('textbox')
+    expect(textareas[0]).not.toBeDisabled()
+    expect(textareas[1]).toBeDisabled()
+    expect(screen.getByText('Otage')).toBeInTheDocument()
+    expect(screen.getByText('Donjon')).toBeInTheDocument()
+  })
+
+  it('does not require action orders when every noble is in a dungeon', () => {
+    renderOrdersPanel('spring', vi.fn(), [
+      {
+        id: 'N1',
+        code: 'DUN',
+        name: 'Dungeon',
+        owner: 'P1',
+        location: 'T01',
+        status: 'dungeon',
+      },
+    ])
+
+    expect(screen.getByText(/Aucun noble apte à émettre/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Soumettre' })).toBeDisabled()
   })
 
   it('targets the winter rules section from the winter shortcut', () => {

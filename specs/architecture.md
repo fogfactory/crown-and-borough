@@ -195,8 +195,8 @@ la suivante :
 
 - la carte et les valeurs dynamiques chiffrées restent communes ;
 - un joueur voit le détail des chaînes qu'il a émises, ainsi que celles émises
-  par un noble qui lui appartient et qui est devenu otage, tant que la chaîne
-  reste compatible avec la progression de l'armée ;
+  par un noble qu'il détient comme otage, tant que la chaîne reste compatible
+  avec la progression de l'armée ;
 - un joueur voit les forces et le résultat exact d'un combat s'il intervient
   comme attaquant, défenseur ou soutien ;
 - pour un combat auquel il ne participe pas, il voit le traitement général des
@@ -289,14 +289,12 @@ BRI S ATL - NOR
 H BRI
 BRI J ROS
 P BRI
-BRI O HUG
-BRI K HUG
 BRI D BRI ATL NOR
 ```
 
-Les ordres d'hiver v1 sont limités à `R N`, `R T`, `C M`, `C C`, `C D`, `E C`
-et `L N`. Les infrastructures absentes du modèle v1 ne possèdent ni symbole
-de parser ni coût dans `balance.json`.
+Les ordres d'hiver v1 sont limités à `R N`, `R T`, `C M`, `C C`, `C D`, `E C`,
+`O N`, `P N` et `L N`. Les infrastructures absentes du modèle v1 ne possèdent
+ni symbole de parser ni coût dans `balance.json`.
 
 ## 8. Assets et balance
 

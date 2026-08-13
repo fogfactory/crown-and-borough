@@ -101,9 +101,9 @@ antérieurs restent valides et le suffixe est abandonné.
 - La chaîne est attachée **immédiatement et atomiquement** à l'armée présente
   sur la position de son premier ordre ; elle remplace la chaîne précédente de
   cette armée.
-- Un noble libre n'émet qu'**une seule chaîne par tour**. Une chaîne ciblant une
-  armée qui ne lui appartient pas, un noble prisonnier ou un noble ayant déjà
-  émis est rejetée.
+- Un noble libre ou otage n'émet qu'**une seule chaîne par tour**. Une chaîne
+  ciblant une armée qui ne lui appartient pas, un noble au cachot ou un noble
+  ayant déjà émis est rejetée.
 - Si **plusieurs chaînes ciblent la même armée au même tour**, leur réception
   concurrente est invalidée : aucune n'est reçue et l'armée ne reçoit pas de
   nouvelle chaîne pour ce tour.
@@ -126,8 +126,6 @@ noble. Aucun ne coûte de ressource en saison d'action.
 | `H` | `H XXX` | Maintien sur `XXX`. |
 | `J` | `XXX J YYY` | Jonction pacifique vers `YYY` adjacente ; **doit être le dernier ordre**. |
 | `P` | `P XXX` | Pillage de l'infrastructure de la case occupée. |
-| `O` | `XXX O NNN` | Place le noble prisonnier `NNN` en statut `hostage` (otage). |
-| `K` | `XXX K NNN` | Place le noble prisonnier `NNN` en statut `dungeon` (donjon). |
 | `D` | `XXX D DEST1 DEST2 ...` | Dispersion pacifique : les destinations sont traitées dans leur ordre d'apparition, peuvent se répéter et les troupes arrivant sur une même case sont empilées. |
 
 ### Attaque (`A`) et jonction (`J`)
@@ -153,13 +151,6 @@ venue d'une case différente de la cible soutenue peut **couper** un soutien.
 `H XXX` : l'armée reste sur place et peut recevoir un soutien défensif.
 `P XXX` : détruit l'infrastructure de la case occupée ; un bonus de pillage
 (2 R) est crédité à la source alliée la plus proche et peut réduire une famine.
-
-### Otage (`O`) et donjon (`K`)
-
-`XXX O NNN` / `XXX K NNN` : ciblent un noble **prisonnier** détenu sur la case
-de l'armée. `hostage` est l'état de prison par défaut ; `dungeon` retire en
-plus le noble de toute émission. Dans les deux cas, le noble ne peut pas émettre
-de nouvelle chaîne tant qu'il est détenu.
 
 ### Dispersion (`D`)
 
@@ -208,9 +199,21 @@ investissements directs, une ligne par ordre, appliqués dans l'ordre saisi.
 | Construire un château | `C C XXX` | `XXX` contrôlé | 10 |
 | Construire un dépôt de vivres | `C D XXX` | `XXX` contrôlé | 3 |
 | Désigner une capitale | `E C XXX` | un château contrôlé sur `XXX` | 0 |
-| Libérer un noble | `L N NNN` | `NNN` est un noble du joueur, prisonnier ; une capitale doit exister | 0 |
+| Placer un noble en otage | `O N NNN` | `NNN` est un prisonnier adverse détenu par le joueur | 0 |
+| Placer un noble au donjon | `P N NNN` | `NNN` est un prisonnier adverse détenu par le joueur | 0 |
+| Libérer un noble | `L N NNN` | `NNN` est détenu par le joueur ; la capitale de son propriétaire contient une armée de celui-ci | 0 |
 
-Tous les investissements exigent le **contrôle du territoire ciblé**. Une
+### Otage et donjon
+
+Les ordres `O N NNN` et `P N NNN` ciblent un noble **prisonnier adverse** détenu
+sur la case d'une armée du joueur. `O` le place en statut `hostage` (otage) et
+`P` en statut `dungeon` (donjon). La capture produit par défaut le statut
+`hostage`. Un noble otage peut émettre une nouvelle chaîne tant qu'il est
+détenu ; un noble au cachot ne le peut pas. Les ordres peuvent faire passer un
+prisonnier d'un statut à l'autre.
+
+Les investissements qui ciblent un territoire exigent le **contrôle de ce
+territoire**. Une
 construction remplace la structure existante uniquement quand la règle le
 prévoit : un **château construit sur un village remplace le village** et
 conserve le stock de la case. Un moulin seul (orphelin) ne produit rien.
@@ -318,10 +321,9 @@ noble peut rester seul sur une case après la perte de son armée.
 
 **Capacité de commandement** :
 
-- un noble **libre** émet au plus **une chaîne par tour** (nouvelle chaîne =
-  nouveau tour) ;
-- un noble **prisonnier** (`hostage` ou `dungeon`) ne peut pas émettre de
-  nouvelle chaîne ;
+- un noble **libre ou otage** émet au plus **une chaîne par tour** (nouvelle
+  chaîne = nouveau tour) ;
+- un noble **au cachot** (`dungeon`) ne peut pas émettre de nouvelle chaîne ;
 - la chaîne s'applique à l'armée entière, dont le noble émetteur est le porteur.
 
 > Il n'existe pas, dans cette version, de limite de **nobles portés par une
@@ -329,12 +331,17 @@ noble peut rester seul sur une case après la perte de son armée.
 
 **Capture** : lorsqu'une armée portant des nobles est **détruite** sur une case
 occupée par une armée ennemie, les nobles qu'elle portait sont capturés et
-deviennent `hostage`. Les ordres `O` et `K` ne ciblent qu'un noble prisonnier
-détenu sur la case de l'armée qui les exécute.
+deviennent par défaut `hostage`. Un noble otage peut continuer à émettre une
+chaîne ; seul son passage au cachot lui retire cette capacité. Le joueur qui le
+détient aura accès au détail de ces chaînes dans les parties en ligne.
 
-**Libération** : pendant l'hiver, `L N NNN` libère un noble prisonnier du joueur
-(si une capitale existe) ; il réapparaît **libre dans la capitale** de son
-propriétaire.
+**Libération** : pendant l'hiver, `L N NNN` est émis par le joueur qui détient
+le prisonnier, et non par son propriétaire. Si la capitale du propriétaire
+existe et contient une armée de celui-ci, le noble réapparaît **libre dans cette
+capitale** ; sinon l'ordre est rejeté.
+
+Un joueur qui ne possède aucun noble libre ou otage apte à émettre n'a pas à
+soumettre de chaînes pendant une saison d'action.
 
 Les nobles affectés lors d'une **dispersion** doivent tous être répartis entre
 les destinations (`*` ou `*NNN`), voir section 4.

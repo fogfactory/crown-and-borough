@@ -61,7 +61,7 @@ courant. Le serveur conserve des métadonnées privées par partie, joueur et
 chaîne, avec les règles d'invalidation suivantes :
 
 - une chaîne émise par le joueur est connue ;
-- une chaîne émise par un noble du joueur devenu otage reste connue selon le
+- une chaîne émise par un noble otage détenu par le joueur reste connue selon le
   GDD ;
 - la progression compatible conserve la connaissance ;
 - le remplacement par une chaîne adverse invalide la connaissance précédente ;

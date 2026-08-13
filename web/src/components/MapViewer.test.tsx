@@ -634,7 +634,7 @@ describe('MapViewer noble affiliation', () => {
       prisonerMarker.querySelector('circle[stroke="#8d321e"]'),
     ).toBeInTheDocument()
     expect(prisonerMarker.querySelector('title')).toHaveTextContent(
-      'Robert de Rosemont (N2) · hostage',
+      'Robert de Rosemont (N2) · Otage',
     )
     expect(freeMarker.querySelector('path')).toHaveAttribute('stroke', '#815f1e')
     expect(freeMarker.querySelector('circle[stroke="#8d321e"]')).not.toBeInTheDocument()

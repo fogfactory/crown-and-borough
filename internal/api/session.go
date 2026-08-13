@@ -159,9 +159,10 @@ func (s *Session) ResetHTTP(w http.ResponseWriter, _ *http.Request) {
 	s.writeGameResponse(w)
 }
 
-// OrdersHTTP records one player's orders. The turn is resolved only when every
-// player has submitted once for the current turn; submitting again replaces
-// that player's pending orders.
+// OrdersHTTP records one player's orders. Action turns resolve once every
+// player with an emission-capable noble has submitted; winter still waits for
+// every player.
+// Submitting again replaces that player's pending orders.
 func (s *Session) OrdersHTTP(w http.ResponseWriter, r *http.Request) {
 	var request ordersRequest
 	decoder := json.NewDecoder(r.Body)
@@ -266,10 +267,22 @@ func (s *Session) pendingPlayersLocked() ([]models.PlayerID, []models.PlayerID) 
 		if _, exists := s.pending[player.ID]; exists {
 			submitted = append(submitted, player.ID)
 		} else {
+			if s.game.Season != models.SeasonWinter && !s.hasEmittingNobleLocked(player.ID) {
+				continue
+			}
 			remaining = append(remaining, player.ID)
 		}
 	}
 	return submitted, remaining
+}
+
+func (s *Session) hasEmittingNobleLocked(playerID models.PlayerID) bool {
+	for _, noble := range s.game.Nobles {
+		if noble.OwnerID == playerID && noble.Status != models.NobleStatusDungeon {
+			return true
+		}
+	}
+	return false
 }
 
 func normalizePlayerOrders(playerID models.PlayerID, chains []engine.ChainSubmission, winter []engine.WinterSubmission) (engine.OrdersInput, *engine.InputErrors) {

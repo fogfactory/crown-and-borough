@@ -6,6 +6,7 @@ import { MapViewer } from '@/components/MapViewer'
 import { OrdersPanel } from '@/components/OrdersPanel'
 import { ReportPanel } from '@/components/ReportPanel'
 import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
+import { NOBLE_STATUS_LABELS } from '@/lib/noble-label'
 import { formatOrderLabel } from '@/lib/order-label'
 import { hasSupplySource } from '@/lib/supply'
 import {
@@ -26,7 +27,6 @@ import {
 import type {
   InfraType,
   MapData,
-  NobleStatus,
   PlayerId,
   Season,
   StateData,
@@ -55,12 +55,6 @@ const INFRASTRUCTURE_LABELS: Record<InfraType, string> = {
   supply_depot: 'Dépôt de vivres',
   castle: 'Château',
   village: 'Village',
-}
-
-const NOBLE_STATUS_LABELS: Record<NobleStatus, string> = {
-  free: 'Libre',
-  hostage: 'Otage',
-  dungeon: 'Donjon',
 }
 
 const PANEL_ORDER = ['command', 'report', 'rules'] as const
@@ -299,7 +293,7 @@ function App() {
       state.season === 'winter'
         ? []
         : state.nobles
-            .filter((noble) => noble.owner === selectedPlayer && noble.status === 'free')
+            .filter((noble) => noble.owner === selectedPlayer && noble.status !== 'dungeon')
             .map((noble) => ({
               player: selectedPlayer,
               noble: noble.code,
@@ -678,7 +672,7 @@ function App() {
                                 <strong>{noble.code}</strong> · {noble.name}
                               </span>
                               <span
-                                className={`shrink-0 text-xs ${noble.status === 'free' ? 'text-[#376341]' : 'text-[#a84632]'}`}
+                                className={`shrink-0 text-xs ${noble.status === 'dungeon' ? 'text-[#a84632]' : 'text-[#376341]'}`}
                               >
                                 {NOBLE_STATUS_LABELS[noble.status]}
                               </span>
