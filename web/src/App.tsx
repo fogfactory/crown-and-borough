@@ -3,12 +3,14 @@ import { BookOpen } from 'lucide-react'
 
 import { MapLegend } from '@/components/MapLegend'
 import { MapViewer } from '@/components/MapViewer'
+import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { OrdersPanel } from '@/components/OrdersPanel'
 import { ReportPanel } from '@/components/ReportPanel'
 import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
-import { NOBLE_STATUS_LABELS } from '@/lib/noble-label'
 import { formatOrderLabel } from '@/lib/order-label'
 import { hasSupplySource } from '@/lib/supply'
+import { LanguageProvider, useLanguage } from '@/i18n/LanguageContext'
+import type { Language, MessageKey, Translate } from '@/i18n/messages'
 import {
   Card,
   CardContent,
@@ -35,28 +37,6 @@ import type {
   OrdersResponse,
 } from '@/types'
 
-const TERRAIN_NAMES = {
-  plain: 'Plaine',
-  forest: 'Forêt',
-  hill: 'Colline',
-  mountain: 'Montagne',
-  swamp: 'Marécage',
-} as const
-
-const SEASON_LABELS: Record<Season, string> = {
-  spring: 'Printemps',
-  summer: 'Été',
-  autumn: 'Automne',
-  winter: 'Hiver',
-}
-
-const INFRASTRUCTURE_LABELS: Record<InfraType, string> = {
-  mill: 'Moulin',
-  supply_depot: 'Dépôt de vivres',
-  castle: 'Château',
-  village: 'Village',
-}
-
 const PANEL_ORDER = ['command', 'report', 'rules'] as const
 type Panel = (typeof PANEL_ORDER)[number]
 
@@ -67,9 +47,35 @@ const PLAYER_COUNT_OPTIONS = Array.from(
   (_, index) => MIN_PLAYERS + index,
 )
 
-function ownerLabel(owner: PlayerId | null, state: StateData | null): string {
-  if (!owner) return 'Personne'
-  return state?.players.find((player) => player.id === owner)?.name ?? `Joueur ${owner}`
+const SEASON_KEYS: Record<Season, MessageKey> = {
+  spring: 'season.spring',
+  summer: 'season.summer',
+  autumn: 'season.autumn',
+  winter: 'season.winter',
+}
+
+const TERRAIN_KEYS: Record<MapData['territories'][number]['terrain'], MessageKey> = {
+  plain: 'terrain.plain',
+  forest: 'terrain.forest',
+  hill: 'terrain.hill',
+  mountain: 'terrain.mountain',
+  swamp: 'terrain.swamp',
+}
+
+const INFRASTRUCTURE_KEYS: Record<InfraType, MessageKey> = {
+  mill: 'infrastructure.mill',
+  supply_depot: 'infrastructure.supply_depot',
+  castle: 'infrastructure.castle',
+  village: 'infrastructure.village',
+}
+
+function ownerLabel(
+  owner: PlayerId | null,
+  state: StateData | null,
+  t: Translate,
+): string {
+  if (!owner) return t('app.noOwner')
+  return state?.players.find((player) => player.id === owner)?.name ?? owner
 }
 
 function escapeRegExp(value: string): string {
@@ -88,17 +94,23 @@ function addNobleHeader(nobleCode: string, text: string): string {
   return `${nobleCode}\n${lines.join('\n')}`.trimEnd()
 }
 
-async function responseError(response: Response): Promise<string> {
+async function responseError(response: Response, t: Translate): Promise<string> {
   const payload = (await response.json().catch(() => null)) as {
     message?: string
     errors?: Array<{ line?: number; message?: string }>
   } | null
   const first = payload?.errors?.[0]
-  if (first?.line) return `Ligne ${first.line} : ${first.message ?? 'ordre invalide'}`
-  return payload?.message ?? `La requête a échoué (${response.status})`
+  if (first?.line) {
+    return t('error.line', {
+      line: first.line,
+      message: first.message ?? t('error.invalidOrder'),
+    })
+  }
+  return payload?.message ?? t('error.requestFailed', { status: response.status })
 }
 
-function App() {
+function AppContent() {
+  const { language, t } = useLanguage()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerId>('P1')
   const [map, setMap] = useState<MapData | null>(null)
@@ -134,10 +146,12 @@ function App() {
           fetch('/api/map', { signal: controller.signal }),
           fetch('/api/state', { signal: controller.signal }),
         ])
-        if (!mapResponse.ok)
-          throw new Error(`Map request failed with status ${mapResponse.status}`)
-        if (!stateResponse.ok)
-          throw new Error(`State request failed with status ${stateResponse.status}`)
+        if (!mapResponse.ok) {
+          throw new Error(`${t('error.loadGameFailed')} (${mapResponse.status})`)
+        }
+        if (!stateResponse.ok) {
+          throw new Error(`${t('error.loadGameFailed')} (${stateResponse.status})`)
+        }
         const [mapData, stateData] = (await Promise.all([
           mapResponse.json(),
           stateResponse.json(),
@@ -148,15 +162,13 @@ function App() {
         }
       } catch (error) {
         if (!controller.signal.aborted) {
-          setLoadError(
-            error instanceof Error ? error.message : 'Impossible de charger la partie',
-          )
+          setLoadError(error instanceof Error ? error.message : t('error.loadGameFailed'))
         }
       }
     }
     void loadData()
     return () => controller.abort()
-  }, [])
+  }, [t])
 
   useEffect(() => {
     if (state && !state.players.some((player) => player.id === selectedPlayer)) {
@@ -218,7 +230,7 @@ function App() {
           { signal: controller.signal },
         )
         if (!response.ok) {
-          throw new Error(`Supply request failed with status ${response.status}`)
+          throw new Error(`${t('error.requestFailed', { status: response.status })}`)
         }
         const payload = (await response.json()) as SupplyLine
         if (!Array.isArray(payload.path) || !Array.isArray(payload.reachable)) {
@@ -233,7 +245,7 @@ function App() {
           setSupplyError(
             error instanceof Error
               ? error.message
-              : 'Impossible de calculer le ravitaillement',
+              : t('error.requestFailed', { status: 500 }),
           )
           setSupplyLoading(false)
         }
@@ -242,7 +254,7 @@ function App() {
 
     void loadSupplyLine()
     return () => controller.abort()
-  }, [selectedId, selectedState, state])
+  }, [selectedId, selectedState, state, t])
 
   const updateChainDraft = (noble: string, text: string) => {
     setChainDrafts((drafts) => ({
@@ -293,7 +305,9 @@ function App() {
       state.season === 'winter'
         ? []
         : state.nobles
-            .filter((noble) => noble.owner === selectedPlayer && noble.status !== 'dungeon')
+            .filter(
+              (noble) => noble.owner === selectedPlayer && noble.status !== 'dungeon',
+            )
             .map((noble) => ({
               player: selectedPlayer,
               noble: noble.code,
@@ -314,12 +328,12 @@ function App() {
         : []
 
     try {
-      const response = await fetch('/api/orders', {
+      const response = await fetch(`/api/orders?lang=${language}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ player: selectedPlayer, chains, winter, force }),
       })
-      if (!response.ok) throw new Error(await responseError(response))
+      if (!response.ok) throw new Error(await responseError(response, t))
       const payload = (await response.json()) as OrdersResponse
       setState(payload.state)
       setSubmittedPlayers(payload.submitted)
@@ -331,7 +345,7 @@ function App() {
         setSubmittedPlayers([])
       }
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : 'La résolution a échoué')
+      setActionError(error instanceof Error ? error.message : t('error.resolutionFailed'))
     } finally {
       setResolving(false)
     }
@@ -347,7 +361,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ seed: seed.trim(), players: playerCount }),
       })
-      if (!response.ok) throw new Error(await responseError(response))
+      if (!response.ok) throw new Error(await responseError(response, t))
       const payload = (await response.json()) as { map: MapData; state: StateData }
       setMap(payload.map)
       setState(payload.state)
@@ -359,7 +373,7 @@ function App() {
       setActivePanel('command')
     } catch (error) {
       setCreateError(
-        error instanceof Error ? error.message : 'La création de la partie a échoué',
+        error instanceof Error ? error.message : t('error.gameCreationFailed'),
       )
     } finally {
       setCreating(false)
@@ -367,7 +381,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#efe7d8] text-[#30291f]">
+    <div lang={language} className="min-h-screen bg-[#efe7d8] text-[#30291f]">
       <header className="border-b border-[#b7a786]/60 bg-[#fffaf0]/90 px-4 py-4 shadow-sm backdrop-blur-sm sm:px-6">
         <div className="mx-auto flex max-w-[1800px] flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
@@ -379,7 +393,7 @@ function App() {
                 Crown &amp; Borough
               </h1>
               <p className="text-xs uppercase tracking-[0.18em] text-[#806f57]">
-                Chroniques du royaume
+                {t('app.tagline')}
               </p>
             </div>
           </div>
@@ -390,7 +404,7 @@ function App() {
                 htmlFor="player-count"
                 className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#806f57]"
               >
-                Joueurs
+                {t('app.players')}
               </label>
               <Select
                 value={String(playerCount)}
@@ -400,7 +414,7 @@ function App() {
                   id="player-count"
                   className="w-[76px] border-[#b7a786] bg-[#fffaf0] text-[#30291f]"
                 >
-                  <SelectValue placeholder="Joueurs" />
+                  <SelectValue placeholder={t('app.players')} />
                 </SelectTrigger>
                 <SelectContent>
                   {PLAYER_COUNT_OPTIONS.map((count) => (
@@ -416,14 +430,14 @@ function App() {
                 htmlFor="game-seed"
                 className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#806f57]"
               >
-                Graine
+                {t('app.seed')}
               </label>
               <input
                 id="game-seed"
                 type="text"
                 value={seed}
                 onChange={(event) => setSeed(event.target.value)}
-                placeholder="ex. crown-and-borough-dev"
+                placeholder={t('app.seedPlaceholder')}
                 className="h-8 w-44 rounded-lg border border-[#b7a786] bg-[#fffaf0] px-2.5 text-sm text-[#30291f] outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20 sm:w-52"
               />
             </div>
@@ -432,10 +446,10 @@ function App() {
               variant="outline"
               size="sm"
               disabled={creating || !state || seed.trim() === ''}
-              title="Démarrer une nouvelle partie avec ces paramètres"
+              title={t('app.newGameTitle')}
               onClick={() => void startNewGame()}
             >
-              {creating ? 'Création…' : 'Nouvelle partie'}
+              {creating ? t('app.creating') : t('app.newGame')}
             </Button>
             {createError && (
               <p
@@ -450,12 +464,15 @@ function App() {
           <div className="flex flex-wrap items-center gap-3 sm:gap-5">
             <div className="border-l border-[#b7a786]/60 pl-3 sm:pl-5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#806f57]">
-                Saison
+                {t('app.season')}
               </p>
               <p className="font-serif text-base font-semibold">
                 {state
-                  ? `Tour ${state.turn} · ${SEASON_LABELS[state.season]}`
-                  : 'Chargement…'}
+                  ? t('app.turn', {
+                      turn: state.turn,
+                      season: t(SEASON_KEYS[state.season]),
+                    })
+                  : t('app.loading')}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -467,17 +484,19 @@ function App() {
                     state?.players.find((player) => player.id === selectedPlayer)
                       ?.color ?? '#b7a786',
                 }}
-                aria-label={`Couleur de ${ownerLabel(selectedPlayer, state)}`}
+                aria-label={t('app.colorOf', {
+                  player: ownerLabel(selectedPlayer, state, t),
+                })}
               />
               <label htmlFor="player-view" className="text-xs font-medium text-[#806f57]">
-                Joueur actif
+                {t('app.activePlayer')}
               </label>
               <Select value={selectedPlayer} onValueChange={setSelectedPlayer}>
                 <SelectTrigger
                   id="player-view"
                   className="w-[172px] border-[#b7a786] bg-[#fffaf0] text-[#30291f]"
                 >
-                  <SelectValue placeholder="Choisir un joueur" />
+                  <SelectValue placeholder={t('app.choosePlayer')} />
                 </SelectTrigger>
                 <SelectContent>
                   {state?.players.map((player) => (
@@ -492,12 +511,13 @@ function App() {
                 variant="outline"
                 size="sm"
                 disabled={resolving || !state}
-                title="Résoudre le tour immédiatement, même si tous les joueurs n'ont pas soumis leurs ordres"
+                title={t('app.resolveTitle')}
                 onClick={() => void submitOrders(true)}
               >
-                Résoudre
+                {t('app.resolve')}
               </Button>
             </div>
+            <LanguageSwitcher />
           </div>
         </div>
       </header>
@@ -506,12 +526,9 @@ function App() {
         <section className="relative h-[620px] min-h-0 flex-1 overflow-hidden rounded-2xl border border-[#b7a786] bg-[#e6d8bb] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)] lg:h-[calc(100vh-8.5rem)]">
           <div className="pointer-events-none absolute left-5 top-5 z-10">
             <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#806f57]">
-              Carte publique · vision T0
+              {t('app.mapPublic')}
             </p>
-            <p className="mt-1 text-xs text-[#594b3c]">
-              Clic gauche pour sélectionner · maintenir puis glisser pour déplacer la
-              carte · molette pour zoomer
-            </p>
+            <p className="mt-1 text-xs text-[#594b3c]">{t('app.mapInstructions')}</p>
           </div>
           {loadError ? (
             <div
@@ -519,7 +536,7 @@ function App() {
               className="flex h-full items-center justify-center px-6 text-center"
             >
               <p className="font-serif text-lg text-[#a84632]">
-                Impossible de charger la partie : {loadError}
+                {t('app.mapLoadFailed', { message: loadError })}
               </p>
             </div>
           ) : map && state ? (
@@ -532,7 +549,7 @@ function App() {
           ) : (
             <div className="flex h-full items-center justify-center px-6 text-center">
               <p className="font-serif text-lg italic text-[#806f57]">
-                Chargement de la carte et de l&apos;état…
+                {t('app.mapLoading')}
               </p>
             </div>
           )}
@@ -543,17 +560,17 @@ function App() {
             <CardHeader className="border-b border-[#b7a786]/50 pb-4">
               <CardTitle className="font-serif text-xl text-[#30291f]">
                 {activePanel === 'command'
-                  ? 'Poste de commandement'
+                  ? t('app.commandPost')
                   : activePanel === 'report'
-                    ? 'Rapport du tour'
-                    : 'Règles du jeu'}
+                    ? t('app.turnReport')
+                    : t('app.rules')}
               </CardTitle>
               <CardDescription className="text-[#806f57]">
-                Joueur sélectionné : {selectedPlayer}
+                {t('app.selectedPlayer', { player: selectedPlayer })}
               </CardDescription>
               <div
                 role="tablist"
-                aria-label="Vues du panneau latéral"
+                aria-label={t('app.panelViews')}
                 className="mt-3 grid grid-cols-3 gap-1 rounded-lg bg-[#f3ead9] p-1"
               >
                 <button
@@ -567,7 +584,7 @@ function App() {
                   onClick={() => setActivePanel('command')}
                   onKeyDown={handlePanelKeyDown}
                 >
-                  Poste de commandement
+                  {t('app.commandPost')}
                 </button>
                 <button
                   type="button"
@@ -580,10 +597,10 @@ function App() {
                   onClick={() => setActivePanel('report')}
                   onKeyDown={handlePanelKeyDown}
                 >
-                  Rapport{' '}
+                  {t('app.turnReport')}{' '}
                   {report && viewedReportTurn !== report.header.turn ? (
                     <span className="ml-1 rounded-full bg-[#a84632] px-1.5 py-0.5 text-[10px] text-[#fffaf0]">
-                      Nouveau
+                      {t('app.reportNew')}
                     </span>
                   ) : null}
                 </button>
@@ -600,7 +617,7 @@ function App() {
                 >
                   <span className="inline-flex items-center gap-1.5">
                     <BookOpen aria-hidden="true" className="size-3.5" />
-                    Règles
+                    {t('app.rules')}
                   </span>
                 </button>
               </div>
@@ -609,7 +626,7 @@ function App() {
               <div
                 id="command-panel"
                 role="tabpanel"
-                aria-label="Poste de commandement"
+                aria-label={t('app.commandPost')}
                 hidden={activePanel !== 'command'}
                 className="space-y-5"
               >
@@ -624,22 +641,22 @@ function App() {
                       </h2>
                       {selectedCapitalPlayer && (
                         <p className="mt-2 inline-flex items-center rounded-full border border-[#815f1e]/40 bg-[#f8e8ae]/60 px-2.5 py-1 text-xs font-semibold text-[#6d5118]">
-                          Capitale de {selectedCapitalPlayer.name}
+                          {t('app.capitalOf', { player: selectedCapitalPlayer.name })}
                         </p>
                       )}
                     </div>
                     <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-3 text-sm">
-                      <dt className="text-[#806f57]">Terrain</dt>
+                      <dt className="text-[#806f57]">{t('app.terrain')}</dt>
                       <dd className="font-medium">
-                        {TERRAIN_NAMES[selectedTerritory.terrain]}
+                        {t(TERRAIN_KEYS[selectedTerritory.terrain])}
                       </dd>
                       {selectedState && (
                         <>
-                          <dt className="text-[#806f57]">Contrôle</dt>
+                          <dt className="text-[#806f57]">{t('app.control')}</dt>
                           <dd className="font-medium">
-                            {ownerLabel(selectedState.owner, state)}
+                            {ownerLabel(selectedState.owner, state, t)}
                           </dd>
-                          <dt className="text-[#806f57]">Ressources</dt>
+                          <dt className="text-[#806f57]">{t('app.resources')}</dt>
                           <dd className="font-medium">{selectedState.resources} R</dd>
                         </>
                       )}
@@ -647,59 +664,71 @@ function App() {
 
                     <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">
                       <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
-                        Nobles présents
+                        {t('app.noblesPresent')}
                       </h3>
                       {presentNobles.length > 0 ? (
                         <ul className="space-y-1.5 text-sm">
                           {presentNobles.map((noble) => {
-                        const owner = state?.players.find(
-                          (player) => player.id === noble.owner,
-                        )
-                        const holder =
-                          noble.status !== 'free' ? (selectedState?.army?.owner ?? null) : null
-                        return (
-                          <li
-                            key={noble.id}
-                            className="rounded-md bg-[#f3ead9] px-3 py-2 text-sm"
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <span className="min-w-0">
-                                <span
-                                  className="mr-2 inline-block size-3 shrink-0 rounded-full border border-[#30291f]/30 align-[-1px]"
-                                  style={{ backgroundColor: owner?.color ?? '#b7a786' }}
-                                  aria-label={`Couleur de ${ownerLabel(noble.owner, state)}`}
-                                />
-                                <strong>{noble.code}</strong> · {noble.name}
-                              </span>
-                              <span
-                                className={`shrink-0 text-xs ${noble.status === 'dungeon' ? 'text-[#a84632]' : 'text-[#376341]'}`}
+                            const owner = state?.players.find(
+                              (player) => player.id === noble.owner,
+                            )
+                            const holder =
+                              noble.status !== 'free'
+                                ? (selectedState?.army?.owner ?? null)
+                                : null
+                            return (
+                              <li
+                                key={noble.id}
+                                className="rounded-md bg-[#f3ead9] px-3 py-2 text-sm"
                               >
-                                {NOBLE_STATUS_LABELS[noble.status]}
-                              </span>
-                            </div>
-                            <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 border-t border-[#b7a786]/40 pt-1 text-xs text-[#806f57]">
-                              <dt>Propriétaire</dt>
-                              <dd className="font-medium text-[#594b3c]">
-                                {ownerLabel(noble.owner, state)}
-                              </dd>
-                              {holder && (
-                                <>
-                                  <dt>Détenteur</dt>
+                                <div className="flex items-center justify-between gap-3">
+                                  <span className="min-w-0">
+                                    <span
+                                      className="mr-2 inline-block size-3 shrink-0 rounded-full border border-[#30291f]/30 align-[-1px]"
+                                      style={{
+                                        backgroundColor: owner?.color ?? '#b7a786',
+                                      }}
+                                      aria-label={t('app.colorOf', {
+                                        player: ownerLabel(noble.owner, state, t),
+                                      })}
+                                    />
+                                    <strong>{noble.code}</strong> · {noble.name}
+                                  </span>
+                                  <span
+                                    className={`shrink-0 text-xs ${noble.status === 'dungeon' ? 'text-[#a84632]' : 'text-[#376341]'}`}
+                                  >
+                                    {t(
+                                      `orders.nobleStatus.${noble.status}` as MessageKey,
+                                    )}
+                                  </span>
+                                </div>
+                                <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 border-t border-[#b7a786]/40 pt-1 text-xs text-[#806f57]">
+                                  <dt>{t('app.owner')}</dt>
                                   <dd className="font-medium text-[#594b3c]">
-                                    {noble.status === 'hostage'
-                                      ? `invité par ${ownerLabel(holder, state)}`
-                                      : `emprisonné par ${ownerLabel(holder, state)}`}
+                                    {ownerLabel(noble.owner, state, t)}
                                   </dd>
-                                </>
-                              )}
-                            </dl>
-                          </li>
-                        )
-                      })}
+                                  {holder && (
+                                    <>
+                                      <dt>{t('app.holder')}</dt>
+                                      <dd className="font-medium text-[#594b3c]">
+                                        {noble.status === 'hostage'
+                                          ? t('app.hostageBy', {
+                                              player: ownerLabel(holder, state, t),
+                                            })
+                                          : t('app.dungeonBy', {
+                                              player: ownerLabel(holder, state, t),
+                                            })}
+                                      </dd>
+                                    </>
+                                  )}
+                                </dl>
+                              </li>
+                            )
+                          })}
                         </ul>
                       ) : (
                         <p className="text-sm italic text-[#806f57]">
-                          Aucun noble présent
+                          {t('app.noNoble')}
                         </p>
                       )}
                     </div>
@@ -708,38 +737,42 @@ function App() {
                       <>
                         <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">
                           <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
-                            Armée
+                            {t('app.army')}
                           </h3>
                           {selectedState.army ? (
                             <div className="rounded-md bg-[#f3ead9] px-3 py-2 text-sm">
                               <div className="flex items-center justify-between gap-3">
                                 <span className="font-semibold">
-                                  {ownerLabel(selectedState.army.owner, state)}
+                                  {ownerLabel(selectedState.army.owner, state, t)}
                                 </span>
                                 <span className="shrink-0 text-xs text-[#806f57]">
-                                  {selectedState.army.size} troupe
-                                  {selectedState.army.size > 1 ? 's' : ''}
+                                  {t(
+                                    selectedState.army.size === 1
+                                      ? 'app.troop'
+                                      : 'app.troops',
+                                    { count: selectedState.army.size },
+                                  )}
                                 </span>
                               </div>
                               <div className="mt-2 border-t border-[#b7a786]/40 pt-2 text-xs text-[#806f57]">
                                 {selectedChain ? (
                                   <>
                                     <p>
-                                      Noble émetteur :{' '}
+                                      {t('app.nobleEmitter')}:{' '}
                                       <strong>{selectedChain.noble}</strong>
                                     </p>
                                     <p>
-                                      Index courant :{' '}
+                                      {t('app.currentIndex')}:{' '}
                                       <strong>
                                         {selectedChain.currentIndex <
                                         selectedChain.orders.length
                                           ? selectedChain.currentIndex + 1
-                                          : 'Terminé'}
+                                          : t('app.finished')}
                                       </strong>
                                     </p>
                                     <div className="mt-2 space-y-1.5">
                                       <p className="font-semibold uppercase tracking-[0.12em] text-[#806f57]">
-                                        Pile d&apos;ordres
+                                        {t('app.orderStack')}
                                       </p>
                                       <ol className="space-y-1.5">
                                         {selectedChain.orders.map((order, index) => {
@@ -757,7 +790,7 @@ function App() {
                                               <span>{formatOrderLabel(order)}</span>
                                               {current && (
                                                 <span className="ml-1.5 font-semibold">
-                                                  · En cours
+                                                  · {t('app.current')}
                                                 </span>
                                               )}
                                             </li>
@@ -767,37 +800,39 @@ function App() {
                                     </div>
                                   </>
                                 ) : (
-                                  <p>Sans Ordre</p>
+                                  <p>{t('app.noOrders')}</p>
                                 )}
                               </div>
                             </div>
                           ) : (
-                            <p className="text-sm italic text-[#806f57]">Aucune armée</p>
+                            <p className="text-sm italic text-[#806f57]">
+                              {t('app.noArmy')}
+                            </p>
                           )}
                           {selectedState.army && state?.season === 'winter' && (
                             <p className="rounded-md border border-[#b7a786]/50 bg-[#fffaf0] px-3 py-2 text-xs text-[#806f57]">
-                              Pas de phase de ravitaillement en hiver.
+                              {t('app.noSupplyWinter')}
                             </p>
                           )}
                           {selectedState.army && state?.season !== 'winter' && (
                             <div className="rounded-md border border-[#b7a786]/50 bg-[#fffaf0] px-3 py-2 text-xs text-[#594b3c]">
                               <p className="font-semibold uppercase tracking-[0.12em] text-[#806f57]">
-                                Ravitaillement
+                                {t('app.supply')}
                               </p>
                               {supplyLoading ? (
                                 <p className="mt-1 italic text-[#806f57]">
-                                  Calcul en cours…
+                                  {t('app.supplyCalculating')}
                                 </p>
                               ) : supplyError ? (
                                 <p className="mt-1 text-[#8d321e]">{supplyError}</p>
                               ) : selectedSupplyLine?.selfSupplied ? (
                                 <p className="mt-1 text-[#376341]">
-                                  Rations locales suffisantes pour cette armée.
+                                  {t('app.localRationsSufficient')}
                                 </p>
                               ) : selectedSupplyLine?.source ? (
                                 <>
                                   <p className="mt-1">
-                                    Source :{' '}
+                                    {t('app.sourceLabel')}{' '}
                                     <strong>
                                       {supplySourceTerritory?.code ??
                                         selectedSupplyLine.source}
@@ -807,24 +842,30 @@ function App() {
                                     </strong>
                                   </p>
                                   <p className="mt-1">
-                                    Distance :{' '}
-                                    <strong>{selectedSupplyLine.distance}</strong>{' '}
-                                    territoire
-                                    {selectedSupplyLine.distance > 1 ? 's' : ''}
+                                    {t(
+                                      selectedSupplyLine.distance > 1
+                                        ? 'app.distances'
+                                        : 'app.distance',
+                                      { distance: selectedSupplyLine.distance },
+                                    )}
                                   </p>
                                 </>
                               ) : selectedSupplyLine ? (
                                 <p className="mt-1 text-[#8d321e]">
-                                  Aucune source accessible : famine possible.
+                                  {t('app.noAccessibleSource')}
                                 </p>
                               ) : null}
                               {selectedSupplyLine && (
                                 <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t border-[#b7a786]/40 pt-2">
-                                  <dt className="text-[#806f57]">Rations locales</dt>
+                                  <dt className="text-[#806f57]">
+                                    {t('app.localRations')}
+                                  </dt>
                                   <dd className="font-medium">
                                     {selectedSupplyLine.rations}
                                   </dd>
-                                  <dt className="text-[#806f57]">Besoin à couvrir</dt>
+                                  <dt className="text-[#806f57]">
+                                    {t('app.demandToCover')}
+                                  </dt>
                                   <dd className="font-medium">
                                     {selectedSupplyLine.demand}
                                   </dd>
@@ -835,26 +876,26 @@ function App() {
                           {!selectedState.army && hasSupplySource(selectedState) && (
                             <div className="rounded-md border border-[#b7a786]/50 bg-[#fffaf0] px-3 py-2 text-xs text-[#594b3c]">
                               <p className="font-semibold uppercase tracking-[0.12em] text-[#806f57]">
-                                Zone de ravitaillement
+                                {t('app.supplyZone')}
                               </p>
                               {state?.season === 'winter' ? (
                                 <p className="mt-1 italic text-[#806f57]">
-                                  Pas de phase de ravitaillement en hiver.
+                                  {t('app.noSupplyWinter')}
                                 </p>
                               ) : supplyLoading ? (
                                 <p className="mt-1 italic text-[#806f57]">
-                                  Calcul en cours…
+                                  {t('app.supplyCalculating')}
                                 </p>
                               ) : supplyError ? (
                                 <p className="mt-1 text-[#8d321e]">{supplyError}</p>
                               ) : selectedSupplyLine ? (
                                 <p className="mt-1 text-[#376341]">
-                                  {selectedSupplyLine.reachable.length} territoire
-                                  {selectedSupplyLine.reachable.length > 1
-                                    ? 's'
-                                    : ''}{' '}
-                                  atteignable
-                                  {selectedSupplyLine.reachable.length > 1 ? 's' : ''}.
+                                  {t(
+                                    selectedSupplyLine.reachable.length > 1
+                                      ? 'app.reachablePlural'
+                                      : 'app.reachable',
+                                    { count: selectedSupplyLine.reachable.length },
+                                  )}
                                 </p>
                               ) : null}
                             </div>
@@ -863,7 +904,7 @@ function App() {
 
                         <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">
                           <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
-                            Infrastructures
+                            {t('app.infrastructure')}
                           </h3>
                           {selectedState.infrastructures.length > 0 ? (
                             <ul className="space-y-1.5 text-sm">
@@ -875,17 +916,17 @@ function App() {
                                   >
                                     <span className="flex min-w-0 items-center gap-2 font-medium">
                                       <span>
-                                        {INFRASTRUCTURE_LABELS[infrastructure.type]}
+                                        {t(INFRASTRUCTURE_KEYS[infrastructure.type])}
                                       </span>
                                       {infrastructure.type === 'castle' &&
                                         selectedCapitalPlayer && (
                                           <span className="shrink-0 rounded-full bg-[#f8e8ae] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#6d5118]">
-                                            Capitale
+                                            {t('app.capital')}
                                           </span>
                                         )}
                                     </span>
                                     <span className="shrink-0 text-xs text-[#806f57]">
-                                      Niveau {infrastructure.level}
+                                      {t('app.level', { level: infrastructure.level })}
                                     </span>
                                   </li>
                                 ),
@@ -893,7 +934,7 @@ function App() {
                             </ul>
                           ) : (
                             <p className="text-sm italic text-[#806f57]">
-                              Aucune infrastructure
+                              {t('app.noInfrastructure')}
                             </p>
                           )}
                         </div>
@@ -903,7 +944,7 @@ function App() {
                 ) : (
                   <div className="flex min-h-36 items-center justify-center rounded-lg border border-dashed border-[#b7a786] bg-[#f8f0e2] px-6 text-center">
                     <p className="font-serif text-lg italic text-[#806f57]">
-                      Sélectionnez un territoire
+                      {t('app.selectTerritory')}
                     </p>
                   </div>
                 )}
@@ -927,7 +968,7 @@ function App() {
               <div
                 id="report-panel"
                 role="tabpanel"
-                aria-label="Rapport du tour"
+                aria-label={t('app.turnReport')}
                 hidden={activePanel !== 'report'}
                 className="min-w-0"
               >
@@ -936,7 +977,7 @@ function App() {
                 ) : (
                   <div className="flex min-h-36 items-center justify-center rounded-lg border border-dashed border-[#b7a786] bg-[#f8f0e2] px-6 text-center">
                     <p className="font-serif text-lg italic text-[#806f57]">
-                      Aucun rapport disponible
+                      {t('app.noReport')}
                     </p>
                   </div>
                 )}
@@ -944,7 +985,7 @@ function App() {
               <div
                 id="rules-panel"
                 role="tabpanel"
-                aria-label="Règles du jeu"
+                aria-label={t('app.rules')}
                 hidden={activePanel !== 'rules'}
                 className="min-w-0"
               >
@@ -959,6 +1000,14 @@ function App() {
         </aside>
       </main>
     </div>
+  )
+}
+
+function App({ initialLanguage }: { initialLanguage?: Language }) {
+  return (
+    <LanguageProvider initialLanguage={initialLanguage}>
+      <AppContent />
+    </LanguageProvider>
   )
 }
 

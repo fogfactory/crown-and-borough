@@ -3,6 +3,7 @@ package orders
 import (
 	"fmt"
 
+	"github.com/fogfactory/crown-and-borough/internal/i18n"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
@@ -15,43 +16,43 @@ import (
 // ID counter, and the emitter's capacity unchanged.
 func AssignChain(game *models.GameState, chain models.Chain) error {
 	if game == nil {
-		return assignmentError(ErrInvalidChain, "game state is nil")
+		return assignmentError(ErrInvalidChain, i18n.AssignmentGameNil)
 	}
 	if err := game.Validate(); err != nil {
-		return assignmentError(ErrInvalidChain, fmt.Sprintf("game state is invalid: %v", err))
+		return assignmentError(ErrInvalidChain, i18n.AssignmentInvalidState, err)
 	}
 	if validationErrors := ValidateChain(game, chain); len(validationErrors) != 0 {
 		for _, validationError := range validationErrors {
 			if validationError.Deferrable() {
 				continue
 			}
-			return assignmentError(ErrInvalidChain, fmt.Sprintf("chain validation failed: %s", validationError))
+			return assignmentError(ErrInvalidChain, i18n.AssignmentChainValidation, validationError)
 		}
 	}
 
 	indexes := indexGame(game)
 	noble := indexes.noblesByID[chain.NobleID]
 	if noble == nil {
-		return assignmentError(ErrInvalidChain, fmt.Sprintf("emitting noble %q does not exist", nobleReference(indexes, chain.NobleID)))
+		return assignmentError(ErrInvalidChain, i18n.AssignmentNobleUnknown, nobleReference(indexes, chain.NobleID))
 	}
 	if noble.Status == models.NobleStatusDungeon {
-		return assignmentError(ErrNoblePrisoner, fmt.Sprintf("noble %q is in a dungeon", nobleReference(indexes, noble.ID)))
+		return assignmentError(ErrNoblePrisoner, i18n.AssignmentNobleDungeon, nobleReference(indexes, noble.ID))
 	}
 	if noble.LastEmissionTurn == game.Turn {
-		return assignmentError(ErrEmissionCapacity, fmt.Sprintf("noble %q has already emitted in turn %d", nobleReference(indexes, noble.ID), game.Turn))
+		return assignmentError(ErrEmissionCapacity, i18n.AssignmentEmissionCapacity, nobleReference(indexes, noble.ID), game.Turn)
 	}
 
 	positionID := chain.Orders[0].PositionID
 	army := armyAtTerritory(game, indexes, positionID)
 	if army == nil {
-		return assignmentError(ErrNoArmyOnPosition, fmt.Sprintf("no army occupies receiving position %q", territoryReference(indexes, positionID)))
+		return assignmentError(ErrNoArmyOnPosition, i18n.AssignmentNoArmy, territoryReference(indexes, positionID))
 	}
 	if err := receivingArmyOwnershipError(indexes, positionID, army, noble.OwnerID); err != nil {
 		return err
 	}
 	for _, existing := range game.Chains {
 		if existing.PendingDisperse != nil && existing.PendingDisperse.ArmyID == army.ID && existing.ArmyID != army.ID {
-			return assignmentError(ErrInvalidChain, fmt.Sprintf("army at receiving position %q executes pending dispersion for chain %q", territoryReference(indexes, positionID), existing.ID))
+			return assignmentError(ErrInvalidChain, i18n.AssignmentPendingDisperse, territoryReference(indexes, positionID), existing.ID)
 		}
 	}
 
@@ -61,7 +62,7 @@ func AssignChain(game *models.GameState, chain models.Chain) error {
 	receivedID := models.ChainID(fmt.Sprintf("C%d", game.NextChainID))
 	for _, existing := range game.Chains {
 		if existing.ID == receivedID {
-			return assignmentError(ErrInvalidChain, fmt.Sprintf("next chain id %q is already in use", receivedID))
+			return assignmentError(ErrInvalidChain, i18n.AssignmentChainIDInUse, receivedID)
 		}
 	}
 	received.ID = receivedID

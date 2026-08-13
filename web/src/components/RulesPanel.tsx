@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
-const RULES_URL = '/api/rules?lang=fr'
+import { useLanguage } from '@/i18n/LanguageContext'
 
 export type RulesSection = 'action-orders' | 'winter-orders'
 
@@ -28,16 +28,24 @@ function markdownText(children: ReactNode): string {
 
 function sectionAnchor(children: ReactNode): string | undefined {
   const heading = markdownText(children).toLowerCase()
-  if (heading.includes('aide-mémoire des ordres')) {
+  if (
+    heading.includes('aide-mémoire des ordres') ||
+    heading.includes('order cheat sheet')
+  ) {
     return RULE_SECTION_IDS['action-orders']
   }
-  if (heading.includes("ordres d'hiver") || heading.includes('ordres d’hiver')) {
+  if (
+    heading.includes("ordres d'hiver") ||
+    heading.includes('ordres d’hiver') ||
+    heading.includes('winter orders')
+  ) {
     return RULE_SECTION_IDS['winter-orders']
   }
   return undefined
 }
 
 export function RulesPanel({ targetSection, navigationKey = 0 }: RulesPanelProps) {
+  const { language, t } = useLanguage()
   const [rulesMarkdown, setRulesMarkdown] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const rulesContainerRef = useRef<HTMLDivElement>(null)
@@ -47,13 +55,15 @@ export function RulesPanel({ targetSection, navigationKey = 0 }: RulesPanelProps
 
     const loadRules = async () => {
       try {
-        const response = await fetch(RULES_URL, { signal: controller.signal })
+        const response = await fetch(`/api/rules?lang=${language}`, {
+          signal: controller.signal,
+        })
         if (!response.ok) {
-          throw new Error(`Impossible de charger les règles (${response.status})`)
+          throw new Error(t('rules.loadFailed', { status: response.status }))
         }
         const content = await response.text()
         if (!content.trim()) {
-          throw new Error('Le document de règles est vide')
+          throw new Error(t('rules.empty'))
         }
         if (!controller.signal.aborted) {
           setRulesMarkdown(content)
@@ -64,7 +74,7 @@ export function RulesPanel({ targetSection, navigationKey = 0 }: RulesPanelProps
           setError(
             loadError instanceof Error
               ? loadError.message
-              : 'Impossible de charger les règles',
+              : t('rules.loadFailed', { status: 500 }),
           )
         }
       }
@@ -72,7 +82,7 @@ export function RulesPanel({ targetSection, navigationKey = 0 }: RulesPanelProps
 
     void loadRules()
     return () => controller.abort()
-  }, [])
+  }, [language, t])
 
   useEffect(() => {
     if (!targetSection || !rulesMarkdown) return
@@ -88,13 +98,11 @@ export function RulesPanel({ targetSection, navigationKey = 0 }: RulesPanelProps
   }, [navigationKey, rulesMarkdown, targetSection])
 
   return (
-    <section aria-label="Règles du jeu" className="min-w-0">
+    <section aria-label={t('app.rules')} className="min-w-0">
       <div className="mb-4 flex items-start justify-between gap-3">
-        <p className="text-xs leading-relaxed text-[#806f57]">
-          Référence des règles v1, des ordres et du ravitaillement.
-        </p>
+        <p className="text-xs leading-relaxed text-[#806f57]">{t('rules.reference')}</p>
         <span className="shrink-0 rounded-md border border-[#b7a786] bg-[#f3ead9] px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#806f57]">
-          FR
+          {language.toUpperCase()}
         </span>
       </div>
 
@@ -190,7 +198,7 @@ export function RulesPanel({ targetSection, navigationKey = 0 }: RulesPanelProps
         </div>
       ) : (
         <p className="rounded-lg border border-dashed border-[#b7a786] bg-[#f8f0e2] px-3 py-4 text-sm italic text-[#806f57]">
-          Chargement des règles…
+          {t('rules.loading')}
         </p>
       )}
     </section>

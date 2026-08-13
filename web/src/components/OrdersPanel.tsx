@@ -3,7 +3,8 @@ import { BookOpen, Snowflake } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import type { RulesSection } from '@/components/RulesPanel'
-import { NOBLE_STATUS_LABELS } from '@/lib/noble-label'
+import { useLanguage } from '@/i18n/LanguageContext'
+import type { MessageKey } from '@/i18n/messages'
 import type { Noble, PlayerId, StateData } from '@/types'
 
 interface OrdersPanelProps {
@@ -35,6 +36,8 @@ function RulesButton({
   section: RulesSection
   onOpenRules: (section: RulesSection) => void
 }) {
+  const { t } = useLanguage()
+
   return (
     <Button
       type="button"
@@ -43,7 +46,7 @@ function RulesButton({
       onClick={() => onOpenRules(section)}
     >
       <BookOpen aria-hidden="true" className="size-4" />
-      Aide-mémoire des ordres
+      {t('orders.rulesShortcut')}
     </Button>
   )
 }
@@ -74,6 +77,7 @@ export function OrdersPanel({
   onSubmit,
   onOpenRules,
 }: OrdersPanelProps) {
+  const { t } = useLanguage()
   const handleChainChange =
     (noble: Noble) => (event: ChangeEvent<HTMLTextAreaElement>) => {
       onChainChange(noble.code, event.target.value)
@@ -85,25 +89,21 @@ export function OrdersPanel({
         <div>
           <h3 className="flex items-center gap-2 font-serif text-lg font-bold text-[#2c5b7d]">
             <Snowflake aria-hidden="true" className="size-5 text-[#5c94bd]" />
-            <span>Ordres d&apos;hiver</span>
+            <span>{t('orders.winterTitle')}</span>
           </h3>
           <p className="mt-1 text-xs leading-relaxed text-[#55738a]">
-            Investissements directs uniquement, sans chaînes ni mouvements militaires. Les
-            ordres sont appliqués dans l&apos;ordre saisi. La résolution attend tous les
-            joueurs.
+            {t('orders.winterDescription')}
           </p>
         </div>
         <textarea
           value={winterDraft}
           onChange={(event) => onWinterChange(event.target.value)}
           className="min-h-36 w-full resize-y rounded-lg border border-[#9bbbd3] bg-[#f7fbff] p-3 font-mono text-xs text-[#263f52] outline-none transition focus:border-[#5c94bd] focus:ring-2 focus:ring-[#5c94bd]/20"
-          placeholder={'R T ROS\nO N NNN\nP N NNN\nL N NNN'}
-          aria-label={`Ordres d'hiver de ${player}`}
+          placeholder={t('orders.winterPlaceholder')}
+          aria-label={t('orders.winterAria', { player })}
         />
         {submitted && (
-          <p className="text-xs text-[#376341]">
-            Ordres soumis. Vous pouvez encore les modifier.
-          </p>
+          <p className="text-xs text-[#376341]">{t('orders.submittedEditable')}</p>
         )}
         <Button
           type="button"
@@ -113,10 +113,10 @@ export function OrdersPanel({
           onClick={onSubmit}
         >
           {submitting
-            ? 'Envoi…'
+            ? t('orders.sending')
             : submitted
-              ? "Modifier les ordres d'hiver"
-              : "Soumettre les ordres d'hiver"}
+              ? t('orders.editWinter')
+              : t('orders.submitWinter')}
         </Button>
         <OrderError error={error} />
         <RulesButton section="winter-orders" onOpenRules={onOpenRules} />
@@ -129,15 +129,14 @@ export function OrdersPanel({
   return (
     <section className="space-y-3 border-t border-[#b7a786]/50 pt-5">
       <div>
-        <h3 className="font-serif text-lg font-semibold">Chaînes d&apos;ordres</h3>
+        <h3 className="font-serif text-lg font-semibold">{t('orders.actionTitle')}</h3>
         <p className="mt-1 text-xs leading-relaxed text-[#806f57]">
-          Une chaîne par noble. L&apos;en-tête du noble est ajouté automatiquement avant
-          l&apos;envoi. Une zone vide signifie que le noble n&apos;émet pas ce tour.
+          {t('orders.actionDescription')}
         </p>
       </div>
       {nobles.length === 0 ? (
         <p className="rounded-lg border border-dashed border-[#b7a786] bg-[#f8f0e2] p-3 text-sm italic text-[#806f57]">
-          Aucun noble disponible pour ce joueur.
+          {t('orders.noNobleAvailable')}
         </p>
       ) : (
         nobles.map((noble) => (
@@ -147,9 +146,11 @@ export function OrdersPanel({
                 {noble.code} · {noble.name}
               </span>
               <span
-                className={noble.status === 'dungeon' ? 'text-[#a84632]' : 'text-[#376341]'}
+                className={
+                  noble.status === 'dungeon' ? 'text-[#a84632]' : 'text-[#376341]'
+                }
               >
-                {NOBLE_STATUS_LABELS[noble.status]}
+                {t(`orders.nobleStatus.${noble.status}` as MessageKey)}
               </span>
             </span>
             <textarea
@@ -158,19 +159,17 @@ export function OrdersPanel({
               disabled={noble.status === 'dungeon'}
               className="min-h-32 w-full resize-y rounded-lg border border-[#b7a786] bg-[#f8f0e2] p-3 font-mono text-xs text-[#30291f] outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20 disabled:cursor-not-allowed disabled:opacity-50"
               placeholder={chainPlaceholder()}
-              aria-label={`Chaîne de ${noble.code}`}
+              aria-label={t('orders.chainAria', { noble: noble.code })}
             />
           </label>
         ))
       )}
       {submitted && (
-        <p className="text-xs text-[#376341]">
-          Ordres soumis. Vous pouvez encore les modifier.
-        </p>
+        <p className="text-xs text-[#376341]">{t('orders.submittedEditable')}</p>
       )}
       {!hasEmittingNoble && (
         <p className="rounded-lg border border-dashed border-[#b7a786] bg-[#f8f0e2] p-3 text-sm italic text-[#806f57]">
-          Aucun noble apte à émettre : vos ordres d&apos;action ne sont pas requis.
+          {t('orders.noEmittingNoble')}
         </p>
       )}
       <Button
@@ -179,7 +178,11 @@ export function OrdersPanel({
         disabled={submitting || !hasEmittingNoble}
         onClick={onSubmit}
       >
-        {submitting ? 'Envoi…' : submitted ? 'Modifier' : 'Soumettre'}
+        {submitting
+          ? t('orders.sending')
+          : submitted
+            ? t('orders.edit')
+            : t('orders.submit')}
       </Button>
       <OrderError error={error} />
       <RulesButton section="action-orders" onOpenRules={onOpenRules} />

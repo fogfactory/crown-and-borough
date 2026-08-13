@@ -7,8 +7,9 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 
-import { TERRAIN_COLORS, TERRAIN_LABELS } from '@/components/MapLegend'
-import { NOBLE_STATUS_LABELS } from '@/lib/noble-label'
+import { TERRAIN_COLORS, TERRAIN_LABEL_KEYS } from '@/components/MapLegend'
+import { useLanguage } from '@/i18n/LanguageContext'
+import type { MessageKey } from '@/i18n/messages'
 import { hasSupplySource } from '@/lib/supply'
 import {
   Tooltip,
@@ -41,11 +42,11 @@ const REFERENCE_MEAN_TERRITORY_AREA =
 
 const PLAYER_PALETTE = ['#a84632', '#2d5f9e', '#7052a1', '#34775c', '#ad7a25']
 
-const INFRASTRUCTURE_LABELS: Record<Infrastructure['type'], string> = {
-  mill: 'Moulin',
-  supply_depot: 'Dépôt de vivres',
-  castle: 'Château',
-  village: 'Village',
+const INFRASTRUCTURE_LABEL_KEYS: Record<Infrastructure['type'], MessageKey> = {
+  mill: 'infrastructure.mill',
+  supply_depot: 'infrastructure.supply_depot',
+  castle: 'infrastructure.castle',
+  village: 'infrastructure.village',
 }
 
 interface ViewState {
@@ -162,7 +163,10 @@ function meanTerritoryArea(territories: MapData['territories']): number {
     return 0
   }
 
-  return territories.reduce((total, territory) => total + polygonArea(territory.points), 0) / territories.length
+  return (
+    territories.reduce((total, territory) => total + polygonArea(territory.points), 0) /
+    territories.length
+  )
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -203,7 +207,8 @@ function InfrastructureMarker({
   isCapital,
   scale,
 }: InfrastructureMarkerProps) {
-  const label = `${INFRASTRUCTURE_LABELS[infrastructure.type]} niveau ${infrastructure.level}${isCapital ? ' · Capitale' : ''}`
+  const { t } = useLanguage()
+  const label = `${t(INFRASTRUCTURE_LABEL_KEYS[infrastructure.type])} · ${t('app.level', { level: infrastructure.level })}${isCapital ? ` · ${t('app.capital')}` : ''}`
 
   return (
     <g transform={`translate(${x} ${y}) scale(${scale})`} pointerEvents="none">
@@ -280,10 +285,11 @@ function NobleMarker({
   color: string
   scale: number
 }) {
+  const { t } = useLanguage()
   const prisoner = noble.status !== 'free'
   return (
     <g transform={`translate(${x} ${y}) scale(${scale})`} pointerEvents="none">
-      <title>{`${noble.name} (${noble.id})${prisoner ? ` · ${NOBLE_STATUS_LABELS[noble.status]}` : ''}`}</title>
+      <title>{`${noble.name} (${noble.id})${prisoner ? ` · ${t(`orders.nobleStatus.${noble.status}` as MessageKey)}` : ''}`}</title>
       <path
         d="M0-8L8 0L0 8L-8 0Z"
         fill={color}
@@ -306,6 +312,7 @@ interface MapViewerProps {
 }
 
 export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
+  const { t } = useLanguage()
   const svgRef = useRef<SVGSVGElement>(null)
   const dragRef = useRef<DragState | null>(null)
   const [view, setView] = useState<ViewState>({ x: 0, y: 0, k: 1 })
@@ -623,7 +630,7 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
           viewBox={`0 0 ${mapWidth} ${mapHeight}`}
           preserveAspectRatio="none"
           role="group"
-          aria-label="Carte des territoires"
+          aria-label={t('map.territories')}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
@@ -661,7 +668,7 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
               </pattern>
             </defs>
 
-            <g aria-label="Terrains">
+            <g aria-label={t('map.terrains')}>
               {map.territories.map((territory) => (
                 <Tooltip key={territory.id}>
                   <TooltipTrigger asChild>
@@ -673,14 +680,17 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
                       tabIndex={0}
                       role="button"
                       aria-pressed={territory.id === selectedId}
-                      aria-label={`${territory.name}, ${TERRAIN_LABELS[territory.terrain]}`}
+                      aria-label={t('map.territoryLabel', {
+                        name: territory.name,
+                        terrain: t(TERRAIN_LABEL_KEYS[territory.terrain]),
+                      })}
                       onKeyDown={(event) => handleTerritoryKeyDown(event, territory.id)}
                     />
                   </TooltipTrigger>
                   <TooltipContent side="top" sideOffset={8}>
                     <div className="space-y-0.5">
                       <p className="font-semibold">{territory.name}</p>
-                      <p>{TERRAIN_LABELS[territory.terrain]}</p>
+                      <p>{t(TERRAIN_LABEL_KEYS[territory.terrain])}</p>
                     </div>
                   </TooltipContent>
                 </Tooltip>
@@ -688,12 +698,12 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
             </g>
 
             {state.season === 'winter' && (
-              <g aria-label="Voile hivernal" pointerEvents="none">
+              <g aria-label={t('map.winterOverlay')} pointerEvents="none">
                 <rect width={mapWidth} height={mapHeight} fill="#eaf3ff" opacity="0.14" />
               </g>
             )}
 
-            <g aria-label="Contrôle territorial" pointerEvents="none">
+            <g aria-label={t('map.control')} pointerEvents="none">
               {map.territories.map((territory) => {
                 const territoryState = state.territories.find(
                   (candidate) => candidate.id === territory.id,
@@ -739,7 +749,7 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
             </g>
 
             {supplyReachable.size > 0 && (
-              <g aria-label="Zone de ravitaillement" pointerEvents="none">
+              <g aria-label={t('map.supplyZone')} pointerEvents="none">
                 {map.territories.map((territory) => {
                   if (!supplyReachable.has(territory.id)) {
                     return null
@@ -757,7 +767,7 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
               </g>
             )}
 
-            <g aria-label="Sélection" pointerEvents="none">
+            <g aria-label={t('map.selection')} pointerEvents="none">
               {map.territories.map((territory) => {
                 if (territory.id !== selectedId) {
                   return null
@@ -798,7 +808,7 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
               })}
             </g>
 
-            <g aria-label="Contours extérieurs" pointerEvents="none">
+            <g aria-label={t('map.outerBorders')} pointerEvents="none">
               {outerBorders.map((border) => (
                 <line
                   key={border.key}
@@ -815,7 +825,7 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
               ))}
             </g>
 
-            <g aria-label="Frontières" pointerEvents="none">
+            <g aria-label={t('map.borders')} pointerEvents="none">
               {sharedBorders.map((border) => (
                 <line
                   key={border.key}
@@ -836,7 +846,7 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
             </g>
 
             {supplyPathPoints.length > 0 && (
-              <g aria-label="Ligne de ravitaillement" pointerEvents="none">
+              <g aria-label={t('map.supplyLine')} pointerEvents="none">
                 <polyline
                   points={supplyPathPoints.map(([x, y]) => `${x},${y}`).join(' ')}
                   fill="none"
@@ -871,7 +881,7 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
               </g>
             )}
 
-            <g aria-label="Couche vivante" pointerEvents="none">
+            <g aria-label={t('map.liveLayer')} pointerEvents="none">
               {map.territories.map((territory) => {
                 const territoryState = state.territories.find(
                   (candidate) => candidate.id === territory.id,
@@ -919,7 +929,12 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
                     ))}
                     {territoryState.army && (
                       <g key={`${territory.id}-army`}>
-                        <title>{`Armée de ${territoryState.army.owner}, taille ${territoryState.army.size}`}</title>
+                        <title>
+                          {t('map.armyMarker', {
+                            owner: territoryState.army.owner,
+                            size: territoryState.army.size,
+                          })}
+                        </title>
                         <circle
                           cx={centerX - 9 * annotationScale}
                           cy={centerY + 26 * annotationScale}
@@ -955,7 +970,7 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
               })}
             </g>
 
-            <g aria-label="Codes des territoires" pointerEvents="none">
+            <g aria-label={t('map.territoryCodes')} pointerEvents="none">
               {map.territories.map((territory) => {
                 const [centerX, centerY] = centroid(territory.points)
                 return (

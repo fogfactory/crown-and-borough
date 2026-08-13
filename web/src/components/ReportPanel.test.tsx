@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import { ReportPanel } from '@/components/ReportPanel'
+import { LanguageProvider } from '@/i18n/LanguageContext'
 import type { MapData, StateData, TurnReport } from '@/types'
 
 const map: MapData = {
@@ -154,7 +155,11 @@ const players: StateData['players'] = [{ id: 'P1', name: 'One', color: '#a84632'
 
 describe('ReportPanel', () => {
   it('renders complete order labels, ownership, noble, outcomes, and winter labels', () => {
-    render(<ReportPanel report={report} map={map} players={players} />)
+    render(
+      <LanguageProvider initialLanguage="fr">
+        <ReportPanel report={report} map={map} players={players} />
+      </LanguageProvider>,
+    )
 
     expect(screen.getByText('(ROS S BRU - CHA)')).toBeInTheDocument()
     expect(screen.getAllByText('P1 · Noble JEA')).not.toHaveLength(0)
@@ -166,7 +171,7 @@ describe('ReportPanel', () => {
     expect(screen.getByText('coût : 3 R')).toBeInTheDocument()
     expect(screen.getByText('aucun coût')).toBeInTheDocument()
     expect(screen.queryByText('coût : 0 R')).not.toBeInTheDocument()
-    expect(screen.getByText(/insufficient_resources/)).toBeInTheDocument()
+    expect(screen.getByText(/Ressources insuffisantes/)).toBeInTheDocument()
     expect(screen.getAllByLabelText('Couleur de One')).not.toHaveLength(0)
     expect(screen.getByText('ROS · Neutre')).toBeInTheDocument()
     expect(screen.getByText(/3 R en stock/)).toBeInTheDocument()
@@ -174,7 +179,9 @@ describe('ReportPanel', () => {
 
   it('does not display storage identifiers in visible report text', () => {
     const { container } = render(
-      <ReportPanel report={report} map={map} players={players} />,
+      <LanguageProvider initialLanguage="fr">
+        <ReportPanel report={report} map={map} players={players} />
+      </LanguageProvider>,
     )
     const text = container.textContent ?? ''
 
@@ -203,8 +210,25 @@ describe('ReportPanel', () => {
       ],
     }
 
-    render(<ReportPanel report={combatReport} map={map} players={players} />)
+    render(
+      <LanguageProvider initialLanguage="fr">
+        <ReportPanel report={combatReport} map={map} players={players} />
+      </LanguageProvider>,
+    )
 
     expect(screen.getByText('2 (+1 noble)')).toBeInTheDocument()
+  })
+
+  it('renders the same report in English with translated reason labels', () => {
+    render(
+      <LanguageProvider initialLanguage="en">
+        <ReportPanel report={report} map={map} players={players} />
+      </LanguageProvider>,
+    )
+
+    expect(screen.getByText('Resolution complete')).toBeInTheDocument()
+    expect(screen.getAllByText('Success')).not.toHaveLength(0)
+    expect(screen.getByText(/Insufficient resources/)).toBeInTheDocument()
+    expect(screen.getByText('The destination is not adjacent.')).toBeInTheDocument()
   })
 })

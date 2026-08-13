@@ -26,6 +26,8 @@ repository root.
 - `src/components/ui/` contains the shadcn/ui components used by the application.
 - `src/App.tsx` loads the static map and live state from `/api/map` and
   `/api/state`.
+- `src/i18n/` contains the English/French catalog and persisted language context;
+  the header switcher also selects the language used for rules and order errors.
 - `src/fixtures/` contains static data used by component tests.
 - `src/types.ts` defines the map and state contracts shared by the frontend.
 

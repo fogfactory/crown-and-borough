@@ -157,7 +157,7 @@ describe('App command/report tabs', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    const { container } = render(<App />)
+    const { container } = render(<App initialLanguage="fr" />)
     const firstTerritory = await waitFor(() => {
       const territory = container.querySelector('[data-territory-id="T1"]')
       if (!territory) throw new Error('territory did not render')
@@ -181,7 +181,7 @@ describe('App command/report tabs', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    const { container } = render(<App />)
+    const { container } = render(<App initialLanguage="fr" />)
     const commandTab = await screen.findByRole('tab', { name: /Poste de commandement/ })
     fireEvent.keyDown(commandTab, { key: 'ArrowRight' })
     expect(screen.getByRole('tab', { name: /Rapport/ })).toHaveAttribute(
@@ -269,7 +269,7 @@ describe('App command/report tabs', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    render(<App />)
+    render(<App initialLanguage="fr" />)
     await screen.findByLabelText('Chaîne de JEA')
     fireEvent.click(screen.getByRole('button', { name: 'Soumettre' }))
 
@@ -305,7 +305,7 @@ describe('App command/report tabs', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    render(<App />)
+    render(<App initialLanguage="fr" />)
     await screen.findByLabelText('Chaîne de JEA')
     fireEvent.click(screen.getByRole('button', { name: 'Soumettre' }))
 
@@ -358,7 +358,7 @@ describe('App command/report tabs', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    const { container } = render(<App />)
+    const { container } = render(<App initialLanguage="fr" />)
     const sourceTerritory = await waitFor(() => {
       const territory = container.querySelector('[data-territory-id="T2"]')
       if (!territory) throw new Error('source territory did not render')
@@ -472,7 +472,7 @@ describe('App command/report tabs', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    const { container } = render(<App />)
+    const { container } = render(<App initialLanguage="fr" />)
     await screen.findByText('Tour 1 · Printemps')
 
     const newGameButton = screen.getByRole('button', { name: 'Nouvelle partie' })

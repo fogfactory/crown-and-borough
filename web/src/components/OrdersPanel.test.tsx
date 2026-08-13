@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { OrdersPanel } from '@/components/OrdersPanel'
+import { LanguageProvider } from '@/i18n/LanguageContext'
 import type { Noble, StateData } from '@/types'
 
 const state: StateData = {
@@ -18,19 +19,21 @@ function renderOrdersPanel(
   nobles: Noble[] = state.nobles,
 ) {
   return render(
-    <OrdersPanel
-      state={{ ...state, season, nobles }}
-      player="P1"
-      chainDrafts={{}}
-      winterDraft=""
-      submitted={false}
-      submitting={false}
-      error={null}
-      onChainChange={vi.fn()}
-      onWinterChange={vi.fn()}
-      onSubmit={vi.fn()}
-      onOpenRules={onOpenRules}
-    />,
+    <LanguageProvider initialLanguage="fr">
+      <OrdersPanel
+        state={{ ...state, season, nobles }}
+        player="P1"
+        chainDrafts={{}}
+        winterDraft=""
+        submitted={false}
+        submitting={false}
+        error={null}
+        onChainChange={vi.fn()}
+        onWinterChange={vi.fn()}
+        onSubmit={vi.fn()}
+        onOpenRules={onOpenRules}
+      />
+    </LanguageProvider>,
   )
 }
 

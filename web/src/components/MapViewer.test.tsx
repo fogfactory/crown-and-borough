@@ -51,7 +51,7 @@ const state: StateData = {
 }
 
 function nobleMarkers(svg: SVGSVGElement): Element[] {
-  const livingLayer = svg.querySelector('g[aria-label="Couche vivante"]')
+  const livingLayer = svg.querySelector('g[aria-label="Live layer"]')
   return Array.from(livingLayer?.querySelectorAll(':scope > g > g[transform]') ?? [])
 }
 
@@ -65,7 +65,7 @@ function renderMap(
     <MapViewer map={testMap} state={testState} onSelect={onSelect} supply={supply} />,
   )
   const svg = result.container.querySelector(
-    'svg[aria-label="Carte des territoires"]',
+    'svg[aria-label="Territory map"]',
   ) as SVGSVGElement | null
   const firstTerritory = result.container.querySelector(
     '[data-territory-id="T1"]',
@@ -220,26 +220,34 @@ describe('MapViewer territorial overlays', () => {
     }
 
     const { svg } = renderMap(map, scaledState)
-    const livingLayer = svg.querySelector('g[aria-label="Couche vivante"]')
+    const livingLayer = svg.querySelector('g[aria-label="Live layer"]')
     const resourceLabel = Array.from(livingLayer?.querySelectorAll('text') ?? []).find(
       (element) => element.textContent === '×3',
     )
     const armyMarker = livingLayer?.querySelector('circle')
     const infrastructureMarker = livingLayer?.querySelector('g[transform*="scale("]')
-    const codeLabel = svg.querySelector('g[aria-label="Codes des territoires"] text')
+    const codeLabel = svg.querySelector('g[aria-label="Territory codes"] text')
     const referenceMeanArea = (1000 * 700) / (8 * 4 + 4 * (4 + 1))
     const expectedScale = Math.sqrt((50 * 50) / referenceMeanArea)
 
-    expect(Number(resourceLabel?.getAttribute('font-size'))).toBeCloseTo(11 * expectedScale)
-    expect(Number(resourceLabel?.getAttribute('stroke-width'))).toBeCloseTo(3 * expectedScale)
+    expect(Number(resourceLabel?.getAttribute('font-size'))).toBeCloseTo(
+      11 * expectedScale,
+    )
+    expect(Number(resourceLabel?.getAttribute('stroke-width'))).toBeCloseTo(
+      3 * expectedScale,
+    )
     expect(Number(armyMarker?.getAttribute('r'))).toBeCloseTo(9 * expectedScale)
-    expect(Number(armyMarker?.getAttribute('stroke-width'))).toBeCloseTo(2 * expectedScale)
+    expect(Number(armyMarker?.getAttribute('stroke-width'))).toBeCloseTo(
+      2 * expectedScale,
+    )
     expect(infrastructureMarker?.getAttribute('transform')).toContain(
       `scale(${expectedScale})`,
     )
     expect(Number(codeLabel?.getAttribute('font-size'))).toBeCloseTo(13 * expectedScale)
     expect(Number(codeLabel?.getAttribute('stroke-width'))).toBeCloseTo(3 * expectedScale)
-    expect(Number(codeLabel?.getAttribute('letter-spacing'))).toBeCloseTo(0.5 * expectedScale)
+    expect(Number(codeLabel?.getAttribute('letter-spacing'))).toBeCloseTo(
+      0.5 * expectedScale,
+    )
   })
 
   it('marks the capital castle with a crown', () => {
@@ -270,7 +278,7 @@ describe('MapViewer territorial overlays', () => {
     const { svg } = renderMap(map, capitalState)
 
     expect(svg.querySelectorAll('[data-capital-marker="true"]')).toHaveLength(1)
-    expect(svg.querySelector('title')).toHaveTextContent(/Capitale/)
+    expect(svg.querySelector('title')).toHaveTextContent(/Capital/)
   })
 
   it('renders the selected army supply zone and path', () => {
@@ -315,8 +323,8 @@ describe('MapViewer territorial overlays', () => {
     }
     clickTarget(svg, armyTerritory)
 
-    const supplyZone = svg.querySelector('g[aria-label="Zone de ravitaillement"]')
-    const supplyPath = svg.querySelector('g[aria-label="Ligne de ravitaillement"]')
+    const supplyZone = svg.querySelector('g[aria-label="Supply zone"]')
+    const supplyPath = svg.querySelector('g[aria-label="Supply line"]')
     expect(supplyZone).toBeInTheDocument()
     expect(supplyZone?.querySelectorAll('[data-supply-territory-id]')).toHaveLength(2)
     expect(supplyZone?.querySelector('path')).toHaveAttribute(
@@ -367,13 +375,9 @@ describe('MapViewer territorial overlays', () => {
     const { firstTerritory, svg } = renderMap(map, sourceState, vi.fn(), sourceZone)
     clickTarget(svg, firstTerritory)
 
-    expect(
-      svg.querySelector('g[aria-label="Zone de ravitaillement"]'),
-    ).toBeInTheDocument()
+    expect(svg.querySelector('g[aria-label="Supply zone"]')).toBeInTheDocument()
     expect(svg.querySelectorAll('[data-supply-territory-id]')).toHaveLength(2)
-    expect(
-      svg.querySelector('g[aria-label="Ligne de ravitaillement"]'),
-    ).not.toBeInTheDocument()
+    expect(svg.querySelector('g[aria-label="Supply line"]')).not.toBeInTheDocument()
   })
 
   it('does not render a supply overlay for a selected territory without an army', () => {
@@ -392,12 +396,8 @@ describe('MapViewer territorial overlays', () => {
     })
     clickTarget(svg, firstTerritory)
 
-    expect(
-      svg.querySelector('g[aria-label="Zone de ravitaillement"]'),
-    ).not.toBeInTheDocument()
-    expect(
-      svg.querySelector('g[aria-label="Ligne de ravitaillement"]'),
-    ).not.toBeInTheDocument()
+    expect(svg.querySelector('g[aria-label="Supply zone"]')).not.toBeInTheDocument()
+    expect(svg.querySelector('g[aria-label="Supply line"]')).not.toBeInTheDocument()
   })
 
   it('does not treat a depot as a supply source', () => {
@@ -428,9 +428,7 @@ describe('MapViewer territorial overlays', () => {
     })
     clickTarget(svg, firstTerritory)
 
-    expect(
-      svg.querySelector('g[aria-label="Zone de ravitaillement"]'),
-    ).not.toBeInTheDocument()
+    expect(svg.querySelector('g[aria-label="Supply zone"]')).not.toBeInTheDocument()
   })
 
   it('does not render a stale supply overlay from another territory', () => {
@@ -461,17 +459,13 @@ describe('MapViewer territorial overlays', () => {
     })
     clickTarget(svg, firstTerritory)
 
-    expect(
-      svg.querySelector('g[aria-label="Zone de ravitaillement"]'),
-    ).not.toBeInTheDocument()
-    expect(
-      svg.querySelector('g[aria-label="Ligne de ravitaillement"]'),
-    ).not.toBeInTheDocument()
+    expect(svg.querySelector('g[aria-label="Supply zone"]')).not.toBeInTheDocument()
+    expect(svg.querySelector('g[aria-label="Supply line"]')).not.toBeInTheDocument()
   })
 
   it('adds a light winter veil without changing the non-winter map', () => {
     const { svg: winterSvg } = renderMap(map, { ...state, season: 'winter' })
-    const winterVeil = winterSvg.querySelector('g[aria-label="Voile hivernal"]')
+    const winterVeil = winterSvg.querySelector('g[aria-label="Winter overlay"]')
 
     expect(winterVeil).toBeInTheDocument()
     expect(winterVeil?.querySelector('rect')).toHaveAttribute('fill', '#eaf3ff')
@@ -480,7 +474,7 @@ describe('MapViewer territorial overlays', () => {
 
     const { svg: springSvg } = renderMap()
     expect(
-      springSvg.querySelector('g[aria-label="Voile hivernal"]'),
+      springSvg.querySelector('g[aria-label="Winter overlay"]'),
     ).not.toBeInTheDocument()
   })
 
@@ -505,7 +499,7 @@ describe('MapViewer territorial overlays', () => {
       const terrainPath = svg.querySelector('[data-territory-id="T1"]')
 
       expect(terrainPath).toHaveAttribute('fill', color)
-      expect(svg.querySelector('g[aria-label="Voile hivernal"]')).toBeInTheDocument()
+      expect(svg.querySelector('g[aria-label="Winter overlay"]')).toBeInTheDocument()
     },
   )
 
@@ -514,8 +508,8 @@ describe('MapViewer territorial overlays', () => {
     const referenceMeanArea = (1000 * 700) / (8 * 4 + 4 * (4 + 1))
     const expectedScale = Math.sqrt((50 * 50) / referenceMeanArea)
     const expectedDash = `${4 * expectedScale} ${3 * expectedScale}`
-    const controlPath = svg.querySelector('g[aria-label="Contrôle territorial"] path')
-    const winterVeil = svg.querySelector('g[aria-label="Voile hivernal"]')
+    const controlPath = svg.querySelector('g[aria-label="Territorial control"] path')
+    const winterVeil = svg.querySelector('g[aria-label="Winter overlay"]')
 
     if (!controlPath) {
       throw new Error('Map test fixture did not render the control stroke')
@@ -531,7 +525,7 @@ describe('MapViewer territorial overlays', () => {
     )
 
     clickTarget(svg, firstTerritory)
-    const selectionPath = svg.querySelector('g[aria-label="Sélection"] path')
+    const selectionPath = svg.querySelector('g[aria-label="Selection"] path')
 
     if (!selectionPath) {
       throw new Error('Map test fixture did not render the selection stroke')
@@ -540,12 +534,12 @@ describe('MapViewer territorial overlays', () => {
     expect(selectionPath).toHaveAttribute('fill', 'none')
     expect(selectionPath).toHaveAttribute('clip-path', 'url(#territory-clip-T1)')
     expect(
-      svg.querySelector('g[aria-label="Sélection"] path[stroke-dasharray]'),
+      svg.querySelector('g[aria-label="Selection"] path[stroke-dasharray]'),
     ).toHaveAttribute('stroke-dasharray', expectedDash)
 
-    const borderGroup = svg.querySelector('g[aria-label="Frontières"]')
+    const borderGroup = svg.querySelector('g[aria-label="Borders"]')
     const passableBorder = borderGroup?.querySelector('line')
-    const outerBorder = svg.querySelector('g[aria-label="Contours extérieurs"] line')
+    const outerBorder = svg.querySelector('g[aria-label="Outer borders"] line')
     expect(borderGroup).toBeInTheDocument()
     expect(passableBorder).toHaveAttribute('stroke-width', '2')
     expect(passableBorder).toHaveAttribute('stroke-dasharray', expectedDash)
@@ -557,7 +551,7 @@ describe('MapViewer territorial overlays', () => {
       Node.DOCUMENT_POSITION_FOLLOWING,
     )
     expect(
-      svg.querySelector('g[aria-label="Contrôle territorial"] path[stroke-dasharray]'),
+      svg.querySelector('g[aria-label="Territorial control"] path[stroke-dasharray]'),
     ).toHaveAttribute('stroke-dasharray', expectedDash)
   })
 
@@ -571,8 +565,8 @@ describe('MapViewer territorial overlays', () => {
       })),
     }
     const { svg } = renderMap(impassableMap, { ...state, season: 'winter' })
-    const impassableBorder = svg.querySelector('g[aria-label="Frontières"] line')
-    const winterVeil = svg.querySelector('g[aria-label="Voile hivernal"]')
+    const impassableBorder = svg.querySelector('g[aria-label="Borders"] line')
+    const winterVeil = svg.querySelector('g[aria-label="Winter overlay"]')
 
     expect(impassableBorder).toHaveAttribute('stroke-width', '4')
     expect(impassableBorder).not.toHaveAttribute('stroke-dasharray')
@@ -581,10 +575,10 @@ describe('MapViewer territorial overlays', () => {
       Node.DOCUMENT_POSITION_FOLLOWING,
     )
     expect(
-      svg.querySelector('g[aria-label="Contrôle territorial"] path[stroke-dasharray]'),
+      svg.querySelector('g[aria-label="Territorial control"] path[stroke-dasharray]'),
     ).not.toBeInTheDocument()
     expect(
-      svg.querySelector('g[aria-label="Sélection"] path[stroke-dasharray]'),
+      svg.querySelector('g[aria-label="Selection"] path[stroke-dasharray]'),
     ).not.toBeInTheDocument()
   })
 })
@@ -630,11 +624,9 @@ describe('MapViewer noble affiliation', () => {
     const [freeMarker, prisonerMarker] = nobleMarkers(svg)
 
     expect(prisonerMarker.querySelector('path')).toHaveAttribute('stroke', '#8d321e')
-    expect(
-      prisonerMarker.querySelector('circle[stroke="#8d321e"]'),
-    ).toBeInTheDocument()
+    expect(prisonerMarker.querySelector('circle[stroke="#8d321e"]')).toBeInTheDocument()
     expect(prisonerMarker.querySelector('title')).toHaveTextContent(
-      'Robert de Rosemont (N2) · Otage',
+      'Robert de Rosemont (N2) · Hostage',
     )
     expect(freeMarker.querySelector('path')).toHaveAttribute('stroke', '#815f1e')
     expect(freeMarker.querySelector('circle[stroke="#8d321e"]')).not.toBeInTheDocument()

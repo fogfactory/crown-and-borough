@@ -1,8 +1,7 @@
 package orders
 
 import (
-	"fmt"
-
+	"github.com/fogfactory/crown-and-borough/internal/i18n"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
@@ -117,7 +116,7 @@ func receivingArmyOwnershipError(indexes gameIndexes, positionID models.Territor
 	if army == nil || army.OwnerID == ownerID {
 		return nil
 	}
-	return assignmentError(ErrArmyNotOwned, fmt.Sprintf("army at receiving position %q belongs to %q, not emitting noble owner %q", territoryReference(indexes, positionID), army.OwnerID, ownerID))
+	return assignmentError(ErrArmyNotOwned, i18n.AssignmentArmyNotOwned, territoryReference(indexes, positionID), army.OwnerID, ownerID)
 }
 
 // armyAtTerritory resolves both storage indexes: the TerritoryState pointer

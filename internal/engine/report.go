@@ -35,10 +35,12 @@ type ReportHeader struct {
 // ReceptionReport records whether a syntactically valid chain was received by
 // an army. A failed reception is a lost chain and does not cancel the turn.
 type ReceptionReport struct {
-	Player   models.PlayerID  `json:"player"`
-	Noble    models.NobleCode `json:"noble"`
-	Received bool             `json:"received"`
-	Reason   string           `json:"reason,omitempty"`
+	Player     models.PlayerID  `json:"player"`
+	Noble      models.NobleCode `json:"noble"`
+	Received   bool             `json:"received"`
+	Reason     string           `json:"reason,omitempty"`
+	ReasonKey  string           `json:"reasonKey,omitempty"`
+	ReasonArgs []any            `json:"reasonArgs,omitempty"`
 }
 
 type PlayerReport struct {
