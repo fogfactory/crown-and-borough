@@ -37,5 +37,5 @@ costs:
 
 # P1.7 game setup values.
 starting_nobles: 1
-starting_troops: 1
+starting_troops: 2
 starting_resources: 10
