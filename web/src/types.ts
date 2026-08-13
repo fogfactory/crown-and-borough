@@ -211,6 +211,7 @@ export interface FamineReport {
   territory: string
   source: string
   troops: number
+  troopsLost?: number
   savedByPillage: boolean
   infrastructure?: string
   infrastructureType?: InfraType

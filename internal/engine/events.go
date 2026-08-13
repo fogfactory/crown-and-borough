@@ -110,6 +110,7 @@ type Event struct {
 	StockAfter         int                        `json:"stockAfter,omitempty"`
 	ResourceSpent      int                        `json:"resourceSpent,omitempty"`
 	Troops             int                        `json:"troops,omitempty"`
+	TroopsLost         int                        `json:"troopsLost,omitempty"`
 	SavedByPillage     bool                       `json:"savedByPillage,omitempty"`
 
 	NobleID         models.NobleID      `json:"noble,omitempty"`

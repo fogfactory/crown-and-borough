@@ -408,6 +408,11 @@ func (ctx *resolutionContext) resolveFamine(candidate famineCandidate) {
 	}
 	if !event.SavedByPillage {
 		ctx.famished[candidate.army.ID] = true
+		if army := ctx.armiesByID[candidate.army.ID]; army != nil && army.Size > 1 {
+			army.Size--
+			ctx.startArmiesByID[candidate.army.ID] = *army
+			event.TroopsLost = 1
+		}
 	}
 	ctx.events = append(ctx.events, event)
 }

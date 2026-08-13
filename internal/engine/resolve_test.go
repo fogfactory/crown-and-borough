@@ -276,6 +276,7 @@ func TestResolvePartialDisperseAllocatesStableArmyIDs(t *testing.T) {
 		},
 	})
 	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "T04", TargetIDs: []models.TerritoryID{"T03"}})
+	keepTestArmiesSupplied(state)
 	validateTestState(t, state)
 
 	resolution, err := Resolve(state, testBalance())
@@ -614,6 +615,7 @@ func TestResolveLoopDisperseMovesResolvedBranchesAndRetriesResidual(t *testing.T
 		Liaison:    models.LiaisonModeSingle,
 	})
 	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "T04", TargetIDs: []models.TerritoryID{"T03"}})
+	keepTestArmiesSupplied(state)
 	validateTestState(t, state)
 
 	first, err := Resolve(state, testBalance())

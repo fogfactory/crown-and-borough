@@ -19,6 +19,8 @@ décrite dans [`architecture.md`](architecture.md).
   la distance, la taille et le trigramme territorial.
 - Une armée affamée agit à force zéro et peut piller automatiquement une
   infrastructure située sur sa case.
+- Si le pillage est insuffisant ou impossible, l'armée perd une troupe, jusqu'à
+  un minimum de 1 troupe ; elle reste affamée pour ce tour.
 
 ## Périmètre
 
