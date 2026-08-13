@@ -6,8 +6,7 @@ export type InfraType = 'mill' | 'supply_depot' | 'castle' | 'village'
 
 export type NobleStatus = 'free' | 'hostage' | 'dungeon'
 
-export type OrderType =
-  'attack' | 'support' | 'hold' | 'join' | 'pillage' | 'disperse' | 'hostage' | 'dungeon'
+export type OrderType = 'attack' | 'support' | 'hold' | 'join' | 'pillage' | 'disperse'
 
 export type LiaisonMode = 'single' | 'loop'
 
@@ -41,7 +40,6 @@ export interface Order {
   type: OrderType
   position: string
   targets?: string[]
-  nobleTargets?: string[]
   nobleAssignments?: Record<string, string[]>
   liaison: LiaisonMode
 }
@@ -250,7 +248,6 @@ export interface OrderReport {
   source: string
   target?: string
   targets?: string[]
-  nobleTargets?: string[]
   nobleAssignments?: Record<string, string[]>
   liaison: LiaisonMode
   outcome: Outcome
@@ -298,7 +295,13 @@ export interface WinterInvestmentReport {
 }
 
 export type WinterOrderType =
-  'recruit_noble' | 'recruit_troop' | 'build' | 'elect_capital' | 'liberate_noble'
+  | 'recruit_noble'
+  | 'recruit_troop'
+  | 'build'
+  | 'elect_capital'
+  | 'liberate_noble'
+  | 'hostage'
+  | 'dungeon'
 
 export interface WinterOrder {
   id?: string

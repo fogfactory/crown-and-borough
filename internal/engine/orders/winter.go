@@ -95,6 +95,18 @@ func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (mod
 			return models.WinterOrder{}, parseError
 		}
 		return models.WinterOrder{Type: models.WinterOrderTypeLiberateNoble, NobleCode: models.NobleCode(fields[2])}, nil
+	case "O", "P":
+		if fields[1] != "N" {
+			return models.WinterOrder{}, unknownWinterSubtype(lineNumber, fields[0], fields[1])
+		}
+		if parseError := winterNobleCode(fields[2], lineNumber, indexes); parseError != nil {
+			return models.WinterOrder{}, parseError
+		}
+		orderType := models.WinterOrderTypeHostage
+		if fields[0] == "P" {
+			orderType = models.WinterOrderTypeDungeon
+		}
+		return models.WinterOrder{Type: orderType, NobleCode: models.NobleCode(fields[2])}, nil
 	default:
 		return models.WinterOrder{}, &ParseError{
 			Line:    lineNumber,

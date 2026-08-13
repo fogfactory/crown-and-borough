@@ -31,12 +31,10 @@ var (
 	ErrNoArmyOnPosition = errors.New("no_army_on_position")
 	// ErrArmyNotOwned reports that the army at the receiving position has another owner.
 	ErrArmyNotOwned = errors.New("army_not_owned")
-	// ErrNoblePrisoner reports that a hostage or dungeon noble attempted to emit.
+	// ErrNoblePrisoner reports that a dungeon noble attempted to emit.
 	ErrNoblePrisoner = errors.New("noble_prisoner")
 	// ErrEmissionCapacity reports a second emission by one noble in the same turn.
 	ErrEmissionCapacity = errors.New("emission_capacity")
-	// ErrNobleNotPrisoner reports an immediate O or K target not held by the army.
-	ErrNobleNotPrisoner = errors.New("noble_not_prisoner")
 	// ErrInvalidChain reports a malformed or statically invalid submitted chain.
 	ErrInvalidChain = errors.New("invalid_chain")
 )

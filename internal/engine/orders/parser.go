@@ -134,11 +134,10 @@ func parsePrefixOrder(fields []string, lineNumber int, liaison models.LiaisonMod
 		orderType = models.OrderTypePillage
 	}
 	return models.Order{
-		Type:           orderType,
-		PositionID:     positionID,
-		TargetIDs:      []models.TerritoryID{},
-		NobleTargetIDs: []models.NobleID{},
-		Liaison:        liaison,
+		Type:       orderType,
+		PositionID: positionID,
+		TargetIDs:  []models.TerritoryID{},
+		Liaison:    liaison,
 	}, nil
 }
 
@@ -164,10 +163,6 @@ func parsePositionOrder(fields []string, lineNumber int, liaison models.LiaisonM
 		return parseSupport(fields, lineNumber, liaison, positionID, indexes)
 	case "D":
 		return parseDisperse(fields, lineNumber, liaison, positionID, indexes)
-	case "O":
-		return parseSingleNobleTarget(models.OrderTypeHostage, fields, lineNumber, liaison, positionID, indexes)
-	case "K":
-		return parseSingleNobleTarget(models.OrderTypeDungeon, fields, lineNumber, liaison, positionID, indexes)
 	default:
 		return models.Order{}, []ParseError{{
 			Line:    lineNumber,
@@ -204,11 +199,10 @@ func parseSingleTerritoryTarget(
 		return models.Order{}, codeErrors
 	}
 	return models.Order{
-		Type:           orderType,
-		PositionID:     positionID,
-		TargetIDs:      []models.TerritoryID{targetID},
-		NobleTargetIDs: []models.NobleID{},
-		Liaison:        liaison,
+		Type:       orderType,
+		PositionID: positionID,
+		TargetIDs:  []models.TerritoryID{targetID},
+		Liaison:    liaison,
 	}, nil
 }
 
@@ -254,46 +248,10 @@ func parseSupport(fields []string, lineNumber int, liaison models.LiaisonMode, p
 		targets = append(targets, destinationID)
 	}
 	return models.Order{
-		Type:           models.OrderTypeSupport,
-		PositionID:     positionID,
-		TargetIDs:      targets,
-		NobleTargetIDs: []models.NobleID{},
-		Liaison:        liaison,
-	}, nil
-}
-
-func parseSingleNobleTarget(
-	orderType models.OrderType,
-	fields []string,
-	lineNumber int,
-	liaison models.LiaisonMode,
-	positionID models.TerritoryID,
-	indexes gameIndexes,
-) (models.Order, []ParseError) {
-	if len(fields) == 2 {
-		return models.Order{}, []ParseError{{
-			Line:    lineNumber,
-			Code:    ParseCodeMissingTarget,
-			Message: fmt.Sprintf("%s requires one noble code", fields[1]),
-		}}
-	}
-	if len(fields) > 3 {
-		return models.Order{}, []ParseError{{
-			Line:    lineNumber,
-			Code:    ParseCodeTooManyTargets,
-			Message: fmt.Sprintf("%s accepts exactly one noble code", fields[1]),
-		}}
-	}
-	nobleID, codeErrors := parseNoble(fields[2], lineNumber, "noble target", indexes)
-	if len(codeErrors) != 0 {
-		return models.Order{}, codeErrors
-	}
-	return models.Order{
-		Type:           orderType,
-		PositionID:     positionID,
-		TargetIDs:      []models.TerritoryID{},
-		NobleTargetIDs: []models.NobleID{nobleID},
-		Liaison:        liaison,
+		Type:       models.OrderTypeSupport,
+		PositionID: positionID,
+		TargetIDs:  targets,
+		Liaison:    liaison,
 	}, nil
 }
 
@@ -310,7 +268,6 @@ func parseDisperse(fields []string, lineNumber int, liaison models.LiaisonMode, 
 		Type:             models.OrderTypeDisperse,
 		PositionID:       positionID,
 		TargetIDs:        make([]models.TerritoryID, 0, len(fields)-2),
-		NobleTargetIDs:   []models.NobleID{},
 		NobleAssignments: map[models.TerritoryCode][]models.NobleCode{},
 		Liaison:          liaison,
 	}
@@ -395,25 +352,6 @@ func parseTerritory(code string, lineNumber int, role string, indexes gameIndexe
 			Line:    lineNumber,
 			Code:    ParseCodeInvalidCode,
 			Message: fmt.Sprintf("territory code %q does not exist", code),
-		}}
-	}
-	return id, nil
-}
-
-func parseNoble(code string, lineNumber int, role string, indexes gameIndexes) (models.NobleID, []ParseError) {
-	if !isCode(code) {
-		return "", []ParseError{{
-			Line:    lineNumber,
-			Code:    ParseCodeInvalidCode,
-			Message: fmt.Sprintf("%s code %q must contain exactly three uppercase letters", role, code),
-		}}
-	}
-	id, exists := indexes.noblesByCode[code]
-	if !exists {
-		return "", []ParseError{{
-			Line:    lineNumber,
-			Code:    ParseCodeInvalidCode,
-			Message: fmt.Sprintf("noble code %q does not exist", code),
 		}}
 	}
 	return id, nil

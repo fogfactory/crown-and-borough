@@ -264,11 +264,6 @@ func (g *GameState) Validate() error {
 					return fmt.Errorf("models: chain %q: order %q references unknown target %q", chain.ID, order.ID, targetID)
 				}
 			}
-			for _, nobleTargetID := range order.NobleTargetIDs {
-				if !nobles[nobleTargetID] {
-					return fmt.Errorf("models: chain %q: order %q references unknown noble target %q", chain.ID, order.ID, nobleTargetID)
-				}
-			}
 			for destinationCode, assignedCodes := range order.NobleAssignments {
 				if _, exists := codes[string(destinationCode)]; !exists {
 					return fmt.Errorf("models: chain %q: order %q references unknown assignment destination %q", chain.ID, order.ID, destinationCode)

@@ -137,6 +137,8 @@ func TestWinterOrderTypeIsValid(t *testing.T) {
 		models.WinterOrderTypeBuild,
 		models.WinterOrderTypeElectCapital,
 		models.WinterOrderTypeLiberateNoble,
+		models.WinterOrderTypeHostage,
+		models.WinterOrderTypeDungeon,
 	} {
 		if !valid.IsValid() {
 			t.Errorf("WinterOrderType %q: want valid", valid)
@@ -218,8 +220,8 @@ func TestValidateAssignedChain(t *testing.T) {
 		ArmyID:       "A1",
 		CurrentIndex: 0,
 		Orders: []models.Order{
-			{ID: "O1", Type: models.OrderTypeAttack, ArmyID: "A1", PositionID: "T01", TargetIDs: []models.TerritoryID{"T02"}, NobleTargetIDs: []models.NobleID{}, NobleAssignments: nil, Liaison: models.LiaisonModeSingle},
-			{ID: "O2", Type: models.OrderTypeDisperse, ArmyID: "A1", PositionID: "T02", TargetIDs: []models.TerritoryID{"T02"}, NobleTargetIDs: []models.NobleID{}, NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"BCL": {"HUG"}}, Liaison: models.LiaisonModeLoop},
+			{ID: "O1", Type: models.OrderTypeAttack, ArmyID: "A1", PositionID: "T01", TargetIDs: []models.TerritoryID{"T02"}, NobleAssignments: nil, Liaison: models.LiaisonModeSingle},
+			{ID: "O2", Type: models.OrderTypeDisperse, ArmyID: "A1", PositionID: "T02", TargetIDs: []models.TerritoryID{"T02"}, NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"BCL": {"HUG"}}, Liaison: models.LiaisonModeLoop},
 		},
 	}}
 	g.NextChainID = 2
@@ -348,7 +350,7 @@ func TestValidateChainErrors(t *testing.T) {
 			ID: "C1", NobleID: "N1", ArmyID: "A1", CurrentIndex: 0,
 			Orders: []models.Order{{
 				ID: "O1", Type: models.OrderTypeAttack, ArmyID: "A1", PositionID: "T01",
-				TargetIDs: []models.TerritoryID{"T02"}, NobleTargetIDs: []models.NobleID{}, Liaison: models.LiaisonModeSingle,
+				TargetIDs: []models.TerritoryID{"T02"}, Liaison: models.LiaisonModeSingle,
 			}},
 		}}
 		g.NextChainID = 2
@@ -394,10 +396,6 @@ func TestValidateChainErrors(t *testing.T) {
 			validChain(g)
 			g.Chains[0].Orders[0].TargetIDs = []models.TerritoryID{"T99"}
 		}, "unknown target"},
-		{"unknown noble target", func(g *models.GameState) {
-			validChain(g)
-			g.Chains[0].Orders[0].NobleTargetIDs = []models.NobleID{"N9"}
-		}, "unknown noble target"},
 		{"chain noble does not own army", func(g *models.GameState) {
 			validChain(g)
 			g.Chains[0].ArmyID = "A2"
@@ -466,7 +464,7 @@ func TestGameStateJSONRoundTrip(t *testing.T) {
 		ID: "C1", NobleID: "N1", ArmyID: "A1", CurrentIndex: 0,
 		Orders: []models.Order{{
 			ID: "O1", Type: models.OrderTypeDisperse, ArmyID: "A1", PositionID: "T01",
-			TargetIDs: []models.TerritoryID{"T01"}, NobleTargetIDs: []models.NobleID{},
+			TargetIDs:        []models.TerritoryID{"T01"},
 			NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"ROS": {"HUG", "*"}},
 			Liaison:          models.LiaisonModeLoop,
 		}},

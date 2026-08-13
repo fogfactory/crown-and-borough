@@ -113,7 +113,6 @@ type OrderReport struct {
 	Source           models.TerritoryID                          `json:"source"`
 	Target           models.TerritoryID                          `json:"target,omitempty"`
 	Targets          []models.TerritoryID                        `json:"targets,omitempty"`
-	NobleTargets     []models.NobleCode                          `json:"nobleTargets,omitempty"`
 	NobleAssignments map[models.TerritoryCode][]models.NobleCode `json:"nobleAssignments,omitempty"`
 	Liaison          models.LiaisonMode                          `json:"liaison"`
 	Outcome          Outcome                                     `json:"outcome"`
@@ -289,11 +288,6 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 					if len(entry.Targets) > 0 {
 						entry.Target = entry.Targets[0]
 					}
-					for _, nobleTargetID := range order.NobleTargetIDs {
-						if noble, nobleExists := noblesByID[nobleTargetID]; nobleExists {
-							entry.NobleTargets = append(entry.NobleTargets, models.NobleCode(noble.Code))
-						}
-					}
 					entry.NobleAssignments = cloneNobleAssignments(order.NobleAssignments)
 					entry.Liaison = order.Liaison
 					break
@@ -325,6 +319,15 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 				Source: event.SourceID, Destination: event.DestinationID, PreviousStatus: event.PreviousStatus,
 				Status: event.Status, Captor: event.CaptorPlayerID,
 			})
+			if event.Type == EventTypeCapture && event.Phase == winterPhase && report.Winter != nil && event.WinterOrder != nil {
+				orderCopy := *event.WinterOrder
+				report.Winter.Investments = append(report.Winter.Investments, WinterInvestmentReport{
+					Kind: event.Type, Player: event.OwnerID, Outcome: OutcomeSuccess,
+					Cost: event.ResourceSpent, Territory: event.TerritoryID,
+					Noble: event.NobleID, NobleCode: event.NobleCode, NobleName: event.NobleName,
+					Order: &orderCopy,
+				})
+			}
 			if event.Type == EventTypeLiberation && report.Winter != nil {
 				report.Winter.Investments = append(report.Winter.Investments, WinterInvestmentReport{
 					Kind: event.Type, Player: event.OwnerID, Outcome: OutcomeSuccess, Territory: event.TerritoryID,

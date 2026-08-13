@@ -8,6 +8,7 @@ import {
 } from 'react'
 
 import { TERRAIN_COLORS, TERRAIN_LABELS } from '@/components/MapLegend'
+import { NOBLE_STATUS_LABELS } from '@/lib/noble-label'
 import { hasSupplySource } from '@/lib/supply'
 import {
   Tooltip,
@@ -282,7 +283,7 @@ function NobleMarker({
   const prisoner = noble.status !== 'free'
   return (
     <g transform={`translate(${x} ${y}) scale(${scale})`} pointerEvents="none">
-      <title>{`${noble.name} (${noble.id})${prisoner ? ` · ${noble.status}` : ''}`}</title>
+      <title>{`${noble.name} (${noble.id})${prisoner ? ` · ${NOBLE_STATUS_LABELS[noble.status]}` : ''}`}</title>
       <path
         d="M0-8L8 0L0 8L-8 0Z"
         fill={color}

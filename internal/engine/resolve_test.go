@@ -782,27 +782,7 @@ func TestResolvePillageCreditsNearestControlledSettlement(t *testing.T) {
 	}
 }
 
-func TestResolveNobleStatusAndCapture(t *testing.T) {
-	t.Run("status", func(t *testing.T) {
-		state := testState(t,
-			[]models.Territory{territory("T01", "AAA")},
-			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1}},
-		)
-		addNoble(state, "N1", "ONE", "P1", "T01")
-		addNoble(state, "N2", "TWO", "P2", "T01")
-		state.Nobles[1].Status = models.NobleStatusDungeon
-		addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeHostage, PositionID: "T01", NobleTargetIDs: []models.NobleID{"N2"}})
-		validateTestState(t, state)
-
-		resolution, err := Resolve(state, testBalance())
-		if err != nil {
-			t.Fatalf("Resolve: %v", err)
-		}
-		if noble := nobleByID(t, resolution.State, "N2"); noble.Status != models.NobleStatusHostage {
-			t.Errorf("N2 status = %q, want hostage", noble.Status)
-		}
-	})
-
+func TestResolveNobleCapture(t *testing.T) {
 	t.Run("capture", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{

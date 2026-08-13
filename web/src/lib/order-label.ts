@@ -4,7 +4,6 @@ export interface OrderLabelData {
   type: OrderType
   position: string
   targets?: string[]
-  nobleTargets?: string[]
   nobleAssignments?: Record<string, string[]>
   liaison?: LiaisonMode
 }
@@ -16,8 +15,6 @@ const ORDER_SYMBOLS: Record<OrderType, string> = {
   join: 'J',
   pillage: 'P',
   disperse: 'D',
-  hostage: 'O',
-  dungeon: 'K',
 }
 
 function disperseTargetLabel(
@@ -43,10 +40,6 @@ export function formatOrderLabel(order: OrderLabelData): string {
     case 'support':
       parts = [order.position, symbol, targets[0] ?? '—']
       if (targets[1]) parts.push('-', targets[1])
-      break
-    case 'hostage':
-    case 'dungeon':
-      parts = [order.position, symbol, order.nobleTargets?.[0] ?? '—']
       break
     case 'disperse':
       parts = [

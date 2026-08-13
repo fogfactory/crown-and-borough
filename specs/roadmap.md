@@ -33,7 +33,7 @@ online à réaliser et à suivre par issue.
 | Fondations | Module Go, chargement des assets CSV, balance JSON, front Vite/React/TypeScript | Fait |
 | Carte | Génération Voronoï seedée, territoires nommés par trigramme, frontières franchissables ou infranchissables, graphe connexe, villages neutres et territoires dédiés | Fait |
 | Modèle | Joueurs, territoires, armées uniques par territoire, nobles, infrastructures, stocks, chaînes | Fait |
-| Ordres | Parser texte, ordres A/S/H/J/P/O/K/D, liaisons `single` et `loop`, validation et remplacement atomique des chaînes | Fait |
+| Ordres | Parser texte, ordres A/S/H/J/P/D, liaisons `single` et `loop`, validation et remplacement atomique des chaînes ; statuts nobles en ordres d'hiver O/P | Fait |
 | Résolution | Progression simultanée, attaques, soutiens, combats multi-contendants, retraites, jonctions, dispersions, contrôle territorial | Fait |
 | Logistique | Rations de terrain, ravitaillement BFS, portée, dépôts de vivres, coûts exponentiels, stocks et famine | Fait |
 | Hiver | Recrutement, constructions v1, capitale, libération des nobles, conservation et rapatriement des stocks | Fait |

@@ -143,7 +143,6 @@ func cloneChain(chain models.Chain) models.Chain {
 	for i, order := range chain.Orders {
 		copyOrder := order
 		copyOrder.TargetIDs = append([]models.TerritoryID(nil), order.TargetIDs...)
-		copyOrder.NobleTargetIDs = append([]models.NobleID(nil), order.NobleTargetIDs...)
 		if order.NobleAssignments != nil {
 			copyOrder.NobleAssignments = make(map[models.TerritoryCode][]models.NobleCode, len(order.NobleAssignments))
 			for destination, nobleCodes := range order.NobleAssignments {

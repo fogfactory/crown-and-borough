@@ -163,16 +163,14 @@ func TestBuildTurnReportKeepsCompleteOrderSyntaxFromBeforeSnapshot(t *testing.T)
 				},
 				Liaison: models.LiaisonModeLoop,
 			},
-			{ID: "O2", ArmyID: armyID, Type: models.OrderTypeHostage, PositionID: "T01", NobleTargetIDs: []models.NobleID{"N2"}, Liaison: models.LiaisonModeSingle},
 		},
 	}}
 
 	report := BuildTurnReport(before, nil, []Event{
 		{Type: EventTypeOrderOutcome, ArmyID: armyID, ChainID: "C1", OrderID: "O1", Outcome: OutcomeInvalid},
-		{Type: EventTypeOrderOutcome, ArmyID: armyID, ChainID: "C1", OrderID: "O2", Outcome: OutcomeFailure},
 	}, nil)
-	if len(report.Orders) != 2 {
-		t.Fatalf("orders = %#v, want two orders", report.Orders)
+	if len(report.Orders) != 1 {
+		t.Fatalf("orders = %#v, want one order", report.Orders)
 	}
 	order := report.Orders[0]
 	if order.Owner != owner || order.Noble != "JEA" || order.Source != "T01" {
@@ -190,11 +188,6 @@ func TestBuildTurnReportKeepsCompleteOrderSyntaxFromBeforeSnapshot(t *testing.T)
 	if order.Liaison != models.LiaisonModeLoop || order.Outcome != OutcomeInvalid {
 		t.Errorf("order resolution metadata = %#v", order)
 	}
-	nobleOrder := report.Orders[1]
-	if nobleOrder.Noble != "JEA" || !reflect.DeepEqual(nobleOrder.NobleTargets, []models.NobleCode{"BOB"}) {
-		t.Errorf("noble order targets = %#v, want BOB from before snapshot", nobleOrder)
-	}
-
 	serializable := report
 	encoded, err := json.Marshal(serializable)
 	if err != nil {
@@ -233,6 +226,46 @@ func TestBuildTurnReportMarksWinterInvestmentOutcomes(t *testing.T) {
 	}
 	if report.Winter.Investments[1].Outcome != OutcomeFailure {
 		t.Errorf("rejected winter outcome = %q, want failure", report.Winter.Investments[1].Outcome)
+	}
+}
+
+func TestBuildTurnReportIncludesWinterNobleStatusInvestment(t *testing.T) {
+	before := winterTestState(t,
+		[]models.Territory{
+			territory("T01", "AAA", "T02"),
+			territory("T02", "BBB", "T01"),
+		},
+		[]models.Army{{ID: "A1", OwnerID: "P2", TerritoryID: "T02", Size: 1}},
+	)
+	setTerritoryOwner(before, "T02", "P2")
+	addNoble(before, "N1", "NOB", "P1", "T02")
+	before.Nobles[0].Status = models.NobleStatusHostage
+	validateTestState(t, before)
+	after := cloneGameState(before)
+	after.Nobles[0].Status = models.NobleStatusDungeon
+	order := models.WinterOrder{ID: "O1", Type: models.WinterOrderTypeDungeon, NobleCode: "NOB"}
+
+	report := BuildTurnReport(before, after, []Event{{
+		Type:           EventTypeCapture,
+		Phase:          winterPhase,
+		OwnerID:        "P2",
+		ArmyID:         "A1",
+		OrderID:        "O1",
+		TerritoryID:    "T02",
+		NobleID:        "N1",
+		NobleCode:      "NOB",
+		NobleName:      "NOB",
+		PreviousStatus: models.NobleStatusHostage,
+		Status:         models.NobleStatusDungeon,
+		CaptorPlayerID: "P2",
+		WinterOrder:    &order,
+	}}, nil)
+	if report.Winter == nil || len(report.Winter.Investments) != 1 {
+		t.Fatalf("winter investments = %#v, want one status investment", report.Winter)
+	}
+	investment := report.Winter.Investments[0]
+	if investment.Player != "P2" || investment.Outcome != OutcomeSuccess || investment.Order == nil || investment.Order.Type != models.WinterOrderTypeDungeon {
+		t.Errorf("status investment = %#v, want successful P2 dungeon order", investment)
 	}
 }
 

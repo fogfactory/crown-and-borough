@@ -92,7 +92,6 @@ function formatReportOrderLabel(
     type: reportOrder.type,
     position: territoryLabel(map, reportOrder.source),
     targets: targets?.map((target) => territoryLabel(map, target)),
-    nobleTargets: reportOrder.nobleTargets,
     nobleAssignments: reportOrder.nobleAssignments,
     liaison: reportOrder.liaison,
   })
@@ -111,6 +110,10 @@ function winterOrderLabel(order: WinterOrder, map: MapData | null): string {
       return `E C ${territory}`
     case 'liberate_noble':
       return `L N ${order.nobleCode ?? '—'}`
+    case 'hostage':
+      return `O N ${order.nobleCode ?? '—'}`
+    case 'dungeon':
+      return `P N ${order.nobleCode ?? '—'}`
   }
 }
 

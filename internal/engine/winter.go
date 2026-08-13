@@ -90,6 +90,10 @@ func (ctx *resolutionContext) resolveWinterOrder(playerID models.PlayerID, order
 		ctx.resolveElectCapital(playerID, order)
 	case models.WinterOrderTypeLiberateNoble:
 		ctx.resolveLiberateNoble(playerID, order)
+	case models.WinterOrderTypeHostage:
+		ctx.resolveNobleStatusOrder(playerID, order, models.NobleStatusHostage)
+	case models.WinterOrderTypeDungeon:
+		ctx.resolveNobleStatusOrder(playerID, order, models.NobleStatusDungeon)
 	default:
 		ctx.rejectWinterOrder(playerID, order, "invalid_winter_order")
 	}
@@ -339,6 +343,42 @@ func (ctx *resolutionContext) resolveElectCapital(playerID models.PlayerID, orde
 	})
 }
 
+func (ctx *resolutionContext) resolveNobleStatusOrder(playerID models.PlayerID, order models.WinterOrder, status models.NobleStatus) {
+	nobleID, exists := ctx.noblesByCode[order.NobleCode]
+	if !exists {
+		ctx.rejectWinterOrder(playerID, order, "unknown_noble")
+		return
+	}
+	noble := ctx.noblesByID[nobleID]
+	if noble == nil || noble.Status == models.NobleStatusFree {
+		ctx.rejectWinterOrder(playerID, order, "noble_not_prisoner")
+		return
+	}
+	holder := ctx.currentArmyAt(noble.LocationID)
+	if holder == nil || holder.OwnerID != playerID || noble.OwnerID == playerID {
+		ctx.rejectWinterOrder(playerID, order, "noble_not_held")
+		return
+	}
+	previousStatus := noble.Status
+	noble.Status = status
+	orderCopy := order
+	ctx.events = append(ctx.events, Event{
+		Type:           EventTypeCapture,
+		Phase:          winterPhase,
+		OwnerID:        playerID,
+		ArmyID:         holder.ID,
+		OrderID:        order.ID,
+		TerritoryID:    noble.LocationID,
+		NobleID:        noble.ID,
+		NobleCode:      models.NobleCode(noble.Code),
+		NobleName:      noble.Name,
+		PreviousStatus: previousStatus,
+		Status:         noble.Status,
+		CaptorPlayerID: playerID,
+		WinterOrder:    &orderCopy,
+	})
+}
+
 func (ctx *resolutionContext) resolveLiberateNoble(playerID models.PlayerID, order models.WinterOrder) {
 	nobleID, exists := ctx.noblesByCode[order.NobleCode]
 	if !exists {
@@ -346,20 +386,30 @@ func (ctx *resolutionContext) resolveLiberateNoble(playerID models.PlayerID, ord
 		return
 	}
 	noble := ctx.noblesByID[nobleID]
-	if noble == nil || noble.OwnerID != playerID {
-		ctx.rejectWinterOrder(playerID, order, "noble_not_owned")
-		return
-	}
-	if noble.Status == models.NobleStatusFree {
+	if noble == nil || noble.Status == models.NobleStatusFree {
 		ctx.rejectWinterOrder(playerID, order, "noble_not_prisoner")
 		return
 	}
-	capitalTerritoryID, _, hasCapital := ctx.capitalTerritory(playerID)
+	holder := ctx.currentArmyAt(noble.LocationID)
+	if holder == nil || holder.OwnerID != playerID {
+		ctx.rejectWinterOrder(playerID, order, "noble_not_held")
+		return
+	}
+	capitalTerritoryID, _, hasCapital := ctx.capitalTerritory(noble.OwnerID)
 	if !hasCapital {
 		ctx.rejectWinterOrder(playerID, order, "no_capital")
 		return
 	}
-	spent, paid := ctx.payWinterCost(playerID, capitalTerritoryID, ctx.balance.Costs.Liberation)
+	capitalArmy := ctx.currentArmyAt(capitalTerritoryID)
+	if capitalArmy == nil || capitalArmy.OwnerID != noble.OwnerID {
+		ctx.rejectWinterOrder(playerID, order, "no_army_at_capital")
+		return
+	}
+	paymentTargetID := noble.LocationID
+	if holderCapitalTerritoryID, _, holderHasCapital := ctx.capitalTerritory(playerID); holderHasCapital {
+		paymentTargetID = holderCapitalTerritoryID
+	}
+	spent, paid := ctx.payWinterCost(playerID, paymentTargetID, ctx.balance.Costs.Liberation)
 	if !paid {
 		ctx.rejectWinterOrder(playerID, order, "insufficient_resources")
 		return

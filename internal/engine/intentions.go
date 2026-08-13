@@ -158,20 +158,16 @@ func (ctx *resolutionContext) enumerateOrder(record *orderRecord, army models.Ar
 	case models.OrderTypeSupport:
 		ctx.validateSupport(record, army)
 	case models.OrderTypeHold:
-		if len(order.TargetIDs) != 0 || len(order.NobleTargetIDs) != 0 || len(order.NobleAssignments) != 0 {
+		if len(order.TargetIDs) != 0 || len(order.NobleAssignments) != 0 {
 			record.invalidate("invalid_hold_shape")
 		}
 	case models.OrderTypePillage:
-		if len(order.TargetIDs) != 0 || len(order.NobleTargetIDs) != 0 || len(order.NobleAssignments) != 0 {
+		if len(order.TargetIDs) != 0 || len(order.NobleAssignments) != 0 {
 			record.invalidate("invalid_pillage_shape")
 			return
 		}
 		if len(ctx.state.TerritoryStates[army.TerritoryID].Infrastructures) == 0 {
 			record.invalidate("no_infrastructure")
-		}
-	case models.OrderTypeHostage, models.OrderTypeDungeon:
-		if len(order.TargetIDs) != 0 || len(order.NobleTargetIDs) != 1 || len(order.NobleAssignments) != 0 {
-			record.invalidate("invalid_noble_order_shape")
 		}
 	default:
 		record.invalidate("unknown_order_type")
@@ -179,7 +175,7 @@ func (ctx *resolutionContext) enumerateOrder(record *orderRecord, army models.Ar
 }
 
 func (ctx *resolutionContext) singleAdjacentTarget(record *orderRecord, army models.Army, allowSource bool) (models.TerritoryID, bool) {
-	if len(record.order.TargetIDs) != 1 || len(record.order.NobleTargetIDs) != 0 || len(record.order.NobleAssignments) != 0 {
+	if len(record.order.TargetIDs) != 1 || len(record.order.NobleAssignments) != 0 {
 		record.invalidate("invalid_target_shape")
 		return "", false
 	}
@@ -193,7 +189,7 @@ func (ctx *resolutionContext) singleAdjacentTarget(record *orderRecord, army mod
 
 func (ctx *resolutionContext) validateSupport(record *orderRecord, army models.Army) {
 	order := record.order
-	if len(order.NobleTargetIDs) != 0 || len(order.NobleAssignments) != 0 || len(order.TargetIDs) < 1 || len(order.TargetIDs) > 2 {
+	if len(order.NobleAssignments) != 0 || len(order.TargetIDs) < 1 || len(order.TargetIDs) > 2 {
 		record.invalidate("invalid_support_shape")
 		return
 	}
@@ -216,10 +212,6 @@ func (ctx *resolutionContext) validateSupport(record *orderRecord, army models.A
 
 func (ctx *resolutionContext) validateDisperse(record *orderRecord, army models.Army) (map[models.TerritoryID][]models.NobleID, bool) {
 	order := record.order
-	if len(order.NobleTargetIDs) != 0 {
-		record.invalidate("invalid_disperse_shape")
-		return nil, false
-	}
 	targetSet := make(map[models.TerritoryID]bool, len(order.TargetIDs))
 	for _, targetID := range order.TargetIDs {
 		if ctx.territoriesByID[targetID] == nil || (targetID != army.TerritoryID && !ctx.isAdjacent(army.TerritoryID, targetID)) {

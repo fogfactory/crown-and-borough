@@ -14,6 +14,46 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
+func TestPendingPlayersSkipsPlayersWithoutEmittingNobleOnActionTurns(t *testing.T) {
+	session := &Session{
+		game: &models.GameState{
+			Season: models.SeasonSummer,
+			Players: []models.Player{
+				{ID: "P1"},
+				{ID: "P2"},
+			},
+			Nobles: []models.Noble{
+				{OwnerID: "P1", Status: models.NobleStatusFree},
+				{OwnerID: "P2", Status: models.NobleStatusDungeon},
+			},
+		},
+		pending: map[models.PlayerID]engine.OrdersInput{
+			"P1": {},
+		},
+	}
+
+	submitted, remaining := session.pendingPlayersLocked()
+	if len(submitted) != 1 || submitted[0] != "P1" {
+		t.Fatalf("submitted = %#v, want [P1]", submitted)
+	}
+	if len(remaining) != 0 {
+		t.Fatalf("remaining = %#v, want no required players", remaining)
+	}
+
+	session.game.Nobles[1].Status = models.NobleStatusHostage
+	submitted, remaining = session.pendingPlayersLocked()
+	if len(submitted) != 1 || len(remaining) != 1 || remaining[0] != "P2" {
+		t.Fatalf("hostage remaining = submitted %#v, remaining %#v; want P2 required", submitted, remaining)
+	}
+
+	session.game.Season = models.SeasonWinter
+	session.pending = map[models.PlayerID]engine.OrdersInput{}
+	_, remaining = session.pendingPlayersLocked()
+	if len(remaining) != 2 || remaining[0] != "P1" || remaining[1] != "P2" {
+		t.Fatalf("winter remaining = %#v, want [P1 P2]", remaining)
+	}
+}
+
 func TestHotseatSessionResolvesAndRecreatesGame(t *testing.T) {
 	assets, err := assetgen.Load("../../assets")
 	if err != nil {

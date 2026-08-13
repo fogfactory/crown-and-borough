@@ -930,8 +930,6 @@ func executeLocalOrders(ctx *resolutionContext) {
 			}
 		case models.OrderTypePillage:
 			ctx.executePillage(record, army)
-		case models.OrderTypeHostage, models.OrderTypeDungeon:
-			ctx.executeNobleStatusOrder(record, army)
 		default:
 			record.invalidate("unresolved_order")
 		}
@@ -1022,33 +1020,6 @@ func (ctx *resolutionContext) closestControlledSettlement(startID models.Territo
 		}
 	}
 	return ""
-}
-
-func (ctx *resolutionContext) executeNobleStatusOrder(record *orderRecord, army *models.Army) {
-	targetID := record.order.NobleTargetIDs[0]
-	target := ctx.noblesByID[targetID]
-	if target == nil || target.Status == models.NobleStatusFree || target.LocationID != army.TerritoryID || target.OwnerID == army.OwnerID {
-		record.invalidate("noble_not_prisoner")
-		return
-	}
-	previousStatus := target.Status
-	if record.order.Type == models.OrderTypeHostage {
-		target.Status = models.NobleStatusHostage
-	} else {
-		target.Status = models.NobleStatusDungeon
-	}
-	record.outcome = OutcomeSuccess
-	record.reason = "noble_status_changed"
-	ctx.events = append(ctx.events, Event{
-		Type:           EventTypeCapture,
-		Phase:          4,
-		ArmyID:         army.ID,
-		TerritoryID:    army.TerritoryID,
-		NobleID:        target.ID,
-		PreviousStatus: previousStatus,
-		Status:         target.Status,
-		Outcome:        OutcomeSuccess,
-	})
 }
 
 func executeRetreats(ctx *resolutionContext) error {

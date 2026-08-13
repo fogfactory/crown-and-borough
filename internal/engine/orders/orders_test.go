@@ -22,8 +22,6 @@ ros s boi
 h ros
 p ros
 ros d ros*jea boi*ann*jea fou*bob boi
-ros o bob
-ros k bob
 ros j boi
 `, game)
 	if len(parseErrors) != 0 {
@@ -32,8 +30,8 @@ ros j boi
 	if chain.NobleID != "N1" || chain.ID != "" || chain.ArmyID != "" || chain.CurrentIndex != 0 {
 		t.Fatalf("parsed chain = %#v, want unassigned N1 chain at index 0", chain)
 	}
-	if len(chain.Orders) != 9 {
-		t.Fatalf("parsed order count = %d, want 9", len(chain.Orders))
+	if len(chain.Orders) != 7 {
+		t.Fatalf("parsed order count = %d, want 7", len(chain.Orders))
 	}
 	wantTypes := []models.OrderType{
 		models.OrderTypeAttack,
@@ -42,8 +40,6 @@ ros j boi
 		models.OrderTypeHold,
 		models.OrderTypePillage,
 		models.OrderTypeDisperse,
-		models.OrderTypeHostage,
-		models.OrderTypeDungeon,
 		models.OrderTypeJoin,
 	}
 	for index, wantType := range wantTypes {
@@ -73,9 +69,6 @@ ros j boi
 		"FOU": {"BOB"},
 	}; !reflect.DeepEqual(got, want) {
 		t.Errorf("D assignments = %#v, want %#v", got, want)
-	}
-	if got := chain.Orders[6].NobleTargetIDs; !reflect.DeepEqual(got, []models.NobleID{"N3"}) {
-		t.Errorf("O noble targets = %#v, want N3", got)
 	}
 }
 
@@ -147,14 +140,15 @@ ROS D
 		t.Errorf("bad D assignment errors = %#v, want invalid_code at line 2", badAssignment)
 	}
 
-	_, unknownNobles := ParseChain("JEA\nROS O ZZZ\nROS D ROS*ZZZ BOI", game)
-	if len(unknownNobles) != 2 {
-		t.Fatalf("unknown noble errors = %#v, want two errors", unknownNobles)
+	_, legacyStatusOrders := ParseChain("JEA\nROS K BOB\nROS D ROS*ZZZ BOI", game)
+	if len(legacyStatusOrders) != 2 {
+		t.Fatalf("legacy status errors = %#v, want two errors", legacyStatusOrders)
 	}
-	for index, wantLine := range []int{2, 3} {
-		if unknownNobles[index].Code != ParseCodeInvalidCode || unknownNobles[index].Line != wantLine {
-			t.Errorf("unknown noble error %d = %#v, want invalid_code on line %d", index, unknownNobles[index], wantLine)
-		}
+	if legacyStatusOrders[0].Code != ParseCodeUnknownSymbol || legacyStatusOrders[0].Line != 2 {
+		t.Errorf("legacy status error = %#v, want unknown_symbol on line 2", legacyStatusOrders[0])
+	}
+	if legacyStatusOrders[1].Code != ParseCodeInvalidCode || legacyStatusOrders[1].Line != 3 {
+		t.Errorf("unknown assignment error = %#v, want invalid_code on line 3", legacyStatusOrders[1])
 	}
 }
 
@@ -168,8 +162,6 @@ func TestValidateChainStaticRulesAndPurity(t *testing.T) {
 		"JEA\nP ROS",
 		"JEA\nROS J BOI",
 		"JEA\nROS D ROS BOI",
-		"JEA\nROS O BOB",
-		"JEA\nROS K BOB",
 	} {
 		chain := mustParseChain(t, game, text)
 		before := jsonCloneChain(chain)
@@ -193,9 +185,6 @@ func TestValidateChainStaticRulesAndPurity(t *testing.T) {
 		{"offensive support target not adjacent", "JEA\nFOU S ROS - BRU", nil, "not_adjacent"},
 		{"join not last", "JEA\nROS J BOI\nH BOI", nil, "join_not_last"},
 		{"pillage extra target", "JEA\nP ROS", func(chain *models.Chain) { chain.Orders[0].TargetIDs = []models.TerritoryID{"T02"} }, "unexpected_target"},
-		{"too many noble targets", "JEA\nROS O BOB", func(chain *models.Chain) {
-			chain.Orders[0].NobleTargetIDs = append(chain.Orders[0].NobleTargetIDs, "N4")
-		}, "too_many_targets"},
 		{"D destination not adjacent", "JEA\nROS D BRU", nil, "not_adjacent"},
 		{"D assignment destination absent", "JEA\nROS D ROS", func(chain *models.Chain) {
 			chain.Orders[0].NobleAssignments = map[models.TerritoryCode][]models.NobleCode{"BOI": {"JEA"}}
@@ -319,10 +308,7 @@ func TestAssignChainReceptionFailuresAreAtomic(t *testing.T) {
 	}{
 		{"no army at first position", nil, "JEA\nBRU A BOI", ErrNoArmyOnPosition},
 		{"foreign army at first position", nil, "JEA\nBOI A ROS", ErrArmyNotOwned},
-		{"prisoner emitter", func(game *models.GameState) { game.Nobles[0].Status = models.NobleStatusHostage }, "JEA\nROS A BOI", ErrNoblePrisoner},
 		{"dungeon emitter", func(game *models.GameState) { game.Nobles[0].Status = models.NobleStatusDungeon }, "JEA\nROS A BOI", ErrNoblePrisoner},
-		{"O target is free", nil, "JEA\nROS O CAL", ErrNobleNotPrisoner},
-		{"O target held elsewhere", func(game *models.GameState) { game.Nobles[2].LocationID = "T02" }, "JEA\nROS O BOB", ErrNobleNotPrisoner},
 		{"static invalid chain", nil, "JEA\nROS J BOI\nH BOI", ErrInvalidChain},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -338,6 +324,22 @@ func TestAssignChainReceptionFailuresAreAtomic(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAssignChainAllowsHostageEmitter(t *testing.T) {
+	t.Run("co-located hostage", func(t *testing.T) {
+		game := orderTestState()
+		game.Nobles[0].Status = models.NobleStatusHostage
+		if err := AssignChain(game, mustParseChain(t, game, "JEA\nROS A BOI")); err != nil {
+			t.Fatalf("AssignChain() = %v, want hostage noble to emit", err)
+		}
+	})
+	t.Run("hostage held by an enemy army", func(t *testing.T) {
+		game := orderTestState()
+		if err := AssignChain(game, mustParseChain(t, game, "BOB\nBOI A ROS")); err != nil {
+			t.Fatalf("AssignChain() = %v, want enemy-held hostage to emit for its owner's army", err)
+		}
+	})
 }
 
 func TestAssignChainDefersNonAdjacentDiagnostic(t *testing.T) {
@@ -397,7 +399,7 @@ func TestAssignChainRejectsDeferrableMixedWithBlockingErrors(t *testing.T) {
 	}
 }
 
-func TestAssignChainDisperseAndImmediatePrisonerChecks(t *testing.T) {
+func TestAssignChainDisperse(t *testing.T) {
 	game := orderTestState()
 	if err := AssignChain(game, mustParseChain(t, game, "JEA\nROS D ROS* BOI")); err != nil {
 		t.Fatalf("wildcard D assignment = %v, want nil", err)
@@ -406,23 +408,6 @@ func TestAssignChainDisperseAndImmediatePrisonerChecks(t *testing.T) {
 		t.Errorf("stored wildcard = %#v, want *", got)
 	}
 
-	for _, symbol := range []string{"O", "K"} {
-		t.Run(symbol+" accepts co-located prisoner", func(t *testing.T) {
-			state := orderTestState()
-			if err := AssignChain(state, mustParseChain(t, state, "JEA\nROS "+symbol+" BOB")); err != nil {
-				t.Fatalf("AssignChain() = %v, want nil", err)
-			}
-		})
-	}
-
-	state := orderTestState()
-	if err := AssignChain(state, mustParseChain(t, state, "JEA\nROS A BOI\nBOI O CAL")); err != nil {
-		t.Fatalf("future-position O = %v, want reception to defer it to P1.4", err)
-	}
-	state = orderTestState()
-	if err := AssignChain(state, mustParseChain(t, state, "JEA\nH ROS\nROS O CAL")); err != nil {
-		t.Fatalf("later O on receiving position = %v, want reception to defer it to P1.4", err)
-	}
 }
 
 func TestAssignChainDefersDisperseSizeAndNobleCoverage(t *testing.T) {

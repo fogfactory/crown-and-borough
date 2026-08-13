@@ -36,23 +36,7 @@ describe('formatOrderLabel', () => {
     ).toBe('ROS J BRU')
   })
 
-  it('renders noble targets, dispersion assignments, and loop liaison', () => {
-    expect(
-      formatOrderLabel({
-        type: 'hostage',
-        position: 'ROS',
-        nobleTargets: ['JEA'],
-        liaison: 'single',
-      }),
-    ).toBe('ROS O JEA')
-    expect(
-      formatOrderLabel({
-        type: 'dungeon',
-        position: 'ROS',
-        nobleTargets: ['JEA'],
-        liaison: 'loop',
-      }),
-    ).toBe('(ROS K JEA)')
+  it('renders dispersion assignments and loop liaison', () => {
     expect(
       formatOrderLabel({
         type: 'disperse',

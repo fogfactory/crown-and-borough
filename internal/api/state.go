@@ -64,7 +64,6 @@ type OrderView struct {
 	Type             models.OrderType                            `json:"type"`
 	Position         models.TerritoryCode                        `json:"position"`
 	Targets          []models.TerritoryCode                      `json:"targets,omitempty"`
-	NobleTargets     []models.NobleCode                          `json:"nobleTargets,omitempty"`
 	NobleAssignments map[models.TerritoryCode][]models.NobleCode `json:"nobleAssignments,omitempty"`
 	Liaison          models.LiaisonMode                          `json:"liaison"`
 }
@@ -196,12 +195,6 @@ func projectChain(
 			orderView.Targets = make([]models.TerritoryCode, 0, len(order.TargetIDs))
 			for _, targetID := range order.TargetIDs {
 				orderView.Targets = append(orderView.Targets, territoryCodesByID[targetID])
-			}
-		}
-		if len(order.NobleTargetIDs) != 0 {
-			orderView.NobleTargets = make([]models.NobleCode, 0, len(order.NobleTargetIDs))
-			for _, targetID := range order.NobleTargetIDs {
-				orderView.NobleTargets = append(orderView.NobleTargets, nobleCodesByID[targetID])
 			}
 		}
 		if len(order.NobleAssignments) != 0 {

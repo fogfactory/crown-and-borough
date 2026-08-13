@@ -91,7 +91,6 @@ func (ctx *resolutionContext) cloneForDeparturePrediction() *resolutionContext {
 	for armyID, record := range ctx.records {
 		copyRecord := *record
 		copyRecord.order.TargetIDs = append([]models.TerritoryID(nil), record.order.TargetIDs...)
-		copyRecord.order.NobleTargetIDs = append([]models.NobleID(nil), record.order.NobleTargetIDs...)
 		temp.records[armyID] = &copyRecord
 	}
 	temp.attacks = copyAttackIntents(ctx.attacks)

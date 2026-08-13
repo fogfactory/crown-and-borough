@@ -53,7 +53,6 @@ func cloneChain(source models.Chain) models.Chain {
 	for i, order := range source.Orders {
 		clone.Orders[i] = order
 		clone.Orders[i].TargetIDs = cloneSlice(order.TargetIDs)
-		clone.Orders[i].NobleTargetIDs = cloneSlice(order.NobleTargetIDs)
 		if order.NobleAssignments != nil {
 			clone.Orders[i].NobleAssignments = make(map[models.TerritoryCode][]models.NobleCode, len(order.NobleAssignments))
 			for destination, codes := range order.NobleAssignments {
