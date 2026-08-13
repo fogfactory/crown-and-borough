@@ -20,6 +20,7 @@ type Balance struct {
 	InfraRationsBonus  int                    `json:"infra_rations_bonus" yaml:"infra_rations_bonus"`
 	CostBase           int                    `json:"cost_base" yaml:"cost_base"`
 	PillageBonus       int                    `json:"pillage_bonus" yaml:"pillage_bonus"`
+	NobleCommandBonus  int                    `json:"noble_command_bonus" yaml:"noble_command_bonus"`
 	CastleDefenseBonus int                    `json:"castle_defense_bonus" yaml:"castle_defense_bonus"`
 	RationTerrain      map[models.Terrain]int `json:"ration_terrain" yaml:"ration_terrain"`
 	WinterStockDivisor int                    `json:"winter_stock_divisor" yaml:"winter_stock_divisor"`
@@ -49,6 +50,7 @@ type rawBalance struct {
 	InfraRationsBonus  *int            `yaml:"infra_rations_bonus"`
 	CostBase           *int            `yaml:"cost_base"`
 	PillageBonus       *int            `yaml:"pillage_bonus"`
+	NobleCommandBonus  *int            `yaml:"noble_command_bonus"`
 	CastleDefenseBonus *int            `yaml:"castle_defense_bonus"`
 	RationTerrain      map[string]*int `yaml:"ration_terrain"`
 	WinterStockDivisor *int            `yaml:"winter_stock_divisor"`
@@ -143,6 +145,10 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 	if err != nil {
 		return Balance{}, err
 	}
+	nobleCommandBonus, err := requiredNonNegativeInt(path, "noble_command_bonus", raw.NobleCommandBonus)
+	if err != nil {
+		return Balance{}, err
+	}
 	castleDefenseBonus, err := requiredNonNegativeInt(path, "castle_defense_bonus", raw.CastleDefenseBonus)
 	if err != nil {
 		return Balance{}, err
@@ -186,6 +192,7 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 		InfraRationsBonus:  infraRationsBonus,
 		CostBase:           costBase,
 		PillageBonus:       pillageBonus,
+		NobleCommandBonus:  nobleCommandBonus,
 		CastleDefenseBonus: castleDefenseBonus,
 		RationTerrain:      rationTerrain,
 		WinterStockDivisor: winterStockDivisor,

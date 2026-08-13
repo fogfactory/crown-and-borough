@@ -26,6 +26,7 @@ depot_range_bonus: 2
 infra_rations_bonus: 2
 cost_base: 2
 pillage_bonus: 2
+noble_command_bonus: 1
 castle_defense_bonus: 1
 ration_terrain:
   plain: 1
@@ -81,7 +82,7 @@ func TestLoadRealBalance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadBalance(real asset) = %v", err)
 	}
-	if balance.BaseProduction != 1 || balance.DepotRangeBonus != 2 || balance.WinterStockDivisor != 2 || balance.VillageStockCap != 1 || balance.CastleStockCap != 2 || balance.Costs.Castle != 10 || balance.Costs.Liberation != 0 {
+	if balance.BaseProduction != 1 || balance.DepotRangeBonus != 2 || balance.NobleCommandBonus != 1 || balance.WinterStockDivisor != 2 || balance.VillageStockCap != 1 || balance.CastleStockCap != 2 || balance.Costs.Castle != 10 || balance.Costs.Liberation != 0 {
 		t.Errorf("loaded costs = %#v / %#v", balance, balance.Costs)
 	}
 	if len(balance.FirstNames) < 100 {
@@ -98,7 +99,7 @@ func TestLoadBalanceValid(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadBalance(valid asset) = %v", err)
 	}
-	if balance.SupplyRange != 3 || balance.RationTerrain["swamp"] != 0 {
+	if balance.SupplyRange != 3 || balance.NobleCommandBonus != 1 || balance.RationTerrain["swamp"] != 0 {
 		t.Errorf("loaded balance = %#v", balance)
 	}
 	if len(balance.FirstNames) != 3 {
@@ -116,6 +117,11 @@ func TestLoadBalanceInvalid(t *testing.T) {
 			name:    "missing explicit zero cost",
 			content: strings.Replace(validBalance, "  supply_depot: 3\n", "", 1),
 			want:    "costs.supply_depot",
+		},
+		{
+			name:    "missing noble command bonus",
+			content: strings.Replace(validBalance, "noble_command_bonus: 1\n", "", 1),
+			want:    "noble_command_bonus",
 		},
 		{
 			name:    "missing terrain value",

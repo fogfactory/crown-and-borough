@@ -803,11 +803,11 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
-		if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "T01" {
-			t.Errorf("A1 = %+v, want standoff against force 1", army)
+		if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "T02" {
+			t.Errorf("A1 = %+v, want the free noble's bonus to win", army)
 		}
-		if got := combatContenderForce(t, resolution.Events, "T02", "A1"); got != 1 {
-			t.Errorf("A1 attack force = %d, want famished A2 to contribute nothing", got)
+		if got := combatContenderForce(t, resolution.Events, "T02", "A1"); got != 2 {
+			t.Errorf("A1 attack force = %d, want army plus noble bonus while famished support contributes nothing", got)
 		}
 	})
 

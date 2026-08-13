@@ -296,6 +296,9 @@ func defenseStrengthAt(
 		base += defenderStrength
 		strength += defenderStrength
 	}
+	bonus := nobleCommandBonus(ctx, *defender)
+	base += bonus
+	strength += bonus
 	if record := ctx.records[defender.ID]; record != nil && holdsForDefense(record.order.Type) && !peacefulVacated[defender.ID] {
 		defenseSupport := ctx.defensiveSupportStrength(defender.ID, cuts, dislodged)
 		strength += defenseSupport
@@ -303,8 +306,22 @@ func defenseStrengthAt(
 	return base, strength
 }
 
+func nobleCommandBonus(ctx *resolutionContext, army models.Army) int {
+	if ctx.famished[army.ID] || ctx.balance.NobleCommandBonus == 0 {
+		return 0
+	}
+	for _, nobleID := range ctx.noblesAt(army.TerritoryID) {
+		noble := ctx.noblesByID[nobleID]
+		if noble != nil && noble.OwnerID == army.OwnerID && noble.Status == models.NobleStatusFree {
+			return ctx.balance.NobleCommandBonus
+		}
+	}
+	return 0
+}
+
 func attackStrengthAt(ctx *resolutionContext, attack *attackIntent, defenderOwnerID models.PlayerID, cuts, dislodged map[models.ArmyID]bool) (int, int) {
-	strength := attack.size
+	attacker := ctx.startArmiesByID[attack.armyID]
+	strength := attack.size + nobleCommandBonus(ctx, attacker)
 	noHelp := 0
 	for _, supportID := range sortedArmyMap(ctx.supports) {
 		support := ctx.supports[supportID]
@@ -312,9 +329,10 @@ func attackStrengthAt(ctx *resolutionContext, attack *attackIntent, defenderOwne
 			continue
 		}
 		supporter := ctx.startArmiesByID[supportID]
-		strength += supporter.Size
+		supportStrength := supporter.Size + nobleCommandBonus(ctx, supporter)
+		strength += supportStrength
 		if defenderOwnerID != "" && supporter.OwnerID == defenderOwnerID {
-			noHelp += supporter.Size
+			noHelp += supportStrength
 		}
 	}
 	return strength, noHelp
@@ -581,6 +599,7 @@ func buildCombatResults(ctx *resolutionContext, table combatTable, peacefulVacat
 		defense := castleBonus
 		defenderID := models.ArmyID("")
 		defenderOwnerID := models.PlayerID("")
+		defenderNobleBonus := 0
 		if defender != nil && !peacefulVacated[defender.ID] && !dislodged[defender.ID] {
 			defenderOwnerID = defender.OwnerID
 		}
@@ -591,6 +610,7 @@ func buildCombatResults(ctx *resolutionContext, table combatTable, peacefulVacat
 			base, total := defenseStrengthAt(ctx, defender, territoryID, peacefulVacated, disperseResidual, dislodged, cuts)
 			baseDefense = base
 			defense = total
+			defenderNobleBonus = nobleCommandBonus(ctx, *defender)
 		}
 		result := contestResult{
 			territoryID: territoryID,
@@ -600,7 +620,10 @@ func buildCombatResults(ctx *resolutionContext, table combatTable, peacefulVacat
 			castleBonus: castleBonus,
 		}
 		if defenderID != "" || castleBonus > 0 {
-			result.contenders = append(result.contenders, CombatContender{ArmyID: defenderID, OwnerID: defenderOwnerID, Force: defense, Defender: true})
+			result.contenders = append(result.contenders, CombatContender{
+				ArmyID: defenderID, OwnerID: defenderOwnerID, Force: defense,
+				NobleBonus: defenderNobleBonus, Defender: true,
+			})
 		}
 		for _, armyID := range sortedArmyMap(ctx.attacks) {
 			attack := ctx.attacks[armyID]
@@ -609,7 +632,10 @@ func buildCombatResults(ctx *resolutionContext, table combatTable, peacefulVacat
 			}
 			owner := defenderOwnerID
 			force, _ := attackStrengthAt(ctx, attack, owner, cuts, dislodged)
-			result.contenders = append(result.contenders, CombatContender{ArmyID: armyID, OwnerID: ctx.startArmiesByID[armyID].OwnerID, Force: force})
+			result.contenders = append(result.contenders, CombatContender{
+				ArmyID: armyID, OwnerID: ctx.startArmiesByID[armyID].OwnerID,
+				Force: force, NobleBonus: nobleCommandBonus(ctx, ctx.startArmiesByID[armyID]),
+			})
 		}
 		entries := table[territoryID]
 		maxForce, topCount := topForce(entries)

@@ -579,8 +579,8 @@ func TestResolveDisperseDepartureChangesOriginDefense(t *testing.T) {
 		if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "T01" {
 			t.Errorf("A2 = %+v, want attack through residual defense", army)
 		}
-		if event, found := combatAt(resolution.Events, "T01"); !found || event.Defense != 1 || event.WinnerArmyID != "A2" {
-			t.Errorf("T01 contest = %#v, found=%t, want residual defense 1 and A2 winner", event, found)
+		if event, found := combatAt(resolution.Events, "T01"); !found || event.Defense != 2 || event.WinnerArmyID != "A2" {
+			t.Errorf("T01 contest = %#v, found=%t, want residual defense 2 including the command bonus and A2 winner", event, found)
 		}
 	})
 }
@@ -837,6 +837,7 @@ func TestResolveVacatedCastleStillDefends(t *testing.T) {
 	)
 	addNoble(state, "N1", "ONE", "P2", "T01")
 	addNoble(state, "N2", "TWO", "P1", "T02")
+	setNobleStatus(state, "N2", models.NobleStatusHostage)
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T01"})
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "T01", TargetIDs: []models.TerritoryID{"T03"}})
 	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "T02", TargetIDs: []models.TerritoryID{"T01"}})

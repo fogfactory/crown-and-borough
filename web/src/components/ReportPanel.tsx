@@ -230,7 +230,9 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                       {combat.contenders
                         .map(
                           (contender) =>
-                            `${contender.force}${contender.defender ? ' défense' : ''}`,
+                            `${contender.force}${contender.defender ? ' défense' : ''}${
+                              contender.nobleBonus ? ` (+${contender.nobleBonus} noble)` : ''
+                            }`,
                         )
                         .join(' · ') || '—'}
                     </td>

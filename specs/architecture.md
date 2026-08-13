@@ -199,6 +199,8 @@ la suivante :
   avec la progression de l'armée ;
 - un joueur voit les forces et le résultat exact d'un combat s'il intervient
   comme attaquant, défenseur ou soutien ;
+- les rapports de combat indiquent séparément le bonus de commandement noble
+  inclus dans la force de chaque armée ;
 - pour un combat auquel il ne participe pas, il voit le traitement général des
   ordres, mais pas le détail des puissances.
 
@@ -303,7 +305,8 @@ Les assets sont chargés au démarrage et validés avant de créer la session :
 - `communes.csv` fournit les noms, codes et affinités de terrain ;
 - `prenoms.csv` fournit les noms et codes de nobles ;
 - `balance.yaml` fournit les coûts, productions, portées, rations, bonus de
-  défense et valeurs de départ utilisés par le moteur.
+  défense, bonus de commandement noble et valeurs de départ utilisés par le
+  moteur.
 
 Les paramètres numériques ne doivent pas être recopiés dans les handlers ou
 le front. Le moteur reçoit une `assetgen.Balance` déjà chargée.
