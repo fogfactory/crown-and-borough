@@ -196,9 +196,9 @@ territoriaux.
 `capitalTerritory` désigne le territoire du château actuellement choisi comme
 capitale par le joueur ; le champ est absent lorsqu'il n'a pas de capitale.
 
-La v1 actuelle expose cette projection globalement, ce qui permet au front
-hotseat d'afficher la partie complète. La politique de divulgation cible est
-la suivante :
+La session hotseat conserve une projection globale lorsqu'aucun joueur n'est
+fourni, mais le front utilise `GET /api/state?player=P1` pour demander la vue
+filtrée du joueur sélectionné. La politique de divulgation est la suivante :
 
 - la carte et les valeurs dynamiques chiffrées restent communes ;
 - un joueur voit le détail des chaînes qu'il a émises, ainsi que celles émises
@@ -211,8 +211,9 @@ la suivante :
 - pour un combat auquel il ne participe pas, il voit le traitement général des
   ordres, mais pas le détail des puissances.
 
-Le filtrage de cette vue doit être fait côté serveur, avec l'identité du joueur.
-Il n'est pas délégué au front et constitue une tâche de l'issue online.
+Le filtrage de cette vue est fait côté serveur, avec l'identité du joueur. Le
+front ne reçoit jamais les détails masqués et ne fait qu'afficher la variante
+retournée par l'API.
 
 ### Vues privées des rapports
 
@@ -245,7 +246,14 @@ schéma de persistance indicatif est :
 ```json
 {
   "chainKnowledge": {
-    "P1": { "C1": true }
+    "P1": {
+      "C1": {
+        "army": "A1",
+        "noble": "N1",
+        "currentIndex": 0,
+        "orders": [{ "position": "ROS" }]
+      }
+    }
   },
   "combatParticipation": {
     "P1": ["combat-1"]
@@ -253,11 +261,12 @@ schéma de persistance indicatif est :
 }
 ```
 
-Ce schéma est interne et indicatif ; O4 fixera les types et la sérialisation
-exacte. Il doit toutefois préserver les règles suivantes : une chaîne émise
-par le joueur est connue, une chaîne émise par un noble otage détenu par le
-joueur reste connue selon le GDD, une progression compatible conserve la
-connaissance et le remplacement par une chaîne adverse l'invalide.
+Ce schéma est interne et indicatif. Les snapshots sont persistés avec la
+partie : une chaîne émise par le joueur est connue, une chaîne émise par un
+noble otage est connue par son détenteur, une progression compatible conserve
+la connaissance, et un tiers ne perd pas sa connaissance au simple remplacement
+de la chaîne. Elle est purgée lorsque la position publique de l'armée sort de
+la trajectoire connue ou lorsque l'armée disparaît.
 
 ## 5. API v1 et MVP online
 
@@ -271,7 +280,7 @@ passe ni expiration au MVP.
 |---|---|---|
 | `GET` | `/healthz` | Vérifie que le serveur répond. |
 | `GET` | `/api/map` | Renvoie la carte de la session courante. |
-| `GET` | `/api/state` | Renvoie l'état projeté de la session courante. |
+| `GET` | `/api/state` | Renvoie l'état projeté global ; `?player=P1` active la vue privée hotseat. |
 | `GET` | `/api/supply?territory=ROS` | Calcule la ligne ou la zone de ravitaillement sélectionnée. |
 | `POST` | `/api/game` | Remplace la session par une nouvelle partie en mémoire. |
 | `POST` | `/api/orders` | Enregistre la soumission d'un joueur et résout si tous ont soumis. |

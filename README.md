@@ -28,6 +28,8 @@ The selected language is kept in the browser and is used for the interface,
 player-facing validation errors, reports, and the rules document. Order symbols
 and memorable command terms remain identical in both languages.
 
-The current state projection is shared by the v1 session. Server-side filtering
-of known chains and combat details is specified in `specs/gdd.md` and tracked as
-an online issue; authentication and persistence are not implemented yet.
+The development hotseat server accepts `GET /api/state?player=P1` to return the
+server-filtered private view for the selected player; omitting `player` keeps the
+legacy global projection useful for diagnostics. Chain knowledge and combat
+audiences are stored with the in-memory game. Authentication, persistence, and
+the hosted multi-player routes are not implemented yet.

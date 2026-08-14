@@ -56,6 +56,29 @@ type ChainView struct {
 	Noble        models.NobleCode `json:"noble"`
 	CurrentIndex int              `json:"currentIndex"`
 	Orders       []OrderView      `json:"orders"`
+	Visibility   string           `json:"visibility,omitempty"`
+}
+
+// MarshalJSON keeps the public chain shape compact while making an existing
+// but undisclosed chain distinguishable from an absent chain. The zero-value
+// visibility is retained for the legacy global hotseat projection.
+func (view ChainView) MarshalJSON() ([]byte, error) {
+	if view.Visibility == "hidden" {
+		return json.Marshal(struct {
+			Visibility string `json:"visibility"`
+		}{Visibility: view.Visibility})
+	}
+	return json.Marshal(struct {
+		Noble        models.NobleCode `json:"noble"`
+		CurrentIndex int              `json:"currentIndex"`
+		Orders       []OrderView      `json:"orders"`
+		Visibility   string           `json:"visibility,omitempty"`
+	}{
+		Noble:        view.Noble,
+		CurrentIndex: view.CurrentIndex,
+		Orders:       view.Orders,
+		Visibility:   view.Visibility,
+	})
 }
 
 // OrderView is one public order. Territory and noble references use their
@@ -86,6 +109,14 @@ type NobleView struct {
 }
 
 func projectState(state *models.GameState) StateView {
+	return projectStateForViewer(state, nil)
+}
+
+func projectStateForPlayer(state *models.GameState, playerID models.PlayerID) StateView {
+	return projectStateForViewer(state, &playerID)
+}
+
+func projectStateForViewer(state *models.GameState, viewer *models.PlayerID) StateView {
 	view := StateView{
 		Players:     []PlayerView{},
 		Territories: []TerritoryView{},
@@ -144,6 +175,11 @@ func projectState(state *models.GameState) StateView {
 				}
 				if chain, exists := chainsByArmyID[army.ID]; exists {
 					armyView.Chain = projectChain(chain, nobleCodesByID)
+					if viewer != nil && !viewerKnowsChain(state, *viewer, chain.ID) {
+						armyView.Chain = &ChainView{Visibility: "hidden"}
+					} else if viewer != nil {
+						armyView.Chain.Visibility = "known"
+					}
 				}
 				territoryView.Army = armyView
 			}
@@ -169,6 +205,15 @@ func projectState(state *models.GameState) StateView {
 		})
 	}
 	return view
+}
+
+func viewerKnowsChain(state *models.GameState, viewer models.PlayerID, chainID models.ChainID) bool {
+	if state == nil || state.Privacy == nil {
+		return false
+	}
+	snapshots := state.Privacy.ChainKnowledge[viewer]
+	_, known := snapshots[chainID]
+	return known
 }
 
 func projectChain(

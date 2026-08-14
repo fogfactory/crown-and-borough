@@ -29,6 +29,7 @@ func cloneGameState(source *models.GameState) *models.GameState {
 	for i, chain := range source.Chains {
 		clone.Chains[i] = cloneChain(chain)
 	}
+	clone.Privacy = clonePrivacy(source.Privacy)
 	clone.Infrastructures = cloneSlice(source.Infrastructures)
 	clone.TerritoryStates = make(map[models.TerritoryID]models.TerritoryState, len(source.TerritoryStates))
 	for territoryID, state := range source.TerritoryStates {
@@ -47,18 +48,48 @@ func cloneGameState(source *models.GameState) *models.GameState {
 	return &clone
 }
 
+func clonePrivacy(source *models.PrivacyMeta) *models.PrivacyMeta {
+	if source == nil {
+		return nil
+	}
+	clone := &models.PrivacyMeta{
+		ChainKnowledge:      make(map[models.PlayerID]map[models.ChainID]models.ChainSnapshot, len(source.ChainKnowledge)),
+		CombatParticipation: make(map[models.PlayerID]map[string]bool, len(source.CombatParticipation)),
+	}
+	for playerID, snapshots := range source.ChainKnowledge {
+		copySnapshots := make(map[models.ChainID]models.ChainSnapshot, len(snapshots))
+		for chainID, snapshot := range snapshots {
+			copySnapshot := snapshot
+			copySnapshot.Orders = make([]models.Order, len(snapshot.Orders))
+			for index, order := range snapshot.Orders {
+				copySnapshot.Orders[index] = cloneOrder(order)
+			}
+			copySnapshots[chainID] = copySnapshot
+		}
+		clone.ChainKnowledge[playerID] = copySnapshots
+	}
+	for playerID, combats := range source.CombatParticipation {
+		copyCombats := make(map[string]bool, len(combats))
+		for combatID, participating := range combats {
+			copyCombats[combatID] = participating
+		}
+		clone.CombatParticipation[playerID] = copyCombats
+	}
+	return clone
+}
+
+func cloneOrder(source models.Order) models.Order {
+	clone := source
+	clone.TargetIDs = cloneSlice(source.TargetIDs)
+	clone.NobleAssignments = cloneNobleAssignments(source.NobleAssignments)
+	return clone
+}
+
 func cloneChain(source models.Chain) models.Chain {
 	clone := source
 	clone.Orders = make([]models.Order, len(source.Orders))
 	for i, order := range source.Orders {
-		clone.Orders[i] = order
-		clone.Orders[i].TargetIDs = cloneSlice(order.TargetIDs)
-		if order.NobleAssignments != nil {
-			clone.Orders[i].NobleAssignments = make(map[models.TerritoryID][]models.NobleCode, len(order.NobleAssignments))
-			for destination, codes := range order.NobleAssignments {
-				clone.Orders[i].NobleAssignments[destination] = cloneSlice(codes)
-			}
-		}
+		clone.Orders[i] = cloneOrder(order)
 	}
 	if source.PendingDisperse != nil {
 		clone.PendingDisperse = &models.PendingDisperse{

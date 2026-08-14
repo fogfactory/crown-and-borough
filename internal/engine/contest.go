@@ -26,6 +26,7 @@ type contestResult struct {
 	defense          int
 	castleBonus      int
 	contenders       []CombatContender
+	supporterIDs     []models.ArmyID
 	winnerID         models.ArmyID
 	dislodgedArmyID  models.ArmyID
 	attackerOriginID models.TerritoryID
@@ -346,6 +347,7 @@ func (ctx *resolutionContext) emitCombatEvents() {
 			Defense:         result.defense,
 			CastleBonus:     result.castleBonus,
 			Contenders:      append([]CombatContender(nil), result.contenders...),
+			SupporterIDs:    append([]models.ArmyID(nil), result.supporterIDs...),
 			WinnerArmyID:    result.winnerID,
 			DislodgedArmyID: result.dislodgedArmyID,
 			CutSupporterIDs: append([]models.ArmyID(nil), result.cutSupporterIDs...),
@@ -435,11 +437,16 @@ func sameIntegerMap(left, right map[models.ArmyID]int) bool {
 }
 
 func sameContestResult(left, right contestResult) bool {
-	if left.territoryID != right.territoryID || left.defenderID != right.defenderID || left.baseDefense != right.baseDefense || left.defense != right.defense || left.castleBonus != right.castleBonus || left.winnerID != right.winnerID || left.dislodgedArmyID != right.dislodgedArmyID || left.attackerOriginID != right.attackerOriginID || left.standoff != right.standoff || len(left.contenders) != len(right.contenders) || len(left.cutSupporterIDs) != len(right.cutSupporterIDs) {
+	if left.territoryID != right.territoryID || left.defenderID != right.defenderID || left.baseDefense != right.baseDefense || left.defense != right.defense || left.castleBonus != right.castleBonus || left.winnerID != right.winnerID || left.dislodgedArmyID != right.dislodgedArmyID || left.attackerOriginID != right.attackerOriginID || left.standoff != right.standoff || len(left.contenders) != len(right.contenders) || len(left.supporterIDs) != len(right.supporterIDs) || len(left.cutSupporterIDs) != len(right.cutSupporterIDs) {
 		return false
 	}
 	for index := range left.contenders {
 		if left.contenders[index] != right.contenders[index] {
+			return false
+		}
+	}
+	for index := range left.supporterIDs {
+		if left.supporterIDs[index] != right.supporterIDs[index] {
 			return false
 		}
 	}

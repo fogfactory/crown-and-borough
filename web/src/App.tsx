@@ -140,24 +140,39 @@ function AppContent() {
 
   useEffect(() => {
     const controller = new AbortController()
-    const loadData = async () => {
+    const loadMap = async () => {
       try {
-        const [mapResponse, stateResponse] = await Promise.all([
-          fetch('/api/map', { signal: controller.signal }),
-          fetch('/api/state', { signal: controller.signal }),
-        ])
+        const mapResponse = await fetch('/api/map', { signal: controller.signal })
         if (!mapResponse.ok) {
           throw new Error(`${t('error.loadGameFailed')} (${mapResponse.status})`)
         }
-        if (!stateResponse.ok) {
-          throw new Error(`${t('error.loadGameFailed')} (${stateResponse.status})`)
-        }
-        const [mapData, stateData] = (await Promise.all([
-          mapResponse.json(),
-          stateResponse.json(),
-        ])) as [MapData, StateData]
+        const mapData = (await mapResponse.json()) as MapData
         if (!controller.signal.aborted) {
           setMap(mapData)
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setLoadError(error instanceof Error ? error.message : t('error.loadGameFailed'))
+        }
+      }
+    }
+    void loadMap()
+    return () => controller.abort()
+  }, [t])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const loadPrivateState = async () => {
+      try {
+        const response = await fetch(
+          `/api/state?player=${encodeURIComponent(selectedPlayer)}`,
+          { signal: controller.signal },
+        )
+        if (!response.ok) {
+          throw new Error(`${t('error.loadGameFailed')} (${response.status})`)
+        }
+        const stateData = (await response.json()) as StateData
+        if (!controller.signal.aborted) {
           setState(stateData)
         }
       } catch (error) {
@@ -166,9 +181,10 @@ function AppContent() {
         }
       }
     }
-    void loadData()
+    setReport(null)
+    void loadPrivateState()
     return () => controller.abort()
-  }, [t])
+  }, [selectedPlayer, t])
 
   useEffect(() => {
     if (state && !state.players.some((player) => player.id === selectedPlayer)) {
@@ -328,11 +344,14 @@ function AppContent() {
         : []
 
     try {
-      const response = await fetch(`/api/orders?lang=${language}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ player: selectedPlayer, chains, winter, force }),
-      })
+      const response = await fetch(
+        `/api/orders?lang=${language}&player=${encodeURIComponent(selectedPlayer)}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ player: selectedPlayer, chains, winter, force }),
+        },
+      )
       if (!response.ok) throw new Error(await responseError(response, t))
       const payload = (await response.json()) as OrdersResponse
       setState(payload.state)
@@ -506,6 +525,9 @@ function AppContent() {
                   ))}
                 </SelectContent>
               </Select>
+              <span className="rounded-full border border-[#376341]/30 bg-[#e8f1e3] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#376341]">
+                {t('app.privateView')}
+              </span>
               <Button
                 type="button"
                 variant="outline"
@@ -755,7 +777,11 @@ function AppContent() {
                                 </span>
                               </div>
                               <div className="mt-2 border-t border-[#b7a786]/40 pt-2 text-xs text-[#806f57]">
-                                {selectedChain ? (
+                                {selectedChain?.visibility === 'hidden' ? (
+                                  <p className="rounded-md border border-[#b7a786]/50 bg-[#fffaf0] px-2 py-1.5 italic">
+                                    {t('app.hiddenChain')}
+                                  </p>
+                                ) : selectedChain ? (
                                   <>
                                     <p>
                                       {t('app.nobleEmitter')}:{' '}
@@ -764,9 +790,9 @@ function AppContent() {
                                     <p>
                                       {t('app.currentIndex')}:{' '}
                                       <strong>
-                                        {selectedChain.currentIndex <
-                                        selectedChain.orders.length
-                                          ? selectedChain.currentIndex + 1
+                                        {(selectedChain.currentIndex ?? 0) <
+                                        (selectedChain.orders?.length ?? 0)
+                                          ? (selectedChain.currentIndex ?? 0) + 1
                                           : t('app.finished')}
                                       </strong>
                                     </p>
@@ -775,27 +801,31 @@ function AppContent() {
                                         {t('app.orderStack')}
                                       </p>
                                       <ol className="space-y-1.5">
-                                        {selectedChain.orders.map((order, index) => {
-                                          const current =
-                                            index === selectedChain.currentIndex
-                                          return (
-                                            <li
-                                              key={`${order.type}-${order.position}-${index}`}
-                                              aria-current={current ? 'step' : undefined}
-                                              className={`rounded-md border px-2 py-1.5 ${current ? 'border-[#a84632]/60 bg-[#f8e5dd] text-[#8d321e]' : 'border-[#b7a786]/40 bg-[#fffaf0]'}`}
-                                            >
-                                              <span className="mr-1.5 font-semibold">
-                                                {index + 1}.
-                                              </span>
-                                              <span>{formatOrderLabel(order)}</span>
-                                              {current && (
-                                                <span className="ml-1.5 font-semibold">
-                                                  · {t('app.current')}
+                                        {(selectedChain.orders ?? []).map(
+                                          (order, index) => {
+                                            const current =
+                                              index === (selectedChain.currentIndex ?? 0)
+                                            return (
+                                              <li
+                                                key={`${order.type}-${order.position}-${index}`}
+                                                aria-current={
+                                                  current ? 'step' : undefined
+                                                }
+                                                className={`rounded-md border px-2 py-1.5 ${current ? 'border-[#a84632]/60 bg-[#f8e5dd] text-[#8d321e]' : 'border-[#b7a786]/40 bg-[#fffaf0]'}`}
+                                              >
+                                                <span className="mr-1.5 font-semibold">
+                                                  {index + 1}.
                                                 </span>
-                                              )}
-                                            </li>
-                                          )
-                                        })}
+                                                <span>{formatOrderLabel(order)}</span>
+                                                {current && (
+                                                  <span className="ml-1.5 font-semibold">
+                                                    · {t('app.current')}
+                                                  </span>
+                                                )}
+                                              </li>
+                                            )
+                                          },
+                                        )}
                                       </ol>
                                     </div>
                                   </>

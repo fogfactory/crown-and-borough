@@ -57,7 +57,7 @@
       "winner": "A1",
       "dislodged": "A2",
       "cutSupporters": [],
-      "reason": "attacker_wins",
+      "reason": "attack_wins",
       "standoff": false
     }
   ],

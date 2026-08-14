@@ -92,6 +92,7 @@ type Event struct {
 	Defense           int                `json:"defense,omitempty"`
 	CastleBonus       int                `json:"castleBonus,omitempty"`
 	Contenders        []CombatContender  `json:"contenders,omitempty"`
+	SupporterIDs      []models.ArmyID    `json:"supporters,omitempty"`
 	WinnerArmyID      models.ArmyID      `json:"winnerArmy,omitempty"`
 	DislodgedArmyID   models.ArmyID      `json:"dislodgedArmy,omitempty"`
 	CutSupporterIDs   []models.ArmyID    `json:"cutSupporters,omitempty"`

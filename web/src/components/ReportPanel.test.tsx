@@ -216,6 +216,49 @@ describe('ReportPanel', () => {
     expect(screen.getByText('2 (+1 noble)')).toBeInTheDocument()
   })
 
+  it('renders a general combat without exposing forces', () => {
+    const generalReport: TurnReport = {
+      ...report,
+      combats: [
+        {
+          visibility: 'general',
+          territory: 'BRU',
+          outcome: 'standoff',
+          summary: 'The combat ended without a winner.',
+        },
+      ],
+    }
+
+    const { container } = render(
+      <LanguageProvider initialLanguage="en">
+        <ReportPanel report={generalReport} map={map} players={players} />
+      </LanguageProvider>,
+    )
+
+    expect(screen.getByText('The combat ended without a winner.')).toBeInTheDocument()
+    expect(container.textContent).not.toContain('2 (+1 noble)')
+  })
+
+  it('tolerates null report collections from older server responses', () => {
+    const sparseReport = {
+      ...report,
+      receptions: null,
+      supply: null,
+      famines: null,
+      combats: null,
+      orders: null,
+    } as unknown as TurnReport
+
+    render(
+      <LanguageProvider initialLanguage="en">
+        <ReportPanel report={sparseReport} map={map} players={players} />
+      </LanguageProvider>,
+    )
+
+    expect(screen.getByText('Resolution complete')).toBeInTheDocument()
+    expect(screen.getByText('No chain reception events.')).toBeInTheDocument()
+  })
+
   it('renders the same report in English with translated reason labels', () => {
     render(
       <LanguageProvider initialLanguage="en">
