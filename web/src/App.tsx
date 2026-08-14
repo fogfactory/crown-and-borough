@@ -634,7 +634,7 @@ function AppContent() {
                   <div className="space-y-5">
                     <div>
                       <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#a84632]">
-                        {selectedTerritory.code}
+                        {selectedTerritory.id}
                       </p>
                       <h2 className="mt-1 font-serif text-2xl font-semibold leading-tight">
                         {selectedTerritory.name}
@@ -834,7 +834,7 @@ function AppContent() {
                                   <p className="mt-1">
                                     {t('app.sourceLabel')}{' '}
                                     <strong>
-                                      {supplySourceTerritory?.code ??
+                                      {supplySourceTerritory?.id ??
                                         selectedSupplyLine.source}
                                       {supplySourceTerritory
                                         ? ` · ${supplySourceTerritory.name}`

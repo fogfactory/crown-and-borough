@@ -76,7 +76,7 @@ func capDegrees(
 		if !found {
 			return nil, nil, fmt.Errorf(
 				"mapgen: cannot enforce max degree for territory %s (degree %d, max %d)",
-				territoryID(overfull), degree[overfull], maxDegree(terrain[overfull]),
+				siteLabel(overfull), degree[overfull], maxDegree(terrain[overfull]),
 			)
 		}
 		matrixClearEdge(matrix, n, first, second)
@@ -277,13 +277,13 @@ func validateGraph(edges [][2]int, terrain []models.Terrain, n int) error {
 	for index, degree := range degrees(edges, n) {
 		maximum := maxDegree(terrain[index])
 		if maximum == 0 {
-			return fmt.Errorf("mapgen: territory %s has invalid terrain %q", territoryID(index), terrain[index])
+			return fmt.Errorf("mapgen: territory %s has invalid terrain %q", siteLabel(index), terrain[index])
 		}
 		if degree < 2 {
-			return fmt.Errorf("mapgen: territory %s has degree %d, want at least 2", territoryID(index), degree)
+			return fmt.Errorf("mapgen: territory %s has degree %d, want at least 2", siteLabel(index), degree)
 		}
 		if degree > maximum {
-			return fmt.Errorf("mapgen: territory %s has degree %d, want at most %d", territoryID(index), degree, maximum)
+			return fmt.Errorf("mapgen: territory %s has degree %d, want at most %d", siteLabel(index), degree, maximum)
 		}
 	}
 	return nil

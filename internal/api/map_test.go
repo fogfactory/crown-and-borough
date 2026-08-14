@@ -14,13 +14,12 @@ import (
 func TestMapHandler(t *testing.T) {
 	want := mapgen.MapData{Territories: []mapgen.Territory{
 		{
-			ID:          "T01",
-			Code:        "ROS",
+			ID:          "ROS",
 			Name:        "Rosemont",
 			Terrain:     "plain",
 			Village:     true,
 			Points:      [][2]int{{0, 0}, {100, 0}, {0, 100}},
-			Adjacencies: []string{"T02", "T03"},
+			Adjacencies: []string{"BOI", "BRU"},
 			Impassable:  []string{},
 		},
 	}}

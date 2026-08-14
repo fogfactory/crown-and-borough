@@ -54,7 +54,7 @@ func cloneChain(source models.Chain) models.Chain {
 		clone.Orders[i] = order
 		clone.Orders[i].TargetIDs = cloneSlice(order.TargetIDs)
 		if order.NobleAssignments != nil {
-			clone.Orders[i].NobleAssignments = make(map[models.TerritoryCode][]models.NobleCode, len(order.NobleAssignments))
+			clone.Orders[i].NobleAssignments = make(map[models.TerritoryID][]models.NobleCode, len(order.NobleAssignments))
 			for destination, codes := range order.NobleAssignments {
 				clone.Orders[i].NobleAssignments[destination] = cloneSlice(codes)
 			}
@@ -71,11 +71,11 @@ func cloneChain(source models.Chain) models.Chain {
 	return clone
 }
 
-func cloneNobleAssignments(source map[models.TerritoryCode][]models.NobleCode) map[models.TerritoryCode][]models.NobleCode {
+func cloneNobleAssignments(source map[models.TerritoryID][]models.NobleCode) map[models.TerritoryID][]models.NobleCode {
 	if source == nil {
 		return nil
 	}
-	clone := make(map[models.TerritoryCode][]models.NobleCode, len(source))
+	clone := make(map[models.TerritoryID][]models.NobleCode, len(source))
 	for destination, codes := range source {
 		clone[destination] = cloneSlice(codes)
 	}

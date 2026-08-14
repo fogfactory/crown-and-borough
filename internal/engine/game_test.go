@@ -236,7 +236,7 @@ func TestResolveTurnRejectsBadInputWithoutMutation(t *testing.T) {
 	before, _ := json.Marshal(game)
 	noble := game.Nobles[0]
 	_, err = ResolveTurn(game, testBalance(), OrdersInput{
-		Chains: []ChainSubmission{{Player: noble.OwnerID, Noble: models.NobleCode(noble.Code), Text: "BAD\nH T01"}},
+		Chains: []ChainSubmission{{Player: noble.OwnerID, Noble: models.NobleCode(noble.Code), Text: "BAD\nH AAA"}},
 	})
 	var inputErrors *InputErrors
 	if !errors.As(err, &inputErrors) {
@@ -250,7 +250,7 @@ func TestResolveTurnRejectsBadInputWithoutMutation(t *testing.T) {
 		t.Fatal("invalid input mutated the game")
 	}
 
-	_, err = ResolveTurn(game, testBalance(), OrdersInput{Winter: []WinterSubmission{{Player: "P1", Lines: "R T T01"}}})
+	_, err = ResolveTurn(game, testBalance(), OrdersInput{Winter: []WinterSubmission{{Player: "P1", Lines: "R T AAA"}}})
 	if !errors.As(err, &inputErrors) {
 		t.Fatalf("out-of-season error = %v, want InputErrors", err)
 	}
@@ -266,7 +266,7 @@ func TestResolveTurnReportsLostReception(t *testing.T) {
 	freeTerritory := ""
 	for _, territory := range game.Territories {
 		if game.TerritoryStates[territory.ID].Army == nil {
-			freeTerritory = territory.Code
+			freeTerritory = string(territory.ID)
 			break
 		}
 	}
@@ -333,7 +333,7 @@ func TestResolveTurnDefersNonAdjacentOrderAndBreaksChain(t *testing.T) {
 		Chains: []ChainSubmission{{
 			Player: noble.OwnerID,
 			Noble:  models.NobleCode(noble.Code),
-			Text:   noble.Code + "\n" + start.Code + " A " + next.Code + "\nH " + next.Code + "\n" + next.Code + " A " + far.Code,
+			Text:   noble.Code + "\n" + string(start.ID) + " A " + string(next.ID) + "\nH " + string(next.ID) + "\n" + string(next.ID) + " A " + string(far.ID),
 		}},
 	})
 	if err != nil {
@@ -403,7 +403,7 @@ func TestFullYearDeterminism(t *testing.T) {
 			game = report.State
 		}
 		report, err := ResolveTurn(game, balance, OrdersInput{
-			Winter: []WinterSubmission{{Player: "P1", Lines: "R T " + start.Code}},
+			Winter: []WinterSubmission{{Player: "P1", Lines: "R T " + string(start.ID)}},
 		})
 		if err != nil {
 			t.Fatalf("winter turn: %v", err)

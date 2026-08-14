@@ -59,14 +59,14 @@ const (
 	ParseCodeFormat                  = "error.parse.code_format"
 	ParseTerritoryUnknown            = "error.parse.territory_unknown"
 
-	WinterOrderShape          = "error.winter.order_shape"
-	WinterOrderTargetOnlyOne  = "error.winter.target_only_one"
-	WinterUnknownSymbol       = "error.winter.unknown_symbol"
-	WinterTerritoryCodeFormat = "error.winter.territory_code_format"
-	WinterTerritoryUnknown    = "error.winter.territory_unknown"
-	WinterNobleCodeFormat     = "error.winter.noble_code_format"
-	WinterNobleUnknown        = "error.winter.noble_unknown"
-	WinterUnknownSubtype      = "error.winter.unknown_subtype"
+	WinterOrderShape             = "error.winter.order_shape"
+	WinterOrderTargetOnlyOne     = "error.winter.target_only_one"
+	WinterUnknownSymbol          = "error.winter.unknown_symbol"
+	WinterTerritoryTrigramFormat = "error.winter.territory_code_format"
+	WinterTerritoryUnknown       = "error.winter.territory_unknown"
+	WinterNobleCodeFormat        = "error.winter.noble_code_format"
+	WinterNobleUnknown           = "error.winter.noble_unknown"
+	WinterUnknownSubtype         = "error.winter.unknown_subtype"
 
 	ValidationUnknownNoble                 = "error.validation.unknown_noble"
 	ValidationEmptyChain                   = "error.validation.empty_chain"
@@ -142,7 +142,7 @@ func init() {
 	register(WinterOrderShape, "a winter order requires a symbol, a subtype, and one target code", "un ordre d'hiver exige un symbole, un sous-type et un code cible")
 	register(WinterOrderTargetOnlyOne, "a winter order accepts exactly one target code", "un ordre d'hiver accepte exactement un code cible")
 	register(WinterUnknownSymbol, "unknown winter order symbol %q", "symbole d'ordre d'hiver inconnu : %q")
-	register(WinterTerritoryCodeFormat, "territory code %q must contain exactly three uppercase letters", "le code de territoire %q doit contenir exactement trois lettres majuscules")
+	register(WinterTerritoryTrigramFormat, "territory code %q must contain exactly three uppercase letters", "le code de territoire %q doit contenir exactement trois lettres majuscules")
 	register(WinterTerritoryUnknown, "territory code %q does not exist", "le code de territoire %q n'existe pas")
 	register(WinterNobleCodeFormat, "noble code %q must contain exactly three uppercase letters", "le code de noble %q doit contenir exactement trois lettres majuscules")
 	register(WinterNobleUnknown, "noble code %q does not exist", "le code de noble %q n'existe pas")

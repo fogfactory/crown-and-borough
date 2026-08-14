@@ -71,7 +71,7 @@ describe('OrdersPanel seasonal presentation', () => {
         code: 'HOS',
         name: 'Hostage',
         owner: 'P1',
-        location: 'T01',
+        location: 'ROS',
         status: 'hostage',
       },
       {
@@ -79,7 +79,7 @@ describe('OrdersPanel seasonal presentation', () => {
         code: 'DUN',
         name: 'Dungeon',
         owner: 'P1',
-        location: 'T01',
+        location: 'ROS',
         status: 'dungeon',
       },
     ])
@@ -98,7 +98,7 @@ describe('OrdersPanel seasonal presentation', () => {
         code: 'DUN',
         name: 'Dungeon',
         owner: 'P1',
-        location: 'T01',
+        location: 'ROS',
         status: 'dungeon',
       },
     ])

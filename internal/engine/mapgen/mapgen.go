@@ -4,6 +4,7 @@ package mapgen
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/models"
@@ -41,7 +42,6 @@ type Config struct {
 // authoritative for the real situation).
 type Territory struct {
 	ID          string         `json:"id"`
-	Code        string         `json:"code"`
 	Name        string         `json:"name"`
 	Terrain     models.Terrain `json:"terrain"`
 	Village     bool           `json:"village"`
@@ -100,13 +100,16 @@ func Generate(seed string, assets assetgen.Assets, cfg Config) (MapData, error) 
 		return MapData{}, err
 	}
 
-	adjacency := adjacencyIDs(passableEdges, cfg.SiteCount)
-	impassable := adjacencyIDs(impassableEdges, cfg.SiteCount)
+	territoryIDs := make([]string, len(names))
+	for index, name := range names {
+		territoryIDs[index] = name.code
+	}
+	adjacency := adjacencyIDs(passableEdges, territoryIDs)
+	impassable := adjacencyIDs(impassableEdges, territoryIDs)
 	territories := make([]Territory, cfg.SiteCount)
 	for i := range territories {
 		territories[i] = Territory{
-			ID:          territoryID(i),
-			Code:        names[i].code,
+			ID:          names[i].code,
 			Name:        names[i].name,
 			Terrain:     terrain[i],
 			Village:     villages[i],
@@ -163,17 +166,17 @@ func validateGeometry(polygons [][][2]int, padding int) error {
 	height := maxY + padding
 	for i, points := range polygons {
 		if len(points) < 3 {
-			return fmt.Errorf("mapgen: territory %s has fewer than three polygon points", territoryID(i))
+			return fmt.Errorf("mapgen: territory %d has fewer than three polygon points", i)
 		}
 		if polygonAreaTwice(points) <= 0 {
-			return fmt.Errorf("mapgen: territory %s has a degenerate polygon", territoryID(i))
+			return fmt.Errorf("mapgen: territory %d has a degenerate polygon", i)
 		}
 		if !isSimplePolygon(points) {
-			return fmt.Errorf("mapgen: territory %s has a self-intersecting polygon", territoryID(i))
+			return fmt.Errorf("mapgen: territory %d has a self-intersecting polygon", i)
 		}
 		for _, point := range points {
 			if point[0] < padding || point[0] > width-padding || point[1] < padding || point[1] > height-padding {
-				return fmt.Errorf("mapgen: territory %s has a polygon point outside the derived viewport", territoryID(i))
+				return fmt.Errorf("mapgen: territory %d has a polygon point outside the derived viewport", i)
 			}
 		}
 	}
@@ -232,20 +235,22 @@ func pointOnSegment(first, second, point [2]int) bool {
 		point[1] >= min(first[1], second[1]) && point[1] <= max(first[1], second[1])
 }
 
-func territoryID(index int) string {
-	return fmt.Sprintf("T%02d", index+1)
-}
-
-func adjacencyIDs(edges [][2]int, n int) [][]string {
+func adjacencyIDs(edges [][2]int, ids []string) [][]string {
+	n := len(ids)
 	matrix := edgeMatrix(n, edges)
 	adjacency := make([][]string, n)
 	for i := 0; i < n; i++ {
 		adjacency[i] = make([]string, 0)
 		for j := 0; j < n; j++ {
 			if matrixHasEdge(matrix, n, i, j) {
-				adjacency[i] = append(adjacency[i], territoryID(j))
+				adjacency[i] = append(adjacency[i], ids[j])
 			}
 		}
+		sort.Strings(adjacency[i])
 	}
 	return adjacency
+}
+
+func siteLabel(index int) string {
+	return fmt.Sprintf("site-%d", index+1)
 }

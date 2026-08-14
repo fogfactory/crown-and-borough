@@ -107,22 +107,22 @@ type CombatReport struct {
 }
 
 type OrderReport struct {
-	Army             models.ArmyID                               `json:"army"`
-	Chain            models.ChainID                              `json:"chain"`
-	Order            models.OrderID                              `json:"order"`
-	Owner            models.PlayerID                             `json:"owner"`
-	Noble            models.NobleCode                            `json:"noble"`
-	Type             models.OrderType                            `json:"type"`
-	Source           models.TerritoryID                          `json:"source"`
-	Target           models.TerritoryID                          `json:"target,omitempty"`
-	Targets          []models.TerritoryID                        `json:"targets,omitempty"`
-	NobleAssignments map[models.TerritoryCode][]models.NobleCode `json:"nobleAssignments,omitempty"`
-	Liaison          models.LiaisonMode                          `json:"liaison"`
-	Outcome          Outcome                                     `json:"outcome"`
-	Reason           string                                      `json:"reason,omitempty"`
-	Progression      Progression                                 `json:"progression"`
-	IndexBefore      int                                         `json:"indexBefore"`
-	IndexAfter       int                                         `json:"indexAfter"`
+	Army             models.ArmyID                             `json:"army"`
+	Chain            models.ChainID                            `json:"chain"`
+	Order            models.OrderID                            `json:"order"`
+	Owner            models.PlayerID                           `json:"owner"`
+	Noble            models.NobleCode                          `json:"noble"`
+	Type             models.OrderType                          `json:"type"`
+	Source           models.TerritoryID                        `json:"source"`
+	Target           models.TerritoryID                        `json:"target,omitempty"`
+	Targets          []models.TerritoryID                      `json:"targets,omitempty"`
+	NobleAssignments map[models.TerritoryID][]models.NobleCode `json:"nobleAssignments,omitempty"`
+	Liaison          models.LiaisonMode                        `json:"liaison"`
+	Outcome          Outcome                                   `json:"outcome"`
+	Reason           string                                    `json:"reason,omitempty"`
+	Progression      Progression                               `json:"progression"`
+	IndexBefore      int                                       `json:"indexBefore"`
+	IndexAfter       int                                       `json:"indexAfter"`
 }
 
 // MoveReport is a discriminated event projection. Kind is one of movement,

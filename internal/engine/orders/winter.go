@@ -112,8 +112,8 @@ func winterTerritoryID(code string, lineNumber int, indexes gameIndexes) (models
 		error := parseMessage(lineNumber, ParseCodeInvalidCode, "error.winter.territory_code_format", code)
 		return "", &error
 	}
-	territoryID, exists := indexes.territoriesByCode[code]
-	if !exists {
+	territoryID := models.TerritoryID(code)
+	if indexes.territoriesByID[territoryID] == nil {
 		error := parseMessage(lineNumber, ParseCodeInvalidCode, "error.winter.territory_unknown", code)
 		return "", &error
 	}

@@ -242,7 +242,6 @@ func nextArmyID(armies []models.Army) int {
 func territory(id, code string, neighbors ...models.TerritoryID) models.Territory {
 	return models.Territory{
 		ID:          models.TerritoryID(id),
-		Code:        code,
 		Name:        code,
 		Terrain:     models.TerrainPlain,
 		Adjacencies: neighbors,

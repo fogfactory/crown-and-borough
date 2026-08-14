@@ -207,19 +207,19 @@ func parseDisperse(fields []string, lineNumber int, liaison models.LiaisonMode, 
 		Type:             models.OrderTypeDisperse,
 		PositionID:       positionID,
 		TargetIDs:        make([]models.TerritoryID, 0, len(fields)-2),
-		NobleAssignments: map[models.TerritoryCode][]models.NobleCode{},
+		NobleAssignments: map[models.TerritoryID][]models.NobleCode{},
 		Liaison:          liaison,
 	}
 	errors := []ParseError{}
 	for _, token := range fields[2:] {
-		territoryID, destinationCode, assignedCodes, tokenErrors := parseDisperseTarget(token, lineNumber, indexes)
+		territoryID, assignedCodes, tokenErrors := parseDisperseTarget(token, lineNumber, indexes)
 		if len(tokenErrors) != 0 {
 			errors = append(errors, tokenErrors...)
 			continue
 		}
 		order.TargetIDs = append(order.TargetIDs, territoryID)
 		if len(assignedCodes) != 0 {
-			order.NobleAssignments[destinationCode] = append(order.NobleAssignments[destinationCode], assignedCodes...)
+			order.NobleAssignments[territoryID] = append(order.NobleAssignments[territoryID], assignedCodes...)
 		}
 	}
 	if len(errors) != 0 {
@@ -228,17 +228,17 @@ func parseDisperse(fields []string, lineNumber int, liaison models.LiaisonMode, 
 	return order, nil
 }
 
-func parseDisperseTarget(token string, lineNumber int, indexes gameIndexes) (models.TerritoryID, models.TerritoryCode, []models.NobleCode, []ParseError) {
+func parseDisperseTarget(token string, lineNumber int, indexes gameIndexes) (models.TerritoryID, []models.NobleCode, []ParseError) {
 	parts := strings.Split(token, "*")
 	if len(parts) == 0 || parts[0] == "" {
-		return "", "", nil, []ParseError{parseMessage(lineNumber, ParseCodeInvalidCode, "error.parse.assignment_destination")}
+		return "", nil, []ParseError{parseMessage(lineNumber, ParseCodeInvalidCode, "error.parse.assignment_destination")}
 	}
 	territoryID, territoryErrors := parseTerritory(parts[0], lineNumber, "dispersion destination", indexes)
 	if len(territoryErrors) != 0 {
-		return "", "", nil, territoryErrors
+		return "", nil, territoryErrors
 	}
 	if len(parts) == 1 {
-		return territoryID, models.TerritoryCode(parts[0]), nil, nil
+		return territoryID, nil, nil
 	}
 
 	assignedCodes := make([]models.NobleCode, 0, len(parts)-1)
@@ -248,25 +248,25 @@ func parseDisperseTarget(token string, lineNumber int, indexes gameIndexes) (mod
 				assignedCodes = append(assignedCodes, models.NobleCode("*"))
 				continue
 			}
-			return "", "", nil, []ParseError{parseMessage(lineNumber, ParseCodeInvalidCode, "error.parse.assignment_empty_noble")}
+			return "", nil, []ParseError{parseMessage(lineNumber, ParseCodeInvalidCode, "error.parse.assignment_empty_noble")}
 		}
 		if !isCode(nobleCode) {
-			return "", "", nil, []ParseError{parseMessage(lineNumber, ParseCodeInvalidCode, "error.parse.assignment_invalid_noble", nobleCode)}
+			return "", nil, []ParseError{parseMessage(lineNumber, ParseCodeInvalidCode, "error.parse.assignment_invalid_noble", nobleCode)}
 		}
 		if _, exists := indexes.noblesByCode[nobleCode]; !exists {
-			return "", "", nil, []ParseError{parseMessage(lineNumber, ParseCodeInvalidCode, "error.parse.assignment_unknown_noble", nobleCode)}
+			return "", nil, []ParseError{parseMessage(lineNumber, ParseCodeInvalidCode, "error.parse.assignment_unknown_noble", nobleCode)}
 		}
 		assignedCodes = append(assignedCodes, models.NobleCode(nobleCode))
 	}
-	return territoryID, models.TerritoryCode(parts[0]), assignedCodes, nil
+	return territoryID, assignedCodes, nil
 }
 
 func parseTerritory(code string, lineNumber int, role string, indexes gameIndexes) (models.TerritoryID, []ParseError) {
 	if !isCode(code) {
 		return "", []ParseError{parseMessage(lineNumber, ParseCodeInvalidCode, "error.parse.code_format", role, code)}
 	}
-	id, exists := indexes.territoriesByCode[code]
-	if !exists {
+	id := models.TerritoryID(code)
+	if indexes.territoriesByID[id] == nil {
 		return "", []ParseError{parseMessage(lineNumber, ParseCodeInvalidCode, "error.parse.territory_unknown", code)}
 	}
 	return id, nil

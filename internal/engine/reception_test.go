@@ -26,12 +26,12 @@ func TestResolveTurnRejectsConcurrentReceptionsFromTwoNobles(t *testing.T) {
 			{
 				Player: p1,
 				Noble:  models.NobleCode(firstNoble.Code),
-				Text:   firstNoble.Code + "\nH " + position.Code,
+				Text:   firstNoble.Code + "\nH " + string(position.ID),
 			},
 			{
 				Player: p1,
 				Noble:  "ZZZ",
-				Text:   "ZZZ\nH " + position.Code,
+				Text:   "ZZZ\nH " + string(position.ID),
 			},
 		},
 	})
@@ -73,12 +73,12 @@ func TestResolveTurnChecksOwnershipBeforeConcurrentReception(t *testing.T) {
 			{
 				Player: p1,
 				Noble:  models.NobleCode(p1Noble.Code),
-				Text:   p1Noble.Code + "\nH " + position.Code,
+				Text:   p1Noble.Code + "\nH " + string(position.ID),
 			},
 			{
 				Player: p2,
 				Noble:  models.NobleCode(p2Noble.Code),
-				Text:   p2Noble.Code + "\nH " + position.Code,
+				Text:   p2Noble.Code + "\nH " + string(position.ID),
 			},
 		},
 	})
@@ -134,17 +134,17 @@ func TestResolveTurnKeepsOtherArmyReceptionInSameSubmission(t *testing.T) {
 			{
 				Player: p1,
 				Noble:  models.NobleCode(firstNoble.Code),
-				Text:   firstNoble.Code + "\nH " + firstPosition.Code + "\nH " + firstPosition.Code,
+				Text:   firstNoble.Code + "\nH " + string(firstPosition.ID) + "\nH " + string(firstPosition.ID),
 			},
 			{
 				Player: p1,
 				Noble:  "ZZZ",
-				Text:   "ZZZ\nH " + secondPosition.Code,
+				Text:   "ZZZ\nH " + string(secondPosition.ID),
 			},
 			{
 				Player: p1,
 				Noble:  "YYY",
-				Text:   "YYY\nH " + secondPosition.Code,
+				Text:   "YYY\nH " + string(secondPosition.ID),
 			},
 		},
 	})

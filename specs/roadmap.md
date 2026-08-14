@@ -55,9 +55,9 @@ online à réaliser et à suivre par issue.
   à leur case, jamais à un joueur ; le contrôleur de la case en bénéficie.
 - Une armée est l'unique entité de force d'un territoire et porte un propriétaire
   et une taille. Les ordres s'appliquent à toute l'armée.
-- Les identifiants territoriaux internes séquentiels et les trigrammes publics
-  coexistent encore. La suppression de ce double identifiant est une évolution
-  online distincte.
+- Le trigramme territorial est l'identifiant unique d'une case dans le domaine,
+  les contrats et les références de résolution ; aucun matricule séquentiel
+  n'est généré ou exposé.
 - Une non-adjacence rencontrée pendant la résolution casse la chaîne à cet
   ordre ; les ordres précédents restent valides et le suffixe n'est pas joué.
 - Une chaîne reçue remplace immédiatement la chaîne précédente de l'armée
@@ -91,7 +91,7 @@ milestones GitHub `Online Foundations`, `Online Friends MVP` et `Online Hosted`.
 | Sujet | Périmètre | État |
 |---|---|---|
 | Contrats et architecture online | Figer les contrats JSON, les routes, la confidentialité, la résolution forcée et les backends `DATA_DIR` ; fixtures dans [`specs/fixtures/`](fixtures/) | Fait : O1 |
-| Identité territoriale | Remplacer le couple `TerritoryID`/`Code` par le trigramme territorial dans le domaine et les contrats | Planifié : O2-O3 |
+| Identité territoriale | Utiliser le trigramme territorial comme identifiant unique dans le domaine et les contrats | Fait : O2 ; adaptation front/DTO restante dans O3 |
 | Vue privée par joueur | Filtrer côté serveur les chaînes connues et les détails des combats selon le joueur | Planifié : O4 |
 | API de production | Une partie active, ressources d'une partie, contrats REST stabilisés et gestion des erreurs | Planifié : O5 |
 | Authentification | Identité, sessions, invitation et reprise d'un emplacement de joueur | Planifié : O6 |

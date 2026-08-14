@@ -6,20 +6,18 @@ import (
 )
 
 type gameIndexes struct {
-	territoriesByCode map[string]models.TerritoryID
-	territoriesByID   map[models.TerritoryID]*models.Territory
-	noblesByCode      map[string]models.NobleID
-	noblesByID        map[models.NobleID]*models.Noble
-	armiesByID        map[models.ArmyID]*models.Army
+	territoriesByID map[models.TerritoryID]*models.Territory
+	noblesByCode    map[string]models.NobleID
+	noblesByID      map[models.NobleID]*models.Noble
+	armiesByID      map[models.ArmyID]*models.Army
 }
 
 func indexGame(game *models.GameState) gameIndexes {
 	indexes := gameIndexes{
-		territoriesByCode: map[string]models.TerritoryID{},
-		territoriesByID:   map[models.TerritoryID]*models.Territory{},
-		noblesByCode:      map[string]models.NobleID{},
-		noblesByID:        map[models.NobleID]*models.Noble{},
-		armiesByID:        map[models.ArmyID]*models.Army{},
+		territoriesByID: map[models.TerritoryID]*models.Territory{},
+		noblesByCode:    map[string]models.NobleID{},
+		noblesByID:      map[models.NobleID]*models.Noble{},
+		armiesByID:      map[models.ArmyID]*models.Army{},
 	}
 	if game == nil {
 		return indexes
@@ -28,9 +26,6 @@ func indexGame(game *models.GameState) gameIndexes {
 		territory := &game.Territories[i]
 		if _, exists := indexes.territoriesByID[territory.ID]; !exists {
 			indexes.territoriesByID[territory.ID] = territory
-		}
-		if _, exists := indexes.territoriesByCode[territory.Code]; !exists {
-			indexes.territoriesByCode[territory.Code] = territory.ID
 		}
 	}
 	for i := range game.Nobles {
@@ -52,9 +47,6 @@ func indexGame(game *models.GameState) gameIndexes {
 }
 
 func territoryReference(indexes gameIndexes, territoryID models.TerritoryID) string {
-	if territory := indexes.territoriesByID[territoryID]; territory != nil && territory.Code != "" {
-		return territory.Code
-	}
 	return string(territoryID)
 }
 
@@ -143,7 +135,7 @@ func cloneChain(chain models.Chain) models.Chain {
 		copyOrder := order
 		copyOrder.TargetIDs = append([]models.TerritoryID(nil), order.TargetIDs...)
 		if order.NobleAssignments != nil {
-			copyOrder.NobleAssignments = make(map[models.TerritoryCode][]models.NobleCode, len(order.NobleAssignments))
+			copyOrder.NobleAssignments = make(map[models.TerritoryID][]models.NobleCode, len(order.NobleAssignments))
 			for destination, nobleCodes := range order.NobleAssignments {
 				copyOrder.NobleAssignments[destination] = append([]models.NobleCode(nil), nobleCodes...)
 			}

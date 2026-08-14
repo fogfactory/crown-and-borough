@@ -561,10 +561,8 @@ func (ctx *resolutionContext) winterPaymentSources(playerID models.PlayerID, tar
 		if sources[i].reachable && sources[i].distance != sources[j].distance {
 			return sources[i].distance < sources[j].distance
 		}
-		leftCode := ctx.territoryCode(sources[i].territoryID)
-		rightCode := ctx.territoryCode(sources[j].territoryID)
-		if leftCode != rightCode {
-			return leftCode < rightCode
+		if sources[i].territoryID != sources[j].territoryID {
+			return sources[i].territoryID < sources[j].territoryID
 		}
 		return sources[i].territoryID < sources[j].territoryID
 	})

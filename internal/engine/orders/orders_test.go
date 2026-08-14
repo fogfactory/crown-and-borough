@@ -57,13 +57,13 @@ ros j boi
 	if chain.Orders[1].Liaison != models.LiaisonModeLoop || chain.Orders[0].Liaison != models.LiaisonModeSingle {
 		t.Errorf("liaisons = %q/%q, want loop/single", chain.Orders[1].Liaison, chain.Orders[0].Liaison)
 	}
-	if got, want := chain.Orders[1].TargetIDs, []models.TerritoryID{"T02", "T05"}; !reflect.DeepEqual(got, want) {
+	if got, want := chain.Orders[1].TargetIDs, []models.TerritoryID{"BOI", "CHA"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("offensive support targets = %#v, want %#v", got, want)
 	}
-	if got, want := chain.Orders[5].TargetIDs, []models.TerritoryID{"T01", "T02", "T04", "T02"}; !reflect.DeepEqual(got, want) {
+	if got, want := chain.Orders[5].TargetIDs, []models.TerritoryID{"ROS", "BOI", "FOU", "BOI"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("D targets = %#v, want repeated destinations %#v", got, want)
 	}
-	if got, want := chain.Orders[5].NobleAssignments, map[models.TerritoryCode][]models.NobleCode{
+	if got, want := chain.Orders[5].NobleAssignments, map[models.TerritoryID][]models.NobleCode{
 		"ROS": {"JEA"},
 		"BOI": {"ANN", "JEA"},
 		"FOU": {"BOB"},
@@ -86,7 +86,7 @@ H ROS
 	if len(chain.Orders) != 2 || chain.Orders[0].ID != "O1" || chain.Orders[1].ID != "O2" {
 		t.Fatalf("valid orders = %#v, want O1 D and O2 H", chain.Orders)
 	}
-	if got, want := chain.Orders[0].NobleAssignments, map[models.TerritoryCode][]models.NobleCode{
+	if got, want := chain.Orders[0].NobleAssignments, map[models.TerritoryID][]models.NobleCode{
 		"ROS": {"*"},
 		"BOI": {"ANN", "JEA"},
 	}; !reflect.DeepEqual(got, want) {
@@ -184,25 +184,25 @@ func TestValidateChainStaticRulesAndPurity(t *testing.T) {
 		{"offensive support source not adjacent", "JEA\nROS S BOI - CHA", nil, "not_adjacent"},
 		{"offensive support target not adjacent", "JEA\nFOU S ROS - BRU", nil, "not_adjacent"},
 		{"join not last", "JEA\nROS J BOI\nH BOI", nil, "join_not_last"},
-		{"pillage extra target", "JEA\nP ROS", func(chain *models.Chain) { chain.Orders[0].TargetIDs = []models.TerritoryID{"T02"} }, "unexpected_target"},
+		{"pillage extra target", "JEA\nP ROS", func(chain *models.Chain) { chain.Orders[0].TargetIDs = []models.TerritoryID{"BOI"} }, "unexpected_target"},
 		{"D destination not adjacent", "JEA\nROS D BRU", nil, "not_adjacent"},
 		{"D assignment destination absent", "JEA\nROS D ROS", func(chain *models.Chain) {
-			chain.Orders[0].NobleAssignments = map[models.TerritoryCode][]models.NobleCode{"BOI": {"JEA"}}
+			chain.Orders[0].NobleAssignments = map[models.TerritoryID][]models.NobleCode{"BOI": {"JEA"}}
 		}, "assignment_destination_not_declared"},
 		{"D duplicate noble", "JEA\nROS D ROS BOI", func(chain *models.Chain) {
-			chain.Orders[0].NobleAssignments = map[models.TerritoryCode][]models.NobleCode{"ROS": {"JEA"}, "BOI": {"JEA"}}
+			chain.Orders[0].NobleAssignments = map[models.TerritoryID][]models.NobleCode{"ROS": {"JEA"}, "BOI": {"JEA"}}
 		}, "duplicate_assignment_noble"},
 		{"D multiple wildcards", "JEA\nROS D ROS BOI", func(chain *models.Chain) {
-			chain.Orders[0].NobleAssignments = map[models.TerritoryCode][]models.NobleCode{"ROS": {"*"}, "BOI": {"*"}}
+			chain.Orders[0].NobleAssignments = map[models.TerritoryID][]models.NobleCode{"ROS": {"*"}, "BOI": {"*"}}
 		}, "multiple_wildcards"},
 		{"D unknown noble assignment", "JEA\nROS D ROS", func(chain *models.Chain) {
-			chain.Orders[0].NobleAssignments = map[models.TerritoryCode][]models.NobleCode{"ROS": {"ZZZ"}}
+			chain.Orders[0].NobleAssignments = map[models.TerritoryID][]models.NobleCode{"ROS": {"ZZZ"}}
 		}, "unknown_assignment_noble"},
 		{"duplicate order id", "JEA\nROS A BOI\nH BOI", func(chain *models.Chain) {
 			chain.Orders[1].ID = "O1"
 		}, "duplicate_order_id"},
 		{"assignments on non-D", "JEA\nROS A BOI", func(chain *models.Chain) {
-			chain.Orders[0].NobleAssignments = map[models.TerritoryCode][]models.NobleCode{"ROS": {"JEA"}}
+			chain.Orders[0].NobleAssignments = map[models.TerritoryID][]models.NobleCode{"ROS": {"JEA"}}
 		}, "unexpected_noble_assignments"},
 	}
 	for _, test := range cases {
@@ -218,7 +218,7 @@ func TestValidateChainStaticRulesAndPurity(t *testing.T) {
 	}
 }
 
-func TestVisibleOrderMessagesUseTerritoryCodes(t *testing.T) {
+func TestVisibleOrderMessagesUseTerritoryIDs(t *testing.T) {
 	game := orderTestState()
 	chain := mustParseChain(t, game, "JEA\nROS A BRU")
 	validationErrors := ValidateChain(game, chain)
@@ -229,11 +229,6 @@ func TestVisibleOrderMessagesUseTerritoryCodes(t *testing.T) {
 	if !strings.Contains(message, `"BRU"`) || !strings.Contains(message, `"ROS"`) {
 		t.Errorf("validation message = %q, want territory codes", message)
 	}
-	for _, internalID := range []string{"T01", "T02", "T03", "T04", "T05"} {
-		if strings.Contains(message, internalID) {
-			t.Errorf("validation message = %q, must not expose %s", message, internalID)
-		}
-	}
 
 	noArmyChain := mustParseChain(t, game, "JEA\nBRU A BOI")
 	assignmentError := AssignChain(game, noArmyChain)
@@ -243,11 +238,6 @@ func TestVisibleOrderMessagesUseTerritoryCodes(t *testing.T) {
 	assignmentMessage := assignmentError.Error()
 	if !strings.Contains(assignmentMessage, `"BRU"`) {
 		t.Errorf("assignment message = %q, want receiving territory code", assignmentMessage)
-	}
-	for _, internalID := range []string{"T01", "T02", "T03", "T04", "T05"} {
-		if strings.Contains(assignmentMessage, internalID) {
-			t.Errorf("assignment message = %q, must not expose %s", assignmentMessage, internalID)
-		}
 	}
 }
 
@@ -361,8 +351,8 @@ func TestAssignChainDefersNonAdjacentDiagnostic(t *testing.T) {
 	if len(game.Chains) != 1 || game.Chains[0].ID != "C1" || game.Chains[0].ArmyID != "A1" {
 		t.Fatalf("stored chains = %#v, want C1 carried by A1", game.Chains)
 	}
-	if game.Chains[0].Orders[2].ID != "O3" || len(game.Chains[0].Orders[2].TargetIDs) != 1 || game.Chains[0].Orders[2].TargetIDs[0] != "T04" {
-		t.Errorf("stored O3 = %#v, want preserved T04 target", game.Chains[0].Orders[2])
+	if game.Chains[0].Orders[2].ID != "O3" || len(game.Chains[0].Orders[2].TargetIDs) != 1 || game.Chains[0].Orders[2].TargetIDs[0] != "FOU" {
+		t.Errorf("stored O3 = %#v, want preserved FOU target", game.Chains[0].Orders[2])
 	}
 	if err := game.Validate(); err != nil {
 		t.Fatalf("state after deferred reception is invalid: %v", err)
@@ -430,7 +420,7 @@ func TestAssignChainAcceptsRepeatedDisperseDestination(t *testing.T) {
 	if err := AssignChain(game, mustParseChain(t, game, "JEA\nROS D BOI BOI")); err != nil {
 		t.Fatalf("AssignChain() = %v, want repeated D destination to be accepted", err)
 	}
-	if got, want := game.Chains[0].Orders[0].TargetIDs, []models.TerritoryID{"T02", "T02"}; !reflect.DeepEqual(got, want) {
+	if got, want := game.Chains[0].Orders[0].TargetIDs, []models.TerritoryID{"BOI", "BOI"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("stored D targets = %#v, want %#v", got, want)
 	}
 }
@@ -438,13 +428,13 @@ func TestAssignChainAcceptsRepeatedDisperseDestination(t *testing.T) {
 func TestAssignChainRejectsPendingDisperseExecutor(t *testing.T) {
 	game := orderTestState()
 	chainID := models.ChainID("C1")
-	game.Armies = append(game.Armies, models.Army{ID: "A3", OwnerID: "P1", TerritoryID: "T04", Size: 1})
-	state := game.TerritoryStates["T04"]
+	game.Armies = append(game.Armies, models.Army{ID: "A3", OwnerID: "P1", TerritoryID: "FOU", Size: 1})
+	state := game.TerritoryStates["FOU"]
 	armyID := models.ArmyID("A3")
 	ownerID := models.PlayerID("P1")
 	state.Army = &armyID
 	state.OwnerID = &ownerID
-	game.TerritoryStates["T04"] = state
+	game.TerritoryStates["FOU"] = state
 	game.Armies[0].ChainID = &chainID
 	game.Chains = []models.Chain{{
 		ID:           chainID,
@@ -455,16 +445,16 @@ func TestAssignChainRejectsPendingDisperseExecutor(t *testing.T) {
 			ID:               "O1",
 			Type:             models.OrderTypeDisperse,
 			ArmyID:           "A1",
-			PositionID:       "T01",
-			TargetIDs:        []models.TerritoryID{"T02"},
-			NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"BOI": {"JEA"}},
+			PositionID:       "ROS",
+			TargetIDs:        []models.TerritoryID{"BOI"},
+			NobleAssignments: map[models.TerritoryID][]models.NobleCode{"BOI": {"JEA"}},
 			Liaison:          models.LiaisonModeLoop,
 		}},
 		PendingDisperse: &models.PendingDisperse{
 			ArmyID:           "A3",
-			SourceID:         "T04",
-			TargetIDs:        []models.TerritoryID{"T05"},
-			NobleAssignments: map[models.TerritoryCode][]models.NobleCode{},
+			SourceID:         "FOU",
+			TargetIDs:        []models.TerritoryID{"CHA"},
+			NobleAssignments: map[models.TerritoryID][]models.NobleCode{},
 		},
 	}}
 	game.NextArmyID = 4
@@ -503,7 +493,7 @@ func TestAssignChainRejectsMalformedDirectChains(t *testing.T) {
 			chain.Orders[1].ID = chain.Orders[0].ID
 		}},
 		{"D assignments on attack", "JEA\nROS A BOI", func(chain *models.Chain) {
-			chain.Orders[0].NobleAssignments = map[models.TerritoryCode][]models.NobleCode{"ROS": {"JEA"}}
+			chain.Orders[0].NobleAssignments = map[models.TerritoryID][]models.NobleCode{"ROS": {"JEA"}}
 		}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -606,29 +596,29 @@ func orderTestState() *models.GameState {
 		{ID: p2, Name: "Adele", Color: "blue"},
 	}
 	game.Territories = []models.Territory{
-		{ID: "T01", Code: "ROS", Name: "Rosemont", Terrain: models.TerrainPlain, Adjacencies: []models.TerritoryID{"T02", "T04"}},
-		{ID: "T02", Code: "BOI", Name: "Boisclair", Terrain: models.TerrainForest, Adjacencies: []models.TerritoryID{"T01", "T03", "T05"}},
-		{ID: "T03", Code: "BRU", Name: "Bruyeres", Terrain: models.TerrainHill, Adjacencies: []models.TerritoryID{"T02", "T04"}},
-		{ID: "T04", Code: "FOU", Name: "Fougeres", Terrain: models.TerrainSwamp, Adjacencies: []models.TerritoryID{"T03", "T01", "T05"}},
-		{ID: "T05", Code: "CHA", Name: "Chavaux", Terrain: models.TerrainMountain, Adjacencies: []models.TerritoryID{"T02", "T04"}},
+		{ID: "ROS", Name: "Rosemont", Terrain: models.TerrainPlain, Adjacencies: []models.TerritoryID{"BOI", "FOU"}},
+		{ID: "BOI", Name: "Boisclair", Terrain: models.TerrainForest, Adjacencies: []models.TerritoryID{"ROS", "BRU", "CHA"}},
+		{ID: "BRU", Name: "Bruyeres", Terrain: models.TerrainHill, Adjacencies: []models.TerritoryID{"BOI", "FOU"}},
+		{ID: "FOU", Name: "Fougeres", Terrain: models.TerrainSwamp, Adjacencies: []models.TerritoryID{"BRU", "ROS", "CHA"}},
+		{ID: "CHA", Name: "Chavaux", Terrain: models.TerrainMountain, Adjacencies: []models.TerritoryID{"BOI", "FOU"}},
 	}
 	game.Armies = []models.Army{
-		{ID: a1, OwnerID: p1, TerritoryID: "T01", Size: 2},
-		{ID: a2, OwnerID: p2, TerritoryID: "T02", Size: 1},
+		{ID: a1, OwnerID: p1, TerritoryID: "ROS", Size: 2},
+		{ID: a2, OwnerID: p2, TerritoryID: "BOI", Size: 1},
 	}
 	game.NextArmyID = 3
 	game.Nobles = []models.Noble{
-		{ID: "N1", Code: "JEA", Name: "Jean", OwnerID: p1, LocationID: "T01", Status: models.NobleStatusFree},
-		{ID: "N2", Code: "ANN", Name: "Anne", OwnerID: p1, LocationID: "T01", Status: models.NobleStatusFree},
-		{ID: "N3", Code: "BOB", Name: "Bob", OwnerID: p2, LocationID: "T01", Status: models.NobleStatusHostage},
-		{ID: "N4", Code: "CAL", Name: "Calixte", OwnerID: p2, LocationID: "T02", Status: models.NobleStatusFree},
+		{ID: "N1", Code: "JEA", Name: "Jean", OwnerID: p1, LocationID: "ROS", Status: models.NobleStatusFree},
+		{ID: "N2", Code: "ANN", Name: "Anne", OwnerID: p1, LocationID: "ROS", Status: models.NobleStatusFree},
+		{ID: "N3", Code: "BOB", Name: "Bob", OwnerID: p2, LocationID: "ROS", Status: models.NobleStatusHostage},
+		{ID: "N4", Code: "CAL", Name: "Calixte", OwnerID: p2, LocationID: "BOI", Status: models.NobleStatusFree},
 	}
 	game.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
-		"T01": {OwnerID: &p1, Army: &a1, Infrastructures: []models.InfraID{}},
-		"T02": {OwnerID: &p2, Army: &a2, Infrastructures: []models.InfraID{}},
-		"T03": {Infrastructures: []models.InfraID{}},
-		"T04": {Infrastructures: []models.InfraID{}},
-		"T05": {Infrastructures: []models.InfraID{}},
+		"ROS": {OwnerID: &p1, Army: &a1, Infrastructures: []models.InfraID{}},
+		"BOI": {OwnerID: &p2, Army: &a2, Infrastructures: []models.InfraID{}},
+		"BRU": {Infrastructures: []models.InfraID{}},
+		"FOU": {Infrastructures: []models.InfraID{}},
+		"CHA": {Infrastructures: []models.InfraID{}},
 	}
 	if err := game.Validate(); err != nil {
 		panic(err)

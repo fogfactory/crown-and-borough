@@ -858,26 +858,23 @@ func pendingDisperseTargets(result *disperseResolution) []models.TerritoryID {
 	return targets
 }
 
-func (ctx *resolutionContext) pendingDisperseAssignments(result *disperseResolution, targets []models.TerritoryID) map[models.TerritoryCode][]models.NobleCode {
-	assignments := make(map[models.TerritoryCode][]models.NobleCode)
+func (ctx *resolutionContext) pendingDisperseAssignments(result *disperseResolution, targets []models.TerritoryID) map[models.TerritoryID][]models.NobleCode {
+	assignments := make(map[models.TerritoryID][]models.NobleCode)
 	record := ctx.records[result.intent.recordArmyID]
 	if record == nil {
 		return assignments
 	}
-	pendingCodes := make(map[models.TerritoryCode]bool, len(targets))
+	pendingCodes := make(map[models.TerritoryID]bool, len(targets))
 	for _, targetID := range targets {
-		territory := ctx.territoriesByID[targetID]
-		if territory != nil {
-			pendingCodes[models.TerritoryCode(territory.Code)] = true
-		}
+		pendingCodes[targetID] = true
 	}
-	for destinationCode, nobleCodes := range record.order.NobleAssignments {
-		if !pendingCodes[destinationCode] {
+	for destinationID, nobleCodes := range record.order.NobleAssignments {
+		if !pendingCodes[destinationID] {
 			continue
 		}
 		for _, nobleCode := range nobleCodes {
 			if nobleCode == "*" {
-				assignments[destinationCode] = append(assignments[destinationCode], nobleCode)
+				assignments[destinationID] = append(assignments[destinationID], nobleCode)
 				continue
 			}
 			nobleID, exists := ctx.noblesByCode[nobleCode]
@@ -886,7 +883,7 @@ func (ctx *resolutionContext) pendingDisperseAssignments(result *disperseResolut
 			}
 			noble := ctx.noblesByID[nobleID]
 			if noble != nil && noble.LocationID == result.intent.source {
-				assignments[destinationCode] = append(assignments[destinationCode], nobleCode)
+				assignments[destinationID] = append(assignments[destinationID], nobleCode)
 			}
 		}
 	}
@@ -1001,12 +998,7 @@ func (ctx *resolutionContext) closestControlledSettlement(startID models.Territo
 		}
 		if len(candidates) > 0 {
 			sort.Slice(candidates, func(i, j int) bool {
-				left := ctx.territoriesByID[candidates[i]]
-				right := ctx.territoriesByID[candidates[j]]
-				if left.Code != right.Code {
-					return left.Code < right.Code
-				}
-				return left.ID < right.ID
+				return candidates[i] < candidates[j]
 			})
 			return candidates[0]
 		}

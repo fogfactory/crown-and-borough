@@ -16,39 +16,39 @@ func TestNobleCommandBonus(t *testing.T) {
 		{name: "no noble"},
 		{
 			name:   "one allied free noble",
-			nobles: []models.Noble{testNoble("N1", "ONE", "P1", "T01", models.NobleStatusFree)},
+			nobles: []models.Noble{testNoble("N1", "ONE", "P1", "AAA", models.NobleStatusFree)},
 			want:   1,
 		},
 		{
 			name: "several allied free nobles do not stack",
 			nobles: []models.Noble{
-				testNoble("N1", "ONE", "P1", "T01", models.NobleStatusFree),
-				testNoble("N2", "TWO", "P1", "T01", models.NobleStatusFree),
+				testNoble("N1", "ONE", "P1", "AAA", models.NobleStatusFree),
+				testNoble("N2", "TWO", "P1", "AAA", models.NobleStatusFree),
 			},
 			want: 1,
 		},
 		{
 			name: "captured enemy noble",
 			nobles: []models.Noble{
-				testNoble("N2", "TWO", "P2", "T01", models.NobleStatusHostage),
+				testNoble("N2", "TWO", "P2", "AAA", models.NobleStatusHostage),
 			},
 		},
 		{
 			name: "allied detained noble",
 			nobles: []models.Noble{
-				testNoble("N1", "ONE", "P1", "T01", models.NobleStatusDungeon),
+				testNoble("N1", "ONE", "P1", "AAA", models.NobleStatusDungeon),
 			},
 		},
 		{
 			name: "free noble on another territory",
 			nobles: []models.Noble{
-				testNoble("N1", "ONE", "P1", "T02", models.NobleStatusFree),
+				testNoble("N1", "ONE", "P1", "BBB", models.NobleStatusFree),
 			},
 		},
 		{
 			name: "famine overrides the bonus",
 			nobles: []models.Noble{
-				testNoble("N1", "ONE", "P1", "T01", models.NobleStatusFree),
+				testNoble("N1", "ONE", "P1", "AAA", models.NobleStatusFree),
 			},
 			famished: true,
 		},
@@ -58,10 +58,10 @@ func TestNobleCommandBonus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			state := testState(t,
 				[]models.Territory{
-					territory("T01", "AAA", "T02"),
-					territory("T02", "BBB", "T01"),
+					territory("AAA", "AAA", "BBB"),
+					territory("BBB", "BBB", "AAA"),
 				},
-				[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1}},
+				[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}},
 			)
 			state.Nobles = append(state.Nobles, tt.nobles...)
 			ctx := newResolutionContext(state, testBalance())
@@ -77,17 +77,17 @@ func TestNobleCommandBonus(t *testing.T) {
 func TestResolveNobleCommandBonusInAttackAndReport(t *testing.T) {
 	state := suppliedNobleCombatState(t,
 		[]models.Territory{
-			territory("T01", "AAA", "T02"),
-			territory("T02", "BBB", "T01", "T03"),
-			territory("T03", "CCC", "T02"),
+			territory("AAA", "AAA", "BBB"),
+			territory("BBB", "BBB", "AAA", "CCC"),
+			territory("CCC", "CCC", "BBB"),
 		},
 		[]models.Army{
-			{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1},
-			{ID: "A2", OwnerID: "P2", TerritoryID: "T02", Size: 1},
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
 		})
-	addNoble(state, "N1", "ONE", "P1", "T01")
+	addNoble(state, "N1", "ONE", "P1", "AAA")
 	addChain(t, state, "A1", "N1", models.Order{
-		Type: models.OrderTypeAttack, PositionID: "T01", TargetIDs: []models.TerritoryID{"T02"},
+		Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"},
 	})
 	validateTestState(t, state)
 
@@ -95,7 +95,7 @@ func TestResolveNobleCommandBonusInAttackAndReport(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	contender := combatContenderForNobleBonus(t, resolution.Events, "T02", "A1")
+	contender := combatContenderForNobleBonus(t, resolution.Events, "BBB", "A1")
 	if contender.Force != 2 || contender.NobleBonus != 1 {
 		t.Errorf("attacking contender = %#v, want force 2 and noble bonus 1", contender)
 	}
@@ -114,22 +114,22 @@ func TestResolveNobleCommandBonusInSupports(t *testing.T) {
 	t.Run("offensive support", func(t *testing.T) {
 		state := suppliedNobleCombatState(t,
 			[]models.Territory{
-				territory("T01", "AAA", "T02"),
-				territory("T02", "BBB", "T01", "T03"),
-				territory("T03", "CCC", "T02"),
+				territory("AAA", "AAA", "BBB"),
+				territory("BBB", "BBB", "AAA", "CCC"),
+				territory("CCC", "CCC", "BBB"),
 			},
 			[]models.Army{
-				{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1},
-				{ID: "A2", OwnerID: "P2", TerritoryID: "T02", Size: 1},
-				{ID: "A3", OwnerID: "P1", TerritoryID: "T03", Size: 1},
+				{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+				{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
+				{ID: "A3", OwnerID: "P1", TerritoryID: "CCC", Size: 1},
 			})
-		addNoble(state, "N1", "ONE", "P1", "T01")
-		addNoble(state, "N3", "THR", "P1", "T03")
+		addNoble(state, "N1", "ONE", "P1", "AAA")
+		addNoble(state, "N3", "THR", "P1", "CCC")
 		addChain(t, state, "A1", "N1", models.Order{
-			Type: models.OrderTypeAttack, PositionID: "T01", TargetIDs: []models.TerritoryID{"T02"},
+			Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"},
 		})
 		addChain(t, state, "A3", "N3", models.Order{
-			Type: models.OrderTypeSupport, PositionID: "T03", TargetIDs: []models.TerritoryID{"T01", "T02"},
+			Type: models.OrderTypeSupport, PositionID: "CCC", TargetIDs: []models.TerritoryID{"AAA", "BBB"},
 		})
 		validateTestState(t, state)
 
@@ -137,7 +137,7 @@ func TestResolveNobleCommandBonusInSupports(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
-		contender := combatContenderForNobleBonus(t, resolution.Events, "T02", "A1")
+		contender := combatContenderForNobleBonus(t, resolution.Events, "BBB", "A1")
 		if contender.Force != 4 {
 			t.Errorf("offensive contender = %#v, want attack plus two command bonuses", contender)
 		}
@@ -146,24 +146,24 @@ func TestResolveNobleCommandBonusInSupports(t *testing.T) {
 	t.Run("defensive support", func(t *testing.T) {
 		state := suppliedNobleCombatState(t,
 			[]models.Territory{
-				territory("T01", "AAA", "T02"),
-				territory("T02", "BBB", "T01", "T03"),
-				territory("T03", "CCC", "T02"),
+				territory("AAA", "AAA", "BBB"),
+				territory("BBB", "BBB", "AAA", "CCC"),
+				territory("CCC", "CCC", "BBB"),
 			},
 			[]models.Army{
-				{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1},
-				{ID: "A2", OwnerID: "P2", TerritoryID: "T02", Size: 1},
-				{ID: "A3", OwnerID: "P2", TerritoryID: "T03", Size: 1},
+				{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+				{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
+				{ID: "A3", OwnerID: "P2", TerritoryID: "CCC", Size: 1},
 			})
-		addNoble(state, "N1", "ONE", "P1", "T01")
-		addNoble(state, "N2", "TWO", "P2", "T02")
-		addNoble(state, "N3", "THR", "P2", "T03")
+		addNoble(state, "N1", "ONE", "P1", "AAA")
+		addNoble(state, "N2", "TWO", "P2", "BBB")
+		addNoble(state, "N3", "THR", "P2", "CCC")
 		addChain(t, state, "A1", "N1", models.Order{
-			Type: models.OrderTypeAttack, PositionID: "T01", TargetIDs: []models.TerritoryID{"T02"},
+			Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"},
 		})
-		addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeHold, PositionID: "T02"})
+		addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeHold, PositionID: "BBB"})
 		addChain(t, state, "A3", "N3", models.Order{
-			Type: models.OrderTypeSupport, PositionID: "T03", TargetIDs: []models.TerritoryID{"T02"},
+			Type: models.OrderTypeSupport, PositionID: "CCC", TargetIDs: []models.TerritoryID{"BBB"},
 		})
 		validateTestState(t, state)
 
@@ -171,7 +171,7 @@ func TestResolveNobleCommandBonusInSupports(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
-		contender := combatContenderForNobleBonus(t, resolution.Events, "T02", "A2")
+		contender := combatContenderForNobleBonus(t, resolution.Events, "BBB", "A2")
 		if contender.Force != 4 || contender.NobleBonus != 1 {
 			t.Errorf("defensive contender = %#v, want force 4 and noble bonus 1", contender)
 		}
@@ -181,16 +181,16 @@ func TestResolveNobleCommandBonusInSupports(t *testing.T) {
 func TestResolveFamishedNobleCommandHasZeroForce(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
-			supplyTerritory("T01", "AAA", models.TerrainMountain, "T02"),
-			supplyTerritory("T02", "BBB", models.TerrainPlain, "T01"),
+			supplyTerritory("AAA", "AAA", models.TerrainMountain, "BBB"),
+			supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA"),
 		},
 		[]models.Army{
-			{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1},
-			{ID: "A2", OwnerID: "P2", TerritoryID: "T02", Size: 1},
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
 		})
-	addNoble(state, "N1", "ONE", "P1", "T01")
+	addNoble(state, "N1", "ONE", "P1", "AAA")
 	addChain(t, state, "A1", "N1", models.Order{
-		Type: models.OrderTypeAttack, PositionID: "T01", TargetIDs: []models.TerritoryID{"T02"},
+		Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"},
 	})
 	validateTestState(t, state)
 
@@ -198,7 +198,7 @@ func TestResolveFamishedNobleCommandHasZeroForce(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	contender := combatContenderForNobleBonus(t, resolution.Events, "T02", "A1")
+	contender := combatContenderForNobleBonus(t, resolution.Events, "BBB", "A1")
 	if contender.Force != 0 || contender.NobleBonus != 0 {
 		t.Errorf("famished contender = %#v, want zero force and zero noble bonus", contender)
 	}

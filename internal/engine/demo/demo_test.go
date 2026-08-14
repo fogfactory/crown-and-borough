@@ -201,7 +201,7 @@ func TestControlledArmyLocationRequiresAdjacency(t *testing.T) {
 	for _, territory := range mapData.Territories {
 		territoriesByID[models.TerritoryID(territory.ID)] = territory
 	}
-	if location := controlledArmyLocation("T01", []models.TerritoryID{"T01", "T03"}, territoriesByID, newRNG("location-test", "army")); location != "" {
+	if location := controlledArmyLocation("AAA", []models.TerritoryID{"AAA", "AAC"}, territoriesByID, newRNG("location-test", "army")); location != "" {
 		t.Errorf("non-adjacent army location = %s, want none", location)
 	}
 }
@@ -518,14 +518,13 @@ func fallbackMapData() mapgen.MapData {
 	for index := range territories {
 		previous := (index + len(territories) - 1) % len(territories)
 		next := (index + 1) % len(territories)
-		territoryID := fmt.Sprintf("T%02d", index+1)
+		territoryID := codes[index]
 		territories[index] = mapgen.Territory{
 			ID:          territoryID,
-			Code:        codes[index],
 			Name:        fmt.Sprintf("Territory %c", 'A'+index),
 			Terrain:     models.TerrainPlain,
 			Village:     index == 0,
-			Adjacencies: []string{fmt.Sprintf("T%02d", previous+1), fmt.Sprintf("T%02d", next+1)},
+			Adjacencies: []string{codes[previous], codes[next]},
 			Impassable:  []string{},
 		}
 	}

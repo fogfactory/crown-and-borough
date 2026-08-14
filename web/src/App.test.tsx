@@ -7,8 +7,7 @@ import type { MapData, StateData, SupplyLine, TurnReport } from '@/types'
 const map: MapData = {
   territories: [
     {
-      id: 'T1',
-      code: 'ROS',
+      id: 'ROS',
       name: 'Rosemont',
       terrain: 'plain',
       village: true,
@@ -18,12 +17,11 @@ const map: MapData = {
         [50, 50],
         [0, 50],
       ],
-      adjacencies: ['T2'],
+      adjacencies: ['BRU'],
       impassable: [],
     },
     {
-      id: 'T2',
-      code: 'BRU',
+      id: 'BRU',
       name: 'Bruyères',
       terrain: 'forest',
       village: false,
@@ -33,7 +31,7 @@ const map: MapData = {
         [100, 50],
         [50, 50],
       ],
-      adjacencies: ['T1'],
+      adjacencies: ['ROS'],
       impassable: [],
     },
   ],
@@ -48,7 +46,7 @@ const state: StateData = {
   ],
   territories: [
     {
-      id: 'T1',
+      id: 'ROS',
       owner: 'P1',
       resources: 3,
       army: {
@@ -65,7 +63,7 @@ const state: StateData = {
       },
       infrastructures: [],
     },
-    { id: 'T2', owner: null, resources: 0, army: null, infrastructures: [] },
+    { id: 'BRU', owner: null, resources: 0, army: null, infrastructures: [] },
   ],
   nobles: [
     {
@@ -73,7 +71,7 @@ const state: StateData = {
       code: 'JEA',
       name: 'Jean de Rosemont',
       owner: 'P1',
-      location: 'T1',
+      location: 'ROS',
       status: 'free',
     },
     {
@@ -81,7 +79,7 @@ const state: StateData = {
       code: 'BOB',
       name: 'Robert de Rosemont',
       owner: 'P2',
-      location: 'T1',
+      location: 'ROS',
       status: 'hostage',
     },
     {
@@ -89,7 +87,7 @@ const state: StateData = {
       code: 'KAR',
       name: 'Karin de Bruyères',
       owner: 'P2',
-      location: 'T1',
+      location: 'ROS',
       status: 'dungeon',
     },
   ],
@@ -109,15 +107,15 @@ const resolvedReport: TurnReport = {
 
 const supplyLine: SupplyLine = {
   kind: 'army',
-  territory: 'T1',
+  territory: 'ROS',
   armyOwner: 'P1',
   armySize: 2,
   rations: 1,
   demand: 1,
-  source: 'T1',
+  source: 'ROS',
   distance: 0,
-  path: ['T1'],
-  reachable: ['T1'],
+  path: ['ROS'],
+  reachable: ['ROS'],
   selfSupplied: false,
 }
 
@@ -132,7 +130,7 @@ describe('App command/report tabs', () => {
     const capitalState: StateData = {
       ...state,
       players: [
-        { id: 'P1', name: 'One', color: '#a84632', capitalTerritory: 'T1' },
+        { id: 'P1', name: 'One', color: '#a84632', capitalTerritory: 'ROS' },
         state.players[1],
       ],
       territories: [
@@ -159,7 +157,7 @@ describe('App command/report tabs', () => {
 
     const { container } = render(<App initialLanguage="fr" />)
     const firstTerritory = await waitFor(() => {
-      const territory = container.querySelector('[data-territory-id="T1"]')
+      const territory = container.querySelector('[data-territory-id="ROS"]')
       if (!territory) throw new Error('territory did not render')
       return territory
     })
@@ -192,7 +190,7 @@ describe('App command/report tabs', () => {
     expect(commandTab).toHaveAttribute('aria-selected', 'true')
 
     const firstTerritory = await waitFor(() => {
-      const territory = container.querySelector('[data-territory-id="T1"]')
+      const territory = container.querySelector('[data-territory-id="ROS"]')
       if (!territory) throw new Error('territory did not render')
       return territory
     })
@@ -336,15 +334,15 @@ describe('App command/report tabs', () => {
     }
     const sourceZone: SupplyLine = {
       kind: 'source',
-      territory: 'T2',
+      territory: 'BRU',
       armyOwner: 'P1',
       armySize: 0,
       rations: 0,
       demand: 0,
-      source: 'T2',
+      source: 'BRU',
       distance: 0,
       path: [],
-      reachable: ['T1', 'T2'],
+      reachable: ['ROS', 'BRU'],
       selfSupplied: false,
     }
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
@@ -360,7 +358,7 @@ describe('App command/report tabs', () => {
 
     const { container } = render(<App initialLanguage="fr" />)
     const sourceTerritory = await waitFor(() => {
-      const territory = container.querySelector('[data-territory-id="T2"]')
+      const territory = container.querySelector('[data-territory-id="BRU"]')
       if (!territory) throw new Error('source territory did not render')
       return territory
     })
@@ -368,7 +366,7 @@ describe('App command/report tabs', () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        '/api/supply?territory=T2',
+        '/api/supply?territory=BRU',
         expect.objectContaining({ signal: expect.anything() }),
       )
     })
@@ -387,8 +385,7 @@ describe('App command/report tabs', () => {
     const newMap: MapData = {
       territories: [
         {
-          id: 'T1',
-          code: 'ROS',
+          id: 'ROS',
           name: 'Rosemont',
           terrain: 'plain',
           village: true,
@@ -398,12 +395,11 @@ describe('App command/report tabs', () => {
             [50, 50],
             [0, 50],
           ],
-          adjacencies: ['T2'],
+          adjacencies: ['BRU'],
           impassable: [],
         },
         {
-          id: 'T2',
-          code: 'BRU',
+          id: 'BRU',
           name: 'Bruyères',
           terrain: 'forest',
           village: false,
@@ -413,12 +409,11 @@ describe('App command/report tabs', () => {
             [100, 50],
             [50, 50],
           ],
-          adjacencies: ['T1'],
+          adjacencies: ['ROS'],
           impassable: [],
         },
         {
-          id: 'T3',
-          code: 'CHA',
+          id: 'CHA',
           name: 'Champvert',
           terrain: 'hill',
           village: false,
@@ -428,7 +423,7 @@ describe('App command/report tabs', () => {
             [100, 100],
             [50, 100],
           ],
-          adjacencies: ['T2'],
+          adjacencies: ['BRU'],
           impassable: [],
         },
       ],
@@ -444,14 +439,14 @@ describe('App command/report tabs', () => {
       players: newPlayers,
       territories: [
         {
-          id: 'T1',
+          id: 'ROS',
           owner: 'P1',
           resources: 10,
           army: null,
           infrastructures: [],
         },
-        { id: 'T2', owner: null, resources: 0, army: null, infrastructures: [] },
-        { id: 'T3', owner: null, resources: 0, army: null, infrastructures: [] },
+        { id: 'BRU', owner: null, resources: 0, army: null, infrastructures: [] },
+        { id: 'CHA', owner: null, resources: 0, army: null, infrastructures: [] },
       ],
       nobles: [],
     }

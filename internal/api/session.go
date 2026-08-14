@@ -95,7 +95,7 @@ func (s *Session) MapHTTP(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, mapData)
 }
 
-// StateHTTP serves the current global T0 state projection.
+// StateHTTP serves the current global state projection.
 func (s *Session) StateHTTP(w http.ResponseWriter, _ *http.Request) {
 	s.mu.RLock()
 	state := projectState(s.game)

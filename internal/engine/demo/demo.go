@@ -72,7 +72,6 @@ func DemoState(seed string, assets assetgen.Assets, mapData mapgen.MapData, play
 		}
 		state.Territories = append(state.Territories, models.Territory{
 			ID:          id,
-			Code:        territory.Code,
 			Name:        territory.Name,
 			Terrain:     territory.Terrain,
 			Adjacencies: adjacencies,
