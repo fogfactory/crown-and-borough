@@ -1,6 +1,21 @@
 # Prompt : API REST online, partie active et soumission par joueur
 
 ```
+CHOIX O1 (issue #44, contrats figés) :
+- `territories[].id` est l'unique identité territoriale publique : trigramme,
+  sans `code` territorial dupliqué ni matricule `T<number>`.
+- Le MVP hébergé accepte deux à huit joueurs, une seule partie active, et garde
+  les routes `/api/games/{id}` pour l'évolution multi-parties.
+- `chain: null` signifie absence de chaîne ; `visibility: "hidden"` masque une
+  chaîne existante ; `visibility: "known"` accompagne un détail connu.
+- Les combats utilisent `visibility: "exact"` ou `"general"` ; la vue générale
+  n'expose ni forces ni identifiants d'armées.
+- La résolution forcée est explicite, sans deadline automatique. Les tokens
+  Bearer sont en mémoire, sans mot de passe ni expiration au MVP.
+- `DATA_DIR` est l'interface de stockage ; filesystem/Persistent Disk et
+  snapshot GCS sont deux backends possibles. Le serveur utilise `net/http` et
+  `http.ServeMux`, et les endpoints hotseat sont dev-only.
+
 Tu travailles sur "Crown & Borough", un jeu de stratégie par tours.
 Tout le moteur v1 existe et est testé : modèles, carte, parser, résolution,
 hiver, cycle des saisons, TurnReport et endpoints hotseat.
@@ -42,7 +57,7 @@ sont en français.
 3. ENDPOINTS (tous JSON, erreurs en { "error": "..." }, codes HTTP propres ;
    préfixe /api) :
    - POST /api/games — { name, seed, players: ["Nom1", "Nom2"] } → 201 {
-     id, name, seed, players, status } ; 2 à 5 joueurs online requis (400
+     id, name, seed, players, status } ; 2 à 8 joueurs online requis (400
      sinon), partie active existante → 409 ;
      le seed est optionnel (généré côté serveur si absent, renvoyé dans la
      réponse)
@@ -54,8 +69,8 @@ sont en français.
    - GET /api/games/{id}/supply?territory=XXX — calcul de ravitaillement
     - GET /api/games/{id}/state?player=P1 — la vue du joueur selon les règles
       du GDD v1 (chaînes connues et détails de combats impliquant le joueur) ;
-     player requis (400 sinon) ; hors périmètre la vérification du droit à
-     voir (P3.2) — c'est l'équivalent dev du hotseat
+      player requis (400 sinon) ; cette variante est dev-only et sera remplacée
+      par l'identité Bearer en P3.2, sans paramètre `player` dans l'API publique
    - POST /api/games/{id}/orders — { player, chains: [{noble, text}],
      winter: [lines] } → enregistre la soumission du joueur pour le tour
      courant (REMPLACE une soumission précédente tant que le tour n'est
@@ -105,7 +120,7 @@ sont en français.
      /api/games ; après création, le joueur local choisi son slot
    - Sélecteur de partie + liste des parties existantes (GET /api/games)
    - L'App existante (P1.7) est branchée sur les nouveaux endpoints :
-     GET /api/games/{id}/state?player=, POST /api/games/{id}/orders,
+      GET /api/games/{id}/state?player= (dev-only), POST /api/games/{id}/orders,
      GET /api/games/{id}/reports
    - Indicateur d'attente : joueurs qui ont soumis / qui restent
      (awaiting) ; rafraîchissement (poller simple toutes les 5 s, ou
@@ -123,7 +138,7 @@ sont en français.
      rapports reflètent les saisons ; ordres d'hiver hors hiver → 400
    - ÉLIMINATION (scénario : un joueur perd tout) → compté soumis, ne
      bloque pas la résolution ; partie finie quand un seul vivant → winner
-    - VUES : GET state?player= rend des vues différentes pour P1 et P2 ; les
+    - VUES : GET state?player= (dev-only) rend des vues différentes pour P1 et P2 ; les
       chaînes et les détails de combat sont filtrés selon l'implication
    - PARTIE UNIQUE : une seconde création pendant une partie active → 409 ;
    - RÉSOLUTION FORCÉE : les ordres manquants sont vides et le tour avance ;

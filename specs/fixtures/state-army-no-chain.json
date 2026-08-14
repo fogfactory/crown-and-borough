@@ -1,0 +1,74 @@
+{
+  "turn": 5,
+  "season": "spring",
+  "players": [
+    {
+      "id": "P1",
+      "name": "Hugues",
+      "color": "#a84632",
+      "capitalTerritory": "ROS"
+    },
+    {
+      "id": "P2",
+      "name": "Alienor",
+      "color": "#2d5f9e",
+      "capitalTerritory": "BRU"
+    }
+  ],
+  "territories": [
+    {
+      "id": "ROS",
+      "owner": "P1",
+      "resources": 3,
+      "army": {
+        "owner": "P1",
+        "size": 2,
+        "chain": null
+      },
+      "infrastructures": [{ "type": "castle", "level": 1 }]
+    },
+    {
+      "id": "BOI",
+      "owner": "P1",
+      "resources": 0,
+      "army": null,
+      "infrastructures": []
+    },
+    {
+      "id": "BRU",
+      "owner": "P2",
+      "resources": 1,
+      "army": {
+        "owner": "P2",
+        "size": 2,
+        "chain": null
+      },
+      "infrastructures": [{ "type": "castle", "level": 1 }]
+    },
+    {
+      "id": "FOU",
+      "owner": null,
+      "resources": 2,
+      "army": null,
+      "infrastructures": [{ "type": "village", "level": 1 }]
+    }
+  ],
+  "nobles": [
+    {
+      "id": "N1",
+      "code": "HUG",
+      "name": "Hugues de Rosemont",
+      "owner": "P1",
+      "location": "ROS",
+      "status": "free"
+    },
+    {
+      "id": "N2",
+      "code": "ALI",
+      "name": "Alienor de Bruyeres",
+      "owner": "P2",
+      "location": "BRU",
+      "status": "free"
+    }
+  ]
+}

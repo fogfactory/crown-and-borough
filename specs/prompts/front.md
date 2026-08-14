@@ -1,6 +1,21 @@
 # Prompt : parcours front complet entre amis
 
 ```
+CHOIX O1 (issue #44, contrats figés) :
+- `territories[].id` est l'unique identité territoriale publique : trigramme,
+  sans `code` territorial dupliqué ni matricule `T<number>`.
+- Le MVP hébergé accepte deux à huit joueurs, une seule partie active, et garde
+  les routes `/api/games/{id}` pour l'évolution multi-parties.
+- `chain: null` signifie absence de chaîne ; `visibility: "hidden"` masque une
+  chaîne existante ; `visibility: "known"` accompagne un détail connu.
+- Les combats utilisent `visibility: "exact"` ou `"general"` ; la vue générale
+  n'expose ni forces ni identifiants d'armées.
+- La résolution forcée est explicite, sans deadline automatique. Les tokens
+  Bearer sont en mémoire, sans mot de passe ni expiration au MVP.
+- `DATA_DIR` est l'interface de stockage ; filesystem/Persistent Disk et
+  snapshot GCS sont deux backends possibles. Le serveur utilise `net/http` et
+  `http.ServeMux`, et les endpoints hotseat sont dev-only.
+
 Tu travailles sur "Crown & Borough", un jeu de stratégie par tours.
 Tout est en place : moteur v1, API REST (P3.1), auth +
 codes d'invitation (P3.2), persistance JSON (P3.3), front Vite+React+TS+

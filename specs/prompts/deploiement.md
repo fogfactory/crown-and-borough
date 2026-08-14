@@ -1,6 +1,21 @@
 # Prompt : déploiement et CI automatique
 
 ```
+CHOIX O1 (issue #44, contrats figés) :
+- `territories[].id` est l'unique identité territoriale publique : trigramme,
+  sans `code` territorial dupliqué ni matricule `T<number>`.
+- Le MVP hébergé accepte deux à huit joueurs, une seule partie active, et garde
+  les routes `/api/games/{id}` pour l'évolution multi-parties.
+- `chain: null` signifie absence de chaîne ; `visibility: "hidden"` masque une
+  chaîne existante ; `visibility: "known"` accompagne un détail connu.
+- Les combats utilisent `visibility: "exact"` ou `"general"` ; la vue générale
+  n'expose ni forces ni identifiants d'armées.
+- La résolution forcée est explicite, sans deadline automatique. Les tokens
+  Bearer sont en mémoire, sans mot de passe ni expiration au MVP.
+- `DATA_DIR` est l'interface de stockage ; filesystem/Persistent Disk et
+  snapshot GCS sont deux backends possibles. Le serveur utilise `net/http` et
+  `http.ServeMux`, et les endpoints hotseat sont dev-only.
+
 Tu travailles sur "Crown & Borough", un jeu de stratégie par tours.
 Tout est en place et testé : moteur v1, API REST
 (P3.1), auth + codes d'invitation (P3.2), persistance JSON (P3.3, DATA_DIR),
@@ -37,7 +52,8 @@ messages, enums). Seuls les labels UI restent en français.
      écriture ; documente le mode (gcsfuse, cache: stat-cache-max-ttl court
      — les fichiers changent au fil des tours)
    - DATA_DIR=/data via variable d'environnement du service ; P3.3
-     fonctionne avec le backend choisi par le workflow
+     fonctionne avec `DATA_BACKEND=snapshot` pour GCS FUSE. Le workflow local
+     ou Persistent Disk utilise `DATA_BACKEND=filesystem`.
    - Le smoke test doit provoquer un redémarrage et vérifier que la dernière
      génération JSON complète est restaurée. Cloud Run n'est pas certifié si
      cette vérification échoue.

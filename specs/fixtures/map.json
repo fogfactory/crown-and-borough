@@ -1,0 +1,40 @@
+{
+  "territories": [
+    {
+      "id": "ROS",
+      "name": "Rosemont",
+      "terrain": "plain",
+      "village": false,
+      "points": [[0, 0], [100, 0], [100, 80], [0, 80]],
+      "adjacencies": ["BOI"],
+      "impassable": []
+    },
+    {
+      "id": "BOI",
+      "name": "Boisclair",
+      "terrain": "forest",
+      "village": false,
+      "points": [[100, 0], [200, 0], [200, 80], [100, 80]],
+      "adjacencies": ["BRU", "ROS"],
+      "impassable": []
+    },
+    {
+      "id": "BRU",
+      "name": "Bruyeres",
+      "terrain": "hill",
+      "village": false,
+      "points": [[200, 0], [300, 0], [300, 80], [200, 80]],
+      "adjacencies": ["BOI", "FOU"],
+      "impassable": []
+    },
+    {
+      "id": "FOU",
+      "name": "Fougeres",
+      "terrain": "swamp",
+      "village": true,
+      "points": [[300, 0], [400, 0], [400, 80], [300, 80]],
+      "adjacencies": ["BRU"],
+      "impassable": []
+    }
+  ]
+}

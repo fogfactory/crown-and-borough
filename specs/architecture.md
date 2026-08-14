@@ -1,9 +1,11 @@
-# Architecture : Crown & Borough v1
+# Architecture : Crown & Borough v1 et MVP online
 
-Cette architecture décrit le système réellement livré en v1 : un serveur Go
-avec une session de partie en mémoire, un moteur pur, une API HTTP et un front
-React. La persistance, l'authentification, les parties multiples et le
-déploiement public sont des évolutions suivies dans GitHub.
+Cette architecture décrit le cœur v1 livré et les contrats figés du MVP online :
+un serveur Go avec un moteur pur, une API HTTP et un front React. La session
+hotseat actuelle reste en mémoire et sert au développement. Le MVP hébergé
+ajoutera une seule partie active, l'identité Bearer, les vues privées et la
+restauration via `DATA_DIR`, sans modifier ces contrats pour préparer les
+parties multiples ultérieures.
 
 ## 1. Vue d'ensemble
 
@@ -91,10 +93,12 @@ conteneur et le déploiement public restent à traiter.
 └── Makefile
 ```
 
-Les identifiants internes restent distincts des codes d'usage. Une carte porte
-actuellement un `TerritoryID` séquentiel interne (`T01`) et un trigramme public
-de commune (`ROS`). Les ordres et les labels utilisent le trigramme ; la
-suppression du double identifiant est suivie comme une évolution online.
+Le contrat online ne conserve qu'une identité territoriale publique : `id`, qui
+contient le trigramme de la commune (`ROS`). Le code v1 actuel porte encore un
+`TerritoryID` séquentiel et un champ `Code` dans certaines structures internes ;
+leur suppression est le travail d'O2. Aucun nouveau contrat, fixture ou format
+de persistance ne doit dépendre de ce matricule ni exposer un champ territorial
+`code` en doublon.
 
 ## 4. Contrats JSON
 
@@ -106,14 +110,13 @@ La carte est statique pour une partie et commune à tous les clients :
 {
   "territories": [
     {
-      "id": "T01",
-      "code": "ROS",
+      "id": "ROS",
       "name": "Rosemont",
       "terrain": "plain",
       "village": true,
       "points": [[0, 0], [100, 0], [100, 80]],
-      "adjacencies": ["T02"],
-      "impassable": ["T03"]
+      "adjacencies": ["BOI"],
+      "impassable": ["FOU"]
     }
   ]
 }
@@ -143,18 +146,19 @@ L'état projeté sépare la couche dynamique du `GameState` de stockage :
       "id": "P1",
       "name": "Joueur 1",
       "color": "#a84632",
-      "capitalTerritory": "T01"
+      "capitalTerritory": "ROS"
     }
   ],
   "territories": [
     {
-      "id": "T01",
+      "id": "ROS",
       "owner": "P1",
       "resources": 4,
       "army": {
         "owner": "P1",
         "size": 2,
         "chain": {
+          "visibility": "known",
           "noble": "HUG",
           "currentIndex": 0,
           "orders": [
@@ -176,16 +180,20 @@ L'état projeté sépare la couche dynamique du `GameState` de stockage :
       "code": "HUG",
       "name": "Hugues de Rosemont",
       "owner": "P1",
-      "location": "T01",
+      "location": "ROS",
       "status": "free"
     }
   ]
 }
 ```
 
-`army` vaut `null` lorsqu'aucune armée n'occupe la case. Les identifiants
-d'armée, de chaîne et d'ordre internes ne sont pas exposés dans cette vue. Les
-positions et les cibles des ordres utilisent les trigrammes territoriaux.
+`army` vaut `null` lorsqu'aucune armée n'occupe la case. Dans une armée, `chain`
+vaut `null` lorsqu'aucune chaîne n'est active. Une chaîne existante dont le
+détail n'est pas révélé est représentée par `{ "visibility": "hidden" }` ; une
+chaîne connue contient `{ "visibility": "known", ... }` avec son détail. Les
+identifiants d'armée, de chaîne et d'ordre internes ne sont pas exposés dans la
+vue d'état. Les positions et les cibles des ordres utilisent les trigrammes
+territoriaux.
 `capitalTerritory` désigne le territoire du château actuellement choisi comme
 capitale par le joueur ; le champ est absent lorsqu'il n'a pas de capitale.
 
@@ -207,17 +215,65 @@ la suivante :
 Le filtrage de cette vue doit être fait côté serveur, avec l'identité du joueur.
 Il n'est pas délégué au front et constitue une tâche de l'issue online.
 
-## 5. API v1
+### Vues privées des rapports
 
-Toutes les réponses sont JSON. Le serveur est configuré par `ASSETS_DIR`,
-`SEED`, `PLAYERS` et `PORT` ; la partie initiale est créée au démarrage.
+Un combat possède une visibilité explicite :
+
+- `visibility: "exact"` contient les puissances, les identifiants d'armées et
+  les autres détails nécessaires au joueur qui intervient comme attaquant,
+  défenseur ou soutien ;
+- `visibility: "general"` contient le territoire et le résultat général, mais
+  aucun `force`, identifiant d'armée, propriétaire, contender ou détail de
+  défense permettant de reconstruire le combat.
+
+Les deux formes sont des variantes distinctes du contrat de rapport, pas deux
+valeurs partielles que le front pourrait deviner. Une vue générale peut par
+exemple être réduite à :
+
+```json
+{
+  "visibility": "general",
+  "territory": "BOI",
+  "outcome": "standoff",
+  "summary": "The combat ended without a winner."
+}
+```
+
+La connaissance privée ne doit pas être déduite uniquement de l'état courant.
+Le serveur conserve des métadonnées par partie, joueur, chaîne et combat. Le
+schéma de persistance indicatif est :
+
+```json
+{
+  "chainKnowledge": {
+    "P1": { "C1": true }
+  },
+  "combatParticipation": {
+    "P1": ["combat-1"]
+  }
+}
+```
+
+Ce schéma est interne et indicatif ; O4 fixera les types et la sérialisation
+exacte. Il doit toutefois préserver les règles suivantes : une chaîne émise
+par le joueur est connue, une chaîne émise par un noble otage détenu par le
+joueur reste connue selon le GDD, une progression compatible conserve la
+connaissance et le remplacement par une chaîne adverse l'invalide.
+
+## 5. API v1 et MVP online
+
+Les réponses de l'API sont JSON, à l'exception du document Markdown de
+`/api/rules`. Le serveur de développement est configuré par `ASSETS_DIR`,
+`SEED`, `PLAYERS` et `PORT`. Le MVP hébergé ajoute `DATA_DIR` et une
+authentification Bearer ; les tokens restent en mémoire et n'ont ni mot de
+passe ni expiration au MVP.
 
 | Méthode | Route | Comportement |
 |---|---|---|
 | `GET` | `/healthz` | Vérifie que le serveur répond. |
 | `GET` | `/api/map` | Renvoie la carte de la session courante. |
 | `GET` | `/api/state` | Renvoie l'état projeté de la session courante. |
-| `GET` | `/api/supply?territory=T01` | Calcule la ligne ou la zone de ravitaillement sélectionnée. |
+| `GET` | `/api/supply?territory=ROS` | Calcule la ligne ou la zone de ravitaillement sélectionnée. |
 | `POST` | `/api/game` | Remplace la session par une nouvelle partie en mémoire. |
 | `POST` | `/api/orders` | Enregistre la soumission d'un joueur et résout si tous ont soumis. |
 | `POST` | `/api/reset` | Recrée la partie initiale configurée au démarrage. |
@@ -246,9 +302,44 @@ est résolu, la réponse contient `status: "resolved"`, le rapport et le nouvel
 état. `force: true` permet de résoudre avec les soumissions déjà présentes.
 
 Le serveur v1 ne fournit pas encore d'identité fiable : `player` est une
-identité de développement déclarée par le client. L'authentification, les
-sessions, les codes d'invitation et les parties multiples font partie des
-évolutions online.
+identité de développement déclarée par le client. Ces routes et le paramètre
+`?player=` ne font pas partie de l'API publique authentifiée.
+
+### Contrat MVP hébergé
+
+Le MVP accepte deux à huit joueurs online et une seule partie active par
+déploiement. L'identifiant de partie est conservé dans toutes les routes afin
+de permettre une évolution multi-parties sans changer le contrat public. Une
+seconde création renvoie `409 Conflict`.
+
+| Méthode | Route | Contrat |
+|---|---|---|
+| `POST` | `/api/auth/register` | Inscrit un nom sans mot de passe et renvoie un token Bearer en mémoire. |
+| `GET` | `/api/auth/me` | Renvoie le joueur associé au token Bearer. |
+| `POST` | `/api/games` | Crée la partie active, avec deux à huit slots, ou renvoie `409` si une partie existe déjà. |
+| `GET` | `/api/games` | Liste au plus la partie active visible par le joueur membre. |
+| `GET` | `/api/games/{id}` | Renvoie le statut, les slots, le tour et la saison ; le code d'invitation est privé au créateur. |
+| `POST` | `/api/games/{id}/join` | Rejoint un slot avec le code d'invitation ou reprend un slot par nom après reconnexion. |
+| `GET` | `/api/games/{id}/map` | Renvoie le `map.json` commun, dont `territories[].id` est le trigramme. |
+| `GET` | `/api/games/{id}/state` | Renvoie la projection privée du joueur connecté ; aucun `?player=` public. |
+| `GET` | `/api/games/{id}/supply?territory=ROS` | Calcule la ligne ou la zone de ravitaillement demandée. |
+| `POST` | `/api/games/{id}/orders` | Remplace la soumission du joueur courant ; résout automatiquement lorsque tous les joueurs vivants ont soumis. |
+| `POST` | `/api/games/{id}/resolve` | Résolution forcée explicite avec des ordres vides pour les joueurs manquants. |
+| `GET` | `/api/games/{id}/reports` | Liste les rapports filtrés pour le joueur connecté. |
+| `GET` | `/api/games/{id}/reports/{index}` | Renvoie un rapport filtré pour le joueur connecté. |
+| `GET` | `/api/rules?lang=fr` | Renvoie les règles publiques en Markdown. |
+
+Les erreurs utilisent au minimum la forme `{ "error": "code", "message":
+"..." }`. Les erreurs de validation peuvent ajouter `details` sans changer les
+champs de base. Les statuts structurants sont `400` pour une requête invalide,
+`401` pour un token absent ou invalide, `403` pour un joueur non membre,
+`404` pour une partie ou une ressource inconnue et `409` pour un conflit de
+partie, de slot ou d'état.
+
+Une soumission en attente renvoie `status: "pending"` avec `submitted` et
+`remaining`. La dernière soumission renvoie `status: "resolved"` et le rapport
+du tour. Il n'existe aucune deadline automatique : `POST /resolve` est l'action
+explicite qui permet aux amis de débloquer une partie.
 
 ## 6. Moteur et résolution
 
@@ -316,7 +407,8 @@ le front. Le moteur reçoit une `assetgen.Balance` déjà chargée.
 Les fonctionnalités suivantes ne font pas partie de la session v1 en mémoire
 et sont suivies par l'issue online :
 
-- identifiant territorial unique fondé sur le trigramme ;
+- identifiant territorial unique fondé sur le trigramme (contrat figé par O1,
+  implémentation O2) ;
 - filtre serveur des vues par joueur ;
 - gestion d'une partie active et authentification ;
 - persistance JSON avec backend filesystem et backend snapshot pour GCS FUSE ;
@@ -328,7 +420,7 @@ un contrat de vue distinct, pas une modification silencieuse du cœur v1.
 
 ## 10. Cible online MVP
 
-Le déploiement online cible une seule partie active et deux à cinq joueurs.
+Le déploiement online cible une seule partie active et deux à huit joueurs.
 L'identifiant de partie est conservé dans les routes `/api/games/{id}` afin de
 permettre une évolution multi-parties sans changer les contrats publics.
 
@@ -346,3 +438,16 @@ rendu React et persistées avec la partie.
 local ou un Persistent Disk peut garantir `fsync` et `rename`. Un volume GCS
 FUSE doit utiliser une stratégie de snapshots complets validée par un smoke
 test de redémarrage ; Cloud Run n'est pas certifié si ce test échoue.
+
+Le contrat métier du fichier persisté est versionné (`version: 1`) et contient
+l'état, les soumissions en attente, les rapports bornés et les métadonnées de
+confidentialité. L'application ne voit qu'une interface `DATA_DIR` ; le
+workflow sélectionne `DATA_BACKEND` sans changer le code applicatif :
+
+| Backend | Cible | Garantie |
+|---|---|---|
+| `filesystem` | filesystem local ou Persistent Disk | fichier temporaire, `fsync`, puis `rename` atomique ; nettoyage des temporaires au démarrage ; |
+| `snapshot` | GCS FUSE | snapshots JSON complets versionnés ; restauration de la dernière génération valide, sans dépendre de `rename`. |
+
+La variable de backend est un choix d'infrastructure et reste hors du contrat
+HTTP. Le free-tier GCP reste un objectif de coût, pas une garantie.
