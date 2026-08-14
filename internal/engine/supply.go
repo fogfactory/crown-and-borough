@@ -106,13 +106,12 @@ func updateSupplyEventStocks(ctx *resolutionContext) {
 
 func resolveRations(ctx *resolutionContext) map[models.ArmyID]int {
 	received := make(map[models.ArmyID]int, len(ctx.startArmiesByID))
-	codes := territoryCodes(ctx)
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
 		army := ctx.startArmyAt(territoryID)
 		if army == nil {
 			continue
 		}
-		distribution := distributeRations(rationProduction(ctx, territoryID), []models.Army{*army}, codes)
+		distribution := distributeRations(rationProduction(ctx, territoryID), []models.Army{*army})
 		received[army.ID] = distribution[army.ID]
 	}
 	return received
@@ -131,14 +130,14 @@ func armyCost(size, costBase int) int {
 // distributeRations grants at most one ration to each army. Equal sizes are
 // resolved by the territory trigram; a same-territory tie is invalid game data
 // and therefore intentionally preserves the input order.
-func distributeRations(rations int, armies []models.Army, territoryCodes map[models.TerritoryID]string) map[models.ArmyID]int {
+func distributeRations(rations int, armies []models.Army) map[models.ArmyID]int {
 	received := make(map[models.ArmyID]int, len(armies))
 	ordered := append([]models.Army(nil), armies...)
 	sort.SliceStable(ordered, func(i, j int) bool {
 		if ordered[i].Size != ordered[j].Size {
 			return ordered[i].Size > ordered[j].Size
 		}
-		return territoryCodes[ordered[i].TerritoryID] < territoryCodes[ordered[j].TerritoryID]
+		return ordered[i].TerritoryID < ordered[j].TerritoryID
 	})
 	for _, army := range ordered {
 		if rations == 0 {
@@ -273,7 +272,7 @@ func closestSupplySource(ctx *resolutionContext, territoryID models.TerritoryID,
 		if !reachable {
 			continue
 		}
-		if closest != nil && (candidateDistance > distance || candidateDistance == distance && ctx.territoryCode(source.territoryID) >= ctx.territoryCode(closest.territoryID)) {
+		if closest != nil && (candidateDistance > distance || candidateDistance == distance && source.territoryID >= closest.territoryID) {
 			continue
 		}
 		closest = source
@@ -310,7 +309,7 @@ func resolveSupplyStocks(ctx *resolutionContext, sources []*supplySource) int {
 		if left.Resources != right.Resources {
 			return left.Resources < right.Resources
 		}
-		return ctx.territoryCode(stocks[i].territoryID) < ctx.territoryCode(stocks[j].territoryID)
+		return stocks[i].territoryID < stocks[j].territoryID
 	})
 	for _, source := range stocks {
 		if delta == 0 {
@@ -337,7 +336,7 @@ func selectAssignedFamine(ctx *resolutionContext, assignments []supplyAssignment
 		if assignments[i].army.Size != assignments[j].army.Size {
 			return assignments[i].army.Size > assignments[j].army.Size
 		}
-		return ctx.territoryCode(assignments[i].army.TerritoryID) < ctx.territoryCode(assignments[j].army.TerritoryID)
+		return assignments[i].army.TerritoryID < assignments[j].army.TerritoryID
 	})
 	candidates := make([]famineCandidate, 0)
 	for _, assignment := range assignments {
@@ -360,7 +359,7 @@ func sortDirectFamine(ctx *resolutionContext, candidates []famineCandidate) {
 		if candidates[i].army.Size != candidates[j].army.Size {
 			return candidates[i].army.Size > candidates[j].army.Size
 		}
-		return ctx.territoryCode(candidates[i].army.TerritoryID) < ctx.territoryCode(candidates[j].army.TerritoryID)
+		return candidates[i].army.TerritoryID < candidates[j].army.TerritoryID
 	})
 }
 
@@ -372,7 +371,7 @@ func sortAssignedFamine(ctx *resolutionContext, candidates []famineCandidate) {
 		if candidates[i].army.Size != candidates[j].army.Size {
 			return candidates[i].army.Size > candidates[j].army.Size
 		}
-		return ctx.territoryCode(candidates[i].army.TerritoryID) < ctx.territoryCode(candidates[j].army.TerritoryID)
+		return candidates[i].army.TerritoryID < candidates[j].army.TerritoryID
 	})
 }
 
@@ -436,14 +435,6 @@ func (ctx *resolutionContext) infrastructureAt(territoryID models.TerritoryID) *
 	return ctx.infrastructuresByID[state.Infrastructures[0]]
 }
 
-func (ctx *resolutionContext) territoryCode(territoryID models.TerritoryID) string {
-	territory := ctx.territoriesByID[territoryID]
-	if territory == nil {
-		return ""
-	}
-	return territory.Code
-}
-
 func startArmiesForPlayer(ctx *resolutionContext, ownerID models.PlayerID) []models.Army {
 	armies := make([]models.Army, 0)
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
@@ -471,14 +462,6 @@ func sortedStateTerritoryIDs(ctx *resolutionContext) []models.TerritoryID {
 	}
 	sortTerritoryIDs(ids)
 	return ids
-}
-
-func territoryCodes(ctx *resolutionContext) map[models.TerritoryID]string {
-	codes := make(map[models.TerritoryID]string, len(ctx.state.Territories))
-	for _, territory := range ctx.state.Territories {
-		codes[territory.ID] = territory.Code
-	}
-	return codes
 }
 
 func cloneRations(source map[models.TerritoryID]int) map[models.TerritoryID]int {

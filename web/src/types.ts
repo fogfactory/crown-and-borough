@@ -66,7 +66,6 @@ export interface Noble {
 
 export interface Territory {
   id: string
-  code: string
   name: string
   terrain: Terrain
   village: boolean

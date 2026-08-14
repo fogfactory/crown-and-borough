@@ -9,18 +9,18 @@ import (
 func TestResolveDisperseRepeatedDestinationStacksTroops(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
-			territory("T01", "AAA", "T02"),
-			territory("T02", "BBB", "T01"),
+			territory("AAA", "AAA", "BBB"),
+			territory("BBB", "BBB", "AAA"),
 		},
-		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 2}},
+		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2}},
 	)
-	addNoble(state, "N1", "ONE", "P1", "T01")
-	addNoble(state, "N2", "TWO", "P1", "T01")
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	addNoble(state, "N2", "TWO", "P1", "AAA")
 	addChain(t, state, "A1", "N1", models.Order{
 		Type:       models.OrderTypeDisperse,
-		PositionID: "T01",
-		TargetIDs:  []models.TerritoryID{"T02", "T02"},
-		NobleAssignments: map[models.TerritoryCode][]models.NobleCode{
+		PositionID: "AAA",
+		TargetIDs:  []models.TerritoryID{"BBB", "BBB"},
+		NobleAssignments: map[models.TerritoryID][]models.NobleCode{
 			"BBB": {"ONE", "TWO"},
 		},
 	})
@@ -31,15 +31,15 @@ func TestResolveDisperseRepeatedDestinationStacksTroops(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "T02" || army.Size != 2 || army.ChainID != nil {
-		t.Errorf("stacked army = %+v, want A1 size 2 at T02 without a chain", army)
+	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "BBB" || army.Size != 2 || army.ChainID != nil {
+		t.Errorf("stacked army = %+v, want A1 size 2 at BBB without a chain", army)
 	}
 	if hasArmy(resolution.State, "A2") {
 		t.Error("repeated destination should stack into one army")
 	}
 	for _, nobleID := range []models.NobleID{"N1", "N2"} {
-		if noble := nobleByID(t, resolution.State, nobleID); noble.LocationID != "T02" {
-			t.Errorf("%s location = %q, want T02", nobleID, noble.LocationID)
+		if noble := nobleByID(t, resolution.State, nobleID); noble.LocationID != "BBB" {
+			t.Errorf("%s location = %q, want BBB", nobleID, noble.LocationID)
 		}
 	}
 }
@@ -47,21 +47,21 @@ func TestResolveDisperseRepeatedDestinationStacksTroops(t *testing.T) {
 func TestResolveDisperseOccupiedDestinationDoesNotConsumeUnit(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
-			territory("T01", "AAA", "T02", "T03"),
-			territory("T02", "BBB", "T01"),
-			territory("T03", "CCC", "T01"),
+			territory("AAA", "AAA", "BBB", "CCC"),
+			territory("BBB", "BBB", "AAA"),
+			territory("CCC", "CCC", "AAA"),
 		},
 		[]models.Army{
-			{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 2},
-			{ID: "A2", OwnerID: "P2", TerritoryID: "T02", Size: 1},
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
+			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
 		},
 	)
-	addNoble(state, "N1", "ONE", "P1", "T01")
+	addNoble(state, "N1", "ONE", "P1", "AAA")
 	addChain(t, state, "A1", "N1", models.Order{
 		Type:             models.OrderTypeDisperse,
-		PositionID:       "T01",
-		TargetIDs:        []models.TerritoryID{"T02", "T03"},
-		NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"CCC": {"ONE"}},
+		PositionID:       "AAA",
+		TargetIDs:        []models.TerritoryID{"BBB", "CCC"},
+		NobleAssignments: map[models.TerritoryID][]models.NobleCode{"CCC": {"ONE"}},
 	})
 	keepTestArmiesSupplied(state)
 	validateTestState(t, state)
@@ -70,14 +70,14 @@ func TestResolveDisperseOccupiedDestinationDoesNotConsumeUnit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "T01" || army.Size != 1 || army.ChainID != nil {
-		t.Errorf("residual = %+v, want one unit left at T01 without a chain", army)
+	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "AAA" || army.Size != 1 || army.ChainID != nil {
+		t.Errorf("residual = %+v, want one unit left at AAA without a chain", army)
 	}
-	if army := armyByID(t, resolution.State, "A3"); army.TerritoryID != "T03" || army.Size != 1 {
-		t.Errorf("branch = %+v, want one unit at T03", army)
+	if army := armyByID(t, resolution.State, "A3"); army.TerritoryID != "CCC" || army.Size != 1 {
+		t.Errorf("branch = %+v, want one unit at CCC", army)
 	}
-	if noble := nobleByID(t, resolution.State, "N1"); noble.LocationID != "T03" {
-		t.Errorf("N1 location = %q, want T03", noble.LocationID)
+	if noble := nobleByID(t, resolution.State, "N1"); noble.LocationID != "CCC" {
+		t.Errorf("N1 location = %q, want CCC", noble.LocationID)
 	}
 	if outcome, found := findOutcome(resolution.Events, "O1"); !found || outcome.Reason != "disperse_partial" {
 		t.Errorf("D outcome = %#v, want disperse_partial", outcome)
@@ -87,16 +87,16 @@ func TestResolveDisperseOccupiedDestinationDoesNotConsumeUnit(t *testing.T) {
 func TestResolveDisperseShortListLeavesUnitsAndUnassignedNobles(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
-			territory("T01", "AAA", "T02"),
-			territory("T02", "BBB", "T01"),
+			territory("AAA", "AAA", "BBB"),
+			territory("BBB", "BBB", "AAA"),
 		},
-		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 3}},
+		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 3}},
 	)
-	addNoble(state, "N1", "ONE", "P1", "T01")
+	addNoble(state, "N1", "ONE", "P1", "AAA")
 	addChain(t, state, "A1", "N1", models.Order{
 		Type:       models.OrderTypeDisperse,
-		PositionID: "T01",
-		TargetIDs:  []models.TerritoryID{"T02"},
+		PositionID: "AAA",
+		TargetIDs:  []models.TerritoryID{"BBB"},
 	})
 	keepTestArmiesSupplied(state)
 	validateTestState(t, state)
@@ -105,14 +105,14 @@ func TestResolveDisperseShortListLeavesUnitsAndUnassignedNobles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "T02" || army.Size != 1 || army.ChainID != nil {
-		t.Errorf("arrival = %+v, want A1 size 1 at T02 without a chain", army)
+	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "BBB" || army.Size != 1 || army.ChainID != nil {
+		t.Errorf("arrival = %+v, want A1 size 1 at BBB without a chain", army)
 	}
-	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "T01" || army.Size != 2 || army.ChainID != nil {
-		t.Errorf("residual = %+v, want A2 size 2 at T01 without a chain", army)
+	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "AAA" || army.Size != 2 || army.ChainID != nil {
+		t.Errorf("residual = %+v, want A2 size 2 at AAA without a chain", army)
 	}
-	if noble := nobleByID(t, resolution.State, "N1"); noble.LocationID != "T01" {
-		t.Errorf("unassigned noble location = %q, want T01", noble.LocationID)
+	if noble := nobleByID(t, resolution.State, "N1"); noble.LocationID != "AAA" {
+		t.Errorf("unassigned noble location = %q, want AAA", noble.LocationID)
 	}
 	if outcome, found := findOutcome(resolution.Events, "O1"); !found || outcome.Outcome != OutcomeSuccess {
 		t.Errorf("D outcome = %#v, want success", outcome)
@@ -122,18 +122,18 @@ func TestResolveDisperseShortListLeavesUnitsAndUnassignedNobles(t *testing.T) {
 func TestResolveDisperseLongListSingleDropsExtraDestination(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
-			territory("T01", "AAA", "T02", "T03"),
-			territory("T02", "BBB", "T01"),
-			territory("T03", "CCC", "T01"),
+			territory("AAA", "AAA", "BBB", "CCC"),
+			territory("BBB", "BBB", "AAA"),
+			territory("CCC", "CCC", "AAA"),
 		},
-		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1}},
+		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}},
 	)
-	addNoble(state, "N1", "ONE", "P1", "T01")
+	addNoble(state, "N1", "ONE", "P1", "AAA")
 	addChain(t, state, "A1", "N1", models.Order{
 		Type:             models.OrderTypeDisperse,
-		PositionID:       "T01",
-		TargetIDs:        []models.TerritoryID{"T02", "T03"},
-		NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"BBB": {"ONE"}},
+		PositionID:       "AAA",
+		TargetIDs:        []models.TerritoryID{"BBB", "CCC"},
+		NobleAssignments: map[models.TerritoryID][]models.NobleCode{"BBB": {"ONE"}},
 	})
 	validateTestState(t, state)
 
@@ -141,10 +141,10 @@ func TestResolveDisperseLongListSingleDropsExtraDestination(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "T02" || army.Size != 1 || army.ChainID != nil {
-		t.Errorf("arrival = %+v, want A1 at T02 without a chain", army)
+	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "BBB" || army.Size != 1 || army.ChainID != nil {
+		t.Errorf("arrival = %+v, want A1 at BBB without a chain", army)
 	}
-	if hasArmy(resolution.State, "A2") || resolution.State.TerritoryStates["T03"].Army != nil {
+	if hasArmy(resolution.State, "A2") || resolution.State.TerritoryStates["CCC"].Army != nil {
 		t.Error("extra destination should not create an army")
 	}
 	if outcome, found := findOutcome(resolution.Events, "O1"); !found || outcome.Reason != "disperse_partial" {
@@ -155,18 +155,18 @@ func TestResolveDisperseLongListSingleDropsExtraDestination(t *testing.T) {
 func TestResolveDisperseLongListLoopBreaksWithoutMovement(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
-			territory("T01", "AAA", "T02", "T03"),
-			territory("T02", "BBB", "T01"),
-			territory("T03", "CCC", "T01"),
+			territory("AAA", "AAA", "BBB", "CCC"),
+			territory("BBB", "BBB", "AAA"),
+			territory("CCC", "CCC", "AAA"),
 		},
-		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1}},
+		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}},
 	)
-	addNoble(state, "N1", "ONE", "P1", "T01")
+	addNoble(state, "N1", "ONE", "P1", "AAA")
 	addChain(t, state, "A1", "N1", models.Order{
 		Type:             models.OrderTypeDisperse,
-		PositionID:       "T01",
-		TargetIDs:        []models.TerritoryID{"T02", "T03"},
-		NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"BBB": {"ONE"}},
+		PositionID:       "AAA",
+		TargetIDs:        []models.TerritoryID{"BBB", "CCC"},
+		NobleAssignments: map[models.TerritoryID][]models.NobleCode{"BBB": {"ONE"}},
 		Liaison:          models.LiaisonModeLoop,
 	})
 	keepTestArmiesSupplied(state)
@@ -176,10 +176,10 @@ func TestResolveDisperseLongListLoopBreaksWithoutMovement(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "T01" || army.Size != 1 || army.ChainID != nil {
+	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "AAA" || army.Size != 1 || army.ChainID != nil {
 		t.Errorf("army after invalid loop D = %+v, want stationary A1 without a chain", army)
 	}
-	if resolution.State.TerritoryStates["T02"].Army != nil || resolution.State.TerritoryStates["T03"].Army != nil {
+	if resolution.State.TerritoryStates["BBB"].Army != nil || resolution.State.TerritoryStates["CCC"].Army != nil {
 		t.Error("invalid loop D should not move any branch")
 	}
 	if outcome, found := findOutcome(resolution.Events, "O1"); !found || outcome.Outcome != OutcomeInvalid || outcome.Reason != "disperse_no_residual" {
@@ -190,16 +190,16 @@ func TestResolveDisperseLongListLoopBreaksWithoutMovement(t *testing.T) {
 func TestResolveDisperseUnassignedNobleInvalidatesAfterPreviousOrder(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
-			territory("T01", "AAA", "T02"),
-			territory("T02", "BBB", "T01", "T03"),
-			territory("T03", "CCC", "T02"),
+			territory("AAA", "AAA", "BBB"),
+			territory("BBB", "BBB", "AAA", "CCC"),
+			territory("CCC", "CCC", "BBB"),
 		},
-		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1}},
+		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}},
 	)
-	addNoble(state, "N1", "ONE", "P1", "T01")
+	addNoble(state, "N1", "ONE", "P1", "AAA")
 	addChainOrders(t, state, "A1", "N1",
-		models.Order{Type: models.OrderTypeAttack, PositionID: "T01", TargetIDs: []models.TerritoryID{"T02"}},
-		models.Order{Type: models.OrderTypeDisperse, PositionID: "T02", TargetIDs: []models.TerritoryID{"T03"}},
+		models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"}},
+		models.Order{Type: models.OrderTypeDisperse, PositionID: "BBB", TargetIDs: []models.TerritoryID{"CCC"}},
 	)
 	validateTestState(t, state)
 
@@ -207,19 +207,19 @@ func TestResolveDisperseUnassignedNobleInvalidatesAfterPreviousOrder(t *testing.
 	if err != nil {
 		t.Fatalf("first Resolve: %v", err)
 	}
-	if army := armyByID(t, first.State, "A1"); army.TerritoryID != "T02" || army.ChainID == nil {
-		t.Fatalf("after previous order = %+v, want A1 at T02 carrying its chain", army)
+	if army := armyByID(t, first.State, "A1"); army.TerritoryID != "BBB" || army.ChainID == nil {
+		t.Fatalf("after previous order = %+v, want A1 at BBB carrying its chain", army)
 	}
 
 	second, err := Resolve(first.State, testBalance())
 	if err != nil {
 		t.Fatalf("second Resolve: %v", err)
 	}
-	if army := armyByID(t, second.State, "A1"); army.TerritoryID != "T02" || army.ChainID != nil {
-		t.Errorf("after invalid D = %+v, want A1 to remain at T02 without a chain", army)
+	if army := armyByID(t, second.State, "A1"); army.TerritoryID != "BBB" || army.ChainID != nil {
+		t.Errorf("after invalid D = %+v, want A1 to remain at BBB without a chain", army)
 	}
-	if army := second.State.TerritoryStates["T03"].Army; army != nil {
-		t.Errorf("invalid D created army %q at T03", *army)
+	if army := second.State.TerritoryStates["CCC"].Army; army != nil {
+		t.Errorf("invalid D created army %q at CCC", *army)
 	}
 	if outcome, found := findOutcome(second.Events, "O2"); !found || outcome.Outcome != OutcomeInvalid || outcome.Reason != "disperse_noble_left_behind" {
 		t.Errorf("D outcome = %#v, want invalid disperse_noble_left_behind", outcome)
@@ -229,20 +229,20 @@ func TestResolveDisperseUnassignedNobleInvalidatesAfterPreviousOrder(t *testing.
 func TestResolveLoopDisperseRetriesRepeatedDestinationAndStacks(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
-			territory("T01", "AAA", "T02"),
-			territory("T02", "BBB", "T01"),
+			territory("AAA", "AAA", "BBB"),
+			territory("BBB", "BBB", "AAA"),
 		},
 		[]models.Army{
-			{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 2},
-			{ID: "A2", OwnerID: "P2", TerritoryID: "T02", Size: 1},
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
+			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
 		},
 	)
-	addNoble(state, "N1", "ONE", "P1", "T01")
+	addNoble(state, "N1", "ONE", "P1", "AAA")
 	addChain(t, state, "A1", "N1", models.Order{
 		Type:             models.OrderTypeDisperse,
-		PositionID:       "T01",
-		TargetIDs:        []models.TerritoryID{"T02", "T02"},
-		NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"BBB": {"ONE"}},
+		PositionID:       "AAA",
+		TargetIDs:        []models.TerritoryID{"BBB", "BBB"},
+		NobleAssignments: map[models.TerritoryID][]models.NobleCode{"BBB": {"ONE"}},
 		Liaison:          models.LiaisonModeLoop,
 	})
 	keepTestArmiesSupplied(state)
@@ -252,11 +252,11 @@ func TestResolveLoopDisperseRetriesRepeatedDestinationAndStacks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("first Resolve: %v", err)
 	}
-	if army := armyByID(t, first.State, "A1"); army.TerritoryID != "T01" || army.Size != 2 || army.ChainID == nil {
-		t.Errorf("first residual = %+v, want A1 size 2 at T01 carrying the loop chain", army)
+	if army := armyByID(t, first.State, "A1"); army.TerritoryID != "AAA" || army.Size != 2 || army.ChainID == nil {
+		t.Errorf("first residual = %+v, want A1 size 2 at AAA carrying the loop chain", army)
 	}
 	if chain := chainOf(first.State, "A1"); chain == nil || chain.PendingDisperse == nil || len(chain.PendingDisperse.TargetIDs) != 2 {
-		t.Fatalf("first pending chain = %#v, want two repeated T02 targets", chain)
+		t.Fatalf("first pending chain = %#v, want two repeated BBB targets", chain)
 	}
 
 	removeArmy(first.State, "A2")
@@ -265,35 +265,35 @@ func TestResolveLoopDisperseRetriesRepeatedDestinationAndStacks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("second Resolve: %v", err)
 	}
-	if army := armyByID(t, second.State, "A1"); army.TerritoryID != "T02" || army.Size != 2 || army.ChainID != nil {
-		t.Errorf("completed residual = %+v, want stacked A1 size 2 at T02 without a chain", army)
+	if army := armyByID(t, second.State, "A1"); army.TerritoryID != "BBB" || army.Size != 2 || army.ChainID != nil {
+		t.Errorf("completed residual = %+v, want stacked A1 size 2 at BBB without a chain", army)
 	}
 	if chain := chainOf(second.State, "A1"); chain != nil {
 		t.Errorf("completed loop chain = %#v, want consumed chain", chain)
 	}
-	if noble := nobleByID(t, second.State, "N1"); noble.LocationID != "T02" {
-		t.Errorf("N1 location = %q, want T02", noble.LocationID)
+	if noble := nobleByID(t, second.State, "N1"); noble.LocationID != "BBB" {
+		t.Errorf("N1 location = %q, want BBB", noble.LocationID)
 	}
 }
 
 func TestResolveLoopDispersePreservesWildcardInPendingState(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
-			territory("T01", "AAA", "T02", "T03"),
-			territory("T02", "BBB", "T01"),
-			territory("T03", "CCC", "T01"),
+			territory("AAA", "AAA", "BBB", "CCC"),
+			territory("BBB", "BBB", "AAA"),
+			territory("CCC", "CCC", "AAA"),
 		},
 		[]models.Army{
-			{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 2},
-			{ID: "A2", OwnerID: "P2", TerritoryID: "T02", Size: 1},
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
+			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
 		},
 	)
-	addNoble(state, "N1", "ONE", "P1", "T01")
+	addNoble(state, "N1", "ONE", "P1", "AAA")
 	addChain(t, state, "A1", "N1", models.Order{
 		Type:             models.OrderTypeDisperse,
-		PositionID:       "T01",
-		TargetIDs:        []models.TerritoryID{"T02", "T03"},
-		NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"BBB": {"*"}},
+		PositionID:       "AAA",
+		TargetIDs:        []models.TerritoryID{"BBB", "CCC"},
+		NobleAssignments: map[models.TerritoryID][]models.NobleCode{"BBB": {"*"}},
 		Liaison:          models.LiaisonModeLoop,
 	})
 	keepTestArmiesSupplied(state)
@@ -315,28 +315,28 @@ func TestResolveLoopDispersePreservesWildcardInPendingState(t *testing.T) {
 func TestResolveInvalidDisperseDoesNotVacateOrigin(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
-			territory("T01", "AAA", "T02", "T03", "T04"),
-			territory("T02", "BBB", "T01"),
-			territory("T03", "CCC", "T01"),
-			territory("T04", "DDD", "T01"),
+			territory("AAA", "AAA", "BBB", "CCC", "DDD"),
+			territory("BBB", "BBB", "AAA"),
+			territory("CCC", "CCC", "AAA"),
+			territory("DDD", "DDD", "AAA"),
 		},
 		[]models.Army{
-			{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 2},
-			{ID: "A2", OwnerID: "P1", TerritoryID: "T04", Size: 1},
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
+			{ID: "A2", OwnerID: "P1", TerritoryID: "DDD", Size: 1},
 		},
 	)
-	addNoble(state, "N1", "ONE", "P1", "T01")
-	addNoble(state, "N2", "TWO", "P1", "T04")
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	addNoble(state, "N2", "TWO", "P1", "DDD")
 	addChain(t, state, "A1", "N1", models.Order{
 		Type:       models.OrderTypeDisperse,
-		PositionID: "T01",
-		TargetIDs:  []models.TerritoryID{"T02", "T03"},
+		PositionID: "AAA",
+		TargetIDs:  []models.TerritoryID{"BBB", "CCC"},
 	})
 	addChain(t, state, "A2", "N2", models.Order{
 		Type:             models.OrderTypeDisperse,
-		PositionID:       "T04",
-		TargetIDs:        []models.TerritoryID{"T01"},
-		NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"AAA": {"TWO"}},
+		PositionID:       "DDD",
+		TargetIDs:        []models.TerritoryID{"AAA"},
+		NobleAssignments: map[models.TerritoryID][]models.NobleCode{"AAA": {"TWO"}},
 	})
 	keepTestArmiesSupplied(state)
 	validateTestState(t, state)
@@ -345,42 +345,42 @@ func TestResolveInvalidDisperseDoesNotVacateOrigin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "T01" || army.Size != 2 || army.ChainID != nil {
-		t.Errorf("invalid D carrier = %+v, want stationary A1 at T01", army)
+	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "AAA" || army.Size != 2 || army.ChainID != nil {
+		t.Errorf("invalid D carrier = %+v, want stationary A1 at AAA", army)
 	}
-	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "T04" || army.ChainID != nil {
-		t.Errorf("blocked arrival = %+v, want A2 to remain at T04", army)
+	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "DDD" || army.ChainID != nil {
+		t.Errorf("blocked arrival = %+v, want A2 to remain at DDD", army)
 	}
-	if resolution.State.TerritoryStates["T01"].Army == nil || *resolution.State.TerritoryStates["T01"].Army != "A1" {
-		t.Error("T01 should remain occupied by A1")
+	if resolution.State.TerritoryStates["AAA"].Army == nil || *resolution.State.TerritoryStates["AAA"].Army != "A1" {
+		t.Error("AAA should remain occupied by A1")
 	}
 }
 
 func TestResolveInvalidDisperseDoesNotBlockJoinArrival(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
-			territory("T01", "AAA", "T02", "T03"),
-			territory("T02", "BBB", "T01", "T04"),
-			territory("T03", "CCC", "T01"),
-			territory("T04", "DDD", "T02"),
+			territory("AAA", "AAA", "BBB", "CCC"),
+			territory("BBB", "BBB", "AAA", "DDD"),
+			territory("CCC", "CCC", "AAA"),
+			territory("DDD", "DDD", "BBB"),
 		},
 		[]models.Army{
-			{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1},
-			{ID: "A2", OwnerID: "P1", TerritoryID: "T04", Size: 1},
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+			{ID: "A2", OwnerID: "P1", TerritoryID: "DDD", Size: 1},
 		},
 	)
-	addNoble(state, "N1", "ONE", "P1", "T01")
-	addNoble(state, "N2", "TWO", "P1", "T04")
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	addNoble(state, "N2", "TWO", "P1", "DDD")
 	addChain(t, state, "A1", "N1", models.Order{
 		Type:       models.OrderTypeDisperse,
-		PositionID: "T01",
-		TargetIDs:  []models.TerritoryID{"T02", "T03"},
+		PositionID: "AAA",
+		TargetIDs:  []models.TerritoryID{"BBB", "CCC"},
 		Liaison:    models.LiaisonModeLoop,
 	})
 	addChain(t, state, "A2", "N2", models.Order{
 		Type:       models.OrderTypeJoin,
-		PositionID: "T04",
-		TargetIDs:  []models.TerritoryID{"T02"},
+		PositionID: "DDD",
+		TargetIDs:  []models.TerritoryID{"BBB"},
 	})
 	validateTestState(t, state)
 
@@ -388,11 +388,11 @@ func TestResolveInvalidDisperseDoesNotBlockJoinArrival(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "T01" || army.ChainID != nil {
+	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "AAA" || army.ChainID != nil {
 		t.Errorf("invalid D carrier = %+v, want stationary A1 without a chain", army)
 	}
-	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "T02" || army.ChainID != nil {
-		t.Errorf("join arrival = %+v, want A2 at T02 without a chain", army)
+	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "BBB" || army.ChainID != nil {
+		t.Errorf("join arrival = %+v, want A2 at BBB without a chain", army)
 	}
 }
 
@@ -400,27 +400,27 @@ func TestResolveShortDisperseResidualBlocksArrivals(t *testing.T) {
 	t.Run("dispersion", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{
-				territory("T01", "AAA", "T02", "T03"),
-				territory("T02", "BBB", "T01"),
-				territory("T03", "CCC", "T01"),
+				territory("AAA", "AAA", "BBB", "CCC"),
+				territory("BBB", "BBB", "AAA"),
+				territory("CCC", "CCC", "AAA"),
 			},
 			[]models.Army{
-				{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 2},
-				{ID: "A2", OwnerID: "P1", TerritoryID: "T03", Size: 1},
+				{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
+				{ID: "A2", OwnerID: "P1", TerritoryID: "CCC", Size: 1},
 			},
 		)
-		addNoble(state, "N1", "ONE", "P1", "T01")
-		addNoble(state, "N2", "TWO", "P1", "T03")
+		addNoble(state, "N1", "ONE", "P1", "AAA")
+		addNoble(state, "N2", "TWO", "P1", "CCC")
 		addChain(t, state, "A1", "N1", models.Order{
 			Type:       models.OrderTypeDisperse,
-			PositionID: "T01",
-			TargetIDs:  []models.TerritoryID{"T02"},
+			PositionID: "AAA",
+			TargetIDs:  []models.TerritoryID{"BBB"},
 		})
 		addChain(t, state, "A2", "N2", models.Order{
 			Type:             models.OrderTypeDisperse,
-			PositionID:       "T03",
-			TargetIDs:        []models.TerritoryID{"T01"},
-			NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"AAA": {"TWO"}},
+			PositionID:       "CCC",
+			TargetIDs:        []models.TerritoryID{"AAA"},
+			NobleAssignments: map[models.TerritoryID][]models.NobleCode{"AAA": {"TWO"}},
 		})
 		keepTestArmiesSupplied(state)
 		validateTestState(t, state)
@@ -429,40 +429,40 @@ func TestResolveShortDisperseResidualBlocksArrivals(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
-		if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "T02" || army.Size != 1 {
-			t.Errorf("arrival = %+v, want A1 size 1 at T02", army)
+		if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "BBB" || army.Size != 1 {
+			t.Errorf("arrival = %+v, want A1 size 1 at BBB", army)
 		}
-		if army := armyByID(t, resolution.State, "A3"); army.TerritoryID != "T01" || army.Size != 1 {
-			t.Errorf("residual = %+v, want A3 size 1 at T01", army)
+		if army := armyByID(t, resolution.State, "A3"); army.TerritoryID != "AAA" || army.Size != 1 {
+			t.Errorf("residual = %+v, want A3 size 1 at AAA", army)
 		}
-		if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "T03" {
-			t.Errorf("blocked D = %+v, want A2 to remain at T03", army)
+		if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "CCC" {
+			t.Errorf("blocked D = %+v, want A2 to remain at CCC", army)
 		}
 	})
 
 	t.Run("join", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{
-				territory("T01", "AAA", "T02", "T03"),
-				territory("T02", "BBB", "T01"),
-				territory("T03", "CCC", "T01"),
+				territory("AAA", "AAA", "BBB", "CCC"),
+				territory("BBB", "BBB", "AAA"),
+				territory("CCC", "CCC", "AAA"),
 			},
 			[]models.Army{
-				{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 2},
-				{ID: "A2", OwnerID: "P1", TerritoryID: "T03", Size: 1},
+				{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
+				{ID: "A2", OwnerID: "P1", TerritoryID: "CCC", Size: 1},
 			},
 		)
-		addNoble(state, "N1", "ONE", "P1", "T01")
-		addNoble(state, "N2", "TWO", "P1", "T03")
+		addNoble(state, "N1", "ONE", "P1", "AAA")
+		addNoble(state, "N2", "TWO", "P1", "CCC")
 		addChain(t, state, "A1", "N1", models.Order{
 			Type:       models.OrderTypeDisperse,
-			PositionID: "T01",
-			TargetIDs:  []models.TerritoryID{"T02"},
+			PositionID: "AAA",
+			TargetIDs:  []models.TerritoryID{"BBB"},
 		})
 		addChain(t, state, "A2", "N2", models.Order{
 			Type:       models.OrderTypeJoin,
-			PositionID: "T03",
-			TargetIDs:  []models.TerritoryID{"T01"},
+			PositionID: "CCC",
+			TargetIDs:  []models.TerritoryID{"AAA"},
 		})
 		keepTestArmiesSupplied(state)
 		validateTestState(t, state)
@@ -471,11 +471,11 @@ func TestResolveShortDisperseResidualBlocksArrivals(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
-		if army := armyByID(t, resolution.State, "A3"); army.TerritoryID != "T01" || army.Size != 1 {
-			t.Errorf("residual = %+v, want A3 size 1 at T01", army)
+		if army := armyByID(t, resolution.State, "A3"); army.TerritoryID != "AAA" || army.Size != 1 {
+			t.Errorf("residual = %+v, want A3 size 1 at AAA", army)
 		}
-		if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "T03" || army.ChainID != nil {
-			t.Errorf("blocked J = %+v, want A2 to remain at T03 without a chain", army)
+		if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "CCC" || army.ChainID != nil {
+			t.Errorf("blocked J = %+v, want A2 to remain at CCC without a chain", army)
 		}
 		if outcome, found := findOutcome(resolution.Events, "O1"); !found || outcome.Reason != "disperse_complete" {
 			t.Errorf("D outcome = %#v, want disperse_complete", outcome)
@@ -486,18 +486,18 @@ func TestResolveShortDisperseResidualBlocksArrivals(t *testing.T) {
 func TestResolveDisperseSourceTargetKeepsSourceGroup(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
-			territory("T01", "AAA", "T02"),
-			territory("T02", "BBB", "T01"),
+			territory("AAA", "AAA", "BBB"),
+			territory("BBB", "BBB", "AAA"),
 		},
-		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 2}},
+		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2}},
 	)
-	addNoble(state, "N1", "ONE", "P1", "T01")
-	addNoble(state, "N2", "TWO", "P1", "T01")
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	addNoble(state, "N2", "TWO", "P1", "AAA")
 	addChain(t, state, "A1", "N1", models.Order{
 		Type:       models.OrderTypeDisperse,
-		PositionID: "T01",
-		TargetIDs:  []models.TerritoryID{"T01", "T02"},
-		NobleAssignments: map[models.TerritoryCode][]models.NobleCode{
+		PositionID: "AAA",
+		TargetIDs:  []models.TerritoryID{"AAA", "BBB"},
+		NobleAssignments: map[models.TerritoryID][]models.NobleCode{
 			"AAA": {"ONE"},
 			"BBB": {"TWO"},
 		},
@@ -509,53 +509,53 @@ func TestResolveDisperseSourceTargetKeepsSourceGroup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "T01" || army.Size != 1 || army.ChainID != nil {
-		t.Errorf("source group = %+v, want A1 size 1 at T01 without a chain", army)
+	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "AAA" || army.Size != 1 || army.ChainID != nil {
+		t.Errorf("source group = %+v, want A1 size 1 at AAA without a chain", army)
 	}
-	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "T02" || army.Size != 1 {
-		t.Errorf("outgoing group = %+v, want A2 size 1 at T02", army)
+	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "BBB" || army.Size != 1 {
+		t.Errorf("outgoing group = %+v, want A2 size 1 at BBB", army)
 	}
-	if noble := nobleByID(t, resolution.State, "N1"); noble.LocationID != "T01" {
-		t.Errorf("N1 location = %q, want T01", noble.LocationID)
+	if noble := nobleByID(t, resolution.State, "N1"); noble.LocationID != "AAA" {
+		t.Errorf("N1 location = %q, want AAA", noble.LocationID)
 	}
-	if noble := nobleByID(t, resolution.State, "N2"); noble.LocationID != "T02" {
-		t.Errorf("N2 location = %q, want T02", noble.LocationID)
+	if noble := nobleByID(t, resolution.State, "N2"); noble.LocationID != "BBB" {
+		t.Errorf("N2 location = %q, want BBB", noble.LocationID)
 	}
 }
 
 func TestResolveConflictingDispersesDoNotEnterVacatedDestination(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
-			territory("T01", "AAA", "T03"),
-			territory("T02", "BBB", "T03"),
-			territory("T03", "CCC", "T01", "T02", "T04"),
-			territory("T04", "DDD", "T03"),
+			territory("AAA", "AAA", "CCC"),
+			territory("BBB", "BBB", "CCC"),
+			territory("CCC", "CCC", "AAA", "BBB", "DDD"),
+			territory("DDD", "DDD", "CCC"),
 		},
 		[]models.Army{
-			{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1},
-			{ID: "A2", OwnerID: "P2", TerritoryID: "T02", Size: 1},
-			{ID: "A3", OwnerID: "P3", TerritoryID: "T03", Size: 1},
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
+			{ID: "A3", OwnerID: "P3", TerritoryID: "CCC", Size: 1},
 		},
 	)
-	addNoble(state, "N1", "ONE", "P1", "T01")
-	addNoble(state, "N2", "TWO", "P2", "T02")
-	addNoble(state, "N3", "THR", "P3", "T03")
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	addNoble(state, "N2", "TWO", "P2", "BBB")
+	addNoble(state, "N3", "THR", "P3", "CCC")
 	addChain(t, state, "A1", "N1", models.Order{
 		Type:             models.OrderTypeDisperse,
-		PositionID:       "T01",
-		TargetIDs:        []models.TerritoryID{"T03"},
-		NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"CCC": {"ONE"}},
+		PositionID:       "AAA",
+		TargetIDs:        []models.TerritoryID{"CCC"},
+		NobleAssignments: map[models.TerritoryID][]models.NobleCode{"CCC": {"ONE"}},
 	})
 	addChain(t, state, "A2", "N2", models.Order{
 		Type:             models.OrderTypeDisperse,
-		PositionID:       "T02",
-		TargetIDs:        []models.TerritoryID{"T03"},
-		NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"CCC": {"TWO"}},
+		PositionID:       "BBB",
+		TargetIDs:        []models.TerritoryID{"CCC"},
+		NobleAssignments: map[models.TerritoryID][]models.NobleCode{"CCC": {"TWO"}},
 	})
 	addChain(t, state, "A3", "N3", models.Order{
 		Type:       models.OrderTypeJoin,
-		PositionID: "T03",
-		TargetIDs:  []models.TerritoryID{"T04"},
+		PositionID: "CCC",
+		TargetIDs:  []models.TerritoryID{"DDD"},
 	})
 	validateTestState(t, state)
 
@@ -563,52 +563,52 @@ func TestResolveConflictingDispersesDoNotEnterVacatedDestination(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "T01" {
-		t.Errorf("first claimant = %+v, want A1 at T01", army)
+	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "AAA" {
+		t.Errorf("first claimant = %+v, want A1 at AAA", army)
 	}
-	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "T02" {
-		t.Errorf("second claimant = %+v, want A2 at T02", army)
+	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "BBB" {
+		t.Errorf("second claimant = %+v, want A2 at BBB", army)
 	}
-	if army := armyByID(t, resolution.State, "A3"); army.TerritoryID != "T04" {
-		t.Errorf("vacating army = %+v, want A3 at T04", army)
+	if army := armyByID(t, resolution.State, "A3"); army.TerritoryID != "DDD" {
+		t.Errorf("vacating army = %+v, want A3 at DDD", army)
 	}
-	if resolution.State.TerritoryStates["T03"].Army != nil {
-		t.Error("conflicting disperses should leave the vacated T03 empty")
+	if resolution.State.TerritoryStates["CCC"].Army != nil {
+		t.Error("conflicting disperses should leave the vacated CCC empty")
 	}
 }
 
 func TestResolveJoinArrivalBlocksDisperseIntoVacatedDestination(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
-			territory("T01", "AAA", "T03"),
-			territory("T02", "BBB", "T03"),
-			territory("T03", "CCC", "T01", "T02", "T04"),
-			territory("T04", "DDD", "T03"),
+			territory("AAA", "AAA", "CCC"),
+			territory("BBB", "BBB", "CCC"),
+			territory("CCC", "CCC", "AAA", "BBB", "DDD"),
+			territory("DDD", "DDD", "CCC"),
 		},
 		[]models.Army{
-			{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1},
-			{ID: "A2", OwnerID: "P1", TerritoryID: "T02", Size: 1},
-			{ID: "A3", OwnerID: "P1", TerritoryID: "T03", Size: 1},
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+			{ID: "A2", OwnerID: "P1", TerritoryID: "BBB", Size: 1},
+			{ID: "A3", OwnerID: "P1", TerritoryID: "CCC", Size: 1},
 		},
 	)
-	addNoble(state, "N1", "ONE", "P1", "T01")
-	addNoble(state, "N2", "TWO", "P1", "T02")
-	addNoble(state, "N3", "THR", "P1", "T03")
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	addNoble(state, "N2", "TWO", "P1", "BBB")
+	addNoble(state, "N3", "THR", "P1", "CCC")
 	addChain(t, state, "A1", "N1", models.Order{
 		Type:             models.OrderTypeDisperse,
-		PositionID:       "T01",
-		TargetIDs:        []models.TerritoryID{"T03"},
-		NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"CCC": {"ONE"}},
+		PositionID:       "AAA",
+		TargetIDs:        []models.TerritoryID{"CCC"},
+		NobleAssignments: map[models.TerritoryID][]models.NobleCode{"CCC": {"ONE"}},
 	})
 	addChain(t, state, "A2", "N2", models.Order{
 		Type:       models.OrderTypeJoin,
-		PositionID: "T02",
-		TargetIDs:  []models.TerritoryID{"T03"},
+		PositionID: "BBB",
+		TargetIDs:  []models.TerritoryID{"CCC"},
 	})
 	addChain(t, state, "A3", "N3", models.Order{
 		Type:       models.OrderTypeJoin,
-		PositionID: "T03",
-		TargetIDs:  []models.TerritoryID{"T04"},
+		PositionID: "CCC",
+		TargetIDs:  []models.TerritoryID{"DDD"},
 	})
 	validateTestState(t, state)
 
@@ -616,51 +616,51 @@ func TestResolveJoinArrivalBlocksDisperseIntoVacatedDestination(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "T01" || army.ChainID != nil {
-		t.Errorf("blocked D = %+v, want A1 at T01 without a chain", army)
+	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "AAA" || army.ChainID != nil {
+		t.Errorf("blocked D = %+v, want A1 at AAA without a chain", army)
 	}
-	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "T03" || army.ChainID != nil {
-		t.Errorf("join arrival = %+v, want A2 at T03 without a chain", army)
+	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "CCC" || army.ChainID != nil {
+		t.Errorf("join arrival = %+v, want A2 at CCC without a chain", army)
 	}
-	if army := armyByID(t, resolution.State, "A3"); army.TerritoryID != "T04" || army.ChainID != nil {
-		t.Errorf("outgoing join = %+v, want A3 at T04 without a chain", army)
+	if army := armyByID(t, resolution.State, "A3"); army.TerritoryID != "DDD" || army.ChainID != nil {
+		t.Errorf("outgoing join = %+v, want A3 at DDD without a chain", army)
 	}
 }
 
 func TestResolveLateVacatedDestinationCannotOrphanNoble(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
-			territory("T01", "AAA", "T02", "T03", "T05"),
-			territory("T02", "BBB", "T01"),
-			territory("T03", "CCC", "T01", "T04"),
-			territory("T04", "DDD", "T03"),
-			territory("T05", "EEE", "T01"),
+			territory("AAA", "AAA", "BBB", "CCC", "EEE"),
+			territory("BBB", "BBB", "AAA"),
+			territory("CCC", "CCC", "AAA", "DDD"),
+			territory("DDD", "DDD", "CCC"),
+			territory("EEE", "EEE", "AAA"),
 		},
 		[]models.Army{
-			{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 2},
-			{ID: "A2", OwnerID: "P1", TerritoryID: "T03", Size: 1},
-			{ID: "A3", OwnerID: "P1", TerritoryID: "T05", Size: 1},
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
+			{ID: "A2", OwnerID: "P1", TerritoryID: "CCC", Size: 1},
+			{ID: "A3", OwnerID: "P1", TerritoryID: "EEE", Size: 1},
 		},
 	)
-	addNoble(state, "N1", "ONE", "P1", "T01")
-	addNoble(state, "N2", "TWO", "P1", "T03")
-	addNoble(state, "N3", "THR", "P1", "T05")
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	addNoble(state, "N2", "TWO", "P1", "CCC")
+	addNoble(state, "N3", "THR", "P1", "EEE")
 	addChain(t, state, "A1", "N1", models.Order{
 		Type:       models.OrderTypeDisperse,
-		PositionID: "T01",
-		TargetIDs:  []models.TerritoryID{"T02", "T03"},
+		PositionID: "AAA",
+		TargetIDs:  []models.TerritoryID{"BBB", "CCC"},
 	})
 	addChain(t, state, "A2", "N2", models.Order{
 		Type:             models.OrderTypeDisperse,
-		PositionID:       "T03",
-		TargetIDs:        []models.TerritoryID{"T04"},
-		NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"DDD": {"TWO"}},
+		PositionID:       "CCC",
+		TargetIDs:        []models.TerritoryID{"DDD"},
+		NobleAssignments: map[models.TerritoryID][]models.NobleCode{"DDD": {"TWO"}},
 	})
 	addChain(t, state, "A3", "N3", models.Order{
 		Type:             models.OrderTypeDisperse,
-		PositionID:       "T05",
-		TargetIDs:        []models.TerritoryID{"T01"},
-		NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"AAA": {"THR"}},
+		PositionID:       "EEE",
+		TargetIDs:        []models.TerritoryID{"AAA"},
+		NobleAssignments: map[models.TerritoryID][]models.NobleCode{"AAA": {"THR"}},
 	})
 	keepTestArmiesSupplied(state)
 	validateTestState(t, state)
@@ -669,20 +669,20 @@ func TestResolveLateVacatedDestinationCannotOrphanNoble(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "T02" || army.Size != 1 || army.ChainID != nil {
-		t.Errorf("first branch = %+v, want A1 size 1 at T02", army)
+	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "BBB" || army.Size != 1 || army.ChainID != nil {
+		t.Errorf("first branch = %+v, want A1 size 1 at BBB", army)
 	}
-	if army := armyByID(t, resolution.State, "A4"); army.TerritoryID != "T01" || army.Size != 1 {
-		t.Errorf("protected residual = %+v, want A4 size 1 at T01", army)
+	if army := armyByID(t, resolution.State, "A4"); army.TerritoryID != "AAA" || army.Size != 1 {
+		t.Errorf("protected residual = %+v, want A4 size 1 at AAA", army)
 	}
-	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "T04" {
-		t.Errorf("vacating army = %+v, want A2 at T04", army)
+	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "DDD" {
+		t.Errorf("vacating army = %+v, want A2 at DDD", army)
 	}
-	if army := armyByID(t, resolution.State, "A3"); army.TerritoryID != "T05" || army.ChainID != nil {
-		t.Errorf("blocked origin arrival = %+v, want A3 at T05", army)
+	if army := armyByID(t, resolution.State, "A3"); army.TerritoryID != "EEE" || army.ChainID != nil {
+		t.Errorf("blocked origin arrival = %+v, want A3 at EEE", army)
 	}
-	if noble := nobleByID(t, resolution.State, "N1"); noble.LocationID != "T01" {
-		t.Errorf("unassigned noble location = %q, want T01", noble.LocationID)
+	if noble := nobleByID(t, resolution.State, "N1"); noble.LocationID != "AAA" {
+		t.Errorf("unassigned noble location = %q, want AAA", noble.LocationID)
 	}
 	if outcome, found := findOutcome(resolution.Events, "O1"); !found || outcome.Reason != "disperse_partial" {
 		t.Errorf("A1 D outcome = %#v, want disperse_partial", outcome)
@@ -692,29 +692,29 @@ func TestResolveLateVacatedDestinationCannotOrphanNoble(t *testing.T) {
 func TestResolveIntrinsicallyInvalidLoopDisperseDoesNotClaimDestination(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
-			territory("T01", "AAA", "T03"),
-			territory("T02", "BBB", "T03"),
-			territory("T03", "CCC", "T01", "T02"),
+			territory("AAA", "AAA", "CCC"),
+			territory("BBB", "BBB", "CCC"),
+			territory("CCC", "CCC", "AAA", "BBB"),
 		},
 		[]models.Army{
-			{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1},
-			{ID: "A2", OwnerID: "P2", TerritoryID: "T02", Size: 1},
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
 		},
 	)
-	addNoble(state, "N1", "ONE", "P1", "T01")
-	addNoble(state, "N2", "TWO", "P2", "T02")
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	addNoble(state, "N2", "TWO", "P2", "BBB")
 	addChain(t, state, "A1", "N1", models.Order{
 		Type:             models.OrderTypeDisperse,
-		PositionID:       "T01",
-		TargetIDs:        []models.TerritoryID{"T03", "T03"},
-		NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"CCC": {"ONE"}},
+		PositionID:       "AAA",
+		TargetIDs:        []models.TerritoryID{"CCC", "CCC"},
+		NobleAssignments: map[models.TerritoryID][]models.NobleCode{"CCC": {"ONE"}},
 		Liaison:          models.LiaisonModeLoop,
 	})
 	addChain(t, state, "A2", "N2", models.Order{
 		Type:             models.OrderTypeDisperse,
-		PositionID:       "T02",
-		TargetIDs:        []models.TerritoryID{"T03"},
-		NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"CCC": {"TWO"}},
+		PositionID:       "BBB",
+		TargetIDs:        []models.TerritoryID{"CCC"},
+		NobleAssignments: map[models.TerritoryID][]models.NobleCode{"CCC": {"TWO"}},
 	})
 	validateTestState(t, state)
 
@@ -722,56 +722,56 @@ func TestResolveIntrinsicallyInvalidLoopDisperseDoesNotClaimDestination(t *testi
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "T01" || army.ChainID != nil {
-		t.Errorf("invalid loop carrier = %+v, want A1 at T01 without a chain", army)
+	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "AAA" || army.ChainID != nil {
+		t.Errorf("invalid loop carrier = %+v, want A1 at AAA without a chain", army)
 	}
-	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "T03" || army.ChainID != nil {
-		t.Errorf("valid competing D = %+v, want A2 at T03 without a chain", army)
+	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "CCC" || army.ChainID != nil {
+		t.Errorf("valid competing D = %+v, want A2 at CCC without a chain", army)
 	}
 }
 
 func TestResolveDislodgedDisperseDoesNotBlockVacatedArrival(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
-			territory("T01", "AAA", "T03", "T05", "T07"),
-			territory("T02", "BBB", "T05"),
-			territory("T03", "CCC", "T01"),
-			territory("T05", "EEE", "T01", "T02", "T06"),
-			territory("T06", "FFF", "T05"),
-			territory("T07", "GGG", "T01"),
+			territory("AAA", "AAA", "CCC", "EEE", "GGG"),
+			territory("BBB", "BBB", "EEE"),
+			territory("CCC", "CCC", "AAA"),
+			territory("EEE", "EEE", "AAA", "BBB", "FFF"),
+			territory("FFF", "FFF", "EEE"),
+			territory("GGG", "GGG", "AAA"),
 		},
 		[]models.Army{
-			{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1},
-			{ID: "A2", OwnerID: "P1", TerritoryID: "T02", Size: 1},
-			{ID: "A3", OwnerID: "P2", TerritoryID: "T05", Size: 1},
-			{ID: "A4", OwnerID: "P2", TerritoryID: "T03", Size: 2},
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+			{ID: "A2", OwnerID: "P1", TerritoryID: "BBB", Size: 1},
+			{ID: "A3", OwnerID: "P2", TerritoryID: "EEE", Size: 1},
+			{ID: "A4", OwnerID: "P2", TerritoryID: "CCC", Size: 2},
 		},
 	)
-	addNoble(state, "N1", "ONE", "P1", "T01")
-	addNoble(state, "N2", "TWO", "P1", "T02")
-	addNoble(state, "N3", "THR", "P2", "T05")
-	addNoble(state, "N4", "FOU", "P2", "T03")
-	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T03"})
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	addNoble(state, "N2", "TWO", "P1", "BBB")
+	addNoble(state, "N3", "THR", "P2", "EEE")
+	addNoble(state, "N4", "FOU", "P2", "CCC")
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "CCC"})
 	addChain(t, state, "A1", "N1", models.Order{
 		Type:       models.OrderTypeDisperse,
-		PositionID: "T01",
-		TargetIDs:  []models.TerritoryID{"T05"},
+		PositionID: "AAA",
+		TargetIDs:  []models.TerritoryID{"EEE"},
 	})
 	addChain(t, state, "A2", "N2", models.Order{
 		Type:             models.OrderTypeDisperse,
-		PositionID:       "T02",
-		TargetIDs:        []models.TerritoryID{"T05"},
-		NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"EEE": {"TWO"}},
+		PositionID:       "BBB",
+		TargetIDs:        []models.TerritoryID{"EEE"},
+		NobleAssignments: map[models.TerritoryID][]models.NobleCode{"EEE": {"TWO"}},
 	})
 	addChain(t, state, "A3", "N3", models.Order{
 		Type:       models.OrderTypeJoin,
-		PositionID: "T05",
-		TargetIDs:  []models.TerritoryID{"T06"},
+		PositionID: "EEE",
+		TargetIDs:  []models.TerritoryID{"FFF"},
 	})
 	addChain(t, state, "A4", "N4", models.Order{
 		Type:       models.OrderTypeAttack,
-		PositionID: "T03",
-		TargetIDs:  []models.TerritoryID{"T01"},
+		PositionID: "CCC",
+		TargetIDs:  []models.TerritoryID{"AAA"},
 	})
 	validateTestState(t, state)
 
@@ -779,14 +779,14 @@ func TestResolveDislodgedDisperseDoesNotBlockVacatedArrival(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "T05" || army.ChainID != nil {
-		t.Errorf("vacated arrival = %+v, want A2 at T05 without a chain", army)
+	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "EEE" || army.ChainID != nil {
+		t.Errorf("vacated arrival = %+v, want A2 at EEE without a chain", army)
 	}
-	if army := armyByID(t, resolution.State, "A3"); army.TerritoryID != "T06" {
-		t.Errorf("vacating join = %+v, want A3 at T06", army)
+	if army := armyByID(t, resolution.State, "A3"); army.TerritoryID != "FFF" {
+		t.Errorf("vacating join = %+v, want A3 at FFF", army)
 	}
-	if army := armyByID(t, resolution.State, "A4"); army.TerritoryID != "T01" {
-		t.Errorf("attacker = %+v, want A4 at T01", army)
+	if army := armyByID(t, resolution.State, "A4"); army.TerritoryID != "AAA" {
+		t.Errorf("attacker = %+v, want A4 at AAA", army)
 	}
 }
 

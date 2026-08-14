@@ -10,11 +10,11 @@ import (
 
 func TestBuildTurnReportIncludesNeutralSupplyStock(t *testing.T) {
 	state := testState(t,
-		[]models.Territory{supplyTerritory("T01", "AAA", models.TerrainPlain)},
+		[]models.Territory{supplyTerritory("AAA", "AAA", models.TerrainPlain)},
 		nil,
 	)
-	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "T01"})
-	setTerritoryResources(state, "T01", 3)
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA"})
+	setTerritoryResources(state, "AAA", 3)
 	validateTestState(t, state)
 
 	resolution, err := Resolve(state, testBalance())
@@ -26,7 +26,7 @@ func TestBuildTurnReportIncludesNeutralSupplyStock(t *testing.T) {
 		t.Fatalf("supply report = %#v, want one neutral village", report.Supply)
 	}
 	supply := report.Supply[0]
-	if supply.Source != "T01" || supply.Owner != "" || supply.Production != 1 || supply.Demand != 0 || supply.StockAfter != 4 {
+	if supply.Source != "AAA" || supply.Owner != "" || supply.Production != 1 || supply.Demand != 0 || supply.StockAfter != 4 {
 		t.Errorf("neutral supply report = %#v, want production 1 and stock 4 without owner", supply)
 	}
 }
@@ -59,7 +59,7 @@ func TestTurnReportContainsResolutionSectionsAndRoundTrips(t *testing.T) {
 		Chains: []ChainSubmission{{
 			Player: noble.OwnerID,
 			Noble:  models.NobleCode(noble.Code),
-			Text:   noble.Code + "\n" + start.Code + " A " + target.Code,
+			Text:   noble.Code + "\n" + string(start.ID) + " A " + string(target.ID),
 		}},
 	})
 	if err != nil {
@@ -113,7 +113,7 @@ func TestTurnReportContainsResolutionSectionsAndRoundTrips(t *testing.T) {
 		}
 		current = next.State
 	}
-	startCode := territoryByID(current.Territories, current.Nobles[0].LocationID).Code
+	startCode := string(territoryByID(current.Territories, current.Nobles[0].LocationID).ID)
 	winterReport, err := ResolveTurn(current, balance, OrdersInput{
 		Winter: []WinterSubmission{{Player: "P1", Lines: "R T " + startCode}},
 	})
@@ -135,29 +135,29 @@ func TestBuildTurnReportKeepsCompleteOrderSyntaxFromBeforeSnapshot(t *testing.T)
 	before := models.NewGameState()
 	before.Players = []models.Player{{ID: "P1", Name: "One", Color: "red"}}
 	before.Territories = []models.Territory{
-		{ID: "T01", Code: "ROS", Name: "Rosemont", Terrain: models.TerrainPlain},
-		{ID: "T02", Code: "BRU", Name: "Brumecote", Terrain: models.TerrainPlain},
-		{ID: "T03", Code: "CHA", Name: "Chanterive", Terrain: models.TerrainPlain},
+		{ID: "ROS", Name: "Rosemont", Terrain: models.TerrainPlain},
+		{ID: "BRU", Name: "Brumecote", Terrain: models.TerrainPlain},
+		{ID: "CHA", Name: "Chanterive", Terrain: models.TerrainPlain},
 	}
 	owner := models.PlayerID("P1")
 	armyID := models.ArmyID("A1")
-	before.Armies = []models.Army{{ID: armyID, OwnerID: owner, TerritoryID: "T01", Size: 2}}
+	before.Armies = []models.Army{{ID: armyID, OwnerID: owner, TerritoryID: "ROS", Size: 2}}
 	before.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
-		"T01": {OwnerID: &owner, Army: &armyID, Infrastructures: []models.InfraID{}},
-		"T02": {Infrastructures: []models.InfraID{}},
-		"T03": {Infrastructures: []models.InfraID{}},
+		"ROS": {OwnerID: &owner, Army: &armyID, Infrastructures: []models.InfraID{}},
+		"BRU": {Infrastructures: []models.InfraID{}},
+		"CHA": {Infrastructures: []models.InfraID{}},
 	}
 	before.Nobles = []models.Noble{
-		{ID: "N1", Code: "JEA", Name: "Jean", OwnerID: owner, LocationID: "T01", Status: models.NobleStatusFree},
-		{ID: "N2", Code: "BOB", Name: "Robert", OwnerID: "P1", LocationID: "T01", Status: models.NobleStatusHostage},
+		{ID: "N1", Code: "JEA", Name: "Jean", OwnerID: owner, LocationID: "ROS", Status: models.NobleStatusFree},
+		{ID: "N2", Code: "BOB", Name: "Robert", OwnerID: "P1", LocationID: "ROS", Status: models.NobleStatusHostage},
 	}
 	before.Chains = []models.Chain{{
 		ID: "C1", ArmyID: armyID, NobleID: "N1", CurrentIndex: 0,
 		Orders: []models.Order{
 			{
-				ID: "O1", ArmyID: armyID, Type: models.OrderTypeDisperse, PositionID: "T01",
-				TargetIDs: []models.TerritoryID{"T02", "T03"},
-				NobleAssignments: map[models.TerritoryCode][]models.NobleCode{
+				ID: "O1", ArmyID: armyID, Type: models.OrderTypeDisperse, PositionID: "ROS",
+				TargetIDs: []models.TerritoryID{"BRU", "CHA"},
+				NobleAssignments: map[models.TerritoryID][]models.NobleCode{
 					"BRU": {"JEA"},
 					"CHA": {"BOB"},
 				},
@@ -173,13 +173,13 @@ func TestBuildTurnReportKeepsCompleteOrderSyntaxFromBeforeSnapshot(t *testing.T)
 		t.Fatalf("orders = %#v, want one order", report.Orders)
 	}
 	order := report.Orders[0]
-	if order.Owner != owner || order.Noble != "JEA" || order.Source != "T01" {
+	if order.Owner != owner || order.Noble != "JEA" || order.Source != "ROS" {
 		t.Errorf("order identity = %#v, want owner/noble/source from before snapshot", order)
 	}
-	if !reflect.DeepEqual(order.Targets, []models.TerritoryID{"T02", "T03"}) {
+	if !reflect.DeepEqual(order.Targets, []models.TerritoryID{"BRU", "CHA"}) {
 		t.Errorf("order targets = %#v", order.Targets)
 	}
-	if !reflect.DeepEqual(order.NobleAssignments, map[models.TerritoryCode][]models.NobleCode{
+	if !reflect.DeepEqual(order.NobleAssignments, map[models.TerritoryID][]models.NobleCode{
 		"BRU": {"JEA"},
 		"CHA": {"BOB"},
 	}) {
@@ -207,15 +207,15 @@ func TestBuildTurnReportMarksWinterInvestmentOutcomes(t *testing.T) {
 	before.Turn = 4
 	before.Season = models.SeasonWinter
 	before.Players = []models.Player{{ID: "P1", Name: "One", Color: "red"}}
-	before.Territories = []models.Territory{{ID: "T01", Code: "ROS", Name: "Rosemont", Terrain: models.TerrainPlain}}
+	before.Territories = []models.Territory{{ID: "ROS", Name: "Rosemont", Terrain: models.TerrainPlain}}
 	before.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
-		"T01": {Infrastructures: []models.InfraID{}},
+		"ROS": {Infrastructures: []models.InfraID{}},
 	}
 	rejectedOrder := &models.WinterOrder{
-		ID: "O1", Type: models.WinterOrderTypeBuild, TerritoryID: "T01", InfraType: models.InfraTypeMill,
+		ID: "O1", Type: models.WinterOrderTypeBuild, TerritoryID: "AAA", InfraType: models.InfraTypeMill,
 	}
 	report := BuildTurnReport(before, nil, []Event{
-		{Type: EventTypeBuild, OwnerID: "P1", TerritoryID: "T01", InfrastructureType: models.InfraTypeMill},
+		{Type: EventTypeBuild, OwnerID: "P1", TerritoryID: "AAA", InfrastructureType: models.InfraTypeMill},
 		{Type: EventTypeRejected, OwnerID: "P1", Reason: "insufficient_resources", WinterOrder: rejectedOrder},
 	}, nil)
 	if report.Winter == nil || len(report.Winter.Investments) != 2 {
@@ -232,13 +232,13 @@ func TestBuildTurnReportMarksWinterInvestmentOutcomes(t *testing.T) {
 func TestBuildTurnReportIncludesWinterNobleStatusInvestment(t *testing.T) {
 	before := winterTestState(t,
 		[]models.Territory{
-			territory("T01", "AAA", "T02"),
-			territory("T02", "BBB", "T01"),
+			territory("AAA", "AAA", "BBB"),
+			territory("BBB", "BBB", "AAA"),
 		},
-		[]models.Army{{ID: "A1", OwnerID: "P2", TerritoryID: "T02", Size: 1}},
+		[]models.Army{{ID: "A1", OwnerID: "P2", TerritoryID: "BBB", Size: 1}},
 	)
-	setTerritoryOwner(before, "T02", "P2")
-	addNoble(before, "N1", "NOB", "P1", "T02")
+	setTerritoryOwner(before, "BBB", "P2")
+	addNoble(before, "N1", "NOB", "P1", "BBB")
 	before.Nobles[0].Status = models.NobleStatusHostage
 	validateTestState(t, before)
 	after := cloneGameState(before)
@@ -251,7 +251,7 @@ func TestBuildTurnReportIncludesWinterNobleStatusInvestment(t *testing.T) {
 		OwnerID:        "P2",
 		ArmyID:         "A1",
 		OrderID:        "O1",
-		TerritoryID:    "T02",
+		TerritoryID:    "BBB",
 		NobleID:        "N1",
 		NobleCode:      "NOB",
 		NobleName:      "NOB",
@@ -274,16 +274,16 @@ func TestWinterInvestmentReportCosts(t *testing.T) {
 		t.Helper()
 		state := winterTestState(t,
 			[]models.Territory{
-				territory("T01", "AAA", "T02"),
-				territory("T02", "BBB", "T01"),
+				territory("AAA", "AAA", "BBB"),
+				territory("BBB", "BBB", "AAA"),
 			},
 			nil,
 		)
-		setTerritoryOwner(state, "T01", "P1")
-		setTerritoryOwner(state, "T02", "P1")
-		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "T01"})
-		setTerritoryResources(state, "T01", 2)
-		addNoble(state, "N1", "ONE", "P1", "T02")
+		setTerritoryOwner(state, "AAA", "P1")
+		setTerritoryOwner(state, "BBB", "P1")
+		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA"})
+		setTerritoryResources(state, "AAA", 2)
+		addNoble(state, "N1", "ONE", "P1", "BBB")
 		validateTestState(t, state)
 		return state
 	}
@@ -299,7 +299,7 @@ func TestWinterInvestmentReportCosts(t *testing.T) {
 	t.Run("records a payment from one stock", func(t *testing.T) {
 		state := newSingleStockState(t)
 		resolution, err := ResolveWinter(state, testBalance(), map[models.PlayerID][]models.WinterOrder{
-			"P1": {{ID: "O1", Type: models.WinterOrderTypeRecruitTroop, TerritoryID: "T01"}},
+			"P1": {{ID: "O1", Type: models.WinterOrderTypeRecruitTroop, TerritoryID: "AAA"}},
 		})
 		if err != nil {
 			t.Fatalf("ResolveWinter: %v", err)
@@ -315,21 +315,21 @@ func TestWinterInvestmentReportCosts(t *testing.T) {
 		balance.Costs.Troop = 4
 		state := winterTestState(t,
 			[]models.Territory{
-				territory("T01", "BBB", "T02"),
-				territory("T02", "AAA", "T01"),
+				territory("AAA", "BBB", "BBB"),
+				territory("BBB", "AAA", "AAA"),
 			},
-			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1}},
+			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}},
 		)
-		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "T01"})
-		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T02"})
-		setTerritoryOwner(state, "T02", "P1")
-		setTerritoryResources(state, "T01", 3)
-		setTerritoryResources(state, "T02", 3)
-		addNoble(state, "N1", "ONE", "P1", "T02")
+		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA"})
+		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
+		setTerritoryOwner(state, "BBB", "P1")
+		setTerritoryResources(state, "AAA", 3)
+		setTerritoryResources(state, "BBB", 3)
+		addNoble(state, "N1", "ONE", "P1", "BBB")
 		validateTestState(t, state)
 
 		resolution, err := ResolveWinter(state, balance, map[models.PlayerID][]models.WinterOrder{
-			"P1": {{ID: "O1", Type: models.WinterOrderTypeRecruitTroop, TerritoryID: "T01"}},
+			"P1": {{ID: "O1", Type: models.WinterOrderTypeRecruitTroop, TerritoryID: "AAA"}},
 		})
 		if err != nil {
 			t.Fatalf("ResolveWinter: %v", err)
@@ -344,9 +344,9 @@ func TestWinterInvestmentReportCosts(t *testing.T) {
 		balance := testBalance()
 		balance.Costs.Troop = 5
 		state := newSingleStockState(t)
-		setTerritoryResources(state, "T01", 0)
+		setTerritoryResources(state, "AAA", 0)
 		resolution, err := ResolveWinter(state, balance, map[models.PlayerID][]models.WinterOrder{
-			"P1": {{ID: "O1", Type: models.WinterOrderTypeRecruitTroop, TerritoryID: "T01"}},
+			"P1": {{ID: "O1", Type: models.WinterOrderTypeRecruitTroop, TerritoryID: "AAA"}},
 		})
 		if err != nil {
 			t.Fatalf("ResolveWinter: %v", err)
@@ -362,7 +362,7 @@ func TestWinterInvestmentReportCosts(t *testing.T) {
 		balance := testBalance()
 		balance.Costs.Troop = 0
 		resolution, err := ResolveWinter(state, balance, map[models.PlayerID][]models.WinterOrder{
-			"P1": {{ID: "O1", Type: models.WinterOrderTypeRecruitTroop, TerritoryID: "T01"}},
+			"P1": {{ID: "O1", Type: models.WinterOrderTypeRecruitTroop, TerritoryID: "AAA"}},
 		})
 		if err != nil {
 			t.Fatalf("ResolveWinter: %v", err)
@@ -379,16 +379,16 @@ func TestBuildTurnReportDoesNotDuplicateAutomaticCapital(t *testing.T) {
 	before.Turn = 4
 	before.Season = models.SeasonWinter
 	before.Players = []models.Player{{ID: "P1", Name: "One"}, {ID: "P2", Name: "Two"}}
-	before.Territories = []models.Territory{{ID: "T01", Code: "ROS", Name: "Rosemont", Terrain: models.TerrainPlain}}
+	before.Territories = []models.Territory{{ID: "ROS", Name: "Rosemont", Terrain: models.TerrainPlain}}
 	before.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
-		"T01": {Infrastructures: []models.InfraID{}},
+		"ROS": {Infrastructures: []models.InfraID{}},
 	}
 	report := BuildTurnReport(before, nil, []Event{
 		{
 			Type:               EventTypeBuild,
 			OwnerID:            "P1",
 			OrderID:            "O1",
-			TerritoryID:        "T01",
+			TerritoryID:        "AAA",
 			InfrastructureType: models.InfraTypeCastle,
 			ResourceSpent:      10,
 		},
@@ -396,7 +396,7 @@ func TestBuildTurnReportDoesNotDuplicateAutomaticCapital(t *testing.T) {
 			Type:               EventTypeCapitalElected,
 			OwnerID:            "P1",
 			OrderID:            "O1",
-			TerritoryID:        "T01",
+			TerritoryID:        "AAA",
 			InfrastructureType: models.InfraTypeCastle,
 			Automatic:          true,
 		},
@@ -404,14 +404,14 @@ func TestBuildTurnReportDoesNotDuplicateAutomaticCapital(t *testing.T) {
 			Type:               EventTypeCapitalElected,
 			OwnerID:            "P1",
 			OrderID:            "O2",
-			TerritoryID:        "T01",
+			TerritoryID:        "AAA",
 			InfrastructureType: models.InfraTypeCastle,
 		},
 		{
 			Type:               EventTypeCapitalElected,
 			OwnerID:            "P2",
 			OrderID:            "O1",
-			TerritoryID:        "T01",
+			TerritoryID:        "AAA",
 			InfrastructureType: models.InfraTypeCastle,
 		},
 	}, nil)

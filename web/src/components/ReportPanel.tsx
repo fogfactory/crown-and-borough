@@ -118,7 +118,7 @@ function territoryLabel(
 ): string {
   if (!id) return '—'
   return (
-    map?.territories.find((candidate) => candidate.id === id)?.code ??
+    map?.territories.find((candidate) => candidate.id === id)?.id ??
     t('reports.unknownTerritory')
   )
 }

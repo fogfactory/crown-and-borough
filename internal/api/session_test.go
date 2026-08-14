@@ -122,7 +122,7 @@ func TestHotseatSessionResolvesAndRecreatesGame(t *testing.T) {
 	if err := json.Unmarshal(mapBefore.Body.Bytes(), &mapDocument); err != nil {
 		t.Fatalf("decode map: %v", err)
 	}
-	winterCode := mapDocument.Territories[0].Code
+	winterCode := mapDocument.Territories[0].ID
 	submit := func(player string, body string) (int, []byte) {
 		t.Helper()
 		recorder := httptest.NewRecorder()
@@ -257,7 +257,7 @@ func TestHotseatSessionResolvesAndRecreatesGame(t *testing.T) {
 	if len(resetMap.Territories) == 0 {
 		t.Fatal("reset map has no territories")
 	}
-	winterCode = resetMap.Territories[0].Code
+	winterCode = resetMap.Territories[0].ID
 	emitter := NobleView{}
 	for _, noble := range resetResponse.State.Nobles {
 		if noble.Owner == "P1" && noble.Status == "free" {
@@ -294,7 +294,7 @@ func TestHotseatSessionResolvesAndRecreatesGame(t *testing.T) {
 		t.Fatalf("could not resolve adjacency %s on reset map", emptyTerritory.Adjacencies[0])
 	}
 	visibleErrorRecorder := httptest.NewRecorder()
-	visibleErrorBody := `{"player":"P1","chains":[{"player":"P1","noble":"` + string(emitter.Code) + `","text":"` + string(emitter.Code) + `\n` + emptyTerritory.Code + ` A ` + emptyTarget.Code + `"}],"winter":[]}`
+	visibleErrorBody := `{"player":"P1","chains":[{"player":"P1","noble":"` + string(emitter.Code) + `","text":"` + string(emitter.Code) + `\n` + emptyTerritory.ID + ` A ` + emptyTarget.ID + `"}],"winter":[]}`
 	session.OrdersHTTP(visibleErrorRecorder, httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(visibleErrorBody)))
 	if visibleErrorRecorder.Code != http.StatusOK {
 		t.Fatalf("empty receiving position submission = %d: %s", visibleErrorRecorder.Code, visibleErrorRecorder.Body.String())
@@ -316,11 +316,8 @@ func TestHotseatSessionResolvesAndRecreatesGame(t *testing.T) {
 		t.Fatalf("visible reception response = %s, want one reception", visibleErrorRecorder.Body.String())
 	}
 	reason := visibleResponse.Report.Receptions[0].Reason
-	if strings.Contains(reason, emptyTerritory.ID) {
-		t.Fatalf("visible reception reason = %q, must not expose %s", reason, emptyTerritory.ID)
-	}
-	if !strings.Contains(reason, emptyTerritory.Code) {
-		t.Fatalf("visible reception reason = %q, want code %s", reason, emptyTerritory.Code)
+	if !strings.Contains(reason, emptyTerritory.ID) {
+		t.Fatalf("visible reception reason = %q, want territory %s", reason, emptyTerritory.ID)
 	}
 	outOfSeasonRecorder := httptest.NewRecorder()
 	session.OrdersHTTP(outOfSeasonRecorder, httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(`{"chains":[],"winter":[{"player":"P1","lines":"R T `+winterCode+`"}]}`)))

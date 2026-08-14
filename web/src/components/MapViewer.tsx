@@ -987,7 +987,7 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
                     strokeWidth={3 * annotationScale}
                     paintOrder="stroke"
                   >
-                    {territory.code}
+                    {territory.id}
                   </text>
                 )
               })}

@@ -268,20 +268,20 @@ func TestVillageSpread(t *testing.T) {
 	})
 }
 
-func TestCodes(t *testing.T) {
+func TestTrigrams(t *testing.T) {
 	assets := loadTestAssets(t)
 	territoryCode := regexp.MustCompile(`^[A-Z]{3}$`)
 	forEachTestSeed(t, func(t *testing.T, seed string) {
 		data := generateTestMap(t, seed, assets)
 		seen := make(map[string]bool, len(data.Territories))
 		for _, territory := range data.Territories {
-			if !territoryCode.MatchString(territory.Code) {
-				t.Errorf("%s has invalid code %q", territory.ID, territory.Code)
+			if !territoryCode.MatchString(territory.ID) {
+				t.Errorf("territory has invalid id %q", territory.ID)
 			}
-			if seen[territory.Code] {
-				t.Errorf("duplicate code %q", territory.Code)
+			if seen[territory.ID] {
+				t.Errorf("duplicate id %q", territory.ID)
 			}
-			seen[territory.Code] = true
+			seen[territory.ID] = true
 		}
 	})
 }
@@ -306,8 +306,8 @@ func TestNaming(t *testing.T) {
 				t.Errorf("%s has name %q outside communes.csv", territory.ID, territory.Name)
 				continue
 			}
-			if territory.Code != commune.Code {
-				t.Errorf("%s has code %q, want commune code %q", territory.ID, territory.Code, commune.Code)
+			if territory.ID != commune.Code {
+				t.Errorf("%s has id %q, want commune code %q", territory.Name, territory.ID, commune.Code)
 			}
 			if seenNames[territory.Name] {
 				t.Errorf("duplicate territory name %q", territory.Name)
@@ -637,8 +637,8 @@ func collectDTOArcs(t *testing.T, data MapData) dtoArcs {
 	t.Helper()
 	indexes := make(map[string]int, len(data.Territories))
 	for index, territory := range data.Territories {
-		if territory.ID != territoryID(index) {
-			t.Errorf("territory at index %d has ID %q, want %q", index, territory.ID, territoryID(index))
+		if !isTrigram(territory.ID) {
+			t.Errorf("territory at index %d has invalid ID %q", index, territory.ID)
 		}
 		if _, exists := indexes[territory.ID]; exists {
 			t.Errorf("duplicate territory ID %q", territory.ID)

@@ -21,8 +21,8 @@ func TestProjectStateMatchesStateContract(t *testing.T) {
 	if view.Turn != state.Turn || view.Season != state.Season {
 		t.Errorf("view metadata = %d/%s, want %d/%s", view.Turn, view.Season, state.Turn, state.Season)
 	}
-	if got := view.Players[0].CapitalTerritory; got == nil || *got != "T01" {
-		t.Errorf("P1 capital territory = %v, want T01", got)
+	if got := view.Players[0].CapitalTerritory; got == nil || *got != "ROS" {
+		t.Errorf("P1 capital territory = %v, want ROS", got)
 	}
 	if got := view.Players[1].CapitalTerritory; got != nil {
 		t.Errorf("P2 capital territory = %v, want nil", got)
@@ -36,33 +36,33 @@ func TestProjectStateMatchesStateContract(t *testing.T) {
 		}
 	}
 	if got := view.Territories[0]; got.Owner == nil || *got.Owner != "P1" || got.Resources != 3 {
-		t.Errorf("T01 view = %+v, want P1 with 3 resources", got)
+		t.Errorf("AAA view = %+v, want P1 with 3 resources", got)
 	}
 	if got := view.Territories[0].Army; got == nil || got.Owner != "P1" || got.Size != 1 || got.Chain == nil {
-		t.Errorf("T01 army = %#v, want owner P1, size 1, and a chain", got)
+		t.Errorf("AAA army = %#v, want owner P1, size 1, and a chain", got)
 	} else {
 		want := &ChainView{
 			Noble:        "HUG",
 			CurrentIndex: 1,
 			Orders: []OrderView{
-				{Type: models.OrderTypeAttack, Position: "ROS", Targets: []models.TerritoryCode{"BOI"}, Liaison: models.LiaisonModeSingle},
-				{Type: models.OrderTypeDisperse, Position: "BOI", Targets: []models.TerritoryCode{"BOI"}, NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"BOI": {"HUG"}}, Liaison: models.LiaisonModeLoop},
+				{Type: models.OrderTypeAttack, Position: "ROS", Targets: []models.TerritoryID{"BOI"}, Liaison: models.LiaisonModeSingle},
+				{Type: models.OrderTypeDisperse, Position: "BOI", Targets: []models.TerritoryID{"BOI"}, NobleAssignments: map[models.TerritoryID][]models.NobleCode{"BOI": {"HUG"}}, Liaison: models.LiaisonModeLoop},
 			},
 		}
 		if !reflect.DeepEqual(got.Chain, want) {
-			t.Errorf("T01 chain = %#v, want %#v", got.Chain, want)
+			t.Errorf("AAA chain = %#v, want %#v", got.Chain, want)
 		}
 	}
 	if got := view.Territories[1].Army; got == nil || got.Chain != nil {
-		t.Errorf("T02 army = %#v, want an army with chain nil", got)
+		t.Errorf("BBB army = %#v, want an army with chain nil", got)
 	}
 	if view.Territories[2].Army != nil {
-		t.Errorf("T03 army = %#v, want nil", view.Territories[2].Army)
+		t.Errorf("CCC army = %#v, want nil", view.Territories[2].Army)
 	}
 	if got := view.Territories[0].Infrastructures; !reflect.DeepEqual(got, []InfraView{{Type: models.InfraTypeCastle, Level: 1}}) {
-		t.Errorf("T01 infrastructure = %#v, want nested castle", got)
+		t.Errorf("AAA infrastructure = %#v, want nested castle", got)
 	}
-	if len(view.Nobles) != 1 || view.Nobles[0] != (NobleView{ID: "N1", Code: "HUG", Name: "Hugues de Rosemont", Owner: "P1", Location: "T01", Status: models.NobleStatusFree}) {
+	if len(view.Nobles) != 1 || view.Nobles[0] != (NobleView{ID: "N1", Code: "HUG", Name: "Hugues de Rosemont", Owner: "P1", Location: "ROS", Status: models.NobleStatusFree}) {
 		t.Errorf("nobles = %#v, want N1", view.Nobles)
 	}
 
@@ -260,36 +260,36 @@ func projectTestState() *models.GameState {
 			{ID: p2, Name: "Aliénor", Color: "#2d5f9e"},
 		},
 		Territories: []models.Territory{
-			{ID: "T01", Code: "ROS", Name: "Rosemont", Terrain: models.TerrainPlain, Adjacencies: []models.TerritoryID{"T02", "T04"}},
-			{ID: "T02", Code: "BOI", Name: "Boisclair", Terrain: models.TerrainForest, Adjacencies: []models.TerritoryID{"T01", "T03"}},
-			{ID: "T03", Code: "BRU", Name: "Bruyères", Terrain: models.TerrainHill, Adjacencies: []models.TerritoryID{"T02", "T04"}},
-			{ID: "T04", Code: "FOU", Name: "Fougères", Terrain: models.TerrainSwamp, Adjacencies: []models.TerritoryID{"T03", "T01"}},
+			{ID: "ROS", Name: "Rosemont", Terrain: models.TerrainPlain, Adjacencies: []models.TerritoryID{"BOI", "FOU"}},
+			{ID: "BOI", Name: "Boisclair", Terrain: models.TerrainForest, Adjacencies: []models.TerritoryID{"ROS", "BRU"}},
+			{ID: "BRU", Name: "Bruyères", Terrain: models.TerrainHill, Adjacencies: []models.TerritoryID{"BOI", "FOU"}},
+			{ID: "FOU", Name: "Fougères", Terrain: models.TerrainSwamp, Adjacencies: []models.TerritoryID{"BRU", "ROS"}},
 		},
 		Nobles: []models.Noble{
-			{ID: "N1", Code: "HUG", Name: "Hugues de Rosemont", OwnerID: p1, LocationID: "T01", Status: models.NobleStatusFree},
+			{ID: "N1", Code: "HUG", Name: "Hugues de Rosemont", OwnerID: p1, LocationID: "ROS", Status: models.NobleStatusFree},
 		},
 		Armies: []models.Army{
-			{ID: "A1", OwnerID: p1, TerritoryID: "T01", Size: 1, ChainID: ptrChainID("C1")},
-			{ID: "A2", OwnerID: p2, TerritoryID: "T02", Size: 2},
+			{ID: "A1", OwnerID: p1, TerritoryID: "ROS", Size: 1, ChainID: ptrChainID("C1")},
+			{ID: "A2", OwnerID: p2, TerritoryID: "BOI", Size: 2},
 		},
 		Chains: []models.Chain{{
 			ID: "C1", NobleID: "N1", ArmyID: "A1", CurrentIndex: 1,
 			Orders: []models.Order{
-				{ID: "O1", Type: models.OrderTypeAttack, ArmyID: "A1", PositionID: "T01", TargetIDs: []models.TerritoryID{"T02"}, Liaison: models.LiaisonModeSingle},
-				{ID: "O2", Type: models.OrderTypeDisperse, ArmyID: "A1", PositionID: "T02", TargetIDs: []models.TerritoryID{"T02"}, NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"BOI": {"HUG"}}, Liaison: models.LiaisonModeLoop},
+				{ID: "O1", Type: models.OrderTypeAttack, ArmyID: "A1", PositionID: "ROS", TargetIDs: []models.TerritoryID{"BOI"}, Liaison: models.LiaisonModeSingle},
+				{ID: "O2", Type: models.OrderTypeDisperse, ArmyID: "A1", PositionID: "BOI", TargetIDs: []models.TerritoryID{"BOI"}, NobleAssignments: map[models.TerritoryID][]models.NobleCode{"BOI": {"HUG"}}, Liaison: models.LiaisonModeLoop},
 			},
 		}},
 		NextChainID: 2,
 		NextArmyID:  3,
 		Infrastructures: []models.Infrastructure{
-			{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T01"},
-			{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "T04"},
+			{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "ROS"},
+			{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "FOU"},
 		},
 		TerritoryStates: map[models.TerritoryID]models.TerritoryState{
-			"T01": {OwnerID: &p1, Resources: 3, Army: ptrArmyID("A1"), Infrastructures: []models.InfraID{"I1"}},
-			"T02": {OwnerID: &p2, Resources: 0, Army: ptrArmyID("A2"), Infrastructures: []models.InfraID{}},
-			"T03": {OwnerID: nil, Resources: 0, Infrastructures: []models.InfraID{}},
-			"T04": {OwnerID: nil, Resources: 0, Infrastructures: []models.InfraID{"I2"}},
+			"ROS": {OwnerID: &p1, Resources: 3, Army: ptrArmyID("A1"), Infrastructures: []models.InfraID{"I1"}},
+			"BOI": {OwnerID: &p2, Resources: 0, Army: ptrArmyID("A2"), Infrastructures: []models.InfraID{}},
+			"BRU": {OwnerID: nil, Resources: 0, Infrastructures: []models.InfraID{}},
+			"FOU": {OwnerID: nil, Resources: 0, Infrastructures: []models.InfraID{"I2"}},
 		},
 	}
 	if err := state.Validate(); err != nil {
@@ -371,15 +371,15 @@ func assertStateJSONTypes(t *testing.T, document map[string]any) {
 		if !ok {
 			continue
 		}
-		if candidate["id"] == "T03" && candidate["army"] != nil {
-			t.Errorf("T03 army JSON = %#v, want null", candidate["army"])
+		if candidate["id"] == "BRU" && candidate["army"] != nil {
+			t.Errorf("BRU army JSON = %#v, want null", candidate["army"])
 		}
-		if candidate["id"] == "T02" {
+		if candidate["id"] == "BOI" {
 			army, ok := candidate["army"].(map[string]any)
 			if !ok {
-				t.Errorf("T02 army JSON = %#v, want object", candidate["army"])
+				t.Errorf("BOI army JSON = %#v, want object", candidate["army"])
 			} else if army["chain"] != nil {
-				t.Errorf("T02 chain JSON = %#v, want null", army["chain"])
+				t.Errorf("BOI chain JSON = %#v, want null", army["chain"])
 			}
 		}
 	}

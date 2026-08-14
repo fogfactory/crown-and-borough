@@ -165,7 +165,6 @@ func CreateGame(seed string, players []PlayerInit, balance assetgen.Balance, ass
 		}
 		state.Territories = append(state.Territories, models.Territory{
 			ID:          territoryID,
-			Code:        generated.Code,
 			Name:        generated.Name,
 			Terrain:     generated.Terrain,
 			Adjacencies: adjacencies,
@@ -434,10 +433,7 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 		}
 		if army := receivingArmies[index]; army != nil && receptionCounts[army.ID] > 1 {
 			position := territoryByID(working.Territories, army.TerritoryID)
-			positionReference := position.Code
-			if positionReference == "" {
-				positionReference = string(position.ID)
-			}
+			positionReference := string(position.ID)
 			receptions = append(receptions, ReceptionReport{
 				Player:   submission.input.Player,
 				Noble:    models.NobleCode(submission.noble.Code),

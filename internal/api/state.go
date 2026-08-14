@@ -61,11 +61,11 @@ type ChainView struct {
 // OrderView is one public order. Territory and noble references use their
 // trigrams instead of internal IDs so the frontend can address map entities.
 type OrderView struct {
-	Type             models.OrderType                            `json:"type"`
-	Position         models.TerritoryCode                        `json:"position"`
-	Targets          []models.TerritoryCode                      `json:"targets,omitempty"`
-	NobleAssignments map[models.TerritoryCode][]models.NobleCode `json:"nobleAssignments,omitempty"`
-	Liaison          models.LiaisonMode                          `json:"liaison"`
+	Type             models.OrderType                          `json:"type"`
+	Position         models.TerritoryID                        `json:"position"`
+	Targets          []models.TerritoryID                      `json:"targets,omitempty"`
+	NobleAssignments map[models.TerritoryID][]models.NobleCode `json:"nobleAssignments,omitempty"`
+	Liaison          models.LiaisonMode                        `json:"liaison"`
 }
 
 // InfraView contains the visible kind and level of an infrastructure.
@@ -105,10 +105,6 @@ func projectState(state *models.GameState) StateView {
 	for _, army := range state.Armies {
 		armiesByID[army.ID] = army
 	}
-	territoryCodesByID := make(map[models.TerritoryID]models.TerritoryCode, len(state.Territories))
-	for _, territory := range state.Territories {
-		territoryCodesByID[territory.ID] = models.TerritoryCode(territory.Code)
-	}
 	nobleCodesByID := make(map[models.NobleID]models.NobleCode, len(state.Nobles))
 	for _, noble := range state.Nobles {
 		nobleCodesByID[noble.ID] = models.NobleCode(noble.Code)
@@ -147,7 +143,7 @@ func projectState(state *models.GameState) StateView {
 					Size:  army.Size,
 				}
 				if chain, exists := chainsByArmyID[army.ID]; exists {
-					armyView.Chain = projectChain(chain, territoryCodesByID, nobleCodesByID)
+					armyView.Chain = projectChain(chain, nobleCodesByID)
 				}
 				territoryView.Army = armyView
 			}
@@ -177,7 +173,6 @@ func projectState(state *models.GameState) StateView {
 
 func projectChain(
 	chain models.Chain,
-	territoryCodesByID map[models.TerritoryID]models.TerritoryCode,
 	nobleCodesByID map[models.NobleID]models.NobleCode,
 ) *ChainView {
 	view := &ChainView{
@@ -188,17 +183,17 @@ func projectChain(
 	for _, order := range chain.Orders {
 		orderView := OrderView{
 			Type:     order.Type,
-			Position: territoryCodesByID[order.PositionID],
+			Position: order.PositionID,
 			Liaison:  order.Liaison,
 		}
 		if len(order.TargetIDs) != 0 {
-			orderView.Targets = make([]models.TerritoryCode, 0, len(order.TargetIDs))
+			orderView.Targets = make([]models.TerritoryID, 0, len(order.TargetIDs))
 			for _, targetID := range order.TargetIDs {
-				orderView.Targets = append(orderView.Targets, territoryCodesByID[targetID])
+				orderView.Targets = append(orderView.Targets, targetID)
 			}
 		}
 		if len(order.NobleAssignments) != 0 {
-			orderView.NobleAssignments = make(map[models.TerritoryCode][]models.NobleCode, len(order.NobleAssignments))
+			orderView.NobleAssignments = make(map[models.TerritoryID][]models.NobleCode, len(order.NobleAssignments))
 			for destination, nobleCodes := range order.NobleAssignments {
 				orderView.NobleAssignments[destination] = append([]models.NobleCode(nil), nobleCodes...)
 			}

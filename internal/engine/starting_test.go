@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -10,10 +9,7 @@ import (
 
 func TestSelectStartingTerritoriesFindsSeparatedCandidates(t *testing.T) {
 	adjacencies := cycleAdjacencies(8)
-	candidates := make([]models.TerritoryID, 0, 7)
-	for index := 2; index <= 8; index++ {
-		candidates = append(candidates, models.TerritoryID(fmt.Sprintf("T%02d", index)))
-	}
+	candidates := append([]models.TerritoryID(nil), cycleTerritoryIDs(8)[1:]...)
 
 	first, err := SelectStartingTerritories(candidates, adjacencies, 2)
 	if err != nil {
@@ -32,18 +28,24 @@ func TestSelectStartingTerritoriesFindsSeparatedCandidates(t *testing.T) {
 }
 
 func TestSelectStartingTerritoriesRejectsImpossibleDistance(t *testing.T) {
-	if _, err := SelectStartingTerritories([]models.TerritoryID{"T01", "T02"}, cycleAdjacencies(6), 2); err == nil {
+	if _, err := SelectStartingTerritories([]models.TerritoryID{"AAA", "BBB"}, cycleAdjacencies(6), 2); err == nil {
 		t.Fatal("SelectStartingTerritories returned no error for an impossible distance")
 	}
 }
 
 func cycleAdjacencies(count int) map[models.TerritoryID][]models.TerritoryID {
 	adjacencies := make(map[models.TerritoryID][]models.TerritoryID, count)
+	ids := cycleTerritoryIDs(count)
 	for index := 0; index < count; index++ {
-		adjacencies[models.TerritoryID(fmt.Sprintf("T%02d", index+1))] = []models.TerritoryID{
-			models.TerritoryID(fmt.Sprintf("T%02d", (index+count-1)%count+1)),
-			models.TerritoryID(fmt.Sprintf("T%02d", (index+1)%count+1)),
+		adjacencies[ids[index]] = []models.TerritoryID{
+			ids[(index+count-1)%count],
+			ids[(index+1)%count],
 		}
 	}
 	return adjacencies
+}
+
+func cycleTerritoryIDs(count int) []models.TerritoryID {
+	ids := []models.TerritoryID{"AAA", "BBB", "CCC", "DDD", "EEE", "FFF", "GGG", "HHH"}
+	return ids[:count]
 }

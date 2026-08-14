@@ -94,11 +94,10 @@ conteneur et le déploiement public restent à traiter.
 ```
 
 Le contrat online ne conserve qu'une identité territoriale publique : `id`, qui
-contient le trigramme de la commune (`ROS`). Le code v1 actuel porte encore un
-`TerritoryID` séquentiel et un champ `Code` dans certaines structures internes ;
-leur suppression est le travail d'O2. Aucun nouveau contrat, fixture ou format
-de persistance ne doit dépendre de ce matricule ni exposer un champ territorial
-`code` en doublon.
+contient le trigramme de la commune (`ROS`). Le domaine utilise cette même
+identité pour les clés, les adjacences, les positions et les références métier.
+Aucun contrat, fixture ou format de persistance ne dépend d'un matricule
+séquentiel ni n'expose un champ territorial `code` en doublon.
 
 ## 4. Contrats JSON
 

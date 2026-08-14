@@ -17,7 +17,6 @@ type resolutionContext struct {
 	armyAtTerritory     map[models.TerritoryID]models.ArmyID
 	chainsByID          map[models.ChainID]*models.Chain
 	territoriesByID     map[models.TerritoryID]*models.Territory
-	territoriesByCode   map[models.TerritoryCode]models.TerritoryID
 	noblesByID          map[models.NobleID]*models.Noble
 	noblesByCode        map[models.NobleCode]models.NobleID
 	infrastructuresByID map[models.InfraID]*models.Infrastructure
@@ -83,11 +82,9 @@ func (ctx *resolutionContext) rebuildIndexes() {
 		ctx.chainsByID[chain.ID] = chain
 	}
 	ctx.territoriesByID = make(map[models.TerritoryID]*models.Territory, len(ctx.state.Territories))
-	ctx.territoriesByCode = make(map[models.TerritoryCode]models.TerritoryID, len(ctx.state.Territories))
 	for i := range ctx.state.Territories {
 		territory := &ctx.state.Territories[i]
 		ctx.territoriesByID[territory.ID] = territory
-		ctx.territoriesByCode[models.TerritoryCode(territory.Code)] = territory.ID
 	}
 	ctx.noblesByID = make(map[models.NobleID]*models.Noble, len(ctx.state.Nobles))
 	ctx.noblesByCode = make(map[models.NobleCode]models.NobleID, len(ctx.state.Nobles))

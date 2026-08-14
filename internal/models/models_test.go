@@ -43,28 +43,28 @@ func validState() *models.GameState {
 		{ID: "P2", Name: "Beta", Color: "blue"},
 	}
 	g.Territories = []models.Territory{
-		{ID: "T01", Code: "ROS", Name: "Rosemont", Terrain: models.TerrainPlain, Adjacencies: []models.TerritoryID{"T02", "T04"}},
-		{ID: "T02", Code: "BCL", Name: "Boisclair", Terrain: models.TerrainForest, Adjacencies: []models.TerritoryID{"T01", "T03"}},
-		{ID: "T03", Code: "BRU", Name: "Bruyères", Terrain: models.TerrainHill, Adjacencies: []models.TerritoryID{"T02", "T04"}},
-		{ID: "T04", Code: "FOU", Name: "Fougères", Terrain: models.TerrainSwamp, Adjacencies: []models.TerritoryID{"T03", "T01"}},
+		{ID: "ROS", Name: "Rosemont", Terrain: models.TerrainPlain, Adjacencies: []models.TerritoryID{"BCL", "FOU"}},
+		{ID: "BCL", Name: "Boisclair", Terrain: models.TerrainForest, Adjacencies: []models.TerritoryID{"ROS", "BRU"}},
+		{ID: "BRU", Name: "Bruyères", Terrain: models.TerrainHill, Adjacencies: []models.TerritoryID{"BCL", "FOU"}},
+		{ID: "FOU", Name: "Fougères", Terrain: models.TerrainSwamp, Adjacencies: []models.TerritoryID{"BRU", "ROS"}},
 	}
 	g.Armies = []models.Army{
-		{ID: "A1", OwnerID: "P1", TerritoryID: "T01", Size: 1},
-		{ID: "A2", OwnerID: "P2", TerritoryID: "T02", Size: 2},
+		{ID: "A1", OwnerID: "P1", TerritoryID: "ROS", Size: 1},
+		{ID: "A2", OwnerID: "P2", TerritoryID: "BCL", Size: 2},
 	}
 	g.NextArmyID = 3
 	g.Nobles = []models.Noble{
-		{ID: "N1", Code: "HUG", Name: "Hugues", OwnerID: "P1", LocationID: "T01", Status: models.NobleStatusFree},
+		{ID: "N1", Code: "HUG", Name: "Hugues", OwnerID: "P1", LocationID: "ROS", Status: models.NobleStatusFree},
 	}
 	g.Infrastructures = []models.Infrastructure{
-		{ID: "I1", Type: models.InfraTypeMill, Level: 2, TerritoryID: "T01"},
-		{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "T03"},
+		{ID: "I1", Type: models.InfraTypeMill, Level: 2, TerritoryID: "ROS"},
+		{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BRU"},
 	}
 	g.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
-		"T01": {OwnerID: ptrID("P1"), Resources: 0, Army: ptrArmyID("A1"), Infrastructures: []models.InfraID{"I1"}},
-		"T02": {OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A2")},
-		"T03": {OwnerID: ptrID("P1"), Resources: 5, Infrastructures: []models.InfraID{"I2"}},
-		"T04": {OwnerID: nil, Resources: 0},
+		"ROS": {OwnerID: ptrID("P1"), Resources: 0, Army: ptrArmyID("A1"), Infrastructures: []models.InfraID{"I1"}},
+		"BCL": {OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A2")},
+		"BRU": {OwnerID: ptrID("P1"), Resources: 5, Infrastructures: []models.InfraID{"I2"}},
+		"FOU": {OwnerID: nil, Resources: 0},
 	}
 	return g
 }
@@ -220,8 +220,8 @@ func TestValidateAssignedChain(t *testing.T) {
 		ArmyID:       "A1",
 		CurrentIndex: 0,
 		Orders: []models.Order{
-			{ID: "O1", Type: models.OrderTypeAttack, ArmyID: "A1", PositionID: "T01", TargetIDs: []models.TerritoryID{"T02"}, NobleAssignments: nil, Liaison: models.LiaisonModeSingle},
-			{ID: "O2", Type: models.OrderTypeDisperse, ArmyID: "A1", PositionID: "T02", TargetIDs: []models.TerritoryID{"T02"}, NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"BCL": {"HUG"}}, Liaison: models.LiaisonModeLoop},
+			{ID: "O1", Type: models.OrderTypeAttack, ArmyID: "A1", PositionID: "ROS", TargetIDs: []models.TerritoryID{"BCL"}, NobleAssignments: nil, Liaison: models.LiaisonModeSingle},
+			{ID: "O2", Type: models.OrderTypeDisperse, ArmyID: "A1", PositionID: "BCL", TargetIDs: []models.TerritoryID{"BCL"}, NobleAssignments: map[models.TerritoryID][]models.NobleCode{"BCL": {"HUG"}}, Liaison: models.LiaisonModeLoop},
 		},
 	}}
 	g.NextChainID = 2
@@ -243,45 +243,45 @@ func TestValidateErrors(t *testing.T) {
 			g.Players = append(g.Players, models.Player{ID: "P1", Name: "Alpha2", Color: "green"})
 		}, "duplicate id"},
 		{"duplicate territory id", func(g *models.GameState) {
-			g.Territories = append(g.Territories, models.Territory{ID: "T01", Code: "XRO", Name: "X", Terrain: models.TerrainPlain})
+			g.Territories = append(g.Territories, models.Territory{ID: "ROS", Name: "X", Terrain: models.TerrainPlain})
 		}, "duplicate id"},
-		{"duplicate territory code", func(g *models.GameState) {
-			g.Territories = append(g.Territories, models.Territory{ID: "T05", Code: "BCL", Name: "X", Terrain: models.TerrainPlain})
-		}, "duplicate code"},
+		{"invalid territory id", func(g *models.GameState) {
+			g.Territories[0].ID = "RO1"
+		}, "invalid id"},
 		{"invalid terrain", func(g *models.GameState) { g.Territories[1].Terrain = "MARSH" }, "invalid terrain"},
-		{"asymmetric adjacency", func(g *models.GameState) { g.Territories[0].Adjacencies = []models.TerritoryID{"T02"} }, "asymmetric"},
+		{"asymmetric adjacency", func(g *models.GameState) { g.Territories[0].Adjacencies = []models.TerritoryID{"BCL"} }, "asymmetric"},
 		{"adjacency to unknown territory", func(g *models.GameState) {
-			g.Territories[0].Adjacencies = []models.TerritoryID{"T02", "T99"}
+			g.Territories[0].Adjacencies = []models.TerritoryID{"BCL", "ZZZ"}
 		}, "does not exist"},
 		{"self adjacency", func(g *models.GameState) {
-			g.Territories[0].Adjacencies = []models.TerritoryID{"T02", "T01"}
+			g.Territories[0].Adjacencies = []models.TerritoryID{"BCL", "ROS"}
 		}, "self-adjacency"},
 		{"duplicate adjacency", func(g *models.GameState) {
-			g.Territories[0].Adjacencies = []models.TerritoryID{"T02", "T02"}
+			g.Territories[0].Adjacencies = []models.TerritoryID{"BCL", "BCL"}
 		}, "duplicate adjacency"},
 		{"duplicate army id", func(g *models.GameState) {
-			g.Armies = append(g.Armies, models.Army{ID: "A1", OwnerID: "P1", TerritoryID: "T02", Size: 1})
+			g.Armies = append(g.Armies, models.Army{ID: "A1", OwnerID: "P1", TerritoryID: "BCL", Size: 1})
 		}, "duplicate id"},
 		{"army size zero", func(g *models.GameState) { g.Armies[0].Size = 0 }, "size"},
 		{"army unknown owner", func(g *models.GameState) { g.Armies[0].OwnerID = "P9" }, "unknown owner"},
-		{"army unknown territory", func(g *models.GameState) { g.Armies[0].TerritoryID = "T99" }, "unknown territory"},
+		{"army unknown territory", func(g *models.GameState) { g.Armies[0].TerritoryID = "ZZZ" }, "unknown territory"},
 		{"army not referenced by territory state", func(g *models.GameState) {
-			g.TerritoryStates["T01"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 0, Infrastructures: []models.InfraID{"I1"}}
+			g.TerritoryStates["ROS"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 0, Infrastructures: []models.InfraID{"I1"}}
 		}, "does not reference it"},
 		{"state references army stationed elsewhere", func(g *models.GameState) {
-			g.TerritoryStates["T02"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A1")}
+			g.TerritoryStates["BCL"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A1")}
 		}, "stationed in"},
 		{"state references unknown army", func(g *models.GameState) {
-			g.TerritoryStates["T02"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A9")}
+			g.TerritoryStates["BCL"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A9")}
 		}, "unknown army"},
 		{"duplicate noble id", func(g *models.GameState) {
-			g.Nobles = append(g.Nobles, models.Noble{ID: "N1", Code: "ANN", Name: "Anne", OwnerID: "P2", LocationID: "T02"})
+			g.Nobles = append(g.Nobles, models.Noble{ID: "N1", Code: "ANN", Name: "Anne", OwnerID: "P2", LocationID: "BCL"})
 		}, "duplicate id"},
 		{"duplicate noble code", func(g *models.GameState) {
-			g.Nobles = append(g.Nobles, models.Noble{ID: "N2", Code: "HUG", Name: "Hugues II", OwnerID: "P2", LocationID: "T02"})
+			g.Nobles = append(g.Nobles, models.Noble{ID: "N2", Code: "HUG", Name: "Hugues II", OwnerID: "P2", LocationID: "BCL"})
 		}, "duplicate code"},
 		{"noble unknown owner", func(g *models.GameState) { g.Nobles[0].OwnerID = "P9" }, "unknown owner"},
-		{"noble unknown territory", func(g *models.GameState) { g.Nobles[0].LocationID = "T99" }, "unknown territory"},
+		{"noble unknown territory", func(g *models.GameState) { g.Nobles[0].LocationID = "ZZZ" }, "unknown territory"},
 		{"noble invalid status", func(g *models.GameState) { g.Nobles[0].Status = "captured" }, "invalid status"},
 		{"noble negative last emission turn", func(g *models.GameState) { g.Nobles[0].LastEmissionTurn = -1 }, "last emission turn"},
 		{"noble future last emission turn", func(g *models.GameState) { g.Nobles[0].LastEmissionTurn = g.Turn + 1 }, "last emission turn"},
@@ -289,43 +289,43 @@ func TestValidateErrors(t *testing.T) {
 		{"next army id zero", func(g *models.GameState) { g.NextArmyID = 0 }, "next army id"},
 		{"next army id collides with stored army", func(g *models.GameState) { g.NextArmyID = 2 }, "next army id"},
 		{"duplicate infrastructure id", func(g *models.GameState) {
-			g.Infrastructures = append(g.Infrastructures, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "T02"})
+			g.Infrastructures = append(g.Infrastructures, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "BCL"})
 		}, "duplicate id"},
 		{"invalid infra type", func(g *models.GameState) { g.Infrastructures[0].Type = "bank" }, "invalid type"},
 		{"infra level zero", func(g *models.GameState) { g.Infrastructures[0].Level = 0 }, "level"},
-		{"infra unknown territory", func(g *models.GameState) { g.Infrastructures[0].TerritoryID = "T99" }, "unknown territory"},
+		{"infra unknown territory", func(g *models.GameState) { g.Infrastructures[0].TerritoryID = "ZZZ" }, "unknown territory"},
 		{"capital castle does not exist", func(g *models.GameState) { g.Players[0].CapitalCastleID = ptrInfraID("I9") }, "capital castle"},
 		{"capital references noncastle", func(g *models.GameState) { g.Players[0].CapitalCastleID = ptrInfraID("I1") }, "capital infrastructure"},
 		{"capital castle is enemy controlled", func(g *models.GameState) {
 			g.Players[0].CapitalCastleID = ptrInfraID("I2")
-			g.TerritoryStates["T03"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 5, Infrastructures: []models.InfraID{"I2"}}
+			g.TerritoryStates["BRU"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 5, Infrastructures: []models.InfraID{"I2"}}
 		}, "not controlled by its owner"},
 		{"infra not listed in territory state", func(g *models.GameState) {
-			g.TerritoryStates["T01"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 0, Army: ptrArmyID("A1")}
+			g.TerritoryStates["ROS"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 0, Army: ptrArmyID("A1")}
 		}, "does not list it"},
 		{"state lists infra built elsewhere", func(g *models.GameState) {
-			g.TerritoryStates["T02"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A2"), Infrastructures: []models.InfraID{"I2"}}
+			g.TerritoryStates["BCL"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A2"), Infrastructures: []models.InfraID{"I2"}}
 		}, "built in"},
 		{"state lists unknown infra", func(g *models.GameState) {
-			g.TerritoryStates["T02"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A2"), Infrastructures: []models.InfraID{"I9"}}
+			g.TerritoryStates["BCL"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A2"), Infrastructures: []models.InfraID{"I9"}}
 		}, "unknown infrastructure"},
 		{"multiple infrastructures in territory state", func(g *models.GameState) {
-			g.TerritoryStates["T01"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 5, Army: ptrArmyID("A1"), Infrastructures: []models.InfraID{"I1", "I2"}}
+			g.TerritoryStates["ROS"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 5, Army: ptrArmyID("A1"), Infrastructures: []models.InfraID{"I1", "I2"}}
 		}, "multiple infrastructures"},
 		{"missing territory state entry", func(g *models.GameState) {
-			delete(g.TerritoryStates, "T04")
+			delete(g.TerritoryStates, "FOU")
 		}, "missing TerritoryState"},
 		{"orphan territory state entry", func(g *models.GameState) {
-			g.TerritoryStates["T99"] = models.TerritoryState{}
+			g.TerritoryStates["ZZZ"] = models.TerritoryState{}
 		}, "references unknown territory"},
 		{"state owner unknown", func(g *models.GameState) {
-			g.TerritoryStates["T04"] = models.TerritoryState{OwnerID: ptrID("P9")}
+			g.TerritoryStates["FOU"] = models.TerritoryState{OwnerID: ptrID("P9")}
 		}, "unknown owner"},
 		{"negative resources", func(g *models.GameState) {
-			g.TerritoryStates["T01"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: -1, Army: ptrArmyID("A1"), Infrastructures: []models.InfraID{"I1"}}
+			g.TerritoryStates["ROS"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: -1, Army: ptrArmyID("A1"), Infrastructures: []models.InfraID{"I1"}}
 		}, "negative resources"},
 		{"positive resources outside a settlement", func(g *models.GameState) {
-			g.TerritoryStates["T01"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 1, Army: ptrArmyID("A1"), Infrastructures: []models.InfraID{"I1"}}
+			g.TerritoryStates["ROS"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 1, Army: ptrArmyID("A1"), Infrastructures: []models.InfraID{"I1"}}
 		}, "positive resources require"},
 	}
 	for _, tc := range cases {
@@ -349,8 +349,8 @@ func TestValidateChainErrors(t *testing.T) {
 		g.Chains = []models.Chain{{
 			ID: "C1", NobleID: "N1", ArmyID: "A1", CurrentIndex: 0,
 			Orders: []models.Order{{
-				ID: "O1", Type: models.OrderTypeAttack, ArmyID: "A1", PositionID: "T01",
-				TargetIDs: []models.TerritoryID{"T02"}, Liaison: models.LiaisonModeSingle,
+				ID: "O1", Type: models.OrderTypeAttack, ArmyID: "A1", PositionID: "ROS",
+				TargetIDs: []models.TerritoryID{"BCL"}, Liaison: models.LiaisonModeSingle,
 			}},
 		}}
 		g.NextChainID = 2
@@ -390,11 +390,11 @@ func TestValidateChainErrors(t *testing.T) {
 		}, "invalid liaison"},
 		{"unknown order position", func(g *models.GameState) {
 			validChain(g)
-			g.Chains[0].Orders[0].PositionID = "T99"
+			g.Chains[0].Orders[0].PositionID = "ZZZ"
 		}, "unknown position"},
 		{"unknown order target", func(g *models.GameState) {
 			validChain(g)
-			g.Chains[0].Orders[0].TargetIDs = []models.TerritoryID{"T99"}
+			g.Chains[0].Orders[0].TargetIDs = []models.TerritoryID{"ZZZ"}
 		}, "unknown target"},
 		{"chain noble does not own army", func(g *models.GameState) {
 			validChain(g)
@@ -428,17 +428,17 @@ func TestValidateChainErrors(t *testing.T) {
 	}
 }
 
-// TestCodeInvariants pins the trigram requirement for territories and nobles.
-func TestCodeInvariants(t *testing.T) {
+// TestTrigramInvariants pins the trigram requirement for territories and nobles.
+func TestTrigramInvariants(t *testing.T) {
 	cases := []struct {
 		name   string
 		mutate func(g *models.GameState)
 		want   string
 	}{
-		{"territory with 2-letter code", func(g *models.GameState) { g.Territories[0].Code = "RO" }, "3 uppercase"},
-		{"territory with 4-letter code", func(g *models.GameState) { g.Territories[1].Code = "FROS" }, "3 uppercase"},
-		{"territory with lowercase code", func(g *models.GameState) { g.Territories[0].Code = "ros" }, "3 uppercase"},
-		{"territory code with digit", func(g *models.GameState) { g.Territories[1].Code = "FR0" }, "3 uppercase"},
+		{"territory with 2-letter id", func(g *models.GameState) { g.Territories[0].ID = "RO" }, "3 uppercase"},
+		{"territory with 4-letter id", func(g *models.GameState) { g.Territories[1].ID = "FROS" }, "3 uppercase"},
+		{"territory with lowercase id", func(g *models.GameState) { g.Territories[0].ID = "ros" }, "3 uppercase"},
+		{"territory id with digit", func(g *models.GameState) { g.Territories[1].ID = "FR0" }, "3 uppercase"},
 		{"noble with 4-letter code", func(g *models.GameState) { g.Nobles[0].Code = "HUGU" }, "3 uppercase"},
 		{"noble with lowercase code", func(g *models.GameState) { g.Nobles[0].Code = "hug" }, "3 uppercase"},
 	}
@@ -463,9 +463,9 @@ func TestGameStateJSONRoundTrip(t *testing.T) {
 	g.Chains = []models.Chain{{
 		ID: "C1", NobleID: "N1", ArmyID: "A1", CurrentIndex: 0,
 		Orders: []models.Order{{
-			ID: "O1", Type: models.OrderTypeDisperse, ArmyID: "A1", PositionID: "T01",
-			TargetIDs:        []models.TerritoryID{"T01"},
-			NobleAssignments: map[models.TerritoryCode][]models.NobleCode{"ROS": {"HUG", "*"}},
+			ID: "O1", Type: models.OrderTypeDisperse, ArmyID: "A1", PositionID: "ROS",
+			TargetIDs:        []models.TerritoryID{"ROS"},
+			NobleAssignments: map[models.TerritoryID][]models.NobleCode{"ROS": {"HUG", "*"}},
 			Liaison:          models.LiaisonModeLoop,
 		}},
 	}}

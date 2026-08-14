@@ -204,7 +204,7 @@ func nameTerritories(
 			}
 		}
 		if !assigned {
-			return nil, fmt.Errorf("mapgen: exhausted communes while naming territory %s", territoryID(site))
+			return nil, fmt.Errorf("mapgen: exhausted communes while naming territory %s", siteLabel(site))
 		}
 		names[site] = nameCode{name: commune.Name, code: commune.Code}
 	}

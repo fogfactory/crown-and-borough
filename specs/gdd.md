@@ -116,7 +116,8 @@ La carte est générée de manière déterministe à partir d'une seed. Elle con
 `8 x joueurs` territoires de jeu et `(joueurs + 1) x 4` territoires
 supplémentaires dédiés aux `joueurs + 1` villages neutres. Les territoires sont
 des polygones nommés par une commune de `communes.csv` ; le trigramme de la
-commune est unique sur la carte.
+commune est l'identifiant unique du territoire, exactement trois lettres
+majuscules, unique et stable pour une seed donnée.
 
 Chaque frontière géométrique commune à deux territoires est conservée et
 qualifiée :

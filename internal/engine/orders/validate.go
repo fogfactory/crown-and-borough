@@ -144,8 +144,8 @@ func validateDisperse(indexes gameIndexes, order models.Order, positionExists bo
 	assignedNobles := map[models.NobleCode]bool{}
 	wildcards := 0
 	for _, destination := range sortedDestinations(order.NobleAssignments) {
-		destinationID, exists := indexes.territoriesByCode[string(destination)]
-		if !exists {
+		destinationID := destination
+		if indexes.territoriesByID[destinationID] == nil {
 			errors = append(errors, orderValidationError(order, "unknown_assignment_destination", "error.validation.unknown_assignment_destination", destination))
 			continue
 		}
@@ -173,8 +173,8 @@ func validateDisperse(indexes gameIndexes, order models.Order, positionExists bo
 	return errors
 }
 
-func sortedDestinations(assignments map[models.TerritoryCode][]models.NobleCode) []models.TerritoryCode {
-	destinations := make([]models.TerritoryCode, 0, len(assignments))
+func sortedDestinations(assignments map[models.TerritoryID][]models.NobleCode) []models.TerritoryID {
+	destinations := make([]models.TerritoryID, 0, len(assignments))
 	for destination := range assignments {
 		destinations = append(destinations, destination)
 	}

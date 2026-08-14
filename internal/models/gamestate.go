@@ -93,9 +93,8 @@ func (g *GameState) Validate() error {
 		players[p.ID] = true
 	}
 
-	// 3. Territories: unique ids, unique codes, valid terrain and trigram codes.
+	// 3. Territories: unique trigram ids and valid terrain.
 	terrs := make(map[TerritoryID]*Territory, len(g.Territories))
-	codes := make(map[string]TerritoryID, len(g.Territories))
 	for i := range g.Territories {
 		t := &g.Territories[i]
 		if t.ID == "" {
@@ -104,17 +103,13 @@ func (g *GameState) Validate() error {
 		if _, dup := terrs[t.ID]; dup {
 			return fmt.Errorf("models: territory %q: duplicate id", t.ID)
 		}
-		if prev, dup := codes[t.Code]; dup {
-			return fmt.Errorf("models: territory %q: duplicate code %q (already used by %q)", t.ID, t.Code, prev)
+		if !isCode(string(t.ID), 3) {
+			return fmt.Errorf("models: territory %q: invalid id (want exactly 3 uppercase letters)", t.ID)
 		}
 		if !t.Terrain.IsValid() {
 			return fmt.Errorf("models: territory %q: invalid terrain %q", t.ID, t.Terrain)
 		}
-		if !isCode(t.Code, 3) {
-			return fmt.Errorf("models: territory %q: invalid code %q (want exactly 3 uppercase letters)", t.ID, t.Code)
-		}
 		terrs[t.ID] = t
-		codes[t.Code] = t.ID
 	}
 
 	// 4. Adjacencies: existing targets, no self-adjacency, no duplicate edge,
@@ -264,9 +259,9 @@ func (g *GameState) Validate() error {
 					return fmt.Errorf("models: chain %q: order %q references unknown target %q", chain.ID, order.ID, targetID)
 				}
 			}
-			for destinationCode, assignedCodes := range order.NobleAssignments {
-				if _, exists := codes[string(destinationCode)]; !exists {
-					return fmt.Errorf("models: chain %q: order %q references unknown assignment destination %q", chain.ID, order.ID, destinationCode)
+			for destinationID, assignedCodes := range order.NobleAssignments {
+				if _, exists := terrs[destinationID]; !exists {
+					return fmt.Errorf("models: chain %q: order %q references unknown assignment destination %q", chain.ID, order.ID, destinationID)
 				}
 				for _, nobleCode := range assignedCodes {
 					if nobleCode == "*" {
@@ -311,10 +306,9 @@ func (g *GameState) Validate() error {
 				}
 				pendingTargets[targetID] = true
 			}
-			for destinationCode, assignedCodes := range pending.NobleAssignments {
-				destinationID, exists := codes[string(destinationCode)]
-				if !exists || !pendingTargets[destinationID] {
-					return fmt.Errorf("models: chain %q: pending dispersion references invalid assignment destination %q", chain.ID, destinationCode)
+			for destinationID, assignedCodes := range pending.NobleAssignments {
+				if _, exists := terrs[destinationID]; !exists || !pendingTargets[destinationID] {
+					return fmt.Errorf("models: chain %q: pending dispersion references invalid assignment destination %q", chain.ID, destinationID)
 				}
 				for _, nobleCode := range assignedCodes {
 					if nobleCode == "*" {

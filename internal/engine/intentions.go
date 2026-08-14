@@ -225,18 +225,17 @@ func (ctx *resolutionContext) validateDisperse(record *orderRecord, army models.
 	assignments := make(map[models.TerritoryID][]models.NobleID, len(order.NobleAssignments))
 	assigned := make(map[models.NobleID]bool, len(coLocated))
 	wildcardDestination := models.TerritoryID("")
-	assignmentDestinations := make([]models.TerritoryCode, 0, len(order.NobleAssignments))
+	assignmentDestinations := make([]models.TerritoryID, 0, len(order.NobleAssignments))
 	for destination := range order.NobleAssignments {
 		assignmentDestinations = append(assignmentDestinations, destination)
 	}
 	sort.Slice(assignmentDestinations, func(i, j int) bool { return assignmentDestinations[i] < assignmentDestinations[j] })
-	for _, destinationCode := range assignmentDestinations {
-		destinationID, exists := ctx.territoriesByCode[destinationCode]
-		if !exists || !targetSet[destinationID] {
+	for _, destinationID := range assignmentDestinations {
+		if ctx.territoriesByID[destinationID] == nil || !targetSet[destinationID] {
 			record.invalidate("invalid_disperse_assignment_destination")
 			return nil, false
 		}
-		for _, nobleCode := range order.NobleAssignments[destinationCode] {
+		for _, nobleCode := range order.NobleAssignments[destinationID] {
 			if nobleCode == "*" {
 				if wildcardDestination != "" {
 					record.invalidate("duplicate_disperse_wildcard")

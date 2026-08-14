@@ -8,10 +8,6 @@ type ChainID string
 // in source order.
 type OrderID string
 
-// TerritoryCode preserves a territory trigram in syntax-derived data such as
-// dispersion noble assignments.
-type TerritoryCode string
-
 // NobleCode preserves a noble trigram in syntax-derived dispersion assignments.
 // The value "*" represents every remaining noble.
 type NobleCode string
@@ -95,7 +91,7 @@ type Order struct {
 	TargetIDs []TerritoryID `json:"targets"`
 	// NobleAssignments comes from D-order asterisks and is consumed by reception
 	// coverage checks and P1.4 dispersion resolution.
-	NobleAssignments map[TerritoryCode][]NobleCode `json:"nobleAssignments"`
+	NobleAssignments map[TerritoryID][]NobleCode `json:"nobleAssignments"`
 	// Liaison comes from parentheses around an order line and is consumed by P1.4
 	// progression after the order outcome is known.
 	Liaison LiaisonMode `json:"liaison"`
@@ -115,10 +111,10 @@ type WinterOrder struct {
 // completed branches have already left the source army. The command chain stays
 // with its original carrier while the residual army retries these branches.
 type PendingDisperse struct {
-	ArmyID           ArmyID                        `json:"army"`
-	SourceID         TerritoryID                   `json:"source"`
-	TargetIDs        []TerritoryID                 `json:"targets"`
-	NobleAssignments map[TerritoryCode][]NobleCode `json:"nobleAssignments"`
+	ArmyID           ArmyID                      `json:"army"`
+	SourceID         TerritoryID                 `json:"source"`
+	TargetIDs        []TerritoryID               `json:"targets"`
+	NobleAssignments map[TerritoryID][]NobleCode `json:"nobleAssignments"`
 }
 
 // Chain is a received sequence of orders carried by one army.

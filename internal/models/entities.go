@@ -1,8 +1,7 @@
 package models
 
 // ID types. UUIDs are not needed yet: short, readable identifiers such as
-// "T01", "A1", "N1" identify the entities (architecture §4). Army IDs use a
-// global A-prefix counter; T is reserved for territories. Distinct named
+// "ROS", "A1", "N1" identify the entities (architecture §4). Distinct named
 // string types keep the domain explicit and prevent cross-type mixups.
 type PlayerID string
 type TerritoryID string
@@ -24,7 +23,6 @@ type Player struct {
 // mapgen concern and does not belong to the model.
 type Territory struct {
 	ID          TerritoryID   `json:"id"`
-	Code        string        `json:"code"`
 	Name        string        `json:"name"`
 	Terrain     Terrain       `json:"terrain"`
 	Adjacencies []TerritoryID `json:"adjacencies"`
@@ -32,8 +30,8 @@ type Territory struct {
 
 // Army is the single force entity stationed on a territory. Size is the number
 // of abstract troops in the army. ChainID is nil when the army is Sans Ordre.
-// When equal-size armies must be ordered, the territory code is the
-// lexicographic tie-break (GDD §4, §8).
+// When equal-size armies must be ordered, the territory ID is the lexicographic
+// tie-break (GDD §4, §8).
 type Army struct {
 	ID          ArmyID      `json:"id"`
 	OwnerID     PlayerID    `json:"owner"`

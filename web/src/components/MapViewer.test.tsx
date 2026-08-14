@@ -7,8 +7,7 @@ import type { MapData, StateData, SupplyLine } from '@/types'
 const map: MapData = {
   territories: [
     {
-      id: 'T1',
-      code: 'ALP',
+      id: 'ROS',
       name: 'Alpilles',
       terrain: 'plain',
       village: false,
@@ -18,12 +17,11 @@ const map: MapData = {
         [50, 50],
         [0, 50],
       ],
-      adjacencies: ['T2'],
+      adjacencies: ['BRU'],
       impassable: [],
     },
     {
-      id: 'T2',
-      code: 'BRI',
+      id: 'BRU',
       name: 'Brisecote',
       terrain: 'forest',
       village: false,
@@ -33,7 +31,7 @@ const map: MapData = {
         [100, 50],
         [50, 50],
       ],
-      adjacencies: ['T1'],
+      adjacencies: ['ROS'],
       impassable: [],
     },
   ],
@@ -44,8 +42,8 @@ const state: StateData = {
   season: 'spring',
   players: [],
   territories: [
-    { id: 'T1', owner: 'P1', resources: 0, army: null, infrastructures: [] },
-    { id: 'T2', owner: 'P2', resources: 0, army: null, infrastructures: [] },
+    { id: 'ROS', owner: 'P1', resources: 0, army: null, infrastructures: [] },
+    { id: 'BRU', owner: 'P2', resources: 0, army: null, infrastructures: [] },
   ],
   nobles: [],
 }
@@ -68,7 +66,7 @@ function renderMap(
     'svg[aria-label="Territory map"]',
   ) as SVGSVGElement | null
   const firstTerritory = result.container.querySelector(
-    '[data-territory-id="T1"]',
+    '[data-territory-id="ROS"]',
   ) as SVGPathElement | null
 
   if (!svg || !firstTerritory) {
@@ -102,7 +100,7 @@ describe('MapViewer selection and panning', () => {
     const { firstTerritory, onSelect, svg } = renderMap()
 
     clickTarget(svg, firstTerritory)
-    expect(onSelect).toHaveBeenLastCalledWith('T1')
+    expect(onSelect).toHaveBeenLastCalledWith('ROS')
 
     clickTarget(svg, firstTerritory)
     expect(onSelect).toHaveBeenLastCalledWith(null)
@@ -126,7 +124,7 @@ describe('MapViewer selection and panning', () => {
     const { firstTerritory, onSelect } = renderMap()
 
     fireEvent.keyDown(firstTerritory, { key: 'Enter' })
-    expect(onSelect).toHaveBeenLastCalledWith('T1')
+    expect(onSelect).toHaveBeenLastCalledWith('ROS')
 
     fireEvent.keyDown(firstTerritory, { key: ' ' })
     expect(onSelect).toHaveBeenLastCalledWith(null)
@@ -157,7 +155,7 @@ describe('MapViewer selection and panning', () => {
     fireEvent.pointerMove(svg, { ...pointerPosition(110), buttons: 1 })
     fireEvent.pointerUp(svg, pointerPosition(110))
 
-    expect(onSelect).toHaveBeenLastCalledWith('T1')
+    expect(onSelect).toHaveBeenLastCalledWith('ROS')
   })
 
   it('keeps touch dragging as a pan without selecting', async () => {
@@ -183,6 +181,13 @@ describe('MapViewer selection and panning', () => {
 })
 
 describe('MapViewer territorial overlays', () => {
+  it('renders canonical territory trigrams from territory ids', () => {
+    renderMap()
+
+    expect(screen.getByText('ROS')).toBeInTheDocument()
+    expect(screen.getByText('BRU')).toBeInTheDocument()
+  })
+
   it('scales map annotations with the mean territory area', () => {
     const scaledState: StateData = {
       ...state,
@@ -193,14 +198,14 @@ describe('MapViewer territorial overlays', () => {
       })),
       territories: [
         {
-          id: 'T1',
+          id: 'ROS',
           owner: 'P1',
           resources: 3,
           army: { owner: 'P1', size: 4, chain: null },
           infrastructures: [{ type: 'castle', level: 2 }],
         },
         {
-          id: 'T2',
+          id: 'BRU',
           owner: null,
           resources: 0,
           army: null,
@@ -213,7 +218,7 @@ describe('MapViewer territorial overlays', () => {
           code: 'ALP',
           name: 'Noble Alp',
           owner: 'P1',
-          location: 'T1',
+          location: 'ROS',
           status: 'free',
         },
       ],
@@ -254,19 +259,19 @@ describe('MapViewer territorial overlays', () => {
     const capitalState: StateData = {
       ...state,
       players: [
-        { id: 'P1', name: 'One', color: '#a84632', capitalTerritory: 'T1' },
-        { id: 'P2', name: 'Two', color: '#2d5f9e', capitalTerritory: 'T2' },
+        { id: 'P1', name: 'One', color: '#a84632', capitalTerritory: 'ROS' },
+        { id: 'P2', name: 'Two', color: '#2d5f9e', capitalTerritory: 'BRU' },
       ],
       territories: [
         {
-          id: 'T1',
+          id: 'ROS',
           owner: 'P1',
           resources: 0,
           army: null,
           infrastructures: [{ type: 'castle', level: 1 }],
         },
         {
-          id: 'T2',
+          id: 'BRU',
           owner: 'P2',
           resources: 0,
           army: null,
@@ -287,14 +292,14 @@ describe('MapViewer territorial overlays', () => {
       players: [{ id: 'P1', name: 'One', color: '#a84632' }],
       territories: [
         {
-          id: 'T1',
+          id: 'ROS',
           owner: 'P1',
           resources: 0,
           army: { owner: 'P1', size: 2, chain: null },
           infrastructures: [],
         },
         {
-          id: 'T2',
+          id: 'BRU',
           owner: 'P1',
           resources: 0,
           army: null,
@@ -304,19 +309,19 @@ describe('MapViewer territorial overlays', () => {
     }
     const supply: SupplyLine = {
       kind: 'army',
-      territory: 'T1',
+      territory: 'ROS',
       armyOwner: 'P1',
       armySize: 2,
       rations: 1,
       demand: 1,
-      source: 'T2',
+      source: 'BRU',
       distance: 1,
-      path: ['T2', 'T1'],
-      reachable: ['T1', 'T2'],
+      path: ['BRU', 'ROS'],
+      reachable: ['ROS', 'BRU'],
       selfSupplied: false,
     }
     const { svg } = renderMap(map, supplyState, vi.fn(), supply)
-    const armyTerritory = svg.querySelector('[data-territory-id="T1"]')
+    const armyTerritory = svg.querySelector('[data-territory-id="ROS"]')
 
     if (!armyTerritory) {
       throw new Error('Supply test fixture did not render the army territory')
@@ -350,26 +355,26 @@ describe('MapViewer territorial overlays', () => {
       players: [{ id: 'P1', name: 'One', color: '#a84632' }],
       territories: [
         {
-          id: 'T1',
+          id: 'ROS',
           owner: 'P1',
           resources: 0,
           army: null,
           infrastructures: [{ type: 'castle', level: 1 }],
         },
-        { id: 'T2', owner: 'P1', resources: 0, army: null, infrastructures: [] },
+        { id: 'BRU', owner: 'P1', resources: 0, army: null, infrastructures: [] },
       ],
     }
     const sourceZone: SupplyLine = {
       kind: 'source',
-      territory: 'T1',
+      territory: 'ROS',
       armyOwner: 'P1',
       armySize: 0,
       rations: 0,
       demand: 0,
-      source: 'T1',
+      source: 'ROS',
       distance: 0,
       path: [],
-      reachable: ['T1', 'T2'],
+      reachable: ['ROS', 'BRU'],
       selfSupplied: false,
     }
     const { firstTerritory, svg } = renderMap(map, sourceState, vi.fn(), sourceZone)
@@ -383,7 +388,7 @@ describe('MapViewer territorial overlays', () => {
   it('does not render a supply overlay for a selected territory without an army', () => {
     const { firstTerritory, svg } = renderMap(map, state, vi.fn(), {
       kind: 'army',
-      territory: 'T1',
+      territory: 'ROS',
       armyOwner: 'P1',
       armySize: 1,
       rations: 1,
@@ -391,7 +396,7 @@ describe('MapViewer territorial overlays', () => {
       source: null,
       distance: 0,
       path: [],
-      reachable: ['T1'],
+      reachable: ['ROS'],
       selfSupplied: true,
     })
     clickTarget(svg, firstTerritory)
@@ -415,15 +420,15 @@ describe('MapViewer territorial overlays', () => {
     }
     const { firstTerritory, svg } = renderMap(map, depotState, vi.fn(), {
       kind: 'source',
-      territory: 'T1',
+      territory: 'ROS',
       armyOwner: 'P1',
       armySize: 0,
       rations: 0,
       demand: 0,
-      source: 'T1',
+      source: 'ROS',
       distance: 0,
       path: [],
-      reachable: ['T1', 'T2'],
+      reachable: ['ROS', 'BRU'],
       selfSupplied: false,
     })
     clickTarget(svg, firstTerritory)
@@ -446,15 +451,15 @@ describe('MapViewer territorial overlays', () => {
     }
     const { firstTerritory, svg } = renderMap(map, armyState, vi.fn(), {
       kind: 'army',
-      territory: 'T2',
+      territory: 'BRU',
       armyOwner: 'P1',
       armySize: 2,
       rations: 1,
       demand: 1,
-      source: 'T2',
+      source: 'BRU',
       distance: 0,
-      path: ['T2'],
-      reachable: ['T2'],
+      path: ['BRU'],
+      reachable: ['BRU'],
       selfSupplied: false,
     })
     clickTarget(svg, firstTerritory)
@@ -496,7 +501,7 @@ describe('MapViewer territorial overlays', () => {
         territories: [state.territories[0]],
       }
       const { svg } = renderMap(testMap, testState)
-      const terrainPath = svg.querySelector('[data-territory-id="T1"]')
+      const terrainPath = svg.querySelector('[data-territory-id="ROS"]')
 
       expect(terrainPath).toHaveAttribute('fill', color)
       expect(svg.querySelector('g[aria-label="Winter overlay"]')).toBeInTheDocument()
@@ -517,9 +522,9 @@ describe('MapViewer territorial overlays', () => {
 
     expect(controlPath).toHaveAttribute('fill', 'none')
     expect(controlPath).toHaveAttribute('stroke-width', '8')
-    expect(controlPath).toHaveAttribute('clip-path', 'url(#territory-clip-T1)')
+    expect(controlPath).toHaveAttribute('clip-path', 'url(#territory-clip-ROS)')
     expect(controlPath).not.toHaveAttribute('opacity')
-    expect(svg.querySelector('#territory-clip-T1')).toBeInTheDocument()
+    expect(svg.querySelector('#territory-clip-ROS')).toBeInTheDocument()
     expect(winterVeil?.compareDocumentPosition(controlPath as Node)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     )
@@ -532,7 +537,7 @@ describe('MapViewer territorial overlays', () => {
     }
 
     expect(selectionPath).toHaveAttribute('fill', 'none')
-    expect(selectionPath).toHaveAttribute('clip-path', 'url(#territory-clip-T1)')
+    expect(selectionPath).toHaveAttribute('clip-path', 'url(#territory-clip-ROS)')
     expect(
       svg.querySelector('g[aria-label="Selection"] path[stroke-dasharray]'),
     ).toHaveAttribute('stroke-dasharray', expectedDash)
@@ -561,7 +566,7 @@ describe('MapViewer territorial overlays', () => {
       territories: map.territories.map((territory) => ({
         ...territory,
         adjacencies: [],
-        impassable: [territory.id === 'T1' ? 'T2' : 'T1'],
+        impassable: [territory.id === 'ROS' ? 'BRU' : 'ROS'],
       })),
     }
     const { svg } = renderMap(impassableMap, { ...state, season: 'winter' })
@@ -596,7 +601,7 @@ describe('MapViewer noble affiliation', () => {
         code: 'JEA',
         name: 'Jean de Rosemont',
         owner: 'P1',
-        location: 'T1',
+        location: 'ROS',
         status: 'free',
       },
       {
@@ -604,7 +609,7 @@ describe('MapViewer noble affiliation', () => {
         code: 'BOB',
         name: 'Robert de Rosemont',
         owner: 'P2',
-        location: 'T1',
+        location: 'ROS',
         status: 'hostage',
       },
     ],
