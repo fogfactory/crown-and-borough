@@ -61,6 +61,9 @@ func TestMapHandler(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		errorfMapMismatch(t, got, want)
 	}
+	if !territoryTrigram.MatchString(got.Territories[0].ID) {
+		t.Errorf("map territory id = %q, want a canonical trigram", got.Territories[0].ID)
+	}
 }
 
 func TestMapHandlerPlayers(t *testing.T) {

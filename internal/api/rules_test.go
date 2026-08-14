@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
@@ -62,5 +63,35 @@ func TestRulesHandlerRejectsUnknownLanguage(t *testing.T) {
 	RulesHandler(rules).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/rules?lang=de", nil))
 	if recorder.Code != http.StatusNotFound {
 		t.Errorf("GET unknown rules language = %d, want %d", recorder.Code, http.StatusNotFound)
+	}
+}
+
+func TestRulesHandlerServesCanonicalTerritoryReferences(t *testing.T) {
+	rules, err := assetgen.LoadRules("../../assets")
+	if err != nil {
+		t.Fatalf("LoadRules = %v", err)
+	}
+
+	for _, test := range []struct {
+		name string
+		path string
+	}{
+		{name: "French", path: "/api/rules"},
+		{name: "English", path: "/api/rules?lang=en"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			RulesHandler(rules).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, test.path, nil))
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("GET %s = %d, want %d", test.path, recorder.Code, http.StatusOK)
+			}
+			body := recorder.Body.String()
+			if territoryMatricule.MatchString(body) {
+				t.Fatalf("rules response exposes a territory matricule: %s", body)
+			}
+			if !strings.Contains(body, "ROS A BOI") {
+				t.Errorf("rules response does not use the canonical example: %s", body)
+			}
+		})
 	}
 }

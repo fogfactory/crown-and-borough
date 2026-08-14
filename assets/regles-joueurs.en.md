@@ -74,10 +74,10 @@ Each order line has the form `POSITION SYMBOL [targets...]`. Comments start with
 Example of a complete chain:
 
 ```text
-LOU              # header: emitting noble (added by the web UI)
-T01 A T02        # attack T02 from T01
-T02 S T03 - T04  # offensive support
-T05 J T06        # join (must be the last order)
+HUG              # header: emitting noble (added by the web UI)
+ROS A BOI        # attack BOI from ROS
+BOI S BRU - FOU  # offensive support
+BOI J ROS        # join (must be the last order)
 ```
 
 ### Order Liaison

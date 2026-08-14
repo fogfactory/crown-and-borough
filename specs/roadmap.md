@@ -91,7 +91,7 @@ milestones GitHub `Online Foundations`, `Online Friends MVP` et `Online Hosted`.
 | Sujet | Périmètre | État |
 |---|---|---|
 | Contrats et architecture online | Figer les contrats JSON, les routes, la confidentialité, la résolution forcée et les backends `DATA_DIR` ; fixtures dans [`specs/fixtures/`](fixtures/) | Fait : O1 |
-| Identité territoriale | Utiliser le trigramme territorial comme identifiant unique dans le domaine et les contrats | Fait : O2 ; adaptation front/DTO restante dans O3 |
+| Identité territoriale | Utiliser le trigramme territorial comme identifiant unique dans le domaine et les contrats | Fait : O2-O3 |
 | Vue privée par joueur | Filtrer côté serveur les chaînes connues et les détails des combats selon le joueur | Planifié : O4 |
 | API de production | Une partie active, ressources d'une partie, contrats REST stabilisés et gestion des erreurs | Planifié : O5 |
 | Authentification | Identité, sessions, invitation et reprise d'un emplacement de joueur | Planifié : O6 |
