@@ -1,115 +1,142 @@
-# Prompt : déploiement et CI automatique
+# Prompt : deploiement Cloud Run, Firebase et CI
 
 ```
-CHOIX O1 (issue #44, contrats figés) :
-- `territories[].id` est l'unique identité territoriale publique : trigramme,
-  sans `code` territorial dupliqué ni matricule `T<number>`.
-- Le MVP hébergé accepte deux à huit joueurs, une seule partie active, et garde
-  les routes `/api/games/{id}` pour l'évolution multi-parties.
-- `chain: null` signifie absence de chaîne ; `visibility: "hidden"` masque une
-  chaîne existante ; `visibility: "known"` accompagne un détail connu.
-- Les combats utilisent `visibility: "exact"` ou `"general"` ; la vue générale
-  n'expose ni forces ni identifiants d'armées.
-- La résolution forcée est explicite, sans deadline automatique. Les tokens
-  Bearer sont en mémoire, sans mot de passe ni expiration au MVP.
-- `DATA_DIR` est l'interface de stockage ; filesystem/Persistent Disk et
-  snapshot GCS sont deux backends possibles. Le serveur utilise `net/http` et
-  `http.ServeMux`, et les endpoints hotseat sont dev-only.
+CHOIX O1 ET ARCHITECTURE HEBERGEE :
+- Le MVP accepte plusieurs parties de deux a huit joueurs.
+- Firebase Authentication fournit les liens de connexion email et Firestore
+  Native mode fournit la persistence.
+- Le serveur Go valide les ID tokens avec Firebase Admin SDK et utilise les
+  credentials ADC du service account Cloud Run.
+- Le front utilise Firebase Web SDK et des listeners sur des projections
+  securisees ; aucun service account ou secret Admin ne va dans l'image frontend.
+- Cloud Run est la cible unique du MVP, avec `min-instances=0` et une limite
+  initiale d'instances pour controler le cout. La coherence ne depend pas de
+  cette limite.
+- GCS FUSE, Persistent Disk, `DATA_DIR` et le workflow Compute Engine de
+  repli sont hors perimetre.
 
-Tu travailles sur "Crown & Borough", un jeu de stratégie par tours.
-Tout est en place et testé : moteur v1, API REST
-(P3.1), auth + codes d'invitation (P3.2), persistance JSON (P3.3, DATA_DIR),
-front polié (P3.4). Le Dockerfile multi-stage existe depuis P0.1 (étape
-front prévue, commentaire en place), la CI GitHub Actions existe depuis P0.1
-(go vet, test, build, docker build).
-Références : specs/roadmap.md (P3.5) et specs/architecture.md (stack).
+Tu travailles sur "Crown & Borough", un jeu de strategie par tours. Le moteur,
+l'API, les vues privees, Firebase Auth et la persistence Firestore sont les
+couches precedentes. References : `specs/architecture.md`, `specs/online.md`,
+`specs/online-plan.md` et `specs/roadmap.md`.
 
-PÉRIMÈTRE : empaqueter l'application en UN conteneur (front + API), la
-déployer d'abord sur Cloud Run, automatiser build+push+deploy dans la CI,
-persister sur un bucket GCS si le spike de durabilité le valide, et fournir un
-workflow Compute Engine de repli avec Persistent Disk. Le but : un LIEN PUBLIC
-jouable entre amis, avec une seule partie active au MVP.
+PERIMETRE : empaqueter le front et l'API dans une image OCI, deployer sur Cloud
+Run, configurer Firebase Authentication et Firestore, et automatiser les tests,
+le push et le deploiement. Le but est un lien HTTPS public jouable entre amis,
+avec plusieurs parties et restauration apres redemarrage sans volume local.
 
-RÈGLE DE CODE : code EXCLUSIVEMENT en anglais (identifiants, commentaires,
-messages, enums). Seuls les labels UI restent en français.
+REGLE DE CODE : code EXCLUSIVEMENT en anglais (identifiants, commentaires,
+messages techniques, enums). Les labels UI restent en francais.
 
-1. UN SEUL CONTENEUR (front embarqué) :
-   - Le serveur Go sert l'API (/api/*) ET les fichiers statiques du front :
-     ajoute go:embed web/dist sur le serveur (dist absent → le serveur
-     démarre quand même, 404 sur le front — pratique pour le dev)
-   - SPA : toute route non-/api/* non-statique renvoie index.html (fallback
-     pour le routing React)
-   - Dockerfile multi-stage : build front (node → web/dist) PUIS build Go
-     (embed dist) → image finale alpine/scratch ; front et API en same-origin
-     → AUCUN CORS à configurer
-   - Healthcheck : GET /healthz (existant) + GET /healthz/ready (vérifie
-     que DATA_DIR est écrivable — le volume est monté et prêt)
+1. PROJET GCP ET FIREBASE :
+   - Utiliser un projet GCP qui heberge Cloud Run, Artifact Registry,
+     Firestore et le projet Firebase associe.
+   - Activer les APIs necessaires : Cloud Run, Artifact Registry, Firestore,
+     Firebase Authentication/Identity Toolkit, Service Usage et IAM.
+   - Creer la base Firestore Native mode dans une region documentee et ne pas
+     creer une deuxieme base par inadvertance : le free tier est limite a une
+     base par projet selon les conditions du service.
+   - Configurer le fournisseur email-link Firebase Auth, les domaines autorises
+     local et public, et l'URL de continuation Cloud Run.
+   - Versionner `firestore.rules` et `firestore.indexes.json`. Deployer les
+     regles avant de rendre la configuration frontend publique.
+   - Les valeurs Firebase Web (`apiKey`, `authDomain`, `projectId`, `appId`)
+     sont des variables publiques de build. Les credentials Admin restent
+     fournis par ADC et ne sont jamais ecrits dans GitHub ou le repository.
 
-2. PERSISTANCE SUR CLOUD RUN :
-   - Le stockage de P3.3 (DATA_DIR) pointe sur /data
-   - Cloud Run : montage de volume Cloud Storage (gcsfuse) d'un bucket
-     dédié (ex. crown-and-borough-data-<projet>) sur /data, accessible en
-     écriture ; documente le mode (gcsfuse, cache: stat-cache-max-ttl court
-     — les fichiers changent au fil des tours)
-   - DATA_DIR=/data via variable d'environnement du service ; P3.3
-     fonctionne avec `DATA_BACKEND=snapshot` pour GCS FUSE. Le workflow local
-     ou Persistent Disk utilise `DATA_BACKEND=filesystem`.
-   - Le smoke test doit provoquer un redémarrage et vérifier que la dernière
-     génération JSON complète est restaurée. Cloud Run n'est pas certifié si
-     cette vérification échoue.
+2. CONTENEUR UNIQUE :
+   - Le serveur Go sert l'API `/api/*`, les assets statiques et le fallback SPA.
+   - Le Dockerfile multi-stage construit le front avec les variables `VITE_*`
+     publiques, puis compile le binaire Go avec `go:embed web/dist`.
+   - L'image finale ne contient ni `DATA_DIR`, ni bucket, ni credential JSON.
+   - Le serveur ecoute `$PORT` et reste stateless ; toutes les parties et
+     projections durables sont dans Firestore.
+   - `GET /healthz` verifie seulement que le processus repond.
+   - `GET /healthz/ready` verifie que le client Firestore et la configuration
+     Firebase Admin sont initialisables, avec un timeout court. Le endpoint ne
+     divulgue aucun detail de credential.
 
-3. INFRASTRUCTURE (gcloud, projet GCP — nom à mettre en secret/variable) :
-   - Artifact Registry : repository docker nommé crown-and-borough, région
-     (ex. europe-west1)
-   - Cloud Run : service crown-and-borough (region, cpu 1, mem 512 Mi,
-     min-instances 0, max-instances 1, une seule révision active sans split
-     de trafic) ; l'accès public Cloud Run est autorisé car
-     l'authentification et les invitations sont gérées par l'application
-   - Tout se fait via la CLI gcloud (pas de Terraform au MVP — choix
-     documenté), les commandes sont reproductibles (fichier deploy.md ou
-     script deploy.sh versionné)
-   - IDs de projet et région en variables d'environnement GitHub
-     (secrets/vars) — jamais en dur dans le repo
+3. SERVICE CLOUD RUN :
+   - Service public au niveau Cloud Run (`allow-unauthenticated`) : l'acces au
+     jeu est protege par Firebase Auth dans l'application, pas par IAM de
+     Cloud Run.
+   - `min-instances=0`, CPU et memoire minimales mesurees, `max-instances=1`
+     pour le premier deploiement et revision unique sans split de trafic.
+     Les transactions Firestore doivent permettre d'augmenter cette limite
+     plus tard sans changer les invariants.
+   - Affecter un service account dedie avec les roles minimaux Firestore et
+     Firebase Admin necessaires. Ne pas utiliser le compte par defaut si une
+     identite dediee est possible.
+   - Configurer `GOOGLE_CLOUD_PROJECT`, le port et les variables de runtime
+     non secretes dans le service. Les noms de projet et la region viennent de
+     variables GitHub, jamais du code.
+   - Desactiver les endpoints hotseat et les modes de test par defaut en
+     production.
 
-4. CI/CD (GitHub Actions) :
-   - Workflow sur push/PR vers main : make test (avec -race) + make vet →
-     build front → docker build → (push uniquement sur main) push vers
-     Artifact Registry → gcloud run deploy
-   - Authentification GCP sans fichier clé : workload identity federation
-     (OpenID Connect, google-github-actions/auth) — le workflow de la CI
-     existante (P0.1) est étendu, pas remplacé
-   - Déploiement uniquement sur push main (les PR font juste les tests et
-     le build docker)
-   - Tag d'image : sha du commit (immutable, rollback facile)
+4. CI/CD GITHUB ACTIONS :
+   - Conserver les verifications sur pull request : `go test -race ./...`,
+     `go vet ./...`, `npm run test`, `npm run build`, `npm run lint` et
+     `docker build`.
+   - Sur `main`, utiliser Workload Identity Federation/OIDC via
+     `google-github-actions/auth`. Aucun fichier de cle de service ne doit etre
+     genere ou televerse.
+   - Deployer les regles et indexes Firestore depuis une etape controlee avant
+     le service Cloud Run, ou documenter une etape d'administration separee si
+     le workflow n'a pas les permissions.
+   - Construire une image immuable et la pousser dans Artifact Registry avec
+     un tag SHA de commit. Deployer exactement ce digest sur Cloud Run.
+   - Injecter les variables publiques `VITE_*` au build et verifier qu'aucune
+     variable `FIREBASE_ADMIN_*`, cle privee ou token n'apparait dans les logs.
+   - Le workflow doit pouvoir etre relance sans recreer la base ni casser les
+     regles existantes.
 
-5. DOCUMENTATION (README section "Déploiement") :
-   - Commandes de création du projet GCP (une fois) : gcloud projects
-     create, artefact registry repo, bucket, enable services (run,
-     artifactregistry, storage)
-   - Commandes de mise en place de la fédération d'identité (une fois)
-   - Le workflow déploie ensuite automatiquement
+5. LOCAL ET EMULATEURS :
+   - Documenter le lancement de l'emulateur Firestore et de l'emulateur Firebase
+     Auth pour les tests et les parcours locaux.
+   - Le mode local peut garder la session hotseat et les endpoints dev, mais il
+     doit separer explicitement les credentials et URLs de production.
+   - Les tests de regles, d'authentification et de transactions ne doivent pas
+     consommer le quota d'un projet GCP reel.
 
-6. TESTS / VALIDATION (local, sans GCP pour l'essentiel) :
-   - docker build réussit et l'image sert le front + l'API (curl /healthz,
-     /api/games, et la page HTML)
-   - go test ./... + -race passe dans la CI (déjà en place, inchangé)
-   - Si tu as accès à un projet GCP : déploie et vérifie que le lien
-     public répond (healthz + inscription + création de partie). Sinon :
-     documente précisément les étapes pour le faire (le propriétaire du
-     projet le fera)
-   - Si le test GCS échoue, déploie la même image sur une VM Compute Engine
-     e2-micro avec un Persistent Disk monté sur DATA_DIR et rejoue le test.
+6. OBSERVABILITE ET COUT :
+   - Ajouter des alertes de budget, un dashboard ou des logs structures pour
+     les erreurs Firestore, les transactions rejouees, les leases recuperees et
+     les erreurs Auth, sans loguer les tokens, emails complets ou codes
+     d'invitation.
+   - Documenter les quotas a surveiller : lectures des listeners, lectures et
+     ecritures Firestore, stockage, Cloud Run, Artifact Registry et logs.
+   - Le free tier est un objectif, pas une garantie. La region, le stockage
+     d'image, les logs, les lectures temps reel et une erreur de configuration
+     peuvent engendrer des couts.
 
-Critères d'acceptation :
-- make test passe (avec -race) ; make vet passe ; docker build OK
-- Le conteneur sert front + API en same-origin (aucun CORS)
-- Le workflow CI étendu est vert (au moins la partie tests/build) ;
-  le déploiement automatique est prêt (workflow + documentation)
-- La persistance survit aux redémarrages Cloud Run grâce au backend GCS validé,
-  ou au workflow Compute Engine si le smoke test GCS échoue
+7. TESTS ET VALIDATION :
+   - Test d'integration du conteneur : page HTML, `/healthz`, `/healthz/ready`,
+     API REST et fallback SPA.
+   - Verifier que le conteneur demarre sans volume et ne cree aucun fichier de
+     partie local.
+   - Smoke test public : lien HTTPS, lien email, creation de deux parties,
+     join, soumission, resolution, listener temps reel et restauration apres
+     redemarrage d'instance.
+   - Verifier les regles Firestore depuis un compte membre, non-membre et non
+     authentifie.
+   - Verifier dans l'image et les workflows l'absence de service account JSON,
+     de secrets ou d'identifiants GCP en dur.
 
-Note : documente dans la réponse finale les choix tranchés (région,
-allow-unauthenticated, Terraform différé, une partie active, max-instances 1,
-gcsfuse et workflow Compute Engine de repli). Ne commite pas sans instruction
+CRITERES D'ACCEPTATION :
+- `go test -race ./...`, `go vet ./...`, les tests frontend et `docker build`
+  passent.
+- L'image unique sert le front et l'API sans volume persistant.
+- Le workflow s'authentifie par WIF, pousse une image immuable et deploie une
+  revision Cloud Run reproductible.
+- Deux comptes jouent une partie publique avec Firebase Auth et les listeners
+  sans fuite de donnees.
+- Un redemarrage Cloud Run ne perd ni parties, ni soumissions, ni rapports.
+- Les regles, indexes, quotas, budgets et variables publiques sont documentes.
+- Aucun fallback Compute Engine, GCS FUSE, Persistent Disk ou `DATA_DIR` n'est
+  necessaire.
+
+Note : documente dans la reponse finale le projet/region choisis, les roles du
+service account, les variables publiques, les APIs activees, les regles,
+indexes, budgets et resultats du smoke test. Ne commit pas sans instruction
 explicite.
 ```

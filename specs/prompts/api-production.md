@@ -1,166 +1,141 @@
-# Prompt : API REST online, partie active et soumission par joueur
+# Prompt : API REST online, plusieurs parties et resolution
 
 ```
-CHOIX O1 (issue #44, contrats figés) :
-- `territories[].id` est l'unique identité territoriale publique : trigramme,
-  sans `code` territorial dupliqué ni matricule `T<number>`.
-- Le MVP hébergé accepte deux à huit joueurs, une seule partie active, et garde
-  les routes `/api/games/{id}` pour l'évolution multi-parties.
-- `chain: null` signifie absence de chaîne ; `visibility: "hidden"` masque une
-  chaîne existante ; `visibility: "known"` accompagne un détail connu.
-- Les combats utilisent `visibility: "exact"` ou `"general"` ; la vue générale
-  n'expose ni forces ni identifiants d'armées.
-- La résolution forcée est explicite, sans deadline automatique. Les tokens
-  Bearer sont en mémoire, sans mot de passe ni expiration au MVP.
-- `DATA_DIR` est l'interface de stockage ; filesystem/Persistent Disk et
-  snapshot GCS sont deux backends possibles. Le serveur utilise `net/http` et
-  `http.ServeMux`, et les endpoints hotseat sont dev-only.
+CHOIX O1 ET ARCHITECTURE HEBERGEE :
+- `territories[].id` est l'unique identite territoriale publique : trigramme,
+  sans `code` territorial duplique ni matricule `T<number>`.
+- Le MVP accepte plusieurs parties, chacune de deux a huit joueurs online, et
+  conserve les routes `/api/games/{id}`.
+- `chain: null` signifie absence de chaine ; `visibility: "hidden"` masque une
+  chaine existante ; `visibility: "known"` accompagne un detail connu.
+- Les combats utilisent `visibility: "exact"` ou `"general"` ; la vue generale
+  n'expose ni forces ni identifiants d'armees.
+- L'identite de production vient de Firebase Authentication et est placee dans
+  le contexte par le middleware JWT ; aucun champ joueur fourni par le client
+  ne fait autorite.
+- Firestore sera ajoute par O8. O5 doit deja exposer des interfaces de store et
+  des revisions qui permettront les transactions sans modifier le moteur.
 
-Tu travailles sur "Crown & Borough", un jeu de stratégie par tours.
-Tout le moteur v1 existe et est testé : modèles, carte, parser, résolution,
-hiver, cycle des saisons, TurnReport et endpoints hotseat.
-Le serveur Go actuel (cmd/server, P0.1) sert les endpoints dev en stdlib.
-Références : specs/gdd.md (§2), specs/architecture.md (§5 contrats
-map.json/state.json, §6 ordres) et specs/roadmap.md (P3.1).
+Tu travailles sur "Crown & Borough", un jeu de strategie par tours. Le moteur
+v1 existe et est teste : modeles, carte, parser, resolution, hiver, cycle des
+saisons, rapports et endpoints hotseat. References : `specs/gdd.md`,
+`specs/architecture.md`, `specs/online.md` et `specs/online-plan.md`.
 
-PÉRIMÈTRE : API REST réelle avec `net/http` pour une seule partie active —
-création d'une partie, inscription des joueurs par slots (PAS d'auth : P3.2),
-soumission d'ordres PAR JOUEUR et par tour, résolution automatique quand TOUS
-ont soumis, résolution forcée explicite, consultation des rapports et vues par
-joueur selon la politique du GDD v1. L'auth (P3.2), la persistance (P3.3) et
-le déploiement (P3.5) sont HORS périmètre : tout est en mémoire. Les routes
-conservent `/api/games/{id}` afin de permettre une évolution multi-parties
-ultérieure, mais une seconde partie active renvoie `409` au MVP.
+PERIMETRE : construire une API REST `net/http` pour plusieurs parties en
+memoire, avec soumissions d'ordres par joueur, resolution automatique quand
+tous les joueurs vivants ont soumis, resolution forcee, rapports, saisons,
+elimination et projections privees. O5 ne persiste pas encore dans Firestore,
+mais ne doit pas conserver l'ancien singleton `ActiveGame` ni la reponse
+`409` pour une deuxieme partie. O6 remplacera l'acteur de test par Firebase
+Auth ; O8 branchera la persistence transactionnelle.
 
-RÈGLE DE CODE : code EXCLUSIVEMENT en anglais (identifiants, commentaires,
-messages, enums). Seules les chaînes de contenu de jeu (noms, labels UI)
-sont en français.
+REGLE DE CODE : code EXCLUSIVEMENT en anglais (identifiants, commentaires,
+messages, enums). Seules les chaines de contenu de jeu et les labels UI peuvent
+etre en francais.
 
-1. ROUTAGE : utiliser `net/http` et `http.ServeMux`, comme dans le serveur v1.
-   N'ajoute pas de routeur tiers sans décision documentée.
+1. ROUTAGE ET ACTEURS :
+   - Utiliser uniquement `net/http` et `http.ServeMux`.
+   - Le store expose `Games map[GameID]*GameSession` ou une interface
+     equivalente, protegee par un mutex global pour l'index et un mutex par
+     partie pour les mutations.
+   - Les handlers recoivent un `Actor` depuis le contexte. En O5, un adaptateur
+     de test explicite peut fournir cet acteur ; aucun endpoint public ne doit
+     faire confiance a un champ `player` arbitraire.
+   - Les endpoints hotseat qui acceptent `?player=` ou un joueur dans le corps
+     restent derriere un flag de developpement et ne sont jamais montes en
+     production.
 
-2. MODÈLE SERVEUR (internal/server ou équivalent, SÉPARÉ du moteur) :
-   - GameSession { ID, Name, Seed, State *models.GameState, Players
-      []PlayerSlot { ID (P<n>), GlobalPlayerID (renseigné à
-     l'inscription/join — P3.2), Name, Color }, Status (waiting |
-     playing | finished), InviteCode (prévu pour P3.2 : champ présent dès
-     maintenant, généré à la création, non utilisé), TurnSubmissions
-     map[PlayerID]OrdersInput, Reports []TurnReport, Winner *PlayerID,
-     PrivacyMetadata }
-   - ActiveGame *GameSession + mutex ; l'interface du store garde un
-     GameID pour permettre plusieurs parties plus tard
-   - Le moteur est PURE : toute mutation passe par ResolveTurn/CreateGame,
-     jamais d'écriture directe
-   - Les players sont fournis à la création (P3.1 : liste de noms ; P3.2
-     remplacera par inscription/join)
+2. MODELE SERVEUR :
+   - `GameSession` contient `ID`, `Name`, `Seed`, `State`, `Players`, `Status`,
+     `InviteCode` reserve a O6, `TurnSubmissions`, `Reports`, `Winner`,
+     `PrivacyMetadata` et une `Revision` monotone.
+   - `GameStore` indexe plusieurs parties par ID et fournit `Create`, `List`,
+     `Get`, `Join`, `Submit`, `Resolve` et les projections necessaires.
+   - Les IDs de parties sont des UUID v4 ; une collision renvoie une erreur
+     interne et ne remplace jamais une partie existante.
+   - Chaque partie possede son propre mutex et ses propres soumissions ; une
+     mutation d'une partie ne peut pas modifier une autre partie.
+   - Le moteur reste pur : les handlers appellent les fonctions de resolution
+     et copient les rapports et projections sans I/O dans `internal/engine`.
 
-3. ENDPOINTS (tous JSON, erreurs en { "error": "..." }, codes HTTP propres ;
-   préfixe /api) :
-   - POST /api/games — { name, seed, players: ["Nom1", "Nom2"] } → 201 {
-     id, name, seed, players, status } ; 2 à 8 joueurs online requis (400
-     sinon), partie active existante → 409 ;
-     le seed est optionnel (généré côté serveur si absent, renvoyé dans la
-     réponse)
-   - GET /api/games — liste contenant au plus la partie active (id, name,
-     status, players, turn, season)
-   - GET /api/games/{id} — détail : players (id, name, color, submitted ?),
-     turn, season, status, winner, nom de la saison courante
-   - GET /api/games/{id}/map — map.json (inchangé depuis P1.2)
-   - GET /api/games/{id}/supply?territory=XXX — calcul de ravitaillement
-    - GET /api/games/{id}/state?player=P1 — la vue du joueur selon les règles
-      du GDD v1 (chaînes connues et détails de combats impliquant le joueur) ;
-      player requis (400 sinon) ; cette variante est dev-only et sera remplacée
-      par l'identité Bearer en P3.2, sans paramètre `player` dans l'API publique
-   - POST /api/games/{id}/orders — { player, chains: [{noble, text}],
-     winter: [lines] } → enregistre la soumission du joueur pour le tour
-     courant (REMPLACE une soumission précédente tant que le tour n'est
-     pas résolu) :
-       * parsing des chaînes via le parser P1.3 (erreurs → 400 avec
-         numéro de ligne, soumission refusée, aucune modification)
-           * si TOUS les joueurs vivants ont soumis → RÉSOLUTION immédiate
-           (synchrone, dans cette requête) : ResolveTurn (dispatch saison) →
-           le rapport est stocké (Reports) ; chaque joueur en consulte sa vue
-           filtrée selon le GDD v1,
-          l'état avance, les soumissions sont vidées pour le tour suivant ;
-          réponse { submitted: true, resolved: true, report: <TurnReport> }
-        * la capacité d'émission des nobles (1/tour) est décomptée par tour
-          de jeu à la résolution — la resoumission avant résolution est
-          libre (elle remplace la précédente)
-       * sinon → { submitted: true, resolved: false,
-         awaiting: ["P2", ...] } (joueurs restants)
-   - POST /api/games/{id}/resolve — résolution forcée avec les soumissions
-     présentes et des ordres vides pour les joueurs manquants ;
-   - GET /api/games/{id}/reports — liste des rapports (year/season,
-     index)
-   - GET /api/games/{id}/reports/{index} — un rapport complet
-   - GET /api/rules?lang=fr — règles publiques du jeu ;
-    - 404 sur partie inconnue ; 409 si le tour courant est déjà résolu
-     pour ce joueur (il ne peut pas soumettre pour un tour passé)
+3. ENDPOINTS :
+   - `POST /api/games` cree une partie avec une seed et deux a huit slots dans
+     le mode de test O5. La future route authentifiee O6 utilisera le profil et
+     ajoutera le createur comme premier membre.
+   - `GET /api/games` liste les parties visibles par l'acteur courant ; en O5,
+     le filtre peut utiliser le membership de test, mais il ne doit pas
+     retourner des parties d'un autre acteur.
+   - `GET /api/games/{id}` renvoie le statut, les slots, le tour, la saison,
+     `submitted` et la revision ; un ID inconnu renvoie `404`.
+   - `GET /api/games/{id}/map` renvoie la carte immuable.
+   - `GET /api/games/{id}/state` renvoie la projection du joueur courant. Le
+     parametre `?player=` n'existe que dans le mode dev explicite.
+   - `GET /api/games/{id}/supply?territory=XXX` calcule la ligne ou la zone de
+     ravitaillement pour la partie et le joueur autorises.
+   - `POST /api/games/{id}/orders` valide et remplace la soumission du joueur
+     courant pour le tour courant. Le joueur courant vient de l'acteur et non
+     du corps en production.
+   - `POST /api/games/{id}/resolve` utilise les soumissions presentes et des
+     ordres vides pour les joueurs manquants.
+   - `GET /api/games/{id}/reports` et `/reports/{index}` renvoient les rapports
+     filtres pour le joueur courant.
+   - `GET /api/rules?lang=fr` renvoie les regles publiques.
 
-4. MODÈLE ASYNCHRONE (choix documentés) :
-   - Un joueur soumet SES ordres ; le tour se résout quand TOUS les
-     joueurs vivants ont soumis. PAS de deadline au MVP (choix documenté :
-     les parties entre amis avancent au rythme des joueurs)
-- JOUEUR ÉLIMINÉ (règle actée — GDD §2) : un joueur est éliminé quand
-      il ne contrôle AUCUN territoire ET n'a plus AUCUNE troupe (ses nobles,
-      immortels, ne comptent pas) ; il est alors compté comme ayant soumis
-     (soumission vide) et ne peut plus soumettre ; la partie est FINIE
-     quand il ne reste qu'un seul joueur vivant (le gagnant)
-   - La résolution synchrone dans la dernière requête est un choix : le
-     client qui soumet en dernier reçoit le rapport ; les autres le
-     récupèrent via GET /api/games/{id}/reports (ou l'état)
-   - En HIVER : mêmes règles (winter orders par joueur)
+4. SOUMISSION ET RESOLUTION :
+   - Parser les ordres avant de modifier le store. Une erreur de syntaxe
+     renvoie `400` avec la ligne et ne change aucune soumission.
+   - Une resoumission valide remplace uniquement celle du joueur et du tour
+     courant.
+   - Lorsque tous les joueurs vivants ont soumis, appeler la resolution une
+     seule fois sous le mutex de la partie. La reponse du dernier submit peut
+     contenir `status: "resolved"`, le rapport et la projection.
+   - Sinon renvoyer `status: "pending"`, `submitted` et `remaining`.
+   - Une resolution forcee est explicite, idempotente et ne cree pas de
+     deadline automatique.
+   - Un joueur elimine est considere comme ayant soumis et ne peut plus
+     poster. La partie se termine lorsqu'il ne reste qu'un joueur vivant.
+   - Incrementer `Revision` a chaque mutation persistable pour preparer les
+     preconditions Firestore d'O8.
 
-5. ENDPOINTS DEV (P1.7) : conservés derrière un flag explicite de
-   développement uniquement. Ils ne doivent pas être montés dans le serveur
-   public, car ils font confiance au champ `player` fourni par le client.
+5. PLUSIEURS PARTIES :
+   - Creer deux parties avec le meme seed doit produire deux IDs et deux mutex
+     independants ; leurs etats et soumissions ne doivent jamais se melanger.
+   - `GET /api/games` ne renvoie que les parties de l'acteur courant. Une
+     deuxieme creation n'est pas un conflit global et ne renvoie pas `409`.
+   - Les limites de joueurs s'appliquent par partie. Une partie pleine renvoie
+     `409` sans affecter les autres parties.
+   - Les endpoints prennent toujours l'ID de partie dans le chemin ; aucune
+     route singleton ne doit etre necessaire au contrat online.
 
-6. FRONT (web/) — migration vers l'API réelle :
-   - Écran "Nouvelle partie" : nom + liste de joueurs (2+) → POST
-     /api/games ; après création, le joueur local choisi son slot
-   - Sélecteur de partie + liste des parties existantes (GET /api/games)
-   - L'App existante (P1.7) est branchée sur les nouveaux endpoints :
-      GET /api/games/{id}/state?player= (dev-only), POST /api/games/{id}/orders,
-     GET /api/games/{id}/reports
-   - Indicateur d'attente : joueurs qui ont soumis / qui restent
-     (awaiting) ; rafraîchissement (poller simple toutes les 5 s, ou
-     bouton manuel — choisis, documente)
-    - L'affichage de la vue par joueur suit les règles de divulgation du GDD v1
+6. ERREURS :
+   - Utiliser `{ "error": "code", "message": "..." }` et `details` pour les
+     validations structurées.
+   - `400` requete invalide, `401` acteur absent ou invalide, `403` non-membre,
+     `404` ressource inconnue, `409` conflit de slot, de tour ou d'etat.
+   - Ne pas exposer les ordres bruts, les privacy metadata ou la vue d'un autre
+     joueur dans les erreurs.
 
-7. TESTS (internal/server/api_test.go, httptest sur `net/http` et
-   `http.ServeMux`) :
-   - CRUD : création (201, ≥ 2 joueurs, seed renvoyé), liste, détail, 404
-   - SOUMISSION : un seul joueur soumet → resolved: false + awaiting ;
-     resoumission remplace ; parsing invalide → 400 (aucune soumission
-     enregistrée) ; dernier joueur → resolved: true + rapport dans la
-     réponse ; rapports stockés et consultables par index
-   - SAISONS : soumissions de tous sur 4 tours (printemps→hiver) → les
-     rapports reflètent les saisons ; ordres d'hiver hors hiver → 400
-   - ÉLIMINATION (scénario : un joueur perd tout) → compté soumis, ne
-     bloque pas la résolution ; partie finie quand un seul vivant → winner
-    - VUES : GET state?player= (dev-only) rend des vues différentes pour P1 et P2 ; les
-      chaînes et les détails de combat sont filtrés selon l'implication
-   - PARTIE UNIQUE : une seconde création pendant une partie active → 409 ;
-   - RÉSOLUTION FORCÉE : les ordres manquants sont vides et le tour avance ;
-   - CONCURRENCE : deux POST /orders simultanés (goroutines) sur la même
-     partie → état cohérent (pas de double résolution, mutex OK) — test
-     avec -race
-   - DÉTERMINISME : rejouer la même séquence de soumissions sur deux
-     parties avec le même seed → états et rapports identiques
+7. TESTS :
+   - CRUD de deux parties, liste filtre, detail, carte et `404`.
+   - Soumission en attente, remplacement, parsing invalide, dernier joueur,
+     resolution forcee, quatre saisons, elimination, victoire et rapports.
+   - Vues distinctes P1/P2/P3, chaines masquées et combats exacts/generaux.
+   - Deux parties avec meme seed : determinisme par partie et absence de fuite
+     d'etat.
+   - Concurrence : deux soumissions, une resoumission et une resolution sur la
+     meme partie ; aucune double resolution et aucun data race avec `-race`.
+   - Tests de contrat verifies par les fixtures O1-O4.
 
-Critères d'acceptation :
-- make test passe (avec -race) ; make vet passe ; le serveur reste en stdlib
-- L'API permet à deux clients de jouer une partie complète : création →
-  soumissions → résolution automatique → rapports
-- Le moteur (internal/engine) n'est PAS modifié après O2 : l'API ne fait que
-  dispatcher vers CreateGame/ResolveTurn et les projections dédiées
-- L'état d'une partie est en mémoire (aucune persistance)
-- Une seconde partie active n'est pas créée au MVP ; la route conserve toutefois
-  un identifiant de partie stable pour l'évolution future.
+CRITERES D'ACCEPTATION :
+- `go test -race ./...` et `go vet ./...` passent ;
+- deux parties peuvent progresser independamment en memoire ;
+- aucun endpoint de production ne fait confiance a une identite de joueur
+  fournie dans le JSON ou la query string ;
+- le moteur `internal/engine` n'est pas modifie pour la persistence ;
+- la `Revision` et les interfaces du store permettent le branchement Firestore
+  et ses transactions en O8.
 
-Note : documente dans la réponse finale les choix tranchés (résolution
-synchrone à la dernière soumission, résolution forcée, pas de deadline, règle
-d'élimination/victoire, format de réponses, poller et endpoints dev). Mets à
-jour les spécifications correspondantes dans le cadre de O1. Ne commite pas
-sans instruction explicite.
+Note : documente dans la reponse finale les choix sur les acteurs de test, le
+store multi-parties, les revisions, la resolution synchrone et les routes
+dev-only. Ne commit pas sans instruction explicite.
 ```

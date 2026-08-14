@@ -1,6 +1,6 @@
 # Plan d'implémentation online
 
-**Issue parente :** [#2 — Online : finaliser les fonctionnalités P3.x et la vue privée par joueur](https://github.com/fogfactory/crown-and-borough/issues/2)
+**Issue parente :** [#2 — Online : fonctionnalités online, Firebase et Firestore](https://github.com/fogfactory/crown-and-borough/issues/2)
 
 Ce document décrit le découpage de l'issue #2 en sous-issues livrables et
 testables. Il complète [`online.md`](online.md) et les prompts de
@@ -9,27 +9,36 @@ testables. Il complète [`online.md`](online.md) et les prompts de
 ## Objectif MVP
 
 Crown & Borough doit être jouable entre amis depuis un lien public, avec une
-identité serveur fiable, des vues privées filtrées par le serveur et une
-partie restaurable après redémarrage.
+identité Firebase fiable, des vues privées filtrées par le serveur et des
+parties restaurables après redémarrage.
 
 Le MVP online adopte les limites suivantes :
 
-- une seule partie active par déploiement ;
+- plusieurs parties actives par déploiement ;
 - deux à huit joueurs online, tandis que le moteur conserve sa capacité de 2 à
   16 joueurs ;
 - un identifiant de partie et des routes `/api/games/{id}` sont conservés pour
-  permettre une évolution multi-parties ultérieure ;
+  gérer plusieurs parties dès le MVP ;
 - un lien d'invitation porte un code opaque de six caractères ;
-- l'inscription ne demande pas de mot de passe ;
-- les tokens Bearer sont conservés en mémoire et côté front dans `localStorage` ;
-- une session est perdue au redémarrage, mais un joueur peut reprendre son slot
-  avec son nom et le code d'invitation ;
+- l'authentification utilise Firebase Authentication et un lien de connexion
+  par email, sans mot de passe géré par l'application ;
+- le serveur valide les ID tokens Firebase dans le header Bearer ; les tokens
+  ne sont ni générés ni persistés par le backend ;
+- la session Firebase est conservée côté navigateur par le SDK Firebase et le
+  profil et les appartenances sont persistés dans Firestore ; un redémarrage du
+  serveur ne déconnecte donc pas les joueurs ;
+- le choix de session persistante ne signifie pas `sessions/{token}` : les
+  secrets d'authentification restent gérés par Firebase, tandis que Firestore
+  persiste le profil et les memberships ;
 - aucune deadline automatique n'est introduite ;
 - une action explicite de résolution forcée empêche une partie entre amis de
   rester bloquée indéfiniment ;
 - un joueur éliminé est automatiquement considéré comme ayant soumis ;
 - les tailles d'armées, ressources, infrastructures et positions des nobles
   restent publiques ; le brouillard de guerre général reste hors périmètre ;
+- les mises à jour du front utilisent `onSnapshot` sur les projections
+  Firestore publiques et privées autorisées par les règles ; aucun listener ne
+  lit l'état canonique, les ordres bruts ou les rapports non filtrés ;
 - les endpoints hotseat de développement ne sont jamais exposés en production.
 
 ## Décisions techniques
@@ -88,28 +97,46 @@ Les routes de jeu couvrent au minimum :
 - règles du jeu.
 
 Avant authentification, `?player=` est un mécanisme de test local. Après
-authentification, l'identité vient exclusivement du token et ce paramètre est
-supprimé de l'API publique.
+authentification, l'identité vient exclusivement du JWT Firebase et ce
+paramètre est supprimé de l'API publique.
 
 ### Persistance et hébergement
 
-`DATA_DIR` est la seule interface de stockage visible par l'application.
+Firestore Native mode est la seule persistance distante du MVP hébergé. Le
+serveur utilise le SDK Cloud Firestore avec les credentials ADC du service
+account Cloud Run ; le moteur reste pur et ne dépend pas de Firestore.
 
-- Sur filesystem local ou Persistent Disk, le backend utilise un fichier
-  temporaire, `fsync` et `rename` atomique.
-- Sur Cloud Run avec volume GCS FUSE, un spike de durabilité est obligatoire.
-  Le backend peut utiliser des snapshots complets versionnés et sélectionner
-  au redémarrage la dernière génération JSON valide, sans dépendre de
-  l'atomicité POSIX de `rename`.
+Le modèle distingue strictement les données backend et les projections lisibles
+par le front :
 
-Cloud Run + GCS est la première cible pour le HTTPS géré, le scale-to-zero et
-le free-tier potentiel. Compute Engine e2-micro + disque persistant est la
-cible de repli si le smoke test GCS ne permet pas de garantir la restauration.
-Le code applicatif et l'image OCI restent identiques entre les deux cibles ;
-seul le workflow et le montage de `DATA_DIR` changent.
+- `players/{uid}` contient le profil et les métadonnées nécessaires à la liste
+  des parties ;
+- `games/{gameId}` contient les métadonnées publiques d'une partie, sans état
+  canonique ni code d'invitation ;
+- `games/{gameId}/views/{uid}` contient la projection privée de ce joueur ;
+- `games/{gameId}/reports/{uid}/turns/{turn}` contient ses rapports filtrés ;
+- les documents d'état moteur, de soumissions brutes, de rapports complets,
+  d'invitations hachées et de privacy metadata sont réservés au backend.
 
-Le free-tier est un objectif et non une garantie : les opérations GCS, le
-stockage d'images, les logs et la région choisie peuvent générer des coûts.
+Les règles Firestore autorisent à un joueur membre la lecture de la partie
+publique et de ses propres projections uniquement. Aucun client ne peut écrire
+directement une partie, un ordre, une projection ou une invitation.
+
+Chaque mutation vérifie le tour et la révision dans une transaction. Une
+résolution concurrente est d'abord revendiquée atomiquement, puis le moteur
+pur calcule le résultat et un commit conditionnel publie l'état, le rapport et
+les projections. La revendication possède un lease interne récupérable après
+crash ; il ne s'agit pas d'une deadline automatique de jeu.
+
+Cloud Run est la cible unique du MVP : HTTPS géré, scale-to-zero, image OCI
+unique et `max-instances=1` comme choix initial de coût, sans en faire une
+garantie de cohérence. Le volume GCS FUSE, le backend snapshot, Persistent Disk
+et le workflow Compute Engine de repli sont retirés du périmètre.
+
+Le free-tier Firestore, Firebase Authentication et Cloud Run est un objectif et
+non une garantie : les lectures des listeners, les écritures de projections,
+le stockage, les logs, la région et la facturation peuvent générer des coûts.
+Des alertes de budget et des quotas documentés sont requis.
 
 ## Découpage GitHub
 
@@ -122,9 +149,9 @@ stockage d'images, les logs et la région choisie peuvent générer des coûts.
 **Dépendances :** aucune.
 
 **Livrables :** mise à jour des spécifications, exemples JSON dans
-[`fixtures/`](fixtures/) et décisions sur la partie unique active, les routes,
-la résolution forcée, les erreurs, la privacy metadata, le format de
-persistance et les deux cibles de stockage.
+[`fixtures/`](fixtures/) et décisions sur les parties multiples, les routes,
+la résolution forcée, les erreurs, la privacy metadata, le schéma Firestore,
+Firebase Auth et les projections temps réel.
 
 **Tests automatiques :** round-trip des fixtures JSON et tests Go/Vitest de
 contrat sur les champs territoriaux, les chaînes masquées et les combats
@@ -187,87 +214,100 @@ golden files JSON et absence de mutation de l'état source.
 vérifier qu'un spectateur ne peut pas retrouver les forces d'un combat non
 impliqué.
 
-#### O5 — [API d'une partie active en mémoire](https://github.com/fogfactory/crown-and-borough/issues/39)
+#### O5 — [API de plusieurs parties en mémoire](https://github.com/fogfactory/crown-and-borough/issues/39)
 
-**Titre :** `feat(online): ajouter l'API d'une partie et la résolution par joueur`
+**Titre :** `feat(online): ajouter l'API de plusieurs parties et la résolution par joueur`
 
 **Dépendances :** O3, O4.
 
-**Livrables :** store de partie, routes `/api/games/{id}`, soumissions
-individuelles, résolution automatique ou forcée, rapports, saisons,
-élimination, déterminisme et endpoints `supply`/`rules`. Une deuxième partie
-active renvoie `409`.
+**Livrables :** store de plusieurs parties, routes `/api/games/{id}`, liste et
+détail filtrés par membership, soumissions individuelles, résolution
+automatique ou forcée, rapports, saisons, élimination, déterminisme et
+endpoints `supply`/`rules`. La limite d'une seule partie active est supprimée ;
+les identifiants de partie restent stables et uniques.
 
 **Tests automatiques :** CRUD, soumission en attente, remplacement,
 validation atomique, résolution forcée, quatre saisons, élimination, gagnant,
 concurrence `-race`, déterminisme et vues distinctes.
 
-**Validation manuelle :** créer une partie avec `curl`, soumettre P1 puis P2,
-vérifier `pending` puis `resolved`, puis vérifier qu'une seconde création
-renvoie `409`.
+**Validation manuelle :** créer deux parties avec `curl`, vérifier que chaque
+joueur ne voit que ses parties, soumettre P1 puis P2 dans l'une d'elles et
+vérifier `pending` puis `resolved` sans modifier l'autre.
 
 ### [Online Friends MVP](https://github.com/fogfactory/crown-and-borough/milestone/12)
 
-#### O6 — [Authentification et invitations](https://github.com/fogfactory/crown-and-borough/issues/43)
+#### O6 — [Firebase Auth et invitations](https://github.com/fogfactory/crown-and-borough/issues/43)
 
-**Titre :** `feat(online): ajouter les tokens, invitations et reprises de slot`
+**Titre :** `feat(online): intégrer Firebase Auth et les invitations`
 
 **Dépendances :** O5.
 
-**Livrables :** register, `/me`, tokens Bearer, codes d'invitation, `inviteUrl`,
-slots, membership, reprise par nom et code, maximum de cinq joueurs et
-suppression de l'identité `player` fournie par le client.
+**Livrables :** connexion Firebase par lien email, validation des ID tokens par
+le backend avec Firebase Admin SDK, `/me`, profil persistant `players/{uid}`,
+codes d'invitation hachés, `inviteUrl`, slots et membership par `uid`. Le nom
+de joueur est un profil validé séparément ; l'identité `player` fournie par le
+client, la reprise par nom et les tokens maison sont supprimés.
 
-**Tests automatiques :** validation des noms, tokens invalides, création,
-join, partie pleine, reprise, `401`/`403`, usurpation, courses sur register et
-join.
+**Tests automatiques :** vérification de JWT valide, expiré, mal signé ou d'un
+autre projet, validation du profil, création, join, partie pleine,
+`401`/`403`, usurpation, contrôle d'appartenance et courses sur join.
 
-**Validation manuelle :** inscrire Alice et Bob dans deux navigateurs, créer
-une partie, rejoindre avec le lien, vérifier les accès interdits et reprendre
-un slot après redémarrage du serveur.
+**Validation manuelle :** connecter Alice et Bob par lien email dans deux
+navigateurs, créer une partie, rejoindre avec le lien, vérifier les accès
+interdits, fermer et rouvrir le serveur puis vérifier que les identités et
+memberships sont toujours disponibles.
 
 #### O7 — [Parcours front entre amis](https://github.com/fogfactory/crown-and-borough/issues/47)
 
-**Titre :** `feat(online): ajouter le parcours front inscription-invitation-partie`
+**Titre :** `feat(online): ajouter le parcours front Firebase et temps réel`
 
 **Dépendances :** O6.
 
-**Livrables :** écrans inscription/création/join, token localStorage, lien
-copiable, slots, vue privée, polling suspendu dans un onglet caché, ordres,
-rapports, hiver, victoire, erreurs et accessibilité. Le parcours est documenté
-dans `TESTING.md`.
+**Livrables :** configuration Firebase Web, connexion par lien email, profil,
+liste multi-parties, création/join, lien copiable, slots, abonnements
+`onSnapshot` aux projections publiques et privées, vue privée, ordres,
+rapports, hiver, victoire, erreurs et accessibilité. Les commandes restent
+des appels REST avec un ID token rafraîchi par le SDK. Le parcours est
+documenté dans `TESTING.md`.
 
-**Tests automatiques :** tests des écrans, du token, du lien, du polling, des
-vues masquées et des erreurs HTTP, plus `npm run test`, `npm run build` et
-`npm run lint`.
+**Tests automatiques :** tests des écrans, de la connexion email simulée, du
+lien, des listeners et de leur désabonnement, des vues masquées et des erreurs
+HTTP, plus `npm run test`, `npm run build` et `npm run lint`.
 
-**Validation manuelle :** jouer une partie complète depuis deux navigateurs,
-tester `F5`, un `401`, le rapport de combat, l'hiver et une largeur mobile.
+**Validation manuelle :** jouer deux parties depuis plusieurs navigateurs,
+tester `F5`, une reconnexion Firebase, un `401`, la mise à jour instantanée
+d'une projection, le rapport de combat, l'hiver et une largeur mobile.
 
 ### [Online Hosted](https://github.com/fogfactory/crown-and-borough/milestone/10)
 
-#### O8 — [Persistance et spike GCS FUSE](https://github.com/fogfactory/crown-and-borough/issues/40)
+#### O8 — [Persistance Firestore](https://github.com/fogfactory/crown-and-borough/issues/40)
 
-**Titre :** `feat(online): sauvegarder et restaurer les parties`
+**Titre :** `feat(online): persister les parties dans Firestore`
 
 **Dépendances :** O5, O6.
 
-**Livrables :** `DATA_DIR`, format JSON versionné, soumissions en attente,
-historique borné, rapports et privacy metadata, restauration, quarantine,
-nettoyage des temporaires et deux stratégies filesystem/snapshot. Le spike
-GCS FUSE doit être réalisé avant de certifier Cloud Run.
+**Livrables :** client Firestore, schéma des collections, documents canoniques
+réservés au backend, projections publiques et privées, soumissions en attente,
+historique borné, rapports et privacy metadata, transactions de mutation,
+revendication de résolution, commit conditionnel, reprise d'une revendication
+abandonnée et validation des règles de sécurité. La restauration est vérifiée
+par relecture Firestore après redémarrage ; aucun fichier `DATA_DIR` ou volume
+GCS FUSE n'est utilisé.
 
 **Tests automatiques :** sauvegarde, restauration, rapport historique,
-snapshot incomplet, fichier corrompu, version inconnue, concurrence et
-validation des invariants.
+transactions concurrentes, double résolution, remplacement d'une soumission,
+révision obsolète, lease de résolution expiré et validation des invariants.
+Les tests utilisent l'émulateur Firestore ; les règles sont testées avec des
+identités Firebase simulées.
 
 **Validation manuelle :** arrêter le serveur après une soumission partielle,
-redémarrer, poursuivre le tour, vérifier les rapports, puis tester un fichier
-corrompu et un snapshot incomplet.
+redémarrer, poursuivre le tour, vérifier les rapports et les projections dans
+deux navigateurs, puis provoquer deux soumissions et deux résolutions
+concurrentes.
 
 #### O9 — [Conteneur et CI](https://github.com/fogfactory/crown-and-borough/issues/41)
 
-**Titre :** `build(online): servir le front embarqué et automatiser les vérifications`
+**Titre :** `build(online): servir le front embarqué et vérifier Firebase`
 
 **Dépendances :** O7, O8.
 
@@ -277,27 +317,29 @@ fallback SPA, `/healthz/ready`, cibles Makefile et CI Go/frontend/Docker.
 **Tests automatiques :** test d'intégration du conteneur, santé, page HTML,
 API, fallback SPA et vérification du workflow.
 
-**Validation manuelle :** construire et lancer l'image avec un volume
-`DATA_DIR`, ouvrir le front sans Vite, créer une partie, redémarrer et vérifier
-la restauration.
+**Validation manuelle :** construire et lancer l'image sans volume persistant,
+ouvrir le front sans Vite, créer une partie, arrêter le conteneur, le relancer
+et vérifier la restauration depuis Firestore.
 
 #### O10 — [Déploiement GCP et migration](https://github.com/fogfactory/crown-and-borough/issues/48)
 
-**Titre :** `ops(online): déployer le jeu sur GCP avec un workflow portable`
+**Titre :** `ops(online): déployer le jeu sur Cloud Run avec Firebase`
 
 **Dépendances :** O8, O9.
 
-**Livrables :** Workload Identity Federation, Artifact Registry, déploiement
-Cloud Run avec une instance maximum et `min-instances=0`, volume GCS et
-workflow Compute Engine de repli avec Persistent Disk. Les paramètres GCP
-restent dans les variables du workflow.
+**Livrables :** Workload Identity Federation, Artifact Registry, activation et
+configuration de Firebase Authentication et Firestore, règles et indexes
+Firestore versionnés, déploiement Cloud Run avec `min-instances=0` et une
+limite d'instances initiale, sans volume persistant. Les paramètres GCP et la
+configuration publique Firebase restent dans les variables du workflow ou les
+variables frontend ; aucun secret de service account n'est commité.
 
 **Tests automatiques :** build/push immuable, smoke HTTP, absence de secrets
 ou d'identifiants GCP codés en dur.
 
-**Validation manuelle :** ouvrir le lien HTTPS public, jouer un tour à deux,
-redémarrer l'instance et vérifier la restauration. Si le test GCS échoue,
-déployer la même image avec le workflow Compute Engine.
+**Validation manuelle :** ouvrir le lien HTTPS public, connecter deux comptes,
+créer deux parties, jouer un tour à deux, redémarrer l'instance et vérifier la
+restauration Firestore ainsi que les mises à jour temps réel.
 
 ## Dépendances
 
@@ -307,6 +349,9 @@ O1 -> O2 -> O3 -> O4 -> O5 -> O6 -> O7 -> O9 -> O10
 ```
 
 O8 peut avancer en parallèle d'O7 après O5 et O6, mais O9 attend les deux.
+O5 ne bloque plus la création d'une deuxième partie ; O8 fournit ensuite la
+persistance Firestore du store multi-parties. O10 dépend aussi des règles,
+indexes et variables Firebase définis par O8/O9.
 
 Les issues #26, #27 et #28 restent hors périmètre. L'issue #29 est liée à O4
 pour garantir la sémantique des nobles prisonniers sans absorber tout son
@@ -322,7 +367,9 @@ périmètre.
 - les vues serveur diffèrent selon le joueur ;
 - aucun joueur ne peut lire ou soumettre pour un autre ;
 - un redémarrage ne perd ni l'état, ni les soumissions, ni les rapports ;
-- un lien public fonctionne sur Cloud Run ou sur le workflow Compute Engine de
-  repli ;
+- un lien public fonctionne sur Cloud Run avec Firestore et Firebase Auth ;
+- deux parties peuvent être jouées simultanément sans fuite de projection ;
+- les listeners temps réel se désabonnent correctement et ne lisent jamais les
+  documents canoniques ;
 - le free-tier est documenté comme objectif avec ses limites et non comme une
   garantie contractuelle.

@@ -4,21 +4,22 @@
 CHOIX O1 (issue #44, contrats figés) :
 - `territories[].id` est l'unique identité territoriale publique : trigramme,
   sans `code` territorial dupliqué ni matricule `T<number>`.
-- Le MVP hébergé accepte deux à huit joueurs, une seule partie active, et garde
-  les routes `/api/games/{id}` pour l'évolution multi-parties.
+- Le MVP hébergé accepte plusieurs parties de deux à huit joueurs et conserve
+  les routes `/api/games/{id}`.
 - `chain: null` signifie absence de chaîne ; `visibility: "hidden"` masque une
   chaîne existante ; `visibility: "known"` accompagne un détail connu.
 - Les combats utilisent `visibility: "exact"` ou `"general"` ; la vue générale
   n'expose ni forces ni identifiants d'armées.
-- La résolution forcée est explicite, sans deadline automatique. Les tokens
-  Bearer sont en mémoire, sans mot de passe ni expiration au MVP.
-- `DATA_DIR` est l'interface de stockage ; filesystem/Persistent Disk et
-  snapshot GCS sont deux backends possibles. Le serveur utilise `net/http` et
-  `http.ServeMux`, et les endpoints hotseat sont dev-only.
+- La résolution forcée est explicite, sans deadline automatique. Firebase Auth
+  fournit l'identité par lien email et le backend valide les ID tokens Bearer.
+- Firestore Native mode persiste les parties et profils ; le front écoute des
+  projections autorisées avec le SDK Firebase Web. Le serveur utilise
+  `net/http` et `http.ServeMux`, et les endpoints hotseat sont dev-only.
 
 Tu travailles sur "Crown & Borough", un jeu de stratégie par tours.
 Le moteur v1 et le mode online en mémoire sont livrés ; l'API de production et
-la persistance JSON sont les prochaines couches du produit. Les territoires possèdent actuellement un matricule interne de
+la persistance Firestore sont les prochaines couches du produit. Les territoires
+possèdent actuellement un matricule interne de
 type TerritoryID (`T24`) et un code de commune/trigramme (`ROS`). Le retour de
 test confirme que seul le trigramme a un sens pour une case de jeu.
 Références : specs/gdd.md, specs/architecture.md, specs/roadmap.md et les
