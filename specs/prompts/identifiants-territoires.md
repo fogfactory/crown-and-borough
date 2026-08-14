@@ -1,6 +1,21 @@
 # Prompt : contrat territorial fondé sur les trigrammes
 
 ```
+CHOIX O1 (issue #44, contrats figés) :
+- `territories[].id` est l'unique identité territoriale publique : trigramme,
+  sans `code` territorial dupliqué ni matricule `T<number>`.
+- Le MVP hébergé accepte deux à huit joueurs, une seule partie active, et garde
+  les routes `/api/games/{id}` pour l'évolution multi-parties.
+- `chain: null` signifie absence de chaîne ; `visibility: "hidden"` masque une
+  chaîne existante ; `visibility: "known"` accompagne un détail connu.
+- Les combats utilisent `visibility: "exact"` ou `"general"` ; la vue générale
+  n'expose ni forces ni identifiants d'armées.
+- La résolution forcée est explicite, sans deadline automatique. Les tokens
+  Bearer sont en mémoire, sans mot de passe ni expiration au MVP.
+- `DATA_DIR` est l'interface de stockage ; filesystem/Persistent Disk et
+  snapshot GCS sont deux backends possibles. Le serveur utilise `net/http` et
+  `http.ServeMux`, et les endpoints hotseat sont dev-only.
+
 Tu travailles sur "Crown & Borough", un jeu de stratégie par tours.
 Le moteur v1 et le mode online en mémoire sont livrés ; l'API de production et
 la persistance JSON sont les prochaines couches du produit. Les territoires possèdent actuellement un matricule interne de

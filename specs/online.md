@@ -7,6 +7,11 @@ privée](https://github.com/fogfactory/crown-and-borough/issues/2)
 
 **Plan d'implémentation :** [`online-plan.md`](online-plan.md)
 
+**Contrats O1 :** [`fixtures/`](fixtures/) contient les documents JSON complets
+utilisés pour figer les contrats de carte, d'état et de rapport. Le trigramme
+est l'unique identité territoriale publique (`territories[].id`) ; `code` n'est
+pas un champ territorial requis.
+
 Le mode online actuel fournit une session en mémoire, la soumission par joueur
 et une résolution synchrone. Le plan cible un MVP jouable entre amis avec une
 seule partie active par déploiement, des invitations privées, une projection
@@ -30,6 +35,27 @@ sont regroupés dans
 - vues privées côté serveur ;
 - parcours front multi-joueur ;
 - déploiement et stockage durable.
+
+## Contrats figés du MVP
+
+Les décisions structurantes sont communes à toutes les sous-issues online :
+
+- une seule partie active par déploiement, pour deux à huit joueurs online ;
+- les routes conservent `/api/games/{id}` pour l'évolution multi-parties ;
+- `chain: null` signifie qu'aucune chaîne n'est active et
+  `chain.visibility: "hidden"` qu'une chaîne existe sans détail révélé ;
+- les combats portent `visibility: "exact"` ou `"general"`, avec suppression
+  des forces et identifiants dans la vue générale ;
+- la résolution forcée est explicite et aucune deadline automatique n'est
+  ajoutée ;
+- les tokens sont Bearer, en mémoire, sans mot de passe ni expiration au MVP ;
+- `DATA_DIR` est l'interface unique de stockage, avec un backend filesystem ou
+  un backend snapshot pour GCS FUSE ;
+- `net/http` et `http.ServeMux` sont utilisés, tandis que les endpoints hotseat
+  restent dev-only.
+
+Les fixtures distinguent volontairement les variantes de confidentialité afin
+que les sous-issues O2 à O8 puissent les réutiliser sans redéfinir le contrat.
 
 Le découpage en sous-issues, les critères de validation manuelle et les
 garanties de stockage sont décrits dans [`online-plan.md`](online-plan.md).

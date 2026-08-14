@@ -1,0 +1,67 @@
+{
+  "header": {
+    "year": 1,
+    "season": "spring",
+    "turn": 1
+  },
+  "players": [
+    {
+      "id": "P1",
+      "name": "Hugues",
+      "resourcesBefore": 3,
+      "resourcesAfter": 2,
+      "controlledBefore": 2,
+      "controlledAfter": 2,
+      "armies": [],
+      "nobles": [],
+      "infrastructures": []
+    },
+    {
+      "id": "P2",
+      "name": "Alienor",
+      "resourcesBefore": 2,
+      "resourcesAfter": 2,
+      "controlledBefore": 2,
+      "controlledAfter": 2,
+      "armies": [],
+      "nobles": [],
+      "infrastructures": []
+    }
+  ],
+  "receptions": [],
+  "supply": [],
+  "famines": [],
+  "combats": [
+    {
+      "visibility": "exact",
+      "territory": "BOI",
+      "baseDefense": 1,
+      "defense": 2,
+      "castleBonus": 0,
+      "contenders": [
+        {
+          "army": "A1",
+          "owner": "P1",
+          "force": 3,
+          "nobleBonus": 1,
+          "defender": false
+        },
+        {
+          "army": "A2",
+          "owner": "P2",
+          "force": 2,
+          "nobleBonus": 0,
+          "defender": true
+        }
+      ],
+      "winner": "A1",
+      "dislodged": "A2",
+      "cutSupporters": [],
+      "reason": "attacker_wins",
+      "standoff": false
+    }
+  ],
+  "orders": [],
+  "moves": [],
+  "nobles": []
+}

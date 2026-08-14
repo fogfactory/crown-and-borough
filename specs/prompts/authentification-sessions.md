@@ -1,6 +1,21 @@
 # Prompt : authentification et sessions entre amis
 
 ```
+CHOIX O1 (issue #44, contrats figés) :
+- `territories[].id` est l'unique identité territoriale publique : trigramme,
+  sans `code` territorial dupliqué ni matricule `T<number>`.
+- Le MVP hébergé accepte deux à huit joueurs, une seule partie active, et garde
+  les routes `/api/games/{id}` pour l'évolution multi-parties.
+- `chain: null` signifie absence de chaîne ; `visibility: "hidden"` masque une
+  chaîne existante ; `visibility: "known"` accompagne un détail connu.
+- Les combats utilisent `visibility: "exact"` ou `"general"` ; la vue générale
+  n'expose ni forces ni identifiants d'armées.
+- La résolution forcée est explicite, sans deadline automatique. Les tokens
+  Bearer sont en mémoire, sans mot de passe ni expiration au MVP.
+- `DATA_DIR` est l'interface de stockage ; filesystem/Persistent Disk et
+  snapshot GCS sont deux backends possibles. Le serveur utilise `net/http` et
+  `http.ServeMux`, et les endpoints hotseat sont dev-only.
+
 Tu travailles sur "Crown & Borough", un jeu de stratégie par tours.
 L'API REST existe (P3.1 : une partie active, soumission par joueur, résolution au
 dernier submit, endpoints /api/games/*), le moteur v1 est complet et testé, le
@@ -45,7 +60,7 @@ sont en français.
      Bearer issu de register ; le code doit correspondre à la partie (403
      sinon) ; partie EN ATTENTE : le joueur rejoint la partie dans le
      premier slot libre (P2, P3...) avec son nom inscrit ; partie déjà
-     pleine (5 joueurs max au MVP — constante) → 409 ; partie COMMENCÉE :
+     pleine (8 joueurs max au MVP — constante) → 409 ; partie COMMENCÉE :
      pas de nouveau slot, MAIS reprise possible — si playerName correspond
      à un slot existant, le joueur REPREND ce slot (reconnexion après
      perte de session : les sessions sont en mémoire, un restart
@@ -70,8 +85,8 @@ sont en français.
 
 4. SESSIONS EN MÉMOIRE (internal/server) :
    - Sessions map[token]playerID + mutex ; token renvoyé UNE fois à
-     l'inscription ; PAS de cookie (choix documenté : le token en
-     localStorage est plus simple pour le front SPA et le test API)
+     l'inscription ; token Bearer conservé en mémoire côté serveur ; PAS de
+     cookie (le front conserve le token dans localStorage)
    - Pas de déconnexion au MVP (choix documenté) ; pas d'expiration
      (les tokens meurent avec le serveur)
    - Le lien d'invitation est un bearer capability ; il ne remplace pas le

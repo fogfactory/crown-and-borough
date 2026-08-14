@@ -15,7 +15,7 @@ partie restaurable après redémarrage.
 Le MVP online adopte les limites suivantes :
 
 - une seule partie active par déploiement ;
-- deux à cinq joueurs online, tandis que le moteur conserve sa capacité de 2 à
+- deux à huit joueurs online, tandis que le moteur conserve sa capacité de 2 à
   16 joueurs ;
 - un identifiant de partie et des routes `/api/games/{id}` sont conservés pour
   permettre une évolution multi-parties ultérieure ;
@@ -120,12 +120,14 @@ stockage d'images, les logs et la région choisie peuvent générer des coûts.
 
 **Dépendances :** aucune.
 
-**Livrables :** mise à jour des spécifications, exemples JSON et décisions sur
-la partie unique active, les routes, la résolution forcée, les erreurs, la
-privacy metadata, le format de persistance et les deux cibles de stockage.
+**Livrables :** mise à jour des spécifications, exemples JSON dans
+[`fixtures/`](fixtures/) et décisions sur la partie unique active, les routes,
+la résolution forcée, les erreurs, la privacy metadata, le format de
+persistance et les deux cibles de stockage.
 
-**Tests automatiques :** round-trip des fixtures JSON et tests de contrat sur
-les champs territoriaux, les chaînes masquées et les combats généraux.
+**Tests automatiques :** round-trip des fixtures JSON et tests Go/Vitest de
+contrat sur les champs territoriaux, les chaînes masquées et les combats
+généraux.
 
 **Validation manuelle :** relire les exemples JSON et vérifier qu'ils
 permettent de distinguer une armée sans chaîne d'une chaîne masquée et un

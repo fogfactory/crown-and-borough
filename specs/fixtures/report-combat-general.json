@@ -1,0 +1,45 @@
+{
+  "header": {
+    "year": 1,
+    "season": "spring",
+    "turn": 1
+  },
+  "players": [
+    {
+      "id": "P1",
+      "name": "Hugues",
+      "resourcesBefore": 3,
+      "resourcesAfter": 3,
+      "controlledBefore": 2,
+      "controlledAfter": 2,
+      "armies": [],
+      "nobles": [],
+      "infrastructures": []
+    },
+    {
+      "id": "P2",
+      "name": "Alienor",
+      "resourcesBefore": 2,
+      "resourcesAfter": 2,
+      "controlledBefore": 2,
+      "controlledAfter": 2,
+      "armies": [],
+      "nobles": [],
+      "infrastructures": []
+    }
+  ],
+  "receptions": [],
+  "supply": [],
+  "famines": [],
+  "combats": [
+    {
+      "visibility": "general",
+      "territory": "BOI",
+      "outcome": "standoff",
+      "summary": "The combat ended without a winner."
+    }
+  ],
+  "orders": [],
+  "moves": [],
+  "nobles": []
+}
