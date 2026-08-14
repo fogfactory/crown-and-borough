@@ -653,6 +653,9 @@ func buildCombatResults(ctx *resolutionContext, table combatTable, peacefulVacat
 		}
 		for _, supportID := range sortedArmyMap(ctx.supports) {
 			support := ctx.supports[supportID]
+			if support.applies && supportRelevantToTerritory(ctx, support, territoryID) {
+				result.supporterIDs = append(result.supporterIDs, supportID)
+			}
 			if cuts[supportID] && supportRelevantToTerritory(ctx, support, territoryID) {
 				result.cutSupporterIDs = append(result.cutSupporterIDs, supportID)
 			}

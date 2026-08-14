@@ -12,8 +12,9 @@ utilisés pour figer les contrats de carte, d'état et de rapport. Le trigramme
 est l'unique identité territoriale publique (`territories[].id`) ; `code` n'est
 pas un champ territorial requis.
 
-Le mode online actuel fournit une session en mémoire, la soumission par joueur
-et une résolution synchrone. Le plan cible un MVP jouable entre amis avec une
+Le mode online actuel fournit une session en mémoire, la soumission par joueur,
+une résolution synchrone et la projection privée hotseat via
+`GET /api/state?player=P1`. Le plan cible un MVP jouable entre amis avec une
 seule partie active par déploiement, des invitations privées, une projection
 serveur filtrée et une restauration après redémarrage. Les documents de travail
 sont regroupés dans

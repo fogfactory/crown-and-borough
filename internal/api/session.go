@@ -95,10 +95,24 @@ func (s *Session) MapHTTP(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, mapData)
 }
 
-// StateHTTP serves the current global state projection.
-func (s *Session) StateHTTP(w http.ResponseWriter, _ *http.Request) {
+// StateHTTP serves the current state projection. The optional player query is
+// a development-only identity selector for hotseat private-view checks.
+func (s *Session) StateHTTP(w http.ResponseWriter, r *http.Request) {
+	viewer, filtered, err := requestedViewer(r)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, "invalid_player", err.Error())
+		return
+	}
 	s.mu.RLock()
+	if filtered && !s.hasPlayerLocked(viewer) {
+		s.mu.RUnlock()
+		writeAPIError(w, http.StatusBadRequest, "unknown_player", fmt.Sprintf("unknown player %q", viewer))
+		return
+	}
 	state := projectState(s.game)
+	if filtered {
+		state = projectStateForPlayer(s.game, viewer)
+	}
 	s.mu.RUnlock()
 	writeJSON(w, http.StatusOK, state)
 }
@@ -166,6 +180,11 @@ func (s *Session) ResetHTTP(w http.ResponseWriter, _ *http.Request) {
 // Submitting again replaces that player's pending orders.
 func (s *Session) OrdersHTTP(w http.ResponseWriter, r *http.Request) {
 	language := i18n.FromRequest(r)
+	viewer, filtered, viewerErr := requestedViewer(r)
+	if viewerErr != nil {
+		writeAPIError(w, http.StatusBadRequest, "invalid_player", viewerErr.Error())
+		return
+	}
 	var request ordersRequest
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
@@ -191,6 +210,16 @@ func (s *Session) OrdersHTTP(w http.ResponseWriter, r *http.Request) {
 		}}}, language)
 		return
 	}
+	if filtered && !s.hasPlayerLocked(viewer) {
+		s.mu.Unlock()
+		writeAPIError(w, http.StatusBadRequest, "unknown_player", fmt.Sprintf("unknown player %q", viewer))
+		return
+	}
+	if filtered && viewer != request.Player {
+		s.mu.Unlock()
+		writeAPIError(w, http.StatusBadRequest, "player_mismatch", "query player must match the submitted player")
+		return
+	}
 
 	input, inputErr := normalizePlayerOrders(request.Player, request.Chains, request.Winter)
 	if inputErr != nil {
@@ -210,6 +239,9 @@ func (s *Session) OrdersHTTP(w http.ResponseWriter, r *http.Request) {
 	submitted, remaining := s.pendingPlayersLocked()
 	if len(remaining) != 0 && !request.Force {
 		state := projectState(s.game)
+		if filtered {
+			state = projectStateForPlayer(s.game, viewer)
+		}
 		s.mu.Unlock()
 		writeJSON(w, http.StatusOK, ordersResponse{
 			Status: "pending", Player: request.Player, Submitted: submitted, Remaining: remaining, State: state,
@@ -223,18 +255,27 @@ func (s *Session) OrdersHTTP(w http.ResponseWriter, r *http.Request) {
 		combined.Chains = append(combined.Chains, playerOrders.Chains...)
 		combined.Winter = append(combined.Winter, playerOrders.Winter...)
 	}
-	report, err := engine.ResolveTurn(s.game, s.balance, combined)
+	before := s.game
+	report, err := engine.ResolveTurn(before, s.balance, combined)
 	if err != nil {
 		s.mu.Unlock()
 		writeResolutionError(w, err, language)
 		return
 	}
+	trackTurnPrivacy(before, report.State, combined, report)
 	s.game = report.State
 	s.pending = make(map[models.PlayerID]engine.OrdersInput)
 	state := projectState(s.game)
+	if filtered {
+		state = projectStateForPlayer(s.game, viewer)
+	}
+	var reportView any = report
+	if filtered {
+		reportView = projectReport(report, viewer, s.game.Privacy)
+	}
 	s.mu.Unlock()
 	writeJSON(w, http.StatusOK, ordersResponse{
-		Status: "resolved", Player: request.Player, Submitted: submitted, State: state, Report: &report,
+		Status: "resolved", Player: request.Player, Submitted: submitted, State: state, Report: reportView,
 	})
 }
 
@@ -246,12 +287,12 @@ type ordersRequest struct {
 }
 
 type ordersResponse struct {
-	Status    string             `json:"status"`
-	Player    models.PlayerID    `json:"player,omitempty"`
-	Submitted []models.PlayerID  `json:"submitted"`
-	Remaining []models.PlayerID  `json:"remaining"`
-	Report    *engine.TurnReport `json:"report,omitempty"`
-	State     StateView          `json:"state"`
+	Status    string            `json:"status"`
+	Player    models.PlayerID   `json:"player,omitempty"`
+	Submitted []models.PlayerID `json:"submitted"`
+	Remaining []models.PlayerID `json:"remaining"`
+	Report    any               `json:"report,omitempty"`
+	State     StateView         `json:"state"`
 }
 
 func (s *Session) hasPlayerLocked(playerID models.PlayerID) bool {

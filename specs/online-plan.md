@@ -64,7 +64,8 @@ chaîne, avec les règles d'invalidation suivantes :
 - une chaîne émise par un noble otage détenu par le joueur reste connue selon le
   GDD ;
 - la progression compatible conserve la connaissance ;
-- le remplacement par une chaîne adverse invalide la connaissance précédente ;
+- le joueur propriétaire de l'armée connaît le remplacement ; un tiers conserve
+  sa connaissance précédente jusqu'à une contradiction observable ;
 - les métadonnées nécessaires à la projection des rapports historiques sont
   persistées avec la partie.
 

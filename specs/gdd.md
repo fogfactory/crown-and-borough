@@ -164,9 +164,12 @@ Elle limite les chiffres qui décrivent les intentions et les affrontements :
   détenteur d'un noble otage connaît également les chaînes émises par ce noble,
   même lorsqu'elles sont lancées par son propriétaire. Cette connaissance reste
   valable tant que la chaîne reste compatible avec la progression de l'armée.
-  Si une chaîne différente, lancée par un noble adverse, remplace celle-ci,
-  l'ancienne connaissance ne décrit plus la chaîne courante et la nouvelle
-  chaîne n'est pas révélée par ce simple remplacement.
+  Si une chaîne différente, lancée par un noble adverse, remplace celle-ci, le
+  propriétaire de l'armée connaît le remplacement et la nouvelle chaîne n'est
+  pas révélée aux tiers par cette seule réception. Un tiers qui connaissait la
+  chaîne précédente conserve cette information tant que les actions publiques
+  de l'armée restent compatibles avec sa trajectoire connue ; une action
+  contradictoire invalide alors cette connaissance.
 - **Combats impliqués :** un joueur reçoit le résultat exact d'une attaque dans
   laquelle il intervient comme attaquant, défenseur ou soutien. Cela comprend
   les forces pertinentes et le résultat du combat.

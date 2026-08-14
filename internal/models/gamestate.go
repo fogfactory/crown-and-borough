@@ -6,6 +6,27 @@ import (
 	"strconv"
 )
 
+// ChainSnapshot is the copy of a chain retained in a player's private
+// knowledge. It deliberately survives replacement of the active chain so a
+// third party can keep its last consistent information until an observable
+// contradiction occurs.
+type ChainSnapshot struct {
+	ID           ChainID `json:"id"`
+	NobleID      NobleID `json:"noble"`
+	ArmyID       ArmyID  `json:"army"`
+	Orders       []Order `json:"orders"`
+	CurrentIndex int     `json:"currentIndex"`
+	CapturedTurn int     `json:"capturedTurn"`
+}
+
+// PrivacyMeta contains server-side knowledge used to produce private views.
+// It is part of the game state so a future persistence layer can restore the
+// same projections without relying on frontend state.
+type PrivacyMeta struct {
+	ChainKnowledge      map[PlayerID]map[ChainID]ChainSnapshot `json:"chainKnowledge"`
+	CombatParticipation map[PlayerID]map[string]bool           `json:"combatParticipation"`
+}
+
 // GameState is the whole game: the immutable world layout plus the evolving
 // dynamic state. ID identifies the game, Seed drives map generation (P1.2).
 // Turn is the absolute tick (+1 every season, winter included) and Year is
@@ -22,6 +43,7 @@ type GameState struct {
 	Nobles          []Noble                        `json:"nobles"`
 	Armies          []Army                         `json:"armies"`
 	Chains          []Chain                        `json:"chains"`
+	Privacy         *PrivacyMeta                   `json:"privacy,omitempty"`
 	NextChainID     int                            `json:"nextChainId"`
 	NextArmyID      int                            `json:"nextArmyId"`
 	Infrastructures []Infrastructure               `json:"infrastructures"`
@@ -33,13 +55,17 @@ type GameState struct {
 // Game creation (NewGame) is P1.2 and is deliberately out of scope here.
 func NewGameState() *GameState {
 	return &GameState{
-		Turn:            1,
-		Season:          SeasonForTurn(1),
-		Players:         []Player{},
-		Territories:     []Territory{},
-		Nobles:          []Noble{},
-		Armies:          []Army{},
-		Chains:          []Chain{},
+		Turn:        1,
+		Season:      SeasonForTurn(1),
+		Players:     []Player{},
+		Territories: []Territory{},
+		Nobles:      []Noble{},
+		Armies:      []Army{},
+		Chains:      []Chain{},
+		Privacy: &PrivacyMeta{
+			ChainKnowledge:      map[PlayerID]map[ChainID]ChainSnapshot{},
+			CombatParticipation: map[PlayerID]map[string]bool{},
+		},
 		NextChainID:     1,
 		NextArmyID:      1,
 		Infrastructures: []Infrastructure{},
@@ -451,6 +477,48 @@ func (g *GameState) Validate() error {
 		state := g.TerritoryStates[infrastructure.TerritoryID]
 		if state.OwnerID == nil || *state.OwnerID != player.ID {
 			return fmt.Errorf("models: player %q: capital castle %q is not controlled by its owner", player.ID, *player.CapitalCastleID)
+		}
+	}
+	if err := validatePrivacy(g.Privacy, players); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validatePrivacy(privacy *PrivacyMeta, players map[PlayerID]bool) error {
+	if privacy == nil {
+		return nil
+	}
+	for playerID, chains := range privacy.ChainKnowledge {
+		if !players[playerID] {
+			return fmt.Errorf("models: privacy: chain knowledge has unknown player %q", playerID)
+		}
+		for chainID, snapshot := range chains {
+			if chainID == "" || snapshot.ID == "" || snapshot.ID != chainID {
+				return fmt.Errorf("models: privacy: chain knowledge has inconsistent chain id %q", chainID)
+			}
+			if snapshot.NobleID == "" {
+				return fmt.Errorf("models: privacy: chain %q has empty noble", chainID)
+			}
+			if snapshot.ArmyID == "" {
+				return fmt.Errorf("models: privacy: chain %q has empty army", chainID)
+			}
+			if len(snapshot.Orders) == 0 {
+				return fmt.Errorf("models: privacy: chain %q has no orders", chainID)
+			}
+			if snapshot.CurrentIndex < 0 || snapshot.CurrentIndex >= len(snapshot.Orders) {
+				return fmt.Errorf("models: privacy: chain %q has invalid current index %d", chainID, snapshot.CurrentIndex)
+			}
+		}
+	}
+	for playerID, combats := range privacy.CombatParticipation {
+		if !players[playerID] {
+			return fmt.Errorf("models: privacy: combat participation has unknown player %q", playerID)
+		}
+		for combatID := range combats {
+			if combatID == "" {
+				return fmt.Errorf("models: privacy: combat participation has empty combat id for player %q", playerID)
+			}
 		}
 	}
 	return nil

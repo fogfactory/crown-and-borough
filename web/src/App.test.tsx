@@ -126,6 +126,30 @@ afterEach(() => {
 })
 
 describe('App command/report tabs', () => {
+  it('requests a server-filtered state when the hotseat player changes', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      return Promise.resolve({
+        ok: true,
+        json: async () => (url.includes('/map') ? map : state),
+      } as Response)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App initialLanguage="fr" />)
+    await screen.findByText('Tour 1 · Printemps')
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Joueur actif' }))
+    fireEvent.click(await screen.findByRole('option', { name: /P2 · Two/ }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/state?player=P2',
+        expect.objectContaining({ signal: expect.anything() }),
+      )
+    })
+  })
+
   it('identifies a selected capital in the command post', async () => {
     const capitalState: StateData = {
       ...state,
@@ -281,6 +305,86 @@ describe('App command/report tabs', () => {
     await waitFor(() => {
       expect(screen.queryByText('Nouveau')).not.toBeInTheDocument()
     })
+  })
+
+  it('renders a resolved private response containing combat and order details', async () => {
+    const resolvedState: StateData = { ...state, turn: 4, season: 'winter' }
+    const detailedReport: TurnReport = {
+      ...resolvedReport,
+      players: [
+        {
+          id: 'P1',
+          name: 'One',
+          resourcesBefore: 3,
+          resourcesAfter: 3,
+          controlledBefore: 1,
+          controlledAfter: 1,
+          armies: [{ id: 'A1', owner: 'P1', territory: 'ROS', size: 2 }],
+          nobles: [],
+          infrastructures: [],
+        },
+      ],
+      combats: [
+        {
+          visibility: 'exact',
+          territory: 'BRU',
+          baseDefense: 1,
+          defense: 2,
+          castleBonus: 0,
+          contenders: [{ army: 'A1', owner: 'P1', force: 3, defender: false }],
+          cutSupporters: [],
+          winner: 'A1',
+          reason: 'attack_wins',
+          standoff: false,
+        },
+      ],
+      orders: [
+        {
+          visibility: 'known',
+          army: 'A1',
+          chain: 'C1',
+          order: 'O1',
+          owner: 'P1',
+          noble: 'JEA',
+          type: 'attack',
+          source: 'ROS',
+          targets: ['BRU'],
+          liaison: 'single',
+          outcome: 'success',
+          progression: 'consumed',
+          indexBefore: 0,
+          indexAfter: 1,
+        },
+      ],
+    }
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (init?.method === 'POST') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            status: 'resolved',
+            submitted: [],
+            remaining: [],
+            report: detailedReport,
+            state: resolvedState,
+          }),
+        } as Response)
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => (url.includes('/map') ? map : state),
+      } as Response)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App initialLanguage="en" />)
+    await screen.findByText('Turn 1 · Spring')
+    fireEvent.click(screen.getByRole('button', { name: 'Resolve' }))
+
+    expect(await screen.findByText('Turn report 1')).toBeInTheDocument()
+    expect(screen.getByText('Forces')).toBeInTheDocument()
+    expect(screen.getByText('ROS A BRU')).toBeInTheDocument()
   })
 
   it('shows order validation errors above the order rules shortcut', async () => {

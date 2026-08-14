@@ -99,6 +99,7 @@ type CombatReport struct {
 	Defense       int                `json:"defense"`
 	CastleBonus   int                `json:"castleBonus"`
 	Contenders    []CombatContender  `json:"contenders"`
+	Supporters    []models.ArmyID    `json:"supporters,omitempty"`
 	Winner        models.ArmyID      `json:"winner,omitempty"`
 	Dislodged     models.ArmyID      `json:"dislodged,omitempty"`
 	CutSupporters []models.ArmyID    `json:"cutSupporters"`
@@ -260,10 +261,11 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 			})
 		case EventTypeCombat:
 			contenders := append([]CombatContender{}, event.Contenders...)
+			supporters := append([]models.ArmyID(nil), event.SupporterIDs...)
 			cutSupporters := append([]models.ArmyID{}, event.CutSupporterIDs...)
 			report.Combats = append(report.Combats, CombatReport{
 				Territory: event.TerritoryID, BaseDefense: event.BaseDefense, Defense: event.Defense,
-				CastleBonus: event.CastleBonus, Contenders: contenders,
+				CastleBonus: event.CastleBonus, Contenders: contenders, Supporters: supporters,
 				Winner: event.WinnerArmyID, Dislodged: event.DislodgedArmyID,
 				CutSupporters: cutSupporters, Reason: event.Reason,
 				Standoff: event.Reason == "standoff",

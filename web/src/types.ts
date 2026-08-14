@@ -45,9 +45,10 @@ export interface Order {
 }
 
 export interface Chain {
-  noble: string
-  currentIndex: number
-  orders: Order[]
+  visibility?: 'known' | 'hidden'
+  noble?: string
+  currentIndex?: number
+  orders?: Order[]
 }
 
 export interface Infrastructure {
@@ -223,41 +224,46 @@ export interface FamineReport {
 export interface CombatContender {
   army?: string
   owner?: PlayerId
-  force: number
+  force?: number
   nobleBonus?: number
-  defender: boolean
+  defender?: boolean
 }
 
 export interface CombatReport {
+  visibility?: 'exact' | 'general'
   territory: string
-  baseDefense: number
-  defense: number
-  castleBonus: number
-  contenders: CombatContender[]
+  baseDefense?: number
+  defense?: number
+  castleBonus?: number
+  contenders?: CombatContender[]
+  supporters?: string[]
   winner?: string
   dislodged?: string
-  cutSupporters: string[]
-  reason: string
-  standoff: boolean
+  cutSupporters?: string[]
+  reason?: string
+  standoff?: boolean
+  outcome?: string
+  summary?: string
 }
 
 export interface OrderReport {
-  army: string
-  chain: string
-  order: string
-  owner: PlayerId
-  noble: string
-  type: OrderType
-  source: string
+  visibility?: 'known' | 'hidden'
+  army?: string
+  chain?: string
+  order?: string
+  owner?: PlayerId
+  noble?: string
+  type?: OrderType
+  source?: string
   target?: string
   targets?: string[]
   nobleAssignments?: Record<string, string[]>
-  liaison: LiaisonMode
+  liaison?: LiaisonMode
   outcome: Outcome
   reason?: string
-  progression: Progression
-  indexBefore: number
-  indexAfter: number
+  progression?: Progression
+  indexBefore?: number
+  indexAfter?: number
 }
 
 export interface MoveReport {
