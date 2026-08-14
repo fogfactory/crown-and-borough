@@ -79,10 +79,10 @@ par le parser.
 Exemple de chaîne complète :
 
 ```text
-LOU              # en-tête : noble émetteur (ajouté par l'IHM dans le web)
-T01 A T02        # attaquer T02 depuis T01
-T02 S T03 - T04  # soutien offensif
-T05 J T06        # jonction (doit être le dernier ordre)
+HUG              # en-tête : noble émetteur (ajouté par l'IHM dans le web)
+ROS A BOI        # attaquer BOI depuis ROS
+BOI S BRU - FOU  # soutien offensif
+BOI J ROS        # jonction (doit être le dernier ordre)
 ```
 
 ### Liaison des ordres

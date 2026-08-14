@@ -231,7 +231,7 @@ describe('MapViewer territorial overlays', () => {
     )
     const armyMarker = livingLayer?.querySelector('circle')
     const infrastructureMarker = livingLayer?.querySelector('g[transform*="scale("]')
-    const codeLabel = svg.querySelector('g[aria-label="Territory codes"] text')
+    const codeLabel = svg.querySelector('g[aria-label="Territory identifiers"] text')
     const referenceMeanArea = (1000 * 700) / (8 * 4 + 4 * (4 + 1))
     const expectedScale = Math.sqrt((50 * 50) / referenceMeanArea)
 

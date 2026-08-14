@@ -970,7 +970,7 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
               })}
             </g>
 
-            <g aria-label={t('map.territoryCodes')} pointerEvents="none">
+            <g aria-label={t('map.territoryLabels')} pointerEvents="none">
               {map.territories.map((territory) => {
                 const [centerX, centerY] = centroid(territory.points)
                 return (

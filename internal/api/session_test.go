@@ -174,6 +174,9 @@ func TestHotseatSessionResolvesAndRecreatesGame(t *testing.T) {
 	if response.Status != "resolved" || response.Report.Header.Turn != 1 || response.State.Turn != 2 {
 		t.Fatalf("resolved response = %#v, want report turn 1 and state turn 2", response)
 	}
+	if match := territoryMatricule.Find(body); match != nil {
+		t.Errorf("resolved orders response exposes territory matricule %q", match)
+	}
 	mapAfter := httptest.NewRecorder()
 	session.MapHTTP(mapAfter, httptest.NewRequest(http.MethodGet, "/api/map", nil))
 	if !bytes.Equal(mapBefore.Body.Bytes(), mapAfter.Body.Bytes()) {
@@ -372,6 +375,7 @@ func TestHotseatSessionServesSupplyLine(t *testing.T) {
 	if line.Kind != engine.SupplyLineKindArmy || string(line.Territory) != armyTerritory || line.ArmySize < 1 {
 		t.Errorf("supply line = %#v, want army at %s", line, armyTerritory)
 	}
+	assertCanonicalSupplyLineTerritories(t, line)
 
 	missing := httptest.NewRecorder()
 	session.SupplyHTTP(missing, httptest.NewRequest(http.MethodGet, "/api/supply", nil))
@@ -410,5 +414,25 @@ func TestHotseatSessionServesSupplyLine(t *testing.T) {
 	}
 	if sourceZone.Kind != engine.SupplyLineKindSource || sourceZone.Source == nil || *sourceZone.Source != sourceTerritoryID {
 		t.Errorf("source zone = %#v, want source %s", sourceZone, sourceTerritoryID)
+	}
+	assertCanonicalSupplyLineTerritories(t, sourceZone)
+}
+
+func assertCanonicalSupplyLineTerritories(t *testing.T, line engine.SupplyLine) {
+	t.Helper()
+	references := []string{string(line.Territory)}
+	if line.Source != nil {
+		references = append(references, string(*line.Source))
+	}
+	for _, territoryID := range line.Path {
+		references = append(references, string(territoryID))
+	}
+	for _, territoryID := range line.Reachable {
+		references = append(references, string(territoryID))
+	}
+	for _, reference := range references {
+		if !territoryTrigram.MatchString(reference) {
+			t.Errorf("supply territorial reference = %q, want a canonical trigram", reference)
+		}
 	}
 }

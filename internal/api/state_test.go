@@ -324,6 +324,25 @@ func assertStateJSONTypes(t *testing.T, document map[string]any) {
 	if !ok {
 		t.Fatalf("first territory JSON = %#v, want object", territories[0])
 	}
+	if id, ok := territory["id"].(string); !ok || !territoryTrigram.MatchString(id) {
+		t.Errorf("first territory id JSON = %#v, want a canonical trigram", territory["id"])
+	}
+	if _, hasCode := territory["code"]; hasCode {
+		t.Error("territory JSON must not expose a duplicate code field")
+	}
+	for index, rawTerritory := range territories {
+		candidate, ok := rawTerritory.(map[string]any)
+		if !ok {
+			t.Errorf("territory %d JSON = %#v, want object", index, rawTerritory)
+			continue
+		}
+		if id, ok := candidate["id"].(string); !ok || !territoryTrigram.MatchString(id) {
+			t.Errorf("territory %d id JSON = %#v, want a canonical trigram", index, candidate["id"])
+		}
+		if _, hasCode := candidate["code"]; hasCode {
+			t.Errorf("territory %d JSON exposes a duplicate code field", index)
+		}
+	}
 	army, ok := territory["army"].(map[string]any)
 	if !ok {
 		t.Errorf("army JSON type = %T, want object", territory["army"])

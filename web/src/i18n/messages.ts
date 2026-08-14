@@ -37,7 +37,7 @@ const englishMessages = {
   'app.resolve': 'Resolve',
   'app.resolveTitle':
     'Resolve the turn immediately, even if not every player has submitted orders',
-  'app.mapPublic': 'Public map · T0 view',
+  'app.mapPublic': 'Public map · shared view',
   'app.mapInstructions': 'Click to select · hold and drag to pan · scroll to zoom',
   'app.mapLoadFailed': 'Could not load the game: {message}',
   'app.mapLoading': 'Loading the map and state...',
@@ -97,7 +97,7 @@ const englishMessages = {
   'map.borders': 'Borders',
   'map.supplyLine': 'Supply line',
   'map.liveLayer': 'Live layer',
-  'map.territoryCodes': 'Territory codes',
+  'map.territoryLabels': 'Territory identifiers',
   'map.territoryLabel': '{name}, {terrain}',
   'map.resourcesMarker': 'Resources: {count}',
   'map.armyMarker': 'Army of {owner}, size {size}',
@@ -302,7 +302,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'app.resolve': 'Résoudre',
   'app.resolveTitle':
     "Résoudre le tour immédiatement, même si tous les joueurs n'ont pas soumis leurs ordres",
-  'app.mapPublic': 'Carte publique · vision T0',
+  'app.mapPublic': 'Carte publique · vue commune',
   'app.mapInstructions':
     'Clic pour sélectionner · maintenir puis glisser pour déplacer la carte · molette pour zoomer',
   'app.mapLoadFailed': 'Impossible de charger la partie : {message}',
@@ -363,7 +363,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'map.borders': 'Frontières',
   'map.supplyLine': 'Ligne de ravitaillement',
   'map.liveLayer': 'Couche vivante',
-  'map.territoryCodes': 'Codes des territoires',
+  'map.territoryLabels': 'Identifiants des territoires',
   'map.territoryLabel': '{name}, {terrain}',
   'map.resourcesMarker': 'Ressources : {count}',
   'map.armyMarker': 'Armée de {owner}, taille {size}',

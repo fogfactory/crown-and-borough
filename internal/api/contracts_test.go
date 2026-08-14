@@ -11,6 +11,7 @@ import (
 )
 
 var territoryTrigram = regexp.MustCompile(`^[A-Z]{3}$`)
+var territoryMatricule = regexp.MustCompile(`\bT[0-9]+\b`)
 
 func TestContractFixturesRoundTrip(t *testing.T) {
 	for _, name := range []string{
@@ -34,6 +35,26 @@ func TestContractFixturesRoundTrip(t *testing.T) {
 			}
 			if !reflect.DeepEqual(value, roundTripped) {
 				t.Errorf("JSON round trip changed fixture:\n got: %#v\nwant: %#v", roundTripped, value)
+			}
+		})
+	}
+}
+
+func TestPublicContractFilesDoNotExposeTerritoryMatricules(t *testing.T) {
+	for _, name := range []string{
+		"specs/fixtures/map.json",
+		"specs/fixtures/state-territory-id.json",
+		"specs/fixtures/state-army-no-chain.json",
+		"specs/fixtures/state-army-hidden-chain.json",
+		"specs/fixtures/report-combat-exact.json",
+		"specs/fixtures/report-combat-general.json",
+		"assets/regles-joueurs.md",
+		"assets/regles-joueurs.en.md",
+	} {
+		t.Run(name, func(t *testing.T) {
+			data := readProjectFile(t, name)
+			if match := territoryMatricule.Find(data); match != nil {
+				t.Errorf("public contract file exposes territory matricule %q", match)
 			}
 		})
 	}
@@ -134,15 +155,7 @@ func TestCombatProjectionDistinguishesExactAndGeneral(t *testing.T) {
 
 func readContractFixture(t *testing.T, name string) map[string]any {
 	t.Helper()
-	_, sourceFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
-	}
-	path := filepath.Join(filepath.Dir(sourceFile), "..", "..", "specs", "fixtures", name)
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("read fixture %s: %v", name, err)
-	}
+	data := readProjectFile(t, filepath.Join("specs", "fixtures", name))
 
 	var value any
 	if err := json.Unmarshal(data, &value); err != nil {
@@ -153,6 +166,20 @@ func readContractFixture(t *testing.T, name string) map[string]any {
 		t.Fatalf("fixture %s = %T, want JSON object", name, value)
 	}
 	return object
+}
+
+func readProjectFile(t *testing.T, name string) []byte {
+	t.Helper()
+	_, sourceFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	path := filepath.Join(filepath.Dir(sourceFile), "..", "..", filepath.FromSlash(name))
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read project file %s: %v", name, err)
+	}
+	return data
 }
 
 func findTerritories(t *testing.T, fixture map[string]any) []map[string]any {
