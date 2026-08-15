@@ -1,14 +1,17 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/fogfactory/crown-and-borough/internal/api"
+	"github.com/fogfactory/crown-and-borough/internal/auth"
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
@@ -127,12 +130,31 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to create default game: %v", err)
 	}
+	onlineDevMode := os.Getenv("ONLINE_DEV_MODE") == "true"
+	publicAppURL := strings.TrimSpace(os.Getenv("PUBLIC_APP_URL"))
+	if !onlineDevMode && publicAppURL == "" {
+		log.Fatal("PUBLIC_APP_URL is required outside ONLINE_DEV_MODE")
+	}
 	gameStore := store.NewMemoryStoreWithOptions(balance, assets, store.MemoryStoreOptions{
-		PrivacyTracker: api.TrackTurnPrivacy,
+		PrivacyTracker:   api.TrackTurnPrivacy,
+		StrictMembership: !onlineDevMode,
 	})
 
-	onlineDevMode := os.Getenv("ONLINE_DEV_MODE") == "true"
-	server := newApplicationServer(session, rules, gameStore, onlineDevMode)
+	var resolveActor api.ActorResolver
+	if onlineDevMode {
+		resolveActor = api.DevActorResolver("P1")
+	} else {
+		projectID := os.Getenv("FIREBASE_PROJECT_ID")
+		if projectID == "" {
+			projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
+		}
+		verifier, verifierErr := auth.NewFirebaseVerifierWithOptions(context.Background(), projectID, auth.FirebaseVerifierOptions{CheckRevoked: true})
+		if verifierErr != nil {
+			log.Fatalf("failed to initialize Firebase Auth: %v", verifierErr)
+		}
+		resolveActor = api.FirebaseActorResolver(verifier)
+	}
+	server := newApplicationServerWithResolver(session, rules, gameStore, onlineDevMode, resolveActor)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -147,6 +169,18 @@ func main() {
 }
 
 func newApplicationServer(session *api.Session, rules assetgen.Rules, gameStore store.GameStore, onlineDevMode bool) *http.ServeMux {
+	var resolveActor api.ActorResolver
+	if onlineDevMode {
+		resolveActor = api.DevActorResolver("P1")
+	} else {
+		resolveActor = api.BearerActorResolver(func(string) (store.Actor, error) {
+			return store.Actor{}, api.ErrUnauthorized
+		})
+	}
+	return newApplicationServerWithResolver(session, rules, gameStore, onlineDevMode, resolveActor)
+}
+
+func newApplicationServerWithResolver(session *api.Session, rules assetgen.Rules, gameStore store.GameStore, onlineDevMode bool, resolveActor api.ActorResolver) *http.ServeMux {
 	var mux *http.ServeMux
 	if onlineDevMode {
 		mux = newHotseatServer(session, rules)
@@ -157,17 +191,17 @@ func newApplicationServer(session *api.Session, rules assetgen.Rules, gameStore 
 		})
 		mux.Handle("GET /api/rules", api.RulesHandler(rules))
 	}
-	var resolveActor api.ActorResolver
-	if onlineDevMode {
-		resolveActor = api.DevActorResolver("P1")
-	} else {
-		resolveActor = api.BearerActorResolver(func(string) (store.Actor, error) {
-			return store.Actor{}, api.ErrUnauthorized
-		})
-	}
-	games := api.NewGamesHandler(gameStore, rules, resolveActor)
+	profiles, _ := gameStore.(store.ProfileStore)
+	games := api.NewGamesHandlerWithOptions(gameStore, rules, api.GamesHandlerOptions{
+		Actor:            resolveActor,
+		Profiles:         profiles,
+		RequireProfile:   !onlineDevMode,
+		StrictMembership: !onlineDevMode,
+		InviteBaseURL:    os.Getenv("PUBLIC_APP_URL"),
+	})
 	mux.Handle("/api/games", games)
 	mux.Handle("/api/games/", games)
+	mux.Handle("/api/auth/", api.NewAuthHandler(profiles, resolveActor))
 	return mux
 }
 

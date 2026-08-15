@@ -2,7 +2,8 @@
 
 ## Usage
 
-1. Run `make run` to start the backend on port 8080.
+1. Run `make run-dev` to start the local development backend on port 8080, or
+   configure Firebase and run `make run` for the authenticated API.
 2. Run `make web-dev` to start the frontend on port 5173.
 3. Open http://localhost:5173 in a browser.
 
@@ -14,9 +15,18 @@ at `/api/games`: create independent games with `POST /api/games`, inspect them
 with `GET /api/games/{id}`, and submit one player's orders through
 `POST /api/games/{id}/orders`. A turn resolves when all living players have
 submitted, or through the explicit `POST /api/games/{id}/resolve` endpoint. Use
-`?player=P1` only with this explicit local development mode; hosted
-authentication will replace it with the verified actor in a later online
-milestone.
+`?player=P1` only with this explicit local development mode.
+
+The authenticated API validates Firebase ID tokens with the Firebase Admin SDK.
+Set `FIREBASE_PROJECT_ID`, `PUBLIC_APP_URL` (and provide ADC credentials) before
+`make run`.
+`GET /api/auth/me` creates the UID profile when needed and `PUT /api/auth/me`
+updates its display name. Authenticated game creation requires a completed
+profile and returns a six-character invitation code and URL. A member joins
+through `POST /api/games/{id}/join` with `{ "inviteCode": "..." }`; the server
+derives the player from the verified UID. Profiles, memberships, and hashed
+invitation codes are currently in memory; Firestore persistence is the next
+online milestone.
 
 The legacy hotseat game is created at startup with `SEED` and `PLAYERS` (an
 integer from 2 to 16, default 4). `POST /api/game` replaces it, while
@@ -39,4 +49,5 @@ The development hotseat server accepts `GET /api/state?player=P1` to return the
 server-filtered private view for the selected player; omitting `player` keeps the
 legacy global projection useful for diagnostics. The multi-game store keeps
 chain knowledge, combat audiences, pending submissions, reports, and a monotone
-revision per game. Authentication and persistence are not implemented yet.
+revision per game. The frontend Firebase sign-in flow and Firestore listeners
+are intentionally left to the next online milestone.

@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
@@ -19,8 +20,11 @@ import (
 type IDGenerator func() (GameID, error)
 
 type MemoryStoreOptions struct {
-	PrivacyTracker PrivacyTracker
-	IDGenerator    IDGenerator
+	PrivacyTracker   PrivacyTracker
+	IDGenerator      IDGenerator
+	ProfileStore     ProfileStore
+	InvitationStore  InvitationStore
+	StrictMembership bool
 }
 
 type MemoryStore struct {
@@ -28,9 +32,11 @@ type MemoryStore struct {
 	idMu    sync.Mutex
 	games   map[GameID]*memoryGame
 
-	balance assetgen.Balance
-	assets  assetgen.Assets
-	options MemoryStoreOptions
+	balance     assetgen.Balance
+	assets      assetgen.Assets
+	options     MemoryStoreOptions
+	profiles    ProfileStore
+	invitations InvitationStore
 }
 
 type memoryGame struct {
@@ -48,7 +54,10 @@ type memoryGame struct {
 	reports     []ReportRecord
 	revision    Revision
 	createdBy   string
+	joinedAt    map[models.PlayerID]time.Time
 }
+
+var _ InvitationGameStore = (*MemoryStore)(nil)
 
 func NewMemoryStore(balance assetgen.Balance, assets assetgen.Assets) *MemoryStore {
 	return NewMemoryStoreWithOptions(balance, assets, MemoryStoreOptions{})
@@ -61,11 +70,19 @@ func NewMemoryStoreWithOptions(balance assetgen.Balance, assets assetgen.Assets,
 	if options.PrivacyTracker == nil {
 		options.PrivacyTracker = trackOwnerChainKnowledge
 	}
+	if options.ProfileStore == nil {
+		options.ProfileStore = NewMemoryProfileStore()
+	}
+	if options.InvitationStore == nil {
+		options.InvitationStore = NewMemoryInvitationStore()
+	}
 	return &MemoryStore{
-		games:   make(map[GameID]*memoryGame),
-		balance: balance,
-		assets:  assets,
-		options: options,
+		games:       make(map[GameID]*memoryGame),
+		balance:     balance,
+		assets:      assets,
+		options:     options,
+		profiles:    options.ProfileStore,
+		invitations: options.InvitationStore,
 	}
 }
 
@@ -158,15 +175,26 @@ func (s *MemoryStore) Create(_ context.Context, actor Actor, request CreateReque
 		actorID = string(state.Players[0].ID)
 	}
 	slots := make([]PlayerSlot, len(state.Players))
+	joinedAt := make(map[models.PlayerID]time.Time, len(state.Players))
+	now := time.Now().UTC()
+	strictMembership := s.options.StrictMembership || request.StrictMembership
 	for index, player := range state.Players {
-		slotActorID := string(player.ID)
-		if index == 0 {
+		slotActorID := ""
+		if !strictMembership {
+			slotActorID = string(player.ID)
+			if index == 0 {
+				slotActorID = actorID
+			} else if slotActorID == actorID {
+				// The creator owns the first slot. Avoid assigning the same actor to
+				// a later development slot when the creator ID happens to be P2, P3,
+				// and so on.
+				slotActorID = "slot:" + string(player.ID)
+			}
+		} else if index == 0 {
 			slotActorID = actorID
-		} else if slotActorID == actorID {
-			// The creator owns the first slot. Avoid assigning the same actor to
-			// a later development slot when the creator ID happens to be P2, P3,
-			// and so on.
-			slotActorID = "slot:" + string(player.ID)
+		}
+		if slotActorID != "" && !strings.HasPrefix(slotActorID, "slot:") {
+			joinedAt[player.ID] = now
 		}
 		slots[index] = PlayerSlot{
 			ID:      player.ID,
@@ -187,6 +215,7 @@ func (s *MemoryStore) Create(_ context.Context, actor Actor, request CreateReque
 		submissions: make(map[models.PlayerID]engine.OrdersInput),
 		revision:    1,
 		createdBy:   actorID,
+		joinedAt:    joinedAt,
 	}
 
 	s.indexMu.Lock()
@@ -196,6 +225,195 @@ func (s *MemoryStore) Create(_ context.Context, actor Actor, request CreateReque
 	}
 	s.games[id] = game
 	return s.snapshotLocked(game)
+}
+
+func (s *MemoryStore) CreateWithInvitation(ctx context.Context, actor Actor, request CreateRequest) (GameCreation, error) {
+	snapshot, err := s.Create(ctx, actor, request)
+	if err != nil {
+		return GameCreation{}, err
+	}
+	invitation, err := s.CreateInvitation(ctx, actor, snapshot.ID)
+	if err != nil {
+		s.indexMu.Lock()
+		delete(s.games, snapshot.ID)
+		s.indexMu.Unlock()
+		return GameCreation{}, err
+	}
+	return GameCreation{Snapshot: snapshot, Invitation: invitation}, nil
+}
+
+func (s *MemoryStore) GetProfile(ctx context.Context, uid string) (PlayerProfile, error) {
+	return s.profiles.GetProfile(ctx, uid)
+}
+
+func (s *MemoryStore) EnsureProfile(ctx context.Context, actor Actor) (PlayerProfile, error) {
+	return s.profiles.EnsureProfile(ctx, actor)
+}
+
+func (s *MemoryStore) UpdateProfile(ctx context.Context, uid, displayName string) (PlayerProfile, error) {
+	profile, err := s.profiles.UpdateProfile(ctx, uid, displayName)
+	if err != nil {
+		return PlayerProfile{}, err
+	}
+	uid = strings.TrimSpace(uid)
+	s.indexMu.RLock()
+	games := make([]*memoryGame, 0, len(s.games))
+	for _, game := range s.games {
+		games = append(games, game)
+	}
+	s.indexMu.RUnlock()
+	for _, game := range games {
+		game.mu.Lock()
+		for index := range game.players {
+			if game.players[index].ActorID != uid {
+				continue
+			}
+			playerID := game.players[index].ID
+			game.players[index].Name = profile.DisplayName
+			for stateIndex := range game.state.Players {
+				if game.state.Players[stateIndex].ID == playerID {
+					game.state.Players[stateIndex].Name = profile.DisplayName
+					break
+				}
+			}
+		}
+		game.mu.Unlock()
+	}
+	return profile, nil
+}
+
+func (s *MemoryStore) ListMemberships(_ context.Context, id GameID) ([]Membership, error) {
+	game, err := s.game(id)
+	if err != nil {
+		return nil, err
+	}
+	game.mu.RLock()
+	defer game.mu.RUnlock()
+	memberships := make([]Membership, 0, len(game.players))
+	for _, player := range game.players {
+		if !isAssignedSlot(player) {
+			continue
+		}
+		joinedAt := game.joinedAt[player.ID]
+		memberships = append(memberships, Membership{GameID: id, UID: player.ActorID, PlayerID: player.ID, JoinedAt: joinedAt})
+	}
+	return memberships, nil
+}
+
+func (s *MemoryStore) ListActorMemberships(_ context.Context, uid string) ([]Membership, error) {
+	uid = strings.TrimSpace(uid)
+	s.indexMu.RLock()
+	games := make([]*memoryGame, 0, len(s.games))
+	for _, game := range s.games {
+		games = append(games, game)
+	}
+	s.indexMu.RUnlock()
+	result := make([]Membership, 0)
+	for _, game := range games {
+		game.mu.RLock()
+		for _, player := range game.players {
+			if !isAssignedSlot(player) || player.ActorID != uid {
+				continue
+			}
+			result = append(result, Membership{GameID: game.id, UID: uid, PlayerID: player.ID, JoinedAt: game.joinedAt[player.ID]})
+		}
+		game.mu.RUnlock()
+	}
+	slices.SortFunc(result, func(left, right Membership) int {
+		return strings.Compare(string(left.GameID), string(right.GameID))
+	})
+	return result, nil
+}
+
+func (s *MemoryStore) CreateInvitation(ctx context.Context, actor Actor, id GameID) (InvitationSecret, error) {
+	game, err := s.game(id)
+	if err != nil {
+		return InvitationSecret{}, err
+	}
+	game.mu.RLock()
+	createdBy := game.createdBy
+	game.mu.RUnlock()
+	if strings.TrimSpace(actor.ID) == "" || strings.TrimSpace(actor.ID) != createdBy {
+		return InvitationSecret{}, ErrNotCreator
+	}
+	return s.invitations.CreateInvitation(ctx, id, createdBy)
+}
+
+func (s *MemoryStore) Join(ctx context.Context, actor Actor, id GameID, code string) (JoinResult, error) {
+	if err := contextError(ctx); err != nil {
+		return JoinResult{}, err
+	}
+	game, err := s.game(id)
+	if err != nil {
+		return JoinResult{}, err
+	}
+	actorID := strings.TrimSpace(actor.ID)
+	if actorID == "" {
+		return JoinResult{}, ErrNotMember
+	}
+	game.mu.Lock()
+	defer game.mu.Unlock()
+	if playerID, ok := game.playerForActorLocked(actor); ok {
+		snapshot, snapshotErr := s.snapshotLocked(game)
+		if snapshotErr != nil {
+			return JoinResult{}, snapshotErr
+		}
+		return JoinResult{Snapshot: snapshot, Player: playerSlotForID(game.players, playerID), Joined: false}, nil
+	}
+	invitation, err := s.invitations.LookupInvitation(ctx, code)
+	if err != nil {
+		return JoinResult{}, err
+	}
+	if invitation.GameID != id {
+		return JoinResult{}, ErrInvalidInvitation
+	}
+	if game.status == StatusFinished {
+		return JoinResult{}, ErrGameFinished
+	}
+	freeIndex := -1
+	for index, player := range game.players {
+		if !isAssignedSlot(player) {
+			freeIndex = index
+			break
+		}
+	}
+	if freeIndex < 0 {
+		return JoinResult{}, ErrGameFull
+	}
+	player := &game.players[freeIndex]
+	player.ActorID = actorID
+	if profile, profileErr := s.profiles.GetProfile(ctx, actorID); profileErr == nil && profile.DisplayName != "" {
+		player.Name = profile.DisplayName
+		for index := range game.state.Players {
+			if game.state.Players[index].ID == player.ID {
+				game.state.Players[index].Name = profile.DisplayName
+				break
+			}
+		}
+	}
+	if game.joinedAt == nil {
+		game.joinedAt = make(map[models.PlayerID]time.Time)
+	}
+	game.joinedAt[player.ID] = time.Now().UTC()
+	game.revision++
+	snapshot, err := s.snapshotLocked(game)
+	if err != nil {
+		return JoinResult{}, err
+	}
+	return JoinResult{Snapshot: snapshot, Player: *player, Joined: true}, nil
+}
+
+func playerSlotForID(players []PlayerSlot, id models.PlayerID) PlayerSlot {
+	for _, player := range players {
+		if player.ID == id {
+			return player
+		}
+	}
+	return PlayerSlot{ID: id}
+}
+
+func isAssignedSlot(player PlayerSlot) bool {
+	return strings.TrimSpace(player.ActorID) != "" && !strings.HasPrefix(player.ActorID, "slot:")
 }
 
 func (s *MemoryStore) List(_ context.Context, actor Actor) ([]GameSnapshot, error) {
@@ -449,6 +667,7 @@ func (s *MemoryStore) resolveLocked(game *memoryGame, playerID models.PlayerID, 
 		reports:     nextReports,
 		revision:    nextRevision,
 		createdBy:   game.createdBy,
+		joinedAt:    cloneJoinedAt(game.joinedAt),
 	}
 	nextGame.updateStatusLocked()
 	snapshot, err := s.snapshotLocked(nextGame)
@@ -475,6 +694,17 @@ func (s *MemoryStore) resolveLocked(game *memoryGame, playerID models.PlayerID, 
 	return result, nil
 }
 
+func cloneJoinedAt(source map[models.PlayerID]time.Time) map[models.PlayerID]time.Time {
+	if source == nil {
+		return nil
+	}
+	clone := make(map[models.PlayerID]time.Time, len(source))
+	for playerID, joinedAt := range source {
+		clone[playerID] = joinedAt
+	}
+	return clone
+}
+
 func (game *memoryGame) playerForActorLocked(actor Actor) (models.PlayerID, bool) {
 	actorID := strings.TrimSpace(actor.ID)
 	if actorID == "" {
@@ -482,6 +712,9 @@ func (game *memoryGame) playerForActorLocked(actor Actor) (models.PlayerID, bool
 	}
 	for _, player := range game.players {
 		if player.ActorID == actorID {
+			return player.ID, true
+		}
+		if actor.Development && player.ActorID == "" && string(player.ID) == actorID {
 			return player.ID, true
 		}
 	}

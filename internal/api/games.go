@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -20,20 +21,47 @@ import (
 // resolver as a dependency: the local test server can use ?player while a
 // hosted server can resolve Firebase identity into the same store.Actor.
 type GamesHandler struct {
-	store store.GameStore
-	rules assetgen.Rules
-	actor ActorResolver
+	store            store.GameStore
+	rules            assetgen.Rules
+	actor            ActorResolver
+	profiles         store.ProfileStore
+	requireProfile   bool
+	strictMembership bool
+	inviteBaseURL    string
+}
+
+type GamesHandlerOptions struct {
+	Actor            ActorResolver
+	Profiles         store.ProfileStore
+	RequireProfile   bool
+	StrictMembership bool
+	InviteBaseURL    string
 }
 
 func NewGamesHandler(gameStore store.GameStore, rules assetgen.Rules, resolve ActorResolver) http.Handler {
-	return &GamesHandler{store: gameStore, rules: rules, actor: resolve}
+	return NewGamesHandlerWithOptions(gameStore, rules, GamesHandlerOptions{Actor: resolve})
+}
+
+func NewGamesHandlerWithOptions(gameStore store.GameStore, rules assetgen.Rules, options GamesHandlerOptions) http.Handler {
+	profiles := options.Profiles
+	if profiles == nil {
+		profiles, _ = gameStore.(store.ProfileStore)
+	}
+	return &GamesHandler{
+		store:            gameStore,
+		rules:            rules,
+		actor:            options.Actor,
+		profiles:         profiles,
+		requireProfile:   options.RequireProfile,
+		strictMembership: options.StrictMembership,
+		inviteBaseURL:    options.InviteBaseURL,
+	}
 }
 
 // NewDevGamesHandler is a convenience constructor for the local multi-game
 // test server. Production callers should pass BearerActorResolver instead.
 func NewDevGamesHandler(gameStore store.GameStore, rules assetgen.Rules, defaultPlayer string) http.Handler {
-	handler := &GamesHandler{store: gameStore, rules: rules, actor: DevActorResolver(defaultPlayer)}
-	return handler
+	return NewGamesHandlerWithOptions(gameStore, rules, GamesHandlerOptions{Actor: DevActorResolver(defaultPlayer)})
 }
 
 func (h *GamesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -94,17 +122,63 @@ func (h *GamesHandler) create(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, 32<<10)
 	request, err := decodeCreateRequest(r)
 	if err != nil {
 		writeAPIError(w, http.StatusBadRequest, "invalid_game_request", err.Error())
 		return
 	}
-	snapshot, err := h.store.Create(r.Context(), actor, request)
-	if err != nil {
-		h.writeStoreError(w, err)
-		return
+	if h.requireProfile {
+		profile, profileErr := h.requireCompletedProfile(r, actor)
+		if profileErr != nil {
+			h.writeProfileRequirementError(w, profileErr)
+			return
+		}
+		request = applyProfileToCreateRequest(request, profile)
 	}
-	writeJSON(w, http.StatusCreated, makeGameDetailView(snapshot))
+	if h.strictMembership {
+		request.StrictMembership = true
+	}
+	var (
+		snapshot   store.GameSnapshot
+		invitation store.InvitationSecret
+	)
+	if creator, ok := h.store.(interface {
+		CreateWithInvitation(context.Context, store.Actor, store.CreateRequest) (store.GameCreation, error)
+	}); ok {
+		creation, createErr := creator.CreateWithInvitation(r.Context(), actor, request)
+		if createErr != nil {
+			h.writeStoreError(w, createErr)
+			return
+		}
+		snapshot = creation.Snapshot
+		invitation = creation.Invitation
+	} else {
+		var createErr error
+		snapshot, createErr = h.store.Create(r.Context(), actor, request)
+		if createErr != nil {
+			h.writeStoreError(w, createErr)
+			return
+		}
+	}
+	response := makeGameDetailView(snapshot)
+	if invitation.Code == "" {
+		if inviter, ok := h.store.(interface {
+			CreateInvitation(context.Context, store.Actor, store.GameID) (store.InvitationSecret, error)
+		}); ok {
+			var inviteErr error
+			invitation, inviteErr = inviter.CreateInvitation(r.Context(), actor, snapshot.ID)
+			if inviteErr != nil {
+				h.writeStoreError(w, inviteErr)
+				return
+			}
+		}
+	}
+	if invitation.Code != "" {
+		response.InviteCode = invitation.Code
+		response.InviteURL = buildInviteURL(h.inviteBaseURL, invitation.GameID, invitation.Code)
+	}
+	writeJSON(w, http.StatusCreated, response)
 }
 
 func (h *GamesHandler) handleDetail(w http.ResponseWriter, r *http.Request, id store.GameID) {
@@ -197,6 +271,26 @@ func (h *GamesHandler) handleSubresource(w http.ResponseWriter, r *http.Request,
 			return
 		}
 		h.submit(w, r, actor, id)
+	case "join":
+		if len(parts) != 1 {
+			http.NotFound(w, r)
+			return
+		}
+		if r.Method != http.MethodPost {
+			methodNotAllowed(w, http.MethodPost)
+			return
+		}
+		h.join(w, r, actor, id)
+	case "invite":
+		if len(parts) != 1 {
+			http.NotFound(w, r)
+			return
+		}
+		if r.Method != http.MethodGet {
+			methodNotAllowed(w, http.MethodGet)
+			return
+		}
+		h.invite(w, r, actor, id)
 	case "resolve":
 		if len(parts) != 1 {
 			http.NotFound(w, r)
@@ -235,6 +329,7 @@ func methodNotAllowed(w http.ResponseWriter, method string) {
 
 func (h *GamesHandler) submit(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
 	var request gameOrdersRequest
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&request); err != nil {
@@ -251,8 +346,8 @@ func (h *GamesHandler) submit(w http.ResponseWriter, r *http.Request, actor stor
 		expectedRevision = snapshot.Revision
 	}
 	result, err := h.store.Submit(r.Context(), actor, id, store.SubmitRequest{
-		Chains:           request.Chains,
-		Winter:           request.Winter,
+		Chains:           toChainSubmissions(request.Chains),
+		Winter:           toWinterSubmissions(request.Winter),
 		Force:            request.Force,
 		ExpectedRevision: expectedRevision,
 	})
@@ -261,6 +356,81 @@ func (h *GamesHandler) submit(w http.ResponseWriter, r *http.Request, actor stor
 		return
 	}
 	h.writeSubmitResult(w, actor, result)
+}
+
+func toChainSubmissions(requests []chainOrderRequest) []engine.ChainSubmission {
+	chains := make([]engine.ChainSubmission, len(requests))
+	for index, request := range requests {
+		chains[index] = engine.ChainSubmission{Noble: request.Noble, Text: request.Text}
+	}
+	return chains
+}
+
+func toWinterSubmissions(requests []winterOrderRequest) []engine.WinterSubmission {
+	winter := make([]engine.WinterSubmission, len(requests))
+	for index, request := range requests {
+		winter[index] = engine.WinterSubmission{Lines: request.Lines}
+	}
+	return winter
+}
+
+func (h *GamesHandler) join(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
+	joiner, ok := h.store.(interface {
+		Join(context.Context, store.Actor, store.GameID, string) (store.JoinResult, error)
+	})
+	if !ok {
+		writeAPIError(w, http.StatusInternalServerError, "join_unavailable", "game invitations are not configured")
+		return
+	}
+	if h.requireProfile {
+		if _, err := h.requireCompletedProfile(r, actor); err != nil {
+			h.writeProfileRequirementError(w, err)
+			return
+		}
+	}
+	var request joinGameRequest
+	r.Body = http.MaxBytesReader(w, r.Body, 4<<10)
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&request); err != nil {
+		writeAPIError(w, http.StatusBadRequest, "invalid_join_request", err.Error())
+		return
+	}
+	result, err := joiner.Join(r.Context(), actor, id, request.InviteCode)
+	if err != nil {
+		h.writeStoreError(w, err)
+		return
+	}
+	response := gameJoinResponse{
+		gameDetailView: makeGameDetailView(result.Snapshot),
+		Joined:         result.Joined,
+		Player:         makePlayerSlotView(result.Player, result.Snapshot),
+	}
+	status := http.StatusOK
+	if result.Joined {
+		status = http.StatusCreated
+	}
+	writeJSON(w, status, response)
+}
+
+func (h *GamesHandler) invite(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
+	inviter, ok := h.store.(interface {
+		CreateInvitation(context.Context, store.Actor, store.GameID) (store.InvitationSecret, error)
+	})
+	if !ok {
+		writeAPIError(w, http.StatusInternalServerError, "invite_unavailable", "game invitations are not configured")
+		return
+	}
+	secret, err := inviter.CreateInvitation(r.Context(), actor, id)
+	if err != nil {
+		h.writeStoreError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, invitationView{
+		GameID:     secret.GameID,
+		InviteCode: secret.Code,
+		InviteURL:  buildInviteURL(h.inviteBaseURL, secret.GameID, secret.Code),
+	})
 }
 
 func (h *GamesHandler) resolve(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
@@ -390,8 +560,16 @@ func (h *GamesHandler) writeStoreError(w http.ResponseWriter, err error) {
 		writeAPIError(w, http.StatusNotFound, "not_found", err.Error())
 	case errors.Is(err, store.ErrNotMember):
 		writeAPIError(w, http.StatusForbidden, "not_member", err.Error())
+	case errors.Is(err, store.ErrNotCreator):
+		writeAPIError(w, http.StatusForbidden, "not_creator", err.Error())
 	case errors.Is(err, store.ErrInvalidPlayers):
 		writeAPIError(w, http.StatusBadRequest, "invalid_players", err.Error())
+	case errors.Is(err, store.ErrGameFull):
+		writeAPIError(w, http.StatusConflict, "game_full", err.Error())
+	case errors.Is(err, store.ErrInvalidInvitation), errors.Is(err, store.ErrInvitationInactive):
+		writeAPIError(w, http.StatusForbidden, "invalid_invitation", "the invitation is invalid or inactive")
+	case errors.Is(err, store.ErrProfileRequired):
+		writeAPIError(w, http.StatusBadRequest, "profile_required", err.Error())
 	case errors.Is(err, store.ErrRevisionConflict):
 		writeAPIError(w, http.StatusConflict, "revision_conflict", err.Error())
 	case errors.Is(err, store.ErrGameFinished), errors.Is(err, store.ErrEliminated):
@@ -405,11 +583,70 @@ func (h *GamesHandler) writeStoreError(w http.ResponseWriter, err error) {
 	}
 }
 
+func (h *GamesHandler) requireCompletedProfile(r *http.Request, actor store.Actor) (store.PlayerProfile, error) {
+	if h.profiles == nil {
+		return store.PlayerProfile{}, store.ErrProfileRequired
+	}
+	profile, err := h.profiles.EnsureProfile(r.Context(), actor)
+	if err != nil {
+		return store.PlayerProfile{}, err
+	}
+	if strings.TrimSpace(profile.DisplayName) == "" {
+		return store.PlayerProfile{}, store.ErrProfileRequired
+	}
+	return profile, nil
+}
+
+func (h *GamesHandler) writeProfileRequirementError(w http.ResponseWriter, err error) {
+	if errors.Is(err, store.ErrProfileRequired) {
+		writeAPIError(w, http.StatusBadRequest, "profile_required", "complete the player profile before creating or joining a game")
+		return
+	}
+	writeAPIError(w, http.StatusInternalServerError, "profile_unavailable", "profile could not be loaded")
+}
+
+func applyProfileToCreateRequest(request store.CreateRequest, profile store.PlayerProfile) store.CreateRequest {
+	request.StrictMembership = true
+	players := make([]engine.PlayerInit, len(request.Players))
+	copy(players, request.Players)
+	for index := range players {
+		players[index].ID = ""
+		players[index].Color = ""
+		players[index].Name = ""
+	}
+	if len(players) > 0 {
+		players[0].Name = profile.DisplayName
+	}
+	request.Players = players
+	return request
+}
+
+func buildInviteURL(baseURL string, gameID store.GameID, code string) string {
+	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if baseURL == "" {
+		baseURL = "http://localhost:5173"
+	}
+	return baseURL + "/join?gameId=" + url.QueryEscape(string(gameID)) + "&inviteCode=" + url.QueryEscape(code)
+}
+
 type gameOrdersRequest struct {
-	Chains   []engine.ChainSubmission  `json:"chains"`
-	Winter   []engine.WinterSubmission `json:"winter"`
-	Force    bool                      `json:"force,omitempty"`
-	Revision store.Revision            `json:"revision,omitempty"`
+	Chains   []chainOrderRequest  `json:"chains"`
+	Winter   []winterOrderRequest `json:"winter"`
+	Force    bool                 `json:"force,omitempty"`
+	Revision store.Revision       `json:"revision,omitempty"`
+}
+
+type chainOrderRequest struct {
+	Noble models.NobleCode `json:"noble"`
+	Text  string           `json:"text"`
+}
+
+type winterOrderRequest struct {
+	Lines string `json:"lines"`
+}
+
+type joinGameRequest struct {
+	InviteCode string `json:"inviteCode"`
 }
 
 type gameOrdersResponse struct {
@@ -436,15 +673,17 @@ type gameListView struct {
 }
 
 type gameDetailView struct {
-	ID       store.GameID     `json:"id"`
-	Name     string           `json:"name"`
-	Seed     string           `json:"seed"`
-	Status   store.Status     `json:"status"`
-	Winner   *models.PlayerID `json:"winner,omitempty"`
-	Players  []PlayerSlotView `json:"players"`
-	Turn     int              `json:"turn"`
-	Season   models.Season    `json:"season"`
-	Revision store.Revision   `json:"revision"`
+	ID         store.GameID     `json:"id"`
+	Name       string           `json:"name"`
+	Seed       string           `json:"seed"`
+	Status     store.Status     `json:"status"`
+	Winner     *models.PlayerID `json:"winner,omitempty"`
+	Players    []PlayerSlotView `json:"players"`
+	Turn       int              `json:"turn"`
+	Season     models.Season    `json:"season"`
+	Revision   store.Revision   `json:"revision"`
+	InviteCode string           `json:"inviteCode,omitempty"`
+	InviteURL  string           `json:"inviteUrl,omitempty"`
 }
 
 type PlayerSlotView struct {
@@ -452,6 +691,18 @@ type PlayerSlotView struct {
 	Name      string          `json:"name"`
 	Color     string          `json:"color"`
 	Submitted bool            `json:"submitted"`
+}
+
+type invitationView struct {
+	GameID     store.GameID `json:"gameId"`
+	InviteCode string       `json:"inviteCode"`
+	InviteURL  string       `json:"inviteUrl"`
+}
+
+type gameJoinResponse struct {
+	gameDetailView
+	Player PlayerSlotView `json:"player"`
+	Joined bool           `json:"joined"`
 }
 
 type reportSummaryView struct {
@@ -495,10 +746,18 @@ func makePlayerSlotViews(snapshot store.GameSnapshot) []PlayerSlotView {
 	return views
 }
 
+func makePlayerSlotView(player store.PlayerSlot, snapshot store.GameSnapshot) PlayerSlotView {
+	_, submitted := snapshot.Submissions[player.ID]
+	return PlayerSlotView{ID: player.ID, Name: player.Name, Color: player.Color, Submitted: submitted}
+}
+
 func snapshotPlayerID(snapshot store.GameSnapshot, actor store.Actor) (models.PlayerID, bool) {
 	actorID := strings.TrimSpace(actor.ID)
 	for _, player := range snapshot.Players {
 		if player.ActorID == actorID {
+			return player.ID, true
+		}
+		if actor.Development && player.ActorID == "" && string(player.ID) == actorID {
 			return player.ID, true
 		}
 	}
