@@ -13,6 +13,7 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
 	"github.com/fogfactory/crown-and-borough/internal/models"
+	"github.com/fogfactory/crown-and-borough/internal/store"
 )
 
 const defaultSeed = "crown-and-borough-dev"
@@ -126,6 +127,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to create default game: %v", err)
 	}
+	gameStore := store.NewMemoryStoreWithOptions(balance, assets, store.MemoryStoreOptions{
+		PrivacyTracker: api.TrackTurnPrivacy,
+	})
+
+	onlineDevMode := os.Getenv("ONLINE_DEV_MODE") == "true"
+	server := newApplicationServer(session, rules, gameStore, onlineDevMode)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -134,9 +141,34 @@ func main() {
 
 	addr := ":" + port
 	log.Printf("starting server on %s", addr)
-	if err := http.ListenAndServe(addr, api.WithCORS(newHotseatServer(session, rules))); err != nil {
+	if err := http.ListenAndServe(addr, api.WithCORSMode(server, onlineDevMode)); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func newApplicationServer(session *api.Session, rules assetgen.Rules, gameStore store.GameStore, onlineDevMode bool) *http.ServeMux {
+	var mux *http.ServeMux
+	if onlineDevMode {
+		mux = newHotseatServer(session, rules)
+	} else {
+		mux = http.NewServeMux()
+		mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		})
+		mux.Handle("GET /api/rules", api.RulesHandler(rules))
+	}
+	var resolveActor api.ActorResolver
+	if onlineDevMode {
+		resolveActor = api.DevActorResolver("P1")
+	} else {
+		resolveActor = api.BearerActorResolver(func(string) (store.Actor, error) {
+			return store.Actor{}, api.ErrUnauthorized
+		})
+	}
+	games := api.NewGamesHandler(gameStore, rules, resolveActor)
+	mux.Handle("/api/games", games)
+	mux.Handle("/api/games/", games)
+	return mux
 }
 
 func enginePlayerID(index int) models.PlayerID {

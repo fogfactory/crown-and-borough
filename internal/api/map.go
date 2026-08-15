@@ -58,13 +58,26 @@ func requestedPlayers(r *http.Request) (int, bool) {
 	return players, true
 }
 
-// WithCORS permits the Vite development server to request the local API.
+// WithCORS permits the Vite development server to request the local API and
+// keeps the development identity header available for the legacy hotseat
+// surface.
 func WithCORS(next http.Handler) http.Handler {
+	return WithCORSMode(next, true)
+}
+
+// WithCORSMode is the production-safe variant of WithCORS. The development
+// identity header is advertised only when the caller explicitly mounts the
+// development API.
+func WithCORSMode(next http.Handler, allowDevelopmentHeaders bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", developmentOrigin)
 		w.Header().Add("Vary", "Origin")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		allowedHeaders := "Authorization, Content-Type"
+		if allowDevelopmentHeaders {
+			allowedHeaders += ", X-Dev-Player"
+		}
+		w.Header().Set("Access-Control-Allow-Headers", allowedHeaders)
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return

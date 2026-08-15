@@ -10,6 +10,7 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/api"
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
+	"github.com/fogfactory/crown-and-borough/internal/store"
 )
 
 func TestHotseatServerRoutes(t *testing.T) {
@@ -76,5 +77,37 @@ func TestHotseatServerRoutes(t *testing.T) {
 	}
 	if response.State.Turn != 2 {
 		t.Errorf("state turn = %d, want 2", response.State.Turn)
+	}
+}
+
+func TestApplicationServerDoesNotTrustPlayerQueryOutsideDevMode(t *testing.T) {
+	assets, err := assetgen.Load("../../assets")
+	if err != nil {
+		t.Fatalf("load assets: %v", err)
+	}
+	balance, err := assetgen.LoadBalance("../../assets")
+	if err != nil {
+		t.Fatalf("load balance: %v", err)
+	}
+	rules, err := assetgen.LoadRules("../../assets")
+	if err != nil {
+		t.Fatalf("load player rules: %v", err)
+	}
+	session, err := api.NewSession("application-route-test", []engine.PlayerInit{{Name: "One"}, {Name: "Two"}}, balance, assets)
+	if err != nil {
+		t.Fatalf("NewSession: %v", err)
+	}
+	server := newApplicationServer(session, rules, store.NewMemoryStore(balance, assets), false)
+	recorder := httptest.NewRecorder()
+	server.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/games?player=P1", nil))
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("GET games outside dev mode = %d: %s", recorder.Code, recorder.Body.String())
+	}
+	for _, path := range []string{"/api/state?player=P1", "/api/orders", "/api/game", "/api/reset"} {
+		recorder := httptest.NewRecorder()
+		server.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, path, nil))
+		if recorder.Code != http.StatusNotFound {
+			t.Errorf("legacy route %s outside dev mode = %d, want 404", path, recorder.Code)
+		}
 	}
 }

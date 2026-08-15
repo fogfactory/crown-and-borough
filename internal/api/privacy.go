@@ -16,6 +16,13 @@ type receivedChain struct {
 	previousChainID *models.ChainID
 }
 
+// TrackTurnPrivacy is the store callback used after a turn resolves. The
+// exported wrapper keeps the privacy implementation in the API package while
+// allowing internal/store to remain independent from HTTP projections.
+func TrackTurnPrivacy(before, after *models.GameState, input engine.OrdersInput, report engine.TurnReport) {
+	trackTurnPrivacy(before, after, input, report)
+}
+
 // trackTurnPrivacy applies the privacy effects of a resolved turn to the
 // cloned result returned by the engine. The engine remains unaware of viewers.
 func trackTurnPrivacy(before, after *models.GameState, input engine.OrdersInput, report engine.TurnReport) {
