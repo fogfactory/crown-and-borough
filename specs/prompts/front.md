@@ -1,103 +1,150 @@
-# Prompt : parcours front complet entre amis
+# Prompt : parcours front Firebase, multi-parties et temps reel
 
 ```
-CHOIX O1 (issue #44, contrats figés) :
-- `territories[].id` est l'unique identité territoriale publique : trigramme,
-  sans `code` territorial dupliqué ni matricule `T<number>`.
-- Le MVP hébergé accepte deux à huit joueurs, une seule partie active, et garde
-  les routes `/api/games/{id}` pour l'évolution multi-parties.
-- `chain: null` signifie absence de chaîne ; `visibility: "hidden"` masque une
-  chaîne existante ; `visibility: "known"` accompagne un détail connu.
-- Les combats utilisent `visibility: "exact"` ou `"general"` ; la vue générale
-  n'expose ni forces ni identifiants d'armées.
-- La résolution forcée est explicite, sans deadline automatique. Les tokens
-  Bearer sont en mémoire, sans mot de passe ni expiration au MVP.
-- `DATA_DIR` est l'interface de stockage ; filesystem/Persistent Disk et
-  snapshot GCS sont deux backends possibles. Le serveur utilise `net/http` et
-  `http.ServeMux`, et les endpoints hotseat sont dev-only.
+CHOIX O1 ET ARCHITECTURE HEBERGEE :
+- Le MVP accepte plusieurs parties de deux a huit joueurs.
+- Firebase Authentication utilise un lien de connexion par email ; le SDK
+  Firebase gere la session et le rafraichissement des ID tokens.
+- Le backend Go derive toujours l'identite du JWT Firebase et les commandes
+  passent par l'API REST.
+- Firestore expose au navigateur uniquement `games/{id}` et la projection
+  `games/{id}/views/{uid}` ainsi que les rapports filtres du joueur ; le front
+  ne lit jamais l'etat canonique, les soumissions brutes ou les privacy
+  metadata.
+- Les listeners `onSnapshot` remplacent le polling regulier. Ils sont detaches
+  lorsque la partie, le compte ou le composant disparait.
+- Les chaines et combats suivent les variantes `null`, `hidden`, `known`,
+  `exact` et `general` des fixtures O1-O4.
 
-Tu travailles sur "Crown & Borough", un jeu de stratégie par tours.
-Tout est en place : moteur v1, API REST (P3.1), auth +
-codes d'invitation (P3.2), persistance JSON (P3.3), front Vite+React+TS+
-Tailwind+shadcn/ui.
-Références : specs/gdd.md, specs/architecture.md (§5 contrats) et
-specs/roadmap.md (P3.4).
+Tu travailles sur "Crown & Borough", un jeu de strategie par tours. Le moteur,
+l'API de partie, les projections privees, Firebase Auth et la persistence
+Firestore sont les couches de produit. References : `specs/gdd.md`,
+`specs/architecture.md`, `specs/online.md` et `specs/online-plan.md`.
 
-PÉRIMÈTRE : POLISH UNIQUEMENT — corriger les retours du test local (deux
-navigateurs, une vraie partie entre amis), fluidifier le parcours complet,
-améliorer l'UX du rapport de tour et de la vue par joueur. AUCUNE modification du
-moteur ni de l'API (seules des corrections d'API mineures sont acceptées si
-un bug est constaté — documente-les). Pas de nouvelle fonctionnalité de jeu.
+PERIMETRE : construire le parcours utilisateur complet entre amis : connexion
+email, profil, liste multi-parties, creation, invitation, join, consultation
+temps reel, ordres, resolution, rapports, hiver, victoire et erreurs. Ne pas
+mettre de logique de confidentialite dans React : le front rend les projections
+deja filtrees et ne doit pas essayer de reconstruire l'etat prive.
 
-RÈGLE DE CODE : code EXCLUSIVEMENT en anglais (identifiants, commentaires,
-messages, enums). Seuls les LABELS UI sont en français (l'interface est
-francophone : "Soumettre les ordres", "En attente d'un autre joueur...", etc.)
+REGLE DE CODE : code EXCLUSIVEMENT en anglais (identifiants, commentaires,
+messages techniques, enums). Les labels et messages de l'interface restent en
+francais.
 
-1. PARCOURS COMPLET (teste-toi toi-même, deux onglets) — chaque étape doit
-   être fluide, sans erreur console, sans refresh forcé :
-   a. Accueil : inscription (nom) → création OU join par code
-   b. Écran partie : code d'invitation visible et copiable (créateur),
-      liste des joueurs avec slots libres ("En attente d'un joueur..."),
-      rafraîchissement automatique quand quelqu'un rejoint
-    c. Carte : vue du joueur, légende claire, tooltips sur les territoires
-      légende claire, tooltips sur les territoires (nom, terrain, contrôle,
-      stock, troupes, infrastructures)
-   d. Ordres : édition (une textarea par noble du joueur, en-tête
-      pré-rempli), validation côté client (erreurs de parsing affichées
-      AVANT l'envoi si possible — sinon après, avec n° de ligne),
-      soumission → état "Soumis ✓" + liste des joueurs en attente
-   e. Résolution : quand le dernier joueur soumet, le rapport s'affiche ;
-      les autres joueurs le voient au prochain rafraîchissement
-      (poller 5 s) — notification discrète "Le tour s'est résolu"
-   f. Rapport de tour : sections lisibles (combats, ravitaillement,
-      mouvements, nobles, hiver), faits marquants en premier (pertes,
-      captures, famines), détail repliable
-   g. Hiver : panneau d'ordres d'hiver + bilan (investissements,
-      conservation, rapatriement)
-   h. Fin de partie : écran de victoire (gagnant) + retour à l'accueil
-   i. Erreurs : 401 (réinscription), 403, 409 (partie pleine/commencée),
-      réseau — messages français, pas de crash
-   j. Persistance : F5 au milieu d'un tour → tout est retrouvé (sessions
-      perdues au restart serveur → réinscription puis reprise du slot par
-      nom + code d'invitation)
+1. CONFIGURATION ET SESSION :
+   - Ajouter le Firebase Web SDK et initialiser l'application avec les
+     variables `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`,
+     `VITE_FIREBASE_PROJECT_ID` et `VITE_FIREBASE_APP_ID`.
+   - Les valeurs Firebase Web sont publiques ; ne jamais mettre de credential
+     Admin ou de cle de service dans `web/`.
+   - `useAuth` expose l'utilisateur courant, l'etat de chargement et les
+     actions `sendSignInLink`, `completeSignIn` et `signOut`.
+   - Utiliser `onAuthStateChanged` et la persistence de session Firebase. Ne
+     pas copier l'ID token dans `localStorage` ; appeler `getIdToken()` juste
+     avant une commande REST.
+   - Le lien email doit fonctionner sur le domaine local autorise et sur le
+     domaine Cloud Run. L'adresse email necessaire a la finalisation peut etre
+     conservee dans le stockage de session du navigateur.
 
-2. VUE PAR JOUEUR — lisibilité :
-    - Les chaînes connues par le joueur sont distinguées des chaînes dont le
-      détail n'est pas révélé.
-    - Les combats impliquant le joueur affichent le détail exact ; les autres
-      affichent seulement le traitement général des ordres.
-   - La carte n'est PAS re-fetchée au poller (le map.json est stable) :
-     seule la couche state est rechargée
+2. PROFIL ET ACCUEIL :
+   - Apres connexion, appeler `GET /api/auth/me`. Si le display name manque,
+     afficher le formulaire de profil et appeler `PUT /api/auth/me`.
+   - Valider le nom cote client pour l'UX, mais laisser le serveur trancher la
+     validation et les conflits.
+   - L'accueil affiche les parties dont l'utilisateur est membre et une action
+     de creation. La liste vient de l'API pour l'initialisation et peut etre
+     abonnee directement a la query Firestore securisee
+     `games where memberUids array-contains uid`.
+   - Les parties d'autres joueurs ne sont jamais affichees comme accessibles.
+     Un lien d'invitation preselectionne la partie et le code, puis demande la
+     connexion avant d'appeler `/join`.
 
-3. QUALITÉ TECHNIQUE :
-   - Composants découpés (Accueil, Partie, Ordres, Rapport, Carte) ;
-     hooks propres (useGame, usePolling, useSession) ; pas de logique
-     métier dans les composants
-   - États de chargement (skeleton/spinner) et états vides (pas de
-     partie, aucun joueur...) sur CHAQUE vue
-   - Accessibilité raisonnable : focus visible, aria-labels sur les
-     boutons d'icônes, contrastes OK
-   - Pas de re-render inutile du poller (dépendances stables) ; le
-     poller s'arrête quand l'onglet est caché (document.visibilityState)
-     et reprend au retour
+3. CREATION, INVITATION ET JOIN :
+   - Creation : nom de partie et seed optionnelle, puis `POST /api/games` avec
+     l'ID token. Afficher le code et le lien au createur uniquement.
+   - Join : envoyer uniquement `{ inviteCode }` a
+     `POST /api/games/{id}/join`. Ne jamais envoyer un nom pour choisir le slot
+     et ne jamais permettre la selection libre d'un `player`.
+   - Afficher les slots, les noms de profil autorises et le statut des
+     soumissions sans exposer les ordres ou les donnees privees.
+   - Le parcours doit supporter plusieurs onglets et plusieurs parties sans
+     melanger leurs listeners ou leur etat local.
 
-4. TESTS :
-   - Pas de test E2E lourd au MVP : au minimum un check TypeScript
-     (tsc --noEmit ou vitest si déjà en place) + le parcours manuel
-     documenté dans un fichier TESTING.md (étapes a-j du point 1,
-     cases à cocher) que tu as EXÉCUTÉ toi-même
-   - Signale précisément (avec captures si possible) tout bug moteur/API
-     rencontré pendant le parcours, avec le scénario de reproduction
+4. LISTENERS FIRESTORE :
+   - `useGameSubscription(gameId, uid)` s'abonne au resume public
+     `games/{gameId}` et a la vue `games/{gameId}/views/{uid}`.
+   - Les rapports filtres historiques peuvent etre charges par l'API ou par
+     une souscription Firestore limitee au chemin du UID courant.
+   - Verifier `revision`, `turn` et `updatedAt` pour ignorer un snapshot plus
+     ancien qu'une reponse REST deja appliquee.
+   - Le listener ne lit jamais `canonical`, `turns`, `submissions`, les
+     rapports non filtres ou les invitations.
+   - Desabonner chaque `onSnapshot` dans le cleanup React. Desabonner aussi
+     lorsqu'un compte se deconnecte, change de partie ou perd son membership.
+   - Ne pas implementer un poller de secours permanent. Une reconnexion reseau
+     refait une lecture REST ponctuelle puis laisse le listener reprendre.
+   - Les erreurs Firestore `permission-denied`, `unauthenticated` et reseau
+     sont converties en etats d'interface explicites.
 
-Critères d'acceptation :
-- Le parcours a→j du point 1 est fluide en local (deux navigateurs,
-  serveur Go + Vite dev)
-- Aucune erreur console pendant le parcours complet ; aucune modification
-  du moteur ; l'API n'est modifiée qu'en cas de bug documenté
-- TESTING.md rempli et commité avec le code
+5. ORDRES ET RESOLUTION :
+   - Charger la carte statique une fois par partie ; elle ne contient aucun
+     secret et ne doit pas etre refetchee a chaque snapshot.
+   - Editer les chaines par noble du joueur et les ordres d'hiver dans un etat
+     local. La soumission utilise `POST /api/games/{id}/orders` avec l'ID token
+     et aucun champ d'identite joueur.
+   - Afficher `pending`, les joueurs restants et le tour depuis la projection
+     publique. Une resoumission remplace le brouillon distant du meme joueur.
+   - Le joueur qui soumet en dernier peut recevoir `resolved` dans la reponse ;
+     les autres voient la nouvelle projection via `onSnapshot`.
+   - La resolution forcee reste une action explicite avec confirmation ; elle
+     n'ajoute aucune deadline automatique.
 
-Note : documente dans la réponse finale ce qui a été corrigé (avec les
-scénarios de reproduction des bugs moteur/API éventuels) et mets à jour
-`TESTING.md` et les spécifications si un contrat change. Ne commite pas sans
-instruction explicite.
+6. VUES PRIVEES ET RAPPORTS :
+   - Rendre `chain: null`, `chain.visibility: hidden` et
+     `chain.visibility: known` comme trois etats differents.
+   - Rendre un combat `exact` avec ses details uniquement lorsque la projection
+     le fournit ; rendre un combat `general` sans tenter de reconstituer les
+     forces ou identifiants absents.
+   - Ne jamais conserver une copie globale non filtree dans un store React,
+     dans les devtools de l'application ou dans un cache persistant.
+   - Afficher rapports, mouvements, combats, ravitaillement, famine, nobles,
+     investissements d'hiver et victoire selon le contrat de projection.
+
+7. ETATS ET ACCESSIBILITE :
+   - Couvrir chargement auth, attente du lien email, profil manquant, liste
+     vide, partie introuvable, partie pleine, acces interdit, reseau coupe,
+     listener en erreur et deconnexion.
+   - Afficher un etat de connexion temps reel sans bloquer l'edition locale des
+     ordres ; prevenir clairement avant de perdre une soumission non envoyee.
+   - Composants decoupes : Auth, Profile, GameList, GameLobby, Map, Orders,
+     Report et GameStatus. Les hooks gerent auth, REST et listeners ; les
+     composants ne contiennent pas de logique moteur.
+   - Focus visible, labels accessibles, contrastes corrects et largeur mobile.
+
+8. TESTS :
+   - Vitest : mocks de Firebase Auth, `onAuthStateChanged`, `onSnapshot`,
+     desabonnement, refresh d'ID token et erreurs de permission.
+   - Tester deux parties dans deux onglets, un changement instantane de slot,
+     une resolution vue par l'autre joueur, un changement de compte et un
+     listener detache.
+   - Tester le parcours du lien email avec l'emulateur ou un adaptateur de
+     test ; ne pas dependre d'un email reel dans la CI.
+   - Executer `npm run test`, `npm run build` et `npm run lint`.
+   - Documenter dans `TESTING.md` le parcours manuel avec deux comptes, deux
+     parties, une reconnexion et une largeur mobile.
+
+CRITERES D'ACCEPTATION :
+- Deux comptes se connectent par lien email et jouent dans deux parties sans
+  melange d'etat.
+- Une soumission apparait en temps reel pour les membres autorises sans
+  polling permanent.
+- Les rapports et vues privees correspondent au joueur connecte et aucune
+  donnee brute n'est conservée ou affichée côté front.
+- Un refresh et une reconnexion Firebase retrouvent le profil, les memberships
+  et la partie depuis Firestore.
+- `npm run test`, `npm run build` et `npm run lint` passent.
+
+Note : documente dans la reponse finale la configuration Firebase Web, la
+persistence de session choisie, les chemins Firestore ecoutes, la strategie de
+cleanup et les tests de fuite. Ne commit pas sans instruction explicite.
 ```

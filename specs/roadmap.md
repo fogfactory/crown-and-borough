@@ -90,14 +90,14 @@ milestones GitHub `Online Foundations`, `Online Friends MVP` et `Online Hosted`.
 
 | Sujet | Périmètre | État |
 |---|---|---|
-| Contrats et architecture online | Figer les contrats JSON, les routes, la confidentialité, la résolution forcée et les backends `DATA_DIR` ; fixtures dans [`specs/fixtures/`](fixtures/) | Fait : O1 |
+| Contrats et architecture online | Figer les contrats JSON, les routes, la confidentialité, la résolution forcée et la frontière Firestore ; fixtures dans [`specs/fixtures/`](fixtures/) | Fait : O1 |
 | Identité territoriale | Utiliser le trigramme territorial comme identifiant unique dans le domaine et les contrats | Fait : O2-O3 |
 | Vue privée par joueur | Filtrer côté serveur les chaînes connues et les détails des combats selon le joueur | Planifié : O4 |
-| API de production | Une partie active, ressources d'une partie, contrats REST stabilisés et gestion des erreurs | Planifié : O5 |
-| Authentification | Identité, sessions, invitation et reprise d'un emplacement de joueur | Planifié : O6 |
-| Persistance | Sauvegarde et restauration JSON d'une partie sans perte après redémarrage | Planifié : O8 |
-| Front | Retours de tests, accessibilité, parcours multi-joueur et affichage des vues privées | Planifié : O7 |
-| Déploiement | Image de production, stockage durable et déploiement public | Planifié : O9-O10 |
+| API de production | Plusieurs parties, ressources d'une partie, contrats REST stabilisés et gestion des erreurs | Planifié : O5 |
+| Authentification | Firebase Auth par lien email, profils Firestore, invitations et membership par UID | Planifié : O6 |
+| Persistance | Transactions, projections privées et restauration Firestore sans perte après redémarrage | Planifié : O8 |
+| Front | Retours de tests, accessibilité, parcours multi-joueur, Firebase Web et listeners temps réel | Planifié : O7 |
+| Déploiement | Image de production, Firestore/Firebase et déploiement public Cloud Run | Planifié : O9-O10 |
 
 ## Extensions de règles
 
