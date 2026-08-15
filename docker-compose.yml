@@ -1,0 +1,61 @@
+services:
+  firestore:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    command:
+      - gcloud
+      - beta
+      - emulators
+      - firestore
+      - start
+      - --host-port=0.0.0.0:8081
+      - --project=crown-and-borough-local
+      - --rules=/config/firestore.rules
+    environment:
+      CLOUDSDK_CORE_PROJECT: crown-and-borough-local
+    volumes:
+      - ./firestore.rules:/config/firestore.rules:ro
+    ports:
+      - "${FIRESTORE_PORT:-8081}:8081"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          code=$$(curl -s -o /dev/null -w '%{http_code}'
+          http://127.0.0.1:8081/);
+          test "$$code" != "000"
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: crown-and-borough:local
+    environment:
+      ASSETS_DIR: /assets
+      FIRESTORE_EMULATOR_HOST: firestore:8081
+      GOOGLE_CLOUD_PROJECT: crown-and-borough-local
+      ONLINE_DEV_MODE: "true"
+      PORT: "8080"
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:5173}
+    depends_on:
+      firestore:
+        condition: service_healthy
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile.compose
+    image: crown-and-borough-web:local
+    profiles:
+      - frontend
+    depends_on:
+      server:
+        condition: service_started
+    ports:
+      - "${WEB_PORT:-5173}:80"

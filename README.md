@@ -61,6 +61,36 @@ Firestore emulator is running. The integration suite models a restart with a
 second store instance and the rules suite checks member, non-member, private
 projection, and backend-only access.
 
+## Local Docker Compose Stack
+
+The repository also includes a static local stack with the official Google
+Cloud CLI emulator image. It starts the Firestore emulator and the Go server;
+the optional `frontend` profile adds a statically built Nginx frontend with
+`/api` proxied to the server.
+
+```bash
+make compose-up
+make compose-up-frontend
+make compose-logs
+make compose-down
+```
+
+The services use these host ports:
+
+| Service | URL |
+| --- | --- |
+| Go server | `http://localhost:8080` |
+| Firestore emulator | `127.0.0.1:8081` |
+| Frontend profile | `http://localhost:5173` |
+
+If one of the default ports is already in use, override it when starting the
+stack, for example `SERVER_PORT=18080 FIRESTORE_PORT=18081 make compose-up`.
+
+Compose runs with `ONLINE_DEV_MODE=true`, so local requests can use the
+development player resolver. Emulator data is intentionally ephemeral: stop
+the stack and start it again to get a clean local database. The Firestore
+rules remain mounted from `firestore.rules` for emulator validation.
+
 The legacy hotseat game is created at startup with `SEED` and `PLAYERS` (an
 integer from 2 to 16, default 4). `POST /api/game` replaces it, while
 `POST /api/reset` restores the startup game.
