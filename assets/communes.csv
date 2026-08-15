@@ -11,8 +11,8 @@ BEL;Bellevue;any
 BEM;Belmarch;any
 BER;Belrond;any
 BLV;Belval;any
-BEV;Belvallon;any
-BVE;Belvent;any
+BEV;Beauvallon;any
+BVE;Beauvent;any
 BBR;Boisbrun;forest
 BCL;Boisclair;forest
 BOS;Boiscourt;forest
@@ -35,7 +35,7 @@ BUR;Bourgneuf;any
 BGS;Bourgsoleil;any
 BRG;Bourgval;any
 BVO;Bourgvallon;any
-CBE;Châteaubelle;any
+CBE;Châteaubel;any
 CBO;Châteaubois;forest
 CCL;Châteauclair;any
 CFR;Châteaufroid;any
@@ -313,7 +313,7 @@ FFL;Futaiefort;forest
 FLP;Futaielong;forest
 FPR;Futaiepierre;forest
 FVL;Futaieval;forest
-FGR;Fougéraie;forest
+FGR;Fougères;forest
 FRN;Frênaie;forest
 FSV;Frêneval;forest
 GBO;Grandbois;forest
