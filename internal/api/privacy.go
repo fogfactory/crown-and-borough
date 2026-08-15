@@ -566,6 +566,13 @@ func projectReport(report engine.TurnReport, viewer models.PlayerID, privacy *mo
 	return view
 }
 
+// ProjectReport returns the player-filtered report projection used by the REST
+// API. Persistence adapters use this function when writing per-player report
+// documents so historical listeners receive the same redaction as HTTP.
+func ProjectReport(report engine.TurnReport, viewer models.PlayerID, privacy *models.PrivacyMeta) TurnReportView {
+	return projectReport(report, viewer, privacy)
+}
+
 func viewerKnowsChainSnapshot(privacy *models.PrivacyMeta, viewer models.PlayerID, chainID models.ChainID) bool {
 	if privacy == nil || chainID == "" {
 		return false

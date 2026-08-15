@@ -1,0 +1,59 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function memberOf(gameId) {
+      return signedIn()
+        && request.auth.uid in get(/databases/$(database)/documents/games/$(gameId)).data.memberUids;
+    }
+
+    // Profiles are synchronized by the authenticated Go API. Clients may read
+    // their own projection but may not forge an email, UID, or membership.
+    match /players/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // The game document is deliberately only a member-readable summary.
+    match /games/{gameId} {
+      allow read: if memberOf(gameId);
+      allow write: if false;
+
+      match /views/{uid} {
+        allow read: if memberOf(gameId) && request.auth.uid == uid;
+        allow write: if false;
+      }
+
+      match /reports/{uid}/turns/{turn} {
+        allow read: if memberOf(gameId) && request.auth.uid == uid;
+        allow write: if false;
+      }
+
+      match /canonical/{document} {
+        allow read, write: if false;
+      }
+
+      match /turns/{turn}/submissions/{uid} {
+        allow read, write: if false;
+      }
+
+      // Unfiltered reports are backend-only. The nested filtered-report rule
+      // above is more specific and is independently checked by the emulator.
+      match /reports/{turn} {
+        allow read, write: if false;
+      }
+    }
+
+    match /invitations/{codeHash} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

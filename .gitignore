@@ -1,5 +1,6 @@
 # Go
 bin/
+firestore-debug.log
 *.test
 *.out
 

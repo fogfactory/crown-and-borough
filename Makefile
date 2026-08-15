@@ -1,4 +1,4 @@
-.PHONY: build run run-dev test vet clean web-deps web-dev
+.PHONY: build run run-dev test test-firestore vet clean web-deps web-dev
 
 build:
 	go build -o bin/server ./cmd/server
@@ -11,6 +11,11 @@ run-dev: build
 
 test:
 	go test ./...
+
+test-firestore:
+	@test -n "$(FIRESTORE_EMULATOR_HOST)"
+	go test -count=1 -tags=integration ./internal/store/firestore/...
+	cd web && npm run test:rules
 
 vet:
 	go vet ./...

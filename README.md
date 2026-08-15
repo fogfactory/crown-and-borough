@@ -24,9 +24,42 @@ Set `FIREBASE_PROJECT_ID`, `PUBLIC_APP_URL` (and provide ADC credentials) before
 updates its display name. Authenticated game creation requires a completed
 profile and returns a six-character invitation code and URL. A member joins
 through `POST /api/games/{id}/join` with `{ "inviteCode": "..." }`; the server
-derives the player from the verified UID. Profiles, memberships, and hashed
-invitation codes are currently in memory; Firestore persistence is the next
-online milestone.
+derives the player from the verified UID. In hosted mode, profiles,
+memberships, canonical state, pending submissions, reports, privacy metadata,
+and filtered projections are persisted in Firestore Native mode. No Firebase
+token or clear invitation code is stored by the backend.
+
+## Firestore Persistence
+
+Production mode requires Application Default Credentials and
+`FIREBASE_PROJECT_ID` (or `GOOGLE_CLOUD_PROJECT`). `FIRESTORE_DATABASE_ID` is
+optional and defaults to `(default)`. Local development keeps the in-memory
+store unless `FIRESTORE_EMULATOR_HOST` is set; with the emulator configured,
+`ONLINE_DEV_MODE=true` uses Firestore as well.
+
+The versioned schema is defined in `internal/store/firestore` and uses
+`players/{uid}`, `games/{gameId}`, `canonical/current`, turn submissions,
+unfiltered reports, per-player views, filtered reports, and hashed invitations.
+`firestore.rules` permits a member to read only the game summary and their own
+profile, state view, and filtered reports. Game writes, canonical state, raw
+orders, raw reports, privacy metadata, and invitations remain backend-only.
+
+Every submission checks the expected revision in a Firestore transaction.
+Resolution first claims the current revision with an `operationId`,
+`baseRevision`, and a 30-second recoverable lease. The deterministic engine runs
+outside the transaction; the conditional commit then writes the next canonical
+state, bounded report history, all filtered projections, and removes the
+current submissions. A crashed claim can be reclaimed after its lease expires;
+this is not a player deadline.
+
+`FirestoreStore.Metrics()` exposes logical reads, writes, transactions, and
+projection writes for emulator and quota benchmarks. Firestore transaction
+retries can make billed SDK operations higher than these logical counters.
+
+Use `FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 make test-firestore` when the
+Firestore emulator is running. The integration suite models a restart with a
+second store instance and the rules suite checks member, non-member, private
+projection, and backend-only access.
 
 The legacy hotseat game is created at startup with `SEED` and `PLAYERS` (an
 integer from 2 to 16, default 4). `POST /api/game` replaces it, while
@@ -50,4 +83,4 @@ server-filtered private view for the selected player; omitting `player` keeps th
 legacy global projection useful for diagnostics. The multi-game store keeps
 chain knowledge, combat audiences, pending submissions, reports, and a monotone
 revision per game. The frontend Firebase sign-in flow and Firestore listeners
-are intentionally left to the next online milestone.
+remain the responsibility of the next frontend milestone.
