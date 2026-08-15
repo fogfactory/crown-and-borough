@@ -220,11 +220,13 @@ impliqué.
 
 **Dépendances :** O3, O4.
 
-**Livrables :** store de plusieurs parties, routes `/api/games/{id}`, liste et
-détail filtrés par membership, soumissions individuelles, résolution
-automatique ou forcée, rapports, saisons, élimination, déterminisme et
-endpoints `supply`/`rules`. La limite d'une seule partie active est supprimée ;
-les identifiants de partie restent stables et uniques.
+**Livrables :** store indexé par `gameID`, mutex global pour l'index et mutex
+par partie, routes `/api/games/{id}`, liste et détail filtrés par membership,
+soumissions individuelles, résolution automatique ou forcée, rapports, saisons,
+élimination, gagnant, déterminisme, `Revision` monotone et endpoints
+`supply`/`rules`. La limite d'une seule partie active est supprimée ; plusieurs
+parties peuvent progresser indépendamment et une deuxième création ne renvoie
+pas de `409` global.
 
 **Tests automatiques :** CRUD, soumission en attente, remplacement,
 validation atomique, résolution forcée, quatre saisons, élimination, gagnant,
