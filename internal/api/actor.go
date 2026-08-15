@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/fogfactory/crown-and-borough/internal/auth"
 	"github.com/fogfactory/crown-and-borough/internal/store"
 )
 
@@ -72,13 +73,24 @@ func DevActorResolver(defaultPlayer string) ActorResolver {
 		if player == "" {
 			return store.Actor{}, ErrUnauthorized
 		}
-		return store.Actor{ID: player}, nil
+		return store.Actor{ID: player, Development: true}, nil
 	}
 }
 
 // BearerActorResolver separates token verification from HTTP routing. O6 can
 // provide a Firebase verifier without changing any game handler.
 func BearerActorResolver(verify func(string) (store.Actor, error)) ActorResolver {
+	return BearerActorResolverWithContext(func(_ context.Context, token string) (store.Actor, error) {
+		if verify == nil {
+			return store.Actor{}, ErrUnauthorized
+		}
+		return verify(token)
+	})
+}
+
+// BearerActorResolverWithContext lets token verifiers apply request deadlines
+// and cancellation while retaining the same strict Bearer parsing rules.
+func BearerActorResolverWithContext(verify func(context.Context, string) (store.Actor, error)) ActorResolver {
 	return func(r *http.Request) (store.Actor, error) {
 		value := strings.TrimSpace(r.Header.Get("Authorization"))
 		parts := strings.SplitN(value, " ", 2)
@@ -88,7 +100,7 @@ func BearerActorResolver(verify func(string) (store.Actor, error)) ActorResolver
 		if verify == nil {
 			return store.Actor{}, ErrUnauthorized
 		}
-		actor, err := verify(strings.TrimSpace(parts[1]))
+		actor, err := verify(r.Context(), strings.TrimSpace(parts[1]))
 		if err != nil {
 			return store.Actor{}, fmt.Errorf("%w: %v", ErrUnauthorized, err)
 		}
@@ -97,6 +109,19 @@ func BearerActorResolver(verify func(string) (store.Actor, error)) ActorResolver
 		}
 		return actor, nil
 	}
+}
+
+func FirebaseActorResolver(verifier auth.Verifier) ActorResolver {
+	return BearerActorResolverWithContext(func(ctx context.Context, token string) (store.Actor, error) {
+		if verifier == nil {
+			return store.Actor{}, ErrUnauthorized
+		}
+		identity, err := verifier.VerifyIDToken(ctx, token)
+		if err != nil {
+			return store.Actor{}, err
+		}
+		return store.Actor{ID: identity.UID, Email: identity.Email}, nil
+	})
 }
 
 func writeActorError(w http.ResponseWriter, err error) {

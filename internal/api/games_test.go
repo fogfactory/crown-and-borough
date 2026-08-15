@@ -146,6 +146,19 @@ func TestGamesHandlerRejectsUntrustedIdentityInBearerMode(t *testing.T) {
 	}
 }
 
+func TestDevelopmentResolverKeepsLegacySlotAccessWhenStrictSlotsAreEnabled(t *testing.T) {
+	gameStore, rules := newGamesTestStore(t)
+	handler := NewGamesHandlerWithOptions(gameStore, rules, GamesHandlerOptions{
+		Actor:            DevActorResolver("P1"),
+		StrictMembership: true,
+	})
+	created := createGameHTTP(t, handler, "P1", `{"name":"dev game","players":2}`)
+	response := requestGames(t, handler, http.MethodGet, "/api/games/"+string(created.ID)+"/state?player=P2", "")
+	if response.Code != http.StatusOK {
+		t.Fatalf("development P2 state = %d: %s", response.Code, response.Body.String())
+	}
+}
+
 func newGamesTestStore(t *testing.T) (store.GameStore, assetgen.Rules) {
 	t.Helper()
 	assets, err := assetgen.Load("../../assets")
