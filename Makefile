@@ -1,4 +1,4 @@
-.PHONY: build run run-dev test vet clean web-deps web-dev
+.PHONY: build run run-dev test test-firestore compose-up compose-up-frontend compose-down compose-logs vet clean web-deps web-dev
 
 build:
 	go build -o bin/server ./cmd/server
@@ -11,6 +11,23 @@ run-dev: build
 
 test:
 	go test ./...
+
+test-firestore:
+	@test -n "$(FIRESTORE_EMULATOR_HOST)"
+	go test -count=1 -tags=integration ./internal/store/firestore/...
+	cd web && npm run test:rules
+
+compose-up:
+	docker compose up -d --build firestore server
+
+compose-up-frontend:
+	docker compose --profile frontend up -d --build
+
+compose-down:
+	docker compose --profile frontend down --remove-orphans
+
+compose-logs:
+	docker compose --profile frontend logs -f firestore server web
 
 vet:
 	go vet ./...

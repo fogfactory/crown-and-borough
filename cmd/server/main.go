@@ -17,6 +17,7 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 	"github.com/fogfactory/crown-and-borough/internal/store"
+	firestorestore "github.com/fogfactory/crown-and-borough/internal/store/firestore"
 )
 
 const defaultSeed = "crown-and-borough-dev"
@@ -135,10 +136,16 @@ func main() {
 	if !onlineDevMode && publicAppURL == "" {
 		log.Fatal("PUBLIC_APP_URL is required outside ONLINE_DEV_MODE")
 	}
-	gameStore := store.NewMemoryStoreWithOptions(balance, assets, store.MemoryStoreOptions{
-		PrivacyTracker:   api.TrackTurnPrivacy,
-		StrictMembership: !onlineDevMode,
-	})
+	gameStore, closeGameStore, storeErr := newGameStore(context.Background(), balance, assets, onlineDevMode)
+	if storeErr != nil {
+		log.Fatalf("failed to initialize game store: %v", storeErr)
+	}
+	defer closeGameStore()
+	if persistent, ok := gameStore.(*firestorestore.FirestoreStore); ok {
+		if _, restoreErr := persistent.Restore(context.Background()); restoreErr != nil {
+			log.Fatalf("failed to restore Firestore games: %v", restoreErr)
+		}
+	}
 
 	var resolveActor api.ActorResolver
 	if onlineDevMode {
@@ -166,6 +173,23 @@ func main() {
 	if err := http.ListenAndServe(addr, api.WithCORSMode(server, onlineDevMode)); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func newGameStore(ctx context.Context, balance assetgen.Balance, assets assetgen.Assets, onlineDevMode bool) (store.GameStore, func(), error) {
+	if onlineDevMode && strings.TrimSpace(os.Getenv("FIRESTORE_EMULATOR_HOST")) == "" {
+		return store.NewMemoryStoreWithOptions(balance, assets, store.MemoryStoreOptions{
+			PrivacyTracker:   api.TrackTurnPrivacy,
+			StrictMembership: false,
+		}), func() {}, nil
+	}
+	persistent, err := firestorestore.NewFromEnv(ctx, balance, assets, firestorestore.Options{
+		PrivacyTracker:   api.TrackTurnPrivacy,
+		StrictMembership: !onlineDevMode,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return persistent, func() { _ = persistent.Close() }, nil
 }
 
 func newApplicationServer(session *api.Session, rules assetgen.Rules, gameStore store.GameStore, onlineDevMode bool) *http.ServeMux {

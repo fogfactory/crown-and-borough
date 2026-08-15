@@ -112,8 +112,23 @@ func projectState(state *models.GameState) StateView {
 	return projectStateForViewer(state, nil)
 }
 
+// ProjectState returns the public state projection used by the development
+// session. Hosted callers should use ProjectStateForPlayer so chain knowledge
+// is applied to the viewer.
+func ProjectState(state *models.GameState) StateView {
+	return projectState(state)
+}
+
 func projectStateForPlayer(state *models.GameState, playerID models.PlayerID) StateView {
 	return projectStateForViewer(state, &playerID)
+}
+
+// ProjectStateForPlayer returns the server-filtered state projection for one
+// player. It is exported so persistence adapters can materialize the same
+// projection that the REST API returns without importing Firestore into the
+// engine or models packages.
+func ProjectStateForPlayer(state *models.GameState, playerID models.PlayerID) StateView {
+	return projectStateForPlayer(state, playerID)
 }
 
 func projectStateForViewer(state *models.GameState, viewer *models.PlayerID) StateView {
