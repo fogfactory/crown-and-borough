@@ -161,7 +161,7 @@ func main() {
 		}
 		resolveActor = api.FirebaseActorResolver(verifier)
 	}
-	server := newApplicationServerWithResolver(session, rules, gameStore, onlineDevMode, resolveActor)
+	server := newApplicationServerWithResolver(session, rules, gameStore, onlineDevMode, resolveActor, assets)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -204,7 +204,7 @@ func newApplicationServer(session *api.Session, rules assetgen.Rules, gameStore 
 	return newApplicationServerWithResolver(session, rules, gameStore, onlineDevMode, resolveActor)
 }
 
-func newApplicationServerWithResolver(session *api.Session, rules assetgen.Rules, gameStore store.GameStore, onlineDevMode bool, resolveActor api.ActorResolver) *http.ServeMux {
+func newApplicationServerWithResolver(session *api.Session, rules assetgen.Rules, gameStore store.GameStore, onlineDevMode bool, resolveActor api.ActorResolver, seedAssets ...assetgen.Assets) *http.ServeMux {
 	var mux *http.ServeMux
 	if onlineDevMode {
 		mux = newHotseatServer(session, rules)
@@ -226,6 +226,9 @@ func newApplicationServerWithResolver(session *api.Session, rules assetgen.Rules
 	mux.Handle("/api/games", games)
 	mux.Handle("/api/games/", games)
 	mux.Handle("/api/auth/", api.NewAuthHandler(profiles, resolveActor))
+	if len(seedAssets) > 0 {
+		mux.Handle("GET /api/seed", api.SeedHandler(seedAssets[0]))
+	}
 	return mux
 }
 

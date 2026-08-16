@@ -269,7 +269,7 @@ func (s *FirestoreStore) resolveInternal(ctx context.Context, actor store.Actor,
 	}
 	operationContext, cancel := s.operationContext(ctx)
 	defer cancel()
-	claim, err := s.claimResolution(operationContext, actor, id, expected)
+	claim, err := s.claimResolution(operationContext, actor, id, expected, forced)
 	if err != nil {
 		return store.SubmitResult{}, err
 	}
@@ -317,7 +317,7 @@ func (s *FirestoreStore) resolveInternal(ctx context.Context, actor store.Actor,
 	}, nil
 }
 
-func (s *FirestoreStore) claimResolution(ctx context.Context, actor store.Actor, id store.GameID, expected store.Revision) (resolutionClaimResult, error) {
+func (s *FirestoreStore) claimResolution(ctx context.Context, actor store.Actor, id store.GameID, expected store.Revision, forced bool) (resolutionClaimResult, error) {
 	operationID, err := newOperationID()
 	if err != nil {
 		return resolutionClaimResult{}, err
@@ -336,6 +336,9 @@ func (s *FirestoreStore) claimResolution(ctx context.Context, actor store.Actor,
 		game, err := decodeGameDocument(gameSnapshot)
 		if err != nil {
 			return err
+		}
+		if forced && game.OwnerUID != strings.TrimSpace(actor.ID) {
+			return store.ErrNotCreator
 		}
 		playerID, member := playerIDForActor(game, actor)
 		if !member {

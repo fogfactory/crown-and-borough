@@ -63,12 +63,13 @@ projection, and backend-only access.
 
 ## Local Docker Compose Stack
 
-The repository also includes a static local stack with the official Google
-Cloud CLI emulator image. It starts the Firestore emulator and the Go server;
-the optional `frontend` profile adds a statically built Nginx frontend with
-`/api` proxied to the server.
+The repository includes a fully local online stack with Auth and Firestore
+emulators. It starts the emulators and the Go server; the optional `frontend`
+profile adds a statically built Nginx frontend with `/api` proxied to the
+server.
 
 ```bash
+cp web/.env.example web/.env.local
 make compose-up
 make compose-up-frontend
 make compose-logs
@@ -80,16 +81,27 @@ The services use these host ports:
 | Service | URL |
 | --- | --- |
 | Go server | `http://localhost:8080` |
+| Auth emulator | `http://localhost:9099` |
+| Emulator UI | `http://localhost:4000` |
 | Firestore emulator | `127.0.0.1:8081` |
 | Frontend profile | `http://localhost:5173` |
 
 If one of the default ports is already in use, override it when starting the
 stack, for example `SERVER_PORT=18080 FIRESTORE_PORT=18081 make compose-up`.
+The browser emulator endpoints in `web/.env.local` must use the corresponding
+host ports.
 
-Compose runs with `ONLINE_DEV_MODE=true`, so local requests can use the
-development player resolver. Emulator data is intentionally ephemeral: stop
+Compose runs with `ONLINE_DEV_MODE=false` and validates Auth emulator tokens,
+so two browsers receive distinct Firebase UIDs and exercise the real online
+membership flow. `make run-dev` remains the legacy development path with the
+explicit local player resolver. Emulator data is intentionally ephemeral: stop
 the stack and start it again to get a clean local database. The Firestore
 rules remain mounted from `firestore.rules` for emulator validation.
+
+The frontend profile reads `web/.env.local` during the image build. The Auth
+emulator prints email links in `docker compose logs -f auth`; the same links
+are available in the Emulator UI under Authentication. Open each link in the
+same browser that requested it.
 
 The legacy hotseat game is created at startup with `SEED` and `PLAYERS` (an
 integer from 2 to 16, default 4). `POST /api/game` replaces it, while
@@ -112,5 +124,8 @@ The development hotseat server accepts `GET /api/state?player=P1` to return the
 server-filtered private view for the selected player; omitting `player` keeps the
 legacy global projection useful for diagnostics. The multi-game store keeps
 chain knowledge, combat audiences, pending submissions, reports, and a monotone
-revision per game. The frontend Firebase sign-in flow and Firestore listeners
-remain the responsibility of the next frontend milestone.
+revision per game. When the public Firebase Web variables are configured, the
+frontend switches to the authenticated friends flow: email-link sign-in,
+profile setup, invitations, multi-game navigation, and Firestore listeners on
+the public summary and the current player's private view. See
+[`TESTING.md`](TESTING.md) for the manual flow and listener contract.

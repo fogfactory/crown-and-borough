@@ -8,8 +8,11 @@ import { OrdersPanel } from '@/components/OrdersPanel'
 import { ReportPanel } from '@/components/ReportPanel'
 import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
 import { formatOrderLabel } from '@/lib/order-label'
+import { addNobleHeader, hasChainContent } from '@/lib/order-text'
 import { hasSupplySource } from '@/lib/supply'
 import { LanguageProvider, useLanguage } from '@/i18n/LanguageContext'
+import { firebaseConfigured } from '@/lib/firebase'
+import { OnlineApp } from '@/online/OnlineApp'
 import type { Language, MessageKey, Translate } from '@/i18n/messages'
 import {
   Card,
@@ -76,22 +79,6 @@ function ownerLabel(
 ): string {
   if (!owner) return t('app.noOwner')
   return state?.players.find((player) => player.id === owner)?.name ?? owner
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-function addNobleHeader(nobleCode: string, text: string): string {
-  const lines = text.replace(/\r\n/g, '\n').split('\n')
-  const firstContentIndex = lines.findIndex((line) => line.split('#', 1)[0].trim() !== '')
-  if (firstContentIndex >= 0) {
-    const headerPattern = new RegExp(`^${escapeRegExp(nobleCode)}(?:\\s+#.*)?$`, 'i')
-    if (headerPattern.test(lines[firstContentIndex].trim())) {
-      lines.splice(firstContentIndex, 1)
-    }
-  }
-  return `${nobleCode}\n${lines.join('\n')}`.trimEnd()
 }
 
 async function responseError(response: Response, t: Translate): Promise<string> {
@@ -332,12 +319,7 @@ function AppContent() {
                 chainDrafts[selectedPlayer]?.[noble.code] ?? '',
               ),
             }))
-            .filter(
-              (submission) =>
-                submission.text
-                  .replace(new RegExp(`^${escapeRegExp(submission.noble)}\\s*`), '')
-                  .trim() !== '',
-            )
+            .filter((submission) => hasChainContent(submission.noble, submission.text))
     const winter =
       state.season === 'winter' && (winterDrafts[selectedPlayer] ?? '').trim() !== ''
         ? [{ player: selectedPlayer, lines: winterDrafts[selectedPlayer] ?? '' }]
@@ -1036,7 +1018,7 @@ function AppContent() {
 function App({ initialLanguage }: { initialLanguage?: Language }) {
   return (
     <LanguageProvider initialLanguage={initialLanguage}>
-      <AppContent />
+      {firebaseConfigured ? <OnlineApp /> : <AppContent />}
     </LanguageProvider>
   )
 }

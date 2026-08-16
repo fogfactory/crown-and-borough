@@ -161,7 +161,7 @@ func (h *GamesHandler) create(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	response := makeGameDetailView(snapshot)
+	response := makeAuthenticatedGameDetailView(snapshot, actor)
 	if invitation.Code == "" {
 		if inviter, ok := h.store.(interface {
 			CreateInvitation(context.Context, store.Actor, store.GameID) (store.InvitationSecret, error)
@@ -196,7 +196,7 @@ func (h *GamesHandler) handleDetail(w http.ResponseWriter, r *http.Request, id s
 		h.writeStoreError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, makeGameDetailView(snapshot))
+	writeJSON(w, http.StatusOK, makeAuthenticatedGameDetailView(snapshot, actor))
 }
 
 func (h *GamesHandler) handleSubresource(w http.ResponseWriter, r *http.Request, id store.GameID, parts []string) {
@@ -402,7 +402,7 @@ func (h *GamesHandler) join(w http.ResponseWriter, r *http.Request, actor store.
 		return
 	}
 	response := gameJoinResponse{
-		gameDetailView: makeGameDetailView(result.Snapshot),
+		gameDetailView: makeAuthenticatedGameDetailView(result.Snapshot, actor),
 		Joined:         result.Joined,
 		Player:         makePlayerSlotView(result.Player, result.Snapshot),
 	}
@@ -437,6 +437,10 @@ func (h *GamesHandler) resolve(w http.ResponseWriter, r *http.Request, actor sto
 	snapshot, err := h.store.Get(r.Context(), actor, id)
 	if err != nil {
 		h.writeStoreError(w, err)
+		return
+	}
+	if strings.TrimSpace(snapshot.CreatedBy) != strings.TrimSpace(actor.ID) {
+		h.writeStoreError(w, store.ErrNotCreator)
 		return
 	}
 	var result store.SubmitResult
@@ -673,17 +677,20 @@ type gameListView struct {
 }
 
 type gameDetailView struct {
-	ID         store.GameID     `json:"id"`
-	Name       string           `json:"name"`
-	Seed       string           `json:"seed"`
-	Status     store.Status     `json:"status"`
-	Winner     *models.PlayerID `json:"winner,omitempty"`
-	Players    []PlayerSlotView `json:"players"`
-	Turn       int              `json:"turn"`
-	Season     models.Season    `json:"season"`
-	Revision   store.Revision   `json:"revision"`
-	InviteCode string           `json:"inviteCode,omitempty"`
-	InviteURL  string           `json:"inviteUrl,omitempty"`
+	ID              store.GameID     `json:"id"`
+	Name            string           `json:"name"`
+	Seed            string           `json:"seed"`
+	Status          store.Status     `json:"status"`
+	Winner          *models.PlayerID `json:"winner,omitempty"`
+	Players         []PlayerSlotView `json:"players"`
+	Turn            int              `json:"turn"`
+	Season          models.Season    `json:"season"`
+	Revision        store.Revision   `json:"revision"`
+	CurrentPlayer   models.PlayerID  `json:"currentPlayer,omitempty"`
+	CanInvite       bool             `json:"canInvite,omitempty"`
+	InviteAvailable bool             `json:"inviteAvailable"`
+	InviteCode      string           `json:"inviteCode,omitempty"`
+	InviteURL       string           `json:"inviteUrl,omitempty"`
 }
 
 type PlayerSlotView struct {
@@ -735,6 +742,24 @@ func makeGameDetailView(snapshot store.GameSnapshot) gameDetailView {
 		Season:   snapshot.State.Season,
 		Revision: snapshot.Revision,
 	}
+}
+
+func makeAuthenticatedGameDetailView(snapshot store.GameSnapshot, actor store.Actor) gameDetailView {
+	view := makeGameDetailView(snapshot)
+	view.CurrentPlayer, _ = snapshotPlayerID(snapshot, actor)
+	view.CanInvite = strings.TrimSpace(snapshot.CreatedBy) != "" &&
+		strings.TrimSpace(snapshot.CreatedBy) == strings.TrimSpace(actor.ID)
+	view.InviteAvailable = view.CanInvite && hasFreePlayerSlot(snapshot.Players)
+	return view
+}
+
+func hasFreePlayerSlot(players []store.PlayerSlot) bool {
+	for _, player := range players {
+		if strings.TrimSpace(player.ActorID) == "" || strings.HasPrefix(player.ActorID, "slot:") {
+			return true
+		}
+	}
+	return false
 }
 
 func makePlayerSlotViews(snapshot store.GameSnapshot) []PlayerSlotView {

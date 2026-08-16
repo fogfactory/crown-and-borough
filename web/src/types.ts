@@ -28,6 +28,48 @@ export type EventType =
 
 export type PlayerId = string
 
+export type GameStatus = 'playing' | 'finished'
+
+export interface ProfileData {
+  uid: string
+  email: string
+  displayName: string
+}
+
+export interface GameSlot {
+  id: PlayerId
+  name: string
+  color: string
+  submitted: boolean
+  actorId?: string
+}
+
+export interface GameSummary {
+  id: string
+  name: string
+  seed: string
+  status: GameStatus
+  winner?: PlayerId | null
+  currentPlayer?: PlayerId
+  canInvite?: boolean
+  inviteAvailable?: boolean
+  players: GameSlot[]
+  turn: number
+  season: Season
+  revision: number
+  updatedAt?: string
+}
+
+export interface GameViewDocument {
+  gameId: string
+  uid: string
+  revision: number
+  turn: number
+  season: Season
+  state: StateData
+  updatedAt?: string
+}
+
 export type Point = [number, number]
 
 export interface Army {
@@ -139,6 +181,9 @@ export interface OrdersResponse {
   remaining: PlayerId[]
   report?: TurnReport
   state: StateData
+  revision?: number
+  resolved?: boolean
+  forced?: boolean
 }
 
 export interface ReceptionReport {

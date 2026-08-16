@@ -38,6 +38,9 @@ func (s *FirestoreStore) CreateInvitation(ctx context.Context, actor store.Actor
 	if document.OwnerUID != actorID {
 		return store.InvitationSecret{}, store.ErrNotCreator
 	}
+	if assignedDocumentPlayerCount(document.Players) >= len(document.Players) {
+		return store.InvitationSecret{}, store.ErrGameFull
+	}
 	return s.createInvitation(operationContext, id, actorID)
 }
 
