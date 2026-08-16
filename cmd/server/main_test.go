@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/api"
@@ -31,6 +32,24 @@ func TestHealthz(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Errorf("GET /healthz = %d, want %d", rec.Code, http.StatusOK)
+	}
+}
+
+func TestServerServesEmbeddedFrontendAndClientRoutes(t *testing.T) {
+	server := newServer(
+		func(int) ([]byte, error) { return []byte(`{"territories":[]}`), nil },
+		func(int) ([]byte, error) { return []byte(`{"turn":1}`), nil },
+	)
+
+	for _, requestPath := range []string{"/", "/games/game-123"} {
+		recorder := httptest.NewRecorder()
+		server.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, requestPath, nil))
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("GET %s = %d, want %d", requestPath, recorder.Code, http.StatusOK)
+		}
+		if !strings.Contains(recorder.Body.String(), `<div id="root"></div>`) {
+			t.Errorf("GET %s did not return the embedded frontend", requestPath)
+		}
 	}
 }
 

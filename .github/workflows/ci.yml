@@ -31,18 +31,113 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - run: npm run build
+        working-directory: web
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
       - run: go vet ./...
-      - run: go test ./...
+      - run: go test -race ./...
       - run: go build ./...
 
   docker:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: docker build -t crown-and-borough .
+      - name: Build image with public Firebase configuration
+        run: |
+          docker build -t crown-and-borough:ci \
+            --build-arg VITE_FIREBASE_API_KEY=ci-public-api-key \
+            --build-arg VITE_FIREBASE_AUTH_DOMAIN=ci.firebaseapp.com \
+            --build-arg VITE_FIREBASE_PROJECT_ID=ci-public-project \
+            --build-arg VITE_FIREBASE_APP_ID=ci-public-app-id \
+            .
+
+  container-smoke:
+    runs-on: ubuntu-latest
+    needs: docker
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build smoke image
+        run: |
+          docker build -t crown-and-borough:smoke \
+            --build-arg VITE_FIREBASE_API_KEY=ci-public-api-key \
+            --build-arg VITE_FIREBASE_AUTH_DOMAIN=ci.firebaseapp.com \
+            --build-arg VITE_FIREBASE_PROJECT_ID=ci-public-project \
+            --build-arg VITE_FIREBASE_APP_ID=ci-public-app-id \
+            .
+      - name: Verify final image has no credential files
+        shell: bash
+        run: |
+          set -euo pipefail
+          container_id="$(docker create crown-and-borough:smoke)"
+          rootfs="$(mktemp)"
+          file_list="$(mktemp)"
+          trap 'docker rm "$container_id" >/dev/null 2>&1 || true; rm -f "$rootfs" "$file_list"' EXIT
+          docker export "$container_id" > "$rootfs"
+          tar -tf "$rootfs" > "$file_list"
+          if grep -Eiq '(^|/)([^/]*(service[-_]account|credentials|private[-_]key|firebase-adminsdk)[^/]*|[^/]*\.json)$' "$file_list"; then
+            echo "credential-like file found in final image"
+            exit 1
+          fi
+          image_env="$(docker image inspect crown-and-borough:smoke --format '{{json .Config.Env}}')"
+          if printf '%s' "$image_env" | grep -Eiq 'FIREBASE_ADMIN|GOOGLE_APPLICATION_CREDENTIALS|PRIVATE_KEY'; then
+            echo "credential environment variable found in final image"
+            exit 1
+          fi
+      - name: Start Firebase emulators
+        run: docker compose -p crown-borough-ci up -d --wait firestore auth
+      - name: Start smoke container
+        run: |
+          docker run -d --name crown-and-borough-smoke \
+            --network crown-borough-ci_default \
+            -p 8080:8080 \
+            -e ASSETS_DIR=/assets \
+            -e FIRESTORE_EMULATOR_HOST=firestore:8081 \
+            -e FIREBASE_AUTH_EMULATOR_HOST=auth:9099 \
+            -e FIREBASE_PROJECT_ID=demo-crown-and-borough \
+            -e GOOGLE_CLOUD_PROJECT=crown-and-borough-local \
+            -e ONLINE_DEV_MODE=false \
+            -e PUBLIC_APP_URL=http://localhost:8080 \
+            -e PORT=8080 \
+            crown-and-borough:smoke
+      - name: Exercise container HTTP contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8080/healthz >/dev/null 2>&1; then
+              break
+            fi
+            if [ "$attempt" = 60 ]; then
+              docker logs crown-and-borough-smoke
+              exit 1
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8080/ > index.html
+          curl -fsS http://127.0.0.1:8080/games/ci-game > fallback.html
+          curl -fsS http://127.0.0.1:8080/healthz/ready > ready.json
+          curl -fsS http://127.0.0.1:8080/api/rules > rules.md
+          api_status="$(curl -sS -o api-error.json -w '%{http_code}' http://127.0.0.1:8080/api/games)"
+          test "$api_status" = 401
+          grep -Fq '<div id="root"></div>' index.html
+          grep -Fq '<div id="root"></div>' fallback.html
+          grep -Fq '"status":"ready"' ready.json
+          grep -Fq 'du jeu' rules.md
+          grep -Fq '"error":"unauthorized"' api-error.json
+      - name: Stop smoke services
+        if: always()
+        run: |
+          docker rm -f crown-and-borough-smoke >/dev/null 2>&1 || true
+          docker compose -p crown-borough-ci down --remove-orphans
 
   frontend:
     runs-on: ubuntu-latest

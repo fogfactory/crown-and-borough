@@ -1,4 +1,9 @@
 .git
+.opencode
 bin
 specs
+tmp
+*.log
 web/node_modules
+web/dist
+web/.env*

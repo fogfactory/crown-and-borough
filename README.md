@@ -2,10 +2,22 @@
 
 ## Usage
 
-1. Run `make run-dev` to start the local development backend on port 8080, or
-   configure Firebase and run `make run` for the authenticated API.
-2. Run `make web-dev` to start the frontend on port 5173.
-3. Open http://localhost:5173 in a browser.
+The Go binary serves the API and the compiled frontend from the same origin.
+
+1. Run `make run-hotseat` (or its `make run-dev` alias) for the local memory
+   game and legacy embedded frontend on port 8080.
+2. Run `make run-online` for the local Go binary with Auth and Firestore
+   emulators, or `make compose-up` for the same flow in Docker.
+3. Open http://localhost:8080.
+
+`make web-dev` remains available for fast frontend-only iteration. In that mode
+Vite proxies `/api` to the separately running Go server; it is not required to
+run the compiled application.
+
+`make run-hotseat` always rebuilds the embedded frontend with the Firebase Web
+variables empty, even when `web/.env.local` is configured for the emulator
+flow. `make run-online` and `make compose-up` deliberately use those public
+variables instead.
 
 ## Multiplayer Mode v1
 
@@ -56,22 +68,52 @@ this is not a player deadline.
 projection writes for emulator and quota benchmarks. Firestore transaction
 retries can make billed SDK operations higher than these logical counters.
 
-Use `FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 make test-firestore` when the
+Use `FIRESTORE_EMULATOR_HOST=127.0.0.1:8081 make test-firestore` when the
 Firestore emulator is running. The integration suite models a restart with a
 second store instance and the rules suite checks member, non-member, private
 projection, and backend-only access.
 
+## Container and Health
+
+The root `Dockerfile` builds the Vite frontend, embeds `web/dist` into the Go
+binary, and produces one scratch image. The final image contains the binary,
+the static game assets, and the CA bundle required for outbound Firebase and
+Firestore TLS connections. It has no local game database, `DATA_DIR`, volume,
+service-account JSON, or Admin credential.
+
+Build the image with the public Firebase Web configuration from
+`web/.env.local` when that file exists:
+
+```bash
+cp web/.env.example web/.env.local
+make image
+make image-smoke
+```
+
+`make image-run` starts the image in memory-backed development mode on port
+8080. `make compose-up` starts the same image with the Auth and Firestore
+emulators for the full authenticated local flow.
+
+The health endpoints are:
+
+| Endpoint | Meaning |
+| --- | --- |
+| `/healthz` | The HTTP process is responding. |
+| `/healthz/ready` | Firebase Admin is initialized and Firestore is reachable. |
+
+Readiness is only mounted when Firestore is in use or the hosted Firebase
+configuration is active. A pure in-memory hotseat process only needs
+`/healthz`.
+
 ## Local Docker Compose Stack
 
 The repository includes a fully local online stack with Auth and Firestore
-emulators. It starts the emulators and the Go server; the optional `frontend`
-profile adds a statically built Nginx frontend with `/api` proxied to the
-server.
+emulators. It starts the emulators and the single Go image, which serves both
+the frontend and `/api` from `http://localhost:8080`.
 
 ```bash
 cp web/.env.example web/.env.local
 make compose-up
-make compose-up-frontend
 make compose-logs
 make compose-down
 ```
@@ -80,28 +122,37 @@ The services use these host ports:
 
 | Service | URL |
 | --- | --- |
-| Go server | `http://localhost:8080` |
+| Go server and frontend | `http://localhost:8080` |
 | Auth emulator | `http://localhost:9099` |
 | Emulator UI | `http://localhost:4000` |
 | Firestore emulator | `127.0.0.1:8081` |
-| Frontend profile | `http://localhost:5173` |
 
 If one of the default ports is already in use, override it when starting the
-stack, for example `SERVER_PORT=18080 FIRESTORE_PORT=18081 make compose-up`.
+stack, for example:
+
+```bash
+SERVER_PORT=18080 FIRESTORE_PORT=18081 AUTH_PORT=18082 \
+  EMULATOR_UI_PORT=18083 COMPOSE_PROJECT_NAME=crown-and-borough-local \
+  make compose-up
+```
+
 The browser emulator endpoints in `web/.env.local` must use the corresponding
-host ports.
+host ports. Reuse the same `COMPOSE_PROJECT_NAME` value for `make compose-logs`
+and `make compose-down` when using a non-default project name.
 
 Compose runs with `ONLINE_DEV_MODE=false` and validates Auth emulator tokens,
 so two browsers receive distinct Firebase UIDs and exercise the real online
-membership flow. `make run-dev` remains the legacy development path with the
-explicit local player resolver. Emulator data is intentionally ephemeral: stop
-the stack and start it again to get a clean local database. The Firestore
-rules remain mounted from `firestore.rules` for emulator validation.
+membership flow. The former `compose-up-frontend` target remains as a
+compatibility alias for `compose-up`; no second Nginx container is required.
+Emulator data is intentionally ephemeral: stop the stack and start it again to
+get a clean local database. The Firestore rules remain mounted from
+`firestore.rules` for emulator validation.
 
-The frontend profile reads `web/.env.local` during the image build. The Auth
-emulator prints email links in `docker compose logs -f auth`; the same links
-are available in the Emulator UI under Authentication. Open each link in the
-same browser that requested it.
+`make run-online` is the equivalent local-binary flow. It starts only the two
+emulators with Docker Compose, builds the frontend locally, and runs
+`go run ./cmd/server` against them. The Auth emulator prints email links in
+`make compose-logs`; the same links are available in the Emulator UI under
+Authentication. Open each link in the same browser that requested it.
 
 The legacy hotseat game is created at startup with `SEED` and `PLAYERS` (an
 integer from 2 to 16, default 4). `POST /api/game` replaces it, while

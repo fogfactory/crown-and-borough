@@ -14,6 +14,7 @@ import (
 	"time"
 
 	cloudfirestore "cloud.google.com/go/firestore"
+	"google.golang.org/grpc/codes"
 
 	"github.com/fogfactory/crown-and-borough/internal/api"
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
@@ -160,6 +161,22 @@ func (s *FirestoreStore) requireClient() error {
 		return ErrNilClient
 	}
 	return nil
+}
+
+// Ready performs a read-only connectivity check against a reserved document.
+// A missing document is healthy: the read reached Firestore and no state is
+// created by the probe.
+func (s *FirestoreStore) Ready(ctx context.Context) error {
+	if err := s.requireClient(); err != nil {
+		return err
+	}
+	operationCtx, cancel := s.operationContext(ctx)
+	defer cancel()
+	_, err := s.client.Collection("games").Doc("readiness-probe").Get(operationCtx)
+	if isCode(err, codes.NotFound) {
+		return nil
+	}
+	return err
 }
 
 func newID(prefix string) (string, error) {
