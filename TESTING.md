@@ -12,10 +12,10 @@ it does not require a Firebase project, email provider, or service-account
 credentials.
 
 1. Copy `web/.env.example` to `web/.env.local`.
-2. Start the complete stack with `make compose-up-frontend`.
-3. Open `http://localhost:5173` in two separate browsers or private windows.
+2. Start the complete stack with `make compose-up`.
+3. Open `http://localhost:8080` in two separate browsers or private windows.
 4. Submit an email address in each browser. The Auth emulator prints each
-   sign-in link in `docker compose logs -f auth`; links are also available at
+   sign-in link in `make compose-logs`; links are also available at
    `http://localhost:4000` under Authentication.
 5. Open each link in the same browser that requested it. The link redirects to
    the local `/finish` route and completes sign-in against the emulator.
@@ -26,20 +26,53 @@ and must not be used as hosted Firebase configuration.
 
 Stop the stack with `make compose-down`. Emulator data is ephemeral.
 
+For faster Go iteration without rebuilding the container, use
+`make run-online`. It starts Auth and Firestore in Docker and runs the local Go
+binary against them. The browser still uses the embedded frontend at
+`http://localhost:8080`.
+
+For a frontend-only iteration loop, run `make web-dev` in one terminal and a Go
+server in another. Vite serves port 5173 and proxies `/api` to port 8080; this
+is the only flow that requires a separate frontend process.
+
 ## Hosted Configuration
 
 For the hosted Firebase flow, replace the four public Web values in
 `web/.env.local`, clear both emulator host variables, enable Firebase
 Authentication's email-link provider, and add the local and deployed origins
-to the authorized domains. Start the frontend with `make web-dev` and run the
-authenticated Go API with the Firebase project and ADC credentials configured,
-or use the deployed Cloud Run service. Do not add Admin credentials or
-service-account JSON to `web/`.
+to the authorized domains. Build the same-origin image with `make image`, or
+deploy it through the CI workflow, and provide `FIREBASE_PROJECT_ID` plus ADC
+credentials only to the Go runtime. The Firebase Web values are public build
+arguments; Firebase Admin credentials never go into `web/`, Docker build
+arguments, the frontend bundle, or the final image.
+
+For a local hosted-like process without Docker, run `make run` with the hosted
+Firebase project, `PUBLIC_APP_URL`, and ADC configured. Build the frontend first
+with the matching public Web values. The server must never receive a player
+identity from a query parameter in this mode.
 
 The Firestore emulator rules can be verified with
 `FIRESTORE_EMULATOR_HOST=127.0.0.1:8081 make test-firestore` while the local
 Firestore emulator is running. The emulator is also used by CI for
 `web/src/firestore.rules.test.ts`.
+
+## Single Image Validation
+
+The automated container smoke test covers the basic HTTP contract. The manual
+same-origin and restart check is:
+
+1. Copy `web/.env.example` to `web/.env.local` and run `make compose-up`.
+2. Open `http://localhost:8080` without starting Vite.
+3. Create a game, join it from a second browser, submit a partial turn, and
+   verify `/healthz` and `/healthz/ready` both respond successfully.
+4. Stop only the Go service with `docker compose stop server`.
+5. Start it again with `docker compose start server` and verify the game,
+   pending submission, reports, and listeners are restored from Firestore.
+6. Run `make image-smoke` to verify a fresh image starts without a persistent
+   volume and serves both `/` and a client-side route.
+7. Run `make compose-down` after the test. The emulator data is intentionally
+   ephemeral; do not use it as a substitute for a hosted Firestore restart
+   test.
 
 ## Manual Flow
 
