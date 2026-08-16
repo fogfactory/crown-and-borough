@@ -181,6 +181,28 @@ func TestMemoryStoreForcedResolutionAndSeasonCycle(t *testing.T) {
 	}
 }
 
+func TestMemoryStoreRejectsForcedSubmissionByNonCreator(t *testing.T) {
+	gameStore := newTestStore(t)
+	created, err := gameStore.Create(context.Background(), Actor{ID: "P1"}, CreateRequest{
+		Seed:    "forced-submission-owner",
+		Players: []engine.PlayerInit{{Name: "One"}, {Name: "Two"}},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	if _, err := gameStore.Submit(context.Background(), Actor{ID: "P2"}, created.ID, SubmitRequest{Force: true}); !errors.Is(err, ErrNotCreator) {
+		t.Fatalf("forced submission error = %v, want not creator", err)
+	}
+	current, err := gameStore.Get(context.Background(), Actor{ID: "P1"}, created.ID)
+	if err != nil {
+		t.Fatalf("read after rejected submission: %v", err)
+	}
+	if current.Revision != created.Revision || len(current.Submissions) != 0 {
+		t.Fatalf("state changed after rejected submission: revision=%d submissions=%d", current.Revision, len(current.Submissions))
+	}
+}
+
 func TestMemoryStoreConcurrentSubmissionsResolveOnce(t *testing.T) {
 	gameStore := newTestStore(t)
 	created, err := gameStore.Create(context.Background(), Actor{ID: "P1"}, CreateRequest{

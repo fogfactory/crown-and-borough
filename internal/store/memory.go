@@ -509,6 +509,9 @@ func (s *MemoryStore) Submit(_ context.Context, actor Actor, id GameID, request 
 	if !ok {
 		return SubmitResult{}, ErrNotMember
 	}
+	if request.Force && strings.TrimSpace(game.createdBy) != strings.TrimSpace(actor.ID) {
+		return SubmitResult{}, ErrNotCreator
+	}
 	return s.submitLocked(game, playerID, request)
 }
 
