@@ -66,7 +66,7 @@ func TestAuthenticatedProfileInvitationAndMembershipFlow(t *testing.T) {
 	if game.ID == "" || len(game.InviteCode) != store.InvitationCodeLength || !strings.Contains(game.InviteURL, game.InviteCode) {
 		t.Fatalf("created invitation = %#v", game)
 	}
-	if game.CurrentPlayer != "P1" || !game.CanInvite {
+	if game.CurrentPlayer != "P1" || !game.CanInvite || !game.InviteAvailable {
 		t.Fatalf("creator projection = %#v", game)
 	}
 	if strings.Contains(created.Body.String(), store.InvitationCodeHash(game.InviteCode)) {
@@ -90,8 +90,11 @@ func TestAuthenticatedProfileInvitationAndMembershipFlow(t *testing.T) {
 	if err := json.Unmarshal(joined.Body.Bytes(), &joinedGame); err != nil {
 		t.Fatalf("decode joined game: %v", err)
 	}
-	if joinedGame.CurrentPlayer != "P2" || joinedGame.CanInvite {
+	if joinedGame.CurrentPlayer != "P2" || joinedGame.CanInvite || joinedGame.InviteAvailable {
 		t.Fatalf("joiner projection = %#v", joinedGame)
+	}
+	if response := requestAuthenticated(t, mux, http.MethodPost, "/api/games/"+string(game.ID)+"/resolve", `{}`, "bob-token"); response.Code != http.StatusForbidden {
+		t.Fatalf("non-creator resolve access = %d: %s", response.Code, response.Body.String())
 	}
 	idempotent := requestAuthenticated(t, mux, http.MethodPost, "/api/games/"+string(game.ID)+"/join", `{"inviteCode":"`+game.InviteCode+`"}`, "bob-token")
 	if idempotent.Code != http.StatusOK || !strings.Contains(idempotent.Body.String(), `"joined":false`) {
@@ -106,8 +109,8 @@ func TestAuthenticatedProfileInvitationAndMembershipFlow(t *testing.T) {
 	if response := requestAuthenticated(t, mux, http.MethodGet, "/api/games/"+string(game.ID)+"/invite", "", "bob-token"); response.Code != http.StatusForbidden {
 		t.Fatalf("non-creator invite access = %d: %s", response.Code, response.Body.String())
 	}
-	if response := requestAuthenticated(t, mux, http.MethodGet, "/api/games/"+string(game.ID)+"/invite", "", "alice-token"); response.Code != http.StatusOK {
-		t.Fatalf("creator invite access = %d: %s", response.Code, response.Body.String())
+	if response := requestAuthenticated(t, mux, http.MethodGet, "/api/games/"+string(game.ID)+"/invite", "", "alice-token"); response.Code != http.StatusConflict || !strings.Contains(response.Body.String(), `"game_full"`) {
+		t.Fatalf("full creator invite access = %d: %s", response.Code, response.Body.String())
 	}
 }
 

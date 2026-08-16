@@ -117,6 +117,8 @@ export function normalizeGameSummary(
         )
       : '')
   const canInvite = data.canInvite === true || stringValue(data.ownerUid) === currentUID
+  const inviteAvailable =
+    typeof data.inviteAvailable === 'boolean' ? data.inviteAvailable : undefined
   return {
     id: stringValue(data.id, fallbackID),
     name: stringValue(data.name, 'Crown & Borough'),
@@ -125,6 +127,7 @@ export function normalizeGameSummary(
     winner,
     ...(currentPlayer ? { currentPlayer } : {}),
     ...(canInvite ? { canInvite } : {}),
+    ...(inviteAvailable !== undefined ? { inviteAvailable } : {}),
     players: slotsFromData(data, currentUID),
     turn: numberValue(data.turn, 1),
     season: seasonValue(data.season),

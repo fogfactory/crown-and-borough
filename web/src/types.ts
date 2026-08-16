@@ -52,6 +52,7 @@ export interface GameSummary {
   winner?: PlayerId | null
   currentPlayer?: PlayerId
   canInvite?: boolean
+  inviteAvailable?: boolean
   players: GameSlot[]
   turn: number
   season: Season

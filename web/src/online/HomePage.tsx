@@ -28,6 +28,8 @@ const seasonLabels: Record<Season, string> = {
   winter: 'Winter',
 }
 
+const fallbackSeed = 'adelaide-de-beaufort'
+
 function actionError(error: unknown, fallback: string): string {
   if (error instanceof ApiError) return error.message
   if (error instanceof Error) return error.message
@@ -56,6 +58,9 @@ function GameCard({ game }: { game: GameSummary }) {
                 season: seasonLabels[game.season],
               })}
             </CardDescription>
+            <p className="mt-1 font-mono text-xs text-[#806f57]">
+              {t('home.seed')}: {game.seed || '-'}
+            </p>
           </div>
           <span className="rounded-full border border-[#376341]/30 bg-[#e8f1e3] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#376341]">
             {game.status === 'finished'
@@ -106,10 +111,24 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
   const { getIdToken } = useAuth()
   const { t } = useLanguage()
   const [name, setName] = useState('')
-  const [seed, setSeed] = useState('')
+  const [seed, setSeed] = useState(fallbackSeed)
   const [players, setPlayers] = useState(4)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    void apiRequest<{ seed?: string }>({ getIdToken }, '/api/seed')
+      .then((response) => {
+        if (active && typeof response.seed === 'string' && response.seed.trim() !== '') {
+          setSeed(response.seed)
+        }
+      })
+      .catch(() => undefined)
+    return () => {
+      active = false
+    }
+  }, [getIdToken])
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()

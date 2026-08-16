@@ -42,19 +42,20 @@ type MemoryStore struct {
 type memoryGame struct {
 	mu sync.RWMutex
 
-	id          GameID
-	name        string
-	seed        string
-	status      Status
-	winner      *models.PlayerID
-	players     []PlayerSlot
-	mapData     mapgen.MapData
-	state       *models.GameState
-	submissions map[models.PlayerID]engine.OrdersInput
-	reports     []ReportRecord
-	revision    Revision
-	createdBy   string
-	joinedAt    map[models.PlayerID]time.Time
+	id               GameID
+	name             string
+	seed             string
+	status           Status
+	winner           *models.PlayerID
+	players          []PlayerSlot
+	mapData          mapgen.MapData
+	state            *models.GameState
+	submissions      map[models.PlayerID]engine.OrdersInput
+	reports          []ReportRecord
+	revision         Revision
+	createdBy        string
+	strictMembership bool
+	joinedAt         map[models.PlayerID]time.Time
 }
 
 var _ InvitationGameStore = (*MemoryStore)(nil)
@@ -205,17 +206,18 @@ func (s *MemoryStore) Create(_ context.Context, actor Actor, request CreateReque
 	}
 
 	game := &memoryGame{
-		id:          id,
-		name:        name,
-		seed:        seed,
-		status:      StatusPlaying,
-		players:     slots,
-		mapData:     mapData,
-		state:       state,
-		submissions: make(map[models.PlayerID]engine.OrdersInput),
-		revision:    1,
-		createdBy:   actorID,
-		joinedAt:    joinedAt,
+		id:               id,
+		name:             name,
+		seed:             seed,
+		status:           StatusPlaying,
+		players:          slots,
+		mapData:          mapData,
+		state:            state,
+		submissions:      make(map[models.PlayerID]engine.OrdersInput),
+		revision:         1,
+		createdBy:        actorID,
+		joinedAt:         joinedAt,
+		strictMembership: strictMembership,
 	}
 
 	s.indexMu.Lock()
@@ -332,9 +334,19 @@ func (s *MemoryStore) CreateInvitation(ctx context.Context, actor Actor, id Game
 	}
 	game.mu.RLock()
 	createdBy := game.createdBy
+	hasFreeSlot := false
+	for _, player := range game.players {
+		if !isAssignedSlot(player) {
+			hasFreeSlot = true
+			break
+		}
+	}
 	game.mu.RUnlock()
 	if strings.TrimSpace(actor.ID) == "" || strings.TrimSpace(actor.ID) != createdBy {
 		return InvitationSecret{}, ErrNotCreator
+	}
+	if game.strictMembership && !hasFreeSlot {
+		return InvitationSecret{}, ErrGameFull
 	}
 	return s.invitations.CreateInvitation(ctx, id, createdBy)
 }
@@ -515,6 +527,9 @@ func (s *MemoryStore) ResolveAt(_ context.Context, actor Actor, id GameID, expec
 	if !ok {
 		return SubmitResult{}, ErrNotMember
 	}
+	if strings.TrimSpace(game.createdBy) != strings.TrimSpace(actor.ID) {
+		return SubmitResult{}, ErrNotCreator
+	}
 	if game.status == StatusFinished {
 		return SubmitResult{}, ErrGameFinished
 	}
@@ -655,19 +670,20 @@ func (s *MemoryStore) resolveLocked(game *memoryGame, playerID models.PlayerID, 
 	nextReports := append(cloneReports(game.reports), record)
 	nextRevision := game.revision + 1
 	nextGame := &memoryGame{
-		id:          game.id,
-		name:        game.name,
-		seed:        game.seed,
-		status:      game.status,
-		winner:      clonePlayerID(game.winner),
-		players:     append([]PlayerSlot(nil), game.players...),
-		mapData:     game.mapData,
-		state:       report.State,
-		submissions: make(map[models.PlayerID]engine.OrdersInput),
-		reports:     nextReports,
-		revision:    nextRevision,
-		createdBy:   game.createdBy,
-		joinedAt:    cloneJoinedAt(game.joinedAt),
+		id:               game.id,
+		name:             game.name,
+		seed:             game.seed,
+		status:           game.status,
+		winner:           clonePlayerID(game.winner),
+		players:          append([]PlayerSlot(nil), game.players...),
+		mapData:          game.mapData,
+		state:            report.State,
+		submissions:      make(map[models.PlayerID]engine.OrdersInput),
+		reports:          nextReports,
+		revision:         nextRevision,
+		createdBy:        game.createdBy,
+		strictMembership: game.strictMembership,
+		joinedAt:         cloneJoinedAt(game.joinedAt),
 	}
 	nextGame.updateStatusLocked()
 	snapshot, err := s.snapshotLocked(nextGame)

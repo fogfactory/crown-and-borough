@@ -176,7 +176,7 @@ export function FinishPage() {
 }
 
 export function ProfilePage() {
-  const { profile, updateProfile } = useAuth()
+  const { profile, profileLoading, updateProfile } = useAuth()
   const { t } = useLanguage()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -188,6 +188,14 @@ export function ProfilePage() {
   useEffect(() => {
     if (profile) setDisplayName(profile.displayName)
   }, [profile])
+
+  if (profileLoading && !profile) {
+    return (
+      <p className="py-20 text-center font-serif text-lg italic text-[#806f57]">
+        {t('online.loading')}
+      </p>
+    )
+  }
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()

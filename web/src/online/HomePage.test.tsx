@@ -41,6 +41,7 @@ describe('online home', () => {
               {
                 id: 'game-1',
                 name: 'Northern Marches',
+                seed: 'adelaide-de-beaufort',
                 status: 'playing',
                 turn: 1,
                 season: 'spring',
@@ -58,6 +59,7 @@ describe('online home', () => {
     renderHome()
 
     expect(await screen.findByText('Northern Marches')).toBeInTheDocument()
+    expect(screen.getByText('Seed: adelaide-de-beaufort')).toBeInTheDocument()
     expect(screen.queryByText('another player game')).not.toBeInTheDocument()
     expect(getIdToken).toHaveBeenCalled()
   })
@@ -83,6 +85,7 @@ describe('online home', () => {
 
     renderHome()
     fireEvent.click(await screen.findByRole('button', { name: 'Create a game' }))
+    expect(screen.getByLabelText('Seed')).toHaveValue('adelaide-de-beaufort')
     fireEvent.change(screen.getByLabelText('Game name'), {
       target: { value: 'Second game' },
     })
@@ -93,6 +96,7 @@ describe('online home', () => {
     expect(postCall).toBeDefined()
     const body = JSON.parse(String(postCall?.[1]?.body)) as Record<string, unknown>
     expect(body).not.toHaveProperty('player')
+    expect(body.seed).toBe('adelaide-de-beaufort')
     expect(body.players).toBe(4)
   })
 })

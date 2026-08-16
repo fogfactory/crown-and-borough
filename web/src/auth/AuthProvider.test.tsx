@@ -49,11 +49,13 @@ afterEach(() => {
 })
 
 function Probe() {
-  const { status, profile, sendSignInLink, completeSignIn, getIdToken } = useAuth()
+  const { status, profile, profileLoading, sendSignInLink, completeSignIn, getIdToken } =
+    useAuth()
   return (
     <div>
       <output data-testid="status">{status}</output>
       <output data-testid="profile">{profile?.displayName ?? ''}</output>
+      <output data-testid="profile-loading">{String(profileLoading)}</output>
       <button
         type="button"
         onClick={() => void sendSignInLink('alice@example.test', '/join?gameId=game-1')}
@@ -101,6 +103,7 @@ describe('Firebase auth provider', () => {
     )
 
     await waitFor(() => expect(authHarness.stateListener).not.toBeNull())
+    expect(screen.getByTestId('profile-loading')).toHaveTextContent('true')
     act(() => authHarness.stateListener?.(authHarness.user))
 
     await waitFor(() => {

@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authReady, setAuthReady] = useState(!services)
   const [authError, setAuthError] = useState<string | null>(null)
   const [profile, setProfile] = useState<ProfileData | null>(null)
-  const [profileLoading, setProfileLoading] = useState(false)
+  const [profileLoading, setProfileLoading] = useState(Boolean(services))
   const [profileError, setProfileError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -122,7 +122,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [getIdToken, services, user])
 
   useEffect(() => {
-    if (!authReady || !user) {
+    if (!authReady) return
+    if (!user) {
       setProfile(null)
       setProfileLoading(false)
       return

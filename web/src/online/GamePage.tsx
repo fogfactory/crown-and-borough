@@ -24,6 +24,7 @@ import {
 import { ApiError, apiRequest, type TokenProvider } from '@/lib/api'
 import { hasSupplySource } from '@/lib/supply'
 import { formatOrderLabel } from '@/lib/order-label'
+import { addNobleHeader, hasChainContent } from '@/lib/order-text'
 import {
   normalizeGameSummary,
   normalizeStateData,
@@ -75,11 +76,20 @@ function newerSummary(
 ): GameSummary | null {
   if (!left) return right
   if (!right) return left
-  if (right.revision > left.revision) return right
   if (right.revision < left.revision) return left
-  if (!right.updatedAt) return left
-  if (!left.updatedAt) return right
-  return right.updatedAt >= left.updatedAt ? right : left
+  if (right.revision === left.revision) {
+    if (!right.updatedAt) return left
+    if (left.updatedAt && right.updatedAt < left.updatedAt) return left
+  }
+  return {
+    ...right,
+    ...(right.canInvite === undefined && left.canInvite !== undefined
+      ? { canInvite: left.canInvite }
+      : {}),
+    ...(right.inviteAvailable === undefined && left.inviteAvailable !== undefined
+      ? { inviteAvailable: left.inviteAvailable }
+      : {}),
+  }
 }
 
 function ownerName(owner: PlayerId | null, state: StateData, fallback: string): string {
@@ -161,7 +171,7 @@ function Lobby({
               type="button"
               variant="outline"
               size="sm"
-              disabled={inviting}
+              disabled={inviting || summary.inviteAvailable === false}
               onClick={onInvite}
             >
               {inviting ? t('online.inviteLoading') : t('online.invite')}
@@ -495,9 +505,9 @@ export function GamePage() {
                 .filter((noble) => noble.owner === playerID && noble.status !== 'dungeon')
                 .map((noble) => ({
                   noble: noble.code,
-                  text: chainDrafts[noble.code] ?? '',
+                  text: addNobleHeader(noble.code, chainDrafts[noble.code] ?? ''),
                 }))
-                .filter((chain) => chain.text.trim() !== '')
+                .filter((chain) => hasChainContent(chain.noble, chain.text))
         const winter =
           state.season === 'winter' && winterDraft.trim() !== ''
             ? [{ lines: winterDraft }]
@@ -678,15 +688,6 @@ export function GamePage() {
           {t('online.victory')}: {ownerName(summary.winner, state, summary.winner)}
         </div>
       )}
-
-      <Lobby
-        summary={summary}
-        uid={user?.uid ?? ''}
-        currentPlayer={summary.currentPlayer}
-        invitation={invitation}
-        onInvite={() => void createInvitation()}
-        inviting={inviting}
-      />
 
       <main className="flex flex-col gap-4 lg:flex-row">
         <section className="relative h-[560px] min-h-0 flex-1 overflow-hidden rounded-2xl border border-[#b7a786] bg-[#e6d8bb] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)] lg:h-[calc(100vh-19rem)]">
@@ -882,7 +883,7 @@ export function GamePage() {
                     {t('online.accessRevoked')}
                   </p>
                 )}
-                {summary.status !== 'finished' && (
+                {summary.status !== 'finished' && summary.canInvite && (
                   <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">
                     {!confirmResolve ? (
                       <Button
@@ -978,6 +979,14 @@ export function GamePage() {
           <MapLegend />
         </aside>
       </main>
+      <Lobby
+        summary={summary}
+        uid={user?.uid ?? ''}
+        currentPlayer={summary.currentPlayer}
+        invitation={invitation}
+        onInvite={() => void createInvitation()}
+        inviting={inviting}
+      />
     </div>
   )
 }

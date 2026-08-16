@@ -337,6 +337,9 @@ func (s *FirestoreStore) claimResolution(ctx context.Context, actor store.Actor,
 		if err != nil {
 			return err
 		}
+		if game.OwnerUID != strings.TrimSpace(actor.ID) {
+			return store.ErrNotCreator
+		}
 		playerID, member := playerIDForActor(game, actor)
 		if !member {
 			return store.ErrNotMember
