@@ -5,21 +5,41 @@ not configured. It is useful for testing the game board and engine locally. The
 online flow is enabled when all four required `VITE_FIREBASE_*` values are
 present.
 
-## Configuration
+## Fully Local Configuration
+
+The recommended manual setup uses the Firebase Auth and Firestore emulators;
+it does not require a Firebase project, email provider, or service-account
+credentials.
 
 1. Copy `web/.env.example` to `web/.env.local`.
-2. Fill in the public Firebase Web values for the same project used by the Go
-   API. Do not add Admin credentials or service-account JSON to `web/`.
-3. Enable Firebase Authentication's email-link provider and add the local and
-   deployed origins to the authorized domains.
-4. Start the frontend with `make web-dev` and open `http://localhost:5173`.
-5. Start the authenticated Go API with the Firebase project and ADC credentials
-   configured, or use the deployed Cloud Run service.
+2. Start the complete stack with `make compose-up-frontend`.
+3. Open `http://localhost:5173` in two separate browsers or private windows.
+4. Submit an email address in each browser. The Auth emulator prints each
+   sign-in link in `docker compose logs -f auth`; links are also available at
+   `http://localhost:4000` under Authentication.
+5. Open each link in the same browser that requested it. The link redirects to
+   the local `/finish` route and completes sign-in against the emulator.
 
-The Firestore emulator rules can be verified with `make test-firestore`. The
-Firestore emulator is used by CI for `web/src/firestore.rules.test.ts`; it is
-not a replacement for Firebase Authentication when manually exercising the
-hosted browser flow.
+The copied `.env.local` uses `fake-api-key`, `demo-crown-and-borough`, and the
+host emulator ports `9099` and `8081`. These values are intentionally local
+and must not be used as hosted Firebase configuration.
+
+Stop the stack with `make compose-down`. Emulator data is ephemeral.
+
+## Hosted Configuration
+
+For the hosted Firebase flow, replace the four public Web values in
+`web/.env.local`, clear both emulator host variables, enable Firebase
+Authentication's email-link provider, and add the local and deployed origins
+to the authorized domains. Start the frontend with `make web-dev` and run the
+authenticated Go API with the Firebase project and ADC credentials configured,
+or use the deployed Cloud Run service. Do not add Admin credentials or
+service-account JSON to `web/`.
+
+The Firestore emulator rules can be verified with
+`FIRESTORE_EMULATOR_HOST=127.0.0.1:8081 make test-firestore` while the local
+Firestore emulator is running. The emulator is also used by CI for
+`web/src/firestore.rules.test.ts`.
 
 ## Manual Flow
 

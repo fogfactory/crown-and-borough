@@ -7,15 +7,18 @@ import (
 )
 
 func TestFirebaseProjectClaimsAreBoundToConfiguredProject(t *testing.T) {
-	claims := map[string]interface{}{
-		"aud": "crown-project",
-		"iss": "https://securetoken.google.com/crown-project",
-	}
-	if !validFirebaseProject(claims, "crown-project") {
+	if !validFirebaseProject(
+		"crown-project",
+		"https://securetoken.google.com/crown-project",
+		"crown-project",
+	) {
 		t.Fatal("valid Firebase claims were rejected")
 	}
-	claims["aud"] = "other-project"
-	if validFirebaseProject(claims, "crown-project") {
+	if validFirebaseProject(
+		"other-project",
+		"https://securetoken.google.com/crown-project",
+		"crown-project",
+	) {
 		t.Fatal("token from another project was accepted")
 	}
 }

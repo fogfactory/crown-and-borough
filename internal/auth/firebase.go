@@ -79,18 +79,13 @@ func (v *FirebaseVerifier) VerifyIDToken(ctx context.Context, idToken string) (I
 	if token == nil || strings.TrimSpace(token.UID) == "" {
 		return Identity{}, ErrInvalidIdentity
 	}
-	if !validFirebaseProject(token.Claims, v.projectID) {
+	if !validFirebaseProject(token.Audience, token.Issuer, v.projectID) {
 		return Identity{}, ErrInvalidIdentity
 	}
 	email, _ := token.Claims["email"].(string)
 	return Identity{UID: strings.TrimSpace(token.UID), Email: strings.TrimSpace(email)}, nil
 }
 
-func validFirebaseProject(claims map[string]interface{}, projectID string) bool {
-	audience, ok := claims["aud"].(string)
-	if !ok || audience != projectID {
-		return false
-	}
-	issuer, ok := claims["iss"].(string)
-	return ok && issuer == "https://securetoken.google.com/"+projectID
+func validFirebaseProject(audience, issuer, projectID string) bool {
+	return audience == projectID && issuer == "https://securetoken.google.com/"+projectID
 }

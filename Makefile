@@ -18,16 +18,17 @@ test-firestore:
 	cd web && npm run test:rules
 
 compose-up:
-	docker compose up -d --build firestore server
+	docker compose up -d --build firestore auth server
 
 compose-up-frontend:
-	docker compose --profile frontend up -d --build
+	@test -f web/.env.local || { printf '%s\n' 'error: copy web/.env.example to web/.env.local first'; exit 1; }
+	@set -a; . ./web/.env.local; set +a; docker compose --profile frontend up -d --build
 
 compose-down:
 	docker compose --profile frontend down --remove-orphans
 
 compose-logs:
-	docker compose --profile frontend logs -f firestore server web
+	docker compose --profile frontend logs -f firestore auth server web
 
 vet:
 	go vet ./...
