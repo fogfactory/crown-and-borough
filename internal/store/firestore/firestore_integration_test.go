@@ -132,6 +132,25 @@ func TestFirestoreStorePersistsAndRestoresATurn(t *testing.T) {
 	}
 }
 
+func TestFirestoreStoreReadinessAcceptsAReachableMissingDocument(t *testing.T) {
+	if os.Getenv("FIRESTORE_EMULATOR_HOST") == "" {
+		t.Skip("FIRESTORE_EMULATOR_HOST is not configured")
+	}
+	projectID := os.Getenv("FIREBASE_PROJECT_ID")
+	if projectID == "" {
+		projectID = "crown-and-borough-integration"
+	}
+	client, err := cloudfirestore.NewClient(context.Background(), projectID)
+	if err != nil {
+		t.Fatalf("create emulator client: %v", err)
+	}
+	defer client.Close()
+	adapter := NewWithClient(assetgen.Balance{}, assetgen.Assets{}, Options{Client: client, OperationTimeout: time.Second})
+	if err := adapter.Ready(context.Background()); err != nil {
+		t.Fatalf("readiness check = %v, want a reachable Firestore", err)
+	}
+}
+
 func TestFirestoreStoreConcurrentResolutionClaimsOneOperation(t *testing.T) {
 	if os.Getenv("FIRESTORE_EMULATOR_HOST") == "" {
 		t.Skip("FIRESTORE_EMULATOR_HOST is not configured")

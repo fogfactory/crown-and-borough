@@ -172,7 +172,7 @@ func (s *FirestoreStore) Ready(ctx context.Context) error {
 	}
 	operationCtx, cancel := s.operationContext(ctx)
 	defer cancel()
-	_, err := s.client.Collection("games").Doc("__readiness__").Get(operationCtx)
+	_, err := s.client.Collection("games").Doc("readiness-probe").Get(operationCtx)
 	if isCode(err, codes.NotFound) {
 		return nil
 	}
