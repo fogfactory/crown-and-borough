@@ -66,6 +66,9 @@ func TestAuthenticatedProfileInvitationAndMembershipFlow(t *testing.T) {
 	if game.ID == "" || len(game.InviteCode) != store.InvitationCodeLength || !strings.Contains(game.InviteURL, game.InviteCode) {
 		t.Fatalf("created invitation = %#v", game)
 	}
+	if game.CurrentPlayer != "P1" || !game.CanInvite {
+		t.Fatalf("creator projection = %#v", game)
+	}
 	if strings.Contains(created.Body.String(), store.InvitationCodeHash(game.InviteCode)) {
 		t.Fatal("create response exposed the invitation hash")
 	}
@@ -82,6 +85,13 @@ func TestAuthenticatedProfileInvitationAndMembershipFlow(t *testing.T) {
 	joined := requestAuthenticated(t, mux, http.MethodPost, "/api/games/"+string(game.ID)+"/join", `{"inviteCode":"`+game.InviteCode+`"}`, "bob-token")
 	if joined.Code != http.StatusCreated || !strings.Contains(joined.Body.String(), `"joined":true`) {
 		t.Fatalf("join = %d: %s", joined.Code, joined.Body.String())
+	}
+	var joinedGame gameJoinResponse
+	if err := json.Unmarshal(joined.Body.Bytes(), &joinedGame); err != nil {
+		t.Fatalf("decode joined game: %v", err)
+	}
+	if joinedGame.CurrentPlayer != "P2" || joinedGame.CanInvite {
+		t.Fatalf("joiner projection = %#v", joinedGame)
 	}
 	idempotent := requestAuthenticated(t, mux, http.MethodPost, "/api/games/"+string(game.ID)+"/join", `{"inviteCode":"`+game.InviteCode+`"}`, "bob-token")
 	if idempotent.Code != http.StatusOK || !strings.Contains(idempotent.Body.String(), `"joined":false`) {

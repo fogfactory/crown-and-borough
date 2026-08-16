@@ -10,6 +10,8 @@ import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
 import { formatOrderLabel } from '@/lib/order-label'
 import { hasSupplySource } from '@/lib/supply'
 import { LanguageProvider, useLanguage } from '@/i18n/LanguageContext'
+import { firebaseConfigured } from '@/lib/firebase'
+import { OnlineApp } from '@/online/OnlineApp'
 import type { Language, MessageKey, Translate } from '@/i18n/messages'
 import {
   Card,
@@ -1036,7 +1038,7 @@ function AppContent() {
 function App({ initialLanguage }: { initialLanguage?: Language }) {
   return (
     <LanguageProvider initialLanguage={initialLanguage}>
-      <AppContent />
+      {firebaseConfigured ? <OnlineApp /> : <AppContent />}
     </LanguageProvider>
   )
 }

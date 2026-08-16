@@ -24,11 +24,15 @@ repository root.
   button and dragging past the movement threshold pans the view without
   selecting a territory.
 - `src/components/ui/` contains the shadcn/ui components used by the application.
-- `src/App.tsx` loads the static map and live state from `/api/map` and
-  `/api/state`.
+- `src/App.tsx` keeps the legacy hotseat screen when Firebase Web configuration
+  is absent. With Firebase configured, it routes the authenticated friends flow
+  through `src/online/` and listens to Firestore projections.
 - `src/i18n/` contains the English/French catalog and persisted language context;
   the header switcher also selects the language used for rules and order errors.
 - `src/fixtures/` contains static data used by component tests.
 - `src/types.ts` defines the map and state contracts shared by the frontend.
 
 The Vite development server proxies `/api` to `http://localhost:8080`.
+
+Copy `.env.example` to `.env.local` to enable the online flow. The manual
+two-browser flow is documented in [`../TESTING.md`](../TESTING.md).

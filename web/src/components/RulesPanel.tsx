@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
 import { useLanguage } from '@/i18n/LanguageContext'
+import { apiTextRequest, type TokenProvider } from '@/lib/api'
 
 export type RulesSection = 'action-orders' | 'winter-orders'
 
@@ -14,6 +15,8 @@ export const RULE_SECTION_IDS: Record<RulesSection, string> = {
 interface RulesPanelProps {
   targetSection?: RulesSection
   navigationKey?: number
+  gameId?: string
+  tokenProvider?: TokenProvider
 }
 
 function markdownText(children: ReactNode): string {
@@ -44,24 +47,34 @@ function sectionAnchor(children: ReactNode): string | undefined {
   return undefined
 }
 
-export function RulesPanel({ targetSection, navigationKey = 0 }: RulesPanelProps) {
+export function RulesPanel({
+  targetSection,
+  navigationKey = 0,
+  gameId,
+  tokenProvider,
+}: RulesPanelProps) {
   const { language, t } = useLanguage()
   const [rulesMarkdown, setRulesMarkdown] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const rulesContainerRef = useRef<HTMLDivElement>(null)
+  const getIdToken = tokenProvider?.getIdToken
 
   useEffect(() => {
     const controller = new AbortController()
 
     const loadRules = async () => {
       try {
-        const response = await fetch(`/api/rules?lang=${language}`, {
-          signal: controller.signal,
-        })
-        if (!response.ok) {
-          throw new Error(t('rules.loadFailed', { status: response.status }))
-        }
-        const content = await response.text()
+        const path = gameId
+          ? `/api/games/${encodeURIComponent(gameId)}/rules?lang=${language}`
+          : `/api/rules?lang=${language}`
+        const content = getIdToken
+          ? await apiTextRequest({ getIdToken }, path)
+          : await fetch(path, { signal: controller.signal }).then(async (response) => {
+              if (!response.ok) {
+                throw new Error(t('rules.loadFailed', { status: response.status }))
+              }
+              return response.text()
+            })
         if (!content.trim()) {
           throw new Error(t('rules.empty'))
         }
@@ -82,7 +95,7 @@ export function RulesPanel({ targetSection, navigationKey = 0 }: RulesPanelProps
 
     void loadRules()
     return () => controller.abort()
-  }, [language, t])
+  }, [gameId, getIdToken, language, t])
 
   useEffect(() => {
     if (!targetSection || !rulesMarkdown) return

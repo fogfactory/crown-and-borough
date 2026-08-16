@@ -112,5 +112,8 @@ The development hotseat server accepts `GET /api/state?player=P1` to return the
 server-filtered private view for the selected player; omitting `player` keeps the
 legacy global projection useful for diagnostics. The multi-game store keeps
 chain knowledge, combat audiences, pending submissions, reports, and a monotone
-revision per game. The frontend Firebase sign-in flow and Firestore listeners
-remain the responsibility of the next frontend milestone.
+revision per game. When the public Firebase Web variables are configured, the
+frontend switches to the authenticated friends flow: email-link sign-in,
+profile setup, invitations, multi-game navigation, and Firestore listeners on
+the public summary and the current player's private view. See
+[`TESTING.md`](TESTING.md) for the manual flow and listener contract.

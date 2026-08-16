@@ -161,7 +161,7 @@ func (h *GamesHandler) create(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	response := makeGameDetailView(snapshot)
+	response := makeAuthenticatedGameDetailView(snapshot, actor)
 	if invitation.Code == "" {
 		if inviter, ok := h.store.(interface {
 			CreateInvitation(context.Context, store.Actor, store.GameID) (store.InvitationSecret, error)
@@ -196,7 +196,7 @@ func (h *GamesHandler) handleDetail(w http.ResponseWriter, r *http.Request, id s
 		h.writeStoreError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, makeGameDetailView(snapshot))
+	writeJSON(w, http.StatusOK, makeAuthenticatedGameDetailView(snapshot, actor))
 }
 
 func (h *GamesHandler) handleSubresource(w http.ResponseWriter, r *http.Request, id store.GameID, parts []string) {
@@ -402,7 +402,7 @@ func (h *GamesHandler) join(w http.ResponseWriter, r *http.Request, actor store.
 		return
 	}
 	response := gameJoinResponse{
-		gameDetailView: makeGameDetailView(result.Snapshot),
+		gameDetailView: makeAuthenticatedGameDetailView(result.Snapshot, actor),
 		Joined:         result.Joined,
 		Player:         makePlayerSlotView(result.Player, result.Snapshot),
 	}
@@ -673,17 +673,19 @@ type gameListView struct {
 }
 
 type gameDetailView struct {
-	ID         store.GameID     `json:"id"`
-	Name       string           `json:"name"`
-	Seed       string           `json:"seed"`
-	Status     store.Status     `json:"status"`
-	Winner     *models.PlayerID `json:"winner,omitempty"`
-	Players    []PlayerSlotView `json:"players"`
-	Turn       int              `json:"turn"`
-	Season     models.Season    `json:"season"`
-	Revision   store.Revision   `json:"revision"`
-	InviteCode string           `json:"inviteCode,omitempty"`
-	InviteURL  string           `json:"inviteUrl,omitempty"`
+	ID            store.GameID     `json:"id"`
+	Name          string           `json:"name"`
+	Seed          string           `json:"seed"`
+	Status        store.Status     `json:"status"`
+	Winner        *models.PlayerID `json:"winner,omitempty"`
+	Players       []PlayerSlotView `json:"players"`
+	Turn          int              `json:"turn"`
+	Season        models.Season    `json:"season"`
+	Revision      store.Revision   `json:"revision"`
+	CurrentPlayer models.PlayerID  `json:"currentPlayer,omitempty"`
+	CanInvite     bool             `json:"canInvite,omitempty"`
+	InviteCode    string           `json:"inviteCode,omitempty"`
+	InviteURL     string           `json:"inviteUrl,omitempty"`
 }
 
 type PlayerSlotView struct {
@@ -735,6 +737,14 @@ func makeGameDetailView(snapshot store.GameSnapshot) gameDetailView {
 		Season:   snapshot.State.Season,
 		Revision: snapshot.Revision,
 	}
+}
+
+func makeAuthenticatedGameDetailView(snapshot store.GameSnapshot, actor store.Actor) gameDetailView {
+	view := makeGameDetailView(snapshot)
+	view.CurrentPlayer, _ = snapshotPlayerID(snapshot, actor)
+	view.CanInvite = strings.TrimSpace(snapshot.CreatedBy) != "" &&
+		strings.TrimSpace(snapshot.CreatedBy) == strings.TrimSpace(actor.ID)
+	return view
 }
 
 func makePlayerSlotViews(snapshot store.GameSnapshot) []PlayerSlotView {
