@@ -5,6 +5,10 @@ not configured. It is useful for testing the game board and engine locally. The
 online flow is enabled when all four required `VITE_FIREBASE_*` values are
 present.
 
+Use `make run-hotseat` or the `make run-dev` alias for a guaranteed legacy
+hotseat build. This target clears the Firebase Web variables only for the
+frontend build, so it is safe to keep `web/.env.local` for the emulator flow.
+
 ## Fully Local Configuration
 
 The recommended manual setup uses the Firebase Auth and Firestore emulators;

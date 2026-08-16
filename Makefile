@@ -7,7 +7,7 @@ AUTH_PORT ?= 9099
 EMULATOR_UI_PORT ?= 4000
 SMOKE_PORT ?= 18080
 
-.PHONY: build run run-dev run-online test test-firestore compose-up compose-up-frontend compose-down compose-logs vet clean web-deps web-build web-dev image image-run image-stop image-smoke check-web-env
+.PHONY: build build-hotseat run run-dev run-hotseat run-online test test-firestore compose-up compose-up-frontend compose-down compose-logs vet clean web-deps web-build web-build-hotseat web-dev image image-run image-stop image-smoke check-web-env
 
 build: web-build
 	go build -o bin/server ./cmd/server
@@ -15,7 +15,12 @@ build: web-build
 run: build
 	./bin/server
 
-run-dev: build
+run-dev: run-hotseat
+
+build-hotseat: web-build-hotseat
+	go build -o bin/server ./cmd/server
+
+run-hotseat: build-hotseat
 	ONLINE_DEV_MODE=true ./bin/server
 
 run-online: check-web-env web-build
@@ -42,6 +47,7 @@ test-firestore:
 
 compose-up: check-web-env
 	@set -a; . ./web/.env.local; set +a; \
+		PUBLIC_APP_URL="$${PUBLIC_APP_URL:-http://localhost:$(SERVER_PORT)}" \
 		SERVER_PORT="$(SERVER_PORT)" FIRESTORE_PORT="$(FIRESTORE_PORT)" AUTH_PORT="$(AUTH_PORT)" EMULATOR_UI_PORT="$(EMULATOR_UI_PORT)" \
 		docker compose -p "$(COMPOSE_PROJECT_NAME)" up -d --build firestore auth server
 
@@ -68,6 +74,16 @@ check-web-env:
 
 web-build: web-deps
 	cd web && npm run build
+
+web-build-hotseat: web-deps
+	cd web && \
+		VITE_FIREBASE_API_KEY= \
+		VITE_FIREBASE_AUTH_DOMAIN= \
+		VITE_FIREBASE_PROJECT_ID= \
+		VITE_FIREBASE_APP_ID= \
+		VITE_FIREBASE_AUTH_EMULATOR_HOST= \
+		VITE_FIREBASE_FIRESTORE_EMULATOR_HOST= \
+		npm run build
 
 web-dev: web-deps
 	cd web && npm run dev

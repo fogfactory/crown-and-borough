@@ -4,14 +4,20 @@
 
 The Go binary serves the API and the compiled frontend from the same origin.
 
-1. Run `make run-dev` for the local development server and embedded frontend on
-   port 8080.
-2. Run `make run` for the authenticated API with Application Default Credentials.
+1. Run `make run-hotseat` (or its `make run-dev` alias) for the local memory
+   game and legacy embedded frontend on port 8080.
+2. Run `make run-online` for the local Go binary with Auth and Firestore
+   emulators, or `make compose-up` for the same flow in Docker.
 3. Open http://localhost:8080.
 
 `make web-dev` remains available for fast frontend-only iteration. In that mode
 Vite proxies `/api` to the separately running Go server; it is not required to
 run the compiled application.
+
+`make run-hotseat` always rebuilds the embedded frontend with the Firebase Web
+variables empty, even when `web/.env.local` is configured for the emulator
+flow. `make run-online` and `make compose-up` deliberately use those public
+variables instead.
 
 ## Multiplayer Mode v1
 
@@ -131,7 +137,8 @@ SERVER_PORT=18080 FIRESTORE_PORT=18081 AUTH_PORT=18082 \
 ```
 
 The browser emulator endpoints in `web/.env.local` must use the corresponding
-host ports.
+host ports. Reuse the same `COMPOSE_PROJECT_NAME` value for `make compose-logs`
+and `make compose-down` when using a non-default project name.
 
 Compose runs with `ONLINE_DEV_MODE=false` and validates Auth emulator tokens,
 so two browsers receive distinct Firebase UIDs and exercise the real online
