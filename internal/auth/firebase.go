@@ -15,6 +15,7 @@ import (
 var (
 	ErrMissingProjectID = errors.New("auth: Firebase project ID is required")
 	ErrInvalidIdentity  = errors.New("auth: Firebase token has no usable identity")
+	ErrVerifierNotReady = errors.New("auth: Firebase verifier is not initialized")
 )
 
 type FirebaseVerifier struct {
@@ -84,6 +85,16 @@ func (v *FirebaseVerifier) VerifyIDToken(ctx context.Context, idToken string) (I
 	}
 	email, _ := token.Claims["email"].(string)
 	return Identity{UID: strings.TrimSpace(token.UID), Email: strings.TrimSpace(email)}, nil
+}
+
+// Ready confirms that the Firebase Admin application and Auth client were
+// initialized successfully. Token verification remains request-scoped and is
+// intentionally not attempted by a public health probe.
+func (v *FirebaseVerifier) Ready(context.Context) error {
+	if v == nil || v.client == nil || strings.TrimSpace(v.projectID) == "" {
+		return ErrVerifierNotReady
+	}
+	return nil
 }
 
 func validFirebaseProject(audience, issuer, projectID string) bool {

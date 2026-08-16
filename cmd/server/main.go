@@ -18,6 +18,7 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/models"
 	"github.com/fogfactory/crown-and-borough/internal/store"
 	firestorestore "github.com/fogfactory/crown-and-borough/internal/store/firestore"
+	webassets "github.com/fogfactory/crown-and-borough/web"
 )
 
 const defaultSeed = "crown-and-borough-dev"
@@ -78,6 +79,7 @@ func newServer(
 	})
 	mux.Handle("GET /api/map", api.MapHandler(resolveMap))
 	mux.Handle("GET /api/state", api.StateHandler(resolveState))
+	mountFrontend(mux)
 	return mux
 }
 
@@ -93,6 +95,7 @@ func newHotseatServer(session *api.Session, rules assetgen.Rules) *http.ServeMux
 	mux.HandleFunc("POST /api/game", session.GameHTTP)
 	mux.HandleFunc("POST /api/orders", session.OrdersHTTP)
 	mux.HandleFunc("POST /api/reset", session.ResetHTTP)
+	mountFrontend(mux)
 	return mux
 }
 
@@ -146,6 +149,10 @@ func main() {
 			log.Fatalf("failed to restore Firestore games: %v", restoreErr)
 		}
 	}
+	readinessChecks := make([]api.ReadinessCheck, 0, 2)
+	if persistent, ok := gameStore.(*firestorestore.FirestoreStore); ok {
+		readinessChecks = append(readinessChecks, persistent.Ready)
+	}
 
 	var resolveActor api.ActorResolver
 	if onlineDevMode {
@@ -160,8 +167,9 @@ func main() {
 			log.Fatalf("failed to initialize Firebase Auth: %v", verifierErr)
 		}
 		resolveActor = api.FirebaseActorResolver(verifier)
+		readinessChecks = append(readinessChecks, verifier.Ready)
 	}
-	server := newApplicationServerWithResolver(session, rules, gameStore, onlineDevMode, resolveActor, assets)
+	server := newApplicationServerWithResolverAndReadiness(session, rules, gameStore, onlineDevMode, resolveActor, readinessChecks, assets)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -205,6 +213,10 @@ func newApplicationServer(session *api.Session, rules assetgen.Rules, gameStore 
 }
 
 func newApplicationServerWithResolver(session *api.Session, rules assetgen.Rules, gameStore store.GameStore, onlineDevMode bool, resolveActor api.ActorResolver, seedAssets ...assetgen.Assets) *http.ServeMux {
+	return newApplicationServerWithResolverAndReadiness(session, rules, gameStore, onlineDevMode, resolveActor, nil, seedAssets...)
+}
+
+func newApplicationServerWithResolverAndReadiness(session *api.Session, rules assetgen.Rules, gameStore store.GameStore, onlineDevMode bool, resolveActor api.ActorResolver, readinessChecks []api.ReadinessCheck, seedAssets ...assetgen.Assets) *http.ServeMux {
 	var mux *http.ServeMux
 	if onlineDevMode {
 		mux = newHotseatServer(session, rules)
@@ -229,7 +241,18 @@ func newApplicationServerWithResolver(session *api.Session, rules assetgen.Rules
 	if len(seedAssets) > 0 {
 		mux.Handle("GET /api/seed", api.SeedHandler(seedAssets[0]))
 	}
+	if len(readinessChecks) > 0 {
+		mux.HandleFunc("GET /healthz/ready", api.ReadinessHandler(readinessChecks...))
+	}
+	if !onlineDevMode {
+		mountFrontend(mux)
+	}
 	return mux
+}
+
+func mountFrontend(mux *http.ServeMux) {
+	// The same binary serves the SPA in hotseat, emulator, and hosted modes.
+	mux.Handle("/", webassets.NewEmbeddedHandler())
 }
 
 func enginePlayerID(index int) models.PlayerID {

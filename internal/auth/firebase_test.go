@@ -31,4 +31,7 @@ func TestFirebaseVerifierRequiresProjectAndToken(t *testing.T) {
 	if _, err := verifier.VerifyIDToken(context.Background(), ""); !errors.Is(err, ErrInvalidIdentity) {
 		t.Fatalf("empty token error = %v", err)
 	}
+	if err := verifier.Ready(context.Background()); !errors.Is(err, ErrVerifierNotReady) {
+		t.Fatalf("nil verifier readiness error = %v", err)
+	}
 }

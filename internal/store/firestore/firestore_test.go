@@ -74,6 +74,9 @@ func TestFirestoreStoreDefaultsAreSafeWithoutAClient(t *testing.T) {
 	if err := adapter.requireClient(); err != ErrNilClient {
 		t.Fatalf("requireClient() = %v, want %v", err, ErrNilClient)
 	}
+	if err := adapter.Ready(nil); err != ErrNilClient {
+		t.Fatalf("Ready without client = %v, want %v", err, ErrNilClient)
+	}
 	if _, err := adapter.GetProfile(nil, "alice"); err != ErrNilClient {
 		t.Fatalf("GetProfile without client = %v, want %v", err, ErrNilClient)
 	}
