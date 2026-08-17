@@ -23,6 +23,7 @@ import { firebaseConfigured, getFirebaseServices } from '@/lib/firebase'
 import type { ProfileData } from '@/types'
 
 const EMAIL_STORAGE_KEY = 'crown-and-borough.sign-in-email'
+const MISSING_EMAIL_ERROR = 'the email used to request the sign-in link is missing'
 
 export type AuthStatus = 'loading' | 'signed-out' | 'signed-in' | 'unconfigured'
 
@@ -34,7 +35,7 @@ interface AuthContextValue extends TokenProvider {
   profileError: string | null
   authError: string | null
   sendSignInLink: (email: string, redirectPath?: string) => Promise<void>
-  completeSignIn: (href?: string) => Promise<boolean>
+  completeSignIn: (href?: string, email?: string) => Promise<boolean>
   updateProfile: (displayName: string) => Promise<ProfileData>
   refreshProfile: () => Promise<ProfileData | null>
   signOut: () => Promise<void>
@@ -144,17 +145,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         url: continuation.toString(),
         handleCodeInApp: true,
       })
+      window.localStorage.setItem(EMAIL_STORAGE_KEY, email)
       window.sessionStorage.setItem(EMAIL_STORAGE_KEY, email)
     },
     [services],
   )
 
   const completeSignIn = useCallback(
-    async (href = window.location.href): Promise<boolean> => {
+    async (href = window.location.href, emailOverride?: string): Promise<boolean> => {
       if (!services || !isSignInWithEmailLink(services.auth, href)) return false
-      const email = window.sessionStorage.getItem(EMAIL_STORAGE_KEY)
-      if (!email) throw new Error('the email used to request the sign-in link is missing')
+      const email =
+        emailOverride?.trim() ||
+        window.sessionStorage.getItem(EMAIL_STORAGE_KEY) ||
+        window.localStorage.getItem(EMAIL_STORAGE_KEY)
+      if (!email) throw new Error(MISSING_EMAIL_ERROR)
       await signInWithEmailLink(services.auth, email, href)
+      window.localStorage.removeItem(EMAIL_STORAGE_KEY)
       window.sessionStorage.removeItem(EMAIL_STORAGE_KEY)
       return true
     },
@@ -230,4 +236,4 @@ export function useAuth(): AuthContextValue {
   return context
 }
 
-export { redirectPathFromHref }
+export { MISSING_EMAIL_ERROR, redirectPathFromHref }

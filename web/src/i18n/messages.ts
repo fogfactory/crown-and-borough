@@ -274,10 +274,14 @@ const englishMessages = {
   'auth.sendLink': 'Send sign-in link',
   'auth.sendingLink': 'Sending link...',
   'auth.linkSent': 'Check your inbox',
-  'auth.linkSentHint': 'Open the link in this browser to continue.',
+  'auth.linkSentHint':
+    'Open the link in this browser to continue. If it opens elsewhere, enter your email on the verification page.',
   'auth.verifyLink': 'Verifying sign-in link...',
   'auth.invalidLink': 'This sign-in link is invalid or has expired.',
   'auth.emailMissing': 'Enter the email address used for the sign-in link.',
+  'auth.emailMissingHint':
+    'This link was opened in a different tab or browser. Enter the email used to request it.',
+  'auth.completeLink': 'Complete sign-in',
   'auth.signOut': 'Sign out',
   'auth.configurationMissing': 'Firebase is not configured for this deployment.',
   'auth.backToSignIn': 'Back to sign in',
@@ -625,10 +629,14 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'auth.sendLink': 'Envoyer le lien de connexion',
   'auth.sendingLink': 'Envoi du lien...',
   'auth.linkSent': 'Consultez votre boîte mail',
-  'auth.linkSentHint': 'Ouvrez le lien dans ce navigateur pour continuer.',
+  'auth.linkSentHint':
+    'Ouvrez le lien dans ce navigateur pour continuer. S’il s’ouvre ailleurs, saisissez votre adresse sur la page de vérification.',
   'auth.verifyLink': 'Vérification du lien de connexion...',
   'auth.invalidLink': 'Ce lien de connexion est invalide ou expiré.',
   'auth.emailMissing': 'Saisissez l’adresse utilisée pour demander le lien.',
+  'auth.emailMissingHint':
+    'Ce lien a été ouvert dans un autre onglet ou navigateur. Saisissez l’adresse utilisée pour le demander.',
+  'auth.completeLink': 'Terminer la connexion',
   'auth.signOut': 'Se déconnecter',
   'auth.configurationMissing': 'Firebase n’est pas configuré pour ce déploiement.',
   'auth.backToSignIn': 'Retour à la connexion',

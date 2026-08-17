@@ -46,6 +46,7 @@ afterEach(() => {
   authHarness.unsubscribe.mockClear()
   authHarness.user.getIdToken.mockClear()
   window.sessionStorage.clear()
+  window.localStorage.clear()
 })
 
 function Probe() {
@@ -127,6 +128,9 @@ describe('Firebase auth provider', () => {
     expect(window.sessionStorage.getItem('crown-and-borough.sign-in-email')).toBe(
       'alice@example.test',
     )
+    expect(window.localStorage.getItem('crown-and-borough.sign-in-email')).toBe(
+      'alice@example.test',
+    )
     expect(authHarness.sendSignInLinkToEmail).toHaveBeenCalledWith(
       authHarness.auth,
       'alice@example.test',
@@ -137,5 +141,21 @@ describe('Firebase auth provider', () => {
     fireEvent.click(screen.getByRole('button', { name: 'complete' }))
     await waitFor(() => expect(authHarness.signInWithEmailLink).toHaveBeenCalledOnce())
     expect(window.sessionStorage.getItem('crown-and-borough.sign-in-email')).toBeNull()
+    expect(window.localStorage.getItem('crown-and-borough.sign-in-email')).toBeNull()
+  })
+
+  it('completes an email link from local storage when it opens in another tab', async () => {
+    window.localStorage.setItem('crown-and-borough.sign-in-email', 'alice@example.test')
+    authHarness.signInLink = true
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(authHarness.stateListener).not.toBeNull())
+
+    fireEvent.click(screen.getByRole('button', { name: 'complete' }))
+    await waitFor(() => expect(authHarness.signInWithEmailLink).toHaveBeenCalledOnce())
+    expect(window.localStorage.getItem('crown-and-borough.sign-in-email')).toBeNull()
   })
 })

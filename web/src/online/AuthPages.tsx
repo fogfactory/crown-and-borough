@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
-import { useAuth } from '@/auth/AuthProvider'
+import { MISSING_EMAIL_ERROR, useAuth } from '@/auth/AuthProvider'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -124,8 +124,33 @@ export function FinishPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [error, setError] = useState<string | null>(null)
+  const [email, setEmail] = useState('')
+  const [emailRequired, setEmailRequired] = useState(false)
+  const [retrying, setRetrying] = useState(false)
   const started = useRef(false)
   const redirect = safeRedirect(searchParams.get('redirect'))
+
+  const finishSignIn = useCallback(
+    async (emailOverride?: string) => {
+      setRetrying(true)
+      setError(null)
+      try {
+        const completed = await completeSignIn(window.location.href, emailOverride)
+        if (completed) navigate(redirect, { replace: true })
+        else setError(t('auth.invalidLink'))
+      } catch (signInError: unknown) {
+        if (signInError instanceof Error && signInError.message === MISSING_EMAIL_ERROR) {
+          setEmailRequired(true)
+          setError(t('auth.emailMissingHint'))
+        } else {
+          setError(errorText(signInError, t('auth.invalidLink')))
+        }
+      } finally {
+        setRetrying(false)
+      }
+    },
+    [completeSignIn, navigate, redirect, t],
+  )
 
   useEffect(() => {
     if (started.current) return
@@ -134,15 +159,8 @@ export function FinishPage() {
       navigate(redirect, { replace: true })
       return
     }
-    void completeSignIn()
-      .then((completed) => {
-        if (completed) navigate(redirect, { replace: true })
-        else setError(t('auth.invalidLink'))
-      })
-      .catch((signInError: unknown) => {
-        setError(errorText(signInError, t('auth.invalidLink')))
-      })
-  }, [completeSignIn, navigate, redirect, status, t])
+    void finishSignIn()
+  }, [finishSignIn, navigate, redirect, status])
 
   return (
     <Card className="mx-auto max-w-md border-[#b7a786] bg-[#fffaf0] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)]">
@@ -152,14 +170,42 @@ export function FinishPage() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {error ? (
-          <div className="space-y-4">
-            <p
-              role="alert"
-              className="rounded-lg border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 text-sm text-[#8d321e]"
-            >
-              {error}
-            </p>
+        {error && (
+          <p
+            role="alert"
+            className="mb-4 rounded-lg border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 text-sm text-[#8d321e]"
+          >
+            {error}
+          </p>
+        )}
+        {emailRequired && (
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault()
+              void finishSignIn(email.trim())
+            }}
+          >
+            <label className="block space-y-1.5">
+              <span className="text-sm font-semibold text-[#594b3c]">
+                {t('auth.emailMissing')}
+              </span>
+              <input
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                className="h-11 w-full rounded-lg border border-[#b7a786] bg-[#f8f0e2] px-3 text-sm outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20"
+              />
+            </label>
+            <Button type="submit" className="w-full" disabled={retrying || !email.trim()}>
+              {retrying ? t('auth.verifyLink') : t('auth.completeLink')}
+            </Button>
+          </form>
+        )}
+        {error && (
+          <div className="mt-4">
             <Link
               to="/signin"
               className="block text-center text-sm font-semibold text-[#a84632] underline underline-offset-4"
@@ -167,7 +213,8 @@ export function FinishPage() {
               {t('auth.backToSignIn')}
             </Link>
           </div>
-        ) : (
+        )}
+        {!error && !emailRequired && (
           <p className="text-sm text-[#806f57]">{t('online.loading')}</p>
         )}
       </CardContent>
