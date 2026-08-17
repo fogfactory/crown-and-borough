@@ -97,7 +97,7 @@ milestones GitHub `Online Foundations`, `Online Friends MVP` et `Online Hosted`.
 | Authentification | Firebase Auth par lien email, profils Firestore, invitations et membership par UID | Planifié : O6 |
 | Persistance | Transactions, projections privées et restauration Firestore sans perte après redémarrage | Planifié : O8 |
 | Front | Retours de tests, accessibilité, parcours multi-joueur, Firebase Web et listeners temps réel | Planifié : O7 |
-| Déploiement | Image de production, Firestore/Firebase et déploiement public Cloud Run | Planifié : O9-O10 |
+| Déploiement | Image de production, Firestore/Firebase et déploiement public Cloud Run | En cours : O10 (workflow et runbook livrés, validation GCP restante) |
 
 ## Extensions de règles
 

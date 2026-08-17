@@ -180,3 +180,7 @@ frontend switches to the authenticated friends flow: email-link sign-in,
 profile setup, invitations, multi-game navigation, and Firestore listeners on
 the public summary and the current player's private view. See
 [`TESTING.md`](TESTING.md) for the manual flow and listener contract.
+
+The one-time GCP/Firebase bootstrap, GitHub Actions variables, Cloud Run
+promotion flow, rollback, budget, and public acceptance checklist are in
+[`docs/deploy-cloudrun.md`](docs/deploy-cloudrun.md).

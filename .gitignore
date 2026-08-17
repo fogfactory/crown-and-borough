@@ -13,6 +13,7 @@ tmp/
 .env
 .env.*
 !.env.example
+gha-creds-*.json
 
 # OS
 .DS_Store

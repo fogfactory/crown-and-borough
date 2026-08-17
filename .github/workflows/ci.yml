@@ -25,6 +25,7 @@ on:
       - "Makefile"
       - "web/**"
       - ".github/workflows/ci.yml"
+      - ".github/workflows/deploy-cloudrun.yml"
 
 jobs:
   go:
@@ -171,3 +172,15 @@ jobs:
       - run: npm ci
         working-directory: web
       - run: npx --yes firebase-tools@13.35.1 emulators:exec --only firestore --project crown-and-borough-integration 'make test-firestore'
+
+  workflows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate GitHub Actions workflows
+        run: >-
+          docker run --rm
+          -v "$GITHUB_WORKSPACE:/repo:ro"
+          rhysd/actionlint:1.7.7 -oneline
+          /repo/.github/workflows/ci.yml
+          /repo/.github/workflows/deploy-cloudrun.yml

@@ -1,0 +1,365 @@
+name: Deploy Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+    paths:
+      - ".dockerignore"
+      - ".github/workflows/deploy-cloudrun.yml"
+      - "Dockerfile"
+      - "Makefile"
+      - "assets/**"
+      - "cmd/**"
+      - "firestore.indexes.json"
+      - "firestore.rules"
+      - "firebase.json"
+      - "go.mod"
+      - "go.sum"
+      - "internal/**"
+      - "web/**"
+  workflow_dispatch:
+    inputs:
+      confirm_deploy:
+        description: Deploy the selected ref to production after the candidate smoke test
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: cloudrun-deploy
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  REGION: ${{ vars.GCP_REGION }}
+  ARTIFACT_REGISTRY: ${{ vars.GCP_ARTIFACT_REGISTRY }}
+  AR_REPOSITORY: ${{ vars.GCP_AR_REPOSITORY }}
+  CLOUD_RUN_SERVICE: ${{ vars.GCP_CLOUD_RUN_SERVICE }}
+  DEPLOYER_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+  RUNTIME_SERVICE_ACCOUNT: ${{ vars.GCP_RUNTIME_SERVICE_ACCOUNT }}
+  PUBLIC_APP_URL: ${{ vars.PUBLIC_APP_URL }}
+  VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+  VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+  VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+  VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
+
+jobs:
+  build-and-push:
+    name: Build and push immutable image
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.confirm_deploy }}
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.image.outputs.name }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Check deployment variables
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(
+            PROJECT_ID
+            REGION
+            ARTIFACT_REGISTRY
+            AR_REPOSITORY
+            CLOUD_RUN_SERVICE
+            DEPLOYER_SERVICE_ACCOUNT
+            RUNTIME_SERVICE_ACCOUNT
+            VITE_FIREBASE_API_KEY
+            VITE_FIREBASE_AUTH_DOMAIN
+            VITE_FIREBASE_PROJECT_ID
+            VITE_FIREBASE_APP_ID
+          )
+          for name in "${required[@]}"; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::GitHub variable for $name is not configured"
+              exit 1
+            fi
+          done
+          if [[ "$VITE_FIREBASE_PROJECT_ID" != "$PROJECT_ID" ]]; then
+            echo "::error::VITE_FIREBASE_PROJECT_ID must match GCP_PROJECT_ID"
+            exit 1
+          fi
+          if [[ -n "$PUBLIC_APP_URL" && "$PUBLIC_APP_URL" != https://* ]]; then
+            echo "::error::PUBLIC_APP_URL must be an HTTPS origin"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud with Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "$ARTIFACT_REGISTRY" --quiet
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Compute image name
+        id: image
+        shell: bash
+        run: echo "name=$ARTIFACT_REGISTRY/$PROJECT_ID/$AR_REPOSITORY/crown-and-borough" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push image tagged by commit SHA
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.image.outputs.name }}:${{ github.sha }}
+          build-args: |
+            VITE_FIREBASE_API_KEY=${{ vars.VITE_FIREBASE_API_KEY }}
+            VITE_FIREBASE_AUTH_DOMAIN=${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+            VITE_FIREBASE_PROJECT_ID=${{ vars.VITE_FIREBASE_PROJECT_ID }}
+            VITE_FIREBASE_APP_ID=${{ vars.VITE_FIREBASE_APP_ID }}
+
+      - name: Verify the pushed image contains no credentials
+        shell: bash
+        env:
+          IMAGE: ${{ steps.image.outputs.name }}@${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          docker pull "$IMAGE" >/dev/null
+          container_id="$(docker create "$IMAGE")"
+          rootfs="$(mktemp)"
+          file_list="$(mktemp)"
+          trap 'docker rm "$container_id" >/dev/null 2>&1 || true; rm -f "$rootfs" "$file_list"' EXIT
+
+          docker export "$container_id" > "$rootfs"
+          tar -tf "$rootfs" > "$file_list"
+          if grep -Eiq '(^|/)([^/]*(service[-_]account|credentials|private[-_]key|firebase-adminsdk)[^/]*|[^/]*\.json)$' "$file_list"; then
+            echo "::error::credential-like file found in the final image"
+            exit 1
+          fi
+
+          image_env="$(docker image inspect "$IMAGE" --format '{{json .Config.Env}}')"
+          if printf '%s' "$image_env" | grep -Eiq 'FIREBASE_ADMIN|GOOGLE_APPLICATION_CREDENTIALS|PRIVATE_KEY|SERVICE_ACCOUNT'; then
+            echo "::error::credential environment variable found in the final image"
+            exit 1
+          fi
+
+  deploy-rules:
+    name: Deploy Firestore rules and indexes
+    needs: build-and-push
+    if: ${{ (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && (github.event_name != 'workflow_dispatch' || inputs.confirm_deploy) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud with Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Deploy Firestore rules and indexes
+        run: |
+          npx --yes firebase-tools@13.35.1 deploy \
+            --only firestore:rules,firestore:indexes \
+            --project "$PROJECT_ID" \
+            --non-interactive
+
+  deploy-cloudrun:
+    name: Deploy smoke candidate to Cloud Run
+    needs:
+      - build-and-push
+      - deploy-rules
+    if: ${{ (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && (github.event_name != 'workflow_dispatch' || inputs.confirm_deploy) }}
+    runs-on: ubuntu-latest
+    outputs:
+      revision: ${{ steps.deploy.outputs.revision }}
+      candidate_url: ${{ steps.deploy.outputs.candidate_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud with Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy the digest-pinned candidate revision
+        id: deploy
+        shell: bash
+        env:
+          IMAGE: ${{ needs.build-and-push.outputs.image }}@${{ needs.build-and-push.outputs.digest }}
+        run: |
+          set -euo pipefail
+
+          deploy_candidate() {
+            local app_url="$1"
+            gcloud run deploy "$CLOUD_RUN_SERVICE" \
+              --image "$IMAGE" \
+              --region "$REGION" \
+              --project "$PROJECT_ID" \
+              --service-account "$RUNTIME_SERVICE_ACCOUNT" \
+              --allow-unauthenticated \
+              --min-instances 0 \
+              --max-instances 1 \
+              --cpu 1 \
+              --memory 512Mi \
+              --concurrency 80 \
+              --timeout 60s \
+              --port 8080 \
+              --no-traffic \
+              --tag smoke \
+              --set-env-vars "ASSETS_DIR=/assets,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,FIREBASE_PROJECT_ID=$PROJECT_ID,ONLINE_DEV_MODE=false,PUBLIC_APP_URL=$app_url" \
+              --quiet
+          }
+
+          app_url="$PUBLIC_APP_URL"
+          bootstrap_url=false
+          if [[ -z "$app_url" ]]; then
+            app_url="$(gcloud run services describe "$CLOUD_RUN_SERVICE" \
+              --region "$REGION" \
+              --project "$PROJECT_ID" \
+              --format='value(status.url)' 2>/dev/null || true)"
+          fi
+          if [[ -z "$app_url" ]]; then
+            # Cloud Run creates the service URL with the first revision. The
+            # placeholder is replaced by the real URL before any traffic moves.
+            app_url="https://crown-and-borough.invalid"
+            bootstrap_url=true
+          fi
+
+          deploy_candidate "$app_url"
+
+          if [[ "$bootstrap_url" == true ]]; then
+            app_url="$(gcloud run services describe "$CLOUD_RUN_SERVICE" \
+              --region "$REGION" \
+              --project "$PROJECT_ID" \
+              --format='value(status.url)')"
+            if [[ -z "$app_url" ]]; then
+              echo "::error::Cloud Run did not return a service URL"
+              exit 1
+            fi
+            deploy_candidate "$app_url"
+          fi
+
+          revision="$(gcloud run services describe "$CLOUD_RUN_SERVICE" \
+            --region "$REGION" \
+            --project "$PROJECT_ID" \
+            --format='value(status.latestCreatedRevisionName)')"
+          if [[ -z "$revision" ]]; then
+            echo "::error::Cloud Run did not return the candidate revision"
+            exit 1
+          fi
+
+          service_url="$(gcloud run services describe "$CLOUD_RUN_SERVICE" \
+            --region "$REGION" \
+            --project "$PROJECT_ID" \
+            --format='value(status.url)')"
+          candidate_url=""
+          for _ in {1..15}; do
+            candidate_url="$(gcloud run services describe "$CLOUD_RUN_SERVICE" \
+              --region "$REGION" \
+              --project "$PROJECT_ID" \
+              --format="value(status.traffic[?tag='smoke'].url)" || true)"
+            if [[ -n "$candidate_url" ]]; then
+              break
+            fi
+            sleep 2
+          done
+          if [[ -z "$candidate_url" && "$service_url" == https://* ]]; then
+            candidate_url="https://smoke---${service_url#https://}"
+          fi
+          if [[ -z "$candidate_url" ]]; then
+            echo "::error::Cloud Run did not return the smoke tag URL"
+            exit 1
+          fi
+
+          {
+            echo "revision=$revision"
+            echo "candidate_url=$candidate_url"
+          } >> "$GITHUB_OUTPUT"
+
+  post-deploy-smoke:
+    name: Smoke-test the Cloud Run candidate
+    needs: deploy-cloudrun
+    if: ${{ (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && (github.event_name != 'workflow_dispatch' || inputs.confirm_deploy) }}
+    runs-on: ubuntu-latest
+    env:
+      CANDIDATE_URL: ${{ needs.deploy-cloudrun.outputs.candidate_url }}
+    steps:
+      - name: Check public HTTP contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_url="${CANDIDATE_URL%/}"
+          if [[ "$base_url" != https://* ]]; then
+            echo "::error::the Cloud Run candidate URL is not HTTPS"
+            exit 1
+          fi
+
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error "$base_url/healthz" >/dev/null 2>&1 \
+              && curl --fail --silent --show-error "$base_url/healthz/ready" >/dev/null 2>&1; then
+              break
+            fi
+            if [[ "$attempt" == 30 ]]; then
+              echo "::error::Cloud Run health checks did not become ready"
+              exit 1
+            fi
+            sleep 2
+          done
+
+          ready_response="$(curl --fail --silent --show-error "$base_url/healthz/ready")"
+          [[ "$ready_response" == *'"status":"ready"'* ]]
+
+          curl --fail --silent --show-error "$base_url/" | grep -Fq '<div id="root"></div>'
+          curl --fail --silent --show-error "$base_url/games/postdeploy" | grep -Fq '<div id="root"></div>'
+          curl --fail --silent --show-error "$base_url/api/rules" >/dev/null
+
+          games_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$base_url/api/games")"
+          auth_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$base_url/api/auth/me")"
+          [[ "$games_status" == 401 ]]
+          [[ "$auth_status" == 401 ]]
+
+  promote-cloudrun:
+    name: Promote the smoke-tested revision
+    needs:
+      - deploy-cloudrun
+      - post-deploy-smoke
+    if: ${{ (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && (github.event_name != 'workflow_dispatch' || inputs.confirm_deploy) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud with Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Route all traffic to the verified revision
+        env:
+          REVISION: ${{ needs.deploy-cloudrun.outputs.revision }}
+        run: |
+          gcloud run services update-traffic "$CLOUD_RUN_SERVICE" \
+            --to-revisions "$REVISION=100" \
+            --region "$REGION" \
+            --project "$PROJECT_ID" \
+            --quiet

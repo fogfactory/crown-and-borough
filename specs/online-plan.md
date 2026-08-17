@@ -332,9 +332,11 @@ et vérifier la restauration depuis Firestore.
 **Livrables :** Workload Identity Federation, Artifact Registry, activation et
 configuration de Firebase Authentication et Firestore, règles et indexes
 Firestore versionnés, déploiement Cloud Run avec `min-instances=0` et une
-limite d'instances initiale, sans volume persistant. Les paramètres GCP et la
-configuration publique Firebase restent dans les variables du workflow ou les
-variables frontend ; aucun secret de service account n'est commité.
+limite d'instances initiale, sans volume persistant. Le workflow de promotion,
+le smoke test HTTP et le runbook de bootstrap sont documentés dans
+[`docs/deploy-cloudrun.md`](../docs/deploy-cloudrun.md). Les paramètres GCP et
+la configuration publique Firebase restent dans les variables du workflow ou
+les variables frontend ; aucun secret de service account n'est commité.
 
 **Tests automatiques :** build/push immuable, smoke HTTP, absence de secrets
 ou d'identifiants GCP codés en dur.
