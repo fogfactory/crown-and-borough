@@ -328,8 +328,7 @@ jobs:
           fi
 
           for attempt in {1..30}; do
-            if curl --fail --silent --show-error "$base_url/healthz" >/dev/null 2>&1 \
-              && curl --fail --silent --show-error "$base_url/healthz/ready" >/dev/null 2>&1; then
+            if curl --fail --silent --show-error "$base_url/healthz/ready" >/dev/null 2>&1; then
               break
             fi
             if [[ "$attempt" == 30 ]]; then

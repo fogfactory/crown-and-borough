@@ -410,11 +410,16 @@ FIRESTORE_EMULATOR_HOST=127.0.0.1:8081 make test-firestore
 The post-deployment smoke job verifies all of the following on the candidate
 tag URL:
 
-- `/healthz` responds successfully;
 - `/healthz/ready` reports `{"status":"ready"}`;
 - `/` and a client-side route return the embedded SPA root;
 - `/api/rules` is reachable;
 - `/api/games` and `/api/auth/me` return `401` without a Firebase token.
+
+The local container smoke test still checks `/healthz`. On the public Cloud Run
+hostname, the exact `/healthz` path is intercepted by the Cloud Run edge and
+returns its own 404 before reaching the container, so the hosted smoke test
+uses `/healthz/ready`, which verifies both the process and Firebase/Firestore
+readiness.
 
 The image verification step pulls the pushed digest and rejects credential-like
 files and Admin/private-key environment variables. The final scratch image is
