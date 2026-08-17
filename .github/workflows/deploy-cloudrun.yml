@@ -208,6 +208,10 @@ jobs:
 
           deploy_candidate() {
             local app_url="$1"
+            local traffic_flags=()
+            if [[ "$staged_deploy" == true ]]; then
+              traffic_flags=(--no-traffic --tag smoke)
+            fi
             gcloud run deploy "$CLOUD_RUN_SERVICE" \
               --image "$IMAGE" \
               --region "$REGION" \
@@ -221,11 +225,19 @@ jobs:
               --concurrency 80 \
               --timeout 60s \
               --port 8080 \
-              --no-traffic \
-              --tag smoke \
+              "${traffic_flags[@]}" \
               --set-env-vars "ASSETS_DIR=/assets,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,FIREBASE_PROJECT_ID=$PROJECT_ID,ONLINE_DEV_MODE=false,PUBLIC_APP_URL=$app_url" \
               --quiet
           }
+
+          service_exists="$(gcloud run services describe "$CLOUD_RUN_SERVICE" \
+            --region "$REGION" \
+            --project "$PROJECT_ID" \
+            --format='value(metadata.name)' 2>/dev/null || true)"
+          staged_deploy=false
+          if [[ -n "$service_exists" ]]; then
+            staged_deploy=true
+          fi
 
           app_url="$PUBLIC_APP_URL"
           bootstrap_url=false
@@ -269,22 +281,26 @@ jobs:
             --region "$REGION" \
             --project "$PROJECT_ID" \
             --format='value(status.url)')"
-          candidate_url=""
-          for _ in {1..15}; do
-            candidate_url="$(gcloud run services describe "$CLOUD_RUN_SERVICE" \
-              --region "$REGION" \
-              --project "$PROJECT_ID" \
-              --format="value(status.traffic[?tag='smoke'].url)" || true)"
-            if [[ -n "$candidate_url" ]]; then
-              break
+          if [[ "$staged_deploy" == true ]]; then
+            candidate_url=""
+            for _ in {1..15}; do
+              candidate_url="$(gcloud run services describe "$CLOUD_RUN_SERVICE" \
+                --region "$REGION" \
+                --project "$PROJECT_ID" \
+                --format="value(status.traffic[?tag='smoke'].url)" || true)"
+              if [[ -n "$candidate_url" ]]; then
+                break
+              fi
+              sleep 2
+            done
+            if [[ -z "$candidate_url" && "$service_url" == https://* ]]; then
+              candidate_url="https://smoke---${service_url#https://}"
             fi
-            sleep 2
-          done
-          if [[ -z "$candidate_url" && "$service_url" == https://* ]]; then
-            candidate_url="https://smoke---${service_url#https://}"
+          else
+            candidate_url="$service_url"
           fi
           if [[ -z "$candidate_url" ]]; then
-            echo "::error::Cloud Run did not return the smoke tag URL"
+            echo "::error::Cloud Run did not return a candidate URL"
             exit 1
           fi
 

@@ -22,6 +22,11 @@ The workflow has two promotion paths:
   routes 100% of traffic to the exact image digest only after the smoke test
   passes.
 
+The first Cloud Run deployment is the exception required by the Cloud Run CLI:
+`--no-traffic` is not accepted while creating a new service. The first revision
+is therefore created with normal traffic and smoke-tested at the public service
+URL. Every later deployment uses the no-traffic `smoke` tag flow described above.
+
 The initial service settings are `min-instances=0`, `max-instances=1`, one CPU,
 `512Mi` memory, and concurrency `80`. These settings control the initial cost;
 the Firestore transactions and conditional commits must remain correct if the
@@ -349,8 +354,9 @@ The workflow builds and pushes the SHA-tagged image, deploys rules and indexes,
 smoke-tests the candidate URL, and promotes the exact digest. On the first
 deployment, if `PUBLIC_APP_URL` is empty and the service has no URL yet, the
 workflow briefly uses an internal placeholder to create the service, reads the
-real `run.app` URL, and creates the final no-traffic candidate with the real
-origin before running the smoke test.
+real `run.app` URL, and creates a second first-service revision with the real
+origin before running the smoke test. That first-service revision necessarily
+serves normal traffic; subsequent promotions use the isolated `smoke` tag.
 
 For an explicit manual promotion instead of a tag:
 
