@@ -28,6 +28,7 @@ type GamesHandler struct {
 	requireProfile   bool
 	strictMembership bool
 	inviteBaseURL    string
+	creatorGate      CreatorGate
 }
 
 type GamesHandlerOptions struct {
@@ -36,6 +37,7 @@ type GamesHandlerOptions struct {
 	RequireProfile   bool
 	StrictMembership bool
 	InviteBaseURL    string
+	CreatorGate      CreatorGate
 }
 
 func NewGamesHandler(gameStore store.GameStore, rules assetgen.Rules, resolve ActorResolver) http.Handler {
@@ -47,6 +49,10 @@ func NewGamesHandlerWithOptions(gameStore store.GameStore, rules assetgen.Rules,
 	if profiles == nil {
 		profiles, _ = gameStore.(store.ProfileStore)
 	}
+	creatorGate := options.CreatorGate
+	if creatorGate == nil {
+		creatorGate = AllowAllCreatorGate{}
+	}
 	return &GamesHandler{
 		store:            gameStore,
 		rules:            rules,
@@ -55,6 +61,7 @@ func NewGamesHandlerWithOptions(gameStore store.GameStore, rules assetgen.Rules,
 		requireProfile:   options.RequireProfile,
 		strictMembership: options.StrictMembership,
 		inviteBaseURL:    options.InviteBaseURL,
+		creatorGate:      creatorGate,
 	}
 }
 
@@ -120,6 +127,10 @@ func (h *GamesHandler) handleCollection(w http.ResponseWriter, r *http.Request) 
 func (h *GamesHandler) create(w http.ResponseWriter, r *http.Request) {
 	actor, ok := h.resolveActor(w, r)
 	if !ok {
+		return
+	}
+	if !h.creatorGate.Allowed(actor) {
+		writeAPIError(w, http.StatusForbidden, "creator_not_allowed", "only authorized accounts can create games")
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 32<<10)

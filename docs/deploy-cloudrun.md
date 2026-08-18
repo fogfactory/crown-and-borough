@@ -275,6 +275,124 @@ In the Firebase console for this project:
 4. Add `localhost` and the deployed Cloud Run hostname to Authorized domains.
    Add a custom application domain too if one will be used.
 
+## Authorized Game Creators
+
+The hosted API fails closed: an authenticated account may create a game only
+when its verified Firebase ID token contains the boolean custom claim
+`game_creator: true`. The server does not use a production email environment
+variable or trust an email supplied by the browser. Joining an existing game
+continues to use the invitation and membership flow.
+
+### Account Creation
+
+The email-link flow documented in the [Firebase Web email-link
+guide](https://firebase.google.com/docs/auth/web/email-link-auth?hl=fr&authuser=0)
+creates the Firebase Auth account when the user completes the first sign-in
+link. There is no separate account-creation step in Crown & Borough:
+
+1. Enable **Email/Password > Email link (passwordless sign-in)** in Firebase
+   Authentication.
+2. The user enters their email on the application sign-in page.
+3. The user opens the link in the same browser and completes sign-in.
+4. The user then appears in Firebase Console > Authentication > Users.
+
+The Auth emulator follows the same flow. Its generated links are visible in
+the Emulator UI or with `make compose-logs`.
+
+### Production Claim
+
+Firebase Console can configure providers and list Auth users, but it has no UI
+for editing custom claims. The basic Firebase CLI also has no supported command
+for setting a custom claim. Use the Firebase Admin SDK once the user has
+completed email-link sign-in. This is a one-off administrative command, not a
+new CLI binary for the application.
+
+From a temporary directory, install the Admin SDK and authenticate Application
+Default Credentials:
+
+```bash
+mkdir -p /tmp/crown-and-borough-auth-admin
+cd /tmp/crown-and-borough-auth-admin
+npm init -y
+npm install firebase-admin
+gcloud auth application-default login
+export FIREBASE_PROJECT_ID="$PROJECT_ID"
+```
+
+Grant or revoke the claim by passing the real email address and an optional
+`revoke` argument:
+
+```bash
+node - "creator@example.com" <<'NODE'
+const admin = require('firebase-admin');
+
+const email = process.argv[2];
+const revoke = process.argv[3] === 'revoke';
+const app = admin.initializeApp({
+  credential: admin.credential.applicationDefault(),
+  projectId: process.env.FIREBASE_PROJECT_ID,
+});
+
+(async () => {
+  const user = await app.auth().getUserByEmail(email);
+  const claims = { ...(user.customClaims || {}) };
+  if (revoke) delete claims.game_creator;
+  else claims.game_creator = true;
+  await app.auth().setCustomUserClaims(user.uid, claims);
+  console.log(`${revoke ? 'revoked' : 'granted'} game_creator for ${email}`);
+})().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
+NODE
+
+# Revoke the same account later:
+node - "creator@example.com" revoke <<'NODE'
+const admin = require('firebase-admin');
+const email = process.argv[2];
+const app = admin.initializeApp({
+  credential: admin.credential.applicationDefault(),
+  projectId: process.env.FIREBASE_PROJECT_ID,
+});
+(async () => {
+  const user = await app.auth().getUserByEmail(email);
+  const claims = { ...(user.customClaims || {}) };
+  delete claims.game_creator;
+  await app.auth().setCustomUserClaims(user.uid, claims);
+})().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
+NODE
+```
+
+The Cloud Run runtime service account already has the Firebase Auth Admin
+permission required by the server, but that permission is not exposed to the
+browser. After a claim change, a newly completed email-link sign-in forces an
+ID-token refresh in the application. An already signed-in browser must sign
+out and sign in again, or otherwise refresh its Firebase ID token, before the
+claim change is visible to the API.
+
+### Emulator Creator
+
+The emulator intentionally uses a local-only email allowlist so the flow can
+be tested without custom-claim administration. `make run-online` and
+`make compose-up` start the server with:
+
+```text
+ALLOWED_CREATOR_EMAILS=admin@mail.com
+```
+
+Sign in to the local application as `admin@mail.com`, open the generated link
+from the Auth Emulator UI, and create a game. A different emulator email is
+authenticated normally but receives `403 creator_not_allowed` when it tries
+to create one. This variable is ignored outside Firebase emulator mode and is
+not part of the hosted deployment configuration.
+
+With no emulator allowlist and no `game_creator` claim, nobody can create a
+game. This fail-closed behavior prevents an accidental public deployment from
+turning every authenticated account into a game creator.
+
 The first Cloud Run deployment can derive its `run.app` URL automatically. Get
 the resulting URL with:
 

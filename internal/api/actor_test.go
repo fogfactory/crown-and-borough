@@ -33,3 +33,23 @@ func TestFirebaseActorResolverUsesVerifiedUIDAndIgnoresQueryIdentity(t *testing.
 		t.Fatalf("actor = %#v", actor)
 	}
 }
+
+func TestFirebaseActorResolverCarriesCreatorClaim(t *testing.T) {
+	resolver := FirebaseActorResolver(testIdentityVerifier{identity: auth.Identity{
+		UID:         "creator-uid",
+		Email:       "creator@example.com",
+		GameCreator: true,
+	}})
+	request, err := http.NewRequest(http.MethodGet, "/api/games", nil)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	request.Header.Set("Authorization", "Bearer token")
+	actor, err := resolver(request)
+	if err != nil {
+		t.Fatalf("resolve actor: %v", err)
+	}
+	if !actor.GameCreator {
+		t.Fatal("creator claim was not carried to the actor")
+	}
+}

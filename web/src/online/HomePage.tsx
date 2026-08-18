@@ -149,7 +149,11 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
         inviteUrl: response.inviteUrl as string,
       })
     } catch (createError) {
-      setError(actionError(createError, t('error.gameCreationFailed')))
+      if (createError instanceof ApiError && createError.code === 'creator_not_allowed') {
+        setError(t('error.creatorNotAllowed'))
+      } else {
+        setError(actionError(createError, t('error.gameCreationFailed')))
+      }
     } finally {
       setCreating(false)
     }

@@ -169,7 +169,16 @@ func main() {
 		resolveActor = api.FirebaseActorResolver(verifier)
 		readinessChecks = append(readinessChecks, verifier.Ready)
 	}
-	server := newApplicationServerWithResolverAndReadiness(session, rules, gameStore, onlineDevMode, resolveActor, readinessChecks, assets)
+	server := newApplicationServerWithCreatorGate(
+		session,
+		rules,
+		gameStore,
+		onlineDevMode,
+		resolveActor,
+		creatorGateForEnvironment(onlineDevMode),
+		readinessChecks,
+		assets,
+	)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -217,6 +226,10 @@ func newApplicationServerWithResolver(session *api.Session, rules assetgen.Rules
 }
 
 func newApplicationServerWithResolverAndReadiness(session *api.Session, rules assetgen.Rules, gameStore store.GameStore, onlineDevMode bool, resolveActor api.ActorResolver, readinessChecks []api.ReadinessCheck, seedAssets ...assetgen.Assets) *http.ServeMux {
+	return newApplicationServerWithCreatorGate(session, rules, gameStore, onlineDevMode, resolveActor, nil, readinessChecks, seedAssets...)
+}
+
+func newApplicationServerWithCreatorGate(session *api.Session, rules assetgen.Rules, gameStore store.GameStore, onlineDevMode bool, resolveActor api.ActorResolver, creatorGate api.CreatorGate, readinessChecks []api.ReadinessCheck, seedAssets ...assetgen.Assets) *http.ServeMux {
 	var mux *http.ServeMux
 	if onlineDevMode {
 		mux = newHotseatServer(session, rules)
@@ -234,6 +247,7 @@ func newApplicationServerWithResolverAndReadiness(session *api.Session, rules as
 		RequireProfile:   !onlineDevMode,
 		StrictMembership: !onlineDevMode,
 		InviteBaseURL:    os.Getenv("PUBLIC_APP_URL"),
+		CreatorGate:      creatorGate,
 	})
 	mux.Handle("/api/games", games)
 	mux.Handle("/api/games/", games)

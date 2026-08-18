@@ -22,6 +22,7 @@ type Revision uint64
 type Actor struct {
 	ID          string `json:"id"`
 	Email       string `json:"-"`
+	GameCreator bool   `json:"-"`
 	Development bool   `json:"-"`
 }
 

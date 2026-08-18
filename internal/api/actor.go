@@ -120,7 +120,7 @@ func FirebaseActorResolver(verifier auth.Verifier) ActorResolver {
 		if err != nil {
 			return store.Actor{}, err
 		}
-		return store.Actor{ID: identity.UID, Email: identity.Email}, nil
+		return store.Actor{ID: identity.UID, Email: identity.Email, GameCreator: identity.GameCreator}, nil
 	})
 }
 

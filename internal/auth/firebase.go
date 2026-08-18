@@ -84,7 +84,12 @@ func (v *FirebaseVerifier) VerifyIDToken(ctx context.Context, idToken string) (I
 		return Identity{}, ErrInvalidIdentity
 	}
 	email, _ := token.Claims["email"].(string)
-	return Identity{UID: strings.TrimSpace(token.UID), Email: strings.TrimSpace(email)}, nil
+	gameCreator, _ := token.Claims["game_creator"].(bool)
+	return Identity{
+		UID:         strings.TrimSpace(token.UID),
+		Email:       strings.TrimSpace(email),
+		GameCreator: gameCreator,
+	}, nil
 }
 
 // Ready confirms that the Firebase Admin application and Auth client were

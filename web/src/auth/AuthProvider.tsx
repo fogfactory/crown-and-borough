@@ -159,7 +159,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         window.sessionStorage.getItem(EMAIL_STORAGE_KEY) ||
         window.localStorage.getItem(EMAIL_STORAGE_KEY)
       if (!email) throw new Error(MISSING_EMAIL_ERROR)
-      await signInWithEmailLink(services.auth, email, href)
+      const credential = await signInWithEmailLink(services.auth, email, href)
+      // Custom claims are assigned outside the browser. Force the first token
+      // refresh so a newly granted game_creator claim is used immediately.
+      await credential.user.getIdToken(true)
       window.localStorage.removeItem(EMAIL_STORAGE_KEY)
       window.sessionStorage.removeItem(EMAIL_STORAGE_KEY)
       return true

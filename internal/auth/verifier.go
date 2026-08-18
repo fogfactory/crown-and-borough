@@ -4,8 +4,9 @@ package auth
 import "context"
 
 type Identity struct {
-	UID   string
-	Email string
+	UID         string
+	Email       string
+	GameCreator bool
 }
 
 type Verifier interface {

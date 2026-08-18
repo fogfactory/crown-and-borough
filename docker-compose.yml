@@ -68,6 +68,7 @@ services:
       FIREBASE_AUTH_EMULATOR_HOST: auth:9099
       FIREBASE_PROJECT_ID: demo-crown-and-borough
       GOOGLE_CLOUD_PROJECT: crown-and-borough-local
+      ALLOWED_CREATOR_EMAILS: admin@mail.com
       ONLINE_DEV_MODE: ${ONLINE_DEV_MODE:-false}
       PORT: "8080"
       PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:8080}

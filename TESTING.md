@@ -23,6 +23,11 @@ credentials.
    `http://localhost:4000` under Authentication.
 5. Open each link in the same browser that requested it. The link redirects to
    the local `/finish` route and completes sign-in against the emulator.
+6. Use `admin@mail.com` for the creator browser. `make run-online` and
+   `make compose-up` configure that email as the local-only creator allowlist.
+   Sign in with another email in a second browser and confirm that joining via
+   invitation still works, while creating a new game returns
+   `creator_not_allowed`.
 
 The copied `.env.local` uses `fake-api-key`, `demo-crown-and-borough`, and the
 host emulator ports `9099` and `8081`. These values are intentionally local
@@ -101,7 +106,11 @@ same-origin and restart check is:
     are loaded through the filtered REST endpoint.
 12. Test an explicit forced resolution, winter orders, victory, F5, sign-out,
     reconnect, a revoked membership, a `401`, a `403`, and a missing game.
-13. Test a narrow mobile viewport and keyboard navigation through tabs, forms,
+13. In a hosted-like test with no `game_creator` claim, confirm that game
+    creation is denied. Grant the claim through the Admin SDK procedure in
+    [`docs/deploy-cloudrun.md`](docs/deploy-cloudrun.md#production-claim), sign
+    in again, and confirm that creation succeeds.
+14. Test a narrow mobile viewport and keyboard navigation through tabs, forms,
     lobby slots, and the map.
 
 ## Listener Contract

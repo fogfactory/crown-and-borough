@@ -32,6 +32,7 @@ run-online: check-web-env web-build
 		FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:$(AUTH_PORT) \
 		FIREBASE_PROJECT_ID=demo-crown-and-borough \
 		GOOGLE_CLOUD_PROJECT=crown-and-borough-local \
+		ALLOWED_CREATOR_EMAILS=admin@mail.com \
 		ONLINE_DEV_MODE=false \
 		PUBLIC_APP_URL=http://localhost:$(SERVER_PORT) \
 		PORT=$(SERVER_PORT) \

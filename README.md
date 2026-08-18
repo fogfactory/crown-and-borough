@@ -184,3 +184,9 @@ the public summary and the current player's private view. See
 The one-time GCP/Firebase bootstrap, GitHub Actions variables, Cloud Run
 promotion flow, rollback, budget, and public acceptance checklist are in
 [`docs/deploy-cloudrun.md`](docs/deploy-cloudrun.md).
+
+Hosted game creation is fail-closed: only Firebase accounts with the
+`game_creator: true` custom claim can create games. The local Auth/Firestore
+emulator uses the documented `admin@mail.com` test account; account creation,
+claim assignment, token refresh, and the emulator flow are described in the
+[authorized creator runbook](docs/deploy-cloudrun.md#authorized-game-creators).

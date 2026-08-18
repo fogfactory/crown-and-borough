@@ -12,7 +12,7 @@ const authHarness = vi.hoisted(() => ({
   signInLink: false,
   unsubscribe: vi.fn(),
   sendSignInLinkToEmail: vi.fn(async () => undefined),
-  signInWithEmailLink: vi.fn(async () => undefined),
+  signInWithEmailLink: vi.fn(async () => ({ user: authHarness.user })),
   firebaseSignOut: vi.fn(async () => undefined),
 }))
 
@@ -140,6 +140,7 @@ describe('Firebase auth provider', () => {
     authHarness.signInLink = true
     fireEvent.click(screen.getByRole('button', { name: 'complete' }))
     await waitFor(() => expect(authHarness.signInWithEmailLink).toHaveBeenCalledOnce())
+    expect(authHarness.user.getIdToken).toHaveBeenCalledWith(true)
     expect(window.sessionStorage.getItem('crown-and-borough.sign-in-email')).toBeNull()
     expect(window.localStorage.getItem('crown-and-borough.sign-in-email')).toBeNull()
   })
@@ -156,6 +157,7 @@ describe('Firebase auth provider', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'complete' }))
     await waitFor(() => expect(authHarness.signInWithEmailLink).toHaveBeenCalledOnce())
+    expect(authHarness.user.getIdToken).toHaveBeenCalledWith(true)
     expect(window.localStorage.getItem('crown-and-borough.sign-in-email')).toBeNull()
   })
 })

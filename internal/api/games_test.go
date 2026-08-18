@@ -146,6 +146,39 @@ func TestGamesHandlerRejectsUntrustedIdentityInBearerMode(t *testing.T) {
 	}
 }
 
+func TestGamesHandlerCreatorGateAllowsOnlyAuthorizedAccounts(t *testing.T) {
+	gameStore, rules := newGamesTestStore(t)
+	actors := map[string]store.Actor{
+		"allowed-token": {ID: "allowed-uid", Email: "admin@mail.com"},
+		"blocked-token": {ID: "blocked-uid", Email: "blocked@example.com"},
+	}
+	resolve := BearerActorResolver(func(token string) (store.Actor, error) {
+		actor, ok := actors[token]
+		if !ok {
+			return store.Actor{}, ErrUnauthorized
+		}
+		return actor, nil
+	})
+	handler := NewGamesHandlerWithOptions(gameStore, rules, GamesHandlerOptions{
+		Actor:       resolve,
+		CreatorGate: NewAnyCreatorGate(FirebaseCreatorGate{}, NewEmailCreatorGate("admin@mail.com")),
+	})
+
+	allowed := requestGamesWithHeaders(t, handler, http.MethodPost, "/api/games", `{"name":"Allowed","players":2}`, map[string]string{
+		"Authorization": "Bearer allowed-token",
+	})
+	if allowed.Code != http.StatusCreated {
+		t.Fatalf("allowlisted create = %d: %s", allowed.Code, allowed.Body.String())
+	}
+
+	blocked := requestGamesWithHeaders(t, handler, http.MethodPost, "/api/games", `{"name":"Blocked","players":2}`, map[string]string{
+		"Authorization": "Bearer blocked-token",
+	})
+	if blocked.Code != http.StatusForbidden || !strings.Contains(blocked.Body.String(), `"creator_not_allowed"`) {
+		t.Fatalf("blocked create = %d: %s", blocked.Code, blocked.Body.String())
+	}
+}
+
 func TestDevelopmentResolverKeepsLegacySlotAccessWhenStrictSlotsAreEnabled(t *testing.T) {
 	gameStore, rules := newGamesTestStore(t)
 	handler := NewGamesHandlerWithOptions(gameStore, rules, GamesHandlerOptions{
