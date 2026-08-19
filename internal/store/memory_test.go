@@ -298,14 +298,69 @@ func TestMemoryStoreTreatsEliminatedPlayersAsSubmittedAndSetsWinner(t *testing.T
 		game.mu.Unlock()
 		t.Fatalf("eliminated fixture is invalid: %v", err)
 	}
+	game.updateStatusLocked()
+	status, winner := game.status, game.winner
 	game.mu.Unlock()
 
-	result, err := gameStore.Submit(context.Background(), Actor{ID: "P1"}, created.ID, SubmitRequest{})
-	if err != nil {
-		t.Fatalf("P1 submit: %v", err)
+	if status != StatusFinished || winner == nil || *winner != "P1" {
+		t.Fatalf("elimination status = %q winner %v, want finished/P1", status, winner)
 	}
-	if result.Status != "resolved" || result.Snapshot.Status != StatusFinished || result.Snapshot.Winner == nil || *result.Snapshot.Winner != "P1" {
-		t.Fatalf("elimination result = status %q/%q winner %v, want resolved/finished/P1", result.Status, result.Snapshot.Status, result.Snapshot.Winner)
+}
+
+func TestMemoryStoreFinishesAtConfiguredYearLimitAndExposesScores(t *testing.T) {
+	gameStore := newTestStore(t)
+	created, err := gameStore.Create(context.Background(), Actor{ID: "P1"}, CreateRequest{
+		Seed:      "duration-store-test",
+		YearCount: 1,
+		Players:   []engine.PlayerInit{{Name: "One"}, {Name: "Two"}},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if created.YearCount != 1 || len(created.Scores) != 2 || created.Scores["P1"].Total == 0 {
+		t.Fatalf("initial duration/scores = years %d scores %#v", created.YearCount, created.Scores)
+	}
+
+	for turn := 0; turn < 4; turn++ {
+		pending, submitErr := gameStore.Submit(context.Background(), Actor{ID: "P1"}, created.ID, SubmitRequest{})
+		if submitErr != nil {
+			t.Fatalf("turn %d P1 submit: %v", turn+1, submitErr)
+		}
+		if pending.Status != "pending" {
+			t.Fatalf("turn %d P1 status = %q, want pending", turn+1, pending.Status)
+		}
+		resolved, submitErr := gameStore.Submit(context.Background(), Actor{ID: "P2"}, created.ID, SubmitRequest{})
+		if submitErr != nil {
+			t.Fatalf("turn %d P2 submit: %v", turn+1, submitErr)
+		}
+		if resolved.Status != "resolved" {
+			t.Fatalf("turn %d P2 status = %q, want resolved", turn+1, resolved.Status)
+		}
+	}
+
+	final, err := gameStore.State(context.Background(), Actor{ID: "P1"}, created.ID)
+	if err != nil {
+		t.Fatalf("final state: %v", err)
+	}
+	if final.Status != StatusFinished || final.Winner != nil || final.State.Turn != 5 || final.YearCount != 1 {
+		t.Fatalf("final snapshot = status %s winner %v turn %d years %d, want finished/tie/5/1", final.Status, final.Winner, final.State.Turn, final.YearCount)
+	}
+	if _, err := gameStore.Submit(context.Background(), Actor{ID: "P1"}, created.ID, SubmitRequest{}); !errors.Is(err, ErrGameFinished) {
+		t.Fatalf("post-finish submit error = %v, want game finished", err)
+	}
+}
+
+func TestMemoryStoreRejectsInvalidYearCount(t *testing.T) {
+	gameStore := newTestStore(t)
+	for _, years := range []int{-1, 51} {
+		_, err := gameStore.Create(context.Background(), Actor{ID: "P1"}, CreateRequest{
+			Seed:      "invalid-years",
+			YearCount: years,
+			Players:   []engine.PlayerInit{{Name: "One"}, {Name: "Two"}},
+		})
+		if !errors.Is(err, ErrInvalidYears) {
+			t.Fatalf("year count %d error = %v, want ErrInvalidYears", years, err)
+		}
 	}
 }
 

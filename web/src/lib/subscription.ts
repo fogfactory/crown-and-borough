@@ -11,7 +11,14 @@ import {
 import { useEffect, useRef, useState } from 'react'
 
 import { getFirebaseServices } from '@/lib/firebase'
-import type { GameSlot, GameSummary, GameViewDocument, Season, StateData } from '@/types'
+import type {
+  GameSlot,
+  GameSummary,
+  GameViewDocument,
+  ScoreBreakdown,
+  Season,
+  StateData,
+} from '@/types'
 
 export interface SubscriptionError {
   code: string
@@ -51,6 +58,30 @@ function stringValue(value: unknown, fallback = ''): string {
 
 function numberValue(value: unknown, fallback = 0): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback
+}
+
+function scoreBreakdown(value: unknown): ScoreBreakdown {
+  const source =
+    typeof value === 'object' && value !== null ? (value as DocumentData) : {}
+  return {
+    territories: numberValue(source.territories),
+    villages: numberValue(source.villages),
+    mills: numberValue(source.mills),
+    castles: numberValue(source.castles),
+    nobles: numberValue(source.nobles),
+    troops: numberValue(source.troops),
+    resources: numberValue(source.resources),
+    total: numberValue(source.total),
+  }
+}
+
+function scoresFromData(value: unknown): Record<string, ScoreBreakdown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return {}
+  const scores: Record<string, ScoreBreakdown> = {}
+  for (const [playerID, score] of Object.entries(value)) {
+    scores[playerID] = scoreBreakdown(score)
+  }
+  return scores
 }
 
 function seasonValue(value: unknown): Season {
@@ -102,6 +133,7 @@ export function normalizeGameSummary(
   fallbackID = '',
   currentUID?: string,
 ): GameSummary {
+  const updatedAt = timestampToISO(data.updatedAt)
   const winner = stringValue(data.winner ?? data.winnerUid) || null
   const status = data.status === 'finished' ? 'finished' : 'playing'
   const currentPlayer =
@@ -131,8 +163,10 @@ export function normalizeGameSummary(
     players: slotsFromData(data, currentUID),
     turn: numberValue(data.turn, 1),
     season: seasonValue(data.season),
+    yearCount: numberValue(data.yearCount, 10),
+    scores: scoresFromData(data.scores),
     revision: numberValue(data.revision),
-    updatedAt: timestampToISO(data.updatedAt),
+    ...(updatedAt ? { updatedAt } : {}),
   }
 }
 
@@ -150,6 +184,11 @@ export function normalizeStateData(value: unknown): StateData | null {
   return {
     turn: state.turn,
     season: seasonValue(state.season),
+    year: numberValue(state.year, Math.floor((state.turn - 1) / 4) + 1),
+    yearCount: numberValue(state.yearCount, 10),
+    scores: scoresFromData(state.scores),
+    finished: state.finished === true,
+    winner: typeof state.winner === 'string' ? state.winner : null,
     players: state.players,
     territories: state.territories,
     nobles: state.nobles,

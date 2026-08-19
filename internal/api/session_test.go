@@ -113,7 +113,7 @@ func TestHotseatSessionResolvesAndRecreatesGame(t *testing.T) {
 	if err := json.Unmarshal(stateRecorder.Body.Bytes(), &initial); err != nil {
 		t.Fatalf("decode initial state: %v", err)
 	}
-	if initial.Turn != 1 || len(initial.Players) != 2 {
+	if initial.Turn != 1 || initial.YearCount != models.DefaultGameYears || len(initial.Scores) != 2 || len(initial.Players) != 2 {
 		t.Fatalf("initial state = %#v", initial)
 	}
 	mapBefore := httptest.NewRecorder()
@@ -221,7 +221,7 @@ func TestHotseatSessionResolvesAndRecreatesGame(t *testing.T) {
 	}
 
 	gameRecorder := httptest.NewRecorder()
-	session.GameHTTP(gameRecorder, httptest.NewRequest(http.MethodPost, "/api/game", strings.NewReader(`{"seed":"replacement","players":3}`)))
+	session.GameHTTP(gameRecorder, httptest.NewRequest(http.MethodPost, "/api/game", strings.NewReader(`{"seed":"replacement","players":3,"years":2}`)))
 	if gameRecorder.Code != http.StatusOK {
 		t.Fatalf("POST game = %d: %s", gameRecorder.Code, gameRecorder.Body.String())
 	}
@@ -234,7 +234,7 @@ func TestHotseatSessionResolvesAndRecreatesGame(t *testing.T) {
 	if err := json.Unmarshal(gameRecorder.Body.Bytes(), &gameResponse); err != nil {
 		t.Fatalf("decode game response: %v", err)
 	}
-	if gameResponse.State.Turn != 1 || len(gameResponse.State.Players) != 3 {
+	if gameResponse.State.Turn != 1 || gameResponse.State.YearCount != 2 || len(gameResponse.State.Players) != 3 {
 		t.Fatalf("replacement state = %#v", gameResponse.State)
 	}
 	resetRecorder := httptest.NewRecorder()
@@ -326,6 +326,37 @@ func TestHotseatSessionResolvesAndRecreatesGame(t *testing.T) {
 	session.OrdersHTTP(outOfSeasonRecorder, httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(`{"chains":[],"winter":[{"player":"P1","lines":"R T `+winterCode+`"}]}`)))
 	if outOfSeasonRecorder.Code != http.StatusBadRequest {
 		t.Fatalf("winter orders out of season = %d, want 400", outOfSeasonRecorder.Code)
+	}
+}
+
+func TestHotseatGameHTTPRejectsInvalidYearCount(t *testing.T) {
+	assets, err := assetgen.Load("../../assets")
+	if err != nil {
+		t.Fatalf("load assets: %v", err)
+	}
+	balance, err := assetgen.LoadBalance("../../assets")
+	if err != nil {
+		t.Fatalf("load balance: %v", err)
+	}
+	session, err := NewSession("invalid-years-hotseat", []engine.PlayerInit{{Name: "One"}, {Name: "Two"}}, balance, assets)
+	if err != nil {
+		t.Fatalf("NewSession: %v", err)
+	}
+	recorder := httptest.NewRecorder()
+	session.GameHTTP(recorder, httptest.NewRequest(http.MethodPost, "/api/game", strings.NewReader(`{"players":2,"years":51}`)))
+	if recorder.Code != http.StatusBadRequest || !strings.Contains(recorder.Body.String(), `"invalid_years"`) {
+		t.Fatalf("invalid years response = %d: %s", recorder.Code, recorder.Body.String())
+	}
+
+	session.mu.Lock()
+	session.game.YearCount = 1
+	session.game.Turn = 5
+	session.game.Season = models.SeasonSpring
+	session.mu.Unlock()
+	finishedRecorder := httptest.NewRecorder()
+	session.OrdersHTTP(finishedRecorder, httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(`{"player":"P1","chains":[],"winter":[]}`)))
+	if finishedRecorder.Code != http.StatusConflict || !strings.Contains(finishedRecorder.Body.String(), `"game_finished"`) {
+		t.Fatalf("post-finish orders response = %d: %s", finishedRecorder.Code, finishedRecorder.Body.String())
 	}
 }
 

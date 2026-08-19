@@ -133,12 +133,24 @@ func GenerateMap(seed string, playerCount int, assets assetgen.Assets) (mapgen.M
 	return mapgen.Generate(seed, assets, GameMapConfig(playerCount))
 }
 
-// CreateGame creates the deterministic initial state for one game. Each player
-// receives a distinct non-village starting territory, ordered by territory ID
-// and sampled at regular intervals through the sorted eligible territory list.
+// CreateGame creates the deterministic initial state for one game using the
+// default duration.
 func CreateGame(seed string, players []PlayerInit, balance assetgen.Balance, assets assetgen.Assets) (*models.GameState, error) {
+	return CreateGameWithYears(seed, players, models.DefaultGameYears, balance, assets)
+}
+
+// CreateGameWithYears creates the deterministic initial state for one game.
+// Each player receives a distinct non-village starting territory, ordered by
+// territory ID and sampled at regular intervals through the sorted eligible
+// territory list.
+func CreateGameWithYears(seed string, players []PlayerInit, yearCount int, balance assetgen.Balance, assets assetgen.Assets) (*models.GameState, error) {
 	if len(players) < minimumGamePlayers || len(players) > maximumGamePlayers {
 		return nil, fmt.Errorf("engine: player count must be between %d and %d, got %d", minimumGamePlayers, maximumGamePlayers, len(players))
+	}
+	var err error
+	yearCount, err = models.NormalizeGameYears(yearCount)
+	if err != nil {
+		return nil, fmt.Errorf("engine: %w", err)
 	}
 	if balance.StartingNobles < 0 || balance.StartingTroops < 0 || balance.StartingResources < 0 {
 		return nil, fmt.Errorf("engine: starting balance values must be non-negative")
@@ -152,6 +164,7 @@ func CreateGame(seed string, players []PlayerInit, balance assetgen.Balance, ass
 	state := models.NewGameState()
 	state.ID = "game"
 	state.Seed = seed
+	state.YearCount = yearCount
 	state.Territories = make([]models.Territory, 0, len(mapData.Territories))
 	state.TerritoryStates = make(map[models.TerritoryID]models.TerritoryState, len(mapData.Territories))
 
@@ -318,6 +331,9 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 	}
 	if err := game.Validate(); err != nil {
 		return TurnReport{}, fmt.Errorf("engine: resolve turn: invalid game state: %w", err)
+	}
+	if GameFinished(game) {
+		return TurnReport{}, ErrGameFinished
 	}
 
 	inputErrors := &InputErrors{Errors: []InputError{}}

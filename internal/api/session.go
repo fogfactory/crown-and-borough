@@ -28,6 +28,7 @@ type Session struct {
 
 	defaultSeed    string
 	defaultPlayers []engine.PlayerInit
+	defaultYears   int
 	pending        map[models.PlayerID]engine.OrdersInput
 }
 
@@ -36,6 +37,11 @@ type GameSession = Session
 
 // NewSession creates and stores the default hotseat game.
 func NewSession(seed string, players []engine.PlayerInit, balance assetgen.Balance, assets assetgen.Assets) (*Session, error) {
+	return NewSessionWithYears(seed, players, models.DefaultGameYears, balance, assets)
+}
+
+// NewSessionWithYears creates the hotseat session with an explicit duration.
+func NewSessionWithYears(seed string, players []engine.PlayerInit, years int, balance assetgen.Balance, assets assetgen.Assets) (*Session, error) {
 	if seed == "" {
 		return nil, fmt.Errorf("api: session seed must not be empty")
 	}
@@ -48,8 +54,9 @@ func NewSession(seed string, players []engine.PlayerInit, balance assetgen.Balan
 		balance:        balance,
 		defaultSeed:    seed,
 		defaultPlayers: players,
+		defaultYears:   years,
 	}
-	if err := session.replaceGame(seed, players); err != nil {
+	if err := session.replaceGame(seed, players, years); err != nil {
 		return nil, err
 	}
 	return session, nil
@@ -58,19 +65,24 @@ func NewSession(seed string, players []engine.PlayerInit, balance assetgen.Balan
 // Create replaces the current game while keeping the startup game as the
 // target of Reset.
 func (s *Session) Create(seed string, players []engine.PlayerInit) error {
+	return s.CreateWithYears(seed, players, models.DefaultGameYears)
+}
+
+// CreateWithYears replaces the current hotseat game with an explicit duration.
+func (s *Session) CreateWithYears(seed string, players []engine.PlayerInit, years int) error {
 	if seed == "" {
 		return fmt.Errorf("api: game seed must not be empty")
 	}
-	return s.replaceGame(seed, clonePlayerInits(players))
+	return s.replaceGame(seed, clonePlayerInits(players), years)
 }
 
 // Reset restores the game configured at server startup.
 func (s *Session) Reset() error {
-	return s.replaceGame(s.defaultSeed, clonePlayerInits(s.defaultPlayers))
+	return s.replaceGame(s.defaultSeed, clonePlayerInits(s.defaultPlayers), s.defaultYears)
 }
 
-func (s *Session) replaceGame(seed string, players []engine.PlayerInit) error {
-	game, err := engine.CreateGame(seed, players, s.balance, s.assets)
+func (s *Session) replaceGame(seed string, players []engine.PlayerInit, years int) error {
+	game, err := engine.CreateGameWithYears(seed, players, years, s.balance, s.assets)
 	if err != nil {
 		return err
 	}
@@ -152,13 +164,19 @@ func (s *Session) GameHTTP(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusBadRequest, "invalid_game_request", err.Error())
 		return
 	}
+	years, yearErr := models.NormalizeGameYears(request.Years)
+	if yearErr != nil {
+		writeAPIError(w, http.StatusBadRequest, "invalid_years", yearErr.Error())
+		return
+	}
+	request.Years = years
 	if request.Seed == "" {
 		request.Seed = s.defaultSeed
 	}
 	if len(request.Players) == 0 {
 		request.Players = clonePlayerInits(s.defaultPlayers)
 	}
-	if err := s.Create(request.Seed, request.Players); err != nil {
+	if err := s.CreateWithYears(request.Seed, request.Players, request.Years); err != nil {
 		writeAPIError(w, http.StatusBadRequest, "game_creation_failed", err.Error())
 		return
 	}
@@ -201,6 +219,11 @@ func (s *Session) OrdersHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.mu.Lock()
+	if engine.GameFinished(s.game) {
+		s.mu.Unlock()
+		writeAPIError(w, http.StatusConflict, "game_finished", "the game is finished")
+		return
+	}
 	if !s.hasPlayerLocked(request.Player) {
 		s.mu.Unlock()
 		writeResolutionError(w, &engine.InputErrors{Errors: []engine.InputError{{
@@ -376,12 +399,14 @@ func (s *Session) writeGameResponse(w http.ResponseWriter) {
 type gameRequest struct {
 	Seed    string
 	Players []engine.PlayerInit
+	Years   int
 }
 
 func decodeGameRequest(r *http.Request) (gameRequest, error) {
 	var raw struct {
 		Seed    string          `json:"seed"`
 		Players json.RawMessage `json:"players"`
+		Years   int             `json:"years"`
 	}
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
@@ -392,7 +417,7 @@ func decodeGameRequest(r *http.Request) (gameRequest, error) {
 	if err != nil {
 		return gameRequest{}, err
 	}
-	return gameRequest{Seed: raw.Seed, Players: players}, nil
+	return gameRequest{Seed: raw.Seed, Players: players, Years: raw.Years}, nil
 }
 
 func decodePlayers(raw json.RawMessage) ([]engine.PlayerInit, error) {

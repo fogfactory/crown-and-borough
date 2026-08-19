@@ -95,6 +95,8 @@ describe('Firestore game subscriptions', () => {
       ],
       turn: 2,
       season: 'summer',
+      yearCount: 10,
+      scores: {},
       revision: 4,
     })
   })

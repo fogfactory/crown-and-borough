@@ -6,6 +6,7 @@ import { MapViewer } from '@/components/MapViewer'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { OrdersPanel } from '@/components/OrdersPanel'
 import { ReportPanel } from '@/components/ReportPanel'
+import { Scoreboard } from '@/components/Scoreboard'
 import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
 import { formatOrderLabel } from '@/lib/order-label'
 import { addNobleHeader, hasChainContent } from '@/lib/order-text'
@@ -81,6 +82,25 @@ function ownerLabel(
   return state?.players.find((player) => player.id === owner)?.name ?? owner
 }
 
+function internalYear(state: StateData): number {
+  const year = state.year ?? Math.floor((state.turn - 1) / 4) + 1
+  if (state.finished && state.yearCount && state.turn > state.yearCount * 4) {
+    return state.yearCount
+  }
+  return year
+}
+
+function remainingYears(state: StateData): number {
+  if (state.finished) return 0
+  const yearCount = state.yearCount ?? 10
+  return Math.max(0, yearCount - internalYear(state) + 1)
+}
+
+function remainingTurns(state: StateData): number {
+  const yearCount = state.yearCount ?? 10
+  return Math.max(0, yearCount * 4 - state.turn + 1)
+}
+
 async function responseError(response: Response, t: Translate): Promise<string> {
   const payload = (await response.json().catch(() => null)) as {
     message?: string
@@ -117,6 +137,7 @@ function AppContent() {
   const [resolving, setResolving] = useState(false)
   const [creating, setCreating] = useState(false)
   const [playerCount, setPlayerCount] = useState(4)
+  const [years, setYears] = useState(10)
   const [seed, setSeed] = useState('')
   const [activePanel, setActivePanel] = useState<Panel>('command')
   const [viewedReportTurn, setViewedReportTurn] = useState<number | null>(null)
@@ -360,7 +381,7 @@ function AppContent() {
       const response = await fetch('/api/game', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ seed: seed.trim(), players: playerCount }),
+        body: JSON.stringify({ seed: seed.trim(), players: playerCount, years }),
       })
       if (!response.ok) throw new Error(await responseError(response, t))
       const payload = (await response.json()) as { map: MapData; state: StateData }
@@ -442,6 +463,23 @@ function AppContent() {
                 className="h-8 w-44 rounded-lg border border-[#b7a786] bg-[#fffaf0] px-2.5 text-sm text-[#30291f] outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20 sm:w-52"
               />
             </div>
+            <div>
+              <label
+                htmlFor="game-years"
+                className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#806f57]"
+              >
+                {t('home.gameYears')}
+              </label>
+              <input
+                id="game-years"
+                type="number"
+                min={1}
+                max={50}
+                value={years}
+                onChange={(event) => setYears(Number(event.target.value))}
+                className="h-8 w-20 rounded-lg border border-[#b7a786] bg-[#fffaf0] px-2.5 text-sm text-[#30291f] outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20"
+              />
+            </div>
             <Button
               type="button"
               variant="outline"
@@ -475,6 +513,19 @@ function AppContent() {
                     })
                   : t('app.loading')}
               </p>
+              {state && (
+                <>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#a84632]">
+                    {t('app.year', { year: 1000 + internalYear(state) })}
+                  </p>
+                  <p className="text-[11px] text-[#806f57]">
+                    {t('app.remainingYearsTurns', {
+                      years: remainingYears(state),
+                      turns: remainingTurns(state),
+                    })}
+                  </p>
+                </>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <span
@@ -526,6 +577,14 @@ function AppContent() {
         </div>
       </header>
 
+      {state?.finished && (
+        <div className="mx-auto mt-4 max-w-[1800px] rounded-xl border border-[#815f1e]/50 bg-[#f8e8ae]/60 px-4 py-3 text-center text-sm font-semibold text-[#6d5118] sm:mx-6">
+          {state.winner
+            ? `${t('online.victory')}: ${ownerLabel(state.winner, state, t)}`
+            : t('app.finished')}
+        </div>
+      )}
+
       <main className="mx-auto flex min-h-[calc(100vh-6.5rem)] max-w-[1800px] flex-col gap-4 p-4 sm:p-6 lg:flex-row">
         <section className="relative h-[620px] min-h-0 flex-1 overflow-hidden rounded-2xl border border-[#b7a786] bg-[#e6d8bb] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)] lg:h-[calc(100vh-8.5rem)]">
           <div className="pointer-events-none absolute left-5 top-5 z-10">
@@ -560,6 +619,7 @@ function AppContent() {
         </section>
 
         <aside className="w-full shrink-0 space-y-4 lg:w-96 xl:w-[27rem]">
+          <Scoreboard players={state?.players ?? []} scores={state?.scores} />
           <Card className="border-[#b7a786] bg-[#fffaf0] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)]">
             <CardHeader className="border-b border-[#b7a786]/50 pb-4">
               <CardTitle className="font-serif text-xl text-[#30291f]">

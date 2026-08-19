@@ -29,15 +29,16 @@ type PrivacyMeta struct {
 
 // GameState is the whole game: the immutable world layout plus the evolving
 // dynamic state. ID identifies the game, Seed drives map generation (P1.2).
-// Turn is the absolute tick (+1 every season, winter included) and Year is
-// derived from it: (Turn-1)/4 + 1 (GDD §2). TerritoryStates holds exactly one
-// entry per territory (enforced by Validate), so the engine never looks up a
-// missing state.
+// Turn is the absolute tick (+1 every season, winter included), YearCount is
+// the configured duration, and Year is derived from Turn: (Turn-1)/4 + 1
+// (GDD §2). TerritoryStates holds exactly one entry per territory (enforced by
+// Validate), so the engine never looks up a missing state.
 type GameState struct {
 	ID              string                         `json:"id"`
 	Seed            string                         `json:"seed"`
 	Turn            int                            `json:"turn"`
 	Season          Season                         `json:"season"`
+	YearCount       int                            `json:"yearCount"`
 	Players         []Player                       `json:"players"`
 	Territories     []Territory                    `json:"territories"`
 	Nobles          []Noble                        `json:"nobles"`
@@ -51,12 +52,13 @@ type GameState struct {
 }
 
 // NewGameState returns a fresh empty state at turn 1, spring of year 1, with
-// non-nil collections so that serialization yields [] and {} rather than null.
-// Game creation (NewGame) is P1.2 and is deliberately out of scope here.
+// the default duration and non-nil collections so serialization yields [] and
+// {} rather than null.
 func NewGameState() *GameState {
 	return &GameState{
 		Turn:        1,
 		Season:      SeasonForTurn(1),
+		YearCount:   DefaultGameYears,
 		Players:     []Player{},
 		Territories: []Territory{},
 		Nobles:      []Noble{},
@@ -93,6 +95,9 @@ func (g *GameState) Validate() error {
 	// 1. Turn and season.
 	if g.Turn < 1 {
 		return fmt.Errorf("models: turn: must be >= 1, got %d", g.Turn)
+	}
+	if g.YearCount < 0 || g.YearCount > MaximumGameYears {
+		return fmt.Errorf("models: year count: must be 0 or between %d and %d, got %d", MinimumGameYears, MaximumGameYears, g.YearCount)
 	}
 	if !g.Season.IsValid() {
 		return fmt.Errorf("models: season: invalid season %q", g.Season)

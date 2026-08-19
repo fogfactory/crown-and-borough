@@ -14,6 +14,8 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/store"
 )
 
+// Duration and score fields are additive and have defaults when absent, so the
+// existing document version remains readable without a destructive migration.
 const schemaVersion = 1
 
 type playerDocument struct {
@@ -24,21 +26,23 @@ type playerDocument struct {
 }
 
 type gameDocument struct {
-	SchemaVersion int              `firestore:"schemaVersion"`
-	ID            store.GameID     `firestore:"id"`
-	Name          string           `firestore:"name"`
-	Seed          string           `firestore:"seed"`
-	OwnerUID      string           `firestore:"ownerUid"`
-	MemberUIDs    []string         `firestore:"memberUids"`
-	Players       []playerDocument `firestore:"players"`
-	Status        store.Status     `firestore:"status"`
-	Turn          int              `firestore:"turn"`
-	Season        models.Season    `firestore:"season"`
-	WinnerUID     string           `firestore:"winnerUid,omitempty"`
-	SubmittedUIDs []string         `firestore:"submittedUids"`
-	Revision      int64            `firestore:"revision"`
-	CreatedAt     time.Time        `firestore:"createdAt"`
-	UpdatedAt     time.Time        `firestore:"updatedAt"`
+	SchemaVersion int                              `firestore:"schemaVersion"`
+	ID            store.GameID                     `firestore:"id"`
+	Name          string                           `firestore:"name"`
+	Seed          string                           `firestore:"seed"`
+	OwnerUID      string                           `firestore:"ownerUid"`
+	MemberUIDs    []string                         `firestore:"memberUids"`
+	Players       []playerDocument                 `firestore:"players"`
+	Status        store.Status                     `firestore:"status"`
+	Turn          int                              `firestore:"turn"`
+	Season        models.Season                    `firestore:"season"`
+	YearCount     int                              `firestore:"yearCount"`
+	Scores        map[string]engine.ScoreBreakdown `firestore:"scores"`
+	WinnerUID     string                           `firestore:"winnerUid,omitempty"`
+	SubmittedUIDs []string                         `firestore:"submittedUids"`
+	Revision      int64                            `firestore:"revision"`
+	CreatedAt     time.Time                        `firestore:"createdAt"`
+	UpdatedAt     time.Time                        `firestore:"updatedAt"`
 }
 
 type canonicalDocument struct {

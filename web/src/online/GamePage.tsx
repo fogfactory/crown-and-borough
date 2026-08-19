@@ -13,6 +13,7 @@ import { MapViewer } from '@/components/MapViewer'
 import { OrdersPanel } from '@/components/OrdersPanel'
 import { ReportPanel } from '@/components/ReportPanel'
 import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
+import { Scoreboard } from '@/components/Scoreboard'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -97,6 +98,25 @@ function ownerName(owner: PlayerId | null, state: StateData, fallback: string): 
   return state.players.find((player) => player.id === owner)?.name ?? owner
 }
 
+function internalYear(state: StateData): number {
+  const year = state.year ?? Math.floor((state.turn - 1) / 4) + 1
+  if (state.finished && state.yearCount && state.turn > state.yearCount * 4) {
+    return state.yearCount
+  }
+  return year
+}
+
+function remainingYears(state: StateData, fallbackYearCount = 10): number {
+  if (state.finished) return 0
+  const yearCount = state.yearCount ?? fallbackYearCount
+  return Math.max(0, yearCount - internalYear(state) + 1)
+}
+
+function remainingTurns(state: StateData, fallbackYearCount = 10): number {
+  const yearCount = state.yearCount ?? fallbackYearCount
+  return Math.max(0, yearCount * 4 - state.turn + 1)
+}
+
 function createView(
   gameId: string,
   uid: string,
@@ -145,6 +165,7 @@ function Lobby({
   invitation,
   onInvite,
   inviting,
+  scores,
 }: {
   summary: GameSummary
   uid: string
@@ -152,6 +173,7 @@ function Lobby({
   invitation: Invitation | null
   onInvite: () => void
   inviting: boolean
+  scores?: StateData['scores']
 }) {
   const { t } = useLanguage()
   return (
@@ -204,6 +226,7 @@ function Lobby({
             </li>
           ))}
         </ul>
+        <Scoreboard players={summary.players} scores={scores} />
         {invitation && (
           <div className="rounded-lg border border-[#815f1e]/40 bg-[#f8e8ae]/50 px-3 py-3 text-sm">
             <p className="font-semibold text-[#6d5118]">
@@ -464,7 +487,10 @@ export function GamePage() {
         ...current,
         turn: nextState.turn,
         season: nextState.season,
+        status: nextState.finished ? 'finished' : current.status,
+        winner: nextState.finished ? (nextState.winner ?? null) : current.winner,
         revision: response.revision ?? current.revision,
+        scores: nextState.scores ?? current.scores,
         players: current.players.map((player) => ({
           ...player,
           submitted: submitted.has(player.id),
@@ -486,7 +512,14 @@ export function GamePage() {
   }
 
   const submitOrders = async (force = false) => {
-    if (!gameId || !state || !playerID || summary?.status === 'finished') return
+    if (
+      !gameId ||
+      !state ||
+      !playerID ||
+      state.finished ||
+      summary?.status === 'finished'
+    )
+      return
     setSubmitting(true)
     setActionError(null)
     try {
@@ -643,6 +676,15 @@ export function GamePage() {
             {t('online.currentTurn', {
               turn: state.turn,
               season: t(seasonKeys[state.season]),
+            })}
+          </p>
+          <p className="mt-1 text-sm font-semibold uppercase tracking-[0.12em] text-[#a84632]">
+            {t('app.year', { year: 1000 + internalYear(state) })}
+          </p>
+          <p className="mt-1 text-xs text-[#806f57]">
+            {t('app.remainingYearsTurns', {
+              years: remainingYears(state, summary.yearCount),
+              turns: remainingTurns(state, summary.yearCount),
             })}
           </p>
         </div>
@@ -986,6 +1028,7 @@ export function GamePage() {
         invitation={invitation}
         onInvite={() => void createInvitation()}
         inviting={inviting}
+        scores={state.scores ?? summary.scores}
       />
     </div>
   )

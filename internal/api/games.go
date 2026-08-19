@@ -579,6 +579,8 @@ func (h *GamesHandler) writeStoreError(w http.ResponseWriter, err error) {
 		writeAPIError(w, http.StatusForbidden, "not_creator", err.Error())
 	case errors.Is(err, store.ErrInvalidPlayers):
 		writeAPIError(w, http.StatusBadRequest, "invalid_players", err.Error())
+	case errors.Is(err, store.ErrInvalidYears):
+		writeAPIError(w, http.StatusBadRequest, "invalid_years", err.Error())
 	case errors.Is(err, store.ErrGameFull):
 		writeAPIError(w, http.StatusConflict, "game_full", err.Error())
 	case errors.Is(err, store.ErrInvalidInvitation), errors.Is(err, store.ErrInvitationInactive):
@@ -677,31 +679,35 @@ type gameOrdersResponse struct {
 }
 
 type gameListView struct {
-	ID       store.GameID     `json:"id"`
-	Name     string           `json:"name"`
-	Seed     string           `json:"seed"`
-	Status   store.Status     `json:"status"`
-	Players  []PlayerSlotView `json:"players"`
-	Turn     int              `json:"turn"`
-	Season   models.Season    `json:"season"`
-	Revision store.Revision   `json:"revision"`
+	ID        store.GameID                              `json:"id"`
+	Name      string                                    `json:"name"`
+	Seed      string                                    `json:"seed"`
+	YearCount int                                       `json:"yearCount"`
+	Scores    map[models.PlayerID]engine.ScoreBreakdown `json:"scores"`
+	Status    store.Status                              `json:"status"`
+	Players   []PlayerSlotView                          `json:"players"`
+	Turn      int                                       `json:"turn"`
+	Season    models.Season                             `json:"season"`
+	Revision  store.Revision                            `json:"revision"`
 }
 
 type gameDetailView struct {
-	ID              store.GameID     `json:"id"`
-	Name            string           `json:"name"`
-	Seed            string           `json:"seed"`
-	Status          store.Status     `json:"status"`
-	Winner          *models.PlayerID `json:"winner,omitempty"`
-	Players         []PlayerSlotView `json:"players"`
-	Turn            int              `json:"turn"`
-	Season          models.Season    `json:"season"`
-	Revision        store.Revision   `json:"revision"`
-	CurrentPlayer   models.PlayerID  `json:"currentPlayer,omitempty"`
-	CanInvite       bool             `json:"canInvite,omitempty"`
-	InviteAvailable bool             `json:"inviteAvailable"`
-	InviteCode      string           `json:"inviteCode,omitempty"`
-	InviteURL       string           `json:"inviteUrl,omitempty"`
+	ID              store.GameID                              `json:"id"`
+	Name            string                                    `json:"name"`
+	Seed            string                                    `json:"seed"`
+	YearCount       int                                       `json:"yearCount"`
+	Scores          map[models.PlayerID]engine.ScoreBreakdown `json:"scores"`
+	Status          store.Status                              `json:"status"`
+	Winner          *models.PlayerID                          `json:"winner,omitempty"`
+	Players         []PlayerSlotView                          `json:"players"`
+	Turn            int                                       `json:"turn"`
+	Season          models.Season                             `json:"season"`
+	Revision        store.Revision                            `json:"revision"`
+	CurrentPlayer   models.PlayerID                           `json:"currentPlayer,omitempty"`
+	CanInvite       bool                                      `json:"canInvite,omitempty"`
+	InviteAvailable bool                                      `json:"inviteAvailable"`
+	InviteCode      string                                    `json:"inviteCode,omitempty"`
+	InviteURL       string                                    `json:"inviteUrl,omitempty"`
 }
 
 type PlayerSlotView struct {
@@ -730,28 +736,32 @@ type reportSummaryView struct {
 
 func makeGameListView(snapshot store.GameSnapshot) gameListView {
 	return gameListView{
-		ID:       snapshot.ID,
-		Name:     snapshot.Name,
-		Seed:     snapshot.Seed,
-		Status:   snapshot.Status,
-		Players:  makePlayerSlotViews(snapshot),
-		Turn:     snapshot.State.Turn,
-		Season:   snapshot.State.Season,
-		Revision: snapshot.Revision,
+		ID:        snapshot.ID,
+		Name:      snapshot.Name,
+		Seed:      snapshot.Seed,
+		YearCount: snapshot.YearCount,
+		Scores:    snapshot.Scores,
+		Status:    snapshot.Status,
+		Players:   makePlayerSlotViews(snapshot),
+		Turn:      snapshot.State.Turn,
+		Season:    snapshot.State.Season,
+		Revision:  snapshot.Revision,
 	}
 }
 
 func makeGameDetailView(snapshot store.GameSnapshot) gameDetailView {
 	return gameDetailView{
-		ID:       snapshot.ID,
-		Name:     snapshot.Name,
-		Seed:     snapshot.Seed,
-		Status:   snapshot.Status,
-		Winner:   snapshot.Winner,
-		Players:  makePlayerSlotViews(snapshot),
-		Turn:     snapshot.State.Turn,
-		Season:   snapshot.State.Season,
-		Revision: snapshot.Revision,
+		ID:        snapshot.ID,
+		Name:      snapshot.Name,
+		Seed:      snapshot.Seed,
+		YearCount: snapshot.YearCount,
+		Scores:    snapshot.Scores,
+		Status:    snapshot.Status,
+		Winner:    snapshot.Winner,
+		Players:   makePlayerSlotViews(snapshot),
+		Turn:      snapshot.State.Turn,
+		Season:    snapshot.State.Season,
+		Revision:  snapshot.Revision,
 	}
 }
 
@@ -803,6 +813,7 @@ func snapshotPlayerID(snapshot store.GameSnapshot, actor store.Actor) (models.Pl
 type createGameBody struct {
 	Name    string          `json:"name"`
 	Seed    string          `json:"seed"`
+	Years   int             `json:"years"`
 	Players json.RawMessage `json:"players"`
 }
 
@@ -817,7 +828,7 @@ func decodeCreateRequest(r *http.Request) (store.CreateRequest, error) {
 	if err != nil {
 		return store.CreateRequest{}, err
 	}
-	return store.CreateRequest{Name: body.Name, Seed: body.Seed, Players: players}, nil
+	return store.CreateRequest{Name: body.Name, Seed: body.Seed, Players: players, YearCount: body.Years}, nil
 }
 
 func decodeCreatePlayers(raw json.RawMessage) ([]engine.PlayerInit, error) {

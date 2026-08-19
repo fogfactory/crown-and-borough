@@ -227,6 +227,30 @@ func TestResolveTurnAdvancesEverySeasonAndIsPure(t *testing.T) {
 	}
 }
 
+func TestResolveTurnFinishesAfterConfiguredYears(t *testing.T) {
+	assets := loadGameTestAssets(t)
+	game, err := CreateGameWithYears("duration-test", []PlayerInit{{Name: "One"}, {Name: "Two"}}, 1, testBalance(), assets)
+	if err != nil {
+		t.Fatalf("CreateGameWithYears: %v", err)
+	}
+	for turn := 0; turn < 4; turn++ {
+		report, resolveErr := ResolveTurn(game, testBalance(), OrdersInput{})
+		if resolveErr != nil {
+			t.Fatalf("ResolveTurn %d: %v", turn+1, resolveErr)
+		}
+		game = report.State
+	}
+	if game.Turn != 5 || game.YearCount != 1 {
+		t.Fatalf("final state = turn %d, years %d; want turn 5, year count 1", game.Turn, game.YearCount)
+	}
+	if !GameFinished(game) {
+		t.Fatal("game should be finished after the fourth turn")
+	}
+	if _, err := ResolveTurn(game, testBalance(), OrdersInput{}); !errors.Is(err, ErrGameFinished) {
+		t.Fatalf("resolution after game end = %v, want ErrGameFinished", err)
+	}
+}
+
 func TestResolveTurnRejectsBadInputWithoutMutation(t *testing.T) {
 	assets := loadGameTestAssets(t)
 	game, err := CreateGame("input-test", []PlayerInit{{Name: "One"}, {Name: "Two"}}, testBalance(), assets)

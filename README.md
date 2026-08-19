@@ -25,8 +25,9 @@ The development server exposes the legacy hotseat session and, when started
 with `ONLINE_DEV_MODE=true`, a multi-game in-memory API. The game API is rooted
 at `/api/games`: create independent games with `POST /api/games`, inspect them
 with `GET /api/games/{id}`, and submit one player's orders through
-`POST /api/games/{id}/orders`. A turn resolves when all living players have
-submitted, or through the explicit `POST /api/games/{id}/resolve` endpoint. Use
+`POST /api/games/{id}/orders`. Creation accepts `years` from 1 to 50 and uses
+10 years when omitted. A turn resolves when all living players have submitted,
+or through the explicit `POST /api/games/{id}/resolve` endpoint. Use
 `?player=P1` only with this explicit local development mode.
 
 The authenticated API validates Firebase ID tokens with the Firebase Admin SDK.
@@ -158,7 +159,7 @@ The legacy hotseat game is created at startup with `SEED` and `PLAYERS` (an
 integer from 2 to 16, default 4). `POST /api/game` replaces it, while
 `POST /api/reset` restores the startup game.
 
-In the browser, choose a player, enter one complete chain per available noble
+In the browser, choose a player and the number of game years, then enter one complete chain per available noble
 (header plus order lines), or winter investment lines during winter, then click
 **Submit**. The button becomes **Edit** after submission; a later click replaces
 that player's pending orders. The noble header is added automatically before the

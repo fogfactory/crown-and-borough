@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -80,6 +81,31 @@ func TestGamesHandlerCreatesListsAndResolvesIndependentGames(t *testing.T) {
 	report := requestGames(t, handler, http.MethodGet, "/api/games/"+string(first.ID)+"/reports/0?player=alice", "")
 	if report.Code != http.StatusOK || !strings.Contains(report.Body.String(), `"turn":1`) {
 		t.Fatalf("report = %d: %s", report.Code, report.Body.String())
+	}
+}
+
+func TestGamesHandlerCreatesGameWithConfiguredYearsAndDefaults(t *testing.T) {
+	gameStore, rules := newGamesTestStore(t)
+	handler := NewGamesHandler(gameStore, rules, DevActorResolver("P1"))
+
+	configured := createGameHTTP(t, handler, "P1", `{"name":"Long game","players":2,"years":12}`)
+	if configured.YearCount != 12 || len(configured.Scores) != 2 {
+		t.Fatalf("configured game = years %d scores %#v, want 12 and two scores", configured.YearCount, configured.Scores)
+	}
+	defaulted := createGameHTTP(t, handler, "P1", `{"name":"Default game","players":2}`)
+	if defaulted.YearCount != models.DefaultGameYears {
+		t.Fatalf("default game years = %d, want %d", defaulted.YearCount, models.DefaultGameYears)
+	}
+}
+
+func TestGamesHandlerRejectsInvalidYearCount(t *testing.T) {
+	gameStore, rules := newGamesTestStore(t)
+	handler := NewGamesHandler(gameStore, rules, DevActorResolver("P1"))
+	for _, years := range []int{-1, 51} {
+		response := requestGames(t, handler, http.MethodPost, "/api/games?player=P1", `{"name":"Invalid","players":2,"years":`+strconv.Itoa(years)+`}`)
+		if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), `"invalid_years"`) {
+			t.Fatalf("years %d response = %d: %s", years, response.Code, response.Body.String())
+		}
 	}
 }
 
