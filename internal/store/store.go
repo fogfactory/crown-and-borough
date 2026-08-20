@@ -98,6 +98,7 @@ type CreateRequest struct {
 	Name             string              `json:"name"`
 	Seed             string              `json:"seed"`
 	Players          []engine.PlayerInit `json:"players"`
+	YearCount        int                 `json:"years"`
 	StrictMembership bool                `json:"-"`
 }
 
@@ -114,18 +115,20 @@ type ReportRecord struct {
 }
 
 type GameSnapshot struct {
-	ID          GameID                                 `json:"id"`
-	Name        string                                 `json:"name"`
-	Seed        string                                 `json:"seed"`
-	Status      Status                                 `json:"status"`
-	Winner      *models.PlayerID                       `json:"winner,omitempty"`
-	Players     []PlayerSlot                           `json:"players"`
-	Map         mapgen.MapData                         `json:"map"`
-	State       *models.GameState                      `json:"state"`
-	Submissions map[models.PlayerID]engine.OrdersInput `json:"submissions"`
-	Reports     []ReportRecord                         `json:"reports"`
-	Revision    Revision                               `json:"revision"`
-	CreatedBy   string                                 `json:"createdBy,omitempty"`
+	ID          GameID                                    `json:"id"`
+	Name        string                                    `json:"name"`
+	Seed        string                                    `json:"seed"`
+	YearCount   int                                       `json:"yearCount"`
+	Status      Status                                    `json:"status"`
+	Winner      *models.PlayerID                          `json:"winner,omitempty"`
+	Scores      map[models.PlayerID]engine.ScoreBreakdown `json:"scores"`
+	Players     []PlayerSlot                              `json:"players"`
+	Map         mapgen.MapData                            `json:"map"`
+	State       *models.GameState                         `json:"state"`
+	Submissions map[models.PlayerID]engine.OrdersInput    `json:"submissions"`
+	Reports     []ReportRecord                            `json:"reports"`
+	Revision    Revision                                  `json:"revision"`
+	CreatedBy   string                                    `json:"createdBy,omitempty"`
 }
 
 type SubmitResult struct {
@@ -204,4 +207,13 @@ var (
 	ErrInvalidDisplayName = errors.New("store: invalid display name")
 	ErrInvalidInvitation  = errors.New("store: invalid invitation")
 	ErrInvitationInactive = errors.New("store: invitation is inactive")
+	ErrInvalidYears       = errors.New("store: year count must be between one and fifty")
 )
+
+func normalizeYearCount(value int) (int, error) {
+	years, err := models.NormalizeGameYears(value)
+	if err != nil {
+		return 0, ErrInvalidYears
+	}
+	return years, nil
+}

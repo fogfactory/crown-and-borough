@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
+	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/engine/demo"
 	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
 	"github.com/fogfactory/crown-and-borough/internal/models"
@@ -13,13 +14,19 @@ import (
 
 // StateView is the state.json representation served to the frontend. It keeps
 // dynamic entities nested under their territory instead of serializing the
-// storage-oriented GameState directly.
+// storage-oriented GameState directly, and includes the public calendar and
+// score snapshot.
 type StateView struct {
-	Turn        int             `json:"turn"`
-	Season      models.Season   `json:"season"`
-	Players     []PlayerView    `json:"players"`
-	Territories []TerritoryView `json:"territories"`
-	Nobles      []NobleView     `json:"nobles"`
+	Turn        int                                       `json:"turn"`
+	Year        int                                       `json:"year"`
+	YearCount   int                                       `json:"yearCount"`
+	Season      models.Season                             `json:"season"`
+	Scores      map[models.PlayerID]engine.ScoreBreakdown `json:"scores"`
+	Finished    bool                                      `json:"finished"`
+	Winner      *models.PlayerID                          `json:"winner,omitempty"`
+	Players     []PlayerView                              `json:"players"`
+	Territories []TerritoryView                           `json:"territories"`
+	Nobles      []NobleView                               `json:"nobles"`
 }
 
 // PlayerView contains the public player metadata needed by the hotseat
@@ -136,13 +143,19 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID) Sta
 		Players:     []PlayerView{},
 		Territories: []TerritoryView{},
 		Nobles:      []NobleView{},
+		Scores:      map[models.PlayerID]engine.ScoreBreakdown{},
 	}
 	if state == nil {
 		return view
 	}
 
 	view.Turn = state.Turn
+	view.Year = state.Year()
+	view.YearCount = state.YearCount
 	view.Season = state.Season
+	view.Scores = engine.ComputeScores(state)
+	view.Finished = engine.GameFinished(state)
+	view.Winner = engine.WinnerForFinishedGame(state)
 	view.Players = make([]PlayerView, 0, len(state.Players))
 	view.Territories = make([]TerritoryView, 0, len(state.Territories))
 	view.Nobles = make([]NobleView, 0, len(state.Nobles))

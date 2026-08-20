@@ -450,6 +450,8 @@ func (s *FirestoreStore) commitResolution(ctx context.Context, claim resolutionC
 		canonical.UpdatedAt = updatedAt
 		game.Turn = report.State.Turn
 		game.Season = report.State.Season
+		game.YearCount = report.State.YearCount
+		game.Scores = scoreDocuments(engine.ComputeScores(report.State))
 		game.Revision = canonical.Revision
 		game.SubmittedUIDs = []string{}
 		game.UpdatedAt = updatedAt
@@ -656,20 +658,7 @@ func normalizeSubmission(playerID models.PlayerID, request store.SubmitRequest) 
 }
 
 func isAlive(state *models.GameState, playerID models.PlayerID) bool {
-	if state == nil {
-		return false
-	}
-	for _, territory := range state.TerritoryStates {
-		if territory.OwnerID != nil && *territory.OwnerID == playerID {
-			return true
-		}
-	}
-	for _, army := range state.Armies {
-		if army.OwnerID == playerID {
-			return true
-		}
-	}
-	return false
+	return engine.PlayerAlive(state, playerID)
 }
 
 func submissionStatus(snapshot store.GameSnapshot) ([]models.PlayerID, []models.PlayerID) {
@@ -701,19 +690,12 @@ func combineSubmissions(snapshot store.GameSnapshot) engine.OrdersInput {
 }
 
 func statusForState(state *models.GameState) (store.Status, string) {
-	alive := make([]models.PlayerID, 0)
-	if state != nil {
-		for _, player := range state.Players {
-			if isAlive(state, player.ID) {
-				alive = append(alive, player.ID)
-			}
-		}
-	}
-	if len(alive) > 1 {
+	if !engine.GameFinished(state) {
 		return store.StatusPlaying, ""
 	}
-	if len(alive) == 1 {
-		return store.StatusFinished, string(alive[0])
+	winner := engine.WinnerForFinishedGame(state)
+	if winner != nil {
+		return store.StatusFinished, string(*winner)
 	}
 	return store.StatusFinished, ""
 }

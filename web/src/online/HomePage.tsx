@@ -36,6 +36,21 @@ function actionError(error: unknown, fallback: string): string {
   return fallback
 }
 
+function internalYear(turn: number, finished = false, yearCount = 10): number {
+  const year = Math.floor((turn - 1) / 4) + 1
+  return finished && turn > yearCount * 4 ? yearCount : year
+}
+
+function remainingYears(turn: number, finished = false, yearCount = 10): number {
+  if (finished) return 0
+  return Math.max(0, yearCount - internalYear(turn) + 1)
+}
+
+function remainingTurns(turn: number, finished = false, yearCount = 10): number {
+  if (finished) return 0
+  return Math.max(0, yearCount * 4 - turn + 1)
+}
+
 async function copyText(value: string): Promise<boolean> {
   if (!navigator.clipboard) return false
   await navigator.clipboard.writeText(value)
@@ -58,6 +73,27 @@ function GameCard({ game }: { game: GameSummary }) {
                 season: seasonLabels[game.season],
               })}
             </CardDescription>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#a84632]">
+              {t('app.year', {
+                year:
+                  1000 +
+                  internalYear(game.turn, game.status === 'finished', game.yearCount),
+              })}
+            </p>
+            <p className="mt-1 text-xs text-[#806f57]">
+              {t('app.remainingYearsTurns', {
+                years: remainingYears(
+                  game.turn,
+                  game.status === 'finished',
+                  game.yearCount,
+                ),
+                turns: remainingTurns(
+                  game.turn,
+                  game.status === 'finished',
+                  game.yearCount,
+                ),
+              })}
+            </p>
             <p className="mt-1 font-mono text-xs text-[#806f57]">
               {t('home.seed')}: {game.seed || '-'}
             </p>
@@ -83,6 +119,9 @@ function GameCard({ game }: { game: GameSummary }) {
               />
               <span className="min-w-0 flex-1 truncate">
                 {player.name || t('online.emptySlot')}
+              </span>
+              <span className="shrink-0 font-semibold text-[#a84632]">
+                {game.scores?.[player.id]?.total ?? 0}
               </span>
               <span className="shrink-0 text-[10px] uppercase tracking-[0.08em] text-[#806f57]">
                 {player.submitted ? t('home.submitted') : t('home.notSubmitted')}
@@ -113,6 +152,7 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
   const [name, setName] = useState('')
   const [seed, setSeed] = useState(fallbackSeed)
   const [players, setPlayers] = useState(4)
+  const [years, setYears] = useState(10)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -140,7 +180,12 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
         '/api/games',
         {
           method: 'POST',
-          body: JSON.stringify({ name: name.trim(), seed: seed.trim(), players }),
+          body: JSON.stringify({
+            name: name.trim(),
+            seed: seed.trim(),
+            players,
+            years,
+          }),
         },
       )
       onCreated({
@@ -171,7 +216,7 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
           className="h-10 w-full rounded-lg border border-[#b7a786] bg-[#f8f0e2] px-3 text-sm outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20"
         />
       </label>
-      <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+      <div className="grid gap-4 sm:grid-cols-[1fr_auto_auto]">
         <label className="block space-y-1.5">
           <span className="text-sm font-semibold text-[#594b3c]">{t('home.seed')}</span>
           <input
@@ -197,6 +242,19 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
               </option>
             ))}
           </select>
+        </label>
+        <label className="block space-y-1.5">
+          <span className="text-sm font-semibold text-[#594b3c]">
+            {t('home.gameYears')}
+          </span>
+          <input
+            type="number"
+            min={1}
+            max={50}
+            value={years}
+            onChange={(event) => setYears(Number(event.target.value))}
+            className="h-10 w-24 rounded-lg border border-[#b7a786] bg-[#f8f0e2] px-3 text-sm outline-none focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20"
+          />
         </label>
       </div>
       {error && (

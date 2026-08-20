@@ -364,3 +364,37 @@ Le cœur décrit dans les sections 1 à 7 constitue la base v1. Les ajouts futur
 doivent être introduits sous forme de règles complémentaires : politiques,
 ordres spéciaux, diplomatie enrichie ou brouillard de guerre. Ils seront
 proposés et suivis dans GitHub avant d'être intégrés au document.
+
+## 9. Durée de partie et score final
+
+Une partie est créée avec une durée comprise entre 1 et 50 années, avec une
+valeur par défaut de 10 années. Une année conserve exactement quatre tours :
+printemps, été, automne et hiver. Le compteur interne `year` commence à 1 ;
+l'interface affiche l'année historique `1000 + year`, soit `AN 1001` au premier
+tour joué.
+
+La partie se termine après la résolution du dernier tour de la durée choisie,
+ou immédiatement lorsqu'un seul joueur reste en lice. Les scores sont recalculés
+après chaque tour et sont visibles par tous les joueurs.
+
+Le score d'un joueur est la somme des éléments suivants :
+
+| Élément | Points |
+|---|---:|
+| Territoire contrôlé | 1 |
+| Village contrôlé | 2 |
+| Moulin contrôlé | 1 |
+| Château contrôlé | 5 |
+| Noble détenu | 2 |
+| Troupe | 1 par unité dans ses armées |
+| Ressource `R` | 1 par unité en stock sur ses territoires contrôlés |
+
+Les points d'infrastructure et de ressource ne sont attribués que lorsque le
+territoire est contrôlé. Un noble libre est compté pour son propriétaire. Un
+noble capturé, qu'il soit otage ou au donjon, est compté pour le joueur qui
+contrôle le territoire où il se trouve ; il ne compte pas pour son propriétaire
+initial. Un territoire neutre ne rapporte aucun élément de score.
+
+À la fin d'une partie, un unique survivant gagne toujours, même si la durée
+vient d'être atteinte. Sinon, le joueur qui possède le score le plus élevé gagne.
+Une égalité parfaite de score ne désigne aucun gagnant officiel.

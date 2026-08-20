@@ -46,6 +46,8 @@ type ReceptionReport struct {
 type PlayerReport struct {
 	ID               models.PlayerID        `json:"id"`
 	Name             string                 `json:"name"`
+	ScoreBefore      ScoreBreakdown         `json:"scoreBefore"`
+	ScoreAfter       ScoreBreakdown         `json:"scoreAfter"`
 	ResourcesBefore  int                    `json:"resourcesBefore"`
 	ResourcesAfter   int                    `json:"resourcesAfter"`
 	ControlledBefore int                    `json:"controlledBefore"`
@@ -397,8 +399,18 @@ func buildPlayerReports(before, after *models.GameState) []PlayerReport {
 		players = append(players, before.Players...)
 	}
 	reports := make([]PlayerReport, 0, len(players))
+	beforeScores := ComputeScores(before)
+	afterScores := ComputeScores(after)
 	for _, player := range players {
-		report := PlayerReport{ID: player.ID, Name: player.Name, Armies: []ArmyReport{}, Nobles: []NobleReport{}, Infrastructures: []InfrastructureReport{}}
+		report := PlayerReport{
+			ID:              player.ID,
+			Name:            player.Name,
+			ScoreBefore:     beforeScores[player.ID],
+			ScoreAfter:      afterScores[player.ID],
+			Armies:          []ArmyReport{},
+			Nobles:          []NobleReport{},
+			Infrastructures: []InfrastructureReport{},
+		}
 		report.ResourcesBefore, report.ControlledBefore = playerTerritoryTotals(before, player.ID)
 		report.ResourcesAfter, report.ControlledAfter = playerTerritoryTotals(after, player.ID)
 		if after != nil {

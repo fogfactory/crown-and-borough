@@ -56,6 +56,8 @@ export interface GameSummary {
   players: GameSlot[]
   turn: number
   season: Season
+  yearCount?: number
+  scores?: Record<PlayerId, ScoreBreakdown>
   revision: number
   updatedAt?: string
 }
@@ -128,6 +130,17 @@ export interface Player {
   capitalTerritory?: string
 }
 
+export interface ScoreBreakdown {
+  territories: number
+  villages: number
+  mills: number
+  castles: number
+  nobles: number
+  troops: number
+  resources: number
+  total: number
+}
+
 export interface TerritoryState {
   id: string
   owner: PlayerId | null
@@ -139,6 +152,11 @@ export interface TerritoryState {
 export interface StateData {
   turn: number
   season: Season
+  year?: number
+  yearCount?: number
+  scores?: Record<PlayerId, ScoreBreakdown>
+  finished?: boolean
+  winner?: PlayerId | null
   players: Player[]
   territories: TerritoryState[]
   nobles: Noble[]
@@ -233,6 +251,8 @@ export interface ReportInfrastructure {
 export interface PlayerReport {
   id: PlayerId
   name: string
+  scoreBefore?: ScoreBreakdown
+  scoreAfter?: ScoreBreakdown
   resourcesBefore: number
   resourcesAfter: number
   controlledBefore: number

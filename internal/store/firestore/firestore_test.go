@@ -10,6 +10,7 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
 	"github.com/fogfactory/crown-and-borough/internal/models"
+	"github.com/fogfactory/crown-and-borough/internal/store"
 )
 
 func TestJSONMapRoundTripPreservesCanonicalState(t *testing.T) {
@@ -60,6 +61,33 @@ func TestFirestoreSchemaVersionIsExplicit(t *testing.T) {
 	document := profileDocument{SchemaVersion: schemaVersion, UID: "alice", CreatedAt: time.Now(), UpdatedAt: time.Now()}
 	if document.SchemaVersion != 1 {
 		t.Fatalf("profile schema version = %d, want 1", document.SchemaVersion)
+	}
+}
+
+func TestGameDocumentCarriesDurationAndScores(t *testing.T) {
+	state := models.NewGameState()
+	state.Players = []models.Player{{ID: "P1", Name: "Alice"}}
+	scores := map[models.PlayerID]engine.ScoreBreakdown{
+		"P1": {Territories: 1, Total: 1},
+	}
+	snapshot := store.GameSnapshot{
+		ID:        "game-1",
+		Name:      "Test",
+		Seed:      "seed",
+		YearCount: state.YearCount,
+		Scores:    scores,
+		State:     state,
+	}
+	document := gameDocumentFromSnapshot(snapshot, time.Now(), time.Now())
+	if document.YearCount != models.DefaultGameYears {
+		t.Fatalf("document year count = %d, want %d", document.YearCount, models.DefaultGameYears)
+	}
+	if document.Scores == nil || len(document.Scores) != 1 || document.Scores["P1"].Total != 1 {
+		t.Fatalf("document scores = %#v, want P1 score", document.Scores)
+	}
+	restored := gameSnapshot(document, state, mapgen.MapData{}, nil, nil)
+	if restored.Scores["P1"].Total != 1 {
+		t.Fatalf("restored scores = %#v, want P1 score", restored.Scores)
 	}
 }
 

@@ -5,6 +5,26 @@
 // serialization against the map.json and state.json contracts.
 package models
 
+import "fmt"
+
+const (
+	MinimumGameYears = 1
+	MaximumGameYears = 50
+	DefaultGameYears = 10
+)
+
+// NormalizeGameYears applies the game-creation default. Zero is reserved for
+// omitted values and for loading legacy states that predate the duration rule.
+func NormalizeGameYears(years int) (int, error) {
+	if years == 0 {
+		return DefaultGameYears, nil
+	}
+	if years < MinimumGameYears || years > MaximumGameYears {
+		return 0, fmt.Errorf("game years must be between %d and %d, got %d", MinimumGameYears, MaximumGameYears, years)
+	}
+	return years, nil
+}
+
 // Terrain describes the dominant relief of a territory. Values align with the
 // terrain column in communes.csv.
 type Terrain string

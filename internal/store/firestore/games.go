@@ -288,6 +288,12 @@ func (s *FirestoreStore) loadSnapshotWithDocument(ctx context.Context, actor sto
 	if err := decodeJSONMap(canonical.State, state); err != nil {
 		return store.GameSnapshot{}, fmt.Errorf("decode state for %s: %w", game.ID, err)
 	}
+	if game.YearCount == 0 {
+		game.YearCount = models.DefaultGameYears
+	}
+	if state.YearCount == 0 {
+		state.YearCount = game.YearCount
+	}
 	if err := state.Validate(); err != nil {
 		return store.GameSnapshot{}, fmt.Errorf("%w: state for %s: %v", ErrInconsistentGame, game.ID, err)
 	}
@@ -403,6 +409,8 @@ func gameDocumentFromSnapshot(snapshot store.GameSnapshot, createdAt, updatedAt 
 		Status:        snapshot.Status,
 		Turn:          snapshot.State.Turn,
 		Season:        snapshot.State.Season,
+		YearCount:     snapshot.YearCount,
+		Scores:        scoreDocuments(snapshot.Scores),
 		WinnerUID:     winner,
 		SubmittedUIDs: sortedSubmittedUIDs(snapshot.Submissions, snapshot.Players),
 		Revision:      int64(snapshot.Revision),
@@ -421,12 +429,25 @@ func gameSnapshot(document gameDocument, state *models.GameState, mapData mapgen
 		value := models.PlayerID(document.WinnerUID)
 		winner = &value
 	}
+	scores := make(map[models.PlayerID]engine.ScoreBreakdown, len(document.Scores))
+	for playerID, score := range document.Scores {
+		scores[models.PlayerID(playerID)] = score
+	}
+	if len(scores) == 0 {
+		scores = engine.ComputeScores(state)
+	}
+	yearCount := document.YearCount
+	if yearCount == 0 {
+		yearCount = state.YearCount
+	}
 	return store.GameSnapshot{
 		ID:          document.ID,
 		Name:        document.Name,
 		Seed:        document.Seed,
+		YearCount:   yearCount,
 		Status:      document.Status,
 		Winner:      winner,
+		Scores:      scores,
 		Players:     players,
 		Map:         mapData,
 		State:       state,
@@ -435,6 +456,14 @@ func gameSnapshot(document gameDocument, state *models.GameState, mapData mapgen
 		Revision:    store.Revision(document.Revision),
 		CreatedBy:   document.OwnerUID,
 	}
+}
+
+func scoreDocuments(scores map[models.PlayerID]engine.ScoreBreakdown) map[string]engine.ScoreBreakdown {
+	result := make(map[string]engine.ScoreBreakdown, len(scores))
+	for playerID, score := range scores {
+		result[string(playerID)] = score
+	}
+	return result
 }
 
 func sortedSubmittedUIDs(submissions map[models.PlayerID]engine.OrdersInput, players []store.PlayerSlot) []string {

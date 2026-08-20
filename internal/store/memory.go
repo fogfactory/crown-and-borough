@@ -144,6 +144,10 @@ func (s *MemoryStore) Create(_ context.Context, actor Actor, request CreateReque
 	if err != nil {
 		return GameSnapshot{}, err
 	}
+	yearCount, err := normalizeYearCount(request.YearCount)
+	if err != nil {
+		return GameSnapshot{}, err
+	}
 	s.idMu.Lock()
 	id, err := s.options.IDGenerator()
 	s.idMu.Unlock()
@@ -162,7 +166,7 @@ func (s *MemoryStore) Create(_ context.Context, actor Actor, request CreateReque
 		name = "Crown & Borough"
 	}
 
-	state, err := engine.CreateGame(seed, players, s.balance, s.assets)
+	state, err := engine.CreateGameWithYears(seed, players, yearCount, s.balance, s.assets)
 	if err != nil {
 		return GameSnapshot{}, err
 	}
@@ -741,17 +745,7 @@ func (game *memoryGame) playerForActorLocked(actor Actor) (models.PlayerID, bool
 }
 
 func (game *memoryGame) isAliveLocked(playerID models.PlayerID) bool {
-	for _, territory := range game.state.TerritoryStates {
-		if territory.OwnerID != nil && *territory.OwnerID == playerID {
-			return true
-		}
-	}
-	for _, army := range game.state.Armies {
-		if army.OwnerID == playerID {
-			return true
-		}
-	}
-	return false
+	return engine.PlayerAlive(game.state, playerID)
 }
 
 func (game *memoryGame) submissionStatusLocked() ([]models.PlayerID, []models.PlayerID) {
@@ -770,22 +764,13 @@ func (game *memoryGame) submissionStatusLocked() ([]models.PlayerID, []models.Pl
 }
 
 func (game *memoryGame) updateStatusLocked() {
-	alive := make([]models.PlayerID, 0, len(game.players))
-	for _, player := range game.players {
-		if game.isAliveLocked(player.ID) {
-			alive = append(alive, player.ID)
-		}
-	}
-	if len(alive) > 1 {
+	if !engine.GameFinished(game.state) {
+		game.status = StatusPlaying
+		game.winner = nil
 		return
 	}
 	game.status = StatusFinished
-	if len(alive) == 1 {
-		winner := alive[0]
-		game.winner = &winner
-	} else {
-		game.winner = nil
-	}
+	game.winner = engine.WinnerForFinishedGame(game.state)
 }
 
 func (s *MemoryStore) snapshotLocked(game *memoryGame) (GameSnapshot, error) {
@@ -797,8 +782,10 @@ func (s *MemoryStore) snapshotLocked(game *memoryGame) (GameSnapshot, error) {
 		ID:          game.id,
 		Name:        game.name,
 		Seed:        game.seed,
+		YearCount:   game.state.YearCount,
 		Status:      game.status,
 		Winner:      clonePlayerID(game.winner),
+		Scores:      engine.ComputeScores(game.state),
 		Players:     append([]PlayerSlot(nil), game.players...),
 		Map:         cloneMap(game.mapData),
 		State:       state,

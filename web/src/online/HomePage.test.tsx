@@ -59,6 +59,8 @@ describe('online home', () => {
     renderHome()
 
     expect(await screen.findByText('Northern Marches')).toBeInTheDocument()
+    expect(screen.getByText('Year 1001')).toBeInTheDocument()
+    expect(screen.getByText('10 years / 40 turns remaining')).toBeInTheDocument()
     expect(screen.getByText('Seed: adelaide-de-beaufort')).toBeInTheDocument()
     expect(screen.queryByText('another player game')).not.toBeInTheDocument()
     expect(getIdToken).toHaveBeenCalled()
@@ -98,5 +100,6 @@ describe('online home', () => {
     expect(body).not.toHaveProperty('player')
     expect(body.seed).toBe('adelaide-de-beaufort')
     expect(body.players).toBe(4)
+    expect(body.years).toBe(10)
   })
 })

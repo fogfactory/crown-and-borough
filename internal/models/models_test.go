@@ -195,11 +195,24 @@ func TestNewGameState(t *testing.T) {
 	if g.Season != models.SeasonSpring {
 		t.Errorf("Season = %q, want %q", g.Season, models.SeasonSpring)
 	}
+	if g.YearCount != models.DefaultGameYears {
+		t.Errorf("YearCount = %d, want %d", g.YearCount, models.DefaultGameYears)
+	}
 	if g.NextArmyID != 1 {
 		t.Errorf("NextArmyID = %d, want 1", g.NextArmyID)
 	}
 	if err := g.Validate(); err != nil {
 		t.Errorf("Validate() = %v, want nil", err)
+	}
+}
+
+func TestValidateYearCount(t *testing.T) {
+	for _, yearCount := range []int{-1, models.MaximumGameYears + 1} {
+		state := models.NewGameState()
+		state.YearCount = yearCount
+		if err := state.Validate(); err == nil {
+			t.Fatalf("Validate() with year count %d = nil, want error", yearCount)
+		}
 	}
 }
 

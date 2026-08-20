@@ -592,7 +592,7 @@ describe('App command/report tabs', () => {
         '/api/game',
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ seed: 'nouvelle-graine', players: 6 }),
+          body: JSON.stringify({ seed: 'nouvelle-graine', players: 6, years: 10 }),
         }),
       )
     })
