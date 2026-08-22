@@ -1,5 +1,7 @@
 # Crown & Borough
 
+![the game](image.png)
+
 ## Usage
 
 The Go binary serves the API and the compiled frontend from the same origin.
