@@ -422,3 +422,39 @@ jobs:
             --only hosting \
             --project "$PROJECT_ID" \
             --non-interactive
+
+  post-deploy-hosting-smoke:
+    name: Smoke-test the Firebase Hosting URL
+    needs: deploy-hosting
+    if: ${{ (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && (github.event_name != 'workflow_dispatch' || inputs.confirm_deploy) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the public Hosting contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_url="${PUBLIC_HOSTING_URL%/}"
+
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error "$base_url/" >/dev/null 2>&1 \
+              && curl --fail --silent --show-error "$base_url/api/rules" >/dev/null 2>&1; then
+              break
+            fi
+            if [[ "$attempt" == 30 ]]; then
+              echo "::error::Firebase Hosting did not become ready"
+              exit 1
+            fi
+            sleep 2
+          done
+
+          curl --fail --silent --show-error "$base_url/" | grep -Fq '<div id="root"></div>'
+          curl --fail --silent --show-error "$base_url/games/postdeploy" | grep -Fq '<div id="root"></div>'
+
+          ready_response="$(curl --fail --silent --show-error "$base_url/healthz/ready")"
+          [[ "$ready_response" == *'"status":"ready"'* ]]
+          curl --fail --silent --show-error "$base_url/api/rules" >/dev/null
+
+          games_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$base_url/api/games")"
+          auth_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$base_url/api/auth/me")"
+          [[ "$games_status" == 401 ]]
+          [[ "$auth_status" == 401 ]]
