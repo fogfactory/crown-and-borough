@@ -20,7 +20,8 @@ The workflow has two promotion paths:
   versioned Firestore rules and indexes, creates a Cloud Run candidate with no
   service traffic, runs an HTTPS smoke test against its `smoke` tag URL, and
   routes 100% of traffic to the exact image digest only after the smoke test
-  passes.
+  passes. It then deploys the Firebase Hosting frontend and smoke-tests the
+  memorable Hosting URL.
 
 The first Cloud Run deployment is the exception required by the Cloud Run CLI:
 `--no-traffic` is not accepted while creating a new service. The first revision
@@ -87,6 +88,7 @@ gcloud services enable \
   cloudresourcemanager.googleapis.com \
   firestore.googleapis.com \
   firebase.googleapis.com \
+  firebasehosting.googleapis.com \
   iam.googleapis.com \
   iamcredentials.googleapis.com \
   identitytoolkit.googleapis.com \
@@ -99,7 +101,7 @@ Confirm the result before continuing:
 
 ```bash
 gcloud services list --enabled --project "$PROJECT_ID" \
-  --filter='name:(artifactregistry.googleapis.com firestore.googleapis.com run.googleapis.com identitytoolkit.googleapis.com iam.googleapis.com serviceusage.googleapis.com)'
+  --filter='name:(artifactregistry.googleapis.com firestore.googleapis.com run.googleapis.com identitytoolkit.googleapis.com firebasehosting.googleapis.com iam.googleapis.com serviceusage.googleapis.com)'
 ```
 
 ## Firestore
@@ -274,6 +276,38 @@ In the Firebase console for this project:
    Email link (passwordless sign-in) option.
 4. Add `localhost` and the deployed Cloud Run hostname to Authorized domains.
    Add a custom application domain too if one will be used.
+
+## Firebase Hosting
+
+Firebase Hosting provides the memorable free project URL
+`https://crown-and-borough.web.app`. It serves the compiled Vite frontend from
+`web/dist` and rewrites `/api/**` and `/healthz/ready` to the Cloud Run service.
+Firestore, Firebase Auth, and the game state remain in the existing project;
+Hosting is only the browser-facing frontend and proxy layer.
+
+The repository configuration pins the Hosting site to `crown-and-borough` and
+the Cloud Run service to `crown-and-borough` in `europe-west9`. Confirm the
+Hosting site exists before the first release deployment:
+
+```bash
+firebase login
+firebase hosting:sites:list --project crown-and-borough
+```
+
+If the site is not listed, create it once:
+
+```bash
+firebase hosting:sites:create crown-and-borough --project crown-and-borough
+```
+
+The site ID must remain `crown-and-borough` for the free URL above. If Firebase
+reports that the site already exists, do not create a second site; inspect it
+with `firebase hosting:sites:list` and continue.
+
+Before release, verify that `crown-and-borough.web.app` is also present in
+Firebase Authentication **Authorized domains**. The email-link continuation
+uses the browser's current origin, so this domain must be authorized even while
+the backend `PUBLIC_APP_URL` variable still points to the Cloud Run URL.
 
 ## Authorized Game Creators
 
