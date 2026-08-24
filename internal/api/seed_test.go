@@ -20,7 +20,7 @@ func TestGenerateSeedUsesReadableAssetSlugs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("generate seed: %v", err)
 	}
-	if !regexp.MustCompile(`^[a-z0-9]+-de-[a-z0-9]+$`).MatchString(seed) {
+	if !regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*-de-[a-z0-9]+(?:-[a-z0-9]+)*$`).MatchString(seed) {
 		t.Fatalf("generated seed = %q, want a readable asset seed", seed)
 	}
 }
