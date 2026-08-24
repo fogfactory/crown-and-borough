@@ -441,6 +441,12 @@ custom domain, set `PUBLIC_APP_URL` to the complete HTTPS origin in GitHub so
 invitation URLs use that domain. With no variable, the workflow uses the
 Cloud Run service URL discovered from GCP.
 
+For the Hosting front, leave `PUBLIC_APP_URL` unchanged while reviewing this
+PR. Before the release, set it manually to
+`https://crown-and-borough.web.app` and trigger a new promotion so invitation
+URLs returned by the backend use the memorable domain. The Cloud Run URL stays
+available for diagnostics and rollback.
+
 ## GitHub Actions Variables
 
 Create repository **variables**, not secrets, for the values below. The
@@ -461,6 +467,7 @@ workflow has no service-account key secret and must not be given one.
 | `VITE_FIREBASE_PROJECT_ID`     | Firebase Web `projectId`                                  |
 | `VITE_FIREBASE_APP_ID`         | Firebase Web `appId`                                      |
 | `PUBLIC_APP_URL`               | Optional complete HTTPS origin, usually the Cloud Run URL |
+| `PUBLIC_HOSTING_URL`           | `https://crown-and-borough.web.app`                       |
 
 With GitHub CLI, the variables can be set without writing any credential file:
 
@@ -482,6 +489,7 @@ gh variable set VITE_FIREBASE_APP_ID --repo "$GITHUB_REPOSITORY" --body "replace
 
 # Optional when invitation links should use a custom origin.
 gh variable set PUBLIC_APP_URL --repo "$GITHUB_REPOSITORY" --body "$PUBLIC_APP_URL"
+gh variable set PUBLIC_HOSTING_URL --repo "$GITHUB_REPOSITORY" --body "https://crown-and-borough.web.app"
 ```
 
 Replace every `replace-me` value before starting a deployment. Check the final
@@ -503,7 +511,8 @@ gh run watch --repo "$GITHUB_REPOSITORY"
 ```
 
 The workflow builds and pushes the SHA-tagged image, deploys rules and indexes,
-smoke-tests the candidate URL, and promotes the exact digest. On the first
+smoke-tests the candidate URL, and promotes the exact digest. It then deploys
+Firebase Hosting and smoke-tests `PUBLIC_HOSTING_URL`. On the first Cloud Run
 deployment, if `PUBLIC_APP_URL` is empty and the service has no URL yet, the
 workflow briefly uses an internal placeholder to create the service, reads the
 real `run.app` URL, and creates a second first-service revision with the real
@@ -525,12 +534,11 @@ service traffic.
 
 ## Manual Acceptance Checklist
 
-Complete this checklist against the public HTTPS URL after the first
-promotion. Use two separate browser profiles or two browsers so Firebase
-sessions cannot be confused.
+Complete this checklist against `https://crown-and-borough.web.app` after the
+Hosting deployment. Use two separate browser profiles or two browsers so
+Firebase sessions cannot be confused.
 
-1. Open the Cloud Run URL and confirm the embedded application loads without
-   Vite or a second frontend service.
+1. Open the Hosting URL and confirm the application loads without Vite.
 2. Sign in as Alice and Bob with separate email links, opening each link in the
    browser that requested it.
 3. Complete both profiles and confirm that an unauthenticated request receives
@@ -566,6 +574,10 @@ tag URL:
 - `/` and a client-side route return the embedded SPA root;
 - `/api/rules` is reachable;
 - `/api/games` and `/api/auth/me` return `401` without a Firebase token.
+
+The Hosting smoke job performs the same checks against
+`PUBLIC_HOSTING_URL`, proving that the static frontend, Cloud Run rewrites, and
+authentication boundary work through the memorable public origin.
 
 The local container smoke test still checks `/healthz`. On the public Cloud Run
 hostname, the exact `/healthz` path is intercepted by the Cloud Run edge and
