@@ -199,3 +199,32 @@ Hosted game creation is fail-closed: only Firebase accounts with the
 emulator uses the documented `admin@mail.com` test account; account creation,
 claim assignment, token refresh, and the emulator flow are described in the
 [authorized creator runbook](docs/deploy-cloudrun.md#authorized-game-creators).
+
+## Manage Game Creators
+
+Use the local-only helper in `scripts/grant-game-creator` to grant or revoke
+the `game_creator` custom claim. Its dependencies are isolated from the web
+application and the whole `scripts/` directory is excluded from the Docker
+build context.
+
+From the repository root, install the helper and configure Application Default
+Credentials once:
+
+```bash
+cd scripts/grant-game-creator
+npm ci
+gcloud auth application-default login
+```
+
+Grant or revoke the claim for a Firebase Auth email address:
+
+```bash
+FIREBASE_PROJECT_ID=crown-and-borough npm run grant -- your-email@example.com
+FIREBASE_PROJECT_ID=crown-and-borough npm run grant -- your-email@example.com revoke
+```
+
+The `grant` action is the default. The `revoke` action removes only
+`game_creator` and preserves other custom claims. The helper is an
+administrator tool for local use; it is not included in the production image
+and is never run by Cloud Run. After a change, sign out and sign in again so
+the browser receives a Firebase ID token containing the new claim.

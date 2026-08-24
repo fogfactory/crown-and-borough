@@ -407,6 +407,21 @@ ID-token refresh in the application. An already signed-in browser must sign
 out and sign in again, or otherwise refresh its Firebase ID token, before the
 claim change is visible to the API.
 
+For repeated local administration, the repository provides the isolated helper
+at `scripts/grant-game-creator`. It uses Application Default Credentials and is
+excluded from the production Docker build:
+
+```bash
+cd scripts/grant-game-creator
+npm ci
+gcloud auth application-default login
+FIREBASE_PROJECT_ID=crown-and-borough npm run grant -- <email>
+FIREBASE_PROJECT_ID=crown-and-borough npm run grant -- <email> revoke
+```
+
+The inline Node snippet above remains available as an alternative. The helper
+preserves all existing custom claims and changes only `game_creator`.
+
 ### Emulator Creator
 
 The emulator intentionally uses a local-only email allowlist so the flow can

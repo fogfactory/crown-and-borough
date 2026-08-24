@@ -1,6 +1,7 @@
 .git
 .opencode
 gha-creds-*.json
+scripts
 bin
 specs
 tmp
