@@ -46,6 +46,7 @@ env:
   RUNTIME_SERVICE_ACCOUNT: ${{ vars.GCP_RUNTIME_SERVICE_ACCOUNT }}
   PUBLIC_APP_URL: ${{ vars.PUBLIC_APP_URL }}
   PUBLIC_HOSTING_URL: ${{ vars.PUBLIC_HOSTING_URL }}
+  APP_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'dev' }}
   VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
   VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
   VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
@@ -121,6 +122,8 @@ jobs:
           push: true
           tags: ${{ steps.image.outputs.name }}:${{ github.sha }}
           build-args: |
+            APP_VERSION=${{ env.APP_VERSION }}
+            VITE_APP_VERSION=${{ env.APP_VERSION }}
             VITE_FIREBASE_API_KEY=${{ vars.VITE_FIREBASE_API_KEY }}
             VITE_FIREBASE_AUTH_DOMAIN=${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
             VITE_FIREBASE_PROJECT_ID=${{ vars.VITE_FIREBASE_PROJECT_ID }}
@@ -342,8 +345,13 @@ jobs:
           ready_response="$(curl --fail --silent --show-error "$base_url/healthz/ready")"
           [[ "$ready_response" == *'"status":"ready"'* ]]
 
+          version_response="$(curl --fail --silent --show-error "$base_url/api/version")"
+          [[ "$version_response" == *"\"version\":\"$APP_VERSION\""* ]]
+
           curl --fail --silent --show-error "$base_url/" | grep -Fq '<div id="root"></div>'
           curl --fail --silent --show-error "$base_url/games/postdeploy" | grep -Fq '<div id="root"></div>'
+          frontend_asset="$(curl --fail --silent --show-error "$base_url/" | grep -oE '/assets/index-[^"]+\.js')"
+          curl --fail --silent --show-error "$base_url$frontend_asset" | grep -Fq "\"$APP_VERSION\""
           curl --fail --silent --show-error "$base_url/api/rules" >/dev/null
 
           games_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$base_url/api/games")"
@@ -413,6 +421,8 @@ jobs:
           node-version: 22
 
       - name: Build the Hosting frontend
+        env:
+          VITE_APP_VERSION: ${{ env.APP_VERSION }}
         run: npm ci && npm run build
         working-directory: web
 
@@ -449,9 +459,13 @@ jobs:
 
           curl --fail --silent --show-error "$base_url/" | grep -Fq '<div id="root"></div>'
           curl --fail --silent --show-error "$base_url/games/postdeploy" | grep -Fq '<div id="root"></div>'
+          frontend_asset="$(curl --fail --silent --show-error "$base_url/" | grep -oE '/assets/index-[^"]+\.js')"
+          curl --fail --silent --show-error "$base_url$frontend_asset" | grep -Fq "\"$APP_VERSION\""
 
           ready_response="$(curl --fail --silent --show-error "$base_url/healthz/ready")"
           [[ "$ready_response" == *'"status":"ready"'* ]]
+          version_response="$(curl --fail --silent --show-error "$base_url/api/version")"
+          [[ "$version_response" == *"\"version\":\"$APP_VERSION\""* ]]
           curl --fail --silent --show-error "$base_url/api/rules" >/dev/null
 
           games_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$base_url/api/games")"

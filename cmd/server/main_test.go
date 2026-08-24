@@ -35,6 +35,28 @@ func TestHealthz(t *testing.T) {
 	}
 }
 
+func TestVersion(t *testing.T) {
+	t.Setenv("APP_VERSION", "")
+	recorder := httptest.NewRecorder()
+	newServer(
+		func(int) ([]byte, error) { return nil, nil },
+		func(int) ([]byte, error) { return nil, nil },
+	).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/version", nil))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("GET /api/version = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	var response struct {
+		Version string `json:"version"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode version response: %v", err)
+	}
+	if response.Version != "dev" {
+		t.Errorf("version = %q, want dev", response.Version)
+	}
+}
+
 func TestServerServesEmbeddedFrontendAndClientRoutes(t *testing.T) {
 	server := newServer(
 		func(int) ([]byte, error) { return []byte(`{"territories":[]}`), nil },

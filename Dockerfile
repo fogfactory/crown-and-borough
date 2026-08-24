@@ -14,6 +14,8 @@ ARG VITE_FIREBASE_PROJECT_ID
 ARG VITE_FIREBASE_APP_ID
 ARG VITE_FIREBASE_AUTH_EMULATOR_HOST
 ARG VITE_FIREBASE_FIRESTORE_EMULATOR_HOST
+ARG APP_VERSION=dev
+ARG VITE_APP_VERSION
 
 ENV VITE_FIREBASE_API_KEY="$VITE_FIREBASE_API_KEY" \
     VITE_FIREBASE_AUTH_DOMAIN="$VITE_FIREBASE_AUTH_DOMAIN" \
@@ -22,7 +24,7 @@ ENV VITE_FIREBASE_API_KEY="$VITE_FIREBASE_API_KEY" \
     VITE_FIREBASE_AUTH_EMULATOR_HOST="$VITE_FIREBASE_AUTH_EMULATOR_HOST" \
     VITE_FIREBASE_FIRESTORE_EMULATOR_HOST="$VITE_FIREBASE_FIRESTORE_EMULATOR_HOST"
 
-RUN npm run build
+RUN VITE_APP_VERSION="${VITE_APP_VERSION:-$APP_VERSION}" npm run build
 
 # Go build stage
 FROM golang:1.26-alpine AS build
@@ -40,7 +42,8 @@ COPY . .
 # The frontend is embedded by web/embed.go during this build.
 COPY --from=frontend /web/dist ./web/dist
 
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/server ./cmd/server
+ARG APP_VERSION=dev
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w -X main.version=$APP_VERSION" -o /out/server ./cmd/server
 
 # Final stage: scratch. Firebase Admin and Firestore use outbound TLS, so keep
 # the CA bundle without adding a shell or package manager to the image.

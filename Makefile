@@ -6,11 +6,12 @@ FIRESTORE_PORT ?= 8081
 AUTH_PORT ?= 9099
 EMULATOR_UI_PORT ?= 4000
 SMOKE_PORT ?= 18080
+APP_VERSION ?= dev
 
 .PHONY: build build-hotseat run run-dev run-hotseat run-online test test-firestore compose-up compose-up-frontend compose-down compose-logs vet clean web-deps web-build web-build-hotseat web-dev image image-run image-stop image-smoke check-web-env
 
 build: web-build
-	go build -o bin/server ./cmd/server
+	go build -ldflags="-X main.version=$(APP_VERSION)" -o bin/server ./cmd/server
 
 run: build
 	./bin/server
@@ -18,7 +19,7 @@ run: build
 run-dev: run-hotseat
 
 build-hotseat: web-build-hotseat
-	go build -o bin/server ./cmd/server
+	go build -ldflags="-X main.version=$(APP_VERSION)" -o bin/server ./cmd/server
 
 run-hotseat: build-hotseat
 	ONLINE_DEV_MODE=true ./bin/server
@@ -33,6 +34,7 @@ run-online: check-web-env web-build
 		FIREBASE_PROJECT_ID=demo-crown-and-borough \
 		GOOGLE_CLOUD_PROJECT=crown-and-borough-local \
 		ALLOWED_CREATOR_EMAILS=admin@mail.com \
+		APP_VERSION="$(APP_VERSION)" \
 		ONLINE_DEV_MODE=false \
 		PUBLIC_APP_URL=http://localhost:$(SERVER_PORT) \
 		PORT=$(SERVER_PORT) \
@@ -49,6 +51,7 @@ test-firestore:
 compose-up: check-web-env
 	@set -a; . ./web/.env.local; set +a; \
 		PUBLIC_APP_URL="$${PUBLIC_APP_URL:-http://localhost:$(SERVER_PORT)}" \
+		APP_VERSION="$(APP_VERSION)" \
 		SERVER_PORT="$(SERVER_PORT)" FIRESTORE_PORT="$(FIRESTORE_PORT)" AUTH_PORT="$(AUTH_PORT)" EMULATOR_UI_PORT="$(EMULATOR_UI_PORT)" \
 		docker compose -p "$(COMPOSE_PROJECT_NAME)" up -d --build firestore auth server
 
@@ -74,10 +77,11 @@ check-web-env:
 	@test -f web/.env.local || { printf '%s\n' 'error: copy web/.env.example to web/.env.local first'; exit 1; }
 
 web-build: web-deps
-	cd web && npm run build
+	cd web && VITE_APP_VERSION="$(APP_VERSION)" npm run build
 
 web-build-hotseat: web-deps
 	cd web && \
+		VITE_APP_VERSION="$(APP_VERSION)" \
 		VITE_FIREBASE_API_KEY= \
 		VITE_FIREBASE_AUTH_DOMAIN= \
 		VITE_FIREBASE_PROJECT_ID= \
@@ -92,6 +96,8 @@ web-dev: web-deps
 image:
 	@set -a; [ ! -f web/.env.local ] || . ./web/.env.local; set +a; \
 		docker build -t "$(IMAGE)" \
+			--build-arg APP_VERSION="$(APP_VERSION)" \
+			--build-arg VITE_APP_VERSION="$(APP_VERSION)" \
 			--build-arg VITE_FIREBASE_API_KEY="$${VITE_FIREBASE_API_KEY:-}" \
 			--build-arg VITE_FIREBASE_AUTH_DOMAIN="$${VITE_FIREBASE_AUTH_DOMAIN:-}" \
 			--build-arg VITE_FIREBASE_PROJECT_ID="$${VITE_FIREBASE_PROJECT_ID:-}" \

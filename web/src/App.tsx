@@ -11,6 +11,7 @@ import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
 import { formatOrderLabel } from '@/lib/order-label'
 import { addNobleHeader, hasChainContent } from '@/lib/order-text'
 import { hasSupplySource } from '@/lib/supply'
+import { VersionBadge } from '@/components/VersionBadge'
 import { LanguageProvider, useLanguage } from '@/i18n/LanguageContext'
 import { firebaseConfigured } from '@/lib/firebase'
 import { OnlineApp } from '@/online/OnlineApp'
@@ -417,6 +418,7 @@ function AppContent() {
               <p className="text-xs uppercase tracking-[0.18em] text-[#806f57]">
                 {t('app.tagline')}
               </p>
+              <VersionBadge />
             </div>
           </div>
 
