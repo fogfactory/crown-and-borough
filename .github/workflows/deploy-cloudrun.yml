@@ -45,6 +45,7 @@ env:
   DEPLOYER_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
   RUNTIME_SERVICE_ACCOUNT: ${{ vars.GCP_RUNTIME_SERVICE_ACCOUNT }}
   PUBLIC_APP_URL: ${{ vars.PUBLIC_APP_URL }}
+  PUBLIC_HOSTING_URL: ${{ vars.PUBLIC_HOSTING_URL }}
   VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
   VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
   VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
@@ -378,3 +379,46 @@ jobs:
             --region "$REGION" \
             --project "$PROJECT_ID" \
             --quiet
+
+  deploy-hosting:
+    name: Deploy Firebase Hosting frontend
+    needs: promote-cloudrun
+    if: ${{ (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && (github.event_name != 'workflow_dispatch' || inputs.confirm_deploy) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the Hosting URL
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$PUBLIC_HOSTING_URL" ]]; then
+            echo "::error::GitHub variable PUBLIC_HOSTING_URL is not configured"
+            exit 1
+          fi
+          if [[ "$PUBLIC_HOSTING_URL" != https://* ]]; then
+            echo "::error::PUBLIC_HOSTING_URL must be an HTTPS origin"
+            exit 1
+          fi
+
+      - name: Authenticate to Google Cloud with Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build the Hosting frontend
+        run: npm ci && npm run build
+        working-directory: web
+
+      - name: Deploy Firebase Hosting
+        run: |
+          npx --yes firebase-tools@13.35.1 deploy \
+            --only hosting \
+            --project "$PROJECT_ID" \
+            --non-interactive
