@@ -188,6 +188,12 @@ The one-time GCP/Firebase bootstrap, GitHub Actions variables, Cloud Run
 promotion flow, rollback, budget, and public acceptance checklist are in
 [`docs/deploy-cloudrun.md`](docs/deploy-cloudrun.md).
 
+Firebase Hosting can provide the memorable public URL
+`https://crown-and-borough.web.app` while Cloud Run remains the backend and
+deployment target. The Hosting front is introduced by the issue #48 PR; keep
+`PUBLIC_APP_URL` on the Cloud Run URL until the Hosting release has been
+validated, then change it manually before the release promotion.
+
 Hosted game creation is fail-closed: only Firebase accounts with the
 `game_creator: true` custom claim can create games. The local Auth/Firestore
 emulator uses the documented `admin@mail.com` test account; account creation,

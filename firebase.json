@@ -13,5 +13,43 @@
       "host": "0.0.0.0",
       "port": 4000
     }
+  },
+  "hosting": {
+    "site": "crown-and-borough",
+    "public": "web/dist",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [
+      {
+        "source": "/api/**",
+        "run": {
+          "serviceId": "crown-and-borough",
+          "region": "europe-west9",
+          "pinTag": true
+        }
+      },
+      {
+        "source": "/healthz/ready",
+        "run": {
+          "serviceId": "crown-and-borough",
+          "region": "europe-west9",
+          "pinTag": true
+        }
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          {
+            "key": "X-Content-Type-Options",
+            "value": "nosniff"
+          }
+        ]
+      }
+    ]
   }
 }

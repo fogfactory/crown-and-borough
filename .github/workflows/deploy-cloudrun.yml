@@ -45,6 +45,7 @@ env:
   DEPLOYER_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
   RUNTIME_SERVICE_ACCOUNT: ${{ vars.GCP_RUNTIME_SERVICE_ACCOUNT }}
   PUBLIC_APP_URL: ${{ vars.PUBLIC_APP_URL }}
+  PUBLIC_HOSTING_URL: ${{ vars.PUBLIC_HOSTING_URL }}
   VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
   VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
   VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
@@ -378,3 +379,82 @@ jobs:
             --region "$REGION" \
             --project "$PROJECT_ID" \
             --quiet
+
+  deploy-hosting:
+    name: Deploy Firebase Hosting frontend
+    needs: promote-cloudrun
+    if: ${{ (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && (github.event_name != 'workflow_dispatch' || inputs.confirm_deploy) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the Hosting URL
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$PUBLIC_HOSTING_URL" ]]; then
+            echo "::error::GitHub variable PUBLIC_HOSTING_URL is not configured"
+            exit 1
+          fi
+          if [[ "$PUBLIC_HOSTING_URL" != https://* ]]; then
+            echo "::error::PUBLIC_HOSTING_URL must be an HTTPS origin"
+            exit 1
+          fi
+
+      - name: Authenticate to Google Cloud with Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build the Hosting frontend
+        run: npm ci && npm run build
+        working-directory: web
+
+      - name: Deploy Firebase Hosting
+        run: |
+          npx --yes firebase-tools@13.35.1 deploy \
+            --only hosting \
+            --project "$PROJECT_ID" \
+            --non-interactive
+
+  post-deploy-hosting-smoke:
+    name: Smoke-test the Firebase Hosting URL
+    needs: deploy-hosting
+    if: ${{ (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && (github.event_name != 'workflow_dispatch' || inputs.confirm_deploy) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the public Hosting contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_url="${PUBLIC_HOSTING_URL%/}"
+
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error "$base_url/" >/dev/null 2>&1 \
+              && curl --fail --silent --show-error "$base_url/api/rules" >/dev/null 2>&1; then
+              break
+            fi
+            if [[ "$attempt" == 30 ]]; then
+              echo "::error::Firebase Hosting did not become ready"
+              exit 1
+            fi
+            sleep 2
+          done
+
+          curl --fail --silent --show-error "$base_url/" | grep -Fq '<div id="root"></div>'
+          curl --fail --silent --show-error "$base_url/games/postdeploy" | grep -Fq '<div id="root"></div>'
+
+          ready_response="$(curl --fail --silent --show-error "$base_url/healthz/ready")"
+          [[ "$ready_response" == *'"status":"ready"'* ]]
+          curl --fail --silent --show-error "$base_url/api/rules" >/dev/null
+
+          games_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$base_url/api/games")"
+          auth_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$base_url/api/auth/me")"
+          [[ "$games_status" == 401 ]]
+          [[ "$auth_status" == 401 ]]
