@@ -55,6 +55,8 @@ jobs:
       - name: Build image with public Firebase configuration
         run: |
           docker build -t crown-and-borough:ci \
+            --build-arg APP_VERSION=ci \
+            --build-arg VITE_APP_VERSION=ci \
             --build-arg VITE_FIREBASE_API_KEY=ci-public-api-key \
             --build-arg VITE_FIREBASE_AUTH_DOMAIN=ci.firebaseapp.com \
             --build-arg VITE_FIREBASE_PROJECT_ID=ci-public-project \
@@ -69,6 +71,8 @@ jobs:
       - name: Build smoke image
         run: |
           docker build -t crown-and-borough:smoke \
+            --build-arg APP_VERSION=ci \
+            --build-arg VITE_APP_VERSION=ci \
             --build-arg VITE_FIREBASE_API_KEY=ci-public-api-key \
             --build-arg VITE_FIREBASE_AUTH_DOMAIN=ci.firebaseapp.com \
             --build-arg VITE_FIREBASE_PROJECT_ID=ci-public-project \
@@ -126,12 +130,17 @@ jobs:
           curl -fsS http://127.0.0.1:8080/ > index.html
           curl -fsS http://127.0.0.1:8080/games/ci-game > fallback.html
           curl -fsS http://127.0.0.1:8080/healthz/ready > ready.json
+          curl -fsS http://127.0.0.1:8080/api/version > version.json
           curl -fsS http://127.0.0.1:8080/api/rules > rules.md
           api_status="$(curl -sS -o api-error.json -w '%{http_code}' http://127.0.0.1:8080/api/games)"
           test "$api_status" = 401
           grep -Fq '<div id="root"></div>' index.html
           grep -Fq '<div id="root"></div>' fallback.html
+          frontend_asset="$(grep -oE '/assets/index-[^"]+\.js' index.html)"
+          curl -fsS "http://127.0.0.1:8080$frontend_asset" > frontend.js
+          grep -Fq '"ci"' frontend.js
           grep -Fq '"status":"ready"' ready.json
+          grep -Fq '"version":"ci"' version.json
           grep -Fq 'du jeu' rules.md
           grep -Fq '"error":"unauthorized"' api-error.json
       - name: Stop smoke services

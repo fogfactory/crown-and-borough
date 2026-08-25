@@ -23,6 +23,8 @@ import (
 
 const defaultSeed = "crown-and-borough-dev"
 
+var version = "dev"
+
 type mapGenerator func(string, assetgen.Assets, mapgen.Config) (mapgen.MapData, error)
 
 type mapResolver struct {
@@ -74,6 +76,7 @@ func newServer(
 	resolveState func(players int) ([]byte, error),
 ) *http.ServeMux {
 	mux := http.NewServeMux()
+	mountVersion(mux)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
@@ -85,6 +88,7 @@ func newServer(
 
 func newHotseatServer(session *api.Session, rules assetgen.Rules) *http.ServeMux {
 	mux := http.NewServeMux()
+	mountVersion(mux)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
@@ -235,6 +239,7 @@ func newApplicationServerWithCreatorGate(session *api.Session, rules assetgen.Ru
 		mux = newHotseatServer(session, rules)
 	} else {
 		mux = http.NewServeMux()
+		mountVersion(mux)
 		mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		})
@@ -267,6 +272,20 @@ func newApplicationServerWithCreatorGate(session *api.Session, rules assetgen.Ru
 func mountFrontend(mux *http.ServeMux) {
 	// The same binary serves the SPA in hotseat, emulator, and hosted modes.
 	mux.Handle("/", webassets.NewEmbeddedHandler())
+}
+
+func mountVersion(mux *http.ServeMux) {
+	mux.Handle("GET /api/version", api.VersionHandler(applicationVersion()))
+}
+
+func applicationVersion() string {
+	if value := strings.TrimSpace(version); value != "" && value != "dev" {
+		return value
+	}
+	if value := strings.TrimSpace(os.Getenv("APP_VERSION")); value != "" {
+		return value
+	}
+	return "dev"
 }
 
 func enginePlayerID(index int) models.PlayerID {

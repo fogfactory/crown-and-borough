@@ -16,6 +16,7 @@ import { GamePage } from '@/online/GamePage'
 import { HomePage } from '@/online/HomePage'
 import { JoinPage } from '@/online/JoinPage'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
+import { VersionBadge } from '@/components/VersionBadge'
 import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/i18n/LanguageContext'
 import { firebaseConfigured } from '@/lib/firebase'
@@ -44,6 +45,7 @@ function OnlineHeader() {
             <span className="block text-[10px] uppercase tracking-[0.18em] text-[#806f57]">
               {t('app.tagline')}
             </span>
+            <VersionBadge />
           </span>
         </Link>
         <div className="flex flex-wrap items-center gap-3">
