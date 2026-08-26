@@ -2,30 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
-    # Skip CI on pushes touching no build artifacts (docs, specs, etc.)
-    paths-ignore:
-      - "specs/**"
-      - ".opencode/**"
-      - "LICENSE"
-      - "*.md"
-      - ".gitignore"
+    branches: [main, develop]
   pull_request:
-    branches: [main]
-    # Run CI only when the PR touches build-relevant files
-    paths:
-      - "**/*.go"
-      - "go.mod"
-      - "go.sum"
-      - "Dockerfile"
-      - "firestore.rules"
-      - "firestore.indexes.json"
-      - "firebase.json"
-      - ".dockerignore"
-      - "Makefile"
-      - "web/**"
-      - ".github/workflows/ci.yml"
-      - ".github/workflows/deploy-cloudrun.yml"
+    branches: [main, develop]
 
 jobs:
   go:
@@ -193,3 +172,7 @@ jobs:
           rhysd/actionlint:1.7.7 -oneline
           /repo/.github/workflows/ci.yml
           /repo/.github/workflows/deploy-cloudrun.yml
+          /repo/.github/workflows/labeler.yml
+          /repo/.github/workflows/pr-policy.yml
+          /repo/.github/workflows/release-please.yml
+          /repo/.github/workflows/sync-main-to-develop.yml
