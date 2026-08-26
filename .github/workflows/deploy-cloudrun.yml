@@ -321,10 +321,11 @@ jobs:
           version_response="$(curl --fail --silent --show-error "$base_url/api/version")"
           [[ "$version_response" == *"\"version\":\"$APP_VERSION\""* ]]
 
-          curl --fail --silent --show-error "$base_url/" | grep -Fq '<div id="root"></div>'
-          curl --fail --silent --show-error "$base_url/games/postdeploy" | grep -Fq '<div id="root"></div>'
+          # Do not use grep -q here: it closes the pipe early and makes curl report a write error.
+          curl --fail --silent --show-error "$base_url/" | grep -F '<div id="root"></div>' >/dev/null
+          curl --fail --silent --show-error "$base_url/games/postdeploy" | grep -F '<div id="root"></div>' >/dev/null
           frontend_asset="$(curl --fail --silent --show-error "$base_url/" | grep -oE '/assets/index-[^"]+\.js')"
-          curl --fail --silent --show-error "$base_url$frontend_asset" | grep -Fq "\"$APP_VERSION\""
+          curl --fail --silent --show-error "$base_url$frontend_asset" | grep -F "\"$APP_VERSION\"" >/dev/null
           curl --fail --silent --show-error "$base_url/api/rules" >/dev/null
 
           games_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$base_url/api/games")"
@@ -427,10 +428,11 @@ jobs:
             sleep 2
           done
 
-          curl --fail --silent --show-error "$base_url/" | grep -Fq '<div id="root"></div>'
-          curl --fail --silent --show-error "$base_url/games/postdeploy" | grep -Fq '<div id="root"></div>'
+          # Do not use grep -q here: it closes the pipe early and makes curl report a write error.
+          curl --fail --silent --show-error "$base_url/" | grep -F '<div id="root"></div>' >/dev/null
+          curl --fail --silent --show-error "$base_url/games/postdeploy" | grep -F '<div id="root"></div>' >/dev/null
           frontend_asset="$(curl --fail --silent --show-error "$base_url/" | grep -oE '/assets/index-[^"]+\.js')"
-          curl --fail --silent --show-error "$base_url$frontend_asset" | grep -Fq "\"$APP_VERSION\""
+          curl --fail --silent --show-error "$base_url$frontend_asset" | grep -F "\"$APP_VERSION\"" >/dev/null
 
           ready_response="$(curl --fail --silent --show-error "$base_url/healthz/ready")"
           [[ "$ready_response" == *'"status":"ready"'* ]]
