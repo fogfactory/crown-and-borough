@@ -54,7 +54,8 @@ The normal flows are:
 1. Start `feat/*` work from `develop` and merge it back into `develop`.
 2. Start `fix/*` and `ux/*` work from `main` and merge it into `main`.
 3. When the features in `develop` are ready, open a promotion pull request from
-   `develop` to `main`.
+   `develop` to `main` and merge it with a merge commit. This preserves the
+   individual Conventional Commit messages for release-please.
 4. release-please opens or updates a release pull request on `main`. Merge it
    after review and CI; it creates the SemVer tag and GitHub release notes.
 5. The `v*` tag starts the Cloud Run and Firebase Hosting deployment. There is
@@ -69,12 +70,13 @@ manually. Do not create a second manual synchronization pull request.
 Protect both long-lived branches in GitHub. Require a pull request, at least
 one approval, the `CI` jobs and `Pull Request Policy` checks, and disable force
 pushes and branch deletion. Allow squash merges for normal work and allow
-merge commits on `develop` for the synchronization workflow. Configure the
-repository to allow squash and merge commits but not rebase merges; require
-linear history on `main` so normal release work is squash-merged. Enable
-automatic merge and allow GitHub Actions to create pull requests. Required
-reviews still apply to the synchronization PR, so it waits for an approval if
-`develop` is configured with the same review rule. The release workflow and the
+merge commits for promotions and the synchronization workflow. Configure the
+repository to allow squash and merge commits but not rebase merges; normal
+work is squash-merged, while `develop` to `main` promotions use a merge commit.
+Do not require linear history on either long-lived branch. Enable automatic
+merge and allow GitHub Actions to create pull requests. Required reviews still
+apply to the synchronization PR, so it waits for an approval if `develop` is
+configured with the same review rule. The release workflow and the
 synchronization workflow use the `RELEASE_PLEASE_TOKEN` repository secret;
 setup details are in [`docs/deploy-cloudrun.md`](docs/deploy-cloudrun.md). If
 automatic merge cannot be queued, the synchronization workflow fails visibly

@@ -13,6 +13,7 @@
 ## Checklist
 
 - [ ] The pull request target matches the branch policy above.
+- [ ] A normal pull request will be squash-merged; a `develop` to `main` promotion uses a merge commit.
 - [ ] The title follows `type(scope): description` and is written in English.
 - [ ] The appropriate `release:patch`, `release:minor`, or `release:major` label is applied when this change belongs in a release.
 - [ ] Tests and documentation have been updated where necessary.

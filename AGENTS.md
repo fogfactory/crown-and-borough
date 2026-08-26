@@ -15,8 +15,9 @@
   CHANGE` footer for major releases. Maintenance-only commits do not create a
   release unless their type is included in the release changelog.
 - Normal pull requests must be squash-merged with the pull request title kept
-  as the commit subject; the synchronization exception uses a merge commit on
-  `develop`.
+  as the commit subject; promotions from `develop` to `main` and the
+  synchronization exception use merge commits so release-please can see the
+  individual Conventional Commits.
 - Apply exactly one `release:patch`, `release:minor`, or `release:major` label
   to release-bearing work. The pull request policy checks that the label agrees
   with the Conventional Commit title; release-please performs the actual bump.

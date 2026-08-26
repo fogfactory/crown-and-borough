@@ -33,8 +33,9 @@ nouvelle ou modifiée doit être reportée dans les specs correspondantes.
   commits de maintenance seuls ne créent pas de release sauf s'ils sont inclus
   dans le changelog release-please.
 - Les PRs normales sont fusionnées en squash en conservant le titre de la PR
-  comme sujet du commit; la synchronisation fait exception avec un merge
-  commit sur `develop`.
+  comme sujet du commit; les promotions de `develop` vers `main` et la
+  synchronisation font exception avec des merge commits pour que
+  release-please voie les Conventional Commits individuels.
 - Ajouter exactement un label `release:patch`, `release:minor` ou
   `release:major` aux changements destinés à une release. La policy vérifie la
   cohérence du label avec le titre Conventional Commit; release-please calcule
