@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.1](https://github.com/fogfactory/crown-and-borough/compare/v0.4.0...v0.4.1) (2026-08-26)
+
+
+### Bug Fixes
+
+* **deploy:** avoid curl smoke test pipe errors ([7667ae8](https://github.com/fogfactory/crown-and-borough/commit/7667ae8a2d3f3aa663c47ca5d0a7776f6b33ea2b))
+* **deploy:** avoid curl smoke test pipe errors ([4312989](https://github.com/fogfactory/crown-and-borough/commit/431298916dcff003e89d01e190ae3d72227dfc5e))
+
 ## [0.4.0](https://github.com/fogfactory/crown-and-borough/compare/v0.3.1...v0.4.0) (2026-08-26)
 
 
