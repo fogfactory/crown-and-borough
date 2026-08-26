@@ -30,8 +30,26 @@ jobs:
             exit 1
           fi
 
+      - name: Check whether there is content to synchronize
+        id: compare
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed_files="$(gh api \
+            "repos/$GITHUB_REPOSITORY/compare/$BASE_BRANCH...$SOURCE_BRANCH" \
+            --jq '.files | length')"
+          if [[ "$changed_files" == "0" ]]; then
+            echo "main and develop have no content differences"
+            echo "needs_sync=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "needs_sync=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Create or update the synchronization pull request
         id: pull_request
+        if: steps.compare.outputs.needs_sync == 'true'
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         shell: bash
@@ -60,6 +78,7 @@ jobs:
           echo "number=$pr_number" >> "$GITHUB_OUTPUT"
 
       - name: Enable automatic merge
+        if: steps.compare.outputs.needs_sync == 'true'
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         shell: bash
