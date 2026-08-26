@@ -17,6 +17,33 @@ Avant d'implémenter une règle de jeu, lire le GDD. Avant de toucher la stack
 ou les contrats d'API, lire l'architecture. Toute décision de conception
 nouvelle ou modifiée doit être reportée dans les specs correspondantes.
 
+## Workflow Git
+
+- `main` est la branche de release protégée. Les correctifs, améliorations UX,
+  promotions depuis `develop` et PRs release-please y sont intégrés après revue.
+- `develop` est la branche d'intégration protégée. Les features et changements
+  de maintenance y sont intégrés et elle n'est jamais déployée directement.
+- Utiliser `fix/*` ou `bugfix/*` pour un correctif vers `main`, `ux/*` pour une
+  amélioration UX vers `main`, et `feat/*` ou `feature/*` pour une feature vers
+  `develop`.
+- Ne jamais pousser directement sur `main` ou `develop`. Toujours passer par
+  une PR avec revue et CI verte.
+- Les titres de PR suivent `type(scope): description`. `fix` produit un patch,
+  `feat` une mineure, et `!` ou un footer `BREAKING CHANGE` une majeure. Les
+  commits de maintenance seuls ne créent pas de release sauf s'ils sont inclus
+  dans le changelog release-please.
+- Les PRs normales sont fusionnées en squash en conservant le titre de la PR
+  comme sujet du commit; la synchronisation fait exception avec un merge
+  commit sur `develop`.
+- Ajouter exactement un label `release:patch`, `release:minor` ou
+  `release:major` aux changements destinés à une release. La policy vérifie la
+  cohérence du label avec le titre Conventional Commit; release-please calcule
+  le bump effectif.
+- Ne jamais créer de tag de production manuellement. release-please crée le
+  tag SemVer et la GitHub Release après fusion de sa PR.
+- La synchronisation de `main` vers `develop` est automatisée. Ne pas créer de
+  seconde PR de synchronisation; résoudre la PR générée en cas de conflit.
+
 ## Workflow : issue → spécification → implémentation
 
 Les nouveaux bugs et fonctionnalités sont suivis dans GitHub. Avant de coder,

@@ -12,16 +12,19 @@ the container has no volume or local game database.
 
 ## Deployment Model
 
-The workflow has two promotion paths:
+The workflow has one production promotion path:
 
-- A push to `main` builds and pushes an image tagged with the commit SHA. It
-  does not change Cloud Run traffic.
-- A `v*` tag or a confirmed `workflow_dispatch` builds the image, deploys the
-  versioned Firestore rules and indexes, creates a Cloud Run candidate with no
-  service traffic, runs an HTTPS smoke test against its `smoke` tag URL, and
-  routes 100% of traffic to the exact image digest only after the smoke test
-  passes. It then deploys the Firebase Hosting frontend and smoke-tests the
-  memorable Hosting URL.
+- A `v*` tag builds the image, deploys the versioned Firestore rules and
+  indexes, creates a Cloud Run candidate with no service traffic, runs an HTTPS
+  smoke test against its `smoke` tag URL, and routes 100% of traffic to the
+  exact image digest only after the smoke test passes. It then deploys the
+  Firebase Hosting frontend and smoke-tests the memorable Hosting URL.
+
+The `main` branch and the `develop` branch do not deploy by themselves. A
+release tag is created by release-please after its release pull request has
+been reviewed and merged. The deploy workflow intentionally has no manual
+dispatch path, so every production deployment has a SemVer tag and release
+notes.
 
 The first Cloud Run deployment is the exception required by the Cloud Run CLI:
 `--no-traffic` is not accepted while creating a new service. The first revision
@@ -219,8 +222,8 @@ Do not grant the runtime account deployer permissions.
 ## Workload Identity Federation
 
 Create a global WIF pool and an OIDC provider restricted to this repository and
-to the `main` branch or `v*` tags. The condition prevents an unrelated GitHub
-repository from impersonating the deployer account:
+to `v*` tags. The condition prevents an unrelated GitHub repository or a
+non-release branch from impersonating the deployer account:
 
 ```bash
 export WIF_POOL_ID="github-actions"
@@ -238,7 +241,7 @@ gcloud iam workload-identity-pools providers create-oidc "$WIF_PROVIDER_ID" \
   --display-name="GitHub Actions OIDC" \
   --issuer-uri="https://token.actions.githubusercontent.com" \
   --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.ref=assertion.ref" \
-  --attribute-condition="assertion.repository == '$GITHUB_REPOSITORY' && (assertion.ref == 'refs/heads/main' || assertion.ref.startsWith('refs/tags/v'))" \
+  --attribute-condition="assertion.repository == '$GITHUB_REPOSITORY' && assertion.ref.startsWith('refs/tags/v')" \
   --project="$PROJECT_ID"
 
 export WIF_PROVIDER="projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/$WIF_POOL_ID/providers/$WIF_PROVIDER_ID"
@@ -462,6 +465,38 @@ PR. Before the release, set it manually to
 URLs returned by the backend use the memorable domain. The Cloud Run URL stays
 available for diagnostics and rollback.
 
+## GitHub Actions Automation Token
+
+Create a repository secret named `RELEASE_PLEASE_TOKEN`. It is used by
+release-please and by the automatic `main` to `develop` synchronization. A
+fine-grained token for this repository needs `Contents: Read and write`,
+`Pull requests: Read and write`, and `Issues: Read and write` permissions.
+
+This token is intentional. A tag or pull request created with the default
+`GITHUB_TOKEN` does not start subsequent workflows, which would prevent the
+release tag from starting the deployment and would prevent the synchronization
+pull request from running its checks. Do not use a Google service-account key
+as a replacement.
+
+```bash
+gh secret set RELEASE_PLEASE_TOKEN --repo "$GITHUB_REPOSITORY"
+```
+
+The command reads the token without putting it in the repository. Rotate it
+according to the repository's normal credential policy.
+
+Create these repository labels before the first release workflow run:
+
+```bash
+gh label create "release:patch" --repo "$GITHUB_REPOSITORY" --color "1D76DB"
+gh label create "release:minor" --repo "$GITHUB_REPOSITORY" --color "0E8A16"
+gh label create "release:major" --repo "$GITHUB_REPOSITORY" --color "B60205"
+gh label create "autorelease: pending" --repo "$GITHUB_REPOSITORY" --color "FBCA04"
+gh label create "autorelease: tagged" --repo "$GITHUB_REPOSITORY" --color "5319E7"
+```
+
+The labeler can create the `type:*` labels when it first runs.
+
 ## GitHub Actions Variables
 
 Create repository **variables**, not secrets, for the values below. The
@@ -516,11 +551,13 @@ gh variable list --repo "$GITHUB_REPOSITORY"
 
 ## First Promotion
 
-After the workflow and variables are available on `main`, create a release tag:
+After the workflow, release-please configuration, and variables are available
+on `main`, merge the first release-please pull request. release-please creates
+the SemVer tag and GitHub release with release notes. The tag automatically
+starts the deployment workflow:
 
 ```bash
-git tag -a v0.1.0 -m "Deploy v0.1.0"
-git push origin v0.1.0
+gh pr list --repo "$GITHUB_REPOSITORY" --label "autorelease: pending"
 gh run list --repo "$GITHUB_REPOSITORY" --workflow deploy-cloudrun.yml
 gh run watch --repo "$GITHUB_REPOSITORY"
 ```
@@ -534,18 +571,10 @@ real `run.app` URL, and creates a second first-service revision with the real
 origin before running the smoke test. That first-service revision necessarily
 serves normal traffic; subsequent promotions use the isolated `smoke` tag.
 
-For an explicit manual promotion instead of a tag:
-
-```bash
-gh workflow run deploy-cloudrun.yml \
-  --repo "$GITHUB_REPOSITORY" \
-  --ref main \
-  -f confirm_deploy=true
-```
-
-Do not treat a successful image build on `main` as a production deployment.
-Only a successful candidate smoke test followed by the promotion job changes
-service traffic.
+There is no manual deployment trigger. To deploy a previous commit again, make
+the desired release explicit through the release process rather than pushing a
+second tag with an existing name. Only a successful candidate smoke test
+followed by the promotion job changes service traffic.
 
 ## Manual Acceptance Checklist
 

@@ -1,0 +1,18 @@
+"type: feature":
+  - head-branch:
+      - "^(feat|feature)/"
+
+"type: bugfix":
+  - head-branch:
+      - "^(fix|bugfix|hotfix)/"
+
+"type: ux":
+  - head-branch: "^ux/"
+
+"type: maintenance":
+  - head-branch:
+      - "^(chore|docs|refactor|test|ci|build)/"
+
+"type: synchronization":
+  - head-branch:
+      - "^main$"

@@ -2,31 +2,8 @@ name: Deploy Cloud Run
 
 on:
   push:
-    branches:
-      - main
     tags:
       - "v*"
-    paths:
-      - ".dockerignore"
-      - ".github/workflows/deploy-cloudrun.yml"
-      - "Dockerfile"
-      - "Makefile"
-      - "assets/**"
-      - "cmd/**"
-      - "firestore.indexes.json"
-      - "firestore.rules"
-      - "firebase.json"
-      - "go.mod"
-      - "go.sum"
-      - "internal/**"
-      - "web/**"
-  workflow_dispatch:
-    inputs:
-      confirm_deploy:
-        description: Deploy the selected ref to production after the candidate smoke test
-        required: true
-        default: false
-        type: boolean
 
 permissions:
   contents: read
@@ -55,7 +32,6 @@ env:
 jobs:
   build-and-push:
     name: Build and push immutable image
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.confirm_deploy }}
     runs-on: ubuntu-latest
     outputs:
       image: ${{ steps.image.outputs.name }}
@@ -157,7 +133,6 @@ jobs:
   deploy-rules:
     name: Deploy Firestore rules and indexes
     needs: build-and-push
-    if: ${{ (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && (github.event_name != 'workflow_dispatch' || inputs.confirm_deploy) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -185,7 +160,6 @@ jobs:
     needs:
       - build-and-push
       - deploy-rules
-    if: ${{ (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && (github.event_name != 'workflow_dispatch' || inputs.confirm_deploy) }}
     runs-on: ubuntu-latest
     outputs:
       revision: ${{ steps.deploy.outputs.revision }}
@@ -316,7 +290,6 @@ jobs:
   post-deploy-smoke:
     name: Smoke-test the Cloud Run candidate
     needs: deploy-cloudrun
-    if: ${{ (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && (github.event_name != 'workflow_dispatch' || inputs.confirm_deploy) }}
     runs-on: ubuntu-latest
     env:
       CANDIDATE_URL: ${{ needs.deploy-cloudrun.outputs.candidate_url }}
@@ -364,7 +337,6 @@ jobs:
     needs:
       - deploy-cloudrun
       - post-deploy-smoke
-    if: ${{ (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && (github.event_name != 'workflow_dispatch' || inputs.confirm_deploy) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -391,7 +363,6 @@ jobs:
   deploy-hosting:
     name: Deploy Firebase Hosting frontend
     needs: promote-cloudrun
-    if: ${{ (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && (github.event_name != 'workflow_dispatch' || inputs.confirm_deploy) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -436,7 +407,6 @@ jobs:
   post-deploy-hosting-smoke:
     name: Smoke-test the Firebase Hosting URL
     needs: deploy-hosting
-    if: ${{ (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && (github.event_name != 'workflow_dispatch' || inputs.confirm_deploy) }}
     runs-on: ubuntu-latest
     steps:
       - name: Check the public Hosting contract

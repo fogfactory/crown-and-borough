@@ -21,6 +21,86 @@ variables empty, even when `web/.env.local` is configured for the emulator
 flow. `make run-online` and `make compose-up` deliberately use those public
 variables instead.
 
+## Git Workflow
+
+The repository uses two long-lived branches:
+
+| Branch | Role | Deployment |
+| --- | --- | --- |
+| `main` | Protected release branch | A `v*` tag is deployed automatically |
+| `develop` | Protected integration branch for work in progress | Never deployed directly |
+
+Short-lived branches must use a prefix that describes their change:
+
+| Branch | Pull request target | Release label |
+| --- | --- | --- |
+| `fix/*` or `bugfix/*` | `main` | `release:patch` |
+| `ux/*` | `main` | `release:patch` or `release:minor` |
+| `feat/*` or `feature/*` | `develop` | `release:minor` or `release:major` |
+| `chore/*`, `docs/*`, `refactor/*`, `test/*`, `ci/*`, `build/*` | `develop` | No release label unless the change is intentionally released |
+
+Every pull request title follows Conventional Commits, for example
+`fix(api): reject an expired invitation`. The final SemVer bump is determined
+by that title and its breaking-change marker: `fix` and other non-feature
+changes that are included in the changelog produce a patch, `feat` produces a
+minor version, and `!` or a `BREAKING CHANGE` footer produces a major version.
+Maintenance-only commits such as hidden `chore`, `test`, `ci`, or `build`
+changes do not create a release by themselves. The `release:*` label is an
+explicit declaration checked by the pull request policy; it does not replace
+the Conventional Commit title.
+
+The normal flows are:
+
+1. Start `feat/*` work from `develop` and merge it back into `develop`.
+2. Start `fix/*` and `ux/*` work from `main` and merge it into `main`.
+3. When the features in `develop` are ready, open a promotion pull request from
+   `develop` to `main`.
+4. release-please opens or updates a release pull request on `main`. Merge it
+   after review and CI; it creates the SemVer tag and GitHub release notes.
+5. The `v*` tag starts the Cloud Run and Firebase Hosting deployment. There is
+   no deployment on an ordinary push to `main` and no manual deploy trigger.
+
+After every change to `main`, the synchronization workflow prepares a direct
+`main` to `develop` pull request. It requests automatic merge after the checks
+pass. The sync uses a merge commit intentionally, so do not require linear
+history on `develop`; if GitHub reports a conflict, resolve that pull request
+manually. Do not create a second manual synchronization pull request.
+
+Protect both long-lived branches in GitHub. Require a pull request, at least
+one approval, the `CI` jobs and `Pull Request Policy` checks, and disable force
+pushes and branch deletion. Allow squash merges for normal work and allow
+merge commits on `develop` for the synchronization workflow. Configure the
+repository to allow squash and merge commits but not rebase merges; require
+linear history on `main` so normal release work is squash-merged. Enable
+automatic merge and allow GitHub Actions to create pull requests. Required
+reviews still apply to the synchronization PR, so it waits for an approval if
+`develop` is configured with the same review rule. The release workflow and the
+synchronization workflow use the `RELEASE_PLEASE_TOKEN` repository secret;
+setup details are in [`docs/deploy-cloudrun.md`](docs/deploy-cloudrun.md). If
+automatic merge cannot be queued, the synchronization workflow fails visibly
+so the repository settings or the pull request can be corrected.
+
+Create the `release:patch`, `release:minor`, `release:major`,
+`autorelease: pending`, and `autorelease: tagged` labels in the repository. The
+labeler adds a type label from the source branch. The two `autorelease:*`
+labels are used by release-please to track its release pull request.
+
+For the initial setup, create `develop` from the current release branch and
+push it once before enabling branch protection:
+
+```bash
+git fetch --prune origin
+git switch main
+git pull --ff-only origin main
+git switch -c develop
+git push --set-upstream origin develop
+```
+
+Old local branches that have already been merged can be removed with
+`git branch -d <branch>`. Use `git fetch --prune origin` to remove stale remote
+tracking references. Do not delete a worktree that contains uncommitted user
+changes.
+
 ## Multiplayer Mode v1
 
 The development server exposes the legacy hotseat session and, when started

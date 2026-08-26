@@ -1,0 +1,71 @@
+name: Synchronize Main Into Develop
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: sync-main-to-develop
+  cancel-in-progress: false
+
+env:
+  BASE_BRANCH: develop
+  SOURCE_BRANCH: main
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check automation token
+        env:
+          RELEASE_PLEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: |
+          if [[ -z "$RELEASE_PLEASE_TOKEN" ]]; then
+            echo "::error::The RELEASE_PLEASE_TOKEN secret is not configured"
+            exit 1
+          fi
+
+      - name: Create or update the synchronization pull request
+        id: pull_request
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          existing_number="$(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --base "$BASE_BRANCH" \
+            --head "$SOURCE_BRANCH" \
+            --state open \
+            --json number \
+            --jq '.[0].number')"
+
+          if [[ -n "$existing_number" ]]; then
+            echo "number=$existing_number" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          pr_url="$(gh pr create \
+            --repo "$GITHUB_REPOSITORY" \
+            --base "$BASE_BRANCH" \
+            --head "$SOURCE_BRANCH" \
+            --title "chore(sync): synchronize main into develop" \
+            --body "This automated pull request brings the protected release branch main into develop. It must be merged with a merge commit so future synchronizations remain idempotent. Resolve conflicts in this pull request if GitHub cannot merge it automatically.")"
+          pr_number="$(gh pr view "$pr_url" --repo "$GITHUB_REPOSITORY" --json number --jq '.number')"
+          echo "number=$pr_number" >> "$GITHUB_OUTPUT"
+
+      - name: Enable automatic merge
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        shell: bash
+        run: |
+          gh pr merge "${{ steps.pull_request.outputs.number }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --auto \
+            --merge \
+            --delete-branch=false
