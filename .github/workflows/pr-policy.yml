@@ -1,0 +1,109 @@
+name: Pull Request Policy
+
+on:
+  pull_request_target:
+    branches: [main, develop]
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - edited
+      - labeled
+      - unlabeled
+      - converted_to_draft
+      - ready_for_review
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate target branch, title, and release label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pullRequest = context.payload.pull_request;
+            const base = pullRequest.base.ref;
+            const head = pullRequest.head.ref;
+            const errors = [];
+            const labels = new Set(pullRequest.labels.map((label) => label.name));
+            const releaseLabels = [
+              "release:patch",
+              "release:minor",
+              "release:major",
+            ].filter((label) => labels.has(label));
+            const titleMatch = pullRequest.title.match(
+              /^(feat|fix|docs|chore|test|refactor|ci|build|perf|revert)(\([^)]+\))?(!)?:\s+\S.+$/,
+            );
+            const commitType = titleMatch?.[1];
+            const breaking = Boolean(titleMatch?.[3]) ||
+              /BREAKING CHANGE\s*:/i.test(pullRequest.body || "");
+
+            if (!titleMatch) {
+              errors.push(
+                "The pull request title must use Conventional Commits, for example `fix(api): handle invalid orders`.",
+              );
+            }
+
+            if (releaseLabels.length > 1) {
+              errors.push("Select at most one of release:patch, release:minor, and release:major.");
+            }
+
+            const hasLabel = (label) => releaseLabels.includes(label);
+            const requireBase = (expected, description) => {
+              if (base !== expected) {
+                errors.push(`${description} must target ${expected}, not ${base}.`);
+              }
+            };
+
+            if (/^(feat|feature)\//.test(head)) {
+              requireBase("develop", "Feature branches");
+              if (!hasLabel("release:minor") && !hasLabel("release:major")) {
+                errors.push("Feature pull requests need release:minor or release:major.");
+              }
+            } else if (/^(fix|bugfix|hotfix)\//.test(head)) {
+              requireBase("main", "Bugfix branches");
+              if (!hasLabel("release:patch")) {
+                errors.push("Bugfix pull requests need the release:patch label.");
+              }
+            } else if (/^ux\//.test(head)) {
+              requireBase("main", "UX branches");
+              if (!hasLabel("release:patch") && !hasLabel("release:minor")) {
+                errors.push("UX pull requests need release:patch or release:minor.");
+              }
+            } else if (/^(chore|docs|refactor|test|ci|build)\//.test(head)) {
+              requireBase("develop", "Maintenance branches");
+            } else if (head === "develop") {
+              requireBase("main", "Promotion pull requests");
+            } else if (head === "main") {
+              requireBase("develop", "Synchronization pull requests");
+            } else if (/^release-please--/.test(head)) {
+              requireBase("main", "Release Please pull requests");
+            } else if (/^(dependabot|renovate)\//.test(head)) {
+              requireBase("develop", "Dependency update branches");
+            } else {
+              errors.push(
+                "Use a branch prefix that describes the change: feat/, fix/, ux/, chore/, docs/, refactor/, test/, ci/, or build/.",
+              );
+            }
+
+            if (releaseLabels.length === 1 && !head.startsWith("release-please--") &&
+                head !== "develop" && head !== "main") {
+              const selectedLabel = releaseLabels[0];
+              if (selectedLabel === "release:major" && !breaking) {
+                errors.push("release:major requires `!` in the title or a BREAKING CHANGE footer.");
+              }
+              if (selectedLabel === "release:minor" && (commitType !== "feat" || breaking)) {
+                errors.push("release:minor requires a non-breaking feat commit title.");
+              }
+              if (selectedLabel === "release:patch" && (commitType === "feat" || breaking)) {
+                errors.push("release:patch requires a non-feature, non-breaking commit title.");
+              }
+            }
+
+            if (errors.length > 0) {
+              core.setFailed(errors.join("\n"));
+            }
