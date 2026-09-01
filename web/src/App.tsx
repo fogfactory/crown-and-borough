@@ -6,16 +6,17 @@ import { MapViewer } from '@/components/MapViewer'
 import { SelectedTerritoryDetails } from '@/components/SelectedTerritoryDetails'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { OrdersPanel } from '@/components/OrdersPanel'
-import { ReportPanel } from '@/components/ReportPanel'
+import { ReportPane } from '@/components/ReportPane'
 import { Scoreboard } from '@/components/Scoreboard'
 import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
 import { addNobleHeader, hasChainContent } from '@/lib/order-text'
 import { hasSupplySource } from '@/lib/supply'
+import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { VersionBadge } from '@/components/VersionBadge'
 import { LanguageProvider, useLanguage } from '@/i18n/LanguageContext'
 import { firebaseConfigured } from '@/lib/firebase'
 import { OnlineApp } from '@/online/OnlineApp'
-import type { Language, MessageKey, Translate } from '@/i18n/messages'
+import type { Language, Translate } from '@/i18n/messages'
 import {
   Card,
   CardContent,
@@ -34,7 +35,6 @@ import {
 import type {
   MapData,
   PlayerId,
-  Season,
   StateData,
   SupplyLine,
   TurnReport,
@@ -50,13 +50,6 @@ const PLAYER_COUNT_OPTIONS = Array.from(
   { length: MAX_PLAYERS - MIN_PLAYERS + 1 },
   (_, index) => MIN_PLAYERS + index,
 )
-
-const SEASON_KEYS: Record<Season, MessageKey> = {
-  spring: 'season.spring',
-  summer: 'season.summer',
-  autumn: 'season.autumn',
-  winter: 'season.winter',
-}
 
 function ownerLabel(
   owner: PlayerId | null,
@@ -489,7 +482,7 @@ function AppContent() {
                 {state
                   ? t('app.turn', {
                       turn: state.turn,
-                      season: t(SEASON_KEYS[state.season]),
+                      season: t(SEASON_LABEL_KEYS[state.season]),
                     })
                   : t('app.loading')}
               </p>
@@ -707,15 +700,7 @@ function AppContent() {
                 hidden={activePanel !== 'report'}
                 className="min-w-0"
               >
-                {report ? (
-                  <ReportPanel report={report} map={map} players={state?.players ?? []} />
-                ) : (
-                  <div className="flex min-h-36 items-center justify-center rounded-lg border border-dashed border-[#b7a786] bg-[#f8f0e2] px-6 text-center">
-                    <p className="font-serif text-lg italic text-[#806f57]">
-                      {t('app.noReport')}
-                    </p>
-                  </div>
-                )}
+                <ReportPane report={report} map={map} players={state?.players ?? []} />
               </div>
               <div
                 id="rules-panel"

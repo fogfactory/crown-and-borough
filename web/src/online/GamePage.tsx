@@ -12,7 +12,7 @@ import { MapLegend } from '@/components/MapLegend'
 import { MapViewer } from '@/components/MapViewer'
 import { SelectedTerritoryDetails } from '@/components/SelectedTerritoryDetails'
 import { OrdersPanel } from '@/components/OrdersPanel'
-import { ReportPanel } from '@/components/ReportPanel'
+import { ReportPane, type ReportSummary } from '@/components/ReportPane'
 import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
 import { Scoreboard } from '@/components/Scoreboard'
 import { Button } from '@/components/ui/button'
@@ -27,6 +27,7 @@ import { ApiError, apiRequest, type TokenProvider } from '@/lib/api'
 import { hasSupplySource } from '@/lib/supply'
 import { addNobleHeader, hasChainContent } from '@/lib/order-text'
 import { playerDisplayName, type PlayerName } from '@/lib/player-label'
+import { SEASON_LABEL_KEYS } from '@/lib/season'
 import {
   normalizeGameSummary,
   normalizeStateData,
@@ -43,22 +44,9 @@ import type {
   SupplyLine,
   TurnReport,
 } from '@/types'
-import type { MessageKey } from '@/i18n/messages'
-
-const seasonKeys: Record<StateData['season'], MessageKey> = {
-  spring: 'season.spring',
-  summer: 'season.summer',
-  autumn: 'season.autumn',
-  winter: 'season.winter',
-}
 
 type Panel = 'command' | 'report' | 'rules'
 const panelOrder: Panel[] = ['command', 'report', 'rules']
-
-interface ReportSummary {
-  index: number
-  header: TurnReport['header']
-}
 
 interface Invitation {
   gameId: string
@@ -681,7 +669,7 @@ export function GamePage() {
           <p className="mt-1 text-sm text-[#806f57]">
             {t('online.currentTurn', {
               turn: state.turn,
-              season: t(seasonKeys[state.season]),
+              season: t(SEASON_LABEL_KEYS[state.season]),
             })}
           </p>
           <p className="mt-1 text-sm font-semibold uppercase tracking-[0.12em] text-[#a84632]">
@@ -888,44 +876,15 @@ export function GamePage() {
                 hidden={activePanel !== 'report'}
                 className="space-y-4"
               >
-                {reportSummaries.length > 0 && (
-                  <label className="block space-y-1.5 text-sm font-semibold text-[#594b3c]">
-                    <span>{t('online.reportHistory')}</span>
-                    <select
-                      value={
-                        report
-                          ? (reportSummaries.find(
-                              (item) => item.header.turn === report.header.turn,
-                            )?.index ?? '')
-                          : ''
-                      }
-                      onChange={(event) => void loadReport(Number(event.target.value))}
-                      className="h-10 w-full rounded-lg border border-[#b7a786] bg-[#f8f0e2] px-3 text-sm"
-                    >
-                      {reportSummaries.map((item) => (
-                        <option key={item.index} value={item.index}>
-                          {t('online.currentTurn', {
-                            turn: item.header.turn,
-                            season: t(seasonKeys[item.header.season]),
-                          })}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
-                {reportLoading ? (
-                  <p className="text-sm italic text-[#806f57]">{t('online.loading')}</p>
-                ) : reportError ? (
-                  <p role="alert" className="text-sm text-[#8d321e]">
-                    {reportError}
-                  </p>
-                ) : report ? (
-                  <ReportPanel report={report} map={map} players={state.players} />
-                ) : (
-                  <p className="rounded-lg border border-dashed border-[#b7a786] bg-[#f8f0e2] px-4 py-8 text-center font-serif italic text-[#806f57]">
-                    {t('app.noReport')}
-                  </p>
-                )}
+                <ReportPane
+                  report={report}
+                  map={map}
+                  players={state.players}
+                  summaries={reportSummaries}
+                  loading={reportLoading}
+                  error={reportError}
+                  onSelectReport={(index) => void loadReport(index)}
+                />
               </div>
               <div
                 id="rules-panel"
