@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.2](https://github.com/fogfactory/crown-and-borough/compare/v0.4.1...v0.4.2) (2026-09-01)
+
+
+### Bug Fixes
+
+* **online:** converge army and report details with hotseat ([af14e85](https://github.com/fogfactory/crown-and-borough/commit/af14e85c621bd5d318300eca28a683b454a2169d))
+* **online:** converge army details with hotseat ([90a9dfa](https://github.com/fogfactory/crown-and-borough/commit/90a9dfa9d4e2257aeb118b1a42d9581e5da91009))
+
+
+### Refactoring
+
+* **web:** share report pane between hotseat and online ([d783a90](https://github.com/fogfactory/crown-and-borough/commit/d783a90de0779893491a41bb21d87c7336cdb91f))
+
 ## [0.4.1](https://github.com/fogfactory/crown-and-borough/compare/v0.4.0...v0.4.1) (2026-08-26)
 
 
