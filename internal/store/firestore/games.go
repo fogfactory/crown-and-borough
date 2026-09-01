@@ -87,23 +87,19 @@ func (s *FirestoreStore) writeInitialGame(ctx context.Context, snapshot store.Ga
 	batch := s.client.Batch()
 	batch.Set(gameRef(s.client, snapshot.ID), game)
 	batch.Set(canonicalRef(s.client, snapshot.ID), canonical)
-	for _, player := range snapshot.Players {
-		if !isAssignedActor(player.ActorID) {
-			continue
-		}
-		view, err := s.viewDocument(snapshot.ID, player.ActorID, player.ID, snapshot.Revision, snapshot.State, createdAt)
-		if err != nil {
-			return err
-		}
-		batch.Set(viewRef(s.client, snapshot.ID, player.ActorID), view)
+	views, err := s.viewProjections(snapshot.ID, game.Players, snapshot.Revision, snapshot.State, createdAt)
+	if err != nil {
+		return err
+	}
+	for _, projection := range views {
+		batch.Set(viewRef(s.client, snapshot.ID, projection.actorID), projection.document)
 	}
 	_, err = batch.Commit(ctx)
 	if err != nil {
 		return err
 	}
-	assigned := assignedPlayerCount(snapshot.Players)
-	s.recordWrites(2 + assigned)
-	s.recordProjectionWrites(assigned)
+	s.recordWrites(2 + len(views))
+	s.recordProjectionWrites(len(views))
 	return nil
 }
 
@@ -385,6 +381,39 @@ func (s *FirestoreStore) viewDocument(id store.GameID, uid string, playerID mode
 	}, nil
 }
 
+type viewProjection struct {
+	actorID  string
+	playerID models.PlayerID
+	document viewDocument
+}
+
+// viewProjections keeps every assigned actor's private view synchronized with
+// one canonical state snapshot while preserving per-player chain visibility.
+func (s *FirestoreStore) viewProjections(
+	id store.GameID,
+	players []playerDocument,
+	revision store.Revision,
+	state *models.GameState,
+	updatedAt time.Time,
+) ([]viewProjection, error) {
+	views := make([]viewProjection, 0, assignedDocumentPlayerCount(players))
+	for _, player := range players {
+		if !isAssignedActor(player.ActorID) {
+			continue
+		}
+		document, err := s.viewDocument(id, player.ActorID, player.ID, revision, state, updatedAt)
+		if err != nil {
+			return nil, err
+		}
+		views = append(views, viewProjection{
+			actorID:  player.ActorID,
+			playerID: player.ID,
+			document: document,
+		})
+	}
+	return views, nil
+}
+
 func gameDocumentFromSnapshot(snapshot store.GameSnapshot, createdAt, updatedAt time.Time) gameDocument {
 	players := make([]playerDocument, len(snapshot.Players))
 	memberUIDs := make([]string, 0, len(snapshot.Players))
@@ -479,16 +508,6 @@ func sortedSubmittedUIDs(submissions map[models.PlayerID]engine.OrdersInput, pla
 
 func isAssignedActor(actorID string) bool {
 	return actorID != "" && !strings.HasPrefix(actorID, "slot:")
-}
-
-func assignedPlayerCount(players []store.PlayerSlot) int {
-	count := 0
-	for _, player := range players {
-		if isAssignedActor(player.ActorID) {
-			count++
-		}
-	}
-	return count
 }
 
 func assignedDocumentPlayerCount(players []playerDocument) int {

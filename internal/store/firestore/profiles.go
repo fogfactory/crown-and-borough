@@ -235,20 +235,17 @@ func (s *FirestoreStore) refreshGamePlayerName(ctx context.Context, id store.Gam
 		if err := transaction.Set(canonicalRef(s.client, id), canonical); err != nil {
 			return err
 		}
-		for _, player := range game.Players {
-			if !isAssignedActor(player.ActorID) {
-				continue
-			}
-			view, err := s.viewDocument(id, player.ActorID, player.ID, store.Revision(game.Revision), state, now)
-			if err != nil {
-				return err
-			}
-			if err := transaction.Set(viewRef(s.client, id, player.ActorID), view); err != nil {
+		views, err := s.viewProjections(id, game.Players, store.Revision(game.Revision), state, now)
+		if err != nil {
+			return err
+		}
+		for _, projection := range views {
+			if err := transaction.Set(viewRef(s.client, id, projection.actorID), projection.document); err != nil {
 				return err
 			}
 		}
-		s.recordWrites(2 + assignedDocumentPlayerCount(game.Players))
-		s.recordProjectionWrites(assignedDocumentPlayerCount(game.Players))
+		s.recordWrites(2 + len(views))
+		s.recordProjectionWrites(len(views))
 		return nil
 	})
 	return wrapTransactionResult(err)
