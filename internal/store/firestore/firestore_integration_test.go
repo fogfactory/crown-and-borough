@@ -13,6 +13,7 @@ import (
 	cloudfirestore "cloud.google.com/go/firestore"
 	"google.golang.org/grpc/codes"
 
+	"github.com/fogfactory/crown-and-borough/internal/api"
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/store"
@@ -57,7 +58,7 @@ func TestFirestoreStorePersistsAndRestoresATurn(t *testing.T) {
 	created, err := first.CreateWithInvitation(ctx, store.Actor{ID: "alice"}, store.CreateRequest{
 		Name:    "Persistent game",
 		Seed:    "firestore-integration",
-		Players: []engine.PlayerInit{{Name: "Alice"}, {Name: "Bob"}},
+		Players: []engine.PlayerInit{{Name: "Alice"}, {}},
 	})
 	if err != nil {
 		t.Fatalf("create game: %v", err)
@@ -65,11 +66,60 @@ func TestFirestoreStorePersistsAndRestoresATurn(t *testing.T) {
 	if _, err := first.Join(ctx, store.Actor{ID: "bob"}, created.Snapshot.ID, created.Invitation.Code); err != nil {
 		t.Fatalf("join game: %v", err)
 	}
+	creatorViewSnapshot, err := viewRef(first.client, created.Snapshot.ID, "alice").Get(ctx)
+	if err != nil {
+		t.Fatalf("read creator view after join: %v", err)
+	}
+	var creatorView viewDocument
+	if err := creatorViewSnapshot.DataTo(&creatorView); err != nil {
+		t.Fatalf("decode creator view after join: %v", err)
+	}
+	var creatorState api.StateView
+	if err := decodeJSONMap(creatorView.State, &creatorState); err != nil {
+		t.Fatalf("decode creator state after join: %v", err)
+	}
+	foundJoinedPlayer := false
+	for _, player := range creatorState.Players {
+		if player.ID != "P2" {
+			continue
+		}
+		foundJoinedPlayer = true
+		if player.Name != "Bob" {
+			t.Fatalf("creator view player P2 name = %q, want Bob", player.Name)
+		}
+	}
+	if !foundJoinedPlayer {
+		t.Fatal("creator view does not contain player P2")
+	}
 	if _, err := first.EnsureProfile(ctx, store.Actor{ID: "bob", Email: "bob@example.com"}); err != nil {
 		t.Fatalf("ensure Bob profile: %v", err)
 	}
 	if _, err := first.UpdateProfile(ctx, "bob", "Robert"); err != nil {
 		t.Fatalf("update Bob profile: %v", err)
+	}
+	creatorViewSnapshot, err = viewRef(first.client, created.Snapshot.ID, "alice").Get(ctx)
+	if err != nil {
+		t.Fatalf("read creator view after profile update: %v", err)
+	}
+	if err := creatorViewSnapshot.DataTo(&creatorView); err != nil {
+		t.Fatalf("decode creator view after profile update: %v", err)
+	}
+	creatorState = api.StateView{}
+	if err := decodeJSONMap(creatorView.State, &creatorState); err != nil {
+		t.Fatalf("decode creator state after profile update: %v", err)
+	}
+	foundRenamedPlayer := false
+	for _, player := range creatorState.Players {
+		if player.ID != "P2" {
+			continue
+		}
+		foundRenamedPlayer = true
+		if player.Name != "Robert" {
+			t.Fatalf("creator view player P2 name after profile update = %q, want Robert", player.Name)
+		}
+	}
+	if !foundRenamedPlayer {
+		t.Fatal("creator view after profile update does not contain player P2")
 	}
 	updated, err := first.Get(ctx, store.Actor{ID: "bob"}, created.Snapshot.ID)
 	if err != nil {
