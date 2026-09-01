@@ -10,6 +10,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthProvider'
 import { MapLegend } from '@/components/MapLegend'
 import { MapViewer } from '@/components/MapViewer'
+import { SelectedTerritoryDetails } from '@/components/SelectedTerritoryDetails'
 import { OrdersPanel } from '@/components/OrdersPanel'
 import { ReportPanel } from '@/components/ReportPanel'
 import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
@@ -24,8 +25,8 @@ import {
 } from '@/components/ui/card'
 import { ApiError, apiRequest, type TokenProvider } from '@/lib/api'
 import { hasSupplySource } from '@/lib/supply'
-import { formatOrderLabel } from '@/lib/order-label'
 import { addNobleHeader, hasChainContent } from '@/lib/order-text'
+import { playerDisplayName, type PlayerName } from '@/lib/player-label'
 import {
   normalizeGameSummary,
   normalizeStateData,
@@ -93,9 +94,13 @@ function newerSummary(
   }
 }
 
-function ownerName(owner: PlayerId | null, state: StateData, fallback: string): string {
-  if (!owner) return fallback
-  return state.players.find((player) => player.id === owner)?.name ?? owner
+function ownerName(
+  owner: PlayerId | null,
+  state: StateData,
+  preferredPlayers: readonly PlayerName[],
+  fallback: string,
+): string {
+  return playerDisplayName(owner, [preferredPlayers, state.players], fallback)
 }
 
 function internalYear(state: StateData): number {
@@ -364,10 +369,6 @@ export function GamePage() {
   )
   const selectedState =
     state?.territories.find((territory) => territory.id === selectedId) ?? null
-  const selectedOwner =
-    selectedState && state
-      ? ownerName(selectedState.owner, state, t('app.noOwner'))
-      : null
 
   useEffect(() => {
     if (
@@ -653,8 +654,13 @@ export function GamePage() {
     )
   }
 
+  const supplySelectionAllowed =
+    (supplyLine?.kind === 'army' && Boolean(selectedState?.army)) ||
+    (supplyLine?.kind === 'source' &&
+      !selectedState?.army &&
+      hasSupplySource(selectedState ?? undefined))
   const selectedSupplyLine =
-    selectedId && supplyLine?.territory === selectedId ? supplyLine : null
+    supplySelectionAllowed && supplyLine?.territory === selectedId ? supplyLine : null
   const sourceTerritory = selectedSupplyLine?.source
     ? map.territories.find((territory) => territory.id === selectedSupplyLine.source)
     : null
@@ -727,7 +733,8 @@ export function GamePage() {
       )}
       {summary.winner && (
         <div className="rounded-xl border border-[#815f1e]/50 bg-[#f8e8ae]/60 px-4 py-3 text-center text-sm font-semibold text-[#6d5118]">
-          {t('online.victory')}: {ownerName(summary.winner, state, summary.winner)}
+          {t('online.victory')}:{' '}
+          {ownerName(summary.winner, state, summary.players, summary.winner)}
         </div>
       )}
 
@@ -798,109 +805,20 @@ export function GamePage() {
               <div
                 id="command-panel"
                 role="tabpanel"
+                aria-label={t('app.commandPost')}
                 hidden={activePanel !== 'command'}
                 className="space-y-5"
               >
-                {selectedTerritory ? (
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#a84632]">
-                        {selectedTerritory.id}
-                      </p>
-                      <h2 className="mt-1 font-serif text-2xl font-semibold leading-tight">
-                        {selectedTerritory.name}
-                      </h2>
-                      {selectedOwner && (
-                        <p className="mt-1 text-sm text-[#806f57]">
-                          {t('app.control')}: {selectedOwner}
-                        </p>
-                      )}
-                    </div>
-                    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-                      <dt className="text-[#806f57]">{t('app.resources')}</dt>
-                      <dd className="font-medium">{selectedState?.resources ?? 0} R</dd>
-                      <dt className="text-[#806f57]">{t('app.army')}</dt>
-                      <dd className="font-medium">
-                        {selectedState?.army
-                          ? `${selectedState.army.size} · ${ownerName(selectedState.army.owner, state, selectedState.army.owner)}`
-                          : t('app.noArmy')}
-                      </dd>
-                    </dl>
-                    {selectedState?.army?.chain?.visibility === 'hidden' && (
-                      <p className="rounded-md border border-[#b7a786]/50 bg-[#f8f0e2] px-3 py-2 text-xs italic">
-                        {t('app.hiddenChain')}
-                      </p>
-                    )}
-                    {selectedState?.army?.chain &&
-                      selectedState.army.chain.visibility !== 'hidden' && (
-                        <div className="rounded-md border border-[#b7a786]/50 bg-[#f8f0e2] px-3 py-2 text-xs text-[#594b3c]">
-                          <p className="font-semibold uppercase tracking-[0.12em] text-[#806f57]">
-                            {t('app.orderStack')}
-                          </p>
-                          <p className="mt-1">
-                            {t('app.nobleEmitter')}:{' '}
-                            <strong>{selectedState.army.chain.noble}</strong>
-                          </p>
-                          <ol className="mt-2 space-y-1">
-                            {(selectedState.army.chain.orders ?? []).map(
-                              (order, index) => (
-                                <li
-                                  key={`${order.type}-${order.position}-${index}`}
-                                  className="rounded border border-[#b7a786]/40 bg-[#fffaf0] px-2 py-1"
-                                >
-                                  {index + 1}. {formatOrderLabel(order)}
-                                </li>
-                              ),
-                            )}
-                          </ol>
-                        </div>
-                      )}
-                    {selectedState?.army && !selectedState.army.chain && (
-                      <p className="rounded-md border border-[#b7a786]/50 bg-[#f8f0e2] px-3 py-2 text-xs italic text-[#806f57]">
-                        {t('app.noOrders')}
-                      </p>
-                    )}
-                    {selectedState?.army && state.season !== 'winter' && (
-                      <div className="rounded-md border border-[#b7a786]/50 bg-[#f8f0e2] px-3 py-2 text-xs text-[#594b3c]">
-                        <p className="font-semibold uppercase tracking-[0.12em] text-[#806f57]">
-                          {t('app.supply')}
-                        </p>
-                        {supplyLoading ? (
-                          <p className="mt-1 italic text-[#806f57]">
-                            {t('app.supplyCalculating')}
-                          </p>
-                        ) : supplyError ? (
-                          <p className="mt-1 text-[#8d321e]">{supplyError}</p>
-                        ) : selectedSupplyLine?.source ? (
-                          <p className="mt-1">
-                            {t('app.sourceLabel')}{' '}
-                            <strong>
-                              {sourceTerritory?.id ?? selectedSupplyLine.source}
-                            </strong>
-                          </p>
-                        ) : (
-                          <p className="mt-1 text-[#8d321e]">
-                            {t('app.noAccessibleSource')}
-                          </p>
-                        )}
-                        {selectedSupplyLine && (
-                          <p className="mt-1 text-[#806f57]">
-                            {t(
-                              selectedSupplyLine.distance > 1
-                                ? 'app.distances'
-                                : 'app.distance',
-                              { distance: selectedSupplyLine.distance },
-                            )}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="rounded-lg border border-dashed border-[#b7a786] bg-[#f8f0e2] px-4 py-8 text-center font-serif italic text-[#806f57]">
-                    {t('app.selectTerritory')}
-                  </p>
-                )}
+                <SelectedTerritoryDetails
+                  state={state}
+                  selectedTerritory={selectedTerritory}
+                  selectedState={selectedState}
+                  preferredPlayers={summary.players}
+                  selectedSupplyLine={selectedSupplyLine}
+                  sourceTerritory={sourceTerritory}
+                  supplyLoading={supplyLoading}
+                  supplyError={supplyError}
+                />
                 {playerID ? (
                   <OrdersPanel
                     state={state}
@@ -966,6 +884,7 @@ export function GamePage() {
               <div
                 id="report-panel"
                 role="tabpanel"
+                aria-label={t('app.turnReport')}
                 hidden={activePanel !== 'report'}
                 className="space-y-4"
               >
@@ -1008,7 +927,12 @@ export function GamePage() {
                   </p>
                 )}
               </div>
-              <div id="rules-panel" role="tabpanel" hidden={activePanel !== 'rules'}>
+              <div
+                id="rules-panel"
+                role="tabpanel"
+                aria-label={t('app.rules')}
+                hidden={activePanel !== 'rules'}
+              >
                 <RulesPanel
                   gameId={gameId}
                   tokenProvider={tokenProvider}

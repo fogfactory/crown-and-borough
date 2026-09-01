@@ -168,13 +168,20 @@ func (s *FirestoreStore) Join(ctx context.Context, actor store.Actor, id store.G
 		if err := transaction.Set(canonicalDocumentRef, canonical); err != nil {
 			return err
 		}
-		view, err := s.viewDocument(id, actorID, joinedPlayer, revision, state, game.UpdatedAt)
+		// A join changes player metadata in the canonical state. Refresh existing
+		// views too, so connected players do not keep stale slot names.
+		views, err := s.viewProjections(id, game.Players, revision, state, game.UpdatedAt)
 		if err != nil {
 			return err
 		}
-		s.recordWrites(3)
-		s.recordProjectionWrites(1)
-		return transaction.Set(viewRef(s.client, id, actorID), view)
+		for _, projection := range views {
+			if err := transaction.Set(viewRef(s.client, id, projection.actorID), projection.document); err != nil {
+				return err
+			}
+		}
+		s.recordWrites(2 + len(views))
+		s.recordProjectionWrites(len(views))
+		return nil
 	})
 	if errors.Is(err, errAlreadyJoined) {
 		snapshot, snapshotErr := s.Get(operationContext, actor, id)
@@ -464,6 +471,16 @@ func (s *FirestoreStore) commitResolution(ctx context.Context, claim resolutionC
 			Privacy:       privacyMap,
 			CreatedAt:     updatedAt,
 		}
+		views, err := s.viewProjections(
+			snapshot.ID,
+			game.Players,
+			store.Revision(canonical.Revision),
+			report.State,
+			updatedAt,
+		)
+		if err != nil {
+			return err
+		}
 		if err := transaction.Set(canonicalRefValue, canonical); err != nil {
 			return err
 		}
@@ -474,18 +491,11 @@ func (s *FirestoreStore) commitResolution(ctx context.Context, claim resolutionC
 			return err
 		}
 		oldReportDeletes := 0
-		for _, player := range game.Players {
-			if !isAssignedActor(player.ActorID) {
-				continue
-			}
-			view, err := s.viewDocument(snapshot.ID, player.ActorID, player.ID, store.Revision(canonical.Revision), report.State, updatedAt)
-			if err != nil {
+		for _, projection := range views {
+			if err := transaction.Set(viewRef(s.client, snapshot.ID, projection.actorID), projection.document); err != nil {
 				return err
 			}
-			if err := transaction.Set(viewRef(s.client, snapshot.ID, player.ActorID), view); err != nil {
-				return err
-			}
-			filtered := api.ProjectReport(report, player.ID, report.State.Privacy)
+			filtered := api.ProjectReport(report, projection.playerID, report.State.Privacy)
 			filteredMap, err := jsonMap(filtered)
 			if err != nil {
 				return err
@@ -493,14 +503,14 @@ func (s *FirestoreStore) commitResolution(ctx context.Context, claim resolutionC
 			filteredDocument := filteredReportDocument{
 				SchemaVersion: schemaVersion,
 				GameID:        snapshot.ID,
-				UID:           player.ActorID,
+				UID:           projection.actorID,
 				Revision:      canonical.Revision,
 				Turn:          report.Header.Turn,
 				Season:        report.Header.Season,
 				Report:        filteredMap,
 				UpdatedAt:     updatedAt,
 			}
-			if err := transaction.Set(filteredReportRef(s.client, snapshot.ID, player.ActorID, rawReport.Turn), filteredDocument); err != nil {
+			if err := transaction.Set(filteredReportRef(s.client, snapshot.ID, projection.actorID, rawReport.Turn), filteredDocument); err != nil {
 				return err
 			}
 		}
@@ -523,8 +533,8 @@ func (s *FirestoreStore) commitResolution(ctx context.Context, claim resolutionC
 				}
 			}
 		}
-		s.recordWrites(3 + assignedDocumentPlayerCount(game.Players)*2 + len(refs) + oldReportDeletes)
-		s.recordProjectionWrites(assignedDocumentPlayerCount(game.Players) * 2)
+		s.recordWrites(3 + len(views)*2 + len(refs) + oldReportDeletes)
+		s.recordProjectionWrites(len(views) * 2)
 		return nil
 	}))
 }
