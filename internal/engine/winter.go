@@ -45,7 +45,7 @@ func ResolveWinter(
 	firstNameRNG := newWinterRNG(state.Seed, state.Turn)
 	for _, playerID := range sortedPlayerIDs(state.Players) {
 		for _, order := range orders[playerID] {
-			ctx.resolveWinterOrder(playerID, order, firstNameRNG)
+			executeWinterOrder(ctx, playerID, order, firstNameRNG)
 		}
 	}
 	ctx.conserveWinterStocks()

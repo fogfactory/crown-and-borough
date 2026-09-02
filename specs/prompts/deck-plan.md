@@ -35,17 +35,19 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** `go test ./internal/engine/...`
 
-### `[~] 2. Interface d’exécution des ordres d’hiver`
+### `[x] 2. Interface d’exécution des ordres d’hiver`
 
-**Commit prévu :** `refactor(engine): execute winter orders through an interface`
+**Commit :** `refactor(engine): execute winter orders through an interface`
 
-**Contenu attendu :**
+**Contenu réalisé :**
 
 - Introduire une interface moteur `ExecutableOrder` avec `Apply`.
 - Conserver `models.WinterOrder` comme DTO sérialisable.
 - Ajouter une factory DTO → ordre exécutable.
-- Migrer chaque ordre d’hiver existant hors du `switch` central.
-- Faire retourner à `Apply` un résultat d’exécution/rejet sans mutation partielle.
+- Placer chaque implémentation d’ordre dans son propre fichier moteur.
+- Limiter `resolutionContext` aux données, index et primitives génériques.
+- Supprimer les méthodes métier `resolveXXX` de `resolutionContext`.
+- Faire gérer à chaque `Apply` les préconditions et le rejet sans mutation partielle.
 - Documenter la séparation DTO/implémentation dans `specs/architecture.md`.
 
 **Vérifications :** tests moteur complets et `go vet ./...`
