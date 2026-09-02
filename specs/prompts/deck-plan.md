@@ -52,7 +52,22 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** tests moteur complets et `go vet ./...`
 
-### `[ ] 3. Contrats métier deck, cartes, régions et NEUTRAL`
+### `[x] 3. Tests unitaires des ordres d’hiver`
+
+**Commit :** `test(engine): add winter order unit tests`
+
+**Contenu réalisé :**
+
+- Ajouter un fichier de test dédié à chaque implémentation `ExecutableOrder`.
+- Tester directement `Apply` dans le package `engine`.
+- Ajouter une suite table-driven regroupant plusieurs causes de rejet par ordre.
+- Vérifier la raison de rejet et l’absence de mutation de l’état dans chaque cas.
+- Couvrir préconditions, mutations, rejets, événements et paiements.
+- Conserver les tests d’intégration existants de `ResolveWinter`.
+
+**Vérifications :** `go test ./internal/engine/...`
+
+### `[~] 4. Contrats métier deck, cartes, régions et NEUTRAL`
 
 **Commit prévu :** `test(models): add deck, card and region contracts` puis `feat(models): add special deck and region state`
 
@@ -67,7 +82,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** `go test ./internal/models/...`
 
-### `[ ] 4. Balance spéciale et génération canonique du deck`
+### `[ ] 5. Balance spéciale et génération canonique du deck`
 
 **Commit prévu :** `test(assetgen): specify special-order balance validation` puis `feat(assetgen): load and generate special deck balance`
 
@@ -82,7 +97,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** `go test ./internal/db/assetgen/...`
 
-### `[ ] 5. Partition régionale déterministe`
+### `[ ] 6. Partition régionale déterministe`
 
 **Commit prévu :** `test(mapgen): specify deterministic regional partition` puis `feat(mapgen): generate public static regions`
 
@@ -97,7 +112,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** `go test ./internal/engine/mapgen/... ./internal/engine/...`
 
-### `[ ] 6. Parser spécialisé FR/EN`
+### `[ ] 7. Parser spécialisé FR/EN`
 
 **Commit prévu :** `test(engine/orders): specify special-order parsing` puis `feat(engine/orders): parse special orders into executable commands`
 
@@ -112,7 +127,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** tests orders et `go vet ./...`
 
-### `[ ] 7. Registre des cartes et consommation dans Apply`
+### `[ ] 8. Registre des cartes et consommation dans Apply`
 
 **Commit prévu :** `test(engine): specify card consumption and order registry` puis `feat(engine): add card definitions and simultaneous special orders`
 
@@ -127,7 +142,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** tests moteur de cartes et d’atomicité
 
-### `[ ] 8. Pioche hivernale, défausse et augures`
+### `[ ] 9. Pioche hivernale, défausse et augures`
 
 **Commit prévu :** `test(engine): specify draw pile, discard and augury lifecycle` puis `feat(engine): resolve winter card draws and calamity scheduling`
 
@@ -142,7 +157,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** tests moteur, déterminisme et `go vet ./...`
 
-### `[ ] 9. Calamités et résolution saisonnière`
+### `[ ] 10. Calamités et résolution saisonnière`
 
 **Commit prévu :** `test(engine): specify calamity effects` puis `feat(engine): resolve seasonal calamities`
 
@@ -157,7 +172,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** tests moteur complets, déterminisme et pureté
 
-### `[ ] 10. Événements et rapports`
+### `[ ] 11. Événements et rapports`
 
 **Commit prévu :** `feat(engine): add card and calamity events`
 
@@ -172,7 +187,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** `go test ./internal/engine/...`
 
-### `[ ] 11. API, store et confidentialité`
+### `[ ] 12. API, store et confidentialité`
 
 **Commit prévu :** `feat(api/store): expose private cards and public auguries`
 
@@ -186,7 +201,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** tests API/store et `go test ./...`
 
-### `[ ] 12. Frontend cartes, régions et augures`
+### `[ ] 13. Frontend cartes, régions et augures`
 
 **Commit prévu :** `feat(web): add cards, regions and augury UI`
 
@@ -200,7 +215,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** `cd web && npm run test && npm run build && npm run lint`
 
-### `[ ] 13. Documentation joueur et règles finales`
+### `[ ] 14. Documentation joueur et règles finales`
 
 **Commit prévu :** `docs(rules): document special deck and calamities`
 
@@ -215,7 +230,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** tests de contrat documentaire/parser
 
-### `[ ] 14. Validation finale bout-en-bout`
+### `[ ] 15. Validation finale bout-en-bout`
 
 **Commit prévu :** `test(contract): add end-to-end determinism and privacy suite`
 
