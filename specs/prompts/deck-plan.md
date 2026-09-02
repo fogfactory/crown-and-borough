@@ -20,11 +20,11 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 ## Étapes et commits
 
-### `[~] 1. Tests de caractérisation des ordres d’hiver`
+### `[x] 1. Tests de caractérisation des ordres d’hiver`
 
-**Commit prévu :** `test(engine): characterize winter order execution`
+**Commit :** `test(engine): characterize winter order execution` (couvert par les tests existants)
 
-**Contenu attendu :**
+**Contenu réalisé :**
 
 - Compléter les tests de `ResolveWinter` sans modifier le comportement.
 - Couvrir l’ordre des lignes au sein d’un joueur.
@@ -35,7 +35,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** `go test ./internal/engine/...`
 
-### `[ ] 2. Interface d’exécution des ordres d’hiver`
+### `[~] 2. Interface d’exécution des ordres d’hiver`
 
 **Commit prévu :** `refactor(engine): execute winter orders through an interface`
 
