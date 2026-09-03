@@ -65,10 +65,16 @@ type WinterSubmission struct {
 	Lines  string          `json:"lines"`
 }
 
+type DeckSubmission struct {
+	Player models.PlayerID `json:"player"`
+	Text   string          `json:"text"`
+}
+
 // OrdersInput is one complete hotseat turn. All players submit at once.
 type OrdersInput struct {
-	Chains []ChainSubmission  `json:"chains"`
-	Winter []WinterSubmission `json:"winter"`
+	Chains  []ChainSubmission  `json:"chains"`
+	Winter  []WinterSubmission `json:"winter"`
+	Special []DeckSubmission   `json:"special"`
 }
 
 // InputError identifies a client-side submission error. Line is the source
@@ -428,6 +434,7 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 	}
 
 	winterOrders := make(map[models.PlayerID][]models.WinterOrder)
+	deckOrders := make(map[models.PlayerID][]models.DeckOrder)
 	for _, submission := range input.Winter {
 		if !players[submission.Player] {
 			inputErrors.Errors = append(inputErrors.Errors, newInputError(submission.Player, "", 0, "unknown_player", i18n.ErrorUnknownPlayer, submission.Player))
@@ -439,6 +446,19 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 		}
 		if len(parseErrors) == 0 {
 			winterOrders[submission.Player] = append(winterOrders[submission.Player], parsed...)
+		}
+	}
+	for _, submission := range input.Special {
+		if !players[submission.Player] {
+			inputErrors.Errors = append(inputErrors.Errors, newInputError(submission.Player, "", 0, "unknown_player", i18n.ErrorUnknownPlayer, submission.Player))
+			continue
+		}
+		parsed, parseErrors := orders.ParseDeckOrders(submission.Text, game)
+		for _, parseError := range parseErrors {
+			inputErrors.Errors = append(inputErrors.Errors, newInputError(submission.Player, "", parseError.Line, "parse_"+parseError.Code, parseError.MessageKey, parseError.MessageArgs...))
+		}
+		if len(parseErrors) == 0 {
+			deckOrders[submission.Player] = append(deckOrders[submission.Player], parsed...)
 		}
 	}
 
@@ -519,9 +539,9 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 	var resolution Resolution
 	var err error
 	if game.Season == models.SeasonWinter {
-		resolution, err = ResolveWinter(working, balance, winterOrders)
+		resolution, err = ResolveWinterWithDeckOrders(working, balance, winterOrders, deckOrders)
 	} else {
-		resolution, err = Resolve(working, balance)
+		resolution, err = ResolveWithDeckOrders(working, balance, deckOrders)
 	}
 	if err != nil {
 		return TurnReport{}, err

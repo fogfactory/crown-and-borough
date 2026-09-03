@@ -40,7 +40,10 @@ REGLES DE JEU RETENUES :
 - Si une calamite est tiree, elle est programmee dans le premier slot libre de
   l'annee suivante selon l'ordre printemps, ete, hiver. Elle est retiree de la
   pioche, ne va pas dans la main et le tirage continue pour obtenir le droit
-  special demande par `T C`.
+  special demande par `T C`. Sa region cible est tiree de maniere deterministe
+  lors de la programmation et stockee dans la calamite. L'augure de l'annee
+  revele ensuite le kind, la saison et la region de chaque calamite ; les augures
+  futures restent entierement cachees.
 - Si tous les slots de l'annee suivante sont pleins, la calamite tiree est
   defaussee et le tirage continue. La defausse complete peut donc contenir des
   calamites excedentaires et celles-ci peuvent ressortir lors d'un remelange.
@@ -50,12 +53,13 @@ REGLES DE JEU RETENUES :
   capacite de slot pour le printemps, l'ete et l'hiver. La configuration
   initiale est un slot par saison.
 - Les calamites de l'annee sont revelees publiquement au printemps, avec leur
-  saison d'application et leur region. La calamite du printemps est resolue
-  pendant ce tour ; les calamites d'ete et d'hiver restent visibles jusqu'a
-  leur tour.
+  kind, leur saison d'application et leur region. La calamite du printemps est
+  resolue pendant ce tour ; les calamites d'ete et d'hiver restent visibles
+  jusqu'a leur tour.
 - Un ordre bonus est soumis dans le champ de joueur `special`, independamment
-  des chaines de nobles et des investissements d'hiver. Il est autorise pendant
-  le printemps, l'ete, l'automne et l'hiver.
+  des chaines de nobles et des investissements d'hiver. Les cartes jouables sont
+  autorisees pendant le printemps, l'ete et l'automne ; leurs conditions propres
+  sont verifiees avant consommation.
 - Les cartes sont consommees avant la resolution simultanee des ordres d'armee.
   Leurs effets regionaux sont agreges puis appliques avant le ravitaillement et
   l'enumeration des intentions d'armee.

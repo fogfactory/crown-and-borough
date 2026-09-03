@@ -75,7 +75,9 @@ en été et en automne ;
 `D C KIND` et `T C` sont réservés à l’hiver. La limite de main, la limite de
 tirages, la taille et la composition du deck, ainsi que les capacités des slots
 de calamité, sont chargées depuis `assets/balance.yaml`. La génération initiale du deck est déterministe à partir
-de la seed de partie. Les investissements territoriaux exigent le contrôle du
+de la seed de partie. Au printemps, l’augure révèle le kind, la saison et la
+région de toutes les calamités de l’année ; les augures futures restent cachées.
+Les investissements territoriaux exigent le contrôle du
 territoire ciblé. Le
 recrutement d'une troupe exige en outre un noble libre du joueur, situé sur la
 cible ou sur un territoire adjacent à celle-ci par une frontière franchissable.

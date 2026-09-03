@@ -22,6 +22,15 @@ func ResolveWinter(
 	balance assetgen.Balance,
 	orders map[models.PlayerID][]models.WinterOrder,
 ) (Resolution, error) {
+	return ResolveWinterWithDeckOrders(game, balance, orders, nil)
+}
+
+func ResolveWinterWithDeckOrders(
+	game *models.GameState,
+	balance assetgen.Balance,
+	orders map[models.PlayerID][]models.WinterOrder,
+	deckOrders map[models.PlayerID][]models.DeckOrder,
+) (Resolution, error) {
 	if game == nil {
 		return Resolution{}, fmt.Errorf("engine: resolve winter: nil game state")
 	}
@@ -37,6 +46,9 @@ func ResolveWinter(
 	if err := validateWinterPlayers(game, orders); err != nil {
 		return Resolution{}, err
 	}
+	if err := validateDeckOrders(game, balance, deckOrders); err != nil {
+		return Resolution{}, err
+	}
 
 	state := cloneGameState(game)
 	ctx := newResolutionContext(state, balance)
@@ -47,6 +59,7 @@ func ResolveWinter(
 			executeWinterOrder(ctx, playerID, order, firstNameRNG)
 		}
 	}
+	resolveWinterDeckOrders(ctx, deckOrders)
 	ctx.conserveWinterStocks()
 	ctx.repatriateWinterStocks()
 	ctx.emitWinterStockEvents(stockBefore)

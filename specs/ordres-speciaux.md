@@ -20,7 +20,8 @@ son effet et les informations visibles par les autres joueurs.
 Un tirage peut déclencher une calamité. Le nombre maximal de calamités est de
 trois par année, même si plusieurs cartes sont tirées. La règle devra définir la
 pioche, le renouvellement, les défausses et la résolution déterministe des
-calamités.
+calamités. L’augure du printemps révèle pour chaque calamité son kind, sa saison
+et sa région ; les augures futures restent cachées.
 
 ## Syntaxe des ordres
 

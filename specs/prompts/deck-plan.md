@@ -154,14 +154,17 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 ### `[~] 9. Pioche hivernale, défausse et augures`
 
-**Commit prévu :** `test(engine): specify draw pile, discard and augury lifecycle` puis `feat(engine): resolve winter card draws and calamity scheduling`
+**Commit prévu :** `feat(engine): resolve winter card draws and calamity scheduling` (tests écrits en premier dans l’arbre de travail)
 
 **Contenu attendu :**
 
 - Ajouter le pipeline deck/main/défausse dans `ResolveWinter` pour les commandes `D C` et `T C`.
 - Implémenter la limite de deux `T C`, la main pleine et le tirage après calamité.
 - Faire transiter `P` dans la soumission `special`, séparée des investissements d’hiver.
+- Appliquer les ordres `P` des saisons d’action avant supply et intentions d’armée.
 - Programmer les calamités dans le premier slot libre de l’année suivante.
+- Tirer et stocker leur région cible de manière déterministe lors de la programmation.
+- Révéler au printemps le kind, la saison et la région de toutes les calamités de l’année ; les augures futures restent cachées.
 - Implémenter le remélange déterministe de la défausse complète.
 - Révéler l’augure au printemps uniquement.
 - Mettre à jour `specs/gdd.md` et `specs/ordres-speciaux.md`.
