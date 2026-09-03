@@ -49,6 +49,9 @@ type GameState struct {
 	NextArmyID      int                            `json:"nextArmyId"`
 	Infrastructures []Infrastructure               `json:"infrastructures"`
 	TerritoryStates map[TerritoryID]TerritoryState `json:"territoryStates"`
+	Regions         []Region                       `json:"regions"`
+	SpecialDeck     *SpecialDeck                   `json:"specialDeck,omitempty"`
+	Auguries        map[int]YearAugury             `json:"auguries"`
 }
 
 // NewGameState returns a fresh empty state at turn 1, spring of year 1, with
@@ -72,6 +75,8 @@ func NewGameState() *GameState {
 		NextArmyID:      1,
 		Infrastructures: []Infrastructure{},
 		TerritoryStates: map[TerritoryID]TerritoryState{},
+		Regions:         []Region{},
+		Auguries:        map[int]YearAugury{},
 	}
 }
 
@@ -178,8 +183,11 @@ func (g *GameState) Validate() error {
 		if _, dup := armies[army.ID]; dup {
 			return fmt.Errorf("models: army %q: duplicate id", army.ID)
 		}
-		if !players[army.OwnerID] {
+		if army.OwnerID != NeutralPlayerID && !players[army.OwnerID] {
 			return fmt.Errorf("models: army %q: unknown owner %q", army.ID, army.OwnerID)
+		}
+		if army.OwnerID == NeutralPlayerID && army.ChainID != nil {
+			return fmt.Errorf("models: army %q: neutral army cannot have a chain", army.ID)
 		}
 		if terrs[army.TerritoryID] == nil {
 			return fmt.Errorf("models: army %q: unknown territory %q", army.ID, army.TerritoryID)
@@ -253,6 +261,9 @@ func (g *GameState) Validate() error {
 		}
 		if armies[chain.ArmyID] == nil {
 			return fmt.Errorf("models: chain %q: unknown army %q", chain.ID, chain.ArmyID)
+		}
+		if armies[chain.ArmyID].OwnerID == NeutralPlayerID {
+			return fmt.Errorf("models: chain %q: neutral army cannot have a chain", chain.ID)
 		}
 		if nobleOwners[chain.NobleID] != armies[chain.ArmyID].OwnerID {
 			return fmt.Errorf("models: chain %q: noble %q does not own army %q", chain.ID, chain.NobleID, chain.ArmyID)
@@ -483,6 +494,9 @@ func (g *GameState) Validate() error {
 		if state.OwnerID == nil || *state.OwnerID != player.ID {
 			return fmt.Errorf("models: player %q: capital castle %q is not controlled by its owner", player.ID, *player.CapitalCastleID)
 		}
+	}
+	if err := validateSpecialDeck(g.SpecialDeck, g.Auguries, players); err != nil {
+		return err
 	}
 	if err := validatePrivacy(g.Privacy, players); err != nil {
 		return err

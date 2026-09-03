@@ -67,22 +67,23 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** `go test ./internal/engine/...`
 
-### `[~] 4. Contrats métier deck, cartes, régions et NEUTRAL`
+### `[x] 4. Contrats métier deck, cartes, régions et NEUTRAL`
 
-**Commit prévu :** `test(models): add deck, card and region contracts` puis `feat(models): add special deck and region state`
+**Commit :** `feat(models): add special deck and region state` (tests écrits en premier dans l’arbre de travail)
 
-**Contenu attendu :**
+**Contenu réalisé :**
 
 - Tester puis ajouter `CardKind`, `SpecialCardID`, `RegionID`, `Region`, `SpecialCard`, `SpecialDeck`, `Calamity` et `YearAugury`.
 - Étendre `GameState.Validate` : références, unicité et localisation exclusive des cartes.
 - Garantir que les mains ne contiennent que des bonus.
+- Laisser la connexité, la couverture et la cohérence géographique des régions à `mapgen`.
 - Autoriser `NeutralPlayerID` uniquement pour les armées.
 - Exclure `NEUTRAL` des joueurs, chaînes, soumissions et scores.
 - Préserver la lecture des anciens états sans cartes.
 
 **Vérifications :** `go test ./internal/models/...`
 
-### `[ ] 5. Balance spéciale et génération canonique du deck`
+### `[~] 5. Balance spéciale et génération canonique du deck`
 
 **Commit prévu :** `test(assetgen): specify special-order balance validation` puis `feat(assetgen): load and generate special deck balance`
 
