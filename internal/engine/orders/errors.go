@@ -27,6 +27,10 @@ const (
 	ParseCodeUnclosedParenthesis = "unclosed_parenthesis"
 	// ParseCodeInvalidAmount identifies a missing, malformed, or non-positive resource amount.
 	ParseCodeInvalidAmount = "invalid_amount"
+	// ParseCodeSpecialKind identifies an unknown or non-playable card kind.
+	ParseCodeSpecialKind = "special_kind"
+	// ParseCodeSpecialRegion identifies an unknown region seed.
+	ParseCodeSpecialRegion = "special_region"
 )
 
 var (

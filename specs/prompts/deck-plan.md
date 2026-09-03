@@ -113,14 +113,15 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** `go test ./internal/engine/mapgen/... ./internal/engine/...`
 
-### `[~] 7. Parser spécialisé FR/EN`
+### `[x] 7. Parser spécialisé FR/EN`
 
-**Commit prévu :** `test(engine/orders): specify special-order parsing` puis `feat(engine/orders): parse special orders into executable commands`
+**Commit :** `feat(engine/orders): parse special orders into executable commands` (tests écrits en premier dans l’arbre de travail)
 
-**Contenu attendu :**
+**Contenu réalisé :**
 
-- Tester les syntaxes de défausse, pioche et jeu de cartes.
-- Tester aliases FR/EN, casse, commentaires, arités, seeds et kinds interdits.
+- Tester `D C <KIND>` pour défausse, `T C` pour pioche et `P/J KIND TER` pour jeu.
+- Tester l’absence de collision avec `R N/T XXX`, `P N NNN` et `J` de jonction.
+- Tester aliases de kinds FR/EN, casse, commentaires, arités, seeds et kinds interdits.
 - Ajouter les DTO de soumission spéciale, distincts des chaînes et investissements.
 - Ajouter les codes d’erreur et messages localisés.
 - Ajouter la factory des ordres spéciaux.
@@ -128,7 +129,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** tests orders et `go vet ./...`
 
-### `[ ] 8. Registre des cartes et consommation dans Apply`
+### `[~] 8. Registre des cartes et consommation dans Apply`
 
 **Commit prévu :** `test(engine): specify card consumption and order registry` puis `feat(engine): add card definitions and simultaneous special orders`
 

@@ -22,6 +22,19 @@ trois par année, même si plusieurs cartes sont tirées. La règle devra défin
 pioche, le renouvellement, les défausses et la résolution déterministe des
 calamités.
 
+## Syntaxe des ordres
+
+Les ordres spéciaux sont des lignes de joueur distinctes des chaînes de nobles :
+
+- `D C BT` ou `D C RA` abandonne une carte bonus ;
+- `T C` tire une carte en hiver ;
+- `P BT TER` / `J BT TER` joue Beau temps ;
+- `P RA TER` / `J RA TER` joue Récolte abondante.
+
+Les aliases français et anglais sont acceptés quelle que soit la langue de
+l’interface. `TER` est obligatoirement le village seed d’une région. Les kinds
+de calamité ne peuvent pas être joués comme ordres de joueur.
+
 ## Cartes prévues
 
 Le deck pourra accueillir notamment des impôts, des mariages, des assassinats,
