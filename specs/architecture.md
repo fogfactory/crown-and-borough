@@ -419,8 +419,11 @@ BRI D BRI ATL NOR
 ```
 
 Les ordres d'hiver v1 sont limités à `R N`, `R T`, `C M`, `C C`, `C D`, `E C`,
-`O N`, `P N` et `L N`. Les infrastructures absentes du modèle v1 ne possèdent
-ni symbole de parser ni coût dans `balance.yaml`.
+`O N`, `P N` et `L N`, auxquels s’ajoutent les lignes d’ordres spéciaux
+parsées dans un DTO distinct : `D C KIND`, `T C`, `P KIND TER` et
+`J KIND TER`. Les ordres spéciaux ne sont jamais intégrés à la grammaire des
+chaînes de nobles. Les infrastructures absentes du modèle v1 ne possèdent ni
+symbole de parser ni coût dans `balance.yaml`.
 
 ## 8. Assets et balance
 

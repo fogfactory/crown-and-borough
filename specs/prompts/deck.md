@@ -260,9 +260,9 @@ calamites et les tests existants du socle.
 
      | Concept | Francais | Anglais |
      |---|---|---|
-     | Abandonner une carte | `D C <KIND>` | `R C <KIND>` (Remove Card) |
-     | Tirer une carte | `T C` | `D C` (Draw Card) |
-     | Jouer une carte | `P ...` | `P ...` (Play) |
+      | Abandonner une carte | `D C <KIND>` | `D C <KIND>` (Discard Card) |
+      | Tirer une carte | `T C` | `T C` (Take Card) |
+      | Jouer une carte | `P ...` ou `J ...` | `P ...` ou `J ...` (Play) |
      | Beau temps | `BT` | `FW` (Fair Weather) |
      | Recolte abondante | `RA` | `AH` (Abundant Harvest) |
      | Peste, affichage | `PE` | `PL` (Plague) |
@@ -270,10 +270,11 @@ calamites et les tests existants du socle.
      | Revolte, affichage | `RE` | `RV` (Revolt) |
      | Famine, affichage | `FA` | `FN` (Famine) |
 
-   - Le parseur reconnait les formes FR et EN, en majuscules ou minuscules
-     apres la normalisation existante. La distinction `D C` anglais (tirage)
-     et `D C <KIND>` francais (defausse) se fait par la forme de la ligne ; la
-     forme anglaise de defausse recommandee reste `R C <KIND>`.
+    - Le parseur reconnait les formes FR et EN, en majuscules ou minuscules
+      apres la normalisation existante. `D C <KIND>` signifie toujours
+      defausser une carte, tandis que `T C` signifie toujours tirer. `P` et `J`
+      sont acceptes pour jouer une carte ; `J` reste une jonction uniquement
+      dans la grammaire des chaines.
    - Ajouter des messages a `internal/i18n/catalog.go` et aux catalogues
      frontend pour la forme, le kind inconnu, le seed inconnu, l'absence de
      carte, la limite de pioche et l'ordre special interdit dans la saison.
@@ -287,9 +288,9 @@ calamites et les tests existants du socle.
    - Ajouter a `engine.OrdersInput` une soumission de joueur pour les ordres
      speciaux d'action, avec la meme discipline d'identite que les soumissions
      de chaine et d'hiver. Faire transiter ce champ par l'API et le store.
-   - La feuille d'hiver existante accepte les investissements actuels et les
-     lignes `D C <KIND>`, `R C <KIND>`, `T C`, `D C`, `P BT <TER>` et
-     `P RA <TER>` / leurs aliases anglais.
+    - La feuille d'hiver existante accepte les investissements actuels et les
+      lignes `D C <KIND>`, `T C`, `P BT <TER>` ou `J BT <TER>` et
+      `P RA <TER>` ou `J RA <TER>` / leurs aliases anglais.
    - Les lignes de la feuille d'hiver sont traitees dans l'ordre textuel, et
      les joueurs sont traites selon l'ordre deterministe deja utilise par
      `ResolveWinter`. Cela permet a un `D C` avant `T C` de liberer une place,
@@ -522,9 +523,9 @@ calamites et les tests existants du socle.
      resolues au tour de leur saison.
    - Documenter la distinction entre :
      - les lignes d'investissement d'hiver ;
-     - `D C <KIND>` / `R C <KIND>` pour abandonner ;
-     - `T C` / `D C` pour tirer ;
-     - `P BT TER` / `P FW TER` et `P RA TER` / `P AH TER` pour jouer un bonus.
+      - `D C <KIND>` pour abandonner / discard ;
+      - `T C` pour tirer / take ;
+      - `P BT TER` / `J BT TER` et `P RA TER` / `J RA TER` pour jouer un bonus.
    - Preciser que `P BT TER` et `P RA TER` sont des ordres de joueur, pas des
      ordres dans une chaine de noble, et que `TER` est obligatoirement un
      village seed initial.
