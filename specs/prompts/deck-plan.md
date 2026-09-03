@@ -83,11 +83,11 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** `go test ./internal/models/...`
 
-### `[~] 5. Balance spéciale et génération canonique du deck`
+### `[x] 5. Balance spéciale et génération canonique du deck`
 
-**Commit prévu :** `test(assetgen): specify special-order balance validation` puis `feat(assetgen): load and generate special deck balance`
+**Commit :** `feat(assetgen): load and generate special deck balance` (tests écrits en premier dans l’arbre de travail)
 
-**Contenu attendu :**
+**Contenu réalisé :**
 
 - Ajouter `special_orders` à `Balance` et `rawBalance`.
 - Tester les clés obligatoires/inconnues, slots, pourcentage divisible, poids et bornes.
@@ -96,9 +96,9 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 - Ne pas générer les cartes placeholder.
 - Mettre à jour `assets/balance.yaml` et la documentation de balance.
 
-**Vérifications :** `go test ./internal/db/assetgen/...`
+**Vérifications :** `go test ./...`, `go vet ./...`
 
-### `[ ] 6. Partition régionale déterministe`
+### `[~] 6. Partition régionale déterministe`
 
 **Commit prévu :** `test(mapgen): specify deterministic regional partition` puis `feat(mapgen): generate public static regions`
 
@@ -173,7 +173,22 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** tests moteur complets, déterminisme et pureté
 
-### `[ ] 11. Événements et rapports`
+### `[ ] 11. Rumeurs publiques`
+
+**Commit prévu :** `feat(engine): add public winter rumors`
+
+**Contenu attendu :**
+
+- Produire une rumeur uniquement si au moins deux joueurs distincts ont tiré une carte bonus pendant l’hiver.
+- Appliquer une probabilité de 50 % avec un RNG dérivé déterministe de la seed, du tour et des joueurs concernés.
+- Produire une rumeur indicative du kind tiré sans exposer le joueur, son ordre, son ID de carte ou sa main.
+- Ajouter plusieurs formulations FR/EN par kind dans les catalogues existants.
+- Ajouter `Rumors` à `WinterReport` et préserver la possibilité d’un filtrage futur par score d’espionnage.
+- Tester absence de rumeur avec un seul joueur, tirage raté à 50 %, déterminisme et absence d’identité dans le payload.
+
+**Vérifications :** `go test ./internal/engine/...`
+
+### `[ ] 12. Événements et rapports`
 
 **Commit prévu :** `feat(engine): add card and calamity events`
 
@@ -188,7 +203,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** `go test ./internal/engine/...`
 
-### `[ ] 12. API, store et confidentialité`
+### `[ ] 13. API, store et confidentialité`
 
 **Commit prévu :** `feat(api/store): expose private cards and public auguries`
 
@@ -202,7 +217,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** tests API/store et `go test ./...`
 
-### `[ ] 13. Frontend cartes, régions et augures`
+### `[ ] 14. Frontend cartes, régions et augures`
 
 **Commit prévu :** `feat(web): add cards, regions and augury UI`
 
@@ -216,22 +231,35 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** `cd web && npm run test && npm run build && npm run lint`
 
-### `[ ] 14. Documentation joueur et règles finales`
+### `[ ] 15. Règles joueurs rendues depuis la balance`
+
+**Commit prévu :** `feat(assetgen): render balance-backed player rules`
+
+**Contenu attendu :**
+
+- Transformer `assets/regles-joueurs.md` et `.en.md` en templates paramétrés.
+- Injecter depuis `balance.yaml` la taille du deck, la composition par kind, la limite de main, la limite de tirage, les capacités de slots et les bornes d’effets.
+- Rendre les nombres avec la même méthode de répartition que le moteur.
+- Tester les deux langues et l’absence de valeurs de balance codées en dur.
+- Conserver les documents de règles indépendants des projections privées de partie.
+
+**Vérifications :** tests assetgen/API de rendu des règles
+
+### `[ ] 16. Documentation joueur et règles finales`
 
 **Commit prévu :** `docs(rules): document special deck and calamities`
 
 **Contenu attendu :**
 
 - Finaliser `specs/ordres-speciaux.md`.
-- Mettre à jour `assets/regles-joueurs.md` et `assets/regles-joueurs.en.md`.
-- Documenter exemples jouables, aliases, deck, main, défausse, tirage, slots,
-  régions, effets et annulations.
+- Mettre à jour `assets/regles-joueurs.md` et `assets/regles-joueurs.en.md` avec les placeholders et leur rendu.
+- Documenter exemples jouables, aliases, deck, composition calculée, main, défausse, tirage, slots, régions, effets et annulations.
 - Vérifier que les exemples documentés sont acceptés par les tests parser.
 - Documenter les futures cartes politiques, religieuses et de succession comme hors périmètre.
 
 **Vérifications :** tests de contrat documentaire/parser
 
-### `[ ] 15. Validation finale bout-en-bout`
+### `[ ] 17. Validation finale bout-en-bout`
 
 **Commit prévu :** `test(contract): add end-to-end determinism and privacy suite`
 

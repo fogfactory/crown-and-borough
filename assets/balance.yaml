@@ -40,3 +40,29 @@ costs:
 starting_nobles: 1
 starting_troops: 2
 starting_resources: 10
+
+special_orders:
+  hand_limit: 4
+  draw_orders_limit: 2
+  deck_size: 30
+  calamity_percentage: 30
+  calamity_slots:
+    spring: 1
+    summer: 1
+    winter: 1
+  calamity_weights:
+    plague: 1
+    bad_weather: 6
+    revolt: 4
+    famine: 4
+  bonus_weights:
+    fair_weather: 1
+    abundant_harvest: 1
+  effects:
+    plague_army_divisor: 2
+    plague_noble_mortality_percentage: 50
+    revolt_army_count: 3
+    revolt_army_min_size: 2
+    revolt_army_max_size: 3
+    bonus_mill_production: 1
+    bonus_army_ration: 1

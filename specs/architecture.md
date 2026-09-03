@@ -422,8 +422,8 @@ Les assets sont chargés au démarrage et validés avant de créer la session :
 - `communes.csv` fournit les noms, codes et affinités de terrain ;
 - `prenoms.csv` fournit les noms et codes de nobles ;
 - `balance.yaml` fournit les coûts, productions, portées, rations, bonus de
-  défense, bonus de commandement noble et valeurs de départ utilisés par le
-  moteur.
+  défense, bonus de commandement noble, valeurs de départ et paramètres du
+  deck d’ordres spéciaux utilisés par le moteur.
 
 Les paramètres numériques ne doivent pas être recopiés dans les handlers ou
 le front. Le moteur reçoit une `assetgen.Balance` déjà chargée.

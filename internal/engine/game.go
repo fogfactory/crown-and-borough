@@ -225,6 +225,17 @@ func CreateGameWithYears(seed string, players []PlayerInit, yearCount int, balan
 		state.Players = append(state.Players, models.Player{ID: playerID, Name: name, Color: color})
 	}
 
+	specialDeck, err := buildSpecialDeck(seed, balance)
+	if err != nil {
+		return nil, fmt.Errorf("engine: build special deck: %w", err)
+	}
+	if specialDeck != nil {
+		for _, player := range state.Players {
+			specialDeck.Hands[player.ID] = []models.SpecialCardID{}
+		}
+		state.SpecialDeck = specialDeck
+	}
+
 	starts, err := SelectStartingTerritories(nonVillageIDs, adjacencies, len(players))
 	if err != nil {
 		return nil, fmt.Errorf("engine: select starting territories: %w", err)

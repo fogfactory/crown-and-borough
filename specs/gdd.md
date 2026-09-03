@@ -65,7 +65,13 @@ liste d'investissements directs, traités dans l'ordre saisi :
 - `L N NNN` — libérer le noble de code `NNN`.
 
 `XXX` est le trigramme du territoire ciblé, sauf pour `O N`, `P N` et `L N`,
-qui ciblent un noble. Les investissements territoriaux exigent le contrôle du
+qui ciblent un noble.
+
+La feuille d’hiver pourra également gérer la pioche commune des ordres spéciaux.
+La limite de main, la limite de tirages, la taille et la composition du deck,
+ainsi que les capacités des slots de calamité, sont chargées depuis
+`assets/balance.yaml`. La génération initiale du deck est déterministe à partir
+de la seed de partie. Les investissements territoriaux exigent le contrôle du
 territoire ciblé. Le
 recrutement d'une troupe exige en outre un noble libre du joueur, situé sur la
 cible ou sur un territoire adjacent à celle-ci par une frontière franchissable.
