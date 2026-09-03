@@ -127,6 +127,13 @@ La carte est statique pour une partie et commune à tous les clients :
       "adjacencies": ["BOI"],
       "impassable": ["FOU"]
     }
+  ],
+  "regions": [
+    {
+      "id": "ROS",
+      "seed": "ROS",
+      "territories": ["ROS", "BOI"]
+    }
   ]
 }
 ```

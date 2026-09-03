@@ -98,11 +98,11 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** `go test ./...`, `go vet ./...`
 
-### `[~] 6. Partition régionale déterministe`
+### `[x] 6. Partition régionale déterministe`
 
-**Commit prévu :** `test(mapgen): specify deterministic regional partition` puis `feat(mapgen): generate public static regions`
+**Commit :** `feat(mapgen): generate public static regions` (tests écrits en premier dans l’arbre de travail)
 
-**Contenu attendu :**
+**Contenu réalisé :**
 
 - Tester N+1 villages, BFS multi-source, couverture, disjonction et connexité.
 - Tester le tie-break par trigramme et la reproductibilité.
@@ -113,7 +113,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** `go test ./internal/engine/mapgen/... ./internal/engine/...`
 
-### `[ ] 7. Parser spécialisé FR/EN`
+### `[~] 7. Parser spécialisé FR/EN`
 
 **Commit prévu :** `test(engine/orders): specify special-order parsing` puis `feat(engine/orders): parse special orders into executable commands`
 

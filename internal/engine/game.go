@@ -167,6 +167,7 @@ func CreateGameWithYears(seed string, players []PlayerInit, yearCount int, balan
 	state.YearCount = yearCount
 	state.Territories = make([]models.Territory, 0, len(mapData.Territories))
 	state.TerritoryStates = make(map[models.TerritoryID]models.TerritoryState, len(mapData.Territories))
+	state.Regions = append([]models.Region(nil), mapData.Regions...)
 
 	villageIDs := make([]models.TerritoryID, 0)
 	nonVillageIDs := make([]models.TerritoryID, 0)
