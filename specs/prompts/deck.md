@@ -270,7 +270,7 @@ calamites et les tests existants du socle.
      |---|---|---|
       | Abandonner une carte | `D C <KIND>` | `D C <KIND>` (Discard Card) |
       | Tirer une carte | `T C` | `T C` (Take Card) |
-      | Jouer une carte | `P ...` ou `J ...` | `P ...` ou `J ...` (Play) |
+      | Jouer une carte | `P ...` | `P ...` (Play / Poser) |
      | Beau temps | `BT` | `FW` (Fair Weather) |
      | Recolte abondante | `RA` | `AH` (Abundant Harvest) |
      | Peste, affichage | `PE` | `PL` (Plague) |
@@ -280,8 +280,8 @@ calamites et les tests existants du socle.
 
     - Le parseur reconnait les formes FR et EN, en majuscules ou minuscules
       apres la normalisation existante. `D C <KIND>` signifie toujours
-      defausser une carte, tandis que `T C` signifie toujours tirer. `P` et `J`
-      sont acceptes pour jouer une carte ; `J` reste une jonction uniquement
+      defausser une carte, tandis que `T C` signifie toujours tirer. `P` est
+      l'unique symbole pour jouer une carte ; `J` reste une jonction uniquement
       dans la grammaire des chaines.
    - Ajouter des messages a `internal/i18n/catalog.go` et aux catalogues
      frontend pour la forme, le kind inconnu, le seed inconnu, l'absence de
@@ -364,9 +364,10 @@ calamites et les tests existants du socle.
      - inclure les armees `NEUTRAL` dans cet effet ;
      - effectuer un seul tirage deterministe par noble present dans la region
        au debut de la saison, avec une probabilite issue de la balance ;
-     - representer une issue mortelle dans le modele v1 par le statut
-       `dungeon`, en conservant le noble a sa position. Produire un evenement
-       explicite et ne pas inventer une nouvelle regle de succession.
+      - supprimer le noble en cas d'issue mortelle, en conservant ses donnees
+        dans l'evenement de resolution. Ne pas inventer une nouvelle regle de
+succession. Une chaîne émise pendant le tour par ce noble est supprimée ; une chaîne historique déjà en cours continue sa résolution.
+
      - appliquer la reduction de taille avant le ravitaillement et les combats,
        et traiter la mortalite noble en fin de saison pour ne pas dependre des
        mouvements resolus pendant cette saison.

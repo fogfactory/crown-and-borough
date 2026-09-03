@@ -61,6 +61,7 @@ func ResolveWinterWithDeckOrders(
 		}
 	}
 	resolveWinterDeckOrders(ctx, deckOrders)
+	resolveSeasonEffects(ctx)
 	ctx.conserveWinterStocks()
 	ctx.repatriateWinterStocks()
 	ctx.emitWinterStockEvents(stockBefore)
