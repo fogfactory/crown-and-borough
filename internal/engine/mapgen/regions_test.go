@@ -37,3 +37,34 @@ func TestValidateRegions(t *testing.T) {
 		})
 	}
 }
+
+func TestGenerateRegionsUsesStableTieBreakAndSortsOutput(t *testing.T) {
+	territories := []Territory{
+		{ID: "ZZZ", Adjacencies: []string{"AAA", "BBB"}},
+		{ID: "AAA", Village: true, Adjacencies: []string{"ZZZ"}},
+		{ID: "BBB", Village: true, Adjacencies: []string{"ZZZ"}},
+	}
+	regions, err := generateRegions(territories)
+	if err != nil {
+		t.Fatalf("generateRegions = %v", err)
+	}
+	if len(regions) != 2 || regions[0].Seed != "AAA" || regions[1].Seed != "BBB" {
+		t.Fatalf("regions = %#v, want AAA then BBB", regions)
+	}
+	if got := regions[0].Territories; len(got) != 2 || got[0] != "AAA" || got[1] != "ZZZ" {
+		t.Fatalf("AAA territories = %#v, want [AAA ZZZ]", got)
+	}
+	if got := regions[1].Territories; len(got) != 1 || got[0] != "BBB" {
+		t.Fatalf("BBB territories = %#v, want [BBB]", got)
+	}
+}
+
+func TestGenerateRegionsRequiresConnectedCoverage(t *testing.T) {
+	territories := []Territory{
+		{ID: "AAA", Village: true},
+		{ID: "BBB"},
+	}
+	if _, err := generateRegions(territories); err == nil {
+		t.Fatal("generateRegions = nil error, want disconnected coverage error")
+	}
+}
