@@ -7,12 +7,12 @@ import (
 )
 
 func TestCardKindClassification(t *testing.T) {
-	for _, kind := range []models.CardKind{models.CardKindFairWeather, models.CardKindAbundantHarvest} {
+	for _, kind := range []models.CardKind{models.CardKindFairWeather, models.CardKindAbundantHarvest, models.CardKindRevolt} {
 		if !kind.IsValid() || !kind.IsBonus() || kind.IsCalamity() {
 			t.Errorf("bonus kind %q classification is invalid", kind)
 		}
 	}
-	for _, kind := range []models.CardKind{models.CardKindPlague, models.CardKindBadWeather, models.CardKindRevolt, models.CardKindFamine} {
+	for _, kind := range []models.CardKind{models.CardKindPlague, models.CardKindBadWeather, models.CardKindFamine} {
 		if !kind.IsValid() || kind.IsBonus() || !kind.IsCalamity() {
 			t.Errorf("calamity kind %q classification is invalid", kind)
 		}

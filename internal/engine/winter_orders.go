@@ -13,6 +13,7 @@ type ExecutableOrder interface {
 type ExecutionContext struct {
 	resolution   *resolutionContext
 	playerID     models.PlayerID
+	season       models.Season
 	firstNameRNG *rand.Rand
 }
 

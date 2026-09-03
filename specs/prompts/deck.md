@@ -20,8 +20,9 @@ CONTEXTE ET DECISIONS FIGEES :
 
 REGLES DE JEU RETENUES :
 - Le deck est commun a toute la partie.
-- Le deck contient uniquement les quatre calamites et les deux ordres bonus
-  suivants : peste, mauvais temps, revolte, famine, beau temps et bonne recolte.
+- Le deck contient uniquement trois calamites et trois cartes bonus : peste,
+  mauvais temps, famine, beau temps, bonne recolte et revolte. La revolte est une
+  carte jouable uniquement lorsqu'une famine active affecte la region cible.
 - Les cartes impôt, mariage, assassinat, cardinal et Claim ne sont pas encore
   generees dans le deck. Leur emplacement futur doit rester possible sans
   melanger leurs regles dans cette implementation.
@@ -52,10 +53,12 @@ REGLES DE JEU RETENUES :
   saison d'application et leur region. La calamite du printemps est resolue
   pendant ce tour ; les calamites d'ete et d'hiver restent visibles jusqu'a
   leur tour.
-- Un ordre bonus est soumis pendant la feuille de la saison dans laquelle il
-  doit agir et sa resolution est simultanee avec les chaines et la calamite de
-  cette saison. Un ordre bonus peut donc viser le slot d'hiver quand il est
-  soumis dans la feuille d'hiver.
+- Un ordre bonus est soumis dans le champ de joueur `special`, independamment
+  des chaines de nobles et des investissements d'hiver. Il est autorise pendant
+  le printemps, l'ete, l'automne et l'hiver.
+- Les cartes sont consommees avant la resolution simultanee des ordres d'armee.
+  Leurs effets regionaux sont agreges puis appliques avant le ravitaillement et
+  l'enumeration des intentions d'armee.
 - Un ordre bonus special est un ordre de joueur, pas une ligne de chaine de
   noble. Le symbole `P` signifie deja pillage dans une chaine ; il ne faut pas
   surcharger le parseur de chaine avec `P BT TER`.
@@ -80,9 +83,9 @@ REGLES DE JEU RETENUES :
 - Les regions sont calculees par BFS multi-source depuis les N+1 villages
   neutres de la carte. Le village qui a servi de seed est la reference visible
   dans un ordre `P ... TER`.
-- La peste est rare : la valeur initiale proposee est un poids 1 parmi 15 pour
-  les calamites, par exemple `plague: 1`, `bad_weather: 6`, `revolt: 4` et
-  `famine: 4`. Les poids restent reglables dans la balance.
+- La peste est rare : la valeur initiale proposee est un poids 1 parmi 13 pour
+  les calamites, avec `plague: 1`, `bad_weather: 6` et `famine: 6`. Les poids
+  restent reglables dans la balance.
 - Une armee de revolte porte l'owner reserve `NEUTRAL`. Ce reserve n'est pas
   un slot de joueur, ne figure pas dans `GameState.Players`, n'apparait pas au
   scoreboard et ne soumet jamais de commandes.
@@ -161,14 +164,14 @@ calamites et les tests existants du socle.
          spring: 1
          summer: 1
          winter: 1
-       calamity_weights:
-         plague: 1
-         bad_weather: 6
-         revolt: 4
-         famine: 4
-       bonus_weights:
-         fair_weather: 1
-         abundant_harvest: 1
+        calamity_weights:
+          plague: 1
+          bad_weather: 6
+          famine: 6
+        bonus_weights:
+          fair_weather: 3
+          abundant_harvest: 3
+          revolt: 1
        effects:
          plague_army_divisor: 2
          plague_noble_mortality_percentage: 50
@@ -221,10 +224,11 @@ calamites et les tests existants du socle.
      break et de presence des N+1 villages.
 
 4. SYNTAXE DES ORDRES SPECIAUX :
-   - Ne pas modifier la grammaire des chaines de nobles pour y inserer les
-     ordres bonus. Ajouter une soumission de joueur dediee aux ordres speciaux
-     pour les tours d'action, et etendre la feuille d'hiver existante pour les
-     commandes d'hiver.
+    - Ne pas modifier la grammaire des chaines de nobles pour y inserer les
+      ordres bonus. Ajouter une soumission de joueur `special`, dediee aux
+      ordres du deck et distincte des chaines et investissements d'hiver.
+      `P KIND TER` est autorise au printemps, en ete et en automne ; `D C KIND`
+      et `T C` sont autorises uniquement en hiver.
    - Syntaxe francaise canonique :
 
      ```text
@@ -285,17 +289,18 @@ calamites et les tests existants du socle.
      `T C` et les kinds calamite refuses dans `P`.
 
 5. ETAT DE SOUMISSION ET RESOLUTION HIVERNALE :
-   - Ajouter a `engine.OrdersInput` une soumission de joueur pour les ordres
-     speciaux d'action, avec la meme discipline d'identite que les soumissions
-     de chaine et d'hiver. Faire transiter ce champ par l'API et le store.
-    - La feuille d'hiver existante accepte les investissements actuels et les
-      lignes `D C <KIND>`, `T C`, `P BT <TER>` ou `J BT <TER>` et
-      `P RA <TER>` ou `J RA <TER>` / leurs aliases anglais.
-   - Les lignes de la feuille d'hiver sont traitees dans l'ordre textuel, et
-     les joueurs sont traites selon l'ordre deterministe deja utilise par
-     `ResolveWinter`. Cela permet a un `D C` avant `T C` de liberer une place,
-     et a un `T C` avant un `P` de rendre une nouvelle carte jouable dans la
-     meme feuille.
+    - Ajouter a `engine.OrdersInput` une soumission de joueur `special` pour
+      les ordres du deck, independante des chaines de nobles et des
+      investissements d'hiver. Elle est disponible a chaque saison et transite
+      par l'API et le store.
+    - La soumission `winter` conserve uniquement les investissements actuels.
+      Les ordres du deck sont soumis dans le champ `special`, quelle que soit
+      la saison.
+    -       `P KIND TER` est traite avant les ordres d'armee au printemps, en ete et
+      en automne. `D C KIND` et `T C` ne sont traites qu'en hiver.
+    - Les lignes de chaque soumission `special` sont traitees dans l'ordre
+      textuel, et les joueurs sont traites selon l'ordre deterministe du moteur.
+      La consommation est validee avant la publication du nouvel etat.
    - Maintenir l'atomicite : parser toutes les lignes, verifier le nombre de
      `T C`, les joueurs, les seeds et les preconditions de cartes avant de
      publier le nouvel etat. Une erreur ne doit ni consommer de carte ni
@@ -304,10 +309,12 @@ calamites et les tests existants du socle.
      `ResolveWinter`, meme si l'hiver ne resout aucun mouvement, combat ou
      ravitaillement. Le fait qu'un effet n'ait aucune cible militaire en hiver
      ne doit pas supprimer l'evenement ni la slot de calamite.
-   - Appliquer les effets de saison et les bonus avant la phase a laquelle ils
-     participent. Pour l'hiver, conserver l'ordre des investissements et de la
-     conservation des stocks deja documente, tout en faisant apparaitre les
-     evenements de calamite et de carte dans le rapport d'hiver.
+    - Appliquer les effets de saison et les bonus avant la phase a laquelle ils
+      participent. Les ordres `P` sont consommes puis agreges avant le
+      ravitaillement et l'enumeration des intentions d'armee. Pour l'hiver,
+      conserver l'ordre des investissements et de la conservation des stocks
+      deja documente, tout en faisant apparaitre les evenements de calamite et
+      de carte dans le rapport d'hiver.
    - Si un bonus est joue en hiver, il interagit avec la calamite du slot winter
      de l'annee courante, pas avec la calamite qui vient d'etre programmee pour
      l'hiver suivant.
@@ -414,7 +421,9 @@ calamites et les tests existants du socle.
        de bonus ;
      - les unites de BT et RA s'additionnent : +1 par moulin et +1 ration par
        unite effective, pour toute la region et tous les joueurs.
-   - Les calamites peste et revolte ne sont jamais annulees par BT ou RA.
+    - La calamite peste n'est jamais annulee par BT ou RA.
+    - La carte revolte est un ordre joueur bonus : elle exige une famine active
+      dans la region cible et produit l'effet de revolte selon la balance.
    - Une carte jouee sur une region differente ne modifie ni l'annulation ni le
      bonus de la region de la calamite.
    - Produire un resultat public de l'ordre bonus : kind, seed de region,
@@ -477,9 +486,9 @@ calamites et les tests existants du socle.
    - Afficher les cartes dans l'interface, sans les traiter comme des ordres
      automatiques. La main doit montrer le nom localise du bonus, le code FR/EN
      utilisable et les lignes d'ordre possibles.
-   - Integrer ce panneau a `OrdersPanel` ou dans un composant dedie reutilise
-     par `App` et `online/GamePage`. En hiver, afficher les commandes `D C` et
-     `T C`; au printemps/ete/automne, afficher la zone d'ordres bonus `P`.
+    - Integrer ce panneau a `OrdersPanel` ou dans un composant dedie reutilise
+      par `App` et `online/GamePage`. Afficher `P KIND TER` toute l'annee,
+      et `D C`/`T C` uniquement en hiver.
    - Les controles UI peuvent inserer une ligne dans le brouillon de texte,
      mais l'API et le parseur restent l'autorite. Ne pas executer une carte
      directement depuis un clic frontend.
@@ -525,7 +534,7 @@ calamites et les tests existants du socle.
      - les lignes d'investissement d'hiver ;
       - `D C <KIND>` pour abandonner / discard ;
       - `T C` pour tirer / take ;
-      - `P BT TER` / `J BT TER` et `P RA TER` / `J RA TER` pour jouer un bonus.
+      - `P BT TER` et `P RA TER` pour jouer un bonus.
    - Preciser que `P BT TER` et `P RA TER` sont des ordres de joueur, pas des
      ordres dans une chaine de noble, et que `TER` est obligatoirement un
      village seed initial.
@@ -540,7 +549,7 @@ calamites et les tests existants du socle.
      contrats v1 ou les phases de saison changent effectivement.
    - Mettre a jour `assets/regles-joueurs.md` et
      `assets/regles-joueurs.en.md` avec des exemples jouables et les effets des
-     quatre calamites et des deux bonus.
+      trois calamites et des trois cartes bonus.
 
 13. TESTS MINIMAUX :
    - `internal/models` : kinds valides, regions couvrantes et connexes,
@@ -566,8 +575,8 @@ calamites et les tests existants du socle.
        deterministe ;
      - mauvais temps avec H et soutien defensif autorises, mouvements,
        dispersion, soutien offensif et pillage refuses ;
-     - revolte avec nouveaux IDs, bornes de taille, candidats sans armee et
-       exclusion du scoreboard ;
+      - revolte jouable seulement sous condition de famine, avec nouveaux IDs,
+        bornes de taille, candidats sans armee et exclusion du scoreboard ;
      - famine sur production des moulins et bonus de rations ;
      - BT uniquement contre mauvais temps, RA uniquement contre famine ;
      - doublons BT/RA non cumulatifs et BT + RA cumulables par region ;
@@ -589,10 +598,11 @@ calamites et les tests existants du socle.
    - Ajouter la balance et la generation deterministe des regions et du deck.
    - Ajouter le parseur des ordres speciaux et les alias FR/EN.
    - Integrer la pioche, la defausse et les slots dans `ResolveWinter`.
-   - Integrer les soumissions `P` et les effets simultanes dans le resolver
-     d'action et dans le resolver d'hiver.
-   - Integrer les quatre calamites dans supply, intentions, combats, nobles et
-     creation d'armees neutres.
+    - Integrer la soumission `special` et les ordres `P` avant supply et
+      intentions dans le resolver de chaque saison, sans noble requis.
+    - Integrer les trois calamites dans supply, intentions, combats et nobles ;
+      traiter la revolte comme carte bonus conditionnelle et creer ses armees
+      neutres.
    - Ajouter les events, rapports, projections et adaptations du store.
    - Ajouter l'UI de main, les brouillons, la couche regions, les hachures et
      les augures.

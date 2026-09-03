@@ -16,12 +16,12 @@ func specialDeckTestBalance() assetgen.Balance {
 		CalamityWeights: map[models.CardKind]int{
 			models.CardKindPlague:     1,
 			models.CardKindBadWeather: 6,
-			models.CardKindRevolt:     4,
-			models.CardKindFamine:     4,
+			models.CardKindFamine:     6,
 		},
 		BonusWeights: map[models.CardKind]int{
-			models.CardKindFairWeather:     1,
-			models.CardKindAbundantHarvest: 1,
+			models.CardKindFairWeather:     3,
+			models.CardKindAbundantHarvest: 3,
+			models.CardKindRevolt:          1,
 		},
 	}
 	return balance
@@ -47,11 +47,11 @@ func TestBuildSpecialDeckIsDeterministicAndWeighted(t *testing.T) {
 	for _, card := range first.Cards {
 		counts[card.Kind]++
 	}
-	if counts[models.CardKindPlague] != 1 || counts[models.CardKindBadWeather] != 4 || counts[models.CardKindRevolt] != 2 || counts[models.CardKindFamine] != 2 {
+	if counts[models.CardKindPlague] != 1 || counts[models.CardKindBadWeather] != 4 || counts[models.CardKindFamine] != 4 {
 		t.Fatalf("calamity counts = %#v", counts)
 	}
-	if counts[models.CardKindFairWeather]+counts[models.CardKindAbundantHarvest] != 21 {
-		t.Fatalf("bonus count = %d, want 5", counts[models.CardKindFairWeather]+counts[models.CardKindAbundantHarvest])
+	if counts[models.CardKindFairWeather] != 9 || counts[models.CardKindAbundantHarvest] != 9 || counts[models.CardKindRevolt] != 3 {
+		t.Fatalf("bonus counts = %#v, want fair 9, harvest 9, revolt 3", counts)
 	}
 	for index, card := range first.Cards {
 		wantID := models.SpecialCardID("C" + formatCardNumber(index+1))

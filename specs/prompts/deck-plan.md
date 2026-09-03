@@ -119,8 +119,8 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Contenu réalisé :**
 
-- Tester `D C <KIND>` pour défausse, `T C` pour pioche et `P/J KIND TER` pour jeu.
-- Tester l’absence de collision avec `R N/T XXX`, `P N NNN` et `J` de jonction.
+- Tester `D C <KIND>` pour défausse, `T C` pour pioche et `P KIND TER` pour jeu.
+- Tester le rejet de `J KIND TER` dans le parser deck et la conservation de `J` pour la jonction.
 - Tester aliases de kinds FR/EN, casse, commentaires, arités, seeds et kinds interdits.
 - Ajouter les DTO de soumission spéciale, distincts des chaînes et investissements.
 - Ajouter les codes d’erreur et messages localisés.
@@ -131,27 +131,36 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 ### `[~] 8. Registre des cartes et consommation dans Apply`
 
-**Commit prévu :** `test(engine): specify card consumption and order registry` puis `feat(engine): add card definitions and simultaneous special orders`
+**Commit prévu :** `feat(engine): add conditional deck card orders` (tests écrits en premier dans l’arbre de travail)
 
 **Contenu attendu :**
 
 - Ajouter `CardDefinition` et un registre déterministe.
-- Associer chaque kind bonus à son implémentation d’ordre.
-- Faire consommer la carte par `Apply` après vérification des préconditions.
+- Associer chaque kind bonus à son implémentation d’ordre, dans un fichier dédié.
+- Déclarer par carte les saisons autorisées et une condition d’application extensible.
+- Pour la v1, traiter `revolt` comme bonus conditionnel à une famine active dans la région.
+- Conserver les ratios de balance `plague:1`, `bad_weather:6`, `famine:6` et `revolt:1`, `fair_weather:3`, `abundant_harvest:3`.
+- Faire consommer la carte par `Apply` après validation de la saison et des préconditions.
 - Défausser les cartes valides, y compris les doublons inopérants.
-- Rejeter atomiquement une absence de carte.
+- Rejeter atomiquement une absence de carte ou une condition non satisfaite.
 - Enregistrer les intentions avant agrégation BT/RA.
+- Préparer les ordres `P` pour les saisons autorisées sans exiger de noble.
+- Faire transiter ces ordres dans `OrdersInput.Special`, distinct de `Chains` et `Winter`.
+- Évaluer les conditions sur un snapshot indépendant de l’ordre des joueurs.
+- Appliquer leurs intentions avant le ravitaillement et les intentions d’armée.
+- Tester l’ordre de phase avant les ordres d’armée et l’absence de noble requis.
 
 **Vérifications :** tests moteur de cartes et d’atomicité
 
-### `[ ] 9. Pioche hivernale, défausse et augures`
+### `[~] 9. Pioche hivernale, défausse et augures`
 
 **Commit prévu :** `test(engine): specify draw pile, discard and augury lifecycle` puis `feat(engine): resolve winter card draws and calamity scheduling`
 
 **Contenu attendu :**
 
-- Ajouter le pipeline deck/main/défausse dans `ResolveWinter`.
+- Ajouter le pipeline deck/main/défausse dans `ResolveWinter` pour les commandes `D C` et `T C`.
 - Implémenter la limite de deux `T C`, la main pleine et le tirage après calamité.
+- Faire transiter `P` dans la soumission `special`, séparée des investissements d’hiver.
 - Programmer les calamités dans le premier slot libre de l’année suivante.
 - Implémenter le remélange déterministe de la défausse complète.
 - Révéler l’augure au printemps uniquement.
@@ -165,9 +174,10 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Contenu attendu :**
 
-- Tester peste, mauvais temps, révolte, famine et armées neutres.
-- Fixer l’ordre des phases : calamité, annulation, intentions, résolution et effets de fin.
-- Intégrer les effets dans `Resolve`, `ResolveWinter` et `ResolveTurn`.
+- Tester peste, mauvais temps, famine et armées neutres.
+- Tester la révolte comme carte jouable uniquement lorsqu’une famine affecte sa région.
+- Fixer l’ordre des phases : tirage des soumissions deck, calamité, annulation, effets de cartes, ravitaillement, intentions, résolution et effets de fin.
+- Intégrer les effets dans `Resolve`, `ResolveWinter` et `ResolveTurn` avant la résolution simultanée des ordres d’armée.
 - Utiliser `sourceProduction` et `rationProduction` pour la famine.
 - Documenter l’effet militaire exact de la famine avant son implémentation.
 - Mettre à jour `specs/gdd.md` et `specs/ordres-speciaux.md`.
@@ -211,6 +221,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 **Contenu attendu :**
 
 - Faire transiter `special` dans API, store, memory et Firestore.
+- Faire porter `special` les ordres `P` de toute saison et `D C`/`T C` de l’hiver.
 - Ajouter la main privée et les augures publiques révélées.
 - Masquer pioche, défausse, IDs internes et augures futures.
 - Vérifier identité authentifiée, hotseat, multi-parties et restauration.
@@ -226,7 +237,9 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 - Ajouter les types JSON, la main et les états d’augure.
 - Ajouter le brouillon spécial dans les parcours hotseat et online.
-- Afficher les commandes de pioche, défausse et jeu.
+- Factoriser un composant de commandes de deck partagé si les deux parcours divergent.
+- Afficher `D C` et `T C` en hiver, et `P KIND TER` pendant toutes les saisons.
+- Vérifier le comportement dans les deux modes, sans exiger de noble pour une carte.
 - Ajouter toggle régions, contours pointillés, palette et hachures 45°.
 - Ajouter tooltips, rapports, traductions FR/EN, mobile et accessibilité.
 

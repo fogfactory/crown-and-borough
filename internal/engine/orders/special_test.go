@@ -15,7 +15,7 @@ func TestParseDeckOrdersAliasesAndComments(t *testing.T) {
 		t c
 		t c
 		p fw ros
-		j RA ros
+		p RA ros
 	`, game)
 	if len(parseErrors) != 0 {
 		t.Fatalf("ParseDeckOrders errors = %#v", parseErrors)
@@ -52,6 +52,9 @@ func TestParseDeckOrdersRejectsInvalidShapesKindsAndSeeds(t *testing.T) {
 	}
 	if parsed, parseErrors := ParseDeckOrders("R C AH", game); parsed != nil || len(parseErrors) != 1 {
 		t.Fatalf("parsed R C AH = %#v/%#v, want one error", parsed, parseErrors)
+	}
+	if parsed, parseErrors := ParseDeckOrders("J BT ROS", game); parsed != nil || len(parseErrors) != 1 {
+		t.Fatalf("parsed J BT ROS = %#v/%#v, want one error", parsed, parseErrors)
 	}
 }
 
