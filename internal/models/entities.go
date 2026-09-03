@@ -4,6 +4,9 @@ package models
 // "ROS", "A1", "N1" identify the entities (architecture §4). Distinct named
 // string types keep the domain explicit and prevent cross-type mixups.
 type PlayerID string
+
+const NeutralPlayerID PlayerID = "NEUTRAL"
+
 type TerritoryID string
 type ArmyID string
 type NobleID string
