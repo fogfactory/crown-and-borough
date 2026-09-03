@@ -57,6 +57,7 @@ aucun combat et aucun ravitaillement ne sont résolus. Le joueur soumet une
 liste d'investissements directs, traités dans l'ordre saisi :
 
 - `R N XXX` — recruter un noble sur `XXX` ;
+- `A N XXX` — annoblir gratuitement une armée sur `XXX` lorsque le joueur n'a plus aucun noble ;
 - `R T XXX` — recruter une troupe sur `XXX` ;
 - `C M XXX` — construire ou améliorer un moulin sur `XXX` ;
 - `C C XXX` — construire un château sur `XXX` ;
@@ -107,6 +108,8 @@ prélèvement partiel n'est effectué.
   village et 2 R par château hors capitale ;
 - sans capitale, les stocks restent sur place ;
 - la saison suivante est le printemps.
+
+Les calamités et les cartes bonus sont appliquées avant la résolution simultanée des ordres d’armée. La peste réduit les armées et peut affecter les nobles ; le mauvais temps bloque les déplacements provenant de sa région ; la famine désactive les moulins et les rations d’infrastructure ; la révolte est une carte bonus conditionnelle qui crée des armées `NEUTRAL`.
 
 Une partie accepte de 2 à 16 joueurs. Chaque joueur commence sur un territoire
 distinct qui n'est pas un village neutre. Les territoires de départ sont séparés

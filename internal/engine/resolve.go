@@ -29,6 +29,7 @@ func ResolveWithDeckOrders(game *models.GameState, balance assetgen.Balance, dec
 	state := cloneGameState(game)
 	ctx := newResolutionContext(state, balance)
 	resolveDeckOrders(ctx, deckOrders)
+	resolveSeasonEffects(ctx)
 
 	resolveSupply(ctx)
 	// Chains are attached before Resolve is called; this function only handles

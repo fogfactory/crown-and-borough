@@ -42,6 +42,7 @@ type GameState struct {
 	Players         []Player                       `json:"players"`
 	Territories     []Territory                    `json:"territories"`
 	Nobles          []Noble                        `json:"nobles"`
+	RemovedNobleIDs []NobleID                      `json:"removedNobleIds"`
 	Armies          []Army                         `json:"armies"`
 	Chains          []Chain                        `json:"chains"`
 	Privacy         *PrivacyMeta                   `json:"privacy,omitempty"`
@@ -59,14 +60,15 @@ type GameState struct {
 // {} rather than null.
 func NewGameState() *GameState {
 	return &GameState{
-		Turn:        1,
-		Season:      SeasonForTurn(1),
-		YearCount:   DefaultGameYears,
-		Players:     []Player{},
-		Territories: []Territory{},
-		Nobles:      []Noble{},
-		Armies:      []Army{},
-		Chains:      []Chain{},
+		Turn:            1,
+		Season:          SeasonForTurn(1),
+		YearCount:       DefaultGameYears,
+		Players:         []Player{},
+		Territories:     []Territory{},
+		Nobles:          []Noble{},
+		RemovedNobleIDs: []NobleID{},
+		Armies:          []Army{},
+		Chains:          []Chain{},
 		Privacy: &PrivacyMeta{
 			ChainKnowledge:      map[PlayerID]map[ChainID]ChainSnapshot{},
 			CombatParticipation: map[PlayerID]map[string]bool{},
@@ -243,6 +245,17 @@ func (g *GameState) Validate() error {
 		nobleOwners[n.ID] = n.OwnerID
 	}
 
+	removedNobles := make(map[NobleID]bool, len(g.RemovedNobleIDs))
+	for _, nobleID := range g.RemovedNobleIDs {
+		if nobleID == "" || removedNobles[nobleID] {
+			return fmt.Errorf("models: removed noble %q: duplicate or empty id", nobleID)
+		}
+		if nobles[nobleID] {
+			return fmt.Errorf("models: removed noble %q: still exists", nobleID)
+		}
+		removedNobles[nobleID] = true
+	}
+
 	// 7. Chains: unique ids, valid references and complete stored orders. The
 	// parser may produce an unassigned chain, but every chain in GameState has
 	// already passed reception and must be fully linked to its army.
@@ -256,7 +269,7 @@ func (g *GameState) Validate() error {
 		if _, duplicate := chains[chain.ID]; duplicate {
 			return fmt.Errorf("models: chain %q: duplicate id", chain.ID)
 		}
-		if !nobles[chain.NobleID] {
+		if !nobles[chain.NobleID] && !removedNobles[chain.NobleID] {
 			return fmt.Errorf("models: chain %q: unknown noble %q", chain.ID, chain.NobleID)
 		}
 		if armies[chain.ArmyID] == nil {
@@ -265,7 +278,7 @@ func (g *GameState) Validate() error {
 		if armies[chain.ArmyID].OwnerID == NeutralPlayerID {
 			return fmt.Errorf("models: chain %q: neutral army cannot have a chain", chain.ID)
 		}
-		if nobleOwners[chain.NobleID] != armies[chain.ArmyID].OwnerID {
+		if nobleOwners[chain.NobleID] != "" && nobleOwners[chain.NobleID] != armies[chain.ArmyID].OwnerID {
 			return fmt.Errorf("models: chain %q: noble %q does not own army %q", chain.ID, chain.NobleID, chain.ArmyID)
 		}
 		if len(chain.Orders) == 0 {

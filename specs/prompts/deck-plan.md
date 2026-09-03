@@ -67,6 +67,22 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** `go test ./internal/engine/...`
 
+### `[ ] 3bis. Ordre d’hiver d’annoblissement`
+
+**Commit prévu :** `feat(engine): add ennoblement winter order`
+
+**Contenu attendu :**
+
+- Ajouter un ordre d’hiver dédié, proposé en syntaxe `A N XXX`.
+- Autoriser le recrutement gratuit d’un noble sur n’importe quelle armée ciblée.
+- N’autoriser l’ordre que si le joueur ne possède aucun noble.
+- Ne pas exiger le contrôle du territoire ni une infrastructure de peuplement.
+- Allouer un noble avec les mêmes règles d’identité et de nommage que le recrutement normal.
+- Ajouter des tests unitaires table-driven pour absence de noble, armée inexistante, propriétaire incorrect et succès gratuit.
+- Documenter la règle en français et en anglais.
+
+**Vérifications :** `go test ./internal/engine/...`, `go vet ./...`
+
 ### `[x] 4. Contrats métier deck, cartes, régions et NEUTRAL`
 
 **Commit :** `feat(models): add special deck and region state` (tests écrits en premier dans l’arbre de travail)
@@ -171,13 +187,14 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** tests moteur, déterminisme et `go vet ./...`
 
-### `[ ] 10. Calamités et résolution saisonnière`
+### `[~] 10. Calamités et résolution saisonnière`
 
-**Commit prévu :** `test(engine): specify calamity effects` puis `feat(engine): resolve seasonal calamities`
+**Commit prévu :** `feat(engine): resolve seasonal calamities` (tests écrits en premier dans l’arbre de travail)
 
 **Contenu attendu :**
 
-- Tester peste, mauvais temps, famine et armées neutres.
+- Tester peste, mauvais temps, famine, suppression du noble mort et armées neutres.
+- Préserver les chaînes émises avant le tour de peste, tout en supprimant les chaînes émises pendant le tour courant avec le noble mort.
 - Tester la révolte comme carte jouable uniquement lorsqu’une famine affecte sa région.
 - Fixer l’ordre des phases : tirage des soumissions deck, calamité, annulation, effets de cartes, ravitaillement, intentions, résolution et effets de fin.
 - Intégrer les effets dans `Resolve`, `ResolveWinter` et `ResolveTurn` avant la résolution simultanée des ordres d’armée.

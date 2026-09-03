@@ -40,9 +40,24 @@ ravitaillement et la résolution simultanée des ordres d'armée.
 Les aliases français et anglais sont acceptés quelle que soit la langue de
 l’interface. `TER` est obligatoirement le village seed d’une région. Les kinds
 de calamité ne peuvent pas être joués comme ordres de joueur. Lorsqu’un ordre
-`P` ou `J` est appliqué, il consomme la première carte du kind demandé dans la
+`P` est appliqué, il consomme la première carte du kind demandé dans la
 main du joueur et la place dans la défausse ; l’effet est ensuite enregistré pour
 une résolution simultanée par région.
+
+## Effets des calamités et de la révolte
+
+- La peste réduit chaque armée de la région à `ceil(taille / divisor)`, avec au
+  moins une troupe, et peut tuer un noble selon la balance ; un noble tué reçoit
+  supprimé de l'état et ne rapporte plus de points. Une chaîne émise pendant le
+  tour est supprimée ; une chaîne historique déjà en cours continue.
+- Le mauvais temps bloque les attaques, jonctions, dispersions, pillages et
+  soutiens offensifs provenant de sa région ; le maintien et le soutien défensif
+  restent possibles.
+- La famine désactive la contribution des moulins et le bonus de rations des
+  châteaux/villages de sa région ; la production de base et les rations de terrain
+  restent actives.
+- La révolte est une carte bonus, jouable si une famine active affecte la région.
+  Elle crée des armées `NEUTRAL` sur les cases vides, selon la balance.
 
 ## Cartes prévues
 
