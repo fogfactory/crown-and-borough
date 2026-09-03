@@ -386,10 +386,13 @@ Les modèles métier sont dans `internal/models`. Ils valident notamment :
 - la saison calculée à partir du tour absolu.
 
 `ResolveTurn` choisit la résolution d'action ou d'hiver selon la saison, avance
-le calendrier et renvoie un `TurnReport`. Le rapport contient des sections
-typées pour les joueurs, ordres, combats, mouvements, ravitaillement, famine,
-nobles et investissements d'hiver. Le moteur ne dépend ni du HTTP ni du rendu
-front.
+le calendrier et renvoie un `TurnReport`. La soumission `special` est indépendante
+des chaînes de nobles et des investissements d'hiver. Les ordres de cartes sont
+validés et consommés avant les phases militaires ; leurs effets sont agrégés par
+région avant le ravitaillement et l'énumération des intentions. Le rapport
+contient des sections typées pour les joueurs, ordres, combats, mouvements,
+ravitaillement, famine, nobles et investissements d'hiver. Le moteur ne dépend
+ni du HTTP ni du rendu front.
 
 La réception des chaînes est immédiate et atomique. La validation statique
 conserve volontairement la non-adjacence jusqu'à l'exécution : un ordre
@@ -399,6 +402,12 @@ ordres précédents.
 Plusieurs chaînes ciblant la même armée au même tour constituent une réception
 concurrente : elles sont toutes rejetées avant la résolution et aucune nouvelle
 chaîne n'est attachée à cette armée. Une chaîne déjà portée reste inchangée.
+
+Les ordres exécutables du moteur sont séparés des DTO parsés et persistés. Les
+ordres de cartes sont construits par un registre `CardDefinition` indexé par
+`CardKind`. Leur `Apply` consomme la première carte correspondante dans la main,
+puis enregistre une intention ; l’agrégation des intentions intervient ensuite
+pour préserver la simultanéité.
 
 ## 7. Format des ordres
 
@@ -419,11 +428,11 @@ BRI D BRI ATL NOR
 ```
 
 Les ordres d'hiver v1 sont limités à `R N`, `R T`, `C M`, `C C`, `C D`, `E C`,
-`O N`, `P N` et `L N`, auxquels s’ajoutent les lignes d’ordres spéciaux
-parsées dans un DTO distinct : `D C KIND`, `T C`, `P KIND TER` et
-`J KIND TER`. Les ordres spéciaux ne sont jamais intégrés à la grammaire des
-chaînes de nobles. Les infrastructures absentes du modèle v1 ne possèdent ni
-symbole de parser ni coût dans `balance.yaml`.
+`O N`, `P N` et `L N`. Une soumission `special` séparée contient les ordres du
+deck : `P KIND TER` au printemps, en été et en automne, et `D C KIND` ou `T C` en
+hiver. Aucun de ces ordres n'exige de noble et ils ne sont jamais intégrés à la
+grammaire des chaînes de nobles. Les infrastructures absentes du modèle v1 ne
+possèdent ni symbole de parser ni coût dans `balance.yaml`.
 
 ## 8. Assets et balance
 

@@ -25,11 +25,21 @@ func (k CardKind) IsValid() bool {
 }
 
 func (k CardKind) IsBonus() bool {
-	return k == CardKindFairWeather || k == CardKindAbundantHarvest
+	switch k {
+	case CardKindFairWeather, CardKindAbundantHarvest, CardKindRevolt:
+		return true
+	default:
+		return false
+	}
 }
 
 func (k CardKind) IsCalamity() bool {
-	return k == CardKindPlague || k == CardKindBadWeather || k == CardKindRevolt || k == CardKindFamine
+	switch k {
+	case CardKindPlague, CardKindBadWeather, CardKindFamine:
+		return true
+	default:
+		return false
+	}
 }
 
 func (k CardKind) CanceledCalamity() (CardKind, bool) {

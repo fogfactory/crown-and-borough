@@ -37,7 +37,7 @@ func TestLoadSpecialOrdersBalanceRejectsInvalidValues(t *testing.T) {
 		}, want: "integer card count"},
 		{name: "negative weight", edit: func(value string) string { return strings.Replace(value, "    plague: 1", "    plague: -1", 1) }, want: "must be >= 0"},
 		{name: "zero weights", edit: func(value string) string {
-			return strings.Replace(value, "    plague: 1\n    bad_weather: 6\n    revolt: 4\n    famine: 4", "    plague: 0\n    bad_weather: 0\n    revolt: 0\n    famine: 0", 1)
+			return strings.Replace(value, "    plague: 1\n    bad_weather: 6\n    famine: 6", "    plague: 0\n    bad_weather: 0\n    famine: 0", 1)
 		}, want: "must not all be zero"},
 		{name: "invalid revolt bounds", edit: func(value string) string {
 			return strings.Replace(value, "revolt_army_min_size: 2\n    revolt_army_max_size: 3", "revolt_army_min_size: 4\n    revolt_army_max_size: 3", 1)
@@ -56,18 +56,16 @@ func TestLoadSpecialOrdersBalanceRejectsInvalidValues(t *testing.T) {
 }
 
 func TestWeightedCountsUsesLargestRemaindersInCanonicalOrder(t *testing.T) {
-	canonical := []models.CardKind{models.CardKindPlague, models.CardKindBadWeather, models.CardKindRevolt, models.CardKindFamine}
+	canonical := []models.CardKind{models.CardKindPlague, models.CardKindBadWeather, models.CardKindFamine}
 	counts := weightedCounts(9, map[models.CardKind]int{
 		models.CardKindPlague:     1,
 		models.CardKindBadWeather: 6,
-		models.CardKindRevolt:     4,
-		models.CardKindFamine:     4,
+		models.CardKindFamine:     6,
 	}, canonical)
 	want := map[models.CardKind]int{
 		models.CardKindPlague:     1,
 		models.CardKindBadWeather: 4,
-		models.CardKindRevolt:     2,
-		models.CardKindFamine:     2,
+		models.CardKindFamine:     4,
 	}
 	for kind, expected := range want {
 		if counts[kind] != expected {

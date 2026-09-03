@@ -54,7 +54,7 @@ func parseDeckOrderLine(line string, lineNumber int, game *models.GameState) (mo
 		}
 		return models.DeckOrder{Type: models.DeckOrderTypeDiscard, Kind: kind}, nil
 	}
-	if fields[0] != "P" && fields[0] != "J" {
+	if fields[0] != "P" {
 		error := parseMessage(lineNumber, ParseCodeUnknownSymbol, i18n.DeckOrderShape)
 		return models.DeckOrder{}, &error
 	}

@@ -33,15 +33,17 @@ Une année comprend quatre tours : printemps, été, automne et hiver. Le compte
 Au printemps, en été et en automne :
 
 1. Chaque joueur prépare et soumet ses chaînes d'ordres pour ses nobles libres
-   et ses armées.
+   et ses armées, ainsi que sa soumission `special` indépendante.
 2. Le moteur vérifie les soumissions. Une erreur de syntaxe ou de réception
    empêche la résolution de la soumission concernée sans modifier l'état.
-3. Le moteur résout simultanément le ravitaillement, les intentions, les
+3. Le moteur consomme et agrège les cartes valides, puis applique leurs effets
+   avant le ravitaillement et l'énumération des intentions d'armée.
+4. Le moteur résout simultanément le ravitaillement, les intentions, les
    soutiens, les combats, les déplacements, les retraites, les jonctions, les
    dispersions et la progression des chaînes.
-4. Le contrôle territorial, les déplacements de nobles et les événements sont
+5. Le contrôle territorial, les déplacements de nobles et les événements sont
    mis à jour.
-5. Le serveur construit un rapport de tour typé à partir des événements de la
+6. Le serveur construit un rapport de tour typé à partir des événements de la
    résolution.
 
 La chaîne soumise est attachée immédiatement à l'armée présente sur la
@@ -67,10 +69,12 @@ liste d'investissements directs, traités dans l'ordre saisi :
 `XXX` est le trigramme du territoire ciblé, sauf pour `O N`, `P N` et `L N`,
 qui ciblent un noble.
 
-La feuille d’hiver pourra également gérer la pioche commune des ordres spéciaux.
-La limite de main, la limite de tirages, la taille et la composition du deck,
-ainsi que les capacités des slots de calamité, sont chargées depuis
-`assets/balance.yaml`. La génération initiale du deck est déterministe à partir
+La soumission `special` est distincte de la feuille `winter` : elle contient
+les ordres du deck, sans noble requis. `P KIND TER` est autorisé au printemps,
+en été et en automne ;
+`D C KIND` et `T C` sont réservés à l’hiver. La limite de main, la limite de
+tirages, la taille et la composition du deck, ainsi que les capacités des slots
+de calamité, sont chargées depuis `assets/balance.yaml`. La génération initiale du deck est déterministe à partir
 de la seed de partie. Les investissements territoriaux exigent le contrôle du
 territoire ciblé. Le
 recrutement d'une troupe exige en outre un noble libre du joueur, situé sur la

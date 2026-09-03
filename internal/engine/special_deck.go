@@ -10,8 +10,8 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
-var specialCalamityKinds = []models.CardKind{models.CardKindPlague, models.CardKindBadWeather, models.CardKindRevolt, models.CardKindFamine}
-var specialBonusKinds = []models.CardKind{models.CardKindFairWeather, models.CardKindAbundantHarvest}
+var specialCalamityKinds = []models.CardKind{models.CardKindPlague, models.CardKindBadWeather, models.CardKindFamine}
+var specialBonusKinds = []models.CardKind{models.CardKindFairWeather, models.CardKindAbundantHarvest, models.CardKindRevolt}
 
 func buildSpecialDeck(seed string, balance assetgen.Balance) (*models.SpecialDeck, error) {
 	config := balance.SpecialOrders

@@ -53,11 +53,11 @@ special_orders:
   calamity_weights:
     plague: 1
     bad_weather: 6
-    revolt: 4
-    famine: 4
+    famine: 6
   bonus_weights:
-    fair_weather: 1
-    abundant_harvest: 1
+    fair_weather: 3
+    abundant_harvest: 3
+    revolt: 1
   effects:
     plague_army_divisor: 2
     plague_noble_mortality_percentage: 50

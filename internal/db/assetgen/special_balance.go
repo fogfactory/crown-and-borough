@@ -7,8 +7,8 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
-var calamityKinds = []models.CardKind{models.CardKindPlague, models.CardKindBadWeather, models.CardKindRevolt, models.CardKindFamine}
-var bonusKinds = []models.CardKind{models.CardKindFairWeather, models.CardKindAbundantHarvest}
+var calamityKinds = []models.CardKind{models.CardKindPlague, models.CardKindBadWeather, models.CardKindFamine}
+var bonusKinds = []models.CardKind{models.CardKindFairWeather, models.CardKindAbundantHarvest, models.CardKindRevolt}
 
 func (raw rawBalance) specialOrders(path string) (SpecialOrdersBalance, error) {
 	if raw.SpecialOrders == nil {

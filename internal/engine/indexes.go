@@ -36,6 +36,7 @@ type resolutionContext struct {
 	contest             contestState
 	dislodged           map[models.ArmyID]*dislodgedArmy
 	events              []Event
+	deckIntents         []deckOrderIntent
 }
 
 func newResolutionContext(state *models.GameState, balance assetgen.Balance) *resolutionContext {
