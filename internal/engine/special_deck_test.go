@@ -75,3 +75,26 @@ func TestCreateGameInitializesSpecialDeck(t *testing.T) {
 		t.Fatalf("initial hands = %#v, want empty", game.SpecialDeck.Hands)
 	}
 }
+
+func TestResolveActionAppliesDeckOrderWithoutNoble(t *testing.T) {
+	state := models.NewGameState()
+	state.ID = "deck-action"
+	state.Seed = "deck-action"
+	state.Players = []models.Player{{ID: "P1", Name: "One"}, {ID: "P2", Name: "Two"}}
+	state.Territories = []models.Territory{{ID: "ROS", Name: "ROS", Terrain: models.TerrainPlain}}
+	state.TerritoryStates = map[models.TerritoryID]models.TerritoryState{"ROS": {Infrastructures: []models.InfraID{}}}
+	state.SpecialDeck = &models.SpecialDeck{
+		Cards:    []models.SpecialCard{{ID: "C1", Kind: models.CardKindFairWeather}},
+		DrawPile: []models.SpecialCardID{}, Discard: []models.SpecialCardID{},
+		Hands: map[models.PlayerID][]models.SpecialCardID{"P1": {"C1"}},
+	}
+	resolution, err := ResolveWithDeckOrders(state, testBalance(), map[models.PlayerID][]models.DeckOrder{
+		"P1": {{ID: "O1", Type: models.DeckOrderTypePlay, Kind: models.CardKindFairWeather, RegionSeed: "ROS"}},
+	})
+	if err != nil {
+		t.Fatalf("ResolveWithDeckOrders = %v", err)
+	}
+	if len(resolution.State.SpecialDeck.Hands["P1"]) != 0 || len(resolution.State.SpecialDeck.Discard) != 1 {
+		t.Fatalf("deck after action = %#v, want consumed card", resolution.State.SpecialDeck)
+	}
+}

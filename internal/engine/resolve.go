@@ -10,6 +10,10 @@ import (
 // Resolve resolves supply and every current chain simultaneously. It validates
 // and deep clones game before running its phases, so game is never mutated.
 func Resolve(game *models.GameState, balance assetgen.Balance) (Resolution, error) {
+	return ResolveWithDeckOrders(game, balance, nil)
+}
+
+func ResolveWithDeckOrders(game *models.GameState, balance assetgen.Balance, deckOrders map[models.PlayerID][]models.DeckOrder) (Resolution, error) {
 	if game == nil {
 		return Resolution{}, fmt.Errorf("engine: resolve: nil game state")
 	}
@@ -19,8 +23,12 @@ func Resolve(game *models.GameState, balance assetgen.Balance) (Resolution, erro
 	if game.Season == models.SeasonWinter {
 		return Resolution{}, fmt.Errorf("engine: resolve: winter state must use ResolveWinter")
 	}
+	if err := validateActionDeckOrders(game, balance, deckOrders); err != nil {
+		return Resolution{}, err
+	}
 	state := cloneGameState(game)
 	ctx := newResolutionContext(state, balance)
+	resolveDeckOrders(ctx, deckOrders)
 
 	resolveSupply(ctx)
 	// Chains are attached before Resolve is called; this function only handles

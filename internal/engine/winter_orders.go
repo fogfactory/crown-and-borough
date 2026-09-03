@@ -47,6 +47,7 @@ func executeWinterOrder(ctx *resolutionContext, playerID models.PlayerID, order 
 	executable.Apply(&ExecutionContext{
 		resolution:   ctx,
 		playerID:     playerID,
+		season:       ctx.state.Season,
 		firstNameRNG: firstNameRNG,
 	})
 }
