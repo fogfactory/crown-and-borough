@@ -308,6 +308,12 @@ ni village ne conserve pas de stock. Exemple : un village hors capitale garde
 au plus 1 R après conservation ; le surplus rejoint la capitale, tandis qu'un
 château hors capitale peut garder 2 R.
 
+### Cartes spéciales
+
+Le deck contient **{{special_orders.deck_size}} cartes**, dont **{{special_orders.card.plague}} peste**, **{{special_orders.card.bad_weather}} mauvais temps**, **{{special_orders.card.famine}} famines**, **{{special_orders.card.fair_weather}} beaux temps**, **{{special_orders.card.abundant_harvest}} bonnes récoltes** et **{{special_orders.card.revolt}} révoltes**.
+
+La main est limitée à **{{special_orders.hand_limit}} cartes**. Chaque joueur peut utiliser au plus **{{special_orders.draw_orders_limit}} tirages** par hiver. Les calamités sont programmées dans les slots printemps (**{{special_orders.calamity_slots.spring}}**), été (**{{special_orders.calamity_slots.summer}}**) et hiver (**{{special_orders.calamity_slots.winter}}**). La peste réduit les armées par division de **{{special_orders.effects.plague_army_divisor}}**.
+
 ---
 
 ## 6. Armées, combats et logistique

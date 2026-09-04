@@ -288,6 +288,12 @@ investments, and a territory without a castle or village does not keep stock.
 For example, an outlying village keeps at most 1 R after conservation; its
 surplus goes to the capital, while an outlying castle may keep 2 R.
 
+### Special cards
+
+The deck contains **{{special_orders.deck_size}} cards**: **{{special_orders.card.plague}} plague**, **{{special_orders.card.bad_weather}} bad weather**, **{{special_orders.card.famine}} famine**, **{{special_orders.card.fair_weather}} fair weather**, **{{special_orders.card.abundant_harvest}} abundant harvest**, and **{{special_orders.card.revolt}} revolt** cards.
+
+A hand is limited to **{{special_orders.hand_limit}} cards**. Each player may use at most **{{special_orders.draw_orders_limit}} draws** per winter. Calamities are programmed into spring (**{{special_orders.calamity_slots.spring}}**), summer (**{{special_orders.calamity_slots.summer}}**), and winter (**{{special_orders.calamity_slots.winter}}**) slots. Plague reduces army sizes by a divisor of **{{special_orders.effects.plague_army_divisor}}**.
+
 ---
 
 ## 6. Armies, Combat, and Logistics

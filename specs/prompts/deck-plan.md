@@ -269,7 +269,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** `cd web && npm run test && npm run build && npm run lint`
 
-### `[ ] 15. Règles joueurs rendues depuis la balance`
+### `[~] 15. Règles joueurs rendues depuis la balance`
 
 **Commit prévu :** `feat(assetgen): render balance-backed player rules`
 
