@@ -105,6 +105,7 @@ func (ctx *resolutionContext) drawUsefulDeckCard(playerID models.PlayerID) {
 		if kind.IsBonus() {
 			ctx.state.SpecialDeck.Hands[playerID] = append(ctx.state.SpecialDeck.Hands[playerID], cardID)
 			ctx.deckDraws[playerID] = append(ctx.deckDraws[playerID], kind)
+			ctx.events = append(ctx.events, Event{Type: EventTypeDeckDraw, Phase: winterPhase, OwnerID: playerID, CardID: cardID, CardKind: kind, Season: ctx.state.Season, Year: ctx.state.Year()})
 			return
 		}
 		if kind.IsCalamity() {
@@ -171,6 +172,7 @@ func (ctx *resolutionContext) programCalamity(cardID models.SpecialCardID, kind 
 	regionSeed := seeds[regionRNG.IntN(len(seeds))]
 	augury.Calamities = append(augury.Calamities, models.Calamity{CardID: cardID, Kind: kind, Year: year, Season: season, RegionSeed: regionSeed})
 	ctx.state.Auguries[year] = augury
+	ctx.events = append(ctx.events, Event{Type: EventTypeCalamityScheduled, Phase: winterPhase, CardID: cardID, CardKind: kind, RegionSeed: regionSeed, Season: season, Year: year})
 	return true
 }
 

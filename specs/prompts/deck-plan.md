@@ -187,11 +187,11 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** tests moteur, déterminisme et `go vet ./...`
 
-### `[~] 10. Calamités et résolution saisonnière`
+### `[x] 10. Calamités et résolution saisonnière`
 
-**Commit prévu :** `feat(engine): resolve seasonal calamities` (tests écrits en premier dans l’arbre de travail)
+**Commit :** `feat(engine): resolve seasonal calamities`
 
-**Contenu attendu :**
+**Contenu réalisé :**
 
 - Tester peste, mauvais temps, famine, suppression du noble mort et armées neutres.
 - Préserver les chaînes émises avant le tour de peste, tout en supprimant les chaînes émises pendant le tour courant avec le noble mort.
@@ -204,9 +204,9 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** tests moteur complets, déterminisme et pureté
 
-### `[~] 11. Rumeurs publiques`
+### `[x] 11. Rumeurs publiques`
 
-**Commit prévu :** `feat(engine): add public winter rumors`
+**Commit :** `feat(engine): add public winter rumors`
 
 **Contenu attendu :**
 
@@ -220,7 +220,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** `go test ./internal/engine/...`
 
-### `[ ] 12. Événements et rapports`
+### `[~] 12. Événements et rapports`
 
 **Commit prévu :** `feat(engine): add card and calamity events`
 
@@ -230,6 +230,8 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 - Ne pas réutiliser `EventTypeFamine`.
 - Ajouter `Cards` à `WinterReport`.
 - Ajouter `Augury` et `SeasonEffects` à `TurnReport`.
+- Ajouter les événements et rapports pour pioche, défausse, programmation, calamité, bonus, révolte, armée neutre et mort du noble.
+- Ne jamais exposer les IDs internes de cartes dans les rapports publics.
 - Tester le tri et la visibilité des rapports.
 - Mettre à jour `specs/architecture.md`.
 
