@@ -129,6 +129,7 @@ function AppContent() {
   const [seed, setSeed] = useState('')
   const [view, setView] = useState<HotseatView>('game')
   const [activePanel, setActivePanel] = useState<Panel>('command')
+  const [showRegions, setShowRegions] = useState(false)
   const [viewedReportTurn, setViewedReportTurn] = useState<number | null>(null)
   const [rulesNavigation, setRulesNavigation] = useState<{
     section: RulesSection
@@ -635,6 +636,7 @@ function AppContent() {
                 intentions={intentions}
                 showIntentions={showIntentions}
                 intentionsColor={intentionsColor}
+                showRegions={showRegions}
               />
             ) : (
               <div className="flex h-full items-center justify-center px-6 text-center">
@@ -730,7 +732,6 @@ function AppContent() {
                     supplyLoading={supplyLoading}
                     supplyError={supplyError}
                   />
-
                   {state && (
                     <OrdersPanel
                       state={state}
@@ -772,10 +773,12 @@ function AppContent() {
                 </div>
               </CardContent>
             </Card>
-            <MapLegend
-              showIntentions={showIntentions}
-              onToggleIntentions={setShowIntentions}
-            />
+              <MapLegend
+                showIntentions={showIntentions}
+                onToggleIntentions={setShowIntentions}
+                showRegions={showRegions}
+                onToggleRegions={setShowRegions}
+              />
           </aside>
         </main>
       ) : (

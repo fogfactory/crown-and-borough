@@ -372,6 +372,7 @@ interface MapViewerProps {
   intentions?: Intention[]
   showIntentions?: boolean
   intentionsColor?: string
+  showRegions?: boolean
 }
 
 export function MapViewer({
@@ -382,6 +383,7 @@ export function MapViewer({
   intentions = [],
   showIntentions = false,
   intentionsColor = '#a84632',
+  showRegions = false,
 }: MapViewerProps) {
   const { t } = useLanguage()
   const svgRef = useRef<SVGSVGElement>(null)
@@ -496,6 +498,40 @@ export function MapViewer({
         ),
       }
     }, [map])
+
+  const regionByTerritory = useMemo(() => {
+    const result = new Map<string, string>()
+    for (const region of map.regions ?? []) {
+      for (const territoryID of region.territories) result.set(territoryID, region.id)
+    }
+    return result
+  }, [map.regions])
+  const regionColors = ['#607d8b', '#78909c', '#546e7a', '#90a4ae', '#455a64']
+  const regionColorByID = new Map(
+    [...new Set(regionByTerritory.values())].sort().map((regionID, index) => [regionID, regionColors[index % regionColors.length]]),
+  )
+
+  const isRegionBoundary = (key: string) => {
+    const end = key.indexOf(']')
+    if (end < 0) return false
+    try {
+      const [first, second] = JSON.parse(key.slice(0, end + 1)) as [string, string]
+      return regionByTerritory.get(first) !== regionByTerritory.get(second)
+    } catch {
+      return false
+    }
+  }
+
+  const regionColorForBoundary = (key: string) => {
+    const end = key.indexOf(']')
+    if (end < 0) return '#607d8b'
+    try {
+      const [first] = JSON.parse(key.slice(0, end + 1)) as [string, string]
+      return regionColorByID.get(regionByTerritory.get(first) ?? '') ?? '#607d8b'
+    } catch {
+      return '#607d8b'
+    }
+  }
 
   const colorsByPlayer = new Map(state.players.map((player) => [player.id, player.color]))
   const owners = Array.from(
@@ -854,6 +890,17 @@ export function MapViewer({
                 </Tooltip>
               ))}
             </g>
+
+            {showRegions && (map.regions?.length ?? 0) > 0 && (
+              <g aria-label={t('map.regions')} pointerEvents="none">
+                {outerBorders.map((border) => (
+                  <line key={`region-outer-${border.key}`} x1={border.from[0]} y1={border.from[1]} x2={border.to[0]} y2={border.to[1]} stroke="#607d8b" strokeWidth="3" strokeDasharray="8 5" vectorEffect="non-scaling-stroke" />
+                ))}
+                {sharedBorders.filter((border) => isRegionBoundary(border.key)).map((border) => (
+                  <line key={`region-${border.key}`} x1={border.from[0]} y1={border.from[1]} x2={border.to[0]} y2={border.to[1]} stroke={regionColorForBoundary(border.key)} strokeWidth="3" strokeDasharray="8 5" vectorEffect="non-scaling-stroke" />
+                ))}
+              </g>
+            )}
 
             {state.season === 'winter' && (
               <g aria-label={t('map.winterOverlay')} pointerEvents="none">
