@@ -331,19 +331,20 @@ cost = 2^(N - 1)  rations
 |---|---:|---:|---:|---:|---:|
 | Ration cost | 1 | 2 | 4 | 8 | 16 |
 
-The territory's food production is distributed among armies present, regardless
-of nationality, at most **one ration per army** and starting with the largest.
-The remainder is the demand to supply.
+The food production of the army's own territory is granted to that army alone:
+an army only consumes the production of the territory it occupies, at most
+**one ration**, and the remainder is its demand to supply. There is only ever
+one army per territory, so there is no distribution between armies: an enemy
+army on a neighboring territory never takes your territory's ration.
 
-The territory owner does not reserve this production for their own troops: a
-large enemy army can therefore take the local ration before a small allied army
-in the same distribution area. Brigands and other neutral armies also count as
-armies for this local distribution; they do not, however, receive additional
-supply from a player's controlled source stock.
+Brigands and other neutral armies also take the ration of the territory they
+occupy, but receive no additional supply from a player's controlled source
+stocks.
 
-Example: with 2 local rations, a 4-troop enemy army, and two 1-troop local
-armies, the largest army receives 1 first, then one local army receives the
-second by the tie-break; no army can receive more than one local ration.
+Example: a 2-troop army on a hill with a castle (production 1 + 2 = 3 rations)
+receives 1 ration; its remaining demand is 2 − 1 = 1 ration to cover from its
+sources. An army on a swamp (production 0) receives nothing and must cover its
+full demand.
 
 **Territory food production**: 1 ration on plain, forest, or hill; 0 ration on
 mountain or swamp; **+2 rations** when the territory has a castle or village.
@@ -521,13 +522,11 @@ not destroy it: famine sets strength to 0 and removes one troop, never below 1.
 
 ### Who receives local rations?
 
-Distribution starts with the largest army, regardless of nationality, with at
-most 1 ration per army. A large enemy army can therefore take a village's ration
-before small local armies; the village does not prefer its political owner.
-Brigands or neutral armies also take their local ration, but they are not fed
-from a player's source stocks. Example: with 2 local rations, one 4-troop enemy,
-and two 1-troop local armies, the large army receives 1 first, then only one
-local army receives the second.
+The army occupying the territory: it receives at most 1 ration from its own
+territory's production, regardless of nationality. There is no sharing between
+territories — a large enemy army does not take your village's ration from the
+neighboring territory. Brigands or neutral armies also take their own
+territory's ration, but they are not fed from a player's source stocks.
 
 ### Must a noble be with the army it commands?
 

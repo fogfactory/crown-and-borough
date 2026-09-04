@@ -353,21 +353,20 @@ coût = 2^(N - 1)  rations
 |---|---:|---:|---:|---:|---:|
 | Coût en rations | 1 | 2 | 4 | 8 | 16 |
 
-La production vivrière de la case est distribuée aux armées présentes, toutes
-nationalités confondues, au plus **une ration par armée** et en commençant par
-la plus grosse. Le reste constitue la demande à ravitailler.
+La production vivrière de la case de l'armée lui est attribuée à elle seule :
+une armée ne consomme que la production de la case qu'elle occupe, au plus
+**une ration**, et le reste constitue sa demande à ravitailler. Il n'y a
+jamais qu'une armée par case, donc aucune distribution entre armées : une
+armée ennemie sur une case voisine ne prend jamais la ration de ta case.
 
-Le propriétaire de la case ne réserve pas cette production à ses propres
-troupes : une grosse armée ennemie peut donc prendre la ration locale avant une
-petite armée alliée présente dans le même périmètre de distribution. Les
-brigands et autres armées neutres comptent eux aussi comme des armées pour cette
-distribution locale ; ils ne reçoivent toutefois pas de complément depuis le
-stock d'une source contrôlée par un joueur.
+Les brigands et autres armées neutres prennent eux aussi la ration de la case
+qu'ils occupent, mais ne reçoivent aucun complément depuis les stocks des
+sources contrôlées par un joueur.
 
-Exemple : une production de 2 rations face à une armée ennemie de 4 troupes et
-à deux armées locales de 1 troupe donne d'abord 1 ration à la plus grosse
-armée, puis 1 ration à la première armée locale selon le départage ; chaque
-armée ne peut recevoir qu'une ration locale.
+Exemple : une armée de 2 troupes sur une colline portant un château
+(production 1 + 2 = 3 rations) reçoit 1 ration ; sa demande restante est
+2 − 1 = 1 ration à couvrir par ses sources. Une armée sur un marécage
+(production 0) ne reçoit rien et doit couvrir toute sa demande.
 
 **Production vivrière de la case** : 1 ration en plaine, forêt ou colline ;
 0 ration en montagne ou marécage ; **+2 rations** supplémentaires si la case
@@ -557,14 +556,12 @@ une troupe, sans jamais descendre sous 1.
 
 ### Qui reçoit les rations locales ?
 
-La distribution commence par la plus grosse armée, sans tenir compte de la
-nationalité, avec au plus 1 ration par armée. Une grosse armée ennemie peut donc
-prendre la ration d'un village avant les petites armées locales ; le village ne
-fait pas de préférence politique. Les brigands ou armées neutres prennent eux
-aussi leur ration locale, mais ne sont pas alimentés par les stocks des sources
-d'un joueur. Exemple : avec 2 rations locales, une armée ennemie de 4 et deux
-armées locales de 1, la grosse armée reçoit d'abord 1, puis une seule des
-armées locales reçoit la seconde.
+L'armée qui occupe la case : elle reçoit au plus 1 ration de la production de
+sa propre case, quelle que soit sa nationalité. Il n'y a pas de partage entre
+cases — une grosse armée ennemie ne prend pas la ration de ton village depuis
+la case voisine. Les brigands ou armées neutres prennent eux aussi la ration
+de leur case, mais ne sont pas alimentés par les stocks des sources d'un
+joueur.
 
 ### Un noble doit-il être avec l'armée qu'il commande ?
 
