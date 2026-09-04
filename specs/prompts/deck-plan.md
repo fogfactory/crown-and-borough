@@ -283,7 +283,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** tests assetgen/API de rendu des règles
 
-### `[ ] 16. Documentation joueur et règles finales`
+### `[x] 16. Documentation joueur et règles finales`
 
 **Commit prévu :** `docs(rules): document special deck and calamities`
 
@@ -297,7 +297,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** tests de contrat documentaire/parser
 
-### `[ ] 17. Validation finale bout-en-bout`
+### `[~] 17. Validation finale bout-en-bout`
 
 **Commit prévu :** `test(contract): add end-to-end determinism and privacy suite`
 
