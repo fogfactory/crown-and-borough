@@ -649,8 +649,9 @@ func snapshotPlayerID(snapshot store.GameSnapshot, actor store.Actor) (models.Pl
 
 func normalizeSubmission(playerID models.PlayerID, request store.SubmitRequest) (engine.OrdersInput, error) {
 	input := engine.OrdersInput{
-		Chains: append([]engine.ChainSubmission(nil), request.Chains...),
-		Winter: append([]engine.WinterSubmission(nil), request.Winter...),
+		Chains:  append([]engine.ChainSubmission(nil), request.Chains...),
+		Winter:  append([]engine.WinterSubmission(nil), request.Winter...),
+		Special: append([]engine.DeckSubmission(nil), request.Special...),
 	}
 	for index := range input.Chains {
 		if input.Chains[index].Player != "" && input.Chains[index].Player != playerID {
@@ -663,6 +664,12 @@ func normalizeSubmission(playerID models.PlayerID, request store.SubmitRequest) 
 			return engine.OrdersInput{}, fmt.Errorf("store: winter order %d belongs to another player", index+1)
 		}
 		input.Winter[index].Player = playerID
+	}
+	for index := range input.Special {
+		if input.Special[index].Player != "" && input.Special[index].Player != playerID {
+			return engine.OrdersInput{}, fmt.Errorf("store: deck order %d belongs to another player", index+1)
+		}
+		input.Special[index].Player = playerID
 	}
 	return input, nil
 }
@@ -687,7 +694,7 @@ func submissionStatus(snapshot store.GameSnapshot) ([]models.PlayerID, []models.
 }
 
 func combineSubmissions(snapshot store.GameSnapshot) engine.OrdersInput {
-	combined := engine.OrdersInput{Chains: []engine.ChainSubmission{}, Winter: []engine.WinterSubmission{}}
+	combined := engine.OrdersInput{Chains: []engine.ChainSubmission{}, Winter: []engine.WinterSubmission{}, Special: []engine.DeckSubmission{}}
 	for _, player := range snapshot.State.Players {
 		input, ok := snapshot.Submissions[player.ID]
 		if !ok {
@@ -695,6 +702,7 @@ func combineSubmissions(snapshot store.GameSnapshot) engine.OrdersInput {
 		}
 		combined.Chains = append(combined.Chains, input.Chains...)
 		combined.Winter = append(combined.Winter, input.Winter...)
+		combined.Special = append(combined.Special, input.Special...)
 	}
 	return combined
 }

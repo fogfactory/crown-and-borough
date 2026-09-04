@@ -218,6 +218,7 @@ fourni, mais le front utilise `GET /api/state?player=P1` pour demander la vue
 filtrée du joueur sélectionné. La politique de divulgation est la suivante :
 
 - la carte et les valeurs dynamiques chiffrées restent communes ;
+- `specialHand` contient uniquement les kinds bonus de la main du joueur courant ; la pioche, la défausse et les IDs internes restent absents ;
 - un joueur voit le détail des chaînes qu'il a émises, ainsi que celles émises
   par un noble qu'il détient comme otage, tant que la chaîne reste compatible
   avec la progression de l'armée ;
@@ -349,7 +350,7 @@ global lorsqu'une autre partie est déjà active.
 | `GET` | `/api/games/{id}/map` | Renvoie le `map.json` commun, dont `territories[].id` est le trigramme. |
 | `GET` | `/api/games/{id}/state` | Renvoie la projection privée du joueur connecté ; aucun `?player=` public. |
 | `GET` | `/api/games/{id}/supply?territory=ROS` | Calcule la ligne ou la zone de ravitaillement demandée. |
-| `POST` | `/api/games/{id}/orders` | Remplace la soumission du joueur courant ; résout automatiquement lorsque tous les joueurs vivants ont soumis. Le corps ne contient aucun identifiant joueur. |
+| `POST` | `/api/games/{id}/orders` | Remplace la soumission du joueur courant (`chains`, `winter`, `special`) ; résout automatiquement lorsque tous les joueurs requis ont soumis. Le corps ne contient aucun identifiant joueur. |
 | `POST` | `/api/games/{id}/resolve` | Résolution forcée explicite avec des ordres vides pour les joueurs manquants. |
 | `GET` | `/api/games/{id}/reports` | Liste les rapports filtrés pour le joueur connecté. |
 | `GET` | `/api/games/{id}/reports/{index}` | Renvoie un rapport filtré pour le joueur connecté. |

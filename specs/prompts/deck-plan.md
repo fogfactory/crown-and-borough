@@ -237,7 +237,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** `go test ./internal/engine/...`
 
-### `[ ] 13. API, store et confidentialité`
+### `[~] 13. API, store et confidentialité`
 
 **Commit prévu :** `feat(api/store): expose private cards and public auguries`
 
@@ -245,7 +245,8 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 - Faire transiter `special` dans API, store, memory et Firestore.
 - Faire porter `special` les ordres `P` de toute saison et `D C`/`T C` de l’hiver.
-- Ajouter la main privée et les augures publiques révélées.
+- Ajouter la main privée dans `StateView` et les augures publiques révélées.
+- Vérifier P1/P2, absence de pioche/défausse/IDs internes et restauration complète.
 - Masquer pioche, défausse, IDs internes et augures futures.
 - Vérifier identité authentifiée, hotseat, multi-parties et restauration.
 - Mettre à jour les contrats dans `specs/architecture.md`.
