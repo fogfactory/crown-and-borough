@@ -126,6 +126,36 @@ afterEach(() => {
 })
 
 describe('App command/report tabs', () => {
+  it('opens the full rules and FAQ pages from the hotseat header', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      return Promise.resolve({
+        ok: true,
+        json: async () => (url.includes('/map') ? map : state),
+        text: async () => rulesDocument,
+      } as Response)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App initialLanguage="fr" />)
+    await screen.findByText('Tour 1 · Printemps')
+
+    fireEvent.click(screen.getByRole('button', { name: /^Règles$/ }))
+    expect(
+      await screen.findByRole('heading', { name: 'Règles du jeu' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /^FAQ$/ }))
+    expect(
+      await screen.findByRole('heading', { name: 'FAQ tactique' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/Quel est l’effet des moulins/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /^Partie$/ }))
+    expect(await screen.findByRole('tablist')).toBeInTheDocument()
+  })
+
   it('requests a server-filtered state when the hotseat player changes', async () => {
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
       const url = String(input)
