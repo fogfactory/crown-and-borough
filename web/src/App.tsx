@@ -144,6 +144,7 @@ function AppContent() {
   const [seed, setSeed] = useState('')
   const [view, setView] = useState<HotseatView>('game')
   const [activePanel, setActivePanel] = useState<Panel>('command')
+  const [showRegions, setShowRegions] = useState(false)
   const [viewedReportTurn, setViewedReportTurn] = useState<number | null>(null)
   const [mapFocusSignal, setMapFocusSignal] = useState(0)
   const [rulesNavigation, setRulesNavigation] = useState<{
@@ -424,6 +425,8 @@ function AppContent() {
           showIntentions={showIntentions}
           intentionsColor={intentionsColor}
           onToggleIntentions={setShowIntentions}
+          showRegions={showRegions}
+          onToggleRegions={setShowRegions}
         />
       )
     }
@@ -865,7 +868,6 @@ function AppContent() {
                     transferLoading={transferLoading}
                     transferError={transferError}
                   />
-
                   {state && (
                     <OrdersPanel
                       state={state}

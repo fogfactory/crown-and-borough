@@ -123,6 +123,7 @@ const englishMessages = {
   'map.territories': 'Territory map',
   'map.terrains': 'Terrains',
   'map.terrainTextures': 'Terrain textures',
+  'map.regions': 'Regional boundaries',
   'map.winterOverlay': 'Winter overlay',
   'map.winterSnow': 'Winter snow',
   'map.control': 'Territorial control',
@@ -154,7 +155,8 @@ const englishMessages = {
   'orders.actionDescription':
     'One chain per noble. The noble header is added automatically before sending. An empty field means that noble does not emit this turn.',
   'orders.deckTitle': 'Special cards',
-  'orders.deckDescription': 'Play cards independently of noble chains. Use P KIND TER during action seasons; draw and discard in winter.',
+  'orders.deckDescription':
+    'Play cards independently of noble chains. Use P KIND TER during action seasons; draw and discard in winter.',
   'orders.deckHand': 'Hand',
   'orders.deckEmpty': 'Empty',
   'orders.deckPlaceholder': 'P BT ROS',
@@ -181,9 +183,12 @@ const englishMessages = {
   'reports.supply': 'Supply',
   'reports.winter': 'Winter',
   'reports.rumors': 'Rumors',
-  'rumor.fair_weather': 'The land is rich and the skies are kind; astrologers expect a generous harvest.',
-  'rumor.abundant_harvest': 'The granaries whisper of abundance, and the mills turn with confidence.',
-  'rumor.revolt': 'Whispers cross the countryside; peasants sharpen their sickles with ill humor.',
+  'rumor.fair_weather':
+    'The land is rich and the skies are kind; astrologers expect a generous harvest.',
+  'rumor.abundant_harvest':
+    'The granaries whisper of abundance, and the mills turn with confidence.',
+  'rumor.revolt':
+    'Whispers cross the countryside; peasants sharpen their sickles with ill humor.',
   'reports.ordersExecuted': 'Orders executed',
   'reports.hiddenOrder': 'An order was processed, but its details are hidden.',
   'reports.noEvents': 'No {label} events.',
@@ -322,6 +327,7 @@ const englishMessages = {
   'reports.reason.reception.emissionCapacity': 'The noble has already emitted this turn.',
   'reports.reason.reception.invalid': 'The chain could not be received.',
   'legend.title': 'Legend',
+  'legend.regions': 'Regions',
   'legend.village': 'Village',
   'legend.castle': 'Castle',
   'legend.army': 'Army (numbered marker)',
@@ -607,6 +613,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'map.territories': 'Carte des territoires',
   'map.terrains': 'Terrains',
   'map.terrainTextures': 'Textures des terrains',
+  'map.regions': 'Frontières régionales',
   'map.winterOverlay': 'Voile hivernal',
   'map.winterSnow': 'Neige hivernale',
   'map.control': 'Contrôle territorial',
@@ -638,7 +645,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'orders.actionDescription':
     "Une chaîne par noble. L'en-tête du noble est ajouté automatiquement avant l'envoi. Une zone vide signifie que le noble n'émet pas ce tour.",
   'orders.deckTitle': 'Cartes spéciales',
-  'orders.deckDescription': 'Jouez les cartes indépendamment des chaînes de nobles. Utilisez P KIND TER pendant les saisons d’action ; piochez et défaussez en hiver.',
+  'orders.deckDescription':
+    'Jouez les cartes indépendamment des chaînes de nobles. Utilisez P KIND TER pendant les saisons d’action ; piochez et défaussez en hiver.',
   'orders.deckHand': 'Main',
   'orders.deckEmpty': 'Vide',
   'orders.deckPlaceholder': 'P BT ROS',
@@ -666,9 +674,12 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.supply': 'Ravitaillement',
   'reports.winter': 'Hiver',
   'reports.rumors': 'Rumeurs',
-  'rumor.fair_weather': 'La terre est grasse et le temps clément ; les astrologues espèrent de bonnes récoltes.',
-  'rumor.abundant_harvest': 'Les greniers murmurent l’abondance et les moulins tournent avec confiance.',
-  'rumor.revolt': 'Des chuchotements parcourent les campagnes ; les paysans aiguisent leurs faux d’un air peu amène.',
+  'rumor.fair_weather':
+    'La terre est grasse et le temps clément ; les astrologues espèrent de bonnes récoltes.',
+  'rumor.abundant_harvest':
+    'Les greniers murmurent l’abondance et les moulins tournent avec confiance.',
+  'rumor.revolt':
+    'Des chuchotements parcourent les campagnes ; les paysans aiguisent leurs faux d’un air peu amène.',
   'reports.ordersExecuted': 'Ordres exécutés',
   'reports.hiddenOrder': 'Un ordre a été traité, mais ses détails sont masqués.',
   'reports.noEvents': 'Aucun événement de {label}.',
@@ -815,6 +826,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.reason.reception.emissionCapacity': 'Le noble a déjà émis ce tour.',
   'reports.reason.reception.invalid': "La chaîne n'a pas pu être reçue.",
   'legend.title': 'Légende',
+  'legend.regions': 'Régions',
   'legend.village': 'Village',
   'legend.castle': 'Château',
   'legend.army': 'Armée (pastille numérotée)',

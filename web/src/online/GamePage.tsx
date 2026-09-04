@@ -289,6 +289,7 @@ export function GamePage() {
   const [submitting, setSubmitting] = useState(false)
   const [confirmResolve, setConfirmResolve] = useState(false)
   const [activePanel, setActivePanel] = useState<Panel>('command')
+  const [showRegions, setShowRegions] = useState(false)
   const [rulesNavigation, setRulesNavigation] = useState<{
     section: RulesSection
     key: number
@@ -1075,6 +1076,8 @@ export function GamePage() {
             showIntentions={showIntentions}
             intentionsColor={intentionsColor}
             onToggleIntentions={setShowIntentions}
+            showRegions={showRegions}
+            onToggleRegions={setShowRegions}
           />
         }
         focusSignal={mapFocusSignal}
