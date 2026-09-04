@@ -284,6 +284,7 @@ export function GamePage() {
   const [submittedOrders, setSubmittedOrders] = useState<SubmittedOrdersResponse | null>(
     null,
   )
+  const [specialDraft, setSpecialDraft] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [confirmResolve, setConfirmResolve] = useState(false)
@@ -564,6 +565,7 @@ export function GamePage() {
       setWinterDraft('')
       setServerSubmission(null)
       setSubmittedOrders(null)
+      setSpecialDraft('')
       setActionError(null)
       lastTurn.current = turn
     }
@@ -770,6 +772,7 @@ export function GamePage() {
       setChainDrafts({})
       setWinterDraft('')
       setServerSubmission(null)
+      setSpecialDraft('')
       if (!response.report) {
         setReport(null)
         setActivePanel('report')
@@ -811,6 +814,7 @@ export function GamePage() {
           state.season === 'winter' && winterDraft.trim() !== ''
             ? [{ lines: winterDraft }]
             : []
+        const special = specialDraft.trim() !== '' ? [{ text: specialDraft }] : []
         response = await apiRequest<OrdersResponse>(
           { getIdToken },
           `/api/games/${encodeURIComponent(gameId)}/orders`,
@@ -819,6 +823,7 @@ export function GamePage() {
             body: JSON.stringify({
               chains,
               winter,
+              special,
               revision: summary?.revision ?? view?.revision ?? 0,
             }),
           },
@@ -1151,6 +1156,7 @@ export function GamePage() {
                   player={playerID}
                   chainDrafts={chainDrafts}
                   winterDraft={winterDraft}
+                  specialDraft={specialDraft}
                   winterCosts={winterCosts}
                   map={map}
                   submitted={Boolean(currentSlot?.submitted)}
@@ -1161,6 +1167,7 @@ export function GamePage() {
                     setChainDrafts((current) => ({ ...current, [noble]: text }))
                   }
                   onWinterChange={setWinterDraft}
+                  onSpecialChange={setSpecialDraft}
                   onSubmit={() => void submitOrders()}
                   onOpenRules={openRules}
                   onRestoreFromServer={restoreFromServer}

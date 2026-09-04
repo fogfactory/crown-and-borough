@@ -253,7 +253,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** tests API/store et `go test ./...`
 
-### `[ ] 14. Frontend cartes, régions et augures`
+### `[~] 14. Frontend cartes, régions et augures`
 
 **Commit prévu :** `feat(web): add cards, regions and augury UI`
 

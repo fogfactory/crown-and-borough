@@ -6,6 +6,9 @@ export type InfraType = 'mill' | 'supply_depot' | 'castle' | 'village'
 
 export type NobleStatus = 'free' | 'hostage' | 'dungeon'
 
+export type CardKind =
+  'fair_weather' | 'abundant_harvest' | 'revolt' | 'plague' | 'bad_weather' | 'famine'
+
 export type OrderType =
   'attack' | 'support' | 'hold' | 'join' | 'pillage' | 'disperse' | 'transfer'
 
@@ -123,8 +126,15 @@ export interface Territory {
   impassable: string[]
 }
 
+export interface Region {
+  id: string
+  seed: string
+  territories: string[]
+}
+
 export interface MapData {
   territories: Territory[]
+  regions?: Region[]
 }
 
 export interface Player {
@@ -164,6 +174,7 @@ export interface StateData {
   players: Player[]
   territories: TerritoryState[]
   nobles: Noble[]
+  specialHand?: CardKind[]
 }
 
 export interface WinterCosts {
@@ -215,9 +226,14 @@ export interface WinterSubmission {
   lines: string
 }
 
+export interface DeckSubmission {
+  text: string
+}
+
 export interface OrdersInput {
   chains: ChainSubmission[]
   winter: WinterSubmission[]
+  special: DeckSubmission[]
 }
 
 export interface SubmittedChain {
@@ -459,9 +475,43 @@ export interface WinterStockReport {
   stockAfter: number
 }
 
+export interface CardReport {
+  kind: CardKind
+  region?: string
+  season?: Season
+  outcome: Outcome
+  reason?: string
+}
+
+export interface RumorReport {
+  kind: CardKind
+  key: string
+}
+
+export interface SeasonEffectReport {
+  kind: string
+  cardKind?: CardKind
+  region?: string
+  season?: Season
+  army?: string
+  noble?: string
+  territory?: string
+  sizeBefore?: number
+  sizeAfter?: number
+  reason?: string
+}
+
+export interface AuguryReport {
+  year: number
+  capacities: Partial<Record<Season, number>>
+  calamities: Array<{ kind: CardKind; season: Season; region: string }>
+}
+
 export interface WinterReport {
   investments: WinterInvestmentReport[]
   stocks: WinterStockReport[]
+  cards?: CardReport[]
+  rumors?: RumorReport[]
 }
 
 export interface TurnReport {
@@ -474,5 +524,7 @@ export interface TurnReport {
   orders: OrderReport[]
   moves: MoveReport[]
   nobles: ReportNoble[]
+  seasonEffects?: SeasonEffectReport[]
+  augury?: AuguryReport
   winter?: WinterReport
 }
