@@ -104,6 +104,14 @@ func (ctx *resolutionContext) applyDeckCardOrder(playerID models.PlayerID, order
 		return
 	}
 	ctx.deckIntents = append(ctx.deckIntents, deckOrderIntent{playerID: playerID, order: order})
+	ctx.events = append(ctx.events, Event{Type: EventTypeDeckOrderPlayed, Phase: phaseForSeason(ctx.state.Season), OwnerID: playerID, CardKind: order.Kind, RegionSeed: order.RegionSeed, Season: ctx.state.Season, Year: ctx.state.Year()})
+}
+
+func phaseForSeason(season models.Season) int {
+	if season == models.SeasonWinter {
+		return winterPhase
+	}
+	return 0
 }
 
 func (ctx *resolutionContext) consumeDeckCard(playerID models.PlayerID, kind models.CardKind) bool {
@@ -118,6 +126,7 @@ func (ctx *resolutionContext) consumeDeckCard(playerID models.PlayerID, kind mod
 			}
 			ctx.state.SpecialDeck.Hands[playerID] = append(hand[:index], hand[index+1:]...)
 			ctx.state.SpecialDeck.Discard = append(ctx.state.SpecialDeck.Discard, cardID)
+			ctx.events = append(ctx.events, Event{Type: EventTypeDeckDiscard, Phase: phaseForSeason(ctx.state.Season), OwnerID: playerID, CardID: cardID, CardKind: kind, Season: ctx.state.Season, Year: ctx.state.Year()})
 			return true
 		}
 	}

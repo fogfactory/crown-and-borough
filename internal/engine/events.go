@@ -13,28 +13,38 @@ type Resolution struct {
 type EventType string
 
 const (
-	EventTypeOrderOutcome     EventType = "order_outcome"
-	EventTypeCombat           EventType = "combat"
-	EventTypeMovement         EventType = "movement"
-	EventTypeFusion           EventType = "fusion"
-	EventTypeDispersion       EventType = "dispersion"
-	EventTypePillage          EventType = "pillage"
-	EventTypeRetreat          EventType = "retreat"
-	EventTypeArmyDestroyed    EventType = "army_destroyed"
-	EventTypeNobleMovement    EventType = "noble_movement"
-	EventTypeCapture          EventType = "capture"
-	EventTypeControlChanged   EventType = "control_changed"
-	EventTypeChainProgression EventType = "chain_progression"
-	EventTypeSupply           EventType = "supply"
-	EventTypeFamine           EventType = "famine"
-	EventTypeWinterStock      EventType = "winter_stock"
-	EventTypeRecruit          EventType = "recruit"
-	EventTypeBuild            EventType = "build"
-	EventTypeUpgrade          EventType = "upgrade"
-	EventTypeRejected         EventType = "rejected"
-	EventTypeCapitalElected   EventType = "capital_elected"
-	EventTypeLiberation       EventType = "liberation"
-	EventTypeRumor            EventType = "rumor"
+	EventTypeOrderOutcome      EventType = "order_outcome"
+	EventTypeCombat            EventType = "combat"
+	EventTypeMovement          EventType = "movement"
+	EventTypeFusion            EventType = "fusion"
+	EventTypeDispersion        EventType = "dispersion"
+	EventTypePillage           EventType = "pillage"
+	EventTypeRetreat           EventType = "retreat"
+	EventTypeArmyDestroyed     EventType = "army_destroyed"
+	EventTypeNobleMovement     EventType = "noble_movement"
+	EventTypeCapture           EventType = "capture"
+	EventTypeControlChanged    EventType = "control_changed"
+	EventTypeChainProgression  EventType = "chain_progression"
+	EventTypeSupply            EventType = "supply"
+	EventTypeFamine            EventType = "famine"
+	EventTypeWinterStock       EventType = "winter_stock"
+	EventTypeRecruit           EventType = "recruit"
+	EventTypeBuild             EventType = "build"
+	EventTypeUpgrade           EventType = "upgrade"
+	EventTypeRejected          EventType = "rejected"
+	EventTypeCapitalElected    EventType = "capital_elected"
+	EventTypeLiberation        EventType = "liberation"
+	EventTypeDeckDraw          EventType = "deck_draw"
+	EventTypeDeckDiscard       EventType = "deck_discard"
+	EventTypeCalamityScheduled EventType = "calamity_scheduled"
+	EventTypeAuguryRevealed    EventType = "augury_revealed"
+	EventTypeDeckOrderPlayed   EventType = "deck_order_played"
+	EventTypeCalamityApplied   EventType = "calamity_applied"
+	EventTypeCalamityCanceled  EventType = "calamity_canceled"
+	EventTypeBonusEffect       EventType = "bonus_effect"
+	EventTypeNeutralArmy       EventType = "neutral_army_created"
+	EventTypePlagueDeath       EventType = "plague_noble_death"
+	EventTypeRumor             EventType = "rumor"
 )
 
 // Outcome is the execution result of one current order.
@@ -73,18 +83,22 @@ type Event struct {
 	Type  EventType `json:"type"`
 	Phase int       `json:"phase"`
 
-	ArmyID      models.ArmyID    `json:"army,omitempty"`
-	OtherArmyID models.ArmyID    `json:"otherArmy,omitempty"`
-	ArmyIDs     []models.ArmyID  `json:"armies,omitempty"`
-	ChainID     models.ChainID   `json:"chain,omitempty"`
-	OrderID     models.OrderID   `json:"order,omitempty"`
-	OrderType   models.OrderType `json:"orderType,omitempty"`
-	CardKind    models.CardKind  `json:"cardKind,omitempty"`
-	RumorKey    string           `json:"rumorKey,omitempty"`
-	Outcome     Outcome          `json:"outcome,omitempty"`
-	Automatic   bool             `json:"automatic,omitempty"`
-	Reason      string           `json:"reason,omitempty"`
-	Progression Progression      `json:"progression,omitempty"`
+	ArmyID      models.ArmyID        `json:"army,omitempty"`
+	OtherArmyID models.ArmyID        `json:"otherArmy,omitempty"`
+	ArmyIDs     []models.ArmyID      `json:"armies,omitempty"`
+	ChainID     models.ChainID       `json:"chain,omitempty"`
+	OrderID     models.OrderID       `json:"order,omitempty"`
+	OrderType   models.OrderType     `json:"orderType,omitempty"`
+	CardID      models.SpecialCardID `json:"cardId,omitempty"`
+	CardKind    models.CardKind      `json:"cardKind,omitempty"`
+	RegionSeed  models.TerritoryID   `json:"regionSeed,omitempty"`
+	Year        int                  `json:"year,omitempty"`
+	Season      models.Season        `json:"season,omitempty"`
+	RumorKey    string               `json:"rumorKey,omitempty"`
+	Outcome     Outcome              `json:"outcome,omitempty"`
+	Automatic   bool                 `json:"automatic,omitempty"`
+	Reason      string               `json:"reason,omitempty"`
+	Progression Progression          `json:"progression,omitempty"`
 
 	TerritoryID       models.TerritoryID `json:"territory,omitempty"`
 	SourceID          models.TerritoryID `json:"source,omitempty"`
@@ -101,6 +115,8 @@ type Event struct {
 	CutSupporterIDs   []models.ArmyID    `json:"cutSupporters,omitempty"`
 	Resolved          bool               `json:"resolved,omitempty"`
 	RemainingStrength int                `json:"remainingStrength,omitempty"`
+	SizeBefore        int                `json:"sizeBefore,omitempty"`
+	SizeAfter         int                `json:"sizeAfter,omitempty"`
 
 	InfrastructureID   models.InfraID             `json:"infrastructure,omitempty"`
 	InfrastructureType models.InfraType           `json:"infrastructureType,omitempty"`

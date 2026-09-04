@@ -47,17 +47,23 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 		}
 		effective[seed][intent.order.Kind] = true
 		canceled := false
-		if canceledKind, ok := intent.order.Kind.CanceledCalamity(); ok && active[seed][canceledKind] {
-			delete(active[seed], canceledKind)
+		canceledKind := models.CardKind("")
+		if candidate, ok := intent.order.Kind.CanceledCalamity(); ok && active[seed][candidate] {
+			canceledKind = candidate
+			delete(active[seed], candidate)
 			canceled = true
 		}
-		if !canceled {
+		if canceled {
+			ctx.events = append(ctx.events, Event{Type: EventTypeCalamityCanceled, Phase: phaseForSeason(ctx.state.Season), CardKind: canceledKind, RegionSeed: seed, Season: ctx.state.Season, Year: ctx.state.Year()})
+		} else {
 			ctx.bonusMillRegions[seed]++
 			ctx.bonusRationRegions[seed]++
+			ctx.events = append(ctx.events, Event{Type: EventTypeBonusEffect, Phase: phaseForSeason(ctx.state.Season), CardKind: intent.order.Kind, RegionSeed: seed, Season: ctx.state.Season, Year: ctx.state.Year()})
 		}
 	}
 	for _, calamity := range calamities {
 		if active[calamity.RegionSeed][calamity.Kind] {
+			ctx.events = append(ctx.events, Event{Type: EventTypeCalamityApplied, Phase: phaseForSeason(ctx.state.Season), CardKind: calamity.Kind, RegionSeed: calamity.RegionSeed, Season: calamity.Season, Year: calamity.Year})
 			switch calamity.Kind {
 			case models.CardKindBadWeather:
 				ctx.badWeatherRegions[calamity.RegionSeed] = true
@@ -126,8 +132,10 @@ func applyPlague(ctx *resolutionContext, regionSeed models.TerritoryID) {
 		if army == nil {
 			continue
 		}
+		before := army.Size
 		army.Size = max(1, (army.Size+divisor-1)/divisor)
 		ctx.startArmiesByID[army.ID] = *army
+		ctx.events = append(ctx.events, Event{Type: EventTypeCalamityApplied, Phase: phaseForSeason(ctx.state.Season), CardKind: models.CardKindPlague, RegionSeed: regionSeed, ArmyID: army.ID, SizeBefore: before, SizeAfter: army.Size, Season: ctx.state.Season, Year: ctx.state.Year()})
 	}
 }
 
@@ -159,6 +167,7 @@ func applyRevolt(ctx *resolutionContext, regionSeed models.TerritoryID, orderID 
 		ctx.state.TerritoryStates[army.TerritoryID] = state
 		ctx.startArmiesByID[army.ID] = army
 		ctx.startArmyAtTerritory[army.TerritoryID] = army.ID
+		ctx.events = append(ctx.events, Event{Type: EventTypeNeutralArmy, Phase: phaseForSeason(ctx.state.Season), ArmyID: army.ID, OwnerID: models.NeutralPlayerID, TerritoryID: army.TerritoryID, Troops: army.Size, Season: ctx.state.Season, Year: ctx.state.Year()})
 		ctx.rebuildIndexes()
 	}
 }
@@ -196,6 +205,7 @@ func resolvePlagueMortality(ctx *resolutionContext) {
 		if plagueRegions[regionForTerritory(ctx, startNoble.LocationID)] && newPlagueRNG(ctx.state.Seed, ctx.state.Turn, nobleID).IntN(100) < mortality {
 			dead[nobleID] = true
 			ctx.plagueDeaths = append(ctx.plagueDeaths, startNoble)
+			ctx.events = append(ctx.events, Event{Type: EventTypePlagueDeath, Phase: phaseForSeason(ctx.state.Season), NobleID: nobleID, NobleCode: models.NobleCode(startNoble.Code), NobleName: startNoble.Name, TerritoryID: startNoble.LocationID, Season: ctx.state.Season, Year: ctx.state.Year()})
 		}
 	}
 	if len(dead) == 0 {
