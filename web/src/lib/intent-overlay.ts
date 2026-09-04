@@ -22,6 +22,8 @@ const SYMBOLS: Record<OrderType, string> = {
 export type IntentSegmentKind =
   'attack' | 'movement' | 'support-defensive' | 'support-offensive' | 'loop'
 
+export type IntentionSource = 'chain' | 'draft'
+
 export interface IntentSegment {
   from: Point
   to: Point
@@ -34,6 +36,7 @@ export interface Intention {
   symbol: string
   type: OrderType
   turn: number
+  source: IntentionSource
   nobleCode?: string
   label: string
   segments: IntentSegment[]
@@ -121,6 +124,7 @@ function makeIntention(
   order: Order,
   territoryState: { id: string; size: number },
   turn: number,
+  source: IntentionSource,
   nobleCode?: string,
 ): Intention | null {
   if (order.liaison === 'loop' && order.type !== 'disperse') return null
@@ -134,6 +138,7 @@ function makeIntention(
     from,
     symbol: SYMBOLS[order.type],
     turn,
+    source,
     nobleCode,
     label: formatOrderLabel({
       type: order.type,
@@ -232,6 +237,7 @@ function appendChainIntentions(
   startIndex: number,
   army: { id: string; size: number },
   intentions: Intention[],
+  source: IntentionSource,
   nobleCode?: string,
 ): void {
   for (let orderIndex = startIndex; orderIndex < orders.length; orderIndex += 1) {
@@ -242,6 +248,7 @@ function appendChainIntentions(
       order,
       army,
       orderIndex - startIndex + 1,
+      source,
       nobleCode,
     )
     if (intention) intentions.push(intention)
@@ -270,6 +277,7 @@ export function buildIntentions(
       Math.max(0, chain.currentIndex ?? 0),
       { id: territoryState.id, size: army.size },
       intentions,
+      'chain',
     )
   }
 
@@ -296,6 +304,7 @@ export function buildIntentions(
       0,
       { id: territoryState.id, size: territoryState.army.size },
       intentions,
+      'draft',
       nobleCode,
     )
   }

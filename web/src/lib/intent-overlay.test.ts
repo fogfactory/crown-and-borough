@@ -173,6 +173,7 @@ describe('buildIntentions', () => {
       armyTerritory: 'ROS',
       symbol: 'A',
       turn: 1,
+      source: 'draft',
       nobleCode: 'HUG',
     })
     expect(intentions[0].from).toEqual([...ROS_CENTROID])
@@ -404,8 +405,16 @@ describe('buildIntentions', () => {
 
     expect(intentions).toHaveLength(0)
     expect(intentionsWithChain).toHaveLength(3)
-    expect(intentionsWithChain[0]).toMatchObject({ symbol: 'A', turn: 1 })
-    expect(intentionsWithChain[1]).toMatchObject({ symbol: 'A', turn: 2 })
+    expect(intentionsWithChain[0]).toMatchObject({
+      symbol: 'A',
+      turn: 1,
+      source: 'chain',
+    })
+    expect(intentionsWithChain[1]).toMatchObject({
+      symbol: 'A',
+      turn: 2,
+      source: 'chain',
+    })
     expect(intentionsWithChain[1].from).toEqual([75, 25])
     expect(intentionsWithChain[2]).toMatchObject({ symbol: 'H', turn: 3 })
   })
@@ -449,8 +458,8 @@ describe('buildIntentions', () => {
     )
 
     expect(intentions).toHaveLength(2)
-    expect(intentions[0]).toMatchObject({ symbol: 'A', turn: 1 })
-    expect(intentions[1]).toMatchObject({ symbol: 'J', turn: 2 })
+    expect(intentions[0]).toMatchObject({ symbol: 'A', turn: 1, source: 'chain' })
+    expect(intentions[1]).toMatchObject({ symbol: 'J', turn: 2, source: 'chain' })
     expect(intentions[1].from).toEqual([75, 25])
   })
 

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { MapViewer } from '@/components/MapViewer'
+import { DRAFT_INTENTION_COLOR, MapViewer } from '@/components/MapViewer'
 import { buildIntentions } from '@/lib/intent-overlay'
 import type { Intention } from '@/lib/intent-overlay'
 import type { MapData, StateData, SupplyLine } from '@/types'
@@ -733,23 +733,69 @@ describe('MapViewer intentions overlay', () => {
     const group = svg.querySelector('g[aria-label="Intentions overlay"]')
     const line = group?.querySelector('line:not([data-intent-outline])')
     const outline = group?.querySelector('line[data-intent-outline]')
-    const marker = svg.querySelector('#intent-arrow')
+    const marker = svg.querySelector('#intent-arrow-draft')
     const outlineMarker = svg.querySelector('#intent-arrow-outline')
     const referenceMeanArea = (1000 * 700) / (8 * 4 + 4 * (4 + 1))
     const expectedScale = Math.sqrt((50 * 50) / referenceMeanArea)
 
     expect(group).toBeInTheDocument()
     expect(group).toHaveAttribute('pointer-events', 'none')
-    expect(line).toHaveAttribute('marker-end', 'url(#intent-arrow)')
-    expect(line).toHaveAttribute('stroke', '#a84632')
+    expect(line).toHaveAttribute('marker-end', 'url(#intent-arrow-draft)')
+    expect(line).toHaveAttribute('stroke', DRAFT_INTENTION_COLOR)
     expect(line).toHaveAttribute('stroke-width', `${4 * expectedScale}`)
     expect(outline).toHaveAttribute('stroke', '#17120f')
     expect(outline).toHaveAttribute('stroke-width', `${6 * expectedScale}`)
     expect(line).not.toHaveAttribute('stroke-dasharray')
-    expect(marker?.querySelector('path')).toHaveAttribute('fill', '#a84632')
+    expect(marker?.querySelector('path')).toHaveAttribute('fill', DRAFT_INTENTION_COLOR)
     expect(outlineMarker?.querySelector('path')).toHaveAttribute('fill', '#17120f')
     expect(line?.getAttribute('x2')).toEqual('75')
     expect(line?.getAttribute('y2')).toEqual('25')
+  })
+
+  it('uses a pastel color for drafts and the player color for installed chains', () => {
+    const installedState: StateData = {
+      ...armedState,
+      territories: armedState.territories.map((territory) =>
+        territory.id === 'ROS'
+          ? {
+              ...territory,
+              army: {
+                owner: 'P1',
+                size: 3,
+                chain: {
+                  visibility: 'known',
+                  currentIndex: 0,
+                  orders: [
+                    {
+                      type: 'attack',
+                      position: 'ROS',
+                      targets: ['BRU'],
+                      liaison: 'single',
+                    },
+                  ],
+                },
+              },
+            }
+          : territory,
+      ),
+    }
+    const draftIntentions = intentionsFor('HUG\nROS A BRU')
+    const installedIntentions = buildIntentions(triangleMap, installedState, 'P1', {})
+    const { svg } = renderMap(triangleMap, installedState, vi.fn(), null, [
+      ...draftIntentions,
+      ...installedIntentions,
+    ])
+    const lines = Array.from(
+      svg.querySelectorAll(
+        'g[aria-label="Intentions overlay"] line:not([data-intent-outline])',
+      ),
+    )
+
+    expect(lines).toHaveLength(2)
+    expect(lines.map((line) => line.getAttribute('stroke'))).toEqual([
+      DRAFT_INTENTION_COLOR,
+      '#a84632',
+    ])
   })
 
   it('renders defensive support dashed with a circle head at the supported center', () => {
@@ -767,11 +813,11 @@ describe('MapViewer intentions overlay', () => {
       'g[aria-label="Intentions overlay"] line[data-intent-outline]',
     )
 
-    expect(line).toHaveAttribute('marker-end', 'url(#intent-circle)')
+    expect(line).toHaveAttribute('marker-end', 'url(#intent-circle-draft)')
     expect(line).toHaveAttribute('stroke-dasharray')
     expect(outline).toHaveAttribute('stroke', '#17120f')
     expect(outline).toHaveAttribute('marker-end', 'url(#intent-circle-outline)')
-    expect(svg.querySelector('#intent-circle circle')).toBeInTheDocument()
+    expect(svg.querySelector('#intent-circle-draft circle')).toBeInTheDocument()
     expect(svg.querySelector('#intent-circle-outline circle')).toBeInTheDocument()
   })
 
@@ -787,7 +833,7 @@ describe('MapViewer intentions overlay', () => {
       'g[aria-label="Intentions overlay"] line:not([data-intent-outline])',
     )
 
-    expect(line).toHaveAttribute('marker-end', 'url(#intent-arrow)')
+    expect(line).toHaveAttribute('marker-end', 'url(#intent-arrow-draft)')
     expect(line).toHaveAttribute('stroke-dasharray')
   })
 
@@ -805,7 +851,7 @@ describe('MapViewer intentions overlay', () => {
     expect(group?.querySelector('path:not([data-intent-outline])')).not.toBeNull()
     expect(group?.querySelector('path:not([data-intent-outline])')).toHaveAttribute(
       'marker-end',
-      'url(#intent-arrow)',
+      'url(#intent-arrow-draft)',
     )
     expect(group?.querySelector('path[data-intent-outline]')).toHaveAttribute(
       'marker-end',
