@@ -314,9 +314,53 @@ Le deck contient **{{special_orders.deck_size}} cartes**, dont **{{special_order
 
 La main est limitée à **{{special_orders.hand_limit}} cartes**. Chaque joueur peut utiliser au plus **{{special_orders.draw_orders_limit}} tirages** par hiver. Les calamités sont programmées dans les slots printemps (**{{special_orders.calamity_slots.spring}}**), été (**{{special_orders.calamity_slots.summer}}**) et hiver (**{{special_orders.calamity_slots.winter}}**). La peste réduit les armées par division de **{{special_orders.effects.plague_army_divisor}}**.
 
+## 6. Cartes spéciales et calamités
+
+Les ordres de cartes sont soumis dans un champ `special`, séparé des chaînes de
+nobles et des investissements d'hiver. Aucun noble n'est nécessaire.
+
+- `P BT ROS` : jouer Beau temps sur la région dont ROS est le seed ;
+- `P RA ROS` : jouer Bonne récolte sur cette région ;
+- `P RE ROS` : jouer Révolte, uniquement si une famine active affecte cette région ;
+- `D C BT` ou `D C RA` : défausser une carte, en hiver uniquement ;
+- `T C` : tirer une carte, en hiver uniquement.
+
+Les cartes Beau temps, Bonne récolte et Révolte sont jouables au printemps, en
+été et en automne, mais pas en hiver. Les cartes jouées sont consommées avant la
+résolution des ordres d'armée. Beau temps annule uniquement le mauvais temps et
+Bonne récolte annule uniquement la famine. Si une carte annule une calamité,
+elle ne produit pas son bonus régional. Deux cartes du même kind sont
+consommées, mais une seule est effective.
+
+Le deck contient **{{special_orders.deck_size}} cartes** :
+**{{special_orders.card.plague}}** peste, **{{special_orders.card.bad_weather}}**
+mauvais temps, **{{special_orders.card.famine}}** famine,
+**{{special_orders.card.fair_weather}}** beau temps,
+**{{special_orders.card.abundant_harvest}}** bonnes récoltes et
+**{{special_orders.card.revolt}}** révoltes. La main est limitée à
+**{{special_orders.hand_limit}} cartes** et chaque joueur peut utiliser
+**{{special_orders.draw_orders_limit}} tirages par hiver**.
+
+Une calamité tirée est programmée dans le premier slot disponible de l'année
+suivante : printemps (**{{special_orders.calamity_slots.spring}}**), été
+(**{{special_orders.calamity_slots.summer}}**) ou hiver
+(**{{special_orders.calamity_slots.winter}}**). Sa région est tirée de manière
+déterministe lors de la programmation. L'augure du printemps révèle le kind, la
+saison et la région de toutes les calamités de l'année ; les augures futures
+restent cachées.
+
+- la peste réduit les armées par division de **{{special_orders.effects.plague_army_divisor}}** et peut supprimer un noble ;
+- le mauvais temps bloque les mouvements provenant ou visant sa région, sauf le maintien et le soutien défensif ;
+- la famine désactive les moulins et les bonus de rations des infrastructures de sa région ;
+- la Révolte crée des armées neutres sur les cases vides, selon la balance.
+
+Les rumeurs publiques peuvent suggérer le kind d'une carte tirée lorsqu'au moins
+deux joueurs distincts ont tiré des cartes pendant l'hiver. Elles ne révèlent
+jamais le joueur ni l'identifiant interne de la carte.
+
 ---
 
-## 6. Armées, combats et logistique
+## 7. Armées, combats et logistique
 
 ### Armées et force
 
