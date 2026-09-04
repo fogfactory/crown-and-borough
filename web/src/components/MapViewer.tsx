@@ -42,6 +42,7 @@ const REFERENCE_MEAN_TERRITORY_AREA =
   (REFERENCE_MAP_WIDTH * REFERENCE_MAP_HEIGHT) / REFERENCE_MAP_TERRITORIES
 
 const PLAYER_PALETTE = ['#a84632', '#2d5f9e', '#7052a1', '#34775c', '#ad7a25']
+const INTENT_OUTLINE_COLOR = '#17120f'
 
 const INFRASTRUCTURE_LABEL_KEYS: Record<Infrastructure['type'], MessageKey> = {
   mill: 'infrastructure.mill',
@@ -732,6 +733,17 @@ export function MapViewer({
                 />
               </pattern>
               <marker
+                id="intent-arrow-outline"
+                viewBox="0 0 10 10"
+                refX="8.5"
+                refY="5"
+                markerWidth="3.8"
+                markerHeight="3.8"
+                orient="auto"
+              >
+                <path d="M0 0 L10 5 L0 10 Z" fill={INTENT_OUTLINE_COLOR} />
+              </marker>
+              <marker
                 id="intent-arrow"
                 viewBox="0 0 10 10"
                 refX="8.5"
@@ -741,6 +753,24 @@ export function MapViewer({
                 orient="auto"
               >
                 <path d="M0 0 L10 5 L0 10 Z" fill={intentionsColor} />
+              </marker>
+              <marker
+                id="intent-circle-outline"
+                viewBox="0 0 10 10"
+                refX="5"
+                refY="5"
+                markerWidth="4"
+                markerHeight="4"
+                orient="auto"
+              >
+                <circle
+                  cx="5"
+                  cy="5"
+                  r="3.8"
+                  fill="none"
+                  stroke={INTENT_OUTLINE_COLOR}
+                  strokeWidth="2.8"
+                />
               </marker>
               <marker
                 id="intent-circle"
@@ -1106,10 +1136,20 @@ export function MapViewer({
                         const radius = 12 * annotationScale
                         const direction = segmentIndex % 2 === 0 ? 1 : -1
                         const sweep = direction === 1 ? 0 : 1
+                        const path = `M ${segment.from[0] + radius * direction} ${segment.from[1]} A ${radius} ${radius} 0 1 ${sweep} ${segment.from[0]} ${segment.from[1] - radius}`
                         return (
                           <g key={segmentIndex}>
                             <path
-                              d={`M ${segment.from[0] + radius * direction} ${segment.from[1]} A ${radius} ${radius} 0 1 ${sweep} ${segment.from[0]} ${segment.from[1] - radius}`}
+                              d={path}
+                              data-intent-outline="true"
+                              fill="none"
+                              stroke={INTENT_OUTLINE_COLOR}
+                              strokeWidth={4.5 * annotationScale}
+                              strokeLinecap="round"
+                              markerEnd="url(#intent-arrow-outline)"
+                            />
+                            <path
+                              d={path}
                               fill="none"
                               stroke={intentionsColor}
                               strokeWidth={2.5 * annotationScale}
@@ -1131,25 +1171,38 @@ export function MapViewer({
                         segment.kind === 'attack'
                           ? 4 * annotationScale
                           : 2.5 * annotationScale
+                      const strokeDasharray =
+                        segment.kind === 'support-defensive' ||
+                        segment.kind === 'support-offensive'
+                          ? passableBorderDash
+                          : undefined
+                      const markerEnd =
+                        segment.kind === 'support-defensive'
+                          ? 'url(#intent-circle)'
+                          : 'url(#intent-arrow)'
+                      const outlineMarkerEnd =
+                        segment.kind === 'support-defensive'
+                          ? 'url(#intent-circle-outline)'
+                          : 'url(#intent-arrow-outline)'
 
                       return (
                         <g key={segmentIndex}>
                           <line
                             {...common}
+                            data-intent-outline="true"
+                            stroke={INTENT_OUTLINE_COLOR}
+                            strokeWidth={strokeWidth + 2 * annotationScale}
+                            strokeDasharray={strokeDasharray}
+                            strokeLinecap="round"
+                            markerEnd={outlineMarkerEnd}
+                          />
+                          <line
+                            {...common}
                             stroke={intentionsColor}
                             strokeWidth={strokeWidth}
-                            strokeDasharray={
-                              segment.kind === 'support-defensive' ||
-                              segment.kind === 'support-offensive'
-                                ? passableBorderDash
-                                : undefined
-                            }
+                            strokeDasharray={strokeDasharray}
                             strokeLinecap="round"
-                            markerEnd={
-                              segment.kind === 'support-defensive'
-                                ? 'url(#intent-circle)'
-                                : 'url(#intent-arrow)'
-                            }
+                            markerEnd={markerEnd}
                           />
                           <IntentBadge
                             x={(segment.from[0] + segment.to[0]) / 2}

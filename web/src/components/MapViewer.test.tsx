@@ -731,8 +731,10 @@ describe('MapViewer intentions overlay', () => {
       intentionsFor('HUG\nROS A BRU'),
     )
     const group = svg.querySelector('g[aria-label="Intentions overlay"]')
-    const line = group?.querySelector('line')
+    const line = group?.querySelector('line:not([data-intent-outline])')
+    const outline = group?.querySelector('line[data-intent-outline]')
     const marker = svg.querySelector('#intent-arrow')
+    const outlineMarker = svg.querySelector('#intent-arrow-outline')
     const referenceMeanArea = (1000 * 700) / (8 * 4 + 4 * (4 + 1))
     const expectedScale = Math.sqrt((50 * 50) / referenceMeanArea)
 
@@ -741,8 +743,11 @@ describe('MapViewer intentions overlay', () => {
     expect(line).toHaveAttribute('marker-end', 'url(#intent-arrow)')
     expect(line).toHaveAttribute('stroke', '#a84632')
     expect(line).toHaveAttribute('stroke-width', `${4 * expectedScale}`)
+    expect(outline).toHaveAttribute('stroke', '#17120f')
+    expect(outline).toHaveAttribute('stroke-width', `${6 * expectedScale}`)
     expect(line).not.toHaveAttribute('stroke-dasharray')
     expect(marker?.querySelector('path')).toHaveAttribute('fill', '#a84632')
+    expect(outlineMarker?.querySelector('path')).toHaveAttribute('fill', '#17120f')
     expect(line?.getAttribute('x2')).toEqual('75')
     expect(line?.getAttribute('y2')).toEqual('25')
   })
@@ -755,11 +760,19 @@ describe('MapViewer intentions overlay', () => {
       null,
       intentionsFor('HUG\nROS S BRU'),
     )
-    const line = svg.querySelector('g[aria-label="Intentions overlay"] line')
+    const line = svg.querySelector(
+      'g[aria-label="Intentions overlay"] line:not([data-intent-outline])',
+    )
+    const outline = svg.querySelector(
+      'g[aria-label="Intentions overlay"] line[data-intent-outline]',
+    )
 
     expect(line).toHaveAttribute('marker-end', 'url(#intent-circle)')
     expect(line).toHaveAttribute('stroke-dasharray')
+    expect(outline).toHaveAttribute('stroke', '#17120f')
+    expect(outline).toHaveAttribute('marker-end', 'url(#intent-circle-outline)')
     expect(svg.querySelector('#intent-circle circle')).toBeInTheDocument()
+    expect(svg.querySelector('#intent-circle-outline circle')).toBeInTheDocument()
   })
 
   it('renders offensive support dashed with an arrow head at the attacked frontier', () => {
@@ -770,7 +783,9 @@ describe('MapViewer intentions overlay', () => {
       null,
       intentionsFor('HUG\nROS S CHA - BRU'),
     )
-    const line = svg.querySelector('g[aria-label="Intentions overlay"] line')
+    const line = svg.querySelector(
+      'g[aria-label="Intentions overlay"] line:not([data-intent-outline])',
+    )
 
     expect(line).toHaveAttribute('marker-end', 'url(#intent-arrow)')
     expect(line).toHaveAttribute('stroke-dasharray')
@@ -786,11 +801,15 @@ describe('MapViewer intentions overlay', () => {
     )
     const group = svg.querySelector('g[aria-label="Intentions overlay"]')
 
-    expect(group?.querySelectorAll('line')).toHaveLength(2)
-    expect(group?.querySelector('path')).not.toBeNull()
-    expect(group?.querySelector('path')).toHaveAttribute(
+    expect(group?.querySelectorAll('line:not([data-intent-outline])')).toHaveLength(2)
+    expect(group?.querySelector('path:not([data-intent-outline])')).not.toBeNull()
+    expect(group?.querySelector('path:not([data-intent-outline])')).toHaveAttribute(
       'marker-end',
       'url(#intent-arrow)',
+    )
+    expect(group?.querySelector('path[data-intent-outline]')).toHaveAttribute(
+      'marker-end',
+      'url(#intent-arrow-outline)',
     )
   })
 

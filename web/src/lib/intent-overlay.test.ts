@@ -192,6 +192,17 @@ describe('buildIntentions', () => {
     ])
   })
 
+  it('renders later draft orders from their declared positions', () => {
+    const intentions = buildIntentions(map, stateWith(), 'P1', {
+      HUG: 'HUG\nROS A BRU\nBRU A CHA',
+    })
+
+    expect(intentions).toHaveLength(2)
+    expect(intentions[1]).toMatchObject({ symbol: 'A', turn: 2 })
+    expect(intentions[1].from).toEqual([75, 25])
+    expect(intentions[1].segments[0].to).toEqual([25, 75])
+  })
+
   it('renders a join toward the destination center', () => {
     const intentions = buildIntentions(map, stateWith(), 'P1', {
       HUG: 'HUG\nROS J BRU',
@@ -345,7 +356,7 @@ describe('buildIntentions', () => {
     expect(intentions).toHaveLength(0)
   })
 
-  it('renders visible installed chains on owned armies from the next turn onward', () => {
+  it('renders visible installed chains including the current order', () => {
     const intentions = buildIntentions(map, stateWith(), 'P1', {})
 
     const intentionsWithChain = buildIntentions(
@@ -369,14 +380,14 @@ describe('buildIntentions', () => {
                         liaison: 'single',
                       },
                       {
-                        type: 'join',
-                        position: 'ROS',
+                        type: 'attack',
+                        position: 'BRU',
                         targets: ['CHA'],
                         liaison: 'single',
                       },
                       {
                         type: 'hold',
-                        position: 'ROS',
+                        position: 'CHA',
                         targets: [],
                         liaison: 'single',
                       },
@@ -392,12 +403,14 @@ describe('buildIntentions', () => {
     )
 
     expect(intentions).toHaveLength(0)
-    expect(intentionsWithChain).toHaveLength(2)
-    expect(intentionsWithChain[0]).toMatchObject({ symbol: 'J', turn: 1 })
-    expect(intentionsWithChain[1]).toMatchObject({ symbol: 'H', turn: 2 })
+    expect(intentionsWithChain).toHaveLength(3)
+    expect(intentionsWithChain[0]).toMatchObject({ symbol: 'A', turn: 1 })
+    expect(intentionsWithChain[1]).toMatchObject({ symbol: 'A', turn: 2 })
+    expect(intentionsWithChain[1].from).toEqual([75, 25])
+    expect(intentionsWithChain[2]).toMatchObject({ symbol: 'H', turn: 3 })
   })
 
-  it('hides the order that executes this turn for an installed chain', () => {
+  it('renders the current order for an installed chain', () => {
     const intentions = buildIntentions(
       map,
       stateWith({
@@ -420,7 +433,7 @@ describe('buildIntentions', () => {
                       },
                       {
                         type: 'join',
-                        position: 'ROS',
+                        position: 'BRU',
                         targets: ['CHA'],
                         liaison: 'single',
                       },
@@ -435,8 +448,10 @@ describe('buildIntentions', () => {
       {},
     )
 
-    expect(intentions).toHaveLength(1)
-    expect(intentions[0]).toMatchObject({ symbol: 'J', turn: 1 })
+    expect(intentions).toHaveLength(2)
+    expect(intentions[0]).toMatchObject({ symbol: 'A', turn: 1 })
+    expect(intentions[1]).toMatchObject({ symbol: 'J', turn: 2 })
+    expect(intentions[1].from).toEqual([75, 25])
   })
 
   it('skips hidden installed chains', () => {

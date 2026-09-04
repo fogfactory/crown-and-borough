@@ -226,6 +226,28 @@ function makeIntention(
   }
 }
 
+function appendChainIntentions(
+  map: MapData,
+  orders: Order[],
+  startIndex: number,
+  army: { id: string; size: number },
+  intentions: Intention[],
+  nobleCode?: string,
+): void {
+  for (let orderIndex = startIndex; orderIndex < orders.length; orderIndex += 1) {
+    const order = orders[orderIndex]
+    if (order.liaison === 'loop' && order.type !== 'disperse') continue
+    const intention = makeIntention(
+      map,
+      order,
+      army,
+      orderIndex - startIndex + 1,
+      nobleCode,
+    )
+    if (intention) intentions.push(intention)
+  }
+}
+
 export function buildIntentions(
   map: MapData,
   state: StateData,
@@ -242,18 +264,13 @@ export function buildIntentions(
     const chain = army.chain
     if (!chain || (chain.visibility ?? 'known') === 'hidden') continue
     const orders = chain.orders ?? []
-    const currentIndex = chain.currentIndex ?? 0
-    for (let orderIndex = currentIndex + 1; orderIndex < orders.length; orderIndex += 1) {
-      const order = orders[orderIndex]
-      if (order.liaison === 'loop' && order.type !== 'disperse') continue
-      const intention = makeIntention(
-        map,
-        order,
-        { id: territoryState.id, size: army.size },
-        orderIndex - currentIndex,
-      )
-      if (intention) intentions.push(intention)
-    }
+    appendChainIntentions(
+      map,
+      orders,
+      Math.max(0, chain.currentIndex ?? 0),
+      { id: territoryState.id, size: army.size },
+      intentions,
+    )
   }
 
   const ownedNobleCodes = new Set(
@@ -265,23 +282,22 @@ export function buildIntentions(
   for (const [nobleCode, text] of Object.entries(chainDrafts)) {
     if (!ownedNobleCodes.has(nobleCode) || !text.trim()) continue
     const parsedOrders = parseChainDraft(text)
-    for (let orderIndex = 0; orderIndex < parsedOrders.length; orderIndex += 1) {
-      const order = parsedOrders[orderIndex]
-      if (order.liaison === 'loop' && order.type !== 'disperse') continue
-      const territoryState = state.territories.find(
-        (candidate) =>
-          candidate.id === order.position && candidate.army?.owner === player,
-      )
-      if (!territoryState?.army) continue
-      const intention = makeIntention(
-        map,
-        order,
-        { id: territoryState.id, size: territoryState.army.size },
-        orderIndex + 1,
-        nobleCode,
-      )
-      if (intention) intentions.push(intention)
-    }
+    const firstOrder = parsedOrders[0]
+    const territoryState = firstOrder
+      ? state.territories.find(
+          (candidate) =>
+            candidate.id === firstOrder.position && candidate.army?.owner === player,
+        )
+      : null
+    if (!territoryState?.army) continue
+    appendChainIntentions(
+      map,
+      parsedOrders,
+      0,
+      { id: territoryState.id, size: territoryState.army.size },
+      intentions,
+      nobleCode,
+    )
   }
 
   return intentions
