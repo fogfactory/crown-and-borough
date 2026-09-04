@@ -111,8 +111,8 @@ BOI J ROS        # jonction (doit être le dernier ordre)
   à chaque résolution jusqu'à sa réussite ; un maintien en loop met l'armée en
   veille. Une erreur mécaniquement impossible casse toujours la chaîne.
 
-La non-adjacence d'un ordre est contrôlée lors de son exécution : les ordres
-antérieurs restent valides et le suffixe est abandonné.
+Un ordre dont la position et la cible ne sont pas adjacentes est rejeté lors de
+la soumission de la chaîne, sans réception partielle de la chaîne.
 
 Une chaîne n'est pas limitée à une seule saison : une ligne réussie fait
 progresser l'index de la chaîne et la ligne suivante attend la résolution

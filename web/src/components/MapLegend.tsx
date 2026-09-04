@@ -21,7 +21,12 @@ export const TERRAIN_COLORS: Record<Terrain, string> = {
 
 const TERRAIN_ORDER: Terrain[] = ['plain', 'forest', 'hill', 'mountain', 'swamp']
 
-export function MapLegend() {
+interface MapLegendProps {
+  showIntentions?: boolean
+  onToggleIntentions?: (show: boolean) => void
+}
+
+export function MapLegend({ showIntentions = true, onToggleIntentions }: MapLegendProps) {
   const { t } = useLanguage()
 
   return (
@@ -35,6 +40,22 @@ export function MapLegend() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2 text-xs text-[#594b3c]">
+        {onToggleIntentions && (
+          <label className="flex items-center gap-2 rounded-md bg-[#f3ead9] px-2 py-1.5">
+            <input
+              type="checkbox"
+              checked={showIntentions}
+              onChange={(event) => onToggleIntentions(event.target.checked)}
+              className="size-3.5 shrink-0 accent-[#a84632]"
+            />
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className="font-semibold">{t('legend.intentions')}</span>
+              <span className="text-[10px] text-[#806f57]">
+                {t('legend.intentionsHint')}
+              </span>
+            </span>
+          </label>
+        )}
         <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
           {TERRAIN_ORDER.map((terrain) => (
             <div key={terrain} className="flex items-center gap-2">

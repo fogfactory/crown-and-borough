@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -24,10 +25,12 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { ApiError, apiRequest, type TokenProvider } from '@/lib/api'
+import { buildIntentions } from '@/lib/intent-overlay'
 import { hasSupplySource } from '@/lib/supply'
 import { addNobleHeader, hasChainContent } from '@/lib/order-text'
 import { playerDisplayName, type PlayerName } from '@/lib/player-label'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
+import { useLocalStorageState } from '@/lib/storage'
 import {
   normalizeGameSummary,
   normalizeStateData,
@@ -265,6 +268,10 @@ export function GamePage() {
   const [reportLoading, setReportLoading] = useState(false)
   const [reportError, setReportError] = useState<string | null>(null)
   const [offline, setOffline] = useState(!window.navigator.onLine)
+  const [showIntentions, setShowIntentions] = useLocalStorageState(
+    'cb.intentionsOverlay',
+    true,
+  )
   const lastTurn = useRef<number | null>(null)
   const tokenProvider: TokenProvider = { getIdToken }
 
@@ -337,6 +344,16 @@ export function GamePage() {
       (summary.currentPlayer !== undefined && player.id === summary.currentPlayer),
   )
   const playerID = currentSlot?.id ?? null
+
+  const intentions = useMemo(
+    () =>
+      state && playerID
+        ? buildIntentions(map ?? { territories: [] }, state, playerID, chainDrafts)
+        : [],
+    [chainDrafts, map, playerID, state],
+  )
+  const intentionsColor =
+    state?.players.find((player) => player.id === playerID)?.color ?? '#a84632'
 
   useEffect(() => {
     const turn = state?.turn ?? null
@@ -739,6 +756,9 @@ export function GamePage() {
             state={state}
             supply={selectedSupplyLine}
             onSelect={setSelectedId}
+            intentions={intentions}
+            showIntentions={showIntentions}
+            intentionsColor={intentionsColor}
           />
         </section>
 
@@ -901,7 +921,10 @@ export function GamePage() {
               </div>
             </CardContent>
           </Card>
-          <MapLegend />
+          <MapLegend
+            showIntentions={showIntentions}
+            onToggleIntentions={setShowIntentions}
+          />
         </aside>
       </main>
       <Lobby
