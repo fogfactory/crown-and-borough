@@ -332,7 +332,7 @@ func TestAssignChainAllowsHostageEmitter(t *testing.T) {
 	})
 }
 
-func TestAssignChainDefersNonAdjacentDiagnostic(t *testing.T) {
+func TestAssignChainRejectsNonAdjacentDiagnostic(t *testing.T) {
 	game := orderTestState()
 	text := "JEA\nROS A BOI\nBOI S ROS\nBOI A FOU"
 	chain := mustParseChain(t, game, text)
@@ -340,26 +340,25 @@ func TestAssignChainDefersNonAdjacentDiagnostic(t *testing.T) {
 	if !hasValidationCode(validationErrors, "not_adjacent") {
 		t.Fatalf("ValidateChain() = %#v, want a not_adjacent diagnostic", validationErrors)
 	}
-	for _, validationError := range validationErrors {
-		if !validationError.Deferrable() {
-			t.Fatalf("ValidateChain() = %#v, want only deferrable errors", validationErrors)
-		}
+	before := marshalGame(t, game)
+	err := AssignChain(game, chain)
+	if err == nil {
+		t.Fatal("AssignChain() = nil, want non-adjacent chain rejection")
 	}
-	if err := AssignChain(game, chain); err != nil {
-		t.Fatalf("AssignChain() = %v, want reception to defer not_adjacent", err)
+	if !strings.Contains(err.Error(), "not adjacent") ||
+		!strings.Contains(err.Error(), `"FOU"`) ||
+		!strings.Contains(err.Error(), `"BOI"`) {
+		t.Fatalf("AssignChain() = %v, want an explicit adjacency message", err)
 	}
-	if len(game.Chains) != 1 || game.Chains[0].ID != "C1" || game.Chains[0].ArmyID != "A1" {
-		t.Fatalf("stored chains = %#v, want C1 carried by A1", game.Chains)
+	if after := marshalGame(t, game); !bytes.Equal(before, after) {
+		t.Fatalf("rejected chain mutated game:\n before=%s\n after=%s", before, after)
 	}
-	if game.Chains[0].Orders[2].ID != "O3" || len(game.Chains[0].Orders[2].TargetIDs) != 1 || game.Chains[0].Orders[2].TargetIDs[0] != "FOU" {
-		t.Errorf("stored O3 = %#v, want preserved FOU target", game.Chains[0].Orders[2])
-	}
-	if err := game.Validate(); err != nil {
-		t.Fatalf("state after deferred reception is invalid: %v", err)
+	if len(game.Chains) != 0 {
+		t.Fatalf("stored chains = %#v, want none", game.Chains)
 	}
 }
 
-func TestAssignChainRejectsDeferrableMixedWithBlockingErrors(t *testing.T) {
+func TestAssignChainRejectsNonAdjacentMixedWithBlockingErrors(t *testing.T) {
 	for _, test := range []struct {
 		name   string
 		text   string
@@ -404,7 +403,6 @@ func TestAssignChainDefersDisperseSizeAndNobleCoverage(t *testing.T) {
 	for _, text := range []string{
 		"JEA\nROS D ROS",
 		"JEA\nROS D ROS BOI",
-		"JEA\nROS A BOI\nBOI D FOU",
 	} {
 		t.Run(text, func(t *testing.T) {
 			game := orderTestState()

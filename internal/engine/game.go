@@ -383,6 +383,24 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 			inputErrors.Errors = append(inputErrors.Errors, newInputError(submission.Player, models.NobleCode(noble.Code), 1, "noble_not_owned", i18n.ErrorNobleNotOwned, noble.Code, noble.OwnerID))
 			continue
 		}
+		adjacencyError := false
+		for _, validationError := range orders.ValidateChain(game, chain) {
+			if validationError.Code != orders.ValidationCodeNotAdjacent {
+				continue
+			}
+			inputErrors.Errors = append(inputErrors.Errors, newInputError(
+				submission.Player,
+				models.NobleCode(noble.Code),
+				0,
+				validationError.Code,
+				validationError.MessageKey,
+				validationError.MessageArgs...,
+			))
+			adjacencyError = true
+		}
+		if adjacencyError {
+			continue
+		}
 		if seenNobles[noble.ID] {
 			inputErrors.Errors = append(inputErrors.Errors, newInputError(submission.Player, models.NobleCode(noble.Code), 1, "duplicate_emission", i18n.ErrorDuplicateEmission, noble.Code))
 			continue

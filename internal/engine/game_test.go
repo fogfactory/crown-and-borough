@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
+	"github.com/fogfactory/crown-and-borough/internal/engine/orders"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
@@ -312,12 +314,13 @@ func TestResolveTurnReportsLostReception(t *testing.T) {
 	}
 }
 
-func TestResolveTurnDefersNonAdjacentOrderAndBreaksChain(t *testing.T) {
+func TestResolveTurnRejectsNonAdjacentChain(t *testing.T) {
 	assets := loadGameTestAssets(t)
-	game, err := CreateGame("deferred-non-adjacency", []PlayerInit{{Name: "One"}, {Name: "Two"}}, testBalance(), assets)
+	game, err := CreateGame("reject-non-adjacency", []PlayerInit{{Name: "One"}, {Name: "Two"}}, testBalance(), assets)
 	if err != nil {
 		t.Fatalf("CreateGame: %v", err)
 	}
+	before, _ := json.Marshal(game)
 	noble := game.Nobles[0]
 	start := territoryByID(game.Territories, noble.LocationID)
 	nextID := models.TerritoryID("")
@@ -353,56 +356,28 @@ func TestResolveTurnDefersNonAdjacentOrderAndBreaksChain(t *testing.T) {
 	}
 	far := territoryByID(game.Territories, farID)
 
-	report, err := ResolveTurn(game, testBalance(), OrdersInput{
+	_, err = ResolveTurn(game, testBalance(), OrdersInput{
 		Chains: []ChainSubmission{{
 			Player: noble.OwnerID,
 			Noble:  models.NobleCode(noble.Code),
 			Text:   noble.Code + "\n" + string(start.ID) + " A " + string(next.ID) + "\nH " + string(next.ID) + "\n" + string(next.ID) + " A " + string(far.ID),
 		}},
 	})
-	if err != nil {
-		t.Fatalf("ResolveTurn: %v", err)
+	if err == nil {
+		t.Fatal("ResolveTurn() = nil, want an input error")
 	}
-	if len(report.Receptions) != 1 || !report.Receptions[0].Received {
-		t.Fatalf("receptions = %#v, want the non-adjacent chain received", report.Receptions)
+	var inputErrors *InputErrors
+	if !errors.As(err, &inputErrors) {
+		t.Fatalf("ResolveTurn() error = %v, want InputErrors", err)
 	}
-	if len(report.Orders) != 1 || report.Orders[0].Outcome != OutcomeSuccess {
-		t.Fatalf("orders = %#v, want O1 success", report.Orders)
+	if len(inputErrors.Errors) != 1 || inputErrors.Errors[0].Code != orders.ValidationCodeNotAdjacent {
+		t.Fatalf("input errors = %#v, want one not_adjacent error", inputErrors.Errors)
 	}
-	serializable := report
-	serializable.State = nil
-	if _, err := json.Marshal(serializable); err != nil {
-		t.Fatalf("marshal report: %v", err)
+	if !strings.Contains(inputErrors.Errors[0].Message, "not adjacent") {
+		t.Fatalf("input error message = %q, want explicit adjacency text", inputErrors.Errors[0].Message)
 	}
-
-	second, err := ResolveTurn(report.State, testBalance(), OrdersInput{})
-	if err != nil {
-		t.Fatalf("second ResolveTurn: %v", err)
-	}
-	if len(second.Orders) != 1 || second.Orders[0].Outcome != OutcomeSuccess || second.Orders[0].Progression != ProgressionAdvanced {
-		t.Fatalf("second orders = %#v, want O2 hold success advanced", second.Orders)
-	}
-
-	third, err := ResolveTurn(second.State, testBalance(), OrdersInput{})
-	if err != nil {
-		t.Fatalf("third ResolveTurn: %v", err)
-	}
-	if len(third.Orders) != 1 || third.Orders[0].Outcome != OutcomeInvalid || third.Orders[0].Progression != ProgressionBroken {
-		t.Fatalf("third orders = %#v, want O3 invalid and chain broken", third.Orders)
-	}
-	if third.Orders[0].Reason != "non_adjacent_destination" {
-		t.Errorf("O3 reason = %q, want non_adjacent_destination", third.Orders[0].Reason)
-	}
-	if len(third.State.Chains) != 0 {
-		t.Errorf("chains after break = %#v, want none", third.State.Chains)
-	}
-
-	fourth, err := ResolveTurn(third.State, testBalance(), OrdersInput{})
-	if err != nil {
-		t.Fatalf("fourth ResolveTurn: %v", err)
-	}
-	if len(fourth.Orders) != 0 {
-		t.Errorf("fourth orders = %#v, want O4 never executed", fourth.Orders)
+	if after, _ := json.Marshal(game); !reflect.DeepEqual(before, after) {
+		t.Fatal("rejected input mutated the game")
 	}
 }
 
