@@ -1,3 +1,5 @@
+name: crown-and-borough
+
 services:
   firestore:
     image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators

@@ -102,9 +102,15 @@ func TestLoadRealRules(t *testing.T) {
 			t.Errorf("French document does not contain %q", heading)
 		}
 	}
+	if strings.Contains(string(document), "FAQ tactique") {
+		t.Error("French rules document still contains the FAQ")
+	}
 	for _, heading := range []string{"## 4. Order Cheat Sheet", "## 5. Winter Orders"} {
 		if !strings.Contains(string(english), heading) {
 			t.Errorf("English document does not contain %q", heading)
 		}
+	}
+	if strings.Contains(string(english), "Tactical FAQ") {
+		t.Error("English rules document still contains the FAQ")
 	}
 }

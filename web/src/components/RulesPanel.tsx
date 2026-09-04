@@ -13,6 +13,7 @@ export const RULE_SECTION_IDS: Record<RulesSection, string> = {
 }
 
 interface RulesPanelProps {
+  variant?: 'panel' | 'page'
   targetSection?: RulesSection
   navigationKey?: number
   gameId?: string
@@ -48,6 +49,7 @@ function sectionAnchor(children: ReactNode): string | undefined {
 }
 
 export function RulesPanel({
+  variant = 'panel',
   targetSection,
   navigationKey = 0,
   gameId,
@@ -129,7 +131,11 @@ export function RulesPanel({
       ) : rulesMarkdown ? (
         <div
           ref={rulesContainerRef}
-          className="max-h-[70vh] overflow-y-auto pr-1 text-sm leading-relaxed text-[#594b3c]"
+          className={
+            variant === 'page'
+              ? 'mx-auto max-w-3xl text-base leading-relaxed text-[#594b3c]'
+              : 'max-h-[70vh] overflow-y-auto pr-1 text-sm leading-relaxed text-[#594b3c]'
+          }
         >
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
