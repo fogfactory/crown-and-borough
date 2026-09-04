@@ -401,8 +401,8 @@ des chaînes de nobles et des investissements d'hiver. Les ordres de cartes sont
 validés et consommés avant les phases militaires ; leurs effets sont agrégés par
 région avant le ravitaillement et l'énumération des intentions. Le rapport
 contient des sections typées pour les joueurs, ordres, combats, mouvements,
-ravitaillement, famine, nobles et investissements d'hiver. Le moteur ne dépend
-ni du HTTP ni du rendu front.
+ravitaillement, famine, nobles, rumeurs publiques et investissements d'hiver. Le
+moteur ne dépend ni du HTTP ni du rendu front.
 
 La réception des chaînes est immédiate et atomique. La validation statique
 conserve volontairement la non-adjacence jusqu'à l'exécution : un ordre
@@ -437,7 +437,7 @@ P BRI
 BRI D BRI ATL NOR
 ```
 
-Les ordres d'hiver v1 comprennent `R N`, `R T`, `C M`, `C C`, `C D`, `E C`,
+Les ordres d'hiver v1 comprennent `A N`, `R N`, `R T`, `C M`, `C C`, `C D`, `E C`,
 `O N`, `P N`, `L N` et `G XXX YYY N`. Une soumission `special` séparée contient les ordres du
 deck : `P KIND TER` au printemps, en été et en automne, et `D C KIND` ou `T C` en
 hiver. Aucun de ces ordres n'exige de noble et ils ne sont jamais intégrés à la

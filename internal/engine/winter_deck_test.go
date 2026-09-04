@@ -73,6 +73,39 @@ func TestResolveWinterDeckOrdersRejectsThirdDrawAtomically(t *testing.T) {
 	}
 }
 
+func TestWinterRumorsRequireMultiplePlayersAndAreDeterministic(t *testing.T) {
+	state := winterDeckState()
+	first := newResolutionContext(state, winterDeckBalance())
+	first.deckDraws["P1"] = []models.CardKind{models.CardKindFairWeather}
+	emitWinterRumors(first)
+	if len(first.events) != 0 {
+		t.Fatalf("single-player rumors = %#v, want none", first.events)
+	}
+	first.deckDraws["P2"] = []models.CardKind{models.CardKindAbundantHarvest}
+	emitWinterRumors(first)
+	second := newResolutionContext(state, winterDeckBalance())
+	second.deckDraws["P1"] = []models.CardKind{models.CardKindFairWeather}
+	second.deckDraws["P2"] = []models.CardKind{models.CardKindAbundantHarvest}
+	emitWinterRumors(second)
+	if len(first.events) != len(second.events) {
+		t.Fatalf("rumor counts = %d/%d, want deterministic", len(first.events), len(second.events))
+	}
+	for index := range first.events {
+		if first.events[index].Type != EventTypeRumor || first.events[index].CardKind != second.events[index].CardKind || first.events[index].RumorKey != second.events[index].RumorKey || first.events[index].OwnerID != "" {
+			t.Fatalf("rumor events = %#v/%#v, want public deterministic events", first.events, second.events)
+		}
+	}
+}
+
+func TestBuildWinterReportRumors(t *testing.T) {
+	before := winterDeckState()
+	after := cloneGameState(before)
+	report := BuildTurnReport(before, after, []Event{{Type: EventTypeRumor, Phase: winterPhase, CardKind: models.CardKindFairWeather, RumorKey: "rumor.fair_weather"}}, nil)
+	if report.Winter == nil || len(report.Winter.Rumors) != 1 || report.Winter.Rumors[0].Key != "rumor.fair_weather" {
+		t.Fatalf("winter rumors = %#v, want one public rumor", report.Winter)
+	}
+}
+
 func TestResolveWinterDiscardsCardInHandOrder(t *testing.T) {
 	state := winterDeckState()
 	state.SpecialDeck.Cards = []models.SpecialCard{
