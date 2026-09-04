@@ -194,7 +194,7 @@ const englishMessages = {
   'reports.reason.no_army_at_capital': 'The noble owner has no army at the capital.',
   'reports.reason.structure_present': 'The territory already has an infrastructure.',
   'reports.reason.mill_requires_productive_neighbor':
-    'A mill requires a productive castle or village on or next to the territory.',
+    'A mill requires a productive castle or village adjacent to the territory.',
   'reports.reason.capital_requires_controlled_castle':
     'The capital must be a controlled castle.',
   'reports.reason.attack_wins': 'Attack wins',
@@ -563,7 +563,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     "Le propriétaire du noble n'a pas d'armée dans sa capitale.",
   'reports.reason.structure_present': 'Le territoire possède déjà une infrastructure.',
   'reports.reason.mill_requires_productive_neighbor':
-    'Un moulin exige un château ou village productif sur le territoire ou adjacent.',
+    'Un moulin exige un château ou village productif adjacent au territoire.',
   'reports.reason.capital_requires_controlled_castle':
     'La capitale doit être un château contrôlé.',
   'reports.reason.attack_wins': "L'attaque gagne",
