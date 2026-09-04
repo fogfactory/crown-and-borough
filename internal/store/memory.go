@@ -710,8 +710,9 @@ func (s *MemoryStore) resolveLocked(game *memoryGame, playerID models.PlayerID, 
 		submitted, remaining = game.submissionStatusLocked()
 	}
 	combined := engine.OrdersInput{
-		Chains: []engine.ChainSubmission{},
-		Winter: []engine.WinterSubmission{},
+		Chains:  []engine.ChainSubmission{},
+		Winter:  []engine.WinterSubmission{},
+		Special: []engine.DeckSubmission{},
 	}
 	for _, player := range game.state.Players {
 		input, exists := game.submissions[player.ID]
@@ -720,6 +721,7 @@ func (s *MemoryStore) resolveLocked(game *memoryGame, playerID models.PlayerID, 
 		}
 		combined.Chains = append(combined.Chains, input.Chains...)
 		combined.Winter = append(combined.Winter, input.Winter...)
+		combined.Special = append(combined.Special, input.Special...)
 	}
 
 	before := game.state
@@ -893,8 +895,9 @@ func spectatorUID(actorID string, spectate bool) string {
 
 func normalizeSubmission(playerID models.PlayerID, request SubmitRequest) (engine.OrdersInput, error) {
 	input := engine.OrdersInput{
-		Chains: append([]engine.ChainSubmission(nil), request.Chains...),
-		Winter: append([]engine.WinterSubmission(nil), request.Winter...),
+		Chains:  append([]engine.ChainSubmission(nil), request.Chains...),
+		Winter:  append([]engine.WinterSubmission(nil), request.Winter...),
+		Special: append([]engine.DeckSubmission(nil), request.Special...),
 	}
 	for index := range input.Chains {
 		if input.Chains[index].Player != "" && input.Chains[index].Player != playerID {
@@ -907,6 +910,12 @@ func normalizeSubmission(playerID models.PlayerID, request SubmitRequest) (engin
 			return engine.OrdersInput{}, fmt.Errorf("store: winter order %d belongs to another player", index+1)
 		}
 		input.Winter[index].Player = playerID
+	}
+	for index := range input.Special {
+		if input.Special[index].Player != "" && input.Special[index].Player != playerID {
+			return engine.OrdersInput{}, fmt.Errorf("store: deck order %d belongs to another player", index+1)
+		}
+		input.Special[index].Player = playerID
 	}
 	return input, nil
 }
