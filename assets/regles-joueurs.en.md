@@ -52,11 +52,28 @@ winter).
 4. Territorial control, noble positions, and events are updated, then a **turn
    report** is produced.
 
+An army executes at most **one line of its chain per action season**. An `A` or
+`J` order therefore crosses at most one adjacent territory in that resolution.
+The chain stays attached to the army between turns: its following lines execute
+in later seasons until the chain ends or breaks. For example, `ROS A BOI` then
+`BOI A ATL` moves the same army from ROS to BOI this turn, and from BOI to ATL
+on the next action turn. A dispersal can create several groups in one
+resolution, but it remains peaceful movement to adjacent territories.
+
 ### Winter Phase
 
 Winter is a **management truce**: no action chain, movement, combat, or supply is
 resolved. The player submits a list of direct investments, processed in the
 entered order (see section 5).
+
+| Season | Orders and timing |
+|---|---|
+| Spring, summer, autumn | Supply is calculated at the **start of resolution**, then intentions, supports, combats, movement, joins, dispersals, and chain progression are resolved together. Each army has only one current line. |
+| Winter | No supply or chain order is resolved: direct investments are applied sequentially in the entered list, then stocks are conserved and repatriated. |
+
+Action-season orders are therefore not a queue between players: each one is
+evaluated together with the turn's intentions. Winter is instead a sequential
+management phase.
 
 ---
 
@@ -91,13 +108,18 @@ BOI J ROS        # join (must be the last order)
 An order's non-adjacency is checked when it executes: earlier orders remain valid
 and the suffix is abandoned.
 
+A chain is not limited to one season: a successful line advances the chain index,
+and the next line waits for the next resolution. A `loop` line deliberately keeps
+the same order when it has to wait for an opening.
+
 ### Reception
 
 - The chain is attached **immediately and atomically** to the army present at the
   position of its first order; it replaces that army's previous chain.
-- A free or hostage noble emits only **one chain per turn**. A chain targeting an
-  army that does not belong to the noble, a noble in the dungeon, or a noble that
-  has already emitted is rejected.
+- A free or hostage noble emits only **one chain per turn**. It may command any
+  army belonging to its player; it does not have to be present at the first
+  order's position. A chain targeting another player's army, a noble in the
+  dungeon, or a noble that has already emitted is rejected.
 - If **several chains target the same army in the same turn**, their concurrent
   reception is invalidated: none is received and the army receives no new chain
   for that turn.
@@ -119,14 +141,15 @@ an action season.
 | `H` | `H XXX` | Hold on `XXX`. |
 | `J` | `XXX J YYY` | Peaceful join toward adjacent `YYY`; **must be the last order**. |
 | `P` | `P XXX` | Pillage the infrastructure on the occupied territory. |
-| `D` | `XXX D DEST1 DEST2 ...` | Peaceful dispersal: destinations are processed in appearance order, may repeat, and troops arriving on the same territory are stacked. |
+| `D` | `XXX D DEST1 DEST2 ...` | Peaceful dispersal at strength 0: destinations are processed in appearance order, may repeat, and troops arriving on the same territory are stacked. |
 
 ### Attack (`A`) and Join (`J`)
 
 `YYY` must be **adjacent** to `XXX` through a passable border. The whole army
 moves to `YYY`. An attack may fight an enemy army there; a join does not fight and
 is repelled if the destination is contested. A join must be the last order in the
-chain.
+chain. A join and a dispersal are never attacks: they are peaceful strength-0
+movement and cannot dislodge anyone.
 
 ### Support (`S`)
 
@@ -135,6 +158,11 @@ A support strengthens an army of **any nationality**:
 - **defensive** (`XXX S YYY`): strengthens the army holding `YYY`, if `YYY` is
   adjacent to `XXX` (an army cannot support itself);
 - **offensive** (`XXX S YYY - ZZZ`): strengthens the attack from `YYY` to `ZZZ`.
+
+For offensive support, both `XXX` and `YYY` must be adjacent to the destination
+`ZZZ`, and YYY must be the army that actually attacks `ZZZ`. A failed attack
+creates no additional penalty: the army follows the normal combat result and its
+chain continues or breaks according to its liaison.
 
 It only counts if the supported army performs the announced action. An attack
 from a territory different from the supported target can **cut** a support.
@@ -148,7 +176,9 @@ from a territory different from the supported target can **cut** a support.
 ### Dispersal (`D`)
 
 `XXX D DEST1 DEST2 ...` processes destinations in appearance order, with at most
-one troop per destination:
+one troop per destination. This is peaceful strength-0 splitting: it does not
+fight an army already present; a free, uncontested destination is taken, while a
+contested destination repels that assignment and receives no troop.
 
 - a destination is adjacent to `XXX` or equal to `XXX`; destinations may repeat;
 - an occupied, contested, or troopless destination does not consume a troop; a
@@ -161,6 +191,11 @@ one troop per destination:
   while a troop remains there;
 - if all troops leave the origin and a present noble has no produced group, the
   order is invalid at execution;
+- the chain carried by the army follows the **first listed group**. Thus,
+  `BRI D ATL NOR` makes the chain follow the ATL group when ATL receives the
+  first troop; to keep the chain at the origin while sending troops elsewhere,
+  write `BRI D BRI ATL NOR`. Do not skip to NOR after ATL fails while the
+  remainder stays at BRI: that would invalidate the rest of the chain;
 - in `single`, untreated destinations produce a partial dispersal and the chain
   advances; in `loop`, the remainder retries until an army arrives at every
   destination; if the army is exhausted before all destinations are processed,
@@ -172,6 +207,7 @@ Examples:
 BRI D ATL ATL              # two troops stacked in the army arriving at ATL
 BRI D ATL                  # one troop to ATL, the remainder stays on BRI
 BRI D ATL*HUG NOR          # HUG to ATL, the other unit to NOR
+BRI D BRI ATL NOR          # BRI keeps the chain; the other groups split away
 (BRI D ATL NOR)            # looped dispersal
 ```
 
@@ -186,7 +222,7 @@ line, applied in the entered order.
 |---|---|---|---|
 | Recruit a noble | `R N XXX` | `XXX` controlled, with a castle or village and a player army | 2 |
 | Recruit a troop | `R T XXX` | `XXX` controlled, and a free player noble on `XXX` or adjacent | 1 |
-| Build or upgrade a mill | `C M XXX` | `XXX` controlled; mill on or next to a castle or village | 3 |
+| Build or upgrade a mill | `C M XXX` | `XXX` controlled; a new mill on an **empty** territory adjacent to a productive castle or village, or an existing mill adjacent to that source | 3 |
 | Build a castle | `C C XXX` | `XXX` controlled | 10 |
 | Build a supply depot | `C D XXX` | `XXX` controlled | 3 |
 | Designate a capital | `E C XXX` | a controlled castle on `XXX` | 0 |
@@ -207,10 +243,36 @@ construction replaces the existing structure only when the rule says so: a
 **castle built on a village replaces the village** and keeps the territory's
 stock. An isolated (orphaned) mill produces nothing.
 
+### Resource vocabulary
+
+- `R` means one unit of **stockable resource**: it sits in a territory's stock,
+  is produced by a source, and pays for investments;
+- a **ration** is one food unit consumed during an action-season supply phase.
+  Local rations are produced and distributed on the spot; they do not
+  automatically become stock `R`;
+- **stock** is therefore the amount of `R` kept on a territory.
+
+Each controlled castle or village is a separate source. Every source produces
+`1 R` per turn independently of the others. A second castle is therefore a
+second production and supply source, even though only one castle is designated
+as the capital. A mill is built only on an empty territory adjacent to a
+productive castle or village; it increases the production of **every** neighboring
+source, with no owner filter. For example, a level-1 mill between a village and
+two castles adds `+1 R` to each of those three production points. Even if the
+mill is on a territory controlled by another player, it adds this bonus to a
+neighboring source controlled by the relevant player. A noble elsewhere on the
+map does not prevent `C M ATL` and is not required to build it. If the build
+territory already has another infrastructure, the order is rejected with
+`structure_present`: a territory never carries two infrastructures.
+
 **Payment**: the cost is taken first from the stock on the target territory, then
 from the nearest controlled source; if the total reserve is insufficient, **no
 partial payment** is made and the investment is rejected (reported, with no cost
 lost).
+
+Example: a `C M ATL` costing 3 R consumes 1 R from ATL's stock, then 2 R from
+the nearest controlled source. If those stocks total only 2 R, the build is
+rejected and neither unit is removed.
 
 **End of winter**:
 
@@ -218,6 +280,13 @@ lost).
 - stocks outside the capital are brought back to the capital, leaving at most
   **1 R per village** and **2 R per castle**;
 - without a capital, stocks remain where they are.
+
+There is no need to spend everything before winter ends: unspent stock is first
+conserved, then surplus is repatriated under these caps. A stock of 5 R therefore
+becomes 3 R with `ceil(5 / 2)`. Conservation and repatriation happen after
+investments, and a territory without a castle or village does not keep stock.
+For example, an outlying village keeps at most 1 R after conservation; its
+surplus goes to the capital, while an outlying castle may keep 2 R.
 
 ---
 
@@ -248,6 +317,10 @@ after the army leaves until an enemy army stops there.
 
 ### Exponential Supply
 
+Supply is resolved **at the start of every action season**, before orders,
+combats, and movement. There is no supply phase in winter. A one-troop army
+demands `1` ration; it is not automatically free.
+
 An army of `N` troops demands:
 
 ```text
@@ -262,6 +335,16 @@ The territory's food production is distributed among armies present, regardless
 of nationality, at most **one ration per army** and starting with the largest.
 The remainder is the demand to supply.
 
+The territory owner does not reserve this production for their own troops: a
+large enemy army can therefore take the local ration before a small allied army
+in the same distribution area. Brigands and other neutral armies also count as
+armies for this local distribution; they do not, however, receive additional
+supply from a player's controlled source stock.
+
+Example: with 2 local rations, a 4-troop enemy army, and two 1-troop local
+armies, the largest army receives 1 first, then one local army receives the
+second by the tie-break; no army can receive more than one local ration.
+
 **Territory food production**: 1 ration on plain, forest, or hill; 0 ration on
 mountain or swamp; **+2 rations** when the territory has a castle or village.
 
@@ -270,6 +353,16 @@ produces **1 R of stock per turn**. The flow crosses allied or neutral
 territories and stops before an enemy territory. Base range is **3 territories**;
 each controlled supply depot encountered along the route adds **2 territories**.
 A neutral village keeps its stock, inaccessible to the player before capture.
+
+Each source calculates its own `R` production: its base production plus the level
+of **every adjacent mill**. One mill can therefore feed every neighboring source;
+it is not reserved for the owner of its territory. An orphaned mill, with no
+adjacent castle or village, produces `0 R`. For example, a village surrounded by
+two level-1 mills produces `1 + 1 + 1 = 3 R`; the same mills also add their level
+to every neighboring castle. The presence or position of a noble never
+conditions `C M XXX` or this production: a noble in NOR does not prevent the
+player from building `C M ATL` when ATL is empty, controlled, and adjacent to
+the required source.
 
 ### Stocks and Famine
 
@@ -284,6 +377,16 @@ A famished army **attacks and defends at strength 0** for the turn, even when it
 carries a free noble. If it is on infrastructure, it **pills it automatically**;
 the pillage bonus, reduced by its residual demand, may end its famine.
 
+If pillage is insufficient or impossible, it loses **1 troop**, never falling
+below 1. It nevertheless remains famished and at strength 0 for the whole
+current season, even if that loss would make its future demand sustainable. The
+loss repeats in every season in which the army is still famished.
+
+Example: a 2-troop army in deficit demands 2 rations. If its stocks and pillage
+cannot cover the deficit, it loses one troop and becomes a 1-troop army; it stays
+at strength 0 this turn even though a 1-troop army would then demand only one
+ration.
+
 The endpoint `GET /api/supply?territory=XXX` previews an army's supply or the area
 reached from a controlled source (outside winter only).
 
@@ -293,7 +396,7 @@ A territory carries only **one infrastructure**.
 
 | Infrastructure | Condition | v1 effect | Cost |
 |---|---|---|---|
-| Mill | On or adjacent to a castle or village | +1 stockable R per level at the associated production point | 3 |
+| Mill | Build on an empty controlled territory adjacent to a castle or village; upgrade an existing mill adjacent to that source | +1 stockable R per level at **each** adjacent source | 3 |
 | Supply depot | None | +2 territories of supply range when controlled | 3 |
 | Castle | None | +1 defense, +2 rations, produces 1 stockable R per turn, supply anchor | 10 |
 | Village | Generated neutral, **not buildable** | +2 rations, produces 1 stockable R per turn, supply anchor after capture | — |
@@ -313,7 +416,12 @@ noble may remain alone on a territory after its army is lost.
 - a **free or hostage** noble emits at most **one chain per turn** (a new chain
   means a new turn);
 - a **dungeon** noble (`dungeon`) cannot emit a new chain;
-- the chain applies to the whole army, whose carrier is the emitting noble.
+- the noble may give the chain to **any army belonging to its player**; it does
+  not have to be present at the receiving territory;
+- the chain applies to the whole army. The command bonus comes only from a free
+  allied noble **present on the army's territory when strength is calculated**:
+  issuing a chain remotely does not teleport the noble or give the distant army
+  a bonus.
 
 > In this version there is no limit to the number of **nobles carried by an
 > army**: an army transports every noble present on its territory.
@@ -321,13 +429,18 @@ noble may remain alone on a territory after its army is lost.
 **Capture**: when an army carrying nobles is **destroyed** on a territory
 occupied by an enemy army, the nobles it carried are captured and become
 `hostage` by default. A hostage noble may continue to emit a chain; only moving
-it to the dungeon removes that ability. The player holding it will have access to
-the details of those chains in online games.
+it to the dungeon removes that ability. The player holding it can read the
+chains emitted by that hostage in online games, even when they command an army
+that remained with the noble's owner.
 
 **Liberation**: during winter, `L N NNN` is issued by the player holding the
 prisoner, not by its owner. If the owner's capital exists and contains one of
 their armies, the noble reappears **free in that capital**; otherwise the order is
 rejected.
+
+A voluntary noble transfer uses a dispersal. For example,
+`BRI D ATL*HUG NOR` sends HUG with the ATL group. Noble HUG grants the `+1`
+bonus only if that group actually carries HUG when it fights or defends.
 
 A player who has no free or hostage noble able to emit does not have to submit
 chains during an action season.
@@ -348,3 +461,87 @@ The planned victory rule (documented in the specifications) is:
 engine**. Games therefore remain open: seasons and resolution continue as long as
 players submit orders. Elimination detection and the victory condition will be
 enabled in a later version.
+
+---
+
+## 9. Tactical FAQ
+
+### Why join before attacking?
+
+A join (`J`) lets several armies **concentrate** before an attack, while a
+dispersal (`D`) can spread them again after taking a position. A typical sequence
+is therefore: stack with `J`, attack with `A`, then disperse with `D`. The cost of
+concentration is exponential supply: a 3-troop army demands 4 rations, while
+three 1-troop armies demand 1 ration each. Example: joining 1+1+1 troops may
+decide an attack, but it exposes the stack to famine if its source cannot provide
+4 rations.
+
+### What happens when several chains synchronize through a join?
+
+When an army joins a host that stays on its territory, the host keeps its chain
+and the joining army fuses into it; the joiner's chain is consumed. When two
+armies try to join on an empty territory, their `J` orders are terminal and
+neither chain becomes a follow-up chain. An attack arriving on the territory can
+nevertheless let the joiner fuse with the allied winner of that attack.
+
+Loop orders are waiting points: `(H BRI)` keeps the army on standby,
+`(BRI S ATL)` retries support while the supported situation is waiting, and
+`(BRI A ATL)` retries the attack every season until it succeeds. For example, a
+player can prepare `(BRI A ATL)` before the ATL army is available: BRI waits
+without the player resubmitting the chain every turn. A mechanically impossible
+case, such as a missing target or a permanently non-adjacent link, always breaks
+the chain.
+
+### Can I interrupt or replace a chain?
+
+Yes. A new chain received by an army immediately and atomically replaces its
+previous chain. It may be emitted by any free or hostage noble of the player,
+but each noble can emit only one chain per turn. If two chains target the same
+army in the same turn, both receptions are cancelled and no new chain is
+installed. Example: if HUG and JEA both target BRI's army, BRI's old chain
+remains and both new chains are rejected.
+
+### Hostage or dungeon: what is the difference?
+
+A captured noble becomes a **hostage** by default: it can still emit a chain, and
+the player holding it can read that chain in online games. The **dungeon** status
+forbids any new emission. Thus putting HUG in the dungeon cuts off future orders;
+leaving HUG hostage still allows HUG to command an army belonging to its player
+from a distance.
+
+### Does a large army always beat supports?
+
+No. Strength is troop size, the possible bonus from a free noble present, then
+valid supports. Offensive support `XXX S YYY - ZZZ` requires both `XXX` and
+`YYY` to be adjacent to `ZZZ`, and counts only if YYY actually attacks ZZZ.
+Missing an attack creates no special penalty: the order fails or bounces under
+the normal combat rules and the army follows its chain liaison. An army is
+destroyed only when it has no valid retreat or when retreats collide. Famine does
+not destroy it: famine sets strength to 0 and removes one troop, never below 1.
+
+### Who receives local rations?
+
+Distribution starts with the largest army, regardless of nationality, with at
+most 1 ration per army. A large enemy army can therefore take a village's ration
+before small local armies; the village does not prefer its political owner.
+Brigands or neutral armies also take their local ration, but they are not fed
+from a player's source stocks. Example: with 2 local rations, one 4-troop enemy,
+and two 1-troop local armies, the large army receives 1 first, then only one
+local army receives the second.
+
+### Must a noble be with the army it commands?
+
+No. A noble may order any army belonging to its player, but the `+1` bonus requires
+a free allied noble to be physically present on that army's territory when
+strength is calculated. To transfer HUG, assign the noble in a dispersal, for
+example `BRI D ATL*HUG NOR`; writing HUG's header does not move HUG.
+
+### How do I complete a dispersal with several nobles?
+
+A dispersal is peaceful strength-0 splitting. Each listed destination receives at
+most one troop, in written order; destinations may repeat to stack troops. If the
+origin is emptied, every noble must be assigned to a produced group: `*` assigns
+all remaining nobles to one destination and `*NNN` assigns NNN. For example,
+`BRI D ATL*HUG NOR*JEA` sends HUG with ATL and JEA with NOR; without valid
+assignments, emptying BRI makes the order invalid. If a troop remains at BRI,
+unmentioned nobles may remain there with it.
