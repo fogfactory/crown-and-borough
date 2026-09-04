@@ -34,6 +34,7 @@ const (
 	EventTypeRejected         EventType = "rejected"
 	EventTypeCapitalElected   EventType = "capital_elected"
 	EventTypeLiberation       EventType = "liberation"
+	EventTypeRumor            EventType = "rumor"
 )
 
 // Outcome is the execution result of one current order.
@@ -78,6 +79,8 @@ type Event struct {
 	ChainID     models.ChainID   `json:"chain,omitempty"`
 	OrderID     models.OrderID   `json:"order,omitempty"`
 	OrderType   models.OrderType `json:"orderType,omitempty"`
+	CardKind    models.CardKind  `json:"cardKind,omitempty"`
+	RumorKey    string           `json:"rumorKey,omitempty"`
 	Outcome     Outcome          `json:"outcome,omitempty"`
 	Automatic   bool             `json:"automatic,omitempty"`
 	Reason      string           `json:"reason,omitempty"`

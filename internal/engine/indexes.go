@@ -38,6 +38,7 @@ type resolutionContext struct {
 	dislodged           map[models.ArmyID]*dislodgedArmy
 	events              []Event
 	deckIntents         []deckOrderIntent
+	deckDraws           map[models.PlayerID][]models.CardKind
 	specialReshuffles   int
 	badWeatherRegions   map[models.TerritoryID]bool
 	famineRegions       map[models.TerritoryID]bool
@@ -65,6 +66,7 @@ func newResolutionContext(state *models.GameState, balance assetgen.Balance) *re
 		dislodged:            make(map[models.ArmyID]*dislodgedArmy),
 		badWeatherRegions:    make(map[models.TerritoryID]bool),
 		famineRegions:        make(map[models.TerritoryID]bool),
+		deckDraws:            make(map[models.PlayerID][]models.CardKind),
 	}
 	for _, noble := range state.Nobles {
 		ctx.startNoblesByID[noble.ID] = noble

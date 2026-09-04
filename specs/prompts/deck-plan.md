@@ -204,7 +204,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Vérifications :** tests moteur complets, déterminisme et pureté
 
-### `[ ] 11. Rumeurs publiques`
+### `[~] 11. Rumeurs publiques`
 
 **Commit prévu :** `feat(engine): add public winter rumors`
 
@@ -215,6 +215,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 - Produire une rumeur indicative du kind tiré sans exposer le joueur, son ordre, son ID de carte ou sa main.
 - Ajouter plusieurs formulations FR/EN par kind dans les catalogues existants.
 - Ajouter `Rumors` à `WinterReport` et préserver la possibilité d’un filtrage futur par score d’espionnage.
+- Ajouter `EventTypeRumor`, `WinterReport.Rumors`, une clé de texte localisable et le kind sans joueur ni ID de carte.
 - Tester absence de rumeur avec un seul joueur, tirage raté à 50 %, déterminisme et absence d’identité dans le payload.
 
 **Vérifications :** `go test ./internal/engine/...`
@@ -261,7 +262,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 - Afficher `D C` et `T C` en hiver, et `P KIND TER` pendant toutes les saisons.
 - Vérifier le comportement dans les deux modes, sans exiger de noble pour une carte.
 - Ajouter toggle régions, contours pointillés, palette et hachures 45°.
-- Ajouter tooltips, rapports, traductions FR/EN, mobile et accessibilité.
+- Ajouter la section Rumeurs au `ReportPanel`, avec traductions FR/EN, mobile et accessibilité.
 
 **Vérifications :** `cd web && npm run test && npm run build && npm run lint`
 

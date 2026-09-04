@@ -170,6 +170,12 @@ type NobleReport struct {
 type WinterReport struct {
 	Investments []WinterInvestmentReport `json:"investments"`
 	Stocks      []WinterStockReport      `json:"stocks"`
+	Rumors      []RumorReport            `json:"rumors"`
+}
+
+type RumorReport struct {
+	Kind models.CardKind `json:"kind"`
+	Key  string          `json:"key"`
 }
 
 type WinterInvestmentReport struct {
@@ -212,7 +218,7 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 	if before != nil {
 		report.Header = ReportHeader{Year: before.Year(), Season: before.Season, Turn: before.Turn}
 		if before.Season == models.SeasonWinter {
-			report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}}
+			report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Rumors: []RumorReport{}}
 		}
 	}
 	report.Players = buildPlayerReports(before, after)
@@ -342,10 +348,15 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 					Cost: event.ResourceSpent,
 				})
 			}
+		case EventTypeRumor:
+			if report.Winter == nil {
+				report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Rumors: []RumorReport{}}
+			}
+			report.Winter.Rumors = append(report.Winter.Rumors, RumorReport{Kind: event.CardKind, Key: event.RumorKey})
 		case EventTypeWinterStock, EventTypeRecruit, EventTypeBuild, EventTypeUpgrade,
 			EventTypeRejected, EventTypeCapitalElected:
 			if report.Winter == nil {
-				report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}}
+				report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Rumors: []RumorReport{}}
 			}
 			if event.Type == EventTypeWinterStock {
 				report.Winter.Stocks = append(report.Winter.Stocks, WinterStockReport{

@@ -88,6 +88,7 @@ func resolveWinterDeckOrders(ctx *resolutionContext, deckOrders map[models.Playe
 			}
 		}
 	}
+	emitWinterRumors(ctx)
 }
 
 func (ctx *resolutionContext) drawUsefulDeckCard(playerID models.PlayerID) {
@@ -103,6 +104,7 @@ func (ctx *resolutionContext) drawUsefulDeckCard(playerID models.PlayerID) {
 		kind := cardKind(ctx.state.SpecialDeck, cardID)
 		if kind.IsBonus() {
 			ctx.state.SpecialDeck.Hands[playerID] = append(ctx.state.SpecialDeck.Hands[playerID], cardID)
+			ctx.deckDraws[playerID] = append(ctx.deckDraws[playerID], kind)
 			return
 		}
 		if kind.IsCalamity() {
