@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -85,6 +86,61 @@ func TestOrdersHTTPLocalizesValidationErrors(t *testing.T) {
 			}
 			if !strings.Contains(recorder.Body.String(), test.contains) {
 				t.Fatalf("localized error = %s, want %q", recorder.Body.String(), test.contains)
+			}
+		})
+	}
+
+	noble := session.game.Nobles[0]
+	start := models.Territory{}
+	for _, territory := range session.game.Territories {
+		if territory.ID == noble.LocationID {
+			start = territory
+			break
+		}
+	}
+	target := models.TerritoryID("")
+	for _, territory := range session.game.Territories {
+		if territory.ID == start.ID {
+			continue
+		}
+		adjacent := false
+		for _, adjacentID := range start.Adjacencies {
+			if adjacentID == territory.ID {
+				adjacent = true
+				break
+			}
+		}
+		if !adjacent {
+			target = territory.ID
+			break
+		}
+	}
+	if target == "" {
+		t.Fatal("generated map has no non-adjacent territory")
+	}
+	body := fmt.Sprintf(
+		`{"player":%q,"chains":[{"noble":%q,"text":%q}],"winter":[]}`,
+		noble.OwnerID,
+		noble.Code,
+		string(noble.Code)+"\n"+string(start.ID)+" A "+string(target),
+	)
+	for _, test := range []struct {
+		name     string
+		language string
+		contains string
+	}{
+		{name: "English non-adjacency", language: "en", contains: "is not adjacent"},
+		{name: "French non-adjacency", language: "fr", contains: "n'est pas adjacente"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodPost, "/api/orders?lang="+test.language, strings.NewReader(body))
+			session.OrdersHTTP(recorder, request)
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("POST orders = %d: %s", recorder.Code, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), test.contains) {
+				t.Fatalf("localized non-adjacency error = %s, want %q", recorder.Body.String(), test.contains)
 			}
 		})
 	}

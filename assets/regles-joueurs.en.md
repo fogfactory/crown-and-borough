@@ -105,8 +105,8 @@ BOI J ROS        # join (must be the last order)
   retried at each resolution until it succeeds; a hold in loop puts the army on
   standby. A mechanically impossible error always breaks the chain.
 
-An order's non-adjacency is checked when it executes: earlier orders remain valid
-and the suffix is abandoned.
+An order whose position and target are not adjacent is rejected when the chain
+is submitted, with no partial reception of the chain.
 
 A chain is not limited to one season: a successful line advances the chain index,
 and the next line waits for the next resolution. A `loop` line deliberately keeps
