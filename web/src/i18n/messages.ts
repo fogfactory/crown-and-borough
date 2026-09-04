@@ -61,6 +61,10 @@ const englishMessages = {
   'app.selectedPlayer': 'Selected player: {player}',
   'app.panelViews': 'Side panel views',
   'app.reportNew': 'New',
+  'nav.primary': 'Primary navigation',
+  'nav.game': 'Game',
+  'nav.rules': 'Rules',
+  'nav.faq': 'FAQ',
   'app.selectTerritory': 'Select a territory',
   'app.capitalOf': 'Capital of {player}',
   'app.terrain': 'Terrain',
@@ -194,7 +198,7 @@ const englishMessages = {
   'reports.reason.no_army_at_capital': 'The noble owner has no army at the capital.',
   'reports.reason.structure_present': 'The territory already has an infrastructure.',
   'reports.reason.mill_requires_productive_neighbor':
-    'A mill requires a productive castle or village on or next to the territory.',
+    'A mill requires a productive castle or village adjacent to the territory.',
   'reports.reason.capital_requires_controlled_castle':
     'The capital must be a controlled castle.',
   'reports.reason.attack_wins': 'Attack wins',
@@ -276,6 +280,39 @@ const englishMessages = {
   'rules.loading': 'Loading the rules...',
   'rules.empty': 'The rules document is empty',
   'rules.loadFailed': 'Could not load the rules ({status})',
+  'rules.pageTitle': 'Game rules',
+  'rules.pageIntro':
+    'The complete reference for seasons, orders, combat, supply, and the kingdom.',
+  'faq.title': 'Tactical FAQ',
+  'faq.intro':
+    'Practical answers to the questions that arise when planning chains and managing supply.',
+  'faq.q1': 'Why join before attacking?',
+  'faq.a1':
+    'A join (`J`) lets several armies **concentrate** before an attack, while a dispersal (`D`) can spread them again after taking a position. A typical sequence is therefore: stack with `J`, attack with `A`, then disperse with `D`. The cost of concentration is exponential supply: a 3-troop army demands 4 rations, while three 1-troop armies demand 1 ration each. Example: joining 1+1+1 troops may decide an attack, but it exposes the stack to famine if its source cannot provide 4 rations.',
+  'faq.q2': 'What happens when several chains synchronize through a join?',
+  'faq.a2':
+    "When an army joins a host that stays on its territory, the host keeps its chain and the joining army fuses into it; the joiner's chain is consumed. When two armies try to join on an empty territory, their `J` orders are terminal and neither chain becomes a follow-up chain. An attack arriving on the territory can nevertheless let the joiner fuse with the allied winner of that attack.\n\nLoop orders are waiting points: `(H BRI)` keeps the army on standby, `(BRI S ATL)` retries support while the supported situation is waiting, and `(BRI A ATL)` retries the attack every season until it succeeds. A mechanically impossible case, such as a missing target or a permanently non-adjacent link, always breaks the chain.",
+  'faq.q3': 'Can I interrupt or replace a chain?',
+  'faq.a3':
+    "Yes. A new chain received by an army immediately and atomically replaces its previous chain. It may be emitted by any free or hostage noble of the player, but each noble can emit only one chain per turn. If two chains target the same army in the same turn, both receptions are cancelled and no new chain is installed. Example: if HUG and JEA both target BRI's army, BRI's old chain remains and both new chains are rejected.",
+  'faq.q4': 'Hostage or dungeon: what is the difference?',
+  'faq.a4':
+    'A captured noble becomes a **hostage** by default: it can still emit a chain, and the player holding it can read that chain in online games. The **dungeon** status forbids any new emission. Thus putting HUG in the dungeon cuts off future orders; leaving HUG hostage still allows HUG to command an army belonging to its player from a distance.',
+  'faq.q5': 'Does a large army always beat supports?',
+  'faq.a5':
+    'No. Strength is troop size, the possible bonus from a free noble present, then valid supports. Offensive support `XXX S YYY - ZZZ` requires both `XXX` and `YYY` to be adjacent to `ZZZ`, and counts only if YYY actually attacks ZZZ. Missing an attack creates no special penalty: the order fails or bounces under the normal combat rules and the army follows its chain liaison. An army is destroyed only when it has no valid retreat or when retreats collide. Famine does not destroy it: famine sets strength to 0 and removes one troop, never below 1.',
+  'faq.q6': 'Who receives local rations?',
+  'faq.a6':
+    "The army occupying the territory: it receives at most 1 ration from its own territory's production, regardless of nationality. There is no sharing between territories — a large enemy army does not take your village's ration from the neighboring territory. Brigands or neutral armies also take their own territory's ration, but they are not fed from a player's source stocks.\n\nExample: with 2 local rations, one 4-troop enemy, and two 1-troop local armies, the large army receives 1 first, then only one local army receives the second.",
+  'faq.q7': 'Must a noble be with the army it commands?',
+  'faq.a7':
+    "No. A noble may order any army belonging to its player, but the `+1` bonus requires a free allied noble to be physically present on that army's territory when strength is calculated. To transfer HUG, assign the noble in a dispersal, for example `BRI D ATL*HUG NOR`; writing HUG's header does not move HUG.",
+  'faq.q8': 'How do I complete a dispersal with several nobles?',
+  'faq.a8':
+    'A dispersal is peaceful strength-0 splitting. Each listed destination receives at most one troop, in written order; destinations may repeat to stack troops. If the origin is emptied, every noble must be assigned to a produced group: `*` assigns all remaining nobles to one destination and `*NNN` assigns NNN. For example, `BRI D ATL*HUG NOR*JEA` sends HUG with ATL and JEA with NOR; without valid assignments, emptying BRI makes the order invalid. If a troop remains at BRI, unmentioned nobles may remain there with it.',
+  'faq.q9': 'How do mills affect production?',
+  'faq.a9':
+    'Each controlled castle or village is a separate source that produces `1 R` per turn. A mill is built on an empty controlled territory adjacent to a productive castle or village, or upgraded when it is adjacent to that source. Each level adds `+1 R` to **every** adjacent source, without an owner filter. A level-1 mill between a village and two castles therefore adds `+1 R` to all three sources. An orphaned mill, with no adjacent castle or village, produces nothing.',
   'error.line': 'Line {line}: {message}',
   'error.invalidOrder': 'Invalid order',
   'error.requestFailed': 'The request failed ({status})',
@@ -428,6 +465,10 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'app.selectedPlayer': 'Joueur sélectionné : {player}',
   'app.panelViews': 'Vues du panneau latéral',
   'app.reportNew': 'Nouveau',
+  'nav.primary': 'Navigation principale',
+  'nav.game': 'Partie',
+  'nav.rules': 'Règles',
+  'nav.faq': 'FAQ',
   'app.selectTerritory': 'Sélectionnez un territoire',
   'app.capitalOf': 'Capitale de {player}',
   'app.terrain': 'Terrain',
@@ -563,7 +604,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     "Le propriétaire du noble n'a pas d'armée dans sa capitale.",
   'reports.reason.structure_present': 'Le territoire possède déjà une infrastructure.',
   'reports.reason.mill_requires_productive_neighbor':
-    'Un moulin exige un château ou village productif sur le territoire ou adjacent.',
+    'Un moulin exige un château ou village productif adjacent au territoire.',
   'reports.reason.capital_requires_controlled_castle':
     'La capitale doit être un château contrôlé.',
   'reports.reason.attack_wins': "L'attaque gagne",
@@ -647,6 +688,40 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'rules.loading': 'Chargement des règles...',
   'rules.empty': 'Le document de règles est vide',
   'rules.loadFailed': 'Impossible de charger les règles ({status})',
+  'rules.pageTitle': 'Règles du jeu',
+  'rules.pageIntro':
+    'La référence complète des saisons, des ordres, des combats, du ravitaillement et du royaume.',
+  'faq.title': 'FAQ tactique',
+  'faq.intro':
+    'Des réponses pratiques aux questions qui se posent lors de la préparation des chaînes et de la gestion du ravitaillement.',
+  'faq.q1': 'Pourquoi joindre avant d’attaquer ?',
+  'faq.a1':
+    'Une jonction (`J`) permet de **concentrer** plusieurs armées avant une attaque, puis une dispersion (`D`) peut les répartir après la prise d’une position. Une séquence typique est donc : pile avec `J`, attaque avec `A`, puis dispersion avec `D`. Le prix de cette concentration est le ravitaillement exponentiel : une armée de 3 troupes demande 4 rations, alors que trois armées d’une troupe demandent 1 ration chacune. Exemple : gagner de la force en joignant 1+1+1 troupes peut décider une attaque, mais expose ensuite la pile à une famine si la source ne peut pas fournir 4 rations.',
+  'faq.q2':
+    'Que se passe-t-il quand plusieurs chaînes se synchronisent par une jonction ?',
+  'faq.a2':
+    'Si une armée rejoint une armée hôte qui reste sur sa case, l’armée hôte garde sa chaîne et l’armée jointe fusionne avec elle ; la chaîne du joiné est consommée. Si deux armées tentent de se rejoindre sur une case vide, leurs ordres `J` sont terminaux et aucune des deux chaînes ne devient une chaîne de suivi. Une attaque qui arrive sur la case peut toutefois permettre au joiné de fusionner avec le vainqueur allié de cette attaque.\n\nLes ordres en boucle servent de points d’attente : `(H BRI)` garde l’armée en veille, `(BRI S ATL)` retente le soutien tant que la situation soutenue reste à attendre, et `(BRI A ATL)` retente l’attaque à chaque saison jusqu’à sa réussite. Une impossibilité mécanique, comme une cible inexistante ou une liaison définitivement non adjacente, casse toujours la chaîne.',
+  'faq.q3': 'Puis-je interrompre ou remplacer une chaîne ?',
+  'faq.a3':
+    'Oui. Une nouvelle chaîne reçue sur une armée remplace immédiatement et atomiquement la chaîne précédente. Elle peut être émise par n’importe quel noble libre ou otage du joueur, mais chaque noble ne peut émettre qu’une chaîne par tour. Si deux chaînes visent la même armée au même tour, la réception des deux est annulée et aucune nouvelle chaîne n’est installée. Exemple : si HUG et JEA visent tous deux l’armée de BRI, l’ancienne chaîne de BRI reste en place et les deux nouvelles sont rejetées.',
+  'faq.q4': 'Otage ou donjon : quelle différence ?',
+  'faq.a4':
+    'Un noble capturé devient par défaut **otage** : il peut encore émettre une chaîne, et le joueur qui le détient peut lire cette chaîne dans les parties en ligne. Le statut **donjon** interdit toute nouvelle émission. Ainsi, placer HUG au donjon coupe ses ordres futurs ; le laisser otage permet encore à HUG de commander à distance une armée de son joueur.',
+  'faq.q5': 'Une grosse armée bat-elle toujours les soutiens ?',
+  'faq.a5':
+    'Non : la force est la taille, le bonus éventuel d’un noble libre présent, puis les soutiens valides. Un soutien offensif `XXX S YYY - ZZZ` exige que `XXX` et `YYY` soient adjacents à `ZZZ`, et ne compte que si YYY attaque effectivement ZZZ. Rater une attaque ne crée pas de pénalité spéciale : l’ordre échoue ou rebondit selon le combat et l’armée suit sa règle de chaîne. Une armée n’est détruite que si elle ne dispose d’aucune retraite valide ou en cas de collision de retraites. La famine ne la détruit pas : elle la met à force 0 et lui retire une troupe, sans jamais descendre sous 1.',
+  'faq.q6': 'Qui reçoit les rations locales ?',
+  'faq.a6':
+    'L’armée qui occupe la case : elle reçoit au plus 1 ration de la production de sa propre case, quelle que soit sa nationalité. Il n’y a pas de partage entre cases : une grosse armée ennemie ne prend pas la ration de ton village depuis la case voisine. Les brigands ou armées neutres prennent eux aussi la ration de leur case, mais ne sont pas alimentés par les stocks des sources d’un joueur.\n\nExemple : avec 2 rations locales, une armée ennemie de 4 et deux armées locales de 1, la grosse armée reçoit d’abord 1, puis une seule des armées locales reçoit la seconde.',
+  'faq.q7': 'Un noble doit-il être avec l’armée qu’il commande ?',
+  'faq.a7':
+    'Non. Le noble peut ordonner n’importe quelle armée de son joueur, mais son bonus de `+1` exige qu’un noble libre allié soit effectivement présent sur la case de cette armée lors du calcul. Pour transférer HUG, il faut le répartir dans une dispersion, par exemple `BRI D ATL*HUG NOR` ; écrire l’en-tête HUG ne le déplace pas.',
+  'faq.q8': 'Comment réussir une dispersion complète avec plusieurs nobles ?',
+  'faq.a8':
+    'Une dispersion est un partage pacifique à force 0. Chaque destination listée reçoit au plus une troupe, dans l’ordre écrit ; les destinations peuvent se répéter pour empiler les troupes. Si l’origine est entièrement vidée, tous les nobles doivent être affectés à un groupe produit : `*` affecte tous les nobles restants à une destination et `*NNN` affecte NNN. Par exemple, `BRI D ATL*HUG NOR*JEA` répartit HUG avec ATL et JEA avec NOR ; sans affectation valide, vider BRI rend l’ordre invalide. Si une troupe reste à BRI, les nobles non mentionnés peuvent y rester avec elle.',
+  'faq.q9': 'Quel est l’effet des moulins sur la production ?',
+  'faq.a9':
+    'Chaque château ou village contrôlé est une source distincte qui produit `1 R` par tour. Un moulin se construit sur une case vide contrôlée, adjacente à un château ou village productif, ou s’améliore lorsqu’il est adjacent à cette source. Chaque niveau ajoute `+1 R` à **chaque** source adjacente, sans filtre de propriétaire. Un moulin de niveau 1 entre un village et deux châteaux ajoute donc `+1 R` aux trois sources. Un moulin orphelin, sans château ni village adjacent, ne produit rien.',
   'error.line': 'Ligne {line} : {message}',
   'error.invalidOrder': 'Ordre invalide',
   'error.requestFailed': 'La requête a échoué ({status})',

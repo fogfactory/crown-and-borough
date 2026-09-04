@@ -9,6 +9,7 @@ import { OrdersPanel } from '@/components/OrdersPanel'
 import { ReportPane } from '@/components/ReportPane'
 import { Scoreboard } from '@/components/Scoreboard'
 import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
+import { InfoPage } from '@/components/InfoPage'
 import { addNobleHeader, hasChainContent } from '@/lib/order-text'
 import { hasSupplySource } from '@/lib/supply'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
@@ -43,6 +44,7 @@ import type {
 
 const PANEL_ORDER = ['command', 'report', 'rules'] as const
 type Panel = (typeof PANEL_ORDER)[number]
+type HotseatView = 'game' | 'rules' | 'faq'
 
 const MIN_PLAYERS = 2
 const MAX_PLAYERS = 16
@@ -117,6 +119,7 @@ function AppContent() {
   const [playerCount, setPlayerCount] = useState(4)
   const [years, setYears] = useState(10)
   const [seed, setSeed] = useState('')
+  const [view, setView] = useState<HotseatView>('game')
   const [activePanel, setActivePanel] = useState<Panel>('command')
   const [viewedReportTurn, setViewedReportTurn] = useState<number | null>(null)
   const [rulesNavigation, setRulesNavigation] = useState<{
@@ -364,6 +367,7 @@ function AppContent() {
       setWinterDrafts({})
       setSubmittedPlayers([])
       setSelectedId(null)
+      setView('game')
       setActivePanel('command')
     } catch (error) {
       setCreateError(
@@ -392,6 +396,23 @@ function AppContent() {
               <VersionBadge />
             </div>
           </div>
+
+          <nav
+            aria-label={t('nav.primary')}
+            className="order-3 flex w-full items-center justify-center gap-1 sm:order-none sm:w-auto"
+          >
+            {(['game', 'rules', 'faq'] as const).map((nextView) => (
+              <button
+                key={nextView}
+                type="button"
+                aria-current={view === nextView ? 'page' : undefined}
+                className={`rounded-md px-2.5 py-1.5 text-sm font-semibold transition ${view === nextView ? 'bg-[#f3ead9] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:bg-[#f3ead9] hover:text-[#30291f]'}`}
+                onClick={() => setView(nextView)}
+              >
+                {t(`nav.${nextView}`)}
+              </button>
+            ))}
+          </nav>
 
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-x-4">
             <div>
@@ -550,7 +571,7 @@ function AppContent() {
         </div>
       </header>
 
-      {state?.finished && (
+      {view === 'game' && state?.finished && (
         <div className="mx-auto mt-4 max-w-[1800px] rounded-xl border border-[#815f1e]/50 bg-[#f8e8ae]/60 px-4 py-3 text-center text-sm font-semibold text-[#6d5118] sm:mx-6">
           {state.winner
             ? `${t('online.victory')}: ${ownerLabel(state.winner, state, t)}`
@@ -558,167 +579,173 @@ function AppContent() {
         </div>
       )}
 
-      <main className="mx-auto flex min-h-[calc(100vh-6.5rem)] max-w-[1800px] flex-col gap-4 p-4 sm:p-6 lg:flex-row">
-        <section className="relative h-[620px] min-h-0 flex-1 overflow-hidden rounded-2xl border border-[#b7a786] bg-[#e6d8bb] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)] lg:h-[calc(100vh-8.5rem)]">
-          <div className="pointer-events-none absolute left-5 top-5 z-10">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#806f57]">
-              {t('app.mapPublic')}
-            </p>
-            <p className="mt-1 text-xs text-[#594b3c]">{t('app.mapInstructions')}</p>
-          </div>
-          {loadError ? (
-            <div
-              role="alert"
-              className="flex h-full items-center justify-center px-6 text-center"
-            >
-              <p className="font-serif text-lg text-[#a84632]">
-                {t('app.mapLoadFailed', { message: loadError })}
+      {view === 'game' ? (
+        <main className="mx-auto flex min-h-[calc(100vh-6.5rem)] max-w-[1800px] flex-col gap-4 p-4 sm:p-6 lg:flex-row">
+          <section className="relative h-[620px] min-h-0 flex-1 overflow-hidden rounded-2xl border border-[#b7a786] bg-[#e6d8bb] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)] lg:h-[calc(100vh-8.5rem)]">
+            <div className="pointer-events-none absolute left-5 top-5 z-10">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#806f57]">
+                {t('app.mapPublic')}
               </p>
+              <p className="mt-1 text-xs text-[#594b3c]">{t('app.mapInstructions')}</p>
             </div>
-          ) : map && state ? (
-            <MapViewer
-              map={map}
-              state={state}
-              supply={selectedSupplyLine}
-              onSelect={setSelectedId}
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center px-6 text-center">
-              <p className="font-serif text-lg italic text-[#806f57]">
-                {t('app.mapLoading')}
-              </p>
-            </div>
-          )}
-        </section>
-
-        <aside className="w-full shrink-0 space-y-4 lg:w-96 xl:w-[27rem]">
-          <Scoreboard players={state?.players ?? []} scores={state?.scores} />
-          <Card className="border-[#b7a786] bg-[#fffaf0] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)]">
-            <CardHeader className="border-b border-[#b7a786]/50 pb-4">
-              <CardTitle className="font-serif text-xl text-[#30291f]">
-                {activePanel === 'command'
-                  ? t('app.commandPost')
-                  : activePanel === 'report'
-                    ? t('app.turnReport')
-                    : t('app.rules')}
-              </CardTitle>
-              <CardDescription className="text-[#806f57]">
-                {t('app.selectedPlayer', { player: selectedPlayer })}
-              </CardDescription>
+            {loadError ? (
               <div
-                role="tablist"
-                aria-label={t('app.panelViews')}
-                className="mt-3 grid grid-cols-3 gap-1 rounded-lg bg-[#f3ead9] p-1"
+                role="alert"
+                className="flex h-full items-center justify-center px-6 text-center"
               >
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={activePanel === 'command'}
-                  aria-controls="command-panel"
-                  tabIndex={activePanel === 'command' ? 0 : -1}
-                  data-panel-tab="command"
-                  className={`rounded-md px-2 py-2 text-xs font-semibold transition ${activePanel === 'command' ? 'bg-[#fffaf0] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:text-[#30291f]'}`}
-                  onClick={() => setActivePanel('command')}
-                  onKeyDown={handlePanelKeyDown}
+                <p className="font-serif text-lg text-[#a84632]">
+                  {t('app.mapLoadFailed', { message: loadError })}
+                </p>
+              </div>
+            ) : map && state ? (
+              <MapViewer
+                map={map}
+                state={state}
+                supply={selectedSupplyLine}
+                onSelect={setSelectedId}
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center px-6 text-center">
+                <p className="font-serif text-lg italic text-[#806f57]">
+                  {t('app.mapLoading')}
+                </p>
+              </div>
+            )}
+          </section>
+
+          <aside className="w-full shrink-0 space-y-4 lg:w-96 xl:w-[27rem]">
+            <Scoreboard players={state?.players ?? []} scores={state?.scores} />
+            <Card className="border-[#b7a786] bg-[#fffaf0] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)]">
+              <CardHeader className="border-b border-[#b7a786]/50 pb-4">
+                <CardTitle className="font-serif text-xl text-[#30291f]">
+                  {activePanel === 'command'
+                    ? t('app.commandPost')
+                    : activePanel === 'report'
+                      ? t('app.turnReport')
+                      : t('app.rules')}
+                </CardTitle>
+                <CardDescription className="text-[#806f57]">
+                  {t('app.selectedPlayer', { player: selectedPlayer })}
+                </CardDescription>
+                <div
+                  role="tablist"
+                  aria-label={t('app.panelViews')}
+                  className="mt-3 grid grid-cols-3 gap-1 rounded-lg bg-[#f3ead9] p-1"
                 >
-                  {t('app.commandPost')}
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={activePanel === 'report'}
-                  aria-controls="report-panel"
-                  tabIndex={activePanel === 'report' ? 0 : -1}
-                  data-panel-tab="report"
-                  className={`rounded-md px-2 py-2 text-xs font-semibold transition ${activePanel === 'report' ? 'bg-[#fffaf0] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:text-[#30291f]'}`}
-                  onClick={() => setActivePanel('report')}
-                  onKeyDown={handlePanelKeyDown}
-                >
-                  {t('app.turnReport')}{' '}
-                  {report && viewedReportTurn !== report.header.turn ? (
-                    <span className="ml-1 rounded-full bg-[#a84632] px-1.5 py-0.5 text-[10px] text-[#fffaf0]">
-                      {t('app.reportNew')}
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activePanel === 'command'}
+                    aria-controls="command-panel"
+                    tabIndex={activePanel === 'command' ? 0 : -1}
+                    data-panel-tab="command"
+                    className={`rounded-md px-2 py-2 text-xs font-semibold transition ${activePanel === 'command' ? 'bg-[#fffaf0] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:text-[#30291f]'}`}
+                    onClick={() => setActivePanel('command')}
+                    onKeyDown={handlePanelKeyDown}
+                  >
+                    {t('app.commandPost')}
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activePanel === 'report'}
+                    aria-controls="report-panel"
+                    tabIndex={activePanel === 'report' ? 0 : -1}
+                    data-panel-tab="report"
+                    className={`rounded-md px-2 py-2 text-xs font-semibold transition ${activePanel === 'report' ? 'bg-[#fffaf0] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:text-[#30291f]'}`}
+                    onClick={() => setActivePanel('report')}
+                    onKeyDown={handlePanelKeyDown}
+                  >
+                    {t('app.turnReport')}{' '}
+                    {report && viewedReportTurn !== report.header.turn ? (
+                      <span className="ml-1 rounded-full bg-[#a84632] px-1.5 py-0.5 text-[10px] text-[#fffaf0]">
+                        {t('app.reportNew')}
+                      </span>
+                    ) : null}
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activePanel === 'rules'}
+                    aria-controls="rules-panel"
+                    tabIndex={activePanel === 'rules' ? 0 : -1}
+                    data-panel-tab="rules"
+                    className={`rounded-md px-2 py-2 text-xs font-semibold transition ${activePanel === 'rules' ? 'bg-[#fffaf0] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:text-[#30291f]'}`}
+                    onClick={() => setActivePanel('rules')}
+                    onKeyDown={handlePanelKeyDown}
+                  >
+                    <span className="inline-flex items-center gap-1.5">
+                      <BookOpen aria-hidden="true" className="size-3.5" />
+                      {t('app.rules')}
                     </span>
-                  ) : null}
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={activePanel === 'rules'}
-                  aria-controls="rules-panel"
-                  tabIndex={activePanel === 'rules' ? 0 : -1}
-                  data-panel-tab="rules"
-                  className={`rounded-md px-2 py-2 text-xs font-semibold transition ${activePanel === 'rules' ? 'bg-[#fffaf0] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:text-[#30291f]'}`}
-                  onClick={() => setActivePanel('rules')}
-                  onKeyDown={handlePanelKeyDown}
+                  </button>
+                </div>
+              </CardHeader>
+              <CardContent className="min-w-0 space-y-5 pt-5">
+                <div
+                  id="command-panel"
+                  role="tabpanel"
+                  aria-label={t('app.commandPost')}
+                  hidden={activePanel !== 'command'}
+                  className="space-y-5"
                 >
-                  <span className="inline-flex items-center gap-1.5">
-                    <BookOpen aria-hidden="true" className="size-3.5" />
-                    {t('app.rules')}
-                  </span>
-                </button>
-              </div>
-            </CardHeader>
-            <CardContent className="min-w-0 space-y-5 pt-5">
-              <div
-                id="command-panel"
-                role="tabpanel"
-                aria-label={t('app.commandPost')}
-                hidden={activePanel !== 'command'}
-                className="space-y-5"
-              >
-                <SelectedTerritoryDetails
-                  state={state}
-                  selectedTerritory={selectedTerritory}
-                  selectedState={selectedState}
-                  selectedSupplyLine={selectedSupplyLine}
-                  sourceTerritory={supplySourceTerritory}
-                  supplyLoading={supplyLoading}
-                  supplyError={supplyError}
-                />
-
-                {state && (
-                  <OrdersPanel
+                  <SelectedTerritoryDetails
                     state={state}
-                    player={selectedPlayer}
-                    chainDrafts={chainDrafts[selectedPlayer] ?? {}}
-                    winterDraft={winterDrafts[selectedPlayer] ?? ''}
-                    submitted={submittedPlayers.includes(selectedPlayer)}
-                    submitting={resolving}
-                    error={actionError}
-                    onChainChange={updateChainDraft}
-                    onWinterChange={updateWinterDraft}
-                    onSubmit={() => void submitOrders()}
-                    onOpenRules={openRules}
+                    selectedTerritory={selectedTerritory}
+                    selectedState={selectedState}
+                    selectedSupplyLine={selectedSupplyLine}
+                    sourceTerritory={supplySourceTerritory}
+                    supplyLoading={supplyLoading}
+                    supplyError={supplyError}
                   />
-                )}
-              </div>
-              <div
-                id="report-panel"
-                role="tabpanel"
-                aria-label={t('app.turnReport')}
-                hidden={activePanel !== 'report'}
-                className="min-w-0"
-              >
-                <ReportPane report={report} map={map} players={state?.players ?? []} />
-              </div>
-              <div
-                id="rules-panel"
-                role="tabpanel"
-                aria-label={t('app.rules')}
-                hidden={activePanel !== 'rules'}
-                className="min-w-0"
-              >
-                <RulesPanel
-                  targetSection={rulesNavigation?.section}
-                  navigationKey={rulesNavigation?.key}
-                />
-              </div>
-            </CardContent>
-          </Card>
-          <MapLegend />
-        </aside>
-      </main>
+
+                  {state && (
+                    <OrdersPanel
+                      state={state}
+                      player={selectedPlayer}
+                      chainDrafts={chainDrafts[selectedPlayer] ?? {}}
+                      winterDraft={winterDrafts[selectedPlayer] ?? ''}
+                      submitted={submittedPlayers.includes(selectedPlayer)}
+                      submitting={resolving}
+                      error={actionError}
+                      onChainChange={updateChainDraft}
+                      onWinterChange={updateWinterDraft}
+                      onSubmit={() => void submitOrders()}
+                      onOpenRules={openRules}
+                    />
+                  )}
+                </div>
+                <div
+                  id="report-panel"
+                  role="tabpanel"
+                  aria-label={t('app.turnReport')}
+                  hidden={activePanel !== 'report'}
+                  className="min-w-0"
+                >
+                  <ReportPane report={report} map={map} players={state?.players ?? []} />
+                </div>
+                <div
+                  id="rules-panel"
+                  role="tabpanel"
+                  aria-label={t('app.rules')}
+                  hidden={activePanel !== 'rules'}
+                  className="min-w-0"
+                >
+                  <RulesPanel
+                    targetSection={rulesNavigation?.section}
+                    navigationKey={rulesNavigation?.key}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+            <MapLegend />
+          </aside>
+        </main>
+      ) : (
+        <main className="mx-auto max-w-[1200px] p-4 sm:p-6">
+          <InfoPage kind={view} />
+        </main>
+      )}
     </div>
   )
 }

@@ -59,6 +59,26 @@ describe('RulesPanel', () => {
     })
   })
 
+  it('leaves scrolling to the page in the full-page variant', async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        text: async () => '# Règles du jeu\n\nUn texte suffisamment long.\n',
+      } as Response),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { container } = render(
+      <LanguageProvider initialLanguage="fr">
+        <RulesPanel variant="page" />
+      </LanguageProvider>,
+    )
+
+    await screen.findByRole('heading', { name: 'Règles du jeu' })
+    expect(container.querySelector('[class*="max-h-"]')).not.toBeInTheDocument()
+    expect(container.querySelector('[class*="overflow-y-auto"]')).not.toBeInTheDocument()
+  })
+
   it('scrolls to the requested rules section', async () => {
     const originalScrollIntoView = HTMLElement.prototype.scrollIntoView
     const scrollIntoView = vi.fn()

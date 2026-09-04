@@ -5,6 +5,7 @@ import {
   Navigate,
   Outlet,
   Route,
+  NavLink,
   Routes,
   useLocation,
   useNavigate,
@@ -15,6 +16,7 @@ import { FinishPage, ProfilePage, SignInPage } from '@/online/AuthPages'
 import { GamePage } from '@/online/GamePage'
 import { HomePage } from '@/online/HomePage'
 import { JoinPage } from '@/online/JoinPage'
+import { InfoPage, type InfoPageKind } from '@/components/InfoPage'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { VersionBadge } from '@/components/VersionBadge'
 import { Button } from '@/components/ui/button'
@@ -49,6 +51,24 @@ function OnlineHeader() {
           </span>
         </Link>
         <div className="flex flex-wrap items-center gap-3">
+          <nav aria-label={t('nav.primary')} className="flex items-center gap-1">
+            <NavLink
+              to="/rules"
+              className={({ isActive }) =>
+                `rounded-md px-2.5 py-1.5 text-sm font-semibold transition ${isActive ? 'bg-[#f3ead9] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:bg-[#f3ead9] hover:text-[#30291f]'}`
+              }
+            >
+              {t('nav.rules')}
+            </NavLink>
+            <NavLink
+              to="/faq"
+              className={({ isActive }) =>
+                `rounded-md px-2.5 py-1.5 text-sm font-semibold transition ${isActive ? 'bg-[#f3ead9] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:bg-[#f3ead9] hover:text-[#30291f]'}`
+              }
+            >
+              {t('nav.faq')}
+            </NavLink>
+          </nav>
           {profile && (
             <Link
               to="/profile"
@@ -175,6 +195,14 @@ function GameRoute() {
   )
 }
 
+function InfoRoute({ kind }: { kind: InfoPageKind }) {
+  return (
+    <OnlineFrame>
+      <InfoPage kind={kind} />
+    </OnlineFrame>
+  )
+}
+
 export function OnlineRoutes() {
   return (
     <Routes>
@@ -191,6 +219,8 @@ export function OnlineRoutes() {
               </OnlineFrame>
             }
           />
+          <Route path="/rules" element={<InfoRoute kind="rules" />} />
+          <Route path="/faq" element={<InfoRoute kind="faq" />} />
           <Route path="/join" element={<JoinRoute />} />
           <Route path="/games/:gameId" element={<GameRoute />} />
         </Route>

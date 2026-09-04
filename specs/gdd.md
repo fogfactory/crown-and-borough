@@ -347,7 +347,7 @@ en bénéficie ; il n'y a pas de propriétaire stocké sur l'infrastructure.
 
 | Infrastructure | Condition | Effet v1 | Coût |
 |---|---|---|---:|
-| Moulin | Sur ou adjacent à un château ou un village | +1 R stockable par niveau au point de production associé | 3 |
+| Moulin | Construction sur case vide contrôlée, adjacente à un château ou village ; amélioration d'un moulin existant adjacent à cette source | +1 R stockable par niveau à chaque source adjacente | 3 |
 | Dépôt de vivres | Aucune condition structurelle | +2 cases de portée de ravitaillement lorsqu'il est contrôlé | 3 |
 | Château | Aucune | +1 défense, +2 rations, production de 1 R stockable par tour, ancre de ravitaillement | 10 |
 | Village | Généré neutre, non constructible | +2 rations, production de 1 R stockable par tour, ancre après capture | — |
