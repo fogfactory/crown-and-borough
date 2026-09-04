@@ -1,4 +1,9 @@
-import { useEffect, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react'
 import { BookOpen } from 'lucide-react'
 
 import { MapLegend } from '@/components/MapLegend'
@@ -11,8 +16,10 @@ import { Scoreboard } from '@/components/Scoreboard'
 import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
 import { InfoPage } from '@/components/InfoPage'
 import { addNobleHeader, hasChainContent } from '@/lib/order-text'
+import { buildIntentions } from '@/lib/intent-overlay'
 import { hasSupplySource } from '@/lib/supply'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
+import { useLocalStorageState } from '@/lib/storage'
 import { VersionBadge } from '@/components/VersionBadge'
 import { LanguageProvider, useLanguage } from '@/i18n/LanguageContext'
 import { firebaseConfigured } from '@/lib/firebase'
@@ -126,6 +133,10 @@ function AppContent() {
     section: RulesSection
     key: number
   } | null>(null)
+  const [showIntentions, setShowIntentions] = useLocalStorageState(
+    'cb.intentionsOverlay',
+    true,
+  )
 
   useEffect(() => {
     const controller = new AbortController()
@@ -203,6 +214,15 @@ function AppContent() {
   const supplySourceTerritory = map?.territories.find(
     (territory) => territory.id === selectedSupplyLine?.source,
   )
+  const intentions = useMemo(
+    () =>
+      state && map
+        ? buildIntentions(map, state, selectedPlayer, chainDrafts[selectedPlayer] ?? {})
+        : [],
+    [chainDrafts, map, selectedPlayer, state],
+  )
+  const intentionsColor =
+    state?.players.find((player) => player.id === selectedPlayer)?.color ?? '#a84632'
 
   useEffect(() => {
     const controller = new AbortController()
@@ -603,6 +623,9 @@ function AppContent() {
                 state={state}
                 supply={selectedSupplyLine}
                 onSelect={setSelectedId}
+                intentions={intentions}
+                showIntentions={showIntentions}
+                intentionsColor={intentionsColor}
               />
             ) : (
               <div className="flex h-full items-center justify-center px-6 text-center">
@@ -738,7 +761,10 @@ function AppContent() {
                 </div>
               </CardContent>
             </Card>
-            <MapLegend />
+            <MapLegend
+              showIntentions={showIntentions}
+              onToggleIntentions={setShowIntentions}
+            />
           </aside>
         </main>
       ) : (

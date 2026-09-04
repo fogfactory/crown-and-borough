@@ -2,6 +2,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { MapViewer } from '@/components/MapViewer'
+import { buildIntentions } from '@/lib/intent-overlay'
+import type { Intention } from '@/lib/intent-overlay'
 import type { MapData, StateData, SupplyLine } from '@/types'
 
 const map: MapData = {
@@ -58,9 +60,20 @@ function renderMap(
   testState: StateData = state,
   onSelect = vi.fn(),
   supply: SupplyLine | null = null,
+  intentions: Intention[] = [],
+  showIntentions = true,
+  intentionsColor = '#a84632',
 ) {
   const result = render(
-    <MapViewer map={testMap} state={testState} onSelect={onSelect} supply={supply} />,
+    <MapViewer
+      map={testMap}
+      state={testState}
+      onSelect={onSelect}
+      supply={supply}
+      intentions={intentions}
+      showIntentions={showIntentions}
+      intentionsColor={intentionsColor}
+    />,
   )
   const svg = result.container.querySelector(
     'svg[aria-label="Territory map"]',
@@ -655,5 +668,176 @@ describe('MapViewer noble affiliation', () => {
 
     expect(markers[0].querySelector('path')).toHaveAttribute('fill', '#123456')
     expect(markers[1].querySelector('path')).toHaveAttribute('fill', '#2d5f9e')
+  })
+})
+
+describe('MapViewer intentions overlay', () => {
+  const triangleMap: MapData = {
+    territories: [
+      { ...map.territories[0], adjacencies: ['BRU', 'CHA'] },
+      { ...map.territories[1], adjacencies: ['ROS', 'CHA'] },
+      {
+        id: 'CHA',
+        name: 'Champborne',
+        terrain: 'hill',
+        village: false,
+        points: [
+          [50, 50],
+          [100, 50],
+          [100, 100],
+          [50, 100],
+        ],
+        adjacencies: ['ROS', 'BRU'],
+        impassable: [],
+      },
+    ],
+  }
+
+  const armedState: StateData = {
+    ...state,
+    players: [{ id: 'P1', name: 'One', color: '#a84632' }],
+    territories: [
+      {
+        id: 'ROS',
+        owner: 'P1',
+        resources: 0,
+        army: { owner: 'P1', size: 3, chain: null },
+        infrastructures: [],
+      },
+      { id: 'BRU', owner: null, resources: 0, army: null, infrastructures: [] },
+      { id: 'CHA', owner: null, resources: 0, army: null, infrastructures: [] },
+    ],
+    nobles: [
+      {
+        id: 'N1',
+        code: 'HUG',
+        name: 'Hugues',
+        owner: 'P1',
+        location: 'ROS',
+        status: 'free',
+      },
+    ],
+  }
+
+  const intentionsFor = (text: string) =>
+    buildIntentions(triangleMap, armedState, 'P1', { HUG: text })
+
+  it('renders an attack as a heavy arrow entering the destination territory', () => {
+    const { svg } = renderMap(
+      triangleMap,
+      armedState,
+      vi.fn(),
+      null,
+      intentionsFor('HUG\nROS A BRU'),
+    )
+    const group = svg.querySelector('g[aria-label="Intentions overlay"]')
+    const line = group?.querySelector('line')
+    const marker = svg.querySelector('#intent-arrow')
+    const referenceMeanArea = (1000 * 700) / (8 * 4 + 4 * (4 + 1))
+    const expectedScale = Math.sqrt((50 * 50) / referenceMeanArea)
+
+    expect(group).toBeInTheDocument()
+    expect(group).toHaveAttribute('pointer-events', 'none')
+    expect(line).toHaveAttribute('marker-end', 'url(#intent-arrow)')
+    expect(line).toHaveAttribute('stroke', '#a84632')
+    expect(line).toHaveAttribute('stroke-width', `${4 * expectedScale}`)
+    expect(line).not.toHaveAttribute('stroke-dasharray')
+    expect(marker?.querySelector('path')).toHaveAttribute('fill', '#a84632')
+    expect(line?.getAttribute('x2')).toEqual('75')
+    expect(line?.getAttribute('y2')).toEqual('25')
+  })
+
+  it('renders defensive support dashed with a circle head at the supported center', () => {
+    const { svg } = renderMap(
+      triangleMap,
+      armedState,
+      vi.fn(),
+      null,
+      intentionsFor('HUG\nROS S BRU'),
+    )
+    const line = svg.querySelector('g[aria-label="Intentions overlay"] line')
+
+    expect(line).toHaveAttribute('marker-end', 'url(#intent-circle)')
+    expect(line).toHaveAttribute('stroke-dasharray')
+    expect(svg.querySelector('#intent-circle circle')).toBeInTheDocument()
+  })
+
+  it('renders offensive support dashed with an arrow head at the attacked frontier', () => {
+    const { svg } = renderMap(
+      triangleMap,
+      armedState,
+      vi.fn(),
+      null,
+      intentionsFor('HUG\nROS S CHA - BRU'),
+    )
+    const line = svg.querySelector('g[aria-label="Intentions overlay"] line')
+
+    expect(line).toHaveAttribute('marker-end', 'url(#intent-arrow)')
+    expect(line).toHaveAttribute('stroke-dasharray')
+  })
+
+  it('renders one arrow per disperse destination and a loop back to the origin', () => {
+    const { svg } = renderMap(
+      triangleMap,
+      armedState,
+      vi.fn(),
+      null,
+      intentionsFor('HUG\nROS D BRU CHA ROS'),
+    )
+    const group = svg.querySelector('g[aria-label="Intentions overlay"]')
+
+    expect(group?.querySelectorAll('line')).toHaveLength(2)
+    expect(group?.querySelector('path')).not.toBeNull()
+    expect(group?.querySelector('path')).toHaveAttribute(
+      'marker-end',
+      'url(#intent-arrow)',
+    )
+  })
+
+  it('renders hold as a stationary icon badge without an arrow', () => {
+    const { svg } = renderMap(
+      triangleMap,
+      armedState,
+      vi.fn(),
+      null,
+      intentionsFor('HUG\nH ROS'),
+    )
+    const group = svg.querySelector('g[aria-label="Intentions overlay"]')
+
+    expect(group?.querySelectorAll('line')).toHaveLength(0)
+    expect(group?.textContent).toContain('H')
+  })
+
+  it('hides the overlay when showIntentions is false', () => {
+    const { svg } = renderMap(
+      triangleMap,
+      armedState,
+      vi.fn(),
+      null,
+      intentionsFor('HUG\nROS A BRU'),
+      false,
+    )
+
+    expect(
+      svg.querySelector('g[aria-label="Intentions overlay"]'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('draws the intentions above the territory labels so arrowheads stay visible', () => {
+    const { svg } = renderMap(
+      triangleMap,
+      armedState,
+      vi.fn(),
+      null,
+      intentionsFor('HUG\nROS A BRU'),
+    )
+    const labels = svg.querySelector('g[aria-label="Territory identifiers"]')
+    const overlay = svg.querySelector('g[aria-label="Intentions overlay"]')
+
+    expect(labels).not.toBeNull()
+    expect(overlay).not.toBeNull()
+    expect(labels?.compareDocumentPosition(overlay as Node)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
   })
 })

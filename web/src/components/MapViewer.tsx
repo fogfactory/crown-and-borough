@@ -10,6 +10,7 @@ import {
 import { TERRAIN_COLORS, TERRAIN_LABEL_KEYS } from '@/components/MapLegend'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
+import type { Intention } from '@/lib/intent-overlay'
 import { hasSupplySource } from '@/lib/supply'
 import {
   Tooltip,
@@ -304,14 +305,78 @@ function NobleMarker({
   )
 }
 
+function IntentBadge({
+  x,
+  y,
+  symbol,
+  turn,
+  color,
+  scale,
+}: {
+  x: number
+  y: number
+  symbol: string
+  turn: number
+  color: string
+  scale: number
+}) {
+  return (
+    <g transform={`translate(${x} ${y})`}>
+      <circle
+        cx="0"
+        cy="0"
+        r={8 * scale}
+        fill={color}
+        stroke="#fff8e7"
+        strokeWidth={1.5 * scale}
+      />
+      <text
+        x="0"
+        y="0"
+        fill="#fff8e7"
+        fontSize={9 * scale}
+        fontWeight="800"
+        textAnchor="middle"
+        dominantBaseline="central"
+      >
+        {symbol}
+      </text>
+      <text
+        x={11 * scale}
+        y={-1 * scale}
+        fill={color}
+        fontSize={9 * scale}
+        fontWeight="700"
+        textAnchor="middle"
+        stroke="#fff8e7"
+        strokeWidth={2.5 * scale}
+        paintOrder="stroke"
+      >
+        {turn}
+      </text>
+    </g>
+  )
+}
+
 interface MapViewerProps {
   map: MapData
   state: StateData
   onSelect?: (id: string | null) => void
   supply?: SupplyLine | null
+  intentions?: Intention[]
+  showIntentions?: boolean
+  intentionsColor?: string
 }
 
-export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
+export function MapViewer({
+  map,
+  state,
+  onSelect,
+  supply,
+  intentions = [],
+  showIntentions = false,
+  intentionsColor = '#a84632',
+}: MapViewerProps) {
   const { t } = useLanguage()
   const svgRef = useRef<SVGSVGElement>(null)
   const dragRef = useRef<DragState | null>(null)
@@ -666,6 +731,35 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
                   strokeOpacity="0.5"
                 />
               </pattern>
+              <marker
+                id="intent-arrow"
+                viewBox="0 0 10 10"
+                refX="8.5"
+                refY="5"
+                markerWidth="3.2"
+                markerHeight="3.2"
+                orient="auto"
+              >
+                <path d="M0 0 L10 5 L0 10 Z" fill={intentionsColor} />
+              </marker>
+              <marker
+                id="intent-circle"
+                viewBox="0 0 10 10"
+                refX="5"
+                refY="5"
+                markerWidth="3.4"
+                markerHeight="3.4"
+                orient="auto"
+              >
+                <circle
+                  cx="5"
+                  cy="5"
+                  r="3.8"
+                  fill="none"
+                  stroke={intentionsColor}
+                  strokeWidth="2"
+                />
+              </marker>
             </defs>
 
             <g aria-label={t('map.terrains')}>
@@ -992,6 +1086,96 @@ export function MapViewer({ map, state, onSelect, supply }: MapViewerProps) {
                 )
               })}
             </g>
+
+            {showIntentions && intentions.length > 0 && (
+              <g aria-label={t('map.intentionsOverlay')} pointerEvents="none">
+                {intentions.map((intention, index) => (
+                  <g key={`${intention.armyTerritory}-${index}`}>
+                    <title>
+                      {intention.nobleCode ? `${intention.nobleCode} · ` : ''}
+                      {intention.label}
+                    </title>
+                    {intention.segments.map((segment, segmentIndex) => {
+                      const common = {
+                        x1: segment.from[0],
+                        y1: segment.from[1],
+                        x2: segment.to[0],
+                        y2: segment.to[1],
+                      }
+                      if (segment.kind === 'loop') {
+                        const radius = 12 * annotationScale
+                        const direction = segmentIndex % 2 === 0 ? 1 : -1
+                        const sweep = direction === 1 ? 0 : 1
+                        return (
+                          <g key={segmentIndex}>
+                            <path
+                              d={`M ${segment.from[0] + radius * direction} ${segment.from[1]} A ${radius} ${radius} 0 1 ${sweep} ${segment.from[0]} ${segment.from[1] - radius}`}
+                              fill="none"
+                              stroke={intentionsColor}
+                              strokeWidth={2.5 * annotationScale}
+                              strokeLinecap="round"
+                              markerEnd="url(#intent-arrow)"
+                            />
+                            <IntentBadge
+                              x={segment.from[0] + direction * -16 * annotationScale}
+                              y={segment.from[1] - 22 * annotationScale}
+                              symbol={intention.symbol}
+                              turn={intention.turn}
+                              color={intentionsColor}
+                              scale={annotationScale}
+                            />
+                          </g>
+                        )
+                      }
+                      const strokeWidth =
+                        segment.kind === 'attack'
+                          ? 4 * annotationScale
+                          : 2.5 * annotationScale
+
+                      return (
+                        <g key={segmentIndex}>
+                          <line
+                            {...common}
+                            stroke={intentionsColor}
+                            strokeWidth={strokeWidth}
+                            strokeDasharray={
+                              segment.kind === 'support-defensive' ||
+                              segment.kind === 'support-offensive'
+                                ? passableBorderDash
+                                : undefined
+                            }
+                            strokeLinecap="round"
+                            markerEnd={
+                              segment.kind === 'support-defensive'
+                                ? 'url(#intent-circle)'
+                                : 'url(#intent-arrow)'
+                            }
+                          />
+                          <IntentBadge
+                            x={(segment.from[0] + segment.to[0]) / 2}
+                            y={(segment.from[1] + segment.to[1]) / 2}
+                            symbol={intention.symbol}
+                            turn={intention.turn}
+                            color={intentionsColor}
+                            scale={annotationScale}
+                          />
+                        </g>
+                      )
+                    })}
+                    {intention.segments.length === 0 && (
+                      <IntentBadge
+                        x={intention.from[0] + 20 * annotationScale}
+                        y={intention.from[1] - 22 * annotationScale}
+                        symbol={intention.symbol}
+                        turn={intention.turn}
+                        color={intentionsColor}
+                        scale={annotationScale}
+                      />
+                    )}
+                  </g>
+                ))}
+              </g>
+            )}
           </g>
         </svg>
       </div>

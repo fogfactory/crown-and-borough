@@ -116,6 +116,7 @@ const englishMessages = {
   'map.borders': 'Borders',
   'map.supplyLine': 'Supply line',
   'map.liveLayer': 'Live layer',
+  'map.intentionsOverlay': 'Intentions overlay',
   'map.territoryLabels': 'Territory identifiers',
   'map.territoryLabel': '{name}, {terrain}',
   'map.resourcesMarker': 'Resources: {count}',
@@ -274,6 +275,8 @@ const englishMessages = {
   'legend.noble': 'Noble (owner color)',
   'legend.prisoner': 'Prisoner noble (hostage / dungeon)',
   'legend.control': 'Colored outline = territorial control',
+  'legend.intentions': 'Intentions overlay',
+  'legend.intentionsHint': 'Drafts + installed chains · action seasons only',
   'legend.passable':
     'Thick continuous line = impassable border · dashed line = passable border',
   'rules.reference': 'Reference for v1 rules, orders, and supply.',
@@ -520,6 +523,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'map.borders': 'Frontières',
   'map.supplyLine': 'Ligne de ravitaillement',
   'map.liveLayer': 'Couche vivante',
+  'map.intentionsOverlay': "Calque d'intentions",
   'map.territoryLabels': 'Identifiants des territoires',
   'map.territoryLabel': '{name}, {terrain}',
   'map.resourcesMarker': 'Ressources : {count}',
@@ -682,6 +686,9 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'legend.noble': 'Noble (couleur du propriétaire)',
   'legend.prisoner': 'Noble prisonnier (otage / donjon)',
   'legend.control': 'Liséré coloré = contrôle territorial',
+  'legend.intentions': "Calque d'intentions",
+  'legend.intentionsHint':
+    "Brouillons + chaînes installées · saisons d'action uniquement",
   'legend.passable':
     'Trait continu épais = frontière infranchissable · trait pointillé = frontière franchissable',
   'rules.reference': 'Référence des règles v1, des ordres et du ravitaillement.',
