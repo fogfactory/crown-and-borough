@@ -265,7 +265,7 @@ export function buildIntentions(
   for (const [nobleCode, text] of Object.entries(chainDrafts)) {
     if (!ownedNobleCodes.has(nobleCode) || !text.trim()) continue
     const parsedOrders = parseChainDraft(text)
-    for (let orderIndex = 1; orderIndex < parsedOrders.length; orderIndex += 1) {
+    for (let orderIndex = 0; orderIndex < parsedOrders.length; orderIndex += 1) {
       const order = parsedOrders[orderIndex]
       if (order.liaison === 'loop' && order.type !== 'disperse') continue
       const territoryState = state.territories.find(
@@ -277,7 +277,7 @@ export function buildIntentions(
         map,
         order,
         { id: territoryState.id, size: territoryState.army.size },
-        orderIndex,
+        orderIndex + 1,
         nobleCode,
       )
       if (intention) intentions.push(intention)

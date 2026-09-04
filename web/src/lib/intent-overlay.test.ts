@@ -165,7 +165,7 @@ function supportState(): StateData {
 describe('buildIntentions', () => {
   it('renders an attack penetrating into the destination territory', () => {
     const intentions = buildIntentions(map, stateWith(), 'P1', {
-      HUG: 'HUG\nH ROS\nROS A BRU',
+      HUG: 'HUG\nROS A BRU',
     })
 
     expect(intentions).toHaveLength(1)
@@ -180,17 +180,21 @@ describe('buildIntentions', () => {
     expect(intentions[0].segments[0].to).toEqual([75, 25])
   })
 
-  it('omits the first order of a draft since it executes this turn', () => {
+  it('renders every order in a draft, including the first order', () => {
     const intentions = buildIntentions(map, stateWith(), 'P1', {
-      HUG: 'HUG\nROS A BRU',
+      HUG: 'HUG\nH ROS\nROS A BRU',
     })
 
-    expect(intentions).toHaveLength(0)
+    expect(intentions).toHaveLength(2)
+    expect(intentions.map(({ symbol, turn }) => ({ symbol, turn }))).toEqual([
+      { symbol: 'H', turn: 1 },
+      { symbol: 'A', turn: 2 },
+    ])
   })
 
   it('renders a join toward the destination center', () => {
     const intentions = buildIntentions(map, stateWith(), 'P1', {
-      HUG: 'HUG\nH ROS\nROS J BRU',
+      HUG: 'HUG\nROS J BRU',
     })
 
     expect(intentions[0].turn).toBe(1)
@@ -200,7 +204,7 @@ describe('buildIntentions', () => {
 
   it('renders defensive support toward the supported territory center', () => {
     const intentions = buildIntentions(map, stateWith(), 'P1', {
-      HUG: 'HUG\nH ROS\nROS S BRU',
+      HUG: 'HUG\nROS S BRU',
     })
 
     expect(intentions[0].turn).toBe(1)
@@ -221,7 +225,7 @@ describe('buildIntentions', () => {
 
   it('renders one arrow per disperse destination and a loop for the origin', () => {
     const intentions = buildIntentions(map, stateWith(), 'P1', {
-      HUG: 'HUG\nH ROS\nROS D BRU CHA ROS',
+      HUG: 'HUG\nROS D BRU CHA ROS',
     })
 
     expect(intentions).toHaveLength(1)
@@ -237,7 +241,7 @@ describe('buildIntentions', () => {
 
   it('numbers the following turn for a disperse draft order', () => {
     const intentions = buildIntentions(map, stateWith(), 'P1', {
-      HUG: 'HUG\nH ROS\nROS D BRU ROS',
+      HUG: 'HUG\nROS D BRU ROS',
     })
 
     expect(intentions[0].turn).toBe(1)
@@ -245,10 +249,10 @@ describe('buildIntentions', () => {
 
   it('renders the residual loop when a disperse leaves troops at the origin', () => {
     const implicit = buildIntentions(map, stateWith(), 'P1', {
-      HUG: 'HUG\nH ROS\nROS D BRU',
+      HUG: 'HUG\nROS D BRU',
     })
     const explicit = buildIntentions(map, stateWith(), 'P1', {
-      HUG: 'HUG\nH ROS\nROS D ROS BRU',
+      HUG: 'HUG\nROS D ROS BRU',
     })
 
     expect(implicit[0].segments.map((segment) => segment.kind)).toEqual([
@@ -273,7 +277,7 @@ describe('buildIntentions', () => {
         ),
       }),
       'P1',
-      { HUG: 'HUG\nH ROS\nROS D BRU CHA' },
+      { HUG: 'HUG\nROS D BRU CHA' },
     )
 
     expect(emptied[0].segments.map((segment) => segment.kind)).toEqual([
@@ -284,10 +288,10 @@ describe('buildIntentions', () => {
 
   it('renders hold and pillage as stationary icons without segments', () => {
     const held = buildIntentions(map, stateWith(), 'P1', {
-      HUG: 'HUG\nROS A BRU\nH ROS',
+      HUG: 'HUG\nH ROS',
     })
     const pillaged = buildIntentions(map, stateWith(), 'P1', {
-      HUG: 'HUG\nROS A BRU\nP ROS',
+      HUG: 'HUG\nP ROS',
     })
 
     expect(held[0]).toMatchObject({ symbol: 'H', turn: 1, segments: [] })
@@ -296,13 +300,13 @@ describe('buildIntentions', () => {
 
   it('ignores loop liaisons except for disperse', () => {
     const loopedSupport = buildIntentions(map, stateWith(), 'P1', {
-      HUG: 'HUG\nH ROS\n(ROS S BRU)',
+      HUG: 'HUG\n(ROS S BRU)',
     })
     const loopedHold = buildIntentions(map, stateWith(), 'P1', {
-      HUG: 'HUG\nH ROS\n(H ROS)',
+      HUG: 'HUG\n(H ROS)',
     })
     const loopedDisperse = buildIntentions(map, stateWith(), 'P1', {
-      HUG: 'HUG\nH ROS\n(ROS D BRU CHA)',
+      HUG: 'HUG\n(ROS D BRU CHA)',
     })
 
     expect(loopedSupport).toHaveLength(0)
@@ -312,7 +316,7 @@ describe('buildIntentions', () => {
 
   it('ignores invalid orders without breaking the rest of the parse', () => {
     const intentions = buildIntentions(map, stateWith(), 'P1', {
-      HUG: 'HUG\nH ROS\nROS A UNKNOWN\nROS sELF\nROS A BRU',
+      HUG: 'HUG\nROS A UNKNOWN\nROS sELF\nROS A BRU',
     })
 
     expect(intentions).toHaveLength(1)
@@ -323,10 +327,10 @@ describe('buildIntentions', () => {
 
   it('ignores self-support and self-attack', () => {
     const selfSupport = buildIntentions(map, stateWith(), 'P1', {
-      HUG: 'HUG\nH ROS\nROS S ROS',
+      HUG: 'HUG\nROS S ROS',
     })
     const selfAttack = buildIntentions(map, stateWith(), 'P1', {
-      HUG: 'HUG\nH ROS\nROS A ROS',
+      HUG: 'HUG\nROS A ROS',
     })
 
     expect(selfSupport).toHaveLength(0)
