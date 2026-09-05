@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.4](https://github.com/fogfactory/crown-and-borough/compare/v0.4.3...v0.4.4) (2026-09-05)
+
+
+### Bug Fixes
+
+* **ui:** mark pending loop orders with ? in overlay ([fba67a3](https://github.com/fogfactory/crown-and-borough/commit/fba67a3e5480f6f45136c59e2c78ed8e232ee1aa))
+* **ui:** mark pending loop orders with ? in overlay ([e87bf24](https://github.com/fogfactory/crown-and-borough/commit/e87bf24c8e55b23d94dfe2fbb489da0304d85f02))
+
 ## [0.4.3](https://github.com/fogfactory/crown-and-borough/compare/v0.4.2...v0.4.3) (2026-09-04)
 
 
