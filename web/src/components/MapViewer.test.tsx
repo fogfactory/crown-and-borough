@@ -873,6 +873,23 @@ describe('MapViewer intentions overlay', () => {
     expect(group?.textContent).toContain('H')
   })
 
+  it('shows uncertain turn badges after a loop order', () => {
+    const { svg } = renderMap(
+      triangleMap,
+      armedState,
+      vi.fn(),
+      null,
+      intentionsFor('HUG\nROS A BRU\n(H BRU)\nBRU A CHA'),
+    )
+    const group = svg.querySelector('g[aria-label="Intentions overlay"]')
+    const badgeTexts = Array.from(group?.querySelectorAll('text') ?? []).map(
+      (text) => text.textContent,
+    )
+
+    expect(badgeTexts.filter((text) => text === '?')).toHaveLength(2)
+    expect(badgeTexts).toContain('1')
+  })
+
   it('hides the overlay when showIntentions is false', () => {
     const { svg } = renderMap(
       triangleMap,
