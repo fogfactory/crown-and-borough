@@ -191,6 +191,7 @@ describe('buildIntentions', () => {
       { symbol: 'H', turn: 1 },
       { symbol: 'A', turn: 2 },
     ])
+    expect(intentions.map(({ turnLabel }) => turnLabel)).toEqual(['1', '2'])
   })
 
   it('renders later draft orders from their declared positions', () => {
@@ -200,6 +201,7 @@ describe('buildIntentions', () => {
 
     expect(intentions).toHaveLength(2)
     expect(intentions[1]).toMatchObject({ symbol: 'A', turn: 2 })
+    expect(intentions[1].turnLabel).toBe('2')
     expect(intentions[1].from).toEqual([75, 25])
     expect(intentions[1].segments[0].to).toEqual([25, 75])
   })
@@ -310,20 +312,23 @@ describe('buildIntentions', () => {
     expect(pillaged[0]).toMatchObject({ symbol: 'P', turn: 1, segments: [] })
   })
 
-  it('ignores loop liaisons except for disperse', () => {
+  it('renders loop liaisons and marks their turns as uncertain', () => {
     const loopedSupport = buildIntentions(map, stateWith(), 'P1', {
-      HUG: 'HUG\n(ROS S BRU)',
+      HUG: 'HUG\n(ROS S BRU)\nBRU A CHA',
     })
     const loopedHold = buildIntentions(map, stateWith(), 'P1', {
-      HUG: 'HUG\n(H ROS)',
+      HUG: 'HUG\n(H ROS)\nROS A BRU',
     })
     const loopedDisperse = buildIntentions(map, stateWith(), 'P1', {
       HUG: 'HUG\n(ROS D BRU CHA)',
     })
 
-    expect(loopedSupport).toHaveLength(0)
-    expect(loopedHold).toHaveLength(0)
+    expect(loopedSupport).toHaveLength(2)
+    expect(loopedSupport.map(({ turnLabel }) => turnLabel)).toEqual(['?', '?'])
+    expect(loopedHold).toHaveLength(2)
+    expect(loopedHold.map(({ turnLabel }) => turnLabel)).toEqual(['?', '?'])
     expect(loopedDisperse).toHaveLength(1)
+    expect(loopedDisperse[0].turnLabel).toBe('?')
   })
 
   it('ignores invalid orders without breaking the rest of the parse', () => {
@@ -461,6 +466,53 @@ describe('buildIntentions', () => {
     expect(intentions[0]).toMatchObject({ symbol: 'A', turn: 1, source: 'chain' })
     expect(intentions[1]).toMatchObject({ symbol: 'J', turn: 2, source: 'chain' })
     expect(intentions[1].from).toEqual([75, 25])
+  })
+
+  it('marks installed orders after a loop with uncertain turns', () => {
+    const intentions = buildIntentions(
+      map,
+      stateWith({
+        territories: baseState.territories.map((territory, index) =>
+          index === 0
+            ? {
+                ...territory,
+                army: {
+                  owner: 'P1',
+                  size: 2,
+                  chain: {
+                    visibility: 'known',
+                    currentIndex: 0,
+                    orders: [
+                      {
+                        type: 'attack',
+                        position: 'ROS',
+                        targets: ['BRU'],
+                        liaison: 'single',
+                      },
+                      {
+                        type: 'hold',
+                        position: 'BRU',
+                        targets: [],
+                        liaison: 'loop',
+                      },
+                      {
+                        type: 'attack',
+                        position: 'BRU',
+                        targets: ['CHA'],
+                        liaison: 'single',
+                      },
+                    ],
+                  },
+                },
+              }
+            : territory,
+        ),
+      }),
+      'P1',
+      {},
+    )
+
+    expect(intentions.map(({ turnLabel }) => turnLabel)).toEqual(['1', '?', '?'])
   })
 
   it('skips hidden installed chains', () => {

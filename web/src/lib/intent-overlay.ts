@@ -36,6 +36,7 @@ export interface Intention {
   symbol: string
   type: OrderType
   turn: number
+  turnLabel: string
   source: IntentionSource
   nobleCode?: string
   label: string
@@ -124,11 +125,10 @@ function makeIntention(
   order: Order,
   territoryState: { id: string; size: number },
   turn: number,
+  turnUncertain: boolean,
   source: IntentionSource,
   nobleCode?: string,
 ): Intention | null {
-  if (order.liaison === 'loop' && order.type !== 'disperse') return null
-
   const position = order.position
   const from = territoryCentroid(map, position)
   if (!from) return null
@@ -138,6 +138,7 @@ function makeIntention(
     from,
     symbol: SYMBOLS[order.type],
     turn,
+    turnLabel: turnUncertain || order.liaison === 'loop' ? '?' : String(turn),
     source,
     nobleCode,
     label: formatOrderLabel({
@@ -223,7 +224,6 @@ function makeIntention(
     }
     case 'hold':
     case 'pillage': {
-      if (order.liaison === 'loop') return null
       return { ...base, type: order.type, segments: [] }
     }
     default:
@@ -240,18 +240,20 @@ function appendChainIntentions(
   source: IntentionSource,
   nobleCode?: string,
 ): void {
+  let loopPending = false
   for (let orderIndex = startIndex; orderIndex < orders.length; orderIndex += 1) {
     const order = orders[orderIndex]
-    if (order.liaison === 'loop' && order.type !== 'disperse') continue
     const intention = makeIntention(
       map,
       order,
       army,
       orderIndex - startIndex + 1,
+      loopPending,
       source,
       nobleCode,
     )
     if (intention) intentions.push(intention)
+    if (order.liaison === 'loop') loopPending = true
   }
 }
 

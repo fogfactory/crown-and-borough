@@ -311,7 +311,7 @@ function IntentBadge({
   x,
   y,
   symbol,
-  turn,
+  turnLabel,
   color,
   scale,
   isDraft,
@@ -319,7 +319,7 @@ function IntentBadge({
   x: number
   y: number
   symbol: string
-  turn: number
+  turnLabel: string
   color: string
   scale: number
   isDraft: boolean
@@ -358,7 +358,7 @@ function IntentBadge({
         strokeWidth={2.5 * scale}
         paintOrder="stroke"
       >
-        {turn}
+        {turnLabel}
       </text>
     </g>
   )
@@ -1200,7 +1200,7 @@ export function MapViewer({
                                 x={segment.from[0] + direction * -16 * annotationScale}
                                 y={segment.from[1] - 22 * annotationScale}
                                 symbol={intention.symbol}
-                                turn={intention.turn}
+                                turnLabel={intention.turnLabel}
                                 color={intentionColor}
                                 scale={annotationScale}
                                 isDraft={isDraft}
@@ -1247,7 +1247,7 @@ export function MapViewer({
                               x={(segment.from[0] + segment.to[0]) / 2}
                               y={(segment.from[1] + segment.to[1]) / 2}
                               symbol={intention.symbol}
-                              turn={intention.turn}
+                              turnLabel={intention.turnLabel}
                               color={intentionColor}
                               scale={annotationScale}
                               isDraft={isDraft}
@@ -1260,7 +1260,7 @@ export function MapViewer({
                           x={intention.from[0] + 20 * annotationScale}
                           y={intention.from[1] - 22 * annotationScale}
                           symbol={intention.symbol}
-                          turn={intention.turn}
+                          turnLabel={intention.turnLabel}
                           color={intentionColor}
                           scale={annotationScale}
                           isDraft={isDraft}

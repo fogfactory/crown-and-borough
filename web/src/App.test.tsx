@@ -270,10 +270,9 @@ describe('App command/report tabs', () => {
     expect(screen.getAllByLabelText('Couleur de One')).toHaveLength(2)
     expect(screen.getAllByLabelText('Couleur de Two')).toHaveLength(2)
     expect(screen.getByText('ROS A BRU')).toBeInTheDocument()
-    expect(screen.getByText('(H ROS)').closest('li')).toHaveAttribute(
-      'aria-current',
-      'step',
-    )
+    expect(
+      screen.getByText('(H ROS)', { selector: 'span' }).closest('li'),
+    ).toHaveAttribute('aria-current', 'step')
     expect(await screen.findByText(/Source :/)).toBeInTheDocument()
     expect(screen.getByText(/ROS · Rosemont/)).toBeInTheDocument()
 
