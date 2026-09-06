@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
@@ -21,8 +22,15 @@ func winterDeckState() *models.GameState {
 	state.Season = models.SeasonWinter
 	state.Players = []models.Player{{ID: "P1", Name: "One"}, {ID: "P2", Name: "Two"}}
 	state.Regions = []models.Region{{ID: "ROS", Seed: "ROS", Territories: []models.TerritoryID{"ROS"}}}
-	state.Territories = []models.Territory{{ID: "ROS", Name: "ROS", Terrain: models.TerrainPlain}}
-	state.TerritoryStates = map[models.TerritoryID]models.TerritoryState{"ROS": {Infrastructures: []models.InfraID{}}}
+	state.Territories = []models.Territory{
+		{ID: "ROS", Name: "ROS", Terrain: models.TerrainPlain},
+		{ID: "BOI", Name: "BOI", Terrain: models.TerrainPlain},
+	}
+	p1, p2 := models.PlayerID("P1"), models.PlayerID("P2")
+	state.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
+		"ROS": {OwnerID: &p1, Infrastructures: []models.InfraID{}},
+		"BOI": {OwnerID: &p2, Infrastructures: []models.InfraID{}},
+	}
 	state.SpecialDeck = &models.SpecialDeck{
 		Cards: []models.SpecialCard{
 			{ID: "C1", Kind: models.CardKindPlague},
@@ -52,6 +60,23 @@ func TestResolveWinterDrawsThroughCalamityIntoBonus(t *testing.T) {
 	augury := resolution.State.Auguries[2]
 	if len(augury.Calamities) != 1 || augury.Calamities[0].CardID != "C1" || augury.Calamities[0].RegionSeed != "ROS" {
 		t.Fatalf("augury = %#v, want programmed C1 at ROS", augury)
+	}
+}
+
+func TestResolveTurnValidationDoesNotApplyWinterDeckOrders(t *testing.T) {
+	state := winterDeckState()
+	before := cloneGameState(state)
+	report, err := ResolveTurn(state, winterDeckBalance(), OrdersInput{
+		Special: []DeckSubmission{{Player: "P1", Text: "T C"}},
+	})
+	if err != nil {
+		t.Fatalf("ResolveTurn = %v", err)
+	}
+	if got := report.State.SpecialDeck.Hands["P1"]; len(got) != 1 || got[0] != "C2" {
+		t.Fatalf("resolved hand = %#v, want [C2]", got)
+	}
+	if !reflect.DeepEqual(state, before) {
+		t.Fatal("winter deck validation mutated the submitted game state")
 	}
 }
 
