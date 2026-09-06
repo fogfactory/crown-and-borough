@@ -24,9 +24,16 @@ const TERRAIN_ORDER: Terrain[] = ['plain', 'forest', 'hill', 'mountain', 'swamp'
 interface MapLegendProps {
   showIntentions?: boolean
   onToggleIntentions?: (show: boolean) => void
+  showRegions?: boolean
+  onToggleRegions?: (show: boolean) => void
 }
 
-export function MapLegend({ showIntentions = true, onToggleIntentions }: MapLegendProps) {
+export function MapLegend({
+  showIntentions = true,
+  onToggleIntentions,
+  showRegions = false,
+  onToggleRegions,
+}: MapLegendProps) {
   const { t } = useLanguage()
 
   return (
@@ -54,6 +61,16 @@ export function MapLegend({ showIntentions = true, onToggleIntentions }: MapLege
                 {t('legend.intentionsHint')}
               </span>
             </span>
+          </label>
+        )}
+        {onToggleRegions && (
+          <label className="flex items-center gap-2 rounded-md bg-[#eef3f7] px-2 py-1.5">
+            <input
+              type="checkbox"
+              checked={showRegions}
+              onChange={(event) => onToggleRegions(event.target.checked)}
+            />
+            <span>{t('legend.regions')}</span>
           </label>
         )}
         <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">

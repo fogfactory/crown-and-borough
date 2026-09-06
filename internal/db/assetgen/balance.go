@@ -30,7 +30,29 @@ type Balance struct {
 	StartingNobles     int                    `json:"starting_nobles" yaml:"starting_nobles"`
 	StartingTroops     int                    `json:"starting_troops" yaml:"starting_troops"`
 	StartingResources  int                    `json:"starting_resources" yaml:"starting_resources"`
+	SpecialOrders      SpecialOrdersBalance   `json:"special_orders" yaml:"special_orders"`
 	FirstNames         []Asset                `json:"-" yaml:"-"`
+}
+
+type SpecialOrdersBalance struct {
+	HandLimit          int                     `json:"hand_limit" yaml:"hand_limit"`
+	DrawOrdersLimit    int                     `json:"draw_orders_limit" yaml:"draw_orders_limit"`
+	DeckSize           int                     `json:"deck_size" yaml:"deck_size"`
+	CalamityPercentage int                     `json:"calamity_percentage" yaml:"calamity_percentage"`
+	CalamitySlots      map[models.Season]int   `json:"calamity_slots" yaml:"calamity_slots"`
+	CalamityWeights    map[models.CardKind]int `json:"calamity_weights" yaml:"calamity_weights"`
+	BonusWeights       map[models.CardKind]int `json:"bonus_weights" yaml:"bonus_weights"`
+	Effects            SpecialOrderEffects     `json:"effects" yaml:"effects"`
+}
+
+type SpecialOrderEffects struct {
+	PlagueArmyDivisor              int `json:"plague_army_divisor" yaml:"plague_army_divisor"`
+	PlagueNobleMortalityPercentage int `json:"plague_noble_mortality_percentage" yaml:"plague_noble_mortality_percentage"`
+	RevoltArmyCount                int `json:"revolt_army_count" yaml:"revolt_army_count"`
+	RevoltArmyMinSize              int `json:"revolt_army_min_size" yaml:"revolt_army_min_size"`
+	RevoltArmyMaxSize              int `json:"revolt_army_max_size" yaml:"revolt_army_max_size"`
+	BonusMillProduction            int `json:"bonus_mill_production" yaml:"bonus_mill_production"`
+	BonusArmyRation                int `json:"bonus_army_ration" yaml:"bonus_army_ration"`
 }
 
 // Costs groups all resource costs used by winter investments.
@@ -44,22 +66,44 @@ type Costs struct {
 }
 
 type rawBalance struct {
-	BaseProduction     *int            `yaml:"base_production"`
-	SupplyRange        *int            `yaml:"supply_range"`
-	DepotRangeBonus    *int            `yaml:"depot_range_bonus"`
-	InfraRationsBonus  *int            `yaml:"infra_rations_bonus"`
-	CostBase           *int            `yaml:"cost_base"`
-	PillageBonus       *int            `yaml:"pillage_bonus"`
-	NobleCommandBonus  *int            `yaml:"noble_command_bonus"`
-	CastleDefenseBonus *int            `yaml:"castle_defense_bonus"`
-	RationTerrain      map[string]*int `yaml:"ration_terrain"`
-	WinterStockDivisor *int            `yaml:"winter_stock_divisor"`
-	VillageStockCap    *int            `yaml:"village_stock_cap"`
-	CastleStockCap     *int            `yaml:"castle_stock_cap"`
-	Costs              *rawCosts       `yaml:"costs"`
-	StartingNobles     *int            `yaml:"starting_nobles"`
-	StartingTroops     *int            `yaml:"starting_troops"`
-	StartingResources  *int            `yaml:"starting_resources"`
+	BaseProduction     *int              `yaml:"base_production"`
+	SupplyRange        *int              `yaml:"supply_range"`
+	DepotRangeBonus    *int              `yaml:"depot_range_bonus"`
+	InfraRationsBonus  *int              `yaml:"infra_rations_bonus"`
+	CostBase           *int              `yaml:"cost_base"`
+	PillageBonus       *int              `yaml:"pillage_bonus"`
+	NobleCommandBonus  *int              `yaml:"noble_command_bonus"`
+	CastleDefenseBonus *int              `yaml:"castle_defense_bonus"`
+	RationTerrain      map[string]*int   `yaml:"ration_terrain"`
+	WinterStockDivisor *int              `yaml:"winter_stock_divisor"`
+	VillageStockCap    *int              `yaml:"village_stock_cap"`
+	CastleStockCap     *int              `yaml:"castle_stock_cap"`
+	Costs              *rawCosts         `yaml:"costs"`
+	StartingNobles     *int              `yaml:"starting_nobles"`
+	StartingTroops     *int              `yaml:"starting_troops"`
+	StartingResources  *int              `yaml:"starting_resources"`
+	SpecialOrders      *rawSpecialOrders `yaml:"special_orders"`
+}
+
+type rawSpecialOrders struct {
+	HandLimit          *int                    `yaml:"hand_limit"`
+	DrawOrdersLimit    *int                    `yaml:"draw_orders_limit"`
+	DeckSize           *int                    `yaml:"deck_size"`
+	CalamityPercentage *int                    `yaml:"calamity_percentage"`
+	CalamitySlots      map[string]*int         `yaml:"calamity_slots"`
+	CalamityWeights    map[string]*int         `yaml:"calamity_weights"`
+	BonusWeights       map[string]*int         `yaml:"bonus_weights"`
+	Effects            *rawSpecialOrderEffects `yaml:"effects"`
+}
+
+type rawSpecialOrderEffects struct {
+	PlagueArmyDivisor              *int `yaml:"plague_army_divisor"`
+	PlagueNobleMortalityPercentage *int `yaml:"plague_noble_mortality_percentage"`
+	RevoltArmyCount                *int `yaml:"revolt_army_count"`
+	RevoltArmyMinSize              *int `yaml:"revolt_army_min_size"`
+	RevoltArmyMaxSize              *int `yaml:"revolt_army_max_size"`
+	BonusMillProduction            *int `yaml:"bonus_mill_production"`
+	BonusArmyRation                *int `yaml:"bonus_army_ration"`
 }
 
 type rawCosts struct {
@@ -165,6 +209,10 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 	if err != nil {
 		return Balance{}, err
 	}
+	specialOrders, err := raw.specialOrders(path)
+	if err != nil {
+		return Balance{}, err
+	}
 	rationTerrain, err := requiredIntTerrainMap(path, "ration_terrain", raw.RationTerrain)
 	if err != nil {
 		return Balance{}, err
@@ -202,6 +250,7 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 		StartingNobles:     startingNobles,
 		StartingTroops:     startingTroops,
 		StartingResources:  startingResources,
+		SpecialOrders:      specialOrders,
 	}, nil
 }
 

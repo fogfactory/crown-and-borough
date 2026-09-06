@@ -88,6 +88,8 @@ func (ctx *resolutionContext) predictPeacefulDepartures(current contestState, va
 func (ctx *resolutionContext) cloneForDeparturePrediction() *resolutionContext {
 	temp := newResolutionContext(cloneGameState(ctx.state), ctx.balance)
 	temp.famished = copyBooleanMap(ctx.famished)
+	temp.badWeatherRegions = copyTerritoryFlags(ctx.badWeatherRegions)
+	temp.famineRegions = copyTerritoryFlags(ctx.famineRegions)
 	temp.records = make(map[models.ArmyID]*orderRecord, len(ctx.records))
 	for armyID, record := range ctx.records {
 		copyRecord := *record

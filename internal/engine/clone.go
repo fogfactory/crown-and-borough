@@ -31,6 +31,11 @@ func cloneGameState(source *models.GameState) *models.GameState {
 	}
 	clone.Privacy = clonePrivacy(source.Privacy)
 	clone.Infrastructures = cloneSlice(source.Infrastructures)
+	clone.Regions = cloneSlice(source.Regions)
+	for i, region := range source.Regions {
+		clone.Regions[i] = region
+		clone.Regions[i].Territories = cloneSlice(region.Territories)
+	}
 	clone.TerritoryStates = make(map[models.TerritoryID]models.TerritoryState, len(source.TerritoryStates))
 	for territoryID, state := range source.TerritoryStates {
 		copyState := state
@@ -45,7 +50,44 @@ func cloneGameState(source *models.GameState) *models.GameState {
 		copyState.Infrastructures = cloneSlice(state.Infrastructures)
 		clone.TerritoryStates[territoryID] = copyState
 	}
+	clone.SpecialDeck = cloneSpecialDeck(source.SpecialDeck)
+	if source.Auguries != nil {
+		clone.Auguries = make(map[int]models.YearAugury, len(source.Auguries))
+		for year, augury := range source.Auguries {
+			clone.Auguries[year] = cloneYearAugury(augury)
+		}
+	}
 	return &clone
+}
+
+func cloneSpecialDeck(source *models.SpecialDeck) *models.SpecialDeck {
+	if source == nil {
+		return nil
+	}
+	clone := &models.SpecialDeck{
+		Cards:    cloneSlice(source.Cards),
+		DrawPile: cloneSlice(source.DrawPile),
+		Discard:  cloneSlice(source.Discard),
+	}
+	if source.Hands != nil {
+		clone.Hands = make(map[models.PlayerID][]models.SpecialCardID, len(source.Hands))
+		for playerID, hand := range source.Hands {
+			clone.Hands[playerID] = cloneSlice(hand)
+		}
+	}
+	return clone
+}
+
+func cloneYearAugury(source models.YearAugury) models.YearAugury {
+	clone := source
+	if source.Capacities != nil {
+		clone.Capacities = make(map[models.Season]int, len(source.Capacities))
+		for season, capacity := range source.Capacities {
+			clone.Capacities[season] = capacity
+		}
+	}
+	clone.Calamities = cloneSlice(source.Calamities)
+	return clone
 }
 
 func clonePrivacy(source *models.PrivacyMeta) *models.PrivacyMeta {

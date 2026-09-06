@@ -52,7 +52,8 @@ type Territory struct {
 
 // MapData is the complete static map document exposed by the development API.
 type MapData struct {
-	Territories []Territory `json:"territories"`
+	Territories []Territory     `json:"territories"`
+	Regions     []models.Region `json:"regions"`
 }
 
 // Generate builds a deterministic map from seed, assets and cfg. Randomness is
@@ -119,7 +120,11 @@ func Generate(seed string, assets assetgen.Assets, cfg Config) (MapData, error) 
 		}
 	}
 
-	return MapData{Territories: territories}, nil
+	regions, err := generateRegions(territories)
+	if err != nil {
+		return MapData{}, err
+	}
+	return MapData{Territories: territories, Regions: regions}, nil
 }
 
 func validateConfig(cfg Config) error {

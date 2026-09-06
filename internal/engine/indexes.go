@@ -23,6 +23,7 @@ type resolutionContext struct {
 
 	startArmiesByID      map[models.ArmyID]models.Army
 	startArmyAtTerritory map[models.TerritoryID]models.ArmyID
+	startNoblesByID      map[models.NobleID]models.Noble
 	famished             map[models.ArmyID]bool
 
 	records             map[models.ArmyID]*orderRecord
@@ -36,6 +37,14 @@ type resolutionContext struct {
 	contest             contestState
 	dislodged           map[models.ArmyID]*dislodgedArmy
 	events              []Event
+	deckIntents         []deckOrderIntent
+	deckDraws           map[models.PlayerID][]models.CardKind
+	specialReshuffles   int
+	badWeatherRegions   map[models.TerritoryID]bool
+	famineRegions       map[models.TerritoryID]bool
+	bonusMillRegions    map[models.TerritoryID]int
+	bonusRationRegions  map[models.TerritoryID]int
+	plagueDeaths        []models.Noble
 }
 
 func newResolutionContext(state *models.GameState, balance assetgen.Balance) *resolutionContext {
@@ -44,6 +53,7 @@ func newResolutionContext(state *models.GameState, balance assetgen.Balance) *re
 		balance:              balance,
 		startArmiesByID:      make(map[models.ArmyID]models.Army, len(state.Armies)),
 		startArmyAtTerritory: make(map[models.TerritoryID]models.ArmyID, len(state.Armies)),
+		startNoblesByID:      make(map[models.NobleID]models.Noble, len(state.Nobles)),
 		famished:             make(map[models.ArmyID]bool),
 		records:              make(map[models.ArmyID]*orderRecord),
 		attacks:              make(map[models.ArmyID]*attackIntent),
@@ -54,6 +64,12 @@ func newResolutionContext(state *models.GameState, balance assetgen.Balance) *re
 		joinResults:          make(map[models.ArmyID]*joinResolution),
 		attackedTerritories:  make(map[models.TerritoryID]bool),
 		dislodged:            make(map[models.ArmyID]*dislodgedArmy),
+		badWeatherRegions:    make(map[models.TerritoryID]bool),
+		famineRegions:        make(map[models.TerritoryID]bool),
+		deckDraws:            make(map[models.PlayerID][]models.CardKind),
+	}
+	for _, noble := range state.Nobles {
+		ctx.startNoblesByID[noble.ID] = noble
 	}
 	for _, army := range state.Armies {
 		copyArmy := army

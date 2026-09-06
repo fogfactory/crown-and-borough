@@ -22,6 +22,15 @@ func ResolveWinter(
 	balance assetgen.Balance,
 	orders map[models.PlayerID][]models.WinterOrder,
 ) (Resolution, error) {
+	return ResolveWinterWithDeckOrders(game, balance, orders, nil)
+}
+
+func ResolveWinterWithDeckOrders(
+	game *models.GameState,
+	balance assetgen.Balance,
+	orders map[models.PlayerID][]models.WinterOrder,
+	deckOrders map[models.PlayerID][]models.DeckOrder,
+) (Resolution, error) {
 	if game == nil {
 		return Resolution{}, fmt.Errorf("engine: resolve winter: nil game state")
 	}
@@ -37,6 +46,9 @@ func ResolveWinter(
 	if err := validateWinterPlayers(game, orders); err != nil {
 		return Resolution{}, err
 	}
+	if err := validateDeckOrders(game, balance, deckOrders); err != nil {
+		return Resolution{}, err
+	}
 
 	state := cloneGameState(game)
 	ctx := newResolutionContext(state, balance)
@@ -44,9 +56,11 @@ func ResolveWinter(
 	firstNameRNG := newWinterRNG(state.Seed, state.Turn)
 	for _, playerID := range sortedPlayerIDs(state.Players) {
 		for _, order := range orders[playerID] {
-			ctx.resolveWinterOrder(playerID, order, firstNameRNG)
+			executeWinterOrder(ctx, playerID, order, firstNameRNG)
 		}
 	}
+	resolveWinterDeckOrders(ctx, deckOrders)
+	resolveSeasonEffects(ctx)
 	ctx.conserveWinterStocks()
 	ctx.repatriateWinterStocks()
 	ctx.emitWinterStockEvents(stockBefore)
@@ -76,360 +90,6 @@ func validateWinterPlayers(game *models.GameState, orders map[models.PlayerID][]
 		}
 	}
 	return nil
-}
-
-func (ctx *resolutionContext) resolveWinterOrder(playerID models.PlayerID, order models.WinterOrder, firstNameRNG *rand.Rand) {
-	switch order.Type {
-	case models.WinterOrderTypeRecruitNoble:
-		ctx.resolveRecruitNoble(playerID, order, firstNameRNG)
-	case models.WinterOrderTypeRecruitTroop:
-		ctx.resolveRecruitTroop(playerID, order)
-	case models.WinterOrderTypeBuild:
-		ctx.resolveBuild(playerID, order)
-	case models.WinterOrderTypeElectCapital:
-		ctx.resolveElectCapital(playerID, order)
-	case models.WinterOrderTypeLiberateNoble:
-		ctx.resolveLiberateNoble(playerID, order)
-	case models.WinterOrderTypeHostage:
-		ctx.resolveNobleStatusOrder(playerID, order, models.NobleStatusHostage)
-	case models.WinterOrderTypeDungeon:
-		ctx.resolveNobleStatusOrder(playerID, order, models.NobleStatusDungeon)
-	default:
-		ctx.rejectWinterOrder(playerID, order, "invalid_winter_order")
-	}
-}
-
-func (ctx *resolutionContext) resolveRecruitNoble(playerID models.PlayerID, order models.WinterOrder, firstNameRNG *rand.Rand) {
-	if !ctx.territoryExists(order.TerritoryID) {
-		ctx.rejectWinterOrder(playerID, order, "unknown_territory")
-		return
-	}
-	if !ctx.controlsTerritory(playerID, order.TerritoryID) {
-		ctx.rejectWinterOrder(playerID, order, "territory_not_controlled")
-		return
-	}
-	if !ctx.hasSettlement(order.TerritoryID) {
-		ctx.rejectWinterOrder(playerID, order, "noble_requires_settlement")
-		return
-	}
-	army := ctx.currentArmyAt(order.TerritoryID)
-	if army == nil || army.OwnerID != playerID {
-		ctx.rejectWinterOrder(playerID, order, "noble_requires_owned_army")
-		return
-	}
-	if !ctx.hasAvailableFirstName(ctx.balance.FirstNames) {
-		ctx.rejectWinterOrder(playerID, order, "no_available_first_name")
-		return
-	}
-	spent, paid := ctx.payWinterCost(playerID, order.TerritoryID, ctx.balance.Costs.Noble)
-	if !paid {
-		ctx.rejectWinterOrder(playerID, order, "insufficient_resources")
-		return
-	}
-	firstName := ctx.drawFirstName(firstNameRNG, ctx.balance.FirstNames)
-	territory := ctx.territoriesByID[order.TerritoryID]
-	noble := models.Noble{
-		ID:               nextNobleID(ctx.state.Nobles),
-		Code:             firstName.Code,
-		Name:             fmt.Sprintf("%s de %s", firstName.Name, territory.Name),
-		OwnerID:          playerID,
-		LocationID:       order.TerritoryID,
-		Status:           models.NobleStatusFree,
-		LastEmissionTurn: 0,
-	}
-	ctx.state.Nobles = append(ctx.state.Nobles, noble)
-	ctx.rebuildIndexes()
-	ctx.events = append(ctx.events, Event{
-		Type:          EventTypeRecruit,
-		Phase:         winterPhase,
-		OwnerID:       playerID,
-		OrderID:       order.ID,
-		TerritoryID:   order.TerritoryID,
-		NobleID:       noble.ID,
-		NobleCode:     models.NobleCode(noble.Code),
-		NobleName:     noble.Name,
-		ResourceSpent: spent,
-	})
-}
-
-func (ctx *resolutionContext) resolveRecruitTroop(playerID models.PlayerID, order models.WinterOrder) {
-	if !ctx.territoryExists(order.TerritoryID) {
-		ctx.rejectWinterOrder(playerID, order, "unknown_territory")
-		return
-	}
-	if !ctx.controlsTerritory(playerID, order.TerritoryID) {
-		ctx.rejectWinterOrder(playerID, order, "territory_not_controlled")
-		return
-	}
-	army := ctx.currentArmyAt(order.TerritoryID)
-	if army != nil && army.OwnerID != playerID {
-		ctx.rejectWinterOrder(playerID, order, "territory_occupied_by_other_player")
-		return
-	}
-	if !ctx.hasEligibleTroopNoble(playerID, order.TerritoryID) {
-		ctx.rejectWinterOrder(playerID, order, "troop_requires_adjacent_noble")
-		return
-	}
-	spent, paid := ctx.payWinterCost(playerID, order.TerritoryID, ctx.balance.Costs.Troop)
-	if !paid {
-		ctx.rejectWinterOrder(playerID, order, "insufficient_resources")
-		return
-	}
-	if army != nil {
-		army.Size++
-		ctx.events = append(ctx.events, Event{
-			Type:          EventTypeRecruit,
-			Phase:         winterPhase,
-			OwnerID:       playerID,
-			OrderID:       order.ID,
-			TerritoryID:   order.TerritoryID,
-			ArmyID:        army.ID,
-			Troops:        1,
-			ResourceSpent: spent,
-		})
-		return
-	}
-	newArmy := models.Army{
-		ID:          ctx.allocateArmyID(),
-		OwnerID:     playerID,
-		TerritoryID: order.TerritoryID,
-		Size:        1,
-	}
-	ctx.state.Armies = append(ctx.state.Armies, newArmy)
-	armyID := newArmy.ID
-	state := ctx.state.TerritoryStates[order.TerritoryID]
-	state.Army = &armyID
-	ctx.state.TerritoryStates[order.TerritoryID] = state
-	ctx.rebuildIndexes()
-	ctx.events = append(ctx.events, Event{
-		Type:          EventTypeRecruit,
-		Phase:         winterPhase,
-		OwnerID:       playerID,
-		OrderID:       order.ID,
-		TerritoryID:   order.TerritoryID,
-		ArmyID:        newArmy.ID,
-		Troops:        1,
-		ResourceSpent: spent,
-	})
-}
-
-func (ctx *resolutionContext) hasEligibleTroopNoble(playerID models.PlayerID, targetID models.TerritoryID) bool {
-	for _, noble := range ctx.state.Nobles {
-		if noble.OwnerID != playerID || noble.Status != models.NobleStatusFree {
-			continue
-		}
-		if noble.LocationID == targetID || ctx.isAdjacent(noble.LocationID, targetID) {
-			return true
-		}
-	}
-	return false
-}
-
-func (ctx *resolutionContext) resolveBuild(playerID models.PlayerID, order models.WinterOrder) {
-	if !ctx.territoryExists(order.TerritoryID) {
-		ctx.rejectWinterOrder(playerID, order, "unknown_territory")
-		return
-	}
-	if !ctx.controlsTerritory(playerID, order.TerritoryID) {
-		ctx.rejectWinterOrder(playerID, order, "territory_not_controlled")
-		return
-	}
-	if !isBuildableInfrastructure(order.InfraType) {
-		ctx.rejectWinterOrder(playerID, order, "invalid_infrastructure")
-		return
-	}
-	if order.InfraType == models.InfraTypeMill && !ctx.millCanBeBuiltAt(order.TerritoryID) {
-		ctx.rejectWinterOrder(playerID, order, "mill_requires_productive_neighbor")
-		return
-	}
-	existing := ctx.infrastructureAt(order.TerritoryID)
-	if existing != nil {
-		if existing.Type == models.InfraTypeMill && order.InfraType == models.InfraTypeMill {
-			spent, paid := ctx.payWinterCost(playerID, order.TerritoryID, ctx.balance.Costs.Mill)
-			if !paid {
-				ctx.rejectWinterOrder(playerID, order, "insufficient_resources")
-				return
-			}
-			existing.Level++
-			ctx.events = append(ctx.events, Event{
-				Type:               EventTypeUpgrade,
-				Phase:              winterPhase,
-				OwnerID:            playerID,
-				OrderID:            order.ID,
-				TerritoryID:        order.TerritoryID,
-				InfrastructureID:   existing.ID,
-				InfrastructureType: existing.Type,
-				Level:              existing.Level,
-				ResourceSpent:      spent,
-			})
-			return
-		}
-		if existing.Type != models.InfraTypeVillage || order.InfraType != models.InfraTypeCastle {
-			ctx.rejectWinterOrder(playerID, order, "structure_present")
-			return
-		}
-	}
-	cost, exists := infrastructureCost(ctx.balance.Costs, order.InfraType)
-	if !exists {
-		ctx.rejectWinterOrder(playerID, order, "invalid_infrastructure")
-		return
-	}
-	spent, paid := ctx.payWinterCost(playerID, order.TerritoryID, cost)
-	if !paid {
-		ctx.rejectWinterOrder(playerID, order, "insufficient_resources")
-		return
-	}
-	if existing != nil {
-		ctx.removeInfrastructurePreservingStock(existing.ID)
-	}
-	infrastructure := ctx.addWinterInfrastructure(order.InfraType, order.TerritoryID)
-	capitalAssigned := false
-	if order.InfraType == models.InfraTypeCastle {
-		if _, _, hasCapital := ctx.capitalTerritory(playerID); !hasCapital {
-			ctx.setCapital(playerID, infrastructure.ID)
-			capitalAssigned = true
-		}
-	}
-	ctx.events = append(ctx.events, Event{
-		Type:               EventTypeBuild,
-		Phase:              winterPhase,
-		OwnerID:            playerID,
-		OrderID:            order.ID,
-		TerritoryID:        order.TerritoryID,
-		InfrastructureID:   infrastructure.ID,
-		InfrastructureType: infrastructure.Type,
-		Level:              infrastructure.Level,
-		ResourceSpent:      spent,
-	})
-	if capitalAssigned {
-		ctx.events = append(ctx.events, Event{
-			Type:               EventTypeCapitalElected,
-			Phase:              winterPhase,
-			OwnerID:            playerID,
-			OrderID:            order.ID,
-			TerritoryID:        order.TerritoryID,
-			InfrastructureID:   infrastructure.ID,
-			InfrastructureType: infrastructure.Type,
-			ResourceSpent:      0,
-			Automatic:          true,
-		})
-	}
-}
-
-func (ctx *resolutionContext) resolveElectCapital(playerID models.PlayerID, order models.WinterOrder) {
-	if !ctx.territoryExists(order.TerritoryID) {
-		ctx.rejectWinterOrder(playerID, order, "unknown_territory")
-		return
-	}
-	if !ctx.controlsTerritory(playerID, order.TerritoryID) {
-		ctx.rejectWinterOrder(playerID, order, "territory_not_controlled")
-		return
-	}
-	infrastructure := ctx.infrastructureAt(order.TerritoryID)
-	if infrastructure == nil || infrastructure.Type != models.InfraTypeCastle {
-		ctx.rejectWinterOrder(playerID, order, "capital_requires_controlled_castle")
-		return
-	}
-	ctx.setCapital(playerID, infrastructure.ID)
-	ctx.events = append(ctx.events, Event{
-		Type:               EventTypeCapitalElected,
-		Phase:              winterPhase,
-		OwnerID:            playerID,
-		OrderID:            order.ID,
-		TerritoryID:        order.TerritoryID,
-		InfrastructureID:   infrastructure.ID,
-		InfrastructureType: infrastructure.Type,
-		ResourceSpent:      0,
-	})
-}
-
-func (ctx *resolutionContext) resolveNobleStatusOrder(playerID models.PlayerID, order models.WinterOrder, status models.NobleStatus) {
-	nobleID, exists := ctx.noblesByCode[order.NobleCode]
-	if !exists {
-		ctx.rejectWinterOrder(playerID, order, "unknown_noble")
-		return
-	}
-	noble := ctx.noblesByID[nobleID]
-	if noble == nil || noble.Status == models.NobleStatusFree {
-		ctx.rejectWinterOrder(playerID, order, "noble_not_prisoner")
-		return
-	}
-	holder := ctx.currentArmyAt(noble.LocationID)
-	if holder == nil || holder.OwnerID != playerID || noble.OwnerID == playerID {
-		ctx.rejectWinterOrder(playerID, order, "noble_not_held")
-		return
-	}
-	previousStatus := noble.Status
-	noble.Status = status
-	orderCopy := order
-	ctx.events = append(ctx.events, Event{
-		Type:           EventTypeCapture,
-		Phase:          winterPhase,
-		OwnerID:        playerID,
-		ArmyID:         holder.ID,
-		OrderID:        order.ID,
-		TerritoryID:    noble.LocationID,
-		NobleID:        noble.ID,
-		NobleCode:      models.NobleCode(noble.Code),
-		NobleName:      noble.Name,
-		PreviousStatus: previousStatus,
-		Status:         noble.Status,
-		CaptorPlayerID: playerID,
-		WinterOrder:    &orderCopy,
-	})
-}
-
-func (ctx *resolutionContext) resolveLiberateNoble(playerID models.PlayerID, order models.WinterOrder) {
-	nobleID, exists := ctx.noblesByCode[order.NobleCode]
-	if !exists {
-		ctx.rejectWinterOrder(playerID, order, "unknown_noble")
-		return
-	}
-	noble := ctx.noblesByID[nobleID]
-	if noble == nil || noble.Status == models.NobleStatusFree {
-		ctx.rejectWinterOrder(playerID, order, "noble_not_prisoner")
-		return
-	}
-	holder := ctx.currentArmyAt(noble.LocationID)
-	if holder == nil || holder.OwnerID != playerID {
-		ctx.rejectWinterOrder(playerID, order, "noble_not_held")
-		return
-	}
-	capitalTerritoryID, _, hasCapital := ctx.capitalTerritory(noble.OwnerID)
-	if !hasCapital {
-		ctx.rejectWinterOrder(playerID, order, "no_capital")
-		return
-	}
-	capitalArmy := ctx.currentArmyAt(capitalTerritoryID)
-	if capitalArmy == nil || capitalArmy.OwnerID != noble.OwnerID {
-		ctx.rejectWinterOrder(playerID, order, "no_army_at_capital")
-		return
-	}
-	paymentTargetID := noble.LocationID
-	if holderCapitalTerritoryID, _, holderHasCapital := ctx.capitalTerritory(playerID); holderHasCapital {
-		paymentTargetID = holderCapitalTerritoryID
-	}
-	spent, paid := ctx.payWinterCost(playerID, paymentTargetID, ctx.balance.Costs.Liberation)
-	if !paid {
-		ctx.rejectWinterOrder(playerID, order, "insufficient_resources")
-		return
-	}
-	previousStatus := noble.Status
-	noble.Status = models.NobleStatusFree
-	noble.LocationID = capitalTerritoryID
-	ctx.events = append(ctx.events, Event{
-		Type:           EventTypeLiberation,
-		Phase:          winterPhase,
-		OwnerID:        playerID,
-		OrderID:        order.ID,
-		NobleID:        noble.ID,
-		NobleCode:      models.NobleCode(noble.Code),
-		NobleName:      noble.Name,
-		PreviousStatus: previousStatus,
-		Status:         noble.Status,
-		TerritoryID:    capitalTerritoryID,
-		ResourceSpent:  spent,
-	})
 }
 
 func (ctx *resolutionContext) rejectWinterOrder(playerID models.PlayerID, order models.WinterOrder, reason string) {

@@ -2,7 +2,7 @@
 
 **Milestone lié :** [Ordres spéciaux & Calamités](https://github.com/fogfactory/crown-and-borough/milestone/4)
 
-**Dépend de :** la boucle hiver et les rapports du socle actuel.
+**Dépend de :** la boucle hiver, la résolution simultanée et les rapports du socle actuel.
 
 ## Pioche et main
 
@@ -20,7 +20,44 @@ son effet et les informations visibles par les autres joueurs.
 Un tirage peut déclencher une calamité. Le nombre maximal de calamités est de
 trois par année, même si plusieurs cartes sont tirées. La règle devra définir la
 pioche, le renouvellement, les défausses et la résolution déterministe des
-calamités.
+calamités. L’augure du printemps révèle pour chaque calamité son kind, sa saison
+et sa région ; les augures futures restent cachées.
+
+## Syntaxe des ordres
+
+Les ordres du deck sont soumis dans un champ `special` distinct des chaînes de
+nobles et des investissements d'hiver. Aucun noble n'est requis :
+
+- `D C BT` ou `D C RA` abandonne une carte bonus, en hiver uniquement ;
+- `T C` tire une carte, en hiver uniquement ;
+- `P BT TER` joue Beau temps au printemps, en été ou en automne ;
+- `P RA TER` joue Récolte abondante au printemps, en été ou en automne ;
+- `P RE TER` joue Révolte pendant ces saisons si une famine affecte la région cible.
+
+Les cartes jouées sont consommées puis leurs effets sont appliqués avant le
+ravitaillement et la résolution simultanée des ordres d'armée.
+
+Les aliases français et anglais sont acceptés quelle que soit la langue de
+l’interface. `TER` est obligatoirement le village seed d’une région. Les kinds
+de calamité ne peuvent pas être joués comme ordres de joueur. Lorsqu’un ordre
+`P` est appliqué, il consomme la première carte du kind demandé dans la
+main du joueur et la place dans la défausse ; l’effet est ensuite enregistré pour
+une résolution simultanée par région.
+
+## Effets des calamités et de la révolte
+
+- La peste réduit chaque armée de la région à `ceil(taille / divisor)`, avec au
+  moins une troupe, et peut tuer un noble selon la balance ; un noble tué reçoit
+  supprimé de l'état et ne rapporte plus de points. Une chaîne émise pendant le
+  tour est supprimée ; une chaîne historique déjà en cours continue.
+- Le mauvais temps bloque les attaques, jonctions, dispersions, pillages et
+  soutiens offensifs provenant de sa région ; le maintien et le soutien défensif
+  restent possibles.
+- La famine désactive la contribution des moulins et le bonus de rations des
+  châteaux/villages de sa région ; la production de base et les rations de terrain
+  restent actives.
+- La révolte est une carte bonus, jouable si une famine active affecte la région.
+  Elle crée des armées `NEUTRAL` sur les cases vides, selon la balance.
 
 ## Cartes prévues
 

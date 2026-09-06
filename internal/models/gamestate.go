@@ -42,6 +42,7 @@ type GameState struct {
 	Players         []Player                       `json:"players"`
 	Territories     []Territory                    `json:"territories"`
 	Nobles          []Noble                        `json:"nobles"`
+	RemovedNobleIDs []NobleID                      `json:"removedNobleIds"`
 	Armies          []Army                         `json:"armies"`
 	Chains          []Chain                        `json:"chains"`
 	Privacy         *PrivacyMeta                   `json:"privacy,omitempty"`
@@ -49,6 +50,9 @@ type GameState struct {
 	NextArmyID      int                            `json:"nextArmyId"`
 	Infrastructures []Infrastructure               `json:"infrastructures"`
 	TerritoryStates map[TerritoryID]TerritoryState `json:"territoryStates"`
+	Regions         []Region                       `json:"regions"`
+	SpecialDeck     *SpecialDeck                   `json:"specialDeck,omitempty"`
+	Auguries        map[int]YearAugury             `json:"auguries"`
 }
 
 // NewGameState returns a fresh empty state at turn 1, spring of year 1, with
@@ -56,14 +60,15 @@ type GameState struct {
 // {} rather than null.
 func NewGameState() *GameState {
 	return &GameState{
-		Turn:        1,
-		Season:      SeasonForTurn(1),
-		YearCount:   DefaultGameYears,
-		Players:     []Player{},
-		Territories: []Territory{},
-		Nobles:      []Noble{},
-		Armies:      []Army{},
-		Chains:      []Chain{},
+		Turn:            1,
+		Season:          SeasonForTurn(1),
+		YearCount:       DefaultGameYears,
+		Players:         []Player{},
+		Territories:     []Territory{},
+		Nobles:          []Noble{},
+		RemovedNobleIDs: []NobleID{},
+		Armies:          []Army{},
+		Chains:          []Chain{},
 		Privacy: &PrivacyMeta{
 			ChainKnowledge:      map[PlayerID]map[ChainID]ChainSnapshot{},
 			CombatParticipation: map[PlayerID]map[string]bool{},
@@ -72,6 +77,8 @@ func NewGameState() *GameState {
 		NextArmyID:      1,
 		Infrastructures: []Infrastructure{},
 		TerritoryStates: map[TerritoryID]TerritoryState{},
+		Regions:         []Region{},
+		Auguries:        map[int]YearAugury{},
 	}
 }
 
@@ -178,8 +185,11 @@ func (g *GameState) Validate() error {
 		if _, dup := armies[army.ID]; dup {
 			return fmt.Errorf("models: army %q: duplicate id", army.ID)
 		}
-		if !players[army.OwnerID] {
+		if army.OwnerID != NeutralPlayerID && !players[army.OwnerID] {
 			return fmt.Errorf("models: army %q: unknown owner %q", army.ID, army.OwnerID)
+		}
+		if army.OwnerID == NeutralPlayerID && army.ChainID != nil {
+			return fmt.Errorf("models: army %q: neutral army cannot have a chain", army.ID)
 		}
 		if terrs[army.TerritoryID] == nil {
 			return fmt.Errorf("models: army %q: unknown territory %q", army.ID, army.TerritoryID)
@@ -235,6 +245,17 @@ func (g *GameState) Validate() error {
 		nobleOwners[n.ID] = n.OwnerID
 	}
 
+	removedNobles := make(map[NobleID]bool, len(g.RemovedNobleIDs))
+	for _, nobleID := range g.RemovedNobleIDs {
+		if nobleID == "" || removedNobles[nobleID] {
+			return fmt.Errorf("models: removed noble %q: duplicate or empty id", nobleID)
+		}
+		if nobles[nobleID] {
+			return fmt.Errorf("models: removed noble %q: still exists", nobleID)
+		}
+		removedNobles[nobleID] = true
+	}
+
 	// 7. Chains: unique ids, valid references and complete stored orders. The
 	// parser may produce an unassigned chain, but every chain in GameState has
 	// already passed reception and must be fully linked to its army.
@@ -248,13 +269,16 @@ func (g *GameState) Validate() error {
 		if _, duplicate := chains[chain.ID]; duplicate {
 			return fmt.Errorf("models: chain %q: duplicate id", chain.ID)
 		}
-		if !nobles[chain.NobleID] {
+		if !nobles[chain.NobleID] && !removedNobles[chain.NobleID] {
 			return fmt.Errorf("models: chain %q: unknown noble %q", chain.ID, chain.NobleID)
 		}
 		if armies[chain.ArmyID] == nil {
 			return fmt.Errorf("models: chain %q: unknown army %q", chain.ID, chain.ArmyID)
 		}
-		if nobleOwners[chain.NobleID] != armies[chain.ArmyID].OwnerID {
+		if armies[chain.ArmyID].OwnerID == NeutralPlayerID {
+			return fmt.Errorf("models: chain %q: neutral army cannot have a chain", chain.ID)
+		}
+		if nobleOwners[chain.NobleID] != "" && nobleOwners[chain.NobleID] != armies[chain.ArmyID].OwnerID {
 			return fmt.Errorf("models: chain %q: noble %q does not own army %q", chain.ID, chain.NobleID, chain.ArmyID)
 		}
 		if len(chain.Orders) == 0 {
@@ -483,6 +507,9 @@ func (g *GameState) Validate() error {
 		if state.OwnerID == nil || *state.OwnerID != player.ID {
 			return fmt.Errorf("models: player %q: capital castle %q is not controlled by its owner", player.ID, *player.CapitalCastleID)
 		}
+	}
+	if err := validateSpecialDeck(g.SpecialDeck, g.Auguries, players); err != nil {
+		return err
 	}
 	if err := validatePrivacy(g.Privacy, players); err != nil {
 		return err
