@@ -9,7 +9,8 @@ import (
 
 // pruneFrontiers starts with every geometric arc traversable. It consumes one
 // seeded draw per sorted arc, but only reclassifies an arc when doing so keeps
-// the traversable graph connected and both endpoint degrees at least two.
+// the traversable graph connected, without articulation points, and with both
+// endpoint degrees at least two.
 func pruneFrontiers(
 	rng *rand.Rand,
 	arcs [][2]int,
@@ -35,7 +36,7 @@ func frontierRemovalChance(first, second models.Terrain) float64 {
 		return 0
 	}
 	if difficultFrontier(first, second) {
-		return 0.75
+		return 0.50
 	}
 	return 0.15
 }
@@ -160,8 +161,9 @@ func canDowngradeArc(matrix []bool, n, first, second int) bool {
 	}
 	matrixClearEdge(matrix, n, first, second)
 	connected := len(componentsFromMatrix(matrix, n)) == 1
+	vertexConnected := len(articulationPoints(matrix, n)) == 0
 	matrixSetEdge(matrix, n, first, second)
-	return connected
+	return connected && vertexConnected
 }
 
 func differenceEdges(all, included [][2]int) [][2]int {
@@ -274,6 +276,12 @@ func validateGraph(edges [][2]int, terrain []models.Terrain, n int) error {
 	if len(components(edges, n)) != 1 {
 		return fmt.Errorf("mapgen: final graph is disconnected")
 	}
+	if articulation := articulationPoints(edgeMatrix(n, edges), n); len(articulation) > 0 {
+		return fmt.Errorf(
+			"mapgen: final graph has articulation territory %s; all territories need two vertex-disjoint paths",
+			siteLabel(articulation[0]),
+		)
+	}
 	for index, degree := range degrees(edges, n) {
 		maximum := maxDegree(terrain[index])
 		if maximum == 0 {
@@ -287,6 +295,67 @@ func validateGraph(edges [][2]int, terrain []models.Terrain, n int) error {
 		}
 	}
 	return nil
+}
+
+// articulationPoints returns the vertices whose removal disconnects at least
+// two other vertices in their connected component. Tarjan's low-link traversal
+// avoids trying every vertex removal separately; the matrix representation
+// makes each graph traversal linear in the matrix size.
+func articulationPoints(matrix []bool, n int) []int {
+	discovery := make([]int, n)
+	low := make([]int, n)
+	parent := make([]int, n)
+	articulation := make([]bool, n)
+	for index := range discovery {
+		discovery[index] = -1
+		parent[index] = -1
+	}
+
+	time := 0
+	var visit func(int)
+	visit = func(current int) {
+		discovery[current] = time
+		low[current] = time
+		time++
+		children := 0
+		for neighbor := 0; neighbor < n; neighbor++ {
+			if !matrixHasEdge(matrix, n, current, neighbor) {
+				continue
+			}
+			if discovery[neighbor] < 0 {
+				parent[neighbor] = current
+				children++
+				visit(neighbor)
+				if low[neighbor] < low[current] {
+					low[current] = low[neighbor]
+				}
+				if parent[current] < 0 && children > 1 {
+					articulation[current] = true
+				}
+				if parent[current] >= 0 && low[neighbor] >= discovery[current] {
+					articulation[current] = true
+				}
+				continue
+			}
+			if neighbor != parent[current] && discovery[neighbor] < low[current] {
+				low[current] = discovery[neighbor]
+			}
+		}
+	}
+
+	for start := 0; start < n; start++ {
+		if discovery[start] < 0 {
+			visit(start)
+		}
+	}
+
+	points := make([]int, 0)
+	for index, isArticulation := range articulation {
+		if isArticulation {
+			points = append(points, index)
+		}
+	}
+	return points
 }
 
 func edgeMatrix(n int, edges [][2]int) []bool {
