@@ -28,6 +28,14 @@ const CARD_NAME_KEYS: Record<CardKind, MessageKey> = {
   famine: 'card.famine',
 }
 
+export function formatCardLabel(kind: CardKind, t: Translate): string {
+  return `${t(CARD_NAME_KEYS[kind])} (${t(CARD_SHORT_KEYS[kind])})`
+}
+
+export function formatCardCode(kind: CardKind, t: Translate): string {
+  return t(CARD_SHORT_KEYS[kind])
+}
+
 export function formatCardHand(hand: readonly CardKind[], t: Translate): string {
   if (hand.length === 0) return t('orders.deckEmpty')
 
@@ -37,7 +45,7 @@ export function formatCardHand(hand: readonly CardKind[], t: Translate): string 
   return CARD_KIND_ORDER.filter((kind) => counts.has(kind))
     .map((kind) => {
       const count = counts.get(kind) ?? 0
-      return `${t(CARD_NAME_KEYS[kind])} (${t(CARD_SHORT_KEYS[kind])})${count > 1 ? `x${count}` : ''}`
+      return `${formatCardLabel(kind, t)}${count > 1 ? `x${count}` : ''}`
     })
     .join(', ')
 }

@@ -89,3 +89,25 @@ func validateSpecialDeck(deck *SpecialDeck, auguries map[int]YearAugury, players
 	}
 	return nil
 }
+
+func validateActiveRegionEffects(effects []ActiveRegionEffect, regions []Region) error {
+	if len(regions) == 0 {
+		return nil
+	}
+	regionSeeds := make(map[TerritoryID]bool, len(regions))
+	for _, region := range regions {
+		regionSeeds[region.Seed] = true
+	}
+	for index, effect := range effects {
+		if !effect.Kind.IsBonus() && !effect.Kind.IsCalamity() {
+			return fmt.Errorf("models: active region effect %d: invalid kind %q", index, effect.Kind)
+		}
+		if !regionSeeds[effect.RegionSeed] {
+			return fmt.Errorf("models: active region effect %d: unknown region seed %q", index, effect.RegionSeed)
+		}
+		if !effect.Season.IsValid() || effect.Year < 1 {
+			return fmt.Errorf("models: active region effect %d: invalid season or year", index)
+		}
+	}
+	return nil
+}

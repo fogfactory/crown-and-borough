@@ -97,4 +97,17 @@ func TestResolveActionAppliesDeckOrderWithoutNoble(t *testing.T) {
 	if len(resolution.State.SpecialDeck.Hands["P1"]) != 0 || len(resolution.State.SpecialDeck.Discard) != 1 {
 		t.Fatalf("deck after action = %#v, want consumed card", resolution.State.SpecialDeck)
 	}
+	played := 0
+	discarded := 0
+	for _, event := range resolution.Events {
+		if event.Type == EventTypeDeckOrderPlayed {
+			played++
+		}
+		if event.Type == EventTypeDeckDiscard {
+			discarded++
+		}
+	}
+	if played != 1 || discarded != 0 {
+		t.Fatalf("card events = played %d/discarded %d, want one played event only", played, discarded)
+	}
 }

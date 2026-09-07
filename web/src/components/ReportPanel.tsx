@@ -1,4 +1,6 @@
 import { formatOrderLabel } from '@/lib/order-label'
+import { formatCardLabel } from '@/lib/card-hand'
+import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
 import type {
@@ -8,6 +10,8 @@ import type {
   Player,
   PlayerId,
   ReportArmy,
+  CardReport,
+  SeasonEffectReport,
   TurnReport,
   WinterInvestmentReport,
   WinterOrder,
@@ -280,6 +284,52 @@ function winterDetails(
   return territoryLabel(map, investment.territory, t)
 }
 
+function cardEventLabel(card: CardReport, map: MapData | null, t: Translate): string {
+  const label = formatCardLabel(card.kind, t)
+  const region = territoryLabel(map, card.region, t)
+  const player = card.player ?? t('reports.unknownPlayer')
+  switch (card.eventType) {
+    case 'deck_draw':
+      return t('reports.cardDrawn', { card: label, player })
+    case 'deck_discard':
+      return t('reports.cardDiscarded', { card: label, player })
+    case 'deck_order_played':
+      return t('reports.cardPlayed', { card: label, player, region })
+    case 'calamity_scheduled':
+      return t('reports.cardScheduled', {
+        card: label,
+        region,
+        season: card.season ? t(SEASON_LABEL_KEYS[card.season]) : '—',
+      })
+    default:
+      return label
+  }
+}
+
+function seasonEffectLabel(effect: SeasonEffectReport, map: MapData | null, t: Translate): string {
+  const region = territoryLabel(map, effect.region, t)
+  const card = effect.cardKind ? formatCardLabel(effect.cardKind, t) : ''
+  switch (effect.kind) {
+    case 'calamity_applied':
+      return t('reports.calamityApplied', { card, region })
+    case 'calamity_canceled':
+      return t('reports.calamityCanceled', { card, bonus: card, region })
+    case 'bonus_effect':
+      return t('reports.bonusEffect', { card, region })
+    case 'neutral_army_created':
+      return t('reports.neutralArmyCreated', {
+        territory: territoryLabel(map, effect.territory, t),
+      })
+    case 'plague_noble_death':
+      return t('reports.plagueDeath', {
+        noble: effect.noble ?? '—',
+        territory: territoryLabel(map, effect.territory, t),
+      })
+    default:
+      return card || effect.kind
+  }
+}
+
 export function ReportPanel({ report, map, players }: ReportPanelProps) {
   const { t } = useLanguage()
   if (!report) return null
@@ -291,6 +341,8 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
   const winterInvestments = report.winter?.investments ?? []
   const winterStocks = report.winter?.stocks ?? []
   const rumors = report.rumors ?? report.winter?.rumors ?? []
+  const cards = report.cards ?? report.winter?.cards ?? []
+  const seasonEffects = report.seasonEffects ?? []
 
   return (
     <section className="min-w-0 space-y-4">
@@ -525,6 +577,34 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
               <li key={`${rumor.key}-${index}`}>{t(rumor.key as MessageKey)}</li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {cards.length > 0 && (
+        <div className="space-y-2 rounded-lg border border-[#c8b0d9] bg-[#fbf5ff] p-3">
+          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#684b7d]">
+            {t('reports.cards')}
+          </h4>
+          <ol className="space-y-1 text-sm text-[#684b7d]">
+            {cards.map((card, index) => (
+              <li key={`${card.eventType}-${card.kind}-${index}`}>{cardEventLabel(card, map, t)}</li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      {seasonEffects.length > 0 && (
+        <div className="space-y-2 rounded-lg border border-[#e4b4a4] bg-[#fff5f0] p-3">
+          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#8d321e]">
+            {t('reports.seasonEffects')}
+          </h4>
+          <ol className="space-y-1 text-sm text-[#8d321e]">
+            {seasonEffects.map((effect, index) => (
+              <li key={`${effect.kind}-${effect.cardKind ?? ''}-${index}`}>
+                {seasonEffectLabel(effect, map, t)}
+              </li>
+            ))}
+          </ol>
         </div>
       )}
 

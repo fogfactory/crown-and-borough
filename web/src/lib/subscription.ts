@@ -192,6 +192,10 @@ export function normalizeStateData(value: unknown): StateData | null {
     players: state.players,
     territories: state.territories,
     nobles: state.nobles,
+    specialHand: Array.isArray(state.specialHand) ? state.specialHand : [],
+    activeRegionEffects: Array.isArray(state.activeRegionEffects)
+      ? state.activeRegionEffects
+      : [],
   }
 }
 

@@ -194,6 +194,32 @@ describe('SelectedTerritoryDetails', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('renders active effects for the selected region', () => {
+    const effectState: StateData = {
+      ...state,
+      activeRegionEffects: [
+        { kind: 'fair_weather', regionSeed: 'ROS', season: 'spring', year: 1 },
+        { kind: 'famine', regionSeed: 'ROS', season: 'spring', year: 1 },
+      ],
+    }
+    render(
+      <SelectedTerritoryDetails
+        state={effectState}
+        selectedTerritory={map.territories[0]}
+        selectedState={effectState.territories[0]}
+        selectedRegion={map.regions?.[0]}
+        selectedSupplyLine={null}
+        sourceTerritory={null}
+        supplyLoading={false}
+        supplyError={null}
+      />,
+    )
+
+    expect(screen.getByText('Active regional effects')).toBeInTheDocument()
+    expect(screen.getByText('Fair weather (FW)')).toBeInTheDocument()
+    expect(screen.getByText('Famine (FN)')).toBeInTheDocument()
+  })
+
   it('renders the hidden-chain message without exposing its order stack', () => {
     const hiddenState: StateData = {
       ...state,

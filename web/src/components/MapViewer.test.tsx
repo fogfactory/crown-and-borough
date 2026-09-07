@@ -212,7 +212,22 @@ describe('MapViewer territorial overlays', () => {
         { id: 'RBRU', seed: 'BRU', territories: ['BRU'] },
       ],
     }
-    const { svg } = renderMap(regionMap, state, vi.fn(), null, [], true, '#a84632', true)
+    const { svg } = renderMap(
+      regionMap,
+      {
+        ...state,
+        activeRegionEffects: [
+          { kind: 'fair_weather', regionSeed: 'ROS', season: 'spring', year: 1 },
+          { kind: 'famine', regionSeed: 'BRU', season: 'spring', year: 1 },
+        ],
+      },
+      vi.fn(),
+      null,
+      [],
+      true,
+      '#a84632',
+      true,
+    )
 
     expect(svg.querySelector('g[aria-label="Regional boundaries"]')).toBeInTheDocument()
     expect(svg.querySelectorAll('[data-region-fill]').length).toBe(2)
@@ -221,6 +236,8 @@ describe('MapViewer territorial overlays', () => {
     expect(svg.querySelectorAll('[data-region-seed]').length).toBe(2)
     expect(svg.querySelector('[data-region-seed="ROS"]')).toBeInTheDocument()
     expect(svg.querySelector('[data-region-seed="BRU"]')).toBeInTheDocument()
+    expect(svg.querySelector('[data-region-effect-kind="fair_weather"]')).toBeInTheDocument()
+    expect(svg.querySelector('[data-region-effect-kind="famine"]')).toBeInTheDocument()
   })
 
   it('scales map annotations with the mean territory area', () => {

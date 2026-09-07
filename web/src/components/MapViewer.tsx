@@ -17,6 +17,7 @@ import {
   type RegionPattern,
   type RegionStyle,
 } from '@/lib/region-color'
+import { formatCardCode, formatCardLabel } from '@/lib/card-hand'
 import { hasSupplySource } from '@/lib/supply'
 import {
   Tooltip,
@@ -26,6 +27,7 @@ import {
 } from '@/components/ui/tooltip'
 import type {
   Infrastructure,
+  CardKind,
   MapData,
   Noble,
   Point,
@@ -50,6 +52,7 @@ const REFERENCE_MEAN_TERRITORY_AREA =
 const PLAYER_PALETTE = ['#a84632', '#2d5f9e', '#7052a1', '#34775c', '#ad7a25']
 const INTENT_OUTLINE_COLOR = '#17120f'
 export const DRAFT_INTENTION_COLOR = '#d4a39b'
+const CALAMITY_KINDS: CardKind[] = ['plague', 'bad_weather', 'famine']
 
 const INFRASTRUCTURE_LABEL_KEYS: Record<Infrastructure['type'], MessageKey> = {
   mill: 'infrastructure.mill',
@@ -1360,6 +1363,55 @@ export function MapViewer({
                         paintOrder="stroke"
                       >
                         {region.seed}
+                      </text>
+                    </g>
+                  )
+                })}
+              </g>
+            )}
+
+            {showRegions && (state.activeRegionEffects?.length ?? 0) > 0 && (
+              <g aria-label={t('map.regionEffects')} pointerEvents="none">
+                {state.activeRegionEffects?.map((effect, index) => {
+                  const region = map.regions?.find((candidate) => candidate.seed === effect.regionSeed)
+                  const seedTerritory = map.territories.find(
+                    (territory) => territory.id === effect.regionSeed,
+                  )
+                  if (!region || !seedTerritory) return null
+                  const [centerX, centerY] = centroid(seedTerritory.points)
+                  const offset = state.activeRegionEffects
+                    ?.slice(0, index)
+                    .filter((candidate) => candidate.regionSeed === effect.regionSeed).length ?? 0
+                  const isCalamity = CALAMITY_KINDS.includes(effect.kind)
+                  const effectColor = isCalamity ? '#b91c1c' : '#15803d'
+                  const cardLabel = formatCardLabel(effect.kind, t)
+                  return (
+                    <g
+                      key={`${effect.regionSeed}-${effect.kind}-${index}`}
+                      data-region-effect-kind={effect.kind}
+                      transform={`translate(${centerX + 24 * annotationScale} ${centerY - 25 * annotationScale + offset * 18 * annotationScale})`}
+                    >
+                      <title>
+                        {t('map.regionEffectMarker', {
+                          card: cardLabel,
+                          region: effect.regionSeed,
+                        })}
+                      </title>
+                      <circle
+                        r={10 * annotationScale}
+                        fill="#fffaf0"
+                        stroke={effectColor}
+                        strokeWidth={3 * annotationScale}
+                        vectorEffect="non-scaling-stroke"
+                      />
+                      <text
+                        y={4 * annotationScale}
+                        fill={effectColor}
+                        fontSize={8 * annotationScale}
+                        fontWeight="900"
+                        textAnchor="middle"
+                      >
+                        {formatCardCode(effect.kind, t)}
                       </text>
                     </g>
                   )

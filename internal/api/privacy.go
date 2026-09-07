@@ -373,17 +373,20 @@ func requestedViewer(r *http.Request) (models.PlayerID, bool, error) {
 // TurnReportView is the player-filtered JSON form of a turn report. Combat
 // details and order details from unknown chains are redacted server-side.
 type TurnReportView struct {
-	Header     engine.ReportHeader      `json:"header"`
-	Players    []engine.PlayerReport    `json:"players"`
-	Receptions []engine.ReceptionReport `json:"receptions"`
-	Supply     []engine.SupplyReport    `json:"supply"`
-	Famines    []engine.FamineReport    `json:"famines"`
-	Combats    []CombatView             `json:"combats"`
-	Orders     []OrderReportView        `json:"orders"`
-	Moves      []engine.MoveReport      `json:"moves"`
-	Nobles     []engine.NobleReport     `json:"nobles"`
-	Rumors     []engine.RumorReport     `json:"rumors"`
-	Winter     *engine.WinterReport     `json:"winter,omitempty"`
+	Header        engine.ReportHeader         `json:"header"`
+	Players       []engine.PlayerReport       `json:"players"`
+	Receptions    []engine.ReceptionReport    `json:"receptions"`
+	Supply        []engine.SupplyReport       `json:"supply"`
+	Famines       []engine.FamineReport       `json:"famines"`
+	Combats       []CombatView                `json:"combats"`
+	Orders        []OrderReportView           `json:"orders"`
+	Moves         []engine.MoveReport         `json:"moves"`
+	Nobles        []engine.NobleReport        `json:"nobles"`
+	SeasonEffects []engine.SeasonEffectReport `json:"seasonEffects"`
+	Rumors        []engine.RumorReport        `json:"rumors"`
+	Cards         []engine.CardReport         `json:"cards"`
+	Augury        *engine.AuguryReport        `json:"augury,omitempty"`
+	Winter        *engine.WinterReport        `json:"winter,omitempty"`
 }
 
 // OrderReportView keeps order outcomes useful to spectators without returning
@@ -518,17 +521,20 @@ func (view CombatView) MarshalJSON() ([]byte, error) {
 
 func projectReport(report engine.TurnReport, viewer models.PlayerID, privacy *models.PrivacyMeta) TurnReportView {
 	view := TurnReportView{
-		Header:     report.Header,
-		Players:    append([]engine.PlayerReport{}, report.Players...),
-		Receptions: append([]engine.ReceptionReport{}, report.Receptions...),
-		Supply:     append([]engine.SupplyReport{}, report.Supply...),
-		Famines:    append([]engine.FamineReport{}, report.Famines...),
-		Combats:    make([]CombatView, 0, len(report.Combats)),
-		Orders:     make([]OrderReportView, 0, len(report.Orders)),
-		Moves:      append([]engine.MoveReport{}, report.Moves...),
-		Nobles:     append([]engine.NobleReport{}, report.Nobles...),
-		Rumors:     append([]engine.RumorReport{}, report.Rumors...),
-		Winter:     report.Winter,
+		Header:        report.Header,
+		Players:       append([]engine.PlayerReport{}, report.Players...),
+		Receptions:    append([]engine.ReceptionReport{}, report.Receptions...),
+		Supply:        append([]engine.SupplyReport{}, report.Supply...),
+		Famines:       append([]engine.FamineReport{}, report.Famines...),
+		Combats:       make([]CombatView, 0, len(report.Combats)),
+		Orders:        make([]OrderReportView, 0, len(report.Orders)),
+		Moves:         append([]engine.MoveReport{}, report.Moves...),
+		Nobles:        append([]engine.NobleReport{}, report.Nobles...),
+		SeasonEffects: append([]engine.SeasonEffectReport{}, report.SeasonEffects...),
+		Rumors:        append([]engine.RumorReport{}, report.Rumors...),
+		Cards:         append([]engine.CardReport{}, report.Cards...),
+		Augury:        report.Augury,
+		Winter:        report.Winter,
 	}
 	for _, order := range report.Orders {
 		if privacy != nil && viewerKnowsChainSnapshot(privacy, viewer, order.Chain) {

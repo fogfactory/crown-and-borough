@@ -22,6 +22,7 @@ type TurnReport struct {
 	Nobles        []NobleReport        `json:"nobles"`
 	SeasonEffects []SeasonEffectReport `json:"seasonEffects"`
 	Rumors        []RumorReport        `json:"rumors"`
+	Cards         []CardReport         `json:"cards"`
 	Augury        *AuguryReport        `json:"augury,omitempty"`
 	Winter        *WinterReport        `json:"winter,omitempty"`
 	State         *models.GameState    `json:"-"`
@@ -190,11 +191,13 @@ type AuguryCalamityReport struct {
 }
 
 type CardReport struct {
-	Kind    models.CardKind    `json:"kind"`
-	Region  models.TerritoryID `json:"region,omitempty"`
-	Season  models.Season      `json:"season,omitempty"`
-	Outcome Outcome            `json:"outcome"`
-	Reason  string             `json:"reason,omitempty"`
+	EventType EventType          `json:"eventType"`
+	Kind      models.CardKind    `json:"kind"`
+	Player    models.PlayerID    `json:"player,omitempty"`
+	Region    models.TerritoryID `json:"region,omitempty"`
+	Season    models.Season      `json:"season,omitempty"`
+	Outcome   Outcome            `json:"outcome"`
+	Reason    string             `json:"reason,omitempty"`
 }
 
 type SeasonEffectReport struct {
@@ -257,6 +260,7 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 		Nobles:        []NobleReport{},
 		SeasonEffects: []SeasonEffectReport{},
 		Rumors:        []RumorReport{},
+		Cards:         []CardReport{},
 	}
 	report.Receptions = append(report.Receptions, receptions...)
 	if before != nil {
@@ -409,10 +413,14 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 			}
 			report.Winter.Rumors = append(report.Winter.Rumors, RumorReport{Kind: event.CardKind, Key: event.RumorKey, Level: event.RumorLevel})
 		case EventTypeDeckDraw, EventTypeDeckDiscard, EventTypeDeckOrderPlayed, EventTypeCalamityScheduled:
-			if report.Winter == nil {
-				report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}
+			card := CardReport{EventType: event.Type, Kind: event.CardKind, Player: event.OwnerID, Region: event.RegionSeed, Season: event.Season, Outcome: OutcomeSuccess}
+			report.Cards = append(report.Cards, card)
+			if event.Phase == winterPhase {
+				if report.Winter == nil {
+					report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}
+				}
+				report.Winter.Cards = append(report.Winter.Cards, card)
 			}
-			report.Winter.Cards = append(report.Winter.Cards, CardReport{Kind: event.CardKind, Region: event.RegionSeed, Season: event.Season, Outcome: OutcomeSuccess})
 		case EventTypeCalamityApplied, EventTypeCalamityCanceled, EventTypeBonusEffect, EventTypeNeutralArmy, EventTypePlagueDeath:
 			report.SeasonEffects = append(report.SeasonEffects, SeasonEffectReport{Kind: event.Type, CardKind: event.CardKind, Region: event.RegionSeed, Season: event.Season, Army: event.ArmyID, Noble: event.NobleID, Territory: event.TerritoryID, SizeBefore: event.SizeBefore, SizeAfter: event.SizeAfter, Reason: event.Reason})
 		case EventTypeWinterStock, EventTypeRecruit, EventTypeBuild, EventTypeUpgrade,

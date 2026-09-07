@@ -72,6 +72,13 @@ type Calamity struct {
 	RegionSeed TerritoryID   `json:"regionSeed"`
 }
 
+type ActiveRegionEffect struct {
+	Kind       CardKind    `json:"kind"`
+	RegionSeed TerritoryID `json:"regionSeed"`
+	Season     Season      `json:"season"`
+	Year       int         `json:"year"`
+}
+
 type YearAugury struct {
 	Year       int            `json:"year"`
 	Capacities map[Season]int `json:"capacities"`

@@ -116,6 +116,20 @@ const report: TurnReport = {
   ],
   moves: [],
   nobles: [],
+  cards: [
+    {
+      eventType: 'deck_order_played',
+      kind: 'fair_weather',
+      player: 'P1',
+      region: 'ROS',
+      season: 'spring',
+      outcome: 'success',
+    },
+  ],
+  seasonEffects: [
+    { kind: 'calamity_applied', cardKind: 'famine', region: 'ROS', season: 'spring' },
+    { kind: 'bonus_effect', cardKind: 'fair_weather', region: 'ROS', season: 'spring' },
+  ],
   winter: {
     investments: [
       {
@@ -176,6 +190,9 @@ describe('ReportPanel', () => {
     expect(
       screen.getByText(/Un bel ensoleillement gagne le royaume/),
     ).toBeInTheDocument()
+    expect(screen.getByText(/Beau temps \(BT\) jouée sur ROS/)).toBeInTheDocument()
+    expect(screen.getByText(/Famine \(FA\) active dans ROS/)).toBeInTheDocument()
+    expect(screen.getByText(/Beau temps \(BT\) actif dans ROS/)).toBeInTheDocument()
   })
 
   it('does not display storage identifiers in visible report text', () => {

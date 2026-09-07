@@ -33,6 +33,16 @@ export type EventType =
   | 'noble_movement'
   | 'capture'
   | 'liberation'
+  | 'deck_draw'
+  | 'deck_discard'
+  | 'calamity_scheduled'
+  | 'deck_order_played'
+  | 'calamity_applied'
+  | 'calamity_canceled'
+  | 'bonus_effect'
+  | 'neutral_army_created'
+  | 'plague_noble_death'
+  | 'rumor'
 
 export type PlayerId = string
 
@@ -176,6 +186,14 @@ export interface StateData {
   territories: TerritoryState[]
   nobles: Noble[]
   specialHand?: CardKind[]
+  activeRegionEffects?: ActiveRegionEffect[]
+}
+
+export interface ActiveRegionEffect {
+  kind: CardKind
+  regionSeed: string
+  season: Season
+  year: number
 }
 
 export interface SupplyLine {
@@ -415,6 +433,8 @@ export interface WinterStockReport {
 
 export interface CardReport {
   kind: CardKind
+  eventType: EventType
+  player?: PlayerId
   region?: string
   season?: Season
   outcome: Outcome
@@ -428,7 +448,7 @@ export interface RumorReport {
 }
 
 export interface SeasonEffectReport {
-  kind: string
+  kind: EventType
   cardKind?: CardKind
   region?: string
   season?: Season
@@ -465,6 +485,7 @@ export interface TurnReport {
   nobles: ReportNoble[]
   seasonEffects?: SeasonEffectReport[]
   rumors?: RumorReport[]
+  cards?: CardReport[]
   augury?: AuguryReport
   winter?: WinterReport
 }

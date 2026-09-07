@@ -1,7 +1,9 @@
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
 import { formatOrderLabel } from '@/lib/order-label'
+import { formatCardLabel } from '@/lib/card-hand'
 import { playerDisplayName, type PlayerName } from '@/lib/player-label'
+import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { hasSupplySource } from '@/lib/supply'
 import type { MapData, PlayerId, Region, StateData, SupplyLine } from '@/types'
 
@@ -76,6 +78,11 @@ export function SelectedTerritoryDetails({
   const presentNobles = state.nobles.filter(
     (noble) => noble.location === selectedTerritory.id,
   )
+  const activeRegionEffects = selectedRegion
+    ? (state.activeRegionEffects ?? []).filter(
+        (effect) => effect.regionSeed === selectedRegion.seed,
+      )
+    : []
 
   return (
     <div className="space-y-5">
@@ -122,6 +129,27 @@ export function SelectedTerritoryDetails({
           </>
         )}
       </dl>
+
+      {activeRegionEffects.length > 0 && (
+        <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">
+          <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
+            {t('app.activeEffects')}
+          </h3>
+          <ul className="space-y-1.5 text-sm">
+            {activeRegionEffects.map((effect, index) => (
+              <li
+                key={`${effect.kind}-${effect.season}-${index}`}
+                className="rounded-md bg-[#f3ead9] px-3 py-2"
+              >
+                <span className="font-medium">{formatCardLabel(effect.kind, t)}</span>
+                <span className="mt-1 block text-xs text-[#806f57]">
+                  {t('app.effectSeason', { season: t(SEASON_LABEL_KEYS[effect.season]) })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">
         <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">

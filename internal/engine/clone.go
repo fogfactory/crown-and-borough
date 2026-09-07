@@ -31,6 +31,7 @@ func cloneGameState(source *models.GameState) *models.GameState {
 	}
 	clone.Privacy = clonePrivacy(source.Privacy)
 	clone.Infrastructures = cloneSlice(source.Infrastructures)
+	clone.ActiveRegionEffects = cloneSlice(source.ActiveRegionEffects)
 	clone.Regions = cloneSlice(source.Regions)
 	for i, region := range source.Regions {
 		clone.Regions[i] = region

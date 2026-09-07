@@ -17,17 +17,18 @@ import (
 // storage-oriented GameState directly, and includes the public calendar and
 // score snapshot.
 type StateView struct {
-	Turn        int                                       `json:"turn"`
-	Year        int                                       `json:"year"`
-	YearCount   int                                       `json:"yearCount"`
-	Season      models.Season                             `json:"season"`
-	Scores      map[models.PlayerID]engine.ScoreBreakdown `json:"scores"`
-	Finished    bool                                      `json:"finished"`
-	Winner      *models.PlayerID                          `json:"winner,omitempty"`
-	Players     []PlayerView                              `json:"players"`
-	Territories []TerritoryView                           `json:"territories"`
-	Nobles      []NobleView                               `json:"nobles"`
-	SpecialHand []models.CardKind                         `json:"specialHand"`
+	Turn                int                                       `json:"turn"`
+	Year                int                                       `json:"year"`
+	YearCount           int                                       `json:"yearCount"`
+	Season              models.Season                             `json:"season"`
+	Scores              map[models.PlayerID]engine.ScoreBreakdown `json:"scores"`
+	Finished            bool                                      `json:"finished"`
+	Winner              *models.PlayerID                          `json:"winner,omitempty"`
+	Players             []PlayerView                              `json:"players"`
+	Territories         []TerritoryView                           `json:"territories"`
+	Nobles              []NobleView                               `json:"nobles"`
+	SpecialHand         []models.CardKind                         `json:"specialHand"`
+	ActiveRegionEffects []models.ActiveRegionEffect               `json:"activeRegionEffects"`
 }
 
 // PlayerView contains the public player metadata needed by the hotseat
@@ -141,11 +142,12 @@ func ProjectStateForPlayer(state *models.GameState, playerID models.PlayerID) St
 
 func projectStateForViewer(state *models.GameState, viewer *models.PlayerID) StateView {
 	view := StateView{
-		Players:     []PlayerView{},
-		Territories: []TerritoryView{},
-		Nobles:      []NobleView{},
-		SpecialHand: []models.CardKind{},
-		Scores:      map[models.PlayerID]engine.ScoreBreakdown{},
+		Players:             []PlayerView{},
+		Territories:         []TerritoryView{},
+		Nobles:              []NobleView{},
+		SpecialHand:         []models.CardKind{},
+		ActiveRegionEffects: []models.ActiveRegionEffect{},
+		Scores:              map[models.PlayerID]engine.ScoreBreakdown{},
 	}
 	if state == nil {
 		return view
@@ -245,6 +247,7 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID) Sta
 			}
 		}
 	}
+	view.ActiveRegionEffects = append([]models.ActiveRegionEffect(nil), state.ActiveRegionEffects...)
 	return view
 }
 

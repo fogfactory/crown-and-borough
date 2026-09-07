@@ -99,7 +99,7 @@ func resolveDeckOrders(ctx *resolutionContext, deckOrders map[models.PlayerID][]
 }
 
 func (ctx *resolutionContext) applyDeckCardOrder(playerID models.PlayerID, order models.DeckOrder) {
-	if !ctx.consumeDeckCard(playerID, order.Kind) {
+	if !ctx.consumeDeckCardForPlay(playerID, order.Kind) {
 		ctx.rejectDeckOrder(playerID, order)
 		return
 	}
@@ -115,6 +115,14 @@ func phaseForSeason(season models.Season) int {
 }
 
 func (ctx *resolutionContext) consumeDeckCard(playerID models.PlayerID, kind models.CardKind) bool {
+	return ctx.consumeDeckCardWithEvent(playerID, kind, true)
+}
+
+func (ctx *resolutionContext) consumeDeckCardForPlay(playerID models.PlayerID, kind models.CardKind) bool {
+	return ctx.consumeDeckCardWithEvent(playerID, kind, false)
+}
+
+func (ctx *resolutionContext) consumeDeckCardWithEvent(playerID models.PlayerID, kind models.CardKind, emitDiscard bool) bool {
 	if ctx.state.SpecialDeck == nil {
 		return false
 	}
@@ -126,7 +134,9 @@ func (ctx *resolutionContext) consumeDeckCard(playerID models.PlayerID, kind mod
 			}
 			ctx.state.SpecialDeck.Hands[playerID] = append(hand[:index], hand[index+1:]...)
 			ctx.state.SpecialDeck.Discard = append(ctx.state.SpecialDeck.Discard, cardID)
-			ctx.events = append(ctx.events, Event{Type: EventTypeDeckDiscard, Phase: phaseForSeason(ctx.state.Season), OwnerID: playerID, CardID: cardID, CardKind: kind, Season: ctx.state.Season, Year: ctx.state.Year()})
+			if emitDiscard {
+				ctx.events = append(ctx.events, Event{Type: EventTypeDeckDiscard, Phase: phaseForSeason(ctx.state.Season), OwnerID: playerID, CardID: cardID, CardKind: kind, Season: ctx.state.Season, Year: ctx.state.Year()})
+			}
 			return true
 		}
 	}
