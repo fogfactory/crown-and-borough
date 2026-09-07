@@ -43,11 +43,9 @@ func winterDeckState() *models.GameState {
 	return state
 }
 
-func TestResolveWinterDrawsThroughCalamityIntoBonus(t *testing.T) {
+func TestResolveWinterAutomaticallyRefillsThroughCalamity(t *testing.T) {
 	state := winterDeckState()
-	resolution, err := ResolveWinterWithDeckOrders(state, winterDeckBalance(), nil, map[models.PlayerID][]models.DeckOrder{
-		"P1": {{ID: "O1", Type: models.DeckOrderTypeDraw}},
-	})
+	resolution, err := ResolveWinterWithDeckOrders(state, winterDeckBalance(), nil, nil)
 	if err != nil {
 		t.Fatalf("ResolveWinterWithDeckOrders = %v", err)
 	}
@@ -63,12 +61,33 @@ func TestResolveWinterDrawsThroughCalamityIntoBonus(t *testing.T) {
 	}
 }
 
+func TestResolveWinterAutomaticallyRefillsConfiguredCount(t *testing.T) {
+	state := winterDeckState()
+	state.Players = []models.Player{{ID: "P1", Name: "One"}}
+	state.TerritoryStates["BOI"] = models.TerritoryState{Infrastructures: []models.InfraID{}}
+	state.SpecialDeck.Cards = []models.SpecialCard{
+		{ID: "C1", Kind: models.CardKindFairWeather},
+		{ID: "C2", Kind: models.CardKindAbundantHarvest},
+		{ID: "C3", Kind: models.CardKindRevolt},
+	}
+	state.SpecialDeck.DrawPile = []models.SpecialCardID{"C1", "C2", "C3"}
+	state.SpecialDeck.Hands = map[models.PlayerID][]models.SpecialCardID{"P1": {}}
+	resolution, err := ResolveWinterWithDeckOrders(state, winterDeckBalance(), nil, nil)
+	if err != nil {
+		t.Fatalf("ResolveWinterWithDeckOrders = %v", err)
+	}
+	if got := resolution.State.SpecialDeck.Hands["P1"]; len(got) != 2 || got[0] != "C1" || got[1] != "C2" {
+		t.Fatalf("hand = %#v, want [C1 C2]", got)
+	}
+	if got := resolution.State.SpecialDeck.DrawPile; len(got) != 1 || got[0] != "C3" {
+		t.Fatalf("draw pile = %#v, want [C3]", got)
+	}
+}
+
 func TestResolveTurnValidationDoesNotApplyWinterDeckOrders(t *testing.T) {
 	state := winterDeckState()
 	before := cloneGameState(state)
-	report, err := ResolveTurn(state, winterDeckBalance(), OrdersInput{
-		Special: []DeckSubmission{{Player: "P1", Text: "T C"}},
-	})
+	report, err := ResolveTurn(state, winterDeckBalance(), OrdersInput{})
 	if err != nil {
 		t.Fatalf("ResolveTurn = %v", err)
 	}
@@ -80,45 +99,36 @@ func TestResolveTurnValidationDoesNotApplyWinterDeckOrders(t *testing.T) {
 	}
 }
 
-func TestResolveWinterDeckOrdersRejectsThirdDrawAtomically(t *testing.T) {
+func TestResolveTurnAcceptsWinterDeckDiscardsInWinterSheet(t *testing.T) {
 	state := winterDeckState()
-	before := cloneGameState(state)
-	_, err := ResolveWinterWithDeckOrders(state, winterDeckBalance(), nil, map[models.PlayerID][]models.DeckOrder{
-		"P1": {
-			{ID: "O1", Type: models.DeckOrderTypeDraw},
-			{ID: "O2", Type: models.DeckOrderTypeDraw},
-			{ID: "O3", Type: models.DeckOrderTypeDraw},
-		},
+	state.SpecialDeck.Hands["P1"] = []models.SpecialCardID{"C2"}
+	state.SpecialDeck.DrawPile = []models.SpecialCardID{"C1"}
+	_, err := ResolveTurn(state, winterDeckBalance(), OrdersInput{
+		Winter: []WinterSubmission{{Player: "P1", Lines: "D C BT"}},
 	})
-	if err == nil {
-		t.Fatal("ResolveWinterWithDeckOrders = nil, want draw limit error")
-	}
-	if got := state.SpecialDeck.Hands["P1"]; len(got) != 0 || len(state.SpecialDeck.DrawPile) != len(before.SpecialDeck.DrawPile) {
-		t.Fatalf("input state changed after rejected submission: %#v", state.SpecialDeck)
+	if err != nil {
+		t.Fatalf("ResolveTurn = %v, want winter discard to be accepted", err)
 	}
 }
 
-func TestWinterRumorsRequireMultiplePlayersAndAreDeterministic(t *testing.T) {
+func TestCurrentHandRumorsRequireMultiplePlayersAndAggregateHands(t *testing.T) {
 	state := winterDeckState()
-	first := newResolutionContext(state, winterDeckBalance())
-	first.deckDraws["P1"] = []models.CardKind{models.CardKindFairWeather}
-	emitWinterRumors(first)
-	if len(first.events) != 0 {
-		t.Fatalf("single-player rumors = %#v, want none", first.events)
+	state.SpecialDeck.Cards = []models.SpecialCard{
+		{ID: "C1", Kind: models.CardKindFairWeather},
+		{ID: "C2", Kind: models.CardKindAbundantHarvest},
 	}
-	first.deckDraws["P2"] = []models.CardKind{models.CardKindAbundantHarvest}
-	emitWinterRumors(first)
-	second := newResolutionContext(state, winterDeckBalance())
-	second.deckDraws["P1"] = []models.CardKind{models.CardKindFairWeather}
-	second.deckDraws["P2"] = []models.CardKind{models.CardKindAbundantHarvest}
-	emitWinterRumors(second)
-	if len(first.events) != len(second.events) {
-		t.Fatalf("rumor counts = %d/%d, want deterministic", len(first.events), len(second.events))
+	state.SpecialDeck.DrawPile = []models.SpecialCardID{}
+	state.SpecialDeck.Hands = map[models.PlayerID][]models.SpecialCardID{
+		"P1": {"C1"},
+		"P2": {"C2"},
 	}
-	for index := range first.events {
-		if first.events[index].Type != EventTypeRumor || first.events[index].CardKind != second.events[index].CardKind || first.events[index].RumorKey != second.events[index].RumorKey || first.events[index].OwnerID != "" {
-			t.Fatalf("rumor events = %#v/%#v, want public deterministic events", first.events, second.events)
-		}
+	events := currentHandRumorEvents(state, 4)
+	if len(events) != 2 || events[0].OwnerID != "" || events[1].OwnerID != "" {
+		t.Fatalf("current hand rumors = %#v, want two public events without owners", events)
+	}
+	state.SpecialDeck.Hands["P2"] = nil
+	if events := currentHandRumorEvents(state, 4); len(events) != 0 {
+		t.Fatalf("single-player hand rumors = %#v, want none", events)
 	}
 }
 
@@ -174,6 +184,26 @@ func TestBuildWinterReportRumors(t *testing.T) {
 	}
 }
 
+func TestBuildTurnReportIncludesCurrentHandRumorsOnAnySeason(t *testing.T) {
+	before := winterDeckState()
+	before.Turn = 1
+	before.Season = models.SeasonSpring
+	before.SpecialDeck.Cards = []models.SpecialCard{
+		{ID: "C1", Kind: models.CardKindFairWeather},
+		{ID: "C2", Kind: models.CardKindAbundantHarvest},
+	}
+	before.SpecialDeck.DrawPile = []models.SpecialCardID{}
+	before.SpecialDeck.Hands = map[models.PlayerID][]models.SpecialCardID{
+		"P1": {"C1"},
+		"P2": {"C2"},
+	}
+	after := cloneGameState(before)
+	report := BuildTurnReportWithHandLimit(before, after, nil, nil, 4)
+	if report.Header.Season != models.SeasonSpring || len(report.Rumors) != 2 {
+		t.Fatalf("spring report rumors = %#v, want two current-hand rumors", report)
+	}
+}
+
 func TestResolveWinterDiscardsCardInHandOrder(t *testing.T) {
 	state := winterDeckState()
 	state.SpecialDeck.Cards = []models.SpecialCard{
@@ -188,11 +218,11 @@ func TestResolveWinterDiscardsCardInHandOrder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveWinterWithDeckOrders = %v", err)
 	}
-	if got := resolution.State.SpecialDeck.Hands["P1"]; len(got) != 1 || got[0] != "C2" {
-		t.Fatalf("hand = %#v, want [C2]", got)
+	if got := resolution.State.SpecialDeck.Hands["P1"]; len(got) != 2 || got[0] != "C2" || got[1] != "C1" {
+		t.Fatalf("hand = %#v, want [C2 C1] after automatic refill", got)
 	}
-	if got := resolution.State.SpecialDeck.Discard; len(got) != 1 || got[0] != "C1" {
-		t.Fatalf("discard = %#v, want [C1]", got)
+	if got := resolution.State.SpecialDeck.Discard; len(got) != 0 {
+		t.Fatalf("discard = %#v, want empty after automatic refill", got)
 	}
 }
 
@@ -202,18 +232,17 @@ func TestResolveWinterFullHandMakesDrawNoOp(t *testing.T) {
 		{ID: "C1", Kind: models.CardKindFairWeather},
 		{ID: "C2", Kind: models.CardKindFairWeather},
 	}
-	state.SpecialDeck.DrawPile = []models.SpecialCardID{"C2"}
+	state.SpecialDeck.DrawPile = []models.SpecialCardID{}
 	state.SpecialDeck.Hands["P1"] = []models.SpecialCardID{"C1"}
+	state.SpecialDeck.Hands["P2"] = []models.SpecialCardID{"C2"}
 	balance := winterDeckBalance()
 	balance.SpecialOrders.HandLimit = 1
-	resolution, err := ResolveWinterWithDeckOrders(state, balance, nil, map[models.PlayerID][]models.DeckOrder{
-		"P1": {{ID: "O1", Type: models.DeckOrderTypeDraw}},
-	})
+	resolution, err := ResolveWinterWithDeckOrders(state, balance, nil, nil)
 	if err != nil {
 		t.Fatalf("ResolveWinterWithDeckOrders = %v", err)
 	}
-	if got := resolution.State.SpecialDeck.DrawPile; len(got) != 1 || got[0] != "C2" {
-		t.Fatalf("draw pile = %#v, want [C2]", got)
+	if got := resolution.State.SpecialDeck.DrawPile; len(got) != 0 {
+		t.Fatalf("draw pile = %#v, want empty", got)
 	}
 }
 
@@ -221,9 +250,7 @@ func TestResolveWinterRemixesDiscardBeforeDrawing(t *testing.T) {
 	state := winterDeckState()
 	state.SpecialDeck.DrawPile = []models.SpecialCardID{}
 	state.SpecialDeck.Discard = []models.SpecialCardID{"C1", "C2"}
-	resolution, err := ResolveWinterWithDeckOrders(state, winterDeckBalance(), nil, map[models.PlayerID][]models.DeckOrder{
-		"P1": {{ID: "O1", Type: models.DeckOrderTypeDraw}},
-	})
+	resolution, err := ResolveWinterWithDeckOrders(state, winterDeckBalance(), nil, nil)
 	if err != nil {
 		t.Fatalf("ResolveWinterWithDeckOrders = %v", err)
 	}
@@ -238,9 +265,7 @@ func TestResolveWinterDiscardsCalamityWhenSlotsAreFull(t *testing.T) {
 	state.SpecialDeck.DrawPile = []models.SpecialCardID{"C1"}
 	state.SpecialDeck.Hands["P1"] = []models.SpecialCardID{}
 	state.Auguries[2] = models.YearAugury{Year: 2, Capacities: map[models.Season]int{models.SeasonSpring: 0, models.SeasonSummer: 0, models.SeasonWinter: 0}, Calamities: []models.Calamity{}}
-	resolution, err := ResolveWinterWithDeckOrders(state, winterDeckBalance(), nil, map[models.PlayerID][]models.DeckOrder{
-		"P1": {{ID: "O1", Type: models.DeckOrderTypeDraw}},
-	})
+	resolution, err := ResolveWinterWithDeckOrders(state, winterDeckBalance(), nil, nil)
 	if err != nil {
 		t.Fatalf("ResolveWinterWithDeckOrders = %v", err)
 	}

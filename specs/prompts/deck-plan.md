@@ -135,7 +135,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Contenu réalisé :**
 
-- Tester `D C <KIND>` pour défausse, `T C` pour pioche et `P KIND TER` pour jeu.
+- Tester `D C <KIND>` pour défausse automatique et `P KIND TER` pour jeu.
 - Tester le rejet de `J KIND TER` dans le parser deck et la conservation de `J` pour la jonction.
 - Tester aliases de kinds FR/EN, casse, commentaires, arités, seeds et kinds interdits.
 - Ajouter les DTO de soumission spéciale, distincts des chaînes et investissements.
@@ -174,8 +174,8 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Contenu attendu :**
 
-- Ajouter le pipeline deck/main/défausse dans `ResolveWinter` pour les commandes `D C` et `T C`.
-- Implémenter la limite de deux `T C`, la main pleine et le tirage après calamité.
+- Ajouter le pipeline deck/main/défausse dans `ResolveWinter` pour les défausses et le remplissage automatique.
+- Implémenter le remplissage limité, la main pleine et le tirage après calamité.
 - Faire transiter `P` dans la soumission `special`, séparée des investissements d’hiver.
 - Appliquer les ordres `P` des saisons d’action avant supply et intentions d’armée.
 - Programmer les calamités dans le premier slot libre de l’année suivante.
@@ -210,9 +210,9 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 
 **Contenu attendu :**
 
-- Produire une rumeur uniquement si au moins deux joueurs distincts ont tiré une carte bonus pendant l’hiver.
+- Produire dans chaque rapport une rumeur basée sur les mains bonus actuelles, uniquement si au moins deux joueurs distincts ont une carte en main.
 - Appliquer une probabilité de 50 % avec un RNG dérivé déterministe de la seed, du tour et des joueurs concernés.
-- Produire une rumeur indicative du kind tiré sans exposer le joueur, son ordre, son ID de carte ou sa main.
+- Produire une rumeur indicative du kind détenu sans exposer le joueur, son ordre, son ID de carte ou sa main complète.
 - Ajouter plusieurs formulations FR/EN par kind dans les catalogues existants.
 - Ajouter `Rumors` à `WinterReport` et préserver la possibilité d’un filtrage futur par score d’espionnage.
 - Ajouter `EventTypeRumor`, `WinterReport.Rumors`, une clé de texte localisable et le kind sans joueur ni ID de carte.
@@ -244,7 +244,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 **Contenu attendu :**
 
 - Faire transiter `special` dans API, store, memory et Firestore.
-- Faire porter `special` les ordres `P` de toute saison et `D C`/`T C` de l’hiver.
+- Faire porter `special` les ordres `P` des saisons d’action et `winter` les défausses `D C`.
 - Ajouter la main privée dans `StateView` et les augures publiques révélées.
 - Vérifier P1/P2, absence de pioche/défausse/IDs internes et restauration complète.
 - Masquer pioche, défausse, IDs internes et augures futures.
@@ -262,7 +262,7 @@ Ce plan accompagne [`deck.md`](deck.md). Chaque étape correspond à un commit a
 - Ajouter les types JSON, la main et les états d’augure.
 - Ajouter le brouillon spécial dans les parcours hotseat et online.
 - Factoriser un composant de commandes de deck partagé si les deux parcours divergent.
-- Afficher `D C` et `T C` en hiver, et `P KIND TER` pendant toutes les saisons.
+- Afficher `D C` en hiver et `P KIND TER` pendant toutes les saisons d’action.
 - Vérifier le comportement dans les deux modes, sans exiger de noble pour une carte.
 - Ajouter toggle régions, contours pointillés, palette et hachures 45°.
 - Ajouter la section Rumeurs au `ReportPanel`, avec traductions FR/EN, mobile et accessibilité.

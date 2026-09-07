@@ -479,12 +479,18 @@ function AppContent() {
               ),
             }))
             .filter((submission) => hasChainContent(submission.noble, submission.text))
+    const winterLines = [
+      winterDrafts[selectedPlayer] ?? '',
+      state.season === 'winter' ? (specialDrafts[selectedPlayer] ?? '') : '',
+    ]
+      .filter((text) => text.trim() !== '')
+      .join('\n')
     const winter =
-      state.season === 'winter' && (winterDrafts[selectedPlayer] ?? '').trim() !== ''
-        ? [{ player: selectedPlayer, lines: winterDrafts[selectedPlayer] ?? '' }]
+      state.season === 'winter' && winterLines !== ''
+        ? [{ player: selectedPlayer, lines: winterLines }]
         : []
     const special =
-      (specialDrafts[selectedPlayer] ?? '').trim() !== ''
+      state.season !== 'winter' && (specialDrafts[selectedPlayer] ?? '').trim() !== ''
         ? [{ player: selectedPlayer, text: specialDrafts[selectedPlayer] ?? '' }]
         : []
 

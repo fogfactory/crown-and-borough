@@ -526,6 +526,7 @@ export interface TurnReport {
   moves: MoveReport[]
   nobles: ReportNoble[]
   seasonEffects?: SeasonEffectReport[]
+  rumors?: RumorReport[]
   augury?: AuguryReport
   winter?: WinterReport
 }

@@ -33,6 +33,43 @@ func ParseWinterOrders(text string, game *models.GameState) ([]models.WinterOrde
 	return orders, nil
 }
 
+// ParseWinterOrdersWithDeckOrders parses one winter sheet while keeping card
+// discards in the same submission as the other winter orders.
+func ParseWinterOrdersWithDeckOrders(text string, game *models.GameState) ([]models.WinterOrder, []models.DeckOrder, []ParseError) {
+	indexes := indexGame(game)
+	winterOrders := []models.WinterOrder{}
+	deckOrders := []models.DeckOrder{}
+	parseErrors := []ParseError{}
+	for lineNumber, sourceLine := range strings.Split(text, "\n") {
+		line := normalizeLine(sourceLine)
+		if line == "" {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) >= 2 && fields[0] == "D" && fields[1] == "C" {
+			order, parseError := parseDeckOrderLine(line, lineNumber+1, game)
+			if parseError != nil {
+				parseErrors = append(parseErrors, *parseError)
+				continue
+			}
+			order.ID = models.OrderID(fmt.Sprintf("O%d", len(winterOrders)+len(deckOrders)+1))
+			deckOrders = append(deckOrders, order)
+			continue
+		}
+		order, parseError := parseWinterOrderLine(line, lineNumber+1, indexes)
+		if parseError != nil {
+			parseErrors = append(parseErrors, *parseError)
+			continue
+		}
+		order.ID = models.OrderID(fmt.Sprintf("O%d", len(winterOrders)+len(deckOrders)+1))
+		winterOrders = append(winterOrders, order)
+	}
+	if len(parseErrors) != 0 {
+		return nil, nil, parseErrors
+	}
+	return winterOrders, deckOrders, nil
+}
+
 func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
 	fields := strings.Fields(line)
 	if len(fields) < 3 {

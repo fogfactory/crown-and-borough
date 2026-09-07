@@ -27,19 +27,12 @@ func validateDeckOrders(game *models.GameState, balance assetgen.Balance, deckOr
 		playerIDs = append(playerIDs, playerID)
 	}
 	sort.Slice(playerIDs, func(i, j int) bool { return playerIDs[i] < playerIDs[j] })
-	drawLimit := balance.SpecialOrders.DrawOrdersLimit
 	for _, playerID := range playerIDs {
 		if !players[playerID] {
 			return fmt.Errorf("engine: resolve winter: unknown player %q", playerID)
 		}
-		draws := 0
 		for _, order := range deckOrders[playerID] {
 			switch order.Type {
-			case models.DeckOrderTypeDraw:
-				draws++
-				if draws > drawLimit {
-					return fmt.Errorf("engine: resolve winter: player %q exceeds deck draw limit", playerID)
-				}
 			case models.DeckOrderTypeDiscard:
 				if !order.Kind.IsBonus() {
 					return fmt.Errorf("engine: resolve winter: invalid discard kind %q", order.Kind)
@@ -80,33 +73,35 @@ func cardKind(deck *models.SpecialDeck, cardID models.SpecialCardID) models.Card
 func resolveWinterDeckOrders(ctx *resolutionContext, deckOrders map[models.PlayerID][]models.DeckOrder) {
 	for _, playerID := range sortedPlayerIDs(ctx.state.Players) {
 		for _, order := range deckOrders[playerID] {
-			switch order.Type {
-			case models.DeckOrderTypeDiscard:
+			if order.Type == models.DeckOrderTypeDiscard {
 				ctx.consumeDeckCard(playerID, order.Kind)
-			case models.DeckOrderTypeDraw:
-				ctx.drawUsefulDeckCard(playerID)
 			}
 		}
 	}
-	emitWinterRumors(ctx)
+	for _, playerID := range sortedPlayerIDs(ctx.state.Players) {
+		for draw := 0; draw < ctx.balance.SpecialOrders.DrawOrdersLimit; draw++ {
+			if !ctx.drawUsefulDeckCard(playerID) {
+				break
+			}
+		}
+	}
 }
 
-func (ctx *resolutionContext) drawUsefulDeckCard(playerID models.PlayerID) {
+func (ctx *resolutionContext) drawUsefulDeckCard(playerID models.PlayerID) bool {
 	if ctx.state.SpecialDeck == nil || len(ctx.state.SpecialDeck.Hands[playerID]) >= ctx.balance.SpecialOrders.HandLimit {
-		return
+		return false
 	}
 	cycle := len(ctx.state.SpecialDeck.DrawPile) + len(ctx.state.SpecialDeck.Discard)
 	for processed := 0; processed < cycle; processed++ {
 		cardID, ok := ctx.drawDeckCard()
 		if !ok {
-			return
+			return false
 		}
 		kind := cardKind(ctx.state.SpecialDeck, cardID)
 		if kind.IsBonus() {
 			ctx.state.SpecialDeck.Hands[playerID] = append(ctx.state.SpecialDeck.Hands[playerID], cardID)
-			ctx.deckDraws[playerID] = append(ctx.deckDraws[playerID], kind)
 			ctx.events = append(ctx.events, Event{Type: EventTypeDeckDraw, Phase: winterPhase, OwnerID: playerID, CardID: cardID, CardKind: kind, Season: ctx.state.Season, Year: ctx.state.Year()})
-			return
+			return true
 		}
 		if kind.IsCalamity() {
 			if !ctx.programCalamity(cardID, kind) {
@@ -114,6 +109,7 @@ func (ctx *resolutionContext) drawUsefulDeckCard(playerID models.PlayerID) {
 			}
 		}
 	}
+	return false
 }
 
 func (ctx *resolutionContext) drawDeckCard() (models.SpecialCardID, bool) {
