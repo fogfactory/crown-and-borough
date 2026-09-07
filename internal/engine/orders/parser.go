@@ -2,6 +2,7 @@ package orders
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/fogfactory/crown-and-borough/internal/models"
@@ -134,9 +135,35 @@ func parsePositionOrder(fields []string, lineNumber int, liaison models.LiaisonM
 		return parseSupport(fields, lineNumber, liaison, positionID, indexes)
 	case "D":
 		return parseDisperse(fields, lineNumber, liaison, positionID, indexes)
+	case "T":
+		return parseTransfer(fields, lineNumber, liaison, positionID, indexes)
 	default:
 		return models.Order{}, []ParseError{parseMessage(lineNumber, ParseCodeUnknownSymbol, "error.parse.unsupported_order_symbol", fields[1])}
 	}
+}
+
+func parseTransfer(fields []string, lineNumber int, liaison models.LiaisonMode, positionID models.TerritoryID, indexes gameIndexes) (models.Order, []ParseError) {
+	if len(fields) == 2 {
+		return models.Order{}, []ParseError{parseMessage(lineNumber, ParseCodeMissingTarget, "error.parse.destination_required", "T")}
+	}
+	if len(fields) != 4 {
+		return models.Order{}, []ParseError{parseMessage(lineNumber, ParseCodeTooManyTargets, "error.parse.transfer_shape")}
+	}
+	targetID, codeErrors := parseTerritory(fields[2], lineNumber, "transfer destination", indexes)
+	if len(codeErrors) != 0 {
+		return models.Order{}, codeErrors
+	}
+	amount, amountError := parsePositiveAmount(fields[3], lineNumber, "error.parse.transfer_amount")
+	if amountError != nil {
+		return models.Order{}, []ParseError{*amountError}
+	}
+	return models.Order{
+		Type:       models.OrderTypeTransfer,
+		PositionID: positionID,
+		TargetIDs:  []models.TerritoryID{targetID},
+		Amount:     amount,
+		Liaison:    liaison,
+	}, nil
 }
 
 func parseSingleTerritoryTarget(
@@ -270,4 +297,13 @@ func parseTerritory(code string, lineNumber int, role string, indexes gameIndexe
 		return "", []ParseError{parseMessage(lineNumber, ParseCodeInvalidCode, "error.parse.territory_unknown", code)}
 	}
 	return id, nil
+}
+
+func parsePositiveAmount(value string, lineNumber int, key string) (int, *ParseError) {
+	amount, err := strconv.Atoi(value)
+	if err != nil || amount < 1 {
+		error := parseMessage(lineNumber, ParseCodeInvalidAmount, key, value)
+		return 0, &error
+	}
+	return amount, nil
 }

@@ -124,7 +124,7 @@ const englishMessages = {
   'orders.winterTitle': 'Winter orders',
   'orders.winterDescription':
     'Direct investments only, without chains or military movement. Orders are applied in the order entered. Resolution waits for every player.',
-  'orders.winterPlaceholder': 'R T ROS\nO N NNN\nP N NNN\nL N NNN',
+  'orders.winterPlaceholder': 'R T ROS\nG ROS BOI 3\nO N NNN\nL N NNN',
   'orders.winterAria': 'Winter orders for {player}',
   'orders.submittedEditable': 'Orders submitted. You can still edit them.',
   'orders.sending': 'Sending...',
@@ -185,6 +185,17 @@ const englishMessages = {
   'reports.outcome.failure': 'Failure',
   'reports.outcome.invalid': 'Invalid',
   'reports.reason.insufficient_resources': 'Insufficient resources',
+  'reports.reason.transferred': 'Resources transferred',
+  'reports.reason.transferred_partially': 'Resources partially transferred',
+  'reports.reason.famished_sender': 'A famished army cannot transfer resources.',
+  'reports.reason.transfer_over_capacity': 'The army cannot carry that many resources.',
+  'reports.reason.transfer_path_blocked': 'The supply path is blocked by an enemy army.',
+  'reports.reason.invalid_transfer_destination': 'The transfer destination is invalid.',
+  'reports.reason.transfer_source_not_controlled': 'The source territory is not controlled by the army owner.',
+  'reports.reason.transfer_same_territory': 'The transfer source and destination are identical.',
+  'reports.reason.transfer_source_not_settlement': 'The winter transfer source must be a castle or village.',
+  'reports.reason.transfer_target_not_settlement': 'The winter transfer target must be another castle or village.',
+  'reports.reason.invalid_transfer_amount': 'The transfer amount is invalid.',
   'reports.reason.territory_not_controlled':
     'The territory is not controlled by this player.',
   'reports.reason.noble_requires_owned_army':
@@ -531,7 +542,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'orders.winterTitle': "Ordres d'hiver",
   'orders.winterDescription':
     "Investissements directs uniquement, sans chaînes ni mouvements militaires. Les ordres sont appliqués dans l'ordre saisi. La résolution attend tous les joueurs.",
-  'orders.winterPlaceholder': 'R T ROS\nO N NNN\nP N NNN\nL N NNN',
+  'orders.winterPlaceholder': 'R T ROS\nG ROS BOI 3\nO N NNN\nL N NNN',
   'orders.winterAria': "Ordres d'hiver de {player}",
   'orders.submittedEditable': 'Ordres soumis. Vous pouvez encore les modifier.',
   'orders.sending': 'Envoi...',
@@ -593,6 +604,17 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.outcome.failure': 'Échec',
   'reports.outcome.invalid': 'Invalidé',
   'reports.reason.insufficient_resources': 'Ressources insuffisantes',
+  'reports.reason.transferred': 'Ressources transférées',
+  'reports.reason.transferred_partially': 'Ressources transférées partiellement',
+  'reports.reason.famished_sender': 'Une armée affamée ne peut pas transférer de ressources.',
+  'reports.reason.transfer_over_capacity': "L'armée ne peut pas transporter autant de ressources.",
+  'reports.reason.transfer_path_blocked': 'La route de ravitaillement est bloquée par une armée ennemie.',
+  'reports.reason.invalid_transfer_destination': 'La destination du transfert est invalide.',
+  'reports.reason.transfer_source_not_controlled': "Le territoire source n'est pas contrôlé par le propriétaire de l'armée.",
+  'reports.reason.transfer_same_territory': 'La source et la destination du transfert sont identiques.',
+  'reports.reason.transfer_source_not_settlement': "La source d'un transfert d'hiver doit être un château ou un village.",
+  'reports.reason.transfer_target_not_settlement': "La cible d'un transfert d'hiver doit être un autre château ou village.",
+  'reports.reason.invalid_transfer_amount': 'Le montant du transfert est invalide.',
   'reports.reason.territory_not_controlled':
     "Le territoire n'est pas contrôlé par ce joueur.",
   'reports.reason.noble_requires_owned_army':

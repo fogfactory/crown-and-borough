@@ -59,6 +59,19 @@ func (ctx *resolutionContext) progressRecord(record *orderRecord) (int, int, Pro
 		ctx.removeChain(record.chainID)
 		return before, len(chain.Orders), ProgressionConsumed
 	}
+	if record.order.Type == models.OrderTypeTransfer {
+		if record.outcome == OutcomeFailure && record.reason == "insufficient_resources" {
+			if record.order.Liaison == models.LiaisonModeLoop {
+				return before, before, ProgressionRetried
+			}
+			return ctx.advanceChain(record.chainID, before)
+		}
+		if record.outcome == OutcomeSuccess && record.order.Liaison == models.LiaisonModeLoop {
+			if state, exists := ctx.state.TerritoryStates[record.order.PositionID]; exists && state.Resources > 0 {
+				return before, before, ProgressionRetried
+			}
+		}
+	}
 
 	switch record.outcome {
 	case OutcomeSuccess:

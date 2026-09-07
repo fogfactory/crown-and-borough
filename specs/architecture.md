@@ -292,6 +292,7 @@ valide dans le header Bearer. Les tokens ne sont pas stockés par l'application.
 | `GET` | `/api/map` | Renvoie la carte de la session courante. |
 | `GET` | `/api/state` | Renvoie l'état projeté global ; `?player=P1` active la vue privée hotseat. |
 | `GET` | `/api/supply?territory=ROS` | Calcule la ligne ou la zone de ravitaillement sélectionnée. |
+| `GET` | `/api/supply?territory=ROS&target=BOI` | Estime la route d'un transfert d'action vers `BOI`, y compris les blocages. |
 | `POST` | `/api/game` | Remplace la session par une nouvelle partie en mémoire. |
 | `POST` | `/api/orders` | Enregistre la soumission d'un joueur et résout si tous ont soumis. |
 | `POST` | `/api/reset` | Recrée la partie initiale configurée au démarrage. |
@@ -342,6 +343,7 @@ global lorsqu'une autre partie est déjà active.
 | `GET` | `/api/games/{id}/map` | Renvoie le `map.json` commun, dont `territories[].id` est le trigramme. |
 | `GET` | `/api/games/{id}/state` | Renvoie la projection privée du joueur connecté ; aucun `?player=` public. |
 | `GET` | `/api/games/{id}/supply?territory=ROS` | Calcule la ligne ou la zone de ravitaillement demandée. |
+| `GET` | `/api/games/{id}/supply?territory=ROS&target=BOI` | Estime la route d'un transfert d'action vers `BOI`. |
 | `POST` | `/api/games/{id}/orders` | Remplace la soumission du joueur courant ; résout automatiquement lorsque tous les joueurs vivants ont soumis. Le corps ne contient aucun identifiant joueur. |
 | `POST` | `/api/games/{id}/resolve` | Résolution forcée explicite avec des ordres vides pour les joueurs manquants. |
 | `GET` | `/api/games/{id}/reports` | Liste les rapports filtrés pour le joueur connecté. |
@@ -411,9 +413,9 @@ P BRI
 BRI D BRI ATL NOR
 ```
 
-Les ordres d'hiver v1 sont limités à `R N`, `R T`, `C M`, `C C`, `C D`, `E C`,
-`O N`, `P N` et `L N`. Les infrastructures absentes du modèle v1 ne possèdent
-ni symbole de parser ni coût dans `balance.yaml`.
+Les ordres d'hiver v1 comprennent `R N`, `R T`, `C M`, `C C`, `C D`, `E C`,
+`O N`, `P N`, `L N` et `G XXX YYY N`. Les infrastructures absentes du modèle v1
+ne possèdent ni symbole de parser ni coût dans `balance.yaml`.
 
 ## 8. Assets et balance
 

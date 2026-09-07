@@ -140,6 +140,24 @@ func (s *Session) SupplyHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.mu.RLock()
+	targetID := models.TerritoryID(r.URL.Query().Get("target"))
+	if targetID != "" {
+		transfer, transferErr := engine.FindTransfer(s.game, s.balance, territoryID, targetID)
+		s.mu.RUnlock()
+		if transferErr != nil {
+			switch {
+			case errors.Is(transferErr, engine.ErrSupplyLineWinter):
+				writeAPIError(w, http.StatusConflict, "supply_unavailable", transferErr.Error())
+			case errors.Is(transferErr, engine.ErrSupplyLineUnknownTerritory), errors.Is(transferErr, engine.ErrSupplyLineNoArmy):
+				writeAPIError(w, http.StatusNotFound, "supply_target_not_found", transferErr.Error())
+			default:
+				writeAPIError(w, http.StatusInternalServerError, "supply_failed", transferErr.Error())
+			}
+			return
+		}
+		writeJSON(w, http.StatusOK, transfer)
+		return
+	}
 	line, err := engine.FindSupply(s.game, s.balance, territoryID)
 	s.mu.RUnlock()
 	if err != nil {

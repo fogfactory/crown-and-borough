@@ -116,6 +116,7 @@ type OrderReport struct {
 	Owner            models.PlayerID                           `json:"owner"`
 	Noble            models.NobleCode                          `json:"noble"`
 	Type             models.OrderType                          `json:"type"`
+	Amount           int                                       `json:"amount,omitempty"`
 	Source           models.TerritoryID                        `json:"source"`
 	Target           models.TerritoryID                        `json:"target,omitempty"`
 	Targets          []models.TerritoryID                      `json:"targets,omitempty"`
@@ -147,6 +148,8 @@ type MoveReport struct {
 	Infrastructure     models.InfraID     `json:"infrastructure,omitempty"`
 	InfrastructureType models.InfraType   `json:"infrastructureType,omitempty"`
 	ResourceCredit     int                `json:"resourceCredit,omitempty"`
+	ResourceAmount     int                `json:"resourceAmount,omitempty"`
+	Partial            bool               `json:"partial,omitempty"`
 	CreditTerritory    models.TerritoryID `json:"creditTerritory,omitempty"`
 	PreviousOwner      models.PlayerID    `json:"previousOwner,omitempty"`
 	Owner              models.PlayerID    `json:"owner,omitempty"`
@@ -177,6 +180,9 @@ type WinterInvestmentReport struct {
 	Player         models.PlayerID     `json:"player"`
 	Outcome        Outcome             `json:"outcome"`
 	Cost           int                 `json:"cost"`
+	Source         models.TerritoryID  `json:"source,omitempty"`
+	Target         models.TerritoryID  `json:"target,omitempty"`
+	Amount         int                 `json:"amount,omitempty"`
 	Territory      models.TerritoryID  `json:"territory,omitempty"`
 	Infrastructure models.InfraID      `json:"infrastructure,omitempty"`
 	Type           models.InfraType    `json:"type,omitempty"`
@@ -290,6 +296,7 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 						continue
 					}
 					entry.Type = order.Type
+					entry.Amount = order.Amount
 					entry.Source = order.PositionID
 					entry.Targets = append([]models.TerritoryID(nil), order.TargetIDs...)
 					if len(entry.Targets) > 0 {
@@ -307,6 +314,30 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 			}
 			orderIndexes[eventKey(event.ChainID, event.OrderID)] = len(report.Orders)
 			report.Orders = append(report.Orders, entry)
+		case EventTypeTransfer:
+			if event.Phase == winterPhase && report.Winter != nil {
+				orderCopy := (*models.WinterOrder)(nil)
+				if event.WinterOrder != nil {
+					copy := *event.WinterOrder
+					orderCopy = &copy
+				}
+				report.Winter.Investments = append(report.Winter.Investments, WinterInvestmentReport{
+					Kind: EventTypeTransfer, Player: event.OwnerID, Outcome: event.Outcome,
+					Cost: event.ResourceSpent, Source: event.SourceID, Target: event.TargetID,
+					Amount: event.ResourceAmount, Reason: event.Reason, Order: orderCopy,
+				})
+				continue
+			}
+			report.Moves = append(report.Moves, MoveReport{
+				Kind: event.Type, Army: event.ArmyID, OtherArmy: event.OtherArmyID,
+				Armies: append([]models.ArmyID(nil), event.ArmyIDs...), Territory: event.TerritoryID,
+				Source: event.SourceID, Target: event.TargetID, Destination: event.DestinationID,
+				AttackerOrigin: event.AttackerOriginID, OrderType: event.OrderType, Outcome: event.Outcome,
+				Reason: event.Reason, Resolved: event.Resolved, Infrastructure: event.InfrastructureID,
+				InfrastructureType: event.InfrastructureType, ResourceCredit: event.ResourceCredit,
+				ResourceAmount: event.ResourceAmount, Partial: event.Partial, CreditTerritory: event.CreditTerritoryID,
+				PreviousOwner: event.PreviousOwnerID, Owner: event.OwnerID,
+			})
 		case EventTypeMovement, EventTypeFusion, EventTypeDispersion, EventTypePillage,
 			EventTypeRetreat, EventTypeArmyDestroyed, EventTypeControlChanged:
 			report.Moves = append(report.Moves, MoveReport{
@@ -316,7 +347,8 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 				AttackerOrigin: event.AttackerOriginID, OrderType: event.OrderType, Outcome: event.Outcome,
 				Reason: event.Reason, Resolved: event.Resolved, Infrastructure: event.InfrastructureID,
 				InfrastructureType: event.InfrastructureType, ResourceCredit: event.ResourceCredit,
-				CreditTerritory: event.CreditTerritoryID, PreviousOwner: event.PreviousOwnerID, Owner: event.OwnerID,
+				ResourceAmount: event.ResourceAmount, Partial: event.Partial, CreditTerritory: event.CreditTerritoryID,
+				PreviousOwner: event.PreviousOwnerID, Owner: event.OwnerID,
 			})
 		case EventTypeNobleMovement, EventTypeCapture, EventTypeLiberation:
 			noble := afterNobles[event.NobleID]

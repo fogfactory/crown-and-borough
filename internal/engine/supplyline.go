@@ -18,8 +18,9 @@ var (
 type SupplyLineKind string
 
 const (
-	SupplyLineKindArmy   SupplyLineKind = "army"
-	SupplyLineKindSource SupplyLineKind = "source"
+	SupplyLineKindArmy     SupplyLineKind = "army"
+	SupplyLineKindSource   SupplyLineKind = "source"
+	SupplyLineKindTransfer SupplyLineKind = "transfer"
 )
 
 // SupplyLine describes the source and shortest route used to assign supply to
@@ -36,6 +37,21 @@ type SupplyLine struct {
 	Path         []models.TerritoryID `json:"path"`
 	Reachable    []models.TerritoryID `json:"reachable"`
 	SelfSupplied bool                 `json:"selfSupplied"`
+}
+
+// TransferLine projects the route available to an action-turn resource
+// transfer. Reachability is deliberately returned even when the target is
+// blocked so the frontend can render an estimate before submission.
+type TransferLine struct {
+	Kind                 SupplyLineKind       `json:"kind"`
+	Source               models.TerritoryID   `json:"source"`
+	Target               models.TerritoryID   `json:"target"`
+	ArmyOwner            models.PlayerID      `json:"armyOwner"`
+	RecipientArmy        models.ArmyID        `json:"recipientArmy,omitempty"`
+	Path                 []models.TerritoryID `json:"path"`
+	Reachable            bool                 `json:"reachable"`
+	Distance             int                  `json:"distance,omitempty"`
+	ReachableTerritories []models.TerritoryID `json:"reachableTerritories"`
 }
 
 // FindSupplyLine projects the supply assignment for an army without mutating
@@ -121,6 +137,43 @@ func FindSupplyZone(game *models.GameState, balance assetgen.Balance, territoryI
 	return projectSupplyZone(ctx, territoryID)
 }
 
+// FindTransfer projects an action-turn transfer route from the army at source
+// to target. The target may be occupied by the recipient army; that army is
+// allowed at the endpoint but blocks the route everywhere else.
+func FindTransfer(game *models.GameState, balance assetgen.Balance, sourceID, targetID models.TerritoryID) (TransferLine, error) {
+	ctx, err := supplyQueryContext(game, balance, sourceID)
+	if err != nil {
+		return TransferLine{}, err
+	}
+	if ctx.territoriesByID[targetID] == nil {
+		return TransferLine{}, fmt.Errorf("%w %q", ErrSupplyLineUnknownTerritory, targetID)
+	}
+	army := ctx.startArmyAt(sourceID)
+	if army == nil {
+		return TransferLine{}, fmt.Errorf("%w at %q", ErrSupplyLineNoArmy, sourceID)
+	}
+	reachable := transferNetwork(ctx, sourceID, army.OwnerID, targetID)
+	line := TransferLine{
+		Kind:                 SupplyLineKindTransfer,
+		Source:               sourceID,
+		Target:               targetID,
+		ArmyOwner:            army.OwnerID,
+		Path:                 []models.TerritoryID{},
+		ReachableTerritories: sortedSupplyTerritories(reachable),
+	}
+	if recipient := ctx.startArmyAt(targetID); recipient != nil && recipient.OwnerID != army.OwnerID {
+		line.RecipientArmy = recipient.ID
+	}
+	distance, ok := reachable[targetID]
+	if !ok {
+		return line, nil
+	}
+	line.Reachable = true
+	line.Distance = distance
+	line.Path = supplyPath(ctx, reachable, sourceID, targetID)
+	return line, nil
+}
+
 func projectSupplyZone(ctx *resolutionContext, territoryID models.TerritoryID) (SupplyLine, error) {
 	ownerID, isSource := controlledSupplyOwner(ctx, territoryID)
 	if !isSource {
@@ -160,15 +213,16 @@ func controlledSupplyOwner(ctx *resolutionContext, territoryID models.TerritoryI
 		return "", false
 	}
 	infrastructure := ctx.infrastructureAt(territoryID)
-	if infrastructure == nil {
-		return "", false
+	if infrastructure != nil {
+		switch infrastructure.Type {
+		case models.InfraTypeCastle, models.InfraTypeVillage:
+			return *state.OwnerID, true
+		}
 	}
-	switch infrastructure.Type {
-	case models.InfraTypeCastle, models.InfraTypeVillage:
+	if state.Resources > 0 {
 		return *state.OwnerID, true
-	default:
-		return "", false
 	}
+	return "", false
 }
 
 func sortedSupplyTerritories(reachable map[models.TerritoryID]int) []models.TerritoryID {

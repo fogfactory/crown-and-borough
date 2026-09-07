@@ -7,6 +7,7 @@ const SYMBOL_TO_TYPE: Record<string, OrderType> = {
   H: 'hold',
   P: 'pillage',
   S: 'support',
+  T: 'transfer',
 }
 
 function stripComment(line: string): string {
@@ -71,6 +72,12 @@ function parseLine(line: string): Order | null {
         return { type, position, targets: [tokens[2], tokens[4]], liaison }
       }
       return null
+    }
+    case 'transfer': {
+      if (tokens.length !== 4) return null
+      const amount = Number(tokens[3])
+      if (!Number.isInteger(amount) || amount < 1) return null
+      return { type, position, targets: [tokens[2]], amount, liaison }
     }
     case 'disperse': {
       const targets: string[] = []

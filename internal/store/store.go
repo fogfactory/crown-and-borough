@@ -172,6 +172,12 @@ type GameStore interface {
 	Report(context.Context, Actor, GameID, int) (ReportRecord, error)
 }
 
+// TransferSupplyStore is implemented by stores that expose the action-turn
+// transfer overlay in addition to the ordinary supply projection.
+type TransferSupplyStore interface {
+	TransferSupply(context.Context, Actor, GameID, models.TerritoryID, models.TerritoryID) (engine.TransferLine, error)
+}
+
 // InvitationGameStore is the optional online extension of GameStore. Keeping
 // it separate lets existing engine and hotseat adapters remain source
 // compatible while the authenticated API uses invitations and memberships.

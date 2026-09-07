@@ -48,6 +48,92 @@ func TestFindSupplyLineUsesDepotRangeAndReconstructsPath(t *testing.T) {
 	}
 }
 
+func TestFindSupplyTraversesEnemyTerritoryWithoutArmy(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		kind models.InfraType
+	}{
+		{name: "empty territory"},
+		{name: "castle", kind: models.InfraTypeCastle},
+		{name: "village", kind: models.InfraTypeVillage},
+		{name: "supply depot", kind: models.InfraTypeSupplyDepot},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			state := testState(t,
+				[]models.Territory{
+					supplyTerritory("AAA", "AAA", models.TerrainPlain, "BBB"),
+					supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA", "CCC"),
+					supplyTerritory("CCC", "CCC", models.TerrainPlain, "BBB", "DDD"),
+					supplyTerritory("DDD", "DDD", models.TerrainMountain, "CCC"),
+				},
+				[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "DDD", Size: 1}},
+			)
+			setTerritoryOwner(state, "AAA", "P1")
+			setTerritoryOwner(state, "BBB", "P2")
+			addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+			if test.kind != "" {
+				addInfrastructure(state, models.Infrastructure{ID: "I2", Type: test.kind, Level: 1, TerritoryID: "BBB"})
+			}
+			validateTestState(t, state)
+
+			line, err := FindSupplyLine(state, testBalance(), "DDD")
+			if err != nil {
+				t.Fatalf("FindSupplyLine: %v", err)
+			}
+			if line.Source == nil || *line.Source != "AAA" || line.Distance != 3 {
+				t.Errorf("line = %#v, want source AAA at distance 3", line)
+			}
+			if want := []models.TerritoryID{"AAA", "BBB", "CCC", "DDD"}; !reflect.DeepEqual(line.Path, want) {
+				t.Errorf("path = %v, want %v", line.Path, want)
+			}
+			if want := []models.TerritoryID{"AAA", "BBB", "CCC", "DDD"}; !reflect.DeepEqual(line.Reachable, want) {
+				t.Errorf("line reachable = %v, want %v", line.Reachable, want)
+			}
+
+			zone, err := FindSupplyZone(state, testBalance(), "AAA")
+			if err != nil {
+				t.Fatalf("FindSupplyZone: %v", err)
+			}
+			if want := []models.TerritoryID{"AAA", "BBB", "CCC", "DDD"}; !reflect.DeepEqual(zone.Reachable, want) {
+				t.Errorf("zone reachable = %v, want %v", zone.Reachable, want)
+			}
+		})
+	}
+}
+
+func TestFindSupplyStopsAtEnemyArmy(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			supplyTerritory("AAA", "AAA", models.TerrainPlain, "BBB"),
+			supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA", "CCC"),
+			supplyTerritory("CCC", "CCC", models.TerrainMountain, "BBB"),
+		},
+		[]models.Army{
+			{ID: "A1", OwnerID: "P1", TerritoryID: "CCC", Size: 1},
+			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
+		},
+	)
+	setTerritoryOwner(state, "AAA", "P1")
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+	validateTestState(t, state)
+
+	line, err := FindSupplyLine(state, testBalance(), "CCC")
+	if err != nil {
+		t.Fatalf("FindSupplyLine: %v", err)
+	}
+	if line.Source != nil || len(line.Path) != 0 || len(line.Reachable) != 0 {
+		t.Errorf("line = %#v, want enemy army to block the source", line)
+	}
+
+	zone, err := FindSupplyZone(state, testBalance(), "AAA")
+	if err != nil {
+		t.Fatalf("FindSupplyZone: %v", err)
+	}
+	if want := []models.TerritoryID{"AAA"}; !reflect.DeepEqual(zone.Reachable, want) {
+		t.Errorf("zone reachable = %v, want %v", zone.Reachable, want)
+	}
+}
+
 func TestFindSupplyLineHandlesLocalRationsAndMissingSources(t *testing.T) {
 	t.Run("local rations", func(t *testing.T) {
 		state := testState(t,
@@ -212,6 +298,23 @@ func TestFindSupplyZoneForControlledCastleAndVillage(t *testing.T) {
 	})
 }
 
+func TestFindSupplyLineUsesOrdinaryTerritoryCacheAsSource(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{supplyTerritory("AAA", "AAA", models.TerrainPlain, "BBB"), supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA")},
+		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2}},
+	)
+	setTerritoryResources(state, "AAA", 2)
+	validateTestState(t, state)
+
+	line, err := FindSupplyLine(state, testBalance(), "AAA")
+	if err != nil {
+		t.Fatalf("FindSupplyLine: %v", err)
+	}
+	if line.Source == nil || *line.Source != "AAA" || line.Distance != 0 {
+		t.Errorf("cache supply line = %#v, want local source at distance zero", line)
+	}
+}
+
 func TestFindSupplyPrefersArmyOnAControlledSource(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{supplyTerritory("AAA", "AAA", models.TerrainPlain)},
@@ -256,5 +359,39 @@ func TestFindSupplyLineRejectsUnavailableTargets(t *testing.T) {
 	}
 	if _, err := FindSupply(state, testBalance(), "AAA"); !errors.Is(err, ErrSupplyLineWinter) {
 		t.Errorf("winter selection error = %v, want ErrSupplyLineWinter", err)
+	}
+}
+
+func TestFindTransferProjectsEndpointOccupiedByRecipient(t *testing.T) {
+	state := testState(t, []models.Territory{
+		supplyTerritory("AAA", "AAA", models.TerrainPlain, "MID"),
+		supplyTerritory("MID", "MID", models.TerrainPlain, "AAA", "BBB"),
+		supplyTerritory("BBB", "BBB", models.TerrainPlain, "MID"),
+	}, []models.Army{
+		{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+		{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
+	})
+	line, err := FindTransfer(state, testBalance(), "AAA", "BBB")
+	if err != nil {
+		t.Fatalf("FindTransfer: %v", err)
+	}
+	if !line.Reachable || line.RecipientArmy != "A2" || !reflect.DeepEqual(line.Path, []models.TerritoryID{"AAA", "MID", "BBB"}) {
+		t.Errorf("transfer line = %#v, want reachable path to recipient army", line)
+	}
+
+	blocked := state.TerritoryStates["MID"]
+	armyID := models.ArmyID("A3")
+	ownerID := models.PlayerID("P2")
+	state.Armies = append(state.Armies, models.Army{ID: armyID, OwnerID: ownerID, TerritoryID: "MID", Size: 1})
+	blocked.Army = &armyID
+	blocked.OwnerID = &ownerID
+	state.TerritoryStates["MID"] = blocked
+	state.NextArmyID = 4
+	line, err = FindTransfer(state, testBalance(), "AAA", "BBB")
+	if err != nil {
+		t.Fatalf("FindTransfer blocked: %v", err)
+	}
+	if line.Reachable || len(line.Path) != 0 {
+		t.Errorf("blocked transfer line = %#v, want no route", line)
 	}
 }

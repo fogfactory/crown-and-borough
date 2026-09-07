@@ -465,7 +465,36 @@ func TestResolveSupplyNetworks(t *testing.T) {
 		}
 	})
 
-	t.Run("enemy territory blocks the supply network", func(t *testing.T) {
+	t.Run("enemy army blocks the supply network", func(t *testing.T) {
+		state := testState(t,
+			[]models.Territory{
+				supplyTerritory("AAA", "AAA", models.TerrainPlain, "BBB"),
+				supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA", "CCC"),
+				supplyTerritory("CCC", "CCC", models.TerrainMountain, "BBB"),
+			},
+			[]models.Army{
+				{ID: "A1", OwnerID: "P1", TerritoryID: "CCC", Size: 1},
+				{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
+			},
+		)
+		setTerritoryOwner(state, "AAA", "P1")
+		setTerritoryOwner(state, "BBB", "P2")
+		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+		validateTestState(t, state)
+
+		resolution, err := Resolve(state, testBalance())
+		if err != nil {
+			t.Fatalf("Resolve: %v", err)
+		}
+		if event := supplyEventForSource(t, resolution.Events, "AAA"); event.Demand != 0 {
+			t.Errorf("blocked source demand = %d, want 0", event.Demand)
+		}
+		if !hasFamineEvent(resolution.Events, "A1") {
+			t.Errorf("events = %#v, want direct famine behind enemy army", resolution.Events)
+		}
+	})
+
+	t.Run("enemy territory without an army does not block the supply network", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{
 				supplyTerritory("AAA", "AAA", models.TerrainPlain, "BBB"),
@@ -483,11 +512,11 @@ func TestResolveSupplyNetworks(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
-		if event := supplyEventForSource(t, resolution.Events, "AAA"); event.Demand != 0 {
-			t.Errorf("blocked source demand = %d, want 0", event.Demand)
+		if event := supplyEventForSource(t, resolution.Events, "AAA"); event.Demand != 1 {
+			t.Errorf("source demand = %d, want the army beyond the enemy territory to be reached", event.Demand)
 		}
-		if !hasFamineEvent(resolution.Events, "A1") {
-			t.Errorf("events = %#v, want direct famine behind enemy territory", resolution.Events)
+		if hasFamineEvent(resolution.Events, "A1") {
+			t.Errorf("events = %#v, want A1 supplied through enemy territory without an army", resolution.Events)
 		}
 	})
 }
@@ -529,7 +558,10 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 				supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA", "CCC"),
 				supplyTerritory("CCC", "CCC", models.TerrainPlain, "BBB"),
 			},
-			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}},
+			[]models.Army{
+				{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+				{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
+			},
 		)
 		setTerritoryOwner(state, "BBB", "P2")
 		setTerritoryOwner(state, "CCC", "P1")

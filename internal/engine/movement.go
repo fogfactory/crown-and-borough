@@ -927,10 +927,69 @@ func executeLocalOrders(ctx *resolutionContext) {
 			}
 		case models.OrderTypePillage:
 			ctx.executePillage(record, army)
+		case models.OrderTypeTransfer:
+			ctx.executeTransfer(record, army)
 		default:
 			record.invalidate("unresolved_order")
 		}
 	}
+}
+
+func (ctx *resolutionContext) executeTransfer(record *orderRecord, army *models.Army) {
+	intent := ctx.transfers[army.ID]
+	if intent == nil {
+		record.invalidate("invalid_transfer_destination")
+		return
+	}
+	if ctx.famished[army.ID] {
+		record.fail("famished_sender")
+		return
+	}
+	if record.order.Amount > armyCost(army.Size, ctx.balance.CostBase) {
+		record.invalidate("transfer_over_capacity")
+		return
+	}
+	sourceState := ctx.state.TerritoryStates[intent.sourceID]
+	if sourceState.Resources == 0 {
+		record.fail("insufficient_resources")
+		return
+	}
+	amount := record.order.Amount
+	partial := false
+	if sourceState.Resources < amount {
+		if record.order.Liaison != models.LiaisonModeLoop {
+			record.fail("insufficient_resources")
+			return
+		}
+		amount = sourceState.Resources
+		partial = true
+	}
+	sourceState.Resources -= amount
+	ctx.state.TerritoryStates[intent.sourceID] = sourceState
+	targetState := ctx.state.TerritoryStates[intent.targetID]
+	targetState.Resources += amount
+	ctx.state.TerritoryStates[intent.targetID] = targetState
+	record.outcome = OutcomeSuccess
+	record.reason = "transferred"
+	if partial {
+		record.reason = "transferred_partially"
+	}
+	ctx.events = append(ctx.events, Event{
+		Type:           EventTypeTransfer,
+		Phase:          4,
+		ArmyID:         army.ID,
+		OtherArmyID:    intent.recipientArmyID,
+		ChainID:        record.chainID,
+		OrderID:        record.order.ID,
+		OrderType:      record.order.Type,
+		OwnerID:        army.OwnerID,
+		SourceID:       intent.sourceID,
+		TargetID:       intent.targetID,
+		ResourceAmount: amount,
+		Partial:        partial,
+		Outcome:        OutcomeSuccess,
+		Reason:         record.reason,
+	})
 }
 
 func (ctx *resolutionContext) executePillage(record *orderRecord, army *models.Army) {

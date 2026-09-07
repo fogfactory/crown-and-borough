@@ -502,6 +502,19 @@ func (s *MemoryStore) Supply(_ context.Context, actor Actor, id GameID, territor
 	return engine.FindSupply(game.state, s.balance, territoryID)
 }
 
+func (s *MemoryStore) TransferSupply(_ context.Context, actor Actor, id GameID, sourceID, targetID models.TerritoryID) (engine.TransferLine, error) {
+	game, err := s.game(id)
+	if err != nil {
+		return engine.TransferLine{}, err
+	}
+	game.mu.RLock()
+	defer game.mu.RUnlock()
+	if _, ok := game.playerForActorLocked(actor); !ok {
+		return engine.TransferLine{}, ErrNotMember
+	}
+	return engine.FindTransfer(game.state, s.balance, sourceID, targetID)
+}
+
 func (s *MemoryStore) Submit(_ context.Context, actor Actor, id GameID, request SubmitRequest) (SubmitResult, error) {
 	game, err := s.game(id)
 	if err != nil {

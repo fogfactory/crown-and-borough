@@ -102,12 +102,13 @@ func TestParseWinterOrders(t *testing.T) {
             l n nob
             o n nob
             p n nob
+            G AAA BBB 3
         `, state)
 		if len(parseErrors) != 0 {
 			t.Fatalf("ParseWinterOrders errors = %#v", parseErrors)
 		}
-		if len(parsed) != 9 {
-			t.Fatalf("len(parsed) = %d, want 9", len(parsed))
+		if len(parsed) != 10 {
+			t.Fatalf("len(parsed) = %d, want 10", len(parsed))
 		}
 		wantTypes := []models.WinterOrderType{
 			models.WinterOrderTypeRecruitNoble,
@@ -119,12 +120,13 @@ func TestParseWinterOrders(t *testing.T) {
 			models.WinterOrderTypeLiberateNoble,
 			models.WinterOrderTypeHostage,
 			models.WinterOrderTypeDungeon,
+			models.WinterOrderTypeTransfer,
 		}
 		for index, wantType := range wantTypes {
 			if parsed[index].Type != wantType {
 				t.Errorf("parsed[%d].Type = %q, want %q", index, parsed[index].Type, wantType)
 			}
-			if wantID := models.OrderID("O" + string(rune('1'+index))); parsed[index].ID != wantID {
+			if wantID := models.OrderID("O" + strconv.Itoa(index+1)); parsed[index].ID != wantID {
 				t.Errorf("parsed[%d].ID = %q, want %q", index, parsed[index].ID, wantID)
 			}
 		}
@@ -133,6 +135,9 @@ func TestParseWinterOrders(t *testing.T) {
 		}
 		if parsed[6].NobleCode != "NOB" || parsed[7].NobleCode != "NOB" || parsed[8].NobleCode != "NOB" {
 			t.Errorf("noble order codes = %#v, want NOB", parsed)
+		}
+		if parsed[9].SourceID != "AAA" || parsed[9].TargetID != "BBB" || parsed[9].Amount != 3 {
+			t.Errorf("transfer order = %#v, want AAA to BBB for 3", parsed[9])
 		}
 	})
 

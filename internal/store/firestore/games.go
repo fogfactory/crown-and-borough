@@ -127,6 +127,14 @@ func (s *FirestoreStore) Supply(ctx context.Context, actor store.Actor, id store
 	return engine.FindSupply(snapshot.State, s.balance, territoryID)
 }
 
+func (s *FirestoreStore) TransferSupply(ctx context.Context, actor store.Actor, id store.GameID, sourceID, targetID models.TerritoryID) (engine.TransferLine, error) {
+	snapshot, err := s.Get(ctx, actor, id)
+	if err != nil {
+		return engine.TransferLine{}, err
+	}
+	return engine.FindTransfer(snapshot.State, s.balance, sourceID, targetID)
+}
+
 func (s *FirestoreStore) List(ctx context.Context, actor store.Actor) ([]store.GameSnapshot, error) {
 	if err := s.requireClient(); err != nil {
 		return nil, err
