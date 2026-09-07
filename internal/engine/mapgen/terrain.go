@@ -22,13 +22,7 @@ var allTerrains = []models.Terrain{
 // assignTerrains grows contiguous zones from several site seeds. The first
 // five seeds receive a shuffled complete terrain set, guaranteeing presence.
 func assignTerrains(rng *rand.Rand, sites []point) []models.Terrain {
-	seedCount := len(sites) / 8
-	if seedCount < len(allTerrains) {
-		seedCount = len(allTerrains)
-	}
-	if seedCount > len(sites) {
-		seedCount = len(sites)
-	}
+	seedCount := terrainSeedCount(len(sites))
 
 	indexes := make([]int, len(sites))
 	for i := range indexes {
@@ -61,6 +55,17 @@ func assignTerrains(rng *rand.Rand, sites []point) []models.Terrain {
 		terrain[siteIndex] = closest.terrain
 	}
 	return terrain
+}
+
+func terrainSeedCount(siteCount int) int {
+	seedCount := siteCount / 4
+	if seedCount < len(allTerrains) {
+		seedCount = len(allTerrains)
+	}
+	if seedCount > siteCount {
+		seedCount = siteCount
+	}
+	return seedCount
 }
 
 func randomTerrain(rng *rand.Rand) models.Terrain {
