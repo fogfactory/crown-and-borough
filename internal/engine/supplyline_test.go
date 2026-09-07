@@ -66,7 +66,7 @@ func TestFindSupplyTraversesEnemyTerritoryWithoutArmy(t *testing.T) {
 					supplyTerritory("CCC", "CCC", models.TerrainPlain, "BBB", "DDD"),
 					supplyTerritory("DDD", "DDD", models.TerrainMountain, "CCC"),
 				},
-				[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "DDD", Size: 1}},
+				[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "DDD", Size: 2}},
 			)
 			setTerritoryOwner(state, "AAA", "P1")
 			setTerritoryOwner(state, "BBB", "P2")
@@ -177,7 +177,7 @@ func TestFindSupplyLineHandlesLocalRationsAndMissingSources(t *testing.T) {
 	t.Run("no reachable source", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{supplyTerritory("AAA", "AAA", models.TerrainMountain)},
-			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}},
+			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2}},
 		)
 
 		line, err := FindSupplyLine(state, testBalance(), "AAA")

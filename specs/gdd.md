@@ -162,8 +162,11 @@ Les territoires sauvages ne produisent pas de ressource `R` stockable. La
 production vivrière instantanée, consommée sur place et perdue si elle n'est
 pas utilisée, vaut :
 
-- 1 ration en plaine, forêt ou colline ;
-- 0 ration en montagne ou marécage ;
+- 3 rations en plaine ;
+- 2 rations en forêt ;
+- 2 rations en colline ;
+- 1 ration en montagne ;
+- 1 ration en marécage ;
 - 2 rations supplémentaires si la case porte un château ou un village.
 
 Une case ne porte qu'une seule infrastructure.

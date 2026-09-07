@@ -29,11 +29,11 @@ pillage_bonus: 2
 noble_command_bonus: 1
 castle_defense_bonus: 1
 ration_terrain:
-  plain: 1
-  forest: 1
-  hill: 1
-  mountain: 0
-  swamp: 0
+  plain: 3
+  forest: 2
+  hill: 2
+  mountain: 1
+  swamp: 1
 winter_stock_divisor: 2
 village_stock_cap: 1
 castle_stock_cap: 2
@@ -99,7 +99,10 @@ func TestLoadBalanceValid(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadBalance(valid asset) = %v", err)
 	}
-	if balance.SupplyRange != 3 || balance.NobleCommandBonus != 1 || balance.RationTerrain["swamp"] != 0 {
+	if balance.SupplyRange != 3 || balance.NobleCommandBonus != 1 ||
+		balance.RationTerrain["plain"] != 3 || balance.RationTerrain["forest"] != 2 ||
+		balance.RationTerrain["hill"] != 2 || balance.RationTerrain["mountain"] != 1 ||
+		balance.RationTerrain["swamp"] != 1 {
 		t.Errorf("loaded balance = %#v", balance)
 	}
 	if len(balance.FirstNames) != 3 {
@@ -125,7 +128,7 @@ func TestLoadBalanceInvalid(t *testing.T) {
 		},
 		{
 			name:    "missing terrain value",
-			content: strings.Replace(validBalance, "  mountain: 0\n  swamp: 0\n", "  mountain: 0\n", 1),
+			content: strings.Replace(validBalance, "  mountain: 1\n  swamp: 1\n", "  mountain: 1\n", 1),
 			want:    "ration_terrain.swamp",
 		},
 		{

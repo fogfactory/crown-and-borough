@@ -49,8 +49,8 @@ func TestResolveSupplyRationsAndEvents(t *testing.T) {
 		{terrain: models.TerrainPlain, name: "plain"},
 		{terrain: models.TerrainForest, name: "forest"},
 		{terrain: models.TerrainHill, name: "hill"},
-		{terrain: models.TerrainMountain, wantFamine: true, name: "mountain"},
-		{terrain: models.TerrainSwamp, wantFamine: true, name: "swamp"},
+		{terrain: models.TerrainMountain, name: "mountain"},
+		{terrain: models.TerrainSwamp, name: "swamp"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			state := testState(t,
@@ -209,8 +209,8 @@ func TestResolveSupplyProductionAndStocks(t *testing.T) {
 				supplyTerritory("FFF", "FFF", models.TerrainPlain),
 			},
 			[]models.Army{
-				{ID: "A1", OwnerID: "P1", TerritoryID: "CCC", Size: 2},
-				{ID: "A2", OwnerID: "P1", TerritoryID: "DDD", Size: 2},
+				{ID: "A1", OwnerID: "P1", TerritoryID: "CCC", Size: 3},
+				{ID: "A2", OwnerID: "P1", TerritoryID: "DDD", Size: 1},
 			},
 		)
 		setTerritoryOwner(state, "AAA", "P1")
@@ -383,8 +383,8 @@ func TestResolveSupplyNetworks(t *testing.T) {
 				supplyTerritory("EEE", "EEE", models.TerrainMountain, "DDD"),
 			},
 			[]models.Army{
-				{ID: "A1", OwnerID: "P1", TerritoryID: "DDD", Size: 1},
-				{ID: "A2", OwnerID: "P1", TerritoryID: "EEE", Size: 1},
+				{ID: "A1", OwnerID: "P1", TerritoryID: "DDD", Size: 2},
+				{ID: "A2", OwnerID: "P1", TerritoryID: "EEE", Size: 2},
 			},
 		)
 		setTerritoryOwner(state, "AAA", "P1")
@@ -410,7 +410,7 @@ func TestResolveSupplyNetworks(t *testing.T) {
 				supplyTerritory("MMM", "MMM", models.TerrainMountain, "ZZZ", "AAA"),
 				supplyTerritory("AAA", "AAA", models.TerrainPlain, "MMM"),
 			},
-			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "MMM", Size: 1}},
+			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "MMM", Size: 2}},
 		)
 		setTerritoryOwner(state, "ZZZ", "P1")
 		setTerritoryOwner(state, "AAA", "P1")
@@ -443,7 +443,7 @@ func TestResolveSupplyNetworks(t *testing.T) {
 				supplyTerritory("GGG", "GGG", models.TerrainPlain, "FFF", "HHH"),
 				supplyTerritory("HHH", "HHH", models.TerrainMountain, "GGG"),
 			},
-			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "HHH", Size: 1}},
+			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "HHH", Size: 2}},
 		)
 		setTerritoryOwner(state, "AAA", "P1")
 		setTerritoryOwner(state, "DDD", "P1")
@@ -473,7 +473,7 @@ func TestResolveSupplyNetworks(t *testing.T) {
 				supplyTerritory("CCC", "CCC", models.TerrainMountain, "BBB"),
 			},
 			[]models.Army{
-				{ID: "A1", OwnerID: "P1", TerritoryID: "CCC", Size: 1},
+				{ID: "A1", OwnerID: "P1", TerritoryID: "CCC", Size: 2},
 				{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
 			},
 		)
@@ -501,7 +501,7 @@ func TestResolveSupplyNetworks(t *testing.T) {
 				supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA", "CCC"),
 				supplyTerritory("CCC", "CCC", models.TerrainMountain, "BBB"),
 			},
-			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "CCC", Size: 1}},
+			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "CCC", Size: 2}},
 		)
 		setTerritoryOwner(state, "AAA", "P1")
 		setTerritoryOwner(state, "BBB", "P2")
@@ -529,8 +529,8 @@ func TestResolveSupplyIsolatedByOwner(t *testing.T) {
 			supplyTerritory("CCC", "CCC", models.TerrainMountain, "AAA"),
 		},
 		[]models.Army{
-			{ID: "A1", OwnerID: "P1", TerritoryID: "CCC", Size: 1},
-			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
+			{ID: "A1", OwnerID: "P1", TerritoryID: "CCC", Size: 2},
+			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 2},
 		},
 	)
 	setTerritoryOwner(state, "AAA", "P1")
@@ -559,7 +559,7 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 				supplyTerritory("CCC", "CCC", models.TerrainPlain, "BBB"),
 			},
 			[]models.Army{
-				{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+				{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
 				{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
 			},
 		)
@@ -598,16 +598,17 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 			},
 			[]models.Army{
 				{ID: "A1", OwnerID: "P1", TerritoryID: "CCC", Size: 2},
-				{ID: "A2", OwnerID: "P1", TerritoryID: "DDD", Size: 2},
+				{ID: "A2", OwnerID: "P1", TerritoryID: "DDD", Size: 3},
 			},
 		)
 		setTerritoryOwner(state, "AAA", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
-		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 1, TerritoryID: "BBB"})
 		addInfrastructure(state, models.Infrastructure{ID: "I3", Type: models.InfraTypeMill, Level: 1, TerritoryID: "DDD"})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state, testBalance())
+		balance := testBalance()
+		balance.PillageBonus = 3
+		resolution, err := Resolve(state, balance)
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -660,7 +661,7 @@ func TestResolveSupplyFamineEventOrder(t *testing.T) {
 			supplyTerritory("CCC", "CCC", models.TerrainMountain),
 		},
 		[]models.Army{
-			{ID: "A1", OwnerID: "P1", TerritoryID: "BBB", Size: 2},
+			{ID: "A1", OwnerID: "P1", TerritoryID: "BBB", Size: 3},
 			{ID: "A2", OwnerID: "P2", TerritoryID: "CCC", Size: 2},
 		},
 	)
@@ -695,7 +696,6 @@ func TestResolveAssignedFamineTieBreaksAndHasZeroStrength(t *testing.T) {
 	)
 	setTerritoryOwner(state, "ZZZ", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "ZZZ"})
-	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 1, TerritoryID: "DDD"})
 	addNoble(state, "N2", "TWO", "P1", "AAA")
 	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"CCC"}})
 	validateTestState(t, state)
@@ -720,14 +720,14 @@ func TestResolveAssignedFamineTieBreaksAndHasZeroStrength(t *testing.T) {
 }
 
 func TestResolveFamineCombatEffects(t *testing.T) {
-	t.Run("one-troop swamp army has zero famine force", func(t *testing.T) {
+	t.Run("two-troop swamp army has zero famine force", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{
 				supplyTerritory("AAA", "AAA", models.TerrainSwamp, "BBB"),
 				supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA"),
 			},
 			[]models.Army{
-				{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+				{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
 				{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
 			},
 		)
@@ -742,8 +742,8 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 			t.Fatalf("Resolve: %v", err)
 		}
 		famine := famineEventForArmy(t, resolution.Events, "A1")
-		if famine.Troops != 1 || famine.TroopsLost != 0 || !hasFamineEvent(resolution.Events, "A1") {
-			t.Errorf("famine event = %#v, want one troop, no physical loss, and famine", famine)
+		if famine.Troops != 2 || famine.TroopsLost != 1 || !hasFamineEvent(resolution.Events, "A1") {
+			t.Errorf("famine event = %#v, want two troops, one lost, and famine", famine)
 		}
 		if army := armyByID(t, resolution.State, "A1"); army.Size != 1 || army.TerritoryID != "AAA" {
 			t.Errorf("A1 = %+v, want one troop remaining at AAA", army)
@@ -945,7 +945,7 @@ func TestResolveSupplyIsPureAndDeterministic(t *testing.T) {
 		},
 		[]models.Army{
 			{ID: "A1", OwnerID: "P1", TerritoryID: "BBB", Size: 2},
-			{ID: "A2", OwnerID: "P2", TerritoryID: "CCC", Size: 1},
+			{ID: "A2", OwnerID: "P2", TerritoryID: "CCC", Size: 2},
 		},
 	)
 	setTerritoryOwner(state, "AAA", "P1")

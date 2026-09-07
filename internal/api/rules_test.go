@@ -67,7 +67,11 @@ func TestRulesHandlerRejectsUnknownLanguage(t *testing.T) {
 }
 
 func TestRulesHandlerServesCanonicalTerritoryReferences(t *testing.T) {
-	rules, err := assetgen.LoadRules("../../assets")
+	balance, err := assetgen.LoadBalance("../../assets")
+	if err != nil {
+		t.Fatalf("LoadBalance = %v", err)
+	}
+	rules, err := assetgen.LoadRules("../../assets", balance)
 	if err != nil {
 		t.Fatalf("LoadRules = %v", err)
 	}

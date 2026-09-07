@@ -371,16 +371,19 @@ Brigands and other neutral armies also take the ration of the territory they
 occupy, but receive no additional supply from a player's controlled source
 stocks.
 
-Example: a 2-troop army on a hill with a castle (production 1 + 2 = 3 rations)
-receives 1 ration; its remaining demand is 2 − 1 = 1 ration to cover from its
-sources. An army on a swamp (production 0) receives nothing and must cover its
-full demand.
+Example: a 2-troop army on a hill with a castle (local production:
+{{ration_terrain.hill}}; castle bonus: {{infra_rations_bonus}}) receives 1 ration;
+its remaining demand is 2 − 1 = 1 ration to cover from its sources. An army on
+a swamp (production {{ration_terrain.swamp}}) receives 1 ration and must cover
+its remaining demand of 1 ration.
 
-**Territory food production**: 1 ration on plain, forest, or hill; 0 ration on
-mountain or swamp; **+2 rations** when the territory has a castle or village.
+**Territory food production (rations)**: plain {{ration_terrain.plain}}; forest
+{{ration_terrain.forest}}; hill {{ration_terrain.hill}}; mountain
+{{ration_terrain.mountain}}; swamp {{ration_terrain.swamp}};
+**+{{infra_rations_bonus}}** when the territory has a castle or village.
 
 **Supply sources**: **controlled castles, villages, and caches**. A castle or
-village produces **1 R of stock per turn**; a bare cache produces nothing. The flow crosses allied or neutral
+village produces **{{base_production}} R of stock per turn**; a bare cache produces nothing. The flow crosses allied or neutral
 territories and stops before an enemy territory. Base range is **3 territories**;
 each controlled supply depot encountered along the route adds **2 territories**.
 A neutral village keeps its stock, inaccessible to the player before capture.
@@ -389,7 +392,7 @@ Each source calculates its own `R` production: its base production plus the leve
 of **every adjacent mill**. One mill can therefore feed every neighboring source;
 it is not reserved for the owner of its territory. An orphaned mill, with no
 adjacent castle or village, produces `0 R`. For example, a village surrounded by
-two level-1 mills produces `1 + 1 + 1 = 3 R`; the same mills also add their level
+two level-1 mills produces `{{base_production}} + 1 + 1 R`; the same mills also add their level
 to every neighboring castle. The presence or position of a noble never
 conditions `C M XXX` or this production: a noble in NOR does not prevent the
 player from building `C M ATL` when ATL is empty, controlled, and adjacent to
@@ -430,8 +433,8 @@ A territory carries only **one infrastructure**.
 |---|---|---|---|
 | Mill | Build on an empty controlled territory adjacent to a castle or village; upgrade an existing mill adjacent to that source | +1 stockable R per level at **each** adjacent source | 3 |
 | Supply depot | None | +2 territories of supply range when controlled | 3 |
-| Castle | None | +1 defense, +2 rations, produces 1 stockable R per turn, supply anchor | 10 |
-| Village | Generated neutral, **not buildable** | +2 rations, produces 1 stockable R per turn, supply anchor after capture | — |
+| Castle | None | +1 defense, +{{infra_rations_bonus}} rations, produces {{base_production}} stockable R per turn, supply anchor | 10 |
+| Village | Generated neutral, **not buildable** | +{{infra_rations_bonus}} rations, produces {{base_production}} stockable R per turn, supply anchor after capture | — |
 
 ---
 

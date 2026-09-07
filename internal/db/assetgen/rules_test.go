@@ -85,7 +85,11 @@ func TestLoadRulesAllowsMissingTranslation(t *testing.T) {
 }
 
 func TestLoadRealRules(t *testing.T) {
-	rules, err := LoadRules("../../../assets")
+	balance, err := LoadBalance("../../../assets")
+	if err != nil {
+		t.Fatalf("LoadBalance(real asset) = %v", err)
+	}
+	rules, err := LoadRules("../../../assets", balance)
 	if err != nil {
 		t.Fatalf("LoadRules(real assets) = %v", err)
 	}
@@ -105,6 +109,13 @@ func TestLoadRealRules(t *testing.T) {
 	if strings.Contains(string(document), "FAQ tactique") {
 		t.Error("French rules document still contains the FAQ")
 	}
+	for _, placeholder := range []string{
+		"{{ration_terrain.", "{{infra_rations_bonus}}", "{{base_production}}",
+	} {
+		if strings.Contains(string(document), placeholder) {
+			t.Errorf("French rules document still contains placeholder %q", placeholder)
+		}
+	}
 	for _, heading := range []string{"## 4. Order Cheat Sheet", "## 5. Winter Orders"} {
 		if !strings.Contains(string(english), heading) {
 			t.Errorf("English document does not contain %q", heading)
@@ -112,5 +123,12 @@ func TestLoadRealRules(t *testing.T) {
 	}
 	if strings.Contains(string(english), "Tactical FAQ") {
 		t.Error("English rules document still contains the FAQ")
+	}
+	for _, placeholder := range []string{
+		"{{ration_terrain.", "{{infra_rations_bonus}}", "{{base_production}}",
+	} {
+		if strings.Contains(string(english), placeholder) {
+			t.Errorf("English rules document still contains placeholder %q", placeholder)
+		}
 	}
 }
