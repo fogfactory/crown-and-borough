@@ -56,4 +56,16 @@ describe('formatOrderLabel', () => {
       }),
     ).toBe('ROS D ROS* BRU*BOB')
   })
+
+  it('renders an action transfer with its amount', () => {
+    expect(
+      formatOrderLabel({
+        type: 'transfer',
+        position: 'ROS',
+        targets: ['BOI'],
+        amount: 3,
+        liaison: 'loop',
+      }),
+    ).toBe('(ROS T BOI 3)')
+  })
 })

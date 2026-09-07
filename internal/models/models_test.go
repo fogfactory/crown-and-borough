@@ -139,6 +139,7 @@ func TestWinterOrderTypeIsValid(t *testing.T) {
 		models.WinterOrderTypeLiberateNoble,
 		models.WinterOrderTypeHostage,
 		models.WinterOrderTypeDungeon,
+		models.WinterOrderTypeTransfer,
 	} {
 		if !valid.IsValid() {
 			t.Errorf("WinterOrderType %q: want valid", valid)
@@ -148,6 +149,14 @@ func TestWinterOrderTypeIsValid(t *testing.T) {
 		if invalid.IsValid() {
 			t.Errorf("WinterOrderType %q: want invalid", invalid)
 		}
+	}
+}
+
+func TestValidateAllowsActionSeasonCacheOutsideSettlement(t *testing.T) {
+	state := validState()
+	state.TerritoryStates["FOU"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 3}
+	if err := state.Validate(); err != nil {
+		t.Fatalf("Validate() = %v, want ordinary territory cache to be valid", err)
 	}
 }
 
@@ -337,9 +346,6 @@ func TestValidateErrors(t *testing.T) {
 		{"negative resources", func(g *models.GameState) {
 			g.TerritoryStates["ROS"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: -1, Army: ptrArmyID("A1"), Infrastructures: []models.InfraID{"I1"}}
 		}, "negative resources"},
-		{"positive resources outside a settlement", func(g *models.GameState) {
-			g.TerritoryStates["ROS"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 1, Army: ptrArmyID("A1"), Infrastructures: []models.InfraID{"I1"}}
-		}, "positive resources require"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

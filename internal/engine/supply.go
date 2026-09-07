@@ -165,13 +165,17 @@ func controlledSupplySources(ctx *resolutionContext, ownerID models.PlayerID) []
 	sources := make([]*supplySource, 0)
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
 		state := ctx.state.TerritoryStates[territoryID]
-		if state.OwnerID == nil || *state.OwnerID != ownerID || !ctx.hasSettlement(territoryID) {
+		if state.OwnerID == nil || *state.OwnerID != ownerID || (!ctx.hasSettlement(territoryID) && state.Resources == 0) {
 			continue
+		}
+		production := 0
+		if ctx.hasSettlement(territoryID) {
+			production = sourceProduction(ctx, territoryID)
 		}
 		sources = append(sources, &supplySource{
 			territoryID: territoryID,
 			ownerID:     ownerID,
-			production:  sourceProduction(ctx, territoryID),
+			production:  production,
 			rations:     make(map[models.TerritoryID]int),
 			reachable:   supplyNetwork(ctx, territoryID, ownerID),
 		})
@@ -215,6 +219,50 @@ func supplyNetwork(ctx *resolutionContext, sourceID models.TerritoryID, ownerID 
 			}
 			if army := ctx.startArmyAt(neighborID); army != nil && army.OwnerID != ownerID {
 				continue
+			}
+			remaining := current.remaining - 1
+			if ctx.isControlledDepot(neighborID, ownerID) {
+				remaining += ctx.balance.DepotRangeBonus
+			}
+			reachable[neighborID] = current.distance + 1
+			queue = append(queue, visit{
+				territoryID: neighborID,
+				distance:    current.distance + 1,
+				remaining:   remaining,
+			})
+		}
+	}
+	return reachable
+}
+
+// transferNetwork is the supply graph used by a resource transfer. It has the
+// same range and depot rules as ordinary supply, but permits the requested
+// destination to be occupied by an enemy army. Enemy armies on intermediate
+// territories still block the route, including an army belonging to the
+// recipient when it is not the final destination.
+func transferNetwork(ctx *resolutionContext, sourceID models.TerritoryID, ownerID models.PlayerID, targetID models.TerritoryID) map[models.TerritoryID]int {
+	type visit struct {
+		territoryID models.TerritoryID
+		distance    int
+		remaining   int
+	}
+
+	reachable := map[models.TerritoryID]int{sourceID: 0}
+	queue := []visit{{territoryID: sourceID, remaining: ctx.balance.SupplyRange}}
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		if current.remaining == 0 {
+			continue
+		}
+		for _, neighborID := range ctx.sortedNeighbors(current.territoryID) {
+			if _, visited := reachable[neighborID]; visited {
+				continue
+			}
+			if neighborID != targetID {
+				if army := ctx.startArmyAt(neighborID); army != nil && army.OwnerID != ownerID {
+					continue
+				}
 			}
 			remaining := current.remaining - 1
 			if ctx.isControlledDepot(neighborID, ownerID) {

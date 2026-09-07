@@ -25,16 +25,17 @@ type Message struct {
 }
 
 const (
-	ErrorChainsInWinter    = "error.chains_in_winter"
-	ErrorWinterOutOfSeason = "error.winter_out_of_season"
-	ErrorUnknownPlayer     = "error.unknown_player"
-	ErrorPlayerRequired    = "error.player_required"
-	ErrorForeignChain      = "error.foreign_chain"
-	ErrorForeignWinter     = "error.foreign_winter"
-	ErrorNobleUnknown      = "error.unknown_noble"
-	ErrorNobleMismatch     = "error.noble_mismatch"
-	ErrorNobleNotOwned     = "error.noble_not_owned"
-	ErrorDuplicateEmission = "error.duplicate_emission"
+	ErrorChainsInWinter      = "error.chains_in_winter"
+	ErrorWinterOutOfSeason   = "error.winter_out_of_season"
+	ErrorUnknownPlayer       = "error.unknown_player"
+	ErrorPlayerRequired      = "error.player_required"
+	ErrorForeignChain        = "error.foreign_chain"
+	ErrorForeignWinter       = "error.foreign_winter"
+	ErrorNobleUnknown        = "error.unknown_noble"
+	ErrorNobleMismatch       = "error.noble_mismatch"
+	ErrorNobleNotOwned       = "error.noble_not_owned"
+	ErrorDuplicateEmission   = "error.duplicate_emission"
+	ErrorTransferPathBlocked = "error.transfer_path_blocked"
 
 	ParseNoHeader                    = "error.parse.no_header"
 	ParseBadHeader                   = "error.parse.bad_header"
@@ -58,6 +59,8 @@ const (
 	ParseAssignmentUnknownNoble      = "error.parse.assignment_unknown_noble"
 	ParseCodeFormat                  = "error.parse.code_format"
 	ParseTerritoryUnknown            = "error.parse.territory_unknown"
+	ParseTransferAmount              = "error.parse.transfer_amount"
+	ParseTransferShape               = "error.parse.transfer_shape"
 
 	WinterOrderShape             = "error.winter.order_shape"
 	WinterOrderTargetOnlyOne     = "error.winter.target_only_one"
@@ -67,6 +70,8 @@ const (
 	WinterNobleCodeFormat        = "error.winter.noble_code_format"
 	WinterNobleUnknown           = "error.winter.noble_unknown"
 	WinterUnknownSubtype         = "error.winter.unknown_subtype"
+	WinterTransferShape          = "error.winter.transfer_shape"
+	WinterTransferAmount         = "error.winter.transfer_amount"
 
 	ValidationUnknownNoble                 = "error.validation.unknown_noble"
 	ValidationEmptyChain                   = "error.validation.empty_chain"
@@ -88,6 +93,9 @@ const (
 	ValidationUnknownAssignmentNoble       = "error.validation.unknown_assignment_noble"
 	ValidationDuplicateAssignmentNoble     = "error.validation.duplicate_assignment_noble"
 	ValidationMultipleWildcards            = "error.validation.multiple_wildcards"
+	ValidationTransferAmount               = "error.validation.transfer_amount"
+	ValidationTransferShape                = "error.validation.transfer_shape"
+	ValidationUnexpectedAmount             = "error.validation.unexpected_amount"
 
 	AssignmentGameNil          = "error.assignment.game_nil"
 	AssignmentInvalidState     = "error.assignment.invalid_state"
@@ -115,6 +123,7 @@ func init() {
 	register(ErrorNobleMismatch, "submission noble %q does not match chain header %q", "le noble soumis %q ne correspond pas à l'en-tête de chaîne %q")
 	register(ErrorNobleNotOwned, "noble %q belongs to player %q", "le noble %q appartient au joueur %q")
 	register(ErrorDuplicateEmission, "noble %q appears more than once", "le noble %q apparaît plusieurs fois")
+	register(ErrorTransferPathBlocked, "the transfer route from %q to %q is blocked", "la route de transfert de %q vers %q est bloquée")
 
 	register(ParseNoHeader, "an order chain requires a noble header", "une chaîne d'ordres doit commencer par un en-tête de noble")
 	register(ParseBadHeader, "the first content line must contain exactly one noble code", "la première ligne de contenu doit contenir exactement un code de noble")
@@ -138,6 +147,8 @@ func init() {
 	register(ParseAssignmentUnknownNoble, "noble code %q does not exist", "le code de noble %q n'existe pas")
 	register(ParseCodeFormat, "%s code %q must contain exactly three uppercase letters", "le code de %s %q doit contenir exactement trois lettres majuscules")
 	register(ParseTerritoryUnknown, "territory code %q does not exist", "le code de territoire %q n'existe pas")
+	register(ParseTransferAmount, "transfer amount %q must be a positive integer", "le montant du transfert %q doit être un entier positif")
+	register(ParseTransferShape, "T requires one destination and one positive amount", "T exige une destination et un montant positif")
 
 	register(WinterOrderShape, "a winter order requires a symbol, a subtype, and one target code", "un ordre d'hiver exige un symbole, un sous-type et un code cible")
 	register(WinterOrderTargetOnlyOne, "a winter order accepts exactly one target code", "un ordre d'hiver accepte exactement un code cible")
@@ -147,6 +158,8 @@ func init() {
 	register(WinterNobleCodeFormat, "noble code %q must contain exactly three uppercase letters", "le code de noble %q doit contenir exactement trois lettres majuscules")
 	register(WinterNobleUnknown, "noble code %q does not exist", "le code de noble %q n'existe pas")
 	register(WinterUnknownSubtype, "unknown winter order %s %s", "ordre d'hiver inconnu : %s %s")
+	register(WinterTransferShape, "G requires a source, a destination, and an amount", "G exige une source, une destination et un montant")
+	register(WinterTransferAmount, "transfer amount %q must be a positive integer", "le montant du transfert %q doit être un entier positif")
 
 	register(ValidationUnknownNoble, "noble %q does not exist", "le noble %q n'existe pas")
 	register(ValidationEmptyChain, "a chain must contain at least one order", "une chaîne doit contenir au moins un ordre")
@@ -168,6 +181,9 @@ func init() {
 	register(ValidationUnknownAssignmentNoble, "assigned noble %q does not exist", "le noble affecté %q n'existe pas")
 	register(ValidationDuplicateAssignmentNoble, "noble %q is assigned more than once", "le noble %q est affecté plusieurs fois")
 	register(ValidationMultipleWildcards, "D accepts at most one remaining-nobles wildcard", "D accepte au plus un joker pour les nobles restants")
+	register(ValidationTransferAmount, "T requires a positive amount", "T exige un montant positif")
+	register(ValidationTransferShape, "T requires exactly one destination", "T exige exactement une destination")
+	register(ValidationUnexpectedAmount, "%s does not accept a resource amount", "%s n'accepte pas de montant de ressources")
 
 	register(AssignmentGameNil, "game state is nil", "l'état de partie est absent")
 	register(AssignmentInvalidState, "game state is invalid: %s", "l'état de partie est invalide : %s")

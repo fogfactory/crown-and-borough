@@ -94,9 +94,55 @@ func (ctx *resolutionContext) resolveWinterOrder(playerID models.PlayerID, order
 		ctx.resolveNobleStatusOrder(playerID, order, models.NobleStatusHostage)
 	case models.WinterOrderTypeDungeon:
 		ctx.resolveNobleStatusOrder(playerID, order, models.NobleStatusDungeon)
+	case models.WinterOrderTypeTransfer:
+		ctx.resolveWinterTransfer(playerID, order)
 	default:
 		ctx.rejectWinterOrder(playerID, order, "invalid_winter_order")
 	}
+}
+
+func (ctx *resolutionContext) resolveWinterTransfer(playerID models.PlayerID, order models.WinterOrder) {
+	if !ctx.territoryExists(order.SourceID) || !ctx.territoryExists(order.TargetID) {
+		ctx.rejectWinterOrder(playerID, order, "unknown_territory")
+		return
+	}
+	if order.SourceID == order.TargetID {
+		ctx.rejectWinterOrder(playerID, order, "transfer_same_territory")
+		return
+	}
+	if order.Amount < 1 {
+		ctx.rejectWinterOrder(playerID, order, "invalid_transfer_amount")
+		return
+	}
+	if !ctx.controlsTerritory(playerID, order.SourceID) || !ctx.hasSettlement(order.SourceID) {
+		ctx.rejectWinterOrder(playerID, order, "transfer_source_not_settlement")
+		return
+	}
+	targetState := ctx.state.TerritoryStates[order.TargetID]
+	if targetState.OwnerID == nil || *targetState.OwnerID == playerID || !PlayerAlive(ctx.state, *targetState.OwnerID) || !ctx.hasSettlement(order.TargetID) {
+		ctx.rejectWinterOrder(playerID, order, "transfer_target_not_settlement")
+		return
+	}
+	spent, paid := ctx.payWinterCost(playerID, order.SourceID, order.Amount)
+	if !paid {
+		ctx.rejectWinterOrder(playerID, order, "insufficient_resources")
+		return
+	}
+	targetState.Resources += order.Amount
+	ctx.state.TerritoryStates[order.TargetID] = targetState
+	orderCopy := order
+	ctx.events = append(ctx.events, Event{
+		Type:           EventTypeTransfer,
+		Phase:          winterPhase,
+		OwnerID:        playerID,
+		OrderID:        order.ID,
+		SourceID:       order.SourceID,
+		TargetID:       order.TargetID,
+		ResourceAmount: order.Amount,
+		ResourceSpent:  spent,
+		Outcome:        OutcomeSuccess,
+		WinterOrder:    &orderCopy,
+	})
 }
 
 func (ctx *resolutionContext) resolveRecruitNoble(playerID models.PlayerID, order models.WinterOrder, firstNameRNG *rand.Rand) {
@@ -689,6 +735,9 @@ func winterStocks(ctx *resolutionContext) map[models.TerritoryID]int {
 func (ctx *resolutionContext) conserveWinterStocks() {
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
 		state := ctx.state.TerritoryStates[territoryID]
+		if ctx.hasInfrastructure(territoryID, models.InfraTypeSupplyDepot) {
+			continue
+		}
 		if !ctx.hasSettlement(territoryID) {
 			state.Resources = 0
 			ctx.state.TerritoryStates[territoryID] = state

@@ -17,10 +17,16 @@ const SYMBOLS: Record<OrderType, string> = {
   join: 'J',
   pillage: 'P',
   disperse: 'D',
+  transfer: 'T',
 }
 
 export type IntentSegmentKind =
-  'attack' | 'movement' | 'support-defensive' | 'support-offensive' | 'loop'
+  | 'attack'
+  | 'movement'
+  | 'support-defensive'
+  | 'support-offensive'
+  | 'transfer'
+  | 'loop'
 
 export type IntentionSource = 'chain' | 'draft'
 
@@ -147,6 +153,7 @@ function makeIntention(
       targets: order.targets,
       nobleAssignments: order.nobleAssignments,
       liaison: order.liaison,
+      amount: order.amount,
     }),
   }
 
@@ -221,6 +228,13 @@ function makeIntention(
       }
       if (segments.length === 0) return null
       return { ...base, type: order.type, segments }
+    }
+    case 'transfer': {
+      const target = order.targets?.[0]
+      if (!target || !known(map, target) || target === position) return null
+      const to = territoryCentroid(map, target)
+      if (!to) return null
+      return { ...base, type: order.type, segments: [{ from, to, kind: 'transfer' }] }
     }
     case 'hold':
     case 'pillage': {

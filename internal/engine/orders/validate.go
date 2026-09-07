@@ -53,6 +53,13 @@ func validateOrder(indexes gameIndexes, order models.Order, last bool) []Validat
 	if order.Type != models.OrderTypeDisperse && len(order.NobleAssignments) != 0 {
 		errors = append(errors, orderValidationError(order, "unexpected_noble_assignments", "error.validation.unexpected_noble_assignments", order.Type))
 	}
+	if order.Type == models.OrderTypeTransfer {
+		if order.Amount < 1 {
+			errors = append(errors, orderValidationError(order, "invalid_transfer_amount", "error.validation.transfer_amount"))
+		}
+	} else if order.Amount != 0 {
+		errors = append(errors, orderValidationError(order, "unexpected_amount", "error.validation.unexpected_amount", order.Type))
+	}
 	positionExists := indexes.territoriesByID[order.PositionID] != nil
 	if !positionExists {
 		errors = append(errors, orderValidationError(order, "unknown_position", "error.validation.unknown_position", territoryReference(indexes, order.PositionID)))
@@ -78,6 +85,10 @@ func validateOrder(indexes gameIndexes, order models.Order, last bool) []Validat
 		}
 	case models.OrderTypeDisperse:
 		errors = append(errors, validateDisperse(indexes, order, positionExists)...)
+	case models.OrderTypeTransfer:
+		if len(order.TargetIDs) != 1 {
+			errors = append(errors, orderValidationError(order, "transfer_shape", "error.validation.transfer_shape"))
+		}
 	}
 	return errors
 }

@@ -72,6 +72,40 @@ ros j boi
 	}
 }
 
+func TestParseTransferOrdersAndAmounts(t *testing.T) {
+	game := orderTestState()
+	chain, parseErrors := ParseChain(`
+JEA
+ROS T BOI 3
+(BOI T FOU 2)
+`, game)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseChain() errors = %#v, want none", parseErrors)
+	}
+	if len(chain.Orders) != 2 {
+		t.Fatalf("orders = %#v, want two transfers", chain.Orders)
+	}
+	if chain.Orders[0].Type != models.OrderTypeTransfer || chain.Orders[0].Amount != 3 || chain.Orders[0].Liaison != models.LiaisonModeSingle {
+		t.Errorf("first transfer = %#v", chain.Orders[0])
+	}
+	if chain.Orders[1].Type != models.OrderTypeTransfer || chain.Orders[1].Amount != 2 || chain.Orders[1].Liaison != models.LiaisonModeLoop {
+		t.Errorf("loop transfer = %#v", chain.Orders[1])
+	}
+	if validationErrors := ValidateChain(game, chain); len(validationErrors) != 0 {
+		t.Errorf("ValidateChain() = %#v, want none", validationErrors)
+	}
+}
+
+func TestParseTransferRejectsInvalidAmounts(t *testing.T) {
+	game := orderTestState()
+	for _, text := range []string{"JEA\nROS T BOI", "JEA\nROS T BOI 0", "JEA\nROS T BOI -1", "JEA\nROS T BOI NOPE"} {
+		_, parseErrors := ParseChain(text, game)
+		if len(parseErrors) == 0 || parseErrors[0].Code != ParseCodeInvalidAmount && parseErrors[0].Code != ParseCodeTooManyTargets && parseErrors[0].Code != ParseCodeMissingTarget {
+			t.Errorf("ParseChain(%q) errors = %#v, want transfer amount/shape error", text, parseErrors)
+		}
+	}
+}
+
 func TestParseChainWildcardAssignmentsAndPartialResults(t *testing.T) {
 	game := orderTestState()
 	chain, parseErrors := ParseChain(`

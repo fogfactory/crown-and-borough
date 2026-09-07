@@ -105,8 +105,9 @@ BOI J ROS        # join (must be the last order)
   retried at each resolution until it succeeds; a hold in loop puts the army on
   standby. A mechanically impossible error always breaks the chain.
 
-An order whose position and target are not adjacent is rejected when the chain
-is submitted, with no partial reception of the chain.
+For movement orders, an order whose position and target are not adjacent is
+rejected when the chain is submitted, with no partial reception of the chain.
+The `T` transfer order uses the supply network instead.
 
 A chain is not limited to one season: a successful line advances the chain index,
 and the next line waits for the next resolution. A `loop` line deliberately keeps
@@ -142,6 +143,7 @@ an action season.
 | `J` | `XXX J YYY` | Peaceful join toward adjacent `YYY`; **must be the last order**. |
 | `P` | `P XXX` | Pillage the infrastructure on the occupied territory. |
 | `D` | `XXX D DEST1 DEST2 ...` | Peaceful dispersal at strength 0: destinations are processed in appearance order, may repeat, and troops arriving on the same territory are stacked. |
+| `T` | `XXX T YYY N` | Transfer `N` resources to a castle, village, or opposing army through the supply network. |
 
 ### Attack (`A`) and Join (`J`)
 
@@ -211,6 +213,22 @@ BRI D BRI ATL NOR          # BRI keeps the chain; the other groups split away
 (BRI D ATL NOR)            # looped dispersal
 ```
 
+### Transfer (`T`)
+
+`XXX T YYY N` is executed after supply by the army on `XXX`. `YYY` must be a
+castle, village, or the territory of an army controlled by another living
+player; a bare depot cannot receive. The source territory only needs to contain
+stock. The route follows the donor's supply range (`3` territories, plus
+controlled depots), and any enemy army on an intermediate territory blocks it;
+an enemy army at the destination is allowed.
+
+A famished army cannot transfer. The amount is capped at `2^(N - 1)` for an
+army of `N` troops, without subtracting local rations. It performs no other
+order that turn. A stock shortage has no effect and does not break a `single`
+chain. In `loop`, the transfer retries; when the remaining stock is below the
+requested amount, the remainder is sent as a partial final delivery and the
+order completes.
+
 ---
 
 ## 5. Winter Orders
@@ -229,6 +247,12 @@ line, applied in the entered order.
 | Place a noble in hostage status | `O N NNN` | `NNN` is an opposing prisoner held by the player | 0 |
 | Place a noble in the dungeon | `P N NNN` | `NNN` is an opposing prisoner held by the player | 0 |
 | Liberate a noble | `L N NNN` | `NNN` is held by the player; its owner's capital contains one of that owner's armies | 0 |
+| Transfer resources | `G XXX YYY N` | `XXX` is a castle or village controlled by the donor; `YYY` is a castle or village controlled by another player | 0 |
+
+A winter transfer is therefore not limited to the donor's own castles and
+villages: it can directly supply a structure controlled by the recipient. The
+debit still follows the usual rules and can use only the donor's payment
+reserves.
 
 ### Hostage and Dungeon
 
@@ -246,14 +270,17 @@ stock. An isolated (orphaned) mill produces nothing.
 ### Resource vocabulary
 
 - `R` means one unit of **stockable resource**: it sits in a territory's stock,
-  is produced by a source, and pays for investments;
+  is produced by a source, and pays for investments when held by a controlled
+  castle or village;
 - a **ration** is one food unit consumed during an action-season supply phase.
   Local rations are produced and distributed on the spot; they do not
   automatically become stock `R`;
 - **stock** is therefore the amount of `R` kept on a territory.
 
-Each controlled castle or village is a separate source. Every source produces
-`1 R` per turn independently of the others. A second castle is therefore a
+Each controlled castle or village is a separate source, and any controlled
+territory with positive stock is an action-season cache source. A bare territory
+has no production, but its local army consumes its stock before farther sources.
+Every castle or village source produces `1 R` per turn independently of the others. A second castle is therefore a
 second production and supply source, even though only one castle is designated
 as the capital. A mill is built only on an empty territory adjacent to a
 productive castle or village; it increases the production of **every** neighboring
@@ -276,15 +303,18 @@ rejected and neither unit is removed.
 
 **End of winter**:
 
-- each remaining stock is kept at `ceil(stock / 2)`;
-- stocks outside the capital are brought back to the capital, leaving at most
+- each remaining castle or village stock is kept at `ceil(stock / 2)`;
+- a supply depot keeps its stock in full;
+- stock outside a castle, village, or depot is lost;
+- castle and village stocks outside the capital are brought back to the capital, leaving at most
   **1 R per village** and **2 R per castle**;
-- without a capital, stocks remain where they are.
+- without a capital, those stocks remain where they are; depot stock remains on
+  its territory.
 
-There is no need to spend everything before winter ends: unspent stock is first
+Stock outside castles and villages cannot pay winter investments. There is no need to spend everything before winter ends: unspent stock is first
 conserved, then surplus is repatriated under these caps. A stock of 5 R therefore
 becomes 3 R with `ceil(5 / 2)`. Conservation and repatriation happen after
-investments, and a territory without a castle or village does not keep stock.
+investments, and a territory without a castle, village, or depot does not keep stock.
 For example, an outlying village keeps at most 1 R after conservation; its
 surplus goes to the capital, while an outlying castle may keep 2 R.
 
@@ -349,8 +379,8 @@ full demand.
 **Territory food production**: 1 ration on plain, forest, or hill; 0 ration on
 mountain or swamp; **+2 rations** when the territory has a castle or village.
 
-**Supply sources**: **controlled castles and villages**. A castle or village
-produces **1 R of stock per turn**. The flow crosses allied or neutral
+**Supply sources**: **controlled castles, villages, and caches**. A castle or
+village produces **1 R of stock per turn**; a bare cache produces nothing. The flow crosses allied or neutral
 territories and stops before an enemy territory. Base range is **3 territories**;
 each controlled supply depot encountered along the route adds **2 territories**.
 A neutral village keeps its stock, inaccessible to the player before capture.
@@ -369,8 +399,8 @@ the required source.
 
 When there is a deficit:
 
-1. stocks in controlled castles and villages are emptied (smallest first, with
-   the territorial trigram as tie-breaker);
+1. stocks in controlled castles, villages, and caches are emptied (smallest
+   first, with the territorial trigram as tie-breaker);
 2. remaining armies enter **famine**, starting with those furthest from their
    source, then the largest, then descending trigram.
 
@@ -389,7 +419,8 @@ at strength 0 this turn even though a 1-troop army would then demand only one
 ration.
 
 The endpoint `GET /api/supply?territory=XXX` previews an army's supply or the area
-reached from a controlled source (outside winter only).
+reached from a controlled source (outside winter only). With `&target=YYY`, it
+also estimates a transfer route and its blockers.
 
 ### Infrastructure
 

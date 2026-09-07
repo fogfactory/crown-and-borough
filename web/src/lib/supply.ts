@@ -6,7 +6,7 @@ export function hasSupplySource(territory: TerritoryState | undefined): boolean 
   const infrastructure = territory?.infrastructures[0]
   return Boolean(
     territory?.owner &&
-    infrastructure &&
-    SUPPLY_SOURCE_TYPES.includes(infrastructure.type),
+    ((infrastructure && SUPPLY_SOURCE_TYPES.includes(infrastructure.type)) ||
+      (territory.resources ?? 0) > 0),
   )
 }

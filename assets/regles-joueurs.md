@@ -111,8 +111,10 @@ BOI J ROS        # jonction (doit être le dernier ordre)
   à chaque résolution jusqu'à sa réussite ; un maintien en loop met l'armée en
   veille. Une erreur mécaniquement impossible casse toujours la chaîne.
 
-Un ordre dont la position et la cible ne sont pas adjacentes est rejeté lors de
-la soumission de la chaîne, sans réception partielle de la chaîne.
+Pour les ordres de mouvement, un ordre dont la position et la cible ne sont pas
+adjacentes est rejeté lors de la soumission de la chaîne, sans réception
+partielle de la chaîne. Le transfert `T` utilise à la place le réseau de
+ravitaillement.
 
 Une chaîne n'est pas limitée à une seule saison : une ligne réussie fait
 progresser l'index de la chaîne et la ligne suivante attend la résolution
@@ -152,6 +154,7 @@ noble. Aucun ne coûte de ressource en saison d'action.
 | `J` | `XXX J YYY` | Jonction pacifique vers `YYY` adjacente ; **doit être le dernier ordre**. |
 | `P` | `P XXX` | Pillage de l'infrastructure de la case occupée. |
 | `D` | `XXX D DEST1 DEST2 ...` | Dispersion pacifique à force 0 : les destinations sont traitées dans leur ordre d'apparition, peuvent se répéter et les troupes arrivant sur une même case sont empilées. |
+| `T` | `XXX T YYY N` | Transfert de `N` ressources vers un château, village ou une armée adverse via le réseau de ravitaillement. |
 
 ### Attaque (`A`) et jonction (`J`)
 
@@ -226,6 +229,23 @@ BRI D BRI ATL NOR          # BRI garde la chaîne, les autres groupes se sépare
 (BRI D ATL NOR)            # dispersion en boucle
 ```
 
+### Transfert (`T`)
+
+`XXX T YYY N` est exécuté après le ravitaillement par l'armée située en `XXX`.
+`YYY` doit être un château, un village ou la case d'une armée contrôlée par un
+autre joueur vivant ; un dépôt sans armée ne peut pas recevoir. Le stock de la
+case source peut exister sans infrastructure. La route suit la portée de
+ravitaillement du donneur (`3` cases, plus les dépôts contrôlés) et toute armée
+adverse sur une case intermédiaire la bloque ; l'armée adverse en destination
+est autorisée.
+
+Une armée affamée ne peut pas transférer. Le montant est plafonné à `2^(N - 1)`
+pour une armée de `N` troupes, sans déduire les rations locales. Elle ne fait
+aucun autre ordre pendant ce tour. Un manque de stock n'a aucun effet et ne
+casse pas la chaîne `single`. En `loop`, le transfert retente ; si le stock
+restant est inférieur au montant, le reliquat est envoyé par une livraison
+partielle et l'ordre se termine.
+
 ---
 
 ## 5. Ordres d'hiver
@@ -244,6 +264,12 @@ investissements directs, une ligne par ordre, appliqués dans l'ordre saisi.
 | Placer un noble en otage | `O N NNN` | `NNN` est un prisonnier adverse détenu par le joueur | 0 |
 | Placer un noble au donjon | `P N NNN` | `NNN` est un prisonnier adverse détenu par le joueur | 0 |
 | Libérer un noble | `L N NNN` | `NNN` est détenu par le joueur ; la capitale de son propriétaire contient une armée de celui-ci | 0 |
+| Transférer des ressources | `G XXX YYY N` | `XXX` est un château ou village contrôlé par le donneur ; `YYY` est un château ou village contrôlé par un autre joueur | 0 |
+
+Un transfert d'hiver ne se limite donc pas aux villages et châteaux du donneur :
+il peut alimenter directement une structure contrôlée par le joueur destinataire.
+Le débit, lui, suit les règles habituelles et ne peut utiliser que les réserves
+de paiement du donneur.
 
 ### Otage et donjon
 
@@ -264,13 +290,16 @@ conserve le stock de la case. Un moulin seul (orphelin) ne produit rien.
 
 - `R` désigne une unité de **ressource stockable** : elle se trouve dans le
   stock d'une case, est produite par une source et sert à payer les
-  investissements ;
+  investissements lorsqu'elle se trouve dans un château ou un village contrôlé ;
 - une **ration** est une unité de nourriture consommée pendant le
   ravitaillement d'une saison d'action. Les rations locales sont produites et
   distribuées sur place ; elles ne deviennent pas automatiquement du stock `R` ;
 - le **stock** est donc la quantité de `R` conservée sur une case.
 
-Une source est chaque château ou village contrôlé. Chaque source produit `1 R`
+Une source est chaque château ou village contrôlé, ainsi que toute case
+contrôlée qui contient un stock positif pendant une saison d'action. Une case
+ordinaire n'a pas de production, mais l'armée qui l'occupe consomme son stock
+local avant les sources plus éloignées. Chaque château ou village produit `1 R`
 par tour, indépendamment des autres sources. Un deuxième château est donc une
 deuxième source de production et de ravitaillement, même si un seul château
 reste désigné comme capitale. Un moulin est construit uniquement sur une case
@@ -295,16 +324,21 @@ construction est rejetée et aucun des 2 R n'est retiré.
 
 **Fin de l'hiver** :
 
-- chaque stock restant est conservé à hauteur de `ceil(stock / 2)` ;
-- les stocks hors capitale sont rapatriés vers la capitale, en laissant au
-  maximum **1 R par village** et **2 R par château** ;
-- sans capitale, les stocks restent sur place.
+- chaque stock restant d'un château ou village est conservé à hauteur de
+  `ceil(stock / 2)` ;
+- un dépôt de vivres conserve intégralement son stock ;
+- les stocks hors château, village et dépôt sont perdus ;
+- les stocks des châteaux et villages hors capitale sont rapatriés vers la
+  capitale, en laissant au maximum **1 R par village** et **2 R par château** ;
+- sans capitale, ces stocks restent sur place ; les stocks de dépôt restent sur
+  leur case.
 
-Il n'est pas nécessaire de tout dépenser avant la fin de l'hiver : le stock non
+Les stocks hors château et village ne peuvent pas payer les investissements
+d'hiver. Il n'est pas nécessaire de tout dépenser avant la fin de l'hiver : le stock non
 dépensé est d'abord conservé, puis le surplus est rapatrié selon ces plafonds.
 Un stock de 5 R devient donc 3 R avec `ceil(5 / 2)`. La conservation et le
-rapatriement sont effectués après les investissements, et une case sans château
-ni village ne conserve pas de stock. Exemple : un village hors capitale garde
+rapatriement sont effectués après les investissements, et une case sans château,
+village ou dépôt ne conserve pas de stock. Exemple : un village hors capitale garde
 au plus 1 R après conservation ; le surplus rejoint la capitale, tandis qu'un
 château hors capitale peut garder 2 R.
 
@@ -372,8 +406,9 @@ Exemple : une armée de 2 troupes sur une colline portant un château
 0 ration en montagne ou marécage ; **+2 rations** supplémentaires si la case
 porte un château ou un village.
 
-**Sources de ravitaillement** : les **châteaux et villages contrôlés**. Un
-château ou un village produit **1 R stockable par tour**. Le flux traverse les
+**Sources de ravitaillement** : les **châteaux, villages et caches contrôlés**.
+Un château ou un village produit **1 R stockable par tour** ; un cache ordinaire
+ne produit rien. Le flux traverse les
 cases alliées ou neutres et s'arrête devant une case ennemie. La portée de base
 est de **3 cases** ; chaque dépôt de vivres contrôlé rencontré sur le trajet
 ajoute **2 cases**. Un village neutre conserve son stock, inaccessible au joueur
@@ -393,8 +428,8 @@ vide, contrôlé et adjacent à la source requise.
 
 En cas de déficit :
 
-1. les stocks des châteaux et villages contrôlés sont épuisés (du plus petit au
-   plus grand, trigramme territorial en départage) ;
+1. les stocks des châteaux, villages et caches contrôlés sont épuisés (du plus
+   petit au plus grand, trigramme territorial en départage) ;
 2. les armées restantes passent en **famine**, en commençant par les plus
    éloignées de leur source, puis les plus grosses, puis le trigramme
    décroissant.
@@ -415,7 +450,8 @@ ration.
 
 L'endpoint `GET /api/supply?territory=XXX` permet de prévisualiser le
 ravitaillement d'une armée ou la zone atteinte depuis une source contrôlée
-(uniquement hors hiver).
+(uniquement hors hiver). Avec `&target=YYY`, il estime aussi la route d'un
+transfert et ses blocages.
 
 ### Infrastructures
 

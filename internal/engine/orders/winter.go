@@ -39,6 +39,30 @@ func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (mod
 		error := parseMessage(lineNumber, ParseCodeMissingTarget, "error.winter.order_shape")
 		return models.WinterOrder{}, &error
 	}
+	if fields[0] == "G" {
+		if len(fields) != 4 {
+			error := parseMessage(lineNumber, ParseCodeTooManyTargets, "error.winter.transfer_shape")
+			return models.WinterOrder{}, &error
+		}
+		sourceID, sourceError := winterTerritoryID(fields[1], lineNumber, indexes)
+		if sourceError != nil {
+			return models.WinterOrder{}, sourceError
+		}
+		targetID, targetError := winterTerritoryID(fields[2], lineNumber, indexes)
+		if targetError != nil {
+			return models.WinterOrder{}, targetError
+		}
+		amount, amountError := parsePositiveAmount(fields[3], lineNumber, "error.winter.transfer_amount")
+		if amountError != nil {
+			return models.WinterOrder{}, amountError
+		}
+		return models.WinterOrder{
+			Type:     models.WinterOrderTypeTransfer,
+			SourceID: sourceID,
+			TargetID: targetID,
+			Amount:   amount,
+		}, nil
+	}
 	if len(fields) > 3 {
 		error := parseMessage(lineNumber, ParseCodeTooManyTargets, "error.winter.target_only_one")
 		return models.WinterOrder{}, &error

@@ -398,6 +398,7 @@ type OrderReportView struct {
 	Source           models.TerritoryID
 	Target           models.TerritoryID
 	Targets          []models.TerritoryID
+	Amount           int
 	NobleAssignments map[models.TerritoryID][]models.NobleCode
 	Liaison          models.LiaisonMode
 	Outcome          engine.Outcome
@@ -425,6 +426,7 @@ func (view OrderReportView) MarshalJSON() ([]byte, error) {
 		Source           models.TerritoryID                        `json:"source"`
 		Target           models.TerritoryID                        `json:"target,omitempty"`
 		Targets          []models.TerritoryID                      `json:"targets,omitempty"`
+		Amount           int                                       `json:"amount,omitempty"`
 		NobleAssignments map[models.TerritoryID][]models.NobleCode `json:"nobleAssignments,omitempty"`
 		Liaison          models.LiaisonMode                        `json:"liaison"`
 		Outcome          engine.Outcome                            `json:"outcome"`
@@ -443,6 +445,7 @@ func (view OrderReportView) MarshalJSON() ([]byte, error) {
 		Source:           view.Source,
 		Target:           view.Target,
 		Targets:          view.Targets,
+		Amount:           view.Amount,
 		NobleAssignments: view.NobleAssignments,
 		Liaison:          view.Liaison,
 		Outcome:          view.Outcome,
@@ -593,6 +596,7 @@ func knownOrderReport(order engine.OrderReport) OrderReportView {
 		Source:           order.Source,
 		Target:           order.Target,
 		Targets:          append([]models.TerritoryID(nil), order.Targets...),
+		Amount:           order.Amount,
 		NobleAssignments: cloneNobleAssignments(order.NobleAssignments),
 		Liaison:          order.Liaison,
 		Outcome:          order.Outcome,

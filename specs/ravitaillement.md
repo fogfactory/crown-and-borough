@@ -12,6 +12,8 @@ décrite dans [`architecture.md`](architecture.md).
 - La production locale est consommée sur place, au plus une ration par armée
   et par tour.
 - Les châteaux et villages contrôlés sont des sources de ravitaillement.
+- Une case contrôlée qui contient un stock positif est également une source ;
+  l'armée présente consomme d'abord ce stock local.
 - Le flux traverse les cases alliées, neutres ou contrôlées par un autre joueur
   et ne s'arrête que devant une case occupée par une armée adverse. Un château,
   un village ou un dépôt adverse sans armée ne bloque pas le flux.
@@ -22,6 +24,12 @@ décrite dans [`architecture.md`](architecture.md).
   piller automatiquement une infrastructure située sur sa case.
 - Si le pillage est insuffisant ou impossible, l'armée perd une troupe, jusqu'à
   un minimum de 1 troupe ; elle reste affamée pour ce tour.
+
+Les stocks peuvent exister sur toute case pendant les tours d'action, notamment
+après un transfert. En hiver, ceux d'un château ou d'un village sont conservés
+à `ceil(stock / 2)`, ceux d'un dépôt de vivres intégralement, et les autres sont
+perdus. Les stocks hors château et village ne paient pas les investissements
+d'hiver.
 
 ## Périmètre
 
