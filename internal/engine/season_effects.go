@@ -24,6 +24,7 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 	ctx.bonusMillRegions = make(map[models.TerritoryID]int)
 	ctx.bonusRationRegions = make(map[models.TerritoryID]int)
 	effective := make(map[models.TerritoryID]map[models.CardKind]bool)
+	bonusEffects := make(map[models.TerritoryID]map[models.CardKind]bool)
 	intents := append([]deckOrderIntent(nil), ctx.deckIntents...)
 	sort.SliceStable(intents, func(i, j int) bool {
 		if intents[i].order.RegionSeed != intents[j].order.RegionSeed {
@@ -58,6 +59,10 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 		} else {
 			ctx.bonusMillRegions[seed]++
 			ctx.bonusRationRegions[seed]++
+			if bonusEffects[seed] == nil {
+				bonusEffects[seed] = make(map[models.CardKind]bool)
+			}
+			bonusEffects[seed][intent.order.Kind] = true
 			ctx.events = append(ctx.events, Event{Type: EventTypeBonusEffect, Phase: phaseForSeason(ctx.state.Season), CardKind: intent.order.Kind, RegionSeed: seed, Season: ctx.state.Season, Year: ctx.state.Year()})
 		}
 	}
@@ -72,6 +77,39 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 			case models.CardKindPlague:
 				applyPlague(ctx, calamity.RegionSeed)
 			}
+		}
+	}
+	activeEffects := make(map[models.TerritoryID]map[models.CardKind]bool)
+	for regionSeed, kinds := range active {
+		activeEffects[regionSeed] = make(map[models.CardKind]bool, len(kinds))
+		for kind := range kinds {
+			activeEffects[regionSeed][kind] = true
+		}
+	}
+	for regionSeed, kinds := range bonusEffects {
+		if activeEffects[regionSeed] == nil {
+			activeEffects[regionSeed] = make(map[models.CardKind]bool)
+		}
+		for kind := range kinds {
+			activeEffects[regionSeed][kind] = true
+		}
+	}
+	regionSeeds := make([]models.TerritoryID, 0, len(activeEffects))
+	for regionSeed := range activeEffects {
+		regionSeeds = append(regionSeeds, regionSeed)
+	}
+	sort.Slice(regionSeeds, func(i, j int) bool { return regionSeeds[i] < regionSeeds[j] })
+	ctx.state.ActiveRegionEffects = []models.ActiveRegionEffect{}
+	for _, regionSeed := range regionSeeds {
+		kinds := make([]models.CardKind, 0, len(activeEffects[regionSeed]))
+		for kind := range activeEffects[regionSeed] {
+			kinds = append(kinds, kind)
+		}
+		sort.Slice(kinds, func(i, j int) bool { return kinds[i] < kinds[j] })
+		for _, kind := range kinds {
+			ctx.state.ActiveRegionEffects = append(ctx.state.ActiveRegionEffects, models.ActiveRegionEffect{
+				Kind: kind, RegionSeed: regionSeed, Season: ctx.state.Season, Year: ctx.state.Year(),
+			})
 		}
 	}
 	for _, intent := range intents {

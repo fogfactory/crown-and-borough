@@ -34,25 +34,26 @@ type PrivacyMeta struct {
 // (GDD §2). TerritoryStates holds exactly one entry per territory (enforced by
 // Validate), so the engine never looks up a missing state.
 type GameState struct {
-	ID              string                         `json:"id"`
-	Seed            string                         `json:"seed"`
-	Turn            int                            `json:"turn"`
-	Season          Season                         `json:"season"`
-	YearCount       int                            `json:"yearCount"`
-	Players         []Player                       `json:"players"`
-	Territories     []Territory                    `json:"territories"`
-	Nobles          []Noble                        `json:"nobles"`
-	RemovedNobleIDs []NobleID                      `json:"removedNobleIds"`
-	Armies          []Army                         `json:"armies"`
-	Chains          []Chain                        `json:"chains"`
-	Privacy         *PrivacyMeta                   `json:"privacy,omitempty"`
-	NextChainID     int                            `json:"nextChainId"`
-	NextArmyID      int                            `json:"nextArmyId"`
-	Infrastructures []Infrastructure               `json:"infrastructures"`
-	TerritoryStates map[TerritoryID]TerritoryState `json:"territoryStates"`
-	Regions         []Region                       `json:"regions"`
-	SpecialDeck     *SpecialDeck                   `json:"specialDeck,omitempty"`
-	Auguries        map[int]YearAugury             `json:"auguries"`
+	ID                  string                         `json:"id"`
+	Seed                string                         `json:"seed"`
+	Turn                int                            `json:"turn"`
+	Season              Season                         `json:"season"`
+	YearCount           int                            `json:"yearCount"`
+	Players             []Player                       `json:"players"`
+	Territories         []Territory                    `json:"territories"`
+	Nobles              []Noble                        `json:"nobles"`
+	RemovedNobleIDs     []NobleID                      `json:"removedNobleIds"`
+	Armies              []Army                         `json:"armies"`
+	Chains              []Chain                        `json:"chains"`
+	Privacy             *PrivacyMeta                   `json:"privacy,omitempty"`
+	NextChainID         int                            `json:"nextChainId"`
+	NextArmyID          int                            `json:"nextArmyId"`
+	Infrastructures     []Infrastructure               `json:"infrastructures"`
+	TerritoryStates     map[TerritoryID]TerritoryState `json:"territoryStates"`
+	Regions             []Region                       `json:"regions"`
+	SpecialDeck         *SpecialDeck                   `json:"specialDeck,omitempty"`
+	Auguries            map[int]YearAugury             `json:"auguries"`
+	ActiveRegionEffects []ActiveRegionEffect           `json:"activeRegionEffects"`
 }
 
 // NewGameState returns a fresh empty state at turn 1, spring of year 1, with
@@ -73,12 +74,13 @@ func NewGameState() *GameState {
 			ChainKnowledge:      map[PlayerID]map[ChainID]ChainSnapshot{},
 			CombatParticipation: map[PlayerID]map[string]bool{},
 		},
-		NextChainID:     1,
-		NextArmyID:      1,
-		Infrastructures: []Infrastructure{},
-		TerritoryStates: map[TerritoryID]TerritoryState{},
-		Regions:         []Region{},
-		Auguries:        map[int]YearAugury{},
+		NextChainID:         1,
+		NextArmyID:          1,
+		Infrastructures:     []Infrastructure{},
+		TerritoryStates:     map[TerritoryID]TerritoryState{},
+		Regions:             []Region{},
+		Auguries:            map[int]YearAugury{},
+		ActiveRegionEffects: []ActiveRegionEffect{},
 	}
 }
 
@@ -509,6 +511,9 @@ func (g *GameState) Validate() error {
 		}
 	}
 	if err := validateSpecialDeck(g.SpecialDeck, g.Auguries, players); err != nil {
+		return err
+	}
+	if err := validateActiveRegionEffects(g.ActiveRegionEffects, g.Regions); err != nil {
 		return err
 	}
 	if err := validatePrivacy(g.Privacy, players); err != nil {
