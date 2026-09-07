@@ -213,8 +213,7 @@ func supplyNetwork(ctx *resolutionContext, sourceID models.TerritoryID, ownerID 
 			if _, visited := reachable[neighborID]; visited {
 				continue
 			}
-			state := ctx.state.TerritoryStates[neighborID]
-			if state.OwnerID != nil && *state.OwnerID != ownerID {
+			if army := ctx.startArmyAt(neighborID); army != nil && army.OwnerID != ownerID {
 				continue
 			}
 			remaining := current.remaining - 1

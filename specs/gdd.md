@@ -223,9 +223,11 @@ nationalités confondues, au plus une ration par armée et en commençant par la
 plus grosse. Le reste constitue la demande à ravitailler.
 
 Les châteaux et les villages contrôlés sont les sources de ravitaillement. Le
-flux traverse les cases alliées ou neutres et s'arrête devant une case ennemie.
-La portée de base est de 3 cases ; chaque dépôt de vivres contrôlé rencontré
-sur le trajet ajoute 2 cases.
+flux traverse les cases alliées, neutres ou contrôlées par un autre joueur et
+ne s'arrête que devant une case occupée par une armée adverse. Un château, un
+village ou un dépôt adverse sans armée ne bloque donc pas le flux. La portée de
+base est de 3 cases ; chaque dépôt de vivres contrôlé rencontré sur le trajet
+ajoute 2 cases.
 
 En cas de déficit :
 

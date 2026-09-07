@@ -12,8 +12,9 @@ décrite dans [`architecture.md`](architecture.md).
 - La production locale est consommée sur place, au plus une ration par armée
   et par tour.
 - Les châteaux et villages contrôlés sont des sources de ravitaillement.
-- Le flux traverse les cases alliées ou neutres et s'arrête devant une case
-  ennemie.
+- Le flux traverse les cases alliées, neutres ou contrôlées par un autre joueur
+  et ne s'arrête que devant une case occupée par une armée adverse. Un château,
+  un village ou un dépôt adverse sans armée ne bloque pas le flux.
 - La portée de base est de trois cases ; un dépôt contrôlé ajoute deux cases.
 - En déficit, les stocks sont épuisés puis les armées passent en famine selon
   la distance, la taille et le trigramme territorial.
