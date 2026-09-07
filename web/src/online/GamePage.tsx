@@ -377,6 +377,9 @@ export function GamePage() {
   )
   const selectedState =
     state?.territories.find((territory) => territory.id === selectedId) ?? null
+  const selectedRegion = map?.regions?.find((region) =>
+    region.territories.includes(selectedId ?? ''),
+  )
 
   useEffect(() => {
     if (
@@ -837,6 +840,7 @@ export function GamePage() {
                   state={state}
                   selectedTerritory={selectedTerritory}
                   selectedState={selectedState}
+                  selectedRegion={selectedRegion}
                   preferredPlayers={summary.players}
                   selectedSupplyLine={selectedSupplyLine}
                   sourceTerritory={sourceTerritory}

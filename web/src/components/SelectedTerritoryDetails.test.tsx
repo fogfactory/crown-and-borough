@@ -35,6 +35,7 @@ const map: MapData = {
       impassable: [],
     },
   ],
+  regions: [{ id: 'ROS', seed: 'ROS', territories: ['ROS'] }],
 }
 
 const state: StateData = {
@@ -105,6 +106,7 @@ describe('SelectedTerritoryDetails', () => {
         state={state}
         selectedTerritory={map.territories[0]}
         selectedState={state.territories[0]}
+        selectedRegion={map.regions?.[0]}
         preferredPlayers={[
           { id: 'P1', name: 'Alice' },
           { id: 'P2', name: 'Bob' },
@@ -118,6 +120,8 @@ describe('SelectedTerritoryDetails', () => {
 
     expect(screen.getByText('Capital of Alice')).toBeInTheDocument()
     expect(screen.getByText('Plain')).toBeInTheDocument()
+    expect(screen.getByText('Region')).toBeInTheDocument()
+    expect(screen.getByText('regional seat / card target: ROS')).toBeInTheDocument()
     expect(screen.getAllByText('Bob').length).toBeGreaterThan(0)
     expect(screen.getByText('2 troops')).toBeInTheDocument()
     expect(screen.getByText(/Source:/)).toBeInTheDocument()

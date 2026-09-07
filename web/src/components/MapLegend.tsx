@@ -1,5 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useLanguage } from '@/i18n/LanguageContext'
+import {
+  HERALDIC_COLORS,
+  REGION_PATTERNS,
+  REGION_PATTERN_BACKGROUNDS,
+} from '@/lib/region-color'
 import type { MessageKey } from '@/i18n/messages'
 import type { Terrain } from '@/types'
 
@@ -77,6 +82,33 @@ export function MapLegend({
           <div className="flex items-center gap-2 rounded-md bg-[#eef3f7] px-2 py-1.5">
             <span className="size-3 shrink-0 rotate-45 rounded-[2px] border-2 border-[#294c63] bg-[#4d7893]" />
             <span>{t('legend.regionSeed')}</span>
+          </div>
+        )}
+        {onToggleRegions && (
+          <div className="space-y-1 rounded-md bg-[#eef3f7] px-2 py-1.5" data-region-swatches>
+            <div className="flex flex-wrap gap-1.5" aria-hidden="true">
+              {HERALDIC_COLORS.map((color, index) => (
+                <span
+                  key={`region-color-${index}`}
+                  data-region-color={index}
+                  className="size-4 rounded-sm border border-[#1f3a4d]/40"
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-1.5" aria-hidden="true">
+              {REGION_PATTERNS.map((pattern) => (
+                <span
+                  key={`region-pattern-${pattern}`}
+                  data-region-pattern={pattern}
+                  className="size-4 rounded-sm border border-[#1f3a4d]/40"
+                  style={{
+                    backgroundColor: HERALDIC_COLORS[0],
+                    backgroundImage: REGION_PATTERN_BACKGROUNDS[pattern],
+                  }}
+                />
+              ))}
+            </div>
           </div>
         )}
         <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">

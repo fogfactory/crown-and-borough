@@ -11,6 +11,12 @@ import { TERRAIN_COLORS, TERRAIN_LABEL_KEYS } from '@/components/MapLegend'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
 import type { Intention } from '@/lib/intent-overlay'
+import {
+  REGION_PATTERNS,
+  regionStyle,
+  type RegionPattern,
+  type RegionStyle,
+} from '@/lib/region-color'
 import { hasSupplySource } from '@/lib/supply'
 import {
   Tooltip,
@@ -307,6 +313,37 @@ function NobleMarker({
   )
 }
 
+function RegionPatternDefinition({ pattern }: { pattern: RegionPattern }) {
+  const stroke = '#fffaf0'
+  const strokeWidth = 1.5
+
+  return (
+    <pattern
+      id={`region-pattern-${pattern}`}
+      width={pattern === 'diamonds' ? 12 : 8}
+      height={pattern === 'diamonds' ? 12 : 8}
+      patternUnits="userSpaceOnUse"
+    >
+      {pattern === 'diagonal' && (
+        <path d="M-2 2L2-2M0 8L8 0M6 10L10 6" stroke={stroke} strokeWidth={strokeWidth} />
+      )}
+      {pattern === 'vertical' && (
+        <path d="M2 0V8M6 0V8" stroke={stroke} strokeWidth={strokeWidth} />
+      )}
+      {pattern === 'horizontal' && (
+        <path d="M0 2H8M0 6H8" stroke={stroke} strokeWidth={strokeWidth} />
+      )}
+      {pattern === 'cross' && (
+        <path d="M2 0V8M6 0V8M0 2H8M0 6H8" stroke={stroke} strokeWidth={strokeWidth} />
+      )}
+      {pattern === 'dots' && <circle cx="2" cy="2" r="1.2" fill={stroke} />}
+      {pattern === 'diamonds' && (
+        <path d="M6 0L12 6L6 12L0 6Z" fill="none" stroke={stroke} strokeWidth={strokeWidth} />
+      )}
+    </pattern>
+  )
+}
+
 function IntentBadge({
   x,
   y,
@@ -506,9 +543,10 @@ export function MapViewer({
     }
     return result
   }, [map.regions])
-  const regionColors = ['#315a75', '#4d7893', '#396b83', '#668da4', '#294c63']
-  const regionColorByID = new Map(
-    [...new Set(regionByTerritory.values())].sort().map((regionID, index) => [regionID, regionColors[index % regionColors.length]]),
+  const regionStyleByID = new Map<string, RegionStyle>(
+    [...new Set(regionByTerritory.values())]
+      .sort()
+      .map((regionID, index, regionIDs) => [regionID, regionStyle(index, regionIDs.length)]),
   )
 
   const isRegionBoundary = (key: string) => {
@@ -527,14 +565,17 @@ export function MapViewer({
     if (end < 0) return '#607d8b'
     try {
       const [first] = JSON.parse(key.slice(0, end + 1)) as [string, string]
-      return regionColorByID.get(regionByTerritory.get(first) ?? '') ?? '#607d8b'
+      return regionStyleByID.get(regionByTerritory.get(first) ?? '')?.fill ?? '#315a75'
     } catch {
       return '#607d8b'
     }
   }
 
   const regionColorForTerritory = (territoryID: string) =>
-    regionColorByID.get(regionByTerritory.get(territoryID) ?? '') ?? '#315a75'
+    regionStyleByID.get(regionByTerritory.get(territoryID) ?? '')?.fill ?? '#315a75'
+
+  const regionStyleForTerritory = (territoryID: string): RegionStyle | null =>
+    regionStyleByID.get(regionByTerritory.get(territoryID) ?? '') ?? null
 
   const colorsByPlayer = new Map(state.players.map((player) => [player.id, player.color]))
   const owners = Array.from(
@@ -776,6 +817,9 @@ export function MapViewer({
                   strokeOpacity="0.5"
                 />
               </pattern>
+              {REGION_PATTERNS.map((pattern) => (
+                <RegionPatternDefinition key={pattern} pattern={pattern} />
+              ))}
               <marker
                 id="intent-arrow-outline"
                 viewBox="0 0 10 10"
@@ -896,16 +940,30 @@ export function MapViewer({
 
             {showRegions && (map.regions?.length ?? 0) > 0 && (
               <g aria-label={t('map.regions')} pointerEvents="none">
-                {map.territories.map((territory) => (
-                  <path
-                    key={`region-fill-${territory.id}`}
-                    data-region-fill={regionByTerritory.get(territory.id)}
-                    d={pointsToPath(territory.points)}
-                    fill={regionColorForTerritory(territory.id)}
-                    fillOpacity="0.16"
-                    stroke="none"
-                  />
-                ))}
+                {map.territories.map((territory) => {
+                  const style = regionStyleForTerritory(territory.id)
+                  if (!style) return null
+                  return (
+                    <g key={`region-fill-${territory.id}`}>
+                      <path
+                        data-region-fill={regionByTerritory.get(territory.id)}
+                        d={pointsToPath(territory.points)}
+                        fill={style.fill}
+                        fillOpacity="0.30"
+                        stroke="none"
+                      />
+                      {style.pattern && (
+                        <path
+                          data-region-pattern={style.pattern}
+                          d={pointsToPath(territory.points)}
+                          fill={`url(#region-pattern-${style.pattern})`}
+                          fillOpacity="0.72"
+                          stroke="none"
+                        />
+                      )}
+                    </g>
+                  )
+                })}
                 {outerBorders.map((border) => (
                   <g key={`region-outer-${border.key}`}>
                     <line

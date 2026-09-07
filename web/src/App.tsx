@@ -206,6 +206,9 @@ function AppContent() {
   const selectedState = state?.territories.find(
     (territory) => territory.id === selectedId,
   )
+  const selectedRegion = map?.regions?.find((region) =>
+    region.territories.includes(selectedId ?? ''),
+  )
   const supplySelectionAllowed =
     (supplyLine?.kind === 'army' && Boolean(selectedState?.army)) ||
     (supplyLine?.kind === 'source' &&
@@ -733,6 +736,7 @@ function AppContent() {
                     state={state}
                     selectedTerritory={selectedTerritory}
                     selectedState={selectedState}
+                    selectedRegion={selectedRegion}
                     selectedSupplyLine={selectedSupplyLine}
                     sourceTerritory={supplySourceTerritory}
                     supplyLoading={supplyLoading}

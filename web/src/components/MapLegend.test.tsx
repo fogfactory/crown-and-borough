@@ -67,5 +67,7 @@ describe('MapLegend', () => {
     )
     fireEvent.click(screen.getByLabelText('Régions'))
     expect(onToggle).toHaveBeenCalledWith(true)
+    expect(document.querySelectorAll('[data-region-color]').length).toBe(6)
+    expect(document.querySelectorAll('[data-region-pattern]').length).toBe(6)
   })
 })
