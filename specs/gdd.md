@@ -139,8 +139,18 @@ qualifiée :
 - une frontière infranchissable reste visible mais ne permet pas le passage ;
 - il n'existe pas de liaison artificielle sans frontière commune ;
 - le graphe franchissable est connexe ;
+- le graphe franchissable ne contient aucun point d'articulation : toute paire
+  de territoires, et donc toute paire de lieux-dits (châteaux de départ ou
+  villages neutres), est reliée par au moins deux chemins sans territoire
+  intermédiaire commun ;
 - le degré franchissable de chaque territoire est compris entre 2 et le maximum
   du terrain : 3 en montagne, marécage ou colline, 5 en plaine ou forêt.
+
+Lors de l'élagage des frontières, une frontière montagne/montagne ou
+montagne/marécage est supprimée avec une probabilité de 50 %. Les autres
+frontières non plain/plain ont une probabilité de suppression de 15 % et les
+frontières plain/plain restent franchissables ; aucune suppression n'est
+acceptée si elle crée un point d'articulation ou rompt la connexité.
 
 Les armées se déplacent d'une case adjacente au plus par résolution, quelle que
 soit la nature du terrain. Le terrain influence la production de rations et les
