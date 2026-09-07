@@ -584,6 +584,9 @@ export function GamePage() {
   const transferTarget = transferTargets.includes(selectedTransferTarget ?? '')
     ? selectedTransferTarget
     : (transferTargets[0] ?? null)
+  const selectedRegion = map?.regions?.find((region) =>
+    region.territories.includes(selectedId ?? ''),
+  )
 
   useEffect(() => {
     if (
@@ -811,16 +814,11 @@ export function GamePage() {
                   text: addNobleHeader(noble.code, chainDrafts[noble.code] ?? ''),
                 }))
                 .filter((chain) => hasChainContent(chain.noble, chain.text))
-        const winterLines = [
-          winterDraft,
-          state.season === 'winter' ? specialDraft : '',
-        ]
+        const winterLines = [winterDraft, state.season === 'winter' ? specialDraft : '']
           .filter((text) => text.trim() !== '')
           .join('\n')
         const winter =
-          state.season === 'winter' && winterLines !== ''
-            ? [{ lines: winterLines }]
-            : []
+          state.season === 'winter' && winterLines !== '' ? [{ lines: winterLines }] : []
         const special =
           state.season !== 'winter' && specialDraft.trim() !== ''
             ? [{ text: specialDraft }]
@@ -1149,6 +1147,7 @@ export function GamePage() {
                 state={state}
                 selectedTerritory={selectedTerritory}
                 selectedState={selectedState}
+                selectedRegion={selectedRegion}
                 preferredPlayers={summary.players}
                 mapTerritories={map.territories}
                 selectedSupplyLine={selectedSupplyLine}

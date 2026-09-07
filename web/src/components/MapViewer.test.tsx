@@ -216,6 +216,7 @@ describe('MapViewer territorial overlays', () => {
 
     expect(svg.querySelector('g[aria-label="Regional boundaries"]')).toBeInTheDocument()
     expect(svg.querySelectorAll('[data-region-fill]').length).toBe(2)
+    expect(svg.querySelector('[data-region-fill]')?.getAttribute('fill-opacity')).toBe('0.30')
     expect(svg.querySelectorAll('[data-region-boundary="true"]').length).toBeGreaterThan(0)
     expect(svg.querySelectorAll('[data-region-seed]').length).toBe(2)
     expect(svg.querySelector('[data-region-seed="ROS"]')).toBeInTheDocument()

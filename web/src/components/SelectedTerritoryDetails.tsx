@@ -3,7 +3,14 @@ import type { MessageKey } from '@/i18n/messages'
 import { formatOrderLabel } from '@/lib/order-label'
 import { playerDisplayName, type PlayerName } from '@/lib/player-label'
 import { hasSupplySource } from '@/lib/supply'
-import type { MapData, PlayerId, StateData, SupplyLine, TransferLine } from '@/types'
+import type {
+  MapData,
+  PlayerId,
+  Region,
+  StateData,
+  SupplyLine,
+  TransferLine,
+} from '@/types'
 
 const TERRAIN_LABEL_KEYS: Record<MapData['territories'][number]['terrain'], MessageKey> =
   {
@@ -31,6 +38,7 @@ interface SelectedTerritoryDetailsProps {
   state: StateData | null
   selectedTerritory: MapTerritory | null | undefined
   selectedState: TerritoryState | null | undefined
+  selectedRegion?: Region | null
   preferredPlayers?: readonly PlayerName[]
   mapTerritories?: readonly MapTerritory[]
   selectedSupplyLine: SupplyLine | null
@@ -49,6 +57,7 @@ export function SelectedTerritoryDetails({
   state,
   selectedTerritory,
   selectedState,
+  selectedRegion,
   preferredPlayers,
   mapTerritories = [],
   selectedSupplyLine,
@@ -120,6 +129,17 @@ export function SelectedTerritoryDetails({
         <dd className="font-medium">
           {t(TERRAIN_LABEL_KEYS[selectedTerritory.terrain])}
         </dd>
+        {selectedRegion && (
+          <>
+            <dt className="text-[#806f57]">{t('app.region')}</dt>
+            <dd className="font-medium">
+              <span>{selectedRegion.seed}</span>
+              <span className="ml-2 text-xs font-semibold text-[#684b7d]">
+                {t('app.regionSeedLabel', { seed: selectedRegion.seed })}
+              </span>
+            </dd>
+          </>
+        )}
         {selectedState && (
           <>
             <dt className="text-[#806f57]">{t('app.control')}</dt>
