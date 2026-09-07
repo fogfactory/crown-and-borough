@@ -32,9 +32,6 @@ func ParseDeckOrders(text string, game *models.GameState) ([]models.DeckOrder, [
 
 func parseDeckOrderLine(line string, lineNumber int, game *models.GameState) (models.DeckOrder, *ParseError) {
 	fields := strings.Fields(line)
-	if len(fields) == 2 && fields[0] == "T" && fields[1] == "C" {
-		return models.DeckOrder{Type: models.DeckOrderTypeDraw}, nil
-	}
 	if len(fields) < 3 {
 		error := parseMessage(lineNumber, ParseCodeMissingTarget, i18n.DeckOrderShape)
 		return models.DeckOrder{}, &error

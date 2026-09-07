@@ -290,6 +290,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
   const orders = report.orders ?? []
   const winterInvestments = report.winter?.investments ?? []
   const winterStocks = report.winter?.stocks ?? []
+  const rumors = report.rumors ?? report.winter?.rumors ?? []
 
   return (
     <section className="min-w-0 space-y-4">
@@ -514,13 +515,13 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
         </div>
       )}
 
-      {report.winter?.rumors && report.winter.rumors.length > 0 && (
+      {rumors.length > 0 && (
         <div className="space-y-2 rounded-lg border border-[#c8b0d9] bg-[#fbf5ff] p-3">
           <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#684b7d]">
             {t('reports.rumors')}
           </h4>
           <ul className="space-y-1 text-sm text-[#684b7d]">
-            {report.winter.rumors.map((rumor, index) => (
+            {rumors.map((rumor, index) => (
               <li key={`${rumor.key}-${index}`}>{t(rumor.key as MessageKey)}</li>
             ))}
           </ul>

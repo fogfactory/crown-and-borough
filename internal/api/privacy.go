@@ -382,6 +382,7 @@ type TurnReportView struct {
 	Orders     []OrderReportView        `json:"orders"`
 	Moves      []engine.MoveReport      `json:"moves"`
 	Nobles     []engine.NobleReport     `json:"nobles"`
+	Rumors     []engine.RumorReport     `json:"rumors"`
 	Winter     *engine.WinterReport     `json:"winter,omitempty"`
 }
 
@@ -526,6 +527,7 @@ func projectReport(report engine.TurnReport, viewer models.PlayerID, privacy *mo
 		Orders:     make([]OrderReportView, 0, len(report.Orders)),
 		Moves:      append([]engine.MoveReport{}, report.Moves...),
 		Nobles:     append([]engine.NobleReport{}, report.Nobles...),
+		Rumors:     append([]engine.RumorReport{}, report.Rumors...),
 		Winter:     report.Winter,
 	}
 	for _, order := range report.Orders {

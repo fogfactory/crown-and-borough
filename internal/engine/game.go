@@ -440,12 +440,13 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 			inputErrors.Errors = append(inputErrors.Errors, newInputError(submission.Player, "", 0, "unknown_player", i18n.ErrorUnknownPlayer, submission.Player))
 			continue
 		}
-		parsed, parseErrors := orders.ParseWinterOrders(submission.Lines, game)
+		parsed, parsedDeck, parseErrors := orders.ParseWinterOrdersWithDeckOrders(submission.Lines, game)
 		for _, parseError := range parseErrors {
 			inputErrors.Errors = append(inputErrors.Errors, newInputError(submission.Player, "", parseError.Line, "parse_"+parseError.Code, parseError.MessageKey, parseError.MessageArgs...))
 		}
 		if len(parseErrors) == 0 {
 			winterOrders[submission.Player] = append(winterOrders[submission.Player], parsed...)
+			deckOrders[submission.Player] = append(deckOrders[submission.Player], parsedDeck...)
 		}
 	}
 	for _, submission := range input.Special {
@@ -554,7 +555,7 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 		return TurnReport{}, fmt.Errorf("engine: resolve turn: invalid advanced result: %w", err)
 	}
 
-	report := BuildTurnReport(working, result, resolution.Events, receptions)
+	report := BuildTurnReportWithHandLimit(working, result, resolution.Events, receptions, balance.SpecialOrders.HandLimit)
 	report.State = result
 	return report, nil
 }

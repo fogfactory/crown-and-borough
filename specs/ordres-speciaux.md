@@ -25,14 +25,17 @@ et sa région ; les augures futures restent cachées.
 
 ## Syntaxe des ordres
 
-Les ordres du deck sont soumis dans un champ `special` distinct des chaînes de
-nobles et des investissements d'hiver. Aucun noble n'est requis :
+Les ordres jouables du deck sont soumis dans un champ `special`, distinct des
+chaînes de nobles. Les défausses d'hiver font partie de la feuille `winter`.
+Aucun noble n'est requis :
 
 - `D C BT` ou `D C RA` abandonne une carte bonus, en hiver uniquement ;
-- `T C` tire une carte, en hiver uniquement ;
 - `P BT TER` joue Beau temps au printemps, en été ou en automne ;
 - `P RA TER` joue Récolte abondante au printemps, en été ou en automne ;
 - `P RE TER` joue Révolte pendant ces saisons si une famine affecte la région cible.
+
+La main est reconstituée automatiquement en hiver après les défausses, selon la
+limite de remplissage de la balance. Aucun ordre de pioche n'est nécessaire.
 
 Les cartes jouées sont consommées puis leurs effets sont appliqués avant le
 ravitaillement et la résolution simultanée des ordres d'armée.
@@ -46,13 +49,14 @@ une résolution simultanée par région.
 
 ## Rumeurs publiques
 
-Lorsqu'au moins deux joueurs ont tiré des cartes pendant l'hiver, une sélection
-déterministe peut produire des rumeurs publiques. Les rumeurs sont regroupées
-par kind : plusieurs rumeurs du même kind ne sont jamais répétées dans le
-rapport, mais augmentent le niveau sémantique de la phrase (niveau 1, 2 ou 3).
-Les niveaux sont recalés sur la capacité maximale de pioche de la partie, soit
-le nombre de joueurs multiplié par la limite de tirages par joueur. Une rumeur
-ne révèle ni le joueur concerné ni l'identifiant interne de la carte.
+Les rumeurs publiques sont recalculées dans chaque rapport à partir des mains
+bonus actuelles de tous les joueurs. Elles apparaissent lorsqu'au moins deux
+joueurs ont une carte en main. Les rumeurs sont regroupées par kind : plusieurs
+cartes du même kind ne sont jamais répétées dans le rapport, mais augmentent le
+niveau sémantique de la phrase (niveau 1, 2 ou 3). Les niveaux sont recalés sur
+la capacité de main de la partie, soit le nombre de joueurs multiplié par la
+limite de main. Une rumeur ne révèle ni le joueur concerné ni l'identifiant
+interne de la carte.
 
 ## Effets des calamités et de la révolte
 

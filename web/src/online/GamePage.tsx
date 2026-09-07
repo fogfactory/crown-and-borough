@@ -551,11 +551,20 @@ export function GamePage() {
                   text: addNobleHeader(noble.code, chainDrafts[noble.code] ?? ''),
                 }))
                 .filter((chain) => hasChainContent(chain.noble, chain.text))
+        const winterLines = [
+          winterDraft,
+          state.season === 'winter' ? specialDraft : '',
+        ]
+          .filter((text) => text.trim() !== '')
+          .join('\n')
         const winter =
-          state.season === 'winter' && winterDraft.trim() !== ''
-            ? [{ lines: winterDraft }]
+          state.season === 'winter' && winterLines !== ''
+            ? [{ lines: winterLines }]
             : []
-        const special = specialDraft.trim() !== '' ? [{ text: specialDraft }] : []
+        const special =
+          state.season !== 'winter' && specialDraft.trim() !== ''
+            ? [{ text: specialDraft }]
+            : []
         response = await apiRequest<OrdersResponse>(
           { getIdToken },
           `/api/games/${encodeURIComponent(gameId)}/orders`,

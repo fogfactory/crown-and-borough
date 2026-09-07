@@ -73,6 +73,12 @@ export function MapLegend({
             <span>{t('legend.regions')}</span>
           </label>
         )}
+        {onToggleRegions && (
+          <div className="flex items-center gap-2 rounded-md bg-[#eef3f7] px-2 py-1.5">
+            <span className="size-3 shrink-0 rotate-45 rounded-[2px] border-2 border-[#294c63] bg-[#4d7893]" />
+            <span>{t('legend.regionSeed')}</span>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
           {TERRAIN_ORDER.map((terrain) => (
             <div key={terrain} className="flex items-center gap-2">

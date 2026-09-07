@@ -48,6 +48,8 @@ describe('OrdersPanel seasonal presentation', () => {
     expect(heading.querySelector('svg')).toBeInTheDocument()
     expect(screen.getByText(/Investissements directs uniquement/)).toBeInTheDocument()
     expect(screen.getByText(/sans chaînes ni mouvements militaires/)).toBeInTheDocument()
+    expect(screen.queryByLabelText('Ordres de cartes spéciales')).not.toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/D C BT/)).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: "Soumettre les ordres d'hiver" }),
     ).toBeInTheDocument()
@@ -123,6 +125,35 @@ describe('OrdersPanel seasonal presentation', () => {
     ], 'P BT ROS')
 
     expect(screen.getByRole('button', { name: 'Soumettre' })).not.toBeDisabled()
+  })
+
+  it('shows short card labels and aggregates duplicate cards', () => {
+    const handState: StateData = {
+      ...state,
+      season: 'spring',
+      specialHand: ['fair_weather', 'abundant_harvest', 'fair_weather'],
+    }
+    render(
+      <LanguageProvider initialLanguage="fr">
+        <OrdersPanel
+          state={handState}
+          player="P1"
+          chainDrafts={{}}
+          winterDraft=""
+          specialDraft=""
+          submitted={false}
+          submitting={false}
+          error={null}
+          onChainChange={vi.fn()}
+          onWinterChange={vi.fn()}
+          onSpecialChange={vi.fn()}
+          onSubmit={vi.fn()}
+          onOpenRules={vi.fn()}
+        />
+      </LanguageProvider>,
+    )
+
+    expect(screen.getByText(/Beau temps \(BT\)x2, Bonne récolte \(RA\)/)).toBeInTheDocument()
   })
 
   it('targets the winter rules section from the winter shortcut', () => {

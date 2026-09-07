@@ -111,7 +111,6 @@ type DeckOrderType string
 
 const (
 	DeckOrderTypeDiscard DeckOrderType = "discard_card"
-	DeckOrderTypeDraw    DeckOrderType = "draw_card"
 	DeckOrderTypePlay    DeckOrderType = "play_card"
 )
 
@@ -123,7 +122,7 @@ type DeckOrder struct {
 }
 
 func (t DeckOrderType) IsValid() bool {
-	return t == DeckOrderTypeDiscard || t == DeckOrderTypeDraw || t == DeckOrderTypePlay
+	return t == DeckOrderTypeDiscard || t == DeckOrderTypePlay
 }
 
 // PendingDisperse records unresolved branches of a looped dispersion after

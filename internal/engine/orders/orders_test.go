@@ -72,6 +72,20 @@ ros j boi
 	}
 }
 
+func TestParseWinterOrdersWithDeckDiscards(t *testing.T) {
+	game := orderTestState()
+	winter, deck, parseErrors := ParseWinterOrdersWithDeckOrders("R T ROS\nD C BT # discard", game)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseWinterOrdersWithDeckOrders errors = %#v", parseErrors)
+	}
+	if len(winter) != 1 || winter[0].Type != models.WinterOrderTypeRecruitTroop {
+		t.Fatalf("winter orders = %#v, want one troop recruitment", winter)
+	}
+	if len(deck) != 1 || deck[0].Type != models.DeckOrderTypeDiscard || deck[0].Kind != models.CardKindFairWeather {
+		t.Fatalf("deck orders = %#v, want one fair-weather discard", deck)
+	}
+}
+
 func TestParseChainWildcardAssignmentsAndPartialResults(t *testing.T) {
 	game := orderTestState()
 	chain, parseErrors := ParseChain(`

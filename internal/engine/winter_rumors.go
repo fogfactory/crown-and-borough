@@ -1,42 +1,37 @@
 package engine
 
 import (
-	"crypto/sha256"
-	"encoding/binary"
 	"fmt"
-	"math/rand/v2"
 	"sort"
 
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
-func emitWinterRumors(ctx *resolutionContext) {
-	players := make([]models.PlayerID, 0)
-	for playerID, kinds := range ctx.deckDraws {
-		if len(kinds) > 0 {
-			players = append(players, playerID)
-		}
+func currentHandRumorEvents(state *models.GameState, handLimit int) []Event {
+	if state == nil || state.SpecialDeck == nil {
+		return nil
 	}
-	if len(players) < 2 {
-		return
-	}
-	sort.Slice(players, func(i, j int) bool { return players[i] < players[j] })
+	playersWithCards := 0
 	rumorCounts := make(map[models.CardKind]int)
-	index := 0
-	for _, playerID := range players {
-		for _, kind := range ctx.deckDraws[playerID] {
-			if newRumorRNG(ctx.state.Seed, ctx.state.Turn, index).IntN(2) != 0 {
-				index++
-				continue
+	for _, player := range state.Players {
+		hand := state.SpecialDeck.Hands[player.ID]
+		if len(hand) > 0 {
+			playersWithCards++
+		}
+		for _, cardID := range hand {
+			kind := cardKind(state.SpecialDeck, cardID)
+			if kind.IsBonus() {
+				rumorCounts[kind]++
 			}
-			rumorCounts[kind]++
-			index++
 		}
 	}
-	ctx.events = append(ctx.events, rumorEvents(rumorCounts, len(ctx.state.Players), ctx.balance.SpecialOrders.DrawOrdersLimit)...)
+	if playersWithCards < 2 {
+		return nil
+	}
+	return rumorEvents(rumorCounts, len(state.Players), handLimit)
 }
 
-func rumorEvents(counts map[models.CardKind]int, playerCount, drawLimit int) []Event {
+func rumorEvents(counts map[models.CardKind]int, playerCount, handLimit int) []Event {
 	kinds := make([]models.CardKind, 0, len(counts))
 	for kind, count := range counts {
 		if count > 0 {
@@ -47,7 +42,7 @@ func rumorEvents(counts map[models.CardKind]int, playerCount, drawLimit int) []E
 
 	events := make([]Event, 0, len(kinds))
 	for _, kind := range kinds {
-		level := rumorLevel(counts[kind], playerCount, drawLimit)
+		level := rumorLevel(counts[kind], playerCount, handLimit)
 		events = append(events, Event{
 			Type:       EventTypeRumor,
 			Phase:      winterPhase,
@@ -59,11 +54,11 @@ func rumorEvents(counts map[models.CardKind]int, playerCount, drawLimit int) []E
 	return events
 }
 
-func rumorLevel(count, playerCount, drawLimit int) int {
+func rumorLevel(count, playerCount, handLimit int) int {
 	if count <= 0 {
 		return 0
 	}
-	capacity := playerCount * drawLimit
+	capacity := playerCount * handLimit
 	if capacity < 1 {
 		return 1
 	}
@@ -76,9 +71,4 @@ func rumorLevel(count, playerCount, drawLimit int) int {
 
 func rumorKey(kind models.CardKind, level int) string {
 	return fmt.Sprintf("rumor.%s.level%d", kind, level)
-}
-
-func newRumorRNG(seed string, turn, index int) *rand.Rand {
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s|winter-rumor|%d|%d", seed, turn, index)))
-	return rand.New(rand.NewPCG(binary.BigEndian.Uint64(digest[:8]), binary.BigEndian.Uint64(digest[8:16])))
 }

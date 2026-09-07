@@ -70,11 +70,13 @@ liste d'investissements directs, traités dans l'ordre saisi :
 `XXX` est le trigramme du territoire ciblé, sauf pour `O N`, `P N` et `L N`,
 qui ciblent un noble.
 
-La soumission `special` est distincte de la feuille `winter` : elle contient
-les ordres du deck, sans noble requis. `P KIND TER` est autorisé au printemps,
-en été et en automne ;
-`D C KIND` et `T C` sont réservés à l’hiver. La limite de main, la limite de
-tirages, la taille et la composition du deck, ainsi que les capacités des slots
+La feuille `winter` peut contenir `D C KIND` pour défausser une carte bonus,
+sans noble requis. La main est ensuite reconstituée automatiquement jusqu'à la
+limite de cartes, dans la limite de remplissage prévue par la balance. La
+soumission `special` reste distincte pour les cartes jouables : `P KIND TER` est
+autorisé au printemps, en été et en automne. Il n'existe pas d'ordre `T C`. La
+limite de main, le remplissage automatique, la taille et la composition du deck,
+ainsi que les capacités des slots
 de calamité, sont chargées depuis `assets/balance.yaml`. La génération initiale du deck est déterministe à partir
 de la seed de partie. Au printemps, l’augure révèle le kind, la saison et la
 région de toutes les calamités de l’année ; les augures futures restent cachées.

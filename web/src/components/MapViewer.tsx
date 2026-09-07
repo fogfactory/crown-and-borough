@@ -506,7 +506,7 @@ export function MapViewer({
     }
     return result
   }, [map.regions])
-  const regionColors = ['#607d8b', '#78909c', '#546e7a', '#90a4ae', '#455a64']
+  const regionColors = ['#315a75', '#4d7893', '#396b83', '#668da4', '#294c63']
   const regionColorByID = new Map(
     [...new Set(regionByTerritory.values())].sort().map((regionID, index) => [regionID, regionColors[index % regionColors.length]]),
   )
@@ -532,6 +532,9 @@ export function MapViewer({
       return '#607d8b'
     }
   }
+
+  const regionColorForTerritory = (territoryID: string) =>
+    regionColorByID.get(regionByTerritory.get(territoryID) ?? '') ?? '#315a75'
 
   const colorsByPlayer = new Map(state.players.map((player) => [player.id, player.color]))
   const owners = Array.from(
@@ -893,11 +896,67 @@ export function MapViewer({
 
             {showRegions && (map.regions?.length ?? 0) > 0 && (
               <g aria-label={t('map.regions')} pointerEvents="none">
+                {map.territories.map((territory) => (
+                  <path
+                    key={`region-fill-${territory.id}`}
+                    data-region-fill={regionByTerritory.get(territory.id)}
+                    d={pointsToPath(territory.points)}
+                    fill={regionColorForTerritory(territory.id)}
+                    fillOpacity="0.16"
+                    stroke="none"
+                  />
+                ))}
                 {outerBorders.map((border) => (
-                  <line key={`region-outer-${border.key}`} x1={border.from[0]} y1={border.from[1]} x2={border.to[0]} y2={border.to[1]} stroke="#607d8b" strokeWidth="3" strokeDasharray="8 5" vectorEffect="non-scaling-stroke" />
+                  <g key={`region-outer-${border.key}`}>
+                    <line
+                      x1={border.from[0]}
+                      y1={border.from[1]}
+                      x2={border.to[0]}
+                      y2={border.to[1]}
+                      stroke="#fffaf0"
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                    <line
+                      data-region-boundary="true"
+                      x1={border.from[0]}
+                      y1={border.from[1]}
+                      x2={border.to[0]}
+                      y2={border.to[1]}
+                      stroke="#294c63"
+                      strokeWidth="4"
+                      strokeDasharray="12 7"
+                      strokeLinecap="round"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  </g>
                 ))}
                 {sharedBorders.filter((border) => isRegionBoundary(border.key)).map((border) => (
-                  <line key={`region-${border.key}`} x1={border.from[0]} y1={border.from[1]} x2={border.to[0]} y2={border.to[1]} stroke={regionColorForBoundary(border.key)} strokeWidth="3" strokeDasharray="8 5" vectorEffect="non-scaling-stroke" />
+                  <g key={`region-${border.key}`}>
+                    <line
+                      x1={border.from[0]}
+                      y1={border.from[1]}
+                      x2={border.to[0]}
+                      y2={border.to[1]}
+                      stroke="#fffaf0"
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                    <line
+                      data-region-boundary="true"
+                      x1={border.from[0]}
+                      y1={border.from[1]}
+                      x2={border.to[0]}
+                      y2={border.to[1]}
+                      stroke={regionColorForBoundary(border.key)}
+                      strokeWidth="4"
+                      strokeDasharray="12 7"
+                      strokeLinecap="round"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  </g>
                 ))}
               </g>
             )}
@@ -1197,6 +1256,58 @@ export function MapViewer({
                 )
               })}
             </g>
+
+            {showRegions && (map.regions?.length ?? 0) > 0 && (
+              <g aria-label={t('map.regionSeeds')} pointerEvents="none">
+                {map.regions?.map((region) => {
+                  const seedTerritory = map.territories.find(
+                    (territory) => territory.id === region.seed,
+                  )
+                  if (!seedTerritory) return null
+                  const [centerX, centerY] = centroid(seedTerritory.points)
+                  const markerY = centerY - 25 * annotationScale
+                  const color = regionColorForTerritory(region.seed)
+                  return (
+                    <g
+                      key={`region-seed-${region.seed}`}
+                      data-region-seed={region.seed}
+                      transform={`translate(${centerX} ${markerY})`}
+                    >
+                      <title>
+                        {t('map.regionSeedMarker', { seed: region.seed, name: seedTerritory.name })}
+                      </title>
+                      <circle
+                        r={18 * annotationScale}
+                        fill="#fffaf0"
+                        fillOpacity="0.96"
+                        stroke="#1f3a4d"
+                        strokeWidth={3 * annotationScale}
+                        vectorEffect="non-scaling-stroke"
+                      />
+                      <path
+                        d={`M 0 ${-11 * annotationScale} L ${11 * annotationScale} 0 L 0 ${11 * annotationScale} L ${-11 * annotationScale} 0 Z`}
+                        fill={color}
+                        stroke="#fffaf0"
+                        strokeWidth={2 * annotationScale}
+                        vectorEffect="non-scaling-stroke"
+                      />
+                      <text
+                        y={31 * annotationScale}
+                        fill="#1f3a4d"
+                        fontSize={11 * annotationScale}
+                        fontWeight="900"
+                        textAnchor="middle"
+                        stroke="#fffaf0"
+                        strokeWidth={4 * annotationScale}
+                        paintOrder="stroke"
+                      >
+                        {region.seed}
+                      </text>
+                    </g>
+                  )
+                })}
+              </g>
+            )}
 
             {showIntentions && intentions.length > 0 && (
               <g aria-label={t('map.intentionsOverlay')} pointerEvents="none">

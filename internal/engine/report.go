@@ -21,6 +21,7 @@ type TurnReport struct {
 	Moves         []MoveReport         `json:"moves"`
 	Nobles        []NobleReport        `json:"nobles"`
 	SeasonEffects []SeasonEffectReport `json:"seasonEffects"`
+	Rumors        []RumorReport        `json:"rumors"`
 	Augury        *AuguryReport        `json:"augury,omitempty"`
 	Winter        *WinterReport        `json:"winter,omitempty"`
 	State         *models.GameState    `json:"-"`
@@ -241,6 +242,10 @@ type WinterStockReport struct {
 // BuildTurnReport converts value-only engine events into the typed report
 // consumed by the API and frontend. It does not inspect resolution internals.
 func BuildTurnReport(before, after *models.GameState, events []Event, receptions []ReceptionReport) TurnReport {
+	return BuildTurnReportWithHandLimit(before, after, events, receptions, 4)
+}
+
+func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Event, receptions []ReceptionReport, handLimit int) TurnReport {
 	report := TurnReport{
 		Players:       []PlayerReport{},
 		Receptions:    []ReceptionReport{},
@@ -251,6 +256,7 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 		Moves:         []MoveReport{},
 		Nobles:        []NobleReport{},
 		SeasonEffects: []SeasonEffectReport{},
+		Rumors:        []RumorReport{},
 	}
 	report.Receptions = append(report.Receptions, receptions...)
 	if before != nil {
@@ -261,6 +267,9 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 	}
 	report.Players = buildPlayerReports(before, after)
 	if after != nil {
+		for _, event := range currentHandRumorEvents(after, handLimit) {
+			report.Rumors = append(report.Rumors, RumorReport{Kind: event.CardKind, Key: event.RumorKey, Level: event.RumorLevel})
+		}
 		if augury, exists := after.Auguries[after.Year()]; exists && augury.Revealed {
 			report.Augury = &AuguryReport{Year: augury.Year, Capacities: copySeasonCapacities(augury.Capacities), Calamities: []AuguryCalamityReport{}}
 			for _, calamity := range augury.Calamities {

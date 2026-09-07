@@ -429,9 +429,11 @@ BRI D BRI ATL NOR
 ```
 
 Les ordres d'hiver v1 sont limités à `A N`, `R N`, `R T`, `C M`, `C C`, `C D`, `E C`,
-`O N`, `P N` et `L N`. Une soumission `special` séparée contient les ordres du
-deck : `P KIND TER` au printemps, en été et en automne, et `D C KIND` ou `T C` en
-hiver. Aucun de ces ordres n'exige de noble et ils ne sont jamais intégrés à la
+`O N`, `P N` et `L N`, avec `D C KIND` pour les défausses de cartes bonus. Une
+soumission `special` séparée contient les ordres jouables du deck : `P KIND TER`
+au printemps, en été et en automne. En hiver, la main est reconstituée
+automatiquement après les défausses selon la balance ; il n'existe pas d'ordre de
+pioche. Aucun de ces ordres n'exige de noble et ils ne sont jamais intégrés à la
 grammaire des chaînes de nobles. Les infrastructures absentes du modèle v1 ne
 possèdent ni symbole de parser ni coût dans `balance.yaml`.
 

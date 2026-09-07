@@ -145,10 +145,8 @@ const report: TurnReport = {
       },
     ],
     stocks: [],
-    rumors: [
-      { kind: 'fair_weather', key: 'rumor.fair_weather.level2', level: 2 },
-    ],
   },
+  rumors: [{ kind: 'fair_weather', key: 'rumor.fair_weather.level2', level: 2 }],
 }
 
 const players: StateData['players'] = [{ id: 'P1', name: 'One', color: '#a84632' }]

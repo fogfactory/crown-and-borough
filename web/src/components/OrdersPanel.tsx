@@ -3,6 +3,7 @@ import { BookOpen, Snowflake } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import type { RulesSection } from '@/components/RulesPanel'
+import { formatCardHand } from '@/lib/card-hand'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
 import type { Noble, PlayerId, StateData } from '@/types'
@@ -82,7 +83,7 @@ function DeckOrdersSection({
       <h4 className="font-serif text-base font-semibold text-[#684b7d]">{t('orders.deckTitle')}</h4>
       <p className="text-xs leading-relaxed text-[#806f57]">{t('orders.deckDescription')}</p>
       <p className="text-xs text-[#684b7d]">
-        {t('orders.deckHand')}: {hand.length ? hand.map((kind) => t(`card.${kind}` as MessageKey)).join(', ') : t('orders.deckEmpty')}
+        {t('orders.deckHand')}: {formatCardHand(hand, t)}
       </p>
       <textarea
         value={specialDraft}
@@ -91,6 +92,25 @@ function DeckOrdersSection({
         placeholder={t('orders.deckPlaceholder')}
         aria-label={t('orders.deckAria')}
       />
+    </section>
+  )
+}
+
+function DeckHandSummary({ state }: { state: StateData }) {
+  const { t } = useLanguage()
+  const hand = state.specialHand ?? []
+
+  return (
+    <section className="space-y-2 rounded-lg border border-[#c8b0d9] bg-[#fbf5ff] p-3">
+      <h4 className="font-serif text-base font-semibold text-[#684b7d]">
+        {t('orders.deckTitle')}
+      </h4>
+      <p className="text-xs leading-relaxed text-[#806f57]">
+        {t('orders.deckWinterDescription')}
+      </p>
+      <p className="text-xs text-[#684b7d]">
+        {t('orders.deckHand')}: {formatCardHand(hand, t)}
+      </p>
     </section>
   )
 }
@@ -128,7 +148,7 @@ export function OrdersPanel({
             {t('orders.winterDescription')}
           </p>
         </div>
-        <DeckOrdersSection state={state} specialDraft={specialDraft} onSpecialChange={onSpecialChange} />
+        <DeckHandSummary state={state} />
         <textarea
           value={winterDraft}
           onChange={(event) => onWinterChange(event.target.value)}

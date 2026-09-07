@@ -30,18 +30,16 @@ REGLES DE JEU RETENUES :
   ordres executables autonomes.
 - La main d'un joueur ne contient que des cartes bonus. Une calamite piochee
   ne rejoint jamais une main.
-- La limite initiale de main est 4 et le nombre maximal initial de commandes de
-  pioche est 2 par joueur et par hiver. Ces deux valeurs sont dans la balance.
-- En hiver, les joueurs peuvent abandonner des cartes et ecrire des commandes
-  `T C` pour tirer. Chaque `T C` tire une carte bonus utile ou continue a tirer
-  apres avoir traite une calamite. Une feuille ne peut contenir que deux `T C`.
-- Si la main est deja pleine au moment d'un `T C`, la commande est un no-op
-  silencieux mais elle compte comme une utilisation de pioche.
+- La limite initiale de main est 4 et le remplissage automatique initial est de
+  2 cartes bonus par joueur et par hiver. Ces deux valeurs sont dans la balance.
+- En hiver, les joueurs peuvent abandonner des cartes avec `D C KIND`. Apres les
+  defausses, la main est reconstituee automatiquement selon la balance ; il
+  n'existe pas d'ordre de pioche.
 - Si une calamite est tiree, elle est programmee dans le premier slot libre de
   l'annee suivante selon l'ordre printemps, ete, hiver. Elle est retiree de la
   pioche, ne va pas dans la main et le tirage continue pour obtenir le droit
-  special demande par `T C`. Sa region cible est tiree de maniere deterministe
-  lors de la programmation et stockee dans la calamite. L'augure de l'annee
+  remplissage automatique. Sa region cible est tiree de maniere deterministe lors
+  de la programmation et stockee dans la calamite. L'augure de l'annee
   revele ensuite le kind, la saison et la region de chaque calamite ; les augures
   futures restent entierement cachees.
 - Si tous les slots de l'annee suivante sont pleins, la calamite tiree est
@@ -229,17 +227,14 @@ calamites et les tests existants du socle.
 
 4. SYNTAXE DES ORDRES SPECIAUX :
     - Ne pas modifier la grammaire des chaines de nobles pour y inserer les
-      ordres bonus. Ajouter une soumission de joueur `special`, dediee aux
-      ordres du deck et distincte des chaines et investissements d'hiver.
-      `P KIND TER` est autorise au printemps, en ete et en automne ; `D C KIND`
-      et `T C` sont autorises uniquement en hiver.
+       ordres bonus. `P KIND TER` est autorise au printemps, en ete et en
+       automne. Les defausses `D C KIND` font partie de la feuille `winter`.
    - Syntaxe francaise canonique :
 
      ```text
      D C BT       # abandonner une carte Beau temps
      D C RA       # abandonner une carte Recolte abondante
-     T C          # tirer une carte, au plus deux fois dans la feuille
-     P BT ROS     # jouer Beau temps sur l'eveche dont ROS est le village seed
+      P BT ROS     # jouer Beau temps sur l'eveche dont ROS est le village seed
      P RA ROS     # jouer Recolte abondante sur la meme region
      ```
 
@@ -247,14 +242,10 @@ calamites et les tests existants du socle.
      meme kind sont en main, prendre la premiere dans l'ordre de la main, qui
      est l'ordre de pioche conserve par le serveur. La carte consommee part
      dans la defausse.
-   - `T C` ne prend aucun argument et tire une carte utile. Une calamite
-     declenche sa programmation puis le tirage continue dans la meme commande
-     jusqu'a obtenir un bonus ou jusqu'a epuisement deterministe des cartes
-     disponibles. Il ne s'agit pas d'un troisieme ordre de pioche.
-   - Une troisieme occurrence de `T C` dans la feuille d'un joueur doit
-     produire une erreur de soumission localisee et aucun effet partiel. Les
-     deux occurrences autorisees sont comptees meme si une main pleine les
-     transforme en no-op.
+    - Apres les defausses, la main est reconstituee automatiquement dans
+      `ResolveWinter` selon la limite de remplissage de la balance. Les calamites
+      sont traitees pendant cette reconstitution et le tirage continue jusqu'au
+      nombre automatique prevu ou jusqu'a epuisement deterministe des cartes.
    - `P <KIND> <TER>` consomme une carte du kind correspondant et programme
      l'effet sur la region dont `TER` est le village seed initial. `TER` n'est
      pas un territoire arbitraire de la region : il doit etre le seed d'une
@@ -269,7 +260,6 @@ calamites et les tests existants du socle.
      | Concept | Francais | Anglais |
      |---|---|---|
       | Abandonner une carte | `D C <KIND>` | `D C <KIND>` (Discard Card) |
-      | Tirer une carte | `T C` | `T C` (Take Card) |
       | Jouer une carte | `P ...` | `P ...` (Play / Poser) |
      | Beau temps | `BT` | `FW` (Fair Weather) |
      | Recolte abondante | `RA` | `AH` (Abundant Harvest) |
@@ -280,33 +270,32 @@ calamites et les tests existants du socle.
 
     - Le parseur reconnait les formes FR et EN, en majuscules ou minuscules
       apres la normalisation existante. `D C <KIND>` signifie toujours
-      defausser une carte, tandis que `T C` signifie toujours tirer. `P` est
-      l'unique symbole pour jouer une carte ; `J` reste une jonction uniquement
+       defausser une carte. `P` est l'unique symbole pour jouer une carte ; `J` reste une jonction uniquement
       dans la grammaire des chaines.
    - Ajouter des messages a `internal/i18n/catalog.go` et aux catalogues
-     frontend pour la forme, le kind inconnu, le seed inconnu, l'absence de
-     carte, la limite de pioche et l'ordre special interdit dans la saison.
+      frontend pour la forme, le kind inconnu, le seed inconnu, l'absence de
+      carte et l'ordre special interdit dans la saison.
      Garder les codes techniques en anglais et localiser uniquement les
      messages.
    - Ajouter des tests parser pour chaque alias, les commentaires, les lignes
-     vides, les arites invalides, le conflit `P N NNN` existant, le troisieme
-     `T C` et les kinds calamite refuses dans `P`.
+      vides, les arites invalides, le conflit `P N NNN` existant et les kinds
+      calamite refuses dans `P`.
 
 5. ETAT DE SOUMISSION ET RESOLUTION HIVERNALE :
-    - Ajouter a `engine.OrdersInput` une soumission de joueur `special` pour
-      les ordres du deck, independante des chaines de nobles et des
-      investissements d'hiver. Elle est disponible a chaque saison et transite
-      par l'API et le store.
-    - La soumission `winter` conserve uniquement les investissements actuels.
-      Les ordres du deck sont soumis dans le champ `special`, quelle que soit
-      la saison.
-    -       `P KIND TER` est traite avant les ordres d'armee au printemps, en ete et
-      en automne. `D C KIND` et `T C` ne sont traites qu'en hiver.
-    - Les lignes de chaque soumission `special` sont traitees dans l'ordre
+     - Ajouter a `engine.OrdersInput` une soumission de joueur `special` pour
+       les cartes jouables, independante des chaines de nobles et disponible
+       pendant les saisons d'action ; les defausses `D C KIND` transitent dans
+       la soumission `winter` avec les investissements.
+     - La soumission `winter` contient les investissements et les defausses
+       `D C KIND`. Les cartes jouables restent dans `special`.
+     -       `P KIND TER` est traite avant les ordres d'armee au printemps, en ete et
+       en automne. Les defausses sont traitees dans `ResolveWinter`, puis la main
+       est reconstituee automatiquement.
+     - Les lignes de chaque soumission sont traitees dans l'ordre
       textuel, et les joueurs sont traites selon l'ordre deterministe du moteur.
       La consommation est validee avant la publication du nouvel etat.
-   - Maintenir l'atomicite : parser toutes les lignes, verifier le nombre de
-     `T C`, les joueurs, les seeds et les preconditions de cartes avant de
+    - Maintenir l'atomicite : parser toutes les lignes, verifier les joueurs,
+      les seeds et les preconditions de cartes avant de
      publier le nouvel etat. Une erreur ne doit ni consommer de carte ni
      modifier la pioche, la defausse ou les investissements.
    - Resoudre la calamite du slot winter de l'annee courante dans
@@ -338,11 +327,11 @@ calamites et les tests existants du socle.
    - Lorsqu'une pioche est vide, melanger la defausse complete, y compris les
      calamites excedentaires, puis la replacer comme nouvelle pioche. Les
      calamites encore programmees ne sont jamais remelangees.
-   - Pour chaque `T C`, si la main n'est pas pleine, tirer jusqu'a rencontrer
-     un bonus ou jusqu'a constater deterministement qu'aucun bonus ne peut etre
-     obtenu dans le cycle de cartes disponible. Cette borne de cycle evite une
-     boucle infinie si la defausse ne contient que des calamites ; elle ne
-     limite pas artificiellement le nombre de calamites traitees.
+    - Apres les defausses d'hiver, reconstituer automatiquement la main selon la
+      limite de remplissage de la balance, en tirant jusqu'a rencontrer un bonus
+      ou jusqu'a constater deterministement qu'aucun bonus ne peut etre obtenu
+      dans le cycle de cartes disponible. Cette borne de cycle evite une boucle
+      infinie si la defausse ne contient que des calamites.
    - Programmer les calamites dans `YearAugury(year+1)` au premier slot libre
      parmi spring, summer et winter, en respectant les capacites de balance.
      Si aucun slot n'est disponible, envoyer la carte en defausse et produire
@@ -453,7 +442,7 @@ succession. Une chaîne émise pendant le tour par ce noble est supprimée ; une
      du printemps et une section `SeasonEffects` pour les calamites, annulations
      et bonus de la saison courante.
    - Ajouter une section d'activite de cartes filtrable par joueur. Les
-     operations `D C`, `T C`, les cartes en main et les kinds tires doivent
+      operations `D C`, les cartes en main et les kinds tires doivent
      rester visibles seulement au joueur concerne. Les effets publics peuvent
      etre affiches a tous.
    - Etendre `BuildTurnReport`, `TurnReportView` et `projectReport` sans
@@ -493,7 +482,7 @@ succession. Une chaîne émise pendant le tour par ce noble est supprimée ; une
      utilisable et les lignes d'ordre possibles.
     - Integrer ce panneau a `OrdersPanel` ou dans un composant dedie reutilise
       par `App` et `online/GamePage`. Afficher `P KIND TER` toute l'annee,
-      et `D C`/`T C` uniquement en hiver.
+       et `D C` uniquement en hiver.
    - Les controles UI peuvent inserer une ligne dans le brouillon de texte,
      mais l'API et le parseur restent l'autorite. Ne pas executer une carte
      directement depuis un clic frontend.
@@ -536,16 +525,14 @@ succession. Une chaîne émise pendant le tour par ce noble est supprimée ; une
      hiver, programmees par slot saisonnier, revelees au printemps et
      resolues au tour de leur saison.
    - Documenter la distinction entre :
-     - les lignes d'investissement d'hiver ;
-      - `D C <KIND>` pour abandonner / discard ;
-      - `T C` pour tirer / take ;
+      - les lignes d'investissement d'hiver et `D C <KIND>` pour abandonner / discard ;
       - `P BT TER` et `P RA TER` pour jouer un bonus.
    - Preciser que `P BT TER` et `P RA TER` sont des ordres de joueur, pas des
      ordres dans une chaine de noble, et que `TER` est obligatoirement un
      village seed initial.
-   - Ajouter la table des alias FR/EN, la limite de deux `T C`, la limite de
-     main, la defausse sequentielle, le remelange et la poursuite du tirage
-     apres une calamite.
+    - Ajouter la table des alias FR/EN, le remplissage automatique de la main,
+      la limite de main, la defausse sequentielle, le remelange et la poursuite
+      du tirage apres une calamite.
    - Ajouter la matrice de resolution BT/RA : annulation ciblee, doublons non
      cumulatifs et bonus commun cumulable lorsque les deux kinds sont effectifs.
    - Mettre a jour `specs/religieux.md` pour declarer que les eveches futurs
@@ -569,8 +556,8 @@ succession. Une chaîne émise pendant le tour par ce noble est supprimée ; une
      - meme seed et meme etat donnent le meme deck et la meme pioche ;
      - remelange reproductible et defausse complete ;
      - calamite programmee hors main, slot suivant, defausse si slots pleins ;
-     - repioche apres calamite dans un `T C` ;
-     - main pleine no-op et deux `T C` maximum par joueur ;
+      - remplissage automatique apres calamite ;
+      - main pleine no-op pour le remplissage automatique ;
      - `D C <KIND>` choisit une carte du kind dans l'ordre de main ;
      - `P` consomme une carte et invalide atomiquement sans carte ;
      - augure cachee avant printemps et revelee au printemps ;
@@ -589,8 +576,8 @@ succession. Une chaîne émise pendant le tour par ce noble est supprimée ; une
        joueurs ;
      - bonus dans une autre region independant de la calamite ;
      - purete des resolvers et absence de mutation de l'etat d'entree.
-   - `internal/engine/orders` : parser FR/EN, alias des kinds, arites,
-     commentaire, limite `T C`, seed de region, conflit avec `P N NNN`.
+    - `internal/engine/orders` : parser FR/EN, alias des kinds, arites,
+      commentaire, defausse d'hiver, seed de region, conflit avec `P N NNN`.
    - `internal/api` et `internal/store` : contrat `special`, soumission
      atomique, hotseat, multi-parties, projection de main privee, augure
      publique seulement apres revelation et absence de fuite de defausse.
@@ -618,12 +605,12 @@ succession. Une chaîne émise pendant le tour par ce noble est supprimée ; une
 15. CRITERES D'ACCEPTATION :
    - Une partie creee possede une partition N+1 regions reproductible, dont
      chaque region est rattachee a un village seed public dans la carte.
-   - La balance controle la limite de main, le nombre de `T C`, la taille et la
-     composition du deck, les trois capacites saisonnieres, la rarete de la
+    - La balance controle la limite de main, le remplissage automatique, la taille
+      et la composition du deck, les trois capacites saisonnieres, la rarete de la
      peste et les valeurs numeriques des effets.
-   - Un hiver permet de defausser par kind et de tirer au plus deux fois par
-     joueur. Une calamite tiree est programmee ou defaussee, jamais ajoutee a la
-     main ; le tirage continue apres son traitement.
+    - Un hiver permet de defausser par kind puis reconstitue automatiquement la
+      main. Une calamite tiree est programmee ou defaussee, jamais ajoutee a la
+      main ; le tirage continue apres son traitement.
    - `P BT TER` et `P RA TER` sont visibles dans l'UI, parsables en FR et EN,
      consomment une carte et agissent simultanement sur la region cible.
    - Beau temps n'annule que le mauvais temps, bonne recolte n'annule que la
