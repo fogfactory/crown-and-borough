@@ -127,6 +127,13 @@ La carte est statique pour une partie et commune à tous les clients :
       "adjacencies": ["BOI"],
       "impassable": ["FOU"]
     }
+  ],
+  "regions": [
+    {
+      "id": "ROS",
+      "seed": "ROS",
+      "territories": ["ROS", "BOI"]
+    }
   ]
 }
 ```
@@ -211,6 +218,7 @@ fourni, mais le front utilise `GET /api/state?player=P1` pour demander la vue
 filtrée du joueur sélectionné. La politique de divulgation est la suivante :
 
 - la carte et les valeurs dynamiques chiffrées restent communes ;
+- `specialHand` contient uniquement les kinds bonus de la main du joueur courant ; la pioche, la défausse et les IDs internes restent absents ;
 - un joueur voit le détail des chaînes qu'il a émises, ainsi que celles émises
   par un noble qu'il détient comme otage, tant que la chaîne reste compatible
   avec la progression de l'armée ;
@@ -342,7 +350,7 @@ global lorsqu'une autre partie est déjà active.
 | `GET` | `/api/games/{id}/map` | Renvoie le `map.json` commun, dont `territories[].id` est le trigramme. |
 | `GET` | `/api/games/{id}/state` | Renvoie la projection privée du joueur connecté ; aucun `?player=` public. |
 | `GET` | `/api/games/{id}/supply?territory=ROS` | Calcule la ligne ou la zone de ravitaillement demandée. |
-| `POST` | `/api/games/{id}/orders` | Remplace la soumission du joueur courant ; résout automatiquement lorsque tous les joueurs vivants ont soumis. Le corps ne contient aucun identifiant joueur. |
+| `POST` | `/api/games/{id}/orders` | Remplace la soumission du joueur courant (`chains`, `winter`, `special`) ; résout automatiquement lorsque tous les joueurs requis ont soumis. Le corps ne contient aucun identifiant joueur. |
 | `POST` | `/api/games/{id}/resolve` | Résolution forcée explicite avec des ordres vides pour les joueurs manquants. |
 | `GET` | `/api/games/{id}/reports` | Liste les rapports filtrés pour le joueur connecté. |
 | `GET` | `/api/games/{id}/reports/{index}` | Renvoie un rapport filtré pour le joueur connecté. |
@@ -379,10 +387,13 @@ Les modèles métier sont dans `internal/models`. Ils valident notamment :
 - la saison calculée à partir du tour absolu.
 
 `ResolveTurn` choisit la résolution d'action ou d'hiver selon la saison, avance
-le calendrier et renvoie un `TurnReport`. Le rapport contient des sections
-typées pour les joueurs, ordres, combats, mouvements, ravitaillement, famine,
-nobles et investissements d'hiver. Le moteur ne dépend ni du HTTP ni du rendu
-front.
+le calendrier et renvoie un `TurnReport`. La soumission `special` est indépendante
+des chaînes de nobles et des investissements d'hiver. Les ordres de cartes sont
+validés et consommés avant les phases militaires ; leurs effets sont agrégés par
+région avant le ravitaillement et l'énumération des intentions. Le rapport
+contient des sections typées pour les joueurs, ordres, combats, mouvements,
+ravitaillement, famine, nobles, rumeurs publiques et investissements d'hiver. Le
+moteur ne dépend ni du HTTP ni du rendu front.
 
 La réception des chaînes est immédiate et atomique. La validation statique
 conserve volontairement la non-adjacence jusqu'à l'exécution : un ordre
@@ -392,6 +403,12 @@ ordres précédents.
 Plusieurs chaînes ciblant la même armée au même tour constituent une réception
 concurrente : elles sont toutes rejetées avant la résolution et aucune nouvelle
 chaîne n'est attachée à cette armée. Une chaîne déjà portée reste inchangée.
+
+Les ordres exécutables du moteur sont séparés des DTO parsés et persistés. Les
+ordres de cartes sont construits par un registre `CardDefinition` indexé par
+`CardKind`. Leur `Apply` consomme la première carte correspondante dans la main,
+puis enregistre une intention ; l’agrégation des intentions intervient ensuite
+pour préserver la simultanéité.
 
 ## 7. Format des ordres
 
@@ -411,9 +428,12 @@ P BRI
 BRI D BRI ATL NOR
 ```
 
-Les ordres d'hiver v1 sont limités à `R N`, `R T`, `C M`, `C C`, `C D`, `E C`,
-`O N`, `P N` et `L N`. Les infrastructures absentes du modèle v1 ne possèdent
-ni symbole de parser ni coût dans `balance.yaml`.
+Les ordres d'hiver v1 sont limités à `A N`, `R N`, `R T`, `C M`, `C C`, `C D`, `E C`,
+`O N`, `P N` et `L N`. Une soumission `special` séparée contient les ordres du
+deck : `P KIND TER` au printemps, en été et en automne, et `D C KIND` ou `T C` en
+hiver. Aucun de ces ordres n'exige de noble et ils ne sont jamais intégrés à la
+grammaire des chaînes de nobles. Les infrastructures absentes du modèle v1 ne
+possèdent ni symbole de parser ni coût dans `balance.yaml`.
 
 ## 8. Assets et balance
 
@@ -422,8 +442,8 @@ Les assets sont chargés au démarrage et validés avant de créer la session :
 - `communes.csv` fournit les noms, codes et affinités de terrain ;
 - `prenoms.csv` fournit les noms et codes de nobles ;
 - `balance.yaml` fournit les coûts, productions, portées, rations, bonus de
-  défense, bonus de commandement noble et valeurs de départ utilisés par le
-  moteur.
+  défense, bonus de commandement noble, valeurs de départ et paramètres du
+  deck d’ordres spéciaux utilisés par le moteur.
 
 Les paramètres numériques ne doivent pas être recopiés dans les handlers ou
 le front. Le moteur reçoit une `assetgen.Balance` déjà chargée.

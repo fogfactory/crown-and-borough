@@ -17,6 +17,7 @@ function renderOrdersPanel(
   season: StateData['season'],
   onOpenRules = vi.fn(),
   nobles: Noble[] = state.nobles,
+  specialDraft = '',
 ) {
   return render(
     <LanguageProvider initialLanguage="fr">
@@ -24,13 +25,15 @@ function renderOrdersPanel(
         state={{ ...state, season, nobles }}
         player="P1"
         chainDrafts={{}}
-        winterDraft=""
-        submitted={false}
+         winterDraft=""
+         specialDraft={specialDraft}
+         submitted={false}
         submitting={false}
         error={null}
         onChainChange={vi.fn()}
-        onWinterChange={vi.fn()}
-        onSubmit={vi.fn()}
+         onWinterChange={vi.fn()}
+         onSpecialChange={vi.fn()}
+         onSubmit={vi.fn()}
         onOpenRules={onOpenRules}
       />
     </LanguageProvider>,
@@ -84,9 +87,8 @@ describe('OrdersPanel seasonal presentation', () => {
       },
     ])
 
-    const textareas = screen.getAllByRole('textbox')
-    expect(textareas[0]).not.toBeDisabled()
-    expect(textareas[1]).toBeDisabled()
+    expect(screen.getByLabelText('Chaîne de HOS')).not.toBeDisabled()
+    expect(screen.getByLabelText('Chaîne de DUN')).toBeDisabled()
     expect(screen.getByText('Otage')).toBeInTheDocument()
     expect(screen.getByText('Donjon')).toBeInTheDocument()
   })
@@ -104,7 +106,23 @@ describe('OrdersPanel seasonal presentation', () => {
     ])
 
     expect(screen.getByText(/Aucun noble apte à émettre/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Ordres de cartes spéciales')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Soumettre' })).toBeDisabled()
+  })
+
+  it('allows a deck-only submission without an emitting noble', () => {
+    renderOrdersPanel('spring', vi.fn(), [
+      {
+        id: 'N1',
+        code: 'DUN',
+        name: 'Dungeon',
+        owner: 'P1',
+        location: 'ROS',
+        status: 'dungeon',
+      },
+    ], 'P BT ROS')
+
+    expect(screen.getByRole('button', { name: 'Soumettre' })).not.toBeDisabled()
   })
 
   it('targets the winter rules section from the winter shortcut', () => {

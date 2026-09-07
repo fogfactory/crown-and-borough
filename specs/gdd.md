@@ -33,15 +33,17 @@ Une année comprend quatre tours : printemps, été, automne et hiver. Le compte
 Au printemps, en été et en automne :
 
 1. Chaque joueur prépare et soumet ses chaînes d'ordres pour ses nobles libres
-   et ses armées.
+   et ses armées, ainsi que sa soumission `special` indépendante.
 2. Le moteur vérifie les soumissions. Une erreur de syntaxe ou de réception
    empêche la résolution de la soumission concernée sans modifier l'état.
-3. Le moteur résout simultanément le ravitaillement, les intentions, les
+3. Le moteur consomme et agrège les cartes valides, puis applique leurs effets
+   avant le ravitaillement et l'énumération des intentions d'armée.
+4. Le moteur résout simultanément le ravitaillement, les intentions, les
    soutiens, les combats, les déplacements, les retraites, les jonctions, les
    dispersions et la progression des chaînes.
-4. Le contrôle territorial, les déplacements de nobles et les événements sont
+5. Le contrôle territorial, les déplacements de nobles et les événements sont
    mis à jour.
-5. Le serveur construit un rapport de tour typé à partir des événements de la
+6. Le serveur construit un rapport de tour typé à partir des événements de la
    résolution.
 
 La chaîne soumise est attachée immédiatement à l'armée présente sur la
@@ -55,6 +57,7 @@ aucun combat et aucun ravitaillement ne sont résolus. Le joueur soumet une
 liste d'investissements directs, traités dans l'ordre saisi :
 
 - `R N XXX` — recruter un noble sur `XXX` ;
+- `A N XXX` — annoblir gratuitement une armée sur `XXX` lorsque le joueur n'a plus aucun noble ;
 - `R T XXX` — recruter une troupe sur `XXX` ;
 - `C M XXX` — construire ou améliorer un moulin sur `XXX` ;
 - `C C XXX` — construire un château sur `XXX` ;
@@ -65,7 +68,17 @@ liste d'investissements directs, traités dans l'ordre saisi :
 - `L N NNN` — libérer le noble de code `NNN`.
 
 `XXX` est le trigramme du territoire ciblé, sauf pour `O N`, `P N` et `L N`,
-qui ciblent un noble. Les investissements territoriaux exigent le contrôle du
+qui ciblent un noble.
+
+La soumission `special` est distincte de la feuille `winter` : elle contient
+les ordres du deck, sans noble requis. `P KIND TER` est autorisé au printemps,
+en été et en automne ;
+`D C KIND` et `T C` sont réservés à l’hiver. La limite de main, la limite de
+tirages, la taille et la composition du deck, ainsi que les capacités des slots
+de calamité, sont chargées depuis `assets/balance.yaml`. La génération initiale du deck est déterministe à partir
+de la seed de partie. Au printemps, l’augure révèle le kind, la saison et la
+région de toutes les calamités de l’année ; les augures futures restent cachées.
+Les investissements territoriaux exigent le contrôle du
 territoire ciblé. Le
 recrutement d'une troupe exige en outre un noble libre du joueur, situé sur la
 cible ou sur un territoire adjacent à celle-ci par une frontière franchissable.
@@ -96,13 +109,17 @@ prélèvement partiel n'est effectué.
 - sans capitale, les stocks restent sur place ;
 - la saison suivante est le printemps.
 
+Les calamités et les cartes bonus sont appliquées avant la résolution simultanée des ordres d’armée. La peste réduit les armées et peut affecter les nobles ; le mauvais temps bloque les déplacements provenant de sa région ; la famine désactive les moulins et les rations d’infrastructure ; la révolte est une carte bonus conditionnelle qui crée des armées `NEUTRAL`.
+
 Une partie accepte de 2 à 16 joueurs. Chaque joueur commence sur un territoire
 distinct qui n'est pas un village neutre. Les territoires de départ sont séparés
 d'au moins quatre étapes dans le graphe des frontières franchissables. Un
 château y est construit gratuitement, devient la capitale par défaut, et le
 joueur reçoit ses nobles, ses armées et ses ressources de départ selon
 `assets/balance.yaml`. Les `N + 1` villages neutres générés sur la carte restent
-distincts des `N` châteaux de départ.
+distincts des `N` châteaux de départ. Ils servent de seeds à une partition
+régionale statique, calculée par BFS multi-source sur les frontières franchissables
+et publiée avec la carte.
 
 Un joueur est éliminé lorsqu'il ne contrôle plus aucun territoire et ne possède
 plus aucune armée. Les nobles seuls ne maintiennent pas un joueur en lice. Le

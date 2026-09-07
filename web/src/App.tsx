@@ -117,6 +117,7 @@ function AppContent() {
     Record<PlayerId, Record<string, string>>
   >({})
   const [winterDrafts, setWinterDrafts] = useState<Record<PlayerId, string>>({})
+  const [specialDrafts, setSpecialDrafts] = useState<Record<PlayerId, string>>({})
   const [submittedPlayers, setSubmittedPlayers] = useState<PlayerId[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -128,6 +129,7 @@ function AppContent() {
   const [seed, setSeed] = useState('')
   const [view, setView] = useState<HotseatView>('game')
   const [activePanel, setActivePanel] = useState<Panel>('command')
+  const [showRegions, setShowRegions] = useState(false)
   const [viewedReportTurn, setViewedReportTurn] = useState<number | null>(null)
   const [rulesNavigation, setRulesNavigation] = useState<{
     section: RulesSection
@@ -286,6 +288,10 @@ function AppContent() {
     setWinterDrafts((drafts) => ({ ...drafts, [selectedPlayer]: text }))
   }
 
+  const updateSpecialDraft = (text: string) => {
+    setSpecialDrafts((drafts) => ({ ...drafts, [selectedPlayer]: text }))
+  }
+
   const openRules = (section: RulesSection) => {
     setRulesNavigation((current) => ({
       section,
@@ -340,6 +346,9 @@ function AppContent() {
       state.season === 'winter' && (winterDrafts[selectedPlayer] ?? '').trim() !== ''
         ? [{ player: selectedPlayer, lines: winterDrafts[selectedPlayer] ?? '' }]
         : []
+    const special = (specialDrafts[selectedPlayer] ?? '').trim() !== ''
+      ? [{ player: selectedPlayer, text: specialDrafts[selectedPlayer] ?? '' }]
+      : []
 
     try {
       const response = await fetch(
@@ -347,7 +356,7 @@ function AppContent() {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ player: selectedPlayer, chains, winter, force }),
+          body: JSON.stringify({ player: selectedPlayer, chains, winter, special, force }),
         },
       )
       if (!response.ok) throw new Error(await responseError(response, t))
@@ -359,6 +368,7 @@ function AppContent() {
         setActivePanel('report')
         setChainDrafts({})
         setWinterDrafts({})
+        setSpecialDrafts({})
         setSubmittedPlayers([])
       }
     } catch (error) {
@@ -626,6 +636,7 @@ function AppContent() {
                 intentions={intentions}
                 showIntentions={showIntentions}
                 intentionsColor={intentionsColor}
+                showRegions={showRegions}
               />
             ) : (
               <div className="flex h-full items-center justify-center px-6 text-center">
@@ -721,18 +732,19 @@ function AppContent() {
                     supplyLoading={supplyLoading}
                     supplyError={supplyError}
                   />
-
                   {state && (
                     <OrdersPanel
                       state={state}
                       player={selectedPlayer}
                       chainDrafts={chainDrafts[selectedPlayer] ?? {}}
                       winterDraft={winterDrafts[selectedPlayer] ?? ''}
+                      specialDraft={specialDrafts[selectedPlayer] ?? ''}
                       submitted={submittedPlayers.includes(selectedPlayer)}
                       submitting={resolving}
                       error={actionError}
                       onChainChange={updateChainDraft}
                       onWinterChange={updateWinterDraft}
+                      onSpecialChange={updateSpecialDraft}
                       onSubmit={() => void submitOrders()}
                       onOpenRules={openRules}
                     />
@@ -761,10 +773,12 @@ function AppContent() {
                 </div>
               </CardContent>
             </Card>
-            <MapLegend
-              showIntentions={showIntentions}
-              onToggleIntentions={setShowIntentions}
-            />
+              <MapLegend
+                showIntentions={showIntentions}
+                onToggleIntentions={setShowIntentions}
+                showRegions={showRegions}
+                onToggleRegions={setShowRegions}
+              />
           </aside>
         </main>
       ) : (

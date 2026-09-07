@@ -25,6 +25,10 @@ const (
 	ParseCodeNobleNotFound = "noble_not_found"
 	// ParseCodeUnclosedParenthesis identifies malformed order-line parentheses.
 	ParseCodeUnclosedParenthesis = "unclosed_parenthesis"
+	// ParseCodeSpecialKind identifies an unknown or non-playable card kind.
+	ParseCodeSpecialKind = "special_kind"
+	// ParseCodeSpecialRegion identifies an unknown region seed.
+	ParseCodeSpecialRegion = "special_region"
 )
 
 var (

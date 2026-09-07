@@ -67,6 +67,10 @@ const (
 	WinterNobleCodeFormat        = "error.winter.noble_code_format"
 	WinterNobleUnknown           = "error.winter.noble_unknown"
 	WinterUnknownSubtype         = "error.winter.unknown_subtype"
+	DeckOrderShape               = "error.special.order_shape"
+	DeckOrderKindUnknown         = "error.special.kind_unknown"
+	DeckOrderKindNotPlayable     = "error.special.kind_not_playable"
+	DeckOrderRegionUnknown       = "error.special.region_unknown"
 
 	ValidationUnknownNoble                 = "error.validation.unknown_noble"
 	ValidationEmptyChain                   = "error.validation.empty_chain"
@@ -147,6 +151,10 @@ func init() {
 	register(WinterNobleCodeFormat, "noble code %q must contain exactly three uppercase letters", "le code de noble %q doit contenir exactement trois lettres majuscules")
 	register(WinterNobleUnknown, "noble code %q does not exist", "le code de noble %q n'existe pas")
 	register(WinterUnknownSubtype, "unknown winter order %s %s", "ordre d'hiver inconnu : %s %s")
+	register(DeckOrderShape, "a special order has an invalid shape", "la forme de l'ordre spécial est invalide")
+	register(DeckOrderKindUnknown, "unknown special card kind %q", "kind de carte spéciale inconnu : %q")
+	register(DeckOrderKindNotPlayable, "card kind %q cannot be used as a player order", "le kind %q ne peut pas être joué comme ordre de joueur")
+	register(DeckOrderRegionUnknown, "region seed %q does not exist", "le seed de région %q n'existe pas")
 
 	register(ValidationUnknownNoble, "noble %q does not exist", "le noble %q n'existe pas")
 	register(ValidationEmptyChain, "a chain must contain at least one order", "une chaîne doit contenir au moins un ordre")

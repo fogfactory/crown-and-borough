@@ -65,10 +65,16 @@ type WinterSubmission struct {
 	Lines  string          `json:"lines"`
 }
 
+type DeckSubmission struct {
+	Player models.PlayerID `json:"player"`
+	Text   string          `json:"text"`
+}
+
 // OrdersInput is one complete hotseat turn. All players submit at once.
 type OrdersInput struct {
-	Chains []ChainSubmission  `json:"chains"`
-	Winter []WinterSubmission `json:"winter"`
+	Chains  []ChainSubmission  `json:"chains"`
+	Winter  []WinterSubmission `json:"winter"`
+	Special []DeckSubmission   `json:"special"`
 }
 
 // InputError identifies a client-side submission error. Line is the source
@@ -167,6 +173,7 @@ func CreateGameWithYears(seed string, players []PlayerInit, yearCount int, balan
 	state.YearCount = yearCount
 	state.Territories = make([]models.Territory, 0, len(mapData.Territories))
 	state.TerritoryStates = make(map[models.TerritoryID]models.TerritoryState, len(mapData.Territories))
+	state.Regions = append([]models.Region(nil), mapData.Regions...)
 
 	villageIDs := make([]models.TerritoryID, 0)
 	nonVillageIDs := make([]models.TerritoryID, 0)
@@ -223,6 +230,17 @@ func CreateGameWithYears(seed string, players []PlayerInit, yearCount int, balan
 			color = defaultPlayerColors[index%len(defaultPlayerColors)]
 		}
 		state.Players = append(state.Players, models.Player{ID: playerID, Name: name, Color: color})
+	}
+
+	specialDeck, err := buildSpecialDeck(seed, balance)
+	if err != nil {
+		return nil, fmt.Errorf("engine: build special deck: %w", err)
+	}
+	if specialDeck != nil {
+		for _, player := range state.Players {
+			specialDeck.Hands[player.ID] = []models.SpecialCardID{}
+		}
+		state.SpecialDeck = specialDeck
 	}
 
 	starts, err := SelectStartingTerritories(nonVillageIDs, adjacencies, len(players))
@@ -416,6 +434,7 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 	}
 
 	winterOrders := make(map[models.PlayerID][]models.WinterOrder)
+	deckOrders := make(map[models.PlayerID][]models.DeckOrder)
 	for _, submission := range input.Winter {
 		if !players[submission.Player] {
 			inputErrors.Errors = append(inputErrors.Errors, newInputError(submission.Player, "", 0, "unknown_player", i18n.ErrorUnknownPlayer, submission.Player))
@@ -427,6 +446,19 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 		}
 		if len(parseErrors) == 0 {
 			winterOrders[submission.Player] = append(winterOrders[submission.Player], parsed...)
+		}
+	}
+	for _, submission := range input.Special {
+		if !players[submission.Player] {
+			inputErrors.Errors = append(inputErrors.Errors, newInputError(submission.Player, "", 0, "unknown_player", i18n.ErrorUnknownPlayer, submission.Player))
+			continue
+		}
+		parsed, parseErrors := orders.ParseDeckOrders(submission.Text, game)
+		for _, parseError := range parseErrors {
+			inputErrors.Errors = append(inputErrors.Errors, newInputError(submission.Player, "", parseError.Line, "parse_"+parseError.Code, parseError.MessageKey, parseError.MessageArgs...))
+		}
+		if len(parseErrors) == 0 {
+			deckOrders[submission.Player] = append(deckOrders[submission.Player], parsed...)
 		}
 	}
 
@@ -507,9 +539,9 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 	var resolution Resolution
 	var err error
 	if game.Season == models.SeasonWinter {
-		resolution, err = ResolveWinter(working, balance, winterOrders)
+		resolution, err = ResolveWinterWithDeckOrders(working, balance, winterOrders, deckOrders)
 	} else {
-		resolution, err = Resolve(working, balance)
+		resolution, err = ResolveWithDeckOrders(working, balance, deckOrders)
 	}
 	if err != nil {
 		return TurnReport{}, err

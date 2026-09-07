@@ -27,6 +27,7 @@ type StateView struct {
 	Players     []PlayerView                              `json:"players"`
 	Territories []TerritoryView                           `json:"territories"`
 	Nobles      []NobleView                               `json:"nobles"`
+	SpecialHand []models.CardKind                         `json:"specialHand"`
 }
 
 // PlayerView contains the public player metadata needed by the hotseat
@@ -143,6 +144,7 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID) Sta
 		Players:     []PlayerView{},
 		Territories: []TerritoryView{},
 		Nobles:      []NobleView{},
+		SpecialHand: []models.CardKind{},
 		Scores:      map[models.PlayerID]engine.ScoreBreakdown{},
 	}
 	if state == nil {
@@ -231,6 +233,17 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID) Sta
 			Location: noble.LocationID,
 			Status:   noble.Status,
 		})
+	}
+	if viewer != nil && state.SpecialDeck != nil {
+		cardKinds := make(map[models.SpecialCardID]models.CardKind, len(state.SpecialDeck.Cards))
+		for _, card := range state.SpecialDeck.Cards {
+			cardKinds[card.ID] = card.Kind
+		}
+		for _, cardID := range state.SpecialDeck.Hands[*viewer] {
+			if kind, exists := cardKinds[cardID]; exists && kind.IsBonus() {
+				view.SpecialHand = append(view.SpecialHand, kind)
+			}
+		}
 	}
 	return view
 }

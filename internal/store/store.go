@@ -105,6 +105,7 @@ type CreateRequest struct {
 type SubmitRequest struct {
 	Chains           []engine.ChainSubmission  `json:"chains"`
 	Winter           []engine.WinterSubmission `json:"winter"`
+	Special          []engine.DeckSubmission   `json:"special"`
 	Force            bool                      `json:"force,omitempty"`
 	ExpectedRevision Revision                  `json:"revision,omitempty"`
 }

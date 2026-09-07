@@ -32,7 +32,6 @@ describe('MapLegend', () => {
     expect(screen.getByText('Noble (couleur du propriétaire)')).toBeInTheDocument()
     expect(screen.getByText('Noble prisonnier (otage / donjon)')).toBeInTheDocument()
   })
-
   it('shows the intentions toggle only when a handler is provided', () => {
     render(
       <LanguageProvider initialLanguage="fr">
@@ -57,5 +56,16 @@ describe('MapLegend', () => {
     fireEvent.click(checkbox)
 
     expect(onToggleIntentions).toHaveBeenCalledWith(false)
+  })
+
+  it('toggles the shared regions layer', () => {
+    const onToggle = vi.fn()
+    render(
+      <LanguageProvider initialLanguage="fr">
+        <MapLegend showRegions={false} onToggleRegions={onToggle} />
+      </LanguageProvider>,
+    )
+    fireEvent.click(screen.getByLabelText('Régions'))
+    expect(onToggle).toHaveBeenCalledWith(true)
   })
 })

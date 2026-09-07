@@ -12,11 +12,13 @@ interface OrdersPanelProps {
   player: PlayerId
   chainDrafts: Record<string, string>
   winterDraft: string
+  specialDraft: string
   submitted: boolean
   submitting: boolean
   error: string | null
   onChainChange: (noble: string, text: string) => void
   onWinterChange: (text: string) => void
+  onSpecialChange: (text: string) => void
   onSubmit: () => void
   onOpenRules: (section: RulesSection) => void
 }
@@ -64,16 +66,47 @@ function OrderError({ error }: { error: string | null }) {
   )
 }
 
+function DeckOrdersSection({
+  state,
+  specialDraft,
+  onSpecialChange,
+}: {
+  state: StateData
+  specialDraft: string
+  onSpecialChange: (text: string) => void
+}) {
+  const { t } = useLanguage()
+  const hand = state.specialHand ?? []
+  return (
+    <section className="space-y-2 rounded-lg border border-[#c8b0d9] bg-[#fbf5ff] p-3">
+      <h4 className="font-serif text-base font-semibold text-[#684b7d]">{t('orders.deckTitle')}</h4>
+      <p className="text-xs leading-relaxed text-[#806f57]">{t('orders.deckDescription')}</p>
+      <p className="text-xs text-[#684b7d]">
+        {t('orders.deckHand')}: {hand.length ? hand.map((kind) => t(`card.${kind}` as MessageKey)).join(', ') : t('orders.deckEmpty')}
+      </p>
+      <textarea
+        value={specialDraft}
+        onChange={(event) => onSpecialChange(event.target.value)}
+        className="min-h-20 w-full resize-y rounded-lg border border-[#c8b0d9] bg-white p-3 font-mono text-xs text-[#30291f] outline-none focus:border-[#8a5ba6] focus:ring-2 focus:ring-[#8a5ba6]/20"
+        placeholder={t('orders.deckPlaceholder')}
+        aria-label={t('orders.deckAria')}
+      />
+    </section>
+  )
+}
+
 export function OrdersPanel({
   state,
   player,
   chainDrafts,
   winterDraft,
+  specialDraft,
   submitted,
   submitting,
   error,
   onChainChange,
   onWinterChange,
+  onSpecialChange,
   onSubmit,
   onOpenRules,
 }: OrdersPanelProps) {
@@ -95,6 +128,7 @@ export function OrdersPanel({
             {t('orders.winterDescription')}
           </p>
         </div>
+        <DeckOrdersSection state={state} specialDraft={specialDraft} onSpecialChange={onSpecialChange} />
         <textarea
           value={winterDraft}
           onChange={(event) => onWinterChange(event.target.value)}
@@ -134,6 +168,7 @@ export function OrdersPanel({
           {t('orders.actionDescription')}
         </p>
       </div>
+      <DeckOrdersSection state={state} specialDraft={specialDraft} onSpecialChange={onSpecialChange} />
       {nobles.length === 0 ? (
         <p className="rounded-lg border border-dashed border-[#b7a786] bg-[#f8f0e2] p-3 text-sm italic text-[#806f57]">
           {t('orders.noNobleAvailable')}
@@ -175,7 +210,7 @@ export function OrdersPanel({
       <Button
         type="button"
         className="w-full"
-        disabled={submitting || !hasEmittingNoble}
+        disabled={submitting || (!hasEmittingNoble && specialDraft.trim() === '')}
         onClick={onSubmit}
       >
         {submitting

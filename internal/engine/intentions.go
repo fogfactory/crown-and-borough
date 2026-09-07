@@ -120,6 +120,24 @@ func (ctx *resolutionContext) enumeratePendingDisperse(record *orderRecord, chai
 
 func (ctx *resolutionContext) enumerateOrder(record *orderRecord, army models.Army, isLastOrder bool) {
 	order := record.order
+	sourceAffected := ctx.badWeatherRegions[regionForTerritory(ctx, army.TerritoryID)]
+	if order.Type == models.OrderTypeDisperse {
+		if sourceAffected {
+			record.invalidate("bad_weather")
+			return
+		}
+		order.TargetIDs = ctx.filterBadWeatherDisperseTargets(order.TargetIDs)
+		order.NobleAssignments = ctx.filterBadWeatherDisperseAssignments(order.NobleAssignments, order.TargetIDs)
+		record.order.TargetIDs = order.TargetIDs
+		record.order.NobleAssignments = order.NobleAssignments
+		if len(order.TargetIDs) == 0 {
+			record.invalidate("bad_weather")
+			return
+		}
+	} else if order.Type != models.OrderTypeHold && (sourceAffected || ctx.badWeatherTarget(order.TargetIDs)) {
+		record.invalidate("bad_weather")
+		return
+	}
 	switch order.Type {
 	case models.OrderTypeAttack:
 		targetID, valid := ctx.singleAdjacentTarget(record, army, false)
@@ -172,6 +190,35 @@ func (ctx *resolutionContext) enumerateOrder(record *orderRecord, army models.Ar
 	default:
 		record.invalidate("unknown_order_type")
 	}
+}
+
+func (ctx *resolutionContext) badWeatherTarget(targets []models.TerritoryID) bool {
+	for _, targetID := range targets {
+		if ctx.badWeatherRegions[regionForTerritory(ctx, targetID)] {
+			return true
+		}
+	}
+	return false
+}
+
+func (ctx *resolutionContext) filterBadWeatherDisperseTargets(targets []models.TerritoryID) []models.TerritoryID {
+	filtered := make([]models.TerritoryID, 0, len(targets))
+	for _, targetID := range targets {
+		if !ctx.badWeatherRegions[regionForTerritory(ctx, targetID)] {
+			filtered = append(filtered, targetID)
+		}
+	}
+	return filtered
+}
+
+func (ctx *resolutionContext) filterBadWeatherDisperseAssignments(assignments map[models.TerritoryID][]models.NobleCode, targets []models.TerritoryID) map[models.TerritoryID][]models.NobleCode {
+	filtered := make(map[models.TerritoryID][]models.NobleCode)
+	for _, targetID := range targets {
+		if nobles, exists := assignments[targetID]; exists {
+			filtered[targetID] = append([]models.NobleCode(nil), nobles...)
+		}
+	}
+	return filtered
 }
 
 func (ctx *resolutionContext) singleAdjacentTarget(record *orderRecord, army models.Army, allowSource bool) (models.TerritoryID, bool) {

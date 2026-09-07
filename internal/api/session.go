@@ -244,7 +244,7 @@ func (s *Session) OrdersHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	input, inputErr := normalizePlayerOrders(request.Player, request.Chains, request.Winter)
+	input, inputErr := normalizePlayerOrders(request.Player, request.Chains, request.Winter, request.Special)
 	if inputErr != nil {
 		s.mu.Unlock()
 		writeResolutionError(w, inputErr, language)
@@ -272,11 +272,12 @@ func (s *Session) OrdersHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	combined := engine.OrdersInput{Chains: []engine.ChainSubmission{}, Winter: []engine.WinterSubmission{}}
+	combined := engine.OrdersInput{Chains: []engine.ChainSubmission{}, Winter: []engine.WinterSubmission{}, Special: []engine.DeckSubmission{}}
 	for _, player := range s.game.Players {
 		playerOrders := s.pending[player.ID]
 		combined.Chains = append(combined.Chains, playerOrders.Chains...)
 		combined.Winter = append(combined.Winter, playerOrders.Winter...)
+		combined.Special = append(combined.Special, playerOrders.Special...)
 	}
 	before := s.game
 	report, err := engine.ResolveTurn(before, s.balance, combined)
@@ -303,10 +304,11 @@ func (s *Session) OrdersHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type ordersRequest struct {
-	Player models.PlayerID           `json:"player,omitempty"`
-	Chains []engine.ChainSubmission  `json:"chains"`
-	Winter []engine.WinterSubmission `json:"winter"`
-	Force  bool                      `json:"force,omitempty"`
+	Player  models.PlayerID           `json:"player,omitempty"`
+	Chains  []engine.ChainSubmission  `json:"chains"`
+	Winter  []engine.WinterSubmission `json:"winter"`
+	Special []engine.DeckSubmission   `json:"special"`
+	Force   bool                      `json:"force,omitempty"`
 }
 
 type ordersResponse struct {
@@ -334,13 +336,17 @@ func (s *Session) pendingPlayersLocked() ([]models.PlayerID, []models.PlayerID) 
 		if _, exists := s.pending[player.ID]; exists {
 			submitted = append(submitted, player.ID)
 		} else {
-			if s.game.Season != models.SeasonWinter && !s.hasEmittingNobleLocked(player.ID) {
+			if s.game.Season != models.SeasonWinter && !s.hasEmittingNobleLocked(player.ID) && !s.hasDeckCardsLocked(player.ID) {
 				continue
 			}
 			remaining = append(remaining, player.ID)
 		}
 	}
 	return submitted, remaining
+}
+
+func (s *Session) hasDeckCardsLocked(playerID models.PlayerID) bool {
+	return s.game.SpecialDeck != nil && len(s.game.SpecialDeck.Hands[playerID]) > 0
 }
 
 func (s *Session) hasEmittingNobleLocked(playerID models.PlayerID) bool {
@@ -352,10 +358,11 @@ func (s *Session) hasEmittingNobleLocked(playerID models.PlayerID) bool {
 	return false
 }
 
-func normalizePlayerOrders(playerID models.PlayerID, chains []engine.ChainSubmission, winter []engine.WinterSubmission) (engine.OrdersInput, *engine.InputErrors) {
+func normalizePlayerOrders(playerID models.PlayerID, chains []engine.ChainSubmission, winter []engine.WinterSubmission, special []engine.DeckSubmission) (engine.OrdersInput, *engine.InputErrors) {
 	input := engine.OrdersInput{
-		Chains: append([]engine.ChainSubmission(nil), chains...),
-		Winter: append([]engine.WinterSubmission(nil), winter...),
+		Chains:  append([]engine.ChainSubmission(nil), chains...),
+		Winter:  append([]engine.WinterSubmission(nil), winter...),
+		Special: append([]engine.DeckSubmission(nil), special...),
 	}
 	inputErrors := &engine.InputErrors{Errors: []engine.InputError{}}
 	for index := range input.Chains {
@@ -379,6 +386,17 @@ func normalizePlayerOrders(playerID models.PlayerID, chains []engine.ChainSubmis
 			continue
 		}
 		input.Winter[index].Player = playerID
+	}
+	for index := range input.Special {
+		if input.Special[index].Player != "" && input.Special[index].Player != playerID {
+			inputErrors.Errors = append(inputErrors.Errors, engine.InputError{
+				Player: playerID, Code: "foreign_player_order",
+				Message:    i18n.EnglishText(i18n.Message{Key: i18n.ErrorForeignWinter, Args: []any{index + 1, input.Special[index].Player}}),
+				MessageKey: i18n.ErrorForeignWinter, MessageArgs: []any{index + 1, input.Special[index].Player},
+			})
+			continue
+		}
+		input.Special[index].Player = playerID
 	}
 	if len(inputErrors.Errors) != 0 {
 		return engine.OrdersInput{}, inputErrors

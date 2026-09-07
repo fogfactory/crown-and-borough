@@ -359,6 +359,7 @@ func (h *GamesHandler) submit(w http.ResponseWriter, r *http.Request, actor stor
 	result, err := h.store.Submit(r.Context(), actor, id, store.SubmitRequest{
 		Chains:           toChainSubmissions(request.Chains),
 		Winter:           toWinterSubmissions(request.Winter),
+		Special:          toDeckSubmissions(request.Special),
 		Force:            request.Force,
 		ExpectedRevision: expectedRevision,
 	})
@@ -383,6 +384,14 @@ func toWinterSubmissions(requests []winterOrderRequest) []engine.WinterSubmissio
 		winter[index] = engine.WinterSubmission{Lines: request.Lines}
 	}
 	return winter
+}
+
+func toDeckSubmissions(requests []deckOrderRequest) []engine.DeckSubmission {
+	deck := make([]engine.DeckSubmission, len(requests))
+	for index, request := range requests {
+		deck[index] = engine.DeckSubmission{Text: request.Text}
+	}
+	return deck
 }
 
 func (h *GamesHandler) join(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
@@ -649,8 +658,13 @@ func buildInviteURL(baseURL string, gameID store.GameID, code string) string {
 type gameOrdersRequest struct {
 	Chains   []chainOrderRequest  `json:"chains"`
 	Winter   []winterOrderRequest `json:"winter"`
+	Special  []deckOrderRequest   `json:"special"`
 	Force    bool                 `json:"force,omitempty"`
 	Revision store.Revision       `json:"revision,omitempty"`
+}
+
+type deckOrderRequest struct {
+	Text string `json:"text"`
 }
 
 type chainOrderRequest struct {

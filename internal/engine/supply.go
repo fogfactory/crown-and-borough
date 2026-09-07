@@ -155,9 +155,11 @@ func rationProduction(ctx *resolutionContext, territoryID models.TerritoryID) in
 		return 0
 	}
 	production := ctx.balance.RationTerrain[territory.Terrain]
-	if ctx.hasSettlement(territoryID) {
+	regionSeed := regionForTerritory(ctx, territoryID)
+	if ctx.hasSettlement(territoryID) && !ctx.famineRegions[regionSeed] {
 		production += ctx.balance.InfraRationsBonus
 	}
+	production += ctx.bonusRationRegions[regionSeed] * ctx.balance.SpecialOrders.Effects.BonusArmyRation
 	return production
 }
 
@@ -184,9 +186,15 @@ func sourceProduction(ctx *resolutionContext, territoryID models.TerritoryID) in
 	locations := append([]models.TerritoryID{territoryID}, ctx.sortedNeighbors(territoryID)...)
 	for _, locationID := range locations {
 		infrastructure := ctx.infrastructureAt(locationID)
-		if infrastructure != nil && infrastructure.Type == models.InfraTypeMill {
-			production += infrastructure.Level
+		if infrastructure == nil || infrastructure.Type != models.InfraTypeMill {
+			continue
 		}
+		regionSeed := regionForTerritory(ctx, locationID)
+		if ctx.famineRegions[regionSeed] {
+			continue
+		}
+		production += infrastructure.Level
+		production += ctx.bonusMillRegions[regionSeed] * ctx.balance.SpecialOrders.Effects.BonusMillProduction
 	}
 	return production
 }

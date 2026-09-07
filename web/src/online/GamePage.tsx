@@ -253,10 +253,12 @@ export function GamePage() {
   const [supplyLoading, setSupplyLoading] = useState(false)
   const [chainDrafts, setChainDrafts] = useState<Record<string, string>>({})
   const [winterDraft, setWinterDraft] = useState('')
+  const [specialDraft, setSpecialDraft] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [confirmResolve, setConfirmResolve] = useState(false)
   const [activePanel, setActivePanel] = useState<Panel>('command')
+  const [showRegions, setShowRegions] = useState(false)
   const [rulesNavigation, setRulesNavigation] = useState<{
     section: RulesSection
     key: number
@@ -364,6 +366,7 @@ export function GamePage() {
     if (turn !== lastTurn.current) {
       setChainDrafts({})
       setWinterDraft('')
+      setSpecialDraft('')
       setActionError(null)
       lastTurn.current = turn
     }
@@ -510,6 +513,7 @@ export function GamePage() {
     if (response.status === 'resolved' || response.resolved) {
       setChainDrafts({})
       setWinterDraft('')
+      setSpecialDraft('')
       if (!response.report) {
         setReport(null)
         setActivePanel('report')
@@ -551,6 +555,7 @@ export function GamePage() {
           state.season === 'winter' && winterDraft.trim() !== ''
             ? [{ lines: winterDraft }]
             : []
+        const special = specialDraft.trim() !== '' ? [{ text: specialDraft }] : []
         response = await apiRequest<OrdersResponse>(
           { getIdToken },
           `/api/games/${encodeURIComponent(gameId)}/orders`,
@@ -559,6 +564,7 @@ export function GamePage() {
             body: JSON.stringify({
               chains,
               winter,
+              special,
               revision: summary?.revision ?? view?.revision ?? 0,
             }),
           },
@@ -751,15 +757,16 @@ export function GamePage() {
             </p>
             <p className="mt-1 text-xs text-[#594b3c]">{t('app.mapInstructions')}</p>
           </div>
-          <MapViewer
-            map={map}
-            state={state}
-            supply={selectedSupplyLine}
-            onSelect={setSelectedId}
-            intentions={intentions}
-            showIntentions={showIntentions}
-            intentionsColor={intentionsColor}
-          />
+            <MapViewer
+              map={map}
+              state={state}
+              supply={selectedSupplyLine}
+              onSelect={setSelectedId}
+              intentions={intentions}
+              showIntentions={showIntentions}
+              intentionsColor={intentionsColor}
+              showRegions={showRegions}
+            />
         </section>
 
         <aside className="w-full shrink-0 space-y-4 lg:w-96 xl:w-[27rem]">
@@ -833,6 +840,7 @@ export function GamePage() {
                     player={playerID}
                     chainDrafts={chainDrafts}
                     winterDraft={winterDraft}
+                    specialDraft={specialDraft}
                     submitted={Boolean(currentSlot?.submitted)}
                     submitting={submitting}
                     error={actionError}
@@ -840,6 +848,7 @@ export function GamePage() {
                       setChainDrafts((current) => ({ ...current, [noble]: text }))
                     }
                     onWinterChange={setWinterDraft}
+                    onSpecialChange={setSpecialDraft}
                     onSubmit={() => void submitOrders()}
                     onOpenRules={openRules}
                   />
@@ -924,6 +933,8 @@ export function GamePage() {
           <MapLegend
             showIntentions={showIntentions}
             onToggleIntentions={setShowIntentions}
+            showRegions={showRegions}
+            onToggleRegions={setShowRegions}
           />
         </aside>
       </main>
