@@ -95,6 +95,7 @@ type Event struct {
 	Year        int                  `json:"year,omitempty"`
 	Season      models.Season        `json:"season,omitempty"`
 	RumorKey    string               `json:"rumorKey,omitempty"`
+	RumorLevel  int                  `json:"rumorLevel,omitempty"`
 	Outcome     Outcome              `json:"outcome,omitempty"`
 	Automatic   bool                 `json:"automatic,omitempty"`
 	Reason      string               `json:"reason,omitempty"`

@@ -210,8 +210,9 @@ type SeasonEffectReport struct {
 }
 
 type RumorReport struct {
-	Kind models.CardKind `json:"kind"`
-	Key  string          `json:"key"`
+	Kind  models.CardKind `json:"kind"`
+	Key   string          `json:"key"`
+	Level int             `json:"level,omitempty"`
 }
 
 type WinterInvestmentReport struct {
@@ -397,7 +398,7 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 			if report.Winter == nil {
 				report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}
 			}
-			report.Winter.Rumors = append(report.Winter.Rumors, RumorReport{Kind: event.CardKind, Key: event.RumorKey})
+			report.Winter.Rumors = append(report.Winter.Rumors, RumorReport{Kind: event.CardKind, Key: event.RumorKey, Level: event.RumorLevel})
 		case EventTypeDeckDraw, EventTypeDeckDiscard, EventTypeDeckOrderPlayed, EventTypeCalamityScheduled:
 			if report.Winter == nil {
 				report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}

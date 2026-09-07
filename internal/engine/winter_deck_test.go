@@ -122,11 +122,54 @@ func TestWinterRumorsRequireMultiplePlayersAndAreDeterministic(t *testing.T) {
 	}
 }
 
+func TestWinterRumorsAggregateKindsAndScaleWithPlayers(t *testing.T) {
+	tests := []struct {
+		name        string
+		count       int
+		playerCount int
+		wantLevel   int
+	}{
+		{name: "one card", count: 1, playerCount: 2, wantLevel: 1},
+		{name: "two cards", count: 2, playerCount: 2, wantLevel: 2},
+		{name: "three cards", count: 3, playerCount: 2, wantLevel: 3},
+		{name: "two of four players", count: 2, playerCount: 4, wantLevel: 1},
+		{name: "three of four players", count: 3, playerCount: 4, wantLevel: 2},
+		{name: "six of four players", count: 6, playerCount: 4, wantLevel: 3},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			events := rumorEvents(
+				map[models.CardKind]int{models.CardKindFairWeather: test.count},
+				test.playerCount,
+				2,
+			)
+			if len(events) != 1 {
+				t.Fatalf("rumor events = %#v, want one event", events)
+			}
+			if events[0].RumorLevel != test.wantLevel {
+				t.Fatalf("rumor level = %d, want %d", events[0].RumorLevel, test.wantLevel)
+			}
+			wantKey := rumorKey(models.CardKindFairWeather, test.wantLevel)
+			if events[0].RumorKey != wantKey {
+				t.Fatalf("rumor key = %q, want %q", events[0].RumorKey, wantKey)
+			}
+		})
+	}
+
+	events := rumorEvents(map[models.CardKind]int{
+		models.CardKindFairWeather:     2,
+		models.CardKindAbundantHarvest: 1,
+	}, 2, 2)
+	if len(events) != 2 || events[0].CardKind == events[1].CardKind {
+		t.Fatalf("rumors by kind = %#v, want one event per kind", events)
+	}
+}
+
 func TestBuildWinterReportRumors(t *testing.T) {
 	before := winterDeckState()
 	after := cloneGameState(before)
-	report := BuildTurnReport(before, after, []Event{{Type: EventTypeRumor, Phase: winterPhase, CardKind: models.CardKindFairWeather, RumorKey: "rumor.fair_weather"}}, nil)
-	if report.Winter == nil || len(report.Winter.Rumors) != 1 || report.Winter.Rumors[0].Key != "rumor.fair_weather" {
+	report := BuildTurnReport(before, after, []Event{{Type: EventTypeRumor, Phase: winterPhase, CardKind: models.CardKindFairWeather, RumorKey: rumorKey(models.CardKindFairWeather, 1), RumorLevel: 1}}, nil)
+	if report.Winter == nil || len(report.Winter.Rumors) != 1 || report.Winter.Rumors[0].Key != "rumor.fair_weather.level1" || report.Winter.Rumors[0].Level != 1 {
 		t.Fatalf("winter rumors = %#v, want one public rumor", report.Winter)
 	}
 }

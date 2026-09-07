@@ -356,7 +356,12 @@ restent cachées.
 
 Les rumeurs publiques peuvent suggérer le kind d'une carte tirée lorsqu'au moins
 deux joueurs distincts ont tiré des cartes pendant l'hiver. Elles ne révèlent
-jamais le joueur ni l'identifiant interne de la carte.
+jamais le joueur ni l'identifiant interne de la carte. Plusieurs rumeurs du même
+kind sont regroupées en une seule phrase graduée : niveau 1 pour quelques cartes,
+niveau 2 pour une présence plus marquée et niveau 3 pour une abondance
+exceptionnelle. L'échelle est recalée sur la capacité de pioche de la partie
+(joueurs × limite de tirages), afin qu'un même nombre de cartes ne produise pas
+le même niveau dans une petite et une grande partie.
 
 ---
 

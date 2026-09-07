@@ -334,7 +334,11 @@ and region of every calamity in that year; future auguries remain hidden.
 
 Public rumors may suggest the kind of a drawn card when at least two distinct
 players drew cards during winter. They never reveal the player or the internal
-card identifier.
+card identifier. Several rumors of the same kind are grouped into one graduated
+sentence: level 1 for a few cards, level 2 for a stronger presence, and level 3
+for exceptional abundance. The scale is recalibrated to the game's draw
+capacity (players multiplied by the draw limit), so the same number of cards does
+not produce the same level in a small and a large game.
 
 ---
 

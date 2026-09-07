@@ -165,6 +165,23 @@ const englishMessages = {
   'rumor.fair_weather': 'The land is rich and the skies are kind; astrologers expect a generous harvest.',
   'rumor.abundant_harvest': 'The granaries whisper of abundance, and the mills turn with confidence.',
   'rumor.revolt': 'Whispers cross the countryside; peasants sharpen their sickles with ill humor.',
+  'rumor.fair_weather.level1':
+    'A few clearings appear in the clouds; the omens suggest a decent harvest.',
+  'rumor.fair_weather.level2':
+    'Bright sunshine spreads across the kingdom; generous harvests are expected.',
+  'rumor.fair_weather.level3':
+    'An exceptional year is dawning; fair skies promise abundance throughout the kingdom.',
+  'rumor.abundant_harvest.level1':
+    'The granaries whisper of a promising harvest; abundance is on the horizon.',
+  'rumor.abundant_harvest.level2':
+    'Granaries fill and mills turn at full speed; a generous harvest is coming.',
+  'rumor.abundant_harvest.level3':
+    "A historic harvest is taking shape; the kingdom's stores are already overflowing.",
+  'rumor.revolt.level1': 'A few murmurs of discontent rise from the countryside.',
+  'rumor.revolt.level2':
+    'Discontent spreads through several villages; peasants begin to arm themselves.',
+  'rumor.revolt.level3':
+    'Revolt is stirring across the kingdom; the countryside is ready to rise.',
   'reports.ordersExecuted': 'Orders executed',
   'reports.hiddenOrder': 'An order was processed, but its details are hidden.',
   'reports.noEvents': 'No {label} events.',
@@ -591,6 +608,23 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'rumor.fair_weather': 'La terre est grasse et le temps clément ; les astrologues espèrent de bonnes récoltes.',
   'rumor.abundant_harvest': 'Les greniers murmurent l’abondance et les moulins tournent avec confiance.',
   'rumor.revolt': 'Des chuchotements parcourent les campagnes ; les paysans aiguisent leurs faux d’un air peu amène.',
+  'rumor.fair_weather.level1':
+    'Quelques éclaircies se dessinent ; les augures entrevoient une récolte convenable.',
+  'rumor.fair_weather.level2':
+    'Un bel ensoleillement gagne le royaume ; les récoltes s’annoncent généreuses.',
+  'rumor.fair_weather.level3':
+    'Une année exceptionnelle se prépare ; le beau temps promet l’abondance dans tout le royaume.',
+  'rumor.abundant_harvest.level1':
+    'Les greniers murmurent une récolte prometteuse ; l’abondance pointe à l’horizon.',
+  'rumor.abundant_harvest.level2':
+    'Les greniers se remplissent et les moulins tournent à plein régime ; la récolte sera généreuse.',
+  'rumor.abundant_harvest.level3':
+    'Une récolte historique se profile ; les réserves du royaume débordent déjà.',
+  'rumor.revolt.level1': 'Quelques murmures de mécontentement montent des campagnes.',
+  'rumor.revolt.level2':
+    'La grogne gagne plusieurs villages ; les paysans commencent à s’armer.',
+  'rumor.revolt.level3':
+    'La révolte gronde dans tout le royaume ; les campagnes sont prêtes à se soulever.',
   'reports.ordersExecuted': 'Ordres exécutés',
   'reports.hiddenOrder': 'Un ordre a été traité, mais ses détails sont masqués.',
   'reports.noEvents': 'Aucun événement de {label}.',
