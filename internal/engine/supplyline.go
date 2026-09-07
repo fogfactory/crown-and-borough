@@ -26,17 +26,20 @@ const (
 // SupplyLine describes the source and shortest route used to assign supply to
 // one army, or the reachable zone of a selected supply source.
 type SupplyLine struct {
-	Kind         SupplyLineKind       `json:"kind"`
-	Territory    models.TerritoryID   `json:"territory"`
-	ArmyOwner    models.PlayerID      `json:"armyOwner"`
-	ArmySize     int                  `json:"armySize"`
-	Rations      int                  `json:"rations"`
-	Demand       int                  `json:"demand"`
-	Source       *models.TerritoryID  `json:"source"`
-	Distance     int                  `json:"distance"`
-	Path         []models.TerritoryID `json:"path"`
-	Reachable    []models.TerritoryID `json:"reachable"`
-	SelfSupplied bool                 `json:"selfSupplied"`
+	Kind              SupplyLineKind       `json:"kind"`
+	Territory         models.TerritoryID   `json:"territory"`
+	ArmyOwner         models.PlayerID      `json:"armyOwner"`
+	ArmySize          int                  `json:"armySize"`
+	TerrainProduction int                  `json:"terrainProduction"`
+	LocalProduction   int                  `json:"localProduction"`
+	Rations           int                  `json:"rations"`
+	TotalDemand       int                  `json:"totalDemand"`
+	Demand            int                  `json:"demand"`
+	Source            *models.TerritoryID  `json:"source"`
+	Distance          int                  `json:"distance"`
+	Path              []models.TerritoryID `json:"path"`
+	Reachable         []models.TerritoryID `json:"reachable"`
+	SelfSupplied      bool                 `json:"selfSupplied"`
 }
 
 // TransferLine projects the route available to an action-turn resource
@@ -92,16 +95,20 @@ func projectSupplyLine(
 ) SupplyLine {
 
 	receivedRations := resolveRations(ctx)
-	demand := armyCost(army.Size, balance.CostBase) - receivedRations[army.ID]
+	totalDemand := armyCost(army.Size, balance.CostBase)
+	demand := totalDemand - receivedRations[army.ID]
 	line := SupplyLine{
-		Kind:      SupplyLineKindArmy,
-		Territory: territoryID,
-		ArmyOwner: army.OwnerID,
-		ArmySize:  army.Size,
-		Rations:   receivedRations[army.ID],
-		Demand:    demand,
-		Path:      []models.TerritoryID{},
-		Reachable: []models.TerritoryID{},
+		Kind:              SupplyLineKindArmy,
+		Territory:         territoryID,
+		ArmyOwner:         army.OwnerID,
+		ArmySize:          army.Size,
+		TerrainProduction: terrainRationProduction(ctx, territoryID),
+		LocalProduction:   rationProduction(ctx, territoryID),
+		Rations:           receivedRations[army.ID],
+		TotalDemand:       totalDemand,
+		Demand:            demand,
+		Path:              []models.TerritoryID{},
+		Reachable:         []models.TerritoryID{},
 	}
 	if ownerID, isSource := controlledSupplyOwner(ctx, territoryID); isSource &&
 		ownerID == army.OwnerID {

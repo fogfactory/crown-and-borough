@@ -27,9 +27,9 @@ func TestArmyCostAndRationDistribution(t *testing.T) {
 		{ID: "A2", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
 		{ID: "A3", OwnerID: "P3", TerritoryID: "CCC", Size: 2},
 	}
-	received := distributeRations(2, armies)
-	if !reflect.DeepEqual(received, map[models.ArmyID]int{"A2": 1, "A3": 1}) {
-		t.Errorf("ration distribution = %#v, want A3 then A2", received)
+	received := distributeRations(2, armies, testBalance().CostBase)
+	if !reflect.DeepEqual(received, map[models.ArmyID]int{"A3": 2}) {
+		t.Errorf("ration distribution = %#v, want A3 to receive its full demand first", received)
 	}
 
 	original := map[models.TerritoryID]int{"AAA": 1}
@@ -134,7 +134,7 @@ func TestResolveSupplyRationsAndEvents(t *testing.T) {
 				supplyTerritory("AAA", "AAA", models.TerrainPlain, "BBB"),
 				supplyTerritory("BBB", "BBB", models.TerrainMountain, "AAA"),
 			},
-			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2}},
+			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 3}},
 		)
 		setTerritoryOwner(state, "BBB", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
@@ -145,8 +145,8 @@ func TestResolveSupplyRationsAndEvents(t *testing.T) {
 			t.Fatalf("Resolve: %v", err)
 		}
 		event := supplyEventForSource(t, resolution.Events, "BBB")
-		if event.Production != 1 || event.Demand != 1 || !reflect.DeepEqual(event.Rations, map[models.TerritoryID]int{"AAA": 1}) || event.StockConsumed != 0 {
-			t.Errorf("supply event = %#v, want production 1, demand 1, and one ration at AAA", event)
+		if event.Production != 1 || event.Demand != 1 || !reflect.DeepEqual(event.Rations, map[models.TerritoryID]int{"AAA": 3}) || event.StockConsumed != 0 {
+			t.Errorf("supply event = %#v, want production 1, demand 1, and three local rations at AAA", event)
 		}
 		if hasFamineEvent(resolution.Events, "A1") {
 			t.Error("A1 should be supplied after its local ration")
@@ -626,7 +626,7 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 
 	t.Run("negative pillage gain starves a size-three army down to two", func(t *testing.T) {
 		state := testState(t,
-			[]models.Territory{supplyTerritory("AAA", "AAA", models.TerrainPlain)},
+			[]models.Territory{supplyTerritory("AAA", "AAA", models.TerrainMountain)},
 			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 3}},
 		)
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "AAA"})
@@ -968,8 +968,8 @@ func TestResolveSupplyIsPureAndDeterministic(t *testing.T) {
 	if !reflect.DeepEqual(first.State, second.State) || !reflect.DeepEqual(first.Events, second.Events) {
 		t.Fatalf("supply resolutions differ:\nfirst=%#v\nsecond=%#v", first, second)
 	}
-	if event := supplyEventForSource(t, first.Events, "AAA"); !reflect.DeepEqual(event.Rations, map[models.TerritoryID]int{"BBB": 1}) {
-		t.Errorf("supply event rations = %#v, want BBB ration", event.Rations)
+	if event := supplyEventForSource(t, first.Events, "AAA"); !reflect.DeepEqual(event.Rations, map[models.TerritoryID]int(nil)) {
+		t.Errorf("supply event rations = %#v, want no BBB ration", event.Rations)
 	}
 	if event := famineEventForArmy(t, first.Events, "A2"); !event.SavedByPillage || event.InfrastructureID != "I2" {
 		t.Errorf("A2 famine event = %#v, want saved auto-pillage", event)

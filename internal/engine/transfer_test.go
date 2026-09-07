@@ -96,11 +96,11 @@ func TestResolveLoopTransferUsesPartialFinalShipment(t *testing.T) {
 	if got := resolution.State.TerritoryStates["AAA"].Resources; got != 0 {
 		t.Errorf("source resources = %d, want exhausted cache", got)
 	}
-	if got := resolution.State.TerritoryStates["BBB"].Resources; got != 1 {
-		t.Errorf("target resources = %d, want partial shipment of 1", got)
+	if got := resolution.State.TerritoryStates["BBB"].Resources; got != 3 {
+		t.Errorf("target resources = %d, want partial shipment of 3", got)
 	}
 	event, ok := findEvent(resolution.Events, EventTypeTransfer)
-	if !ok || event.ResourceAmount != 1 || !event.Partial {
+	if !ok || event.ResourceAmount != 3 || !event.Partial {
 		t.Errorf("partial transfer event = %#v", event)
 	}
 	if chainOf(resolution.State, "A1") != nil {

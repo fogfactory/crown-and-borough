@@ -388,8 +388,8 @@ coût = 2^(N - 1)  rations
 | Coût en rations | 1 | 2 | 4 | 8 | 16 |
 
 La production vivrière de la case de l'armée lui est attribuée à elle seule :
-une armée ne consomme que la production de la case qu'elle occupe, au plus
-**une ration**, et le reste constitue sa demande à ravitailler. Il n'y a
+une armée consomme la production de la case qu'elle occupe jusqu'à hauteur de
+sa demande, le surplus est perdu et le reste constitue sa demande à ravitailler. Il n'y a
 jamais qu'une armée par case, donc aucune distribution entre armées : une
 armée ennemie sur une case voisine ne prend jamais la ration de ta case.
 
@@ -399,10 +399,9 @@ sources contrôlées par un joueur.
 
 Exemple : une armée de 2 troupes sur une colline portant un château
 (production locale : {{ration_terrain.hill}} ; bonus du château : {{infra_rations_bonus}})
-reçoit 1 ration ; sa demande restante est
-2 − 1 = 1 ration à couvrir par ses sources. Une armée sur un marécage
-(production {{ration_terrain.swamp}}) reçoit 1 ration et doit couvrir sa demande
-restante de 1 ration.
+reçoit 2 rations ; sa demande restante est 0. Une armée de 2 troupes sur un
+marécage (production {{ration_terrain.swamp}}) reçoit 1 ration et doit couvrir
+sa demande restante de 1 ration.
 
 **Production vivrière de la case (en rations)** : plaine {{ration_terrain.plain}} ;
 forêt {{ration_terrain.forest}} ; colline {{ration_terrain.hill}} ; montagne

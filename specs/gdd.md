@@ -244,9 +244,9 @@ Une armée de `N` troupes sur une case demande :
 
 `coût = 2^(N - 1)`
 
-La production vivrière de la case est distribuée aux armées présentes, toutes
-nationalités confondues, au plus une ration par armée et en commençant par la
-plus grosse. Le reste constitue la demande à ravitailler.
+La production vivrière de la case est consommée par l'armée qui l'occupe,
+jusqu'à hauteur de sa demande. Le surplus est perdu ; le reste constitue la
+demande à ravitailler.
 
 Les châteaux, villages et caches contrôlés contenant un stock positif sont les
 sources de ravitaillement. Une armée consomme en priorité le stock de sa case.

@@ -362,8 +362,8 @@ cost = 2^(N - 1)  rations
 | Ration cost | 1 | 2 | 4 | 8 | 16 |
 
 The food production of the army's own territory is granted to that army alone:
-an army only consumes the production of the territory it occupies, at most
-**one ration**, and the remainder is its demand to supply. There is only ever
+an army consumes the production of the territory it occupies up to its demand;
+surplus is lost and the remainder is its demand to supply. There is only ever
 one army per territory, so there is no distribution between armies: an enemy
 army on a neighboring territory never takes your territory's ration.
 
@@ -372,10 +372,10 @@ occupy, but receive no additional supply from a player's controlled source
 stocks.
 
 Example: a 2-troop army on a hill with a castle (local production:
-{{ration_terrain.hill}}; castle bonus: {{infra_rations_bonus}}) receives 1 ration;
-its remaining demand is 2 − 1 = 1 ration to cover from its sources. An army on
-a swamp (production {{ration_terrain.swamp}}) receives 1 ration and must cover
-its remaining demand of 1 ration.
+{{ration_terrain.hill}}; castle bonus: {{infra_rations_bonus}}) receives 2 rations;
+its remaining demand is 0. A 2-troop army on a swamp (production
+{{ration_terrain.swamp}}) receives 1 ration and must cover its remaining demand
+of 1 ration.
 
 **Territory food production (rations)**: plain {{ration_terrain.plain}}; forest
 {{ration_terrain.forest}}; hill {{ration_terrain.hill}}; mountain
