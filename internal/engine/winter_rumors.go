@@ -21,6 +21,7 @@ func emitWinterRumors(ctx *resolutionContext) {
 		return
 	}
 	sort.Slice(players, func(i, j int) bool { return players[i] < players[j] })
+	rumorCounts := make(map[models.CardKind]int)
 	index := 0
 	for _, playerID := range players {
 		for _, kind := range ctx.deckDraws[playerID] {
@@ -28,14 +29,53 @@ func emitWinterRumors(ctx *resolutionContext) {
 				index++
 				continue
 			}
-			ctx.events = append(ctx.events, Event{Type: EventTypeRumor, Phase: winterPhase, CardKind: kind, RumorKey: rumorKey(kind)})
+			rumorCounts[kind]++
 			index++
 		}
 	}
+	ctx.events = append(ctx.events, rumorEvents(rumorCounts, len(ctx.state.Players), ctx.balance.SpecialOrders.DrawOrdersLimit)...)
 }
 
-func rumorKey(kind models.CardKind) string {
-	return "rumor." + string(kind)
+func rumorEvents(counts map[models.CardKind]int, playerCount, drawLimit int) []Event {
+	kinds := make([]models.CardKind, 0, len(counts))
+	for kind, count := range counts {
+		if count > 0 {
+			kinds = append(kinds, kind)
+		}
+	}
+	sort.Slice(kinds, func(i, j int) bool { return kinds[i] < kinds[j] })
+
+	events := make([]Event, 0, len(kinds))
+	for _, kind := range kinds {
+		level := rumorLevel(counts[kind], playerCount, drawLimit)
+		events = append(events, Event{
+			Type:       EventTypeRumor,
+			Phase:      winterPhase,
+			CardKind:   kind,
+			RumorKey:   rumorKey(kind, level),
+			RumorLevel: level,
+		})
+	}
+	return events
+}
+
+func rumorLevel(count, playerCount, drawLimit int) int {
+	if count <= 0 {
+		return 0
+	}
+	capacity := playerCount * drawLimit
+	if capacity < 1 {
+		return 1
+	}
+	level := (count*3 + capacity - 1) / capacity
+	if level > 3 {
+		return 3
+	}
+	return level
+}
+
+func rumorKey(kind models.CardKind, level int) string {
+	return fmt.Sprintf("rumor.%s.level%d", kind, level)
 }
 
 func newRumorRNG(seed string, turn, index int) *rand.Rand {

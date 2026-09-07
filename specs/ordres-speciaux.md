@@ -44,6 +44,16 @@ de calamité ne peuvent pas être joués comme ordres de joueur. Lorsqu’un ord
 main du joueur et la place dans la défausse ; l’effet est ensuite enregistré pour
 une résolution simultanée par région.
 
+## Rumeurs publiques
+
+Lorsqu'au moins deux joueurs ont tiré des cartes pendant l'hiver, une sélection
+déterministe peut produire des rumeurs publiques. Les rumeurs sont regroupées
+par kind : plusieurs rumeurs du même kind ne sont jamais répétées dans le
+rapport, mais augmentent le niveau sémantique de la phrase (niveau 1, 2 ou 3).
+Les niveaux sont recalés sur la capacité maximale de pioche de la partie, soit
+le nombre de joueurs multiplié par la limite de tirages par joueur. Une rumeur
+ne révèle ni le joueur concerné ni l'identifiant interne de la carte.
+
 ## Effets des calamités et de la révolte
 
 - La peste réduit chaque armée de la région à `ceil(taille / divisor)`, avec au

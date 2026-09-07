@@ -145,6 +145,9 @@ const report: TurnReport = {
       },
     ],
     stocks: [],
+    rumors: [
+      { kind: 'fair_weather', key: 'rumor.fair_weather.level2', level: 2 },
+    ],
   },
 }
 
@@ -172,6 +175,9 @@ describe('ReportPanel', () => {
     expect(screen.getAllByLabelText('Couleur de One')).not.toHaveLength(0)
     expect(screen.getByText('ROS · Neutre')).toBeInTheDocument()
     expect(screen.getByText(/3 R en stock/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/Un bel ensoleillement gagne le royaume/),
+    ).toBeInTheDocument()
   })
 
   it('does not display storage identifiers in visible report text', () => {

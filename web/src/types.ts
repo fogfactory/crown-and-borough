@@ -486,6 +486,7 @@ export interface CardReport {
 export interface RumorReport {
   kind: CardKind
   key: string
+  level?: number
 }
 
 export interface SeasonEffectReport {
