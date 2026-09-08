@@ -257,7 +257,7 @@ investissements directs, une ligne par ordre, appliqués dans l'ordre saisi.
 |---|---|---|---|
 | Recruter un noble | `R N XXX` | `XXX` contrôlé, avec un château ou un village et une armée du joueur | 2 |
 | Recruter une troupe | `R T XXX` | `XXX` contrôlé, et un noble libre du joueur sur `XXX` ou adjacent | 1 |
-| Construire ou améliorer un moulin | `C M XXX` | `XXX` contrôlé ; nouveau moulin sur case **vide** adjacente à un château ou village productif, ou moulin existant adjacent à cette source | 3 |
+| Construire ou améliorer un moulin | `C M XXX` | `XXX` contrôlé ; nouveau moulin sur case **vide** adjacente à un château ou village productif, ou moulin existant adjacent à cette source | {{costs.mill_levels.0}} (N1), {{costs.mill_levels.1}} (N2), {{costs.mill_levels.2}} (N3) |
 | Construire un château | `C C XXX` | `XXX` contrôlé | 10 |
 | Construire un dépôt de vivres | `C D XXX` | `XXX` contrôlé | 3 |
 | Désigner une capitale | `E C XXX` | un château contrôlé sur `XXX` | 0 |
@@ -270,6 +270,14 @@ Un transfert d'hiver ne se limite donc pas aux villages et châteaux du donneur 
 il peut alimenter directement une structure contrôlée par le joueur destinataire.
 Le débit, lui, suit les règles habituelles et ne peut utiliser que les réserves
 de paiement du donneur.
+
+Un moulin commence au niveau 1 et peut atteindre le niveau 3 inclus. La
+construction coûte {{costs.mill_levels.0}} R ; les améliorations vers les niveaux
+2 et 3 coûtent respectivement {{costs.mill_levels.1}} R et
+{{costs.mill_levels.2}} R. `C M` sur un moulin déjà au niveau 3 est rejeté avec
+le motif `mill_max_level_reached` et aucun stock n'est prélevé. Les moulins de
+niveau supérieur à 3 déjà présents dans une partie sont conservés et restent
+productifs ; seules leurs nouvelles améliorations sont bloquées.
 
 ### Otage et donjon
 
@@ -311,16 +319,19 @@ contrôlée par un autre joueur, il ajoute ce bonus à une source voisine contr�
 par le joueur concerné. Un noble situé ailleurs sur la carte n'empêche pas
 `C M ATL` et n'est pas requis pour le construire. Si la case de construction
 porte déjà une autre infrastructure, l'ordre est rejeté avec
-`structure_present` : une case ne porte jamais deux infrastructures.
+`structure_present` : une case ne porte jamais deux infrastructures. Un moulin
+ajoute son niveau à chaque source adjacente, jusqu'à son niveau réel ; les
+moulins hérités de niveau supérieur à 3 restent donc productifs.
 
 **Paiement** : le coût est prélevé d'abord sur le stock de la case ciblée, puis
 sur la source contrôlée la plus proche ; si la réserve totale est insuffisante,
 **aucun paiement partiel** n'est effectué et l'investissement est rejeté
 (signalé dans le rapport, coût non perdu).
 
-Exemple : un `C M ATL` coûtant 3 R consomme 1 R du stock d'ATL puis 2 R de la
-source contrôlée la plus proche. Si ces deux stocks ne totalisent que 2 R, la
-construction est rejetée et aucun des 2 R n'est retiré.
+Exemple : un `C M ATL` coûtant {{costs.mill_levels.0}} R consomme d'abord le
+stock d'ATL puis le complément depuis la source contrôlée la plus proche. Si
+ces stocks ne totalisent pas le coût requis, la construction est rejetée et
+aucun prélèvement partiel n'est effectué.
 
 **Fin de l'hiver** :
 
@@ -461,7 +472,7 @@ Une case ne porte qu'**une seule infrastructure**.
 
 | Infrastructure | Condition | Effet v1 | Coût |
 |---|---|---|---|
-| Moulin | Construction sur case vide contrôlée, adjacente à un château ou village ; amélioration d'un moulin existant adjacent à cette source | +1 R stockable par niveau à **chaque** source adjacente | 3 |
+| Moulin | Construction sur case vide contrôlée, adjacente à un château ou village ; amélioration d'un moulin existant adjacent à cette source, jusqu'au niveau 3 | +1 R stockable par niveau à **chaque** source adjacente | {{costs.mill_levels.0}} / {{costs.mill_levels.1}} / {{costs.mill_levels.2}} |
 | Dépôt de vivres | Aucune | +2 cases de portée de ravitaillement lorsqu'il est contrôlé | 3 |
 | Château | Aucune | +1 défense, +{{infra_rations_bonus}} rations, produit {{base_production}} R stockable par tour, ancre de ravitaillement | 10 |
 | Village | Généré neutre, **non constructible** | +{{infra_rations_bonus}} rations, produit {{base_production}} R stockable par tour, ancre après capture | — |

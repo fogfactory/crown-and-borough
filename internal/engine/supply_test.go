@@ -169,7 +169,7 @@ func TestResolveSupplyProductionAndStocks(t *testing.T) {
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 2, TerritoryID: "BBB"})
 		addInfrastructure(state, models.Infrastructure{ID: "I3", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "CCC"})
-		addInfrastructure(state, models.Infrastructure{ID: "I4", Type: models.InfraTypeMill, Level: 3, TerritoryID: "DDD"})
+		addInfrastructure(state, models.Infrastructure{ID: "I4", Type: models.InfraTypeMill, Level: 5, TerritoryID: "DDD"})
 		neutralState := state.TerritoryStates["CCC"]
 		neutralState.Resources = 7
 		state.TerritoryStates["CCC"] = neutralState
@@ -182,15 +182,15 @@ func TestResolveSupplyProductionAndStocks(t *testing.T) {
 		if got := resolution.State.TerritoryStates["AAA"].Resources; got != 3 {
 			t.Errorf("controlled castle stock = %d, want base 1 plus adjacent mill level 2", got)
 		}
-		if got := resolution.State.TerritoryStates["CCC"].Resources; got != 11 {
-			t.Errorf("neutral village stock = %d, want persisted 7 plus base and mill production", got)
+		if got := resolution.State.TerritoryStates["CCC"].Resources; got != 13 {
+			t.Errorf("neutral village stock = %d, want persisted 7 plus base and grandfathered mill production", got)
 		}
 		event := supplyEventForSource(t, resolution.Events, "AAA")
 		if event.Production != 3 || event.Demand != 0 {
 			t.Errorf("source event = %#v, want production 3 and no demand", event)
 		}
 		neutralEvent := supplyEventForSource(t, resolution.Events, "CCC")
-		if neutralEvent.OwnerID != "" || neutralEvent.Production != 4 || neutralEvent.StockAfter != 11 {
+		if neutralEvent.OwnerID != "" || neutralEvent.Production != 6 || neutralEvent.StockAfter != 13 {
 			t.Errorf("neutral event = %#v, want base plus adjacent mill production", neutralEvent)
 		}
 		if len(supplyEvents(resolution.Events)) != 2 {

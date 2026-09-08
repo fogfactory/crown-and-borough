@@ -109,6 +109,7 @@ const REASON_KEYS: Record<string, MessageKey> = {
   territory_occupied_by_other_player: 'reports.reason.territory_occupied_by_other_player',
   invalid_infrastructure: 'reports.reason.invalid_infrastructure',
   unknown_noble: 'reports.reason.unknown_noble',
+  mill_max_level_reached: 'reports.reason.mill_max_level_reached',
 }
 
 const RECEPTION_REASON_KEYS: Record<string, MessageKey> = {

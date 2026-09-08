@@ -188,6 +188,36 @@ describe('ReportPanel', () => {
     expect(text).not.toMatch(/O\d+/)
   })
 
+  it('localizes the mill maximum-level rejection reason', () => {
+    const capReport: TurnReport = {
+      ...report,
+      winter: {
+        investments: [
+          {
+            kind: 'rejected',
+            player: 'P1',
+            outcome: 'failure',
+            cost: 0,
+            territory: 'ROS',
+            reason: 'mill_max_level_reached',
+            order: { type: 'build', territory: 'ROS', infrastructureType: 'mill' },
+          },
+        ],
+        stocks: [],
+      },
+    }
+
+    render(
+      <LanguageProvider initialLanguage="fr">
+        <ReportPanel report={capReport} map={map} players={players} />
+      </LanguageProvider>,
+    )
+
+    expect(
+      screen.getByText(/Le moulin a atteint son niveau maximal\./),
+    ).toBeInTheDocument()
+  })
+
   it('displays the noble command bonus in combat forces', () => {
     const combatReport: TurnReport = {
       ...report,

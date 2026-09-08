@@ -72,6 +72,7 @@ const (
 	WinterUnknownSubtype         = "error.winter.unknown_subtype"
 	WinterTransferShape          = "error.winter.transfer_shape"
 	WinterTransferAmount         = "error.winter.transfer_amount"
+	WinterMillMaxLevelReached    = "mill_max_level_reached"
 
 	ValidationUnknownNoble                 = "error.validation.unknown_noble"
 	ValidationEmptyChain                   = "error.validation.empty_chain"
@@ -160,6 +161,7 @@ func init() {
 	register(WinterUnknownSubtype, "unknown winter order %s %s", "ordre d'hiver inconnu : %s %s")
 	register(WinterTransferShape, "G requires a source, a destination, and an amount", "G exige une source, une destination et un montant")
 	register(WinterTransferAmount, "transfer amount %q must be a positive integer", "le montant du transfert %q doit être un entier positif")
+	register(WinterMillMaxLevelReached, "the mill has reached its maximum level", "le moulin a atteint son niveau maximal")
 
 	register(ValidationUnknownNoble, "noble %q does not exist", "le noble %q n'existe pas")
 	register(ValidationEmptyChain, "a chain must contain at least one order", "une chaîne doit contenir au moins un ordre")
