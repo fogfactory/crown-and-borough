@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import App from '@/App'
-import type { MapData, StateData, SupplyLine, TurnReport } from '@/types'
+import type { MapData, StateData, SupplyLine, TransferLine, TurnReport } from '@/types'
 
 const map: MapData = {
   territories: [
@@ -120,6 +120,17 @@ const supplyLine: SupplyLine = {
   path: ['ROS'],
   reachable: ['ROS'],
   selfSupplied: false,
+}
+
+const transferLine: TransferLine = {
+  kind: 'transfer',
+  source: 'ROS',
+  target: 'BRU',
+  armyOwner: 'P1',
+  path: ['ROS', 'BRU'],
+  reachable: true,
+  distance: 1,
+  reachableTerritories: ['ROS', 'BRU'],
 }
 
 const rulesDocument = '# Règles du jeu\n\nLes ordres sont résolus simultanément.\n'
@@ -297,6 +308,48 @@ describe('App command/report tabs', () => {
     fireEvent.click(screen.getByRole('tab', { name: /Poste de commandement/ }))
     expect(screen.getByLabelText('Chaîne de JEA')).toHaveValue('ROS A BRU')
     expect(screen.getByText('Rosemont')).toBeInTheDocument()
+  })
+
+  it('requests a transfer overlay for a drafted action transfer', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      return Promise.resolve({
+        ok: true,
+        json: async () =>
+          url.includes('target=')
+            ? transferLine
+            : url.includes('/map')
+              ? map
+              : url.includes('/supply')
+                ? supplyLine
+                : state,
+      } as Response)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { container } = render(<App initialLanguage="en" />)
+    await screen.findByLabelText('Chain for JEA')
+
+    const territory = await waitFor(() => {
+      const element = container.querySelector('[data-territory-id="ROS"]')
+      if (!element) throw new Error('territory did not render')
+      return element
+    })
+    fireEvent.keyDown(territory, { key: 'Enter', code: 'Enter' })
+    fireEvent.change(screen.getByLabelText('Chain for JEA'), {
+      target: { value: 'ROS T BRU 1' },
+    })
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/supply?territory=ROS&target=BRU',
+        expect.objectContaining({ signal: expect.anything() }),
+      )
+    })
+    expect(await screen.findByText('Transfer preview')).toBeInTheDocument()
+    expect(
+      await screen.findByText('The transfer route is reachable.'),
+    ).toBeInTheDocument()
   })
 
   it('opens the report tab after a resolved submission', async () => {

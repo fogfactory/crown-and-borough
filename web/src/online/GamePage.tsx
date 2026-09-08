@@ -31,6 +31,7 @@ import { addNobleHeader, hasChainContent } from '@/lib/order-text'
 import { playerDisplayName, type PlayerName } from '@/lib/player-label'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { useLocalStorageState } from '@/lib/storage'
+import { transferTargetsForTerritory } from '@/lib/transfer-preview'
 import {
   normalizeGameSummary,
   normalizeStateData,
@@ -45,6 +46,7 @@ import type {
   PlayerId,
   StateData,
   SupplyLine,
+  TransferLine,
   TurnReport,
 } from '@/types'
 
@@ -251,6 +253,12 @@ export function GamePage() {
   const [supplyLine, setSupplyLine] = useState<SupplyLine | null>(null)
   const [supplyError, setSupplyError] = useState<string | null>(null)
   const [supplyLoading, setSupplyLoading] = useState(false)
+  const [transferLine, setTransferLine] = useState<TransferLine | null>(null)
+  const [transferError, setTransferError] = useState<string | null>(null)
+  const [transferLoading, setTransferLoading] = useState(false)
+  const [selectedTransferTarget, setSelectedTransferTarget] = useState<string | null>(
+    null,
+  )
   const [chainDrafts, setChainDrafts] = useState<Record<string, string>>({})
   const [winterDraft, setWinterDraft] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
@@ -286,6 +294,10 @@ export function GamePage() {
     setMap(null)
     setSelectedId(null)
     setSupplyLine(null)
+    setTransferLine(null)
+    setTransferError(null)
+    setTransferLoading(false)
+    setSelectedTransferTarget(null)
     setReport(null)
     setReportSummaries([])
     setReportError(null)
@@ -374,6 +386,13 @@ export function GamePage() {
   )
   const selectedState =
     state?.territories.find((territory) => territory.id === selectedId) ?? null
+  const transferTargets =
+    playerID && selectedState?.army?.owner === playerID
+      ? transferTargetsForTerritory(chainDrafts, selectedId)
+      : []
+  const transferTarget = transferTargets.includes(selectedTransferTarget ?? '')
+    ? selectedTransferTarget
+    : (transferTargets[0] ?? null)
 
   useEffect(() => {
     if (
@@ -416,6 +435,58 @@ export function GamePage() {
       })
     return () => controller.abort()
   }, [gameId, getIdToken, navigate, selectedId, selectedState, signOut, state, t])
+
+  useEffect(() => {
+    if (
+      !gameId ||
+      !selectedId ||
+      !state ||
+      !selectedState?.army ||
+      !transferTarget ||
+      state.season === 'winter'
+    ) {
+      setTransferLine(null)
+      setTransferError(null)
+      setTransferLoading(false)
+      return
+    }
+
+    const controller = new AbortController()
+    setTransferLine(null)
+    setTransferError(null)
+    setTransferLoading(true)
+    void apiRequest<TransferLine>(
+      { getIdToken },
+      `/api/games/${encodeURIComponent(gameId)}/supply?territory=${encodeURIComponent(selectedId)}&target=${encodeURIComponent(transferTarget)}`,
+      { signal: controller.signal },
+    )
+      .then((line) => {
+        if (!controller.signal.aborted) setTransferLine(line)
+      })
+      .catch((transferFailure: unknown) => {
+        if (controller.signal.aborted) return
+        if (transferFailure instanceof ApiError && transferFailure.status === 401) {
+          void signOut().catch(() => undefined)
+          navigate('/signin', { replace: true })
+          return
+        }
+        setTransferError(errorText(transferFailure, t('error.network')))
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setTransferLoading(false)
+      })
+    return () => controller.abort()
+  }, [
+    gameId,
+    getIdToken,
+    navigate,
+    selectedId,
+    selectedState,
+    signOut,
+    state,
+    t,
+    transferTarget,
+  ])
 
   useEffect(() => {
     if (!gameId || !hasSummary || !user) return
@@ -822,10 +893,17 @@ export function GamePage() {
                   selectedTerritory={selectedTerritory}
                   selectedState={selectedState}
                   preferredPlayers={summary.players}
+                  mapTerritories={map.territories}
                   selectedSupplyLine={selectedSupplyLine}
                   sourceTerritory={sourceTerritory}
                   supplyLoading={supplyLoading}
                   supplyError={supplyError}
+                  transferTargets={transferTargets}
+                  selectedTransferTarget={transferTarget}
+                  onTransferTargetChange={setSelectedTransferTarget}
+                  transferLine={transferLine}
+                  transferLoading={transferLoading}
+                  transferError={transferError}
                 />
                 {playerID ? (
                   <OrdersPanel
