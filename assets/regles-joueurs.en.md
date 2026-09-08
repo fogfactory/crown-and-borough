@@ -240,7 +240,7 @@ line, applied in the entered order.
 |---|---|---|---|
 | Recruit a noble | `R N XXX` | `XXX` controlled, with a castle or village and a player army | 2 |
 | Recruit a troop | `R T XXX` | `XXX` controlled, and a free player noble on `XXX` or adjacent | 1 |
-| Build or upgrade a mill | `C M XXX` | `XXX` controlled; a new mill on an **empty** territory adjacent to a productive castle or village, or an existing mill adjacent to that source | 3 |
+| Build or upgrade a mill | `C M XXX` | `XXX` controlled; a new mill on an **empty** territory adjacent to a productive castle or village, or an existing mill adjacent to that source | 3 (L1), 5 (L2), 7 (L3) |
 | Build a castle | `C C XXX` | `XXX` controlled | 10 |
 | Build a supply depot | `C D XXX` | `XXX` controlled | 3 |
 | Designate a capital | `E C XXX` | a controlled castle on `XXX` | 0 |
@@ -253,6 +253,12 @@ A winter transfer is therefore not limited to the donor's own castles and
 villages: it can directly supply a structure controlled by the recipient. The
 debit still follows the usual rules and can use only the donor's payment
 reserves.
+
+A mill starts at level 1 and can reach level 3 inclusive. Construction costs
+3 R; upgrades to levels 2 and 3 cost 5 R and 7 R respectively. `C M` on a
+level-3 mill is rejected with reason `mill_max_level_reached`, and no stock is
+deducted. Mills above level 3 already present in a game are preserved and
+remain productive; only new upgrades are blocked.
 
 ### Hostage and Dungeon
 
@@ -290,7 +296,9 @@ mill is on a territory controlled by another player, it adds this bonus to a
 neighboring source controlled by the relevant player. A noble elsewhere on the
 map does not prevent `C M ATL` and is not required to build it. If the build
 territory already has another infrastructure, the order is rejected with
-`structure_present`: a territory never carries two infrastructures.
+`structure_present`: a territory never carries two infrastructures. A mill adds
+its level to every adjacent source, including a legacy mill whose level is above
+the current level-3 upgrade cap.
 
 **Payment**: the cost is taken first from the stock on the target territory, then
 from the nearest controlled source; if the total reserve is insufficient, **no
@@ -431,7 +439,7 @@ A territory carries only **one infrastructure**.
 
 | Infrastructure | Condition | v1 effect | Cost |
 |---|---|---|---|
-| Mill | Build on an empty controlled territory adjacent to a castle or village; upgrade an existing mill adjacent to that source | +1 stockable R per level at **each** adjacent source | 3 |
+| Mill | Build on an empty controlled territory adjacent to a castle or village; upgrade an existing mill adjacent to that source, up to level 3 | +1 stockable R per level at **each** adjacent source | 3 / 5 / 7 |
 | Supply depot | None | +2 territories of supply range when controlled | 3 |
 | Castle | None | +1 defense, +{{infra_rations_bonus}} rations, produces {{base_production}} stockable R per turn, supply anchor | 10 |
 | Village | Generated neutral, **not buildable** | +{{infra_rations_bonus}} rations, produces {{base_production}} stockable R per turn, supply anchor after capture | — |

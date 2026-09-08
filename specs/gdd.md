@@ -79,12 +79,19 @@ perdu.
 | Investissement | Coût en R |
 |---|---:|
 | Château | 10 |
-| Moulin | 3 |
+| Moulin | 3 (construction niveau 1), 5 (niveau 2), 7 (niveau 3) |
 | Troupe | 1 |
 | Noble | 2 |
 | Dépôt de vivres | 3 |
 | Changement de statut d'un noble | 0 |
 | Libération d'un noble | 0 |
+
+Un moulin peut atteindre le niveau 3 inclus. Une construction coûte 3 R et les
+passages aux niveaux 2 et 3 coûtent respectivement 5 R et 7 R. Un ordre `C M`
+sur un moulin déjà au niveau 3 est rejeté avec le motif
+`mill_max_level_reached`, sans prélèvement. Les moulins de niveau supérieur à 3
+déjà présents dans une partie restent valides et productifs ; cette limite ne
+bloque que les nouvelles améliorations.
 
 Les coûts sont prélevés d'abord sur le stock de la case ciblée, puis sur la
 source contrôlée la plus proche. Si la réserve totale est insuffisante, aucun
@@ -383,7 +390,7 @@ en bénéficie ; il n'y a pas de propriétaire stocké sur l'infrastructure.
 
 | Infrastructure | Condition | Effet v1 | Coût |
 |---|---|---|---:|
-| Moulin | Construction sur case vide contrôlée, adjacente à un château ou village ; amélioration d'un moulin existant adjacent à cette source | +1 R stockable par niveau à chaque source adjacente | 3 |
+| Moulin | Construction sur case vide contrôlée, adjacente à un château ou village ; amélioration d'un moulin existant adjacent à cette source, jusqu'au niveau 3 | +1 R stockable par niveau à chaque source adjacente | 3 / 5 / 7 |
 | Dépôt de vivres | Aucune condition structurelle | +2 cases de portée de ravitaillement lorsqu'il est contrôlé | 3 |
 | Château | Aucune | +1 défense, +2 rations, production de 1 R stockable par tour, ancre de ravitaillement | 10 |
 | Village | Généré neutre, non constructible | +2 rations, production de 1 R stockable par tour, ancre après capture | — |

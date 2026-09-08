@@ -23,6 +23,16 @@ func TestTranslateFormatsPlayerMessagesInBothLanguages(t *testing.T) {
 	}
 }
 
+func TestTranslateMillMaxLevelReasonInBothLanguages(t *testing.T) {
+	message := Message{Key: WinterMillMaxLevelReached}
+	if got := Translate(English, message); got != "the mill has reached its maximum level" {
+		t.Errorf("English mill max-level message = %q", got)
+	}
+	if got := Translate(French, message); got != "le moulin a atteint son niveau maximal" {
+		t.Errorf("French mill max-level message = %q", got)
+	}
+}
+
 func TestFromRequestPrefersQueryThenAcceptLanguageAndDefaultsToEnglish(t *testing.T) {
 	for _, test := range []struct {
 		name   string

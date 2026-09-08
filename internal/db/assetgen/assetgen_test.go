@@ -39,7 +39,7 @@ village_stock_cap: 1
 castle_stock_cap: 2
 costs:
   castle: 10
-  mill: 3
+  mill_levels: [3, 5, 7]
   troop: 1
   noble: 2
   supply_depot: 3
@@ -82,7 +82,7 @@ func TestLoadRealBalance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadBalance(real asset) = %v", err)
 	}
-	if balance.BaseProduction != 1 || balance.DepotRangeBonus != 2 || balance.NobleCommandBonus != 1 || balance.WinterStockDivisor != 2 || balance.VillageStockCap != 1 || balance.CastleStockCap != 2 || balance.Costs.Castle != 10 || balance.Costs.Liberation != 0 {
+	if balance.BaseProduction != 1 || balance.DepotRangeBonus != 2 || balance.NobleCommandBonus != 1 || balance.WinterStockDivisor != 2 || balance.VillageStockCap != 1 || balance.CastleStockCap != 2 || balance.Costs.Castle != 10 || balance.Costs.Liberation != 0 || len(balance.Costs.MillLevels) != 3 || balance.Costs.MillLevels[0] != 3 || balance.Costs.MillLevels[1] != 5 || balance.Costs.MillLevels[2] != 7 {
 		t.Errorf("loaded costs = %#v / %#v", balance, balance.Costs)
 	}
 	if len(balance.FirstNames) < 100 {
@@ -120,6 +120,16 @@ func TestLoadBalanceInvalid(t *testing.T) {
 			name:    "missing explicit zero cost",
 			content: strings.Replace(validBalance, "  supply_depot: 3\n", "", 1),
 			want:    "costs.supply_depot",
+		},
+		{
+			name:    "missing mill levels",
+			content: strings.Replace(validBalance, "  mill_levels: [3, 5, 7]\n", "", 1),
+			want:    "costs.mill_levels",
+		},
+		{
+			name:    "negative mill level cost",
+			content: strings.Replace(validBalance, "  mill_levels: [3, 5, 7]\n", "  mill_levels: [3, -5, 7]\n", 1),
+			want:    "costs.mill_levels[1]",
 		},
 		{
 			name:    "missing noble command bonus",

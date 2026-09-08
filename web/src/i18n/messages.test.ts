@@ -22,4 +22,13 @@ describe('i18n messages', () => {
     expect(formatOrderLabel(order)).toBe('(ROS S BRI - CHA)')
     expect(formatOrderLabel(order)).toBe('(ROS S BRI - CHA)')
   })
+
+  it('translates the mill maximum-level rejection in both languages', () => {
+    expect(translate('en', 'reports.reason.mill_max_level_reached')).toBe(
+      'The mill has reached its maximum level.',
+    )
+    expect(translate('fr', 'reports.reason.mill_max_level_reached')).toBe(
+      'Le moulin a atteint son niveau maximal.',
+    )
+  })
 })

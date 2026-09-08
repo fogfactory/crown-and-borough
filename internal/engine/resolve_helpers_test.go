@@ -31,7 +31,7 @@ func testBalance() assetgen.Balance {
 		CastleStockCap:     2,
 		Costs: assetgen.Costs{
 			Castle:      10,
-			Mill:        3,
+			MillLevels:  []int{3, 5, 7},
 			Troop:       1,
 			Noble:       2,
 			SupplyDepot: 3,

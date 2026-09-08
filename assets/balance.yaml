@@ -1,9 +1,10 @@
 # Active v1 numerical settings.
 #
-# Format: a YAML mapping with snake_case keys and integer values. Every setting
-# is required, and explicit zero values must remain present. Unknown keys are
-# rejected by the loader. Keep new settings in the relevant section and update
-# the validation in internal/db/assetgen when the schema changes.
+# Format: a YAML mapping with snake_case keys and integer values (or documented
+# integer lists). Every setting is required, and explicit zero values must remain
+# present. Unknown keys are rejected by the loader. Keep new settings in the
+# relevant section and update the validation in internal/db/assetgen when the
+# schema changes.
 #
 # Deferred transmission, relays, and watchtowers are not active v1 rules. Do not
 # add related parameters here without an explicit rules decision.
@@ -30,7 +31,8 @@ castle_stock_cap: 2
 # Winter investment costs.
 costs:
   castle: 10
-  mill: 3
+  # Index 0 is the construction cost; index N-1 is the cost to reach level N.
+  mill_levels: [3, 5, 7]
   troop: 1
   noble: 2
   supply_depot: 3

@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
+	"github.com/fogfactory/crown-and-borough/internal/i18n"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
@@ -284,19 +285,29 @@ func (ctx *resolutionContext) resolveBuild(playerID models.PlayerID, order model
 		ctx.rejectWinterOrder(playerID, order, "invalid_infrastructure")
 		return
 	}
+	existing := ctx.infrastructureAt(order.TerritoryID)
+	upgradeCost := 0
+	if existing != nil && existing.Type == models.InfraTypeMill && order.InfraType == models.InfraTypeMill {
+		var exists bool
+		upgradeCost, exists = millCostForLevel(ctx.balance.Costs, existing.Level+1)
+		if !exists {
+			ctx.rejectWinterOrder(playerID, order, i18n.WinterMillMaxLevelReached)
+			return
+		}
+	}
 	if order.InfraType == models.InfraTypeMill && !ctx.millCanBeBuiltAt(order.TerritoryID) {
 		ctx.rejectWinterOrder(playerID, order, "mill_requires_productive_neighbor")
 		return
 	}
-	existing := ctx.infrastructureAt(order.TerritoryID)
 	if existing != nil {
 		if existing.Type == models.InfraTypeMill && order.InfraType == models.InfraTypeMill {
-			spent, paid := ctx.payWinterCost(playerID, order.TerritoryID, ctx.balance.Costs.Mill)
+			nextLevel := existing.Level + 1
+			spent, paid := ctx.payWinterCost(playerID, order.TerritoryID, upgradeCost)
 			if !paid {
 				ctx.rejectWinterOrder(playerID, order, "insufficient_resources")
 				return
 			}
-			existing.Level++
+			existing.Level = nextLevel
 			ctx.events = append(ctx.events, Event{
 				Type:               EventTypeUpgrade,
 				Phase:              winterPhase,
@@ -662,13 +673,20 @@ func isBuildableInfrastructure(infrastructureType models.InfraType) bool {
 func infrastructureCost(costs assetgen.Costs, infrastructureType models.InfraType) (int, bool) {
 	switch infrastructureType {
 	case models.InfraTypeMill:
-		return costs.Mill, true
+		return millCostForLevel(costs, 1)
 	case models.InfraTypeCastle:
 		return costs.Castle, true
 	case models.InfraTypeSupplyDepot:
 		return costs.SupplyDepot, true
 	}
 	return 0, false
+}
+
+func millCostForLevel(costs assetgen.Costs, targetLevel int) (int, bool) {
+	if targetLevel < 1 || targetLevel > len(costs.MillLevels) {
+		return 0, false
+	}
+	return costs.MillLevels[targetLevel-1], true
 }
 
 func (ctx *resolutionContext) addWinterInfrastructure(infrastructureType models.InfraType, territoryID models.TerritoryID) *models.Infrastructure {
