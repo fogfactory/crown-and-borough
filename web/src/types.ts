@@ -176,7 +176,10 @@ export interface SupplyLine {
   territory: string
   armyOwner: PlayerId
   armySize: number
+  terrainProduction: number
+  localProduction: number
   rations: number
+  totalDemand: number
   demand: number
   source: string | null
   distance: number

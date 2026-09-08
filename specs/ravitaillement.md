@@ -9,8 +9,8 @@ décrite dans [`architecture.md`](architecture.md).
 ## Règles de référence
 
 - Une armée de `N` troupes demande `2^(N - 1)` rations.
-- La production locale est consommée sur place, au plus une ration par armée
-  et par tour.
+- La production locale est consommée sur place par l'armée présente jusqu'à
+  hauteur de sa demande ; le surplus est perdu.
 - Les châteaux et villages contrôlés sont des sources de ravitaillement.
 - Une case contrôlée qui contient un stock positif est également une source ;
   l'armée présente consomme d'abord ce stock local.

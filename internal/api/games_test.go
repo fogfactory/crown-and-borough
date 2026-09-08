@@ -228,7 +228,7 @@ func newGamesTestStore(t *testing.T) (store.GameStore, assetgen.Rules) {
 	if err != nil {
 		t.Fatalf("load balance: %v", err)
 	}
-	rules, err := assetgen.LoadRules("../../assets")
+	rules, err := assetgen.LoadRules("../../assets", balance)
 	if err != nil {
 		t.Fatalf("load rules: %v", err)
 	}

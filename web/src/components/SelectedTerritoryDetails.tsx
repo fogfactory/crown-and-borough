@@ -74,6 +74,10 @@ export function SelectedTerritoryDetails({
   const presentNobles = state.nobles.filter(
     (noble) => noble.location === selectedTerritory.id,
   )
+  const settlement = selectedState?.infrastructures.find(
+    (infrastructure) =>
+      infrastructure.type === 'castle' || infrastructure.type === 'village',
+  )
 
   return (
     <div className="space-y-5">
@@ -279,10 +283,32 @@ export function SelectedTerritoryDetails({
                 ) : null}
                 {selectedSupplyLine && (
                   <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t border-[#b7a786]/40 pt-2">
-                    <dt className="text-[#806f57]">{t('app.localRations')}</dt>
-                    <dd className="font-medium">{selectedSupplyLine.rations}</dd>
-                    <dt className="text-[#806f57]">{t('app.demandToCover')}</dt>
-                    <dd className="font-medium">{selectedSupplyLine.demand}</dd>
+                    <dt className="text-[#806f57]">{t('app.localProduction')}</dt>
+                    <dd className="font-medium">
+                      {selectedSupplyLine.localProduction}{' '}
+                      <span className="text-xs font-normal text-[#806f57]">
+                        ({t(TERRAIN_LABEL_KEYS[selectedTerritory.terrain])}{' '}
+                        {selectedSupplyLine.terrainProduction}
+                        {settlement &&
+                        selectedSupplyLine.localProduction >
+                          selectedSupplyLine.terrainProduction
+                          ? ` + ${t(INFRASTRUCTURE_LABEL_KEYS[settlement.type])} ${selectedSupplyLine.localProduction - selectedSupplyLine.terrainProduction}`
+                          : ''}
+                        )
+                      </span>
+                    </dd>
+                    <dt className="text-[#806f57]">{t('app.demand')}</dt>
+                    <dd className="font-medium">{selectedSupplyLine.totalDemand}</dd>
+                    <dt className="text-[#806f57]">{t('app.toCover')}</dt>
+                    <dd
+                      className={
+                        selectedSupplyLine.demand > 0
+                          ? 'font-semibold text-[#8d321e]'
+                          : 'font-medium'
+                      }
+                    >
+                      {selectedSupplyLine.demand}
+                    </dd>
                   </dl>
                 )}
               </div>

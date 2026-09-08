@@ -51,7 +51,7 @@ const state: StateData = {
       resources: 3,
       army: {
         owner: 'P2',
-        size: 2,
+        size: 4,
         chain: {
           noble: 'JEA',
           currentIndex: 1,
@@ -88,9 +88,12 @@ const armySupply: SupplyLine = {
   kind: 'army',
   territory: 'ROS',
   armyOwner: 'P2',
-  armySize: 2,
-  rations: 1,
-  demand: 2,
+  armySize: 4,
+  terrainProduction: 3,
+  localProduction: 5,
+  rations: 5,
+  totalDemand: 8,
+  demand: 3,
   source: 'BRU',
   distance: 2,
   path: ['BRU', 'ROS'],
@@ -119,12 +122,18 @@ describe('SelectedTerritoryDetails', () => {
     expect(screen.getByText('Capital of Alice')).toBeInTheDocument()
     expect(screen.getByText('Plain')).toBeInTheDocument()
     expect(screen.getAllByText('Bob').length).toBeGreaterThan(0)
-    expect(screen.getByText('2 troops')).toBeInTheDocument()
+    expect(screen.getByText('4 troops')).toBeInTheDocument()
     expect(screen.getByText(/Source:/)).toBeInTheDocument()
     expect(screen.getByText(/BRU · Brisecote/)).toBeInTheDocument()
     expect(screen.getByText('Distance: 2 territories')).toBeInTheDocument()
-    expect(screen.getByText('Local rations')).toBeInTheDocument()
-    expect(screen.getByText('Demand to cover')).toBeInTheDocument()
+    expect(screen.getByText('Local production')).toBeInTheDocument()
+    expect(screen.getByText('Demand')).toBeInTheDocument()
+    expect(screen.getByText('To cover')).toBeInTheDocument()
+    expect(screen.getByText(/Plain 3 \+ Castle 2/)).toBeInTheDocument()
+    expect(screen.getByText('Demand').nextElementSibling).toHaveTextContent('8')
+    const toCover = screen.getByText('To cover').nextElementSibling
+    expect(toCover).toHaveTextContent('3')
+    expect(toCover).toHaveClass('text-[#8d321e]')
     expect(screen.getByText('Castle')).toBeInTheDocument()
     expect(screen.getByText('Capital', { exact: true })).toBeInTheDocument()
 
@@ -162,7 +171,10 @@ describe('SelectedTerritoryDetails', () => {
       kind: 'source',
       territory: 'ROS',
       armySize: 0,
+      terrainProduction: 3,
+      localProduction: 5,
       rations: 0,
+      totalDemand: 0,
       demand: 0,
       source: 'ROS',
       distance: 0,

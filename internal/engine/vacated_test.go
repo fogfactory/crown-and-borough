@@ -219,7 +219,7 @@ func TestResolveNoHelpSupportOfHeadToHeadWinnerIsApplied(t *testing.T) {
 		},
 		[]models.Army{
 			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
-			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
+			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 2},
 			{ID: "A3", OwnerID: "P2", TerritoryID: "CCC", Size: 1},
 		},
 	)

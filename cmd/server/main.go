@@ -116,7 +116,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to load balance: %v", err)
 	}
-	rules, err := assetgen.LoadRules(assetsDir)
+	rules, err := assetgen.LoadRules(assetsDir, balance)
 	if err != nil {
 		log.Fatalf("failed to load player rules: %v", err)
 	}

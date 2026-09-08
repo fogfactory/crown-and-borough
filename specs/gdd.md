@@ -162,8 +162,11 @@ Les territoires sauvages ne produisent pas de ressource `R` stockable. La
 production vivrière instantanée, consommée sur place et perdue si elle n'est
 pas utilisée, vaut :
 
-- 1 ration en plaine, forêt ou colline ;
-- 0 ration en montagne ou marécage ;
+- 3 rations en plaine ;
+- 2 rations en forêt ;
+- 2 rations en colline ;
+- 1 ration en montagne ;
+- 1 ration en marécage ;
 - 2 rations supplémentaires si la case porte un château ou un village.
 
 Une case ne porte qu'une seule infrastructure.
@@ -241,9 +244,9 @@ Une armée de `N` troupes sur une case demande :
 
 `coût = 2^(N - 1)`
 
-La production vivrière de la case est distribuée aux armées présentes, toutes
-nationalités confondues, au plus une ration par armée et en commençant par la
-plus grosse. Le reste constitue la demande à ravitailler.
+La production vivrière de la case est consommée par l'armée qui l'occupe,
+jusqu'à hauteur de sa demande. Le surplus est perdu ; le reste constitue la
+demande à ravitailler.
 
 Les châteaux, villages et caches contrôlés contenant un stock positif sont les
 sources de ravitaillement. Une armée consomme en priorité le stock de sa case.

@@ -388,8 +388,8 @@ coût = 2^(N - 1)  rations
 | Coût en rations | 1 | 2 | 4 | 8 | 16 |
 
 La production vivrière de la case de l'armée lui est attribuée à elle seule :
-une armée ne consomme que la production de la case qu'elle occupe, au plus
-**une ration**, et le reste constitue sa demande à ravitailler. Il n'y a
+une armée consomme la production de la case qu'elle occupe jusqu'à hauteur de
+sa demande, le surplus est perdu et le reste constitue sa demande à ravitailler. Il n'y a
 jamais qu'une armée par case, donc aucune distribution entre armées : une
 armée ennemie sur une case voisine ne prend jamais la ration de ta case.
 
@@ -398,16 +398,18 @@ qu'ils occupent, mais ne reçoivent aucun complément depuis les stocks des
 sources contrôlées par un joueur.
 
 Exemple : une armée de 2 troupes sur une colline portant un château
-(production 1 + 2 = 3 rations) reçoit 1 ration ; sa demande restante est
-2 − 1 = 1 ration à couvrir par ses sources. Une armée sur un marécage
-(production 0) ne reçoit rien et doit couvrir toute sa demande.
+(production locale : {{ration_terrain.hill}} ; bonus du château : {{infra_rations_bonus}})
+reçoit 2 rations ; sa demande restante est 0. Une armée de 2 troupes sur un
+marécage (production {{ration_terrain.swamp}}) reçoit 1 ration et doit couvrir
+sa demande restante de 1 ration.
 
-**Production vivrière de la case** : 1 ration en plaine, forêt ou colline ;
-0 ration en montagne ou marécage ; **+2 rations** supplémentaires si la case
-porte un château ou un village.
+**Production vivrière de la case (en rations)** : plaine {{ration_terrain.plain}} ;
+forêt {{ration_terrain.forest}} ; colline {{ration_terrain.hill}} ; montagne
+{{ration_terrain.mountain}} ; marécage {{ration_terrain.swamp}} ; **+{{infra_rations_bonus}}**
+si la case porte un château ou un village.
 
 **Sources de ravitaillement** : les **châteaux, villages et caches contrôlés**.
-Un château ou un village produit **1 R stockable par tour** ; un cache ordinaire
+Un château ou un village produit **{{base_production}} R stockable par tour** ; un cache ordinaire
 ne produit rien. Le flux traverse les
 cases alliées ou neutres et s'arrête devant une case ennemie. La portée de base
 est de **3 cases** ; chaque dépôt de vivres contrôlé rencontré sur le trajet
@@ -418,7 +420,7 @@ Chaque source calcule sa propre production `R` : sa production de base, plus le
 niveau de **chaque moulin adjacent**. Un même moulin peut donc alimenter toutes
 les sources voisines ; il n'est pas réservé au propriétaire de sa case. Un
 moulin orphelin, sans château ni village adjacent, produit `0 R`. Par exemple,
-un village entouré de deux moulins de niveau 1 produit `1 + 1 + 1 = 3 R` ; les
+un village entouré de deux moulins de niveau 1 produit `{{base_production}} + 1 + 1 R` ; les
 mêmes moulins ajoutent aussi leur niveau à tout château voisin. La présence ou
 la position d'un noble ne conditionne jamais `C M XXX` ni cette production : un
 noble situé en NOR n'empêche pas le joueur de construire `C M ATL` si ATL est
@@ -461,8 +463,8 @@ Une case ne porte qu'**une seule infrastructure**.
 |---|---|---|---|
 | Moulin | Construction sur case vide contrôlée, adjacente à un château ou village ; amélioration d'un moulin existant adjacent à cette source | +1 R stockable par niveau à **chaque** source adjacente | 3 |
 | Dépôt de vivres | Aucune | +2 cases de portée de ravitaillement lorsqu'il est contrôlé | 3 |
-| Château | Aucune | +1 défense, +2 rations, produit 1 R stockable par tour, ancre de ravitaillement | 10 |
-| Village | Généré neutre, **non constructible** | +2 rations, produit 1 R stockable par tour, ancre après capture | — |
+| Château | Aucune | +1 défense, +{{infra_rations_bonus}} rations, produit {{base_production}} R stockable par tour, ancre de ravitaillement | 10 |
+| Village | Généré neutre, **non constructible** | +{{infra_rations_bonus}} rations, produit {{base_production}} R stockable par tour, ancre après capture | — |
 
 ---
 

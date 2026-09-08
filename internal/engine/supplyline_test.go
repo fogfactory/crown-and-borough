@@ -15,7 +15,7 @@ func TestFindSupplyLineUsesDepotRangeAndReconstructsPath(t *testing.T) {
 			supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA", "CCC"),
 			supplyTerritory("CCC", "CCC", models.TerrainPlain, "BBB", "DDD"),
 			supplyTerritory("DDD", "DDD", models.TerrainPlain, "CCC", "EEE"),
-			supplyTerritory("EEE", "EEE", models.TerrainPlain, "DDD"),
+			supplyTerritory("EEE", "EEE", models.TerrainMountain, "DDD"),
 		},
 		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "EEE", Size: 2}},
 	)
@@ -34,8 +34,8 @@ func TestFindSupplyLineUsesDepotRangeAndReconstructsPath(t *testing.T) {
 	if line.Source == nil || *line.Source != "AAA" {
 		t.Fatalf("source = %v, want AAA", line.Source)
 	}
-	if line.Distance != 4 || line.Rations != 1 || line.Demand != 1 {
-		t.Errorf("line details = %#v, want distance 4, one ration, demand 1", line)
+	if line.Distance != 4 || line.TerrainProduction != 1 || line.LocalProduction != 1 || line.Rations != 1 || line.TotalDemand != 2 || line.Demand != 1 {
+		t.Errorf("line details = %#v, want distance 4, mountain production 1, one ration, total demand 2, and demand 1", line)
 	}
 	if want := []models.TerritoryID{"AAA", "BBB", "CCC", "DDD", "EEE"}; !reflect.DeepEqual(line.Path, want) {
 		t.Errorf("path = %v, want %v", line.Path, want)
@@ -66,7 +66,7 @@ func TestFindSupplyTraversesEnemyTerritoryWithoutArmy(t *testing.T) {
 					supplyTerritory("CCC", "CCC", models.TerrainPlain, "BBB", "DDD"),
 					supplyTerritory("DDD", "DDD", models.TerrainMountain, "CCC"),
 				},
-				[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "DDD", Size: 1}},
+				[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "DDD", Size: 2}},
 			)
 			setTerritoryOwner(state, "AAA", "P1")
 			setTerritoryOwner(state, "BBB", "P2")
@@ -145,7 +145,7 @@ func TestFindSupplyLineHandlesLocalRationsAndMissingSources(t *testing.T) {
 		if err != nil {
 			t.Fatalf("FindSupplyLine: %v", err)
 		}
-		if !line.SelfSupplied || line.Rations != 1 || line.Demand != 0 {
+		if !line.SelfSupplied || line.TerrainProduction != 3 || line.LocalProduction != 3 || line.Rations != 1 || line.TotalDemand != 1 || line.Demand != 0 {
 			t.Errorf("line = %#v, want local self-supply", line)
 		}
 		if line.Source != nil || len(line.Path) != 0 || len(line.Reachable) != 0 {
@@ -169,7 +169,7 @@ func TestFindSupplyLineHandlesLocalRationsAndMissingSources(t *testing.T) {
 		if err != nil {
 			t.Fatalf("FindSupplyLine: %v", err)
 		}
-		if !line.SelfSupplied || !reflect.DeepEqual(line.Reachable, []models.TerritoryID{"AAA", "BBB"}) {
+		if !line.SelfSupplied || line.TerrainProduction != 3 || line.LocalProduction != 5 || line.Rations != 1 || line.TotalDemand != 1 || line.Demand != 0 || !reflect.DeepEqual(line.Reachable, []models.TerritoryID{"AAA", "BBB"}) {
 			t.Errorf("line = %#v, want self-supply and source zone", line)
 		}
 	})
@@ -177,14 +177,14 @@ func TestFindSupplyLineHandlesLocalRationsAndMissingSources(t *testing.T) {
 	t.Run("no reachable source", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{supplyTerritory("AAA", "AAA", models.TerrainMountain)},
-			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}},
+			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2}},
 		)
 
 		line, err := FindSupplyLine(state, testBalance(), "AAA")
 		if err != nil {
 			t.Fatalf("FindSupplyLine: %v", err)
 		}
-		if line.SelfSupplied || line.Demand != 1 || line.Source != nil {
+		if line.SelfSupplied || line.TerrainProduction != 1 || line.LocalProduction != 1 || line.Rations != 1 || line.TotalDemand != 2 || line.Demand != 1 || line.Source != nil {
 			t.Errorf("line = %#v, want uncovered demand", line)
 		}
 	})
@@ -194,7 +194,7 @@ func TestFindSupplyLineBreaksEqualDistanceByTerritoryID(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
 			supplyTerritory("ZZZ", "ZZZ", models.TerrainPlain, "MID"),
-			supplyTerritory("MID", "MID", models.TerrainPlain, "ZZZ", "AAA"),
+			supplyTerritory("MID", "MID", models.TerrainMountain, "ZZZ", "AAA"),
 			supplyTerritory("AAA", "AAA", models.TerrainPlain, "MID"),
 		},
 		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "MID", Size: 2}},
@@ -300,7 +300,7 @@ func TestFindSupplyZoneForControlledCastleAndVillage(t *testing.T) {
 
 func TestFindSupplyLineUsesOrdinaryTerritoryCacheAsSource(t *testing.T) {
 	state := testState(t,
-		[]models.Territory{supplyTerritory("AAA", "AAA", models.TerrainPlain, "BBB"), supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA")},
+		[]models.Territory{supplyTerritory("AAA", "AAA", models.TerrainMountain, "BBB"), supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA")},
 		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2}},
 	)
 	setTerritoryResources(state, "AAA", 2)
