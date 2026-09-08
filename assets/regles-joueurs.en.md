@@ -240,7 +240,7 @@ line, applied in the entered order.
 |---|---|---|---|
 | Recruit a noble | `R N XXX` | `XXX` controlled, with a castle or village and a player army | 2 |
 | Recruit a troop | `R T XXX` | `XXX` controlled, and a free player noble on `XXX` or adjacent | 1 |
-| Build or upgrade a mill | `C M XXX` | `XXX` controlled; a new mill on an **empty** territory adjacent to a productive castle or village, or an existing mill adjacent to that source | 3 (L1), 5 (L2), 7 (L3) |
+| Build or upgrade a mill | `C M XXX` | `XXX` controlled; a new mill on an **empty** territory adjacent to a productive castle or village, or an existing mill adjacent to that source | {{costs.mill_levels.0}} (L1), {{costs.mill_levels.1}} (L2), {{costs.mill_levels.2}} (L3) |
 | Build a castle | `C C XXX` | `XXX` controlled | 10 |
 | Build a supply depot | `C D XXX` | `XXX` controlled | 3 |
 | Designate a capital | `E C XXX` | a controlled castle on `XXX` | 0 |
@@ -255,8 +255,9 @@ debit still follows the usual rules and can use only the donor's payment
 reserves.
 
 A mill starts at level 1 and can reach level 3 inclusive. Construction costs
-3 R; upgrades to levels 2 and 3 cost 5 R and 7 R respectively. `C M` on a
-level-3 mill is rejected with reason `mill_max_level_reached`, and no stock is
+{{costs.mill_levels.0}} R; upgrades to levels 2 and 3 cost
+{{costs.mill_levels.1}} R and {{costs.mill_levels.2}} R respectively. `C M` on
+a level-3 mill is rejected with reason `mill_max_level_reached`, and no stock is
 deducted. Mills above level 3 already present in a game are preserved and
 remain productive; only new upgrades are blocked.
 
@@ -305,9 +306,10 @@ from the nearest controlled source; if the total reserve is insufficient, **no
 partial payment** is made and the investment is rejected (reported, with no cost
 lost).
 
-Example: a `C M ATL` costing 3 R consumes 1 R from ATL's stock, then 2 R from
-the nearest controlled source. If those stocks total only 2 R, the build is
-rejected and neither unit is removed.
+Example: a `C M ATL` costing {{costs.mill_levels.0}} R first consumes ATL's
+stock, then the remainder from the nearest controlled source. If those stocks
+do not total the required cost, the build is rejected and no partial payment is
+made.
 
 **End of winter**:
 
@@ -439,7 +441,7 @@ A territory carries only **one infrastructure**.
 
 | Infrastructure | Condition | v1 effect | Cost |
 |---|---|---|---|
-| Mill | Build on an empty controlled territory adjacent to a castle or village; upgrade an existing mill adjacent to that source, up to level 3 | +1 stockable R per level at **each** adjacent source | 3 / 5 / 7 |
+| Mill | Build on an empty controlled territory adjacent to a castle or village; upgrade an existing mill adjacent to that source, up to level 3 | +1 stockable R per level at **each** adjacent source | {{costs.mill_levels.0}} / {{costs.mill_levels.1}} / {{costs.mill_levels.2}} |
 | Supply depot | None | +2 territories of supply range when controlled | 3 |
 | Castle | None | +1 defense, +{{infra_rations_bonus}} rations, produces {{base_production}} stockable R per turn, supply anchor | 10 |
 | Village | Generated neutral, **not buildable** | +{{infra_rations_bonus}} rations, produces {{base_production}} stockable R per turn, supply anchor after capture | — |

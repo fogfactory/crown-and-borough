@@ -89,6 +89,9 @@ func renderRules(document []byte, balance Balance) []byte {
 		"infra_rations_bonus":     stringValue(balance.InfraRationsBonus),
 		"base_production":         stringValue(balance.BaseProduction),
 	}
+	for index, cost := range balance.Costs.MillLevels {
+		values[fmt.Sprintf("costs.mill_levels.%d", index)] = stringValue(cost)
+	}
 	keys := make([]string, 0, len(values)*2)
 	for key, value := range values {
 		keys = append(keys, "{{"+key+"}}", value)

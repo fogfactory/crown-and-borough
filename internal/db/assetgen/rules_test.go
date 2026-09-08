@@ -111,6 +111,7 @@ func TestLoadRealRules(t *testing.T) {
 	}
 	for _, placeholder := range []string{
 		"{{ration_terrain.", "{{infra_rations_bonus}}", "{{base_production}}",
+		"{{costs.mill_levels.0}}", "{{costs.mill_levels.1}}", "{{costs.mill_levels.2}}",
 	} {
 		if strings.Contains(string(document), placeholder) {
 			t.Errorf("French rules document still contains placeholder %q", placeholder)
@@ -126,6 +127,7 @@ func TestLoadRealRules(t *testing.T) {
 	}
 	for _, placeholder := range []string{
 		"{{ration_terrain.", "{{infra_rations_bonus}}", "{{base_production}}",
+		"{{costs.mill_levels.0}}", "{{costs.mill_levels.1}}", "{{costs.mill_levels.2}}",
 	} {
 		if strings.Contains(string(english), placeholder) {
 			t.Errorf("English rules document still contains placeholder %q", placeholder)
