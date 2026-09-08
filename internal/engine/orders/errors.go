@@ -25,6 +25,8 @@ const (
 	ParseCodeNobleNotFound = "noble_not_found"
 	// ParseCodeUnclosedParenthesis identifies malformed order-line parentheses.
 	ParseCodeUnclosedParenthesis = "unclosed_parenthesis"
+	// ParseCodeInvalidAmount identifies a missing, malformed, or non-positive resource amount.
+	ParseCodeInvalidAmount = "invalid_amount"
 )
 
 var (

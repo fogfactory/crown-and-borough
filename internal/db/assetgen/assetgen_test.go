@@ -29,17 +29,17 @@ pillage_bonus: 2
 noble_command_bonus: 1
 castle_defense_bonus: 1
 ration_terrain:
-  plain: 1
-  forest: 1
-  hill: 1
-  mountain: 0
-  swamp: 0
+  plain: 3
+  forest: 2
+  hill: 2
+  mountain: 1
+  swamp: 1
 winter_stock_divisor: 2
 village_stock_cap: 1
 castle_stock_cap: 2
 costs:
   castle: 10
-  mill: 3
+  mill_levels: [3, 5, 7]
   troop: 1
   noble: 2
   supply_depot: 3
@@ -82,7 +82,7 @@ func TestLoadRealBalance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadBalance(real asset) = %v", err)
 	}
-	if balance.BaseProduction != 1 || balance.DepotRangeBonus != 2 || balance.NobleCommandBonus != 1 || balance.WinterStockDivisor != 2 || balance.VillageStockCap != 1 || balance.CastleStockCap != 2 || balance.Costs.Castle != 10 || balance.Costs.Liberation != 0 {
+	if balance.BaseProduction != 1 || balance.DepotRangeBonus != 2 || balance.NobleCommandBonus != 1 || balance.WinterStockDivisor != 2 || balance.VillageStockCap != 1 || balance.CastleStockCap != 2 || balance.Costs.Castle != 10 || balance.Costs.Liberation != 0 || len(balance.Costs.MillLevels) != 3 || balance.Costs.MillLevels[0] != 3 || balance.Costs.MillLevels[1] != 5 || balance.Costs.MillLevels[2] != 7 {
 		t.Errorf("loaded costs = %#v / %#v", balance, balance.Costs)
 	}
 	if len(balance.FirstNames) < 100 {
@@ -99,7 +99,10 @@ func TestLoadBalanceValid(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadBalance(valid asset) = %v", err)
 	}
-	if balance.SupplyRange != 3 || balance.NobleCommandBonus != 1 || balance.RationTerrain["swamp"] != 0 {
+	if balance.SupplyRange != 3 || balance.NobleCommandBonus != 1 ||
+		balance.RationTerrain["plain"] != 3 || balance.RationTerrain["forest"] != 2 ||
+		balance.RationTerrain["hill"] != 2 || balance.RationTerrain["mountain"] != 1 ||
+		balance.RationTerrain["swamp"] != 1 {
 		t.Errorf("loaded balance = %#v", balance)
 	}
 	if len(balance.FirstNames) != 3 {
@@ -119,13 +122,23 @@ func TestLoadBalanceInvalid(t *testing.T) {
 			want:    "costs.supply_depot",
 		},
 		{
+			name:    "missing mill levels",
+			content: strings.Replace(validBalance, "  mill_levels: [3, 5, 7]\n", "", 1),
+			want:    "costs.mill_levels",
+		},
+		{
+			name:    "negative mill level cost",
+			content: strings.Replace(validBalance, "  mill_levels: [3, 5, 7]\n", "  mill_levels: [3, -5, 7]\n", 1),
+			want:    "costs.mill_levels[1]",
+		},
+		{
 			name:    "missing noble command bonus",
 			content: strings.Replace(validBalance, "noble_command_bonus: 1\n", "", 1),
 			want:    "noble_command_bonus",
 		},
 		{
 			name:    "missing terrain value",
-			content: strings.Replace(validBalance, "  mountain: 0\n  swamp: 0\n", "  mountain: 0\n", 1),
+			content: strings.Replace(validBalance, "  mountain: 1\n  swamp: 1\n", "  mountain: 1\n", 1),
 			want:    "ration_terrain.swamp",
 		},
 		{

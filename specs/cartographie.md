@@ -28,7 +28,12 @@ La carte du socle contient `8 x N` territoires de jeu et `(N + 1) x 4`
 territoires supplémentaires dédiés aux villages neutres. Elle porte toujours
 `N + 1` villages, placés uniquement dans cette plage dédiée. Le placement reste
 déterministe, connexe et compatible avec les contraintes de degré et de terrain
-existantes.
+existantes. Le graphe franchissable est également sans point d'articulation :
+chaque paire de territoires livrés, notamment chaque paire de lieux-dits, reste
+reliée par deux chemins sans territoire intermédiaire commun. La génération
+retient une probabilité de 50 % pour la suppression des frontières difficiles
+(montagne/montagne et montagne/marécage), sans accepter une suppression qui
+introduirait un point d'articulation.
 
 Les lacs et la mer sont conservés comme possibilités de conception, mais ne font
 pas partie du périmètre minimal des rivières et des ponts.

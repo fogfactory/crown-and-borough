@@ -7,6 +7,7 @@ import (
 	"math"
 	"reflect"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
@@ -190,6 +191,68 @@ func TestGraphInvariants(t *testing.T) {
 	forEachTestSeed(t, func(t *testing.T, seed string) {
 		assertGraphInvariants(t, generateTestMap(t, seed, assets))
 	})
+}
+
+func TestFrontierRemovalChance(t *testing.T) {
+	tests := []struct {
+		name          string
+		first, second models.Terrain
+		want          float64
+	}{
+		{name: "mountain-mountain", first: models.TerrainMountain, second: models.TerrainMountain, want: 0.50},
+		{name: "mountain-swamp", first: models.TerrainMountain, second: models.TerrainSwamp, want: 0.50},
+		{name: "swamp-mountain", first: models.TerrainSwamp, second: models.TerrainMountain, want: 0.50},
+		{name: "plain-plain", first: models.TerrainPlain, second: models.TerrainPlain, want: 0},
+		{name: "plain-forest", first: models.TerrainPlain, second: models.TerrainForest, want: 0.15},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := frontierRemovalChance(test.first, test.second); got != test.want {
+				t.Errorf("frontierRemovalChance(%q, %q) = %v, want %v", test.first, test.second, got, test.want)
+			}
+		})
+	}
+}
+
+func TestGeneratedGraphsHaveTwoVertexDisjointPaths(t *testing.T) {
+	assets := loadTestAssets(t)
+	forEachTestSeed(t, func(t *testing.T, seed string) {
+		data := generateTestMap(t, seed, assets)
+		arcs := collectDTOArcs(t, data).passable
+		matrix := edgeMatrix(len(data.Territories), arcs)
+		if articulation := articulationPoints(matrix, len(data.Territories)); len(articulation) > 0 {
+			t.Fatalf("generated graph has articulation territories %v", articulation)
+		}
+
+		// A connected graph without articulation points is biconnected. By
+		// Menger's theorem, every pair therefore has two internally
+		// vertex-disjoint paths.
+		for first := 0; first < len(data.Territories); first++ {
+			for second := first + 1; second < len(data.Territories); second++ {
+				if !hasTwoVertexDisjointPaths(matrix, len(data.Territories), first, second) {
+					t.Errorf("%s and %s do not have two vertex-disjoint paths", data.Territories[first].ID, data.Territories[second].ID)
+				}
+			}
+		}
+	})
+}
+
+func TestValidateGraphRejectsArticulation(t *testing.T) {
+	terrain := make([]models.Terrain, 5)
+	for index := range terrain {
+		terrain[index] = models.TerrainPlain
+	}
+	// Two cycles share site 0, which is an articulation point despite every
+	// territory meeting the local minimum degree.
+	edges := [][2]int{
+		{0, 1}, {1, 2}, {0, 2},
+		{0, 3}, {3, 4}, {0, 4},
+	}
+	if err := validateGraph(edges, terrain, len(terrain)); err == nil {
+		t.Fatal("validateGraph accepted a graph with an articulation point")
+	} else if !strings.Contains(err.Error(), "articulation") {
+		t.Fatalf("validateGraph error = %q, want an articulation diagnostic", err)
+	}
 }
 
 func TestVillageCount(t *testing.T) {
@@ -884,6 +947,48 @@ func assertGraphInvariants(t *testing.T, data MapData) {
 			t.Errorf("BFS from %s does not reach %s", data.Territories[0].ID, data.Territories[territory].ID)
 		}
 	}
+}
+
+func hasTwoVertexDisjointPaths(matrix []bool, n, first, second int) bool {
+	if first == second {
+		return false
+	}
+	degree := degreesFromMatrix(matrix, n)
+	if degree[first] < 2 || degree[second] < 2 {
+		return false
+	}
+	for removed := -1; removed < n; removed++ {
+		if removed == first || removed == second {
+			continue
+		}
+		if !reachableWithoutVertex(matrix, n, first, second, removed) {
+			return false
+		}
+	}
+	return true
+}
+
+func reachableWithoutVertex(matrix []bool, n, first, second, removed int) bool {
+	seen := make([]bool, n)
+	if removed >= 0 {
+		seen[removed] = true
+	}
+	seen[first] = true
+	queue := []int{first}
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		if current == second {
+			return true
+		}
+		for neighbor := 0; neighbor < n; neighbor++ {
+			if !seen[neighbor] && matrixHasEdge(matrix, n, current, neighbor) {
+				seen[neighbor] = true
+				queue = append(queue, neighbor)
+			}
+		}
+	}
+	return false
 }
 
 func containsID(values []string, wanted string) bool {

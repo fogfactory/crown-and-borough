@@ -27,6 +27,7 @@ const (
 	EventTypeChainProgression EventType = "chain_progression"
 	EventTypeSupply           EventType = "supply"
 	EventTypeFamine           EventType = "famine"
+	EventTypeTransfer         EventType = "transfer"
 	EventTypeWinterStock      EventType = "winter_stock"
 	EventTypeRecruit          EventType = "recruit"
 	EventTypeBuild            EventType = "build"
@@ -103,6 +104,8 @@ type Event struct {
 	InfrastructureType models.InfraType           `json:"infrastructureType,omitempty"`
 	Level              int                        `json:"level,omitempty"`
 	ResourceCredit     int                        `json:"resourceCredit,omitempty"`
+	ResourceAmount     int                        `json:"resourceAmount,omitempty"`
+	Partial            bool                       `json:"partial,omitempty"`
 	CreditTerritoryID  models.TerritoryID         `json:"creditTerritory,omitempty"`
 	Production         int                        `json:"production,omitempty"`
 	Demand             int                        `json:"demand,omitempty"`

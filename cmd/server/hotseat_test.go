@@ -22,7 +22,7 @@ func TestHotseatServerRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load balance: %v", err)
 	}
-	rules, err := assetgen.LoadRules("../../assets")
+	rules, err := assetgen.LoadRules("../../assets", balance)
 	if err != nil {
 		t.Fatalf("load player rules: %v", err)
 	}
@@ -89,7 +89,7 @@ func TestApplicationServerDoesNotTrustPlayerQueryOutsideDevMode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load balance: %v", err)
 	}
-	rules, err := assetgen.LoadRules("../../assets")
+	rules, err := assetgen.LoadRules("../../assets", balance)
 	if err != nil {
 		t.Fatalf("load player rules: %v", err)
 	}

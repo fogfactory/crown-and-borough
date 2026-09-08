@@ -74,8 +74,9 @@ type Infrastructure struct {
 // a castle construction does not imply control. Army is nil when the territory
 // is empty. Infrastructures follow the "Règle de la Structure Unique": at most
 // one per territory (GDD §3), which the pillage order then destroys outright
-// (GDD §6, §8) — no ordering or choice is ever needed. Only a village or
-// castle may retain a positive resource stock.
+// (GDD §6, §8) — no ordering or choice is ever needed. Action-season transfers
+// may leave a positive cache on an ordinary territory; winter decides whether
+// that cache survives.
 type TerritoryState struct {
 	OwnerID         *PlayerID `json:"owner"` // nil = neutral
 	Resources       int       `json:"resources"`

@@ -266,6 +266,20 @@ func (h *GamesHandler) handleSubresource(w http.ResponseWriter, r *http.Request,
 			writeAPIError(w, http.StatusBadRequest, "territory_required", "a territory is required")
 			return
 		}
+		if target := models.TerritoryID(r.URL.Query().Get("target")); target != "" {
+			transferStore, ok := h.store.(store.TransferSupplyStore)
+			if !ok {
+				writeAPIError(w, http.StatusInternalServerError, "supply_failed", "transfer overlay is unavailable")
+				return
+			}
+			line, err := transferStore.TransferSupply(r.Context(), actor, id, territory, target)
+			if err != nil {
+				h.writeStoreError(w, err)
+				return
+			}
+			writeJSON(w, http.StatusOK, line)
+			return
+		}
 		line, err := h.store.Supply(r.Context(), actor, id, territory)
 		if err != nil {
 			h.writeStoreError(w, err)

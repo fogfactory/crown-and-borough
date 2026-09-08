@@ -34,6 +34,17 @@ const OUTCOME_KEYS: Record<Outcome, MessageKey> = {
 
 const REASON_KEYS: Record<string, MessageKey> = {
   insufficient_resources: 'reports.reason.insufficient_resources',
+  transferred: 'reports.reason.transferred',
+  transferred_partially: 'reports.reason.transferred_partially',
+  famished_sender: 'reports.reason.famished_sender',
+  transfer_over_capacity: 'reports.reason.transfer_over_capacity',
+  transfer_path_blocked: 'reports.reason.transfer_path_blocked',
+  invalid_transfer_destination: 'reports.reason.invalid_transfer_destination',
+  transfer_source_not_controlled: 'reports.reason.transfer_source_not_controlled',
+  transfer_same_territory: 'reports.reason.transfer_same_territory',
+  transfer_source_not_settlement: 'reports.reason.transfer_source_not_settlement',
+  transfer_target_not_settlement: 'reports.reason.transfer_target_not_settlement',
+  invalid_transfer_amount: 'reports.reason.invalid_transfer_amount',
   territory_not_controlled: 'reports.reason.territory_not_controlled',
   noble_requires_owned_army: 'reports.reason.noble_requires_owned_army',
   noble_requires_settlement: 'reports.reason.noble_requires_settlement',
@@ -98,6 +109,7 @@ const REASON_KEYS: Record<string, MessageKey> = {
   territory_occupied_by_other_player: 'reports.reason.territory_occupied_by_other_player',
   invalid_infrastructure: 'reports.reason.invalid_infrastructure',
   unknown_noble: 'reports.reason.unknown_noble',
+  mill_max_level_reached: 'reports.reason.mill_max_level_reached',
 }
 
 const RECEPTION_REASON_KEYS: Record<string, MessageKey> = {
@@ -190,6 +202,7 @@ function formatReportOrderLabel(
     targets: targets?.map((target) => territoryLabel(map, target, t)),
     nobleAssignments: reportOrder.nobleAssignments,
     liaison: reportOrder.liaison ?? 'single',
+    amount: reportOrder.amount,
   })
 }
 
@@ -210,6 +223,8 @@ function winterOrderLabel(order: WinterOrder, map: MapData | null, t: Translate)
       return `O N ${order.nobleCode ?? '—'}`
     case 'dungeon':
       return `P N ${order.nobleCode ?? '—'}`
+    case 'transfer':
+      return `G ${territoryLabel(map, order.source, t)} ${territoryLabel(map, order.target, t)} ${order.amount ?? '—'}`
   }
 }
 
@@ -231,6 +246,8 @@ function investmentLabel(
       return `E C ${territory}`
     case 'liberation':
       return `L N ${investment.nobleCode ?? '—'}`
+    case 'transfer':
+      return `G ${territoryLabel(map, investment.source, t)} ${territoryLabel(map, investment.target, t)} ${investment.amount ?? '—'}`
     default:
       return t('reports.winterOrder')
   }

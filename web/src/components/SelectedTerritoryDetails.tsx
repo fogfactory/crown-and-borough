@@ -3,7 +3,7 @@ import type { MessageKey } from '@/i18n/messages'
 import { formatOrderLabel } from '@/lib/order-label'
 import { playerDisplayName, type PlayerName } from '@/lib/player-label'
 import { hasSupplySource } from '@/lib/supply'
-import type { MapData, PlayerId, StateData, SupplyLine } from '@/types'
+import type { MapData, PlayerId, StateData, SupplyLine, TransferLine } from '@/types'
 
 const TERRAIN_LABEL_KEYS: Record<MapData['territories'][number]['terrain'], MessageKey> =
   {
@@ -32,10 +32,17 @@ interface SelectedTerritoryDetailsProps {
   selectedTerritory: MapTerritory | null | undefined
   selectedState: TerritoryState | null | undefined
   preferredPlayers?: readonly PlayerName[]
+  mapTerritories?: readonly MapTerritory[]
   selectedSupplyLine: SupplyLine | null
   sourceTerritory: MapTerritory | null | undefined
   supplyLoading: boolean
   supplyError: string | null
+  transferTargets?: readonly string[]
+  selectedTransferTarget?: string | null
+  onTransferTargetChange?: (target: string) => void
+  transferLine?: TransferLine | null
+  transferLoading?: boolean
+  transferError?: string | null
 }
 
 export function SelectedTerritoryDetails({
@@ -43,10 +50,17 @@ export function SelectedTerritoryDetails({
   selectedTerritory,
   selectedState,
   preferredPlayers,
+  mapTerritories = [],
   selectedSupplyLine,
   sourceTerritory,
   supplyLoading,
   supplyError,
+  transferTargets = [],
+  selectedTransferTarget = null,
+  onTransferTargetChange = () => undefined,
+  transferLine = null,
+  transferLoading = false,
+  transferError = null,
 }: SelectedTerritoryDetailsProps) {
   const { t } = useLanguage()
 
@@ -74,6 +88,14 @@ export function SelectedTerritoryDetails({
   const presentNobles = state.nobles.filter(
     (noble) => noble.location === selectedTerritory.id,
   )
+  const settlement = selectedState?.infrastructures.find(
+    (infrastructure) =>
+      infrastructure.type === 'castle' || infrastructure.type === 'village',
+  )
+  const territoryLabel = (territoryID: string) => {
+    const territory = mapTerritories.find((candidate) => candidate.id === territoryID)
+    return territory ? `${territory.id} · ${territory.name}` : territoryID
+  }
 
   return (
     <div className="space-y-5">
@@ -279,10 +301,32 @@ export function SelectedTerritoryDetails({
                 ) : null}
                 {selectedSupplyLine && (
                   <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t border-[#b7a786]/40 pt-2">
-                    <dt className="text-[#806f57]">{t('app.localRations')}</dt>
-                    <dd className="font-medium">{selectedSupplyLine.rations}</dd>
-                    <dt className="text-[#806f57]">{t('app.demandToCover')}</dt>
-                    <dd className="font-medium">{selectedSupplyLine.demand}</dd>
+                    <dt className="text-[#806f57]">{t('app.localProduction')}</dt>
+                    <dd className="font-medium">
+                      {selectedSupplyLine.localProduction}{' '}
+                      <span className="text-xs font-normal text-[#806f57]">
+                        ({t(TERRAIN_LABEL_KEYS[selectedTerritory.terrain])}{' '}
+                        {selectedSupplyLine.terrainProduction}
+                        {settlement &&
+                        selectedSupplyLine.localProduction >
+                          selectedSupplyLine.terrainProduction
+                          ? ` + ${t(INFRASTRUCTURE_LABEL_KEYS[settlement.type])} ${selectedSupplyLine.localProduction - selectedSupplyLine.terrainProduction}`
+                          : ''}
+                        )
+                      </span>
+                    </dd>
+                    <dt className="text-[#806f57]">{t('app.demand')}</dt>
+                    <dd className="font-medium">{selectedSupplyLine.totalDemand}</dd>
+                    <dt className="text-[#806f57]">{t('app.toCover')}</dt>
+                    <dd
+                      className={
+                        selectedSupplyLine.demand > 0
+                          ? 'font-semibold text-[#8d321e]'
+                          : 'font-medium'
+                      }
+                    >
+                      {selectedSupplyLine.demand}
+                    </dd>
                   </dl>
                 )}
               </div>
@@ -312,6 +356,86 @@ export function SelectedTerritoryDetails({
                 ) : null}
               </div>
             )}
+            {state.season !== 'winter' &&
+              selectedState.army &&
+              transferTargets.length > 0 && (
+                <div className="rounded-md border border-[#b7a786]/50 bg-[#fffaf0] px-3 py-2 text-xs text-[#594b3c]">
+                  <p className="font-semibold uppercase tracking-[0.12em] text-[#806f57]">
+                    {t('app.transferPreview')}
+                  </p>
+                  <label
+                    htmlFor="transfer-preview-target"
+                    className="mt-2 block text-[#806f57]"
+                  >
+                    {t('app.transferTarget')}
+                  </label>
+                  <select
+                    id="transfer-preview-target"
+                    aria-label={t('app.transferTarget')}
+                    value={selectedTransferTarget ?? transferTargets[0]}
+                    onChange={(event) => onTransferTargetChange(event.target.value)}
+                    className="mt-1 w-full rounded-md border border-[#b7a786] bg-[#fffaf0] px-2 py-1.5 text-xs text-[#30291f] outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20"
+                  >
+                    {transferTargets.map((target) => (
+                      <option key={target} value={target}>
+                        {territoryLabel(target)}
+                      </option>
+                    ))}
+                  </select>
+                  {transferLoading ? (
+                    <p className="mt-2 italic text-[#806f57]">
+                      {t('app.supplyCalculating')}
+                    </p>
+                  ) : transferError ? (
+                    <p className="mt-2 text-[#8d321e]">{transferError}</p>
+                  ) : transferLine ? (
+                    <>
+                      <p
+                        className={`mt-2 font-semibold ${transferLine.reachable ? 'text-[#376341]' : 'text-[#8d321e]'}`}
+                        role="status"
+                      >
+                        {transferLine.reachable
+                          ? t('app.transferReachable')
+                          : t('reports.reason.transfer_path_blocked')}
+                      </p>
+                      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t border-[#b7a786]/40 pt-2">
+                        <dt className="text-[#806f57]">{t('app.sourceLabel')}</dt>
+                        <dd className="font-medium">
+                          {territoryLabel(transferLine.source)}
+                        </dd>
+                        <dt className="text-[#806f57]">{t('app.transferTarget')}</dt>
+                        <dd className="font-medium">
+                          {territoryLabel(transferLine.target)}
+                        </dd>
+                        {transferLine.reachable &&
+                          transferLine.distance !== undefined && (
+                            <>
+                              <dt className="text-[#806f57]">{t('app.distanceLabel')}</dt>
+                              <dd className="font-medium">
+                                {t(
+                                  transferLine.distance > 1
+                                    ? 'app.distances'
+                                    : 'app.distance',
+                                  { distance: transferLine.distance },
+                                )}
+                              </dd>
+                            </>
+                          )}
+                      </dl>
+                      {transferLine.path.length > 0 && (
+                        <p className="mt-2 border-t border-[#b7a786]/40 pt-2">
+                          <span className="text-[#806f57]">
+                            {t('app.transferPath')}:{' '}
+                          </span>
+                          <span className="font-medium">
+                            {transferLine.path.map(territoryLabel).join(' -> ')}
+                          </span>
+                        </p>
+                      )}
+                    </>
+                  ) : null}
+                </div>
+              )}
           </div>
 
           <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">

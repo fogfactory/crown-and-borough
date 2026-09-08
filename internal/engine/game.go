@@ -401,6 +401,17 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 		if adjacencyError {
 			continue
 		}
+		if sourceID, targetID, blocked := transferPathBlockedAtSubmission(game, balance, chain); blocked {
+			inputErrors.Errors = append(inputErrors.Errors, newInputError(
+				submission.Player,
+				models.NobleCode(noble.Code),
+				0,
+				"transfer_path_blocked",
+				i18n.ErrorTransferPathBlocked,
+				string(sourceID), string(targetID),
+			))
+			continue
+		}
 		if seenNobles[noble.ID] {
 			inputErrors.Errors = append(inputErrors.Errors, newInputError(submission.Player, models.NobleCode(noble.Code), 1, "duplicate_emission", i18n.ErrorDuplicateEmission, noble.Code))
 			continue
@@ -525,6 +536,27 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 	report := BuildTurnReport(working, result, resolution.Events, receptions)
 	report.State = result
 	return report, nil
+}
+
+// transferPathBlockedAtSubmission catches a route that is already impossible
+// for a transfer whose source is the receiving army's current territory. Later
+// transfer lines may follow movements in the same chain, so those lines remain
+// execution-time checks.
+func transferPathBlockedAtSubmission(game *models.GameState, balance assetgen.Balance, chain models.Chain) (models.TerritoryID, models.TerritoryID, bool) {
+	army := orders.ReceivingArmy(game, chain)
+	if army == nil {
+		return "", "", false
+	}
+	for _, order := range chain.Orders {
+		if order.Type != models.OrderTypeTransfer || order.PositionID != army.TerritoryID || len(order.TargetIDs) != 1 {
+			continue
+		}
+		line, err := FindTransfer(game, balance, order.PositionID, order.TargetIDs[0])
+		if err == nil && !line.Reachable {
+			return order.PositionID, order.TargetIDs[0], true
+		}
+	}
+	return "", "", false
 }
 
 func territoryByID(territories []models.Territory, territoryID models.TerritoryID) models.Territory {

@@ -102,12 +102,13 @@ func TestParseWinterOrders(t *testing.T) {
             l n nob
             o n nob
             p n nob
+            G AAA BBB 3
         `, state)
 		if len(parseErrors) != 0 {
 			t.Fatalf("ParseWinterOrders errors = %#v", parseErrors)
 		}
-		if len(parsed) != 9 {
-			t.Fatalf("len(parsed) = %d, want 9", len(parsed))
+		if len(parsed) != 10 {
+			t.Fatalf("len(parsed) = %d, want 10", len(parsed))
 		}
 		wantTypes := []models.WinterOrderType{
 			models.WinterOrderTypeRecruitNoble,
@@ -119,12 +120,13 @@ func TestParseWinterOrders(t *testing.T) {
 			models.WinterOrderTypeLiberateNoble,
 			models.WinterOrderTypeHostage,
 			models.WinterOrderTypeDungeon,
+			models.WinterOrderTypeTransfer,
 		}
 		for index, wantType := range wantTypes {
 			if parsed[index].Type != wantType {
 				t.Errorf("parsed[%d].Type = %q, want %q", index, parsed[index].Type, wantType)
 			}
-			if wantID := models.OrderID("O" + string(rune('1'+index))); parsed[index].ID != wantID {
+			if wantID := models.OrderID("O" + strconv.Itoa(index+1)); parsed[index].ID != wantID {
 				t.Errorf("parsed[%d].ID = %q, want %q", index, parsed[index].ID, wantID)
 			}
 		}
@@ -133,6 +135,9 @@ func TestParseWinterOrders(t *testing.T) {
 		}
 		if parsed[6].NobleCode != "NOB" || parsed[7].NobleCode != "NOB" || parsed[8].NobleCode != "NOB" {
 			t.Errorf("noble order codes = %#v, want NOB", parsed)
+		}
+		if parsed[9].SourceID != "AAA" || parsed[9].TargetID != "BBB" || parsed[9].Amount != 3 {
+			t.Errorf("transfer order = %#v, want AAA to BBB for 3", parsed[9])
 		}
 	})
 
@@ -795,8 +800,9 @@ func TestResolveWinterRecruitTroop(t *testing.T) {
 }
 
 func TestResolveWinterConstruction(t *testing.T) {
-	t.Run("builds depot on controlled empty tiles", func(t *testing.T) {
+	t.Run("builds infrastructure on controlled empty tiles", func(t *testing.T) {
 		for _, infrastructureType := range []models.InfraType{
+			models.InfraTypeMill,
 			models.InfraTypeSupplyDepot,
 		} {
 			t.Run(string(infrastructureType), func(t *testing.T) {
@@ -836,7 +842,7 @@ func TestResolveWinterConstruction(t *testing.T) {
 		}
 	})
 
-	t.Run("upgrades a mill and charges the mill cost", func(t *testing.T) {
+	t.Run("upgrades a mill with progressive costs", func(t *testing.T) {
 		state := winterTestState(t,
 			[]models.Territory{
 				territory("AAA", "AAA", "BBB"),
@@ -848,7 +854,54 @@ func TestResolveWinterConstruction(t *testing.T) {
 		setTerritoryOwner(state, "BBB", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "AAA"})
 		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
-		setTerritoryResources(state, "BBB", 3)
+		setTerritoryResources(state, "BBB", 12)
+		validateTestState(t, state)
+
+		resolution, err := ResolveWinter(state, testBalance(), map[models.PlayerID][]models.WinterOrder{
+			"P1": {
+				{ID: "O1", Type: models.WinterOrderTypeBuild, TerritoryID: "AAA", InfraType: models.InfraTypeMill},
+				{ID: "O2", Type: models.WinterOrderTypeBuild, TerritoryID: "AAA", InfraType: models.InfraTypeMill},
+			},
+		})
+		if err != nil {
+			t.Fatalf("ResolveWinter: %v", err)
+		}
+		if got := infrastructureAtState(t, resolution.State, "AAA").Level; got != 3 {
+			t.Errorf("mill level = %d, want 3", got)
+		}
+		upgrades := eventsOfType(resolution.Events, EventTypeUpgrade)
+		if len(upgrades) != 2 {
+			t.Errorf("upgrade events = %#v", upgrades)
+			return
+		}
+		for index, want := range []struct {
+			orderID models.OrderID
+			level   int
+			cost    int
+		}{
+			{orderID: "O1", level: 2, cost: 5},
+			{orderID: "O2", level: 3, cost: 7},
+		} {
+			upgrade := upgrades[index]
+			if upgrade.Level != want.level || upgrade.OrderID != want.orderID || upgrade.ResourceSpent != want.cost {
+				t.Errorf("upgrade[%d] = %#v, want order %s, level %d, cost %d", index, upgrade, want.orderID, want.level, want.cost)
+			}
+		}
+	})
+
+	t.Run("rejects a mill upgrade at the maximum level without payment", func(t *testing.T) {
+		state := winterTestState(t,
+			[]models.Territory{
+				territory("AAA", "AAA", "BBB"),
+				territory("BBB", "BBB", "AAA"),
+			},
+			nil,
+		)
+		setTerritoryOwner(state, "AAA", "P1")
+		setTerritoryOwner(state, "BBB", "P1")
+		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 3, TerritoryID: "AAA"})
+		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
+		setTerritoryResources(state, "BBB", 10)
 		validateTestState(t, state)
 
 		resolution, err := ResolveWinter(state, testBalance(), map[models.PlayerID][]models.WinterOrder{
@@ -857,12 +910,16 @@ func TestResolveWinterConstruction(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ResolveWinter: %v", err)
 		}
-		if got := infrastructureAtState(t, resolution.State, "AAA").Level; got != 2 {
-			t.Errorf("mill level = %d, want 2", got)
+		if got := infrastructureAtState(t, resolution.State, "AAA").Level; got != 3 {
+			t.Errorf("mill level = %d, want unchanged level 3", got)
 		}
-		upgrades := eventsOfType(resolution.Events, EventTypeUpgrade)
-		if len(upgrades) != 1 || upgrades[0].Level != 2 || upgrades[0].OrderID != "O1" || upgrades[0].ResourceSpent != testBalance().Costs.Mill {
-			t.Errorf("upgrade events = %#v", upgrades)
+		if got := resolution.State.TerritoryStates["BBB"].Resources; got != 5 {
+			t.Errorf("funding stock = %d, want 5 after conservation without payment", got)
+		}
+		if event := firstRejectedEvent(t, resolution.Events); event.Reason != "mill_max_level_reached" {
+			t.Errorf("rejection = %#v, want mill_max_level_reached", event)
+		} else if event.ResourceSpent != 0 {
+			t.Errorf("rejected resource spend = %d, want 0", event.ResourceSpent)
 		}
 	})
 

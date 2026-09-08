@@ -23,13 +23,14 @@ const (
 	OrderTypeJoin     OrderType = "join"
 	OrderTypePillage  OrderType = "pillage"
 	OrderTypeDisperse OrderType = "disperse"
+	OrderTypeTransfer OrderType = "transfer"
 )
 
 // IsValid reports whether the order type is known to the command model.
 func (t OrderType) IsValid() bool {
 	switch t {
 	case OrderTypeAttack, OrderTypeSupport, OrderTypeHold, OrderTypeJoin,
-		OrderTypePillage, OrderTypeDisperse:
+		OrderTypePillage, OrderTypeDisperse, OrderTypeTransfer:
 		return true
 	}
 	return false
@@ -46,6 +47,7 @@ const (
 	WinterOrderTypeLiberateNoble WinterOrderType = "liberate_noble"
 	WinterOrderTypeHostage       WinterOrderType = "hostage"
 	WinterOrderTypeDungeon       WinterOrderType = "dungeon"
+	WinterOrderTypeTransfer      WinterOrderType = "transfer"
 )
 
 // IsValid reports whether a winter order type is known to the winter resolver.
@@ -53,7 +55,7 @@ func (t WinterOrderType) IsValid() bool {
 	switch t {
 	case WinterOrderTypeRecruitNoble, WinterOrderTypeRecruitTroop, WinterOrderTypeBuild,
 		WinterOrderTypeElectCapital, WinterOrderTypeLiberateNoble,
-		WinterOrderTypeHostage, WinterOrderTypeDungeon:
+		WinterOrderTypeHostage, WinterOrderTypeDungeon, WinterOrderTypeTransfer:
 		return true
 	}
 	return false
@@ -95,6 +97,8 @@ type Order struct {
 	// Liaison comes from parentheses around an order line and is consumed by P1.4
 	// progression after the order outcome is known.
 	Liaison LiaisonMode `json:"liaison"`
+	// Amount is used only by transfer orders and is expressed in resources.
+	Amount int `json:"amount,omitempty"`
 }
 
 // WinterOrder is one direct winter management instruction. Fields irrelevant
@@ -103,6 +107,9 @@ type WinterOrder struct {
 	ID          OrderID         `json:"id"`
 	Type        WinterOrderType `json:"type"`
 	TerritoryID TerritoryID     `json:"territory,omitempty"`
+	SourceID    TerritoryID     `json:"source,omitempty"`
+	TargetID    TerritoryID     `json:"target,omitempty"`
+	Amount      int             `json:"amount,omitempty"`
 	InfraType   InfraType       `json:"infrastructureType,omitempty"`
 	NobleCode   NobleCode       `json:"nobleCode,omitempty"`
 }

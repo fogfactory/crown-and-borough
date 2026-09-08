@@ -282,6 +282,13 @@ func (g *GameState) Validate() error {
 			if !order.Liaison.IsValid() {
 				return fmt.Errorf("models: chain %q: order %q has invalid liaison %q", chain.ID, order.ID, order.Liaison)
 			}
+			if order.Type == OrderTypeTransfer {
+				if order.Amount < 1 {
+					return fmt.Errorf("models: chain %q: transfer order %q amount must be >= 1, got %d", chain.ID, order.ID, order.Amount)
+				}
+			} else if order.Amount != 0 {
+				return fmt.Errorf("models: chain %q: non-transfer order %q has amount %d", chain.ID, order.ID, order.Amount)
+			}
 			if terrs[order.PositionID] == nil {
 				return fmt.Errorf("models: chain %q: order %q references unknown position %q", chain.ID, order.ID, order.PositionID)
 			}
@@ -428,7 +435,6 @@ func (g *GameState) Validate() error {
 		if len(st.Infrastructures) > 1 {
 			return fmt.Errorf("models: territoryState %q: multiple infrastructures (want at most one per territory)", id)
 		}
-		stockable := false
 		for _, iid := range st.Infrastructures {
 			in := infras[iid]
 			if in == nil {
@@ -437,12 +443,6 @@ func (g *GameState) Validate() error {
 			if in.TerritoryID != id {
 				return fmt.Errorf("models: territoryState %q: infrastructure %q is built in territory %q", id, iid, in.TerritoryID)
 			}
-			if in.Type == InfraTypeCastle || in.Type == InfraTypeVillage {
-				stockable = true
-			}
-		}
-		if st.Resources > 0 && !stockable {
-			return fmt.Errorf("models: territoryState %q: positive resources require a castle or village", id)
 		}
 	}
 	for id, army := range armies {

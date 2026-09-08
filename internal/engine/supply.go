@@ -111,7 +111,7 @@ func resolveRations(ctx *resolutionContext) map[models.ArmyID]int {
 		if army == nil {
 			continue
 		}
-		distribution := distributeRations(rationProduction(ctx, territoryID), []models.Army{*army})
+		distribution := distributeRations(rationProduction(ctx, territoryID), []models.Army{*army}, ctx.balance.CostBase)
 		received[army.ID] = distribution[army.ID]
 	}
 	return received
@@ -127,10 +127,11 @@ func armyCost(size, costBase int) int {
 	return cost
 }
 
-// distributeRations grants at most one ration to each army. Equal sizes are
-// resolved by the territory trigram; a same-territory tie is invalid game data
-// and therefore intentionally preserves the input order.
-func distributeRations(rations int, armies []models.Army) map[models.ArmyID]int {
+// distributeRations assigns local production to the largest armies first,
+// up to each army's demand. Equal sizes are resolved by the territory trigram;
+// a same-territory tie is invalid game data and therefore intentionally
+// preserves the input order.
+func distributeRations(rations int, armies []models.Army, costBase int) map[models.ArmyID]int {
 	received := make(map[models.ArmyID]int, len(armies))
 	ordered := append([]models.Army(nil), armies...)
 	sort.SliceStable(ordered, func(i, j int) bool {
@@ -143,35 +144,44 @@ func distributeRations(rations int, armies []models.Army) map[models.ArmyID]int 
 		if rations == 0 {
 			break
 		}
-		received[army.ID] = 1
-		rations--
+		granted := min(rations, armyCost(army.Size, costBase))
+		received[army.ID] = granted
+		rations -= granted
 	}
 	return received
 }
 
 func rationProduction(ctx *resolutionContext, territoryID models.TerritoryID) int {
-	territory := ctx.territoriesByID[territoryID]
-	if territory == nil {
-		return 0
-	}
-	production := ctx.balance.RationTerrain[territory.Terrain]
+	production := terrainRationProduction(ctx, territoryID)
 	if ctx.hasSettlement(territoryID) {
 		production += ctx.balance.InfraRationsBonus
 	}
 	return production
 }
 
+func terrainRationProduction(ctx *resolutionContext, territoryID models.TerritoryID) int {
+	territory := ctx.territoriesByID[territoryID]
+	if territory == nil {
+		return 0
+	}
+	return ctx.balance.RationTerrain[territory.Terrain]
+}
+
 func controlledSupplySources(ctx *resolutionContext, ownerID models.PlayerID) []*supplySource {
 	sources := make([]*supplySource, 0)
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
 		state := ctx.state.TerritoryStates[territoryID]
-		if state.OwnerID == nil || *state.OwnerID != ownerID || !ctx.hasSettlement(territoryID) {
+		if state.OwnerID == nil || *state.OwnerID != ownerID || (!ctx.hasSettlement(territoryID) && state.Resources == 0) {
 			continue
+		}
+		production := 0
+		if ctx.hasSettlement(territoryID) {
+			production = sourceProduction(ctx, territoryID)
 		}
 		sources = append(sources, &supplySource{
 			territoryID: territoryID,
 			ownerID:     ownerID,
-			production:  sourceProduction(ctx, territoryID),
+			production:  production,
 			rations:     make(map[models.TerritoryID]int),
 			reachable:   supplyNetwork(ctx, territoryID, ownerID),
 		})
@@ -215,6 +225,50 @@ func supplyNetwork(ctx *resolutionContext, sourceID models.TerritoryID, ownerID 
 			}
 			if army := ctx.startArmyAt(neighborID); army != nil && army.OwnerID != ownerID {
 				continue
+			}
+			remaining := current.remaining - 1
+			if ctx.isControlledDepot(neighborID, ownerID) {
+				remaining += ctx.balance.DepotRangeBonus
+			}
+			reachable[neighborID] = current.distance + 1
+			queue = append(queue, visit{
+				territoryID: neighborID,
+				distance:    current.distance + 1,
+				remaining:   remaining,
+			})
+		}
+	}
+	return reachable
+}
+
+// transferNetwork is the supply graph used by a resource transfer. It has the
+// same range and depot rules as ordinary supply, but permits the requested
+// destination to be occupied by an enemy army. Enemy armies on intermediate
+// territories still block the route, including an army belonging to the
+// recipient when it is not the final destination.
+func transferNetwork(ctx *resolutionContext, sourceID models.TerritoryID, ownerID models.PlayerID, targetID models.TerritoryID) map[models.TerritoryID]int {
+	type visit struct {
+		territoryID models.TerritoryID
+		distance    int
+		remaining   int
+	}
+
+	reachable := map[models.TerritoryID]int{sourceID: 0}
+	queue := []visit{{territoryID: sourceID, remaining: ctx.balance.SupplyRange}}
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		if current.remaining == 0 {
+			continue
+		}
+		for _, neighborID := range ctx.sortedNeighbors(current.territoryID) {
+			if _, visited := reachable[neighborID]; visited {
+				continue
+			}
+			if neighborID != targetID {
+				if army := ctx.startArmyAt(neighborID); army != nil && army.OwnerID != ownerID {
+					continue
+				}
 			}
 			remaining := current.remaining - 1
 			if ctx.isControlledDepot(neighborID, ownerID) {

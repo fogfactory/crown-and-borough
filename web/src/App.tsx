@@ -20,6 +20,7 @@ import { buildIntentions } from '@/lib/intent-overlay'
 import { hasSupplySource } from '@/lib/supply'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { useLocalStorageState } from '@/lib/storage'
+import { transferTargetsForTerritory } from '@/lib/transfer-preview'
 import { VersionBadge } from '@/components/VersionBadge'
 import { LanguageProvider, useLanguage } from '@/i18n/LanguageContext'
 import { firebaseConfigured } from '@/lib/firebase'
@@ -45,6 +46,7 @@ import type {
   PlayerId,
   StateData,
   SupplyLine,
+  TransferLine,
   TurnReport,
   OrdersResponse,
 } from '@/types'
@@ -113,6 +115,12 @@ function AppContent() {
   const [supplyLine, setSupplyLine] = useState<SupplyLine | null>(null)
   const [supplyLoading, setSupplyLoading] = useState(false)
   const [supplyError, setSupplyError] = useState<string | null>(null)
+  const [transferLine, setTransferLine] = useState<TransferLine | null>(null)
+  const [transferLoading, setTransferLoading] = useState(false)
+  const [transferError, setTransferError] = useState<string | null>(null)
+  const [selectedTransferTarget, setSelectedTransferTarget] = useState<string | null>(
+    null,
+  )
   const [chainDrafts, setChainDrafts] = useState<
     Record<PlayerId, Record<string, string>>
   >({})
@@ -214,6 +222,13 @@ function AppContent() {
   const supplySourceTerritory = map?.territories.find(
     (territory) => territory.id === selectedSupplyLine?.source,
   )
+  const transferTargets =
+    selectedState?.army?.owner === selectedPlayer
+      ? transferTargetsForTerritory(chainDrafts[selectedPlayer] ?? {}, selectedId)
+      : []
+  const transferTarget = transferTargets.includes(selectedTransferTarget ?? '')
+    ? selectedTransferTarget
+    : (transferTargets[0] ?? null)
   const intentions = useMemo(
     () =>
       state && map
@@ -274,6 +289,59 @@ function AppContent() {
     void loadSupplyLine()
     return () => controller.abort()
   }, [selectedId, selectedState, state, t])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setTransferLine(null)
+    setTransferError(null)
+    if (
+      !state ||
+      !selectedId ||
+      !selectedState?.army ||
+      !transferTarget ||
+      state.season === 'winter'
+    ) {
+      setTransferLoading(false)
+      return () => controller.abort()
+    }
+
+    setTransferLoading(true)
+    const loadTransferLine = async () => {
+      try {
+        const response = await fetch(
+          `/api/supply?territory=${encodeURIComponent(selectedId)}&target=${encodeURIComponent(transferTarget)}`,
+          { signal: controller.signal },
+        )
+        if (!response.ok) {
+          throw new Error(`${t('error.requestFailed', { status: response.status })}`)
+        }
+        const payload = (await response.json()) as TransferLine
+        if (
+          payload.kind !== 'transfer' ||
+          !Array.isArray(payload.path) ||
+          !Array.isArray(payload.reachableTerritories)
+        ) {
+          throw new Error('Invalid transfer response')
+        }
+        if (!controller.signal.aborted) {
+          setTransferLine(payload)
+          setTransferLoading(false)
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setTransferError(
+            error instanceof Error
+              ? error.message
+              : t('error.requestFailed', { status: 500 }),
+          )
+          setTransferLoading(false)
+        }
+      }
+    }
+
+    void loadTransferLine()
+    return () => controller.abort()
+  }, [selectedId, selectedState, state, t, transferTarget])
 
   const updateChainDraft = (noble: string, text: string) => {
     setChainDrafts((drafts) => ({
@@ -716,10 +784,17 @@ function AppContent() {
                     state={state}
                     selectedTerritory={selectedTerritory}
                     selectedState={selectedState}
+                    mapTerritories={map?.territories ?? []}
                     selectedSupplyLine={selectedSupplyLine}
                     sourceTerritory={supplySourceTerritory}
                     supplyLoading={supplyLoading}
                     supplyError={supplyError}
+                    transferTargets={transferTargets}
+                    selectedTransferTarget={transferTarget}
+                    onTransferTargetChange={setSelectedTransferTarget}
+                    transferLine={transferLine}
+                    transferLoading={transferLoading}
+                    transferError={transferError}
                   />
 
                   {state && (

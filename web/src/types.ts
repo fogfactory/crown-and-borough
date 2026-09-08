@@ -6,7 +6,14 @@ export type InfraType = 'mill' | 'supply_depot' | 'castle' | 'village'
 
 export type NobleStatus = 'free' | 'hostage' | 'dungeon'
 
-export type OrderType = 'attack' | 'support' | 'hold' | 'join' | 'pillage' | 'disperse'
+export type OrderType =
+  | 'attack'
+  | 'support'
+  | 'hold'
+  | 'join'
+  | 'pillage'
+  | 'disperse'
+  | 'transfer'
 
 export type LiaisonMode = 'single' | 'loop'
 
@@ -25,6 +32,7 @@ export type EventType =
   | 'noble_movement'
   | 'capture'
   | 'liberation'
+  | 'transfer'
 
 export type PlayerId = string
 
@@ -86,6 +94,7 @@ export interface Order {
   targets?: string[]
   nobleAssignments?: Record<string, string[]>
   liaison: LiaisonMode
+  amount?: number
 }
 
 export interface Chain {
@@ -167,13 +176,28 @@ export interface SupplyLine {
   territory: string
   armyOwner: PlayerId
   armySize: number
+  terrainProduction: number
+  localProduction: number
   rations: number
+  totalDemand: number
   demand: number
   source: string | null
   distance: number
   path: string[]
   reachable: string[]
   selfSupplied: boolean
+}
+
+export interface TransferLine {
+  kind: 'transfer'
+  source: string
+  target: string
+  armyOwner: PlayerId
+  recipientArmy?: string
+  path: string[]
+  reachable: boolean
+  distance?: number
+  reachableTerritories: string[]
 }
 
 export interface ChainSubmission {
@@ -322,6 +346,7 @@ export interface OrderReport {
   source?: string
   target?: string
   targets?: string[]
+  amount?: number
   nobleAssignments?: Record<string, string[]>
   liaison?: LiaisonMode
   outcome: Outcome
@@ -348,6 +373,8 @@ export interface MoveReport {
   infrastructureType?: InfraType
   resourceCredit?: number
   creditTerritory?: string
+  resourceAmount?: number
+  partial?: boolean
   previousOwner?: PlayerId
   owner?: PlayerId
 }
@@ -357,6 +384,9 @@ export interface WinterInvestmentReport {
   player: PlayerId
   outcome: Outcome
   cost: number
+  source?: string
+  target?: string
+  amount?: number
   territory?: string
   infrastructure?: string
   type?: InfraType
@@ -376,6 +406,7 @@ export type WinterOrderType =
   | 'liberate_noble'
   | 'hostage'
   | 'dungeon'
+  | 'transfer'
 
 export interface WinterOrder {
   id?: string
@@ -383,6 +414,9 @@ export interface WinterOrder {
   territory?: string
   infrastructureType?: InfraType
   nobleCode?: string
+  source?: string
+  target?: string
+  amount?: number
 }
 
 export interface WinterStockReport {

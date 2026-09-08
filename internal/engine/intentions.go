@@ -53,6 +53,14 @@ type supportIntent struct {
 	applies       bool
 }
 
+type transferIntent struct {
+	armyID          models.ArmyID
+	sourceID        models.TerritoryID
+	targetID        models.TerritoryID
+	recipientArmyID models.ArmyID
+	recipientPlayer models.PlayerID
+}
+
 func enumerateIntentions(ctx *resolutionContext) {
 	armyIDs := make([]models.ArmyID, 0, len(ctx.startArmiesByID))
 	for armyID := range ctx.startArmiesByID {
@@ -169,6 +177,43 @@ func (ctx *resolutionContext) enumerateOrder(record *orderRecord, army models.Ar
 		if len(ctx.state.TerritoryStates[army.TerritoryID].Infrastructures) == 0 {
 			record.invalidate("no_infrastructure")
 		}
+	case models.OrderTypeTransfer:
+		if len(order.TargetIDs) != 1 || len(order.NobleAssignments) != 0 || order.Amount < 1 {
+			record.invalidate("invalid_transfer_shape")
+			return
+		}
+		targetID := order.TargetIDs[0]
+		if targetID == army.TerritoryID || ctx.territoriesByID[targetID] == nil {
+			record.invalidate("invalid_transfer_destination")
+			return
+		}
+		sourceState := ctx.state.TerritoryStates[army.TerritoryID]
+		if sourceState.OwnerID == nil || *sourceState.OwnerID != army.OwnerID {
+			record.invalidate("transfer_source_not_controlled")
+			return
+		}
+		intent := &transferIntent{armyID: army.ID, sourceID: army.TerritoryID, targetID: targetID}
+		if targetArmy := ctx.startArmyAt(targetID); targetArmy != nil {
+			if targetArmy.OwnerID == army.OwnerID || !PlayerAlive(ctx.state, targetArmy.OwnerID) {
+				record.invalidate("invalid_transfer_destination")
+				return
+			}
+			intent.recipientArmyID = targetArmy.ID
+			intent.recipientPlayer = targetArmy.OwnerID
+		} else {
+			targetState := ctx.state.TerritoryStates[targetID]
+			if targetState.OwnerID == nil || *targetState.OwnerID == army.OwnerID || !PlayerAlive(ctx.state, *targetState.OwnerID) || !ctx.hasSettlement(targetID) {
+				record.invalidate("invalid_transfer_destination")
+				return
+			}
+			intent.recipientPlayer = *targetState.OwnerID
+		}
+		reachable := transferNetwork(ctx, army.TerritoryID, army.OwnerID, targetID)
+		if _, reachable := reachable[targetID]; !reachable {
+			record.invalidate("transfer_path_blocked")
+			return
+		}
+		ctx.transfers[army.ID] = intent
 	default:
 		record.invalidate("unknown_order_type")
 	}

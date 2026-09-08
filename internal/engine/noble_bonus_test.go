@@ -185,7 +185,7 @@ func TestResolveFamishedNobleCommandHasZeroForce(t *testing.T) {
 			supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA"),
 		},
 		[]models.Army{
-			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
 			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
 		})
 	addNoble(state, "N1", "ONE", "P1", "AAA")

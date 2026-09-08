@@ -35,12 +35,12 @@ type Balance struct {
 
 // Costs groups all resource costs used by winter investments.
 type Costs struct {
-	Castle      int `json:"castle" yaml:"castle"`
-	Mill        int `json:"mill" yaml:"mill"`
-	Troop       int `json:"troop" yaml:"troop"`
-	Noble       int `json:"noble" yaml:"noble"`
-	SupplyDepot int `json:"supply_depot" yaml:"supply_depot"`
-	Liberation  int `json:"liberation" yaml:"liberation"`
+	Castle      int   `json:"castle" yaml:"castle"`
+	MillLevels  []int `json:"mill_levels" yaml:"mill_levels"`
+	Troop       int   `json:"troop" yaml:"troop"`
+	Noble       int   `json:"noble" yaml:"noble"`
+	SupplyDepot int   `json:"supply_depot" yaml:"supply_depot"`
+	Liberation  int   `json:"liberation" yaml:"liberation"`
 }
 
 type rawBalance struct {
@@ -63,12 +63,12 @@ type rawBalance struct {
 }
 
 type rawCosts struct {
-	Castle      *int `yaml:"castle"`
-	Mill        *int `yaml:"mill"`
-	Troop       *int `yaml:"troop"`
-	Noble       *int `yaml:"noble"`
-	SupplyDepot *int `yaml:"supply_depot"`
-	Liberation  *int `yaml:"liberation"`
+	Castle      *int   `yaml:"castle"`
+	MillLevels  []*int `yaml:"mill_levels"`
+	Troop       *int   `yaml:"troop"`
+	Noble       *int   `yaml:"noble"`
+	SupplyDepot *int   `yaml:"supply_depot"`
+	Liberation  *int   `yaml:"liberation"`
 }
 
 var balanceTerrains = [...]models.Terrain{
@@ -213,9 +213,15 @@ func (raw rawBalance) costs(path string) (Costs, error) {
 	if err != nil {
 		return Costs{}, err
 	}
-	mill, err := requiredNonNegativeInt(path, "costs.mill", raw.Costs.Mill)
-	if err != nil {
-		return Costs{}, err
+	if raw.Costs.MillLevels == nil || len(raw.Costs.MillLevels) == 0 {
+		return Costs{}, missingBalanceValue(path, "costs.mill_levels")
+	}
+	millLevels := make([]int, len(raw.Costs.MillLevels))
+	for index, value := range raw.Costs.MillLevels {
+		millLevels[index], err = requiredNonNegativeInt(path, fmt.Sprintf("costs.mill_levels[%d]", index), value)
+		if err != nil {
+			return Costs{}, err
+		}
 	}
 	troop, err := requiredNonNegativeInt(path, "costs.troop", raw.Costs.Troop)
 	if err != nil {
@@ -235,7 +241,7 @@ func (raw rawBalance) costs(path string) (Costs, error) {
 	}
 	return Costs{
 		Castle:      castle,
-		Mill:        mill,
+		MillLevels:  millLevels,
 		Troop:       troop,
 		Noble:       noble,
 		SupplyDepot: supplyDepot,
