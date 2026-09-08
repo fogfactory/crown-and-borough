@@ -382,8 +382,9 @@ occupy, but receive no additional supply from a player's controlled source
 stocks.
 
 Example: a 2-troop army on a hill with a castle (local production:
-{{ration_terrain.hill}}; castle bonus: {{infra_rations_bonus}}) receives 2 rations;
-its remaining demand is 0. A 2-troop army on a swamp (production
+{{ration_terrain.hill}}; castle bonus: {{infra_rations_bonus}}) receives 2 rations,
+covering its full demand; any surplus is lost. A 2-troop army on a
+swamp (production
 {{ration_terrain.swamp}}) receives 1 ration and must cover its remaining demand
 of 1 ration.
 
@@ -393,8 +394,9 @@ of 1 ration.
 **+{{infra_rations_bonus}}** when the territory has a castle or village.
 
 **Supply sources**: **controlled castles, villages, and caches**. A castle or
-village produces **{{base_production}} R of stock per turn**; a bare cache produces nothing. The flow crosses allied or neutral
-territories and stops before an enemy territory. Base range is **3 territories**;
+village produces **{{base_production}} R of stock per turn**; a bare cache produces nothing.
+The flow crosses allied, neutral, or enemy-controlled territories and only stops
+before a territory occupied by an enemy army. Base range is **3 territories**;
 each controlled supply depot encountered along the route adds **2 territories**.
 A neutral village keeps its stock, inaccessible to the player before capture.
 

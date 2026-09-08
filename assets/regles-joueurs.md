@@ -410,8 +410,8 @@ sources contrôlées par un joueur.
 
 Exemple : une armée de 2 troupes sur une colline portant un château
 (production locale : {{ration_terrain.hill}} ; bonus du château : {{infra_rations_bonus}})
-reçoit 2 rations ; sa demande restante est 0. Une armée de 2 troupes sur un
-marécage (production {{ration_terrain.swamp}}) reçoit 1 ration et doit couvrir
+reçoit 2 rations, soit toute sa demande ; le surplus éventuel est perdu. Une armée
+de 2 troupes sur un marécage (production {{ration_terrain.swamp}}) reçoit 1 ration et doit couvrir
 sa demande restante de 1 ration.
 
 **Production vivrière de la case (en rations)** : plaine {{ration_terrain.plain}} ;
@@ -422,7 +422,8 @@ si la case porte un château ou un village.
 **Sources de ravitaillement** : les **châteaux, villages et caches contrôlés**.
 Un château ou un village produit **{{base_production}} R stockable par tour** ; un cache ordinaire
 ne produit rien. Le flux traverse les
-cases alliées ou neutres et s'arrête devant une case ennemie. La portée de base
+cases alliées, neutres ou contrôlées par un autre joueur et ne s'arrête que devant
+une case occupée par une armée adverse. La portée de base
 est de **3 cases** ; chaque dépôt de vivres contrôlé rencontré sur le trajet
 ajoute **2 cases**. Un village neutre conserve son stock, inaccessible au joueur
 avant capture.

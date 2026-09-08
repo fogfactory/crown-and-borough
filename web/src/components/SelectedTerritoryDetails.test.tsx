@@ -1,8 +1,8 @@
-import { render, screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen, within } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 
 import { SelectedTerritoryDetails } from '@/components/SelectedTerritoryDetails'
-import type { MapData, StateData, SupplyLine } from '@/types'
+import type { MapData, StateData, SupplyLine, TransferLine } from '@/types'
 
 const map: MapData = {
   territories: [
@@ -99,6 +99,17 @@ const armySupply: SupplyLine = {
   path: ['BRU', 'ROS'],
   reachable: ['ROS', 'BRU'],
   selfSupplied: false,
+}
+
+const transferLine: TransferLine = {
+  kind: 'transfer',
+  source: 'ROS',
+  target: 'BRU',
+  armyOwner: 'P2',
+  path: ['ROS', 'BRU'],
+  reachable: true,
+  distance: 1,
+  reachableTerritories: ['ROS', 'BRU'],
 }
 
 describe('SelectedTerritoryDetails', () => {
@@ -202,6 +213,65 @@ describe('SelectedTerritoryDetails', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('renders and changes the transfer route preview for an action draft', () => {
+    const onTransferTargetChange = vi.fn()
+
+    render(
+      <SelectedTerritoryDetails
+        state={state}
+        selectedTerritory={map.territories[0]}
+        selectedState={state.territories[0]}
+        mapTerritories={map.territories}
+        selectedSupplyLine={armySupply}
+        sourceTerritory={map.territories[1]}
+        supplyLoading={false}
+        supplyError={null}
+        transferTargets={['BRU', 'ROS']}
+        selectedTransferTarget="BRU"
+        onTransferTargetChange={onTransferTargetChange}
+        transferLine={transferLine}
+        transferLoading={false}
+        transferError={null}
+      />,
+    )
+
+    expect(screen.getByText('Transfer preview')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'The transfer route is reachable.',
+    )
+    expect(screen.getByText('ROS · Rosemont -> BRU · Brisecote')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Destination' }), {
+      target: { value: 'ROS' },
+    })
+    expect(onTransferTargetChange).toHaveBeenCalledWith('ROS')
+  })
+
+  it('renders a blocked transfer route', () => {
+    render(
+      <SelectedTerritoryDetails
+        state={state}
+        selectedTerritory={map.territories[0]}
+        selectedState={state.territories[0]}
+        mapTerritories={map.territories}
+        selectedSupplyLine={armySupply}
+        sourceTerritory={map.territories[1]}
+        supplyLoading={false}
+        supplyError={null}
+        transferTargets={['BRU']}
+        selectedTransferTarget="BRU"
+        transferLine={{ ...transferLine, reachable: false, path: [] }}
+        transferLoading={false}
+        transferError={null}
+      />,
+    )
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'The supply path is blocked by an enemy army.',
+    )
+    expect(screen.queryByText(/ROS · Rosemont -> BRU/)).not.toBeInTheDocument()
+  })
+
   it('renders the hidden-chain message without exposing its order stack', () => {
     const hiddenState: StateData = {
       ...state,
@@ -227,6 +297,9 @@ describe('SelectedTerritoryDetails', () => {
         sourceTerritory={null}
         supplyLoading={false}
         supplyError={null}
+        transferTargets={['BRU']}
+        selectedTransferTarget="BRU"
+        transferLine={transferLine}
       />,
     )
 
