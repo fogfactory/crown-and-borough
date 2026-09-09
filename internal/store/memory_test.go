@@ -410,6 +410,82 @@ func TestMemoryStoreRevisionGuardsConcurrentForcedResolutions(t *testing.T) {
 	}
 }
 
+func TestMemoryStoreMySubmission(t *testing.T) {
+	gameStore := newTestStore(t)
+	created, err := gameStore.Create(context.Background(), Actor{ID: "P1"}, CreateRequest{
+		Seed:    "my-submission-test",
+		Players: []engine.PlayerInit{{Name: "One"}, {Name: "Two"}},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	// Before submitting: Submitted == false
+	initial, err := gameStore.MySubmission(context.Background(), Actor{ID: "P1"}, created.ID)
+	if err != nil {
+		t.Fatalf("initial MySubmission: %v", err)
+	}
+	if initial.Submitted || initial.Turn != 1 || initial.Season != models.SeasonSpring {
+		t.Fatalf("initial MySubmission = %#v, want submitted:false, turn:1, spring", initial)
+	}
+
+	// Submit orders for P1
+	noble := created.State.Nobles[0]
+	chainText := string(noble.Code) + "\nH " + string(noble.LocationID)
+	_, err = gameStore.Submit(context.Background(), Actor{ID: "P1"}, created.ID, SubmitRequest{
+		Chains: []engine.ChainSubmission{{Noble: models.NobleCode(noble.Code), Text: chainText}},
+	})
+	if err != nil {
+		t.Fatalf("submit: %v", err)
+	}
+
+	// P1 MySubmission returns their submission
+	p1Sub, err := gameStore.MySubmission(context.Background(), Actor{ID: "P1"}, created.ID)
+	if err != nil {
+		t.Fatalf("p1 MySubmission: %v", err)
+	}
+	if !p1Sub.Submitted || p1Sub.Turn != 1 || len(p1Sub.Orders.Chains) != 1 {
+		t.Fatalf("p1 MySubmission = %#v, want submitted:true with 1 chain", p1Sub)
+	}
+	if p1Sub.Orders.Chains[0].Noble != models.NobleCode(noble.Code) || p1Sub.Orders.Chains[0].Text != chainText {
+		t.Fatalf("p1 chain = %#v, want %s / %s", p1Sub.Orders.Chains[0], noble.Code, chainText)
+	}
+
+	// P2 MySubmission returns submitted == false (no leak)
+	p2Sub, err := gameStore.MySubmission(context.Background(), Actor{ID: "P2"}, created.ID)
+	if err != nil {
+		t.Fatalf("p2 MySubmission: %v", err)
+	}
+	if p2Sub.Submitted || len(p2Sub.Orders.Chains) != 0 {
+		t.Fatalf("p2 MySubmission = %#v, want submitted:false and empty chains", p2Sub)
+	}
+
+	// Non-member actor returns ErrNotMember
+	if _, err := gameStore.MySubmission(context.Background(), Actor{ID: "intruder"}, created.ID); !errors.Is(err, ErrNotMember) {
+		t.Fatalf("intruder MySubmission error = %v, want ErrNotMember", err)
+	}
+
+	// Unknown game returns ErrUnknownGame
+	if _, err := gameStore.MySubmission(context.Background(), Actor{ID: "P1"}, GameID("unknown")); !errors.Is(err, ErrUnknownGame) {
+		t.Fatalf("unknown game MySubmission error = %v, want ErrUnknownGame", err)
+	}
+
+	// Resolve the turn
+	_, err = gameStore.Submit(context.Background(), Actor{ID: "P2"}, created.ID, SubmitRequest{})
+	if err != nil {
+		t.Fatalf("resolve submit: %v", err)
+	}
+
+	// After resolve: turn is 2, submitted is false
+	nextTurnSub, err := gameStore.MySubmission(context.Background(), Actor{ID: "P1"}, created.ID)
+	if err != nil {
+		t.Fatalf("next turn MySubmission: %v", err)
+	}
+	if nextTurnSub.Submitted || nextTurnSub.Turn != 2 || nextTurnSub.Season != models.SeasonSummer {
+		t.Fatalf("next turn MySubmission = %#v, want submitted:false, turn:2, summer", nextTurnSub)
+	}
+}
+
 func newTestStore(t *testing.T) *MemoryStore {
 	t.Helper()
 	assets, err := assetgen.Load("../../assets")

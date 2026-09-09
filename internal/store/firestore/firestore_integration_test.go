@@ -160,6 +160,20 @@ func TestFirestoreStorePersistsAndRestoresATurn(t *testing.T) {
 	if restored.Revision != pending.Snapshot.Revision || restored.State.Turn != 1 {
 		t.Fatalf("restored snapshot = revision %d turn %d", restored.Revision, restored.State.Turn)
 	}
+	aliceSub, err := restarted.MySubmission(ctx, store.Actor{ID: "alice"}, created.Snapshot.ID)
+	if err != nil {
+		t.Fatalf("alice MySubmission after restart: %v", err)
+	}
+	if !aliceSub.Submitted || aliceSub.Turn != 1 {
+		t.Fatalf("alice MySubmission after restart = %#v, want submitted:true turn 1", aliceSub)
+	}
+	bobSub, err := restarted.MySubmission(ctx, store.Actor{ID: "bob"}, created.Snapshot.ID)
+	if err != nil {
+		t.Fatalf("bob MySubmission before submitting: %v", err)
+	}
+	if bobSub.Submitted {
+		t.Fatalf("bob MySubmission before submitting = %#v, want submitted:false", bobSub)
+	}
 	resolved, err := restarted.Submit(ctx, store.Actor{ID: "bob"}, created.Snapshot.ID, store.SubmitRequest{ExpectedRevision: restored.Revision})
 	if err != nil {
 		t.Fatalf("resolve restored turn: %v", err)
