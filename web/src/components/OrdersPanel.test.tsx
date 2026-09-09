@@ -124,4 +124,114 @@ describe('OrdersPanel seasonal presentation', () => {
 
     expect(onOpenRules).toHaveBeenCalledWith('action-orders')
   })
+
+  it('shows divergence note and restores winter orders', () => {
+    const onRestore = vi.fn()
+    render(
+      <LanguageProvider initialLanguage="fr">
+        <OrdersPanel
+          state={{ ...state, season: 'winter' }}
+          player="P1"
+          chainDrafts={{}}
+          winterDraft="R T ROS"
+          submitted={true}
+          submitting={false}
+          error={null}
+          draftDiffers={{ winter: true }}
+          onChainChange={vi.fn()}
+          onWinterChange={vi.fn()}
+          onSubmit={vi.fn()}
+          onOpenRules={vi.fn()}
+          onRestoreFromServer={onRestore}
+        />
+      </LanguageProvider>,
+    )
+
+    expect(screen.getByText('Brouillon différent du serveur')).toBeInTheDocument()
+    const restoreBtn = screen.getByRole('button', { name: 'Restaurer depuis le serveur' })
+    expect(restoreBtn).toBeInTheDocument()
+    fireEvent.click(restoreBtn)
+    expect(onRestore).toHaveBeenCalledWith('winter')
+  })
+
+  it('shows divergence note and restores chain orders in english', () => {
+    const onRestore = vi.fn()
+    render(
+      <LanguageProvider initialLanguage="en">
+        <OrdersPanel
+          state={{
+            ...state,
+            season: 'spring',
+            nobles: [
+              {
+                id: 'N1',
+                code: 'GUI',
+                name: 'Guillaume',
+                owner: 'P1',
+                location: 'ROS',
+                status: 'free',
+              },
+            ],
+          }}
+          player="P1"
+          chainDrafts={{ GUI: 'ROS A BT' }}
+          winterDraft=""
+          submitted={true}
+          submitting={false}
+          error={null}
+          draftDiffers={{ chains: { GUI: true } }}
+          onChainChange={vi.fn()}
+          onWinterChange={vi.fn()}
+          onSubmit={vi.fn()}
+          onOpenRules={vi.fn()}
+          onRestoreFromServer={onRestore}
+        />
+      </LanguageProvider>,
+    )
+
+    expect(screen.getByText('Local draft differs from server')).toBeInTheDocument()
+    const restoreBtn = screen.getByRole('button', { name: 'Restore from server' })
+    expect(restoreBtn).toBeInTheDocument()
+    fireEvent.click(restoreBtn)
+    expect(onRestore).toHaveBeenCalledWith('GUI')
+  })
+
+  it('does not show divergence note when there is no divergence', () => {
+    render(
+      <LanguageProvider initialLanguage="fr">
+        <OrdersPanel
+          state={{
+            ...state,
+            season: 'spring',
+            nobles: [
+              {
+                id: 'N1',
+                code: 'GUI',
+                name: 'Guillaume',
+                owner: 'P1',
+                location: 'ROS',
+                status: 'free',
+              },
+            ],
+          }}
+          player="P1"
+          chainDrafts={{ GUI: 'ROS A BT' }}
+          winterDraft=""
+          submitted={true}
+          submitting={false}
+          error={null}
+          draftDiffers={undefined}
+          onChainChange={vi.fn()}
+          onWinterChange={vi.fn()}
+          onSubmit={vi.fn()}
+          onOpenRules={vi.fn()}
+        />
+      </LanguageProvider>,
+    )
+
+    expect(screen.queryByText('Brouillon différent du serveur')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Restaurer depuis le serveur' }),
+    ).not.toBeInTheDocument()
+  })
 })

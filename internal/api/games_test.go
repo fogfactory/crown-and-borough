@@ -98,6 +98,97 @@ func TestGamesHandlerCreatesGameWithConfiguredYearsAndDefaults(t *testing.T) {
 	}
 }
 
+func TestGamesHandlerMySubmission(t *testing.T) {
+	gameStore, rules := newGamesTestStore(t)
+	handler := NewGamesHandler(gameStore, rules, DevActorResolver("alice"))
+
+	game := createGameHTTP(t, handler, "alice", `{"name":"Submission game","players":["Alice","Bob"]}`)
+
+	// Initial: alice has not submitted
+	aliceInit := requestGames(t, handler, http.MethodGet, "/api/games/"+string(game.ID)+"/my-submission?player=alice", "")
+	if aliceInit.Code != http.StatusOK {
+		t.Fatalf("alice initial = %d: %s", aliceInit.Code, aliceInit.Body.String())
+	}
+	var aliceView mySubmissionView
+	if err := json.Unmarshal(aliceInit.Body.Bytes(), &aliceView); err != nil {
+		t.Fatalf("decode alice view: %v", err)
+	}
+	if aliceView.Submitted || aliceView.Turn != 1 || aliceView.Season != models.SeasonSpring {
+		t.Fatalf("alice initial = %#v, want submitted:false, turn:1, spring", aliceView)
+	}
+	if len(aliceView.Chains) != 0 {
+		t.Fatalf("alice initial chains = %#v, want empty", aliceView.Chains)
+	}
+
+	// Alice submits orders
+	stateResp := requestGames(t, handler, http.MethodGet, "/api/games/"+string(game.ID)+"/state?player=alice", "")
+	var state StateView
+	if err := json.Unmarshal(stateResp.Body.Bytes(), &state); err != nil {
+		t.Fatalf("decode state: %v", err)
+	}
+	noble := state.Nobles[0]
+	chainText := string(noble.Code) + "\nH " + string(noble.Location)
+	reqBody, err := json.Marshal(map[string]any{
+		"chains": []map[string]any{
+			{"noble": noble.Code, "text": chainText},
+		},
+		"winter": []any{},
+	})
+	if err != nil {
+		t.Fatalf("marshal orders: %v", err)
+	}
+	pending := requestGames(t, handler, http.MethodPost, "/api/games/"+string(game.ID)+"/orders?player=alice", string(reqBody))
+	if pending.Code != http.StatusOK {
+		t.Fatalf("alice submit = %d: %s", pending.Code, pending.Body.String())
+	}
+
+	// Alice requests /my-submission and sees her submission
+	aliceSub := requestGames(t, handler, http.MethodGet, "/api/games/"+string(game.ID)+"/my-submission?player=alice", "")
+	if aliceSub.Code != http.StatusOK {
+		t.Fatalf("alice sub = %d: %s", aliceSub.Code, aliceSub.Body.String())
+	}
+	if err := json.Unmarshal(aliceSub.Body.Bytes(), &aliceView); err != nil {
+		t.Fatalf("decode alice submitted view: %v", err)
+	}
+	if !aliceView.Submitted || aliceView.Turn != 1 || len(aliceView.Chains) != 1 {
+		t.Fatalf("alice submitted view = %#v, want submitted:true with 1 chain", aliceView)
+	}
+	if aliceView.Chains[0].Noble != noble.Code || aliceView.Chains[0].Text != chainText {
+		t.Fatalf("alice chain = %#v, want %s / %s", aliceView.Chains[0], noble.Code, chainText)
+	}
+
+	// P2 (second player) requests /my-submission and sees submitted:false (no leak!)
+	p2Sub := requestGames(t, handler, http.MethodGet, "/api/games/"+string(game.ID)+"/my-submission?player=P2", "")
+	if p2Sub.Code != http.StatusOK {
+		t.Fatalf("p2 sub = %d: %s", p2Sub.Code, p2Sub.Body.String())
+	}
+	var p2View mySubmissionView
+	if err := json.Unmarshal(p2Sub.Body.Bytes(), &p2View); err != nil {
+		t.Fatalf("decode p2 view: %v", err)
+	}
+	if p2View.Submitted || len(p2View.Chains) != 0 {
+		t.Fatalf("p2 sub = %#v, want submitted:false and empty chains", p2View)
+	}
+
+	// Non-member intruder receives 403 not_member
+	intruder := requestGames(t, handler, http.MethodGet, "/api/games/"+string(game.ID)+"/my-submission?player=intruder", "")
+	if intruder.Code != http.StatusForbidden {
+		t.Fatalf("intruder code = %d, want 403", intruder.Code)
+	}
+
+	// Unknown game returns 404
+	unknown := requestGames(t, handler, http.MethodGet, "/api/games/non-existent/my-submission?player=alice", "")
+	if unknown.Code != http.StatusNotFound {
+		t.Fatalf("unknown game code = %d, want 404", unknown.Code)
+	}
+
+	// POST /my-submission returns 405 Method Not Allowed
+	postReq := requestGames(t, handler, http.MethodPost, "/api/games/"+string(game.ID)+"/my-submission?player=alice", "")
+	if postReq.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("post code = %d, want 405", postReq.Code)
+	}
+}
+
 func TestGamesHandlerRejectsInvalidYearCount(t *testing.T) {
 	gameStore, rules := newGamesTestStore(t)
 	handler := NewGamesHandler(gameStore, rules, DevActorResolver("P1"))

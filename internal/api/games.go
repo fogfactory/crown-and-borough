@@ -296,6 +296,16 @@ func (h *GamesHandler) handleSubresource(w http.ResponseWriter, r *http.Request,
 			return
 		}
 		h.submit(w, r, actor, id)
+	case "my-submission":
+		if len(parts) != 1 {
+			http.NotFound(w, r)
+			return
+		}
+		if r.Method != http.MethodGet {
+			methodNotAllowed(w, http.MethodGet)
+			return
+		}
+		h.mySubmission(w, r, actor, id)
 	case "join":
 		if len(parts) != 1 {
 			http.NotFound(w, r)
@@ -397,6 +407,34 @@ func toWinterSubmissions(requests []winterOrderRequest) []engine.WinterSubmissio
 		winter[index] = engine.WinterSubmission{Lines: request.Lines}
 	}
 	return winter
+}
+
+func (h *GamesHandler) mySubmission(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
+	submission, err := h.store.MySubmission(r.Context(), actor, id)
+	if err != nil {
+		h.writeStoreError(w, err)
+		return
+	}
+	chains := make([]chainSubmissionView, len(submission.Orders.Chains))
+	for index, chain := range submission.Orders.Chains {
+		chains[index] = chainSubmissionView{
+			Noble: chain.Noble,
+			Text:  chain.Text,
+		}
+	}
+	var winter *winterSubmissionView
+	if len(submission.Orders.Winter) > 0 {
+		winter = &winterSubmissionView{
+			Lines: submission.Orders.Winter[0].Lines,
+		}
+	}
+	writeJSON(w, http.StatusOK, mySubmissionView{
+		Turn:      submission.Turn,
+		Season:    submission.Season,
+		Submitted: submission.Submitted,
+		Chains:    chains,
+		Winter:    winter,
+	})
 }
 
 func (h *GamesHandler) join(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
@@ -678,6 +716,23 @@ type winterOrderRequest struct {
 
 type joinGameRequest struct {
 	InviteCode string `json:"inviteCode"`
+}
+
+type mySubmissionView struct {
+	Turn      int                   `json:"turn"`
+	Season    models.Season         `json:"season"`
+	Submitted bool                  `json:"submitted"`
+	Chains    []chainSubmissionView `json:"chains"`
+	Winter    *winterSubmissionView `json:"winter,omitempty"`
+}
+
+type chainSubmissionView struct {
+	Noble models.NobleCode `json:"noble"`
+	Text  string           `json:"text"`
+}
+
+type winterSubmissionView struct {
+	Lines string `json:"lines"`
 }
 
 type gameOrdersResponse struct {

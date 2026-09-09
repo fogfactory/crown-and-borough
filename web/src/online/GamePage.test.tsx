@@ -218,3 +218,110 @@ describe('GamePage transfer preview', () => {
     ).toBeInTheDocument()
   })
 })
+
+describe('GamePage submission rehydration and divergence', () => {
+  it('rehydrates submitted chain orders into empty textareas on load', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.endsWith('/api/games/GAME1')) return Promise.resolve(jsonResponse({}))
+      if (url.endsWith('/api/games/GAME1/map')) return Promise.resolve(jsonResponse(map))
+      if (url.endsWith('/api/games/GAME1/state')) {
+        return Promise.resolve(jsonResponse({ ...state, revision: 1 }))
+      }
+      if (url.endsWith('/api/games/GAME1/my-submission')) {
+        return Promise.resolve(
+          jsonResponse({
+            turn: 1,
+            season: 'spring',
+            submitted: true,
+            chains: [{ noble: 'JEA', text: 'JEA\nROS A BRU' }],
+          }),
+        )
+      }
+      throw new Error(`unexpected request: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+      <LanguageProvider initialLanguage="en">
+        <MemoryRouter initialEntries={['/games/GAME1']}>
+          <Routes>
+            <Route path="/games/:gameId" element={<GamePage />} />
+          </Routes>
+        </MemoryRouter>
+      </LanguageProvider>,
+    )
+
+    await screen.findByText('Online game')
+    const textarea = await screen.findByLabelText('Chain for JEA')
+    await waitFor(() => {
+      expect(textarea).toHaveValue('ROS A BRU')
+    })
+    expect(screen.queryByText('Local draft differs from server')).not.toBeInTheDocument()
+
+    // Modify local draft -> divergence note appears
+    fireEvent.change(textarea, { target: { value: 'ROS H' } })
+    expect(await screen.findByText('Local draft differs from server')).toBeInTheDocument()
+    const restoreBtn = screen.getByRole('button', { name: 'Restore from server' })
+    expect(restoreBtn).toBeInTheDocument()
+
+    // Restore from server -> textarea returns to server version and warning disappears
+    fireEvent.click(restoreBtn)
+    expect(textarea).toHaveValue('ROS A BRU')
+    expect(screen.queryByText('Local draft differs from server')).not.toBeInTheDocument()
+  })
+
+  it('rehydrates winter orders and shows divergence when modified', async () => {
+    const winterState: StateData = {
+      ...state,
+      turn: 4,
+      season: 'winter',
+    }
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.endsWith('/api/games/GAME1')) return Promise.resolve(jsonResponse({}))
+      if (url.endsWith('/api/games/GAME1/map')) return Promise.resolve(jsonResponse(map))
+      if (url.endsWith('/api/games/GAME1/state')) {
+        return Promise.resolve(jsonResponse({ ...winterState, revision: 1 }))
+      }
+      if (url.endsWith('/api/games/GAME1/my-submission')) {
+        return Promise.resolve(
+          jsonResponse({
+            turn: 4,
+            season: 'winter',
+            submitted: true,
+            chains: [],
+            winter: { lines: 'R T ROS' },
+          }),
+        )
+      }
+      throw new Error(`unexpected request: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+      <LanguageProvider initialLanguage="fr">
+        <MemoryRouter initialEntries={['/games/GAME1']}>
+          <Routes>
+            <Route path="/games/:gameId" element={<GamePage />} />
+          </Routes>
+        </MemoryRouter>
+      </LanguageProvider>,
+    )
+
+    await screen.findByText('Online game')
+    const textarea = await screen.findByLabelText("Ordres d'hiver de P1")
+    await waitFor(() => {
+      expect(textarea).toHaveValue('R T ROS')
+    })
+    expect(screen.queryByText('Brouillon différent du serveur')).not.toBeInTheDocument()
+
+    // Edit winter draft -> divergence note in French appears
+    fireEvent.change(textarea, { target: { value: 'R T BRU' } })
+    expect(await screen.findByText('Brouillon différent du serveur')).toBeInTheDocument()
+    const restoreBtn = screen.getByRole('button', { name: 'Restaurer depuis le serveur' })
+    fireEvent.click(restoreBtn)
+    expect(textarea).toHaveValue('R T ROS')
+    expect(screen.queryByText('Brouillon différent du serveur')).not.toBeInTheDocument()
+  })
+})

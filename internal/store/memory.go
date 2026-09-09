@@ -583,6 +583,42 @@ func (s *MemoryStore) Report(ctx context.Context, actor Actor, id GameID, index 
 	return reports[index], nil
 }
 
+func (s *MemoryStore) MySubmission(_ context.Context, actor Actor, id GameID) (PlayerSubmission, error) {
+	game, err := s.game(id)
+	if err != nil {
+		return PlayerSubmission{}, err
+	}
+	game.mu.RLock()
+	defer game.mu.RUnlock()
+	playerID, ok := game.playerForActorLocked(actor)
+	if !ok {
+		return PlayerSubmission{}, ErrNotMember
+	}
+	turn := game.state.Turn
+	season := game.state.Season
+	input, submitted := game.submissions[playerID]
+	if !submitted {
+		return PlayerSubmission{
+			Turn:      turn,
+			Season:    season,
+			Submitted: false,
+		}, nil
+	}
+	return PlayerSubmission{
+		Turn:      turn,
+		Season:    season,
+		Submitted: true,
+		Orders:    cloneOrdersInput(input),
+	}, nil
+}
+
+func cloneOrdersInput(source engine.OrdersInput) engine.OrdersInput {
+	return engine.OrdersInput{
+		Chains: append([]engine.ChainSubmission(nil), source.Chains...),
+		Winter: append([]engine.WinterSubmission(nil), source.Winter...),
+	}
+}
+
 func (s *MemoryStore) game(id GameID) (*memoryGame, error) {
 	s.indexMu.RLock()
 	game := s.games[id]

@@ -268,7 +268,7 @@ memberships sont toujours disponibles.
 **Livrables :** configuration Firebase Web, connexion par lien email, profil,
 liste multi-parties, création/join, lien copiable, slots, abonnements
 `onSnapshot` aux projections publiques et privées, vue privée, ordres,
-rapports, hiver, victoire, erreurs et accessibilité. Les commandes restent
+rapports, hiver, réhydratation des ordres soumis et avertissement visuel de divergence, victoire, erreurs et accessibilité. Les commandes restent
 des appels REST avec un ID token rafraîchi par le SDK. Le parcours est
 documenté dans `TESTING.md`.
 
