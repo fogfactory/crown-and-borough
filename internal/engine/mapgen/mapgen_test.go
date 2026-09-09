@@ -92,6 +92,23 @@ func TestDeterminism(t *testing.T) {
 	}
 }
 
+func TestGeneratedRegionsHaveBoundedSizeVariance(t *testing.T) {
+	assets := loadTestAssets(t)
+	forEachTestSeed(t, func(t *testing.T, seed string) {
+		data := generateTestMap(t, seed, assets)
+		minimum := len(data.Regions[0].Territories)
+		maximum := minimum
+		for _, region := range data.Regions[1:] {
+			minimum = min(minimum, len(region.Territories))
+			maximum = max(maximum, len(region.Territories))
+		}
+		limit := 2 * (testConfig.VillageCount - 1)
+		if difference := maximum - minimum; difference > limit {
+			t.Fatalf("seed %q region sizes range from %d to %d, difference %d exceeds player bound %d", seed, minimum, maximum, difference, limit)
+		}
+	})
+}
+
 func TestNoBorderPadding(t *testing.T) {
 	assets := loadTestAssets(t)
 	forEachTestSeed(t, func(t *testing.T, seed string) {
