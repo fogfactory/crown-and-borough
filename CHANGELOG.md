@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.0](https://github.com/fogfactory/crown-and-borough/compare/v0.5.0...v0.6.0) (2026-09-09)
+
+
+### Features
+
+* **online:** réhydrater ma dernière soumission + note si diverge ([feff620](https://github.com/fogfactory/crown-and-borough/commit/feff620d6215fad88df1d56e5dacbea9f8b0214c))
+* **online:** réhydrater ma dernière soumission + note si diverge ([0c4109f](https://github.com/fogfactory/crown-and-borough/commit/0c4109fc82512e13ce623855a3591bf4133bacae))
+
 ## [0.5.0](https://github.com/fogfactory/crown-and-borough/compare/v0.4.4...v0.5.0) (2026-09-08)
 
 
