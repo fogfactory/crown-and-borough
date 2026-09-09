@@ -153,6 +153,13 @@ type GameCreation struct {
 	Invitation InvitationSecret
 }
 
+type PlayerSubmission struct {
+	Turn      int                `json:"turn"`
+	Season    models.Season      `json:"season"`
+	Submitted bool               `json:"submitted"`
+	Orders    engine.OrdersInput `json:"orders"`
+}
+
 // PrivacyTracker is called while a game is exclusively locked, immediately
 // after the engine has produced the next state and report. It is an injection
 // point for server-side privacy metadata; the engine itself never needs to
@@ -170,6 +177,7 @@ type GameStore interface {
 	Resolve(context.Context, Actor, GameID) (SubmitResult, error)
 	Reports(context.Context, Actor, GameID) ([]ReportRecord, error)
 	Report(context.Context, Actor, GameID, int) (ReportRecord, error)
+	MySubmission(context.Context, Actor, GameID) (PlayerSubmission, error)
 }
 
 // TransferSupplyStore is implemented by stores that expose the action-turn

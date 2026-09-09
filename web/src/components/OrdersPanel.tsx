@@ -15,10 +15,15 @@ interface OrdersPanelProps {
   submitted: boolean
   submitting: boolean
   error: string | null
+  draftDiffers?: {
+    chains?: Record<string, boolean>
+    winter?: boolean
+  }
   onChainChange: (noble: string, text: string) => void
   onWinterChange: (text: string) => void
   onSubmit: () => void
   onOpenRules: (section: RulesSection) => void
+  onRestoreFromServer?: (target?: string) => void
 }
 
 function ownedNobles(state: StateData, player: PlayerId): Noble[] {
@@ -72,10 +77,12 @@ export function OrdersPanel({
   submitted,
   submitting,
   error,
+  draftDiffers,
   onChainChange,
   onWinterChange,
   onSubmit,
   onOpenRules,
+  onRestoreFromServer,
 }: OrdersPanelProps) {
   const { t } = useLanguage()
   const handleChainChange =
@@ -95,6 +102,20 @@ export function OrdersPanel({
             {t('orders.winterDescription')}
           </p>
         </div>
+        {draftDiffers?.winter && (
+          <div className="flex items-center justify-between gap-2 rounded-lg border border-[#815f1e]/40 bg-[#f8e8ae]/60 px-3 py-2 text-xs text-[#6d5118]">
+            <span>{t('orders.draftDiffers')}</span>
+            {onRestoreFromServer && (
+              <button
+                type="button"
+                className="font-semibold underline hover:text-[#4a360f]"
+                onClick={() => onRestoreFromServer('winter')}
+              >
+                {t('orders.restoreFromServer')}
+              </button>
+            )}
+          </div>
+        )}
         <textarea
           value={winterDraft}
           onChange={(event) => onWinterChange(event.target.value)}
@@ -140,7 +161,7 @@ export function OrdersPanel({
         </p>
       ) : (
         nobles.map((noble) => (
-          <label key={noble.code} className="block space-y-1.5">
+          <div key={noble.code} className="space-y-1.5">
             <span className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.12em] text-[#806f57]">
               <span>
                 {noble.code} · {noble.name}
@@ -153,6 +174,20 @@ export function OrdersPanel({
                 {t(`orders.nobleStatus.${noble.status}` as MessageKey)}
               </span>
             </span>
+            {draftDiffers?.chains?.[noble.code] && (
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-[#815f1e]/40 bg-[#f8e8ae]/60 px-3 py-2 text-xs text-[#6d5118]">
+                <span>{t('orders.draftDiffers')}</span>
+                {onRestoreFromServer && (
+                  <button
+                    type="button"
+                    className="font-semibold underline hover:text-[#4a360f]"
+                    onClick={() => onRestoreFromServer(noble.code)}
+                  >
+                    {t('orders.restoreFromServer')}
+                  </button>
+                )}
+              </div>
+            )}
             <textarea
               value={chainDrafts[noble.code] ?? ''}
               onChange={handleChainChange(noble)}
@@ -161,7 +196,7 @@ export function OrdersPanel({
               placeholder={chainPlaceholder()}
               aria-label={t('orders.chainAria', { noble: noble.code })}
             />
-          </label>
+          </div>
         ))
       )}
       {submitted && (

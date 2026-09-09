@@ -64,7 +64,10 @@ Les décisions structurantes sont communes à toutes les sous-issues online :
 - les transitions de partie et la résolution utilisent des transactions et des
   préconditions Firestore ; la cohérence ne dépend pas de `max-instances` ;
 - `net/http` et `http.ServeMux` sont utilisés, tandis que les endpoints hotseat
-  restent dev-only.
+  restent dev-only ;
+- la route `GET /api/games/{id}/my-submission` expose au joueur membre sa
+  dernière soumission du tour courant (chaînes et hiver) pour réhydrater les
+  zones de saisie après refresh ou reconnexion, sans exposer les ordres des tiers.
 
 ## Persistance Firestore
 

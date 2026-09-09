@@ -345,6 +345,7 @@ global lorsqu'une autre partie est déjà active.
 | `GET` | `/api/games/{id}/supply?territory=ROS` | Calcule la ligne ou la zone de ravitaillement demandée. |
 | `GET` | `/api/games/{id}/supply?territory=ROS&target=BOI` | Estime la route d'un transfert d'action vers `BOI`. |
 | `POST` | `/api/games/{id}/orders` | Remplace la soumission du joueur courant ; résout automatiquement lorsque tous les joueurs vivants ont soumis. Le corps ne contient aucun identifiant joueur. |
+| `GET` | `/api/games/{id}/my-submission` | Renvoie la dernière soumission du tour courant pour le joueur connecté (chaînes et hiver) pour réhydrater les formulaires après refresh. |
 | `POST` | `/api/games/{id}/resolve` | Résolution forcée explicite avec des ordres vides pour les joueurs manquants. |
 | `GET` | `/api/games/{id}/reports` | Liste les rapports filtrés pour le joueur connecté. |
 | `GET` | `/api/games/{id}/reports/{index}` | Renvoie un rapport filtré pour le joueur connecté. |

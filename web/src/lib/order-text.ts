@@ -17,3 +17,15 @@ export function addNobleHeader(nobleCode: string, text: string): string {
 export function hasChainContent(nobleCode: string, text: string): boolean {
   return text.replace(new RegExp(`^${escapeRegExp(nobleCode)}\\s*`), '').trim() !== ''
 }
+
+export function stripNobleHeader(nobleCode: string, text: string): string {
+  const lines = text.replace(/\r\n/g, '\n').split('\n')
+  const firstContentIndex = lines.findIndex((line) => line.split('#', 1)[0].trim() !== '')
+  if (firstContentIndex >= 0) {
+    const headerPattern = new RegExp(`^${escapeRegExp(nobleCode)}(?:\\s+#.*)?$`, 'i')
+    if (headerPattern.test(lines[firstContentIndex].trim())) {
+      lines.splice(firstContentIndex, 1)
+    }
+  }
+  return lines.join('\n').trim()
+}

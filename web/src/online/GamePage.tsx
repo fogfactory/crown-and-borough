@@ -27,7 +27,7 @@ import {
 import { ApiError, apiRequest, type TokenProvider } from '@/lib/api'
 import { buildIntentions } from '@/lib/intent-overlay'
 import { hasSupplySource } from '@/lib/supply'
-import { addNobleHeader, hasChainContent } from '@/lib/order-text'
+import { addNobleHeader, hasChainContent, stripNobleHeader } from '@/lib/order-text'
 import { playerDisplayName, type PlayerName } from '@/lib/player-label'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { useLocalStorageState } from '@/lib/storage'
@@ -42,6 +42,7 @@ import type {
   GameSummary,
   GameViewDocument,
   MapData,
+  MySubmissionResponse,
   OrdersResponse,
   PlayerId,
   StateData,
@@ -261,6 +262,7 @@ export function GamePage() {
   )
   const [chainDrafts, setChainDrafts] = useState<Record<string, string>>({})
   const [winterDraft, setWinterDraft] = useState('')
+  const [serverSubmission, setServerSubmission] = useState<MySubmissionResponse | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [confirmResolve, setConfirmResolve] = useState(false)
@@ -281,6 +283,7 @@ export function GamePage() {
     true,
   )
   const lastTurn = useRef<number | null>(null)
+  const hydratedTurnRef = useRef<number | null>(null)
   const tokenProvider: TokenProvider = { getIdToken }
 
   const subscription = useGameSubscription(gameId, user?.uid, restView?.revision ?? 0)
@@ -298,6 +301,7 @@ export function GamePage() {
     setTransferError(null)
     setTransferLoading(false)
     setSelectedTransferTarget(null)
+    setServerSubmission(null)
     setReport(null)
     setReportSummaries([])
     setReportError(null)
@@ -309,8 +313,12 @@ export function GamePage() {
         { getIdToken },
         `/api/games/${encodedID}/state`,
       ),
+      apiRequest<MySubmissionResponse>(
+        { getIdToken },
+        `/api/games/${encodedID}/my-submission`,
+      ).catch(() => null),
     ])
-      .then(([detail, mapData, stateResponse]) => {
+      .then(([detail, mapData, stateResponse, mySubmission]) => {
         if (controller.signal.aborted) return
         const summary = normalizeGameSummary(detail as Record<string, unknown>, gameId)
         const state = normalizeStateData(stateResponse)
@@ -318,6 +326,9 @@ export function GamePage() {
         setSummaryFromAPI(summary)
         setMap(mapData)
         setRestView(createView(gameId, user.uid, state, stateResponse.revision))
+        if (mySubmission) {
+          setServerSubmission(mySubmission)
+        }
       })
       .catch((loadFailure: unknown) => {
         if (controller.signal.aborted) return
@@ -367,6 +378,87 @@ export function GamePage() {
   const intentionsColor =
     state?.players.find((player) => player.id === playerID)?.color ?? '#a84632'
 
+  const serverChains = useMemo(() => {
+    const result: Record<string, string> = {}
+    for (const chain of serverSubmission?.chains ?? []) {
+      result[chain.noble] = stripNobleHeader(chain.noble, chain.text)
+    }
+    return result
+  }, [serverSubmission])
+
+  useEffect(() => {
+    if (!serverSubmission || !state || serverSubmission.turn !== state.turn) return
+    if (hydratedTurnRef.current === state.turn) return
+    hydratedTurnRef.current = state.turn
+
+    if (serverSubmission.submitted) {
+      if (serverSubmission.season === 'winter') {
+        setWinterDraft((current) =>
+          current.trim() === '' ? (serverSubmission.winter?.lines ?? '') : current,
+        )
+      } else {
+        setChainDrafts((current) => {
+          const next = { ...current }
+          for (const chain of serverSubmission.chains) {
+            if ((next[chain.noble] ?? '').trim() === '') {
+              next[chain.noble] = stripNobleHeader(chain.noble, chain.text)
+            }
+          }
+          return next
+        })
+      }
+    }
+  }, [serverSubmission, state])
+
+  const draftDiffers = useMemo(() => {
+    if (
+      !serverSubmission ||
+      !serverSubmission.submitted ||
+      !state ||
+      serverSubmission.turn !== state.turn
+    ) {
+      return undefined
+    }
+    if (state.season === 'winter') {
+      const serverWinter = (serverSubmission.winter?.lines ?? '').trim()
+      const localWinter = winterDraft.trim()
+      return {
+        winter: localWinter !== serverWinter,
+      }
+    }
+    const chainsDiff: Record<string, boolean> = {}
+    let anyChainDiff = false
+    for (const noble of state.nobles) {
+      if (noble.owner !== playerID || noble.status === 'dungeon') continue
+      const serverChain = (serverChains[noble.code] ?? '').trim()
+      const localChain = (chainDrafts[noble.code] ?? '').trim()
+      if (localChain !== serverChain) {
+        chainsDiff[noble.code] = true
+        anyChainDiff = true
+      }
+    }
+    return {
+      chains: anyChainDiff ? chainsDiff : undefined,
+    }
+  }, [chainDrafts, playerID, serverChains, serverSubmission, state, winterDraft])
+
+  const restoreFromServer = (target?: string) => {
+    if (!serverSubmission || !state) return
+    if (target === 'winter' || state.season === 'winter') {
+      setWinterDraft(serverSubmission.winter?.lines ?? '')
+      return
+    }
+    if (target) {
+      const serverText = serverChains[target] ?? ''
+      setChainDrafts((current) => ({
+        ...current,
+        [target]: serverText,
+      }))
+      return
+    }
+    setChainDrafts(serverChains)
+  }
+
   useEffect(() => {
     const turn = state?.turn ?? null
     if (turn === null || lastTurn.current === null) {
@@ -376,6 +468,7 @@ export function GamePage() {
     if (turn !== lastTurn.current) {
       setChainDrafts({})
       setWinterDraft('')
+      setServerSubmission(null)
       setActionError(null)
       lastTurn.current = turn
     }
@@ -581,6 +674,7 @@ export function GamePage() {
     if (response.status === 'resolved' || response.resolved) {
       setChainDrafts({})
       setWinterDraft('')
+      setServerSubmission(null)
       if (!response.report) {
         setReport(null)
         setActivePanel('report')
@@ -634,6 +728,13 @@ export function GamePage() {
             }),
           },
         )
+        setServerSubmission({
+          turn: state.turn,
+          season: state.season,
+          submitted: true,
+          chains,
+          winter: winter.length > 0 ? winter[0] : undefined,
+        })
       }
       applyOrdersResponse(response)
       setConfirmResolve(false)
@@ -914,12 +1015,14 @@ export function GamePage() {
                     submitted={Boolean(currentSlot?.submitted)}
                     submitting={submitting}
                     error={actionError}
+                    draftDiffers={draftDiffers}
                     onChainChange={(noble, text) =>
                       setChainDrafts((current) => ({ ...current, [noble]: text }))
                     }
                     onWinterChange={setWinterDraft}
                     onSubmit={() => void submitOrders()}
                     onOpenRules={openRules}
+                    onRestoreFromServer={restoreFromServer}
                   />
                 ) : (
                   <p

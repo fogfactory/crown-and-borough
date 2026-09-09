@@ -253,6 +253,54 @@ func (s *FirestoreStore) Report(ctx context.Context, actor store.Actor, id store
 	return reports[index], nil
 }
 
+func (s *FirestoreStore) MySubmission(ctx context.Context, actor store.Actor, id store.GameID) (store.PlayerSubmission, error) {
+	if err := s.requireClient(); err != nil {
+		return store.PlayerSubmission{}, err
+	}
+	operationContext, cancel := s.operationContext(ctx)
+	defer cancel()
+	document, err := gameRef(s.client, id).Get(operationContext)
+	s.recordReads(1)
+	if err != nil {
+		return store.PlayerSubmission{}, mapReadError(err, store.ErrUnknownGame)
+	}
+	game, err := decodeGameDocument(document)
+	if err != nil {
+		return store.PlayerSubmission{}, err
+	}
+	_, member := playerIDForActor(game, actor)
+	if !member {
+		return store.PlayerSubmission{}, store.ErrNotMember
+	}
+	actorID := strings.TrimSpace(actor.ID)
+	submissionSnapshot, err := submissionCollection(s.client, id, game.Turn).Doc(actorID).Get(operationContext)
+	s.recordReads(1)
+	if isCode(err, codes.NotFound) {
+		return store.PlayerSubmission{
+			Turn:      game.Turn,
+			Season:    game.Season,
+			Submitted: false,
+		}, nil
+	}
+	if err != nil {
+		return store.PlayerSubmission{}, wrapOperation("read my submission", err)
+	}
+	subDoc, err := decodeSubmissionDocument(submissionSnapshot)
+	if err != nil {
+		return store.PlayerSubmission{}, err
+	}
+	input, err := decodeOrdersJSON(subDoc.OrdersJSON)
+	if err != nil {
+		return store.PlayerSubmission{}, fmt.Errorf("decode submission %s: %w", submissionSnapshot.Ref.Path, err)
+	}
+	return store.PlayerSubmission{
+		Turn:      game.Turn,
+		Season:    game.Season,
+		Submitted: true,
+		Orders:    input,
+	}, nil
+}
+
 func (s *FirestoreStore) loadSnapshot(ctx context.Context, actor store.Actor, id store.GameID, requireMember bool) (store.GameSnapshot, error) {
 	if err := s.requireClient(); err != nil {
 		return store.GameSnapshot{}, err

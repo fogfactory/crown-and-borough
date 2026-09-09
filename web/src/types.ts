@@ -216,6 +216,23 @@ export interface OrdersInput {
   winter: WinterSubmission[]
 }
 
+export interface SubmittedChain {
+  noble: string
+  text: string
+}
+
+export interface SubmittedWinter {
+  lines: string
+}
+
+export interface MySubmissionResponse {
+  turn: number
+  season: Season
+  submitted: boolean
+  chains: SubmittedChain[]
+  winter?: SubmittedWinter
+}
+
 export interface OrdersResponse {
   status: 'pending' | 'resolved'
   player?: PlayerId
