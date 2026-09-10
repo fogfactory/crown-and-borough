@@ -94,6 +94,7 @@ func newHotseatServer(session *api.Session, rules assetgen.Rules) *http.ServeMux
 	})
 	mux.HandleFunc("GET /api/map", session.MapHTTP)
 	mux.HandleFunc("GET /api/state", session.StateHTTP)
+	mux.Handle("GET /api/balance", api.WinterCostsHandler(session.Balance()))
 	mux.HandleFunc("GET /api/supply", session.SupplyHTTP)
 	mux.Handle("GET /api/rules", api.RulesHandler(rules))
 	mux.HandleFunc("POST /api/game", session.GameHTTP)
@@ -248,6 +249,7 @@ func newApplicationServerWithCreatorGate(session *api.Session, rules assetgen.Ru
 	profiles, _ := gameStore.(store.ProfileStore)
 	games := api.NewGamesHandlerWithOptions(gameStore, rules, api.GamesHandlerOptions{
 		Actor:            resolveActor,
+		Balance:          session.Balance(),
 		Profiles:         profiles,
 		RequireProfile:   !onlineDevMode,
 		StrictMembership: !onlineDevMode,

@@ -132,6 +132,8 @@ const englishMessages = {
     'Direct investments only, without chains or military movement. Orders are applied in the order entered. Resolution waits for every player.',
   'orders.winterPlaceholder': 'R T ROS\nG ROS BOI 3\nO N NNN\nL N NNN',
   'orders.winterAria': 'Winter orders for {player}',
+  'orders.winterErrorsAria': 'Winter order syntax errors',
+  'orders.winterCostEstimate': 'Estimated cost: {spent} / {available} resources',
   'orders.submittedEditable': 'Orders submitted. You can still edit them.',
   'orders.draftDiffers': 'Local draft differs from server',
   'orders.restoreFromServer': 'Restore from server',
@@ -338,6 +340,20 @@ const englishMessages = {
     'Each controlled castle or village is a separate source that produces `1 R` per turn. A mill is built on an empty controlled territory adjacent to a productive castle or village, or upgraded when it is adjacent to that source. It can reach level 3: construction costs `3 R`, then upgrades cost `5 R` and `7 R`. A `C M` at level 3 is rejected with no payment. Each level adds `+1 R` to **every** adjacent source, without an owner filter. A level-1 mill between a village and two castles therefore adds `+1 R` to all three sources. An orphaned mill, with no adjacent castle or village, produces nothing. Existing mills above level 3 remain productive, but cannot be upgraded.',
   'error.line': 'Line {line}: {message}',
   'error.invalidOrder': 'Invalid order',
+  'error.winter.order_shape':
+    'A winter order requires a symbol, a subtype, and one target code.',
+  'error.winter.target_only_one': 'A winter order accepts exactly one target code.',
+  'error.winter.transfer_shape':
+    'G requires a source, a destination, and an amount.',
+  'error.winter.transfer_amount': 'The transfer amount must be a positive integer.',
+  'error.winter.unknown_symbol': 'Unknown winter order symbol "{symbol}".',
+  'error.winter.unknown_subtype': 'Unknown winter order "{symbol} {subtype}".',
+  'error.winter.territory_code_format':
+    'A territory code must contain exactly three uppercase letters.',
+  'error.winter.territory_unknown': 'Territory code "{code}" does not exist.',
+  'error.winter.noble_code_format':
+    'A noble code must contain exactly three uppercase letters.',
+  'error.winter.noble_unknown': 'Noble code "{code}" does not exist.',
   'error.requestFailed': 'The request failed ({status})',
   'error.resolutionFailed': 'Resolution failed',
   'error.gameCreationFailed': 'Game creation failed',
@@ -559,6 +575,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     "Investissements directs uniquement, sans chaînes ni mouvements militaires. Les ordres sont appliqués dans l'ordre saisi. La résolution attend tous les joueurs.",
   'orders.winterPlaceholder': 'R T ROS\nG ROS BOI 3\nO N NNN\nL N NNN',
   'orders.winterAria': "Ordres d'hiver de {player}",
+  'orders.winterErrorsAria': "Erreurs de syntaxe des ordres d'hiver",
+  'orders.winterCostEstimate': 'Coût estimé : {spent} / {available} ressources',
   'orders.submittedEditable': 'Ordres soumis. Vous pouvez encore les modifier.',
   'orders.draftDiffers': 'Brouillon différent du serveur',
   'orders.restoreFromServer': 'Restaurer depuis le serveur',
@@ -771,6 +789,19 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     'Chaque château ou village contrôlé est une source distincte qui produit `1 R` par tour. Un moulin se construit sur une case vide contrôlée, adjacente à un château ou village productif, ou s’améliore lorsqu’il est adjacent à cette source. Il peut atteindre le niveau 3 : la construction coûte `3 R`, puis les améliorations coûtent `5 R` et `7 R`. Un `C M` au niveau 3 est rejeté sans prélèvement. Chaque niveau ajoute `+1 R` à **chaque** source adjacente, sans filtre de propriétaire. Un moulin de niveau 1 entre un village et deux châteaux ajoute donc `+1 R` aux trois sources. Un moulin orphelin, sans château ni village adjacent, ne produit rien. Les moulins de niveau supérieur à 3 déjà présents restent productifs, mais ne peuvent plus être améliorés.',
   'error.line': 'Ligne {line} : {message}',
   'error.invalidOrder': 'Ordre invalide',
+  'error.winter.order_shape':
+    "Un ordre d'hiver exige un symbole, un sous-type et un code cible.",
+  'error.winter.target_only_one': "Un ordre d'hiver accepte exactement un code cible.",
+  'error.winter.transfer_shape': 'G exige une source, une destination et un montant.',
+  'error.winter.transfer_amount': 'Le montant du transfert doit être un entier positif.',
+  'error.winter.unknown_symbol': 'Symbole d’ordre d’hiver inconnu : « {symbol} ».',
+  'error.winter.unknown_subtype': 'Ordre d’hiver inconnu : {symbol} {subtype}.',
+  'error.winter.territory_code_format':
+    'Un code de territoire doit contenir exactement trois lettres majuscules.',
+  'error.winter.territory_unknown': 'Le code de territoire « {code} » n’existe pas.',
+  'error.winter.noble_code_format':
+    'Un code de noble doit contenir exactement trois lettres majuscules.',
+  'error.winter.noble_unknown': 'Le code de noble « {code} » n’existe pas.',
   'error.requestFailed': 'La requête a échoué ({status})',
   'error.resolutionFailed': 'La résolution a échoué',
   'error.gameCreationFailed': 'La création de la partie a échoué',

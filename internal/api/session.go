@@ -62,6 +62,13 @@ func NewSessionWithYears(seed string, players []engine.PlayerInit, years int, ba
 	return session, nil
 }
 
+// Balance returns the immutable numerical rules used by this session.
+func (s *Session) Balance() assetgen.Balance {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.balance
+}
+
 // Create replaces the current game while keeping the startup game as the
 // target of Reset.
 func (s *Session) Create(seed string, players []engine.PlayerInit) error {

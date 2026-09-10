@@ -32,6 +32,7 @@ import { playerDisplayName, type PlayerName } from '@/lib/player-label'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { useLocalStorageState } from '@/lib/storage'
 import { transferTargetsForTerritory } from '@/lib/transfer-preview'
+import { isWinterCosts } from '@/lib/winter-cost'
 import {
   normalizeGameSummary,
   normalizeStateData,
@@ -49,6 +50,7 @@ import type {
   SupplyLine,
   TransferLine,
   TurnReport,
+  WinterCosts,
 } from '@/types'
 
 type Panel = 'command' | 'report' | 'rules'
@@ -262,6 +264,7 @@ export function GamePage() {
   )
   const [chainDrafts, setChainDrafts] = useState<Record<string, string>>({})
   const [winterDraft, setWinterDraft] = useState('')
+  const [winterCosts, setWinterCosts] = useState<WinterCosts | null>(null)
   const [serverSubmission, setServerSubmission] = useState<MySubmissionResponse | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -302,6 +305,7 @@ export function GamePage() {
     setTransferLoading(false)
     setSelectedTransferTarget(null)
     setServerSubmission(null)
+    setWinterCosts(null)
     setReport(null)
     setReportSummaries([])
     setReportError(null)
@@ -317,8 +321,11 @@ export function GamePage() {
         { getIdToken },
         `/api/games/${encodedID}/my-submission`,
       ).catch(() => null),
+      apiRequest<unknown>({ getIdToken }, `/api/games/${encodedID}/balance`).catch(
+        () => null,
+      ),
     ])
-      .then(([detail, mapData, stateResponse, mySubmission]) => {
+      .then(([detail, mapData, stateResponse, mySubmission, costsResponse]) => {
         if (controller.signal.aborted) return
         const summary = normalizeGameSummary(detail as Record<string, unknown>, gameId)
         const state = normalizeStateData(stateResponse)
@@ -329,6 +336,7 @@ export function GamePage() {
         if (mySubmission) {
           setServerSubmission(mySubmission)
         }
+        setWinterCosts(isWinterCosts(costsResponse) ? costsResponse : null)
       })
       .catch((loadFailure: unknown) => {
         if (controller.signal.aborted) return
@@ -1012,6 +1020,8 @@ export function GamePage() {
                     player={playerID}
                     chainDrafts={chainDrafts}
                     winterDraft={winterDraft}
+                    winterCosts={winterCosts}
+                    map={map}
                     submitted={Boolean(currentSlot?.submitted)}
                     submitting={submitting}
                     error={actionError}

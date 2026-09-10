@@ -4,14 +4,18 @@ import { BookOpen, Snowflake } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { RulesSection } from '@/components/RulesPanel'
 import { useLanguage } from '@/i18n/LanguageContext'
-import type { MessageKey } from '@/i18n/messages'
-import type { Noble, PlayerId, StateData } from '@/types'
+import type { MessageKey, Translate } from '@/i18n/messages'
+import { estimateWinterCost } from '@/lib/winter-cost'
+import { parseWinterDraftDetailed, type WinterParseError } from '@/lib/winter-parse'
+import type { MapData, Noble, PlayerId, StateData, WinterCosts } from '@/types'
 
 interface OrdersPanelProps {
   state: StateData
   player: PlayerId
   chainDrafts: Record<string, string>
   winterDraft: string
+  winterCosts?: WinterCosts | null
+  map?: MapData
   submitted: boolean
   submitting: boolean
   error: string | null
@@ -69,11 +73,34 @@ function OrderError({ error }: { error: string | null }) {
   )
 }
 
+function WinterOrderErrors({ errors, t }: { errors: WinterParseError[]; t: Translate }) {
+  if (errors.length === 0) return null
+
+  return (
+    <ul
+      role="alert"
+      aria-label={t('orders.winterErrorsAria')}
+      className="max-h-32 list-disc space-y-1 overflow-y-auto rounded-md border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 pl-7 text-xs text-[#8d321e]"
+    >
+      {errors.map((error) => (
+        <li key={`${error.line}-${error.key}`}>
+          {t('error.line', {
+            line: error.line,
+            message: t(error.key, error.values),
+          })}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export function OrdersPanel({
   state,
   player,
   chainDrafts,
   winterDraft,
+  winterCosts,
+  map,
   submitted,
   submitting,
   error,
@@ -91,6 +118,13 @@ export function OrdersPanel({
     }
 
   if (state.season === 'winter') {
+    const parsedWinterDraft = parseWinterDraftDetailed(winterDraft, {
+      map,
+      nobles: state.nobles,
+    })
+    const winterEstimate = winterCosts
+      ? estimateWinterCost(state, player, winterCosts, winterDraft, map)
+      : null
     return (
       <section className="space-y-3 rounded-xl border border-[#9bbbd3] bg-[#eaf3ff]/80 p-4 shadow-inner shadow-[#b8d3e8]/40">
         <div>
@@ -123,6 +157,19 @@ export function OrdersPanel({
           placeholder={t('orders.winterPlaceholder')}
           aria-label={t('orders.winterAria', { player })}
         />
+        {winterEstimate && (
+          <p
+            role="status"
+            aria-live="polite"
+            className={`text-xs font-semibold ${winterEstimate.spent <= winterEstimate.available ? 'text-[#376341]' : 'text-[#8d321e]'}`}
+          >
+            {t('orders.winterCostEstimate', {
+              spent: winterEstimate.spent,
+              available: winterEstimate.available,
+            })}
+          </p>
+        )}
+        <WinterOrderErrors errors={parsedWinterDraft.errors} t={t} />
         {submitted && (
           <p className="text-xs text-[#376341]">{t('orders.submittedEditable')}</p>
         )}

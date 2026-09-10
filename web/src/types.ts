@@ -171,6 +171,15 @@ export interface StateData {
   nobles: Noble[]
 }
 
+export interface WinterCosts {
+  castle: number
+  millLevels: number[]
+  troop: number
+  noble: number
+  supplyDepot: number
+  liberation: number
+}
+
 export interface SupplyLine {
   kind: 'army' | 'source'
   territory: string
