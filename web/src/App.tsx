@@ -21,6 +21,7 @@ import { hasSupplySource } from '@/lib/supply'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { useLocalStorageState } from '@/lib/storage'
 import { transferTargetsForTerritory } from '@/lib/transfer-preview'
+import { isWinterCosts } from '@/lib/winter-cost'
 import { VersionBadge } from '@/components/VersionBadge'
 import { LanguageProvider, useLanguage } from '@/i18n/LanguageContext'
 import { firebaseConfigured } from '@/lib/firebase'
@@ -49,6 +50,7 @@ import type {
   TransferLine,
   TurnReport,
   OrdersResponse,
+  WinterCosts,
 } from '@/types'
 
 const PANEL_ORDER = ['command', 'report', 'rules'] as const
@@ -111,6 +113,7 @@ function AppContent() {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerId>('P1')
   const [map, setMap] = useState<MapData | null>(null)
   const [state, setState] = useState<StateData | null>(null)
+  const [winterCosts, setWinterCosts] = useState<WinterCosts | null>(null)
   const [report, setReport] = useState<TurnReport | null>(null)
   const [supplyLine, setSupplyLine] = useState<SupplyLine | null>(null)
   const [supplyLoading, setSupplyLoading] = useState(false)
@@ -167,6 +170,24 @@ function AppContent() {
     void loadMap()
     return () => controller.abort()
   }, [t])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const loadWinterCosts = async () => {
+      try {
+        const response = await fetch('/api/balance', { signal: controller.signal })
+        if (!response.ok) return
+        const payload: unknown = await response.json()
+        if (!controller.signal.aborted && isWinterCosts(payload)) {
+          setWinterCosts(payload)
+        }
+      } catch {
+        // The cost preview is optional; game loading should remain available.
+      }
+    }
+    void loadWinterCosts()
+    return () => controller.abort()
+  }, [])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -803,6 +824,8 @@ function AppContent() {
                       player={selectedPlayer}
                       chainDrafts={chainDrafts[selectedPlayer] ?? {}}
                       winterDraft={winterDrafts[selectedPlayer] ?? ''}
+                      winterCosts={winterCosts}
+                      map={map ?? undefined}
                       submitted={submittedPlayers.includes(selectedPlayer)}
                       submitting={resolving}
                       error={actionError}

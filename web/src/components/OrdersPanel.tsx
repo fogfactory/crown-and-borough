@@ -5,13 +5,16 @@ import { Button } from '@/components/ui/button'
 import type { RulesSection } from '@/components/RulesPanel'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
-import type { Noble, PlayerId, StateData } from '@/types'
+import { estimateWinterCost } from '@/lib/winter-cost'
+import type { MapData, Noble, PlayerId, StateData, WinterCosts } from '@/types'
 
 interface OrdersPanelProps {
   state: StateData
   player: PlayerId
   chainDrafts: Record<string, string>
   winterDraft: string
+  winterCosts?: WinterCosts | null
+  map?: MapData
   submitted: boolean
   submitting: boolean
   error: string | null
@@ -74,6 +77,8 @@ export function OrdersPanel({
   player,
   chainDrafts,
   winterDraft,
+  winterCosts,
+  map,
   submitted,
   submitting,
   error,
@@ -91,6 +96,9 @@ export function OrdersPanel({
     }
 
   if (state.season === 'winter') {
+    const winterEstimate = winterCosts
+      ? estimateWinterCost(state, player, winterCosts, winterDraft, map)
+      : null
     return (
       <section className="space-y-3 rounded-xl border border-[#9bbbd3] bg-[#eaf3ff]/80 p-4 shadow-inner shadow-[#b8d3e8]/40">
         <div>
@@ -123,6 +131,18 @@ export function OrdersPanel({
           placeholder={t('orders.winterPlaceholder')}
           aria-label={t('orders.winterAria', { player })}
         />
+        {winterEstimate && (
+          <p
+            role="status"
+            aria-live="polite"
+            className={`text-xs font-semibold ${winterEstimate.spent <= winterEstimate.available ? 'text-[#376341]' : 'text-[#8d321e]'}`}
+          >
+            {t('orders.winterCostEstimate', {
+              spent: winterEstimate.spent,
+              available: winterEstimate.available,
+            })}
+          </p>
+        )}
         {submitted && (
           <p className="text-xs text-[#376341]">{t('orders.submittedEditable')}</p>
         )}

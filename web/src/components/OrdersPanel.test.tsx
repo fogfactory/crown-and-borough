@@ -51,6 +51,129 @@ describe('OrdersPanel seasonal presentation', () => {
     expect(container.querySelector('section')).toHaveClass('bg-[#eaf3ff]/80')
   })
 
+  it('shows the live winter cost estimate against controlled stock', () => {
+    render(
+      <LanguageProvider initialLanguage="fr">
+        <OrdersPanel
+          state={{
+            ...state,
+            season: 'winter',
+            territories: [
+              {
+                id: 'ROS',
+                owner: 'P1',
+                resources: 25,
+                army: null,
+                infrastructures: [{ type: 'castle', level: 1 }],
+              },
+              {
+                id: 'XXX',
+                owner: 'P1',
+                resources: 0,
+                army: null,
+                infrastructures: [],
+              },
+              {
+                id: 'YYY',
+                owner: 'P1',
+                resources: 0,
+                army: null,
+                infrastructures: [],
+              },
+              {
+                id: 'ZZZ',
+                owner: 'P1',
+                resources: 0,
+                army: null,
+                infrastructures: [],
+              },
+            ],
+          }}
+          player="P1"
+          chainDrafts={{}}
+          winterDraft={'R T XXX\nR N XXX\nC C YYY\nC M ZZZ\nC M ZZZ'}
+          winterCosts={{
+            castle: 10,
+            millLevels: [3, 5, 7],
+            troop: 1,
+            noble: 2,
+            supplyDepot: 3,
+            liberation: 0,
+          }}
+          submitted={false}
+          submitting={false}
+          error={null}
+          onChainChange={vi.fn()}
+          onWinterChange={vi.fn()}
+          onSubmit={vi.fn()}
+          onOpenRules={vi.fn()}
+        />
+      </LanguageProvider>,
+    )
+
+    const estimate = screen.getByRole('status')
+    expect(estimate).toHaveTextContent('Coût estimé : 21 / 25 ressources')
+    expect(estimate).toHaveClass('text-[#376341]')
+  })
+
+  it('marks the estimate when the draft exceeds available stock', () => {
+    render(
+      <LanguageProvider initialLanguage="en">
+        <OrdersPanel
+          state={{
+            ...state,
+            season: 'winter',
+            territories: [
+              {
+                id: 'ROS',
+                owner: 'P1',
+                resources: 25,
+                army: null,
+                infrastructures: [{ type: 'castle', level: 1 }],
+              },
+              {
+                id: 'XXX',
+                owner: 'P1',
+                resources: 0,
+                army: null,
+                infrastructures: [],
+              },
+              {
+                id: 'YYY',
+                owner: 'P1',
+                resources: 0,
+                army: null,
+                infrastructures: [],
+              },
+            ],
+          }}
+          player="P1"
+          chainDrafts={{}}
+          winterDraft="G XXX YYY 26"
+          winterCosts={{
+            castle: 10,
+            millLevels: [3, 5, 7],
+            troop: 1,
+            noble: 2,
+            supplyDepot: 3,
+            liberation: 0,
+          }}
+          submitted={false}
+          submitting={false}
+          error={null}
+          onChainChange={vi.fn()}
+          onWinterChange={vi.fn()}
+          onSubmit={vi.fn()}
+          onOpenRules={vi.fn()}
+        />
+      </LanguageProvider>,
+    )
+
+    const estimate = screen.getByRole('status')
+    expect(estimate).toHaveTextContent('Estimated cost: 26 / 25 resources')
+    expect(estimate).toHaveClass('text-[#8d321e]')
+  })
+
   it('keeps the ordinary command panel outside winter', () => {
     renderOrdersPanel('spring')
 
