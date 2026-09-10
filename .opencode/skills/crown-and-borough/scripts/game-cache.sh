@@ -34,7 +34,7 @@ case "$command" in
       '{game_id:$game_id,player:$player,invite_url:$invite_url,human_slot:$human_slot,human_observer:($human_observer == 1),updated_at:(now|todateiso8601)}' \
       >"$file"
     chmod 600 "$file"
-    mkdir -p "$CB_RUN_ROOT/$game/$(cb_instance_id)"
+    mkdir -p "$(cb_bot_dir)"
     if [[ -f "$(cb_instance_dir)/auth.json" ]]; then
       cp "$(cb_instance_dir)/auth.json" "$CB_RUN_ROOT/$game/$(cb_instance_id)/auth.json"
       chmod 600 "$CB_RUN_ROOT/$game/$(cb_instance_id)/auth.json"

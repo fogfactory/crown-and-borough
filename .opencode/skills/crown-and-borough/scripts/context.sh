@@ -2,7 +2,9 @@
 
 set -euo pipefail
 
-CB_RUN_ROOT="${CB_RUN_ROOT:-$HOME/.crown-borough/run}"
+CB_SHARED_ROOT="${CB_SHARED_ROOT:-${CB_RUN_ROOT:-$HOME/.crown-borough/run}}"
+CB_RUN_ROOT="$CB_SHARED_ROOT"
+CB_PRIVATE_ROOT="${CB_PRIVATE_ROOT:-$CB_SHARED_ROOT}"
 
 cb_require_jq() {
   command -v jq >/dev/null 2>&1 || {
@@ -25,7 +27,11 @@ cb_instance_id() {
 }
 
 cb_instance_dir() {
-  printf '%s/%s\n' "$CB_RUN_ROOT" "$(cb_instance_id)"
+  if [[ -n "${CB_BOT_PRIVATE_ROOT:-}" ]]; then
+    printf '%s\n' "$CB_BOT_PRIVATE_ROOT"
+    return
+  fi
+  printf '%s/%s\n' "$CB_PRIVATE_ROOT" "$(cb_instance_id)"
 }
 
 cb_game_id() {
@@ -50,11 +56,21 @@ cb_game_dir() {
     printf 'invalid game id: %s\n' "$game" >&2
     return 1
   fi
-  printf '%s/%s\n' "$CB_RUN_ROOT" "$game"
+  printf '%s/%s\n' "$CB_SHARED_ROOT" "$game"
 }
 
 cb_bot_dir() {
-  printf '%s/%s\n' "$(cb_game_dir)" "$(cb_instance_id)"
+  if [[ -n "${CB_BOT_PRIVATE_ROOT:-}" ]]; then
+    printf '%s/%s\n' "$CB_BOT_PRIVATE_ROOT" "$(cb_game_id)"
+    return
+  fi
+  local id
+  id="$(cb_instance_id)"
+  if [[ "${CB_PRIVATE_ROOT_ISOLATED:-0}" == "1" ]]; then
+    printf '%s/%s/%s\n' "$CB_PRIVATE_ROOT" "$id" "$(cb_game_id)"
+  else
+    printf '%s/%s/%s\n' "$CB_SHARED_ROOT" "$(cb_game_id)" "$id"
+  fi
 }
 
 cb_auth_file() {

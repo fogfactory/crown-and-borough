@@ -81,7 +81,31 @@ authenticated request export before switching to API-first play.
 `start-bots.sh` starts one harness process per bot in parallel. Since Oh My Pi
 installations expose different command-line flags, the launcher accepts a
 command template through `CB_HARNESS_COMMAND`. The template may contain
-`{session}`, `{persona}`, `{game}`, `{invite}`, and `{prompt}`.
+`{session}`, `{persona}`, `{game}`, `{invite}`, `{email}`, `{display_name}`,
+`{private_root}`, and `{prompt}`.
+
+The launcher creates a deterministic email and a private cache/browser profile
+for every bot. Only the chat log remains shared. This is important: do not
+manually set every bot to the same `CB_PRIVATE_ROOT`, and do not run parallel
+bots with a shared browser profile.
+
+Prepare enrollment first, so the human can register every address before the
+bot sessions start requesting links:
+
+```bash
+./scripts/start-bots.sh \
+  --personas conqueror,diplomat,turtle \
+  --enroll-only
+```
+
+Each bot then uses `extract-auth-link.sh --email EMAIL`; it never consumes the
+first unrelated link from the shared Auth emulator log.
+
+Run the offline boundary check after changing the launcher or cache layout:
+
+```bash
+./scripts/self-test.sh
+```
 
 Without a template it prints the launch commands without running them:
 
@@ -105,18 +129,18 @@ CB_HARNESS_COMMAND='omp --session {session} --prompt {prompt}' \
 ```
 
 Each process receives `OMP_SESSION_ID`, `CB_INSTANCE_ID`, `CB_PERSONA`,
-`CB_GAME_ID`, `CB_INVITE_URL`, and `CB_HUMAN_OBSERVER`. Adapt only the command
-template when the local Oh My Pi binary uses different flags.
+`CB_GAME_ID`, `CB_INVITE_URL`, `CB_EMAIL`, `CB_DISPLAY_NAME`,
+`CB_HUMAN_OBSERVER`, `CB_SHARED_ROOT`, `CB_PRIVATE_ROOT`,
+`CB_PRIVATE_ROOT_ISOLATED=1`, and `CB_BROWSER_PROFILE_DIR`. Adapt only the
+command template when the local Oh My Pi binary uses different flags.
 
 ## Shared Files
 
 ```text
-~/.crown-borough/run/<game-id>/chat.log
-~/.crown-borough/run/<game-id>/<instance-id>/persona.json
-~/.crown-borough/run/<game-id>/<instance-id>/auth.json
-~/.crown-borough/run/<game-id>/<instance-id>/game.json
-~/.crown-borough/run/<game-id>/<instance-id>/state-cache.json
-~/.crown-borough/run/<game-id>/<instance-id>/memory.md
+~/.crown-borough/run/<game-id>/chat.log                 # shared
+~/.crown-borough/run/private/<instance-id>/...          # private bot root
+~/.crown-borough/run/private/<instance-id>/<game-id>/
+  persona.json, auth.json, state-cache.json, memory.md
 ```
 
 Only `chat-send.sh` writes the shared chat log. The old `moves.txt` files are

@@ -32,7 +32,11 @@ The helper scripts use these values:
 CB_INSTANCE_ID       stable instance identity; OMP_SESSION_ID is used when set
 CB_GAME_ID           online game id
 CB_API_URL           API origin, default http://localhost:8080
-CB_RUN_ROOT          shared coordination root, default ~/.crown-borough/run
+CB_SHARED_ROOT       shared coordination root, default ~/.crown-borough/run
+CB_PRIVATE_ROOT      this bot's private cache root; launcher assigns one per bot
+CB_BOT_PRIVATE_ROOT  resolved private directory for this bot when launched
+CB_PRIVATE_ROOT_ISOLATED 1 when CB_PRIVATE_ROOT is not shared with other bots
+CB_BROWSER_PROFILE_DIR     private browser profile directory when supported
 CB_PERSONA           base persona id, default diplomat
 CB_HUMAN_OBSERVER    1 when the human created a non-playing spectator game
 CB_HUMAN_SLOT        player id when the human occupies a player slot
@@ -53,18 +57,22 @@ The instance id is not the in-game player id. `game-cache.sh` stores both.
 1. Run `scripts/instance-id.sh` and persist the result in the session context.
 2. Run `scripts/persona-init.sh`. Use the assigned persona for the entire game;
    trait overrides are allowed only before the first order.
-3. Run `scripts/pick-email.sh` and ask the human to register that exact address
-   in the web app. Never reuse another instance's email.
+3. Use the launcher-provided `CB_EMAIL` and `CB_DISPLAY_NAME`. If they are not
+   set, generate one stable address once with
+   `scripts/pick-email.sh --instance-id "$CB_INSTANCE_ID"` and keep it in the
+   session context. Ask the human to register that exact address in the web
+   app. Never use a random new address on a retry.
 4. Ask the human to confirm that the sign-in link was requested. Run
-   `scripts/extract-auth-link.sh`, then open that link in this instance's
-   browser. The browser is used here for authentication and, if the operator
-   chooses, invitation acceptance.
-5. Complete the display name as `<email-local-part>-<instance-id>` and join the
-   invite. The display name makes parallel players distinguishable.
+   `scripts/extract-auth-link.sh --email "$CB_EMAIL"`, then open that exact
+   link in this instance's browser. The email-specific lookup is required when
+   multiple bots are enrolling concurrently; do not use the legacy first-log-
+   line lookup for parallel sessions.
+5. Complete the display name as `$CB_DISPLAY_NAME` and join the invite. The
+   display name makes parallel players distinguishable.
 6. If the harness exposes the Firebase ID token, save it immediately:
 
    ```bash
-   ./scripts/auth-cache.sh save --token "$CB_AUTH_TOKEN" --email "$EMAIL"
+    ./scripts/auth-cache.sh save --token "$CB_AUTH_TOKEN" --email "$CB_EMAIL"
    ```
 
    Otherwise use the harness's authenticated request/network export to obtain
@@ -88,6 +96,11 @@ API. The host may force resolution but may not submit orders. When
 `CB_HUMAN_OBSERVER=1`, treat the human as an observer rather than a target or
 an ally occupying a slot. When `CB_HUMAN_SLOT` is set, the human is an actual
 player and may be negotiated with normally.
+
+When `CB_PRIVATE_ROOT_ISOLATED=1`, all persona, auth, game, state, and memory
+files are private to this bot. Only the chat log under `CB_SHARED_ROOT` is
+shared. Never read another bot's private root, even when diagnosing a stalled
+enrollment.
 
 ## Persona Discipline
 
@@ -237,9 +250,10 @@ Repeat this loop once per resolved turn:
 
 ## Memory
 
-Keep the file at the path printed by `game-cache.sh`. Start it from
-`memory-template.md` if it does not exist. Memory is private reasoning, not a
-chat transcript. Never send it to another player.
+Keep `memory.md` beside `persona.json` and `state-cache.json` in this bot's
+private game directory. Start it from `memory-template.md` if it does not
+exist. Memory is private reasoning, not a chat transcript. Never send it to
+another player.
 
 Before submission, update:
 
