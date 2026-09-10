@@ -28,14 +28,14 @@ docker compose up -d --build
 
 ## Identity
 
-- **Instance id**: run `.omp/skills/crown-and-borough/scripts/instance-id.sh` once at
+- **Instance id**: run `.opencode/skills/crown-and-borough/scripts/instance-id.sh` once at
   start-up (or `skill://crown-and-borough/scripts/instance-id.sh`). Note the printed
   id — it is your identity for the whole game. Each bash tool call is a separate
   process, so on **every** later script call pass it explicitly:
-  `CB_INSTANCE_ID=<id> ./.omp/skills/crown-and-borough/scripts/append-move.sh "…"`.
+  `CB_INSTANCE_ID=<id> ./.opencode/skills/crown-and-borough/scripts/append-move.sh "…"`.
   If the runtime exposes `OMP_SESSION_ID`/`OMP_SESSION`/`SESSION_ID`, the script
   uses it automatically.
-- **Fake email**: `.omp/skills/crown-and-borough/scripts/pick-email.sh` → `color.animal@mail.com`.
+- **Fake email**: `.opencode/skills/crown-and-borough/scripts/pick-email.sh` → `color.animal@mail.com`.
 - **In-game display name**: `<local-part>-<instance-id>` (max 32 chars), e.g.
   `red.wolf-cb1a2b3c`. This suffix marks you as an agent; the human player has no suffix.
 
@@ -45,7 +45,7 @@ docker compose up -d --build
    the web app and register your fake email (the app sends a sign-in link). Give the
    exact email.
 2. **Get the connection link.** Once the human confirms registration, run
-   `.omp/skills/crown-and-borough/scripts/extract-auth-link.sh` (tails
+   `.opencode/skills/crown-and-borough/scripts/extract-auth-link.sh` (tails
    `docker compose logs -f auth`, extracts the `emulator/action` URL). If it fails,
    ask the human whether the auth container is up; never guess the URL.
 3. **Complete sign-in.** Open the extracted link in your browser tool. You are now a
@@ -65,9 +65,9 @@ docker compose up -d --build
    The state is visible to every player (no fog of war in v1). You may also fetch
    your private projection `GET /api/games/{id}/state` if the UI is ambiguous.
 3. **Negotiate (optional)**: run
-   `.omp/skills/crown-and-borough/scripts/poll-moves.sh --watch 30` to see what the
+   `.opencode/skills/crown-and-borough/scripts/poll-moves.sh --watch 30` to see what the
    other instances propose. If useful, reply by appending one human-like line
-   (`.omp/skills/crown-and-borough/scripts/append-move.sh "I hold while you take the mill."`). Keep it chat-like,
+   (`.opencode/skills/crown-and-borough/scripts/append-move.sh "I hold while you take the mill."`). Keep it chat-like,
    never dump raw state or real numeric plans — and never read or write another
    instance's `state` files; the shared channel is `moves.txt` only.
 4. **Decide your orders** (your reasoning is the strategy — use the rules):
@@ -87,9 +87,9 @@ docker compose up -d --build
    accepted (the server resolves when **all** live players submitted, or someone
    forces). Remember: the human may be playing too — agree on turn pacing.
 6. **Record one line** in your moves file about what you did, human-style:
-   `.omp/skills/crown-and-borough/scripts/append-move.sh "I move on Rosemont."` — one line per turn, no more.
+   `.opencode/skills/crown-and-borough/scripts/append-move.sh "I move on Rosemont."` — one line per turn, no more.
 7. **Wait for resolution**: poll the UI and
-   `.omp/skills/crown-and-borough/scripts/poll-moves.sh --watch 300`
+   `.opencode/skills/crown-and-borough/scripts/poll-moves.sh --watch 300`
    (2s interval). When the turn advances, repeat from step 2.
 
 ## Coordination protocol (inter-instance)
@@ -97,7 +97,7 @@ docker compose up -d --build
 - Directory: `~/.crown-borough/run/<instance-id>/moves.txt` — **append-only**.
 - Write only with `append-move.sh` (adds a timestamp). Read others' files only with
   `poll-moves.sh`, which excludes your own instance. The scripts live in
-  `.omp/skills/crown-and-borough/scripts/` (also reachable via
+  `.opencode/skills/crown-and-borough/scripts/` (also reachable via
   `skill://crown-and-borough/scripts/…`).
 - Content is human-like negotiation **chat**, not state. Never print your internal
   state, full orders, or private numbers.
