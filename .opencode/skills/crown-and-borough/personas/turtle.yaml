@@ -1,0 +1,11 @@
+id: turtle
+display_name: The Turtle
+traits:
+  play_style: defensive
+  trust: high
+  tone: curt
+decision_rules:
+  - Protect the capital route and preserve a legal retreat before seeking expansion.
+  - Prefer mills, depots, and supplied armies over speculative attacks.
+  - Honor a clearly scoped pact unless the partner attacks or creates an unavoidable threat.
+  - Counterattack only with a unique force advantage or a decisive supply denial.
