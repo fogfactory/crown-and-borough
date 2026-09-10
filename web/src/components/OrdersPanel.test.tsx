@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { OrdersPanel } from '@/components/OrdersPanel'
@@ -172,6 +172,76 @@ describe('OrdersPanel seasonal presentation', () => {
     const estimate = screen.getByRole('status')
     expect(estimate).toHaveTextContent('Estimated cost: 26 / 25 resources')
     expect(estimate).toHaveClass('text-[#8d321e]')
+  })
+
+  it('shows live syntax errors without charging invalid lines', () => {
+    render(
+      <LanguageProvider initialLanguage="fr">
+        <OrdersPanel
+          state={{
+            ...state,
+            season: 'winter',
+            territories: [
+              {
+                id: 'ROS',
+                owner: 'P1',
+                resources: 25,
+                army: null,
+                infrastructures: [{ type: 'castle', level: 1 }],
+              },
+              {
+                id: 'ZZZ',
+                owner: 'P1',
+                resources: 0,
+                army: null,
+                infrastructures: [],
+              },
+            ],
+          }}
+          map={{
+            territories: [
+              {
+                id: 'ROS',
+                name: 'Rosemont',
+                terrain: 'plain',
+                village: false,
+                points: [],
+                adjacencies: [],
+                impassable: [],
+              },
+            ],
+          }}
+          player="P1"
+          chainDrafts={{}}
+          winterDraft={'R X ROS\nR T ROS\nC M ZZZ'}
+          winterCosts={{
+            castle: 10,
+            millLevels: [3, 5, 7],
+            troop: 1,
+            noble: 2,
+            supplyDepot: 3,
+            liberation: 0,
+          }}
+          submitted={false}
+          submitting={false}
+          error={null}
+          onChainChange={vi.fn()}
+          onWinterChange={vi.fn()}
+          onSubmit={vi.fn()}
+          onOpenRules={vi.fn()}
+        />
+      </LanguageProvider>,
+    )
+
+    const errors = screen.getByRole('alert', {
+      name: "Erreurs de syntaxe des ordres d'hiver",
+    })
+    expect(within(errors).getAllByRole('listitem')).toHaveLength(2)
+    expect(errors).toHaveTextContent(/Ligne 1 .*Ordre d’hiver inconnu/)
+    expect(errors).toHaveTextContent(/Ligne 3 .*code de territoire.*ZZZ/)
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Coût estimé : 1 / 25 ressources',
+    )
   })
 
   it('keeps the ordinary command panel outside winter', () => {

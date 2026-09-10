@@ -1,5 +1,5 @@
 import type { Infrastructure, MapData, PlayerId, StateData, WinterCosts } from '@/types'
-import { parseWinterDraft, type ParsedWinterOrder } from '@/lib/winter-parse'
+import { parseWinterDraftDetailed, type ParsedWinterOrder } from '@/lib/winter-parse'
 
 export interface WinterCostEstimate {
   spent: number
@@ -153,7 +153,10 @@ export function estimateWinterCost(
     )
     .reduce((total, territory) => total + Math.max(0, territory.resources), 0)
   const infrastructureByTerritory = simulatedInfrastructure(state)
-  const spent = parseWinterDraft(draft).reduce(
+  const spent = parseWinterDraftDetailed(draft, {
+    map,
+    nobles: state.nobles,
+  }).orders.reduce(
     (total, order) =>
       total + orderCost(order, state, player, costs, infrastructureByTerritory, map),
     0,

@@ -4,8 +4,9 @@ import { BookOpen, Snowflake } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { RulesSection } from '@/components/RulesPanel'
 import { useLanguage } from '@/i18n/LanguageContext'
-import type { MessageKey } from '@/i18n/messages'
+import type { MessageKey, Translate } from '@/i18n/messages'
 import { estimateWinterCost } from '@/lib/winter-cost'
+import { parseWinterDraftDetailed, type WinterParseError } from '@/lib/winter-parse'
 import type { MapData, Noble, PlayerId, StateData, WinterCosts } from '@/types'
 
 interface OrdersPanelProps {
@@ -72,6 +73,27 @@ function OrderError({ error }: { error: string | null }) {
   )
 }
 
+function WinterOrderErrors({ errors, t }: { errors: WinterParseError[]; t: Translate }) {
+  if (errors.length === 0) return null
+
+  return (
+    <ul
+      role="alert"
+      aria-label={t('orders.winterErrorsAria')}
+      className="max-h-32 list-disc space-y-1 overflow-y-auto rounded-md border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 pl-7 text-xs text-[#8d321e]"
+    >
+      {errors.map((error) => (
+        <li key={`${error.line}-${error.key}`}>
+          {t('error.line', {
+            line: error.line,
+            message: t(error.key, error.values),
+          })}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export function OrdersPanel({
   state,
   player,
@@ -96,6 +118,10 @@ export function OrdersPanel({
     }
 
   if (state.season === 'winter') {
+    const parsedWinterDraft = parseWinterDraftDetailed(winterDraft, {
+      map,
+      nobles: state.nobles,
+    })
     const winterEstimate = winterCosts
       ? estimateWinterCost(state, player, winterCosts, winterDraft, map)
       : null
@@ -143,6 +169,7 @@ export function OrdersPanel({
             })}
           </p>
         )}
+        <WinterOrderErrors errors={parsedWinterDraft.errors} t={t} />
         {submitted && (
           <p className="text-xs text-[#376341]">{t('orders.submittedEditable')}</p>
         )}
