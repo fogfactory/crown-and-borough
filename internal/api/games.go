@@ -23,6 +23,7 @@ import (
 type GamesHandler struct {
 	store            store.GameStore
 	rules            assetgen.Rules
+	balance          assetgen.Balance
 	actor            ActorResolver
 	profiles         store.ProfileStore
 	requireProfile   bool
@@ -33,6 +34,7 @@ type GamesHandler struct {
 
 type GamesHandlerOptions struct {
 	Actor            ActorResolver
+	Balance          assetgen.Balance
 	Profiles         store.ProfileStore
 	RequireProfile   bool
 	StrictMembership bool
@@ -56,6 +58,7 @@ func NewGamesHandlerWithOptions(gameStore store.GameStore, rules assetgen.Rules,
 	return &GamesHandler{
 		store:            gameStore,
 		rules:            rules,
+		balance:          options.Balance,
 		actor:            options.Actor,
 		profiles:         profiles,
 		requireProfile:   options.RequireProfile,
@@ -252,6 +255,20 @@ func (h *GamesHandler) handleSubresource(w http.ResponseWriter, r *http.Request,
 			return
 		}
 		writeGameState(w, snapshot.Revision, projectStateForPlayer(snapshot.State, playerID))
+	case "balance":
+		if len(parts) != 1 {
+			http.NotFound(w, r)
+			return
+		}
+		if r.Method != http.MethodGet {
+			methodNotAllowed(w, http.MethodGet)
+			return
+		}
+		if _, err := h.store.Get(r.Context(), actor, id); err != nil {
+			h.writeStoreError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, winterCostsView(h.balance))
 	case "supply":
 		if len(parts) != 1 {
 			http.NotFound(w, r)

@@ -84,6 +84,36 @@ func TestGamesHandlerCreatesListsAndResolvesIndependentGames(t *testing.T) {
 	}
 }
 
+func TestGamesHandlerServesWinterCostsToMembers(t *testing.T) {
+	gameStore, rules := newGamesTestStore(t)
+	balance, err := assetgen.LoadBalance("../../assets")
+	if err != nil {
+		t.Fatalf("load balance: %v", err)
+	}
+	handler := NewGamesHandlerWithOptions(gameStore, rules, GamesHandlerOptions{
+		Actor:   DevActorResolver("P1"),
+		Balance: balance,
+	})
+	game := createGameHTTP(t, handler, "P1", `{"name":"costs game","players":2}`)
+
+	response := requestGames(t, handler, http.MethodGet, "/api/games/"+string(game.ID)+"/balance?player=P1", "")
+	if response.Code != http.StatusOK {
+		t.Fatalf("member balance = %d: %s", response.Code, response.Body.String())
+	}
+	var got WinterCostsView
+	if err := json.Unmarshal(response.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode member balance: %v", err)
+	}
+	if got.Castle != balance.Costs.Castle || len(got.MillLevels) != len(balance.Costs.MillLevels) {
+		t.Fatalf("member balance = %#v, want costs from balance.yaml", got)
+	}
+
+	intruder := requestGames(t, handler, http.MethodGet, "/api/games/"+string(game.ID)+"/balance?player=intruder", "")
+	if intruder.Code != http.StatusForbidden {
+		t.Fatalf("intruder balance = %d, want %d", intruder.Code, http.StatusForbidden)
+	}
+}
+
 func TestGamesHandlerCreatesGameWithConfiguredYearsAndDefaults(t *testing.T) {
 	gameStore, rules := newGamesTestStore(t)
 	handler := NewGamesHandler(gameStore, rules, DevActorResolver("P1"))
