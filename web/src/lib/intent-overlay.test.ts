@@ -176,6 +176,37 @@ describe('buildIntentions', () => {
     expect(intentions[0]).toMatchObject({ source: 'submitted', color: '#123456' })
   })
 
+  it('colors installed chains when building a spectator view', () => {
+    const state = stateWith({
+      territories: stateWith().territories.map((territory) =>
+        territory.id === 'ROS'
+          ? {
+              ...territory,
+              army: {
+                owner: 'P1',
+                size: 3,
+                chain: {
+                  noble: 'HUG',
+                  currentIndex: 0,
+                  orders: [
+                    {
+                      type: 'attack',
+                      position: 'ROS',
+                      targets: ['BRU'],
+                      liaison: 'single',
+                    },
+                  ],
+                },
+              },
+            }
+          : territory,
+      ),
+    })
+    const intentions = buildIntentions(map, state, 'P1', {}, { color: '#654321' })
+
+    expect(intentions[0]).toMatchObject({ source: 'chain', color: '#654321' })
+  })
+
   it('renders an attack penetrating into the destination territory', () => {
     const intentions = buildIntentions(map, stateWith(), 'P1', {
       HUG: 'HUG\nROS A BRU',

@@ -427,14 +427,29 @@ export function GamePage() {
     })
   }, [map, spectator, state, submittedOrders])
 
+  const installedIntentions = useMemo(() => {
+    if (!spectator || !state || !map || state.season === 'winter') return []
+    return state.players.flatMap((player) =>
+      buildIntentions(map, state, player.id, {}, { color: player.color }),
+    )
+  }, [map, spectator, state])
+
   const intentions = useMemo(
     () =>
       spectator
-        ? submittedIntentions
+        ? [...installedIntentions, ...submittedIntentions]
         : state && playerID
           ? buildIntentions(map ?? { territories: [] }, state, playerID, chainDrafts)
           : [],
-    [chainDrafts, map, playerID, spectator, state, submittedIntentions],
+    [
+      chainDrafts,
+      installedIntentions,
+      map,
+      playerID,
+      spectator,
+      state,
+      submittedIntentions,
+    ],
   )
   const intentionsColor =
     state?.players.find((player) => player.id === playerID)?.color ?? '#a84632'

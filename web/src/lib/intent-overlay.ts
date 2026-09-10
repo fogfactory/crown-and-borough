@@ -300,6 +300,8 @@ export function buildIntentions(
         { id: territoryState.id, size: army.size },
         intentions,
         'chain',
+        undefined,
+        options.color,
       )
     }
   }
