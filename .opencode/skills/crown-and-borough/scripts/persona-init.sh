@@ -101,3 +101,23 @@ jq -n \
   '{id:$id,display_name:$display_name,traits:{play_style:$play_style,trust:$trust,tone:$tone},decision_rules:$rules,created_at:(now|todateiso8601)}' \
   >"$output"
 chmod 600 "$output"
+
+memory_file="$(dirname "$output")/memory.md"
+memory_reminder="I am ${display_name}. Personality: play_style=${play_style}, trust=${trust}, tone=${tone}. Stay in this role when evaluating deals and orders."
+memory_template="$script_dir/../memory-template.md"
+memory_tmp="$(mktemp)"
+if [[ -s "$memory_file" ]]; then
+  {
+    printf '%s\n' "$memory_reminder"
+    tail -n +2 "$memory_file"
+  } >"$memory_tmp"
+else
+  {
+    printf '%s\n\n' "$memory_reminder"
+    if [[ -f "$memory_template" ]]; then
+      tail -n +3 "$memory_template"
+    fi
+  } >"$memory_tmp"
+fi
+mv "$memory_tmp" "$memory_file"
+chmod 600 "$memory_file"

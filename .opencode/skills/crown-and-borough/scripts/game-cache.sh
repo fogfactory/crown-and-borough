@@ -36,9 +36,15 @@ case "$command" in
     chmod 600 "$file"
     mkdir -p "$(cb_bot_dir)"
     if [[ -f "$(cb_instance_dir)/auth.json" ]]; then
-      cp "$(cb_instance_dir)/auth.json" "$CB_RUN_ROOT/$game/$(cb_instance_id)/auth.json"
-      chmod 600 "$CB_RUN_ROOT/$game/$(cb_instance_id)/auth.json"
+      cp "$(cb_instance_dir)/auth.json" "$(cb_bot_dir)/auth.json"
+      chmod 600 "$(cb_bot_dir)/auth.json"
     fi
+    for private_file in persona.json memory.md; do
+      if [[ -f "$(cb_instance_dir)/$private_file" ]]; then
+        cp "$(cb_instance_dir)/$private_file" "$(cb_bot_dir)/$private_file"
+        chmod 600 "$(cb_bot_dir)/$private_file"
+      fi
+    done
     printf '%s\n' "$file"
     ;;
   show)

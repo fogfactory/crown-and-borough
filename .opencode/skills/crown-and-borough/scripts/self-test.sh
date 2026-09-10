@@ -38,6 +38,8 @@ test "$(jq -r '.id' "$private/cb-alpha-1/offline-game/persona.json")" = conquero
 test "$(jq -r '.id' "$private/cb-beta-2/offline-game/persona.json")" = turtle
 test "$(jq -r '.player' "$private/cb-alpha-1/current-game.json")" = P1
 test "$(jq -r '.player' "$private/cb-beta-2/current-game.json")" = P2
+first_line="$(head -n 1 "$private/cb-alpha-1/offline-game/memory.md")"
+[[ "$first_line" == 'I am The Conqueror. Personality: play_style=aggressive, trust=none, tone=curt.'* ]]
 test "$("$script_dir/pick-email.sh" --instance-id cb-alpha-1)" = "$("$script_dir/pick-email.sh" --instance-id cb-alpha-1)"
 test "$("$script_dir/pick-email.sh" --instance-id cb-alpha-1)" != "$("$script_dir/pick-email.sh" --instance-id cb-beta-2)"
 
