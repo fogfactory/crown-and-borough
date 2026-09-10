@@ -300,7 +300,8 @@ const englishMessages = {
   'legend.prisoner': 'Prisoner noble (hostage / dungeon)',
   'legend.control': 'Colored outline = territorial control',
   'legend.intentions': 'Intentions overlay',
-  'legend.intentionsHint': 'Drafts + installed chains · action seasons only',
+  'legend.intentionsHint':
+    'Drafts + submitted orders + installed chains · action seasons only',
   'legend.passable':
     'Thick continuous line = impassable border · dashed line = passable border',
   'rules.reference': 'Reference for v1 rules, orders, and supply.',
@@ -748,7 +749,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'legend.control': 'Liséré coloré = contrôle territorial',
   'legend.intentions': "Calque d'intentions",
   'legend.intentionsHint':
-    "Brouillons + chaînes installées · saisons d'action uniquement",
+    "Brouillons + ordres soumis + chaînes installées · saisons d'action uniquement",
   'legend.passable':
     'Trait continu épais = frontière infranchissable · trait pointillé = frontière franchissable',
   'rules.reference': 'Référence des règles v1, des ordres et du ravitaillement.',

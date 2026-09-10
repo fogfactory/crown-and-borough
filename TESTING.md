@@ -123,7 +123,10 @@ same-origin and restart check is:
 5. Verify the creator sees the complete state and exact report details through
    the REST API and the `games/{gameId}/observer/{uid}` listener, but cannot
    submit orders.
-6. Verify the creator can force-resolve a stalled turn and that the observer
+6. Submit an action order from one player and verify the observer's intentions
+   layer displays that pending order before resolution, while the submitting
+   player cannot read another player's pending order endpoint.
+7. Verify the creator can force-resolve a stalled turn and that the observer
    projection advances after resolution.
 
 ## Listener Contract

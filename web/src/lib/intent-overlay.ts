@@ -21,14 +21,9 @@ const SYMBOLS: Record<OrderType, string> = {
 }
 
 export type IntentSegmentKind =
-  | 'attack'
-  | 'movement'
-  | 'support-defensive'
-  | 'support-offensive'
-  | 'transfer'
-  | 'loop'
+  'attack' | 'movement' | 'support-defensive' | 'support-offensive' | 'transfer' | 'loop'
 
-export type IntentionSource = 'chain' | 'draft'
+export type IntentionSource = 'chain' | 'draft' | 'submitted'
 
 export interface IntentSegment {
   from: Point
@@ -44,6 +39,7 @@ export interface Intention {
   turn: number
   turnLabel: string
   source: IntentionSource
+  color?: string
   nobleCode?: string
   label: string
   segments: IntentSegment[]
@@ -134,6 +130,7 @@ function makeIntention(
   turnUncertain: boolean,
   source: IntentionSource,
   nobleCode?: string,
+  color?: string,
 ): Intention | null {
   const position = order.position
   const from = territoryCentroid(map, position)
@@ -146,6 +143,7 @@ function makeIntention(
     turn,
     turnLabel: turnUncertain || order.liaison === 'loop' ? '?' : String(turn),
     source,
+    color,
     nobleCode,
     label: formatOrderLabel({
       type: order.type,
@@ -253,6 +251,7 @@ function appendChainIntentions(
   intentions: Intention[],
   source: IntentionSource,
   nobleCode?: string,
+  color?: string,
 ): void {
   let loopPending = false
   for (let orderIndex = startIndex; orderIndex < orders.length; orderIndex += 1) {
@@ -265,6 +264,7 @@ function appendChainIntentions(
       loopPending,
       source,
       nobleCode,
+      color,
     )
     if (intention) intentions.push(intention)
     if (order.liaison === 'loop') loopPending = true
@@ -276,25 +276,32 @@ export function buildIntentions(
   state: StateData,
   player: PlayerId,
   chainDrafts: Record<string, string>,
+  options: {
+    includeInstalled?: boolean
+    source?: IntentionSource
+    color?: string
+  } = {},
 ): Intention[] {
   if (state.season === 'winter') return []
 
   const intentions: Intention[] = []
 
-  for (const territoryState of state.territories) {
-    const army = territoryState.army
-    if (!army || army.owner !== player) continue
-    const chain = army.chain
-    if (!chain || (chain.visibility ?? 'known') === 'hidden') continue
-    const orders = chain.orders ?? []
-    appendChainIntentions(
-      map,
-      orders,
-      Math.max(0, chain.currentIndex ?? 0),
-      { id: territoryState.id, size: army.size },
-      intentions,
-      'chain',
-    )
+  if (options.includeInstalled !== false) {
+    for (const territoryState of state.territories) {
+      const army = territoryState.army
+      if (!army || army.owner !== player) continue
+      const chain = army.chain
+      if (!chain || (chain.visibility ?? 'known') === 'hidden') continue
+      const orders = chain.orders ?? []
+      appendChainIntentions(
+        map,
+        orders,
+        Math.max(0, chain.currentIndex ?? 0),
+        { id: territoryState.id, size: army.size },
+        intentions,
+        'chain',
+      )
+    }
   }
 
   const ownedNobleCodes = new Set(
@@ -320,8 +327,9 @@ export function buildIntentions(
       0,
       { id: territoryState.id, size: territoryState.army.size },
       intentions,
-      'draft',
+      options.source ?? 'draft',
       nobleCode,
+      options.color,
     )
   }
 

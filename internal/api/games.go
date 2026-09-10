@@ -306,6 +306,16 @@ func (h *GamesHandler) handleSubresource(w http.ResponseWriter, r *http.Request,
 			return
 		}
 		h.mySubmission(w, r, actor, id)
+	case "submitted-orders":
+		if len(parts) != 1 {
+			http.NotFound(w, r)
+			return
+		}
+		if r.Method != http.MethodGet {
+			methodNotAllowed(w, http.MethodGet)
+			return
+		}
+		h.submittedOrders(w, r, actor, id)
 	case "join":
 		if len(parts) != 1 {
 			http.NotFound(w, r)
@@ -435,6 +445,43 @@ func (h *GamesHandler) mySubmission(w http.ResponseWriter, r *http.Request, acto
 		Chains:    chains,
 		Winter:    winter,
 	})
+}
+
+func (h *GamesHandler) submittedOrders(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
+	snapshot, err := h.store.Get(r.Context(), actor, id)
+	if err != nil {
+		h.writeStoreError(w, err)
+		return
+	}
+	if !isSnapshotSpectator(snapshot, actor) {
+		writeAPIError(w, http.StatusForbidden, "spectator_only", "submitted orders are visible only to the observer host")
+		return
+	}
+	response := submittedOrdersView{
+		Turn:        snapshot.State.Turn,
+		Season:      snapshot.State.Season,
+		Submissions: make([]submittedPlayerOrdersView, 0, len(snapshot.Submissions)),
+	}
+	for _, player := range snapshot.Players {
+		input, submitted := snapshot.Submissions[player.ID]
+		if !submitted {
+			continue
+		}
+		chains := make([]chainSubmissionView, len(input.Chains))
+		for index, chain := range input.Chains {
+			chains[index] = chainSubmissionView{Noble: chain.Noble, Text: chain.Text}
+		}
+		var winter *winterSubmissionView
+		if len(input.Winter) > 0 {
+			winter = &winterSubmissionView{Lines: input.Winter[0].Lines}
+		}
+		response.Submissions = append(response.Submissions, submittedPlayerOrdersView{
+			Player: player.ID,
+			Chains: chains,
+			Winter: winter,
+		})
+	}
+	writeJSON(w, http.StatusOK, response)
 }
 
 func (h *GamesHandler) join(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
@@ -731,6 +778,18 @@ type mySubmissionView struct {
 	Submitted bool                  `json:"submitted"`
 	Chains    []chainSubmissionView `json:"chains"`
 	Winter    *winterSubmissionView `json:"winter,omitempty"`
+}
+
+type submittedOrdersView struct {
+	Turn        int                         `json:"turn"`
+	Season      models.Season               `json:"season"`
+	Submissions []submittedPlayerOrdersView `json:"submissions"`
+}
+
+type submittedPlayerOrdersView struct {
+	Player models.PlayerID       `json:"player"`
+	Chains []chainSubmissionView `json:"chains"`
+	Winter *winterSubmissionView `json:"winter,omitempty"`
 }
 
 type chainSubmissionView struct {

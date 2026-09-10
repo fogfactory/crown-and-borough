@@ -47,6 +47,7 @@ import type {
   PlayerId,
   StateData,
   SupplyLine,
+  SubmittedOrdersResponse,
   TransferLine,
   TurnReport,
 } from '@/types'
@@ -268,6 +269,9 @@ export function GamePage() {
   const [serverSubmission, setServerSubmission] = useState<MySubmissionResponse | null>(
     null,
   )
+  const [submittedOrders, setSubmittedOrders] = useState<SubmittedOrdersResponse | null>(
+    null,
+  )
   const [actionError, setActionError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [confirmResolve, setConfirmResolve] = useState(false)
@@ -307,6 +311,7 @@ export function GamePage() {
     setTransferLoading(false)
     setSelectedTransferTarget(null)
     setServerSubmission(null)
+    setSubmittedOrders(null)
     setReport(null)
     setReportSummaries([])
     setReportError(null)
@@ -378,12 +383,58 @@ export function GamePage() {
   const playerID = currentSlot?.id ?? null
   const spectator = summary?.spectator === true
 
+  useEffect(() => {
+    if (!gameId || !spectator || !state) {
+      if (!spectator) setSubmittedOrders(null)
+      return
+    }
+    let active = true
+    const encodedID = encodeURIComponent(gameId)
+    void apiRequest<SubmittedOrdersResponse>(
+      { getIdToken },
+      `/api/games/${encodedID}/submitted-orders`,
+    )
+      .then((response) => {
+        if (active && response.turn === state.turn) setSubmittedOrders(response)
+      })
+      .catch((submissionFailure: unknown) => {
+        if (!active) return
+        if (submissionFailure instanceof ApiError && submissionFailure.status === 401) {
+          void signOut().catch(() => undefined)
+          navigate('/signin', { replace: true })
+        }
+      })
+    return () => {
+      active = false
+    }
+  }, [gameId, getIdToken, navigate, signOut, spectator, state, summaryRevision])
+
+  const submittedIntentions = useMemo(() => {
+    if (!spectator || !state || !map || state.season === 'winter') return []
+    return (submittedOrders?.submissions ?? []).flatMap((submission) => {
+      const drafts = Object.fromEntries(
+        submission.chains.map((chain) => [
+          chain.noble,
+          stripNobleHeader(chain.noble, chain.text),
+        ]),
+      )
+      const color = state.players.find((player) => player.id === submission.player)?.color
+      return buildIntentions(map, state, submission.player, drafts, {
+        includeInstalled: false,
+        source: 'submitted',
+        color,
+      })
+    })
+  }, [map, spectator, state, submittedOrders])
+
   const intentions = useMemo(
     () =>
-      state && playerID
-        ? buildIntentions(map ?? { territories: [] }, state, playerID, chainDrafts)
-        : [],
-    [chainDrafts, map, playerID, state],
+      spectator
+        ? submittedIntentions
+        : state && playerID
+          ? buildIntentions(map ?? { territories: [] }, state, playerID, chainDrafts)
+          : [],
+    [chainDrafts, map, playerID, spectator, state, submittedIntentions],
   )
   const intentionsColor =
     state?.players.find((player) => player.id === playerID)?.color ?? '#a84632'
@@ -479,6 +530,7 @@ export function GamePage() {
       setChainDrafts({})
       setWinterDraft('')
       setServerSubmission(null)
+      setSubmittedOrders(null)
       setActionError(null)
       lastTurn.current = turn
     }

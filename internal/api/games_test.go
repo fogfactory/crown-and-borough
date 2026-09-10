@@ -122,6 +122,35 @@ func TestGamesHandlerSupportsAFullVisibilitySpectatorCreator(t *testing.T) {
 		t.Fatalf("spectator orders = %d: %s", orders.Code, orders.Body.String())
 	}
 
+	var spectatorState StateView
+	if err := json.Unmarshal(state.Body.Bytes(), &spectatorState); err != nil {
+		t.Fatalf("decode spectator state: %v", err)
+	}
+	var botNoble NobleView
+	for _, noble := range spectatorState.Nobles {
+		if noble.Owner == "P2" && noble.Status == models.NobleStatusFree {
+			botNoble = noble
+			break
+		}
+	}
+	if botNoble.Code == "" {
+		t.Fatal("P2 has no free noble for submitted-order test")
+	}
+	chainText := string(botNoble.Code) + "\nH " + string(botNoble.Location)
+	botOrders := requestGames(t, handler, http.MethodPost, "/api/games/"+string(created.ID)+"/orders?player=P2", `{"chains":[{"noble":"`+string(botNoble.Code)+`","text":"`+strings.ReplaceAll(chainText, "\n", `\n`)+`"}],"winter":[]}`)
+	if botOrders.Code != http.StatusOK || !strings.Contains(botOrders.Body.String(), `"status":"pending"`) {
+		t.Fatalf("bot submission = %d: %s", botOrders.Code, botOrders.Body.String())
+	}
+
+	submitted := requestGames(t, handler, http.MethodGet, "/api/games/"+string(created.ID)+"/submitted-orders?player=host", "")
+	if submitted.Code != http.StatusOK || !strings.Contains(submitted.Body.String(), string(botNoble.Code)) {
+		t.Fatalf("spectator submitted orders = %d: %s", submitted.Code, submitted.Body.String())
+	}
+	playerSubmitted := requestGames(t, handler, http.MethodGet, "/api/games/"+string(created.ID)+"/submitted-orders?player=P2", "")
+	if playerSubmitted.Code != http.StatusForbidden || !strings.Contains(playerSubmitted.Body.String(), `"spectator_only"`) {
+		t.Fatalf("player submitted-order access = %d: %s", playerSubmitted.Code, playerSubmitted.Body.String())
+	}
+
 	join := requestGames(t, handler, http.MethodPost, "/api/games/"+string(created.ID)+"/join?player=host", `{"inviteCode":"`+created.InviteCode+`"}`)
 	if join.Code != http.StatusConflict || !strings.Contains(join.Body.String(), `"spectator_only"`) {
 		t.Fatalf("spectator join = %d: %s", join.Code, join.Body.String())

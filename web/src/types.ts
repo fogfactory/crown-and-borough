@@ -228,6 +228,18 @@ export interface MySubmissionResponse {
   winter?: SubmittedWinter
 }
 
+export interface SubmittedPlayerOrders {
+  player: PlayerId
+  chains: SubmittedChain[]
+  winter?: SubmittedWinter
+}
+
+export interface SubmittedOrdersResponse {
+  turn: number
+  season: Season
+  submissions: SubmittedPlayerOrders[]
+}
+
 export interface OrdersResponse {
   status: 'pending' | 'resolved'
   player?: PlayerId

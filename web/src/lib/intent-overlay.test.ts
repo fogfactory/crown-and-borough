@@ -163,6 +163,19 @@ function supportState(): StateData {
 }
 
 describe('buildIntentions', () => {
+  it('renders submitted orders with the player color without installed chains', () => {
+    const intentions = buildIntentions(
+      map,
+      stateWith(),
+      'P1',
+      { HUG: 'ROS A BRU' },
+      { includeInstalled: false, source: 'submitted', color: '#123456' },
+    )
+
+    expect(intentions).toHaveLength(1)
+    expect(intentions[0]).toMatchObject({ source: 'submitted', color: '#123456' })
+  })
+
   it('renders an attack penetrating into the destination territory', () => {
     const intentions = buildIntentions(map, stateWith(), 'P1', {
       HUG: 'HUG\nROS A BRU',
