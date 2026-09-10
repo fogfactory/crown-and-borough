@@ -335,20 +335,20 @@ global lorsqu'une autre partie est déjà active.
 |---|---|---|
 | `GET` | `/api/auth/me` | Valide le JWT Firebase et renvoie le profil Firestore du joueur. |
 | `PUT` | `/api/auth/me` | Crée ou met à jour le nom affiché validé du profil courant. |
-| `POST` | `/api/games` | Crée une partie avec deux à huit slots ; le créateur devient automatiquement membre. |
+| `POST` | `/api/games` | Crée une partie avec deux à huit slots ; le créateur devient automatiquement membre, sauf avec `spectate: true`, où il devient un hôte observateur sans occuper de slot. |
 | `GET` | `/api/games` | Liste les parties dont le joueur courant est membre. |
 | `GET` | `/api/games/{id}` | Renvoie le statut, les slots, le tour et la saison ; le code d'invitation est privé au créateur. |
 | `GET` | `/api/games/{id}/invite` | Renvoie le lien d'invitation au créateur uniquement. |
 | `POST` | `/api/games/{id}/join` | Rejoint un slot avec le code d'invitation ; l'UID Firebase courant est l'identité du membre. |
 | `GET` | `/api/games/{id}/map` | Renvoie le `map.json` commun, dont `territories[].id` est le trigramme. |
-| `GET` | `/api/games/{id}/state` | Renvoie la projection privée du joueur connecté ; aucun `?player=` public. |
+| `GET` | `/api/games/{id}/state` | Renvoie la projection privée du joueur connecté ; un hôte observateur reçoit la projection complète ; aucun `?player=` public. |
 | `GET` | `/api/games/{id}/supply?territory=ROS` | Calcule la ligne ou la zone de ravitaillement demandée. |
 | `GET` | `/api/games/{id}/supply?territory=ROS&target=BOI` | Estime la route d'un transfert d'action vers `BOI`. |
-| `POST` | `/api/games/{id}/orders` | Remplace la soumission du joueur courant ; résout automatiquement lorsque tous les joueurs vivants ont soumis. Le corps ne contient aucun identifiant joueur. |
+| `POST` | `/api/games/{id}/orders` | Remplace la soumission du joueur courant ; résout automatiquement lorsque tous les joueurs vivants ont soumis. Un hôte observateur ne peut pas soumettre. Le corps ne contient aucun identifiant joueur. |
 | `GET` | `/api/games/{id}/my-submission` | Renvoie la dernière soumission du tour courant pour le joueur connecté (chaînes et hiver) pour réhydrater les formulaires après refresh. |
 | `POST` | `/api/games/{id}/resolve` | Résolution forcée explicite avec des ordres vides pour les joueurs manquants. |
 | `GET` | `/api/games/{id}/reports` | Liste les rapports filtrés pour le joueur connecté. |
-| `GET` | `/api/games/{id}/reports/{index}` | Renvoie un rapport filtré pour le joueur connecté. |
+| `GET` | `/api/games/{id}/reports/{index}` | Renvoie un rapport filtré pour le joueur connecté, ou complet pour l'hôte observateur. |
 | `GET` | `/api/rules?lang=fr` | Renvoie les règles publiques en Markdown. |
 
 Les erreurs utilisent au minimum la forme `{ "error": "code", "message":
@@ -364,11 +364,17 @@ du tour. Il n'existe aucune deadline automatique : `POST /resolve` est l'action
 explicite qui permet aux amis de débloquer une partie.
 
 Le front peut écouter directement les projections Firestore suivantes avec le
-SDK Firebase Web : `games/{id}` pour le résumé public et
-`games/{id}/views/{uid}` pour son état privé. Les règles refusent les documents
-canoniques, les soumissions, les rapports non filtrés et les écritures clientes.
+SDK Firebase Web : `games/{id}` pour le résumé public, `games/{id}/views/{uid}`
+pour l'état privé d'un joueur et `games/{id}/observer/{uid}` pour l'état complet
+d'un hôte qui ne joue pas. Le document observateur ne contient qu'un pointeur
+vers le dernier rapport ; le rapport complet reste servi par REST. Les règles
+refusent les documents canoniques, les soumissions, les rapports non filtrés et
+les écritures clientes.
 Les listeners remplacent le polling régulier ; les routes REST restent la
-source des commandes et le fallback d'initialisation ou de reconnexion.
+source des commandes, des rapports et le fallback d'initialisation ou de
+reconnexion. Un hôte observateur est aussi ajouté à `memberUids` pour pouvoir
+écouter le résumé public et le document observateur, mais il n'est jamais
+compté parmi les deux à huit joueurs.
 
 ## 6. Moteur et résolution
 

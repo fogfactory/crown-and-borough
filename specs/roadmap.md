@@ -39,7 +39,7 @@ online à réaliser et à suivre par issue.
 | Hiver | Recrutement, constructions v1, capitale, libération des nobles, conservation et rapatriement des stocks | Fait |
 | Boucle de jeu | Cycle printemps/été/automne/hiver, rapport de tour, partie initiale déterministe | Fait |
 | Front | Carte interactive, poste de commandement, sélection de joueur, ordres par noble, rapport et signalisation de l'hiver | Fait |
-| Online v1 | Session unique en mémoire, création/réinitialisation de partie, soumission par joueur, résolution synchrone, résolution forcée, endpoint de ravitaillement | Fait |
+| Online v1 | Session unique en mémoire, création/réinitialisation de partie, soumission par joueur, résolution synchrone, résolution forcée, endpoint de ravitaillement, hôte observateur sans slot | Fait |
 
 ## Contraintes et décisions v1
 
@@ -95,7 +95,7 @@ milestones GitHub `Online Foundations`, `Online Friends MVP` et `Online Hosted`.
 | Vue privée par joueur | Filtrer côté serveur les chaînes connues et les détails des combats selon le joueur | Planifié : O4 |
 | API de production | Plusieurs parties, ressources d'une partie, contrats REST stabilisés et gestion des erreurs | Planifié : O5 |
 | Authentification | Firebase Auth par lien email, profils Firestore, invitations et membership par UID | Planifié : O6 |
-| Persistance | Transactions, projections privées et restauration Firestore sans perte après redémarrage | Planifié : O8 |
+| Persistance | Transactions, projections privées, projection observateur complète et restauration Firestore sans perte après redémarrage | Planifié : O8 |
 | Front | Retours de tests, accessibilité, parcours multi-joueur, Firebase Web et listeners temps réel | Planifié : O7 |
 | Déploiement | Image de production, Firestore/Firebase et déploiement public Cloud Run | En cours : O10 (workflow et runbook livrés, validation GCP restante) |
 

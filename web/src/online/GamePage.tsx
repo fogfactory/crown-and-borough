@@ -85,6 +85,9 @@ function newerSummary(
     ...(right.inviteAvailable === undefined && left.inviteAvailable !== undefined
       ? { inviteAvailable: left.inviteAvailable }
       : {}),
+    ...(right.spectator === undefined && left.spectator !== undefined
+      ? { spectator: left.spectator }
+      : {}),
   }
 }
 
@@ -262,7 +265,9 @@ export function GamePage() {
   )
   const [chainDrafts, setChainDrafts] = useState<Record<string, string>>({})
   const [winterDraft, setWinterDraft] = useState('')
-  const [serverSubmission, setServerSubmission] = useState<MySubmissionResponse | null>(null)
+  const [serverSubmission, setServerSubmission] = useState<MySubmissionResponse | null>(
+    null,
+  )
   const [actionError, setActionError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [confirmResolve, setConfirmResolve] = useState(false)
@@ -320,7 +325,11 @@ export function GamePage() {
     ])
       .then(([detail, mapData, stateResponse, mySubmission]) => {
         if (controller.signal.aborted) return
-        const summary = normalizeGameSummary(detail as Record<string, unknown>, gameId)
+        const summary = normalizeGameSummary(
+          detail as Record<string, unknown>,
+          gameId,
+          user.uid,
+        )
         const state = normalizeStateData(stateResponse)
         if (!state) throw new Error('the private state is invalid')
         setSummaryFromAPI(summary)
@@ -367,6 +376,7 @@ export function GamePage() {
       (summary.currentPlayer !== undefined && player.id === summary.currentPlayer),
   )
   const playerID = currentSlot?.id ?? null
+  const spectator = summary?.spectator === true
 
   const intentions = useMemo(
     () =>
@@ -686,7 +696,7 @@ export function GamePage() {
     if (
       !gameId ||
       !state ||
-      !playerID ||
+      (!playerID && !force) ||
       state.finished ||
       summary?.status === 'finished'
     )
@@ -908,6 +918,12 @@ export function GamePage() {
           {actionError}
         </p>
       )}
+      {spectator && (
+        <div className="rounded-xl border border-[#815f1e]/50 bg-[#f8e8ae]/60 px-4 py-3 text-sm text-[#6d5118]">
+          <p className="font-semibold">{t('online.spectatorBanner')}</p>
+          <p className="mt-1">{t('online.spectatorDescription')}</p>
+        </div>
+      )}
       {summary.winner && (
         <div className="rounded-xl border border-[#815f1e]/50 bg-[#f8e8ae]/60 px-4 py-3 text-center text-sm font-semibold text-[#6d5118]">
           {t('online.victory')}:{' '}
@@ -947,7 +963,9 @@ export function GamePage() {
               <CardDescription className="text-[#806f57]">
                 {currentSlot
                   ? `${currentSlot.name} · ${t('online.you')}`
-                  : t('online.accessRevoked')}
+                  : spectator
+                    ? t('online.spectator')
+                    : t('online.accessRevoked')}
               </CardDescription>
               <div
                 role="tablist"
@@ -1024,6 +1042,10 @@ export function GamePage() {
                     onOpenRules={openRules}
                     onRestoreFromServer={restoreFromServer}
                   />
+                ) : spectator ? (
+                  <p className="rounded-lg border border-[#815f1e]/40 bg-[#f8e8ae]/50 px-3 py-2 text-sm text-[#6d5118]">
+                    {t('online.spectatorReadOnly')}
+                  </p>
                 ) : (
                   <p
                     role="alert"

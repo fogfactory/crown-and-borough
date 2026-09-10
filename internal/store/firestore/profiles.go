@@ -244,8 +244,26 @@ func (s *FirestoreStore) refreshGamePlayerName(ctx context.Context, id store.Gam
 				return err
 			}
 		}
-		s.recordWrites(2 + len(views))
-		s.recordProjectionWrites(len(views))
+		observerWrites := 0
+		if game.SpectatorUID != "" {
+			observer, observerErr := s.observerDocument(
+				id,
+				game.SpectatorUID,
+				store.Revision(game.Revision),
+				state,
+				now,
+				max(0, game.Turn-1),
+			)
+			if observerErr != nil {
+				return observerErr
+			}
+			if err := transaction.Set(observerRef(s.client, id, game.SpectatorUID), observer); err != nil {
+				return err
+			}
+			observerWrites = 1
+		}
+		s.recordWrites(2 + len(views) + observerWrites)
+		s.recordProjectionWrites(len(views) + observerWrites)
 		return nil
 	})
 	return wrapTransactionResult(err)

@@ -160,6 +160,9 @@ export function normalizeGameSummary(
     ...(currentPlayer ? { currentPlayer } : {}),
     ...(canInvite ? { canInvite } : {}),
     ...(inviteAvailable !== undefined ? { inviteAvailable } : {}),
+    ...(data.spectator === true || stringValue(data.spectatorUid) === currentUID
+      ? { spectator: true }
+      : {}),
     players: slotsFromData(data, currentUID),
     turn: numberValue(data.turn, 1),
     season: seasonValue(data.season),
@@ -256,13 +259,85 @@ export function useGameSubscription(
     let active = true
     let unsubscribeGame: () => void = () => undefined
     let unsubscribeView: () => void = () => undefined
+    let unsubscribeObserver: () => void = () => undefined
+    let projectionKind: 'player' | 'observer' = 'player'
+    let playerProjectionMissing = false
 
     const stop = (error: SubscriptionError) => {
       if (!active) return
       active = false
       unsubscribeGame()
       unsubscribeView()
+      unsubscribeObserver()
       setState((current) => ({ ...current, loading: false, error }))
+    }
+
+    const handleProjection = (
+      kind: 'player' | 'observer',
+      snapshot: { exists: () => boolean; data: () => DocumentData | undefined },
+    ) => {
+      if (!active || projectionKind !== kind) return
+      const spectator = kind === 'observer'
+      if (!snapshot.exists()) {
+        if (!spectator) {
+          playerProjectionMissing = true
+          return
+        }
+        stop({
+          code: 'not-found',
+          message: spectator
+            ? 'the observer game view was not found'
+            : 'the private game view was not found',
+        })
+        return
+      }
+      const view = normalizeView(snapshot.data() ?? {}, gameId, uid)
+      if (!view) {
+        stop({ code: 'invalid-data', message: 'the game view is invalid' })
+        return
+      }
+      if (view.gameId !== gameId || view.uid !== uid) {
+        stop({
+          code: 'invalid-data',
+          message: 'the game view identity is invalid',
+        })
+        return
+      }
+      if (view.revision < minimumRevisionRef.current.revision) return
+      setState((current) => ({
+        ...current,
+        view,
+        loading: current.summary === null,
+        error: null,
+      }))
+    }
+
+    const subscribePlayerProjection = () => {
+      unsubscribeView = onSnapshot(
+        doc(services.firestore, 'games', gameId, 'views', uid),
+        { includeMetadataChanges: true },
+        (snapshot) => {
+          handleProjection('player', snapshot)
+        },
+        (error) => {
+          if (projectionKind === 'player') stop(mapFirestoreError(error))
+        },
+      )
+    }
+
+    const subscribeObserverProjection = () => {
+      projectionKind = 'observer'
+      unsubscribeView()
+      unsubscribeObserver = onSnapshot(
+        doc(services.firestore, 'games', gameId, 'observer', uid),
+        { includeMetadataChanges: true },
+        (snapshot) => {
+          handleProjection('observer', snapshot)
+        },
+        (error) => {
+          if (projectionKind === 'observer') stop(mapFirestoreError(error))
+        },
+      )
     }
 
     setState({ summary: null, view: null, loading: true, error: null })
@@ -284,6 +359,12 @@ export function useGameSubscription(
             })
             return
           }
+          if (stringValue(data.spectatorUid) === uid && projectionKind !== 'observer') {
+            subscribeObserverProjection()
+          } else if (playerProjectionMissing) {
+            stop({ code: 'not-found', message: 'the private game view was not found' })
+            return
+          }
           const summary = normalizeGameSummary(data, gameId, uid)
           if (summary.revision < minimumRevisionRef.current.revision) return
           setState((current) => ({
@@ -295,37 +376,7 @@ export function useGameSubscription(
         },
         (error) => stop(mapFirestoreError(error)),
       )
-      unsubscribeView = onSnapshot(
-        doc(services.firestore, 'games', gameId, 'views', uid),
-        { includeMetadataChanges: true },
-        (snapshot) => {
-          if (!active) return
-          if (!snapshot.exists()) {
-            stop({ code: 'not-found', message: 'the private game view was not found' })
-            return
-          }
-          const view = normalizeView(snapshot.data(), gameId, uid)
-          if (!view) {
-            stop({ code: 'invalid-data', message: 'the private game view is invalid' })
-            return
-          }
-          if (view.gameId !== gameId || view.uid !== uid) {
-            stop({
-              code: 'invalid-data',
-              message: 'the private game view identity is invalid',
-            })
-            return
-          }
-          if (view.revision < minimumRevisionRef.current.revision) return
-          setState((current) => ({
-            ...current,
-            view,
-            loading: current.summary === null,
-            error: null,
-          }))
-        },
-        (error) => stop(mapFirestoreError(error)),
-      )
+      subscribePlayerProjection()
     } catch (error) {
       stop({
         code: 'listener-failed',
@@ -337,6 +388,7 @@ export function useGameSubscription(
       active = false
       unsubscribeGame()
       unsubscribeView()
+      unsubscribeObserver()
     }
   }, [gameId, services, uid])
 

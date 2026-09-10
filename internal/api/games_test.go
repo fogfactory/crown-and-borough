@@ -98,6 +98,41 @@ func TestGamesHandlerCreatesGameWithConfiguredYearsAndDefaults(t *testing.T) {
 	}
 }
 
+func TestGamesHandlerSupportsAFullVisibilitySpectatorCreator(t *testing.T) {
+	gameStore, rules := newGamesTestStore(t)
+	handler := NewGamesHandler(gameStore, rules, DevActorResolver("host"))
+
+	created := createGameHTTP(t, handler, "host", `{"name":"Observed game","players":["Bot A","Bot B"],"spectate":true}`)
+	if !created.Spectator {
+		t.Fatal("created game did not mark the creator as spectator")
+	}
+	for _, player := range created.Players {
+		if player.Name == "host" || player.Submitted {
+			t.Fatalf("spectator occupied or submitted player slot: %#v", player)
+		}
+	}
+
+	state := requestGames(t, handler, http.MethodGet, "/api/games/"+string(created.ID)+"/state?player=host", "")
+	if state.Code != http.StatusOK {
+		t.Fatalf("spectator state = %d: %s", state.Code, state.Body.String())
+	}
+
+	orders := requestGames(t, handler, http.MethodPost, "/api/games/"+string(created.ID)+"/orders?player=host", `{"chains":[],"winter":[]}`)
+	if orders.Code != http.StatusForbidden || !strings.Contains(orders.Body.String(), `"not_member"`) {
+		t.Fatalf("spectator orders = %d: %s", orders.Code, orders.Body.String())
+	}
+
+	join := requestGames(t, handler, http.MethodPost, "/api/games/"+string(created.ID)+"/join?player=host", `{"inviteCode":"`+created.InviteCode+`"}`)
+	if join.Code != http.StatusConflict || !strings.Contains(join.Body.String(), `"spectator_only"`) {
+		t.Fatalf("spectator join = %d: %s", join.Code, join.Body.String())
+	}
+
+	resolved := requestGames(t, handler, http.MethodPost, "/api/games/"+string(created.ID)+"/resolve?player=host", ``)
+	if resolved.Code != http.StatusOK || !strings.Contains(resolved.Body.String(), `"status":"resolved"`) {
+		t.Fatalf("spectator resolve = %d: %s", resolved.Code, resolved.Body.String())
+	}
+}
+
 func TestGamesHandlerMySubmission(t *testing.T) {
 	gameStore, rules := newGamesTestStore(t)
 	handler := NewGamesHandler(gameStore, rules, DevActorResolver("alice"))

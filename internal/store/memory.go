@@ -54,6 +54,7 @@ type memoryGame struct {
 	reports          []ReportRecord
 	revision         Revision
 	createdBy        string
+	spectatorUID     string
 	strictMembership bool
 	joinedAt         map[models.PlayerID]time.Time
 }
@@ -187,7 +188,7 @@ func (s *MemoryStore) Create(_ context.Context, actor Actor, request CreateReque
 		slotActorID := ""
 		if !strictMembership {
 			slotActorID = string(player.ID)
-			if index == 0 {
+			if index == 0 && !request.Spectate {
 				slotActorID = actorID
 			} else if slotActorID == actorID {
 				// The creator owns the first slot. Avoid assigning the same actor to
@@ -195,7 +196,7 @@ func (s *MemoryStore) Create(_ context.Context, actor Actor, request CreateReque
 				// and so on.
 				slotActorID = "slot:" + string(player.ID)
 			}
-		} else if index == 0 {
+		} else if index == 0 && !request.Spectate {
 			slotActorID = actorID
 		}
 		if slotActorID != "" && !strings.HasPrefix(slotActorID, "slot:") {
@@ -220,6 +221,7 @@ func (s *MemoryStore) Create(_ context.Context, actor Actor, request CreateReque
 		submissions:      make(map[models.PlayerID]engine.OrdersInput),
 		revision:         1,
 		createdBy:        actorID,
+		spectatorUID:     spectatorUID(actorID, request.Spectate),
 		joinedAt:         joinedAt,
 		strictMembership: strictMembership,
 	}
@@ -303,6 +305,9 @@ func (s *MemoryStore) ListMemberships(_ context.Context, id GameID) ([]Membershi
 		joinedAt := game.joinedAt[player.ID]
 		memberships = append(memberships, Membership{GameID: id, UID: player.ActorID, PlayerID: player.ID, JoinedAt: joinedAt})
 	}
+	if game.spectatorUID != "" {
+		memberships = append(memberships, Membership{GameID: id, UID: game.spectatorUID, Spectator: true})
+	}
 	return memberships, nil
 }
 
@@ -317,6 +322,9 @@ func (s *MemoryStore) ListActorMemberships(_ context.Context, uid string) ([]Mem
 	result := make([]Membership, 0)
 	for _, game := range games {
 		game.mu.RLock()
+		if game.spectatorUID == uid {
+			result = append(result, Membership{GameID: game.id, UID: uid, Spectator: true})
+		}
 		for _, player := range game.players {
 			if !isAssignedSlot(player) || player.ActorID != uid {
 				continue
@@ -369,6 +377,9 @@ func (s *MemoryStore) Join(ctx context.Context, actor Actor, id GameID, code str
 	}
 	game.mu.Lock()
 	defer game.mu.Unlock()
+	if game.spectatorForActorLocked(actor) {
+		return JoinResult{}, ErrSpectator
+	}
 	if playerID, ok := game.playerForActorLocked(actor); ok {
 		snapshot, snapshotErr := s.snapshotLocked(game)
 		if snapshotErr != nil {
@@ -443,7 +454,7 @@ func (s *MemoryStore) List(_ context.Context, actor Actor) ([]GameSnapshot, erro
 	result := make([]GameSnapshot, 0, len(games))
 	for _, game := range games {
 		game.mu.RLock()
-		if _, ok := game.playerForActorLocked(actor); !ok {
+		if !game.viewerForActorLocked(actor) {
 			game.mu.RUnlock()
 			continue
 		}
@@ -466,7 +477,7 @@ func (s *MemoryStore) Get(_ context.Context, actor Actor, id GameID) (GameSnapsh
 	}
 	game.mu.RLock()
 	defer game.mu.RUnlock()
-	if _, ok := game.playerForActorLocked(actor); !ok {
+	if !game.viewerForActorLocked(actor) {
 		return GameSnapshot{}, ErrNotMember
 	}
 	return s.snapshotLocked(game)
@@ -479,7 +490,7 @@ func (s *MemoryStore) Map(_ context.Context, actor Actor, id GameID) (mapgen.Map
 	}
 	game.mu.RLock()
 	defer game.mu.RUnlock()
-	if _, ok := game.playerForActorLocked(actor); !ok {
+	if !game.viewerForActorLocked(actor) {
 		return mapgen.MapData{}, ErrNotMember
 	}
 	return cloneMap(game.mapData), nil
@@ -496,7 +507,7 @@ func (s *MemoryStore) Supply(_ context.Context, actor Actor, id GameID, territor
 	}
 	game.mu.RLock()
 	defer game.mu.RUnlock()
-	if _, ok := game.playerForActorLocked(actor); !ok {
+	if !game.viewerForActorLocked(actor) {
 		return engine.SupplyLine{}, ErrNotMember
 	}
 	return engine.FindSupply(game.state, s.balance, territoryID)
@@ -509,7 +520,7 @@ func (s *MemoryStore) TransferSupply(_ context.Context, actor Actor, id GameID, 
 	}
 	game.mu.RLock()
 	defer game.mu.RUnlock()
-	if _, ok := game.playerForActorLocked(actor); !ok {
+	if !game.viewerForActorLocked(actor) {
 		return engine.TransferLine{}, ErrNotMember
 	}
 	return engine.FindTransfer(game.state, s.balance, sourceID, targetID)
@@ -544,7 +555,7 @@ func (s *MemoryStore) ResolveAt(_ context.Context, actor Actor, id GameID, expec
 	game.mu.Lock()
 	defer game.mu.Unlock()
 	playerID, ok := game.playerForActorLocked(actor)
-	if !ok {
+	if !ok && !game.spectatorForActorLocked(actor) {
 		return SubmitResult{}, ErrNotMember
 	}
 	if strings.TrimSpace(game.createdBy) != strings.TrimSpace(actor.ID) {
@@ -566,7 +577,7 @@ func (s *MemoryStore) Reports(_ context.Context, actor Actor, id GameID) ([]Repo
 	}
 	game.mu.RLock()
 	defer game.mu.RUnlock()
-	if _, ok := game.playerForActorLocked(actor); !ok {
+	if !game.viewerForActorLocked(actor) {
 		return nil, ErrNotMember
 	}
 	return cloneReports(game.reports), nil
@@ -738,6 +749,7 @@ func (s *MemoryStore) resolveLocked(game *memoryGame, playerID models.PlayerID, 
 		reports:          nextReports,
 		revision:         nextRevision,
 		createdBy:        game.createdBy,
+		spectatorUID:     game.spectatorUID,
 		strictMembership: game.strictMembership,
 		joinedAt:         cloneJoinedAt(game.joinedAt),
 	}
@@ -793,6 +805,17 @@ func (game *memoryGame) playerForActorLocked(actor Actor) (models.PlayerID, bool
 	return "", false
 }
 
+func (game *memoryGame) spectatorForActorLocked(actor Actor) bool {
+	return strings.TrimSpace(actor.ID) != "" && strings.TrimSpace(actor.ID) == game.spectatorUID
+}
+
+func (game *memoryGame) viewerForActorLocked(actor Actor) bool {
+	if _, ok := game.playerForActorLocked(actor); ok {
+		return true
+	}
+	return game.spectatorForActorLocked(actor)
+}
+
 func (game *memoryGame) isAliveLocked(playerID models.PlayerID) bool {
 	return engine.PlayerAlive(game.state, playerID)
 }
@@ -828,20 +851,21 @@ func (s *MemoryStore) snapshotLocked(game *memoryGame) (GameSnapshot, error) {
 		return GameSnapshot{}, err
 	}
 	return GameSnapshot{
-		ID:          game.id,
-		Name:        game.name,
-		Seed:        game.seed,
-		YearCount:   game.state.YearCount,
-		Status:      game.status,
-		Winner:      clonePlayerID(game.winner),
-		Scores:      engine.ComputeScores(game.state),
-		Players:     append([]PlayerSlot(nil), game.players...),
-		Map:         cloneMap(game.mapData),
-		State:       state,
-		Submissions: cloneSubmissions(game.submissions),
-		Reports:     cloneReports(game.reports),
-		Revision:    game.revision,
-		CreatedBy:   game.createdBy,
+		ID:           game.id,
+		Name:         game.name,
+		Seed:         game.seed,
+		YearCount:    game.state.YearCount,
+		Status:       game.status,
+		Winner:       clonePlayerID(game.winner),
+		Scores:       engine.ComputeScores(game.state),
+		Players:      append([]PlayerSlot(nil), game.players...),
+		Map:          cloneMap(game.mapData),
+		State:        state,
+		Submissions:  cloneSubmissions(game.submissions),
+		Reports:      cloneReports(game.reports),
+		Revision:     game.revision,
+		CreatedBy:    game.createdBy,
+		SpectatorUID: game.spectatorUID,
 	}, nil
 }
 
@@ -858,6 +882,13 @@ func normalizePlayers(players []engine.PlayerInit) ([]engine.PlayerInit, error) 
 		}
 	}
 	return result, nil
+}
+
+func spectatorUID(actorID string, spectate bool) string {
+	if !spectate {
+		return ""
+	}
+	return strings.TrimSpace(actorID)
 }
 
 func normalizeSubmission(playerID models.PlayerID, request SubmitRequest) (engine.OrdersInput, error) {

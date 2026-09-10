@@ -152,6 +152,7 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
   const [name, setName] = useState('')
   const [seed, setSeed] = useState(fallbackSeed)
   const [players, setPlayers] = useState(4)
+  const [spectate, setSpectate] = useState(false)
   const [years, setYears] = useState(10)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -184,6 +185,7 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
             name: name.trim(),
             seed: seed.trim(),
             players,
+            spectate,
             years,
           }),
         },
@@ -257,6 +259,26 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
           />
         </label>
       </div>
+      <label
+        htmlFor="observe-only"
+        className="flex items-start gap-3 rounded-lg border border-[#b7a786]/70 bg-[#f8f0e2] px-3 py-3 text-sm"
+      >
+        <input
+          id="observe-only"
+          type="checkbox"
+          checked={spectate}
+          onChange={(event) => setSpectate(event.target.checked)}
+          className="mt-0.5 size-4 accent-[#a84632]"
+        />
+        <span>
+          <span className="block font-semibold text-[#594b3c]">
+            {t('home.observeOnly')}
+          </span>
+          <span className="mt-1 block text-xs text-[#806f57]">
+            {t('home.observeOnlyDescription')}
+          </span>
+        </span>
+      </label>
       {error && (
         <p
           role="alert"

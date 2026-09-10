@@ -236,6 +236,9 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID) Sta
 }
 
 func viewerKnowsChain(state *models.GameState, viewer models.PlayerID, chainID models.ChainID) bool {
+	if viewer == models.SpectatorViewer {
+		return true
+	}
 	if state == nil || state.Privacy == nil {
 		return false
 	}

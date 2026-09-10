@@ -185,6 +185,52 @@ describe('Firestore game subscriptions', () => {
     expect(firestoreHarness.unsubscribes[1]).toHaveBeenCalledOnce()
   })
 
+  it('switches a non-playing creator from the player view to the observer view', async () => {
+    const { result, unmount } = renderHook(() =>
+      useGameSubscription('game-1', 'host-uid'),
+    )
+    await waitFor(() => expect(firestoreHarness.snapshots).toHaveLength(2))
+
+    act(() => {
+      firestoreHarness.snapshots[0]?.next({
+        exists: () => true,
+        data: () => ({
+          id: 'game-1',
+          memberUids: ['host-uid'],
+          spectatorUid: 'host-uid',
+          players: [],
+          revision: 1,
+          turn: 1,
+          season: 'spring',
+          status: 'playing',
+        }),
+      })
+    })
+    await waitFor(() => expect(firestoreHarness.snapshots).toHaveLength(3))
+
+    act(() => {
+      firestoreHarness.snapshots[2]?.next({
+        exists: () => true,
+        data: () => ({
+          gameId: 'game-1',
+          uid: 'host-uid',
+          revision: 1,
+          turn: 1,
+          season: 'spring',
+          state,
+        }),
+      })
+    })
+
+    await waitFor(() => {
+      expect(result.current.summary?.spectator).toBe(true)
+      expect(result.current.view?.uid).toBe('host-uid')
+    })
+    unmount()
+    expect(firestoreHarness.unsubscribes[1]).toHaveBeenCalledTimes(2)
+    expect(firestoreHarness.unsubscribes[2]).toHaveBeenCalledOnce()
+  })
+
   it('keeps two game subscriptions isolated from each other', async () => {
     const first = renderHook(() => useGameSubscription('game-1', 'alice-uid'))
     const second = renderHook(() => useGameSubscription('game-2', 'alice-uid'))

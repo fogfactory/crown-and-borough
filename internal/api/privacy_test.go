@@ -45,6 +45,14 @@ func TestProjectStateDistinguishesKnownHiddenAndAbsentChains(t *testing.T) {
 	}
 }
 
+func TestProjectStateGivesSpectatorFullChainVisibility(t *testing.T) {
+	state := projectTestState()
+	view := projectStateForPlayer(state, models.SpectatorViewer)
+	if got := view.Territories[0].Army.Chain; got == nil || got.Visibility != "known" {
+		t.Fatalf("spectator chain = %#v, want visibility known", got)
+	}
+}
+
 func TestThirdPartySnapshotSurvivesReplacementUntilContradiction(t *testing.T) {
 	before := projectTestState()
 	privacy := ensurePrivacy(before)
@@ -162,6 +170,14 @@ func TestProjectReportUsesExactParticipationAndGeneralSpectatorView(t *testing.T
 	}
 	if !strings.Contains(string(data), `"visibility":"general"`) || !strings.Contains(string(data), `"summary"`) {
 		t.Errorf("general report = %s, want general summary", data)
+	}
+
+	spectator := projectReport(report, models.SpectatorViewer, privacy)
+	if spectator.Combats[0].Visibility != "exact" {
+		t.Fatalf("spectator visibility = %q, want exact", spectator.Combats[0].Visibility)
+	}
+	if len(spectator.Combats[0].Contenders) != 1 {
+		t.Fatalf("spectator combat contenders = %#v, want full combat details", spectator.Combats[0].Contenders)
 	}
 }
 

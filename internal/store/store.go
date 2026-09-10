@@ -64,10 +64,11 @@ type InvitationStore interface {
 }
 
 type Membership struct {
-	GameID   GameID          `json:"gameId"`
-	UID      string          `json:"uid"`
-	PlayerID models.PlayerID `json:"playerId"`
-	JoinedAt time.Time       `json:"joinedAt"`
+	GameID    GameID          `json:"gameId"`
+	UID       string          `json:"uid"`
+	PlayerID  models.PlayerID `json:"playerId"`
+	Spectator bool            `json:"spectator,omitempty"`
+	JoinedAt  time.Time       `json:"joinedAt"`
 }
 
 type MembershipStore interface {
@@ -99,6 +100,7 @@ type CreateRequest struct {
 	Seed             string              `json:"seed"`
 	Players          []engine.PlayerInit `json:"players"`
 	YearCount        int                 `json:"years"`
+	Spectate         bool                `json:"spectate,omitempty"`
 	StrictMembership bool                `json:"-"`
 }
 
@@ -115,20 +117,21 @@ type ReportRecord struct {
 }
 
 type GameSnapshot struct {
-	ID          GameID                                    `json:"id"`
-	Name        string                                    `json:"name"`
-	Seed        string                                    `json:"seed"`
-	YearCount   int                                       `json:"yearCount"`
-	Status      Status                                    `json:"status"`
-	Winner      *models.PlayerID                          `json:"winner,omitempty"`
-	Scores      map[models.PlayerID]engine.ScoreBreakdown `json:"scores"`
-	Players     []PlayerSlot                              `json:"players"`
-	Map         mapgen.MapData                            `json:"map"`
-	State       *models.GameState                         `json:"state"`
-	Submissions map[models.PlayerID]engine.OrdersInput    `json:"submissions"`
-	Reports     []ReportRecord                            `json:"reports"`
-	Revision    Revision                                  `json:"revision"`
-	CreatedBy   string                                    `json:"createdBy,omitempty"`
+	ID           GameID                                    `json:"id"`
+	Name         string                                    `json:"name"`
+	Seed         string                                    `json:"seed"`
+	YearCount    int                                       `json:"yearCount"`
+	Status       Status                                    `json:"status"`
+	Winner       *models.PlayerID                          `json:"winner,omitempty"`
+	Scores       map[models.PlayerID]engine.ScoreBreakdown `json:"scores"`
+	Players      []PlayerSlot                              `json:"players"`
+	Map          mapgen.MapData                            `json:"map"`
+	State        *models.GameState                         `json:"state"`
+	Submissions  map[models.PlayerID]engine.OrdersInput    `json:"submissions"`
+	Reports      []ReportRecord                            `json:"reports"`
+	Revision     Revision                                  `json:"revision"`
+	CreatedBy    string                                    `json:"createdBy,omitempty"`
+	SpectatorUID string                                    `json:"spectatorUid,omitempty"`
 }
 
 type SubmitResult struct {
@@ -221,6 +224,7 @@ var (
 	ErrInvalidDisplayName = errors.New("store: invalid display name")
 	ErrInvalidInvitation  = errors.New("store: invalid invitation")
 	ErrInvitationInactive = errors.New("store: invitation is inactive")
+	ErrSpectator          = errors.New("store: spectator host cannot join a player slot")
 	ErrInvalidYears       = errors.New("store: year count must be between one and fifty")
 )
 

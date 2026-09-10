@@ -199,10 +199,14 @@ const englishMessages = {
   'reports.reason.transfer_over_capacity': 'The army cannot carry that many resources.',
   'reports.reason.transfer_path_blocked': 'The supply path is blocked by an enemy army.',
   'reports.reason.invalid_transfer_destination': 'The transfer destination is invalid.',
-  'reports.reason.transfer_source_not_controlled': 'The source territory is not controlled by the army owner.',
-  'reports.reason.transfer_same_territory': 'The transfer source and destination are identical.',
-  'reports.reason.transfer_source_not_settlement': 'The winter transfer source must be a castle or village.',
-  'reports.reason.transfer_target_not_settlement': 'The winter transfer target must be another castle or village.',
+  'reports.reason.transfer_source_not_controlled':
+    'The source territory is not controlled by the army owner.',
+  'reports.reason.transfer_same_territory':
+    'The transfer source and destination are identical.',
+  'reports.reason.transfer_source_not_settlement':
+    'The winter transfer source must be a castle or village.',
+  'reports.reason.transfer_target_not_settlement':
+    'The winter transfer target must be another castle or village.',
   'reports.reason.invalid_transfer_amount': 'The transfer amount is invalid.',
   'reports.reason.territory_not_controlled':
     'The territory is not controlled by this player.',
@@ -374,6 +378,9 @@ const englishMessages = {
   'home.seed': 'Seed',
   'home.seedPlaceholder': 'Optional deterministic seed',
   'home.playerCount': 'Player slots',
+  'home.observeOnly': 'Observe without playing',
+  'home.observeOnlyDescription':
+    'You will be the host and spectator. The invited players fill every slot.',
   'home.gameYears': 'Game years',
   'home.createSubmit': 'Create and invite',
   'home.invitationTitle': 'Invitation ready',
@@ -401,6 +408,11 @@ const englishMessages = {
   'online.lobby': 'Players',
   'online.emptySlot': 'Open slot',
   'online.you': 'You',
+  'online.spectator': 'Spectator host',
+  'online.spectatorBanner': 'You are observing this game.',
+  'online.spectatorDescription':
+    'You have full visibility but do not occupy a player slot. You can still resolve a stalled turn.',
+  'online.spectatorReadOnly': 'The command post is read-only while you observe.',
   'online.waiting': 'Waiting',
   'online.submitted': 'Submitted',
   'online.invite': 'Invite a friend',
@@ -623,14 +635,22 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.reason.insufficient_resources': 'Ressources insuffisantes',
   'reports.reason.transferred': 'Ressources transférées',
   'reports.reason.transferred_partially': 'Ressources transférées partiellement',
-  'reports.reason.famished_sender': 'Une armée affamée ne peut pas transférer de ressources.',
-  'reports.reason.transfer_over_capacity': "L'armée ne peut pas transporter autant de ressources.",
-  'reports.reason.transfer_path_blocked': 'La route de ravitaillement est bloquée par une armée ennemie.',
-  'reports.reason.invalid_transfer_destination': 'La destination du transfert est invalide.',
-  'reports.reason.transfer_source_not_controlled': "Le territoire source n'est pas contrôlé par le propriétaire de l'armée.",
-  'reports.reason.transfer_same_territory': 'La source et la destination du transfert sont identiques.',
-  'reports.reason.transfer_source_not_settlement': "La source d'un transfert d'hiver doit être un château ou un village.",
-  'reports.reason.transfer_target_not_settlement': "La cible d'un transfert d'hiver doit être un autre château ou village.",
+  'reports.reason.famished_sender':
+    'Une armée affamée ne peut pas transférer de ressources.',
+  'reports.reason.transfer_over_capacity':
+    "L'armée ne peut pas transporter autant de ressources.",
+  'reports.reason.transfer_path_blocked':
+    'La route de ravitaillement est bloquée par une armée ennemie.',
+  'reports.reason.invalid_transfer_destination':
+    'La destination du transfert est invalide.',
+  'reports.reason.transfer_source_not_controlled':
+    "Le territoire source n'est pas contrôlé par le propriétaire de l'armée.",
+  'reports.reason.transfer_same_territory':
+    'La source et la destination du transfert sont identiques.',
+  'reports.reason.transfer_source_not_settlement':
+    "La source d'un transfert d'hiver doit être un château ou un village.",
+  'reports.reason.transfer_target_not_settlement':
+    "La cible d'un transfert d'hiver doit être un autre château ou village.",
   'reports.reason.invalid_transfer_amount': 'Le montant du transfert est invalide.',
   'reports.reason.territory_not_controlled':
     "Le territoire n'est pas contrôlé par ce joueur.",
@@ -807,6 +827,9 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'home.seed': 'Graine',
   'home.seedPlaceholder': 'Graine déterministe facultative',
   'home.playerCount': 'Places',
+  'home.observeOnly': 'Observer sans jouer',
+  'home.observeOnlyDescription':
+    'Vous serez l’hôte et l’observateur. Les joueurs invités rempliront toutes les places.',
   'home.gameYears': 'Années de jeu',
   'home.createSubmit': 'Créer et inviter',
   'home.invitationTitle': 'Invitation prête',
@@ -834,6 +857,11 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'online.lobby': 'Joueurs',
   'online.emptySlot': 'Place libre',
   'online.you': 'Vous',
+  'online.spectator': 'Hôte observateur',
+  'online.spectatorBanner': 'Vous observez cette partie.',
+  'online.spectatorDescription':
+    'Vous voyez tout, mais n’occupez aucune place de joueur. Vous pouvez résoudre un tour bloqué.',
+  'online.spectatorReadOnly': 'Le poste de commandement est en lecture seule.',
   'online.waiting': 'En attente',
   'online.submitted': 'Soumis',
   'online.invite': 'Inviter un ami',

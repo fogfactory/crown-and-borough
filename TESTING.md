@@ -113,12 +113,26 @@ same-origin and restart check is:
 14. Test a narrow mobile viewport and keyboard navigation through tabs, forms,
     lobby slots, and the map.
 
+## Observer Host Flow
+
+1. Sign in as the authorized creator and open the create-game form.
+2. Tick **Observe without playing** and choose the number of player slots.
+3. Verify the creator is absent from the slot list, while the invitation still
+   exposes exactly the requested number of slots.
+4. Join every slot from distinct player accounts and resolve a turn.
+5. Verify the creator sees the complete state and exact report details through
+   the REST API and the `games/{gameId}/observer/{uid}` listener, but cannot
+   submit orders.
+6. Verify the creator can force-resolve a stalled turn and that the observer
+   projection advances after resolution.
+
 ## Listener Contract
 
 The frontend listens only to these client-readable documents:
 
 - `games/{gameId}` for the public game summary and lobby submission status.
 - `games/{gameId}/views/{uid}` for the authenticated player's filtered state.
+- `games/{gameId}/observer/{uid}` for the full state of a non-playing creator.
 - `games` with `memberUids array-contains uid` for the authenticated home list.
 
 It never listens to `canonical`, raw submissions, unfiltered reports, privacy

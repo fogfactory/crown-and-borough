@@ -91,6 +91,39 @@ func TestGameDocumentCarriesDurationAndScores(t *testing.T) {
 	}
 }
 
+func TestGameDocumentCarriesSpectatorWithoutChangingSchemaVersion(t *testing.T) {
+	state := models.NewGameState()
+	state.Players = []models.Player{
+		{ID: "P1", Name: "Bot A"},
+		{ID: "P2", Name: "Bot B"},
+	}
+	snapshot := store.GameSnapshot{
+		ID:           "game-spectator",
+		Name:         "Observed",
+		CreatedBy:    "host",
+		SpectatorUID: "host",
+		Players: []store.PlayerSlot{
+			{ID: "P1", Name: "Bot A"},
+			{ID: "P2", Name: "Bot B"},
+		},
+		State: state,
+	}
+	document := gameDocumentFromSnapshot(snapshot, time.Now(), time.Now())
+	if document.SchemaVersion != schemaVersion {
+		t.Fatalf("spectator schema version = %d, want %d", document.SchemaVersion, schemaVersion)
+	}
+	if document.SpectatorUID != "host" {
+		t.Fatalf("spectator UID = %q, want host", document.SpectatorUID)
+	}
+	if !reflect.DeepEqual(document.MemberUIDs, []string{"host"}) {
+		t.Fatalf("member UIDs = %#v, want host only", document.MemberUIDs)
+	}
+	restored := gameSnapshot(document, state, mapgen.MapData{}, nil, nil)
+	if restored.SpectatorUID != "host" {
+		t.Fatalf("restored spectator UID = %q, want host", restored.SpectatorUID)
+	}
+}
+
 func TestFirestoreStoreDefaultsAreSafeWithoutAClient(t *testing.T) {
 	adapter := NewWithClient(assetgen.Balance{}, assetgen.Assets{}, Options{})
 	if adapter.privacyTracker == nil {
