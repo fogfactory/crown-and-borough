@@ -1188,10 +1188,7 @@ func (ctx *resolutionContext) sortFriendlyHosts(owner models.PlayerID, hostIDs [
 		if distI != distJ {
 			return distI < distJ
 		}
-		if territoryI != territoryJ {
-			return territoryI < territoryJ
-		}
-		return lessArmyID(hostIDs[i], hostIDs[j])
+		return territoryI < territoryJ
 	})
 }
 
