@@ -447,12 +447,11 @@ func (ctx *resolutionContext) resolveJoinAtAttackTarget(targetID models.Territor
 	if len(members) == 1 {
 		joiningID := members[0]
 		joiningArmy := ctx.startArmiesByID[joiningID]
-		attacks := ctx.attacksTargeting(targetID)
 		result := ctx.contest.results[targetID]
 		winner := ctx.startArmiesByID[result.winnerID]
 		defender := ctx.startArmyAt(targetID)
 		defenderVacated := defender == nil || ctx.contest.vacated[defender.ID] || ctx.contest.dislodged[defender.ID]
-		if len(attacks) == 1 && result.winnerID != "" && defenderVacated && winner.OwnerID == joiningArmy.OwnerID {
+		if result.winnerID != "" && defenderVacated && winner.OwnerID == joiningArmy.OwnerID {
 			ctx.joinResults[joiningID] = &joinResolution{targetID: targetID, hostID: winner.ID, fuse: true}
 			record := ctx.records[joiningID]
 			record.outcome = OutcomeSuccess
@@ -515,16 +514,6 @@ func (ctx *resolutionContext) resolveJoinPairOrConvergence(targetID models.Terri
 		ctx.records[joiningID].reason = "join_pair"
 	}
 	return true
-}
-
-func (ctx *resolutionContext) attacksTargeting(targetID models.TerritoryID) []models.ArmyID {
-	attacks := make([]models.ArmyID, 0)
-	for _, armyID := range sortedArmyMap(ctx.attacks) {
-		if ctx.attacks[armyID].target == targetID {
-			attacks = append(attacks, armyID)
-		}
-	}
-	return attacks
 }
 
 func (ctx *resolutionContext) hasDisperseArrival(targetID models.TerritoryID) bool {

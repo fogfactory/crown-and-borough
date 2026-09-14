@@ -242,7 +242,13 @@ Les règles de combat sont les suivantes :
 - une égalité au sommet produit un statu quo, y compris sur une case vide ;
 - une armée délogée perd son déplacement et doit battre en retraite ;
 - une jonction et une dispersion ont une puissance de déplacement pacifique,
-  n'attaquent pas et sont repoussées par une destination contestée ;
+  n'attaquent pas et sont repoussées par une destination contestée. Une jonction
+  peut toutefois fusionner avec l'attaquant allié qui remporte le combat sur sa
+  destination ; les attaques adverses qui perdent ce combat ne l'empêchent pas
+  d'arriver. Si aucun attaquant n'atteint la case, la destination reste
+  contestée et la jonction est repoussée. Une destination est contestée
+  lorsqu'au moins une attaque adverse y participe et qu'aucune armée
+  attaquante ne remporte le combat (statu quo ou défense conservée) ;
 - un château apporte son bonus défensif fixe, même sans armée, sauf si tous les
   attaquants appartiennent au propriétaire du château (auto-capture d'un château
   ami vide).
@@ -312,7 +318,7 @@ Les ordres sont :
 | `A` | `XXX A YYY` | Déplacement ou attaque vers `YYY` adjacente. |
 | `S` | `XXX S YYY` ou `XXX S YYY - ZZZ` | Soutien défensif de `YYY`, ou soutien offensif de l'attaque `YYY` vers `ZZZ`. |
 | `H` | `H XXX` | Maintien sur `XXX`. |
-| `J` | `XXX J YYY` | Déplacement pacifique et jonction ; doit être le dernier ordre de la chaîne. |
+| `J` | `XXX J YYY` | Déplacement pacifique et jonction ; doit être le dernier ordre de la chaîne. Si une attaque alliée remporte le combat sur `YYY`, la jonction fusionne avec son vainqueur. |
 | `P` | `P XXX` | Détruit l'infrastructure de la case occupée et crédite le bonus de pillage à la source alliée la plus proche. |
 | `D` | `XXX D XXX YYY ...` | Dispersion pacifique : les destinations sont traitées dans leur ordre d'apparition, peuvent se répéter et reçoivent au plus une unité chacune ; les unités arrivées sur une même case sont empilées dans une seule armée. |
 | `T` | `XXX T YYY N` | Transfert d'action vers un château, un village ou une armée adverse via le réseau de ravitaillement. `N` est plafonné à `2^(taille - 1)`. |

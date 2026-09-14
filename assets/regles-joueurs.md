@@ -161,10 +161,14 @@ noble. Aucun ne coûte de ressource en saison d'action.
 `YYY` doit être **adjacent** à `XXX` par une frontière franchissable.
 L'armée entière se déplace vers `YYY`. Une attaque peut y combattre une armée
 ennemie ; la jonction ne combat pas et est repoussée si la destination est
-contestée. Une armée peut également attaquer son propre château vide pour s'y
-installer (auto-capture, voir section 6). La jonction doit être le dernier ordre
-de la chaîne. Une jonction et une dispersion ne sont jamais des attaques : elles
-ont une force de déplacement pacifique de 0 et ne délogent personne.
+contestée. Si une attaque alliée remporte le combat sur `YYY`, la jonction peut
+fusionner avec le vainqueur ; les attaques adverses qui perdent ce combat ne
+l'empêchent pas d'arriver. Une armée peut également attaquer son propre château
+vide pour s'y installer (auto-capture, voir section 6). La jonction doit être le
+dernier ordre de la chaîne. Une jonction et une dispersion ne sont jamais des
+attaques : elles ont une force de déplacement pacifique de 0 et ne délogent
+personne. Une destination est contestée lorsqu'au moins une attaque adverse y
+participe et qu'aucune armée attaquante ne remporte le combat.
 
 ### Soutien (`S`)
 

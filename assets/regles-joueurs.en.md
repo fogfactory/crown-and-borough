@@ -149,10 +149,13 @@ an action season.
 
 `YYY` must be **adjacent** to `XXX` through a passable border. The whole army
 moves to `YYY`. An attack may fight an enemy army there; a join does not fight and
-is repelled if the destination is contested. An army may also attack its own empty
-castle to move into it (self-capture, see section 6). A join must be the last order in the
+is repelled if the destination is contested. If an allied attack wins the combat
+on `YYY`, the join may fuse with the winner; enemy attacks that lose that combat
+do not prevent it from arriving. An army may also attack its own empty castle to
+move into it (self-capture, see section 6). A join must be the last order in the
 chain. A join and a dispersal are never attacks: they are peaceful strength-0
-movement and cannot dislodge anyone.
+movement and cannot dislodge anyone. A destination is contested when at least
+one enemy attack takes part and no attacking army wins the combat.
 
 ### Support (`S`)
 
