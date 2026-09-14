@@ -362,10 +362,10 @@ size. All its troops share the same chain; an army cannot contain mixed orders.
   Ties within a bucket are broken by distance to the nearest controlled castle or
   village, then ascending trigram. For friendly armies, sorting is by troop size
   ascending, then distance to the nearest controlled source, then ascending
-  trigram. The
-  attacker's origin territory is always excluded. Neutral or enemy empty castles
-  defend against retreat and are excluded. Two armies that must retreat to the same
-  empty territory with no alternative are destroyed. Retreat resolution order follows
+   trigram. The attacker's origin territory is always excluded. Neutral or
+   enemy empty castles defend against retreat and are excluded. Two armies that
+   must retreat to the same empty territory with no alternative are destroyed.
+   Retreat resolution order follows
   the ascending trigram of their origin territory.
 
 Territorial control follows the army that stops there; acquired control remains
