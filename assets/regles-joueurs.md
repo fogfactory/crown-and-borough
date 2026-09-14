@@ -389,7 +389,7 @@ chaîne ; il n'existe pas d'ordres mixtes au sein d'une armée.
   À égalité dans une catégorie, la destination la plus proche d'un château ou
   village contrôlé l'emporte, puis le trigramme croissant. Pour les armées amies,
   le tri s'effectue par taille croissante, puis distance à la source contrôlée la
-  plus proche, puis identifiant d'armée. La case d'origine de l'attaquant est
+  plus proche, puis trigramme croissant. La case d'origine de l'attaquant est
   toujours exclue. Les châteaux neutres ou ennemis vides défendent contre une
   retraite et sont exclus. Deux armées qui doivent reculer sur la même case vide
   sans alternative sont détruites. L'ordre de résolution des retraites suit le

@@ -395,8 +395,8 @@ déterminée par ordre de priorité décroissant :
 À égalité dans un bucket, la destination la plus proche d'un château ou village
 contrôlé par le propriétaire du retraité l'emporte, puis l'ordre lexicographique
 (trigramme croissant). Pour les armées amies, le tri s'effectue par taille
-croissante, puis distance à la source contrôlée la plus proche, puis identifiant
-d'armée.
+croissante, puis distance à la source contrôlée la plus proche, puis trigramme
+croissant.
 
 La case d'origine de l'attaquant est toujours exclue. Les châteaux neutres ou
 ennemis vides défendent contre une retraite et ne sont jamais une destination
