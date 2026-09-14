@@ -149,10 +149,13 @@ an action season.
 
 `YYY` must be **adjacent** to `XXX` through a passable border. The whole army
 moves to `YYY`. An attack may fight an enemy army there; a join does not fight and
-is repelled if the destination is contested. An army may also attack its own empty
-castle to move into it (self-capture, see section 6). A join must be the last order in the
+is repelled if the destination is contested. If an allied attack wins the combat
+on `YYY`, the join may fuse with the winner; enemy attacks that lose that combat
+do not prevent it from arriving. An army may also attack its own empty castle to
+move into it (self-capture, see section 6). A join must be the last order in the
 chain. A join and a dispersal are never attacks: they are peaceful strength-0
-movement and cannot dislodge anyone.
+movement and cannot dislodge anyone. A destination is contested when at least
+one enemy attack takes part and no attacking army wins the combat.
 
 ### Support (`S`)
 
@@ -180,12 +183,16 @@ from a territory different from the supported target can **cut** a support.
 
 `XXX D DEST1 DEST2 ...` processes destinations in appearance order, with at most
 one troop per destination. This is peaceful strength-0 splitting: it does not
-fight an army already present; a free, uncontested destination is taken, while a
-contested destination repels that assignment and receives no troop.
+fight an enemy army; a free, uncontested destination is taken, an allied
+destination fuses with the army already there, while a contested destination
+repels that assignment and receives no troop.
 
 - a destination is adjacent to `XXX` or equal to `XXX`; destinations may repeat;
-- an occupied, contested, or troopless destination does not consume a troop; a
-  later destination may still receive one;
+- a destination occupied by an enemy army, contested, or troopless does not
+  consume a troop; a later destination may still receive one;
+- a destination occupied by an allied army may receive the troop and fuses it
+  into the army already there; several allied dispersals arriving on the same
+  territory are stacked into one army;
 - troops that cannot be sent remain at the origin; a list shorter than the army
   therefore leaves a remainder in place;
 - troops arriving at the same destination are stacked into one army;
