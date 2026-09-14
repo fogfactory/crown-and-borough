@@ -396,7 +396,7 @@ func TestResolveInvalidDisperseDoesNotBlockJoinArrival(t *testing.T) {
 	}
 }
 
-func TestResolveShortDisperseResidualBlocksArrivals(t *testing.T) {
+func TestResolveShortDisperseResidualFusesFriendlyJoin(t *testing.T) {
 	t.Run("dispersion", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{
@@ -432,11 +432,11 @@ func TestResolveShortDisperseResidualBlocksArrivals(t *testing.T) {
 		if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "BBB" || army.Size != 1 {
 			t.Errorf("arrival = %+v, want A1 size 1 at BBB", army)
 		}
-		if army := armyByID(t, resolution.State, "A3"); army.TerritoryID != "AAA" || army.Size != 1 {
-			t.Errorf("residual = %+v, want A3 size 1 at AAA", army)
+		if army := armyByID(t, resolution.State, "A3"); army.TerritoryID != "AAA" || army.Size != 2 {
+			t.Errorf("residual = %+v, want A3 size 2 at AAA after friendly D fusion", army)
 		}
-		if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "CCC" {
-			t.Errorf("blocked D = %+v, want A2 to remain at CCC", army)
+		if hasArmy(resolution.State, "A2") {
+			t.Error("friendly D should fuse into the residual at AAA")
 		}
 	})
 
@@ -471,11 +471,11 @@ func TestResolveShortDisperseResidualBlocksArrivals(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
-		if army := armyByID(t, resolution.State, "A3"); army.TerritoryID != "AAA" || army.Size != 1 {
-			t.Errorf("residual = %+v, want A3 size 1 at AAA", army)
+		if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "AAA" || army.Size != 2 {
+			t.Errorf("join arrival = %+v, want A2 size 2 at AAA after friendly D fusion", army)
 		}
-		if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "CCC" || army.ChainID != nil {
-			t.Errorf("blocked J = %+v, want A2 to remain at CCC without a chain", army)
+		if hasArmy(resolution.State, "A3") {
+			t.Error("disperse residual should fuse into the friendly J arrival")
 		}
 		if outcome, found := findOutcome(resolution.Events, "O1"); !found || outcome.Reason != "disperse_complete" {
 			t.Errorf("D outcome = %#v, want disperse_complete", outcome)
@@ -577,7 +577,7 @@ func TestResolveConflictingDispersesDoNotEnterVacatedDestination(t *testing.T) {
 	}
 }
 
-func TestResolveJoinArrivalBlocksDisperseIntoVacatedDestination(t *testing.T) {
+func TestResolveFriendlyJoinAndDisperseArrivalsFuseIntoVacatedDestination(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
 			territory("AAA", "AAA", "CCC"),
@@ -616,11 +616,11 @@ func TestResolveJoinArrivalBlocksDisperseIntoVacatedDestination(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "AAA" || army.ChainID != nil {
-		t.Errorf("blocked D = %+v, want A1 at AAA without a chain", army)
+	if hasArmy(resolution.State, "A1") {
+		t.Error("friendly D should fuse into the join arrival")
 	}
-	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "CCC" || army.ChainID != nil {
-		t.Errorf("join arrival = %+v, want A2 at CCC without a chain", army)
+	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "CCC" || army.Size != 2 || army.ChainID != nil {
+		t.Errorf("join arrival = %+v, want A2 size 2 at CCC without a chain", army)
 	}
 	if army := armyByID(t, resolution.State, "A3"); army.TerritoryID != "DDD" || army.ChainID != nil {
 		t.Errorf("outgoing join = %+v, want A3 at DDD without a chain", army)
@@ -672,14 +672,14 @@ func TestResolveLateVacatedDestinationCannotOrphanNoble(t *testing.T) {
 	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "BBB" || army.Size != 1 || army.ChainID != nil {
 		t.Errorf("first branch = %+v, want A1 size 1 at BBB", army)
 	}
-	if army := armyByID(t, resolution.State, "A4"); army.TerritoryID != "AAA" || army.Size != 1 {
-		t.Errorf("protected residual = %+v, want A4 size 1 at AAA", army)
+	if army := armyByID(t, resolution.State, "A4"); army.TerritoryID != "AAA" || army.Size != 2 {
+		t.Errorf("protected residual = %+v, want A4 size 2 at AAA after friendly fusion", army)
 	}
 	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "DDD" {
 		t.Errorf("vacating army = %+v, want A2 at DDD", army)
 	}
-	if army := armyByID(t, resolution.State, "A3"); army.TerritoryID != "EEE" || army.ChainID != nil {
-		t.Errorf("blocked origin arrival = %+v, want A3 at EEE", army)
+	if hasArmy(resolution.State, "A3") {
+		t.Error("friendly origin arrival should fuse into the protected residual")
 	}
 	if noble := nobleByID(t, resolution.State, "N1"); noble.LocationID != "AAA" {
 		t.Errorf("unassigned noble location = %q, want AAA", noble.LocationID)

@@ -161,10 +161,14 @@ noble. Aucun ne coûte de ressource en saison d'action.
 `YYY` doit être **adjacent** à `XXX` par une frontière franchissable.
 L'armée entière se déplace vers `YYY`. Une attaque peut y combattre une armée
 ennemie ; la jonction ne combat pas et est repoussée si la destination est
-contestée. Une armée peut également attaquer son propre château vide pour s'y
-installer (auto-capture, voir section 6). La jonction doit être le dernier ordre
-de la chaîne. Une jonction et une dispersion ne sont jamais des attaques : elles
-ont une force de déplacement pacifique de 0 et ne délogent personne.
+contestée. Si une attaque alliée remporte le combat sur `YYY`, la jonction peut
+fusionner avec le vainqueur ; les attaques adverses qui perdent ce combat ne
+l'empêchent pas d'arriver. Une armée peut également attaquer son propre château
+vide pour s'y installer (auto-capture, voir section 6). La jonction doit être le
+dernier ordre de la chaîne. Une jonction et une dispersion ne sont jamais des
+attaques : elles ont une force de déplacement pacifique de 0 et ne délogent
+personne. Une destination est contestée lorsqu'au moins une attaque adverse y
+participe et qu'aucune armée attaquante ne remporte le combat.
 
 ### Soutien (`S`)
 
@@ -192,14 +196,18 @@ venue d'une case différente de la cible soutenue peut **couper** un soutien.
 
 `XXX D DEST1 DEST2 ...` traite les destinations dans leur ordre d'apparition,
 avec au plus une troupe par destination. C'est un partage pacifique à force 0 :
-il ne combat pas une armée présente ; une destination libre et non contestée est
-prise, tandis qu'une destination contestée repousse cette affectation et ne
-reçoit pas de troupe.
+il ne combat pas une armée ennemie ; une destination libre et non contestée est
+prise, une destination alliée fusionne avec l'armée présente, tandis qu'une
+destination contestée repousse cette affectation et ne reçoit pas de troupe.
 
 - une destination est adjacente à `XXX` ou égale à `XXX` ; les destinations
   peuvent se répéter ;
-- une destination occupée, combattue ou sans troupe disponible ne consomme pas
-  de troupe ; une destination suivante peut néanmoins recevoir une troupe ;
+- une destination occupée par une armée ennemie, contestée ou sans troupe
+  disponible ne consomme pas de troupe ; une destination suivante peut néanmoins
+  recevoir une troupe ;
+- une destination occupée par une armée alliée peut recevoir la troupe et la
+  fusionne avec l'armée présente ; plusieurs dispersions alliées qui arrivent
+  sur la même case sont empilées dans une seule armée ;
 - les troupes qui ne peuvent pas être envoyées restent sur la case d'origine ;
   une liste plus courte que l'armée laisse donc un résidu sur place ;
 - les troupes arrivées sur une même destination sont empilées dans une seule
