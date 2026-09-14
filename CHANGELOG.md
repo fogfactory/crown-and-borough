@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.8.0](https://github.com/fogfactory/crown-and-borough/compare/v0.7.0...v0.8.0) (2026-09-14)
+
+
+### Features
+
+* **engine:** retreat priority buckets, friendly merge and castle self-capture ([dd98a78](https://github.com/fogfactory/crown-and-borough/commit/dd98a78c29addc7a156bca61b62c1f6583bf6bd0))
+
+
+### Bug Fixes
+
+* **engine:** allow friendly join and disperse fusion ([be5a92c](https://github.com/fogfactory/crown-and-borough/commit/be5a92cc155d608208d7ba21c467597a723aa750))
+* **engine:** let joins follow allied attack winners ([5de2585](https://github.com/fogfactory/crown-and-borough/commit/5de25852728b28843316001c26065c3ec5f5992d))
+* **engine:** prioritize retreats and support friendly castle capture ([030efaf](https://github.com/fogfactory/crown-and-borough/commit/030efaf99b37b0069b324a308a25833bf74809de))
+* **engine:** stack friendly disperse arrivals ([f667b5f](https://github.com/fogfactory/crown-and-borough/commit/f667b5f12f391b480a146399ca10c2339540726f))
+* **retreat:** remove unreachable army ID tie-break ([9dbf8a6](https://github.com/fogfactory/crown-and-borough/commit/9dbf8a6860dbdafca7564d9c3dc5bf6fc3b0862e))
+
+
+### Documentation
+
+* **retreat:** fix English tie-break paragraph ([23a3a1d](https://github.com/fogfactory/crown-and-borough/commit/23a3a1d2a67bb10e729c80fa7645629b45dfcf56))
+* **retreat:** use ascending territory trigram instead of army id in tie-break ([71583ff](https://github.com/fogfactory/crown-and-borough/commit/71583ffa4155db910ae578956ea133d9158e2aac))
+
 ## [0.7.0](https://github.com/fogfactory/crown-and-borough/compare/v0.6.0...v0.7.0) (2026-09-10)
 
 
