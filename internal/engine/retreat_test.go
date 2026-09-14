@@ -253,8 +253,8 @@ func TestResolveRetreatEmptyOtherBeatsFriendlyArmy(t *testing.T) {
 		t.Fatalf("Resolve: %v", err)
 	}
 
-	// CCC is neutral empty without castle (bucket 2). DDD is friendly army (bucket 4).
-	// Bucket 2 beats bucket 4!
+	// CCC is neutral empty without castle (bucket 2). DDD is friendly army (bucket 3).
+	// Bucket 2 beats bucket 3!
 	a1 := armyByID(t, resolution.State, "A1")
 	if a1.TerritoryID != "CCC" {
 		t.Errorf("A1 territory = %q, want CCC (bucket 2 preferred over friendly army)", a1.TerritoryID)
