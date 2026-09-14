@@ -161,9 +161,10 @@ noble. Aucun ne coûte de ressource en saison d'action.
 `YYY` doit être **adjacent** à `XXX` par une frontière franchissable.
 L'armée entière se déplace vers `YYY`. Une attaque peut y combattre une armée
 ennemie ; la jonction ne combat pas et est repoussée si la destination est
-contestée. La jonction doit être le dernier ordre de la chaîne. Une jonction et
-une dispersion ne sont jamais des attaques : elles ont une force de déplacement
-pacifique de 0 et ne délogent personne.
+contestée. Une armée peut également attaquer son propre château vide pour s'y
+installer (auto-capture, voir section 6). La jonction doit être le dernier ordre
+de la chaîne. Une jonction et une dispersion ne sont jamais des attaques : elles
+ont une force de déplacement pacifique de 0 et ne délogent personne.
 
 ### Soutien (`S`)
 
@@ -369,14 +370,30 @@ chaîne ; il n'existe pas d'ordres mixtes au sein d'une armée.
   noble libre allié est présent sur sa case ;
 - la défense d'une armée reçoit le même bonus de **+1** lorsqu'elle est
   commandée par un noble libre allié ;
-- un château apporte un bonus défensif fixe de **+1**, même sans armée ;
+- un château apporte un bonus défensif fixe de **+1**, même sans armée, sauf si
+  tous les attaquants appartiennent au propriétaire du château : une armée peut
+  ainsi attaquer son propre château vide pour s'y installer sans être repoussée
+  par la défense du château (auto-capture) ;
 - la plus haute force **strictement unique** gagne ; une égalité au sommet
   produit un **statu quo**, y compris sur une case vide ;
 - une armée délogée perd son déplacement et doit **battre en retraite** ;
-- une retraite part en bloc vers une case adjacente libre, non combattue
-  pendant le tour et différente de l'origine de l'attaquant (départage par
-  trigramme croissant ; deux armées sans alternative sur la même case sont
-  détruites).
+- une armée défaite bat en retraite selon l'ordre de priorité décroissant :
+  1. case vide contrôlée par le propriétaire (avec ou sans château), même si elle
+     a été combattue ce tour ;
+  2. case vide non contrôlée (neutre ou ennemie), sans château et non combattue
+     ce tour ;
+  3. armée amie adjacente non délogée (priorité à la plus petite en troupes) avec
+     fusion : l'hôte gagne `N − 1` troupes si la retraitante a `N ≥ 2` troupes,
+     ou `1` troupe si `N = 1` (aucune perte). Plusieurs armées peuvent fusionner
+     séquentiellement sur le même hôte ami sans destruction.
+  À égalité dans une catégorie, la destination la plus proche d'un château ou
+  village contrôlé l'emporte, puis le trigramme croissant. Pour les armées amies,
+  le tri s'effectue par taille croissante, puis distance à la source contrôlée la
+  plus proche, puis trigramme croissant. La case d'origine de l'attaquant est
+  toujours exclue. Les châteaux neutres ou ennemis vides défendent contre une
+  retraite et sont exclus. Deux armées qui doivent reculer sur la même case vide
+  sans alternative sont détruites. L'ordre de résolution des retraites suit le
+  trigramme croissant de leur case d'origine.
 
 Le contrôle d'un territoire suit l'armée qui s'y arrête ; un contrôle acquis
 reste acquis après le départ de l'armée, jusqu'à l'arrêt d'une armée ennemie.

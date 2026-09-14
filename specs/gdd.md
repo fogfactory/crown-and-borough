@@ -243,7 +243,9 @@ Les règles de combat sont les suivantes :
 - une armée délogée perd son déplacement et doit battre en retraite ;
 - une jonction et une dispersion ont une puissance de déplacement pacifique,
   n'attaquent pas et sont repoussées par une destination contestée ;
-- un château apporte son bonus défensif fixe, même sans armée.
+- un château apporte son bonus défensif fixe, même sans armée, sauf si tous les
+  attaquants appartiennent au propriétaire du château (auto-capture d'un château
+  ami vide).
 
 ### Ravitaillement exponentiel
 
@@ -378,10 +380,29 @@ dans cette capitale. Un joueur sans noble libre ou otage apte à émettre n'a pa
 
 ### Retraites
 
-Une armée défaite bat en retraite en bloc vers une case adjacente libre, non
-combattue pendant le tour et différente de la case d'origine de l'attaquant.
-Les retraites sont départagées par trigramme croissant. Deux armées qui doivent
-reculer sur la même case sont détruites si aucune alternative ne subsiste.
+Une armée défaite bat en retraite en bloc vers une destination adjacente
+déterminée par ordre de priorité décroissant :
+
+1. Case vide contrôlée par le propriétaire du retraité (avec ou sans château),
+   même si elle a été combattue ce tour.
+2. Case vide non contrôlée par le retraité (neutre ou ennemie), sans château et
+   non combattue ce tour.
+3. Armée amie adjacente non délogée (priorité à la plus petite en troupes), avec
+   fusion : la taille de l'hôte augmente de `N − 1` si la retraitante a `N ≥ 2`
+   troupes, sinon de `1` (`N = 1` sans perte). Plusieurs armées retraitantes
+   fusionnent séquentiellement sur un même hôte ami sans collision destructive.
+
+À égalité dans un bucket, la destination la plus proche d'un château ou village
+contrôlé par le propriétaire du retraité l'emporte, puis l'ordre lexicographique
+(trigramme croissant). Pour les armées amies, le tri s'effectue par taille
+croissante, puis distance à la source contrôlée la plus proche, puis trigramme
+croissant.
+
+La case d'origine de l'attaquant est toujours exclue. Les châteaux neutres ou
+ennemis vides défendent contre une retraite et ne sont jamais une destination
+valide. Deux armées qui doivent reculer sur la même case vide sont détruites si
+aucune alternative ne subsiste. L'ordre de traitement des armées en retraite suit
+le trigramme croissant de leur case d'origine.
 
 ## 7. Infrastructures et contrôle
 
