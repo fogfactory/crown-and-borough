@@ -149,7 +149,8 @@ an action season.
 
 `YYY` must be **adjacent** to `XXX` through a passable border. The whole army
 moves to `YYY`. An attack may fight an enemy army there; a join does not fight and
-is repelled if the destination is contested. A join must be the last order in the
+is repelled if the destination is contested. An army may also attack its own empty
+castle to move into it (self-capture, see section 6). A join must be the last order in the
 chain. A join and a dispersal are never attacks: they are peaceful strength-0
 movement and cannot dislodge anyone.
 
@@ -343,14 +344,28 @@ size. All its troops share the same chain; an army cannot contain mixed orders.
   noble is present on its territory;
 - an army's defense receives the same **+1** bonus when commanded by a free allied
   noble;
-- a castle gives a fixed defensive bonus of **+1**, even without an army;
+- a castle gives a fixed defensive bonus of **+1**, even without an army, unless
+  all attackers belong to the castle's owner: an army may attack its own empty
+  castle to garrison it without being repelled by the castle's defense (self-capture);
 - the **strictly unique** highest strength wins; a top tie produces a **standoff**,
   including on an empty territory;
 - a dislodged army loses its movement and must **retreat**;
-- a retreat moves the whole army to a free adjacent territory that was not fought
-  over during the turn and differs from the attacker's origin (ties are broken by
-  ascending trigram; two armies with no alternative on the same territory are
-  destroyed).
+- a defeated army retreats in priority order:
+  1. an empty territory controlled by the retreating army's owner (with or without
+     a castle), even if fought over this turn;
+  2. an uncontrolled empty territory (neutral or enemy), without a castle and
+     not fought over this turn;
+  3. an adjacent, non-dislodged friendly army (smallest troop size first), with
+     merging: the host gains `N − 1` troops if the retreating army has `N ≥ 2`
+     troops, or `1` troop if `N = 1` (no loss). Multiple retreating armies merge
+     sequentially into the same friendly host without destruction.
+  Ties within a bucket are broken by distance to the nearest controlled castle or
+  village, then ascending trigram. For friendly armies, sorting is by troop size
+  ascending, then distance to the nearest controlled source, then army ID. The
+  attacker's origin territory is always excluded. Neutral or enemy empty castles
+  defend against retreat and are excluded. Two armies that must retreat to the same
+  empty territory with no alternative are destroyed. Retreat resolution order follows
+  the ascending trigram of their origin territory.
 
 Territorial control follows the army that stops there; acquired control remains
 after the army leaves until an enemy army stops there.

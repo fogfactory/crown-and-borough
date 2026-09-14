@@ -21,10 +21,18 @@ type joinResolution struct {
 	pair     bool
 }
 
+const (
+	RetreatDestinationControlledEmpty = "controlled_empty"
+	RetreatDestinationEmpty           = "empty"
+	RetreatDestinationFriendlyArmy    = "friendly_army"
+)
+
 type retreatPlan struct {
-	dislodged     *dislodgedArmy
-	destinationID models.TerritoryID
-	destroyReason string
+	dislodged       *dislodgedArmy
+	destinationID   models.TerritoryID
+	hostArmyID      models.ArmyID
+	destinationKind string
+	destroyReason   string
 }
 
 func executeMovementsAndRetreats(ctx *resolutionContext) error {
@@ -1073,29 +1081,191 @@ func (ctx *resolutionContext) closestControlledSettlement(startID models.Territo
 	return ""
 }
 
-func executeRetreats(ctx *resolutionContext) error {
-	plans := make(map[models.ArmyID]*retreatPlan, len(ctx.dislodged))
-	claims := make(map[models.TerritoryID][]*retreatPlan)
-	for _, armyID := range sortedArmyMap(ctx.dislodged) {
-		displaced := ctx.dislodged[armyID]
-		candidates := retreatCandidates(ctx, displaced)
-		plan := &retreatPlan{dislodged: displaced}
-		plans[armyID] = plan
-		if len(candidates) == 0 {
-			plan.destroyReason = "no_retreat_destination"
+func (ctx *resolutionContext) distanceToClosestControlledSettlement(startID models.TerritoryID, ownerID models.PlayerID) int {
+	if startID == "" {
+		return 999999
+	}
+	type queueItem struct {
+		territoryID models.TerritoryID
+		distance    int
+	}
+	queue := []queueItem{{territoryID: startID, distance: 0}}
+	visited := map[models.TerritoryID]bool{startID: true}
+	for len(queue) > 0 {
+		item := queue[0]
+		queue = queue[1:]
+		state := ctx.state.TerritoryStates[item.territoryID]
+		if state.OwnerID != nil && *state.OwnerID == ownerID && (ctx.hasInfrastructure(item.territoryID, models.InfraTypeCastle) || ctx.hasInfrastructure(item.territoryID, models.InfraTypeVillage)) {
+			return item.distance
+		}
+		for _, neighborID := range ctx.sortedNeighbors(item.territoryID) {
+			if !visited[neighborID] {
+				visited[neighborID] = true
+				queue = append(queue, queueItem{territoryID: neighborID, distance: item.distance + 1})
+			}
+		}
+	}
+	return 999999
+}
+
+type retreatCandidateBuckets struct {
+	controlledEmpty []models.TerritoryID
+	emptyOther      []models.TerritoryID
+	friendlyArmies  []models.ArmyID
+}
+
+func (ctx *resolutionContext) classifyRetreatDestinations(displaced *dislodgedArmy) retreatCandidateBuckets {
+	owner := displaced.army.OwnerID
+	var buckets retreatCandidateBuckets
+
+	for _, territoryID := range ctx.sortedNeighbors(displaced.originID) {
+		if territoryID == displaced.attackerOriginID {
 			continue
 		}
-		for _, candidateID := range candidates {
+
+		army := ctx.currentArmyAt(territoryID)
+		if army != nil {
+			if army.OwnerID == owner && ctx.dislodged[army.ID] == nil {
+				buckets.friendlyArmies = append(buckets.friendlyArmies, army.ID)
+			}
+			continue
+		}
+
+		state := ctx.state.TerritoryStates[territoryID]
+		hasCastle := ctx.hasCastle(territoryID)
+
+		// Bucket 1: Empty and controlled by retreating army's owner (with or without castle).
+		// Overrides attackedTerritories.
+		if state.OwnerID != nil && *state.OwnerID == owner {
+			buckets.controlledEmpty = append(buckets.controlledEmpty, territoryID)
+			continue
+		}
+
+		// Bucket 2: Empty, uncontrolled (neutral or enemy), no castle, not attacked this turn.
+		if !hasCastle && !ctx.attackedTerritories[territoryID] {
+			buckets.emptyOther = append(buckets.emptyOther, territoryID)
+		}
+	}
+
+	ctx.sortTerritoriesBySupplyAndLex(owner, buckets.controlledEmpty)
+	ctx.sortTerritoriesBySupplyAndLex(owner, buckets.emptyOther)
+	ctx.sortFriendlyHosts(owner, buckets.friendlyArmies)
+
+	return buckets
+}
+
+func (ctx *resolutionContext) sortTerritoriesBySupplyAndLex(owner models.PlayerID, territories []models.TerritoryID) {
+	sort.Slice(territories, func(i, j int) bool {
+		distI := ctx.distanceToClosestControlledSettlement(territories[i], owner)
+		distJ := ctx.distanceToClosestControlledSettlement(territories[j], owner)
+		if distI != distJ {
+			return distI < distJ
+		}
+		return territories[i] < territories[j]
+	})
+}
+
+func (ctx *resolutionContext) sortFriendlyHosts(owner models.PlayerID, hostIDs []models.ArmyID) {
+	sort.Slice(hostIDs, func(i, j int) bool {
+		hostI := ctx.armiesByID[hostIDs[i]]
+		hostJ := ctx.armiesByID[hostIDs[j]]
+		sizeI := 0
+		sizeJ := 0
+		var territoryI, territoryJ models.TerritoryID
+		if hostI != nil {
+			sizeI = hostI.Size
+			territoryI = hostI.TerritoryID
+		}
+		if hostJ != nil {
+			sizeJ = hostJ.Size
+			territoryJ = hostJ.TerritoryID
+		}
+		if sizeI != sizeJ {
+			return sizeI < sizeJ
+		}
+		distI := ctx.distanceToClosestControlledSettlement(territoryI, owner)
+		distJ := ctx.distanceToClosestControlledSettlement(territoryJ, owner)
+		if distI != distJ {
+			return distI < distJ
+		}
+		return lessArmyID(hostIDs[i], hostIDs[j])
+	})
+}
+
+func executeRetreats(ctx *resolutionContext) error {
+	type dislodgedEntry struct {
+		armyID   models.ArmyID
+		originID models.TerritoryID
+	}
+	entries := make([]dislodgedEntry, 0, len(ctx.dislodged))
+	for armyID, displaced := range ctx.dislodged {
+		entries = append(entries, dislodgedEntry{armyID: armyID, originID: displaced.originID})
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].originID != entries[j].originID {
+			return entries[i].originID < entries[j].originID
+		}
+		return lessArmyID(entries[i].armyID, entries[j].armyID)
+	})
+
+	plans := make(map[models.ArmyID]*retreatPlan, len(ctx.dislodged))
+	claims := make(map[models.TerritoryID][]*retreatPlan)
+
+	for _, entry := range entries {
+		displaced := ctx.dislodged[entry.armyID]
+		buckets := ctx.classifyRetreatDestinations(displaced)
+		plan := &retreatPlan{dislodged: displaced}
+		plans[entry.armyID] = plan
+
+		found := false
+		for _, candidateID := range buckets.controlledEmpty {
 			if len(claims[candidateID]) == 0 {
 				plan.destinationID = candidateID
+				plan.destinationKind = RetreatDestinationControlledEmpty
+				claims[candidateID] = append(claims[candidateID], plan)
+				found = true
 				break
 			}
 		}
-		if plan.destinationID == "" {
-			plan.destinationID = candidates[0]
+		if found {
+			continue
 		}
-		claims[plan.destinationID] = append(claims[plan.destinationID], plan)
+
+		for _, candidateID := range buckets.emptyOther {
+			if len(claims[candidateID]) == 0 {
+				plan.destinationID = candidateID
+				plan.destinationKind = RetreatDestinationEmpty
+				claims[candidateID] = append(claims[candidateID], plan)
+				found = true
+				break
+			}
+		}
+		if found {
+			continue
+		}
+
+		if len(buckets.friendlyArmies) > 0 {
+			hostID := buckets.friendlyArmies[0]
+			host := ctx.armiesByID[hostID]
+			plan.hostArmyID = hostID
+			if host != nil {
+				plan.destinationID = host.TerritoryID
+			}
+			plan.destinationKind = RetreatDestinationFriendlyArmy
+			continue
+		}
+
+		if len(buckets.controlledEmpty) > 0 {
+			plan.destinationID = buckets.controlledEmpty[0]
+			claims[plan.destinationID] = append(claims[plan.destinationID], plan)
+		} else if len(buckets.emptyOther) > 0 {
+			plan.destinationID = buckets.emptyOther[0]
+			claims[plan.destinationID] = append(claims[plan.destinationID], plan)
+		} else {
+			plan.destroyReason = "no_retreat_destination"
+		}
 	}
+
 	for _, territoryID := range sortedTerritoryMap(claims) {
 		if len(claims[territoryID]) < 2 {
 			continue
@@ -1104,13 +1274,54 @@ func executeRetreats(ctx *resolutionContext) error {
 			plan.destroyReason = "retreat_collision"
 		}
 	}
-	for _, armyID := range sortedArmyMap(plans) {
-		plan := plans[armyID]
+
+	for _, entry := range entries {
+		plan := plans[entry.armyID]
 		if plan.destroyReason != "" {
 			ctx.destroyDislodgedArmy(plan)
 			continue
 		}
-		army := plan.dislodged.army
+
+		displacedArmy := plan.dislodged.army
+
+		if plan.destinationKind == RetreatDestinationFriendlyArmy {
+			host := ctx.armiesByID[plan.hostArmyID]
+			if host == nil {
+				plan.destroyReason = "host_disappeared"
+				ctx.destroyDislodgedArmy(plan)
+				continue
+			}
+
+			n := displacedArmy.Size
+			troopsMerged := 1
+			troopsLost := 0
+			if n > 1 {
+				troopsMerged = n - 1
+				troopsLost = 1
+			}
+			host.Size += troopsMerged
+
+			ctx.moveNobles(plan.dislodged.nobleIDs, host.TerritoryID, host.ID)
+			if record := ctx.records[displacedArmy.ID]; record != nil {
+				record.fused = true
+			}
+			ctx.events = append(ctx.events, Event{
+				Type:             EventTypeRetreat,
+				Phase:            4,
+				ArmyID:           displacedArmy.ID,
+				SourceID:         plan.dislodged.originID,
+				DestinationID:    host.TerritoryID,
+				AttackerOriginID: plan.dislodged.attackerOriginID,
+				DestinationKind:  RetreatDestinationFriendlyArmy,
+				HostArmyID:       host.ID,
+				TroopsMerged:     troopsMerged,
+				TroopsLost:       troopsLost,
+				Outcome:          OutcomeSuccess,
+			})
+			continue
+		}
+
+		army := displacedArmy
 		army.TerritoryID = plan.destinationID
 		ctx.state.Armies = append(ctx.state.Armies, army)
 		ctx.moveNobles(plan.dislodged.nobleIDs, plan.destinationID, army.ID)
@@ -1121,30 +1332,21 @@ func executeRetreats(ctx *resolutionContext) error {
 			SourceID:         plan.dislodged.originID,
 			DestinationID:    plan.destinationID,
 			AttackerOriginID: plan.dislodged.attackerOriginID,
+			DestinationKind:  plan.destinationKind,
 			Outcome:          OutcomeSuccess,
 		})
 	}
+
 	if err := ctx.rebuildOccupancy(); err != nil {
 		return err
 	}
-	for _, armyID := range sortedArmyMap(plans) {
-		plan := plans[armyID]
+	for _, entry := range entries {
+		plan := plans[entry.armyID]
 		if plan.destroyReason != "" {
 			ctx.captureNoblesAfterDestruction(plan)
 		}
 	}
 	return nil
-}
-
-func retreatCandidates(ctx *resolutionContext, displaced *dislodgedArmy) []models.TerritoryID {
-	candidates := make([]models.TerritoryID, 0)
-	for _, territoryID := range ctx.sortedNeighbors(displaced.originID) {
-		if ctx.currentArmyAt(territoryID) != nil || ctx.attackedTerritories[territoryID] || territoryID == displaced.attackerOriginID {
-			continue
-		}
-		candidates = append(candidates, territoryID)
-	}
-	return candidates
 }
 
 func (ctx *resolutionContext) destroyDislodgedArmy(plan *retreatPlan) {
