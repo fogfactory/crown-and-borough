@@ -97,6 +97,7 @@ const REASON_KEYS: Record<string, MessageKey> = {
   attacked_destination: 'reports.reason.attacked_destination',
   join_host: 'reports.reason.join_host',
   join_pair: 'reports.reason.join_pair',
+  disperse_friendly_fusion: 'reports.reason.disperse_friendly_fusion',
   support_applied: 'reports.reason.support_applied',
   unresolved_order: 'reports.reason.unresolved_order',
   unknown_infrastructure: 'reports.reason.unknown_infrastructure',

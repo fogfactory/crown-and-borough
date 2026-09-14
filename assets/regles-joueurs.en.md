@@ -183,12 +183,16 @@ from a territory different from the supported target can **cut** a support.
 
 `XXX D DEST1 DEST2 ...` processes destinations in appearance order, with at most
 one troop per destination. This is peaceful strength-0 splitting: it does not
-fight an army already present; a free, uncontested destination is taken, while a
-contested destination repels that assignment and receives no troop.
+fight an enemy army; a free, uncontested destination is taken, an allied
+destination fuses with the army already there, while a contested destination
+repels that assignment and receives no troop.
 
 - a destination is adjacent to `XXX` or equal to `XXX`; destinations may repeat;
-- an occupied, contested, or troopless destination does not consume a troop; a
-  later destination may still receive one;
+- a destination occupied by an enemy army, contested, or troopless does not
+  consume a troop; a later destination may still receive one;
+- a destination occupied by an allied army may receive the troop and fuses it
+  into the army already there; several allied dispersals arriving on the same
+  territory are stacked into one army;
 - troops that cannot be sent remain at the origin; a list shorter than the army
   therefore leaves a remainder in place;
 - troops arriving at the same destination are stacked into one army;

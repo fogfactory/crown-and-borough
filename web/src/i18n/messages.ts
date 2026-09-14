@@ -268,6 +268,7 @@ const englishMessages = {
   'reports.reason.attacked_destination': 'The join destination was attacked.',
   'reports.reason.join_host': 'The army joined its host.',
   'reports.reason.join_pair': 'The armies joined.',
+  'reports.reason.disperse_friendly_fusion': 'Friendly dispersal arrivals fused.',
   'reports.reason.support_applied': 'Support applied',
   'reports.reason.unresolved_order': 'The order could not be resolved.',
   'reports.reason.unknown_infrastructure': 'The infrastructure is unknown.',
@@ -334,7 +335,7 @@ const englishMessages = {
     "No. A noble may order any army belonging to its player, but the `+1` bonus requires a free allied noble to be physically present on that army's territory when strength is calculated. To transfer HUG, assign the noble in a dispersal, for example `BRI D ATL*HUG NOR`; writing HUG's header does not move HUG.",
   'faq.q8': 'How do I complete a dispersal with several nobles?',
   'faq.a8':
-    'A dispersal is peaceful strength-0 splitting. Each listed destination receives at most one troop, in written order; destinations may repeat to stack troops. If the origin is emptied, every noble must be assigned to a produced group: `*` assigns all remaining nobles to one destination and `*NNN` assigns NNN. For example, `BRI D ATL*HUG NOR*JEA` sends HUG with ATL and JEA with NOR; without valid assignments, emptying BRI makes the order invalid. If a troop remains at BRI, unmentioned nobles may remain there with it.',
+    'A dispersal is peaceful strength-0 splitting. Each listed destination receives at most one troop, in written order; destinations may repeat to stack troops. Several allied armies may disperse toward the same destination in one turn: their arriving troops are stacked into one army, including when the destination already contains a friendly army or a friendly join arrival. Dispersals from different players do not share a destination. If the origin is emptied, every noble must be assigned to a produced group: `*` assigns all remaining nobles to one destination and `*NNN` assigns NNN. For example, `BRI D ATL*HUG NOR*JEA` sends HUG with ATL and JEA with NOR; without valid assignments, emptying BRI makes the order invalid. If a troop remains at BRI, unmentioned nobles may remain there with it.',
   'faq.q9': 'How do mills affect production?',
   'faq.a9':
     'Each controlled castle or village is a separate source that produces `1 R` per turn. A mill is built on an empty controlled territory adjacent to a productive castle or village, or upgraded when it is adjacent to that source. It can reach level 3: construction costs `3 R`, then upgrades cost `5 R` and `7 R`. A `C M` at level 3 is rejected with no payment. Each level adds `+1 R` to **every** adjacent source, without an owner filter. A level-1 mill between a village and two castles therefore adds `+1 R` to all three sources. An orphaned mill, with no adjacent castle or village, produces nothing. Existing mills above level 3 remain productive, but cannot be upgraded.',
@@ -714,6 +715,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.reason.attacked_destination': 'La destination de jonction a été attaquée.',
   'reports.reason.join_host': "L'armée a rejoint son hôte.",
   'reports.reason.join_pair': 'Les armées ont fusionné.',
+  'reports.reason.disperse_friendly_fusion': 'Les arrivées de dispersions amies ont fusionné.',
   'reports.reason.support_applied': 'Soutien appliqué',
   'reports.reason.unresolved_order': "L'ordre n'a pas pu être résolu.",
   'reports.reason.unknown_infrastructure': "L'infrastructure est inconnue.",
@@ -783,7 +785,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     'Non. Le noble peut ordonner n’importe quelle armée de son joueur, mais son bonus de `+1` exige qu’un noble libre allié soit effectivement présent sur la case de cette armée lors du calcul. Pour transférer HUG, il faut le répartir dans une dispersion, par exemple `BRI D ATL*HUG NOR` ; écrire l’en-tête HUG ne le déplace pas.',
   'faq.q8': 'Comment réussir une dispersion complète avec plusieurs nobles ?',
   'faq.a8':
-    'Une dispersion est un partage pacifique à force 0. Chaque destination listée reçoit au plus une troupe, dans l’ordre écrit ; les destinations peuvent se répéter pour empiler les troupes. Si l’origine est entièrement vidée, tous les nobles doivent être affectés à un groupe produit : `*` affecte tous les nobles restants à une destination et `*NNN` affecte NNN. Par exemple, `BRI D ATL*HUG NOR*JEA` répartit HUG avec ATL et JEA avec NOR ; sans affectation valide, vider BRI rend l’ordre invalide. Si une troupe reste à BRI, les nobles non mentionnés peuvent y rester avec elle.',
+    'Une dispersion est un partage pacifique à force 0. Chaque destination listée reçoit au plus une troupe, dans l’ordre écrit ; les destinations peuvent se répéter pour empiler les troupes. Plusieurs armées alliées peuvent disperser vers la même destination au même tour : leurs troupes arrivées sont empilées dans une seule armée, y compris si la case contient déjà une armée amie ou une jonction amie. Des dispersions de joueurs différents ne partagent pas une destination. Si l’origine est entièrement vidée, tous les nobles doivent être affectés à un groupe produit : `*` affecte tous les nobles restants à une destination et `*NNN` affecte NNN. Par exemple, `BRI D ATL*HUG NOR*JEA` répartit HUG avec ATL et JEA avec NOR ; sans affectation valide, vider BRI rend l’ordre invalide. Si une troupe reste à BRI, les nobles non mentionnés peuvent y rester avec elle.',
   'faq.q9': 'Quel est l’effet des moulins sur la production ?',
   'faq.a9':
     'Chaque château ou village contrôlé est une source distincte qui produit `1 R` par tour. Un moulin se construit sur une case vide contrôlée, adjacente à un château ou village productif, ou s’améliore lorsqu’il est adjacent à cette source. Il peut atteindre le niveau 3 : la construction coûte `3 R`, puis les améliorations coûtent `5 R` et `7 R`. Un `C M` au niveau 3 est rejeté sans prélèvement. Chaque niveau ajoute `+1 R` à **chaque** source adjacente, sans filtre de propriétaire. Un moulin de niveau 1 entre un village et deux châteaux ajoute donc `+1 R` aux trois sources. Un moulin orphelin, sans château ni village adjacent, ne produit rien. Les moulins de niveau supérieur à 3 déjà présents restent productifs, mais ne peuvent plus être améliorés.',

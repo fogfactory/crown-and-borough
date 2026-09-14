@@ -78,7 +78,7 @@ func resolveDispersions(ctx *resolutionContext) {
 				if !candidates[armyID][index] || available < 1 {
 					continue
 				}
-				if targetID != result.intent.source && len(claims[targetID]) > 1 {
+				if targetID != result.intent.source && !ctx.disperseClaimantsShareOwner(claims[targetID]) {
 					continue
 				}
 				result.resolved[index] = true
@@ -127,7 +127,9 @@ func (ctx *resolutionContext) disperseCandidates(invalid map[models.ArmyID]strin
 			candidate[index] = !ctx.attackedTerritories[targetID]
 			if candidate[index] && targetID != intent.source {
 				if occupant := ctx.startArmyAt(targetID); occupant != nil && !ctx.vacatesForDisperse(occupant.ID) {
-					candidate[index] = false
+					_, occupantJoins := ctx.joins[occupant.ID]
+					_, occupantDisperses := ctx.disperses[occupant.ID]
+					candidate[index] = occupant.OwnerID == ctx.startArmiesByID[intent.armyID].OwnerID && !occupantJoins && !occupantDisperses
 				}
 			}
 			if candidate[index] && targetID != intent.source {
@@ -141,6 +143,24 @@ func (ctx *resolutionContext) disperseCandidates(invalid map[models.ArmyID]strin
 		candidates[armyID] = candidate
 	}
 	return results, candidates, claims
+}
+
+func (ctx *resolutionContext) disperseClaimantsShareOwner(claimants map[models.ArmyID]bool) bool {
+	var ownerID models.PlayerID
+	for armyID := range claimants {
+		army, exists := ctx.startArmiesByID[armyID]
+		if !exists {
+			return false
+		}
+		if ownerID == "" {
+			ownerID = army.OwnerID
+			continue
+		}
+		if army.OwnerID != ownerID {
+			return false
+		}
+	}
+	return ownerID != ""
 }
 
 func finalizeDispersions(ctx *resolutionContext) {
@@ -177,11 +197,14 @@ func resolveJoins(ctx *resolutionContext) {
 		joinsByTarget[join.target] = append(joinsByTarget[join.target], armyID)
 	}
 	for _, targetID := range sortedTerritoryMap(joinsByTarget) {
-		if ctx.attackedTerritories[targetID] || (!ctx.hasDisperseArrival(targetID) && !ctx.hasActiveDisperseAt(targetID)) {
+		if ctx.attackedTerritories[targetID] || !ctx.hasDisperseActivityAt(targetID) {
 			continue
 		}
 		for _, joiningID := range joinsByTarget[targetID] {
-			ctx.records[joiningID].fail("join_convergence")
+			joining := ctx.startArmiesByID[joiningID]
+			if !ctx.disperseActivityOwnedBy(targetID, joining.OwnerID) {
+				ctx.records[joiningID].fail("join_convergence")
+			}
 		}
 	}
 	for _, targetID := range sortedTerritoryMap(joinsByTarget) {
@@ -262,14 +285,15 @@ func resolveVacatedDisperseDestinations(ctx *resolutionContext) {
 			}
 			available := result.remaining
 			for index, targetID := range result.intent.targets {
-				if result.resolved[index] || targetID == result.intent.source || len(claims[targetID]) != 1 || ctx.attackedTerritories[targetID] || ctx.hasPendingJoinTarget(targetID) {
+				ownerID := ctx.startArmiesByID[result.intent.armyID].OwnerID
+				if result.resolved[index] || targetID == result.intent.source || len(claims[targetID]) != 1 || ctx.attackedTerritories[targetID] || ctx.hasPendingJoinTargetByOtherOwner(targetID, ownerID) {
 					continue
 				}
 				occupant := ctx.startArmyAt(targetID)
 				if occupant == nil {
 					continue
 				}
-				if !ctx.disperseOccupantVacates(occupant.ID, targetID) || available < 1 {
+				if !ctx.disperseOccupantAllowsArrival(occupant.ID, targetID, ownerID) || available < 1 {
 					continue
 				}
 				if !ctx.canResolveVacatedDisperseTarget(ctx.records[armyID], result, index) {
@@ -324,6 +348,23 @@ func (ctx *resolutionContext) disperseOccupantVacates(armyID models.ArmyID, terr
 	return ctx.disperseVacatesSource(armyID, territoryID)
 }
 
+func (ctx *resolutionContext) disperseOccupantAllowsArrival(armyID models.ArmyID, territoryID models.TerritoryID, ownerID models.PlayerID) bool {
+	if _, moved := ctx.joinResults[armyID]; moved {
+		if record := ctx.records[armyID]; record != nil && record.outcome == OutcomeSuccess {
+			return true
+		}
+	}
+	result := ctx.disperseResultForArmy(armyID)
+	if result == nil {
+		return false
+	}
+	if ctx.disperseVacatesSource(armyID, territoryID) {
+		return true
+	}
+	army := ctx.startArmiesByID[armyID]
+	return result.remaining > 0 && army.OwnerID == ownerID
+}
+
 func (ctx *resolutionContext) disperseVacatesSource(armyID models.ArmyID, territoryID models.TerritoryID) bool {
 	for _, carrierID := range sortedArmyMap(ctx.disperseResults) {
 		result := ctx.disperseResults[carrierID]
@@ -346,11 +387,11 @@ func (ctx *resolutionContext) disperseVacatesSource(armyID models.ArmyID, territ
 	return false
 }
 
-func (ctx *resolutionContext) hasPendingJoinTarget(targetID models.TerritoryID) bool {
+func (ctx *resolutionContext) hasPendingJoinTargetByOtherOwner(targetID models.TerritoryID, ownerID models.PlayerID) bool {
 	for _, armyID := range sortedArmyMap(ctx.joins) {
 		join := ctx.joins[armyID]
 		record := ctx.records[armyID]
-		if join.target == targetID && record.outcome != OutcomeFailure && record.outcome != OutcomeInvalid {
+		if join.target == targetID && record.outcome != OutcomeFailure && record.outcome != OutcomeInvalid && ctx.startArmiesByID[armyID].OwnerID != ownerID {
 			return true
 		}
 	}
@@ -465,14 +506,14 @@ func (ctx *resolutionContext) resolveJoinAtAttackTarget(targetID models.Territor
 }
 
 func (ctx *resolutionContext) resolveSingleJoin(targetID models.TerritoryID, joiningID models.ArmyID, allowUnresolvedDeparture bool) bool {
-	if ctx.hasDisperseArrival(targetID) || ctx.hasActiveDisperseAt(targetID) {
+	joining := ctx.startArmiesByID[joiningID]
+	if ctx.hasDisperseActivityAt(targetID) && !ctx.disperseActivityOwnedBy(targetID, joining.OwnerID) {
 		ctx.records[joiningID].fail("join_convergence")
 		return true
 	}
 	if !allowUnresolvedDeparture && ctx.hasUnresolvedJoinAt(targetID) {
 		return false
 	}
-	joining := ctx.startArmiesByID[joiningID]
 	if host := ctx.stationaryJoinHost(targetID); host != nil {
 		if host.OwnerID != joining.OwnerID {
 			ctx.records[joiningID].fail("enemy_destination")
@@ -490,7 +531,7 @@ func (ctx *resolutionContext) resolveSingleJoin(targetID models.TerritoryID, joi
 }
 
 func (ctx *resolutionContext) resolveJoinPairOrConvergence(targetID models.TerritoryID, members []models.ArmyID, allowUnresolvedDeparture bool) bool {
-	if len(members) != 2 || ctx.hasDisperseArrival(targetID) || ctx.hasActiveDisperseAt(targetID) || ctx.stationaryJoinHost(targetID) != nil {
+	if len(members) != 2 || (ctx.hasDisperseActivityAt(targetID) && !ctx.joinMembersCanUseDisperse(targetID, members)) || ctx.stationaryJoinHost(targetID) != nil {
 		for _, joiningID := range members {
 			ctx.records[joiningID].fail("join_convergence")
 		}
@@ -531,6 +572,47 @@ func (ctx *resolutionContext) hasDisperseArrival(targetID models.TerritoryID) bo
 	return false
 }
 
+func (ctx *resolutionContext) hasDisperseActivityAt(targetID models.TerritoryID) bool {
+	return ctx.hasDisperseArrival(targetID) || ctx.hasActiveDisperseAt(targetID)
+}
+
+func (ctx *resolutionContext) disperseActivityOwnedBy(targetID models.TerritoryID, ownerID models.PlayerID) bool {
+	found := false
+	for _, carrierID := range sortedArmyMap(ctx.disperseResults) {
+		result := ctx.disperseResults[carrierID]
+		if result.invalid {
+			continue
+		}
+		army := ctx.startArmiesByID[result.intent.armyID]
+		active := result.intent.source == targetID && !ctx.disperseVacatesSource(army.ID, targetID)
+		arrival := false
+		for index, destinationID := range result.intent.targets {
+			if destinationID == targetID && result.resolved[index] && destinationID != result.intent.source {
+				arrival = true
+				break
+			}
+		}
+		if !active && !arrival {
+			continue
+		}
+		found = true
+		if army.OwnerID != ownerID {
+			return false
+		}
+	}
+	return found
+}
+
+func (ctx *resolutionContext) joinMembersCanUseDisperse(targetID models.TerritoryID, members []models.ArmyID) bool {
+	for _, joiningID := range members {
+		joining := ctx.startArmiesByID[joiningID]
+		if !ctx.disperseActivityOwnedBy(targetID, joining.OwnerID) {
+			return false
+		}
+	}
+	return true
+}
+
 func (ctx *resolutionContext) hasActiveDisperseAt(territoryID models.TerritoryID) bool {
 	army := ctx.startArmyAt(territoryID)
 	if army == nil {
@@ -562,9 +644,7 @@ func (ctx *resolutionContext) stationaryJoinHost(territoryID models.TerritoryID)
 		return nil
 	}
 	if ctx.disperseResultForArmy(host.ID) != nil {
-		if ctx.disperseVacatesSource(host.ID, territoryID) {
-			return nil
-		}
+		return nil
 	}
 	return host
 }
@@ -752,7 +832,12 @@ func applyDisperse(
 		if groupID != army.ID {
 			group.ChainID = nil
 		}
-		live[groupID] = group
+		if hostID, exists := liveArmyAt(live, targetID); exists && hostID != groupID && live[hostID].OwnerID == group.OwnerID {
+			ctx.mergeDisperseGroup(live, hostID, group, record, &createdArmyIDs)
+			groupID = hostID
+		} else {
+			live[groupID] = group
+		}
 		groupIDs[targetID] = groupID
 		groupOrder = append(groupOrder, targetID)
 		initialized[targetID] = true
@@ -808,6 +893,12 @@ func applyDisperse(
 		}
 		chain.PendingDisperse = nil
 	}
+	summaryDestinationID := intent.source
+	if liveArmy, exists := live[army.ID]; exists {
+		summaryDestinationID = liveArmy.TerritoryID
+	} else if sourceArmyID != "" {
+		summaryDestinationID = live[sourceArmyID].TerritoryID
+	}
 	ctx.events = append(ctx.events, Event{
 		Type:              EventTypeDispersion,
 		Phase:             4,
@@ -815,12 +906,82 @@ func applyDisperse(
 		ArmyIDs:           append([]models.ArmyID(nil), createdArmyIDs...),
 		ChainID:           record.chainID,
 		SourceID:          intent.source,
-		DestinationID:     live[army.ID].TerritoryID,
+		DestinationID:     summaryDestinationID,
 		Outcome:           record.outcome,
 		RemainingStrength: remaining,
 		Reason:            "disperse_summary",
 	})
 	return nil
+}
+
+func liveArmyAt(live map[models.ArmyID]models.Army, territoryID models.TerritoryID) (models.ArmyID, bool) {
+	for _, armyID := range sortedArmyMap(live) {
+		if live[armyID].TerritoryID == territoryID {
+			return armyID, true
+		}
+	}
+	return "", false
+}
+
+func (ctx *resolutionContext) mergeDisperseGroup(
+	live map[models.ArmyID]models.Army,
+	hostID models.ArmyID,
+	incoming models.Army,
+	record *orderRecord,
+	createdArmyIDs *[]models.ArmyID,
+) {
+	host := live[hostID]
+	incomingChainID := incoming.ChainID
+	if incomingChainID != nil {
+		if host.ChainID == nil || ctx.shouldDisperseChainReplace(hostID) {
+			if host.ChainID != nil {
+				if hostRecord := ctx.records[hostID]; hostRecord != nil {
+					hostRecord.fused = true
+				}
+			}
+			chainID := *incomingChainID
+			host.ChainID = &chainID
+			if chain := ctx.chainsByID[chainID]; chain != nil {
+				chain.ArmyID = hostID
+			}
+		} else if record != nil {
+			record.fused = true
+		}
+	}
+	host.Size += incoming.Size
+	live[hostID] = host
+	*createdArmyIDs = removeArmyID(*createdArmyIDs, incoming.ID)
+	chainID := models.ChainID("")
+	if host.ChainID != nil {
+		chainID = *host.ChainID
+	}
+	ctx.events = append(ctx.events, Event{
+		Type:        EventTypeFusion,
+		Phase:       4,
+		ArmyID:      hostID,
+		OtherArmyID: incoming.ID,
+		ArmyIDs:     []models.ArmyID{hostID, incoming.ID},
+		ChainID:     chainID,
+		TerritoryID: host.TerritoryID,
+		OrderType:   models.OrderTypeDisperse,
+		Outcome:     OutcomeSuccess,
+		Reason:      "disperse_friendly_fusion",
+	})
+}
+
+func (ctx *resolutionContext) shouldDisperseChainReplace(hostID models.ArmyID) bool {
+	record := ctx.records[hostID]
+	return record != nil && record.order.Type == models.OrderTypeJoin && record.outcome == OutcomeSuccess
+}
+
+func removeArmyID(ids []models.ArmyID, remove models.ArmyID) []models.ArmyID {
+	filtered := ids[:0]
+	for _, id := range ids {
+		if id != remove {
+			filtered = append(filtered, id)
+		}
+	}
+	return filtered
 }
 
 func (ctx *resolutionContext) updateLoopDispersePending(
