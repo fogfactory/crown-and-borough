@@ -99,6 +99,9 @@ type Event struct {
 	CutSupporterIDs   []models.ArmyID    `json:"cutSupporters,omitempty"`
 	Resolved          bool               `json:"resolved,omitempty"`
 	RemainingStrength int                `json:"remainingStrength,omitempty"`
+	DestinationKind   string             `json:"destinationKind,omitempty"`
+	HostArmyID        models.ArmyID      `json:"hostArmy,omitempty"`
+	TroopsMerged      int                `json:"troopsMerged,omitempty"`
 
 	InfrastructureID   models.InfraID             `json:"infrastructure,omitempty"`
 	InfrastructureType models.InfraType           `json:"infrastructureType,omitempty"`

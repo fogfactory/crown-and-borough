@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.7.0](https://github.com/fogfactory/crown-and-borough/compare/v0.6.0...v0.7.0) (2026-09-10)
+
+
+### Features
+
+* **orders:** estimate winter order costs ([fc75ad6](https://github.com/fogfactory/crown-and-borough/commit/fc75ad638f44dd1af9b2ab00e90ad5d29e5e06ed))
+* **orders:** estimate winter order costs ([483210a](https://github.com/fogfactory/crown-and-borough/commit/483210ac0e1ed62198ec8688fb5d790bd5d371b7))
+* **orders:** surface winter order syntax errors ([b028eca](https://github.com/fogfactory/crown-and-borough/commit/b028ecafe15bccd6e359cce0d7bfddceafa90294))
+
 ## [0.6.0](https://github.com/fogfactory/crown-and-borough/compare/v0.5.0...v0.6.0) (2026-09-09)
 
 

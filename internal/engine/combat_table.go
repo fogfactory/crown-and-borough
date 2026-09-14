@@ -226,7 +226,7 @@ func buildCombatTable(
 				force:   defense,
 				move:    false,
 			})
-		} else if ctx.hasCastle(territoryID) {
+		} else if ctx.hasCastle(territoryID) && !ctx.castleOwnedByAllAttackers(territoryID) {
 			table[territoryID] = append(table[territoryID], combatEntry{
 				force: ctx.balance.CastleDefenseBonus,
 			})
@@ -591,8 +591,9 @@ func buildCombatResults(ctx *resolutionContext, table combatTable, peacefulVacat
 	}
 	for _, territoryID := range sortedTerritoryMap(targets) {
 		defender := ctx.startArmyAt(territoryID)
+		defenderPresent := defender != nil && !peacefulVacated[defender.ID] && (armyDefendsOrigin(ctx, defender.ID, peacefulVacated, bounced, dislodged) || dislodged[defender.ID])
 		castleBonus := 0
-		if ctx.hasCastle(territoryID) {
+		if ctx.hasCastle(territoryID) && (defenderPresent || !ctx.castleOwnedByAllAttackers(territoryID)) {
 			castleBonus = ctx.balance.CastleDefenseBonus
 		}
 		baseDefense := castleBonus
@@ -603,7 +604,6 @@ func buildCombatResults(ctx *resolutionContext, table combatTable, peacefulVacat
 		if defender != nil && !peacefulVacated[defender.ID] && !dislodged[defender.ID] {
 			defenderOwnerID = defender.OwnerID
 		}
-		defenderPresent := defender != nil && !peacefulVacated[defender.ID] && (armyDefendsOrigin(ctx, defender.ID, peacefulVacated, bounced, dislodged) || dislodged[defender.ID])
 		if defenderPresent {
 			defenderID = defender.ID
 			defenderOwnerID = defender.OwnerID
@@ -690,4 +690,24 @@ func (ctx *resolutionContext) clearSupportsForVoidedAttacks(voided map[models.Ar
 			support.applies = false
 		}
 	}
+}
+
+func (ctx *resolutionContext) castleOwnedByAllAttackers(territoryID models.TerritoryID) bool {
+	state := ctx.state.TerritoryStates[territoryID]
+	if state.OwnerID == nil {
+		return false
+	}
+	owner := *state.OwnerID
+	hasAttacker := false
+	for _, attack := range ctx.attacks {
+		if attack.target != territoryID {
+			continue
+		}
+		hasAttacker = true
+		attacker := ctx.startArmiesByID[attack.armyID]
+		if attacker.OwnerID != owner {
+			return false
+		}
+	}
+	return hasAttacker
 }
