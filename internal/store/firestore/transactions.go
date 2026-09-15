@@ -69,6 +69,9 @@ func (s *FirestoreStore) Join(ctx context.Context, actor store.Actor, id store.G
 		if err != nil {
 			return err
 		}
+		if strings.TrimSpace(game.SpectatorUID) == actorID {
+			return store.ErrSpectator
+		}
 		if playerID, ok := playerIDForActor(game, actor); ok {
 			joinedPlayer = playerID
 			return errAlreadyJoined
@@ -179,8 +182,26 @@ func (s *FirestoreStore) Join(ctx context.Context, actor store.Actor, id store.G
 				return err
 			}
 		}
-		s.recordWrites(2 + len(views))
-		s.recordProjectionWrites(len(views))
+		observerWrites := 0
+		if game.SpectatorUID != "" {
+			observer, observerErr := s.observerDocument(
+				id,
+				game.SpectatorUID,
+				revision,
+				state,
+				game.UpdatedAt,
+				max(0, game.Turn-1),
+			)
+			if observerErr != nil {
+				return observerErr
+			}
+			if err := transaction.Set(observerRef(s.client, id, game.SpectatorUID), observer); err != nil {
+				return err
+			}
+			observerWrites = 1
+		}
+		s.recordWrites(2 + len(views) + observerWrites)
+		s.recordProjectionWrites(len(views) + observerWrites)
 		return nil
 	})
 	if errors.Is(err, errAlreadyJoined) {
@@ -348,7 +369,7 @@ func (s *FirestoreStore) claimResolution(ctx context.Context, actor store.Actor,
 			return store.ErrNotCreator
 		}
 		playerID, member := playerIDForActor(game, actor)
-		if !member {
+		if !member && !membershipForActor(game, actor) {
 			return store.ErrNotMember
 		}
 		if game.Status == store.StatusFinished {
@@ -490,6 +511,24 @@ func (s *FirestoreStore) commitResolution(ctx context.Context, claim resolutionC
 		if err := transaction.Set(reportCollection(s.client, snapshot.ID).Doc(strconv.Itoa(rawReport.Turn)), rawReport); err != nil {
 			return err
 		}
+		observerWrites := 0
+		if game.SpectatorUID != "" {
+			observer, observerErr := s.observerDocument(
+				snapshot.ID,
+				game.SpectatorUID,
+				store.Revision(canonical.Revision),
+				report.State,
+				updatedAt,
+				rawReport.Turn,
+			)
+			if observerErr != nil {
+				return observerErr
+			}
+			if err := transaction.Set(observerRef(s.client, snapshot.ID, game.SpectatorUID), observer); err != nil {
+				return err
+			}
+			observerWrites = 1
+		}
 		oldReportDeletes := 0
 		for _, projection := range views {
 			if err := transaction.Set(viewRef(s.client, snapshot.ID, projection.actorID), projection.document); err != nil {
@@ -533,8 +572,8 @@ func (s *FirestoreStore) commitResolution(ctx context.Context, claim resolutionC
 				}
 			}
 		}
-		s.recordWrites(3 + len(views)*2 + len(refs) + oldReportDeletes)
-		s.recordProjectionWrites(len(views) * 2)
+		s.recordWrites(3 + len(views)*2 + observerWrites + len(refs) + oldReportDeletes)
+		s.recordProjectionWrites(len(views)*2 + observerWrites)
 		return nil
 	}))
 }
@@ -626,7 +665,7 @@ func wrapTransactionResult(err error) error {
 	if err == nil {
 		return nil
 	}
-	if errors.Is(err, store.ErrRevisionConflict) || errors.Is(err, store.ErrUnknownGame) || errors.Is(err, store.ErrNotMember) || errors.Is(err, store.ErrGameFull) || errors.Is(err, store.ErrInvalidInvitation) || errors.Is(err, store.ErrInvitationInactive) || errors.Is(err, store.ErrGameFinished) || errors.Is(err, store.ErrProfileNotFound) {
+	if errors.Is(err, store.ErrRevisionConflict) || errors.Is(err, store.ErrUnknownGame) || errors.Is(err, store.ErrNotMember) || errors.Is(err, store.ErrGameFull) || errors.Is(err, store.ErrInvalidInvitation) || errors.Is(err, store.ErrInvitationInactive) || errors.Is(err, store.ErrSpectator) || errors.Is(err, store.ErrGameFinished) || errors.Is(err, store.ErrProfileNotFound) {
 		return err
 	}
 	if status.Code(err) == codes.Aborted || status.Code(err) == codes.FailedPrecondition {

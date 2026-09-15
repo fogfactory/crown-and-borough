@@ -1155,7 +1155,8 @@ export function MapViewer({
               <g aria-label={t('map.intentionsOverlay')} pointerEvents="none">
                 {intentions.map((intention, index) => {
                   const isDraft = intention.source === 'draft'
-                  const intentionColor = isDraft ? DRAFT_INTENTION_COLOR : intentionsColor
+                  const intentionColor =
+                    intention.color ?? (isDraft ? DRAFT_INTENTION_COLOR : intentionsColor)
                   const markerEndFor = (kind: 'arrow' | 'circle') =>
                     `url(#intent-${kind}${isDraft ? '-draft' : ''})`
 

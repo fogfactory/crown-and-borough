@@ -100,6 +100,34 @@ describe('online home', () => {
     expect(body).not.toHaveProperty('player')
     expect(body.seed).toBe('adelaide-de-beaufort')
     expect(body.players).toBe(4)
+    expect(body.spectate).toBe(false)
     expect(body.years).toBe(10)
+  })
+
+  it('can create a game as a non-playing spectator host', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        return new Response(
+          JSON.stringify({
+            id: 'observed-game',
+            inviteCode: 'OBS123',
+            inviteUrl: 'https://example.test/join?gameId=observed-game&inviteCode=OBS123',
+          }),
+          { status: 201, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+      return new Response('[]', { status: 200 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    renderHome()
+    fireEvent.click(await screen.findByRole('button', { name: 'Create a game' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /Observe without playing/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create and invite' }))
+
+    expect(await screen.findByText('OBS123')).toBeInTheDocument()
+    const postCall = fetchMock.mock.calls.find((call) => call[1]?.method === 'POST')
+    const body = JSON.parse(String(postCall?.[1]?.body)) as Record<string, unknown>
+    expect(body.spectate).toBe(true)
   })
 })
