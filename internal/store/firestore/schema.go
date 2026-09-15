@@ -32,6 +32,7 @@ type gameDocument struct {
 	Seed          string                           `firestore:"seed"`
 	OwnerUID      string                           `firestore:"ownerUid"`
 	MemberUIDs    []string                         `firestore:"memberUids"`
+	SpectatorUID  string                           `firestore:"spectatorUid,omitempty"`
 	Players       []playerDocument                 `firestore:"players"`
 	Status        store.Status                     `firestore:"status"`
 	Turn          int                              `firestore:"turn"`
@@ -95,6 +96,22 @@ type viewDocument struct {
 	UpdatedAt     time.Time              `firestore:"updatedAt"`
 }
 
+// observerDocument is a full-visibility projection for a creator who chose
+// not to occupy a player slot. Reports remain available through the REST API;
+// the document only points at the latest report to keep realtime writes small.
+type observerDocument struct {
+	SchemaVersion        int                    `firestore:"schemaVersion"`
+	GameID               store.GameID           `firestore:"gameId"`
+	UID                  string                 `firestore:"uid"`
+	Revision             int64                  `firestore:"revision"`
+	Turn                 int                    `firestore:"turn"`
+	Season               models.Season          `firestore:"season"`
+	State                map[string]interface{} `firestore:"state"`
+	LatestReportTurn     int                    `firestore:"latestReportTurn,omitempty"`
+	LatestReportRevision int64                  `firestore:"latestReportRevision,omitempty"`
+	UpdatedAt            time.Time              `firestore:"updatedAt"`
+}
+
 type filteredReportDocument struct {
 	SchemaVersion int                    `firestore:"schemaVersion"`
 	GameID        store.GameID           `firestore:"gameId"`
@@ -142,6 +159,10 @@ func reportCollection(client *cloudfirestore.Client, id store.GameID) *cloudfire
 
 func viewRef(client *cloudfirestore.Client, id store.GameID, uid string) *cloudfirestore.DocumentRef {
 	return gameRef(client, id).Collection("views").Doc(uid)
+}
+
+func observerRef(client *cloudfirestore.Client, id store.GameID, uid string) *cloudfirestore.DocumentRef {
+	return gameRef(client, id).Collection("observer").Doc(uid)
 }
 
 func filteredReportRef(client *cloudfirestore.Client, id store.GameID, uid string, turn int) *cloudfirestore.DocumentRef {

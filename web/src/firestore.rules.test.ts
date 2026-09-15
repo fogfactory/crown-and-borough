@@ -27,12 +27,14 @@ suite('Firestore security rules', () => {
     await environment.withSecurityRulesDisabled(async (context) => {
       const db = context.firestore()
       await setDoc(doc(db, 'games/game-1'), {
-        memberUids: ['alice'],
+        memberUids: ['alice', 'host'],
+        spectatorUid: 'host',
         schemaVersion: 1,
       })
       await setDoc(doc(db, 'players/alice'), { uid: 'alice', displayName: 'Alice' })
       await setDoc(doc(db, 'games/game-1/views/alice'), { uid: 'alice', revision: 1 })
       await setDoc(doc(db, 'games/game-1/views/bob'), { uid: 'bob', revision: 1 })
+      await setDoc(doc(db, 'games/game-1/observer/host'), { uid: 'host', revision: 1 })
       await setDoc(doc(db, 'games/game-1/reports/alice/turns/1'), {
         uid: 'alice',
         turn: 1,
@@ -56,6 +58,13 @@ suite('Firestore security rules', () => {
     await assertFails(getDoc(doc(alice, 'games/game-1/views/bob')))
     await assertFails(getDoc(doc(alice, 'games/game-1/reports/bob/turns/1')))
     await assertFails(getDoc(doc(alice, 'games/game-1/canonical/current')))
+  })
+
+  it('allows the spectator host to read only the observer projection', async () => {
+    const host = environment.authenticatedContext('host').firestore()
+    await assertSucceeds(getDoc(doc(host, 'games/game-1')))
+    await assertSucceeds(getDoc(doc(host, 'games/game-1/observer/host')))
+    await assertFails(getDoc(doc(host, 'games/game-1/observer/alice')))
   })
 
   it('denies non-members, writes, raw reports, submissions, and invitations', async () => {

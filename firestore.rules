@@ -28,6 +28,13 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // A non-playing creator receives a full-visibility observer projection.
+      // The UID is part of the document path so another member cannot read it.
+      match /observer/{uid} {
+        allow read: if memberOf(gameId) && request.auth.uid == uid;
+        allow write: if false;
+      }
+
       match /reports/{uid}/turns/{turn} {
         allow read: if memberOf(gameId) && request.auth.uid == uid;
         allow write: if false;

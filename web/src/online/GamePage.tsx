@@ -48,6 +48,7 @@ import type {
   PlayerId,
   StateData,
   SupplyLine,
+  SubmittedOrdersResponse,
   TransferLine,
   TurnReport,
   WinterCosts,
@@ -86,6 +87,9 @@ function newerSummary(
       : {}),
     ...(right.inviteAvailable === undefined && left.inviteAvailable !== undefined
       ? { inviteAvailable: left.inviteAvailable }
+      : {}),
+    ...(right.spectator === undefined && left.spectator !== undefined
+      ? { spectator: left.spectator }
       : {}),
   }
 }
@@ -265,7 +269,12 @@ export function GamePage() {
   const [chainDrafts, setChainDrafts] = useState<Record<string, string>>({})
   const [winterDraft, setWinterDraft] = useState('')
   const [winterCosts, setWinterCosts] = useState<WinterCosts | null>(null)
-  const [serverSubmission, setServerSubmission] = useState<MySubmissionResponse | null>(null)
+  const [serverSubmission, setServerSubmission] = useState<MySubmissionResponse | null>(
+    null,
+  )
+  const [submittedOrders, setSubmittedOrders] = useState<SubmittedOrdersResponse | null>(
+    null,
+  )
   const [actionError, setActionError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [confirmResolve, setConfirmResolve] = useState(false)
@@ -306,6 +315,7 @@ export function GamePage() {
     setSelectedTransferTarget(null)
     setServerSubmission(null)
     setWinterCosts(null)
+    setSubmittedOrders(null)
     setReport(null)
     setReportSummaries([])
     setReportError(null)
@@ -327,7 +337,11 @@ export function GamePage() {
     ])
       .then(([detail, mapData, stateResponse, mySubmission, costsResponse]) => {
         if (controller.signal.aborted) return
-        const summary = normalizeGameSummary(detail as Record<string, unknown>, gameId)
+        const summary = normalizeGameSummary(
+          detail as Record<string, unknown>,
+          gameId,
+          user.uid,
+        )
         const state = normalizeStateData(stateResponse)
         if (!state) throw new Error('the private state is invalid')
         setSummaryFromAPI(summary)
@@ -375,13 +389,75 @@ export function GamePage() {
       (summary.currentPlayer !== undefined && player.id === summary.currentPlayer),
   )
   const playerID = currentSlot?.id ?? null
+  const spectator = summary?.spectator === true
+
+  useEffect(() => {
+    if (!gameId || !spectator || !state) {
+      if (!spectator) setSubmittedOrders(null)
+      return
+    }
+    let active = true
+    const encodedID = encodeURIComponent(gameId)
+    void apiRequest<SubmittedOrdersResponse>(
+      { getIdToken },
+      `/api/games/${encodedID}/submitted-orders`,
+    )
+      .then((response) => {
+        if (active && response.turn === state.turn) setSubmittedOrders(response)
+      })
+      .catch((submissionFailure: unknown) => {
+        if (!active) return
+        if (submissionFailure instanceof ApiError && submissionFailure.status === 401) {
+          void signOut().catch(() => undefined)
+          navigate('/signin', { replace: true })
+        }
+      })
+    return () => {
+      active = false
+    }
+  }, [gameId, getIdToken, navigate, signOut, spectator, state, summaryRevision])
+
+  const submittedIntentions = useMemo(() => {
+    if (!spectator || !state || !map || state.season === 'winter') return []
+    return (submittedOrders?.submissions ?? []).flatMap((submission) => {
+      const drafts = Object.fromEntries(
+        submission.chains.map((chain) => [
+          chain.noble,
+          stripNobleHeader(chain.noble, chain.text),
+        ]),
+      )
+      const color = state.players.find((player) => player.id === submission.player)?.color
+      return buildIntentions(map, state, submission.player, drafts, {
+        includeInstalled: false,
+        source: 'submitted',
+        color,
+      })
+    })
+  }, [map, spectator, state, submittedOrders])
+
+  const installedIntentions = useMemo(() => {
+    if (!spectator || !state || !map || state.season === 'winter') return []
+    return state.players.flatMap((player) =>
+      buildIntentions(map, state, player.id, {}, { color: player.color }),
+    )
+  }, [map, spectator, state])
 
   const intentions = useMemo(
     () =>
-      state && playerID
-        ? buildIntentions(map ?? { territories: [] }, state, playerID, chainDrafts)
-        : [],
-    [chainDrafts, map, playerID, state],
+      spectator
+        ? [...installedIntentions, ...submittedIntentions]
+        : state && playerID
+          ? buildIntentions(map ?? { territories: [] }, state, playerID, chainDrafts)
+          : [],
+    [
+      chainDrafts,
+      installedIntentions,
+      map,
+      playerID,
+      spectator,
+      state,
+      submittedIntentions,
+    ],
   )
   const intentionsColor =
     state?.players.find((player) => player.id === playerID)?.color ?? '#a84632'
@@ -477,6 +553,7 @@ export function GamePage() {
       setChainDrafts({})
       setWinterDraft('')
       setServerSubmission(null)
+      setSubmittedOrders(null)
       setActionError(null)
       lastTurn.current = turn
     }
@@ -694,7 +771,7 @@ export function GamePage() {
     if (
       !gameId ||
       !state ||
-      !playerID ||
+      (!playerID && !force) ||
       state.finished ||
       summary?.status === 'finished'
     )
@@ -916,6 +993,12 @@ export function GamePage() {
           {actionError}
         </p>
       )}
+      {spectator && (
+        <div className="rounded-xl border border-[#815f1e]/50 bg-[#f8e8ae]/60 px-4 py-3 text-sm text-[#6d5118]">
+          <p className="font-semibold">{t('online.spectatorBanner')}</p>
+          <p className="mt-1">{t('online.spectatorDescription')}</p>
+        </div>
+      )}
       {summary.winner && (
         <div className="rounded-xl border border-[#815f1e]/50 bg-[#f8e8ae]/60 px-4 py-3 text-center text-sm font-semibold text-[#6d5118]">
           {t('online.victory')}:{' '}
@@ -955,7 +1038,9 @@ export function GamePage() {
               <CardDescription className="text-[#806f57]">
                 {currentSlot
                   ? `${currentSlot.name} · ${t('online.you')}`
-                  : t('online.accessRevoked')}
+                  : spectator
+                    ? t('online.spectator')
+                    : t('online.accessRevoked')}
               </CardDescription>
               <div
                 role="tablist"
@@ -1034,6 +1119,10 @@ export function GamePage() {
                     onOpenRules={openRules}
                     onRestoreFromServer={restoreFromServer}
                   />
+                ) : spectator ? (
+                  <p className="rounded-lg border border-[#815f1e]/40 bg-[#f8e8ae]/50 px-3 py-2 text-sm text-[#6d5118]">
+                    {t('online.spectatorReadOnly')}
+                  </p>
                 ) : (
                   <p
                     role="alert"

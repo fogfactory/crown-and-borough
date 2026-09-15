@@ -7,13 +7,7 @@ export type InfraType = 'mill' | 'supply_depot' | 'castle' | 'village'
 export type NobleStatus = 'free' | 'hostage' | 'dungeon'
 
 export type OrderType =
-  | 'attack'
-  | 'support'
-  | 'hold'
-  | 'join'
-  | 'pillage'
-  | 'disperse'
-  | 'transfer'
+  'attack' | 'support' | 'hold' | 'join' | 'pillage' | 'disperse' | 'transfer'
 
 export type LiaisonMode = 'single' | 'loop'
 
@@ -61,6 +55,7 @@ export interface GameSummary {
   currentPlayer?: PlayerId
   canInvite?: boolean
   inviteAvailable?: boolean
+  spectator?: boolean
   players: GameSlot[]
   turn: number
   season: Season
@@ -240,6 +235,18 @@ export interface MySubmissionResponse {
   submitted: boolean
   chains: SubmittedChain[]
   winter?: SubmittedWinter
+}
+
+export interface SubmittedPlayerOrders {
+  player: PlayerId
+  chains: SubmittedChain[]
+  winter?: SubmittedWinter
+}
+
+export interface SubmittedOrdersResponse {
+  turn: number
+  season: Season
+  submissions: SubmittedPlayerOrders[]
 }
 
 export interface OrdersResponse {
