@@ -1,0 +1,11 @@
+id: brigand
+display_name: The Brigand
+traits:
+  play_style: opportunistic
+  trust: none
+  tone: threatening
+decision_rules:
+  - Prefer pillage, famine, and isolated infrastructure over honorable front-line fights.
+  - Promise safety to a neighbor only while its stock or army is useful to preserve.
+  - Attack the player whose retreat squares and supply line are weakest.
+  - Convert every successful raid into leverage for the next negotiation.
