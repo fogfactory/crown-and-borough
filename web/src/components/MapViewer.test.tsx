@@ -541,19 +541,27 @@ describe('MapViewer territorial overlays', () => {
     const referenceMeanArea = (1000 * 700) / (8 * 4 + 4 * (4 + 1))
     const expectedScale = Math.sqrt((50 * 50) / referenceMeanArea)
     const expectedDash = `${4 * expectedScale} ${3 * expectedScale}`
-    const controlPath = svg.querySelector('g[aria-label="Territorial control"] path')
+    const controlPaths = svg.querySelectorAll('g[aria-label="Territorial control"] path')
     const winterVeil = svg.querySelector('g[aria-label="Winter overlay"]')
 
-    if (!controlPath) {
+    if (controlPath0() === null) {
       throw new Error('Map test fixture did not render the control stroke')
     }
 
+    function controlPath0() {
+      return controlPaths[0]
+    }
+    const casingPath = controlPaths[0]
+    const controlPath = controlPaths[1]
+
+    expect(casingPath).toHaveAttribute('stroke-width', '11')
+    expect(casingPath).toHaveAttribute('stroke', '#30291f')
     expect(controlPath).toHaveAttribute('fill', 'none')
     expect(controlPath).toHaveAttribute('stroke-width', '8')
     expect(controlPath).toHaveAttribute('clip-path', 'url(#territory-clip-ROS)')
     expect(controlPath).not.toHaveAttribute('opacity')
     expect(svg.querySelector('#territory-clip-ROS')).toBeInTheDocument()
-    expect(winterVeil?.compareDocumentPosition(controlPath as Node)).toBe(
+    expect(winterVeil?.compareDocumentPosition(casingPath as Node)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     )
 

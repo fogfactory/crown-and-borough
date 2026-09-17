@@ -48,9 +48,18 @@ const state: StateData = {
   nobles: [],
 }
 
-function renderMap(onSelect = vi.fn(), props: Record<string, unknown> = {}) {
+function renderMap(
+  onSelect = vi.fn(),
+  props: Record<string, unknown> = {},
+  fixtures: { map?: MapData; state?: StateData } = {},
+) {
   const result = render(
-    <MapViewer map={map} state={state} onSelect={onSelect} {...props} />,
+    <MapViewer
+      map={fixtures.map ?? map}
+      state={fixtures.state ?? state}
+      onSelect={onSelect}
+      {...props}
+    />,
   )
   const svg = result.container.querySelector(
     'svg[aria-label="Territory map"]',
@@ -80,6 +89,99 @@ describe('MapViewer map geometry', () => {
     const { svg } = renderMap()
 
     expect(svg).toHaveAttribute('preserveAspectRatio', 'xMidYMid meet')
+  })
+})
+
+describe('MapViewer terrain textures', () => {
+  it('defines a pattern per terrain and overlays it on the territories', () => {
+    const { svg } = renderMap()
+
+    for (const terrain of ['plain', 'forest', 'hill', 'mountain', 'swamp']) {
+      expect(svg.querySelector(`#terrain-${terrain}`)).toBeInTheDocument()
+    }
+
+    const textureGroup = svg.querySelector('g[aria-label="Terrain textures"]')
+    expect(textureGroup).toBeInTheDocument()
+    expect(textureGroup).toHaveAttribute('pointer-events', 'none')
+    const overlays = textureGroup?.querySelectorAll('path') ?? []
+    expect(overlays.length).toBeGreaterThan(0)
+    expect(overlays[0]).toHaveAttribute('fill', 'url(#terrain-plain)')
+    // The overlay must not intercept pointer events: the terrain layer below
+    // handles selection.
+    expect(textureGroup?.querySelector('path')).not.toHaveAttribute('data-territory-id')
+  })
+})
+
+describe('MapViewer infrastructure ownership', () => {
+  const ownedState: StateData = {
+    ...state,
+    players: [
+      { id: 'P1', name: 'One', color: '#a84632' },
+      { id: 'P2', name: 'Two', color: '#2d5f9e' },
+    ],
+    territories: [
+      {
+        id: 'ROS',
+        owner: 'P1',
+        resources: 0,
+        army: null,
+        infrastructures: [{ type: 'castle', level: 1 }],
+      },
+      {
+        id: 'BRU',
+        owner: null,
+        resources: 0,
+        army: null,
+        infrastructures: [{ type: 'village', level: 2 }],
+      },
+    ],
+  }
+
+  function markerFillPath(
+    svg: SVGSVGElement,
+    dPrefix: string,
+  ): SVGPathElement | undefined {
+    const livingLayer = svg.querySelector('g[aria-label="Live layer"]')
+    // Each glyph renders three times (halo, owner fill, dark casing); only
+    // the middle layer carries the fill color.
+    return Array.from(livingLayer?.querySelectorAll('path') ?? []).find(
+      (path) =>
+        path.getAttribute('d')?.startsWith(dPrefix) &&
+        path.getAttribute('fill') !== 'none',
+    )
+  }
+
+  it('fills owned settlement glyphs with the owner color', () => {
+    const { svg } = renderMap(vi.fn(), {}, { map, state: ownedState })
+    const marker = markerFillPath(svg, 'M15 19v-2')
+
+    expect(marker).toBeDefined()
+    expect(marker).toHaveAttribute('fill', '#a84632')
+  })
+
+  it('keeps unowned settlements in the neutral parchment tone', () => {
+    const { svg } = renderMap(vi.fn(), {}, { map, state: ownedState })
+    const marker = markerFillPath(svg, 'M8 9l5 5')
+
+    expect(marker).toBeDefined()
+    expect(marker).toHaveAttribute('fill', '#efe6d0')
+  })
+
+  it('renders the village as a houses cluster', () => {
+    const { svg } = renderMap(vi.fn(), {}, { map, state: ownedState })
+    const cluster = markerFillPath(svg, 'M8 9l5 5')
+
+    expect(cluster).toBeInTheDocument()
+  })
+
+  it('cases the colored control borders in dark under the player color', () => {
+    const { svg } = renderMap(vi.fn(), {}, { map, state: ownedState })
+    const controlGroup = svg.querySelector('g[aria-label="Territorial control"]')
+    const casing = controlGroup?.querySelector('path[stroke="#30291f"]')
+
+    expect(casing).toBeInTheDocument()
+    expect(casing).toHaveAttribute('stroke-width', '11')
+    expect(casing?.getAttribute('stroke-opacity')).toBe('0.55')
   })
 })
 

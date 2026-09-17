@@ -5,6 +5,7 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
 } from 'react'
 import { IconFocus2, IconMinus, IconPlus } from '@tabler/icons-react'
 
@@ -40,6 +41,7 @@ import type {
   Point,
   StateData,
   SupplyLine,
+  Terrain,
 } from '@/types'
 
 const OUTER_BORDER_WIDTH = 2
@@ -64,10 +66,11 @@ const TABLER_MARKER_PATHS: Record<string, string[]> = {
     'M3 11l18 0',
   ],
   village: [
-    'M3 21l18 0',
-    'M4 21v-11l2.5 -4.5l5.5 -2.5l5.5 2.5l2.5 4.5v11',
-    'M10 9a2 2 0 1 0 4 0a2 2 0 1 0 -4 0',
-    'M9 21v-5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v5',
+    'M8 9l5 5v7h-5v-4m0 4h-5v-7l5 -5m1 1v-6a1 1 0 0 1 1 -1h10a1 1 0 0 1 1 1v17h-8',
+    'M13 7l0 .01',
+    'M17 7l0 .01',
+    'M17 11l0 .01',
+    'M17 15l0 .01',
   ],
   mill: [
     'M12 12c2.76 0 5 -2.01 5 -4.5s-2.24 -4.5 -5 -4.5v9',
@@ -81,6 +84,111 @@ const TABLER_MARKER_PATHS: Record<string, string[]> = {
     'M13 21v-9a1 1 0 0 0 -1 -1h-2a1 1 0 0 0 -1 1v3',
   ],
   crown: ['M12 6l4 6l5 -4l-2 10h-14l-2 -10l5 4l4 -6'],
+}
+
+/** Neutral fill/stroke for infrastructure without a controlling player. */
+const NEUTRAL_MARKER_FILL = '#efe6d0'
+const MARKER_CASING_COLOR = '#30291f'
+
+/**
+ * Cartographic texture per terrain: a repeating symbol in a darker shade of
+ * the terrain fill, so terrain stays identifiable beyond color alone.
+ */
+interface TerrainPatternSpec {
+  terrain: Terrain
+  /** Repeating tile size in map units (before annotation scale). */
+  size: number
+  render: (scale: number) => ReactNode
+}
+
+const TERRAIN_PATTERNS: TerrainPatternSpec[] = [
+  {
+    terrain: 'plain',
+    size: 9,
+    render: (scale) => (
+      <>
+        <circle cx={2.2 * scale} cy={2.2 * scale} r={1.1 * scale} />
+        <circle cx={6.7 * scale} cy={6.7 * scale} r={1.1 * scale} />
+      </>
+    ),
+  },
+  {
+    terrain: 'forest',
+    size: 10,
+    render: (scale) => (
+      <>
+        <path d={`M0 ${3.4 * scale} L${2 * scale} 0 L${4 * scale} ${3.4 * scale} Z`} />
+        <path
+          d={`M${5 * scale} ${8.4 * scale} L${7 * scale} ${5 * scale} L${9 * scale} ${8.4 * scale} Z`}
+        />
+      </>
+    ),
+  },
+  {
+    terrain: 'hill',
+    size: 10,
+    render: (scale) => (
+      <path
+        d={`M0 ${3 * scale} Q ${2.5 * scale} ${0.6 * scale} ${5 * scale} ${3 * scale} T ${10 * scale} ${3 * scale}`}
+        fill="none"
+      />
+    ),
+  },
+  {
+    terrain: 'mountain',
+    size: 9,
+    render: (scale) => (
+      <path
+        d={`M0 ${3.6 * scale} L${2.2 * scale} ${0.8 * scale} L${4.4 * scale} ${3.6 * scale} M${4.5 * scale} ${8.2 * scale} L${6.7 * scale} ${5.4 * scale} L${8.9 * scale} ${8.2 * scale}`}
+        fill="none"
+      />
+    ),
+  },
+  {
+    terrain: 'swamp',
+    size: 10,
+    render: (scale) => (
+      <>
+        <line x1={0.8 * scale} y1={2.6 * scale} x2={4.4 * scale} y2={2.6 * scale} />
+        <line x1={5.6 * scale} y1={7 * scale} x2={9.2 * scale} y2={7 * scale} />
+      </>
+    ),
+  },
+]
+
+const TERRAIN_PATTERN_STROKES: Record<Terrain, string> = {
+  plain: '#5a7a34',
+  forest: '#14291d',
+  hill: '#6b4a30',
+  mountain: '#4d565e',
+  swamp: '#2e5f5a',
+}
+
+function TerrainPattern({
+  terrain,
+  scale,
+}: {
+  terrain: TerrainPatternSpec
+  scale: number
+}) {
+  return (
+    <pattern
+      id={`terrain-${terrain.terrain}`}
+      width={terrain.size * scale}
+      height={terrain.size * scale}
+      patternUnits="userSpaceOnUse"
+    >
+      <g
+        stroke={TERRAIN_PATTERN_STROKES[terrain.terrain]}
+        strokeWidth={1.3 * scale}
+        strokeOpacity={0.4}
+        fill={terrain.terrain === 'forest' ? '#14291d' : 'none'}
+        fillOpacity={0.35}
+      >
+        {terrain.render(scale)}
+      </g>
+    </pattern>
+  )
 }
 
 const INFRASTRUCTURE_LABEL_KEYS: Record<Infrastructure['type'], MessageKey> = {
@@ -114,6 +222,7 @@ interface InfrastructureMarkerProps {
   y: number
   isCapital: boolean
   scale: number
+  ownerColor?: string | null
 }
 
 function pointsToPath(points: Point[]): string {
@@ -234,11 +343,11 @@ function getTerritoryIdFromTarget(target: EventTarget | null): string | null {
   )
 }
 
-function TablerMarkerPaths({ paths }: { paths: string[] }) {
+function TablerMarkerPaths({ paths, fill = 'none' }: { paths: string[]; fill?: string }) {
   return (
     <>
       {paths.map((d) => (
-        <path key={d} d={d} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path key={d} d={d} fill={fill} strokeLinecap="round" strokeLinejoin="round" />
       ))}
     </>
   )
@@ -250,20 +359,27 @@ function InfrastructureMarker({
   y,
   isCapital,
   scale,
+  ownerColor = null,
 }: InfrastructureMarkerProps) {
   const { t } = useLanguage()
   const label = `${t(INFRASTRUCTURE_LABEL_KEYS[infrastructure.type])} · ${t('app.level', { level: infrastructure.level })}${isCapital ? ` · ${t('app.capital')}` : ''}`
   const paths = TABLER_MARKER_PATHS[infrastructure.type] ?? []
+  const fill = ownerColor ?? NEUTRAL_MARKER_FILL
 
   return (
     <g transform={`translate(${x} ${y}) scale(${scale})`} pointerEvents="none">
       <title>{label}</title>
       <g transform="translate(-10 -10) scale(0.8333)">
-        <g stroke="#fff8e7" strokeWidth={4.5} opacity={0.85}>
-          <TablerMarkerPaths paths={paths} />
+        {/* Light halo keeps the glyph readable on any terrain fill. */}
+        <g stroke="#fff8e7" strokeWidth={4.5} opacity={0.9} fill="none">
+          <TablerMarkerPaths paths={paths} fill="none" />
         </g>
-        <g stroke="#5f4936" strokeWidth={2}>
-          <TablerMarkerPaths paths={paths} />
+        {/* Owner color fills the building, dark casing defines its shape. */}
+        <g stroke="none" fillOpacity={0.9}>
+          <TablerMarkerPaths paths={paths} fill={fill} />
+        </g>
+        <g stroke={MARKER_CASING_COLOR} strokeWidth={1.75} fill="none">
+          <TablerMarkerPaths paths={paths} fill="none" />
         </g>
       </g>
       {isCapital && (
@@ -863,6 +979,13 @@ export function MapViewer({
                   strokeOpacity="0.5"
                 />
               </pattern>
+              {TERRAIN_PATTERNS.map((terrain) => (
+                <TerrainPattern
+                  key={terrain.terrain}
+                  terrain={terrain}
+                  scale={annotationScale}
+                />
+              ))}
               <marker
                 id="intent-arrow-outline"
                 viewBox="0 0 10 10"
@@ -981,6 +1104,16 @@ export function MapViewer({
               ))}
             </g>
 
+            <g aria-label={t('map.terrainTextures')} pointerEvents="none">
+              {map.territories.map((territory) => (
+                <path
+                  key={territory.id}
+                  d={pointsToPath(territory.points)}
+                  fill={`url(#terrain-${territory.terrain})`}
+                />
+              ))}
+            </g>
+
             {state.season === 'winter' && (
               <g aria-label={t('map.winterOverlay')} pointerEvents="none">
                 <rect width={mapWidth} height={mapHeight} fill="#eaf3ff" opacity="0.14" />
@@ -1005,27 +1138,52 @@ export function MapViewer({
                 return (
                   <g key={territory.id}>
                     {solidPath && (
-                      <path
-                        d={solidPath}
-                        fill="none"
-                        stroke={playerColors.get(owner) ?? '#475569'}
-                        strokeWidth="8"
-                        strokeLinecap="round"
-                        clipPath={`url(#territory-clip-${territory.id})`}
-                        vectorEffect="non-scaling-stroke"
-                      />
+                      <>
+                        <path
+                          d={solidPath}
+                          fill="none"
+                          stroke={MARKER_CASING_COLOR}
+                          strokeOpacity="0.55"
+                          strokeWidth="11"
+                          strokeLinecap="round"
+                          clipPath={`url(#territory-clip-${territory.id})`}
+                          vectorEffect="non-scaling-stroke"
+                        />
+                        <path
+                          d={solidPath}
+                          fill="none"
+                          stroke={playerColors.get(owner) ?? '#475569'}
+                          strokeWidth="8"
+                          strokeLinecap="round"
+                          clipPath={`url(#territory-clip-${territory.id})`}
+                          vectorEffect="non-scaling-stroke"
+                        />
+                      </>
                     )}
                     {passablePath && (
-                      <path
-                        d={passablePath}
-                        fill="none"
-                        stroke={playerColors.get(owner) ?? '#475569'}
-                        strokeWidth="8"
-                        strokeDasharray={passableBorderDash}
-                        strokeLinecap="round"
-                        clipPath={`url(#territory-clip-${territory.id})`}
-                        vectorEffect="non-scaling-stroke"
-                      />
+                      <>
+                        <path
+                          d={passablePath}
+                          fill="none"
+                          stroke={MARKER_CASING_COLOR}
+                          strokeOpacity="0.55"
+                          strokeWidth="11"
+                          strokeLinecap="round"
+                          strokeDasharray={passableBorderDash}
+                          clipPath={`url(#territory-clip-${territory.id})`}
+                          vectorEffect="non-scaling-stroke"
+                        />
+                        <path
+                          d={passablePath}
+                          fill="none"
+                          stroke={playerColors.get(owner) ?? '#475569'}
+                          strokeWidth="8"
+                          strokeDasharray={passableBorderDash}
+                          strokeLinecap="round"
+                          clipPath={`url(#territory-clip-${territory.id})`}
+                          vectorEffect="non-scaling-stroke"
+                        />
+                      </>
                     )}
                   </g>
                 )
@@ -1209,6 +1367,11 @@ export function MapViewer({
                           )
                         }
                         scale={annotationScale}
+                        ownerColor={
+                          territoryState.owner
+                            ? (playerColors.get(territoryState.owner) ?? null)
+                            : null
+                        }
                       />
                     ))}
                     {territoryState.army && (
