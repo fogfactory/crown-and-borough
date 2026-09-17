@@ -16,6 +16,45 @@ export function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(Math.max(value, minimum), maximum)
 }
 
+/**
+ * Uniform scale used when a map of `mapWidth × mapHeight` map units is fitted
+ * inside a `pixelWidth × pixelHeight` viewport with "meet" semantics: the map
+ * is never stretched, only scaled down to the most constrained axis.
+ */
+export function viewportScale(
+  mapWidth: number,
+  mapHeight: number,
+  pixelWidth: number,
+  pixelHeight: number,
+): number {
+  if (mapWidth <= 0 || mapHeight <= 0 || pixelWidth <= 0 || pixelHeight <= 0) {
+    return 1
+  }
+  return Math.min(pixelWidth / mapWidth, pixelHeight / mapHeight)
+}
+
+/**
+ * Convert a browser client position into map coordinates for an SVG that
+ * preserves its aspect ratio ("xMidYMid meet"): the map is scaled uniformly
+ * and centered in the element, so any leftover space becomes letterboxing.
+ */
+export function clientToMapPoint(
+  clientX: number,
+  clientY: number,
+  mapWidth: number,
+  mapHeight: number,
+  bounds: { left: number; top: number; width: number; height: number },
+): MapPoint {
+  const scale = viewportScale(mapWidth, mapHeight, bounds.width || 1, bounds.height || 1)
+  const offsetX = ((bounds.width || 1) - mapWidth * scale) / 2
+  const offsetY = ((bounds.height || 1) - mapHeight * scale) / 2
+
+  return [
+    (clientX - bounds.left - offsetX) / scale,
+    (clientY - bounds.top - offsetY) / scale,
+  ]
+}
+
 export function distanceBetween(from: MapPoint, to: MapPoint): number {
   return Math.hypot(to[0] - from[0], to[1] - from[1])
 }

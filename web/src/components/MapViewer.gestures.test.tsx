@@ -75,6 +75,14 @@ function touch(
   return { button: 0, clientX, clientY, pointerId, pointerType: 'touch' }
 }
 
+describe('MapViewer map geometry', () => {
+  it('preserves the map aspect ratio instead of stretching to the container', () => {
+    const { svg } = renderMap()
+
+    expect(svg).toHaveAttribute('preserveAspectRatio', 'xMidYMid meet')
+  })
+})
+
 describe('MapViewer touch gestures', () => {
   it('selects a territory with a touch tap', () => {
     const { firstTerritory, onSelect, svg } = renderMap()

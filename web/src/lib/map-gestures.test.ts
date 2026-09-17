@@ -4,11 +4,13 @@ import {
   MAX_ZOOM,
   MIN_ZOOM,
   clamp,
+  clientToMapPoint,
   distanceBetween,
   midpointOf,
   nextSheetSnap,
   pinchView,
   snapFromDrag,
+  viewportScale,
   zoomAtCenter,
   zoomAtPoint,
   type ViewState,
@@ -28,6 +30,51 @@ describe('geometry helpers', () => {
   it('computes distances and midpoints', () => {
     expect(distanceBetween([0, 0], [3, 4])).toBe(5)
     expect(midpointOf([10, 20], [30, 40])).toEqual([20, 30])
+  })
+})
+
+describe('viewportScale', () => {
+  it('uses the most constrained axis', () => {
+    expect(viewportScale(100, 50, 200, 50)).toBe(1)
+    expect(viewportScale(100, 50, 200, 100)).toBe(2)
+    expect(viewportScale(100, 50, 50, 300)).toBe(0.5)
+  })
+
+  it('falls back to 1 for degenerate sizes', () => {
+    expect(viewportScale(0, 50, 200, 100)).toBe(1)
+    expect(viewportScale(100, 50, 0, 100)).toBe(1)
+  })
+})
+
+describe('clientToMapPoint', () => {
+  const bounds = { left: 0, top: 0, width: 200, height: 100 }
+
+  it('maps element corners onto map corners in a matching container', () => {
+    expect(clientToMapPoint(0, 0, 100, 50, bounds)).toEqual([0, 0])
+    expect(clientToMapPoint(200, 100, 100, 50, bounds)).toEqual([100, 50])
+  })
+
+  it('maps the element center onto the map center', () => {
+    expect(clientToMapPoint(100, 50, 100, 50, bounds)).toEqual([50, 25])
+  })
+
+  it('accounts for horizontal letterboxing in a narrow container', () => {
+    const narrow = { left: 0, top: 0, width: 100, height: 300 }
+    const scale = 1
+    const offsetY = (300 - 50 * scale) / 2
+
+    // Top-left of the letterboxed map content.
+    expect(clientToMapPoint(0, offsetY, 100, 50, narrow)).toEqual([0, 0])
+    // Bottom-right of the letterboxed map content.
+    expect(clientToMapPoint(100, offsetY + 50, 100, 50, narrow)).toEqual([100, 50])
+    // Element corners fall outside the map (negative map coordinates).
+    expect(clientToMapPoint(0, 0, 100, 50, narrow)).toEqual([0, -offsetY])
+  })
+
+  it('accounts for the element offset within the page', () => {
+    const shifted = { left: 40, top: 60, width: 200, height: 100 }
+    expect(clientToMapPoint(40, 60, 100, 50, shifted)).toEqual([0, 0])
+    expect(clientToMapPoint(140, 110, 100, 50, shifted)).toEqual([50, 25])
   })
 })
 

@@ -16,9 +16,11 @@ import {
   DRAG_THRESHOLD,
   WHEEL_ZOOM_FACTOR,
   ZOOM_BUTTON_FACTOR,
+  clientToMapPoint,
   distanceBetween,
   midpointOf,
   pinchView,
+  viewportScale,
   zoomAtCenter,
   zoomAtPoint,
   type MapPoint,
@@ -219,13 +221,7 @@ function clientToSvgPoint(
   mapHeight: number,
 ): Point {
   const bounds = svg.getBoundingClientRect()
-  const width = bounds.width || 1
-  const height = bounds.height || 1
-
-  return [
-    ((clientX - bounds.left) / width) * mapWidth,
-    ((clientY - bounds.top) / height) * mapHeight,
-  ]
+  return clientToMapPoint(clientX, clientY, mapWidth, mapHeight, bounds)
 }
 
 function getTerritoryIdFromTarget(target: EventTarget | null): string | null {
@@ -649,7 +645,8 @@ export function MapViewer({
       mapHeight,
     )
     const bounds = event.currentTarget.getBoundingClientRect()
-    const mapUnitsPerPx = mapWidth / (bounds.width || 1)
+    const mapUnitsPerPx =
+      1 / viewportScale(mapWidth, mapHeight, bounds.width || 1, bounds.height || 1)
     const threshold = Math.max(
       DRAG_THRESHOLD,
       (event.pointerType === 'touch' ? 8 : DRAG_THRESHOLD) * mapUnitsPerPx,
@@ -828,7 +825,7 @@ export function MapViewer({
           ref={svgRef}
           className="h-full w-full select-none"
           viewBox={`0 0 ${mapWidth} ${mapHeight}`}
-          preserveAspectRatio="none"
+          preserveAspectRatio="xMidYMid meet"
           role="group"
           aria-label={t('map.territories')}
           onPointerDown={handlePointerDown}
