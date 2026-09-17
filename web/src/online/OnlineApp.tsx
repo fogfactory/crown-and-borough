@@ -12,6 +12,7 @@ import {
 } from 'react-router-dom'
 
 import { AuthProvider, useAuth } from '@/auth/AuthProvider'
+import { BrandMark } from '@/components/BrandMark'
 import { FinishPage, ProfilePage, SignInPage } from '@/online/AuthPages'
 import { GamePage } from '@/online/GamePage'
 import { HomePage } from '@/online/HomePage'
@@ -34,23 +35,21 @@ function OnlineHeader() {
   }
 
   return (
-    <header className="border-b border-[#b7a786]/60 bg-[#fffaf0]/90 px-4 py-4 shadow-sm backdrop-blur-sm sm:px-6">
-      <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-4">
-        <Link to="/" className="flex items-center gap-3" aria-label="Crown & Borough">
-          <span className="flex size-11 items-center justify-center rounded-full border-2 border-[#a84632] bg-[#f6dfc6] font-serif text-sm font-bold text-[#a84632] shadow-inner">
-            C&amp;B
-          </span>
+    <header className="z-30 shrink-0 border-b border-[#b7a786]/60 bg-[#fffaf0]/95 px-3 py-2 shadow-sm backdrop-blur-sm sm:px-6 lg:sticky lg:top-0">
+      <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-2 sm:gap-4">
+        <Link to="/" className="flex items-center gap-2.5" aria-label="Crown & Borough">
+          <BrandMark className="size-9 sm:size-11" />
           <span>
-            <span className="block font-serif text-xl font-semibold tracking-tight">
+            <span className="block font-serif text-base font-semibold tracking-tight sm:text-xl">
               Crown &amp; Borough
             </span>
-            <span className="block text-[10px] uppercase tracking-[0.18em] text-[#806f57]">
+            <span className="hidden text-[10px] uppercase tracking-[0.18em] text-[#806f57] min-[420px]:block">
               {t('app.tagline')}
             </span>
             <VersionBadge />
           </span>
         </Link>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <nav aria-label={t('nav.primary')} className="flex items-center gap-1">
             <NavLink
               to="/rules"
@@ -72,7 +71,7 @@ function OnlineHeader() {
           {profile && (
             <Link
               to="/profile"
-              className="rounded-md px-2 py-1 text-sm font-medium text-[#594b3c] underline-offset-4 hover:text-[#a84632] hover:underline"
+              className="max-w-32 truncate rounded-md px-2 py-1 text-sm font-medium text-[#594b3c] underline-offset-4 hover:text-[#a84632] hover:underline sm:max-w-none"
             >
               {profile.displayName || profile.email}
             </Link>
@@ -94,10 +93,23 @@ function OnlineHeader() {
 
 export function OnlineFrame({ children }: { children: ReactNode }) {
   const { language } = useLanguage()
+  const location = useLocation()
+  const isGame = /^\/games\//.test(location.pathname)
   return (
-    <div lang={language} className="min-h-screen bg-[#efe7d8] text-[#30291f]">
+    <div
+      lang={language}
+      className={`flex flex-col bg-[#efe7d8] text-[#30291f] ${
+        isGame ? 'h-dvh overflow-hidden' : 'min-h-dvh'
+      }`}
+    >
       <OnlineHeader />
-      <main className="mx-auto max-w-[1500px] p-4 sm:p-6">{children}</main>
+      <main
+        className={`mx-auto flex w-full min-h-0 max-w-[1500px] flex-1 flex-col p-3 sm:p-4 lg:p-6 ${
+          isGame ? 'overflow-hidden' : ''
+        }`}
+      >
+        {children}
+      </main>
     </div>
   )
 }

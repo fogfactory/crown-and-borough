@@ -7,19 +7,46 @@ import type { MapData, StateData } from '@/types'
 const map: MapData = {
   territories: [
     {
-      id: 'ROS', name: 'R', terrain: 'plain', village: false,
-      points: [[0, 0], [50, 0], [50, 50], [0, 50]],
-      adjacencies: ['BRU', 'CHA'], impassable: [],
+      id: 'ROS',
+      name: 'R',
+      terrain: 'plain',
+      village: false,
+      points: [
+        [0, 0],
+        [50, 0],
+        [50, 50],
+        [0, 50],
+      ],
+      adjacencies: ['BRU', 'CHA'],
+      impassable: [],
     },
     {
-      id: 'BRU', name: 'B', terrain: 'plain', village: false,
-      points: [[50, 0], [100, 0], [100, 50], [50,  50]],
-      adjacencies: ['ROS', 'CHA'], impassable: [],
+      id: 'BRU',
+      name: 'B',
+      terrain: 'plain',
+      village: false,
+      points: [
+        [50, 0],
+        [100, 0],
+        [100, 50],
+        [50, 50],
+      ],
+      adjacencies: ['ROS', 'CHA'],
+      impassable: [],
     },
     {
-      id: 'CHA', name: 'C', terrain: 'plain', village: false,
-      points: [[0, 50], [50, 50], [50,                         100], [0,                         100]],
-      adjacencies: ['ROS', 'BRU'], impassable: [],
+      id: 'CHA',
+      name: 'C',
+      terrain: 'plain',
+      village: false,
+      points: [
+        [0, 50],
+        [50, 50],
+        [50, 100],
+        [0, 100],
+      ],
+      adjacencies: ['ROS', 'BRU'],
+      impassable: [],
     },
   ],
 }
@@ -30,12 +57,14 @@ const baseState: StateData = {
   players: [{ id: 'P1', name: 'One', color: '#a84632' }],
   territories: [
     {
-      id: 'ROS', owner: 'P1', resources: 0,
+      id: 'ROS',
+      owner: 'P1',
+      resources: 0,
       army: { owner: 'P1', size: 3, chain: null },
       infrastructures: [],
     },
-    { id: 'BRU', owner: null, resources:  0, army: null, infrastructures: [] },
-    { id: 'CHA', owner: null, resources:  0, army: null, infrastructures: [] },
+    { id: 'BRU', owner: null, resources: 0, army: null, infrastructures: [] },
+    { id: 'CHA', owner: null, resources: 0, army: null, infrastructures: [] },
   ],
   nobles: [
     { id: 'N1', code: 'HUG', name: 'H', owner: 'P1', location: 'ROS', status: 'free' },

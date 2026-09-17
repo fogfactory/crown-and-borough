@@ -22,23 +22,26 @@ const (
 	mapReferenceHeight  = 700
 )
 
+// defaultPlayerColors avoids greens, teals and greys near the terrain
+// palette (forest #3f7854, swamp #66a6a0, mountain #89929a, hill #ad8565)
+// so territorial borders always read against the terrain underneath.
 var defaultPlayerColors = [...]string{
-	"#a84632",
-	"#2d5f9e",
-	"#7052a1",
-	"#34775c",
-	"#ad7a25",
-	"#b3546e",
-	"#1f7a8c",
-	"#7a6b2d",
-	"#c05621",
-	"#4262c0",
-	"#8f3b8f",
-	"#5c8a3a",
-	"#96663d",
-	"#3d8fae",
-	"#a64d79",
-	"#6e7f9e",
+	"#a84632", // red
+	"#2d5f9e", // blue
+	"#7052a1", // purple
+	"#0e7490", // cyan
+	"#ad7a25", // gold
+	"#b3546e", // rose
+	"#4338ca", // indigo
+	"#8a5a2b", // copper
+	"#c05621", // orange
+	"#4262c0", // royal blue
+	"#86198f", // magenta
+	"#4d7c0f", // olive
+	"#9a3412", // rust
+	"#3d8fae", // sky
+	"#a64d79", // plum
+	"#6e7f9e", // steel
 }
 
 // PlayerInit describes one player at game creation. IDs are optional; when an

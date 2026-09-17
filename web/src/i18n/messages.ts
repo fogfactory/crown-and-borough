@@ -52,7 +52,15 @@ const englishMessages = {
   'app.resolveTitle':
     'Resolve the turn immediately, even if not every player has submitted orders',
   'app.mapPublic': 'Public map · shared view',
-  'app.mapInstructions': 'Click to select · hold and drag to pan · scroll to zoom',
+  'app.mapInstructions': 'Tap to select · drag to pan · pinch or scroll to zoom',
+  'map.zoomIn': 'Zoom in',
+  'map.zoomOut': 'Zoom out',
+  'map.recenter': 'Recenter the map',
+  'map.zoomControls': 'Map zoom controls',
+  'app.gameSetup': 'Game setup',
+  'app.submissionStatus': 'Order submission status',
+  'panel.expand': 'Expand panel',
+  'panel.collapse': 'Collapse panel',
   'app.mapLoadFailed': 'Could not load the game: {message}',
   'app.mapLoading': 'Loading the map and state...',
   'app.commandPost': 'Command post',
@@ -114,7 +122,9 @@ const englishMessages = {
   'app.noReport': 'No report available',
   'map.territories': 'Territory map',
   'map.terrains': 'Terrains',
+  'map.terrainTextures': 'Terrain textures',
   'map.winterOverlay': 'Winter overlay',
+  'map.winterSnow': 'Winter snow',
   'map.control': 'Territorial control',
   'map.supplyZone': 'Supply zone',
   'map.selection': 'Selection',
@@ -201,10 +211,14 @@ const englishMessages = {
   'reports.reason.transfer_over_capacity': 'The army cannot carry that many resources.',
   'reports.reason.transfer_path_blocked': 'The supply path is blocked by an enemy army.',
   'reports.reason.invalid_transfer_destination': 'The transfer destination is invalid.',
-  'reports.reason.transfer_source_not_controlled': 'The source territory is not controlled by the army owner.',
-  'reports.reason.transfer_same_territory': 'The transfer source and destination are identical.',
-  'reports.reason.transfer_source_not_settlement': 'The winter transfer source must be a castle or village.',
-  'reports.reason.transfer_target_not_settlement': 'The winter transfer target must be another castle or village.',
+  'reports.reason.transfer_source_not_controlled':
+    'The source territory is not controlled by the army owner.',
+  'reports.reason.transfer_same_territory':
+    'The transfer source and destination are identical.',
+  'reports.reason.transfer_source_not_settlement':
+    'The winter transfer source must be a castle or village.',
+  'reports.reason.transfer_target_not_settlement':
+    'The winter transfer target must be another castle or village.',
   'reports.reason.invalid_transfer_amount': 'The transfer amount is invalid.',
   'reports.reason.territory_not_controlled':
     'The territory is not controlled by this player.',
@@ -302,6 +316,8 @@ const englishMessages = {
   'legend.intentionsHint': 'Drafts + installed chains · action seasons only',
   'legend.passable':
     'Thick continuous line = impassable border · dashed line = passable border',
+  'legend.show': 'Show legend',
+  'legend.hide': 'Hide legend',
   'rules.reference': 'Reference for v1 rules, orders, and supply.',
   'rules.loading': 'Loading the rules...',
   'rules.empty': 'The rules document is empty',
@@ -344,8 +360,7 @@ const englishMessages = {
   'error.winter.order_shape':
     'A winter order requires a symbol, a subtype, and one target code.',
   'error.winter.target_only_one': 'A winter order accepts exactly one target code.',
-  'error.winter.transfer_shape':
-    'G requires a source, a destination, and an amount.',
+  'error.winter.transfer_shape': 'G requires a source, a destination, and an amount.',
   'error.winter.transfer_amount': 'The transfer amount must be a positive integer.',
   'error.winter.unknown_symbol': 'Unknown winter order symbol "{symbol}".',
   'error.winter.unknown_subtype': 'Unknown winter order "{symbol} {subtype}".',
@@ -496,7 +511,15 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     "Résoudre le tour immédiatement, même si tous les joueurs n'ont pas soumis leurs ordres",
   'app.mapPublic': 'Carte publique · vue commune',
   'app.mapInstructions':
-    'Clic pour sélectionner · maintenir puis glisser pour déplacer la carte · molette pour zoomer',
+    'Touchez pour sélectionner · glissez pour déplacer · pincez ou molette pour zoomer',
+  'map.zoomIn': 'Zoomer',
+  'map.zoomOut': 'Dézoomer',
+  'map.recenter': 'Recadrer la carte',
+  'map.zoomControls': 'Contrôles de zoom de la carte',
+  'app.gameSetup': 'Configuration de la partie',
+  'app.submissionStatus': 'Statut des soumissions d’ordres',
+  'panel.expand': 'Déployer le panneau',
+  'panel.collapse': 'Replier le panneau',
   'app.mapLoadFailed': 'Impossible de charger la partie : {message}',
   'app.mapLoading': "Chargement de la carte et de l'état...",
   'app.commandPost': 'Poste de commandement',
@@ -558,7 +581,9 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'app.noReport': 'Aucun rapport disponible',
   'map.territories': 'Carte des territoires',
   'map.terrains': 'Terrains',
+  'map.terrainTextures': 'Textures des terrains',
   'map.winterOverlay': 'Voile hivernal',
+  'map.winterSnow': 'Neige hivernale',
   'map.control': 'Contrôle territorial',
   'map.supplyZone': 'Zone de ravitaillement',
   'map.selection': 'Sélection',
@@ -642,14 +667,22 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.reason.insufficient_resources': 'Ressources insuffisantes',
   'reports.reason.transferred': 'Ressources transférées',
   'reports.reason.transferred_partially': 'Ressources transférées partiellement',
-  'reports.reason.famished_sender': 'Une armée affamée ne peut pas transférer de ressources.',
-  'reports.reason.transfer_over_capacity': "L'armée ne peut pas transporter autant de ressources.",
-  'reports.reason.transfer_path_blocked': 'La route de ravitaillement est bloquée par une armée ennemie.',
-  'reports.reason.invalid_transfer_destination': 'La destination du transfert est invalide.',
-  'reports.reason.transfer_source_not_controlled': "Le territoire source n'est pas contrôlé par le propriétaire de l'armée.",
-  'reports.reason.transfer_same_territory': 'La source et la destination du transfert sont identiques.',
-  'reports.reason.transfer_source_not_settlement': "La source d'un transfert d'hiver doit être un château ou un village.",
-  'reports.reason.transfer_target_not_settlement': "La cible d'un transfert d'hiver doit être un autre château ou village.",
+  'reports.reason.famished_sender':
+    'Une armée affamée ne peut pas transférer de ressources.',
+  'reports.reason.transfer_over_capacity':
+    "L'armée ne peut pas transporter autant de ressources.",
+  'reports.reason.transfer_path_blocked':
+    'La route de ravitaillement est bloquée par une armée ennemie.',
+  'reports.reason.invalid_transfer_destination':
+    'La destination du transfert est invalide.',
+  'reports.reason.transfer_source_not_controlled':
+    "Le territoire source n'est pas contrôlé par le propriétaire de l'armée.",
+  'reports.reason.transfer_same_territory':
+    'La source et la destination du transfert sont identiques.',
+  'reports.reason.transfer_source_not_settlement':
+    "La source d'un transfert d'hiver doit être un château ou un village.",
+  'reports.reason.transfer_target_not_settlement':
+    "La cible d'un transfert d'hiver doit être un autre château ou village.",
   'reports.reason.invalid_transfer_amount': 'Le montant du transfert est invalide.',
   'reports.reason.territory_not_controlled':
     "Le territoire n'est pas contrôlé par ce joueur.",
@@ -715,7 +748,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.reason.attacked_destination': 'La destination de jonction a été attaquée.',
   'reports.reason.join_host': "L'armée a rejoint son hôte.",
   'reports.reason.join_pair': 'Les armées ont fusionné.',
-  'reports.reason.disperse_friendly_fusion': 'Les arrivées de dispersions amies ont fusionné.',
+  'reports.reason.disperse_friendly_fusion':
+    'Les arrivées de dispersions amies ont fusionné.',
   'reports.reason.support_applied': 'Soutien appliqué',
   'reports.reason.unresolved_order': "L'ordre n'a pas pu être résolu.",
   'reports.reason.unknown_infrastructure': "L'infrastructure est inconnue.",
@@ -751,6 +785,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     "Brouillons + chaînes installées · saisons d'action uniquement",
   'legend.passable':
     'Trait continu épais = frontière infranchissable · trait pointillé = frontière franchissable',
+  'legend.show': 'Afficher la légende',
+  'legend.hide': 'Masquer la légende',
   'rules.reference': 'Référence des règles v1, des ordres et du ravitaillement.',
   'rules.loading': 'Chargement des règles...',
   'rules.empty': 'Le document de règles est vide',

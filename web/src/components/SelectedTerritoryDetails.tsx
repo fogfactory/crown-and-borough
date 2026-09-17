@@ -66,8 +66,8 @@ export function SelectedTerritoryDetails({
 
   if (!state || !selectedTerritory) {
     return (
-      <div className="flex min-h-36 items-center justify-center rounded-lg border border-dashed border-[#b7a786] bg-[#f8f0e2] px-6 text-center">
-        <p className="font-serif text-lg italic text-[#806f57]">
+      <div className="flex min-h-24 items-center justify-center rounded-lg border border-dashed border-[#b7a786] bg-[#f8f0e2] px-6 text-center">
+        <p className="font-serif text-base italic text-[#806f57]">
           {t('app.selectTerritory')}
         </p>
       </div>
