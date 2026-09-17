@@ -265,7 +265,9 @@ describe('App command/report tabs', () => {
     fireEvent.keyDown(firstTerritory, { key: 'Enter', code: 'Enter' })
 
     expect(await screen.findByText('Nobles présents')).toBeInTheDocument()
-    expect(screen.getByText('Légende').closest('aside')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Afficher la légende' }),
+    ).toBeInTheDocument()
     expect(screen.getByText('JEA · Jean de Rosemont')).toBeInTheDocument()
     expect(screen.getAllByText(/Robert de Rosemont/)).not.toHaveLength(0)
     expect(screen.getByText('Otage')).toBeInTheDocument()

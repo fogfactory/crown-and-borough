@@ -130,7 +130,9 @@ describe('online contract fixtures', () => {
       expect(contender).toHaveProperty('force')
     }
 
-    const generalCombat = firstCombat(parseObject(generalCombatRaw, 'general combat report'))
+    const generalCombat = firstCombat(
+      parseObject(generalCombatRaw, 'general combat report'),
+    )
     expect(generalCombat.visibility).toBe('general')
     for (const field of [
       'contenders',

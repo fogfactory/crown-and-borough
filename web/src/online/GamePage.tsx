@@ -5,17 +5,18 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react'
-import { ArrowLeft, BookOpen, Wifi, WifiOff } from 'lucide-react'
+import { IconArrowLeft, IconBook, IconWifi, IconWifiOff } from '@tabler/icons-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { useAuth } from '@/auth/AuthProvider'
-import { MapLegend } from '@/components/MapLegend'
+import { GameLayout } from '@/components/GameLayout'
 import { MapViewer } from '@/components/MapViewer'
 import { SelectedTerritoryDetails } from '@/components/SelectedTerritoryDetails'
 import { OrdersPanel } from '@/components/OrdersPanel'
 import { ReportPane, type ReportSummary } from '@/components/ReportPane'
 import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
 import { Scoreboard } from '@/components/Scoreboard'
+import { SubmissionDots } from '@/components/SubmissionDots'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -203,7 +204,7 @@ function Lobby({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <ul className="grid gap-2 sm:grid-cols-2">
           {summary.players.map((player) => (
             <li key={player.id} className="rounded-md bg-[#f3ead9] px-3 py-2 text-sm">
               <div className="flex items-center gap-2">
@@ -265,7 +266,9 @@ export function GamePage() {
   const [chainDrafts, setChainDrafts] = useState<Record<string, string>>({})
   const [winterDraft, setWinterDraft] = useState('')
   const [winterCosts, setWinterCosts] = useState<WinterCosts | null>(null)
-  const [serverSubmission, setServerSubmission] = useState<MySubmissionResponse | null>(null)
+  const [serverSubmission, setServerSubmission] = useState<MySubmissionResponse | null>(
+    null,
+  )
   const [actionError, setActionError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [confirmResolve, setConfirmResolve] = useState(false)
@@ -285,6 +288,7 @@ export function GamePage() {
     'cb.intentionsOverlay',
     true,
   )
+  const [mapFocusSignal, setMapFocusSignal] = useState(0)
   const lastTurn = useRef<number | null>(null)
   const hydratedTurnRef = useRef<number | null>(null)
   const tokenProvider: TokenProvider = { getIdToken }
@@ -790,6 +794,13 @@ export function GamePage() {
     setActivePanel('rules')
   }
 
+  const handleTerritorySelect = (id: string | null) => {
+    setSelectedId(id)
+    if (id) {
+      setMapFocusSignal((signal) => signal + 1)
+    }
+  }
+
   if (loadError) {
     return (
       <div className="space-y-4">
@@ -797,7 +808,7 @@ export function GamePage() {
           to="/"
           className="inline-flex items-center gap-2 text-sm font-semibold text-[#a84632]"
         >
-          <ArrowLeft aria-hidden="true" className="size-4" /> {t('online.backHome')}
+          <IconArrowLeft aria-hidden="true" className="size-4" /> {t('online.backHome')}
         </Link>
         <p
           role="alert"
@@ -819,7 +830,7 @@ export function GamePage() {
           to="/"
           className="inline-flex items-center gap-2 text-sm font-semibold text-[#a84632]"
         >
-          <ArrowLeft aria-hidden="true" className="size-4" /> {t('online.backHome')}
+          <IconArrowLeft aria-hidden="true" className="size-4" /> {t('online.backHome')}
         </Link>
         <p
           role="alert"
@@ -851,52 +862,59 @@ export function GamePage() {
     : null
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Link
-            to="/"
-            className="mb-2 inline-flex items-center gap-2 text-sm font-semibold text-[#a84632]"
-          >
-            <ArrowLeft aria-hidden="true" className="size-4" /> {t('online.backHome')}
-          </Link>
-          <h1 className="font-serif text-3xl font-semibold text-[#30291f]">
-            {summary.name}
-          </h1>
-          <p className="mt-1 text-sm text-[#806f57]">
-            {t('online.currentTurn', {
-              turn: state.turn,
-              season: t(SEASON_LABEL_KEYS[state.season]),
-            })}
-          </p>
-          <p className="mt-1 text-sm font-semibold uppercase tracking-[0.12em] text-[#a84632]">
-            {t('app.year', { year: 1000 + internalYear(state) })}
-          </p>
-          <p className="mt-1 text-xs text-[#806f57]">
-            {t('app.remainingYearsTurns', {
-              years: remainingYears(state, summary.yearCount),
-              turns: remainingTurns(state, summary.yearCount),
-            })}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 sm:gap-4">
+      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1">
+        <Link
+          to="/"
+          aria-label={t('online.backHome')}
+          className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-[#a84632]"
+        >
+          <IconArrowLeft aria-hidden="true" className="size-4" />
+          <span className="hidden min-[420px]:inline">{t('online.backHome')}</span>
+        </Link>
+        <h1 className="min-w-0 flex-1 truncate font-serif text-lg font-semibold text-[#30291f] sm:flex-none sm:text-2xl">
+          {summary.name}
+        </h1>
+        <p className="text-xs font-semibold text-[#30291f]">
+          {t('online.currentTurn', {
+            turn: state.turn,
+            season: t(SEASON_LABEL_KEYS[state.season]),
+          })}
+        </p>
+        <div className="ml-auto flex items-center gap-2">
+          <SubmissionDots
+            players={summary.players.map((player) => ({
+              id: player.id,
+              name: player.name || player.id,
+              color: player.color,
+              submitted: player.submitted,
+              isYou: player.id === playerID,
+            }))}
+          />
           <span
-            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${offline ? 'border-[#a84632]/30 bg-[#f8e5dd] text-[#8d321e]' : 'border-[#376341]/30 bg-[#e8f1e3] text-[#376341]'}`}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs font-semibold ${offline ? 'border-[#a84632]/30 bg-[#f8e5dd] text-[#8d321e]' : 'border-[#376341]/30 bg-[#e8f1e3] text-[#376341]'}`}
           >
             {offline ? (
-              <WifiOff aria-hidden="true" className="size-3.5" />
+              <IconWifiOff aria-hidden="true" className="size-3.5" />
             ) : (
-              <Wifi aria-hidden="true" className="size-3.5" />
+              <IconWifi aria-hidden="true" className="size-3.5" />
             )}
             {offline ? t('online.networkOffline') : t('online.realtime')}
           </span>
           {summary.status === 'finished' && (
-            <span className="rounded-full border border-[#815f1e]/40 bg-[#f8e8ae]/60 px-2.5 py-1 text-xs font-semibold text-[#6d5118]">
+            <span className="rounded-full border border-[#815f1e]/40 bg-[#f8e8ae]/60 px-2 py-1 text-xs font-semibold text-[#6d5118]">
               {t('online.finished')}
             </span>
           )}
         </div>
       </div>
+      <p className="shrink-0 text-[11px] text-[#806f57]">
+        {t('app.year', { year: 1000 + internalYear(state) })} ·{' '}
+        {t('app.remainingYearsTurns', {
+          years: remainingYears(state, summary.yearCount),
+          turns: remainingTurns(state, summary.yearCount),
+        })}
+      </p>
 
       {subscription.error &&
         subscription.error.code !== 'permission-denied' &&
@@ -923,210 +941,199 @@ export function GamePage() {
         </div>
       )}
 
-      <main className="flex flex-col gap-4 lg:flex-row">
-        <section className="relative h-[560px] min-h-0 flex-1 overflow-hidden rounded-2xl border border-[#b7a786] bg-[#e6d8bb] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)] lg:h-[calc(100vh-19rem)]">
-          <div className="pointer-events-none absolute left-5 top-5 z-10">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#806f57]">
-              {t('app.mapPublic')}
-            </p>
-            <p className="mt-1 text-xs text-[#594b3c]">{t('app.mapInstructions')}</p>
-          </div>
+      <GameLayout
+        mainClassName="max-w-[1500px] lg:mx-0"
+        map={
           <MapViewer
             map={map}
             state={state}
             supply={selectedSupplyLine}
-            onSelect={setSelectedId}
+            onSelect={handleTerritorySelect}
             intentions={intentions}
             showIntentions={showIntentions}
             intentionsColor={intentionsColor}
-          />
-        </section>
-
-        <aside className="w-full shrink-0 space-y-4 lg:w-96 xl:w-[27rem]">
-          <Card className="border-[#b7a786] bg-[#fffaf0] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)]">
-            <CardHeader className="border-b border-[#b7a786]/50 pb-4">
-              <CardTitle className="font-serif text-xl text-[#30291f]">
-                {activePanel === 'command'
-                  ? t('app.commandPost')
-                  : activePanel === 'report'
-                    ? t('app.turnReport')
-                    : t('app.rules')}
-              </CardTitle>
-              <CardDescription className="text-[#806f57]">
-                {currentSlot
-                  ? `${currentSlot.name} · ${t('online.you')}`
-                  : t('online.accessRevoked')}
-              </CardDescription>
-              <div
-                role="tablist"
-                aria-label={t('app.panelViews')}
-                className="mt-3 grid grid-cols-3 gap-1 rounded-lg bg-[#f3ead9] p-1"
-              >
-                {(['command', 'report', 'rules'] as const).map((panel) => (
-                  <button
-                    key={panel}
-                    type="button"
-                    role="tab"
-                    aria-selected={activePanel === panel}
-                    aria-controls={`${panel}-panel`}
-                    tabIndex={activePanel === panel ? 0 : -1}
-                    data-online-panel-tab={panel}
-                    className={`rounded-md px-2 py-2 text-xs font-semibold transition ${activePanel === panel ? 'bg-[#fffaf0] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:text-[#30291f]'}`}
-                    onClick={() => setActivePanel(panel)}
-                    onKeyDown={(event) =>
-                      panelKeyDown(event, activePanel, setActivePanel)
-                    }
-                  >
-                    {panel === 'rules' && (
-                      <BookOpen aria-hidden="true" className="mr-1 inline size-3.5" />
-                    )}
-                    {panel === 'command'
-                      ? t('app.commandPost')
-                      : panel === 'report'
-                        ? `${t('app.turnReport')} ${report ? `· ${report.header.turn}` : ''}`
-                        : t('app.rules')}
-                  </button>
-                ))}
-              </div>
-            </CardHeader>
-            <CardContent className="min-w-0 space-y-5 pt-5">
-              <div
-                id="command-panel"
-                role="tabpanel"
-                aria-label={t('app.commandPost')}
-                hidden={activePanel !== 'command'}
-                className="space-y-5"
-              >
-                <SelectedTerritoryDetails
-                  state={state}
-                  selectedTerritory={selectedTerritory}
-                  selectedState={selectedState}
-                  preferredPlayers={summary.players}
-                  mapTerritories={map.territories}
-                  selectedSupplyLine={selectedSupplyLine}
-                  sourceTerritory={sourceTerritory}
-                  supplyLoading={supplyLoading}
-                  supplyError={supplyError}
-                  transferTargets={transferTargets}
-                  selectedTransferTarget={transferTarget}
-                  onTransferTargetChange={setSelectedTransferTarget}
-                  transferLine={transferLine}
-                  transferLoading={transferLoading}
-                  transferError={transferError}
-                />
-                {playerID ? (
-                  <OrdersPanel
-                    state={state}
-                    player={playerID}
-                    chainDrafts={chainDrafts}
-                    winterDraft={winterDraft}
-                    winterCosts={winterCosts}
-                    map={map}
-                    submitted={Boolean(currentSlot?.submitted)}
-                    submitting={submitting}
-                    error={actionError}
-                    draftDiffers={draftDiffers}
-                    onChainChange={(noble, text) =>
-                      setChainDrafts((current) => ({ ...current, [noble]: text }))
-                    }
-                    onWinterChange={setWinterDraft}
-                    onSubmit={() => void submitOrders()}
-                    onOpenRules={openRules}
-                    onRestoreFromServer={restoreFromServer}
-                  />
-                ) : (
-                  <p
-                    role="alert"
-                    className="rounded-lg border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 text-sm text-[#8d321e]"
-                  >
-                    {t('online.accessRevoked')}
-                  </p>
-                )}
-                {summary.status !== 'finished' && summary.canInvite && (
-                  <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">
-                    {!confirmResolve ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full"
-                        disabled={submitting}
-                        onClick={() => setConfirmResolve(true)}
-                      >
-                        {t('online.forceResolve')}
-                      </Button>
-                    ) : (
-                      <div className="rounded-lg border border-[#815f1e]/40 bg-[#f8e8ae]/50 p-3 text-sm text-[#6d5118]">
-                        <p>{t('online.forceResolveConfirm')}</p>
-                        <div className="mt-3 flex gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            disabled={submitting}
-                            onClick={() => void submitOrders(true)}
-                          >
-                            {t('online.forceResolve')}
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setConfirmResolve(false)}
-                          >
-                            {t('online.cancel')}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-              <div
-                id="report-panel"
-                role="tabpanel"
-                aria-label={t('app.turnReport')}
-                hidden={activePanel !== 'report'}
-                className="space-y-4"
-              >
-                <ReportPane
-                  report={report}
-                  map={map}
-                  players={state.players}
-                  summaries={reportSummaries}
-                  loading={reportLoading}
-                  error={reportError}
-                  onSelectReport={(index) => void loadReport(index)}
-                />
-              </div>
-              <div
-                id="rules-panel"
-                role="tabpanel"
-                aria-label={t('app.rules')}
-                hidden={activePanel !== 'rules'}
-              >
-                <RulesPanel
-                  gameId={gameId}
-                  tokenProvider={tokenProvider}
-                  targetSection={rulesNavigation?.section}
-                  navigationKey={rulesNavigation?.key}
-                />
-              </div>
-            </CardContent>
-          </Card>
-          <MapLegend
-            showIntentions={showIntentions}
             onToggleIntentions={setShowIntentions}
           />
-        </aside>
-      </main>
-      <Lobby
-        summary={summary}
-        uid={user?.uid ?? ''}
-        currentPlayer={summary.currentPlayer}
-        invitation={invitation}
-        onInvite={() => void createInvitation()}
-        inviting={inviting}
-        scores={state.scores ?? summary.scores}
-      />
+        }
+        focusSignal={mapFocusSignal}
+      >
+        <Card className="border-[#b7a786] bg-[#fffaf0] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)]">
+          <CardHeader className="border-b border-[#b7a786]/50 pb-3">
+            <CardTitle className="font-serif text-lg text-[#30291f] sm:text-xl">
+              {activePanel === 'command'
+                ? t('app.commandPost')
+                : activePanel === 'report'
+                  ? t('app.turnReport')
+                  : t('app.rules')}
+            </CardTitle>
+            <CardDescription className="text-[#806f57]">
+              {currentSlot
+                ? `${currentSlot.name} · ${t('online.you')}`
+                : t('online.accessRevoked')}
+            </CardDescription>
+            <div
+              role="tablist"
+              aria-label={t('app.panelViews')}
+              className="mt-2 grid grid-cols-3 gap-1 rounded-lg bg-[#f3ead9] p-1"
+            >
+              {(['command', 'report', 'rules'] as const).map((panel) => (
+                <button
+                  key={panel}
+                  type="button"
+                  role="tab"
+                  aria-selected={activePanel === panel}
+                  aria-controls={`${panel}-panel`}
+                  tabIndex={activePanel === panel ? 0 : -1}
+                  data-online-panel-tab={panel}
+                  className={`rounded-md px-2 py-1.5 text-xs font-semibold transition ${activePanel === panel ? 'bg-[#fffaf0] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:text-[#30291f]'}`}
+                  onClick={() => setActivePanel(panel)}
+                  onKeyDown={(event) => panelKeyDown(event, activePanel, setActivePanel)}
+                >
+                  {panel === 'rules' && (
+                    <IconBook aria-hidden="true" className="mr-1 inline size-3.5" />
+                  )}
+                  {panel === 'command'
+                    ? t('app.commandPost')
+                    : panel === 'report'
+                      ? `${t('app.turnReport')} ${report ? `· ${report.header.turn}` : ''}`
+                      : t('app.rules')}
+                </button>
+              ))}
+            </div>
+          </CardHeader>
+          <CardContent className="min-w-0 space-y-4 pt-4">
+            <div
+              id="command-panel"
+              role="tabpanel"
+              aria-label={t('app.commandPost')}
+              hidden={activePanel !== 'command'}
+              className="space-y-4"
+            >
+              <SelectedTerritoryDetails
+                state={state}
+                selectedTerritory={selectedTerritory}
+                selectedState={selectedState}
+                preferredPlayers={summary.players}
+                mapTerritories={map.territories}
+                selectedSupplyLine={selectedSupplyLine}
+                sourceTerritory={sourceTerritory}
+                supplyLoading={supplyLoading}
+                supplyError={supplyError}
+                transferTargets={transferTargets}
+                selectedTransferTarget={transferTarget}
+                onTransferTargetChange={setSelectedTransferTarget}
+                transferLine={transferLine}
+                transferLoading={transferLoading}
+                transferError={transferError}
+              />
+              {playerID ? (
+                <OrdersPanel
+                  state={state}
+                  player={playerID}
+                  chainDrafts={chainDrafts}
+                  winterDraft={winterDraft}
+                  winterCosts={winterCosts}
+                  map={map}
+                  submitted={Boolean(currentSlot?.submitted)}
+                  submitting={submitting}
+                  error={actionError}
+                  draftDiffers={draftDiffers}
+                  onChainChange={(noble, text) =>
+                    setChainDrafts((current) => ({ ...current, [noble]: text }))
+                  }
+                  onWinterChange={setWinterDraft}
+                  onSubmit={() => void submitOrders()}
+                  onOpenRules={openRules}
+                  onRestoreFromServer={restoreFromServer}
+                />
+              ) : (
+                <p
+                  role="alert"
+                  className="rounded-lg border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 text-sm text-[#8d321e]"
+                >
+                  {t('online.accessRevoked')}
+                </p>
+              )}
+              {summary.status !== 'finished' && summary.canInvite && (
+                <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">
+                  {!confirmResolve ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      disabled={submitting}
+                      onClick={() => setConfirmResolve(true)}
+                    >
+                      {t('online.forceResolve')}
+                    </Button>
+                  ) : (
+                    <div className="rounded-lg border border-[#815f1e]/40 bg-[#f8e8ae]/50 p-3 text-sm text-[#6d5118]">
+                      <p>{t('online.forceResolveConfirm')}</p>
+                      <div className="mt-3 flex gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={submitting}
+                          onClick={() => void submitOrders(true)}
+                        >
+                          {t('online.forceResolve')}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setConfirmResolve(false)}
+                        >
+                          {t('online.cancel')}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div
+              id="report-panel"
+              role="tabpanel"
+              aria-label={t('app.turnReport')}
+              hidden={activePanel !== 'report'}
+              className="space-y-4"
+            >
+              <ReportPane
+                report={report}
+                map={map}
+                players={state.players}
+                summaries={reportSummaries}
+                loading={reportLoading}
+                error={reportError}
+                onSelectReport={(index) => void loadReport(index)}
+              />
+            </div>
+            <div
+              id="rules-panel"
+              role="tabpanel"
+              aria-label={t('app.rules')}
+              hidden={activePanel !== 'rules'}
+            >
+              <RulesPanel
+                gameId={gameId}
+                tokenProvider={tokenProvider}
+                targetSection={rulesNavigation?.section}
+                navigationKey={rulesNavigation?.key}
+              />
+            </div>
+          </CardContent>
+        </Card>
+        <Lobby
+          summary={summary}
+          uid={user?.uid ?? ''}
+          currentPlayer={summary.currentPlayer}
+          invitation={invitation}
+          onInvite={() => void createInvitation()}
+          inviting={inviting}
+          scores={state.scores ?? summary.scores}
+        />
+      </GameLayout>
     </div>
   )
 }

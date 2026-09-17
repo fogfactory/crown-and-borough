@@ -21,12 +21,7 @@ const SYMBOLS: Record<OrderType, string> = {
 }
 
 export type IntentSegmentKind =
-  | 'attack'
-  | 'movement'
-  | 'support-defensive'
-  | 'support-offensive'
-  | 'transfer'
-  | 'loop'
+  'attack' | 'movement' | 'support-defensive' | 'support-offensive' | 'transfer' | 'loop'
 
 export type IntentionSource = 'chain' | 'draft'
 
