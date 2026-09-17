@@ -6,11 +6,24 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
+import { IconFocus2, IconMinus, IconPlus } from '@tabler/icons-react'
 
-import { TERRAIN_COLORS, TERRAIN_LABEL_KEYS } from '@/components/MapLegend'
+import { MapLegend, TERRAIN_COLORS, TERRAIN_LABEL_KEYS } from '@/components/MapLegend'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
 import type { Intention } from '@/lib/intent-overlay'
+import {
+  DRAG_THRESHOLD,
+  WHEEL_ZOOM_FACTOR,
+  ZOOM_BUTTON_FACTOR,
+  distanceBetween,
+  midpointOf,
+  pinchView,
+  zoomAtCenter,
+  zoomAtPoint,
+  type MapPoint,
+  type ViewState,
+} from '@/lib/map-gestures'
 import { hasSupplySource } from '@/lib/supply'
 import {
   Tooltip,
@@ -27,9 +40,6 @@ import type {
   SupplyLine,
 } from '@/types'
 
-const MIN_ZOOM = 0.5
-const MAX_ZOOM = 4
-const DRAG_THRESHOLD = 4
 const OUTER_BORDER_WIDTH = 2
 const PASSABLE_BORDER_WIDTH = 2
 const IMPASSABLE_BORDER_WIDTH = 4
@@ -45,6 +55,32 @@ const PLAYER_PALETTE = ['#a84632', '#2d5f9e', '#7052a1', '#34775c', '#ad7a25']
 const INTENT_OUTLINE_COLOR = '#17120f'
 export const DRAFT_INTENTION_COLOR = '#d4a39b'
 
+// Map marker artwork uses Tabler Icons path data (https://tabler.io/icons, MIT).
+const TABLER_MARKER_PATHS: Record<string, string[]> = {
+  castle: [
+    'M15 19v-2a3 3 0 0 0 -6 0v2a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-14h4v3h3v-3h4v3h3v-3h4v14a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1',
+    'M3 11l18 0',
+  ],
+  village: [
+    'M3 21l18 0',
+    'M4 21v-11l2.5 -4.5l5.5 -2.5l5.5 2.5l2.5 4.5v11',
+    'M10 9a2 2 0 1 0 4 0a2 2 0 1 0 -4 0',
+    'M9 21v-5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v5',
+  ],
+  mill: [
+    'M12 12c2.76 0 5 -2.01 5 -4.5s-2.24 -4.5 -5 -4.5v9',
+    'M12 12c0 2.76 2.01 5 4.5 5s4.5 -2.24 4.5 -5h-9',
+    'M12 12c-2.76 0 -5 2.01 -5 4.5s2.24 4.5 5 4.5v-9',
+    'M12 12c0 -2.76 -2.01 -5 -4.5 -5s-4.5 2.24 -4.5 5h9',
+  ],
+  supply_depot: [
+    'M3 21v-13l9 -4l9 4v13',
+    'M13 13h4v8h-10v-6h6',
+    'M13 21v-9a1 1 0 0 0 -1 -1h-2a1 1 0 0 0 -1 1v3',
+  ],
+  crown: ['M12 6l4 6l5 -4l-2 10h-14l-2 -10l5 4l4 -6'],
+}
+
 const INFRASTRUCTURE_LABEL_KEYS: Record<Infrastructure['type'], MessageKey> = {
   mill: 'infrastructure.mill',
   supply_depot: 'infrastructure.supply_depot',
@@ -52,19 +88,22 @@ const INFRASTRUCTURE_LABEL_KEYS: Record<Infrastructure['type'], MessageKey> = {
   village: 'infrastructure.village',
 }
 
-interface ViewState {
-  x: number
-  y: number
-  k: number
+interface TrackedPointer {
+  start: MapPoint
+  last: MapPoint
 }
 
-interface DragState {
-  pointerId: number
-  mode: 'pan' | 'select'
-  territoryId: string | null
-  start: Point
-  last: Point
+interface GestureState {
+  primaryId: number
+  pointers: Map<number, TrackedPointer>
+  mode: 'pending' | 'pan' | 'pinch'
   dragged: boolean
+  territoryId: string | null
+  initialView: ViewState
+  initialDistance: number
+  initialMidpoint: MapPoint
+  /** Drag threshold in map units, derived from on-screen pixels. */
+  threshold: number
 }
 
 interface InfrastructureMarkerProps {
@@ -172,10 +211,6 @@ function meanTerritoryArea(territories: MapData['territories']): number {
   )
 }
 
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.min(Math.max(value, minimum), maximum)
-}
-
 function clientToSvgPoint(
   svg: SVGSVGElement,
   clientX: number,
@@ -203,6 +238,16 @@ function getTerritoryIdFromTarget(target: EventTarget | null): string | null {
   )
 }
 
+function TablerMarkerPaths({ paths }: { paths: string[] }) {
+  return (
+    <>
+      {paths.map((d) => (
+        <path key={d} d={d} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      ))}
+    </>
+  )
+}
+
 function InfrastructureMarker({
   infrastructure,
   x,
@@ -212,52 +257,32 @@ function InfrastructureMarker({
 }: InfrastructureMarkerProps) {
   const { t } = useLanguage()
   const label = `${t(INFRASTRUCTURE_LABEL_KEYS[infrastructure.type])} · ${t('app.level', { level: infrastructure.level })}${isCapital ? ` · ${t('app.capital')}` : ''}`
+  const paths = TABLER_MARKER_PATHS[infrastructure.type] ?? []
 
   return (
     <g transform={`translate(${x} ${y}) scale(${scale})`} pointerEvents="none">
       <title>{label}</title>
-      {infrastructure.type === 'castle' && (
-        <>
-          <path
-            d="M-9 9V-3H-5V-9H-1V-3H3V-9H7V-3H10V9Z"
-            fill="#efe6d0"
-            stroke="#5f4936"
-            strokeWidth="1.5"
-          />
-          {isCapital && (
-            <g data-capital-marker="true" transform="translate(0 -7)">
-              <path
-                d="M-8 1L-6-7L-1-1L0-8L1-1L6-7L8 1Z"
-                fill="#f2c14e"
-                stroke="#815f1e"
-                strokeWidth="1.25"
-              />
-              <path d="M-8 1H8" stroke="#815f1e" strokeWidth="1.25" />
-            </g>
-          )}
-        </>
-      )}
-      {infrastructure.type === 'mill' && (
-        <>
-          <line x1="0" y1="0" x2="-9" y2="-7" stroke="#efe6d0" strokeWidth="3" />
-          <line x1="0" y1="0" x2="9" y2="-7" stroke="#efe6d0" strokeWidth="3" />
-          <line x1="0" y1="0" x2="-9" y2="7" stroke="#efe6d0" strokeWidth="3" />
-          <line x1="0" y1="0" x2="9" y2="7" stroke="#efe6d0" strokeWidth="3" />
-          <circle cx="0" cy="0" r="3" fill="#8b5e3c" stroke="#4e3828" />
-        </>
-      )}
-      {infrastructure.type === 'supply_depot' && (
-        <>
-          <path d="M-9-4L0-9L9-4V8H-9Z" fill="#dcc08d" stroke="#705a36" />
-          <path d="M-9-4H9M0-9V8" stroke="#705a36" />
-        </>
-      )}
-      {infrastructure.type === 'village' && (
-        <>
-          <path d="M-9 8V-1L0-10L9-1V8Z" fill="#fff8e7" stroke="#6b4c28" />
-          <rect x="-4" y="1" width="8" height="7" fill="#b7834e" />
-          <path d="M-5-1H0L3-4" fill="none" stroke="#6b4c28" strokeWidth="1.5" />
-        </>
+      <g transform="translate(-10 -10) scale(0.8333)">
+        <g stroke="#fff8e7" strokeWidth={4.5} opacity={0.85}>
+          <TablerMarkerPaths paths={paths} />
+        </g>
+        <g stroke="#5f4936" strokeWidth={2}>
+          <TablerMarkerPaths paths={paths} />
+        </g>
+      </g>
+      {isCapital && (
+        <g
+          data-capital-marker="true"
+          transform="translate(0 -16) scale(0.4)"
+          pointerEvents="none"
+        >
+          <g stroke="#fff8e7" strokeWidth={4} opacity={0.85}>
+            <TablerMarkerPaths paths={TABLER_MARKER_PATHS.crown} />
+          </g>
+          <g stroke="#815f1e" strokeWidth={2}>
+            <TablerMarkerPaths paths={TABLER_MARKER_PATHS.crown} />
+          </g>
+        </g>
       )}
       {infrastructure.level > 1 && (
         <text
@@ -364,6 +389,46 @@ function IntentBadge({
   )
 }
 
+function MapControls({ onZoom }: { onZoom: (zoomFactor: number) => void }) {
+  const { t } = useLanguage()
+
+  return (
+    <div
+      role="group"
+      aria-label={t('map.zoomControls')}
+      className="absolute bottom-28 right-3 z-10 flex flex-col gap-1.5 lg:bottom-3"
+    >
+      <button
+        type="button"
+        aria-label={t('map.zoomIn')}
+        title={t('map.zoomIn')}
+        className="flex size-9 items-center justify-center rounded-lg border border-[#b7a786] bg-[#fffaf0] text-[#594b3c] shadow-md transition hover:bg-[#f3ead9] hover:text-[#30291f] focus-visible:ring-2 focus-visible:ring-[#a84632]/40 focus-visible:outline-none"
+        onClick={() => onZoom(ZOOM_BUTTON_FACTOR)}
+      >
+        <IconPlus aria-hidden="true" className="size-4" />
+      </button>
+      <button
+        type="button"
+        aria-label={t('map.zoomOut')}
+        title={t('map.zoomOut')}
+        className="flex size-9 items-center justify-center rounded-lg border border-[#b7a786] bg-[#fffaf0] text-[#594b3c] shadow-md transition hover:bg-[#f3ead9] hover:text-[#30291f] focus-visible:ring-2 focus-visible:ring-[#a84632]/40 focus-visible:outline-none"
+        onClick={() => onZoom(1 / ZOOM_BUTTON_FACTOR)}
+      >
+        <IconMinus aria-hidden="true" className="size-4" />
+      </button>
+      <button
+        type="button"
+        aria-label={t('map.recenter')}
+        title={t('map.recenter')}
+        className="flex size-9 items-center justify-center rounded-lg border border-[#b7a786] bg-[#fffaf0] text-[#594b3c] shadow-md transition hover:bg-[#f3ead9] hover:text-[#30291f] focus-visible:ring-2 focus-visible:ring-[#a84632]/40 focus-visible:outline-none"
+        onClick={() => onZoom(0)}
+      >
+        <IconFocus2 aria-hidden="true" className="size-4" />
+      </button>
+    </div>
+  )
+}
+
 interface MapViewerProps {
   map: MapData
   state: StateData
@@ -372,6 +437,7 @@ interface MapViewerProps {
   intentions?: Intention[]
   showIntentions?: boolean
   intentionsColor?: string
+  onToggleIntentions?: (show: boolean) => void
 }
 
 export function MapViewer({
@@ -382,13 +448,15 @@ export function MapViewer({
   intentions = [],
   showIntentions = false,
   intentionsColor = '#a84632',
+  onToggleIntentions,
 }: MapViewerProps) {
   const { t } = useLanguage()
   const svgRef = useRef<SVGSVGElement>(null)
-  const dragRef = useRef<DragState | null>(null)
+  const gestureRef = useRef<GestureState | null>(null)
   const [view, setView] = useState<ViewState>({ x: 0, y: 0, k: 1 })
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [legendOpen, setLegendOpen] = useState(false)
   const { mapWidth, mapHeight, outerBorders, sharedBorders, passableBoundaryKeys } =
     useMemo(() => {
       let minX = Infinity
@@ -556,18 +624,9 @@ export function MapViewer({
         mapWidth,
         mapHeight,
       )
-      const zoomFactor = event.deltaY < 0 ? 1.15 : 1 / 1.15
+      const zoomFactor = event.deltaY < 0 ? WHEEL_ZOOM_FACTOR : 1 / WHEEL_ZOOM_FACTOR
 
-      setView((current) => {
-        const nextZoom = clamp(current.k * zoomFactor, MIN_ZOOM, MAX_ZOOM)
-        const ratio = nextZoom / current.k
-
-        return {
-          k: nextZoom,
-          x: cursor[0] - (cursor[0] - current.x) * ratio,
-          y: cursor[1] - (cursor[1] - current.y) * ratio,
-        }
-      })
+      setView((current) => zoomAtPoint(current, cursor, zoomFactor))
     }
 
     svg.addEventListener('wheel', handleWheel, { passive: false })
@@ -589,22 +648,54 @@ export function MapViewer({
       mapWidth,
       mapHeight,
     )
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const mapUnitsPerPx = mapWidth / (bounds.width || 1)
+    const threshold = Math.max(
+      DRAG_THRESHOLD,
+      (event.pointerType === 'touch' ? 8 : DRAG_THRESHOLD) * mapUnitsPerPx,
+    )
     event.currentTarget.setPointerCapture(event.pointerId)
     event.preventDefault()
-    dragRef.current = {
-      pointerId: event.pointerId,
-      mode: event.pointerType === 'touch' ? 'pan' : 'select',
-      territoryId: getTerritoryIdFromTarget(event.target),
-      start: point,
-      last: point,
-      dragged: false,
+
+    const gesture = gestureRef.current
+    if (!gesture) {
+      gestureRef.current = {
+        primaryId: event.pointerId,
+        pointers: new Map([[event.pointerId, { start: point, last: point }]]),
+        mode: 'pending',
+        dragged: false,
+        territoryId: getTerritoryIdFromTarget(event.target),
+        initialView: view,
+        initialDistance: 0,
+        initialMidpoint: point,
+        threshold,
+      }
+      return
     }
-    setIsDragging(event.pointerType === 'touch')
+
+    if (gesture.pointers.has(event.pointerId)) {
+      return
+    }
+
+    gesture.pointers.set(event.pointerId, { start: point, last: point })
+    if (gesture.pointers.size >= 2) {
+      const [first, second] = Array.from(gesture.pointers.values())
+      gesture.mode = 'pinch'
+      gesture.dragged = true
+      gesture.initialView = view
+      gesture.initialDistance = Math.max(distanceBetween(first.last, second.last), 1)
+      gesture.initialMidpoint = midpointOf(first.last, second.last)
+      setIsDragging(true)
+    }
   }
 
   const handlePointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
-    const activeDrag = dragRef.current
-    if (!activeDrag || activeDrag.pointerId !== event.pointerId) {
+    const gesture = gestureRef.current
+    if (!gesture) {
+      return
+    }
+    const tracked = gesture.pointers.get(event.pointerId)
+    if (!tracked) {
       return
     }
 
@@ -615,59 +706,89 @@ export function MapViewer({
       mapWidth,
       mapHeight,
     )
-    const distance = Math.hypot(
-      point[0] - activeDrag.start[0],
-      point[1] - activeDrag.start[1],
-    )
-    if (distance >= DRAG_THRESHOLD) {
-      activeDrag.dragged = true
-      if (activeDrag.mode === 'select') {
-        activeDrag.mode = 'pan'
-        setIsDragging(true)
+    const deltaX = point[0] - tracked.last[0]
+    const deltaY = point[1] - tracked.last[1]
+    tracked.last = point
+
+    if (gesture.mode === 'pending') {
+      const primary = gesture.pointers.get(gesture.primaryId)
+      if (!primary) {
+        return
       }
+      if (distanceBetween(primary.start, primary.last) < gesture.threshold) {
+        return
+      }
+      gesture.mode = 'pan'
+      gesture.dragged = true
+      setIsDragging(true)
     }
 
-    const deltaX = point[0] - activeDrag.last[0]
-    const deltaY = point[1] - activeDrag.last[1]
-    if (activeDrag.mode === 'pan' && activeDrag.dragged) {
-      setView((current) => {
-        return {
-          ...current,
-          x: current.x + deltaX,
-          y: current.y + deltaY,
-        }
-      })
+    if (gesture.mode === 'pinch') {
+      const [first, second] = Array.from(gesture.pointers.values())
+      if (!first || !second) {
+        return
+      }
+      const currentMidpoint = midpointOf(first.last, second.last)
+      const currentDistance = distanceBetween(first.last, second.last)
+      setView(
+        pinchView(
+          gesture.initialView,
+          gesture.initialMidpoint,
+          gesture.initialDistance,
+          currentMidpoint,
+          currentDistance,
+        ),
+      )
+      return
     }
-    activeDrag.last = point
+
+    if (gesture.mode === 'pan' && (deltaX !== 0 || deltaY !== 0)) {
+      setView((current) => ({
+        ...current,
+        x: current.x + deltaX,
+        y: current.y + deltaY,
+      }))
+    }
+  }
+
+  const endGesture = (
+    event: ReactPointerEvent<SVGSVGElement>,
+    allowSelection: boolean,
+  ) => {
+    const gesture = gestureRef.current
+    if (!gesture || !gesture.pointers.has(event.pointerId)) {
+      return
+    }
+
+    const wasPending = gesture.mode === 'pending'
+    gesture.pointers.delete(event.pointerId)
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+
+    if (gesture.pointers.size === 0) {
+      if (allowSelection && wasPending && !gesture.dragged) {
+        selectTerritory(gesture.territoryId)
+      }
+      gestureRef.current = null
+      setIsDragging(false)
+      return
+    }
+
+    if (gesture.mode === 'pinch' && gesture.pointers.size === 1) {
+      gesture.mode = 'pan'
+    }
   }
 
   const handlePointerUp = (event: ReactPointerEvent<SVGSVGElement>) => {
-    const activeDrag = dragRef.current
-    if (event.button !== 0 || !activeDrag || activeDrag.pointerId !== event.pointerId) {
+    if (event.button !== 0) {
       return
     }
-
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId)
-    }
-    if (activeDrag.mode === 'select' && !activeDrag.dragged) {
-      selectTerritory(activeDrag.territoryId)
-    }
-    dragRef.current = null
-    setIsDragging(false)
+    endGesture(event, true)
   }
 
   const handlePointerCancel = (event: ReactPointerEvent<SVGSVGElement>) => {
-    const activeDrag = dragRef.current
-    if (!activeDrag || activeDrag.pointerId !== event.pointerId) {
-      return
-    }
-
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId)
-    }
-    dragRef.current = null
-    setIsDragging(false)
+    endGesture(event, false)
   }
 
   const selectTerritory = (id: string | null) => {
@@ -686,6 +807,14 @@ export function MapViewer({
 
     event.preventDefault()
     selectTerritory(id)
+  }
+
+  const handleControlZoom = (zoomFactor: number) => {
+    if (zoomFactor === 0) {
+      setView({ x: 0, y: 0, k: 1 })
+      return
+    }
+    setView((current) => zoomAtCenter(current, mapWidth, mapHeight, zoomFactor))
   }
 
   return (
@@ -1273,6 +1402,46 @@ export function MapViewer({
             )}
           </g>
         </svg>
+
+        <MapControls onZoom={handleControlZoom} />
+
+        {onToggleIntentions && (
+          <div className="absolute right-3 top-3 z-10">
+            <button
+              type="button"
+              aria-expanded={legendOpen}
+              aria-label={t(legendOpen ? 'legend.hide' : 'legend.show')}
+              title={t(legendOpen ? 'legend.hide' : 'legend.show')}
+              className="flex size-9 items-center justify-center rounded-lg border border-[#b7a786] bg-[#fffaf0] text-[#594b3c] shadow-md transition hover:bg-[#f3ead9] hover:text-[#30291f] focus-visible:ring-2 focus-visible:ring-[#a84632]/40 focus-visible:outline-none"
+              onClick={() => setLegendOpen((open) => !open)}
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="size-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M4 4h6v6h-6z" />
+                <path d="M14 6l6 0" />
+                <path d="M14 10l6 0" />
+                <path d="M4 14h16" />
+                <path d="M4 18h16" />
+              </svg>
+            </button>
+            {legendOpen && (
+              <div className="absolute right-0 top-11 w-72 max-w-[calc(100vw-1.5rem)]">
+                <MapLegend
+                  showIntentions={showIntentions}
+                  onToggleIntentions={onToggleIntentions}
+                />
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </TooltipProvider>
   )
