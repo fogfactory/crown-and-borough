@@ -94,10 +94,21 @@ function OnlineHeader() {
 
 export function OnlineFrame({ children }: { children: ReactNode }) {
   const { language } = useLanguage()
+  const location = useLocation()
+  const isGame = /^\/games\//.test(location.pathname)
   return (
-    <div lang={language} className="flex min-h-dvh flex-col bg-[#efe7d8] text-[#30291f]">
+    <div
+      lang={language}
+      className={`flex flex-col bg-[#efe7d8] text-[#30291f] ${
+        isGame ? 'h-dvh overflow-hidden' : 'min-h-dvh'
+      }`}
+    >
       <OnlineHeader />
-      <main className="mx-auto flex w-full min-h-0 max-w-[1500px] flex-1 flex-col p-3 sm:p-4 lg:p-6">
+      <main
+        className={`mx-auto flex w-full min-h-0 max-w-[1500px] flex-1 flex-col p-3 sm:p-4 lg:p-6 ${
+          isGame ? 'overflow-hidden' : ''
+        }`}
+      >
         {children}
       </main>
     </div>

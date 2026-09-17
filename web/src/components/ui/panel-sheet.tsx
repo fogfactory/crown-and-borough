@@ -73,7 +73,7 @@ export function PanelSheet({ children, className, focusSignal = 0 }: PanelSheetP
       data-sheet-snap={snap}
       data-testid="panel-sheet"
       className={cn(
-        'fixed inset-x-0 bottom-0 z-40 flex flex-col rounded-t-2xl border-t border-[#b7a786] bg-[#efe7d8] shadow-[0_-12px_40px_-20px_rgba(67,46,24,0.6)] transition-[height] duration-200 ease-out lg:static lg:z-auto lg:h-auto lg:max-h-none lg:rounded-none lg:border-0 lg:bg-transparent lg:shadow-none',
+        'fixed inset-x-0 bottom-0 z-40 flex flex-col rounded-t-2xl border-t border-[#b7a786] bg-[#efe7d8] shadow-[0_-12px_40px_-20px_rgba(67,46,24,0.6)] transition-[height] duration-200 ease-out lg:static lg:z-auto lg:h-full lg:min-h-0 lg:rounded-none lg:border-0 lg:bg-transparent lg:shadow-none',
         SHEET_HEIGHTS[snap],
         className,
       )}
@@ -99,7 +99,7 @@ export function PanelSheet({ children, className, focusSignal = 0 }: PanelSheetP
           )}
         </button>
       </div>
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3 pb-6 sm:px-4 lg:max-h-[calc(100dvh-6.5rem)] lg:overflow-y-auto lg:p-0 lg:pb-0">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3 pb-6 sm:px-4 lg:min-h-0 lg:p-0 lg:pb-0">
         {children}
       </div>
     </div>

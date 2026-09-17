@@ -5,7 +5,14 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react'
-import { IconArrowLeft, IconBook, IconWifi, IconWifiOff } from '@tabler/icons-react'
+import {
+  IconArrowLeft,
+  IconBook,
+  IconTrophy,
+  IconUsersGroup,
+  IconWifi,
+  IconWifiOff,
+} from '@tabler/icons-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { useAuth } from '@/auth/AuthProvider'
@@ -18,6 +25,7 @@ import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
 import { Scoreboard } from '@/components/Scoreboard'
 import { SubmissionDots } from '@/components/SubmissionDots'
 import { Button } from '@/components/ui/button'
+import { HeaderPopover } from '@/components/ui/header-popover'
 import {
   Card,
   CardContent,
@@ -882,6 +890,35 @@ export function GamePage() {
           })}
         </p>
         <div className="ml-auto flex items-center gap-2">
+          <HeaderPopover
+            label={t('app.scores')}
+            icon={<IconTrophy aria-hidden="true" className="size-4" />}
+            hint={String(
+              Math.max(
+                0,
+                ...Object.values(state.scores ?? summary.scores ?? {}).map(
+                  (score) => score.total ?? 0,
+                ),
+              ),
+            )}
+          >
+            <Scoreboard players={state.players} scores={state.scores ?? summary.scores} />
+          </HeaderPopover>
+          <HeaderPopover
+            label={t('online.lobby')}
+            icon={<IconUsersGroup aria-hidden="true" className="size-4" />}
+            hint={`${summary.players.filter((player) => player.submitted).length}/${summary.players.length}`}
+          >
+            <Lobby
+              summary={summary}
+              uid={user?.uid ?? ''}
+              currentPlayer={summary.currentPlayer}
+              invitation={invitation}
+              onInvite={() => void createInvitation()}
+              inviting={inviting}
+              scores={state.scores ?? summary.scores}
+            />
+          </HeaderPopover>
           <SubmissionDots
             players={summary.players.map((player) => ({
               id: player.id,
@@ -942,7 +979,6 @@ export function GamePage() {
       )}
 
       <GameLayout
-        mainClassName="max-w-[1500px] lg:mx-0"
         map={
           <MapViewer
             map={map}
@@ -1124,15 +1160,6 @@ export function GamePage() {
             </div>
           </CardContent>
         </Card>
-        <Lobby
-          summary={summary}
-          uid={user?.uid ?? ''}
-          currentPlayer={summary.currentPlayer}
-          invitation={invitation}
-          onInvite={() => void createInvitation()}
-          inviting={inviting}
-          scores={state.scores ?? summary.scores}
-        />
       </GameLayout>
     </div>
   )
