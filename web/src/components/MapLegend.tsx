@@ -71,7 +71,7 @@ function TerrainSwatch({ terrain }: { terrain: Terrain }) {
             height="6"
             patternUnits="userSpaceOnUse"
           >
-            <g stroke="#5a7a34" strokeWidth="0.5" opacity="0.4">
+            <g stroke="#5a7a34" strokeWidth="0.5" opacity="0.22">
               <line x1="1.4" y1="3.6" x2="2.2" y2="2.8" />
               <line x1="2.6" y1="3.6" x2="3.4" y2="2.8" />
               <line x1="3.8" y1="3.6" x2="4.6" y2="2.8" />
@@ -85,8 +85,8 @@ function TerrainSwatch({ terrain }: { terrain: Terrain }) {
             height="12"
             patternUnits="userSpaceOnUse"
           >
-            <path d="M0 6.8 L2 0.4 L4 6.8 Z" fill="#14291d" opacity="0.45" />
-            <path d="M6 11.2 L8 4.8 L10 11.2 Z" fill="#14291d" opacity="0.35" />
+            <path d="M0 6.8 L2 0.4 L4 6.8 Z" fill="#14291d" opacity="0.25" />
+            <path d="M6 11.2 L8 4.8 L10 11.2 Z" fill="#14291d" opacity="0.18" />
           </pattern>
         )}
         {terrain === 'hill' && (
@@ -101,7 +101,7 @@ function TerrainSwatch({ terrain }: { terrain: Terrain }) {
               fill="none"
               stroke="#6b4a30"
               strokeWidth="1.3"
-              opacity="0.45"
+              opacity="0.25"
             />
           </pattern>
         )}
@@ -117,7 +117,7 @@ function TerrainSwatch({ terrain }: { terrain: Terrain }) {
               fill="none"
               stroke="#4d565e"
               strokeWidth="1.3"
-              opacity="0.5"
+              opacity="0.28"
             />
           </pattern>
         )}
@@ -135,7 +135,7 @@ function TerrainSwatch({ terrain }: { terrain: Terrain }) {
               y2="1.8"
               stroke="#2e5f5a"
               strokeWidth="0.9"
-              opacity="0.5"
+              opacity="0.28"
             />
             <line
               x1="3.8"
@@ -144,7 +144,7 @@ function TerrainSwatch({ terrain }: { terrain: Terrain }) {
               y2="4.4"
               stroke="#2e5f5a"
               strokeWidth="0.9"
-              opacity="0.5"
+              opacity="0.28"
             />
           </pattern>
         )}

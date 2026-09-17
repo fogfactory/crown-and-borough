@@ -179,9 +179,9 @@ function TerrainPattern({
       <g
         stroke={TERRAIN_PATTERN_STROKES[terrain.terrain]}
         strokeWidth={(terrain.strokeWidth ?? 1.3) * scale}
-        strokeOpacity={0.4}
+        strokeOpacity={0.22}
         fill={terrain.terrain === 'forest' ? '#14291d' : 'none'}
-        fillOpacity={0.35}
+        fillOpacity={0.18}
       >
         {terrain.render(scale)}
       </g>
@@ -367,7 +367,7 @@ function InfrastructureMarker({
   return (
     <g transform={`translate(${x} ${y}) scale(${scale})`} pointerEvents="none">
       <title>{label}</title>
-      <g transform="translate(-10 -10) scale(0.0390625)">
+      <g transform="translate(-13 -13) scale(0.05078125)">
         {/* Light halo keeps the glyph readable on any terrain fill. */}
         <path d={glyph} fill="#fff8e7" stroke="#fff8e7" strokeWidth={20} opacity={0.9} />
         {/* Owner color fills the building, dark casing defines its shape. */}
@@ -377,7 +377,7 @@ function InfrastructureMarker({
       {isCapital && (
         <g
           data-capital-marker="true"
-          transform="translate(0 -16) scale(0.4)"
+          transform="translate(0 -20) scale(0.5)"
           pointerEvents="none"
         >
           <g stroke="#fff8e7" strokeWidth={4} opacity={0.85}>
@@ -390,10 +390,10 @@ function InfrastructureMarker({
       )}
       {infrastructure.level > 1 && (
         <text
-          x="11"
-          y="-7"
+          x="14"
+          y="-9"
           fill="#4e3828"
-          fontSize="9"
+          fontSize="10"
           fontWeight="700"
           textAnchor="middle"
         >
@@ -978,6 +978,39 @@ export function MapViewer({
                   scale={annotationScale}
                 />
               ))}
+              <pattern
+                id="winter-snow"
+                width={12 * annotationScale}
+                height={12 * annotationScale}
+                patternUnits="userSpaceOnUse"
+              >
+                {/* Six-spoke snowflake asterisk. */}
+                <g
+                  stroke="#f8fbff"
+                  strokeWidth={1.1 * annotationScale}
+                  strokeOpacity={0.8}
+                  strokeLinecap="round"
+                >
+                  <line
+                    x1={6 * annotationScale}
+                    y1={2.8 * annotationScale}
+                    x2={6 * annotationScale}
+                    y2={9.2 * annotationScale}
+                  />
+                  <line
+                    x1={3.23 * annotationScale}
+                    y1={4.4 * annotationScale}
+                    x2={8.77 * annotationScale}
+                    y2={7.6 * annotationScale}
+                  />
+                  <line
+                    x1={8.77 * annotationScale}
+                    y1={4.4 * annotationScale}
+                    x2={3.23 * annotationScale}
+                    y2={7.6 * annotationScale}
+                  />
+                </g>
+              </pattern>
               <marker
                 id="intent-arrow-outline"
                 viewBox="0 0 10 10"
@@ -1108,7 +1141,18 @@ export function MapViewer({
 
             {state.season === 'winter' && (
               <g aria-label={t('map.winterOverlay')} pointerEvents="none">
-                <rect width={mapWidth} height={mapHeight} fill="#eaf3ff" opacity="0.14" />
+                <rect width={mapWidth} height={mapHeight} fill="#eaf3ff" opacity="0.2" />
+              </g>
+            )}
+            {state.season === 'winter' && (
+              <g aria-label={t('map.winterSnow')} pointerEvents="none">
+                {map.territories.map((territory) => (
+                  <path
+                    key={territory.id}
+                    d={pointsToPath(territory.points)}
+                    fill="url(#winter-snow)"
+                  />
+                ))}
               </g>
             )}
 
@@ -1350,7 +1394,7 @@ export function MapViewer({
                       <InfrastructureMarker
                         key={`${territory.id}-${infrastructure.type}-${index}`}
                         infrastructure={infrastructure}
-                        x={centerX + (index * 18 - 6) * annotationScale}
+                        x={centerX + (index * 24 - 9) * annotationScale}
                         y={centerY - 25 * annotationScale}
                         isCapital={
                           infrastructure.type === 'castle' &&

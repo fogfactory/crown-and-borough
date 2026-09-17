@@ -502,13 +502,24 @@ describe('MapViewer territorial overlays', () => {
 
     expect(winterVeil).toBeInTheDocument()
     expect(winterVeil?.querySelector('rect')).toHaveAttribute('fill', '#eaf3ff')
-    expect(winterVeil?.querySelector('rect')).toHaveAttribute('opacity', '0.14')
+    expect(winterVeil?.querySelector('rect')).toHaveAttribute('opacity', '0.2')
     expect(winterVeil).toHaveAttribute('pointer-events', 'none')
+
+    const snowOverlay = winterSvg.querySelector('g[aria-label="Winter snow"]')
+
+    expect(snowOverlay).toBeInTheDocument()
+    expect(snowOverlay).toHaveAttribute('pointer-events', 'none')
+    expect(snowOverlay?.querySelector('path')).toHaveAttribute(
+      'fill',
+      'url(#winter-snow)',
+    )
+    expect(winterSvg.querySelector('#winter-snow')).toBeInTheDocument()
 
     const { svg: springSvg } = renderMap()
     expect(
       springSvg.querySelector('g[aria-label="Winter overlay"]'),
     ).not.toBeInTheDocument()
+    expect(springSvg.querySelector('g[aria-label="Winter snow"]')).not.toBeInTheDocument()
   })
 
   it.each([

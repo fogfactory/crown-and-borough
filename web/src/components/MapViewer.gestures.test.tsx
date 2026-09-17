@@ -143,6 +143,16 @@ describe('MapViewer terrain textures', () => {
       ).toBeCloseTo(1.2 * s)
     })
   })
+
+  it('keeps the texture patterns pastel', () => {
+    const { svg } = renderMap()
+
+    for (const terrain of ['plain', 'forest', 'hill', 'mountain', 'swamp']) {
+      const group = svg.querySelector(`#terrain-${terrain} g`)
+      expect(group).toHaveAttribute('stroke-opacity', '0.22')
+      expect(group).toHaveAttribute('fill-opacity', '0.18')
+    }
+  })
 })
 
 describe('MapViewer infrastructure ownership', () => {
@@ -200,6 +210,30 @@ describe('MapViewer infrastructure ownership', () => {
     const { svg } = renderMap(vi.fn(), {}, { map, state: ownedState })
 
     expect(markerFillPath(svg, 'M109.902 35.87', '#efe6d0')).toBeInTheDocument()
+  })
+
+  it('renders settlement glyphs at the enlarged marker size', () => {
+    const { svg } = renderMap(vi.fn(), {}, { map, state: ownedState })
+    const livingLayer = svg.querySelector('g[aria-label="Live layer"]')
+    // 26 map units / 512 glyph grid: the inner glyph group carries this scale.
+    const inner = Array.from(livingLayer?.querySelectorAll('g[transform]') ?? []).find(
+      (group) => group.getAttribute('transform')?.includes('scale(0.05078125)'),
+    )
+
+    expect(inner).toBeDefined()
+  })
+
+  it('whitens terrain with snowflakes in winter', () => {
+    const winterState: StateData = { ...ownedState, season: 'winter' }
+    const { svg } = renderMap(vi.fn(), {}, { map, state: winterState })
+
+    const snow = svg.querySelector('g[aria-label="Winter snow"]')
+    expect(snow).toBeInTheDocument()
+    expect(snow).toHaveAttribute('pointer-events', 'none')
+    expect(snow?.querySelector('path')).toHaveAttribute('fill', 'url(#winter-snow)')
+    // Six-spoke asterisk: three crossing lines per flake.
+    expect(svg.querySelectorAll('#winter-snow line')).toHaveLength(3)
+    expect(svg.querySelector('#winter-snow g')).toHaveAttribute('stroke', '#f8fbff')
   })
 
   it('cases the colored control borders in dark under the player color', () => {
