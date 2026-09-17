@@ -7,6 +7,7 @@ import {
 import { IconBook, IconTrophy } from '@tabler/icons-react'
 
 import { GameLayout } from '@/components/GameLayout'
+import { BrandMark } from '@/components/BrandMark'
 import { GameSetupMenu } from '@/components/GameSetupMenu'
 import { MapViewer } from '@/components/MapViewer'
 import { SelectedTerritoryDetails } from '@/components/SelectedTerritoryDetails'
@@ -542,9 +543,7 @@ function AppContent() {
       <header className="z-30 shrink-0 border-b border-[#b7a786]/60 bg-[#fffaf0]/95 px-3 py-2 shadow-sm backdrop-blur-sm sm:px-6">
         <div className="mx-auto flex max-w-[1800px] flex-wrap items-center gap-x-3 gap-y-2">
           <div className="flex items-center gap-2.5">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-full border-2 border-[#a84632] bg-[#f6dfc6] font-serif text-xs font-bold text-[#a84632] shadow-inner sm:size-11 sm:text-sm">
-              C&amp;B
-            </div>
+            <BrandMark className="size-9 sm:size-11" />
             <div className="min-w-0">
               <h1 className="truncate font-serif text-base font-semibold tracking-tight sm:text-xl">
                 Crown &amp; Borough

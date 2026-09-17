@@ -12,6 +12,7 @@ import {
 } from 'react-router-dom'
 
 import { AuthProvider, useAuth } from '@/auth/AuthProvider'
+import { BrandMark } from '@/components/BrandMark'
 import { FinishPage, ProfilePage, SignInPage } from '@/online/AuthPages'
 import { GamePage } from '@/online/GamePage'
 import { HomePage } from '@/online/HomePage'
@@ -37,9 +38,7 @@ function OnlineHeader() {
     <header className="z-30 shrink-0 border-b border-[#b7a786]/60 bg-[#fffaf0]/95 px-3 py-2 shadow-sm backdrop-blur-sm sm:px-6 lg:sticky lg:top-0">
       <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-2 sm:gap-4">
         <Link to="/" className="flex items-center gap-2.5" aria-label="Crown & Borough">
-          <span className="flex size-9 items-center justify-center rounded-full border-2 border-[#a84632] bg-[#f6dfc6] font-serif text-xs font-bold text-[#a84632] shadow-inner sm:size-11 sm:text-sm">
-            C&amp;B
-          </span>
+          <BrandMark className="size-9 sm:size-11" />
           <span>
             <span className="block font-serif text-base font-semibold tracking-tight sm:text-xl">
               Crown &amp; Borough
