@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.9.0](https://github.com/fogfactory/crown-and-borough/compare/v0.8.0...v0.9.0) (2026-09-17)
+
+
+### Features
+
+* **map:** add touch gestures, pinch zoom and on-screen map controls ([2a1012a](https://github.com/fogfactory/crown-and-borough/commit/2a1012a26a55bd5084ae50e090cf59a4bfc500cf))
+* **map:** game-icons markers and bolder terrain patterns ([a1e9406](https://github.com/fogfactory/crown-and-borough/commit/a1e9406687e334ef4b62fe2982bab526a1bc7da4))
+* **map:** ownership markers, dark frontier casing and terrain textures ([99999b0](https://github.com/fogfactory/crown-and-borough/commit/99999b06fe9ee3b8349bb3330a42789a54e75666))
+* **map:** pastel terrain textures, larger markers and winter snow ([a653fec](https://github.com/fogfactory/crown-and-borough/commit/a653fecf4d42525ff0b63c6f1945cac9dd6a968a))
+* **web:** add per-player order submission status dots ([38954b4](https://github.com/fogfactory/crown-and-borough/commit/38954b4cb7d34d75bd95ca8c70ac4a2073e7df2c))
+* **web:** banner brand mark for headers and favicon ([5735c30](https://github.com/fogfactory/crown-and-borough/commit/5735c30041c420794d21243b3b25b0af8931a5a7))
+* **web:** smartphone-ready game shell, compact header and density pass ([d7ffc52](https://github.com/fogfactory/crown-and-borough/commit/d7ffc5202998cfb2ec76fd64374ca5639ba48fb2))
+* **web:** smartphone-ready UX overhaul ([e7dac12](https://github.com/fogfactory/crown-and-borough/commit/e7dac12e52b7460f2f37cec7f81c129dcd1c0dd3))
+
+
+### Bug Fixes
+
+* **engine:** keep player colors away from terrain hues ([ee5a1e4](https://github.com/fogfactory/crown-and-borough/commit/ee5a1e44a733501f0aaa9504246b7d91123f201d))
+* **map:** preserve map aspect ratio on any container ([0ddafc0](https://github.com/fogfactory/crown-and-borough/commit/0ddafc02f2df0fc712eb00827744918668d0cbbf))
+* **web:** fit the game shell in the viewport, demote scores/lobby ([d8745c9](https://github.com/fogfactory/crown-and-borough/commit/d8745c930f04a5360d58842ea5096243ab92474f))
+
 ## [0.8.0](https://github.com/fogfactory/crown-and-borough/compare/v0.7.0...v0.8.0) (2026-09-14)
 
 
