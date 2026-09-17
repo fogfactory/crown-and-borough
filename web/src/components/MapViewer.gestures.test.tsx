@@ -110,6 +110,39 @@ describe('MapViewer terrain textures', () => {
     // handles selection.
     expect(textureGroup?.querySelector('path')).not.toHaveAttribute('data-territory-id')
   })
+
+  it('doubles the pattern tiles for forest, hill and mountain and keeps swamp', () => {
+    const { svg } = renderMap()
+
+    // Pattern geometry scales with the annotation scale of the fixture.
+    const referenceMeanArea = (1000 * 700) / (8 * 4 + 4 * (4 + 1))
+    const s = Math.sqrt((50 * 50) / referenceMeanArea)
+
+    const tile = (id: string) => svg.querySelector(`#${id}`)?.getAttribute('width')
+
+    expect(Number(tile('terrain-plain'))).toBeCloseTo(14 * s)
+    expect(Number(tile('terrain-forest'))).toBeCloseTo(20 * s)
+    expect(Number(tile('terrain-hill'))).toBeCloseTo(20 * s)
+    expect(Number(tile('terrain-mountain'))).toBeCloseTo(18 * s)
+    expect(Number(tile('terrain-swamp'))).toBeCloseTo(10 * s)
+  })
+
+  it('draws the plain texture as three tiny slashes', () => {
+    const { svg } = renderMap()
+
+    const referenceMeanArea = (1000 * 700) / (8 * 4 + 4 * (4 + 1))
+    const s = Math.sqrt((50 * 50) / referenceMeanArea)
+    const slashes = svg.querySelectorAll('#terrain-plain line')
+    expect(slashes).toHaveLength(3)
+    slashes.forEach((slash) => {
+      expect(
+        Math.abs(Number(slash.getAttribute('x2')) - Number(slash.getAttribute('x1'))),
+      ).toBeCloseTo(1.2 * s)
+      expect(
+        Math.abs(Number(slash.getAttribute('y2')) - Number(slash.getAttribute('y1'))),
+      ).toBeCloseTo(1.2 * s)
+    })
+  })
 })
 
 describe('MapViewer infrastructure ownership', () => {
@@ -140,38 +173,33 @@ describe('MapViewer infrastructure ownership', () => {
   function markerFillPath(
     svg: SVGSVGElement,
     dPrefix: string,
+    fill: string,
   ): SVGPathElement | undefined {
     const livingLayer = svg.querySelector('g[aria-label="Live layer"]')
     // Each glyph renders three times (halo, owner fill, dark casing); only
-    // the middle layer carries the fill color.
+    // the owner-fill layer carries the territory color.
     return Array.from(livingLayer?.querySelectorAll('path') ?? []).find(
       (path) =>
-        path.getAttribute('d')?.startsWith(dPrefix) &&
-        path.getAttribute('fill') !== 'none',
+        path.getAttribute('d')?.startsWith(dPrefix) && path.getAttribute('fill') === fill,
     )
   }
 
   it('fills owned settlement glyphs with the owner color', () => {
     const { svg } = renderMap(vi.fn(), {}, { map, state: ownedState })
-    const marker = markerFillPath(svg, 'M15 19v-2')
 
-    expect(marker).toBeDefined()
-    expect(marker).toHaveAttribute('fill', '#a84632')
+    expect(markerFillPath(svg, 'M255.95 27.11', '#a84632')).toBeDefined()
   })
 
   it('keeps unowned settlements in the neutral parchment tone', () => {
     const { svg } = renderMap(vi.fn(), {}, { map, state: ownedState })
-    const marker = markerFillPath(svg, 'M8 9l5 5')
 
-    expect(marker).toBeDefined()
-    expect(marker).toHaveAttribute('fill', '#efe6d0')
+    expect(markerFillPath(svg, 'M109.902 35.87', '#efe6d0')).toBeDefined()
   })
 
-  it('renders the village as a houses cluster', () => {
+  it('renders the village glyph from game-icons', () => {
     const { svg } = renderMap(vi.fn(), {}, { map, state: ownedState })
-    const cluster = markerFillPath(svg, 'M8 9l5 5')
 
-    expect(cluster).toBeInTheDocument()
+    expect(markerFillPath(svg, 'M109.902 35.87', '#efe6d0')).toBeInTheDocument()
   })
 
   it('cases the colored control borders in dark under the player color', () => {

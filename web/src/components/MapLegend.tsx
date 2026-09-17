@@ -25,46 +25,34 @@ const TERRAIN_ORDER: Terrain[] = ['plain', 'forest', 'hill', 'mountain', 'swamp'
 const LEGEND_SAMPLE_OWNER = '#a84632'
 const LEGEND_CASING = '#30291f'
 
-// Same Tabler path data as the map markers (https://tabler.io/icons, MIT).
-const LEGEND_MARKER_PATHS: Record<'castle' | 'village', string[]> = {
-  castle: [
-    'M15 19v-2a3 3 0 0 0 -6 0v2a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-14h4v3h3v-3h4v3h3v-3h4v14a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1',
-    'M3 11l18 0',
-  ],
-  village: [
-    'M8 9l5 5v7h-5v-4m0 4h-5v-7l5 -5m1 1v-6a1 1 0 0 1 1 -1h10a1 1 0 0 1 1 1v17h-8',
-    'M13 7l0 .01',
-    'M17 7l0 .01',
-    'M17 11l0 .01',
-    'M17 15l0 .01',
-  ],
-}
-
-function LegendPaths({ paths }: { paths: string[] }) {
-  return (
-    <>
-      {paths.map((d) => (
-        <path key={d} d={d} strokeLinecap="round" strokeLinejoin="round" />
-      ))}
-    </>
-  )
+// Map marker artwork from game-icons.net (CC BY 3.0, icons by Delapouite):
+// https://game-icons.net/1x1/delapouite/castle.html
+// https://game-icons.net/1x1/delapouite/village.html
+const LEGEND_MARKER_PATHS: Record<'castle' | 'village', string> = {
+  castle:
+    'M255.95 27.11L180.6 107.614l150.7 1.168-75.35-81.674h-.003zM25 109.895v68.01l19.412 25.99h71.06l19.528-26v-68h-14v15.995h-18v-15.994H89v15.995H71v-15.994H57v15.995H39v-15.994H25zm352 0v68l19.527 26h71.06L487 177.906v-68.01h-14v15.995h-18v-15.994h-14v15.995h-18v-15.994h-14v15.995h-18v-15.994h-14zm-176 15.877V260.89h110V126.63l-110-.857zm55 20.118c8 0 16 4 16 12v32h-32v-32c0-8 8-12 16-12zM41 221.897V484.89h78V221.897H41zm352 0V484.89h78V221.897h-78zM56 241.89c4 0 8 4 8 12v32H48v-32c0-8 4-12 8-12zm400 0c4 0 8 4 8 12v32h-16v-32c0-8 4-12 8-12zm-303 37v23h-16v183h87v-55c0-24 16-36 32-36s32 12 32 36v55h87v-183h-16v-23h-14v23h-18v-23h-14v23h-18v-23h-14v23h-18v-23h-14v23h-18v-23h-14v23h-18v-23h-14v23h-18v-23h-14v23h-18v-23h-14zm-49 43c4 0 8 4 8 12v32H96v-32c0-8 4-12 8-12zm72 0c8 0 16 4 16 12v32h-32v-32c0-8 8-12 16-12zm80 0c8 0 16 4 16 12v32h-32v-32c0-8 8-12 16-12zm80 0c8 0 16 4 16 12v32h-32v-32c0-8 8-12 16-12zm72 0c4 0 8 4 8 12v32h-16v-32c0-8 4-12 8-12zm-352 64c4 0 8 4 8 12v32H48v-32c0-8 4-12 8-12zm400 0c4 0 8 4 8 12v32h-16v-32c0-8 4-12 8-12z',
+  village:
+    'M109.902 35.87l-71.14 59.284h142.28l-71.14-59.285zm288 32l-71.14 59.284h142.28l-71.14-59.285zM228.73 84.403l-108.9 90.75h217.8l-108.9-90.75zm-173.828 28.75v62h36.81l73.19-60.992v-1.008h-110zm23 14h16v18h-16v-18zm265 18v10.963l23 19.166v-16.13h16v18h-13.756l.104.087 19.098 15.914h-44.446v14h78v-39h18v39h14v-62h-110zm-194.345 48v20.08l24.095-20.08h-24.095zm28.158 0l105.1 87.582 27.087-22.574v-65.008H176.715zm74.683 14h35.735v34h-35.735v-34zm-76.714 7.74L30.37 335.153H319l-144.314-120.26zm198.046 13.51l-76.857 64.047 32.043 26.704H481.63l-108.9-90.75zm-23.214 108.75l.103.086 19.095 15.914h-72.248v77.467h60.435v-63.466h50v63.467h46v-93.466H349.516zm-278.614 16V476.13h126v-76.976h50v76.977h31.565V353.155H70.902zm30 30h50v50h-50v-50z',
 }
 
 /** Settlement glyph with owner fill, halo and casing — mirrors the map. */
 function LegendSettlement({ type }: { type: 'castle' | 'village' }) {
   return (
-    <svg className="size-3.5 shrink-0" viewBox="-13 -13 26 26" aria-hidden="true">
-      <g transform="translate(-10 -10) scale(0.8333)">
-        <g stroke="#fff8e7" strokeWidth={4.5} opacity={0.9} fill="none">
-          <LegendPaths paths={LEGEND_MARKER_PATHS[type]} />
-        </g>
-        <g fill={LEGEND_SAMPLE_OWNER} fillOpacity={0.9} stroke="none">
-          <LegendPaths paths={LEGEND_MARKER_PATHS[type]} />
-        </g>
-        <g stroke={LEGEND_CASING} strokeWidth={1.75} fill="none">
-          <LegendPaths paths={LEGEND_MARKER_PATHS[type]} />
-        </g>
-      </g>
+    <svg className="size-3.5 shrink-0" viewBox="0 0 512 512" aria-hidden="true">
+      <path
+        d={LEGEND_MARKER_PATHS[type]}
+        fill="#fff8e7"
+        stroke="#fff8e7"
+        strokeWidth={20}
+        opacity={0.9}
+      />
+      <path d={LEGEND_MARKER_PATHS[type]} fill={LEGEND_SAMPLE_OWNER} />
+      <path
+        d={LEGEND_MARKER_PATHS[type]}
+        fill="none"
+        stroke={LEGEND_CASING}
+        strokeWidth={8}
+      />
     </svg>
   )
 }
@@ -83,33 +71,36 @@ function TerrainSwatch({ terrain }: { terrain: Terrain }) {
             height="6"
             patternUnits="userSpaceOnUse"
           >
-            <circle cx="1.5" cy="1.5" r="0.8" fill="#5a7a34" opacity="0.4" />
-            <circle cx="4.5" cy="4.5" r="0.8" fill="#5a7a34" opacity="0.4" />
+            <g stroke="#5a7a34" strokeWidth="0.5" opacity="0.4">
+              <line x1="1.4" y1="3.6" x2="2.2" y2="2.8" />
+              <line x1="2.6" y1="3.6" x2="3.4" y2="2.8" />
+              <line x1="3.8" y1="3.6" x2="4.6" y2="2.8" />
+            </g>
           </pattern>
         )}
         {terrain === 'forest' && (
           <pattern
             id="legend-terrain-forest"
-            width="6"
-            height="6"
+            width="12"
+            height="12"
             patternUnits="userSpaceOnUse"
           >
-            <path d="M0 2.2 L1.2 0.4 L2.4 2.2 Z" fill="#14291d" opacity="0.45" />
-            <path d="M3 5.2 L4.2 3.4 L5.4 5.2 Z" fill="#14291d" opacity="0.35" />
+            <path d="M0 6.8 L2 0.4 L4 6.8 Z" fill="#14291d" opacity="0.45" />
+            <path d="M6 11.2 L8 4.8 L10 11.2 Z" fill="#14291d" opacity="0.35" />
           </pattern>
         )}
         {terrain === 'hill' && (
           <pattern
             id="legend-terrain-hill"
-            width="7"
-            height="5"
+            width="14"
+            height="7"
             patternUnits="userSpaceOnUse"
           >
             <path
-              d="M0 3 Q 1.75 1.4 3.5 3 T 7 3"
+              d="M0 6 Q 3.5 1.2 7 6 T 14 6"
               fill="none"
               stroke="#6b4a30"
-              strokeWidth="0.9"
+              strokeWidth="1.3"
               opacity="0.45"
             />
           </pattern>
@@ -117,15 +108,15 @@ function TerrainSwatch({ terrain }: { terrain: Terrain }) {
         {terrain === 'mountain' && (
           <pattern
             id="legend-terrain-mountain"
-            width="6"
-            height="6"
+            width="12"
+            height="12"
             patternUnits="userSpaceOnUse"
           >
             <path
-              d="M0 2.6 L1.5 0.8 L3 2.6 M3 5.2 L4.5 3.4 L6 5.2"
+              d="M0 4.8 L3 0.8 L6 4.8 M6 9.6 L9 5.8 L12 9.6"
               fill="none"
               stroke="#4d565e"
-              strokeWidth="0.9"
+              strokeWidth="1.3"
               opacity="0.5"
             />
           </pattern>
