@@ -230,10 +230,31 @@ describe('MapViewer infrastructure ownership', () => {
     const snow = svg.querySelector('g[aria-label="Winter snow"]')
     expect(snow).toBeInTheDocument()
     expect(snow).toHaveAttribute('pointer-events', 'none')
-    expect(snow?.querySelector('path')).toHaveAttribute('fill', 'url(#winter-snow)')
-    // Six-spoke asterisk: three crossing lines per flake.
-    expect(svg.querySelectorAll('#winter-snow line')).toHaveLength(3)
-    expect(svg.querySelector('#winter-snow g')).toHaveAttribute('stroke', '#f8fbff')
+    // Six-spoke asterisk: three crossing lines per flake, three flakes per
+    // pattern variant.
+    expect(svg.querySelectorAll('#winter-snow-0 line')).toHaveLength(9)
+    expect(svg.querySelector('#winter-snow-0 g')).toHaveAttribute('stroke', '#f8fbff')
+    expect(svg.querySelectorAll('pattern[id^="winter-snow-"]')).toHaveLength(3)
+
+    // Sparse scatter: 30-unit tile, 2.1-unit primary flake radius.
+    const referenceMeanArea = (1000 * 700) / (8 * 4 + 4 * (4 + 1))
+    const s = Math.sqrt((50 * 50) / referenceMeanArea)
+    const snowPattern = svg.querySelector('#winter-snow-0')
+    expect(Number(snowPattern?.getAttribute('width'))).toBeCloseTo(30 * s)
+    expect(Number(snowPattern?.getAttribute('height'))).toBeCloseTo(30 * s)
+    const verticalSpoke = snowPattern?.querySelectorAll('line')[0]
+    expect(
+      Math.abs(
+        Number(verticalSpoke?.getAttribute('y2')) -
+          Number(verticalSpoke?.getAttribute('y1')),
+      ),
+    ).toBeCloseTo(4.2 * s)
+
+    // Territories pick a stable variant from their id.
+    const fills = Array.from(snow?.querySelectorAll('path') ?? []).map((path) =>
+      path.getAttribute('fill'),
+    )
+    expect(fills).toEqual(['url(#winter-snow-1)', 'url(#winter-snow-2)'])
   })
 
   it('cases the colored control borders in dark under the player color', () => {

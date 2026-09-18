@@ -509,11 +509,10 @@ describe('MapViewer territorial overlays', () => {
 
     expect(snowOverlay).toBeInTheDocument()
     expect(snowOverlay).toHaveAttribute('pointer-events', 'none')
-    expect(snowOverlay?.querySelector('path')).toHaveAttribute(
-      'fill',
-      'url(#winter-snow)',
+    expect(snowOverlay?.querySelector('path')?.getAttribute('fill')).toMatch(
+      /^url\(#winter-snow-\d+\)$/,
     )
-    expect(winterSvg.querySelector('#winter-snow')).toBeInTheDocument()
+    expect(winterSvg.querySelector('pattern[id^="winter-snow-"]')).toBeInTheDocument()
 
     const { svg: springSvg } = renderMap()
     expect(

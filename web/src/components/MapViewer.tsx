@@ -189,6 +189,45 @@ function TerrainPattern({
   )
 }
 
+const WINTER_SNOW_TILE = 30
+
+/** Hand-placed scatter so the tiling never reads as a grid. */
+const WINTER_SNOW_FLAKES = [
+  { x: 7.5, y: 8.5, radius: 2.1, rotation: 0 },
+  { x: 22.5, y: 5.5, radius: 1.6, rotation: 24 },
+  { x: 15, y: 21.5, radius: 1.8, rotation: 51 },
+]
+
+const WINTER_SNOW_VARIANT_ROTATIONS = [0, 23, 41]
+
+function snowPatternVariant(id: string): number {
+  let hash = 0
+  for (let i = 0; i < id.length; i += 1) {
+    hash = (hash * 31 + id.charCodeAt(i)) >>> 0
+  }
+  return hash % WINTER_SNOW_VARIANT_ROTATIONS.length
+}
+
+function Snowflake({
+  flake,
+  scale,
+}: {
+  flake: (typeof WINTER_SNOW_FLAKES)[number]
+  scale: number
+}) {
+  const dx = 0.866 * flake.radius * scale
+  const dy = 0.5 * flake.radius * scale
+  return (
+    <g
+      transform={`translate(${flake.x * scale} ${flake.y * scale}) rotate(${flake.rotation})`}
+    >
+      <line x1={0} y1={-flake.radius * scale} x2={0} y2={flake.radius * scale} />
+      <line x1={-dx} y1={-dy} x2={dx} y2={dy} />
+      <line x1={dx} y1={-dy} x2={-dx} y2={dy} />
+    </g>
+  )
+}
+
 const INFRASTRUCTURE_LABEL_KEYS: Record<Infrastructure['type'], MessageKey> = {
   mill: 'infrastructure.mill',
   supply_depot: 'infrastructure.supply_depot',
@@ -978,39 +1017,32 @@ export function MapViewer({
                   scale={annotationScale}
                 />
               ))}
-              <pattern
-                id="winter-snow"
-                width={12 * annotationScale}
-                height={12 * annotationScale}
-                patternUnits="userSpaceOnUse"
-              >
-                {/* Six-spoke snowflake asterisk. */}
-                <g
-                  stroke="#f8fbff"
-                  strokeWidth={1.1 * annotationScale}
-                  strokeOpacity={0.8}
-                  strokeLinecap="round"
+              {WINTER_SNOW_VARIANT_ROTATIONS.map((rotation, index) => (
+                <pattern
+                  key={rotation}
+                  id={`winter-snow-${index}`}
+                  width={WINTER_SNOW_TILE * annotationScale}
+                  height={WINTER_SNOW_TILE * annotationScale}
+                  patternUnits="userSpaceOnUse"
+                  patternTransform={`rotate(${rotation})`}
                 >
-                  <line
-                    x1={6 * annotationScale}
-                    y1={2.8 * annotationScale}
-                    x2={6 * annotationScale}
-                    y2={9.2 * annotationScale}
-                  />
-                  <line
-                    x1={3.23 * annotationScale}
-                    y1={4.4 * annotationScale}
-                    x2={8.77 * annotationScale}
-                    y2={7.6 * annotationScale}
-                  />
-                  <line
-                    x1={8.77 * annotationScale}
-                    y1={4.4 * annotationScale}
-                    x2={3.23 * annotationScale}
-                    y2={7.6 * annotationScale}
-                  />
-                </g>
-              </pattern>
+                  {/* Hand-scattered six-spoke snowflakes, three per tile. */}
+                  <g
+                    stroke="#f8fbff"
+                    strokeWidth={0.9 * annotationScale}
+                    strokeOpacity={0.8}
+                    strokeLinecap="round"
+                  >
+                    {WINTER_SNOW_FLAKES.map((flake) => (
+                      <Snowflake
+                        key={`${flake.x}-${flake.y}`}
+                        flake={flake}
+                        scale={annotationScale}
+                      />
+                    ))}
+                  </g>
+                </pattern>
+              ))}
               <marker
                 id="intent-arrow-outline"
                 viewBox="0 0 10 10"
@@ -1150,7 +1182,7 @@ export function MapViewer({
                   <path
                     key={territory.id}
                     d={pointsToPath(territory.points)}
-                    fill="url(#winter-snow)"
+                    fill={`url(#winter-snow-${snowPatternVariant(territory.id)})`}
                   />
                 ))}
               </g>
