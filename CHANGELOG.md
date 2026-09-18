@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.1](https://github.com/fogfactory/crown-and-borough/compare/v0.9.0...v0.9.1) (2026-09-18)
+
+
+### Bug Fixes
+
+* **map:** scatter and shrink winter snowflakes ([d46f839](https://github.com/fogfactory/crown-and-borough/commit/d46f8391fc82e315d3b9d8c6469d5307943fe76e))
+* **map:** scatter and shrink winter snowflakes ([0f9b1d0](https://github.com/fogfactory/crown-and-borough/commit/0f9b1d0f9e75189063656b859b44dca77ba2028d))
+
 ## [0.9.0](https://github.com/fogfactory/crown-and-borough/compare/v0.8.0...v0.9.0) (2026-09-17)
 
 
