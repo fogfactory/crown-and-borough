@@ -90,9 +90,9 @@ func DemoState(seed string, assets assetgen.Assets, mapData mapgen.MapData, play
 	playerNames := append([]assetgen.Asset(nil), assets.Prenoms...)
 	shuffle(newRNG(seed, "players"), playerNames)
 	playerColors := [...]string{
-		"#a84632", "#2d5f9e", "#7052a1", "#34775c", "#ad7a25",
-		"#b3546e", "#1f7a8c", "#7a6b2d", "#c05621", "#4262c0",
-		"#8f3b8f", "#5c8a3a", "#96663d", "#3d8fae", "#a64d79", "#6e7f9e",
+		"#a84632", "#2d5f9e", "#7052a1", "#0e7490", "#ad7a25",
+		"#b3546e", "#4338ca", "#8a5a2b", "#c05621", "#4262c0",
+		"#86198f", "#4d7c0f", "#9a3412", "#3d8fae", "#a64d79", "#6e7f9e",
 	}
 	for index := 0; index < players; index++ {
 		state.Players = append(state.Players, models.Player{

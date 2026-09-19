@@ -34,23 +34,23 @@ export function Scoreboard({
   return (
     <section
       aria-labelledby="scoreboard-title"
-      className="rounded-xl border border-[#b7a786]/60 bg-[#f8f0e2] p-4"
+      className="rounded-xl border border-[#b7a786]/60 bg-[#f8f0e2] p-3"
     >
       <div className="flex items-center justify-between gap-3">
         <h2
           id="scoreboard-title"
-          className="font-serif text-xl font-semibold text-[#30291f]"
+          className="font-serif text-lg font-semibold text-[#30291f] sm:text-xl"
         >
           {t('app.scores')}
         </h2>
       </div>
-      <ul className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <ul className="mt-2 grid gap-2 min-[420px]:grid-cols-2">
         {players.map((player) => {
           const score = scores?.[player.id] ?? emptyScore
           return (
             <li
               key={player.id}
-              className="rounded-lg border border-[#b7a786]/50 bg-[#fffaf0] p-3"
+              className="rounded-lg border border-[#b7a786]/50 bg-[#fffaf0] p-2.5"
             >
               <div className="flex items-center gap-2">
                 <span

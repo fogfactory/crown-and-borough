@@ -33,6 +33,31 @@ describe('MapLegend', () => {
     expect(screen.getByText('Noble prisonnier (otage / donjon)')).toBeInTheDocument()
   })
 
+  it('draws terrain swatches with the map texture patterns', () => {
+    const { container } = render(
+      <LanguageProvider initialLanguage="en">
+        <MapLegend />
+      </LanguageProvider>,
+    )
+
+    for (const terrain of ['plain', 'forest', 'hill', 'mountain', 'swamp']) {
+      const pattern = container.querySelector(`#legend-terrain-${terrain}`)
+      expect(pattern).toBeInTheDocument()
+      expect(pattern?.querySelectorAll('path, circle, line').length).toBeGreaterThan(0)
+    }
+  })
+
+  it('shows settlements with the owner-colored glyph style', () => {
+    const { container } = render(
+      <LanguageProvider initialLanguage="en">
+        <MapLegend />
+      </LanguageProvider>,
+    )
+
+    const filledGlyphs = container.querySelectorAll('svg path[fill="#a84632"]')
+    expect(filledGlyphs.length).toBeGreaterThanOrEqual(2)
+  })
+
   it('shows the intentions toggle only when a handler is provided', () => {
     render(
       <LanguageProvider initialLanguage="fr">

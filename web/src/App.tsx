@@ -4,15 +4,18 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react'
-import { BookOpen } from 'lucide-react'
+import { IconBook, IconTrophy } from '@tabler/icons-react'
 
-import { MapLegend } from '@/components/MapLegend'
+import { GameLayout } from '@/components/GameLayout'
+import { BrandMark } from '@/components/BrandMark'
+import { GameSetupMenu } from '@/components/GameSetupMenu'
 import { MapViewer } from '@/components/MapViewer'
 import { SelectedTerritoryDetails } from '@/components/SelectedTerritoryDetails'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { OrdersPanel } from '@/components/OrdersPanel'
 import { ReportPane } from '@/components/ReportPane'
 import { Scoreboard } from '@/components/Scoreboard'
+import { SubmissionDots } from '@/components/SubmissionDots'
 import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
 import { InfoPage } from '@/components/InfoPage'
 import { addNobleHeader, hasChainContent } from '@/lib/order-text'
@@ -35,6 +38,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { HeaderPopover } from '@/components/ui/header-popover'
 import {
   Select,
   SelectContent,
@@ -140,6 +144,7 @@ function AppContent() {
   const [view, setView] = useState<HotseatView>('game')
   const [activePanel, setActivePanel] = useState<Panel>('command')
   const [viewedReportTurn, setViewedReportTurn] = useState<number | null>(null)
+  const [mapFocusSignal, setMapFocusSignal] = useState(0)
   const [rulesNavigation, setRulesNavigation] = useState<{
     section: RulesSection
     key: number
@@ -371,6 +376,13 @@ function AppContent() {
     }))
   }
 
+  const handleTerritorySelect = (id: string | null) => {
+    setSelectedId(id)
+    if (id) {
+      setMapFocusSignal((signal) => signal + 1)
+    }
+  }
+
   const updateWinterDraft = (text: string) => {
     setWinterDrafts((drafts) => ({ ...drafts, [selectedPlayer]: text }))
   }
@@ -381,6 +393,40 @@ function AppContent() {
       key: (current?.key ?? 0) + 1,
     }))
     setActivePanel('rules')
+  }
+
+  const renderMap = () => {
+    if (loadError) {
+      return (
+        <div
+          role="alert"
+          className="flex h-full items-center justify-center px-6 text-center"
+        >
+          <p className="font-serif text-lg text-[#a84632]">
+            {t('app.mapLoadFailed', { message: loadError })}
+          </p>
+        </div>
+      )
+    }
+    if (map && state) {
+      return (
+        <MapViewer
+          map={map}
+          state={state}
+          supply={selectedSupplyLine}
+          onSelect={handleTerritorySelect}
+          intentions={intentions}
+          showIntentions={showIntentions}
+          intentionsColor={intentionsColor}
+          onToggleIntentions={setShowIntentions}
+        />
+      )
+    }
+    return (
+      <div className="flex h-full items-center justify-center px-6 text-center">
+        <p className="font-serif text-lg italic text-[#806f57]">{t('app.mapLoading')}</p>
+      </div>
+    )
   }
 
   const handlePanelKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
@@ -488,27 +534,30 @@ function AppContent() {
   }
 
   return (
-    <div lang={language} className="min-h-screen bg-[#efe7d8] text-[#30291f]">
-      <header className="border-b border-[#b7a786]/60 bg-[#fffaf0]/90 px-4 py-4 shadow-sm backdrop-blur-sm sm:px-6">
-        <div className="mx-auto flex max-w-[1800px] flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-[#a84632] bg-[#f6dfc6] font-serif text-sm font-bold text-[#a84632] shadow-inner">
-              C&amp;B
-            </div>
-            <div>
-              <h1 className="font-serif text-xl font-semibold tracking-tight sm:text-2xl">
+    <div
+      lang={language}
+      className={`flex flex-col bg-[#efe7d8] text-[#30291f] ${
+        view === 'game' ? 'h-dvh overflow-hidden' : 'min-h-screen'
+      }`}
+    >
+      <header className="z-30 shrink-0 border-b border-[#b7a786]/60 bg-[#fffaf0]/95 px-3 py-2 shadow-sm backdrop-blur-sm sm:px-6">
+        <div className="mx-auto flex max-w-[1800px] flex-wrap items-center gap-x-3 gap-y-2">
+          <div className="flex items-center gap-2.5">
+            <BrandMark className="size-9 sm:size-11" />
+            <div className="min-w-0">
+              <h1 className="truncate font-serif text-base font-semibold tracking-tight sm:text-xl">
                 Crown &amp; Borough
               </h1>
-              <p className="text-xs uppercase tracking-[0.18em] text-[#806f57]">
+              <p className="hidden text-[10px] uppercase tracking-[0.18em] text-[#806f57] min-[420px]:block">
                 {t('app.tagline')}
               </p>
-              <VersionBadge />
             </div>
+            <VersionBadge />
           </div>
 
           <nav
             aria-label={t('nav.primary')}
-            className="order-3 flex w-full items-center justify-center gap-1 sm:order-none sm:w-auto"
+            className="order-3 flex w-full items-center justify-center gap-1 min-[420px]:order-none min-[420px]:w-auto"
           >
             {(['game', 'rules', 'faq'] as const).map((nextView) => (
               <button
@@ -523,92 +572,9 @@ function AppContent() {
             ))}
           </nav>
 
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-x-4">
-            <div>
-              <label
-                htmlFor="player-count"
-                className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#806f57]"
-              >
-                {t('app.players')}
-              </label>
-              <Select
-                value={String(playerCount)}
-                onValueChange={(value) => setPlayerCount(Number(value))}
-              >
-                <SelectTrigger
-                  id="player-count"
-                  className="w-[76px] border-[#b7a786] bg-[#fffaf0] text-[#30291f]"
-                >
-                  <SelectValue placeholder={t('app.players')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {PLAYER_COUNT_OPTIONS.map((count) => (
-                    <SelectItem key={count} value={String(count)}>
-                      {count}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label
-                htmlFor="game-seed"
-                className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#806f57]"
-              >
-                {t('app.seed')}
-              </label>
-              <input
-                id="game-seed"
-                type="text"
-                value={seed}
-                onChange={(event) => setSeed(event.target.value)}
-                placeholder={t('app.seedPlaceholder')}
-                className="h-8 w-44 rounded-lg border border-[#b7a786] bg-[#fffaf0] px-2.5 text-sm text-[#30291f] outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20 sm:w-52"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="game-years"
-                className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#806f57]"
-              >
-                {t('home.gameYears')}
-              </label>
-              <input
-                id="game-years"
-                type="number"
-                min={1}
-                max={50}
-                value={years}
-                onChange={(event) => setYears(Number(event.target.value))}
-                className="h-8 w-20 rounded-lg border border-[#b7a786] bg-[#fffaf0] px-2.5 text-sm text-[#30291f] outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20"
-              />
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={creating || !state || seed.trim() === ''}
-              title={t('app.newGameTitle')}
-              onClick={() => void startNewGame()}
-            >
-              {creating ? t('app.creating') : t('app.newGame')}
-            </Button>
-            {createError && (
-              <p
-                role="alert"
-                className="w-full rounded-md border border-[#a84632]/30 bg-[#f8e5dd] px-2 py-1 text-xs text-[#8d321e]"
-              >
-                {createError}
-              </p>
-            )}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 sm:gap-5">
-            <div className="border-l border-[#b7a786]/60 pl-3 sm:pl-5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#806f57]">
-                {t('app.season')}
-              </p>
-              <p className="font-serif text-base font-semibold">
+          <div className="ml-auto flex items-center gap-2 sm:gap-3">
+            <div className="hidden text-right min-[420px]:block">
+              <p className="text-xs font-semibold leading-tight">
                 {state
                   ? t('app.turn', {
                       turn: state.turn,
@@ -617,20 +583,39 @@ function AppContent() {
                   : t('app.loading')}
               </p>
               {state && (
-                <>
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#a84632]">
-                    {t('app.year', { year: 1000 + internalYear(state) })}
-                  </p>
-                  <p className="text-[11px] text-[#806f57]">
-                    {t('app.remainingYearsTurns', {
-                      years: remainingYears(state),
-                      turns: remainingTurns(state),
-                    })}
-                  </p>
-                </>
+                <p className="text-[10px] leading-tight text-[#806f57]">
+                  {t('app.year', { year: 1000 + internalYear(state) })} ·{' '}
+                  {t('app.remainingYearsTurns', {
+                    years: remainingYears(state),
+                    turns: remainingTurns(state),
+                  })}
+                </p>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            {state && (
+              <HeaderPopover
+                label={t('app.scores')}
+                icon={<IconTrophy aria-hidden="true" className="size-4" />}
+                hint={String(
+                  Math.max(
+                    0,
+                    ...Object.values(state.scores ?? {}).map((score) => score.total ?? 0),
+                  ),
+                )}
+              >
+                <Scoreboard players={state.players} scores={state.scores} />
+              </HeaderPopover>
+            )}
+            <SubmissionDots
+              players={(state?.players ?? []).map((player) => ({
+                id: player.id,
+                name: player.name || player.id,
+                color: player.color,
+                submitted: submittedPlayers.includes(player.id),
+                isYou: player.id === selectedPlayer,
+              }))}
+            />
+            <div className="flex items-center gap-1.5">
               <span
                 role="img"
                 className="size-3 shrink-0 rounded-full border border-[#30291f]/30 shadow-inner"
@@ -643,13 +628,13 @@ function AppContent() {
                   player: ownerLabel(selectedPlayer, state, t),
                 })}
               />
-              <label htmlFor="player-view" className="text-xs font-medium text-[#806f57]">
+              <label htmlFor="player-view" className="sr-only">
                 {t('app.activePlayer')}
               </label>
               <Select value={selectedPlayer} onValueChange={setSelectedPlayer}>
                 <SelectTrigger
                   id="player-view"
-                  className="w-[172px] border-[#b7a786] bg-[#fffaf0] text-[#30291f]"
+                  className="w-32 border-[#b7a786] bg-[#fffaf0] text-[#30291f] sm:w-44"
                 >
                   <SelectValue placeholder={t('app.choosePlayer')} />
                 </SelectTrigger>
@@ -661,27 +646,110 @@ function AppContent() {
                   ))}
                 </SelectContent>
               </Select>
-              <span className="rounded-full border border-[#376341]/30 bg-[#e8f1e3] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#376341]">
-                {t('app.privateView')}
-              </span>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={resolving || !state}
+              title={t('app.resolveTitle')}
+              onClick={() => void submitOrders(true)}
+            >
+              {t('app.resolve')}
+            </Button>
+            <LanguageSwitcher />
+
+            <div className="hidden items-end gap-3 md:flex">
+              <div>
+                <label
+                  htmlFor="player-count"
+                  className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#806f57]"
+                >
+                  {t('app.players')}
+                </label>
+                <Select
+                  value={String(playerCount)}
+                  onValueChange={(value) => setPlayerCount(Number(value))}
+                >
+                  <SelectTrigger
+                    id="player-count"
+                    className="w-[76px] border-[#b7a786] bg-[#fffaf0] text-[#30291f]"
+                  >
+                    <SelectValue placeholder={t('app.players')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PLAYER_COUNT_OPTIONS.map((count) => (
+                      <SelectItem key={count} value={String(count)}>
+                        {count}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label
+                  htmlFor="game-seed"
+                  className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#806f57]"
+                >
+                  {t('app.seed')}
+                </label>
+                <input
+                  id="game-seed"
+                  type="text"
+                  value={seed}
+                  onChange={(event) => setSeed(event.target.value)}
+                  placeholder={t('app.seedPlaceholder')}
+                  className="h-8 w-44 rounded-lg border border-[#b7a786] bg-[#fffaf0] px-2.5 text-sm text-[#30291f] outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20 sm:w-52"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="game-years"
+                  className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#806f57]"
+                >
+                  {t('home.gameYears')}
+                </label>
+                <input
+                  id="game-years"
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={years}
+                  onChange={(event) => setYears(Number(event.target.value))}
+                  className="h-8 w-20 rounded-lg border border-[#b7a786] bg-[#fffaf0] px-2.5 text-sm text-[#30291f] outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20"
+                />
+              </div>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={resolving || !state}
-                title={t('app.resolveTitle')}
-                onClick={() => void submitOrders(true)}
+                disabled={creating || !state || seed.trim() === ''}
+                title={t('app.newGameTitle')}
+                onClick={() => void startNewGame()}
               >
-                {t('app.resolve')}
+                {creating ? t('app.creating') : t('app.newGame')}
               </Button>
             </div>
-            <LanguageSwitcher />
+            <div className="md:hidden">
+              <GameSetupMenu
+                playerCount={playerCount}
+                years={years}
+                seed={seed}
+                creating={creating}
+                createError={createError}
+                canCreate={Boolean(state) && seed.trim() !== ''}
+                onPlayerCountChange={setPlayerCount}
+                onYearsChange={setYears}
+                onSeedChange={setSeed}
+                onCreate={startNewGame}
+              />
+            </div>
           </div>
         </div>
       </header>
 
       {view === 'game' && state?.finished && (
-        <div className="mx-auto mt-4 max-w-[1800px] rounded-xl border border-[#815f1e]/50 bg-[#f8e8ae]/60 px-4 py-3 text-center text-sm font-semibold text-[#6d5118] sm:mx-6">
+        <div className="mx-auto mt-2 w-full max-w-[1800px] shrink-0 rounded-xl border border-[#815f1e]/50 bg-[#f8e8ae]/60 px-4 py-2 text-center text-sm font-semibold text-[#6d5118] sm:mx-6">
           {state.winner
             ? `${t('online.victory')}: ${ownerLabel(state.winner, state, t)}`
             : t('app.finished')}
@@ -689,47 +757,11 @@ function AppContent() {
       )}
 
       {view === 'game' ? (
-        <main className="mx-auto flex min-h-[calc(100vh-6.5rem)] max-w-[1800px] flex-col gap-4 p-4 sm:p-6 lg:flex-row">
-          <section className="relative h-[620px] min-h-0 flex-1 overflow-hidden rounded-2xl border border-[#b7a786] bg-[#e6d8bb] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)] lg:h-[calc(100vh-8.5rem)]">
-            <div className="pointer-events-none absolute left-5 top-5 z-10">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#806f57]">
-                {t('app.mapPublic')}
-              </p>
-              <p className="mt-1 text-xs text-[#594b3c]">{t('app.mapInstructions')}</p>
-            </div>
-            {loadError ? (
-              <div
-                role="alert"
-                className="flex h-full items-center justify-center px-6 text-center"
-              >
-                <p className="font-serif text-lg text-[#a84632]">
-                  {t('app.mapLoadFailed', { message: loadError })}
-                </p>
-              </div>
-            ) : map && state ? (
-              <MapViewer
-                map={map}
-                state={state}
-                supply={selectedSupplyLine}
-                onSelect={setSelectedId}
-                intentions={intentions}
-                showIntentions={showIntentions}
-                intentionsColor={intentionsColor}
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center px-6 text-center">
-                <p className="font-serif text-lg italic text-[#806f57]">
-                  {t('app.mapLoading')}
-                </p>
-              </div>
-            )}
-          </section>
-
-          <aside className="w-full shrink-0 space-y-4 lg:w-96 xl:w-[27rem]">
-            <Scoreboard players={state?.players ?? []} scores={state?.scores} />
+        <main className="mx-auto flex min-h-0 w-full max-w-[1800px] flex-1 flex-col p-3 sm:p-4 lg:p-6">
+          <GameLayout map={renderMap()} focusSignal={mapFocusSignal}>
             <Card className="border-[#b7a786] bg-[#fffaf0] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)]">
-              <CardHeader className="border-b border-[#b7a786]/50 pb-4">
-                <CardTitle className="font-serif text-xl text-[#30291f]">
+              <CardHeader className="border-b border-[#b7a786]/50 pb-3">
+                <CardTitle className="font-serif text-lg text-[#30291f] sm:text-xl">
                   {activePanel === 'command'
                     ? t('app.commandPost')
                     : activePanel === 'report'
@@ -742,7 +774,7 @@ function AppContent() {
                 <div
                   role="tablist"
                   aria-label={t('app.panelViews')}
-                  className="mt-3 grid grid-cols-3 gap-1 rounded-lg bg-[#f3ead9] p-1"
+                  className="mt-2 grid grid-cols-3 gap-1 rounded-lg bg-[#f3ead9] p-1"
                 >
                   <button
                     type="button"
@@ -751,7 +783,7 @@ function AppContent() {
                     aria-controls="command-panel"
                     tabIndex={activePanel === 'command' ? 0 : -1}
                     data-panel-tab="command"
-                    className={`rounded-md px-2 py-2 text-xs font-semibold transition ${activePanel === 'command' ? 'bg-[#fffaf0] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:text-[#30291f]'}`}
+                    className={`rounded-md px-2 py-1.5 text-xs font-semibold transition ${activePanel === 'command' ? 'bg-[#fffaf0] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:text-[#30291f]'}`}
                     onClick={() => setActivePanel('command')}
                     onKeyDown={handlePanelKeyDown}
                   >
@@ -764,7 +796,7 @@ function AppContent() {
                     aria-controls="report-panel"
                     tabIndex={activePanel === 'report' ? 0 : -1}
                     data-panel-tab="report"
-                    className={`rounded-md px-2 py-2 text-xs font-semibold transition ${activePanel === 'report' ? 'bg-[#fffaf0] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:text-[#30291f]'}`}
+                    className={`rounded-md px-2 py-1.5 text-xs font-semibold transition ${activePanel === 'report' ? 'bg-[#fffaf0] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:text-[#30291f]'}`}
                     onClick={() => setActivePanel('report')}
                     onKeyDown={handlePanelKeyDown}
                   >
@@ -782,24 +814,24 @@ function AppContent() {
                     aria-controls="rules-panel"
                     tabIndex={activePanel === 'rules' ? 0 : -1}
                     data-panel-tab="rules"
-                    className={`rounded-md px-2 py-2 text-xs font-semibold transition ${activePanel === 'rules' ? 'bg-[#fffaf0] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:text-[#30291f]'}`}
+                    className={`rounded-md px-2 py-1.5 text-xs font-semibold transition ${activePanel === 'rules' ? 'bg-[#fffaf0] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:text-[#30291f]'}`}
                     onClick={() => setActivePanel('rules')}
                     onKeyDown={handlePanelKeyDown}
                   >
                     <span className="inline-flex items-center gap-1.5">
-                      <BookOpen aria-hidden="true" className="size-3.5" />
+                      <IconBook aria-hidden="true" className="size-3.5" />
                       {t('app.rules')}
                     </span>
                   </button>
                 </div>
               </CardHeader>
-              <CardContent className="min-w-0 space-y-5 pt-5">
+              <CardContent className="min-w-0 space-y-4 pt-4">
                 <div
                   id="command-panel"
                   role="tabpanel"
                   aria-label={t('app.commandPost')}
                   hidden={activePanel !== 'command'}
-                  className="space-y-5"
+                  className="space-y-4"
                 >
                   <SelectedTerritoryDetails
                     state={state}
@@ -859,14 +891,10 @@ function AppContent() {
                 </div>
               </CardContent>
             </Card>
-            <MapLegend
-              showIntentions={showIntentions}
-              onToggleIntentions={setShowIntentions}
-            />
-          </aside>
+          </GameLayout>
         </main>
       ) : (
-        <main className="mx-auto max-w-[1200px] p-4 sm:p-6">
+        <main className="mx-auto w-full max-w-[1200px] flex-1 p-4 sm:p-6">
           <InfoPage kind={view} />
         </main>
       )}

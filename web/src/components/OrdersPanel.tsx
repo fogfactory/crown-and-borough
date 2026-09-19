@@ -1,5 +1,5 @@
 import type { ChangeEvent } from 'react'
-import { BookOpen, Snowflake } from 'lucide-react'
+import { IconBook, IconSnowflake } from '@tabler/icons-react'
 
 import { Button } from '@/components/ui/button'
 import type { RulesSection } from '@/components/RulesPanel'
@@ -54,7 +54,7 @@ function RulesButton({
       className="w-full border-[#b7a786] bg-[#fffaf0] text-[#594b3c] hover:bg-[#f3ead9] hover:text-[#30291f]"
       onClick={() => onOpenRules(section)}
     >
-      <BookOpen aria-hidden="true" className="size-4" />
+      <IconBook aria-hidden="true" className="size-4" />
       {t('orders.rulesShortcut')}
     </Button>
   )
@@ -129,7 +129,7 @@ export function OrdersPanel({
       <section className="space-y-3 rounded-xl border border-[#9bbbd3] bg-[#eaf3ff]/80 p-4 shadow-inner shadow-[#b8d3e8]/40">
         <div>
           <h3 className="flex items-center gap-2 font-serif text-lg font-bold text-[#2c5b7d]">
-            <Snowflake aria-hidden="true" className="size-5 text-[#5c94bd]" />
+            <IconSnowflake aria-hidden="true" className="size-5 text-[#5c94bd]" />
             <span>{t('orders.winterTitle')}</span>
           </h3>
           <p className="mt-1 text-xs leading-relaxed text-[#55738a]">
@@ -153,7 +153,7 @@ export function OrdersPanel({
         <textarea
           value={winterDraft}
           onChange={(event) => onWinterChange(event.target.value)}
-          className="min-h-36 w-full resize-y rounded-lg border border-[#9bbbd3] bg-[#f7fbff] p-3 font-mono text-xs text-[#263f52] outline-none transition focus:border-[#5c94bd] focus:ring-2 focus:ring-[#5c94bd]/20"
+          className="min-h-28 w-full resize-y rounded-lg border border-[#9bbbd3] bg-[#f7fbff] p-3 font-mono text-xs text-[#263f52] outline-none transition focus:border-[#5c94bd] focus:ring-2 focus:ring-[#5c94bd]/20"
           placeholder={t('orders.winterPlaceholder')}
           aria-label={t('orders.winterAria', { player })}
         />
@@ -239,7 +239,7 @@ export function OrdersPanel({
               value={chainDrafts[noble.code] ?? ''}
               onChange={handleChainChange(noble)}
               disabled={noble.status === 'dungeon'}
-              className="min-h-32 w-full resize-y rounded-lg border border-[#b7a786] bg-[#f8f0e2] p-3 font-mono text-xs text-[#30291f] outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20 disabled:cursor-not-allowed disabled:opacity-50"
+              className="min-h-24 w-full resize-y rounded-lg border border-[#b7a786] bg-[#f8f0e2] p-3 font-mono text-xs text-[#30291f] outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20 disabled:cursor-not-allowed disabled:opacity-50"
               placeholder={chainPlaceholder()}
               aria-label={t('orders.chainAria', { noble: noble.code })}
             />
