@@ -532,7 +532,7 @@ func projectReport(report engine.TurnReport, viewer models.PlayerID, privacy *mo
 		Winter:     report.Winter,
 	}
 	for _, order := range report.Orders {
-		if privacy != nil && viewerKnowsChainSnapshot(privacy, viewer, order.Chain) {
+		if viewer == models.SpectatorViewer || privacy != nil && viewerKnowsChainSnapshot(privacy, viewer, order.Chain) {
 			view.Orders = append(view.Orders, knownOrderReport(order))
 		} else {
 			view.Orders = append(view.Orders, OrderReportView{Visibility: "hidden", Outcome: order.Outcome})
@@ -540,7 +540,7 @@ func projectReport(report engine.TurnReport, viewer models.PlayerID, privacy *mo
 	}
 	for _, combat := range report.Combats {
 		combatID := fmt.Sprintf("combat-%s", combat.Territory)
-		exact := privacy != nil && privacy.CombatParticipation[viewer][combatID]
+		exact := viewer == models.SpectatorViewer || privacy != nil && privacy.CombatParticipation[viewer][combatID]
 		if exact {
 			view.Combats = append(view.Combats, CombatView{
 				Visibility:    "exact",
@@ -577,6 +577,9 @@ func ProjectReport(report engine.TurnReport, viewer models.PlayerID, privacy *mo
 }
 
 func viewerKnowsChainSnapshot(privacy *models.PrivacyMeta, viewer models.PlayerID, chainID models.ChainID) bool {
+	if viewer == models.SpectatorViewer {
+		return true
+	}
 	if privacy == nil || chainID == "" {
 		return false
 	}

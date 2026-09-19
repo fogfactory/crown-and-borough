@@ -55,6 +55,7 @@ export interface GameSummary {
   currentPlayer?: PlayerId
   canInvite?: boolean
   inviteAvailable?: boolean
+  spectator?: boolean
   players: GameSlot[]
   turn: number
   season: Season
@@ -234,6 +235,18 @@ export interface MySubmissionResponse {
   submitted: boolean
   chains: SubmittedChain[]
   winter?: SubmittedWinter
+}
+
+export interface SubmittedPlayerOrders {
+  player: PlayerId
+  chains: SubmittedChain[]
+  winter?: SubmittedWinter
+}
+
+export interface SubmittedOrdersResponse {
+  turn: number
+  season: Season
+  submissions: SubmittedPlayerOrders[]
 }
 
 export interface OrdersResponse {

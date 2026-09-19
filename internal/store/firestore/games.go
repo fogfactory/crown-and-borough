@@ -94,12 +94,30 @@ func (s *FirestoreStore) writeInitialGame(ctx context.Context, snapshot store.Ga
 	for _, projection := range views {
 		batch.Set(viewRef(s.client, snapshot.ID, projection.actorID), projection.document)
 	}
+	if snapshot.SpectatorUID != "" {
+		observer, observerErr := s.observerDocument(
+			snapshot.ID,
+			snapshot.SpectatorUID,
+			snapshot.Revision,
+			snapshot.State,
+			createdAt,
+			0,
+		)
+		if observerErr != nil {
+			return observerErr
+		}
+		batch.Set(observerRef(s.client, snapshot.ID, snapshot.SpectatorUID), observer)
+	}
 	_, err = batch.Commit(ctx)
 	if err != nil {
 		return err
 	}
-	s.recordWrites(2 + len(views))
-	s.recordProjectionWrites(len(views))
+	observerWrites := 0
+	if snapshot.SpectatorUID != "" {
+		observerWrites = 1
+	}
+	s.recordWrites(2 + len(views) + observerWrites)
+	s.recordProjectionWrites(len(views) + observerWrites)
 	return nil
 }
 
@@ -194,6 +212,9 @@ func (s *FirestoreStore) ListMemberships(ctx context.Context, id store.GameID) (
 		}
 		result = append(result, store.Membership{GameID: id, UID: player.ActorID, PlayerID: player.ID})
 	}
+	if game.SpectatorUID != "" {
+		result = append(result, store.Membership{GameID: id, UID: game.SpectatorUID, Spectator: true})
+	}
 	return result, nil
 }
 
@@ -226,6 +247,9 @@ func (s *FirestoreStore) ListActorMemberships(ctx context.Context, uid string) (
 			if player.ActorID == uid {
 				result = append(result, store.Membership{GameID: game.ID, UID: uid, PlayerID: player.ID})
 			}
+		}
+		if game.SpectatorUID == uid {
+			result = append(result, store.Membership{GameID: game.ID, UID: uid, Spectator: true})
 		}
 	}
 	slices.SortFunc(result, func(left, right store.Membership) int {
@@ -320,7 +344,7 @@ func (s *FirestoreStore) loadSnapshot(ctx context.Context, actor store.Actor, id
 }
 
 func (s *FirestoreStore) loadSnapshotWithDocument(ctx context.Context, actor store.Actor, game gameDocument, requireMember bool) (store.GameSnapshot, error) {
-	_, member := playerIDForActor(game, actor)
+	member := membershipForActor(game, actor)
 	if requireMember && !member {
 		return store.GameSnapshot{}, store.ErrNotMember
 	}
@@ -437,6 +461,33 @@ func (s *FirestoreStore) viewDocument(id store.GameID, uid string, playerID mode
 	}, nil
 }
 
+func (s *FirestoreStore) observerDocument(
+	id store.GameID,
+	uid string,
+	revision store.Revision,
+	state *models.GameState,
+	updatedAt time.Time,
+	latestReportTurn int,
+) (observerDocument, error) {
+	view := api.ProjectStateForPlayer(state, models.SpectatorViewer)
+	stateMap, err := jsonMap(view)
+	if err != nil {
+		return observerDocument{}, err
+	}
+	return observerDocument{
+		SchemaVersion:        schemaVersion,
+		GameID:               id,
+		UID:                  uid,
+		Revision:             int64(revision),
+		Turn:                 state.Turn,
+		Season:               state.Season,
+		State:                stateMap,
+		LatestReportTurn:     latestReportTurn,
+		LatestReportRevision: int64(revision),
+		UpdatedAt:            updatedAt,
+	}, nil
+}
+
 type viewProjection struct {
 	actorID  string
 	playerID models.PlayerID
@@ -479,6 +530,9 @@ func gameDocumentFromSnapshot(snapshot store.GameSnapshot, createdAt, updatedAt 
 			memberUIDs = append(memberUIDs, player.ActorID)
 		}
 	}
+	if isAssignedActor(snapshot.SpectatorUID) && !slices.Contains(memberUIDs, snapshot.SpectatorUID) {
+		memberUIDs = append(memberUIDs, snapshot.SpectatorUID)
+	}
 	winner := ""
 	if snapshot.Winner != nil {
 		winner = string(*snapshot.Winner)
@@ -490,6 +544,7 @@ func gameDocumentFromSnapshot(snapshot store.GameSnapshot, createdAt, updatedAt 
 		Seed:          snapshot.Seed,
 		OwnerUID:      snapshot.CreatedBy,
 		MemberUIDs:    memberUIDs,
+		SpectatorUID:  snapshot.SpectatorUID,
 		Players:       players,
 		Status:        snapshot.Status,
 		Turn:          snapshot.State.Turn,
@@ -526,20 +581,21 @@ func gameSnapshot(document gameDocument, state *models.GameState, mapData mapgen
 		yearCount = state.YearCount
 	}
 	return store.GameSnapshot{
-		ID:          document.ID,
-		Name:        document.Name,
-		Seed:        document.Seed,
-		YearCount:   yearCount,
-		Status:      document.Status,
-		Winner:      winner,
-		Scores:      scores,
-		Players:     players,
-		Map:         mapData,
-		State:       state,
-		Submissions: submissions,
-		Reports:     reports,
-		Revision:    store.Revision(document.Revision),
-		CreatedBy:   document.OwnerUID,
+		ID:           document.ID,
+		Name:         document.Name,
+		Seed:         document.Seed,
+		YearCount:    yearCount,
+		Status:       document.Status,
+		Winner:       winner,
+		Scores:       scores,
+		Players:      players,
+		Map:          mapData,
+		State:        state,
+		Submissions:  submissions,
+		Reports:      reports,
+		Revision:     store.Revision(document.Revision),
+		CreatedBy:    document.OwnerUID,
+		SpectatorUID: document.SpectatorUID,
 	}
 }
 
@@ -590,8 +646,11 @@ func playerIDForActor(game gameDocument, actor store.Actor) (models.PlayerID, bo
 }
 
 func membershipForActor(game gameDocument, actor store.Actor) bool {
-	_, ok := playerIDForActor(game, actor)
-	return ok
+	if _, ok := playerIDForActor(game, actor); ok {
+		return true
+	}
+	return strings.TrimSpace(game.SpectatorUID) != "" &&
+		strings.TrimSpace(game.SpectatorUID) == strings.TrimSpace(actor.ID)
 }
 
 func (s *FirestoreStore) deleteGame(ctx context.Context, id store.GameID) error {
@@ -631,6 +690,9 @@ func (s *FirestoreStore) deleteGame(ctx context.Context, id store.GameID) error 
 		}
 	}
 	if err := collect(root.Collection("views").Documents(operationContext)); err != nil {
+		return err
+	}
+	if err := collect(root.Collection("observer").Documents(operationContext)); err != nil {
 		return err
 	}
 	if err := collect(reportCollection(s.client, id).Documents(operationContext)); err != nil {

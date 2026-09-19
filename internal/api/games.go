@@ -118,7 +118,7 @@ func (h *GamesHandler) handleCollection(w http.ResponseWriter, r *http.Request) 
 		}
 		response := make([]gameListView, 0, len(games))
 		for _, game := range games {
-			response = append(response, makeGameListView(game))
+			response = append(response, makeGameListView(game, actor))
 		}
 		writeJSON(w, http.StatusOK, response)
 		return
@@ -249,12 +249,12 @@ func (h *GamesHandler) handleSubresource(w http.ResponseWriter, r *http.Request,
 			h.writeStoreError(w, err)
 			return
 		}
-		playerID, ok := snapshotPlayerID(snapshot, actor)
+		viewerID, ok := snapshotViewerID(snapshot, actor)
 		if !ok {
 			writeAPIError(w, http.StatusForbidden, "not_member", "actor is not a member of this game")
 			return
 		}
-		writeGameState(w, snapshot.Revision, projectStateForPlayer(snapshot.State, playerID))
+		writeGameState(w, snapshot.Revision, projectStateForPlayer(snapshot.State, viewerID))
 	case "balance":
 		if len(parts) != 1 {
 			http.NotFound(w, r)
@@ -323,6 +323,16 @@ func (h *GamesHandler) handleSubresource(w http.ResponseWriter, r *http.Request,
 			return
 		}
 		h.mySubmission(w, r, actor, id)
+	case "submitted-orders":
+		if len(parts) != 1 {
+			http.NotFound(w, r)
+			return
+		}
+		if r.Method != http.MethodGet {
+			methodNotAllowed(w, http.MethodGet)
+			return
+		}
+		h.submittedOrders(w, r, actor, id)
 	case "join":
 		if len(parts) != 1 {
 			http.NotFound(w, r)
@@ -454,6 +464,43 @@ func (h *GamesHandler) mySubmission(w http.ResponseWriter, r *http.Request, acto
 	})
 }
 
+func (h *GamesHandler) submittedOrders(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
+	snapshot, err := h.store.Get(r.Context(), actor, id)
+	if err != nil {
+		h.writeStoreError(w, err)
+		return
+	}
+	if !isSnapshotSpectator(snapshot, actor) {
+		writeAPIError(w, http.StatusForbidden, "spectator_only", "submitted orders are visible only to the observer host")
+		return
+	}
+	response := submittedOrdersView{
+		Turn:        snapshot.State.Turn,
+		Season:      snapshot.State.Season,
+		Submissions: make([]submittedPlayerOrdersView, 0, len(snapshot.Submissions)),
+	}
+	for _, player := range snapshot.Players {
+		input, submitted := snapshot.Submissions[player.ID]
+		if !submitted {
+			continue
+		}
+		chains := make([]chainSubmissionView, len(input.Chains))
+		for index, chain := range input.Chains {
+			chains[index] = chainSubmissionView{Noble: chain.Noble, Text: chain.Text}
+		}
+		var winter *winterSubmissionView
+		if len(input.Winter) > 0 {
+			winter = &winterSubmissionView{Lines: input.Winter[0].Lines}
+		}
+		response.Submissions = append(response.Submissions, submittedPlayerOrdersView{
+			Player: player.ID,
+			Chains: chains,
+			Winter: winter,
+		})
+	}
+	writeJSON(w, http.StatusOK, response)
+}
+
 func (h *GamesHandler) join(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
 	joiner, ok := h.store.(interface {
 		Join(context.Context, store.Actor, store.GameID, string) (store.JoinResult, error)
@@ -569,7 +616,7 @@ func (h *GamesHandler) reports(w http.ResponseWriter, r *http.Request, actor sto
 		h.writeStoreError(w, err)
 		return
 	}
-	playerID, ok := h.playerIDForGame(r.Context(), actor, id)
+	playerID, ok := h.viewerIDForGame(r.Context(), actor, id)
 	if !ok {
 		writeAPIError(w, http.StatusForbidden, "not_member", "actor is not a member of this game")
 		return
@@ -579,6 +626,11 @@ func (h *GamesHandler) reports(w http.ResponseWriter, r *http.Request, actor sto
 
 func (h *GamesHandler) writeSubmitResult(w http.ResponseWriter, actor store.Actor, result store.SubmitResult) {
 	playerID, ok := snapshotPlayerID(result.Snapshot, actor)
+	viewerID := playerID
+	if !ok && isSnapshotSpectator(result.Snapshot, actor) {
+		ok = true
+		viewerID = models.SpectatorViewer
+	}
 	if !ok {
 		writeAPIError(w, http.StatusForbidden, "not_member", "actor is not a member of this game")
 		return
@@ -591,10 +643,10 @@ func (h *GamesHandler) writeSubmitResult(w http.ResponseWriter, actor store.Acto
 		Resolved:  result.Resolved,
 		Forced:    result.Forced,
 		Revision:  result.Snapshot.Revision,
-		State:     projectStateForPlayer(result.Snapshot.State, playerID),
+		State:     projectStateForPlayer(result.Snapshot.State, viewerID),
 	}
 	if result.Report != nil {
-		report := projectReport(result.Report.Report, playerID, result.Report.Privacy)
+		report := projectReport(result.Report.Report, viewerID, result.Report.Privacy)
 		response.Report = &report
 	}
 	writeJSON(w, http.StatusOK, response)
@@ -607,12 +659,12 @@ func writeGameState(w http.ResponseWriter, revision store.Revision, state StateV
 	}{StateView: state, Revision: revision})
 }
 
-func (h *GamesHandler) playerIDForGame(ctx context.Context, actor store.Actor, id store.GameID) (models.PlayerID, bool) {
+func (h *GamesHandler) viewerIDForGame(ctx context.Context, actor store.Actor, id store.GameID) (models.PlayerID, bool) {
 	snapshot, err := h.store.Get(ctx, actor, id)
 	if err != nil {
 		return "", false
 	}
-	return snapshotPlayerID(snapshot, actor)
+	return snapshotViewerID(snapshot, actor)
 }
 
 func (h *GamesHandler) serveRules(w http.ResponseWriter, r *http.Request) {
@@ -654,6 +706,8 @@ func (h *GamesHandler) writeStoreError(w http.ResponseWriter, err error) {
 		writeAPIError(w, http.StatusConflict, "game_full", err.Error())
 	case errors.Is(err, store.ErrInvalidInvitation), errors.Is(err, store.ErrInvitationInactive):
 		writeAPIError(w, http.StatusForbidden, "invalid_invitation", "the invitation is invalid or inactive")
+	case errors.Is(err, store.ErrSpectator):
+		writeAPIError(w, http.StatusConflict, "spectator_only", "the game creator is an observer and cannot join a player slot")
 	case errors.Is(err, store.ErrProfileRequired):
 		writeAPIError(w, http.StatusBadRequest, "profile_required", err.Error())
 	case errors.Is(err, store.ErrRevisionConflict):
@@ -700,7 +754,7 @@ func applyProfileToCreateRequest(request store.CreateRequest, profile store.Play
 		players[index].Color = ""
 		players[index].Name = ""
 	}
-	if len(players) > 0 {
+	if len(players) > 0 && !request.Spectate {
 		players[0].Name = profile.DisplayName
 	}
 	request.Players = players
@@ -743,6 +797,18 @@ type mySubmissionView struct {
 	Winter    *winterSubmissionView `json:"winter,omitempty"`
 }
 
+type submittedOrdersView struct {
+	Turn        int                         `json:"turn"`
+	Season      models.Season               `json:"season"`
+	Submissions []submittedPlayerOrdersView `json:"submissions"`
+}
+
+type submittedPlayerOrdersView struct {
+	Player models.PlayerID       `json:"player"`
+	Chains []chainSubmissionView `json:"chains"`
+	Winter *winterSubmissionView `json:"winter,omitempty"`
+}
+
 type chainSubmissionView struct {
 	Noble models.NobleCode `json:"noble"`
 	Text  string           `json:"text"`
@@ -775,6 +841,7 @@ type gameListView struct {
 	Turn      int                                       `json:"turn"`
 	Season    models.Season                             `json:"season"`
 	Revision  store.Revision                            `json:"revision"`
+	Spectator bool                                      `json:"spectator"`
 }
 
 type gameDetailView struct {
@@ -794,6 +861,7 @@ type gameDetailView struct {
 	InviteAvailable bool                                      `json:"inviteAvailable"`
 	InviteCode      string                                    `json:"inviteCode,omitempty"`
 	InviteURL       string                                    `json:"inviteUrl,omitempty"`
+	Spectator       bool                                      `json:"spectator"`
 }
 
 type PlayerSlotView struct {
@@ -820,7 +888,7 @@ type reportSummaryView struct {
 	Header engine.ReportHeader `json:"header"`
 }
 
-func makeGameListView(snapshot store.GameSnapshot) gameListView {
+func makeGameListView(snapshot store.GameSnapshot, actor store.Actor) gameListView {
 	return gameListView{
 		ID:        snapshot.ID,
 		Name:      snapshot.Name,
@@ -832,6 +900,8 @@ func makeGameListView(snapshot store.GameSnapshot) gameListView {
 		Turn:      snapshot.State.Turn,
 		Season:    snapshot.State.Season,
 		Revision:  snapshot.Revision,
+		Spectator: strings.TrimSpace(snapshot.SpectatorUID) != "" &&
+			strings.TrimSpace(snapshot.SpectatorUID) == strings.TrimSpace(actor.ID),
 	}
 }
 
@@ -857,6 +927,7 @@ func makeAuthenticatedGameDetailView(snapshot store.GameSnapshot, actor store.Ac
 	view.CanInvite = strings.TrimSpace(snapshot.CreatedBy) != "" &&
 		strings.TrimSpace(snapshot.CreatedBy) == strings.TrimSpace(actor.ID)
 	view.InviteAvailable = view.CanInvite && hasFreePlayerSlot(snapshot.Players)
+	view.Spectator = isSnapshotSpectator(snapshot, actor)
 	return view
 }
 
@@ -896,11 +967,27 @@ func snapshotPlayerID(snapshot store.GameSnapshot, actor store.Actor) (models.Pl
 	return "", false
 }
 
+func isSnapshotSpectator(snapshot store.GameSnapshot, actor store.Actor) bool {
+	return strings.TrimSpace(snapshot.SpectatorUID) != "" &&
+		strings.TrimSpace(snapshot.SpectatorUID) == strings.TrimSpace(actor.ID)
+}
+
+func snapshotViewerID(snapshot store.GameSnapshot, actor store.Actor) (models.PlayerID, bool) {
+	if playerID, ok := snapshotPlayerID(snapshot, actor); ok {
+		return playerID, true
+	}
+	if isSnapshotSpectator(snapshot, actor) {
+		return models.SpectatorViewer, true
+	}
+	return "", false
+}
+
 type createGameBody struct {
-	Name    string          `json:"name"`
-	Seed    string          `json:"seed"`
-	Years   int             `json:"years"`
-	Players json.RawMessage `json:"players"`
+	Name     string          `json:"name"`
+	Seed     string          `json:"seed"`
+	Years    int             `json:"years"`
+	Spectate bool            `json:"spectate,omitempty"`
+	Players  json.RawMessage `json:"players"`
 }
 
 func decodeCreateRequest(r *http.Request) (store.CreateRequest, error) {
@@ -914,7 +1001,7 @@ func decodeCreateRequest(r *http.Request) (store.CreateRequest, error) {
 	if err != nil {
 		return store.CreateRequest{}, err
 	}
-	return store.CreateRequest{Name: body.Name, Seed: body.Seed, Players: players, YearCount: body.Years}, nil
+	return store.CreateRequest{Name: body.Name, Seed: body.Seed, Players: players, YearCount: body.Years, Spectate: body.Spectate}, nil
 }
 
 func decodeCreatePlayers(raw json.RawMessage) ([]engine.PlayerInit, error) {
