@@ -332,8 +332,6 @@ function seasonEffectLabel(effect: SeasonEffectReport, map: MapData | null, t: T
   const region = territoryLabel(map, effect.region, t)
   const card = effect.cardKind ? formatCardLabel(effect.cardKind, t) : ''
   switch (effect.kind) {
-    case 'calamity_applied':
-      return t('reports.calamityApplied', { card, region })
     case 'calamity_canceled':
       return t('reports.calamityCanceled', { card, bonus: card, region })
     case 'bonus_effect':
@@ -342,14 +340,149 @@ function seasonEffectLabel(effect: SeasonEffectReport, map: MapData | null, t: T
       return t('reports.neutralArmyCreated', {
         territory: territoryLabel(map, effect.territory, t),
       })
-    case 'plague_noble_death':
-      return t('reports.plagueDeath', {
-        noble: effect.noble ?? '—',
-        territory: territoryLabel(map, effect.territory, t),
-      })
     default:
       return card || effect.kind
   }
+}
+
+interface SeasonEffectLine {
+  key: string
+  owner?: PlayerId
+  label: string
+}
+
+interface SeasonEffectGroup {
+  key: string
+  header?: string
+  lines: SeasonEffectLine[]
+}
+
+function seasonEffectLine(
+  effect: SeasonEffectReport,
+  map: MapData | null,
+  t: Translate,
+  index: number,
+): SeasonEffectLine {
+  const region = territoryLabel(map, effect.region, t)
+  const card = effect.cardKind ? formatCardLabel(effect.cardKind, t) : ''
+  const key = `${effect.kind}-${effect.cardKind ?? ''}-${index}`
+  const owner = effect.owner ?? t('reports.unknownPlayer')
+  switch (effect.kind) {
+    case 'calamity_applied':
+      if (effect.army) {
+        return {
+          key,
+          owner: effect.owner,
+          label: t('reports.calamityPlagueArmy', {
+            owner,
+            territory: territoryLabel(map, effect.territory, t),
+            before: effect.sizeBefore ?? 0,
+            after: effect.sizeAfter ?? 0,
+          }),
+        }
+      }
+      return { key, label: t('reports.calamityApplied', { card, region }) }
+    case 'bad_weather_blocked': {
+      const base = {
+        owner,
+        territory: territoryLabel(map, effect.territory, t),
+      }
+      return {
+        key,
+        owner: effect.owner,
+        label: effect.target
+          ? t('reports.calamityBadWeatherBlocked', {
+              ...base,
+              target: territoryLabel(map, effect.target, t),
+            })
+          : t('reports.calamityBadWeatherBlockedNoTarget', base),
+      }
+    }
+    case 'famine_loss':
+      if (!effect.territory) {
+        return {
+          key,
+          label: t('reports.calamityFamineRegion', {
+            region,
+            production: effect.productionLost ?? 0,
+            rations: effect.rationsLost ?? 0,
+          }),
+        }
+      }
+      if ((effect.productionLost ?? 0) > 0) {
+        return {
+          key,
+          label: t('reports.calamityFamineMill', {
+            territory: territoryLabel(map, effect.territory, t),
+            production: effect.productionLost ?? 0,
+          }),
+        }
+      }
+      return {
+        key,
+        label: t('reports.calamityFamineRations', {
+          rations: effect.rationsLost ?? 0,
+          territory: territoryLabel(map, effect.territory, t),
+        }),
+      }
+    case 'plague_noble_death':
+      return {
+        key,
+        label: t('reports.plagueDeath', {
+          noble: effect.noble ?? '—',
+          territory: territoryLabel(map, effect.territory, t),
+        }),
+      }
+    case 'plague_noble_survived':
+      return {
+        key,
+        label: t('reports.plagueSurvived', {
+          noble: effect.noble ?? '—',
+          territory: territoryLabel(map, effect.territory, t),
+        }),
+      }
+    default:
+      return { key, label: seasonEffectLabel(effect, map, t) }
+  }
+}
+
+function groupSeasonEffects(
+  effects: SeasonEffectReport[],
+  map: MapData | null,
+  t: Translate,
+): { flat: SeasonEffectLine[]; groups: SeasonEffectGroup[] } {
+  const flat: SeasonEffectLine[] = []
+  const groups = new Map<string, SeasonEffectGroup>()
+  const groupFor = (effect: SeasonEffectReport): SeasonEffectGroup => {
+    const key = `${effect.cardKind ?? ''}-${effect.region ?? ''}`
+    let group = groups.get(key)
+    if (!group) {
+      group = { key, lines: [] }
+      groups.set(key, group)
+    }
+    return group
+  }
+  effects.forEach((effect, index) => {
+    const line = seasonEffectLine(effect, map, t, index)
+    switch (effect.kind) {
+      case 'calamity_applied':
+        if (effect.army) {
+          groupFor(effect).lines.push(line)
+        } else {
+          groupFor(effect).header = line.label
+        }
+        break
+      case 'bad_weather_blocked':
+      case 'famine_loss':
+      case 'plague_noble_death':
+      case 'plague_noble_survived':
+        groupFor(effect).lines.push(line)
+        break
+      default:
+        flat.push(line)
+    }
+  })
+  return { flat, groups: Array.from(groups.values()) }
 }
 
 export function ReportPanel({ report, map, players }: ReportPanelProps) {
@@ -365,6 +498,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
   const rumors = report.rumors ?? report.winter?.rumors ?? []
   const cards = report.cards ?? report.winter?.cards ?? []
   const seasonEffects = report.seasonEffects ?? []
+  const seasonEffectView = groupSeasonEffects(seasonEffects, map, t)
 
   return (
     <section className="min-w-0 space-y-4">
@@ -620,10 +754,23 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
           <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#8d321e]">
             {t('reports.seasonEffects')}
           </h4>
-          <ol className="space-y-1 text-sm text-[#8d321e]">
-            {seasonEffects.map((effect, index) => (
-              <li key={`${effect.kind}-${effect.cardKind ?? ''}-${index}`}>
-                {seasonEffectLabel(effect, map, t)}
+          <ol className="space-y-2 text-sm text-[#8d321e]">
+            {seasonEffectView.flat.map((line) => (
+              <li key={line.key}>{line.label}</li>
+            ))}
+            {seasonEffectView.groups.map((group) => (
+              <li key={group.key} className="space-y-1">
+                {group.header && <p className="font-semibold">{group.header}</p>}
+                {group.lines.length > 0 && (
+                  <ul className="space-y-1 border-l-2 border-[#e4b4a4] pl-3">
+                    {group.lines.map((line) => (
+                      <li key={line.key} className="flex items-center gap-2">
+                        {line.owner ? playerMarker(players, line.owner, t) : null}
+                        <span>{line.label}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </li>
             ))}
           </ol>

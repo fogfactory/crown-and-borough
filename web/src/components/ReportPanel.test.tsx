@@ -150,7 +150,32 @@ const report: TurnReport = {
     },
   ],
   seasonEffects: [
+    { kind: 'calamity_applied', cardKind: 'plague', region: 'ROS', season: 'spring' },
+    {
+      kind: 'calamity_applied',
+      cardKind: 'plague',
+      region: 'ROS',
+      season: 'spring',
+      owner: 'P1',
+      army: 'A1',
+      territory: 'ROS',
+      sizeBefore: 5,
+      sizeAfter: 2,
+    },
+    { kind: 'plague_noble_death', cardKind: 'plague', region: 'ROS', season: 'spring', noble: 'ROB', territory: 'ROS' },
+    { kind: 'plague_noble_survived', cardKind: 'plague', region: 'ROS', season: 'spring', noble: 'JEA', territory: 'ROS' },
+    {
+      kind: 'bad_weather_blocked',
+      cardKind: 'bad_weather',
+      region: 'ROS',
+      season: 'spring',
+      owner: 'P1',
+      territory: 'ROS',
+      target: 'BRU',
+    },
     { kind: 'calamity_applied', cardKind: 'famine', region: 'ROS', season: 'spring' },
+    { kind: 'famine_loss', cardKind: 'famine', region: 'ROS', season: 'spring', productionLost: 2, rationsLost: 2 },
+    { kind: 'famine_loss', cardKind: 'famine', region: 'ROS', season: 'spring', territory: 'BRU', productionLost: 2 },
     { kind: 'bonus_effect', cardKind: 'fair_weather', region: 'ROS', season: 'spring' },
   ],
   winter: {
@@ -218,6 +243,13 @@ describe('ReportPanel', () => {
     expect(screen.getByText(/Peste \(PE\) à venir en Été dans ROS/)).toBeInTheDocument()
     expect(screen.getByText(/Mauvaise récolte \(MR\) active dans ROS/)).toBeInTheDocument()
     expect(screen.getByText(/Beau temps \(BT\) actif dans ROS/)).toBeInTheDocument()
+    expect(screen.getByText('Peste (PE) active dans ROS')).toBeInTheDocument()
+    expect(screen.getByText(/Armée de P1 à ROS : 5 → 2 troupes/)).toBeInTheDocument()
+    expect(screen.getByText('Le noble ROB meurt de la peste à ROS')).toBeInTheDocument()
+    expect(screen.getByText('Le noble JEA à ROS survit à la peste')).toBeInTheDocument()
+    expect(screen.getByText(/Armée de P1 à ROS : mouvement vers BRU bloqué/)).toBeInTheDocument()
+    expect(screen.getByText(/2 R de production supprimées, 2 rations/)).toBeInTheDocument()
+    expect(screen.getByText(/Moulin à BRU désactivé : 2 R non produites/)).toBeInTheDocument()
   })
 
   it('does not display storage identifiers in visible report text', () => {

@@ -126,23 +126,50 @@ func (ctx *resolutionContext) enumeratePendingDisperse(record *orderRecord, chai
 	}
 }
 
+// emitBadWeatherBlocked reports one army whose order could not run because of
+// the bad weather calamity, for the season-effects section of the report.
+func (ctx *resolutionContext) emitBadWeatherBlocked(army models.Army, order models.Order, regionSeed models.TerritoryID) {
+	ctx.events = append(ctx.events, Event{
+		Type:        EventTypeBadWeatherBlocked,
+		Phase:       phaseForSeason(ctx.state.Season),
+		ArmyID:      army.ID,
+		OwnerID:     army.OwnerID,
+		RegionSeed:  regionSeed,
+		TerritoryID: army.TerritoryID,
+		TargetID:    firstOrderTarget(order),
+		Season:      ctx.state.Season,
+		Year:        ctx.state.Year(),
+	})
+}
+
 func (ctx *resolutionContext) enumerateOrder(record *orderRecord, army models.Army, isLastOrder bool) {
 	order := record.order
 	sourceAffected := ctx.badWeatherRegions[regionForTerritory(ctx, army.TerritoryID)]
 	if order.Type == models.OrderTypeDisperse {
 		if sourceAffected {
+			ctx.emitBadWeatherBlocked(army, order, regionForTerritory(ctx, army.TerritoryID))
 			record.invalidate("bad_weather")
 			return
+		}
+		blockedRegion := models.TerritoryID("")
+		if len(order.TargetIDs) > 0 {
+			blockedRegion = regionForTerritory(ctx, order.TargetIDs[0])
 		}
 		order.TargetIDs = ctx.filterBadWeatherDisperseTargets(order.TargetIDs)
 		order.NobleAssignments = ctx.filterBadWeatherDisperseAssignments(order.NobleAssignments, order.TargetIDs)
 		record.order.TargetIDs = order.TargetIDs
 		record.order.NobleAssignments = order.NobleAssignments
 		if len(order.TargetIDs) == 0 {
+			ctx.emitBadWeatherBlocked(army, order, blockedRegion)
 			record.invalidate("bad_weather")
 			return
 		}
 	} else if order.Type != models.OrderTypeHold && (sourceAffected || ctx.badWeatherTarget(order.TargetIDs)) {
+		blockedRegion := regionForTerritory(ctx, army.TerritoryID)
+		if !sourceAffected && len(order.TargetIDs) > 0 {
+			blockedRegion = regionForTerritory(ctx, order.TargetIDs[0])
+		}
+		ctx.emitBadWeatherBlocked(army, order, blockedRegion)
 		record.invalidate("bad_weather")
 		return
 	}

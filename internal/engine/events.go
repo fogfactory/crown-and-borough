@@ -45,6 +45,9 @@ const (
 	EventTypeBonusEffect       EventType = "bonus_effect"
 	EventTypeNeutralArmy       EventType = "neutral_army_created"
 	EventTypePlagueDeath       EventType = "plague_noble_death"
+	EventTypePlagueSurvived    EventType = "plague_noble_survived"
+	EventTypeBadWeatherBlocked EventType = "bad_weather_blocked"
+	EventTypeFamineLoss        EventType = "famine_loss"
 	EventTypeRumor             EventType = "rumor"
 )
 
@@ -139,6 +142,7 @@ type Event struct {
 	ResourceSpent      int                        `json:"resourceSpent,omitempty"`
 	Troops             int                        `json:"troops,omitempty"`
 	TroopsLost         int                        `json:"troopsLost,omitempty"`
+	RationsLost        int                        `json:"rationsLost,omitempty"`
 	SavedByPillage     bool                       `json:"savedByPillage,omitempty"`
 
 	NobleID         models.NobleID      `json:"noble,omitempty"`

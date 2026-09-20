@@ -205,16 +205,20 @@ type CardReport struct {
 }
 
 type SeasonEffectReport struct {
-	Kind       EventType          `json:"kind"`
-	CardKind   models.CardKind    `json:"cardKind,omitempty"`
-	Region     models.TerritoryID `json:"region,omitempty"`
-	Season     models.Season      `json:"season,omitempty"`
-	Army       models.ArmyID      `json:"army,omitempty"`
-	Noble      models.NobleID     `json:"noble,omitempty"`
-	Territory  models.TerritoryID `json:"territory,omitempty"`
-	SizeBefore int                `json:"sizeBefore,omitempty"`
-	SizeAfter  int                `json:"sizeAfter,omitempty"`
-	Reason     string             `json:"reason,omitempty"`
+	Kind           EventType          `json:"kind"`
+	CardKind       models.CardKind    `json:"cardKind,omitempty"`
+	Region         models.TerritoryID `json:"region,omitempty"`
+	Season         models.Season      `json:"season,omitempty"`
+	Owner          models.PlayerID    `json:"owner,omitempty"`
+	Army           models.ArmyID      `json:"army,omitempty"`
+	Noble          models.NobleCode   `json:"noble,omitempty"`
+	Territory      models.TerritoryID `json:"territory,omitempty"`
+	Target         models.TerritoryID `json:"target,omitempty"`
+	SizeBefore     int                `json:"sizeBefore,omitempty"`
+	SizeAfter      int                `json:"sizeAfter,omitempty"`
+	ProductionLost int                `json:"productionLost,omitempty"`
+	RationsLost    int                `json:"rationsLost,omitempty"`
+	Reason         string             `json:"reason,omitempty"`
 }
 
 type RumorReport struct {
@@ -458,8 +462,14 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 				}
 				report.Winter.Cards = append(report.Winter.Cards, card)
 			}
-		case EventTypeCalamityApplied, EventTypeCalamityCanceled, EventTypeBonusEffect, EventTypeNeutralArmy, EventTypePlagueDeath:
-			report.SeasonEffects = append(report.SeasonEffects, SeasonEffectReport{Kind: event.Type, CardKind: event.CardKind, Region: event.RegionSeed, Season: event.Season, Army: event.ArmyID, Noble: event.NobleID, Territory: event.TerritoryID, SizeBefore: event.SizeBefore, SizeAfter: event.SizeAfter, Reason: event.Reason})
+		case EventTypeCalamityApplied, EventTypeCalamityCanceled, EventTypeBonusEffect, EventTypeNeutralArmy, EventTypePlagueDeath, EventTypePlagueSurvived, EventTypeBadWeatherBlocked, EventTypeFamineLoss:
+			report.SeasonEffects = append(report.SeasonEffects, SeasonEffectReport{
+				Kind: event.Type, CardKind: event.CardKind, Region: event.RegionSeed, Season: event.Season,
+				Owner: event.OwnerID, Army: event.ArmyID, Noble: event.NobleCode,
+				Territory: event.TerritoryID, Target: event.TargetID, SizeBefore: event.SizeBefore,
+				SizeAfter: event.SizeAfter, ProductionLost: event.Production, RationsLost: event.RationsLost,
+				Reason: event.Reason,
+			})
 		case EventTypeWinterStock, EventTypeRecruit, EventTypeBuild, EventTypeUpgrade,
 			EventTypeRejected, EventTypeCapitalElected:
 			if report.Winter == nil {

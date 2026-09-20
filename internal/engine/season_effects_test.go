@@ -149,6 +149,19 @@ func TestEnumerateOrderRejectsBadWeatherMovementFromRegion(t *testing.T) {
 	if record.outcome != OutcomeInvalid || record.reason != "bad_weather" {
 		t.Fatalf("order record = %#v, want bad_weather invalidation", record)
 	}
+	blocked := 0
+	for _, event := range ctx.events {
+		if event.Type != EventTypeBadWeatherBlocked {
+			continue
+		}
+		blocked++
+		if event.ArmyID != "A1" || event.OwnerID != "P1" || event.RegionSeed != "AAA" || event.TerritoryID != "AAA" || event.TargetID != "BBB" {
+			t.Fatalf("blocked event = %#v, want A1 from AAA blocked towards BBB", event)
+		}
+	}
+	if blocked != 1 {
+		t.Fatalf("blocked events = %d, want one", blocked)
+	}
 }
 
 func TestBadWeatherInvalidationPausesChain(t *testing.T) {
@@ -206,5 +219,92 @@ func TestBadWeatherFiltersDisperseDestinations(t *testing.T) {
 	resolveSeasonEffects(ctx)
 	if got := ctx.filterBadWeatherDisperseTargets([]models.TerritoryID{"AAA", "BBB"}); len(got) != 1 || got[0] != "BBB" {
 		t.Fatalf("filtered destinations = %#v, want [BBB]", got)
+	}
+}
+
+func TestPlagueEmitsDeathAndSurvivorEvents(t *testing.T) {
+	state := effectTestState()
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	addNoble(state, "N2", "TWO", "P2", "AAA")
+	setCurrentCalamity(state, models.CardKindPlague, "AAA")
+	balance := testBalance()
+	balance.SpecialOrders.Effects.PlagueNobleMortalityPercentage = 50
+	ctx := newResolutionContext(state, balance)
+	resolveSeasonEffects(ctx)
+
+	outcomes := map[models.NobleID]string{}
+	for _, event := range ctx.events {
+		if event.Type != EventTypePlagueDeath && event.Type != EventTypePlagueSurvived {
+			continue
+		}
+		if event.RegionSeed != "AAA" || event.TerritoryID != "AAA" || event.NobleCode == "" {
+			t.Fatalf("noble event = %#v, want region AAA, location AAA and a noble code", event)
+		}
+		if _, exists := outcomes[event.NobleID]; exists {
+			t.Fatalf("noble %s has both a death and a survivor event", event.NobleID)
+		}
+		outcomes[event.NobleID] = string(event.Type)
+	}
+	if len(outcomes) != 2 {
+		t.Fatalf("noble outcomes = %#v, want one event per noble", outcomes)
+	}
+	for _, nobleID := range []models.NobleID{"N1", "N2"} {
+		if outcomes[nobleID] != string(EventTypePlagueDeath) && outcomes[nobleID] != string(EventTypePlagueSurvived) {
+			t.Fatalf("noble %s outcome = %q, want death or survived", nobleID, outcomes[nobleID])
+		}
+	}
+}
+
+func TestFamineEmitsLossSummaryAndDetails(t *testing.T) {
+	state := effectTestState()
+	state.Infrastructures = []models.Infrastructure{
+		{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"},
+		{ID: "I2", Type: models.InfraTypeMill, Level: 2, TerritoryID: "BBB"},
+	}
+	aaaState := state.TerritoryStates["AAA"]
+	aaaState.Infrastructures = []models.InfraID{"I1"}
+	state.TerritoryStates["AAA"] = aaaState
+	bbbState := state.TerritoryStates["BBB"]
+	bbbState.Infrastructures = []models.InfraID{"I2"}
+	state.TerritoryStates["BBB"] = bbbState
+	setCurrentCalamity(state, models.CardKindFamine, "AAA")
+	ctx := newResolutionContext(state, testBalance())
+	resolveSeasonEffects(ctx)
+
+	var summary *Event
+	millDetails := 0
+	settlementDetails := 0
+	for index := range ctx.events {
+		event := &ctx.events[index]
+		if event.Type != EventTypeFamineLoss {
+			continue
+		}
+		if event.RegionSeed != "AAA" {
+			t.Fatalf("famine event = %#v, want region AAA", event)
+		}
+		if event.TerritoryID == "" {
+			summary = event
+			continue
+		}
+		if event.InfrastructureType == models.InfraTypeMill {
+			millDetails++
+			if event.TerritoryID != "BBB" || event.Production != 2 || event.Level != 2 {
+				t.Fatalf("mill detail = %#v, want mill BBB losing 2 R", event)
+			}
+		} else {
+			settlementDetails++
+			if event.TerritoryID != "AAA" || event.RationsLost != 2 {
+				t.Fatalf("settlement detail = %#v, want AAA losing 2 rations", event)
+			}
+		}
+	}
+	if summary == nil {
+		t.Fatalf("events = %#v, want a famine summary", ctx.events)
+	}
+	if summary.Production != 2 || summary.RationsLost != 2 {
+		t.Fatalf("summary = %#v, want 2 R and 2 rations lost", summary)
+	}
+	if millDetails != 1 || settlementDetails != 1 {
+		t.Fatalf("details = %d mills / %d settlements, want one of each", millDetails, settlementDetails)
 	}
 }

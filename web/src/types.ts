@@ -39,6 +39,9 @@ export type EventType =
   | 'bonus_effect'
   | 'neutral_army_created'
   | 'plague_noble_death'
+  | 'plague_noble_survived'
+  | 'bad_weather_blocked'
+  | 'famine_loss'
   | 'rumor'
 
 export type PlayerId = string
@@ -522,11 +525,15 @@ export interface SeasonEffectReport {
   cardKind?: CardKind
   region?: string
   season?: Season
+  owner?: PlayerId
   army?: string
   noble?: string
   territory?: string
+  target?: string
   sizeBefore?: number
   sizeAfter?: number
+  productionLost?: number
+  rationsLost?: number
   reason?: string
 }
 

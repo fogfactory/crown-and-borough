@@ -118,6 +118,58 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 		}
 	}
 	resolvePlagueMortality(ctx)
+	emitFamineLosses(ctx)
+}
+
+// emitFamineLosses reports the production the bad harvest calamity suppresses:
+// one regional summary followed by one detail line per disabled mill and per
+// settlement losing its infrastructure rations.
+func emitFamineLosses(ctx *resolutionContext) {
+	seeds := make([]models.TerritoryID, 0, len(ctx.famineRegions))
+	for seed := range ctx.famineRegions {
+		seeds = append(seeds, seed)
+	}
+	sort.Slice(seeds, func(i, j int) bool { return seeds[i] < seeds[j] })
+	for _, seed := range seeds {
+		productionLost := 0
+		rationsLost := 0
+		details := make([]Event, 0)
+		for _, territoryID := range regionTerritories(ctx, seed) {
+			infrastructure := ctx.infrastructureAt(territoryID)
+			if infrastructure == nil {
+				continue
+			}
+			switch infrastructure.Type {
+			case models.InfraTypeMill:
+				lost := infrastructure.Level + ctx.bonusMillRegions[seed]*ctx.balance.SpecialOrders.Effects.BonusMillProduction
+				productionLost += lost
+				details = append(details, Event{
+					Type: EventTypeFamineLoss, Phase: phaseForSeason(ctx.state.Season),
+					CardKind: models.CardKindFamine, RegionSeed: seed, TerritoryID: territoryID,
+					InfrastructureType: models.InfraTypeMill, Level: infrastructure.Level,
+					Production: lost, Season: ctx.state.Season, Year: ctx.state.Year(),
+				})
+			case models.InfraTypeCastle, models.InfraTypeVillage:
+				rationsLost += ctx.balance.InfraRationsBonus
+				details = append(details, Event{
+					Type: EventTypeFamineLoss, Phase: phaseForSeason(ctx.state.Season),
+					CardKind: models.CardKindFamine, RegionSeed: seed, TerritoryID: territoryID,
+					InfrastructureType: infrastructure.Type, RationsLost: ctx.balance.InfraRationsBonus,
+					Season: ctx.state.Season, Year: ctx.state.Year(),
+				})
+			}
+		}
+		if productionLost == 0 && rationsLost == 0 {
+			continue
+		}
+		ctx.events = append(ctx.events, Event{
+			Type: EventTypeFamineLoss, Phase: phaseForSeason(ctx.state.Season),
+			CardKind: models.CardKindFamine, RegionSeed: seed,
+			Production: productionLost, RationsLost: rationsLost,
+			Season: ctx.state.Season, Year: ctx.state.Year(),
+		})
+		ctx.events = append(ctx.events, details...)
+	}
 }
 
 func copyTerritoryFlags(source map[models.TerritoryID]bool) map[models.TerritoryID]bool {
@@ -173,7 +225,7 @@ func applyPlague(ctx *resolutionContext, regionSeed models.TerritoryID) {
 		before := army.Size
 		army.Size = max(1, (army.Size+divisor-1)/divisor)
 		ctx.startArmiesByID[army.ID] = *army
-		ctx.events = append(ctx.events, Event{Type: EventTypeCalamityApplied, Phase: phaseForSeason(ctx.state.Season), CardKind: models.CardKindPlague, RegionSeed: regionSeed, ArmyID: army.ID, SizeBefore: before, SizeAfter: army.Size, Season: ctx.state.Season, Year: ctx.state.Year()})
+		ctx.events = append(ctx.events, Event{Type: EventTypeCalamityApplied, Phase: phaseForSeason(ctx.state.Season), CardKind: models.CardKindPlague, RegionSeed: regionSeed, ArmyID: army.ID, OwnerID: army.OwnerID, SizeBefore: before, SizeAfter: army.Size, Season: ctx.state.Season, Year: ctx.state.Year()})
 	}
 }
 
@@ -240,10 +292,16 @@ func resolvePlagueMortality(ctx *resolutionContext) {
 	}
 	dead := make(map[models.NobleID]bool)
 	for nobleID, startNoble := range ctx.startNoblesByID {
-		if plagueRegions[regionForTerritory(ctx, startNoble.LocationID)] && newPlagueRNG(ctx.state.Seed, ctx.state.Turn, nobleID).IntN(100) < mortality {
+		region := regionForTerritory(ctx, startNoble.LocationID)
+		if !plagueRegions[region] {
+			continue
+		}
+		if newPlagueRNG(ctx.state.Seed, ctx.state.Turn, nobleID).IntN(100) < mortality {
 			dead[nobleID] = true
 			ctx.plagueDeaths = append(ctx.plagueDeaths, startNoble)
-			ctx.events = append(ctx.events, Event{Type: EventTypePlagueDeath, Phase: phaseForSeason(ctx.state.Season), NobleID: nobleID, NobleCode: models.NobleCode(startNoble.Code), NobleName: startNoble.Name, TerritoryID: startNoble.LocationID, Season: ctx.state.Season, Year: ctx.state.Year()})
+			ctx.events = append(ctx.events, Event{Type: EventTypePlagueDeath, Phase: phaseForSeason(ctx.state.Season), RegionSeed: region, NobleID: nobleID, NobleCode: models.NobleCode(startNoble.Code), NobleName: startNoble.Name, TerritoryID: startNoble.LocationID, Season: ctx.state.Season, Year: ctx.state.Year()})
+		} else {
+			ctx.events = append(ctx.events, Event{Type: EventTypePlagueSurvived, Phase: phaseForSeason(ctx.state.Season), RegionSeed: region, NobleID: nobleID, NobleCode: models.NobleCode(startNoble.Code), NobleName: startNoble.Name, TerritoryID: startNoble.LocationID, Season: ctx.state.Season, Year: ctx.state.Year()})
 		}
 	}
 	if len(dead) == 0 {

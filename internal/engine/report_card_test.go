@@ -45,3 +45,42 @@ func TestBuildTurnReportProjectsCardAndSeasonEffects(t *testing.T) {
 		t.Fatalf("public report exposes internal card ID: %s", encoded)
 	}
 }
+
+func TestBuildTurnReportProjectsCalamityEffectDetails(t *testing.T) {
+	before := winterDeckState()
+	after := cloneGameState(before)
+	events := []Event{
+		{Type: EventTypeCalamityApplied, CardKind: models.CardKindPlague, RegionSeed: "ROS", Season: models.SeasonSpring, ArmyID: "A1", OwnerID: "P1", SizeBefore: 5, SizeAfter: 2},
+		{Type: EventTypeBadWeatherBlocked, RegionSeed: "ROS", Season: models.SeasonSpring, ArmyID: "A2", OwnerID: "P2", TerritoryID: "ROS", TargetID: "BOI"},
+		{Type: EventTypeFamineLoss, CardKind: models.CardKindFamine, RegionSeed: "ROS", Season: models.SeasonSpring, Production: 3, RationsLost: 2},
+		{Type: EventTypePlagueSurvived, RegionSeed: "ROS", Season: models.SeasonSpring, NobleID: "N9", NobleCode: "ROB", TerritoryID: "ROS"},
+	}
+	report := BuildTurnReport(before, after, events, nil)
+	byKind := map[EventType]SeasonEffectReport{}
+	for _, effect := range report.SeasonEffects {
+		byKind[effect.Kind] = effect
+	}
+	plague, exists := byKind[EventTypeCalamityApplied]
+	if !exists || plague.Army != "A1" || plague.Owner != "P1" || plague.SizeBefore != 5 || plague.SizeAfter != 2 {
+		t.Fatalf("plague effect = %#v, want army A1 reduced from 5 to 2", plague)
+	}
+	blocked, exists := byKind[EventTypeBadWeatherBlocked]
+	if !exists || blocked.Owner != "P2" || blocked.Territory != "ROS" || blocked.Target != "BOI" {
+		t.Fatalf("blocked effect = %#v, want P2 blocked from ROS to BOI", blocked)
+	}
+	famine, exists := byKind[EventTypeFamineLoss]
+	if !exists || famine.ProductionLost != 3 || famine.RationsLost != 2 {
+		t.Fatalf("famine effect = %#v, want 3 R and 2 rations lost", famine)
+	}
+	survived, exists := byKind[EventTypePlagueSurvived]
+	if !exists || survived.Noble != models.NobleCode("ROB") || survived.Territory != "ROS" {
+		t.Fatalf("survivor effect = %#v, want noble ROB alive at ROS", survived)
+	}
+	encoded, err := json.Marshal(report)
+	if err != nil {
+		t.Fatalf("marshal report: %v", err)
+	}
+	if strings.Contains(string(encoded), "N9") {
+		t.Fatalf("public report exposes internal noble ID: %s", encoded)
+	}
+}

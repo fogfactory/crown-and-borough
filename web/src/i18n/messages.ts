@@ -211,6 +211,15 @@ const englishMessages = {
   'reports.bonusEffect': '{card} active in {region}',
   'reports.neutralArmyCreated': 'Neutral army created at {territory}',
   'reports.plagueDeath': 'Noble {noble} died from plague at {territory}',
+  'reports.plagueSurvived': 'Noble {noble} at {territory} survived the plague',
+  'reports.calamityPlagueArmy': 'Army of {owner} at {territory}: {before} → {after} troops',
+  'reports.calamityBadWeatherBlocked': 'Army of {owner} at {territory}: move to {target} blocked',
+  'reports.calamityBadWeatherBlockedNoTarget':
+    'Army of {owner} at {territory}: order blocked by bad weather',
+  'reports.calamityFamineRegion':
+    'Bad harvest in {region}: {production} R of production suppressed, {rations} infrastructure rations lost',
+  'reports.calamityFamineMill': 'Mill at {territory} disabled: {production} R not produced',
+  'reports.calamityFamineRations': '{rations} infrastructure rations lost at {territory}',
   'reports.rumors': 'Rumors',
   'rumor.fair_weather':
     'The land is rich and the skies are kind; astrologers expect a generous harvest.',
@@ -754,6 +763,16 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.bonusEffect': '{card} actif dans {region}',
   'reports.neutralArmyCreated': 'Armée neutre créée à {territory}',
   'reports.plagueDeath': 'Le noble {noble} meurt de la peste à {territory}',
+  'reports.plagueSurvived': 'Le noble {noble} à {territory} survit à la peste',
+  'reports.calamityPlagueArmy': 'Armée de {owner} à {territory} : {before} → {after} troupes',
+  'reports.calamityBadWeatherBlocked':
+    'Armée de {owner} à {territory} : mouvement vers {target} bloqué',
+  'reports.calamityBadWeatherBlockedNoTarget':
+    'Armée de {owner} à {territory} : ordre bloqué par le mauvais temps',
+  'reports.calamityFamineRegion':
+    'Mauvaise récolte dans {region} : {production} R de production supprimées, {rations} rations d’infrastructure perdues',
+  'reports.calamityFamineMill': 'Moulin à {territory} désactivé : {production} R non produites',
+  'reports.calamityFamineRations': '{rations} rations d’infrastructure perdues à {territory}',
   'reports.rumors': 'Rumeurs',
   'rumor.fair_weather':
     'La terre est grasse et le temps clément ; les astrologues espèrent de bonnes récoltes.',
