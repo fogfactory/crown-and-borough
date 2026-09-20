@@ -97,6 +97,7 @@ describe('OrdersPanel seasonal presentation', () => {
           player="P1"
           chainDrafts={{}}
           winterDraft={'R T XXX\nR N XXX\nC C YYY\nC M ZZZ\nC M ZZZ'}
+          specialDraft=""
           winterCosts={{
             castle: 10,
             millLevels: [3, 5, 7],
@@ -110,6 +111,7 @@ describe('OrdersPanel seasonal presentation', () => {
           error={null}
           onChainChange={vi.fn()}
           onWinterChange={vi.fn()}
+          onSpecialChange={vi.fn()}
           onSubmit={vi.fn()}
           onOpenRules={vi.fn()}
         />
@@ -155,6 +157,7 @@ describe('OrdersPanel seasonal presentation', () => {
           player="P1"
           chainDrafts={{}}
           winterDraft="G XXX YYY 26"
+          specialDraft=""
           winterCosts={{
             castle: 10,
             millLevels: [3, 5, 7],
@@ -168,6 +171,7 @@ describe('OrdersPanel seasonal presentation', () => {
           error={null}
           onChainChange={vi.fn()}
           onWinterChange={vi.fn()}
+          onSpecialChange={vi.fn()}
           onSubmit={vi.fn()}
           onOpenRules={vi.fn()}
         />
@@ -219,6 +223,7 @@ describe('OrdersPanel seasonal presentation', () => {
           player="P1"
           chainDrafts={{}}
           winterDraft={'R X ROS\nR T ROS\nC M ZZZ'}
+          specialDraft=""
           winterCosts={{
             castle: 10,
             millLevels: [3, 5, 7],
@@ -232,6 +237,7 @@ describe('OrdersPanel seasonal presentation', () => {
           error={null}
           onChainChange={vi.fn()}
           onWinterChange={vi.fn()}
+          onSpecialChange={vi.fn()}
           onSubmit={vi.fn()}
           onOpenRules={vi.fn()}
         />
@@ -376,12 +382,14 @@ describe('OrdersPanel seasonal presentation', () => {
           player="P1"
           chainDrafts={{}}
           winterDraft="R T ROS"
+          specialDraft=""
           submitted={true}
           submitting={false}
           error={null}
           draftDiffers={{ winter: true }}
           onChainChange={vi.fn()}
           onWinterChange={vi.fn()}
+          onSpecialChange={vi.fn()}
           onSubmit={vi.fn()}
           onOpenRules={vi.fn()}
           onRestoreFromServer={onRestore}
@@ -418,12 +426,14 @@ describe('OrdersPanel seasonal presentation', () => {
           player="P1"
           chainDrafts={{ GUI: 'ROS A BT' }}
           winterDraft=""
+          specialDraft=""
           submitted={true}
           submitting={false}
           error={null}
           draftDiffers={{ chains: { GUI: true } }}
           onChainChange={vi.fn()}
           onWinterChange={vi.fn()}
+          onSpecialChange={vi.fn()}
           onSubmit={vi.fn()}
           onOpenRules={vi.fn()}
           onRestoreFromServer={onRestore}
@@ -459,12 +469,14 @@ describe('OrdersPanel seasonal presentation', () => {
           player="P1"
           chainDrafts={{ GUI: 'ROS A BT' }}
           winterDraft=""
+          specialDraft=""
           submitted={true}
           submitting={false}
           error={null}
           draftDiffers={undefined}
           onChainChange={vi.fn()}
           onWinterChange={vi.fn()}
+          onSpecialChange={vi.fn()}
           onSubmit={vi.fn()}
           onOpenRules={vi.fn()}
         />
