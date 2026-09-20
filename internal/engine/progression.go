@@ -95,6 +95,11 @@ func (ctx *resolutionContext) progressRecord(record *orderRecord) (int, int, Pro
 		ctx.removeChain(record.chainID)
 		return before, before, ProgressionBroken
 	case OutcomeInvalid:
+		// Bad weather is a temporary circumstance, not a player error: the
+		// chain pauses on the same order and re-attempts it next season.
+		if record.reason == "bad_weather" {
+			return before, before, ProgressionRetried
+		}
 		ctx.removeChain(record.chainID)
 		return before, before, ProgressionBroken
 	default:

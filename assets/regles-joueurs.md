@@ -119,7 +119,8 @@ ravitaillement.
 Une chaîne n'est pas limitée à une seule saison : une ligne réussie fait
 progresser l'index de la chaîne et la ligne suivante attend la résolution
 suivante. Une ligne `loop` conserve volontairement le même ordre lorsqu'elle
-doit attendre une ouverture.
+doit attendre une ouverture. Un mouvement invalidé par le mauvais temps met la
+chaîne en pause : l'ordre reste en place et retente la saison suivante.
 
 ### Réception
 

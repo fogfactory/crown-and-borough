@@ -151,6 +151,38 @@ func TestEnumerateOrderRejectsBadWeatherMovementFromRegion(t *testing.T) {
 	}
 }
 
+func TestBadWeatherInvalidationPausesChain(t *testing.T) {
+	state := effectTestState()
+	chainID := models.ChainID("C1")
+	state.Armies = []models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1, ChainID: &chainID}}
+	state.Chains = []models.Chain{{
+		ID:           chainID,
+		NobleID:      "N1",
+		ArmyID:       "A1",
+		CurrentIndex: 0,
+		Orders: []models.Order{{
+			ID: "O1", Type: models.OrderTypeAttack, PositionID: "AAA",
+			TargetIDs: []models.TerritoryID{"BBB"},
+		}},
+	}}
+	setCurrentCalamity(state, models.CardKindBadWeather, "AAA")
+	ctx := newResolutionContext(state, testBalance())
+	resolveSeasonEffects(ctx)
+	record := &orderRecord{armyID: "A1", chainID: chainID, order: state.Chains[0].Orders[0]}
+	record.invalidate("bad_weather")
+
+	before, after, progression := ctx.progressRecord(record)
+	if progression != ProgressionRetried || before != 0 || after != 0 {
+		t.Fatalf("progression = %s (%d→%d), want retried with unchanged index", progression, before, after)
+	}
+	if len(ctx.state.Chains) != 1 || ctx.state.Chains[0].ID != chainID {
+		t.Fatalf("chains = %#v, want the paused chain kept", ctx.state.Chains)
+	}
+	if ctx.state.Armies[0].ChainID == nil || *ctx.state.Armies[0].ChainID != chainID {
+		t.Fatal("paused chain was detached from the army")
+	}
+}
+
 func TestEnumerateOrderRejectsBadWeatherDestination(t *testing.T) {
 	state := effectTestState()
 	state.Regions = []models.Region{{ID: "AAA", Seed: "AAA", Territories: []models.TerritoryID{"AAA"}}, {ID: "BBB", Seed: "BBB", Territories: []models.TerritoryID{"BBB"}}}

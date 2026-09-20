@@ -111,7 +111,8 @@ The `T` transfer order uses the supply network instead.
 
 A chain is not limited to one season: a successful line advances the chain index,
 and the next line waits for the next resolution. A `loop` line deliberately keeps
-the same order when it has to wait for an opening.
+the same order when it has to wait for an opening. A movement invalidated by bad
+weather pauses the chain: the order stays in place and re-attempts next season.
 
 ### Reception
 
