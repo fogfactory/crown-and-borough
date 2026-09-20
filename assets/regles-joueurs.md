@@ -367,7 +367,7 @@ château hors capitale peut garder 2 R.
 Le deck contient **{{special_orders.deck_size}} cartes**, dont **{{special_orders.card.plague}} peste**, **{{special_orders.card.bad_weather}} mauvais temps**, **{{special_orders.card.famine}} mauvaises récoltes**, **{{special_orders.card.fair_weather}} beaux temps**, **{{special_orders.card.abundant_harvest}} bonnes récoltes** et **{{special_orders.card.revolt}} révoltes**.
 
 La main est limitée à **{{special_orders.hand_limit}} cartes**. Après les défausses
-d'hiver, chaque joueur reçoit automatiquement jusqu'à **{{special_orders.draw_orders_limit}} cartes bonus**. Les calamités sont programmées dans les slots printemps (**{{special_orders.calamity_slots.spring}}**), été (**{{special_orders.calamity_slots.summer}}**) et hiver (**{{special_orders.calamity_slots.winter}}**). La peste réduit les armées par division de **{{special_orders.effects.plague_army_divisor}}**.
+d'hiver, chaque joueur reçoit automatiquement jusqu'à **{{special_orders.draw_orders_limit}} cartes bonus**. Les calamités sont programmées dans les slots printemps (**{{special_orders.calamity_slots.spring}}**), été (**{{special_orders.calamity_slots.summer}}**) et automne (**{{special_orders.calamity_slots.autumn}}**). La peste réduit les armées par division de **{{special_orders.effects.plague_army_divisor}}**.
 
 ## 6. Cartes spéciales et calamités
 
@@ -401,15 +401,15 @@ défausses.
 
 Une calamité tirée est programmée dans le premier slot disponible de l'année
 suivante : printemps (**{{special_orders.calamity_slots.spring}}**), été
-(**{{special_orders.calamity_slots.summer}}**) ou hiver
-(**{{special_orders.calamity_slots.winter}}**). Sa région est tirée de manière
+(**{{special_orders.calamity_slots.summer}}**) ou automne
+(**{{special_orders.calamity_slots.autumn}}**). Sa région est tirée de manière
 déterministe lors de la programmation. L'augure du printemps révèle le kind, la
 saison et la région de toutes les calamités de l'année ; les augures futures
 restent cachées.
 
 Dès son tirage, la calamité programmée est annoncée dans l'encart des cartes
 spéciales de l'interface. L'annonce reste visible jusqu'à l'application de la
-calamité ou sa contre-mesure.
+calamité ou sa contre-mesure. Aucune calamité ne se résout en hiver.
 
 - la peste réduit les armées par division de **{{special_orders.effects.plague_army_divisor}}** et peut supprimer un noble ;
 - le mauvais temps bloque les mouvements provenant ou visant sa région, sauf le maintien et le soutien défensif ;

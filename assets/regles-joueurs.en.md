@@ -341,7 +341,7 @@ surplus goes to the capital, while an outlying castle may keep 2 R.
 The deck contains **{{special_orders.deck_size}} cards**: **{{special_orders.card.plague}} plague**, **{{special_orders.card.bad_weather}} bad weather**, **{{special_orders.card.famine}} bad harvest**, **{{special_orders.card.fair_weather}} fair weather**, **{{special_orders.card.abundant_harvest}} abundant harvest**, and **{{special_orders.card.revolt}} revolt** cards.
 
 A hand is limited to **{{special_orders.hand_limit}} cards**. After winter
-discards, each player automatically receives up to **{{special_orders.draw_orders_limit}} bonus cards**. Calamities are programmed into spring (**{{special_orders.calamity_slots.spring}}**), summer (**{{special_orders.calamity_slots.summer}}**), and winter (**{{special_orders.calamity_slots.winter}}**) slots. Plague reduces army sizes by a divisor of **{{special_orders.effects.plague_army_divisor}}**.
+discards, each player automatically receives up to **{{special_orders.draw_orders_limit}} bonus cards**. Calamities are programmed into spring (**{{special_orders.calamity_slots.spring}}**), summer (**{{special_orders.calamity_slots.summer}}**), and autumn (**{{special_orders.calamity_slots.autumn}}**) slots. Plague reduces army sizes by a divisor of **{{special_orders.effects.plague_army_divisor}}**.
 
 ## 6. Special cards and calamities
 
@@ -374,14 +374,14 @@ discards.
 
 A drawn calamity is programmed into the first free slot of the following year:
 spring (**{{special_orders.calamity_slots.spring}}**), summer
-(**{{special_orders.calamity_slots.summer}}**) or winter
-(**{{special_orders.calamity_slots.winter}}**). Its region is selected
+(**{{special_orders.calamity_slots.summer}}**) or autumn
+(**{{special_orders.calamity_slots.autumn}}**). Its region is selected
 deterministically when programmed. The spring augury reveals the kind, season
 and region of every calamity in that year; future auguries remain hidden.
 
 As soon as a calamity is drawn, the interface announces it in the special-cards
 panel. The announcement stays visible until the calamity applies or is
-countered.
+countered. No calamity resolves in winter.
 
 - plague reduces armies by a divisor of **{{special_orders.effects.plague_army_divisor}}** and may remove a noble;
 - bad weather blocks movements originating from or targeting its region, except holds and defensive support;

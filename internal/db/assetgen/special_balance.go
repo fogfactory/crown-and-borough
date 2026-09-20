@@ -91,7 +91,7 @@ func specialSeasonValues(path string, values map[string]*int, name string) (map[
 		return nil, missingBalanceValue(path, name)
 	}
 	result := make(map[models.Season]int, 3)
-	for _, season := range []models.Season{models.SeasonSpring, models.SeasonSummer, models.SeasonWinter} {
+	for _, season := range []models.Season{models.SeasonSpring, models.SeasonSummer, models.SeasonAutumn} {
 		value, exists := values[string(season)]
 		if !exists || value == nil {
 			return nil, missingBalanceValue(path, name+"."+string(season))
@@ -102,7 +102,7 @@ func specialSeasonValues(path string, values map[string]*int, name string) (map[
 		result[season] = *value
 	}
 	for season := range values {
-		if season != string(models.SeasonSpring) && season != string(models.SeasonSummer) && season != string(models.SeasonWinter) {
+		if season != string(models.SeasonSpring) && season != string(models.SeasonSummer) && season != string(models.SeasonAutumn) {
 			return nil, fmt.Errorf("assetgen: %s: invalid season %q in %s", path, season, name)
 		}
 	}

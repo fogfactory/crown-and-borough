@@ -55,7 +55,7 @@ special_orders:
   calamity_slots:
     spring: 1
     summer: 1
-    winter: 1
+    autumn: 1
   calamity_weights:
     plague: 1
     bad_weather: 6

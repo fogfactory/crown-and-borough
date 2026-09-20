@@ -141,7 +141,7 @@ func (ctx *resolutionContext) programCalamity(cardID models.SpecialCardID, kind 
 		augury.Capacities = map[models.Season]int{
 			models.SeasonSpring: ctx.balance.SpecialOrders.CalamitySlots[models.SeasonSpring],
 			models.SeasonSummer: ctx.balance.SpecialOrders.CalamitySlots[models.SeasonSummer],
-			models.SeasonWinter: ctx.balance.SpecialOrders.CalamitySlots[models.SeasonWinter],
+			models.SeasonAutumn: ctx.balance.SpecialOrders.CalamitySlots[models.SeasonAutumn],
 		}
 		augury.Calamities = []models.Calamity{}
 	}
@@ -150,7 +150,7 @@ func (ctx *resolutionContext) programCalamity(cardID models.SpecialCardID, kind 
 		counts[calamity.Season]++
 	}
 	season := models.Season("")
-	for _, candidate := range []models.Season{models.SeasonSpring, models.SeasonSummer, models.SeasonWinter} {
+	for _, candidate := range []models.Season{models.SeasonSpring, models.SeasonSummer, models.SeasonAutumn} {
 		if counts[candidate] < augury.Capacities[candidate] {
 			season = candidate
 			break

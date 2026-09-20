@@ -102,7 +102,7 @@ func renderRules(document []byte, balance Balance) ([]byte, error) {
 		"special_orders.draw_orders_limit":           stringValue(balance.SpecialOrders.DrawOrdersLimit),
 		"special_orders.calamity_slots.spring":       stringValue(balance.SpecialOrders.CalamitySlots[models.SeasonSpring]),
 		"special_orders.calamity_slots.summer":       stringValue(balance.SpecialOrders.CalamitySlots[models.SeasonSummer]),
-		"special_orders.calamity_slots.winter":       stringValue(balance.SpecialOrders.CalamitySlots[models.SeasonWinter]),
+		"special_orders.calamity_slots.autumn":       stringValue(balance.SpecialOrders.CalamitySlots[models.SeasonAutumn]),
 		"special_orders.card.plague":                 stringValue(calamityCounts[models.CardKindPlague]),
 		"special_orders.card.bad_weather":            stringValue(calamityCounts[models.CardKindBadWeather]),
 		"special_orders.card.famine":                 stringValue(calamityCounts[models.CardKindFamine]),

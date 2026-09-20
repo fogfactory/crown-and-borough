@@ -94,7 +94,7 @@ func TestRevoltCardRequiresActiveFamine(t *testing.T) {
 	state.Regions = []models.Region{{ID: "ROS", Seed: "ROS", Territories: []models.TerritoryID{"ROS"}}}
 	state.Auguries[1] = models.YearAugury{
 		Year:       1,
-		Capacities: map[models.Season]int{models.SeasonSpring: 1, models.SeasonSummer: 1, models.SeasonWinter: 1},
+		Capacities: map[models.Season]int{models.SeasonSpring: 1, models.SeasonSummer: 1, models.SeasonAutumn: 1},
 		Calamities: []models.Calamity{{Kind: models.CardKindFamine, Season: models.SeasonSpring, Year: 1, RegionSeed: "ROS"}},
 	}
 	ctx := newResolutionContext(state, testBalance())

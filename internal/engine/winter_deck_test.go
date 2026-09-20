@@ -12,7 +12,7 @@ func winterDeckBalance() assetgen.Balance {
 	balance := testBalance()
 	balance.SpecialOrders.HandLimit = 4
 	balance.SpecialOrders.DrawOrdersLimit = 2
-	balance.SpecialOrders.CalamitySlots = map[models.Season]int{models.SeasonSpring: 1, models.SeasonSummer: 1, models.SeasonWinter: 1}
+	balance.SpecialOrders.CalamitySlots = map[models.Season]int{models.SeasonSpring: 1, models.SeasonSummer: 1, models.SeasonAutumn: 1}
 	return balance
 }
 
@@ -259,12 +259,36 @@ func TestResolveWinterRemixesDiscardBeforeDrawing(t *testing.T) {
 	}
 }
 
+func TestResolveWinterSchedulesThirdCalamityInAutumn(t *testing.T) {
+	state := winterDeckState()
+	state.SpecialDeck.Cards = []models.SpecialCard{
+		{ID: "C1", Kind: models.CardKindPlague},
+		{ID: "C2", Kind: models.CardKindBadWeather},
+		{ID: "C3", Kind: models.CardKindFamine},
+	}
+	state.SpecialDeck.DrawPile = []models.SpecialCardID{"C1", "C2", "C3"}
+	resolution, err := ResolveWinterWithDeckOrders(state, winterDeckBalance(), nil, nil)
+	if err != nil {
+		t.Fatalf("ResolveWinterWithDeckOrders = %v", err)
+	}
+	augury := resolution.State.Auguries[2]
+	wantSeasons := []models.Season{models.SeasonSpring, models.SeasonSummer, models.SeasonAutumn}
+	if len(augury.Calamities) != len(wantSeasons) {
+		t.Fatalf("calamities = %#v, want three scheduled calamities", augury.Calamities)
+	}
+	for index, wantSeason := range wantSeasons {
+		if augury.Calamities[index].Season != wantSeason {
+			t.Fatalf("calamity %d season = %q, want %q", index, augury.Calamities[index].Season, wantSeason)
+		}
+	}
+}
+
 func TestResolveWinterDiscardsCalamityWhenSlotsAreFull(t *testing.T) {
 	state := winterDeckState()
 	state.SpecialDeck.Cards = []models.SpecialCard{{ID: "C1", Kind: models.CardKindPlague}}
 	state.SpecialDeck.DrawPile = []models.SpecialCardID{"C1"}
 	state.SpecialDeck.Hands["P1"] = []models.SpecialCardID{}
-	state.Auguries[2] = models.YearAugury{Year: 2, Capacities: map[models.Season]int{models.SeasonSpring: 0, models.SeasonSummer: 0, models.SeasonWinter: 0}, Calamities: []models.Calamity{}}
+	state.Auguries[2] = models.YearAugury{Year: 2, Capacities: map[models.Season]int{models.SeasonSpring: 0, models.SeasonSummer: 0, models.SeasonAutumn: 0}, Calamities: []models.Calamity{}}
 	resolution, err := ResolveWinterWithDeckOrders(state, winterDeckBalance(), nil, nil)
 	if err != nil {
 		t.Fatalf("ResolveWinterWithDeckOrders = %v", err)

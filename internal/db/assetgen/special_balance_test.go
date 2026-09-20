@@ -18,7 +18,7 @@ func TestLoadSpecialOrdersBalance(t *testing.T) {
 	if balance.SpecialOrders.HandLimit != 4 || balance.SpecialOrders.DrawOrdersLimit != 2 || balance.SpecialOrders.DeckSize != 30 {
 		t.Fatalf("special order limits = %#v", balance.SpecialOrders)
 	}
-	if balance.SpecialOrders.CalamitySlots[models.SeasonWinter] != 1 || balance.SpecialOrders.CalamityWeights[models.CardKindPlague] != 1 {
+	if balance.SpecialOrders.CalamitySlots[models.SeasonAutumn] != 1 || balance.SpecialOrders.CalamityWeights[models.CardKindPlague] != 1 {
 		t.Fatalf("special order weights/slots = %#v", balance.SpecialOrders)
 	}
 }
@@ -30,7 +30,7 @@ func TestLoadSpecialOrdersBalanceRejectsInvalidValues(t *testing.T) {
 		want string
 	}{
 		{name: "unknown season", edit: func(value string) string {
-			return strings.Replace(value, "    winter: 1\n", "    winter: 1\n    autumn: 1\n", 1)
+			return strings.Replace(value, "    autumn: 1\n", "    autumn: 1\n    flood: 1\n", 1)
 		}, want: "invalid season"},
 		{name: "non integral calamity count", edit: func(value string) string {
 			return strings.Replace(value, "calamity_percentage: 30", "calamity_percentage: 33", 1)

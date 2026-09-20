@@ -34,7 +34,7 @@ func TestProjectStateForPlayerProjectsPendingAnnouncements(t *testing.T) {
 		{CardID: "C2", Kind: models.CardKindBadWeather, Year: 2, Season: models.SeasonSummer, RegionSeed: "ROS"},
 	}}
 	state.Auguries[3] = models.YearAugury{Year: 3, Calamities: []models.Calamity{
-		{CardID: "C3", Kind: models.CardKindFamine, Year: 3, Season: models.SeasonWinter, RegionSeed: "BOI"},
+		{CardID: "C3", Kind: models.CardKindFamine, Year: 3, Season: models.SeasonAutumn, RegionSeed: "BOI"},
 	}}
 	view := ProjectStateForPlayer(state, "P1")
 	if len(view.Announcements) != 3 {

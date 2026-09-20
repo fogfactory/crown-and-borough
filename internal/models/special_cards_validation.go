@@ -55,14 +55,14 @@ func validateSpecialDeck(deck *SpecialDeck, auguries map[int]YearAugury, players
 		if augury.Year != 0 && augury.Year != year {
 			return fmt.Errorf("models: augury %d: year field does not match key", year)
 		}
-		for _, season := range []Season{SeasonSpring, SeasonSummer, SeasonWinter} {
+		for _, season := range []Season{SeasonSpring, SeasonSummer, SeasonAutumn} {
 			capacity, exists := augury.Capacities[season]
 			if !exists || capacity < 0 {
 				return fmt.Errorf("models: augury %d: invalid capacity for %q", year, season)
 			}
 		}
 		for season := range augury.Capacities {
-			if season != SeasonSpring && season != SeasonSummer && season != SeasonWinter {
+			if season != SeasonSpring && season != SeasonSummer && season != SeasonAutumn {
 				return fmt.Errorf("models: augury %d: invalid season capacity %q", year, season)
 			}
 		}
