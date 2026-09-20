@@ -338,7 +338,7 @@ surplus goes to the capital, while an outlying castle may keep 2 R.
 
 ### Special cards
 
-The deck contains **{{special_orders.deck_size}} cards**: **{{special_orders.card.plague}} plague**, **{{special_orders.card.bad_weather}} bad weather**, **{{special_orders.card.famine}} famine**, **{{special_orders.card.fair_weather}} fair weather**, **{{special_orders.card.abundant_harvest}} abundant harvest**, and **{{special_orders.card.revolt}} revolt** cards.
+The deck contains **{{special_orders.deck_size}} cards**: **{{special_orders.card.plague}} plague**, **{{special_orders.card.bad_weather}} bad weather**, **{{special_orders.card.famine}} bad harvest**, **{{special_orders.card.fair_weather}} fair weather**, **{{special_orders.card.abundant_harvest}} abundant harvest**, and **{{special_orders.card.revolt}} revolt** cards.
 
 A hand is limited to **{{special_orders.hand_limit}} cards**. After winter
 discards, each player automatically receives up to **{{special_orders.draw_orders_limit}} bonus cards**. Calamities are programmed into spring (**{{special_orders.calamity_slots.spring}}**), summer (**{{special_orders.calamity_slots.summer}}**), and winter (**{{special_orders.calamity_slots.winter}}**) slots. Plague reduces army sizes by a divisor of **{{special_orders.effects.plague_army_divisor}}**.
@@ -351,20 +351,20 @@ require a noble.
 
 - `P FW ROS`: play Fair weather on the region seeded by ROS;
 - `P AH ROS`: play Abundant harvest on that region;
-- `P RV ROS`: play Revolt, only when an active famine affects that region;
+- `P RV ROS`: play Revolt, only when an active bad harvest affects that region;
 - `D C FW` or `D C AH`: discard a card, winter only;
 The hand is replenished automatically in winter after discards. No draw order is
 needed.
 
 Fair weather, Abundant harvest and Revolt can be played in spring, summer and
 autumn, but not winter. Played cards are consumed before army-order resolution.
-Fair weather cancels only bad weather and Abundant harvest cancels only famine.
+Fair weather cancels only bad weather and Abundant harvest cancels only bad harvest.
 A card that cancels a calamity does not provide its regional bonus. Duplicate
 cards are consumed, but only one card of each kind is effective.
 
 The deck contains **{{special_orders.deck_size}} cards**:
 **{{special_orders.card.plague}}** plague, **{{special_orders.card.bad_weather}}**
-bad weather, **{{special_orders.card.famine}}** famine,
+bad weather, **{{special_orders.card.famine}}** bad harvest,
 **{{special_orders.card.fair_weather}}** fair weather,
 **{{special_orders.card.abundant_harvest}}** abundant harvest and
 **{{special_orders.card.revolt}}** revolt cards. The hand limit is
@@ -381,7 +381,7 @@ and region of every calamity in that year; future auguries remain hidden.
 
 - plague reduces armies by a divisor of **{{special_orders.effects.plague_army_divisor}}** and may remove a noble;
 - bad weather blocks movements originating from or targeting its region, except holds and defensive support;
-- famine disables mills and infrastructure ration bonuses in its region;
+- bad harvest disables mills and infrastructure ration bonuses in its region;
 - Revolt creates neutral armies on empty territories according to the balance.
 
 Public rumors are recalculated in every report from the current bonus hands of

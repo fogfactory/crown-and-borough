@@ -191,7 +191,7 @@ describe('ReportPanel', () => {
       screen.getByText(/Un bel ensoleillement gagne le royaume/),
     ).toBeInTheDocument()
     expect(screen.getByText(/Beau temps \(BT\) jouée sur ROS/)).toBeInTheDocument()
-    expect(screen.getByText(/Famine \(FA\) active dans ROS/)).toBeInTheDocument()
+    expect(screen.getByText(/Mauvaise récolte \(MR\) active dans ROS/)).toBeInTheDocument()
     expect(screen.getByText(/Beau temps \(BT\) actif dans ROS/)).toBeInTheDocument()
   })
 

@@ -364,7 +364,7 @@ château hors capitale peut garder 2 R.
 
 ### Cartes spéciales
 
-Le deck contient **{{special_orders.deck_size}} cartes**, dont **{{special_orders.card.plague}} peste**, **{{special_orders.card.bad_weather}} mauvais temps**, **{{special_orders.card.famine}} famines**, **{{special_orders.card.fair_weather}} beaux temps**, **{{special_orders.card.abundant_harvest}} bonnes récoltes** et **{{special_orders.card.revolt}} révoltes**.
+Le deck contient **{{special_orders.deck_size}} cartes**, dont **{{special_orders.card.plague}} peste**, **{{special_orders.card.bad_weather}} mauvais temps**, **{{special_orders.card.famine}} mauvaises récoltes**, **{{special_orders.card.fair_weather}} beaux temps**, **{{special_orders.card.abundant_harvest}} bonnes récoltes** et **{{special_orders.card.revolt}} révoltes**.
 
 La main est limitée à **{{special_orders.hand_limit}} cartes**. Après les défausses
 d'hiver, chaque joueur reçoit automatiquement jusqu'à **{{special_orders.draw_orders_limit}} cartes bonus**. Les calamités sont programmées dans les slots printemps (**{{special_orders.calamity_slots.spring}}**), été (**{{special_orders.calamity_slots.summer}}**) et hiver (**{{special_orders.calamity_slots.winter}}**). La peste réduit les armées par division de **{{special_orders.effects.plague_army_divisor}}**.
@@ -377,7 +377,7 @@ Aucun noble n'est nécessaire.
 
 - `P BT ROS` : jouer Beau temps sur la région dont ROS est le seed ;
 - `P RA ROS` : jouer Bonne récolte sur cette région ;
-- `P RE ROS` : jouer Révolte, uniquement si une famine active affecte cette région ;
+- `P RE ROS` : jouer Révolte, uniquement si une mauvaise récolte active affecte cette région ;
 - `D C BT` ou `D C RA` : défausser une carte, en hiver uniquement ;
 La main est reconstituée automatiquement en hiver après les défausses. Aucun ordre
 de pioche n'est nécessaire.
@@ -385,13 +385,13 @@ de pioche n'est nécessaire.
 Les cartes Beau temps, Bonne récolte et Révolte sont jouables au printemps, en
 été et en automne, mais pas en hiver. Les cartes jouées sont consommées avant la
 résolution des ordres d'armée. Beau temps annule uniquement le mauvais temps et
-Bonne récolte annule uniquement la famine. Si une carte annule une calamité,
+Bonne récolte annule uniquement la mauvaise récolte. Si une carte annule une calamité,
 elle ne produit pas son bonus régional. Deux cartes du même kind sont
 consommées, mais une seule est effective.
 
 Le deck contient **{{special_orders.deck_size}} cartes** :
 **{{special_orders.card.plague}}** peste, **{{special_orders.card.bad_weather}}**
-mauvais temps, **{{special_orders.card.famine}}** famine,
+mauvais temps, **{{special_orders.card.famine}}** mauvaise récolte,
 **{{special_orders.card.fair_weather}}** beau temps,
 **{{special_orders.card.abundant_harvest}}** bonnes récoltes et
 **{{special_orders.card.revolt}}** révoltes. La main est limitée à
@@ -409,7 +409,7 @@ restent cachées.
 
 - la peste réduit les armées par division de **{{special_orders.effects.plague_army_divisor}}** et peut supprimer un noble ;
 - le mauvais temps bloque les mouvements provenant ou visant sa région, sauf le maintien et le soutien défensif ;
-- la famine désactive les moulins et les bonus de rations des infrastructures de sa région ;
+- la mauvaise récolte désactive les moulins et les bonus de rations des infrastructures de sa région ;
 - la Révolte crée des armées neutres sur les cases vides, selon la balance.
 
 Les rumeurs publiques sont recalculées dans chaque rapport à partir des mains
