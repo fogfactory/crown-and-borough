@@ -300,6 +300,9 @@ describe('SelectedTerritoryDetails', () => {
     expect(screen.getByText('Active regional effects')).toBeInTheDocument()
     expect(screen.getByText('Fair weather (FW)')).toBeInTheDocument()
     expect(screen.getByText('Bad harvest (BH)')).toBeInTheDocument()
+
+    const badHarvestLabel = screen.getByText('Bad harvest (BH)')
+    expect(badHarvestLabel).toHaveClass('font-bold')
   })
 
   it('renders the hidden-chain message without exposing its order stack', () => {

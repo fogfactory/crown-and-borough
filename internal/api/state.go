@@ -29,6 +29,7 @@ type StateView struct {
 	Nobles              []NobleView                               `json:"nobles"`
 	SpecialHand         []models.CardKind                         `json:"specialHand"`
 	ActiveRegionEffects []models.ActiveRegionEffect               `json:"activeRegionEffects"`
+	Announcements       []engine.AnnouncementReport               `json:"announcements"`
 }
 
 // PlayerView contains the public player metadata needed by the hotseat
@@ -147,6 +148,7 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID) Sta
 		Nobles:              []NobleView{},
 		SpecialHand:         []models.CardKind{},
 		ActiveRegionEffects: []models.ActiveRegionEffect{},
+		Announcements:       []engine.AnnouncementReport{},
 		Scores:              map[models.PlayerID]engine.ScoreBreakdown{},
 	}
 	if state == nil {
@@ -248,6 +250,7 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID) Sta
 		}
 	}
 	view.ActiveRegionEffects = append([]models.ActiveRegionEffect(nil), state.ActiveRegionEffects...)
+	view.Announcements = engine.PendingAnnouncements(state, state.Year(), state.Season, true)
 	return view
 }
 

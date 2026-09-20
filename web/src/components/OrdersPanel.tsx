@@ -3,7 +3,8 @@ import { IconBook, IconSnowflake } from '@tabler/icons-react'
 
 import { Button } from '@/components/ui/button'
 import type { RulesSection } from '@/components/RulesPanel'
-import { formatCardHand } from '@/lib/card-hand'
+import { formatCardHand, formatCardLabel } from '@/lib/card-hand'
+import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
 import { estimateWinterCost } from '@/lib/winter-cost'
@@ -97,6 +98,34 @@ function WinterOrderErrors({ errors, t }: { errors: WinterParseError[]; t: Trans
   )
 }
 
+function CalamityWarnings({ state }: { state: StateData }) {
+  const { t } = useLanguage()
+  const announcements = state.announcements ?? []
+  if (announcements.length === 0) return null
+
+  return (
+    <div
+      role="alert"
+      className="space-y-1 rounded-md border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 text-xs text-[#8d321e]"
+    >
+      <p className="font-semibold">{t('orders.calamityWarningTitle')}</p>
+      <ul className="list-disc space-y-0.5 pl-4">
+        {announcements.map((announcement, index) => (
+          <li
+            key={`${announcement.year}-${announcement.season}-${announcement.kind}-${index}`}
+          >
+            {t('orders.calamityWarningItem', {
+              card: formatCardLabel(announcement.kind, t),
+              season: t(SEASON_LABEL_KEYS[announcement.season]),
+              region: announcement.region,
+            })}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 function DeckOrdersSection({
   state,
   specialDraft,
@@ -119,6 +148,7 @@ function DeckOrdersSection({
       <p className="text-xs text-[#684b7d]">
         {t('orders.deckHand')}: {formatCardHand(hand, t)}
       </p>
+      <CalamityWarnings state={state} />
       <textarea
         value={specialDraft}
         onChange={(event) => onSpecialChange(event.target.value)}
@@ -145,6 +175,7 @@ function DeckHandSummary({ state }: { state: StateData }) {
       <p className="text-xs text-[#684b7d]">
         {t('orders.deckHand')}: {formatCardHand(hand, t)}
       </p>
+      <CalamityWarnings state={state} />
     </section>
   )
 }

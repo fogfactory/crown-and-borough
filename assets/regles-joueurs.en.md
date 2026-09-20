@@ -379,6 +379,10 @@ spring (**{{special_orders.calamity_slots.spring}}**), summer
 deterministically when programmed. The spring augury reveals the kind, season
 and region of every calamity in that year; future auguries remain hidden.
 
+As soon as a calamity is drawn, the interface announces it in the special-cards
+panel. The announcement stays visible until the calamity applies or is
+countered.
+
 - plague reduces armies by a divisor of **{{special_orders.effects.plague_army_divisor}}** and may remove a noble;
 - bad weather blocks movements originating from or targeting its region, except holds and defensive support;
 - bad harvest disables mills and infrastructure ration bonuses in its region;

@@ -385,6 +385,7 @@ type TurnReportView struct {
 	SeasonEffects []engine.SeasonEffectReport `json:"seasonEffects"`
 	Rumors        []engine.RumorReport        `json:"rumors"`
 	Cards         []engine.CardReport         `json:"cards"`
+	Announcements []engine.AnnouncementReport `json:"announcements"`
 	Augury        *engine.AuguryReport        `json:"augury,omitempty"`
 	Winter        *engine.WinterReport        `json:"winter,omitempty"`
 }
@@ -536,6 +537,7 @@ func projectReport(report engine.TurnReport, viewer models.PlayerID, privacy *mo
 		SeasonEffects: append([]engine.SeasonEffectReport{}, report.SeasonEffects...),
 		Rumors:        append([]engine.RumorReport{}, report.Rumors...),
 		Cards:         append([]engine.CardReport{}, report.Cards...),
+		Announcements: append([]engine.AnnouncementReport{}, report.Announcements...),
 		Augury:        report.Augury,
 		Winter:        report.Winter,
 	}

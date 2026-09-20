@@ -565,6 +565,7 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 	result := resolution.State
 	result.Turn++
 	result.Season = models.SeasonForTurn(result.Turn)
+	SeedRegionEffects(result)
 	if err := result.Validate(); err != nil {
 		return TurnReport{}, fmt.Errorf("engine: resolve turn: invalid advanced result: %w", err)
 	}

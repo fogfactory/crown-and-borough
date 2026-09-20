@@ -23,6 +23,7 @@ type TurnReport struct {
 	SeasonEffects []SeasonEffectReport `json:"seasonEffects"`
 	Rumors        []RumorReport        `json:"rumors"`
 	Cards         []CardReport         `json:"cards"`
+	Announcements []AnnouncementReport `json:"announcements"`
 	Augury        *AuguryReport        `json:"augury,omitempty"`
 	Winter        *WinterReport        `json:"winter,omitempty"`
 	State         *models.GameState    `json:"-"`
@@ -267,6 +268,7 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 		SeasonEffects: []SeasonEffectReport{},
 		Rumors:        []RumorReport{},
 		Cards:         []CardReport{},
+		Announcements: []AnnouncementReport{},
 	}
 	report.Receptions = append(report.Receptions, receptions...)
 	if before != nil {
@@ -276,6 +278,9 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 		}
 	}
 	report.Players = buildPlayerReports(before, after)
+	if before != nil && after != nil {
+		report.Announcements = PendingAnnouncements(after, report.Header.Year, report.Header.Season, false)
+	}
 	if after != nil {
 		for _, event := range currentHandRumorEvents(after, handLimit) {
 			report.Rumors = append(report.Rumors, RumorReport{Kind: event.CardKind, Key: event.RumorKey, Level: event.RumorLevel})
@@ -444,7 +449,7 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 				report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}
 			}
 			report.Winter.Rumors = append(report.Winter.Rumors, RumorReport{Kind: event.CardKind, Key: event.RumorKey, Level: event.RumorLevel})
-		case EventTypeDeckDraw, EventTypeDeckDiscard, EventTypeDeckOrderPlayed, EventTypeCalamityScheduled:
+		case EventTypeCalamityScheduled, EventTypeDeckDiscard, EventTypeDeckOrderPlayed:
 			card := CardReport{EventType: event.Type, Kind: event.CardKind, Player: event.OwnerID, Region: event.RegionSeed, Season: event.Season, Outcome: OutcomeSuccess}
 			report.Cards = append(report.Cards, card)
 			if event.Phase == winterPhase {

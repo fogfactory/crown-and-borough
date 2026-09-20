@@ -165,17 +165,22 @@ export function SelectedTerritoryDetails({
             {t('app.activeEffects')}
           </h3>
           <ul className="space-y-1.5 text-sm">
-            {activeRegionEffects.map((effect, index) => (
-              <li
-                key={`${effect.kind}-${effect.season}-${index}`}
-                className="rounded-md bg-[#f3ead9] px-3 py-2"
-              >
-                <span className="font-medium">{formatCardLabel(effect.kind, t)}</span>
-                <span className="mt-1 block text-xs text-[#806f57]">
-                  {t('app.effectSeason', { season: t(SEASON_LABEL_KEYS[effect.season]) })}
-                </span>
-              </li>
-            ))}
+            {activeRegionEffects.map((effect, index) => {
+              const current = effect.season === state.season
+              return (
+                <li
+                  key={`${effect.kind}-${effect.season}-${index}`}
+                  className="rounded-md bg-[#f3ead9] px-3 py-2"
+                >
+                  <span className={current ? 'font-bold' : 'font-medium'}>
+                    {formatCardLabel(effect.kind, t)}
+                  </span>
+                  <span className="mt-1 block text-xs text-[#806f57]">
+                    {t('app.effectSeason', { season: t(SEASON_LABEL_KEYS[effect.season]) })}
+                  </span>
+                </li>
+              )
+            })}
           </ul>
         </div>
       )}

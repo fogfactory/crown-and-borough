@@ -125,6 +125,13 @@ const report: TurnReport = {
       season: 'spring',
       outcome: 'success',
     },
+    {
+      eventType: 'calamity_scheduled',
+      kind: 'plague',
+      region: 'ROS',
+      season: 'summer',
+      outcome: 'success',
+    },
   ],
   seasonEffects: [
     { kind: 'calamity_applied', cardKind: 'famine', region: 'ROS', season: 'spring' },
@@ -191,6 +198,7 @@ describe('ReportPanel', () => {
       screen.getByText(/Un bel ensoleillement gagne le royaume/),
     ).toBeInTheDocument()
     expect(screen.getByText(/Beau temps \(BT\) jouée sur ROS/)).toBeInTheDocument()
+    expect(screen.getByText(/Peste \(PE\) à venir en Été dans ROS/)).toBeInTheDocument()
     expect(screen.getByText(/Mauvaise récolte \(MR\) active dans ROS/)).toBeInTheDocument()
     expect(screen.getByText(/Beau temps \(BT\) actif dans ROS/)).toBeInTheDocument()
   })

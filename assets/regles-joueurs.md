@@ -407,6 +407,10 @@ déterministe lors de la programmation. L'augure du printemps révèle le kind, 
 saison et la région de toutes les calamités de l'année ; les augures futures
 restent cachées.
 
+Dès son tirage, la calamité programmée est annoncée dans l'encart des cartes
+spéciales de l'interface. L'annonce reste visible jusqu'à l'application de la
+calamité ou sa contre-mesure.
+
 - la peste réduit les armées par division de **{{special_orders.effects.plague_army_divisor}}** et peut supprimer un noble ;
 - le mauvais temps bloque les mouvements provenant ou visant sa région, sauf le maintien et le soutien défensif ;
 - la mauvaise récolte désactive les moulins et les bonus de rations des infrastructures de sa région ;

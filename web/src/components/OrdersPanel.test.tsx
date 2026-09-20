@@ -355,6 +355,73 @@ describe('OrdersPanel seasonal presentation', () => {
     expect(screen.getByText(/Beau temps \(BT\)x2, Bonne récolte \(RA\)/)).toBeInTheDocument()
   })
 
+  it('warns about scheduled calamities in the deck panel', () => {
+    const warningState: StateData = {
+      ...state,
+      season: 'spring',
+      announcements: [
+        { kind: 'plague', season: 'summer', region: 'ROS', year: 2 },
+        { kind: 'famine', season: 'winter', region: 'BOI', year: 2 },
+      ],
+    }
+    render(
+      <LanguageProvider initialLanguage="fr">
+        <OrdersPanel
+          state={warningState}
+          player="P1"
+          chainDrafts={{}}
+          winterDraft=""
+          specialDraft=""
+          submitted={false}
+          submitting={false}
+          error={null}
+          onChainChange={vi.fn()}
+          onWinterChange={vi.fn()}
+          onSpecialChange={vi.fn()}
+          onSubmit={vi.fn()}
+          onOpenRules={vi.fn()}
+        />
+      </LanguageProvider>,
+    )
+
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getByText('Calamités à venir')).toBeInTheDocument()
+    expect(screen.getByText(/Peste \(PE\) — Été dans ROS/)).toBeInTheDocument()
+    expect(screen.getByText(/Mauvaise récolte \(MR\) — Hiver dans BOI/)).toBeInTheDocument()
+  })
+
+  it('warns about scheduled calamities in the winter deck summary', () => {
+    const warningState: StateData = {
+      ...state,
+      season: 'winter',
+      announcements: [
+        { kind: 'bad_weather', season: 'spring', region: 'ROS', year: 3 },
+      ],
+    }
+    render(
+      <LanguageProvider initialLanguage="fr">
+        <OrdersPanel
+          state={warningState}
+          player="P1"
+          chainDrafts={{}}
+          winterDraft=""
+          specialDraft=""
+          submitted={false}
+          submitting={false}
+          error={null}
+          onChainChange={vi.fn()}
+          onWinterChange={vi.fn()}
+          onSpecialChange={vi.fn()}
+          onSubmit={vi.fn()}
+          onOpenRules={vi.fn()}
+        />
+      </LanguageProvider>,
+    )
+
+    expect(screen.getByText('Calamités à venir')).toBeInTheDocument()
+    expect(screen.getByText(/Mauvais temps \(MT\) — Printemps dans ROS/)).toBeInTheDocument()
+  })
+
   it('targets the winter rules section from the winter shortcut', () => {
     const onOpenRules = vi.fn()
     renderOrdersPanel('winter', onOpenRules)

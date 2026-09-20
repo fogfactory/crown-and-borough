@@ -186,12 +186,20 @@ export interface StateData {
   nobles: Noble[]
   specialHand?: CardKind[]
   activeRegionEffects?: ActiveRegionEffect[]
+  announcements?: AnnouncementReport[]
 }
 
 export interface ActiveRegionEffect {
   kind: CardKind
   regionSeed: string
   season: Season
+  year: number
+}
+
+export interface AnnouncementReport {
+  kind: CardKind
+  season: Season
+  region: string
   year: number
 }
 
@@ -548,6 +556,7 @@ export interface TurnReport {
   seasonEffects?: SeasonEffectReport[]
   rumors?: RumorReport[]
   cards?: CardReport[]
+  announcements?: AnnouncementReport[]
   augury?: AuguryReport
   winter?: WinterReport
 }

@@ -23,3 +23,27 @@ func TestProjectStateForPlayerProjectsOnlyCurrentHand(t *testing.T) {
 		t.Fatalf("P2 special hand = %#v, want empty", p2.SpecialHand)
 	}
 }
+
+func TestProjectStateForPlayerProjectsPendingAnnouncements(t *testing.T) {
+	state := models.NewGameState()
+	state.Turn = 5
+	state.Season = models.SeasonSpring
+	state.Players = []models.Player{{ID: "P1", Name: "One"}}
+	state.Auguries[2] = models.YearAugury{Year: 2, Calamities: []models.Calamity{
+		{CardID: "C1", Kind: models.CardKindPlague, Year: 2, Season: models.SeasonSpring, RegionSeed: "ROS"},
+		{CardID: "C2", Kind: models.CardKindBadWeather, Year: 2, Season: models.SeasonSummer, RegionSeed: "ROS"},
+	}}
+	state.Auguries[3] = models.YearAugury{Year: 3, Calamities: []models.Calamity{
+		{CardID: "C3", Kind: models.CardKindFamine, Year: 3, Season: models.SeasonWinter, RegionSeed: "BOI"},
+	}}
+	view := ProjectStateForPlayer(state, "P1")
+	if len(view.Announcements) != 3 {
+		t.Fatalf("announcements = %#v, want three pending calamities", view.Announcements)
+	}
+	if view.Announcements[0].Kind != models.CardKindPlague || view.Announcements[0].Season != models.SeasonSpring {
+		t.Fatalf("first announcement = %#v, want spring plague of the current year", view.Announcements[0])
+	}
+	if view.Announcements[2].Kind != models.CardKindFamine || view.Announcements[2].Year != 3 {
+		t.Fatalf("last announcement = %#v, want next-year famine", view.Announcements[2])
+	}
+}
