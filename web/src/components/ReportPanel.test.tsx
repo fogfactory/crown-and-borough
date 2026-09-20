@@ -113,6 +113,22 @@ const report: TurnReport = {
       indexBefore: 1,
       indexAfter: 1,
     },
+    {
+      army: 'A1',
+      chain: 'C1',
+      order: 'O4',
+      owner: 'P1',
+      noble: 'JEA',
+      type: 'attack',
+      source: 'ROS',
+      targets: ['CHA'],
+      liaison: 'single',
+      outcome: 'invalid',
+      reason: 'bad_weather',
+      progression: 'broken',
+      indexBefore: 1,
+      indexAfter: 1,
+    },
   ],
   moves: [],
   nobles: [],
@@ -184,7 +200,8 @@ describe('ReportPanel', () => {
     expect(screen.getAllByText('P1 · Noble JEA')).not.toHaveLength(0)
     expect(screen.getAllByText('Réussi')).not.toHaveLength(0)
     expect(screen.getAllByText('Échec')).not.toHaveLength(0)
-    expect(screen.getByText('Invalidé')).toBeInTheDocument()
+    expect(screen.getAllByText('Invalidé')).not.toHaveLength(0)
+    expect(screen.getByText(/Bloqué par le mauvais temps/)).toBeInTheDocument()
     expect(screen.getAllByText('C M ROS')).toHaveLength(2)
     expect(screen.getByText(/Niveau 2/)).toBeInTheDocument()
     expect(screen.getByText('coût : 3 R')).toBeInTheDocument()

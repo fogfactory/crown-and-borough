@@ -115,6 +115,10 @@ const REASON_KEYS: Record<string, MessageKey> = {
   invalid_infrastructure: 'reports.reason.invalid_infrastructure',
   unknown_noble: 'reports.reason.unknown_noble',
   mill_max_level_reached: 'reports.reason.mill_max_level_reached',
+  bad_weather: 'reports.reason.bad_weather',
+  disperse_residual_dislodged: 'reports.reason.disperse_residual_dislodged',
+  invalid_transfer_shape: 'reports.reason.invalid_transfer_shape',
+  no_available_first_name: 'reports.reason.no_available_first_name',
 }
 
 const RECEPTION_REASON_KEYS: Record<string, MessageKey> = {

@@ -364,6 +364,11 @@ const englishMessages = {
   'reports.reason.invalid_infrastructure': 'The infrastructure is invalid.',
   'reports.reason.unknown_noble': 'The noble is unknown.',
   'reports.reason.mill_max_level_reached': 'The mill has reached its maximum level.',
+  'reports.reason.bad_weather': 'Blocked by bad weather.',
+  'reports.reason.disperse_residual_dislodged': 'The dispersal remainder was dislodged.',
+  'reports.reason.invalid_transfer_shape': 'The transfer order has an invalid shape.',
+  'reports.reason.no_available_first_name':
+    'No first name is available for a new noble.',
   'reports.reason.reception.concurrent':
     'Concurrent reception: {territory} was targeted by {count} chains in turn {turn}.',
   'reports.reason.reception.noArmy': 'No army occupies receiving position {territory}.',
@@ -909,6 +914,11 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.reason.invalid_infrastructure': "L'infrastructure est invalide.",
   'reports.reason.unknown_noble': 'Le noble est inconnu.',
   'reports.reason.mill_max_level_reached': 'Le moulin a atteint son niveau maximal.',
+  'reports.reason.bad_weather': 'Bloqué par le mauvais temps.',
+  'reports.reason.disperse_residual_dislodged': 'Le reliquat de dispersion a été délogé.',
+  'reports.reason.invalid_transfer_shape': "La forme de l'ordre de transfert est invalide.",
+  'reports.reason.no_available_first_name':
+    "Aucun prénom n'est disponible pour un nouveau noble.",
   'reports.reason.reception.concurrent':
     'Réception concurrente : {territory} a été ciblé par {count} chaînes au tour {turn}.',
   'reports.reason.reception.noArmy':
