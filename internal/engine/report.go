@@ -14,8 +14,8 @@ type TurnReport struct {
 	Header        ReportHeader         `json:"header"`
 	Players       []PlayerReport       `json:"players"`
 	Receptions    []ReceptionReport    `json:"receptions"`
-	Supply        []SupplyReport       `json:"supply"`
-	Famines       []FamineReport       `json:"famines"`
+	Production    []ProductionReport   `json:"production"`
+	Consumption   []ConsumptionReport  `json:"consumption"`
 	Combats       []CombatReport       `json:"combats"`
 	Orders        []OrderReport        `json:"orders"`
 	Moves         []MoveReport         `json:"moves"`
@@ -76,28 +76,46 @@ type InfrastructureReport struct {
 	Territory models.TerritoryID `json:"territory"`
 }
 
-type SupplyReport struct {
-	Source        models.TerritoryID         `json:"source"`
-	Owner         models.PlayerID            `json:"owner"`
-	Production    int                        `json:"production"`
-	Demand        int                        `json:"demand"`
-	Rations       map[models.TerritoryID]int `json:"rations"`
-	StockConsumed int                        `json:"stockConsumed"`
-	StockAfter    int                        `json:"stockAfter"`
+// ProductionReport is the per-territory supply ledger: local ration
+// production, stockable source production, and the resulting stock movement.
+type ProductionReport struct {
+	Territory            models.TerritoryID         `json:"territory"`
+	Region               models.TerritoryID         `json:"region,omitempty"`
+	Owner                models.PlayerID            `json:"owner,omitempty"`
+	TerrainRations       int                        `json:"terrainRations"`
+	InfraRations         int                        `json:"infraRations,omitempty"`
+	BonusRations         int                        `json:"bonusRations,omitempty"`
+	SuppressedRations    int                        `json:"suppressedRations,omitempty"`
+	BaseProduction       int                        `json:"baseProduction,omitempty"`
+	MillProduction       int                        `json:"millProduction,omitempty"`
+	BonusProduction      int                        `json:"bonusProduction,omitempty"`
+	SuppressedProduction int                        `json:"suppressedProduction,omitempty"`
+	Produced             int                        `json:"produced"`
+	SentToRations        map[models.TerritoryID]int `json:"sentToRations,omitempty"`
+	StockBefore          int                        `json:"stockBefore,omitempty"`
+	StockConsumed        int                        `json:"stockConsumed,omitempty"`
+	StockAfter           int                        `json:"stockAfter,omitempty"`
 }
 
-type FamineReport struct {
-	Army               models.ArmyID      `json:"army"`
-	Owner              models.PlayerID    `json:"owner"`
-	Territory          models.TerritoryID `json:"territory"`
-	Source             models.TerritoryID `json:"source"`
-	Troops             int                `json:"troops"`
-	TroopsLost         int                `json:"troopsLost,omitempty"`
-	SavedByPillage     bool               `json:"savedByPillage"`
-	Infrastructure     models.InfraID     `json:"infrastructure,omitempty"`
-	InfrastructureType models.InfraType   `json:"infrastructureType,omitempty"`
-	ResourceCredit     int                `json:"resourceCredit,omitempty"`
-	CreditTerritory    models.TerritoryID `json:"creditTerritory,omitempty"`
+// ConsumptionReport is the per-army supply line: what the army demanded, where
+// its rations came from, and the famine effects when the demand was not met.
+type ConsumptionReport struct {
+	Army                  models.ArmyID      `json:"army"`
+	Owner                 models.PlayerID    `json:"owner"`
+	Territory             models.TerritoryID `json:"territory"`
+	Source                models.TerritoryID `json:"source,omitempty"`
+	Size                  int                `json:"size"`
+	Demand                int                `json:"demand"`
+	ReceivedLocal         int                `json:"receivedLocal"`
+	ReceivedTransfer      int                `json:"receivedTransfer"`
+	TotalReceived         int                `json:"totalReceived"`
+	Missing               int                `json:"missing"`
+	Famine                bool               `json:"famine,omitempty"`
+	SavedByPillage        bool               `json:"savedByPillage,omitempty"`
+	TroopsLost            int                `json:"troopsLost,omitempty"`
+	PillageInfrastructure models.InfraType   `json:"pillageInfrastructure,omitempty"`
+	ResourceCredit        int                `json:"resourceCredit,omitempty"`
+	CreditTerritory       models.TerritoryID `json:"creditTerritory,omitempty"`
 }
 
 type CombatReport struct {
@@ -263,8 +281,8 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 	report := TurnReport{
 		Players:       []PlayerReport{},
 		Receptions:    []ReceptionReport{},
-		Supply:        []SupplyReport{},
-		Famines:       []FamineReport{},
+		Production:    []ProductionReport{},
+		Consumption:   []ConsumptionReport{},
 		Combats:       []CombatReport{},
 		Orders:        []OrderReport{},
 		Moves:         []MoveReport{},
@@ -326,21 +344,36 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 			progressions[eventKey(event.ChainID, event.OrderID)] = event
 		}
 	}
+	consumptionByArmy := make(map[models.ArmyID]*ConsumptionReport)
 	for _, event := range events {
 		switch event.Type {
-		case EventTypeSupply:
-			report.Supply = append(report.Supply, SupplyReport{
-				Source: event.SourceID, Owner: event.OwnerID, Production: event.Production,
-				Demand: event.Demand, Rations: cloneRationMap(event.Rations), StockConsumed: event.StockConsumed,
-				StockAfter: event.StockAfter,
+		case EventTypeProduction:
+			report.Production = append(report.Production, ProductionReport{
+				Territory: event.TerritoryID, Region: event.RegionSeed, Owner: event.OwnerID,
+				TerrainRations: event.TerrainRations, InfraRations: event.InfraRations,
+				BonusRations: event.BonusRations, SuppressedRations: event.SuppressedRations,
+				BaseProduction: event.BaseProduction, MillProduction: event.MillProduction,
+				BonusProduction: event.BonusProduction, SuppressedProduction: event.SuppressedProduction,
+				Produced: event.Production, SentToRations: event.SentRations,
+				StockBefore:   event.StockBefore,
+				StockConsumed: event.StockConsumed, StockAfter: event.StockAfter,
 			})
-		case EventTypeFamine:
-			report.Famines = append(report.Famines, FamineReport{
-				Army: event.ArmyID, Owner: event.OwnerID, Territory: event.TerritoryID, Source: event.SourceID,
-				Troops: event.Troops, TroopsLost: event.TroopsLost, SavedByPillage: event.SavedByPillage,
-				Infrastructure: event.InfrastructureID, InfrastructureType: event.InfrastructureType,
-				ResourceCredit: event.ResourceCredit, CreditTerritory: event.CreditTerritoryID,
-			})
+		case EventTypeConsumption:
+			missing := max(0, event.Demand-event.ReceivedLocal-event.ReceivedTransfer)
+			consumptionByArmy[event.ArmyID] = &ConsumptionReport{
+				Army: event.ArmyID, Owner: event.OwnerID, Territory: event.TerritoryID,
+				Source: event.SourceID,
+				Size:   event.Troops, Demand: event.Demand,
+				ReceivedLocal: event.ReceivedLocal, ReceivedTransfer: event.ReceivedTransfer,
+				TotalReceived:         event.ReceivedLocal + event.ReceivedTransfer,
+				Missing:               missing,
+				Famine:                missing > 0,
+				SavedByPillage:        event.SavedByPillage,
+				TroopsLost:            event.TroopsLost,
+				PillageInfrastructure: event.InfrastructureType,
+				ResourceCredit:        event.ResourceCredit,
+				CreditTerritory:       event.CreditTerritoryID,
+			}
 		case EventTypeCombat:
 			contenders := append([]CombatContender{}, event.Contenders...)
 			supporters := append([]models.ArmyID(nil), event.SupporterIDs...)
@@ -509,6 +542,14 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 				report.Orders[index].IndexAfter = event.IndexAfter
 			}
 		}
+	}
+	armyIDs := make([]models.ArmyID, 0, len(consumptionByArmy))
+	for armyID := range consumptionByArmy {
+		armyIDs = append(armyIDs, armyID)
+	}
+	sortArmyIDs(armyIDs)
+	for _, armyID := range armyIDs {
+		report.Consumption = append(report.Consumption, *consumptionByArmy[armyID])
 	}
 	return report
 }

@@ -22,12 +22,12 @@ func TestBuildTurnReportIncludesNeutralSupplyStock(t *testing.T) {
 		t.Fatalf("Resolve: %v", err)
 	}
 	report := BuildTurnReport(state, resolution.State, resolution.Events, nil)
-	if len(report.Supply) != 1 {
-		t.Fatalf("supply report = %#v, want one neutral village", report.Supply)
+	if len(report.Production) != 1 {
+		t.Fatalf("production report = %#v, want one neutral village", report.Production)
 	}
-	supply := report.Supply[0]
-	if supply.Source != "AAA" || supply.Owner != "" || supply.Production != 1 || supply.Demand != 0 || supply.StockAfter != 4 {
-		t.Errorf("neutral supply report = %#v, want production 1 and stock 4 without owner", supply)
+	production := report.Production[0]
+	if production.Territory != "AAA" || production.Owner != "" || production.BaseProduction != 1 || production.Produced != 1 || production.StockAfter != 4 {
+		t.Errorf("neutral production report = %#v, want production 1 and stock 4 without owner", production)
 	}
 }
 
@@ -71,8 +71,8 @@ func TestTurnReportContainsResolutionSectionsAndRoundTrips(t *testing.T) {
 	if len(report.Players) != 2 {
 		t.Errorf("player reports = %d, want 2", len(report.Players))
 	}
-	if len(report.Supply) == 0 {
-		t.Error("supply section is empty")
+	if len(report.Production) == 0 {
+		t.Error("production section is empty")
 	}
 	if len(report.Orders) == 0 {
 		t.Error("orders section is empty")

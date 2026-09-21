@@ -45,6 +45,12 @@ type resolutionContext struct {
 	bonusMillRegions    map[models.TerritoryID]int
 	bonusRationRegions  map[models.TerritoryID]int
 	plagueDeaths        []models.Noble
+	supplyRations       map[models.TerritoryID]rationProductionParts
+	supplySources       map[models.TerritoryID]sourceProductionParts
+	supplyStockBefore   map[models.TerritoryID]int
+	supplyStockConsumed map[models.TerritoryID]int
+	supplyConsumption   map[models.ArmyID]*consumptionDetail
+	poolRations         map[models.TerritoryID]map[models.TerritoryID]int
 }
 
 func newResolutionContext(state *models.GameState, balance assetgen.Balance) *resolutionContext {
@@ -67,6 +73,12 @@ func newResolutionContext(state *models.GameState, balance assetgen.Balance) *re
 		dislodged:            make(map[models.ArmyID]*dislodgedArmy),
 		badWeatherRegions:    make(map[models.TerritoryID]bool),
 		famineRegions:        make(map[models.TerritoryID]bool),
+		supplyRations:        make(map[models.TerritoryID]rationProductionParts),
+		supplySources:        make(map[models.TerritoryID]sourceProductionParts),
+		supplyStockBefore:    make(map[models.TerritoryID]int),
+		supplyStockConsumed:  make(map[models.TerritoryID]int),
+		supplyConsumption:    make(map[models.ArmyID]*consumptionDetail),
+		poolRations:          make(map[models.TerritoryID]map[models.TerritoryID]int),
 	}
 	for _, noble := range state.Nobles {
 		ctx.startNoblesByID[noble.ID] = noble

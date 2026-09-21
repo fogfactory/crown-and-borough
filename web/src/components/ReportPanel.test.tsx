@@ -53,18 +53,59 @@ const report: TurnReport = {
     },
   ],
   receptions: [],
-  supply: [
+  production: [
     {
-      source: 'ROS',
-      owner: '',
-      production: 1,
-      demand: 0,
-      rations: {},
-      stockConsumed: 0,
+      territory: 'ROS',
+      owner: 'P1',
+      terrainRations: 1,
+      infraRations: 2,
+      baseProduction: 1,
+      millProduction: 2,
+      bonusProduction: 1,
+      produced: 7,
+      sentToRations: { BRU: 3 },
+      stockBefore: 5,
+      stockConsumed: 2,
       stockAfter: 3,
     },
+    {
+      territory: 'BRU',
+      region: 'ROS',
+      terrainRations: 1,
+      suppressedRations: 2,
+      produced: 1,
+    },
   ],
-  famines: [],
+  consumption: [
+    {
+      army: 'A1',
+      owner: 'P1',
+      territory: 'ROS',
+      size: 2,
+      demand: 2,
+      receivedLocal: 2,
+      receivedTransfer: 0,
+      totalReceived: 2,
+      missing: 0,
+    },
+    {
+      army: 'A2',
+      owner: 'P1',
+      territory: 'BRU',
+      source: 'ROS',
+      size: 3,
+      demand: 4,
+      receivedLocal: 1,
+      receivedTransfer: 0,
+      totalReceived: 1,
+      missing: 3,
+      famine: true,
+      troopsLost: 1,
+      savedByPillage: true,
+      pillageInfrastructure: 'mill',
+      resourceCredit: 0,
+    },
+  ],
   combats: [],
   orders: [
     {
@@ -234,8 +275,18 @@ describe('ReportPanel', () => {
     expect(screen.queryByText('coût : 0 R')).not.toBeInTheDocument()
     expect(screen.getByText(/Ressources insuffisantes/)).toBeInTheDocument()
     expect(screen.getAllByLabelText('Couleur de One')).not.toHaveLength(0)
-    expect(screen.getByText('ROS · Neutre')).toBeInTheDocument()
-    expect(screen.getByText(/3 R en stock/)).toBeInTheDocument()
+    expect(screen.getByText(/7 produits/)).toBeInTheDocument()
+    expect(screen.getByText(/production de base 1/)).toBeInTheDocument()
+    expect(screen.getByText(/moulins 2/)).toBeInTheDocument()
+    expect(screen.getByText(/bonus régional 1/)).toBeInTheDocument()
+    expect(screen.getByText(/stock : 5 → 3 \(consommé 2\)/)).toBeInTheDocument()
+    expect(screen.getByText(/envoyé 3 vers BRU/)).toBeInTheDocument()
+    expect(screen.getByText(/2 supprimés par la mauvaise récolte/)).toBeInTheDocument()
+    expect(screen.getByText(/demande 2/)).toBeInTheDocument()
+    expect(screen.getByText(/local 2 · sources 0 · reçu 2 · manque 0/)).toBeInTheDocument()
+    expect(screen.getByText(/source ROS · local 1 · sources 0 · reçu 1 · manque 3/)).toBeInTheDocument()
+    expect(screen.getByText(/· sauvée par pillage/)).toBeInTheDocument()
+    expect(screen.getByText(/· perd 1 troupe/)).toBeInTheDocument()
     expect(
       screen.getByText(/Un bel ensoleillement gagne le royaume/),
     ).toBeInTheDocument()
@@ -351,8 +402,8 @@ describe('ReportPanel', () => {
     const sparseReport = {
       ...report,
       receptions: null,
-      supply: null,
-      famines: null,
+      production: null,
+      consumption: null,
       combats: null,
       orders: null,
     } as unknown as TurnReport

@@ -490,8 +490,8 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
   if (!report) return null
   const receptions = report.receptions ?? []
   const combats = report.combats ?? []
-  const supply = report.supply ?? []
-  const famines = report.famines ?? []
+  const production = report.production ?? []
+  const consumption = report.consumption ?? []
   const orders = report.orders ?? []
   const winterInvestments = report.winter?.investments ?? []
   const winterStocks = report.winter?.stocks ?? []
@@ -619,48 +619,152 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
 
       <div className="space-y-2">
         <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
-          {t('reports.supply')}
+          {t('reports.productionTitle')}
         </h4>
-        {supply.length === 0 && famines.length === 0 ? (
-          emptyMessage(t('reports.supply').toLowerCase(), t)
+        {production.length === 0 ? (
+          emptyMessage(t('reports.productionTitle').toLowerCase(), t)
         ) : (
           <div className="space-y-1 text-sm">
-            {supply.map((supply) => (
+            {production.map((line) => {
+              const chips: Array<{ label: string; value: number }> = [
+                { label: t('reports.productionTerrainRations'), value: line.terrainRations },
+                { label: t('reports.productionInfraRations'), value: line.infraRations ?? 0 },
+                { label: t('reports.productionBonusRations'), value: line.bonusRations ?? 0 },
+                { label: t('reports.productionBaseProduction'), value: line.baseProduction ?? 0 },
+                { label: t('reports.productionMillProduction'), value: line.millProduction ?? 0 },
+                { label: t('reports.productionBonusProduction'), value: line.bonusProduction ?? 0 },
+              ].filter((chip) => chip.value > 0)
+              const suppressed =
+                (line.suppressedRations ?? 0) + (line.suppressedProduction ?? 0)
+              const sentDestinations = Object.keys(line.sentToRations ?? {}).sort()
+              const hasStock =
+                (line.stockBefore ?? 0) > 0 ||
+                (line.stockConsumed ?? 0) > 0 ||
+                (line.stockAfter ?? 0) > 0
+              return (
+                <div
+                  key={line.territory}
+                  className="rounded-md bg-[#f3ead9] px-3 py-2"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="flex min-w-0 items-center gap-2">
+                      {playerMarker(players, line.owner, t)}
+                      <span className="font-mono text-xs">{line.territory}</span>
+                      <span className="text-xs text-[#806f57]">
+                        {territoryLabel(map, line.territory, t)}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-xs font-semibold text-[#376341]">
+                      {t('reports.productionProduced', { count: line.produced })}
+                    </span>
+                  </div>
+                  {chips.length > 0 && (
+                    <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-[#806f57]">
+                      {chips.map((chip) => (
+                        <span key={chip.label}>
+                          {chip.label} {chip.value}
+                        </span>
+                      ))}
+                    </p>
+                  )}
+                  {suppressed > 0 && (
+                    <p className="mt-1 text-[11px] font-semibold text-[#8d321e]">
+                      {t('reports.productionSuppressed', { count: suppressed })}
+                    </p>
+                  )}
+                  {(sentDestinations.length > 0 || hasStock) && (
+                    <p className="mt-1 text-[11px] text-[#806f57]">
+                      {sentDestinations
+                        .map((destination) =>
+                          t('reports.productionSent', {
+                            count: line.sentToRations?.[destination] ?? 0,
+                            territory: destination,
+                          }),
+                        )
+                        .concat(
+                          hasStock
+                            ? [
+                                t('reports.productionStockLine', {
+                                  before: line.stockBefore ?? 0,
+                                  consumed: line.stockConsumed ?? 0,
+                                  after: line.stockAfter ?? 0,
+                                }),
+                              ]
+                            : [],
+                        )
+                        .join(' · ')}
+                    </p>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
+          {t('reports.consumptionTitle')}
+        </h4>
+        {consumption.length === 0 ? (
+          emptyMessage(t('reports.consumptionTitle').toLowerCase(), t)
+        ) : (
+          <div className="space-y-1 text-sm">
+            {consumption.map((line) => (
               <div
-                key={supply.source}
-                className="flex items-center justify-between gap-3 rounded-md bg-[#f3ead9] px-3 py-2"
+                key={line.army}
+                className={`rounded-md px-3 py-2 ${
+                  line.famine
+                    ? 'border border-[#a84632]/30 bg-[#f8e5dd] text-xs text-[#8d321e]'
+                    : 'bg-[#f3ead9] text-xs'
+                }`}
               >
-                <span>
-                  {territoryLabel(map, supply.source, t)} ·{' '}
-                  {supply.owner || t('reports.neutral')}
-                </span>
-                <span className="text-right text-xs text-[#806f57]">
-                  {t('reports.produced', { count: supply.production })} ·{' '}
-                  {t('reports.demanded', { count: supply.demand })} ·{' '}
-                  {t('reports.stockConsumed', { count: supply.stockConsumed })} ·{' '}
-                  {t('reports.stockRemaining', { count: supply.stockAfter })}
-                </span>
-              </div>
-            ))}
-            {famines.map((famine, index) => (
-              <div
-                key={`${famine.army}-${index}`}
-                className="rounded-md border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 text-xs text-[#8d321e]"
-              >
-                {t('reports.famine', {
-                  owner: famine.owner,
-                  territory: territoryLabel(map, famine.territory, t),
-                  troops: famine.troops,
-                })}
-                {famine.savedByPillage ? t('reports.savedByPillage') : ''}
-                {(famine.troopsLost ?? 0) > 0
-                  ? t(
-                      famine.troopsLost === 1
-                        ? 'reports.lostTroop'
-                        : 'reports.lostTroops',
-                      { count: famine.troopsLost ?? 0 },
-                    )
-                  : ''}
+                <div className="flex items-center justify-between gap-3">
+                  <span className="flex min-w-0 items-center gap-2">
+                    {playerMarker(players, line.owner, t)}
+                    <span>
+                      {line.owner} · {territoryLabel(map, line.territory, t)}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-[#806f57]">
+                    {t(
+                      line.size === 1 ? 'app.troop' : 'app.troops',
+                      { count: line.size },
+                    )}{' '}
+                    · {t('reports.consumptionDemand', { count: line.demand })}
+                  </span>
+                </div>
+                <p className="mt-1 text-[11px]">
+                  {line.source
+                    ? `${t('reports.consumptionSource', { source: line.source })} · `
+                    : ''}
+                  {t('reports.consumptionLine', {
+                    local: line.receivedLocal,
+                    transfer: line.receivedTransfer,
+                    total: line.totalReceived,
+                    missing: line.missing,
+                  })}
+                </p>
+                {line.famine && (
+                  <p className="mt-1 font-semibold">
+                    {line.savedByPillage ? t('reports.savedByPillage') : ''}
+                    {(line.troopsLost ?? 0) > 0
+                      ? t(
+                          line.troopsLost === 1
+                            ? 'reports.lostTroop'
+                            : 'reports.lostTroops',
+                          { count: line.troopsLost ?? 0 },
+                        )
+                      : ''}
+                    {(line.resourceCredit ?? 0) > 0
+                      ? ' ' +
+                        t('reports.consumptionPillageCredit', {
+                          count: line.resourceCredit ?? 0,
+                          territory: territoryLabel(map, line.creditTerritory, t),
+                        })
+                      : ''}
+                  </p>
+                )}
               </div>
             ))}
           </div>

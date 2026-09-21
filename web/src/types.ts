@@ -364,26 +364,40 @@ export interface PlayerReport {
   infrastructures: ReportInfrastructure[]
 }
 
-export interface SupplyReport {
-  source: string
-  owner: PlayerId
-  production: number
-  demand: number
-  rations: Record<string, number>
-  stockConsumed: number
-  stockAfter: number
+export interface ProductionReport {
+  territory: string
+  region?: string
+  owner?: PlayerId
+  terrainRations: number
+  infraRations?: number
+  bonusRations?: number
+  suppressedRations?: number
+  baseProduction?: number
+  millProduction?: number
+  bonusProduction?: number
+  suppressedProduction?: number
+  produced: number
+  sentToRations?: Record<string, number>
+  stockBefore?: number
+  stockConsumed?: number
+  stockAfter?: number
 }
 
-export interface FamineReport {
+export interface ConsumptionReport {
   army: string
   owner: PlayerId
   territory: string
-  source: string
-  troops: number
+  source?: string
+  size: number
+  demand: number
+  receivedLocal: number
+  receivedTransfer: number
+  totalReceived: number
+  missing: number
+  famine?: boolean
+  savedByPillage?: boolean
   troopsLost?: number
-  savedByPillage: boolean
-  infrastructure?: string
-  infrastructureType?: InfraType
+  pillageInfrastructure?: InfraType
   resourceCredit?: number
   creditTerritory?: string
 }
@@ -554,8 +568,8 @@ export interface TurnReport {
   header: ReportHeader
   players: PlayerReport[]
   receptions: ReceptionReport[]
-  supply: SupplyReport[]
-  famines: FamineReport[]
+  production: ProductionReport[]
+  consumption: ConsumptionReport[]
   combats: CombatReport[]
   orders: OrderReport[]
   moves: MoveReport[]

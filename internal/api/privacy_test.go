@@ -220,7 +220,7 @@ func TestProjectReportNormalizesNilCollections(t *testing.T) {
 	if err := json.Unmarshal(data, &document); err != nil {
 		t.Fatalf("decode empty projected report: %v", err)
 	}
-	for _, field := range []string{"players", "receptions", "supply", "famines", "combats", "orders", "moves", "nobles"} {
+	for _, field := range []string{"players", "receptions", "production", "consumption", "combats", "orders", "moves", "nobles"} {
 		if value, ok := document[field]; !ok || value == nil {
 			t.Errorf("projected report field %q = %#v, want JSON array", field, value)
 		}

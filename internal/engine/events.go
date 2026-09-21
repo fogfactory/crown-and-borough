@@ -48,6 +48,8 @@ const (
 	EventTypePlagueSurvived    EventType = "plague_noble_survived"
 	EventTypeBadWeatherBlocked EventType = "bad_weather_blocked"
 	EventTypeFamineLoss        EventType = "famine_loss"
+	EventTypeProduction        EventType = "production"
+	EventTypeConsumption       EventType = "consumption"
 	EventTypeRumor             EventType = "rumor"
 )
 
@@ -144,6 +146,18 @@ type Event struct {
 	TroopsLost         int                        `json:"troopsLost,omitempty"`
 	RationsLost        int                        `json:"rationsLost,omitempty"`
 	SavedByPillage     bool                       `json:"savedByPillage,omitempty"`
+
+	TerrainRations       int                        `json:"terrainRations,omitempty"`
+	InfraRations         int                        `json:"infraRations,omitempty"`
+	BonusRations         int                        `json:"bonusRations,omitempty"`
+	SuppressedRations    int                        `json:"suppressedRations,omitempty"`
+	BaseProduction       int                        `json:"baseProduction,omitempty"`
+	MillProduction       int                        `json:"millProduction,omitempty"`
+	BonusProduction      int                        `json:"bonusProduction,omitempty"`
+	SuppressedProduction int                        `json:"suppressedProduction,omitempty"`
+	ReceivedLocal        int                        `json:"receivedLocal,omitempty"`
+	ReceivedTransfer     int                        `json:"receivedTransfer,omitempty"`
+	SentRations          map[models.TerritoryID]int `json:"sentRations,omitempty"`
 
 	NobleID         models.NobleID      `json:"noble,omitempty"`
 	NobleCode       models.NobleCode    `json:"nobleCode,omitempty"`

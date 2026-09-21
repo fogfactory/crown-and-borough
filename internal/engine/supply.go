@@ -30,9 +30,56 @@ type famineCandidate struct {
 	distance int
 }
 
+// rationProductionParts breaks the local ration production of one territory
+// into its terrain, settlement, and regional bonus components.
+type rationProductionParts struct {
+	terrain    int
+	infra      int
+	bonus      int
+	suppressed int
+}
+
+func (parts rationProductionParts) total() int {
+	return parts.terrain + parts.infra + parts.bonus
+}
+
+// sourceProductionParts breaks the stockable production of one source into its
+// base, mill, and regional bonus components.
+type sourceProductionParts struct {
+	base       int
+	mill       int
+	bonus      int
+	suppressed int
+}
+
+func (parts sourceProductionParts) total() int {
+	return parts.base + parts.mill + parts.bonus
+}
+
+// consumptionDetail tracks what one player army demanded and received during
+// the supply phase, for the consumption section of the turn report.
+type consumptionDetail struct {
+	ownerID               models.PlayerID
+	territoryID           models.TerritoryID
+	sourceID              models.TerritoryID
+	size                  int
+	demand                int
+	receivedLocal         int
+	receivedTransfer      int
+	famined               bool
+	troopsLost            int
+	savedByPillage        bool
+	pillageInfrastructure models.InfraType
+	resourceCredit        int
+	creditTerritory       models.TerritoryID
+}
+
 // resolveSupply calculates the complete start-of-turn supply phase before any
 // order can move an army or change control.
 func resolveSupply(ctx *resolutionContext) {
+	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
+		ctx.supplyStockBefore[territoryID] = ctx.state.TerritoryStates[territoryID].Resources
+	}
 	receivedRations := resolveRations(ctx)
 	produceNeutralVillageStocks(ctx)
 	allSources := make([]*supplySource, 0)
@@ -46,6 +93,9 @@ func resolveSupply(ctx *resolutionContext) {
 		directFamine = append(directFamine, direct...)
 		delta := resolveSupplyStocks(ctx, sources)
 		assignedFamine = append(assignedFamine, selectAssignedFamine(ctx, assignments, delta)...)
+		for _, source := range sources {
+			ctx.supplyStockConsumed[source.territoryID] += source.stockConsumed
+		}
 	}
 
 	for _, source := range allSources {
@@ -71,6 +121,8 @@ func resolveSupply(ctx *resolutionContext) {
 		ctx.resolveFamine(candidate)
 	}
 	updateSupplyEventStocks(ctx)
+	ctx.emitProductionEvents()
+	ctx.emitConsumptionEvents()
 }
 
 func produceNeutralVillageStocks(ctx *resolutionContext) {
@@ -79,6 +131,7 @@ func produceNeutralVillageStocks(ctx *resolutionContext) {
 		if state.OwnerID != nil || !ctx.hasInfrastructure(territoryID, models.InfraTypeVillage) {
 			continue
 		}
+		ctx.supplySources[territoryID] = sourceProductionBreakdown(ctx, territoryID)
 		production := sourceProduction(ctx, territoryID)
 		state.Resources += production
 		ctx.state.TerritoryStates[territoryID] = state
@@ -111,10 +164,46 @@ func resolveRations(ctx *resolutionContext) map[models.ArmyID]int {
 		if army == nil {
 			continue
 		}
-		distribution := distributeRations(rationProduction(ctx, territoryID), []models.Army{*army}, ctx.balance.CostBase)
+		parts := rationProductionBreakdown(ctx, territoryID)
+		ctx.supplyRations[territoryID] = parts
+		distribution := distributeRations(parts.total(), []models.Army{*army}, ctx.balance.CostBase)
 		received[army.ID] = distribution[army.ID]
+		if army.OwnerID == models.NeutralPlayerID {
+			continue
+		}
+		detail := ctx.consumptionDetailFor(*army)
+		detail.size = army.Size
+		detail.ownerID = army.OwnerID
+		detail.territoryID = army.TerritoryID
+		detail.demand = armyCost(army.Size, ctx.balance.CostBase)
+		detail.receivedLocal = received[army.ID]
 	}
 	return received
+}
+
+// rationProductionBreakdown splits the local ration production of a territory
+// into terrain, settlement, and regional bonus parts, reporting the settlement
+// part as suppressed while the bad harvest calamity disables it.
+func rationProductionBreakdown(ctx *resolutionContext, territoryID models.TerritoryID) rationProductionParts {
+	territory := ctx.territoriesByID[territoryID]
+	if territory == nil {
+		return rationProductionParts{}
+	}
+	parts := rationProductionParts{terrain: ctx.balance.RationTerrain[territory.Terrain]}
+	regionSeed := regionForTerritory(ctx, territoryID)
+	if ctx.hasSettlement(territoryID) {
+		if ctx.famineRegions[regionSeed] {
+			parts.suppressed = ctx.balance.InfraRationsBonus
+		} else {
+			parts.infra = ctx.balance.InfraRationsBonus
+		}
+	}
+	parts.bonus = ctx.bonusRationRegions[regionSeed] * ctx.balance.SpecialOrders.Effects.BonusArmyRation
+	return parts
+}
+
+func rationProduction(ctx *resolutionContext, territoryID models.TerritoryID) int {
+	return rationProductionBreakdown(ctx, territoryID).total()
 }
 
 // armyCost returns the exponential stockable-resource cost before local rations
@@ -151,20 +240,6 @@ func distributeRations(rations int, armies []models.Army, costBase int) map[mode
 	return received
 }
 
-func rationProduction(ctx *resolutionContext, territoryID models.TerritoryID) int {
-	territory := ctx.territoriesByID[territoryID]
-	if territory == nil {
-		return 0
-	}
-	production := ctx.balance.RationTerrain[territory.Terrain]
-	regionSeed := regionForTerritory(ctx, territoryID)
-	if ctx.hasSettlement(territoryID) && !ctx.famineRegions[regionSeed] {
-		production += ctx.balance.InfraRationsBonus
-	}
-	production += ctx.bonusRationRegions[regionSeed] * ctx.balance.SpecialOrders.Effects.BonusArmyRation
-	return production
-}
-
 func terrainRationProduction(ctx *resolutionContext, territoryID models.TerritoryID) int {
 	territory := ctx.territoriesByID[territoryID]
 	if territory == nil {
@@ -182,7 +257,9 @@ func controlledSupplySources(ctx *resolutionContext, ownerID models.PlayerID) []
 		}
 		production := 0
 		if ctx.hasSettlement(territoryID) {
-			production = sourceProduction(ctx, territoryID)
+			parts := sourceProductionBreakdown(ctx, territoryID)
+			ctx.supplySources[territoryID] = parts
+			production = parts.total()
 		}
 		sources = append(sources, &supplySource{
 			territoryID: territoryID,
@@ -195,8 +272,11 @@ func controlledSupplySources(ctx *resolutionContext, ownerID models.PlayerID) []
 	return sources
 }
 
-func sourceProduction(ctx *resolutionContext, territoryID models.TerritoryID) int {
-	production := ctx.balance.BaseProduction
+// sourceProductionBreakdown splits the stockable production of a source into
+// base, mill, and regional bonus parts, reporting mill contributions as
+// suppressed while the bad harvest calamity disables them.
+func sourceProductionBreakdown(ctx *resolutionContext, territoryID models.TerritoryID) sourceProductionParts {
+	parts := sourceProductionParts{base: ctx.balance.BaseProduction}
 	locations := append([]models.TerritoryID{territoryID}, ctx.sortedNeighbors(territoryID)...)
 	for _, locationID := range locations {
 		infrastructure := ctx.infrastructureAt(locationID)
@@ -204,13 +284,19 @@ func sourceProduction(ctx *resolutionContext, territoryID models.TerritoryID) in
 			continue
 		}
 		regionSeed := regionForTerritory(ctx, locationID)
+		contribution := infrastructure.Level + ctx.bonusMillRegions[regionSeed]*ctx.balance.SpecialOrders.Effects.BonusMillProduction
 		if ctx.famineRegions[regionSeed] {
+			parts.suppressed += contribution
 			continue
 		}
-		production += infrastructure.Level
-		production += ctx.bonusMillRegions[regionSeed] * ctx.balance.SpecialOrders.Effects.BonusMillProduction
+		parts.mill += infrastructure.Level
+		parts.bonus += ctx.bonusMillRegions[regionSeed] * ctx.balance.SpecialOrders.Effects.BonusMillProduction
 	}
-	return production
+	return parts
+}
+
+func sourceProduction(ctx *resolutionContext, territoryID models.TerritoryID) int {
+	return sourceProductionBreakdown(ctx, territoryID).total()
 }
 
 // supplyNetwork visits each territory once per source. That makes every depot
@@ -306,6 +392,13 @@ func assignSupply(
 	assignments := make([]supplyAssignment, 0)
 	direct := make([]famineCandidate, 0)
 	for _, army := range startArmiesForPlayer(ctx, ownerID) {
+		detail := ctx.consumptionDetailFor(army)
+		detail.size = army.Size
+		detail.ownerID = army.OwnerID
+		detail.territoryID = army.TerritoryID
+		if detail.demand == 0 {
+			detail.demand = armyCost(army.Size, ctx.balance.CostBase)
+		}
 		demand := armyCost(army.Size, ctx.balance.CostBase) - receivedRations[army.ID]
 		if demand == 0 {
 			continue
@@ -315,6 +408,8 @@ func assignSupply(
 			direct = append(direct, famineCandidate{army: army, demand: demand})
 			continue
 		}
+		detail.receivedTransfer = demand
+		detail.sourceID = source.territoryID
 		source.demand += demand
 		if receivedRations[army.ID] > 0 {
 			source.rations[army.TerritoryID] += receivedRations[army.ID]
@@ -392,6 +487,9 @@ func resolveSupplyStocks(ctx *resolutionContext, sources []*supplySource) int {
 
 func selectAssignedFamine(ctx *resolutionContext, assignments []supplyAssignment, delta int) []famineCandidate {
 	if delta == 0 {
+		for _, assignment := range assignments {
+			ctx.recordPoolRations(assignment.source.territoryID, assignment.army.TerritoryID, assignment.demand)
+		}
 		return nil
 	}
 	sort.SliceStable(assignments, func(i, j int) bool {
@@ -404,10 +502,15 @@ func selectAssignedFamine(ctx *resolutionContext, assignments []supplyAssignment
 		return assignments[i].army.TerritoryID < assignments[j].army.TerritoryID
 	})
 	candidates := make([]famineCandidate, 0)
+	famined := make(map[models.ArmyID]bool)
 	for _, assignment := range assignments {
 		if delta == 0 {
 			break
 		}
+		if detail := ctx.supplyConsumption[assignment.army.ID]; detail != nil {
+			detail.receivedTransfer = 0
+		}
+		famined[assignment.army.ID] = true
 		candidates = append(candidates, famineCandidate{
 			army:     assignment.army,
 			demand:   assignment.demand,
@@ -416,7 +519,25 @@ func selectAssignedFamine(ctx *resolutionContext, assignments []supplyAssignment
 		})
 		delta -= assignment.demand
 	}
+	for _, assignment := range assignments {
+		if famined[assignment.army.ID] {
+			continue
+		}
+		ctx.recordPoolRations(assignment.source.territoryID, assignment.army.TerritoryID, assignment.demand)
+	}
 	return candidates
+}
+
+// recordPoolRations traces the rations one source dispatched to the armies of
+// a dependent territory, for the production ledger of the turn report.
+func (ctx *resolutionContext) recordPoolRations(sourceID, territoryID models.TerritoryID, amount int) {
+	if amount == 0 {
+		return
+	}
+	if ctx.poolRations[sourceID] == nil {
+		ctx.poolRations[sourceID] = make(map[models.TerritoryID]int)
+	}
+	ctx.poolRations[sourceID][territoryID] += amount
 }
 
 func sortDirectFamine(ctx *resolutionContext, candidates []famineCandidate) {
@@ -478,7 +599,113 @@ func (ctx *resolutionContext) resolveFamine(candidate famineCandidate) {
 			event.TroopsLost = 1
 		}
 	}
+	if detail := ctx.supplyConsumption[candidate.army.ID]; detail != nil {
+		detail.famined = true
+		detail.troopsLost = event.TroopsLost
+		detail.savedByPillage = event.SavedByPillage
+		detail.pillageInfrastructure = event.InfrastructureType
+		detail.resourceCredit = event.ResourceCredit
+		detail.creditTerritory = event.CreditTerritoryID
+	}
 	ctx.events = append(ctx.events, event)
+}
+
+func (ctx *resolutionContext) consumptionDetailFor(army models.Army) *consumptionDetail {
+	detail, exists := ctx.supplyConsumption[army.ID]
+	if !exists {
+		detail = &consumptionDetail{}
+		ctx.supplyConsumption[army.ID] = detail
+	}
+	return detail
+}
+
+// emitProductionEvents reports one production ledger per territory involved in
+// the supply phase: local ration production, stockable source production, and
+// the resulting stock movement.
+func (ctx *resolutionContext) emitProductionEvents() {
+	involved := make(map[models.TerritoryID]bool)
+	for territoryID := range ctx.supplySources {
+		involved[territoryID] = true
+	}
+	for territoryID := range ctx.supplyRations {
+		involved[territoryID] = true
+	}
+	seeds := make([]models.TerritoryID, 0, len(involved))
+	for territoryID := range involved {
+		seeds = append(seeds, territoryID)
+	}
+	sort.Slice(seeds, func(i, j int) bool { return seeds[i] < seeds[j] })
+	for _, territoryID := range seeds {
+		rations := ctx.supplyRations[territoryID]
+		source := ctx.supplySources[territoryID]
+		state := ctx.state.TerritoryStates[territoryID]
+		var ownerID models.PlayerID
+		if state.OwnerID != nil {
+			ownerID = *state.OwnerID
+		}
+		var sentRations map[models.TerritoryID]int
+		if dispatch := ctx.poolRations[territoryID]; len(dispatch) > 0 {
+			sentRations = make(map[models.TerritoryID]int, len(dispatch))
+			for destination, amount := range dispatch {
+				sentRations[destination] = amount
+			}
+		}
+		ctx.events = append(ctx.events, Event{
+			Type:                 EventTypeProduction,
+			Phase:                0,
+			TerritoryID:          territoryID,
+			RegionSeed:           regionForTerritory(ctx, territoryID),
+			OwnerID:              ownerID,
+			TerrainRations:       rations.terrain,
+			InfraRations:         rations.infra,
+			BonusRations:         rations.bonus,
+			SuppressedRations:    rations.suppressed,
+			BaseProduction:       source.base,
+			MillProduction:       source.mill,
+			BonusProduction:      source.bonus,
+			SuppressedProduction: source.suppressed,
+			Production:           rations.total() + source.total(),
+			SentRations:          sentRations,
+			StockBefore:          ctx.supplyStockBefore[territoryID],
+			StockConsumed:        ctx.supplyStockConsumed[territoryID],
+			StockAfter:           state.Resources,
+			Season:               ctx.state.Season,
+			Year:                 ctx.state.Year(),
+		})
+	}
+}
+
+// emitConsumptionEvents reports one consumption line per player army, with the
+// demand split between local rations and pooled source coverage, plus the
+// famine effects when the demand was not met.
+func (ctx *resolutionContext) emitConsumptionEvents() {
+	armyIDs := make([]models.ArmyID, 0, len(ctx.supplyConsumption))
+	for armyID := range ctx.supplyConsumption {
+		armyIDs = append(armyIDs, armyID)
+	}
+	sortArmyIDs(armyIDs)
+	for _, armyID := range armyIDs {
+		detail := ctx.supplyConsumption[armyID]
+		ctx.events = append(ctx.events, Event{
+			Type:               EventTypeConsumption,
+			Phase:              0,
+			ArmyID:             armyID,
+			OwnerID:            detail.ownerID,
+			TerritoryID:        detail.territoryID,
+			SourceID:           detail.sourceID,
+			Troops:             detail.size,
+			Demand:             detail.demand,
+			ReceivedLocal:      detail.receivedLocal,
+			ReceivedTransfer:   detail.receivedTransfer,
+			TroopsLost:         detail.troopsLost,
+			SavedByPillage:     detail.savedByPillage,
+			InfrastructureType: detail.pillageInfrastructure,
+			ResourceCredit:     detail.resourceCredit,
+			CreditTerritoryID:  detail.creditTerritory,
+			Season:             ctx.state.Season,
+			Year:               ctx.state.Year(),
+		})
+	}
 }
 
 func (ctx *resolutionContext) hasSettlement(territoryID models.TerritoryID) bool {
