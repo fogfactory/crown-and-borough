@@ -305,6 +305,11 @@ export function GamePage() {
     'cb.intentionsOverlay',
     true,
   )
+  const [showCalamities, setShowCalamities] = useLocalStorageState(
+    'cb.calamitiesOverlay',
+    true,
+  )
+  const [showCards, setShowCards] = useLocalStorageState('cb.cardsOverlay', true)
   const [mapFocusSignal, setMapFocusSignal] = useState(0)
   const lastTurn = useRef<number | null>(null)
   const hydratedTurnRef = useRef<number | null>(null)
@@ -1085,6 +1090,15 @@ export function GamePage() {
             onToggleIntentions={setShowIntentions}
             showRegions={showRegions}
             onToggleRegions={setShowRegions}
+            showCalamities={showCalamities}
+            onToggleCalamities={setShowCalamities}
+            showCards={showCards}
+            onToggleCards={setShowCards}
+            specialOrders={
+              specialDraft.trim() !== '' && playerID
+                ? [{ player: playerID, text: specialDraft }]
+                : []
+            }
           />
         }
         focusSignal={mapFocusSignal}

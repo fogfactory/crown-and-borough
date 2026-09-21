@@ -13,6 +13,16 @@ import { MapLegend, TERRAIN_COLORS, TERRAIN_LABEL_KEYS } from '@/components/MapL
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
 import type { Intention } from '@/lib/intent-overlay'
+import {
+  CALAMITY_ICONS,
+  CARD_ICONS,
+  parseSpecialOrderPlacements,
+} from '@/lib/game-icons'
+import {
+  chaoticIconPlacements,
+  territoryRadius,
+  type IconPlacement,
+} from '@/lib/chaotic-icons'
 import { NEUTRAL_PLAYER_ID } from '@/types'
 import {
   DRAG_THRESHOLD,
@@ -47,10 +57,12 @@ import type {
   CardKind,
   MapData,
   Noble,
+  PlayerId,
   Point,
   StateData,
   SupplyLine,
   Terrain,
+  Territory,
 } from '@/types'
 
 const OUTER_BORDER_WIDTH = 2
@@ -631,6 +643,12 @@ interface MapViewerProps {
   onToggleIntentions?: (show: boolean) => void
   showRegions?: boolean
   onToggleRegions?: (show: boolean) => void
+  showCalamities?: boolean
+  onToggleCalamities?: (show: boolean) => void
+  showCards?: boolean
+  onToggleCards?: (show: boolean) => void
+  /** Deck-order drafts per player, parsed into the card overlay. */
+  specialOrders?: Array<{ player: PlayerId; text: string }>
 }
 
 export function MapViewer({
@@ -644,6 +662,11 @@ export function MapViewer({
   onToggleIntentions,
   showRegions = false,
   onToggleRegions,
+  showCalamities = true,
+  onToggleCalamities,
+  showCards = true,
+  onToggleCards,
+  specialOrders = [],
 }: MapViewerProps) {
   const { t } = useLanguage()
   const svgRef = useRef<SVGSVGElement>(null)
@@ -849,6 +872,90 @@ export function MapViewer({
   const passableBorderDash = `${4 * annotationScale} ${3 * annotationScale}`
   const supplyPathDash = `${8 * annotationScale} ${5 * annotationScale}`
   const supplyEndpointDash = `${3 * annotationScale} ${3 * annotationScale}`
+
+  const calamityIcons = useMemo(() => {
+    if (!showCalamities) {
+      return []
+    }
+    const regionsBySeed = new Map(
+      (map.regions ?? []).map((region) => [region.seed, region]),
+    )
+    const territoriesById = new Map(
+      map.territories.map((territory) => [territory.id, territory]),
+    )
+    const items: Array<{
+      key: string
+      src: string
+      className: string
+      opacity: number
+      placement: IconPlacement
+    }> = []
+    for (const effect of state.activeRegionEffects ?? []) {
+      const style =
+        CALAMITY_ICONS[effect.kind as keyof typeof CALAMITY_ICONS]
+      if (!style) {
+        continue
+      }
+      const region = regionsBySeed.get(effect.regionSeed)
+      if (!region) {
+        continue
+      }
+      for (const territoryID of region.territories) {
+        const territory = territoriesById.get(territoryID)
+        if (!territory) {
+          continue
+        }
+        const seedKey = `${effect.kind}-${effect.regionSeed}-${territory.id}`
+        for (const placement of chaoticIconPlacements(
+          territory.points,
+          style.count,
+          seedKey,
+        )) {
+          items.push({
+            key: `${seedKey}-${placement.x.toFixed(1)}-${placement.y.toFixed(1)}`,
+            src: style.src,
+            className: style.className,
+            opacity: style.opacity,
+            placement,
+          })
+        }
+      }
+    }
+    return items
+  }, [showCalamities, map.regions, map.territories, state.activeRegionEffects])
+
+  const cardIcons = useMemo(() => {
+    if (!showCards) {
+      return []
+    }
+    const items: Array<{
+      key: string
+      src: string
+      className: string
+      opacity: number
+      territory: Territory
+    }> = []
+    const territoriesById = new Map(
+      map.territories.map((territory) => [territory.id, territory]),
+    )
+    for (const { text } of specialOrders) {
+      for (const placement of parseSpecialOrderPlacements(text)) {
+        const territory = territoriesById.get(placement.target)
+        const style = CARD_ICONS[placement.kind]
+        if (!territory || !style) {
+          continue
+        }
+        items.push({
+          key: `${placement.kind}-${placement.target}-${items.length}`,
+          src: style.src,
+          className: style.className,
+          opacity: style.opacity,
+          territory,
+        })
+      }
+    }
+    return items
+  }, [showCards, specialOrders, map.territories])
 
   useEffect(() => {
     const svg = svgRef.current
@@ -1574,6 +1681,43 @@ export function MapViewer({
               </g>
             )}
 
+            {calamityIcons.length > 0 && (
+              <g aria-label={t('map.calamityOverlay')} pointerEvents="none">
+                {calamityIcons.map((icon) => (
+                  <image
+                    key={icon.key}
+                    href={icon.src}
+                    x={icon.placement.x - icon.placement.size / 2}
+                    y={icon.placement.y - icon.placement.size / 2}
+                    width={icon.placement.size}
+                    height={icon.placement.size}
+                    className={icon.className}
+                    opacity={icon.opacity}
+                    transform={`rotate(${(icon.placement.rotation * 180) / Math.PI} ${icon.placement.x} ${icon.placement.y})`}
+                  />
+                ))}
+              </g>
+            )}
+            {cardIcons.length > 0 && (
+              <g aria-label={t('map.cardOverlay')} pointerEvents="none">
+                {cardIcons.map((icon) => {
+                  const [centerX, centerY] = centroid(icon.territory.points)
+                  const size = territoryRadius(icon.territory.points) * 0.36
+                  return (
+                    <image
+                      key={icon.key}
+                      href={icon.src}
+                      x={centerX - size / 2}
+                      y={centerY - size / 2}
+                      width={size}
+                      height={size}
+                      className={icon.className}
+                      opacity={icon.opacity}
+                    />
+                  )
+                })}
+              </g>
+            )}
             <g aria-label={t('map.liveLayer')} pointerEvents="none">
               {map.territories.map((territory) => {
                 const territoryState = state.territories.find(
@@ -1925,7 +2069,7 @@ export function MapViewer({
 
         <MapControls onZoom={handleControlZoom} />
 
-        {(onToggleIntentions || onToggleRegions) && (
+        {(onToggleIntentions || onToggleRegions || onToggleCalamities || onToggleCards) && (
           <div className="absolute right-3 top-3 z-10">
             <button
               type="button"
@@ -1959,6 +2103,10 @@ export function MapViewer({
                   onToggleIntentions={onToggleIntentions}
                   showRegions={showRegions}
                   onToggleRegions={onToggleRegions}
+                  showCalamities={showCalamities}
+                  onToggleCalamities={onToggleCalamities}
+                  showCards={showCards}
+                  onToggleCards={onToggleCards}
                 />
               </div>
             )}

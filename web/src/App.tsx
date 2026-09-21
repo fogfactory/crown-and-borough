@@ -155,6 +155,11 @@ function AppContent() {
     'cb.intentionsOverlay',
     true,
   )
+  const [showCalamities, setShowCalamities] = useLocalStorageState(
+    'cb.calamitiesOverlay',
+    true,
+  )
+  const [showCards, setShowCards] = useLocalStorageState('cb.cardsOverlay', true)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -266,6 +271,13 @@ function AppContent() {
         ? buildIntentions(map, state, selectedPlayer, chainDrafts[selectedPlayer] ?? {})
         : [],
     [chainDrafts, map, selectedPlayer, state],
+  )
+  const specialOrders = useMemo(
+    () =>
+      Object.entries(specialDrafts)
+        .filter(([, text]) => text.trim() !== '')
+        .map(([player, text]) => ({ player, text })),
+    [specialDrafts],
   )
   const intentionsColor =
     state?.players.find((player) => player.id === selectedPlayer)?.color ?? '#a84632'
@@ -430,6 +442,11 @@ function AppContent() {
           onToggleIntentions={setShowIntentions}
           showRegions={showRegions}
           onToggleRegions={setShowRegions}
+          showCalamities={showCalamities}
+          onToggleCalamities={setShowCalamities}
+          showCards={showCards}
+          onToggleCards={setShowCards}
+          specialOrders={specialOrders}
         />
       )
     }

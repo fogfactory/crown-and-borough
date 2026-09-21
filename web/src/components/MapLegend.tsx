@@ -163,6 +163,10 @@ interface MapLegendProps {
   onToggleIntentions?: (show: boolean) => void
   showRegions?: boolean
   onToggleRegions?: (show: boolean) => void
+  showCalamities?: boolean
+  onToggleCalamities?: (show: boolean) => void
+  showCards?: boolean
+  onToggleCards?: (show: boolean) => void
 }
 
 export function MapLegend({
@@ -170,6 +174,10 @@ export function MapLegend({
   onToggleIntentions,
   showRegions = false,
   onToggleRegions,
+  showCalamities = true,
+  onToggleCalamities,
+  showCards = true,
+  onToggleCards,
 }: MapLegendProps) {
   const { t } = useLanguage()
 
@@ -208,6 +216,26 @@ export function MapLegend({
               onChange={(event) => onToggleRegions(event.target.checked)}
             />
             <span>{t('legend.regions')}</span>
+          </label>
+        )}
+        {onToggleCalamities && (
+          <label className="flex items-center gap-2 rounded-md bg-[#f3ead9] px-2 py-1.5">
+            <input
+              type="checkbox"
+              checked={showCalamities}
+              onChange={(event) => onToggleCalamities(event.target.checked)}
+            />
+            <span>{t('legend.calamities')}</span>
+          </label>
+        )}
+        {onToggleCards && (
+          <label className="flex items-center gap-2 rounded-md bg-[#f3ead9] px-2 py-1.5">
+            <input
+              type="checkbox"
+              checked={showCards}
+              onChange={(event) => onToggleCards(event.target.checked)}
+            />
+            <span>{t('legend.cards')}</span>
           </label>
         )}
         {onToggleRegions && (
