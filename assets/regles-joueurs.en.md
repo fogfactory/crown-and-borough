@@ -361,7 +361,10 @@ Fair weather, Abundant harvest and Revolt can be played in spring, summer and
 autumn, but not winter. Played cards are consumed before army-order resolution.
 Fair weather cancels only bad weather and Abundant harvest cancels only bad harvest.
 A card that cancels a calamity does not provide its regional bonus. Duplicate
-cards are consumed, but only one card of each kind is effective.
+cards are consumed, but only one card of each kind is effective: with an active
+calamity the first card cancels and a second one applies the regional bonus;
+without a calamity the first card applies it. The bonus stays capped at one unit
+per category and region, further cards being consumed without effect.
 
 The deck contains **{{special_orders.deck_size}} cards**:
 **{{special_orders.card.plague}}** plague, **{{special_orders.card.bad_weather}}**

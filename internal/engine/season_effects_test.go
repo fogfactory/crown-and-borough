@@ -308,3 +308,153 @@ func TestFamineEmitsLossSummaryAndDetails(t *testing.T) {
 		t.Fatalf("details = %d mills / %d settlements, want one of each", millDetails, settlementDetails)
 	}
 }
+
+func TestTwoFairWeathersAgainstBadWeatherApplyOneBonus(t *testing.T) {
+	state := effectTestState()
+	setCurrentCalamity(state, models.CardKindBadWeather, "AAA")
+	ctx := newResolutionContext(state, testBalance())
+	ctx.deckIntents = []deckOrderIntent{
+		{playerID: "P1", order: models.DeckOrder{ID: "O1", Kind: models.CardKindFairWeather, RegionSeed: "AAA"}},
+		{playerID: "P2", order: models.DeckOrder{ID: "O2", Kind: models.CardKindFairWeather, RegionSeed: "AAA"}},
+	}
+	resolveSeasonEffects(ctx)
+	if ctx.badWeatherRegions["AAA"] {
+		t.Fatal("bad weather remains active after two fair weathers")
+	}
+	assertSeasonEffectCounts(t, ctx, 1, 1)
+	if ctx.bonusMillRegions["AAA"] != 1 || ctx.bonusRationRegions["AAA"] != 1 {
+		t.Fatalf("bonus regions = %d/%d, want one residual bonus", ctx.bonusMillRegions["AAA"], ctx.bonusRationRegions["AAA"])
+	}
+}
+
+func TestTwoFairWeathersWithoutBadWeatherApplyOneBonus(t *testing.T) {
+	state := effectTestState()
+	ctx := newResolutionContext(state, testBalance())
+	ctx.deckIntents = []deckOrderIntent{
+		{playerID: "P1", order: models.DeckOrder{ID: "O1", Kind: models.CardKindFairWeather, RegionSeed: "AAA"}},
+		{playerID: "P2", order: models.DeckOrder{ID: "O2", Kind: models.CardKindFairWeather, RegionSeed: "AAA"}},
+	}
+	resolveSeasonEffects(ctx)
+	assertSeasonEffectCounts(t, ctx, 0, 1)
+	if ctx.bonusMillRegions["AAA"] != 1 || ctx.bonusRationRegions["AAA"] != 1 {
+		t.Fatalf("bonus regions = %d/%d, want the regional cap of one", ctx.bonusMillRegions["AAA"], ctx.bonusRationRegions["AAA"])
+	}
+}
+
+func TestThreeFairWeathersCapOneBonus(t *testing.T) {
+	state := effectTestState()
+	ctx := newResolutionContext(state, testBalance())
+	ctx.deckIntents = []deckOrderIntent{
+		{playerID: "P1", order: models.DeckOrder{ID: "O1", Kind: models.CardKindFairWeather, RegionSeed: "AAA"}},
+		{playerID: "P2", order: models.DeckOrder{ID: "O2", Kind: models.CardKindFairWeather, RegionSeed: "AAA"}},
+		{playerID: "P1", order: models.DeckOrder{ID: "O3", Kind: models.CardKindFairWeather, RegionSeed: "AAA"}},
+	}
+	resolveSeasonEffects(ctx)
+	assertSeasonEffectCounts(t, ctx, 0, 1)
+	if ctx.bonusMillRegions["AAA"] != 1 {
+		t.Fatalf("bonus mill regions = %d, want the regional cap of one", ctx.bonusMillRegions["AAA"])
+	}
+}
+
+func TestTwoAbundantHarvestsAgainstFamineApplyOneBonus(t *testing.T) {
+	state := effectTestState()
+	setCurrentCalamity(state, models.CardKindFamine, "AAA")
+	ctx := newResolutionContext(state, testBalance())
+	ctx.deckIntents = []deckOrderIntent{
+		{playerID: "P1", order: models.DeckOrder{ID: "O1", Kind: models.CardKindAbundantHarvest, RegionSeed: "AAA"}},
+		{playerID: "P2", order: models.DeckOrder{ID: "O2", Kind: models.CardKindAbundantHarvest, RegionSeed: "AAA"}},
+	}
+	resolveSeasonEffects(ctx)
+	if ctx.famineRegions["AAA"] {
+		t.Fatal("famine remains active after two abundant harvests")
+	}
+	assertSeasonEffectCounts(t, ctx, 1, 1)
+	if ctx.bonusMillRegions["AAA"] != 1 || ctx.bonusRationRegions["AAA"] != 1 {
+		t.Fatalf("bonus regions = %d/%d, want one residual bonus", ctx.bonusMillRegions["AAA"], ctx.bonusRationRegions["AAA"])
+	}
+}
+
+func TestFairWeatherAndAbundantHarvestCancelBothIndependently(t *testing.T) {
+	state := effectTestState()
+	setCurrentCalamity(state, models.CardKindBadWeather, "AAA")
+	famineAugury := state.Auguries[state.Year()]
+	famineAugury.Calamities = append(famineAugury.Calamities, models.Calamity{
+		Kind: models.CardKindFamine, Year: state.Year(), Season: state.Season, RegionSeed: "AAA",
+	})
+	state.Auguries[state.Year()] = famineAugury
+	ctx := newResolutionContext(state, testBalance())
+	ctx.deckIntents = []deckOrderIntent{
+		{playerID: "P1", order: models.DeckOrder{ID: "O1", Kind: models.CardKindFairWeather, RegionSeed: "AAA"}},
+		{playerID: "P2", order: models.DeckOrder{ID: "O2", Kind: models.CardKindAbundantHarvest, RegionSeed: "AAA"}},
+	}
+	resolveSeasonEffects(ctx)
+	if ctx.badWeatherRegions["AAA"] || ctx.famineRegions["AAA"] {
+		t.Fatal("both calamities must be canceled")
+	}
+	// Each card is consumed by its own cancellation: no regional bonus remains.
+	assertSeasonEffectCounts(t, ctx, 2, 0)
+	if ctx.bonusMillRegions["AAA"] != 0 || ctx.bonusRationRegions["AAA"] != 0 {
+		t.Fatalf("bonus regions = %d/%d, want none while both cards cancel", ctx.bonusMillRegions["AAA"], ctx.bonusRationRegions["AAA"])
+	}
+}
+
+func TestDoubleBonusesAgainstBothCalamitiesApplyOncePerCategory(t *testing.T) {
+	state := effectTestState()
+	setCurrentCalamity(state, models.CardKindBadWeather, "AAA")
+	famineAugury := state.Auguries[state.Year()]
+	famineAugury.Calamities = append(famineAugury.Calamities, models.Calamity{
+		Kind: models.CardKindFamine, Year: state.Year(), Season: state.Season, RegionSeed: "AAA",
+	})
+	state.Auguries[state.Year()] = famineAugury
+	ctx := newResolutionContext(state, testBalance())
+	ctx.deckIntents = []deckOrderIntent{
+		{playerID: "P1", order: models.DeckOrder{ID: "O1", Kind: models.CardKindFairWeather, RegionSeed: "AAA"}},
+		{playerID: "P2", order: models.DeckOrder{ID: "O2", Kind: models.CardKindFairWeather, RegionSeed: "AAA"}},
+		{playerID: "P1", order: models.DeckOrder{ID: "O3", Kind: models.CardKindAbundantHarvest, RegionSeed: "AAA"}},
+		{playerID: "P2", order: models.DeckOrder{ID: "O4", Kind: models.CardKindAbundantHarvest, RegionSeed: "AAA"}},
+	}
+	resolveSeasonEffects(ctx)
+	if ctx.badWeatherRegions["AAA"] || ctx.famineRegions["AAA"] {
+		t.Fatal("both calamities must be canceled")
+	}
+	assertSeasonEffectCounts(t, ctx, 2, 2)
+	// One bonus unit per category: BT and RA stack into two production units.
+	if ctx.bonusMillRegions["AAA"] != 2 || ctx.bonusRationRegions["AAA"] != 2 {
+		t.Fatalf("bonus regions = %d/%d, want one unit per category", ctx.bonusMillRegions["AAA"], ctx.bonusRationRegions["AAA"])
+	}
+}
+
+func TestFairWeathersInDifferentRegionsApplySeparately(t *testing.T) {
+	state := effectTestState()
+	state.Regions = []models.Region{
+		{ID: "AAA", Seed: "AAA", Territories: []models.TerritoryID{"AAA"}},
+		{ID: "BBB", Seed: "BBB", Territories: []models.TerritoryID{"BBB"}},
+	}
+	ctx := newResolutionContext(state, testBalance())
+	ctx.deckIntents = []deckOrderIntent{
+		{playerID: "P1", order: models.DeckOrder{ID: "O1", Kind: models.CardKindFairWeather, RegionSeed: "AAA"}},
+		{playerID: "P2", order: models.DeckOrder{ID: "O2", Kind: models.CardKindFairWeather, RegionSeed: "BBB"}},
+	}
+	resolveSeasonEffects(ctx)
+	assertSeasonEffectCounts(t, ctx, 0, 2)
+	if ctx.bonusMillRegions["AAA"] != 1 || ctx.bonusMillRegions["BBB"] != 1 {
+		t.Fatalf("bonus mill regions = %d/%d, want one per region", ctx.bonusMillRegions["AAA"], ctx.bonusMillRegions["BBB"])
+	}
+}
+
+func assertSeasonEffectCounts(t *testing.T, ctx *resolutionContext, wantCanceled, wantBonus int) {
+	t.Helper()
+	canceled := 0
+	bonus := 0
+	for _, event := range ctx.events {
+		switch event.Type {
+		case EventTypeCalamityCanceled:
+			canceled++
+		case EventTypeBonusEffect:
+			bonus++
+		}
+	}
+	if canceled != wantCanceled || bonus != wantBonus {
+		t.Fatalf("season effect events = %d canceled / %d bonus, want %d/%d", canceled, bonus, wantCanceled, wantBonus)
+	}
+}

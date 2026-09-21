@@ -388,7 +388,10 @@ Les cartes Beau temps, Bonne récolte et Révolte sont jouables au printemps, en
 résolution des ordres d'armée. Beau temps annule uniquement le mauvais temps et
 Bonne récolte annule uniquement la mauvaise récolte. Si une carte annule une calamité,
 elle ne produit pas son bonus régional. Deux cartes du même kind sont
-consommées, mais une seule est effective.
+consommées, mais une seule est effective : avec une calamité active, la
+première carte annule et une seconde applique le bonus régional ; sans
+calamité, la première carte l'applique. Le bonus reste plafonné à une unité
+par catégorie et par région, les cartes au-delà étant consommées sans effet.
 
 Le deck contient **{{special_orders.deck_size}} cartes** :
 **{{special_orders.card.plague}}** peste, **{{special_orders.card.bad_weather}}**

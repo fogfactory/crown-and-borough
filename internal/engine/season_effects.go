@@ -23,7 +23,6 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 	ctx.famineRegions = make(map[models.TerritoryID]bool)
 	ctx.bonusMillRegions = make(map[models.TerritoryID]int)
 	ctx.bonusRationRegions = make(map[models.TerritoryID]int)
-	effective := make(map[models.TerritoryID]map[models.CardKind]bool)
 	bonusEffects := make(map[models.TerritoryID]map[models.CardKind]bool)
 	intents := append([]deckOrderIntent(nil), ctx.deckIntents...)
 	sort.SliceStable(intents, func(i, j int) bool {
@@ -38,32 +37,39 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 		}
 		return intents[i].order.ID < intents[j].order.ID
 	})
+	played := make(map[models.TerritoryID]map[models.CardKind]int)
 	for _, intent := range intents {
 		seed := intent.order.RegionSeed
-		if effective[seed] == nil {
-			effective[seed] = make(map[models.CardKind]bool)
+		if played[seed] == nil {
+			played[seed] = make(map[models.CardKind]int)
 		}
-		if effective[seed][intent.order.Kind] {
+		played[seed][intent.order.Kind]++
+	}
+	for _, intent := range intents {
+		seed := intent.order.RegionSeed
+		kind := intent.order.Kind
+		count := played[seed][kind]
+		if count == 0 {
 			continue
 		}
-		effective[seed][intent.order.Kind] = true
-		canceled := false
-		canceledKind := models.CardKind("")
-		if candidate, ok := intent.order.Kind.CanceledCalamity(); ok && active[seed][candidate] {
-			canceledKind = candidate
-			delete(active[seed], candidate)
-			canceled = true
-		}
-		if canceled {
+		played[seed][kind] = 0
+		// One regional bonus applies per (region, kind) at most, after the
+		// first card has consumed its matching calamity if one is active.
+		canceledKind, cancels := kind.CanceledCalamity()
+		if cancels && active[seed][canceledKind] {
+			delete(active[seed], canceledKind)
 			ctx.events = append(ctx.events, Event{Type: EventTypeCalamityCanceled, Phase: phaseForSeason(ctx.state.Season), CardKind: canceledKind, RegionSeed: seed, Season: ctx.state.Season, Year: ctx.state.Year()})
 		} else {
+			cancels = false
+		}
+		if !cancels || count > 1 {
 			ctx.bonusMillRegions[seed]++
 			ctx.bonusRationRegions[seed]++
 			if bonusEffects[seed] == nil {
 				bonusEffects[seed] = make(map[models.CardKind]bool)
 			}
-			bonusEffects[seed][intent.order.Kind] = true
-			ctx.events = append(ctx.events, Event{Type: EventTypeBonusEffect, Phase: phaseForSeason(ctx.state.Season), CardKind: intent.order.Kind, RegionSeed: seed, Season: ctx.state.Season, Year: ctx.state.Year()})
+			bonusEffects[seed][kind] = true
+			ctx.events = append(ctx.events, Event{Type: EventTypeBonusEffect, Phase: phaseForSeason(ctx.state.Season), CardKind: kind, RegionSeed: seed, Season: ctx.state.Season, Year: ctx.state.Year()})
 		}
 	}
 	for _, calamity := range calamities {
@@ -113,7 +119,7 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 		}
 	}
 	for _, intent := range intents {
-		if intent.order.Kind == models.CardKindRevolt && effective[intent.order.RegionSeed][intent.order.Kind] {
+		if intent.order.Kind == models.CardKindRevolt && bonusEffects[intent.order.RegionSeed] != nil && bonusEffects[intent.order.RegionSeed][models.CardKindRevolt] {
 			applyRevolt(ctx, intent.order.RegionSeed, intent.order.ID)
 		}
 	}
