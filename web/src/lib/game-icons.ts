@@ -52,6 +52,8 @@ export interface CardIconStyle {
   src: string
   className: string
   opacity: number
+  /** Icon count per territory when the card scatters over a region. */
+  count: number
 }
 
 export type CardIconKind = 'fair_weather' | 'abundant_harvest' | 'revolt'
@@ -61,17 +63,29 @@ export const CARD_ICONS: Record<CardIconKind, CardIconStyle> = {
     src: '/icons/sun.svg',
     className: 'sepia saturate-200 hue-rotate-15 brightness-110',
     opacity: 0.85,
+    count: 3,
   },
   abundant_harvest: {
     src: '/icons/wheat.svg',
     className: 'sepia saturate-150 hue-rotate-30',
     opacity: 0.85,
+    count: 3,
   },
   revolt: {
     src: '/icons/uprising.svg',
-    className: 'saturate-0 brightness-75',
-    opacity: 0.7,
+    className: '',
+    opacity: 0.95,
+    count: 1,
   },
+}
+
+/** The calamity kind each bonus card cancels when played on a region. */
+export const CANCELED_KIND_BY_CARD: Record<
+  'fair_weather' | 'abundant_harvest',
+  'bad_weather' | 'famine'
+> = {
+  fair_weather: 'bad_weather',
+  abundant_harvest: 'famine',
 }
 
 const SPECIAL_KIND_CODES: Record<string, CardIconKind> = {

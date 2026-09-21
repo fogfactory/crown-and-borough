@@ -15,6 +15,7 @@ import type { MessageKey } from '@/i18n/messages'
 import type { Intention } from '@/lib/intent-overlay'
 import {
   CALAMITY_ICONS,
+  CANCELED_KIND_BY_CARD,
   CARD_ICONS,
   parseSpecialOrderPlacements,
 } from '@/lib/game-icons'
@@ -873,6 +874,27 @@ export function MapViewer({
   const supplyPathDash = `${8 * annotationScale} ${5 * annotationScale}`
   const supplyEndpointDash = `${3 * annotationScale} ${3 * annotationScale}`
 
+  /**
+   * Regions where a drafted bonus card cancels the active calamity: BT against
+   * bad weather, RA against famine. The calamity icons disappear from those
+   * regions because the play clears them at the next resolution.
+   */
+  const canceledCalamityRegions = useMemo(() => {
+    const canceled = new Set<string>()
+    for (const { text } of specialOrders) {
+      for (const placement of parseSpecialOrderPlacements(text)) {
+        const canceledKind =
+          placement.kind === 'fair_weather' || placement.kind === 'abundant_harvest'
+            ? CANCELED_KIND_BY_CARD[placement.kind]
+            : null
+        if (canceledKind) {
+          canceled.add(`${canceledKind}-${placement.target}`)
+        }
+      }
+    }
+    return canceled
+  }, [specialOrders])
+
   const calamityIcons = useMemo(() => {
     if (!showCalamities) {
       return []
@@ -891,6 +913,9 @@ export function MapViewer({
       placement: IconPlacement
     }> = []
     for (const effect of state.activeRegionEffects ?? []) {
+      if (canceledCalamityRegions.has(`${effect.kind}-${effect.regionSeed}`)) {
+        continue
+      }
       const style =
         CALAMITY_ICONS[effect.kind as keyof typeof CALAMITY_ICONS]
       if (!style) {
@@ -922,40 +947,110 @@ export function MapViewer({
       }
     }
     return items
-  }, [showCalamities, map.regions, map.territories, state.activeRegionEffects])
+  }, [
+    showCalamities,
+    map.regions,
+    map.territories,
+    state.activeRegionEffects,
+    canceledCalamityRegions,
+  ])
 
   const cardIcons = useMemo(() => {
     if (!showCards) {
-      return []
+      return { scatterItems: [], revoltItems: [] }
     }
-    const items: Array<{
+    const regionsBySeed = new Map(
+      (map.regions ?? []).map((region) => [region.seed, region]),
+    )
+    const territoriesById = new Map(
+      map.territories.map((territory) => [territory.id, territory]),
+    )
+    const activeByRegion = new Map(
+      (state.activeRegionEffects ?? []).map((effect) => [
+        `${effect.kind}-${effect.regionSeed}`,
+        true,
+      ]),
+    )
+    const colorsByPlayer = new Map(
+      state.players.map((player) => [player.id, player.color]),
+    )
+    const scatterItems: Array<{
       key: string
       src: string
       className: string
       opacity: number
-      territory: Territory
+      placement: IconPlacement
     }> = []
-    const territoriesById = new Map(
-      map.territories.map((territory) => [territory.id, territory]),
-    )
-    for (const { text } of specialOrders) {
+    const revoltItems: Array<{
+      key: string
+      territory: Territory
+      playerColor: string
+    }> = []
+    const scatteredRegions = new Set<string>()
+    for (const { player, text } of specialOrders) {
       for (const placement of parseSpecialOrderPlacements(text)) {
-        const territory = territoriesById.get(placement.target)
-        const style = CARD_ICONS[placement.kind]
-        if (!territory || !style) {
+        if (placement.kind === 'revolt') {
+          const territory = territoriesById.get(placement.target)
+          if (!territory) {
+            continue
+          }
+          revoltItems.push({
+            key: `revolt-${placement.target}-${revoltItems.length}`,
+            territory,
+            playerColor: colorsByPlayer.get(player) ?? '#475569',
+          })
           continue
         }
-        items.push({
-          key: `${placement.kind}-${placement.target}-${items.length}`,
-          src: style.src,
-          className: style.className,
-          opacity: style.opacity,
-          territory,
-        })
+        // A bonus card that cancels an active calamity removes its icons
+        // instead of scattering its own.
+        if (
+          canceledCalamityRegions.has(
+            `${CANCELED_KIND_BY_CARD[placement.kind]}-${placement.target}`,
+          ) &&
+          activeByRegion.has(
+            `${CANCELED_KIND_BY_CARD[placement.kind]}-${placement.target}`,
+          )
+        ) {
+          continue
+        }
+        const region = regionsBySeed.get(placement.target)
+        if (!region || scatteredRegions.has(`${placement.kind}-${placement.target}`)) {
+          continue
+        }
+        scatteredRegions.add(`${placement.kind}-${placement.target}`)
+        const style = CARD_ICONS[placement.kind]
+        for (const territoryID of region.territories) {
+          const territory = territoriesById.get(territoryID)
+          if (!territory) {
+            continue
+          }
+          const seedKey = `${placement.kind}-${placement.target}-${territory.id}`
+          for (const placement2 of chaoticIconPlacements(
+            territory.points,
+            style.count,
+            seedKey,
+          )) {
+            scatterItems.push({
+              key: `${seedKey}-${placement2.x.toFixed(1)}-${placement2.y.toFixed(1)}`,
+              src: style.src,
+              className: style.className,
+              opacity: style.opacity,
+              placement: placement2,
+            })
+          }
+        }
       }
     }
-    return items
-  }, [showCards, specialOrders, map.territories])
+    return { scatterItems, revoltItems }
+  }, [
+    showCards,
+    specialOrders,
+    map.regions,
+    map.territories,
+    state.activeRegionEffects,
+    state.players,
+    canceledCalamityRegions,
+  ])
 
   useEffect(() => {
     const svg = svgRef.current
@@ -1698,22 +1793,65 @@ export function MapViewer({
                 ))}
               </g>
             )}
-            {cardIcons.length > 0 && (
+            {(cardIcons.scatterItems.length > 0 || cardIcons.revoltItems.length > 0) && (
               <g aria-label={t('map.cardOverlay')} pointerEvents="none">
-                {cardIcons.map((icon) => {
+                {cardIcons.scatterItems.map((icon) => (
+                  <image
+                    key={icon.key}
+                    href={icon.src}
+                    x={icon.placement.x - icon.placement.size / 2}
+                    y={icon.placement.y - icon.placement.size / 2}
+                    width={icon.placement.size}
+                    height={icon.placement.size}
+                    className={icon.className}
+                    opacity={icon.opacity}
+                    transform={`rotate(${(icon.placement.rotation * 180) / Math.PI} ${icon.placement.x} ${icon.placement.y})`}
+                  />
+                ))}
+                {cardIcons.revoltItems.map((icon) => {
                   const [centerX, centerY] = centroid(icon.territory.points)
-                  const size = territoryRadius(icon.territory.points) * 0.36
+                  const size = territoryRadius(icon.territory.points) * 0.42
+                  const left = centerX - size / 2
+                  const top = centerY - size / 2
+                  const maskId = `revolt-mask-${icon.key}`
                   return (
-                    <image
-                      key={icon.key}
-                      href={icon.src}
-                      x={centerX - size / 2}
-                      y={centerY - size / 2}
-                      width={size}
-                      height={size}
-                      className={icon.className}
-                      opacity={icon.opacity}
-                    />
+                    <g key={icon.key}>
+                      <defs>
+                        <mask
+                          id={maskId}
+                          maskUnits="userSpaceOnUse"
+                          x={left - size * 0.1}
+                          y={top - size * 0.1}
+                          width={size * 1.2}
+                          height={size * 1.2}
+                        >
+                          <image
+                            href={CARD_ICONS.revolt.src}
+                            x={left}
+                            y={top}
+                            width={size}
+                            height={size}
+                            style={{ filter: 'brightness(0) invert(1)' }}
+                          />
+                        </mask>
+                      </defs>
+                      <circle
+                        cx={centerX}
+                        cy={centerY}
+                        r={size * 0.62}
+                        fill="#6b7280"
+                        opacity={0.75}
+                      />
+                      <rect
+                        x={left}
+                        y={top}
+                        width={size}
+                        height={size}
+                        fill={icon.playerColor}
+                        opacity={0.95}
+                        mask={`url(#${maskId})`}
+                      />
+                    </g>
                   )
                 })}
               </g>
