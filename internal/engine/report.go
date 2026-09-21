@@ -232,6 +232,7 @@ type SeasonEffectReport struct {
 	Noble          models.NobleCode   `json:"noble,omitempty"`
 	Territory      models.TerritoryID `json:"territory,omitempty"`
 	Target         models.TerritoryID `json:"target,omitempty"`
+	Troops         int                `json:"troops,omitempty"`
 	SizeBefore     int                `json:"sizeBefore,omitempty"`
 	SizeAfter      int                `json:"sizeAfter,omitempty"`
 	ProductionLost int                `json:"productionLost,omitempty"`
@@ -374,6 +375,20 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 				ResourceCredit:        event.ResourceCredit,
 				CreditTerritory:       event.CreditTerritoryID,
 			}
+		case EventTypeFamine:
+			// Player famines are merged into their consumption line; neutral
+			// armies are not part of the consumption ledger and surface here.
+			if event.OwnerID == models.NeutralPlayerID {
+				report.SeasonEffects = append(report.SeasonEffects, SeasonEffectReport{
+					Kind: event.Type, Region: event.RegionSeed, Territory: event.TerritoryID,
+					SizeBefore: event.Troops, SizeAfter: event.Troops - event.TroopsLost,
+				})
+			}
+		case EventTypeCardCanceled:
+			report.SeasonEffects = append(report.SeasonEffects, SeasonEffectReport{
+				Kind: event.Type, CardKind: event.CardKind, Region: event.RegionSeed,
+				Territory: event.TerritoryID, Season: event.Season,
+			})
 		case EventTypeCombat:
 			contenders := append([]CombatContender{}, event.Contenders...)
 			supporters := append([]models.ArmyID(nil), event.SupporterIDs...)
@@ -499,7 +514,7 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 			report.SeasonEffects = append(report.SeasonEffects, SeasonEffectReport{
 				Kind: event.Type, CardKind: event.CardKind, Region: event.RegionSeed, Season: event.Season,
 				Owner: event.OwnerID, Army: event.ArmyID, Noble: event.NobleCode,
-				Territory: event.TerritoryID, Target: event.TargetID, SizeBefore: event.SizeBefore,
+				Territory: event.TerritoryID, Target: event.TargetID, Troops: event.Troops, SizeBefore: event.SizeBefore,
 				SizeAfter: event.SizeAfter, ProductionLost: event.Production, RationsLost: event.RationsLost,
 				Reason: event.Reason,
 			})

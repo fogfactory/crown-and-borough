@@ -15,7 +15,7 @@ func (revoltCardDefinition) CanPlay(ctx *ExecutionContext, order models.DeckOrde
 	if ctx.season == models.SeasonWinter {
 		return false, "deck_order_out_of_season"
 	}
-	if !ctx.resolution.hasActiveCalamity(order.RegionSeed, models.CardKindFamine) {
+	if !ctx.resolution.hasActiveCalamity(regionForTerritory(ctx.resolution, order.TargetTerritoryID), models.CardKindFamine) {
 		return false, "revolt_requires_famine"
 	}
 	return true, ""

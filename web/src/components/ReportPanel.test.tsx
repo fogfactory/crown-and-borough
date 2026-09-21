@@ -218,6 +218,7 @@ const report: TurnReport = {
     { kind: 'famine_loss', cardKind: 'famine', region: 'ROS', season: 'spring', productionLost: 2, rationsLost: 2 },
     { kind: 'famine_loss', cardKind: 'famine', region: 'ROS', season: 'spring', territory: 'BRU', productionLost: 2 },
     { kind: 'bonus_effect', cardKind: 'fair_weather', region: 'ROS', season: 'spring' },
+    { kind: 'neutral_army_created', cardKind: 'revolt', region: 'ROS', season: 'spring', territory: 'BRU', troops: 2 },
   ],
   winter: {
     investments: [
@@ -301,6 +302,7 @@ describe('ReportPanel', () => {
     expect(screen.getByText(/Armée de P1 à ROS : mouvement vers BRU bloqué/)).toBeInTheDocument()
     expect(screen.getByText(/2 R de production supprimées, 2 rations/)).toBeInTheDocument()
     expect(screen.getByText(/Moulin à BRU désactivé : 2 R non produites/)).toBeInTheDocument()
+    expect(screen.getByText('Armée neutre de 2 troupes créée à BRU')).toBeInTheDocument()
   })
 
   it('does not display storage identifiers in visible report text', () => {

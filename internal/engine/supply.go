@@ -120,9 +120,43 @@ func resolveSupply(ctx *resolutionContext) {
 	for _, candidate := range assignedFamine {
 		ctx.resolveFamine(candidate)
 	}
+	resolveNeutralFamines(ctx)
 	updateSupplyEventStocks(ctx)
 	ctx.emitProductionEvents()
 	ctx.emitConsumptionEvents()
+}
+
+// resolveNeutralFamines applies the neutral starvation rule: neutral armies
+// never lose strength to a famine, but lose one troop when the local
+// production of their territory cannot feed them.
+func resolveNeutralFamines(ctx *resolutionContext) {
+	for _, armyID := range sortedArmyMap(ctx.startArmiesByID) {
+		army := ctx.startArmiesByID[armyID]
+		if army.OwnerID != models.NeutralPlayerID || army.Size <= 1 {
+			continue
+		}
+		local := rationProduction(ctx, army.TerritoryID)
+		if local >= armyCost(army.Size, ctx.balance.CostBase) {
+			continue
+		}
+		army.Size--
+		ctx.startArmiesByID[army.ID] = army
+		if live := ctx.armiesByID[army.ID]; live != nil {
+			live.Size = army.Size
+		}
+		ctx.events = append(ctx.events, Event{
+			Type:        EventTypeFamine,
+			Phase:       0,
+			ArmyID:      army.ID,
+			OwnerID:     models.NeutralPlayerID,
+			RegionSeed:  regionForTerritory(ctx, army.TerritoryID),
+			TerritoryID: army.TerritoryID,
+			Troops:      army.Size + 1,
+			TroopsLost:  1,
+			Season:      ctx.state.Season,
+			Year:        ctx.state.Year(),
+		})
+	}
 }
 
 func produceNeutralVillageStocks(ctx *resolutionContext) {

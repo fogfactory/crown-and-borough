@@ -352,7 +352,7 @@ require a noble.
 
 - `P FW ROS`: play Fair weather on the region seeded by ROS;
 - `P AH ROS`: play Abundant harvest on that region;
-- `P RV ROS`: play Revolt, only when an active bad harvest affects that region;
+- `P RV BRU`: play Revolt on the BRU territory, only when an active bad harvest affects its region;
 - `D C FW` or `D C AH`: discard a card, winter only;
 The hand is replenished automatically in winter after discards. No draw order is
 needed.
@@ -390,7 +390,7 @@ countered. No calamity resolves in winter.
 - plague reduces armies by a divisor of **{{special_orders.effects.plague_army_divisor}}** and may remove a noble;
 - bad weather blocks movements originating from or targeting its region, except holds and defensive support;
 - bad harvest disables mills and infrastructure ration bonuses in its region;
-- Revolt creates neutral armies on empty territories according to the balance.
+- Revolt is played on a territory (`P RV TER`) during action seasons, provided its region suffers a bad harvest. Each card adds a roll between **{{special_orders.effects.revolt_army_min_size}}** and **{{special_orders.effects.revolt_army_max_size}}** troops to the territory's common neutral army; the territory may be neutral (mere brigandage) and an army is raised there when the square is empty. If the territory is occupied, the revolt resolves as a battle between the rebel army and the holder: the loser retreats or is destroyed. When an Abundant harvest cancels the region's bad harvest, pending revolts in that region are canceled with their card. A crushed rebellion retreats like any defeated army instead of vanishing. Neutral armies never lose strength to a famine, but lose one troop at the end of the turn when the local production of their territory cannot feed them.
 
 Public rumors are recalculated in every report from the current bonus hands of
 all players. They appear when at least two players hold a card, without revealing

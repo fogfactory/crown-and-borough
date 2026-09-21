@@ -33,7 +33,7 @@ Aucun noble n'est requis :
 - `D C BT` ou `D C RA` abandonne une carte bonus, en hiver uniquement ;
 - `P BT TER` joue Beau temps au printemps, en été ou en automne ;
 - `P RA TER` joue Récolte abondante au printemps, en été ou en automne ;
-- `P RE TER` joue Révolte pendant ces saisons si une famine affecte la région cible.
+- `P RE TER` joue Révolte sur le territoire pendant ces saisons, si une mauvaise récolte affecte la région du territoire ; chaque carte ajoute un jet borné à l'armée neutre commune du territoire, qui se bat contre l'occupant le cas échéant.
 
 La main est reconstituée automatiquement en hiver après les défausses, selon la
 limite de remplissage de la balance. Aucun ordre de pioche n'est nécessaire.

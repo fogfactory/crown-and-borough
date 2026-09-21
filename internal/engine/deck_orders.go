@@ -103,8 +103,12 @@ func (ctx *resolutionContext) applyDeckCardOrder(playerID models.PlayerID, order
 		ctx.rejectDeckOrder(playerID, order)
 		return
 	}
+	regionSeed := order.RegionSeed
+	if order.Kind == models.CardKindRevolt {
+		regionSeed = order.TargetTerritoryID
+	}
 	ctx.deckIntents = append(ctx.deckIntents, deckOrderIntent{playerID: playerID, order: order})
-	ctx.events = append(ctx.events, Event{Type: EventTypeDeckOrderPlayed, Phase: phaseForSeason(ctx.state.Season), OwnerID: playerID, CardKind: order.Kind, RegionSeed: order.RegionSeed, Season: ctx.state.Season, Year: ctx.state.Year()})
+	ctx.events = append(ctx.events, Event{Type: EventTypeDeckOrderPlayed, Phase: phaseForSeason(ctx.state.Season), OwnerID: playerID, CardKind: order.Kind, RegionSeed: regionSeed, Season: ctx.state.Season, Year: ctx.state.Year()})
 }
 
 func phaseForSeason(season models.Season) int {

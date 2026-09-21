@@ -40,7 +40,7 @@ func TestLoadSpecialOrdersBalanceRejectsInvalidValues(t *testing.T) {
 			return strings.Replace(value, "    plague: 1\n    bad_weather: 6\n    famine: 6", "    plague: 0\n    bad_weather: 0\n    famine: 0", 1)
 		}, want: "must not all be zero"},
 		{name: "invalid revolt bounds", edit: func(value string) string {
-			return strings.Replace(value, "revolt_army_min_size: 2\n    revolt_army_max_size: 3", "revolt_army_min_size: 4\n    revolt_army_max_size: 3", 1)
+			return strings.Replace(value, "revolt_army_min_size: 1\n    revolt_army_max_size: 3", "revolt_army_min_size: 4\n    revolt_army_max_size: 3", 1)
 		}, want: "minimum exceeds maximum"},
 	}
 	for _, test := range cases {

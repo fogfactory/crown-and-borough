@@ -89,9 +89,13 @@ func TestDeckCardOrdersRejectWinter(t *testing.T) {
 	}
 }
 
-func TestRevoltCardRequiresActiveFamine(t *testing.T) {
+func TestRevoltCardRequiresActiveFamineOnTargetRegion(t *testing.T) {
 	state := models.NewGameState()
-	state.Regions = []models.Region{{ID: "ROS", Seed: "ROS", Territories: []models.TerritoryID{"ROS"}}}
+	state.Territories = []models.Territory{
+		{ID: "AAA", Name: "AAA", Terrain: models.TerrainPlain, Adjacencies: []models.TerritoryID{"BBB"}},
+		{ID: "BBB", Name: "BBB", Terrain: models.TerrainPlain},
+	}
+	state.Regions = []models.Region{{ID: "ROS", Seed: "ROS", Territories: []models.TerritoryID{"AAA", "BBB"}}}
 	state.Auguries[1] = models.YearAugury{
 		Year:       1,
 		Capacities: map[models.Season]int{models.SeasonSpring: 1, models.SeasonSummer: 1, models.SeasonAutumn: 1},
@@ -99,10 +103,13 @@ func TestRevoltCardRequiresActiveFamine(t *testing.T) {
 	}
 	ctx := newResolutionContext(state, testBalance())
 	definition := cardDefinitions[models.CardKindRevolt]
-	if ok, reason := definition.CanPlay(&ExecutionContext{resolution: ctx, season: models.SeasonSpring}, models.DeckOrder{RegionSeed: "ROS"}); !ok || reason != "" {
+	if ok, reason := definition.CanPlay(&ExecutionContext{resolution: ctx, season: models.SeasonSpring}, models.DeckOrder{TargetTerritoryID: "AAA"}); !ok || reason != "" {
 		t.Fatalf("revolt with famine = %t/%q, want true/empty", ok, reason)
 	}
-	if ok, reason := definition.CanPlay(&ExecutionContext{resolution: ctx, season: models.SeasonSpring}, models.DeckOrder{RegionSeed: "XXX"}); ok || reason != "revolt_requires_famine" {
+	if ok, reason := definition.CanPlay(&ExecutionContext{resolution: ctx, season: models.SeasonSpring}, models.DeckOrder{TargetTerritoryID: "BBB"}); !ok || reason != "" {
+		t.Fatalf("revolt with famine on second territory = %t/%q, want true/empty", ok, reason)
+	}
+	if ok, reason := definition.CanPlay(&ExecutionContext{resolution: ctx, season: models.SeasonSpring}, models.DeckOrder{TargetTerritoryID: "XXX"}); ok || reason != "revolt_requires_famine" {
 		t.Fatalf("revolt without famine = %t/%q, want false/revolt_requires_famine", ok, reason)
 	}
 }

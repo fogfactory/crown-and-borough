@@ -60,10 +60,6 @@ func (raw rawBalance) specialOrders(path string) (SpecialOrdersBalance, error) {
 	if mortality > 100 {
 		return SpecialOrdersBalance{}, fmt.Errorf("assetgen: %s: plague mortality must be <= 100", path)
 	}
-	revoltCount, err := requiredNonNegativeInt(path, "special_orders.effects.revolt_army_count", effects.RevoltArmyCount)
-	if err != nil {
-		return SpecialOrdersBalance{}, err
-	}
 	revoltMin, err := requiredPositiveInt(path, "special_orders.effects.revolt_army_min_size", effects.RevoltArmyMinSize)
 	if err != nil {
 		return SpecialOrdersBalance{}, err
@@ -83,7 +79,7 @@ func (raw rawBalance) specialOrders(path string) (SpecialOrdersBalance, error) {
 	if err != nil {
 		return SpecialOrdersBalance{}, err
 	}
-	return SpecialOrdersBalance{HandLimit: handLimit, DrawOrdersLimit: drawLimit, DeckSize: deckSize, CalamityPercentage: percentage, CalamitySlots: slots, CalamityWeights: calamityWeights, BonusWeights: bonusWeights, Effects: SpecialOrderEffects{PlagueArmyDivisor: plagueDivisor, PlagueNobleMortalityPercentage: mortality, RevoltArmyCount: revoltCount, RevoltArmyMinSize: revoltMin, RevoltArmyMaxSize: revoltMax, BonusMillProduction: millBonus, BonusArmyRation: rationBonus}}, nil
+	return SpecialOrdersBalance{HandLimit: handLimit, DrawOrdersLimit: drawLimit, DeckSize: deckSize, CalamityPercentage: percentage, CalamitySlots: slots, CalamityWeights: calamityWeights, BonusWeights: bonusWeights, Effects: SpecialOrderEffects{PlagueArmyDivisor: plagueDivisor, PlagueNobleMortalityPercentage: mortality, RevoltArmyMinSize: revoltMin, RevoltArmyMaxSize: revoltMax, BonusMillProduction: millBonus, BonusArmyRation: rationBonus}}, nil
 }
 
 func specialSeasonValues(path string, values map[string]*int, name string) (map[models.Season]int, error) {

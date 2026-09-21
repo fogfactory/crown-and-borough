@@ -50,6 +50,7 @@ const (
 	EventTypeFamineLoss        EventType = "famine_loss"
 	EventTypeProduction        EventType = "production"
 	EventTypeConsumption       EventType = "consumption"
+	EventTypeCardCanceled      EventType = "card_canceled"
 	EventTypeRumor             EventType = "rumor"
 )
 

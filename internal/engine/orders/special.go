@@ -63,12 +63,31 @@ func parseDeckOrderLine(line string, lineNumber int, game *models.GameState) (mo
 		error := parseMessage(lineNumber, ParseCodeSpecialKind, i18n.DeckOrderKindNotPlayable, fields[1])
 		return models.DeckOrder{}, &error
 	}
-	regionSeed := models.TerritoryID(fields[2])
-	if !isSpecialRegionSeed(game, regionSeed) {
+	target := models.TerritoryID(fields[2])
+	if kind == models.CardKindRevolt {
+		if !isTerritory(game, target) {
+			error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderRegionUnknown, fields[2])
+			return models.DeckOrder{}, &error
+		}
+		return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: kind, TargetTerritoryID: target}, nil
+	}
+	if !isSpecialRegionSeed(game, target) {
 		error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderRegionUnknown, fields[2])
 		return models.DeckOrder{}, &error
 	}
-	return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: kind, RegionSeed: regionSeed}, nil
+	return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: kind, RegionSeed: target}, nil
+}
+
+func isTerritory(game *models.GameState, territoryID models.TerritoryID) bool {
+	if game == nil {
+		return false
+	}
+	for _, territory := range game.Territories {
+		if territory.ID == territoryID {
+			return true
+		}
+	}
+	return false
 }
 
 func parseSpecialKind(value string, lineNumber int) (models.CardKind, *ParseError) {

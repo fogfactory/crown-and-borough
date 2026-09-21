@@ -122,10 +122,11 @@ const (
 )
 
 type DeckOrder struct {
-	ID         OrderID       `json:"id"`
-	Type       DeckOrderType `json:"type"`
-	Kind       CardKind      `json:"kind,omitempty"`
-	RegionSeed TerritoryID   `json:"regionSeed,omitempty"`
+	ID                OrderID       `json:"id"`
+	Type              DeckOrderType `json:"type"`
+	Kind              CardKind      `json:"kind,omitempty"`
+	RegionSeed        TerritoryID   `json:"regionSeed,omitempty"`
+	TargetTerritoryID TerritoryID   `json:"targetTerritory,omitempty"`
 }
 
 func (t DeckOrderType) IsValid() bool {

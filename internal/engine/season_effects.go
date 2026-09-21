@@ -39,6 +39,9 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 	})
 	played := make(map[models.TerritoryID]map[models.CardKind]int)
 	for _, intent := range intents {
+		if intent.order.Kind == models.CardKindRevolt {
+			continue
+		}
 		seed := intent.order.RegionSeed
 		if played[seed] == nil {
 			played[seed] = make(map[models.CardKind]int)
@@ -46,6 +49,9 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 		played[seed][intent.order.Kind]++
 	}
 	for _, intent := range intents {
+		if intent.order.Kind == models.CardKindRevolt {
+			continue
+		}
 		seed := intent.order.RegionSeed
 		kind := intent.order.Kind
 		count := played[seed][kind]
@@ -119,8 +125,8 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 		}
 	}
 	for _, intent := range intents {
-		if intent.order.Kind == models.CardKindRevolt && bonusEffects[intent.order.RegionSeed] != nil && bonusEffects[intent.order.RegionSeed][models.CardKindRevolt] {
-			applyRevolt(ctx, intent.order.RegionSeed, intent.order.ID)
+		if intent.order.Kind == models.CardKindRevolt {
+			applyRevolt(ctx, intent.order.TargetTerritoryID, intent.order.ID)
 		}
 	}
 	resolvePlagueMortality(ctx)
@@ -235,37 +241,348 @@ func applyPlague(ctx *resolutionContext, regionSeed models.TerritoryID) {
 	}
 }
 
-func applyRevolt(ctx *resolutionContext, regionSeed models.TerritoryID, orderID models.OrderID) {
-	count := ctx.balance.SpecialOrders.Effects.RevoltArmyCount
-	minSize := ctx.balance.SpecialOrders.Effects.RevoltArmyMinSize
-	maxSize := ctx.balance.SpecialOrders.Effects.RevoltArmyMaxSize
-	if count < 1 || minSize < 1 || maxSize < minSize {
+// applyRevolt consumes one revolt card on the target territory: it rolls for
+// reinforcements and adds them to the common neutral army building there, or
+// defers the fight to the post-movement revolt pass while the territory is
+// held by a player army. A revolt whose famine has been canceled in the
+// meantime is annulled with the card.
+func applyRevolt(ctx *resolutionContext, targetTerritory models.TerritoryID, orderID models.OrderID) {
+	if targetTerritory == "" {
 		return
 	}
-	candidates := make([]models.TerritoryID, 0)
-	for _, territoryID := range regionTerritories(ctx, regionSeed) {
-		if ctx.currentArmyAt(territoryID) == nil {
-			candidates = append(candidates, territoryID)
+	regionSeed := regionForTerritory(ctx, targetTerritory)
+	if !ctx.famineRegions[regionSeed] {
+		ctx.events = append(ctx.events, Event{
+			Type: EventTypeCardCanceled, Phase: phaseForSeason(ctx.state.Season),
+			CardKind: models.CardKindRevolt, RegionSeed: regionSeed, TerritoryID: targetTerritory,
+			Season: ctx.state.Season, Year: ctx.state.Year(),
+		})
+		return
+	}
+	roll := ctx.rollRevoltSize(orderID)
+	army := ctx.currentArmyAt(targetTerritory)
+	if army != nil && army.OwnerID != models.NeutralPlayerID {
+		ctx.pendingRevoltSizes[targetTerritory] += roll
+		ctx.events = append(ctx.events, Event{Type: EventTypeNeutralArmy, Phase: phaseForSeason(ctx.state.Season), CardKind: models.CardKindRevolt, RegionSeed: regionForTerritory(ctx, targetTerritory), TerritoryID: targetTerritory, Troops: roll, Season: ctx.state.Season, Year: ctx.state.Year()})
+		return
+	}
+	if army != nil {
+		army.Size += roll
+		ctx.startArmiesByID[army.ID] = *army
+	} else {
+		placeRevoltArmy(ctx, targetTerritory, roll)
+	}
+	ctx.events = append(ctx.events, Event{Type: EventTypeNeutralArmy, Phase: phaseForSeason(ctx.state.Season), CardKind: models.CardKindRevolt, RegionSeed: regionForTerritory(ctx, targetTerritory), TerritoryID: targetTerritory, Troops: roll, Season: ctx.state.Season, Year: ctx.state.Year()})
+}
+
+// rollRevoltSize draws the rebel reinforcement for one revolt card between the
+// balance bounds, deterministically per played order.
+func (ctx *resolutionContext) rollRevoltSize(orderID models.OrderID) int {
+	minSize := ctx.balance.SpecialOrders.Effects.RevoltArmyMinSize
+	maxSize := ctx.balance.SpecialOrders.Effects.RevoltArmyMaxSize
+	if minSize < 1 {
+		minSize = 1
+	}
+	if maxSize < minSize {
+		maxSize = minSize
+	}
+	size := minSize
+	if maxSize > minSize {
+		size += newRevoltRNG(ctx.state.Seed, ctx.state.Turn, orderID).IntN(maxSize - minSize + 1)
+	}
+	return size
+}
+
+func placeRevoltArmy(ctx *resolutionContext, territoryID models.TerritoryID, size int) {
+	army := models.Army{ID: ctx.allocateArmyID(), OwnerID: models.NeutralPlayerID, TerritoryID: territoryID, Size: size}
+	ctx.state.Armies = append(ctx.state.Armies, army)
+	ctx.startArmiesByID[army.ID] = army
+	ctx.rebuildIndexes()
+}
+
+// resolveRevoltCombats resolves the deferred revolts against the armies that
+// still hold their target territories once every movement is settled. A
+// winning rebellion dislodges the holder with the standard retreat rules; a
+// losing or tied rebellion is crushed without leaving an army behind.
+func resolveRevoltCombats(ctx *resolutionContext) {
+	if len(ctx.pendingRevoltSizes) == 0 {
+		return
+	}
+	for _, territoryID := range sortedTerritoryMap(ctx.pendingRevoltSizes) {
+		rebelForce := ctx.pendingRevoltSizes[territoryID]
+		occupant := ctx.currentArmyAt(territoryID)
+		if occupant == nil {
+			placeRevoltArmy(ctx, territoryID, rebelForce)
+			ctx.events = append(ctx.events, Event{Type: EventTypeNeutralArmy, Phase: 4, CardKind: models.CardKindRevolt, RegionSeed: regionForTerritory(ctx, territoryID), TerritoryID: territoryID, Troops: rebelForce, Season: ctx.state.Season, Year: ctx.state.Year()})
+			continue
+		}
+		resolveRevoltCombat(ctx, territoryID, rebelForce, occupant)
+	}
+	ctx.pendingRevoltSizes = make(map[models.TerritoryID]int)
+}
+
+func resolveRevoltCombat(ctx *resolutionContext, territoryID models.TerritoryID, rebelForce int, occupant *models.Army) {
+	defense := occupant.Size + nobleCommandBonus(ctx, *occupant)
+	if ctx.hasCastle(territoryID) {
+		defense += ctx.balance.CastleDefenseBonus
+	}
+	rebels := CombatContender{OwnerID: models.NeutralPlayerID, Force: rebelForce}
+	defenders := CombatContender{ArmyID: occupant.ID, OwnerID: occupant.OwnerID, Force: defense, NobleBonus: nobleCommandBonus(ctx, *occupant), Defender: true}
+	result := contestResult{
+		territoryID: territoryID,
+		defenderID:  occupant.ID,
+		baseDefense: defense - nobleCommandBonus(ctx, *occupant),
+		defense:     defense,
+		castleBonus: 0,
+		contenders:  []CombatContender{rebels, defenders},
+	}
+	if ctx.hasCastle(territoryID) {
+		result.castleBonus = ctx.balance.CastleDefenseBonus
+		result.baseDefense = defense - nobleCommandBonus(ctx, *occupant)
+	}
+	if rebelForce > defense {
+		rebel := placeRevoltArmyForCombat(ctx, territoryID, rebelForce)
+		result.winnerID = rebel.ID
+		result.dislodgedArmyID = occupant.ID
+		result.attackerOriginID = territoryID
+		ctx.events = append(ctx.events, Event{
+			Type:            EventTypeCombat,
+			Phase:           4,
+			TerritoryID:     territoryID,
+			BaseDefense:     result.baseDefense,
+			Defense:         defense,
+			CastleBonus:     result.castleBonus,
+			Contenders:      []CombatContender{rebels, defenders},
+			WinnerArmyID:    rebel.ID,
+			DislodgedArmyID: occupant.ID,
+			Reason:          "attack_wins",
+		})
+		ctx.dislodgeRevoltOccupant(territoryID, occupant)
+	} else {
+		rebel := placeRevoltArmyForCombat(ctx, territoryID, rebelForce)
+		if rebelForce == defense {
+			result.standoff = true
+		}
+		ctx.events = append(ctx.events, Event{
+			Type:        EventTypeCombat,
+			Phase:       4,
+			TerritoryID: territoryID,
+			BaseDefense: result.baseDefense,
+			Defense:     defense,
+			CastleBonus: result.castleBonus,
+			Contenders:  []CombatContender{rebels, defenders},
+			Reason:      "defense_holds",
+		})
+		// A crushed rebellion still retreats like any defeated army instead of
+		// vanishing on the spot.
+		ctx.retreatRebelArmy(rebel, territoryID)
+	}
+}
+
+func placeRevoltArmyForCombat(ctx *resolutionContext, territoryID models.TerritoryID, size int) *models.Army {
+	army := models.Army{ID: ctx.allocateArmyID(), OwnerID: models.NeutralPlayerID, TerritoryID: territoryID, Size: size}
+	ctx.state.Armies = append(ctx.state.Armies, army)
+	ctx.startArmiesByID[army.ID] = army
+	return &army
+}
+
+// retreatRebelArmy moves a crushed rebel army to an adjacent territory with
+// the standard retreat priorities; a rebellion with nowhere to go is
+// destroyed. Neutral armies carry no nobles.
+func (ctx *resolutionContext) retreatRebelArmy(rebel *models.Army, territoryID models.TerritoryID) {
+	displaced := &dislodgedArmy{
+		army:             *rebel,
+		originID:         territoryID,
+		attackerOriginID: territoryID,
+	}
+	buckets := ctx.classifyRetreatDestinations(displaced)
+	destination := models.TerritoryID("")
+	kind := ""
+	for _, candidateID := range buckets.controlledEmpty {
+		if ctx.currentArmyAt(candidateID) == nil {
+			destination = candidateID
+			kind = RetreatDestinationControlledEmpty
+			break
 		}
 	}
-	limit := min(count, len(candidates))
-	rng := newRevoltRNG(ctx.state.Seed, ctx.state.Turn, orderID)
-	for index := 0; index < limit; index++ {
-		size := minSize
-		if maxSize > minSize {
-			size += rng.IntN(maxSize - minSize + 1)
+	if destination == "" {
+		for _, candidateID := range buckets.emptyOther {
+			if ctx.currentArmyAt(candidateID) == nil {
+				destination = candidateID
+				kind = RetreatDestinationEmpty
+				break
+			}
 		}
-		army := models.Army{ID: ctx.allocateArmyID(), OwnerID: models.NeutralPlayerID, TerritoryID: candidates[index], Size: size}
-		ctx.state.Armies = append(ctx.state.Armies, army)
-		armyID := army.ID
-		state := ctx.state.TerritoryStates[army.TerritoryID]
-		state.Army = &armyID
-		ctx.state.TerritoryStates[army.TerritoryID] = state
-		ctx.startArmiesByID[army.ID] = army
-		ctx.startArmyAtTerritory[army.TerritoryID] = army.ID
-		ctx.events = append(ctx.events, Event{Type: EventTypeNeutralArmy, Phase: phaseForSeason(ctx.state.Season), ArmyID: army.ID, OwnerID: models.NeutralPlayerID, TerritoryID: army.TerritoryID, Troops: army.Size, Season: ctx.state.Season, Year: ctx.state.Year()})
+	}
+	if destination == "" && len(buckets.friendlyArmies) > 0 {
+		hostID := buckets.friendlyArmies[0]
+		host := ctx.armiesByID[hostID]
+		if host != nil {
+			n := rebel.Size
+			troopsMerged := 1
+			if n > 1 {
+				troopsMerged = n - 1
+			}
+			host.Size += troopsMerged
+			ctx.events = append(ctx.events, Event{
+				Type:             EventTypeRetreat,
+				Phase:            4,
+				ArmyID:           rebel.ID,
+				SourceID:         territoryID,
+				DestinationID:    host.TerritoryID,
+				AttackerOriginID: territoryID,
+				DestinationKind:  RetreatDestinationFriendlyArmy,
+				HostArmyID:       host.ID,
+				TroopsMerged:     troopsMerged,
+				Outcome:          OutcomeSuccess,
+			})
+			ctx.removeRevoltArmy(territoryID, rebel)
+			return
+		}
+	}
+	if destination == "" {
+		ctx.removeRevoltArmy(territoryID, rebel)
+		ctx.events = append(ctx.events, Event{
+			Type:             EventTypeArmyDestroyed,
+			Phase:            4,
+			ArmyID:           rebel.ID,
+			TerritoryID:      territoryID,
+			AttackerOriginID: territoryID,
+			Reason:           "no_retreat_destination",
+		})
 		ctx.rebuildIndexes()
+		return
 	}
+	ctx.removeRevoltArmy(territoryID, rebel)
+	army := *rebel
+	army.TerritoryID = destination
+	ctx.state.Armies = append(ctx.state.Armies, army)
+	ctx.events = append(ctx.events, Event{
+		Type:             EventTypeRetreat,
+		Phase:            4,
+		ArmyID:           army.ID,
+		SourceID:         territoryID,
+		DestinationID:    destination,
+		AttackerOriginID: territoryID,
+		DestinationKind:  kind,
+		Outcome:          OutcomeSuccess,
+	})
+}
+
+// dislodgeRevoltOccupant removes the defeated holder from the territory and
+// applies the standard retreat priorities; a holder with no retreat is
+// destroyed and its nobles are captured by the rebels.
+func (ctx *resolutionContext) dislodgeRevoltOccupant(territoryID models.TerritoryID, occupant *models.Army) {
+	displaced := &dislodgedArmy{
+		army:             *occupant,
+		originID:         territoryID,
+		attackerOriginID: territoryID,
+		nobleIDs:         append([]models.NobleID(nil), ctx.noblesAt(territoryID)...),
+	}
+	buckets := ctx.classifyRetreatDestinations(displaced)
+	destination := models.TerritoryID("")
+	kind := ""
+	for _, candidateID := range buckets.controlledEmpty {
+		if ctx.currentArmyAt(candidateID) == nil {
+			destination = candidateID
+			kind = RetreatDestinationControlledEmpty
+			break
+		}
+	}
+	if destination == "" {
+		for _, candidateID := range buckets.emptyOther {
+			if ctx.currentArmyAt(candidateID) == nil {
+				destination = candidateID
+				kind = RetreatDestinationEmpty
+				break
+			}
+		}
+	}
+	if destination == "" && len(buckets.friendlyArmies) > 0 {
+		hostID := buckets.friendlyArmies[0]
+		host := ctx.armiesByID[hostID]
+		if host != nil {
+			n := occupant.Size
+			troopsMerged := 1
+			troopsLost := 0
+			if n > 1 {
+				troopsMerged = n - 1
+				troopsLost = 1
+			}
+			host.Size += troopsMerged
+			ctx.moveNobles(displaced.nobleIDs, host.TerritoryID, host.ID)
+			ctx.events = append(ctx.events, Event{
+				Type:             EventTypeRetreat,
+				Phase:            4,
+				ArmyID:           occupant.ID,
+				SourceID:         territoryID,
+				DestinationID:    host.TerritoryID,
+				AttackerOriginID: territoryID,
+				DestinationKind:  RetreatDestinationFriendlyArmy,
+				HostArmyID:       host.ID,
+				TroopsMerged:     troopsMerged,
+				TroopsLost:       troopsLost,
+				Outcome:          OutcomeSuccess,
+			})
+			ctx.removeRevoltArmy(territoryID, occupant)
+			return
+		}
+	}
+	if destination == "" {
+		ctx.destroyRevoltOccupant(territoryID, occupant, displaced)
+		return
+	}
+	ctx.removeRevoltArmy(territoryID, occupant)
+	army := *occupant
+	army.TerritoryID = destination
+	ctx.state.Armies = append(ctx.state.Armies, army)
+	ctx.moveNobles(displaced.nobleIDs, destination, army.ID)
+	ctx.events = append(ctx.events, Event{
+		Type:             EventTypeRetreat,
+		Phase:            4,
+		ArmyID:           army.ID,
+		SourceID:         territoryID,
+		DestinationID:    destination,
+		AttackerOriginID: territoryID,
+		DestinationKind:  kind,
+		Outcome:          OutcomeSuccess,
+	})
+}
+
+func (ctx *resolutionContext) removeRevoltArmy(territoryID models.TerritoryID, occupant *models.Army) {
+	remaining := make([]models.Army, 0, len(ctx.state.Armies)-1)
+	for _, army := range ctx.state.Armies {
+		if army.ID != occupant.ID {
+			remaining = append(remaining, army)
+			continue
+		}
+		// Keep the displaced army out of the live list; its retreat copy was
+		// appended by the caller.
+	}
+	ctx.state.Armies = remaining
+	delete(ctx.startArmiesByID, occupant.ID)
+	ctx.rebuildIndexes()
+}
+
+func (ctx *resolutionContext) destroyRevoltOccupant(territoryID models.TerritoryID, occupant *models.Army, displaced *dislodgedArmy) {
+	remaining := make([]models.Army, 0, len(ctx.state.Armies)-1)
+	for _, army := range ctx.state.Armies {
+		if army.ID != occupant.ID {
+			remaining = append(remaining, army)
+		}
+	}
+	ctx.state.Armies = remaining
+	delete(ctx.startArmiesByID, occupant.ID)
+	ctx.events = append(ctx.events, Event{
+		Type:             EventTypeArmyDestroyed,
+		Phase:            4,
+		ArmyID:           occupant.ID,
+		TerritoryID:      territoryID,
+		AttackerOriginID: territoryID,
+		Reason:           "no_retreat_destination",
+	})
+	ctx.captureNoblesAfterDestruction(&retreatPlan{dislodged: displaced})
+	ctx.rebuildIndexes()
 }
 
 func regionTerritories(ctx *resolutionContext, seed models.TerritoryID) []models.TerritoryID {

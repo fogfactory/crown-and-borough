@@ -336,10 +336,6 @@ function seasonEffectLabel(effect: SeasonEffectReport, map: MapData | null, t: T
       return t('reports.calamityCanceled', { card, bonus: card, region })
     case 'bonus_effect':
       return t('reports.bonusEffect', { card, region })
-    case 'neutral_army_created':
-      return t('reports.neutralArmyCreated', {
-        territory: territoryLabel(map, effect.territory, t),
-      })
     default:
       return card || effect.kind
   }
@@ -349,6 +345,8 @@ interface SeasonEffectLine {
   key: string
   owner?: PlayerId
   label: string
+  /** Neutral-army lines render in a muted gray instead of the section red. */
+  muted?: boolean
 }
 
 interface SeasonEffectGroup {
@@ -441,6 +439,41 @@ function seasonEffectLine(
           territory: territoryLabel(map, effect.territory, t),
         }),
       }
+    case 'famine':
+      return {
+        key,
+        muted: true,
+        label: t('reports.neutralFamine', {
+          territory: territoryLabel(map, effect.territory, t),
+          before: effect.sizeBefore ?? 0,
+          after: effect.sizeAfter ?? 0,
+        }),
+      }
+    case 'card_canceled': {
+      const card = effect.cardKind ? formatCardLabel(effect.cardKind, t) : ''
+      return {
+        key,
+        label: effect.territory
+          ? t('reports.cardCanceled', {
+              card,
+              territory: territoryLabel(map, effect.territory, t),
+            })
+          : card,
+      }
+    }
+    case 'neutral_army_created': {
+      const count = effect.troops ?? 0
+      return {
+        key,
+        muted: true,
+        label: t(
+          count === 1
+            ? 'reports.neutralArmyCreatedTroop'
+            : 'reports.neutralArmyCreated',
+          { count, territory: territoryLabel(map, effect.territory, t) },
+        ),
+      }
+    }
     default:
       return { key, label: seasonEffectLabel(effect, map, t) }
   }
@@ -476,7 +509,12 @@ function groupSeasonEffects(
       case 'famine_loss':
       case 'plague_noble_death':
       case 'plague_noble_survived':
+      case 'card_canceled':
         groupFor(effect).lines.push(line)
+        break
+      case 'famine':
+      case 'neutral_army_created':
+        flat.push(line)
         break
       default:
         flat.push(line)
@@ -860,7 +898,12 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
           </h4>
           <ol className="space-y-2 text-sm text-[#8d321e]">
             {seasonEffectView.flat.map((line) => (
-              <li key={line.key}>{line.label}</li>
+              <li
+                key={line.key}
+                className={line.muted ? 'text-[#806f57]' : undefined}
+              >
+                {line.label}
+              </li>
             ))}
             {seasonEffectView.groups.map((group) => (
               <li key={group.key} className="space-y-1">
@@ -868,7 +911,10 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                 {group.lines.length > 0 && (
                   <ul className="space-y-1 border-l-2 border-[#e4b4a4] pl-3">
                     {group.lines.map((line) => (
-                      <li key={line.key} className="flex items-center gap-2">
+                      <li
+                        key={line.key}
+                        className={`flex items-center gap-2 ${line.muted ? 'text-[#806f57]' : ''}`}
+                      >
                         {line.owner ? playerMarker(players, line.owner, t) : null}
                         <span>{line.label}</span>
                       </li>

@@ -284,6 +284,11 @@ func trackCombatParticipation(before, after *models.GameState, combats []engine.
 			}
 		}
 		for playerID := range participants {
+			if playerID == models.NeutralPlayerID {
+				// Rebel armies fight without an audience: neutral ownership is
+				// not a player and would fail the state validation.
+				continue
+			}
 			if privacy.CombatParticipation[playerID] == nil {
 				privacy.CombatParticipation[playerID] = make(map[string]bool)
 			}

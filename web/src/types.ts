@@ -42,9 +42,13 @@ export type EventType =
   | 'plague_noble_survived'
   | 'bad_weather_blocked'
   | 'famine_loss'
+  | 'famine'
+  | 'card_canceled'
   | 'rumor'
 
 export type PlayerId = string
+
+export const NEUTRAL_PLAYER_ID = 'NEUTRAL'
 
 export type GameStatus = 'playing' | 'finished'
 
@@ -544,6 +548,7 @@ export interface SeasonEffectReport {
   noble?: string
   territory?: string
   target?: string
+  troops?: number
   sizeBefore?: number
   sizeAfter?: number
   productionLost?: number

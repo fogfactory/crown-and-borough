@@ -67,8 +67,7 @@ special_orders:
   effects:
     plague_army_divisor: 2
     plague_noble_mortality_percentage: 50
-    revolt_army_count: 3
-    revolt_army_min_size: 2
+    revolt_army_min_size: 1
     revolt_army_max_size: 3
     bonus_mill_production: 1
     bonus_army_ration: 1`

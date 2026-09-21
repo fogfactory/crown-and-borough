@@ -43,6 +43,7 @@ func ResolveWithDeckOrders(game *models.GameState, balance assetgen.Balance, dec
 	if err := executeMovementsAndRetreats(ctx); err != nil {
 		return Resolution{}, err
 	}
+	resolveRevoltCombats(ctx)
 	progressChainsAndControl(ctx)
 	if err := ctx.rebuildOccupancy(); err != nil {
 		return Resolution{}, err

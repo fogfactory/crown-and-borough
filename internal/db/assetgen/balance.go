@@ -48,7 +48,6 @@ type SpecialOrdersBalance struct {
 type SpecialOrderEffects struct {
 	PlagueArmyDivisor              int `json:"plague_army_divisor" yaml:"plague_army_divisor"`
 	PlagueNobleMortalityPercentage int `json:"plague_noble_mortality_percentage" yaml:"plague_noble_mortality_percentage"`
-	RevoltArmyCount                int `json:"revolt_army_count" yaml:"revolt_army_count"`
 	RevoltArmyMinSize              int `json:"revolt_army_min_size" yaml:"revolt_army_min_size"`
 	RevoltArmyMaxSize              int `json:"revolt_army_max_size" yaml:"revolt_army_max_size"`
 	BonusMillProduction            int `json:"bonus_mill_production" yaml:"bonus_mill_production"`
@@ -99,7 +98,6 @@ type rawSpecialOrders struct {
 type rawSpecialOrderEffects struct {
 	PlagueArmyDivisor              *int `yaml:"plague_army_divisor"`
 	PlagueNobleMortalityPercentage *int `yaml:"plague_noble_mortality_percentage"`
-	RevoltArmyCount                *int `yaml:"revolt_army_count"`
 	RevoltArmyMinSize              *int `yaml:"revolt_army_min_size"`
 	RevoltArmyMaxSize              *int `yaml:"revolt_army_max_size"`
 	BonusMillProduction            *int `yaml:"bonus_mill_production"`

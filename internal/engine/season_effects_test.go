@@ -77,23 +77,27 @@ func TestResolveSeasonEffectsFamineDisablesMillContribution(t *testing.T) {
 	}
 }
 
-func TestResolveSeasonEffectsRevoltCreatesNeutralArmies(t *testing.T) {
+func TestResolveSeasonEffectsRevoltBuildsCumulatedNeutralArmy(t *testing.T) {
 	state := effectTestState()
 	setCurrentCalamity(state, models.CardKindFamine, "AAA")
 	balance := testBalance()
-	balance.SpecialOrders.Effects.RevoltArmyCount = 3
-	balance.SpecialOrders.Effects.RevoltArmyMinSize = 2
+	balance.SpecialOrders.Effects.RevoltArmyMinSize = 1
 	balance.SpecialOrders.Effects.RevoltArmyMaxSize = 3
 	ctx := newResolutionContext(state, balance)
-	ctx.deckIntents = []deckOrderIntent{{playerID: "P1", order: models.DeckOrder{ID: "O1", Kind: models.CardKindRevolt, RegionSeed: "AAA"}}}
-	resolveSeasonEffects(ctx)
-	if len(ctx.state.Armies) != 2 {
-		t.Fatalf("armies = %d, want 2 neutral armies", len(ctx.state.Armies))
+	ctx.deckIntents = []deckOrderIntent{
+		{playerID: "P1", order: models.DeckOrder{ID: "O1", Kind: models.CardKindRevolt, TargetTerritoryID: "AAA"}},
+		{playerID: "P2", order: models.DeckOrder{ID: "O2", Kind: models.CardKindRevolt, TargetTerritoryID: "AAA"}},
 	}
-	for _, army := range ctx.state.Armies {
-		if army.OwnerID != models.NeutralPlayerID || army.Size < 2 || army.Size > 3 {
-			t.Fatalf("revolt army = %#v, want neutral size 2..3", army)
-		}
+	resolveSeasonEffects(ctx)
+	if len(ctx.state.Armies) != 1 {
+		t.Fatalf("armies = %#v, want one cumulated neutral army", ctx.state.Armies)
+	}
+	rebels := ctx.state.Armies[0]
+	if rebels.OwnerID != models.NeutralPlayerID || rebels.TerritoryID != "AAA" {
+		t.Fatalf("rebel army = %#v, want a neutral army at AAA", rebels)
+	}
+	if rebels.Size < 2 || rebels.Size > 6 {
+		t.Fatalf("rebel size = %d, want the sum of two rolls between 1 and 3", rebels.Size)
 	}
 }
 

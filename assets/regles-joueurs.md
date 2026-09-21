@@ -378,7 +378,7 @@ Aucun noble n'est nécessaire.
 
 - `P BT ROS` : jouer Beau temps sur la région dont ROS est le seed ;
 - `P RA ROS` : jouer Bonne récolte sur cette région ;
-- `P RE ROS` : jouer Révolte, uniquement si une mauvaise récolte active affecte cette région ;
+- `P RE BRU` : jouer Révolte sur le territoire BRU, uniquement si une mauvaise récolte active affecte sa région ;
 - `D C BT` ou `D C RA` : défausser une carte, en hiver uniquement ;
 La main est reconstituée automatiquement en hiver après les défausses. Aucun ordre
 de pioche n'est nécessaire.
@@ -418,7 +418,7 @@ calamité ou sa contre-mesure. Aucune calamité ne se résout en hiver.
 - la peste réduit les armées par division de **{{special_orders.effects.plague_army_divisor}}** et peut supprimer un noble ;
 - le mauvais temps bloque les mouvements provenant ou visant sa région, sauf le maintien et le soutien défensif ;
 - la mauvaise récolte désactive les moulins et les bonus de rations des infrastructures de sa région ;
-- la Révolte crée des armées neutres sur les cases vides, selon la balance.
+- la Révolte se joue sur un territoire (`P RE TER`) pendant les saisons d'action, à condition que sa région subisse une mauvaise récolte. Chaque carte ajoute un jet entre **{{special_orders.effects.revolt_army_min_size}}** et **{{special_orders.effects.revolt_army_max_size}}** troupes à l'armée neutre commune du territoire ; le territoire peut être neutre (simple brigandage) et une armée y est créée si la case est vide. Si le territoire est occupé, la révolte est résolue comme un combat entre l'armée révoltée et l'occupant : le perdant se retire ou est détruit. Si la mauvaise récolte de la région est annulée par une Bonne récolte, les révoltes en attente sur la région sont annulées avec leur carte. Une rébellion vaincue se retire comme toute armée défaite au lieu de disparaître. Les armées neutres ne perdent jamais leur force à cause d'une famine, mais perdent une troupe en fin de tour si la production locale de leur territoire ne suffit pas à les nourrir.
 
 Les rumeurs publiques sont recalculées dans chaque rapport à partir des mains
 bonus actuelles de tous les joueurs. Elles apparaissent lorsqu'au moins deux

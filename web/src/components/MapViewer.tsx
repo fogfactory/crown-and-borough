@@ -13,6 +13,7 @@ import { MapLegend, TERRAIN_COLORS, TERRAIN_LABEL_KEYS } from '@/components/MapL
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
 import type { Intention } from '@/lib/intent-overlay'
+import { NEUTRAL_PLAYER_ID } from '@/types'
 import {
   DRAG_THRESHOLD,
   WHEEL_ZOOM_FACTOR,
@@ -90,6 +91,8 @@ const CROWN_PATH = 'M12 6l4 6l5 -4l-2 10h-14l-2 -10l5 4l4 -6'
 /** Neutral fill/stroke for infrastructure without a controlling player. */
 const NEUTRAL_MARKER_FILL = '#efe6d0'
 const MARKER_CASING_COLOR = '#30291f'
+/** Rebel armies answer to no crown: they render in a neutral gray. */
+const NEUTRAL_ARMY_COLOR = '#6b7280'
 
 /**
  * Cartographic texture per terrain: a repeating symbol in a darker shade of
@@ -817,7 +820,9 @@ export function MapViewer({
   const playerColors = new Map(
     owners.map((owner, index) => [
       owner,
-      colorsByPlayer.get(owner) ?? PLAYER_PALETTE[index % PLAYER_PALETTE.length],
+      owner === NEUTRAL_PLAYER_ID
+        ? NEUTRAL_ARMY_COLOR
+        : colorsByPlayer.get(owner) ?? PLAYER_PALETTE[index % PLAYER_PALETTE.length],
     ]),
   )
   const selectedTerritoryState = state.territories.find(
