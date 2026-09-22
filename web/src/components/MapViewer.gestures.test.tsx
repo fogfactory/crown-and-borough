@@ -257,14 +257,17 @@ describe('MapViewer infrastructure ownership', () => {
     expect(fills).toEqual(['url(#winter-snow-1)', 'url(#winter-snow-2)'])
   })
 
-  it('cases the colored control borders in dark under the player color', () => {
+  it('fills the ownership shield with the player color over a dark casing', () => {
     const { svg } = renderMap(vi.fn(), {}, { map, state: ownedState })
-    const controlGroup = svg.querySelector('g[aria-label="Territorial control"]')
-    const casing = controlGroup?.querySelector('path[stroke="#30291f"]')
+    const badge = svg.querySelector('[data-ownership-badge="P1"]')
+    const paths = badge?.querySelectorAll('path') ?? []
 
-    expect(casing).toBeInTheDocument()
-    expect(casing).toHaveAttribute('stroke-width', '11')
-    expect(casing?.getAttribute('stroke-opacity')).toBe('0.55')
+    expect(paths).toHaveLength(3)
+    expect(paths[1]).toHaveAttribute('fill', '#a84632')
+    expect(paths[2]).toHaveAttribute('stroke', '#30291f')
+    expect(badge?.querySelector('title')?.textContent).toBe(
+      'One controls this territory',
+    )
   })
 })
 

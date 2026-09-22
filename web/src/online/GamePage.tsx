@@ -289,7 +289,11 @@ export function GamePage() {
   const [submitting, setSubmitting] = useState(false)
   const [confirmResolve, setConfirmResolve] = useState(false)
   const [activePanel, setActivePanel] = useState<Panel>('command')
-  const [showRegions, setShowRegions] = useState(false)
+  const [showOwnership, setShowOwnership] = useLocalStorageState(
+    'cb.ownershipOverlay',
+    true,
+  )
+  const [showRegions, setShowRegions] = useLocalStorageState('cb.regionsOverlay', true)
   const [rulesNavigation, setRulesNavigation] = useState<{
     section: RulesSection
     key: number
@@ -1088,6 +1092,8 @@ export function GamePage() {
             showIntentions={showIntentions}
             intentionsColor={intentionsColor}
             onToggleIntentions={setShowIntentions}
+            showOwnership={showOwnership}
+            onToggleOwnership={setShowOwnership}
             showRegions={showRegions}
             onToggleRegions={setShowRegions}
             showCalamities={showCalamities}

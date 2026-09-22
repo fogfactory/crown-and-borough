@@ -30,6 +30,13 @@ const TERRAIN_ORDER: Terrain[] = ['plain', 'forest', 'hill', 'mountain', 'swamp'
 const LEGEND_SAMPLE_OWNER = '#a84632'
 const LEGEND_CASING = '#30291f'
 
+/**
+ * Heater-shield silhouette shared by the map ownership badges and this
+ * legend swatch.
+ */
+export const OWNERSHIP_SHIELD_PATH =
+  'M -10 -12 L 10 -12 L 10 -2 C 10 5 5.5 10.5 0 13 C -5.5 10.5 -10 5 -10 -2 Z'
+
 // Map marker artwork from game-icons.net (CC BY 3.0, icons by Delapouite):
 // https://game-icons.net/1x1/delapouite/castle.html
 // https://game-icons.net/1x1/delapouite/village.html
@@ -161,6 +168,8 @@ function TerrainSwatch({ terrain }: { terrain: Terrain }) {
 interface MapLegendProps {
   showIntentions?: boolean
   onToggleIntentions?: (show: boolean) => void
+  showOwnership?: boolean
+  onToggleOwnership?: (show: boolean) => void
   showRegions?: boolean
   onToggleRegions?: (show: boolean) => void
   showCalamities?: boolean
@@ -172,6 +181,8 @@ interface MapLegendProps {
 export function MapLegend({
   showIntentions = true,
   onToggleIntentions,
+  showOwnership = true,
+  onToggleOwnership,
   showRegions = false,
   onToggleRegions,
   showCalamities = true,
@@ -208,6 +219,17 @@ export function MapLegend({
             </span>
           </label>
         )}
+        {onToggleOwnership && (
+          <label className="flex items-center gap-2 rounded-md bg-[#f3ead9] px-2 py-1.5">
+            <input
+              type="checkbox"
+              checked={showOwnership}
+              onChange={(event) => onToggleOwnership(event.target.checked)}
+              className="size-3.5 shrink-0 accent-[#a84632]"
+            />
+            <span>{t('legend.ownership')}</span>
+          </label>
+        )}
         {onToggleRegions && (
           <label className="flex items-center gap-2 rounded-md bg-[#eef3f7] px-2 py-1.5">
             <input
@@ -237,12 +259,6 @@ export function MapLegend({
             />
             <span>{t('legend.cards')}</span>
           </label>
-        )}
-        {onToggleRegions && (
-          <div className="flex items-center gap-2 rounded-md bg-[#eef3f7] px-2 py-1.5">
-            <span className="size-3 shrink-0 rotate-45 rounded-[2px] border-2 border-[#294c63] bg-[#4d7893]" />
-            <span>{t('legend.regionSeed')}</span>
-          </div>
         )}
         {onToggleRegions && (
           <div className="space-y-1 rounded-md bg-[#eef3f7] px-2 py-1.5" data-region-swatches>
@@ -322,25 +338,20 @@ export function MapLegend({
             <span>{t('legend.prisoner')}</span>
           </div>
           <div className="flex items-center gap-2">
-            <svg className="size-3 shrink-0" viewBox="0 0 16 16" aria-hidden="true">
-              <rect
-                x="3"
-                y="3"
-                width="10"
-                height="10"
+            <svg className="size-3 shrink-0" viewBox="-13 -15 26 30" aria-hidden="true">
+              <path
+                d={OWNERSHIP_SHIELD_PATH}
+                fill="#fff8e7"
+                stroke="#fff8e7"
+                strokeWidth={2}
+                opacity={0.9}
+              />
+              <path d={OWNERSHIP_SHIELD_PATH} fill="#a84632" />
+              <path
+                d={OWNERSHIP_SHIELD_PATH}
                 fill="none"
                 stroke={LEGEND_CASING}
-                strokeWidth="5"
-                opacity="0.55"
-              />
-              <rect
-                x="3"
-                y="3"
-                width="10"
-                height="10"
-                fill="none"
-                stroke="#a84632"
-                strokeWidth="3"
+                strokeWidth={1.4}
               />
             </svg>
             <span>{t('legend.control')}</span>
