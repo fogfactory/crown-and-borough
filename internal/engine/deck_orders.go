@@ -126,6 +126,40 @@ func (ctx *resolutionContext) consumeDeckCardForPlay(playerID models.PlayerID, k
 	return ctx.consumeDeckCardWithEvent(playerID, kind, false)
 }
 
+// restoreDeckCard returns one card of the given kind from the discard pile to
+// the player's hand, undoing the consumption of a canceled play.
+func (ctx *resolutionContext) restoreDeckCard(playerID models.PlayerID, kind models.CardKind) bool {
+	if ctx.state.SpecialDeck == nil {
+		return false
+	}
+	for index, cardID := range ctx.state.SpecialDeck.Discard {
+		for _, card := range ctx.state.SpecialDeck.Cards {
+			if card.ID != cardID || card.Kind != kind {
+				continue
+			}
+			ctx.state.SpecialDeck.Discard = append(
+				ctx.state.SpecialDeck.Discard[:index],
+				ctx.state.SpecialDeck.Discard[index+1:]...,
+			)
+			ctx.state.SpecialDeck.Hands[playerID] = append(
+				ctx.state.SpecialDeck.Hands[playerID],
+				cardID,
+			)
+			ctx.events = append(ctx.events, Event{
+				Type:     EventTypeDeckRestore,
+				Phase:    phaseForSeason(ctx.state.Season),
+				OwnerID:  playerID,
+				CardID:   cardID,
+				CardKind: kind,
+				Season:   ctx.state.Season,
+				Year:     ctx.state.Year(),
+			})
+			return true
+		}
+	}
+	return false
+}
+
 func (ctx *resolutionContext) consumeDeckCardWithEvent(playerID models.PlayerID, kind models.CardKind, emitDiscard bool) bool {
 	if ctx.state.SpecialDeck == nil {
 		return false

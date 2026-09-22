@@ -32,6 +32,7 @@ export type EventType =
   | 'transfer'
   | 'deck_draw'
   | 'deck_discard'
+  | 'deck_restore'
   | 'calamity_scheduled'
   | 'deck_order_played'
   | 'calamity_applied'

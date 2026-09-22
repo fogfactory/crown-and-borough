@@ -126,7 +126,7 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 	}
 	for _, intent := range intents {
 		if intent.order.Kind == models.CardKindRevolt {
-			applyRevolt(ctx, intent.order.TargetTerritoryID, intent.order.ID)
+			applyRevolt(ctx, intent.order.TargetTerritoryID, intent.order.ID, intent.playerID)
 		}
 	}
 	resolvePlagueMortality(ctx)
@@ -246,17 +246,20 @@ func applyPlague(ctx *resolutionContext, regionSeed models.TerritoryID) {
 // defers the fight to the post-movement revolt pass while the territory is
 // held by a player army. A revolt whose famine has been canceled in the
 // meantime is annulled with the card.
-func applyRevolt(ctx *resolutionContext, targetTerritory models.TerritoryID, orderID models.OrderID) {
+func applyRevolt(ctx *resolutionContext, targetTerritory models.TerritoryID, orderID models.OrderID, playerID models.PlayerID) {
 	if targetTerritory == "" {
 		return
 	}
 	regionSeed := regionForTerritory(ctx, targetTerritory)
 	if !ctx.famineRegions[regionSeed] {
+		// The famine was countered before the revolt applied: the card returns
+		// to its player's hand and the annulment is credited to them.
 		ctx.events = append(ctx.events, Event{
 			Type: EventTypeCardCanceled, Phase: phaseForSeason(ctx.state.Season),
 			CardKind: models.CardKindRevolt, RegionSeed: regionSeed, TerritoryID: targetTerritory,
-			Season: ctx.state.Season, Year: ctx.state.Year(),
+			OwnerID: playerID, Season: ctx.state.Season, Year: ctx.state.Year(),
 		})
+		ctx.restoreDeckCard(playerID, models.CardKindRevolt)
 		return
 	}
 	roll := ctx.rollRevoltSize(orderID)

@@ -199,13 +199,26 @@ func TestRevoltIsCanceledWhenFamineIsCountered(t *testing.T) {
 		}
 	}
 	canceled := false
+	restored := false
 	for _, event := range resolution.Events {
 		if event.Type == EventTypeCardCanceled && event.CardKind == models.CardKindRevolt && event.TerritoryID == "BBB" {
 			canceled = true
 		}
+		if event.Type == EventTypeDeckRestore && event.OwnerID == "P1" && event.CardKind == models.CardKindRevolt {
+			restored = true
+		}
 	}
 	if !canceled {
 		t.Fatalf("events = %#v, want a canceled revolt card at BBB", resolution.Events)
+	}
+	if !restored {
+		t.Fatalf("events = %#v, want the revolt card restored to its player", resolution.Events)
+	}
+	if got := resolution.State.SpecialDeck.Hands["P1"]; len(got) != 1 || got[0] != "C1" {
+		t.Fatalf("P1 hand = %#v, want the canceled revolt card back", got)
+	}
+	if got := resolution.State.SpecialDeck.Discard; len(got) != 1 || got[0] != "C2" {
+		t.Fatalf("discard = %#v, want only the abundant harvest", got)
 	}
 }
 

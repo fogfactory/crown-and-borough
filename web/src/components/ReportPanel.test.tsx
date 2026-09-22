@@ -189,6 +189,12 @@ const report: TurnReport = {
       season: 'summer',
       outcome: 'success',
     },
+    {
+      eventType: 'deck_restore',
+      kind: 'revolt',
+      player: 'P1',
+      outcome: 'success',
+    },
   ],
   seasonEffects: [
     { kind: 'calamity_applied', cardKind: 'plague', region: 'ROS', season: 'spring' },
@@ -218,6 +224,7 @@ const report: TurnReport = {
     { kind: 'famine_loss', cardKind: 'famine', region: 'ROS', season: 'spring', productionLost: 2, rationsLost: 2 },
     { kind: 'famine_loss', cardKind: 'famine', region: 'ROS', season: 'spring', territory: 'BRU', productionLost: 2 },
     { kind: 'bonus_effect', cardKind: 'fair_weather', region: 'ROS', season: 'spring' },
+    { kind: 'card_canceled', cardKind: 'revolt', region: 'ROS', season: 'spring', owner: 'P1', territory: 'BRU' },
     { kind: 'neutral_army_created', cardKind: 'revolt', region: 'ROS', season: 'spring', territory: 'BRU', troops: 2 },
   ],
   winter: {
@@ -293,6 +300,8 @@ describe('ReportPanel', () => {
     ).toBeInTheDocument()
     expect(screen.getByText(/Beau temps \(BT\) jouée sur ROS/)).toBeInTheDocument()
     expect(screen.getByText(/Peste \(PE\) à venir en Été dans ROS/)).toBeInTheDocument()
+    expect(screen.getByText(/P1 : Révolte \(RE\) annulée à BRU/)).toBeInTheDocument()
+    expect(screen.getByText(/P1 : Révolte \(RE\) récupérée/)).toBeInTheDocument()
     expect(screen.getByText(/Mauvaise récolte \(MR\) active dans ROS/)).toBeInTheDocument()
     expect(screen.getByText(/Beau temps \(BT\) actif dans ROS/)).toBeInTheDocument()
     expect(screen.getByText('Peste (PE) active dans ROS')).toBeInTheDocument()

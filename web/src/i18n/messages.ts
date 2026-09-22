@@ -222,6 +222,7 @@ const englishMessages = {
   'reports.cardDrawn': '{player}: {card} drawn',
   'reports.cardDiscarded': '{player}: {card} discarded',
   'reports.cardPlayed': '{player}: {card} played on {region}',
+  'reports.cardRestored': '{player}: {card} returned to hand',
   'reports.cardScheduled': '{card} scheduled for {season} in {region}',
   'reports.seasonEffects': 'Season effects',
   'reports.calamityApplied': '{card} active in {region}',
@@ -232,7 +233,7 @@ const englishMessages = {
   'reports.plagueDeath': 'Noble {noble} died from plague at {territory}',
   'reports.plagueSurvived': 'Noble {noble} at {territory} survived the plague',
   'reports.neutralFamine': 'Starving neutral army at {territory}: {before} → {after} troops',
-  'reports.cardCanceled': '{card} canceled at {territory}',
+  'reports.cardCanceled': '{player}: {card} canceled at {territory}',
   'reports.calamityPlagueArmy': 'Army of {owner} at {territory}: {before} → {after} troops',
   'reports.calamityBadWeatherBlocked': 'Army of {owner} at {territory}: move to {target} blocked',
   'reports.calamityBadWeatherBlockedNoTarget':
@@ -804,7 +805,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.plagueDeath': 'Le noble {noble} meurt de la peste à {territory}',
   'reports.plagueSurvived': 'Le noble {noble} à {territory} survit à la peste',
   'reports.neutralFamine': 'Armée neutre affamée à {territory} : {before} → {after} troupes',
-  'reports.cardCanceled': '{card} annulée à {territory}',
+  'reports.cardCanceled': '{player} : {card} annulée à {territory}',
+  'reports.cardRestored': '{player} : {card} récupérée',
   'reports.calamityPlagueArmy': 'Armée de {owner} à {territory} : {before} → {after} troupes',
   'reports.calamityBadWeatherBlocked':
     'Armée de {owner} à {territory} : mouvement vers {target} bloqué',

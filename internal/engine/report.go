@@ -501,7 +501,7 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 				report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}
 			}
 			report.Winter.Rumors = append(report.Winter.Rumors, RumorReport{Kind: event.CardKind, Key: event.RumorKey, Level: event.RumorLevel})
-		case EventTypeCalamityScheduled, EventTypeDeckDiscard, EventTypeDeckOrderPlayed:
+		case EventTypeCalamityScheduled, EventTypeDeckDiscard, EventTypeDeckOrderPlayed, EventTypeDeckRestore:
 			card := CardReport{EventType: event.Type, Kind: event.CardKind, Player: event.OwnerID, Region: event.RegionSeed, Season: event.Season, Outcome: OutcomeSuccess}
 			report.Cards = append(report.Cards, card)
 			if event.Phase == winterPhase {

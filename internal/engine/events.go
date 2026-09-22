@@ -37,6 +37,7 @@ const (
 	EventTypeLiberation        EventType = "liberation"
 	EventTypeDeckDraw          EventType = "deck_draw"
 	EventTypeDeckDiscard       EventType = "deck_discard"
+	EventTypeDeckRestore       EventType = "deck_restore"
 	EventTypeCalamityScheduled EventType = "calamity_scheduled"
 	EventTypeAuguryRevealed    EventType = "augury_revealed"
 	EventTypeDeckOrderPlayed   EventType = "deck_order_played"

@@ -317,6 +317,8 @@ function cardEventLabel(card: CardReport, map: MapData | null, t: Translate): st
       return t('reports.cardDiscarded', { card: label, player })
     case 'deck_order_played':
       return t('reports.cardPlayed', { card: label, player, region })
+    case 'deck_restore':
+      return t('reports.cardRestored', { card: label, player })
     case 'calamity_scheduled':
       return t('reports.cardScheduled', {
         card: label,
@@ -451,15 +453,14 @@ function seasonEffectLine(
       }
     case 'card_canceled': {
       const card = effect.cardKind ? formatCardLabel(effect.cardKind, t) : ''
-      return {
-        key,
-        label: effect.territory
-          ? t('reports.cardCanceled', {
-              card,
-              territory: territoryLabel(map, effect.territory, t),
-            })
-          : card,
-      }
+      const target = effect.territory
+        ? t('reports.cardCanceled', {
+            player: effect.owner ?? t('reports.unknownPlayer'),
+            card,
+            territory: territoryLabel(map, effect.territory, t),
+          })
+        : card
+      return { key, owner: effect.owner, label: target }
     }
     case 'neutral_army_created': {
       const count = effect.troops ?? 0
