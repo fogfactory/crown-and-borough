@@ -8,6 +8,7 @@ type PlayerID string
 // SpectatorViewer is used only by server-side projections. It is never a
 // player in GameState and must not be persisted as an owner or privacy key.
 const SpectatorViewer PlayerID = "*spectator"
+const NeutralPlayerID PlayerID = "NEUTRAL"
 
 type TerritoryID string
 type ArmyID string

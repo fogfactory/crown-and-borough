@@ -111,7 +111,8 @@ The `T` transfer order uses the supply network instead.
 
 A chain is not limited to one season: a successful line advances the chain index,
 and the next line waits for the next resolution. A `loop` line deliberately keeps
-the same order when it has to wait for an opening.
+the same order when it has to wait for an opening. A movement invalidated by bad
+weather pauses the chain: the order stays in place and re-attempts next season.
 
 ### Reception
 
@@ -336,9 +337,73 @@ investments, and a territory without a castle, village, or depot does not keep s
 For example, an outlying village keeps at most 1 R after conservation; its
 surplus goes to the capital, while an outlying castle may keep 2 R.
 
+### Special cards
+
+The deck contains **{{special_orders.deck_size}} cards**: **{{special_orders.card.plague}} plague**, **{{special_orders.card.bad_weather}} bad weather**, **{{special_orders.card.famine}} bad harvest**, **{{special_orders.card.fair_weather}} fair weather**, **{{special_orders.card.abundant_harvest}} abundant harvest**, and **{{special_orders.card.revolt}} revolt** cards.
+
+A hand is limited to **{{special_orders.hand_limit}} cards**. After winter
+discards, each player automatically receives up to **{{special_orders.draw_orders_limit}} bonus cards**. Calamities are programmed into spring (**{{special_orders.calamity_slots.spring}}**), summer (**{{special_orders.calamity_slots.summer}}**), and autumn (**{{special_orders.calamity_slots.autumn}}**) slots. Plague reduces army sizes by a divisor of **{{special_orders.effects.plague_army_divisor}}**.
+
+## 6. Special cards and calamities
+
+Playable card orders are submitted in a separate `special` field, distinct from
+noble chains. Winter discards are written in the `winter` sheet. They do not
+require a noble.
+
+- `P FW ROS`: play Fair weather on the region seeded by ROS;
+- `P AH ROS`: play Abundant harvest on that region;
+- `P RV BRU`: play Revolt on the BRU territory, only when an active bad harvest affects its region;
+- `D C FW` or `D C AH`: discard a card, winter only;
+The hand is replenished automatically in winter after discards. No draw order is
+needed.
+
+Fair weather, Abundant harvest and Revolt can be played in spring, summer and
+autumn, but not winter. Played cards are consumed before army-order resolution.
+Fair weather cancels only bad weather and Abundant harvest cancels only bad harvest.
+A card that cancels a calamity does not provide its regional bonus. Duplicate
+cards are consumed, but only one card of each kind is effective: with an active
+calamity the first card cancels and a second one applies the regional bonus;
+without a calamity the first card applies it. The bonus stays capped at one unit
+per category and region, further cards being consumed without effect.
+
+The deck contains **{{special_orders.deck_size}} cards**:
+**{{special_orders.card.plague}}** plague, **{{special_orders.card.bad_weather}}**
+bad weather, **{{special_orders.card.famine}}** bad harvest,
+**{{special_orders.card.fair_weather}}** fair weather,
+**{{special_orders.card.abundant_harvest}}** abundant harvest and
+**{{special_orders.card.revolt}}** revolt cards. The hand limit is
+**{{special_orders.hand_limit}} cards**, and each player automatically receives
+up to **{{special_orders.draw_orders_limit}} bonus cards per winter**, after
+discards.
+
+A drawn calamity is programmed into the first free slot of the following year:
+spring (**{{special_orders.calamity_slots.spring}}**), summer
+(**{{special_orders.calamity_slots.summer}}**) or autumn
+(**{{special_orders.calamity_slots.autumn}}**). Its region is selected
+deterministically when programmed. The spring augury reveals the kind, season
+and region of every calamity in that year; future auguries remain hidden.
+
+As soon as a calamity is drawn, the interface announces it in the special-cards
+panel. The announcement stays visible until the calamity applies or is
+countered. No calamity resolves in winter.
+
+- plague reduces armies by a divisor of **{{special_orders.effects.plague_army_divisor}}** and may remove a noble;
+- bad weather blocks movements originating from or targeting its region, except holds and defensive support;
+- bad harvest disables mills and infrastructure ration bonuses in its region;
+- Revolt is played on a territory (`P RV TER`) during action seasons, provided its region suffers a bad harvest. Each card adds a roll between **{{special_orders.effects.revolt_army_min_size}}** and **{{special_orders.effects.revolt_army_max_size}}** troops to the territory's common neutral army; the territory may be neutral (mere brigandage) and an army is raised there when the square is empty. If the territory is occupied, the revolt resolves as a battle between the rebel army and the holder: the loser retreats or is destroyed. When an Abundant harvest cancels the region's bad harvest, pending revolts in that region are canceled and their players take their cards back. A crushed rebellion retreats like any defeated army instead of vanishing. Neutral armies never lose strength to a famine, but lose one troop at the end of the turn when the local production of their territory cannot feed them.
+
+Public rumors are recalculated in every report from the current bonus hands of
+all players. They appear when at least two players hold a card, without revealing
+the player or the internal card identifier. Several cards of the same kind are
+grouped into one graduated sentence: level 1 for a few cards, level 2 for a
+stronger presence, and level 3 for exceptional abundance. The scale is
+recalibrated to the game's hand capacity (players multiplied by the hand limit),
+so the same number of cards does not produce the same level in a small and a
+large game.
+
 ---
 
-## 6. Armies, Combat, and Logistics
+## 7. Armies, Combat, and Logistics
 
 ### Armies and Strength
 

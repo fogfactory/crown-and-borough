@@ -132,6 +132,7 @@ function AppContent() {
     Record<PlayerId, Record<string, string>>
   >({})
   const [winterDrafts, setWinterDrafts] = useState<Record<PlayerId, string>>({})
+  const [specialDrafts, setSpecialDrafts] = useState<Record<PlayerId, string>>({})
   const [submittedPlayers, setSubmittedPlayers] = useState<PlayerId[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -143,6 +144,7 @@ function AppContent() {
   const [seed, setSeed] = useState('')
   const [view, setView] = useState<HotseatView>('game')
   const [activePanel, setActivePanel] = useState<Panel>('command')
+  const [showRegions, setShowRegions] = useState(false)
   const [viewedReportTurn, setViewedReportTurn] = useState<number | null>(null)
   const [mapFocusSignal, setMapFocusSignal] = useState(0)
   const [rulesNavigation, setRulesNavigation] = useState<{
@@ -153,6 +155,11 @@ function AppContent() {
     'cb.intentionsOverlay',
     true,
   )
+  const [showCalamities, setShowCalamities] = useLocalStorageState(
+    'cb.calamitiesOverlay',
+    true,
+  )
+  const [showCards, setShowCards] = useLocalStorageState('cb.cardsOverlay', true)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -238,6 +245,9 @@ function AppContent() {
   const selectedState = state?.territories.find(
     (territory) => territory.id === selectedId,
   )
+  const selectedRegion = map?.regions?.find((region) =>
+    region.territories.includes(selectedId ?? ''),
+  )
   const supplySelectionAllowed =
     (supplyLine?.kind === 'army' && Boolean(selectedState?.army)) ||
     (supplyLine?.kind === 'source' &&
@@ -262,6 +272,14 @@ function AppContent() {
         : [],
     [chainDrafts, map, selectedPlayer, state],
   )
+  /**
+   * Card intentions are private: only the drafting player's own map shows
+   * them, so the hotseat view exposes the selected player's draft only.
+   */
+  const specialOrders = useMemo(() => {
+    const text = specialDrafts[selectedPlayer] ?? ''
+    return text.trim() !== '' ? [{ player: selectedPlayer, text }] : []
+  }, [specialDrafts, selectedPlayer])
   const intentionsColor =
     state?.players.find((player) => player.id === selectedPlayer)?.color ?? '#a84632'
 
@@ -387,6 +405,10 @@ function AppContent() {
     setWinterDrafts((drafts) => ({ ...drafts, [selectedPlayer]: text }))
   }
 
+  const updateSpecialDraft = (text: string) => {
+    setSpecialDrafts((drafts) => ({ ...drafts, [selectedPlayer]: text }))
+  }
+
   const openRules = (section: RulesSection) => {
     setRulesNavigation((current) => ({
       section,
@@ -419,6 +441,13 @@ function AppContent() {
           showIntentions={showIntentions}
           intentionsColor={intentionsColor}
           onToggleIntentions={setShowIntentions}
+          showRegions={showRegions}
+          onToggleRegions={setShowRegions}
+          showCalamities={showCalamities}
+          onToggleCalamities={setShowCalamities}
+          showCards={showCards}
+          onToggleCards={setShowCards}
+          specialOrders={specialOrders}
         />
       )
     }
@@ -471,9 +500,19 @@ function AppContent() {
               ),
             }))
             .filter((submission) => hasChainContent(submission.noble, submission.text))
+    const winterLines = [
+      winterDrafts[selectedPlayer] ?? '',
+      state.season === 'winter' ? (specialDrafts[selectedPlayer] ?? '') : '',
+    ]
+      .filter((text) => text.trim() !== '')
+      .join('\n')
     const winter =
-      state.season === 'winter' && (winterDrafts[selectedPlayer] ?? '').trim() !== ''
-        ? [{ player: selectedPlayer, lines: winterDrafts[selectedPlayer] ?? '' }]
+      state.season === 'winter' && winterLines !== ''
+        ? [{ player: selectedPlayer, lines: winterLines }]
+        : []
+    const special =
+      state.season !== 'winter' && (specialDrafts[selectedPlayer] ?? '').trim() !== ''
+        ? [{ player: selectedPlayer, text: specialDrafts[selectedPlayer] ?? '' }]
         : []
 
     try {
@@ -482,7 +521,13 @@ function AppContent() {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ player: selectedPlayer, chains, winter, force }),
+          body: JSON.stringify({
+            player: selectedPlayer,
+            chains,
+            winter,
+            special,
+            force,
+          }),
         },
       )
       if (!response.ok) throw new Error(await responseError(response, t))
@@ -494,6 +539,7 @@ function AppContent() {
         setActivePanel('report')
         setChainDrafts({})
         setWinterDrafts({})
+        setSpecialDrafts({})
         setSubmittedPlayers([])
       }
     } catch (error) {
@@ -838,6 +884,7 @@ function AppContent() {
                     selectedTerritory={selectedTerritory}
                     selectedState={selectedState}
                     mapTerritories={map?.territories ?? []}
+                    selectedRegion={selectedRegion}
                     selectedSupplyLine={selectedSupplyLine}
                     sourceTerritory={supplySourceTerritory}
                     supplyLoading={supplyLoading}
@@ -849,7 +896,6 @@ function AppContent() {
                     transferLoading={transferLoading}
                     transferError={transferError}
                   />
-
                   {state && (
                     <OrdersPanel
                       state={state}
@@ -858,11 +904,13 @@ function AppContent() {
                       winterDraft={winterDrafts[selectedPlayer] ?? ''}
                       winterCosts={winterCosts}
                       map={map ?? undefined}
+                      specialDraft={specialDrafts[selectedPlayer] ?? ''}
                       submitted={submittedPlayers.includes(selectedPlayer)}
                       submitting={resolving}
                       error={actionError}
                       onChainChange={updateChainDraft}
                       onWinterChange={updateWinterDraft}
+                      onSpecialChange={updateSpecialDraft}
                       onSubmit={() => void submitOrders()}
                       onOpenRules={openRules}
                     />

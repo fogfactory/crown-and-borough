@@ -14,6 +14,15 @@ import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
 import type { Intention } from '@/lib/intent-overlay'
 import {
+  CALAMITY_ICONS,
+  CANCELED_KIND_BY_CARD,
+  CARD_ICONS,
+  parseSpecialOrderPlacements,
+} from '@/lib/game-icons'
+import { type GameIconGlyph } from '@/lib/game-icon-glyphs'
+import { chaoticIconPlacements, type IconPlacement } from '@/lib/chaotic-icons'
+import { NEUTRAL_PLAYER_ID } from '@/types'
+import {
   DRAG_THRESHOLD,
   WHEEL_ZOOM_FACTOR,
   ZOOM_BUTTON_FACTOR,
@@ -27,6 +36,13 @@ import {
   type MapPoint,
   type ViewState,
 } from '@/lib/map-gestures'
+import {
+  REGION_PATTERNS,
+  regionStyle,
+  type RegionPattern,
+  type RegionStyle,
+} from '@/lib/region-color'
+import { formatCardCode, formatCardLabel } from '@/lib/card-hand'
 import { hasSupplySource } from '@/lib/supply'
 import {
   Tooltip,
@@ -36,8 +52,10 @@ import {
 } from '@/components/ui/tooltip'
 import type {
   Infrastructure,
+  CardKind,
   MapData,
   Noble,
+  PlayerId,
   Point,
   StateData,
   SupplyLine,
@@ -58,6 +76,7 @@ const REFERENCE_MEAN_TERRITORY_AREA =
 const PLAYER_PALETTE = ['#a84632', '#2d5f9e', '#7052a1', '#0e7490', '#ad7a25']
 const INTENT_OUTLINE_COLOR = '#17120f'
 export const DRAFT_INTENTION_COLOR = '#d4a39b'
+const CALAMITY_KINDS: CardKind[] = ['plague', 'bad_weather', 'famine']
 
 // Map marker artwork from game-icons.net (CC BY 3.0, icons by Delapouite):
 // https://game-icons.net/1x1/delapouite/castle.html
@@ -81,6 +100,8 @@ const CROWN_PATH = 'M12 6l4 6l5 -4l-2 10h-14l-2 -10l5 4l4 -6'
 /** Neutral fill/stroke for infrastructure without a controlling player. */
 const NEUTRAL_MARKER_FILL = '#efe6d0'
 const MARKER_CASING_COLOR = '#30291f'
+/** Rebel armies answer to no crown: they render in a neutral gray. */
+const NEUTRAL_ARMY_COLOR = '#6b7280'
 
 /**
  * Cartographic texture per terrain: a repeating symbol in a darker shade of
@@ -475,6 +496,42 @@ function NobleMarker({
   )
 }
 
+function RegionPatternDefinition({ pattern }: { pattern: RegionPattern }) {
+  const stroke = '#fffaf0'
+  const strokeWidth = 1.5
+
+  return (
+    <pattern
+      id={`region-pattern-${pattern}`}
+      width={pattern === 'diamonds' ? 12 : 8}
+      height={pattern === 'diamonds' ? 12 : 8}
+      patternUnits="userSpaceOnUse"
+    >
+      {pattern === 'diagonal' && (
+        <path d="M-2 2L2-2M0 8L8 0M6 10L10 6" stroke={stroke} strokeWidth={strokeWidth} />
+      )}
+      {pattern === 'vertical' && (
+        <path d="M2 0V8M6 0V8" stroke={stroke} strokeWidth={strokeWidth} />
+      )}
+      {pattern === 'horizontal' && (
+        <path d="M0 2H8M0 6H8" stroke={stroke} strokeWidth={strokeWidth} />
+      )}
+      {pattern === 'cross' && (
+        <path d="M2 0V8M6 0V8M0 2H8M0 6H8" stroke={stroke} strokeWidth={strokeWidth} />
+      )}
+      {pattern === 'dots' && <circle cx="2" cy="2" r="1.2" fill={stroke} />}
+      {pattern === 'diamonds' && (
+        <path
+          d="M6 0L12 6L6 12L0 6Z"
+          fill="none"
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+        />
+      )}
+    </pattern>
+  )
+}
+
 function IntentBadge({
   x,
   y,
@@ -572,6 +629,54 @@ function MapControls({ onZoom }: { onZoom: (zoomFactor: number) => void }) {
   )
 }
 
+/**
+ * Inline game-icons.net glyph: one filled path recolored at render time,
+ * optionally outlined (the liseré) directly on the path edges.
+ */
+function GameIconGlyph({
+  glyph,
+  x,
+  y,
+  size,
+  fill,
+  stroke,
+  strokeWidth = 0,
+  opacity,
+  rotation = 0,
+}: {
+  glyph: GameIconGlyph
+  x: number
+  y: number
+  size: number
+  fill: string
+  stroke?: string
+  strokeWidth?: number
+  opacity: number
+  rotation?: number
+}) {
+  return (
+    <svg
+      x={x}
+      y={y}
+      width={size}
+      height={size}
+      viewBox="0 0 512 512"
+      opacity={opacity}
+      transform={`rotate(${rotation} ${x + size / 2} ${y + size / 2})`}
+      pointerEvents="none"
+    >
+      <g transform={glyph.transform}>
+        <path
+          d={glyph.path}
+          fill={fill}
+          stroke={stroke ?? 'none'}
+          strokeWidth={strokeWidth}
+        />
+      </g>
+    </svg>
+  )
+}
+
 interface MapViewerProps {
   map: MapData
   state: StateData
@@ -581,6 +686,14 @@ interface MapViewerProps {
   showIntentions?: boolean
   intentionsColor?: string
   onToggleIntentions?: (show: boolean) => void
+  showRegions?: boolean
+  onToggleRegions?: (show: boolean) => void
+  showCalamities?: boolean
+  onToggleCalamities?: (show: boolean) => void
+  showCards?: boolean
+  onToggleCards?: (show: boolean) => void
+  /** Deck-order drafts per player, parsed into the card overlay. */
+  specialOrders?: Array<{ player: PlayerId; text: string }>
 }
 
 export function MapViewer({
@@ -592,6 +705,13 @@ export function MapViewer({
   showIntentions = false,
   intentionsColor = '#a84632',
   onToggleIntentions,
+  showRegions = false,
+  onToggleRegions,
+  showCalamities = true,
+  onToggleCalamities,
+  showCards = true,
+  onToggleCards,
+  specialOrders = [],
 }: MapViewerProps) {
   const { t } = useLanguage()
   const svgRef = useRef<SVGSVGElement>(null)
@@ -708,6 +828,50 @@ export function MapViewer({
       }
     }, [map])
 
+  const regionByTerritory = useMemo(() => {
+    const result = new Map<string, string>()
+    for (const region of map.regions ?? []) {
+      for (const territoryID of region.territories) result.set(territoryID, region.id)
+    }
+    return result
+  }, [map.regions])
+  const regionStyleByID = new Map<string, RegionStyle>(
+    [...new Set(regionByTerritory.values())]
+      .sort()
+      .map((regionID, index, regionIDs) => [
+        regionID,
+        regionStyle(index, regionIDs.length),
+      ]),
+  )
+
+  const isRegionBoundary = (key: string) => {
+    const end = key.indexOf(']')
+    if (end < 0) return false
+    try {
+      const [first, second] = JSON.parse(key.slice(0, end + 1)) as [string, string]
+      return regionByTerritory.get(first) !== regionByTerritory.get(second)
+    } catch {
+      return false
+    }
+  }
+
+  const regionColorForBoundary = (key: string) => {
+    const end = key.indexOf(']')
+    if (end < 0) return '#607d8b'
+    try {
+      const [first] = JSON.parse(key.slice(0, end + 1)) as [string, string]
+      return regionStyleByID.get(regionByTerritory.get(first) ?? '')?.fill ?? '#315a75'
+    } catch {
+      return '#607d8b'
+    }
+  }
+
+  const regionColorForTerritory = (territoryID: string) =>
+    regionStyleByID.get(regionByTerritory.get(territoryID) ?? '')?.fill ?? '#315a75'
+
+  const regionStyleForTerritory = (territoryID: string): RegionStyle | null =>
+    regionStyleByID.get(regionByTerritory.get(territoryID) ?? '') ?? null
+
   const colorsByPlayer = new Map(state.players.map((player) => [player.id, player.color]))
   const owners = Array.from(
     new Set<string>([
@@ -724,7 +888,9 @@ export function MapViewer({
   const playerColors = new Map(
     owners.map((owner, index) => [
       owner,
-      colorsByPlayer.get(owner) ?? PLAYER_PALETTE[index % PLAYER_PALETTE.length],
+      owner === NEUTRAL_PLAYER_ID
+        ? NEUTRAL_ARMY_COLOR
+        : colorsByPlayer.get(owner) ?? PLAYER_PALETTE[index % PLAYER_PALETTE.length],
     ]),
   )
   const selectedTerritoryState = state.territories.find(
@@ -751,6 +917,242 @@ export function MapViewer({
   const passableBorderDash = `${4 * annotationScale} ${3 * annotationScale}`
   const supplyPathDash = `${8 * annotationScale} ${5 * annotationScale}`
   const supplyEndpointDash = `${3 * annotationScale} ${3 * annotationScale}`
+
+  /**
+   * Drafted canceling cards per (canceled calamity, region): BT against bad
+   * weather, RA against famine. The first card cancels the calamity; per the
+   * rules a second card of the same kind applies its regional bonus instead.
+   */
+  const canceledCardCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const { text } of specialOrders) {
+      for (const placement of parseSpecialOrderPlacements(text)) {
+        const canceledKind =
+          placement.kind === 'fair_weather' || placement.kind === 'abundant_harvest'
+            ? CANCELED_KIND_BY_CARD[placement.kind]
+            : null
+        if (canceledKind) {
+          const key = `${canceledKind}-${placement.target}`
+          counts.set(key, (counts.get(key) ?? 0) + 1)
+        }
+      }
+    }
+    return counts
+  }, [specialOrders])
+
+  /**
+   * Regions where the drafted cards fully clear the calamity (two canceling
+   * cards or more): the calamity icons disappear and the residual bonus
+   * scatters instead. With a single canceling card the calamity icons stay,
+   * marked with a cancellation badge.
+   */
+  const canceledCalamityRegions = useMemo(() => {
+    const canceled = new Set<string>()
+    for (const [key, count] of canceledCardCounts) {
+      if (
+        count >= 2 &&
+        (state.activeRegionEffects ?? []).some(
+          (effect) => `${effect.kind}-${effect.regionSeed}` === key,
+        )
+      ) {
+        canceled.add(key)
+      }
+    }
+    return canceled
+  }, [canceledCardCounts, state.activeRegionEffects])
+
+  /**
+   * Regions where a single canceling card counters an active calamity: the
+   * calamity icons stay until resolution, each marked with a circle-slash
+   * badge.
+   */
+  const singleCanceledRegions = useMemo(() => {
+    const regions = new Set<string>()
+    for (const [key, count] of canceledCardCounts) {
+      if (
+        count === 1 &&
+        (state.activeRegionEffects ?? []).some(
+          (effect) => `${effect.kind}-${effect.regionSeed}` === key,
+        )
+      ) {
+        regions.add(key.split('-')[1] ?? '')
+      }
+    }
+    return regions
+  }, [canceledCardCounts, state.activeRegionEffects])
+
+  const calamityIcons = useMemo(() => {
+    if (!showCalamities) {
+      return []
+    }
+    const regionsBySeed = new Map(
+      (map.regions ?? []).map((region) => [region.seed, region]),
+    )
+    const territoriesById = new Map(
+      map.territories.map((territory) => [territory.id, territory]),
+    )
+    const items: Array<{
+      key: string
+      glyph: GameIconGlyph
+      fill: string
+      stroke?: string
+      strokeWidth?: number
+      opacity: number
+      canceled: boolean
+      placement: IconPlacement
+    }> = []
+    for (const effect of state.activeRegionEffects ?? []) {
+      if (canceledCalamityRegions.has(`${effect.kind}-${effect.regionSeed}`)) {
+        continue
+      }
+      const style =
+        CALAMITY_ICONS[effect.kind as keyof typeof CALAMITY_ICONS]
+      if (!style) {
+        continue
+      }
+      const region = regionsBySeed.get(effect.regionSeed)
+      if (!region) {
+        continue
+      }
+      for (const territoryID of region.territories) {
+        const territory = territoriesById.get(territoryID)
+        if (!territory) {
+          continue
+        }
+        const seedKey = `${effect.kind}-${effect.regionSeed}-${territory.id}`
+        for (const placement of chaoticIconPlacements(
+          territory.points,
+          style.count,
+          seedKey,
+        )) {
+          items.push({
+            key: `${seedKey}-${placement.x.toFixed(1)}-${placement.y.toFixed(1)}`,
+            glyph: style.glyph,
+            fill: style.fill,
+            stroke: style.stroke,
+            strokeWidth: style.strokeWidth,
+            opacity: style.opacity,
+            canceled: singleCanceledRegions.has(effect.regionSeed),
+            placement,
+          })
+        }
+      }
+    }
+    return items
+  }, [
+    showCalamities,
+    map.regions,
+    map.territories,
+    state.activeRegionEffects,
+    canceledCalamityRegions,
+    singleCanceledRegions,
+  ])
+
+  const cardIcons = useMemo(() => {
+    if (!showCards) {
+      return { scatterItems: [] }
+    }
+    const regionsBySeed = new Map(
+      (map.regions ?? []).map((region) => [region.seed, region]),
+    )
+    const territoriesById = new Map(
+      map.territories.map((territory) => [territory.id, territory]),
+    )
+    const activeByRegion = new Map(
+      (state.activeRegionEffects ?? []).map((effect) => [
+        `${effect.kind}-${effect.regionSeed}`,
+        true,
+      ]),
+    )
+    const colorsByPlayer = new Map(
+      state.players.map((player) => [player.id, player.color]),
+    )
+    const scatterItems: Array<{
+      key: string
+      glyph: GameIconGlyph
+      fill: string
+      stroke?: string
+      strokeWidth?: number
+      opacity: number
+      placement: IconPlacement
+    }> = []
+    const scatteredRegions = new Set<string>()
+    for (const { player, text } of specialOrders) {
+      for (const placement of parseSpecialOrderPlacements(text)) {
+        if (placement.kind === 'revolt') {
+          const territory = territoriesById.get(placement.target)
+          if (!territory) {
+            continue
+          }
+          const style = CARD_ICONS.revolt
+          const seedKey = `revolt-${placement.target}`
+          for (const placement2 of chaoticIconPlacements(
+            territory.points,
+            style.count,
+            seedKey,
+          )) {
+            scatterItems.push({
+              key: `${seedKey}-${placement2.x.toFixed(1)}-${placement2.y.toFixed(1)}`,
+              glyph: style.glyph,
+              fill: colorsByPlayer.get(player) ?? '#475569',
+              stroke: style.stroke,
+              strokeWidth: style.strokeWidth,
+              opacity: style.opacity,
+              placement: placement2,
+            })
+          }
+          continue
+        }
+        // One canceling card against an active calamity only marks the
+        // calamity with a cancellation badge; two or more cards clear the
+        // calamity and the residual bonus scatters instead.
+        const canceledKind = CANCELED_KIND_BY_CARD[placement.kind]
+        if (
+          activeByRegion.has(`${canceledKind}-${placement.target}`) &&
+          !canceledCalamityRegions.has(`${canceledKind}-${placement.target}`)
+        ) {
+          continue
+        }
+        const region = regionsBySeed.get(placement.target)
+        if (!region || scatteredRegions.has(`${placement.kind}-${placement.target}`)) {
+          continue
+        }
+        scatteredRegions.add(`${placement.kind}-${placement.target}`)
+        const style = CARD_ICONS[placement.kind]
+        for (const territoryID of region.territories) {
+          const territory = territoriesById.get(territoryID)
+          if (!territory) {
+            continue
+          }
+          const seedKey = `${placement.kind}-${placement.target}-${territory.id}`
+          for (const placement2 of chaoticIconPlacements(
+            territory.points,
+            style.count,
+            seedKey,
+          )) {
+            scatterItems.push({
+              key: `${seedKey}-${placement2.x.toFixed(1)}-${placement2.y.toFixed(1)}`,
+              glyph: style.glyph,
+              fill: style.fill,
+              stroke: style.stroke,
+              strokeWidth: style.strokeWidth,
+              opacity: style.opacity,
+              placement: placement2,
+            })
+          }
+        }
+      }
+    }
+    return { scatterItems }
+  }, [
+    showCards,
+    specialOrders,
+    map.regions,
+    map.territories,
+    state.activeRegionEffects,
+    state.players,
+    canceledCalamityRegions,
+  ])
 
   useEffect(() => {
     const svg = svgRef.current
@@ -1043,6 +1445,9 @@ export function MapViewer({
                   </g>
                 </pattern>
               ))}
+              {REGION_PATTERNS.map((pattern) => (
+                <RegionPatternDefinition key={pattern} pattern={pattern} />
+              ))}
               <marker
                 id="intent-arrow-outline"
                 viewBox="0 0 10 10"
@@ -1170,6 +1575,88 @@ export function MapViewer({
                 />
               ))}
             </g>
+            {showRegions && (map.regions?.length ?? 0) > 0 && (
+              <g aria-label={t('map.regions')} pointerEvents="none">
+                {map.territories.map((territory) => {
+                  const style = regionStyleForTerritory(territory.id)
+                  if (!style) return null
+                  return (
+                    <g key={`region-fill-${territory.id}`}>
+                      <path
+                        data-region-fill={regionByTerritory.get(territory.id)}
+                        d={pointsToPath(territory.points)}
+                        fill={style.fill}
+                        fillOpacity="0.30"
+                        stroke="none"
+                      />
+                      {style.pattern && (
+                        <path
+                          data-region-pattern={style.pattern}
+                          d={pointsToPath(territory.points)}
+                          fill={`url(#region-pattern-${style.pattern})`}
+                          fillOpacity="0.72"
+                          stroke="none"
+                        />
+                      )}
+                    </g>
+                  )
+                })}
+                {outerBorders.map((border) => (
+                  <g key={`region-outer-${border.key}`}>
+                    <line
+                      x1={border.from[0]}
+                      y1={border.from[1]}
+                      x2={border.to[0]}
+                      y2={border.to[1]}
+                      stroke="#fffaf0"
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                    <line
+                      data-region-boundary="true"
+                      x1={border.from[0]}
+                      y1={border.from[1]}
+                      x2={border.to[0]}
+                      y2={border.to[1]}
+                      stroke="#294c63"
+                      strokeWidth="4"
+                      strokeDasharray="12 7"
+                      strokeLinecap="round"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  </g>
+                ))}
+                {sharedBorders
+                  .filter((border) => isRegionBoundary(border.key))
+                  .map((border) => (
+                    <g key={`region-${border.key}`}>
+                      <line
+                        x1={border.from[0]}
+                        y1={border.from[1]}
+                        x2={border.to[0]}
+                        y2={border.to[1]}
+                        stroke="#fffaf0"
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        vectorEffect="non-scaling-stroke"
+                      />
+                      <line
+                        data-region-boundary="true"
+                        x1={border.from[0]}
+                        y1={border.from[1]}
+                        x2={border.to[0]}
+                        y2={border.to[1]}
+                        stroke={regionColorForBoundary(border.key)}
+                        strokeWidth="4"
+                        strokeDasharray="12 7"
+                        strokeLinecap="round"
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    </g>
+                  ))}
+              </g>
+            )}
 
             {state.season === 'winter' && (
               <g aria-label={t('map.winterOverlay')} pointerEvents="none">
@@ -1391,6 +1878,65 @@ export function MapViewer({
               </g>
             )}
 
+            {calamityIcons.length > 0 && (
+              <g aria-label={t('map.calamityOverlay')} pointerEvents="none">
+                {calamityIcons.map((icon) => (
+                  <g key={icon.key}>
+                    <GameIconGlyph
+                      glyph={icon.glyph}
+                      x={icon.placement.x - icon.placement.size / 2}
+                      y={icon.placement.y - icon.placement.size / 2}
+                      size={icon.placement.size}
+                      fill={icon.fill}
+                      stroke={icon.stroke}
+                      strokeWidth={icon.strokeWidth}
+                      opacity={icon.opacity}
+                      rotation={(icon.placement.rotation * 180) / Math.PI}
+                    />
+                    {icon.canceled && (
+                      <g pointerEvents="none">
+                        <circle
+                          cx={icon.placement.x}
+                          cy={icon.placement.y}
+                          r={icon.placement.size * 0.55}
+                          fill="none"
+                          stroke="#a84632"
+                          strokeWidth={icon.placement.size * 0.16}
+                          opacity={0.95}
+                        />
+                        <line
+                          x1={icon.placement.x - icon.placement.size * 0.4}
+                          y1={icon.placement.y - icon.placement.size * 0.4}
+                          x2={icon.placement.x + icon.placement.size * 0.4}
+                          y2={icon.placement.y + icon.placement.size * 0.4}
+                          stroke="#a84632"
+                          strokeWidth={icon.placement.size * 0.16}
+                          opacity={0.95}
+                        />
+                      </g>
+                    )}
+                  </g>
+                ))}
+              </g>
+            )}
+            {cardIcons.scatterItems.length > 0 && (
+              <g aria-label={t('map.cardOverlay')} pointerEvents="none">
+                {cardIcons.scatterItems.map((icon) => (
+                  <GameIconGlyph
+                    key={icon.key}
+                    glyph={icon.glyph}
+                    x={icon.placement.x - icon.placement.size / 2}
+                    y={icon.placement.y - icon.placement.size / 2}
+                    size={icon.placement.size}
+                    fill={icon.fill}
+                    stroke={icon.stroke}
+                    strokeWidth={icon.strokeWidth}
+                    opacity={icon.opacity}
+                    rotation={(icon.placement.rotation * 180) / Math.PI}
+                  />
+                ))}
+              </g>
+            )}
             <g aria-label={t('map.liveLayer')} pointerEvents="none">
               {map.territories.map((territory) => {
                 const territoryState = state.territories.find(
@@ -1507,6 +2053,114 @@ export function MapViewer({
                 )
               })}
             </g>
+
+            {showRegions && (map.regions?.length ?? 0) > 0 && (
+              <g aria-label={t('map.regionSeeds')} pointerEvents="none">
+                {map.regions?.map((region) => {
+                  const seedTerritory = map.territories.find(
+                    (territory) => territory.id === region.seed,
+                  )
+                  if (!seedTerritory) return null
+                  const [centerX, centerY] = centroid(seedTerritory.points)
+                  const markerY = centerY - 25 * annotationScale
+                  const color = regionColorForTerritory(region.seed)
+                  return (
+                    <g
+                      key={`region-seed-${region.seed}`}
+                      data-region-seed={region.seed}
+                      transform={`translate(${centerX} ${markerY})`}
+                    >
+                      <title>
+                        {t('map.regionSeedMarker', {
+                          seed: region.seed,
+                          name: seedTerritory.name,
+                        })}
+                      </title>
+                      <circle
+                        r={18 * annotationScale}
+                        fill="#fffaf0"
+                        fillOpacity="0.96"
+                        stroke="#1f3a4d"
+                        strokeWidth={3 * annotationScale}
+                        vectorEffect="non-scaling-stroke"
+                      />
+                      <path
+                        d={`M 0 ${-11 * annotationScale} L ${11 * annotationScale} 0 L 0 ${11 * annotationScale} L ${-11 * annotationScale} 0 Z`}
+                        fill={color}
+                        stroke="#fffaf0"
+                        strokeWidth={2 * annotationScale}
+                        vectorEffect="non-scaling-stroke"
+                      />
+                      <text
+                        y={31 * annotationScale}
+                        fill="#1f3a4d"
+                        fontSize={11 * annotationScale}
+                        fontWeight="900"
+                        textAnchor="middle"
+                        stroke="#fffaf0"
+                        strokeWidth={4 * annotationScale}
+                        paintOrder="stroke"
+                      >
+                        {region.seed}
+                      </text>
+                    </g>
+                  )
+                })}
+              </g>
+            )}
+
+            {showRegions && (state.activeRegionEffects?.length ?? 0) > 0 && (
+              <g aria-label={t('map.regionEffects')} pointerEvents="none">
+                {state.activeRegionEffects?.map((effect, index) => {
+                  const region = map.regions?.find(
+                    (candidate) => candidate.seed === effect.regionSeed,
+                  )
+                  const seedTerritory = map.territories.find(
+                    (territory) => territory.id === effect.regionSeed,
+                  )
+                  if (!region || !seedTerritory) return null
+                  const [centerX, centerY] = centroid(seedTerritory.points)
+                  const offset =
+                    state.activeRegionEffects
+                      ?.slice(0, index)
+                      .filter((candidate) => candidate.regionSeed === effect.regionSeed)
+                      .length ?? 0
+                  const isCalamity = CALAMITY_KINDS.includes(effect.kind)
+                  const effectColor = isCalamity ? '#b91c1c' : '#15803d'
+                  const cardLabel = formatCardLabel(effect.kind, t)
+                  return (
+                    <g
+                      key={`${effect.regionSeed}-${effect.kind}-${index}`}
+                      data-region-effect-kind={effect.kind}
+                      transform={`translate(${centerX + 24 * annotationScale} ${centerY - 25 * annotationScale + offset * 18 * annotationScale})`}
+                    >
+                      <title>
+                        {t('map.regionEffectMarker', {
+                          card: cardLabel,
+                          region: effect.regionSeed,
+                        })}
+                      </title>
+                      <circle
+                        r={10 * annotationScale}
+                        fill="#fffaf0"
+                        stroke={effectColor}
+                        strokeWidth={3 * annotationScale}
+                        vectorEffect="non-scaling-stroke"
+                      />
+                      <text
+                        y={4 * annotationScale}
+                        fill={effectColor}
+                        fontSize={8 * annotationScale}
+                        fontWeight="900"
+                        textAnchor="middle"
+                      >
+                        {formatCardCode(effect.kind, t)}
+                      </text>
+                    </g>
+                  )
+                })}
+              </g>
+            )}
 
             {showIntentions && intentions.length > 0 && (
               <g aria-label={t('map.intentionsOverlay')} pointerEvents="none">
@@ -1634,7 +2288,7 @@ export function MapViewer({
 
         <MapControls onZoom={handleControlZoom} />
 
-        {onToggleIntentions && (
+        {(onToggleIntentions || onToggleRegions || onToggleCalamities || onToggleCards) && (
           <div className="absolute right-3 top-3 z-10">
             <button
               type="button"
@@ -1666,6 +2320,12 @@ export function MapViewer({
                 <MapLegend
                   showIntentions={showIntentions}
                   onToggleIntentions={onToggleIntentions}
+                  showRegions={showRegions}
+                  onToggleRegions={onToggleRegions}
+                  showCalamities={showCalamities}
+                  onToggleCalamities={onToggleCalamities}
+                  showCards={showCards}
+                  onToggleCards={onToggleCards}
                 />
               </div>
             )}

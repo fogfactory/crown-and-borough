@@ -114,6 +114,25 @@ type WinterOrder struct {
 	NobleCode   NobleCode       `json:"nobleCode,omitempty"`
 }
 
+type DeckOrderType string
+
+const (
+	DeckOrderTypeDiscard DeckOrderType = "discard_card"
+	DeckOrderTypePlay    DeckOrderType = "play_card"
+)
+
+type DeckOrder struct {
+	ID                OrderID       `json:"id"`
+	Type              DeckOrderType `json:"type"`
+	Kind              CardKind      `json:"kind,omitempty"`
+	RegionSeed        TerritoryID   `json:"regionSeed,omitempty"`
+	TargetTerritoryID TerritoryID   `json:"targetTerritory,omitempty"`
+}
+
+func (t DeckOrderType) IsValid() bool {
+	return t == DeckOrderTypeDiscard || t == DeckOrderTypePlay
+}
+
 // PendingDisperse records unresolved branches of a looped dispersion after
 // completed branches have already left the source army. The command chain stays
 // with its original carrier while the residual army retries these branches.

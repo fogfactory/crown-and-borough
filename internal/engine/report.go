@@ -11,17 +11,22 @@ import (
 // internal handoff for the hotseat session and is intentionally excluded from
 // JSON: the API returns the projected state as a separate document.
 type TurnReport struct {
-	Header     ReportHeader      `json:"header"`
-	Players    []PlayerReport    `json:"players"`
-	Receptions []ReceptionReport `json:"receptions"`
-	Supply     []SupplyReport    `json:"supply"`
-	Famines    []FamineReport    `json:"famines"`
-	Combats    []CombatReport    `json:"combats"`
-	Orders     []OrderReport     `json:"orders"`
-	Moves      []MoveReport      `json:"moves"`
-	Nobles     []NobleReport     `json:"nobles"`
-	Winter     *WinterReport     `json:"winter,omitempty"`
-	State      *models.GameState `json:"-"`
+	Header        ReportHeader         `json:"header"`
+	Players       []PlayerReport       `json:"players"`
+	Receptions    []ReceptionReport    `json:"receptions"`
+	Production    []ProductionReport   `json:"production"`
+	Consumption   []ConsumptionReport  `json:"consumption"`
+	Combats       []CombatReport       `json:"combats"`
+	Orders        []OrderReport        `json:"orders"`
+	Moves         []MoveReport         `json:"moves"`
+	Nobles        []NobleReport        `json:"nobles"`
+	SeasonEffects []SeasonEffectReport `json:"seasonEffects"`
+	Rumors        []RumorReport        `json:"rumors"`
+	Cards         []CardReport         `json:"cards"`
+	Announcements []AnnouncementReport `json:"announcements"`
+	Augury        *AuguryReport        `json:"augury,omitempty"`
+	Winter        *WinterReport        `json:"winter,omitempty"`
+	State         *models.GameState    `json:"-"`
 }
 
 // ReportHeader identifies the season described by the report, before the
@@ -71,28 +76,46 @@ type InfrastructureReport struct {
 	Territory models.TerritoryID `json:"territory"`
 }
 
-type SupplyReport struct {
-	Source        models.TerritoryID         `json:"source"`
-	Owner         models.PlayerID            `json:"owner"`
-	Production    int                        `json:"production"`
-	Demand        int                        `json:"demand"`
-	Rations       map[models.TerritoryID]int `json:"rations"`
-	StockConsumed int                        `json:"stockConsumed"`
-	StockAfter    int                        `json:"stockAfter"`
+// ProductionReport is the per-territory supply ledger: local ration
+// production, stockable source production, and the resulting stock movement.
+type ProductionReport struct {
+	Territory            models.TerritoryID         `json:"territory"`
+	Region               models.TerritoryID         `json:"region,omitempty"`
+	Owner                models.PlayerID            `json:"owner,omitempty"`
+	TerrainRations       int                        `json:"terrainRations"`
+	InfraRations         int                        `json:"infraRations,omitempty"`
+	BonusRations         int                        `json:"bonusRations,omitempty"`
+	SuppressedRations    int                        `json:"suppressedRations,omitempty"`
+	BaseProduction       int                        `json:"baseProduction,omitempty"`
+	MillProduction       int                        `json:"millProduction,omitempty"`
+	BonusProduction      int                        `json:"bonusProduction,omitempty"`
+	SuppressedProduction int                        `json:"suppressedProduction,omitempty"`
+	Produced             int                        `json:"produced"`
+	SentToRations        map[models.TerritoryID]int `json:"sentToRations,omitempty"`
+	StockBefore          int                        `json:"stockBefore,omitempty"`
+	StockConsumed        int                        `json:"stockConsumed,omitempty"`
+	StockAfter           int                        `json:"stockAfter,omitempty"`
 }
 
-type FamineReport struct {
-	Army               models.ArmyID      `json:"army"`
-	Owner              models.PlayerID    `json:"owner"`
-	Territory          models.TerritoryID `json:"territory"`
-	Source             models.TerritoryID `json:"source"`
-	Troops             int                `json:"troops"`
-	TroopsLost         int                `json:"troopsLost,omitempty"`
-	SavedByPillage     bool               `json:"savedByPillage"`
-	Infrastructure     models.InfraID     `json:"infrastructure,omitempty"`
-	InfrastructureType models.InfraType   `json:"infrastructureType,omitempty"`
-	ResourceCredit     int                `json:"resourceCredit,omitempty"`
-	CreditTerritory    models.TerritoryID `json:"creditTerritory,omitempty"`
+// ConsumptionReport is the per-army supply line: what the army demanded, where
+// its rations came from, and the famine effects when the demand was not met.
+type ConsumptionReport struct {
+	Army                  models.ArmyID      `json:"army"`
+	Owner                 models.PlayerID    `json:"owner"`
+	Territory             models.TerritoryID `json:"territory"`
+	Source                models.TerritoryID `json:"source,omitempty"`
+	Size                  int                `json:"size"`
+	Demand                int                `json:"demand"`
+	ReceivedLocal         int                `json:"receivedLocal"`
+	ReceivedTransfer      int                `json:"receivedTransfer"`
+	TotalReceived         int                `json:"totalReceived"`
+	Missing               int                `json:"missing"`
+	Famine                bool               `json:"famine,omitempty"`
+	SavedByPillage        bool               `json:"savedByPillage,omitempty"`
+	TroopsLost            int                `json:"troopsLost,omitempty"`
+	PillageInfrastructure models.InfraType   `json:"pillageInfrastructure,omitempty"`
+	ResourceCredit        int                `json:"resourceCredit,omitempty"`
+	CreditTerritory       models.TerritoryID `json:"creditTerritory,omitempty"`
 }
 
 type CombatReport struct {
@@ -173,6 +196,54 @@ type NobleReport struct {
 type WinterReport struct {
 	Investments []WinterInvestmentReport `json:"investments"`
 	Stocks      []WinterStockReport      `json:"stocks"`
+	Cards       []CardReport             `json:"cards"`
+	Rumors      []RumorReport            `json:"rumors"`
+}
+
+type AuguryReport struct {
+	Year       int                    `json:"year"`
+	Capacities map[models.Season]int  `json:"capacities"`
+	Calamities []AuguryCalamityReport `json:"calamities"`
+}
+
+type AuguryCalamityReport struct {
+	Kind   models.CardKind    `json:"kind"`
+	Season models.Season      `json:"season"`
+	Region models.TerritoryID `json:"region"`
+}
+
+type CardReport struct {
+	EventType EventType          `json:"eventType"`
+	Kind      models.CardKind    `json:"kind"`
+	Player    models.PlayerID    `json:"player,omitempty"`
+	Region    models.TerritoryID `json:"region,omitempty"`
+	Season    models.Season      `json:"season,omitempty"`
+	Outcome   Outcome            `json:"outcome"`
+	Reason    string             `json:"reason,omitempty"`
+}
+
+type SeasonEffectReport struct {
+	Kind           EventType          `json:"kind"`
+	CardKind       models.CardKind    `json:"cardKind,omitempty"`
+	Region         models.TerritoryID `json:"region,omitempty"`
+	Season         models.Season      `json:"season,omitempty"`
+	Owner          models.PlayerID    `json:"owner,omitempty"`
+	Army           models.ArmyID      `json:"army,omitempty"`
+	Noble          models.NobleCode   `json:"noble,omitempty"`
+	Territory      models.TerritoryID `json:"territory,omitempty"`
+	Target         models.TerritoryID `json:"target,omitempty"`
+	Troops         int                `json:"troops,omitempty"`
+	SizeBefore     int                `json:"sizeBefore,omitempty"`
+	SizeAfter      int                `json:"sizeAfter,omitempty"`
+	ProductionLost int                `json:"productionLost,omitempty"`
+	RationsLost    int                `json:"rationsLost,omitempty"`
+	Reason         string             `json:"reason,omitempty"`
+}
+
+type RumorReport struct {
+	Kind  models.CardKind `json:"kind"`
+	Key   string          `json:"key"`
+	Level int             `json:"level,omitempty"`
 }
 
 type WinterInvestmentReport struct {
@@ -204,24 +275,46 @@ type WinterStockReport struct {
 // BuildTurnReport converts value-only engine events into the typed report
 // consumed by the API and frontend. It does not inspect resolution internals.
 func BuildTurnReport(before, after *models.GameState, events []Event, receptions []ReceptionReport) TurnReport {
+	return BuildTurnReportWithHandLimit(before, after, events, receptions, 4)
+}
+
+func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Event, receptions []ReceptionReport, handLimit int) TurnReport {
 	report := TurnReport{
-		Players:    []PlayerReport{},
-		Receptions: []ReceptionReport{},
-		Supply:     []SupplyReport{},
-		Famines:    []FamineReport{},
-		Combats:    []CombatReport{},
-		Orders:     []OrderReport{},
-		Moves:      []MoveReport{},
-		Nobles:     []NobleReport{},
+		Players:       []PlayerReport{},
+		Receptions:    []ReceptionReport{},
+		Production:    []ProductionReport{},
+		Consumption:   []ConsumptionReport{},
+		Combats:       []CombatReport{},
+		Orders:        []OrderReport{},
+		Moves:         []MoveReport{},
+		Nobles:        []NobleReport{},
+		SeasonEffects: []SeasonEffectReport{},
+		Rumors:        []RumorReport{},
+		Cards:         []CardReport{},
+		Announcements: []AnnouncementReport{},
 	}
 	report.Receptions = append(report.Receptions, receptions...)
 	if before != nil {
 		report.Header = ReportHeader{Year: before.Year(), Season: before.Season, Turn: before.Turn}
 		if before.Season == models.SeasonWinter {
-			report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}}
+			report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}
 		}
 	}
 	report.Players = buildPlayerReports(before, after)
+	if before != nil && after != nil {
+		report.Announcements = PendingAnnouncements(after, report.Header.Year, report.Header.Season, false)
+	}
+	if after != nil {
+		for _, event := range currentHandRumorEvents(after, handLimit) {
+			report.Rumors = append(report.Rumors, RumorReport{Kind: event.CardKind, Key: event.RumorKey, Level: event.RumorLevel})
+		}
+		if augury, exists := after.Auguries[after.Year()]; exists && augury.Revealed {
+			report.Augury = &AuguryReport{Year: augury.Year, Capacities: copySeasonCapacities(augury.Capacities), Calamities: []AuguryCalamityReport{}}
+			for _, calamity := range augury.Calamities {
+				report.Augury.Calamities = append(report.Augury.Calamities, AuguryCalamityReport{Kind: calamity.Kind, Season: calamity.Season, Region: calamity.RegionSeed})
+			}
+		}
+	}
 
 	armiesByID := make(map[models.ArmyID]models.Army)
 	chainsByID := make(map[models.ChainID]models.Chain)
@@ -252,20 +345,49 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 			progressions[eventKey(event.ChainID, event.OrderID)] = event
 		}
 	}
+	consumptionByArmy := make(map[models.ArmyID]*ConsumptionReport)
 	for _, event := range events {
 		switch event.Type {
-		case EventTypeSupply:
-			report.Supply = append(report.Supply, SupplyReport{
-				Source: event.SourceID, Owner: event.OwnerID, Production: event.Production,
-				Demand: event.Demand, Rations: cloneRationMap(event.Rations), StockConsumed: event.StockConsumed,
-				StockAfter: event.StockAfter,
+		case EventTypeProduction:
+			report.Production = append(report.Production, ProductionReport{
+				Territory: event.TerritoryID, Region: event.RegionSeed, Owner: event.OwnerID,
+				TerrainRations: event.TerrainRations, InfraRations: event.InfraRations,
+				BonusRations: event.BonusRations, SuppressedRations: event.SuppressedRations,
+				BaseProduction: event.BaseProduction, MillProduction: event.MillProduction,
+				BonusProduction: event.BonusProduction, SuppressedProduction: event.SuppressedProduction,
+				Produced: event.Production, SentToRations: event.SentRations,
+				StockBefore:   event.StockBefore,
+				StockConsumed: event.StockConsumed, StockAfter: event.StockAfter,
 			})
+		case EventTypeConsumption:
+			missing := max(0, event.Demand-event.ReceivedLocal-event.ReceivedTransfer)
+			consumptionByArmy[event.ArmyID] = &ConsumptionReport{
+				Army: event.ArmyID, Owner: event.OwnerID, Territory: event.TerritoryID,
+				Source: event.SourceID,
+				Size:   event.Troops, Demand: event.Demand,
+				ReceivedLocal: event.ReceivedLocal, ReceivedTransfer: event.ReceivedTransfer,
+				TotalReceived:         event.ReceivedLocal + event.ReceivedTransfer,
+				Missing:               missing,
+				Famine:                missing > 0,
+				SavedByPillage:        event.SavedByPillage,
+				TroopsLost:            event.TroopsLost,
+				PillageInfrastructure: event.InfrastructureType,
+				ResourceCredit:        event.ResourceCredit,
+				CreditTerritory:       event.CreditTerritoryID,
+			}
 		case EventTypeFamine:
-			report.Famines = append(report.Famines, FamineReport{
-				Army: event.ArmyID, Owner: event.OwnerID, Territory: event.TerritoryID, Source: event.SourceID,
-				Troops: event.Troops, TroopsLost: event.TroopsLost, SavedByPillage: event.SavedByPillage,
-				Infrastructure: event.InfrastructureID, InfrastructureType: event.InfrastructureType,
-				ResourceCredit: event.ResourceCredit, CreditTerritory: event.CreditTerritoryID,
+			// Player famines are merged into their consumption line; neutral
+			// armies are not part of the consumption ledger and surface here.
+			if event.OwnerID == models.NeutralPlayerID {
+				report.SeasonEffects = append(report.SeasonEffects, SeasonEffectReport{
+					Kind: event.Type, Region: event.RegionSeed, Territory: event.TerritoryID,
+					SizeBefore: event.Troops, SizeAfter: event.Troops - event.TroopsLost,
+				})
+			}
+		case EventTypeCardCanceled:
+			report.SeasonEffects = append(report.SeasonEffects, SeasonEffectReport{
+				Kind: event.Type, CardKind: event.CardKind, Region: event.RegionSeed,
+				Territory: event.TerritoryID, Season: event.Season,
 			})
 		case EventTypeCombat:
 			contenders := append([]CombatContender{}, event.Contenders...)
@@ -374,10 +496,32 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 					Cost: event.ResourceSpent,
 				})
 			}
+		case EventTypeRumor:
+			if report.Winter == nil {
+				report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}
+			}
+			report.Winter.Rumors = append(report.Winter.Rumors, RumorReport{Kind: event.CardKind, Key: event.RumorKey, Level: event.RumorLevel})
+		case EventTypeCalamityScheduled, EventTypeDeckDiscard, EventTypeDeckOrderPlayed, EventTypeDeckRestore:
+			card := CardReport{EventType: event.Type, Kind: event.CardKind, Player: event.OwnerID, Region: event.RegionSeed, Season: event.Season, Outcome: OutcomeSuccess}
+			report.Cards = append(report.Cards, card)
+			if event.Phase == winterPhase {
+				if report.Winter == nil {
+					report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}
+				}
+				report.Winter.Cards = append(report.Winter.Cards, card)
+			}
+		case EventTypeCalamityApplied, EventTypeCalamityCanceled, EventTypeBonusEffect, EventTypeNeutralArmy, EventTypePlagueDeath, EventTypePlagueSurvived, EventTypeBadWeatherBlocked, EventTypeFamineLoss:
+			report.SeasonEffects = append(report.SeasonEffects, SeasonEffectReport{
+				Kind: event.Type, CardKind: event.CardKind, Region: event.RegionSeed, Season: event.Season,
+				Owner: event.OwnerID, Army: event.ArmyID, Noble: event.NobleCode,
+				Territory: event.TerritoryID, Target: event.TargetID, Troops: event.Troops, SizeBefore: event.SizeBefore,
+				SizeAfter: event.SizeAfter, ProductionLost: event.Production, RationsLost: event.RationsLost,
+				Reason: event.Reason,
+			})
 		case EventTypeWinterStock, EventTypeRecruit, EventTypeBuild, EventTypeUpgrade,
 			EventTypeRejected, EventTypeCapitalElected:
 			if report.Winter == nil {
-				report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}}
+				report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}
 			}
 			if event.Type == EventTypeWinterStock {
 				report.Winter.Stocks = append(report.Winter.Stocks, WinterStockReport{
@@ -413,6 +557,14 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 				report.Orders[index].IndexAfter = event.IndexAfter
 			}
 		}
+	}
+	armyIDs := make([]models.ArmyID, 0, len(consumptionByArmy))
+	for armyID := range consumptionByArmy {
+		armyIDs = append(armyIDs, armyID)
+	}
+	sortArmyIDs(armyIDs)
+	for _, armyID := range armyIDs {
+		report.Consumption = append(report.Consumption, *consumptionByArmy[armyID])
 	}
 	return report
 }

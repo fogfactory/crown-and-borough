@@ -220,7 +220,7 @@ func TestProjectReportNormalizesNilCollections(t *testing.T) {
 	if err := json.Unmarshal(data, &document); err != nil {
 		t.Fatalf("decode empty projected report: %v", err)
 	}
-	for _, field := range []string{"players", "receptions", "supply", "famines", "combats", "orders", "moves", "nobles"} {
+	for _, field := range []string{"players", "receptions", "production", "consumption", "combats", "orders", "moves", "nobles"} {
 		if value, ok := document[field]; !ok || value == nil {
 			t.Errorf("projected report field %q = %#v, want JSON array", field, value)
 		}
@@ -379,4 +379,52 @@ func firstArmyChainObject(t *testing.T, document map[string]any) map[string]any 
 	}
 	t.Fatal("document contains no army chain object")
 	return nil
+}
+
+func TestCombatParticipationSkipsNeutralOwner(t *testing.T) {
+	before := &models.GameState{
+		Turn:    1,
+		Season:  models.SeasonSpring,
+		Players: []models.Player{{ID: "P1", Name: "One"}},
+		Territories: []models.Territory{
+			{ID: "AAA", Name: "AAA", Terrain: models.TerrainPlain},
+			{ID: "BBB", Name: "BBB", Terrain: models.TerrainPlain},
+		},
+		Armies: []models.Army{
+			{ID: "A1", OwnerID: "P1", TerritoryID: "BBB", Size: 3},
+			{ID: "A9", OwnerID: models.NeutralPlayerID, TerritoryID: "AAA", Size: 2},
+		},
+	}
+	after := &models.GameState{Armies: append([]models.Army(nil), before.Armies...)}
+	privacy := ensurePrivacy(after)
+	trackCombatParticipation(before, after, []engine.CombatReport{{
+		Territory: "AAA",
+		Contenders: []engine.CombatContender{
+			{ArmyID: "A9", OwnerID: models.NeutralPlayerID, Force: 2},
+			{ArmyID: "A1", OwnerID: "P1", Force: 3, Defender: true},
+		},
+	}}, privacy)
+
+	if _, exists := privacy.CombatParticipation[models.NeutralPlayerID]; exists {
+		t.Error("neutral ownership was recorded as a combat participant")
+	}
+	if !privacy.CombatParticipation["P1"]["combat-AAA"] {
+		t.Error("the defender was not marked as a combat participant")
+	}
+	after.Privacy = privacy
+	after.Turn = before.Turn
+	after.Season = before.Season
+	after.Players = before.Players
+	after.Territories = before.Territories
+	after.NextChainID = 1
+	after.NextArmyID = 10
+	armyID := models.ArmyID("A1")
+	neutralID := models.ArmyID("A9")
+	after.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
+		"AAA": {Infrastructures: []models.InfraID{}, Army: &neutralID},
+		"BBB": {Infrastructures: []models.InfraID{}, Army: &armyID},
+	}
+	if err := after.Validate(); err != nil {
+		t.Fatalf("state with revolt combat participation = %v, want a valid state", err)
+	}
 }

@@ -63,6 +63,7 @@ function renderMap(
   intentions: Intention[] = [],
   showIntentions = true,
   intentionsColor = '#a84632',
+  showRegions = false,
 ) {
   const result = render(
     <MapViewer
@@ -73,6 +74,7 @@ function renderMap(
       intentions={intentions}
       showIntentions={showIntentions}
       intentionsColor={intentionsColor}
+      showRegions={showRegions}
     />,
   )
   const svg = result.container.querySelector(
@@ -199,6 +201,43 @@ describe('MapViewer territorial overlays', () => {
 
     expect(screen.getByText('ROS')).toBeInTheDocument()
     expect(screen.getByText('BRU')).toBeInTheDocument()
+  })
+
+  it('renders visible regional boundaries and seed markers', () => {
+    const regionMap: MapData = {
+      ...map,
+      territories: map.territories.map((territory) => ({ ...territory, village: true })),
+      regions: [
+        { id: 'RROS', seed: 'ROS', territories: ['ROS'] },
+        { id: 'RBRU', seed: 'BRU', territories: ['BRU'] },
+      ],
+    }
+    const { svg } = renderMap(
+      regionMap,
+      {
+        ...state,
+        activeRegionEffects: [
+          { kind: 'fair_weather', regionSeed: 'ROS', season: 'spring', year: 1 },
+          { kind: 'famine', regionSeed: 'BRU', season: 'spring', year: 1 },
+        ],
+      },
+      vi.fn(),
+      null,
+      [],
+      true,
+      '#a84632',
+      true,
+    )
+
+    expect(svg.querySelector('g[aria-label="Regional boundaries"]')).toBeInTheDocument()
+    expect(svg.querySelectorAll('[data-region-fill]').length).toBe(2)
+    expect(svg.querySelector('[data-region-fill]')?.getAttribute('fill-opacity')).toBe('0.30')
+    expect(svg.querySelectorAll('[data-region-boundary="true"]').length).toBeGreaterThan(0)
+    expect(svg.querySelectorAll('[data-region-seed]').length).toBe(2)
+    expect(svg.querySelector('[data-region-seed="ROS"]')).toBeInTheDocument()
+    expect(svg.querySelector('[data-region-seed="BRU"]')).toBeInTheDocument()
+    expect(svg.querySelector('[data-region-effect-kind="fair_weather"]')).toBeInTheDocument()
+    expect(svg.querySelector('[data-region-effect-kind="famine"]')).toBeInTheDocument()
   })
 
   it('scales map annotations with the mean territory area', () => {

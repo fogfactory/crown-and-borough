@@ -17,6 +17,7 @@ function renderOrdersPanel(
   season: StateData['season'],
   onOpenRules = vi.fn(),
   nobles: Noble[] = state.nobles,
+  specialDraft = '',
 ) {
   return render(
     <LanguageProvider initialLanguage="fr">
@@ -24,13 +25,15 @@ function renderOrdersPanel(
         state={{ ...state, season, nobles }}
         player="P1"
         chainDrafts={{}}
-        winterDraft=""
-        submitted={false}
+         winterDraft=""
+         specialDraft={specialDraft}
+         submitted={false}
         submitting={false}
         error={null}
         onChainChange={vi.fn()}
-        onWinterChange={vi.fn()}
-        onSubmit={vi.fn()}
+         onWinterChange={vi.fn()}
+         onSpecialChange={vi.fn()}
+         onSubmit={vi.fn()}
         onOpenRules={onOpenRules}
       />
     </LanguageProvider>,
@@ -45,6 +48,8 @@ describe('OrdersPanel seasonal presentation', () => {
     expect(heading.querySelector('svg')).toBeInTheDocument()
     expect(screen.getByText(/Investissements directs uniquement/)).toBeInTheDocument()
     expect(screen.getByText(/sans chaînes ni mouvements militaires/)).toBeInTheDocument()
+    expect(screen.queryByLabelText('Ordres de cartes spéciales')).not.toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/D C BT/)).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: "Soumettre les ordres d'hiver" }),
     ).toBeInTheDocument()
@@ -92,6 +97,7 @@ describe('OrdersPanel seasonal presentation', () => {
           player="P1"
           chainDrafts={{}}
           winterDraft={'R T XXX\nR N XXX\nC C YYY\nC M ZZZ\nC M ZZZ'}
+          specialDraft=""
           winterCosts={{
             castle: 10,
             millLevels: [3, 5, 7],
@@ -105,6 +111,7 @@ describe('OrdersPanel seasonal presentation', () => {
           error={null}
           onChainChange={vi.fn()}
           onWinterChange={vi.fn()}
+          onSpecialChange={vi.fn()}
           onSubmit={vi.fn()}
           onOpenRules={vi.fn()}
         />
@@ -150,6 +157,7 @@ describe('OrdersPanel seasonal presentation', () => {
           player="P1"
           chainDrafts={{}}
           winterDraft="G XXX YYY 26"
+          specialDraft=""
           winterCosts={{
             castle: 10,
             millLevels: [3, 5, 7],
@@ -163,6 +171,7 @@ describe('OrdersPanel seasonal presentation', () => {
           error={null}
           onChainChange={vi.fn()}
           onWinterChange={vi.fn()}
+          onSpecialChange={vi.fn()}
           onSubmit={vi.fn()}
           onOpenRules={vi.fn()}
         />
@@ -214,6 +223,7 @@ describe('OrdersPanel seasonal presentation', () => {
           player="P1"
           chainDrafts={{}}
           winterDraft={'R X ROS\nR T ROS\nC M ZZZ'}
+          specialDraft=""
           winterCosts={{
             castle: 10,
             millLevels: [3, 5, 7],
@@ -227,6 +237,7 @@ describe('OrdersPanel seasonal presentation', () => {
           error={null}
           onChainChange={vi.fn()}
           onWinterChange={vi.fn()}
+          onSpecialChange={vi.fn()}
           onSubmit={vi.fn()}
           onOpenRules={vi.fn()}
         />
@@ -277,9 +288,8 @@ describe('OrdersPanel seasonal presentation', () => {
       },
     ])
 
-    const textareas = screen.getAllByRole('textbox')
-    expect(textareas[0]).not.toBeDisabled()
-    expect(textareas[1]).toBeDisabled()
+    expect(screen.getByLabelText('Chaîne de HOS')).not.toBeDisabled()
+    expect(screen.getByLabelText('Chaîne de DUN')).toBeDisabled()
     expect(screen.getByText('Otage')).toBeInTheDocument()
     expect(screen.getByText('Donjon')).toBeInTheDocument()
   })
@@ -297,7 +307,119 @@ describe('OrdersPanel seasonal presentation', () => {
     ])
 
     expect(screen.getByText(/Aucun noble apte à émettre/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Ordres de cartes spéciales')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Soumettre' })).toBeDisabled()
+  })
+
+  it('allows a deck-only submission without an emitting noble', () => {
+    renderOrdersPanel('spring', vi.fn(), [
+      {
+        id: 'N1',
+        code: 'DUN',
+        name: 'Dungeon',
+        owner: 'P1',
+        location: 'ROS',
+        status: 'dungeon',
+      },
+    ], 'P BT ROS')
+
+    expect(screen.getByRole('button', { name: 'Soumettre' })).not.toBeDisabled()
+  })
+
+  it('shows short card labels and aggregates duplicate cards', () => {
+    const handState: StateData = {
+      ...state,
+      season: 'spring',
+      specialHand: ['fair_weather', 'abundant_harvest', 'fair_weather'],
+    }
+    render(
+      <LanguageProvider initialLanguage="fr">
+        <OrdersPanel
+          state={handState}
+          player="P1"
+          chainDrafts={{}}
+          winterDraft=""
+          specialDraft=""
+          submitted={false}
+          submitting={false}
+          error={null}
+          onChainChange={vi.fn()}
+          onWinterChange={vi.fn()}
+          onSpecialChange={vi.fn()}
+          onSubmit={vi.fn()}
+          onOpenRules={vi.fn()}
+        />
+      </LanguageProvider>,
+    )
+
+    expect(screen.getByText(/Beau temps \(BT\)x2, Bonne récolte \(RA\)/)).toBeInTheDocument()
+  })
+
+  it('warns about scheduled calamities in the deck panel', () => {
+    const warningState: StateData = {
+      ...state,
+      season: 'spring',
+      announcements: [
+        { kind: 'plague', season: 'summer', region: 'ROS', year: 2 },
+        { kind: 'famine', season: 'winter', region: 'BOI', year: 2 },
+      ],
+    }
+    render(
+      <LanguageProvider initialLanguage="fr">
+        <OrdersPanel
+          state={warningState}
+          player="P1"
+          chainDrafts={{}}
+          winterDraft=""
+          specialDraft=""
+          submitted={false}
+          submitting={false}
+          error={null}
+          onChainChange={vi.fn()}
+          onWinterChange={vi.fn()}
+          onSpecialChange={vi.fn()}
+          onSubmit={vi.fn()}
+          onOpenRules={vi.fn()}
+        />
+      </LanguageProvider>,
+    )
+
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getByText('Calamités à venir')).toBeInTheDocument()
+    expect(screen.getByText(/Peste \(PE\) — Été dans ROS/)).toBeInTheDocument()
+    expect(screen.getByText(/Mauvaise récolte \(MR\) — Hiver dans BOI/)).toBeInTheDocument()
+  })
+
+  it('warns about scheduled calamities in the winter deck summary', () => {
+    const warningState: StateData = {
+      ...state,
+      season: 'winter',
+      announcements: [
+        { kind: 'bad_weather', season: 'spring', region: 'ROS', year: 3 },
+      ],
+    }
+    render(
+      <LanguageProvider initialLanguage="fr">
+        <OrdersPanel
+          state={warningState}
+          player="P1"
+          chainDrafts={{}}
+          winterDraft=""
+          specialDraft=""
+          submitted={false}
+          submitting={false}
+          error={null}
+          onChainChange={vi.fn()}
+          onWinterChange={vi.fn()}
+          onSpecialChange={vi.fn()}
+          onSubmit={vi.fn()}
+          onOpenRules={vi.fn()}
+        />
+      </LanguageProvider>,
+    )
+
+    expect(screen.getByText('Calamités à venir')).toBeInTheDocument()
+    expect(screen.getByText(/Mauvais temps \(MT\) — Printemps dans ROS/)).toBeInTheDocument()
   })
 
   it('targets the winter rules section from the winter shortcut', () => {
@@ -327,12 +449,14 @@ describe('OrdersPanel seasonal presentation', () => {
           player="P1"
           chainDrafts={{}}
           winterDraft="R T ROS"
+          specialDraft=""
           submitted={true}
           submitting={false}
           error={null}
           draftDiffers={{ winter: true }}
           onChainChange={vi.fn()}
           onWinterChange={vi.fn()}
+          onSpecialChange={vi.fn()}
           onSubmit={vi.fn()}
           onOpenRules={vi.fn()}
           onRestoreFromServer={onRestore}
@@ -369,12 +493,14 @@ describe('OrdersPanel seasonal presentation', () => {
           player="P1"
           chainDrafts={{ GUI: 'ROS A BT' }}
           winterDraft=""
+          specialDraft=""
           submitted={true}
           submitting={false}
           error={null}
           draftDiffers={{ chains: { GUI: true } }}
           onChainChange={vi.fn()}
           onWinterChange={vi.fn()}
+          onSpecialChange={vi.fn()}
           onSubmit={vi.fn()}
           onOpenRules={vi.fn()}
           onRestoreFromServer={onRestore}
@@ -410,12 +536,14 @@ describe('OrdersPanel seasonal presentation', () => {
           player="P1"
           chainDrafts={{ GUI: 'ROS A BT' }}
           winterDraft=""
+          specialDraft=""
           submitted={true}
           submitting={false}
           error={null}
           draftDiffers={undefined}
           onChainChange={vi.fn()}
           onWinterChange={vi.fn()}
+          onSpecialChange={vi.fn()}
           onSubmit={vi.fn()}
           onOpenRules={vi.fn()}
         />

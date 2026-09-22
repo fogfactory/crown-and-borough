@@ -1,9 +1,18 @@
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
 import { formatOrderLabel } from '@/lib/order-label'
+import { formatCardLabel } from '@/lib/card-hand'
 import { playerDisplayName, type PlayerName } from '@/lib/player-label'
+import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { hasSupplySource } from '@/lib/supply'
-import type { MapData, PlayerId, StateData, SupplyLine, TransferLine } from '@/types'
+import type {
+  MapData,
+  PlayerId,
+  Region,
+  StateData,
+  SupplyLine,
+  TransferLine,
+} from '@/types'
 
 const TERRAIN_LABEL_KEYS: Record<MapData['territories'][number]['terrain'], MessageKey> =
   {
@@ -31,6 +40,7 @@ interface SelectedTerritoryDetailsProps {
   state: StateData | null
   selectedTerritory: MapTerritory | null | undefined
   selectedState: TerritoryState | null | undefined
+  selectedRegion?: Region | null
   preferredPlayers?: readonly PlayerName[]
   mapTerritories?: readonly MapTerritory[]
   selectedSupplyLine: SupplyLine | null
@@ -49,6 +59,7 @@ export function SelectedTerritoryDetails({
   state,
   selectedTerritory,
   selectedState,
+  selectedRegion,
   preferredPlayers,
   mapTerritories = [],
   selectedSupplyLine,
@@ -96,6 +107,11 @@ export function SelectedTerritoryDetails({
     const territory = mapTerritories.find((candidate) => candidate.id === territoryID)
     return territory ? `${territory.id} · ${territory.name}` : territoryID
   }
+  const activeRegionEffects = selectedRegion
+    ? (state.activeRegionEffects ?? []).filter(
+        (effect) => effect.regionSeed === selectedRegion.seed,
+      )
+    : []
 
   return (
     <div className="space-y-5">
@@ -120,6 +136,17 @@ export function SelectedTerritoryDetails({
         <dd className="font-medium">
           {t(TERRAIN_LABEL_KEYS[selectedTerritory.terrain])}
         </dd>
+        {selectedRegion && (
+          <>
+            <dt className="text-[#806f57]">{t('app.region')}</dt>
+            <dd className="font-medium">
+              <span>{selectedRegion.seed}</span>
+              <span className="ml-2 text-xs font-semibold text-[#684b7d]">
+                {t('app.regionSeedLabel', { seed: selectedRegion.seed })}
+              </span>
+            </dd>
+          </>
+        )}
         {selectedState && (
           <>
             <dt className="text-[#806f57]">{t('app.control')}</dt>
@@ -131,6 +158,32 @@ export function SelectedTerritoryDetails({
           </>
         )}
       </dl>
+
+      {activeRegionEffects.length > 0 && (
+        <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">
+          <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
+            {t('app.activeEffects')}
+          </h3>
+          <ul className="space-y-1.5 text-sm">
+            {activeRegionEffects.map((effect, index) => {
+              const current = effect.season === state.season
+              return (
+                <li
+                  key={`${effect.kind}-${effect.season}-${index}`}
+                  className="rounded-md bg-[#f3ead9] px-3 py-2"
+                >
+                  <span className={current ? 'font-bold' : 'font-medium'}>
+                    {formatCardLabel(effect.kind, t)}
+                  </span>
+                  <span className="mt-1 block text-xs text-[#806f57]">
+                    {t('app.effectSeason', { season: t(SEASON_LABEL_KEYS[effect.season]) })}
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
 
       <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">
         <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">

@@ -73,6 +73,10 @@ const (
 	WinterTransferShape          = "error.winter.transfer_shape"
 	WinterTransferAmount         = "error.winter.transfer_amount"
 	WinterMillMaxLevelReached    = "mill_max_level_reached"
+	DeckOrderShape               = "error.special.order_shape"
+	DeckOrderKindUnknown         = "error.special.kind_unknown"
+	DeckOrderKindNotPlayable     = "error.special.kind_not_playable"
+	DeckOrderRegionUnknown       = "error.special.region_unknown"
 
 	ValidationUnknownNoble                 = "error.validation.unknown_noble"
 	ValidationEmptyChain                   = "error.validation.empty_chain"
@@ -162,6 +166,10 @@ func init() {
 	register(WinterTransferShape, "G requires a source, a destination, and an amount", "G exige une source, une destination et un montant")
 	register(WinterTransferAmount, "transfer amount %q must be a positive integer", "le montant du transfert %q doit être un entier positif")
 	register(WinterMillMaxLevelReached, "the mill has reached its maximum level", "le moulin a atteint son niveau maximal")
+	register(DeckOrderShape, "a special order has an invalid shape", "la forme de l'ordre spécial est invalide")
+	register(DeckOrderKindUnknown, "unknown special card kind %q", "kind de carte spéciale inconnu : %q")
+	register(DeckOrderKindNotPlayable, "card kind %q cannot be used as a player order", "le kind %q ne peut pas être joué comme ordre de joueur")
+	register(DeckOrderRegionUnknown, "region seed %q does not exist", "le seed de région %q n'existe pas")
 
 	register(ValidationUnknownNoble, "noble %q does not exist", "le noble %q n'existe pas")
 	register(ValidationEmptyChain, "a chain must contain at least one order", "une chaîne doit contenir au moins un ordre")

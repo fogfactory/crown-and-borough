@@ -644,8 +644,15 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 			t.Errorf("A1 size = %d, want 2 after one famine turn", army.Size)
 		}
 		report := BuildTurnReport(state, resolution.State, resolution.Events, nil)
-		if len(report.Famines) != 1 || report.Famines[0].Troops != 3 || report.Famines[0].TroopsLost != 1 {
-			t.Errorf("famine report = %#v, want initial size 3 and one lost troop", report.Famines)
+		var consumption *ConsumptionReport
+		for index := range report.Consumption {
+			if report.Consumption[index].Army == "A1" {
+				consumption = &report.Consumption[index]
+				break
+			}
+		}
+		if consumption == nil || !consumption.Famine || consumption.Size != 3 || consumption.TroopsLost != 1 {
+			t.Errorf("consumption report = %#v, want a famine line for A1 with initial size 3 and one lost troop", report.Consumption)
 		}
 		if len(resolution.State.Infrastructures) != 0 {
 			t.Errorf("infrastructures = %#v, want auto-pillage to remove I1", resolution.State.Infrastructures)

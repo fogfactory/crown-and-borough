@@ -13,28 +13,46 @@ type Resolution struct {
 type EventType string
 
 const (
-	EventTypeOrderOutcome     EventType = "order_outcome"
-	EventTypeCombat           EventType = "combat"
-	EventTypeMovement         EventType = "movement"
-	EventTypeFusion           EventType = "fusion"
-	EventTypeDispersion       EventType = "dispersion"
-	EventTypePillage          EventType = "pillage"
-	EventTypeRetreat          EventType = "retreat"
-	EventTypeArmyDestroyed    EventType = "army_destroyed"
-	EventTypeNobleMovement    EventType = "noble_movement"
-	EventTypeCapture          EventType = "capture"
-	EventTypeControlChanged   EventType = "control_changed"
-	EventTypeChainProgression EventType = "chain_progression"
-	EventTypeSupply           EventType = "supply"
-	EventTypeFamine           EventType = "famine"
-	EventTypeTransfer         EventType = "transfer"
-	EventTypeWinterStock      EventType = "winter_stock"
-	EventTypeRecruit          EventType = "recruit"
-	EventTypeBuild            EventType = "build"
-	EventTypeUpgrade          EventType = "upgrade"
-	EventTypeRejected         EventType = "rejected"
-	EventTypeCapitalElected   EventType = "capital_elected"
-	EventTypeLiberation       EventType = "liberation"
+	EventTypeOrderOutcome      EventType = "order_outcome"
+	EventTypeCombat            EventType = "combat"
+	EventTypeMovement          EventType = "movement"
+	EventTypeFusion            EventType = "fusion"
+	EventTypeDispersion        EventType = "dispersion"
+	EventTypePillage           EventType = "pillage"
+	EventTypeRetreat           EventType = "retreat"
+	EventTypeArmyDestroyed     EventType = "army_destroyed"
+	EventTypeNobleMovement     EventType = "noble_movement"
+	EventTypeCapture           EventType = "capture"
+	EventTypeControlChanged    EventType = "control_changed"
+	EventTypeChainProgression  EventType = "chain_progression"
+	EventTypeSupply            EventType = "supply"
+	EventTypeFamine            EventType = "famine"
+	EventTypeTransfer          EventType = "transfer"
+	EventTypeWinterStock       EventType = "winter_stock"
+	EventTypeRecruit           EventType = "recruit"
+	EventTypeBuild             EventType = "build"
+	EventTypeUpgrade           EventType = "upgrade"
+	EventTypeRejected          EventType = "rejected"
+	EventTypeCapitalElected    EventType = "capital_elected"
+	EventTypeLiberation        EventType = "liberation"
+	EventTypeDeckDraw          EventType = "deck_draw"
+	EventTypeDeckDiscard       EventType = "deck_discard"
+	EventTypeDeckRestore       EventType = "deck_restore"
+	EventTypeCalamityScheduled EventType = "calamity_scheduled"
+	EventTypeAuguryRevealed    EventType = "augury_revealed"
+	EventTypeDeckOrderPlayed   EventType = "deck_order_played"
+	EventTypeCalamityApplied   EventType = "calamity_applied"
+	EventTypeCalamityCanceled  EventType = "calamity_canceled"
+	EventTypeBonusEffect       EventType = "bonus_effect"
+	EventTypeNeutralArmy       EventType = "neutral_army_created"
+	EventTypePlagueDeath       EventType = "plague_noble_death"
+	EventTypePlagueSurvived    EventType = "plague_noble_survived"
+	EventTypeBadWeatherBlocked EventType = "bad_weather_blocked"
+	EventTypeFamineLoss        EventType = "famine_loss"
+	EventTypeProduction        EventType = "production"
+	EventTypeConsumption       EventType = "consumption"
+	EventTypeCardCanceled      EventType = "card_canceled"
+	EventTypeRumor             EventType = "rumor"
 )
 
 // Outcome is the execution result of one current order.
@@ -73,16 +91,23 @@ type Event struct {
 	Type  EventType `json:"type"`
 	Phase int       `json:"phase"`
 
-	ArmyID      models.ArmyID    `json:"army,omitempty"`
-	OtherArmyID models.ArmyID    `json:"otherArmy,omitempty"`
-	ArmyIDs     []models.ArmyID  `json:"armies,omitempty"`
-	ChainID     models.ChainID   `json:"chain,omitempty"`
-	OrderID     models.OrderID   `json:"order,omitempty"`
-	OrderType   models.OrderType `json:"orderType,omitempty"`
-	Outcome     Outcome          `json:"outcome,omitempty"`
-	Automatic   bool             `json:"automatic,omitempty"`
-	Reason      string           `json:"reason,omitempty"`
-	Progression Progression      `json:"progression,omitempty"`
+	ArmyID      models.ArmyID        `json:"army,omitempty"`
+	OtherArmyID models.ArmyID        `json:"otherArmy,omitempty"`
+	ArmyIDs     []models.ArmyID      `json:"armies,omitempty"`
+	ChainID     models.ChainID       `json:"chain,omitempty"`
+	OrderID     models.OrderID       `json:"order,omitempty"`
+	OrderType   models.OrderType     `json:"orderType,omitempty"`
+	CardID      models.SpecialCardID `json:"cardId,omitempty"`
+	CardKind    models.CardKind      `json:"cardKind,omitempty"`
+	RegionSeed  models.TerritoryID   `json:"regionSeed,omitempty"`
+	Year        int                  `json:"year,omitempty"`
+	Season      models.Season        `json:"season,omitempty"`
+	RumorKey    string               `json:"rumorKey,omitempty"`
+	RumorLevel  int                  `json:"rumorLevel,omitempty"`
+	Outcome     Outcome              `json:"outcome,omitempty"`
+	Automatic   bool                 `json:"automatic,omitempty"`
+	Reason      string               `json:"reason,omitempty"`
+	Progression Progression          `json:"progression,omitempty"`
 
 	TerritoryID       models.TerritoryID `json:"territory,omitempty"`
 	SourceID          models.TerritoryID `json:"source,omitempty"`
@@ -102,6 +127,8 @@ type Event struct {
 	DestinationKind   string             `json:"destinationKind,omitempty"`
 	HostArmyID        models.ArmyID      `json:"hostArmy,omitempty"`
 	TroopsMerged      int                `json:"troopsMerged,omitempty"`
+	SizeBefore        int                `json:"sizeBefore,omitempty"`
+	SizeAfter         int                `json:"sizeAfter,omitempty"`
 
 	InfrastructureID   models.InfraID             `json:"infrastructure,omitempty"`
 	InfrastructureType models.InfraType           `json:"infrastructureType,omitempty"`
@@ -119,7 +146,20 @@ type Event struct {
 	ResourceSpent      int                        `json:"resourceSpent,omitempty"`
 	Troops             int                        `json:"troops,omitempty"`
 	TroopsLost         int                        `json:"troopsLost,omitempty"`
+	RationsLost        int                        `json:"rationsLost,omitempty"`
 	SavedByPillage     bool                       `json:"savedByPillage,omitempty"`
+
+	TerrainRations       int                        `json:"terrainRations,omitempty"`
+	InfraRations         int                        `json:"infraRations,omitempty"`
+	BonusRations         int                        `json:"bonusRations,omitempty"`
+	SuppressedRations    int                        `json:"suppressedRations,omitempty"`
+	BaseProduction       int                        `json:"baseProduction,omitempty"`
+	MillProduction       int                        `json:"millProduction,omitempty"`
+	BonusProduction      int                        `json:"bonusProduction,omitempty"`
+	SuppressedProduction int                        `json:"suppressedProduction,omitempty"`
+	ReceivedLocal        int                        `json:"receivedLocal,omitempty"`
+	ReceivedTransfer     int                        `json:"receivedTransfer,omitempty"`
+	SentRations          map[models.TerritoryID]int `json:"sentRations,omitempty"`
 
 	NobleID         models.NobleID      `json:"noble,omitempty"`
 	NobleCode       models.NobleCode    `json:"nobleCode,omitempty"`

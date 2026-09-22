@@ -41,6 +41,12 @@ func TestCreateGameInitialSetupAndDeterminism(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GenerateMap: %v", err)
 	}
+	if len(mapData.Regions) != len(players)+1 || len(first.Regions) != len(players)+1 {
+		t.Fatalf("regions = map %d/state %d, want %d", len(mapData.Regions), len(first.Regions), len(players)+1)
+	}
+	if !reflect.DeepEqual(mapData.Regions, first.Regions) {
+		t.Fatal("game regions differ from generated map regions")
+	}
 	villages := make(map[models.TerritoryID]bool)
 	for _, territory := range mapData.Territories {
 		villages[models.TerritoryID(territory.ID)] = territory.Village

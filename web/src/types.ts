@@ -6,6 +6,9 @@ export type InfraType = 'mill' | 'supply_depot' | 'castle' | 'village'
 
 export type NobleStatus = 'free' | 'hostage' | 'dungeon'
 
+export type CardKind =
+  'fair_weather' | 'abundant_harvest' | 'revolt' | 'plague' | 'bad_weather' | 'famine'
+
 export type OrderType =
   'attack' | 'support' | 'hold' | 'join' | 'pillage' | 'disperse' | 'transfer'
 
@@ -27,8 +30,26 @@ export type EventType =
   | 'capture'
   | 'liberation'
   | 'transfer'
+  | 'deck_draw'
+  | 'deck_discard'
+  | 'deck_restore'
+  | 'calamity_scheduled'
+  | 'deck_order_played'
+  | 'calamity_applied'
+  | 'calamity_canceled'
+  | 'bonus_effect'
+  | 'neutral_army_created'
+  | 'plague_noble_death'
+  | 'plague_noble_survived'
+  | 'bad_weather_blocked'
+  | 'famine_loss'
+  | 'famine'
+  | 'card_canceled'
+  | 'rumor'
 
 export type PlayerId = string
+
+export const NEUTRAL_PLAYER_ID = 'NEUTRAL'
 
 export type GameStatus = 'playing' | 'finished'
 
@@ -123,8 +144,15 @@ export interface Territory {
   impassable: string[]
 }
 
+export interface Region {
+  id: string
+  seed: string
+  territories: string[]
+}
+
 export interface MapData {
   territories: Territory[]
+  regions?: Region[]
 }
 
 export interface Player {
@@ -164,6 +192,23 @@ export interface StateData {
   players: Player[]
   territories: TerritoryState[]
   nobles: Noble[]
+  specialHand?: CardKind[]
+  activeRegionEffects?: ActiveRegionEffect[]
+  announcements?: AnnouncementReport[]
+}
+
+export interface ActiveRegionEffect {
+  kind: CardKind
+  regionSeed: string
+  season: Season
+  year: number
+}
+
+export interface AnnouncementReport {
+  kind: CardKind
+  season: Season
+  region: string
+  year: number
 }
 
 export interface WinterCosts {
@@ -215,9 +260,14 @@ export interface WinterSubmission {
   lines: string
 }
 
+export interface DeckSubmission {
+  text: string
+}
+
 export interface OrdersInput {
   chains: ChainSubmission[]
   winter: WinterSubmission[]
+  special: DeckSubmission[]
 }
 
 export interface SubmittedChain {
@@ -319,26 +369,40 @@ export interface PlayerReport {
   infrastructures: ReportInfrastructure[]
 }
 
-export interface SupplyReport {
-  source: string
-  owner: PlayerId
-  production: number
-  demand: number
-  rations: Record<string, number>
-  stockConsumed: number
-  stockAfter: number
+export interface ProductionReport {
+  territory: string
+  region?: string
+  owner?: PlayerId
+  terrainRations: number
+  infraRations?: number
+  bonusRations?: number
+  suppressedRations?: number
+  baseProduction?: number
+  millProduction?: number
+  bonusProduction?: number
+  suppressedProduction?: number
+  produced: number
+  sentToRations?: Record<string, number>
+  stockBefore?: number
+  stockConsumed?: number
+  stockAfter?: number
 }
 
-export interface FamineReport {
+export interface ConsumptionReport {
   army: string
   owner: PlayerId
   territory: string
-  source: string
-  troops: number
+  source?: string
+  size: number
+  demand: number
+  receivedLocal: number
+  receivedTransfer: number
+  totalReceived: number
+  missing: number
+  famine?: boolean
+  savedByPillage?: boolean
   troopsLost?: number
-  savedByPillage: boolean
-  infrastructure?: string
-  infrastructureType?: InfraType
+  pillageInfrastructure?: InfraType
   resourceCredit?: number
   creditTerritory?: string
 }
@@ -459,20 +523,67 @@ export interface WinterStockReport {
   stockAfter: number
 }
 
+export interface CardReport {
+  kind: CardKind
+  eventType: EventType
+  player?: PlayerId
+  region?: string
+  season?: Season
+  outcome: Outcome
+  reason?: string
+}
+
+export interface RumorReport {
+  kind: CardKind
+  key: string
+  level?: number
+}
+
+export interface SeasonEffectReport {
+  kind: EventType
+  cardKind?: CardKind
+  region?: string
+  season?: Season
+  owner?: PlayerId
+  army?: string
+  noble?: string
+  territory?: string
+  target?: string
+  troops?: number
+  sizeBefore?: number
+  sizeAfter?: number
+  productionLost?: number
+  rationsLost?: number
+  reason?: string
+}
+
+export interface AuguryReport {
+  year: number
+  capacities: Partial<Record<Season, number>>
+  calamities: Array<{ kind: CardKind; season: Season; region: string }>
+}
+
 export interface WinterReport {
   investments: WinterInvestmentReport[]
   stocks: WinterStockReport[]
+  cards?: CardReport[]
+  rumors?: RumorReport[]
 }
 
 export interface TurnReport {
   header: ReportHeader
   players: PlayerReport[]
   receptions: ReceptionReport[]
-  supply: SupplyReport[]
-  famines: FamineReport[]
+  production: ProductionReport[]
+  consumption: ConsumptionReport[]
   combats: CombatReport[]
   orders: OrderReport[]
   moves: MoveReport[]
   nobles: ReportNoble[]
+  seasonEffects?: SeasonEffectReport[]
+  rumors?: RumorReport[]
+  cards?: CardReport[]
+  announcements?: AnnouncementReport[]
+  augury?: AuguryReport
   winter?: WinterReport
 }

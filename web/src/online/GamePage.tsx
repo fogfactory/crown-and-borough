@@ -284,10 +284,12 @@ export function GamePage() {
   const [submittedOrders, setSubmittedOrders] = useState<SubmittedOrdersResponse | null>(
     null,
   )
+  const [specialDraft, setSpecialDraft] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [confirmResolve, setConfirmResolve] = useState(false)
   const [activePanel, setActivePanel] = useState<Panel>('command')
+  const [showRegions, setShowRegions] = useState(false)
   const [rulesNavigation, setRulesNavigation] = useState<{
     section: RulesSection
     key: number
@@ -303,6 +305,11 @@ export function GamePage() {
     'cb.intentionsOverlay',
     true,
   )
+  const [showCalamities, setShowCalamities] = useLocalStorageState(
+    'cb.calamitiesOverlay',
+    true,
+  )
+  const [showCards, setShowCards] = useLocalStorageState('cb.cardsOverlay', true)
   const [mapFocusSignal, setMapFocusSignal] = useState(0)
   const lastTurn = useRef<number | null>(null)
   const hydratedTurnRef = useRef<number | null>(null)
@@ -564,6 +571,7 @@ export function GamePage() {
       setWinterDraft('')
       setServerSubmission(null)
       setSubmittedOrders(null)
+      setSpecialDraft('')
       setActionError(null)
       lastTurn.current = turn
     }
@@ -581,6 +589,9 @@ export function GamePage() {
   const transferTarget = transferTargets.includes(selectedTransferTarget ?? '')
     ? selectedTransferTarget
     : (transferTargets[0] ?? null)
+  const selectedRegion = map?.regions?.find((region) =>
+    region.territories.includes(selectedId ?? ''),
+  )
 
   useEffect(() => {
     if (
@@ -770,6 +781,7 @@ export function GamePage() {
       setChainDrafts({})
       setWinterDraft('')
       setServerSubmission(null)
+      setSpecialDraft('')
       if (!response.report) {
         setReport(null)
         setActivePanel('report')
@@ -807,9 +819,14 @@ export function GamePage() {
                   text: addNobleHeader(noble.code, chainDrafts[noble.code] ?? ''),
                 }))
                 .filter((chain) => hasChainContent(chain.noble, chain.text))
+        const winterLines = [winterDraft, state.season === 'winter' ? specialDraft : '']
+          .filter((text) => text.trim() !== '')
+          .join('\n')
         const winter =
-          state.season === 'winter' && winterDraft.trim() !== ''
-            ? [{ lines: winterDraft }]
+          state.season === 'winter' && winterLines !== '' ? [{ lines: winterLines }] : []
+        const special =
+          state.season !== 'winter' && specialDraft.trim() !== ''
+            ? [{ text: specialDraft }]
             : []
         response = await apiRequest<OrdersResponse>(
           { getIdToken },
@@ -819,6 +836,7 @@ export function GamePage() {
             body: JSON.stringify({
               chains,
               winter,
+              special,
               revision: summary?.revision ?? view?.revision ?? 0,
             }),
           },
@@ -1070,6 +1088,17 @@ export function GamePage() {
             showIntentions={showIntentions}
             intentionsColor={intentionsColor}
             onToggleIntentions={setShowIntentions}
+            showRegions={showRegions}
+            onToggleRegions={setShowRegions}
+            showCalamities={showCalamities}
+            onToggleCalamities={setShowCalamities}
+            showCards={showCards}
+            onToggleCards={setShowCards}
+            specialOrders={
+              specialDraft.trim() !== '' && playerID
+                ? [{ player: playerID, text: specialDraft }]
+                : []
+            }
           />
         }
         focusSignal={mapFocusSignal}
@@ -1132,6 +1161,7 @@ export function GamePage() {
                 state={state}
                 selectedTerritory={selectedTerritory}
                 selectedState={selectedState}
+                selectedRegion={selectedRegion}
                 preferredPlayers={summary.players}
                 mapTerritories={map.territories}
                 selectedSupplyLine={selectedSupplyLine}
@@ -1151,6 +1181,7 @@ export function GamePage() {
                   player={playerID}
                   chainDrafts={chainDrafts}
                   winterDraft={winterDraft}
+                  specialDraft={specialDraft}
                   winterCosts={winterCosts}
                   map={map}
                   submitted={Boolean(currentSlot?.submitted)}
@@ -1161,6 +1192,7 @@ export function GamePage() {
                     setChainDrafts((current) => ({ ...current, [noble]: text }))
                   }
                   onWinterChange={setWinterDraft}
+                  onSpecialChange={setSpecialDraft}
                   onSubmit={() => void submitOrders()}
                   onOpenRules={openRules}
                   onRestoreFromServer={restoreFromServer}

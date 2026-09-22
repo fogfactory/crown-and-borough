@@ -17,16 +17,19 @@ import (
 // storage-oriented GameState directly, and includes the public calendar and
 // score snapshot.
 type StateView struct {
-	Turn        int                                       `json:"turn"`
-	Year        int                                       `json:"year"`
-	YearCount   int                                       `json:"yearCount"`
-	Season      models.Season                             `json:"season"`
-	Scores      map[models.PlayerID]engine.ScoreBreakdown `json:"scores"`
-	Finished    bool                                      `json:"finished"`
-	Winner      *models.PlayerID                          `json:"winner,omitempty"`
-	Players     []PlayerView                              `json:"players"`
-	Territories []TerritoryView                           `json:"territories"`
-	Nobles      []NobleView                               `json:"nobles"`
+	Turn                int                                       `json:"turn"`
+	Year                int                                       `json:"year"`
+	YearCount           int                                       `json:"yearCount"`
+	Season              models.Season                             `json:"season"`
+	Scores              map[models.PlayerID]engine.ScoreBreakdown `json:"scores"`
+	Finished            bool                                      `json:"finished"`
+	Winner              *models.PlayerID                          `json:"winner,omitempty"`
+	Players             []PlayerView                              `json:"players"`
+	Territories         []TerritoryView                           `json:"territories"`
+	Nobles              []NobleView                               `json:"nobles"`
+	SpecialHand         []models.CardKind                         `json:"specialHand"`
+	ActiveRegionEffects []models.ActiveRegionEffect               `json:"activeRegionEffects"`
+	Announcements       []engine.AnnouncementReport               `json:"announcements"`
 }
 
 // PlayerView contains the public player metadata needed by the hotseat
@@ -140,10 +143,13 @@ func ProjectStateForPlayer(state *models.GameState, playerID models.PlayerID) St
 
 func projectStateForViewer(state *models.GameState, viewer *models.PlayerID) StateView {
 	view := StateView{
-		Players:     []PlayerView{},
-		Territories: []TerritoryView{},
-		Nobles:      []NobleView{},
-		Scores:      map[models.PlayerID]engine.ScoreBreakdown{},
+		Players:             []PlayerView{},
+		Territories:         []TerritoryView{},
+		Nobles:              []NobleView{},
+		SpecialHand:         []models.CardKind{},
+		ActiveRegionEffects: []models.ActiveRegionEffect{},
+		Announcements:       []engine.AnnouncementReport{},
+		Scores:              map[models.PlayerID]engine.ScoreBreakdown{},
 	}
 	if state == nil {
 		return view
@@ -232,6 +238,19 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID) Sta
 			Status:   noble.Status,
 		})
 	}
+	if viewer != nil && state.SpecialDeck != nil {
+		cardKinds := make(map[models.SpecialCardID]models.CardKind, len(state.SpecialDeck.Cards))
+		for _, card := range state.SpecialDeck.Cards {
+			cardKinds[card.ID] = card.Kind
+		}
+		for _, cardID := range state.SpecialDeck.Hands[*viewer] {
+			if kind, exists := cardKinds[cardID]; exists && kind.IsBonus() {
+				view.SpecialHand = append(view.SpecialHand, kind)
+			}
+		}
+	}
+	view.ActiveRegionEffects = append([]models.ActiveRegionEffect(nil), state.ActiveRegionEffects...)
+	view.Announcements = engine.PendingAnnouncements(state, state.Year(), state.Season, true)
 	return view
 }
 

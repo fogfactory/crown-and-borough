@@ -23,6 +23,15 @@ func ResolveWinter(
 	balance assetgen.Balance,
 	orders map[models.PlayerID][]models.WinterOrder,
 ) (Resolution, error) {
+	return ResolveWinterWithDeckOrders(game, balance, orders, nil)
+}
+
+func ResolveWinterWithDeckOrders(
+	game *models.GameState,
+	balance assetgen.Balance,
+	orders map[models.PlayerID][]models.WinterOrder,
+	deckOrders map[models.PlayerID][]models.DeckOrder,
+) (Resolution, error) {
 	if game == nil {
 		return Resolution{}, fmt.Errorf("engine: resolve winter: nil game state")
 	}
@@ -38,6 +47,9 @@ func ResolveWinter(
 	if err := validateWinterPlayers(game, orders); err != nil {
 		return Resolution{}, err
 	}
+	if err := validateDeckOrders(game, balance, deckOrders); err != nil {
+		return Resolution{}, err
+	}
 
 	state := cloneGameState(game)
 	ctx := newResolutionContext(state, balance)
@@ -45,9 +57,12 @@ func ResolveWinter(
 	firstNameRNG := newWinterRNG(state.Seed, state.Turn)
 	for _, playerID := range sortedPlayerIDs(state.Players) {
 		for _, order := range orders[playerID] {
-			ctx.resolveWinterOrder(playerID, order, firstNameRNG)
+			executeWinterOrder(ctx, playerID, order, firstNameRNG)
 		}
 	}
+	resolveWinterDeckOrders(ctx, deckOrders)
+	// No calamity resolves in winter: the winter turn draws and schedules the
+	// following year's calamities but applies none.
 	ctx.conserveWinterStocks()
 	ctx.repatriateWinterStocks()
 	ctx.emitWinterStockEvents(stockBefore)
@@ -258,18 +273,6 @@ func (ctx *resolutionContext) resolveRecruitTroop(playerID models.PlayerID, orde
 		Troops:        1,
 		ResourceSpent: spent,
 	})
-}
-
-func (ctx *resolutionContext) hasEligibleTroopNoble(playerID models.PlayerID, targetID models.TerritoryID) bool {
-	for _, noble := range ctx.state.Nobles {
-		if noble.OwnerID != playerID || noble.Status != models.NobleStatusFree {
-			continue
-		}
-		if noble.LocationID == targetID || ctx.isAdjacent(noble.LocationID, targetID) {
-			return true
-		}
-	}
-	return false
 }
 
 func (ctx *resolutionContext) resolveBuild(playerID models.PlayerID, order models.WinterOrder) {

@@ -1,5 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useLanguage } from '@/i18n/LanguageContext'
+import {
+  HERALDIC_COLORS,
+  REGION_PATTERNS,
+  REGION_PATTERN_BACKGROUNDS,
+} from '@/lib/region-color'
 import type { MessageKey } from '@/i18n/messages'
 import type { Terrain } from '@/types'
 
@@ -156,9 +161,24 @@ function TerrainSwatch({ terrain }: { terrain: Terrain }) {
 interface MapLegendProps {
   showIntentions?: boolean
   onToggleIntentions?: (show: boolean) => void
+  showRegions?: boolean
+  onToggleRegions?: (show: boolean) => void
+  showCalamities?: boolean
+  onToggleCalamities?: (show: boolean) => void
+  showCards?: boolean
+  onToggleCards?: (show: boolean) => void
 }
 
-export function MapLegend({ showIntentions = true, onToggleIntentions }: MapLegendProps) {
+export function MapLegend({
+  showIntentions = true,
+  onToggleIntentions,
+  showRegions = false,
+  onToggleRegions,
+  showCalamities = true,
+  onToggleCalamities,
+  showCards = true,
+  onToggleCards,
+}: MapLegendProps) {
   const { t } = useLanguage()
 
   return (
@@ -187,6 +207,69 @@ export function MapLegend({ showIntentions = true, onToggleIntentions }: MapLege
               </span>
             </span>
           </label>
+        )}
+        {onToggleRegions && (
+          <label className="flex items-center gap-2 rounded-md bg-[#eef3f7] px-2 py-1.5">
+            <input
+              type="checkbox"
+              checked={showRegions}
+              onChange={(event) => onToggleRegions(event.target.checked)}
+            />
+            <span>{t('legend.regions')}</span>
+          </label>
+        )}
+        {onToggleCalamities && (
+          <label className="flex items-center gap-2 rounded-md bg-[#f3ead9] px-2 py-1.5">
+            <input
+              type="checkbox"
+              checked={showCalamities}
+              onChange={(event) => onToggleCalamities(event.target.checked)}
+            />
+            <span>{t('legend.calamities')}</span>
+          </label>
+        )}
+        {onToggleCards && (
+          <label className="flex items-center gap-2 rounded-md bg-[#f3ead9] px-2 py-1.5">
+            <input
+              type="checkbox"
+              checked={showCards}
+              onChange={(event) => onToggleCards(event.target.checked)}
+            />
+            <span>{t('legend.cards')}</span>
+          </label>
+        )}
+        {onToggleRegions && (
+          <div className="flex items-center gap-2 rounded-md bg-[#eef3f7] px-2 py-1.5">
+            <span className="size-3 shrink-0 rotate-45 rounded-[2px] border-2 border-[#294c63] bg-[#4d7893]" />
+            <span>{t('legend.regionSeed')}</span>
+          </div>
+        )}
+        {onToggleRegions && (
+          <div className="space-y-1 rounded-md bg-[#eef3f7] px-2 py-1.5" data-region-swatches>
+            <div className="flex flex-wrap gap-1.5" aria-hidden="true">
+              {HERALDIC_COLORS.map((color, index) => (
+                <span
+                  key={`region-color-${index}`}
+                  data-region-color={index}
+                  className="size-4 rounded-sm border border-[#1f3a4d]/40"
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-1.5" aria-hidden="true">
+              {REGION_PATTERNS.map((pattern) => (
+                <span
+                  key={`region-pattern-${pattern}`}
+                  data-region-pattern={pattern}
+                  className="size-4 rounded-sm border border-[#1f3a4d]/40"
+                  style={{
+                    backgroundColor: HERALDIC_COLORS[0],
+                    backgroundImage: REGION_PATTERN_BACKGROUNDS[pattern],
+                  }}
+                />
+              ))}
+            </div>
+          </div>
         )}
         <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
           {TERRAIN_ORDER.map((terrain) => (

@@ -35,6 +35,7 @@ const map: MapData = {
       impassable: [],
     },
   ],
+  regions: [{ id: 'ROS', seed: 'ROS', territories: ['ROS'] }],
 }
 
 const state: StateData = {
@@ -119,6 +120,7 @@ describe('SelectedTerritoryDetails', () => {
         state={state}
         selectedTerritory={map.territories[0]}
         selectedState={state.territories[0]}
+        selectedRegion={map.regions?.[0]}
         preferredPlayers={[
           { id: 'P1', name: 'Alice' },
           { id: 'P2', name: 'Bob' },
@@ -132,6 +134,8 @@ describe('SelectedTerritoryDetails', () => {
 
     expect(screen.getByText('Capital of Alice')).toBeInTheDocument()
     expect(screen.getByText('Plain')).toBeInTheDocument()
+    expect(screen.getByText('Region')).toBeInTheDocument()
+    expect(screen.getByText('regional seat / card target: ROS')).toBeInTheDocument()
     expect(screen.getAllByText('Bob').length).toBeGreaterThan(0)
     expect(screen.getByText('4 troops')).toBeInTheDocument()
     expect(screen.getByText(/Source:/)).toBeInTheDocument()
@@ -270,6 +274,35 @@ describe('SelectedTerritoryDetails', () => {
       'The supply path is blocked by an enemy army.',
     )
     expect(screen.queryByText(/ROS · Rosemont -> BRU/)).not.toBeInTheDocument()
+  })
+
+  it('renders active effects for the selected region', () => {
+    const effectState: StateData = {
+      ...state,
+      activeRegionEffects: [
+        { kind: 'fair_weather', regionSeed: 'ROS', season: 'spring', year: 1 },
+        { kind: 'famine', regionSeed: 'ROS', season: 'spring', year: 1 },
+      ],
+    }
+    render(
+      <SelectedTerritoryDetails
+        state={effectState}
+        selectedTerritory={map.territories[0]}
+        selectedState={effectState.territories[0]}
+        selectedRegion={map.regions?.[0]}
+        selectedSupplyLine={null}
+        sourceTerritory={null}
+        supplyLoading={false}
+        supplyError={null}
+      />,
+    )
+
+    expect(screen.getByText('Active regional effects')).toBeInTheDocument()
+    expect(screen.getByText('Fair weather (FW)')).toBeInTheDocument()
+    expect(screen.getByText('Bad harvest (BH)')).toBeInTheDocument()
+
+    const badHarvestLabel = screen.getByText('Bad harvest (BH)')
+    expect(badHarvestLabel).toHaveClass('font-bold')
   })
 
   it('renders the hidden-chain message without exposing its order stack', () => {

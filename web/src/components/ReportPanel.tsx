@@ -1,4 +1,6 @@
 import { formatOrderLabel } from '@/lib/order-label'
+import { formatCardLabel } from '@/lib/card-hand'
+import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
 import type {
@@ -8,6 +10,8 @@ import type {
   Player,
   PlayerId,
   ReportArmy,
+  CardReport,
+  SeasonEffectReport,
   TurnReport,
   WinterInvestmentReport,
   WinterOrder,
@@ -111,6 +115,10 @@ const REASON_KEYS: Record<string, MessageKey> = {
   invalid_infrastructure: 'reports.reason.invalid_infrastructure',
   unknown_noble: 'reports.reason.unknown_noble',
   mill_max_level_reached: 'reports.reason.mill_max_level_reached',
+  bad_weather: 'reports.reason.bad_weather',
+  disperse_residual_dislodged: 'reports.reason.disperse_residual_dislodged',
+  invalid_transfer_shape: 'reports.reason.invalid_transfer_shape',
+  no_available_first_name: 'reports.reason.no_available_first_name',
 }
 
 const RECEPTION_REASON_KEYS: Record<string, MessageKey> = {
@@ -298,16 +306,238 @@ function winterDetails(
   return territoryLabel(map, investment.territory, t)
 }
 
+function cardEventLabel(card: CardReport, map: MapData | null, t: Translate): string {
+  const label = formatCardLabel(card.kind, t)
+  const region = territoryLabel(map, card.region, t)
+  const player = card.player ?? t('reports.unknownPlayer')
+  switch (card.eventType) {
+    case 'deck_draw':
+      return t('reports.cardDrawn', { card: label, player })
+    case 'deck_discard':
+      return t('reports.cardDiscarded', { card: label, player })
+    case 'deck_order_played':
+      return t('reports.cardPlayed', { card: label, player, region })
+    case 'deck_restore':
+      return t('reports.cardRestored', { card: label, player })
+    case 'calamity_scheduled':
+      return t('reports.cardScheduled', {
+        card: label,
+        region,
+        season: card.season ? t(SEASON_LABEL_KEYS[card.season]) : '—',
+      })
+    default:
+      return label
+  }
+}
+
+function seasonEffectLabel(effect: SeasonEffectReport, map: MapData | null, t: Translate): string {
+  const region = territoryLabel(map, effect.region, t)
+  const card = effect.cardKind ? formatCardLabel(effect.cardKind, t) : ''
+  switch (effect.kind) {
+    case 'calamity_canceled':
+      return t('reports.calamityCanceled', { card, bonus: card, region })
+    case 'bonus_effect':
+      return t('reports.bonusEffect', { card, region })
+    default:
+      return card || effect.kind
+  }
+}
+
+interface SeasonEffectLine {
+  key: string
+  owner?: PlayerId
+  label: string
+  /** Neutral-army lines render in a muted gray instead of the section red. */
+  muted?: boolean
+}
+
+interface SeasonEffectGroup {
+  key: string
+  header?: string
+  lines: SeasonEffectLine[]
+}
+
+function seasonEffectLine(
+  effect: SeasonEffectReport,
+  map: MapData | null,
+  t: Translate,
+  index: number,
+): SeasonEffectLine {
+  const region = territoryLabel(map, effect.region, t)
+  const card = effect.cardKind ? formatCardLabel(effect.cardKind, t) : ''
+  const key = `${effect.kind}-${effect.cardKind ?? ''}-${index}`
+  const owner = effect.owner ?? t('reports.unknownPlayer')
+  switch (effect.kind) {
+    case 'calamity_applied':
+      if (effect.army) {
+        return {
+          key,
+          owner: effect.owner,
+          label: t('reports.calamityPlagueArmy', {
+            owner,
+            territory: territoryLabel(map, effect.territory, t),
+            before: effect.sizeBefore ?? 0,
+            after: effect.sizeAfter ?? 0,
+          }),
+        }
+      }
+      return { key, label: t('reports.calamityApplied', { card, region }) }
+    case 'bad_weather_blocked': {
+      const base = {
+        owner,
+        territory: territoryLabel(map, effect.territory, t),
+      }
+      return {
+        key,
+        owner: effect.owner,
+        label: effect.target
+          ? t('reports.calamityBadWeatherBlocked', {
+              ...base,
+              target: territoryLabel(map, effect.target, t),
+            })
+          : t('reports.calamityBadWeatherBlockedNoTarget', base),
+      }
+    }
+    case 'famine_loss':
+      if (!effect.territory) {
+        return {
+          key,
+          label: t('reports.calamityFamineRegion', {
+            region,
+            production: effect.productionLost ?? 0,
+            rations: effect.rationsLost ?? 0,
+          }),
+        }
+      }
+      if ((effect.productionLost ?? 0) > 0) {
+        return {
+          key,
+          label: t('reports.calamityFamineMill', {
+            territory: territoryLabel(map, effect.territory, t),
+            production: effect.productionLost ?? 0,
+          }),
+        }
+      }
+      return {
+        key,
+        label: t('reports.calamityFamineRations', {
+          rations: effect.rationsLost ?? 0,
+          territory: territoryLabel(map, effect.territory, t),
+        }),
+      }
+    case 'plague_noble_death':
+      return {
+        key,
+        label: t('reports.plagueDeath', {
+          noble: effect.noble ?? '—',
+          territory: territoryLabel(map, effect.territory, t),
+        }),
+      }
+    case 'plague_noble_survived':
+      return {
+        key,
+        label: t('reports.plagueSurvived', {
+          noble: effect.noble ?? '—',
+          territory: territoryLabel(map, effect.territory, t),
+        }),
+      }
+    case 'famine':
+      return {
+        key,
+        muted: true,
+        label: t('reports.neutralFamine', {
+          territory: territoryLabel(map, effect.territory, t),
+          before: effect.sizeBefore ?? 0,
+          after: effect.sizeAfter ?? 0,
+        }),
+      }
+    case 'card_canceled': {
+      const card = effect.cardKind ? formatCardLabel(effect.cardKind, t) : ''
+      const target = effect.territory
+        ? t('reports.cardCanceled', {
+            player: effect.owner ?? t('reports.unknownPlayer'),
+            card,
+            territory: territoryLabel(map, effect.territory, t),
+          })
+        : card
+      return { key, owner: effect.owner, label: target }
+    }
+    case 'neutral_army_created': {
+      const count = effect.troops ?? 0
+      return {
+        key,
+        muted: true,
+        label: t(
+          count === 1
+            ? 'reports.neutralArmyCreatedTroop'
+            : 'reports.neutralArmyCreated',
+          { count, territory: territoryLabel(map, effect.territory, t) },
+        ),
+      }
+    }
+    default:
+      return { key, label: seasonEffectLabel(effect, map, t) }
+  }
+}
+
+function groupSeasonEffects(
+  effects: SeasonEffectReport[],
+  map: MapData | null,
+  t: Translate,
+): { flat: SeasonEffectLine[]; groups: SeasonEffectGroup[] } {
+  const flat: SeasonEffectLine[] = []
+  const groups = new Map<string, SeasonEffectGroup>()
+  const groupFor = (effect: SeasonEffectReport): SeasonEffectGroup => {
+    const key = `${effect.cardKind ?? ''}-${effect.region ?? ''}`
+    let group = groups.get(key)
+    if (!group) {
+      group = { key, lines: [] }
+      groups.set(key, group)
+    }
+    return group
+  }
+  effects.forEach((effect, index) => {
+    const line = seasonEffectLine(effect, map, t, index)
+    switch (effect.kind) {
+      case 'calamity_applied':
+        if (effect.army) {
+          groupFor(effect).lines.push(line)
+        } else {
+          groupFor(effect).header = line.label
+        }
+        break
+      case 'bad_weather_blocked':
+      case 'famine_loss':
+      case 'plague_noble_death':
+      case 'plague_noble_survived':
+      case 'card_canceled':
+        groupFor(effect).lines.push(line)
+        break
+      case 'famine':
+      case 'neutral_army_created':
+        flat.push(line)
+        break
+      default:
+        flat.push(line)
+    }
+  })
+  return { flat, groups: Array.from(groups.values()) }
+}
+
 export function ReportPanel({ report, map, players }: ReportPanelProps) {
   const { t } = useLanguage()
   if (!report) return null
   const receptions = report.receptions ?? []
   const combats = report.combats ?? []
-  const supply = report.supply ?? []
-  const famines = report.famines ?? []
+  const production = report.production ?? []
+  const consumption = report.consumption ?? []
   const orders = report.orders ?? []
   const winterInvestments = report.winter?.investments ?? []
   const winterStocks = report.winter?.stocks ?? []
+  const rumors = report.rumors ?? report.winter?.rumors ?? []
+  const cards = report.cards ?? report.winter?.cards ?? []
+  const seasonEffects = report.seasonEffects ?? []
+  const seasonEffectView = groupSeasonEffects(seasonEffects, map, t)
 
   return (
     <section className="min-w-0 space-y-4">
@@ -428,48 +658,152 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
 
       <div className="space-y-2">
         <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
-          {t('reports.supply')}
+          {t('reports.productionTitle')}
         </h4>
-        {supply.length === 0 && famines.length === 0 ? (
-          emptyMessage(t('reports.supply').toLowerCase(), t)
+        {production.length === 0 ? (
+          emptyMessage(t('reports.productionTitle').toLowerCase(), t)
         ) : (
           <div className="space-y-1 text-sm">
-            {supply.map((supply) => (
+            {production.map((line) => {
+              const chips: Array<{ label: string; value: number }> = [
+                { label: t('reports.productionTerrainRations'), value: line.terrainRations },
+                { label: t('reports.productionInfraRations'), value: line.infraRations ?? 0 },
+                { label: t('reports.productionBonusRations'), value: line.bonusRations ?? 0 },
+                { label: t('reports.productionBaseProduction'), value: line.baseProduction ?? 0 },
+                { label: t('reports.productionMillProduction'), value: line.millProduction ?? 0 },
+                { label: t('reports.productionBonusProduction'), value: line.bonusProduction ?? 0 },
+              ].filter((chip) => chip.value > 0)
+              const suppressed =
+                (line.suppressedRations ?? 0) + (line.suppressedProduction ?? 0)
+              const sentDestinations = Object.keys(line.sentToRations ?? {}).sort()
+              const hasStock =
+                (line.stockBefore ?? 0) > 0 ||
+                (line.stockConsumed ?? 0) > 0 ||
+                (line.stockAfter ?? 0) > 0
+              return (
+                <div
+                  key={line.territory}
+                  className="rounded-md bg-[#f3ead9] px-3 py-2"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="flex min-w-0 items-center gap-2">
+                      {playerMarker(players, line.owner, t)}
+                      <span className="font-mono text-xs">{line.territory}</span>
+                      <span className="text-xs text-[#806f57]">
+                        {territoryLabel(map, line.territory, t)}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-xs font-semibold text-[#376341]">
+                      {t('reports.productionProduced', { count: line.produced })}
+                    </span>
+                  </div>
+                  {chips.length > 0 && (
+                    <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-[#806f57]">
+                      {chips.map((chip) => (
+                        <span key={chip.label}>
+                          {chip.label} {chip.value}
+                        </span>
+                      ))}
+                    </p>
+                  )}
+                  {suppressed > 0 && (
+                    <p className="mt-1 text-[11px] font-semibold text-[#8d321e]">
+                      {t('reports.productionSuppressed', { count: suppressed })}
+                    </p>
+                  )}
+                  {(sentDestinations.length > 0 || hasStock) && (
+                    <p className="mt-1 text-[11px] text-[#806f57]">
+                      {sentDestinations
+                        .map((destination) =>
+                          t('reports.productionSent', {
+                            count: line.sentToRations?.[destination] ?? 0,
+                            territory: destination,
+                          }),
+                        )
+                        .concat(
+                          hasStock
+                            ? [
+                                t('reports.productionStockLine', {
+                                  before: line.stockBefore ?? 0,
+                                  consumed: line.stockConsumed ?? 0,
+                                  after: line.stockAfter ?? 0,
+                                }),
+                              ]
+                            : [],
+                        )
+                        .join(' · ')}
+                    </p>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
+          {t('reports.consumptionTitle')}
+        </h4>
+        {consumption.length === 0 ? (
+          emptyMessage(t('reports.consumptionTitle').toLowerCase(), t)
+        ) : (
+          <div className="space-y-1 text-sm">
+            {consumption.map((line) => (
               <div
-                key={supply.source}
-                className="flex items-center justify-between gap-3 rounded-md bg-[#f3ead9] px-3 py-2"
+                key={line.army}
+                className={`rounded-md px-3 py-2 ${
+                  line.famine
+                    ? 'border border-[#a84632]/30 bg-[#f8e5dd] text-xs text-[#8d321e]'
+                    : 'bg-[#f3ead9] text-xs'
+                }`}
               >
-                <span>
-                  {territoryLabel(map, supply.source, t)} ·{' '}
-                  {supply.owner || t('reports.neutral')}
-                </span>
-                <span className="text-right text-xs text-[#806f57]">
-                  {t('reports.produced', { count: supply.production })} ·{' '}
-                  {t('reports.demanded', { count: supply.demand })} ·{' '}
-                  {t('reports.stockConsumed', { count: supply.stockConsumed })} ·{' '}
-                  {t('reports.stockRemaining', { count: supply.stockAfter })}
-                </span>
-              </div>
-            ))}
-            {famines.map((famine, index) => (
-              <div
-                key={`${famine.army}-${index}`}
-                className="rounded-md border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 text-xs text-[#8d321e]"
-              >
-                {t('reports.famine', {
-                  owner: famine.owner,
-                  territory: territoryLabel(map, famine.territory, t),
-                  troops: famine.troops,
-                })}
-                {famine.savedByPillage ? t('reports.savedByPillage') : ''}
-                {(famine.troopsLost ?? 0) > 0
-                  ? t(
-                      famine.troopsLost === 1
-                        ? 'reports.lostTroop'
-                        : 'reports.lostTroops',
-                      { count: famine.troopsLost ?? 0 },
-                    )
-                  : ''}
+                <div className="flex items-center justify-between gap-3">
+                  <span className="flex min-w-0 items-center gap-2">
+                    {playerMarker(players, line.owner, t)}
+                    <span>
+                      {line.owner} · {territoryLabel(map, line.territory, t)}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-[#806f57]">
+                    {t(
+                      line.size === 1 ? 'app.troop' : 'app.troops',
+                      { count: line.size },
+                    )}{' '}
+                    · {t('reports.consumptionDemand', { count: line.demand })}
+                  </span>
+                </div>
+                <p className="mt-1 text-[11px]">
+                  {line.source
+                    ? `${t('reports.consumptionSource', { source: line.source })} · `
+                    : ''}
+                  {t('reports.consumptionLine', {
+                    local: line.receivedLocal,
+                    transfer: line.receivedTransfer,
+                    total: line.totalReceived,
+                    missing: line.missing,
+                  })}
+                </p>
+                {line.famine && (
+                  <p className="mt-1 font-semibold">
+                    {line.savedByPillage ? t('reports.savedByPillage') : ''}
+                    {(line.troopsLost ?? 0) > 0
+                      ? t(
+                          line.troopsLost === 1
+                            ? 'reports.lostTroop'
+                            : 'reports.lostTroops',
+                          { count: line.troopsLost ?? 0 },
+                        )
+                      : ''}
+                    {(line.resourceCredit ?? 0) > 0
+                      ? ' ' +
+                        t('reports.consumptionPillageCredit', {
+                          count: line.resourceCredit ?? 0,
+                          territory: territoryLabel(map, line.creditTerritory, t),
+                        })
+                      : ''}
+                  </p>
+                )}
               </div>
             ))}
           </div>
@@ -529,6 +863,68 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
               winterStocks.length === 0 &&
               emptyMessage(t('reports.winter').toLowerCase(), t)}
           </div>
+        </div>
+      )}
+
+      {rumors.length > 0 && (
+        <div className="space-y-2 rounded-lg border border-[#c8b0d9] bg-[#fbf5ff] p-3">
+          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#684b7d]">
+            {t('reports.rumors')}
+          </h4>
+          <ul className="space-y-1 text-sm text-[#684b7d]">
+            {rumors.map((rumor, index) => (
+              <li key={`${rumor.key}-${index}`}>{t(rumor.key as MessageKey)}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {cards.length > 0 && (
+        <div className="space-y-2 rounded-lg border border-[#c8b0d9] bg-[#fbf5ff] p-3">
+          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#684b7d]">
+            {t('reports.cards')}
+          </h4>
+          <ol className="space-y-1 text-sm text-[#684b7d]">
+            {cards.map((card, index) => (
+              <li key={`${card.eventType}-${card.kind}-${index}`}>{cardEventLabel(card, map, t)}</li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      {seasonEffects.length > 0 && (
+        <div className="space-y-2 rounded-lg border border-[#e4b4a4] bg-[#fff5f0] p-3">
+          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#8d321e]">
+            {t('reports.seasonEffects')}
+          </h4>
+          <ol className="space-y-2 text-sm text-[#8d321e]">
+            {seasonEffectView.flat.map((line) => (
+              <li
+                key={line.key}
+                className={line.muted ? 'text-[#806f57]' : undefined}
+              >
+                {line.label}
+              </li>
+            ))}
+            {seasonEffectView.groups.map((group) => (
+              <li key={group.key} className="space-y-1">
+                {group.header && <p className="font-semibold">{group.header}</p>}
+                {group.lines.length > 0 && (
+                  <ul className="space-y-1 border-l-2 border-[#e4b4a4] pl-3">
+                    {group.lines.map((line) => (
+                      <li
+                        key={line.key}
+                        className={`flex items-center gap-2 ${line.muted ? 'text-[#806f57]' : ''}`}
+                      >
+                        {line.owner ? playerMarker(players, line.owner, t) : null}
+                        <span>{line.label}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ol>
         </div>
       )}
 

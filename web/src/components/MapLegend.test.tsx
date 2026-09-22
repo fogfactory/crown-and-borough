@@ -32,7 +32,6 @@ describe('MapLegend', () => {
     expect(screen.getByText('Noble (couleur du propriétaire)')).toBeInTheDocument()
     expect(screen.getByText('Noble prisonnier (otage / donjon)')).toBeInTheDocument()
   })
-
   it('draws terrain swatches with the map texture patterns', () => {
     const { container } = render(
       <LanguageProvider initialLanguage="en">
@@ -82,5 +81,18 @@ describe('MapLegend', () => {
     fireEvent.click(checkbox)
 
     expect(onToggleIntentions).toHaveBeenCalledWith(false)
+  })
+
+  it('toggles the shared regions layer', () => {
+    const onToggle = vi.fn()
+    render(
+      <LanguageProvider initialLanguage="fr">
+        <MapLegend showRegions={false} onToggleRegions={onToggle} />
+      </LanguageProvider>,
+    )
+    fireEvent.click(screen.getByLabelText('Régions'))
+    expect(onToggle).toHaveBeenCalledWith(true)
+    expect(document.querySelectorAll('[data-region-color]').length).toBe(6)
+    expect(document.querySelectorAll('[data-region-pattern]').length).toBe(6)
   })
 })

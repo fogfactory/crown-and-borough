@@ -3,6 +3,8 @@ import { IconBook, IconSnowflake } from '@tabler/icons-react'
 
 import { Button } from '@/components/ui/button'
 import type { RulesSection } from '@/components/RulesPanel'
+import { formatCardHand, formatCardLabel } from '@/lib/card-hand'
+import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
 import { estimateWinterCost } from '@/lib/winter-cost'
@@ -16,6 +18,7 @@ interface OrdersPanelProps {
   winterDraft: string
   winterCosts?: WinterCosts | null
   map?: MapData
+  specialDraft: string
   submitted: boolean
   submitting: boolean
   error: string | null
@@ -25,6 +28,7 @@ interface OrdersPanelProps {
   }
   onChainChange: (noble: string, text: string) => void
   onWinterChange: (text: string) => void
+  onSpecialChange: (text: string) => void
   onSubmit: () => void
   onOpenRules: (section: RulesSection) => void
   onRestoreFromServer?: (target?: string) => void
@@ -94,6 +98,88 @@ function WinterOrderErrors({ errors, t }: { errors: WinterParseError[]; t: Trans
   )
 }
 
+function CalamityWarnings({ state }: { state: StateData }) {
+  const { t } = useLanguage()
+  const announcements = state.announcements ?? []
+  if (announcements.length === 0) return null
+
+  return (
+    <div
+      role="alert"
+      className="space-y-1 rounded-md border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 text-xs text-[#8d321e]"
+    >
+      <p className="font-semibold">{t('orders.calamityWarningTitle')}</p>
+      <ul className="list-disc space-y-0.5 pl-4">
+        {announcements.map((announcement, index) => (
+          <li
+            key={`${announcement.year}-${announcement.season}-${announcement.kind}-${index}`}
+          >
+            {t('orders.calamityWarningItem', {
+              card: formatCardLabel(announcement.kind, t),
+              season: t(SEASON_LABEL_KEYS[announcement.season]),
+              region: announcement.region,
+            })}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function DeckOrdersSection({
+  state,
+  specialDraft,
+  onSpecialChange,
+}: {
+  state: StateData
+  specialDraft: string
+  onSpecialChange: (text: string) => void
+}) {
+  const { t } = useLanguage()
+  const hand = state.specialHand ?? []
+  return (
+    <section className="space-y-2 rounded-lg border border-[#c8b0d9] bg-[#fbf5ff] p-3">
+      <h4 className="font-serif text-base font-semibold text-[#684b7d]">
+        {t('orders.deckTitle')}
+      </h4>
+      <p className="text-xs leading-relaxed text-[#806f57]">
+        {t('orders.deckDescription')}
+      </p>
+      <p className="text-xs text-[#684b7d]">
+        {t('orders.deckHand')}: {formatCardHand(hand, t)}
+      </p>
+      <CalamityWarnings state={state} />
+      <textarea
+        value={specialDraft}
+        onChange={(event) => onSpecialChange(event.target.value)}
+        className="min-h-20 w-full resize-y rounded-lg border border-[#c8b0d9] bg-white p-3 font-mono text-xs text-[#30291f] outline-none focus:border-[#8a5ba6] focus:ring-2 focus:ring-[#8a5ba6]/20"
+        placeholder={t('orders.deckPlaceholder')}
+        aria-label={t('orders.deckAria')}
+      />
+    </section>
+  )
+}
+
+function DeckHandSummary({ state }: { state: StateData }) {
+  const { t } = useLanguage()
+  const hand = state.specialHand ?? []
+
+  return (
+    <section className="space-y-2 rounded-lg border border-[#c8b0d9] bg-[#fbf5ff] p-3">
+      <h4 className="font-serif text-base font-semibold text-[#684b7d]">
+        {t('orders.deckTitle')}
+      </h4>
+      <p className="text-xs leading-relaxed text-[#806f57]">
+        {t('orders.deckWinterDescription')}
+      </p>
+      <p className="text-xs text-[#684b7d]">
+        {t('orders.deckHand')}: {formatCardHand(hand, t)}
+      </p>
+      <CalamityWarnings state={state} />
+    </section>
+  )
+}
+
 export function OrdersPanel({
   state,
   player,
@@ -101,12 +187,14 @@ export function OrdersPanel({
   winterDraft,
   winterCosts,
   map,
+  specialDraft,
   submitted,
   submitting,
   error,
   draftDiffers,
   onChainChange,
   onWinterChange,
+  onSpecialChange,
   onSubmit,
   onOpenRules,
   onRestoreFromServer,
@@ -150,6 +238,7 @@ export function OrdersPanel({
             )}
           </div>
         )}
+        <DeckHandSummary state={state} />
         <textarea
           value={winterDraft}
           onChange={(event) => onWinterChange(event.target.value)}
@@ -202,6 +291,11 @@ export function OrdersPanel({
           {t('orders.actionDescription')}
         </p>
       </div>
+      <DeckOrdersSection
+        state={state}
+        specialDraft={specialDraft}
+        onSpecialChange={onSpecialChange}
+      />
       {nobles.length === 0 ? (
         <p className="rounded-lg border border-dashed border-[#b7a786] bg-[#f8f0e2] p-3 text-sm italic text-[#806f57]">
           {t('orders.noNobleAvailable')}
@@ -257,7 +351,7 @@ export function OrdersPanel({
       <Button
         type="button"
         className="w-full"
-        disabled={submitting || !hasEmittingNoble}
+        disabled={submitting || (!hasEmittingNoble && specialDraft.trim() === '')}
         onClick={onSubmit}
       >
         {submitting

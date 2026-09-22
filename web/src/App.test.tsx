@@ -1,6 +1,10 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+vi.mock('@/lib/firebase', () => ({
+  firebaseConfigured: false,
+}))
+
 import App from '@/App'
 import type { MapData, StateData, SupplyLine, TransferLine, TurnReport } from '@/types'
 
@@ -97,8 +101,8 @@ const resolvedReport: TurnReport = {
   header: { year: 1, season: 'spring', turn: 1 },
   players: [],
   receptions: [],
-  supply: [],
-  famines: [],
+  production: [],
+  consumption: [],
   combats: [],
   orders: [],
   moves: [],

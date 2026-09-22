@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
 const (
@@ -74,20 +76,40 @@ func readRulesDocument(path string, required bool, balance *Balance) ([]byte, er
 		return nil, fmt.Errorf("assetgen: %s: empty file", path)
 	}
 	if balance != nil {
-		document = renderRules(document, *balance)
+		rendered, err := renderRules(document, *balance)
+		if err != nil {
+			return nil, fmt.Errorf("assetgen: %s: %w", path, err)
+		}
+		document = rendered
 	}
 	return document, nil
 }
 
-func renderRules(document []byte, balance Balance) []byte {
+func renderRules(document []byte, balance Balance) ([]byte, error) {
+	calamityCounts := WeightedCardCounts(balance.SpecialOrders.DeckSize*balance.SpecialOrders.CalamityPercentage/100, balance.SpecialOrders.CalamityWeights, calamityKinds)
+	bonusCounts := WeightedCardCounts(balance.SpecialOrders.DeckSize-(balance.SpecialOrders.DeckSize*balance.SpecialOrders.CalamityPercentage/100), balance.SpecialOrders.BonusWeights, bonusKinds)
 	values := map[string]string{
-		"ration_terrain.plain":    stringValue(balance.RationTerrain["plain"]),
-		"ration_terrain.forest":   stringValue(balance.RationTerrain["forest"]),
-		"ration_terrain.hill":     stringValue(balance.RationTerrain["hill"]),
-		"ration_terrain.mountain": stringValue(balance.RationTerrain["mountain"]),
-		"ration_terrain.swamp":    stringValue(balance.RationTerrain["swamp"]),
-		"infra_rations_bonus":     stringValue(balance.InfraRationsBonus),
-		"base_production":         stringValue(balance.BaseProduction),
+		"ration_terrain.plain":                       stringValue(balance.RationTerrain["plain"]),
+		"ration_terrain.forest":                      stringValue(balance.RationTerrain["forest"]),
+		"ration_terrain.hill":                        stringValue(balance.RationTerrain["hill"]),
+		"ration_terrain.mountain":                    stringValue(balance.RationTerrain["mountain"]),
+		"ration_terrain.swamp":                       stringValue(balance.RationTerrain["swamp"]),
+		"infra_rations_bonus":                        stringValue(balance.InfraRationsBonus),
+		"base_production":                            stringValue(balance.BaseProduction),
+		"special_orders.deck_size":                   stringValue(balance.SpecialOrders.DeckSize),
+		"special_orders.calamity_percentage":         stringValue(balance.SpecialOrders.CalamityPercentage),
+		"special_orders.hand_limit":                  stringValue(balance.SpecialOrders.HandLimit),
+		"special_orders.draw_orders_limit":           stringValue(balance.SpecialOrders.DrawOrdersLimit),
+		"special_orders.calamity_slots.spring":       stringValue(balance.SpecialOrders.CalamitySlots[models.SeasonSpring]),
+		"special_orders.calamity_slots.summer":       stringValue(balance.SpecialOrders.CalamitySlots[models.SeasonSummer]),
+		"special_orders.calamity_slots.autumn":       stringValue(balance.SpecialOrders.CalamitySlots[models.SeasonAutumn]),
+		"special_orders.card.plague":                 stringValue(calamityCounts[models.CardKindPlague]),
+		"special_orders.card.bad_weather":            stringValue(calamityCounts[models.CardKindBadWeather]),
+		"special_orders.card.famine":                 stringValue(calamityCounts[models.CardKindFamine]),
+		"special_orders.card.fair_weather":           stringValue(bonusCounts[models.CardKindFairWeather]),
+		"special_orders.card.abundant_harvest":       stringValue(bonusCounts[models.CardKindAbundantHarvest]),
+		"special_orders.card.revolt":                 stringValue(bonusCounts[models.CardKindRevolt]),
+		"special_orders.effects.plague_army_divisor": stringValue(balance.SpecialOrders.Effects.PlagueArmyDivisor),
 	}
 	for index, cost := range balance.Costs.MillLevels {
 		values[fmt.Sprintf("costs.mill_levels.%d", index)] = stringValue(cost)
@@ -96,7 +118,7 @@ func renderRules(document []byte, balance Balance) []byte {
 	for key, value := range values {
 		keys = append(keys, "{{"+key+"}}", value)
 	}
-	return []byte(strings.NewReplacer(keys...).Replace(string(document)))
+	return []byte(strings.NewReplacer(keys...).Replace(string(document))), nil
 }
 
 func stringValue(value int) string {

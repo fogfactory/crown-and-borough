@@ -95,6 +95,11 @@ func (ctx *resolutionContext) progressRecord(record *orderRecord) (int, int, Pro
 		ctx.removeChain(record.chainID)
 		return before, before, ProgressionBroken
 	case OutcomeInvalid:
+		// Bad weather is a temporary circumstance, not a player error: the
+		// chain pauses on the same order and re-attempts it next season.
+		if record.reason == "bad_weather" {
+			return before, before, ProgressionRetried
+		}
 		ctx.removeChain(record.chainID)
 		return before, before, ProgressionBroken
 	default:
@@ -157,6 +162,11 @@ func (ctx *resolutionContext) freezeLoopSupport(armyID models.ArmyID) bool {
 func updateTerritorialControl(ctx *resolutionContext) {
 	for _, armyID := range sortedArmyMap(ctx.armiesByID) {
 		army := ctx.armiesByID[armyID]
+		if army.OwnerID == models.NeutralPlayerID {
+			// Rebel armies occupy territory without administering it: control
+			// stays with the previous owner until an army of a player stops.
+			continue
+		}
 		state := ctx.state.TerritoryStates[army.TerritoryID]
 		if state.OwnerID != nil && *state.OwnerID == army.OwnerID {
 			continue

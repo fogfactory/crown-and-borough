@@ -119,7 +119,8 @@ ravitaillement.
 Une chaîne n'est pas limitée à une seule saison : une ligne réussie fait
 progresser l'index de la chaîne et la ligne suivante attend la résolution
 suivante. Une ligne `loop` conserve volontairement le même ordre lorsqu'elle
-doit attendre une ouverture.
+doit attendre une ouverture. Un mouvement invalidé par le mauvais temps met la
+chaîne en pause : l'ordre reste en place et retente la saison suivante.
 
 ### Réception
 
@@ -362,9 +363,75 @@ village ou dépôt ne conserve pas de stock. Exemple : un village hors capitale 
 au plus 1 R après conservation ; le surplus rejoint la capitale, tandis qu'un
 château hors capitale peut garder 2 R.
 
+### Cartes spéciales
+
+Le deck contient **{{special_orders.deck_size}} cartes**, dont **{{special_orders.card.plague}} peste**, **{{special_orders.card.bad_weather}} mauvais temps**, **{{special_orders.card.famine}} mauvaises récoltes**, **{{special_orders.card.fair_weather}} beaux temps**, **{{special_orders.card.abundant_harvest}} bonnes récoltes** et **{{special_orders.card.revolt}} révoltes**.
+
+La main est limitée à **{{special_orders.hand_limit}} cartes**. Après les défausses
+d'hiver, chaque joueur reçoit automatiquement jusqu'à **{{special_orders.draw_orders_limit}} cartes bonus**. Les calamités sont programmées dans les slots printemps (**{{special_orders.calamity_slots.spring}}**), été (**{{special_orders.calamity_slots.summer}}**) et automne (**{{special_orders.calamity_slots.autumn}}**). La peste réduit les armées par division de **{{special_orders.effects.plague_army_divisor}}**.
+
+## 6. Cartes spéciales et calamités
+
+Les ordres jouables de cartes sont soumis dans un champ `special`, séparé des
+chaînes de nobles. Les défausses d'hiver sont écrites dans la feuille `winter`.
+Aucun noble n'est nécessaire.
+
+- `P BT ROS` : jouer Beau temps sur la région dont ROS est le seed ;
+- `P RA ROS` : jouer Bonne récolte sur cette région ;
+- `P RE BRU` : jouer Révolte sur le territoire BRU, uniquement si une mauvaise récolte active affecte sa région ;
+- `D C BT` ou `D C RA` : défausser une carte, en hiver uniquement ;
+La main est reconstituée automatiquement en hiver après les défausses. Aucun ordre
+de pioche n'est nécessaire.
+
+Les cartes Beau temps, Bonne récolte et Révolte sont jouables au printemps, en
+été et en automne, mais pas en hiver. Les cartes jouées sont consommées avant la
+résolution des ordres d'armée. Beau temps annule uniquement le mauvais temps et
+Bonne récolte annule uniquement la mauvaise récolte. Si une carte annule une calamité,
+elle ne produit pas son bonus régional. Deux cartes du même kind sont
+consommées, mais une seule est effective : avec une calamité active, la
+première carte annule et une seconde applique le bonus régional ; sans
+calamité, la première carte l'applique. Le bonus reste plafonné à une unité
+par catégorie et par région, les cartes au-delà étant consommées sans effet.
+
+Le deck contient **{{special_orders.deck_size}} cartes** :
+**{{special_orders.card.plague}}** peste, **{{special_orders.card.bad_weather}}**
+mauvais temps, **{{special_orders.card.famine}}** mauvaise récolte,
+**{{special_orders.card.fair_weather}}** beau temps,
+**{{special_orders.card.abundant_harvest}}** bonnes récoltes et
+**{{special_orders.card.revolt}}** révoltes. La main est limitée à
+**{{special_orders.hand_limit}} cartes** et chaque joueur reçoit automatiquement
+jusqu'à **{{special_orders.draw_orders_limit}} cartes bonus par hiver**, après ses
+défausses.
+
+Une calamité tirée est programmée dans le premier slot disponible de l'année
+suivante : printemps (**{{special_orders.calamity_slots.spring}}**), été
+(**{{special_orders.calamity_slots.summer}}**) ou automne
+(**{{special_orders.calamity_slots.autumn}}**). Sa région est tirée de manière
+déterministe lors de la programmation. L'augure du printemps révèle le kind, la
+saison et la région de toutes les calamités de l'année ; les augures futures
+restent cachées.
+
+Dès son tirage, la calamité programmée est annoncée dans l'encart des cartes
+spéciales de l'interface. L'annonce reste visible jusqu'à l'application de la
+calamité ou sa contre-mesure. Aucune calamité ne se résout en hiver.
+
+- la peste réduit les armées par division de **{{special_orders.effects.plague_army_divisor}}** et peut supprimer un noble ;
+- le mauvais temps bloque les mouvements provenant ou visant sa région, sauf le maintien et le soutien défensif ;
+- la mauvaise récolte désactive les moulins et les bonus de rations des infrastructures de sa région ;
+- la Révolte se joue sur un territoire (`P RE TER`) pendant les saisons d'action, à condition que sa région subisse une mauvaise récolte. Chaque carte ajoute un jet entre **{{special_orders.effects.revolt_army_min_size}}** et **{{special_orders.effects.revolt_army_max_size}}** troupes à l'armée neutre commune du territoire ; le territoire peut être neutre (simple brigandage) et une armée y est créée si la case est vide. Si le territoire est occupé, la révolte est résolue comme un combat entre l'armée révoltée et l'occupant : le perdant se retire ou est détruit. Si la mauvaise récolte de la région est annulée par une Bonne récolte, les révoltes en attente sur la région sont annulées et le joueur récupère sa carte. Une rébellion vaincue se retire comme toute armée défaite au lieu de disparaître. Les armées neutres ne perdent jamais leur force à cause d'une famine, mais perdent une troupe en fin de tour si la production locale de leur territoire ne suffit pas à les nourrir.
+
+Les rumeurs publiques sont recalculées dans chaque rapport à partir des mains
+bonus actuelles de tous les joueurs. Elles apparaissent lorsqu'au moins deux
+joueurs ont une carte en main, sans révéler le joueur ni l'identifiant interne de
+la carte. Plusieurs cartes du même kind sont regroupées en une seule phrase
+graduée : niveau 1 pour quelques cartes, niveau 2 pour une présence plus marquée
+et niveau 3 pour une abondance exceptionnelle. L'échelle est recalée sur la
+capacité de main de la partie (joueurs × limite de main), afin qu'un même nombre
+de cartes ne produise pas le même niveau dans une petite et une grande partie.
+
 ---
 
-## 6. Armées, combats et logistique
+## 7. Armées, combats et logistique
 
 ### Armées et force
 
