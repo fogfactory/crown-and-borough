@@ -629,6 +629,8 @@ describe('MapViewer territorial overlays', () => {
     expect(winterVeil?.querySelector('rect')).toHaveAttribute('fill', '#eaf3ff')
     expect(winterVeil?.querySelector('rect')).toHaveAttribute('opacity', '0.2')
     expect(winterVeil).toHaveAttribute('pointer-events', 'none')
+    expect(winterVeil?.querySelector('rect')).toHaveAttribute('x', '0')
+    expect(winterVeil?.querySelector('rect')).toHaveAttribute('width', '100')
 
     const snowOverlay = winterSvg.querySelector('g[aria-label="Winter snow"]')
 
@@ -670,6 +672,36 @@ describe('MapViewer territorial overlays', () => {
       expect(svg.querySelector('g[aria-label="Winter overlay"]')).toBeInTheDocument()
     },
   )
+
+  it('extends the winter veil over the regional frame', () => {
+    const regionMap: MapData = {
+      ...map,
+      territories: map.territories.map((territory) => ({ ...territory, village: true })),
+      regions: [{ id: 'RROS', seed: 'ROS', territories: ['ROS', 'BRU'] }],
+    }
+    const { svg } = renderMap(
+      regionMap,
+      { ...state, season: 'winter' },
+      vi.fn(),
+      null,
+      [],
+      true,
+      '#a84632',
+      true,
+    )
+    const veilRect = svg.querySelector(
+      'g[aria-label="Winter overlay"] rect',
+    ) as SVGRectElement | null
+
+    if (!veilRect) {
+      throw new Error('Map test fixture did not render the winter veil')
+    }
+
+    expect(veilRect.getAttribute('x')).toBe('-26')
+    expect(veilRect.getAttribute('y')).toBe('-26')
+    expect(Number(veilRect.getAttribute('width'))).toBe(100 + 2 * 26)
+    expect(Number(veilRect.getAttribute('height'))).toBe(50 + 2 * 26)
+  })
 
   it('renders clipped interior selection strokes above terrain and ownership badges', () => {
     const { firstTerritory, svg } = renderMap(map, { ...state, season: 'winter' })

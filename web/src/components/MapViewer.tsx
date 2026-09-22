@@ -1782,8 +1782,9 @@ export function MapViewer({
                     data-region-band={regionId}
                     d={piecePath}
                     fill={regionStyleByID.get(regionId)?.fill ?? '#315a75'}
+                    fillOpacity="0.6"
                     stroke="#30291f"
-                    strokeOpacity="0.35"
+                    strokeOpacity="0.25"
                     strokeWidth="1"
                     vectorEffect="non-scaling-stroke"
                   />
@@ -1892,7 +1893,14 @@ export function MapViewer({
 
             {state.season === 'winter' && (
               <g aria-label={t('map.winterOverlay')} pointerEvents="none">
-                <rect width={mapWidth} height={mapHeight} fill="#eaf3ff" opacity="0.2" />
+                <rect
+                  x={-bandMarginX}
+                  y={-bandMarginY}
+                  width={viewWidth}
+                  height={viewHeight}
+                  fill="#eaf3ff"
+                  opacity="0.2"
+                />
               </g>
             )}
             {state.season === 'winter' && (
