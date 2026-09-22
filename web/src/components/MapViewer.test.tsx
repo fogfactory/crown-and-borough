@@ -233,8 +233,8 @@ describe('MapViewer territorial overlays', () => {
     )
 
     expect(svg.querySelector('g[aria-label="Regional boundaries"]')).toBeInTheDocument()
-    expect(svg.querySelectorAll('[data-region-fill]').length).toBe(2)
-    expect(svg.querySelector('[data-region-fill]')?.getAttribute('fill-opacity')).toBe('0.18')
+    expect(svg.querySelectorAll('[data-region-fill]').length).toBe(0)
+    expect(svg.querySelectorAll('[data-region-pattern]').length).toBe(0)
     expect(svg.querySelectorAll('[data-region-ring]').length).toBe(2)
     expect(svg.querySelectorAll('[data-region-boundary="true"]').length).toBe(0)
     expect(svg.querySelectorAll('[data-region-seed]').length).toBe(0)
@@ -647,11 +647,11 @@ describe('MapViewer territorial overlays', () => {
   })
 
   it.each([
-    ['plain', '#b8d99a'],
-    ['forest', '#3f7854'],
-    ['hill', '#ad8565'],
-    ['mountain', '#89929a'],
-    ['swamp', '#66a6a0'],
+    ['plain', '#d4e8b4'],
+    ['forest', '#85b092'],
+    ['hill', '#cfb694'],
+    ['mountain', '#aab3bc'],
+    ['swamp', '#90c6c0'],
   ] as const)(
     'keeps the %s terrain readable through the winter veil',
     (terrain, color) => {

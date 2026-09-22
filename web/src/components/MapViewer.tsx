@@ -36,23 +36,14 @@ import {
   type MapPoint,
   type ViewState,
 } from '@/lib/map-gestures'
-import {
-  REGION_PATTERNS,
-  regionStyle,
-  type RegionPattern,
-  type RegionStyle,
-} from '@/lib/region-color'
+import { regionStyle, type RegionStyle } from '@/lib/region-color'
 import {
   computeRegionOutlines,
   fitLabelFontSize,
   insetPolygon,
-  longestReadableRun,
   loopIsHole,
-  normalizePolylineDirection,
-  offsetPolyline,
   polygonContains,
   polylineLength,
-  polylineOutwardDirection,
 } from '@/lib/region-geometry'
 import { formatCardCode, formatCardLabel } from '@/lib/card-hand'
 import { hasSupplySource } from '@/lib/supply'
@@ -91,20 +82,16 @@ const INTENT_OUTLINE_COLOR = '#17120f'
 export const DRAFT_INTENTION_COLOR = '#d4a39b'
 const CALAMITY_KINDS: CardKind[] = ['plague', 'bad_weather', 'famine']
 
-/** Distance from the map border to the center of the regional name band. */
-const REGION_BAND_OFFSET = 9
-/** Stroke width of the regional name band, in map units. */
-const REGION_BAND_STROKE = 10
-/** Margin reserved around the map for the regional name bands. */
-const REGION_BAND_MARGIN = 22
+/** Padding around the map forming the regional name frame. */
+const REGION_BAND_MARGIN = 26
 /** Width of the gradient liseré hugging each region boundary, in map units. */
-const REGION_BORDER_WIDTH = 5
+const REGION_BORDER_WIDTH = 10
 /** Stepped falloff of the regional liseré: inset fractions and opacities. */
 const REGION_BORDER_STEPS = [
-  { fraction: 1, opacity: 0.14 },
-  { fraction: 0.6, opacity: 0.32 },
-  { fraction: 0.32, opacity: 0.6 },
-  { fraction: 0.14, opacity: 0.9 },
+  { fraction: 1, opacity: 0.18 },
+  { fraction: 0.55, opacity: 0.42 },
+  { fraction: 0.32, opacity: 0.72 },
+  { fraction: 0.18, opacity: 1 },
 ]
 
 // Map marker artwork from game-icons.net (CC BY 3.0, icons by Delapouite):
@@ -339,14 +326,6 @@ function regionRingPath(
     .join(' ')
 }
 
-function pointsToOpenPath(points: Point[]): string {
-  if (points.length === 0) {
-    return ''
-  }
-
-  const [first, ...rest] = points
-  return `M ${first[0]},${first[1]} ${rest.map(([x, y]) => `L ${x},${y}`).join(' ')}`
-}
 
 function pointKey([x, y]: Point): string {
   return `${x},${y}`
@@ -592,42 +571,6 @@ function OwnershipBadge({
         strokeWidth={1.6}
       />
     </g>
-  )
-}
-
-function RegionPatternDefinition({ pattern }: { pattern: RegionPattern }) {
-  const stroke = '#fffaf0'
-  const strokeWidth = 1.5
-
-  return (
-    <pattern
-      id={`region-pattern-${pattern}`}
-      width={pattern === 'diamonds' ? 12 : 8}
-      height={pattern === 'diamonds' ? 12 : 8}
-      patternUnits="userSpaceOnUse"
-    >
-      {pattern === 'diagonal' && (
-        <path d="M-2 2L2-2M0 8L8 0M6 10L10 6" stroke={stroke} strokeWidth={strokeWidth} />
-      )}
-      {pattern === 'vertical' && (
-        <path d="M2 0V8M6 0V8" stroke={stroke} strokeWidth={strokeWidth} />
-      )}
-      {pattern === 'horizontal' && (
-        <path d="M0 2H8M0 6H8" stroke={stroke} strokeWidth={strokeWidth} />
-      )}
-      {pattern === 'cross' && (
-        <path d="M2 0V8M6 0V8M0 2H8M0 6H8" stroke={stroke} strokeWidth={strokeWidth} />
-      )}
-      {pattern === 'dots' && <circle cx="2" cy="2" r="1.2" fill={stroke} />}
-      {pattern === 'diamonds' && (
-        <path
-          d="M6 0L12 6L6 12L0 6Z"
-          fill="none"
-          stroke={stroke}
-          strokeWidth={strokeWidth}
-        />
-      )}
-    </pattern>
   )
 }
 
@@ -947,8 +890,6 @@ export function MapViewer({
       ]),
   )
 
-  const regionStyleForTerritory = (territoryID: string): RegionStyle | null =>
-    regionStyleByID.get(regionByTerritory.get(territoryID) ?? '') ?? null
 
   // Scale annotations from the actual territory footprint, not the player count.
   const annotationScale = (() => {
@@ -1003,56 +944,134 @@ export function MapViewer({
     if (!regionOutlines) {
       return [] as Array<{
         regionId: string
-        bandPath: string
-        labelPath: string
-        labelLength: number
+        piecePath: string
+        labelX: number
+        labelY: number
+        labelAngle: number
+        labelWidth: number
       }>
+    }
+    const center: Point = [mapWidth / 2, mapHeight / 2]
+    const far = 2 * Math.hypot(mapWidth, mapHeight)
+    const radialOut = (point: Point): Point => {
+      const dx = point[0] - center[0]
+      const dy = point[1] - center[1]
+      const length = Math.hypot(dx, dy) || 1
+      return [point[0] + (dx / length) * far, point[1] + (dy / length) * far]
+    }
+    // Distance from the center to the frame rectangle along a ray, so label
+    // anchors always land inside the frame padding, never under the map.
+    const rayRectDistance = (unitX: number, unitY: number): number => {
+      let distance = far
+      if (Math.abs(unitX) > 1e-9) {
+        const edgeX = unitX > 0 ? mapWidth + REGION_BAND_MARGIN : -REGION_BAND_MARGIN
+        distance = Math.min(distance, (edgeX - center[0]) / unitX)
+      }
+      if (Math.abs(unitY) > 1e-9) {
+        const edgeY = unitY > 0 ? mapHeight + REGION_BAND_MARGIN : -REGION_BAND_MARGIN
+        distance = Math.min(distance, (edgeY - center[1]) / unitY)
+      }
+      return distance
     }
     const bands: Array<{
       regionId: string
-      bandPath: string
-      labelPath: string
-      labelLength: number
+      piecePath: string
+      labelX: number
+      labelY: number
+      labelAngle: number
+      labelWidth: number
     }> = []
     for (const [regionId, outline] of regionOutlines.outlines) {
-      if (outline.outerLoops.length === 0) {
-        continue
-      }
-      const outward = polylineOutwardDirection(
-        outline.outerLoops[0],
-        territoryAt,
-        (territoryId) => regionByTerritory.get(territoryId),
-        regionId,
-      )
-      const subpaths: string[] = []
-      let labelPath = ''
-      let labelLength = 0
-      for (const polyline of outline.outerLoops) {
-        const normalized = normalizePolylineDirection(polyline)
-        const offset = offsetPolyline(
-          normalized,
-          REGION_BAND_OFFSET * annotationScale,
-          outward,
+      for (const stretch of outline.outerLoops) {
+        const piece: Point[] = [...stretch]
+        piece.push(radialOut(stretch[stretch.length - 1]))
+        // Unwrap the stretch's polar angles so the far arc sweeps back over
+        // the same sector without flipping through the map.
+        const angles: number[] = []
+        let previous = Math.atan2(
+          stretch[0][1] - center[1],
+          stretch[0][0] - center[0],
         )
-        const path = pointsToOpenPath(offset)
-        if (!path) {
-          continue
+        angles.push(previous)
+        for (let index = 1; index < stretch.length; index += 1) {
+          const angle = Math.atan2(
+            stretch[index][1] - center[1],
+            stretch[index][0] - center[0],
+          )
+          let delta = angle - previous
+          while (delta > Math.PI) {
+            delta -= 2 * Math.PI
+          }
+          while (delta < -Math.PI) {
+            delta += 2 * Math.PI
+          }
+          previous += delta
+          angles.push(previous)
         }
-        subpaths.push(path)
-        const run = normalizePolylineDirection(longestReadableRun(offset))
-        const length = polylineLength(run)
-        if (length > labelLength) {
-          labelLength = length
-          labelPath = pointsToOpenPath(run)
+        const sweep = previous - angles[0]
+        const steps = Math.max(8, Math.ceil(Math.abs(sweep) / (Math.PI / 12)))
+        for (let step = 1; step <= steps; step += 1) {
+          const angle = previous - (sweep * step) / steps
+          piece.push([
+            center[0] + Math.cos(angle) * far,
+            center[1] + Math.sin(angle) * far,
+          ])
         }
+        // Label anchor: the longest straight run of the piece's outer edge
+        // (inset from the frame rectangle by half the padding), so corner-
+        // spanning sections center their name on a readable straight edge.
+        const arcSteps = Math.max(8, Math.ceil(Math.abs(sweep) / (Math.PI / 12)))
+        const labelInset = REGION_BAND_MARGIN * 0.5
+        const arcPoints: Point[] = []
+        for (let step = 0; step <= arcSteps; step += 1) {
+          const angle = angles[0] + (sweep * step) / arcSteps
+          const distance =
+            rayRectDistance(Math.cos(angle), Math.sin(angle)) - labelInset
+          arcPoints.push([
+            center[0] + Math.cos(angle) * distance,
+            center[1] + Math.sin(angle) * distance,
+          ])
+        }
+        const runs: Array<{ points: Point[]; vertical: boolean }> = []
+        for (let index = 1; index < arcPoints.length; index += 1) {
+          const from = arcPoints[index - 1]
+          const to = arcPoints[index]
+          const vertical = Math.abs(to[0] - from[0]) < Math.abs(to[1] - from[1])
+          const last = runs[runs.length - 1]
+          if (last && last.vertical === vertical) {
+            last.points.push(to)
+          } else {
+            runs.push({ points: [from, to], vertical })
+          }
+        }
+        let bestRun = runs[0]
+        let bestLength = 0
+        for (const run of runs) {
+          const length = polylineLength(run.points)
+          if (length > bestLength) {
+            bestLength = length
+            bestRun = run
+          }
+        }
+        const runPoints = bestRun.points
+        const labelWidth = bestLength
+        const from = runPoints[0]
+        const to = runPoints[runPoints.length - 1]
+        const labelX = (from[0] + to[0]) / 2
+        const labelY = (from[1] + to[1]) / 2
+        const labelAngle = bestRun.vertical ? (to[1] > from[1] ? 90 : -90) : 0
+        bands.push({
+          regionId,
+          piecePath: pointsToPath(piece),
+          labelX,
+          labelY,
+          labelAngle,
+          labelWidth,
+        })
       }
-      if (subpaths.length === 0) {
-        continue
-      }
-      bands.push({ regionId, bandPath: subpaths.join(' '), labelPath, labelLength })
     }
     return bands
-  }, [regionOutlines, annotationScale, territoryAt, regionByTerritory])
+  }, [regionOutlines, mapWidth, mapHeight])
 
   const regionHoleTesters = useMemo(() => {
     const testers = new Map<string, (loop: Point[]) => boolean>()
@@ -1654,9 +1673,14 @@ export function MapViewer({
                   </g>
                 </pattern>
               ))}
-              {REGION_PATTERNS.map((pattern) => (
-                <RegionPatternDefinition key={pattern} pattern={pattern} />
-              ))}
+              <clipPath id="region-frame-clip">
+                <rect
+                  x={-bandMarginX}
+                  y={-bandMarginY}
+                  width={viewWidth}
+                  height={viewHeight}
+                />
+              </clipPath>
               <marker
                 id="intent-arrow-outline"
                 viewBox="0 0 10 10"
@@ -1746,6 +1770,56 @@ export function MapViewer({
               </marker>
             </defs>
 
+            {regionBands.length > 0 && (
+              <g
+                aria-label={t('map.regionBands')}
+                pointerEvents="none"
+                clipPath="url(#region-frame-clip)"
+              >
+                {regionBands.map(({ regionId, piecePath }) => (
+                  <path
+                    key={`region-band-${regionId}-${regionBands.length}`}
+                    data-region-band={regionId}
+                    d={piecePath}
+                    fill={regionStyleByID.get(regionId)?.fill ?? '#315a75'}
+                    stroke="#30291f"
+                    strokeOpacity="0.35"
+                    strokeWidth="1"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                ))}
+                {regionBands.map(({ regionId, labelX, labelY, labelAngle, labelWidth }) => {
+                  const region = regionsById.get(regionId)
+                  const seedTerritory = region
+                    ? map.territories.find((territory) => territory.id === region.seed)
+                    : undefined
+                  if (!region || !seedTerritory) return null
+                  const label = t('map.regionLabel', {
+                    name: seedTerritory.name,
+                    seed: region.seed,
+                  })
+                  return (
+                    <text
+                      key={`region-band-label-${regionId}-${labelX.toFixed(1)}`}
+                      data-region-label={regionId}
+                      transform={`translate(${labelX} ${labelY}) rotate(${labelAngle})`}
+                      fill="#fff8e7"
+                      fontSize={fitLabelFontSize(label, labelWidth * 0.85)}
+                      fontWeight="800"
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      stroke="#30291f"
+                      strokeOpacity="0.45"
+                      strokeWidth={3}
+                      paintOrder="stroke"
+                    >
+                      {label}
+                    </text>
+                  )
+                })}
+              </g>
+            )}
+
             <g aria-label={t('map.terrains')}>
               {map.territories.map((territory) => (
                 <Tooltip key={territory.id}>
@@ -1786,30 +1860,6 @@ export function MapViewer({
             </g>
             {showRegions && (map.regions?.length ?? 0) > 0 && (
               <g aria-label={t('map.regions')} pointerEvents="none">
-                {map.territories.map((territory) => {
-                  const style = regionStyleForTerritory(territory.id)
-                  if (!style) return null
-                  return (
-                    <g key={`region-fill-${territory.id}`}>
-                      <path
-                        data-region-fill={regionByTerritory.get(territory.id)}
-                        d={pointsToPath(territory.points)}
-                        fill={style.fill}
-                        fillOpacity="0.18"
-                        stroke="none"
-                      />
-                      {style.pattern && (
-                        <path
-                          data-region-pattern={style.pattern}
-                          d={pointsToPath(territory.points)}
-                          fill={`url(#region-pattern-${style.pattern})`}
-                          fillOpacity="0.72"
-                          stroke="none"
-                        />
-                      )}
-                    </g>
-                  )
-                })}
                 {[...(regionOutlines?.outlines.entries() ?? [])].map(
                   ([regionId, outline]) => {
                     const color = regionStyleByID.get(regionId)?.fill ?? '#315a75'
@@ -1831,7 +1881,7 @@ export function MapViewer({
                             fillOpacity={step.opacity}
                             fillRule="evenodd"
                             stroke="none"
-/>
+                          />
                         ))}
                       </g>
                     )
@@ -2271,66 +2321,6 @@ export function MapViewer({
                       </g>
                     )
                   })}
-              </g>
-            )}
-
-            {regionBands.length > 0 && (
-              <g aria-label={t('map.regionBands')} pointerEvents="none">
-                <defs>
-                  {regionBands.map(({ regionId, labelPath }) => (
-                    <path
-                      key={`region-band-path-${regionId}`}
-                      id={`region-band-path-${regionId}`}
-                      d={labelPath}
-                      fill="none"
-                    />
-                  ))}
-                </defs>
-                {regionBands.map(({ regionId, bandPath, labelLength }) => {
-                  const color = regionStyleByID.get(regionId)?.fill ?? '#315a75'
-                  const region = regionsById.get(regionId)
-                  const seedTerritory = region
-                    ? map.territories.find((territory) => territory.id === region.seed)
-                    : undefined
-                  const label = region?.seed
-                    ? t('map.regionLabel', {
-                        name: seedTerritory?.name ?? region.seed,
-                        seed: region.seed,
-                      })
-                    : ''
-                  const fontSize = fitLabelFontSize(label, labelLength * 0.8)
-                  return (
-                    <g key={`region-band-${regionId}`}>
-                      <path
-                        data-region-band={regionId}
-                        d={bandPath}
-                        fill="none"
-                        stroke={color}
-                        strokeWidth={REGION_BAND_STROKE * annotationScale}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                      {seedTerritory && (
-                        <text
-                          data-region-label={regionId}
-                          fill="#fff8e7"
-                          fontSize={fontSize}
-                          fontWeight="800"
-                          textAnchor="middle"
-                          dominantBaseline="central"
-                          stroke="#30291f"
-                          strokeOpacity="0.45"
-                          strokeWidth={3}
-                          paintOrder="stroke"
-                        >
-                          <textPath href={`#region-band-path-${regionId}`} startOffset="50%">
-                            {label}
-                          </textPath>
-                        </text>
-                      )}
-                    </g>
-                  )
-                })}
               </g>
             )}
 

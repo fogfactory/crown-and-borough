@@ -1,10 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useLanguage } from '@/i18n/LanguageContext'
-import {
-  HERALDIC_COLORS,
-  REGION_PATTERNS,
-  REGION_PATTERN_BACKGROUNDS,
-} from '@/lib/region-color'
+import { HERALDIC_COLORS } from '@/lib/region-color'
 import type { MessageKey } from '@/i18n/messages'
 import type { Terrain } from '@/types'
 
@@ -17,11 +13,11 @@ export const TERRAIN_LABEL_KEYS: Record<Terrain, MessageKey> = {
 }
 
 export const TERRAIN_COLORS: Record<Terrain, string> = {
-  plain: '#b8d99a',
-  forest: '#3f7854',
-  hill: '#ad8565',
-  mountain: '#89929a',
-  swamp: '#66a6a0',
+  plain: '#d4e8b4',
+  forest: '#85b092',
+  hill: '#cfb694',
+  mountain: '#aab3bc',
+  swamp: '#90c6c0',
 }
 
 const TERRAIN_ORDER: Terrain[] = ['plain', 'forest', 'hill', 'mountain', 'swamp']
@@ -261,30 +257,15 @@ export function MapLegend({
           </label>
         )}
         {onToggleRegions && (
-          <div className="space-y-1 rounded-md bg-[#eef3f7] px-2 py-1.5" data-region-swatches>
-            <div className="flex flex-wrap gap-1.5" aria-hidden="true">
-              {HERALDIC_COLORS.map((color, index) => (
-                <span
-                  key={`region-color-${index}`}
-                  data-region-color={index}
-                  className="size-4 rounded-sm border border-[#1f3a4d]/40"
-                  style={{ backgroundColor: color }}
-                />
-              ))}
-            </div>
-            <div className="flex flex-wrap gap-1.5" aria-hidden="true">
-              {REGION_PATTERNS.map((pattern) => (
-                <span
-                  key={`region-pattern-${pattern}`}
-                  data-region-pattern={pattern}
-                  className="size-4 rounded-sm border border-[#1f3a4d]/40"
-                  style={{
-                    backgroundColor: HERALDIC_COLORS[0],
-                    backgroundImage: REGION_PATTERN_BACKGROUNDS[pattern],
-                  }}
-                />
-              ))}
-            </div>
+          <div className="flex flex-wrap gap-1.5 rounded-md bg-[#eef3f7] px-2 py-1.5" data-region-swatches>
+            {HERALDIC_COLORS.map((color, index) => (
+              <span
+                key={`region-color-${index}`}
+                data-region-color={index}
+                className="size-4 rounded-sm border border-[#1f3a4d]/40"
+                style={{ backgroundColor: color }}
+              />
+            ))}
           </div>
         )}
         <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">

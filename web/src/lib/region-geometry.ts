@@ -163,6 +163,53 @@ export function chainSegments(segments: Array<[Point, Point]>): Point[][] {
 }
 
 /**
+ * Chain unordered edges carrying a payload into ordered sequences joined by
+ * exact endpoint matching (the global map border walk). Closed borders come
+ * back to their starting point; open chains stop when no continuation is
+ * unused. Each returned edge is re-oriented so its `from` continues the
+ * previous edge's `to`.
+ */
+function chainEdgeRuns<T extends { from: Point; to: Point }>(
+  edges: T[],
+): T[][] {
+  const incident = new Map<string, number[]>()
+  edges.forEach((edge, index) => {
+    for (const point of [edge.from, edge.to]) {
+      const key = pointKey(point)
+      const list = incident.get(key) ?? []
+      list.push(index)
+      incident.set(key, list)
+    }
+  })
+
+  const used = edges.map(() => false)
+  const sequences: T[][] = []
+  for (let start = 0; start < edges.length; start += 1) {
+    if (used[start]) {
+      continue
+    }
+    used[start] = true
+    const sequence = [edges[start]]
+    let cursor = edges[start].to
+    while (!pointsEqual(cursor, edges[start].from)) {
+      const candidates = incident.get(pointKey(cursor)) ?? []
+      const nextIndex = candidates.find((index) => !used[index])
+      if (nextIndex === undefined) {
+        break
+      }
+      used[nextIndex] = true
+      const edge = edges[nextIndex]
+      cursor = pointsEqual(edge.from, cursor) ? edge.to : edge.from
+      sequence.push(pointsEqual(edge.from, sequence[sequence.length - 1].to) ? edge : { ...edge, from: edge.to, to: edge.from })
+    }
+    if (sequence.length >= 2) {
+      sequences.push(sequence)
+    }
+  }
+  return sequences
+}
+
+/**
  * Compute the boundary rings of every region: segments shared with another
  * region's territory or lying on the outer map border. Segments between two
  * territories of the same region are internal and excluded.
@@ -219,13 +266,6 @@ export function computeRegionOutlines(
     segmentsByRegion.set(regionId, list)
   }
 
-  const outerSegmentsByRegion = new Map<string, Array<[Point, Point]>>()
-  const addOuterSegment = (regionId: string, segment: [Point, Point]) => {
-    const list = outerSegmentsByRegion.get(regionId) ?? []
-    list.push(segment)
-    outerSegmentsByRegion.set(regionId, list)
-  }
-
   const outlines = new Map<string, RegionOutline>()
   const outlineFor = (regionId: string): RegionOutline => {
     const existing = outlines.get(regionId)
@@ -237,6 +277,7 @@ export function computeRegionOutlines(
     return created
   }
 
+  const outerEdges: Array<{ from: Point; to: Point; regionId: string }> = []
   for (const edge of edges.values()) {
     const firstRegion = regionByTerritory.get(edge.first)
     const secondRegion = edge.second ? regionByTerritory.get(edge.second) : undefined
@@ -244,8 +285,8 @@ export function computeRegionOutlines(
     if (!secondRegion) {
       if (firstRegion) {
         addSegment(firstRegion, segment)
-        addOuterSegment(firstRegion, segment)
         outlineFor(firstRegion).outerSegments.push(segment)
+        outerEdges.push({ from: edge.from, to: edge.to, regionId: firstRegion })
       }
       continue
     }
@@ -258,8 +299,45 @@ export function computeRegionOutlines(
   for (const [regionId, segments] of segmentsByRegion) {
     outlineFor(regionId).loops = chainSegments(segments)
   }
-  for (const [regionId, segments] of outerSegmentsByRegion) {
-    outlineFor(regionId).outerLoops = chainSegments(segments)
+
+  // Chain the outer map border globally (every boundary vertex meets exactly
+  // two outer edges), then split it into the maximal contiguous stretches of
+  // each region, so a region hugging the border on several sides still gets
+  // one continuous strip per contact run.
+for (const edgeLoop of chainEdgeRuns(outerEdges)) {
+    const closed = pointsEqual(
+      edgeLoop[edgeLoop.length - 1].to,
+      edgeLoop[0].from,
+    )
+    let pivot = 0
+    if (closed) {
+      for (let index = 0; index < edgeLoop.length; index += 1) {
+        const previous = edgeLoop[(index - 1 + edgeLoop.length) % edgeLoop.length]
+        if (previous.regionId !== edgeLoop[index].regionId) {
+          pivot = index
+          break
+        }
+      }
+    }
+    const rotated = [...edgeLoop.slice(pivot), ...edgeLoop.slice(0, pivot)]
+    let runStart = 0
+    for (let index = 1; index <= rotated.length; index += 1) {
+      const boundary =
+        index === rotated.length ||
+        rotated[index].regionId !== rotated[runStart].regionId
+      if (!boundary) {
+        continue
+      }
+      const runEdges = rotated.slice(runStart, index)
+      const polyline: Point[] = [runEdges[0].from, ...runEdges.map((edge) => edge.to)]
+      if (pointsEqual(polyline[0], polyline[polyline.length - 1])) {
+        polyline.pop()
+      }
+      if (polyline.length >= 2) {
+        outlineFor(rotated[runStart].regionId).outerLoops.push(polyline)
+      }
+      runStart = index
+    }
   }
 
   return {
@@ -328,146 +406,3 @@ export function polylineLength(points: Point[]): number {
   return total
 }
 
-/**
- * Flip a polyline so text running along it reads left-to-right (horizontal
- * stretches) or top-to-bottom (vertical stretches).
- */
-export function normalizePolylineDirection(points: Point[]): Point[] {
-  if (points.length < 2) {
-    return [...points]
-  }
-  const dx = points[points.length - 1][0] - points[0][0]
-  const dy = points[points.length - 1][1] - points[0][1]
-  const reversed = Math.abs(dx) >= Math.abs(dy) ? dx < 0 : dy < 0
-  return reversed ? [...points].reverse() : [...points]
-}
-
-/**
- * Longest sub-polyline whose segments never turn back against their shared
- * heading (dot product of consecutive directions stays above
- * `minAlignment`): text riding this run never renders upside down.
- */
-export function longestReadableRun(points: Point[], minAlignment = 0.35): Point[] {
-  if (points.length <= 2) {
-    return [...points]
-  }
-  let bestStart = 0
-  let bestEnd = 1
-  let bestLength = 0
-  for (let start = 0; start < points.length - 1; start += 1) {
-    const refDx = points[start + 1][0] - points[start][0]
-    const refDy = points[start + 1][1] - points[start][1]
-    const refLength = Math.hypot(refDx, refDy) || 1
-    const refX = refDx / refLength
-    const refY = refDy / refLength
-    let length = refLength
-    if (length > bestLength) {
-      bestLength = length
-      bestStart = start
-      bestEnd = start + 1
-    }
-    for (let end = start + 2; end < points.length; end += 1) {
-      const dx = points[end][0] - points[end - 1][0]
-      const dy = points[end][1] - points[end - 1][1]
-      const segmentLength = Math.hypot(dx, dy) || 1
-      if ((dx / segmentLength) * refX + (dy / segmentLength) * refY < minAlignment) {
-        break
-      }
-      length += segmentLength
-      if (length > bestLength) {
-        bestLength = length
-        bestStart = start
-        bestEnd = end
-      }
-    }
-  }
-  return points.slice(bestStart, bestEnd + 1)
-}
-
-/**
- * Which side of the walked polyline faces away from the region: probe just
- * off the middle segment; unowned ground (outside the map) means the +1 side
- * is outward.
- */
-export function polylineOutwardDirection(
-  points: Point[],
-  territoryAt: (point: Point) => string | undefined,
-  regionOfTerritory: (territoryId: string) => string | undefined,
-  regionId: string,
-): 1 | -1 {
-  if (points.length < 2) {
-    return 1
-  }
-  const midIndex = Math.floor((points.length - 1) / 2)
-  const from = points[midIndex]
-  const to = points[midIndex + 1]
-  const dx = to[0] - from[0]
-  const dy = to[1] - from[1]
-  const length = Math.hypot(dx, dy) || 1
-  const probe: Point = [
-    (from[0] + to[0]) / 2 + (-dy / length) * 2,
-    (from[1] + to[1]) / 2 + (dx / length) * 2,
-  ]
-  const owner = territoryAt(probe)
-  if (owner === undefined) {
-    return 1
-  }
-  return regionOfTerritory(owner) === regionId ? -1 : 1
-}
-
-/**
- * Offset an open polyline sideways by `distance` map units (+1 offsets to the
- * left of the walk direction, -1 to the right). Interior vertices join with a
- * clamped miter.
- */
-export function offsetPolyline(
-  points: Point[],
-  distance: number,
-  direction: 1 | -1,
-): Point[] {
-  if (points.length < 2 || distance === 0) {
-    return [...points]
-  }
-  const limit = Math.abs(distance) * 3
-  const segmentNormal = (index: number): Point => {
-    const dx = points[index + 1][0] - points[index][0]
-    const dy = points[index + 1][1] - points[index][1]
-    const length = Math.hypot(dx, dy) || 1
-    return [(direction * -dy) / length, (direction * dx) / length]
-  }
-  const result: Point[] = []
-  for (let index = 0; index < points.length; index += 1) {
-    const current = points[index]
-    if (index === 0) {
-      const normal = segmentNormal(0)
-      result.push([current[0] + normal[0] * distance, current[1] + normal[1] * distance])
-      continue
-    }
-    if (index === points.length - 1) {
-      const normal = segmentNormal(index - 1)
-      result.push([current[0] + normal[0] * distance, current[1] + normal[1] * distance])
-      continue
-    }
-    const first = segmentNormal(index - 1)
-    const second = segmentNormal(index)
-    const cosine = first[0] * second[0] + first[1] * second[1]
-    const denominator = 1 + cosine
-    let offsetX: number
-    let offsetY: number
-    if (denominator < 1e-3) {
-      offsetX = first[0] * distance
-      offsetY = first[1] * distance
-    } else {
-      const scale = distance / denominator
-      offsetX = (first[0] + second[0]) * scale
-      offsetY = (first[1] + second[1]) * scale
-      const offsetLength = Math.hypot(offsetX, offsetY)
-      if (offsetLength > limit) {
-        offsetX = (offsetX / offsetLength) * limit
-        offsetY = (offsetY / offsetLength) * limit
-      }
-    }
-    result.push([current[0] + offsetX, current[1] + offsetY])
-  }
-  return result
-}

@@ -7,11 +7,8 @@ import {
   fitLabelFontSize,
   insetPolygon,
   loopIsHole,
-  normalizePolylineDirection,
-  offsetPolyline,
   polylineLength,
   polygonContains,
-  polylineOutwardDirection,
 } from '@/lib/region-geometry'
 
 function squarePoints(x: number, y: number, size = 50): Array<[number, number]> {
@@ -158,57 +155,39 @@ describe('computeRegionOutlines', () => {
     const coreLoop = outlines.get('CORE')?.loops[0] ?? []
     expect(coreLoop).toHaveLength(4)
     expect(outlines.get('CORE')?.outerSegments).toHaveLength(0)
+    expect(outlines.get('CORE')?.outerLoops).toHaveLength(0)
     expect(loopIsHole(coreLoop, territoryAt, regionOf, 'RING')).toBe(true)
     expect(loopIsHole(coreLoop, territoryAt, regionOf, 'CORE')).toBe(false)
+  })
+
+  it('chains the outer border into one contiguous stretch per region', () => {
+    const territories = grid3x3()
+    const regions: Region[] = [
+      {
+        id: 'TOP',
+        seed: 'AAA',
+        territories: ['AAA', 'BBB', 'CCC'],
+      },
+      {
+        id: 'REST',
+        seed: 'DDD',
+        territories: ['DDD', 'EEE', 'FFF', 'GGG', 'HHH', 'III'],
+      },
+    ]
+    const { outlines } = computeRegionOutlines(territories, regions)
+    expect(outlines.get('TOP')?.outerSegments).toHaveLength(5)
+    expect(outlines.get('TOP')?.outerLoops).toHaveLength(1)
+    expect(outlines.get('TOP')?.outerLoops[0]).toHaveLength(6)
+    expect(outlines.get('REST')?.outerSegments).toHaveLength(7)
+    expect(outlines.get('REST')?.outerLoops).toHaveLength(1)
+    const restLoop = outlines.get('REST')?.outerLoops[0] ?? []
+    expect(restLoop).toHaveLength(8)
   })
 })
 
 describe('polyline helpers', () => {
   it('measures polyline length', () => {
     expect(polylineLength([[0, 0], [3, 0], [3, 4]] as Point[])).toBeCloseTo(7, 9)
-  })
-
-  it('normalizes direction left-to-right and top-to-bottom', () => {
-    const horizontal = normalizePolylineDirection([
-      [100, 0],
-      [0, 0],
-    ] as Point[])
-    expect(horizontal[0][0]).toBeLessThan(horizontal[horizontal.length - 1][0])
-    const vertical = normalizePolylineDirection([
-      [0, 100],
-      [0, 0],
-    ] as Point[])
-    expect(vertical[0][1]).toBeLessThan(vertical[vertical.length - 1][1])
-  })
-
-  it('offsets a polyline to the requested side', () => {
-    const left = offsetPolyline([[0, 0], [10, 0]] as Point[], 2, 1)
-    expect(left[0][1]).toBeCloseTo(2, 9)
-    expect(left[1][1]).toBeCloseTo(2, 9)
-    const right = offsetPolyline([[0, 0], [10, 0]] as Point[], 2, -1)
-    expect(right[0][1]).toBeCloseTo(-2, 9)
-    expect(right[1][1]).toBeCloseTo(-2, 9)
-    const corner = offsetPolyline([[0, 0], [3, 0], [3, 10]] as Point[], 2, 1)
-    expect(corner[0][1]).toBeCloseTo(2, 9)
-    expect(corner[1][0]).toBeCloseTo(1, 9)
-    expect(corner[1][1]).toBeCloseTo(2, 9)
-    expect(corner[2][0]).toBeCloseTo(1, 9)
-  })
-
-  it('detects the outward side of an outer border polyline', () => {
-    const line = [
-      [0, 0],
-      [100, 0],
-    ] as Point[]
-    const outward = polylineOutwardDirection(line, () => undefined, () => undefined, 'R1')
-    expect(outward).toBe(1)
-    const inward = polylineOutwardDirection(
-      line,
-      ([, y]) => (y < 5 ? 'AAA' : undefined),
-      () => 'R1',
-      'R1',
-    )
-    expect(inward).toBe(-1)
   })
 })
 
