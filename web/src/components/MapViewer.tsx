@@ -20,11 +20,7 @@ import {
   parseSpecialOrderPlacements,
 } from '@/lib/game-icons'
 import { type GameIconGlyph } from '@/lib/game-icon-glyphs'
-import {
-  chaoticIconPlacements,
-  territoryRadius,
-  type IconPlacement,
-} from '@/lib/chaotic-icons'
+import { chaoticIconPlacements, type IconPlacement } from '@/lib/chaotic-icons'
 import { NEUTRAL_PLAYER_ID } from '@/types'
 import {
   DRAG_THRESHOLD,
@@ -64,7 +60,6 @@ import type {
   StateData,
   SupplyLine,
   Terrain,
-  Territory,
 } from '@/types'
 
 const OUTER_BORDER_WIDTH = 2
@@ -968,10 +963,11 @@ export function MapViewer({
 
   /**
    * Regions where a single canceling card counters an active calamity: the
-   * calamity icons stay until resolution, marked with a circle-slash badge.
+   * calamity icons stay until resolution, each marked with a circle-slash
+   * badge.
    */
-  const canceledCalamityBadges = useMemo(() => {
-    const badges: string[] = []
+  const singleCanceledRegions = useMemo(() => {
+    const regions = new Set<string>()
     for (const [key, count] of canceledCardCounts) {
       if (
         count === 1 &&
@@ -979,10 +975,10 @@ export function MapViewer({
           (effect) => `${effect.kind}-${effect.regionSeed}` === key,
         )
       ) {
-        badges.push(key.split('-')[1] ?? '')
+        regions.add(key.split('-')[1] ?? '')
       }
     }
-    return badges
+    return regions
   }, [canceledCardCounts, state.activeRegionEffects])
 
   const calamityIcons = useMemo(() => {
@@ -1002,6 +998,7 @@ export function MapViewer({
       stroke?: string
       strokeWidth?: number
       opacity: number
+      canceled: boolean
       placement: IconPlacement
     }> = []
     for (const effect of state.activeRegionEffects ?? []) {
@@ -1035,6 +1032,7 @@ export function MapViewer({
             stroke: style.stroke,
             strokeWidth: style.strokeWidth,
             opacity: style.opacity,
+            canceled: singleCanceledRegions.has(effect.regionSeed),
             placement,
           })
         }
@@ -1047,11 +1045,12 @@ export function MapViewer({
     map.territories,
     state.activeRegionEffects,
     canceledCalamityRegions,
+    singleCanceledRegions,
   ])
 
   const cardIcons = useMemo(() => {
     if (!showCards) {
-      return { scatterItems: [], revoltItems: [] }
+      return { scatterItems: [] }
     }
     const regionsBySeed = new Map(
       (map.regions ?? []).map((region) => [region.seed, region]),
@@ -1077,11 +1076,6 @@ export function MapViewer({
       opacity: number
       placement: IconPlacement
     }> = []
-    const revoltItems: Array<{
-      key: string
-      territory: Territory
-      playerColor: string
-    }> = []
     const scatteredRegions = new Set<string>()
     for (const { player, text } of specialOrders) {
       for (const placement of parseSpecialOrderPlacements(text)) {
@@ -1090,11 +1084,23 @@ export function MapViewer({
           if (!territory) {
             continue
           }
-          revoltItems.push({
-            key: `revolt-${placement.target}-${revoltItems.length}`,
-            territory,
-            playerColor: colorsByPlayer.get(player) ?? '#475569',
-          })
+          const style = CARD_ICONS.revolt
+          const seedKey = `revolt-${placement.target}`
+          for (const placement2 of chaoticIconPlacements(
+            territory.points,
+            style.count,
+            seedKey,
+          )) {
+            scatterItems.push({
+              key: `${seedKey}-${placement2.x.toFixed(1)}-${placement2.y.toFixed(1)}`,
+              glyph: style.glyph,
+              fill: colorsByPlayer.get(player) ?? '#475569',
+              stroke: style.stroke,
+              strokeWidth: style.strokeWidth,
+              opacity: style.opacity,
+              placement: placement2,
+            })
+          }
           continue
         }
         // One canceling card against an active calamity only marks the
@@ -1137,7 +1143,7 @@ export function MapViewer({
         }
       }
     }
-    return { scatterItems, revoltItems }
+    return { scatterItems }
   }, [
     showCards,
     specialOrders,
@@ -1875,24 +1881,45 @@ export function MapViewer({
             {calamityIcons.length > 0 && (
               <g aria-label={t('map.calamityOverlay')} pointerEvents="none">
                 {calamityIcons.map((icon) => (
-                  <GameIconGlyph
-                    key={icon.key}
-                    glyph={icon.glyph}
-                    x={icon.placement.x - icon.placement.size / 2}
-                    y={icon.placement.y - icon.placement.size / 2}
-                    size={icon.placement.size}
-                    fill={icon.fill}
-                    stroke={icon.stroke}
-                    strokeWidth={icon.strokeWidth}
-                    opacity={icon.opacity}
-                    rotation={(icon.placement.rotation * 180) / Math.PI}
-                  />
+                  <g key={icon.key}>
+                    <GameIconGlyph
+                      glyph={icon.glyph}
+                      x={icon.placement.x - icon.placement.size / 2}
+                      y={icon.placement.y - icon.placement.size / 2}
+                      size={icon.placement.size}
+                      fill={icon.fill}
+                      stroke={icon.stroke}
+                      strokeWidth={icon.strokeWidth}
+                      opacity={icon.opacity}
+                      rotation={(icon.placement.rotation * 180) / Math.PI}
+                    />
+                    {icon.canceled && (
+                      <g pointerEvents="none">
+                        <circle
+                          cx={icon.placement.x}
+                          cy={icon.placement.y}
+                          r={icon.placement.size * 0.55}
+                          fill="none"
+                          stroke="#a84632"
+                          strokeWidth={icon.placement.size * 0.16}
+                          opacity={0.95}
+                        />
+                        <line
+                          x1={icon.placement.x - icon.placement.size * 0.4}
+                          y1={icon.placement.y - icon.placement.size * 0.4}
+                          x2={icon.placement.x + icon.placement.size * 0.4}
+                          y2={icon.placement.y + icon.placement.size * 0.4}
+                          stroke="#a84632"
+                          strokeWidth={icon.placement.size * 0.16}
+                          opacity={0.95}
+                        />
+                      </g>
+                    )}
+                  </g>
                 ))}
               </g>
             )}
-            {(cardIcons.scatterItems.length > 0 ||
-              cardIcons.revoltItems.length > 0 ||
-              canceledCalamityBadges.length > 0) && (
+            {cardIcons.scatterItems.length > 0 && (
               <g aria-label={t('map.cardOverlay')} pointerEvents="none">
                 {cardIcons.scatterItems.map((icon) => (
                   <GameIconGlyph
@@ -1908,77 +1935,6 @@ export function MapViewer({
                     rotation={(icon.placement.rotation * 180) / Math.PI}
                   />
                 ))}
-                {cardIcons.revoltItems.map((icon) => {
-                  const [centerX, centerY] = centroid(icon.territory.points)
-                  const territoryRadiusValue = territoryRadius(
-                    icon.territory.points,
-                  )
-                  // The territory label sits on the centroid: shift the rebel
-                  // circle towards the lower right so both stay readable.
-                  const discX = centerX + territoryRadiusValue * 0.5
-                  const discY = centerY + territoryRadiusValue * 0.42
-                  const size = territoryRadiusValue * 0.42 * 0.8
-                  const discRadius = size * 0.62
-                  return (
-                    <g key={icon.key} pointerEvents="none">
-                      <circle
-                        cx={discX}
-                        cy={discY}
-                        r={discRadius}
-                        fill="#6b7280"
-                        stroke="#30291f"
-                        strokeWidth={discRadius * 0.18}
-                        opacity={0.92}
-                      />
-                      <GameIconGlyph
-                        glyph={CARD_ICONS.revolt.glyph}
-                        x={discX - size / 2}
-                        y={discY - size / 2}
-                        size={size}
-                        fill={icon.playerColor}
-                        stroke="#fff8e7"
-                        strokeWidth={14}
-                        opacity={1}
-                      />
-                    </g>
-                  )
-                })}
-                {canceledCalamityBadges.map((regionSeed) => {
-                  const territory = map.territories.find(
-                    (candidate) => candidate.id === regionSeed,
-                  )
-                  if (!territory) {
-                    return null
-                  }
-                  const [centerX, centerY] = centroid(territory.points)
-                  const badgeRadius =
-                    territoryRadius(territory.points) * 0.5
-                  return (
-                    <g
-                      key={`cancel-badge-${regionSeed}`}
-                      pointerEvents="none"
-                    >
-                      <circle
-                        cx={centerX}
-                        cy={centerY}
-                        r={badgeRadius}
-                        fill="none"
-                        stroke="#a84632"
-                        strokeWidth={badgeRadius * 0.22}
-                        opacity={0.9}
-                      />
-                      <line
-                        x1={centerX - badgeRadius * 0.68}
-                        y1={centerY - badgeRadius * 0.68}
-                        x2={centerX + badgeRadius * 0.68}
-                        y2={centerY + badgeRadius * 0.68}
-                        stroke="#a84632"
-                        strokeWidth={badgeRadius * 0.22}
-                        opacity={0.9}
-                      />
-                    </g>
-                  )
-                })}
               </g>
             )}
             <g aria-label={t('map.liveLayer')} pointerEvents="none">

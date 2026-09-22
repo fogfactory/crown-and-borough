@@ -272,13 +272,14 @@ function AppContent() {
         : [],
     [chainDrafts, map, selectedPlayer, state],
   )
-  const specialOrders = useMemo(
-    () =>
-      Object.entries(specialDrafts)
-        .filter(([, text]) => text.trim() !== '')
-        .map(([player, text]) => ({ player, text })),
-    [specialDrafts],
-  )
+  /**
+   * Card intentions are private: only the drafting player's own map shows
+   * them, so the hotseat view exposes the selected player's draft only.
+   */
+  const specialOrders = useMemo(() => {
+    const text = specialDrafts[selectedPlayer] ?? ''
+    return text.trim() !== '' ? [{ player: selectedPlayer, text }] : []
+  }, [specialDrafts, selectedPlayer])
   const intentionsColor =
     state?.players.find((player) => player.id === selectedPlayer)?.color ?? '#a84632'
 

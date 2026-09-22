@@ -77,7 +77,7 @@ export const CARD_ICONS: Record<CardIconKind, CardIconStyle> = {
   abundant_harvest: {
     glyph: glyph('wheat'),
     fill: '#4e7d3b',
-    stroke: '#fff8e7',
+    stroke: '#30291f',
     strokeWidth: 16,
     opacity: 0.95,
     count: 3,
@@ -86,10 +86,10 @@ export const CARD_ICONS: Record<CardIconKind, CardIconStyle> = {
     glyph: glyph('uprising'),
     // The villager color comes from the player who drafted the card.
     fill: '#30291f',
-    stroke: '#fff8e7',
+    stroke: '#30291f',
     strokeWidth: 14,
-    opacity: 1,
-    count: 1,
+    opacity: 0.95,
+    count: 3,
   },
 }
 
