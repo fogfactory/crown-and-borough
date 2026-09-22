@@ -19,6 +19,7 @@ import {
   CARD_ICONS,
   parseSpecialOrderPlacements,
 } from '@/lib/game-icons'
+import { type GameIconGlyph } from '@/lib/game-icon-glyphs'
 import {
   chaoticIconPlacements,
   territoryRadius,
@@ -633,6 +634,54 @@ function MapControls({ onZoom }: { onZoom: (zoomFactor: number) => void }) {
   )
 }
 
+/**
+ * Inline game-icons.net glyph: one filled path recolored at render time,
+ * optionally outlined (the liseré) directly on the path edges.
+ */
+function GameIconGlyph({
+  glyph,
+  x,
+  y,
+  size,
+  fill,
+  stroke,
+  strokeWidth = 0,
+  opacity,
+  rotation = 0,
+}: {
+  glyph: GameIconGlyph
+  x: number
+  y: number
+  size: number
+  fill: string
+  stroke?: string
+  strokeWidth?: number
+  opacity: number
+  rotation?: number
+}) {
+  return (
+    <svg
+      x={x}
+      y={y}
+      width={size}
+      height={size}
+      viewBox="0 0 512 512"
+      opacity={opacity}
+      transform={`rotate(${rotation} ${x + size / 2} ${y + size / 2})`}
+      pointerEvents="none"
+    >
+      <g transform={glyph.transform}>
+        <path
+          d={glyph.path}
+          fill={fill}
+          stroke={stroke ?? 'none'}
+          strokeWidth={strokeWidth}
+        />
+      </g>
+    </svg>
+  )
+}
+
 interface MapViewerProps {
   map: MapData
   state: StateData
@@ -875,12 +924,12 @@ export function MapViewer({
   const supplyEndpointDash = `${3 * annotationScale} ${3 * annotationScale}`
 
   /**
-   * Regions where a drafted bonus card cancels the active calamity: BT against
-   * bad weather, RA against famine. The calamity icons disappear from those
-   * regions because the play clears them at the next resolution.
+   * Drafted canceling cards per (canceled calamity, region): BT against bad
+   * weather, RA against famine. The first card cancels the calamity; per the
+   * rules a second card of the same kind applies its regional bonus instead.
    */
-  const canceledCalamityRegions = useMemo(() => {
-    const canceled = new Set<string>()
+  const canceledCardCounts = useMemo(() => {
+    const counts = new Map<string, number>()
     for (const { text } of specialOrders) {
       for (const placement of parseSpecialOrderPlacements(text)) {
         const canceledKind =
@@ -888,12 +937,53 @@ export function MapViewer({
             ? CANCELED_KIND_BY_CARD[placement.kind]
             : null
         if (canceledKind) {
-          canceled.add(`${canceledKind}-${placement.target}`)
+          const key = `${canceledKind}-${placement.target}`
+          counts.set(key, (counts.get(key) ?? 0) + 1)
         }
       }
     }
-    return canceled
+    return counts
   }, [specialOrders])
+
+  /**
+   * Regions where the drafted cards fully clear the calamity (two canceling
+   * cards or more): the calamity icons disappear and the residual bonus
+   * scatters instead. With a single canceling card the calamity icons stay,
+   * marked with a cancellation badge.
+   */
+  const canceledCalamityRegions = useMemo(() => {
+    const canceled = new Set<string>()
+    for (const [key, count] of canceledCardCounts) {
+      if (
+        count >= 2 &&
+        (state.activeRegionEffects ?? []).some(
+          (effect) => `${effect.kind}-${effect.regionSeed}` === key,
+        )
+      ) {
+        canceled.add(key)
+      }
+    }
+    return canceled
+  }, [canceledCardCounts, state.activeRegionEffects])
+
+  /**
+   * Regions where a single canceling card counters an active calamity: the
+   * calamity icons stay until resolution, marked with a circle-slash badge.
+   */
+  const canceledCalamityBadges = useMemo(() => {
+    const badges: string[] = []
+    for (const [key, count] of canceledCardCounts) {
+      if (
+        count === 1 &&
+        (state.activeRegionEffects ?? []).some(
+          (effect) => `${effect.kind}-${effect.regionSeed}` === key,
+        )
+      ) {
+        badges.push(key.split('-')[1] ?? '')
+      }
+    }
+    return badges
+  }, [canceledCardCounts, state.activeRegionEffects])
 
   const calamityIcons = useMemo(() => {
     if (!showCalamities) {
@@ -907,8 +997,10 @@ export function MapViewer({
     )
     const items: Array<{
       key: string
-      src: string
-      className: string
+      glyph: GameIconGlyph
+      fill: string
+      stroke?: string
+      strokeWidth?: number
       opacity: number
       placement: IconPlacement
     }> = []
@@ -938,8 +1030,10 @@ export function MapViewer({
         )) {
           items.push({
             key: `${seedKey}-${placement.x.toFixed(1)}-${placement.y.toFixed(1)}`,
-            src: style.src,
-            className: style.className,
+            glyph: style.glyph,
+            fill: style.fill,
+            stroke: style.stroke,
+            strokeWidth: style.strokeWidth,
             opacity: style.opacity,
             placement,
           })
@@ -976,8 +1070,10 @@ export function MapViewer({
     )
     const scatterItems: Array<{
       key: string
-      src: string
-      className: string
+      glyph: GameIconGlyph
+      fill: string
+      stroke?: string
+      strokeWidth?: number
       opacity: number
       placement: IconPlacement
     }> = []
@@ -1001,15 +1097,13 @@ export function MapViewer({
           })
           continue
         }
-        // A bonus card that cancels an active calamity removes its icons
-        // instead of scattering its own.
+        // One canceling card against an active calamity only marks the
+        // calamity with a cancellation badge; two or more cards clear the
+        // calamity and the residual bonus scatters instead.
+        const canceledKind = CANCELED_KIND_BY_CARD[placement.kind]
         if (
-          canceledCalamityRegions.has(
-            `${CANCELED_KIND_BY_CARD[placement.kind]}-${placement.target}`,
-          ) &&
-          activeByRegion.has(
-            `${CANCELED_KIND_BY_CARD[placement.kind]}-${placement.target}`,
-          )
+          activeByRegion.has(`${canceledKind}-${placement.target}`) &&
+          !canceledCalamityRegions.has(`${canceledKind}-${placement.target}`)
         ) {
           continue
         }
@@ -1032,8 +1126,10 @@ export function MapViewer({
           )) {
             scatterItems.push({
               key: `${seedKey}-${placement2.x.toFixed(1)}-${placement2.y.toFixed(1)}`,
-              src: style.src,
-              className: style.className,
+              glyph: style.glyph,
+              fill: style.fill,
+              stroke: style.stroke,
+              strokeWidth: style.strokeWidth,
               opacity: style.opacity,
               placement: placement2,
             })
@@ -1779,77 +1875,106 @@ export function MapViewer({
             {calamityIcons.length > 0 && (
               <g aria-label={t('map.calamityOverlay')} pointerEvents="none">
                 {calamityIcons.map((icon) => (
-                  <image
+                  <GameIconGlyph
                     key={icon.key}
-                    href={icon.src}
+                    glyph={icon.glyph}
                     x={icon.placement.x - icon.placement.size / 2}
                     y={icon.placement.y - icon.placement.size / 2}
-                    width={icon.placement.size}
-                    height={icon.placement.size}
-                    className={icon.className}
+                    size={icon.placement.size}
+                    fill={icon.fill}
+                    stroke={icon.stroke}
+                    strokeWidth={icon.strokeWidth}
                     opacity={icon.opacity}
-                    transform={`rotate(${(icon.placement.rotation * 180) / Math.PI} ${icon.placement.x} ${icon.placement.y})`}
+                    rotation={(icon.placement.rotation * 180) / Math.PI}
                   />
                 ))}
               </g>
             )}
-            {(cardIcons.scatterItems.length > 0 || cardIcons.revoltItems.length > 0) && (
+            {(cardIcons.scatterItems.length > 0 ||
+              cardIcons.revoltItems.length > 0 ||
+              canceledCalamityBadges.length > 0) && (
               <g aria-label={t('map.cardOverlay')} pointerEvents="none">
                 {cardIcons.scatterItems.map((icon) => (
-                  <image
+                  <GameIconGlyph
                     key={icon.key}
-                    href={icon.src}
+                    glyph={icon.glyph}
                     x={icon.placement.x - icon.placement.size / 2}
                     y={icon.placement.y - icon.placement.size / 2}
-                    width={icon.placement.size}
-                    height={icon.placement.size}
-                    className={icon.className}
+                    size={icon.placement.size}
+                    fill={icon.fill}
+                    stroke={icon.stroke}
+                    strokeWidth={icon.strokeWidth}
                     opacity={icon.opacity}
-                    transform={`rotate(${(icon.placement.rotation * 180) / Math.PI} ${icon.placement.x} ${icon.placement.y})`}
+                    rotation={(icon.placement.rotation * 180) / Math.PI}
                   />
                 ))}
                 {cardIcons.revoltItems.map((icon) => {
                   const [centerX, centerY] = centroid(icon.territory.points)
-                  const size = territoryRadius(icon.territory.points) * 0.42
-                  const left = centerX - size / 2
-                  const top = centerY - size / 2
-                  const maskId = `revolt-mask-${icon.key}`
+                  const territoryRadiusValue = territoryRadius(
+                    icon.territory.points,
+                  )
+                  // The territory label sits on the centroid: shift the rebel
+                  // circle towards the lower right so both stay readable.
+                  const discX = centerX + territoryRadiusValue * 0.5
+                  const discY = centerY + territoryRadiusValue * 0.42
+                  const size = territoryRadiusValue * 0.42 * 0.8
+                  const discRadius = size * 0.62
                   return (
-                    <g key={icon.key}>
-                      <defs>
-                        <mask
-                          id={maskId}
-                          maskUnits="userSpaceOnUse"
-                          x={left - size * 0.1}
-                          y={top - size * 0.1}
-                          width={size * 1.2}
-                          height={size * 1.2}
-                        >
-                          <image
-                            href={CARD_ICONS.revolt.src}
-                            x={left}
-                            y={top}
-                            width={size}
-                            height={size}
-                            style={{ filter: 'brightness(0) invert(1)' }}
-                          />
-                        </mask>
-                      </defs>
+                    <g key={icon.key} pointerEvents="none">
+                      <circle
+                        cx={discX}
+                        cy={discY}
+                        r={discRadius}
+                        fill="#6b7280"
+                        stroke="#30291f"
+                        strokeWidth={discRadius * 0.18}
+                        opacity={0.92}
+                      />
+                      <GameIconGlyph
+                        glyph={CARD_ICONS.revolt.glyph}
+                        x={discX - size / 2}
+                        y={discY - size / 2}
+                        size={size}
+                        fill={icon.playerColor}
+                        stroke="#fff8e7"
+                        strokeWidth={14}
+                        opacity={1}
+                      />
+                    </g>
+                  )
+                })}
+                {canceledCalamityBadges.map((regionSeed) => {
+                  const territory = map.territories.find(
+                    (candidate) => candidate.id === regionSeed,
+                  )
+                  if (!territory) {
+                    return null
+                  }
+                  const [centerX, centerY] = centroid(territory.points)
+                  const badgeRadius =
+                    territoryRadius(territory.points) * 0.5
+                  return (
+                    <g
+                      key={`cancel-badge-${regionSeed}`}
+                      pointerEvents="none"
+                    >
                       <circle
                         cx={centerX}
                         cy={centerY}
-                        r={size * 0.62}
-                        fill="#6b7280"
-                        opacity={0.75}
+                        r={badgeRadius}
+                        fill="none"
+                        stroke="#a84632"
+                        strokeWidth={badgeRadius * 0.22}
+                        opacity={0.9}
                       />
-                      <rect
-                        x={left}
-                        y={top}
-                        width={size}
-                        height={size}
-                        fill={icon.playerColor}
-                        opacity={0.95}
-                        mask={`url(#${maskId})`}
+                      <line
+                        x1={centerX - badgeRadius * 0.68}
+                        y1={centerY - badgeRadius * 0.68}
+                        x2={centerX + badgeRadius * 0.68}
+                        y2={centerY + badgeRadius * 0.68}
+                        stroke="#a84632"
+                        strokeWidth={badgeRadius * 0.22}
+                        opacity={0.9}
                       />
                     </g>
                   )

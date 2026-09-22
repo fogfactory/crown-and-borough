@@ -1,19 +1,24 @@
+import { GAME_ICON_GLYPHS, type GameIconGlyph } from '@/lib/game-icon-glyphs'
+
+function glyph(name: string): GameIconGlyph {
+  const found = GAME_ICON_GLYPHS[name]
+  if (!found) {
+    throw new Error(`unknown game icon glyph: ${name}`)
+  }
+  return found
+}
 
 /**
  * Map artwork for the calamity overlay, from game-icons.net
- * (CC BY 3.0, icons by Delapouite):
- * https://game-icons.net/1x1/delapouite/reaper-scythe.html
- * https://game-icons.net/1x1/delapouite/raining.html
- * https://game-icons.net/1x1/delapouite/desert-skull.html
- *
- * The SVG files are served locally from /icons so the map never depends on
- * an external host. Glyphs are drawn black on transparent; the CSS classes
- * recolor them for readability (see the legend swatches).
+ * (CC BY 3.0, icons by Delapouite). Glyphs are inline SVG paths so each
+ * calamity can carry its own fill and outline.
  */
 export interface CalamityIconStyle {
-  src: string
+  glyph: GameIconGlyph
   count: number
-  className: string
+  fill: string
+  stroke?: string
+  strokeWidth?: number
   opacity: number
 }
 
@@ -22,35 +27,37 @@ export const CALAMITY_ICONS: Record<
   CalamityIconStyle
 > = {
   plague: {
-    src: '/icons/reaper-scythe.svg',
+    glyph: glyph('reaper-scythe'),
     count: 5,
-    className: '',
+    fill: '#30291f',
     opacity: 0.6,
   },
   bad_weather: {
-    src: '/icons/raining.svg',
+    glyph: glyph('raining'),
     count: 4,
-    className: 'invert opacity-80',
+    fill: '#fff8e7',
     opacity: 0.8,
   },
   famine: {
-    src: '/icons/desert-skull.svg',
+    glyph: glyph('desert-skull'),
     count: 3,
-    className: 'sepia brightness-75',
-    opacity: 0.65,
+    fill: '#fff8e7',
+    stroke: '#30291f',
+    strokeWidth: 16,
+    opacity: 0.9,
   },
 }
 
 /**
  * Map artwork for the card-order overlay, from game-icons.net
- * (CC BY 3.0, icons by Delapouite):
- * https://game-icons.net/1x1/delapouite/sun.html
- * https://game-icons.net/1x1/delapouite/wheat.html
- * https://game-icons.net/1x1/delapouite/uprising.html
+ * (CC BY 3.0, icons by Delapouite).
  */
 export interface CardIconStyle {
-  src: string
-  className: string
+  glyph: GameIconGlyph
+  className?: string
+  fill: string
+  stroke?: string
+  strokeWidth?: number
   opacity: number
   /** Icon count per territory when the card scatters over a region. */
   count: number
@@ -60,21 +67,28 @@ export type CardIconKind = 'fair_weather' | 'abundant_harvest' | 'revolt'
 
 export const CARD_ICONS: Record<CardIconKind, CardIconStyle> = {
   fair_weather: {
-    src: '/icons/sun.svg',
-    className: 'sepia saturate-200 hue-rotate-15 brightness-110',
-    opacity: 0.85,
+    glyph: glyph('sun'),
+    fill: '#e3b341',
+    stroke: '#fff8e7',
+    strokeWidth: 16,
+    opacity: 0.95,
     count: 3,
   },
   abundant_harvest: {
-    src: '/icons/wheat.svg',
-    className: 'sepia saturate-150 hue-rotate-30',
-    opacity: 0.85,
+    glyph: glyph('wheat'),
+    fill: '#4e7d3b',
+    stroke: '#fff8e7',
+    strokeWidth: 16,
+    opacity: 0.95,
     count: 3,
   },
   revolt: {
-    src: '/icons/uprising.svg',
-    className: '',
-    opacity: 0.95,
+    glyph: glyph('uprising'),
+    // The villager color comes from the player who drafted the card.
+    fill: '#30291f',
+    stroke: '#fff8e7',
+    strokeWidth: 14,
+    opacity: 1,
     count: 1,
   },
 }
@@ -88,6 +102,12 @@ export const CANCELED_KIND_BY_CARD: Record<
   abundant_harvest: 'famine',
 }
 
+export interface SpecialOrderPlacement {
+  kind: CardIconKind
+  /** Region seed for weather cards, territory for revolts. */
+  target: string
+}
+
 const SPECIAL_KIND_CODES: Record<string, CardIconKind> = {
   BT: 'fair_weather',
   FW: 'fair_weather',
@@ -95,12 +115,6 @@ const SPECIAL_KIND_CODES: Record<string, CardIconKind> = {
   AH: 'abundant_harvest',
   RE: 'revolt',
   RV: 'revolt',
-}
-
-export interface SpecialOrderPlacement {
-  kind: CardIconKind
-  /** Region seed for weather cards, territory for revolts. */
-  target: string
 }
 
 /**
