@@ -33,3 +33,16 @@ When the user asks to commit and push:
 
 - Commit and push the current work.
 - Add to the commit log a short description of what was done.
+
+## Model routing (Claude Code)
+
+The project settings use `opusplan`: Opus while in plan mode, Sonnet once the
+plan is approved. Delegate to the project subagents in `.claude/agents/`:
+
+- `planner` (Opus): analysis, investigation, and implementation plans for any
+  non-trivial change. Read-only.
+- `implementer` (Sonnet): complex or multi-file implementation work.
+- `runner` (Haiku): trivial, mechanical tasks such as running tests, builds,
+  linters, make targets, and scripts, then reporting results.
+
+Do small, obvious edits directly instead of spawning an agent.
