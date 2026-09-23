@@ -249,7 +249,7 @@ func (h *GamesHandler) handleSubresource(w http.ResponseWriter, r *http.Request,
 			h.writeStoreError(w, err)
 			return
 		}
-		viewerID, ok := snapshotViewerID(snapshot, actor)
+		viewerID, ok := snapshot.ViewerFor(actor)
 		if !ok {
 			writeAPIError(w, http.StatusForbidden, "not_member", "actor is not a member of this game")
 			return
@@ -471,7 +471,7 @@ func (h *GamesHandler) submittedOrders(w http.ResponseWriter, r *http.Request, a
 		h.writeStoreError(w, err)
 		return
 	}
-	if !isSnapshotSpectator(snapshot, actor) {
+	if !store.IsSpectator(snapshot.SpectatorUID, actor) {
 		writeAPIError(w, http.StatusForbidden, "spectator_only", "submitted orders are visible only to the observer host")
 		return
 	}
@@ -634,9 +634,9 @@ func (h *GamesHandler) reports(w http.ResponseWriter, r *http.Request, actor sto
 }
 
 func (h *GamesHandler) writeSubmitResult(w http.ResponseWriter, actor store.Actor, result store.SubmitResult) {
-	playerID, ok := snapshotPlayerID(result.Snapshot, actor)
+	playerID, ok := result.Snapshot.PlayerFor(actor)
 	viewerID := playerID
-	if !ok && isSnapshotSpectator(result.Snapshot, actor) {
+	if !ok && store.IsSpectator(result.Snapshot.SpectatorUID, actor) {
 		ok = true
 		viewerID = models.SpectatorViewer
 	}
@@ -673,7 +673,7 @@ func (h *GamesHandler) viewerIDForGame(ctx context.Context, actor store.Actor, i
 	if err != nil {
 		return "", false
 	}
-	return snapshotViewerID(snapshot, actor)
+	return snapshot.ViewerFor(actor)
 }
 
 func (h *GamesHandler) serveRules(w http.ResponseWriter, r *http.Request) {
@@ -937,11 +937,11 @@ func makeGameDetailView(snapshot store.GameSnapshot) gameDetailView {
 
 func makeAuthenticatedGameDetailView(snapshot store.GameSnapshot, actor store.Actor) gameDetailView {
 	view := makeGameDetailView(snapshot)
-	view.CurrentPlayer, _ = snapshotPlayerID(snapshot, actor)
+	view.CurrentPlayer, _ = snapshot.PlayerFor(actor)
 	view.CanInvite = strings.TrimSpace(snapshot.CreatedBy) != "" &&
 		strings.TrimSpace(snapshot.CreatedBy) == strings.TrimSpace(actor.ID)
 	view.InviteAvailable = view.CanInvite && hasFreePlayerSlot(snapshot.Players)
-	view.Spectator = isSnapshotSpectator(snapshot, actor)
+	view.Spectator = store.IsSpectator(snapshot.SpectatorUID, actor)
 	return view
 }
 
@@ -966,34 +966,6 @@ func makePlayerSlotViews(snapshot store.GameSnapshot) []PlayerSlotView {
 func makePlayerSlotView(player store.PlayerSlot, snapshot store.GameSnapshot) PlayerSlotView {
 	_, submitted := snapshot.Submissions[player.ID]
 	return PlayerSlotView{ID: player.ID, Name: player.Name, Color: player.Color, Submitted: submitted}
-}
-
-func snapshotPlayerID(snapshot store.GameSnapshot, actor store.Actor) (models.PlayerID, bool) {
-	actorID := strings.TrimSpace(actor.ID)
-	for _, player := range snapshot.Players {
-		if player.ActorID == actorID {
-			return player.ID, true
-		}
-		if actor.Development && player.ActorID == "" && string(player.ID) == actorID {
-			return player.ID, true
-		}
-	}
-	return "", false
-}
-
-func isSnapshotSpectator(snapshot store.GameSnapshot, actor store.Actor) bool {
-	return strings.TrimSpace(snapshot.SpectatorUID) != "" &&
-		strings.TrimSpace(snapshot.SpectatorUID) == strings.TrimSpace(actor.ID)
-}
-
-func snapshotViewerID(snapshot store.GameSnapshot, actor store.Actor) (models.PlayerID, bool) {
-	if playerID, ok := snapshotPlayerID(snapshot, actor); ok {
-		return playerID, true
-	}
-	if isSnapshotSpectator(snapshot, actor) {
-		return models.SpectatorViewer, true
-	}
-	return "", false
 }
 
 type createGameBody struct {

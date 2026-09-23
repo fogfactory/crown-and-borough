@@ -121,13 +121,17 @@ func PlayerAlive(state *models.GameState, playerID models.PlayerID) bool {
 }
 
 // PlayerMustSubmit reports whether the current turn waits for playerID. An
-// eliminated player never submits. During an action season, a player without a
-// free or hostage noble cannot emit a chain and is therefore not awaited.
+// eliminated player never submits. During an action season, a player is only
+// awaited when they can still order something: a free or hostage noble can
+// emit a chain, and a card in hand can be played as a special order.
 func PlayerMustSubmit(state *models.GameState, playerID models.PlayerID) bool {
 	if !PlayerAlive(state, playerID) {
 		return false
 	}
 	if state.Season == models.SeasonWinter {
+		return true
+	}
+	if state.SpecialDeck != nil && len(state.SpecialDeck.Hands[playerID]) > 0 {
 		return true
 	}
 	for _, noble := range state.Nobles {

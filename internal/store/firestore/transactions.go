@@ -18,6 +18,7 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 	"github.com/fogfactory/crown-and-borough/internal/store"
+	"github.com/fogfactory/crown-and-borough/internal/turn"
 )
 
 var errAlreadyJoined = errors.New("firestorestore: actor already joined")
@@ -100,7 +101,7 @@ func (s *FirestoreStore) Join(ctx context.Context, actor store.Actor, id store.G
 		}
 		freeIndex := -1
 		for index, player := range game.Players {
-			if !isAssignedActor(player.ActorID) {
+			if !store.IsAssignedActor(player.ActorID) {
 				freeIndex = index
 				break
 			}
@@ -229,26 +230,30 @@ func (s *FirestoreStore) Submit(ctx context.Context, actor store.Actor, id store
 	if err != nil {
 		return store.SubmitResult{}, err
 	}
-	playerID, ok := snapshotPlayerID(snapshot, actor)
+	playerID, ok := snapshot.PlayerFor(actor)
 	if !ok {
 		return store.SubmitResult{}, store.ErrNotMember
 	}
 	if snapshot.Status == store.StatusFinished {
 		return store.SubmitResult{}, store.ErrGameFinished
 	}
-	if !isAlive(snapshot.State, playerID) {
+	if !engine.PlayerAlive(snapshot.State, playerID) {
 		return store.SubmitResult{}, store.ErrEliminated
 	}
 	if request.ExpectedRevision != 0 && request.ExpectedRevision != snapshot.Revision {
 		return store.SubmitResult{}, store.ErrRevisionConflict
 	}
-	input, err := normalizeSubmission(playerID, request)
+	input, err := turn.NormalizeSubmission(playerID, engine.OrdersInput{
+		Chains:  request.Chains,
+		Winter:  request.Winter,
+		Special: request.Special,
+	})
 	if err != nil {
 		return store.SubmitResult{}, err
 	}
 	// Validate before writing. The transaction below still checks the revision
 	// and turn, so this read cannot make an obsolete mutation succeed.
-	if _, err := engine.ResolveTurn(snapshot.State, s.balance, input); err != nil {
+	if err := turn.ValidateSubmission(snapshot.State, s.balance, input); err != nil {
 		return store.SubmitResult{}, err
 	}
 	write, err := s.writeSubmissionForGame(ctx, actor, id, input, request.ExpectedRevision)
@@ -310,21 +315,16 @@ func (s *FirestoreStore) resolveInternal(ctx context.Context, actor store.Actor,
 		_ = s.releaseResolution(operationContext, id, claim.Claim)
 		return store.SubmitResult{}, store.ErrRevisionConflict
 	}
-	submitted, remaining := submissionStatus(snapshot)
-	combined := combineSubmissions(snapshot)
-	before := snapshot.State
-	report, err := engine.ResolveTurn(before, s.balance, combined)
+	submitted, remaining := turn.Progress(snapshot.State, func(playerID models.PlayerID) bool {
+		_, ok := snapshot.Submissions[playerID]
+		return ok
+	})
+	resolution, err := turn.Resolve(snapshot.State, s.balance, snapshot.Submissions, s.privacyTracker)
 	if err != nil {
 		_ = s.releaseResolution(operationContext, id, claim.Claim)
 		return store.SubmitResult{}, err
 	}
-	if s.privacyTracker != nil {
-		s.privacyTracker(before, report.State, combined, report)
-	}
-	if err := report.State.Validate(); err != nil {
-		_ = s.releaseResolution(operationContext, id, claim.Claim)
-		return store.SubmitResult{}, err
-	}
+	report := resolution.Report
 	if err := s.commitResolution(operationContext, claim, snapshot, report); err != nil {
 		return store.SubmitResult{}, err
 	}
@@ -564,7 +564,7 @@ func (s *FirestoreStore) commitResolution(ctx context.Context, claim resolutionC
 				return err
 			}
 			for _, player := range game.Players {
-				if isAssignedActor(player.ActorID) {
+				if store.IsAssignedActor(player.ActorID) {
 					oldReportDeletes++
 					if err := transaction.Delete(filteredReportRef(s.client, snapshot.ID, player.ActorID, oldTurn)); err != nil {
 						return err
@@ -674,87 +674,16 @@ func wrapTransactionResult(err error) error {
 	return err
 }
 
-func snapshotPlayerID(snapshot store.GameSnapshot, actor store.Actor) (models.PlayerID, bool) {
-	for _, player := range snapshot.Players {
-		if player.ActorID == actor.ID && isAssignedActor(player.ActorID) {
-			return player.ID, true
-		}
-		if actor.Development && player.ActorID == "" && string(player.ID) == actor.ID {
-			return player.ID, true
-		}
-	}
-	return "", false
-}
-
-func normalizeSubmission(playerID models.PlayerID, request store.SubmitRequest) (engine.OrdersInput, error) {
-	input := engine.OrdersInput{
-		Chains:  append([]engine.ChainSubmission(nil), request.Chains...),
-		Winter:  append([]engine.WinterSubmission(nil), request.Winter...),
-		Special: append([]engine.DeckSubmission(nil), request.Special...),
-	}
-	for index := range input.Chains {
-		if input.Chains[index].Player != "" && input.Chains[index].Player != playerID {
-			return engine.OrdersInput{}, fmt.Errorf("store: chain %d belongs to another player", index+1)
-		}
-		input.Chains[index].Player = playerID
-	}
-	for index := range input.Winter {
-		if input.Winter[index].Player != "" && input.Winter[index].Player != playerID {
-			return engine.OrdersInput{}, fmt.Errorf("store: winter order %d belongs to another player", index+1)
-		}
-		input.Winter[index].Player = playerID
-	}
-	for index := range input.Special {
-		if input.Special[index].Player != "" && input.Special[index].Player != playerID {
-			return engine.OrdersInput{}, fmt.Errorf("store: deck order %d belongs to another player", index+1)
-		}
-		input.Special[index].Player = playerID
-	}
-	return input, nil
-}
-
-func isAlive(state *models.GameState, playerID models.PlayerID) bool {
-	return engine.PlayerAlive(state, playerID)
-}
-
-func submissionStatus(snapshot store.GameSnapshot) ([]models.PlayerID, []models.PlayerID) {
-	submitted := make([]models.PlayerID, 0, len(snapshot.Submissions))
-	remaining := make([]models.PlayerID, 0, len(snapshot.Players))
-	for _, player := range snapshot.Players {
-		if _, ok := snapshot.Submissions[player.ID]; ok {
-			submitted = append(submitted, player.ID)
-			continue
-		}
-		if engine.PlayerMustSubmit(snapshot.State, player.ID) {
-			remaining = append(remaining, player.ID)
-		}
-	}
-	return submitted, remaining
-}
-
-func combineSubmissions(snapshot store.GameSnapshot) engine.OrdersInput {
-	combined := engine.OrdersInput{Chains: []engine.ChainSubmission{}, Winter: []engine.WinterSubmission{}, Special: []engine.DeckSubmission{}}
-	for _, player := range snapshot.State.Players {
-		input, ok := snapshot.Submissions[player.ID]
-		if !ok {
-			continue
-		}
-		combined.Chains = append(combined.Chains, input.Chains...)
-		combined.Winter = append(combined.Winter, input.Winter...)
-		combined.Special = append(combined.Special, input.Special...)
-	}
-	return combined
-}
-
 func statusForState(state *models.GameState) (store.Status, string) {
-	if !engine.GameFinished(state) {
+	finished, winner := turn.Outcome(state)
+	switch {
+	case !finished:
 		return store.StatusPlaying, ""
-	}
-	winner := engine.WinnerForFinishedGame(state)
-	if winner != nil {
+	case winner == nil:
+		return store.StatusFinished, ""
+	default:
 		return store.StatusFinished, string(*winner)
 	}
-	return store.StatusFinished, ""
 }
 
 func playerSlot(players []store.PlayerSlot, id models.PlayerID) store.PlayerSlot {
@@ -826,7 +755,7 @@ func (s *FirestoreStore) writeSubmissionForGame(ctx context.Context, actor store
 		if err := decodeJSONMap(canonical.State, state); err != nil {
 			return err
 		}
-		if !isAlive(state, playerID) {
+		if !engine.PlayerAlive(state, playerID) {
 			return store.ErrEliminated
 		}
 		orders, err := ordersJSON(input)
@@ -860,7 +789,7 @@ func (s *FirestoreStore) writeSubmissionForGame(ctx context.Context, actor store
 			return err
 		}
 		for _, player := range game.Players {
-			if !isAssignedActor(player.ActorID) {
+			if !store.IsAssignedActor(player.ActorID) {
 				continue
 			}
 			if err := transaction.Update(viewRef(s.client, id, player.ActorID), []cloudfirestore.Update{
@@ -872,11 +801,12 @@ func (s *FirestoreStore) writeSubmissionForGame(ctx context.Context, actor store
 		}
 		s.recordWrites(3 + assignedDocumentPlayerCount(game.Players))
 		s.recordProjectionWrites(assignedDocumentPlayerCount(game.Players))
+		submitted, remaining := progressFromUIDs(game, state, canonical.SubmittedUIDs)
 		result = submissionWriteResult{
 			Revision:  store.Revision(canonical.Revision),
 			PlayerID:  playerID,
-			Submitted: submittedFromUIDs(game, canonical.SubmittedUIDs),
-			Remaining: remainingFromUIDs(game, state, canonical.SubmittedUIDs),
+			Submitted: submitted,
+			Remaining: remaining,
 		}
 		return nil
 	})
@@ -892,25 +822,14 @@ func appendUnique(values []string, value string) []string {
 	return append(values, value)
 }
 
-func submittedFromUIDs(game gameDocument, uids []string) []models.PlayerID {
-	result := make([]models.PlayerID, 0, len(uids))
+// progressFromUIDs reports submission progress from the submitted member UIDs
+// stored on the canonical document.
+func progressFromUIDs(game gameDocument, state *models.GameState, uids []string) (submitted, remaining []models.PlayerID) {
+	actors := make(map[models.PlayerID]string, len(game.Players))
 	for _, player := range game.Players {
-		if slices.Contains(uids, player.ActorID) {
-			result = append(result, player.ID)
-		}
+		actors[player.ID] = player.ActorID
 	}
-	return result
-}
-
-func remainingFromUIDs(game gameDocument, state *models.GameState, uids []string) []models.PlayerID {
-	result := make([]models.PlayerID, 0)
-	for _, player := range game.Players {
-		if slices.Contains(uids, player.ActorID) {
-			continue
-		}
-		if engine.PlayerMustSubmit(state, player.ID) {
-			result = append(result, player.ID)
-		}
-	}
-	return result
+	return turn.Progress(state, func(playerID models.PlayerID) bool {
+		return slices.Contains(uids, actors[playerID])
+	})
 }

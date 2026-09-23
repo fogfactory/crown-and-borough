@@ -99,7 +99,8 @@ Hosting, déclenché par un tag `v*` (voir `docs/deploy-cloudrun.md`).
 │   │   ├── mapgen/         # génération géométrique et graphe
 │   │   └── orders/         # parsing et validation des ordres
 │   ├── models/            # modèles et invariants métier
-│   └── store/             # interfaces mémoire et adaptateur Firestore online
+│   ├── store/             # interfaces mémoire et adaptateur Firestore online
+│   └── turn/              # cycle d'un tour partagé par le hotseat et les stores
 ├── web/
 │   ├── embed.go            # embarque dist/ dans le binaire Go
 │   ├── handler.go          # sert la SPA sur la même origine que l'API

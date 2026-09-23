@@ -144,3 +144,19 @@ func TestPlayerMustSubmit(t *testing.T) {
 		}
 	}
 }
+
+func TestPlayerMustSubmitWaitsForPlayerWithCardInHand(t *testing.T) {
+	state := &models.GameState{
+		Season:  models.SeasonSummer,
+		Players: []models.Player{{ID: "P1"}},
+		Armies:  []models.Army{{ID: "A1", OwnerID: "P1", Size: 1}},
+		Nobles:  []models.Noble{{ID: "N1", OwnerID: "P1", Status: models.NobleStatusDungeon}},
+	}
+	if PlayerMustSubmit(state, "P1") {
+		t.Fatal("PlayerMustSubmit = true without an emitting noble or a card")
+	}
+	state.SpecialDeck = &models.SpecialDeck{Hands: map[models.PlayerID][]models.SpecialCardID{"P1": {"C1"}}}
+	if !PlayerMustSubmit(state, "P1") {
+		t.Fatal("PlayerMustSubmit = false with a playable card in hand")
+	}
+}
