@@ -707,7 +707,7 @@ describe('MapViewer territorial overlays', () => {
     const { firstTerritory, svg } = renderMap(map, { ...state, season: 'winter' })
     const referenceMeanArea = (1000 * 700) / (8 * 4 + 4 * (4 + 1))
     const expectedScale = Math.sqrt((50 * 50) / referenceMeanArea)
-    const expectedDash = `${4 * expectedScale} ${3 * expectedScale}`
+    const expectedDots = `0.1 ${4.5 * expectedScale}`
     const ownershipBadge = svg.querySelector('[data-ownership-badge="P1"]')
     const winterVeil = svg.querySelector('g[aria-label="Winter overlay"]')
 
@@ -731,14 +731,14 @@ describe('MapViewer territorial overlays', () => {
     expect(selectionPath).toHaveAttribute('clip-path', 'url(#territory-clip-ROS)')
     expect(
       svg.querySelector('g[aria-label="Selection"] path[stroke-dasharray]'),
-    ).toHaveAttribute('stroke-dasharray', expectedDash)
+    ).toHaveAttribute('stroke-dasharray', expectedDots)
 
     const borderGroup = svg.querySelector('g[aria-label="Borders"]')
     const passableBorder = borderGroup?.querySelector('line')
     const outerBorder = svg.querySelector('g[aria-label="Outer borders"] line')
     expect(borderGroup).toBeInTheDocument()
     expect(passableBorder).toHaveAttribute('stroke-width', '2')
-    expect(passableBorder).toHaveAttribute('stroke-dasharray', expectedDash)
+    expect(passableBorder).toHaveAttribute('stroke-dasharray', expectedDots)
     expect(outerBorder).toHaveAttribute('stroke-width', '2')
     expect(selectionPath.compareDocumentPosition(borderGroup as Node)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
@@ -758,15 +758,19 @@ describe('MapViewer territorial overlays', () => {
       })),
     }
     const { svg } = renderMap(impassableMap, { ...state, season: 'winter' })
-    const impassableBorder = svg.querySelector('g[aria-label="Borders"] line')
+    const bordersGroup = svg.querySelector('g[aria-label="Borders"]')
+    const mountainChain = bordersGroup?.querySelector('[data-impassable-chain]')
     const winterVeil = svg.querySelector('g[aria-label="Winter overlay"]')
 
-    expect(impassableBorder).toHaveAttribute('stroke-width', '4')
-    expect(impassableBorder).not.toHaveAttribute('stroke-dasharray')
+    expect(mountainChain).toBeInTheDocument()
+    expect(mountainChain?.querySelectorAll('svg').length).toBeGreaterThan(0)
+    expect(
+      bordersGroup?.querySelector('line[stroke-width="4"]'),
+    ).toBeNull()
     expect(winterVeil).toBeInTheDocument()
-    expect(winterVeil?.compareDocumentPosition(impassableBorder as Node)).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    )
+    expect(
+      winterVeil?.compareDocumentPosition(mountainChain as Node),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
     expect(
       svg.querySelector('g[aria-label="Territorial control"] path[stroke-dasharray]'),
     ).not.toBeInTheDocument()

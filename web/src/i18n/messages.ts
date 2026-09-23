@@ -422,7 +422,7 @@ const englishMessages = {
   'legend.intentionsHint':
     'Drafts + submitted orders + installed chains · action seasons only',
   'legend.passable':
-    'Thick continuous line = impassable border · dashed line = passable border',
+    'Mountain icons = impassable border · dashed line = passable border',
   'legend.show': 'Show legend',
   'legend.hide': 'Hide legend',
   'rules.reference': 'Reference for v1 rules, orders, and supply.',
@@ -1006,7 +1006,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'legend.intentionsHint':
     "Brouillons + ordres soumis + chaînes installées · saisons d'action uniquement",
   'legend.passable':
-    'Trait continu épais = frontière infranchissable · trait pointillé = frontière franchissable',
+    'Icônes de montagnes = frontière infranchissable · trait pointillé = frontière franchissable',
   'legend.show': 'Afficher la légende',
   'legend.hide': 'Masquer la légende',
   'rules.reference': 'Référence des règles v1, des ordres et du ravitaillement.',

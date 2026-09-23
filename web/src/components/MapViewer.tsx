@@ -19,8 +19,8 @@ import {
   CARD_ICONS,
   parseSpecialOrderPlacements,
 } from '@/lib/game-icons'
-import { type GameIconGlyph } from '@/lib/game-icon-glyphs'
-import { chaoticIconPlacements, type IconPlacement } from '@/lib/chaotic-icons'
+import { GAME_ICON_GLYPHS, type GameIconGlyph } from '@/lib/game-icon-glyphs'
+import { borderIconPlacements, chaoticIconPlacements, type IconPlacement } from '@/lib/chaotic-icons'
 import { NEUTRAL_PLAYER_ID } from '@/types'
 import {
   DRAG_THRESHOLD,
@@ -68,7 +68,6 @@ import type {
 
 const OUTER_BORDER_WIDTH = 2
 const PASSABLE_BORDER_WIDTH = 2
-const IMPASSABLE_BORDER_WIDTH = 4
 const REFERENCE_MAP_PLAYERS = 4
 const REFERENCE_MAP_WIDTH = 1000
 const REFERENCE_MAP_HEIGHT = 700
@@ -1093,6 +1092,33 @@ export function MapViewer({
     return testers
   }, [regionOutlines, territoryAt, regionByTerritory])
 
+  /**
+   * Impassable frontiers render as a chaotic chain of mountain icons along
+   * each shared border segment instead of a plain stroke. Deterministic per
+   * segment so the chains never jump between renders.
+   */
+  const impassableBorderIcons = useMemo(() => {
+    const items: Array<{ key: string; placement: IconPlacement }> = []
+    for (const border of sharedBorders) {
+      if (border.passable) {
+        continue
+      }
+      const placements = borderIconPlacements(
+        border.from,
+        border.to,
+        border.key,
+        18 * annotationScale,
+        17 * annotationScale,
+      )
+      placements.forEach((placement, index) => {
+        items.push({ key: `${border.key}-${index}`, placement })
+      })
+    }
+    // Depth-sort by canvas position: icons lower on the map paint over the
+    // ones they overlap above them.
+    return items.sort((first, second) => first.placement.y - second.placement.y)
+  }, [sharedBorders, annotationScale])
+
   const bandMarginX = regionsActive && regionBands.length > 0 ? REGION_BAND_MARGIN : 0
   const bandMarginY = bandMarginX
   const viewWidth = mapWidth + bandMarginX * 2
@@ -1137,6 +1163,7 @@ export function MapViewer({
     return territory ? [centroid(territory.points)] : []
   })
   const passableBorderDash = `${4 * annotationScale} ${3 * annotationScale}`
+  const passableBorderDots = `0.1 ${4.5 * annotationScale}`
   const supplyPathDash = `${8 * annotationScale} ${5 * annotationScale}`
   const supplyEndpointDash = `${3 * annotationScale} ${3 * annotationScale}`
 
@@ -1993,7 +2020,7 @@ export function MapViewer({
                         fill="none"
                         stroke="#d28b22"
                         strokeWidth="5"
-                        strokeDasharray={passableBorderDash}
+                        strokeDasharray={passableBorderDots}
                         strokeLinecap="round"
                         clipPath={`url(#territory-clip-${territory.id})`}
                         vectorEffect="non-scaling-stroke"
@@ -2022,23 +2049,39 @@ export function MapViewer({
             </g>
 
             <g aria-label={t('map.borders')} pointerEvents="none">
-              {sharedBorders.map((border) => (
-                <line
-                  key={border.key}
-                  x1={border.from[0]}
-                  y1={border.from[1]}
-                  x2={border.to[0]}
-                  y2={border.to[1]}
-                  stroke="#39271b"
-                  strokeOpacity="0.85"
-                  strokeWidth={
-                    border.passable ? PASSABLE_BORDER_WIDTH : IMPASSABLE_BORDER_WIDTH
-                  }
-                  strokeDasharray={border.passable ? passableBorderDash : undefined}
-                  strokeLinecap="round"
-                  vectorEffect="non-scaling-stroke"
-                />
-              ))}
+              {sharedBorders
+                .filter((border) => border.passable)
+                .map((border) => (
+                  <line
+                    key={border.key}
+                    x1={border.from[0]}
+                    y1={border.from[1]}
+                    x2={border.to[0]}
+                    y2={border.to[1]}
+                    stroke="#39271b"
+                    strokeOpacity="0.85"
+                    strokeWidth={PASSABLE_BORDER_WIDTH}
+                    strokeDasharray={passableBorderDots}
+                    strokeLinecap="round"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                ))}
+              <g data-impassable-chain="true">
+                {impassableBorderIcons.map((icon) => (
+                  <GameIconGlyph
+                    key={icon.key}
+                    glyph={GAME_ICON_GLYPHS['peaks']}
+                    x={icon.placement.x - icon.placement.size / 2}
+                    y={icon.placement.y - icon.placement.size / 2}
+                    size={icon.placement.size}
+                    fill="#30291f"
+                    stroke="#f5ecd9"
+                    strokeWidth={20}
+                    opacity={0.92}
+                    rotation={(icon.placement.rotation * 180) / Math.PI}
+                  />
+                ))}
+              </g>
             </g>
 
             {supplyPathPoints.length > 0 && (

@@ -15,7 +15,7 @@ describe('MapLegend', () => {
     expect(screen.getByText('Légende')).toBeInTheDocument()
     expect(screen.getByText('Plaine')).toBeInTheDocument()
     expect(
-      screen.getByText(/Trait continu épais = frontière infranchissable/),
+      screen.getByText(/Icônes de montagnes = frontière infranchissable/),
     ).toBeInTheDocument()
     expect(
       container.querySelector('svg[aria-label="Carte des territoires"]'),

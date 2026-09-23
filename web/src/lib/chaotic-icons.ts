@@ -87,3 +87,35 @@ export function chaoticIconPlacements(
     }
   })
 }
+
+/**
+ * Chains icons along a border segment, spaced roughly every `spacing` map
+ * units with perpendicular jitter and chaotic tilts. Fully deterministic
+ * for one (segment, seedKey) pair.
+ */
+export function borderIconPlacements(
+  from: Point,
+  to: Point,
+  seedKey: string,
+  spacing: number,
+  baseSize: number,
+): IconPlacement[] {
+  const length = Math.hypot(to[0] - from[0], to[1] - from[1])
+  if (length <= 0 || spacing <= 0) {
+    return []
+  }
+  const count = Math.max(1, Math.round(length / spacing))
+  const random = mulberry32(hashSeed(seedKey))
+  const unitX = (to[0] - from[0]) / length
+  const unitY = (to[1] - from[1]) / length
+  return Array.from({ length: count }, (_, index) => {
+    const along = ((index + 0.5) / count) * length
+    const lateral = (random() - 0.5) * spacing * 0.5
+    return {
+      x: from[0] + unitX * along - unitY * lateral,
+      y: from[1] + unitY * along + unitX * lateral,
+      size: baseSize * (0.85 + random() * 0.3),
+      rotation: 0,
+    }
+  })
+}
