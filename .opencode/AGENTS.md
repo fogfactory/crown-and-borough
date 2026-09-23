@@ -2,6 +2,8 @@
 
 Instructions pour les agents travaillant sur ce dépôt.
 
+Tu dois utiliser ask_user dès qu'une décision non triviale, pouvant impacter l'architecture ou le game design doit être prise.
+
 ## Contexte projet
 
 Jeu de stratégie asynchrone par tours sur carte (MVP). Backend Go monolithique,
