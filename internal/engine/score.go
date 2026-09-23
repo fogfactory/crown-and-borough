@@ -120,6 +120,24 @@ func PlayerAlive(state *models.GameState, playerID models.PlayerID) bool {
 	return false
 }
 
+// PlayerMustSubmit reports whether the current turn waits for playerID. An
+// eliminated player never submits. During an action season, a player without a
+// free or hostage noble cannot emit a chain and is therefore not awaited.
+func PlayerMustSubmit(state *models.GameState, playerID models.PlayerID) bool {
+	if !PlayerAlive(state, playerID) {
+		return false
+	}
+	if state.Season == models.SeasonWinter {
+		return true
+	}
+	for _, noble := range state.Nobles {
+		if noble.OwnerID == playerID && noble.Status != models.NobleStatusDungeon {
+			return true
+		}
+	}
+	return false
+}
+
 // GameFinished reports whether a state has reached an elimination or duration
 // end condition. Turn values after the final winter are one greater than the
 // configured number of years times four.

@@ -85,34 +85,62 @@ func readRulesDocument(path string, required bool, balance *Balance) ([]byte, er
 	return document, nil
 }
 
+// ruleArmyCostSizes are the army sizes whose supply cost can be rendered with
+// {{army_cost.N}} in the rules documents.
+const ruleArmyCostSizes = 5
+
 func renderRules(document []byte, balance Balance) ([]byte, error) {
 	calamityCounts := WeightedCardCounts(balance.SpecialOrders.DeckSize*balance.SpecialOrders.CalamityPercentage/100, balance.SpecialOrders.CalamityWeights, calamityKinds)
 	bonusCounts := WeightedCardCounts(balance.SpecialOrders.DeckSize-(balance.SpecialOrders.DeckSize*balance.SpecialOrders.CalamityPercentage/100), balance.SpecialOrders.BonusWeights, bonusKinds)
 	values := map[string]string{
-		"ration_terrain.plain":                       stringValue(balance.RationTerrain["plain"]),
-		"ration_terrain.forest":                      stringValue(balance.RationTerrain["forest"]),
-		"ration_terrain.hill":                        stringValue(balance.RationTerrain["hill"]),
-		"ration_terrain.mountain":                    stringValue(balance.RationTerrain["mountain"]),
-		"ration_terrain.swamp":                       stringValue(balance.RationTerrain["swamp"]),
-		"infra_rations_bonus":                        stringValue(balance.InfraRationsBonus),
-		"base_production":                            stringValue(balance.BaseProduction),
-		"special_orders.deck_size":                   stringValue(balance.SpecialOrders.DeckSize),
-		"special_orders.calamity_percentage":         stringValue(balance.SpecialOrders.CalamityPercentage),
-		"special_orders.hand_limit":                  stringValue(balance.SpecialOrders.HandLimit),
-		"special_orders.draw_orders_limit":           stringValue(balance.SpecialOrders.DrawOrdersLimit),
-		"special_orders.calamity_slots.spring":       stringValue(balance.SpecialOrders.CalamitySlots[models.SeasonSpring]),
-		"special_orders.calamity_slots.summer":       stringValue(balance.SpecialOrders.CalamitySlots[models.SeasonSummer]),
-		"special_orders.calamity_slots.autumn":       stringValue(balance.SpecialOrders.CalamitySlots[models.SeasonAutumn]),
-		"special_orders.card.plague":                 stringValue(calamityCounts[models.CardKindPlague]),
-		"special_orders.card.bad_weather":            stringValue(calamityCounts[models.CardKindBadWeather]),
-		"special_orders.card.famine":                 stringValue(calamityCounts[models.CardKindFamine]),
-		"special_orders.card.fair_weather":           stringValue(bonusCounts[models.CardKindFairWeather]),
-		"special_orders.card.abundant_harvest":       stringValue(bonusCounts[models.CardKindAbundantHarvest]),
-		"special_orders.card.revolt":                 stringValue(bonusCounts[models.CardKindRevolt]),
-		"special_orders.effects.plague_army_divisor": stringValue(balance.SpecialOrders.Effects.PlagueArmyDivisor),
+		"base_production":                             stringValue(balance.BaseProduction),
+		"supply_range":                                stringValue(balance.SupplyRange),
+		"depot_range_bonus":                           stringValue(balance.DepotRangeBonus),
+		"infra_rations_bonus":                         stringValue(balance.InfraRationsBonus),
+		"cost_base":                                   stringValue(balance.CostBase),
+		"pillage_bonus":                               stringValue(balance.PillageBonus),
+		"noble_command_bonus":                         stringValue(balance.NobleCommandBonus),
+		"castle_defense_bonus":                        stringValue(balance.CastleDefenseBonus),
+		"ration_terrain.plain":                        stringValue(balance.RationTerrain["plain"]),
+		"ration_terrain.forest":                       stringValue(balance.RationTerrain["forest"]),
+		"ration_terrain.hill":                         stringValue(balance.RationTerrain["hill"]),
+		"ration_terrain.mountain":                     stringValue(balance.RationTerrain["mountain"]),
+		"ration_terrain.swamp":                        stringValue(balance.RationTerrain["swamp"]),
+		"winter_stock_divisor":                        stringValue(balance.WinterStockDivisor),
+		"village_stock_cap":                           stringValue(balance.VillageStockCap),
+		"castle_stock_cap":                            stringValue(balance.CastleStockCap),
+		"costs.castle":                                stringValue(balance.Costs.Castle),
+		"costs.troop":                                 stringValue(balance.Costs.Troop),
+		"costs.noble":                                 stringValue(balance.Costs.Noble),
+		"costs.supply_depot":                          stringValue(balance.Costs.SupplyDepot),
+		"costs.liberation":                            stringValue(balance.Costs.Liberation),
+		"starting_nobles":                             stringValue(balance.StartingNobles),
+		"starting_troops":                             stringValue(balance.StartingTroops),
+		"starting_resources":                          stringValue(balance.StartingResources),
+		"special_orders.deck_size":                    stringValue(balance.SpecialOrders.DeckSize),
+		"special_orders.calamity_percentage":          stringValue(balance.SpecialOrders.CalamityPercentage),
+		"special_orders.hand_limit":                   stringValue(balance.SpecialOrders.HandLimit),
+		"special_orders.draw_orders_limit":            stringValue(balance.SpecialOrders.DrawOrdersLimit),
+		"special_orders.calamity_slots.spring":        stringValue(balance.SpecialOrders.CalamitySlots[models.SeasonSpring]),
+		"special_orders.calamity_slots.summer":        stringValue(balance.SpecialOrders.CalamitySlots[models.SeasonSummer]),
+		"special_orders.calamity_slots.autumn":        stringValue(balance.SpecialOrders.CalamitySlots[models.SeasonAutumn]),
+		"special_orders.card.plague":                  stringValue(calamityCounts[models.CardKindPlague]),
+		"special_orders.card.bad_weather":             stringValue(calamityCounts[models.CardKindBadWeather]),
+		"special_orders.card.famine":                  stringValue(calamityCounts[models.CardKindFamine]),
+		"special_orders.card.fair_weather":            stringValue(bonusCounts[models.CardKindFairWeather]),
+		"special_orders.card.abundant_harvest":        stringValue(bonusCounts[models.CardKindAbundantHarvest]),
+		"special_orders.card.revolt":                  stringValue(bonusCounts[models.CardKindRevolt]),
+		"special_orders.effects.plague_army_divisor":  stringValue(balance.SpecialOrders.Effects.PlagueArmyDivisor),
+		"special_orders.effects.revolt_army_min_size": stringValue(balance.SpecialOrders.Effects.RevoltArmyMinSize),
+		"special_orders.effects.revolt_army_max_size": stringValue(balance.SpecialOrders.Effects.RevoltArmyMaxSize),
 	}
 	for index, cost := range balance.Costs.MillLevels {
 		values[fmt.Sprintf("costs.mill_levels.%d", index)] = stringValue(cost)
+	}
+	cost := 1
+	for size := 1; size <= ruleArmyCostSizes; size++ {
+		values[fmt.Sprintf("army_cost.%d", size)] = stringValue(cost)
+		cost *= balance.CostBase
 	}
 	keys := make([]string, 0, len(values)*2)
 	for key, value := range values {

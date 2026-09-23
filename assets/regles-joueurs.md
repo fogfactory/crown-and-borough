@@ -19,13 +19,19 @@ Les deux piliers de la tension :
 - la logistique exponentielle : les grandes concentrations de troupes sont
   coûteuses et vulnérables au ravitaillement.
 
-Une partie accepte de **2 à 16 joueurs**. Le serveur v1 est une session
-« hotseat » : la carte et les données chiffrées (propriétaires, tailles
-d'armées, stocks, infrastructures, nobles) sont visibles par tous.
+Une partie en ligne accepte de **2 à 8 joueurs** (jusqu'à 16 en partie locale).
+La carte et les données chiffrées (propriétaires, tailles d'armées, stocks,
+infrastructures, nobles) sont visibles par tous. En ligne, chaque joueur ne voit
+en revanche que le détail de ses propres chaînes et des combats auxquels il
+participe.
 
 Chaque joueur commence sur un territoire distinct : un **château** y est
-construit gratuitement (il devient la **capitale**), avec 10 R de stock, une
-armée d'une troupe et un noble libre.
+construit gratuitement (il devient la **capitale**), avec {{starting_resources}} R
+de stock, une armée de {{starting_troops}} troupes et {{starting_nobles}} noble(s)
+libre(s).
+
+La partie dure un nombre d'années choisi à sa création (10 par défaut) ; voir
+la section 8 pour la fin de partie et le score.
 
 ### Inspirations
 
@@ -191,7 +197,7 @@ venue d'une case différente de la cible soutenue peut **couper** un soutien.
 
 `H XXX` : l'armée reste sur place et peut recevoir un soutien défensif.
 `P XXX` : détruit l'infrastructure de la case occupée ; un bonus de pillage
-(2 R) est crédité à la source alliée la plus proche et peut réduire une famine.
+({{pillage_bonus}} R) est crédité à la source alliée la plus proche et peut réduire une famine.
 
 ### Dispersion (`D`)
 
@@ -245,11 +251,11 @@ BRI D BRI ATL NOR          # BRI garde la chaîne, les autres groupes se sépare
 `YYY` doit être un château, un village ou la case d'une armée contrôlée par un
 autre joueur vivant ; un dépôt sans armée ne peut pas recevoir. Le stock de la
 case source peut exister sans infrastructure. La route suit la portée de
-ravitaillement du donneur (`3` cases, plus les dépôts contrôlés) et toute armée
+ravitaillement du donneur (`{{supply_range}}` cases, plus les dépôts contrôlés) et toute armée
 adverse sur une case intermédiaire la bloque ; l'armée adverse en destination
 est autorisée.
 
-Une armée affamée ne peut pas transférer. Le montant est plafonné à `2^(N - 1)`
+Une armée affamée ne peut pas transférer. Le montant est plafonné à `{{cost_base}}^(N - 1)`
 pour une armée de `N` troupes, sans déduire les rations locales. Elle ne fait
 aucun autre ordre pendant ce tour. Un manque de stock n'a aucun effet et ne
 casse pas la chaîne `single`. En `loop`, le transfert retente ; si le stock
@@ -265,15 +271,15 @@ investissements directs, une ligne par ordre, appliqués dans l'ordre saisi.
 
 | Investissement | Syntaxe | Condition | Coût (R) |
 |---|---|---|---|
-| Recruter un noble | `R N XXX` | `XXX` contrôlé, avec un château ou un village et une armée du joueur | 2 |
-| Recruter une troupe | `R T XXX` | `XXX` contrôlé, et un noble libre du joueur sur `XXX` ou adjacent | 1 |
+| Recruter un noble | `R N XXX` | `XXX` contrôlé, avec un château ou un village et une armée du joueur | {{costs.noble}} |
+| Recruter une troupe | `R T XXX` | `XXX` contrôlé, et un noble libre du joueur sur `XXX` ou adjacent | {{costs.troop}} |
 | Construire ou améliorer un moulin | `C M XXX` | `XXX` contrôlé ; nouveau moulin sur case **vide** adjacente à un château ou village productif, ou moulin existant adjacent à cette source | {{costs.mill_levels.0}} (N1), {{costs.mill_levels.1}} (N2), {{costs.mill_levels.2}} (N3) |
-| Construire un château | `C C XXX` | `XXX` contrôlé | 10 |
-| Construire un dépôt de vivres | `C D XXX` | `XXX` contrôlé | 3 |
+| Construire un château | `C C XXX` | `XXX` contrôlé | {{costs.castle}} |
+| Construire un dépôt de vivres | `C D XXX` | `XXX` contrôlé | {{costs.supply_depot}} |
 | Désigner une capitale | `E C XXX` | un château contrôlé sur `XXX` | 0 |
 | Placer un noble en otage | `O N NNN` | `NNN` est un prisonnier adverse détenu par le joueur | 0 |
 | Placer un noble au donjon | `P N NNN` | `NNN` est un prisonnier adverse détenu par le joueur | 0 |
-| Libérer un noble | `L N NNN` | `NNN` est détenu par le joueur ; la capitale de son propriétaire contient une armée de celui-ci | 0 |
+| Libérer un noble | `L N NNN` | `NNN` est détenu par le joueur ; la capitale de son propriétaire contient une armée de celui-ci | {{costs.liberation}} |
 | Transférer des ressources | `G XXX YYY N` | `XXX` est un château ou village contrôlé par le donneur ; `YYY` est un château ou village contrôlé par un autre joueur | 0 |
 
 Un transfert d'hiver ne se limite donc pas aux villages et châteaux du donneur :
@@ -317,7 +323,7 @@ conserve le stock de la case. Un moulin seul (orphelin) ne produit rien.
 Une source est chaque château ou village contrôlé, ainsi que toute case
 contrôlée qui contient un stock positif pendant une saison d'action. Une case
 ordinaire n'a pas de production, mais l'armée qui l'occupe consomme son stock
-local avant les sources plus éloignées. Chaque château ou village produit `1 R`
+local avant les sources plus éloignées. Chaque château ou village produit `{{base_production}} R`
 par tour, indépendamment des autres sources. Un deuxième château est donc une
 deuxième source de production et de ravitaillement, même si un seul château
 reste désigné comme capitale. Un moulin est construit uniquement sur une case
@@ -346,11 +352,11 @@ aucun prélèvement partiel n'est effectué.
 **Fin de l'hiver** :
 
 - chaque stock restant d'un château ou village est conservé à hauteur de
-  `ceil(stock / 2)` ;
+  `ceil(stock / {{winter_stock_divisor}})` ;
 - un dépôt de vivres conserve intégralement son stock ;
 - les stocks hors château, village et dépôt sont perdus ;
 - les stocks des châteaux et villages hors capitale sont rapatriés vers la
-  capitale, en laissant au maximum **1 R par village** et **2 R par château** ;
+  capitale, en laissant au maximum **{{village_stock_cap}} R par village** et **{{castle_stock_cap}} R par château** ;
 - sans capitale, ces stocks restent sur place ; les stocks de dépôt restent sur
   leur case.
 
@@ -439,13 +445,13 @@ Une armée est l'unique entité de force d'un territoire : elle porte un
 propriétaire et une taille en troupes. Toutes ses troupes partagent la même
 chaîne ; il n'existe pas d'ordres mixtes au sein d'une armée.
 
-- la force d'une attaque est la **taille** de l'armée attaquante, avec **+1** si
+- la force d'une attaque est la **taille** de l'armée attaquante, avec **+{{noble_command_bonus}}** si
   un noble libre allié est présent sur sa case ;
-- la force d'un soutien est la taille de l'armée soutenante, avec **+1** si un
+- la force d'un soutien est la taille de l'armée soutenante, avec **+{{noble_command_bonus}}** si un
   noble libre allié est présent sur sa case ;
-- la défense d'une armée reçoit le même bonus de **+1** lorsqu'elle est
+- la défense d'une armée reçoit le même bonus de **+{{noble_command_bonus}}** lorsqu'elle est
   commandée par un noble libre allié ;
-- un château apporte un bonus défensif fixe de **+1**, même sans armée, sauf si
+- un château apporte un bonus défensif fixe de **+{{castle_defense_bonus}}**, même sans armée, sauf si
   tous les attaquants appartiennent au propriétaire du château : une armée peut
   ainsi attaquer son propre château vide pour s'y installer sans être repoussée
   par la défense du château (auto-capture) ;
@@ -477,28 +483,24 @@ reste acquis après le départ de l'armée, jusqu'à l'arrêt d'une armée ennem
 
 Le ravitaillement est résolu **au début de chaque saison d'action**, avant les
 ordres, les combats et les déplacements. Il n'existe pas de phase de
-ravitaillement en hiver. Une armée d'une seule troupe demande `1` ration :
+ravitaillement en hiver. Une armée d'une seule troupe demande `{{army_cost.1}}` ration :
 elle n'est pas automatiquement gratuite.
 
 Une armée de `N` troupes demande :
 
 ```text
-coût = 2^(N - 1)  rations
+coût = {{cost_base}}^(N - 1)  rations
 ```
 
 | Taille | 1 | 2 | 3 | 4 | 5 |
 |---|---:|---:|---:|---:|---:|
-| Coût en rations | 1 | 2 | 4 | 8 | 16 |
+| Coût en rations | {{army_cost.1}} | {{army_cost.2}} | {{army_cost.3}} | {{army_cost.4}} | {{army_cost.5}} |
 
 La production vivrière de la case de l'armée lui est attribuée à elle seule :
 une armée consomme la production de la case qu'elle occupe jusqu'à hauteur de
 sa demande, le surplus est perdu et le reste constitue sa demande à ravitailler. Il n'y a
 jamais qu'une armée par case, donc aucune distribution entre armées : une
 armée ennemie sur une case voisine ne prend jamais la ration de ta case.
-
-Les brigands et autres armées neutres prennent eux aussi la ration de la case
-qu'ils occupent, mais ne reçoivent aucun complément depuis les stocks des
-sources contrôlées par un joueur.
 
 Exemple : une armée de 2 troupes sur une colline portant un château
 (production locale : {{ration_terrain.hill}} ; bonus du château : {{infra_rations_bonus}})
@@ -516,8 +518,8 @@ Un château ou un village produit **{{base_production}} R stockable par tour** ;
 ne produit rien. Le flux traverse les
 cases alliées, neutres ou contrôlées par un autre joueur et ne s'arrête que devant
 une case occupée par une armée adverse. La portée de base
-est de **3 cases** ; chaque dépôt de vivres contrôlé rencontré sur le trajet
-ajoute **2 cases**. Un village neutre conserve son stock, inaccessible au joueur
+est de **{{supply_range}} cases** ; chaque dépôt de vivres contrôlé rencontré sur le trajet
+ajoute **{{depot_range_bonus}} cases**. Un village neutre conserve son stock, inaccessible au joueur
 avant capture.
 
 Chaque source calcule sa propre production `R` : sa production de base, plus le
@@ -566,8 +568,8 @@ Une case ne porte qu'**une seule infrastructure**.
 | Infrastructure | Condition | Effet v1 | Coût |
 |---|---|---|---|
 | Moulin | Construction sur case vide contrôlée, adjacente à un château ou village ; amélioration d'un moulin existant adjacent à cette source, jusqu'au niveau 3 | +1 R stockable par niveau à **chaque** source adjacente | {{costs.mill_levels.0}} / {{costs.mill_levels.1}} / {{costs.mill_levels.2}} |
-| Dépôt de vivres | Aucune | +2 cases de portée de ravitaillement lorsqu'il est contrôlé | 3 |
-| Château | Aucune | +1 défense, +{{infra_rations_bonus}} rations, produit {{base_production}} R stockable par tour, ancre de ravitaillement | 10 |
+| Dépôt de vivres | Aucune | +{{depot_range_bonus}} cases de portée de ravitaillement lorsqu'il est contrôlé | {{costs.supply_depot}} |
+| Château | Aucune | +{{castle_defense_bonus}} défense, +{{infra_rations_bonus}} rations, produit {{base_production}} R stockable par tour, ancre de ravitaillement | {{costs.castle}} |
 | Village | Généré neutre, **non constructible** | +{{infra_rations_bonus}} rations, produit {{base_production}} R stockable par tour, ancre après capture | — |
 
 ---
@@ -577,7 +579,7 @@ Une case ne porte qu'**une seule infrastructure**.
 Les nobles **chevauchent les armées** : ils suivent les déplacements, les
 attaques, les jonctions, les dispersions et les retraites. Un noble ne compte ni
 dans le ravitaillement ni dans les pertes d'un combat. Un noble libre du joueur,
-présent sur la case de son armée, lui donne une seule fois **+1 de puissance** ;
+présent sur la case de son armée, lui donne une seule fois **+{{noble_command_bonus}} de puissance** ;
 les nobles adverses détenus, les nobles otages et les nobles au cachot ne donnent
 pas ce bonus. Un noble peut rester seul sur une case après la perte de son armée.
 
@@ -610,7 +612,7 @@ capitale** ; sinon l'ordre est rejeté.
 
 Un transfert volontaire de noble passe par une dispersion : par exemple,
 `BRI D ATL*HUG NOR` envoie HUG avec le groupe d'ATL. Le noble `HUG` n'accorde
-le bonus de `+1` que si ce groupe le porte effectivement au moment du combat ou
+le bonus de `+{{noble_command_bonus}}` que si ce groupe le porte effectivement au moment du combat ou
 de la défense.
 
 Un joueur qui ne possède aucun noble libre ou otage apte à émettre n'a pas à
@@ -621,16 +623,36 @@ les destinations (`*` ou `*NNN`), voir section 4.
 
 ---
 
-## 8. Victoire
+## 8. Fin de partie, score et victoire
 
-La règle de victoire prévue (documentée dans les spécifications) :
+La durée d'une partie est choisie à sa création, entre 1 et 50 années (10 par
+défaut). Une année compte quatre tours ; l'interface affiche l'année historique
+`1000 + année`, soit « Année 1001 » au premier tour.
 
-> Un joueur est **éliminé** lorsqu'il ne contrôle plus aucun territoire et ne
-> possède plus aucune armée. Les nobles seuls ne maintiennent pas un joueur en
-> lice. Le **dernier joueur vivant gagne** la partie.
+**Élimination** : un joueur est éliminé lorsqu'il ne contrôle plus aucun
+territoire et ne possède plus aucune armée. Les nobles seuls ne maintiennent pas
+un joueur en lice. Un joueur éliminé ne soumet plus d'ordres.
 
-**État actuel du serveur** : cette règle de fin de partie **n'est pas encore
-appliquée par le moteur**. Les parties sont donc ouvertes : le cycle des saisons
-et la résolution continuent tant que les joueurs soumettent des ordres. La
-détection de l'élimination et la condition de victoire seront activées dans une
-version ultérieure.
+**Fin de partie** : la partie se termine :
+
+- immédiatement lorsqu'un seul joueur reste en lice : il gagne ;
+- sinon, après la résolution du dernier hiver de la durée choisie : le joueur
+  qui a le score le plus élevé gagne. Une égalité parfaite au sommet ne désigne
+  aucun gagnant.
+
+**Score** : il est recalculé après chaque tour et visible par tous.
+
+| Élément | Points |
+|---|---:|
+| Territoire contrôlé | 1 |
+| Village contrôlé | 2 |
+| Moulin contrôlé | 1 |
+| Château contrôlé | 5 |
+| Noble détenu | 2 |
+| Troupe | 1 par unité dans ses armées |
+| Ressource `R` | 1 par unité en stock sur ses territoires contrôlés |
+
+Les infrastructures et les ressources ne rapportent des points que sur un
+territoire contrôlé. Un noble libre compte pour son propriétaire. Un noble
+capturé, otage ou au donjon, compte pour le joueur qui contrôle le territoire où
+il se trouve, et non pour son propriétaire d'origine.
