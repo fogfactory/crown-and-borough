@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -13,6 +15,7 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
+	webassets "github.com/fogfactory/crown-and-borough/web"
 )
 
 func TestHealthz(t *testing.T) {
@@ -58,6 +61,9 @@ func TestVersion(t *testing.T) {
 }
 
 func TestServerServesEmbeddedFrontendAndClientRoutes(t *testing.T) {
+	if _, err := fs.Stat(webassets.EmbeddedFS(), "index.html"); err != nil && os.Getenv("CI") == "" {
+		t.Skip("frontend not built; run make web-build (always enforced in CI)")
+	}
 	server := newServer(
 		func(int) ([]byte, error) { return []byte(`{"territories":[]}`), nil },
 		func(int) ([]byte, error) { return []byte(`{"turn":1}`), nil },
