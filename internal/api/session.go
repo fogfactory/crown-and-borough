@@ -14,6 +14,7 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
 	"github.com/fogfactory/crown-and-borough/internal/i18n"
 	"github.com/fogfactory/crown-and-borough/internal/models"
+	"github.com/fogfactory/crown-and-borough/internal/turn"
 )
 
 // Session owns the single in-memory game used by the development hotseat
@@ -269,13 +270,17 @@ func (s *Session) OrdersHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	input, inputErr := normalizePlayerOrders(request.Player, request.Chains, request.Winter, request.Special)
+	input, inputErr := turn.NormalizeSubmission(request.Player, engine.OrdersInput{
+		Chains:  request.Chains,
+		Winter:  request.Winter,
+		Special: request.Special,
+	})
 	if inputErr != nil {
 		s.mu.Unlock()
 		writeResolutionError(w, inputErr, language)
 		return
 	}
-	if _, err := engine.ResolveTurn(s.game, s.balance, input); err != nil {
+	if err := turn.ValidateSubmission(s.game, s.balance, input); err != nil {
 		s.mu.Unlock()
 		writeResolutionError(w, err, language)
 		return
@@ -297,21 +302,13 @@ func (s *Session) OrdersHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	combined := engine.OrdersInput{Chains: []engine.ChainSubmission{}, Winter: []engine.WinterSubmission{}, Special: []engine.DeckSubmission{}}
-	for _, player := range s.game.Players {
-		playerOrders := s.pending[player.ID]
-		combined.Chains = append(combined.Chains, playerOrders.Chains...)
-		combined.Winter = append(combined.Winter, playerOrders.Winter...)
-		combined.Special = append(combined.Special, playerOrders.Special...)
-	}
-	before := s.game
-	report, err := engine.ResolveTurn(before, s.balance, combined)
+	resolution, err := turn.Resolve(s.game, s.balance, s.pending, trackTurnPrivacy)
 	if err != nil {
 		s.mu.Unlock()
 		writeResolutionError(w, err, language)
 		return
 	}
-	trackTurnPrivacy(before, report.State, combined, report)
+	report := resolution.Report
 	s.game = report.State
 	s.pending = make(map[models.PlayerID]engine.OrdersInput)
 	state := projectState(s.game)
@@ -355,69 +352,10 @@ func (s *Session) hasPlayerLocked(playerID models.PlayerID) bool {
 }
 
 func (s *Session) pendingPlayersLocked() ([]models.PlayerID, []models.PlayerID) {
-	submitted := make([]models.PlayerID, 0, len(s.pending))
-	remaining := make([]models.PlayerID, 0, len(s.game.Players))
-	for _, player := range s.game.Players {
-		if _, exists := s.pending[player.ID]; exists {
-			submitted = append(submitted, player.ID)
-		} else {
-			if !engine.PlayerMustSubmit(s.game, player.ID) && !(engine.PlayerAlive(s.game, player.ID) && s.hasDeckCardsLocked(player.ID)) {
-				continue
-			}
-			remaining = append(remaining, player.ID)
-		}
-	}
-	return submitted, remaining
-}
-
-func (s *Session) hasDeckCardsLocked(playerID models.PlayerID) bool {
-	return s.game.SpecialDeck != nil && len(s.game.SpecialDeck.Hands[playerID]) > 0
-}
-
-func normalizePlayerOrders(playerID models.PlayerID, chains []engine.ChainSubmission, winter []engine.WinterSubmission, special []engine.DeckSubmission) (engine.OrdersInput, *engine.InputErrors) {
-	input := engine.OrdersInput{
-		Chains:  append([]engine.ChainSubmission(nil), chains...),
-		Winter:  append([]engine.WinterSubmission(nil), winter...),
-		Special: append([]engine.DeckSubmission(nil), special...),
-	}
-	inputErrors := &engine.InputErrors{Errors: []engine.InputError{}}
-	for index := range input.Chains {
-		if input.Chains[index].Player != "" && input.Chains[index].Player != playerID {
-			inputErrors.Errors = append(inputErrors.Errors, engine.InputError{
-				Player: playerID, Noble: input.Chains[index].Noble, Code: "foreign_player_order",
-				Message:    i18n.EnglishText(i18n.Message{Key: i18n.ErrorForeignChain, Args: []any{index + 1, input.Chains[index].Player}}),
-				MessageKey: i18n.ErrorForeignChain, MessageArgs: []any{index + 1, input.Chains[index].Player},
-			})
-			continue
-		}
-		input.Chains[index].Player = playerID
-	}
-	for index := range input.Winter {
-		if input.Winter[index].Player != "" && input.Winter[index].Player != playerID {
-			inputErrors.Errors = append(inputErrors.Errors, engine.InputError{
-				Player: playerID, Code: "foreign_player_order",
-				Message:    i18n.EnglishText(i18n.Message{Key: i18n.ErrorForeignWinter, Args: []any{index + 1, input.Winter[index].Player}}),
-				MessageKey: i18n.ErrorForeignWinter, MessageArgs: []any{index + 1, input.Winter[index].Player},
-			})
-			continue
-		}
-		input.Winter[index].Player = playerID
-	}
-	for index := range input.Special {
-		if input.Special[index].Player != "" && input.Special[index].Player != playerID {
-			inputErrors.Errors = append(inputErrors.Errors, engine.InputError{
-				Player: playerID, Code: "foreign_player_order",
-				Message:    i18n.EnglishText(i18n.Message{Key: i18n.ErrorForeignWinter, Args: []any{index + 1, input.Special[index].Player}}),
-				MessageKey: i18n.ErrorForeignWinter, MessageArgs: []any{index + 1, input.Special[index].Player},
-			})
-			continue
-		}
-		input.Special[index].Player = playerID
-	}
-	if len(inputErrors.Errors) != 0 {
-		return engine.OrdersInput{}, inputErrors
-	}
-	return input, nil
+	return turn.Progress(s.game, func(playerID models.PlayerID) bool {
+		_, ok := s.pending[playerID]
+		return ok
+	})
 }
 
 func (s *Session) writeGameResponse(w http.ResponseWriter) {

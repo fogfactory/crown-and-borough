@@ -8,11 +8,13 @@ package store
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
 	"github.com/fogfactory/crown-and-borough/internal/models"
+	"github.com/fogfactory/crown-and-borough/internal/turn"
 )
 
 type GameID string
@@ -164,11 +166,56 @@ type PlayerSubmission struct {
 	Orders    engine.OrdersInput `json:"orders"`
 }
 
-// PrivacyTracker is called while a game is exclusively locked, immediately
-// after the engine has produced the next state and report. It is an injection
-// point for server-side privacy metadata; the engine itself never needs to
-// know about viewers.
-type PrivacyTracker func(before, after *models.GameState, input engine.OrdersInput, report engine.TurnReport)
+// PrivacyTracker is called while a game is exclusively locked. See
+// turn.PrivacyTracker.
+type PrivacyTracker = turn.PrivacyTracker
+
+// IsAssignedActor reports whether a slot's ActorID names a real member.
+// Development stores use "slot:" placeholders for slots nobody claimed yet.
+func IsAssignedActor(actorID string) bool {
+	return actorID != "" && !strings.HasPrefix(actorID, "slot:")
+}
+
+// PlayerForActor returns the player slot claimed by actor. A development actor
+// may also address an unclaimed slot by its player ID.
+func PlayerForActor(players []PlayerSlot, actor Actor) (models.PlayerID, bool) {
+	actorID := strings.TrimSpace(actor.ID)
+	if actorID == "" {
+		return "", false
+	}
+	for _, player := range players {
+		if player.ActorID == actorID && IsAssignedActor(player.ActorID) {
+			return player.ID, true
+		}
+		if actor.Development && player.ActorID == "" && string(player.ID) == actorID {
+			return player.ID, true
+		}
+	}
+	return "", false
+}
+
+// IsSpectator reports whether actor is the observer host of a game.
+func IsSpectator(spectatorUID string, actor Actor) bool {
+	spectatorUID = strings.TrimSpace(spectatorUID)
+	return spectatorUID != "" && spectatorUID == strings.TrimSpace(actor.ID)
+}
+
+// PlayerFor returns the player slot claimed by actor in this game.
+func (s GameSnapshot) PlayerFor(actor Actor) (models.PlayerID, bool) {
+	return PlayerForActor(s.Players, actor)
+}
+
+// ViewerFor returns the identity used to project this game for actor: its
+// player ID, or models.SpectatorViewer for the observer host.
+func (s GameSnapshot) ViewerFor(actor Actor) (models.PlayerID, bool) {
+	if playerID, ok := s.PlayerFor(actor); ok {
+		return playerID, true
+	}
+	if IsSpectator(s.SpectatorUID, actor) {
+		return models.SpectatorViewer, true
+	}
+	return "", false
+}
 
 type GameStore interface {
 	Create(context.Context, Actor, CreateRequest) (GameSnapshot, error)

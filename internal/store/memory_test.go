@@ -532,3 +532,29 @@ func newTestStore(t *testing.T) *MemoryStore {
 func isUUIDv4(value string) bool {
 	return len(value) == 36 && value[14] == '4' && (value[19] == '8' || value[19] == '9' || value[19] == 'a' || value[19] == 'b')
 }
+
+func TestMemoryStoreMySubmissionKeepsSpecialOrders(t *testing.T) {
+	gameStore := newTestStore(t)
+	created, err := gameStore.Create(context.Background(), Actor{ID: "P1"}, CreateRequest{
+		Seed:    "my-submission-special",
+		Players: []engine.PlayerInit{{Name: "One"}, {Name: "Two"}},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	game, err := gameStore.game(created.ID)
+	if err != nil {
+		t.Fatalf("lookup game: %v", err)
+	}
+	game.mu.Lock()
+	game.submissions["P1"] = engine.OrdersInput{Special: []engine.DeckSubmission{{Player: "P1", Text: "P BH ROS"}}}
+	game.mu.Unlock()
+
+	submission, err := gameStore.MySubmission(context.Background(), Actor{ID: "P1"}, created.ID)
+	if err != nil {
+		t.Fatalf("MySubmission: %v", err)
+	}
+	if len(submission.Orders.Special) != 1 || submission.Orders.Special[0].Text != "P BH ROS" {
+		t.Fatalf("MySubmission special = %#v, want the stored special order", submission.Orders.Special)
+	}
+}
