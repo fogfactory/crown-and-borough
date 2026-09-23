@@ -151,3 +151,35 @@ func testFirestoreAssetDir() string {
 	_, source, _, _ := runtime.Caller(0)
 	return source[:len(source)-len("firestore_test.go")] + "../../../assets"
 }
+
+func TestRemainingPlayersSkipPlayersWithoutEmittingNoble(t *testing.T) {
+	state := &models.GameState{
+		Season:  models.SeasonSpring,
+		Players: []models.Player{{ID: "P1"}, {ID: "P2"}},
+		Armies: []models.Army{
+			{ID: "A1", OwnerID: "P1", Size: 1},
+			{ID: "A2", OwnerID: "P2", Size: 1},
+		},
+		Nobles: []models.Noble{
+			{ID: "N1", OwnerID: "P1", Status: models.NobleStatusFree},
+			{ID: "N2", OwnerID: "P2", Status: models.NobleStatusDungeon},
+		},
+	}
+	game := gameDocument{Players: []playerDocument{{ID: "P1", ActorID: "uid-1"}, {ID: "P2", ActorID: "uid-2"}}}
+	if remaining := remainingFromUIDs(game, state, nil); !reflect.DeepEqual(remaining, []models.PlayerID{"P1"}) {
+		t.Fatalf("remainingFromUIDs = %v, want [P1]", remaining)
+	}
+	snapshot := store.GameSnapshot{
+		State:       state,
+		Players:     []store.PlayerSlot{{ID: "P1"}, {ID: "P2"}},
+		Submissions: map[models.PlayerID]engine.OrdersInput{"P1": {}},
+	}
+	if _, remaining := submissionStatus(snapshot); len(remaining) != 0 {
+		t.Fatalf("submissionStatus remaining = %v, want none", remaining)
+	}
+
+	state.Season = models.SeasonWinter
+	if remaining := remainingFromUIDs(game, state, []string{"uid-1"}); !reflect.DeepEqual(remaining, []models.PlayerID{"P2"}) {
+		t.Fatalf("winter remainingFromUIDs = %v, want [P2]", remaining)
+	}
+}

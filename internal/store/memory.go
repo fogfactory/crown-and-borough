@@ -828,7 +828,7 @@ func (game *memoryGame) submissionStatusLocked() ([]models.PlayerID, []models.Pl
 			submitted = append(submitted, player.ID)
 			continue
 		}
-		if game.isAliveLocked(player.ID) {
+		if engine.PlayerMustSubmit(game.state, player.ID) {
 			remaining = append(remaining, player.ID)
 		}
 	}

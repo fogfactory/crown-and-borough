@@ -718,7 +718,7 @@ func submissionStatus(snapshot store.GameSnapshot) ([]models.PlayerID, []models.
 			submitted = append(submitted, player.ID)
 			continue
 		}
-		if isAlive(snapshot.State, player.ID) {
+		if engine.PlayerMustSubmit(snapshot.State, player.ID) {
 			remaining = append(remaining, player.ID)
 		}
 	}
@@ -900,7 +900,7 @@ func remainingFromUIDs(game gameDocument, state *models.GameState, uids []string
 		if slices.Contains(uids, player.ActorID) {
 			continue
 		}
-		if isAlive(state, player.ID) {
+		if engine.PlayerMustSubmit(state, player.ID) {
 			result = append(result, player.ID)
 		}
 	}
