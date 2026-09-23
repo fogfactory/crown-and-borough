@@ -100,6 +100,7 @@ const (
 	ValidationMultipleWildcards            = "error.validation.multiple_wildcards"
 	ValidationTransferAmount               = "error.validation.transfer_amount"
 	ValidationTransferShape                = "error.validation.transfer_shape"
+	ValidationTransferSamePosition         = "error.validation.transfer_same_position"
 	ValidationUnexpectedAmount             = "error.validation.unexpected_amount"
 
 	AssignmentGameNil          = "error.assignment.game_nil"
@@ -193,6 +194,7 @@ func init() {
 	register(ValidationMultipleWildcards, "D accepts at most one remaining-nobles wildcard", "D accepte au plus un joker pour les nobles restants")
 	register(ValidationTransferAmount, "T requires a positive amount", "T exige un montant positif")
 	register(ValidationTransferShape, "T requires exactly one destination", "T exige exactement une destination")
+	register(ValidationTransferSamePosition, "T cannot target its own position", "T ne peut pas viser sa propre position")
 	register(ValidationUnexpectedAmount, "%s does not accept a resource amount", "%s n'accepte pas de montant de ressources")
 
 	register(AssignmentGameNil, "game state is nil", "l'état de partie est absent")

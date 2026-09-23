@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -219,4 +220,26 @@ func gameNobleForPlayer(t *testing.T, game *models.GameState, playerID models.Pl
 	}
 	t.Fatalf("noble for player %s not found", playerID)
 	return models.Noble{}
+}
+
+func TestResolveTurnRejectsEveryStaticChainErrorWithItsLine(t *testing.T) {
+	game, err := CreateGame("static-rejection", []PlayerInit{{Name: "One"}, {Name: "Two"}}, testBalance(), loadGameTestAssets(t))
+	if err != nil {
+		t.Fatalf("CreateGame: %v", err)
+	}
+	noble := gameNobleForPlayer(t, game, "P1")
+	army := gameArmyForPlayer(t, game, "P1")
+	neighbor := territoryByID(game.Territories, army.TerritoryID).Adjacencies[0]
+	text := noble.Code + "\n" + string(army.TerritoryID) + " J " + string(neighbor) + "\nH " + string(neighbor)
+
+	_, err = ResolveTurn(game, testBalance(), OrdersInput{
+		Chains: []ChainSubmission{{Player: "P1", Noble: models.NobleCode(noble.Code), Text: text}},
+	})
+	var inputErrors *InputErrors
+	if !errors.As(err, &inputErrors) || len(inputErrors.Errors) != 1 {
+		t.Fatalf("ResolveTurn error = %v, want one input error", err)
+	}
+	if got := inputErrors.Errors[0]; got.Code != "join_not_last" || got.Line != 2 {
+		t.Fatalf("input error = %#v, want join_not_last on line 2", got)
+	}
 }

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/models"
@@ -1209,114 +1210,24 @@ func TestResolveIsDeterministic(t *testing.T) {
 	}
 }
 
-func TestResolveDeferredNonAdjacencyPreservesEarlierOrders(t *testing.T) {
+func TestResolveRejectsAStoredChainThatFailsStaticValidation(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
 			territory("AAA", "AAA", "BBB"),
 			territory("BBB", "BBB", "AAA", "CCC"),
-			territory("CCC", "CCC", "BBB", "DDD", "EEE"),
-			territory("DDD", "DDD", "CCC"),
-			territory("EEE", "EEE", "CCC"),
+			territory("CCC", "CCC", "BBB"),
 		},
 		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2}},
 	)
 	addNoble(state, "N1", "ONE", "P1", "AAA")
+	// Submissions reject non-adjacent orders, so such a chain can only come
+	// from a corrupted state; resolution refuses it instead of running it.
 	addChainOrders(t, state, "A1", "N1",
-		models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"}},
-		models.Order{Type: models.OrderTypeHold, PositionID: "BBB"},
-		models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"DDD"}},
-		models.Order{Type: models.OrderTypePillage, PositionID: "BBB"},
+		models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"CCC"}},
 	)
 	validateTestState(t, state)
 
-	first, err := Resolve(state, testBalance())
-	if err != nil {
-		t.Fatalf("first Resolve: %v", err)
-	}
-	if army := armyByID(t, first.State, "A1"); army.TerritoryID != "BBB" {
-		t.Fatalf("A1 territory = %q, want BBB after O1", army.TerritoryID)
-	}
-	if chain := chainOf(first.State, "A1"); chain == nil || chain.CurrentIndex != 1 {
-		t.Fatalf("chain after O1 = %#v, want index 1", chain)
-	}
-	if event, found := findOutcome(first.Events, "O1"); !found || event.Outcome != OutcomeSuccess {
-		t.Fatalf("O1 events = %#v, want success", first.Events)
-	}
-
-	second, err := Resolve(first.State, testBalance())
-	if err != nil {
-		t.Fatalf("second Resolve: %v", err)
-	}
-	if event, found := findOutcome(second.Events, "O2"); !found || event.Outcome != OutcomeSuccess {
-		t.Fatalf("O2 events = %#v, want success", second.Events)
-	}
-	if chain := chainOf(second.State, "A1"); chain == nil || chain.CurrentIndex != 2 {
-		t.Fatalf("chain after O2 = %#v, want index 2", chain)
-	}
-
-	third, err := Resolve(second.State, testBalance())
-	if err != nil {
-		t.Fatalf("third Resolve: %v", err)
-	}
-	event, found := findOutcome(third.Events, "O3")
-	if !found {
-		t.Fatalf("missing O3 outcome event in %#v", third.Events)
-	}
-	if event.Outcome != OutcomeInvalid || event.Reason != "non_adjacent_destination" || event.Progression != ProgressionBroken {
-		t.Fatalf("O3 event = %#v, want invalid non_adjacent_destination broken", event)
-	}
-	if chain := chainOf(third.State, "A1"); chain != nil {
-		t.Errorf("chain after O3 = %#v, want removed", chain)
-	}
-	if army := armyByID(t, third.State, "A1"); army.ChainID != nil {
-		t.Errorf("A1 chain link = %#v, want nil", army.ChainID)
-	}
-
-	fourth, err := Resolve(third.State, testBalance())
-	if err != nil {
-		t.Fatalf("fourth Resolve: %v", err)
-	}
-	if _, executed := findOutcome(fourth.Events, "O4"); executed {
-		t.Errorf("O4 was executed after the broken chain: %#v", fourth.Events)
-	}
-	if containsEvent(fourth.Events, EventTypePillage) {
-		t.Errorf("suffix O4 pillage executed: %#v", fourth.Events)
-	}
-}
-
-func TestResolveLoopNonAdjacentBreaksChainWithoutRetry(t *testing.T) {
-	state := testState(t,
-		[]models.Territory{
-			territory("AAA", "AAA", "BBB"),
-			territory("BBB", "BBB", "AAA", "CCC"),
-			territory("CCC", "CCC", "BBB", "DDD", "EEE"),
-			territory("DDD", "DDD", "CCC"),
-			territory("EEE", "EEE", "CCC"),
-		},
-		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "BBB", Size: 2}},
-	)
-	addNoble(state, "N1", "ONE", "P1", "BBB")
-	addChainOrders(t, state, "A1", "N1",
-		models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"DDD"}, Liaison: models.LiaisonModeLoop},
-		models.Order{Type: models.OrderTypePillage, PositionID: "BBB"},
-	)
-	validateTestState(t, state)
-
-	resolution, err := Resolve(state, testBalance())
-	if err != nil {
-		t.Fatalf("Resolve: %v", err)
-	}
-	event, found := findOutcome(resolution.Events, "O1")
-	if !found {
-		t.Fatalf("missing O1 outcome event in %#v", resolution.Events)
-	}
-	if event.Outcome != OutcomeInvalid || event.Progression != ProgressionBroken {
-		t.Fatalf("O1 event = %#v, want invalid broken (not retried)", event)
-	}
-	if chain := chainOf(resolution.State, "A1"); chain != nil {
-		t.Errorf("chain after break = %#v, want removed", chain)
-	}
-	if _, executed := findOutcome(resolution.Events, "O2"); executed {
-		t.Errorf("O2 suffix executed after broken loop order: %#v", resolution.Events)
+	if _, err := Resolve(state, testBalance()); err == nil || !strings.Contains(err.Error(), "statically invalid") {
+		t.Fatalf("Resolve = %v, want a statically invalid chain error", err)
 	}
 }

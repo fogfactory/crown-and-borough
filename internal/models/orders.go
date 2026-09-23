@@ -99,6 +99,9 @@ type Order struct {
 	Liaison LiaisonMode `json:"liaison"`
 	// Amount is used only by transfer orders and is expressed in resources.
 	Amount int `json:"amount,omitempty"`
+	// Line is the source line of a freshly parsed order, used to locate
+	// submission errors. It is not persisted.
+	Line int `json:"-"`
 }
 
 // WinterOrder is one direct winter management instruction. Fields irrelevant

@@ -388,11 +388,15 @@ contient des sections typées pour les joueurs, ordres, combats, mouvements,
 ravitaillement, famine, nobles, rumeurs publiques et investissements d'hiver. Le
 moteur ne dépend ni du HTTP ni du rendu front.
 
-La réception des chaînes est immédiate et atomique. La non-adjacence est
-rejetée à la soumission : `ResolveTurn` renvoie une erreur d'entrée et aucune
-partie de la chaîne n'est reçue. Les autres conditions dépendant de l'état du
-monde (destination contestée, armée cible absente) restent évaluées à
-l'exécution et cassent la chaîne à l'endroit où elles sont rencontrées.
+La réception des chaînes est immédiate et atomique. La validation est en une
+seule couche : `orders.ValidateChain` porte toutes les règles statiques
+(forme, références, adjacence, jonction en dernier, affectations de nobles…)
+et `ResolveTurn` refuse la soumission sur la moindre de ces erreurs, avec sa
+ligne source. `AssignChain` ne vérifie plus que les conditions de réception
+(noble apte, armée présente et possédée), et l'exécution que les conditions
+du monde (position, infrastructure, contrôle, route, nobles présents).
+`Resolve` revérifie en préalable que les chaînes stockées passent la
+validation statique, et refuse un état qui ne la passe pas.
 
 Plusieurs chaînes ciblant la même armée au même tour constituent une réception
 concurrente : elles sont toutes rejetées avant la résolution et aucune nouvelle

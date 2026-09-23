@@ -117,10 +117,12 @@ BOI J ROS        # jonction (doit être le dernier ordre)
   à chaque résolution jusqu'à sa réussite ; un maintien en loop met l'armée en
   veille. Une erreur mécaniquement impossible casse toujours la chaîne.
 
-Pour les ordres de mouvement, un ordre dont la position et la cible ne sont pas
-adjacentes est rejeté lors de la soumission de la chaîne, sans réception
-partielle de la chaîne. Le transfert `T` utilise à la place le réseau de
-ravitaillement.
+Si une chaîne contient une erreur, la soumission est refusée avec la ligne à
+corriger, et rien n'est reçu tant qu'elle n'est pas corrigée : syntaxe, code inconnu, cases non
+adjacentes, jonction qui n'est pas le dernier ordre, soutien de sa propre case,
+transfert vers sa propre case ou affectation de nobles invalide. L'interface
+signale ces erreurs pendant la saisie. Le transfert `T` n'exige pas
+d'adjacence : il utilise le réseau de ravitaillement.
 
 Une chaîne n'est pas limitée à une seule saison : une ligne réussie fait
 progresser l'index de la chaîne et la ligne suivante attend la résolution

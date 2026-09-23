@@ -109,9 +109,12 @@ BOI J ROS        # join (must be the last order)
   retried at each resolution until it succeeds; a hold in loop puts the army on
   standby. A mechanically impossible error always breaks the chain.
 
-For movement orders, an order whose position and target are not adjacent is
-rejected when the chain is submitted, with no partial reception of the chain.
-The `T` transfer order uses the supply network instead.
+If a chain contains an error, the submission is rejected with the line to fix,
+and nothing is received until it is corrected: syntax, unknown code, non-adjacent
+territories, a join that is not the last order, a support of its own territory,
+a transfer to its own territory, or an invalid noble assignment. The interface
+reports these errors while you type. The `T` transfer does not require
+adjacency: it uses the supply network.
 
 A chain is not limited to one season: a successful line advances the chain index,
 and the next line waits for the next resolution. A `loop` line deliberately keeps

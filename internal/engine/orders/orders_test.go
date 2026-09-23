@@ -347,7 +347,6 @@ func TestAssignChainReceptionFailuresAreAtomic(t *testing.T) {
 		{"no army at first position", nil, "JEA\nBRU A BOI", ErrNoArmyOnPosition},
 		{"foreign army at first position", nil, "JEA\nBOI A ROS", ErrArmyNotOwned},
 		{"dungeon emitter", func(game *models.GameState) { game.Nobles[0].Status = models.NobleStatusDungeon }, "JEA\nROS A BOI", ErrNoblePrisoner},
-		{"static invalid chain", nil, "JEA\nROS J BOI\nH BOI", ErrInvalidChain},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			game := orderTestState()
@@ -380,43 +379,33 @@ func TestAssignChainAllowsHostageEmitter(t *testing.T) {
 	})
 }
 
-func TestAssignChainRejectsNonAdjacentDiagnostic(t *testing.T) {
+func TestValidateChainLocatesNonAdjacentOrders(t *testing.T) {
 	game := orderTestState()
-	text := "JEA\nROS A BOI\nBOI S ROS\nBOI A FOU"
-	chain := mustParseChain(t, game, text)
+	chain := mustParseChain(t, game, "JEA\nROS A BOI\nBOI S ROS\nBOI A FOU")
 	validationErrors := ValidateChain(game, chain)
-	if !hasValidationCode(validationErrors, "not_adjacent") {
-		t.Fatalf("ValidateChain() = %#v, want a not_adjacent diagnostic", validationErrors)
+	if len(validationErrors) != 1 || validationErrors[0].Code != "not_adjacent" || validationErrors[0].Line != 4 {
+		t.Fatalf("ValidateChain() = %#v, want one not_adjacent error on line 4", validationErrors)
 	}
-	before := marshalGame(t, game)
-	err := AssignChain(game, chain)
-	if err == nil {
-		t.Fatal("AssignChain() = nil, want non-adjacent chain rejection")
-	}
-	if !strings.Contains(err.Error(), "not adjacent") ||
-		!strings.Contains(err.Error(), `"FOU"`) ||
-		!strings.Contains(err.Error(), `"BOI"`) {
-		t.Fatalf("AssignChain() = %v, want an explicit adjacency message", err)
-	}
-	if after := marshalGame(t, game); !bytes.Equal(before, after) {
-		t.Fatalf("rejected chain mutated game:\n before=%s\n after=%s", before, after)
-	}
-	if len(game.Chains) != 0 {
-		t.Fatalf("stored chains = %#v, want none", game.Chains)
+	if message := validationErrors[0].Error(); !strings.Contains(message, `"FOU"`) || !strings.Contains(message, `"BOI"`) {
+		t.Fatalf("validation error = %q, want an explicit adjacency message", message)
 	}
 }
 
-func TestAssignChainRejectsNonAdjacentMixedWithBlockingErrors(t *testing.T) {
+func TestValidateChainReportsEveryStaticError(t *testing.T) {
 	for _, test := range []struct {
 		name   string
 		text   string
 		mutate func(*models.Chain)
-		want   error
+		want   string
 	}{
-		{"duplicate order id after non-adjacent order", "JEA\nROS A BOI\nBOI A FOU", func(chain *models.Chain) {
+		{"join not last", "JEA\nROS J BOI\nH BOI", nil, "join_not_last"},
+		{"duplicate order id", "JEA\nROS A BOI\nH BOI", func(chain *models.Chain) {
 			chain.Orders[1].ID = chain.Orders[0].ID
-		}, ErrInvalidChain},
-		{"join not last and not adjacent", "JEA\nROS J BRU\nH BRU", nil, ErrInvalidChain},
+		}, "duplicate_order_id"},
+		{"D assignments on attack", "JEA\nROS A BOI", func(chain *models.Chain) {
+			chain.Orders[0].NobleAssignments = map[models.TerritoryID][]models.NobleCode{"ROS": {"JEA"}}
+		}, "unexpected_noble_assignments"},
+		{"transfer to its own position", "JEA\nROS T ROS 1", nil, "transfer_same_position"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			game := orderTestState()
@@ -424,13 +413,8 @@ func TestAssignChainRejectsNonAdjacentMixedWithBlockingErrors(t *testing.T) {
 			if test.mutate != nil {
 				test.mutate(&chain)
 			}
-			if validationErrors := ValidateChain(game, chain); !hasValidationCode(validationErrors, "not_adjacent") {
-				t.Fatalf("ValidateChain() = %#v, want a not_adjacent diagnostic", validationErrors)
-			}
-			before := marshalGame(t, game)
-			assertAssignmentCategory(t, AssignChain(game, chain), test.want)
-			if after := marshalGame(t, game); !bytes.Equal(before, after) {
-				t.Fatalf("rejected mixed chain mutated game:\n before=%s\n after=%s", before, after)
+			if validationErrors := ValidateChain(game, chain); !hasValidationCode(validationErrors, test.want) {
+				t.Fatalf("ValidateChain() = %#v, want %s", validationErrors, test.want)
 			}
 		})
 	}
@@ -523,35 +507,9 @@ func TestAssignChainFailurePreservesExistingChain(t *testing.T) {
 	game.Turn = 2
 	game.Season = models.SeasonForTurn(game.Turn)
 	before := marshalGame(t, game)
-	assertAssignmentCategory(t, AssignChain(game, mustParseChain(t, game, "ANN\nROS J BOI\nH BOI")), ErrInvalidChain)
+	assertAssignmentCategory(t, AssignChain(game, mustParseChain(t, game, "ANN\nBRU A BOI")), ErrNoArmyOnPosition)
 	if after := marshalGame(t, game); !bytes.Equal(before, after) {
 		t.Fatalf("failed replacement mutated existing chain:\n before=%s\n after=%s", before, after)
-	}
-}
-
-func TestAssignChainRejectsMalformedDirectChains(t *testing.T) {
-	for _, test := range []struct {
-		name   string
-		text   string
-		mutate func(*models.Chain)
-	}{
-		{"duplicate order id", "JEA\nROS A BOI\nH BOI", func(chain *models.Chain) {
-			chain.Orders[1].ID = chain.Orders[0].ID
-		}},
-		{"D assignments on attack", "JEA\nROS A BOI", func(chain *models.Chain) {
-			chain.Orders[0].NobleAssignments = map[models.TerritoryID][]models.NobleCode{"ROS": {"JEA"}}
-		}},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			game := orderTestState()
-			chain := mustParseChain(t, game, test.text)
-			test.mutate(&chain)
-			before := marshalGame(t, game)
-			assertAssignmentCategory(t, AssignChain(game, chain), ErrInvalidChain)
-			if after := marshalGame(t, game); !bytes.Equal(before, after) {
-				t.Fatalf("malformed chain mutated game:\n before=%s\n after=%s", before, after)
-			}
-		})
 	}
 }
 
@@ -625,6 +583,10 @@ func jsonCloneChain(chain models.Chain) models.Chain {
 	var copy models.Chain
 	if err := json.Unmarshal(data, &copy); err != nil {
 		panic(err)
+	}
+	// Source lines are not persisted but belong to a freshly parsed chain.
+	for index := range copy.Orders {
+		copy.Orders[index].Line = chain.Orders[index].Line
 	}
 	return copy
 }

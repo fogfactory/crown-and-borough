@@ -391,10 +391,14 @@ stocks présents sur les cases ordinaires sont des sources de ravitaillement
 pendant les tours d'action ; l'armée locale les consomme en priorité.
 
 Une armée sans chaîne est Sans Ordre et ne reçoit aucun soutien automatique.
-Une erreur mécaniquement impossible casse immédiatement la chaîne, quel que
-soit son mode de liaison. La non-adjacence est contrôlée à la soumission : une
-soumission contenant un ordre qui relie deux cases non adjacentes est refusée
-avec une erreur à corriger, et aucune partie de la chaîne n'est reçue.
+Toute erreur statique d'une chaîne est contrôlée à la soumission : syntaxe,
+forme d'un ordre, codes inconnus, non-adjacence, jonction qui n'est pas le
+dernier ordre, soutien défensif de sa propre case, transfert vers sa propre
+position ou affectation de nobles invalide dans une dispersion. La soumission
+est alors refusée avec la ligne fautive à corriger, et aucune partie de la
+chaîne n'est reçue. À l'exécution, seules les conditions du monde (position de
+l'armée, infrastructure, contrôle, route, nobles présents) peuvent casser une
+chaîne, quel que soit son mode de liaison.
 
 ### Réception et capacité des nobles
 
