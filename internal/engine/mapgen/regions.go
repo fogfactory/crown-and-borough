@@ -237,7 +237,9 @@ func bestRegionMove(byID map[models.TerritoryID]Territory, regions []models.Regi
 					continue
 				}
 				moveSize := len(movedTerritories)
-				if len(donor.Territories)-len(target.Territories) < moveSize {
+				// A move must shrink the donor/target gap strictly: moving the
+				// whole gap only swaps the two sizes and could cycle forever.
+				if len(donor.Territories)-len(target.Territories) <= moveSize {
 					continue
 				}
 				sizes := make([]int, len(regions))

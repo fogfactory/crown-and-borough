@@ -56,8 +56,16 @@ type MapData struct {
 	Regions     []models.Region `json:"regions"`
 }
 
+// maxGenerateAttempts bounds the derived sub-seeds tried when a random draw
+// yields a map that fails a structural constraint (degree caps, region
+// balance, ...). Such draws are rare, so a handful of attempts suffices.
+const maxGenerateAttempts = 16
+
 // Generate builds a deterministic map from seed, assets and cfg. Randomness is
 // isolated by phase so changes in one generation step do not perturb another.
+// When the draw for seed violates a structural constraint, generation retries
+// with derived sub-seeds; the first attempt uses seed itself, so maps that
+// already generated successfully are unchanged.
 func Generate(seed string, assets assetgen.Assets, cfg Config) (MapData, error) {
 	if err := validateConfig(cfg); err != nil {
 		return MapData{}, err
@@ -67,6 +75,27 @@ func Generate(seed string, assets assetgen.Assets, cfg Config) (MapData, error) 
 		return MapData{}, err
 	}
 
+	var err error
+	for attempt := range maxGenerateAttempts {
+		var data MapData
+		data, err = generateAttempt(attemptSeed(seed, attempt), assets, cfg)
+		if err == nil {
+			return data, nil
+		}
+	}
+	return MapData{}, fmt.Errorf("mapgen: no valid map after %d attempts: %w", maxGenerateAttempts, err)
+}
+
+// attemptSeed derives the seed of one generation attempt. Attempt zero keeps
+// the caller's seed so the retry loop is invisible for successful draws.
+func attemptSeed(seed string, attempt int) string {
+	if attempt == 0 {
+		return seed
+	}
+	return fmt.Sprintf("%s#retry-%d", seed, attempt)
+}
+
+func generateAttempt(seed string, assets assetgen.Assets, cfg Config) (MapData, error) {
 	sites := generateSites(newRNG(seed, "sites"), cfg)
 	grid := assignRaster(sites, cfg)
 	if !rasterHasEveryRegion(grid, cfg.SiteCount) {
