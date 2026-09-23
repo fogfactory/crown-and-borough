@@ -307,6 +307,36 @@ func TestMemoryStoreTreatsEliminatedPlayersAsSubmittedAndSetsWinner(t *testing.T
 	}
 }
 
+func TestMemoryStoreDoesNotWaitForPlayerWithoutEmittingNoble(t *testing.T) {
+	gameStore := newTestStore(t)
+	created, err := gameStore.Create(context.Background(), Actor{ID: "P1"}, CreateRequest{
+		Seed:    "no-emitter-test",
+		Players: []engine.PlayerInit{{Name: "One"}, {Name: "Two"}},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	game, err := gameStore.game(created.ID)
+	if err != nil {
+		t.Fatalf("lookup game: %v", err)
+	}
+	game.mu.Lock()
+	for index := range game.state.Nobles {
+		if game.state.Nobles[index].OwnerID == "P2" {
+			game.state.Nobles[index].Status = models.NobleStatusDungeon
+		}
+	}
+	game.mu.Unlock()
+
+	result, err := gameStore.Submit(context.Background(), Actor{ID: "P1"}, created.ID, SubmitRequest{})
+	if err != nil {
+		t.Fatalf("submit: %v", err)
+	}
+	if result.Status != "resolved" || len(result.Remaining) != 0 {
+		t.Fatalf("submit = status %q remaining %v, want resolved without waiting for P2", result.Status, result.Remaining)
+	}
+}
+
 func TestMemoryStoreFinishesAtConfiguredYearLimitAndExposesScores(t *testing.T) {
 	gameStore := newTestStore(t)
 	created, err := gameStore.Create(context.Background(), Actor{ID: "P1"}, CreateRequest{

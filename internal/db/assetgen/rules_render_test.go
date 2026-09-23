@@ -3,6 +3,7 @@ package assetgen
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -70,6 +71,45 @@ func TestLoadRulesRendersBalanceValuesInBothLanguages(t *testing.T) {
 		}
 		if !strings.Contains(text, "30") || !strings.Contains(text, "4") {
 			t.Errorf("rules[%s] does not contain rendered balance values", language)
+		}
+	}
+}
+
+func TestLoadRulesRendersArmyCostsFromCostBase(t *testing.T) {
+	dir := t.TempDir()
+	template := "{{army_cost.1}} {{army_cost.2}} {{army_cost.3}} {{army_cost.4}} {{army_cost.5}}\n"
+	if err := os.WriteFile(filepath.Join(dir, playerRulesAsset), []byte(template), 0o644); err != nil {
+		t.Fatalf("write rules: %v", err)
+	}
+	rules, err := LoadRules(dir, Balance{CostBase: 3})
+	if err != nil {
+		t.Fatalf("LoadRules = %v", err)
+	}
+	document, _ := rules.Document("fr")
+	if got, want := string(document), "1 3 9 27 81\n"; got != want {
+		t.Errorf("army costs = %q, want %q", got, want)
+	}
+}
+
+var unresolvedPlaceholder = regexp.MustCompile(`\{\{[^}]*\}\}`)
+
+func TestShippedRulesHaveNoUnresolvedPlaceholders(t *testing.T) {
+	dir := filepath.Join("..", "..", "..", "assets")
+	balance, err := LoadBalance(dir)
+	if err != nil {
+		t.Fatalf("LoadBalance = %v", err)
+	}
+	rules, err := LoadRules(dir, balance)
+	if err != nil {
+		t.Fatalf("LoadRules = %v", err)
+	}
+	for _, language := range []string{"fr", "en"} {
+		document, ok := rules.Document(language)
+		if !ok {
+			t.Fatalf("rules[%s] missing", language)
+		}
+		if matches := unresolvedPlaceholder.FindAllString(string(document), -1); len(matches) != 0 {
+			t.Errorf("rules[%s] has unresolved placeholders: %s", language, strings.Join(matches, ", "))
 		}
 	}
 }

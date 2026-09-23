@@ -361,7 +361,7 @@ func (s *Session) pendingPlayersLocked() ([]models.PlayerID, []models.PlayerID) 
 		if _, exists := s.pending[player.ID]; exists {
 			submitted = append(submitted, player.ID)
 		} else {
-			if s.game.Season != models.SeasonWinter && !s.hasEmittingNobleLocked(player.ID) && !s.hasDeckCardsLocked(player.ID) {
+			if !engine.PlayerMustSubmit(s.game, player.ID) && !(engine.PlayerAlive(s.game, player.ID) && s.hasDeckCardsLocked(player.ID)) {
 				continue
 			}
 			remaining = append(remaining, player.ID)
@@ -372,15 +372,6 @@ func (s *Session) pendingPlayersLocked() ([]models.PlayerID, []models.PlayerID) 
 
 func (s *Session) hasDeckCardsLocked(playerID models.PlayerID) bool {
 	return s.game.SpecialDeck != nil && len(s.game.SpecialDeck.Hands[playerID]) > 0
-}
-
-func (s *Session) hasEmittingNobleLocked(playerID models.PlayerID) bool {
-	for _, noble := range s.game.Nobles {
-		if noble.OwnerID == playerID && noble.Status != models.NobleStatusDungeon {
-			return true
-		}
-	}
-	return false
 }
 
 func normalizePlayerOrders(playerID models.PlayerID, chains []engine.ChainSubmission, winter []engine.WinterSubmission, special []engine.DeckSubmission) (engine.OrdersInput, *engine.InputErrors) {

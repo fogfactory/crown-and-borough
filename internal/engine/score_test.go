@@ -112,3 +112,35 @@ func TestWinnerForFinishedGameReturnsNoWinnerForExactTie(t *testing.T) {
 		t.Fatalf("winner = %v, want no winner for exact tie", winner)
 	}
 }
+
+func TestPlayerMustSubmit(t *testing.T) {
+	state := &models.GameState{
+		Season:  models.SeasonSpring,
+		Players: []models.Player{{ID: "P1"}, {ID: "P2"}, {ID: "P3"}},
+		Armies: []models.Army{
+			{ID: "A1", OwnerID: "P1", Size: 1},
+			{ID: "A2", OwnerID: "P2", Size: 1},
+		},
+		Nobles: []models.Noble{
+			{ID: "N1", OwnerID: "P1", Status: models.NobleStatusHostage},
+			{ID: "N2", OwnerID: "P2", Status: models.NobleStatusDungeon},
+			{ID: "N3", OwnerID: "P3", Status: models.NobleStatusFree},
+		},
+	}
+	for _, test := range []struct {
+		season models.Season
+		player models.PlayerID
+		want   bool
+	}{
+		{models.SeasonSpring, "P1", true},  // a hostage noble can still emit
+		{models.SeasonSpring, "P2", false}, // a dungeon noble cannot emit
+		{models.SeasonSpring, "P3", false}, // eliminated despite a free noble
+		{models.SeasonWinter, "P2", true},  // winter orders need no noble
+		{models.SeasonWinter, "P3", false},
+	} {
+		state.Season = test.season
+		if got := PlayerMustSubmit(state, test.player); got != test.want {
+			t.Errorf("PlayerMustSubmit(%s, %s) = %v, want %v", test.season, test.player, got, test.want)
+		}
+	}
+}

@@ -23,6 +23,10 @@ func TestPendingPlayersSkipsPlayersWithoutEmittingNobleOnActionTurns(t *testing.
 				{ID: "P1"},
 				{ID: "P2"},
 			},
+			Armies: []models.Army{
+				{ID: "A1", OwnerID: "P1", Size: 1},
+				{ID: "A2", OwnerID: "P2", Size: 1},
+			},
 			Nobles: []models.Noble{
 				{OwnerID: "P1", Status: models.NobleStatusFree},
 				{OwnerID: "P2", Status: models.NobleStatusDungeon},
