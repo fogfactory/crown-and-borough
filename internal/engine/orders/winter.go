@@ -70,6 +70,48 @@ func ParseWinterOrdersWithDeckOrders(text string, game *models.GameState) ([]mod
 	return winterOrders, deckOrders, nil
 }
 
+// WinterSheetLine is one non-empty line of a winter sheet parsed on its own:
+// exactly one of Winter, Deck or Error is set.
+type WinterSheetLine struct {
+	Line   int
+	Winter *models.WinterOrder
+	Deck   *models.DeckOrder
+	Error  *ParseError
+}
+
+// ParseWinterSheetLines parses every line of a winter sheet independently, so
+// a draft preview can report valid lines next to malformed ones. Order IDs
+// are left empty for the caller to assign.
+func ParseWinterSheetLines(text string, game *models.GameState) []WinterSheetLine {
+	indexes := indexGame(game)
+	lines := []WinterSheetLine{}
+	for lineNumber, sourceLine := range strings.Split(text, "\n") {
+		line := normalizeLine(sourceLine)
+		if line == "" {
+			continue
+		}
+		parsed := WinterSheetLine{Line: lineNumber + 1}
+		fields := strings.Fields(line)
+		if len(fields) >= 2 && fields[0] == "D" && fields[1] == "C" {
+			order, parseError := parseDeckOrderLine(line, lineNumber+1, game)
+			if parseError != nil {
+				parsed.Error = parseError
+			} else {
+				parsed.Deck = &order
+			}
+		} else {
+			order, parseError := parseWinterOrderLine(line, lineNumber+1, indexes)
+			if parseError != nil {
+				parsed.Error = parseError
+			} else {
+				parsed.Winter = &order
+			}
+		}
+		lines = append(lines, parsed)
+	}
+	return lines
+}
+
 func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
 	fields := strings.Fields(line)
 	if len(fields) < 3 {

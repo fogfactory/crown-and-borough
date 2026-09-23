@@ -1,3 +1,8 @@
+/**
+ * Test fixture helper: turns order text into the parsed orders the server
+ * preview returns, so overlay tests can stay readable. Product code never
+ * parses orders; the server is the single source of the order syntax.
+ */
 import type { LiaisonMode, Order, OrderType } from '@/types'
 
 const SYMBOL_TO_TYPE: Record<string, OrderType> = {
@@ -108,4 +113,11 @@ export function parseChainDraft(text: string): Order[] {
     if (order) orders.push(order)
   }
   return orders
+}
+
+/** Parses every draft of a `{ noble: text }` record. */
+export function draftOrders(drafts: Record<string, string>): Record<string, Order[]> {
+  return Object.fromEntries(
+    Object.entries(drafts).map(([noble, text]) => [noble, parseChainDraft(text)]),
+  )
 }

@@ -29,7 +29,10 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { ApiError, apiRequest, type TokenProvider } from '@/lib/api'
-import { addNobleHeader, hasChainContent, stripNobleHeader } from '@/lib/order-text'
+import { stripNobleHeader } from '@/lib/order-text'
+import { buildOrdersBody } from '@/lib/orders-body'
+import { draftOrdersByNoble } from '@/lib/transfer-preview'
+import { useOrdersPreview, type OrdersPreviewRequest } from '@/lib/use-orders-preview'
 import {
   internalYear,
   ownerName,
@@ -40,7 +43,6 @@ import { useGameIntentions } from '@/lib/use-game-intentions'
 import { useSupplyAndTransfer } from '@/lib/use-supply-and-transfer'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { useLocalStorageState } from '@/lib/storage'
-import { isWinterCosts } from '@/lib/winter-cost'
 import {
   normalizeGameSummary,
   normalizeStateData,
@@ -57,7 +59,7 @@ import type {
   StateData,
   SubmittedOrdersResponse,
   TurnReport,
-  WinterCosts,
+  OrdersPreview,
 } from '@/types'
 
 interface Invitation {
@@ -210,7 +212,6 @@ export function GamePage() {
 
   const [chainDrafts, setChainDrafts] = useState<Record<string, string>>({})
   const [winterDraft, setWinterDraft] = useState('')
-  const [winterCosts, setWinterCosts] = useState<WinterCosts | null>(null)
   const [serverSubmission, setServerSubmission] = useState<MySubmissionResponse | null>(
     null,
   )
@@ -264,7 +265,6 @@ export function GamePage() {
     setMap(null)
     setSelectedId(null)
     setServerSubmission(null)
-    setWinterCosts(null)
     setSubmittedOrders(null)
     setReport(null)
     setReportSummaries([])
@@ -281,11 +281,8 @@ export function GamePage() {
         { getIdToken },
         `/api/games/${encodedID}/my-submission`,
       ).catch(() => null),
-      apiRequest<unknown>({ getIdToken }, `/api/games/${encodedID}/balance`).catch(
-        () => null,
-      ),
     ])
-      .then(([detail, mapData, stateResponse, mySubmission, costsResponse]) => {
+      .then(([detail, mapData, stateResponse, mySubmission]) => {
         if (controller.signal.aborted) return
         const summary = normalizeGameSummary(
           detail as Record<string, unknown>,
@@ -300,7 +297,6 @@ export function GamePage() {
         if (mySubmission) {
           setServerSubmission(mySubmission)
         }
-        setWinterCosts(isWinterCosts(costsResponse) ? costsResponse : null)
       })
       .catch((loadFailure: unknown) => {
         if (controller.signal.aborted) return
@@ -506,6 +502,26 @@ export function GamePage() {
     [getIdToken],
   )
 
+  const ordersBody = useMemo(
+    () =>
+      state && playerID
+        ? buildOrdersBody(state, playerID, { chainDrafts, winterDraft, specialDraft })
+        : null,
+    [chainDrafts, playerID, specialDraft, state, winterDraft],
+  )
+  const previewRequest = useMemo<OrdersPreviewRequest | null>(() => {
+    if (!gameId || !playerID) return null
+    const path = `/api/games/${encodeURIComponent(gameId)}/orders/preview?lang=${language}`
+    return (body, signal) =>
+      apiRequest<OrdersPreview>({ getIdToken }, path, {
+        method: 'POST',
+        body: JSON.stringify(body),
+        signal,
+      })
+  }, [gameId, getIdToken, language, playerID])
+  const preview = useOrdersPreview(ordersBody, previewRequest)
+  const draftOrders = useMemo(() => draftOrdersByNoble(preview?.chains), [preview])
+
   const {
     selectedSupplyLine,
     sourceTerritoryId,
@@ -521,7 +537,7 @@ export function GamePage() {
     selectedId,
     state,
     selectedState,
-    chainDrafts,
+    draftOrders,
     ownerId: playerID,
     basePath: gameId ? `/api/games/${encodeURIComponent(gameId)}` : '/api',
     fetcher: supplyFetcher,
@@ -536,9 +552,8 @@ export function GamePage() {
     state,
     map,
     playerID,
-    chainDrafts,
-    winterDraft,
-    winterCosts,
+    preview,
+    winterText: ordersBody?.winter[0]?.lines ?? '',
     spectator,
     submittedOrders,
   })
@@ -665,34 +680,18 @@ export function GamePage() {
           { method: 'POST' },
         )
       } else {
-        const chains =
-          state.season === 'winter'
-            ? []
-            : state.nobles
-                .filter((noble) => noble.owner === playerID && noble.status !== 'dungeon')
-                .map((noble) => ({
-                  noble: noble.code,
-                  text: addNobleHeader(noble.code, chainDrafts[noble.code] ?? ''),
-                }))
-                .filter((chain) => hasChainContent(chain.noble, chain.text))
-        const winterLines = [winterDraft, state.season === 'winter' ? specialDraft : '']
-          .filter((text) => text.trim() !== '')
-          .join('\n')
-        const winter =
-          state.season === 'winter' && winterLines !== '' ? [{ lines: winterLines }] : []
-        const special =
-          state.season !== 'winter' && specialDraft.trim() !== ''
-            ? [{ text: specialDraft }]
-            : []
+        const body = buildOrdersBody(state, playerID!, {
+          chainDrafts,
+          winterDraft,
+          specialDraft,
+        })
         response = await apiRequest<OrdersResponse>(
           { getIdToken },
           `/api/games/${encodeURIComponent(gameId)}/orders?lang=${language}`,
           {
             method: 'POST',
             body: JSON.stringify({
-              chains,
-              winter,
-              special,
+              ...body,
               revision: summary?.revision ?? view?.revision ?? 0,
             }),
           },
@@ -701,8 +700,8 @@ export function GamePage() {
           turn: state.turn,
           season: state.season,
           submitted: true,
-          chains,
-          winter: winter.length > 0 ? winter[0] : undefined,
+          chains: body.chains,
+          winter: body.winter[0],
         })
       }
       applyOrdersResponse(response)
@@ -993,8 +992,7 @@ export function GamePage() {
                   chainDrafts={chainDrafts}
                   winterDraft={winterDraft}
                   specialDraft={specialDraft}
-                  winterCosts={winterCosts}
-                  map={map}
+                  preview={preview}
                   submitted={Boolean(currentSlot?.submitted)}
                   submitting={submitting}
                   error={actionError}

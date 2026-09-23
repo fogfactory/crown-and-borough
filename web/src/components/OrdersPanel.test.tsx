@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { OrdersPanel } from '@/components/OrdersPanel'
 import { LanguageProvider } from '@/i18n/LanguageContext'
-import type { Noble, StateData } from '@/types'
+import type { Noble, OrdersPreview, StateData } from '@/types'
 
 const state: StateData = {
   turn: 4,
@@ -40,6 +40,33 @@ function renderOrdersPanel(
   )
 }
 
+function renderWithPreview(
+  season: StateData['season'],
+  preview: OrdersPreview,
+  language: 'fr' | 'en' = 'fr',
+) {
+  return render(
+    <LanguageProvider initialLanguage={language}>
+      <OrdersPanel
+        state={{ ...state, season }}
+        player="P1"
+        chainDrafts={{}}
+        winterDraft=""
+        preview={preview}
+        specialDraft=""
+        submitted={false}
+        submitting={false}
+        error={null}
+        onChainChange={vi.fn()}
+        onWinterChange={vi.fn()}
+        onSpecialChange={vi.fn()}
+        onSubmit={vi.fn()}
+        onOpenRules={vi.fn()}
+      />
+    </LanguageProvider>,
+  )
+}
+
 describe('OrdersPanel seasonal presentation', () => {
   it('makes winter direct investments visually and textually distinct', () => {
     const { container } = renderOrdersPanel('winter')
@@ -56,126 +83,24 @@ describe('OrdersPanel seasonal presentation', () => {
     expect(container.querySelector('section')).toHaveClass('bg-[#eaf3ff]/80')
   })
 
-  it('shows the live winter cost estimate against controlled stock', () => {
-    render(
-      <LanguageProvider initialLanguage="fr">
-        <OrdersPanel
-          state={{
-            ...state,
-            season: 'winter',
-            territories: [
-              {
-                id: 'ROS',
-                owner: 'P1',
-                resources: 25,
-                army: null,
-                infrastructures: [{ type: 'castle', level: 1 }],
-              },
-              {
-                id: 'XXX',
-                owner: 'P1',
-                resources: 0,
-                army: null,
-                infrastructures: [],
-              },
-              {
-                id: 'YYY',
-                owner: 'P1',
-                resources: 0,
-                army: null,
-                infrastructures: [],
-              },
-              {
-                id: 'ZZZ',
-                owner: 'P1',
-                resources: 0,
-                army: null,
-                infrastructures: [],
-              },
-            ],
-          }}
-          player="P1"
-          chainDrafts={{}}
-          winterDraft={'R T XXX\nR N XXX\nC C YYY\nC M ZZZ\nC M ZZZ'}
-          specialDraft=""
-          winterCosts={{
-            castle: 10,
-            millLevels: [3, 5, 7],
-            troop: 1,
-            noble: 2,
-            supplyDepot: 3,
-            liberation: 0,
-          }}
-          submitted={false}
-          submitting={false}
-          error={null}
-          onChainChange={vi.fn()}
-          onWinterChange={vi.fn()}
-          onSpecialChange={vi.fn()}
-          onSubmit={vi.fn()}
-          onOpenRules={vi.fn()}
-        />
-      </LanguageProvider>,
-    )
+  it('shows the server winter cost against the controlled stock', () => {
+    renderWithPreview('winter', {
+      errors: [],
+      chains: [],
+      winter: [],
+      winterCost: { spent: 21, available: 25 },
+    })
 
     const estimate = screen.getByRole('status')
     expect(estimate).toHaveTextContent('Coût estimé : 21 / 25 ressources')
     expect(estimate).toHaveClass('text-[#376341]')
   })
 
-  it('marks the estimate when the draft exceeds available stock', () => {
-    render(
-      <LanguageProvider initialLanguage="en">
-        <OrdersPanel
-          state={{
-            ...state,
-            season: 'winter',
-            territories: [
-              {
-                id: 'ROS',
-                owner: 'P1',
-                resources: 25,
-                army: null,
-                infrastructures: [{ type: 'castle', level: 1 }],
-              },
-              {
-                id: 'XXX',
-                owner: 'P1',
-                resources: 0,
-                army: null,
-                infrastructures: [],
-              },
-              {
-                id: 'YYY',
-                owner: 'P1',
-                resources: 0,
-                army: null,
-                infrastructures: [],
-              },
-            ],
-          }}
-          player="P1"
-          chainDrafts={{}}
-          winterDraft="G XXX YYY 26"
-          specialDraft=""
-          winterCosts={{
-            castle: 10,
-            millLevels: [3, 5, 7],
-            troop: 1,
-            noble: 2,
-            supplyDepot: 3,
-            liberation: 0,
-          }}
-          submitted={false}
-          submitting={false}
-          error={null}
-          onChainChange={vi.fn()}
-          onWinterChange={vi.fn()}
-          onSpecialChange={vi.fn()}
-          onSubmit={vi.fn()}
-          onOpenRules={vi.fn()}
-        />
-      </LanguageProvider>,
+  it('marks the cost when the sheet exceeds the available stock', () => {
+    renderWithPreview(
+      'winter',
+      { errors: [], chains: [], winter: [], winterCost: { spent: 26, available: 25 } },
+      'en',
     )
 
     const estimate = screen.getByRole('status')
@@ -183,145 +108,49 @@ describe('OrdersPanel seasonal presentation', () => {
     expect(estimate).toHaveClass('text-[#8d321e]')
   })
 
-  it('shows live syntax errors without charging invalid lines', () => {
-    render(
-      <LanguageProvider initialLanguage="fr">
-        <OrdersPanel
-          state={{
-            ...state,
-            season: 'winter',
-            territories: [
-              {
-                id: 'ROS',
-                owner: 'P1',
-                resources: 25,
-                army: null,
-                infrastructures: [{ type: 'castle', level: 1 }],
-              },
-              {
-                id: 'ZZZ',
-                owner: 'P1',
-                resources: 0,
-                army: null,
-                infrastructures: [],
-              },
-            ],
-          }}
-          map={{
-            territories: [
-              {
-                id: 'ROS',
-                name: 'Rosemont',
-                terrain: 'plain',
-                village: false,
-                points: [],
-                adjacencies: [],
-                impassable: [],
-              },
-            ],
-          }}
-          player="P1"
-          chainDrafts={{}}
-          winterDraft={'R X ROS\nR T ROS\nC M ZZZ'}
-          specialDraft=""
-          winterCosts={{
-            castle: 10,
-            millLevels: [3, 5, 7],
-            troop: 1,
-            noble: 2,
-            supplyDepot: 3,
-            liberation: 0,
-          }}
-          submitted={false}
-          submitting={false}
-          error={null}
-          onChainChange={vi.fn()}
-          onWinterChange={vi.fn()}
-          onSpecialChange={vi.fn()}
-          onSubmit={vi.fn()}
-          onOpenRules={vi.fn()}
-        />
-      </LanguageProvider>,
-    )
+  it('lists the server messages of malformed winter lines', () => {
+    renderWithPreview('winter', {
+      errors: [],
+      chains: [],
+      winter: [
+        { line: 1, status: 'invalid', message: 'Ordre d’hiver inconnu' },
+        { line: 2, status: 'applied', type: 'recruit_troop', territory: 'ROS', cost: 1 },
+        { line: 3, status: 'invalid', message: 'Code de territoire inconnu : ZZZ' },
+      ],
+      winterCost: { spent: 1, available: 25 },
+    })
 
     const errors = screen.getByRole('alert', {
       name: "Erreurs de syntaxe des ordres d'hiver",
     })
     expect(within(errors).getAllByRole('listitem')).toHaveLength(2)
     expect(errors).toHaveTextContent(/Ligne 1 .*Ordre d’hiver inconnu/)
-    expect(errors).toHaveTextContent(/Ligne 3 .*code de territoire.*ZZZ/)
+    expect(errors).toHaveTextContent(/Ligne 3 .*ZZZ/)
     expect(screen.getByText('Coût estimé : 1 / 25 ressources')).toBeInTheDocument()
   })
 
-  it('lists invalid orders and resource warnings with line numbers', () => {
-    render(
-      <LanguageProvider initialLanguage="fr">
-        <OrdersPanel
-          state={{
-            ...state,
-            season: 'winter',
-            territories: [
-              {
-                id: 'ROS',
-                owner: 'P1',
-                resources: 1,
-                army: null,
-                infrastructures: [{ type: 'castle', level: 1 }],
-              },
-              {
-                id: 'BRU',
-                owner: 'P1',
-                resources: 0,
-                army: null,
-                infrastructures: [],
-              },
-            ],
-          }}
-          map={{
-            territories: [
-              {
-                id: 'ROS',
-                name: 'Rosemont',
-                terrain: 'plain',
-                village: false,
-                points: [],
-                adjacencies: ['BRU'],
-                impassable: [],
-              },
-              {
-                id: 'BRU',
-                name: 'Bruyères',
-                terrain: 'forest',
-                village: false,
-                points: [],
-                adjacencies: ['ROS'],
-                impassable: [],
-              },
-            ],
-          }}
-          player="P1"
-          chainDrafts={{}}
-          winterDraft={'R T BRU\nC C BRU'}
-          specialDraft=""
-          winterCosts={{
-            castle: 10,
-            millLevels: [3, 5, 7],
-            troop: 1,
-            noble: 2,
-            supplyDepot: 3,
-            liberation: 0,
-          }}
-          submitted={false}
-          submitting={false}
-          error={null}
-          onChainChange={vi.fn()}
-          onWinterChange={vi.fn()}
-          onSpecialChange={vi.fn()}
-          onSubmit={vi.fn()}
-          onOpenRules={vi.fn()}
-        />
-      </LanguageProvider>,
-    )
+  it('lists refused winter lines and resource warnings with line numbers', () => {
+    renderWithPreview('winter', {
+      errors: [],
+      chains: [],
+      winter: [
+        {
+          line: 1,
+          status: 'rejected',
+          type: 'recruit_troop',
+          territory: 'BRU',
+          reason: 'troop_requires_adjacent_noble',
+        },
+        {
+          line: 2,
+          status: 'rejected',
+          type: 'build',
+          territory: 'BRU',
+          reason: 'insufficient_resources',
+        },
+      ],
+      winterCost: { spent: 0, available: 0 },
+    })
 
     const diagnostics = screen.getByRole('status', {
       name: "Diagnostics des ordres d'hiver",
@@ -331,6 +160,28 @@ describe('OrdersPanel seasonal presentation', () => {
       /Ligne 1 .*Un noble libre doit être sur le territoire ou adjacent/,
     )
     expect(diagnostics).toHaveTextContent(/Ligne 2 .*Ressources insuffisantes/)
+  })
+
+  it('shows chain errors found by the server while the player types', () => {
+    renderWithPreview('spring', {
+      errors: [
+        {
+          noble: 'HUG',
+          line: 2,
+          code: 'not_adjacent',
+          message: 'BRU n’est pas adjacent',
+        },
+        { line: 1, code: 'winter_out_of_season', message: 'hors saison' },
+      ],
+      chains: [],
+      winter: [],
+    })
+
+    const errors = screen.getByRole('alert', {
+      name: "Erreurs dans les chaînes d'ordres",
+    })
+    expect(within(errors).getAllByRole('listitem')).toHaveLength(1)
+    expect(errors).toHaveTextContent(/Ligne 2 .*BRU n’est pas adjacent/)
   })
 
   it('keeps the ordinary command panel outside winter', () => {

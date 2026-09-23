@@ -1,221 +1,112 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildWinterIntentions, simulateWinterDraft } from '@/lib/winter-overlay'
-import type { MapData, StateData, WinterCosts } from '@/types'
+import { buildWinterIntentions } from '@/lib/winter-overlay'
+import type { WinterLinePreview } from '@/types'
 
-const map: MapData = {
-  territories: [
-    {
-      id: 'ROS',
-      name: 'Rosemont',
-      terrain: 'plain',
-      village: true,
-      points: [
-        [0, 0],
-        [50, 0],
-        [50, 50],
-        [0, 50],
-      ],
-      adjacencies: ['BRU'],
-      impassable: [],
-    },
-    {
-      id: 'BRU',
-      name: 'Brisecote',
-      terrain: 'forest',
-      village: false,
-      points: [
-        [50, 0],
-        [100, 0],
-        [100, 50],
-        [50, 50],
-      ],
-      adjacencies: ['ROS', 'CHA'],
-      impassable: [],
-    },
-    {
-      id: 'CHA',
-      name: 'Champborne',
-      terrain: 'hill',
-      village: false,
-      points: [
-        [50, 50],
-        [100, 50],
-        [100, 100],
-        [50, 100],
-      ],
-      adjacencies: ['BRU'],
-      impassable: [],
-    },
-  ],
-}
+const draft = [
+  'C M ROS',
+  'R T BRU',
+  'NOT A LINE',
+  'C C ROS',
+  'G ROS ATL 3',
+  'D C GR',
+].join('\n')
 
-const baseState: StateData = {
-  turn: 1,
-  season: 'winter',
-  players: [
-    { id: 'P1', name: 'One', color: '#a84632', capitalTerritory: 'ROS' },
-    { id: 'P2', name: 'Two', color: '#2d5f9e' },
-  ],
-  territories: [
-    {
-      id: 'ROS',
-      owner: 'P1',
-      resources: 20,
-      army: null,
-      infrastructures: [{ type: 'village', level: 1 }],
-    },
-    { id: 'BRU', owner: 'P1', resources: 0, army: null, infrastructures: [] },
-    { id: 'CHA', owner: 'P1', resources: 0, army: null, infrastructures: [] },
-  ],
-  nobles: [
-    {
-      id: 'N1',
-      code: 'HUG',
-      name: 'Hugues',
-      owner: 'P1',
-      location: 'BRU',
-      status: 'free',
-    },
-  ],
-}
+const lines: WinterLinePreview[] = [
+  {
+    line: 1,
+    status: 'applied',
+    type: 'build',
+    territory: 'ROS',
+    infrastructure: 'mill',
+    level: 2,
+    cost: 5,
+  },
+  {
+    line: 2,
+    status: 'rejected',
+    type: 'recruit_troop',
+    territory: 'BRU',
+    reason: 'insufficient_resources',
+  },
+  { line: 3, status: 'invalid', message: 'Ligne mal formée' },
+  {
+    line: 4,
+    status: 'rejected',
+    type: 'build',
+    territory: 'ROS',
+    infrastructure: 'castle',
+    reason: 'structure_present',
+  },
+  {
+    line: 5,
+    status: 'applied',
+    type: 'transfer',
+    territory: 'ROS',
+    source: 'ROS',
+    target: 'ATL',
+    amount: 3,
+    cost: 3,
+  },
+  { line: 6, status: 'discard' },
+]
 
-describe('winter overlay validation', () => {
-  const costs: WinterCosts = {
-    castle: 5,
-    millLevels: [3, 5, 7],
-    troop: 1,
-    noble: 4,
-    supplyDepot: 2,
-    liberation: 3,
-  }
+describe('buildWinterIntentions', () => {
+  const intentions = buildWinterIntentions(lines, draft, { color: '#123456' })
 
-  const poorState: StateData = {
-    ...baseState,
-    territories: baseState.territories.map((territory) => ({
-      ...territory,
-      resources: 1,
-    })),
-  }
-
-  it('simulates a castle, troop, and noble in order', () => {
-    const intentions = buildWinterIntentions(
-      map,
-      baseState,
-      'P1',
-      'C C ROS\nR T ROS\nR N ROS',
-    )
-
-    expect(intentions.map(({ kind, valid }) => ({ kind, valid }))).toEqual([
-      { kind: 'build', valid: true },
-      { kind: 'recruit_troop', valid: true },
-      { kind: 'recruit_noble', valid: true },
-    ])
-  })
-
-  it('allows a troop-created army to recruit a noble afterwards', () => {
-    const result = simulateWinterDraft(baseState, 'P1', 'R T ROS\nR N ROS', map)
-
-    expect(result.outcomes.map(({ valid, reason }) => ({ valid, reason }))).toEqual([
-      { valid: true, reason: undefined },
-      { valid: true, reason: undefined },
-    ])
-  })
-
-  it('marks noble recruitment without a player army as invalid', () => {
-    const [intention] = buildWinterIntentions(map, baseState, 'P1', 'R N ROS')
-
-    expect(intention).toMatchObject({
-      kind: 'error',
-      valid: false,
-      reason: 'noble_requires_owned_army',
+  it('draws applied lines as their order kind, labelled with the draft line', () => {
+    expect(intentions[0]).toMatchObject({
+      kind: 'build',
+      line: 1,
+      valid: true,
       territory: 'ROS',
+      infrastructure: 'mill',
+      level: 2,
+      label: 'C M ROS',
+      color: '#123456',
+      source: 'draft',
     })
   })
 
-  it('marks troop recruitment without an adjacent free noble as invalid', () => {
-    const state = {
-      ...baseState,
-      nobles: baseState.nobles.map((noble) => ({ ...noble, location: 'ROS' })),
-    }
-    const [intention] = buildWinterIntentions(map, state, 'P1', 'R T CHA')
-
-    expect(intention).toMatchObject({
-      kind: 'error',
-      valid: false,
-      reason: 'troop_requires_adjacent_noble',
-      territory: 'CHA',
-    })
-  })
-
-  it('marks an orphaned mill as invalid', () => {
-    const [intention] = buildWinterIntentions(map, baseState, 'P1', 'C M CHA')
-
-    expect(intention).toMatchObject({
-      kind: 'error',
-      valid: false,
-      reason: 'mill_requires_productive_neighbor',
-      territory: 'CHA',
-    })
-  })
-
-  it('warns without rejecting an order that exceeds available resources', () => {
-    const state: StateData = {
-      ...poorState,
-      territories: poorState.territories.map((territory, index) =>
-        index === 0
-          ? { ...territory, army: { owner: 'P1', size: 1, chain: null } }
-          : territory,
-      ),
-    }
-    const [intention] = buildWinterIntentions(map, state, 'P1', 'R N ROS', { costs })
-
-    expect(intention).toMatchObject({
-      kind: 'recruit_noble',
+  it('keeps a line refused only for lack of resources as a warning', () => {
+    expect(intentions[1]).toMatchObject({
+      kind: 'recruit_troop',
       valid: true,
       warning: true,
       reason: 'insufficient_resources',
+      territory: 'BRU',
+    })
+  })
+
+  it('turns malformed lines and other refusals into errors', () => {
+    expect(intentions[2]).toMatchObject({
+      kind: 'error',
+      valid: false,
+      message: 'Ligne mal formée',
+      label: 'NOT A LINE',
+    })
+    expect(intentions[3]).toMatchObject({
+      kind: 'error',
+      valid: false,
+      reason: 'structure_present',
       territory: 'ROS',
     })
   })
 
-  it('keeps warned structural effects for later orders', () => {
-    const result = simulateWinterDraft(
-      poorState,
-      'P1',
-      'C C BRU\nR T BRU\nR N BRU',
-      map,
-      costs,
-    )
+  it('draws transfers between their source and target and skips discards', () => {
+    expect(intentions[4]).toMatchObject({
+      kind: 'transfer',
+      sourceTerritory: 'ROS',
+      targetTerritory: 'ATL',
+      amount: 3,
+      territory: undefined,
+    })
+    expect(intentions).toHaveLength(5)
+  })
 
+  it('marks submitted lines for the observer overlay', () => {
     expect(
-      result.outcomes.map(({ valid, warning, reason }) => ({ valid, warning, reason })),
-    ).toEqual([
-      { valid: true, warning: true, reason: 'insufficient_resources' },
-      { valid: true, warning: false, reason: undefined },
-      { valid: true, warning: true, reason: 'insufficient_resources' },
-    ])
-  })
-
-  it('keeps syntax errors in the overlay', () => {
-    const intentions = buildWinterIntentions(
-      map,
-      baseState,
-      'P1',
-      'C M ROS EXTRA\nR T ZZZ',
-    )
-
-    expect(intentions).toHaveLength(2)
-    expect(intentions[0]).toMatchObject({
-      kind: 'error',
-      line: 1,
-      territory: 'ROS',
-      reason: 'error.winter.target_only_one',
-    })
-    expect(intentions[1]).toMatchObject({
-      kind: 'error',
-      line: 2,
-      reason: 'error.winter.territory_unknown',
-    })
+      buildWinterIntentions([lines[0]], draft, { source: 'submitted' })[0].source,
+    ).toBe('submitted')
   })
 })

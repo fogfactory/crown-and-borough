@@ -15,7 +15,9 @@ import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
 import { InfoPage } from '@/components/InfoPage'
 import { GamePanelCard } from '@/components/GamePanelCard'
 import type { Panel } from '@/components/CommandReportRulesTabs'
-import { addNobleHeader, hasChainContent } from '@/lib/order-text'
+import { buildOrdersBody } from '@/lib/orders-body'
+import { draftOrdersByNoble } from '@/lib/transfer-preview'
+import { useOrdersPreview, type OrdersPreviewRequest } from '@/lib/use-orders-preview'
 import {
   internalYear,
   ownerName,
@@ -26,7 +28,6 @@ import { useGameIntentions } from '@/lib/use-game-intentions'
 import { useSupplyAndTransfer } from '@/lib/use-supply-and-transfer'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { useLocalStorageState, useLocalStorageText } from '@/lib/storage'
-import { isWinterCosts } from '@/lib/winter-cost'
 import { VersionBadge } from '@/components/VersionBadge'
 import { LanguageProvider, useLanguage } from '@/i18n/LanguageContext'
 import { firebaseConfigured } from '@/lib/firebase'
@@ -49,7 +50,7 @@ import type {
   TransferLine,
   TurnReport,
   OrdersResponse,
-  WinterCosts,
+  OrdersPreview,
 } from '@/types'
 
 type HotseatView = 'game' | 'rules' | 'faq'
@@ -118,7 +119,6 @@ function AppContent() {
   const [gameReady, setGameReady] = useState(false)
   const [map, setMap] = useState<MapData | null>(null)
   const [state, setState] = useState<StateData | null>(null)
-  const [winterCosts, setWinterCosts] = useState<WinterCosts | null>(null)
   const [report, setReport] = useState<TurnReport | null>(null)
 
   const [chainDrafts, setChainDrafts] = useState<
@@ -219,28 +219,6 @@ function AppContent() {
   useEffect(() => {
     if (!gameReady || !gameId) return
     const controller = new AbortController()
-    const loadWinterCosts = async () => {
-      try {
-        const response = await fetch(
-          asPlayer(`${hotseatGamePath(gameId)}/balance`, HOTSEAT_HOST),
-          { signal: controller.signal },
-        )
-        if (!response.ok) return
-        const payload: unknown = await response.json()
-        if (!controller.signal.aborted && isWinterCosts(payload)) {
-          setWinterCosts(payload)
-        }
-      } catch {
-        // The cost preview is optional; game loading should remain available.
-      }
-    }
-    void loadWinterCosts()
-    return () => controller.abort()
-  }, [gameId, gameReady])
-
-  useEffect(() => {
-    if (!gameReady || !gameId) return
-    const controller = new AbortController()
     const loadPrivateState = async () => {
       try {
         const response = await fetch(
@@ -314,6 +292,39 @@ function AppContent() {
     [t],
   )
 
+  const ordersBody = useMemo(
+    () =>
+      state
+        ? buildOrdersBody(state, selectedPlayer, {
+            chainDrafts: chainDrafts[selectedPlayer] ?? {},
+            winterDraft: winterDrafts[selectedPlayer] ?? '',
+            specialDraft: specialDrafts[selectedPlayer] ?? '',
+          })
+        : null,
+    [chainDrafts, selectedPlayer, specialDrafts, state, winterDrafts],
+  )
+  const previewRequest = useMemo<OrdersPreviewRequest | null>(() => {
+    if (!gameId) return null
+    const path = asPlayer(
+      `${hotseatGamePath(gameId)}/orders/preview`,
+      selectedPlayer,
+      language,
+    )
+    return async (body, signal) => {
+      const response = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal,
+      })
+      if (!response.ok)
+        throw new Error(t('error.requestFailed', { status: response.status }))
+      return (await response.json()) as OrdersPreview
+    }
+  }, [gameId, language, selectedPlayer, t])
+  const preview = useOrdersPreview(ordersBody, previewRequest)
+  const draftOrders = useMemo(() => draftOrdersByNoble(preview?.chains), [preview])
+
   const {
     selectedSupplyLine,
     sourceTerritoryId,
@@ -329,7 +340,7 @@ function AppContent() {
     selectedId,
     state,
     selectedState,
-    chainDrafts: chainDrafts[selectedPlayer] ?? {},
+    draftOrders,
     ownerId: selectedPlayer,
     basePath: gameId ? hotseatGamePath(gameId) : '/api',
     fetcher: supplyFetcher,
@@ -343,9 +354,8 @@ function AppContent() {
     state,
     map,
     playerID: selectedPlayer,
-    chainDrafts: chainDrafts[selectedPlayer] ?? {},
-    winterDraft: winterDrafts[selectedPlayer] ?? '',
-    winterCosts,
+    preview,
+    winterText: ordersBody?.winter[0]?.lines ?? '',
     spectator: false,
   })
   /**
@@ -461,39 +471,15 @@ function AppContent() {
     if (!state || !gameId) return
     setResolving(true)
     setActionError(null)
-    const chains =
-      state.season === 'winter'
-        ? []
-        : state.nobles
-            .filter(
-              (noble) => noble.owner === selectedPlayer && noble.status !== 'dungeon',
-            )
-            .map((noble) => ({
-              noble: noble.code,
-              text: addNobleHeader(
-                noble.code,
-                chainDrafts[selectedPlayer]?.[noble.code] ?? '',
-              ),
-            }))
-            .filter((submission) => hasChainContent(submission.noble, submission.text))
-    const winterLines = [
-      winterDrafts[selectedPlayer] ?? '',
-      state.season === 'winter' ? (specialDrafts[selectedPlayer] ?? '') : '',
-    ]
-      .filter((text) => text.trim() !== '')
-      .join('\n')
-    const winter =
-      state.season === 'winter' && winterLines !== '' ? [{ lines: winterLines }] : []
-    const special =
-      state.season !== 'winter' && (specialDrafts[selectedPlayer] ?? '').trim() !== ''
-        ? [{ text: specialDrafts[selectedPlayer] ?? '' }]
-        : []
-
     const base = hotseatGamePath(gameId)
     try {
       const response = await postJSON(
         asPlayer(`${base}/orders`, selectedPlayer, language),
-        { chains, winter, special },
+        buildOrdersBody(state, selectedPlayer, {
+          chainDrafts: chainDrafts[selectedPlayer] ?? {},
+          winterDraft: winterDrafts[selectedPlayer] ?? '',
+          specialDraft: specialDrafts[selectedPlayer] ?? '',
+        }),
       )
       if (!response.ok) throw new Error(await responseError(response, t))
       let payload = (await response.json()) as OrdersResponse
@@ -541,7 +527,6 @@ function AppContent() {
       const created = (await response.json()) as { id: string }
       setMap(null)
       setState(null)
-      setWinterCosts(null)
       setGameId(created.id)
       setReport(null)
       setChainDrafts({})
@@ -823,8 +808,7 @@ function AppContent() {
                       player={selectedPlayer}
                       chainDrafts={chainDrafts[selectedPlayer] ?? {}}
                       winterDraft={winterDrafts[selectedPlayer] ?? ''}
-                      winterCosts={winterCosts}
-                      map={map ?? undefined}
+                      preview={preview}
                       specialDraft={specialDrafts[selectedPlayer] ?? ''}
                       submitted={submittedPlayers.includes(selectedPlayer)}
                       submitting={resolving}

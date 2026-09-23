@@ -2,6 +2,7 @@ import { renderHook } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import { useGameIntentions } from '@/lib/use-game-intentions'
+import { parseChainDraft } from '@/test/parse-orders'
 import type { MapData, StateData, SubmittedOrdersResponse } from '@/types'
 
 const map: MapData = {
@@ -71,9 +72,12 @@ function buildHook(overrides: Partial<Parameters<typeof useGameIntentions>[0]> =
     state,
     map,
     playerID: 'P1',
-    chainDrafts: { HUG: 'ROS A BRU' },
-    winterDraft: '',
-    winterCosts: null,
+    preview: {
+      errors: [],
+      chains: [{ noble: 'HUG', orders: parseChainDraft('ROS A BRU') }],
+      winter: [],
+    },
+    winterText: '',
     spectator: false,
     submittedOrders: null,
     ...overrides,
@@ -97,8 +101,20 @@ describe('useGameIntentions', () => {
   it('builds winter investments for the active player in winter', () => {
     const { result } = buildHook({
       state: { ...state, season: 'winter' },
-      chainDrafts: {},
-      winterDraft: 'C C ROS',
+      preview: {
+        errors: [],
+        chains: [],
+        winter: [
+          {
+            line: 1,
+            status: 'applied',
+            type: 'build',
+            territory: 'ROS',
+            infrastructure: 'castle',
+          },
+        ],
+      },
+      winterText: 'C C ROS',
     })
 
     expect(result.current.intentions).toHaveLength(0)
@@ -119,6 +135,13 @@ describe('useGameIntentions', () => {
           player: 'P2',
           chains: [{ noble: 'BOB', text: 'BOB\nBRU A ROS' }],
           winter: { lines: 'R T BRU' },
+          preview: {
+            errors: [],
+            chains: [{ noble: 'BOB', orders: parseChainDraft('BRU A ROS') }],
+            winter: [
+              { line: 1, status: 'applied', type: 'recruit_troop', territory: 'BRU' },
+            ],
+          },
         },
       ],
     }
@@ -162,7 +185,7 @@ describe('useGameIntentions', () => {
     }
     const { result } = buildHook({
       state: winterState,
-      chainDrafts: {},
+      preview: null,
       spectator: true,
       submittedOrders,
     })
@@ -180,7 +203,7 @@ describe('useGameIntentions', () => {
   })
 
   it('defaults the color when the player is unknown', () => {
-    const { result } = buildHook({ playerID: null, chainDrafts: {} })
+    const { result } = buildHook({ playerID: null, preview: null })
 
     expect(result.current.intentions).toHaveLength(0)
     expect(result.current.intentionsColor).toBe('#a84632')

@@ -1,6 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { draftOrders } from '@/test/parse-orders'
 import { useSupplyAndTransfer, type SupplyFetcher } from '@/lib/use-supply-and-transfer'
 import type { StateData, SupplyLine, TransferLine } from '@/types'
 
@@ -69,7 +70,7 @@ function buildHook(
     selectedId: 'ROS',
     state,
     selectedState,
-    chainDrafts: { HUG: 'ROS T BRU 1' },
+    draftOrders: draftOrders({ HUG: 'ROS T BRU 1' }),
     ownerId: 'P1',
     fetcher,
     networkErrorMessage: 'network failed',
@@ -136,7 +137,7 @@ describe('useSupplyAndTransfer', () => {
       selectedId: 'BRU',
       state,
       selectedState: state.territories.find((territory) => territory.id === 'BRU'),
-      chainDrafts: {},
+      draftOrders: {},
       ownerId: 'P1',
       fetcher: vi.fn(() => Promise.resolve(supplyLine)) as unknown as SupplyFetcher,
       networkErrorMessage: 'network failed',
@@ -148,7 +149,7 @@ describe('useSupplyAndTransfer', () => {
   })
 
   it('derives no transfer targets without drafts', () => {
-    const { result } = buildHook(undefined, { chainDrafts: {} })
+    const { result } = buildHook(undefined, { draftOrders: {} })
 
     expect(result.current.transferTargets).toEqual([])
     expect(result.current.transferTarget).toBeNull()

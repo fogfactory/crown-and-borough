@@ -12,12 +12,9 @@ import (
 func writeResolutionError(w http.ResponseWriter, err error, language i18n.Language) {
 	var inputErrors *engine.InputErrors
 	if errors.As(err, &inputErrors) {
-		localized := engine.InputErrors{Errors: append([]engine.InputError(nil), inputErrors.Errors...)}
-		for index := range localized.Errors {
-			inputError := &localized.Errors[index]
-			if inputError.MessageKey != "" {
-				inputError.Message = i18n.Translate(language, i18n.Message{Key: inputError.MessageKey, Args: inputError.MessageArgs})
-			}
+		localized := engine.InputErrors{Errors: make([]engine.InputError, len(inputErrors.Errors))}
+		for index, inputError := range inputErrors.Errors {
+			localized.Errors[index] = localizedInputError(inputError, language)
 		}
 		message := i18n.Translate(language, i18n.Message{Key: i18n.ErrorPlayerRequired})
 		if len(localized.Errors) > 0 {

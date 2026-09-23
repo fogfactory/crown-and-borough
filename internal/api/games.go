@@ -304,12 +304,16 @@ func (h *GamesHandler) handleSubresource(w http.ResponseWriter, r *http.Request,
 		}
 		writeJSON(w, http.StatusOK, line)
 	case "orders":
-		if len(parts) != 1 {
+		if len(parts) > 2 || (len(parts) == 2 && parts[1] != "preview") {
 			http.NotFound(w, r)
 			return
 		}
 		if r.Method != http.MethodPost {
 			methodNotAllowed(w, http.MethodPost)
+			return
+		}
+		if len(parts) == 2 {
+			h.preview(w, r, actor, id)
 			return
 		}
 		h.submit(w, r, actor, id)
@@ -498,10 +502,16 @@ func (h *GamesHandler) submittedOrders(w http.ResponseWriter, r *http.Request, a
 		if len(input.Winter) > 0 {
 			winter = &winterSubmissionView{Lines: input.Winter[0].Lines}
 		}
+		preview, err := previewView(snapshot.State, h.balance, player.ID, input, i18n.FromRequest(r))
+		if err != nil {
+			h.writeStoreError(w, err)
+			return
+		}
 		response.Submissions = append(response.Submissions, submittedPlayerOrdersView{
-			Player: player.ID,
-			Chains: chains,
-			Winter: winter,
+			Player:  player.ID,
+			Chains:  chains,
+			Winter:  winter,
+			Preview: preview,
 		})
 	}
 	writeJSON(w, http.StatusOK, response)
@@ -823,9 +833,10 @@ type submittedOrdersView struct {
 }
 
 type submittedPlayerOrdersView struct {
-	Player models.PlayerID       `json:"player"`
-	Chains []chainSubmissionView `json:"chains"`
-	Winter *winterSubmissionView `json:"winter,omitempty"`
+	Player  models.PlayerID       `json:"player"`
+	Chains  []chainSubmissionView `json:"chains"`
+	Winter  *winterSubmissionView `json:"winter,omitempty"`
+	Preview OrdersPreviewView     `json:"preview"`
 }
 
 type chainSubmissionView struct {
