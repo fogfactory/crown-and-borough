@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.10.0](https://github.com/fogfactory/crown-and-borough/compare/v0.9.1...v0.10.0) (2026-09-23)
+
+
+### Features
+
+* **web:** winter orders overlay with validation and diagnostics ([d09d500](https://github.com/fogfactory/crown-and-borough/commit/d09d50066010dfbf6bf433c097cd1fe7054df876))
+* **web:** winter orders overlay with validation and diagnostics ([12cf1b7](https://github.com/fogfactory/crown-and-borough/commit/12cf1b71f79a0a451fbb01ec30f6649a935e2ace))
+
+
+### Refactoring
+
+* **web:** share hotseat and online game screen internals ([915bf35](https://github.com/fogfactory/crown-and-borough/commit/915bf35d77900b6e414b026826abf5a703842778))
+
 ## [0.9.1](https://github.com/fogfactory/crown-and-borough/compare/v0.9.0...v0.9.1) (2026-09-18)
 
 
