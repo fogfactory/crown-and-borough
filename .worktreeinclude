@@ -1,0 +1,3 @@
+# Gitignored local files that Claude Code copies into each new worktree it
+# creates, so `make compose-up` and `make run-online` work there without setup.
+web/.env.local
