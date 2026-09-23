@@ -359,22 +359,13 @@ func (s *Session) pendingPlayersLocked() ([]models.PlayerID, []models.PlayerID) 
 		if _, exists := s.pending[player.ID]; exists {
 			submitted = append(submitted, player.ID)
 		} else {
-			if s.game.Season != models.SeasonWinter && !s.hasEmittingNobleLocked(player.ID) {
+			if !engine.PlayerMustSubmit(s.game, player.ID) {
 				continue
 			}
 			remaining = append(remaining, player.ID)
 		}
 	}
 	return submitted, remaining
-}
-
-func (s *Session) hasEmittingNobleLocked(playerID models.PlayerID) bool {
-	for _, noble := range s.game.Nobles {
-		if noble.OwnerID == playerID && noble.Status != models.NobleStatusDungeon {
-			return true
-		}
-	}
-	return false
 }
 
 func normalizePlayerOrders(playerID models.PlayerID, chains []engine.ChainSubmission, winter []engine.WinterSubmission) (engine.OrdersInput, *engine.InputErrors) {
