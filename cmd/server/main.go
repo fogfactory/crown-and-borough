@@ -2,107 +2,32 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/fogfactory/crown-and-borough/internal/api"
 	"github.com/fogfactory/crown-and-borough/internal/auth"
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
-	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
-	"github.com/fogfactory/crown-and-borough/internal/models"
 	"github.com/fogfactory/crown-and-borough/internal/store"
 	firestorestore "github.com/fogfactory/crown-and-borough/internal/store/firestore"
 	webassets "github.com/fogfactory/crown-and-borough/web"
 )
 
-const defaultSeed = "crown-and-borough-dev"
+const (
+	defaultSeed    = "crown-and-borough-dev"
+	defaultPlayers = 4
+)
 
 var version = "dev"
 
-type mapGenerator func(string, assetgen.Assets, mapgen.Config) (mapgen.MapData, error)
-
-type mapResolver struct {
-	seed     string
-	assets   assetgen.Assets
-	generate mapGenerator
-
-	mu sync.Mutex
-	// A resolver owns one fixed seed, so players is the remaining component of
-	// the semantic (seed, players) cache key.
-	cache map[int]mapgen.MapData
-}
-
-func (r *mapResolver) resolve(players int) ([]byte, error) {
-	mapData, err := r.resolveData(players)
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(mapData)
-}
-
-func (r *mapResolver) resolveData(players int) (mapgen.MapData, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if mapData, ok := r.cache[players]; ok {
-		return mapData, nil
-	}
-
-	generate := r.generate
-	if generate == nil {
-		generate = mapgen.Generate
-	}
-	mapData, err := generate(r.seed, r.assets, engine.GameMapConfig(players))
-	if err != nil {
-		return mapgen.MapData{}, err
-	}
-
-	if r.cache == nil {
-		r.cache = make(map[int]mapgen.MapData)
-	}
-	r.cache[players] = mapData
-	log.Printf("map generated: seed=%q players=%d", r.seed, players)
-	return mapData, nil
-}
-
-func newServer(
-	resolveMap func(players int) ([]byte, error),
-	resolveState func(players int) ([]byte, error),
-) *http.ServeMux {
-	mux := http.NewServeMux()
-	mountVersion(mux)
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-	mux.Handle("GET /api/map", api.MapHandler(resolveMap))
-	mux.Handle("GET /api/state", api.StateHandler(resolveState))
-	mountFrontend(mux)
-	return mux
-}
-
-func newHotseatServer(session *api.Session, rules assetgen.Rules) *http.ServeMux {
-	mux := http.NewServeMux()
-	mountVersion(mux)
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-	mux.HandleFunc("GET /api/map", session.MapHTTP)
-	mux.HandleFunc("GET /api/state", session.StateHTTP)
-	mux.Handle("GET /api/balance", api.WinterCostsHandler(session.Balance()))
-	mux.HandleFunc("GET /api/supply", session.SupplyHTTP)
-	mux.Handle("GET /api/rules", api.RulesHandler(rules))
-	mux.HandleFunc("POST /api/game", session.GameHTTP)
-	mux.HandleFunc("POST /api/orders", session.OrdersHTTP)
-	mux.HandleFunc("POST /api/reset", session.ResetHTTP)
-	mountFrontend(mux)
-	return mux
-}
+// hotseatHost is the development actor that owns the local hotseat game. It
+// is also the actor used when a development request names no player.
+const hotseatHost = "P1"
 
 func main() {
 	assetsDir := os.Getenv("ASSETS_DIR")
@@ -123,22 +48,6 @@ func main() {
 	}
 	log.Printf("assets loaded from %s: %d communes, %d prenoms", assetsDir, len(assets.Communes), len(assets.Prenoms))
 
-	seed := os.Getenv("SEED")
-	if seed == "" {
-		seed = defaultSeed
-	}
-	playerCount, err := api.ParsePlayerCount(os.Getenv("PLAYERS"), api.DefaultPlayers)
-	if err != nil {
-		log.Fatalf("failed to parse PLAYERS: %v", err)
-	}
-	players := make([]engine.PlayerInit, playerCount)
-	for index := range players {
-		players[index] = engine.PlayerInit{ID: enginePlayerID(index + 1), Name: enginePlayerName(index + 1)}
-	}
-	session, err := api.NewSession(seed, players, balance, assets)
-	if err != nil {
-		log.Fatalf("failed to create default game: %v", err)
-	}
 	onlineDevMode := os.Getenv("ONLINE_DEV_MODE") == "true"
 	publicAppURL := strings.TrimSpace(os.Getenv("PUBLIC_APP_URL"))
 	if !onlineDevMode && publicAppURL == "" {
@@ -149,6 +58,11 @@ func main() {
 		log.Fatalf("failed to initialize game store: %v", storeErr)
 	}
 	defer closeGameStore()
+	if memory, ok := gameStore.(*store.MemoryStore); ok {
+		if err := createHotseatGame(context.Background(), memory); err != nil {
+			log.Fatalf("failed to create default game: %v", err)
+		}
+	}
 	if persistent, ok := gameStore.(*firestorestore.FirestoreStore); ok {
 		if _, restoreErr := persistent.Restore(context.Background()); restoreErr != nil {
 			log.Fatalf("failed to restore Firestore games: %v", restoreErr)
@@ -159,10 +73,16 @@ func main() {
 		readinessChecks = append(readinessChecks, persistent.Ready)
 	}
 
-	var resolveActor api.ActorResolver
-	if onlineDevMode {
-		resolveActor = api.DevActorResolver("P1")
-	} else {
+	options := serverOptions{
+		Rules:       rules,
+		Balance:     balance,
+		Store:       gameStore,
+		Development: onlineDevMode,
+		CreatorGate: creatorGateForEnvironment(onlineDevMode),
+		Readiness:   readinessChecks,
+		SeedAssets:  &assets,
+	}
+	if !onlineDevMode {
 		projectID := os.Getenv("FIREBASE_PROJECT_ID")
 		if projectID == "" {
 			projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
@@ -171,19 +91,10 @@ func main() {
 		if verifierErr != nil {
 			log.Fatalf("failed to initialize Firebase Auth: %v", verifierErr)
 		}
-		resolveActor = api.FirebaseActorResolver(verifier)
-		readinessChecks = append(readinessChecks, verifier.Ready)
+		options.Actor = api.FirebaseActorResolver(verifier)
+		options.Readiness = append(options.Readiness, verifier.Ready)
 	}
-	server := newApplicationServerWithCreatorGate(
-		session,
-		rules,
-		gameStore,
-		onlineDevMode,
-		resolveActor,
-		creatorGateForEnvironment(onlineDevMode),
-		readinessChecks,
-		assets,
-	)
+	server := newApplicationServer(options)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -202,6 +113,7 @@ func newGameStore(ctx context.Context, balance assetgen.Balance, assets assetgen
 		return store.NewMemoryStoreWithOptions(balance, assets, store.MemoryStoreOptions{
 			PrivacyTracker:   api.TrackTurnPrivacy,
 			StrictMembership: false,
+			MaximumPlayers:   engine.MaximumGamePlayers,
 		}), func() {}, nil
 	}
 	persistent, err := firestorestore.NewFromEnv(ctx, balance, assets, firestorestore.Options{
@@ -214,60 +126,92 @@ func newGameStore(ctx context.Context, balance assetgen.Balance, assets assetgen
 	return persistent, func() { _ = persistent.Close() }, nil
 }
 
-func newApplicationServer(session *api.Session, rules assetgen.Rules, gameStore store.GameStore, onlineDevMode bool) *http.ServeMux {
-	var resolveActor api.ActorResolver
-	if onlineDevMode {
-		resolveActor = api.DevActorResolver("P1")
-	} else {
-		resolveActor = api.BearerActorResolver(func(string) (store.Actor, error) {
-			return store.Actor{}, api.ErrUnauthorized
-		})
+// createHotseatGame creates the local hotseat game described by SEED and
+// PLAYERS, owned by hotseatHost, so the hotseat frontend opens on a game.
+func createHotseatGame(ctx context.Context, gameStore store.GameStore) error {
+	seed := os.Getenv("SEED")
+	if seed == "" {
+		seed = defaultSeed
 	}
-	return newApplicationServerWithResolver(session, rules, gameStore, onlineDevMode, resolveActor)
-}
-
-func newApplicationServerWithResolver(session *api.Session, rules assetgen.Rules, gameStore store.GameStore, onlineDevMode bool, resolveActor api.ActorResolver, seedAssets ...assetgen.Assets) *http.ServeMux {
-	return newApplicationServerWithResolverAndReadiness(session, rules, gameStore, onlineDevMode, resolveActor, nil, seedAssets...)
-}
-
-func newApplicationServerWithResolverAndReadiness(session *api.Session, rules assetgen.Rules, gameStore store.GameStore, onlineDevMode bool, resolveActor api.ActorResolver, readinessChecks []api.ReadinessCheck, seedAssets ...assetgen.Assets) *http.ServeMux {
-	return newApplicationServerWithCreatorGate(session, rules, gameStore, onlineDevMode, resolveActor, nil, readinessChecks, seedAssets...)
-}
-
-func newApplicationServerWithCreatorGate(session *api.Session, rules assetgen.Rules, gameStore store.GameStore, onlineDevMode bool, resolveActor api.ActorResolver, creatorGate api.CreatorGate, readinessChecks []api.ReadinessCheck, seedAssets ...assetgen.Assets) *http.ServeMux {
-	var mux *http.ServeMux
-	if onlineDevMode {
-		mux = newHotseatServer(session, rules)
-	} else {
-		mux = http.NewServeMux()
-		mountVersion(mux)
-		mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		})
-		mux.Handle("GET /api/rules", api.RulesHandler(rules))
+	playerCount, err := parsePlayerCount(os.Getenv("PLAYERS"), defaultPlayers)
+	if err != nil {
+		return fmt.Errorf("parse PLAYERS: %w", err)
 	}
-	profiles, _ := gameStore.(store.ProfileStore)
-	games := api.NewGamesHandlerWithOptions(gameStore, rules, api.GamesHandlerOptions{
+	players := make([]engine.PlayerInit, playerCount)
+	for index := range players {
+		players[index] = engine.PlayerInit{Name: fmt.Sprintf("P%d", index+1)}
+	}
+	_, err = gameStore.Create(ctx, store.Actor{ID: hotseatHost, Development: true}, store.CreateRequest{
+		Name:    "Hotseat",
+		Seed:    seed,
+		Players: players,
+	})
+	return err
+}
+
+func parsePlayerCount(value string, fallback int) (int, error) {
+	if value == "" {
+		return fallback, nil
+	}
+	count, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, fmt.Errorf("players must be an integer: %w", err)
+	}
+	return count, nil
+}
+
+// serverOptions configures the application server. Development trusts the
+// ?player= query and X-Dev-Player header (ONLINE_DEV_MODE); otherwise Actor
+// must authenticate requests.
+type serverOptions struct {
+	Rules       assetgen.Rules
+	Balance     assetgen.Balance
+	Store       store.GameStore
+	Development bool
+	Actor       api.ActorResolver
+	CreatorGate api.CreatorGate
+	Readiness   []api.ReadinessCheck
+	SeedAssets  *assetgen.Assets
+}
+
+func newApplicationServer(options serverOptions) *http.ServeMux {
+	resolveActor := options.Actor
+	if resolveActor == nil {
+		if options.Development {
+			resolveActor = api.DevActorResolver(hotseatHost)
+		} else {
+			resolveActor = api.BearerActorResolver(func(string) (store.Actor, error) {
+				return store.Actor{}, api.ErrUnauthorized
+			})
+		}
+	}
+
+	mux := http.NewServeMux()
+	mountVersion(mux)
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	mux.Handle("GET /api/rules", api.RulesHandler(options.Rules))
+	profiles, _ := options.Store.(store.ProfileStore)
+	games := api.NewGamesHandlerWithOptions(options.Store, options.Rules, api.GamesHandlerOptions{
 		Actor:            resolveActor,
-		Balance:          session.Balance(),
+		Balance:          options.Balance,
 		Profiles:         profiles,
-		RequireProfile:   !onlineDevMode,
-		StrictMembership: !onlineDevMode,
+		RequireProfile:   !options.Development,
+		StrictMembership: !options.Development,
 		InviteBaseURL:    os.Getenv("PUBLIC_APP_URL"),
-		CreatorGate:      creatorGate,
+		CreatorGate:      options.CreatorGate,
 	})
 	mux.Handle("/api/games", games)
 	mux.Handle("/api/games/", games)
 	mux.Handle("/api/auth/", api.NewAuthHandler(profiles, resolveActor))
-	if len(seedAssets) > 0 {
-		mux.Handle("GET /api/seed", api.SeedHandler(seedAssets[0]))
+	if options.SeedAssets != nil {
+		mux.Handle("GET /api/seed", api.SeedHandler(*options.SeedAssets))
 	}
-	if len(readinessChecks) > 0 {
-		mux.HandleFunc("GET /healthz/ready", api.ReadinessHandler(readinessChecks...))
+	if len(options.Readiness) > 0 {
+		mux.HandleFunc("GET /healthz/ready", api.ReadinessHandler(options.Readiness...))
 	}
-	if !onlineDevMode {
-		mountFrontend(mux)
-	}
+	mountFrontend(mux)
 	return mux
 }
 
@@ -288,12 +232,4 @@ func applicationVersion() string {
 		return value
 	}
 	return "dev"
-}
-
-func enginePlayerID(index int) models.PlayerID {
-	return models.PlayerID(fmt.Sprintf("P%d", index))
-}
-
-func enginePlayerName(index int) string {
-	return fmt.Sprintf("P%d", index)
 }

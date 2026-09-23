@@ -25,7 +25,7 @@ import {
 import { useGameIntentions } from '@/lib/use-game-intentions'
 import { useSupplyAndTransfer } from '@/lib/use-supply-and-transfer'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
-import { useLocalStorageState } from '@/lib/storage'
+import { useLocalStorageState, useLocalStorageText } from '@/lib/storage'
 import { isWinterCosts } from '@/lib/winter-cost'
 import { VersionBadge } from '@/components/VersionBadge'
 import { LanguageProvider, useLanguage } from '@/i18n/LanguageContext'
@@ -53,6 +53,31 @@ import type {
 } from '@/types'
 
 type HotseatView = 'game' | 'rules' | 'faq'
+
+/**
+ * The hotseat runs on the development games API: the server trusts the
+ * `player` query parameter, and HOTSEAT_HOST creates games and forces their
+ * resolution.
+ */
+const HOTSEAT_HOST: PlayerId = 'P1'
+
+function hotseatGamePath(gameId: string): string {
+  return `/api/games/${encodeURIComponent(gameId)}`
+}
+
+function asPlayer(path: string, player: PlayerId, language?: Language): string {
+  const query = new URLSearchParams({ player })
+  if (language) query.set('lang', language)
+  return `${path}${path.includes('?') ? '&' : '?'}${query.toString()}`
+}
+
+function postJSON(path: string, body: unknown): Promise<Response> {
+  return fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+}
 
 const MIN_PLAYERS = 2
 const MAX_PLAYERS = 16
@@ -89,6 +114,8 @@ function AppContent() {
   const { language, t } = useLanguage()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerId>('P1')
+  const [gameId, setGameId] = useLocalStorageText('cb.hotseatGame')
+  const [gameReady, setGameReady] = useState(false)
   const [map, setMap] = useState<MapData | null>(null)
   const [state, setState] = useState<StateData | null>(null)
   const [winterCosts, setWinterCosts] = useState<WinterCosts | null>(null)
@@ -133,9 +160,45 @@ function AppContent() {
 
   useEffect(() => {
     const controller = new AbortController()
+    const selectGame = async () => {
+      try {
+        const response = await fetch(asPlayer('/api/games', HOTSEAT_HOST), {
+          signal: controller.signal,
+        })
+        if (!response.ok) {
+          throw new Error(`${t('error.loadGameFailed')} (${response.status})`)
+        }
+        const games = (await response.json()) as Array<{ id: string }>
+        if (controller.signal.aborted) return
+        if (!games.some((game) => game.id === gameId)) {
+          const fallback = games[0]?.id ?? null
+          if (fallback === null) {
+            throw new Error(t('error.loadGameFailed'))
+          }
+          setGameId(fallback)
+        }
+        setGameReady(true)
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setLoadError(error instanceof Error ? error.message : t('error.loadGameFailed'))
+        }
+      }
+    }
+    void selectGame()
+    return () => controller.abort()
+    // The remembered game is only validated once, when the hotseat opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t])
+
+  useEffect(() => {
+    if (!gameReady || !gameId) return
+    const controller = new AbortController()
     const loadMap = async () => {
       try {
-        const mapResponse = await fetch('/api/map', { signal: controller.signal })
+        const mapResponse = await fetch(
+          asPlayer(`${hotseatGamePath(gameId)}/map`, HOTSEAT_HOST),
+          { signal: controller.signal },
+        )
         if (!mapResponse.ok) {
           throw new Error(`${t('error.loadGameFailed')} (${mapResponse.status})`)
         }
@@ -151,13 +214,17 @@ function AppContent() {
     }
     void loadMap()
     return () => controller.abort()
-  }, [t])
+  }, [gameId, gameReady, t])
 
   useEffect(() => {
+    if (!gameReady || !gameId) return
     const controller = new AbortController()
     const loadWinterCosts = async () => {
       try {
-        const response = await fetch('/api/balance', { signal: controller.signal })
+        const response = await fetch(
+          asPlayer(`${hotseatGamePath(gameId)}/balance`, HOTSEAT_HOST),
+          { signal: controller.signal },
+        )
         if (!response.ok) return
         const payload: unknown = await response.json()
         if (!controller.signal.aborted && isWinterCosts(payload)) {
@@ -169,14 +236,15 @@ function AppContent() {
     }
     void loadWinterCosts()
     return () => controller.abort()
-  }, [])
+  }, [gameId, gameReady])
 
   useEffect(() => {
+    if (!gameReady || !gameId) return
     const controller = new AbortController()
     const loadPrivateState = async () => {
       try {
         const response = await fetch(
-          `/api/state?player=${encodeURIComponent(selectedPlayer)}`,
+          asPlayer(`${hotseatGamePath(gameId)}/state`, selectedPlayer),
           { signal: controller.signal },
         )
         if (!response.ok) {
@@ -195,7 +263,7 @@ function AppContent() {
     setReport(null)
     void loadPrivateState()
     return () => controller.abort()
-  }, [selectedPlayer, t])
+  }, [gameId, gameReady, selectedPlayer, t])
 
   useEffect(() => {
     if (state && !state.players.some((player) => player.id === selectedPlayer)) {
@@ -263,7 +331,7 @@ function AppContent() {
     selectedState,
     chainDrafts: chainDrafts[selectedPlayer] ?? {},
     ownerId: selectedPlayer,
-    basePath: '/api',
+    basePath: gameId ? hotseatGamePath(gameId) : '/api',
     fetcher: supplyFetcher,
     networkErrorMessage: t('error.requestFailed', { status: 500 }),
   })
@@ -363,8 +431,34 @@ function AppContent() {
     )
   }
 
+  /**
+   * Reloads the selected player's state and latest report after a forced
+   * resolution, which the server answers from the host's point of view.
+   */
+  const reloadForSelectedPlayer = async (currentGameId: string) => {
+    const base = hotseatGamePath(currentGameId)
+    const [stateResponse, reportsResponse] = await Promise.all([
+      fetch(asPlayer(`${base}/state`, selectedPlayer)),
+      fetch(asPlayer(`${base}/reports`, selectedPlayer)),
+    ])
+    if (!stateResponse.ok) throw new Error(await responseError(stateResponse, t))
+    if (!reportsResponse.ok) throw new Error(await responseError(reportsResponse, t))
+    const nextState = (await stateResponse.json()) as StateData
+    const reports = (await reportsResponse.json()) as Array<{ index: number }>
+    const latest = reports.at(-1)
+    let nextReport: TurnReport | null = null
+    if (latest) {
+      const reportResponse = await fetch(
+        asPlayer(`${base}/reports/${latest.index}`, selectedPlayer),
+      )
+      if (!reportResponse.ok) throw new Error(await responseError(reportResponse, t))
+      nextReport = (await reportResponse.json()) as TurnReport
+    }
+    return { state: nextState, report: nextReport }
+  }
+
   const submitOrders = async (force = false) => {
-    if (!state) return
+    if (!state || !gameId) return
     setResolving(true)
     setActionError(null)
     const chains =
@@ -375,7 +469,6 @@ function AppContent() {
               (noble) => noble.owner === selectedPlayer && noble.status !== 'dungeon',
             )
             .map((noble) => ({
-              player: selectedPlayer,
               noble: noble.code,
               text: addNobleHeader(
                 noble.code,
@@ -390,35 +483,36 @@ function AppContent() {
       .filter((text) => text.trim() !== '')
       .join('\n')
     const winter =
-      state.season === 'winter' && winterLines !== ''
-        ? [{ player: selectedPlayer, lines: winterLines }]
-        : []
+      state.season === 'winter' && winterLines !== '' ? [{ lines: winterLines }] : []
     const special =
       state.season !== 'winter' && (specialDrafts[selectedPlayer] ?? '').trim() !== ''
-        ? [{ player: selectedPlayer, text: specialDrafts[selectedPlayer] ?? '' }]
+        ? [{ text: specialDrafts[selectedPlayer] ?? '' }]
         : []
 
+    const base = hotseatGamePath(gameId)
     try {
-      const response = await fetch(
-        `/api/orders?lang=${language}&player=${encodeURIComponent(selectedPlayer)}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            player: selectedPlayer,
-            chains,
-            winter,
-            special,
-            force,
-          }),
-        },
+      const response = await postJSON(
+        asPlayer(`${base}/orders`, selectedPlayer, language),
+        { chains, winter, special },
       )
       if (!response.ok) throw new Error(await responseError(response, t))
-      const payload = (await response.json()) as OrdersResponse
+      let payload = (await response.json()) as OrdersResponse
+      let resolvedReport = payload.report ?? null
+      if (force && payload.status === 'pending') {
+        const forced = await postJSON(
+          asPlayer(`${base}/resolve`, HOTSEAT_HOST, language),
+          {},
+        )
+        if (!forced.ok) throw new Error(await responseError(forced, t))
+        payload = (await forced.json()) as OrdersResponse
+        const reloaded = await reloadForSelectedPlayer(gameId)
+        payload = { ...payload, state: reloaded.state }
+        resolvedReport = reloaded.report
+      }
       setState(payload.state)
       setSubmittedPlayers(payload.submitted)
-      if (payload.status === 'resolved' && payload.report) {
-        setReport(payload.report)
+      if (payload.status === 'resolved' && resolvedReport) {
+        setReport(resolvedReport)
         setActivePanel('report')
         setChainDrafts({})
         setWinterDrafts({})
@@ -437,20 +531,25 @@ function AppContent() {
     setCreating(true)
     setCreateError(null)
     try {
-      const response = await fetch('/api/game', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ seed: seed.trim(), players: playerCount, years }),
+      const response = await postJSON(asPlayer('/api/games', HOTSEAT_HOST, language), {
+        name: 'Hotseat',
+        seed: seed.trim(),
+        players: playerCount,
+        years,
       })
       if (!response.ok) throw new Error(await responseError(response, t))
-      const payload = (await response.json()) as { map: MapData; state: StateData }
-      setMap(payload.map)
-      setState(payload.state)
+      const created = (await response.json()) as { id: string }
+      setMap(null)
+      setState(null)
+      setWinterCosts(null)
+      setGameId(created.id)
       setReport(null)
       setChainDrafts({})
       setWinterDrafts({})
+      setSpecialDrafts({})
       setSubmittedPlayers([])
       setSelectedId(null)
+      setSelectedPlayer(HOTSEAT_HOST)
       setView('game')
       setActivePanel('command')
     } catch (error) {

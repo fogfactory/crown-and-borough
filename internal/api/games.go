@@ -414,6 +414,11 @@ func (h *GamesHandler) submit(w http.ResponseWriter, r *http.Request, actor stor
 		Force:            request.Force,
 		ExpectedRevision: expectedRevision,
 	})
+	var inputErrors *engine.InputErrors
+	if errors.As(err, &inputErrors) {
+		writeResolutionError(w, err, i18n.FromRequest(r))
+		return
+	}
 	if err != nil {
 		h.writeStoreError(w, err)
 		return

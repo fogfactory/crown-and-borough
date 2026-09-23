@@ -2,13 +2,8 @@ package api
 
 import (
 	"encoding/json"
-	"net/http"
-	"sync"
 
-	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
-	"github.com/fogfactory/crown-and-borough/internal/engine/demo"
-	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
@@ -296,61 +291,4 @@ func projectChain(
 		view.Orders = append(view.Orders, orderView)
 	}
 	return view
-}
-
-// StateHandler resolves and serves the development state for the requested
-// player count.
-func StateHandler(resolve func(players int) ([]byte, error)) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		players, ok := requestedPlayers(r)
-		if !ok {
-			http.Error(w, "invalid players", http.StatusBadRequest)
-			return
-		}
-
-		stateJSON, err := resolve(players)
-		if err != nil {
-			http.Error(w, "failed to resolve state", http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write(stateJSON)
-	}
-}
-
-// StateResolver remains available for fixture-oriented tests and tools. The
-// production hotseat server uses Session.StateHTTP instead, so this resolver is
-// never the source of the live game state.
-func StateResolver(
-	mapData func(players int) (mapgen.MapData, error),
-	seed string,
-	assets assetgen.Assets,
-) func(players int) ([]byte, error) {
-	var mu sync.Mutex
-	cache := make(map[int][]byte)
-
-	return func(players int) ([]byte, error) {
-		mu.Lock()
-		defer mu.Unlock()
-
-		if stateJSON, ok := cache[players]; ok {
-			return stateJSON, nil
-		}
-
-		data, err := mapData(players)
-		if err != nil {
-			return nil, err
-		}
-		state, err := demo.DemoState(seed, assets, data, players)
-		if err != nil {
-			return nil, err
-		}
-		stateJSON, err := json.Marshal(projectState(state))
-		if err != nil {
-			return nil, err
-		}
-		cache[players] = stateJSON
-		return stateJSON, nil
-	}
 }

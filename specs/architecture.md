@@ -41,10 +41,10 @@ Les assets `communes.csv`, `prenoms.csv` et `balance.yaml` restent locaux au
 conteneur et sont chargés par le serveur ; ils ne constituent pas la
 persistance de l'état d'une partie.
 
-La session hotseat locale contient une seule partie en mémoire. Chaque joueur
-soumet séparément ses ordres avec son identifiant. La résolution intervient
-quand tous les joueurs attendus ont soumis, ou lorsqu'un client utilise
-`force`. Les parties en ligne suivent le contrat de la section 5.
+Le hotseat local utilise la même API de parties que le mode en ligne, servie
+par le store mémoire en mode de développement : chaque joueur soumet ses
+ordres sous son identité de développement et la résolution intervient quand
+tous les joueurs attendus ont soumis, ou lorsque l'hôte la force (section 5).
 
 ## 2. Stack technique
 
@@ -153,8 +153,8 @@ La carte est statique pour une partie et commune à tous les clients :
   est porté par `state.json`.
 
 La génération utilise `8 x joueurs` territoires de jeu et `(joueurs + 1) x 4`
-territoires supplémentaires dédiés aux `joueurs + 1` villages. Le serveur de
-partie sert la carte courante après `POST /api/game`.
+territoires supplémentaires dédiés aux `joueurs + 1` villages. Chaque partie
+sert sa carte via `GET /api/games/{id}/map`.
 
 ### `state.json`
 
@@ -220,9 +220,9 @@ territoriaux.
 `capitalTerritory` désigne le territoire du château actuellement choisi comme
 capitale par le joueur ; le champ est absent lorsqu'il n'a pas de capitale.
 
-La session hotseat conserve une projection globale lorsqu'aucun joueur n'est
-fourni, mais le front utilise `GET /api/state?player=P1` pour demander la vue
-filtrée du joueur sélectionné. La politique de divulgation est la suivante :
+`GET /api/games/{id}/state` renvoie la vue filtrée du joueur connecté ; le
+hotseat demande celle du joueur sélectionné avec `?player=P1` en mode de
+développement. La politique de divulgation est la suivante :
 
 - la carte et les valeurs dynamiques chiffrées restent communes ;
 - `specialHand` contient uniquement les kinds bonus de la main du joueur courant ; la pioche, la défausse et les IDs internes restent absents ;
@@ -305,42 +305,14 @@ valide dans le header Bearer. Les tokens ne sont pas stockés par l'application.
 |---|---|---|
 | `GET` | `/healthz` | Vérifie que le serveur répond. |
 | `GET` | `/api/version` | Renvoie la version de l'application. |
-| `GET` | `/api/balance` | Renvoie les coûts d'hiver de la balance (hotseat). |
-| `GET` | `/api/map` | Renvoie la carte de la session courante. |
-| `GET` | `/api/state` | Renvoie l'état projeté global ; `?player=P1` active la vue privée hotseat. |
-| `GET` | `/api/supply?territory=ROS` | Calcule la ligne ou la zone de ravitaillement sélectionnée. |
-| `GET` | `/api/supply?territory=ROS&target=BOI` | Estime la route d'un transfert d'action vers `BOI`, y compris les blocages. |
-| `POST` | `/api/game` | Remplace la session par une nouvelle partie en mémoire. |
-| `POST` | `/api/orders` | Enregistre la soumission d'un joueur et résout si tous ont soumis. |
-| `POST` | `/api/reset` | Recrée la partie initiale configurée au démarrage. |
+| `GET` | `/api/rules?lang=fr` | Renvoie les règles publiques en Markdown. |
 
-`POST /api/game` accepte une seed et une liste de joueurs. Les joueurs peuvent
-être des objets `{id,name,color}`, des noms ou un nombre. Le moteur refuse les
-parties hors de la plage 2–16 joueurs.
-
-`POST /api/orders` accepte :
-
-```json
-{
-  "player": "P1",
-  "chains": [
-    { "player": "P1", "noble": "HUG", "text": "HUG\nROS A BOI" }
-  ],
-  "winter": [],
-  "force": false
-}
-```
-
-Une soumission remplace la soumission précédente du même joueur pour le tour.
-Tant que des joueurs manquent, la réponse contient `status: "pending"`, les
-listes `submitted` et `remaining`, ainsi que l'état courant. Lorsque le tour
-est résolu, la réponse contient `status: "resolved"`, le rapport et le nouvel
-état. `force: true` permet de résoudre avec les soumissions déjà présentes.
-
-Ces routes hotseat ne fournissent pas d'identité fiable : `player` est une
-identité de développement déclarée par le client. Elles ne sont montées qu'en
-mode de développement (`ONLINE_DEV_MODE=true`) et ne font pas partie de l'API
-publique authentifiée.
+En mode de développement (`ONLINE_DEV_MODE=true`), l'identité du joueur n'est
+pas authentifiée : l'API de parties accepte `?player=P1` ou l'en-tête
+`X-Dev-Player`, et `P1` par défaut. Le store mémoire crée au démarrage une
+partie hotseat décrite par `SEED` et `PLAYERS` (2 à 16 joueurs, 4 par défaut),
+dont `P1` est l'hôte : il peut forcer la résolution. Le hotseat du navigateur
+utilise uniquement cette API ; il n'existe plus de routes hotseat dédiées.
 
 ### Contrat MVP hébergé
 
@@ -491,8 +463,7 @@ liste est filtrée par membership.
 
 Le serveur porte l'identité du joueur à partir d'un ID token Firebase porté en
 Bearer. Le paramètre `player` peut exister dans un mode de test local, mais il
-n'est jamais utilisé par l'API publique authentifiée. Les endpoints hotseat sont
-désactivés dans le déploiement public.
+n'est jamais utilisé par l'API publique authentifiée.
 
 La projection serveur conserve les informations dynamiques publiques mais
 filtre les chaînes et les combats selon le joueur. La connaissance des chaînes

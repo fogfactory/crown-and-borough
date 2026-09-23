@@ -1,11 +1,7 @@
 package api
 
 import (
-	"bytes"
 	"encoding/json"
-	"errors"
-	"net/http"
-	"net/http/httptest"
 	"reflect"
 	"testing"
 
@@ -133,116 +129,6 @@ func TestProjectStateOmitsUnavailableCapital(t *testing.T) {
 	}
 	if _, exists := document.Players[0]["capitalTerritory"]; exists {
 		t.Error("unavailable capital must be omitted from the JSON view")
-	}
-}
-
-func TestStateHandler(t *testing.T) {
-	want := []byte(`{"turn":5,"season":"spring","territories":[],"nobles":[]}`)
-	resolvedPlayers := 0
-	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodGet, "/api/state", nil)
-
-	StateHandler(func(players int) ([]byte, error) {
-		resolvedPlayers = players
-		return want, nil
-	}).ServeHTTP(recorder, request)
-
-	if recorder.Code != http.StatusOK {
-		t.Errorf("GET /api/state = %d, want %d", recorder.Code, http.StatusOK)
-	}
-	if got := recorder.Header().Get("Content-Type"); got != "application/json" {
-		t.Errorf("Content-Type = %q, want application/json", got)
-	}
-	if !bytes.Equal(recorder.Body.Bytes(), want) {
-		t.Errorf("response = %q, want %q", recorder.Body.Bytes(), want)
-	}
-	if resolvedPlayers != DefaultPlayers {
-		t.Errorf("resolver players = %d, want %d", resolvedPlayers, DefaultPlayers)
-	}
-}
-
-func TestStateHandlerPlayers(t *testing.T) {
-	for _, test := range []struct {
-		name     string
-		rawQuery string
-		want     int
-	}{
-		{name: "default", want: 4},
-		{name: "minimum", rawQuery: "players=2", want: 2},
-		{name: "maximum", rawQuery: "players=5", want: 5},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			resolvedPlayers := 0
-			recorder := httptest.NewRecorder()
-			request := httptest.NewRequest(http.MethodGet, "/api/state", nil)
-			request.URL.RawQuery = test.rawQuery
-
-			StateHandler(func(players int) ([]byte, error) {
-				resolvedPlayers = players
-				return []byte(`{}`), nil
-			}).ServeHTTP(recorder, request)
-
-			if recorder.Code != http.StatusOK {
-				t.Errorf("GET /api/state?%s = %d, want %d", test.rawQuery, recorder.Code, http.StatusOK)
-			}
-			if resolvedPlayers != test.want {
-				t.Errorf("resolver players = %d, want %d", resolvedPlayers, test.want)
-			}
-		})
-	}
-}
-
-func TestStateHandlerErrors(t *testing.T) {
-	for _, rawQuery := range []string{"players=1", "players=17", "players=abc", "players=", "players=2&players=3", "players=%zz"} {
-		t.Run(rawQuery, func(t *testing.T) {
-			called := false
-			recorder := httptest.NewRecorder()
-			request := httptest.NewRequest(http.MethodGet, "/api/state", nil)
-			request.URL.RawQuery = rawQuery
-			StateHandler(func(int) ([]byte, error) {
-				called = true
-				return nil, nil
-			}).ServeHTTP(recorder, request)
-			if recorder.Code != http.StatusBadRequest {
-				t.Errorf("GET /api/state?%s = %d, want %d", rawQuery, recorder.Code, http.StatusBadRequest)
-			}
-			if called {
-				t.Errorf("resolver called for invalid query %q", rawQuery)
-			}
-		})
-	}
-
-	recorder := httptest.NewRecorder()
-	StateHandler(func(int) ([]byte, error) {
-		return nil, errors.New("state generation failed")
-	}).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/state", nil))
-	if recorder.Code != http.StatusInternalServerError {
-		t.Errorf("GET /api/state resolver error = %d, want %d", recorder.Code, http.StatusInternalServerError)
-	}
-}
-
-func TestStateResolverCachesBytes(t *testing.T) {
-	assets := loadStateTestAssets(t)
-	mapData := generateStateTestMap(t, assets)
-	calls := 0
-	resolve := StateResolver(func(int) (mapgen.MapData, error) {
-		calls++
-		return mapData, nil
-	}, "state-cache", assets)
-
-	first, err := resolve(4)
-	if err != nil {
-		t.Fatalf("first resolve: %v", err)
-	}
-	second, err := resolve(4)
-	if err != nil {
-		t.Fatalf("second resolve: %v", err)
-	}
-	if !bytes.Equal(first, second) {
-		t.Error("state resolver returned unstable bytes")
-	}
-	if calls != 1 {
-		t.Errorf("map data calls = %d, want 1", calls)
 	}
 }
 

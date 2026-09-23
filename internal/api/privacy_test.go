@@ -1,16 +1,16 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
 
-	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/models"
+	"github.com/fogfactory/crown-and-borough/internal/store"
 )
 
 func TestProjectStateDistinguishesKnownHiddenAndAbsentChains(t *testing.T) {
@@ -248,100 +248,52 @@ func TestCombatParticipationIncludesSupportingArmies(t *testing.T) {
 	}
 }
 
-func TestStateHTTPPlayerQueryServesPrivateProjection(t *testing.T) {
-	state := projectTestState()
-	putChainSnapshot(ensurePrivacy(state), "P1", makeChainSnapshot(state.Chains[0], state.Turn))
-	session := &Session{game: state}
+func TestDevGamesAPITracksPrivateChainProjection(t *testing.T) {
+	gameStore, rules := newGamesTestStore(t)
+	handler := NewDevGamesHandler(gameStore, rules, "P1")
+	game := createGameHTTP(t, handler, "P1", `{"name":"Privacy","seed":"privacy-orders","players":["One","Two"]}`)
+	base := "/api/games/" + string(game.ID)
 
-	recorder := httptest.NewRecorder()
-	session.StateHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/state?player=P2", nil))
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("GET state?player=P2 = %d: %s", recorder.Code, recorder.Body.String())
-	}
-	var view StateView
-	if err := json.Unmarshal(recorder.Body.Bytes(), &view); err != nil {
-		t.Fatalf("decode private state: %v", err)
-	}
-	if view.Territories[0].Army.Chain == nil || view.Territories[0].Army.Chain.Visibility != "hidden" {
-		t.Fatalf("P2 state chain = %#v, want hidden", view.Territories[0].Army.Chain)
-	}
-
-	unknown := httptest.NewRecorder()
-	session.StateHTTP(unknown, httptest.NewRequest(http.MethodGet, "/api/state?player=P9", nil))
-	if unknown.Code != http.StatusBadRequest {
-		t.Errorf("GET state?player=P9 = %d, want %d", unknown.Code, http.StatusBadRequest)
-	}
-}
-
-func TestOrdersHTTPTracksPrivateChainProjection(t *testing.T) {
-	assets, err := assetgen.Load("../../assets")
+	snapshot, err := gameStore.State(context.Background(), store.Actor{ID: "P1", Development: true}, game.ID)
 	if err != nil {
-		t.Fatalf("load assets: %v", err)
+		t.Fatalf("load game state: %v", err)
 	}
-	balance, err := assetgen.LoadBalance("../../assets")
-	if err != nil {
-		t.Fatalf("load balance: %v", err)
-	}
-	session, err := NewSession("privacy-orders", []engine.PlayerInit{{Name: "One"}, {Name: "Two"}}, balance, assets)
-	if err != nil {
-		t.Fatalf("NewSession: %v", err)
-	}
-	session.mu.RLock()
-	noble := session.game.Nobles[0]
-	location := noble.LocationID
-	session.mu.RUnlock()
-
-	submit := func(player, query, body string) *httptest.ResponseRecorder {
-		recorder := httptest.NewRecorder()
-		session.OrdersHTTP(recorder, httptest.NewRequest(http.MethodPost, "/api/orders?player="+query, strings.NewReader(body)))
-		return recorder
-	}
-	chainText := string(noble.Code) + "\n(H " + string(location) + ")"
-	encodedChainText := strings.ReplaceAll(chainText, "\n", `\n`)
-	first := submit("P1", "P1", `{"player":"P1","chains":[{"player":"P1","noble":"`+string(noble.Code)+`","text":"`+encodedChainText+`"}],"winter":[]}`)
+	noble := snapshot.State.Nobles[0]
+	chainText := strings.ReplaceAll(noble.Code+"\n(H "+string(noble.LocationID)+")", "\n", `\n`)
+	first := requestGames(t, handler, http.MethodPost, base+"/orders?player=P1",
+		`{"chains":[{"noble":"`+noble.Code+`","text":"`+chainText+`"}],"winter":[]}`)
 	if first.Code != http.StatusOK {
 		t.Fatalf("P1 orders = %d: %s", first.Code, first.Body.String())
 	}
-	second := submit("P2", "P2", `{"player":"P2","chains":[],"winter":[]}`)
+	second := requestGames(t, handler, http.MethodPost, base+"/orders?player=P2", `{"chains":[],"winter":[]}`)
 	if second.Code != http.StatusOK {
 		t.Fatalf("P2 orders = %d: %s", second.Code, second.Body.String())
 	}
 
-	var p2 struct {
-		State StateView `json:"state"`
-	}
-	if err := json.Unmarshal(second.Body.Bytes(), &p2); err != nil {
-		t.Fatalf("decode P2 response: %v", err)
-	}
-	var p2Chain *ChainView
-	for _, territory := range p2.State.Territories {
-		if territory.Army != nil && territory.Army.Owner == "P1" {
-			p2Chain = territory.Army.Chain
-			break
+	chainFor := func(viewer string) *ChainView {
+		t.Helper()
+		response := requestGames(t, handler, http.MethodGet, base+"/state?player="+viewer, "")
+		if response.Code != http.StatusOK {
+			t.Fatalf("GET %s state = %d: %s", viewer, response.Code, response.Body.String())
 		}
-	}
-	if p2Chain == nil || p2Chain.Visibility != "hidden" {
-		t.Fatalf("P2 chain = %#v, want hidden", p2Chain)
-	}
-
-	p1State := httptest.NewRecorder()
-	session.StateHTTP(p1State, httptest.NewRequest(http.MethodGet, "/api/state?player=P1", nil))
-	if p1State.Code != http.StatusOK {
-		t.Fatalf("GET P1 state = %d: %s", p1State.Code, p1State.Body.String())
-	}
-	var p1 StateView
-	if err := json.Unmarshal(p1State.Body.Bytes(), &p1); err != nil {
-		t.Fatalf("decode P1 state: %v", err)
-	}
-	for _, territory := range p1.Territories {
-		if territory.Army != nil && territory.Army.Owner == "P1" {
-			if territory.Army.Chain == nil || territory.Army.Chain.Visibility != "known" {
-				t.Fatalf("P1 chain = %#v, want known", territory.Army.Chain)
+		var view StateView
+		if err := json.Unmarshal(response.Body.Bytes(), &view); err != nil {
+			t.Fatalf("decode %s state: %v", viewer, err)
+		}
+		for _, territory := range view.Territories {
+			if territory.Army != nil && territory.Army.Owner == "P1" {
+				return territory.Army.Chain
 			}
-			return
 		}
+		t.Fatalf("%s state has no P1 army", viewer)
+		return nil
 	}
-	t.Fatal("P1 army not found in private state")
+	if chain := chainFor("P1"); chain == nil || chain.Visibility != "known" {
+		t.Fatalf("P1 chain = %#v, want known", chain)
+	}
+	if chain := chainFor("P2"); chain == nil || chain.Visibility != "hidden" {
+		t.Fatalf("P2 chain = %#v, want hidden", chain)
+	}
 }
 
 func clonePrivacyTestState(t *testing.T, source *models.GameState) *models.GameState {

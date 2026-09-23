@@ -200,7 +200,7 @@ function Lobby({
 export function GamePage() {
   const { gameId } = useParams<{ gameId: string }>()
   const { user, getIdToken, signOut } = useAuth()
-  const { t } = useLanguage()
+  const { language, t } = useLanguage()
   const navigate = useNavigate()
   const [summaryFromAPI, setSummaryFromAPI] = useState<GameSummary | null>(null)
   const [restView, setRestView] = useState<GameViewDocument | null>(null)
@@ -686,7 +686,7 @@ export function GamePage() {
             : []
         response = await apiRequest<OrdersResponse>(
           { getIdToken },
-          `/api/games/${encodeURIComponent(gameId)}/orders`,
+          `/api/games/${encodeURIComponent(gameId)}/orders?lang=${language}`,
           {
             method: 'POST',
             body: JSON.stringify({

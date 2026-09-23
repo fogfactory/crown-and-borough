@@ -556,10 +556,9 @@ son pillage ne couvrent pas le déficit, elle perd une troupe et passe à 1 ; el
 reste à force 0 ce tour, même si une armée de 1 troupe ne demande ensuite qu'une
 ration.
 
-L'endpoint `GET /api/supply?territory=XXX` permet de prévisualiser le
-ravitaillement d'une armée ou la zone atteinte depuis une source contrôlée
-(uniquement hors hiver). Avec `&target=YYY`, il estime aussi la route d'un
-transfert et ses blocages.
+Dans l'interface, sélectionner une armée ou une source contrôlée affiche son
+ravitaillement ou la zone qu'elle atteint (uniquement hors hiver). Un transfert
+en cours de rédaction affiche aussi sa route et ses blocages.
 
 ### Infrastructures
 
