@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
+	"github.com/fogfactory/crown-and-borough/internal/engine/orders"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
@@ -24,6 +25,9 @@ func ResolveWithDeckOrders(game *models.GameState, balance assetgen.Balance, dec
 		return Resolution{}, fmt.Errorf("engine: resolve: winter state must use ResolveWinter")
 	}
 	if err := validateActionDeckOrders(game, balance, deckOrders); err != nil {
+		return Resolution{}, err
+	}
+	if err := validateStoredChains(game); err != nil {
 		return Resolution{}, err
 	}
 	state := cloneGameState(game)
@@ -55,4 +59,16 @@ func ResolveWithDeckOrders(game *models.GameState, balance assetgen.Balance, dec
 		State:  state,
 		Events: append([]Event(nil), ctx.events...),
 	}, nil
+}
+
+// validateStoredChains checks that every stored chain passes the static
+// validation it was received under. Execution relies on it and only checks
+// world conditions, so a chain that does not is a corrupted state.
+func validateStoredChains(game *models.GameState) error {
+	for _, chain := range game.Chains {
+		if validationErrors := orders.ValidateChain(game, chain); len(validationErrors) != 0 {
+			return fmt.Errorf("engine: resolve: chain %q is statically invalid: %w", chain.ID, validationErrors[0])
+		}
+	}
+	return nil
 }

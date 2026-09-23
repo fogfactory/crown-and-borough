@@ -6,9 +6,11 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
-// ValidateChain checks references, adjacency, order shape, and other rules
-// intrinsic to a chain. It does not mutate its inputs and intentionally leaves
-// execution-time world conditions to P1.4.
+// ValidateChain is the single static validation of a chain: references,
+// adjacency, order shape, and every other rule that does not depend on where
+// armies stand when the order runs. A submission with any of these errors is
+// rejected, and resolution relies on stored chains passing it, so execution
+// only checks world conditions. It does not mutate its inputs.
 func ValidateChain(game *models.GameState, chain models.Chain) []ValidationError {
 	indexes := indexGame(game)
 	errors := []ValidationError{}
@@ -36,7 +38,9 @@ func chainValidationError(code, key string, args ...any) ValidationError {
 }
 
 func orderValidationError(order models.Order, code, key string, args ...any) ValidationError {
-	return validationMessage(order.ID, code, key, args...)
+	validationError := validationMessage(order.ID, code, key, args...)
+	validationError.Line = order.Line
+	return validationError
 }
 
 func validateOrder(indexes gameIndexes, order models.Order, last bool) []ValidationError {
@@ -88,6 +92,8 @@ func validateOrder(indexes gameIndexes, order models.Order, last bool) []Validat
 	case models.OrderTypeTransfer:
 		if len(order.TargetIDs) != 1 {
 			errors = append(errors, orderValidationError(order, "transfer_shape", "error.validation.transfer_shape"))
+		} else if order.TargetIDs[0] == order.PositionID {
+			errors = append(errors, orderValidationError(order, "transfer_same_position", "error.validation.transfer_same_position"))
 		}
 	}
 	return errors

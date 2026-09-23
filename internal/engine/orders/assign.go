@@ -7,11 +7,11 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
-// AssignChain validates current reception conditions and atomically replaces
-// the receiving army's chain. Callers must reject a chain returned by
-// ParseChain when that call returned any ParseError before calling AssignChain.
-// Any validation or reception error leaves the state, its chain ID counter,
-// and the emitter's capacity unchanged.
+// AssignChain checks the reception conditions of the current turn and
+// atomically replaces the receiving army's chain. The chain must already have
+// passed ParseChain and ValidateChain without error: reception does not
+// validate it again. Any reception error leaves the state, its chain ID
+// counter, and the emitter's capacity unchanged.
 func AssignChain(game *models.GameState, chain models.Chain) error {
 	if game == nil {
 		return assignmentError(ErrInvalidChain, i18n.AssignmentGameNil)
@@ -19,8 +19,8 @@ func AssignChain(game *models.GameState, chain models.Chain) error {
 	if err := game.Validate(); err != nil {
 		return assignmentError(ErrInvalidChain, i18n.AssignmentInvalidState, err)
 	}
-	if validationErrors := ValidateChain(game, chain); len(validationErrors) != 0 {
-		return assignmentError(ErrInvalidChain, i18n.AssignmentChainValidation, validationErrors[0])
+	if len(chain.Orders) == 0 {
+		return assignmentError(ErrInvalidChain, i18n.AssignmentChainValidation, "empty chain")
 	}
 
 	indexes := indexGame(game)
@@ -63,6 +63,7 @@ func AssignChain(game *models.GameState, chain models.Chain) error {
 	received.CurrentIndex = 0
 	for i := range received.Orders {
 		received.Orders[i].ArmyID = army.ID
+		received.Orders[i].Line = 0
 	}
 
 	replacement := make([]models.Chain, 0, len(game.Chains)+1)

@@ -38,6 +38,7 @@ func ParseChain(text string, game *models.GameState) (models.Chain, []ParseError
 			continue
 		}
 		order.ID = models.OrderID(fmt.Sprintf("O%d", len(chain.Orders)+1))
+		order.Line = lineNumber + 1
 		chain.Orders = append(chain.Orders, order)
 	}
 	if !headerSeen {
