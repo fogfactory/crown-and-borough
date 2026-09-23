@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { DRAFT_INTENTION_COLOR, MapViewer } from '@/components/MapViewer'
+import { HERALDIC_COLORS } from '@/lib/region-color'
 import { buildIntentions } from '@/lib/intent-overlay'
 import type { Intention } from '@/lib/intent-overlay'
 import type { MapData, StateData, SupplyLine } from '@/types'
@@ -64,6 +65,7 @@ function renderMap(
   showIntentions = true,
   intentionsColor = '#a84632',
   showRegions = false,
+  showOwnership = true,
 ) {
   const result = render(
     <MapViewer
@@ -75,6 +77,7 @@ function renderMap(
       showIntentions={showIntentions}
       intentionsColor={intentionsColor}
       showRegions={showRegions}
+      showOwnership={showOwnership}
     />,
   )
   const svg = result.container.querySelector(
@@ -230,14 +233,92 @@ describe('MapViewer territorial overlays', () => {
     )
 
     expect(svg.querySelector('g[aria-label="Regional boundaries"]')).toBeInTheDocument()
-    expect(svg.querySelectorAll('[data-region-fill]').length).toBe(2)
-    expect(svg.querySelector('[data-region-fill]')?.getAttribute('fill-opacity')).toBe('0.30')
-    expect(svg.querySelectorAll('[data-region-boundary="true"]').length).toBeGreaterThan(0)
-    expect(svg.querySelectorAll('[data-region-seed]').length).toBe(2)
-    expect(svg.querySelector('[data-region-seed="ROS"]')).toBeInTheDocument()
-    expect(svg.querySelector('[data-region-seed="BRU"]')).toBeInTheDocument()
+    expect(svg.querySelectorAll('[data-region-fill]').length).toBe(0)
+    expect(svg.querySelectorAll('[data-region-pattern]').length).toBe(0)
+    expect(svg.querySelectorAll('[data-region-ring]').length).toBe(2)
+    expect(svg.querySelectorAll('[data-region-boundary="true"]').length).toBe(0)
+    expect(svg.querySelectorAll('[data-region-seed]').length).toBe(0)
+    expect(svg.querySelectorAll('[data-region-band]').length).toBe(2)
+    expect(svg.querySelectorAll('[data-region-label]').length).toBe(2)
+    expect(screen.getByText('Bishopric of Alpilles (ROS)')).toBeInTheDocument()
+    expect(screen.getByText('Bishopric of Brisecote (BRU)')).toBeInTheDocument()
     expect(svg.querySelector('[data-region-effect-kind="fair_weather"]')).toBeInTheDocument()
     expect(svg.querySelector('[data-region-effect-kind="famine"]')).toBeInTheDocument()
+  })
+
+  it('colors the chef-lieu territory label with its region color', () => {
+    const regionMap: MapData = {
+      ...map,
+      territories: map.territories.map((territory) => ({ ...territory, village: true })),
+      regions: [{ id: 'RROS', seed: 'ROS', territories: ['ROS', 'BRU'] }],
+    }
+    renderMap(regionMap, state, vi.fn(), null, [], true, '#a84632', true)
+
+    const chefLieu = screen.getByText('Alpilles')
+    expect(chefLieu.getAttribute('data-chef-lieu')).toBe('ROS')
+    expect(chefLieu.getAttribute('fill')).toBe(HERALDIC_COLORS[0])
+    expect(screen.getByText('ROS')).toBeInTheDocument()
+    expect(screen.getByText('BRU')).toBeInTheDocument()
+  })
+
+  it('labels interior regions with a badge instead of a frame band', () => {
+    const ids = ['AAA', 'BBB', 'CCC', 'DDD', 'EEE', 'FFF', 'GGG', 'HHH', 'III']
+    const gridMap: MapData = {
+      territories: ids.map((id, index) => {
+        const column = index % 3
+        const row = Math.floor(index / 3)
+        const x = column * 50
+        const y = row * 50
+        return {
+          id,
+          name: id,
+          terrain: 'plain' as const,
+          village: false,
+          points: [
+            [x, y],
+            [x + 50, y],
+            [x + 50, y + 50],
+            [x, y + 50],
+          ] as Array<[number, number]>,
+          adjacencies: [] as string[],
+          impassable: [] as string[],
+        }
+      }),
+      regions: [
+        {
+          id: 'RRING',
+          seed: 'AAA',
+          territories: ['AAA', 'BBB', 'CCC', 'DDD', 'FFF', 'GGG', 'HHH', 'III'],
+        },
+        { id: 'RCORE', seed: 'EEE', territories: ['EEE'] },
+      ],
+    }
+    const { container } = render(
+      <MapViewer map={gridMap} state={state} showRegions />,
+    )
+    const svg = container.querySelector(
+      'svg[aria-label="Territory map"]',
+    ) as SVGSVGElement
+
+    const badge = svg.querySelector('[data-region-label="RCORE"]')
+    expect(badge).toBeInTheDocument()
+    expect(badge?.querySelector('text')?.textContent).toBe('Bishopric of EEE (EEE)')
+    expect(svg.querySelectorAll('[data-region-ring="RCORE"]').length).toBe(1)
+  })
+
+  it('renders ownership badges instead of control outlines', () => {
+    const { svg } = renderMap()
+
+    expect(svg.querySelectorAll('[data-ownership-badge="P1"]').length).toBe(1)
+    expect(svg.querySelectorAll('[data-ownership-badge="P2"]').length).toBe(1)
+    const controlLayer = svg.querySelector('g[aria-label="Territorial control"]')
+    expect(controlLayer?.querySelector('path[stroke-opacity="0.55"]')).toBeNull()
+  })
+
+  it('hides ownership badges when the player control layer is off', () => {
+    const { svg } = renderMap(map, state, vi.fn(), null, [], true, '#a84632', false, false)
+
+    expect(svg.querySelectorAll('[data-ownership-badge]').length).toBe(0)
   })
 
   it('scales map annotations with the mean territory area', () => {
@@ -335,7 +416,12 @@ describe('MapViewer territorial overlays', () => {
     const { svg } = renderMap(map, capitalState)
 
     expect(svg.querySelectorAll('[data-capital-marker="true"]')).toHaveLength(1)
-    expect(svg.querySelector('title')).toHaveTextContent(/Capital/)
+    const capitalMarker = svg.querySelector('[data-capital-marker="true"]')
+    const infrastructureTitle = capitalMarker?.parentElement?.querySelector('title')
+    expect(infrastructureTitle).toHaveTextContent(/Capital/)
+    expect(svg.querySelector('[data-ownership-badge="P1"] title')).toHaveTextContent(
+      'One controls this territory',
+    )
   })
 
   it('renders the selected army supply zone and path', () => {
@@ -543,6 +629,8 @@ describe('MapViewer territorial overlays', () => {
     expect(winterVeil?.querySelector('rect')).toHaveAttribute('fill', '#eaf3ff')
     expect(winterVeil?.querySelector('rect')).toHaveAttribute('opacity', '0.2')
     expect(winterVeil).toHaveAttribute('pointer-events', 'none')
+    expect(winterVeil?.querySelector('rect')).toHaveAttribute('x', '0')
+    expect(winterVeil?.querySelector('rect')).toHaveAttribute('width', '100')
 
     const snowOverlay = winterSvg.querySelector('g[aria-label="Winter snow"]')
 
@@ -561,11 +649,11 @@ describe('MapViewer territorial overlays', () => {
   })
 
   it.each([
-    ['plain', '#b8d99a'],
-    ['forest', '#3f7854'],
-    ['hill', '#ad8565'],
-    ['mountain', '#89929a'],
-    ['swamp', '#66a6a0'],
+    ['plain', '#d4e8b4'],
+    ['forest', '#85b092'],
+    ['hill', '#cfb694'],
+    ['mountain', '#aab3bc'],
+    ['swamp', '#90c6c0'],
   ] as const)(
     'keeps the %s terrain readable through the winter veil',
     (terrain, color) => {
@@ -585,32 +673,50 @@ describe('MapViewer territorial overlays', () => {
     },
   )
 
-  it('renders clipped interior control and selection strokes above terrain', () => {
+  it('extends the winter veil over the regional frame', () => {
+    const regionMap: MapData = {
+      ...map,
+      territories: map.territories.map((territory) => ({ ...territory, village: true })),
+      regions: [{ id: 'RROS', seed: 'ROS', territories: ['ROS', 'BRU'] }],
+    }
+    const { svg } = renderMap(
+      regionMap,
+      { ...state, season: 'winter' },
+      vi.fn(),
+      null,
+      [],
+      true,
+      '#a84632',
+      true,
+    )
+    const veilRect = svg.querySelector(
+      'g[aria-label="Winter overlay"] rect',
+    ) as SVGRectElement | null
+
+    if (!veilRect) {
+      throw new Error('Map test fixture did not render the winter veil')
+    }
+
+    expect(veilRect.getAttribute('x')).toBe('-26')
+    expect(veilRect.getAttribute('y')).toBe('-26')
+    expect(Number(veilRect.getAttribute('width'))).toBe(100 + 2 * 26)
+    expect(Number(veilRect.getAttribute('height'))).toBe(50 + 2 * 26)
+  })
+
+  it('renders clipped interior selection strokes above terrain and ownership badges', () => {
     const { firstTerritory, svg } = renderMap(map, { ...state, season: 'winter' })
     const referenceMeanArea = (1000 * 700) / (8 * 4 + 4 * (4 + 1))
     const expectedScale = Math.sqrt((50 * 50) / referenceMeanArea)
-    const expectedDash = `${4 * expectedScale} ${3 * expectedScale}`
-    const controlPaths = svg.querySelectorAll('g[aria-label="Territorial control"] path')
+    const expectedDots = `0.1 ${4.5 * expectedScale}`
+    const ownershipBadge = svg.querySelector('[data-ownership-badge="P1"]')
     const winterVeil = svg.querySelector('g[aria-label="Winter overlay"]')
 
-    if (controlPath0() === null) {
-      throw new Error('Map test fixture did not render the control stroke')
+    if (!ownershipBadge) {
+      throw new Error('Map test fixture did not render the ownership badge')
     }
 
-    function controlPath0() {
-      return controlPaths[0]
-    }
-    const casingPath = controlPaths[0]
-    const controlPath = controlPaths[1]
-
-    expect(casingPath).toHaveAttribute('stroke-width', '11')
-    expect(casingPath).toHaveAttribute('stroke', '#30291f')
-    expect(controlPath).toHaveAttribute('fill', 'none')
-    expect(controlPath).toHaveAttribute('stroke-width', '8')
-    expect(controlPath).toHaveAttribute('clip-path', 'url(#territory-clip-ROS)')
-    expect(controlPath).not.toHaveAttribute('opacity')
     expect(svg.querySelector('#territory-clip-ROS')).toBeInTheDocument()
-    expect(winterVeil?.compareDocumentPosition(casingPath as Node)).toBe(
+    expect(winterVeil?.compareDocumentPosition(ownershipBadge)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     )
 
@@ -625,24 +731,21 @@ describe('MapViewer territorial overlays', () => {
     expect(selectionPath).toHaveAttribute('clip-path', 'url(#territory-clip-ROS)')
     expect(
       svg.querySelector('g[aria-label="Selection"] path[stroke-dasharray]'),
-    ).toHaveAttribute('stroke-dasharray', expectedDash)
+    ).toHaveAttribute('stroke-dasharray', expectedDots)
 
     const borderGroup = svg.querySelector('g[aria-label="Borders"]')
     const passableBorder = borderGroup?.querySelector('line')
     const outerBorder = svg.querySelector('g[aria-label="Outer borders"] line')
     expect(borderGroup).toBeInTheDocument()
     expect(passableBorder).toHaveAttribute('stroke-width', '2')
-    expect(passableBorder).toHaveAttribute('stroke-dasharray', expectedDash)
+    expect(passableBorder).toHaveAttribute('stroke-dasharray', expectedDots)
     expect(outerBorder).toHaveAttribute('stroke-width', '2')
     expect(selectionPath.compareDocumentPosition(borderGroup as Node)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     )
-    expect(controlPath.compareDocumentPosition(borderGroup as Node)).toBe(
+    expect(ownershipBadge.compareDocumentPosition(borderGroup as Node)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     )
-    expect(
-      svg.querySelector('g[aria-label="Territorial control"] path[stroke-dasharray]'),
-    ).toHaveAttribute('stroke-dasharray', expectedDash)
   })
 
   it('uses a thicker continuous stroke for impassable borders', () => {
@@ -655,15 +758,19 @@ describe('MapViewer territorial overlays', () => {
       })),
     }
     const { svg } = renderMap(impassableMap, { ...state, season: 'winter' })
-    const impassableBorder = svg.querySelector('g[aria-label="Borders"] line')
+    const bordersGroup = svg.querySelector('g[aria-label="Borders"]')
+    const mountainChain = bordersGroup?.querySelector('[data-impassable-chain]')
     const winterVeil = svg.querySelector('g[aria-label="Winter overlay"]')
 
-    expect(impassableBorder).toHaveAttribute('stroke-width', '4')
-    expect(impassableBorder).not.toHaveAttribute('stroke-dasharray')
+    expect(mountainChain).toBeInTheDocument()
+    expect(mountainChain?.querySelectorAll('svg').length).toBeGreaterThan(0)
+    expect(
+      bordersGroup?.querySelector('line[stroke-width="4"]'),
+    ).toBeNull()
     expect(winterVeil).toBeInTheDocument()
-    expect(winterVeil?.compareDocumentPosition(impassableBorder as Node)).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    )
+    expect(
+      winterVeil?.compareDocumentPosition(mountainChain as Node),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
     expect(
       svg.querySelector('g[aria-label="Territorial control"] path[stroke-dasharray]'),
     ).not.toBeInTheDocument()

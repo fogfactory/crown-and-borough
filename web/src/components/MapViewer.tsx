@@ -19,8 +19,8 @@ import {
   CARD_ICONS,
   parseSpecialOrderPlacements,
 } from '@/lib/game-icons'
-import { type GameIconGlyph } from '@/lib/game-icon-glyphs'
-import { chaoticIconPlacements, type IconPlacement } from '@/lib/chaotic-icons'
+import { GAME_ICON_GLYPHS, type GameIconGlyph } from '@/lib/game-icon-glyphs'
+import { borderIconPlacements, chaoticIconPlacements, type IconPlacement } from '@/lib/chaotic-icons'
 import { NEUTRAL_PLAYER_ID } from '@/types'
 import {
   DRAG_THRESHOLD,
@@ -36,14 +36,18 @@ import {
   type MapPoint,
   type ViewState,
 } from '@/lib/map-gestures'
+import { regionStyle, type RegionStyle } from '@/lib/region-color'
 import {
-  REGION_PATTERNS,
-  regionStyle,
-  type RegionPattern,
-  type RegionStyle,
-} from '@/lib/region-color'
+  computeRegionOutlines,
+  fitLabelFontSize,
+  insetPolygon,
+  loopIsHole,
+  polygonContains,
+  polylineLength,
+} from '@/lib/region-geometry'
 import { formatCardCode, formatCardLabel } from '@/lib/card-hand'
 import { hasSupplySource } from '@/lib/supply'
+import { OWNERSHIP_SHIELD_PATH } from '@/components/MapLegend'
 import {
   Tooltip,
   TooltipContent,
@@ -64,7 +68,6 @@ import type {
 
 const OUTER_BORDER_WIDTH = 2
 const PASSABLE_BORDER_WIDTH = 2
-const IMPASSABLE_BORDER_WIDTH = 4
 const REFERENCE_MAP_PLAYERS = 4
 const REFERENCE_MAP_WIDTH = 1000
 const REFERENCE_MAP_HEIGHT = 700
@@ -77,6 +80,18 @@ const PLAYER_PALETTE = ['#a84632', '#2d5f9e', '#7052a1', '#0e7490', '#ad7a25']
 const INTENT_OUTLINE_COLOR = '#17120f'
 export const DRAFT_INTENTION_COLOR = '#d4a39b'
 const CALAMITY_KINDS: CardKind[] = ['plague', 'bad_weather', 'famine']
+
+/** Padding around the map forming the regional name frame. */
+const REGION_BAND_MARGIN = 26
+/** Width of the gradient liseré hugging each region boundary, in map units. */
+const REGION_BORDER_WIDTH = 10
+/** Stepped falloff of the regional liseré: inset fractions and opacities. */
+const REGION_BORDER_STEPS = [
+  { fraction: 1, opacity: 0.18 },
+  { fraction: 0.55, opacity: 0.42 },
+  { fraction: 0.32, opacity: 0.72 },
+  { fraction: 0.18, opacity: 1 },
+]
 
 // Map marker artwork from game-icons.net (CC BY 3.0, icons by Delapouite):
 // https://game-icons.net/1x1/delapouite/castle.html
@@ -292,6 +307,25 @@ function pointsToPath(points: Point[]): string {
   return `M ${first[0]},${first[1]} ${rest.map(([x, y]) => `L ${x},${y}`).join(' ')} Z`
 }
 
+/**
+ * Path of one gradient ring: each boundary loop paired with its inset twin
+ * (holes expand outward so the ring stays inside the region), filled with
+ * the even-odd rule.
+ */
+function regionRingPath(
+  loops: Point[][],
+  inset: number,
+  isHole: (loop: Point[]) => boolean,
+): string {
+  return loops
+    .map((loop) => {
+      const offset = insetPolygon(loop, isHole(loop) ? -inset : inset)
+      return `${pointsToPath(loop)} ${pointsToPath(offset)}`
+    })
+    .join(' ')
+}
+
+
 function pointKey([x, y]: Point): string {
   return `${x},${y}`
 }
@@ -384,11 +418,14 @@ function clientToSvgPoint(
   svg: SVGSVGElement,
   clientX: number,
   clientY: number,
-  mapWidth: number,
-  mapHeight: number,
+  viewWidth: number,
+  viewHeight: number,
+  originX: number,
+  originY: number,
 ): Point {
   const bounds = svg.getBoundingClientRect()
-  return clientToMapPoint(clientX, clientY, mapWidth, mapHeight, bounds)
+  const [x, y] = clientToMapPoint(clientX, clientY, viewWidth, viewHeight, bounds)
+  return [x + originX, y + originY]
 }
 
 function getTerritoryIdFromTarget(target: EventTarget | null): string | null {
@@ -496,39 +533,43 @@ function NobleMarker({
   )
 }
 
-function RegionPatternDefinition({ pattern }: { pattern: RegionPattern }) {
-  const stroke = '#fffaf0'
-  const strokeWidth = 1.5
-
+function OwnershipBadge({
+  ownerId,
+  x,
+  y,
+  color,
+  scale,
+  label,
+}: {
+  ownerId: string
+  x: number
+  y: number
+  color: string
+  scale: number
+  label: string
+}) {
   return (
-    <pattern
-      id={`region-pattern-${pattern}`}
-      width={pattern === 'diamonds' ? 12 : 8}
-      height={pattern === 'diamonds' ? 12 : 8}
-      patternUnits="userSpaceOnUse"
+    <g
+      data-ownership-badge={ownerId}
+      transform={`translate(${x} ${y}) scale(${scale})`}
+      pointerEvents="none"
     >
-      {pattern === 'diagonal' && (
-        <path d="M-2 2L2-2M0 8L8 0M6 10L10 6" stroke={stroke} strokeWidth={strokeWidth} />
-      )}
-      {pattern === 'vertical' && (
-        <path d="M2 0V8M6 0V8" stroke={stroke} strokeWidth={strokeWidth} />
-      )}
-      {pattern === 'horizontal' && (
-        <path d="M0 2H8M0 6H8" stroke={stroke} strokeWidth={strokeWidth} />
-      )}
-      {pattern === 'cross' && (
-        <path d="M2 0V8M6 0V8M0 2H8M0 6H8" stroke={stroke} strokeWidth={strokeWidth} />
-      )}
-      {pattern === 'dots' && <circle cx="2" cy="2" r="1.2" fill={stroke} />}
-      {pattern === 'diamonds' && (
-        <path
-          d="M6 0L12 6L6 12L0 6Z"
-          fill="none"
-          stroke={stroke}
-          strokeWidth={strokeWidth}
-        />
-      )}
-    </pattern>
+      <title>{label}</title>
+      <path
+        d={OWNERSHIP_SHIELD_PATH}
+        fill="#fff8e7"
+        stroke="#fff8e7"
+        strokeWidth={5}
+        opacity={0.9}
+      />
+      <path d={OWNERSHIP_SHIELD_PATH} fill={color} />
+      <path
+        d={OWNERSHIP_SHIELD_PATH}
+        fill="none"
+        stroke={MARKER_CASING_COLOR}
+        strokeWidth={1.6}
+      />
+    </g>
   )
 }
 
@@ -686,6 +727,8 @@ interface MapViewerProps {
   showIntentions?: boolean
   intentionsColor?: string
   onToggleIntentions?: (show: boolean) => void
+  showOwnership?: boolean
+  onToggleOwnership?: (show: boolean) => void
   showRegions?: boolean
   onToggleRegions?: (show: boolean) => void
   showCalamities?: boolean
@@ -705,6 +748,8 @@ export function MapViewer({
   showIntentions = false,
   intentionsColor = '#a84632',
   onToggleIntentions,
+  showOwnership = true,
+  onToggleOwnership,
   showRegions = false,
   onToggleRegions,
   showCalamities = true,
@@ -844,33 +889,240 @@ export function MapViewer({
       ]),
   )
 
-  const isRegionBoundary = (key: string) => {
-    const end = key.indexOf(']')
-    if (end < 0) return false
-    try {
-      const [first, second] = JSON.parse(key.slice(0, end + 1)) as [string, string]
-      return regionByTerritory.get(first) !== regionByTerritory.get(second)
-    } catch {
-      return false
+
+  // Scale annotations from the actual territory footprint, not the player count.
+  const annotationScale = (() => {
+    const meanArea = meanTerritoryArea(map.territories)
+    return meanArea > 0 ? Math.sqrt(meanArea / REFERENCE_MEAN_TERRITORY_AREA) : 1
+  })()
+
+  const regionsActive = showRegions && (map.regions?.length ?? 0) > 0
+  const regionsById = useMemo(
+    () => new Map((map.regions ?? []).map((region) => [region.id, region])),
+    [map.regions],
+  )
+  const regionBySeed = useMemo(
+    () => new Map((map.regions ?? []).map((region) => [region.seed, region])),
+    [map.regions],
+  )
+
+  const regionOutlines = useMemo(
+    () =>
+      regionsActive
+        ? computeRegionOutlines(map.territories, map.regions ?? [])
+        : null,
+    [regionsActive, map.territories, map.regions],
+  )
+
+  const interiorRegionIDs = useMemo(() => {
+    const interior = new Set<string>()
+    if (!regionOutlines) {
+      return interior
     }
-  }
-
-  const regionColorForBoundary = (key: string) => {
-    const end = key.indexOf(']')
-    if (end < 0) return '#607d8b'
-    try {
-      const [first] = JSON.parse(key.slice(0, end + 1)) as [string, string]
-      return regionStyleByID.get(regionByTerritory.get(first) ?? '')?.fill ?? '#315a75'
-    } catch {
-      return '#607d8b'
+    for (const [regionId, outline] of regionOutlines.outlines) {
+      if (outline.outerSegments.length === 0) {
+        interior.add(regionId)
+      }
     }
-  }
+    return interior
+  }, [regionOutlines])
 
-  const regionColorForTerritory = (territoryID: string) =>
-    regionStyleByID.get(regionByTerritory.get(territoryID) ?? '')?.fill ?? '#315a75'
+  const territoryAt = useMemo(() => {
+    const entries = map.territories
+    return (point: Point): string | undefined => {
+      for (const territory of entries) {
+        if (polygonContains(territory.points, point)) {
+          return territory.id
+        }
+      }
+      return undefined
+    }
+  }, [map.territories])
 
-  const regionStyleForTerritory = (territoryID: string): RegionStyle | null =>
-    regionStyleByID.get(regionByTerritory.get(territoryID) ?? '') ?? null
+  const regionBands = useMemo(() => {
+    if (!regionOutlines) {
+      return [] as Array<{
+        regionId: string
+        piecePath: string
+        labelX: number
+        labelY: number
+        labelAngle: number
+        labelWidth: number
+      }>
+    }
+    const center: Point = [mapWidth / 2, mapHeight / 2]
+    const far = 2 * Math.hypot(mapWidth, mapHeight)
+    const radialOut = (point: Point): Point => {
+      const dx = point[0] - center[0]
+      const dy = point[1] - center[1]
+      const length = Math.hypot(dx, dy) || 1
+      return [point[0] + (dx / length) * far, point[1] + (dy / length) * far]
+    }
+    // Distance from the center to the frame rectangle along a ray, so label
+    // anchors always land inside the frame padding, never under the map.
+    const rayRectDistance = (unitX: number, unitY: number): number => {
+      let distance = far
+      if (Math.abs(unitX) > 1e-9) {
+        const edgeX = unitX > 0 ? mapWidth + REGION_BAND_MARGIN : -REGION_BAND_MARGIN
+        distance = Math.min(distance, (edgeX - center[0]) / unitX)
+      }
+      if (Math.abs(unitY) > 1e-9) {
+        const edgeY = unitY > 0 ? mapHeight + REGION_BAND_MARGIN : -REGION_BAND_MARGIN
+        distance = Math.min(distance, (edgeY - center[1]) / unitY)
+      }
+      return distance
+    }
+    const bands: Array<{
+      regionId: string
+      piecePath: string
+      labelX: number
+      labelY: number
+      labelAngle: number
+      labelWidth: number
+    }> = []
+    for (const [regionId, outline] of regionOutlines.outlines) {
+      for (const stretch of outline.outerLoops) {
+        const piece: Point[] = [...stretch]
+        piece.push(radialOut(stretch[stretch.length - 1]))
+        // Unwrap the stretch's polar angles so the far arc sweeps back over
+        // the same sector without flipping through the map.
+        const angles: number[] = []
+        let previous = Math.atan2(
+          stretch[0][1] - center[1],
+          stretch[0][0] - center[0],
+        )
+        angles.push(previous)
+        for (let index = 1; index < stretch.length; index += 1) {
+          const angle = Math.atan2(
+            stretch[index][1] - center[1],
+            stretch[index][0] - center[0],
+          )
+          let delta = angle - previous
+          while (delta > Math.PI) {
+            delta -= 2 * Math.PI
+          }
+          while (delta < -Math.PI) {
+            delta += 2 * Math.PI
+          }
+          previous += delta
+          angles.push(previous)
+        }
+        const sweep = previous - angles[0]
+        const steps = Math.max(8, Math.ceil(Math.abs(sweep) / (Math.PI / 12)))
+        for (let step = 1; step <= steps; step += 1) {
+          const angle = previous - (sweep * step) / steps
+          piece.push([
+            center[0] + Math.cos(angle) * far,
+            center[1] + Math.sin(angle) * far,
+          ])
+        }
+        // Label anchor: the longest straight run of the piece's outer edge
+        // (inset from the frame rectangle by half the padding), so corner-
+        // spanning sections center their name on a readable straight edge.
+        const arcSteps = Math.max(8, Math.ceil(Math.abs(sweep) / (Math.PI / 12)))
+        const labelInset = REGION_BAND_MARGIN * 0.5
+        const arcPoints: Point[] = []
+        for (let step = 0; step <= arcSteps; step += 1) {
+          const angle = angles[0] + (sweep * step) / arcSteps
+          const distance =
+            rayRectDistance(Math.cos(angle), Math.sin(angle)) - labelInset
+          arcPoints.push([
+            center[0] + Math.cos(angle) * distance,
+            center[1] + Math.sin(angle) * distance,
+          ])
+        }
+        const runs: Array<{ points: Point[]; vertical: boolean }> = []
+        for (let index = 1; index < arcPoints.length; index += 1) {
+          const from = arcPoints[index - 1]
+          const to = arcPoints[index]
+          const vertical = Math.abs(to[0] - from[0]) < Math.abs(to[1] - from[1])
+          const last = runs[runs.length - 1]
+          if (last && last.vertical === vertical) {
+            last.points.push(to)
+          } else {
+            runs.push({ points: [from, to], vertical })
+          }
+        }
+        let bestRun = runs[0]
+        let bestLength = 0
+        for (const run of runs) {
+          const length = polylineLength(run.points)
+          if (length > bestLength) {
+            bestLength = length
+            bestRun = run
+          }
+        }
+        const runPoints = bestRun.points
+        const labelWidth = bestLength
+        const from = runPoints[0]
+        const to = runPoints[runPoints.length - 1]
+        const labelX = (from[0] + to[0]) / 2
+        const labelY = (from[1] + to[1]) / 2
+        const labelAngle = bestRun.vertical ? (to[1] > from[1] ? 90 : -90) : 0
+        bands.push({
+          regionId,
+          piecePath: pointsToPath(piece),
+          labelX,
+          labelY,
+          labelAngle,
+          labelWidth,
+        })
+      }
+    }
+    return bands
+  }, [regionOutlines, mapWidth, mapHeight])
+
+  const regionHoleTesters = useMemo(() => {
+    const testers = new Map<string, (loop: Point[]) => boolean>()
+    if (!regionOutlines) {
+      return testers
+    }
+    for (const regionId of regionOutlines.outlines.keys()) {
+      testers.set(
+        regionId,
+        (loop) =>
+          loopIsHole(
+            loop,
+            territoryAt,
+            (territoryId) => regionByTerritory.get(territoryId),
+            regionId,
+          ),
+      )
+    }
+    return testers
+  }, [regionOutlines, territoryAt, regionByTerritory])
+
+  /**
+   * Impassable frontiers render as a chaotic chain of mountain icons along
+   * each shared border segment instead of a plain stroke. Deterministic per
+   * segment so the chains never jump between renders.
+   */
+  const impassableBorderIcons = useMemo(() => {
+    const items: Array<{ key: string; placement: IconPlacement }> = []
+    for (const border of sharedBorders) {
+      if (border.passable) {
+        continue
+      }
+      const placements = borderIconPlacements(
+        border.from,
+        border.to,
+        border.key,
+        18 * annotationScale,
+        17 * annotationScale,
+      )
+      placements.forEach((placement, index) => {
+        items.push({ key: `${border.key}-${index}`, placement })
+      })
+    }
+    // Depth-sort by canvas position: icons lower on the map paint over the
+    // ones they overlap above them.
+    return items.sort((first, second) => first.placement.y - second.placement.y)
+  }, [sharedBorders, annotationScale])
+
+  const bandMarginX = regionsActive && regionBands.length > 0 ? REGION_BAND_MARGIN : 0
+  const bandMarginY = bandMarginX
+  const viewWidth = mapWidth + bandMarginX * 2
+  const viewHeight = mapHeight + bandMarginY * 2
 
   const colorsByPlayer = new Map(state.players.map((player) => [player.id, player.color]))
   const owners = Array.from(
@@ -910,11 +1162,8 @@ export function MapViewer({
     const territory = map.territories.find((candidate) => candidate.id === territoryID)
     return territory ? [centroid(territory.points)] : []
   })
-  const meanArea = meanTerritoryArea(map.territories)
-  // Scale annotations from the actual territory footprint, not the player count.
-  const annotationScale =
-    meanArea > 0 ? Math.sqrt(meanArea / REFERENCE_MEAN_TERRITORY_AREA) : 1
   const passableBorderDash = `${4 * annotationScale} ${3 * annotationScale}`
+  const passableBorderDots = `0.1 ${4.5 * annotationScale}`
   const supplyPathDash = `${8 * annotationScale} ${5 * annotationScale}`
   const supplyEndpointDash = `${3 * annotationScale} ${3 * annotationScale}`
 
@@ -1166,8 +1415,10 @@ export function MapViewer({
         svg,
         event.clientX,
         event.clientY,
-        mapWidth,
-        mapHeight,
+        viewWidth,
+        viewHeight,
+        -bandMarginX,
+        -bandMarginY,
       )
       const zoomFactor = event.deltaY < 0 ? WHEEL_ZOOM_FACTOR : 1 / WHEEL_ZOOM_FACTOR
 
@@ -1176,7 +1427,7 @@ export function MapViewer({
 
     svg.addEventListener('wheel', handleWheel, { passive: false })
     return () => svg.removeEventListener('wheel', handleWheel)
-  }, [mapHeight, mapWidth])
+  }, [mapHeight, mapWidth, viewHeight, viewWidth, bandMarginX, bandMarginY])
 
   const handlePointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
     if (event.button !== 0) {
@@ -1190,12 +1441,14 @@ export function MapViewer({
       event.currentTarget,
       event.clientX,
       event.clientY,
-      mapWidth,
-      mapHeight,
+      viewWidth,
+      viewHeight,
+      -bandMarginX,
+      -bandMarginY,
     )
     const bounds = event.currentTarget.getBoundingClientRect()
     const mapUnitsPerPx =
-      1 / viewportScale(mapWidth, mapHeight, bounds.width || 1, bounds.height || 1)
+      1 / viewportScale(viewWidth, viewHeight, bounds.width || 1, bounds.height || 1)
     const threshold = Math.max(
       DRAG_THRESHOLD,
       (event.pointerType === 'touch' ? 8 : DRAG_THRESHOLD) * mapUnitsPerPx,
@@ -1249,8 +1502,10 @@ export function MapViewer({
       event.currentTarget,
       event.clientX,
       event.clientY,
-      mapWidth,
-      mapHeight,
+      viewWidth,
+      viewHeight,
+      -bandMarginX,
+      -bandMarginY,
     )
     const deltaX = point[0] - tracked.last[0]
     const deltaY = point[1] - tracked.last[1]
@@ -1373,7 +1628,7 @@ export function MapViewer({
         <svg
           ref={svgRef}
           className="h-full w-full select-none"
-          viewBox={`0 0 ${mapWidth} ${mapHeight}`}
+          viewBox={`${-bandMarginX} ${-bandMarginY} ${viewWidth} ${viewHeight}`}
           preserveAspectRatio="xMidYMid meet"
           role="group"
           aria-label={t('map.territories')}
@@ -1445,9 +1700,14 @@ export function MapViewer({
                   </g>
                 </pattern>
               ))}
-              {REGION_PATTERNS.map((pattern) => (
-                <RegionPatternDefinition key={pattern} pattern={pattern} />
-              ))}
+              <clipPath id="region-frame-clip">
+                <rect
+                  x={-bandMarginX}
+                  y={-bandMarginY}
+                  width={viewWidth}
+                  height={viewHeight}
+                />
+              </clipPath>
               <marker
                 id="intent-arrow-outline"
                 viewBox="0 0 10 10"
@@ -1537,6 +1797,57 @@ export function MapViewer({
               </marker>
             </defs>
 
+            {regionBands.length > 0 && (
+              <g
+                aria-label={t('map.regionBands')}
+                pointerEvents="none"
+                clipPath="url(#region-frame-clip)"
+              >
+                {regionBands.map(({ regionId, piecePath }) => (
+                  <path
+                    key={`region-band-${regionId}-${regionBands.length}`}
+                    data-region-band={regionId}
+                    d={piecePath}
+                    fill={regionStyleByID.get(regionId)?.fill ?? '#315a75'}
+                    fillOpacity="0.6"
+                    stroke="#30291f"
+                    strokeOpacity="0.25"
+                    strokeWidth="1"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                ))}
+                {regionBands.map(({ regionId, labelX, labelY, labelAngle, labelWidth }) => {
+                  const region = regionsById.get(regionId)
+                  const seedTerritory = region
+                    ? map.territories.find((territory) => territory.id === region.seed)
+                    : undefined
+                  if (!region || !seedTerritory) return null
+                  const label = t('map.regionLabel', {
+                    name: seedTerritory.name,
+                    seed: region.seed,
+                  })
+                  return (
+                    <text
+                      key={`region-band-label-${regionId}-${labelX.toFixed(1)}`}
+                      data-region-label={regionId}
+                      transform={`translate(${labelX} ${labelY}) rotate(${labelAngle})`}
+                      fill="#fff8e7"
+                      fontSize={fitLabelFontSize(label, labelWidth * 0.85)}
+                      fontWeight="800"
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      stroke="#30291f"
+                      strokeOpacity="0.45"
+                      strokeWidth={3}
+                      paintOrder="stroke"
+                    >
+                      {label}
+                    </text>
+                  )
+                })}
+              </g>
+            )}
+
             <g aria-label={t('map.terrains')}>
               {map.territories.map((territory) => (
                 <Tooltip key={territory.id}>
@@ -1577,90 +1888,46 @@ export function MapViewer({
             </g>
             {showRegions && (map.regions?.length ?? 0) > 0 && (
               <g aria-label={t('map.regions')} pointerEvents="none">
-                {map.territories.map((territory) => {
-                  const style = regionStyleForTerritory(territory.id)
-                  if (!style) return null
-                  return (
-                    <g key={`region-fill-${territory.id}`}>
-                      <path
-                        data-region-fill={regionByTerritory.get(territory.id)}
-                        d={pointsToPath(territory.points)}
-                        fill={style.fill}
-                        fillOpacity="0.30"
-                        stroke="none"
-                      />
-                      {style.pattern && (
-                        <path
-                          data-region-pattern={style.pattern}
-                          d={pointsToPath(territory.points)}
-                          fill={`url(#region-pattern-${style.pattern})`}
-                          fillOpacity="0.72"
-                          stroke="none"
-                        />
-                      )}
-                    </g>
-                  )
-                })}
-                {outerBorders.map((border) => (
-                  <g key={`region-outer-${border.key}`}>
-                    <line
-                      x1={border.from[0]}
-                      y1={border.from[1]}
-                      x2={border.to[0]}
-                      y2={border.to[1]}
-                      stroke="#fffaf0"
-                      strokeWidth="8"
-                      strokeLinecap="round"
-                      vectorEffect="non-scaling-stroke"
-                    />
-                    <line
-                      data-region-boundary="true"
-                      x1={border.from[0]}
-                      y1={border.from[1]}
-                      x2={border.to[0]}
-                      y2={border.to[1]}
-                      stroke="#294c63"
-                      strokeWidth="4"
-                      strokeDasharray="12 7"
-                      strokeLinecap="round"
-                      vectorEffect="non-scaling-stroke"
-                    />
-                  </g>
-                ))}
-                {sharedBorders
-                  .filter((border) => isRegionBoundary(border.key))
-                  .map((border) => (
-                    <g key={`region-${border.key}`}>
-                      <line
-                        x1={border.from[0]}
-                        y1={border.from[1]}
-                        x2={border.to[0]}
-                        y2={border.to[1]}
-                        stroke="#fffaf0"
-                        strokeWidth="8"
-                        strokeLinecap="round"
-                        vectorEffect="non-scaling-stroke"
-                      />
-                      <line
-                        data-region-boundary="true"
-                        x1={border.from[0]}
-                        y1={border.from[1]}
-                        x2={border.to[0]}
-                        y2={border.to[1]}
-                        stroke={regionColorForBoundary(border.key)}
-                        strokeWidth="4"
-                        strokeDasharray="12 7"
-                        strokeLinecap="round"
-                        vectorEffect="non-scaling-stroke"
-                      />
-                    </g>
-                  ))}
+                {[...(regionOutlines?.outlines.entries() ?? [])].map(
+                  ([regionId, outline]) => {
+                    const color = regionStyleByID.get(regionId)?.fill ?? '#315a75'
+                    const isHole =
+                      regionHoleTesters.get(regionId) ?? (() => false)
+                    return (
+                      <g key={`region-ring-${regionId}`} data-region-ring={regionId}>
+                        {REGION_BORDER_STEPS.map((step) => (
+                          <path
+                            key={step.fraction}
+                            d={regionRingPath(
+                              outline.loops,
+                              REGION_BORDER_WIDTH *
+                                step.fraction *
+                                annotationScale,
+                              isHole,
+                            )}
+                            fill={color}
+                            fillOpacity={step.opacity}
+                            fillRule="evenodd"
+                            stroke="none"
+                          />
+                        ))}
+                      </g>
+                    )
+                  },
+                )}
               </g>
             )}
 
             {state.season === 'winter' && (
               <g aria-label={t('map.winterOverlay')} pointerEvents="none">
-                <rect width={mapWidth} height={mapHeight} fill="#eaf3ff" opacity="0.2" />
+                <rect
+                  x={-bandMarginX}
+                  y={-bandMarginY}
+                  width={viewWidth}
+                  height={viewHeight}
+                  fill="#eaf3ff"
+                  opacity="0.2"
+                />
               </g>
             )}
             {state.season === 'winter' && (
@@ -1675,75 +1942,34 @@ export function MapViewer({
               </g>
             )}
 
-            <g aria-label={t('map.control')} pointerEvents="none">
-              {map.territories.map((territory) => {
-                const territoryState = state.territories.find(
-                  (candidate) => candidate.id === territory.id,
-                )
-                const owner = territoryState?.owner
-                if (!owner) {
-                  return null
-                }
+            {showOwnership && (
+              <g aria-label={t('map.control')} pointerEvents="none">
+                {map.territories.map((territory) => {
+                  const territoryState = state.territories.find(
+                    (candidate) => candidate.id === territory.id,
+                  )
+                  const owner = territoryState?.owner
+                  if (!owner) {
+                    return null
+                  }
 
-                const { solidPath, passablePath } = splitBoundaryPaths(
-                  territory.points,
-                  passableBoundaryKeys,
-                )
-
-                return (
-                  <g key={territory.id}>
-                    {solidPath && (
-                      <>
-                        <path
-                          d={solidPath}
-                          fill="none"
-                          stroke={MARKER_CASING_COLOR}
-                          strokeOpacity="0.55"
-                          strokeWidth="11"
-                          strokeLinecap="round"
-                          clipPath={`url(#territory-clip-${territory.id})`}
-                          vectorEffect="non-scaling-stroke"
-                        />
-                        <path
-                          d={solidPath}
-                          fill="none"
-                          stroke={playerColors.get(owner) ?? '#475569'}
-                          strokeWidth="8"
-                          strokeLinecap="round"
-                          clipPath={`url(#territory-clip-${territory.id})`}
-                          vectorEffect="non-scaling-stroke"
-                        />
-                      </>
-                    )}
-                    {passablePath && (
-                      <>
-                        <path
-                          d={passablePath}
-                          fill="none"
-                          stroke={MARKER_CASING_COLOR}
-                          strokeOpacity="0.55"
-                          strokeWidth="11"
-                          strokeLinecap="round"
-                          strokeDasharray={passableBorderDash}
-                          clipPath={`url(#territory-clip-${territory.id})`}
-                          vectorEffect="non-scaling-stroke"
-                        />
-                        <path
-                          d={passablePath}
-                          fill="none"
-                          stroke={playerColors.get(owner) ?? '#475569'}
-                          strokeWidth="8"
-                          strokeDasharray={passableBorderDash}
-                          strokeLinecap="round"
-                          clipPath={`url(#territory-clip-${territory.id})`}
-                          vectorEffect="non-scaling-stroke"
-                        />
-                      </>
-                    )}
-                  </g>
-                )
-              })}
-            </g>
+                  const [centerX, centerY] = centroid(territory.points)
+                  const ownerName =
+                    state.players.find((player) => player.id === owner)?.name ?? owner
+                  return (
+                    <OwnershipBadge
+                      key={territory.id}
+                      ownerId={owner}
+                      x={centerX + (territoryState.army ? -32 : -9) * annotationScale}
+                      y={centerY + 26 * annotationScale}
+                      color={playerColors.get(owner) ?? '#475569'}
+                      scale={annotationScale}
+                      label={t('map.ownershipBadge', { owner: ownerName })}
+                    />
+                  )
+                })}
+              </g>
+            )}
 
             {supplyReachable.size > 0 && (
               <g aria-label={t('map.supplyZone')} pointerEvents="none">
@@ -1794,7 +2020,7 @@ export function MapViewer({
                         fill="none"
                         stroke="#d28b22"
                         strokeWidth="5"
-                        strokeDasharray={passableBorderDash}
+                        strokeDasharray={passableBorderDots}
                         strokeLinecap="round"
                         clipPath={`url(#territory-clip-${territory.id})`}
                         vectorEffect="non-scaling-stroke"
@@ -1823,23 +2049,39 @@ export function MapViewer({
             </g>
 
             <g aria-label={t('map.borders')} pointerEvents="none">
-              {sharedBorders.map((border) => (
-                <line
-                  key={border.key}
-                  x1={border.from[0]}
-                  y1={border.from[1]}
-                  x2={border.to[0]}
-                  y2={border.to[1]}
-                  stroke="#39271b"
-                  strokeOpacity="0.85"
-                  strokeWidth={
-                    border.passable ? PASSABLE_BORDER_WIDTH : IMPASSABLE_BORDER_WIDTH
-                  }
-                  strokeDasharray={border.passable ? passableBorderDash : undefined}
-                  strokeLinecap="round"
-                  vectorEffect="non-scaling-stroke"
-                />
-              ))}
+              {sharedBorders
+                .filter((border) => border.passable)
+                .map((border) => (
+                  <line
+                    key={border.key}
+                    x1={border.from[0]}
+                    y1={border.from[1]}
+                    x2={border.to[0]}
+                    y2={border.to[1]}
+                    stroke="#39271b"
+                    strokeOpacity="0.85"
+                    strokeWidth={PASSABLE_BORDER_WIDTH}
+                    strokeDasharray={passableBorderDots}
+                    strokeLinecap="round"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                ))}
+              <g data-impassable-chain="true">
+                {impassableBorderIcons.map((icon) => (
+                  <GameIconGlyph
+                    key={icon.key}
+                    glyph={GAME_ICON_GLYPHS['peaks']}
+                    x={icon.placement.x - icon.placement.size / 2}
+                    y={icon.placement.y - icon.placement.size / 2}
+                    size={icon.placement.size}
+                    fill="#30291f"
+                    stroke="#f5ecd9"
+                    strokeWidth={20}
+                    opacity={0.92}
+                    rotation={(icon.placement.rotation * 180) / Math.PI}
+                  />
+                ))}
+              </g>
             </g>
 
             {supplyPathPoints.length > 0 && (
@@ -2034,19 +2276,44 @@ export function MapViewer({
             <g aria-label={t('map.territoryLabels')} pointerEvents="none">
               {map.territories.map((territory) => {
                 const [centerX, centerY] = centroid(territory.points)
-                return (
+                const chefRegion = regionsActive
+                  ? regionBySeed.get(territory.id)
+                  : undefined
+                const chefFill = chefRegion
+                  ? (regionStyleByID.get(chefRegion.id)?.fill ?? '#30291f')
+                  : '#30291f'
+                const labelProps = {
+                  fontSize: 13 * annotationScale,
+                  fontWeight: '800' as const,
+                  letterSpacing: 0.5 * annotationScale,
+                  textAnchor: 'middle' as const,
+                  stroke: '#f5ecd9',
+                  strokeWidth: 3 * annotationScale,
+                  paintOrder: 'stroke' as const,
+                }
+                return chefRegion ? (
+                  <g key={territory.id}>
+                    <text
+                      {...labelProps}
+                      x={centerX}
+                      y={centerY - 5 * annotationScale}
+                      fill={chefFill}
+                      fontSize={12 * annotationScale}
+                      data-chef-lieu={territory.id}
+                    >
+                      {territory.name}
+                    </text>
+                    <text {...labelProps} x={centerX} y={centerY + 11 * annotationScale} fill="#30291f">
+                      {territory.id}
+                    </text>
+                  </g>
+                ) : (
                   <text
                     key={territory.id}
                     x={centerX}
                     y={centerY + 4 * annotationScale}
+                    {...labelProps}
                     fill="#30291f"
-                    fontSize={13 * annotationScale}
-                    fontWeight="800"
-                    letterSpacing={0.5 * annotationScale}
-                    textAnchor="middle"
-                    stroke="#f5ecd9"
-                    strokeWidth={3 * annotationScale}
-                    paintOrder="stroke"
                   >
                     {territory.id}
                   </text>
@@ -2055,57 +2322,56 @@ export function MapViewer({
             </g>
 
             {showRegions && (map.regions?.length ?? 0) > 0 && (
-              <g aria-label={t('map.regionSeeds')} pointerEvents="none">
-                {map.regions?.map((region) => {
-                  const seedTerritory = map.territories.find(
-                    (territory) => territory.id === region.seed,
-                  )
-                  if (!seedTerritory) return null
-                  const [centerX, centerY] = centroid(seedTerritory.points)
-                  const markerY = centerY - 25 * annotationScale
-                  const color = regionColorForTerritory(region.seed)
-                  return (
-                    <g
-                      key={`region-seed-${region.seed}`}
-                      data-region-seed={region.seed}
-                      transform={`translate(${centerX} ${markerY})`}
-                    >
-                      <title>
-                        {t('map.regionSeedMarker', {
-                          seed: region.seed,
-                          name: seedTerritory.name,
-                        })}
-                      </title>
-                      <circle
-                        r={18 * annotationScale}
-                        fill="#fffaf0"
-                        fillOpacity="0.96"
-                        stroke="#1f3a4d"
-                        strokeWidth={3 * annotationScale}
-                        vectorEffect="non-scaling-stroke"
-                      />
-                      <path
-                        d={`M 0 ${-11 * annotationScale} L ${11 * annotationScale} 0 L 0 ${11 * annotationScale} L ${-11 * annotationScale} 0 Z`}
-                        fill={color}
-                        stroke="#fffaf0"
-                        strokeWidth={2 * annotationScale}
-                        vectorEffect="non-scaling-stroke"
-                      />
-                      <text
-                        y={31 * annotationScale}
-                        fill="#1f3a4d"
-                        fontSize={11 * annotationScale}
-                        fontWeight="900"
-                        textAnchor="middle"
-                        stroke="#fffaf0"
-                        strokeWidth={4 * annotationScale}
-                        paintOrder="stroke"
+              <g aria-label={t('map.regionBadges')} pointerEvents="none">
+                {(map.regions ?? [])
+                  .filter((region) => interiorRegionIDs.has(region.id))
+                  .map((region) => {
+                    const seedTerritory = map.territories.find(
+                      (territory) => territory.id === region.seed,
+                    )
+                    if (!seedTerritory) return null
+                    const [centerX, centerY] = centroid(seedTerritory.points)
+                    const color = regionStyleByID.get(region.id)?.fill ?? '#315a75'
+                    const label = t('map.regionLabel', {
+                      name: seedTerritory.name,
+                      seed: region.seed,
+                    })
+                    const scale = annotationScale
+                    const fontSize = 9.5 * scale
+                    const width = label.length * fontSize * 0.62 + 10 * scale
+                    const height = 15 * scale
+                    return (
+                      <g
+                        key={`region-badge-${region.id}`}
+                        data-region-label={region.id}
+                        transform={`translate(${centerX} ${centerY - 56 * scale})`}
                       >
-                        {region.seed}
-                      </text>
-                    </g>
-                  )
-                })}
+                        <title>{label}</title>
+                        <rect
+                          x={-width / 2}
+                          y={-height / 2}
+                          width={width}
+                          height={height}
+                          rx={height / 2}
+                          fill="#fffaf0"
+                          fillOpacity="0.94"
+                          stroke={color}
+                          strokeWidth={1.8 * scale}
+                          vectorEffect="non-scaling-stroke"
+                        />
+                        <text
+                          y={0.5 * scale}
+                          fill={color}
+                          fontSize={fontSize}
+                          fontWeight="800"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                        >
+                          {label}
+                        </text>
+                      </g>
+                    )
+                  })}
               </g>
             )}
 
@@ -2288,7 +2554,11 @@ export function MapViewer({
 
         <MapControls onZoom={handleControlZoom} />
 
-        {(onToggleIntentions || onToggleRegions || onToggleCalamities || onToggleCards) && (
+        {(onToggleIntentions ||
+          onToggleOwnership ||
+          onToggleRegions ||
+          onToggleCalamities ||
+          onToggleCards) && (
           <div className="absolute right-3 top-3 z-10">
             <button
               type="button"
@@ -2320,6 +2590,8 @@ export function MapViewer({
                 <MapLegend
                   showIntentions={showIntentions}
                   onToggleIntentions={onToggleIntentions}
+                  showOwnership={showOwnership}
+                  onToggleOwnership={onToggleOwnership}
                   showRegions={showRegions}
                   onToggleRegions={onToggleRegions}
                   showCalamities={showCalamities}

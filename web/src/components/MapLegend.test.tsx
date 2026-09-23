@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { MapLegend } from '@/components/MapLegend'
+import { MapLegend, OWNERSHIP_SHIELD_PATH } from '@/components/MapLegend'
 import { LanguageProvider } from '@/i18n/LanguageContext'
 
 describe('MapLegend', () => {
@@ -15,7 +15,7 @@ describe('MapLegend', () => {
     expect(screen.getByText('Légende')).toBeInTheDocument()
     expect(screen.getByText('Plaine')).toBeInTheDocument()
     expect(
-      screen.getByText(/Trait continu épais = frontière infranchissable/),
+      screen.getByText(/Icônes de montagnes = frontière infranchissable/),
     ).toBeInTheDocument()
     expect(
       container.querySelector('svg[aria-label="Carte des territoires"]'),
@@ -93,6 +93,29 @@ describe('MapLegend', () => {
     fireEvent.click(screen.getByLabelText('Régions'))
     expect(onToggle).toHaveBeenCalledWith(true)
     expect(document.querySelectorAll('[data-region-color]').length).toBe(6)
-    expect(document.querySelectorAll('[data-region-pattern]').length).toBe(6)
+    expect(document.querySelectorAll('[data-region-pattern]').length).toBe(0)
+  })
+
+  it('toggles the player control layer', () => {
+    const onToggle = vi.fn()
+    render(
+      <LanguageProvider initialLanguage="fr">
+        <MapLegend showOwnership={false} onToggleOwnership={onToggle} />
+      </LanguageProvider>,
+    )
+    fireEvent.click(screen.getByLabelText('Contrôle joueur'))
+    expect(onToggle).toHaveBeenCalledWith(true)
+  })
+
+  it('describes territorial control with the shield vignette', () => {
+    const { container } = render(
+      <LanguageProvider initialLanguage="en">
+        <MapLegend />
+      </LanguageProvider>,
+    )
+
+    expect(screen.getByText('Colored shield = territorial control')).toBeInTheDocument()
+    const vignette = container.querySelector('svg[viewBox="-13 -15 26 30"]')
+    expect(vignette?.querySelector(`path[d="${OWNERSHIP_SHIELD_PATH}"]`)).not.toBeNull()
   })
 })
