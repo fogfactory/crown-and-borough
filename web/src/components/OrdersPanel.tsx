@@ -9,6 +9,7 @@ import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
 import { estimateWinterCost } from '@/lib/winter-cost'
 import { parseWinterDraftDetailed, type WinterParseError } from '@/lib/winter-parse'
+import { simulateWinterDraft, type WinterSimulationOutcome } from '@/lib/winter-overlay'
 import type { MapData, Noble, PlayerId, StateData, WinterCosts } from '@/types'
 
 interface OrdersPanelProps {
@@ -180,6 +181,38 @@ function DeckHandSummary({ state }: { state: StateData }) {
   )
 }
 
+function WinterOrderDiagnostics({
+  diagnostics,
+  t,
+}: {
+  diagnostics: WinterSimulationOutcome[]
+  t: Translate
+}) {
+  if (diagnostics.length === 0) return null
+
+  return (
+    <ul
+      role="status"
+      aria-label={t('orders.winterDiagnosticsAria')}
+      className="max-h-32 list-disc space-y-1 overflow-y-auto rounded-md border border-[#e07a30]/40 bg-[#fdf0e3] px-3 py-2 pl-7 text-xs text-[#8a5216]"
+    >
+      {diagnostics.map((diagnostic) => (
+        <li
+          key={`${diagnostic.line}-${diagnostic.reason ?? ''}`}
+          className={diagnostic.valid ? undefined : 'font-semibold'}
+        >
+          {t('error.line', {
+            line: diagnostic.line,
+            message: diagnostic.reason
+              ? t(`reports.reason.${diagnostic.reason}` as MessageKey)
+              : t('reports.reason.insufficient_resources'),
+          })}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export function OrdersPanel({
   state,
   player,
@@ -210,6 +243,16 @@ export function OrdersPanel({
       map,
       nobles: state.nobles,
     })
+    const winterSimulation = map
+      ? simulateWinterDraft(state, player, winterDraft, map, winterCosts)
+      : null
+    const winterDiagnostics = (winterSimulation?.outcomes ?? [])
+      .filter(
+        (outcome) =>
+          (outcome.valid && outcome.warning) ||
+          (!outcome.valid && outcome.reason && !outcome.reason.startsWith('error.')),
+      )
+      .sort((first, second) => first.line - second.line)
     const winterEstimate = winterCosts
       ? estimateWinterCost(state, player, winterCosts, winterDraft, map)
       : null
@@ -259,6 +302,7 @@ export function OrdersPanel({
           </p>
         )}
         <WinterOrderErrors errors={parsedWinterDraft.errors} t={t} />
+        <WinterOrderDiagnostics diagnostics={winterDiagnostics} t={t} />
         {submitted && (
           <p className="text-xs text-[#376341]">{t('orders.submittedEditable')}</p>
         )}

@@ -278,11 +278,14 @@ export function buildIntentions(
   chainDrafts: Record<string, string>,
   options: {
     includeInstalled?: boolean
+    includeInstalledInWinter?: boolean
     source?: IntentionSource
     color?: string
   } = {},
 ): Intention[] {
-  if (state.season === 'winter') return []
+  const winterInstalledOnly =
+    state.season === 'winter' && options.includeInstalledInWinter === true
+  if (state.season === 'winter' && !winterInstalledOnly) return []
 
   const intentions: Intention[] = []
 
@@ -312,27 +315,29 @@ export function buildIntentions(
       .map((noble) => noble.code),
   )
 
-  for (const [nobleCode, text] of Object.entries(chainDrafts)) {
-    if (!ownedNobleCodes.has(nobleCode) || !text.trim()) continue
-    const parsedOrders = parseChainDraft(text)
-    const firstOrder = parsedOrders[0]
-    const territoryState = firstOrder
-      ? state.territories.find(
-          (candidate) =>
-            candidate.id === firstOrder.position && candidate.army?.owner === player,
-        )
-      : null
-    if (!territoryState?.army) continue
-    appendChainIntentions(
-      map,
-      parsedOrders,
-      0,
-      { id: territoryState.id, size: territoryState.army.size },
-      intentions,
-      options.source ?? 'draft',
-      nobleCode,
-      options.color,
-    )
+  if (!winterInstalledOnly) {
+    for (const [nobleCode, text] of Object.entries(chainDrafts)) {
+      if (!ownedNobleCodes.has(nobleCode) || !text.trim()) continue
+      const parsedOrders = parseChainDraft(text)
+      const firstOrder = parsedOrders[0]
+      const territoryState = firstOrder
+        ? state.territories.find(
+            (candidate) =>
+              candidate.id === firstOrder.position && candidate.army?.owner === player,
+          )
+        : null
+      if (!territoryState?.army) continue
+      appendChainIntentions(
+        map,
+        parsedOrders,
+        0,
+        { id: territoryState.id, size: territoryState.army.size },
+        intentions,
+        options.source ?? 'draft',
+        nobleCode,
+        options.color,
+      )
+    }
   }
 
   return intentions

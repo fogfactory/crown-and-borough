@@ -1,10 +1,5 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type KeyboardEvent as ReactKeyboardEvent,
-} from 'react'
-import { IconBook, IconTrophy } from '@tabler/icons-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { IconTrophy } from '@tabler/icons-react'
 
 import { GameLayout } from '@/components/GameLayout'
 import { BrandMark } from '@/components/BrandMark'
@@ -18,25 +13,25 @@ import { Scoreboard } from '@/components/Scoreboard'
 import { SubmissionDots } from '@/components/SubmissionDots'
 import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
 import { InfoPage } from '@/components/InfoPage'
+import { GamePanelCard } from '@/components/GamePanelCard'
+import type { Panel } from '@/components/CommandReportRulesTabs'
 import { addNobleHeader, hasChainContent } from '@/lib/order-text'
-import { buildIntentions } from '@/lib/intent-overlay'
-import { hasSupplySource } from '@/lib/supply'
+import {
+  internalYear,
+  ownerName,
+  remainingTurns,
+  remainingYears,
+} from '@/lib/game-progress'
+import { useGameIntentions } from '@/lib/use-game-intentions'
+import { useSupplyAndTransfer } from '@/lib/use-supply-and-transfer'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { useLocalStorageState } from '@/lib/storage'
-import { transferTargetsForTerritory } from '@/lib/transfer-preview'
 import { isWinterCosts } from '@/lib/winter-cost'
 import { VersionBadge } from '@/components/VersionBadge'
 import { LanguageProvider, useLanguage } from '@/i18n/LanguageContext'
 import { firebaseConfigured } from '@/lib/firebase'
 import { OnlineApp } from '@/online/OnlineApp'
 import type { Language, Translate } from '@/i18n/messages'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { HeaderPopover } from '@/components/ui/header-popover'
 import {
@@ -57,8 +52,6 @@ import type {
   WinterCosts,
 } from '@/types'
 
-const PANEL_ORDER = ['command', 'report', 'rules'] as const
-type Panel = (typeof PANEL_ORDER)[number]
 type HotseatView = 'game' | 'rules' | 'faq'
 
 const MIN_PLAYERS = 2
@@ -74,26 +67,7 @@ function ownerLabel(
   t: Translate,
 ): string {
   if (!owner) return t('app.noOwner')
-  return state?.players.find((player) => player.id === owner)?.name ?? owner
-}
-
-function internalYear(state: StateData): number {
-  const year = state.year ?? Math.floor((state.turn - 1) / 4) + 1
-  if (state.finished && state.yearCount && state.turn > state.yearCount * 4) {
-    return state.yearCount
-  }
-  return year
-}
-
-function remainingYears(state: StateData): number {
-  if (state.finished) return 0
-  const yearCount = state.yearCount ?? 10
-  return Math.max(0, yearCount - internalYear(state) + 1)
-}
-
-function remainingTurns(state: StateData): number {
-  const yearCount = state.yearCount ?? 10
-  return Math.max(0, yearCount * 4 - state.turn + 1)
+  return state ? ownerName(owner, state) : owner
 }
 
 async function responseError(response: Response, t: Translate): Promise<string> {
@@ -119,15 +93,7 @@ function AppContent() {
   const [state, setState] = useState<StateData | null>(null)
   const [winterCosts, setWinterCosts] = useState<WinterCosts | null>(null)
   const [report, setReport] = useState<TurnReport | null>(null)
-  const [supplyLine, setSupplyLine] = useState<SupplyLine | null>(null)
-  const [supplyLoading, setSupplyLoading] = useState(false)
-  const [supplyError, setSupplyError] = useState<string | null>(null)
-  const [transferLine, setTransferLine] = useState<TransferLine | null>(null)
-  const [transferLoading, setTransferLoading] = useState(false)
-  const [transferError, setTransferError] = useState<string | null>(null)
-  const [selectedTransferTarget, setSelectedTransferTarget] = useState<string | null>(
-    null,
-  )
+
   const [chainDrafts, setChainDrafts] = useState<
     Record<PlayerId, Record<string, string>>
   >({})
@@ -252,30 +218,68 @@ function AppContent() {
   const selectedRegion = map?.regions?.find((region) =>
     region.territories.includes(selectedId ?? ''),
   )
-  const supplySelectionAllowed =
-    (supplyLine?.kind === 'army' && Boolean(selectedState?.army)) ||
-    (supplyLine?.kind === 'source' &&
-      !selectedState?.army &&
-      hasSupplySource(selectedState))
-  const selectedSupplyLine =
-    supplySelectionAllowed && supplyLine?.territory === selectedId ? supplyLine : null
-  const supplySourceTerritory = map?.territories.find(
-    (territory) => territory.id === selectedSupplyLine?.source,
+
+  const supplyFetcher = useCallback(
+    async <T,>(path: string, signal: AbortSignal): Promise<T> => {
+      const response = await fetch(path, { signal })
+      if (!response.ok) {
+        throw new Error(t('error.requestFailed', { status: response.status }))
+      }
+      const payload = (await response.json()) as T
+      if (path.includes('target=')) {
+        const transfer = payload as unknown as TransferLine
+        if (
+          transfer.kind !== 'transfer' ||
+          !Array.isArray(transfer.path) ||
+          !Array.isArray(transfer.reachableTerritories)
+        ) {
+          throw new Error('Invalid transfer response')
+        }
+      } else {
+        const supply = payload as unknown as SupplyLine
+        if (!Array.isArray(supply.path) || !Array.isArray(supply.reachable)) {
+          throw new Error('Invalid supply response')
+        }
+      }
+      return payload
+    },
+    [t],
   )
-  const transferTargets =
-    selectedState?.army?.owner === selectedPlayer
-      ? transferTargetsForTerritory(chainDrafts[selectedPlayer] ?? {}, selectedId)
-      : []
-  const transferTarget = transferTargets.includes(selectedTransferTarget ?? '')
-    ? selectedTransferTarget
-    : (transferTargets[0] ?? null)
-  const intentions = useMemo(
-    () =>
-      state && map
-        ? buildIntentions(map, state, selectedPlayer, chainDrafts[selectedPlayer] ?? {})
-        : [],
-    [chainDrafts, map, selectedPlayer, state],
-  )
+
+  const {
+    selectedSupplyLine,
+    sourceTerritoryId,
+    supplyLoading,
+    supplyError,
+    transferLine,
+    transferLoading,
+    transferError,
+    transferTargets,
+    transferTarget,
+    setTransferTarget: setSelectedTransferTarget,
+  } = useSupplyAndTransfer({
+    selectedId,
+    state,
+    selectedState,
+    chainDrafts: chainDrafts[selectedPlayer] ?? {},
+    ownerId: selectedPlayer,
+    basePath: '/api',
+    fetcher: supplyFetcher,
+    networkErrorMessage: t('error.requestFailed', { status: 500 }),
+  })
+  const supplySourceTerritory = sourceTerritoryId
+    ? (map?.territories.find((territory) => territory.id === sourceTerritoryId) ?? null)
+    : null
+
+  const { intentions, winterIntentions, intentionsColor } = useGameIntentions({
+    state,
+    map,
+    playerID: selectedPlayer,
+    chainDrafts: chainDrafts[selectedPlayer] ?? {},
+    winterDraft: winterDrafts[selectedPlayer] ?? '',
+    winterCosts,
+    spectator: false,
+  })
   /**
    * Card intentions are private: only the drafting player's own map shows
    * them, so the hotseat view exposes the selected player's draft only.
@@ -284,112 +288,6 @@ function AppContent() {
     const text = specialDrafts[selectedPlayer] ?? ''
     return text.trim() !== '' ? [{ player: selectedPlayer, text }] : []
   }, [specialDrafts, selectedPlayer])
-  const intentionsColor =
-    state?.players.find((player) => player.id === selectedPlayer)?.color ?? '#a84632'
-
-  useEffect(() => {
-    const controller = new AbortController()
-    const armySelected = Boolean(selectedState?.army)
-    const sourceSelected = hasSupplySource(selectedState)
-
-    setSupplyLine(null)
-    setSupplyError(null)
-    if (
-      !state ||
-      !selectedId ||
-      (!armySelected && !sourceSelected) ||
-      state.season === 'winter'
-    ) {
-      setSupplyLoading(false)
-      return () => controller.abort()
-    }
-
-    setSupplyLoading(true)
-    const loadSupplyLine = async () => {
-      try {
-        const response = await fetch(
-          `/api/supply?territory=${encodeURIComponent(selectedId)}`,
-          { signal: controller.signal },
-        )
-        if (!response.ok) {
-          throw new Error(`${t('error.requestFailed', { status: response.status })}`)
-        }
-        const payload = (await response.json()) as SupplyLine
-        if (!Array.isArray(payload.path) || !Array.isArray(payload.reachable)) {
-          throw new Error('Invalid supply response')
-        }
-        if (!controller.signal.aborted) {
-          setSupplyLine(payload)
-          setSupplyLoading(false)
-        }
-      } catch (error) {
-        if (!controller.signal.aborted) {
-          setSupplyError(
-            error instanceof Error
-              ? error.message
-              : t('error.requestFailed', { status: 500 }),
-          )
-          setSupplyLoading(false)
-        }
-      }
-    }
-
-    void loadSupplyLine()
-    return () => controller.abort()
-  }, [selectedId, selectedState, state, t])
-
-  useEffect(() => {
-    const controller = new AbortController()
-    setTransferLine(null)
-    setTransferError(null)
-    if (
-      !state ||
-      !selectedId ||
-      !selectedState?.army ||
-      !transferTarget ||
-      state.season === 'winter'
-    ) {
-      setTransferLoading(false)
-      return () => controller.abort()
-    }
-
-    setTransferLoading(true)
-    const loadTransferLine = async () => {
-      try {
-        const response = await fetch(
-          `/api/supply?territory=${encodeURIComponent(selectedId)}&target=${encodeURIComponent(transferTarget)}`,
-          { signal: controller.signal },
-        )
-        if (!response.ok) {
-          throw new Error(`${t('error.requestFailed', { status: response.status })}`)
-        }
-        const payload = (await response.json()) as TransferLine
-        if (
-          payload.kind !== 'transfer' ||
-          !Array.isArray(payload.path) ||
-          !Array.isArray(payload.reachableTerritories)
-        ) {
-          throw new Error('Invalid transfer response')
-        }
-        if (!controller.signal.aborted) {
-          setTransferLine(payload)
-          setTransferLoading(false)
-        }
-      } catch (error) {
-        if (!controller.signal.aborted) {
-          setTransferError(
-            error instanceof Error
-              ? error.message
-              : t('error.requestFailed', { status: 500 }),
-          )
-          setTransferLoading(false)
-        }
-      }
-    }
-
-    void loadTransferLine()
-    return () => controller.abort()
-  }, [selectedId, selectedState, state, t, transferTarget])
 
   const updateChainDraft = (noble: string, text: string) => {
     setChainDrafts((drafts) => ({
@@ -442,6 +340,7 @@ function AppContent() {
           supply={selectedSupplyLine}
           onSelect={handleTerritorySelect}
           intentions={intentions}
+          winterIntentions={winterIntentions}
           showIntentions={showIntentions}
           intentionsColor={intentionsColor}
           onToggleIntentions={setShowIntentions}
@@ -462,28 +361,6 @@ function AppContent() {
         <p className="font-serif text-lg italic text-[#806f57]">{t('app.mapLoading')}</p>
       </div>
     )
-  }
-
-  const handlePanelKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
-    const currentIndex = PANEL_ORDER.indexOf(activePanel)
-    let nextIndex: number | null = null
-    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-      nextIndex = (currentIndex + 1) % PANEL_ORDER.length
-    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-      nextIndex = (currentIndex - 1 + PANEL_ORDER.length) % PANEL_ORDER.length
-    } else if (event.key === 'Home') {
-      nextIndex = 0
-    } else if (event.key === 'End') {
-      nextIndex = PANEL_ORDER.length - 1
-    }
-    if (nextIndex === null) return
-
-    event.preventDefault()
-    const nextPanel = PANEL_ORDER[nextIndex]
-    setActivePanel(nextPanel)
-    event.currentTarget.parentElement
-      ?.querySelector<HTMLButtonElement>(`[data-panel-tab="${nextPanel}"]`)
-      ?.focus()
   }
 
   const submitOrders = async (force = false) => {
@@ -811,80 +688,19 @@ function AppContent() {
       {view === 'game' ? (
         <main className="mx-auto flex min-h-0 w-full max-w-[1800px] flex-1 flex-col p-3 sm:p-4 lg:p-6">
           <GameLayout map={renderMap()} focusSignal={mapFocusSignal}>
-            <Card className="border-[#b7a786] bg-[#fffaf0] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)]">
-              <CardHeader className="border-b border-[#b7a786]/50 pb-3">
-                <CardTitle className="font-serif text-lg text-[#30291f] sm:text-xl">
-                  {activePanel === 'command'
-                    ? t('app.commandPost')
-                    : activePanel === 'report'
-                      ? t('app.turnReport')
-                      : t('app.rules')}
-                </CardTitle>
-                <CardDescription className="text-[#806f57]">
-                  {t('app.selectedPlayer', { player: selectedPlayer })}
-                </CardDescription>
-                <div
-                  role="tablist"
-                  aria-label={t('app.panelViews')}
-                  className="mt-2 grid grid-cols-3 gap-1 rounded-lg bg-[#f3ead9] p-1"
-                >
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={activePanel === 'command'}
-                    aria-controls="command-panel"
-                    tabIndex={activePanel === 'command' ? 0 : -1}
-                    data-panel-tab="command"
-                    className={`rounded-md px-2 py-1.5 text-xs font-semibold transition ${activePanel === 'command' ? 'bg-[#fffaf0] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:text-[#30291f]'}`}
-                    onClick={() => setActivePanel('command')}
-                    onKeyDown={handlePanelKeyDown}
-                  >
-                    {t('app.commandPost')}
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={activePanel === 'report'}
-                    aria-controls="report-panel"
-                    tabIndex={activePanel === 'report' ? 0 : -1}
-                    data-panel-tab="report"
-                    className={`rounded-md px-2 py-1.5 text-xs font-semibold transition ${activePanel === 'report' ? 'bg-[#fffaf0] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:text-[#30291f]'}`}
-                    onClick={() => setActivePanel('report')}
-                    onKeyDown={handlePanelKeyDown}
-                  >
-                    {t('app.turnReport')}{' '}
-                    {report && viewedReportTurn !== report.header.turn ? (
-                      <span className="ml-1 rounded-full bg-[#a84632] px-1.5 py-0.5 text-[10px] text-[#fffaf0]">
-                        {t('app.reportNew')}
-                      </span>
-                    ) : null}
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={activePanel === 'rules'}
-                    aria-controls="rules-panel"
-                    tabIndex={activePanel === 'rules' ? 0 : -1}
-                    data-panel-tab="rules"
-                    className={`rounded-md px-2 py-1.5 text-xs font-semibold transition ${activePanel === 'rules' ? 'bg-[#fffaf0] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:text-[#30291f]'}`}
-                    onClick={() => setActivePanel('rules')}
-                    onKeyDown={handlePanelKeyDown}
-                  >
-                    <span className="inline-flex items-center gap-1.5">
-                      <IconBook aria-hidden="true" className="size-3.5" />
-                      {t('app.rules')}
-                    </span>
-                  </button>
-                </div>
-              </CardHeader>
-              <CardContent className="min-w-0 space-y-4 pt-4">
-                <div
-                  id="command-panel"
-                  role="tabpanel"
-                  aria-label={t('app.commandPost')}
-                  hidden={activePanel !== 'command'}
-                  className="space-y-4"
-                >
+            <GamePanelCard
+              activePanel={activePanel}
+              onPanelChange={setActivePanel}
+              subtitle={t('app.selectedPlayer', { player: selectedPlayer })}
+              reportLabelExtra={
+                report && viewedReportTurn !== report.header.turn ? (
+                  <span className="ml-1 rounded-full bg-[#a84632] px-1.5 py-0.5 text-[10px] text-[#fffaf0]">
+                    {t('app.reportNew')}
+                  </span>
+                ) : null
+              }
+              command={
+                <>
                   <SelectedTerritoryDetails
                     state={state}
                     selectedTerritory={selectedTerritory}
@@ -921,30 +737,18 @@ function AppContent() {
                       onOpenRules={openRules}
                     />
                   )}
-                </div>
-                <div
-                  id="report-panel"
-                  role="tabpanel"
-                  aria-label={t('app.turnReport')}
-                  hidden={activePanel !== 'report'}
-                  className="min-w-0"
-                >
-                  <ReportPane report={report} map={map} players={state?.players ?? []} />
-                </div>
-                <div
-                  id="rules-panel"
-                  role="tabpanel"
-                  aria-label={t('app.rules')}
-                  hidden={activePanel !== 'rules'}
-                  className="min-w-0"
-                >
-                  <RulesPanel
-                    targetSection={rulesNavigation?.section}
-                    navigationKey={rulesNavigation?.key}
-                  />
-                </div>
-              </CardContent>
-            </Card>
+                </>
+              }
+              report={
+                <ReportPane report={report} map={map} players={state?.players ?? []} />
+              }
+              rules={
+                <RulesPanel
+                  targetSection={rulesNavigation?.section}
+                  navigationKey={rulesNavigation?.key}
+                />
+              }
+            />
           </GameLayout>
         </main>
       ) : (

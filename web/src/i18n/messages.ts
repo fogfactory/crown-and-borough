@@ -134,7 +134,8 @@ const englishMessages = {
   'map.regionBadges': 'Regional name badges',
   'map.regionLabel': 'Bishopric of {name} ({seed})',
   'map.ownershipBadge': '{owner} controls this territory',
-  'map.winterOverlay': 'Winter overlay',
+  'map.winterVeil': 'Winter veil',
+  'map.winterOverlay': 'Winter orders overlay',
   'map.winterSnow': 'Winter snow',
   'map.control': 'Territorial control',
   'map.supplyZone': 'Supply zone',
@@ -154,6 +155,7 @@ const englishMessages = {
   'orders.winterPlaceholder': 'R T ROS\nD C BT\nO N NNN\nP N NNN\nL N NNN',
   'orders.winterAria': 'Winter orders for {player}',
   'orders.winterErrorsAria': 'Winter order syntax errors',
+  'orders.winterDiagnosticsAria': 'Winter order diagnostics',
   'orders.winterCostEstimate': 'Estimated cost: {spent} / {available} resources',
   'orders.submittedEditable': 'Orders submitted. You can still edit them.',
   'orders.draftDiffers': 'Local draft differs from server',
@@ -420,7 +422,7 @@ const englishMessages = {
   'legend.control': 'Colored shield = territorial control',
   'legend.intentions': 'Intentions overlay',
   'legend.intentionsHint':
-    'Drafts + submitted orders + installed chains · action seasons only',
+    'Drafts + submitted orders + installed chains + winter investments · translucent map overlay',
   'legend.passable':
     'Mountain icons = impassable border · dashed line = passable border',
   'legend.show': 'Show legend',
@@ -708,7 +710,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'map.regionBadges': 'Pastilles des noms régionaux',
   'map.regionLabel': 'Évêché de {name} ({seed})',
   'map.ownershipBadge': '{owner} contrôle ce territoire',
-  'map.winterOverlay': 'Voile hivernal',
+  'map.winterVeil': 'Voile hivernal',
+  'map.winterOverlay': "Calque des ordres d'hiver",
   'map.winterSnow': 'Neige hivernale',
   'map.control': 'Contrôle territorial',
   'map.supplyZone': 'Zone de ravitaillement',
@@ -728,6 +731,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'orders.winterPlaceholder': 'R T ROS\nD C BT\nO N NNN\nP N NNN\nL N NNN',
   'orders.winterAria': "Ordres d'hiver de {player}",
   'orders.winterErrorsAria': "Erreurs de syntaxe des ordres d'hiver",
+  'orders.winterDiagnosticsAria': "Diagnostics des ordres d'hiver",
   'orders.winterCostEstimate': 'Coût estimé : {spent} / {available} ressources',
   'orders.submittedEditable': 'Ordres soumis. Vous pouvez encore les modifier.',
   'orders.draftDiffers': 'Brouillon différent du serveur',
@@ -1004,7 +1008,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'legend.control': 'Écu coloré = contrôle territorial',
   'legend.intentions': "Calque d'intentions",
   'legend.intentionsHint':
-    "Brouillons + ordres soumis + chaînes installées · saisons d'action uniquement",
+    "Brouillons + ordres soumis + chaînes installées + investissements d'hiver · calque translucide",
   'legend.passable':
     'Icônes de montagnes = frontière infranchissable · trait pointillé = frontière franchissable',
   'legend.show': 'Afficher la légende',
