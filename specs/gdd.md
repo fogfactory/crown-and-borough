@@ -70,26 +70,16 @@ liste d'investissements directs, traités dans l'ordre saisi :
   le château ou village `YYY` d'un autre joueur.
 
 `XXX` est le trigramme du territoire ciblé, sauf pour `O N`, `P N` et `L N`,
-qui ciblent un noble.
+qui ciblent un noble. La feuille d'hiver peut aussi contenir `D C KIND` pour
+défausser une carte bonus (voir « Cartes bonus et calamités » ci-dessous).
 
-La feuille `winter` peut contenir `D C KIND` pour défausser une carte bonus,
-sans noble requis. La main est ensuite reconstituée automatiquement jusqu'à la
-limite de cartes, dans la limite de remplissage prévue par la balance. La
-soumission `special` reste distincte pour les cartes jouables : `P KIND TER` est
-autorisé au printemps, en été et en automne. Il n'existe pas d'ordre `T C`. La
-limite de main, le remplissage automatique, la taille et la composition du deck,
-ainsi que les capacités des slots
-de calamité, sont chargées depuis `assets/balance.yaml`. La génération initiale du deck est déterministe à partir
-de la seed de partie. Au printemps, l’augure révèle le kind, la saison et la
-région de toutes les calamités de l’année ; les augures futures restent cachées.
-Les investissements territoriaux exigent le contrôle du
-territoire ciblé. Le
+Les investissements territoriaux exigent le contrôle du territoire ciblé. Le
 recrutement d'une troupe exige en outre un noble libre du joueur, situé sur la
 cible ou sur un territoire adjacent à celle-ci par une frontière franchissable.
-Le recrutement d'un noble exige une
-infrastructure de peuplement (château ou village) et une armée du joueur sur la
-case. Un ordre rejeté est signalé dans le rapport et son investissement est
-perdu.
+Le recrutement d'un noble exige une infrastructure de peuplement (château ou
+village) et une armée du joueur sur la case. Un ordre rejeté est signalé dans
+le rapport avec son motif ; toutes les conditions sont vérifiées avant le
+paiement, donc un ordre rejeté ne prélève aucune ressource.
 
 | Investissement | Coût en R |
 |---|---:|
@@ -130,9 +120,37 @@ Les stocks hors château et village ne peuvent pas payer les investissements
 hivernaux. Un transfert d'hiver débite un château ou village contrôlé par le
 donneur, mais peut viser directement le château ou village contrôlé par un autre
 joueur ; la destination n'a pas besoin d'appartenir au donneur.
-Les calamités et les cartes bonus sont appliquées avant la résolution simultanée des ordres d’armée. La peste réduit les armées et peut affecter les nobles ; le mauvais temps bloque les déplacements provenant de sa région ; la famine désactive les moulins et les rations d’infrastructure ; la révolte est une carte bonus conditionnelle qui crée des armées `NEUTRAL`.
 
-Une partie accepte de 2 à 16 joueurs. Chaque joueur commence sur un territoire
+### Cartes bonus et calamités
+
+Chaque joueur détient une main de cartes bonus. Pendant l'hiver, la feuille
+d'hiver peut contenir `D C KIND` pour défausser une carte, sans noble requis ;
+la main est ensuite reconstituée automatiquement jusqu'à la limite de cartes,
+dans la limite de remplissage prévue par la balance. Il n'existe pas d'ordre de
+pioche (`T C`). Les cartes jouables passent par une soumission `special`
+distincte des chaînes : `P KIND TER` est autorisé au printemps, en été et en
+automne.
+
+La limite de main, le remplissage automatique, la taille et la composition du
+deck, ainsi que les capacités des slots de calamité, sont chargées depuis
+`assets/balance.yaml`. La génération initiale du deck est déterministe à partir
+de la seed de partie. Au printemps, l'augure révèle le kind, la saison et la
+région de toutes les calamités de l'année ; les augures futures restent cachées.
+
+Les calamités et les cartes bonus sont appliquées avant la résolution
+simultanée des ordres d'armée :
+
+- la peste réduit les armées et peut affecter les nobles ;
+- le mauvais temps bloque les déplacements provenant de sa région ;
+- la famine désactive les moulins et les rations d'infrastructure ;
+- la révolte est une carte bonus conditionnelle qui crée des armées `NEUTRAL`.
+
+Le détail des cartes est suivi dans [`ordres-speciaux.md`](ordres-speciaux.md).
+
+### Joueurs, départ et élimination
+
+Une partie accepte de 2 à 16 joueurs dans le moteur ; une partie en ligne est
+limitée à 2 à 8 joueurs. Chaque joueur commence sur un territoire
 distinct qui n'est pas un village neutre. Les territoires de départ sont séparés
 d'au moins quatre étapes dans le graphe des frontières franchissables. Un
 château y est construit gratuitement, devient la capitale par défaut, et le
@@ -229,8 +247,10 @@ Elle limite les chiffres qui décrivent les intentions et les affrontements :
 
 Cette règle concerne les chaînes et les combats. Elle ne constitue pas encore
 un brouillard de guerre général sur les tailles d'armées ou les ressources.
-La projection serveur filtrée par joueur est une fonctionnalité online à
-réaliser ; le serveur v1 actuel renvoie encore la projection globale.
+En ligne, le serveur applique cette règle et ne renvoie à chaque joueur que
+sa projection filtrée ; un hôte observateur reçoit la projection complète. La
+session hotseat locale renvoie la projection globale, sauf lorsqu'un joueur
+est demandé explicitement.
 
 ## 5. Armées, combats et logistique
 
@@ -372,8 +392,9 @@ pendant les tours d'action ; l'armée locale les consomme en priorité.
 
 Une armée sans chaîne est Sans Ordre et ne reçoit aucun soutien automatique.
 Une erreur mécaniquement impossible casse immédiatement la chaîne, quel que
-soit son mode de liaison. La non-adjacence d'un ordre est contrôlée lors de son
-exécution : les ordres antérieurs restent valides et le suffixe est abandonné.
+soit son mode de liaison. La non-adjacence est contrôlée à la soumission : une
+soumission contenant un ordre qui relie deux cases non adjacentes est refusée
+avec une erreur à corriger, et aucune partie de la chaîne n'est reçue.
 
 ### Réception et capacité des nobles
 
@@ -466,7 +487,7 @@ proposés et suivis dans GitHub avant d'être intégrés au document.
 Une partie est créée avec une durée comprise entre 1 et 50 années, avec une
 valeur par défaut de 10 années. Une année conserve exactement quatre tours :
 printemps, été, automne et hiver. Le compteur interne `year` commence à 1 ;
-l'interface affiche l'année historique `1000 + year`, soit `AN 1001` au premier
+l'interface affiche l'année historique `1000 + year`, soit « Année 1001 » au premier
 tour joué.
 
 La partie se termine après la résolution du dernier tour de la durée choisie,

@@ -1,10 +1,11 @@
 # Architecture : Crown & Borough v1 et MVP online
 
-Cette architecture décrit le cœur v1 livré et les contrats figés du MVP online :
-un serveur Go avec un moteur pur, une API HTTP et un front React. La session
-hotseat actuelle reste en mémoire et sert au développement. Le MVP hébergé
-ajoutera plusieurs parties, Firebase Authentication, les vues privées et la
-restauration via Firestore, sans modifier le moteur pour gérer l'hébergement.
+Cette architecture décrit le cœur v1 et le MVP online livrés : un serveur Go
+avec un moteur pur, une API HTTP et un front React servi par le même binaire.
+Le MVP hébergé gère plusieurs parties, Firebase Authentication, les vues
+privées et la restauration via Firestore, sans que le moteur dépende de
+l'hébergement. La session hotseat en mémoire reste disponible pour le
+développement local.
 
 ## 1. Vue d'ensemble
 
@@ -40,9 +41,10 @@ Les assets `communes.csv`, `prenoms.csv` et `balance.yaml` restent locaux au
 conteneur et sont chargés par le serveur ; ils ne constituent pas la
 persistance de l'état d'une partie.
 
-La session actuelle contient une seule partie en mémoire. Chaque joueur
+La session hotseat locale contient une seule partie en mémoire. Chaque joueur
 soumet séparément ses ordres avec son identifiant. La résolution intervient
-quand tous les joueurs ont soumis, ou lorsqu'un client utilise `force`.
+quand tous les joueurs attendus ont soumis, ou lorsqu'un client utilise
+`force`. Les parties en ligne suivent le contrat de la section 5.
 
 ## 2. Stack technique
 
@@ -73,9 +75,11 @@ scénarios de combat, la logistique, l'hiver, les rapports et les handlers HTTP.
 - Firebase Web SDK pour le lien de connexion par email et les listeners
   `onSnapshot` des projections autorisées.
 
-Le front est lancé séparément en développement avec le proxy Vite. Le serveur
-Go v1 expose l'API de partie ; l'intégration d'un bundle frontend dans le
-conteneur et le déploiement public restent à traiter.
+Le bundle Vite est embarqué dans le binaire Go (`web/embed.go`) et servi sur
+la même origine que l'API, en hotseat comme en ligne. `make web-dev` reste
+disponible pour itérer sur le front seul, avec le proxy Vite vers un serveur Go
+lancé séparément. Le déploiement public passe par Cloud Run et Firebase
+Hosting, déclenché par un tag `v*` (voir `docs/deploy-cloudrun.md`).
 
 ## 3. Organisation du dépôt
 
@@ -97,8 +101,10 @@ conteneur et le déploiement public restent à traiter.
 │   ├── models/            # modèles et invariants métier
 │   └── store/             # interfaces mémoire et adaptateur Firestore online
 ├── web/
+│   ├── embed.go            # embarque dist/ dans le binaire Go
+│   ├── handler.go          # sert la SPA sur la même origine que l'API
 │   ├── src/                # application React et tests front
-│   └── dist/               # sortie Vite locale quand elle est générée
+│   └── dist/               # sortie Vite, générée par `make web-build`
 ├── Dockerfile
 └── Makefile
 ```
@@ -297,6 +303,8 @@ valide dans le header Bearer. Les tokens ne sont pas stockés par l'application.
 | Méthode | Route | Comportement |
 |---|---|---|
 | `GET` | `/healthz` | Vérifie que le serveur répond. |
+| `GET` | `/api/version` | Renvoie la version de l'application. |
+| `GET` | `/api/balance` | Renvoie les coûts d'hiver de la balance (hotseat). |
 | `GET` | `/api/map` | Renvoie la carte de la session courante. |
 | `GET` | `/api/state` | Renvoie l'état projeté global ; `?player=P1` active la vue privée hotseat. |
 | `GET` | `/api/supply?territory=ROS` | Calcule la ligne ou la zone de ravitaillement sélectionnée. |
@@ -328,9 +336,10 @@ listes `submitted` et `remaining`, ainsi que l'état courant. Lorsque le tour
 est résolu, la réponse contient `status: "resolved"`, le rapport et le nouvel
 état. `force: true` permet de résoudre avec les soumissions déjà présentes.
 
-Le serveur v1 ne fournit pas encore d'identité fiable : `player` est une
-identité de développement déclarée par le client. Ces routes et le paramètre
-`?player=` ne font pas partie de l'API publique authentifiée.
+Ces routes hotseat ne fournissent pas d'identité fiable : `player` est une
+identité de développement déclarée par le client. Elles ne sont montées qu'en
+mode de développement (`ONLINE_DEV_MODE=true`) et ne font pas partie de l'API
+publique authentifiée.
 
 ### Contrat MVP hébergé
 
@@ -352,7 +361,7 @@ global lorsqu'une autre partie est déjà active.
 | `GET` | `/api/games/{id}/state` | Renvoie la projection privée du joueur connecté ; un hôte observateur reçoit la projection complète ; aucun `?player=` public. |
 | `GET` | `/api/games/{id}/supply?territory=ROS` | Calcule la ligne ou la zone de ravitaillement demandée. |
 | `GET` | `/api/games/{id}/supply?territory=ROS&target=BOI` | Estime la route d'un transfert d'action vers `BOI`. |
-| `POST` | `/api/games/{id}/orders` | Remplace la soumission du joueur courant (`chains`, `winter`, `special`) ; résout automatiquement lorsque tous les joueurs vivants ont soumis. Un hôte observateur ne peut pas soumettre. Le corps ne contient aucun identifiant joueur. |
+| `POST` | `/api/games/{id}/orders` | Remplace la soumission du joueur courant (`chains`, `winter`, `special`) ; résout automatiquement lorsque tous les joueurs attendus ont soumis : un joueur éliminé n'est jamais attendu et, en saison d'action, un joueur sans noble libre ou otage non plus. Un hôte observateur ne peut pas soumettre. Le corps ne contient aucun identifiant joueur. |
 | `GET` | `/api/games/{id}/my-submission` | Renvoie la dernière soumission du tour courant pour le joueur connecté (chaînes et hiver) pour réhydrater les formulaires après refresh. |
 | `GET` | `/api/games/{id}/submitted-orders` | Renvoie les ordres déjà soumis du tour courant à l'hôte observateur uniquement, afin d'afficher la couche d'intentions ; les joueurs ne peuvent pas lire les ordres des autres. |
 | `POST` | `/api/games/{id}/resolve` | Résolution forcée explicite avec des ordres vides pour les joueurs manquants. |
@@ -405,10 +414,11 @@ contient des sections typées pour les joueurs, ordres, combats, mouvements,
 ravitaillement, famine, nobles, rumeurs publiques et investissements d'hiver. Le
 moteur ne dépend ni du HTTP ni du rendu front.
 
-La réception des chaînes est immédiate et atomique. La validation statique
-conserve volontairement la non-adjacence jusqu'à l'exécution : un ordre
-non-adjacent casse la chaîne à l'endroit où il est rencontré, sans annuler les
-ordres précédents.
+La réception des chaînes est immédiate et atomique. La non-adjacence est
+rejetée à la soumission : `ResolveTurn` renvoie une erreur d'entrée et aucune
+partie de la chaîne n'est reçue. Les autres conditions dépendant de l'état du
+monde (destination contestée, armée cible absente) restent évaluées à
+l'exécution et cassent la chaîne à l'endroit où elles sont rencontrées.
 
 Plusieurs chaînes ciblant la même armée au même tour constituent une réception
 concurrente : elles sont toutes rejetées avant la résolution et aucune nouvelle
@@ -462,23 +472,19 @@ le front. Le moteur reçoit une `assetgen.Balance` déjà chargée.
 
 ## 9. Évolutions d'infrastructure
 
-Les fonctionnalités suivantes ne font pas partie de la session v1 en mémoire
-et sont suivies par l'issue online :
-
-- identifiant territorial unique fondé sur le trigramme (contrat figé par O1,
-  implémentation O2) ;
-- filtre serveur des vues par joueur ;
-- gestion de plusieurs parties, Firebase Authentication et les invitations ;
-- persistance Firestore avec projections publiques et privées ;
-- bundle frontend servi par le serveur et déploiement public.
+Les fonctionnalités suivies par l'issue online sont livrées : identifiant
+territorial fondé sur le trigramme, filtre serveur des vues par joueur,
+plusieurs parties avec Firebase Authentication et invitations, persistance
+Firestore avec projections publiques et privées, bundle frontend servi par le
+serveur et déploiement public.
 
 Un brouillard de guerre général pourra éventuellement réintroduire des
 infrastructures de vision dédiées. Cela constituera une extension de règles et
 un contrat de vue distinct, pas une modification silencieuse du cœur v1.
 
-## 10. Cible online MVP
+## 10. MVP online
 
-Le déploiement online cible plusieurs parties de deux à huit joueurs.
+Le déploiement online gère plusieurs parties de deux à huit joueurs.
 L'identifiant de partie est conservé dans les routes `/api/games/{id}` et la
 liste est filtrée par membership.
 
@@ -506,8 +512,9 @@ est configuré plus tard avec plusieurs instances.
 Firebase Authentication gère l'identité et la session client par lien email.
 Le profil `players/{uid}` et les memberships survivent aux redémarrages, mais
 les ID tokens ne sont pas copiés dans Firestore. Le frontend utilise
-`onSnapshot` uniquement sur `games/{id}` et `games/{id}/views/{uid}` après
-authentification ; les commandes passent par l'API Go.
+`onSnapshot` uniquement sur `games/{id}`, `games/{id}/views/{uid}` et, pour un
+hôte observateur, `games/{id}/observer/{uid}` après authentification ; les
+commandes passent par l'API Go.
 
 Cloud Run est la cible unique du MVP, avec `min-instances=0` et une limite
 initiale d'instances pour maîtriser le coût. Aucun volume GCS FUSE, Persistent
