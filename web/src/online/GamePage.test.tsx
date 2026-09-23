@@ -186,6 +186,28 @@ describe('GamePage transfer preview', () => {
       if (url.endsWith('/api/games/GAME1/state')) {
         return Promise.resolve(jsonResponse({ ...state, revision: 1 }))
       }
+      if (url.includes('/orders/preview')) {
+        return Promise.resolve(
+          jsonResponse({
+            errors: [],
+            chains: [
+              {
+                noble: 'JEA',
+                orders: [
+                  {
+                    type: 'transfer',
+                    position: 'ROS',
+                    targets: ['BRU'],
+                    amount: 1,
+                    liaison: 'single',
+                  },
+                ],
+              },
+            ],
+            winter: [],
+          }),
+        )
+      }
       if (url.includes('target=BRU')) return Promise.resolve(jsonResponse(transferLine))
       if (url.includes('/supply?territory=ROS'))
         return Promise.resolve(jsonResponse(supplyLine))
@@ -356,7 +378,26 @@ describe('GamePage submission rehydration and divergence', () => {
           jsonResponse({
             turn: 4,
             season: 'winter',
-            submissions: [{ player: 'P1', chains: [], winter: { lines: 'C C ROS' } }],
+            submissions: [
+              {
+                player: 'P1',
+                chains: [],
+                winter: { lines: 'C C ROS' },
+                preview: {
+                  errors: [],
+                  chains: [],
+                  winter: [
+                    {
+                      line: 1,
+                      status: 'applied',
+                      type: 'build',
+                      territory: 'ROS',
+                      infrastructure: 'castle',
+                    },
+                  ],
+                },
+              },
+            ],
           }),
         )
       }
@@ -491,6 +532,24 @@ describe('GamePage submission rehydration and divergence', () => {
             submitted: true,
             chains: [],
             winter: { lines: 'C C ROS' },
+          }),
+        )
+      }
+      if (url.includes('/orders/preview')) {
+        return Promise.resolve(
+          jsonResponse({
+            errors: [],
+            chains: [],
+            winter: [
+              {
+                line: 1,
+                status: 'applied',
+                type: 'build',
+                territory: 'ROS',
+                infrastructure: 'castle',
+              },
+            ],
+            winterCost: { spent: 10, available: 3 },
           }),
         )
       }

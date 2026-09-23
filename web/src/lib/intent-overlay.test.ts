@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildIntentions } from '@/lib/intent-overlay'
+import { buildIntentions as buildIntentionsFromOrders } from '@/lib/intent-overlay'
+import { draftOrders } from '@/test/parse-orders'
+
+/** Keeps the fixtures readable: drafts are written as order text. */
+const buildIntentions = (
+  map: MapData,
+  state: StateData,
+  player: string,
+  drafts: Record<string, string>,
+  options?: Parameters<typeof buildIntentionsFromOrders>[4],
+) => buildIntentionsFromOrders(map, state, player, draftOrders(drafts), options)
 import type { MapData, StateData } from '@/types'
 
 const map: MapData = {

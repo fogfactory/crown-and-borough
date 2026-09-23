@@ -291,6 +291,53 @@ export interface SubmittedPlayerOrders {
   player: PlayerId
   chains: SubmittedChain[]
   winter?: SubmittedWinter
+  /** Server dry run of this submission, used to draw the observer overlay. */
+  preview?: OrdersPreview
+}
+
+/** Error found by the server in a draft; line numbers include the noble header. */
+export interface OrdersPreviewError {
+  player?: PlayerId
+  noble?: string
+  line?: number
+  code: string
+  message: string
+}
+
+/** Order lines of one drafted chain that the server could parse. */
+export interface ChainPreview {
+  noble: string
+  orders: Order[]
+}
+
+export type WinterLineStatus = 'applied' | 'rejected' | 'invalid' | 'discard'
+
+/**
+ * Simulated outcome of one winter line. `reason` is an engine rejection
+ * reason; `message` explains a line that does not parse.
+ */
+export interface WinterLinePreview {
+  line: number
+  status: WinterLineStatus
+  type?: WinterOrderType
+  territory?: string
+  source?: string
+  target?: string
+  amount?: number
+  infrastructure?: 'mill' | 'castle' | 'supply_depot'
+  level?: number
+  noble?: string
+  cost?: number
+  reason?: string
+  message?: string
+}
+
+/** Server dry run of the current player's draft (`POST .../orders/preview`). */
+export interface OrdersPreview {
+  errors: OrdersPreviewError[]
+  chains: ChainPreview[]
+  winter: WinterLinePreview[]
+  winterCost?: { spent: number; available: number }
 }
 
 export interface SubmittedOrdersResponse {

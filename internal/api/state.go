@@ -94,6 +94,7 @@ type OrderView struct {
 	Targets          []models.TerritoryID                      `json:"targets,omitempty"`
 	NobleAssignments map[models.TerritoryID][]models.NobleCode `json:"nobleAssignments,omitempty"`
 	Liaison          models.LiaisonMode                        `json:"liaison"`
+	Amount           int                                       `json:"amount,omitempty"`
 }
 
 // InfraView contains the visible kind and level of an infrastructure.
@@ -271,24 +272,27 @@ func projectChain(
 		Orders:       make([]OrderView, 0, len(chain.Orders)),
 	}
 	for _, order := range chain.Orders {
-		orderView := OrderView{
-			Type:     order.Type,
-			Position: order.PositionID,
-			Liaison:  order.Liaison,
-		}
-		if len(order.TargetIDs) != 0 {
-			orderView.Targets = make([]models.TerritoryID, 0, len(order.TargetIDs))
-			for _, targetID := range order.TargetIDs {
-				orderView.Targets = append(orderView.Targets, targetID)
-			}
-		}
-		if len(order.NobleAssignments) != 0 {
-			orderView.NobleAssignments = make(map[models.TerritoryID][]models.NobleCode, len(order.NobleAssignments))
-			for destination, nobleCodes := range order.NobleAssignments {
-				orderView.NobleAssignments[destination] = append([]models.NobleCode(nil), nobleCodes...)
-			}
-		}
-		view.Orders = append(view.Orders, orderView)
+		view.Orders = append(view.Orders, projectOrder(order))
 	}
 	return view
+}
+
+// projectOrder converts one parsed or installed order to its public shape.
+func projectOrder(order models.Order) OrderView {
+	orderView := OrderView{
+		Type:     order.Type,
+		Position: order.PositionID,
+		Liaison:  order.Liaison,
+		Amount:   order.Amount,
+	}
+	if len(order.TargetIDs) != 0 {
+		orderView.Targets = append([]models.TerritoryID(nil), order.TargetIDs...)
+	}
+	if len(order.NobleAssignments) != 0 {
+		orderView.NobleAssignments = make(map[models.TerritoryID][]models.NobleCode, len(order.NobleAssignments))
+		for destination, nobleCodes := range order.NobleAssignments {
+			orderView.NobleAssignments[destination] = append([]models.NobleCode(nil), nobleCodes...)
+		}
+	}
+	return orderView
 }

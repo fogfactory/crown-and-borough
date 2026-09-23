@@ -838,11 +838,15 @@ function winterReasonKey(reason: string): MessageKey {
   return (reason.startsWith('error.') ? reason : `reports.reason.${reason}`) as MessageKey
 }
 
-function winterMarkerTitle(t: Translate, intention: WinterIntention): string {
-  const reason = intention.reason
+function winterReasonText(t: Translate, intention: WinterIntention): string {
+  if (intention.message) return intention.message
+  return intention.reason
     ? t(winterReasonKey(intention.reason), intention.reasonValues)
     : intention.label
-  return t('error.line', { line: intention.line, message: reason })
+}
+
+function winterMarkerTitle(t: Translate, intention: WinterIntention): string {
+  return t('error.line', { line: intention.line, message: winterReasonText(t, intention) })
 }
 
 function IntentionsOverlay({
@@ -2904,9 +2908,7 @@ export function MapViewer({
                           )
                         })}
                         {errors.map((intention, index) => {
-                          const reason = intention.reason
-                            ? t(winterReasonKey(intention.reason), intention.reasonValues)
-                            : intention.label
+                          const reason = winterReasonText(t, intention)
                           return (
                             <WinterMarkerTriangle
                               key={`error-${intention.line}-${index}`}
@@ -2975,9 +2977,7 @@ export function MapViewer({
                   {winterIntentions
                     .filter((intention) => !intention.valid && !intention.territory)
                     .map((intention, index) => {
-                      const reason = intention.reason
-                        ? t(winterReasonKey(intention.reason), intention.reasonValues)
-                        : intention.label
+                      const reason = winterReasonText(t, intention)
                       return (
                         <WinterMarkerTriangle
                           key={`unplaced-error-${intention.line}-${index}`}

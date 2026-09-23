@@ -6,7 +6,14 @@ vi.mock('@/lib/firebase', () => ({
 }))
 
 import App from '@/App'
-import type { MapData, StateData, SupplyLine, TransferLine, TurnReport } from '@/types'
+import type {
+  MapData,
+  OrdersPreview,
+  StateData,
+  SupplyLine,
+  TransferLine,
+  TurnReport,
+} from '@/types'
 
 const map: MapData = {
   territories: [
@@ -250,11 +257,30 @@ describe('App command/report tabs', () => {
           : territory,
       ),
     }
+    const winterPreview: OrdersPreview = {
+      errors: [],
+      chains: [],
+      winter: [
+        {
+          line: 1,
+          status: 'applied',
+          type: 'build',
+          territory: 'ROS',
+          infrastructure: 'castle',
+        },
+      ],
+      winterCost: { spent: 10, available: 3 },
+    }
     const fetchMock = hotseatFetch((input: RequestInfo | URL) => {
       const url = String(input)
       return Promise.resolve({
         ok: true,
-        json: async () => (url.includes('/map') ? map : winterState),
+        json: async () =>
+          url.includes('/orders/preview')
+            ? winterPreview
+            : url.includes('/map')
+              ? map
+              : winterState,
       } as Response)
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -263,6 +289,19 @@ describe('App command/report tabs', () => {
     const textarea = await screen.findByLabelText('Winter orders for P1')
     fireEvent.change(textarea, { target: { value: 'C C ROS' } })
 
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        `${GAME_PATH}/orders/preview?player=P1&lang=en`,
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({
+            chains: [],
+            winter: [{ lines: 'C C ROS' }],
+            special: [],
+          }),
+        }),
+      )
+    })
     await waitFor(() => {
       const actionOverlay = container.querySelector('g[aria-label="Intentions overlay"]')
       const winterOverlay = container.querySelector('[data-winter-orders-overlay="true"]')
@@ -394,18 +433,38 @@ describe('App command/report tabs', () => {
   })
 
   it('requests a transfer overlay for a drafted action transfer', async () => {
+    const transferPreview: OrdersPreview = {
+      errors: [],
+      chains: [
+        {
+          noble: 'JEA',
+          orders: [
+            {
+              type: 'transfer',
+              position: 'ROS',
+              targets: ['BRU'],
+              amount: 1,
+              liaison: 'single',
+            },
+          ],
+        },
+      ],
+      winter: [],
+    }
     const fetchMock = hotseatFetch((input: RequestInfo | URL) => {
       const url = String(input)
       return Promise.resolve({
         ok: true,
         json: async () =>
-          url.includes('target=')
-            ? transferLine
-            : url.includes('/map')
-              ? map
-              : url.includes('/supply')
-                ? supplyLine
-                : state,
+          url.includes('/orders/preview')
+            ? transferPreview
+            : url.includes('target=')
+              ? transferLine
+              : url.includes('/map')
+                ? map
+                : url.includes('/supply')
+                  ? supplyLine
+                  : state,
       } as Response)
     })
     vi.stubGlobal('fetch', fetchMock)

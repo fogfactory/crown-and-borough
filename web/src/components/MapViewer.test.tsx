@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { DRAFT_INTENTION_COLOR, MapViewer } from '@/components/MapViewer'
 import { HERALDIC_COLORS } from '@/lib/region-color'
 import { buildIntentions } from '@/lib/intent-overlay'
+import { draftOrders } from '@/test/parse-orders'
 import type { Intention } from '@/lib/intent-overlay'
 import type { WinterIntention } from '@/lib/winter-overlay'
 import type { MapData, StateData, SupplyLine } from '@/types'
@@ -1053,7 +1054,7 @@ describe('MapViewer intentions overlay', () => {
   }
 
   const intentionsFor = (text: string) =>
-    buildIntentions(triangleMap, armedState, 'P1', { HUG: text })
+    buildIntentions(triangleMap, armedState, 'P1', draftOrders({ HUG: text }))
 
   it('renders an attack as a heavy arrow entering the destination territory', () => {
     const { svg } = renderMap(

@@ -7,18 +7,22 @@ import { formatCardHand, formatCardLabel } from '@/lib/card-hand'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
-import { estimateWinterCost } from '@/lib/winter-cost'
-import { parseWinterDraftDetailed, type WinterParseError } from '@/lib/winter-parse'
-import { simulateWinterDraft, type WinterSimulationOutcome } from '@/lib/winter-overlay'
-import type { MapData, Noble, PlayerId, StateData, WinterCosts } from '@/types'
+import type {
+  Noble,
+  OrdersPreview,
+  OrdersPreviewError,
+  PlayerId,
+  StateData,
+  WinterLinePreview,
+} from '@/types'
 
 interface OrdersPanelProps {
   state: StateData
   player: PlayerId
   chainDrafts: Record<string, string>
   winterDraft: string
-  winterCosts?: WinterCosts | null
-  map?: MapData
+  /** Server dry run of the drafts; null until the first preview arrives. */
+  preview?: OrdersPreview | null
   specialDraft: string
   submitted: boolean
   submitting: boolean
@@ -78,21 +82,27 @@ function OrderError({ error }: { error: string | null }) {
   )
 }
 
-function WinterOrderErrors({ errors, t }: { errors: WinterParseError[]; t: Translate }) {
+function PreviewErrors({
+  errors,
+  label,
+}: {
+  errors: Array<{ line?: number; message: string }>
+  label: string
+}) {
+  const { t } = useLanguage()
   if (errors.length === 0) return null
 
   return (
     <ul
       role="alert"
-      aria-label={t('orders.winterErrorsAria')}
+      aria-label={label}
       className="max-h-32 list-disc space-y-1 overflow-y-auto rounded-md border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 pl-7 text-xs text-[#8d321e]"
     >
-      {errors.map((error) => (
-        <li key={`${error.line}-${error.key}`}>
-          {t('error.line', {
-            line: error.line,
-            message: t(error.key, error.values),
-          })}
+      {errors.map((error, index) => (
+        <li key={`${error.line ?? 0}-${index}`}>
+          {error.line
+            ? t('error.line', { line: error.line, message: error.message })
+            : error.message}
         </li>
       ))}
     </ul>
@@ -185,7 +195,7 @@ function WinterOrderDiagnostics({
   diagnostics,
   t,
 }: {
-  diagnostics: WinterSimulationOutcome[]
+  diagnostics: WinterLinePreview[]
   t: Translate
 }) {
   if (diagnostics.length === 0) return null
@@ -199,13 +209,15 @@ function WinterOrderDiagnostics({
       {diagnostics.map((diagnostic) => (
         <li
           key={`${diagnostic.line}-${diagnostic.reason ?? ''}`}
-          className={diagnostic.valid ? undefined : 'font-semibold'}
+          className={
+            diagnostic.reason === 'insufficient_resources' ? undefined : 'font-semibold'
+          }
         >
           {t('error.line', {
             line: diagnostic.line,
-            message: diagnostic.reason
-              ? t(`reports.reason.${diagnostic.reason}` as MessageKey)
-              : t('reports.reason.insufficient_resources'),
+            message: t(
+              `reports.reason.${diagnostic.reason ?? 'insufficient_resources'}` as MessageKey,
+            ),
           })}
         </li>
       ))}
@@ -213,13 +225,17 @@ function WinterOrderDiagnostics({
   )
 }
 
+/** Chain errors, as opposed to line errors of the winter sheet. */
+function chainErrors(errors: OrdersPreviewError[]): OrdersPreviewError[] {
+  return errors.filter((error) => error.noble)
+}
+
 export function OrdersPanel({
   state,
   player,
   chainDrafts,
   winterDraft,
-  winterCosts,
-  map,
+  preview = null,
   specialDraft,
   submitted,
   submitting,
@@ -239,23 +255,12 @@ export function OrdersPanel({
     }
 
   if (state.season === 'winter') {
-    const parsedWinterDraft = parseWinterDraftDetailed(winterDraft, {
-      map,
-      nobles: state.nobles,
-    })
-    const winterSimulation = map
-      ? simulateWinterDraft(state, player, winterDraft, map, winterCosts)
-      : null
-    const winterDiagnostics = (winterSimulation?.outcomes ?? [])
-      .filter(
-        (outcome) =>
-          (outcome.valid && outcome.warning) ||
-          (!outcome.valid && outcome.reason && !outcome.reason.startsWith('error.')),
-      )
-      .sort((first, second) => first.line - second.line)
-    const winterEstimate = winterCosts
-      ? estimateWinterCost(state, player, winterCosts, winterDraft, map)
-      : null
+    const winterLines = preview?.winter ?? []
+    const winterErrors = winterLines
+      .filter((line) => line.status === 'invalid')
+      .map((line) => ({ line: line.line, message: line.message ?? '' }))
+    const winterDiagnostics = winterLines.filter((line) => line.status === 'rejected')
+    const winterEstimate = preview?.winterCost ?? null
     return (
       <section className="space-y-3 rounded-xl border border-[#9bbbd3] bg-[#eaf3ff]/80 p-4 shadow-inner shadow-[#b8d3e8]/40">
         <div>
@@ -301,7 +306,7 @@ export function OrdersPanel({
             })}
           </p>
         )}
-        <WinterOrderErrors errors={parsedWinterDraft.errors} t={t} />
+        <PreviewErrors errors={winterErrors} label={t('orders.winterErrorsAria')} />
         <WinterOrderDiagnostics diagnostics={winterDiagnostics} t={t} />
         {submitted && (
           <p className="text-xs text-[#376341]">{t('orders.submittedEditable')}</p>
@@ -384,6 +389,10 @@ export function OrdersPanel({
           </div>
         ))
       )}
+      <PreviewErrors
+        errors={chainErrors(preview?.errors ?? [])}
+        label={t('orders.chainErrorsAria')}
+      />
       {submitted && (
         <p className="text-xs text-[#376341]">{t('orders.submittedEditable')}</p>
       )}

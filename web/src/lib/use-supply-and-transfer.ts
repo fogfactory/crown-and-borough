@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { hasSupplySource } from '@/lib/supply'
 import { transferTargetsForTerritory } from '@/lib/transfer-preview'
 import type {
+  Order,
   PlayerId,
   StateData,
   SupplyLine,
@@ -16,7 +17,8 @@ export interface UseSupplyAndTransferOptions {
   selectedId: string | null
   state: StateData | null
   selectedState: TerritoryState | null | undefined
-  chainDrafts: Record<string, string>
+  /** Drafted orders per noble code, as parsed by the server preview. */
+  draftOrders: Record<string, Order[]>
   /** Player whose drafts are shown; transfer targets require owning the army. */
   ownerId: PlayerId | null
   /** Resource root for the supply endpoint ('/api' hotseat, '/api/games/{id}' online). */
@@ -63,7 +65,7 @@ export function useSupplyAndTransfer({
   selectedId,
   state,
   selectedState,
-  chainDrafts,
+  draftOrders,
   ownerId,
   basePath = '/api',
   fetcher,
@@ -83,9 +85,9 @@ export function useSupplyAndTransfer({
   const transferTargets = useMemo(
     () =>
       selectedState?.army?.owner === ownerId
-        ? transferTargetsForTerritory(chainDrafts, selectedId)
+        ? transferTargetsForTerritory(draftOrders, selectedId)
         : [],
-    [chainDrafts, ownerId, selectedId, selectedState?.army?.owner],
+    [draftOrders, ownerId, selectedId, selectedState?.army?.owner],
   )
   const transferTarget = transferTargets.includes(selectedTransferTarget ?? '')
     ? selectedTransferTarget
