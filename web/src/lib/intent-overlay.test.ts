@@ -406,6 +406,93 @@ describe('buildIntentions', () => {
     expect(intentions).toHaveLength(0)
   })
 
+  it('renders installed chains during winter without rendering drafts', () => {
+    const winterState = stateWith({
+      season: 'winter',
+      territories: baseState.territories.map((territory, index) =>
+        index === 0
+          ? {
+              ...territory,
+              army: {
+                owner: 'P1',
+                size: 3,
+                chain: {
+                  visibility: 'known',
+                  currentIndex: 0,
+                  orders: [
+                    {
+                      type: 'attack',
+                      position: 'ROS',
+                      targets: ['BRU'],
+                      liaison: 'single',
+                    },
+                  ],
+                },
+              },
+            }
+          : territory,
+      ),
+    })
+
+    const intentions = buildIntentions(
+      map,
+      winterState,
+      'P1',
+      { HUG: 'HUG\nROS H' },
+      { includeInstalledInWinter: true },
+    )
+
+    expect(intentions).toHaveLength(1)
+    expect(intentions[0]).toMatchObject({ source: 'chain', symbol: 'A' })
+  })
+
+  it('shows only the remaining installed chain orders in winter after it has advanced', () => {
+    const winterState = stateWith({
+      season: 'winter',
+      territories: baseState.territories.map((territory, index) =>
+        index === 0
+          ? {
+              ...territory,
+              army: {
+                owner: 'P1',
+                size: 3,
+                chain: {
+                  visibility: 'known',
+                  currentIndex: 1,
+                  orders: [
+                    {
+                      type: 'attack',
+                      position: 'ROS',
+                      targets: ['BRU'],
+                      liaison: 'single',
+                    },
+                    {
+                      type: 'hold',
+                      position: 'BRU',
+                      targets: [],
+                      liaison: 'loop',
+                    },
+                  ],
+                },
+              },
+            }
+          : territory,
+      ),
+    })
+
+    const intentions = buildIntentions(
+      map,
+      winterState,
+      'P1',
+      {},
+      { includeInstalledInWinter: true },
+    )
+
+    expect(intentions.map(({ symbol, turn }) => ({ symbol, turn }))).toEqual([
+      { symbol: 'H', turn: 1 },
+    ])
+  })
+
   it('renders visible installed chains including the current order', () => {
     const intentions = buildIntentions(map, stateWith(), 'P1', {})
 
