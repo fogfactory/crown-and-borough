@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.1](https://github.com/fogfactory/crown-and-borough/compare/v0.10.0...v0.10.1) (2026-09-23)
+
+
+### Bug Fixes
+
+* **dev:** copy web/.env.local into Claude Code worktrees ([bb986a8](https://github.com/fogfactory/crown-and-borough/commit/bb986a88879d891ea7a0e0d69c7b4fdd7eb6fdb1))
+* **dev:** copy web/.env.local into Claude Code worktrees ([fe23eb4](https://github.com/fogfactory/crown-and-borough/commit/fe23eb4cd4652119295a322abc943e8561d06b57))
+* **rules:** align player rules with engine and balance ([62f43bf](https://github.com/fogfactory/crown-and-borough/commit/62f43bf17008dee514719f0c228bbc7fdf012e76))
+* **rules:** align player rules with engine and balance ([8715d27](https://github.com/fogfactory/crown-and-borough/commit/8715d27026f5080dbc9c7c33f4371b397b8561a2))
+* **store:** skip players without an emitting noble when waiting for submissions ([861ce9e](https://github.com/fogfactory/crown-and-borough/commit/861ce9e271e67bcb7d7e3258008dab6f1ecca384))
+* **store:** skip players without an emitting noble when waiting for submissions ([3614f6c](https://github.com/fogfactory/crown-and-borough/commit/3614f6c66c7e232f32efa4023e02de86c6c28a60))
+
 ## [0.10.0](https://github.com/fogfactory/crown-and-borough/compare/v0.9.1...v0.10.0) (2026-09-23)
 
 
