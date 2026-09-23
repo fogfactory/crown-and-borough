@@ -194,6 +194,61 @@ describe('App command/report tabs', () => {
     })
   })
 
+  it('renders installed chains and winter investments in the hotseat map', async () => {
+    const winterState: StateData = {
+      ...state,
+      turn: 4,
+      season: 'winter',
+      territories: state.territories.map((territory, index) =>
+        index === 0
+          ? {
+              ...territory,
+              infrastructures: [{ type: 'village' as const, level: 1 }],
+              army: {
+                owner: 'P1',
+                size: 4,
+                chain: {
+                  visibility: 'known',
+                  currentIndex: 0,
+                  orders: [
+                    {
+                      type: 'attack',
+                      position: 'ROS',
+                      targets: ['BRU'],
+                      liaison: 'single',
+                    },
+                  ],
+                },
+              },
+            }
+          : territory,
+      ),
+    }
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      return Promise.resolve({
+        ok: true,
+        json: async () => (url.includes('/map') ? map : winterState),
+      } as Response)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { container } = render(<App initialLanguage="en" />)
+    const textarea = await screen.findByLabelText('Winter orders for P1')
+    fireEvent.change(textarea, { target: { value: 'C C ROS' } })
+
+    await waitFor(() => {
+      const actionOverlay = container.querySelector('g[aria-label="Intentions overlay"]')
+      const winterOverlay = container.querySelector('[data-winter-orders-overlay="true"]')
+      expect(actionOverlay).toBeInTheDocument()
+      expect(actionOverlay?.textContent).toContain('A')
+      expect(winterOverlay).toBeInTheDocument()
+      expect(
+        winterOverlay?.querySelector('g[data-winter-ghost="true"]'),
+      ).toBeInTheDocument()
+    })
+  })
+
   it('identifies a selected capital in the command post', async () => {
     const capitalState: StateData = {
       ...state,
@@ -285,7 +340,7 @@ describe('App command/report tabs', () => {
     expect(within(noblesSection).getAllByText('Détenteur')).toHaveLength(2)
     expect(screen.getAllByLabelText('Couleur de One')).toHaveLength(2)
     expect(screen.getAllByLabelText('Couleur de Two')).toHaveLength(2)
-    expect(screen.getByText('ROS A BRU')).toBeInTheDocument()
+    expect(screen.getAllByText('ROS A BRU').length).toBeGreaterThanOrEqual(1)
     expect(
       screen.getByText('(H ROS)', { selector: 'span' }).closest('li'),
     ).toHaveAttribute('aria-current', 'step')
@@ -471,7 +526,7 @@ describe('App command/report tabs', () => {
 
     expect(await screen.findByText('Turn report 1')).toBeInTheDocument()
     expect(screen.getByText('Forces')).toBeInTheDocument()
-    expect(screen.getByText('ROS A BRU')).toBeInTheDocument()
+    expect(screen.getAllByText('ROS A BRU').length).toBeGreaterThanOrEqual(1)
   })
 
   it('shows order validation errors above the order rules shortcut', async () => {

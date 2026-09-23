@@ -11,8 +11,9 @@ import { IconFocus2, IconMinus, IconPlus } from '@tabler/icons-react'
 
 import { MapLegend, TERRAIN_COLORS, TERRAIN_LABEL_KEYS } from '@/components/MapLegend'
 import { useLanguage } from '@/i18n/LanguageContext'
-import type { MessageKey } from '@/i18n/messages'
+import type { MessageKey, Translate } from '@/i18n/messages'
 import type { Intention } from '@/lib/intent-overlay'
+import type { WinterIntention } from '@/lib/winter-overlay'
 import {
   DRAG_THRESHOLD,
   WHEEL_ZOOM_FACTOR,
@@ -58,6 +59,8 @@ const REFERENCE_MEAN_TERRITORY_AREA =
 const PLAYER_PALETTE = ['#a84632', '#2d5f9e', '#7052a1', '#0e7490', '#ad7a25']
 const INTENT_OUTLINE_COLOR = '#17120f'
 export const DRAFT_INTENTION_COLOR = '#d4a39b'
+const WINTER_ERROR_COLOR = '#c43b2a'
+const WINTER_WARNING_COLOR = '#e07a30'
 
 // Map marker artwork from game-icons.net (CC BY 3.0, icons by Delapouite):
 // https://game-icons.net/1x1/delapouite/castle.html
@@ -260,6 +263,8 @@ interface InfrastructureMarkerProps {
   isCapital: boolean
   scale: number
   ownerColor?: string | null
+  opacity?: number
+  variant?: 'normal' | 'winterGhost'
 }
 
 function pointsToPath(points: Point[]): string {
@@ -397,6 +402,8 @@ function InfrastructureMarker({
   isCapital,
   scale,
   ownerColor = null,
+  opacity = 1,
+  variant = 'normal',
 }: InfrastructureMarkerProps) {
   const { t } = useLanguage()
   const label = `${t(INFRASTRUCTURE_LABEL_KEYS[infrastructure.type])} · ${t('app.level', { level: infrastructure.level })}${isCapital ? ` · ${t('app.capital')}` : ''}`
@@ -404,15 +411,44 @@ function InfrastructureMarker({
   const fill = ownerColor ?? NEUTRAL_MARKER_FILL
 
   return (
-    <g transform={`translate(${x} ${y}) scale(${scale})`} pointerEvents="none">
+    <g
+      transform={`translate(${x} ${y}) scale(${scale})`}
+      data-winter-ghost={variant === 'winterGhost' ? 'true' : undefined}
+      opacity={opacity}
+      pointerEvents="none"
+    >
       <title>{label}</title>
-      <g transform="translate(-13 -13) scale(0.05078125)">
-        {/* Light halo keeps the glyph readable on any terrain fill. */}
-        <path d={glyph} fill="#fff8e7" stroke="#fff8e7" strokeWidth={20} opacity={0.9} />
-        {/* Owner color fills the building, dark casing defines its shape. */}
-        <path d={glyph} fill={fill} />
-        <path d={glyph} fill="none" stroke={MARKER_CASING_COLOR} strokeWidth={8} />
-      </g>
+      {variant === 'winterGhost' ? (
+        <>
+          {/* Enlarged disc fully contains the 26x26 glyph footprint. */}
+          <circle
+            cx="0"
+            cy="0"
+            r="18.5"
+            fill={fill}
+            stroke={INTENT_OUTLINE_COLOR}
+            strokeWidth="2"
+          />
+          <g transform="translate(-13 -13) scale(0.05078125)">
+            <path d={glyph} fill="#fff8e7" />
+            <path d={glyph} fill="none" stroke={INTENT_OUTLINE_COLOR} strokeWidth={10} />
+          </g>
+        </>
+      ) : (
+        <g transform="translate(-13 -13) scale(0.05078125)">
+          {/* Light halo keeps the glyph readable on any terrain fill. */}
+          <path
+            d={glyph}
+            fill="#fff8e7"
+            stroke="#fff8e7"
+            strokeWidth={20}
+            opacity={0.9}
+          />
+          {/* Owner color fills the building, dark casing defines its shape. */}
+          <path d={glyph} fill={fill} />
+          <path d={glyph} fill="none" stroke={MARKER_CASING_COLOR} strokeWidth={8} />
+        </g>
+      )}
       {isCapital && (
         <g
           data-capital-marker="true"
@@ -532,6 +568,318 @@ function IntentBadge({
   )
 }
 
+function WinterBadge({
+  x,
+  y,
+  label,
+  detail,
+  title,
+  color,
+  scale,
+}: {
+  x: number
+  y: number
+  label: string
+  detail?: string
+  title: string
+  color: string
+  scale: number
+}) {
+  return (
+    <g transform={`translate(${x} ${y})`} pointerEvents="none">
+      <title>{title}</title>
+      <circle
+        cx="0"
+        cy="0"
+        r={9 * scale}
+        fill={color}
+        fillOpacity="0.48"
+        stroke="#fff8e7"
+        strokeWidth={2 * scale}
+      />
+      <text
+        x="0"
+        y="0"
+        fill="#30291f"
+        fontSize={label.length > 2 ? 6.5 * scale : 8 * scale}
+        fontWeight="800"
+        textAnchor="middle"
+        dominantBaseline="central"
+      >
+        {label}
+      </text>
+      {detail && (
+        <text
+          x={13 * scale}
+          y={-1 * scale}
+          fill="#30291f"
+          fontSize={8 * scale}
+          fontWeight="800"
+          textAnchor="start"
+          stroke="#fff8e7"
+          strokeWidth={2.5 * scale}
+          paintOrder="stroke"
+        >
+          {detail}
+        </text>
+      )}
+    </g>
+  )
+}
+
+function WinterMarkerTriangle({
+  x,
+  y,
+  line,
+  title,
+  scale,
+  color,
+  dataTag,
+}: {
+  x: number
+  y: number
+  line: number
+  title: string
+  scale: number
+  color: string
+  dataTag: 'error' | 'warning'
+}) {
+  const size = 8 * scale
+  return (
+    <g transform={`translate(${x} ${y})`} pointerEvents="none">
+      <title>{title}</title>
+      <path
+        data-winter-error={dataTag === 'error' ? 'true' : undefined}
+        data-winter-warning={dataTag === 'warning' ? 'true' : undefined}
+        d={`M 0 ${-size} L ${size} ${size} L ${-size} ${size} Z`}
+        fill={color}
+        stroke={INTENT_OUTLINE_COLOR}
+        strokeWidth={1.5 * scale}
+        strokeLinejoin="round"
+      />
+      <text
+        x="0"
+        y={3 * scale}
+        fill="#fff8e7"
+        fontSize={7 * scale}
+        fontWeight="800"
+        textAnchor="middle"
+      >
+        {line}
+      </text>
+    </g>
+  )
+}
+
+function WinterTransferArrow({
+  from,
+  to,
+  color,
+  amount,
+  title,
+  scale,
+}: {
+  from: Point
+  to: Point
+  color: string
+  amount?: number
+  title: string
+  scale: number
+}) {
+  const dx = to[0] - from[0]
+  const dy = to[1] - from[1]
+  const distance = Math.hypot(dx, dy)
+  if (distance === 0) return null
+
+  const ux = dx / distance
+  const uy = dy / distance
+  const start = [from[0] + ux * 12 * scale, from[1] + uy * 12 * scale] as Point
+  const tip = [to[0] - ux * 13 * scale, to[1] - uy * 13 * scale] as Point
+  const base = [tip[0] - ux * 9 * scale, tip[1] - uy * 9 * scale] as Point
+  const sideX = -uy * 4 * scale
+  const sideY = ux * 4 * scale
+  const badge = [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2] as Point
+
+  return (
+    <g pointerEvents="none">
+      <title>{title}</title>
+      <line
+        x1={start[0]}
+        y1={start[1]}
+        x2={base[0]}
+        y2={base[1]}
+        stroke={color}
+        strokeOpacity="0.58"
+        strokeWidth={2.5 * scale}
+        strokeDasharray={`${5 * scale} ${3 * scale}`}
+        strokeLinecap="round"
+      />
+      <path
+        d={`M ${tip[0]} ${tip[1]} L ${base[0] + sideX} ${base[1] + sideY} L ${base[0] - sideX} ${base[1] - sideY} Z`}
+        fill={color}
+        fillOpacity="0.58"
+        stroke={INTENT_OUTLINE_COLOR}
+        strokeOpacity="0.45"
+        strokeWidth={1.2 * scale}
+      />
+      <WinterBadge
+        x={badge[0]}
+        y={badge[1] - 5 * scale}
+        label="G"
+        detail={amount === undefined ? undefined : String(amount)}
+        title={title}
+        color={color}
+        scale={scale}
+      />
+    </g>
+  )
+}
+
+function winterReasonKey(reason: string): MessageKey {
+  return (reason.startsWith('error.') ? reason : `reports.reason.${reason}`) as MessageKey
+}
+
+function winterMarkerTitle(t: Translate, intention: WinterIntention): string {
+  const reason = intention.reason
+    ? t(winterReasonKey(intention.reason), intention.reasonValues)
+    : intention.label
+  return t('error.line', { line: intention.line, message: reason })
+}
+
+function IntentionsOverlay({
+  intentions,
+  annotationScale,
+  passableBorderDash,
+  intentionsColor,
+}: {
+  intentions: Intention[]
+  annotationScale: number
+  passableBorderDash: string
+  intentionsColor: string
+}) {
+  const { t } = useLanguage()
+  if (intentions.length === 0) return null
+
+  return (
+    <g aria-label={t('map.intentionsOverlay')} pointerEvents="none">
+      {intentions.map((intention, index) => {
+        const isDraft = intention.source === 'draft'
+        const intentionColor =
+          intention.color ?? (isDraft ? DRAFT_INTENTION_COLOR : intentionsColor)
+        const markerEndFor = (kind: 'arrow' | 'circle') =>
+          `url(#intent-${kind}${isDraft ? '-draft' : ''})`
+
+        return (
+          <g key={`${intention.armyTerritory}-${index}`}>
+            <title>
+              {intention.nobleCode ? `${intention.nobleCode} · ` : ''}
+              {intention.label}
+            </title>
+            {intention.segments.map((segment, segmentIndex) => {
+              const common = {
+                x1: segment.from[0],
+                y1: segment.from[1],
+                x2: segment.to[0],
+                y2: segment.to[1],
+              }
+              if (segment.kind === 'loop') {
+                const radius = 12 * annotationScale
+                const direction = segmentIndex % 2 === 0 ? 1 : -1
+                const sweep = direction === 1 ? 0 : 1
+                const path = `M ${segment.from[0] + radius * direction} ${segment.from[1]} A ${radius} ${radius} 0 1 ${sweep} ${segment.from[0]} ${segment.from[1] - radius}`
+                return (
+                  <g key={segmentIndex}>
+                    <path
+                      d={path}
+                      data-intent-outline="true"
+                      fill="none"
+                      stroke={INTENT_OUTLINE_COLOR}
+                      strokeWidth={4.5 * annotationScale}
+                      strokeLinecap="round"
+                      markerEnd="url(#intent-arrow-outline)"
+                    />
+                    <path
+                      d={path}
+                      fill="none"
+                      stroke={intentionColor}
+                      strokeWidth={2.5 * annotationScale}
+                      strokeLinecap="round"
+                      markerEnd={markerEndFor('arrow')}
+                    />
+                    <IntentBadge
+                      x={segment.from[0] + direction * -16 * annotationScale}
+                      y={segment.from[1] - 22 * annotationScale}
+                      symbol={intention.symbol}
+                      turnLabel={intention.turnLabel}
+                      color={intentionColor}
+                      scale={annotationScale}
+                      isDraft={isDraft}
+                    />
+                  </g>
+                )
+              }
+              const strokeWidth =
+                segment.kind === 'attack' ? 4 * annotationScale : 2.5 * annotationScale
+              const strokeDasharray =
+                segment.kind === 'support-defensive' ||
+                segment.kind === 'support-offensive'
+                  ? passableBorderDash
+                  : undefined
+              const markerKind = segment.kind === 'support-defensive' ? 'circle' : 'arrow'
+              const outlineMarkerEnd =
+                markerKind === 'circle'
+                  ? 'url(#intent-circle-outline)'
+                  : 'url(#intent-arrow-outline)'
+
+              return (
+                <g key={segmentIndex}>
+                  <line
+                    {...common}
+                    data-intent-outline="true"
+                    stroke={INTENT_OUTLINE_COLOR}
+                    strokeWidth={strokeWidth + 2 * annotationScale}
+                    strokeDasharray={strokeDasharray}
+                    strokeLinecap="round"
+                    markerEnd={outlineMarkerEnd}
+                  />
+                  <line
+                    {...common}
+                    stroke={intentionColor}
+                    strokeWidth={strokeWidth}
+                    strokeDasharray={strokeDasharray}
+                    strokeLinecap="round"
+                    markerEnd={markerEndFor(markerKind)}
+                  />
+                  <IntentBadge
+                    x={(segment.from[0] + segment.to[0]) / 2}
+                    y={(segment.from[1] + segment.to[1]) / 2}
+                    symbol={intention.symbol}
+                    turnLabel={intention.turnLabel}
+                    color={intentionColor}
+                    scale={annotationScale}
+                    isDraft={isDraft}
+                  />
+                </g>
+              )
+            })}
+            {intention.segments.length === 0 && (
+              <IntentBadge
+                x={intention.from[0] + 20 * annotationScale}
+                y={intention.from[1] - 22 * annotationScale}
+                symbol={intention.symbol}
+                turnLabel={intention.turnLabel}
+                color={intentionColor}
+                scale={annotationScale}
+                isDraft={isDraft}
+              />
+            )}
+          </g>
+        )
+      })}
+    </g>
+  )
+}
+
 function MapControls({ onZoom }: { onZoom: (zoomFactor: number) => void }) {
   const { t } = useLanguage()
 
@@ -578,6 +926,7 @@ interface MapViewerProps {
   onSelect?: (id: string | null) => void
   supply?: SupplyLine | null
   intentions?: Intention[]
+  winterIntentions?: WinterIntention[]
   showIntentions?: boolean
   intentionsColor?: string
   onToggleIntentions?: (show: boolean) => void
@@ -589,6 +938,7 @@ export function MapViewer({
   onSelect,
   supply,
   intentions = [],
+  winterIntentions = [],
   showIntentions = false,
   intentionsColor = '#a84632',
   onToggleIntentions,
@@ -1171,8 +1521,21 @@ export function MapViewer({
               ))}
             </g>
 
+            {state.season === 'winter' && showIntentions && (
+              <IntentionsOverlay
+                intentions={intentions}
+                annotationScale={annotationScale}
+                passableBorderDash={passableBorderDash}
+                intentionsColor={intentionsColor}
+              />
+            )}
+
             {state.season === 'winter' && (
-              <g aria-label={t('map.winterOverlay')} pointerEvents="none">
+              <g
+                aria-label={t('map.winterVeil')}
+                data-winter-veil-overlay="true"
+                pointerEvents="none"
+              >
                 <rect width={mapWidth} height={mapHeight} fill="#eaf3ff" opacity="0.2" />
               </g>
             )}
@@ -1508,127 +1871,210 @@ export function MapViewer({
               })}
             </g>
 
-            {showIntentions && intentions.length > 0 && (
-              <g aria-label={t('map.intentionsOverlay')} pointerEvents="none">
-                {intentions.map((intention, index) => {
-                  const isDraft = intention.source === 'draft'
-                  const intentionColor =
-                    intention.color ?? (isDraft ? DRAFT_INTENTION_COLOR : intentionsColor)
-                  const markerEndFor = (kind: 'arrow' | 'circle') =>
-                    `url(#intent-${kind}${isDraft ? '-draft' : ''})`
+            {state.season !== 'winter' && showIntentions && (
+              <IntentionsOverlay
+                intentions={intentions}
+                annotationScale={annotationScale}
+                passableBorderDash={passableBorderDash}
+                intentionsColor={intentionsColor}
+              />
+            )}
 
-                  return (
-                    <g key={`${intention.armyTerritory}-${index}`}>
-                      <title>
-                        {intention.nobleCode ? `${intention.nobleCode} · ` : ''}
-                        {intention.label}
-                      </title>
-                      {intention.segments.map((segment, segmentIndex) => {
-                        const common = {
-                          x1: segment.from[0],
-                          y1: segment.from[1],
-                          x2: segment.to[0],
-                          y2: segment.to[1],
-                        }
-                        if (segment.kind === 'loop') {
-                          const radius = 12 * annotationScale
-                          const direction = segmentIndex % 2 === 0 ? 1 : -1
-                          const sweep = direction === 1 ? 0 : 1
-                          const path = `M ${segment.from[0] + radius * direction} ${segment.from[1]} A ${radius} ${radius} 0 1 ${sweep} ${segment.from[0]} ${segment.from[1] - radius}`
+            {showIntentions &&
+              state.season === 'winter' &&
+              winterIntentions.length > 0 && (
+                <g
+                  aria-label={t('map.winterOverlay')}
+                  data-winter-orders-overlay="true"
+                  pointerEvents="none"
+                >
+                  {map.territories.map((territory) => {
+                    const [centerX, centerY] = centroid(territory.points)
+                    const localIntentions = winterIntentions.filter(
+                      (intention) => intention.territory === territory.id,
+                    )
+                    const builds = localIntentions.filter(
+                      (intention) => intention.valid && intention.kind === 'build',
+                    )
+                    const badges = localIntentions.filter(
+                      (intention) =>
+                        intention.valid &&
+                        intention.kind !== 'build' &&
+                        intention.kind !== 'transfer',
+                    )
+                    const errors = localIntentions.filter((intention) => !intention.valid)
+
+                    return (
+                      <g key={`winter-${territory.id}`}>
+                        {builds.map((intention, index) => {
+                          const buildX = centerX + (-10 + index * 40) * annotationScale
+                          const buildY = centerY - 38 * annotationScale
                           return (
-                            <g key={segmentIndex}>
-                              <path
-                                d={path}
-                                data-intent-outline="true"
-                                fill="none"
-                                stroke={INTENT_OUTLINE_COLOR}
-                                strokeWidth={4.5 * annotationScale}
-                                strokeLinecap="round"
-                                markerEnd="url(#intent-arrow-outline)"
-                              />
-                              <path
-                                d={path}
-                                fill="none"
-                                stroke={intentionColor}
-                                strokeWidth={2.5 * annotationScale}
-                                strokeLinecap="round"
-                                markerEnd={markerEndFor('arrow')}
-                              />
-                              <IntentBadge
-                                x={segment.from[0] + direction * -16 * annotationScale}
-                                y={segment.from[1] - 22 * annotationScale}
-                                symbol={intention.symbol}
-                                turnLabel={intention.turnLabel}
-                                color={intentionColor}
+                            <g key={`build-${intention.line}`}>
+                              <InfrastructureMarker
+                                infrastructure={{
+                                  type: intention.infrastructure ?? 'mill',
+                                  level: intention.level ?? 1,
+                                }}
+                                x={buildX}
+                                y={buildY}
+                                isCapital={false}
                                 scale={annotationScale}
-                                isDraft={isDraft}
+                                ownerColor={intention.color ?? DRAFT_INTENTION_COLOR}
+                                variant="winterGhost"
                               />
+                              {intention.warning && (
+                                <WinterMarkerTriangle
+                                  x={buildX + 26 * annotationScale}
+                                  y={buildY + 11 * annotationScale}
+                                  line={intention.line}
+                                  title={winterMarkerTitle(t, intention)}
+                                  scale={annotationScale}
+                                  color={WINTER_WARNING_COLOR}
+                                  dataTag="warning"
+                                />
+                              )}
                             </g>
                           )
-                        }
-                        const strokeWidth =
-                          segment.kind === 'attack'
-                            ? 4 * annotationScale
-                            : 2.5 * annotationScale
-                        const strokeDasharray =
-                          segment.kind === 'support-defensive' ||
-                          segment.kind === 'support-offensive'
-                            ? passableBorderDash
-                            : undefined
-                        const markerKind =
-                          segment.kind === 'support-defensive' ? 'circle' : 'arrow'
-                        const outlineMarkerEnd =
-                          markerKind === 'circle'
-                            ? 'url(#intent-circle-outline)'
-                            : 'url(#intent-arrow-outline)'
-
-                        return (
-                          <g key={segmentIndex}>
-                            <line
-                              {...common}
-                              data-intent-outline="true"
-                              stroke={INTENT_OUTLINE_COLOR}
-                              strokeWidth={strokeWidth + 2 * annotationScale}
-                              strokeDasharray={strokeDasharray}
-                              strokeLinecap="round"
-                              markerEnd={outlineMarkerEnd}
-                            />
-                            <line
-                              {...common}
-                              stroke={intentionColor}
-                              strokeWidth={strokeWidth}
-                              strokeDasharray={strokeDasharray}
-                              strokeLinecap="round"
-                              markerEnd={markerEndFor(markerKind)}
-                            />
-                            <IntentBadge
-                              x={(segment.from[0] + segment.to[0]) / 2}
-                              y={(segment.from[1] + segment.to[1]) / 2}
-                              symbol={intention.symbol}
-                              turnLabel={intention.turnLabel}
-                              color={intentionColor}
+                        })}
+                        {badges.map((intention, index) => {
+                          const label =
+                            intention.kind === 'recruit_troop'
+                              ? '+1'
+                              : intention.kind === 'recruit_noble'
+                                ? 'N'
+                                : intention.kind === 'liberate'
+                                  ? 'L'
+                                  : intention.kind === 'hostage'
+                                    ? 'O'
+                                    : intention.kind === 'dungeon'
+                                      ? 'P'
+                                      : 'E'
+                          const detail =
+                            intention.kind === 'recruit_noble'
+                              ? 'R'
+                              : intention.kind === 'capital'
+                                ? 'C'
+                                : intention.noble
+                          const badgeY = centerY + (-18 + index * 20) * annotationScale
+                          return (
+                            <g key={`${intention.kind}-${intention.line}`}>
+                              <WinterBadge
+                                x={centerX + 14 * annotationScale}
+                                y={badgeY}
+                                label={label}
+                                detail={detail}
+                                title={intention.label}
+                                color={intention.color ?? DRAFT_INTENTION_COLOR}
+                                scale={annotationScale}
+                              />
+                              {intention.warning && (
+                                <WinterMarkerTriangle
+                                  x={centerX - 8 * annotationScale}
+                                  y={badgeY}
+                                  line={intention.line}
+                                  title={winterMarkerTitle(t, intention)}
+                                  scale={annotationScale}
+                                  color={WINTER_WARNING_COLOR}
+                                  dataTag="warning"
+                                />
+                              )}
+                            </g>
+                          )
+                        })}
+                        {errors.map((intention, index) => {
+                          const reason = intention.reason
+                            ? t(winterReasonKey(intention.reason), intention.reasonValues)
+                            : intention.label
+                          return (
+                            <WinterMarkerTriangle
+                              key={`error-${intention.line}-${index}`}
+                              x={centerX - 22 * annotationScale}
+                              y={centerY - (42 + index * 18) * annotationScale}
+                              line={intention.line}
+                              title={t('error.line', {
+                                line: intention.line,
+                                message: reason,
+                              })}
                               scale={annotationScale}
-                              isDraft={isDraft}
+                              color={WINTER_ERROR_COLOR}
+                              dataTag="error"
                             />
-                          </g>
-                        )
-                      })}
-                      {intention.segments.length === 0 && (
-                        <IntentBadge
-                          x={intention.from[0] + 20 * annotationScale}
-                          y={intention.from[1] - 22 * annotationScale}
-                          symbol={intention.symbol}
-                          turnLabel={intention.turnLabel}
-                          color={intentionColor}
+                          )
+                        })}
+                      </g>
+                    )
+                  })}
+                  {winterIntentions
+                    .filter(
+                      (intention) =>
+                        intention.valid &&
+                        intention.kind === 'transfer' &&
+                        intention.sourceTerritory &&
+                        intention.targetTerritory,
+                    )
+                    .map((intention) => {
+                      const source = map.territories.find(
+                        (territory) => territory.id === intention.sourceTerritory,
+                      )
+                      const target = map.territories.find(
+                        (territory) => territory.id === intention.targetTerritory,
+                      )
+                      if (!source || !target) return null
+                      const [midX, midY] = [
+                        (centroid(source.points)[0] + centroid(target.points)[0]) / 2,
+                        (centroid(source.points)[1] + centroid(target.points)[1]) / 2,
+                      ]
+                      return (
+                        <g
+                          key={`transfer-${intention.line}-${intention.sourceTerritory}-${intention.targetTerritory}`}
+                        >
+                          <WinterTransferArrow
+                            from={centroid(source.points)}
+                            to={centroid(target.points)}
+                            amount={intention.amount}
+                            title={intention.label}
+                            color={intention.color ?? DRAFT_INTENTION_COLOR}
+                            scale={annotationScale}
+                          />
+                          {intention.warning && (
+                            <WinterMarkerTriangle
+                              x={midX + 18 * annotationScale}
+                              y={midY - 5 * annotationScale}
+                              line={intention.line}
+                              title={winterMarkerTitle(t, intention)}
+                              scale={annotationScale}
+                              color={WINTER_WARNING_COLOR}
+                              dataTag="warning"
+                            />
+                          )}
+                        </g>
+                      )
+                    })}
+                  {winterIntentions
+                    .filter((intention) => !intention.valid && !intention.territory)
+                    .map((intention, index) => {
+                      const reason = intention.reason
+                        ? t(winterReasonKey(intention.reason), intention.reasonValues)
+                        : intention.label
+                      return (
+                        <WinterMarkerTriangle
+                          key={`unplaced-error-${intention.line}-${index}`}
+                          x={(18 + (index % 8) * 20) * annotationScale}
+                          y={(22 + Math.floor(index / 8) * 18) * annotationScale}
+                          line={intention.line}
+                          title={t('error.line', {
+                            line: intention.line,
+                            message: reason,
+                          })}
                           scale={annotationScale}
-                          isDraft={isDraft}
+                          color={WINTER_ERROR_COLOR}
+                          dataTag="error"
                         />
-                      )}
-                    </g>
-                  )
-                })}
-              </g>
-            )}
+                      )
+                    })}
+                </g>
+              )}
           </g>
         </svg>
 

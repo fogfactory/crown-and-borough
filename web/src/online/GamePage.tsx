@@ -1,13 +1,6 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type KeyboardEvent as ReactKeyboardEvent,
-} from 'react'
+import { useEffect, useMemo, useCallback, useRef, useState } from 'react'
 import {
   IconArrowLeft,
-  IconBook,
   IconTrophy,
   IconUsersGroup,
   IconWifi,
@@ -17,11 +10,13 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { useAuth } from '@/auth/AuthProvider'
 import { GameLayout } from '@/components/GameLayout'
+import { GamePanelCard } from '@/components/GamePanelCard'
 import { MapViewer } from '@/components/MapViewer'
 import { SelectedTerritoryDetails } from '@/components/SelectedTerritoryDetails'
 import { OrdersPanel } from '@/components/OrdersPanel'
 import { ReportPane, type ReportSummary } from '@/components/ReportPane'
 import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
+import type { Panel } from '@/components/CommandReportRulesTabs'
 import { Scoreboard } from '@/components/Scoreboard'
 import { SubmissionDots } from '@/components/SubmissionDots'
 import { Button } from '@/components/ui/button'
@@ -34,13 +29,17 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { ApiError, apiRequest, type TokenProvider } from '@/lib/api'
-import { buildIntentions } from '@/lib/intent-overlay'
-import { hasSupplySource } from '@/lib/supply'
 import { addNobleHeader, hasChainContent, stripNobleHeader } from '@/lib/order-text'
-import { playerDisplayName, type PlayerName } from '@/lib/player-label'
+import {
+  internalYear,
+  ownerName,
+  remainingTurns,
+  remainingYears,
+} from '@/lib/game-progress'
+import { useGameIntentions } from '@/lib/use-game-intentions'
+import { useSupplyAndTransfer } from '@/lib/use-supply-and-transfer'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { useLocalStorageState } from '@/lib/storage'
-import { transferTargetsForTerritory } from '@/lib/transfer-preview'
 import { isWinterCosts } from '@/lib/winter-cost'
 import {
   normalizeGameSummary,
@@ -56,15 +55,10 @@ import type {
   OrdersResponse,
   PlayerId,
   StateData,
-  SupplyLine,
   SubmittedOrdersResponse,
-  TransferLine,
   TurnReport,
   WinterCosts,
 } from '@/types'
-
-type Panel = 'command' | 'report' | 'rules'
-const panelOrder: Panel[] = ['command', 'report', 'rules']
 
 interface Invitation {
   gameId: string
@@ -103,34 +97,6 @@ function newerSummary(
   }
 }
 
-function ownerName(
-  owner: PlayerId | null,
-  state: StateData,
-  preferredPlayers: readonly PlayerName[],
-  fallback: string,
-): string {
-  return playerDisplayName(owner, [preferredPlayers, state.players], fallback)
-}
-
-function internalYear(state: StateData): number {
-  const year = state.year ?? Math.floor((state.turn - 1) / 4) + 1
-  if (state.finished && state.yearCount && state.turn > state.yearCount * 4) {
-    return state.yearCount
-  }
-  return year
-}
-
-function remainingYears(state: StateData, fallbackYearCount = 10): number {
-  if (state.finished) return 0
-  const yearCount = state.yearCount ?? fallbackYearCount
-  return Math.max(0, yearCount - internalYear(state) + 1)
-}
-
-function remainingTurns(state: StateData, fallbackYearCount = 10): number {
-  const yearCount = state.yearCount ?? fallbackYearCount
-  return Math.max(0, yearCount * 4 - state.turn + 1)
-}
-
 function createView(
   gameId: string,
   uid: string,
@@ -145,31 +111,6 @@ function createView(
     turn: state.turn,
     season: state.season,
   }
-}
-
-function panelKeyDown(
-  event: ReactKeyboardEvent<HTMLButtonElement>,
-  activePanel: Panel,
-  setActivePanel: (panel: Panel) => void,
-) {
-  const currentIndex = panelOrder.indexOf(activePanel)
-  let nextIndex: number | null = null
-  if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-    nextIndex = (currentIndex + 1) % panelOrder.length
-  } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-    nextIndex = (currentIndex - 1 + panelOrder.length) % panelOrder.length
-  } else if (event.key === 'Home') {
-    nextIndex = 0
-  } else if (event.key === 'End') {
-    nextIndex = panelOrder.length - 1
-  }
-  if (nextIndex === null) return
-  event.preventDefault()
-  const nextPanel = panelOrder[nextIndex]
-  setActivePanel(nextPanel)
-  event.currentTarget.parentElement
-    ?.querySelector<HTMLButtonElement>(`[data-online-panel-tab="${nextPanel}"]`)
-    ?.focus()
 }
 
 function Lobby({
@@ -266,15 +207,7 @@ export function GamePage() {
   const [map, setMap] = useState<MapData | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [supplyLine, setSupplyLine] = useState<SupplyLine | null>(null)
-  const [supplyError, setSupplyError] = useState<string | null>(null)
-  const [supplyLoading, setSupplyLoading] = useState(false)
-  const [transferLine, setTransferLine] = useState<TransferLine | null>(null)
-  const [transferError, setTransferError] = useState<string | null>(null)
-  const [transferLoading, setTransferLoading] = useState(false)
-  const [selectedTransferTarget, setSelectedTransferTarget] = useState<string | null>(
-    null,
-  )
+
   const [chainDrafts, setChainDrafts] = useState<Record<string, string>>({})
   const [winterDraft, setWinterDraft] = useState('')
   const [winterCosts, setWinterCosts] = useState<WinterCosts | null>(null)
@@ -306,6 +239,7 @@ export function GamePage() {
   const [mapFocusSignal, setMapFocusSignal] = useState(0)
   const lastTurn = useRef<number | null>(null)
   const hydratedTurnRef = useRef<number | null>(null)
+  const submittedOrdersContextRef = useRef<string | null>(null)
   const tokenProvider: TokenProvider = { getIdToken }
 
   const subscription = useGameSubscription(gameId, user?.uid, restView?.revision ?? 0)
@@ -318,11 +252,6 @@ export function GamePage() {
     setRestView(null)
     setMap(null)
     setSelectedId(null)
-    setSupplyLine(null)
-    setTransferLine(null)
-    setTransferError(null)
-    setTransferLoading(false)
-    setSelectedTransferTarget(null)
     setServerSubmission(null)
     setWinterCosts(null)
     setSubmittedOrders(null)
@@ -400,11 +329,21 @@ export function GamePage() {
   )
   const playerID = currentSlot?.id ?? null
   const spectator = summary?.spectator === true
+  const stateTurn = state?.turn
+  const stateSeason = state?.season
 
   useEffect(() => {
-    if (!gameId || !spectator || !state) {
-      if (!spectator) setSubmittedOrders(null)
+    if (!gameId || !spectator || stateTurn === undefined || stateSeason === undefined) {
+      if (!spectator) {
+        submittedOrdersContextRef.current = null
+        setSubmittedOrders(null)
+      }
       return
+    }
+    const contextKey = `${gameId}:${stateTurn}:${stateSeason}`
+    if (submittedOrdersContextRef.current !== contextKey) {
+      submittedOrdersContextRef.current = contextKey
+      setSubmittedOrders(null)
     }
     let active = true
     const encodedID = encodeURIComponent(gameId)
@@ -413,7 +352,9 @@ export function GamePage() {
       `/api/games/${encodedID}/submitted-orders`,
     )
       .then((response) => {
-        if (active && response.turn === state.turn) setSubmittedOrders(response)
+        if (active && response.turn === stateTurn && response.season === stateSeason) {
+          setSubmittedOrders(response)
+        }
       })
       .catch((submissionFailure: unknown) => {
         if (!active) return
@@ -425,52 +366,16 @@ export function GamePage() {
     return () => {
       active = false
     }
-  }, [gameId, getIdToken, navigate, signOut, spectator, state, summaryRevision])
-
-  const submittedIntentions = useMemo(() => {
-    if (!spectator || !state || !map || state.season === 'winter') return []
-    return (submittedOrders?.submissions ?? []).flatMap((submission) => {
-      const drafts = Object.fromEntries(
-        submission.chains.map((chain) => [
-          chain.noble,
-          stripNobleHeader(chain.noble, chain.text),
-        ]),
-      )
-      const color = state.players.find((player) => player.id === submission.player)?.color
-      return buildIntentions(map, state, submission.player, drafts, {
-        includeInstalled: false,
-        source: 'submitted',
-        color,
-      })
-    })
-  }, [map, spectator, state, submittedOrders])
-
-  const installedIntentions = useMemo(() => {
-    if (!spectator || !state || !map || state.season === 'winter') return []
-    return state.players.flatMap((player) =>
-      buildIntentions(map, state, player.id, {}, { color: player.color }),
-    )
-  }, [map, spectator, state])
-
-  const intentions = useMemo(
-    () =>
-      spectator
-        ? [...installedIntentions, ...submittedIntentions]
-        : state && playerID
-          ? buildIntentions(map ?? { territories: [] }, state, playerID, chainDrafts)
-          : [],
-    [
-      chainDrafts,
-      installedIntentions,
-      map,
-      playerID,
-      spectator,
-      state,
-      submittedIntentions,
-    ],
-  )
-  const intentionsColor =
-    state?.players.find((player) => player.id === playerID)?.color ?? '#a84632'
+  }, [
+    gameId,
+    getIdToken,
+    navigate,
+    signOut,
+    spectator,
+    stateSeason,
+    stateTurn,
+    summaryRevision,
+  ])
 
   const serverChains = useMemo(() => {
     const result: Record<string, string> = {}
@@ -574,107 +479,54 @@ export function GamePage() {
   )
   const selectedState =
     state?.territories.find((territory) => territory.id === selectedId) ?? null
-  const transferTargets =
-    playerID && selectedState?.army?.owner === playerID
-      ? transferTargetsForTerritory(chainDrafts, selectedId)
-      : []
-  const transferTarget = transferTargets.includes(selectedTransferTarget ?? '')
-    ? selectedTransferTarget
-    : (transferTargets[0] ?? null)
 
-  useEffect(() => {
-    if (
-      !gameId ||
-      !selectedId ||
-      !state ||
-      (!selectedState?.army && !hasSupplySource(selectedState ?? undefined))
-    ) {
-      setSupplyLine(null)
-      setSupplyError(null)
-      setSupplyLoading(false)
-      return
-    }
-    if (state.season === 'winter') {
-      setSupplyLine(null)
-      setSupplyLoading(false)
-      return
-    }
-    const controller = new AbortController()
-    setSupplyLoading(true)
-    setSupplyError(null)
-    void apiRequest<SupplyLine>(
-      { getIdToken },
-      `/api/games/${encodeURIComponent(gameId)}/supply?territory=${encodeURIComponent(selectedId)}`,
-    )
-      .then((line) => {
-        if (!controller.signal.aborted) setSupplyLine(line)
-      })
-      .catch((supplyFailure: unknown) => {
-        if (controller.signal.aborted) return
-        if (supplyFailure instanceof ApiError && supplyFailure.status === 401) {
-          void signOut().catch(() => undefined)
-          navigate('/signin', { replace: true })
-          return
-        }
-        setSupplyError(errorText(supplyFailure, t('error.network')))
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setSupplyLoading(false)
-      })
-    return () => controller.abort()
-  }, [gameId, getIdToken, navigate, selectedId, selectedState, signOut, state, t])
+  const handleAuthError = useCallback(() => {
+    void signOut().catch(() => undefined)
+    navigate('/signin', { replace: true })
+  }, [navigate, signOut])
 
-  useEffect(() => {
-    if (
-      !gameId ||
-      !selectedId ||
-      !state ||
-      !selectedState?.army ||
-      !transferTarget ||
-      state.season === 'winter'
-    ) {
-      setTransferLine(null)
-      setTransferError(null)
-      setTransferLoading(false)
-      return
-    }
+  const supplyFetcher = useCallback(
+    <T,>(path: string, signal: AbortSignal) =>
+      apiRequest<T>({ getIdToken }, path, { signal }),
+    [getIdToken],
+  )
 
-    const controller = new AbortController()
-    setTransferLine(null)
-    setTransferError(null)
-    setTransferLoading(true)
-    void apiRequest<TransferLine>(
-      { getIdToken },
-      `/api/games/${encodeURIComponent(gameId)}/supply?territory=${encodeURIComponent(selectedId)}&target=${encodeURIComponent(transferTarget)}`,
-      { signal: controller.signal },
-    )
-      .then((line) => {
-        if (!controller.signal.aborted) setTransferLine(line)
-      })
-      .catch((transferFailure: unknown) => {
-        if (controller.signal.aborted) return
-        if (transferFailure instanceof ApiError && transferFailure.status === 401) {
-          void signOut().catch(() => undefined)
-          navigate('/signin', { replace: true })
-          return
-        }
-        setTransferError(errorText(transferFailure, t('error.network')))
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setTransferLoading(false)
-      })
-    return () => controller.abort()
-  }, [
-    gameId,
-    getIdToken,
-    navigate,
-    selectedId,
-    selectedState,
-    signOut,
-    state,
-    t,
+  const {
+    selectedSupplyLine,
+    sourceTerritoryId,
+    supplyLoading,
+    supplyError,
+    transferLine,
+    transferLoading,
+    transferError,
+    transferTargets,
     transferTarget,
-  ])
+    setTransferTarget: setSelectedTransferTarget,
+  } = useSupplyAndTransfer({
+    selectedId,
+    state,
+    selectedState,
+    chainDrafts,
+    ownerId: playerID,
+    basePath: gameId ? `/api/games/${encodeURIComponent(gameId)}` : '/api',
+    fetcher: supplyFetcher,
+    networkErrorMessage: t('error.network'),
+    onAuthError: handleAuthError,
+  })
+  const sourceTerritory = sourceTerritoryId
+    ? (map?.territories.find((territory) => territory.id === sourceTerritoryId) ?? null)
+    : null
+
+  const { intentions, winterIntentions, intentionsColor } = useGameIntentions({
+    state,
+    map,
+    playerID,
+    chainDrafts,
+    winterDraft,
+    winterCosts,
+    spectator,
+    submittedOrders,
+  })
 
   useEffect(() => {
     if (!gameId || !hasSummary || !user) return
@@ -933,17 +785,6 @@ export function GamePage() {
     )
   }
 
-  const supplySelectionAllowed =
-    (supplyLine?.kind === 'army' && Boolean(selectedState?.army)) ||
-    (supplyLine?.kind === 'source' &&
-      !selectedState?.army &&
-      hasSupplySource(selectedState ?? undefined))
-  const selectedSupplyLine =
-    supplySelectionAllowed && supplyLine?.territory === selectedId ? supplyLine : null
-  const sourceTerritory = selectedSupplyLine?.source
-    ? map.territories.find((territory) => territory.id === selectedSupplyLine.source)
-    : null
-
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 sm:gap-4">
       <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1">
@@ -1067,6 +908,7 @@ export function GamePage() {
             supply={selectedSupplyLine}
             onSelect={handleTerritorySelect}
             intentions={intentions}
+            winterIntentions={winterIntentions}
             showIntentions={showIntentions}
             intentionsColor={intentionsColor}
             onToggleIntentions={setShowIntentions}
@@ -1074,60 +916,23 @@ export function GamePage() {
         }
         focusSignal={mapFocusSignal}
       >
-        <Card className="border-[#b7a786] bg-[#fffaf0] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)]">
-          <CardHeader className="border-b border-[#b7a786]/50 pb-3">
-            <CardTitle className="font-serif text-lg text-[#30291f] sm:text-xl">
-              {activePanel === 'command'
-                ? t('app.commandPost')
-                : activePanel === 'report'
-                  ? t('app.turnReport')
-                  : t('app.rules')}
-            </CardTitle>
-            <CardDescription className="text-[#806f57]">
-              {currentSlot
-                ? `${currentSlot.name} · ${t('online.you')}`
-                : spectator
-                  ? t('online.spectator')
-                  : t('online.accessRevoked')}
-            </CardDescription>
-            <div
-              role="tablist"
-              aria-label={t('app.panelViews')}
-              className="mt-2 grid grid-cols-3 gap-1 rounded-lg bg-[#f3ead9] p-1"
-            >
-              {(['command', 'report', 'rules'] as const).map((panel) => (
-                <button
-                  key={panel}
-                  type="button"
-                  role="tab"
-                  aria-selected={activePanel === panel}
-                  aria-controls={`${panel}-panel`}
-                  tabIndex={activePanel === panel ? 0 : -1}
-                  data-online-panel-tab={panel}
-                  className={`rounded-md px-2 py-1.5 text-xs font-semibold transition ${activePanel === panel ? 'bg-[#fffaf0] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:text-[#30291f]'}`}
-                  onClick={() => setActivePanel(panel)}
-                  onKeyDown={(event) => panelKeyDown(event, activePanel, setActivePanel)}
-                >
-                  {panel === 'rules' && (
-                    <IconBook aria-hidden="true" className="mr-1 inline size-3.5" />
-                  )}
-                  {panel === 'command'
-                    ? t('app.commandPost')
-                    : panel === 'report'
-                      ? `${t('app.turnReport')} ${report ? `· ${report.header.turn}` : ''}`
-                      : t('app.rules')}
-                </button>
-              ))}
-            </div>
-          </CardHeader>
-          <CardContent className="min-w-0 space-y-4 pt-4">
-            <div
-              id="command-panel"
-              role="tabpanel"
-              aria-label={t('app.commandPost')}
-              hidden={activePanel !== 'command'}
-              className="space-y-4"
-            >
+        <GamePanelCard
+          activePanel={activePanel}
+          onPanelChange={setActivePanel}
+          subtitle={
+            currentSlot
+              ? `${currentSlot.name} · ${t('online.you')}`
+              : spectator
+                ? t('online.spectator')
+                : t('online.accessRevoked')
+          }
+          reportLabelExtra={
+            report ? (
+              <span className="ml-1 text-[#806f57]">· {report.header.turn}</span>
+            ) : null
+          }
+          command={
+            <>
               <SelectedTerritoryDetails
                 state={state}
                 selectedTerritory={selectedTerritory}
@@ -1214,39 +1019,28 @@ export function GamePage() {
                   )}
                 </div>
               )}
-            </div>
-            <div
-              id="report-panel"
-              role="tabpanel"
-              aria-label={t('app.turnReport')}
-              hidden={activePanel !== 'report'}
-              className="space-y-4"
-            >
-              <ReportPane
-                report={report}
-                map={map}
-                players={state.players}
-                summaries={reportSummaries}
-                loading={reportLoading}
-                error={reportError}
-                onSelectReport={(index) => void loadReport(index)}
-              />
-            </div>
-            <div
-              id="rules-panel"
-              role="tabpanel"
-              aria-label={t('app.rules')}
-              hidden={activePanel !== 'rules'}
-            >
-              <RulesPanel
-                gameId={gameId}
-                tokenProvider={tokenProvider}
-                targetSection={rulesNavigation?.section}
-                navigationKey={rulesNavigation?.key}
-              />
-            </div>
-          </CardContent>
-        </Card>
+            </>
+          }
+          report={
+            <ReportPane
+              report={report}
+              map={map}
+              players={state.players}
+              summaries={reportSummaries}
+              loading={reportLoading}
+              error={reportError}
+              onSelectReport={(index) => void loadReport(index)}
+            />
+          }
+          rules={
+            <RulesPanel
+              gameId={gameId}
+              tokenProvider={tokenProvider}
+              targetSection={rulesNavigation?.section}
+              navigationKey={rulesNavigation?.key}
+            />
+          }
+        />
       </GameLayout>
     </div>
   )

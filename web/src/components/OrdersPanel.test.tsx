@@ -239,9 +239,85 @@ describe('OrdersPanel seasonal presentation', () => {
     expect(within(errors).getAllByRole('listitem')).toHaveLength(2)
     expect(errors).toHaveTextContent(/Ligne 1 .*Ordre d’hiver inconnu/)
     expect(errors).toHaveTextContent(/Ligne 3 .*code de territoire.*ZZZ/)
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Coût estimé : 1 / 25 ressources',
+    expect(screen.getByText('Coût estimé : 1 / 25 ressources')).toBeInTheDocument()
+  })
+
+  it('lists invalid orders and resource warnings with line numbers', () => {
+    render(
+      <LanguageProvider initialLanguage="fr">
+        <OrdersPanel
+          state={{
+            ...state,
+            season: 'winter',
+            territories: [
+              {
+                id: 'ROS',
+                owner: 'P1',
+                resources: 1,
+                army: null,
+                infrastructures: [{ type: 'castle', level: 1 }],
+              },
+              {
+                id: 'BRU',
+                owner: 'P1',
+                resources: 0,
+                army: null,
+                infrastructures: [],
+              },
+            ],
+          }}
+          map={{
+            territories: [
+              {
+                id: 'ROS',
+                name: 'Rosemont',
+                terrain: 'plain',
+                village: false,
+                points: [],
+                adjacencies: ['BRU'],
+                impassable: [],
+              },
+              {
+                id: 'BRU',
+                name: 'Bruyères',
+                terrain: 'forest',
+                village: false,
+                points: [],
+                adjacencies: ['ROS'],
+                impassable: [],
+              },
+            ],
+          }}
+          player="P1"
+          chainDrafts={{}}
+          winterDraft={'R T BRU\nC C BRU'}
+          winterCosts={{
+            castle: 10,
+            millLevels: [3, 5, 7],
+            troop: 1,
+            noble: 2,
+            supplyDepot: 3,
+            liberation: 0,
+          }}
+          submitted={false}
+          submitting={false}
+          error={null}
+          onChainChange={vi.fn()}
+          onWinterChange={vi.fn()}
+          onSubmit={vi.fn()}
+          onOpenRules={vi.fn()}
+        />
+      </LanguageProvider>,
     )
+
+    const diagnostics = screen.getByRole('status', {
+      name: "Diagnostics des ordres d'hiver",
+    })
+    expect(within(diagnostics).getAllByRole('listitem')).toHaveLength(2)
+    expect(diagnostics).toHaveTextContent(
+      /Ligne 1 .*Un noble libre doit être sur le territoire ou adjacent/,
+    )
+    expect(diagnostics).toHaveTextContent(/Ligne 2 .*Ressources insuffisantes/)
   })
 
   it('keeps the ordinary command panel outside winter', () => {
