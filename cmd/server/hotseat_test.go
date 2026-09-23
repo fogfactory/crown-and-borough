@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -13,7 +14,16 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/store"
 )
 
-func TestHotseatServerRoutes(t *testing.T) {
+// newTestServer builds the application server over a memory store configured
+// like newGameStore does for the given mode.
+func newTestServer(t *testing.T, development bool) *http.ServeMux {
+	t.Helper()
+	server, _ := newTestServerWithStore(t, development)
+	return server
+}
+
+func newTestServerWithStore(t *testing.T, development bool) (*http.ServeMux, *store.MemoryStore) {
+	t.Helper()
 	assets, err := assetgen.Load("../../assets")
 	if err != nil {
 		t.Fatalf("load assets: %v", err)
@@ -26,88 +36,108 @@ func TestHotseatServerRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load player rules: %v", err)
 	}
-	session, err := api.NewSession("route-test", []engine.PlayerInit{{Name: "One"}, {Name: "Two"}}, balance, assets)
-	if err != nil {
-		t.Fatalf("NewSession: %v", err)
+	options := store.MemoryStoreOptions{PrivacyTracker: api.TrackTurnPrivacy, StrictMembership: !development}
+	if development {
+		options.MaximumPlayers = engine.MaximumGamePlayers
 	}
-	server := api.WithCORS(newHotseatServer(session, rules))
+	gameStore := store.NewMemoryStoreWithOptions(balance, assets, options)
+	server := newApplicationServer(serverOptions{
+		Rules:       rules,
+		Balance:     balance,
+		Store:       gameStore,
+		Development: development,
+		CreatorGate: creatorGateForEnvironment(development),
+	})
+	return server, gameStore
+}
 
-	mapRecorder := httptest.NewRecorder()
-	server.ServeHTTP(mapRecorder, httptest.NewRequest(http.MethodGet, "/api/map", nil))
-	if mapRecorder.Code != http.StatusOK {
-		t.Fatalf("GET map = %d", mapRecorder.Code)
+func serve(t *testing.T, server http.Handler, method, path, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	recorder := httptest.NewRecorder()
+	server.ServeHTTP(recorder, httptest.NewRequest(method, path, strings.NewReader(body)))
+	return recorder
+}
+
+func TestHotseatPlaysATurnThroughTheGamesAPI(t *testing.T) {
+	t.Setenv("SEED", "route-test")
+	t.Setenv("PLAYERS", "2")
+	server, gameStore := newTestServerWithStore(t, true)
+	if err := createHotseatGame(context.Background(), gameStore); err != nil {
+		t.Fatalf("createHotseatGame: %v", err)
 	}
 
-	stateRecorder := httptest.NewRecorder()
-	server.ServeHTTP(stateRecorder, httptest.NewRequest(http.MethodGet, "/api/state", nil))
-	if stateRecorder.Code != http.StatusOK {
-		t.Fatalf("GET state = %d", stateRecorder.Code)
+	list := serve(t, server, http.MethodGet, "/api/games", "")
+	if list.Code != http.StatusOK {
+		t.Fatalf("GET games = %d: %s", list.Code, list.Body.String())
+	}
+	var games []struct {
+		ID   string `json:"id"`
+		Seed string `json:"seed"`
+	}
+	if err := json.Unmarshal(list.Body.Bytes(), &games); err != nil || len(games) != 1 || games[0].Seed != "route-test" {
+		t.Fatalf("hotseat games = %s (%v), want the SEED game", list.Body.String(), err)
+	}
+	base := "/api/games/" + games[0].ID
+
+	for _, path := range []string{base + "/map", base + "/state?player=P2", base + "/balance", "/api/rules"} {
+		if response := serve(t, server, http.MethodGet, path, ""); response.Code != http.StatusOK {
+			t.Fatalf("GET %s = %d: %s", path, response.Code, response.Body.String())
+		}
 	}
 
-	rulesRecorder := httptest.NewRecorder()
-	server.ServeHTTP(rulesRecorder, httptest.NewRequest(http.MethodGet, "/api/rules", nil))
-	if rulesRecorder.Code != http.StatusOK {
-		t.Fatalf("GET rules = %d", rulesRecorder.Code)
+	if pending := serve(t, server, http.MethodPost, base+"/orders?player=P1", `{"chains":[],"winter":[]}`); pending.Code != http.StatusOK {
+		t.Fatalf("P1 orders = %d: %s", pending.Code, pending.Body.String())
 	}
-	if !strings.Contains(rulesRecorder.Body.String(), "# Règles du jeu") {
-		t.Error("GET rules does not contain the player rules heading")
-	}
-
-	submit := func(player string) *httptest.ResponseRecorder {
-		recorder := httptest.NewRecorder()
-		request := httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(`{"player":"`+player+`","chains":[],"winter":[]}`))
-		request.Header.Set("Content-Type", "application/json")
-		server.ServeHTTP(recorder, request)
-		return recorder
-	}
-	if pendingRecorder := submit("P1"); pendingRecorder.Code != http.StatusOK {
-		t.Fatalf("P1 POST orders = %d: %s", pendingRecorder.Code, pendingRecorder.Body.String())
-	}
-	ordersRecorder := submit("P2")
-	if ordersRecorder.Code != http.StatusOK {
-		t.Fatalf("P2 POST orders = %d: %s", ordersRecorder.Code, ordersRecorder.Body.String())
+	resolved := serve(t, server, http.MethodPost, base+"/orders?player=P2", `{"chains":[],"winter":[]}`)
+	if resolved.Code != http.StatusOK {
+		t.Fatalf("P2 orders = %d: %s", resolved.Code, resolved.Body.String())
 	}
 	var response struct {
-		State struct {
+		Status string `json:"status"`
+		State  struct {
 			Turn int `json:"turn"`
 		} `json:"state"`
 	}
-	if err := json.Unmarshal(ordersRecorder.Body.Bytes(), &response); err != nil {
-		t.Fatalf("decode order response: %v", err)
+	if err := json.Unmarshal(resolved.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode orders response: %v", err)
 	}
-	if response.State.Turn != 2 {
-		t.Errorf("state turn = %d, want 2", response.State.Turn)
+	if response.Status != "resolved" || response.State.Turn != 2 {
+		t.Errorf("orders response = %s, want a resolved turn 2", resolved.Body.String())
+	}
+}
+
+func TestHotseatAllowsEveryEnginePlayerCount(t *testing.T) {
+	server := newTestServer(t, true)
+	created := serve(t, server, http.MethodPost, "/api/games", `{"name":"Large","seed":"large-hotseat","players":10}`)
+	if created.Code != http.StatusCreated {
+		t.Fatalf("create 10-player hotseat game = %d: %s", created.Code, created.Body.String())
+	}
+}
+
+func TestLegacyHotseatRoutesAreGone(t *testing.T) {
+	for _, development := range []bool{true, false} {
+		server := newTestServer(t, development)
+		for _, route := range []struct{ method, path string }{
+			{http.MethodGet, "/api/map"},
+			{http.MethodGet, "/api/state?player=P1"},
+			{http.MethodGet, "/api/balance"},
+			{http.MethodGet, "/api/supply?territory=ROS"},
+			{http.MethodPost, "/api/orders"},
+			{http.MethodPost, "/api/game"},
+			{http.MethodPost, "/api/reset"},
+		} {
+			response := serve(t, server, route.method, route.path, "")
+			if response.Code != http.StatusNotFound && response.Code != http.StatusMethodNotAllowed {
+				t.Errorf("development=%v %s %s = %d, want 404", development, route.method, route.path, response.Code)
+			}
+		}
 	}
 }
 
 func TestApplicationServerDoesNotTrustPlayerQueryOutsideDevMode(t *testing.T) {
-	assets, err := assetgen.Load("../../assets")
-	if err != nil {
-		t.Fatalf("load assets: %v", err)
-	}
-	balance, err := assetgen.LoadBalance("../../assets")
-	if err != nil {
-		t.Fatalf("load balance: %v", err)
-	}
-	rules, err := assetgen.LoadRules("../../assets", balance)
-	if err != nil {
-		t.Fatalf("load player rules: %v", err)
-	}
-	session, err := api.NewSession("application-route-test", []engine.PlayerInit{{Name: "One"}, {Name: "Two"}}, balance, assets)
-	if err != nil {
-		t.Fatalf("NewSession: %v", err)
-	}
-	server := newApplicationServer(session, rules, store.NewMemoryStore(balance, assets), false)
-	recorder := httptest.NewRecorder()
-	server.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/games?player=P1", nil))
-	if recorder.Code != http.StatusUnauthorized {
-		t.Fatalf("GET games outside dev mode = %d: %s", recorder.Code, recorder.Body.String())
-	}
-	for _, path := range []string{"/api/state?player=P1", "/api/orders", "/api/game", "/api/reset"} {
-		recorder := httptest.NewRecorder()
-		server.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, path, nil))
-		if recorder.Code != http.StatusNotFound {
-			t.Errorf("legacy route %s outside dev mode = %d, want 404", path, recorder.Code)
-		}
+	server := newTestServer(t, false)
+	response := serve(t, server, http.MethodGet, "/api/games?player=P1", "")
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("GET games outside dev mode = %d: %s", response.Code, response.Body.String())
 	}
 }

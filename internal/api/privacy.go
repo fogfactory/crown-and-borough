@@ -3,8 +3,6 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/url"
 
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/engine/orders"
@@ -358,21 +356,6 @@ func armyAtTerritory(state *models.GameState, territoryID models.TerritoryID) *m
 		return nil
 	}
 	return &army
-}
-
-func requestedViewer(r *http.Request) (models.PlayerID, bool, error) {
-	values, err := url.ParseQuery(r.URL.RawQuery)
-	if err != nil {
-		return "", false, err
-	}
-	players, exists := values["player"]
-	if !exists {
-		return "", false, nil
-	}
-	if len(players) != 1 || players[0] == "" {
-		return "", false, fmt.Errorf("player must be provided exactly once")
-	}
-	return models.PlayerID(players[0]), true, nil
 }
 
 // TurnReportView is the player-filtered JSON form of a turn report. Combat

@@ -139,13 +139,35 @@ const transferLine: TransferLine = {
 
 const rulesDocument = '# Règles du jeu\n\nLes ordres sont résolus simultanément.\n'
 
+const GAME_ID = 'hotseat-1'
+const GAME_PATH = `/api/games/${GAME_ID}`
+
+type FetchImpl = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+
+/**
+ * Serves the hotseat game list with a single game, then delegates every other
+ * request to impl.
+ */
+function hotseatFetch(impl: FetchImpl) {
+  return vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input) === '/api/games?player=P1' && init?.method !== 'POST') {
+      return Promise.resolve({
+        ok: true,
+        json: async () => [{ id: GAME_ID }],
+      } as Response)
+    }
+    return impl(input, init)
+  })
+}
+
 afterEach(() => {
   vi.unstubAllGlobals()
+  window.localStorage.clear()
 })
 
 describe('App command/report tabs', () => {
   it('opens the full rules and FAQ pages from the hotseat header', async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+    const fetchMock = hotseatFetch((input: RequestInfo | URL) => {
       const url = String(input)
       return Promise.resolve({
         ok: true,
@@ -175,7 +197,7 @@ describe('App command/report tabs', () => {
   })
 
   it('requests a server-filtered state when the hotseat player changes', async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+    const fetchMock = hotseatFetch((input: RequestInfo | URL) => {
       const url = String(input)
       return Promise.resolve({
         ok: true,
@@ -192,7 +214,7 @@ describe('App command/report tabs', () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        '/api/state?player=P2',
+        `${GAME_PATH}/state?player=P2`,
         expect.objectContaining({ signal: expect.anything() }),
       )
     })
@@ -228,7 +250,7 @@ describe('App command/report tabs', () => {
           : territory,
       ),
     }
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+    const fetchMock = hotseatFetch((input: RequestInfo | URL) => {
       const url = String(input)
       return Promise.resolve({
         ok: true,
@@ -268,7 +290,7 @@ describe('App command/report tabs', () => {
         state.territories[1],
       ],
     }
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+    const fetchMock = hotseatFetch((input: RequestInfo | URL) => {
       const url = String(input)
       return Promise.resolve({
         ok: true,
@@ -295,7 +317,7 @@ describe('App command/report tabs', () => {
   })
 
   it('keeps selection and drafts while switching between tabs', async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+    const fetchMock = hotseatFetch((input: RequestInfo | URL) => {
       const url = String(input)
       return Promise.resolve({
         ok: true,
@@ -372,7 +394,7 @@ describe('App command/report tabs', () => {
   })
 
   it('requests a transfer overlay for a drafted action transfer', async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+    const fetchMock = hotseatFetch((input: RequestInfo | URL) => {
       const url = String(input)
       return Promise.resolve({
         ok: true,
@@ -403,7 +425,7 @@ describe('App command/report tabs', () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        '/api/supply?territory=ROS&target=BRU',
+        `${GAME_PATH}/supply?territory=ROS&target=BRU`,
         expect.objectContaining({ signal: expect.anything() }),
       )
     })
@@ -414,7 +436,7 @@ describe('App command/report tabs', () => {
   })
 
   it('opens the report tab after a resolved submission', async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+    const fetchMock = hotseatFetch((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
       if (init?.method === 'POST') {
         return Promise.resolve({
@@ -503,7 +525,7 @@ describe('App command/report tabs', () => {
         },
       ],
     }
-    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+    const fetchMock = hotseatFetch((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
       if (init?.method === 'POST') {
         return Promise.resolve({
@@ -534,7 +556,7 @@ describe('App command/report tabs', () => {
   })
 
   it('shows order validation errors above the order rules shortcut', async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+    const fetchMock = hotseatFetch((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
       if (init?.method === 'POST') {
         return Promise.resolve({
@@ -598,7 +620,7 @@ describe('App command/report tabs', () => {
       reachable: ['ROS', 'BRU'],
       selfSupplied: false,
     }
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+    const fetchMock = hotseatFetch((input: RequestInfo | URL) => {
       const url = String(input)
       return Promise.resolve({
         ok: true,
@@ -619,7 +641,7 @@ describe('App command/report tabs', () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        '/api/supply?territory=BRU',
+        `${GAME_PATH}/supply?territory=BRU`,
         expect.objectContaining({ signal: expect.anything() }),
       )
     })
@@ -703,12 +725,18 @@ describe('App command/report tabs', () => {
       ],
       nobles: [],
     }
-    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+    const fetchMock = hotseatFetch((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
       if (init?.method === 'POST') {
         return Promise.resolve({
           ok: true,
-          json: async () => ({ map: newMap, state: newState }),
+          json: async () => ({ id: 'hotseat-2' }),
+        } as Response)
+      }
+      if (url.startsWith('/api/games/hotseat-2/')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => (url.includes('/map') ? newMap : newState),
         } as Response)
       }
       return Promise.resolve({
@@ -738,15 +766,115 @@ describe('App command/report tabs', () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        '/api/game',
+        '/api/games?player=P1&lang=fr',
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ seed: 'nouvelle-graine', players: 6, years: 10 }),
+          body: JSON.stringify({
+            name: 'Hotseat',
+            seed: 'nouvelle-graine',
+            players: 6,
+            years: 10,
+          }),
         }),
       )
     })
     await waitFor(() => {
       expect(container.querySelectorAll('[data-territory-id]')).toHaveLength(3)
     })
+  })
+
+  it('forces the resolution as the host and reloads the selected player view', async () => {
+    const fetchMock = hotseatFetch((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (init?.method === 'POST' && url.includes('/orders')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            status: 'pending',
+            submitted: ['P2'],
+            remaining: ['P1'],
+            state,
+          }),
+        } as Response)
+      }
+      if (init?.method === 'POST' && url.includes('/resolve')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            status: 'resolved',
+            submitted: ['P2'],
+            remaining: [],
+            state,
+          }),
+        } as Response)
+      }
+      if (url.includes('/reports/0')) {
+        return Promise.resolve({ ok: true, json: async () => resolvedReport } as Response)
+      }
+      if (url.includes('/reports')) {
+        return Promise.resolve({ ok: true, json: async () => [{ index: 0 }] } as Response)
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => (url.includes('/map') ? map : state),
+        text: async () => rulesDocument,
+      } as Response)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App initialLanguage="fr" />)
+    await screen.findByText('Tour 1 · Printemps')
+    fireEvent.click(screen.getByRole('combobox', { name: 'Joueur actif' }))
+    fireEvent.click(await screen.findByRole('option', { name: /P2 · Two/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Résoudre' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        `${GAME_PATH}/resolve?player=P1&lang=fr`,
+        expect.objectContaining({ method: 'POST' }),
+      )
+    })
+    expect(fetchMock).toHaveBeenCalledWith(`${GAME_PATH}/reports/0?player=P2`)
+    expect(await screen.findByText('Rapport du tour 1')).toBeInTheDocument()
+  })
+
+  it('reopens the remembered game and falls back to the first listed game', async () => {
+    const serve = (games: string[]) =>
+      vi.fn((input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url === '/api/games?player=P1') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => games.map((id) => ({ id })),
+          } as Response)
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => (url.includes('/map') ? map : state),
+          text: async () => rulesDocument,
+        } as Response)
+      })
+
+    window.localStorage.setItem('cb.hotseatGame', 'second')
+    const remembered = serve(['first', 'second'])
+    vi.stubGlobal('fetch', remembered)
+    const { unmount } = render(<App initialLanguage="fr" />)
+    await screen.findByText('Tour 1 · Printemps')
+    expect(remembered).toHaveBeenCalledWith(
+      '/api/games/second/map?player=P1',
+      expect.anything(),
+    )
+    unmount()
+
+    window.localStorage.setItem('cb.hotseatGame', 'gone')
+    const fallback = serve(['first'])
+    vi.stubGlobal('fetch', fallback)
+    render(<App initialLanguage="fr" />)
+    await screen.findByText('Tour 1 · Printemps')
+    expect(fallback).toHaveBeenCalledWith(
+      '/api/games/first/map?player=P1',
+      expect.anything(),
+    )
+    expect(window.localStorage.getItem('cb.hotseatGame')).toBe('first')
   })
 })

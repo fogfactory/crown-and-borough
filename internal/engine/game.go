@@ -14,9 +14,13 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
+// MaximumGamePlayers is the largest player count the engine can generate a
+// map and a starting position for. Online games use a lower store limit.
+const MaximumGamePlayers = 16
+
 const (
 	minimumGamePlayers  = 2
-	maximumGamePlayers  = 16
+	maximumGamePlayers  = MaximumGamePlayers
 	mapReferencePlayers = 4
 	mapReferenceWidth   = 1000
 	mapReferenceHeight  = 700

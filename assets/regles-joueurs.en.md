@@ -521,9 +521,9 @@ cannot cover the deficit, it loses one troop and becomes a 1-troop army; it stay
 at strength 0 this turn even though a 1-troop army would then demand only one
 ration.
 
-The endpoint `GET /api/supply?territory=XXX` previews an army's supply or the area
-reached from a controlled source (outside winter only). With `&target=YYY`, it
-also estimates a transfer route and its blockers.
+In the interface, selecting an army or a controlled source shows its supply or
+the area it reaches (outside winter only). A transfer being drafted also shows
+its route and blockers.
 
 ### Infrastructure
 

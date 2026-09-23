@@ -5,64 +5,14 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strconv"
 	"strings"
 )
 
-const (
-	developmentOrigin = "http://localhost:5173"
-	// DefaultPlayers is the player count served when ?players is absent. The
-	// development map variants are deliberately bounded so the in-memory cache
-	// contains the supported two-to-sixteen-player maps only.
-	DefaultPlayers = 4
-	minimumPlayers = 2
-	maximumPlayers = 16
-)
-
-// MapHandler resolves and serves a map for the requested player count.
-func MapHandler(resolve func(players int) ([]byte, error)) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		players, ok := requestedPlayers(r)
-		if !ok {
-			http.Error(w, "invalid players", http.StatusBadRequest)
-			return
-		}
-
-		mapJSON, err := resolve(players)
-		if err != nil {
-			http.Error(w, "failed to resolve map", http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write(mapJSON)
-	}
-}
-
-func requestedPlayers(r *http.Request) (int, bool) {
-	values, err := url.ParseQuery(r.URL.RawQuery)
-	if err != nil {
-		return 0, false
-	}
-
-	requested, ok := values["players"]
-	if !ok {
-		return DefaultPlayers, true
-	}
-	if len(requested) != 1 {
-		return 0, false
-	}
-
-	players, err := strconv.Atoi(requested[0])
-	if err != nil || players < minimumPlayers || players > maximumPlayers {
-		return 0, false
-	}
-	return players, true
-}
+// developmentOrigin is the Vite development server allowed by default.
+const developmentOrigin = "http://localhost:5173"
 
 // WithCORS permits the Vite development server to request the local API and
-// keeps the development identity header available for the legacy hotseat
-// surface.
+// keeps the development identity header available.
 func WithCORS(next http.Handler) http.Handler {
 	return WithCORSMode(next, true)
 }
