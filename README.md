@@ -203,6 +203,10 @@ make compose-logs
 make compose-down
 ```
 
+`web/.env.local` is gitignored. Worktrees created by Claude Code receive a copy
+of it automatically through `.worktreeinclude`; in any other new worktree, copy
+it from the main checkout or from `web/.env.example`.
+
 The services use these host ports:
 
 | Service | URL |
