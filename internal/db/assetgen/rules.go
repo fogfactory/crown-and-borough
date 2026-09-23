@@ -79,18 +79,44 @@ func readRulesDocument(path string, required bool, balance *Balance) ([]byte, er
 	return document, nil
 }
 
+// ruleArmyCostSizes are the army sizes whose supply cost can be rendered with
+// {{army_cost.N}} in the rules documents.
+const ruleArmyCostSizes = 5
+
 func renderRules(document []byte, balance Balance) []byte {
 	values := map[string]string{
+		"base_production":         stringValue(balance.BaseProduction),
+		"supply_range":            stringValue(balance.SupplyRange),
+		"depot_range_bonus":       stringValue(balance.DepotRangeBonus),
+		"infra_rations_bonus":     stringValue(balance.InfraRationsBonus),
+		"cost_base":               stringValue(balance.CostBase),
+		"pillage_bonus":           stringValue(balance.PillageBonus),
+		"noble_command_bonus":     stringValue(balance.NobleCommandBonus),
+		"castle_defense_bonus":    stringValue(balance.CastleDefenseBonus),
 		"ration_terrain.plain":    stringValue(balance.RationTerrain["plain"]),
 		"ration_terrain.forest":   stringValue(balance.RationTerrain["forest"]),
 		"ration_terrain.hill":     stringValue(balance.RationTerrain["hill"]),
 		"ration_terrain.mountain": stringValue(balance.RationTerrain["mountain"]),
 		"ration_terrain.swamp":    stringValue(balance.RationTerrain["swamp"]),
-		"infra_rations_bonus":     stringValue(balance.InfraRationsBonus),
-		"base_production":         stringValue(balance.BaseProduction),
+		"winter_stock_divisor":    stringValue(balance.WinterStockDivisor),
+		"village_stock_cap":       stringValue(balance.VillageStockCap),
+		"castle_stock_cap":        stringValue(balance.CastleStockCap),
+		"costs.castle":            stringValue(balance.Costs.Castle),
+		"costs.troop":             stringValue(balance.Costs.Troop),
+		"costs.noble":             stringValue(balance.Costs.Noble),
+		"costs.supply_depot":      stringValue(balance.Costs.SupplyDepot),
+		"costs.liberation":        stringValue(balance.Costs.Liberation),
+		"starting_nobles":         stringValue(balance.StartingNobles),
+		"starting_troops":         stringValue(balance.StartingTroops),
+		"starting_resources":      stringValue(balance.StartingResources),
 	}
 	for index, cost := range balance.Costs.MillLevels {
 		values[fmt.Sprintf("costs.mill_levels.%d", index)] = stringValue(cost)
+	}
+	cost := 1
+	for size := 1; size <= ruleArmyCostSizes; size++ {
+		values[fmt.Sprintf("army_cost.%d", size)] = stringValue(cost)
+		cost *= balance.CostBase
 	}
 	keys := make([]string, 0, len(values)*2)
 	for key, value := range values {

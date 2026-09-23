@@ -18,13 +18,17 @@ The two pillars of tension are:
 - exponential logistics: large concentrations of troops are costly and
   vulnerable to supply shortages.
 
-A game accepts **2 to 16 players**. The v1 server is a “hotseat” session: the map
+An online game accepts **2 to 8 players** (up to 16 in a local game). The map
 and numerical data (owners, army sizes, stocks, infrastructure, and nobles) are
-visible to everyone.
+visible to everyone. Online, however, each player only sees the details of their
+own chains and of the combats they take part in.
 
 Each player starts on a distinct territory: a **castle** is built there for free
-(it becomes the **capital**), with 10 R in stock, a one-troop army, and one free
-noble.
+(it becomes the **capital**), with {{starting_resources}} R in stock, an army of
+{{starting_troops}} troops, and {{starting_nobles}} free noble(s).
+
+A game lasts a number of years chosen at creation (10 by default); see section 8
+for the end of the game and scoring.
 
 ### Inspirations
 
@@ -177,7 +181,7 @@ from a territory different from the supported target can **cut** a support.
 
 `H XXX`: the army stays in place and can receive defensive support.
 `P XXX`: destroys the infrastructure on the occupied territory; a pillage bonus
-(2 R) is credited to the nearest allied source and may reduce famine.
+({{pillage_bonus}} R) is credited to the nearest allied source and may reduce famine.
 
 ### Dispersal (`D`)
 
@@ -226,11 +230,11 @@ BRI D BRI ATL NOR          # BRI keeps the chain; the other groups split away
 `XXX T YYY N` is executed after supply by the army on `XXX`. `YYY` must be a
 castle, village, or the territory of an army controlled by another living
 player; a bare depot cannot receive. The source territory only needs to contain
-stock. The route follows the donor's supply range (`3` territories, plus
+stock. The route follows the donor's supply range (`{{supply_range}}` territories, plus
 controlled depots), and any enemy army on an intermediate territory blocks it;
 an enemy army at the destination is allowed.
 
-A famished army cannot transfer. The amount is capped at `2^(N - 1)` for an
+A famished army cannot transfer. The amount is capped at `{{cost_base}}^(N - 1)` for an
 army of `N` troops, without subtracting local rations. It performs no other
 order that turn. A stock shortage has no effect and does not break a `single`
 chain. In `loop`, the transfer retries; when the remaining stock is below the
@@ -246,15 +250,15 @@ line, applied in the entered order.
 
 | Investment | Syntax | Condition | Cost (R) |
 |---|---|---|---|
-| Recruit a noble | `R N XXX` | `XXX` controlled, with a castle or village and a player army | 2 |
-| Recruit a troop | `R T XXX` | `XXX` controlled, and a free player noble on `XXX` or adjacent | 1 |
+| Recruit a noble | `R N XXX` | `XXX` controlled, with a castle or village and a player army | {{costs.noble}} |
+| Recruit a troop | `R T XXX` | `XXX` controlled, and a free player noble on `XXX` or adjacent | {{costs.troop}} |
 | Build or upgrade a mill | `C M XXX` | `XXX` controlled; a new mill on an **empty** territory adjacent to a productive castle or village, or an existing mill adjacent to that source | {{costs.mill_levels.0}} (L1), {{costs.mill_levels.1}} (L2), {{costs.mill_levels.2}} (L3) |
-| Build a castle | `C C XXX` | `XXX` controlled | 10 |
-| Build a supply depot | `C D XXX` | `XXX` controlled | 3 |
+| Build a castle | `C C XXX` | `XXX` controlled | {{costs.castle}} |
+| Build a supply depot | `C D XXX` | `XXX` controlled | {{costs.supply_depot}} |
 | Designate a capital | `E C XXX` | a controlled castle on `XXX` | 0 |
 | Place a noble in hostage status | `O N NNN` | `NNN` is an opposing prisoner held by the player | 0 |
 | Place a noble in the dungeon | `P N NNN` | `NNN` is an opposing prisoner held by the player | 0 |
-| Liberate a noble | `L N NNN` | `NNN` is held by the player; its owner's capital contains one of that owner's armies | 0 |
+| Liberate a noble | `L N NNN` | `NNN` is held by the player; its owner's capital contains one of that owner's armies | {{costs.liberation}} |
 | Transfer resources | `G XXX YYY N` | `XXX` is a castle or village controlled by the donor; `YYY` is a castle or village controlled by another player | 0 |
 
 A winter transfer is therefore not limited to the donor's own castles and
@@ -295,7 +299,7 @@ stock. An isolated (orphaned) mill produces nothing.
 Each controlled castle or village is a separate source, and any controlled
 territory with positive stock is an action-season cache source. A bare territory
 has no production, but its local army consumes its stock before farther sources.
-Every castle or village source produces `1 R` per turn independently of the others. A second castle is therefore a
+Every castle or village source produces `{{base_production}} R` per turn independently of the others. A second castle is therefore a
 second production and supply source, even though only one castle is designated
 as the capital. A mill is built only on an empty territory adjacent to a
 productive castle or village; it increases the production of **every** neighboring
@@ -321,11 +325,11 @@ made.
 
 **End of winter**:
 
-- each remaining castle or village stock is kept at `ceil(stock / 2)`;
+- each remaining castle or village stock is kept at `ceil(stock / {{winter_stock_divisor}})`;
 - a supply depot keeps its stock in full;
 - stock outside a castle, village, or depot is lost;
 - castle and village stocks outside the capital are brought back to the capital, leaving at most
-  **1 R per village** and **2 R per castle**;
+  **{{village_stock_cap}} R per village** and **{{castle_stock_cap}} R per castle**;
 - without a capital, those stocks remain where they are; depot stock remains on
   its territory.
 
@@ -345,13 +349,13 @@ surplus goes to the capital, while an outlying castle may keep 2 R.
 An army is the sole force entity on a territory: it has an owner and a troop
 size. All its troops share the same chain; an army cannot contain mixed orders.
 
-- attack strength is the attacking army's **size**, with **+1** if a free allied
+- attack strength is the attacking army's **size**, with **+{{noble_command_bonus}}** if a free allied
   noble is present on its territory;
-- support strength is the supporting army's size, with **+1** if a free allied
+- support strength is the supporting army's size, with **+{{noble_command_bonus}}** if a free allied
   noble is present on its territory;
-- an army's defense receives the same **+1** bonus when commanded by a free allied
+- an army's defense receives the same **+{{noble_command_bonus}}** bonus when commanded by a free allied
   noble;
-- a castle gives a fixed defensive bonus of **+1**, even without an army, unless
+- a castle gives a fixed defensive bonus of **+{{castle_defense_bonus}}**, even without an army, unless
   all attackers belong to the castle's owner: an army may attack its own empty
   castle to garrison it without being repelled by the castle's defense (self-capture);
 - the **strictly unique** highest strength wins; a top tie produces a **standoff**,
@@ -382,27 +386,23 @@ after the army leaves until an enemy army stops there.
 
 Supply is resolved **at the start of every action season**, before orders,
 combats, and movement. There is no supply phase in winter. A one-troop army
-demands `1` ration; it is not automatically free.
+demands `{{army_cost.1}}` ration; it is not automatically free.
 
 An army of `N` troops demands:
 
 ```text
-cost = 2^(N - 1)  rations
+cost = {{cost_base}}^(N - 1)  rations
 ```
 
 | Size | 1 | 2 | 3 | 4 | 5 |
 |---|---:|---:|---:|---:|---:|
-| Ration cost | 1 | 2 | 4 | 8 | 16 |
+| Ration cost | {{army_cost.1}} | {{army_cost.2}} | {{army_cost.3}} | {{army_cost.4}} | {{army_cost.5}} |
 
 The food production of the army's own territory is granted to that army alone:
 an army consumes the production of the territory it occupies up to its demand;
 surplus is lost and the remainder is its demand to supply. There is only ever
 one army per territory, so there is no distribution between armies: an enemy
 army on a neighboring territory never takes your territory's ration.
-
-Brigands and other neutral armies also take the ration of the territory they
-occupy, but receive no additional supply from a player's controlled source
-stocks.
 
 Example: a 2-troop army on a hill with a castle (local production:
 {{ration_terrain.hill}}; castle bonus: {{infra_rations_bonus}}) receives 2 rations,
@@ -419,8 +419,8 @@ of 1 ration.
 **Supply sources**: **controlled castles, villages, and caches**. A castle or
 village produces **{{base_production}} R of stock per turn**; a bare cache produces nothing.
 The flow crosses allied, neutral, or enemy-controlled territories and only stops
-before a territory occupied by an enemy army. Base range is **3 territories**;
-each controlled supply depot encountered along the route adds **2 territories**.
+before a territory occupied by an enemy army. Base range is **{{supply_range}} territories**;
+each controlled supply depot encountered along the route adds **{{depot_range_bonus}} territories**.
 A neutral village keeps its stock, inaccessible to the player before capture.
 
 Each source calculates its own `R` production: its base production plus the level
@@ -467,8 +467,8 @@ A territory carries only **one infrastructure**.
 | Infrastructure | Condition | v1 effect | Cost |
 |---|---|---|---|
 | Mill | Build on an empty controlled territory adjacent to a castle or village; upgrade an existing mill adjacent to that source, up to level 3 | +1 stockable R per level at **each** adjacent source | {{costs.mill_levels.0}} / {{costs.mill_levels.1}} / {{costs.mill_levels.2}} |
-| Supply depot | None | +2 territories of supply range when controlled | 3 |
-| Castle | None | +1 defense, +{{infra_rations_bonus}} rations, produces {{base_production}} stockable R per turn, supply anchor | 10 |
+| Supply depot | None | +{{depot_range_bonus}} territories of supply range when controlled | {{costs.supply_depot}} |
+| Castle | None | +{{castle_defense_bonus}} defense, +{{infra_rations_bonus}} rations, produces {{base_production}} stockable R per turn, supply anchor | {{costs.castle}} |
 | Village | Generated neutral, **not buildable** | +{{infra_rations_bonus}} rations, produces {{base_production}} stockable R per turn, supply anchor after capture | — |
 
 ---
@@ -477,7 +477,7 @@ A territory carries only **one infrastructure**.
 
 Nobles **ride with armies**: they follow movement, attacks, joins, dispersals, and
 retreats. A noble counts neither toward supply nor combat losses. A player's free
-noble present on its army's territory grants that army **+1 strength** once;
+noble present on its army's territory grants that army **+{{noble_command_bonus}} strength** once;
 held enemy nobles, hostage nobles, and dungeon nobles do not grant this bonus. A
 noble may remain alone on a territory after its army is lost.
 
@@ -509,7 +509,7 @@ their armies, the noble reappears **free in that capital**; otherwise the order 
 rejected.
 
 A voluntary noble transfer uses a dispersal. For example,
-`BRI D ATL*HUG NOR` sends HUG with the ATL group. Noble HUG grants the `+1`
+`BRI D ATL*HUG NOR` sends HUG with the ATL group. Noble HUG grants the `+{{noble_command_bonus}}`
 bonus only if that group actually carries HUG when it fights or defends.
 
 A player who has no free or hostage noble able to emit does not have to submit
@@ -520,14 +520,35 @@ destinations (`*` or `*NNN`); see section 4.
 
 ---
 
-## 8. Victory
+## 8. End of Game, Score, and Victory
 
-The planned victory rule (documented in the specifications) is:
+A game's duration is chosen at creation, between 1 and 50 years (10 by default).
+A year has four turns; the interface shows the historical year `1000 + year`,
+so “Year 1001” on the first turn.
 
-> A player is **eliminated** when they control no territory and own no army.
-> Nobles alone do not keep a player in the game. The **last living player wins**.
+**Elimination**: a player is eliminated when they no longer control any
+territory and no longer own any army. Nobles alone do not keep a player in the
+game. An eliminated player no longer submits orders.
 
-**Current server state**: this end-of-game rule is **not yet enforced by the
-engine**. Games therefore remain open: seasons and resolution continue as long as
-players submit orders. Elimination detection and the victory condition will be
-enabled in a later version.
+**End of game**: the game ends:
+
+- immediately when only one player remains: that player wins;
+- otherwise, after the final winter of the chosen duration is resolved: the
+  player with the highest score wins. An exact tie at the top has no winner.
+
+**Score**: it is recomputed after every turn and visible to everyone.
+
+| Element | Points |
+|---|---:|
+| Controlled territory | 1 |
+| Controlled village | 2 |
+| Controlled mill | 1 |
+| Controlled castle | 5 |
+| Held noble | 2 |
+| Troop | 1 per unit in their armies |
+| Resource `R` | 1 per unit in stock on their controlled territories |
+
+Infrastructure and resources only score on a controlled territory. A free noble
+counts for its owner. A captured noble, hostage or in the dungeon, counts for
+the player who controls the territory where it stands, not for its original
+owner.
