@@ -9,10 +9,6 @@ node_modules/
 dist/
 tmp/
 
-# Python
-__pycache__/
-*.pyc
-
 # Environment
 .env
 .env.*
