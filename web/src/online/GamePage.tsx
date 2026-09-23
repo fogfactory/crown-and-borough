@@ -42,6 +42,7 @@ import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { useLocalStorageState } from '@/lib/storage'
 import { transferTargetsForTerritory } from '@/lib/transfer-preview'
 import { isWinterCosts } from '@/lib/winter-cost'
+import { buildWinterIntentions } from '@/lib/winter-overlay'
 import {
   normalizeGameSummary,
   normalizeStateData,
@@ -306,6 +307,7 @@ export function GamePage() {
   const [mapFocusSignal, setMapFocusSignal] = useState(0)
   const lastTurn = useRef<number | null>(null)
   const hydratedTurnRef = useRef<number | null>(null)
+  const submittedOrdersContextRef = useRef<string | null>(null)
   const tokenProvider: TokenProvider = { getIdToken }
 
   const subscription = useGameSubscription(gameId, user?.uid, restView?.revision ?? 0)
@@ -400,11 +402,21 @@ export function GamePage() {
   )
   const playerID = currentSlot?.id ?? null
   const spectator = summary?.spectator === true
+  const stateTurn = state?.turn
+  const stateSeason = state?.season
 
   useEffect(() => {
-    if (!gameId || !spectator || !state) {
-      if (!spectator) setSubmittedOrders(null)
+    if (!gameId || !spectator || stateTurn === undefined || stateSeason === undefined) {
+      if (!spectator) {
+        submittedOrdersContextRef.current = null
+        setSubmittedOrders(null)
+      }
       return
+    }
+    const contextKey = `${gameId}:${stateTurn}:${stateSeason}`
+    if (submittedOrdersContextRef.current !== contextKey) {
+      submittedOrdersContextRef.current = contextKey
+      setSubmittedOrders(null)
     }
     let active = true
     const encodedID = encodeURIComponent(gameId)
@@ -413,7 +425,9 @@ export function GamePage() {
       `/api/games/${encodedID}/submitted-orders`,
     )
       .then((response) => {
-        if (active && response.turn === state.turn) setSubmittedOrders(response)
+        if (active && response.turn === stateTurn && response.season === stateSeason) {
+          setSubmittedOrders(response)
+        }
       })
       .catch((submissionFailure: unknown) => {
         if (!active) return
@@ -425,7 +439,16 @@ export function GamePage() {
     return () => {
       active = false
     }
-  }, [gameId, getIdToken, navigate, signOut, spectator, state, summaryRevision])
+  }, [
+    gameId,
+    getIdToken,
+    navigate,
+    signOut,
+    spectator,
+    stateSeason,
+    stateTurn,
+    summaryRevision,
+  ])
 
   const submittedIntentions = useMemo(() => {
     if (!spectator || !state || !map || state.season === 'winter') return []
@@ -446,9 +469,18 @@ export function GamePage() {
   }, [map, spectator, state, submittedOrders])
 
   const installedIntentions = useMemo(() => {
-    if (!spectator || !state || !map || state.season === 'winter') return []
+    if (!spectator || !state || !map) return []
     return state.players.flatMap((player) =>
-      buildIntentions(map, state, player.id, {}, { color: player.color }),
+      buildIntentions(
+        map,
+        state,
+        player.id,
+        {},
+        {
+          color: player.color,
+          includeInstalledInWinter: state.season === 'winter',
+        },
+      ),
     )
   }, [map, spectator, state])
 
@@ -457,7 +489,9 @@ export function GamePage() {
       spectator
         ? [...installedIntentions, ...submittedIntentions]
         : state && playerID
-          ? buildIntentions(map ?? { territories: [] }, state, playerID, chainDrafts)
+          ? buildIntentions(map ?? { territories: [] }, state, playerID, chainDrafts, {
+              includeInstalledInWinter: state.season === 'winter',
+            })
           : [],
     [
       chainDrafts,
@@ -471,6 +505,28 @@ export function GamePage() {
   )
   const intentionsColor =
     state?.players.find((player) => player.id === playerID)?.color ?? '#a84632'
+
+  const winterIntentions = useMemo(() => {
+    if (!state || !map || state.season !== 'winter') return []
+    if (spectator) {
+      return (submittedOrders?.submissions ?? []).flatMap((submission) => {
+        const draft = submission.winter?.lines ?? ''
+        if (!draft.trim()) return []
+        const color = state.players.find(
+          (player) => player.id === submission.player,
+        )?.color
+        return buildWinterIntentions(map, state, submission.player, draft, {
+          source: 'submitted',
+          color,
+          costs: winterCosts,
+        })
+      })
+    }
+    if (!playerID) return []
+    return buildWinterIntentions(map, state, playerID, winterDraft, {
+      costs: winterCosts,
+    })
+  }, [map, playerID, spectator, state, submittedOrders, winterCosts, winterDraft])
 
   const serverChains = useMemo(() => {
     const result: Record<string, string> = {}
@@ -1067,6 +1123,7 @@ export function GamePage() {
             supply={selectedSupplyLine}
             onSelect={handleTerritorySelect}
             intentions={intentions}
+            winterIntentions={winterIntentions}
             showIntentions={showIntentions}
             intentionsColor={intentionsColor}
             onToggleIntentions={setShowIntentions}

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { DRAFT_INTENTION_COLOR, MapViewer } from '@/components/MapViewer'
 import { buildIntentions } from '@/lib/intent-overlay'
 import type { Intention } from '@/lib/intent-overlay'
+import type { WinterIntention } from '@/lib/winter-overlay'
 import type { MapData, StateData, SupplyLine } from '@/types'
 
 const map: MapData = {
@@ -63,6 +64,7 @@ function renderMap(
   intentions: Intention[] = [],
   showIntentions = true,
   intentionsColor = '#a84632',
+  winterIntentions: WinterIntention[] = [],
 ) {
   const result = render(
     <MapViewer
@@ -71,6 +73,7 @@ function renderMap(
       onSelect={onSelect}
       supply={supply}
       intentions={intentions}
+      winterIntentions={winterIntentions}
       showIntentions={showIntentions}
       intentionsColor={intentionsColor}
     />,
@@ -190,6 +193,155 @@ describe('MapViewer selection and panning', () => {
     await waitFor(() => {
       expect(mapGroup).not.toHaveAttribute('transform', 'translate(0 0) scale(1)')
     })
+  })
+})
+
+describe('MapViewer winter overlay', () => {
+  it('renders translucent winter markers and stacks errors by territory', () => {
+    const winterState: StateData = {
+      ...state,
+      season: 'winter',
+      territories: state.territories.map((territory) =>
+        territory.id === 'ROS'
+          ? {
+              ...territory,
+              infrastructures: [{ type: 'village' as const, level: 1 }],
+            }
+          : territory,
+      ),
+    }
+    const winterIntentions: WinterIntention[] = [
+      {
+        kind: 'build',
+        line: 1,
+        valid: true,
+        source: 'draft',
+        territory: 'ROS',
+        infrastructure: 'castle',
+        level: 1,
+        label: 'C C ROS',
+      },
+      {
+        kind: 'recruit_troop',
+        line: 2,
+        valid: true,
+        source: 'draft',
+        territory: 'ROS',
+        label: 'R T ROS',
+      },
+      {
+        kind: 'error',
+        line: 3,
+        valid: false,
+        source: 'draft',
+        territory: 'ROS',
+        reason: 'noble_requires_owned_army',
+        label: 'R N ROS',
+      },
+      {
+        kind: 'error',
+        line: 4,
+        valid: false,
+        source: 'draft',
+        territory: 'ROS',
+        reason: 'troop_requires_adjacent_noble',
+        label: 'R T ROS',
+      },
+    ]
+    const actionIntentions: Intention[] = [
+      {
+        armyTerritory: 'ROS',
+        from: [25, 25],
+        symbol: 'A',
+        type: 'attack',
+        turn: 1,
+        turnLabel: '1',
+        source: 'chain',
+        label: 'ROS A BRU',
+        segments: [{ from: [25, 25], to: [75, 25], kind: 'attack' }],
+      },
+    ]
+    const { svg } = renderMap(
+      map,
+      winterState,
+      vi.fn(),
+      null,
+      actionIntentions,
+      true,
+      '#a84632',
+      winterIntentions,
+    )
+
+    const overlay = svg.querySelector('[data-winter-orders-overlay="true"]')
+    expect(overlay).toBeInTheDocument()
+    expect(overlay).toHaveAttribute('aria-label', 'Winter orders overlay')
+    expect(svg.querySelector('g[aria-label="Winter veil"]')).toBeInTheDocument()
+    expect(overlay?.querySelector('[data-winter-error="true"]')).toBeInTheDocument()
+    expect(overlay?.querySelectorAll('[data-winter-error="true"]').length).toBe(2)
+    const ghost = overlay?.querySelector('g[data-winter-ghost="true"]')
+    expect(ghost).toBeInTheDocument()
+    expect(ghost?.querySelector('circle')).toHaveAttribute('r', '18.5')
+    expect(ghost?.querySelector('path[fill="#fff8e7"]')).toBeInTheDocument()
+    const liseré = ghost?.querySelector('path[stroke="#17120f"]')
+    expect(liseré).toHaveAttribute('stroke-width', '10')
+    expect(liseré).not.toHaveAttribute('stroke-opacity')
+    expect(overlay?.textContent).toContain('+1')
+
+    const actionOverlay = svg.querySelector('g[aria-label="Intentions overlay"]')
+    const winterVeil = svg.querySelector('g[aria-label="Winter veil"]')
+    expect(actionOverlay?.compareDocumentPosition(winterVeil as Node)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+    expect(winterVeil?.compareDocumentPosition(overlay as Node)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+  })
+
+  it('renders orange warnings next to markers for resource-short orders', () => {
+    const winterState: StateData = {
+      ...state,
+      season: 'winter',
+    }
+    const winterIntentions: WinterIntention[] = [
+      {
+        kind: 'build',
+        line: 1,
+        valid: true,
+        warning: true,
+        source: 'draft',
+        territory: 'ROS',
+        infrastructure: 'castle',
+        level: 1,
+        reason: 'insufficient_resources',
+        label: 'C C ROS',
+      },
+      {
+        kind: 'recruit_troop',
+        line: 2,
+        valid: true,
+        warning: true,
+        source: 'draft',
+        territory: 'ROS',
+        reason: 'insufficient_resources',
+        label: 'R T ROS',
+      },
+    ]
+    const { svg } = renderMap(
+      map,
+      winterState,
+      vi.fn(),
+      null,
+      [],
+      true,
+      '#a84632',
+      winterIntentions,
+    )
+
+    const overlay = svg.querySelector('[data-winter-orders-overlay="true"]')
+    expect(overlay).toBeInTheDocument()
+    expect(overlay?.querySelectorAll('[data-winter-warning="true"]').length).toBe(2)
+    expect(overlay?.querySelector('[data-winter-error="true"]')).not.toBeInTheDocument()
+    expect(overlay?.querySelectorAll('g[data-winter-ghost="true"]').length).toBe(1)
   })
 })
 
@@ -498,7 +650,7 @@ describe('MapViewer territorial overlays', () => {
 
   it('adds a light winter veil without changing the non-winter map', () => {
     const { svg: winterSvg } = renderMap(map, { ...state, season: 'winter' })
-    const winterVeil = winterSvg.querySelector('g[aria-label="Winter overlay"]')
+    const winterVeil = winterSvg.querySelector('g[aria-label="Winter veil"]')
 
     expect(winterVeil).toBeInTheDocument()
     expect(winterVeil?.querySelector('rect')).toHaveAttribute('fill', '#eaf3ff')
@@ -515,9 +667,7 @@ describe('MapViewer territorial overlays', () => {
     expect(winterSvg.querySelector('pattern[id^="winter-snow-"]')).toBeInTheDocument()
 
     const { svg: springSvg } = renderMap()
-    expect(
-      springSvg.querySelector('g[aria-label="Winter overlay"]'),
-    ).not.toBeInTheDocument()
+    expect(springSvg.querySelector('g[aria-label="Winter veil"]')).not.toBeInTheDocument()
     expect(springSvg.querySelector('g[aria-label="Winter snow"]')).not.toBeInTheDocument()
   })
 
@@ -542,7 +692,7 @@ describe('MapViewer territorial overlays', () => {
       const terrainPath = svg.querySelector('[data-territory-id="ROS"]')
 
       expect(terrainPath).toHaveAttribute('fill', color)
-      expect(svg.querySelector('g[aria-label="Winter overlay"]')).toBeInTheDocument()
+      expect(svg.querySelector('g[aria-label="Winter veil"]')).toBeInTheDocument()
     },
   )
 
@@ -552,7 +702,7 @@ describe('MapViewer territorial overlays', () => {
     const expectedScale = Math.sqrt((50 * 50) / referenceMeanArea)
     const expectedDash = `${4 * expectedScale} ${3 * expectedScale}`
     const controlPaths = svg.querySelectorAll('g[aria-label="Territorial control"] path')
-    const winterVeil = svg.querySelector('g[aria-label="Winter overlay"]')
+    const winterVeil = svg.querySelector('g[aria-label="Winter veil"]')
 
     if (controlPath0() === null) {
       throw new Error('Map test fixture did not render the control stroke')
@@ -617,7 +767,7 @@ describe('MapViewer territorial overlays', () => {
     }
     const { svg } = renderMap(impassableMap, { ...state, season: 'winter' })
     const impassableBorder = svg.querySelector('g[aria-label="Borders"] line')
-    const winterVeil = svg.querySelector('g[aria-label="Winter overlay"]')
+    const winterVeil = svg.querySelector('g[aria-label="Winter veil"]')
 
     expect(impassableBorder).toHaveAttribute('stroke-width', '4')
     expect(impassableBorder).not.toHaveAttribute('stroke-dasharray')

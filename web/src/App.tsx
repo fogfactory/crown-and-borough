@@ -20,6 +20,7 @@ import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
 import { InfoPage } from '@/components/InfoPage'
 import { addNobleHeader, hasChainContent } from '@/lib/order-text'
 import { buildIntentions } from '@/lib/intent-overlay'
+import { buildWinterIntentions } from '@/lib/winter-overlay'
 import { hasSupplySource } from '@/lib/supply'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { useLocalStorageState } from '@/lib/storage'
@@ -258,12 +259,27 @@ function AppContent() {
   const intentions = useMemo(
     () =>
       state && map
-        ? buildIntentions(map, state, selectedPlayer, chainDrafts[selectedPlayer] ?? {})
+        ? buildIntentions(map, state, selectedPlayer, chainDrafts[selectedPlayer] ?? {}, {
+            includeInstalledInWinter: state.season === 'winter',
+          })
         : [],
     [chainDrafts, map, selectedPlayer, state],
   )
   const intentionsColor =
     state?.players.find((player) => player.id === selectedPlayer)?.color ?? '#a84632'
+  const winterIntentions = useMemo(
+    () =>
+      state && map
+        ? buildWinterIntentions(
+            map,
+            state,
+            selectedPlayer,
+            winterDrafts[selectedPlayer] ?? '',
+            { costs: winterCosts },
+          )
+        : [],
+    [map, selectedPlayer, state, winterCosts, winterDrafts],
+  )
 
   useEffect(() => {
     const controller = new AbortController()
@@ -416,6 +432,7 @@ function AppContent() {
           supply={selectedSupplyLine}
           onSelect={handleTerritorySelect}
           intentions={intentions}
+          winterIntentions={winterIntentions}
           showIntentions={showIntentions}
           intentionsColor={intentionsColor}
           onToggleIntentions={setShowIntentions}

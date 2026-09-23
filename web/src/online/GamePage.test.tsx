@@ -10,6 +10,15 @@ const authMocks = vi.hoisted(() => ({
   user: { uid: 'user-1' },
 }))
 
+const subscriptionMocks = vi.hoisted(() => ({
+  current: {
+    summary: null,
+    view: null,
+    loading: false,
+    error: null,
+  },
+}))
+
 vi.mock('@/auth/AuthProvider', () => ({
   useAuth: () => ({
     status: 'signed-in',
@@ -24,7 +33,7 @@ vi.mock('@/auth/AuthProvider', () => ({
 }))
 
 vi.mock('@/lib/subscription', () => ({
-  normalizeGameSummary: () => ({
+  normalizeGameSummary: (value: unknown) => ({
     id: 'GAME1',
     name: 'Online game',
     seed: 'seed',
@@ -44,14 +53,10 @@ vi.mock('@/lib/subscription', () => ({
     season: 'spring',
     yearCount: 10,
     revision: 1,
+    ...(typeof value === 'object' && value !== null ? value : {}),
   }),
   normalizeStateData: (value: unknown) => value as StateData,
-  useGameSubscription: () => ({
-    summary: null,
-    view: null,
-    loading: false,
-    error: null,
-  }),
+  useGameSubscription: () => subscriptionMocks.current,
 }))
 
 import { LanguageProvider } from '@/i18n/LanguageContext'
@@ -164,6 +169,12 @@ afterEach(() => {
   vi.unstubAllGlobals()
   authMocks.getIdToken.mockClear()
   authMocks.signOut.mockClear()
+  subscriptionMocks.current = {
+    summary: null,
+    view: null,
+    loading: false,
+    error: null,
+  }
 })
 
 describe('GamePage transfer preview', () => {
@@ -323,5 +334,190 @@ describe('GamePage submission rehydration and divergence', () => {
     fireEvent.click(restoreBtn)
     expect(textarea).toHaveValue('R T ROS')
     expect(screen.queryByText('Brouillon différent du serveur')).not.toBeInTheDocument()
+  })
+
+  it('renders submitted winter orders for an observer host', async () => {
+    const winterState: StateData = {
+      ...state,
+      turn: 4,
+      season: 'winter',
+    }
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.endsWith('/api/games/GAME1')) {
+        return Promise.resolve(jsonResponse({ spectator: true }))
+      }
+      if (url.endsWith('/api/games/GAME1/map')) return Promise.resolve(jsonResponse(map))
+      if (url.endsWith('/api/games/GAME1/state')) {
+        return Promise.resolve(jsonResponse({ ...winterState, revision: 1 }))
+      }
+      if (url.endsWith('/api/games/GAME1/submitted-orders')) {
+        return Promise.resolve(
+          jsonResponse({
+            turn: 4,
+            season: 'winter',
+            submissions: [{ player: 'P1', chains: [], winter: { lines: 'C C ROS' } }],
+          }),
+        )
+      }
+      throw new Error(`unexpected request: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { container } = render(
+      <LanguageProvider initialLanguage="en">
+        <MemoryRouter initialEntries={['/games/GAME1']}>
+          <Routes>
+            <Route path="/games/:gameId" element={<GamePage />} />
+          </Routes>
+        </MemoryRouter>
+      </LanguageProvider>,
+    )
+
+    await screen.findByText('Online game')
+    await waitFor(() => {
+      expect(
+        container.querySelector('[data-winter-orders-overlay="true"]'),
+      ).toBeInTheDocument()
+    })
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/games/GAME1/submitted-orders',
+      expect.objectContaining({
+        headers: expect.any(Headers),
+      }),
+    )
+  })
+
+  it('renders installed action chains in the intentions layer during winter', async () => {
+    const winterState: StateData = {
+      ...state,
+      turn: 4,
+      season: 'winter',
+      territories: state.territories.map((territory, index) =>
+        index === 0
+          ? {
+              ...territory,
+              army: {
+                owner: 'P1',
+                size: 2,
+                chain: {
+                  visibility: 'known',
+                  currentIndex: 0,
+                  orders: [
+                    {
+                      type: 'attack',
+                      position: 'ROS',
+                      targets: ['BRU'],
+                      liaison: 'single',
+                    },
+                  ],
+                },
+              },
+            }
+          : territory,
+      ),
+    }
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.endsWith('/api/games/GAME1')) return Promise.resolve(jsonResponse({}))
+      if (url.endsWith('/api/games/GAME1/map')) return Promise.resolve(jsonResponse(map))
+      if (url.endsWith('/api/games/GAME1/state')) {
+        return Promise.resolve(jsonResponse({ ...winterState, revision: 1 }))
+      }
+      throw new Error(`unexpected request: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { container } = render(
+      <LanguageProvider initialLanguage="en">
+        <MemoryRouter initialEntries={['/games/GAME1']}>
+          <Routes>
+            <Route path="/games/:gameId" element={<GamePage />} />
+          </Routes>
+        </MemoryRouter>
+      </LanguageProvider>,
+    )
+
+    await screen.findByText('Online game')
+    await waitFor(() => {
+      const overlay = container.querySelector('g[aria-label="Intentions overlay"]')
+      expect(overlay).toBeInTheDocument()
+      expect(overlay?.textContent).toContain('A')
+    })
+  })
+
+  it('renders installed chains and winter investments together for a winter player', async () => {
+    const winterState: StateData = {
+      ...state,
+      turn: 4,
+      season: 'winter',
+      territories: state.territories.map((territory, index) =>
+        index === 0
+          ? {
+              ...territory,
+              infrastructures: [{ type: 'village' as const, level: 1 }],
+              army: {
+                owner: 'P1',
+                size: 2,
+                chain: {
+                  visibility: 'known',
+                  currentIndex: 0,
+                  orders: [
+                    {
+                      type: 'attack',
+                      position: 'ROS',
+                      targets: ['BRU'],
+                      liaison: 'single',
+                    },
+                  ],
+                },
+              },
+            }
+          : territory,
+      ),
+    }
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.endsWith('/api/games/GAME1')) return Promise.resolve(jsonResponse({}))
+      if (url.endsWith('/api/games/GAME1/map')) return Promise.resolve(jsonResponse(map))
+      if (url.endsWith('/api/games/GAME1/state')) {
+        return Promise.resolve(jsonResponse({ ...winterState, revision: 1 }))
+      }
+      if (url.endsWith('/api/games/GAME1/my-submission')) {
+        return Promise.resolve(
+          jsonResponse({
+            turn: 4,
+            season: 'winter',
+            submitted: true,
+            chains: [],
+            winter: { lines: 'C C ROS' },
+          }),
+        )
+      }
+      throw new Error(`unexpected request: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { container } = render(
+      <LanguageProvider initialLanguage="en">
+        <MemoryRouter initialEntries={['/games/GAME1']}>
+          <Routes>
+            <Route path="/games/:gameId" element={<GamePage />} />
+          </Routes>
+        </MemoryRouter>
+      </LanguageProvider>,
+    )
+
+    await screen.findByText('Online game')
+    await waitFor(() => {
+      const actionOverlay = container.querySelector('g[aria-label="Intentions overlay"]')
+      const winterOverlay = container.querySelector('[data-winter-orders-overlay="true"]')
+      expect(actionOverlay).toBeInTheDocument()
+      expect(actionOverlay?.textContent).toContain('A')
+      expect(winterOverlay).toBeInTheDocument()
+      expect(
+        winterOverlay?.querySelector('g[data-winter-ghost="true"]'),
+      ).toBeInTheDocument()
+    })
   })
 })
