@@ -273,11 +273,30 @@ Les règles de combat sont les suivantes :
   si elle est commandée par un noble ;
 - la défense d'une armée inclut le même bonus de commandement de `+1`, en plus
   du bonus fixe d'un château le cas échéant ;
-- une attaque peut couper un soutien si elle vient d'une case différente de la
-  cible soutenue ;
+- une attaque coupe un soutien si elle vise l'armée soutenante, vient d'un
+  autre joueur et d'une case différente de la cible soutenue (la destination
+  d'un soutien offensif, la case tenue d'un soutien défensif), même si
+  l'attaque échoue ; un soutien est aussi coupé lorsque l'armée soutenante est
+  délogée ;
 - toutes les intentions sont calculées ensemble avant les déplacements ;
 - la plus haute force strictement unique gagne ;
 - une égalité au sommet produit un statu quo, y compris sur une case vide ;
+- une attaque ne déloge jamais une armée de son propre joueur qui reste sur
+  place : elle échoue, mais sa force continue d'empêcher les autres attaques
+  d'entrer sur cette case ;
+- les soutiens apportés par le joueur d'une armée ne comptent pas pour la
+  déloger : pour gagner, l'attaque doit dépasser la défense et chaque autre
+  attaque sans ces soutiens ; ils comptent en revanche pour empêcher les autres
+  attaques d'entrer ;
+- lorsque deux armées s'attaquent mutuellement (face-à-face), chacune oppose sa
+  force sans les soutiens du joueur adverse : la plus forte l'emporte et déloge
+  l'autre si elle bat aussi les autres attaques sur sa destination ; à égalité,
+  ou entre armées du même joueur, les deux échouent ;
+- une attaque qui échoue continue d'empêcher les autres attaques d'entrer sur
+  sa destination, même si son armée est délogée, sauf si elle a perdu un
+  face-à-face ;
+- des attaques en cercle (A vers B, B vers C, C vers A) réussissent toutes
+  lorsque rien d'autre ne s'y oppose ;
 - une armée délogée perd son déplacement et doit battre en retraite ;
 - une jonction et une dispersion ont une puissance de déplacement pacifique,
   n'attaquent pas et sont repoussées par une destination contestée. Une jonction
