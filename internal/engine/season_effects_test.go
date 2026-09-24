@@ -57,23 +57,71 @@ func TestResolveSeasonEffectsFairWeatherCancelsBadWeatherWithoutBonus(t *testing
 	if ctx.badWeatherRegions["AAA"] {
 		t.Fatal("bad weather remains active after fair weather cancellation")
 	}
-	if ctx.bonusMillRegions["AAA"] != 0 || ctx.bonusRationRegions["AAA"] != 0 {
+	if ctx.fairWeatherRegions["AAA"] || ctx.goodHarvestRegions["AAA"] {
 		t.Fatal("canceling fair weather unexpectedly produced a bonus")
 	}
 }
 
-func TestResolveSeasonEffectsFamineDisablesMillContribution(t *testing.T) {
+// cardEffectState puts a level-2 mill on AAA and a castle on BBB, both plains
+// of region AAA.
+func cardEffectState() *models.GameState {
 	state := effectTestState()
-	state.Infrastructures = []models.Infrastructure{{ID: "I1", Type: models.InfraTypeMill, Level: 2, TerritoryID: "AAA"}}
-	state.TerritoryStates["AAA"] = models.TerritoryState{Infrastructures: infraPointer("I1")}
-	setCurrentCalamity(state, models.CardKindFamine, "AAA")
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 2, TerritoryID: "AAA"})
+	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
+	return state
+}
+
+func TestCardEffectsOnRationsAndProduction(t *testing.T) {
+	plain := testBalance().RationTerrain[models.TerrainPlain]
+	base := testBalance().BaseProduction
+	tests := []struct {
+		name       string
+		calamity   models.CardKind
+		bonus      models.CardKind
+		wantRation int
+		wantSource sourceProductionParts
+	}{
+		{name: "no effect", wantRation: plain, wantSource: sourceProductionParts{base: base, mill: 2}},
+		{name: "bad harvest suppresses rations and base production", calamity: models.CardKindFamine,
+			wantRation: 0, wantSource: sourceProductionParts{mill: 2, suppressed: base}},
+		{name: "good harvest doubles rations and base production", bonus: models.CardKindAbundantHarvest,
+			wantRation: 2 * plain, wantSource: sourceProductionParts{base: base, mill: 2, bonus: base}},
+		{name: "bad weather suppresses mills", calamity: models.CardKindBadWeather,
+			wantRation: plain, wantSource: sourceProductionParts{base: base, suppressed: 2}},
+		{name: "fair weather doubles mills", bonus: models.CardKindFairWeather,
+			wantRation: plain, wantSource: sourceProductionParts{base: base, mill: 2, bonus: 2}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			state := cardEffectState()
+			if tt.calamity != "" {
+				setCurrentCalamity(state, tt.calamity, "AAA")
+			}
+			ctx := newResolutionContext(state, testBalance())
+			if tt.bonus != "" {
+				ctx.deckIntents = []deckOrderIntent{{playerID: "P1", order: models.DeckOrder{ID: "O1", Kind: tt.bonus, RegionSeed: "AAA"}}}
+			}
+			resolveSeasonEffects(ctx)
+			if got := rationProduction(ctx, "AAA"); got != tt.wantRation {
+				t.Fatalf("ration production = %d, want %d", got, tt.wantRation)
+			}
+			if got := sourceProductionBreakdown(ctx, "BBB"); got != tt.wantSource {
+				t.Fatalf("castle production = %#v, want %#v", got, tt.wantSource)
+			}
+		})
+	}
+}
+
+func TestSettlementsNoLongerProduceRations(t *testing.T) {
+	state := effectTestState()
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "BBB"})
 	ctx := newResolutionContext(state, testBalance())
 	resolveSeasonEffects(ctx)
-	if got := sourceProduction(ctx, "AAA"); got != ctx.balance.BaseProduction {
-		t.Fatalf("famine source production = %d, want %d", got, ctx.balance.BaseProduction)
-	}
-	if got := rationProduction(ctx, "AAA"); got != ctx.balance.RationTerrain[models.TerrainPlain] {
-		t.Fatalf("famine ration production = %d, want terrain production %d", got, ctx.balance.RationTerrain[models.TerrainPlain])
+	for _, territoryID := range []models.TerritoryID{"AAA", "BBB"} {
+		if got, want := rationProduction(ctx, territoryID), ctx.balance.RationTerrain[models.TerrainPlain]; got != want {
+			t.Fatalf("%s ration production = %d, want terrain only %d", territoryID, got, want)
+		}
 	}
 }
 
@@ -259,57 +307,51 @@ func TestPlagueEmitsDeathAndSurvivorEvents(t *testing.T) {
 	}
 }
 
-func TestFamineEmitsLossSummaryAndDetails(t *testing.T) {
-	state := effectTestState()
-	state.Infrastructures = []models.Infrastructure{
-		{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"},
-		{ID: "I2", Type: models.InfraTypeMill, Level: 2, TerritoryID: "BBB"},
-	}
-	aaaState := state.TerritoryStates["AAA"]
-	aaaState.Infrastructures = infraPointer("I1")
-	state.TerritoryStates["AAA"] = aaaState
-	bbbState := state.TerritoryStates["BBB"]
-	bbbState.Infrastructures = infraPointer("I2")
-	state.TerritoryStates["BBB"] = bbbState
-	setCurrentCalamity(state, models.CardKindFamine, "AAA")
+func calamityLossEvents(t *testing.T, kind models.CardKind, eventType EventType) (*Event, []Event) {
+	t.Helper()
+	state := cardEffectState()
+	setCurrentCalamity(state, kind, "AAA")
 	ctx := newResolutionContext(state, testBalance())
 	resolveSeasonEffects(ctx)
-
 	var summary *Event
-	millDetails := 0
-	settlementDetails := 0
+	details := []Event{}
 	for index := range ctx.events {
-		event := &ctx.events[index]
-		if event.Type != EventTypeFamineLoss {
+		event := ctx.events[index]
+		if event.Type != eventType {
 			continue
 		}
-		if event.RegionSeed != "AAA" {
-			t.Fatalf("famine event = %#v, want region AAA", event)
+		if event.RegionSeed != "AAA" || event.CardKind != kind {
+			t.Fatalf("loss event = %#v, want %s in region AAA", event, kind)
 		}
 		if event.TerritoryID == "" {
-			summary = event
+			summary = &event
 			continue
 		}
-		if event.InfrastructureType == models.InfraTypeMill {
-			millDetails++
-			if event.TerritoryID != "BBB" || event.Production != 2 || event.Level != 2 {
-				t.Fatalf("mill detail = %#v, want mill BBB losing 2 R", event)
-			}
-		} else {
-			settlementDetails++
-			if event.TerritoryID != "AAA" || event.RationsLost != 2 {
-				t.Fatalf("settlement detail = %#v, want AAA losing 2 rations", event)
-			}
-		}
+		details = append(details, event)
 	}
 	if summary == nil {
-		t.Fatalf("events = %#v, want a famine summary", ctx.events)
+		t.Fatalf("events = %#v, want a %s summary", ctx.events, eventType)
 	}
-	if summary.Production != 2 || summary.RationsLost != 2 {
-		t.Fatalf("summary = %#v, want 2 R and 2 rations lost", summary)
+	return summary, details
+}
+
+func TestFamineEmitsLossSummaryAndDetails(t *testing.T) {
+	summary, details := calamityLossEvents(t, models.CardKindFamine, EventTypeFamineLoss)
+	if summary.Production != 1 || summary.RationsLost != 6 {
+		t.Fatalf("summary = %#v, want 1 R of castle production and 2 × 3 terrain rations lost", summary)
 	}
-	if millDetails != 1 || settlementDetails != 1 {
-		t.Fatalf("details = %d mills / %d settlements, want one of each", millDetails, settlementDetails)
+	if len(details) != 1 || details[0].TerritoryID != "BBB" || details[0].InfrastructureType != models.InfraTypeCastle || details[0].Production != 1 {
+		t.Fatalf("details = %#v, want the castle at BBB losing 1 R", details)
+	}
+}
+
+func TestBadWeatherEmitsMillLossSummaryAndDetails(t *testing.T) {
+	summary, details := calamityLossEvents(t, models.CardKindBadWeather, EventTypeBadWeatherLoss)
+	if summary.Production != 2 || summary.RationsLost != 0 {
+		t.Fatalf("summary = %#v, want 2 R of mill production lost", summary)
+	}
+	if len(details) != 1 || details[0].TerritoryID != "AAA" || details[0].Level != 2 || details[0].Production != 2 {
+		t.Fatalf("details = %#v, want the level-2 mill at AAA losing 2 R", details)
 	}
 }
 
@@ -326,8 +368,8 @@ func TestTwoFairWeathersAgainstBadWeatherApplyOneBonus(t *testing.T) {
 		t.Fatal("bad weather remains active after two fair weathers")
 	}
 	assertSeasonEffectCounts(t, ctx, 1, 1)
-	if ctx.bonusMillRegions["AAA"] != 1 || ctx.bonusRationRegions["AAA"] != 1 {
-		t.Fatalf("bonus regions = %d/%d, want one residual bonus", ctx.bonusMillRegions["AAA"], ctx.bonusRationRegions["AAA"])
+	if !ctx.fairWeatherRegions["AAA"] || ctx.goodHarvestRegions["AAA"] {
+		t.Fatalf("bonus regions = %v/%v, want only the residual fair weather bonus", ctx.fairWeatherRegions, ctx.goodHarvestRegions)
 	}
 }
 
@@ -340,8 +382,8 @@ func TestTwoFairWeathersWithoutBadWeatherApplyOneBonus(t *testing.T) {
 	}
 	resolveSeasonEffects(ctx)
 	assertSeasonEffectCounts(t, ctx, 0, 1)
-	if ctx.bonusMillRegions["AAA"] != 1 || ctx.bonusRationRegions["AAA"] != 1 {
-		t.Fatalf("bonus regions = %d/%d, want the regional cap of one", ctx.bonusMillRegions["AAA"], ctx.bonusRationRegions["AAA"])
+	if !ctx.fairWeatherRegions["AAA"] || ctx.goodHarvestRegions["AAA"] {
+		t.Fatalf("bonus regions = %v/%v, want the fair weather bonus only", ctx.fairWeatherRegions, ctx.goodHarvestRegions)
 	}
 }
 
@@ -355,8 +397,8 @@ func TestThreeFairWeathersCapOneBonus(t *testing.T) {
 	}
 	resolveSeasonEffects(ctx)
 	assertSeasonEffectCounts(t, ctx, 0, 1)
-	if ctx.bonusMillRegions["AAA"] != 1 {
-		t.Fatalf("bonus mill regions = %d, want the regional cap of one", ctx.bonusMillRegions["AAA"])
+	if !ctx.fairWeatherRegions["AAA"] {
+		t.Fatalf("fair weather regions = %v, want AAA", ctx.fairWeatherRegions)
 	}
 }
 
@@ -373,8 +415,8 @@ func TestTwoAbundantHarvestsAgainstFamineApplyOneBonus(t *testing.T) {
 		t.Fatal("famine remains active after two abundant harvests")
 	}
 	assertSeasonEffectCounts(t, ctx, 1, 1)
-	if ctx.bonusMillRegions["AAA"] != 1 || ctx.bonusRationRegions["AAA"] != 1 {
-		t.Fatalf("bonus regions = %d/%d, want one residual bonus", ctx.bonusMillRegions["AAA"], ctx.bonusRationRegions["AAA"])
+	if ctx.fairWeatherRegions["AAA"] || !ctx.goodHarvestRegions["AAA"] {
+		t.Fatalf("bonus regions = %v/%v, want only the residual good harvest bonus", ctx.fairWeatherRegions, ctx.goodHarvestRegions)
 	}
 }
 
@@ -397,8 +439,8 @@ func TestFairWeatherAndAbundantHarvestCancelBothIndependently(t *testing.T) {
 	}
 	// Each card is consumed by its own cancellation: no regional bonus remains.
 	assertSeasonEffectCounts(t, ctx, 2, 0)
-	if ctx.bonusMillRegions["AAA"] != 0 || ctx.bonusRationRegions["AAA"] != 0 {
-		t.Fatalf("bonus regions = %d/%d, want none while both cards cancel", ctx.bonusMillRegions["AAA"], ctx.bonusRationRegions["AAA"])
+	if ctx.fairWeatherRegions["AAA"] || ctx.goodHarvestRegions["AAA"] {
+		t.Fatalf("bonus regions = %v/%v, want none while both cards cancel", ctx.fairWeatherRegions, ctx.goodHarvestRegions)
 	}
 }
 
@@ -422,9 +464,9 @@ func TestDoubleBonusesAgainstBothCalamitiesApplyOncePerCategory(t *testing.T) {
 		t.Fatal("both calamities must be canceled")
 	}
 	assertSeasonEffectCounts(t, ctx, 2, 2)
-	// One bonus unit per category: BT and RA stack into two production units.
-	if ctx.bonusMillRegions["AAA"] != 2 || ctx.bonusRationRegions["AAA"] != 2 {
-		t.Fatalf("bonus regions = %d/%d, want one unit per category", ctx.bonusMillRegions["AAA"], ctx.bonusRationRegions["AAA"])
+	// One residual bonus per card kind: mills and harvest are both doubled.
+	if !ctx.fairWeatherRegions["AAA"] || !ctx.goodHarvestRegions["AAA"] {
+		t.Fatalf("bonus regions = %v/%v, want both residual bonuses", ctx.fairWeatherRegions, ctx.goodHarvestRegions)
 	}
 }
 
@@ -441,8 +483,8 @@ func TestFairWeathersInDifferentRegionsApplySeparately(t *testing.T) {
 	}
 	resolveSeasonEffects(ctx)
 	assertSeasonEffectCounts(t, ctx, 0, 2)
-	if ctx.bonusMillRegions["AAA"] != 1 || ctx.bonusMillRegions["BBB"] != 1 {
-		t.Fatalf("bonus mill regions = %d/%d, want one per region", ctx.bonusMillRegions["AAA"], ctx.bonusMillRegions["BBB"])
+	if !ctx.fairWeatherRegions["AAA"] || !ctx.fairWeatherRegions["BBB"] {
+		t.Fatalf("fair weather regions = %v, want AAA and BBB", ctx.fairWeatherRegions)
 	}
 }
 

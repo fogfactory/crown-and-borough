@@ -21,8 +21,8 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 	}
 	ctx.badWeatherRegions = make(map[models.TerritoryID]bool)
 	ctx.famineRegions = make(map[models.TerritoryID]bool)
-	ctx.bonusMillRegions = make(map[models.TerritoryID]int)
-	ctx.bonusRationRegions = make(map[models.TerritoryID]int)
+	ctx.fairWeatherRegions = make(map[models.TerritoryID]bool)
+	ctx.goodHarvestRegions = make(map[models.TerritoryID]bool)
 	bonusEffects := make(map[models.TerritoryID]map[models.CardKind]bool)
 	intents := append([]deckOrderIntent(nil), ctx.deckIntents...)
 	sort.SliceStable(intents, func(i, j int) bool {
@@ -69,8 +69,12 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 			cancels = false
 		}
 		if !cancels || count > 1 {
-			ctx.bonusMillRegions[seed]++
-			ctx.bonusRationRegions[seed]++
+			switch kind {
+			case models.CardKindFairWeather:
+				ctx.fairWeatherRegions[seed] = true
+			case models.CardKindAbundantHarvest:
+				ctx.goodHarvestRegions[seed] = true
+			}
 			if bonusEffects[seed] == nil {
 				bonusEffects[seed] = make(map[models.CardKind]bool)
 			}
@@ -131,45 +135,32 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 	}
 	resolvePlagueMortality(ctx)
 	emitFamineLosses(ctx)
+	emitBadWeatherLosses(ctx)
 }
 
-// emitFamineLosses reports the production the bad harvest calamity suppresses:
-// one regional summary followed by one detail line per disabled mill and per
-// settlement losing its infrastructure rations.
+// emitFamineLosses reports what the bad harvest calamity suppresses: one
+// regional summary with the settlement production and terrain rations lost,
+// followed by one detail line per castle or village producing nothing.
 func emitFamineLosses(ctx *resolutionContext) {
-	seeds := make([]models.TerritoryID, 0, len(ctx.famineRegions))
-	for seed := range ctx.famineRegions {
-		seeds = append(seeds, seed)
-	}
-	sort.Slice(seeds, func(i, j int) bool { return seeds[i] < seeds[j] })
-	for _, seed := range seeds {
+	for _, seed := range sortedRegionFlags(ctx.famineRegions) {
 		productionLost := 0
 		rationsLost := 0
 		details := make([]Event, 0)
 		for _, territoryID := range regionTerritories(ctx, seed) {
+			if territory := ctx.territoriesByID[territoryID]; territory != nil {
+				rationsLost += ctx.balance.RationTerrain[territory.Terrain]
+			}
 			infrastructure := ctx.infrastructureAt(territoryID)
-			if infrastructure == nil {
+			if infrastructure == nil || (infrastructure.Type != models.InfraTypeCastle && infrastructure.Type != models.InfraTypeVillage) {
 				continue
 			}
-			switch infrastructure.Type {
-			case models.InfraTypeMill:
-				lost := infrastructure.Level + ctx.bonusMillRegions[seed]*ctx.balance.SpecialOrders.Effects.BonusMillProduction
-				productionLost += lost
-				details = append(details, Event{
-					Type: EventTypeFamineLoss, Phase: phaseForSeason(ctx.state.Season),
-					CardKind: models.CardKindFamine, RegionSeed: seed, TerritoryID: territoryID,
-					InfrastructureType: models.InfraTypeMill, Level: infrastructure.Level,
-					Production: lost, Season: ctx.state.Season, Year: ctx.state.Year(),
-				})
-			case models.InfraTypeCastle, models.InfraTypeVillage:
-				rationsLost += ctx.balance.InfraRationsBonus
-				details = append(details, Event{
-					Type: EventTypeFamineLoss, Phase: phaseForSeason(ctx.state.Season),
-					CardKind: models.CardKindFamine, RegionSeed: seed, TerritoryID: territoryID,
-					InfrastructureType: infrastructure.Type, RationsLost: ctx.balance.InfraRationsBonus,
-					Season: ctx.state.Season, Year: ctx.state.Year(),
-				})
-			}
+			productionLost += ctx.balance.BaseProduction
+			details = append(details, Event{
+				Type: EventTypeFamineLoss, Phase: phaseForSeason(ctx.state.Season),
+				CardKind: models.CardKindFamine, RegionSeed: seed, TerritoryID: territoryID,
+				InfrastructureType: infrastructure.Type, Production: ctx.balance.BaseProduction,
+				Season: ctx.state.Season, Year: ctx.state.Year(),
+			})
 		}
 		if productionLost == 0 && rationsLost == 0 {
 			continue
@@ -182,6 +173,48 @@ func emitFamineLosses(ctx *resolutionContext) {
 		})
 		ctx.events = append(ctx.events, details...)
 	}
+}
+
+// emitBadWeatherLosses reports the mill production the bad weather calamity
+// suppresses: one regional summary followed by one detail line per mill.
+func emitBadWeatherLosses(ctx *resolutionContext) {
+	for _, seed := range sortedRegionFlags(ctx.badWeatherRegions) {
+		productionLost := 0
+		details := make([]Event, 0)
+		for _, territoryID := range regionTerritories(ctx, seed) {
+			infrastructure := ctx.infrastructureAt(territoryID)
+			if infrastructure == nil || infrastructure.Type != models.InfraTypeMill {
+				continue
+			}
+			productionLost += infrastructure.Level
+			details = append(details, Event{
+				Type: EventTypeBadWeatherLoss, Phase: phaseForSeason(ctx.state.Season),
+				CardKind: models.CardKindBadWeather, RegionSeed: seed, TerritoryID: territoryID,
+				InfrastructureType: models.InfraTypeMill, Level: infrastructure.Level,
+				Production: infrastructure.Level, Season: ctx.state.Season, Year: ctx.state.Year(),
+			})
+		}
+		if productionLost == 0 {
+			continue
+		}
+		ctx.events = append(ctx.events, Event{
+			Type: EventTypeBadWeatherLoss, Phase: phaseForSeason(ctx.state.Season),
+			CardKind: models.CardKindBadWeather, RegionSeed: seed, Production: productionLost,
+			Season: ctx.state.Season, Year: ctx.state.Year(),
+		})
+		ctx.events = append(ctx.events, details...)
+	}
+}
+
+func sortedRegionFlags(flags map[models.TerritoryID]bool) []models.TerritoryID {
+	seeds := make([]models.TerritoryID, 0, len(flags))
+	for seed, active := range flags {
+		if active {
+			seeds = append(seeds, seed)
+		}
+	}
+	sort.Slice(seeds, func(i, j int) bool { return seeds[i] < seeds[j] })
+	return seeds
 }
 
 func copyTerritoryFlags(source map[models.TerritoryID]bool) map[models.TerritoryID]bool {

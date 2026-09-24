@@ -508,14 +508,15 @@ voisine ne prend jamais la ration de ta case.
 **Production vivrière d'une case (en rations)** : plaine
 {{ration_terrain.plain}} ; forêt {{ration_terrain.forest}} ; colline
 {{ration_terrain.hill}} ; montagne {{ration_terrain.mountain}} ; marécage
-{{ration_terrain.swamp}} ; **+{{infra_rations_bonus}}** si la case porte un
-château ou un village.
+{{ration_terrain.swamp}}. Un château ou un village n'ajoute aucune ration :
+seul le terrain nourrit sur place. Une mauvaise récolte supprime toutes les
+rations locales de sa région ; une Bonne récolte les double.
 
-Exemple : une armée de 2 troupes sur une colline avec château (production
-locale {{ration_terrain.hill}}, bonus château {{infra_rations_bonus}}) reçoit
-2 rations, soit toute sa demande. La même armée sur un marécage (production
-{{ration_terrain.swamp}}) ne reçoit qu'1 ration et doit couvrir le reste
-ailleurs.
+Exemple : une armée de 2 troupes en plaine (production locale
+{{ration_terrain.plain}}) reçoit 2 rations, soit toute sa demande, château ou
+non. La même armée en forêt (production {{ration_terrain.forest}}) ne reçoit
+qu'1 ration et doit couvrir le reste ailleurs ; en montagne (production
+{{ration_terrain.mountain}}), elle dépend entièrement du ravitaillement.
 
 **Sources de ravitaillement** : les châteaux, villages et caches contrôlés.
 Un château ou un village produit {{base_production}} R stockable par tour ;
@@ -571,8 +572,8 @@ conditions de construction sont détaillés section 8.
 |---|---|
 | Moulin | +1 R stockable par niveau à chaque source adjacente |
 | Dépôt de vivres | +{{depot_range_bonus}} cases de portée de ravitaillement lorsqu'il est contrôlé |
-| Château | +{{castle_defense_bonus}} défense, +{{infra_rations_bonus}} rations, produit {{base_production}} R stockable par tour, ancre de ravitaillement |
-| Village | +{{infra_rations_bonus}} rations, produit {{base_production}} R stockable par tour, ancre après capture |
+| Château | +{{castle_defense_bonus}} défense, produit {{base_production}} R stockable par tour, ancre de ravitaillement |
+| Village | Produit {{base_production}} R stockable par tour, ancre après capture |
 
 ---
 
@@ -694,9 +695,14 @@ temps, Bonne récolte annule uniquement la mauvaise récolte ; une carte qui
 annule une calamité ne produit pas son bonus régional. Deux cartes du même
 kind sont consommées, mais une seule est effective : avec une calamité
 active, la première annule et une seconde applique le bonus régional ; sans
-calamité, la première l'applique directement. Le bonus reste plafonné à une
-unité par catégorie et par région ; les cartes au-delà sont consommées sans
-effet.
+calamité, la première l'applique directement. Le bonus ne s'applique qu'une
+fois par kind et par région ; les cartes au-delà sont consommées sans effet.
+
+Bonus régionaux :
+
+- Beau temps **double** la production des moulins de la région ;
+- Bonne récolte **double** les rations de terrain de chaque case de la région
+  et la production des châteaux et villages de la région.
 
 Le deck contient **{{special_orders.deck_size}} cartes** :
 **{{special_orders.card.plague}}** peste, **{{special_orders.card.bad_weather}}**
@@ -723,9 +729,10 @@ ne se résout en hiver.
   **{{special_orders.effects.plague_army_divisor}}** et peut supprimer un
   noble ;
 - le mauvais temps bloque les mouvements provenant ou visant sa région, sauf
-  le maintien et le soutien défensif ;
-- la mauvaise récolte désactive les moulins et les bonus de rations des
-  infrastructures de sa région ;
+  le maintien et le soutien défensif, et les moulins de la région ne
+  produisent rien ;
+- la mauvaise récolte supprime les rations de terrain de chaque case de sa
+  région et la production des châteaux et villages de la région ;
 - la Révolte se joue sur un territoire (`P RE TER`) pendant les saisons
   d'action, à condition que sa région subisse une mauvaise récolte. Chaque
   carte ajoute un jet entre **{{special_orders.effects.revolt_army_min_size}}**

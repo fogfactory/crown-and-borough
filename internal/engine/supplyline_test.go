@@ -169,7 +169,7 @@ func TestFindSupplyLineHandlesLocalRationsAndMissingSources(t *testing.T) {
 		if err != nil {
 			t.Fatalf("FindSupplyLine: %v", err)
 		}
-		if !line.SelfSupplied || line.TerrainProduction != 3 || line.LocalProduction != 5 || line.Rations != 1 || line.TotalDemand != 1 || line.Demand != 0 || !reflect.DeepEqual(line.Reachable, []models.TerritoryID{"AAA", "BBB"}) {
+		if !line.SelfSupplied || line.TerrainProduction != 3 || line.LocalProduction != 3 || line.Rations != 1 || line.TotalDemand != 1 || line.Demand != 0 || !reflect.DeepEqual(line.Reachable, []models.TerritoryID{"AAA", "BBB"}) {
 			t.Errorf("line = %#v, want self-supply and source zone", line)
 		}
 	})

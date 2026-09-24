@@ -83,7 +83,6 @@ type ProductionReport struct {
 	Region               models.TerritoryID         `json:"region,omitempty"`
 	Owner                models.PlayerID            `json:"owner,omitempty"`
 	TerrainRations       int                        `json:"terrainRations"`
-	InfraRations         int                        `json:"infraRations,omitempty"`
 	BonusRations         int                        `json:"bonusRations,omitempty"`
 	SuppressedRations    int                        `json:"suppressedRations,omitempty"`
 	BaseProduction       int                        `json:"baseProduction,omitempty"`
@@ -351,8 +350,8 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 		case EventTypeProduction:
 			report.Production = append(report.Production, ProductionReport{
 				Territory: event.TerritoryID, Region: event.RegionSeed, Owner: event.OwnerID,
-				TerrainRations: event.TerrainRations, InfraRations: event.InfraRations,
-				BonusRations: event.BonusRations, SuppressedRations: event.SuppressedRations,
+				TerrainRations: event.TerrainRations,
+				BonusRations:   event.BonusRations, SuppressedRations: event.SuppressedRations,
 				BaseProduction: event.BaseProduction, MillProduction: event.MillProduction,
 				BonusProduction: event.BonusProduction, SuppressedProduction: event.SuppressedProduction,
 				Produced: event.Production, SentToRations: event.SentRations,
@@ -510,7 +509,7 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 				}
 				report.Winter.Cards = append(report.Winter.Cards, card)
 			}
-		case EventTypeCalamityApplied, EventTypeCalamityCanceled, EventTypeBonusEffect, EventTypeNeutralArmy, EventTypePlagueDeath, EventTypePlagueSurvived, EventTypeBadWeatherBlocked, EventTypeFamineLoss:
+		case EventTypeCalamityApplied, EventTypeCalamityCanceled, EventTypeBonusEffect, EventTypeNeutralArmy, EventTypePlagueDeath, EventTypePlagueSurvived, EventTypeBadWeatherBlocked, EventTypeFamineLoss, EventTypeBadWeatherLoss:
 			report.SeasonEffects = append(report.SeasonEffects, SeasonEffectReport{
 				Kind: event.Type, CardKind: event.CardKind, Region: event.RegionSeed, Season: event.Season,
 				Owner: event.OwnerID, Army: event.ArmyID, Noble: event.NobleCode,

@@ -71,15 +71,7 @@ func (raw rawBalance) specialOrders(path string) (SpecialOrdersBalance, error) {
 	if revoltMin > revoltMax {
 		return SpecialOrdersBalance{}, fmt.Errorf("assetgen: %s: revolt army minimum exceeds maximum", path)
 	}
-	millBonus, err := requiredNonNegativeInt(path, "special_orders.effects.bonus_mill_production", effects.BonusMillProduction)
-	if err != nil {
-		return SpecialOrdersBalance{}, err
-	}
-	rationBonus, err := requiredNonNegativeInt(path, "special_orders.effects.bonus_army_ration", effects.BonusArmyRation)
-	if err != nil {
-		return SpecialOrdersBalance{}, err
-	}
-	return SpecialOrdersBalance{HandLimit: handLimit, DrawOrdersLimit: drawLimit, DeckSize: deckSize, CalamityPercentage: percentage, CalamitySlots: slots, CalamityWeights: calamityWeights, BonusWeights: bonusWeights, Effects: SpecialOrderEffects{PlagueArmyDivisor: plagueDivisor, PlagueNobleMortalityPercentage: mortality, RevoltArmyMinSize: revoltMin, RevoltArmyMaxSize: revoltMax, BonusMillProduction: millBonus, BonusArmyRation: rationBonus}}, nil
+	return SpecialOrdersBalance{HandLimit: handLimit, DrawOrdersLimit: drawLimit, DeckSize: deckSize, CalamityPercentage: percentage, CalamitySlots: slots, CalamityWeights: calamityWeights, BonusWeights: bonusWeights, Effects: SpecialOrderEffects{PlagueArmyDivisor: plagueDivisor, PlagueNobleMortalityPercentage: mortality, RevoltArmyMinSize: revoltMin, RevoltArmyMaxSize: revoltMax}}, nil
 }
 
 func specialSeasonValues(path string, values map[string]*int, name string) (map[models.Season]int, error) {

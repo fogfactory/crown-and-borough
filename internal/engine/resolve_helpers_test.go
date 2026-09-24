@@ -14,7 +14,6 @@ func testBalance() assetgen.Balance {
 		BaseProduction:     1,
 		SupplyRange:        3,
 		DepotRangeBonus:    2,
-		InfraRationsBonus:  2,
 		CostBase:           2,
 		PillageBonus:       2,
 		NobleCommandBonus:  1,

@@ -58,11 +58,10 @@ const report: TurnReport = {
       territory: 'ROS',
       owner: 'P1',
       terrainRations: 1,
-      infraRations: 2,
       baseProduction: 1,
       millProduction: 2,
       bonusProduction: 1,
-      produced: 7,
+      produced: 5,
       sentToRations: { BRU: 3 },
       stockBefore: 5,
       stockConsumed: 2,
@@ -72,7 +71,7 @@ const report: TurnReport = {
       territory: 'BRU',
       region: 'ROS',
       terrainRations: 1,
-      suppressedRations: 2,
+      suppressedRations: 1,
       produced: 1,
     },
   ],
@@ -222,7 +221,9 @@ const report: TurnReport = {
     },
     { kind: 'calamity_applied', cardKind: 'famine', region: 'ROS', season: 'spring' },
     { kind: 'famine_loss', cardKind: 'famine', region: 'ROS', season: 'spring', productionLost: 2, rationsLost: 2 },
-    { kind: 'famine_loss', cardKind: 'famine', region: 'ROS', season: 'spring', territory: 'BRU', productionLost: 2 },
+    { kind: 'famine_loss', cardKind: 'famine', region: 'ROS', season: 'spring', territory: 'BRU', productionLost: 1 },
+    { kind: 'bad_weather_loss', cardKind: 'bad_weather', region: 'ROS', season: 'spring', productionLost: 3 },
+    { kind: 'bad_weather_loss', cardKind: 'bad_weather', region: 'ROS', season: 'spring', territory: 'BRU', productionLost: 3 },
     { kind: 'bonus_effect', cardKind: 'fair_weather', region: 'ROS', season: 'spring' },
     { kind: 'card_canceled', cardKind: 'revolt', region: 'ROS', season: 'spring', owner: 'P1', territory: 'BRU' },
     { kind: 'neutral_army_created', cardKind: 'revolt', region: 'ROS', season: 'spring', territory: 'BRU', troops: 2 },
@@ -283,13 +284,13 @@ describe('ReportPanel', () => {
     expect(screen.queryByText('coût : 0 R')).not.toBeInTheDocument()
     expect(screen.getByText(/Ressources insuffisantes/)).toBeInTheDocument()
     expect(screen.getAllByLabelText('Couleur de One')).not.toHaveLength(0)
-    expect(screen.getByText(/7 produits/)).toBeInTheDocument()
+    expect(screen.getByText(/5 produits/)).toBeInTheDocument()
     expect(screen.getByText(/production de base 1/)).toBeInTheDocument()
     expect(screen.getByText(/moulins 2/)).toBeInTheDocument()
     expect(screen.getByText(/bonus régional 1/)).toBeInTheDocument()
     expect(screen.getByText(/stock : 5 → 3 \(consommé 2\)/)).toBeInTheDocument()
     expect(screen.getByText(/envoyé 3 vers BRU/)).toBeInTheDocument()
-    expect(screen.getByText(/2 supprimés par la mauvaise récolte/)).toBeInTheDocument()
+    expect(screen.getByText(/1 supprimés par une calamité/)).toBeInTheDocument()
     expect(screen.getByText(/demande 2/)).toBeInTheDocument()
     expect(screen.getByText(/local 2 · sources 0 · reçu 2 · manque 0/)).toBeInTheDocument()
     expect(screen.getByText(/source ROS · local 1 · sources 0 · reçu 1 · manque 3/)).toBeInTheDocument()
@@ -310,7 +311,9 @@ describe('ReportPanel', () => {
     expect(screen.getByText('Le noble JEA à ROS survit à la peste')).toBeInTheDocument()
     expect(screen.getByText(/Armée de P1 à ROS : mouvement vers BRU bloqué/)).toBeInTheDocument()
     expect(screen.getByText(/2 R de production supprimées, 2 rations/)).toBeInTheDocument()
-    expect(screen.getByText(/Moulin à BRU désactivé : 2 R non produites/)).toBeInTheDocument()
+    expect(screen.getByText(/BRU : 1 R non produites/)).toBeInTheDocument()
+    expect(screen.getByText(/3 R de production des moulins supprimées/)).toBeInTheDocument()
+    expect(screen.getByText(/Moulin à BRU à l’arrêt : 3 R non produites/)).toBeInTheDocument()
     expect(screen.getByText('Armée neutre de 2 troupes créée à BRU')).toBeInTheDocument()
   })
 

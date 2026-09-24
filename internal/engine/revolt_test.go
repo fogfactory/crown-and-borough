@@ -285,8 +285,8 @@ func TestFindSupplyServesNeutralArmy(t *testing.T) {
 	if line.ArmyOwner != models.NeutralPlayerID || line.ArmySize != 3 {
 		t.Fatalf("supply line = %#v, want the neutral three-troop army", line)
 	}
-	if line.TotalDemand != 4 || line.LocalProduction != 1 || line.Rations != 1 {
-		t.Fatalf("supply line = %#v, want demand 4 against 1 available local ration", line)
+	if line.TotalDemand != 4 || line.FamineRations != 1 || line.LocalProduction != 0 || line.Rations != 0 {
+		t.Fatalf("supply line = %#v, want demand 4 with the only local ration lost to the famine", line)
 	}
 	if line.SelfSupplied || line.Source != nil {
 		t.Fatalf("supply line = %#v, want an unfed neutral army without any source", line)

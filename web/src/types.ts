@@ -43,6 +43,7 @@ export type EventType =
   | 'plague_noble_survived'
   | 'bad_weather_blocked'
   | 'famine_loss'
+  | 'bad_weather_loss'
   | 'famine'
   | 'card_canceled'
   | 'rumor'
@@ -230,6 +231,10 @@ export interface SupplyLine {
   armyOwner: PlayerId
   armySize: number
   terrainProduction: number
+  /** Terrain rations removed by the current season's famine. */
+  famineRations?: number
+  /** Rations added by a regional bonus card. */
+  bonusRations?: number
   localProduction: number
   rations: number
   totalDemand: number
@@ -425,7 +430,6 @@ export interface ProductionReport {
   region?: string
   owner?: PlayerId
   terrainRations: number
-  infraRations?: number
   bonusRations?: number
   suppressedRations?: number
   baseProduction?: number

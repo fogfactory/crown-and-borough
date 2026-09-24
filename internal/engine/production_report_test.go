@@ -48,8 +48,6 @@ func TestProductionReportBreaksDownSourceAndBonus(t *testing.T) {
 	state.Regions = []models.Region{{ID: "AAA", Seed: "AAA", Territories: []models.TerritoryID{"AAA", "BBB"}}}
 	validateTestState(t, state)
 	balance := testBalance()
-	balance.SpecialOrders.Effects.BonusMillProduction = 1
-	balance.SpecialOrders.Effects.BonusArmyRation = 1
 	resolution, err := ResolveWithDeckOrders(state, balance, map[models.PlayerID][]models.DeckOrder{
 		"P1": {{ID: "O1", Type: models.DeckOrderTypePlay, Kind: models.CardKindFairWeather, RegionSeed: "AAA"}},
 	})
@@ -58,14 +56,14 @@ func TestProductionReportBreaksDownSourceAndBonus(t *testing.T) {
 	}
 	report := BuildTurnReport(state, resolution.State, resolution.Events, nil)
 	line := productionLineFor(t, report, "AAA")
-	if line.TerrainRations != 3 || line.InfraRations != 2 || line.BonusRations != 1 {
-		t.Fatalf("ration breakdown = %#v, want terrain 3, infra 2, bonus 1", line)
+	if line.TerrainRations != 3 || line.BonusRations != 0 {
+		t.Fatalf("ration breakdown = %#v, want terrain 3 without fair weather bonus", line)
 	}
-	if line.BaseProduction != 1 || line.MillProduction != 2 || line.BonusProduction != 1 {
-		t.Fatalf("production breakdown = %#v, want base 1, mills 2, bonus 1", line)
+	if line.BaseProduction != 1 || line.MillProduction != 2 || line.BonusProduction != 2 {
+		t.Fatalf("production breakdown = %#v, want base 1, mills 2 doubled by fair weather", line)
 	}
-	if line.Produced != 10 {
-		t.Fatalf("produced = %d, want 10", line.Produced)
+	if line.Produced != 8 {
+		t.Fatalf("produced = %d, want 8", line.Produced)
 	}
 	consumption := consumptionLineFor(t, report, "A1")
 	if consumption.Demand != 1 || consumption.ReceivedLocal != 1 || consumption.ReceivedTransfer != 0 || consumption.Missing != 0 {
@@ -166,17 +164,17 @@ func TestProductionReportShowsFamineSuppression(t *testing.T) {
 	resolveSupply(ctx)
 	report := BuildTurnReport(state, ctx.state, ctx.events, nil)
 	line := productionLineFor(t, report, "AAA")
-	if line.InfraRations != 0 || line.SuppressedRations != 2 {
-		t.Fatalf("ration suppression = %#v, want 2 suppressed infrastructure rations", line)
+	if line.TerrainRations != 0 || line.SuppressedRations != 3 {
+		t.Fatalf("ration suppression = %#v, want all 3 terrain rations suppressed", line)
 	}
-	if line.MillProduction != 0 || line.SuppressedProduction != 2 {
-		t.Fatalf("mill suppression = %#v, want 2 suppressed mill R", line)
+	if line.BaseProduction != 0 || line.MillProduction != 2 || line.SuppressedProduction != 1 {
+		t.Fatalf("production suppression = %#v, want the castle's 1 R suppressed and the mill intact", line)
 	}
-	if line.Produced != 4 {
-		t.Fatalf("produced = %d, want terrain 3 plus base 1", line.Produced)
+	if line.Produced != 2 {
+		t.Fatalf("produced = %d, want the mill's 2 R only", line.Produced)
 	}
 	consumption := consumptionLineFor(t, report, "A1")
-	if consumption.Famine || consumption.Demand != 1 || consumption.ReceivedLocal != 1 {
-		t.Fatalf("A1 consumption = %#v, want demand 1 fully covered by terrain rations", consumption)
+	if consumption.Famine || consumption.Demand != 1 || consumption.ReceivedLocal != 0 || consumption.ReceivedTransfer != 1 {
+		t.Fatalf("A1 consumption = %#v, want demand 1 covered by the castle stock", consumption)
 	}
 }

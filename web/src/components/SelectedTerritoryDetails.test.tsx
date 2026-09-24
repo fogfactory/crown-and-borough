@@ -91,7 +91,7 @@ const armySupply: SupplyLine = {
   armyOwner: 'P2',
   armySize: 4,
   terrainProduction: 3,
-  localProduction: 5,
+  localProduction: 3,
   rations: 5,
   totalDemand: 8,
   demand: 3,
@@ -114,6 +114,24 @@ const transferLine: TransferLine = {
 }
 
 describe('SelectedTerritoryDetails', () => {
+  it('breaks the local production down with famine and regional bonus rations', () => {
+    render(
+      <SelectedTerritoryDetails
+        state={state}
+        selectedTerritory={map.territories[0]}
+        selectedState={state.territories[0]}
+        selectedSupplyLine={{ ...armySupply, famineRations: 1, bonusRations: 1, localProduction: 3 }}
+        sourceTerritory={map.territories[1]}
+        supplyLoading={false}
+        supplyError={null}
+      />,
+    )
+
+    expect(
+      screen.getByText(/\(Plain 3 − bad harvest 1 \+ regional bonus 1\)/),
+    ).toBeInTheDocument()
+  })
+
   it('renders nobles, complete army details, supply, and infrastructure using preferred names', () => {
     render(
       <SelectedTerritoryDetails
@@ -144,7 +162,7 @@ describe('SelectedTerritoryDetails', () => {
     expect(screen.getByText('Local production')).toBeInTheDocument()
     expect(screen.getByText('Demand')).toBeInTheDocument()
     expect(screen.getByText('To cover')).toBeInTheDocument()
-    expect(screen.getByText(/Plain 3 \+ Castle 2/)).toBeInTheDocument()
+    expect(screen.getByText(/\(Plain 3\)/)).toBeInTheDocument()
     expect(screen.getByText('Demand').nextElementSibling).toHaveTextContent('8')
     const toCover = screen.getByText('To cover').nextElementSibling
     expect(toCover).toHaveTextContent('3')
@@ -187,7 +205,7 @@ describe('SelectedTerritoryDetails', () => {
       territory: 'ROS',
       armySize: 0,
       terrainProduction: 3,
-      localProduction: 5,
+      localProduction: 3,
       rations: 0,
       totalDemand: 0,
       demand: 0,
