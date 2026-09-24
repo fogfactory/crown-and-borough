@@ -300,15 +300,20 @@ Les règles de combat sont les suivantes :
 - une armée délogée perd son déplacement et doit battre en retraite ;
 - une jonction et une dispersion ont une puissance de déplacement pacifique,
   n'attaquent pas et sont repoussées par une destination contestée. Une jonction
-  peut toutefois fusionner avec l'attaquant allié qui remporte le combat sur sa
-  destination ; les attaques adverses qui perdent ce combat ne l'empêchent pas
-  d'arriver. Si aucun attaquant n'atteint la case, la destination reste
-  contestée et la jonction est repoussée. Une destination est contestée
+  ou une troupe dispersée peut toutefois fusionner avec l'attaquant allié qui
+  remporte le combat sur sa destination ; les attaques adverses qui perdent ce
+  combat ne l'empêchent pas d'arriver. Si aucun attaquant n'atteint la case, la
+  destination reste contestée et le mouvement pacifique est repoussé. Une destination est contestée
   lorsqu'au moins une attaque adverse y participe et qu'aucune armée
   attaquante ne remporte le combat (statu quo ou défense conservée) ;
 - un château apporte son bonus défensif fixe, même sans armée, sauf si tous les
   attaquants appartiennent au propriétaire du château (auto-capture d'un château
-  ami vide).
+  ami vide) ;
+- lorsque des ordres dépendent les uns des autres en cycle, les mouvements
+  réussissent dès qu'une résolution cohérente avec ces règles le permet
+  (mouvement circulaire) ; si aucune résolution n'est cohérente (paradoxe), les
+  jonctions et dispersions du cycle sont annulées, aucune de leurs troupes ne
+  quittant son origine, et les attaques du cycle sont résolues sans elles.
 
 ### Ravitaillement exponentiel
 
@@ -390,7 +395,8 @@ réception d'une nouvelle chaîne. Une dispersion traite chaque destination dans
 son ordre d'apparition, sans introduire d'attaque : une destination occupée par
 une armée ennemie, contestée ou sans unité disponible ne consomme pas d'unité et
 les unités restantes demeurent à l'origine. Une destination occupée par une
-armée alliée reçoit la troupe et la fusionne avec l'armée présente. En mode
+armée alliée, ou prise par l'attaquant allié qui y remporte le combat, reçoit
+la troupe et la fusionne avec cette armée. En mode
 `single`, les destinations non traitées font progresser la chaîne avec une
 dispersion partielle. En mode `loop`, le résidu retente jusqu'à l'arrivée d'une
 armée sur toutes les destinations ; une liste qui épuise l'armée avant d'avoir

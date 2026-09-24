@@ -299,6 +299,8 @@ destination repels the assignment without consuming a troop.
   repeat;
 - a destination occupied by an enemy army, contested, or troopless does not
   consume a troop; a later destination may still receive one;
+- as with a join, if one of your attacks wins the combat on a destination,
+  the troop arrives there and fuses with the winning army;
 - several allied dispersals arriving on the same territory are stacked into
   one army;
 - troops that cannot be sent remain at the origin; a list shorter than the

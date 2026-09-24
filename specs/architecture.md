@@ -402,6 +402,33 @@ Plusieurs chaînes ciblant la même armée au même tour constituent une récept
 concurrente : elles sont toutes rejetées avant la résolution et aucune nouvelle
 chaîne n'est attachée à cette armée. Une chaîne déjà portée reste inchangée.
 
+L'adjudication des attaques, jonctions et dispersions (`adjudicator.go`) est
+un graphe de décisions booléennes : une attaque atteint sa destination, une
+jonction ou une dispersion vide son origine, une armée restée en place est
+délogée. Chaque décision est une fonction pure des autres ; l'équation de
+mouvement et les forces (attaque, maintien, défense, prévention) suivent
+« The Math of Adjudication » de Lucas Kruijswijk, référence des Diplomacy
+Adjudicator Test Cases, avec les forces de Crown & Borough (§5 du GDD). Les
+jonctions et dispersions sont évaluées par les règles pacifiques existantes,
+sur le groupe d'ordres pacifiques qui partagent leurs territoires, en lisant
+les combats à travers ces décisions. Le graphe statique des dépendances est
+découpé en composantes fortement connexes (Tarjan), résolues dans l'ordre
+topologique. Un cycle est résolu par recherche en profondeur : chaque ordre,
+dans un ordre fixe, réussit dès qu'une résolution cohérente le permet, ce qui
+généralise le mouvement circulaire de Diplomacy (rotation, jonction croisant
+une attaque). Un cycle sans résolution cohérente (paradoxe) voit ses
+jonctions et dispersions annulées, puis ses attaques recherchées à nouveau
+sans elles ; les combats ne dépendent alors plus d'aucun mouvement pacifique,
+ce qui ne laisse que des mouvements circulaires, et le statu quo des attaques
+n'est qu'un dernier recours. La résolution termine toujours, sans plafond
+d'itérations.
+
+Le corpus `internal/engine/testdata/adjudication_corpus.golden` fige le
+résultat complet de deux tours consécutifs sur 10 000 plateaux aléatoires ;
+les graines où l'adjudicateur actuel diffère volontairement de l'ancien point
+fixe itératif sont listées avec leur motif dans
+`adjudication_corpus.divergences`.
+
 Les ordres exécutables du moteur sont séparés des DTO parsés et persistés. Les
 ordres de cartes sont construits par un registre `CardDefinition` indexé par
 `CardKind`. Leur `Apply` consomme la première carte correspondante dans la main,

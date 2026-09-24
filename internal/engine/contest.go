@@ -2,21 +2,15 @@ package engine
 
 import "github.com/fogfactory/crown-and-borough/internal/models"
 
+// contestState is the settled combat of a turn, read by movement execution
+// and chain progression.
 type contestState struct {
-	active           map[models.ArmyID]bool
-	dislodged        map[models.ArmyID]bool
-	vacated          map[models.ArmyID]bool
-	disperseResidual map[models.ArmyID]int
-	ghosted          map[models.ArmyID]bool
-	retiredGhosts    map[models.ArmyID]bool
-	cuts             map[models.ArmyID]bool
-	voidedSupports   map[models.ArmyID]bool
-	results          map[models.TerritoryID]contestResult
-}
-
-type peacefulDepartureState struct {
-	vacated          map[models.ArmyID]bool
-	disperseResidual map[models.ArmyID]int
+	active         map[models.ArmyID]bool
+	dislodged      map[models.ArmyID]bool
+	vacated        map[models.ArmyID]bool
+	cuts           map[models.ArmyID]bool
+	voidedSupports map[models.ArmyID]bool
+	results        map[models.TerritoryID]contestResult
 }
 
 type contestResult struct {
@@ -41,224 +35,267 @@ type dislodgedArmy struct {
 	nobleIDs         []models.NobleID
 }
 
-func (ctx *resolutionContext) predictPeacefulDepartures(current contestState, vacated map[models.ArmyID]bool, disperseResidual map[models.ArmyID]int) peacefulDepartureState {
-	temp := ctx.cloneForDeparturePrediction()
-	effectiveVacated := mergeBooleanMaps(vacated, current.vacated)
-	temp.contest = current
-	temp.contest.vacated = effectiveVacated
-	temp.contest.disperseResidual = copyIntegerMap(disperseResidual)
-	temp.dislodged = dislodgedFromContest(temp, current.results)
-	temp.attackedTerritories = ctx.attackedTerritoriesFor(effectiveVacated, current.dislodged)
-	temp.applyContestOutcomes()
-	resolveDispersions(temp)
-	resolveJoins(temp)
-	resolveVacatedDisperseDestinations(temp)
-	finalizeDispersions(temp)
+// resolveContests adjudicates every attack, join and dispersion of the turn
+// (see adjudicator), then records the combats, their events and the outcome
+// of every attack. Joins and dispersions are executed later from the settled
+// contest.
+func resolveContests(ctx *resolutionContext) (err error) {
+	ctx.facts = settledFacts{ctx: ctx}
+	if len(ctx.attacks) == 0 {
+		ctx.contest = contestState{
+			active:         map[models.ArmyID]bool{},
+			dislodged:      map[models.ArmyID]bool{},
+			vacated:        map[models.ArmyID]bool{},
+			cuts:           map[models.ArmyID]bool{},
+			voidedSupports: map[models.ArmyID]bool{},
+			results:        map[models.TerritoryID]contestResult{},
+		}
+		return nil
+	}
 
-	result := peacefulDepartureState{
-		vacated:          make(map[models.ArmyID]bool),
-		disperseResidual: make(map[models.ArmyID]int),
-	}
-	for armyID, residual := range disperseResidual {
-		if current.dislodged[armyID] {
-			result.disperseResidual[armyID] = residual
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			unsettled, isUnsettled := recovered.(unsettledDecision)
+			if !isUnsettled {
+				panic(recovered)
+			}
+			err = unsettled
 		}
-	}
-	for _, armyID := range sortedArmyMap(ctx.joins) {
-		record := temp.records[armyID]
-		if record != nil && record.outcome == OutcomeSuccess && !current.dislodged[armyID] {
-			result.vacated[armyID] = true
-		}
-	}
-	for _, recordArmyID := range sortedArmyMap(temp.disperseResults) {
-		disperse := temp.disperseResults[recordArmyID]
-		record := temp.records[recordArmyID]
-		if record == nil || record.outcome == OutcomeInvalid || disperse.invalid {
-			continue
-		}
-		if temp.disperseVacatesSource(disperse.intent.armyID, disperse.intent.source) {
-			result.vacated[disperse.intent.armyID] = true
-		} else if record.partialD {
-			result.disperseResidual[disperse.intent.armyID] = disperse.remaining
-		}
-	}
-	return result
-}
-
-func (ctx *resolutionContext) cloneForDeparturePrediction() *resolutionContext {
-	temp := newResolutionContext(cloneGameState(ctx.state), ctx.balance)
-	temp.famished = copyBooleanMap(ctx.famished)
-	temp.badWeatherRegions = copyTerritoryFlags(ctx.badWeatherRegions)
-	temp.famineRegions = copyTerritoryFlags(ctx.famineRegions)
-	temp.records = make(map[models.ArmyID]*orderRecord, len(ctx.records))
-	for armyID, record := range ctx.records {
-		copyRecord := *record
-		copyRecord.order.TargetIDs = append([]models.TerritoryID(nil), record.order.TargetIDs...)
-		temp.records[armyID] = &copyRecord
-	}
-	temp.attacks = copyAttackIntents(ctx.attacks)
-	temp.joins = copyJoinIntents(ctx.joins)
-	temp.disperses = copyDisperseIntents(ctx.disperses)
-	temp.supports = copySupportIntents(ctx.supports)
-	temp.attackedTerritories = copyBooleanTerritories(ctx.attackedTerritories)
-	return temp
-}
-
-func (ctx *resolutionContext) attackedTerritoriesFor(vacated, dislodged map[models.ArmyID]bool) map[models.TerritoryID]bool {
-	attacked := make(map[models.TerritoryID]bool)
-	excluded := ctx.alliedDestinationAttacks(vacated, dislodged)
-	for _, armyID := range sortedArmyMap(ctx.attacks) {
-		if excluded[armyID] {
-			continue
-		}
-		attacked[ctx.attacks[armyID].target] = true
-	}
-	return attacked
-}
-
-func dislodgedFromContest(ctx *resolutionContext, results map[models.TerritoryID]contestResult) map[models.ArmyID]*dislodgedArmy {
-	dislodged := make(map[models.ArmyID]*dislodgedArmy)
-	for territoryID, result := range results {
+	}()
+	adj := newAdjudicator(ctx)
+	adj.resolveAll()
+	ctx.contest = adj.settledContest()
+	for _, territoryID := range sortedTerritoryMap(ctx.contest.results) {
+		result := ctx.contest.results[territoryID]
 		if result.dislodgedArmyID == "" {
 			continue
 		}
-		army, exists := ctx.startArmiesByID[result.dislodgedArmyID]
-		if !exists {
-			continue
-		}
-		dislodged[army.ID] = &dislodgedArmy{
-			army:             army,
+		ctx.dislodged[result.dislodgedArmyID] = &dislodgedArmy{
+			army:             ctx.startArmiesByID[result.dislodgedArmyID],
 			originID:         territoryID,
 			attackerOriginID: result.attackerOriginID,
 		}
 	}
-	return dislodged
+	ctx.removeAlliedDestinationAttacks()
+	ctx.clearSupportsForRemovedAttacks()
+	ctx.clearSupportsForVoidedAttacks(ctx.contest.voidedSupports)
+	ctx.emitCombatEvents()
+	ctx.applyContestOutcomes()
+	return nil
 }
 
-func mergeBooleanMaps(left, right map[models.ArmyID]bool) map[models.ArmyID]bool {
-	merged := make(map[models.ArmyID]bool, len(left)+len(right))
-	for key, value := range left {
-		if value {
-			merged[key] = true
+// settledContest reads the contest from the settled decisions.
+func (adj *adjudicator) settledContest() contestState {
+	ctx := adj.ctx
+	contest := contestState{
+		active:         make(map[models.ArmyID]bool, len(ctx.attacks)),
+		dislodged:      make(map[models.ArmyID]bool),
+		vacated:        make(map[models.ArmyID]bool),
+		cuts:           make(map[models.ArmyID]bool),
+		voidedSupports: adj.voidedSupports(),
+		results:        adj.contestResults(),
+	}
+	for _, armyID := range sortedArmyMap(ctx.startArmiesByID) {
+		if adj.dislodged(armyID) {
+			contest.dislodged[armyID] = true
 		}
 	}
-	for key, value := range right {
-		if value {
-			merged[key] = true
+	for _, armyID := range sortedArmyMap(ctx.attacks) {
+		contest.active[armyID] = !contest.dislodged[armyID]
+		if adj.moves(armyID) {
+			contest.vacated[armyID] = true
 		}
 	}
-	return merged
-}
-
-func copyBooleanMap(source map[models.ArmyID]bool) map[models.ArmyID]bool {
-	copyMap := make(map[models.ArmyID]bool, len(source))
-	for key, value := range source {
-		copyMap[key] = value
+	for _, armyID := range sortedArmyMap(adj.peaceful) {
+		if adj.departs(armyID) {
+			contest.vacated[armyID] = true
+		}
 	}
-	return copyMap
-}
-
-func copyBooleanTerritories(source map[models.TerritoryID]bool) map[models.TerritoryID]bool {
-	copyMap := make(map[models.TerritoryID]bool, len(source))
-	for key, value := range source {
-		copyMap[key] = value
+	for _, supportID := range sortedArmyMap(ctx.supports) {
+		if adj.staticCuts[supportID] || contest.dislodged[supportID] {
+			contest.cuts[supportID] = true
+		}
 	}
-	return copyMap
+	return contest
 }
 
-func copyIntegerMap(source map[models.ArmyID]int) map[models.ArmyID]int {
-	copyMap := make(map[models.ArmyID]int, len(source))
-	for key, value := range source {
-		copyMap[key] = value
+// contestResults describes the combat on every attacked territory: the army
+// or castle defending it, every attack with its strength, and the winner.
+// An attack that lost its head-to-head battle is not listed at its
+// destination, which it no longer contests.
+func (adj *adjudicator) contestResults() map[models.TerritoryID]contestResult {
+	ctx := adj.ctx
+	results := make(map[models.TerritoryID]contestResult, len(adj.attacksByTarget))
+	for _, territoryID := range sortedTerritoryMap(adj.attacksByTarget) {
+		defender := ctx.startArmyAt(territoryID)
+		present := defender != nil && adj.stays(defender.ID)
+		result := contestResult{territoryID: territoryID}
+		if ctx.hasCastle(territoryID) && (present || !ctx.castleOwnedByAllAttackers(territoryID)) {
+			result.castleBonus = ctx.balance.CastleDefenseBonus
+		}
+		result.baseDefense, result.defense = result.castleBonus, result.castleBonus
+		defenderOwnerID := models.PlayerID("")
+		if defender != nil && !adj.departs(defender.ID) && !adj.dislodged(defender.ID) {
+			defenderOwnerID = defender.OwnerID
+		}
+		defenderNobleBonus := 0
+		if present {
+			result.defenderID = defender.ID
+			defenderOwnerID = defender.OwnerID
+			base, supported := adj.defenseStrength(*defender)
+			result.baseDefense, result.defense = base, base+supported
+			defenderNobleBonus = nobleCommandBonus(ctx, *defender)
+		}
+		if result.defenderID != "" || result.castleBonus > 0 {
+			result.contenders = append(result.contenders, CombatContender{
+				ArmyID: result.defenderID, OwnerID: defenderOwnerID, Force: result.defense,
+				NobleBonus: defenderNobleBonus, Defender: true,
+			})
+		}
+		for _, armyID := range adj.attacksByTarget[territoryID] {
+			if adj.retiredGhost(armyID) {
+				continue
+			}
+			force, _ := adj.attackForce(armyID, "")
+			attacker := ctx.startArmiesByID[armyID]
+			result.contenders = append(result.contenders, CombatContender{
+				ArmyID: armyID, OwnerID: attacker.OwnerID, Force: force, NobleBonus: nobleCommandBonus(ctx, attacker),
+			})
+			if adj.moves(armyID) {
+				result.winnerID = armyID
+				if result.defenderID != "" {
+					result.dislodgedArmyID = result.defenderID
+					result.attackerOriginID = ctx.attacks[armyID].source
+				}
+			}
+		}
+		result.standoff = result.winnerID == "" && result.hasAttackStandoff()
+		for _, supportID := range sortedArmyMap(ctx.supports) {
+			support := ctx.supports[supportID]
+			if !supportRelevantToTerritory(ctx, support, territoryID) {
+				continue
+			}
+			if support.applies {
+				result.supporterIDs = append(result.supporterIDs, supportID)
+			}
+			if adj.staticCuts[supportID] || adj.dislodged(supportID) {
+				result.cutSupporterIDs = append(result.cutSupporterIDs, supportID)
+			}
+		}
+		results[territoryID] = result
 	}
-	return copyMap
+	return results
 }
 
-func copyAttackIntents(source map[models.ArmyID]*attackIntent) map[models.ArmyID]*attackIntent {
-	copyMap := make(map[models.ArmyID]*attackIntent, len(source))
-	for key, intent := range source {
-		copyIntent := *intent
-		copyMap[key] = &copyIntent
+// voidedSupports returns the offensive supports that are reported void
+// because the attack they support could not use them:
+//   - in a head-to-head battle, the supports given by the opponent's owner to
+//     the side that loses it (both sides on a tie or between allies);
+//   - every support of an attack that would win its destination but is
+//     turned back because it cannot dislodge the army staying there, an ally
+//     or an army it outmatches only with the help of that army's owner.
+//
+// The head-to-head rule is reported while both armies stay in place, or when
+// the losing side is itself dislodged.
+func (adj *adjudicator) voidedSupports() map[models.ArmyID]bool {
+	ctx := adj.ctx
+	voided := make(map[models.ArmyID]bool)
+	voidSupports := func(armyID models.ArmyID, ownerID models.PlayerID) {
+		for _, supportID := range sortedArmyMap(ctx.supports) {
+			support := ctx.supports[supportID]
+			if support.offensive && support.targetArmyID == armyID && (ownerID == "" || ctx.startArmiesByID[supportID].OwnerID == ownerID) {
+				voided[supportID] = true
+			}
+		}
 	}
-	return copyMap
-}
-
-func copyJoinIntents(source map[models.ArmyID]*joinIntent) map[models.ArmyID]*joinIntent {
-	copyMap := make(map[models.ArmyID]*joinIntent, len(source))
-	for key, intent := range source {
-		copyIntent := *intent
-		copyMap[key] = &copyIntent
-	}
-	return copyMap
-}
-
-func copyDisperseIntents(source map[models.ArmyID]*disperseIntent) map[models.ArmyID]*disperseIntent {
-	copyMap := make(map[models.ArmyID]*disperseIntent, len(source))
-	for key, intent := range source {
-		copyIntent := *intent
-		copyIntent.targets = append([]models.TerritoryID(nil), intent.targets...)
-		copyIntent.nobles = append([]models.NobleID(nil), intent.nobles...)
-		copyIntent.assignments = copyNobleAssignments(intent.assignments)
-		copyMap[key] = &copyIntent
-	}
-	return copyMap
-}
-
-func copyNobleAssignments(source map[models.TerritoryID][]models.NobleID) map[models.TerritoryID][]models.NobleID {
-	copyMap := make(map[models.TerritoryID][]models.NobleID, len(source))
-	for territoryID, nobleIDs := range source {
-		copyMap[territoryID] = append([]models.NobleID(nil), nobleIDs...)
-	}
-	return copyMap
-}
-
-func copySupportIntents(source map[models.ArmyID]*supportIntent) map[models.ArmyID]*supportIntent {
-	copyMap := make(map[models.ArmyID]*supportIntent, len(source))
-	for key, intent := range source {
-		copyIntent := *intent
-		copyMap[key] = &copyIntent
-	}
-	return copyMap
-}
-
-func (ctx *resolutionContext) alliedDestinationAttacks(vacated, previouslyDislodged map[models.ArmyID]bool) map[models.ArmyID]bool {
-	excluded := make(map[models.ArmyID]bool)
 	for _, armyID := range sortedArmyMap(ctx.attacks) {
 		attack := ctx.attacks[armyID]
 		defender := ctx.startArmyAt(attack.target)
-		if defender == nil || vacated[defender.ID] || previouslyDislodged[defender.ID] {
+		lostHeadToHead := false
+		if defender != nil && adj.headToHead(armyID) && (adj.dislodged(armyID) || !adj.dislodged(defender.ID)) {
+			owner := ctx.startArmiesByID[armyID].OwnerID
+			ourForce, ourHelp := adj.attackForce(armyID, defender.OwnerID)
+			theirForce, theirHelp := adj.attackForce(defender.ID, owner)
+			lostHeadToHead = defender.OwnerID == owner || ourForce-ourHelp <= theirForce-theirHelp
+		}
+		if lostHeadToHead {
+			voidSupports(armyID, defender.OwnerID)
 			continue
 		}
-		attacker := ctx.startArmiesByID[armyID]
-		if attacker.OwnerID == defender.OwnerID {
-			excluded[armyID] = true
+		if adj.moves(armyID) || defender == nil || !adj.stays(defender.ID) || adj.dislodged(defender.ID) {
+			continue
 		}
-	}
-	return excluded
-}
-
-func (ctx *resolutionContext) calculateSupportCuts(excluded map[models.ArmyID]bool) map[models.ArmyID]bool {
-	cuts := make(map[models.ArmyID]bool, len(ctx.supports))
-	for _, supportID := range sortedArmyMap(ctx.supports) {
-		support := ctx.supports[supportID]
-		exemptOriginID := support.targetID
-		if support.offensive {
-			exemptOriginID = support.destinationID
+		force, _ := adj.attackForce(armyID, "")
+		if force <= adj.holdStrength(*defender) {
+			continue
 		}
-		for _, attackID := range sortedArmyMap(ctx.attacks) {
-			if excluded[attackID] {
+		outmatched := true
+		for _, otherID := range adj.attacksByTarget[attack.target] {
+			if otherID == armyID || adj.retiredGhost(otherID) {
 				continue
 			}
-			attack := ctx.attacks[attackID]
-			attacker := ctx.startArmiesByID[attackID]
-			supporter := ctx.startArmiesByID[supportID]
-			if attack.target == support.source && attack.source != exemptOriginID && attacker.OwnerID != supporter.OwnerID {
-				cuts[supportID] = true
+			if prevent, _ := adj.attackForce(otherID, ""); force <= prevent {
+				outmatched = false
 				break
 			}
 		}
+		if outmatched {
+			voidSupports(armyID, "")
+		}
 	}
-	return cuts
+	return voided
+}
+
+func (result contestResult) hasAttackStandoff() bool {
+	if len(result.contenders) < 2 {
+		return false
+	}
+	maxForce, count := -1, 0
+	attackAtTop := false
+	for _, contender := range result.contenders {
+		if contender.Force > maxForce {
+			maxForce = contender.Force
+			count = 1
+			attackAtTop = !contender.Defender
+		} else if contender.Force == maxForce {
+			count++
+			attackAtTop = attackAtTop || !contender.Defender
+		}
+	}
+	return count > 1 && attackAtTop
+}
+
+func nobleCommandBonus(ctx *resolutionContext, army models.Army) int {
+	if ctx.famished[army.ID] || ctx.balance.NobleCommandBonus == 0 {
+		return 0
+	}
+	for _, nobleID := range ctx.noblesAt(army.TerritoryID) {
+		noble := ctx.noblesByID[nobleID]
+		if noble != nil && noble.OwnerID == army.OwnerID && noble.Status == models.NobleStatusFree {
+			return ctx.balance.NobleCommandBonus
+		}
+	}
+	return 0
+}
+
+func (ctx *resolutionContext) castleOwnedByAllAttackers(territoryID models.TerritoryID) bool {
+	state := ctx.state.TerritoryStates[territoryID]
+	if state.OwnerID == nil {
+		return false
+	}
+	owner := *state.OwnerID
+	hasAttacker := false
+	for _, attack := range ctx.attacks {
+		if attack.target != territoryID {
+			continue
+		}
+		hasAttacker = true
+		attacker := ctx.startArmiesByID[attack.armyID]
+		if attacker.OwnerID != owner {
+			return false
+		}
+	}
+	return hasAttacker
 }
 
 func (ctx *resolutionContext) removeAlliedDestinationAttacks() {
@@ -300,6 +337,14 @@ func (ctx *resolutionContext) clearSupportsForRemovedAttacks() {
 	}
 }
 
+func (ctx *resolutionContext) clearSupportsForVoidedAttacks(voided map[models.ArmyID]bool) {
+	for supportID, support := range ctx.supports {
+		if voided[supportID] {
+			support.applies = false
+		}
+	}
+}
+
 func (ctx *resolutionContext) hasAttackTarget(targetID models.TerritoryID) bool {
 	for _, attack := range ctx.attacks {
 		if attack.target == targetID {
@@ -315,21 +360,6 @@ func supportRelevantToTerritory(ctx *resolutionContext, support *supportIntent, 
 		return attack != nil && attack.target == territoryID
 	}
 	return support.targetID == territoryID
-}
-
-func (ctx *resolutionContext) defensiveSupportStrength(armyID models.ArmyID, cuts, previouslyDislodged map[models.ArmyID]bool) int {
-	strength := 0
-	for _, supportID := range sortedArmyMap(ctx.supports) {
-		support := ctx.supports[supportID]
-		if !support.applies || support.offensive || support.targetArmyID != armyID || cuts[supportID] || previouslyDislodged[supportID] {
-			continue
-		}
-		if !ctx.famished[supportID] {
-			supporter := ctx.startArmiesByID[supportID]
-			strength += supporter.Size + nobleCommandBonus(ctx, supporter)
-		}
-	}
-	return strength
 }
 
 func (ctx *resolutionContext) emitCombatEvents() {
@@ -399,63 +429,4 @@ func (ctx *resolutionContext) clearPendingDisperse(record *orderRecord) {
 	if chain := ctx.chainsByID[record.chainID]; chain != nil {
 		chain.PendingDisperse = nil
 	}
-}
-
-func sameContestState(left, right contestState) bool {
-	if !sameBooleanMap(left.active, right.active) || !sameBooleanMap(left.dislodged, right.dislodged) || !sameBooleanMap(left.vacated, right.vacated) || !sameIntegerMap(left.disperseResidual, right.disperseResidual) || !sameBooleanMap(left.ghosted, right.ghosted) || !sameBooleanMap(left.retiredGhosts, right.retiredGhosts) || !sameBooleanMap(left.cuts, right.cuts) || !sameBooleanMap(left.voidedSupports, right.voidedSupports) || len(left.results) != len(right.results) {
-		return false
-	}
-	for territoryID, leftResult := range left.results {
-		rightResult, exists := right.results[territoryID]
-		if !exists || !sameContestResult(leftResult, rightResult) {
-			return false
-		}
-	}
-	return true
-}
-
-func sameBooleanMap(left, right map[models.ArmyID]bool) bool {
-	if len(left) != len(right) {
-		return false
-	}
-	for key, value := range left {
-		if right[key] != value {
-			return false
-		}
-	}
-	return true
-}
-
-func sameIntegerMap(left, right map[models.ArmyID]int) bool {
-	if len(left) != len(right) {
-		return false
-	}
-	for key, value := range left {
-		if right[key] != value {
-			return false
-		}
-	}
-	return true
-}
-
-func sameContestResult(left, right contestResult) bool {
-	if left.territoryID != right.territoryID || left.defenderID != right.defenderID || left.baseDefense != right.baseDefense || left.defense != right.defense || left.castleBonus != right.castleBonus || left.winnerID != right.winnerID || left.dislodgedArmyID != right.dislodgedArmyID || left.attackerOriginID != right.attackerOriginID || left.standoff != right.standoff || len(left.contenders) != len(right.contenders) || len(left.supporterIDs) != len(right.supporterIDs) || len(left.cutSupporterIDs) != len(right.cutSupporterIDs) {
-		return false
-	}
-	for index := range left.contenders {
-		if left.contenders[index] != right.contenders[index] {
-			return false
-		}
-	}
-	for index := range left.supporterIDs {
-		if left.supporterIDs[index] != right.supporterIDs[index] {
-			return false
-		}
-	}
-	for index := range left.cutSupporterIDs {
-		if left.cutSupporterIDs[index] != right.cutSupporterIDs[index] {
-			return false
-		}
-	}
-	return true
 }
