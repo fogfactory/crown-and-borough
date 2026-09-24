@@ -1,10 +1,27 @@
 # Économie et prospérité
 
-**Milestone lié :** [Économie & Prospérité](https://github.com/fogfactory/crown-and-borough/milestone/8)
+**Milestone lié :** [Économie & Fiefs](https://github.com/fogfactory/crown-and-borough/milestone/19)
+(le transfert de ressources a été livré dans
+[Économie & Prospérité](https://github.com/fogfactory/crown-and-borough/milestone/8))
 
 **Dépend de :** [Ravitaillement](ravitaillement.md) et
-[Titres](titres.md) pour la distinction occupé/contrôlé et les fiefs ; la
-dîme religieuse dépend de [Religieux](religieux.md).
+[Titres](titres.md) pour le modèle de contrôle et les fiefs ; la dîme
+religieuse dépend de [Religieux](religieux.md).
+
+Les règles ci-dessous sont des décisions de conception actées pour la refonte,
+pas encore implémentées sauf mention contraire. Chaque section renvoie à
+l'issue qui la livre ; les points « à trancher » sont tranchés au début de
+cette issue. Aucune compatibilité avec les parties existantes n'est requise
+(version majeure).
+
+## Vocabulaire
+
+- **Contrôlé** : le statut porté par la case (`OwnerID`). Hors fief, il est
+  positionnel (dernier joueur dont une armée s'est arrêtée sur la case) ; dans
+  un fief, il est transitif (joueur qui détient le fief). Voir
+  [titres.md](titres.md#contrôle-et-occupation).
+- **Occupé** : une armée est présente sur la case. Information dérivée, jamais
+  stockée.
 
 ## Objectif de la refonte
 
@@ -16,11 +33,13 @@ capacité d'une case isolée à nourrir une grosse armée sur place.
 
 ## Rations de terrain
 
+Issue : [#191](https://github.com/fogfactory/crown-and-borough/issues/191).
+
 Remplace la table de rations locales de `gdd.md` §3 et §5. Objectif : réduire
 le plafond d'armée soutenable sans logistique, et faire du siège un vrai
 levier d'affamement plutôt qu'un détail négligeable.
 
-| Terrain | Rations actuelles | Rations proposées |
+| Terrain | Rations v1 | Rations retenues |
 |---|---:|---:|
 | Plaine | 3 | 2 |
 | Forêt | 2 | 1 |
@@ -33,15 +52,53 @@ Un château ou un village ne relève plus la production locale de sa case : un
 siège en montagne (0 ration locale, aucun bonus) affame une armée qui ne
 dispose d'aucune autre source de ravitaillement.
 
+La calamité famine, qui désactivait ce bonus, désactive désormais les moulins
+de sa région **et** réduit de 1 les rations de terrain de chaque territoire de
+la région (minimum 0).
+
+> À trancher dans #191 : conserver tel quel le bonus de rations de Récolte
+> abondante (recommandé).
+
+## Revenu territorial
+
+Issues : [#192](https://github.com/fogfactory/crown-and-borough/issues/192)
+(hors fief), [#196](https://github.com/fogfactory/crown-and-borough/issues/196)
+(fiefs).
+
+- À chaque tour d'action (printemps, été, automne ; jamais en hiver), chaque
+  territoire contrôlé rapporte `territory_income` R (1 par défaut), plus
+  `village_income` R (1 par défaut) s'il porte un village.
+- Le revenu est crédité au moment où la production est créditée aujourd'hui,
+  avant le ravitaillement. Il n'est pas acheminé par le réseau et ne peut pas
+  être intercepté.
+- Hors fief, il est versé au stock de la **capitale du joueur**. Sans
+  capitale, il va au château contrôlé le plus proche (distance en frontières
+  franchissables, départage par trigramme), sinon au village contrôlé le plus
+  proche, sinon il est perdu.
+- Dans un fief, il est versé au stock de la **capitale du fief**, y compris
+  lorsqu'une armée adverse occupe le territoire.
+- La production de base des châteaux et villages contrôlés
+  (`base_production`) est supprimée : le revenu territorial la remplace.
+- Un village **neutre** continue de produire 1 R par tour dans son propre
+  stock, récupéré à sa capture.
+
+> À trancher dans #192 : calibrer `territory_income` par des parties de test.
+
 ## Flux de la ressource R
 
 | Source | Bénéficiaire par défaut | Avec taxe |
 |---|---|---|
-| Territoire contrôlé (fief), sans village | 1 R → capitale du fief | Seigneur : 2 R → capitale du fief. Roi (si le seigneur ne taxe pas ce tour) : +1 R → capitale du roi, 1 R de base reste au fief |
-| Territoire contrôlé (fief), avec village | 2 R → capitale du fief (1 territoire + 1 village) | Seigneur : 4 R → capitale du fief. Roi (si non taxé localement) : +2 R → capitale du roi, 2 R de base restent au fief |
-| Territoire occupé, sans village | 1 R → capitale du joueur | — (pas de mécanique de taxe sur l'occupé) |
-| Territoire occupé, avec village | 2 R → capitale du joueur | — |
-| Moulin (niveau `N`) | `N` R → village/château adjacent s'il y en a un, sinon reste sur le moulin | Dîme religieuse jouée sur l'évêché : `N` R → capitale du joueur qui a joué la dîme, au lieu du village/château adjacent |
+| Territoire d'un fief, sans village | 1 R → capitale du fief | Seigneur : 2 R → capitale du fief. Roi (si le seigneur ne taxe pas ce tour) : +1 R → capitale du roi, 1 R de base reste au fief |
+| Territoire d'un fief, avec village | 2 R → capitale du fief (1 territoire + 1 village) | Seigneur : 4 R → capitale du fief. Roi (si non taxé localement) : +2 R → capitale du roi, 2 R de base restent au fief |
+| Territoire contrôlé hors fief, sans village | 1 R → capitale du joueur | — (pas de taxe hors fief) |
+| Territoire contrôlé hors fief, avec village | 2 R → capitale du joueur | — |
+| Village neutre | 1 R → son propre stock | — |
+| Moulin (niveau `N`) | `N` R → château adjacent, sinon village adjacent, sinon reste sur le moulin | Dîme religieuse jouée sur l'évêché : `N` R → capitale du joueur qui a joué la dîme, au lieu du village/château adjacent |
+
+La taxe du seigneur est livrée par
+[#189](https://github.com/fogfactory/crown-and-borough/issues/189) ; la taxe
+royale et la dîme restent suivies dans les milestones Politique royale et
+Religieux.
 
 La taxe seigneuriale double toujours exactement le revenu de territoire,
 village inclus ; elle ne touche jamais la production des moulins. La dîme
@@ -50,40 +107,67 @@ moulins d'un évêché, jamais le revenu de territoire. Les deux mécaniques
 portent donc sur des flux disjoints et ne peuvent pas entrer en conflit sur le
 même territoire le même tour.
 
-Un moulin adjacent à la fois à un village et à un château verse sa production
-au château par priorité. Une production restée sur un moulin isolé n'est pas
-automatiquement acheminée : elle nécessite un ordre de transfert (`T`, voir
-ci-dessous) porté par une armée.
+## Moulins
+
+Issue : [#195](https://github.com/fogfactory/crown-and-borough/issues/195).
+
+Un moulin de niveau `N` produit `N` R (plus le bonus de Récolte abondante) et
+verse sa production à **une seule** infrastructure : le château adjacent,
+sinon le village adjacent, sinon la case du moulin elle-même. Entre plusieurs
+candidats du même type, le départage se fait par trigramme. Un moulin ne
+compte donc plus pour chaque château ou village adjacent. Sous une calamité
+famine, il ne produit rien.
+
+Une production restée sur un moulin isolé n'est pas automatiquement
+acheminée : elle nécessite un ordre de transfert (`T`, voir ci-dessous) porté
+par une armée. En hiver, le stock d'un moulin est conservé à
+`ceil(stock / 2)`, comme celui d'un château ou d'un village, et n'est pas
+rapatrié.
+
+> À trancher dans #195 : le bénéficiaire adjacent doit-il être contrôlé par le
+> même joueur que le moulin (recommandé) ; un moulin sur une case neutre
+> produit-il sur sa propre case (recommandé).
 
 ### Amélioration d'un moulin
 
 Le paiement d'une amélioration de moulin puise en priorité sur le stock
 présent sur le moulin lui-même, puis sur le stock du village ou du château
 adjacent (château en priorité si les deux sont adjacents) avant de recourir au
-réseau de ravitaillement habituel.
+paiement d'hiver habituel. Le stock d'un moulin fait ainsi exception à la
+règle selon laquelle seuls les châteaux et villages paient les
+investissements d'hiver.
 
 ## Village fortifié
 
-Un village peut être amélioré en **village fortifié** pour le même coût qu'un
-château (10 R). Contrairement à `C C` sur un village, qui remplace
-l'infrastructure par un château (et conserve le stock de la case, règle
-inchangée), l'amélioration en village fortifié ne détruit pas le village : il
-conserve son statut et ses bonus de production propres, et gagne en plus le
-bonus défensif d'un château (`+1` défense).
+Issue : [#193](https://github.com/fogfactory/crown-and-borough/issues/193).
 
-> À trancher : un village fortifié compte-t-il comme un village ou comme un
-> château pour les règles qui distinguent les deux (score de fin de partie,
-> comptage des voix d'évêché, remplacement par un château ultérieur) ? Une
-> lecture cohérente avec « conserve son statut » est de le garder classé
-> village partout sauf pour la défense.
+`C C XXX` sur un village contrôlé le **fortifie** pour le coût d'un château
+(10 R) au lieu de le remplacer par un château. Un village ne peut plus être
+remplacé par un château. Le village fortifié conserve son stock, sa
+production et son bonus de revenu, et gagne le bonus défensif d'un château
+(`castle_defense_bonus`), avec la même exception d'auto-capture. Un `C C` sur
+un village déjà fortifié est rejeté sans prélèvement.
+
+> À trancher dans #193 : un village fortifié compte-t-il comme un village
+> partout sauf pour la défense (recommandé, via un indicateur sur le village)
+> ou comme un nouveau type d'infrastructure ? Conséquences à fixer : score,
+> désignation comme capitale (`E C`), droit d'être capitale de fief, voix
+> d'évêché.
 
 ## Portée de ravitaillement
 
-Un château, un village ou un dépôt de vivres ne contribue au ravitaillement
-(ancre, portée de base, bonus de portée) que s'il est **occupé ou contrôlé**
-par le joueur qui l'utilise — pas seulement contrôlé. Sans cette précision,
-toute conquête récente (occupée mais pas encore intégrée à un fief) perdrait
-sa valeur logistique jusqu'à l'achat du fief, ce qui n'est pas l'intention.
+Un château, un village ou un dépôt de vivres contribue au ravitaillement
+(ancre, portée de base, bonus de portée) du joueur qui **contrôle** sa case.
+Une conquête récente hors fief est contrôlée dès qu'une armée s'y arrête et
+garde donc immédiatement sa valeur logistique.
+
+> À trancher dans #196, pour une case d'un fief contrôlée par un joueur mais
+> occupée par une armée adverse : qui peut consommer le stock ou piller
+> (recommandé : l'occupant peut piller mais pas consommer ; pour le
+> contrôleur, la case bloque le flux) ; les investissements d'hiver y sont-ils
+> autorisés (recommandé : non) ; un dépôt y garde-t-il son bonus de portée
+> (recommandé : inutilisable par les deux joueurs tant que la case est
+> occupée).
 
 ## Transfert de ressources
 
@@ -153,33 +237,44 @@ n'est pas interceptable et n'utilise pas le plafond de transport.
 
 ## Prospérité
 
+Issue : [#197](https://github.com/fogfactory/crown-and-borough/issues/197).
+
 Objectif : faire apparaître de nouveaux villages sans action directe d'un
-joueur, tout en laissant sa gestion (occupation, sièges, fiefs) influencer où
+joueur, tout en laissant sa gestion (contrôle, sièges, fiefs) influencer où
 et quand ça arrive. Le déclencheur reste un exode plutôt qu'un surplus : un
-lieu-dit qui perd plus de `N` rations pendant l'hiver voit sa population fuir
-et fonder un village ailleurs.
+lieu-dit éprouvé voit sa population fuir et fonder un village ailleurs. La
+règle est évaluée en hiver, après la conservation des stocks.
 
-Piste retenue pour une première version — **exode élargi** :
+Règle retenue pour une première version — **exode élargi** :
 
-1. le lieu-dit fuit vers la case libre la plus proche **non adjacente à un
-   village ou un château existant**, en respectant l'ordre de priorité
-   suivant : contrôlée par le joueur du lieu-dit d'origine (priorité au fief),
-   sinon occupée par ce joueur, sinon n'importe quelle case libre restante, y
-   compris neutre ou occupée par un autre joueur ;
+1. le lieu-dit fuit vers la case libre (sans infrastructure) la plus proche
+   **non adjacente à un village ou un château existant**, en respectant
+   l'ordre de priorité suivant : dans un fief du joueur qui contrôle le
+   lieu-dit d'origine, sinon contrôlée par ce joueur, sinon n'importe quelle
+   case libre restante, y compris neutre ou contrôlée par un autre joueur ;
 2. si aucune case ne satisfait la contrainte d'adjacence à aucun niveau de
-   priorité, la dégradation en cascade du brouillon initial s'applique : un
-   dépôt de vivres est amélioré en village, à défaut un moulin est amélioré en
-   village, sinon rien ne se passe.
+   priorité, une dégradation en cascade s'applique : un dépôt de vivres est
+   amélioré en village, à défaut un moulin est amélioré en village, sinon rien
+   ne se passe.
 
 La contrainte de non-adjacence évite qu'un nouveau village apparaisse collé à
 une infrastructure existante ; elle s'applique à tous les niveaux de priorité
 de l'étape 1, pas seulement au dernier.
 
-> À trancher : le seuil `N = 5` a été calibré sur l'ancienne table de rations
-> (plaine à 3, bonus château/village à +2). Avec la table réduite ci-dessus
-> (plaine à 2, bonus supprimé), un déficit de 5 devient beaucoup plus facile à
-> atteindre ; le seuil doit être recalibré une fois la nouvelle table en
-> place — probablement par test plutôt que par calcul a priori.
+Le village fondé appartient au **contrôleur de la case** d'arrivée : le
+détenteur du fief, le contrôleur positionnel, ou personne si la case est
+neutre.
+
+> À trancher dans #197, par des parties de test :
+>
+> - le déclencheur : pertes cumulées de l'année par la guerre (pillage, stock
+>   consommé par la famine ou le siège, calamité) au-delà de `N`
+>   (recommandé), ou perte de stock à la conservation d'hiver au-delà de `N` ;
+> - la valeur de `N`, dans la balance, calibrée avec la nouvelle table de
+>   rations (l'ancien seuil `N = 5` supposait une plaine à 3 et le bonus
+>   château/village) ;
+> - le sort du lieu-dit d'origine (conservé ou dégradé) ;
+> - le départage entre cases à égalité de distance (recommandé : trigramme).
 
 Piste complémentaire, non retenue pour une première version mais à garder en
 réserve si la carte reste trop statique en pratique : une croissance passive
@@ -187,8 +282,3 @@ et indépendante des joueurs, où un territoire neutre inoccupé et sans conflit
 à proximité depuis plusieurs tours a une chance déterministe (seedée comme le
 deck) de fonder un village chaque année. Contrairement à l'exode, cette piste
 ne dépend d'aucune décision de joueur.
-
-La règle devra préciser la définition exacte de « perd » (par rapport à la
-production locale du lieu-dit, à sa consommation, ou aux deux), le choix
-précis de la case en cas d'égalité de distance, et le contrôle de la nouvelle
-structure (contrôlée si fondée sur un territoire de fief, occupée sinon).
