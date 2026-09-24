@@ -9,19 +9,19 @@ remains the source of playable numbers; when documents disagree, the engine wins
 ## 1. The Pitch
 
 Crown & Borough is a turn-based medieval strategy game played on a map of
-territories connected by a graph. Players submit their orders in secret; the
-engine resolves everyone **at the same time**, season after season.
+territories. Players submit their orders in secret; the engine resolves
+everyone **at the same time**, season after season.
 
-One constraint shapes everything else in these rules: **orders don't come from
-an army, they come from a noble**, and each player only has a handful of them.
-A free or hostage noble emits only **one chain per turn** — a chain being a
-sequence of orders written ahead of time for an entire army. Since you can't
-reprogram every army every turn, you have to plan ahead: decide today what an
-army will do two or three turns from now, and live with the uncertainty of what
-everyone else is doing in the meantime. That's where all the vocabulary of
-"chain," "liaison" (single/loop), and "reception" detailed in section 4 comes
-from: it isn't technical decoration, it's the direct consequence of noble
-scarcity.
+One constraint shapes everything else in these rules: **orders come from a
+noble, not an army**, and each player only has a handful of them. A free or
+hostage noble emits only **one chain per turn** — a chain being a sequence of
+orders written ahead of time for an entire army. Since you can't reprogram
+every army every turn, the game is as much about strategic planning as
+execution: decide today what an army will do two or three turns from now,
+and live with the uncertainty of what everyone else is doing in the
+meantime. That's where all the vocabulary of "chain," "liaison"
+(single/loop), and "reception" detailed in section 4 comes from: it isn't
+technical decoration, it's the direct consequence of noble scarcity.
 
 The two pillars of tension in the game:
 
@@ -101,6 +101,28 @@ and his noble HUG, as well as FOU, a small 1-troop garrison holding his second
 noble, ODA. Both ROS and FOU are adjacent to ATL, held by Brune: a 2-troop army
 and her noble MIA. ATL is adjacent to NOR, an empty territory Brune controls.
 
+<svg viewBox="0 0 540 280" width="100%" role="img" aria-label="ROS and FOU (Hugues) are adjacent to ATL (Brune), itself adjacent to NOR (Brune, empty)" style="max-width:480px;margin:16px auto;display:block;font-family:system-ui,sans-serif">
+  <line x1="90" y1="70" x2="300" y2="130" stroke="#b7a786" stroke-width="2"/>
+  <line x1="90" y1="190" x2="300" y2="130" stroke="#b7a786" stroke-width="2"/>
+  <line x1="300" y1="130" x2="460" y2="130" stroke="#b7a786" stroke-width="2"/>
+  <circle cx="90" cy="70" r="30" fill="#f3ead9" stroke="#3f6b52" stroke-width="3"/>
+  <text x="90" y="76" text-anchor="middle" font-size="16" font-weight="700" fill="#30291f">ROS</text>
+  <text x="90" y="114" text-anchor="middle" font-size="11" fill="#3f6b52">Hugues's capital</text>
+  <text x="90" y="128" text-anchor="middle" font-size="11" fill="#594b3c">2 troops · HUG</text>
+  <circle cx="90" cy="190" r="30" fill="#f3ead9" stroke="#3f6b52" stroke-width="3"/>
+  <text x="90" y="196" text-anchor="middle" font-size="16" font-weight="700" fill="#30291f">FOU</text>
+  <text x="90" y="234" text-anchor="middle" font-size="11" fill="#3f6b52">Hugues's garrison</text>
+  <text x="90" y="248" text-anchor="middle" font-size="11" fill="#594b3c">1 troop · ODA</text>
+  <circle cx="300" cy="130" r="30" fill="#f3ead9" stroke="#3a5a8c" stroke-width="3"/>
+  <text x="300" y="136" text-anchor="middle" font-size="16" font-weight="700" fill="#30291f">ATL</text>
+  <text x="300" y="174" text-anchor="middle" font-size="11" fill="#3a5a8c">held by Brune</text>
+  <text x="300" y="188" text-anchor="middle" font-size="11" fill="#594b3c">2 troops · MIA</text>
+  <circle cx="460" cy="130" r="30" fill="#f8f0e2" stroke="#3a5a8c" stroke-width="2" stroke-dasharray="4 3"/>
+  <text x="460" y="136" text-anchor="middle" font-size="16" font-weight="700" fill="#30291f">NOR</text>
+  <text x="460" y="174" text-anchor="middle" font-size="11" fill="#3a5a8c">controlled by Brune</text>
+  <text x="460" y="188" text-anchor="middle" font-size="11" fill="#594b3c">empty</text>
+</svg>
+
 Hugues wants to take ATL. Since HUG and ODA are two separate nobles, he can
 have each of them emit a chain this turn — it's precisely because he has two
 nobles that he can combine an attack and a support in the same resolution.
@@ -118,13 +140,12 @@ ODA
 FOU S ROS - ATL  # offensive support for the attack ROS -> ATL
 ```
 
-**What Brune writes**, without knowing Hugues's plans (simultaneous resolution
-means neither sees the other's chains):
-
-```text
-MIA
-H ATL            # holds her position
-```
+**What Brune writes**, without knowing Hugues's plans (simultaneous
+resolution means neither sees the other's chains): nothing for ATL. An army
+without a chain is **No Orders** (section 4) but still defends normally — an
+`H ATL` order wouldn't change anything here: it only exists to occupy a
+chain line while waiting, for example in a loop. Noble MIA, still on the
+territory, simply has nothing to emit this turn.
 
 **The resolution.** The engine adds up the forces engaged on ATL: Hugues's
 attack weighs 2 (the ROS army) + 1 (the FOU support) = 3; Brune's defense
@@ -254,8 +275,9 @@ supported target can **cut** a support.
 
 ### Hold (`H`) and Pillage (`P`)
 
-`H XXX`: the army stays in place and can receive defensive support — that's
-what Brune writes in section 3.
+`H XXX`: the army stays in place and can receive defensive support; mostly
+useful to occupy a chain line while waiting, especially in a loop
+(`(H XXX)`).
 
 `P XXX`: destroys the infrastructure on the occupied territory; a pillage
 bonus ({{pillage_bonus}} R) is credited to the nearest allied source, and may

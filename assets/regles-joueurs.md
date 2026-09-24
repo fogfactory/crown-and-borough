@@ -10,20 +10,20 @@ divergence, le moteur fait foi.
 ## 1. Le pitch
 
 Crown & Borough est un jeu de stratégie médiévale par tours, sur une carte de
-territoires reliés par un graphe. Les joueurs soumettent leurs ordres en
-secret ; le moteur résout tout le monde **en même temps**, saison après
-saison.
+territoires. Les joueurs soumettent leurs ordres en secret ; le moteur résout
+tout le monde **en même temps**, saison après saison.
 
-Une seule contrainte structure tout le reste des règles : **les ordres ne
-sortent pas d'une armée, ils sortent d'un noble**, et chaque joueur n'en
-possède que quelques-uns. Un noble libre ou otage n'émet qu'**une chaîne par
-tour** — une chaîne étant une suite d'ordres écrite à l'avance pour une armée
-entière. Comme tu ne peux pas reprogrammer chaque armée chaque tour, tu dois
-anticiper : décider aujourd'hui ce qu'une armée fera dans deux ou trois tours,
-et composer avec l'incertitude de ce que font les autres joueurs pendant ce
-temps. C'est de là que vient tout le vocabulaire de « chaîne », de « liaison »
-(single/loop) et de « réception » détaillé section 4 : ce ne sont pas des
-artifices techniques, c'est la traduction directe de la rareté des nobles.
+Une seule contrainte structure tout le reste des règles : **les ordres
+proviennent d'un noble, pas d'une armée**, et chaque joueur n'en possède que
+quelques-uns. Un noble libre ou otage n'émet qu'**une chaîne par tour** — une
+chaîne étant une suite d'ordres écrite à l'avance pour une armée entière.
+Comme tu ne peux pas reprogrammer chaque armée chaque tour, le jeu se joue
+autant par la planification stratégique que par l'exécution : décider
+aujourd'hui ce qu'une armée fera dans deux ou trois tours, et composer avec
+l'incertitude de ce que font les autres joueurs pendant ce temps. C'est de là
+que vient tout le vocabulaire de « chaîne », de « liaison » (single/loop) et
+de « réception » détaillé section 4 : ce ne sont pas des artifices
+techniques, c'est la traduction directe de la rareté des nobles.
 
 Les deux piliers de tension du jeu :
 
@@ -113,6 +113,28 @@ où se trouve son second noble, ODA. ROS et FOU sont tous deux adjacents à
 ATL, tenu par Brune : une armée de 2 troupes et son noble MIA. ATL est
 adjacent à NOR, un territoire vide que Brune contrôle.
 
+<svg viewBox="0 0 540 280" width="100%" role="img" aria-label="ROS et FOU (Hugues) sont adjacents à ATL (Brune), elle-même adjacente à NOR (Brune, vide)" style="max-width:480px;margin:16px auto;display:block;font-family:system-ui,sans-serif">
+  <line x1="90" y1="70" x2="300" y2="130" stroke="#b7a786" stroke-width="2"/>
+  <line x1="90" y1="190" x2="300" y2="130" stroke="#b7a786" stroke-width="2"/>
+  <line x1="300" y1="130" x2="460" y2="130" stroke="#b7a786" stroke-width="2"/>
+  <circle cx="90" cy="70" r="30" fill="#f3ead9" stroke="#3f6b52" stroke-width="3"/>
+  <text x="90" y="76" text-anchor="middle" font-size="16" font-weight="700" fill="#30291f">ROS</text>
+  <text x="90" y="114" text-anchor="middle" font-size="11" fill="#3f6b52">capitale de Hugues</text>
+  <text x="90" y="128" text-anchor="middle" font-size="11" fill="#594b3c">2 troupes · HUG</text>
+  <circle cx="90" cy="190" r="30" fill="#f3ead9" stroke="#3f6b52" stroke-width="3"/>
+  <text x="90" y="196" text-anchor="middle" font-size="16" font-weight="700" fill="#30291f">FOU</text>
+  <text x="90" y="234" text-anchor="middle" font-size="11" fill="#3f6b52">garnison de Hugues</text>
+  <text x="90" y="248" text-anchor="middle" font-size="11" fill="#594b3c">1 troupe · ODA</text>
+  <circle cx="300" cy="130" r="30" fill="#f3ead9" stroke="#3a5a8c" stroke-width="3"/>
+  <text x="300" y="136" text-anchor="middle" font-size="16" font-weight="700" fill="#30291f">ATL</text>
+  <text x="300" y="174" text-anchor="middle" font-size="11" fill="#3a5a8c">tenu par Brune</text>
+  <text x="300" y="188" text-anchor="middle" font-size="11" fill="#594b3c">2 troupes · MIA</text>
+  <circle cx="460" cy="130" r="30" fill="#f8f0e2" stroke="#3a5a8c" stroke-width="2" stroke-dasharray="4 3"/>
+  <text x="460" y="136" text-anchor="middle" font-size="16" font-weight="700" fill="#30291f">NOR</text>
+  <text x="460" y="174" text-anchor="middle" font-size="11" fill="#3a5a8c">contrôlé par Brune</text>
+  <text x="460" y="188" text-anchor="middle" font-size="11" fill="#594b3c">vide</text>
+</svg>
+
 Hugues veut prendre ATL. Comme HUG et ODA sont deux nobles distincts, il peut
 leur faire émettre chacun une chaîne ce tour-ci — c'est précisément parce
 qu'il a deux nobles qu'il peut combiner une attaque et un soutien dans la
@@ -132,12 +154,11 @@ FOU S ROS - ATL  # soutien offensif de l'attaque ROS -> ATL
 ```
 
 **Ce que Brune écrit**, sans connaître les intentions de Hugues (résolution
-simultanée oblige) :
-
-```text
-MIA
-H ATL            # tient sa position
-```
+simultanée oblige) : rien pour ATL. Une armée sans chaîne reste **Sans
+Ordre** (section 4) mais se défend normalement — un `H ATL` n'y changerait
+rien : cet ordre ne sert qu'à occuper une ligne de chaîne, par exemple pour
+patienter en boucle. Le noble MIA, resté sur place, n'a simplement rien à
+émettre ce tour-ci.
 
 **La résolution.** Le moteur additionne les forces engagées sur ATL :
 l'attaque de Hugues pèse 2 (l'armée de ROS) + 1 (le soutien de FOU) = 3 ; la
@@ -273,8 +294,9 @@ différente de la cible soutenue peut **couper** un soutien.
 
 ### Maintien (`H`) et pillage (`P`)
 
-`H XXX` : l'armée reste sur place et peut recevoir un soutien défensif —
-c'est ce que Brune écrit en section 3.
+`H XXX` : l'armée reste sur place et peut recevoir un soutien défensif ;
+surtout utile pour occuper une ligne de chaîne en attendant, notamment en
+boucle (`(H XXX)`).
 
 `P XXX` : détruit l'infrastructure de la case occupée ; un bonus de pillage
 ({{pillage_bonus}} R) est crédité à la source alliée la plus proche, et peut
