@@ -35,8 +35,20 @@ func (facts settledFacts) dislodged(armyID models.ArmyID) bool {
 	return facts.ctx.dislodged[armyID] != nil
 }
 
+// attacked applies the adjudicator's definition: an ally's attack on an army
+// that stays there does not count, even when the attacker is dislodged.
 func (facts settledFacts) attacked(territoryID models.TerritoryID) bool {
-	return facts.ctx.attackedTerritories[territoryID]
+	ctx := facts.ctx
+	defender := ctx.startArmyAt(territoryID)
+	for _, attack := range ctx.attacks {
+		if attack.target != territoryID {
+			continue
+		}
+		if defender == nil || ctx.startArmiesByID[attack.armyID].OwnerID != defender.OwnerID || ctx.contest.vacated[defender.ID] || ctx.contest.dislodged[defender.ID] {
+			return true
+		}
+	}
+	return false
 }
 
 func (facts settledFacts) winnerAt(territoryID models.TerritoryID) models.ArmyID {
