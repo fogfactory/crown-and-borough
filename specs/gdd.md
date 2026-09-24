@@ -289,7 +289,12 @@ Les règles de combat sont les suivantes :
   attaquante ne remporte le combat (statu quo ou défense conservée) ;
 - un château apporte son bonus défensif fixe, même sans armée, sauf si tous les
   attaquants appartiennent au propriétaire du château (auto-capture d'un château
-  ami vide).
+  ami vide) ;
+- lorsque des ordres dépendent les uns des autres en cycle, les mouvements
+  réussissent dès qu'une résolution cohérente avec ces règles le permet
+  (mouvement circulaire) ; si aucune résolution n'est cohérente (paradoxe), les
+  attaques, jonctions et dispersions du cycle échouent et aucune troupe ne
+  quitte son origine : statu quo.
 
 ### Ravitaillement exponentiel
 
