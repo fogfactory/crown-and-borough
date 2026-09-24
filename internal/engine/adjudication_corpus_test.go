@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -22,9 +23,13 @@ import (
 // a digest of the full Resolution (state and events) of that turn and of the
 // following one, which replays the surviving chains (loops, pending
 // dispersions). It was recorded before the adjudicator was rewritten as a
-// decision graph, so any divergence from the previous combat semantics is
-// caught here. Turns on which the previous adjudicator returned an error are
+// decision graph; the seeds on which the rewrite intentionally differs are
+// listed with their reason and their current digests in the divergences
+// file. Turns on which the previous adjudicator returned an error are
 // recorded as such and not compared.
+//
+// After a deliberate rule change, -corpus.update records the current results
+// as the new reference and empties the divergences list.
 //
 //	go test ./internal/engine -run TestAdjudicationCorpus -corpus.update
 //	go test ./internal/engine -run TestAdjudicationCorpus -corpus.dump=1285
@@ -38,6 +43,7 @@ var (
 const (
 	adjudicationCorpusSeeds  = 10000
 	adjudicationCorpusGolden = "testdata/adjudication_corpus.golden"
+	adjudicationDivergences  = "testdata/adjudication_corpus.divergences"
 	corpusErrorDigest        = "error"
 )
 
@@ -67,10 +73,18 @@ func TestAdjudicationCorpus(t *testing.T) {
 		if err := os.WriteFile(path, []byte(strings.Join(digests, "\n")+"\n"), 0o644); err != nil {
 			t.Fatalf("write corpus: %v", err)
 		}
+		if *corpusUpdate {
+			clearCorpusDivergences(t)
+		}
 		return
 	}
 
 	golden := readCorpusGolden(t)
+	for seed, digest := range readCorpusDivergences(t) {
+		if seed < len(golden) {
+			golden[seed] = digest
+		}
+	}
 	if len(golden) < len(digests) {
 		t.Fatalf("golden corpus has %d seeds, want at least %d", len(golden), len(digests))
 	}
@@ -117,6 +131,48 @@ func readCorpusGolden(t *testing.T) []string {
 		t.Fatalf("read golden corpus: %v", err)
 	}
 	return digests
+}
+
+// readCorpusDivergences returns the current digests of the seeds listed in
+// the divergences file, whose lines read "seed category turn1 turn2".
+func readCorpusDivergences(t *testing.T) map[int]string {
+	t.Helper()
+	raw, err := os.ReadFile(adjudicationDivergences)
+	if err != nil {
+		t.Fatalf("read corpus divergences: %v", err)
+	}
+	divergences := make(map[int]string)
+	for _, line := range strings.Split(string(raw), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 || strings.HasPrefix(fields[0], "#") {
+			continue
+		}
+		seed, err := strconv.Atoi(fields[0])
+		if err != nil || len(fields) < 3 {
+			t.Fatalf("malformed corpus divergence %q", line)
+		}
+		divergences[seed] = strings.Join(fields[2:], " ")
+	}
+	return divergences
+}
+
+// clearCorpusDivergences keeps only the comment header of the divergences
+// file once the golden file records the current results.
+func clearCorpusDivergences(t *testing.T) {
+	t.Helper()
+	raw, err := os.ReadFile(adjudicationDivergences)
+	if err != nil {
+		t.Fatalf("read corpus divergences: %v", err)
+	}
+	var header strings.Builder
+	for _, line := range strings.SplitAfter(string(raw), "\n") {
+		if strings.HasPrefix(line, "#") {
+			header.WriteString(line)
+		}
+	}
+	if err := os.WriteFile(adjudicationDivergences, []byte(header.String()), 0o644); err != nil {
+		t.Fatalf("write corpus divergences: %v", err)
+	}
 }
 
 // corpusDigest resolves two consecutive turns from seed and returns their

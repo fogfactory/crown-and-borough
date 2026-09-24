@@ -1,0 +1,100 @@
+# Seeds of the adjudication corpus on which the decision-graph adjudicator
+# intentionally differs from the iterative adjudicator that recorded
+# adjudication_corpus.golden. Each line gives the seed, the category and the
+# digests of the current resolution (turn 1, turn 2). The previous result
+# depended on the order of its iterations in every case below; the categories
+# are:
+#
+# cut_supporters       Report only. A supporter dislodged during the turn is
+#                      listed in the combat's cut supporters; the previous
+#                      adjudicator listed it only when the turn resolved in a
+#                      single iteration.
+# paradox              No resolution satisfies the rules: the cycle keeps the
+#                      status quo. The previous adjudicator kept a
+#                      dislodgement or a failure from an earlier iteration.
+# legacy_inconsistent  The previous result violated the rules: an attack
+#                      turned back before a head-to-head loser stopped
+#                      contesting its destination, or a dislodgement kept from
+#                      an earlier iteration. The current result is the
+#                      consistent one.
+# two_resolutions      Two resolutions satisfy the rules; the orders succeed in
+#                      the adjudicator's fixed order whenever one allows it.
+194 paradox 3efb0f57 5fa1c7cb
+310 cut_supporters 929232cb cdd88d1d
+389 cut_supporters e96a4648 76727b19
+438 cut_supporters 7e476ece dc7f8b62
+580 paradox 40f48f3b eaee3875
+608 cut_supporters ecfea900 34aeb3d0
+767 cut_supporters b5ba8b38 3c7e73c2
+862 paradox dfd5ea08 error
+940 cut_supporters 1f035a16 081a5718
+977 cut_supporters f72e0642 bd06f3d1
+1489 cut_supporters 6dcf46bb 0afd3938
+1559 cut_supporters b8014aed 17a71a95
+1630 cut_supporters 5bf1a5e8 ee4a3d53
+1739 cut_supporters 7809701a 579fb890
+1932 cut_supporters 33893420 67404e25
+1942 cut_supporters 4c2a0235 79f14407
+2040 cut_supporters 1f5d26eb 19c4ce01
+2130 cut_supporters a9c07638 a35c7a10
+2247 legacy_inconsistent a439119a 1b10c72b
+2468 legacy_inconsistent 6677ae84 7d8c2a39
+2471 cut_supporters 216facad eb08ba9d
+2588 cut_supporters 0fc92959 42f427a4
+2693 cut_supporters 9380c567 e1e1c6e8
+2716 cut_supporters 2f596391 cf9b6015
+2843 cut_supporters 6f5cd118 1413dcdd
+2883 cut_supporters 41701d33 1691cc6b
+3076 cut_supporters 3e46d638 b81693f8
+3098 cut_supporters 45a8cad6 34958349
+3492 cut_supporters 85b2fb39 c443af06
+3566 cut_supporters 918253a2 c8f6f896
+3699 cut_supporters 9973a174 76e03ccc
+3788 cut_supporters 533b7ec8 036f18a4
+3887 cut_supporters 66bd3491 a5813ff6
+3926 cut_supporters 9e50ec62 6497fada
+4049 legacy_inconsistent 3661e98e f7a53798
+4130 cut_supporters 5882146a 4a873af7
+4199 cut_supporters 7fd1ab8f 19043307
+4289 cut_supporters c4b6743c 3da97f77
+4503 cut_supporters 5a6fb397 a713c83b
+4646 cut_supporters 8b9e3ab3 d64aa823
+4648 cut_supporters c1c7b59b 79361d90
+4781 paradox b08d759a be58e4fc
+4801 legacy_inconsistent 43c52dd4 0ae59bb0
+4901 cut_supporters 87382e73 d8bec03c
+4964 cut_supporters eea392aa d9651f01
+5365 cut_supporters 37c0a877 8fa13236
+5425 cut_supporters b7ccae90 763d2bc3
+5507 cut_supporters dd5c21c0 cda323ba
+5729 cut_supporters 13843ac2 4597dd2b
+5867 cut_supporters 3a198c14 a7aeeae3
+6009 paradox 875496a8 b2af05c3
+6317 cut_supporters 1b7c3019 776eb6cd
+6430 cut_supporters 32761948 df3a2f27
+6458 two_resolutions eb8c7176 7a108c95
+6478 two_resolutions 06bde6d7 4e7bdf97
+6667 cut_supporters 650f90f1 80aed655
+6699 cut_supporters ba04759e 431f4451
+6726 cut_supporters 60333087 d8dba5cc
+6810 cut_supporters 00bb4e04 e2414c71
+6861 cut_supporters 5c091d21 e103bf1a
+6949 cut_supporters be88dd93 affecf2f
+7244 cut_supporters 0515c6b5 679d22c0
+7763 cut_supporters f69a01c4 854ac80d
+7792 cut_supporters 4f153b88 68f9e4ae
+7928 cut_supporters 0acb0b38 1b9a1d6f
+7991 cut_supporters c1d0e0b9 af32e3d4
+8171 cut_supporters 82f06714 b73f7f66
+8211 cut_supporters b7be1101 754dde36
+8230 cut_supporters 97a4d831 1cf3adaa
+8255 cut_supporters 2a635a23 3bc5110d
+8268 cut_supporters 17b41f16 ed6773c2
+8579 cut_supporters f49e58fa ec8d79b8
+8582 cut_supporters 7300921c 3f858a92
+8708 cut_supporters bed6710e f78fd6da
+9155 cut_supporters a04a62e5 a8865356
+9498 cut_supporters 2094bc09 1edbe72a
+9510 paradox a6af4d01 9f720997
+9559 paradox 5915dbe8 554be40f
+9977 paradox 664dad3c b3eec5c9
