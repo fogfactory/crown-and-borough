@@ -837,7 +837,7 @@ func applyDisperse(
 		if groupID != army.ID {
 			group.ChainID = nil
 		}
-		if hostID, exists := liveArmyAt(live, targetID); exists && hostID != groupID && live[hostID].OwnerID == group.OwnerID {
+		if hostID, exists := liveAlliedArmyAt(live, targetID, group.OwnerID, groupID); exists {
 			ctx.mergeDisperseGroup(live, hostID, group, record, &createdArmyIDs)
 			groupID = hostID
 		} else {
@@ -919,9 +919,12 @@ func applyDisperse(
 	return nil
 }
 
-func liveArmyAt(live map[models.ArmyID]models.Army, territoryID models.TerritoryID) (models.ArmyID, bool) {
+// liveAlliedArmyAt returns the army of ownerID, other than excluded, standing
+// on territoryID. An enemy army may still stand there when its own dispersion
+// has not been applied yet.
+func liveAlliedArmyAt(live map[models.ArmyID]models.Army, territoryID models.TerritoryID, ownerID models.PlayerID, excluded models.ArmyID) (models.ArmyID, bool) {
 	for _, armyID := range sortedArmyMap(live) {
-		if live[armyID].TerritoryID == territoryID {
+		if army := live[armyID]; armyID != excluded && army.TerritoryID == territoryID && army.OwnerID == ownerID {
 			return armyID, true
 		}
 	}

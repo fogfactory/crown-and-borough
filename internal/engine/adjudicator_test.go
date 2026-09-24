@@ -234,3 +234,40 @@ func TestResolveDisperseJoinsAlliedAttackWinner(t *testing.T) {
 		t.Errorf("A2 outcome = %#v, found=%t, want disperse_complete", event, found)
 	}
 }
+
+func TestResolveDisperseFusesWithWinnerWhileEnemyDisperses(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			territory("TAA", "TAA", "TBB"),
+			territory("TBB", "TBB", "TAA", "TCC", "TGG"),
+			territory("TCC", "TCC", "TBB"),
+			territory("TGG", "TGG", "TBB"),
+		},
+		[]models.Army{
+			{ID: "A1", OwnerID: "P3", TerritoryID: "TAA", Size: 1},
+			{ID: "A2", OwnerID: "P2", TerritoryID: "TBB", Size: 1},
+			{ID: "A3", OwnerID: "P3", TerritoryID: "TCC", Size: 2},
+		},
+	)
+	keepTestArmiesSupplied(state)
+	addNoble(state, "N1", "ONE", "P3", "TAA")
+	addNoble(state, "N2", "TWO", "P2", "TBB")
+	addNoble(state, "N3", "THR", "P3", "TCC")
+	// A2 disperses out of TBB, A3 takes it, and A1's troop joins A3 there
+	// although A2's own dispersion is applied after A1's.
+	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeDisperse, PositionID: "TAA", TargetIDs: []models.TerritoryID{"TBB"}, NobleAssignments: map[models.TerritoryID][]models.NobleCode{"TBB": {"*"}}})
+	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeDisperse, PositionID: "TBB", TargetIDs: []models.TerritoryID{"TGG"}, NobleAssignments: map[models.TerritoryID][]models.NobleCode{"TGG": {"*"}}})
+	addChain(t, state, "A3", "N3", models.Order{Type: models.OrderTypeAttack, PositionID: "TCC", TargetIDs: []models.TerritoryID{"TBB"}})
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if army := armyByID(t, resolution.State, "A3"); army.TerritoryID != "TBB" || army.Size != 3 {
+		t.Errorf("A3 = %+v, want the winner fused to size 3 at TBB", army)
+	}
+	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "TGG" {
+		t.Errorf("A2 = %+v, want TGG", army)
+	}
+}
