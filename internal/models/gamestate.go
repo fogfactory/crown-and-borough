@@ -393,8 +393,8 @@ func (g *GameState) Validate() error {
 	}
 
 	// 8. Infrastructures: unique ids, valid type, level >= 1, existing
-	// territory, presence in the territory state's infrastructure list.
-	// Infrastructures have no owner: they belong to their tile (GDD §3).
+	// territory, and the territory state points back at it. Infrastructures
+	// have no owner: they belong to their tile (GDD §3).
 	infras := make(map[InfraID]*Infrastructure, len(g.Infrastructures))
 	for i := range g.Infrastructures {
 		in := &g.Infrastructures[i]
