@@ -191,3 +191,46 @@ func TestResolveJoinCrossesAttack(t *testing.T) {
 		t.Errorf("A1 outcome = %#v, found=%t, want join_move", event, found)
 	}
 }
+
+func TestResolveDisperseJoinsAlliedAttackWinner(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			territory("TAA", "TAA", "TBB"),
+			territory("TBB", "TBB", "TAA", "TCC"),
+			territory("TCC", "TCC", "TBB"),
+		},
+		[]models.Army{
+			{ID: "A1", OwnerID: "P1", TerritoryID: "TAA", Size: 2},
+			{ID: "A2", OwnerID: "P1", TerritoryID: "TCC", Size: 2},
+			{ID: "A3", OwnerID: "P2", TerritoryID: "TBB", Size: 1},
+		},
+	)
+	keepTestArmiesSupplied(state)
+	addNoble(state, "N1", "ONE", "P1", "TAA")
+	addNoble(state, "N2", "TWO", "P1", "TCC")
+	addNoble(state, "N3", "THR", "P2", "TBB")
+	// A1 dislodges A3 from TBB; A2's dispersion arrives there as an allied
+	// join would, and its troop fuses with the winner.
+	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "TAA", TargetIDs: []models.TerritoryID{"TBB"}})
+	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeDisperse, PositionID: "TCC", TargetIDs: []models.TerritoryID{"TBB"}})
+	addChain(t, state, "A3", "N3", models.Order{Type: models.OrderTypeHold, PositionID: "TBB"})
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "TBB" || army.Size != 3 {
+		t.Errorf("A1 = %+v, want the winner fused to size 3 at TBB", army)
+	}
+	residual := false
+	for _, army := range resolution.State.Armies {
+		residual = residual || army.TerritoryID == "TCC" && army.OwnerID == "P1" && army.Size == 1
+	}
+	if !residual {
+		t.Errorf("armies = %+v, want A2's residual troop at TCC", resolution.State.Armies)
+	}
+	if event, found := outcomeForArmy(resolution.Events, "A2"); !found || event.Reason != "disperse_complete" {
+		t.Errorf("A2 outcome = %#v, found=%t, want disperse_complete", event, found)
+	}
+}

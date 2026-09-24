@@ -318,6 +318,8 @@ l'affectation, sans consommer de troupe.
 - une destination occupée par une armée ennemie, contestée, ou sans troupe
   disponible ne consomme pas de troupe ; une destination suivante peut
   néanmoins en recevoir une ;
+- comme pour une jonction, si une de tes attaques remporte le combat sur une
+  destination, la troupe y arrive et fusionne avec l'armée victorieuse ;
 - plusieurs dispersions alliées qui arrivent sur la même case sont empilées
   dans une seule armée ;
 - les troupes qui ne peuvent pas être envoyées restent sur la case d'origine ;

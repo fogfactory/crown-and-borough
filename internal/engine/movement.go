@@ -120,9 +120,12 @@ func (ctx *resolutionContext) disperseCandidates(invalid map[models.ArmyID]strin
 			resolved: make([]bool, len(intent.targets)),
 		}
 		candidate := make([]bool, len(intent.targets))
+		ownerID := ctx.startArmiesByID[intent.armyID].OwnerID
 		for index, targetID := range intent.targets {
-			candidate[index] = !ctx.heldPeaceful[intent.armyID] && !ctx.facts.attacked(targetID)
-			if candidate[index] && targetID != intent.source {
+			attacked := ctx.facts.attacked(targetID)
+			alliedArrival := attacked && ctx.alliedAttackArrival(targetID, ownerID)
+			candidate[index] = !ctx.heldPeaceful[intent.armyID] && (!attacked || alliedArrival)
+			if candidate[index] && targetID != intent.source && !alliedArrival {
 				if occupant := ctx.startArmyAt(targetID); occupant != nil && !ctx.vacatesForDisperse(occupant.ID) {
 					_, occupantJoins := ctx.joins[occupant.ID]
 					_, occupantDisperses := ctx.disperses[occupant.ID]
@@ -483,14 +486,19 @@ func hasOrphanedDisperseNobles(result *disperseResolution) bool {
 	return false
 }
 
+// alliedAttackArrival reports whether a peaceful movement of ownerID can
+// arrive on an attacked territory: an attack of the same player wins it and
+// the army that held it has left, so the arrival joins the winner.
+func (ctx *resolutionContext) alliedAttackArrival(targetID models.TerritoryID, ownerID models.PlayerID) bool {
+	winnerID := ctx.facts.winnerAt(targetID)
+	return winnerID != "" && ctx.startArmiesByID[winnerID].OwnerID == ownerID && ctx.facts.defenderLeaves(targetID)
+}
+
 func (ctx *resolutionContext) resolveJoinAtAttackTarget(targetID models.TerritoryID, members []models.ArmyID) {
 	if len(members) == 1 {
 		joiningID := members[0]
-		joiningArmy := ctx.startArmiesByID[joiningID]
-		winnerID := ctx.facts.winnerAt(targetID)
-		winner := ctx.startArmiesByID[winnerID]
-		if winnerID != "" && ctx.facts.defenderLeaves(targetID) && winner.OwnerID == joiningArmy.OwnerID {
-			ctx.joinResults[joiningID] = &joinResolution{targetID: targetID, hostID: winner.ID, fuse: true}
+		if ctx.alliedAttackArrival(targetID, ctx.startArmiesByID[joiningID].OwnerID) {
+			ctx.joinResults[joiningID] = &joinResolution{targetID: targetID, hostID: ctx.facts.winnerAt(targetID), fuse: true}
 			record := ctx.records[joiningID]
 			record.outcome = OutcomeSuccess
 			record.reason = "join_attack_arrival"
