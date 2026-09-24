@@ -747,7 +747,9 @@ func executeNormalMovements(ctx *resolutionContext, riders map[models.ArmyID][]m
 			return fmtMissingArmy(joiningID)
 		}
 		host.Size += joining.Size
-		if resolution.pair {
+		// A join pair drops the joining armies' chains; a chain the host
+		// inherited from a dispersion fusing into it carries on.
+		if hostRecord := ctx.records[resolution.hostID]; resolution.pair && host.ChainID != nil && hostRecord != nil && *host.ChainID == hostRecord.chainID {
 			host.ChainID = nil
 		}
 		live[resolution.hostID] = host
@@ -788,8 +790,12 @@ func applyDisperse(
 		return fmtMissingArmy(intent.armyID)
 	}
 	remaining := result.remaining
+	// Allied troops may already have stacked onto the army during the turn,
+	// before its own dispersion is applied: they stay on the origin with the
+	// residual troops.
+	arrived := army.Size - ctx.startArmiesByID[intent.armyID].Size
 	resolvedCount := countResolvedDisperse(result)
-	if resolvedCount == 0 && remaining != army.Size {
+	if arrived < 0 || resolvedCount == 0 && remaining+arrived != army.Size {
 		return fmt.Errorf("engine: dispersion %q has inconsistent remaining strength", record.armyID)
 	}
 	targetCounts := make(map[models.TerritoryID]int)
@@ -828,7 +834,7 @@ func applyDisperse(
 		}
 		groupSize := targetCounts[targetID]
 		if targetID == intent.source {
-			groupSize += remaining
+			groupSize += remaining + arrived
 		}
 		group := army
 		group.ID = groupID
@@ -837,7 +843,7 @@ func applyDisperse(
 		if groupID != army.ID {
 			group.ChainID = nil
 		}
-		if hostID, exists := liveAlliedArmyAt(live, targetID, group.OwnerID, groupID); exists {
+		if hostID, exists := ctx.disperseHostAt(live, targetID, group.OwnerID, groupID); exists {
 			ctx.mergeDisperseGroup(live, hostID, group, record, &createdArmyIDs)
 			groupID = hostID
 		} else {
@@ -861,7 +867,7 @@ func applyDisperse(
 		}
 		ensureGroup(targetID)
 	}
-	if remaining > 0 && sourceArmyID == "" {
+	if remaining+arrived > 0 && sourceArmyID == "" {
 		ensureGroup(intent.source)
 	}
 	for _, targetID := range groupOrder {
@@ -888,7 +894,7 @@ func applyDisperse(
 		})
 	}
 	if record.partialD && record.order.Liaison == models.LiaisonModeLoop {
-		if err := ctx.updateLoopDispersePending(record, result, sourceArmyID); err != nil {
+		if err := ctx.updateLoopDispersePending(live, record, result, sourceArmyID); err != nil {
 			return err
 		}
 	} else if result.intent.pending {
@@ -919,14 +925,20 @@ func applyDisperse(
 	return nil
 }
 
-// liveAlliedArmyAt returns the army of ownerID, other than excluded, standing
-// on territoryID. An enemy army may still stand there when its own dispersion
-// has not been applied yet.
-func liveAlliedArmyAt(live map[models.ArmyID]models.Army, territoryID models.TerritoryID, ownerID models.PlayerID, excluded models.ArmyID) (models.ArmyID, bool) {
+// disperseHostAt returns the army of ownerID, other than excluded, that a
+// dispersed group arriving on territoryID fuses with. An enemy army may still
+// stand there when its own dispersion has not been applied yet, and an arrived
+// join that fuses into another army right after is skipped for that army.
+func (ctx *resolutionContext) disperseHostAt(live map[models.ArmyID]models.Army, territoryID models.TerritoryID, ownerID models.PlayerID, excluded models.ArmyID) (models.ArmyID, bool) {
 	for _, armyID := range sortedArmyMap(live) {
-		if army := live[armyID]; armyID != excluded && army.TerritoryID == territoryID && army.OwnerID == ownerID {
-			return armyID, true
+		army := live[armyID]
+		if armyID == excluded || army.TerritoryID != territoryID || army.OwnerID != ownerID {
+			continue
 		}
+		if join := ctx.joinResults[armyID]; join != nil && join.fuse && join.hostID != armyID {
+			continue
+		}
+		return armyID, true
 	}
 	return "", false
 }
@@ -941,7 +953,7 @@ func (ctx *resolutionContext) mergeDisperseGroup(
 	host := live[hostID]
 	incomingChainID := incoming.ChainID
 	if incomingChainID != nil {
-		if host.ChainID == nil || ctx.shouldDisperseChainReplace(hostID) {
+		if (host.ChainID == nil && ctx.pendingDisperseChainOf(hostID) == nil) || ctx.shouldDisperseChainReplace(hostID) {
 			if host.ChainID != nil {
 				if hostRecord := ctx.records[hostID]; hostRecord != nil {
 					hostRecord.fused = true
@@ -951,6 +963,9 @@ func (ctx *resolutionContext) mergeDisperseGroup(
 			host.ChainID = &chainID
 			if chain := ctx.chainsByID[chainID]; chain != nil {
 				chain.ArmyID = hostID
+				for index := range chain.Orders {
+					chain.Orders[index].ArmyID = hostID
+				}
 			}
 		} else if record != nil {
 			record.fused = true
@@ -993,6 +1008,7 @@ func removeArmyID(ids []models.ArmyID, remove models.ArmyID) []models.ArmyID {
 }
 
 func (ctx *resolutionContext) updateLoopDispersePending(
+	live map[models.ArmyID]models.Army,
 	record *orderRecord,
 	result *disperseResolution,
 	residualID models.ArmyID,
@@ -1004,6 +1020,12 @@ func (ctx *resolutionContext) updateLoopDispersePending(
 	if chain == nil {
 		return fmt.Errorf("engine: partial loop dispersion %q has no chain %q", record.armyID, record.chainID)
 	}
+	// The residual retries the dispersion: a chain it received from a group
+	// that fused into it this turn is dropped, as when a group fuses into an
+	// army that already has orders.
+	if residual := live[residualID]; residual.ChainID != nil && *residual.ChainID != record.chainID {
+		ctx.dropChain(*residual.ChainID)
+	}
 	pendingTargets := pendingDisperseTargets(result)
 	chain.PendingDisperse = &models.PendingDisperse{
 		ArmyID:           residualID,
@@ -1012,6 +1034,28 @@ func (ctx *resolutionContext) updateLoopDispersePending(
 		NobleAssignments: ctx.pendingDisperseAssignments(result, pendingTargets),
 	}
 	return nil
+}
+
+// pendingDisperseChainOf returns the chain whose pending dispersion retries
+// with armyID, if any.
+func (ctx *resolutionContext) pendingDisperseChainOf(armyID models.ArmyID) *models.Chain {
+	for index := range ctx.state.Chains {
+		chain := &ctx.state.Chains[index]
+		if chain.PendingDisperse != nil && chain.PendingDisperse.ArmyID == armyID {
+			return chain
+		}
+	}
+	return nil
+}
+
+// dropChain marks the order of chainID as fused, so that chain progression
+// removes the chain.
+func (ctx *resolutionContext) dropChain(chainID models.ChainID) {
+	for _, armyID := range sortedArmyMap(ctx.records) {
+		if record := ctx.records[armyID]; record.chainID == chainID {
+			record.fused = true
+		}
+	}
 }
 
 func pendingDisperseTargets(result *disperseResolution) []models.TerritoryID {
