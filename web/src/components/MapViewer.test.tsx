@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { DRAFT_INTENTION_COLOR, MapViewer } from '@/components/MapViewer'
+import { MapViewer } from '@/components/MapViewer'
+import { DRAFT_INTENTION_COLOR } from '@/components/MapMarkers'
 import { HERALDIC_COLORS } from '@/lib/region-color'
 import { buildIntentions } from '@/lib/intent-overlay'
 import { draftOrders } from '@/test/parse-orders'
@@ -399,7 +400,9 @@ describe('MapViewer territorial overlays', () => {
     expect(svg.querySelectorAll('[data-region-label]').length).toBe(2)
     expect(screen.getByText('Bishopric of Alpilles (ROS)')).toBeInTheDocument()
     expect(screen.getByText('Bishopric of Brisecote (BRU)')).toBeInTheDocument()
-    expect(svg.querySelector('[data-region-effect-kind="fair_weather"]')).toBeInTheDocument()
+    expect(
+      svg.querySelector('[data-region-effect-kind="fair_weather"]'),
+    ).toBeInTheDocument()
     expect(svg.querySelector('[data-region-effect-kind="famine"]')).toBeInTheDocument()
   })
 
@@ -450,9 +453,7 @@ describe('MapViewer territorial overlays', () => {
         { id: 'RCORE', seed: 'EEE', territories: ['EEE'] },
       ],
     }
-    const { container } = render(
-      <MapViewer map={gridMap} state={state} showRegions />,
-    )
+    const { container } = render(<MapViewer map={gridMap} state={state} showRegions />)
     const svg = container.querySelector(
       'svg[aria-label="Territory map"]',
     ) as SVGSVGElement
@@ -473,7 +474,17 @@ describe('MapViewer territorial overlays', () => {
   })
 
   it('hides ownership badges when the player control layer is off', () => {
-    const { svg } = renderMap(map, state, vi.fn(), null, [], true, '#a84632', false, false)
+    const { svg } = renderMap(
+      map,
+      state,
+      vi.fn(),
+      null,
+      [],
+      true,
+      '#a84632',
+      false,
+      false,
+    )
 
     expect(svg.querySelectorAll('[data-ownership-badge]').length).toBe(0)
   })
@@ -919,13 +930,11 @@ describe('MapViewer territorial overlays', () => {
 
     expect(mountainChain).toBeInTheDocument()
     expect(mountainChain?.querySelectorAll('svg').length).toBeGreaterThan(0)
-    expect(
-      bordersGroup?.querySelector('line[stroke-width="4"]'),
-    ).toBeNull()
+    expect(bordersGroup?.querySelector('line[stroke-width="4"]')).toBeNull()
     expect(winterVeil).toBeInTheDocument()
-    expect(
-      winterVeil?.compareDocumentPosition(mountainChain as Node),
-    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(winterVeil?.compareDocumentPosition(mountainChain as Node)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
     expect(
       svg.querySelector('g[aria-label="Territorial control"] path[stroke-dasharray]'),
     ).not.toBeInTheDocument()
