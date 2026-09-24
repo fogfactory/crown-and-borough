@@ -408,19 +408,26 @@ jonction ou une dispersion vide son origine, une armée restée en place est
 délogée. Chaque décision est une fonction pure des autres ; l'équation de
 mouvement et les forces (attaque, maintien, défense, prévention) suivent
 « The Math of Adjudication » de Lucas Kruijswijk, référence des Diplomacy
-Adjudicator Test Cases, avec les forces de Crown & Borough (§5 du GDD). Les
-jonctions et dispersions sont évaluées par les règles pacifiques existantes,
-sur le groupe d'ordres pacifiques qui partagent leurs territoires, en lisant
-les combats à travers ces décisions. Le graphe statique des dépendances est
+Adjudicator Test Cases, avec les forces de Crown & Borough (§5 du GDD). Avant
+que ce graphe ne soit construit, toute jonction ou dispersion dont l'origine
+est la cible d'une attaque, quel qu'en soit l'auteur et quelle qu'en soit
+l'issue, est annulée (`cancelAttackedOriginPeaceful`) : son armée reste sur
+place comme si elle tenait, et `applyContestOutcomes` en rapporte la raison
+(`attacked_origin`) une fois les délogements connus, pour ne pas écraser un
+délogement par cette raison. Cette règle générale élimine toute dépendance
+d'un combat envers un départ pacifique, ce qui ne laisse plus que les cycles
+d'attaques (rotation, jonction croisant une attaque) que les jonctions et
+dispersions restantes évaluent par les règles pacifiques existantes, sur le
+groupe d'ordres pacifiques qui partagent leurs territoires, en lisant les
+combats à travers ces décisions. Le graphe statique des dépendances est
 découpé en composantes fortement connexes (Tarjan), résolues dans l'ordre
 topologique. Un cycle est résolu par recherche en profondeur : chaque ordre,
 dans un ordre fixe, réussit dès qu'une résolution cohérente le permet, ce qui
-généralise le mouvement circulaire de Diplomacy (rotation, jonction croisant
-une attaque). Un cycle sans résolution cohérente (paradoxe) voit ses
-jonctions et dispersions annulées, puis ses attaques recherchées à nouveau
-sans elles ; les combats ne dépendent alors plus d'aucun mouvement pacifique,
-ce qui ne laisse que des mouvements circulaires, et le statu quo des attaques
-n'est qu'un dernier recours. La résolution termine toujours, sans plafond
+généralise le mouvement circulaire de Diplomacy. Un cycle sans résolution
+cohérente ne devrait donc plus survenir, la règle ci-dessus ayant retiré
+toute dépendance d'origine ; le statu quo des attaques (`statusQuo`) reste
+néanmoins en place comme filet de sécurité bon marché, au cas où un cas
+échapperait à la règle. La résolution termine toujours, sans plafond
 d'itérations.
 
 Le corpus `internal/engine/testdata/adjudication_corpus.golden` fige le

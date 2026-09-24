@@ -191,27 +191,24 @@ func TestResolveJoinIgnoresDislodgedAllyAttackOnItsDestination(t *testing.T) {
 	state := executionScenario(t,
 		[]models.Territory{
 			territory("TAA", "TAA", "TBB", "TDD"),
-			territory("TBB", "TBB", "TAA", "TFF"),
+			territory("TBB", "TBB", "TAA"),
 			territory("TDD", "TDD", "TAA", "TEE"),
 			territory("TEE", "TEE", "TDD"),
-			territory("TFF", "TFF", "TBB"),
 		},
 		[]models.Army{
 			{ID: "A1", OwnerID: "P2", TerritoryID: "TAA", Size: 1},
 			{ID: "A2", OwnerID: "P2", TerritoryID: "TBB", Size: 1},
 			{ID: "A4", OwnerID: "P2", TerritoryID: "TDD", Size: 1},
 			{ID: "A5", OwnerID: "P3", TerritoryID: "TEE", Size: 3},
-			{ID: "A6", OwnerID: "P3", TerritoryID: "TFF", Size: 1},
 		},
 	)
-	// A4 only attacks its ally A1, which stays, and is dislodged: TAA is not
-	// contested, A2 joins A1 and A6 enters the TBB it left. A4 then retreats
-	// onto A1 as well.
+	// A2's join origin TBB is under no attack, so it is not cancelled. A4
+	// only attacks its ally A1, which stays, so TAA is not contested and A2
+	// joins A1; A5 then dislodges A4, which retreats onto A1 as well.
 	addChain(t, state, "A1", nobleOf("A1"), models.Order{Type: models.OrderTypeHold, PositionID: "TAA"})
 	addChain(t, state, "A2", nobleOf("A2"), models.Order{Type: models.OrderTypeJoin, PositionID: "TBB", TargetIDs: []models.TerritoryID{"TAA"}})
 	addChain(t, state, "A4", nobleOf("A4"), models.Order{Type: models.OrderTypeAttack, PositionID: "TDD", TargetIDs: []models.TerritoryID{"TAA"}})
 	addChain(t, state, "A5", nobleOf("A5"), models.Order{Type: models.OrderTypeAttack, PositionID: "TEE", TargetIDs: []models.TerritoryID{"TDD"}})
-	addChain(t, state, "A6", nobleOf("A6"), models.Order{Type: models.OrderTypeAttack, PositionID: "TFF", TargetIDs: []models.TerritoryID{"TBB"}})
 
 	resolution := resolveScenario(t, state)
 	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "TAA" || army.Size != 3 {
@@ -219,8 +216,5 @@ func TestResolveJoinIgnoresDislodgedAllyAttackOnItsDestination(t *testing.T) {
 	}
 	if event, found := outcomeForArmy(resolution.Events, "A2"); !found || event.Reason != "join_host" {
 		t.Errorf("A2 outcome = %#v, found=%t, want join_host", event, found)
-	}
-	if army := armyByID(t, resolution.State, "A6"); army.TerritoryID != "TBB" {
-		t.Errorf("A6 = %+v, want TBB", army)
 	}
 }

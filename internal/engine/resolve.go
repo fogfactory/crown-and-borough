@@ -40,6 +40,7 @@ func ResolveWithDeckOrders(game *models.GameState, balance assetgen.Balance, dec
 	// Chains are attached before Resolve is called; this function only handles
 	// the simultaneous resolution core.
 	enumerateIntentions(ctx)
+	cancelAttackedOriginPeaceful(ctx)
 	calculateSupports(ctx)
 	if err := resolveContests(ctx); err != nil {
 		return Resolution{}, err

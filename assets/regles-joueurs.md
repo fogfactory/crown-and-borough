@@ -272,6 +272,9 @@ repoussée si la destination est contestée.
   perdent ce combat ne l'empêchent pas d'arriver ;
 - une armée peut attaquer son propre château vide pour s'y installer sans que
   la défense du château ne la repousse (auto-capture) ;
+- si `XXX`, l'**origine** de la jonction, subit elle-même une attaque —
+  alliée ou ennemie, quelle qu'en soit l'issue — la jonction est annulée
+  d'office et l'armée reste sur `XXX` (section 6, « Qui gagne un combat ») ;
 - la jonction doit être le **dernier ordre** de la chaîne.
 
 ### Soutien (`S`)
@@ -340,7 +343,11 @@ l'affectation, sans consommer de troupe.
 - en `single`, les destinations non traitées produisent une dispersion
   partielle et la chaîne progresse quand même ; en `loop`, le résidu retente
   jusqu'à l'arrivée d'une armée sur chaque destination — si l'armée s'épuise
-  avant d'avoir traité toutes les destinations, l'ordre est invalide.
+  avant d'avoir traité toutes les destinations, l'ordre est invalide ;
+- si `XXX`, l'**origine** de la dispersion, subit elle-même une attaque —
+  alliée ou ennemie, quelle qu'en soit l'issue — toute la dispersion est
+  annulée d'office, même partielle : aucune troupe ne part vers aucune
+  destination (section 6, « Qui gagne un combat »).
 
 ```text
 BRI D ATL ATL              # deux troupes empilées dans l'armée arrivée à ATL
@@ -404,7 +411,13 @@ même chaîne — il n'existe pas d'ordres mixtes au sein d'une armée.
   attaques, même si son armée est délogée, sauf si elle a perdu un
   face-à-face ;
 - des attaques en cercle (A vers B, B vers C, C vers A) réussissent toutes
-  si rien d'autre ne s'y oppose.
+  si rien d'autre ne s'y oppose ;
+- une jonction ou une dispersion dont l'**origine** subit une attaque —
+  alliée, ennemie, ou même une attaque à force nulle faute de vivres — est
+  **annulée d'office** : aucune de ses troupes ne part, que cette attaque
+  gagne ou perde le combat sur cette case. Il n'y a plus de fuite par
+  jonction ou dispersion : quitter une case attaquée demande de survivre au
+  combat qui s'y joue.
 
 C'est exactement le calcul déroulé en section 3 : 3 contre 2, sans égalité,
 Hugues l'emporte.

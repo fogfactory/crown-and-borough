@@ -378,6 +378,8 @@ const englishMessages = {
   'reports.reason.join_enemy_convergence':
     'The join destination has an enemy convergence.',
   'reports.reason.attacked_destination': 'The join destination was attacked.',
+  'reports.reason.attacked_origin':
+    'The join or dispersal origin was under attack: the order was cancelled.',
   'reports.reason.join_host': 'The army joined its host.',
   'reports.reason.join_pair': 'The armies joined.',
   'reports.reason.disperse_friendly_fusion': 'Friendly dispersal arrivals fused.',
@@ -973,6 +975,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.reason.join_enemy_convergence':
     'La destination de jonction a une convergence ennemie.',
   'reports.reason.attacked_destination': 'La destination de jonction a été attaquée.',
+  'reports.reason.attacked_origin':
+    "L'origine de la jonction ou dispersion était attaquée : l'ordre est annulé.",
   'reports.reason.join_host': "L'armée a rejoint son hôte.",
   'reports.reason.join_pair': 'Les armées ont fusionné.',
   'reports.reason.disperse_friendly_fusion':

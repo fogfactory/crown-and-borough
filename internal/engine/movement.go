@@ -124,7 +124,7 @@ func (ctx *resolutionContext) disperseCandidates(invalid map[models.ArmyID]strin
 		for index, targetID := range intent.targets {
 			attacked := ctx.facts.attacked(targetID)
 			alliedArrival := attacked && ctx.alliedAttackArrival(targetID, ownerID)
-			candidate[index] = !ctx.heldPeaceful[intent.armyID] && (!attacked || alliedArrival)
+			candidate[index] = !attacked || alliedArrival
 			if candidate[index] && targetID != intent.source && !alliedArrival {
 				if occupant := ctx.startArmyAt(targetID); occupant != nil && !ctx.vacatesForDisperse(occupant.ID) {
 					_, occupantJoins := ctx.joins[occupant.ID]
@@ -189,10 +189,6 @@ func resolveJoins(ctx *resolutionContext) {
 	for _, armyID := range sortedArmyMap(ctx.joins) {
 		record := ctx.records[armyID]
 		if record == nil || record.outcome != "" {
-			continue
-		}
-		if ctx.heldPeaceful[armyID] {
-			record.fail("attacked_destination")
 			continue
 		}
 		join := ctx.joins[armyID]
@@ -282,7 +278,7 @@ func resolveVacatedDisperseDestinations(ctx *resolutionContext) {
 		changed := false
 		for _, armyID := range sortedArmyMap(ctx.disperseResults) {
 			result := ctx.disperseResults[armyID]
-			if result.invalid || ctx.heldPeaceful[result.intent.armyID] {
+			if result.invalid {
 				continue
 			}
 			available := result.remaining

@@ -99,6 +99,7 @@ const REASON_KEYS: Record<string, MessageKey> = {
   join_convergence: 'reports.reason.join_convergence',
   join_enemy_convergence: 'reports.reason.join_enemy_convergence',
   attacked_destination: 'reports.reason.attacked_destination',
+  attacked_origin: 'reports.reason.attacked_origin',
   join_host: 'reports.reason.join_host',
   join_pair: 'reports.reason.join_pair',
   disperse_friendly_fusion: 'reports.reason.disperse_friendly_fusion',

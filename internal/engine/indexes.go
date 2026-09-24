@@ -37,10 +37,10 @@ type resolutionContext struct {
 	attackedTerritories map[models.TerritoryID]bool
 	contest             contestState
 	facts               combatFacts
-	// heldPeaceful marks the armies whose join or dispersion belongs to an
-	// adjudication paradox: they keep the status quo and none of their
-	// troops leaves.
-	heldPeaceful        map[models.ArmyID]bool
+	// cancelledPeaceful marks the armies whose join or dispersion is cancelled
+	// because an attack targets its origin: they keep the status quo and none
+	// of their troops leaves.
+	cancelledPeaceful   map[models.ArmyID]bool
 	dislodged           map[models.ArmyID]*dislodgedArmy
 	events              []Event
 	deckIntents         []deckOrderIntent
@@ -77,7 +77,7 @@ func newResolutionContext(state *models.GameState, balance assetgen.Balance) *re
 		joinResults:          make(map[models.ArmyID]*joinResolution),
 		attackedTerritories:  make(map[models.TerritoryID]bool),
 		dislodged:            make(map[models.ArmyID]*dislodgedArmy),
-		heldPeaceful:         make(map[models.ArmyID]bool),
+		cancelledPeaceful:    make(map[models.ArmyID]bool),
 		badWeatherRegions:    make(map[models.TerritoryID]bool),
 		famineRegions:        make(map[models.TerritoryID]bool),
 		supplyRations:        make(map[models.TerritoryID]rationProductionParts),

@@ -63,7 +63,7 @@ func TestResolveAttackEntersDestinationFreedByHeadToHeadWinner(t *testing.T) {
 	}
 }
 
-func TestResolveParadoxCancelsPeacefulMovements(t *testing.T) {
+func TestResolveCancelsPeacefulCrossingAttackedOrigins(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
 			territory("TAA", "TAA", "TBB", "THH"),
@@ -80,10 +80,11 @@ func TestResolveParadoxCancelsPeacefulMovements(t *testing.T) {
 	addNoble(state, "N1", "ONE", "P2", "TAA")
 	addNoble(state, "N2", "TWO", "P3", "TBB")
 	addNoble(state, "N3", "THR", "P2", "THH")
-	// If A1 stays, A3 only attacks an ally, so the crossing joins go through
-	// and A1 leaves; if A1 leaves, A3 contests TAA, A2's join is turned back
-	// and so is A1's. No resolution is consistent: the joins are cancelled,
-	// and A3 then only attacks its ally A1, which stays.
+	// TAA is under attack from A3, so A1's join out of it is cancelled
+	// outright and it stays. A2's join is not cancelled, since TBB is not
+	// attacked, but TAA is now held by A1, an enemy to A2, so it is turned
+	// back. A3 only attacks its ally A1, which stays, so its own attack is
+	// deferred as allied_destination.
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeJoin, PositionID: "TAA", TargetIDs: []models.TerritoryID{"TBB"}})
 	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeJoin, PositionID: "TBB", TargetIDs: []models.TerritoryID{"TAA"}})
 	addChain(t, state, "A3", "N3", models.Order{Type: models.OrderTypeAttack, PositionID: "THH", TargetIDs: []models.TerritoryID{"TAA"}})
@@ -98,8 +99,8 @@ func TestResolveParadoxCancelsPeacefulMovements(t *testing.T) {
 		territoryID models.TerritoryID
 		reason      string
 	}{
-		{"A1", "TAA", "attacked_destination"},
-		{"A2", "TBB", "attacked_destination"},
+		{"A1", "TAA", "attacked_origin"},
+		{"A2", "TBB", "enemy_destination"},
 		{"A3", "THH", "allied_destination"},
 	} {
 		if army := armyByID(t, resolution.State, want.armyID); army.TerritoryID != want.territoryID {
@@ -172,8 +173,8 @@ func TestResolveJoinCrossesAttack(t *testing.T) {
 	keepTestArmiesSupplied(state)
 	addNoble(state, "N1", "ONE", "P1", "TAA")
 	addNoble(state, "N2", "TWO", "P2", "TBB")
-	// The join succeeds if the attack leaves TBB, and the attack meets no
-	// defender if the join leaves TAA: as a circular movement, both succeed.
+	// TAA is under attack from A2, so A1's join out of it is cancelled
+	// outright: it stays, and its presence now defends TAA against A2.
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeJoin, PositionID: "TAA", TargetIDs: []models.TerritoryID{"TBB"}})
 	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "TBB", TargetIDs: []models.TerritoryID{"TAA"}})
 	validateTestState(t, state)
@@ -182,14 +183,17 @@ func TestResolveJoinCrossesAttack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "TBB" {
-		t.Errorf("A1 = %+v, want TBB", army)
+	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "TAA" {
+		t.Errorf("A1 = %+v, want TAA", army)
 	}
-	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "TAA" {
-		t.Errorf("A2 = %+v, want TAA", army)
+	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "TBB" {
+		t.Errorf("A2 = %+v, want TBB", army)
 	}
-	if event, found := outcomeForArmy(resolution.Events, "A1"); !found || event.Reason != "join_move" {
-		t.Errorf("A1 outcome = %#v, found=%t, want join_move", event, found)
+	if event, found := outcomeForArmy(resolution.Events, "A1"); !found || event.Reason != "attacked_origin" {
+		t.Errorf("A1 outcome = %#v, found=%t, want attacked_origin", event, found)
+	}
+	if event, found := outcomeForArmy(resolution.Events, "A2"); !found || event.Reason != "combat_lost" {
+		t.Errorf("A2 outcome = %#v, found=%t, want combat_lost", event, found)
 	}
 }
 
@@ -240,24 +244,27 @@ func TestResolveDisperseFusesWithWinnerWhileEnemyDisperses(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
 			territory("TAA", "TAA", "TBB"),
-			territory("TBB", "TBB", "TAA", "TCC", "TGG"),
+			territory("TBB", "TBB", "TAA", "TCC"),
 			territory("TCC", "TCC", "TBB"),
-			territory("TGG", "TGG", "TBB"),
+			territory("TEE", "TEE", "TGG"),
+			territory("TGG", "TGG", "TEE"),
 		},
 		[]models.Army{
 			{ID: "A1", OwnerID: "P3", TerritoryID: "TAA", Size: 1},
-			{ID: "A2", OwnerID: "P2", TerritoryID: "TBB", Size: 1},
+			{ID: "A2", OwnerID: "P2", TerritoryID: "TEE", Size: 1},
 			{ID: "A3", OwnerID: "P3", TerritoryID: "TCC", Size: 2},
 		},
 	)
 	keepTestArmiesSupplied(state)
 	addNoble(state, "N1", "ONE", "P3", "TAA")
-	addNoble(state, "N2", "TWO", "P2", "TBB")
+	addNoble(state, "N2", "TWO", "P2", "TEE")
 	addNoble(state, "N3", "THR", "P3", "TCC")
-	// A2 disperses out of TBB, A3 takes it, and A1's troop joins A3 there
-	// although A2's own dispersion is applied after A1's.
+	// TBB is empty, so A3's attack wins it uncontested and A1's dispersion
+	// arrives there as an allied join would, fusing with the winner. A2, an
+	// unrelated enemy, disperses at the same time from an origin under no
+	// attack at all, unaffected by TBB's combat.
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeDisperse, PositionID: "TAA", TargetIDs: []models.TerritoryID{"TBB"}, NobleAssignments: map[models.TerritoryID][]models.NobleCode{"TBB": {"*"}}})
-	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeDisperse, PositionID: "TBB", TargetIDs: []models.TerritoryID{"TGG"}, NobleAssignments: map[models.TerritoryID][]models.NobleCode{"TGG": {"*"}}})
+	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeDisperse, PositionID: "TEE", TargetIDs: []models.TerritoryID{"TGG"}, NobleAssignments: map[models.TerritoryID][]models.NobleCode{"TGG": {"*"}}})
 	addChain(t, state, "A3", "N3", models.Order{Type: models.OrderTypeAttack, PositionID: "TCC", TargetIDs: []models.TerritoryID{"TBB"}})
 	validateTestState(t, state)
 
