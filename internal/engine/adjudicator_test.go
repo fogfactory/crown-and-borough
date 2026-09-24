@@ -63,7 +63,7 @@ func TestResolveAttackEntersDestinationFreedByHeadToHeadWinner(t *testing.T) {
 	}
 }
 
-func TestResolveParadoxKeepsStatusQuo(t *testing.T) {
+func TestResolveParadoxCancelsPeacefulMovements(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
 			territory("TAA", "TAA", "TBB", "THH"),
@@ -82,7 +82,8 @@ func TestResolveParadoxKeepsStatusQuo(t *testing.T) {
 	addNoble(state, "N3", "THR", "P2", "THH")
 	// If A1 stays, A3 only attacks an ally, so the crossing joins go through
 	// and A1 leaves; if A1 leaves, A3 contests TAA, A2's join is turned back
-	// and so is A1's. No resolution is consistent: nothing moves.
+	// and so is A1's. No resolution is consistent: the joins are cancelled,
+	// and A3 then only attacks its ally A1, which stays.
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeJoin, PositionID: "TAA", TargetIDs: []models.TerritoryID{"TBB"}})
 	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeJoin, PositionID: "TBB", TargetIDs: []models.TerritoryID{"TAA"}})
 	addChain(t, state, "A3", "N3", models.Order{Type: models.OrderTypeAttack, PositionID: "THH", TargetIDs: []models.TerritoryID{"TAA"}})

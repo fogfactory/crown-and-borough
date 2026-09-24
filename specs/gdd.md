@@ -293,8 +293,8 @@ Les règles de combat sont les suivantes :
 - lorsque des ordres dépendent les uns des autres en cycle, les mouvements
   réussissent dès qu'une résolution cohérente avec ces règles le permet
   (mouvement circulaire) ; si aucune résolution n'est cohérente (paradoxe), les
-  attaques, jonctions et dispersions du cycle échouent et aucune troupe ne
-  quitte son origine : statu quo.
+  jonctions et dispersions du cycle sont annulées, aucune de leurs troupes ne
+  quittant son origine, et les attaques du cycle sont résolues sans elles.
 
 ### Ravitaillement exponentiel
 

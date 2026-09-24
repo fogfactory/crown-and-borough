@@ -416,9 +416,12 @@ découpé en composantes fortement connexes (Tarjan), résolues dans l'ordre
 topologique. Un cycle est résolu par recherche en profondeur : chaque ordre,
 dans un ordre fixe, réussit dès qu'une résolution cohérente le permet, ce qui
 généralise le mouvement circulaire de Diplomacy (rotation, jonction croisant
-une attaque). Un cycle sans résolution cohérente (paradoxe) garde le statu
-quo : aucune de ses attaques ni aucun de ses départs ne réussit. La résolution
-termine toujours, sans plafond d'itérations.
+une attaque). Un cycle sans résolution cohérente (paradoxe) voit ses
+jonctions et dispersions annulées, puis ses attaques recherchées à nouveau
+sans elles ; les combats ne dépendent alors plus d'aucun mouvement pacifique,
+ce qui ne laisse que des mouvements circulaires, et le statu quo des attaques
+n'est qu'un dernier recours. La résolution termine toujours, sans plafond
+d'itérations.
 
 Le corpus `internal/engine/testdata/adjudication_corpus.golden` fige le
 résultat complet de deux tours consécutifs sur 10 000 plateaux aléatoires ;

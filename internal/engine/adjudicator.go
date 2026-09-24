@@ -31,8 +31,12 @@ import (
 //     order, succeeds whenever some consistent resolution allows it. A
 //     circular movement, such as a rotation of attacks or a join crossing an
 //     attack, therefore succeeds, as in Diplomacy.
-//  4. A cycle that has no consistent resolution is a paradox and keeps the
-//     status quo: none of its attacks and departures succeeds.
+//  4. A cycle that has no consistent resolution is a paradox: its joins and
+//     dispersions are cancelled, none of their troops leaving, and its
+//     attacks are then searched again without them. Combat no longer
+//     depends on any peaceful movement then, which leaves only Diplomacy's
+//     circular movements; should that search fail too, the attacks keep the
+//     status quo.
 //
 // Components are finite, each is settled once, and the search of a cycle
 // visits each assignment of its attacks and departures at most once, so
@@ -236,21 +240,42 @@ func (adj *adjudicator) dependencies(d decision) []decision {
 // dislodgements follow from them; every decision is checked as soon as all
 // the decisions it reads are fixed. The first consistent resolution found is
 // the one that lets each order succeed, in turn, whenever some consistent
-// resolution allows it. When there is none, the cycle is a paradox and keeps
-// the status quo.
+// resolution allows it. When there is none, the cycle is a paradox: its joins
+// and dispersions are cancelled and the rest of the cycle is searched again.
 func (adj *adjudicator) solve(component []decision) {
 	if len(component) == 1 && !adj.readsItself(component[0]) {
 		adj.settled[component[0]] = adj.adjudicate(component[0])
 		return
 	}
-	search := adj.newCycleSearch(component)
-	if !search.run(0) {
-		adj.statusQuo(component)
+	if !adj.newCycleSearch(component).run(0) {
+		remaining := adj.cancelPeaceful(component)
+		if len(remaining) != 0 && (len(remaining) == len(component) || !adj.newCycleSearch(remaining).run(0)) {
+			adj.statusQuo(remaining)
+		}
 	}
 	for _, d := range component {
-		adj.settled[d] = adj.assigned[d]
-		delete(adj.assigned, d)
+		if value, assigned := adj.assigned[d]; assigned {
+			adj.settled[d] = value
+			delete(adj.assigned, d)
+		}
 	}
+}
+
+// cancelPeaceful resolves a paradox's joins and dispersions: they fail and
+// none of their troops leaves. It returns the other decisions of the cycle,
+// cleared for a new search.
+func (adj *adjudicator) cancelPeaceful(component []decision) []decision {
+	var remaining []decision
+	for _, d := range component {
+		delete(adj.assigned, d)
+		if d.kind == decisionDeparture {
+			adj.ctx.heldPeaceful[d.armyID] = true
+			adj.settled[d] = false
+			continue
+		}
+		remaining = append(remaining, d)
+	}
+	return remaining
 }
 
 // cycleSearch is the depth-first search of a cycle's resolution. Attacks and
@@ -337,14 +362,11 @@ func (search *cycleSearch) undo(fixed int) {
 	}
 }
 
-// statusQuo resolves a paradox: none of the component's attacks and
-// departures succeeds, the joins and dispersions involved send no troops, and
-// the dislodgements follow from that.
+// statusQuo resolves a cycle of attacks that has no consistent resolution
+// even without peaceful movements: none of its attacks succeeds, and the
+// dislodgements follow from that.
 func (adj *adjudicator) statusQuo(component []decision) {
 	for _, d := range component {
-		if d.kind == decisionDeparture {
-			adj.ctx.heldPeaceful[d.armyID] = true
-		}
 		if d.kind != decisionDislodged {
 			adj.assigned[d] = false
 		}

@@ -8,8 +8,9 @@
 #                      listed in the combat's cut supporters; the previous
 #                      adjudicator listed it only when the turn resolved in a
 #                      single iteration.
-# paradox              No resolution satisfies the rules: the cycle keeps the
-#                      status quo. The previous adjudicator kept a
+# paradox              No resolution satisfies the rules: the cycle's joins and
+#                      dispersions are cancelled and its attacks resolved
+#                      without them. The previous adjudicator kept a
 #                      dislodgement or a failure from an earlier iteration.
 # legacy_inconsistent  The previous result violated the rules: an attack
 #                      turned back before a head-to-head loser stopped
@@ -177,7 +178,7 @@
 4691 allied_attack_dispersion 4964ecfb c4b43077
 4735 allied_attack_dispersion e8b76a65 e11de7fc
 4758 allied_attack_dispersion 8c85121a afd3c603
-4781 paradox b08d759a be58e4fc
+4781 paradox b29d6736 736e145f
 4801 legacy_inconsistent+allied_attack_dispersion 5d35ce8d 4ceb547e
 4804 allied_attack_dispersion ab7d27de 16895ae3
 4809 allied_attack_dispersion e342f7a5 18048a4e
