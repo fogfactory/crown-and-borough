@@ -553,6 +553,7 @@ func gameDocumentFromSnapshot(snapshot store.GameSnapshot, createdAt, updatedAt 
 		Scores:        scoreDocuments(snapshot.Scores),
 		WinnerUID:     winner,
 		SubmittedUIDs: sortedSubmittedUIDs(snapshot.Submissions, snapshot.Players),
+		RequiredUIDs:  sortedRequiredUIDs(snapshot.State, snapshot.Players),
 		Revision:      int64(snapshot.Revision),
 		CreatedAt:     createdAt,
 		UpdatedAt:     updatedAt,
@@ -608,6 +609,22 @@ func sortedSubmittedUIDs(submissions map[models.PlayerID]engine.OrdersInput, pla
 	result := make([]string, 0, len(submissions))
 	for _, player := range players {
 		if _, ok := submissions[player.ID]; ok && store.IsAssignedActor(player.ActorID) {
+			result = append(result, player.ActorID)
+		}
+	}
+	sort.Strings(result)
+	return result
+}
+
+// sortedRequiredUIDs lists the actor UIDs of players the current turn is
+// waiting on (see engine.PlayerMustSubmit), independent of whether they have
+// already submitted. It is recomputed at every turn boundary (game creation,
+// resolution) and stored on the game document so realtime listeners can tell
+// a player with nothing to submit from one still being awaited.
+func sortedRequiredUIDs(state *models.GameState, players []store.PlayerSlot) []string {
+	result := make([]string, 0, len(players))
+	for _, player := range players {
+		if engine.PlayerMustSubmit(state, player.ID) && store.IsAssignedActor(player.ActorID) {
 			result = append(result, player.ActorID)
 		}
 	}

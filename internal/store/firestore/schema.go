@@ -41,6 +41,7 @@ type gameDocument struct {
 	Scores        map[string]engine.ScoreBreakdown `firestore:"scores"`
 	WinnerUID     string                           `firestore:"winnerUid,omitempty"`
 	SubmittedUIDs []string                         `firestore:"submittedUids"`
+	RequiredUIDs  []string                         `firestore:"requiredUids"`
 	Revision      int64                            `firestore:"revision"`
 	CreatedAt     time.Time                        `firestore:"createdAt"`
 	UpdatedAt     time.Time                        `firestore:"updatedAt"`

@@ -630,6 +630,7 @@ export function GamePage() {
     setSummaryFromAPI((current) => {
       if (!current) return current
       const submitted = new Set(response.submitted)
+      const remaining = new Set(response.remaining)
       return {
         ...current,
         turn: nextState.turn,
@@ -641,6 +642,9 @@ export function GamePage() {
         players: current.players.map((player) => ({
           ...player,
           submitted: submitted.has(player.id),
+          // A player absent from both lists has nothing left to submit this
+          // turn (see turn.Progress on the server).
+          required: submitted.has(player.id) || remaining.has(player.id),
         })),
       }
     })
@@ -844,7 +848,7 @@ export function GamePage() {
           <HeaderPopover
             label={t('online.lobby')}
             icon={<IconUsersGroup aria-hidden="true" className="size-4" />}
-            hint={`${summary.players.filter((player) => player.submitted).length}/${summary.players.length}`}
+            hint={`${summary.players.filter((player) => player.required && player.submitted).length}/${summary.players.filter((player) => player.required).length}`}
           >
             <Lobby
               summary={summary}
@@ -862,6 +866,7 @@ export function GamePage() {
               name: player.name || player.id,
               color: player.color,
               submitted: player.submitted,
+              required: player.required,
               isYou: player.id === playerID,
             }))}
           />

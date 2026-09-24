@@ -177,3 +177,36 @@ func TestProgressFromUIDsMapsSubmittedMembersToPlayers(t *testing.T) {
 		t.Fatalf("winter progress = submitted %v remaining %v, want [P1] and [P2]", submitted, remaining)
 	}
 }
+
+func TestGameDocumentTracksRequiredPlayers(t *testing.T) {
+	state := &models.GameState{
+		Season:  models.SeasonSpring,
+		Players: []models.Player{{ID: "P1"}, {ID: "P2"}},
+		Armies: []models.Army{
+			{ID: "A1", OwnerID: "P1", Size: 1},
+			{ID: "A2", OwnerID: "P2", Size: 1},
+		},
+		Nobles: []models.Noble{
+			{ID: "N1", OwnerID: "P1", Status: models.NobleStatusFree},
+			{ID: "N2", OwnerID: "P2", Status: models.NobleStatusDungeon},
+		},
+	}
+	snapshot := store.GameSnapshot{
+		ID:    "game-required",
+		State: state,
+		Players: []store.PlayerSlot{
+			{ID: "P1", ActorID: "uid-1"},
+			{ID: "P2", ActorID: "uid-2"},
+		},
+	}
+	document := gameDocumentFromSnapshot(snapshot, time.Now(), time.Now())
+	if !reflect.DeepEqual(document.RequiredUIDs, []string{"uid-1"}) {
+		t.Fatalf("required UIDs = %v, want [uid-1]: P2's only noble is in the dungeon and has nothing else to submit", document.RequiredUIDs)
+	}
+
+	state.Season = models.SeasonWinter
+	document = gameDocumentFromSnapshot(snapshot, time.Now(), time.Now())
+	if !reflect.DeepEqual(document.RequiredUIDs, []string{"uid-1", "uid-2"}) {
+		t.Fatalf("winter required UIDs = %v, want both players since winter always awaits everyone alive", document.RequiredUIDs)
+	}
+}

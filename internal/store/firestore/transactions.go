@@ -482,6 +482,7 @@ func (s *FirestoreStore) commitResolution(ctx context.Context, claim resolutionC
 		game.Scores = scoreDocuments(engine.ComputeScores(report.State))
 		game.Revision = canonical.Revision
 		game.SubmittedUIDs = []string{}
+		game.RequiredUIDs = sortedRequiredUIDs(report.State, playerSlots(game.Players))
 		game.UpdatedAt = updatedAt
 		game.Status, game.WinnerUID = statusForState(report.State)
 		rawReport := reportDocument{

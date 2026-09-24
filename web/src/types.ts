@@ -64,6 +64,10 @@ export interface GameSlot {
   name: string
   color: string
   submitted: boolean
+  /** Whether the current turn is still awaiting this player, per the server
+   * (an eliminated player, or one with nothing left to submit this turn, is
+   * never required even before they act). */
+  required: boolean
   actorId?: string
 }
 

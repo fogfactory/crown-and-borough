@@ -436,6 +436,32 @@ func createGameHTTP(t *testing.T, handler http.Handler, actor, body string) game
 	return game
 }
 
+func TestPlayerSlotViewMarksPlayersWithNothingToSubmitAsNotRequired(t *testing.T) {
+	state := &models.GameState{
+		Season:  models.SeasonSpring,
+		Players: []models.Player{{ID: "P1"}, {ID: "P2"}},
+		Armies: []models.Army{
+			{ID: "A1", OwnerID: "P1", Size: 1},
+			{ID: "A2", OwnerID: "P2", Size: 1},
+		},
+		Nobles: []models.Noble{
+			{ID: "N1", OwnerID: "P1", Status: models.NobleStatusFree},
+			{ID: "N2", OwnerID: "P2", Status: models.NobleStatusDungeon},
+		},
+	}
+	snapshot := store.GameSnapshot{
+		State: state,
+		Players: []store.PlayerSlot{
+			{ID: "P1", Name: "One"},
+			{ID: "P2", Name: "Two"},
+		},
+	}
+	views := makePlayerSlotViews(snapshot)
+	if len(views) != 2 || !views[0].Required || views[1].Required {
+		t.Fatalf("views = %#v, want P1 required and P2 not (dungeoned noble, nothing else to submit)", views)
+	}
+}
+
 func requestGames(t *testing.T, handler http.Handler, method, path, body string) *httptest.ResponseRecorder {
 	t.Helper()
 	return requestGamesWithHeaders(t, handler, method, path, body, nil)

@@ -104,6 +104,14 @@ function slotsFromData(data: DocumentData, currentUID?: string): GameSlot[] {
       ? data.submitted.filter((value): value is string => typeof value === 'string')
       : [],
   )
+  // requiredUids is absent on documents written before this field existed;
+  // treat that as "required" (the prior, safe default) rather than hiding a
+  // player who may genuinely still be awaited.
+  const requiredUIDs = Array.isArray(data.requiredUids)
+    ? new Set(
+        data.requiredUids.filter((value): value is string => typeof value === 'string'),
+      )
+    : null
   if (!Array.isArray(data.players)) return []
 
   return data.players.flatMap((value): GameSlot[] => {
@@ -123,6 +131,10 @@ function slotsFromData(data: DocumentData, currentUID?: string): GameSlot[] {
           player.submitted === true ||
           submittedUIDs.has(actorId ?? '') ||
           submittedPlayerIDs.has(id),
+        required:
+          typeof player.required === 'boolean'
+            ? player.required
+            : (requiredUIDs?.has(actorId ?? '') ?? true),
       },
     ]
   })
