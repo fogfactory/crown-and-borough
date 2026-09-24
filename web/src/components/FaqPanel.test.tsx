@@ -20,7 +20,12 @@ describe('FaqPanel', () => {
     expect(
       screen.getByText(/Une dispersion est un partage pacifique/),
     ).toBeInTheDocument()
-    expect(container.querySelectorAll('details')).toHaveLength(9)
+    expect(screen.getByText(/Où va mon armée vaincue/)).toBeInTheDocument()
+    expect(screen.getByText(/Comment fonctionne un transfert/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/Comment les cartes spéciales et les calamités/),
+    ).toBeInTheDocument()
+    expect(container.querySelectorAll('details')).toHaveLength(12)
   })
 
   it('renders the English tactical FAQ', () => {
@@ -38,6 +43,11 @@ describe('FaqPanel', () => {
     expect(
       screen.getByText(/A dispersal is peaceful strength-0 splitting/),
     ).toBeInTheDocument()
-    expect(container.querySelectorAll('details')).toHaveLength(9)
+    expect(screen.getByText(/Where does my defeated army retreat/)).toBeInTheDocument()
+    expect(screen.getByText(/How does a resource transfer/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/How do special cards and calamities apply/),
+    ).toBeInTheDocument()
+    expect(container.querySelectorAll('details')).toHaveLength(12)
   })
 })
