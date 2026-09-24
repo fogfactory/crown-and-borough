@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "hotseat",
+      "runtimeExecutable": "make",
+      "runtimeArgs": ["run-hotseat"],
+      "port": 8080
+    }
+  ]
+}
