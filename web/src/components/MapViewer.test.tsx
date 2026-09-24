@@ -406,6 +406,64 @@ describe('MapViewer territorial overlays', () => {
     expect(svg.querySelector('[data-region-effect-kind="famine"]')).toBeInTheDocument()
   })
 
+  it('renders one uniquely keyed band per stretch when a region touches the edge twice', () => {
+    // ROS | BRU | CAL side by side: the ROS+CAL region meets the map edge in
+    // two separate stretches, split by BRU's top and bottom edges.
+    const stripMap: MapData = {
+      territories: [
+        ...map.territories.map((territory) => ({ ...territory, village: true })),
+        {
+          id: 'CAL',
+          name: 'Calanques',
+          terrain: 'plain',
+          village: true,
+          points: [
+            [100, 0],
+            [150, 0],
+            [150, 50],
+            [100, 50],
+          ],
+          adjacencies: ['BRU'],
+          impassable: [],
+        },
+      ],
+      regions: [
+        { id: 'RROS', seed: 'ROS', territories: ['ROS', 'CAL'] },
+        { id: 'RBRU', seed: 'BRU', territories: ['BRU'] },
+      ],
+    }
+    const stripState: StateData = {
+      ...state,
+      territories: [
+        ...state.territories,
+        { id: 'CAL', owner: 'P1', resources: 0, army: null, infrastructures: [] },
+      ],
+    }
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { svg } = renderMap(
+        stripMap,
+        stripState,
+        vi.fn(),
+        null,
+        [],
+        true,
+        '#a84632',
+        true,
+      )
+
+      expect(svg.querySelectorAll('[data-region-band="RROS"]').length).toBe(2)
+      expect(svg.querySelectorAll('[data-region-label="RROS"]').length).toBe(2)
+      expect(svg.querySelectorAll('[data-region-band="RBRU"]').length).toBe(2)
+      const duplicateKeyWarnings = consoleError.mock.calls.filter((args) =>
+        args.some((arg) => String(arg).includes('same key')),
+      )
+      expect(duplicateKeyWarnings).toEqual([])
+    } finally {
+      consoleError.mockRestore()
+    }
+  })
+
   it('colors the chef-lieu territory label with its region color', () => {
     const regionMap: MapData = {
       ...map,

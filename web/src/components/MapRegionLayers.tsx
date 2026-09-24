@@ -39,9 +39,9 @@ export function RegionBands({
       pointerEvents="none"
       clipPath="url(#region-frame-clip)"
     >
-      {bands.map(({ regionId, piecePath }) => (
+      {bands.map(({ regionId, piecePath }, bandIndex) => (
         <path
-          key={`region-band-${regionId}-${bands.length}`}
+          key={`region-band-${regionId}-${bandIndex}`}
           data-region-band={regionId}
           d={piecePath}
           fill={regionStyleByID.get(regionId)?.fill ?? '#315a75'}
@@ -52,7 +52,7 @@ export function RegionBands({
           vectorEffect="non-scaling-stroke"
         />
       ))}
-      {bands.map(({ regionId, labelX, labelY, labelAngle, labelWidth }) => {
+      {bands.map(({ regionId, labelX, labelY, labelAngle, labelWidth }, bandIndex) => {
         const region = regionsById.get(regionId)
         const seedTerritory = region
           ? territories.find((territory) => territory.id === region.seed)
@@ -64,7 +64,7 @@ export function RegionBands({
         })
         return (
           <text
-            key={`region-band-label-${regionId}-${labelX.toFixed(1)}`}
+            key={`region-band-label-${regionId}-${bandIndex}`}
             data-region-label={regionId}
             transform={`translate(${labelX} ${labelY}) rotate(${labelAngle})`}
             fill="#fff8e7"
