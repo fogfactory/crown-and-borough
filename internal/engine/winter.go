@@ -701,7 +701,8 @@ func (ctx *resolutionContext) addWinterInfrastructure(infrastructureType models.
 	}
 	ctx.state.Infrastructures = append(ctx.state.Infrastructures, infrastructure)
 	state := ctx.state.TerritoryStates[territoryID]
-	state.Infrastructures = append(state.Infrastructures, infrastructure.ID)
+	infrastructureID := infrastructure.ID
+	state.Infrastructures = &infrastructureID
 	ctx.state.TerritoryStates[territoryID] = state
 	ctx.rebuildIndexes()
 	return ctx.infrastructuresByID[infrastructure.ID]

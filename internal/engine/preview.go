@@ -186,11 +186,8 @@ func winterPaymentReserves(game *models.GameState, playerID models.PlayerID) int
 		if territoryState.OwnerID == nil || *territoryState.OwnerID != playerID || territoryState.Resources <= 0 {
 			continue
 		}
-		for _, infrastructureID := range territoryState.Infrastructures {
-			if settlements[infrastructureID] {
-				total += territoryState.Resources
-				break
-			}
+		if territoryState.Infrastructures != nil && settlements[*territoryState.Infrastructures] {
+			total += territoryState.Resources
 		}
 	}
 	return total

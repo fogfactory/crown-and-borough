@@ -196,9 +196,7 @@ func CreateGameWithYears(seed string, players []PlayerInit, yearCount int, balan
 			Terrain:     generated.Terrain,
 			Adjacencies: adjacencies,
 		})
-		state.TerritoryStates[territoryID] = models.TerritoryState{
-			Infrastructures: []models.InfraID{},
-		}
+		state.TerritoryStates[territoryID] = models.TerritoryState{}
 		if generated.Village {
 			villageIDs = append(villageIDs, territoryID)
 		} else {
@@ -273,7 +271,8 @@ func CreateGameWithYears(seed string, players []PlayerInit, yearCount int, balan
 		nextInfrastructureID++
 		state.Infrastructures = append(state.Infrastructures, infrastructure)
 		territoryState = state.TerritoryStates[startID]
-		territoryState.Infrastructures = append(territoryState.Infrastructures, infrastructure.ID)
+		capitalInfraID := infrastructure.ID
+		territoryState.Infrastructures = &capitalInfraID
 		state.TerritoryStates[startID] = territoryState
 		capitalID := infrastructure.ID
 		player.CapitalCastleID = &capitalID
@@ -307,7 +306,8 @@ func CreateGameWithYears(seed string, players []PlayerInit, yearCount int, balan
 		nextInfrastructureID++
 		state.Infrastructures = append(state.Infrastructures, infrastructure)
 		territoryState := state.TerritoryStates[territoryID]
-		territoryState.Infrastructures = append(territoryState.Infrastructures, infrastructure.ID)
+		villageInfraID := infrastructure.ID
+		territoryState.Infrastructures = &villageInfraID
 		state.TerritoryStates[territoryID] = territoryState
 	}
 

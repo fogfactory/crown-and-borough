@@ -62,7 +62,7 @@ func testState(t *testing.T, territories []models.Territory, armies []models.Arm
 	state.Armies = append([]models.Army(nil), armies...)
 	state.TerritoryStates = make(map[models.TerritoryID]models.TerritoryState, len(territories))
 	for _, territory := range territories {
-		state.TerritoryStates[territory.ID] = models.TerritoryState{Infrastructures: []models.InfraID{}}
+		state.TerritoryStates[territory.ID] = models.TerritoryState{}
 	}
 	for _, army := range armies {
 		territoryState := state.TerritoryStates[army.TerritoryID]
@@ -80,7 +80,7 @@ func keepTestArmiesSupplied(state *models.GameState) {
 	balance := testBalance()
 	for _, army := range state.Armies {
 		territoryState := state.TerritoryStates[army.TerritoryID]
-		if len(territoryState.Infrastructures) != 0 {
+		if territoryState.Infrastructures != nil {
 			continue
 		}
 		infrastructureID := models.InfraID("S" + string(army.ID))
@@ -173,7 +173,8 @@ func findOutcome(events []Event, orderID models.OrderID) (Event, bool) {
 func addInfrastructure(state *models.GameState, infrastructure models.Infrastructure) {
 	state.Infrastructures = append(state.Infrastructures, infrastructure)
 	territoryState := state.TerritoryStates[infrastructure.TerritoryID]
-	territoryState.Infrastructures = append(territoryState.Infrastructures, infrastructure.ID)
+	infrastructureID := infrastructure.ID
+	territoryState.Infrastructures = &infrastructureID
 	state.TerritoryStates[infrastructure.TerritoryID] = territoryState
 }
 

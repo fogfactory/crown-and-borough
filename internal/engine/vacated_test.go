@@ -565,7 +565,7 @@ func TestResolveDisperseDepartureChangesOriginDefense(t *testing.T) {
 		addNoble(state, "N4", "FOU", "P1", "NOR")
 		setTerritoryOwner(state, "SVM", "P2")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "SVM"})
-		state.TerritoryStates["SVM"] = models.TerritoryState{OwnerID: state.TerritoryStates["SVM"].OwnerID, Infrastructures: []models.InfraID{"I1"}, Resources: 1, Army: state.TerritoryStates["SVM"].Army}
+		state.TerritoryStates["SVM"] = models.TerritoryState{OwnerID: state.TerritoryStates["SVM"].OwnerID, Infrastructures: infraPointer("I1"), Resources: 1, Army: state.TerritoryStates["SVM"].Army}
 		addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeDisperse, PositionID: "SVM", TargetIDs: []models.TerritoryID{"THE", "ATL"}, NobleAssignments: map[models.TerritoryID][]models.NobleCode{"THE": {"ONE"}}})
 		addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "BOM", TargetIDs: []models.TerritoryID{"SVM"}})
 		addChain(t, state, "A3", "N3", models.Order{Type: models.OrderTypeHold, PositionID: "ATL"})

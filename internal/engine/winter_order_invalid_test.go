@@ -46,7 +46,7 @@ func TestWinterOrderApplyRejectsInvalidCases(t *testing.T) {
 			setup: func(state *models.GameState) {
 				setTerritoryOwner(state, "AAA", "P1")
 				state.Armies = append(state.Armies, models.Army{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1})
-				state.TerritoryStates["AAA"] = models.TerritoryState{OwnerID: playerPointer("P1"), Army: armyPointer("A1"), Resources: 0, Infrastructures: []models.InfraID{"I1"}}
+				state.TerritoryStates["AAA"] = models.TerritoryState{OwnerID: playerPointer("P1"), Army: armyPointer("A1"), Resources: 0, Infrastructures: infraPointer("I1")}
 				addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA"})
 			},
 			wantReason: "insufficient_resources",
@@ -63,7 +63,7 @@ func TestWinterOrderApplyRejectsInvalidCases(t *testing.T) {
 			setup: func(state *models.GameState) {
 				setTerritoryOwner(state, "AAA", "P1")
 				state.Armies = []models.Army{{ID: "A1", OwnerID: "P2", TerritoryID: "AAA", Size: 1}}
-				state.TerritoryStates["AAA"] = models.TerritoryState{OwnerID: playerPointer("P1"), Army: armyPointer("A1"), Resources: 1, Infrastructures: []models.InfraID{"I1"}}
+				state.TerritoryStates["AAA"] = models.TerritoryState{OwnerID: playerPointer("P1"), Army: armyPointer("A1"), Resources: 1, Infrastructures: infraPointer("I1")}
 				addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA"})
 				addNoble(state, "N1", "ONE", "P1", "AAA")
 			},
@@ -75,7 +75,7 @@ func TestWinterOrderApplyRejectsInvalidCases(t *testing.T) {
 			setup: func(state *models.GameState) {
 				controlledArmyAndSettlement(state)
 				addNoble(state, "N1", "ONE", "P1", "AAA")
-				state.TerritoryStates["AAA"] = models.TerritoryState{OwnerID: playerPointer("P1"), Army: armyPointer("A1"), Resources: 0, Infrastructures: []models.InfraID{"I1"}}
+				state.TerritoryStates["AAA"] = models.TerritoryState{OwnerID: playerPointer("P1"), Army: armyPointer("A1"), Resources: 0, Infrastructures: infraPointer("I1")}
 			},
 			wantReason: "insufficient_resources",
 		},
@@ -204,7 +204,7 @@ func controlledSettlement(state *models.GameState) {
 func controlledArmyAndSettlement(state *models.GameState) {
 	controlledSettlement(state)
 	state.Armies = []models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}}
-	state.TerritoryStates["AAA"] = models.TerritoryState{OwnerID: playerPointer("P1"), Army: armyPointer("A1"), Resources: 10, Infrastructures: []models.InfraID{"I1"}}
+	state.TerritoryStates["AAA"] = models.TerritoryState{OwnerID: playerPointer("P1"), Army: armyPointer("A1"), Resources: 10, Infrastructures: infraPointer("I1")}
 }
 
 func holderArmy(state *models.GameState) {
@@ -218,4 +218,8 @@ func playerPointer(playerID models.PlayerID) *models.PlayerID {
 
 func armyPointer(armyID models.ArmyID) *models.ArmyID {
 	return &armyID
+}
+
+func infraPointer(infraID models.InfraID) *models.InfraID {
+	return &infraID
 }

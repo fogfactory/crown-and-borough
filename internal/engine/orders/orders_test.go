@@ -622,11 +622,11 @@ func orderTestState() *models.GameState {
 		{ID: "N4", Code: "CAL", Name: "Calixte", OwnerID: p2, LocationID: "BOI", Status: models.NobleStatusFree},
 	}
 	game.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
-		"ROS": {OwnerID: &p1, Army: &a1, Infrastructures: []models.InfraID{}},
-		"BOI": {OwnerID: &p2, Army: &a2, Infrastructures: []models.InfraID{}},
-		"BRU": {Infrastructures: []models.InfraID{}},
-		"FOU": {Infrastructures: []models.InfraID{}},
-		"CHA": {Infrastructures: []models.InfraID{}},
+		"ROS": {OwnerID: &p1, Army: &a1},
+		"BOI": {OwnerID: &p2, Army: &a2},
+		"BRU": {},
+		"FOU": {},
+		"CHA": {},
 	}
 	if err := game.Validate(); err != nil {
 		panic(err)

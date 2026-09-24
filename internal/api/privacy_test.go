@@ -373,8 +373,8 @@ func TestCombatParticipationSkipsNeutralOwner(t *testing.T) {
 	armyID := models.ArmyID("A1")
 	neutralID := models.ArmyID("A9")
 	after.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
-		"AAA": {Infrastructures: []models.InfraID{}, Army: &neutralID},
-		"BBB": {Infrastructures: []models.InfraID{}, Army: &armyID},
+		"AAA": {Army: &neutralID},
+		"BBB": {Army: &armyID},
 	}
 	if err := after.Validate(); err != nil {
 		t.Fatalf("state with revolt combat participation = %v, want a valid state", err)

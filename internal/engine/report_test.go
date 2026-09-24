@@ -143,9 +143,9 @@ func TestBuildTurnReportKeepsCompleteOrderSyntaxFromBeforeSnapshot(t *testing.T)
 	armyID := models.ArmyID("A1")
 	before.Armies = []models.Army{{ID: armyID, OwnerID: owner, TerritoryID: "ROS", Size: 2}}
 	before.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
-		"ROS": {OwnerID: &owner, Army: &armyID, Infrastructures: []models.InfraID{}},
-		"BRU": {Infrastructures: []models.InfraID{}},
-		"CHA": {Infrastructures: []models.InfraID{}},
+		"ROS": {OwnerID: &owner, Army: &armyID},
+		"BRU": {},
+		"CHA": {},
 	}
 	before.Nobles = []models.Noble{
 		{ID: "N1", Code: "JEA", Name: "Jean", OwnerID: owner, LocationID: "ROS", Status: models.NobleStatusFree},
@@ -209,7 +209,7 @@ func TestBuildTurnReportMarksWinterInvestmentOutcomes(t *testing.T) {
 	before.Players = []models.Player{{ID: "P1", Name: "One", Color: "red"}}
 	before.Territories = []models.Territory{{ID: "ROS", Name: "Rosemont", Terrain: models.TerrainPlain}}
 	before.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
-		"ROS": {Infrastructures: []models.InfraID{}},
+		"ROS": {},
 	}
 	rejectedOrder := &models.WinterOrder{
 		ID: "O1", Type: models.WinterOrderTypeBuild, TerritoryID: "AAA", InfraType: models.InfraTypeMill,
@@ -381,7 +381,7 @@ func TestBuildTurnReportDoesNotDuplicateAutomaticCapital(t *testing.T) {
 	before.Players = []models.Player{{ID: "P1", Name: "One"}, {ID: "P2", Name: "Two"}}
 	before.Territories = []models.Territory{{ID: "ROS", Name: "Rosemont", Terrain: models.TerrainPlain}}
 	before.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
-		"ROS": {Infrastructures: []models.InfraID{}},
+		"ROS": {},
 	}
 	report := BuildTurnReport(before, nil, []Event{
 		{
