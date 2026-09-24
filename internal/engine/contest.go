@@ -411,6 +411,13 @@ func (ctx *resolutionContext) applyContestOutcomes() {
 			record.fail("dislodged")
 			continue
 		}
+		if ctx.cancelledPeaceful[armyID] {
+			record.fail("attacked_origin")
+			if record.pendingDisperse {
+				ctx.clearPendingDisperse(record)
+			}
+			continue
+		}
 		attack := ctx.attacks[armyID]
 		if attack == nil {
 			continue

@@ -493,6 +493,8 @@ func TestResolveJoinDepartureVacatesOriginBeforeAttack(t *testing.T) {
 	)
 	addNoble(state, "N1", "ONE", "P2", "AAA")
 	addNoble(state, "N2", "TWO", "P1", "BBB")
+	// AAA is under attack from A2, so A1's join out of it is cancelled
+	// outright: it stays and defends AAA, and A2 bounces off it.
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeJoin, PositionID: "AAA", TargetIDs: []models.TerritoryID{"CCC"}})
 	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"AAA"}})
 	validateTestState(t, state)
@@ -501,19 +503,22 @@ func TestResolveJoinDepartureVacatesOriginBeforeAttack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "CCC" {
-		t.Errorf("A1 = %+v, want join destination CCC", army)
+	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "AAA" {
+		t.Errorf("A1 = %+v, want AAA, its join cancelled", army)
 	}
-	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "AAA" {
-		t.Errorf("A2 = %+v, want attack entry into freed AAA", army)
+	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "BBB" {
+		t.Errorf("A2 = %+v, want BBB, bounced off the defended AAA", army)
 	}
-	if event, found := outcomeForArmy(resolution.Events, "A1"); !found || event.Reason != "join_move" {
-		t.Errorf("A1 outcome = %#v, found=%t, want join_move", event, found)
+	if event, found := outcomeForArmy(resolution.Events, "A1"); !found || event.Reason != "attacked_origin" {
+		t.Errorf("A1 outcome = %#v, found=%t, want attacked_origin", event, found)
+	}
+	if event, found := outcomeForArmy(resolution.Events, "A2"); !found || event.Reason != "combat_lost" {
+		t.Errorf("A2 outcome = %#v, found=%t, want combat_lost", event, found)
 	}
 }
 
 func TestResolveDisperseDepartureChangesOriginDefense(t *testing.T) {
-	t.Run("full disperse frees origin", func(t *testing.T) {
+	t.Run("full disperse origin is attacked", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{
 				territory("SVM", "SVM", "BOM", "THE"),
@@ -527,6 +532,8 @@ func TestResolveDisperseDepartureChangesOriginDefense(t *testing.T) {
 		)
 		addNoble(state, "N1", "ONE", "P2", "SVM")
 		addNoble(state, "N2", "TWO", "P1", "BOM")
+		// SVM is under attack from A2, so A1's dispersion out of it is
+		// cancelled outright: it stays and defends SVM with its full size.
 		addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeDisperse, PositionID: "SVM", TargetIDs: []models.TerritoryID{"THE"}, NobleAssignments: map[models.TerritoryID][]models.NobleCode{"THE": {"ONE"}}})
 		addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "BOM", TargetIDs: []models.TerritoryID{"SVM"}})
 		validateTestState(t, state)
@@ -535,52 +542,57 @@ func TestResolveDisperseDepartureChangesOriginDefense(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
-		if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "THE" {
-			t.Errorf("A1 = %+v, want disperse destination THE", army)
+		if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "SVM" {
+			t.Errorf("A1 = %+v, want SVM, its dispersion cancelled", army)
 		}
-		if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "SVM" {
-			t.Errorf("A2 = %+v, want entry into freed SVM", army)
+		if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "BOM" {
+			t.Errorf("A2 = %+v, want BOM, bounced off the defended SVM", army)
+		}
+		if event, found := outcomeForArmy(resolution.Events, "A1"); !found || event.Reason != "attacked_origin" {
+			t.Errorf("A1 outcome = %#v, found=%t, want attacked_origin", event, found)
 		}
 	})
 
-	t.Run("partial disperse leaves residual defense", func(t *testing.T) {
+	t.Run("partial disperse origin defends at full strength", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{
-				territory("SVM", "SVM", "BOM", "THE", "ATL", "NOR"),
-				territory("BOM", "BOM", "SVM", "NOR"),
+				territory("SVM", "SVM", "BOM", "THE", "ATL"),
+				territory("BOM", "BOM", "SVM"),
 				territory("THE", "THE", "SVM"),
 				territory("ATL", "ATL", "SVM"),
-				territory("NOR", "NOR", "SVM", "BOM"),
 			},
 			[]models.Army{
 				{ID: "A1", OwnerID: "P2", TerritoryID: "SVM", Size: 2},
 				{ID: "A2", OwnerID: "P1", TerritoryID: "BOM", Size: 1},
 				{ID: "A3", OwnerID: "P3", TerritoryID: "ATL", Size: 1},
-				{ID: "A4", OwnerID: "P1", TerritoryID: "NOR", Size: 1},
 			},
 		)
 		addNoble(state, "N1", "ONE", "P2", "SVM")
 		addNoble(state, "N2", "TWO", "P1", "BOM")
 		addNoble(state, "N3", "THR", "P3", "ATL")
-		addNoble(state, "N4", "FOU", "P1", "NOR")
 		setTerritoryOwner(state, "SVM", "P2")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "SVM"})
 		state.TerritoryStates["SVM"] = models.TerritoryState{OwnerID: state.TerritoryStates["SVM"].OwnerID, Infrastructures: infraPointer("I1"), Resources: 1, Army: state.TerritoryStates["SVM"].Army}
+		// SVM is under attack from A2, so A1's dispersion to two targets is
+		// cancelled just the same: it defends with its full size 2, not a
+		// residual left over from a partial departure, and A2 does not win.
 		addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeDisperse, PositionID: "SVM", TargetIDs: []models.TerritoryID{"THE", "ATL"}, NobleAssignments: map[models.TerritoryID][]models.NobleCode{"THE": {"ONE"}}})
 		addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "BOM", TargetIDs: []models.TerritoryID{"SVM"}})
 		addChain(t, state, "A3", "N3", models.Order{Type: models.OrderTypeHold, PositionID: "ATL"})
-		addChain(t, state, "A4", "N4", models.Order{Type: models.OrderTypeSupport, PositionID: "NOR", TargetIDs: []models.TerritoryID{"BOM", "SVM"}})
 		validateTestState(t, state)
 
 		resolution, err := Resolve(state, testBalance())
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
-		if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "SVM" {
-			t.Errorf("A2 = %+v, want attack through residual defense", army)
+		if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "SVM" {
+			t.Errorf("A1 = %+v, want SVM, its dispersion cancelled", army)
 		}
-		if event, found := combatAt(resolution.Events, "SVM"); !found || event.Defense != 2 || event.WinnerArmyID != "A2" {
-			t.Errorf("SVM contest = %#v, found=%t, want residual defense 2 including the command bonus and A2 winner", event, found)
+		if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "BOM" {
+			t.Errorf("A2 = %+v, want BOM, bounced off the defended SVM", army)
+		}
+		if event, found := combatAt(resolution.Events, "SVM"); !found || event.Defense != 3 || event.WinnerArmyID != "" {
+			t.Errorf("SVM contest = %#v, found=%t, want full defense 3 including the command bonus and no winner", event, found)
 		}
 	})
 }

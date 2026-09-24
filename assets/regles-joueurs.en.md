@@ -254,6 +254,9 @@ strength-0 movement, and is repelled if the destination is contested.
   not prevent it from arriving;
 - an army may attack its own empty castle to garrison it without being
   repelled by the castle's defense (self-capture);
+- if `XXX`, the join's **origin**, is itself under attack — allied or enemy,
+  whatever the outcome — the join is cancelled outright and the army stays on
+  `XXX` (section 6, "Who Wins a Combat");
 - a join must be the **last order** in the chain.
 
 ### Support (`S`)
@@ -318,7 +321,11 @@ destination repels the assignment without consuming a troop.
 - in `single`, untreated destinations produce a partial dispersal and the
   chain advances anyway; in `loop`, the remainder retries until an army
   arrives at every destination — if the army runs out before every
-  destination is processed, the order is invalid.
+  destination is processed, the order is invalid;
+- if `XXX`, the dispersal's **origin**, is itself under attack — allied or
+  enemy, whatever the outcome — the whole dispersal is cancelled outright,
+  even a partial one: no troop leaves for any destination (section 6, "Who
+  Wins a Combat").
 
 ```text
 BRI D ATL ATL              # two troops stacked in the army arriving at ATL
@@ -379,7 +386,12 @@ orders.
 - a repelled attack still blocks its destination for the other attacks, even
   if its army is dislodged, unless it lost a head-to-head;
 - attacks in a circle (A to B, B to C, C to A) all succeed if nothing else
-  opposes them.
+  opposes them;
+- a join or a dispersal whose **origin** comes under attack — allied, enemy,
+  or even a starving attack at zero strength — is **cancelled outright**: none
+  of its troops leaves, whether that attack wins or loses the combat there.
+  There is no more fleeing through a join or a dispersal: leaving an attacked
+  territory now means surviving the combat fought over it.
 
 That's exactly the calculation walked through in section 3: 3 against 2, no
 tie, Hugues wins.

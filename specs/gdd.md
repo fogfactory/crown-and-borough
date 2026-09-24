@@ -309,11 +309,13 @@ Les règles de combat sont les suivantes :
 - un château apporte son bonus défensif fixe, même sans armée, sauf si tous les
   attaquants appartiennent au propriétaire du château (auto-capture d'un château
   ami vide) ;
+- une jonction ou une dispersion dont l'origine est visée par une attaque,
+  quel qu'en soit l'auteur (allié, ennemi, ou une attaque à force nulle faute
+  de vivres), est annulée d'emblée : aucune de ses troupes ne part, qu'elle
+  gagne ou perde ce combat ;
 - lorsque des ordres dépendent les uns des autres en cycle, les mouvements
   réussissent dès qu'une résolution cohérente avec ces règles le permet
-  (mouvement circulaire) ; si aucune résolution n'est cohérente (paradoxe), les
-  jonctions et dispersions du cycle sont annulées, aucune de leurs troupes ne
-  quittant son origine, et les attaques du cycle sont résolues sans elles.
+  (mouvement circulaire).
 
 ### Ravitaillement exponentiel
 

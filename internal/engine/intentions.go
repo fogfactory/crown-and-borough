@@ -126,6 +126,32 @@ func (ctx *resolutionContext) enumeratePendingDisperse(record *orderRecord, chai
 	}
 }
 
+// cancelAttackedOriginPeaceful cancels every join and dispersion whose origin
+// is the target of an attack, whoever the attacker is and whatever it wins:
+// an ally, an enemy, a starving attack at strength zero, or one that later
+// fails as allied_destination all count, since the rule looks at the attack,
+// not its outcome. A cancelled army's intent is removed before the
+// adjudicator ever sees it, so it settles like a hold: none of its troops
+// leaves, and applyContestOutcomes records why.
+func cancelAttackedOriginPeaceful(ctx *resolutionContext) {
+	attackedOrigins := make(map[models.TerritoryID]bool, len(ctx.attacks))
+	for _, attack := range ctx.attacks {
+		attackedOrigins[attack.target] = true
+	}
+	for _, armyID := range sortedArmyMap(ctx.joins) {
+		if attackedOrigins[ctx.joins[armyID].source] {
+			ctx.cancelledPeaceful[armyID] = true
+			delete(ctx.joins, armyID)
+		}
+	}
+	for _, armyID := range sortedArmyMap(ctx.disperses) {
+		if attackedOrigins[ctx.disperses[armyID].source] {
+			ctx.cancelledPeaceful[armyID] = true
+			delete(ctx.disperses, armyID)
+		}
+	}
+}
+
 // emitBadWeatherBlocked reports one army whose order could not run because of
 // the bad weather calamity, for the season-effects section of the report.
 func (ctx *resolutionContext) emitBadWeatherBlocked(army models.Army, order models.Order, regionSeed models.TerritoryID) {
