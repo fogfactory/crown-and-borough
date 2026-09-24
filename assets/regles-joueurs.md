@@ -289,8 +289,10 @@ l'action annoncée.
 
 **Cas particuliers** : une attaque ratée ne crée pas de malus supplémentaire
 — l'armée soutenue reste soumise au résultat normal du combat, et sa propre
-chaîne continue ou casse selon sa liaison. Une attaque venue d'une case
-différente de la cible soutenue peut **couper** un soutien.
+chaîne continue ou casse selon sa liaison. Une attaque d'un autre joueur sur
+l'armée soutenante, venue d'une case différente de la cible soutenue,
+**coupe** le soutien, même si cette attaque échoue. Un soutien est aussi coupé
+si l'armée soutenante est délogée.
 
 ### Maintien (`H`) et pillage (`P`)
 
@@ -387,7 +389,20 @@ même chaîne — il n'existe pas d'ordres mixtes au sein d'une armée.
   même sans armée — sauf si tous les attaquants appartiennent à son
   propriétaire (voir l'auto-capture, section 5) ;
 - la plus haute force **strictement unique** l'emporte ; une égalité au
-  sommet produit un **statu quo**, y compris sur une case vide.
+  sommet produit un **statu quo**, y compris sur une case vide ;
+- on ne déloge jamais sa propre armée : une attaque sur une case tenue par
+  une de tes armées qui reste sur place échoue, mais elle empêche quand même
+  les autres attaques d'y entrer ;
+- les soutiens que tu apportes à un adversaire ne l'aident pas à déloger ta
+  propre armée : ils comptent seulement pour bloquer les autres attaques ;
+- **face-à-face** : si deux armées s'attaquent mutuellement, la plus forte
+  (sans les soutiens du joueur adverse) l'emporte et déloge l'autre ; à
+  égalité, ou entre deux armées du même joueur, aucune ne bouge ;
+- une attaque repoussée bloque encore sa destination pour les autres
+  attaques, même si son armée est délogée, sauf si elle a perdu un
+  face-à-face ;
+- des attaques en cercle (A vers B, B vers C, C vers A) réussissent toutes
+  si rien d'autre ne s'y oppose.
 
 C'est exactement le calcul déroulé en section 3 : 3 contre 2, sans égalité,
 Hugues l'emporte.

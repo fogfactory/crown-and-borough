@@ -270,8 +270,10 @@ supported army actually performs the announced action.
 
 **Edge cases**: a failed attack creates no additional penalty — the supported
 army follows the normal combat result, and its own chain continues or breaks
-according to its liaison. An attack from a territory different from the
-supported target can **cut** a support.
+according to its liaison. An attack by another player on the supporting army,
+from a territory different from the supported target, **cuts** the support,
+even if that attack fails. A support is also cut if the supporting army is
+dislodged.
 
 ### Hold (`H`) and Pillage (`P`)
 
@@ -363,7 +365,19 @@ orders.
   even without an army — unless all attackers belong to the castle's owner
   (see self-capture, section 5);
 - the **strictly unique** highest strength wins; a top tie produces a
-  **standoff**, including on an empty territory.
+  **standoff**, including on an empty territory;
+- you never dislodge your own army: an attack on a territory held by one of
+  your armies that stays there fails, but it still blocks the other attacks
+  from entering;
+- the supports you give an opponent do not help them dislodge your own army:
+  they only count to block the other attacks;
+- **head-to-head**: when two armies attack each other, the stronger one
+  (without the opposing player's supports) wins and dislodges the other; on a
+  tie, or between two armies of the same player, neither moves;
+- a repelled attack still blocks its destination for the other attacks, even
+  if its army is dislodged, unless it lost a head-to-head;
+- attacks in a circle (A to B, B to C, C to A) all succeed if nothing else
+  opposes them.
 
 That's exactly the calculation walked through in section 3: 3 against 2, no
 tie, Hugues wins.
