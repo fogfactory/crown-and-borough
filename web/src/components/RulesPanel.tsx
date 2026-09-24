@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import ReactMarkdown from 'react-markdown'
+import rehypeRaw from 'rehype-raw'
 import remarkGfm from 'remark-gfm'
 
 import { useLanguage } from '@/i18n/LanguageContext'
@@ -139,6 +140,7 @@ export function RulesPanel({
         >
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeRaw]}
             components={{
               h1: ({ children }) => (
                 <h2 className="mb-4 font-serif text-2xl font-semibold leading-tight text-[#30291f]">

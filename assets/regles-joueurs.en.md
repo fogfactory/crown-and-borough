@@ -6,29 +6,42 @@ remains the source of playable numbers; when documents disagree, the engine wins
 
 ---
 
-## 1. Overview
+## 1. The Pitch
 
 Crown & Borough is a turn-based medieval strategy game played on a map of
-territories connected by a graph. Each player programs **order chains** for their
-armies; all chains are resolved **simultaneously**.
+territories. Players submit their orders in secret; the engine resolves
+everyone **at the same time**, season after season.
 
-The two pillars of tension are:
+One constraint shapes everything else in these rules: **orders come from a
+noble, not an army**, and each player only has a handful of them. A free or
+hostage noble emits only **one chain per turn** — a chain being a sequence of
+orders written ahead of time for an entire army. Since you can't reprogram
+every army every turn, the game is as much about strategic planning as
+execution: decide today what an army will do two or three turns from now,
+and live with the uncertainty of what everyone else is doing in the
+meantime. That's where all the vocabulary of "chain," "liaison"
+(single/loop), and "reception" detailed in section 4 comes from: it isn't
+technical decoration, it's the direct consequence of noble scarcity.
 
-- simultaneous resolution of intentions, supports, and combats;
-- exponential logistics: large concentrations of troops are costly and
-  vulnerable to supply shortages.
+The two pillars of tension in the game:
+
+- simultaneous resolution of intentions, supports, and combats — nobody sees
+  what anyone else wrote before resolution;
+- exponential logistics — large troop concentrations are expensive to feed and
+  become vulnerable the moment their supply is cut (section 7).
 
 An online game accepts **2 to 8 players** (up to 16 in a local game). The map
-and numerical data (owners, army sizes, stocks, infrastructure, and nobles) are
-visible to everyone. Online, however, each player only sees the details of their
-own chains and of the combats they take part in.
+and numerical data (owners, army sizes, stocks, infrastructure, and noble
+positions) are visible to everyone at all times. What stays private are
+**intentions**: online, a player only sees the exact detail of a chain or a
+combat when they take part in it — section 3 shows this on a worked example.
 
-Each player starts on a distinct territory: a **castle** is built there for free
-(it becomes the **capital**), with {{starting_resources}} R in stock, an army of
+Each player starts on a distinct territory, where a **castle** is built for
+free (their **capital**), with {{starting_resources}} R in stock, an army of
 {{starting_troops}} troops, and {{starting_nobles}} free noble(s).
 
-A game lasts a number of years chosen at creation (10 by default); see section 8
-for the end of the game and scoring.
+A game lasts a number of years chosen at creation (10 by default); section 10
+covers the end of the game and scoring.
 
 ### Inspirations
 
@@ -40,103 +53,175 @@ inspirations, not sources of rules applicable to Crown & Borough.
 
 ---
 
-## 2. Game Cycle and Seasons
+## 2. The Turn at a Glance
 
 A year has **four turns**: spring, summer, autumn, and **winter**. The turn
-counter increases by one at every season, including winter (a new spring follows
-winter).
+counter increases by one at every season, including winter.
 
-### Action Turns (spring, summer, autumn)
+The three action seasons (spring, summer, autumn) all work the same way:
 
-1. Each player prepares and submits order chains for their free nobles and armies.
-2. The engine checks submissions: a syntax or reception error prevents the
-   affected submission from resolving, without changing the state.
-3. The engine simultaneously resolves supply, intentions, supports, combats,
-   movement, retreats, joins, dispersals, and chain progression.
+1. Each player prepares and submits order chains for their free nobles and
+   armies.
+2. The engine checks each submission: a syntax or reception error rejects the
+   affected submission, without touching the rest of the game (section 4).
+3. The engine resolves **everyone together**: supply, intentions, supports,
+   combats, movement, retreats, joins, dispersals, and chain progression.
 4. Territorial control, noble positions, and events are updated, then a **turn
    report** is produced.
 
-An army executes at most **one line of its chain per action season**. An `A` or
-`J` order therefore crosses at most one adjacent territory in that resolution.
-The chain stays attached to the army between turns: its following lines execute
-in later seasons until the chain ends or breaks. For example, `ROS A BOI` then
-`BOI A ATL` moves the same army from ROS to BOI this turn, and from BOI to ATL
-on the next action turn. A dispersal can create several groups in one
-resolution, but it remains peaceful movement to adjacent territories.
+An army executes **at most one line of its chain per action season**: an `A`
+or `J` order therefore crosses at most one adjacent territory in that
+resolution. For example, `ROS A BOI` then `BOI A ATL` moves an army from ROS
+to BOI this turn, then from BOI to ATL on the next action turn. A multi-line
+chain therefore spans several turns, and stays attached to the army between
+resolutions until it ends or breaks — section 3 walks through a full example.
 
-### Winter Phase
+Winter is different: it's a **management truce**, with no chain, movement,
+combat, or supply. The player submits a list of direct investments, processed
+in the order they were entered (section 8).
 
-Winter is a **management truce**: no action chain, movement, combat, or supply is
-resolved. The player submits a list of direct investments, processed in the
-entered order (see section 5).
-
-| Season | Orders and timing |
+| Season | What happens |
 |---|---|
-| Spring, summer, autumn | Supply is calculated at the **start of resolution**, then intentions, supports, combats, movement, joins, dispersals, and chain progression are resolved together. Each army has only one current line. |
-| Winter | No supply or chain order is resolved: direct investments are applied sequentially in the entered list, then stocks are conserved and repatriated. |
+| Spring, summer, autumn | Supply is calculated first, then intentions, supports, combats, movement, joins, dispersals, and chain progression are resolved together. Each army has only one current line. |
+| Winter | No supply or chain order is resolved: investments are applied one by one, in the entered list, then stocks are conserved and repatriated. |
 
-Action-season orders are therefore not a queue between players: each one is
-evaluated together with the turn's intentions. Winter is instead a sequential
-management phase.
+Spring, summer, and autumn orders are therefore not a queue between players:
+each one is evaluated together with the whole turn's intentions. Winter, by
+contrast, is a strictly sequential phase.
 
 ---
 
-## 3. Writing a Chain
+## 3. A Turn, Start to Finish
+
+Here's a complete turn, to put a concrete face on the vocabulary in the
+following sections.
+
+**The situation.** Hugues owns ROS (his capital, a castle) with a 2-troop army
+and his noble HUG, as well as FOU, a small 1-troop garrison holding his second
+noble, ODA. Both ROS and FOU are adjacent to ATL, held by Brune: a 2-troop army
+and her noble MIA. ATL is adjacent to NOR, an empty territory Brune controls.
+
+<svg viewBox="0 0 540 280" width="100%" role="img" aria-label="ROS and FOU (Hugues) are adjacent to ATL (Brune), itself adjacent to NOR (Brune, empty)" style="max-width:480px;margin:16px auto;display:block;font-family:system-ui,sans-serif">
+  <line x1="90" y1="70" x2="300" y2="130" stroke="#b7a786" stroke-width="2"/>
+  <line x1="90" y1="190" x2="300" y2="130" stroke="#b7a786" stroke-width="2"/>
+  <line x1="300" y1="130" x2="460" y2="130" stroke="#b7a786" stroke-width="2"/>
+  <circle cx="90" cy="70" r="30" fill="#f3ead9" stroke="#3f6b52" stroke-width="3"/>
+  <text x="90" y="76" text-anchor="middle" font-size="16" font-weight="700" fill="#30291f">ROS</text>
+  <text x="90" y="114" text-anchor="middle" font-size="11" fill="#3f6b52">Hugues's capital</text>
+  <text x="90" y="128" text-anchor="middle" font-size="11" fill="#594b3c">2 troops · HUG</text>
+  <circle cx="90" cy="190" r="30" fill="#f3ead9" stroke="#3f6b52" stroke-width="3"/>
+  <text x="90" y="196" text-anchor="middle" font-size="16" font-weight="700" fill="#30291f">FOU</text>
+  <text x="90" y="234" text-anchor="middle" font-size="11" fill="#3f6b52">Hugues's garrison</text>
+  <text x="90" y="248" text-anchor="middle" font-size="11" fill="#594b3c">1 troop · ODA</text>
+  <circle cx="300" cy="130" r="30" fill="#f3ead9" stroke="#3a5a8c" stroke-width="3"/>
+  <text x="300" y="136" text-anchor="middle" font-size="16" font-weight="700" fill="#30291f">ATL</text>
+  <text x="300" y="174" text-anchor="middle" font-size="11" fill="#3a5a8c">held by Brune</text>
+  <text x="300" y="188" text-anchor="middle" font-size="11" fill="#594b3c">2 troops · MIA</text>
+  <circle cx="460" cy="130" r="30" fill="#f8f0e2" stroke="#3a5a8c" stroke-width="2" stroke-dasharray="4 3"/>
+  <text x="460" y="136" text-anchor="middle" font-size="16" font-weight="700" fill="#30291f">NOR</text>
+  <text x="460" y="174" text-anchor="middle" font-size="11" fill="#3a5a8c">controlled by Brune</text>
+  <text x="460" y="188" text-anchor="middle" font-size="11" fill="#594b3c">empty</text>
+</svg>
+
+Hugues wants to take ATL. Since HUG and ODA are two separate nobles, he can
+have each of them emit a chain this turn — it's precisely because he has two
+nobles that he can combine an attack and a support in the same resolution.
+
+**What Hugues writes.** One chain per noble, one line per order (the web UI
+adds the noble header automatically):
+
+```text
+HUG
+ROS A ATL        # attack ATL from ROS
+```
+
+```text
+ODA
+FOU S ROS - ATL  # offensive support for the attack ROS -> ATL
+```
+
+**What Brune writes**, without knowing Hugues's plans (simultaneous
+resolution means neither sees the other's chains): nothing for ATL. An army
+without a chain is **No Orders** (section 4) but still defends normally — an
+`H ATL` order wouldn't change anything here: it only exists to occupy a
+chain line while waiting, for example in a loop. Noble MIA, still on the
+territory, simply has nothing to emit this turn.
+
+**The resolution.** The engine adds up the forces engaged on ATL: Hugues's
+attack weighs 2 (the ROS army) + 1 (the FOU support) = 3; Brune's defense
+weighs 2. To keep this example simple, we ignore the noble bonus detailed in
+section 6 here — it would apply identically on both sides of this
+calculation. 3 against 2: Hugues wins, and his army occupies ATL. Brune's army
+is dislodged and must retreat; NOR is empty and controlled by her, so it's her
+destination (section 6 covers the full priority order). Noble MIA follows her
+army to NOR.
+
+**What everyone sees afterward.** Both chains involved had only one line: they
+are complete, and both of Hugues's armies are now No Orders for the next
+season, unless he issues new chains. In the report, Brune took part in the
+combat as the defender: she sees the exact forces (3 against 2) and the
+support involved. A third player who took no part as attacker, defender, or
+supporter would only see that a combat happened on ATL and its general
+outcome, without the force details (section 1).
+
+---
+
+## 4. Writing a Chain
 
 A chain consists of the **emitting noble's trigram** (header line), followed by
-**one line per order**.
+**one line per order**. Each order line has the form
+`POSITION SYMBOL [targets...]`. Comments start with `#`, blank lines are
+ignored, and case is normalized by the parser.
 
 > In the web UI, the noble header is **added automatically before submission**:
 > you only write the order lines.
 
-Each order line has the form `POSITION SYMBOL [targets...]`. Comments start with
-`#`, blank lines are ignored, and case is normalized by the parser.
+### Order Liaison: single or loop
 
-Example of a complete chain:
+- **single** — a line without parentheses. The chain stops at the first
+  failure, and the suffix is abandoned.
+- **loop** — the entire line is enclosed in parentheses, `(…)`. The order is
+  retried at each resolution until it succeeds; a hold in loop puts the army
+  on standby. A mechanically impossible error always breaks the chain, even in
+  loop.
 
-```text
-HUG              # header: emitting noble (added by the web UI)
-ROS A BOI        # attack BOI from ROS
-BOI S BRU - FOU  # offensive support
-BOI J ROS        # join (must be the last order)
-```
+A chain is not limited to one season: a successful line advances the chain
+index, and the next line waits for the next resolution — that's what would
+happen if Hugues's chain in section 3 had a second line, `ATL A NOR`: it would
+wait for the following turn to execute. A loop line deliberately keeps the
+same order when it has to wait for an opening, and a movement invalidated by
+bad weather pauses the chain the same way: the order stays in place and
+retries next season.
 
-### Order Liaison
+If a chain contains an error, **the whole submission is rejected with the line
+to fix**, and nothing is received until it is corrected: syntax, unknown code,
+non-adjacent territories, a join that is not the last order, a support of its
+own territory, a transfer to its own territory, or an invalid noble
+assignment. The interface reports these errors while you type. The `T`
+transfer is the exception to adjacency: it uses the supply network
+(section 5).
 
-- **single**: a line without parentheses. The chain stops at the first failure,
-  and the suffix is abandoned.
-- **loop**: the entire line is enclosed in parentheses, `(…)`. The order is
-  retried at each resolution until it succeeds; a hold in loop puts the army on
-  standby. A mechanically impossible error always breaks the chain.
+### Reception: Whose Order Is It
 
-If a chain contains an error, the submission is rejected with the line to fix,
-and nothing is received until it is corrected: syntax, unknown code, non-adjacent
-territories, a join that is not the last order, a support of its own territory,
-a transfer to its own territory, or an invalid noble assignment. The interface
-reports these errors while you type. The `T` transfer does not require
-adjacency: it uses the supply network.
-
-A chain is not limited to one season: a successful line advances the chain index,
-and the next line waits for the next resolution. A `loop` line deliberately keeps
-the same order when it has to wait for an opening. A movement invalidated by bad
-weather pauses the chain: the order stays in place and re-attempts next season.
-
-### Reception
-
-- The chain is attached **immediately and atomically** to the army present at the
-  position of its first order; it replaces that army's previous chain.
-- A free or hostage noble emits only **one chain per turn**. It may command any
-  army belonging to its player; it does not have to be present at the first
-  order's position. A chain targeting another player's army, a noble in the
-  dungeon, or a noble that has already emitted is rejected.
-- If **several chains target the same army in the same turn**, their concurrent
-  reception is invalidated: none is received and the army receives no new chain
-  for that turn.
-- An army without a chain is **No Orders**: it receives no automatic action.
+- The chain is attached **immediately and atomically** to the army present at
+  the position of its first order; it replaces that army's previous chain.
+- A free or hostage noble emits only **one chain per turn** — this is the
+  central constraint described in section 1. It may command any army
+  belonging to its player; it does not have to be present at the first order's
+  position (that's how ODA, staying at FOU, can still act on the FOU army in
+  section 3). A chain targeting another player's army, a noble in the dungeon,
+  or a noble that has already emitted, is rejected.
+- If **several chains target the same army in the same turn**, their
+  concurrent reception is invalidated: none is received, and the army
+  receives no new chain for that turn. A chain already held stays unchanged.
+- An army without a chain is **No Orders**: it receives no automatic action,
+  but remains defensible (section 6).
+- A player with no free or hostage noble able to emit does not have to submit
+  chains during an action season.
 
 ---
 
-## 4. Order Cheat Sheet
+## 5. Order Cheat Sheet
 
 The orders below are available in spring, summer, and autumn. `XXX`, `YYY`, and
 `ZZZ` are territory trigrams; `NNN` is a noble trigram. None costs resources in
@@ -155,71 +240,81 @@ an action season.
 
 ### Attack (`A`) and Join (`J`)
 
-`YYY` must be **adjacent** to `XXX` through a passable border. The whole army
-moves to `YYY`. An attack may fight an enemy army there; a join does not fight and
-is repelled if the destination is contested. If an allied attack wins the combat
-on `YYY`, the join may fuse with the winner; enemy attacks that lose that combat
-do not prevent it from arriving. An army may also attack its own empty castle to
-move into it (self-capture, see section 6). A join must be the last order in the
-chain. A join and a dispersal are never attacks: they are peaceful strength-0
-movement and cannot dislodge anyone. A destination is contested when at least
-one enemy attack takes part and no attacking army wins the combat.
+**The gist**: `YYY` must be adjacent to `XXX` through a passable border; the
+whole army moves there. An attack may fight an enemy army there (section 6
+covers the force calculation). A join never fights: it is peaceful
+strength-0 movement, and is repelled if the destination is contested.
+
+**Edge cases**:
+
+- a destination is contested as soon as at least one enemy attack takes part
+  and no attacking army wins the combat;
+- if an allied attack wins the combat on `YYY`, a join targeting the same
+  territory may fuse with the winner; enemy attacks that lose that combat do
+  not prevent it from arriving;
+- an army may attack its own empty castle to garrison it without being
+  repelled by the castle's defense (self-capture);
+- a join must be the **last order** in the chain.
 
 ### Support (`S`)
 
-A support strengthens an army of **any nationality**:
+**The gist**: a support strengthens an army of any nationality, provided the
+supported army actually performs the announced action.
 
 - **defensive** (`XXX S YYY`): strengthens the army holding `YYY`, if `YYY` is
   adjacent to `XXX` (an army cannot support itself);
-- **offensive** (`XXX S YYY - ZZZ`): strengthens the attack from `YYY` to `ZZZ`.
+- **offensive** (`XXX S YYY - ZZZ`): strengthens the attack from `YYY` to
+  `ZZZ`; both `XXX` and `YYY` must be adjacent to `ZZZ`, and `YYY` must be the
+  army that actually attacks `ZZZ` (that's the case for FOU in section 3,
+  adjacent to both ATL and ROS).
 
-For offensive support, both `XXX` and `YYY` must be adjacent to the destination
-`ZZZ`, and YYY must be the army that actually attacks `ZZZ`. A failed attack
-creates no additional penalty: the army follows the normal combat result and its
-chain continues or breaks according to its liaison.
-
-It only counts if the supported army performs the announced action. An attack
-from a territory different from the supported target can **cut** a support.
+**Edge cases**: a failed attack creates no additional penalty — the supported
+army follows the normal combat result, and its own chain continues or breaks
+according to its liaison. An attack from a territory different from the
+supported target can **cut** a support.
 
 ### Hold (`H`) and Pillage (`P`)
 
-`H XXX`: the army stays in place and can receive defensive support.
-`P XXX`: destroys the infrastructure on the occupied territory; a pillage bonus
-({{pillage_bonus}} R) is credited to the nearest allied source and may reduce famine.
+`H XXX`: the army stays in place and can receive defensive support; mostly
+useful to occupy a chain line while waiting, especially in a loop
+(`(H XXX)`).
+
+`P XXX`: destroys the infrastructure on the occupied territory; a pillage
+bonus ({{pillage_bonus}} R) is credited to the nearest allied source, and may
+reduce famine (section 7).
 
 ### Dispersal (`D`)
 
-`XXX D DEST1 DEST2 ...` processes destinations in appearance order, with at most
-one troop per destination. This is peaceful strength-0 splitting: it does not
-fight an enemy army; a free, uncontested destination is taken, an allied
-destination fuses with the army already there, while a contested destination
-repels that assignment and receives no troop.
+**The gist**: `XXX D DEST1 DEST2 ...` processes destinations in appearance
+order, with at most one troop per destination. This is peaceful strength-0
+splitting: it never fights an enemy army. A free, uncontested destination is
+taken; an allied destination fuses with the army already there; a contested
+destination repels the assignment without consuming a troop.
 
-- a destination is adjacent to `XXX` or equal to `XXX`; destinations may repeat;
+**Edge cases**:
+
+- a destination is adjacent to `XXX` or equal to `XXX`; destinations may
+  repeat;
 - a destination occupied by an enemy army, contested, or troopless does not
   consume a troop; a later destination may still receive one;
-- a destination occupied by an allied army may receive the troop and fuses it
-  into the army already there; several allied dispersals arriving on the same
-  territory are stacked into one army;
-- troops that cannot be sent remain at the origin; a list shorter than the army
-  therefore leaves a remainder in place;
-- troops arriving at the same destination are stacked into one army;
-- nobles explicitly assigned follow the produced group: `*` assigns all remaining
-  nobles, `*NNN` assigns noble `NNN`; nobles not mentioned remain at the origin
-  while a troop remains there;
-- if all troops leave the origin and a present noble has no produced group, the
-  order is invalid at execution;
-- the chain carried by the army follows the **first listed group**. Thus,
-  `BRI D ATL NOR` makes the chain follow the ATL group when ATL receives the
-  first troop; to keep the chain at the origin while sending troops elsewhere,
-  write `BRI D BRI ATL NOR`. Do not skip to NOR after ATL fails while the
-  remainder stays at BRI: that would invalidate the rest of the chain;
-- in `single`, untreated destinations produce a partial dispersal and the chain
-  advances; in `loop`, the remainder retries until an army arrives at every
-  destination; if the army is exhausted before all destinations are processed,
-  the order is invalid.
-
-Examples:
+- several allied dispersals arriving on the same territory are stacked into
+  one army;
+- troops that cannot be sent remain at the origin; a list shorter than the
+  army therefore leaves a remainder in place;
+- nobles explicitly assigned follow the produced group: `*` assigns all
+  remaining nobles, `*NNN` assigns noble `NNN`; nobles not mentioned remain at
+  the origin while a troop remains there. If all troops leave the origin and a
+  present noble has no produced group, the order is invalid at execution;
+- the chain carried by the army follows the **first listed group**:
+  `BRI D ATL NOR` makes the chain follow the ATL group as soon as ATL receives
+  its first troop. To keep the chain at the origin while sending troops
+  elsewhere, write `BRI D BRI ATL NOR` — do not skip to NOR after ATL fails
+  while the remainder stays at BRI, that would invalidate the rest of the
+  chain;
+- in `single`, untreated destinations produce a partial dispersal and the
+  chain advances anyway; in `loop`, the remainder retries until an army
+  arrives at every destination — if the army runs out before every
+  destination is processed, the order is invalid.
 
 ```text
 BRI D ATL ATL              # two troops stacked in the army arriving at ATL
@@ -231,26 +326,198 @@ BRI D BRI ATL NOR          # BRI keeps the chain; the other groups split away
 
 ### Transfer (`T`)
 
-`XXX T YYY N` is executed after supply by the army on `XXX`. `YYY` must be a
-castle, village, or the territory of an army controlled by another living
-player; a bare depot cannot receive. The source territory only needs to contain
-stock. The route follows the donor's supply range (`{{supply_range}}` territories, plus
-controlled depots), and any enemy army on an intermediate territory blocks it;
-an enemy army at the destination is allowed.
+**The gist**: `XXX T YYY N` is executed after supply, by the army on `XXX`.
+`YYY` must be a castle, village, or the territory of an army controlled by
+another living player; a bare depot cannot receive. The source territory only
+needs to contain stock.
 
-A famished army cannot transfer. The amount is capped at `{{cost_base}}^(N - 1)` for an
-army of `N` troops, without subtracting local rations. It performs no other
-order that turn. A stock shortage has no effect and does not break a `single`
-chain. In `loop`, the transfer retries; when the remaining stock is below the
-requested amount, the remainder is sent as a partial final delivery and the
-order completes.
+**Edge cases**:
+
+- the route follows the donor's supply range (`{{supply_range}}` territories,
+  plus controlled depots); any enemy army on an intermediate territory blocks
+  it, but an enemy army at the destination is allowed;
+- a famished army cannot transfer; the amount is capped at
+  `{{cost_base}}^(N - 1)` for an army of `N` troops, without subtracting local
+  rations; the army performs no other order that turn;
+- a stock shortage has no effect and does not break a `single` chain; in
+  `loop`, the transfer retries, and when the remaining stock is below the
+  requested amount, the remainder is sent as a partial final delivery and the
+  order completes.
 
 ---
 
-## 5. Winter Orders
+## 6. Combat, Strength, and Retreats
 
-Winter accepts **no chains or movement**: only direct investments, one order per
-line, applied in the entered order.
+### Who Wins a Combat
+
+An army is the sole force entity on a territory: it has an owner and a troop
+size, and all its troops share the same chain — an army cannot contain mixed
+orders.
+
+- attack strength is the attacking army's **size**, with
+  **+{{noble_command_bonus}}** if a free allied noble is present on its
+  territory;
+- support strength is the supporting army's size, with the same bonus;
+- an army's defense receives the same bonus under the same condition;
+- a castle gives a fixed defensive bonus of **+{{castle_defense_bonus}}**,
+  even without an army — unless all attackers belong to the castle's owner
+  (see self-capture, section 5);
+- the **strictly unique** highest strength wins; a top tie produces a
+  **standoff**, including on an empty territory.
+
+That's exactly the calculation walked through in section 3: 3 against 2, no
+tie, Hugues wins.
+
+### Retreating
+
+A dislodged army loses its movement and must retreat as a whole, to an
+adjacent destination chosen by descending priority order:
+
+1. an empty territory controlled by the retreating army's owner (with or
+   without a castle), even if fought over this turn — that's the case for NOR
+   for Brune in section 3;
+2. an uncontrolled empty territory (neutral or enemy), without a castle and
+   not fought over this turn;
+3. an adjacent, non-dislodged friendly army (smallest troop size first), with
+   merging: the host gains `N − 1` troops if the retreating army has `N ≥ 2`
+   troops, or `1` troop if `N = 1` (no loss). Multiple retreating armies can
+   merge sequentially into the same friendly host without destructive
+   collision.
+
+Ties within a bucket are broken by distance to the nearest controlled castle
+or village, then ascending trigram. For friendly armies, sorting is by troop
+size ascending, then distance to the nearest controlled source, then
+ascending trigram. The attacker's origin territory is always excluded, and
+neutral or enemy empty castles defend against retreat: they are never a valid
+destination. Two armies that must retreat to the same empty territory with no
+alternative are destroyed. Retreat resolution order follows the ascending
+trigram of their origin territory.
+
+Territorial control follows the army that stops there; acquired control
+remains after the army leaves, until an enemy army stops there.
+
+### Nobles During a Combat
+
+Nobles ride with armies: they follow movement, attacks, joins, dispersals, and
+retreats — that's how MIA ends up at NOR with Brune's army in section 3. A
+noble counts neither toward supply nor combat losses; it may remain alone on a
+territory after its army is lost. There is no limit, in this version, on the
+number of nobles carried by an army: an army transports every noble present on
+its territory.
+
+The +{{noble_command_bonus}} bonus comes only from a noble physically present
+on the army's territory when strength is calculated: issuing a chain remotely
+(section 4) does not teleport the noble or give the distant army a bonus. A
+voluntarily transferred noble follows the group that receives it during a
+dispersal (`*` or `*NNN`, section 5); it only grants its command bonus if that
+group actually carries it when it fights or defends.
+
+When an army carrying nobles is **destroyed** on a territory occupied by an
+enemy army, those nobles are captured and become `hostage` by default. A
+hostage noble may continue to emit a chain (section 4); only moving it to the
+dungeon, covered in section 8, removes that ability.
+
+---
+
+## 7. Logistics and Supply
+
+### The Exponential Cost of an Army
+
+Supply is resolved **at the start of every action season**, before orders,
+combats, and movement; there is no supply phase in winter. An army of `N`
+troops demands:
+
+```text
+cost = {{cost_base}}^(N - 1)  rations
+```
+
+| Size | 1 | 2 | 3 | 4 | 5 |
+|---|---:|---:|---:|---:|---:|
+| Ration cost | {{army_cost.1}} | {{army_cost.2}} | {{army_cost.3}} | {{army_cost.4}} | {{army_cost.5}} |
+
+A one-troop army already demands `{{army_cost.1}}` ration: it is not
+automatically free. This progression is what makes a large army fragile the
+moment its supply route is cut.
+
+### Where the Food Comes From
+
+The production of the territory an army occupies is granted to that army
+alone, up to its demand; surplus is lost, and the remainder is its demand to
+supply. There is only ever one army per territory, so there is no
+distribution between armies: an enemy army on a neighboring territory never
+takes your territory's ration.
+
+**Territory food production (rations)**: plain {{ration_terrain.plain}};
+forest {{ration_terrain.forest}}; hill {{ration_terrain.hill}}; mountain
+{{ration_terrain.mountain}}; swamp {{ration_terrain.swamp}};
+**+{{infra_rations_bonus}}** when the territory has a castle or village.
+
+Example: a 2-troop army on a hill with a castle (local production
+{{ration_terrain.hill}}, castle bonus {{infra_rations_bonus}}) receives 2
+rations, covering its full demand. The same army on a swamp (production
+{{ration_terrain.swamp}}) receives only 1 ration and must cover the rest
+elsewhere.
+
+**Supply sources**: controlled castles, villages, and caches. A castle or
+village produces {{base_production}} R of stock per turn; a bare territory has
+no production of its own, but its stock (if any) serves as a cache. The flow
+crosses allied, neutral, or enemy-controlled territories, and only stops
+before a territory occupied by an enemy army. Base range is
+{{supply_range}} territories; each controlled supply depot encountered along
+the route adds {{depot_range_bonus}} territories. A neutral village keeps its
+stock, inaccessible before capture.
+
+Each source calculates its own production by adding the level of **every
+adjacent mill**: one mill can feed every neighboring source, with no owner
+filter, and an orphaned mill (with no adjacent castle or village) produces
+`0 R`. For example, a village surrounded by two level-1 mills produces
+`{{base_production}} + 1 + 1 R`. The presence or position of a noble never
+conditions this production.
+
+### Stocks and Famine
+
+When there is a deficit:
+
+1. stocks in controlled castles, villages, and caches are emptied first
+   (smallest first, with the territorial trigram as tie-breaker);
+2. remaining armies enter **famine**, starting with those furthest from their
+   source, then the largest, then descending trigram.
+
+A famished army **attacks and defends at strength 0** for the turn, even when
+it carries a free noble. If it occupies infrastructure, it **pillages it
+automatically**; the pillage bonus, reduced by its residual demand, may end
+its famine. If pillage is insufficient or impossible, it loses **1 troop**,
+never falling below 1 — but it stays famished and at strength 0 for the whole
+current season, even if that loss would make its future demand sustainable;
+the loss repeats in every season the army remains famished.
+
+Example: a 2-troop army in deficit demands 2 rations. If its stocks and
+pillage cannot cover the deficit, it loses one troop and becomes a 1-troop
+army; it still stays at strength 0 this turn, even though a 1-troop army would
+then only demand 1 ration.
+
+In the interface, selecting an army or a controlled source shows its supply or
+the area it reaches (outside winter only). A transfer being drafted also shows
+its route and blockers.
+
+### What Infrastructure Provides
+
+A territory carries only **one infrastructure**; their cost and build
+conditions are detailed in section 8.
+
+| Infrastructure | v1 effect |
+|---|---|
+| Mill | +1 stockable R per level at each adjacent source |
+| Supply depot | +{{depot_range_bonus}} territories of supply range when controlled |
+| Castle | +{{castle_defense_bonus}} defense, +{{infra_rations_bonus}} rations, produces {{base_production}} stockable R per turn, supply anchor |
+| Village | +{{infra_rations_bonus}} rations, produces {{base_production}} stockable R per turn, supply anchor after capture |
+
+---
+
+## 8. Winter Orders
+
+Winter accepts **no chains or movement**: only direct investments, one order
+per line, applied in the entered order.
 
 | Investment | Syntax | Condition | Cost (R) |
 |---|---|---|---|
@@ -265,346 +532,168 @@ line, applied in the entered order.
 | Liberate a noble | `L N NNN` | `NNN` is held by the player; its owner's capital contains one of that owner's armies | {{costs.liberation}} |
 | Transfer resources | `G XXX YYY N` | `XXX` is a castle or village controlled by the donor; `YYY` is a castle or village controlled by another player | 0 |
 
+This is where, in winter, the fate of enemy nobles captured in combat
+(section 6) is decided: `O`/`P` moves a prisoner between `hostage` and
+`dungeon`; a hostage noble may still emit a chain for its original owner while
+it remains a hostage, but no longer once in the dungeon — the holder can in
+fact read those chains in online games, even when they command an army that
+stayed with the noble's owner. Capture normally produces `hostage` status.
+`L N NNN` is issued by the **holder**, not the owner: if the owner's capital
+exists and contains one of their armies, the noble reappears there free;
+otherwise the order is rejected.
+
 A winter transfer is therefore not limited to the donor's own castles and
-villages: it can directly supply a structure controlled by the recipient. The
+villages: `G` can directly supply a structure controlled by the recipient. The
 debit still follows the usual rules and can use only the donor's payment
 reserves.
 
 A mill starts at level 1 and can reach level 3 inclusive. Construction costs
 {{costs.mill_levels.0}} R; upgrades to levels 2 and 3 cost
 {{costs.mill_levels.1}} R and {{costs.mill_levels.2}} R respectively. `C M` on
-a level-3 mill is rejected with reason `mill_max_level_reached`, and no stock is
+a level-3 mill is rejected with reason `mill_max_level_reached`, with no stock
 deducted. Mills above level 3 already present in a game are preserved and
 remain productive; only new upgrades are blocked.
-
-### Hostage and Dungeon
-
-Orders `O N NNN` and `P N NNN` target an **opposing prisoner** held on the
-territory of one of the player's armies. `O` gives the noble `hostage` status and
-`P` gives `dungeon` status. Capture normally produces `hostage` status. A hostage
-noble may emit a new chain while held; a dungeon noble cannot. The orders can
-move a prisoner from one status to the other.
 
 Investments targeting a territory require **control of that territory**. A
 construction replaces the existing structure only when the rule says so: a
 **castle built on a village replaces the village** and keeps the territory's
-stock. An isolated (orphaned) mill produces nothing.
+stock. An orphaned mill produces nothing.
 
-### Resource vocabulary
+### Resource Vocabulary
 
-- `R` means one unit of **stockable resource**: it sits in a territory's stock,
-  is produced by a source, and pays for investments when held by a controlled
-  castle or village;
-- a **ration** is one food unit consumed during an action-season supply phase.
-  Local rations are produced and distributed on the spot; they do not
-  automatically become stock `R`;
+- `R` means one unit of **stockable resource**: it sits in a territory's
+  stock, is produced by a source, and pays for investments when held by a
+  controlled castle or village;
+- a **ration** is one food unit consumed during an action-season supply phase
+  (section 7); local rations do not automatically become stock `R`;
 - **stock** is therefore the amount of `R` kept on a territory.
 
 Each controlled castle or village is a separate source, and any controlled
-territory with positive stock is an action-season cache source. A bare territory
-has no production, but its local army consumes its stock before farther sources.
-Every castle or village source produces `{{base_production}} R` per turn independently of the others. A second castle is therefore a
-second production and supply source, even though only one castle is designated
-as the capital. A mill is built only on an empty territory adjacent to a
-productive castle or village; it increases the production of **every** neighboring
-source, with no owner filter. For example, a level-1 mill between a village and
-two castles adds `+1 R` to each of those three production points. Even if the
-mill is on a territory controlled by another player, it adds this bonus to a
-neighboring source controlled by the relevant player. A noble elsewhere on the
-map does not prevent `C M ATL` and is not required to build it. If the build
-territory already has another infrastructure, the order is rejected with
-`structure_present`: a territory never carries two infrastructures. A mill adds
-its level to every adjacent source, including a legacy mill whose level is above
-the current level-3 upgrade cap.
+territory with positive stock is an action-season cache source. Every castle
+or village produces {{base_production}} R per turn independently of the
+others: a second castle is therefore a second source, even though only one
+castle is designated as the capital. A mill adds its level to every adjacent
+source, even across owner boundaries — see section 7 for the details of this
+production.
 
-**Payment**: the cost is taken first from the stock on the target territory, then
-from the nearest controlled source; if the total reserve is insufficient, **no
-partial payment** is made and the investment is rejected (reported, with no cost
-lost).
-
-Example: a `C M ATL` costing {{costs.mill_levels.0}} R first consumes ATL's
-stock, then the remainder from the nearest controlled source. If those stocks
-do not total the required cost, the build is rejected and no partial payment is
-made.
+**Payment**: the cost is taken first from the stock on the target territory,
+then from the nearest controlled source; if the total reserve is
+insufficient, **no partial payment** is made and the investment is rejected
+(reported, with no cost lost). Example: a `C M ATL` costing
+{{costs.mill_levels.0}} R first consumes ATL's stock, then the remainder from
+the nearest controlled source; if those stocks do not total the required
+cost, the build is rejected with no partial payment made.
 
 **End of winter**:
 
-- each remaining castle or village stock is kept at `ceil(stock / {{winter_stock_divisor}})`;
-- a supply depot keeps its stock in full;
-- stock outside a castle, village, or depot is lost;
-- castle and village stocks outside the capital are brought back to the capital, leaving at most
-  **{{village_stock_cap}} R per village** and **{{castle_stock_cap}} R per castle**;
-- without a capital, those stocks remain where they are; depot stock remains on
-  its territory.
+- each remaining castle or village stock is kept at
+  `ceil(stock / {{winter_stock_divisor}})` — a stock of 5 R therefore becomes
+  3 R;
+- a supply depot keeps its stock in full; stock outside a castle, village, or
+  depot is lost;
+- castle and village stocks outside the capital are brought back to the
+  capital, leaving at most {{village_stock_cap}} R per village and
+  {{castle_stock_cap}} R per castle;
+- without a capital, those stocks remain where they are; depot stock remains
+  on its territory.
 
-Stock outside castles and villages cannot pay winter investments. There is no need to spend everything before winter ends: unspent stock is first
-conserved, then surplus is repatriated under these caps. A stock of 5 R therefore
-becomes 3 R with `ceil(5 / 2)`. Conservation and repatriation happen after
-investments, and a territory without a castle, village, or depot does not keep stock.
-For example, an outlying village keeps at most 1 R after conservation; its
-surplus goes to the capital, while an outlying castle may keep 2 R.
+There is no need to spend everything before winter ends: unspent stock is
+first conserved, then surplus is repatriated under these caps. Conservation
+and repatriation happen after investments.
 
-### Special cards
+---
 
-The deck contains **{{special_orders.deck_size}} cards**: **{{special_orders.card.plague}} plague**, **{{special_orders.card.bad_weather}} bad weather**, **{{special_orders.card.famine}} bad harvest**, **{{special_orders.card.fair_weather}} fair weather**, **{{special_orders.card.abundant_harvest}} abundant harvest**, and **{{special_orders.card.revolt}} revolt** cards.
+## 9. Special Cards and Calamities
 
-A hand is limited to **{{special_orders.hand_limit}} cards**. After winter
-discards, each player automatically receives up to **{{special_orders.draw_orders_limit}} bonus cards**. Calamities are programmed into spring (**{{special_orders.calamity_slots.spring}}**), summer (**{{special_orders.calamity_slots.summer}}**), and autumn (**{{special_orders.calamity_slots.autumn}}**) slots. Plague reduces army sizes by a divisor of **{{special_orders.effects.plague_army_divisor}}**.
-
-## 6. Special cards and calamities
-
-Playable card orders are submitted in a separate `special` field, distinct from
-noble chains. Winter discards are written in the `winter` sheet. They do not
-require a noble.
+Playable card orders are submitted in a separate `special` field, distinct
+from noble chains and requiring no noble. Winter discards are written in the
+`winter` sheet.
 
 - `P FW ROS`: play Fair weather on the region seeded by ROS;
 - `P AH ROS`: play Abundant harvest on that region;
-- `P RV BRU`: play Revolt on the BRU territory, only when an active bad harvest affects its region;
-- `D C FW` or `D C AH`: discard a card, winter only;
-The hand is replenished automatically in winter after discards. No draw order is
-needed.
+- `P RV BRU`: play Revolt on the BRU territory, only when an active bad
+  harvest affects its region;
+- `D C FW` or `D C AH`: discard a card, winter only.
 
-Fair weather, Abundant harvest and Revolt can be played in spring, summer and
-autumn, but not winter. Played cards are consumed before army-order resolution.
-Fair weather cancels only bad weather and Abundant harvest cancels only bad harvest.
-A card that cancels a calamity does not provide its regional bonus. Duplicate
-cards are consumed, but only one card of each kind is effective: with an active
-calamity the first card cancels and a second one applies the regional bonus;
-without a calamity the first card applies it. The bonus stays capped at one unit
-per category and region, further cards being consumed without effect.
+The hand is replenished automatically in winter after discards; no draw order
+is needed.
+
+Fair weather, Abundant harvest, and Revolt can be played in spring, summer,
+and autumn, but not winter. Played cards are consumed before army-order
+resolution. Fair weather cancels only bad weather, and Abundant harvest
+cancels only bad harvest; a card that cancels a calamity does not provide its
+regional bonus. Duplicate cards of the same kind are consumed, but only one is
+effective: with an active calamity the first card cancels and a second one
+applies the regional bonus; without a calamity the first card applies it
+directly. The bonus stays capped at one unit per category and region; further
+cards are consumed without effect.
 
 The deck contains **{{special_orders.deck_size}} cards**:
 **{{special_orders.card.plague}}** plague, **{{special_orders.card.bad_weather}}**
 bad weather, **{{special_orders.card.famine}}** bad harvest,
 **{{special_orders.card.fair_weather}}** fair weather,
-**{{special_orders.card.abundant_harvest}}** abundant harvest and
-**{{special_orders.card.revolt}}** revolt cards. The hand limit is
-**{{special_orders.hand_limit}} cards**, and each player automatically receives
-up to **{{special_orders.draw_orders_limit}} bonus cards per winter**, after
-discards.
+**{{special_orders.card.abundant_harvest}}** abundant harvest, and
+**{{special_orders.card.revolt}}** revolt cards. A hand is limited to
+**{{special_orders.hand_limit}} cards**, and each player automatically
+receives up to **{{special_orders.draw_orders_limit}} bonus cards per
+winter**, after discards.
 
-A drawn calamity is programmed into the first free slot of the following year:
-spring (**{{special_orders.calamity_slots.spring}}**), summer
-(**{{special_orders.calamity_slots.summer}}**) or autumn
+A drawn calamity is programmed into the first free slot of the following
+year: spring (**{{special_orders.calamity_slots.spring}}**), summer
+(**{{special_orders.calamity_slots.summer}}**), or autumn
 (**{{special_orders.calamity_slots.autumn}}**). Its region is selected
-deterministically when programmed. The spring augury reveals the kind, season
-and region of every calamity in that year; future auguries remain hidden.
-
-As soon as a calamity is drawn, the interface announces it in the special-cards
-panel. The announcement stays visible until the calamity applies or is
+deterministically when programmed. The spring augury reveals the kind, season,
+and region of every calamity in that year; future auguries remain hidden. As
+soon as a calamity is drawn, the interface announces it in the special-cards
+panel, and the announcement stays visible until the calamity applies or is
 countered. No calamity resolves in winter.
 
-- plague reduces armies by a divisor of **{{special_orders.effects.plague_army_divisor}}** and may remove a noble;
-- bad weather blocks movements originating from or targeting its region, except holds and defensive support;
+- plague reduces armies by a divisor of
+  **{{special_orders.effects.plague_army_divisor}}** and may remove a noble;
+- bad weather blocks movements originating from or targeting its region,
+  except holds and defensive support;
 - bad harvest disables mills and infrastructure ration bonuses in its region;
-- Revolt is played on a territory (`P RV TER`) during action seasons, provided its region suffers a bad harvest. Each card adds a roll between **{{special_orders.effects.revolt_army_min_size}}** and **{{special_orders.effects.revolt_army_max_size}}** troops to the territory's common neutral army; the territory may be neutral (mere brigandage) and an army is raised there when the square is empty. If the territory is occupied, the revolt resolves as a battle between the rebel army and the holder: the loser retreats or is destroyed. When an Abundant harvest cancels the region's bad harvest, pending revolts in that region are canceled and their players take their cards back. A crushed rebellion retreats like any defeated army instead of vanishing. Neutral armies never lose strength to a famine, but lose one troop at the end of the turn when the local production of their territory cannot feed them.
+- Revolt is played on a territory (`P RV TER`) during action seasons,
+  provided its region suffers a bad harvest. Each card adds a roll between
+  **{{special_orders.effects.revolt_army_min_size}}** and
+  **{{special_orders.effects.revolt_army_max_size}}** troops to the
+  territory's common neutral army; the territory may be neutral (mere
+  brigandage), and an army is raised there when the territory is empty. If the
+  territory is occupied, the revolt resolves as a battle between the rebel
+  army and the holder: the loser retreats or is destroyed. When an Abundant
+  harvest cancels the region's bad harvest, pending revolts in that region are
+  canceled and their players take their cards back. A crushed rebellion
+  retreats like any defeated army instead of vanishing. Neutral armies never
+  lose strength to a famine, but lose one troop at the end of the turn when
+  the local production of their territory cannot feed them.
 
 Public rumors are recalculated in every report from the current bonus hands of
-all players. They appear when at least two players hold a card, without revealing
-the player or the internal card identifier. Several cards of the same kind are
-grouped into one graduated sentence: level 1 for a few cards, level 2 for a
-stronger presence, and level 3 for exceptional abundance. The scale is
-recalibrated to the game's hand capacity (players multiplied by the hand limit),
-so the same number of cards does not produce the same level in a small and a
-large game.
+all players. They appear when at least two players hold a card, without
+revealing the player or the internal card identifier. Several cards of the
+same kind are grouped into one graduated sentence: level 1 for a few cards,
+level 2 for a stronger presence, and level 3 for exceptional abundance. The
+scale is recalibrated to the game's hand capacity (players multiplied by the
+hand limit), so the same number of cards does not produce the same level in a
+small and a large game.
 
 ---
 
-## 7. Armies, Combat, and Logistics
+## 10. End of Game, Score, and Victory
 
-### Armies and Strength
-
-An army is the sole force entity on a territory: it has an owner and a troop
-size. All its troops share the same chain; an army cannot contain mixed orders.
-
-- attack strength is the attacking army's **size**, with **+{{noble_command_bonus}}** if a free allied
-  noble is present on its territory;
-- support strength is the supporting army's size, with **+{{noble_command_bonus}}** if a free allied
-  noble is present on its territory;
-- an army's defense receives the same **+{{noble_command_bonus}}** bonus when commanded by a free allied
-  noble;
-- a castle gives a fixed defensive bonus of **+{{castle_defense_bonus}}**, even without an army, unless
-  all attackers belong to the castle's owner: an army may attack its own empty
-  castle to garrison it without being repelled by the castle's defense (self-capture);
-- the **strictly unique** highest strength wins; a top tie produces a **standoff**,
-  including on an empty territory;
-- a dislodged army loses its movement and must **retreat**;
-- a defeated army retreats in priority order:
-  1. an empty territory controlled by the retreating army's owner (with or without
-     a castle), even if fought over this turn;
-  2. an uncontrolled empty territory (neutral or enemy), without a castle and
-     not fought over this turn;
-  3. an adjacent, non-dislodged friendly army (smallest troop size first), with
-     merging: the host gains `N − 1` troops if the retreating army has `N ≥ 2`
-     troops, or `1` troop if `N = 1` (no loss). Multiple retreating armies merge
-     sequentially into the same friendly host without destruction.
-  Ties within a bucket are broken by distance to the nearest controlled castle or
-  village, then ascending trigram. For friendly armies, sorting is by troop size
-  ascending, then distance to the nearest controlled source, then ascending
-   trigram. The attacker's origin territory is always excluded. Neutral or
-   enemy empty castles defend against retreat and are excluded. Two armies that
-   must retreat to the same empty territory with no alternative are destroyed.
-   Retreat resolution order follows
-  the ascending trigram of their origin territory.
-
-Territorial control follows the army that stops there; acquired control remains
-after the army leaves until an enemy army stops there.
-
-### Exponential Supply
-
-Supply is resolved **at the start of every action season**, before orders,
-combats, and movement. There is no supply phase in winter. A one-troop army
-demands `{{army_cost.1}}` ration; it is not automatically free.
-
-An army of `N` troops demands:
-
-```text
-cost = {{cost_base}}^(N - 1)  rations
-```
-
-| Size | 1 | 2 | 3 | 4 | 5 |
-|---|---:|---:|---:|---:|---:|
-| Ration cost | {{army_cost.1}} | {{army_cost.2}} | {{army_cost.3}} | {{army_cost.4}} | {{army_cost.5}} |
-
-The food production of the army's own territory is granted to that army alone:
-an army consumes the production of the territory it occupies up to its demand;
-surplus is lost and the remainder is its demand to supply. There is only ever
-one army per territory, so there is no distribution between armies: an enemy
-army on a neighboring territory never takes your territory's ration.
-
-Example: a 2-troop army on a hill with a castle (local production:
-{{ration_terrain.hill}}; castle bonus: {{infra_rations_bonus}}) receives 2 rations,
-covering its full demand; any surplus is lost. A 2-troop army on a
-swamp (production
-{{ration_terrain.swamp}}) receives 1 ration and must cover its remaining demand
-of 1 ration.
-
-**Territory food production (rations)**: plain {{ration_terrain.plain}}; forest
-{{ration_terrain.forest}}; hill {{ration_terrain.hill}}; mountain
-{{ration_terrain.mountain}}; swamp {{ration_terrain.swamp}};
-**+{{infra_rations_bonus}}** when the territory has a castle or village.
-
-**Supply sources**: **controlled castles, villages, and caches**. A castle or
-village produces **{{base_production}} R of stock per turn**; a bare cache produces nothing.
-The flow crosses allied, neutral, or enemy-controlled territories and only stops
-before a territory occupied by an enemy army. Base range is **{{supply_range}} territories**;
-each controlled supply depot encountered along the route adds **{{depot_range_bonus}} territories**.
-A neutral village keeps its stock, inaccessible to the player before capture.
-
-Each source calculates its own `R` production: its base production plus the level
-of **every adjacent mill**. One mill can therefore feed every neighboring source;
-it is not reserved for the owner of its territory. An orphaned mill, with no
-adjacent castle or village, produces `0 R`. For example, a village surrounded by
-two level-1 mills produces `{{base_production}} + 1 + 1 R`; the same mills also add their level
-to every neighboring castle. The presence or position of a noble never
-conditions `C M XXX` or this production: a noble in NOR does not prevent the
-player from building `C M ATL` when ATL is empty, controlled, and adjacent to
-the required source.
-
-### Stocks and Famine
-
-When there is a deficit:
-
-1. stocks in controlled castles, villages, and caches are emptied (smallest
-   first, with the territorial trigram as tie-breaker);
-2. remaining armies enter **famine**, starting with those furthest from their
-   source, then the largest, then descending trigram.
-
-A famished army **attacks and defends at strength 0** for the turn, even when it
-carries a free noble. If it is on infrastructure, it **pills it automatically**;
-the pillage bonus, reduced by its residual demand, may end its famine.
-
-If pillage is insufficient or impossible, it loses **1 troop**, never falling
-below 1. It nevertheless remains famished and at strength 0 for the whole
-current season, even if that loss would make its future demand sustainable. The
-loss repeats in every season in which the army is still famished.
-
-Example: a 2-troop army in deficit demands 2 rations. If its stocks and pillage
-cannot cover the deficit, it loses one troop and becomes a 1-troop army; it stays
-at strength 0 this turn even though a 1-troop army would then demand only one
-ration.
-
-In the interface, selecting an army or a controlled source shows its supply or
-the area it reaches (outside winter only). A transfer being drafted also shows
-its route and blockers.
-
-### Infrastructure
-
-A territory carries only **one infrastructure**.
-
-| Infrastructure | Condition | v1 effect | Cost |
-|---|---|---|---|
-| Mill | Build on an empty controlled territory adjacent to a castle or village; upgrade an existing mill adjacent to that source, up to level 3 | +1 stockable R per level at **each** adjacent source | {{costs.mill_levels.0}} / {{costs.mill_levels.1}} / {{costs.mill_levels.2}} |
-| Supply depot | None | +{{depot_range_bonus}} territories of supply range when controlled | {{costs.supply_depot}} |
-| Castle | None | +{{castle_defense_bonus}} defense, +{{infra_rations_bonus}} rations, produces {{base_production}} stockable R per turn, supply anchor | {{costs.castle}} |
-| Village | Generated neutral, **not buildable** | +{{infra_rations_bonus}} rations, produces {{base_production}} stockable R per turn, supply anchor after capture | — |
-
----
-
-## 7. Nobles: Capture, Movement, and Capacity
-
-Nobles **ride with armies**: they follow movement, attacks, joins, dispersals, and
-retreats. A noble counts neither toward supply nor combat losses. A player's free
-noble present on its army's territory grants that army **+{{noble_command_bonus}} strength** once;
-held enemy nobles, hostage nobles, and dungeon nobles do not grant this bonus. A
-noble may remain alone on a territory after its army is lost.
-
-**Command capacity**:
-
-- a **free or hostage** noble emits at most **one chain per turn** (a new chain
-  means a new turn);
-- a **dungeon** noble (`dungeon`) cannot emit a new chain;
-- the noble may give the chain to **any army belonging to its player**; it does
-  not have to be present at the receiving territory;
-- the chain applies to the whole army. The command bonus comes only from a free
-  allied noble **present on the army's territory when strength is calculated**:
-  issuing a chain remotely does not teleport the noble or give the distant army
-  a bonus.
-
-> In this version there is no limit to the number of **nobles carried by an
-> army**: an army transports every noble present on its territory.
-
-**Capture**: when an army carrying nobles is **destroyed** on a territory
-occupied by an enemy army, the nobles it carried are captured and become
-`hostage` by default. A hostage noble may continue to emit a chain; only moving
-it to the dungeon removes that ability. The player holding it can read the
-chains emitted by that hostage in online games, even when they command an army
-that remained with the noble's owner.
-
-**Liberation**: during winter, `L N NNN` is issued by the player holding the
-prisoner, not by its owner. If the owner's capital exists and contains one of
-their armies, the noble reappears **free in that capital**; otherwise the order is
-rejected.
-
-A voluntary noble transfer uses a dispersal. For example,
-`BRI D ATL*HUG NOR` sends HUG with the ATL group. Noble HUG grants the `+{{noble_command_bonus}}`
-bonus only if that group actually carries HUG when it fights or defends.
-
-A player who has no free or hostage noble able to emit does not have to submit
-chains during an action season.
-
-Nobles assigned during a **dispersal** must all be distributed among the
-destinations (`*` or `*NNN`); see section 4.
-
----
-
-## 8. End of Game, Score, and Victory
-
-A game's duration is chosen at creation, between 1 and 50 years (10 by default).
-A year has four turns; the interface shows the historical year `1000 + year`,
-so “Year 1001” on the first turn.
+A game's duration is chosen at creation, between 1 and 50 years (10 by
+default). A year has four turns; the interface shows the historical year
+`1000 + year`, so “Year 1001” on the first turn.
 
 **Elimination**: a player is eliminated when they no longer control any
 territory and no longer own any army. Nobles alone do not keep a player in the
 game. An eliminated player no longer submits orders.
 
-**End of game**: the game ends:
+**End of game**: the game ends immediately when only one player remains (that
+player wins), or otherwise after the final winter of the chosen duration is
+resolved — the player with the highest score wins. An exact tie at the top has
+no winner.
 
-- immediately when only one player remains: that player wins;
-- otherwise, after the final winter of the chosen duration is resolved: the
-  player with the highest score wins. An exact tie at the top has no winner.
-
-**Score**: it is recomputed after every turn and visible to everyone.
+**Score**, recomputed after every turn and visible to everyone:
 
 | Element | Points |
 |---|---:|
@@ -616,7 +705,7 @@ game. An eliminated player no longer submits orders.
 | Troop | 1 per unit in their armies |
 | Resource `R` | 1 per unit in stock on their controlled territories |
 
-Infrastructure and resources only score on a controlled territory. A free noble
-counts for its owner. A captured noble, hostage or in the dungeon, counts for
-the player who controls the territory where it stands, not for its original
-owner.
+Infrastructure and resources only score on a controlled territory. A free
+noble counts for its owner. A captured noble, hostage or in the dungeon,
+counts for the player who controls the territory where it stands, not for its
+original owner.
