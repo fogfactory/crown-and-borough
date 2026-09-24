@@ -16,9 +16,9 @@ func TestComputeScoresCountsCategoriesAndCaptiveHolder(t *testing.T) {
 			{ID: "CCC"},
 		},
 		TerritoryStates: map[models.TerritoryID]models.TerritoryState{
-			"AAA": {OwnerID: &p1, Resources: 3, Infrastructures: []models.InfraID{"I1"}},
-			"BBB": {OwnerID: &p1, Resources: 2, Infrastructures: []models.InfraID{"I2"}},
-			"CCC": {OwnerID: &p2, Resources: 1, Infrastructures: []models.InfraID{"I3"}},
+			"AAA": {OwnerID: &p1, Resources: 3, Infrastructures: infraPointer("I1")},
+			"BBB": {OwnerID: &p1, Resources: 2, Infrastructures: infraPointer("I2")},
+			"CCC": {OwnerID: &p2, Resources: 1, Infrastructures: infraPointer("I3")},
 		},
 		Infrastructures: []models.Infrastructure{
 			{ID: "I1", Type: models.InfraTypeCastle, TerritoryID: "AAA"},

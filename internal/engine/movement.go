@@ -1152,11 +1152,11 @@ func (ctx *resolutionContext) executeTransfer(record *orderRecord, army *models.
 
 func (ctx *resolutionContext) executePillage(record *orderRecord, army *models.Army) {
 	state := ctx.state.TerritoryStates[army.TerritoryID]
-	if len(state.Infrastructures) == 0 {
+	if state.Infrastructures == nil {
 		record.invalidate("no_infrastructure")
 		return
 	}
-	infrastructureID := state.Infrastructures[0]
+	infrastructureID := *state.Infrastructures
 	infrastructure := ctx.infrastructuresByID[infrastructureID]
 	if infrastructure == nil {
 		record.invalidate("unknown_infrastructure")

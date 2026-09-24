@@ -48,7 +48,10 @@ func cloneGameState(source *models.GameState) *models.GameState {
 			armyID := *state.Army
 			copyState.Army = &armyID
 		}
-		copyState.Infrastructures = cloneSlice(state.Infrastructures)
+		if state.Infrastructures != nil {
+			infrastructureID := *state.Infrastructures
+			copyState.Infrastructures = &infrastructureID
+		}
 		clone.TerritoryStates[territoryID] = copyState
 	}
 	clone.SpecialDeck = cloneSpecialDeck(source.SpecialDeck)

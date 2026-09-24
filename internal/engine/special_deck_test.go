@@ -82,7 +82,7 @@ func TestResolveActionAppliesDeckOrderWithoutNoble(t *testing.T) {
 	state.Seed = "deck-action"
 	state.Players = []models.Player{{ID: "P1", Name: "One"}, {ID: "P2", Name: "Two"}}
 	state.Territories = []models.Territory{{ID: "ROS", Name: "ROS", Terrain: models.TerrainPlain}}
-	state.TerritoryStates = map[models.TerritoryID]models.TerritoryState{"ROS": {Infrastructures: []models.InfraID{}}}
+	state.TerritoryStates = map[models.TerritoryID]models.TerritoryState{"ROS": {}}
 	state.SpecialDeck = &models.SpecialDeck{
 		Cards:    []models.SpecialCard{{ID: "C1", Kind: models.CardKindFairWeather}},
 		DrawPile: []models.SpecialCardID{}, Discard: []models.SpecialCardID{},

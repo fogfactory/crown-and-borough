@@ -16,8 +16,8 @@ func effectTestState() *models.GameState {
 		{ID: "BBB", Name: "BBB", Terrain: models.TerrainPlain, Adjacencies: []models.TerritoryID{"AAA"}},
 	}
 	state.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
-		"AAA": {Infrastructures: []models.InfraID{}},
-		"BBB": {Infrastructures: []models.InfraID{}},
+		"AAA": {},
+		"BBB": {},
 	}
 	state.Regions = []models.Region{{ID: "AAA", Seed: "AAA", Territories: []models.TerritoryID{"AAA", "BBB"}}}
 	state.Auguries = map[int]models.YearAugury{}
@@ -34,7 +34,7 @@ func setCurrentCalamity(state *models.GameState, kind models.CardKind, region mo
 func TestResolveSeasonEffectsPlagueReducesArmies(t *testing.T) {
 	state := effectTestState()
 	state.Armies = []models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 5}}
-	state.TerritoryStates["AAA"] = models.TerritoryState{Army: armyPointer("A1"), Infrastructures: []models.InfraID{}}
+	state.TerritoryStates["AAA"] = models.TerritoryState{Army: armyPointer("A1")}
 	setCurrentCalamity(state, models.CardKindPlague, "AAA")
 	balance := testBalance()
 	balance.SpecialOrders.Effects.PlagueArmyDivisor = 2
@@ -65,7 +65,7 @@ func TestResolveSeasonEffectsFairWeatherCancelsBadWeatherWithoutBonus(t *testing
 func TestResolveSeasonEffectsFamineDisablesMillContribution(t *testing.T) {
 	state := effectTestState()
 	state.Infrastructures = []models.Infrastructure{{ID: "I1", Type: models.InfraTypeMill, Level: 2, TerritoryID: "AAA"}}
-	state.TerritoryStates["AAA"] = models.TerritoryState{Infrastructures: []models.InfraID{"I1"}}
+	state.TerritoryStates["AAA"] = models.TerritoryState{Infrastructures: infraPointer("I1")}
 	setCurrentCalamity(state, models.CardKindFamine, "AAA")
 	ctx := newResolutionContext(state, testBalance())
 	resolveSeasonEffects(ctx)
@@ -266,10 +266,10 @@ func TestFamineEmitsLossSummaryAndDetails(t *testing.T) {
 		{ID: "I2", Type: models.InfraTypeMill, Level: 2, TerritoryID: "BBB"},
 	}
 	aaaState := state.TerritoryStates["AAA"]
-	aaaState.Infrastructures = []models.InfraID{"I1"}
+	aaaState.Infrastructures = infraPointer("I1")
 	state.TerritoryStates["AAA"] = aaaState
 	bbbState := state.TerritoryStates["BBB"]
-	bbbState.Infrastructures = []models.InfraID{"I2"}
+	bbbState.Infrastructures = infraPointer("I2")
 	state.TerritoryStates["BBB"] = bbbState
 	setCurrentCalamity(state, models.CardKindFamine, "AAA")
 	ctx := newResolutionContext(state, testBalance())

@@ -172,13 +172,11 @@ func (ctx *resolutionContext) sortedNeighbors(territoryID models.TerritoryID) []
 
 func (ctx *resolutionContext) hasInfrastructure(territoryID models.TerritoryID, kind models.InfraType) bool {
 	state := ctx.state.TerritoryStates[territoryID]
-	for _, infrastructureID := range state.Infrastructures {
-		infrastructure := ctx.infrastructuresByID[infrastructureID]
-		if infrastructure != nil && infrastructure.Type == kind {
-			return true
-		}
+	if state.Infrastructures == nil {
+		return false
 	}
-	return false
+	infrastructure := ctx.infrastructuresByID[*state.Infrastructures]
+	return infrastructure != nil && infrastructure.Type == kind
 }
 
 func (ctx *resolutionContext) hasCastle(territoryID models.TerritoryID) bool {
@@ -240,22 +238,14 @@ func (ctx *resolutionContext) removeInfrastructureWithStock(infrastructureID mod
 	}
 	ctx.state.Infrastructures = filtered
 	state := ctx.state.TerritoryStates[infrastructure.TerritoryID]
-	state.Infrastructures = removeInfraID(state.Infrastructures, infrastructureID)
+	if state.Infrastructures != nil && *state.Infrastructures == infrastructureID {
+		state.Infrastructures = nil
+	}
 	if !preserveStock && (infrastructure.Type == models.InfraTypeCastle || infrastructure.Type == models.InfraTypeVillage) {
 		state.Resources = 0
 	}
 	ctx.state.TerritoryStates[infrastructure.TerritoryID] = state
 	ctx.rebuildIndexes()
-}
-
-func removeInfraID(ids []models.InfraID, remove models.InfraID) []models.InfraID {
-	filtered := make([]models.InfraID, 0, len(ids))
-	for _, id := range ids {
-		if id != remove {
-			filtered = append(filtered, id)
-		}
-	}
-	return filtered
 }
 
 func (ctx *resolutionContext) allocateArmyID() models.ArmyID {

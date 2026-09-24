@@ -67,15 +67,15 @@ func firstRejectedEvent(t *testing.T, events []Event) Event {
 func infrastructureAtState(t *testing.T, state *models.GameState, territoryID models.TerritoryID) models.Infrastructure {
 	t.Helper()
 	territoryState := state.TerritoryStates[territoryID]
-	if len(territoryState.Infrastructures) != 1 {
+	if territoryState.Infrastructures == nil {
 		t.Fatalf("territory %q infrastructures = %#v, want exactly one", territoryID, territoryState.Infrastructures)
 	}
 	for _, infrastructure := range state.Infrastructures {
-		if infrastructure.ID == territoryState.Infrastructures[0] {
+		if infrastructure.ID == *territoryState.Infrastructures {
 			return infrastructure
 		}
 	}
-	t.Fatalf("infrastructure %q not found", territoryState.Infrastructures[0])
+	t.Fatalf("infrastructure %q not found", *territoryState.Infrastructures)
 	return models.Infrastructure{}
 }
 

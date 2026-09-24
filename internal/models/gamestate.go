@@ -417,7 +417,7 @@ func (g *GameState) Validate() error {
 		if !ok {
 			return fmt.Errorf("models: infrastructure %q: missing TerritoryState for territory %q", in.ID, in.TerritoryID)
 		}
-		if !slices.Contains(st.Infrastructures, in.ID) {
+		if st.Infrastructures == nil || *st.Infrastructures != in.ID {
 			return fmt.Errorf("models: infrastructure %q: territory %q does not list it in its infrastructures", in.ID, in.TerritoryID)
 		}
 		infras[in.ID] = in
@@ -458,10 +458,8 @@ func (g *GameState) Validate() error {
 				return fmt.Errorf("models: territoryState %q: army %q is stationed in territory %q", id, *st.Army, army.TerritoryID)
 			}
 		}
-		if len(st.Infrastructures) > 1 {
-			return fmt.Errorf("models: territoryState %q: multiple infrastructures (want at most one per territory)", id)
-		}
-		for _, iid := range st.Infrastructures {
+		if st.Infrastructures != nil {
+			iid := *st.Infrastructures
 			in := infras[iid]
 			if in == nil {
 				return fmt.Errorf("models: territoryState %q: unknown infrastructure %q", id, iid)

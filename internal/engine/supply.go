@@ -755,10 +755,10 @@ func (ctx *resolutionContext) isControlledDepot(territoryID models.TerritoryID, 
 
 func (ctx *resolutionContext) infrastructureAt(territoryID models.TerritoryID) *models.Infrastructure {
 	state := ctx.state.TerritoryStates[territoryID]
-	if len(state.Infrastructures) == 0 {
+	if state.Infrastructures == nil {
 		return nil
 	}
-	return ctx.infrastructuresByID[state.Infrastructures[0]]
+	return ctx.infrastructuresByID[*state.Infrastructures]
 }
 
 func startArmiesForPlayer(ctx *resolutionContext, ownerID models.PlayerID) []models.Army {

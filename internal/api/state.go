@@ -195,7 +195,7 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID) Sta
 			ID:              territory.ID,
 			Owner:           territoryState.OwnerID,
 			Resources:       territoryState.Resources,
-			Infrastructures: make([]InfraView, 0, len(territoryState.Infrastructures)),
+			Infrastructures: make([]InfraView, 0, 1),
 		}
 		if territoryState.Army != nil {
 			if army, ok := armiesByID[*territoryState.Army]; ok {
@@ -214,8 +214,8 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID) Sta
 				territoryView.Army = armyView
 			}
 		}
-		for _, infrastructureID := range territoryState.Infrastructures {
-			if infrastructure, ok := infrastructuresByID[infrastructureID]; ok {
+		if territoryState.Infrastructures != nil {
+			if infrastructure, ok := infrastructuresByID[*territoryState.Infrastructures]; ok {
 				territoryView.Infrastructures = append(territoryView.Infrastructures, InfraView{
 					Type:  infrastructure.Type,
 					Level: infrastructure.Level,

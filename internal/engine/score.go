@@ -50,18 +50,16 @@ func ComputeScores(state *models.GameState) map[models.PlayerID]ScoreBreakdown {
 		}
 		score.Territories++
 		score.Resources += territoryState.Resources
-		for _, infrastructureID := range territoryState.Infrastructures {
-			infrastructure, exists := infrastructures[infrastructureID]
-			if !exists {
-				continue
-			}
-			switch infrastructure.Type {
-			case models.InfraTypeVillage:
-				score.Villages += 2
-			case models.InfraTypeMill:
-				score.Mills++
-			case models.InfraTypeCastle:
-				score.Castles += 5
+		if territoryState.Infrastructures != nil {
+			if infrastructure, exists := infrastructures[*territoryState.Infrastructures]; exists {
+				switch infrastructure.Type {
+				case models.InfraTypeVillage:
+					score.Villages += 2
+				case models.InfraTypeMill:
+					score.Mills++
+				case models.InfraTypeCastle:
+					score.Castles += 5
+				}
 			}
 		}
 		scores[playerID] = score

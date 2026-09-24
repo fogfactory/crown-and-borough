@@ -28,8 +28,8 @@ func winterDeckState() *models.GameState {
 	}
 	p1, p2 := models.PlayerID("P1"), models.PlayerID("P2")
 	state.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
-		"ROS": {OwnerID: &p1, Infrastructures: []models.InfraID{}},
-		"BOI": {OwnerID: &p2, Infrastructures: []models.InfraID{}},
+		"ROS": {OwnerID: &p1},
+		"BOI": {OwnerID: &p2},
 	}
 	state.SpecialDeck = &models.SpecialDeck{
 		Cards: []models.SpecialCard{
@@ -64,7 +64,7 @@ func TestResolveWinterAutomaticallyRefillsThroughCalamity(t *testing.T) {
 func TestResolveWinterAutomaticallyRefillsConfiguredCount(t *testing.T) {
 	state := winterDeckState()
 	state.Players = []models.Player{{ID: "P1", Name: "One"}}
-	state.TerritoryStates["BOI"] = models.TerritoryState{Infrastructures: []models.InfraID{}}
+	state.TerritoryStates["BOI"] = models.TerritoryState{}
 	state.SpecialDeck.Cards = []models.SpecialCard{
 		{ID: "C1", Kind: models.CardKindFairWeather},
 		{ID: "C2", Kind: models.CardKindAbundantHarvest},

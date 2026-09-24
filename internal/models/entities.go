@@ -76,16 +76,16 @@ type Infrastructure struct {
 
 // TerritoryState is the dynamic layer attached to a single territory: who
 // controls it, its stock of R, the army stationed on it and the
-// infrastructures built on it. OwnerID is nil when the territory is neutral;
+// infrastructure built on it. OwnerID is nil when the territory is neutral;
 // a castle construction does not imply control. Army is nil when the territory
-// is empty. Infrastructures follow the "Règle de la Structure Unique": at most
+// is empty. Infrastructure follows the "Règle de la Structure Unique": at most
 // one per territory (GDD §3), which the pillage order then destroys outright
-// (GDD §6, §8) — no ordering or choice is ever needed. Action-season transfers
-// may leave a positive cache on an ordinary territory; winter decides whether
-// that cache survives.
+// (GDD §6, §8) — no ordering or choice is ever needed, so the field is a
+// pointer rather than a slice. Action-season transfers may leave a positive
+// cache on an ordinary territory; winter decides whether that cache survives.
 type TerritoryState struct {
 	OwnerID         *PlayerID `json:"owner"` // nil = neutral
 	Resources       int       `json:"resources"`
 	Army            *ArmyID   `json:"army"`            // nil = no army
-	Infrastructures []InfraID `json:"infrastructures"` // at most one per territory (GDD §3)
+	Infrastructures *InfraID  `json:"infrastructures"` // nil = no infrastructure (GDD §3)
 }

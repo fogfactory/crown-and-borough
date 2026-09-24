@@ -11,7 +11,7 @@ func TestRecruitTroopOrderApply(t *testing.T) {
 	addNoble(state, "N1", "ONE", "P1", "AAA")
 	setTerritoryOwner(state, "AAA", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA"})
-	state.TerritoryStates["AAA"] = models.TerritoryState{OwnerID: state.TerritoryStates["AAA"].OwnerID, Army: state.TerritoryStates["AAA"].Army, Resources: 1, Infrastructures: []models.InfraID{"I1"}}
+	state.TerritoryStates["AAA"] = models.TerritoryState{OwnerID: state.TerritoryStates["AAA"].OwnerID, Army: state.TerritoryStates["AAA"].Army, Resources: 1, Infrastructures: infraPointer("I1")}
 	ctx := newResolutionContext(state, testBalance())
 	recruitTroopOrder{order: models.WinterOrder{ID: "O1", TerritoryID: "AAA"}}.Apply(&ExecutionContext{resolution: ctx, playerID: "P1"})
 	if got := state.Armies[0].Size; got != 2 {

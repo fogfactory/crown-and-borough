@@ -61,9 +61,9 @@ func validState() *models.GameState {
 		{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BRU"},
 	}
 	g.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
-		"ROS": {OwnerID: ptrID("P1"), Resources: 0, Army: ptrArmyID("A1"), Infrastructures: []models.InfraID{"I1"}},
+		"ROS": {OwnerID: ptrID("P1"), Resources: 0, Army: ptrArmyID("A1"), Infrastructures: ptrInfraID("I1")},
 		"BCL": {OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A2")},
-		"BRU": {OwnerID: ptrID("P1"), Resources: 5, Infrastructures: []models.InfraID{"I2"}},
+		"BRU": {OwnerID: ptrID("P1"), Resources: 5, Infrastructures: ptrInfraID("I2")},
 		"FOU": {OwnerID: nil, Resources: 0},
 	}
 	return g
@@ -288,7 +288,7 @@ func TestValidateErrors(t *testing.T) {
 		{"army unknown owner", func(g *models.GameState) { g.Armies[0].OwnerID = "P9" }, "unknown owner"},
 		{"army unknown territory", func(g *models.GameState) { g.Armies[0].TerritoryID = "ZZZ" }, "unknown territory"},
 		{"army not referenced by territory state", func(g *models.GameState) {
-			g.TerritoryStates["ROS"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 0, Infrastructures: []models.InfraID{"I1"}}
+			g.TerritoryStates["ROS"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 0, Infrastructures: ptrInfraID("I1")}
 		}, "does not reference it"},
 		{"state references army stationed elsewhere", func(g *models.GameState) {
 			g.TerritoryStates["BCL"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A1")}
@@ -320,20 +320,17 @@ func TestValidateErrors(t *testing.T) {
 		{"capital references noncastle", func(g *models.GameState) { g.Players[0].CapitalCastleID = ptrInfraID("I1") }, "capital infrastructure"},
 		{"capital castle is enemy controlled", func(g *models.GameState) {
 			g.Players[0].CapitalCastleID = ptrInfraID("I2")
-			g.TerritoryStates["BRU"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 5, Infrastructures: []models.InfraID{"I2"}}
+			g.TerritoryStates["BRU"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 5, Infrastructures: ptrInfraID("I2")}
 		}, "not controlled by its owner"},
 		{"infra not listed in territory state", func(g *models.GameState) {
 			g.TerritoryStates["ROS"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 0, Army: ptrArmyID("A1")}
 		}, "does not list it"},
 		{"state lists infra built elsewhere", func(g *models.GameState) {
-			g.TerritoryStates["BCL"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A2"), Infrastructures: []models.InfraID{"I2"}}
+			g.TerritoryStates["BCL"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A2"), Infrastructures: ptrInfraID("I2")}
 		}, "built in"},
 		{"state lists unknown infra", func(g *models.GameState) {
-			g.TerritoryStates["BCL"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A2"), Infrastructures: []models.InfraID{"I9"}}
+			g.TerritoryStates["BCL"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A2"), Infrastructures: ptrInfraID("I9")}
 		}, "unknown infrastructure"},
-		{"multiple infrastructures in territory state", func(g *models.GameState) {
-			g.TerritoryStates["ROS"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 5, Army: ptrArmyID("A1"), Infrastructures: []models.InfraID{"I1", "I2"}}
-		}, "multiple infrastructures"},
 		{"missing territory state entry", func(g *models.GameState) {
 			delete(g.TerritoryStates, "FOU")
 		}, "missing TerritoryState"},
@@ -344,7 +341,7 @@ func TestValidateErrors(t *testing.T) {
 			g.TerritoryStates["FOU"] = models.TerritoryState{OwnerID: ptrID("P9")}
 		}, "unknown owner"},
 		{"negative resources", func(g *models.GameState) {
-			g.TerritoryStates["ROS"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: -1, Army: ptrArmyID("A1"), Infrastructures: []models.InfraID{"I1"}}
+			g.TerritoryStates["ROS"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: -1, Army: ptrArmyID("A1"), Infrastructures: ptrInfraID("I1")}
 		}, "negative resources"},
 	}
 	for _, tc := range cases {

@@ -176,13 +176,12 @@ func TestCreateGameCountsCastlesVillagesAndStartingTerritories(t *testing.T) {
 			t.Errorf("players=%d: neutral villages = %d, want %d", playerCount, villageCount, playerCount+1)
 		}
 		for territoryID, territoryState := range game.TerritoryStates {
-			if len(territoryState.Infrastructures) > 1 {
-				t.Errorf("players=%d: territory %s has %d infrastructures", playerCount, territoryID, len(territoryState.Infrastructures))
+			if territoryState.Infrastructures == nil {
+				continue
 			}
-			for _, infrastructureID := range territoryState.Infrastructures {
-				if infrastructure, ok := infrastructures[infrastructureID]; !ok || infrastructure.TerritoryID != territoryID {
-					t.Errorf("players=%d: infrastructure %s is not indexed by territory %s", playerCount, infrastructureID, territoryID)
-				}
+			infrastructureID := *territoryState.Infrastructures
+			if infrastructure, ok := infrastructures[infrastructureID]; !ok || infrastructure.TerritoryID != territoryID {
+				t.Errorf("players=%d: infrastructure %s is not indexed by territory %s", playerCount, infrastructureID, territoryID)
 			}
 		}
 	}
