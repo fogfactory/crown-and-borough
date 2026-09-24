@@ -91,6 +91,7 @@ describe('Firestore game subscriptions', () => {
           color: '#a84632',
           actorId: 'alice-uid',
           submitted: true,
+          required: true,
         },
       ],
       turn: 2,
@@ -99,6 +100,29 @@ describe('Firestore game subscriptions', () => {
       scores: {},
       revision: 4,
     })
+  })
+
+  it('marks a player absent from requiredUids as having nothing to submit', () => {
+    const summary = normalizeGameSummary(
+      {
+        id: 'game-1',
+        players: [
+          { id: 'P1', name: 'Alice', color: '#a84632', actorId: 'alice-uid' },
+          { id: 'P2', name: 'Bob', color: '#2d5f9e', actorId: 'bob-uid' },
+        ],
+        submittedUids: [],
+        requiredUids: ['alice-uid'],
+        revision: 1,
+        turn: 3,
+        season: 'summer',
+        status: 'playing',
+      },
+      'game-1',
+    )
+    expect(summary.players).toEqual([
+      expect.objectContaining({ id: 'P1', required: true }),
+      expect.objectContaining({ id: 'P2', required: false }),
+    ])
   })
 
   it('subscribes to the public summary and only the current UID private view', async () => {

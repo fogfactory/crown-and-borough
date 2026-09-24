@@ -127,6 +127,7 @@ function AppContent() {
   const [winterDrafts, setWinterDrafts] = useState<Record<PlayerId, string>>({})
   const [specialDrafts, setSpecialDrafts] = useState<Record<PlayerId, string>>({})
   const [submittedPlayers, setSubmittedPlayers] = useState<PlayerId[]>([])
+  const [requiredPlayers, setRequiredPlayers] = useState<PlayerId[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [createError, setCreateError] = useState<string | null>(null)
@@ -215,6 +216,35 @@ function AppContent() {
     void loadMap()
     return () => controller.abort()
   }, [gameId, gameReady, t])
+
+  useEffect(() => {
+    if (!gameReady || !gameId) return
+    const controller = new AbortController()
+    const loadRequiredPlayers = async () => {
+      try {
+        const response = await fetch(asPlayer(hotseatGamePath(gameId), HOTSEAT_HOST), {
+          signal: controller.signal,
+        })
+        if (!response.ok) return
+        const detail = (await response.json()) as {
+          players: Array<{ id: PlayerId; required: boolean }>
+        }
+        if (!controller.signal.aborted) {
+          setRequiredPlayers(
+            detail.players.filter((player) => player.required).map((player) => player.id),
+          )
+        }
+      } catch {
+        // A stale required-players roster only affects the submission dots;
+        // the next turn change retries this fetch.
+      }
+    }
+    void loadRequiredPlayers()
+    return () => controller.abort()
+    // Refetched once per turn: required-ness only changes when the turn
+    // advances (elimination, a captured noble reaching the dungeon, etc.),
+    // never while players are still submitting for the current one.
+  }, [gameId, gameReady, state?.turn])
 
   useEffect(() => {
     if (!gameReady || !gameId) return
@@ -504,6 +534,7 @@ function AppContent() {
         setWinterDrafts({})
         setSpecialDrafts({})
         setSubmittedPlayers([])
+        setRequiredPlayers([])
       }
     } catch (error) {
       setActionError(error instanceof Error ? error.message : t('error.resolutionFailed'))
@@ -533,6 +564,7 @@ function AppContent() {
       setWinterDrafts({})
       setSpecialDrafts({})
       setSubmittedPlayers([])
+      setRequiredPlayers([])
       setSelectedId(null)
       setSelectedPlayer(HOTSEAT_HOST)
       setView('game')
@@ -625,6 +657,7 @@ function AppContent() {
                 name: player.name || player.id,
                 color: player.color,
                 submitted: submittedPlayers.includes(player.id),
+                required: requiredPlayers.includes(player.id),
                 isYou: player.id === selectedPlayer,
               }))}
             />

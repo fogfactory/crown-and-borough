@@ -790,6 +790,7 @@ type PlayerSlotView struct {
 	Name      string          `json:"name"`
 	Color     string          `json:"color"`
 	Submitted bool            `json:"submitted"`
+	Required  bool            `json:"required"`
 }
 
 type invitationView struct {
@@ -864,15 +865,20 @@ func hasFreePlayerSlot(players []store.PlayerSlot) bool {
 func makePlayerSlotViews(snapshot store.GameSnapshot) []PlayerSlotView {
 	views := make([]PlayerSlotView, len(snapshot.Players))
 	for index, player := range snapshot.Players {
-		_, submitted := snapshot.Submissions[player.ID]
-		views[index] = PlayerSlotView{ID: player.ID, Name: player.Name, Color: player.Color, Submitted: submitted}
+		views[index] = makePlayerSlotView(player, snapshot)
 	}
 	return views
 }
 
 func makePlayerSlotView(player store.PlayerSlot, snapshot store.GameSnapshot) PlayerSlotView {
 	_, submitted := snapshot.Submissions[player.ID]
-	return PlayerSlotView{ID: player.ID, Name: player.Name, Color: player.Color, Submitted: submitted}
+	return PlayerSlotView{
+		ID:        player.ID,
+		Name:      player.Name,
+		Color:     player.Color,
+		Submitted: submitted,
+		Required:  engine.PlayerMustSubmit(snapshot.State, player.ID),
+	}
 }
 
 type createGameBody struct {
