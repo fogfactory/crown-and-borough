@@ -33,14 +33,18 @@ func (order buildOrder) Apply(ctx *ExecutionContext) {
 			return
 		}
 	}
-	if winterOrder.InfraType == models.InfraTypeMill && !resolution.millCanBeBuiltAt(winterOrder.TerritoryID) {
+	// The productive-neighbor requirement only gates building a new mill
+	// (existing == nil): upgrading one already standing is always allowed,
+	// even in isolation, since it can pay for itself (see #195).
+	if existing == nil && winterOrder.InfraType == models.InfraTypeMill && !resolution.millCanBeBuiltAt(winterOrder.TerritoryID) {
 		resolution.rejectWinterOrder(playerID, winterOrder, "mill_requires_productive_neighbor")
 		return
 	}
 	if existing != nil {
 		if existing.Type == models.InfraTypeMill && winterOrder.InfraType == models.InfraTypeMill {
 			nextLevel := existing.Level + 1
-			spent, paid := resolution.payWinterCost(playerID, winterOrder.TerritoryID, upgradeCost)
+			sources := resolution.millUpgradePaymentSources(playerID, winterOrder.TerritoryID)
+			spent, paid := resolution.payFromSources(sources, upgradeCost)
 			if !paid {
 				resolution.rejectWinterOrder(playerID, winterOrder, "insufficient_resources")
 				return

@@ -15,6 +15,7 @@ type TurnReport struct {
 	Players       []PlayerReport       `json:"players"`
 	Receptions    []ReceptionReport    `json:"receptions"`
 	Income        []IncomeReport       `json:"income"`
+	Mills         []MillReport         `json:"mills"`
 	Production    []ProductionReport   `json:"production"`
 	Consumption   []ConsumptionReport  `json:"consumption"`
 	Combats       []CombatReport       `json:"combats"`
@@ -94,6 +95,20 @@ type IncomeReport struct {
 	Credited    int                `json:"credited"`
 	StockAfter  int                `json:"stockAfter,omitempty"`
 	Lost        bool               `json:"lost,omitempty"`
+}
+
+// MillReport is one mill's harvest-and-weather-adjusted production and its
+// single beneficiary this turn (see #195): the adjacent castle or village
+// under the mill's own control, or the mill's own territory when none
+// qualifies. Suppressed is the production lost to bad weather instead.
+type MillReport struct {
+	Territory   models.TerritoryID `json:"territory"`
+	Owner       models.PlayerID    `json:"owner,omitempty"`
+	Level       int                `json:"level"`
+	Destination models.TerritoryID `json:"destination"`
+	Production  int                `json:"production"`
+	Bonus       int                `json:"bonus,omitempty"`
+	Suppressed  int                `json:"suppressed,omitempty"`
 }
 
 // ProductionReport is the per-territory supply ledger: local ration
@@ -302,6 +317,7 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 		Players:       []PlayerReport{},
 		Receptions:    []ReceptionReport{},
 		Income:        []IncomeReport{},
+		Mills:         []MillReport{},
 		Production:    []ProductionReport{},
 		Consumption:   []ConsumptionReport{},
 		Combats:       []CombatReport{},
@@ -375,6 +391,12 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 				Base: event.BaseProduction, Bonus: event.BonusProduction,
 				Suppressed: event.SuppressedProduction, Credited: event.Production,
 				StockAfter: event.StockAfter, Lost: event.Lost,
+			})
+		case EventTypeMillProduction:
+			report.Mills = append(report.Mills, MillReport{
+				Territory: event.TerritoryID, Owner: event.OwnerID, Level: event.Level,
+				Destination: event.DestinationID, Production: event.Production,
+				Bonus: event.BonusProduction, Suppressed: event.SuppressedProduction,
 			})
 		case EventTypeProduction:
 			report.Production = append(report.Production, ProductionReport{

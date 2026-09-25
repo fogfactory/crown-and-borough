@@ -169,6 +169,7 @@ func TestResolveSupplyProductionAndStocks(t *testing.T) {
 			nil,
 		)
 		setTerritoryOwner(state, "AAA", "P1")
+		setTerritoryOwner(state, "BBB", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 2, TerritoryID: "BBB"})
 		addInfrastructure(state, models.Infrastructure{ID: "I3", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "CCC"})
@@ -182,8 +183,11 @@ func TestResolveSupplyProductionAndStocks(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
-		if got := resolution.State.TerritoryStates["AAA"].Resources; got != 3 {
-			t.Errorf("controlled castle stock = %d, want territory income 1 plus adjacent mill level 2", got)
+		// AAA's own territory income (1) plus BBB's (1, BBB has no
+		// settlement of its own so it flows to AAA, its closest controlled
+		// castle) plus BBB's adjacent mill level 2.
+		if got := resolution.State.TerritoryStates["AAA"].Resources; got != 4 {
+			t.Errorf("controlled castle stock = %d, want territory income 2 plus adjacent mill level 2", got)
 		}
 		if got := resolution.State.TerritoryStates["CCC"].Resources; got != 13 {
 			t.Errorf("neutral village stock = %d, want persisted 7 plus base and grandfathered mill production", got)
@@ -577,6 +581,12 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 		)
 		setTerritoryOwner(state, "BBB", "P2")
 		setTerritoryOwner(state, "CCC", "P1")
+		// AAA has no eligible same-control neighbor for its mill (BBB
+		// belongs to P2), so under #195 an owned AAA would self-supply and
+		// feed A1 well enough to cancel the famine this scenario is about.
+		// Keeping AAA neutral (A1 still camps on it) preserves the direct
+		// famine and the mill-pillage-and-credit point instead.
+		clearTerritoryOwner(state, "AAA")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "AAA"})
 		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "CCC"})
 		validateTestState(t, state)
@@ -592,14 +602,13 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 		if len(resolution.State.Infrastructures) != 1 || resolution.State.Infrastructures[0].ID != "I2" {
 			t.Errorf("infrastructures = %#v, want only the castle left", resolution.State.Infrastructures)
 		}
-		// CCC is the only controlled castle, so it receives both its own and
-		// AAA's territory income (2, crossable borders ignore the enemy army
-		// on BBB) plus the pillage gain (1).
-		if got := resolution.State.TerritoryStates["CCC"].Resources; got != 3 {
+		// CCC is the only controlled castle, so it receives its own
+		// territory income (1, AAA is neutral) plus the pillage gain (1).
+		if got := resolution.State.TerritoryStates["CCC"].Resources; got != 2 {
 			t.Errorf("credited source resources = %d, want territory income plus pillage credit", got)
 		}
-		if event := supplyEventForSource(t, resolution.Events, "CCC"); event.StockAfter != 3 {
-			t.Errorf("credited source event stock = %d, want 3", event.StockAfter)
+		if event := supplyEventForSource(t, resolution.Events, "CCC"); event.StockAfter != 2 {
+			t.Errorf("credited source event stock = %d, want 2", event.StockAfter)
 		}
 	})
 
@@ -617,9 +626,17 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 			},
 		)
 		setTerritoryOwner(state, "AAA", "P1")
+		setTerritoryOwner(state, "BBB", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 1, TerritoryID: "BBB"})
 		addInfrastructure(state, models.Infrastructure{ID: "I3", Type: models.InfraTypeMill, Level: 1, TerritoryID: "DDD"})
+		// DDD's mill has no eligible neighbor of its own (CCC carries no
+		// settlement), so under #195 it would otherwise self-supply and
+		// become a closer source than AAA for both armies: keeping DDD
+		// neutral (despite A2 camping on it) preserves this scenario's
+		// point, which is the assigned-famine deficit order through the
+		// single castle at AAA, not mill routing.
+		clearTerritoryOwner(state, "DDD")
 		validateTestState(t, state)
 
 		balance := testBalance()
@@ -725,6 +742,7 @@ func TestResolveAssignedFamineTieBreaksAndHasZeroStrength(t *testing.T) {
 		},
 	)
 	setTerritoryOwner(state, "ZZZ", "P1")
+	setTerritoryOwner(state, "DDD", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "ZZZ"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 1, TerritoryID: "DDD"})
 	addNoble(state, "N2", "TWO", "P1", "AAA")
@@ -1010,8 +1028,14 @@ func TestResolveSupplyIsPureAndDeterministic(t *testing.T) {
 	if event := supplyEventForSource(t, first.Events, "AAA"); !reflect.DeepEqual(event.Rations, map[models.TerritoryID]int(nil)) {
 		t.Errorf("supply event rations = %#v, want no BBB ration", event.Rations)
 	}
-	if event := famineEventForArmy(t, first.Events, "A2"); !event.SavedByPillage || event.InfrastructureID != "I2" {
-		t.Errorf("A2 famine event = %#v, want saved auto-pillage", event)
+	// CCC has no eligible neighbor for its mill (it has none at all), so
+	// under #195 it self-supplies: its level-1 production exactly covers
+	// A2's deficit, and no famine or auto-pillage occurs.
+	if event := supplyEventForSource(t, first.Events, "CCC"); event.Production != 1 || event.Demand != 1 || event.StockConsumed != 0 {
+		t.Errorf("CCC supply event = %#v, want the isolated mill to self-supply A2", event)
+	}
+	if hasFamineEvent(first.Events, "A2") {
+		t.Errorf("events = %#v, want the isolated mill to prevent A2's famine", first.Events)
 	}
 }
 

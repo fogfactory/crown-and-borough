@@ -173,10 +173,16 @@ func newWinterRNG(seed string, turn int) *rand.Rand {
 }
 
 func (ctx *resolutionContext) payWinterCost(playerID models.PlayerID, targetID models.TerritoryID, cost int) (int, bool) {
+	return ctx.payFromSources(ctx.winterPaymentSources(playerID, targetID), cost)
+}
+
+// payFromSources spends cost across sources in order, draining each one
+// before moving to the next. It fails without spending anything when the
+// combined stock of every source falls short.
+func (ctx *resolutionContext) payFromSources(sources []models.TerritoryID, cost int) (int, bool) {
 	if cost == 0 {
 		return 0, true
 	}
-	sources := ctx.winterPaymentSources(playerID, targetID)
 	total := 0
 	for _, sourceID := range sources {
 		total += ctx.state.TerritoryStates[sourceID].Resources
@@ -198,6 +204,31 @@ func (ctx *resolutionContext) payWinterCost(playerID models.PlayerID, targetID m
 		spent += paid
 	}
 	return spent, true
+}
+
+// millUpgradePaymentSources is the payment order for upgrading the mill at
+// millID: its own stock first (the one exception to "only castles and
+// villages pay"), then the single settlement its production would be routed
+// to (its adjacent castle under the same control, else its adjacent village,
+// per millRecipient), then the usual winter payment network as a fallback for
+// anything farther out.
+func (ctx *resolutionContext) millUpgradePaymentSources(playerID models.PlayerID, millID models.TerritoryID) []models.TerritoryID {
+	sources := []models.TerritoryID{millID}
+	if recipientID := millRecipient(ctx, millID); recipientID != millID {
+		sources = append(sources, recipientID)
+	}
+	seen := make(map[models.TerritoryID]bool, len(sources))
+	for _, sourceID := range sources {
+		seen[sourceID] = true
+	}
+	for _, sourceID := range ctx.winterPaymentSources(playerID, millID) {
+		if seen[sourceID] {
+			continue
+		}
+		sources = append(sources, sourceID)
+		seen[sourceID] = true
+	}
+	return sources
 }
 
 func (ctx *resolutionContext) winterPaymentSources(playerID models.PlayerID, targetID models.TerritoryID) []models.TerritoryID {
@@ -361,7 +392,10 @@ func (ctx *resolutionContext) conserveWinterStocks() {
 		if ctx.hasInfrastructure(territoryID, models.InfraTypeSupplyDepot) {
 			continue
 		}
-		if !ctx.hasSettlement(territoryID) {
+		// A mill conserves its stock exactly like a castle or village (see
+		// #195), but repatriateWinterStocks below never moves it: only a
+		// castle or village's surplus is repatriated to the capital.
+		if !ctx.hasSettlement(territoryID) && !ctx.hasInfrastructure(territoryID, models.InfraTypeMill) {
 			state.Resources = 0
 			ctx.state.TerritoryStates[territoryID] = state
 			continue

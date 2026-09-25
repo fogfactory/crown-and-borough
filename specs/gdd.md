@@ -104,20 +104,26 @@ prélèvement partiel n'est effectué.
 
 Seuls les stocks de châteaux et villages contrôlés sont des réserves de paiement
 en hiver ; les caches ordinaires et les dépôts ne paient pas les investissements.
+Un moulin fait exception à cette règle pour sa propre amélioration (`C M`) : il
+puise d'abord sur son propre stock, puis sur celui de l'infrastructure qui
+recevrait sa production (château en priorité, sinon village), avant de recourir
+au paiement d'hiver habituel (voir [economie.md](economie.md#amélioration-dun-moulin)).
 
 À la fin de l'hiver :
 
-- chaque stock restant d'un château ou d'un village est conservé à hauteur de
-  `ceil(stock / 2)` ;
+- chaque stock restant d'un château, d'un village ou d'un moulin est conservé à
+  hauteur de `ceil(stock / 2)` ;
 - un stock situé dans un dépôt de vivres est conservé intégralement ;
-- tout stock situé hors château, village ou dépôt est perdu ;
-- les stocks sont rapatriés vers la capitale, en laissant au maximum 1 R par
-  village et 2 R par château hors capitale ;
+- tout stock situé hors château, village, moulin ou dépôt est perdu ;
+- les stocks des châteaux et villages sont rapatriés vers la capitale, en
+  laissant au maximum 1 R par village et 2 R par château hors capitale ; le
+  stock d'un moulin n'est jamais rapatrié ;
 - sans capitale, les stocks restent sur place ;
 - la saison suivante est le printemps.
 
 Les stocks hors château et village ne peuvent pas payer les investissements
-hivernaux. Un transfert d'hiver débite un château ou village contrôlé par le
+hivernaux, à l'exception du stock d'un moulin pour sa propre amélioration (voir
+ci-dessus). Un transfert d'hiver débite un château ou village contrôlé par le
 donneur, mais peut viser directement le château ou village contrôlé par un autre
 joueur ; la destination n'a pas besoin d'appartenir au donneur.
 
@@ -512,12 +518,19 @@ en bénéficie ; il n'y a pas de propriétaire stocké sur l'infrastructure.
 
 | Infrastructure | Condition | Effet v1 | Coût |
 |---|---|---|---:|
-| Moulin | Construction sur case vide contrôlée, adjacente à un château ou village ; amélioration d'un moulin existant adjacent à cette source, jusqu'au niveau 3 | +1 R stockable par niveau à chaque source adjacente | 3 / 5 / 7 |
+| Moulin | Construction sur case vide contrôlée, adjacente à un château ou village (voisinage requis pour la construction seulement, pas pour l'amélioration) | `N` R par niveau, versés à une seule infrastructure : le château adjacent du même contrôleur, sinon le village adjacent du même contrôleur, sinon la case du moulin elle-même (voir [economie.md](economie.md#moulins)) | 3 / 5 / 7 |
 | Dépôt de vivres | Aucune condition structurelle | +2 cases de portée de ravitaillement lorsqu'il est contrôlé | 3 |
 | Château | Aucune | +1 défense, ancre de ravitaillement, verse le revenu territorial (§3) | 10 |
 | Village | Généré neutre, non constructible | Ancre après capture, verse le revenu territorial une fois contrôlé ; produit `village_income` R par tour tant qu'il reste neutre | — |
 
-Un moulin isolé est orphelin et ne produit rien. Une construction remplace la
+Un moulin isolé (sans château ni village adjacent du même contrôleur) produit
+sur sa propre case ; cette case devient alors elle-même une source de
+ravitaillement pour son contrôleur. La production n'y est pas rapatriée
+automatiquement : un ordre de transfert (`T`) reste nécessaire pour
+l'acheminer. La contrainte de voisinage productif ne s'applique qu'à la
+construction d'un nouveau moulin : un moulin déjà bâti peut toujours être
+amélioré, même isolé, en payant sur son propre stock (voir
+[economie.md](economie.md#moulins)). Une construction remplace la
 structure existante uniquement lorsque la règle de l'ordre le prévoit : un
 château construit sur un village remplace le village et conserve le stock de
 la case. Le contrôle reste acquis après le départ d'une armée jusqu'à l'arrêt

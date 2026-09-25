@@ -221,7 +221,7 @@ func TestProjectReportNormalizesNilCollections(t *testing.T) {
 	if err := json.Unmarshal(data, &document); err != nil {
 		t.Fatalf("decode empty projected report: %v", err)
 	}
-	for _, field := range []string{"players", "receptions", "production", "income", "consumption", "combats", "orders", "moves", "nobles"} {
+	for _, field := range []string{"players", "receptions", "production", "income", "mills", "consumption", "combats", "orders", "moves", "nobles"} {
 		if value, ok := document[field]; !ok || value == nil {
 			t.Errorf("projected report field %q = %#v, want JSON array", field, value)
 		}
@@ -238,6 +238,18 @@ func TestProjectReportKeepsIncome(t *testing.T) {
 	view := projectReport(report, "P1", nil)
 	if len(view.Income) != 1 || view.Income[0].Owner != "P1" || view.Income[0].Credited != 6 {
 		t.Fatalf("projected income = %#v, want the report's income line preserved", view.Income)
+	}
+}
+
+func TestProjectReportKeepsMills(t *testing.T) {
+	report := engine.TurnReport{
+		Mills: []engine.MillReport{{
+			Territory: "MIL", Owner: "P1", Level: 2, Destination: "CAS", Production: 2,
+		}},
+	}
+	view := projectReport(report, "P1", nil)
+	if len(view.Mills) != 1 || view.Mills[0].Territory != "MIL" || view.Mills[0].Destination != "CAS" || view.Mills[0].Production != 2 {
+		t.Fatalf("projected mills = %#v, want the report's mill line preserved", view.Mills)
 	}
 }
 

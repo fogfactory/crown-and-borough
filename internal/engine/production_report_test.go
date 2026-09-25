@@ -37,6 +37,7 @@ func TestProductionReportBreaksDownSourceAndBonus(t *testing.T) {
 		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}},
 	)
 	setTerritoryOwner(state, "AAA", "P1")
+	setTerritoryOwner(state, "BBB", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 2, TerritoryID: "BBB"})
 	state.SpecialDeck = &models.SpecialDeck{

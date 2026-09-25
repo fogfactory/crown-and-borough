@@ -7,8 +7,8 @@ import (
 )
 
 // TestForecastMillIncomeCreditsAdjacentSettlement checks the basic case: a
-// controlled castle adjacent to a level-2 mill is forecast to receive its
-// full production.
+// controlled castle adjacent to a level-2 mill under the same control is
+// forecast to receive its full production.
 func TestForecastMillIncomeCreditsAdjacentSettlement(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
@@ -18,6 +18,7 @@ func TestForecastMillIncomeCreditsAdjacentSettlement(t *testing.T) {
 		nil,
 	)
 	setTerritoryOwner(state, "AAA", "P1")
+	setTerritoryOwner(state, "MIL", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 2, TerritoryID: "MIL"})
 	validateTestState(t, state)
@@ -28,11 +29,10 @@ func TestForecastMillIncomeCreditsAdjacentSettlement(t *testing.T) {
 	}
 }
 
-// TestForecastMillIncomeCreditsEachAdjacentSettlement documents the current
-// (pre-#195) mechanic: a mill credits every adjacent controlled settlement
-// independently, so a player with two settlements next to the same mill is
-// forecast to receive its production twice over.
-func TestForecastMillIncomeCreditsEachAdjacentSettlement(t *testing.T) {
+// TestForecastMillIncomeCreditsSingleDestination checks #195's fix: a mill
+// adjacent to both a controlled castle and a controlled village under the
+// same control credits its production to the castle only, never doubling up.
+func TestForecastMillIncomeCreditsSingleDestination(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
 			supplyTerritory("AAA", "AAA", models.TerrainMountain, "MIL"),
@@ -43,20 +43,22 @@ func TestForecastMillIncomeCreditsEachAdjacentSettlement(t *testing.T) {
 	)
 	setTerritoryOwner(state, "AAA", "P1")
 	setTerritoryOwner(state, "BBB", "P1")
+	setTerritoryOwner(state, "MIL", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "BBB"})
 	addInfrastructure(state, models.Infrastructure{ID: "I3", Type: models.InfraTypeMill, Level: 3, TerritoryID: "MIL"})
 	validateTestState(t, state)
 
 	totals := ForecastMillIncome(state, testBalance())
-	if totals["P1"] != 6 {
-		t.Fatalf("mill income = %#v, want 6 (3 credited to each of AAA and BBB)", totals)
+	if totals["P1"] != 3 {
+		t.Fatalf("mill income = %#v, want 3 credited once, to the castle only", totals)
 	}
 }
 
-// TestForecastMillIncomeIgnoresMillOwner checks that a mill's production is
-// credited regardless of who controls the mill's own territory.
-func TestForecastMillIncomeIgnoresMillOwner(t *testing.T) {
+// TestForecastMillIncomeRequiresMatchingController checks #195's fix: a mill
+// controlled by a different player than an adjacent castle never credits
+// that castle; instead, having no eligible neighbor, it stocks itself.
+func TestForecastMillIncomeRequiresMatchingController(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
 			supplyTerritory("AAA", "AAA", models.TerrainMountain, "MIL"),
@@ -71,8 +73,11 @@ func TestForecastMillIncomeIgnoresMillOwner(t *testing.T) {
 	validateTestState(t, state)
 
 	totals := ForecastMillIncome(state, testBalance())
-	if totals["P1"] != 1 {
-		t.Fatalf("mill income = %#v, want 1 for P1 regardless of the mill's owner", totals)
+	if totals["P1"] != 0 {
+		t.Fatalf("mill income = %#v, want 0 for P1: the mill's controller does not match the castle's", totals)
+	}
+	if totals["P2"] != 1 {
+		t.Fatalf("mill income = %#v, want 1 for P2: the mill stocks itself instead", totals)
 	}
 }
 

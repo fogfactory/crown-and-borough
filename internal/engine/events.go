@@ -51,6 +51,7 @@ const (
 	EventTypeFamineLoss        EventType = "famine_loss"
 	EventTypeBadWeatherLoss    EventType = "bad_weather_loss"
 	EventTypeProduction        EventType = "production"
+	EventTypeMillProduction    EventType = "mill_production"
 	EventTypeIncome            EventType = "income"
 	EventTypeConsumption       EventType = "consumption"
 	EventTypeCardCanceled      EventType = "card_canceled"

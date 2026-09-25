@@ -169,10 +169,11 @@ export interface Player {
   projectedIncome?: number
   /**
    * Mill production projected for the next action turn, credited to the
-   * player's controlled castles and villages (never in winter). A mill
-   * currently credits every adjacent controlled settlement independently
-   * (issue #195 will narrow this to a single destination), so this is the
-   * sum of what each of them will receive.
+   * player's own settlements and self-supplied mills (never in winter).
+   * Since issue #195, each mill credits exactly one destination (its
+   * adjacent castle under the same control, else its adjacent village, else
+   * itself), so this is the sum of what the player's own territories will
+   * receive.
    */
   projectedMillIncome?: number
   /**
@@ -222,6 +223,14 @@ export interface TerritoryState {
   projectedIncome?: number
   /** Where that income would land: the owner's capital or its fallback. */
   incomeDestination?: string
+  /** Present only on a mill's own territory: its projected production. */
+  millProduction?: number
+  /**
+   * Present only on a mill's own territory: where that production would
+   * land (its adjacent castle under the same control, else its adjacent
+   * village, else itself, in which case this equals `id`).
+   */
+  millDestination?: string
 }
 
 export interface StateData {
@@ -476,6 +485,23 @@ export interface IncomeReport {
   lost?: boolean
 }
 
+/**
+ * One mill's harvest-and-weather-adjusted production and its single
+ * beneficiary this turn (see issue #195): the adjacent castle or village
+ * under the mill's own control, or the mill's own territory when none
+ * qualifies (in which case `destination` equals `territory`). `suppressed`
+ * is the production lost to bad weather instead.
+ */
+export interface MillReport {
+  territory: string
+  owner?: PlayerId
+  level: number
+  destination: string
+  production: number
+  bonus?: number
+  suppressed?: number
+}
+
 export interface ProductionReport {
   territory: string
   region?: string
@@ -681,6 +707,7 @@ export interface TurnReport {
   players: PlayerReport[]
   receptions: ReceptionReport[]
   income?: IncomeReport[]
+  mills?: MillReport[]
   production: ProductionReport[]
   consumption: ConsumptionReport[]
   combats: CombatReport[]

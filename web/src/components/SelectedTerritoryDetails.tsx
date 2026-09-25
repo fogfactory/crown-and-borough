@@ -510,19 +510,30 @@ export function SelectedTerritoryDetails({
                 {selectedState.infrastructures.map((infrastructure, index) => (
                   <li
                     key={`${infrastructure.type}-${index}`}
-                    className="flex items-center justify-between gap-3 rounded-md bg-[#f3ead9] px-3 py-2"
+                    className="rounded-md bg-[#f3ead9] px-3 py-2"
                   >
-                    <span className="flex min-w-0 items-center gap-2 font-medium">
-                      <span>{t(INFRASTRUCTURE_LABEL_KEYS[infrastructure.type])}</span>
-                      {infrastructure.type === 'castle' && selectedCapitalPlayer && (
-                        <span className="shrink-0 rounded-full bg-[#f8e8ae] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#6d5118]">
-                          {t('app.capital')}
-                        </span>
-                      )}
-                    </span>
-                    <span className="shrink-0 text-xs text-[#806f57]">
-                      {t('app.level', { level: infrastructure.level })}
-                    </span>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="flex min-w-0 items-center gap-2 font-medium">
+                        <span>{t(INFRASTRUCTURE_LABEL_KEYS[infrastructure.type])}</span>
+                        {infrastructure.type === 'castle' && selectedCapitalPlayer && (
+                          <span className="shrink-0 rounded-full bg-[#f8e8ae] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#6d5118]">
+                            {t('app.capital')}
+                          </span>
+                        )}
+                      </span>
+                      <span className="shrink-0 text-xs text-[#806f57]">
+                        {t('app.level', { level: infrastructure.level })}
+                      </span>
+                    </div>
+                    {infrastructure.type === 'mill' && selectedState.millDestination && (
+                      <p className="mt-1 text-xs text-[#806f57]">
+                        {selectedState.millDestination === selectedState.id
+                          ? t('app.millKeptInPlace')
+                          : t('app.millDestination', {
+                              destination: territoryLabel(selectedState.millDestination),
+                            })}
+                      </p>
+                    )}
                   </li>
                 ))}
               </ul>
