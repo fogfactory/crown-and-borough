@@ -32,13 +32,35 @@ type StateView struct {
 // selector. Player-specific filtering is a future server concern.
 // ProjectedIncome is the territory income the player would receive on the
 // next action turn if nothing changes, ignoring any calamity or bonus card
-// already drawn this turn (see engine.ForecastIncome).
+// already drawn this turn (see engine.ForecastIncome). ProjectedMillIncome is
+// the separate mill production their controlled castles and villages would
+// receive over the same turn (see engine.ForecastMillIncome): it is not
+// included in ProjectedIncome since mills do not route through the capital
+// and can credit several different settlements.
+// ProjectedConsumption and ArmiesAtRisk are the equivalent projection for
+// ravitaillement: the net rations every army the player controls will draw
+// from stock or the supply network beyond what its own territory already
+// produces for it, and the ones that would starve if nothing changes before
+// resolution (see engine.ForecastFamineRisk). Both are zero-valued in
+// winter, since ravitaillement never happens then.
 type PlayerView struct {
-	ID               models.PlayerID     `json:"id"`
-	Name             string              `json:"name"`
-	Color            string              `json:"color"`
-	CapitalTerritory *models.TerritoryID `json:"capitalTerritory,omitempty"`
-	ProjectedIncome  int                 `json:"projectedIncome"`
+	ID                   models.PlayerID     `json:"id"`
+	Name                 string              `json:"name"`
+	Color                string              `json:"color"`
+	CapitalTerritory     *models.TerritoryID `json:"capitalTerritory,omitempty"`
+	ProjectedIncome      int                 `json:"projectedIncome"`
+	ProjectedMillIncome  int                 `json:"projectedMillIncome"`
+	ProjectedConsumption int                 `json:"projectedConsumption"`
+	ArmiesAtRisk         []ArmyRiskView      `json:"armiesAtRisk,omitempty"`
+}
+
+// ArmyRiskView is the public shape of engine.ArmyFamineRisk: one army the
+// famine risk forecast flags as starving, addressed by its territory the
+// way the rest of the frontend addresses armies.
+type ArmyRiskView struct {
+	TerritoryID models.TerritoryID `json:"territoryId"`
+	Size        int                `json:"size"`
+	Deficit     int                `json:"deficit"`
 }
 
 // TerritoryView is the live state displayed on one map territory.
@@ -190,6 +212,8 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 	}
 	territoryIncome := engine.ForecastTerritoryIncome(state, balance)
 	projectedIncomeByPlayer := make(map[models.PlayerID]int, len(state.Players))
+	millIncomeByPlayer := engine.ForecastMillIncome(state, balance)
+	famineRiskByPlayer := engine.ForecastFamineRisk(state, balance)
 
 	for _, territory := range state.Territories {
 		territoryState := state.TerritoryStates[territory.ID]
@@ -237,7 +261,17 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 		view.Territories = append(view.Territories, territoryView)
 	}
 	for _, player := range state.Players {
-		playerView := PlayerView{ID: player.ID, Name: player.Name, Color: player.Color, ProjectedIncome: projectedIncomeByPlayer[player.ID]}
+		playerView := PlayerView{ID: player.ID, Name: player.Name, Color: player.Color, ProjectedIncome: projectedIncomeByPlayer[player.ID], ProjectedMillIncome: millIncomeByPlayer[player.ID]}
+		if famineRisk, ok := famineRiskByPlayer[player.ID]; ok {
+			playerView.ProjectedConsumption = famineRisk.NetConsumption
+			for _, risk := range famineRisk.ArmiesAtRisk {
+				playerView.ArmiesAtRisk = append(playerView.ArmiesAtRisk, ArmyRiskView{
+					TerritoryID: risk.TerritoryID,
+					Size:        risk.Size,
+					Deficit:     risk.Deficit,
+				})
+			}
+		}
 		if player.CapitalCastleID != nil {
 			if infrastructure, ok := infrastructuresByID[*player.CapitalCastleID]; ok && infrastructure.Type == models.InfraTypeCastle {
 				capitalTerritory := infrastructure.TerritoryID

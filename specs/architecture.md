@@ -170,7 +170,10 @@ L'état projeté sépare la couche dynamique du `GameState` de stockage :
       "name": "Joueur 1",
       "color": "#a84632",
       "capitalTerritory": "ROS",
-      "projectedIncome": 6
+      "projectedIncome": 6,
+      "projectedMillIncome": 2,
+      "projectedConsumption": 4,
+      "armiesAtRisk": [{ "territoryId": "MOR", "size": 2, "deficit": 1 }]
     }
   ],
   "territories": [
@@ -220,7 +223,31 @@ pour ne pas en révéler l'effet à l'avance ; il vaut `0` en hiver.
 `incomeDestination` est le territoire qui recevra ce revenu (la capitale du
 joueur, à défaut le château contrôlé le plus proche, à défaut le village
 contrôlé le plus proche) ; il est absent si le revenu est perdu faute de
-destination.
+destination. `projectedMillIncome` est la production des moulins que
+recevront les châteaux et villages contrôlés de ce joueur au même tour ;
+distincte de `projectedIncome` car un moulin ne passe pas par la capitale et
+peut créditer plusieurs châteaux ou villages différents (voir la section
+Moulins) ; il vaut `0` en hiver.
+
+`projectedConsumption` est la somme des rations effectivement tirées du stock
+ou du réseau de ravitaillement au prochain tour d'action (une armée
+pleinement nourrie localement, ou qui finirait affamée, compte pour `0`, pas
+pour son coût total), avec les mêmes garanties que `projectedIncome` (récolte
+normale, ignore les cartes calamité déjà tirées) ; il vaut `0` en hiver,
+saison sans ravitaillement. `armiesAtRisk` liste les armées qui seraient
+effectivement affamées si rien ne change avant la résolution : le calcul
+rejoue la même allocation que la résolution réelle
+(`assignSupply`/`resolveSupplyStocks`/`selectAssignedFamine`) sur un état
+jetable, y compris le partage contesté d'une même source entre plusieurs
+armées du joueur — ce n'est pas une heuristique par armée isolée. `deficit`
+est le manque de rations qui reste sans réponse, pas un nombre de troupes qui
+mourraient (une famine réelle coûte toujours exactement 1 troupe). Cette
+projection reste une estimation pour deux raisons hors de son contrôle :
+elle suppose toujours une récolte normale (les cartes calamité déjà tirées
+mais pas encore révélées ne la modifient jamais), et elle suppose que les
+ordres restent tels que rédigés actuellement, puisqu'elle s'exécute avant
+leur soumission. `armiesAtRisk` est absent quand aucune armée n'est
+concernée.
 
 `army` vaut `null` lorsqu'aucune armée n'occupe la case. Dans une armée, `chain`
 vaut `null` lorsqu'aucune chaîne n'est active. Une chaîne existante dont le

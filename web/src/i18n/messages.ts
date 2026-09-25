@@ -85,8 +85,14 @@ const englishMessages = {
   'app.territoryIncome': 'Yields {amount} R to {destination}',
   'app.territoryIncomeLost': 'Income lost: no capital, castle, or village to receive it',
   'app.projectedIncome': 'Projected income',
-  'app.projectedIncomeAmount': '+{amount} R per action turn',
+  'app.projectedTerritoryIncomeAmount': 'Territory: +{amount} R per action turn',
   'app.projectedIncomeDestination': '→ {destination} (capital)',
+  'app.projectedMillIncomeAmount': 'Mills: +{amount} R per action turn',
+  'app.projectedConsumption': 'Projected consumption',
+  'app.projectedConsumptionAmount': '−{amount} R per action turn',
+  'app.armiesAtRiskTitle': 'Estimated famine risk',
+  'app.armyAtRisk': '{territory} ({size} troops): −{deficit} R short',
+  'app.noArmyAtRisk': 'No army looks at risk',
   'app.noblesPresent': 'Nobles present',
   'app.owner': 'Owner',
   'app.holder': 'Holder',
@@ -493,6 +499,9 @@ const englishMessages = {
   'faq.q12': 'How do special cards and calamities apply?',
   'faq.a12':
     'Calamities (plague, bad weather, bad harvest) are drawn automatically and programmed ahead of time into a season slot of the following year; they are announced as soon as they are drawn and apply on their own, without you playing a card. Your bonus cards (fair weather, abundant harvest, revolt) are played instead, with an order in the `special` field — no noble needed — in spring, summer, or autumn, never in winter. Fair weather only cancels bad weather, and abundant harvest only cancels bad harvest; a card that cancels a calamity does not also grant its regional bonus. Weather acts on mills: bad weather stops them, fair weather doubles their production. The harvest acts on the land: bad harvest removes terrain rations and territory income, abundant harvest doubles them. If several cards of the same kind are played on the same region, only one is effective: with an active calamity the first cancels it and a second applies the bonus, without a calamity the first applies it directly — the rest are consumed with no effect. Revolt (`P RV TER`) requires an active bad harvest in the region already: it raises a neutral army, or, if the territory is occupied, triggers a combat where the loser retreats or is destroyed.',
+  'faq.q14': 'Why is the projected famine risk only an estimate?',
+  'faq.a14':
+    "The command post replays the same ravitaillement resolution used at the end of the turn, including how several of your armies split a shared source's stock, so it flags exactly the armies that would starve if nothing changes. It stays an estimate for two reasons outside its control: it always assumes a normal harvest, since a bad harvest or bad weather card already drawn for this season, but not yet revealed, never changes this projection; and it assumes your orders stay exactly as currently drafted, since it runs before you submit them and cannot foresee a last-minute transfer, dispersal, or new infrastructure that would change the outcome. It is never shown in winter, since ravitaillement does not happen then.",
   'error.line': 'Line {line}: {message}',
   'error.invalidOrder': 'Invalid order',
   'error.winter.order_shape':
@@ -691,8 +700,14 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'app.territoryIncome': 'Rapporte {amount} R à {destination}',
   'app.territoryIncomeLost': 'Revenu perdu : aucune capitale, château ou village pour le recevoir',
   'app.projectedIncome': 'Revenu prévu',
-  'app.projectedIncomeAmount': '+{amount} R par tour d’action',
+  'app.projectedTerritoryIncomeAmount': 'Territoire : +{amount} R par tour d’action',
   'app.projectedIncomeDestination': '→ {destination} (capitale)',
+  'app.projectedMillIncomeAmount': 'Moulins : +{amount} R par tour d’action',
+  'app.projectedConsumption': 'Consommation prévue',
+  'app.projectedConsumptionAmount': '−{amount} R par tour d’action',
+  'app.armiesAtRiskTitle': 'Risque de famine estimé',
+  'app.armyAtRisk': '{territory} ({size} troupes) : −{deficit} R manquantes',
+  'app.noArmyAtRisk': 'Aucune armée ne semble à risque',
   'app.noblesPresent': 'Nobles présents',
   'app.owner': 'Propriétaire',
   'app.holder': 'Détenteur',
@@ -1110,6 +1125,9 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'faq.q12': 'Comment les cartes spéciales et les calamités s’appliquent-elles ?',
   'faq.a12':
     'Les calamités (peste, mauvais temps, mauvaise récolte) sont tirées automatiquement et programmées à l’avance dans un slot saisonnier de l’année suivante ; elles s’annoncent dès leur tirage et s’appliquent d’elles-mêmes, sans que tu joues de carte. Tes cartes bonus (beau temps, bonne récolte, révolte) se jouent, elles, avec un ordre dans le champ `special` — pas besoin de noble — au printemps, en été ou en automne, jamais en hiver. Beau temps n’annule que le mauvais temps, et bonne récolte n’annule que la mauvaise récolte ; jouer une carte qui annule une calamité ne produit pas en plus son bonus régional. La météo agit sur les moulins : le mauvais temps les arrête, le beau temps double leur production. La récolte agit sur la terre : la mauvaise récolte supprime les rations de terrain et le revenu territorial, la bonne récolte les double. Si plusieurs cartes du même type sont jouées sur la même région, une seule est effective : avec une calamité active la première l’annule et une seconde applique le bonus, sans calamité la première l’applique directement — le reste est consommé sans effet. La révolte (`P RE TER`) exige qu’une mauvaise récolte affecte déjà la région : elle fait apparaître une armée neutre ou, si le territoire est occupé, déclenche un combat où le perdant se retire ou est détruit.',
+  'faq.q14': 'Pourquoi le risque de famine affiché n’est-il qu’une estimation ?',
+  'faq.a14':
+    'Le poste de commandement rejoue la même résolution de ravitaillement que celle appliquée en fin de tour, y compris la façon dont plusieurs de tes armées se partagent le stock d’une même source : il signale donc exactement les armées qui seraient affamées si rien ne change. Ça reste une estimation pour deux raisons hors de son contrôle : elle suppose toujours une récolte normale, puisqu’une carte de mauvaise récolte ou de mauvais temps déjà tirée pour cette saison mais pas encore révélée ne change jamais cette projection ; et elle suppose que tes ordres restent exactement tels que rédigés actuellement, puisqu’elle s’exécute avant leur soumission et ne peut pas anticiper un transfert, une dispersion ou une nouvelle infrastructure de dernière minute qui changerait l’issue. Elle n’est jamais affichée en hiver, puisque le ravitaillement n’a pas lieu à cette saison.',
   'error.line': 'Ligne {line} : {message}',
   'error.invalidOrder': 'Ordre invalide',
   'error.winter.order_shape':

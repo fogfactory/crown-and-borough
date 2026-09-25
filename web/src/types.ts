@@ -167,6 +167,38 @@ export interface Player {
   capitalTerritory?: string
   /** Territory income projected for the next action turn (never in winter). */
   projectedIncome?: number
+  /**
+   * Mill production projected for the next action turn, credited to the
+   * player's controlled castles and villages (never in winter). A mill
+   * currently credits every adjacent controlled settlement independently
+   * (issue #195 will narrow this to a single destination), so this is the
+   * sum of what each of them will receive.
+   */
+  projectedMillIncome?: number
+  /**
+   * Net rations every army the player controls will draw from stock or the
+   * supply network beyond what its own territory already produces for it,
+   * projected for the next action turn (never populated in winter).
+   */
+  projectedConsumption?: number
+  /**
+   * Armies that would starve next action turn if nothing changes before
+   * resolution: an estimate only because orders aren't submitted yet and an
+   * undrawn calamity card is never reflected (see ArmyRisk).
+   */
+  armiesAtRisk?: ArmyRisk[]
+}
+
+/**
+ * One army the famine risk forecast flags as starving, addressed by its
+ * territory like the rest of the app addresses armies. Deficit is the
+ * ration shortfall that goes unmet, not a troop count (an actual famine
+ * costs 1 troop, regardless of the deficit's size).
+ */
+export interface ArmyRisk {
+  territoryId: string
+  size: number
+  deficit: number
 }
 
 export interface ScoreBreakdown {
