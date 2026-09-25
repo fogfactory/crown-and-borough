@@ -366,6 +366,7 @@ type TurnReportView struct {
 	Receptions    []engine.ReceptionReport    `json:"receptions"`
 	Production    []engine.ProductionReport   `json:"production"`
 	Income        []engine.IncomeReport       `json:"income"`
+	Mills         []engine.MillReport         `json:"mills"`
 	Consumption   []engine.ConsumptionReport  `json:"consumption"`
 	Combats       []CombatView                `json:"combats"`
 	Orders        []OrderReportView           `json:"orders"`
@@ -519,6 +520,7 @@ func projectReport(report engine.TurnReport, viewer models.PlayerID, privacy *mo
 		Receptions:    append([]engine.ReceptionReport{}, report.Receptions...),
 		Production:    append([]engine.ProductionReport{}, report.Production...),
 		Income:        append([]engine.IncomeReport{}, report.Income...),
+		Mills:         append([]engine.MillReport{}, report.Mills...),
 		Consumption:   append([]engine.ConsumptionReport{}, report.Consumption...),
 		Combats:       make([]CombatView, 0, len(report.Combats)),
 		Orders:        make([]OrderReportView, 0, len(report.Orders)),

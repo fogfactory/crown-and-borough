@@ -82,7 +82,10 @@ func resolveSupply(ctx *resolutionContext) {
 	}
 	resolveTerritoryIncome(ctx)
 	receivedRations := resolveRations(ctx)
-	produceNeutralVillageStocks(ctx)
+	produceNeutralStocks(ctx)
+	// Mill production is captured now, before any famine auto-pillage can
+	// remove the infrastructure that just produced it (see #195).
+	millProductions := computeMillProduction(ctx)
 	allSources := make([]*supplySource, 0)
 	directFamine := make([]famineCandidate, 0)
 	assignedFamine := make([]famineCandidate, 0)
@@ -125,6 +128,7 @@ func resolveSupply(ctx *resolutionContext) {
 	updateSupplyEventStocks(ctx)
 	ctx.emitProductionEvents()
 	ctx.emitConsumptionEvents()
+	ctx.emitMillProductionEvents(millProductions)
 }
 
 // resolveNeutralFamines applies the neutral starvation rule: neutral armies
@@ -160,13 +164,25 @@ func resolveNeutralFamines(ctx *resolutionContext) {
 	}
 }
 
-func produceNeutralVillageStocks(ctx *resolutionContext) {
+// produceNeutralStocks credits the local production of every unclaimed
+// territory that produces one: a neutral village (base village_income plus
+// any mill routed to it), or a neutral mill with no eligible adjacent
+// village to route to instead, which stocks itself (see #195).
+func produceNeutralStocks(ctx *resolutionContext) {
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
 		state := ctx.state.TerritoryStates[territoryID]
-		if state.OwnerID != nil || !ctx.hasInfrastructure(territoryID, models.InfraTypeVillage) {
+		if state.OwnerID != nil {
 			continue
 		}
-		parts := neutralVillageProductionBreakdown(ctx, territoryID)
+		var parts sourceProductionParts
+		switch {
+		case ctx.hasInfrastructure(territoryID, models.InfraTypeVillage):
+			parts = neutralVillageProductionBreakdown(ctx, territoryID)
+		case ctx.isSelfSuppliedMill(territoryID):
+			parts = millSelfProductionBreakdown(ctx, territoryID)
+		default:
+			continue
+		}
 		ctx.supplySources[territoryID] = parts
 		production := parts.total()
 		state.Resources += production
@@ -286,12 +302,22 @@ func controlledSupplySources(ctx *resolutionContext, ownerID models.PlayerID) []
 	sources := make([]*supplySource, 0)
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
 		state := ctx.state.TerritoryStates[territoryID]
-		if state.OwnerID == nil || *state.OwnerID != ownerID || (!ctx.hasSettlement(territoryID) && state.Resources == 0) {
+		if state.OwnerID == nil || *state.OwnerID != ownerID {
+			continue
+		}
+		isSettlement := ctx.hasSettlement(territoryID)
+		selfSuppliedMill := !isSettlement && ctx.isSelfSuppliedMill(territoryID)
+		if !isSettlement && !selfSuppliedMill && state.Resources == 0 {
 			continue
 		}
 		production := 0
-		if ctx.hasSettlement(territoryID) {
+		switch {
+		case isSettlement:
 			parts := sourceProductionBreakdown(ctx, territoryID)
+			ctx.supplySources[territoryID] = parts
+			production = parts.total()
+		case selfSuppliedMill:
+			parts := millSelfProductionBreakdown(ctx, territoryID)
 			ctx.supplySources[territoryID] = parts
 			production = parts.total()
 		}
@@ -309,25 +335,23 @@ func controlledSupplySources(ctx *resolutionContext, ownerID models.PlayerID) []
 // sourceProductionBreakdown splits the stockable production of a controlled
 // source into its mill and regional weather bonus parts. Base production was
 // replaced by territory income (see income.go), credited directly to its
-// destination outside this ledger; mills are unaffected and still act on the
-// source's own territory and its neighbors, regardless of owner.
+// destination outside this ledger. A neighboring mill only contributes here
+// when territoryID is its single designated recipient (see #195's
+// millRecipient): a mill no longer credits every adjacent castle or village.
 func sourceProductionBreakdown(ctx *resolutionContext, territoryID models.TerritoryID) sourceProductionParts {
 	parts := sourceProductionParts{}
-	locations := append([]models.TerritoryID{territoryID}, ctx.sortedNeighbors(territoryID)...)
-	for _, locationID := range locations {
-		infrastructure := ctx.infrastructureAt(locationID)
+	for _, neighborID := range ctx.sortedNeighbors(territoryID) {
+		infrastructure := ctx.infrastructureAt(neighborID)
 		if infrastructure == nil || infrastructure.Type != models.InfraTypeMill {
 			continue
 		}
-		millRegion := regionForTerritory(ctx, locationID)
-		if ctx.badWeatherRegions[millRegion] {
-			parts.suppressed += infrastructure.Level
+		if millRecipient(ctx, neighborID) != territoryID {
 			continue
 		}
-		parts.mill += infrastructure.Level
-		if ctx.fairWeatherRegions[millRegion] {
-			parts.bonus += infrastructure.Level
-		}
+		production, bonus, suppressed := millWeatherProduction(ctx, neighborID, infrastructure.Level)
+		parts.mill += production
+		parts.bonus += bonus
+		parts.suppressed += suppressed
 	}
 	return parts
 }
@@ -336,28 +360,26 @@ func sourceProductionBreakdown(ctx *resolutionContext, territoryID models.Territ
 // unclaimed village into its base, mill, and regional bonus parts: unlike a
 // controlled source, a neutral village keeps producing locally into its own
 // stock (village_income as its base), subject to the same harvest and
-// weather rules as any other source.
+// weather rules as any other source. A neighboring mill only contributes
+// here when this village is its single designated recipient (see #195), and
+// only a neutral mill can route to a neutral village (see sameController).
 func neutralVillageProductionBreakdown(ctx *resolutionContext, territoryID models.TerritoryID) sourceProductionParts {
 	parts := harvestAdjustedParts(ctx, territoryID, ctx.balance.VillageIncome)
-	locations := append([]models.TerritoryID{territoryID}, ctx.sortedNeighbors(territoryID)...)
-	for _, locationID := range locations {
-		infrastructure := ctx.infrastructureAt(locationID)
+	for _, neighborID := range ctx.sortedNeighbors(territoryID) {
+		infrastructure := ctx.infrastructureAt(neighborID)
 		if infrastructure == nil || infrastructure.Type != models.InfraTypeMill {
 			continue
 		}
-		millRegion := regionForTerritory(ctx, locationID)
-		if ctx.badWeatherRegions[millRegion] {
-			parts.suppressed += infrastructure.Level
+		if millRecipient(ctx, neighborID) != territoryID {
 			continue
 		}
-		parts.mill += infrastructure.Level
-		if ctx.fairWeatherRegions[millRegion] {
-			parts.bonus += infrastructure.Level
-		}
+		production, bonus, suppressed := millWeatherProduction(ctx, neighborID, infrastructure.Level)
+		parts.mill += production
+		parts.bonus += bonus
+		parts.suppressed += suppressed
 	}
 	return parts
 }
-
 
 // supplyNetwork visits each territory once per source. That makes every depot
 // bonus apply once while preserving the shortest BFS distance used for source
@@ -728,6 +750,34 @@ func (ctx *resolutionContext) emitProductionEvents() {
 			StockBefore:          ctx.supplyStockBefore[territoryID],
 			StockConsumed:        ctx.supplyStockConsumed[territoryID],
 			StockAfter:           state.Resources,
+			Season:               ctx.state.Season,
+			Year:                 ctx.state.Year(),
+		})
+	}
+}
+
+// emitMillProductionEvents reports one line per mill: its level, single
+// destination, harvest-and-weather-adjusted production, and any production
+// lost to bad weather (see #195). mills is captured before famine's
+// auto-pillage can remove the infrastructure that already produced it.
+func (ctx *resolutionContext) emitMillProductionEvents(mills []millProduction) {
+	for _, mill := range mills {
+		var ownerID models.PlayerID
+		if mill.ownerID != nil {
+			ownerID = *mill.ownerID
+		}
+		ctx.events = append(ctx.events, Event{
+			Type:                 EventTypeMillProduction,
+			Phase:                0,
+			TerritoryID:          mill.millID,
+			DestinationID:        mill.destinationID,
+			OwnerID:              ownerID,
+			InfrastructureID:     mill.infrastructureID,
+			InfrastructureType:   models.InfraTypeMill,
+			Level:                mill.level,
+			Production:           mill.production,
+			BonusProduction:      mill.bonus,
+			SuppressedProduction: mill.suppressed,
 			Season:               ctx.state.Season,
 			Year:                 ctx.state.Year(),
 		})

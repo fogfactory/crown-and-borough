@@ -33,10 +33,10 @@ type StateView struct {
 // ProjectedIncome is the territory income the player would receive on the
 // next action turn if nothing changes, ignoring any calamity or bonus card
 // already drawn this turn (see engine.ForecastIncome). ProjectedMillIncome is
-// the separate mill production their controlled castles and villages would
-// receive over the same turn (see engine.ForecastMillIncome): it is not
+// the separate mill production their own settlements and self-supplied mills
+// would receive over the same turn (see engine.ForecastMillIncome): it is not
 // included in ProjectedIncome since mills do not route through the capital
-// and can credit several different settlements.
+// and, since #195, each mill credits exactly one destination.
 // ProjectedConsumption and ArmiesAtRisk are the equivalent projection for
 // ravitaillement: the net rations every army the player controls will draw
 // from stock or the supply network beyond what its own territory already
@@ -66,7 +66,11 @@ type ArmyRiskView struct {
 // TerritoryView is the live state displayed on one map territory.
 // ProjectedIncome and IncomeDestination back the territory detail panel's
 // "rapporte X R à YYY" line; IncomeDestination is empty when the income
-// would be lost (see engine.ForecastTerritoryIncome).
+// would be lost (see engine.ForecastTerritoryIncome). MillProduction and
+// MillDestination are the equivalent projection for a mill on this
+// territory (see engine.ForecastMillProduction): MillDestination is this
+// same territory when the mill has no eligible adjacent castle or village
+// and stocks itself instead (see #195).
 type TerritoryView struct {
 	ID                models.TerritoryID  `json:"id"`
 	Owner             *models.PlayerID    `json:"owner"`
@@ -75,6 +79,8 @@ type TerritoryView struct {
 	Infrastructures   []InfraView         `json:"infrastructures"`
 	ProjectedIncome   int                 `json:"projectedIncome,omitempty"`
 	IncomeDestination *models.TerritoryID `json:"incomeDestination,omitempty"`
+	MillProduction    int                 `json:"millProduction,omitempty"`
+	MillDestination   *models.TerritoryID `json:"millDestination,omitempty"`
 }
 
 // ArmyView contains the visible owner, size, and current chain of an army. Its
@@ -213,6 +219,7 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 	territoryIncome := engine.ForecastTerritoryIncome(state, balance)
 	projectedIncomeByPlayer := make(map[models.PlayerID]int, len(state.Players))
 	millIncomeByPlayer := engine.ForecastMillIncome(state, balance)
+	millProduction := engine.ForecastMillProduction(state, balance)
 	famineRiskByPlayer := engine.ForecastFamineRisk(state, balance)
 
 	for _, territory := range state.Territories {
@@ -232,6 +239,11 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 			if territoryState.OwnerID != nil {
 				projectedIncomeByPlayer[*territoryState.OwnerID] += forecast.Amount
 			}
+		}
+		if forecast, ok := millProduction[territory.ID]; ok {
+			territoryView.MillProduction = forecast.Production
+			destination := forecast.Destination
+			territoryView.MillDestination = &destination
 		}
 		if territoryState.Army != nil {
 			if army, ok := armiesByID[*territoryState.Army]; ok {

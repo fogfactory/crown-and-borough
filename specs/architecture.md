@@ -183,6 +183,8 @@ L'état projeté sépare la couche dynamique du `GameState` de stockage :
       "resources": 4,
       "projectedIncome": 6,
       "incomeDestination": "ROS",
+      "millProduction": 2,
+      "millDestination": "ROS",
       "army": {
         "owner": "P1",
         "size": 2,
@@ -223,11 +225,21 @@ pour ne pas en révéler l'effet à l'avance ; il vaut `0` en hiver.
 `incomeDestination` est le territoire qui recevra ce revenu (la capitale du
 joueur, à défaut le château contrôlé le plus proche, à défaut le village
 contrôlé le plus proche) ; il est absent si le revenu est perdu faute de
-destination. `projectedMillIncome` est la production des moulins que
-recevront les châteaux et villages contrôlés de ce joueur au même tour ;
-distincte de `projectedIncome` car un moulin ne passe pas par la capitale et
-peut créditer plusieurs châteaux ou villages différents (voir la section
-Moulins) ; il vaut `0` en hiver.
+destination. `projectedMillIncome` est la somme de la production que
+recevront les propres installations de ce joueur (ses châteaux, villages et
+moulins isolés) au même tour ; distincte de `projectedIncome` car un moulin ne
+passe pas par la capitale et, depuis
+[#195](https://github.com/fogfactory/crown-and-borough/issues/195), ne
+crédite plus qu'une seule destination (voir la section Moulins) ; il vaut `0`
+en hiver.
+
+`millProduction` et `millDestination` ne sont présents que sur la case d'un
+moulin : `millProduction` est sa production projetée (harmonisée avec la
+météo, en ignorant les cartes calamité ou bonus déjà tirées ce tour), et
+`millDestination` le territoire qui la recevra (le château adjacent du même
+contrôleur, sinon le village adjacent du même contrôleur, sinon le moulin
+lui-même). `millDestination` est donc identique à `id` lorsque le moulin est
+isolé.
 
 `projectedConsumption` est la somme des rations effectivement tirées du stock
 ou du réseau de ravitaillement au prochain tour d'action (une armée

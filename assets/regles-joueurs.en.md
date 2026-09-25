@@ -487,22 +487,29 @@ or not. The same army in a forest (production {{ration_terrain.forest}})
 receives only 1 ration and must cover the rest elsewhere; in the mountains
 (production {{ration_terrain.mountain}}), it depends entirely on supply.
 
-**Supply sources**: controlled castles, villages, and caches. A castle or
-village no longer produces stockable R by itself: its contribution comes from
-adjacent mills and from the territory income it receives (see "Territory
-Income" below); a bare territory has no production of its own, but its stock
-(if any) serves as a cache. The flow crosses allied, neutral, or
-enemy-controlled territories, and only stops before a territory occupied by
-an enemy army. Base range is {{supply_range}} territories; each controlled
-supply depot encountered along the route adds {{depot_range_bonus}}
-territories. A neutral village keeps its stock, inaccessible before capture.
+**Supply sources**: controlled castles, villages, and caches, plus an isolated
+mill (see below). A castle or village no longer produces stockable R by
+itself: its contribution comes from the mills adjacent to it and from the
+territory income it receives (see "Territory Income" below); a bare territory
+has no production of its own, but its stock (if any) serves as a cache. The
+flow crosses allied, neutral, or enemy-controlled territories, and only stops
+before a territory occupied by an enemy army. Base range is
+{{supply_range}} territories; each controlled supply depot encountered along
+the route adds {{depot_range_bonus}} territories. A neutral village keeps its
+stock, inaccessible before capture.
 
-Each source calculates its own production by adding the level of **every
-adjacent mill**: one mill can feed every neighboring source, with no owner
-filter, and an orphaned mill (with no adjacent castle or village) produces
-`0 R`. For example, a castle or village with no adjacent mill produces
-nothing by itself; surrounded by two level-1 mills, it produces `1 + 1 R`.
-The presence or position of a noble never conditions this production.
+A level-`N` mill produces `N` R and credits exactly **one** infrastructure:
+the adjacent castle **under the same control as the mill's own territory**,
+else the adjacent village under the same control, else the mill's own
+territory. A castle or village adjacent to the mill but controlled by another
+player is ignored. "Neutral" control is a controller like any other: a
+neutral mill never feeds a player, only a neutral village adjacent to it,
+else its own territory. A mill therefore never credits two infrastructures at
+once. An isolated mill (no eligible castle or village of its own control)
+produces on its own territory, which then becomes a source in its own right;
+that production isn't automatically routed elsewhere — it still needs a
+transfer order (`T`). The presence or position of a noble never conditions
+this production.
 
 ### Territory Income
 
@@ -554,7 +561,7 @@ conditions are detailed in section 8.
 
 | Infrastructure | v1 effect |
 |---|---|
-| Mill | +1 stockable R per level at each adjacent source |
+| Mill | `N` stockable R per level, credited to a single adjacent infrastructure (castle, else village, else itself) |
 | Supply depot | +{{depot_range_bonus}} territories of supply range when controlled |
 | Castle | +{{castle_defense_bonus}} defense, supply anchor, receives territory income (section 7) |
 | Village | Supply anchor after capture, receives territory income once controlled (produces {{village_income}} R per turn into its own stock while neutral) |
@@ -570,7 +577,7 @@ per line, applied in the entered order.
 |---|---|---|---|
 | Recruit a noble | `R N XXX` | `XXX` controlled, with a castle or village and a player army | {{costs.noble}} |
 | Recruit a troop | `R T XXX` | `XXX` controlled, and a free player noble on `XXX` or adjacent | {{costs.troop}} |
-| Build or upgrade a mill | `C M XXX` | `XXX` controlled; a new mill on an **empty** territory adjacent to a productive castle or village, or an existing mill adjacent to that source | {{costs.mill_levels.0}} (L1), {{costs.mill_levels.1}} (L2), {{costs.mill_levels.2}} (L3) |
+| Build or upgrade a mill | `C M XXX` | `XXX` controlled; a **new** mill requires an **empty** territory adjacent to a castle or village, or itself carrying one; an **existing** mill can always be upgraded, even in isolation | {{costs.mill_levels.0}} (L1), {{costs.mill_levels.1}} (L2), {{costs.mill_levels.2}} (L3) |
 | Build a castle | `C C XXX` | `XXX` controlled | {{costs.castle}} |
 | Build a supply depot | `C D XXX` | `XXX` controlled | {{costs.supply_depot}} |
 | Designate a capital | `E C XXX` | a controlled castle on `XXX` | 0 |
@@ -599,12 +606,16 @@ A mill starts at level 1 and can reach level 3 inclusive. Construction costs
 {{costs.mill_levels.1}} R and {{costs.mill_levels.2}} R respectively. `C M` on
 a level-3 mill is rejected with reason `mill_max_level_reached`, with no stock
 deducted. Mills above level 3 already present in a game are preserved and
-remain productive; only new upgrades are blocked.
+remain productive; only new upgrades are blocked. The adjacency requirement
+(an empty territory next to a castle or village) only applies to
+**building** a new mill; an existing mill can always be upgraded, even in
+isolation, paying from its own stock (see "Resource Vocabulary" below).
 
 Investments targeting a territory require **control of that territory**. A
 construction replaces the existing structure only when the rule says so: a
 **castle built on a village replaces the village** and keeps the territory's
-stock. An orphaned mill produces nothing.
+stock. An isolated mill (no castle or village of its own control adjacent)
+produces on its own territory (see section 7) and can always be upgraded.
 
 ### Resource Vocabulary
 
@@ -616,31 +627,33 @@ stock. An orphaned mill produces nothing.
 - **stock** is therefore the amount of `R` kept on a territory.
 
 Each controlled castle or village is a separate source, and any controlled
-territory with positive stock is an action-season cache source: a second
-castle is therefore a second source, even though only one castle is
-designated as the capital. Its stock depends on the territory income it
-receives (section 7, if it is the capital or its fallback) and on adjacent
-mills, which add their level to every neighboring source, even across owner
-boundaries — see section 7 for the details of this production.
+territory with positive stock is an action-season cache source, as is an
+isolated mill (see section 7): a second castle is therefore a second source,
+even though only one castle is designated as the capital. Its stock depends
+on the territory income it receives (section 7, if it is the capital or its
+fallback) and on the mills adjacent to it under the same control — see
+section 7 for the details of this production.
 
 **Payment**: the cost is taken first from the stock on the target territory,
 then from the nearest controlled source; if the total reserve is
 insufficient, **no partial payment** is made and the investment is rejected
-(reported, with no cost lost). Example: a `C M ATL` costing
-{{costs.mill_levels.0}} R first consumes ATL's stock, then the remainder from
-the nearest controlled source; if those stocks do not total the required
-cost, the build is rejected with no partial payment made.
+(reported, with no cost lost). Upgrading a mill (`C M ATL`) is the exception
+to this order: it first consumes the mill's own stock, then the stock of the
+infrastructure that would receive its production (castle first, else
+village), before falling back to the usual payment network; if those stocks
+do not total the required cost, the upgrade is rejected with no partial
+payment made.
 
 **End of winter**:
 
-- each remaining castle or village stock is kept at
+- each remaining castle, village, or mill stock is kept at
   `ceil(stock / {{winter_stock_divisor}})` — a stock of 5 R therefore becomes
   3 R;
-- a supply depot keeps its stock in full; stock outside a castle, village, or
-  depot is lost;
+- a supply depot keeps its stock in full; stock outside a castle, village,
+  mill, or depot is lost;
 - castle and village stocks outside the capital are brought back to the
   capital, leaving at most {{village_stock_cap}} R per village and
-  {{castle_stock_cap}} R per castle;
+  {{castle_stock_cap}} R per castle; a mill's stock is **never** repatriated;
 - without a capital, those stocks remain where they are; depot stock remains
   on its territory.
 

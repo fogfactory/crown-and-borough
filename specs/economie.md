@@ -91,8 +91,11 @@ suivi par [#196](https://github.com/fogfactory/crown-and-borough/issues/196).
   lorsqu'une armée adverse occupe le territoire (hors périmètre de #192,
   suivi par #196).
 - La production de base des châteaux et villages contrôlés
-  (`base_production`) est supprimée : le revenu territorial la remplace. Les
-  moulins ne changent pas.
+  (`base_production`) est supprimée : le revenu territorial la remplace. Le
+  revenu territorial et la production des moulins restent deux flux
+  distincts ; la règle de destination unique d'un moulin est précisée par
+  [#195](https://github.com/fogfactory/crown-and-borough/issues/195)
+  ci-dessous.
 - Un village **neutre** continue de produire `village_income` R par tour dans
   son propre stock, récupéré à sa capture.
 
@@ -105,7 +108,7 @@ suivi par [#196](https://github.com/fogfactory/crown-and-borough/issues/196).
 | Territoire contrôlé hors fief, sans village | 1 R → capitale du joueur | — (pas de taxe hors fief) |
 | Territoire contrôlé hors fief, avec village | 2 R → capitale du joueur | — |
 | Village neutre | 1 R → son propre stock | — |
-| Moulin (niveau `N`) | `N` R → château adjacent, sinon village adjacent, sinon reste sur le moulin | Dîme religieuse jouée sur l'évêché : `N` R → capitale du joueur qui a joué la dîme, au lieu du village/château adjacent |
+| Moulin (niveau `N`) | `N` R → château adjacent du même contrôleur, sinon village adjacent du même contrôleur, sinon reste sur le moulin | Dîme religieuse jouée sur l'évêché : `N` R → capitale du joueur qui a joué la dîme, au lieu du village/château adjacent |
 
 La taxe du seigneur est livrée par
 [#189](https://github.com/fogfactory/crown-and-borough/issues/189) ; la taxe
@@ -122,32 +125,57 @@ même territoire le même tour.
 ## Moulins
 
 Issue : [#195](https://github.com/fogfactory/crown-and-borough/issues/195).
+**Appliqué.**
 
-Un moulin de niveau `N` produit `N` R (`2N` sous le Beau temps) et
-verse sa production à **une seule** infrastructure : le château adjacent,
-sinon le village adjacent, sinon la case du moulin elle-même. Entre plusieurs
-candidats du même type, le départage se fait par trigramme. Un moulin ne
-compte donc plus pour chaque château ou village adjacent. Sous le mauvais
-temps, il ne produit rien.
+Un moulin de niveau `N` produit `N` R (`2N` sous le Beau temps, 0 sous le
+mauvais temps) et verse sa production à **une seule** infrastructure, dans cet
+ordre de préférence :
 
-Une production restée sur un moulin isolé n'est pas automatiquement
-acheminée : elle nécessite un ordre de transfert (`T`, voir ci-dessous) porté
-par une armée. En hiver, le stock d'un moulin est conservé à
-`ceil(stock / 2)`, comme celui d'un château ou d'un village, et n'est pas
-rapatrié.
+1. le château adjacent **contrôlé par le même joueur que la case du moulin** ;
+2. sinon le village adjacent, même exigence de contrôle ;
+3. sinon la case du moulin elle-même.
 
-> À trancher dans #195 : le bénéficiaire adjacent doit-il être contrôlé par le
-> même joueur que le moulin (recommandé) ; un moulin sur une case neutre
-> produit-il sur sa propre case (recommandé).
+Un château ou un village adjacent contrôlé par un autre joueur est ignoré : on
+passe au candidat suivant plutôt que de lui verser la production. Le
+contrôleur « neutre » (case sans propriétaire) est un contrôleur comme un
+autre : un moulin neutre ne verse donc jamais à un château ou un village d'un
+joueur, seulement à un village neutre adjacent (il n'existe pas de « château
+neutre »), sinon sur sa propre case. Entre plusieurs candidats du même type et
+du même contrôleur, le départage se fait par trigramme, comme pour le revenu
+territorial (#192). Un moulin ne compte donc plus pour chaque château ou
+village adjacent : c'est la correction du double comptage qui existait avant
+#195.
+
+Une production restée sur un moulin isolé (sur sa propre case) n'est pas
+automatiquement acheminée : elle nécessite un ordre de transfert (`T`, voir
+ci-dessous) porté par une armée. Elle rend cependant la case du moulin
+elle-même éligible comme source de ravitaillement pour son contrôleur (au même
+titre qu'un château ou un village). En hiver, le stock d'un moulin est
+conservé à `ceil(stock / 2)`, comme celui d'un château ou d'un village, et
+n'est **pas** rapatrié vers la capitale.
+
+### Construction contre amélioration
+
+La contrainte de voisinage productif (`mill_requires_productive_neighbor` :
+un moulin ne peut être bâti que sur une case contrôlée elle-même porteuse d'un
+château ou d'un village, ou adjacente à une telle case) ne s'applique qu'à la
+**construction** initiale d'un moulin. Elle ne s'applique pas à son
+**amélioration** : un moulin isolé (sans château ni village adjacent du même
+contrôleur) peut toujours être amélioré, en payant sur son propre stock.
 
 ### Amélioration d'un moulin
 
-Le paiement d'une amélioration de moulin puise en priorité sur le stock
-présent sur le moulin lui-même, puis sur le stock du village ou du château
-adjacent (château en priorité si les deux sont adjacents) avant de recourir au
-paiement d'hiver habituel. Le stock d'un moulin fait ainsi exception à la
-règle selon laquelle seuls les châteaux et villages paient les
-investissements d'hiver.
+Le paiement d'une amélioration de moulin (`C M` sur un moulin existant) puise
+dans cet ordre :
+
+1. le stock présent sur le moulin lui-même ;
+2. le stock de l'infrastructure qui recevrait sa production (château en
+   priorité, sinon village, selon les mêmes règles de contrôle et de
+   départage que ci-dessus) ;
+3. le paiement d'hiver habituel (réseau des châteaux et villages contrôlés).
+
+Le stock d'un moulin fait ainsi exception à la règle selon laquelle seuls les
+châteaux et villages paient les investissements d'hiver.
 
 ## Village fortifié
 

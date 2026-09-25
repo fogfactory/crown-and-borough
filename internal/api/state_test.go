@@ -107,6 +107,53 @@ func TestProjectStateNesting(t *testing.T) {
 	}
 }
 
+func TestProjectStateProjectsMillProductionAndDestination(t *testing.T) {
+	p1 := models.PlayerID("P1")
+	state := &models.GameState{
+		ID:     "state-view-mill",
+		Seed:   "state-view-mill",
+		Turn:   5,
+		Season: models.SeasonSpring,
+		Players: []models.Player{
+			{ID: p1, Name: "Hugues", Color: "#a84632"},
+		},
+		Territories: []models.Territory{
+			{ID: "CAS", Name: "Castellan", Terrain: models.TerrainPlain, Adjacencies: []models.TerritoryID{"MIL"}},
+			{ID: "MIL", Name: "Moulinet", Terrain: models.TerrainPlain, Adjacencies: []models.TerritoryID{"CAS"}},
+		},
+		NextChainID: 1,
+		NextArmyID:  1,
+		Infrastructures: []models.Infrastructure{
+			{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "CAS"},
+			{ID: "I2", Type: models.InfraTypeMill, Level: 2, TerritoryID: "MIL"},
+		},
+		TerritoryStates: map[models.TerritoryID]models.TerritoryState{
+			"CAS": {OwnerID: &p1, Infrastructures: ptrInfraID("I1")},
+			"MIL": {OwnerID: &p1, Infrastructures: ptrInfraID("I2")},
+		},
+	}
+	if err := state.Validate(); err != nil {
+		t.Fatalf("invalid fixture: %v", err)
+	}
+
+	view := projectState(state, assetgen.Balance{})
+
+	viewByID := make(map[models.TerritoryID]TerritoryView, len(view.Territories))
+	for _, territory := range view.Territories {
+		viewByID[territory.ID] = territory
+	}
+	mill := viewByID["MIL"]
+	if mill.MillProduction != 2 {
+		t.Errorf("mill production = %d, want 2 (its level, no weather effect)", mill.MillProduction)
+	}
+	if mill.MillDestination == nil || *mill.MillDestination != "CAS" {
+		t.Errorf("mill destination = %v, want CAS", mill.MillDestination)
+	}
+	if castle := viewByID["CAS"]; castle.MillProduction != 0 || castle.MillDestination != nil {
+		t.Errorf("castle mill projection = %+v, want zero value (only the mill's own territory carries it)", castle)
+	}
+}
+
 func TestProjectStateOmitsUnavailableCapital(t *testing.T) {
 	state := projectTestState()
 	missingCapitalID := models.InfraID("missing")

@@ -94,6 +94,12 @@ func TestCardEffectsOnRationsAndProduction(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			state := cardEffectState()
+			// The mill at AAA needs the same controller as the castle at
+			// BBB to route its production there under #195; the shared
+			// cardEffectState leaves AAA neutral for the famine/bad-weather
+			// loss summary tests, which don't want AAA counted as a second
+			// territory-income loss line.
+			setTerritoryOwner(state, "AAA", "P1")
 			if tt.calamity != "" {
 				setCurrentCalamity(state, tt.calamity, "AAA")
 			}

@@ -108,3 +108,22 @@ func TestPreviewOrdersSimulatesEachWinterLine(t *testing.T) {
 		t.Fatal("PreviewOrders mutated the game state")
 	}
 }
+
+func TestWinterPaymentReservesCountsAnIsolatedMillTargetedForUpgrade(t *testing.T) {
+	state := winterTestState(t, []models.Territory{territory("AAA", "AAA")}, nil)
+	setTerritoryOwner(state, "AAA", "P1")
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "AAA"})
+	setTerritoryResources(state, "AAA", 5)
+
+	withoutOrder := winterPaymentReserves(state, "P1", nil)
+	if withoutOrder != 0 {
+		t.Errorf("reserves without a build order = %d, want 0 (a mill's stock is not spendable at large)", withoutOrder)
+	}
+
+	targeted := winterPaymentReserves(state, "P1", []models.WinterOrder{
+		{ID: "O1", Type: models.WinterOrderTypeBuild, TerritoryID: "AAA", InfraType: models.InfraTypeMill},
+	})
+	if targeted != 5 {
+		t.Errorf("reserves with the mill targeted for upgrade = %d, want 5 (its own stock)", targeted)
+	}
+}

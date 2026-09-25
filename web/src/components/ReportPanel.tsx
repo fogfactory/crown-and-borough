@@ -536,6 +536,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
   const receptions = report.receptions ?? []
   const combats = report.combats ?? []
   const income = report.income ?? []
+  const mills = report.mills ?? []
   const production = report.production ?? []
   const consumption = report.consumption ?? []
   const orders = report.orders ?? []
@@ -710,6 +711,51 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                 </p>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
+          {t('reports.millsTitle')}
+        </h4>
+        {mills.length === 0 ? (
+          emptyMessage(t('reports.millsTitle').toLowerCase(), t)
+        ) : (
+          <div className="space-y-1 text-sm">
+            {mills.map((line, index) => {
+              const stopped = line.production === 0 && (line.suppressed ?? 0) > 0
+              const keptInPlace = line.destination === line.territory
+              return (
+                <div
+                  key={`${line.territory}-${index}`}
+                  className="flex items-center justify-between gap-3 rounded-md bg-[#f3ead9] px-3 py-2"
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    {playerMarker(players, line.owner, t)}
+                    <span className="text-xs text-[#806f57]">
+                      {territoryLabel(map, line.territory, t)}
+                    </span>
+                  </span>
+                  <span
+                    className={
+                      stopped
+                        ? 'shrink-0 text-xs font-semibold text-[#a84632]'
+                        : 'shrink-0 text-xs font-semibold text-[#376341]'
+                    }
+                  >
+                    {stopped
+                      ? t('reports.millStopped')
+                      : keptInPlace
+                        ? t('reports.millKept', { count: line.production })
+                        : t('reports.millCredited', {
+                            count: line.production,
+                            destination: territoryLabel(map, line.destination, t),
+                          })}
+                  </span>
+                </div>
+              )
+            })}
           </div>
         )}
       </div>

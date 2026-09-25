@@ -518,23 +518,29 @@ non. La même armée en forêt (production {{ration_terrain.forest}}) ne reçoit
 qu'1 ration et doit couvrir le reste ailleurs ; en montagne (production
 {{ration_terrain.mountain}}), elle dépend entièrement du ravitaillement.
 
-**Sources de ravitaillement** : les châteaux, villages et caches contrôlés.
-Un château ou un village ne produit plus de R stockable par lui-même : sa
-contribution vient des moulins adjacents et du revenu territorial reçu (voir
-« Revenu territorial » ci-dessous) ; une case ordinaire n'a pas de production
-propre, mais son stock (s'il y en a) sert de cache. Le flux traverse les
-cases alliées, neutres ou contrôlées par un autre joueur, et ne s'arrête que
-devant une case occupée par une armée adverse. La portée de base est de
+**Sources de ravitaillement** : les châteaux, villages et caches contrôlés,
+ainsi qu'un moulin isolé (voir ci-dessous). Un château ou un village ne
+produit plus de R stockable par lui-même : sa contribution vient des moulins
+qui lui sont adjacents et du revenu territorial reçu (voir « Revenu
+territorial » ci-dessous) ; une case ordinaire n'a pas de production propre,
+mais son stock (s'il y en a) sert de cache. Le flux traverse les cases
+alliées, neutres ou contrôlées par un autre joueur, et ne s'arrête que devant
+une case occupée par une armée adverse. La portée de base est de
 {{supply_range}} cases ; chaque dépôt de vivres contrôlé rencontré sur le
 trajet ajoute {{depot_range_bonus}} cases. Un village neutre conserve son
 stock, inaccessible avant capture.
 
-Chaque source calcule sa propre production en ajoutant le niveau de
-**chaque moulin adjacent** : un même moulin peut alimenter toutes les sources
-voisines, sans filtre de propriétaire, et un moulin orphelin (sans château ni
-village adjacent) produit `0 R`. Par exemple, un château ou un village sans
-moulin adjacent ne produit rien par lui-même ; entouré de deux moulins de
-niveau 1, il produit `1 + 1 R`. La présence ou la position d'un noble ne
+Chaque moulin de niveau `N` produit `N` R et les verse à **une seule**
+infrastructure : le château adjacent **contrôlé par le même joueur que la
+case du moulin**, sinon le village adjacent du même contrôleur, sinon la case
+du moulin elle-même. Un château ou un village adjacent d'un autre joueur est
+ignoré. Le contrôleur « neutre » est un contrôleur comme un autre : un moulin
+neutre ne verse jamais à un joueur, seulement à un village neutre adjacent,
+sinon sur sa propre case. Un moulin ne compte donc plus jamais pour deux
+infrastructures à la fois. Un moulin isolé (sans château ni village adjacent
+du même contrôleur) produit sur sa propre case, qui devient alors elle-même
+une source ; cette production n'est pas automatiquement acheminée ailleurs,
+il faut un ordre de transfert (`T`). La présence ou la position d'un noble ne
 conditionne jamais cette production.
 
 ### Revenu territorial
@@ -591,7 +597,7 @@ conditions de construction sont détaillés section 8.
 
 | Infrastructure | Effet v1 |
 |---|---|
-| Moulin | +1 R stockable par niveau à chaque source adjacente |
+| Moulin | `N` R stockable par niveau, versés à une seule infrastructure adjacente (château, sinon village, sinon lui-même) |
 | Dépôt de vivres | +{{depot_range_bonus}} cases de portée de ravitaillement lorsqu'il est contrôlé |
 | Château | +{{castle_defense_bonus}} défense, ancre de ravitaillement, verse le revenu territorial (section 7) |
 | Village | Ancre après capture, verse le revenu territorial une fois contrôlé (produit {{village_income}} R par tour dans son propre stock tant qu'il est neutre) |
@@ -607,7 +613,7 @@ investissements directs, une ligne par ordre, appliqués dans l'ordre saisi.
 |---|---|---|---|
 | Recruter un noble | `R N XXX` | `XXX` contrôlé, avec un château ou un village et une armée du joueur | {{costs.noble}} |
 | Recruter une troupe | `R T XXX` | `XXX` contrôlé, et un noble libre du joueur sur `XXX` ou adjacent | {{costs.troop}} |
-| Construire ou améliorer un moulin | `C M XXX` | `XXX` contrôlé ; nouveau moulin sur case **vide** adjacente à un château ou village productif, ou moulin existant adjacent à cette source | {{costs.mill_levels.0}} (N1), {{costs.mill_levels.1}} (N2), {{costs.mill_levels.2}} (N3) |
+| Construire ou améliorer un moulin | `C M XXX` | `XXX` contrôlé ; un **nouveau** moulin exige une case **vide** adjacente à un château ou village, ou portant elle-même un château ou village ; un moulin **existant** peut toujours être amélioré, même isolé | {{costs.mill_levels.0}} (N1), {{costs.mill_levels.1}} (N2), {{costs.mill_levels.2}} (N3) |
 | Construire un château | `C C XXX` | `XXX` contrôlé | {{costs.castle}} |
 | Construire un dépôt de vivres | `C D XXX` | `XXX` contrôlé | {{costs.supply_depot}} |
 | Désigner une capitale | `E C XXX` | un château contrôlé sur `XXX` | 0 |
@@ -638,13 +644,17 @@ niveaux 2 et 3 coûtent respectivement {{costs.mill_levels.1}} R et
 {{costs.mill_levels.2}} R. `C M` sur un moulin déjà au niveau 3 est rejeté
 avec le motif `mill_max_level_reached`, sans prélèvement. Les moulins
 hérités de niveau supérieur à 3 restent productifs ; seules leurs nouvelles
-améliorations sont bloquées.
+améliorations sont bloquées. La condition de voisinage (case vide adjacente à
+un château ou village) ne s'applique qu'à la **construction** ; un moulin
+déjà bâti peut toujours être amélioré, même isolé, en payant sur son propre
+stock (voir « Vocabulaire des ressources » ci-dessous).
 
 Les investissements qui ciblent un territoire exigent le **contrôle de ce
 territoire**. Une construction remplace la structure existante uniquement
 quand la règle le prévoit : un **château construit sur un village remplace
-le village** et conserve le stock de la case. Un moulin orphelin ne produit
-rien.
+le village** et conserve le stock de la case. Un moulin isolé (sans château
+ni village adjacent du même contrôleur) produit sur sa propre case (voir
+section 7) et peut toujours être amélioré.
 
 ### Vocabulaire des ressources
 
@@ -658,32 +668,34 @@ rien.
 - le **stock** est donc la quantité de `R` conservée sur une case.
 
 Une source est chaque château ou village contrôlé, ainsi que toute case
-contrôlée qui contient un stock positif pendant une saison d'action : un
-deuxième château est donc une deuxième source, même si un seul reste désigné
-capitale. Son stock dépend du revenu territorial reçu (section 7, s'il s'agit
-de la capitale ou de son repli) et des moulins adjacents, qui ajoutent leur
-niveau à chaque source voisine, y compris à travers les frontières de
-propriétaire — voir section 7 pour le détail de cette production.
+contrôlée qui contient un stock positif pendant une saison d'action, et un
+moulin isolé (voir section 7) : un deuxième château est donc une deuxième
+source, même si un seul reste désigné capitale. Son stock dépend du revenu
+territorial reçu (section 7, s'il s'agit de la capitale ou de son repli) et
+des moulins qui lui sont adjacents et du même contrôleur — voir section 7
+pour le détail de cette production.
 
 **Paiement** : le coût est prélevé d'abord sur le stock de la case ciblée,
 puis sur la source contrôlée la plus proche ; si la réserve totale est
 insuffisante, **aucun paiement partiel** n'est effectué et l'investissement
-est rejeté (signalé dans le rapport, coût non perdu). Exemple : un `C M ATL`
-coûtant {{costs.mill_levels.0}} R consomme d'abord le stock d'ATL, puis le
-complément depuis la source contrôlée la plus proche ; si ces stocks ne
-totalisent pas le coût requis, la construction est rejetée sans prélèvement
-partiel.
+est rejeté (signalé dans le rapport, coût non perdu). L'amélioration d'un
+moulin (`C M ATL`) fait exception à l'ordre habituel : elle consomme d'abord
+le stock du moulin lui-même, puis celui de l'infrastructure qui recevrait sa
+production (château en priorité, sinon village), avant de recourir au réseau
+de paiement habituel ; si ces stocks ne totalisent pas le coût requis,
+l'amélioration est rejetée sans prélèvement partiel.
 
 **Fin de l'hiver** :
 
-- chaque stock restant d'un château ou village est conservé à hauteur de
-  `ceil(stock / {{winter_stock_divisor}})` — un stock de 5 R devient donc
-  3 R ;
+- chaque stock restant d'un château, d'un village ou d'un moulin est
+  conservé à hauteur de `ceil(stock / {{winter_stock_divisor}})` — un stock
+  de 5 R devient donc 3 R ;
 - un dépôt de vivres conserve intégralement son stock ; les stocks hors
-  château, village et dépôt sont perdus ;
+  château, village, moulin et dépôt sont perdus ;
 - les stocks des châteaux et villages hors capitale sont rapatriés vers la
   capitale, en laissant au maximum {{village_stock_cap}} R par village et
-  {{castle_stock_cap}} R par château ;
+  {{castle_stock_cap}} R par château ; le stock d'un moulin n'est **jamais**
+  rapatrié ;
 - sans capitale, ces stocks restent sur place ; les stocks de dépôt restent
   sur leur case.
 

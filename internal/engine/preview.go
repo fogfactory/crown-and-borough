@@ -126,7 +126,7 @@ func previewWinter(preview *OrdersPreview, game *models.GameState, balance asset
 		preview.Winter = append(preview.Winter, entry)
 	}
 
-	cost := &WinterCostPreview{Available: winterPaymentReserves(game, playerID)}
+	cost := &WinterCostPreview{Available: winterPaymentReserves(game, playerID, winterOrders)}
 	preview.WinterCost = cost
 	if len(winterOrders) == 0 && len(deckOrders) == 0 {
 		return nil
@@ -172,23 +172,38 @@ func previewWinter(preview *OrdersPreview, game *models.GameState, balance asset
 	return nil
 }
 
-// winterPaymentReserves is the stock a player can spend on winter orders:
-// the resources of every controlled castle and village.
-func winterPaymentReserves(game *models.GameState, playerID models.PlayerID) int {
+// winterPaymentReserves is the stock a player can spend on winter orders: the
+// resources of every controlled castle and village, plus the stock of any
+// mill targeted by one of winterOrders' build lines, since a mill upgrade can
+// pay for itself first (see #195's millUpgradePaymentSources).
+func winterPaymentReserves(game *models.GameState, playerID models.PlayerID, winterOrders []models.WinterOrder) int {
 	settlements := make(map[models.InfraID]bool)
 	for _, infrastructure := range game.Infrastructures {
 		if infrastructure.Type == models.InfraTypeCastle || infrastructure.Type == models.InfraTypeVillage {
 			settlements[infrastructure.ID] = true
 		}
 	}
+	counted := make(map[models.TerritoryID]bool)
 	total := 0
-	for _, territoryState := range game.TerritoryStates {
+	for territoryID, territoryState := range game.TerritoryStates {
 		if territoryState.OwnerID == nil || *territoryState.OwnerID != playerID || territoryState.Resources <= 0 {
 			continue
 		}
 		if territoryState.Infrastructures != nil && settlements[*territoryState.Infrastructures] {
 			total += territoryState.Resources
+			counted[territoryID] = true
 		}
+	}
+	for _, order := range winterOrders {
+		if order.Type != models.WinterOrderTypeBuild || order.InfraType != models.InfraTypeMill || counted[order.TerritoryID] {
+			continue
+		}
+		territoryState, exists := game.TerritoryStates[order.TerritoryID]
+		if !exists || territoryState.OwnerID == nil || *territoryState.OwnerID != playerID {
+			continue
+		}
+		total += territoryState.Resources
+		counted[order.TerritoryID] = true
 	}
 	return total
 }
