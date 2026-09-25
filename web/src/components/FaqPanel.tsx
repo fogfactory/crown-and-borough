@@ -16,6 +16,7 @@ const FAQ_ENTRIES = [
   { question: 'faq.q11', answer: 'faq.a11' },
   { question: 'faq.q12', answer: 'faq.a12' },
   { question: 'faq.q13', answer: 'faq.a13' },
+  { question: 'faq.q14', answer: 'faq.a14' },
 ] as const
 
 export function FaqPanel({ showHeading = true }: { showHeading?: boolean }) {

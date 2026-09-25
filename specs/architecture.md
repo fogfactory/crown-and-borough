@@ -170,7 +170,9 @@ L'état projeté sépare la couche dynamique du `GameState` de stockage :
       "name": "Joueur 1",
       "color": "#a84632",
       "capitalTerritory": "ROS",
-      "projectedIncome": 6
+      "projectedIncome": 6,
+      "projectedConsumption": 4,
+      "armiesAtRisk": [{ "territoryId": "MOR", "size": 2, "deficit": 1 }]
     }
   ],
   "territories": [
@@ -221,6 +223,22 @@ pour ne pas en révéler l'effet à l'avance ; il vaut `0` en hiver.
 joueur, à défaut le château contrôlé le plus proche, à défaut le village
 contrôlé le plus proche) ; il est absent si le revenu est perdu faute de
 destination.
+
+`projectedConsumption` est la somme des besoins en rations de toutes les
+armées de ce joueur au prochain tour d'action, avec les mêmes garanties que
+`projectedIncome` (récolte normale, ignore les cartes calamité déjà tirées) ;
+il vaut `0` en hiver, saison sans ravitaillement. `armiesAtRisk` liste les
+armées qu'une heuristique simple juge à risque de famine : pour chacune, sa
+production locale plus les sources de ravitaillement non contestées qu'elle
+peut atteindre ne couvrent pas sa demande totale. `deficit` est le manque de
+rations estimé (demande moins production disponible localement et via ces
+sources), pas un nombre de troupes qui mourraient. Cette heuristique traite
+chaque armée du joueur indépendamment et ne simule pas l'allocation
+compétitive réelle entre plusieurs de ses armées disputant une même source
+(`assignSupply`/`resolveSupplyStocks`/`selectAssignedFamine`) : deux armées
+non listées peuvent donc quand même se disputer la même source et voir l'une
+d'elles affamée à la résolution réelle. `armiesAtRisk` est absent quand
+aucune armée n'est concernée.
 
 `army` vaut `null` lorsqu'aucune armée n'occupe la case. Dans une armée, `chain`
 vaut `null` lorsqu'aucune chaîne n'est active. Une chaîne existante dont le

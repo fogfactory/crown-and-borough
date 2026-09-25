@@ -8,6 +8,7 @@ import { MapViewer } from '@/components/MapViewer'
 import { SelectedTerritoryDetails } from '@/components/SelectedTerritoryDetails'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { OrdersPanel } from '@/components/OrdersPanel'
+import { ProjectedConsumptionSummary } from '@/components/ProjectedConsumptionSummary'
 import { ProjectedIncomeSummary } from '@/components/ProjectedIncomeSummary'
 import { ReportPane } from '@/components/ReportPane'
 import { Scoreboard } from '@/components/Scoreboard'
@@ -821,6 +822,7 @@ function AppContent() {
               command={
                 <>
                   <ProjectedIncomeSummary state={state} playerId={selectedPlayer} />
+                  <ProjectedConsumptionSummary state={state} playerId={selectedPlayer} />
                   <SelectedTerritoryDetails
                     state={state}
                     selectedTerritory={selectedTerritory}

@@ -167,6 +167,28 @@ export interface Player {
   capitalTerritory?: string
   /** Territory income projected for the next action turn (never in winter). */
   projectedIncome?: number
+  /**
+   * Summed ration demand of every army the player controls, projected for
+   * the next action turn (never in winter, and never populated in winter).
+   */
+  projectedConsumption?: number
+  /**
+   * Armies a simple heuristic flags as likely to starve next action turn:
+   * an estimate, not a guarantee (see ArmyRisk).
+   */
+  armiesAtRisk?: ArmyRisk[]
+}
+
+/**
+ * One army the famine risk heuristic flags, addressed by its territory like
+ * the rest of the app addresses armies. Deficit is the estimated ration
+ * shortfall (demand minus locally and reachably available production), not
+ * a troop count.
+ */
+export interface ArmyRisk {
+  territoryId: string
+  size: number
+  deficit: number
 }
 
 export interface ScoreBreakdown {
