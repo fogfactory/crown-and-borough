@@ -1,17 +1,17 @@
 package engine
 
 import (
+	"sort"
+
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
-// ArmyFamineRisk is one player army whose local production plus the supply
-// sources it can reach do not appear to cover its ration demand under
-// ForecastFamineRisk's heuristic (see that function's comment). Deficit is
-// the estimated ration shortfall (demand minus what is locally and reachably
-// available), not a troop count: the actual troop loss at resolution depends
-// on assignSupply/resolveSupplyStocks/selectAssignedFamine, which this
-// forecast deliberately does not simulate.
+// ArmyFamineRisk is one player army ForecastFamineRisk determines would
+// starve this turn if nothing changes. Deficit is the ration shortfall that
+// goes unmet (demand minus what its assigned source or local production
+// covers), not a troop count: an actual famine costs an army 1 troop (see
+// resolveFamine), regardless of the deficit's size.
 type ArmyFamineRisk struct {
 	ArmyID      models.ArmyID      `json:"armyId"`
 	TerritoryID models.TerritoryID `json:"territoryId"`
@@ -20,37 +20,33 @@ type ArmyFamineRisk struct {
 }
 
 // FamineRiskForecast is one player's projected ravitaillement for the next
-// action turn: NetConsumption is the summed ration shortfall of every one of
-// their armies beyond what their own territory produces for them locally
-// (armies fully fed by local production contribute 0, not their full
-// demand, so the number reflects what will actually be drawn from stock or
-// the supply network rather than the gross cost of maintaining them), and
-// ArmiesAtRisk lists the ones the heuristic flags as possibly unfed.
+// action turn: NetConsumption is the summed ration demand actually drawn
+// from stock or the supply network (an army fully fed by local production
+// contributes 0, and an army ArmiesAtRisk flags contributes 0 too, since
+// nothing is actually fed to it), and ArmiesAtRisk lists the ones that would
+// starve.
 type FamineRiskForecast struct {
 	NetConsumption int
 	ArmiesAtRisk   []ArmyFamineRisk
 }
 
-// ForecastFamineRisk computes, for every player, the normal net ration
-// consumption their armies will draw from stock or the supply network for
-// the next action turn (beyond what their own territory already produces
-// for them) and which of them look at risk of famine, ignoring any calamity
-// or bonus card already drawn this turn (like
-// ForecastIncome/ForecastTerritoryIncome): the command post projection must
-// never leak an undrawn harvest card's effect. Ravitaillement never happens
-// in winter, so a winter state always forecasts nil.
+// ForecastFamineRisk computes, for every player, the ravitaillement outcome
+// their armies would have on the next action turn if nothing changes before
+// then: the net ration demand drawn from stock or the supply network, and
+// which armies would starve. It ignores any calamity or bonus card already
+// drawn this turn, like ForecastIncome/ForecastTerritoryIncome (the command
+// post projection must never leak an undrawn harvest card's effect), and
+// necessarily assumes no order changes anything else before resolution (no
+// transfer, dispersal, or newly built infrastructure) — it is a snapshot of
+// "if orders stay exactly as currently drafted", not a guarantee.
+// Ravitaillement never happens in winter, so a winter state always forecasts
+// nil.
 //
-// The risk heuristic is intentionally simple, not a simulation of the actual
-// competitive allocation performed by assignSupply/resolveSupplyStocks/
-// selectAssignedFamine during resolution: it treats every one of the
-// player's armies independently, and for each one adds up its own local
-// production plus the full current stock and this turn's production of
-// every controlled source it can reach through the supply network (same
-// reachability as controlledSupplySources), without splitting a shared
-// source's capacity across the player's other armies that could also reach
-// it. Two armies that are each not "at risk" individually can therefore
-// still compete for the same source and see one of them starve at
-// resolution; the front must present this as an estimate, not a guarantee.
+// Unlike a simplified per-army estimate, this replays the same allocation
+// resolveSupply performs — assignSupply, resolveSupplyStocks, and
+// selectAssignedFamine — on a disposable clone, so the armies it flags are
+// exactly the ones that would starve, including when two armies share a
+// single supply source that cannot feed both of them.
 func ForecastFamineRisk(state *models.GameState, balance assetgen.Balance) map[models.PlayerID]FamineRiskForecast {
 	if state == nil || state.Season == models.SeasonWinter {
 		return nil
@@ -63,40 +59,44 @@ func ForecastFamineRisk(state *models.GameState, balance assetgen.Balance) map[m
 	forecasts := make(map[models.PlayerID]FamineRiskForecast, len(ctx.state.Players))
 	for _, ownerID := range sortedPlayerIDs(ctx.state.Players) {
 		sources := controlledSupplySources(ctx, ownerID)
+		assignments, direct := assignSupply(ctx, ownerID, sources, receivedRations)
+		delta := resolveSupplyStocks(ctx, sources)
+		assignedFamine := selectAssignedFamine(ctx, assignments, delta)
+
+		famined := make(map[models.ArmyID]bool, len(assignedFamine))
+		for _, candidate := range assignedFamine {
+			famined[candidate.army.ID] = true
+		}
+
 		forecast := FamineRiskForecast{}
-		for _, army := range startArmiesForPlayer(ctx, ownerID) {
-			demand := armyCost(army.Size, ctx.balance.CostBase)
-			remaining := demand - receivedRations[army.ID]
-			if remaining <= 0 {
+		for _, assignment := range assignments {
+			if famined[assignment.army.ID] {
 				continue
 			}
-			forecast.NetConsumption += remaining
-			if available := reachableSupplyCapacity(ctx, army.TerritoryID, sources); remaining > available {
-				forecast.ArmiesAtRisk = append(forecast.ArmiesAtRisk, ArmyFamineRisk{
-					ArmyID:      army.ID,
-					TerritoryID: army.TerritoryID,
-					Size:        army.Size,
-					Deficit:     remaining - available,
-				})
-			}
+			forecast.NetConsumption += assignment.demand
 		}
+		for _, candidate := range direct {
+			forecast.ArmiesAtRisk = append(forecast.ArmiesAtRisk, ArmyFamineRisk{
+				ArmyID:      candidate.army.ID,
+				TerritoryID: candidate.army.TerritoryID,
+				Size:        candidate.army.Size,
+				Deficit:     candidate.demand,
+			})
+		}
+		for _, candidate := range assignedFamine {
+			forecast.ArmiesAtRisk = append(forecast.ArmiesAtRisk, ArmyFamineRisk{
+				ArmyID:      candidate.army.ID,
+				TerritoryID: candidate.army.TerritoryID,
+				Size:        candidate.army.Size,
+				Deficit:     candidate.demand,
+			})
+		}
+		sortArmyFamineRisks(forecast.ArmiesAtRisk)
 		forecasts[ownerID] = forecast
 	}
 	return forecasts
 }
 
-// reachableSupplyCapacity sums, for a single army considered alone, the full
-// current stock and this turn's production of every one of the given
-// controlled sources it can reach through the supply network. It does not
-// split a source's capacity across several armies that could also reach it,
-// which is the simplification ForecastFamineRisk's doc comment describes.
-func reachableSupplyCapacity(ctx *resolutionContext, territoryID models.TerritoryID, sources []*supplySource) int {
-	capacity := 0
-	for _, source := range sources {
-		if _, reachable := source.reachable[territoryID]; !reachable {
-			continue
-		}
-		capacity += ctx.state.TerritoryStates[source.territoryID].Resources + source.production
-	}
-	return capacity
+func sortArmyFamineRisks(risks []ArmyFamineRisk) {
+	sort.SliceStable(risks, func(i, j int) bool { return risks[i].TerritoryID < risks[j].TerritoryID })
 }

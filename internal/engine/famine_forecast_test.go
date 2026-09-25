@@ -18,10 +18,10 @@ func TestForecastFamineRiskFlagsIsolatedArmy(t *testing.T) {
 
 	forecasts := ForecastFamineRisk(state, testBalance())
 	forecast := forecasts["P1"]
-	// armyCost(2, 2) = 2, mountain terrain rations = 1: net consumption is
-	// the remaining 1, and with no reachable source at all it is also the
-	// estimated deficit.
-	if forecast.NetConsumption != 1 || len(forecast.ArmiesAtRisk) != 1 {
+	// armyCost(2, 2) = 2, mountain terrain rations = 1: with no reachable
+	// source at all, A1 draws nothing from the network (net consumption 0)
+	// and starves outright for the full remaining demand of 1.
+	if forecast.NetConsumption != 0 || len(forecast.ArmiesAtRisk) != 1 {
 		t.Fatalf("forecast = %#v, want A1 flagged at risk", forecast)
 	}
 	risk := forecast.ArmiesAtRisk[0]
@@ -51,9 +51,8 @@ func TestForecastFamineRiskNoRiskWithSufficientLocalProduction(t *testing.T) {
 }
 
 // TestForecastFamineRiskCountsReachableUncontestedSource checks that an
-// army short on local production is not flagged when a controlled source it
-// can reach alone covers the remaining deficit, per the heuristic's
-// uncontested-reach rule.
+// army short on local production is not flagged when it is the only one
+// drawing on a controlled source that covers its remaining deficit.
 func TestForecastFamineRiskCountsReachableUncontestedSource(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
@@ -69,7 +68,7 @@ func TestForecastFamineRiskCountsReachableUncontestedSource(t *testing.T) {
 
 	balance := testBalance()
 	// Zeroed so territory/village income does not perturb BBB's stock: this
-	// test is about the reachable-source heuristic, not income.
+	// test is about reachable-source coverage, not income.
 	balance.TerritoryIncome = 0
 	balance.VillageIncome = 0
 
@@ -80,6 +79,47 @@ func TestForecastFamineRiskCountsReachableUncontestedSource(t *testing.T) {
 	// supply range, so it is not a deficit.
 	if forecast.NetConsumption != 3 || len(forecast.ArmiesAtRisk) != 0 {
 		t.Fatalf("forecast = %#v, want A1 covered by BBB's reachable stock", forecast)
+	}
+}
+
+// TestForecastFamineRiskFlagsSharedSourceContention checks that when two
+// armies each reach the same source, and each looks fine considered alone,
+// but the source cannot feed both, at least one of them is correctly
+// flagged: the forecast must not silently under-report the risk by crediting
+// the same stock to every claimant.
+func TestForecastFamineRiskFlagsSharedSourceContention(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			supplyTerritory("AAA", "AAA", models.TerrainMountain, "CCC"),
+			supplyTerritory("BBB", "BBB", models.TerrainMountain, "CCC"),
+			supplyTerritory("CCC", "CCC", models.TerrainMountain, "AAA", "BBB"),
+		},
+		[]models.Army{
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 3},
+			{ID: "A2", OwnerID: "P1", TerritoryID: "BBB", Size: 3},
+		},
+	)
+	setTerritoryOwner(state, "CCC", "P1")
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "CCC"})
+	setTerritoryResources(state, "CCC", 3)
+	validateTestState(t, state)
+
+	balance := testBalance()
+	balance.TerritoryIncome = 0
+	balance.VillageIncome = 0
+
+	forecasts := ForecastFamineRisk(state, balance)
+	forecast := forecasts["P1"]
+	// armyCost(3, 2) = 4, mountain terrain rations = 1: each army needs 3
+	// from the network. Considered alone, either looks covered by CCC's
+	// stock of 3 - but together they need 6, CCC's stock only covers 3, and
+	// the tie-break (equal distance and size) picks AAA to starve first.
+	if forecast.NetConsumption != 3 || len(forecast.ArmiesAtRisk) != 1 {
+		t.Fatalf("forecast = %#v, want exactly one army flagged", forecast)
+	}
+	risk := forecast.ArmiesAtRisk[0]
+	if risk.ArmyID != "A1" || risk.TerritoryID != "AAA" || risk.Deficit != 3 {
+		t.Errorf("risk = %#v, want A1 at AAA with a deficit of 3", risk)
 	}
 }
 

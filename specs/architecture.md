@@ -229,24 +229,25 @@ distincte de `projectedIncome` car un moulin ne passe pas par la capitale et
 peut créditer plusieurs châteaux ou villages différents (voir la section
 Moulins) ; il vaut `0` en hiver.
 
-`projectedConsumption` est la somme des rations que les armées de ce joueur
-tireront du stock ou du réseau de ravitaillement au prochain tour d'action,
-au-delà de ce que produit déjà leur propre territoire (une armée pleinement
-nourrie localement compte pour `0`, pas pour son coût total), avec les mêmes
-garanties que `projectedIncome` (récolte normale, ignore les cartes calamité
-déjà tirées) ; il vaut `0` en hiver, saison sans ravitaillement. `armiesAtRisk`
-liste les
-armées qu'une heuristique simple juge à risque de famine : pour chacune, sa
-production locale plus les sources de ravitaillement non contestées qu'elle
-peut atteindre ne couvrent pas sa demande totale. `deficit` est le manque de
-rations estimé (demande moins production disponible localement et via ces
-sources), pas un nombre de troupes qui mourraient. Cette heuristique traite
-chaque armée du joueur indépendamment et ne simule pas l'allocation
-compétitive réelle entre plusieurs de ses armées disputant une même source
-(`assignSupply`/`resolveSupplyStocks`/`selectAssignedFamine`) : deux armées
-non listées peuvent donc quand même se disputer la même source et voir l'une
-d'elles affamée à la résolution réelle. `armiesAtRisk` est absent quand
-aucune armée n'est concernée.
+`projectedConsumption` est la somme des rations effectivement tirées du stock
+ou du réseau de ravitaillement au prochain tour d'action (une armée
+pleinement nourrie localement, ou qui finirait affamée, compte pour `0`, pas
+pour son coût total), avec les mêmes garanties que `projectedIncome` (récolte
+normale, ignore les cartes calamité déjà tirées) ; il vaut `0` en hiver,
+saison sans ravitaillement. `armiesAtRisk` liste les armées qui seraient
+effectivement affamées si rien ne change avant la résolution : le calcul
+rejoue la même allocation que la résolution réelle
+(`assignSupply`/`resolveSupplyStocks`/`selectAssignedFamine`) sur un état
+jetable, y compris le partage contesté d'une même source entre plusieurs
+armées du joueur — ce n'est pas une heuristique par armée isolée. `deficit`
+est le manque de rations qui reste sans réponse, pas un nombre de troupes qui
+mourraient (une famine réelle coûte toujours exactement 1 troupe). Cette
+projection reste une estimation pour deux raisons hors de son contrôle :
+elle suppose toujours une récolte normale (les cartes calamité déjà tirées
+mais pas encore révélées ne la modifient jamais), et elle suppose que les
+ordres restent tels que rédigés actuellement, puisqu'elle s'exécute avant
+leur soumission. `armiesAtRisk` est absent quand aucune armée n'est
+concernée.
 
 `army` vaut `null` lorsqu'aucune armée n'occupe la case. Dans une armée, `chain`
 vaut `null` lorsqu'aucune chaîne n'est active. Une chaîne existante dont le

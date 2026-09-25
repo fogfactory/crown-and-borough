@@ -40,9 +40,9 @@ type StateView struct {
 // ProjectedConsumption and ArmiesAtRisk are the equivalent projection for
 // ravitaillement: the net rations every army the player controls will draw
 // from stock or the supply network beyond what its own territory already
-// produces for it, and the ones a simple heuristic flags as likely to
-// starve (see engine.ForecastFamineRisk). Both are zero-valued in winter,
-// since ravitaillement never happens then.
+// produces for it, and the ones that would starve if nothing changes before
+// resolution (see engine.ForecastFamineRisk). Both are zero-valued in
+// winter, since ravitaillement never happens then.
 type PlayerView struct {
 	ID                   models.PlayerID     `json:"id"`
 	Name                 string              `json:"name"`
@@ -55,8 +55,8 @@ type PlayerView struct {
 }
 
 // ArmyRiskView is the public shape of engine.ArmyFamineRisk: one army the
-// famine risk heuristic flags, addressed by its territory the way the rest
-// of the frontend addresses armies.
+// famine risk forecast flags as starving, addressed by its territory the
+// way the rest of the frontend addresses armies.
 type ArmyRiskView struct {
 	TerritoryID models.TerritoryID `json:"territoryId"`
 	Size        int                `json:"size"`

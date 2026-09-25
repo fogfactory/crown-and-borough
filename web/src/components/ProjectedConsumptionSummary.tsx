@@ -8,12 +8,11 @@ interface ProjectedConsumptionSummaryProps {
 
 /**
  * Command post line showing the selected player's projected ration
- * consumption for the next action turn, and the armies a simple heuristic
- * flags as at risk of famine: an estimate, not a simulation of the
- * competitive allocation performed at resolution, so two armies each shown
- * safe can still compete for the same source and see one of them starve
- * (see the FAQ). Never shown in winter, since ravitaillement does not
- * happen then.
+ * consumption for the next action turn, and the armies that would starve if
+ * nothing changes before resolution (see the FAQ for the two things this
+ * can't foresee: an undrawn calamity card, and any order change before
+ * submission). Never shown in winter, since ravitaillement does not happen
+ * then.
  */
 export function ProjectedConsumptionSummary({ state, playerId }: ProjectedConsumptionSummaryProps) {
   const { t } = useLanguage()

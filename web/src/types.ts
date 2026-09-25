@@ -182,17 +182,18 @@ export interface Player {
    */
   projectedConsumption?: number
   /**
-   * Armies a simple heuristic flags as likely to starve next action turn:
-   * an estimate, not a guarantee (see ArmyRisk).
+   * Armies that would starve next action turn if nothing changes before
+   * resolution: an estimate only because orders aren't submitted yet and an
+   * undrawn calamity card is never reflected (see ArmyRisk).
    */
   armiesAtRisk?: ArmyRisk[]
 }
 
 /**
- * One army the famine risk heuristic flags, addressed by its territory like
- * the rest of the app addresses armies. Deficit is the estimated ration
- * shortfall (demand minus locally and reachably available production), not
- * a troop count.
+ * One army the famine risk forecast flags as starving, addressed by its
+ * territory like the rest of the app addresses armies. Deficit is the
+ * ration shortfall that goes unmet, not a troop count (an actual famine
+ * costs 1 troop, regardless of the deficit's size).
  */
 export interface ArmyRisk {
   territoryId: string
