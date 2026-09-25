@@ -168,8 +168,17 @@ export interface Player {
   /** Territory income projected for the next action turn (never in winter). */
   projectedIncome?: number
   /**
-   * Summed ration demand of every army the player controls, projected for
-   * the next action turn (never in winter, and never populated in winter).
+   * Mill production projected for the next action turn, credited to the
+   * player's controlled castles and villages (never in winter). A mill
+   * currently credits every adjacent controlled settlement independently
+   * (issue #195 will narrow this to a single destination), so this is the
+   * sum of what each of them will receive.
+   */
+  projectedMillIncome?: number
+  /**
+   * Net rations every army the player controls will draw from stock or the
+   * supply network beyond what its own territory already produces for it,
+   * projected for the next action turn (never populated in winter).
    */
   projectedConsumption?: number
   /**

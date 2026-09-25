@@ -7,10 +7,12 @@ interface ProjectedIncomeSummaryProps {
 }
 
 /**
- * Command post line showing the selected player's normal territory income
- * for the next action turn (never in winter): territories and villages
- * already credit the player's capital before ravitaillement, so this is a
- * steady-state projection, not last turn's actual result.
+ * Command post lines showing the selected player's normal territory and mill
+ * income for the next action turn (never in winter): territories, villages,
+ * and mills already credit their destinations before ravitaillement, so this
+ * is a steady-state projection, not last turn's actual result. The two are
+ * shown separately because mills do not route through the capital and can
+ * credit several different settlements, unlike territory income.
  */
 export function ProjectedIncomeSummary({ state, playerId }: ProjectedIncomeSummaryProps) {
   const { t } = useLanguage()
@@ -28,10 +30,13 @@ export function ProjectedIncomeSummary({ state, playerId }: ProjectedIncomeSumma
         {t('app.projectedIncome')}
       </p>
       <p className="mt-1 font-medium">
-        {t('app.projectedIncomeAmount', { amount: player.projectedIncome ?? 0 })}
+        {t('app.projectedTerritoryIncomeAmount', { amount: player.projectedIncome ?? 0 })}
         {player.capitalTerritory
           ? ' ' + t('app.projectedIncomeDestination', { destination: player.capitalTerritory })
           : ''}
+      </p>
+      <p className="mt-1 font-medium">
+        {t('app.projectedMillIncomeAmount', { amount: player.projectedMillIncome ?? 0 })}
       </p>
     </div>
   )
