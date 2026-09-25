@@ -34,10 +34,11 @@ type StateView struct {
 // next action turn if nothing changes, ignoring any calamity or bonus card
 // already drawn this turn (see engine.ForecastIncome).
 // ProjectedConsumption and ArmiesAtRisk are the equivalent projection for
-// ravitaillement: the total ration demand of every army the player controls,
-// and the ones a simple heuristic flags as likely to starve (see
-// engine.ForecastFamineRisk). Both are zero-valued in winter, since
-// ravitaillement never happens then.
+// ravitaillement: the net rations every army the player controls will draw
+// from stock or the supply network beyond what its own territory already
+// produces for it, and the ones a simple heuristic flags as likely to
+// starve (see engine.ForecastFamineRisk). Both are zero-valued in winter,
+// since ravitaillement never happens then.
 type PlayerView struct {
 	ID                   models.PlayerID     `json:"id"`
 	Name                 string              `json:"name"`
@@ -256,7 +257,7 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 	for _, player := range state.Players {
 		playerView := PlayerView{ID: player.ID, Name: player.Name, Color: player.Color, ProjectedIncome: projectedIncomeByPlayer[player.ID]}
 		if famineRisk, ok := famineRiskByPlayer[player.ID]; ok {
-			playerView.ProjectedConsumption = famineRisk.TotalDemand
+			playerView.ProjectedConsumption = famineRisk.NetConsumption
 			for _, risk := range famineRisk.ArmiesAtRisk {
 				playerView.ArmiesAtRisk = append(playerView.ArmiesAtRisk, ArmyRiskView{
 					TerritoryID: risk.TerritoryID,

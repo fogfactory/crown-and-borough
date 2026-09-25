@@ -18,9 +18,10 @@ func TestForecastFamineRiskFlagsIsolatedArmy(t *testing.T) {
 
 	forecasts := ForecastFamineRisk(state, testBalance())
 	forecast := forecasts["P1"]
-	// armyCost(2, 2) = 2, mountain terrain rations = 1, no reachable source at
-	// all: the whole remaining demand (1) is the estimated deficit.
-	if forecast.TotalDemand != 2 || len(forecast.ArmiesAtRisk) != 1 {
+	// armyCost(2, 2) = 2, mountain terrain rations = 1: net consumption is
+	// the remaining 1, and with no reachable source at all it is also the
+	// estimated deficit.
+	if forecast.NetConsumption != 1 || len(forecast.ArmiesAtRisk) != 1 {
 		t.Fatalf("forecast = %#v, want A1 flagged at risk", forecast)
 	}
 	risk := forecast.ArmiesAtRisk[0]
@@ -31,8 +32,8 @@ func TestForecastFamineRiskFlagsIsolatedArmy(t *testing.T) {
 
 // TestForecastFamineRiskNoRiskWithSufficientLocalProduction covers the
 // issue's second hotseat scenario: an army whose own territory produces
-// enough rations is never flagged, and the projected consumption matches the
-// sum of every army's demand.
+// enough rations is never flagged, and contributes nothing to the projected
+// consumption since none of its demand is drawn from stock or the network.
 func TestForecastFamineRiskNoRiskWithSufficientLocalProduction(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{supplyTerritory("AAA", "AAA", models.TerrainPlain)},
@@ -42,8 +43,9 @@ func TestForecastFamineRiskNoRiskWithSufficientLocalProduction(t *testing.T) {
 
 	forecasts := ForecastFamineRisk(state, testBalance())
 	forecast := forecasts["P1"]
-	// armyCost(1, 2) = 1, plain terrain rations = 3, well above demand.
-	if forecast.TotalDemand != 1 || len(forecast.ArmiesAtRisk) != 0 {
+	// armyCost(1, 2) = 1, plain terrain rations = 3, well above demand: 0 is
+	// drawn from stock or the network.
+	if forecast.NetConsumption != 0 || len(forecast.ArmiesAtRisk) != 0 {
 		t.Fatalf("forecast = %#v, want no army at risk", forecast)
 	}
 }
@@ -73,9 +75,10 @@ func TestForecastFamineRiskCountsReachableUncontestedSource(t *testing.T) {
 
 	forecasts := ForecastFamineRisk(state, balance)
 	forecast := forecasts["P1"]
-	// armyCost(3, 2) = 4, mountain terrain rations = 1, remaining 3 is fully
-	// covered by BBB's banked stock (5) reachable within supply range.
-	if forecast.TotalDemand != 4 || len(forecast.ArmiesAtRisk) != 0 {
+	// armyCost(3, 2) = 4, mountain terrain rations = 1: the remaining 3 is
+	// what will be drawn from BBB's banked stock (5), reachable within
+	// supply range, so it is not a deficit.
+	if forecast.NetConsumption != 3 || len(forecast.ArmiesAtRisk) != 0 {
 		t.Fatalf("forecast = %#v, want A1 covered by BBB's reachable stock", forecast)
 	}
 }
@@ -98,8 +101,9 @@ func TestForecastFamineRiskIgnoresDrawnCalamities(t *testing.T) {
 	forecasts := ForecastFamineRisk(state, testBalance())
 	forecast := forecasts["P1"]
 	// AAA is plain terrain (rations = 3), well above the size-1 army's
-	// demand (1): a drawn but unresolved bad harvest must not suppress it.
-	if forecast.TotalDemand != 1 || len(forecast.ArmiesAtRisk) != 0 {
+	// demand (1): a drawn but unresolved bad harvest must not suppress it,
+	// so nothing is drawn from stock or the network.
+	if forecast.NetConsumption != 0 || len(forecast.ArmiesAtRisk) != 0 {
 		t.Fatalf("forecast = %#v, want the normal unsuppressed ration production, no risk", forecast)
 	}
 	if got := state.TerritoryStates["AAA"].Resources; got != 0 {

@@ -20,17 +20,22 @@ type ArmyFamineRisk struct {
 }
 
 // FamineRiskForecast is one player's projected ravitaillement for the next
-// action turn: TotalDemand is the summed ration cost of every one of their
-// armies, regardless of risk, and ArmiesAtRisk lists the ones the heuristic
-// flags.
+// action turn: NetConsumption is the summed ration shortfall of every one of
+// their armies beyond what their own territory produces for them locally
+// (armies fully fed by local production contribute 0, not their full
+// demand, so the number reflects what will actually be drawn from stock or
+// the supply network rather than the gross cost of maintaining them), and
+// ArmiesAtRisk lists the ones the heuristic flags as possibly unfed.
 type FamineRiskForecast struct {
-	TotalDemand  int
-	ArmiesAtRisk []ArmyFamineRisk
+	NetConsumption int
+	ArmiesAtRisk   []ArmyFamineRisk
 }
 
-// ForecastFamineRisk computes, for every player, the normal ration demand of
-// their armies for the next action turn and which of them look at risk of
-// famine, ignoring any calamity or bonus card already drawn this turn (like
+// ForecastFamineRisk computes, for every player, the normal net ration
+// consumption their armies will draw from stock or the supply network for
+// the next action turn (beyond what their own territory already produces
+// for them) and which of them look at risk of famine, ignoring any calamity
+// or bonus card already drawn this turn (like
 // ForecastIncome/ForecastTerritoryIncome): the command post projection must
 // never leak an undrawn harvest card's effect. Ravitaillement never happens
 // in winter, so a winter state always forecasts nil.
@@ -61,11 +66,11 @@ func ForecastFamineRisk(state *models.GameState, balance assetgen.Balance) map[m
 		forecast := FamineRiskForecast{}
 		for _, army := range startArmiesForPlayer(ctx, ownerID) {
 			demand := armyCost(army.Size, ctx.balance.CostBase)
-			forecast.TotalDemand += demand
 			remaining := demand - receivedRations[army.ID]
 			if remaining <= 0 {
 				continue
 			}
+			forecast.NetConsumption += remaining
 			if available := reachableSupplyCapacity(ctx, army.TerritoryID, sources); remaining > available {
 				forecast.ArmiesAtRisk = append(forecast.ArmiesAtRisk, ArmyFamineRisk{
 					ArmyID:      army.ID,
