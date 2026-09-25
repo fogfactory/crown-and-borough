@@ -165,6 +165,8 @@ export interface Player {
   name: string
   color: string
   capitalTerritory?: string
+  /** Territory income projected for the next action turn (never in winter). */
+  projectedIncome?: number
 }
 
 export interface ScoreBreakdown {
@@ -184,6 +186,10 @@ export interface TerritoryState {
   resources: number
   army: Army | null
   infrastructures: Infrastructure[]
+  /** Territory income this territory would yield next action turn. */
+  projectedIncome?: number
+  /** Where that income would land: the owner's capital or its fallback. */
+  incomeDestination?: string
 }
 
 export interface StateData {
@@ -425,6 +431,19 @@ export interface PlayerReport {
   infrastructures: ReportInfrastructure[]
 }
 
+export interface IncomeReport {
+  owner: PlayerId
+  destination?: string
+  territories: number
+  villages: number
+  base: number
+  bonus?: number
+  suppressed?: number
+  credited: number
+  stockAfter?: number
+  lost?: boolean
+}
+
 export interface ProductionReport {
   territory: string
   region?: string
@@ -629,6 +648,7 @@ export interface TurnReport {
   header: ReportHeader
   players: PlayerReport[]
   receptions: ReceptionReport[]
+  income?: IncomeReport[]
   production: ProductionReport[]
   consumption: ConsumptionReport[]
   combats: CombatReport[]

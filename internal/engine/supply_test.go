@@ -145,8 +145,11 @@ func TestResolveSupplyRationsAndEvents(t *testing.T) {
 			t.Fatalf("Resolve: %v", err)
 		}
 		event := supplyEventForSource(t, resolution.Events, "BBB")
-		if event.Production != 1 || event.Demand != 1 || !reflect.DeepEqual(event.Rations, map[models.TerritoryID]int{"AAA": 3}) || event.StockConsumed != 0 {
-			t.Errorf("supply event = %#v, want production 1, demand 1, and three local rations at AAA", event)
+		// BBB has no mill, so its mill-only production is 0; its territory
+		// income (from itself and AAA, both routed to BBB, the only castle)
+		// is credited to stock beforehand and covers A1's deficit instead.
+		if event.Production != 0 || event.Demand != 1 || !reflect.DeepEqual(event.Rations, map[models.TerritoryID]int{"AAA": 3}) || event.StockConsumed != 1 {
+			t.Errorf("supply event = %#v, want no mill production, demand 1, three local rations at AAA, and stock consumed 1", event)
 		}
 		if hasFamineEvent(resolution.Events, "A1") {
 			t.Error("A1 should be supplied after its local ration")
@@ -180,14 +183,14 @@ func TestResolveSupplyProductionAndStocks(t *testing.T) {
 			t.Fatalf("Resolve: %v", err)
 		}
 		if got := resolution.State.TerritoryStates["AAA"].Resources; got != 3 {
-			t.Errorf("controlled castle stock = %d, want base 1 plus adjacent mill level 2", got)
+			t.Errorf("controlled castle stock = %d, want territory income 1 plus adjacent mill level 2", got)
 		}
 		if got := resolution.State.TerritoryStates["CCC"].Resources; got != 13 {
 			t.Errorf("neutral village stock = %d, want persisted 7 plus base and grandfathered mill production", got)
 		}
 		event := supplyEventForSource(t, resolution.Events, "AAA")
-		if event.Production != 3 || event.Demand != 0 {
-			t.Errorf("source event = %#v, want production 3 and no demand", event)
+		if event.Production != 2 || event.Demand != 0 {
+			t.Errorf("source event = %#v, want mill production 2 (territory income is a separate event) and no demand", event)
 		}
 		neutralEvent := supplyEventForSource(t, resolution.Events, "CCC")
 		if neutralEvent.OwnerID != "" || neutralEvent.Production != 6 || neutralEvent.StockAfter != 13 {
@@ -232,8 +235,12 @@ func TestResolveSupplyProductionAndStocks(t *testing.T) {
 		if got := resolution.State.TerritoryStates["AAA"].Resources; got != 0 {
 			t.Errorf("AAA stock = %d, want 0 because AAA is consumed first on tie", got)
 		}
-		if got := resolution.State.TerritoryStates["BBB"].Resources; got != 1 {
-			t.Errorf("BBB stock = %d, want 1", got)
+		// BBB is P1's own closest settlement for both itself and DDD (its
+		// component has no castle), so it collects both territories' income
+		// on top of its preset stock, and its lone army is fully fed by
+		// local terrain rations, leaving that income untouched.
+		if got := resolution.State.TerritoryStates["BBB"].Resources; got != 4 {
+			t.Errorf("BBB stock = %d, want preset 1 plus territory income 3", got)
 		}
 		if got := resolution.State.TerritoryStates["EEE"].Resources; got != 8 {
 			t.Errorf("neutral stock = %d, want persisted 7 plus production", got)
@@ -241,8 +248,10 @@ func TestResolveSupplyProductionAndStocks(t *testing.T) {
 		if got := resolution.State.TerritoryStates["FFF"].Resources; got != 10 {
 			t.Errorf("neutral non-source stock = %d, want persisted 9 plus production", got)
 		}
-		if event := supplyEventForSource(t, resolution.Events, "AAA"); event.StockConsumed != 1 {
-			t.Errorf("AAA stock consumed = %d, want 1", event.StockConsumed)
+		// AAA's preset stock (1) plus its own and CCC's territory income (2)
+		// is entirely consumed by A1's deficit at CCC.
+		if event := supplyEventForSource(t, resolution.Events, "AAA"); event.StockConsumed != 3 {
+			t.Errorf("AAA stock consumed = %d, want 3", event.StockConsumed)
 		}
 		if event := supplyEventForSource(t, resolution.Events, "BBB"); event.StockConsumed != 0 {
 			t.Errorf("BBB stock consumed = %d, want 0", event.StockConsumed)
@@ -343,15 +352,18 @@ func TestNeutralVillageCapturePreservesStockAndDelaysSupply(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve after capture: %v", err)
 	}
+	// Once controlled, BBB no longer produces locally (no mill of its own):
+	// its territory income now flows to the still-valid capital at AAA
+	// instead of staying on BBB's own stock.
 	controlledEvent := supplyEventForSource(t, next.Events, "BBB")
-	if controlledEvent.OwnerID != "P1" || controlledEvent.Production != 1 || controlledEvent.StockAfter != 5 {
-		t.Errorf("post-capture supply event = %#v, want controlled production on next turn", controlledEvent)
+	if controlledEvent.OwnerID != "P1" || controlledEvent.Production != 0 || controlledEvent.StockAfter != 4 {
+		t.Errorf("post-capture supply event = %#v, want no local production once controlled", controlledEvent)
 	}
-	if got := next.State.TerritoryStates["BBB"].Resources; got != 5 {
-		t.Errorf("post-capture village stock = %d, want 5", got)
+	if got := next.State.TerritoryStates["BBB"].Resources; got != 4 {
+		t.Errorf("post-capture village stock = %d, want unchanged 4", got)
 	}
-	if got := next.State.TerritoryStates["AAA"].Resources; got != 2 {
-		t.Errorf("capital stock before winter = %d, want 2", got)
+	if got := next.State.TerritoryStates["AAA"].Resources; got != 4 {
+		t.Errorf("capital stock before winter = %d, want its own income 1 plus BBB's 2 (territory + village) plus turn 1's 1", got)
 	}
 
 	winter := cloneGameState(next.State)
@@ -367,8 +379,8 @@ func TestNeutralVillageCapturePreservesStockAndDelaysSupply(t *testing.T) {
 	if got := winterResolution.State.TerritoryStates["BBB"].Resources; got != 1 {
 		t.Errorf("captured village stock after winter = %d, want 1 after payment and conservation", got)
 	}
-	if got := winterResolution.State.TerritoryStates["AAA"].Resources; got != 2 {
-		t.Errorf("capital stock after winter = %d, want 2 after repatriation", got)
+	if got := winterResolution.State.TerritoryStates["AAA"].Resources; got != 3 {
+		t.Errorf("capital stock after winter = %d, want 3 after repatriation", got)
 	}
 }
 
@@ -580,11 +592,14 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 		if len(resolution.State.Infrastructures) != 1 || resolution.State.Infrastructures[0].ID != "I2" {
 			t.Errorf("infrastructures = %#v, want only the castle left", resolution.State.Infrastructures)
 		}
-		if got := resolution.State.TerritoryStates["CCC"].Resources; got != 2 {
-			t.Errorf("credited source resources = %d, want local production plus pillage credit", got)
+		// CCC is the only controlled castle, so it receives both its own and
+		// AAA's territory income (2, crossable borders ignore the enemy army
+		// on BBB) plus the pillage gain (1).
+		if got := resolution.State.TerritoryStates["CCC"].Resources; got != 3 {
+			t.Errorf("credited source resources = %d, want territory income plus pillage credit", got)
 		}
-		if event := supplyEventForSource(t, resolution.Events, "CCC"); event.StockAfter != 2 {
-			t.Errorf("credited source event stock = %d, want 2", event.StockAfter)
+		if event := supplyEventForSource(t, resolution.Events, "CCC"); event.StockAfter != 3 {
+			t.Errorf("credited source event stock = %d, want 3", event.StockAfter)
 		}
 	})
 
@@ -603,11 +618,19 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 		)
 		setTerritoryOwner(state, "AAA", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 1, TerritoryID: "BBB"})
 		addInfrastructure(state, models.Infrastructure{ID: "I3", Type: models.InfraTypeMill, Level: 1, TerritoryID: "DDD"})
 		validateTestState(t, state)
 
 		balance := testBalance()
 		balance.PillageBonus = 3
+		// This scenario is about the famine deficit order, not territory
+		// income: zeroing it out avoids CCC's and DDD's income cascading
+		// into AAA (the only castle) and perturbing the deficit. AAA's
+		// baseline production instead comes from the adjacent mill at BBB,
+		// exactly matching the old base-production deficit of 3.
+		balance.TerritoryIncome = 0
+		balance.VillageIncome = 0
 		resolution, err := Resolve(state, balance)
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
@@ -703,11 +726,20 @@ func TestResolveAssignedFamineTieBreaksAndHasZeroStrength(t *testing.T) {
 	)
 	setTerritoryOwner(state, "ZZZ", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "ZZZ"})
+	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 1, TerritoryID: "DDD"})
 	addNoble(state, "N2", "TWO", "P1", "AAA")
 	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"CCC"}})
 	validateTestState(t, state)
 
-	resolution, err := Resolve(state, testBalance())
+	// This scenario is about the assigned-famine tie-break, not territory
+	// income: zeroing it out avoids AAA's and BBB's income cascading into
+	// ZZZ (the only castle) and perturbing the deficit. ZZZ's baseline
+	// production instead comes from the adjacent mill at DDD, exactly
+	// matching the old base-production deficit of 1.
+	balance := testBalance()
+	balance.TerritoryIncome = 0
+	balance.VillageIncome = 0
+	resolution, err := Resolve(state, balance)
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}

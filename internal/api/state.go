@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 
+	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
@@ -29,20 +30,29 @@ type StateView struct {
 
 // PlayerView contains the public player metadata needed by the hotseat
 // selector. Player-specific filtering is a future server concern.
+// ProjectedIncome is the territory income the player would receive on the
+// next action turn if nothing changes, ignoring any calamity or bonus card
+// already drawn this turn (see engine.ForecastIncome).
 type PlayerView struct {
 	ID               models.PlayerID     `json:"id"`
 	Name             string              `json:"name"`
 	Color            string              `json:"color"`
 	CapitalTerritory *models.TerritoryID `json:"capitalTerritory,omitempty"`
+	ProjectedIncome  int                 `json:"projectedIncome"`
 }
 
 // TerritoryView is the live state displayed on one map territory.
+// ProjectedIncome and IncomeDestination back the territory detail panel's
+// "rapporte X R à YYY" line; IncomeDestination is empty when the income
+// would be lost (see engine.ForecastTerritoryIncome).
 type TerritoryView struct {
-	ID              models.TerritoryID `json:"id"`
-	Owner           *models.PlayerID   `json:"owner"`
-	Resources       int                `json:"resources"`
-	Army            *ArmyView          `json:"army"`
-	Infrastructures []InfraView        `json:"infrastructures"`
+	ID                models.TerritoryID  `json:"id"`
+	Owner             *models.PlayerID    `json:"owner"`
+	Resources         int                 `json:"resources"`
+	Army              *ArmyView           `json:"army"`
+	Infrastructures   []InfraView         `json:"infrastructures"`
+	ProjectedIncome   int                 `json:"projectedIncome,omitempty"`
+	IncomeDestination *models.TerritoryID `json:"incomeDestination,omitempty"`
 }
 
 // ArmyView contains the visible owner, size, and current chain of an army. Its
@@ -114,30 +124,30 @@ type NobleView struct {
 	Status   models.NobleStatus `json:"status"`
 }
 
-func projectState(state *models.GameState) StateView {
-	return projectStateForViewer(state, nil)
+func projectState(state *models.GameState, balance assetgen.Balance) StateView {
+	return projectStateForViewer(state, nil, balance)
 }
 
 // ProjectState returns the public state projection used by the development
 // session. Hosted callers should use ProjectStateForPlayer so chain knowledge
 // is applied to the viewer.
-func ProjectState(state *models.GameState) StateView {
-	return projectState(state)
+func ProjectState(state *models.GameState, balance assetgen.Balance) StateView {
+	return projectState(state, balance)
 }
 
-func projectStateForPlayer(state *models.GameState, playerID models.PlayerID) StateView {
-	return projectStateForViewer(state, &playerID)
+func projectStateForPlayer(state *models.GameState, playerID models.PlayerID, balance assetgen.Balance) StateView {
+	return projectStateForViewer(state, &playerID, balance)
 }
 
 // ProjectStateForPlayer returns the server-filtered state projection for one
 // player. It is exported so persistence adapters can materialize the same
 // projection that the REST API returns without importing Firestore into the
 // engine or models packages.
-func ProjectStateForPlayer(state *models.GameState, playerID models.PlayerID) StateView {
-	return projectStateForPlayer(state, playerID)
+func ProjectStateForPlayer(state *models.GameState, playerID models.PlayerID, balance assetgen.Balance) StateView {
+	return projectStateForPlayer(state, playerID, balance)
 }
 
-func projectStateForViewer(state *models.GameState, viewer *models.PlayerID) StateView {
+func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, balance assetgen.Balance) StateView {
 	view := StateView{
 		Players:             []PlayerView{},
 		Territories:         []TerritoryView{},
@@ -178,16 +188,8 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID) Sta
 	for _, infrastructure := range state.Infrastructures {
 		infrastructuresByID[infrastructure.ID] = infrastructure
 	}
-	for _, player := range state.Players {
-		playerView := PlayerView{ID: player.ID, Name: player.Name, Color: player.Color}
-		if player.CapitalCastleID != nil {
-			if infrastructure, ok := infrastructuresByID[*player.CapitalCastleID]; ok && infrastructure.Type == models.InfraTypeCastle {
-				capitalTerritory := infrastructure.TerritoryID
-				playerView.CapitalTerritory = &capitalTerritory
-			}
-		}
-		view.Players = append(view.Players, playerView)
-	}
+	territoryIncome := engine.ForecastTerritoryIncome(state, balance)
+	projectedIncomeByPlayer := make(map[models.PlayerID]int, len(state.Players))
 
 	for _, territory := range state.Territories {
 		territoryState := state.TerritoryStates[territory.ID]
@@ -196,6 +198,16 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID) Sta
 			Owner:           territoryState.OwnerID,
 			Resources:       territoryState.Resources,
 			Infrastructures: make([]InfraView, 0, 1),
+		}
+		if forecast, ok := territoryIncome[territory.ID]; ok {
+			territoryView.ProjectedIncome = forecast.Amount
+			if forecast.Destination != "" {
+				destination := forecast.Destination
+				territoryView.IncomeDestination = &destination
+			}
+			if territoryState.OwnerID != nil {
+				projectedIncomeByPlayer[*territoryState.OwnerID] += forecast.Amount
+			}
 		}
 		if territoryState.Army != nil {
 			if army, ok := armiesByID[*territoryState.Army]; ok {
@@ -223,6 +235,16 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID) Sta
 			}
 		}
 		view.Territories = append(view.Territories, territoryView)
+	}
+	for _, player := range state.Players {
+		playerView := PlayerView{ID: player.ID, Name: player.Name, Color: player.Color, ProjectedIncome: projectedIncomeByPlayer[player.ID]}
+		if player.CapitalCastleID != nil {
+			if infrastructure, ok := infrastructuresByID[*player.CapitalCastleID]; ok && infrastructure.Type == models.InfraTypeCastle {
+				capitalTerritory := infrastructure.TerritoryID
+				playerView.CapitalTerritory = &capitalTerritory
+			}
+		}
+		view.Players = append(view.Players, playerView)
 	}
 	for _, noble := range state.Nobles {
 		view.Nobles = append(view.Nobles, NobleView{

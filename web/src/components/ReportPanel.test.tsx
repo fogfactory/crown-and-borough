@@ -53,6 +53,26 @@ const report: TurnReport = {
     },
   ],
   receptions: [],
+  income: [
+    {
+      owner: 'P1',
+      destination: 'ROS',
+      territories: 3,
+      villages: 1,
+      base: 4,
+      bonus: 0,
+      suppressed: 1,
+      credited: 4,
+    },
+    {
+      owner: 'P2',
+      territories: 1,
+      villages: 0,
+      base: 0,
+      credited: 0,
+      lost: true,
+    },
+  ],
   production: [
     {
       territory: 'ROS',
@@ -284,6 +304,13 @@ describe('ReportPanel', () => {
     expect(screen.queryByText('coût : 0 R')).not.toBeInTheDocument()
     expect(screen.getByText(/Ressources insuffisantes/)).toBeInTheDocument()
     expect(screen.getAllByLabelText('Couleur de One')).not.toHaveLength(0)
+    expect(screen.getByText('+4 R crédités')).toBeInTheDocument()
+    expect(screen.getByText('3 territoires')).toBeInTheDocument()
+    expect(screen.getByText('1 villages')).toBeInTheDocument()
+    expect(screen.getByText('1 supprimés par une mauvaise récolte')).toBeInTheDocument()
+    expect(
+      screen.getByText('perdu, aucune capitale, château ou village pour le recevoir'),
+    ).toBeInTheDocument()
     expect(screen.getByText(/5 produits/)).toBeInTheDocument()
     expect(screen.getByText(/production de base 1/)).toBeInTheDocument()
     expect(screen.getByText(/moulins 2/)).toBeInTheDocument()

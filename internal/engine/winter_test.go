@@ -1566,13 +1566,13 @@ func TestResolveUsesConfiguredBalance(t *testing.T) {
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 	validateTestState(t, state)
 	balance := testBalance()
-	balance.BaseProduction = 7
+	balance.TerritoryIncome = 7
 
 	resolution, err := Resolve(state, balance)
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
 	if got := resolution.State.TerritoryStates["AAA"].Resources; got != 7 {
-		t.Errorf("stock = %d, want configured base production 7", got)
+		t.Errorf("stock = %d, want configured territory income 7", got)
 	}
 }

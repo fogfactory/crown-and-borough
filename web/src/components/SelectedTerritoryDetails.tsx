@@ -151,6 +151,19 @@ export function SelectedTerritoryDetails({
             </dd>
             <dt className="text-[#806f57]">{t('app.resources')}</dt>
             <dd className="font-medium">{selectedState.resources} R</dd>
+            {selectedState.owner && selectedState.projectedIncome !== undefined && (
+              <>
+                <dt className="text-[#806f57]">{t('app.projectedIncome')}</dt>
+                <dd className="font-medium">
+                  {selectedState.incomeDestination
+                    ? t('app.territoryIncome', {
+                        amount: selectedState.projectedIncome,
+                        destination: territoryLabel(selectedState.incomeDestination),
+                      })
+                    : t('app.territoryIncomeLost')}
+                </dd>
+              </>
+            )}
           </>
         )}
       </dl>

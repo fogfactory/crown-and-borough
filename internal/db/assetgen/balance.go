@@ -14,7 +14,8 @@ import (
 // Balance contains every editable numerical game rule. FirstNames is loaded
 // alongside balance.yaml so pure engine resolvers can create nobles without I/O.
 type Balance struct {
-	BaseProduction     int                    `json:"base_production" yaml:"base_production"`
+	TerritoryIncome    int                    `json:"territory_income" yaml:"territory_income"`
+	VillageIncome      int                    `json:"village_income" yaml:"village_income"`
 	SupplyRange        int                    `json:"supply_range" yaml:"supply_range"`
 	DepotRangeBonus    int                    `json:"depot_range_bonus" yaml:"depot_range_bonus"`
 	CostBase           int                    `json:"cost_base" yaml:"cost_base"`
@@ -62,7 +63,8 @@ type Costs struct {
 }
 
 type rawBalance struct {
-	BaseProduction     *int              `yaml:"base_production"`
+	TerritoryIncome    *int              `yaml:"territory_income"`
+	VillageIncome      *int              `yaml:"village_income"`
 	SupplyRange        *int              `yaml:"supply_range"`
 	DepotRangeBonus    *int              `yaml:"depot_range_bonus"`
 	CostBase           *int              `yaml:"cost_base"`
@@ -157,7 +159,11 @@ func LoadBalance(dir string) (Balance, error) {
 }
 
 func (raw rawBalance) balance(path string) (Balance, error) {
-	baseProduction, err := requiredNonNegativeInt(path, "base_production", raw.BaseProduction)
+	territoryIncome, err := requiredNonNegativeInt(path, "territory_income", raw.TerritoryIncome)
+	if err != nil {
+		return Balance{}, err
+	}
+	villageIncome, err := requiredNonNegativeInt(path, "village_income", raw.VillageIncome)
 	if err != nil {
 		return Balance{}, err
 	}
@@ -225,7 +231,8 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 		return Balance{}, err
 	}
 	return Balance{
-		BaseProduction:     baseProduction,
+		TerritoryIncome:    territoryIncome,
+		VillageIncome:      villageIncome,
 		SupplyRange:        supplyRange,
 		DepotRangeBonus:    depotRangeBonus,
 		CostBase:           costBase,

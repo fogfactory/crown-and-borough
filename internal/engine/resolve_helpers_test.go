@@ -11,7 +11,8 @@ import (
 
 func testBalance() assetgen.Balance {
 	return assetgen.Balance{
-		BaseProduction:     1,
+		TerritoryIncome:    1,
+		VillageIncome:      1,
 		SupplyRange:        3,
 		DepotRangeBonus:    2,
 		CostBase:           2,
@@ -86,7 +87,9 @@ func keepTestArmiesSupplied(state *models.GameState) {
 		addInfrastructure(state, models.Infrastructure{
 			ID: infrastructureID, Type: models.InfraTypeVillage, Level: 1, TerritoryID: army.TerritoryID,
 		})
-		stock := armyCost(army.Size, balance.CostBase) - balance.BaseProduction - 1
+		// The village has no capital or closer settlement to compete with, so
+		// it always receives its own territory income (territory + village).
+		stock := armyCost(army.Size, balance.CostBase) - (balance.TerritoryIncome + balance.VillageIncome) - 1
 		if stock < 0 {
 			stock = 0
 		}

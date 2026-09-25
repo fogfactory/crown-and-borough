@@ -3,6 +3,7 @@ package api
 import (
 	"testing"
 
+	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
@@ -14,8 +15,8 @@ func TestProjectStateForPlayerProjectsOnlyCurrentHand(t *testing.T) {
 		DrawPile: []models.SpecialCardID{"C2"}, Discard: []models.SpecialCardID{},
 		Hands: map[models.PlayerID][]models.SpecialCardID{"P1": {"C1"}, "P2": {}},
 	}
-	p1 := ProjectStateForPlayer(state, "P1")
-	p2 := ProjectStateForPlayer(state, "P2")
+	p1 := ProjectStateForPlayer(state, "P1", assetgen.Balance{})
+	p2 := ProjectStateForPlayer(state, "P2", assetgen.Balance{})
 	if len(p1.SpecialHand) != 1 || p1.SpecialHand[0] != models.CardKindFairWeather {
 		t.Fatalf("P1 special hand = %#v, want fair_weather", p1.SpecialHand)
 	}
@@ -36,7 +37,7 @@ func TestProjectStateForPlayerProjectsPendingAnnouncements(t *testing.T) {
 	state.Auguries[3] = models.YearAugury{Year: 3, Calamities: []models.Calamity{
 		{CardID: "C3", Kind: models.CardKindFamine, Year: 3, Season: models.SeasonAutumn, RegionSeed: "BOI"},
 	}}
-	view := ProjectStateForPlayer(state, "P1")
+	view := ProjectStateForPlayer(state, "P1", assetgen.Balance{})
 	if len(view.Announcements) != 3 {
 		t.Fatalf("announcements = %#v, want three pending calamities", view.Announcements)
 	}

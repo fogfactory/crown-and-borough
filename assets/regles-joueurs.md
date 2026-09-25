@@ -519,20 +519,41 @@ qu'1 ration et doit couvrir le reste ailleurs ; en montagne (production
 {{ration_terrain.mountain}}), elle dépend entièrement du ravitaillement.
 
 **Sources de ravitaillement** : les châteaux, villages et caches contrôlés.
-Un château ou un village produit {{base_production}} R stockable par tour ;
-une case ordinaire n'a pas de production propre, mais son stock (s'il y en a)
-sert de cache. Le flux traverse les cases alliées, neutres ou contrôlées par
-un autre joueur, et ne s'arrête que devant une case occupée par une armée
-adverse. La portée de base est de {{supply_range}} cases ; chaque dépôt de
-vivres contrôlé rencontré sur le trajet ajoute {{depot_range_bonus}} cases.
-Un village neutre conserve son stock, inaccessible avant capture.
+Un château ou un village ne produit plus de R stockable par lui-même : sa
+contribution vient des moulins adjacents et du revenu territorial reçu (voir
+« Revenu territorial » ci-dessous) ; une case ordinaire n'a pas de production
+propre, mais son stock (s'il y en a) sert de cache. Le flux traverse les
+cases alliées, neutres ou contrôlées par un autre joueur, et ne s'arrête que
+devant une case occupée par une armée adverse. La portée de base est de
+{{supply_range}} cases ; chaque dépôt de vivres contrôlé rencontré sur le
+trajet ajoute {{depot_range_bonus}} cases. Un village neutre conserve son
+stock, inaccessible avant capture.
 
 Chaque source calcule sa propre production en ajoutant le niveau de
 **chaque moulin adjacent** : un même moulin peut alimenter toutes les sources
 voisines, sans filtre de propriétaire, et un moulin orphelin (sans château ni
-village adjacent) produit `0 R`. Par exemple, un village entouré de deux
-moulins de niveau 1 produit `{{base_production}} + 1 + 1 R`. La présence ou
-la position d'un noble ne conditionne jamais cette production.
+village adjacent) produit `0 R`. Par exemple, un château ou un village sans
+moulin adjacent ne produit rien par lui-même ; entouré de deux moulins de
+niveau 1, il produit `1 + 1 R`. La présence ou la position d'un noble ne
+conditionne jamais cette production.
+
+### Revenu territorial
+
+À chaque saison d'action (jamais en hiver), chaque territoire que tu
+contrôles rapporte {{territory_income}} R, plus {{village_income}} R
+supplémentaire s'il porte un village. Ce revenu est crédité **avant le
+ravitaillement**, directement au stock de ta **capitale** : il ne circule pas
+par le réseau de ravitaillement et ne peut donc jamais être intercepté.
+
+Sans capitale désignée (ou si elle vient de tomber), le revenu de chaque
+territoire est versé au château contrôlé le plus proche à vol de frontières
+franchissables (départage par trigramme), sinon au village contrôlé le plus
+proche, sinon il est perdu — des territoires distincts peuvent donc alimenter
+des destinations différentes le même tour tant qu'aucune capitale n'existe.
+Une mauvaise récolte supprime ce revenu dans la région du territoire qui le
+produit ; une Bonne récolte le double, comme pour les rations de terrain. Un
+village **neutre** continue de produire {{village_income}} R par tour dans
+son propre stock, récupéré à sa capture.
 
 ### Stocks et famine
 
@@ -572,8 +593,8 @@ conditions de construction sont détaillés section 8.
 |---|---|
 | Moulin | +1 R stockable par niveau à chaque source adjacente |
 | Dépôt de vivres | +{{depot_range_bonus}} cases de portée de ravitaillement lorsqu'il est contrôlé |
-| Château | +{{castle_defense_bonus}} défense, produit {{base_production}} R stockable par tour, ancre de ravitaillement |
-| Village | Produit {{base_production}} R stockable par tour, ancre après capture |
+| Château | +{{castle_defense_bonus}} défense, ancre de ravitaillement, verse le revenu territorial (section 7) |
+| Village | Ancre après capture, verse le revenu territorial une fois contrôlé (produit {{village_income}} R par tour dans son propre stock tant qu'il est neutre) |
 
 ---
 
@@ -637,12 +658,12 @@ rien.
 - le **stock** est donc la quantité de `R` conservée sur une case.
 
 Une source est chaque château ou village contrôlé, ainsi que toute case
-contrôlée qui contient un stock positif pendant une saison d'action. Chaque
-château ou village produit {{base_production}} R par tour, indépendamment
-des autres sources : un deuxième château est donc une deuxième source, même
-si un seul reste désigné capitale. Un moulin ajoute son niveau à chaque
-source adjacente, y compris à travers les frontières de propriétaire — voir
-section 7 pour le détail de cette production.
+contrôlée qui contient un stock positif pendant une saison d'action : un
+deuxième château est donc une deuxième source, même si un seul reste désigné
+capitale. Son stock dépend du revenu territorial reçu (section 7, s'il s'agit
+de la capitale ou de son repli) et des moulins adjacents, qui ajoutent leur
+niveau à chaque source voisine, y compris à travers les frontières de
+propriétaire — voir section 7 pour le détail de cette production.
 
 **Paiement** : le coût est prélevé d'abord sur le stock de la case ciblée,
 puis sur la source contrôlée la plus proche ; si la réserve totale est

@@ -60,38 +60,41 @@ Les cartes se répartissent désormais en deux familles, sans effet croisé :
 |---|---|
 | Mauvais temps | Moulins à l'arrêt (0 R), en plus du blocage des mouvements. |
 | Beau temps | Annule le mauvais temps ; sinon, production des moulins doublée. |
-| Mauvaise récolte | Rations de terrain et production des châteaux et villages supprimées. |
-| Récolte abondante | Annule la mauvaise récolte ; sinon, rations de terrain et production des châteaux et villages doublées. |
+| Mauvaise récolte | Rations de terrain et revenu territorial supprimés. |
+| Récolte abondante | Annule la mauvaise récolte ; sinon, rations de terrain et revenu territorial doublés. |
 
 Les bonus additifs de la v1 (`bonus_mill_production`, `bonus_army_ration`)
-sont retirés de la balance. Quand le revenu territorial (#192) remplacera
-`base_production`, la récolte s'appliquera à ce revenu (territoires et
-villages) de la même façon.
+sont retirés de la balance. La récolte s'applique au revenu territorial
+(territoires et villages, voir ci-dessous) exactement de la même façon,
+dans la région du territoire qui produit ce revenu.
 
 ## Revenu territorial
 
-Issues : [#192](https://github.com/fogfactory/crown-and-borough/issues/192)
-(hors fief), [#196](https://github.com/fogfactory/crown-and-borough/issues/196)
-(fiefs).
+Issue : [#192](https://github.com/fogfactory/crown-and-borough/issues/192)
+(hors fief). **Appliqué.** Le revenu dirigé vers la capitale d'un fief est
+suivi par [#196](https://github.com/fogfactory/crown-and-borough/issues/196).
 
 - À chaque tour d'action (printemps, été, automne ; jamais en hiver), chaque
-  territoire contrôlé rapporte `territory_income` R (1 par défaut), plus
-  `village_income` R (1 par défaut) s'il porte un village.
+  territoire contrôlé rapporte `territory_income` R (1), plus
+  `village_income` R (1) s'il porte un village.
 - Le revenu est crédité au moment où la production est créditée aujourd'hui,
   avant le ravitaillement. Il n'est pas acheminé par le réseau et ne peut pas
   être intercepté.
 - Hors fief, il est versé au stock de la **capitale du joueur**. Sans
-  capitale, il va au château contrôlé le plus proche (distance en frontières
-  franchissables, départage par trigramme), sinon au village contrôlé le plus
-  proche, sinon il est perdu.
+  capitale (ou si elle vient de tomber), le revenu de **chaque territoire**
+  est calculé indépendamment : il va au château contrôlé le plus proche
+  (distance en frontières franchissables, départage par trigramme), sinon au
+  village contrôlé le plus proche, sinon il est perdu. Deux territoires du
+  même joueur peuvent donc alimenter des destinations différentes le même
+  tour tant qu'aucune capitale n'existe.
 - Dans un fief, il est versé au stock de la **capitale du fief**, y compris
-  lorsqu'une armée adverse occupe le territoire.
+  lorsqu'une armée adverse occupe le territoire (hors périmètre de #192,
+  suivi par #196).
 - La production de base des châteaux et villages contrôlés
-  (`base_production`) est supprimée : le revenu territorial la remplace.
-- Un village **neutre** continue de produire 1 R par tour dans son propre
-  stock, récupéré à sa capture.
-
-> À trancher dans #192 : calibrer `territory_income` par des parties de test.
+  (`base_production`) est supprimée : le revenu territorial la remplace. Les
+  moulins ne changent pas.
+- Un village **neutre** continue de produire `village_income` R par tour dans
+  son propre stock, récupéré à sa capture.
 
 ## Flux de la ressource R
 

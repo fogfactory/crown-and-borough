@@ -139,8 +139,9 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 }
 
 // emitFamineLosses reports what the bad harvest calamity suppresses: one
-// regional summary with the settlement production and terrain rations lost,
-// followed by one detail line per castle or village producing nothing.
+// regional summary with the territory income and terrain rations lost,
+// followed by one detail line per controlled territory (income) or neutral
+// village (its own production) producing nothing.
 func emitFamineLosses(ctx *resolutionContext) {
 	for _, seed := range sortedRegionFlags(ctx.famineRegions) {
 		productionLost := 0
@@ -150,15 +151,33 @@ func emitFamineLosses(ctx *resolutionContext) {
 			if territory := ctx.territoriesByID[territoryID]; territory != nil {
 				rationsLost += ctx.balance.RationTerrain[territory.Terrain]
 			}
-			infrastructure := ctx.infrastructureAt(territoryID)
-			if infrastructure == nil || (infrastructure.Type != models.InfraTypeCastle && infrastructure.Type != models.InfraTypeVillage) {
+			state := ctx.state.TerritoryStates[territoryID]
+			hasVillage := ctx.hasInfrastructure(territoryID, models.InfraTypeVillage)
+			var lost int
+			var infrastructureType models.InfraType
+			switch {
+			case state.OwnerID != nil:
+				lost = ctx.balance.TerritoryIncome
+				if hasVillage {
+					lost += ctx.balance.VillageIncome
+				}
+				if infrastructure := ctx.infrastructureAt(territoryID); infrastructure != nil {
+					infrastructureType = infrastructure.Type
+				}
+			case hasVillage:
+				lost = ctx.balance.VillageIncome
+				infrastructureType = models.InfraTypeVillage
+			default:
 				continue
 			}
-			productionLost += ctx.balance.BaseProduction
+			if lost == 0 {
+				continue
+			}
+			productionLost += lost
 			details = append(details, Event{
 				Type: EventTypeFamineLoss, Phase: phaseForSeason(ctx.state.Season),
 				CardKind: models.CardKindFamine, RegionSeed: seed, TerritoryID: territoryID,
-				InfrastructureType: infrastructure.Type, Production: ctx.balance.BaseProduction,
+				InfrastructureType: infrastructureType, Production: lost,
 				Season: ctx.state.Season, Year: ctx.state.Year(),
 			})
 		}

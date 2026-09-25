@@ -445,7 +445,7 @@ func (s *FirestoreStore) readReports(ctx context.Context, id store.GameID) ([]st
 }
 
 func (s *FirestoreStore) viewDocument(id store.GameID, uid string, playerID models.PlayerID, revision store.Revision, state *models.GameState, updatedAt time.Time) (viewDocument, error) {
-	view := api.ProjectStateForPlayer(state, playerID)
+	view := api.ProjectStateForPlayer(state, playerID, s.balance)
 	stateMap, err := jsonMap(view)
 	if err != nil {
 		return viewDocument{}, err
@@ -470,7 +470,7 @@ func (s *FirestoreStore) observerDocument(
 	updatedAt time.Time,
 	latestReportTurn int,
 ) (observerDocument, error) {
-	view := api.ProjectStateForPlayer(state, models.SpectatorViewer)
+	view := api.ProjectStateForPlayer(state, models.SpectatorViewer, s.balance)
 	stateMap, err := jsonMap(view)
 	if err != nil {
 		return observerDocument{}, err

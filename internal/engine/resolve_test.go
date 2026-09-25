@@ -778,7 +778,11 @@ func TestResolvePillageCreditsNearestControlledSettlement(t *testing.T) {
 	if len(resolution.State.Infrastructures) != 1 || resolution.State.Infrastructures[0].ID != "I2" {
 		t.Errorf("infrastructures = %#v, want only I2", resolution.State.Infrastructures)
 	}
-	wantResources := testBalance().PillageBonus + testBalance().BaseProduction + 1
+	// BBB is the closest controlled castle for both itself and AAA (no
+	// capital is designated), so it receives territory income for both
+	// territories, plus AAA's adjacent mill production, plus the pillage
+	// credit.
+	wantResources := testBalance().PillageBonus + 2*testBalance().TerritoryIncome + 1
 	if got := resolution.State.TerritoryStates["BBB"].Resources; got != wantResources {
 		t.Errorf("castle resources = %d, want %d", got, wantResources)
 	}

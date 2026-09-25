@@ -14,6 +14,7 @@ type TurnReport struct {
 	Header        ReportHeader         `json:"header"`
 	Players       []PlayerReport       `json:"players"`
 	Receptions    []ReceptionReport    `json:"receptions"`
+	Income        []IncomeReport       `json:"income"`
 	Production    []ProductionReport   `json:"production"`
 	Consumption   []ConsumptionReport  `json:"consumption"`
 	Combats       []CombatReport       `json:"combats"`
@@ -74,6 +75,25 @@ type InfrastructureReport struct {
 	Type      models.InfraType   `json:"type"`
 	Level     int                `json:"level"`
 	Territory models.TerritoryID `json:"territory"`
+}
+
+// IncomeReport is one player's territory income credited to one destination
+// this turn: territories and villages counted, the harvest-adjusted amounts,
+// and where it landed. Destination is empty and Lost is true when the player
+// controlled no capital, castle, or village to receive it; several
+// destinations can appear for the same player the same turn in that case,
+// since each territory then picks its own closest fallback.
+type IncomeReport struct {
+	Owner       models.PlayerID    `json:"owner"`
+	Destination models.TerritoryID `json:"destination,omitempty"`
+	Territories int                `json:"territories"`
+	Villages    int                `json:"villages"`
+	Base        int                `json:"base"`
+	Bonus       int                `json:"bonus,omitempty"`
+	Suppressed  int                `json:"suppressed,omitempty"`
+	Credited    int                `json:"credited"`
+	StockAfter  int                `json:"stockAfter,omitempty"`
+	Lost        bool               `json:"lost,omitempty"`
 }
 
 // ProductionReport is the per-territory supply ledger: local ration
@@ -281,6 +301,7 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 	report := TurnReport{
 		Players:       []PlayerReport{},
 		Receptions:    []ReceptionReport{},
+		Income:        []IncomeReport{},
 		Production:    []ProductionReport{},
 		Consumption:   []ConsumptionReport{},
 		Combats:       []CombatReport{},
@@ -347,6 +368,14 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 	consumptionByArmy := make(map[models.ArmyID]*ConsumptionReport)
 	for _, event := range events {
 		switch event.Type {
+		case EventTypeIncome:
+			report.Income = append(report.Income, IncomeReport{
+				Owner: event.OwnerID, Destination: event.DestinationID,
+				Territories: event.TerritoryCount, Villages: event.VillageCount,
+				Base: event.BaseProduction, Bonus: event.BonusProduction,
+				Suppressed: event.SuppressedProduction, Credited: event.Production,
+				StockAfter: event.StockAfter, Lost: event.Lost,
+			})
 		case EventTypeProduction:
 			report.Production = append(report.Production, ProductionReport{
 				Territory: event.TerritoryID, Region: event.RegionSeed, Owner: event.OwnerID,

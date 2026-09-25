@@ -80,6 +80,7 @@ func resolveSupply(ctx *resolutionContext) {
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
 		ctx.supplyStockBefore[territoryID] = ctx.state.TerritoryStates[territoryID].Resources
 	}
+	resolveTerritoryIncome(ctx)
 	receivedRations := resolveRations(ctx)
 	produceNeutralVillageStocks(ctx)
 	allSources := make([]*supplySource, 0)
@@ -165,8 +166,9 @@ func produceNeutralVillageStocks(ctx *resolutionContext) {
 		if state.OwnerID != nil || !ctx.hasInfrastructure(territoryID, models.InfraTypeVillage) {
 			continue
 		}
-		ctx.supplySources[territoryID] = sourceProductionBreakdown(ctx, territoryID)
-		production := sourceProduction(ctx, territoryID)
+		parts := neutralVillageProductionBreakdown(ctx, territoryID)
+		ctx.supplySources[territoryID] = parts
+		production := parts.total()
 		state.Resources += production
 		ctx.state.TerritoryStates[territoryID] = state
 		ctx.events = append(ctx.events, Event{
@@ -304,22 +306,13 @@ func controlledSupplySources(ctx *resolutionContext, ownerID models.PlayerID) []
 	return sources
 }
 
-// sourceProductionBreakdown splits the stockable production of a source into
-// base, mill, and regional bonus parts. Harvest cards act on the base
-// production of the source's region (bad harvest suppresses it, good harvest
-// doubles it); weather cards act on each mill's region the same way.
+// sourceProductionBreakdown splits the stockable production of a controlled
+// source into its mill and regional weather bonus parts. Base production was
+// replaced by territory income (see income.go), credited directly to its
+// destination outside this ledger; mills are unaffected and still act on the
+// source's own territory and its neighbors, regardless of owner.
 func sourceProductionBreakdown(ctx *resolutionContext, territoryID models.TerritoryID) sourceProductionParts {
 	parts := sourceProductionParts{}
-	sourceRegion := regionForTerritory(ctx, territoryID)
-	switch {
-	case ctx.famineRegions[sourceRegion]:
-		parts.suppressed += ctx.balance.BaseProduction
-	case ctx.goodHarvestRegions[sourceRegion]:
-		parts.base = ctx.balance.BaseProduction
-		parts.bonus += ctx.balance.BaseProduction
-	default:
-		parts.base = ctx.balance.BaseProduction
-	}
 	locations := append([]models.TerritoryID{territoryID}, ctx.sortedNeighbors(territoryID)...)
 	for _, locationID := range locations {
 		infrastructure := ctx.infrastructureAt(locationID)
@@ -339,9 +332,32 @@ func sourceProductionBreakdown(ctx *resolutionContext, territoryID models.Territ
 	return parts
 }
 
-func sourceProduction(ctx *resolutionContext, territoryID models.TerritoryID) int {
-	return sourceProductionBreakdown(ctx, territoryID).total()
+// neutralVillageProductionBreakdown splits the stockable production of an
+// unclaimed village into its base, mill, and regional bonus parts: unlike a
+// controlled source, a neutral village keeps producing locally into its own
+// stock (village_income as its base), subject to the same harvest and
+// weather rules as any other source.
+func neutralVillageProductionBreakdown(ctx *resolutionContext, territoryID models.TerritoryID) sourceProductionParts {
+	parts := harvestAdjustedParts(ctx, territoryID, ctx.balance.VillageIncome)
+	locations := append([]models.TerritoryID{territoryID}, ctx.sortedNeighbors(territoryID)...)
+	for _, locationID := range locations {
+		infrastructure := ctx.infrastructureAt(locationID)
+		if infrastructure == nil || infrastructure.Type != models.InfraTypeMill {
+			continue
+		}
+		millRegion := regionForTerritory(ctx, locationID)
+		if ctx.badWeatherRegions[millRegion] {
+			parts.suppressed += infrastructure.Level
+			continue
+		}
+		parts.mill += infrastructure.Level
+		if ctx.fairWeatherRegions[millRegion] {
+			parts.bonus += infrastructure.Level
+		}
+	}
+	return parts
 }
+
 
 // supplyNetwork visits each territory once per source. That makes every depot
 // bonus apply once while preserving the shortest BFS distance used for source

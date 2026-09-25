@@ -51,6 +51,7 @@ const (
 	EventTypeFamineLoss        EventType = "famine_loss"
 	EventTypeBadWeatherLoss    EventType = "bad_weather_loss"
 	EventTypeProduction        EventType = "production"
+	EventTypeIncome            EventType = "income"
 	EventTypeConsumption       EventType = "consumption"
 	EventTypeCardCanceled      EventType = "card_canceled"
 	EventTypeRumor             EventType = "rumor"
@@ -160,6 +161,9 @@ type Event struct {
 	ReceivedLocal        int                        `json:"receivedLocal,omitempty"`
 	ReceivedTransfer     int                        `json:"receivedTransfer,omitempty"`
 	SentRations          map[models.TerritoryID]int `json:"sentRations,omitempty"`
+	TerritoryCount       int                        `json:"territoryCount,omitempty"`
+	VillageCount         int                        `json:"villageCount,omitempty"`
+	Lost                 bool                       `json:"lost,omitempty"`
 
 	NobleID         models.NobleID      `json:"noble,omitempty"`
 	NobleCode       models.NobleCode    `json:"nobleCode,omitempty"`

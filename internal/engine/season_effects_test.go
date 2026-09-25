@@ -62,18 +62,18 @@ func TestResolveSeasonEffectsFairWeatherCancelsBadWeatherWithoutBonus(t *testing
 	}
 }
 
-// cardEffectState puts a level-2 mill on AAA and a castle on BBB, both plains
-// of region AAA.
+// cardEffectState puts a level-2 mill on AAA and a controlled castle on BBB,
+// both plains of region AAA.
 func cardEffectState() *models.GameState {
 	state := effectTestState()
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 2, TerritoryID: "AAA"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
+	setTerritoryOwner(state, "BBB", "P1")
 	return state
 }
 
 func TestCardEffectsOnRationsAndProduction(t *testing.T) {
 	plain := testBalance().RationTerrain[models.TerrainPlain]
-	base := testBalance().BaseProduction
 	tests := []struct {
 		name       string
 		calamity   models.CardKind
@@ -81,15 +81,15 @@ func TestCardEffectsOnRationsAndProduction(t *testing.T) {
 		wantRation int
 		wantSource sourceProductionParts
 	}{
-		{name: "no effect", wantRation: plain, wantSource: sourceProductionParts{base: base, mill: 2}},
-		{name: "bad harvest suppresses rations and base production", calamity: models.CardKindFamine,
-			wantRation: 0, wantSource: sourceProductionParts{mill: 2, suppressed: base}},
-		{name: "good harvest doubles rations and base production", bonus: models.CardKindAbundantHarvest,
-			wantRation: 2 * plain, wantSource: sourceProductionParts{base: base, mill: 2, bonus: base}},
+		{name: "no effect", wantRation: plain, wantSource: sourceProductionParts{mill: 2}},
+		{name: "bad harvest suppresses rations but not mills", calamity: models.CardKindFamine,
+			wantRation: 0, wantSource: sourceProductionParts{mill: 2}},
+		{name: "good harvest doubles rations but not mills", bonus: models.CardKindAbundantHarvest,
+			wantRation: 2 * plain, wantSource: sourceProductionParts{mill: 2}},
 		{name: "bad weather suppresses mills", calamity: models.CardKindBadWeather,
-			wantRation: plain, wantSource: sourceProductionParts{base: base, suppressed: 2}},
+			wantRation: plain, wantSource: sourceProductionParts{suppressed: 2}},
 		{name: "fair weather doubles mills", bonus: models.CardKindFairWeather,
-			wantRation: plain, wantSource: sourceProductionParts{base: base, mill: 2, bonus: 2}},
+			wantRation: plain, wantSource: sourceProductionParts{mill: 2, bonus: 2}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
