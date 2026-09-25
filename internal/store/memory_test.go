@@ -558,3 +558,69 @@ func TestMemoryStoreMySubmissionKeepsSpecialOrders(t *testing.T) {
 		t.Fatalf("MySubmission special = %#v, want the stored special order", submission.Orders.Special)
 	}
 }
+
+func TestMemoryStoreSupplyProjectsDraftedSpecialOrders(t *testing.T) {
+	gameStore := newTestStore(t)
+	created, err := gameStore.Create(context.Background(), Actor{ID: "P1"}, CreateRequest{
+		Seed:    "supply-special-draft",
+		Players: []engine.PlayerInit{{Name: "One"}, {Name: "Two"}},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	game, err := gameStore.game(created.ID)
+	if err != nil {
+		t.Fatalf("lookup game: %v", err)
+	}
+	game.mu.Lock()
+	state := game.state
+	var army models.Army
+	for _, candidate := range state.Armies {
+		if candidate.OwnerID == "P1" {
+			army = candidate
+			break
+		}
+	}
+	var regionSeed models.TerritoryID
+	for _, region := range state.Regions {
+		for _, territoryID := range region.Territories {
+			if territoryID == army.TerritoryID {
+				regionSeed = region.Seed
+			}
+		}
+	}
+	year := state.Year()
+	state.SpecialDeck.Cards = append(state.SpecialDeck.Cards,
+		models.SpecialCard{ID: "TEST-FAMINE", Kind: models.CardKindFamine},
+		models.SpecialCard{ID: "TEST-HARVEST", Kind: models.CardKindAbundantHarvest},
+	)
+	state.SpecialDeck.Hands["P1"] = append(state.SpecialDeck.Hands["P1"], "TEST-HARVEST")
+	augury := state.Auguries[year]
+	augury.Year = year
+	augury.Capacities = map[models.Season]int{models.SeasonSpring: 1, models.SeasonSummer: 1, models.SeasonAutumn: 1}
+	augury.Calamities = []models.Calamity{{CardID: "TEST-FAMINE", Kind: models.CardKindFamine, Season: state.Season, Year: year, RegionSeed: regionSeed}}
+	state.Auguries[year] = augury
+	game.mu.Unlock()
+
+	withoutCard, err := gameStore.Supply(context.Background(), Actor{ID: "P1"}, created.ID, army.TerritoryID, "")
+	if err != nil {
+		t.Fatalf("Supply without draft: %v", err)
+	}
+	if withoutCard.FamineRations == 0 {
+		t.Fatalf("supply without draft = %#v, want the famine penalty", withoutCard)
+	}
+	withCard, err := gameStore.Supply(context.Background(), Actor{ID: "P1"}, created.ID, army.TerritoryID, "P RA "+string(regionSeed))
+	if err != nil {
+		t.Fatalf("Supply with draft: %v", err)
+	}
+	if withCard.FamineRations != 0 || withCard.LocalProduction != withoutCard.LocalProduction+withoutCard.FamineRations {
+		t.Fatalf("supply with abundant harvest = %#v, want the famine canceled (without: %#v)", withCard, withoutCard)
+	}
+	otherPlayer, err := gameStore.Supply(context.Background(), Actor{ID: "P2"}, created.ID, army.TerritoryID, "P RA "+string(regionSeed))
+	if err != nil {
+		t.Fatalf("Supply for P2: %v", err)
+	}
+	if otherPlayer.FamineRations == 0 {
+		t.Fatalf("supply for P2 = %#v, want P1's card not playable by P2", otherPlayer)
+	}
+}

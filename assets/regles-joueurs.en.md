@@ -477,14 +477,15 @@ takes your territory's ration.
 
 **Territory food production (rations)**: plain {{ration_terrain.plain}};
 forest {{ration_terrain.forest}}; hill {{ration_terrain.hill}}; mountain
-{{ration_terrain.mountain}}; swamp {{ration_terrain.swamp}};
-**+{{infra_rations_bonus}}** when the territory has a castle or village.
+{{ration_terrain.mountain}}; swamp {{ration_terrain.swamp}}. A castle or
+village adds no rations: only the terrain feeds an army locally. A bad harvest
+removes every local ration of its region; an abundant harvest doubles them.
 
-Example: a 2-troop army on a hill with a castle (local production
-{{ration_terrain.hill}}, castle bonus {{infra_rations_bonus}}) receives 2
-rations, covering its full demand. The same army on a swamp (production
-{{ration_terrain.swamp}}) receives only 1 ration and must cover the rest
-elsewhere.
+Example: a 2-troop army on a plain (local production
+{{ration_terrain.plain}}) receives 2 rations, covering its full demand, castle
+or not. The same army in a forest (production {{ration_terrain.forest}})
+receives only 1 ration and must cover the rest elsewhere; in the mountains
+(production {{ration_terrain.mountain}}), it depends entirely on supply.
 
 **Supply sources**: controlled castles, villages, and caches. A castle or
 village produces {{base_production}} R of stock per turn; a bare territory has
@@ -537,8 +538,8 @@ conditions are detailed in section 8.
 |---|---|
 | Mill | +1 stockable R per level at each adjacent source |
 | Supply depot | +{{depot_range_bonus}} territories of supply range when controlled |
-| Castle | +{{castle_defense_bonus}} defense, +{{infra_rations_bonus}} rations, produces {{base_production}} stockable R per turn, supply anchor |
-| Village | +{{infra_rations_bonus}} rations, produces {{base_production}} stockable R per turn, supply anchor after capture |
+| Castle | +{{castle_defense_bonus}} defense, produces {{base_production}} stockable R per turn, supply anchor |
+| Village | Produces {{base_production}} stockable R per turn, supply anchor after capture |
 
 ---
 
@@ -653,8 +654,14 @@ cancels only bad harvest; a card that cancels a calamity does not provide its
 regional bonus. Duplicate cards of the same kind are consumed, but only one is
 effective: with an active calamity the first card cancels and a second one
 applies the regional bonus; without a calamity the first card applies it
-directly. The bonus stays capped at one unit per category and region; further
-cards are consumed without effect.
+directly. The bonus applies only once per kind and region; further cards are
+consumed without effect.
+
+Regional bonuses:
+
+- Fair weather **doubles** the production of the region's mills;
+- Abundant harvest **doubles** the terrain rations of every territory of the
+  region and the production of the region's castles and villages.
 
 The deck contains **{{special_orders.deck_size}} cards**:
 **{{special_orders.card.plague}}** plague, **{{special_orders.card.bad_weather}}**
@@ -679,8 +686,9 @@ countered. No calamity resolves in winter.
 - plague reduces armies by a divisor of
   **{{special_orders.effects.plague_army_divisor}}** and may remove a noble;
 - bad weather blocks movements originating from or targeting its region,
-  except holds and defensive support;
-- bad harvest disables mills and infrastructure ration bonuses in its region;
+  except holds and defensive support, and the region's mills produce nothing;
+- bad harvest removes the terrain rations of every territory of its region and
+  the production of the region's castles and villages;
 - Revolt is played on a territory (`P RV TER`) during action seasons,
   provided its region suffers a bad harvest. Each card adds a roll between
   **{{special_orders.effects.revolt_army_min_size}}** and

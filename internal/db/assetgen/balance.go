@@ -17,7 +17,6 @@ type Balance struct {
 	BaseProduction     int                    `json:"base_production" yaml:"base_production"`
 	SupplyRange        int                    `json:"supply_range" yaml:"supply_range"`
 	DepotRangeBonus    int                    `json:"depot_range_bonus" yaml:"depot_range_bonus"`
-	InfraRationsBonus  int                    `json:"infra_rations_bonus" yaml:"infra_rations_bonus"`
 	CostBase           int                    `json:"cost_base" yaml:"cost_base"`
 	PillageBonus       int                    `json:"pillage_bonus" yaml:"pillage_bonus"`
 	NobleCommandBonus  int                    `json:"noble_command_bonus" yaml:"noble_command_bonus"`
@@ -50,8 +49,6 @@ type SpecialOrderEffects struct {
 	PlagueNobleMortalityPercentage int `json:"plague_noble_mortality_percentage" yaml:"plague_noble_mortality_percentage"`
 	RevoltArmyMinSize              int `json:"revolt_army_min_size" yaml:"revolt_army_min_size"`
 	RevoltArmyMaxSize              int `json:"revolt_army_max_size" yaml:"revolt_army_max_size"`
-	BonusMillProduction            int `json:"bonus_mill_production" yaml:"bonus_mill_production"`
-	BonusArmyRation                int `json:"bonus_army_ration" yaml:"bonus_army_ration"`
 }
 
 // Costs groups all resource costs used by winter investments.
@@ -68,7 +65,6 @@ type rawBalance struct {
 	BaseProduction     *int              `yaml:"base_production"`
 	SupplyRange        *int              `yaml:"supply_range"`
 	DepotRangeBonus    *int              `yaml:"depot_range_bonus"`
-	InfraRationsBonus  *int              `yaml:"infra_rations_bonus"`
 	CostBase           *int              `yaml:"cost_base"`
 	PillageBonus       *int              `yaml:"pillage_bonus"`
 	NobleCommandBonus  *int              `yaml:"noble_command_bonus"`
@@ -100,8 +96,6 @@ type rawSpecialOrderEffects struct {
 	PlagueNobleMortalityPercentage *int `yaml:"plague_noble_mortality_percentage"`
 	RevoltArmyMinSize              *int `yaml:"revolt_army_min_size"`
 	RevoltArmyMaxSize              *int `yaml:"revolt_army_max_size"`
-	BonusMillProduction            *int `yaml:"bonus_mill_production"`
-	BonusArmyRation                *int `yaml:"bonus_army_ration"`
 }
 
 type rawCosts struct {
@@ -175,7 +169,6 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 	if err != nil {
 		return Balance{}, err
 	}
-	infraRationsBonus, err := requiredNonNegativeInt(path, "infra_rations_bonus", raw.InfraRationsBonus)
 	if err != nil {
 		return Balance{}, err
 	}
@@ -235,7 +228,6 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 		BaseProduction:     baseProduction,
 		SupplyRange:        supplyRange,
 		DepotRangeBonus:    depotRangeBonus,
-		InfraRationsBonus:  infraRationsBonus,
 		CostBase:           costBase,
 		PillageBonus:       pillageBonus,
 		NobleCommandBonus:  nobleCommandBonus,

@@ -99,10 +99,6 @@ export function SelectedTerritoryDetails({
   const presentNobles = state.nobles.filter(
     (noble) => noble.location === selectedTerritory.id,
   )
-  const settlement = selectedState?.infrastructures.find(
-    (infrastructure) =>
-      infrastructure.type === 'castle' || infrastructure.type === 'village',
-  )
   const territoryLabel = (territoryID: string) => {
     const territory = mapTerritories.find((candidate) => candidate.id === territoryID)
     return territory ? `${territory.id} · ${territory.name}` : territoryID
@@ -360,10 +356,11 @@ export function SelectedTerritoryDetails({
                       <span className="text-xs font-normal text-[#806f57]">
                         ({t(TERRAIN_LABEL_KEYS[selectedTerritory.terrain])}{' '}
                         {selectedSupplyLine.terrainProduction}
-                        {settlement &&
-                        selectedSupplyLine.localProduction >
-                          selectedSupplyLine.terrainProduction
-                          ? ` + ${t(INFRASTRUCTURE_LABEL_KEYS[settlement.type])} ${selectedSupplyLine.localProduction - selectedSupplyLine.terrainProduction}`
+                        {(selectedSupplyLine.famineRations ?? 0) > 0
+                          ? ` − ${t('app.localFamineRations')} ${selectedSupplyLine.famineRations}`
+                          : ''}
+                        {(selectedSupplyLine.bonusRations ?? 0) > 0
+                          ? ` + ${t('app.localBonusRations')} ${selectedSupplyLine.bonusRations}`
                           : ''}
                         )
                       </span>

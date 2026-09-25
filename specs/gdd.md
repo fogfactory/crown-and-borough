@@ -141,8 +141,10 @@ Les calamités et les cartes bonus sont appliquées avant la résolution
 simultanée des ordres d'armée :
 
 - la peste réduit les armées et peut affecter les nobles ;
-- le mauvais temps bloque les déplacements provenant de sa région ;
-- la famine désactive les moulins et les rations d'infrastructure ;
+- le mauvais temps bloque les déplacements provenant de sa région et arrête
+  ses moulins ; le Beau temps double leur production ;
+- la famine supprime les rations de terrain de sa région et la production de
+  ses châteaux et villages ; la Récolte abondante les double ;
 - la révolte est une carte bonus conditionnelle qui crée des armées `NEUTRAL`.
 
 Le détail des cartes est suivi dans [`ordres-speciaux.md`](ordres-speciaux.md).
@@ -205,12 +207,16 @@ Les territoires sauvages ne produisent pas de ressource `R` stockable. La
 production vivrière instantanée, consommée sur place et perdue si elle n'est
 pas utilisée, vaut :
 
-- 3 rations en plaine ;
-- 2 rations en forêt ;
-- 2 rations en colline ;
-- 1 ration en montagne ;
-- 1 ration en marécage ;
-- 2 rations supplémentaires si la case porte un château ou un village.
+- 2 rations en plaine ;
+- 1 ration en forêt ;
+- 1 ration en colline ;
+- 0 ration en montagne ;
+- 1 ration en marécage.
+
+Un château ou un village n'ajoute aucune ration : seul le terrain nourrit une
+armée sur place. La famine supprime les rations de terrain de sa région ; la
+Récolte abondante les double. La table est dans `assets/balance.yaml`
+(`ration_terrain`).
 
 Une case ne porte qu'une seule infrastructure.
 
@@ -497,8 +503,8 @@ en bénéficie ; il n'y a pas de propriétaire stocké sur l'infrastructure.
 |---|---|---|---:|
 | Moulin | Construction sur case vide contrôlée, adjacente à un château ou village ; amélioration d'un moulin existant adjacent à cette source, jusqu'au niveau 3 | +1 R stockable par niveau à chaque source adjacente | 3 / 5 / 7 |
 | Dépôt de vivres | Aucune condition structurelle | +2 cases de portée de ravitaillement lorsqu'il est contrôlé | 3 |
-| Château | Aucune | +1 défense, +2 rations, production de 1 R stockable par tour, ancre de ravitaillement | 10 |
-| Village | Généré neutre, non constructible | +2 rations, production de 1 R stockable par tour, ancre après capture | — |
+| Château | Aucune | +1 défense, production de 1 R stockable par tour, ancre de ravitaillement | 10 |
+| Village | Généré neutre, non constructible | Production de 1 R stockable par tour, ancre après capture | — |
 
 Un moulin isolé est orphelin et ne produit rien. Une construction remplace la
 structure existante uniquement lorsque la règle de l'ordre le prévoit : un

@@ -297,7 +297,7 @@ function AppContent() {
 
   const supplyFetcher = useCallback(
     async <T,>(path: string, signal: AbortSignal): Promise<T> => {
-      const response = await fetch(path, { signal })
+      const response = await fetch(asPlayer(path, selectedPlayer), { signal })
       if (!response.ok) {
         throw new Error(t('error.requestFailed', { status: response.status }))
       }
@@ -319,7 +319,7 @@ function AppContent() {
       }
       return payload
     },
-    [t],
+    [selectedPlayer, t],
   )
 
   const ordersBody = useMemo(
@@ -372,6 +372,7 @@ function AppContent() {
     selectedState,
     draftOrders,
     ownerId: selectedPlayer,
+    specialDraft: specialDrafts[selectedPlayer] ?? '',
     basePath: gameId ? hotseatGamePath(gameId) : '/api',
     fetcher: supplyFetcher,
     networkErrorMessage: t('error.requestFailed', { status: 500 }),

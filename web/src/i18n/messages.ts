@@ -110,6 +110,8 @@ const englishMessages = {
   'app.distance': 'Distance: {distance} territory',
   'app.distances': 'Distance: {distance} territories',
   'app.localProduction': 'Local production',
+  'app.localFamineRations': 'bad harvest',
+  'app.localBonusRations': 'regional bonus',
   'app.demand': 'Demand',
   'app.toCover': 'To cover',
   'app.noAccessibleSource': 'No accessible source: famine is possible.',
@@ -206,12 +208,11 @@ const englishMessages = {
   'reports.productionTitle': 'Production',
   'reports.productionProduced': '{count} produced',
   'reports.productionTerrainRations': 'terrain rations',
-  'reports.productionInfraRations': 'infrastructure rations',
   'reports.productionBonusRations': 'ration bonus',
   'reports.productionBaseProduction': 'base production',
   'reports.productionMillProduction': 'mills',
   'reports.productionBonusProduction': 'regional bonus',
-  'reports.productionSuppressed': '{count} suppressed by the bad harvest',
+  'reports.productionSuppressed': '{count} suppressed by a calamity',
   'reports.productionStockLine':
     'stock: {before} → {after} (consumed {consumed})',
   'reports.productionSent': 'sent {count} to {territory}',
@@ -244,9 +245,11 @@ const englishMessages = {
   'reports.calamityBadWeatherBlockedNoTarget':
     'Army of {owner} at {territory}: order blocked by bad weather',
   'reports.calamityFamineRegion':
-    'Bad harvest in {region}: {production} R of production suppressed, {rations} infrastructure rations lost',
-  'reports.calamityFamineMill': 'Mill at {territory} disabled: {production} R not produced',
-  'reports.calamityFamineRations': '{rations} infrastructure rations lost at {territory}',
+    'Bad harvest in {region}: {production} R of production suppressed, {rations} terrain rations lost',
+  'reports.calamityFamineSettlement': '{territory}: {production} R not produced',
+  'reports.calamityBadWeatherRegion':
+    'Bad weather in {region}: {production} R of mill production suppressed',
+  'reports.calamityBadWeatherMill': 'Mill at {territory} idle: {production} R not produced',
   'reports.rumors': 'Rumors',
   'rumor.fair_weather':
     'The land is rich and the skies are kind; astrologers expect a generous harvest.',
@@ -457,7 +460,7 @@ const englishMessages = {
     'No. Strength is troop size, the possible bonus from a free noble present, then valid supports. Offensive support `XXX S YYY - ZZZ` requires both `XXX` and `YYY` to be adjacent to `ZZZ`, and counts only if YYY actually attacks ZZZ. Missing an attack creates no special penalty: the order fails or bounces under the normal combat rules and the army follows its chain liaison. An army is destroyed only when it has no valid retreat or when retreats collide. Famine does not destroy it: famine sets strength to 0 and removes one troop, never below 1.',
   'faq.q6': 'Who receives local rations?',
   'faq.a6':
-    "The army occupying the territory consumes its own territory's production up to its demand, regardless of nationality. Any surplus is lost. There is no sharing between territories — an army never takes food from a neighboring territory. Brigands or neutral armies also consume their own territory's production, but they are not fed from a player's source stocks.\n\nExample: a 2-troop army on a plain with 3 local rations consumes the 2 it needs locally; a 3-troop army consumes 3 and must cover 1 more from a player's sources.",
+    "The army occupying the territory consumes its own territory's production up to its demand, regardless of nationality. Any surplus is lost. There is no sharing between territories — an army never takes food from a neighboring territory. Brigands or neutral armies also consume their own territory's production, but they are not fed from a player's source stocks.\n\nOnly the terrain produces rations: a castle or village adds none. A bad harvest removes every local ration of its region; an abundant harvest doubles them.\n\nExample: a 2-troop army on a plain with 2 local rations consumes the 2 it needs locally; a 3-troop army consumes 2 and must cover 2 more from a player's sources. In the mountains, with 0 local rations, an army depends entirely on supply.",
   'faq.q7': 'Must a noble be with the army it commands?',
   'faq.a7':
     "No. A noble may order any army belonging to its player, but the `+1` bonus requires a free allied noble to be physically present on that army's territory when strength is calculated. To transfer HUG, assign the noble in a dispersal, for example `BRI D ATL*HUG NOR`; writing HUG's header does not move HUG.",
@@ -475,7 +478,7 @@ const englishMessages = {
     "`XXX T YYY N` executes after supply, once per army per turn — the army then performs no other order. `YYY` must be a castle, village, or the territory of another living player's army: a bare supply depot cannot receive. The route follows the donor's supply range (3 territories, plus any controlled depots along the way); an enemy army on an intermediate territory blocks the transfer, but an enemy army at the destination does not. The amount is capped at `2^(N - 1)` for an army of `N` troops, and a famished army cannot transfer at all. If the stock is insufficient, a `single` transfer simply fails with no effect and the chain continues; in `loop`, the order keeps retrying and sends whatever remains as a partial delivery once the stock drops below the requested amount.",
   'faq.q12': 'How do special cards and calamities apply?',
   'faq.a12':
-    'Calamities (plague, bad weather, bad harvest) are drawn automatically and programmed ahead of time into a season slot of the following year; they are announced as soon as they are drawn and apply on their own, without you playing a card. Your bonus cards (fair weather, abundant harvest, revolt) are played instead, with an order in the `special` field — no noble needed — in spring, summer, or autumn, never in winter. Fair weather only cancels bad weather, and abundant harvest only cancels bad harvest; a card that cancels a calamity does not also grant its regional bonus. If several cards of the same kind are played on the same region, only one is effective: with an active calamity the first cancels it and a second applies the bonus, without a calamity the first applies it directly — the rest are consumed with no effect. Revolt (`P RV TER`) requires an active bad harvest in the region already: it raises a neutral army, or, if the territory is occupied, triggers a combat where the loser retreats or is destroyed.',
+    'Calamities (plague, bad weather, bad harvest) are drawn automatically and programmed ahead of time into a season slot of the following year; they are announced as soon as they are drawn and apply on their own, without you playing a card. Your bonus cards (fair weather, abundant harvest, revolt) are played instead, with an order in the `special` field — no noble needed — in spring, summer, or autumn, never in winter. Fair weather only cancels bad weather, and abundant harvest only cancels bad harvest; a card that cancels a calamity does not also grant its regional bonus. Weather acts on mills: bad weather stops them, fair weather doubles their production. The harvest acts on the land: bad harvest removes terrain rations and the production of castles and villages, abundant harvest doubles them. If several cards of the same kind are played on the same region, only one is effective: with an active calamity the first cancels it and a second applies the bonus, without a calamity the first applies it directly — the rest are consumed with no effect. Revolt (`P RV TER`) requires an active bad harvest in the region already: it raises a neutral army, or, if the territory is occupied, triggers a combat where the loser retreats or is destroyed.',
   'error.line': 'Line {line}: {message}',
   'error.invalidOrder': 'Invalid order',
   'error.winter.order_shape':
@@ -699,6 +702,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'app.distance': 'Distance : {distance} territoire',
   'app.distances': 'Distance : {distance} territoires',
   'app.localProduction': 'Production locale',
+  'app.localFamineRations': 'mauvaise récolte',
+  'app.localBonusRations': 'bonus régional',
   'app.demand': 'Demande',
   'app.toCover': 'À couvrir',
   'app.noAccessibleSource': 'Aucune source accessible : famine possible.',
@@ -796,12 +801,11 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.productionTitle': 'Production',
   'reports.productionProduced': '{count} produits',
   'reports.productionTerrainRations': 'rations de terrain',
-  'reports.productionInfraRations': 'rations d’infrastructure',
   'reports.productionBonusRations': 'bonus de rations',
   'reports.productionBaseProduction': 'production de base',
   'reports.productionMillProduction': 'moulins',
   'reports.productionBonusProduction': 'bonus régional',
-  'reports.productionSuppressed': '{count} supprimés par la mauvaise récolte',
+  'reports.productionSuppressed': '{count} supprimés par une calamité',
   'reports.productionStockLine':
     'stock : {before} → {after} (consommé {consumed})',
   'reports.productionSent': 'envoyé {count} vers {territory}',
@@ -835,9 +839,11 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.calamityBadWeatherBlockedNoTarget':
     'Armée de {owner} à {territory} : ordre bloqué par le mauvais temps',
   'reports.calamityFamineRegion':
-    'Mauvaise récolte dans {region} : {production} R de production supprimées, {rations} rations d’infrastructure perdues',
-  'reports.calamityFamineMill': 'Moulin à {territory} désactivé : {production} R non produites',
-  'reports.calamityFamineRations': '{rations} rations d’infrastructure perdues à {territory}',
+    'Mauvaise récolte dans {region} : {production} R de production supprimées, {rations} rations de terrain perdues',
+  'reports.calamityFamineSettlement': '{territory} : {production} R non produites',
+  'reports.calamityBadWeatherRegion':
+    'Mauvais temps dans {region} : {production} R de production des moulins supprimées',
+  'reports.calamityBadWeatherMill': 'Moulin à {territory} à l’arrêt : {production} R non produites',
   'reports.rumors': 'Rumeurs',
   'rumor.fair_weather':
     'La terre est grasse et le temps clément ; les astrologues espèrent de bonnes récoltes.',
@@ -1057,7 +1063,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     'Non : la force est la taille, le bonus éventuel d’un noble libre présent, puis les soutiens valides. Un soutien offensif `XXX S YYY - ZZZ` exige que `XXX` et `YYY` soient adjacents à `ZZZ`, et ne compte que si YYY attaque effectivement ZZZ. Rater une attaque ne crée pas de pénalité spéciale : l’ordre échoue ou rebondit selon le combat et l’armée suit sa règle de chaîne. Une armée n’est détruite que si elle ne dispose d’aucune retraite valide ou en cas de collision de retraites. La famine ne la détruit pas : elle la met à force 0 et lui retire une troupe, sans jamais descendre sous 1.',
   'faq.q6': 'Qui reçoit les rations locales ?',
   'faq.a6':
-    'L’armée qui occupe la case consomme la production de sa propre case jusqu’à hauteur de sa demande, quelle que soit sa nationalité. Le surplus est perdu. Il n’y a pas de partage entre cases : une armée ne prend jamais la nourriture d’une case voisine. Les brigands ou armées neutres consomment eux aussi la production de leur case, mais ne sont pas alimentés par les stocks des sources d’un joueur.\n\nExemple : une armée de 2 troupes en plaine avec 3 rations locales consomme les 2 rations dont elle a besoin ; une armée de 3 troupes en consomme 3 et doit couvrir 1 ration depuis les sources d’un joueur.',
+    'L’armée qui occupe la case consomme la production de sa propre case jusqu’à hauteur de sa demande, quelle que soit sa nationalité. Le surplus est perdu. Il n’y a pas de partage entre cases : une armée ne prend jamais la nourriture d’une case voisine. Les brigands ou armées neutres consomment eux aussi la production de leur case, mais ne sont pas alimentés par les stocks des sources d’un joueur.\n\nSeul le terrain produit des rations : un château ou un village n’en ajoute aucune. Une mauvaise récolte supprime toutes les rations locales de sa région ; une bonne récolte les double.\n\nExemple : une armée de 2 troupes en plaine avec 2 rations locales consomme les 2 rations dont elle a besoin ; une armée de 3 troupes en consomme 2 et doit couvrir 2 rations depuis les sources d’un joueur. En montagne, avec 0 ration locale, une armée dépend entièrement du ravitaillement.',
   'faq.q7': 'Un noble doit-il être avec l’armée qu’il commande ?',
   'faq.a7':
     'Non. Le noble peut ordonner n’importe quelle armée de son joueur, mais son bonus de `+1` exige qu’un noble libre allié soit effectivement présent sur la case de cette armée lors du calcul. Pour transférer HUG, il faut le répartir dans une dispersion, par exemple `BRI D ATL*HUG NOR` ; écrire l’en-tête HUG ne le déplace pas.',
@@ -1075,7 +1081,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     '`XXX T YYY N` s’exécute après le ravitaillement, une fois par armée et par tour — elle ne fait alors aucun autre ordre. `YYY` doit être un château, un village, ou la case d’une armée d’un autre joueur vivant : un dépôt de vivres sans armée ne peut pas recevoir. La route suit la portée de ravitaillement du donneur (3 cases, plus les dépôts contrôlés rencontrés en chemin) ; toute armée adverse sur une case intermédiaire bloque le transfert, mais une armée adverse en destination ne l’empêche pas. Le montant est plafonné à `2^(N - 1)` pour une armée de `N` troupes, et une armée affamée ne peut pas transférer du tout. Si le stock est insuffisant, un transfert `single` échoue simplement sans effet et la chaîne continue ; en `loop`, l’ordre retente et envoie le reliquat en livraison partielle dès que le stock devient inférieur au montant demandé.',
   'faq.q12': 'Comment les cartes spéciales et les calamités s’appliquent-elles ?',
   'faq.a12':
-    'Les calamités (peste, mauvais temps, mauvaise récolte) sont tirées automatiquement et programmées à l’avance dans un slot saisonnier de l’année suivante ; elles s’annoncent dès leur tirage et s’appliquent d’elles-mêmes, sans que tu joues de carte. Tes cartes bonus (beau temps, bonne récolte, révolte) se jouent, elles, avec un ordre dans le champ `special` — pas besoin de noble — au printemps, en été ou en automne, jamais en hiver. Beau temps n’annule que le mauvais temps, et bonne récolte n’annule que la mauvaise récolte ; jouer une carte qui annule une calamité ne produit pas en plus son bonus régional. Si plusieurs cartes du même type sont jouées sur la même région, une seule est effective : avec une calamité active la première l’annule et une seconde applique le bonus, sans calamité la première l’applique directement — le reste est consommé sans effet. La révolte (`P RE TER`) exige qu’une mauvaise récolte affecte déjà la région : elle fait apparaître une armée neutre ou, si le territoire est occupé, déclenche un combat où le perdant se retire ou est détruit.',
+    'Les calamités (peste, mauvais temps, mauvaise récolte) sont tirées automatiquement et programmées à l’avance dans un slot saisonnier de l’année suivante ; elles s’annoncent dès leur tirage et s’appliquent d’elles-mêmes, sans que tu joues de carte. Tes cartes bonus (beau temps, bonne récolte, révolte) se jouent, elles, avec un ordre dans le champ `special` — pas besoin de noble — au printemps, en été ou en automne, jamais en hiver. Beau temps n’annule que le mauvais temps, et bonne récolte n’annule que la mauvaise récolte ; jouer une carte qui annule une calamité ne produit pas en plus son bonus régional. La météo agit sur les moulins : le mauvais temps les arrête, le beau temps double leur production. La récolte agit sur la terre : la mauvaise récolte supprime les rations de terrain et la production des châteaux et villages, la bonne récolte les double. Si plusieurs cartes du même type sont jouées sur la même région, une seule est effective : avec une calamité active la première l’annule et une seconde applique le bonus, sans calamité la première l’applique directement — le reste est consommé sans effet. La révolte (`P RE TER`) exige qu’une mauvaise récolte affecte déjà la région : elle fait apparaître une armée neutre ou, si le territoire est occupé, déclenche un combat où le perdant se retire ou est détruit.',
   'error.line': 'Ligne {line} : {message}',
   'error.invalidOrder': 'Ordre invalide',
   'error.winter.order_shape':

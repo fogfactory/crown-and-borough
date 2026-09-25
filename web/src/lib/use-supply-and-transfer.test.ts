@@ -94,6 +94,27 @@ describe('useSupplyAndTransfer', () => {
     expect(result.current.transferLine).toEqual(transferLine)
   })
 
+  it('sends the drafted special orders with the supply request', async () => {
+    const fetcher = vi.fn(defaultFetcher) as unknown as SupplyFetcher
+    buildHook(fetcher, { specialDraft: 'P RA ROS' })
+
+    await waitFor(() => {
+      expect(fetcher).toHaveBeenCalledWith(
+        '/api/supply?territory=ROS&special=P+RA+ROS',
+        expect.anything(),
+      )
+    })
+  })
+
+  it('omits an empty special draft from the supply request', async () => {
+    const fetcher = vi.fn(defaultFetcher) as unknown as SupplyFetcher
+    buildHook(fetcher, { specialDraft: '  ' })
+
+    await waitFor(() => {
+      expect(fetcher).toHaveBeenCalledWith('/api/supply?territory=ROS', expect.anything())
+    })
+  })
+
   it('skips loading outside the supply seasons', async () => {
     const fetcher = vi.fn() as unknown as SupplyFetcher
     const { result } = buildHook(fetcher, {

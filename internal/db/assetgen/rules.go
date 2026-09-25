@@ -96,7 +96,6 @@ func renderRules(document []byte, balance Balance) ([]byte, error) {
 		"base_production":                             stringValue(balance.BaseProduction),
 		"supply_range":                                stringValue(balance.SupplyRange),
 		"depot_range_bonus":                           stringValue(balance.DepotRangeBonus),
-		"infra_rations_bonus":                         stringValue(balance.InfraRationsBonus),
 		"cost_base":                                   stringValue(balance.CostBase),
 		"pillage_bonus":                               stringValue(balance.PillageBonus),
 		"noble_command_bonus":                         stringValue(balance.NobleCommandBonus),

@@ -49,6 +49,7 @@ const (
 	EventTypePlagueSurvived    EventType = "plague_noble_survived"
 	EventTypeBadWeatherBlocked EventType = "bad_weather_blocked"
 	EventTypeFamineLoss        EventType = "famine_loss"
+	EventTypeBadWeatherLoss    EventType = "bad_weather_loss"
 	EventTypeProduction        EventType = "production"
 	EventTypeConsumption       EventType = "consumption"
 	EventTypeCardCanceled      EventType = "card_canceled"
@@ -150,7 +151,6 @@ type Event struct {
 	SavedByPillage     bool                       `json:"savedByPillage,omitempty"`
 
 	TerrainRations       int                        `json:"terrainRations,omitempty"`
-	InfraRations         int                        `json:"infraRations,omitempty"`
 	BonusRations         int                        `json:"bonusRations,omitempty"`
 	SuppressedRations    int                        `json:"suppressedRations,omitempty"`
 	BaseProduction       int                        `json:"baseProduction,omitempty"`

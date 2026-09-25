@@ -35,7 +35,7 @@ capacité d'une case isolée à nourrir une grosse armée sur place.
 
 Issue : [#191](https://github.com/fogfactory/crown-and-borough/issues/191).
 
-Remplace la table de rations locales de `gdd.md` §3 et §5. Objectif : réduire
+**Appliqué.** Cette table remplace celle de `gdd.md` §3 et §5. Objectif : réduire
 le plafond d'armée soutenable sans logistique, et faire du siège un vrai
 levier d'affamement plutôt qu'un détail négligeable.
 
@@ -52,12 +52,21 @@ Un château ou un village ne relève plus la production locale de sa case : un
 siège en montagne (0 ration locale, aucun bonus) affame une armée qui ne
 dispose d'aucune autre source de ravitaillement.
 
-La calamité famine, qui désactivait ce bonus, désactive désormais les moulins
-de sa région **et** réduit de 1 les rations de terrain de chaque territoire de
-la région (minimum 0).
+### Cartes météo et récolte
 
-> À trancher dans #191 : conserver tel quel le bonus de rations de Récolte
-> abondante (recommandé).
+Les cartes se répartissent désormais en deux familles, sans effet croisé :
+
+| Carte | Effet économique dans sa région |
+|---|---|
+| Mauvais temps | Moulins à l'arrêt (0 R), en plus du blocage des mouvements. |
+| Beau temps | Annule le mauvais temps ; sinon, production des moulins doublée. |
+| Mauvaise récolte | Rations de terrain et production des châteaux et villages supprimées. |
+| Récolte abondante | Annule la mauvaise récolte ; sinon, rations de terrain et production des châteaux et villages doublées. |
+
+Les bonus additifs de la v1 (`bonus_mill_production`, `bonus_army_ration`)
+sont retirés de la balance. Quand le revenu territorial (#192) remplacera
+`base_production`, la récolte s'appliquera à ce revenu (territoires et
+villages) de la même façon.
 
 ## Revenu territorial
 
@@ -111,12 +120,12 @@ même territoire le même tour.
 
 Issue : [#195](https://github.com/fogfactory/crown-and-borough/issues/195).
 
-Un moulin de niveau `N` produit `N` R (plus le bonus de Récolte abondante) et
+Un moulin de niveau `N` produit `N` R (`2N` sous le Beau temps) et
 verse sa production à **une seule** infrastructure : le château adjacent,
 sinon le village adjacent, sinon la case du moulin elle-même. Entre plusieurs
 candidats du même type, le départage se fait par trigramme. Un moulin ne
-compte donc plus pour chaque château ou village adjacent. Sous une calamité
-famine, il ne produit rien.
+compte donc plus pour chaque château ou village adjacent. Sous le mauvais
+temps, il ne produit rien.
 
 Une production restée sur un moulin isolé n'est pas automatiquement
 acheminée : elle nécessite un ordre de transfert (`T`, voir ci-dessous) porté

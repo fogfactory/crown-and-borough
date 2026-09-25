@@ -3,8 +3,10 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
+	"github.com/fogfactory/crown-and-borough/internal/engine/orders"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
@@ -31,6 +33,8 @@ type SupplyLine struct {
 	ArmyOwner         models.PlayerID      `json:"armyOwner"`
 	ArmySize          int                  `json:"armySize"`
 	TerrainProduction int                  `json:"terrainProduction"`
+	FamineRations     int                  `json:"famineRations"`
+	BonusRations      int                  `json:"bonusRations"`
 	LocalProduction   int                  `json:"localProduction"`
 	Rations           int                  `json:"rations"`
 	TotalDemand       int                  `json:"totalDemand"`
@@ -61,7 +65,7 @@ type TransferLine struct {
 // the game. Army assignment uses the same network and source selection logic as
 // resolveSupply; a selected source also exposes its own reachable zone.
 func FindSupplyLine(game *models.GameState, balance assetgen.Balance, territoryID models.TerritoryID) (SupplyLine, error) {
-	ctx, err := supplyQueryContext(game, balance, territoryID)
+	ctx, err := supplyQueryContext(game, balance, territoryID, nil)
 	if err != nil {
 		return SupplyLine{}, err
 	}
@@ -77,7 +81,38 @@ func FindSupplyLine(game *models.GameState, balance assetgen.Balance, territoryI
 // line takes precedence, otherwise a controlled source exposes its reachable
 // zone.
 func FindSupply(game *models.GameState, balance assetgen.Balance, territoryID models.TerritoryID) (SupplyLine, error) {
-	ctx, err := supplyQueryContext(game, balance, territoryID)
+	return FindSupplyWithIntents(game, balance, territoryID, nil)
+}
+
+// FindPlayerSupply is FindSupply for a player drafting the given special
+// orders text. A draft that does not parse projects no card, as the turn
+// submission would be rejected.
+func FindPlayerSupply(
+	game *models.GameState,
+	balance assetgen.Balance,
+	territoryID models.TerritoryID,
+	playerID models.PlayerID,
+	special string,
+) (SupplyLine, error) {
+	var deckOrders map[models.PlayerID][]models.DeckOrder
+	if game != nil && playerID != "" && strings.TrimSpace(special) != "" {
+		if parsed, parseErrors := orders.ParseDeckOrders(special, game); len(parseErrors) == 0 {
+			deckOrders = map[models.PlayerID][]models.DeckOrder{playerID: parsed}
+		}
+	}
+	return FindSupplyWithIntents(game, balance, territoryID, deckOrders)
+}
+
+// FindSupplyWithIntents is FindSupply projected with the deck cards the viewer
+// intends to play this turn: their regional bonuses, and the calamities they
+// cancel, change the projected rations like they will at resolution.
+func FindSupplyWithIntents(
+	game *models.GameState,
+	balance assetgen.Balance,
+	territoryID models.TerritoryID,
+	deckOrders map[models.PlayerID][]models.DeckOrder,
+) (SupplyLine, error) {
+	ctx, err := supplyQueryContext(game, balance, territoryID, deckOrders)
 	if err != nil {
 		return SupplyLine{}, err
 	}
@@ -95,6 +130,7 @@ func projectSupplyLine(
 ) SupplyLine {
 
 	receivedRations := resolveRations(ctx)
+	rations := ctx.supplyRations[territoryID]
 	totalDemand := armyCost(army.Size, balance.CostBase)
 	demand := totalDemand - receivedRations[army.ID]
 	line := SupplyLine{
@@ -103,7 +139,9 @@ func projectSupplyLine(
 		ArmyOwner:         army.OwnerID,
 		ArmySize:          army.Size,
 		TerrainProduction: terrainRationProduction(ctx, territoryID),
-		LocalProduction:   rationProduction(ctx, territoryID),
+		FamineRations:     rations.suppressed,
+		BonusRations:      rations.bonus,
+		LocalProduction:   rations.total(),
 		Rations:           receivedRations[army.ID],
 		TotalDemand:       totalDemand,
 		Demand:            demand,
@@ -136,7 +174,7 @@ func projectSupplyLine(
 // FindSupplyZone projects the network reachable from a controlled castle or
 // village selected without an army on its territory.
 func FindSupplyZone(game *models.GameState, balance assetgen.Balance, territoryID models.TerritoryID) (SupplyLine, error) {
-	ctx, err := supplyQueryContext(game, balance, territoryID)
+	ctx, err := supplyQueryContext(game, balance, territoryID, nil)
 	if err != nil {
 		return SupplyLine{}, err
 	}
@@ -148,7 +186,7 @@ func FindSupplyZone(game *models.GameState, balance assetgen.Balance, territoryI
 // to target. The target may be occupied by the recipient army; that army is
 // allowed at the endpoint but blocks the route everywhere else.
 func FindTransfer(game *models.GameState, balance assetgen.Balance, sourceID, targetID models.TerritoryID) (TransferLine, error) {
-	ctx, err := supplyQueryContext(game, balance, sourceID)
+	ctx, err := supplyQueryContext(game, balance, sourceID, nil)
 	if err != nil {
 		return TransferLine{}, err
 	}
@@ -198,7 +236,16 @@ func projectSupplyZone(ctx *resolutionContext, territoryID models.TerritoryID) (
 	}, nil
 }
 
-func supplyQueryContext(game *models.GameState, balance assetgen.Balance, territoryID models.TerritoryID) (*resolutionContext, error) {
+// supplyQueryContext prepares a resolution context on a copy of the game with
+// the current season's calamities and the given deck cards applied, as they
+// are before supply at resolution. Revolt cards are left out: their roll must
+// not be revealed before the turn resolves, and they do not change rations.
+func supplyQueryContext(
+	game *models.GameState,
+	balance assetgen.Balance,
+	territoryID models.TerritoryID,
+	deckOrders map[models.PlayerID][]models.DeckOrder,
+) (*resolutionContext, error) {
 	if game == nil {
 		return nil, fmt.Errorf("engine: supply line: nil game state")
 	}
@@ -211,7 +258,18 @@ func supplyQueryContext(game *models.GameState, balance assetgen.Balance, territ
 	if err := game.Validate(); err != nil {
 		return nil, fmt.Errorf("engine: supply line: invalid game state: %w", err)
 	}
-	return newResolutionContext(cloneGameState(game), balance), nil
+	ctx := newResolutionContext(cloneGameState(game), balance)
+	playable := make(map[models.PlayerID][]models.DeckOrder, len(deckOrders))
+	for playerID, playerOrders := range deckOrders {
+		for _, order := range playerOrders {
+			if order.Type == models.DeckOrderTypePlay && order.Kind != models.CardKindRevolt {
+				playable[playerID] = append(playable[playerID], order)
+			}
+		}
+	}
+	resolveDeckOrders(ctx, playable)
+	resolveSeasonEffects(ctx)
+	return ctx, nil
 }
 
 func controlledSupplyOwner(ctx *resolutionContext, territoryID models.TerritoryID) (models.PlayerID, bool) {

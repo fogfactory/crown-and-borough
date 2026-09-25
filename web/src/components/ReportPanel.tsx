@@ -410,21 +410,25 @@ function seasonEffectLine(
           }),
         }
       }
-      if ((effect.productionLost ?? 0) > 0) {
-        return {
-          key,
-          label: t('reports.calamityFamineMill', {
-            territory: territoryLabel(map, effect.territory, t),
-            production: effect.productionLost ?? 0,
-          }),
-        }
-      }
       return {
         key,
-        label: t('reports.calamityFamineRations', {
-          rations: effect.rationsLost ?? 0,
+        label: t('reports.calamityFamineSettlement', {
           territory: territoryLabel(map, effect.territory, t),
+          production: effect.productionLost ?? 0,
         }),
+      }
+    case 'bad_weather_loss':
+      return {
+        key,
+        label: effect.territory
+          ? t('reports.calamityBadWeatherMill', {
+              territory: territoryLabel(map, effect.territory, t),
+              production: effect.productionLost ?? 0,
+            })
+          : t('reports.calamityBadWeatherRegion', {
+              region,
+              production: effect.productionLost ?? 0,
+            }),
       }
     case 'plague_noble_death':
       return {
@@ -509,6 +513,7 @@ function groupSeasonEffects(
         break
       case 'bad_weather_blocked':
       case 'famine_loss':
+      case 'bad_weather_loss':
       case 'plague_noble_death':
       case 'plague_noble_survived':
       case 'card_canceled':
@@ -668,7 +673,6 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
             {production.map((line) => {
               const chips: Array<{ label: string; value: number }> = [
                 { label: t('reports.productionTerrainRations'), value: line.terrainRations },
-                { label: t('reports.productionInfraRations'), value: line.infraRations ?? 0 },
                 { label: t('reports.productionBonusRations'), value: line.bonusRations ?? 0 },
                 { label: t('reports.productionBaseProduction'), value: line.baseProduction ?? 0 },
                 { label: t('reports.productionMillProduction'), value: line.millProduction ?? 0 },

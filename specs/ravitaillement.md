@@ -9,6 +9,10 @@ décrite dans [`architecture.md`](architecture.md).
 ## Règles de référence
 
 - Une armée de `N` troupes demande `2^(N - 1)` rations.
+- Seul le terrain produit des rations locales (plaine 2, forêt 1, colline 1,
+  montagne 0, marécage 1) ; un château ou un village n'en ajoute pas. La
+  famine supprime les rations de terrain de sa région ; la Récolte abondante
+  les double.
 - La production locale est consommée sur place par l'armée présente jusqu'à
   hauteur de sa demande ; le surplus est perdu.
 - Les châteaux et villages contrôlés sont des sources de ravitaillement.
@@ -24,6 +28,11 @@ décrite dans [`architecture.md`](architecture.md).
   piller automatiquement une infrastructure située sur sa case.
 - Si le pillage est insuffisant ou impossible, l'armée perd une troupe, jusqu'à
   un minimum de 1 troupe ; elle reste affamée pour ce tour.
+
+La projection de ravitaillement affichée au joueur (`/supply`) applique les
+calamités de la saison en cours et les cartes bonus de son brouillon, comme la
+résolution avant la phase de ravitaillement ; les cartes des autres joueurs,
+inconnues, n'y figurent pas.
 
 Les stocks peuvent exister sur toute case pendant les tours d'action, notamment
 après un transfert. En hiver, ceux d'un château ou d'un village sont conservés

@@ -67,12 +67,26 @@ interne de la carte.
   tour est supprimée ; une chaîne historique déjà en cours continue.
 - Le mauvais temps bloque les attaques, jonctions, dispersions, pillages et
   soutiens offensifs provenant de sa région ; le maintien et le soutien défensif
-  restent possibles.
-- La famine désactive la contribution des moulins et le bonus de rations des
-  châteaux/villages de sa région ; la production de base et les rations de terrain
-  restent actives.
+  restent possibles. Les moulins de la région ne produisent rien.
+- La famine supprime les rations de terrain de chaque territoire de sa région
+  et la production de base des châteaux et villages de la région ; les moulins
+  ne sont pas touchés.
 - La révolte est une carte bonus, jouable si une famine active affecte la région.
   Elle crée des armées `NEUTRAL` sur les cases vides, selon la balance.
+
+## Bonus régionaux
+
+La météo agit sur les moulins, la récolte sur la terre. Une carte bonus annule
+d'abord la calamité de même famille ; sinon, ou pour une seconde carte, elle
+applique son bonus, au plus une fois par kind et par région :
+
+- Beau temps **double** la production des moulins de la région ;
+- Récolte abondante **double** les rations de terrain de chaque territoire de
+  la région et la production de base de ses châteaux et villages.
+
+Ces effets, tout comme ceux des calamités, sont pris en compte par la
+projection de ravitaillement (`/supply`) avec les cartes du brouillon du
+joueur.
 
 ## Cartes prévues
 

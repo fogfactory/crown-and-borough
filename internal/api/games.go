@@ -272,7 +272,9 @@ func (h *GamesHandler) getSupply(w http.ResponseWriter, r *http.Request, actor s
 		writeJSON(w, http.StatusOK, line)
 		return
 	}
-	line, err := h.store.Supply(r.Context(), actor, id, territory)
+	// special carries the viewer's drafted deck orders, so the projection
+	// reflects the cards they intend to play this turn.
+	line, err := h.store.Supply(r.Context(), actor, id, territory, r.URL.Query().Get("special"))
 	if err != nil {
 		h.writeStoreError(w, err)
 		return

@@ -505,7 +505,7 @@ func (s *MemoryStore) State(ctx context.Context, actor Actor, id GameID) (GameSn
 	return s.Get(ctx, actor, id)
 }
 
-func (s *MemoryStore) Supply(_ context.Context, actor Actor, id GameID, territoryID models.TerritoryID) (engine.SupplyLine, error) {
+func (s *MemoryStore) Supply(_ context.Context, actor Actor, id GameID, territoryID models.TerritoryID, special string) (engine.SupplyLine, error) {
 	game, err := s.game(id)
 	if err != nil {
 		return engine.SupplyLine{}, err
@@ -515,7 +515,8 @@ func (s *MemoryStore) Supply(_ context.Context, actor Actor, id GameID, territor
 	if !game.viewerForActorLocked(actor) {
 		return engine.SupplyLine{}, ErrNotMember
 	}
-	return engine.FindSupply(game.state, s.balance, territoryID)
+	playerID, _ := game.playerForActorLocked(actor)
+	return engine.FindPlayerSupply(game.state, s.balance, territoryID, playerID, special)
 }
 
 func (s *MemoryStore) TransferSupply(_ context.Context, actor Actor, id GameID, sourceID, targetID models.TerritoryID) (engine.TransferLine, error) {

@@ -47,8 +47,8 @@ type resolutionContext struct {
 	specialReshuffles   int
 	badWeatherRegions   map[models.TerritoryID]bool
 	famineRegions       map[models.TerritoryID]bool
-	bonusMillRegions    map[models.TerritoryID]int
-	bonusRationRegions  map[models.TerritoryID]int
+	fairWeatherRegions  map[models.TerritoryID]bool
+	goodHarvestRegions  map[models.TerritoryID]bool
 	plagueDeaths        []models.Noble
 	supplyRations       map[models.TerritoryID]rationProductionParts
 	supplySources       map[models.TerritoryID]sourceProductionParts

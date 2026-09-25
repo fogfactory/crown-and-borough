@@ -23,16 +23,15 @@ const (
 base_production: 1
 supply_range: 3
 depot_range_bonus: 2
-infra_rations_bonus: 2
 cost_base: 2
 pillage_bonus: 2
 noble_command_bonus: 1
 castle_defense_bonus: 1
 ration_terrain:
-  plain: 3
-  forest: 2
-  hill: 2
-  mountain: 1
+  plain: 2
+  forest: 1
+  hill: 1
+  mountain: 0
   swamp: 1
 winter_stock_divisor: 2
 village_stock_cap: 1
@@ -68,9 +67,7 @@ special_orders:
     plague_army_divisor: 2
     plague_noble_mortality_percentage: 50
     revolt_army_min_size: 1
-    revolt_army_max_size: 3
-    bonus_mill_production: 1
-    bonus_army_ration: 1`
+    revolt_army_max_size: 3`
 )
 
 func writeAssets(t *testing.T, dir, communes, prenoms string) {
@@ -124,8 +121,8 @@ func TestLoadBalanceValid(t *testing.T) {
 		t.Fatalf("LoadBalance(valid asset) = %v", err)
 	}
 	if balance.SupplyRange != 3 || balance.NobleCommandBonus != 1 ||
-		balance.RationTerrain["plain"] != 3 || balance.RationTerrain["forest"] != 2 ||
-		balance.RationTerrain["hill"] != 2 || balance.RationTerrain["mountain"] != 1 ||
+		balance.RationTerrain["plain"] != 2 || balance.RationTerrain["forest"] != 1 ||
+		balance.RationTerrain["hill"] != 1 || balance.RationTerrain["mountain"] != 0 ||
 		balance.RationTerrain["swamp"] != 1 {
 		t.Errorf("loaded balance = %#v", balance)
 	}
@@ -162,8 +159,18 @@ func TestLoadBalanceInvalid(t *testing.T) {
 		},
 		{
 			name:    "missing terrain value",
-			content: strings.Replace(validBalance, "  mountain: 1\n  swamp: 1\n", "  mountain: 1\n", 1),
+			content: strings.Replace(validBalance, "  mountain: 0\n  swamp: 1\n", "  mountain: 0\n", 1),
 			want:    "ration_terrain.swamp",
+		},
+		{
+			name:    "removed additive card bonus",
+			content: strings.Replace(validBalance, "    revolt_army_max_size: 3", "    revolt_army_max_size: 3\n    bonus_army_ration: 1", 1),
+			want:    "bonus_army_ration",
+		},
+		{
+			name:    "removed infrastructure rations bonus",
+			content: strings.Replace(validBalance, "base_production: 1\n", "base_production: 1\ninfra_rations_bonus: 2\n", 1),
+			want:    "infra_rations_bonus",
 		},
 		{
 			name:    "unknown setting",

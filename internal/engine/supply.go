@@ -31,16 +31,16 @@ type famineCandidate struct {
 }
 
 // rationProductionParts breaks the local ration production of one territory
-// into its terrain, settlement, and regional bonus components.
+// into its terrain and good harvest components, plus the terrain rations the
+// bad harvest calamity suppresses.
 type rationProductionParts struct {
 	terrain    int
-	infra      int
 	bonus      int
 	suppressed int
 }
 
 func (parts rationProductionParts) total() int {
-	return parts.terrain + parts.infra + parts.bonus
+	return parts.terrain + parts.bonus
 }
 
 // sourceProductionParts breaks the stockable production of one source into its
@@ -216,24 +216,22 @@ func resolveRations(ctx *resolutionContext) map[models.ArmyID]int {
 }
 
 // rationProductionBreakdown splits the local ration production of a territory
-// into terrain, settlement, and regional bonus parts, reporting the settlement
-// part as suppressed while the bad harvest calamity disables it.
+// into terrain and regional bonus parts. The bad harvest calamity suppresses
+// all terrain rations of its region; the good harvest bonus doubles them.
 func rationProductionBreakdown(ctx *resolutionContext, territoryID models.TerritoryID) rationProductionParts {
 	territory := ctx.territoriesByID[territoryID]
 	if territory == nil {
 		return rationProductionParts{}
 	}
-	parts := rationProductionParts{terrain: ctx.balance.RationTerrain[territory.Terrain]}
+	terrain := ctx.balance.RationTerrain[territory.Terrain]
 	regionSeed := regionForTerritory(ctx, territoryID)
-	if ctx.hasSettlement(territoryID) {
-		if ctx.famineRegions[regionSeed] {
-			parts.suppressed = ctx.balance.InfraRationsBonus
-		} else {
-			parts.infra = ctx.balance.InfraRationsBonus
-		}
+	switch {
+	case ctx.famineRegions[regionSeed]:
+		return rationProductionParts{suppressed: terrain}
+	case ctx.goodHarvestRegions[regionSeed]:
+		return rationProductionParts{terrain: terrain, bonus: terrain}
 	}
-	parts.bonus = ctx.bonusRationRegions[regionSeed] * ctx.balance.SpecialOrders.Effects.BonusArmyRation
-	return parts
+	return rationProductionParts{terrain: terrain}
 }
 
 func rationProduction(ctx *resolutionContext, territoryID models.TerritoryID) int {
@@ -307,24 +305,36 @@ func controlledSupplySources(ctx *resolutionContext, ownerID models.PlayerID) []
 }
 
 // sourceProductionBreakdown splits the stockable production of a source into
-// base, mill, and regional bonus parts, reporting mill contributions as
-// suppressed while the bad harvest calamity disables them.
+// base, mill, and regional bonus parts. Harvest cards act on the base
+// production of the source's region (bad harvest suppresses it, good harvest
+// doubles it); weather cards act on each mill's region the same way.
 func sourceProductionBreakdown(ctx *resolutionContext, territoryID models.TerritoryID) sourceProductionParts {
-	parts := sourceProductionParts{base: ctx.balance.BaseProduction}
+	parts := sourceProductionParts{}
+	sourceRegion := regionForTerritory(ctx, territoryID)
+	switch {
+	case ctx.famineRegions[sourceRegion]:
+		parts.suppressed += ctx.balance.BaseProduction
+	case ctx.goodHarvestRegions[sourceRegion]:
+		parts.base = ctx.balance.BaseProduction
+		parts.bonus += ctx.balance.BaseProduction
+	default:
+		parts.base = ctx.balance.BaseProduction
+	}
 	locations := append([]models.TerritoryID{territoryID}, ctx.sortedNeighbors(territoryID)...)
 	for _, locationID := range locations {
 		infrastructure := ctx.infrastructureAt(locationID)
 		if infrastructure == nil || infrastructure.Type != models.InfraTypeMill {
 			continue
 		}
-		regionSeed := regionForTerritory(ctx, locationID)
-		contribution := infrastructure.Level + ctx.bonusMillRegions[regionSeed]*ctx.balance.SpecialOrders.Effects.BonusMillProduction
-		if ctx.famineRegions[regionSeed] {
-			parts.suppressed += contribution
+		millRegion := regionForTerritory(ctx, locationID)
+		if ctx.badWeatherRegions[millRegion] {
+			parts.suppressed += infrastructure.Level
 			continue
 		}
 		parts.mill += infrastructure.Level
-		parts.bonus += ctx.bonusMillRegions[regionSeed] * ctx.balance.SpecialOrders.Effects.BonusMillProduction
+		if ctx.fairWeatherRegions[millRegion] {
+			parts.bonus += infrastructure.Level
+		}
 	}
 	return parts
 }
@@ -691,7 +701,6 @@ func (ctx *resolutionContext) emitProductionEvents() {
 			RegionSeed:           regionForTerritory(ctx, territoryID),
 			OwnerID:              ownerID,
 			TerrainRations:       rations.terrain,
-			InfraRations:         rations.infra,
 			BonusRations:         rations.bonus,
 			SuppressedRations:    rations.suppressed,
 			BaseProduction:       source.base,

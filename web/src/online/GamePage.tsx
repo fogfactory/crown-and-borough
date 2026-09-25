@@ -539,6 +539,7 @@ export function GamePage() {
     selectedState,
     draftOrders,
     ownerId: playerID,
+    specialDraft,
     basePath: gameId ? `/api/games/${encodeURIComponent(gameId)}` : '/api',
     fetcher: supplyFetcher,
     networkErrorMessage: t('error.network'),
