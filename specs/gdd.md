@@ -220,9 +220,20 @@ Récolte abondante les double. La table est dans `assets/balance.yaml`
 
 Une case ne porte qu'une seule infrastructure.
 
-Un village est une infrastructure rare et neutre à la génération. Il produit 1
-R stockable par tour et conserve son stock, qu'il soit neutre ou contrôlé. Un
-joueur ne peut utiliser le stock d'un village neutre qu'après sa capture. Un
+C'est le territoire contrôlé, et non l'infrastructure bâtie, qui produit la
+ressource `R` stockable : chaque saison d'action (jamais en hiver), chaque
+territoire contrôlé rapporte `territory_income` R, plus `village_income` R
+s'il porte un village, versés directement au stock de la capitale du joueur
+avant le ravitaillement (voir `assets/balance.yaml`). Sans capitale, le
+revenu de chaque territoire va au château contrôlé le plus proche, sinon au
+village contrôlé le plus proche, sinon il est perdu. La famine supprime ce
+revenu dans la région du territoire qui le produit ; la Récolte abondante le
+double, comme pour les rations.
+
+Un village est une infrastructure rare et neutre à la génération ; il ne
+peut pas être construit. Neutre, il produit `village_income` R par tour dans
+son propre stock, qu'un joueur ne peut utiliser qu'après sa capture. Contrôlé,
+il ne produit plus rien localement : son revenu suit la règle ci-dessus. Un
 château construit sur un village le remplace et conserve le stock de la case.
 
 ## 4. Information et divulgation par joueur
@@ -503,8 +514,8 @@ en bénéficie ; il n'y a pas de propriétaire stocké sur l'infrastructure.
 |---|---|---|---:|
 | Moulin | Construction sur case vide contrôlée, adjacente à un château ou village ; amélioration d'un moulin existant adjacent à cette source, jusqu'au niveau 3 | +1 R stockable par niveau à chaque source adjacente | 3 / 5 / 7 |
 | Dépôt de vivres | Aucune condition structurelle | +2 cases de portée de ravitaillement lorsqu'il est contrôlé | 3 |
-| Château | Aucune | +1 défense, production de 1 R stockable par tour, ancre de ravitaillement | 10 |
-| Village | Généré neutre, non constructible | Production de 1 R stockable par tour, ancre après capture | — |
+| Château | Aucune | +1 défense, ancre de ravitaillement, verse le revenu territorial (§3) | 10 |
+| Village | Généré neutre, non constructible | Ancre après capture, verse le revenu territorial une fois contrôlé ; produit `village_income` R par tour tant qu'il reste neutre | — |
 
 Un moulin isolé est orphelin et ne produit rien. Une construction remplace la
 structure existante uniquement lorsque la règle de l'ordre le prévoit : un

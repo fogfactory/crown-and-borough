@@ -12,7 +12,7 @@ import (
 
 func TestProjectStateMatchesStateContract(t *testing.T) {
 	state := projectTestState()
-	view := projectState(state)
+	view := projectState(state, assetgen.Balance{})
 
 	if view.Turn != state.Turn || view.Season != state.Season {
 		t.Errorf("view metadata = %d/%s, want %d/%s", view.Turn, view.Season, state.Turn, state.Season)
@@ -82,7 +82,7 @@ func TestProjectStateMatchesStateContract(t *testing.T) {
 
 func TestProjectStateNesting(t *testing.T) {
 	state := projectTestState()
-	view := projectState(state)
+	view := projectState(state, assetgen.Balance{})
 
 	viewByID := make(map[models.TerritoryID]TerritoryView, len(view.Territories))
 	for _, territory := range view.Territories {
@@ -112,7 +112,7 @@ func TestProjectStateOmitsUnavailableCapital(t *testing.T) {
 	missingCapitalID := models.InfraID("missing")
 	state.Players[0].CapitalCastleID = &missingCapitalID
 
-	view := projectState(state)
+	view := projectState(state, assetgen.Balance{})
 	if got := view.Players[0].CapitalTerritory; got != nil {
 		t.Errorf("unavailable capital territory = %v, want nil", got)
 	}

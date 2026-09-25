@@ -360,4 +360,52 @@ describe('SelectedTerritoryDetails', () => {
     expect(screen.getByText('There is no supply phase in winter.')).toBeInTheDocument()
     expect(screen.queryByText('Order stack')).not.toBeInTheDocument()
   })
+
+  it('shows the projected territory income and its destination', () => {
+    const incomeState: StateData = {
+      ...state,
+      territories: [
+        { ...state.territories[0], projectedIncome: 2, incomeDestination: 'BRU' },
+      ],
+    }
+
+    render(
+      <SelectedTerritoryDetails
+        state={incomeState}
+        selectedTerritory={map.territories[0]}
+        selectedState={incomeState.territories[0]}
+        mapTerritories={map.territories}
+        selectedSupplyLine={null}
+        sourceTerritory={null}
+        supplyLoading={false}
+        supplyError={null}
+      />,
+    )
+
+    expect(screen.getByText('Projected income')).toBeInTheDocument()
+    expect(screen.getByText('Yields 2 R to BRU · Brisecote')).toBeInTheDocument()
+  })
+
+  it('shows the territory income as lost when it has no destination', () => {
+    const lostState: StateData = {
+      ...state,
+      territories: [{ ...state.territories[0], projectedIncome: 1, incomeDestination: undefined }],
+    }
+
+    render(
+      <SelectedTerritoryDetails
+        state={lostState}
+        selectedTerritory={map.territories[0]}
+        selectedState={lostState.territories[0]}
+        selectedSupplyLine={null}
+        sourceTerritory={null}
+        supplyLoading={false}
+        supplyError={null}
+      />,
+    )
+
+    expect(
+      screen.getByText('Income lost: no capital, castle, or village to receive it'),
+    ).toBeInTheDocument()
+  })
 })

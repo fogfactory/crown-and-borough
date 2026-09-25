@@ -59,11 +59,11 @@ func TestProductionReportBreaksDownSourceAndBonus(t *testing.T) {
 	if line.TerrainRations != 3 || line.BonusRations != 0 {
 		t.Fatalf("ration breakdown = %#v, want terrain 3 without fair weather bonus", line)
 	}
-	if line.BaseProduction != 1 || line.MillProduction != 2 || line.BonusProduction != 2 {
-		t.Fatalf("production breakdown = %#v, want base 1, mills 2 doubled by fair weather", line)
+	if line.BaseProduction != 0 || line.MillProduction != 2 || line.BonusProduction != 2 {
+		t.Fatalf("production breakdown = %#v, want no base production, mills 2 doubled by fair weather", line)
 	}
-	if line.Produced != 8 {
-		t.Fatalf("produced = %d, want 8", line.Produced)
+	if line.Produced != 7 {
+		t.Fatalf("produced = %d, want 7", line.Produced)
 	}
 	consumption := consumptionLineFor(t, report, "A1")
 	if consumption.Demand != 1 || consumption.ReceivedLocal != 1 || consumption.ReceivedTransfer != 0 || consumption.Missing != 0 {
@@ -132,8 +132,8 @@ func TestProductionReportTracesDispatchToMultipleArmies(t *testing.T) {
 	}
 	report := BuildTurnReport(state, resolution.State, resolution.Events, nil)
 	source := productionLineFor(t, report, "AAA")
-	if source.BaseProduction != 1 || source.MillProduction != 3 || source.Produced != 4 {
-		t.Fatalf("AAA production = %#v, want base 1 plus mills 3", source)
+	if source.BaseProduction != 0 || source.MillProduction != 3 || source.Produced != 3 {
+		t.Fatalf("AAA production = %#v, want no base production, mills 3", source)
 	}
 	if len(source.SentToRations) != 2 || source.SentToRations["BBB"] != 3 || source.SentToRations["CCC"] != 1 {
 		t.Fatalf("AAA dispatch = %#v, want 3 rations to BBB and 1 to CCC", source.SentToRations)
@@ -167,8 +167,8 @@ func TestProductionReportShowsFamineSuppression(t *testing.T) {
 	if line.TerrainRations != 0 || line.SuppressedRations != 3 {
 		t.Fatalf("ration suppression = %#v, want all 3 terrain rations suppressed", line)
 	}
-	if line.BaseProduction != 0 || line.MillProduction != 2 || line.SuppressedProduction != 1 {
-		t.Fatalf("production suppression = %#v, want the castle's 1 R suppressed and the mill intact", line)
+	if line.BaseProduction != 0 || line.MillProduction != 2 || line.SuppressedProduction != 0 {
+		t.Fatalf("production suppression = %#v, want the mill intact and no base production line", line)
 	}
 	if line.Produced != 2 {
 		t.Fatalf("produced = %d, want the mill's 2 R only", line.Produced)

@@ -1241,6 +1241,16 @@ func (ctx *resolutionContext) creditAmount(territoryID models.TerritoryID) int {
 }
 
 func (ctx *resolutionContext) closestControlledSettlement(startID models.TerritoryID, ownerID models.PlayerID) models.TerritoryID {
+	return ctx.closestControlledTerritory(startID, ownerID, func(candidateID models.TerritoryID) bool {
+		return ctx.hasInfrastructure(candidateID, models.InfraTypeCastle) || ctx.hasInfrastructure(candidateID, models.InfraTypeVillage)
+	})
+}
+
+// closestControlledTerritory does a level-by-level BFS over crossable borders
+// from startID, returning the closest territory controlled by ownerID that
+// satisfies match, with a trigram tie-break among equidistant candidates. It
+// returns "" when none is reachable.
+func (ctx *resolutionContext) closestControlledTerritory(startID models.TerritoryID, ownerID models.PlayerID, match func(models.TerritoryID) bool) models.TerritoryID {
 	type queueItem struct {
 		territoryID models.TerritoryID
 		distance    int
@@ -1257,7 +1267,7 @@ func (ctx *resolutionContext) closestControlledSettlement(startID models.Territo
 		candidates := make([]models.TerritoryID, 0)
 		for _, item := range level {
 			state := ctx.state.TerritoryStates[item.territoryID]
-			if state.OwnerID != nil && *state.OwnerID == ownerID && (ctx.hasInfrastructure(item.territoryID, models.InfraTypeCastle) || ctx.hasInfrastructure(item.territoryID, models.InfraTypeVillage)) {
+			if state.OwnerID != nil && *state.OwnerID == ownerID && match(item.territoryID) {
 				candidates = append(candidates, item.territoryID)
 			}
 		}

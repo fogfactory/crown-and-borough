@@ -10,7 +10,8 @@
 # add related parameters here without an explicit rules decision.
 
 # Action-turn production and supply.
-base_production: 1
+territory_income: 1
+village_income: 1
 supply_range: 3
 depot_range_bonus: 2
 cost_base: 2

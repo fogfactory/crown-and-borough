@@ -169,7 +169,8 @@ L'état projeté sépare la couche dynamique du `GameState` de stockage :
       "id": "P1",
       "name": "Joueur 1",
       "color": "#a84632",
-      "capitalTerritory": "ROS"
+      "capitalTerritory": "ROS",
+      "projectedIncome": 6
     }
   ],
   "territories": [
@@ -177,6 +178,8 @@ L'état projeté sépare la couche dynamique du `GameState` de stockage :
       "id": "ROS",
       "owner": "P1",
       "resources": 4,
+      "projectedIncome": 6,
+      "incomeDestination": "ROS",
       "army": {
         "owner": "P1",
         "size": 2,
@@ -209,6 +212,15 @@ L'état projeté sépare la couche dynamique du `GameState` de stockage :
   ]
 }
 ```
+
+`projectedIncome` est le revenu territorial (`territory_income` +
+`village_income` éventuel) que rapporterait ce joueur ou ce territoire au
+prochain tour d'action, en ignorant les cartes calamité déjà tirées ce tour
+pour ne pas en révéler l'effet à l'avance ; il vaut `0` en hiver.
+`incomeDestination` est le territoire qui recevra ce revenu (la capitale du
+joueur, à défaut le château contrôlé le plus proche, à défaut le village
+contrôlé le plus proche) ; il est absent si le revenu est perdu faute de
+destination.
 
 `army` vaut `null` lorsqu'aucune armée n'occupe la case. Dans une armée, `chain`
 vaut `null` lorsqu'aucune chaîne n'est active. Une chaîne existante dont le

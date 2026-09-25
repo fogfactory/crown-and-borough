@@ -241,7 +241,7 @@ func (h *GamesHandler) getState(w http.ResponseWriter, r *http.Request, actor st
 		writeAPIError(w, http.StatusForbidden, "not_member", "actor is not a member of this game")
 		return
 	}
-	writeGameState(w, snapshot.Revision, projectStateForPlayer(snapshot.State, viewerID))
+	writeGameState(w, snapshot.Revision, projectStateForPlayer(snapshot.State, viewerID, h.balance))
 }
 
 func (h *GamesHandler) getBalance(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
@@ -560,7 +560,7 @@ func (h *GamesHandler) writeSubmitResult(w http.ResponseWriter, actor store.Acto
 		Resolved:  result.Resolved,
 		Forced:    result.Forced,
 		Revision:  result.Snapshot.Revision,
-		State:     projectStateForPlayer(result.Snapshot.State, viewerID),
+		State:     projectStateForPlayer(result.Snapshot.State, viewerID, h.balance),
 	}
 	if result.Report != nil {
 		report := projectReport(result.Report.Report, viewerID, result.Report.Privacy)

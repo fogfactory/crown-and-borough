@@ -25,7 +25,8 @@ describe('FaqPanel', () => {
     expect(
       screen.getByText(/Comment les cartes spéciales et les calamités/),
     ).toBeInTheDocument()
-    expect(container.querySelectorAll('details')).toHaveLength(12)
+    expect(screen.getByText(/Comment se calcule mon revenu territorial/)).toBeInTheDocument()
+    expect(container.querySelectorAll('details')).toHaveLength(13)
   })
 
   it('renders the English tactical FAQ', () => {
@@ -48,6 +49,7 @@ describe('FaqPanel', () => {
     expect(
       screen.getByText(/How do special cards and calamities apply/),
     ).toBeInTheDocument()
-    expect(container.querySelectorAll('details')).toHaveLength(12)
+    expect(screen.getByText(/How is my territory income calculated/)).toBeInTheDocument()
+    expect(container.querySelectorAll('details')).toHaveLength(13)
   })
 })

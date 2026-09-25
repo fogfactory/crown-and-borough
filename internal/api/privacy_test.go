@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 	"github.com/fogfactory/crown-and-borough/internal/store"
@@ -19,7 +20,7 @@ func TestProjectStateDistinguishesKnownHiddenAndAbsentChains(t *testing.T) {
 	snapshot := makeChainSnapshot(state.Chains[0], state.Turn)
 	putChainSnapshot(privacy, "P1", snapshot)
 
-	known := projectStateForPlayer(state, "P1")
+	known := projectStateForPlayer(state, "P1", assetgen.Balance{})
 	if got := known.Territories[0].Army.Chain; got == nil || got.Visibility != "known" {
 		t.Fatalf("known chain = %#v, want visibility known", got)
 	}
@@ -27,7 +28,7 @@ func TestProjectStateDistinguishesKnownHiddenAndAbsentChains(t *testing.T) {
 		t.Fatalf("absent chain = %#v, want nil", got)
 	}
 
-	hidden := projectStateForPlayer(state, "P2")
+	hidden := projectStateForPlayer(state, "P2", assetgen.Balance{})
 	if got := hidden.Territories[0].Army.Chain; got == nil || got.Visibility != "hidden" {
 		t.Fatalf("hidden chain = %#v, want visibility hidden", got)
 	}
@@ -47,7 +48,7 @@ func TestProjectStateDistinguishesKnownHiddenAndAbsentChains(t *testing.T) {
 
 func TestProjectStateGivesSpectatorFullChainVisibility(t *testing.T) {
 	state := projectTestState()
-	view := projectStateForPlayer(state, models.SpectatorViewer)
+	view := projectStateForPlayer(state, models.SpectatorViewer, assetgen.Balance{})
 	if got := view.Territories[0].Army.Chain; got == nil || got.Visibility != "known" {
 		t.Fatalf("spectator chain = %#v, want visibility known", got)
 	}
@@ -122,9 +123,9 @@ func TestProjectStateDoesNotMutatePrivacyState(t *testing.T) {
 		t.Fatalf("marshal before projection: %v", err)
 	}
 
-	_ = projectStateForPlayer(state, "P1")
-	_ = projectStateForPlayer(state, "P2")
-	_ = projectState(state)
+	_ = projectStateForPlayer(state, "P1", assetgen.Balance{})
+	_ = projectStateForPlayer(state, "P2", assetgen.Balance{})
+	_ = projectState(state, assetgen.Balance{})
 
 	after, err := json.Marshal(state)
 	if err != nil {
@@ -220,10 +221,23 @@ func TestProjectReportNormalizesNilCollections(t *testing.T) {
 	if err := json.Unmarshal(data, &document); err != nil {
 		t.Fatalf("decode empty projected report: %v", err)
 	}
-	for _, field := range []string{"players", "receptions", "production", "consumption", "combats", "orders", "moves", "nobles"} {
+	for _, field := range []string{"players", "receptions", "production", "income", "consumption", "combats", "orders", "moves", "nobles"} {
 		if value, ok := document[field]; !ok || value == nil {
 			t.Errorf("projected report field %q = %#v, want JSON array", field, value)
 		}
+	}
+}
+
+func TestProjectReportKeepsIncome(t *testing.T) {
+	report := engine.TurnReport{
+		Income: []engine.IncomeReport{{
+			Owner: "P1", Destination: "ROS", Territories: 5, Villages: 1,
+			Base: 6, Credited: 6, StockAfter: 6,
+		}},
+	}
+	view := projectReport(report, "P1", nil)
+	if len(view.Income) != 1 || view.Income[0].Owner != "P1" || view.Income[0].Credited != 6 {
+		t.Fatalf("projected income = %#v, want the report's income line preserved", view.Income)
 	}
 }
 

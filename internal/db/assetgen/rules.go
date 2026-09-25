@@ -93,7 +93,8 @@ func renderRules(document []byte, balance Balance) ([]byte, error) {
 	calamityCounts := WeightedCardCounts(balance.SpecialOrders.DeckSize*balance.SpecialOrders.CalamityPercentage/100, balance.SpecialOrders.CalamityWeights, calamityKinds)
 	bonusCounts := WeightedCardCounts(balance.SpecialOrders.DeckSize-(balance.SpecialOrders.DeckSize*balance.SpecialOrders.CalamityPercentage/100), balance.SpecialOrders.BonusWeights, bonusKinds)
 	values := map[string]string{
-		"base_production":                             stringValue(balance.BaseProduction),
+		"territory_income":                            stringValue(balance.TerritoryIncome),
+		"village_income":                              stringValue(balance.VillageIncome),
 		"supply_range":                                stringValue(balance.SupplyRange),
 		"depot_range_bonus":                           stringValue(balance.DepotRangeBonus),
 		"cost_base":                                   stringValue(balance.CostBase),

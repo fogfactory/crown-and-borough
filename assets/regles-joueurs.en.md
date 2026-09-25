@@ -488,20 +488,38 @@ receives only 1 ration and must cover the rest elsewhere; in the mountains
 (production {{ration_terrain.mountain}}), it depends entirely on supply.
 
 **Supply sources**: controlled castles, villages, and caches. A castle or
-village produces {{base_production}} R of stock per turn; a bare territory has
-no production of its own, but its stock (if any) serves as a cache. The flow
-crosses allied, neutral, or enemy-controlled territories, and only stops
-before a territory occupied by an enemy army. Base range is
-{{supply_range}} territories; each controlled supply depot encountered along
-the route adds {{depot_range_bonus}} territories. A neutral village keeps its
-stock, inaccessible before capture.
+village no longer produces stockable R by itself: its contribution comes from
+adjacent mills and from the territory income it receives (see "Territory
+Income" below); a bare territory has no production of its own, but its stock
+(if any) serves as a cache. The flow crosses allied, neutral, or
+enemy-controlled territories, and only stops before a territory occupied by
+an enemy army. Base range is {{supply_range}} territories; each controlled
+supply depot encountered along the route adds {{depot_range_bonus}}
+territories. A neutral village keeps its stock, inaccessible before capture.
 
 Each source calculates its own production by adding the level of **every
 adjacent mill**: one mill can feed every neighboring source, with no owner
 filter, and an orphaned mill (with no adjacent castle or village) produces
-`0 R`. For example, a village surrounded by two level-1 mills produces
-`{{base_production}} + 1 + 1 R`. The presence or position of a noble never
-conditions this production.
+`0 R`. For example, a castle or village with no adjacent mill produces
+nothing by itself; surrounded by two level-1 mills, it produces `1 + 1 R`.
+The presence or position of a noble never conditions this production.
+
+### Territory Income
+
+Each action season (never in winter), every territory you control yields
+{{territory_income}} R, plus {{village_income}} R more if it carries a
+village. This income is credited **before supply**, directly to your
+**capital**'s stock: it never travels through the supply network and can
+never be intercepted.
+
+Without a designated capital (or right after it falls), each territory's
+income goes to the closest controlled castle over crossable borders
+(trigram tie-break), else the closest controlled village, else it is lost —
+distinct territories can therefore feed different destinations the same turn
+while no capital exists. A bad harvest suppresses this income in the region
+of the territory producing it; an abundant harvest doubles it, exactly like
+terrain rations. A **neutral** village keeps producing {{village_income}} R
+per turn into its own stock, recovered on capture.
 
 ### Stocks and Famine
 
@@ -538,8 +556,8 @@ conditions are detailed in section 8.
 |---|---|
 | Mill | +1 stockable R per level at each adjacent source |
 | Supply depot | +{{depot_range_bonus}} territories of supply range when controlled |
-| Castle | +{{castle_defense_bonus}} defense, produces {{base_production}} stockable R per turn, supply anchor |
-| Village | Produces {{base_production}} stockable R per turn, supply anchor after capture |
+| Castle | +{{castle_defense_bonus}} defense, supply anchor, receives territory income (section 7) |
+| Village | Supply anchor after capture, receives territory income once controlled (produces {{village_income}} R per turn into its own stock while neutral) |
 
 ---
 
@@ -598,12 +616,12 @@ stock. An orphaned mill produces nothing.
 - **stock** is therefore the amount of `R` kept on a territory.
 
 Each controlled castle or village is a separate source, and any controlled
-territory with positive stock is an action-season cache source. Every castle
-or village produces {{base_production}} R per turn independently of the
-others: a second castle is therefore a second source, even though only one
-castle is designated as the capital. A mill adds its level to every adjacent
-source, even across owner boundaries — see section 7 for the details of this
-production.
+territory with positive stock is an action-season cache source: a second
+castle is therefore a second source, even though only one castle is
+designated as the capital. Its stock depends on the territory income it
+receives (section 7, if it is the capital or its fallback) and on adjacent
+mills, which add their level to every neighboring source, even across owner
+boundaries — see section 7 for the details of this production.
 
 **Payment**: the cost is taken first from the stock on the target territory,
 then from the nearest controlled source; if the total reserve is

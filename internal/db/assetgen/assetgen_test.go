@@ -20,7 +20,8 @@ const (
 		"ADE;Adélaïde\n" +
 		"MAH;Mahaut\n"
 	validBalance = `# The loader accepts YAML documentation comments.
-base_production: 1
+territory_income: 1
+village_income: 1
 supply_range: 3
 depot_range_bonus: 2
 cost_base: 2
@@ -103,7 +104,7 @@ func TestLoadRealBalance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadBalance(real asset) = %v", err)
 	}
-	if balance.BaseProduction != 1 || balance.DepotRangeBonus != 2 || balance.NobleCommandBonus != 1 || balance.WinterStockDivisor != 2 || balance.VillageStockCap != 1 || balance.CastleStockCap != 2 || balance.Costs.Castle != 10 || balance.Costs.Liberation != 0 || len(balance.Costs.MillLevels) != 3 || balance.Costs.MillLevels[0] != 3 || balance.Costs.MillLevels[1] != 5 || balance.Costs.MillLevels[2] != 7 {
+	if balance.TerritoryIncome != 1 || balance.VillageIncome != 1 || balance.DepotRangeBonus != 2 || balance.NobleCommandBonus != 1 || balance.WinterStockDivisor != 2 || balance.VillageStockCap != 1 || balance.CastleStockCap != 2 || balance.Costs.Castle != 10 || balance.Costs.Liberation != 0 || len(balance.Costs.MillLevels) != 3 || balance.Costs.MillLevels[0] != 3 || balance.Costs.MillLevels[1] != 5 || balance.Costs.MillLevels[2] != 7 {
 		t.Errorf("loaded costs = %#v / %#v", balance, balance.Costs)
 	}
 	if len(balance.FirstNames) < 100 {
@@ -169,17 +170,22 @@ func TestLoadBalanceInvalid(t *testing.T) {
 		},
 		{
 			name:    "removed infrastructure rations bonus",
-			content: strings.Replace(validBalance, "base_production: 1\n", "base_production: 1\ninfra_rations_bonus: 2\n", 1),
+			content: strings.Replace(validBalance, "territory_income: 1\n", "territory_income: 1\ninfra_rations_bonus: 2\n", 1),
 			want:    "infra_rations_bonus",
 		},
 		{
+			name:    "removed base production",
+			content: strings.Replace(validBalance, "territory_income: 1\n", "base_production: 1\nterritory_income: 1\n", 1),
+			want:    "base_production",
+		},
+		{
 			name:    "unknown setting",
-			content: strings.Replace(validBalance, "base_production: 1\n", "unknown_setting: 1\nbase_production: 1\n", 1),
+			content: strings.Replace(validBalance, "territory_income: 1\n", "unknown_setting: 1\nterritory_income: 1\n", 1),
 			want:    "unknown_setting",
 		},
 		{
 			name:    "malformed YAML",
-			content: "base_production: [\n",
+			content: "territory_income: [\n",
 			want:    "invalid YAML",
 		},
 	}

@@ -535,6 +535,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
   if (!report) return null
   const receptions = report.receptions ?? []
   const combats = report.combats ?? []
+  const income = report.income ?? []
   const production = report.production ?? []
   const consumption = report.consumption ?? []
   const orders = report.orders ?? []
@@ -658,6 +659,57 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
+          {t('reports.incomeTitle')}
+        </h4>
+        {income.length === 0 ? (
+          emptyMessage(t('reports.incomeTitle').toLowerCase(), t)
+        ) : (
+          <div className="space-y-1 text-sm">
+            {income.map((line, index) => (
+              <div
+                key={`${line.owner}-${line.destination ?? 'lost'}-${index}`}
+                className="rounded-md bg-[#f3ead9] px-3 py-2"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="flex min-w-0 items-center gap-2">
+                    {playerMarker(players, line.owner, t)}
+                    {line.destination ? (
+                      <span className="text-xs text-[#806f57]">
+                        {territoryLabel(map, line.destination, t)}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span
+                    className={
+                      line.lost
+                        ? 'shrink-0 text-xs font-semibold text-[#a84632]'
+                        : 'shrink-0 text-xs font-semibold text-[#376341]'
+                    }
+                  >
+                    {line.lost
+                      ? t('reports.incomeLost')
+                      : t('reports.incomeCredited', { count: line.credited })}
+                  </span>
+                </div>
+                <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-[#806f57]">
+                  <span>{t('reports.incomeTerritories', { count: line.territories })}</span>
+                  {line.villages > 0 && (
+                    <span>{t('reports.incomeVillages', { count: line.villages })}</span>
+                  )}
+                  {(line.suppressed ?? 0) > 0 && (
+                    <span className="font-semibold text-[#8d321e]">
+                      {t('reports.incomeSuppressed', { count: line.suppressed ?? 0 })}
+                    </span>
+                  )}
+                </p>
+              </div>
+            ))}
           </div>
         )}
       </div>
