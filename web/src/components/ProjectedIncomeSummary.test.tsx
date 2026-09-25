@@ -9,8 +9,15 @@ const state: StateData = {
   turn: 1,
   season: 'spring',
   players: [
-    { id: 'P1', name: 'Alice', color: '#a84632', capitalTerritory: 'ROS', projectedIncome: 6 },
-    { id: 'P2', name: 'Bob', color: '#2d5f9e', projectedIncome: 0 },
+    {
+      id: 'P1',
+      name: 'Alice',
+      color: '#a84632',
+      capitalTerritory: 'ROS',
+      projectedIncome: 6,
+      projectedMillIncome: 2,
+    },
+    { id: 'P2', name: 'Bob', color: '#2d5f9e', projectedIncome: 0, projectedMillIncome: 0 },
   ],
   territories: [],
   nobles: [],
@@ -25,7 +32,8 @@ describe('ProjectedIncomeSummary', () => {
     )
 
     expect(screen.getByText('Projected income')).toBeInTheDocument()
-    expect(screen.getByText('+6 R per action turn → ROS (capital)')).toBeInTheDocument()
+    expect(screen.getByText('Territory: +6 R per action turn → ROS (capital)')).toBeInTheDocument()
+    expect(screen.getByText('Mills: +2 R per action turn')).toBeInTheDocument()
   })
 
   it('omits the destination without a capital', () => {
@@ -35,7 +43,8 @@ describe('ProjectedIncomeSummary', () => {
       </LanguageProvider>,
     )
 
-    expect(screen.getByText('+0 R per action turn')).toBeInTheDocument()
+    expect(screen.getByText('Territory: +0 R per action turn')).toBeInTheDocument()
+    expect(screen.getByText('Mills: +0 R per action turn')).toBeInTheDocument()
   })
 
   it('renders nothing without a selected player', () => {

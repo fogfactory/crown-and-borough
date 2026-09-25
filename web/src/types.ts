@@ -167,6 +167,14 @@ export interface Player {
   capitalTerritory?: string
   /** Territory income projected for the next action turn (never in winter). */
   projectedIncome?: number
+  /**
+   * Mill production projected for the next action turn, credited to the
+   * player's controlled castles and villages (never in winter). A mill
+   * currently credits every adjacent controlled settlement independently
+   * (issue #195 will narrow this to a single destination), so this is the
+   * sum of what each of them will receive.
+   */
+  projectedMillIncome?: number
 }
 
 export interface ScoreBreakdown {
