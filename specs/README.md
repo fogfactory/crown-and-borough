@@ -14,6 +14,7 @@ réordonnancement.
 | Architecture | [`architecture.md`](architecture.md) | [Milestone v1](https://github.com/fogfactory/crown-and-borough/milestone/1) |
 | Online | [`online.md`](online.md), [`online-plan.md`](online-plan.md), [`prompts/`](prompts/) | [Issue #2](https://github.com/fogfactory/crown-and-borough/issues/2), [Online Foundations](https://github.com/fogfactory/crown-and-borough/milestone/11), [Online Friends MVP](https://github.com/fogfactory/crown-and-borough/milestone/12), [Online Hosted](https://github.com/fogfactory/crown-and-borough/milestone/10) |
 | Tests live | [`hotseat-live-test.md`](hotseat-live-test.md) | [Milestone v1](https://github.com/fogfactory/crown-and-borough/milestone/1) |
+| Charte graphique | [`charte-graphique.md`](charte-graphique.md) | Une issue par phase, à créer |
 
 ## Thèmes futurs
 

@@ -12,12 +12,15 @@ front React/Vite/TypeScript. Toute la conception vit dans `specs/` :
 - `specs/gdd.md` — règles du jeu (la source de vérité du gameplay)
 - `specs/architecture.md` — stack, structure du repo, contrats map.json/state.json
 - `specs/roadmap.md` — état de la v1 et évolutions suivies par issues GitHub
+- `specs/charte-graphique.md` — identité visuelle, rendu de la carte et
+  ergonomie du front (refonte actée, pas encore implémentée)
 - `specs/prompts/` — prompts online `p3.x` conservés temporairement comme
   matériau de travail ; les prompts livrés ou abandonnés ont été supprimés
 
 Avant d'implémenter une règle de jeu, lire le GDD. Avant de toucher la stack
-ou les contrats d'API, lire l'architecture. Toute décision de conception
-nouvelle ou modifiée doit être reportée dans les specs correspondantes.
+ou les contrats d'API, lire l'architecture. Avant de modifier l'interface,
+lire la charte graphique. Toute décision de conception nouvelle ou modifiée
+doit être reportée dans les specs correspondantes.
 
 ## Workflow Git
 
