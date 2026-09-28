@@ -188,3 +188,40 @@ func TestSeigneurialTaxOpensRevoltWindowOnEveryFiefTerritory(t *testing.T) {
 		t.Fatalf("revolt on OTH two turns after the tax = %t, want false", ok)
 	}
 }
+
+// TestSeigneurialTaxAndRevoltInTheSameSubmission mirrors hotseat test 3's
+// sharpest case: the tax and a revolt on another territory of the same
+// fief, both played in the very same order submission (not a follow-up
+// turn). resolveDeckOrders checks each order's CanPlay before
+// resolveSeasonEffects has applied any card's effect, so this only works if
+// the fiefs targeted by a same-batch tax are flagged on the real resolution
+// context up front, not only on validateActionDeckOrders' throwaway one.
+func TestSeigneurialTaxAndRevoltInTheSameSubmission(t *testing.T) {
+	state := taxTestState(t)
+	state.SpecialDeck.Cards = append(state.SpecialDeck.Cards, models.SpecialCard{ID: "C3", Kind: models.CardKindRevolt})
+	state.SpecialDeck.Hands["P1"] = append(state.SpecialDeck.Hands["P1"], "C3")
+	validateTestState(t, state)
+	resolution, err := ResolveWithDeckOrders(state, testBalance(), map[models.PlayerID][]models.DeckOrder{
+		"P1": {
+			{ID: "O1", Type: models.DeckOrderTypePlay, Kind: models.CardKindSeigneurialTax, TargetTerritoryID: "FCP"},
+			{ID: "O2", Type: models.DeckOrderTypePlay, Kind: models.CardKindRevolt, TargetTerritoryID: "OTH"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("ResolveWithDeckOrders: %v", err)
+	}
+	for _, event := range resolution.Events {
+		if event.Type == EventTypeRejected && event.OrderID == "O2" {
+			t.Fatalf("revolt on OTH in the same submission as the tax = rejected (%q), want accepted", event.Reason)
+		}
+	}
+	playedRevolt := false
+	for _, event := range resolution.Events {
+		if event.Type == EventTypeDeckOrderPlayed && event.CardKind == models.CardKindRevolt {
+			playedRevolt = true
+		}
+	}
+	if !playedRevolt {
+		t.Fatalf("events = %#v, want a deck_order_played event for the revolt", resolution.Events)
+	}
+}

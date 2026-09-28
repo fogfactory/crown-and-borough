@@ -46,21 +46,7 @@ func validateActionDeckOrders(game *models.GameState, balance assetgen.Balance, 
 		}
 	}
 	validationContext := newResolutionContext(game, balance)
-	// A revolt targeting a fief only taxed by a card submitted in this same
-	// batch must not be rejected outright: resolveSeasonEffects will apply
-	// the tax before the revolt (deck_seigneurial_tax_order.go), so the
-	// combination is legal even though neither card has actually been
-	// applied yet at validation time.
-	for _, playerOrders := range deckOrders {
-		for _, order := range playerOrders {
-			if order.Type != models.DeckOrderTypePlay || order.Kind != models.CardKindSeigneurialTax {
-				continue
-			}
-			if fief := validationContext.fiefByCapital(order.TargetTerritoryID); fief != nil {
-				validationContext.pendingTaxWindowFiefs[fief.ID] = true
-			}
-		}
-	}
+	markPendingTaxWindowFiefs(validationContext, deckOrders)
 	for _, playerID := range sortedDeckPlayerIDs(deckOrders) {
 		if !players[playerID] {
 			return fmt.Errorf("engine: resolve: unknown player %q", playerID)
@@ -99,6 +85,25 @@ func sortedDeckPlayerIDs(deckOrders map[models.PlayerID][]models.DeckOrder) []mo
 	}
 	sort.Slice(playerIDs, func(i, j int) bool { return playerIDs[i] < playerIDs[j] })
 	return playerIDs
+}
+
+// markPendingTaxWindowFiefs flags, on ctx, every fief targeted by a
+// seigneurial tax order in this same deck order batch. A revolt targeting
+// one of those fiefs must not be rejected: resolveSeasonEffects applies the
+// tax before the revolt (deck_seigneurial_tax_order.go), so the combination
+// is legal even though neither card has actually been applied yet when
+// resolveDeckOrders checks each order's CanPlay.
+func markPendingTaxWindowFiefs(ctx *resolutionContext, deckOrders map[models.PlayerID][]models.DeckOrder) {
+	for _, playerOrders := range deckOrders {
+		for _, order := range playerOrders {
+			if order.Type != models.DeckOrderTypePlay || order.Kind != models.CardKindSeigneurialTax {
+				continue
+			}
+			if fief := ctx.fiefByCapital(order.TargetTerritoryID); fief != nil {
+				ctx.pendingTaxWindowFiefs[fief.ID] = true
+			}
+		}
+	}
 }
 
 func resolveDeckOrders(ctx *resolutionContext, deckOrders map[models.PlayerID][]models.DeckOrder) {
