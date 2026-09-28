@@ -21,7 +21,12 @@ décrite dans [`architecture.md`](architecture.md).
 - Le flux traverse les cases alliées, neutres ou contrôlées par un autre joueur
   et ne s'arrête que devant une case occupée par une armée adverse. Un château,
   un village ou un dépôt adverse sans armée ne bloque pas le flux.
-- La portée de base est de trois cases ; un dépôt contrôlé ajoute deux cases.
+- Une case **occupée contre son contrôleur** (titres.md, notamment dans un
+  fief) n'est plus elle-même une source ni un dépôt utilisable, ni pour le
+  contrôleur ni pour l'occupant, même si elle continue de bloquer ou de
+  laisser passer le flux traversant selon la règle ci-dessus.
+- La portée de base est de trois cases ; un dépôt contrôlé, non occupé, ajoute
+  deux cases.
 - En déficit, les stocks sont épuisés puis les armées passent en famine selon
   la distance, la taille et le trigramme territorial.
 - Une armée affamée agit à force zéro, même avec un noble commandant, et peut

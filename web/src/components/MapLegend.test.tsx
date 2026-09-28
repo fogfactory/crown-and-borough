@@ -118,4 +118,17 @@ describe('MapLegend', () => {
     const vignette = container.querySelector('svg[viewBox="-13 -15 26 30"]')
     expect(vignette?.querySelector(`path[d="${OWNERSHIP_SHIELD_PATH}"]`)).not.toBeNull()
   })
+
+  it('shows the occupied fief member hatch swatch', () => {
+    const { container } = render(
+      <LanguageProvider initialLanguage="en">
+        <MapLegend />
+      </LanguageProvider>,
+    )
+
+    expect(
+      screen.getByText('Occupied (controlled, held by another army)'),
+    ).toBeInTheDocument()
+    expect(container.querySelector('#legend-occupied-hatch')).toBeInTheDocument()
+  })
 })

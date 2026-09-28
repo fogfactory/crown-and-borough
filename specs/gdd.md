@@ -78,9 +78,12 @@ liste d'investissements directs, traités dans l'ordre saisi :
 qui ciblent un noble. La feuille d'hiver peut aussi contenir `D C KIND` pour
 défausser une carte bonus (voir « Cartes bonus et calamités » ci-dessous).
 
-Les investissements territoriaux exigent le contrôle du territoire ciblé. Le
-recrutement d'une troupe exige en outre un noble libre du joueur, situé sur la
-cible ou sur un territoire adjacent à celle-ci par une frontière franchissable.
+Les investissements territoriaux exigent le contrôle du territoire ciblé et
+qu'il ne soit pas **occupé contre son contrôleur** (titres.md) : une armée
+adverse ou une révolte y stationnant rejette l'ordre sans prélèvement
+(`territory_occupied_by_other_player`). Le recrutement d'une troupe exige en
+outre un noble libre du joueur, situé sur la cible ou sur un territoire
+adjacent à celle-ci par une frontière franchissable.
 Le recrutement d'un noble exige une infrastructure de peuplement (château ou
 village) et une armée du joueur sur la case. Un ordre rejeté est signalé dans
 le rapport avec son motif ; toutes les conditions sont vérifiées avant le
@@ -109,12 +112,15 @@ Les coûts sont prélevés d'abord sur le stock de la case ciblée, puis sur la
 source contrôlée la plus proche. Si la réserve totale est insuffisante, aucun
 prélèvement partiel n'est effectué.
 
-Seuls les stocks de châteaux et villages contrôlés sont des réserves de paiement
-en hiver ; les caches ordinaires et les dépôts ne paient pas les investissements.
-Un moulin fait exception à cette règle pour sa propre amélioration (`C M`) : il
-puise d'abord sur son propre stock, puis sur celui de l'infrastructure qui
-recevrait sa production (château en priorité, sinon village), avant de recourir
-au paiement d'hiver habituel (voir [economie.md](economie.md#amélioration-dun-moulin)).
+Seuls les stocks de châteaux et villages contrôlés, **non occupés contre leur
+contrôleur**, sont des réserves de paiement en hiver ; les caches ordinaires
+et les dépôts ne paient pas les investissements. Un moulin fait exception à
+cette règle pour sa propre amélioration (`C M`) : il puise d'abord sur son
+propre stock, puis sur celui de l'infrastructure qui recevrait sa production
+(château en priorité, sinon village), avant de recourir au paiement d'hiver
+habituel (voir [economie.md](economie.md#amélioration-dun-moulin)) — sous la
+même réserve : une infrastructure occupée contre son contrôleur ne fait
+jamais partie de ces sources.
 
 À la fin de l'hiver :
 
@@ -124,11 +130,16 @@ au paiement d'hiver habituel (voir [economie.md](economie.md#amélioration-dun-m
 - tout stock situé hors château, village, moulin ou dépôt est perdu ;
 - les stocks des châteaux et villages sont rapatriés vers la capitale, en
   laissant au maximum 1 R par village et 2 R par château hors capitale ; le
-  stock d'un moulin n'est jamais rapatrié ;
+  stock d'un moulin n'est jamais rapatrié ; une colonie occupée contre son
+  contrôleur ne rapatrie pas non plus son stock, qui y reste et suit la
+  conservation normale ;
 - sans capitale, les stocks restent sur place ;
-- tout fief encore vacant (sans titulaire) est dissous : ses territoires
-  redeviennent contrôlés hors fief, sans effet rétroactif sur les points déjà
-  comptés (voir [titres.md](titres.md#perte-et-vacance-dun-fief)) ;
+- tout fief encore vacant (sans titulaire) est **attribué par défaut** au
+  noble libre du joueur qui le détient dont le trigramme est le plus petit
+  par ordre lexicographique, avec un avertissement dans le rapport ; sans
+  aucun noble libre disponible à ce moment, le fief reste simplement vacant
+  (il n'est plus jamais dissous faute d'attribution, voir
+  [titres.md](titres.md#perte-et-vacance-dun-fief)) ;
 - la saison suivante est le printemps.
 
 Les stocks hors château et village ne peuvent pas payer les investissements
@@ -239,12 +250,17 @@ Une case ne porte qu'une seule infrastructure.
 C'est le territoire contrôlé, et non l'infrastructure bâtie, qui produit la
 ressource `R` stockable : chaque saison d'action (jamais en hiver), chaque
 territoire contrôlé rapporte `territory_income` R, plus `village_income` R
-s'il porte un village, versés directement au stock de la capitale du joueur
-avant le ravitaillement (voir `assets/balance.yaml`). Sans capitale, le
-revenu de chaque territoire va au château contrôlé le plus proche, sinon au
-village contrôlé le plus proche, sinon il est perdu. La famine supprime ce
-revenu dans la région du territoire qui le produit ; la Récolte abondante le
-double, comme pour les rations.
+s'il porte un village, versés avant le ravitaillement (voir
+`assets/balance.yaml`). Un territoire membre d'un fief le verse à la
+**capitale du fief** plutôt qu'à la capitale du joueur, y compris lorsque le
+territoire producteur ou la capitale du fief elle-même est occupée par une
+armée adverse : ce revenu n'est jamais intercepté par l'occupant (voir
+[titres.md](titres.md#contrôle-et-occupation)). Hors fief, il est versé
+directement au stock de la capitale du joueur ; sans capitale, le revenu de
+chaque territoire va au château contrôlé le plus proche, sinon au village
+contrôlé le plus proche, sinon il est perdu. La famine supprime ce revenu
+dans la région du territoire qui le produit ; la Récolte abondante le double,
+comme pour les rations.
 
 Un village est une infrastructure rare et neutre à la génération ; il ne
 peut pas être construit. Neutre, il produit `village_income` R par tour dans
@@ -366,9 +382,11 @@ Les châteaux, villages et caches contrôlés contenant un stock positif sont le
 sources de ravitaillement. Une armée consomme en priorité le stock de sa case.
 Le flux traverse les cases alliées, neutres ou contrôlées par un autre joueur et
 ne s'arrête que devant une case occupée par une armée adverse. Un château, un
-village ou un dépôt adverse sans armée ne bloque donc pas le flux. La portée de
-base est de 3 cases ; chaque dépôt de vivres contrôlé rencontré sur le trajet
-ajoute 2 cases.
+village ou un dépôt adverse sans armée ne bloque donc pas le flux. Une case
+**occupée contre son contrôleur** (titres.md) n'est en revanche plus
+elle-même une source ni un dépôt utilisable, ni pour le contrôleur ni pour
+l'occupant. La portée de base est de 3 cases ; chaque dépôt de vivres
+contrôlé, non occupé, rencontré sur le trajet ajoute 2 cases.
 
 En cas de déficit :
 
@@ -527,6 +545,13 @@ le trigramme croissant de leur case d'origine.
 
 Les infrastructures appartiennent à leur case. Le joueur qui contrôle la case
 en bénéficie ; il n'y a pas de propriétaire stocké sur l'infrastructure.
+
+Le contrôle territorial reste positionnel hors fief. Dans un fief, il est
+**transitif** (titres.md) : un membre non-capitale reste contrôlé par le
+propriétaire du fief même lorsqu'une armée adverse, ou une révolte
+`NEUTRAL`, s'y arrête (elle l'**occupe** sans le contrôler) ; seule la prise
+de la **capitale** du fief transfère le contrôle de tous ses membres au
+conquérant en une seule fois.
 
 | Infrastructure | Condition | Effet v1 | Coût |
 |---|---|---|---:|

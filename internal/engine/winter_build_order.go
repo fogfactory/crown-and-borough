@@ -19,6 +19,9 @@ func (order buildOrder) Apply(ctx *ExecutionContext) {
 		resolution.rejectWinterOrder(playerID, winterOrder, "territory_not_controlled")
 		return
 	}
+	if resolution.rejectIfOccupied(playerID, winterOrder, winterOrder.TerritoryID) {
+		return
+	}
 	if !isBuildableInfrastructure(winterOrder.InfraType) {
 		resolution.rejectWinterOrder(playerID, winterOrder, "invalid_infrastructure")
 		return

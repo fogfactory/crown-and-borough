@@ -338,9 +338,11 @@ BRI D BRI ATL NOR          # BRI keeps the chain; the other groups split away
 ### Transfer (`T`)
 
 **The gist**: `XXX T YYY N` is executed after supply, by the army on `XXX`.
-`YYY` must be a castle, village, or the territory of an army controlled by
-another living player; a bare depot cannot receive. The source territory only
-needs to contain stock.
+`YYY` must be a castle, village, or the territory of an army that **controls**
+its own territory and belongs to another living player (an army that merely
+occupies `YYY`, for instance on a fief member it does not control, cannot
+receive); a bare depot cannot receive. The source territory only needs to
+contain stock, and must not be occupied against its controller.
 
 **Edge cases**:
 
@@ -423,7 +425,16 @@ alternative are destroyed. Retreat resolution order follows the ascending
 trigram of their origin territory.
 
 Territorial control follows the army that stops there; acquired control
-remains after the army leaves, until an enemy army stops there.
+remains after the army leaves, until an enemy army stops there. Within a fief
+(section 8), control is **transitive**: a member other than its capital stays
+controlled by the fief's owner even when an enemy army — or a revolt — stops
+there; it **occupies** the member without controlling it. Only capturing the
+**capital** transfers control of every member to the conqueror at once. A
+cell occupied against its controller (fief or not) is no longer a usable
+supply source or depot for anyone, and rejects any winter investment aimed at
+it (see sections 7 and 8); it still keeps its defensive bonus for the
+occupant, and its territory income keeps flowing to its normal destination,
+never intercepted.
 
 ### Nobles During a Combat
 
@@ -494,10 +505,13 @@ itself: its contribution comes from the mills adjacent to it and from the
 territory income it receives (see "Territory Income" below); a bare territory
 has no production of its own, but its stock (if any) serves as a cache. The
 flow crosses allied, neutral, or enemy-controlled territories, and only stops
-before a territory occupied by an enemy army. Base range is
-{{supply_range}} territories; each controlled supply depot encountered along
-the route adds {{depot_range_bonus}} territories. A neutral village keeps its
-stock, inaccessible before capture.
+before a territory occupied by an enemy army. A cell **occupied against its
+controller** (section 6) — for instance a fief member held by an opponent who
+never took control of it — is however no longer a usable source or depot for
+anyone, controller or occupant. Base range is {{supply_range}} territories;
+each controlled supply depot, not occupied, encountered along the route adds
+{{depot_range_bonus}} territories. A neutral village keeps its stock,
+inaccessible before capture.
 
 A level-`N` mill produces `N` R and credits exactly **one** infrastructure:
 the adjacent castle **under the same control as the mill's own territory**,
@@ -516,9 +530,13 @@ this production.
 
 Each action season (never in winter), every territory you control yields
 {{territory_income}} R, plus {{village_income}} R more if it carries a
-village. This income is credited **before supply**, directly to your
-**capital**'s stock: it never travels through the supply network and can
-never be intercepted.
+village. This income is credited **before supply**: it never travels through
+the supply network and can never be intercepted, even when the producing
+territory — or its destination — is occupied by an enemy army.
+
+A territory that belongs to a **fief** (section 8) credits the **fief's
+capital** instead of your own. Outside any fief, it goes straight to your
+**capital**'s stock.
 
 Without a designated capital (or right after it falls), each territory's
 income goes to the closest controlled castle over crossable borders
@@ -614,8 +632,11 @@ remain productive; only new upgrades are blocked. The adjacency requirement
 **building** a new mill; an existing mill can always be upgraded, even in
 isolation, paying from its own stock (see "Resource Vocabulary" below).
 
-Investments targeting a territory require **control of that territory**. A
-construction replaces the existing structure only when the rule says so: a
+Investments targeting a territory require **control of that territory** and
+that it not be **occupied against its controller** (section 6): an enemy
+army — or a revolt — stationed there rejects the order with no stock
+deducted. A construction replaces the existing structure only when the rule
+says so: a
 **castle built on a village replaces the village** and keeps the territory's
 stock. An isolated mill (no castle or village of its own control adjacent)
 produces on its own territory (see section 7) and can always be upgraded.
@@ -631,14 +652,22 @@ bonus, not stacking with it). The title belongs to the designated titulaire
 noble, who must be free at the time of founding; a single noble may hold
 several titles, and a player may hold several fiefs.
 
+Control of a fief is **transitive** (section 6): a member other than the
+capital stays yours even when an enemy army stops there; it **occupies** the
+member without taking it from you. Only capturing the **capital** costs you
+the entire fief, every member at once.
+
 If the titulaire dies (plague) or the capital changes hands, the fief becomes
 **vacant**: it keeps producing and scoring its point, but has no titulaire.
-`T A` then assigns it to a free noble of the player who holds it; without an
-assignment before the end of winter, the fief is dissolved and its
-territories revert to ordinary control. If the capital's castle is destroyed
-(pillage, including automatic famine pillage), the fief is dissolved
-**immediately**, regardless of the season. Capturing the titulaire (hostage
-or dungeon), by contrast, has no effect on the fief.
+`T A` then assigns it to a free noble of the player who holds it. At the end
+of winter, a fief still vacant at that point is **automatically assigned** to
+the free noble whose trigram sorts first, with a warning in the report
+telling you to take back manual assignment next turn; with no free noble at
+all, it simply stays vacant — it is **never dissolved** for lack of
+assignment any more. If the capital's castle is destroyed (pillage, including
+automatic famine pillage), the fief is dissolved **immediately**, regardless
+of the season: this is the only way a fief is dissolved. Capturing the
+titulaire (hostage or dungeon), by contrast, has no effect on the fief.
 
 ### Resource Vocabulary
 
@@ -660,7 +689,9 @@ section 7 for the details of this production.
 **Payment**: the cost is taken first from the stock on the target territory,
 then from the nearest controlled source; if the total reserve is
 insufficient, **no partial payment** is made and the investment is rejected
-(reported, with no cost lost). Upgrading a mill (`C M ATL`) is the exception
+(reported, with no cost lost). A settlement or mill occupied against its
+controller is never part of these reserves. Upgrading a mill (`C M ATL`) is
+the exception
 to this order: it first consumes the mill's own stock, then the stock of the
 infrastructure that would receive its production (castle first, else
 village), before falling back to the usual payment network; if those stocks
@@ -676,7 +707,9 @@ payment made.
   mill, or depot is lost;
 - castle and village stocks outside the capital are brought back to the
   capital, leaving at most {{village_stock_cap}} R per village and
-  {{castle_stock_cap}} R per castle; a mill's stock is **never** repatriated;
+  {{castle_stock_cap}} R per castle; a mill's stock is **never** repatriated,
+  and neither is a settlement's stock while it is occupied against its
+  controller (it stays there and follows normal conservation instead);
 - without a capital, those stocks remain where they are; depot stock remains
   on its territory.
 

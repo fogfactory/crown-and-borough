@@ -52,6 +52,8 @@ export type EventType =
   | 'fief_conquered'
   | 'fief_vacated'
   | 'fief_dissolved'
+  | 'fief_member_occupied'
+  | 'fief_auto_assigned'
 
 export type PlayerId = string
 
@@ -166,7 +168,11 @@ export type FiefTitle = 'barony' | 'county' | 'marquisate' | 'duchy'
  * A fief is addressed by its capital's trigram: no internal fief id is ever
  * exposed by the server (titres.md, issue #194). `territories` lists the
  * whole group in constitution order, capital first. `holder` is the
- * titulaire noble's code, absent when the fief is vacant.
+ * titulaire noble's code, absent when the fief is vacant. `projectedIncome`
+ * sums the next action turn's territory income forecast over every member
+ * territory: the fief's own income projection, distinct from the capital
+ * territory's own `projectedIncome` since it also receives every other
+ * member's income (titres.md, #196).
  */
 export interface Fief {
   capital: string
@@ -174,6 +180,7 @@ export interface Fief {
   territories: string[]
   owner: PlayerId
   holder?: string
+  projectedIncome?: number
 }
 
 export interface MapData {
@@ -498,9 +505,18 @@ export interface PlayerReport {
   infrastructures: ReportInfrastructure[]
 }
 
+/**
+ * `fief` and `title` are set together, distinguishing a fief's income line
+ * from a player's non-fief income to the same `destination`: a fief whose
+ * capital happens to also be the player's own capital still gets its own
+ * line (titres.md, #196). `fief` is the trigram of the fief's capital,
+ * equal to `destination` for that line.
+ */
 export interface IncomeReport {
   owner: PlayerId
   destination?: string
+  fief?: string
+  title?: FiefTitle
   territories: number
   villages: number
   base: number
@@ -649,7 +665,7 @@ export interface WinterInvestmentReport {
   noble?: string
   nobleCode?: string
   nobleName?: string
-  /** Present only for `fief_founded`/`fief_assigned`. */
+  /** Present only for `fief_founded`/`fief_assigned`/`fief_auto_assigned`. */
   title?: FiefTitle
   territories?: string[]
   reason?: string
@@ -736,11 +752,15 @@ export interface WinterReport {
 }
 
 /**
- * One fief lifecycle change outside its constitution or attribution (those
+ * One fief lifecycle change outside its constitution or attribution (those,
+ * plus the default attribution of a still-vacant fief at the end of winter,
  * are recorded in `winter.investments` alongside the other investment
  * orders): a conquered fief transferred to a new owner, a fief left vacant
- * by the death of its titulaire, or a fief dissolved for losing its
- * capital's castle or staying unassigned at the end of winter.
+ * by the death of its titulaire, a fief dissolved for losing its capital's
+ * castle, or a non-capital member newly occupied by an army (including a
+ * NEUTRAL revolt) whose owner differs from the fief's. For that last kind,
+ * `territory` is the occupied member (distinct from `capital`, which still
+ * identifies the fief) and `occupant` is the occupying army's owner.
  */
 export interface FiefReport {
   kind: EventType
@@ -749,6 +769,8 @@ export interface FiefReport {
   capital: string
   title: FiefTitle
   territories: string[]
+  territory?: string
+  occupant?: PlayerId
   noble?: string
   nobleName?: string
   reason?: string

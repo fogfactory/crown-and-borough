@@ -277,6 +277,11 @@ func controlledSupplyOwner(ctx *resolutionContext, territoryID models.TerritoryI
 	if state.OwnerID == nil {
 		return "", false
 	}
+	if ctx.occupiedAgainstController(territoryID, ctx.startArmyAt(territoryID)) {
+		// Occupied against its controller: unusable as a supply source by
+		// either side (titres.md, economie.md#portée-de-ravitaillement).
+		return "", false
+	}
 	infrastructure := ctx.infrastructureAt(territoryID)
 	if infrastructure != nil {
 		switch infrastructure.Type {

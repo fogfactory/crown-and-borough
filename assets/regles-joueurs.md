@@ -361,8 +361,11 @@ BRI D BRI ATL NOR          # BRI garde la chaîne, les autres groupes se sépare
 
 **L'essentiel** : `XXX T YYY N` est exécuté après le ravitaillement, par
 l'armée en `XXX`. `YYY` doit être un château, un village, ou la case d'une
-armée contrôlée par un autre joueur vivant ; un dépôt sans armée ne peut pas
-recevoir. Le stock source peut exister sans infrastructure.
+armée **contrôlant** sa propre case et appartenant à un autre joueur vivant
+(une armée qui ne fait qu'occuper `YYY`, par exemple sur un membre de fief
+qu'elle ne contrôle pas, ne peut pas recevoir) ; un dépôt sans armée ne peut
+pas recevoir. Le stock source peut exister sans infrastructure, mais pas s'il
+est occupé contre son contrôleur.
 
 **Cas particuliers** :
 
@@ -453,6 +456,16 @@ d'origine.
 
 Le contrôle d'un territoire suit l'armée qui s'y arrête ; un contrôle acquis
 reste acquis après le départ de l'armée, jusqu'à l'arrêt d'une armée ennemie.
+Dans un fief (section 8), le contrôle est **transitif** : un membre du fief
+autre que sa capitale reste contrôlé par le propriétaire du fief même
+lorsqu'une armée adverse — ou une révolte — s'y arrête ; elle l'**occupe**
+sans le contrôler. Seule la prise de la **capitale** du fief transfère le
+contrôle de tous ses membres au conquérant en une seule fois. Une case
+occupée contre son contrôleur (fief ou non) n'est plus une source ni un
+dépôt de ravitaillement utilisable pour personne, et rejette tout
+investissement d'hiver ciblé sur elle (voir sections 7 et 8) ; elle garde en
+revanche son bonus défensif pour l'occupant, et son revenu territorial
+continue d'aller à sa destination normale, jamais intercepté.
 
 ### Les nobles pendant un combat
 
@@ -527,10 +540,13 @@ qui lui sont adjacents et du revenu territorial reçu (voir « Revenu
 territorial » ci-dessous) ; une case ordinaire n'a pas de production propre,
 mais son stock (s'il y en a) sert de cache. Le flux traverse les cases
 alliées, neutres ou contrôlées par un autre joueur, et ne s'arrête que devant
-une case occupée par une armée adverse. La portée de base est de
-{{supply_range}} cases ; chaque dépôt de vivres contrôlé rencontré sur le
-trajet ajoute {{depot_range_bonus}} cases. Un village neutre conserve son
-stock, inaccessible avant capture.
+une case occupée par une armée adverse. Une case **occupée contre son
+contrôleur** (section 6) — par exemple un membre de fief tenu par un adversaire
+qui n'en a pas pris le contrôle — n'est en revanche plus elle-même une source
+ni un dépôt utilisable, ni pour le contrôleur ni pour l'occupant. La portée de
+base est de {{supply_range}} cases ; chaque dépôt de vivres contrôlé, non
+occupé, rencontré sur le trajet ajoute {{depot_range_bonus}} cases. Un village
+neutre conserve son stock, inaccessible avant capture.
 
 Chaque moulin de niveau `N` produit `N` R et les verse à **une seule**
 infrastructure : le château adjacent **contrôlé par le même joueur que la
@@ -550,8 +566,13 @@ conditionne jamais cette production.
 À chaque saison d'action (jamais en hiver), chaque territoire que tu
 contrôles rapporte {{territory_income}} R, plus {{village_income}} R
 supplémentaire s'il porte un village. Ce revenu est crédité **avant le
-ravitaillement**, directement au stock de ta **capitale** : il ne circule pas
-par le réseau de ravitaillement et ne peut donc jamais être intercepté.
+ravitaillement** : il ne circule pas par le réseau de ravitaillement et ne
+peut donc jamais être intercepté, même quand le territoire producteur — ou sa
+destination — est occupé par une armée adverse.
+
+Un territoire membre d'un **fief** (section 8) verse son revenu au stock de
+la **capitale du fief** plutôt qu'à ta capitale. Hors fief, il va directement
+au stock de ta **capitale**.
 
 Sans capitale désignée (ou si elle vient de tomber), le revenu de chaque
 territoire est versé au château contrôlé le plus proche à vol de frontières
@@ -654,7 +675,9 @@ déjà bâti peut toujours être amélioré, même isolé, en payant sur son pro
 stock (voir « Vocabulaire des ressources » ci-dessous).
 
 Les investissements qui ciblent un territoire exigent le **contrôle de ce
-territoire**. Une construction remplace la structure existante uniquement
+territoire** et qu'il ne soit pas **occupé contre son contrôleur** (section
+6) : une armée adverse — ou une révolte — y stationnant rejette l'ordre sans
+prélèvement. Une construction remplace la structure existante uniquement
 quand la règle le prévoit : un **château construit sur un village remplace
 le village** et conserve le stock de la case. Un moulin isolé (sans château
 ni village adjacent du même contrôleur) produit sur sa propre case (voir
@@ -672,15 +695,23 @@ noble titulaire désigné, qui doit être libre au moment de la constitution ;
 un même noble peut porter plusieurs titres, et un joueur peut détenir
 plusieurs fiefs.
 
+Le contrôle d'un fief est **transitif** (section 6) : un membre autre que la
+capitale reste à toi même lorsqu'une armée adverse s'y arrête ; elle
+l'**occupe** sans te le prendre. Seule la prise de la **capitale** te fait
+perdre le fief entier, avec tous ses membres, d'un coup.
+
 Si le titulaire meurt (peste) ou si la capitale change de main, le fief
 devient **vacant** : il continue de produire et de compter son point de score,
 mais n'a plus de titulaire. `T A` l'attribue alors à un noble libre du joueur
-qui le détient ; sans attribution avant la fin de l'hiver, le fief est
-dissous et ses territoires redeviennent des territoires ordinaires. Si le
-château de la capitale est détruit (pillage, y compris le pillage
-automatique de famine), le fief est dissous **immédiatement**, quelle que
-soit la saison. La capture du titulaire (otage ou donjon) n'a, elle, aucun
-effet sur le fief.
+qui le détient. En fin d'hiver, un fief encore vacant à ce moment-là est
+**attribué automatiquement** au noble libre dont le trigramme est le plus
+petit, avec un avertissement dans le rapport te signalant de reprendre la main
+la fois suivante ; sans aucun noble libre, il reste simplement vacant — il
+n'est **plus jamais dissous** faute d'attribution. Si le château de la
+capitale est détruit (pillage, y compris le pillage automatique de famine),
+le fief est dissous **immédiatement**, quelle que soit la saison : c'est la
+seule cause de dissolution d'un fief. La capture du titulaire (otage ou
+donjon) n'a, elle, aucun effet sur le fief.
 
 ### Vocabulaire des ressources
 
@@ -704,7 +735,9 @@ pour le détail de cette production.
 **Paiement** : le coût est prélevé d'abord sur le stock de la case ciblée,
 puis sur la source contrôlée la plus proche ; si la réserve totale est
 insuffisante, **aucun paiement partiel** n'est effectué et l'investissement
-est rejeté (signalé dans le rapport, coût non perdu). L'amélioration d'un
+est rejeté (signalé dans le rapport, coût non perdu). Une colonie ou un
+moulin occupé contre son contrôleur ne fait jamais partie de ces réserves.
+L'amélioration d'un
 moulin (`C M ATL`) fait exception à l'ordre habituel : elle consomme d'abord
 le stock du moulin lui-même, puis celui de l'infrastructure qui recevrait sa
 production (château en priorité, sinon village), avant de recourir au réseau
@@ -721,7 +754,8 @@ l'amélioration est rejetée sans prélèvement partiel.
 - les stocks des châteaux et villages hors capitale sont rapatriés vers la
   capitale, en laissant au maximum {{village_stock_cap}} R par village et
   {{castle_stock_cap}} R par château ; le stock d'un moulin n'est **jamais**
-  rapatrié ;
+  rapatrié, et une colonie occupée contre son contrôleur ne l'est pas non plus
+  (son stock y reste et suit la conservation normale) ;
 - sans capitale, ces stocks restent sur place ; les stocks de dépôt restent
   sur leur case.
 

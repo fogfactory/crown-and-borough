@@ -75,8 +75,13 @@ func (ctx *resolutionContext) fortificationBonus(territoryID models.TerritoryID)
 // transferFiefOnCapitalCapture hands a fief entirely to the player who just
 // took its capital: the fief becomes vacant (its titulaire's authority does
 // not carry over) but keeps producing and scoring until dissolved (titres.md).
-// It is a no-op when territoryID is not a fief capital, or when the new owner
-// already held the fief (an intervening ally stop, not a capture).
+// Control is transitive in a fief (titres.md "Contrôle et occupation"), so
+// the capture also flips OwnerID on every other member still held by the
+// previous owner, clearing that member's capital status if it carried one
+// and reporting one control_changed event per member, reason
+// "fief_transferred". It is a no-op when territoryID is not a fief capital,
+// or when the new owner already held the fief (an intervening ally stop, not
+// a capture).
 func (ctx *resolutionContext) transferFiefOnCapitalCapture(territoryID models.TerritoryID, newOwnerID models.PlayerID) {
 	fief := ctx.fiefByCapital(territoryID)
 	if fief == nil || fief.OwnerID == newOwnerID {
@@ -95,6 +100,31 @@ func (ctx *resolutionContext) transferFiefOnCapitalCapture(territoryID models.Te
 		PreviousOwnerID: previousOwnerID,
 		OwnerID:         newOwnerID,
 	})
+	for _, memberID := range fief.Territories {
+		if memberID == fief.CapitalTerritoryID {
+			continue
+		}
+		state := ctx.state.TerritoryStates[memberID]
+		if state.OwnerID != nil && *state.OwnerID == newOwnerID {
+			continue
+		}
+		memberPreviousOwnerID := models.PlayerID("")
+		if state.OwnerID != nil {
+			memberPreviousOwnerID = *state.OwnerID
+		}
+		ownerID := newOwnerID
+		state.OwnerID = &ownerID
+		ctx.state.TerritoryStates[memberID] = state
+		ctx.clearCapitalOnControlLoss(memberPreviousOwnerID, memberID)
+		ctx.events = append(ctx.events, Event{
+			Type:            EventTypeControlChanged,
+			Phase:           5,
+			TerritoryID:     memberID,
+			PreviousOwnerID: memberPreviousOwnerID,
+			OwnerID:         ownerID,
+			Reason:          "fief_transferred",
+		})
+	}
 }
 
 // vacateFiefsOfMissingHolders clears the titulaire of every fief whose noble
@@ -135,15 +165,64 @@ func (ctx *resolutionContext) dissolveFiefOnCapitalCastleLoss(territoryID models
 	ctx.dissolveFief(*fief, "capital_castle_lost")
 }
 
-// dissolveVacantFiefs dissolves every fief still vacant at the end of winter:
-// its territories simply become controlled outside any fief (titres.md).
-func (ctx *resolutionContext) dissolveVacantFiefs() {
-	for _, fief := range append([]models.Fief(nil), ctx.state.Fiefs...) {
+// resolveVacantFiefsAtWinterEnd runs at the end of every winter, after winter
+// orders (including a same-turn T A) and before stock conservation. A fief is
+// never dissolved for lack of attribution any more (titres.md "Perte et
+// vacance d'un fief"): when its owner still has a free noble, the fief is
+// attributed by default to the one whose trigram sorts first, with a warning
+// event telling the player to take back manual attribution next turn.
+// Without any free noble, the fief simply stays vacant: it keeps producing
+// and scoring until attributed or dissolved by its capital's castle falling
+// (dissolveFiefOnCapitalCastleLoss, unaffected by this function).
+func (ctx *resolutionContext) resolveVacantFiefsAtWinterEnd() {
+	for i := range ctx.state.Fiefs {
+		fief := &ctx.state.Fiefs[i]
 		if fief.HolderNobleID != nil {
 			continue
 		}
-		ctx.dissolveFief(fief, "vacant_at_winter_end")
+		nobleID, exists := ctx.smallestFreeNoble(fief.OwnerID)
+		if !exists {
+			continue
+		}
+		noble := ctx.noblesByID[nobleID]
+		fief.HolderNobleID = &nobleID
+		ctx.events = append(ctx.events, Event{
+			Type:            EventTypeFiefAutoAssigned,
+			Phase:           winterPhase,
+			OwnerID:         fief.OwnerID,
+			TerritoryID:     fief.CapitalTerritoryID,
+			FiefID:          fief.ID,
+			FiefTitle:       fief.Title,
+			FiefTerritories: append([]models.TerritoryID(nil), fief.Territories...),
+			NobleID:         nobleID,
+			NobleCode:       models.NobleCode(noble.Code),
+			NobleName:       noble.Name,
+			Reason:          "fief_auto_assigned_default_holder",
+		})
 	}
+}
+
+// smallestFreeNoble returns the id of playerID's free noble whose trigram
+// sorts first, for the deterministic default fief attribution above. It is
+// the same eligibility as the T A order (assignFiefOrder): owned by
+// playerID, NobleStatusFree (so implicitly alive and uncaptured). Holding
+// another fief's title is not disqualifying: a noble may hold several
+// (titres.md "Constitution d'un fief").
+func (ctx *resolutionContext) smallestFreeNoble(playerID models.PlayerID) (models.NobleID, bool) {
+	var best *models.Noble
+	for i := range ctx.state.Nobles {
+		noble := &ctx.state.Nobles[i]
+		if noble.OwnerID != playerID || noble.Status != models.NobleStatusFree {
+			continue
+		}
+		if best == nil || noble.Code < best.Code {
+			best = noble
+		}
+	}
+	if best == nil {
+		return "", false
+	}
+	return best.ID, true
 }
 
 func (ctx *resolutionContext) dissolveFief(fief models.Fief, reason string) {

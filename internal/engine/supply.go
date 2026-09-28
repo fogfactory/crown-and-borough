@@ -305,6 +305,12 @@ func controlledSupplySources(ctx *resolutionContext, ownerID models.PlayerID) []
 		if state.OwnerID == nil || *state.OwnerID != ownerID {
 			continue
 		}
+		if ctx.occupiedAgainstController(territoryID, ctx.startArmyAt(territoryID)) {
+			// A controlled cell occupied by another player's (or a revolt's)
+			// army is no longer a supply source for its controller: neither
+			// side may draw from it (titres.md, economie.md#portée-de-ravitaillement).
+			continue
+		}
 		isSettlement := ctx.hasSettlement(territoryID)
 		selfSuppliedMill := !isSettlement && ctx.isSelfSuppliedMill(territoryID)
 		if !isSettlement && !selfSuppliedMill && state.Resources == 0 {
@@ -822,10 +828,20 @@ func (ctx *resolutionContext) hasSettlement(territoryID models.TerritoryID) bool
 	return infrastructure != nil && (infrastructure.Type == models.InfraTypeCastle || infrastructure.Type == models.InfraTypeVillage)
 }
 
+// isControlledDepot reports whether territoryID carries a supply depot
+// controlled by ownerID and usable by it: a depot on a cell occupied against
+// its controller extends nobody's range, neither the controller's nor the
+// occupant's (economie.md#portée-de-ravitaillement).
 func (ctx *resolutionContext) isControlledDepot(territoryID models.TerritoryID, ownerID models.PlayerID) bool {
 	state := ctx.state.TerritoryStates[territoryID]
+	if state.OwnerID == nil || *state.OwnerID != ownerID {
+		return false
+	}
 	infrastructure := ctx.infrastructureAt(territoryID)
-	return state.OwnerID != nil && *state.OwnerID == ownerID && infrastructure != nil && infrastructure.Type == models.InfraTypeSupplyDepot
+	if infrastructure == nil || infrastructure.Type != models.InfraTypeSupplyDepot {
+		return false
+	}
+	return !ctx.occupiedAgainstController(territoryID, ctx.startArmyAt(territoryID))
 }
 
 func (ctx *resolutionContext) infrastructureAt(territoryID models.TerritoryID) *models.Infrastructure {

@@ -560,6 +560,15 @@ func (g *GameState) Validate() error {
 		if !exists || capitalState.OwnerID == nil || *capitalState.OwnerID != fief.OwnerID {
 			return fmt.Errorf("models: fief %q: capital %q is not controlled by owner %q", fief.ID, fief.CapitalTerritoryID, fief.OwnerID)
 		}
+		// Control is transitive in a fief (titres.md "Contrôle et
+		// occupation"): every member, not just the capital, is controlled by
+		// the fief's owner regardless of any occupying army.
+		for _, territoryID := range fief.Territories {
+			memberState := g.TerritoryStates[territoryID]
+			if memberState.OwnerID == nil || *memberState.OwnerID != fief.OwnerID {
+				return fmt.Errorf("models: fief %q: territory %q is not controlled by owner %q", fief.ID, territoryID, fief.OwnerID)
+			}
+		}
 		if fief.HolderNobleID != nil {
 			if !nobles[*fief.HolderNobleID] {
 				return fmt.Errorf("models: fief %q: unknown holder noble %q", fief.ID, *fief.HolderNobleID)

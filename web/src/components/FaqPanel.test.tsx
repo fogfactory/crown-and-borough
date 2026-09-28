@@ -30,6 +30,9 @@ describe('FaqPanel', () => {
     ).toBeInTheDocument()
     expect(screen.getByText(/Pourquoi le risque de famine affiché/)).toBeInTheDocument()
     expect(screen.getByText(/Comment constituer un fief/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/attribué automatiquement au noble libre/),
+    ).toBeInTheDocument()
     expect(container.querySelectorAll('details')).toHaveLength(15)
   })
 
@@ -58,6 +61,11 @@ describe('FaqPanel', () => {
       screen.getByText(/Why is the projected famine risk only an estimate/),
     ).toBeInTheDocument()
     expect(screen.getByText(/How does founding a fief work/)).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        /assigned automatically to the free noble with the smallest trigram/,
+      ),
+    ).toBeInTheDocument()
     expect(container.querySelectorAll('details')).toHaveLength(15)
   })
 })

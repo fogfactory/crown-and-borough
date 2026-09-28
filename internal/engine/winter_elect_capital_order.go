@@ -16,6 +16,9 @@ func (order electCapitalOrder) Apply(ctx *ExecutionContext) {
 		resolution.rejectWinterOrder(playerID, winterOrder, "territory_not_controlled")
 		return
 	}
+	if resolution.rejectIfOccupied(playerID, winterOrder, winterOrder.TerritoryID) {
+		return
+	}
 	infrastructure := resolution.infrastructureAt(winterOrder.TerritoryID)
 	if infrastructure == nil || infrastructure.Type != models.InfraTypeCastle {
 		resolution.rejectWinterOrder(playerID, winterOrder, "capital_requires_controlled_castle")

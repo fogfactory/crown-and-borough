@@ -21,3 +21,27 @@ func TestBuildOrderApply(t *testing.T) {
 		t.Fatalf("build events = %#v, want one event", ctx.events)
 	}
 }
+
+// TestBuildOrderRejectsOccupiedTerritory verifies that a winter build order
+// on a territory occupied against its controller is rejected without any
+// prelevement (titres.md, #196).
+func TestBuildOrderRejectsOccupiedTerritory(t *testing.T) {
+	state := winterTestState(t, []models.Territory{territory("AAA", "AAA")},
+		[]models.Army{{ID: "A1", OwnerID: "P2", TerritoryID: "AAA", Size: 2}},
+	)
+	setTerritoryOwner(state, "AAA", "P1")
+	setTerritoryResources(state, "AAA", 10)
+	ctx := newResolutionContext(state, testBalance())
+	buildOrder{order: models.WinterOrder{ID: "O1", TerritoryID: "AAA", InfraType: models.InfraTypeCastle}}.Apply(&ExecutionContext{resolution: ctx, playerID: "P1"})
+
+	if infrastructure := ctx.infrastructureAt("AAA"); infrastructure != nil {
+		t.Fatalf("infrastructure = %#v, want none built on an occupied territory", infrastructure)
+	}
+	rejected := eventsOfType(ctx.events, EventTypeRejected)
+	if len(rejected) != 1 || rejected[0].Reason != "territory_occupied_by_other_player" {
+		t.Fatalf("rejected events = %#v, want territory_occupied_by_other_player", rejected)
+	}
+	if got := ctx.state.TerritoryStates["AAA"].Resources; got != 10 {
+		t.Errorf("stock = %d, want unchanged 10 (no prelevement)", got)
+	}
+}

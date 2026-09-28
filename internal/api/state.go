@@ -155,13 +155,17 @@ type NobleView struct {
 
 // FiefView is a fief addressed by its capital's trigram: no internal fief id
 // is exposed to the client (titres.md, #194). Holder is nil when the fief is
-// vacant.
+// vacant. ProjectedIncome sums engine.ForecastTerritoryIncome's amount over
+// every member territory: the fief's own income projection, distinct from
+// the capital territory's own projected income since it also receives every
+// other member's income (titres.md, #196).
 type FiefView struct {
-	Capital     models.TerritoryID   `json:"capital"`
-	Title       models.FiefTitle     `json:"title"`
-	Territories []models.TerritoryID `json:"territories"`
-	Owner       models.PlayerID      `json:"owner"`
-	Holder      *models.NobleCode    `json:"holder,omitempty"`
+	Capital         models.TerritoryID   `json:"capital"`
+	Title           models.FiefTitle     `json:"title"`
+	Territories     []models.TerritoryID `json:"territories"`
+	Owner           models.PlayerID      `json:"owner"`
+	Holder          *models.NobleCode    `json:"holder,omitempty"`
+	ProjectedIncome int                  `json:"projectedIncome"`
 }
 
 func projectState(state *models.GameState, balance assetgen.Balance) StateView {
@@ -325,6 +329,11 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 		if fief.HolderNobleID != nil {
 			if code, exists := nobleCodesByID[*fief.HolderNobleID]; exists {
 				fiefView.Holder = &code
+			}
+		}
+		for _, territoryID := range fief.Territories {
+			if forecast, ok := territoryIncome[territoryID]; ok {
+				fiefView.ProjectedIncome += forecast.Amount
 			}
 		}
 		view.Fiefs = append(view.Fiefs, fiefView)

@@ -19,6 +19,7 @@ import {
 import { MapSvgDefs } from '@/components/MapSvgDefs'
 import {
   LiveLayer,
+  OccupiedHatchLayer,
   OwnershipLayer,
   TerritoryLabels,
 } from '@/components/MapTerritoryLayers'
@@ -336,6 +337,10 @@ export function MapViewer({
                 playerColors={playerColors}
                 annotationScale={annotationScale}
               />
+            )}
+
+            {showOwnership && (
+              <OccupiedHatchLayer territories={map.territories} state={state} />
             )}
 
             {supplyReachable.size > 0 && (

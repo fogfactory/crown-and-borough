@@ -1139,3 +1139,46 @@ func combatContenderForce(t *testing.T, events []Event, territoryID models.Terri
 	t.Fatalf("missing combat contender %q at %q in %#v", armyID, territoryID, events)
 	return 0
 }
+
+// TestControlledSupplySourcesExcludesOccupiedTerritory verifies that a
+// controlled settlement occupied against its controller is unusable as a
+// supply source by either the controller or the occupant (titres.md,
+// economie.md#portée-de-ravitaillement, #196).
+func TestControlledSupplySourcesExcludesOccupiedTerritory(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{supplyTerritory("AAA", "AAA", models.TerrainPlain)},
+		[]models.Army{{ID: "A1", OwnerID: "P2", TerritoryID: "AAA", Size: 2}},
+	)
+	setTerritoryOwner(state, "AAA", "P1")
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+	validateTestState(t, state)
+
+	ctx := newResolutionContext(cloneGameState(state), testBalance())
+	if sources := controlledSupplySources(ctx, "P1"); len(sources) != 0 {
+		t.Fatalf("P1 sources = %#v, want none: AAA is occupied against its controller", sources)
+	}
+	if sources := controlledSupplySources(ctx, "P2"); len(sources) != 0 {
+		t.Fatalf("P2 sources = %#v, want none: P2 only occupies AAA, it does not control it", sources)
+	}
+}
+
+// TestIsControlledDepotUnusableWhenOccupied verifies that a depot on a
+// territory occupied against its controller extends nobody's supply range
+// (titres.md, economie.md#portée-de-ravitaillement, #196).
+func TestIsControlledDepotUnusableWhenOccupied(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{supplyTerritory("AAA", "AAA", models.TerrainPlain)},
+		[]models.Army{{ID: "A1", OwnerID: "P2", TerritoryID: "AAA", Size: 2}},
+	)
+	setTerritoryOwner(state, "AAA", "P1")
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeSupplyDepot, Level: 1, TerritoryID: "AAA"})
+	validateTestState(t, state)
+
+	ctx := newResolutionContext(cloneGameState(state), testBalance())
+	if ctx.isControlledDepot("AAA", "P1") {
+		t.Errorf("isControlledDepot(P1) = true, want false: occupied against its controller")
+	}
+	if ctx.isControlledDepot("AAA", "P2") {
+		t.Errorf("isControlledDepot(P2) = true, want false: P2 only occupies, it does not control")
+	}
+}

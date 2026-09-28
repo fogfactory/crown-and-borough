@@ -62,7 +62,7 @@ func ResolveWinterWithDeckOrders(
 	resolveWinterDeckOrders(ctx, deckOrders)
 	// No calamity resolves in winter: the winter turn draws and schedules the
 	// following year's calamities but applies none.
-	ctx.dissolveVacantFiefs()
+	ctx.resolveVacantFiefsAtWinterEnd()
 	ctx.conserveWinterStocks()
 	ctx.repatriateWinterStocks()
 	ctx.emitWinterStockEvents(stockBefore)
@@ -226,7 +226,7 @@ func (ctx *resolutionContext) payFromSources(sources []models.TerritoryID, cost 
 // anything farther out.
 func (ctx *resolutionContext) millUpgradePaymentSources(playerID models.PlayerID, millID models.TerritoryID) []models.TerritoryID {
 	sources := []models.TerritoryID{millID}
-	if recipientID := millRecipient(ctx, millID); recipientID != millID {
+	if recipientID := millRecipient(ctx, millID); recipientID != millID && !ctx.occupiedAgainstController(recipientID, ctx.currentArmyAt(recipientID)) {
 		sources = append(sources, recipientID)
 	}
 	seen := make(map[models.TerritoryID]bool, len(sources))
@@ -253,6 +253,11 @@ func (ctx *resolutionContext) winterPaymentSources(playerID models.PlayerID, tar
 	sources := make([]source, 0)
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
 		if !ctx.controlsTerritory(playerID, territoryID) || !ctx.hasSettlement(territoryID) {
+			continue
+		}
+		if ctx.occupiedAgainstController(territoryID, ctx.currentArmyAt(territoryID)) {
+			// A settlement occupied against its controller pays for no
+			// winter investment, its own or anyone else's (titres.md).
 			continue
 		}
 		distance, reachable := distances[territoryID]
@@ -421,6 +426,12 @@ func (ctx *resolutionContext) repatriateWinterStocks() {
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
 		state := ctx.state.TerritoryStates[territoryID]
 		if state.OwnerID == nil || !ctx.hasSettlement(territoryID) {
+			continue
+		}
+		if ctx.occupiedAgainstController(territoryID, ctx.currentArmyAt(territoryID)) {
+			// Occupied against its controller: its stock stays there and
+			// follows the normal conservation rule instead of being
+			// repatriated (titres.md).
 			continue
 		}
 		capitalTerritoryID, _, hasCapital := ctx.capitalTerritory(*state.OwnerID)

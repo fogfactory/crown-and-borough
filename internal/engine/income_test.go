@@ -336,3 +336,153 @@ func TestForecastTerritoryIncomePerTerritory(t *testing.T) {
 		t.Fatalf("BBB forecast = %#v, want 1 R routed to AAA", bbb)
 	}
 }
+
+// incomeEventForFief is incomeEventFor filtered further by fiefID, for
+// scenarios where two income lines share the same destination (a fief
+// capital coinciding with the player's own capital, see #196).
+func incomeEventForFief(t *testing.T, events []Event, ownerID models.PlayerID, destinationID models.TerritoryID, fiefID models.FiefID) Event {
+	t.Helper()
+	for _, event := range events {
+		if event.Type == EventTypeIncome && event.OwnerID == ownerID && event.DestinationID == destinationID && event.FiefID == fiefID {
+			return event
+		}
+	}
+	t.Fatalf("events = %#v, want an income event for %q -> %q (fief %q)", events, ownerID, destinationID, fiefID)
+	return Event{}
+}
+
+// TestFiefMemberIncomeRoutedToFiefCapital verifies that a fief member's
+// territory income is credited to the fief's capital rather than the
+// player's own capital (titres.md, #196).
+func TestFiefMemberIncomeRoutedToFiefCapital(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			territory("PCP", "PCP", "FCP"),
+			territory("FCP", "FCP", "PCP", "MEM"),
+			territory("MEM", "MEM", "FCP", "OTH"),
+			territory("OTH", "OTH", "MEM"),
+		},
+		nil,
+	)
+	for _, id := range []models.TerritoryID{"PCP", "FCP", "MEM", "OTH"} {
+		setTerritoryOwner(state, id, "P1")
+	}
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "PCP"})
+	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "FCP"})
+	setCapital(state, "P1", "I1")
+	state.Fiefs = []models.Fief{{
+		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "FCP",
+		Territories: []models.TerritoryID{"FCP", "MEM", "OTH"}, OwnerID: "P1",
+	}}
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	fiefEvent := incomeEventForFief(t, resolution.Events, "P1", "FCP", "F1")
+	if fiefEvent.TerritoryCount != 3 || fiefEvent.Production != 3 {
+		t.Fatalf("fief income event = %#v, want 3 territories, 3 R credited to the fief capital", fiefEvent)
+	}
+	playerEvent := incomeEventForFief(t, resolution.Events, "P1", "PCP", "")
+	if playerEvent.TerritoryCount != 1 || playerEvent.Production != 1 {
+		t.Fatalf("player income event = %#v, want 1 territory routed to the player's own capital", playerEvent)
+	}
+	if got := resolution.State.TerritoryStates["FCP"].Resources; got != 3 {
+		t.Errorf("FCP stock = %d, want 3 (all three fief members)", got)
+	}
+	if got := resolution.State.TerritoryStates["PCP"].Resources; got != 1 {
+		t.Errorf("PCP stock = %d, want 1 (its own income only)", got)
+	}
+
+	report := BuildTurnReport(state, resolution.State, resolution.Events, nil)
+	fiefReport := incomeReportFor(t, report.Income, "P1", "FCP")
+	if fiefReport.Fief != "FCP" || fiefReport.Title != models.FiefTitleBarony {
+		t.Fatalf("fief income report = %#v, want Fief=FCP Title=barony", fiefReport)
+	}
+}
+
+func incomeReportFor(t *testing.T, reports []IncomeReport, ownerID models.PlayerID, destination models.TerritoryID) IncomeReport {
+	t.Helper()
+	for _, report := range reports {
+		if report.Owner == ownerID && report.Destination == destination && report.Fief != "" {
+			return report
+		}
+	}
+	t.Fatalf("income reports = %#v, want a fief line for %q -> %q", reports, ownerID, destination)
+	return IncomeReport{}
+}
+
+// TestFiefIncomeNotInterceptedWhenCapitalOccupied verifies that an enemy
+// army occupying the fief's capital does not intercept the territory income
+// still routed to it: control (and thus the income destination) stays with
+// the fief's owner until the capital is actually conquered (titres.md).
+func TestFiefIncomeNotInterceptedWhenCapitalOccupied(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			territory("FCP", "FCP", "MEM"),
+			territory("MEM", "MEM", "FCP", "OTH"),
+			territory("OTH", "OTH", "MEM"),
+		},
+		[]models.Army{{ID: "A1", OwnerID: "P2", TerritoryID: "FCP", Size: 3}},
+	)
+	// testState sets FCP's owner from the P2 army stationed there; restore
+	// P1's transitive fief control (an occupied capital is not conquered).
+	setTerritoryOwner(state, "FCP", "P1")
+	setTerritoryOwner(state, "MEM", "P1")
+	setTerritoryOwner(state, "OTH", "P1")
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "FCP"})
+	state.Fiefs = []models.Fief{{
+		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "FCP",
+		Territories: []models.TerritoryID{"FCP", "MEM", "OTH"}, OwnerID: "P1",
+	}}
+	validateTestState(t, state)
+
+	reports, _ := computeTerritoryIncome(newResolutionContext(cloneGameState(state), testBalance()))
+	report, ok := reports["P1"]["FCP"]["F1"]
+	if !ok || report.territories != 3 {
+		t.Fatalf("reports = %#v, want the fief income still routed to the occupied capital", reports)
+	}
+}
+
+// TestFiefIncomeSeparateLineWhenCapitalCoincidesWithPlayerCapital verifies
+// that a fief whose capital happens to also be the player's own capital
+// still produces its own income report line, distinct from the player's
+// non-fief territories routed to the same destination (#196).
+func TestFiefIncomeSeparateLineWhenCapitalCoincidesWithPlayerCapital(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			territory("CAP", "CAP", "MEM", "OUT"),
+			territory("MEM", "MEM", "CAP", "OTH"),
+			territory("OTH", "OTH", "MEM"),
+			territory("OUT", "OUT", "CAP"),
+		},
+		nil,
+	)
+	for _, id := range []models.TerritoryID{"CAP", "MEM", "OTH", "OUT"} {
+		setTerritoryOwner(state, id, "P1")
+	}
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "CAP"})
+	setCapital(state, "P1", "I1")
+	state.Fiefs = []models.Fief{{
+		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "CAP",
+		Territories: []models.TerritoryID{"CAP", "MEM", "OTH"}, OwnerID: "P1",
+	}}
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	fiefEvent := incomeEventForFief(t, resolution.Events, "P1", "CAP", "F1")
+	if fiefEvent.TerritoryCount != 3 {
+		t.Fatalf("fief income event = %#v, want the 3 fief members only", fiefEvent)
+	}
+	nonFiefEvent := incomeEventForFief(t, resolution.Events, "P1", "CAP", "")
+	if nonFiefEvent.TerritoryCount != 1 {
+		t.Fatalf("non-fief income event = %#v, want OUT only", nonFiefEvent)
+	}
+	if got := resolution.State.TerritoryStates["CAP"].Resources; got != 4 {
+		t.Errorf("CAP stock = %d, want 4 (both lines credited to the same territory)", got)
+	}
+}

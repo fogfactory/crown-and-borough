@@ -19,29 +19,51 @@ compatibilité avec les parties existantes n'est requise (version majeure).
 ## Contrôle et occupation
 
 Issue : [#196](https://github.com/fogfactory/crown-and-borough/issues/196).
+**Livré.**
 
-Le socle actuel ne connaît qu'un statut territorial, positionnel : une case
-reste au dernier joueur dont l'armée s'y est arrêtée. Les fiefs le rendent
-transitif, sans introduire de second statut stocké :
+Le socle ne connaît qu'un statut territorial, positionnel : une case reste au
+dernier joueur dont l'armée s'y est arrêtée. Les fiefs le rendent transitif,
+sans introduire de second statut stocké :
 
 - **contrôlé** : le statut porté par la case (`OwnerID`). Hors fief, il reste
   positionnel. Dans un fief, la case est contrôlée par le joueur qui détient
-  le fief, même lorsqu'une armée adverse s'y arrête. Seule la prise de la
-  capitale du fief transfère le fief et donc le contrôle de tous ses
-  territoires (voir ci-dessous).
+  le fief, même lorsqu'une armée adverse (ou une révolte `NEUTRAL`) s'y
+  arrête. Seule la prise de la capitale du fief transfère le fief et donc le
+  contrôle de tous ses territoires (voir ci-dessous).
 - **occupé** : une armée est présente sur la case. C'est une information
-  dérivée, jamais stockée.
+  dérivée, jamais stockée. Une case a un **contrôleur** (`OwnerID` non vide)
+  et est **occupée contre son contrôleur** lorsqu'une armée y stationne dont
+  le propriétaire diffère de ce contrôleur — une révolte `NEUTRAL` y compris.
+  Cette notion s'applique à toute case contrôlée, en fief ou non (une
+  capitale de joueur occupée par une révolte en relève tout autant), mais ne
+  change jamais son `OwnerID` : seule la prise de la capitale d'un fief (ou
+  la prise positionnelle hors fief) transfère le contrôle.
 
-Un territoire contrôlé rapporte son revenu à la capitale du joueur, ou à la
-capitale du fief s'il appartient à un fief, y compris lorsqu'il est occupé par
-une armée adverse (voir [economie.md](economie.md#revenu-territorial)).
+Une case d'un fief occupée contre son contrôleur :
+
+- ne rapporte pas son revenu à l'occupant : le revenu continue vers la
+  capitale du fief, jamais intercepté (voir
+  [economie.md](economie.md#revenu-territorial)) ;
+- n'est plus une source de ravitaillement ni un dépôt utilisable, ni pour le
+  contrôleur ni pour l'occupant (voir
+  [economie.md](economie.md#portée-de-ravitaillement)) ;
+- rejette tout investissement d'hiver ciblé sur elle, sans prélèvement
+  (motif `territory_occupied_by_other_player`) ;
+- ne peut ni payer un investissement d'hiver ni recevoir de rapatriement de
+  stock de fin d'hiver ;
+- garde son bonus défensif (château ou cité) pour l'occupant : aucun
+  changement sur ce point, précédent déjà établi pour une révolte sur une
+  cité ;
+- reste pillable par l'occupant, sans effet sur le fief lorsque ce n'est pas
+  la capitale.
+
+La prise de la capitale d'un fief transfère le contrôle de **tous** ses
+membres au conquérant en une seule passe, même ceux occupés par une tierce
+armée (l'occupation continue, seul le contrôleur change). Hors fief, le
+contrôle reste strictement positionnel, sans régression.
 
 La capitale d'un joueur n'est pas un fief implicite. Hors fief, une capitale
 sans armée reste contrôlée tant qu'aucune armée adverse ne s'y arrête.
-
-> À trancher dans #196 : le traitement d'une case d'un fief occupée par une
-> armée adverse (stock, pillage, investissements d'hiver, bonus de portée d'un
-> dépôt). Voir [economie.md](economie.md#portée-de-ravitaillement).
 
 ## Constitution d'un fief
 
@@ -94,16 +116,21 @@ milestone.
 
 ## Perte et vacance d'un fief
 
-Issue : [#194](https://github.com/fogfactory/crown-and-borough/issues/194).
+Issue : [#194](https://github.com/fogfactory/crown-and-borough/issues/194),
+attribution par défaut livrée par
+[#196](https://github.com/fogfactory/crown-and-borough/issues/196) (remplace
+la dissolution automatique de #194).
 
 - **Capitale du fief prise** : lorsqu'un autre joueur prend le contrôle de la
   case de la capitale (mise à jour du contrôle territorial, immédiatement
   après la résolution des mouvements), le fief entier passe à ce joueur,
-  **vacant** (le titulaire perd son titre). Seule la capitale déclenche ce
-  transfert ; une autre case du fief qui change de main hors capitale n'a
-  aucun effet sur le fief (le contrôle y reste positionnel tant que
-  [#196](https://github.com/fogfactory/crown-and-borough/issues/196) n'est pas
-  livrée). Une révolte (armée `NEUTRAL`) ne prend jamais le contrôle d'une
+  **vacant** (le titulaire perd son titre), et le contrôle de **tous** les
+  autres membres du fief bascule vers ce même joueur dans la même passe
+  (contrôle transitif, voir « Contrôle et occupation » ci-dessus) — y compris
+  un membre occupé par une tierce armée, qui continue de l'occuper mais sous
+  le nouveau contrôleur. Seule la capitale déclenche ce transfert : une autre
+  case du fief occupée sans que la capitale ne tombe ne change jamais de
+  contrôleur. Une révolte (armée `NEUTRAL`) ne prend jamais le contrôle d'une
   case : elle ne transfère donc jamais un fief, même en délogeant le
   titulaire de sa capitale.
 - **Mort du titulaire** (par exemple de la peste) : le fief reste au joueur
@@ -114,13 +141,21 @@ Issue : [#194](https://github.com/fogfactory/crown-and-borough/issues/194).
   automatique de famine) : le fief est **dissous immédiatement**, quelle que
   soit la saison. Contrairement à une première intuition, il n'y a ni
   suspension du bonus de cité ni délai d'attente : la perte du château qui
-  fait la capitale met fin au fief sur-le-champ.
-- **Fief vacant** : il continue d'exister, de produire et de compter son point
-  de score jusqu'à sa dissolution. Un ordre d'hiver (`T A`) l'attribue à un
-  noble libre du joueur qui le détient. En fin d'hiver, après résolution des
-  ordres d'hiver (y compris une éventuelle attribution du même tour) et avant
-  la conservation des stocks, tout fief encore vacant est dissous et ses
-  territoires redeviennent contrôlés hors fief.
+  fait la capitale met fin au fief sur-le-champ. C'est la **seule** cause de
+  dissolution d'un fief.
+- **Fief vacant** : il continue d'exister, de produire et de compter son
+  point de score jusqu'à son attribution ou la dissolution de sa capitale. Un
+  ordre d'hiver (`T A`) l'attribue à un noble libre du joueur qui le détient.
+  En fin d'hiver, après résolution des ordres d'hiver (y compris une
+  éventuelle attribution du même tour) et avant la conservation des stocks,
+  tout fief encore vacant est **attribué par défaut** au noble libre du
+  joueur dont le trigramme est le plus petit par ordre lexicographique, avec
+  un avertissement dans le rapport invitant le joueur à reprendre la main sur
+  l'attribution au tour suivant. Si le joueur n'a aucun noble libre à ce
+  moment, le fief reste simplement vacant (**plus jamais dissous** faute
+  d'attribution) : il continue de produire et de compter son point de score
+  jusqu'à ce qu'un noble libre soit disponible ou que sa capitale soit
+  dissoute.
 
 ## Taxe seigneuriale
 
