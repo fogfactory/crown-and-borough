@@ -14,18 +14,14 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
-var testConfig = Config{
-	Width:        1000,
-	Height:       700,
-	SiteCount:    TerritoriesPerPlayer * 4,
-	VillageCount: 5,
-}
+var testConfig = playerTestConfig(4)
 
 var minimumTestConfig = Config{
-	Width:        100,
-	Height:       100,
-	SiteCount:    8,
-	VillageCount: 1,
+	Width:      100,
+	Height:     100,
+	SiteCount:  8,
+	StartCount: 1,
+	SeatCount:  1,
 }
 
 var testSeeds = []string{
@@ -52,8 +48,8 @@ var testSeeds = []string{
 }
 
 func TestDeterminism(t *testing.T) {
-	if testConfig.SiteCount != 32 || testConfig.VillageCount != 5 {
-		t.Fatalf("test config = %+v, want 32 territories and 5 villages", testConfig)
+	if testConfig.SiteCount != 52 || testConfig.StartCount != 4 || testConfig.SeatCount != 5 {
+		t.Fatalf("test config = %+v, want 52 territories, 4 starts and 5 seats", testConfig)
 	}
 
 	assets := loadTestAssets(t)
@@ -103,7 +99,7 @@ func TestGeneratedRegionsHaveBoundedSizeVariance(t *testing.T) {
 			minimum = min(minimum, len(region.Territories))
 			maximum = max(maximum, len(region.Territories))
 		}
-		limit := 2 * (testConfig.VillageCount - 1)
+		limit := 2 * (testConfig.SeatCount - 1)
 		if difference := maximum - minimum; difference > limit {
 			t.Fatalf("seed %q region sizes range from %d to %d, difference %d exceeds player bound %d", seed, minimum, maximum, difference, limit)
 		}
@@ -282,13 +278,17 @@ func TestVillageCount(t *testing.T) {
 				count++
 			}
 		}
-		if count != testConfig.VillageCount {
-			t.Fatalf("village count = %d, want %d", count, testConfig.VillageCount)
+		want := 2*testConfig.StartCount + 1
+		if count != want {
+			t.Fatalf("village count = %d, want %d", count, want)
 		}
 	})
 }
 
-func TestDedicatedVillageSites(t *testing.T) {
+// TestRegionSeedsAreChefsLieuxOnly checks that the N+1 region seeds are
+// exactly the chefs-lieux: every seed is a village, and the remaining
+// villages (one per starting position) never seed a region themselves.
+func TestRegionSeedsAreChefsLieuxOnly(t *testing.T) {
 	assets := loadTestAssets(t)
 	for _, players := range []int{2, 4, 8, 16} {
 		players := players
@@ -296,28 +296,113 @@ func TestDedicatedVillageSites(t *testing.T) {
 			cfg := playerTestConfig(players)
 			for _, seed := range testSeeds[:4] {
 				data := generateMap(t, seed, assets, cfg)
-				if got, want := len(data.Territories), cfg.SiteCount; got != want {
-					t.Fatalf("territory count = %d, want %d", got, want)
+				if len(data.Regions) != players+1 {
+					t.Fatalf("seed %q: regions = %d, want %d", seed, len(data.Regions), players+1)
 				}
-				villages := 0
-				for index, territory := range data.Territories {
-					if !territory.Village {
-						continue
+				villageByID := make(map[string]bool, len(data.Territories))
+				for _, territory := range data.Territories {
+					villageByID[territory.ID] = territory.Village
+				}
+				seeds := make(map[string]bool, len(data.Regions))
+				for _, region := range data.Regions {
+					seedID := string(region.Seed)
+					if seeds[seedID] {
+						t.Errorf("seed %q: duplicate region seed %s", seed, seedID)
 					}
-					villages++
-					if index < cfg.VillageSitesFrom {
-						t.Errorf("village %s is in the non-dedicated site range", territory.ID)
+					seeds[seedID] = true
+					if !villageByID[seedID] {
+						t.Errorf("seed %q: region seed %s is not a village", seed, seedID)
 					}
 				}
-				if villages != cfg.VillageCount {
-					t.Errorf("village count = %d, want %d", villages, cfg.VillageCount)
+				homeVillages := 0
+				for id, isVillage := range villageByID {
+					if isVillage && !seeds[id] {
+						homeVillages++
+					}
+				}
+				if homeVillages != players {
+					t.Errorf("seed %q: home villages = %d, want %d", seed, homeVillages, players)
 				}
 			}
 		})
 	}
 }
 
-func TestVillageSpread(t *testing.T) {
+// TestHomeVillageEquity checks the D2 placement contract for every starting
+// position: no village sits adjacent to a start, exactly one village sits at
+// graph distance 2 (its dedicated home village), and that home village is at
+// least 3 hops from every other start.
+func TestHomeVillageEquity(t *testing.T) {
+	assets := loadTestAssets(t)
+	for _, players := range []int{2, 3, 4, 5, 8, 16} {
+		players := players
+		t.Run(fmt.Sprintf("players-%d", players), func(t *testing.T) {
+			cfg := playerTestConfig(players)
+			for _, seed := range testSeeds[:6] {
+				data := generateMap(t, seed, assets, cfg)
+				if len(data.Starts) != players {
+					t.Fatalf("seed %q: starts = %d, want %d", seed, len(data.Starts), players)
+				}
+				adjacency := make(map[string][]string, len(data.Territories))
+				villageByID := make(map[string]bool, len(data.Territories))
+				for _, territory := range data.Territories {
+					adjacency[territory.ID] = territory.Adjacencies
+					villageByID[territory.ID] = territory.Village
+				}
+				for _, start := range data.Starts {
+					if villageByID[start] {
+						t.Fatalf("seed %q: start %s is itself a village", seed, start)
+					}
+					fromStart := territoryDistances(adjacency, start)
+					homes := make([]string, 0, 1)
+					for id, distance := range fromStart {
+						if distance == 1 && villageByID[id] {
+							t.Errorf("seed %q: start %s has an adjacent village %s", seed, start, id)
+						}
+						if distance == 2 && villageByID[id] {
+							homes = append(homes, id)
+						}
+					}
+					if len(homes) != 1 {
+						t.Fatalf("seed %q: start %s has %d villages at distance 2, want exactly 1 (%v)", seed, start, len(homes), homes)
+					}
+					fromHome := territoryDistances(adjacency, homes[0])
+					for _, other := range data.Starts {
+						if other == start {
+							continue
+						}
+						if fromHome[other] < 3 {
+							t.Errorf("seed %q: home village %s of start %s is %d from start %s, want >= 3", seed, homes[0], start, fromHome[other], other)
+						}
+					}
+				}
+			}
+		})
+	}
+}
+
+func territoryDistances(adjacency map[string][]string, start string) map[string]int {
+	distances := map[string]int{start: 0}
+	queue := []string{start}
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		for _, next := range adjacency[current] {
+			if _, visited := distances[next]; visited {
+				continue
+			}
+			distances[next] = distances[current] + 1
+			queue = append(queue, next)
+		}
+	}
+	return distances
+}
+
+// TestSeatSpread checks that chefs-lieux, which are placed by greedy max-min
+// centroid spread like every neutral village before them, stay well apart
+// from each other. Home villages are pinned at graph distance 2 from their
+// start instead, so they are not held to this geometric spread.
+func TestSeatSpread(t *testing.T) {
 	assets := loadTestAssets(t)
 	forEachTestSeed(t, func(t *testing.T, seed string) {
 		data := generateTestMap(t, seed, assets)
@@ -326,22 +411,27 @@ func TestVillageSpread(t *testing.T) {
 			t.Fatal("map has no polygon points")
 		}
 
-		// Villages are spread by greedy max-min placement over the delivered,
-		// re-anchored map rather than the raster-generation viewport.
-		minDistance := 0.15 * math.Hypot(float64(bounds.width), float64(bounds.height))
-		villages := make([]int, 0, testConfig.VillageCount)
+		byID := make(map[string]int, len(data.Territories))
 		for index, territory := range data.Territories {
-			if territory.Village {
-				villages = append(villages, index)
-			}
+			byID[territory.ID] = index
 		}
-		for firstIndex, first := range villages {
-			for _, second := range villages[firstIndex+1:] {
+
+		// Seats are spread by greedy max-min placement over the delivered,
+		// re-anchored map, but the eligible pool now excludes every site
+		// within the start/home exclusion radius, so the achievable spread
+		// is tighter than when every village shared the whole map.
+		minDistance := 0.08 * math.Hypot(float64(bounds.width), float64(bounds.height))
+		seats := make([]int, 0, len(data.Regions))
+		for _, region := range data.Regions {
+			seats = append(seats, byID[string(region.Seed)])
+		}
+		for firstIndex, first := range seats {
+			for _, second := range seats[firstIndex+1:] {
 				firstCentroid := polygonCentroid(data.Territories[first].Points)
 				secondCentroid := polygonCentroid(data.Territories[second].Points)
 				actual := math.Hypot(firstCentroid[0]-secondCentroid[0], firstCentroid[1]-secondCentroid[1])
 				if actual < minDistance {
-					t.Errorf("villages %s and %s are %v apart, want >= %v", data.Territories[first].ID, data.Territories[second].ID, actual, minDistance)
+					t.Errorf("seats %s and %s are %v apart, want >= %v", data.Territories[first].ID, data.Territories[second].ID, actual, minDistance)
 				}
 			}
 		}
@@ -497,16 +587,15 @@ func TestNamingCollisions(t *testing.T) {
 func TestConfigValidation(t *testing.T) {
 	assets := loadTestAssets(t)
 	invalid := []Config{
-		{Width: 99, Height: 700, SiteCount: 32, VillageCount: 5},
-		{Width: 1000, Height: 99, SiteCount: 32, VillageCount: 5},
-		{Width: 1000, Height: 700, SiteCount: 7, VillageCount: 5},
-		{Width: 1000, Height: 700, SiteCount: gridW*gridH + 1, VillageCount: 1},
-		{Width: 1000, Height: 700, SiteCount: 32, VillageCount: 0},
-		{Width: 1000, Height: 700, SiteCount: 32, VillageCount: -1},
-		{Width: 1000, Height: 700, SiteCount: 32, VillageCount: 33},
-		{Width: 1000, Height: 700, SiteCount: 32, VillageCount: 5, VillageSitesFrom: -1},
-		{Width: 1000, Height: 700, SiteCount: 32, VillageCount: 5, VillageSitesFrom: 32},
-		{Width: 1000, Height: 700, SiteCount: 32, VillageCount: 5, VillageSitesFrom: 29},
+		{Width: 99, Height: 700, SiteCount: 32, StartCount: 4, SeatCount: 5},
+		{Width: 1000, Height: 99, SiteCount: 32, StartCount: 4, SeatCount: 5},
+		{Width: 1000, Height: 700, SiteCount: 7, StartCount: 4, SeatCount: 5},
+		{Width: 1000, Height: 700, SiteCount: gridW*gridH + 1, StartCount: 1, SeatCount: 1},
+		{Width: 1000, Height: 700, SiteCount: 32, StartCount: 0, SeatCount: 5},
+		{Width: 1000, Height: 700, SiteCount: 32, StartCount: -1, SeatCount: 5},
+		{Width: 1000, Height: 700, SiteCount: 32, StartCount: 4, SeatCount: 0},
+		{Width: 1000, Height: 700, SiteCount: 32, StartCount: 4, SeatCount: -1},
+		{Width: 1000, Height: 700, SiteCount: 8, StartCount: 4, SeatCount: 5},
 	}
 	for _, cfg := range invalid {
 		if _, err := Generate("invalid", assets, cfg); err == nil {
@@ -534,8 +623,9 @@ func TestMinimumConfig(t *testing.T) {
 				count++
 			}
 		}
-		if count != minimumTestConfig.VillageCount {
-			t.Errorf("village count = %d, want %d", count, minimumTestConfig.VillageCount)
+		want := minimumTestConfig.StartCount + minimumTestConfig.SeatCount
+		if count != want {
+			t.Errorf("village count = %d, want %d", count, want)
 		}
 		assertPaddedGeometry(t, data, minimumTestConfig)
 	})
@@ -567,11 +657,11 @@ func generateMap(t *testing.T, seed string, assets assetgen.Assets, cfg Config) 
 func playerTestConfig(players int) Config {
 	baseTerritories := TerritoriesPerPlayer * players
 	return Config{
-		Width:            testConfig.Width,
-		Height:           testConfig.Height,
-		SiteCount:        baseTerritories + TerritoriesPerVillage*(players+1),
-		VillageCount:     players + 1,
-		VillageSitesFrom: baseTerritories,
+		Width:      1000,
+		Height:     700,
+		SiteCount:  baseTerritories + TerritoriesPerSeat*(players+1),
+		StartCount: players,
+		SeatCount:  players + 1,
 	}
 }
 

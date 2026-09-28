@@ -172,8 +172,8 @@ func TestCreateGameCountsCastlesVillagesAndStartingTerritories(t *testing.T) {
 				}
 			}
 		}
-		if villageCount != playerCount+1 {
-			t.Errorf("players=%d: neutral villages = %d, want %d", playerCount, villageCount, playerCount+1)
+		if villageCount != 2*playerCount+1 {
+			t.Errorf("players=%d: neutral villages = %d, want %d", playerCount, villageCount, 2*playerCount+1)
 		}
 		for territoryID, territoryState := range game.TerritoryStates {
 			if territoryState.Infrastructures == nil {

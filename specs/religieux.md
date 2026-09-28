@@ -10,13 +10,15 @@ de ressource de la dîme dépend de [Économie et prospérité](economie.md).
 
 La carte est divisée en `N + 1` évêchés de taille approximativement égale. La
 partition régionale déterministe déjà générée pour les calamités et les cartes
-bonus (`internal/engine/mapgen/regions.go`, une région par village neutre
-seed, couverture totale et connexité garanties) est directement réutilisable
-comme découpage d'évêchés : même cardinalité `N + 1`, mêmes garanties de
-connexité. Un territoire appartient à exactement une région/évêché,
-indépendamment de son appartenance ou non à un fief séculier — les deux
-découpages sont disjoints dans leur origine (fief : dynamique, acheté ;
-évêché : statique, fixé à la génération de la carte).
+bonus (`internal/engine/mapgen/regions.go`, une région par chef-lieu seed,
+couverture totale et connexité garanties) est directement réutilisable comme
+découpage d'évêchés : même cardinalité `N + 1`, mêmes garanties de connexité.
+Un territoire appartient à exactement une région/évêché, indépendamment de son
+appartenance ou non à un fief séculier — les deux découpages sont disjoints
+dans leur origine (fief : dynamique, acheté ; évêché : statique, fixé à la
+génération de la carte). Le village dédié de chaque territoire de départ est
+un lieu-dit de son évêché comme n'importe quel autre village ; seul le
+chef-lieu sert de seed à la région.
 
 Quand tous les lieux-dits d'un évêché sont contrôlés, une élection d'évêque est
 organisée :

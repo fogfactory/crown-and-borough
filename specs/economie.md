@@ -210,6 +210,35 @@ pas les 5 points d'un château), ne peut pas être désigné capitale par `E C`
 exige également un château). Un `C C` sur un village déjà fortifié est rejeté
 sans prélèvement.
 
+## Densité des villages
+
+Issue : [#202](https://github.com/fogfactory/crown-and-borough/issues/202).
+
+La carte porte `2 x N + 1` villages plutôt que `N + 1` : chaque territoire de
+départ reçoit son propre village dédié, en plus des `N + 1` chefs-lieux qui
+seedent le découpage régional (voir [`gdd.md`](gdd.md#3-carte-terrains-et-villages)
+et [`cartographie.md`](cartographie.md#villages-neutres-du-socle) pour les
+contraintes de placement). L'objectif est de rapprocher une source de revenu
+territorial et de ravitaillement de chaque joueur dès le début de partie, sans
+changer la taille de la carte : le nombre de territoires par territoire de
+départ (`TerritoriesPerPlayer = 8`) et par chef-lieu (`TerritoriesPerSeat =
+4`) reste inchangé, seule la densité de villages dans l'enveloppe déjà réservée
+augmente.
+
+Un village dédié et un chef-lieu sont des infrastructures identiques en jeu :
+même revenu territorial, même production neutre tant qu'ils ne sont pas tenus,
+même possibilité de fortification (`C C`, voir ci-dessus). Aucun des deux ne
+peut être désigné capitale ni devenir la capitale d'un fief. La seule
+différence est fonctionnelle et hors économie : le chef-lieu identifie la seed
+d'une région dans `regions[].seed` ; le village dédié n'en identifie aucune.
+
+Les constantes de placement (distance exacte de deux étapes entre un
+territoire de départ et son village dédié, séparation minimale de trois étapes
+avec tout autre territoire de départ, séparation minimale de deux étapes entre
+villages) sont des constantes de génération de carte
+(`internal/engine/mapgen`), pas des valeurs de `assets/balance.yaml` : elles
+façonnent la topologie de la carte, pas l'équilibrage économique.
+
 ## Portée de ravitaillement
 
 Un château, un village ou un dépôt de vivres contribue au ravitaillement

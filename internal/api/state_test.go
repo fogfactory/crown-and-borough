@@ -425,10 +425,11 @@ func loadStateTestAssets(t *testing.T) assetgen.Assets {
 func generateStateTestMap(t *testing.T, assets assetgen.Assets) mapgen.MapData {
 	t.Helper()
 	mapData, err := mapgen.Generate("state-test-map", assets, mapgen.Config{
-		Width:        1000,
-		Height:       700,
-		SiteCount:    mapgen.TerritoriesPerPlayer * 4,
-		VillageCount: 5,
+		Width:      1000,
+		Height:     700,
+		SiteCount:  mapgen.TerritoriesPerPlayer*4 + mapgen.TerritoriesPerSeat*5,
+		StartCount: 4,
+		SeatCount:  5,
 	})
 	if err != nil {
 		t.Fatalf("generate map: %v", err)

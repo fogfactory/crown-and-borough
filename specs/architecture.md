@@ -149,11 +149,18 @@ La carte est statique pour une partie et commune à tous les clients :
 - `adjacencies` contient les frontières géométriques franchissables ;
 - `impassable` contient les frontières géométriques infranchissables ;
 - les deux listes sont triées, symétriques et disjointes ;
-- `village` décrit le point de génération ; l'état courant des infrastructures
-  est porté par `state.json`.
+- `village` décrit le point de génération, aussi bien pour un chef-lieu que
+  pour le village dédié d'un territoire de départ : les deux sont des
+  infrastructures identiques dans `map.json` et `state.json` ; seul
+  `regions[].seed` identifie le chef-lieu qui seed une région. L'état courant
+  des infrastructures est porté par `state.json`.
 
 La génération utilise `8 x joueurs` territoires de jeu et `(joueurs + 1) x 4`
-territoires supplémentaires dédiés aux `joueurs + 1` villages. Chaque partie
+territoires supplémentaires, pour un total de `2 x joueurs + 1` villages
+(un village dédié par territoire de départ, plus `joueurs + 1` chefs-lieux).
+Les territoires de départ eux-mêmes ne sont pas publiés dans `map.json` ; ils
+restent internes au moteur, qui reste la seule source de vérité pour leur
+choix (voir [`gdd.md`](gdd.md#joueurs-départ-et-élimination)). Chaque partie
 sert sa carte via `GET /api/games/{id}/map`.
 
 ### `state.json`

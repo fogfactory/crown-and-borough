@@ -185,15 +185,22 @@ Le détail des cartes est suivi dans [`ordres-speciaux.md`](ordres-speciaux.md).
 ### Joueurs, départ et élimination
 
 Une partie accepte de 2 à 16 joueurs dans le moteur ; une partie en ligne est
-limitée à 2 à 8 joueurs. Chaque joueur commence sur un territoire
-distinct qui n'est pas un village neutre. Les territoires de départ sont séparés
-d'au moins quatre étapes dans le graphe des frontières franchissables. Un
-château y est construit gratuitement, devient la capitale par défaut, et le
-joueur reçoit ses nobles, ses armées et ses ressources de départ selon
-`assets/balance.yaml`. Les `N + 1` villages neutres générés sur la carte restent
-distincts des `N` châteaux de départ. Ils servent de seeds à une partition
-régionale statique, calculée par BFS multi-source sur les frontières franchissables
-et publiée avec la carte.
+limitée à 2 à 8 joueurs. Chaque joueur commence sur un territoire distinct qui
+n'est pas un village. Les territoires de départ sont séparés d'au moins quatre
+étapes dans le graphe des frontières franchissables. Un château y est
+construit gratuitement, devient la capitale par défaut, et le joueur reçoit
+ses nobles, ses armées et ses ressources de départ selon `assets/balance.yaml`.
+
+Chaque territoire de départ possède un village dédié, situé à exactement deux
+étapes de lui dans le graphe franchissable, à au moins trois étapes de tout
+autre territoire de départ, et à au moins deux étapes de tout autre village :
+aucun village n'est adjacent à un territoire de départ. La carte porte en
+outre `N + 1` chefs-lieux neutres, séparés d'au moins trois étapes de tout
+territoire de départ et d'au moins deux étapes de tout village dédié. Un
+chef-lieu et un village dédié sont des infrastructures identiques en jeu (même
+revenu, même possibilité de fortification) ; seul le chef-lieu sert de seed à
+la partition régionale statique, calculée par BFS multi-source sur les
+frontières franchissables et publiée avec la carte via `regions[].seed`.
 
 Un joueur est éliminé lorsqu'il ne contrôle plus aucun territoire et ne possède
 plus aucune armée. Les nobles seuls ne maintiennent pas un joueur en lice. Le
@@ -205,8 +212,10 @@ dernier joueur vivant gagne la partie.
 
 La carte est générée de manière déterministe à partir d'une seed. Elle contient
 `8 x joueurs` territoires de jeu et `(joueurs + 1) x 4` territoires
-supplémentaires dédiés aux `joueurs + 1` villages neutres. Les territoires sont
-des polygones nommés par une commune de `communes.csv` ; le trigramme de la
+supplémentaires, et porte `2 x joueurs + 1` villages neutres au total :
+`joueurs + 1` chefs-lieux et un village dédié par territoire de départ (voir
+« Joueurs, départ et élimination » ci-dessus). Les territoires sont des
+polygones nommés par une commune de `communes.csv` ; le trigramme de la
 commune est l'identifiant unique du territoire, exactement trois lettres
 majuscules, unique et stable pour une seed donnée.
 
