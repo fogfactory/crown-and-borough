@@ -1,6 +1,6 @@
 ---
 name: implementer
-description: Implementation specialist for complex or multi-file code changes. Use when a plan exists and the work involves real logic — game engine rules, backend handlers, Firestore integration, frontend features, or refactors.
+description: Implementation specialist on Sonnet for real, multi-layer changes — work that crosses application layers (engine/api/db/front) or involves non-trivial logic: game engine rules, backend handlers, Firestore integration, frontend features, refactors. For a simple fix confined to one file or one layer use fixer instead.
 model: sonnet
 tools: Read, Edit, Write, Grep, Glob, Bash
 ---
