@@ -132,8 +132,13 @@ jamais partie de ces sources.
   laissant au maximum 1 R par village et 2 R par château hors capitale ; le
   stock d'un moulin n'est jamais rapatrié ; une colonie occupée contre son
   contrôleur ne rapatrie pas non plus son stock, qui y reste et suit la
-  conservation normale ;
+  conservation normale ; une capitale remplacée par `E C` ce même hiver
+  rapatrie encore son surplus en tant qu'ancienne capitale avant de perdre son
+  ancrage (voir [titres.md](titres.md#contrôle-et-occupation)) ;
 - sans capitale, les stocks restent sur place ;
+- un territoire contrôlé hors fief qui ne porte plus d'ancre (ni la capitale
+  du joueur, ni une armée du joueur) redevient neutre à la fin de l'hiver,
+  après ce rapatriement (voir [titres.md](titres.md#contrôle-et-occupation)) ;
 - tout fief encore vacant (sans titulaire) est **attribué par défaut** au
   noble libre du joueur qui le détient dont le trigramme est le plus petit
   par ordre lexicographique, avec un avertissement dans le rapport ; sans
@@ -355,10 +360,14 @@ Les règles de combat sont les suivantes :
   destination reste contestée et le mouvement pacifique est repoussé. Une destination est contestée
   lorsqu'au moins une attaque adverse y participe et qu'aucune armée
   attaquante ne remporte le combat (statu quo ou défense conservée) ;
-- un château apporte son bonus défensif fixe, même sans armée, sauf si tous les
-  attaquants appartiennent au propriétaire du château (auto-capture d'un château
-  ami vide) ; le château de la capitale d'un fief est une cité et apporte à la
-  place un bonus fixe supérieur, sans cumul avec le bonus de château (voir
+- un château apporte son bonus défensif fixe, même sans armée, tant qu'il reste
+  **ancré** — membre d'un fief ou capitale d'un joueur (voir
+  [titres.md](titres.md#contrôle-et-occupation)) — sauf si tous les attaquants
+  appartiennent au propriétaire du château (auto-capture d'un château ami
+  vide) ; un château vide qui n'est ni membre d'un fief ni la capitale d'un
+  joueur est **inerte** et n'apporte aucun bonus ; le château de la capitale
+  d'un fief est une cité et apporte à la place un bonus fixe supérieur, sans
+  cumul avec le bonus de château (voir
   [titres.md](titres.md#constitution-dun-fief)) ;
 - une jonction ou une dispersion dont l'origine est visée par une attaque,
   quel qu'en soit l'auteur (allié, ennemi, ou une attaque à force nulle faute
@@ -520,10 +529,14 @@ dans cette capitale. Un joueur sans noble libre ou otage apte à émettre n'a pa
 Une armée défaite bat en retraite en bloc vers une destination adjacente
 déterminée par ordre de priorité décroissant :
 
-1. Case vide contrôlée par le propriétaire du retraité (avec ou sans château),
-   même si elle a été combattue ce tour.
-2. Case vide non contrôlée par le retraité (neutre ou ennemie), sans château et
-   non combattue ce tour.
+1. Case vide **ancrée** au retraité : membre d'un fief du retraité, ou sa
+   propre capitale (voir [titres.md](titres.md#contrôle-et-occupation)), même
+   si elle a été combattue ce tour.
+2. Toute autre case vide non ancrée au retraité, sans château **ancré** (à
+   quiconque) et non combattue ce tour ; une case que le retraité contrôlait
+   simplement de façon positionnelle, y compris celle qu'il vient de quitter
+   ce même tour, n'est plus prioritaire à ce titre et relève de cette
+   deuxième priorité comme n'importe quelle autre case vide.
 3. Armée amie adjacente non délogée (priorité à la plus petite en troupes), avec
    fusion : la taille de l'hôte augmente de `N − 1` si la retraitante a `N ≥ 2`
    troupes, sinon de `1` (`N = 1` sans perte). Plusieurs armées retraitantes
@@ -535,9 +548,12 @@ contrôlé par le propriétaire du retraité l'emporte, puis l'ordre lexicograph
 croissante, puis distance à la source contrôlée la plus proche, puis trigramme
 croissant.
 
-La case d'origine de l'attaquant est toujours exclue. Les châteaux neutres ou
-ennemis vides défendent contre une retraite et ne sont jamais une destination
-valide. Deux armées qui doivent reculer sur la même case vide sont détruites si
+La case d'origine de l'attaquant est toujours exclue. Un château **ancré** — 
+membre d'un fief ou capitale d'un joueur, y compris neutre ou ennemi pour le
+retraité — défend contre une retraite et n'est jamais une destination valide ;
+un château vide **inerte** (ni fief, ni capitale, ni armée) redevient en
+revanche une destination valide de deuxième priorité, comme l'absence de
+château. Deux armées qui doivent reculer sur la même case vide sont détruites si
 aucune alternative ne subsiste. L'ordre de traitement des armées en retraite suit
 le trigramme croissant de leur case d'origine.
 
@@ -546,32 +562,41 @@ le trigramme croissant de leur case d'origine.
 Les infrastructures appartiennent à leur case. Le joueur qui contrôle la case
 en bénéficie ; il n'y a pas de propriétaire stocké sur l'infrastructure.
 
-Le contrôle territorial reste positionnel hors fief. Dans un fief, il est
-**transitif** (titres.md) : un membre non-capitale reste contrôlé par le
-propriétaire du fief même lorsqu'une armée adverse, ou une révolte
-`NEUTRAL`, s'y arrête (elle l'**occupe** sans le contrôler) ; seule la prise
-de la **capitale** du fief transfère le contrôle de tous ses membres au
-conquérant en une seule fois.
+La prise de contrôle reste positionnelle hors fief : une armée qui s'arrête sur
+une case en prend le contrôle. Mais hors fief, ce contrôle est désormais
+**éphémère** : un territoire ne reste « à quelqu'un » que tant qu'il est
+**ancré** — membre d'un fief, capitale du joueur (une exception permanente,
+même sans armée), ou actuellement occupé par une armée de ce joueur. Dès
+qu'aucune de ces trois conditions n'est plus vraie, le territoire redevient
+neutre (sans propriétaire), jusqu'à ce qu'une armée, quelle qu'elle soit,
+s'y arrête à nouveau et le reprenne positionnellement. Une révolte `NEUTRAL`
+qui s'arrête sur une case ne prend jamais le contrôle : elle l'occupe, ce qui
+libère la case si son ancien contrôleur n'y a plus d'armée et ne l'ancre
+autrement (voir [titres.md](titres.md#contrôle-et-occupation)).
+
+Dans un fief, le contrôle est **transitif** (titres.md) : un membre
+non-capitale reste contrôlé par le propriétaire du fief même lorsqu'une armée
+adverse, ou une révolte `NEUTRAL`, s'y arrête (elle l'**occupe** sans le
+contrôler) ; seule la prise de la **capitale** du fief transfère le contrôle
+de tous ses membres au conquérant en une seule fois.
 
 | Infrastructure | Condition | Effet v1 | Coût |
 |---|---|---|---:|
-| Moulin | Construction sur case vide contrôlée, adjacente à un château ou village (voisinage requis pour la construction seulement, pas pour l'amélioration) | `N` R par niveau, versés à une seule infrastructure : le château adjacent du même contrôleur, sinon le village adjacent du même contrôleur, sinon la case du moulin elle-même (voir [economie.md](economie.md#moulins)) | 3 / 5 / 7 |
-| Dépôt de vivres | Aucune condition structurelle | +2 cases de portée de ravitaillement lorsqu'il est contrôlé | 3 |
-| Château | Aucune | +1 défense, ancre de ravitaillement, verse le revenu territorial (§3) ; devient une cité (+2 défense au lieu de +1) lorsqu'il est la capitale d'un fief ([titres.md](titres.md#constitution-dun-fief)) | 10 |
-| Village | Généré neutre, non constructible | Ancre après capture, verse le revenu territorial une fois contrôlé ; produit `village_income` R par tour tant qu'il reste neutre | — |
+| Moulin | Construction sur case vide contrôlée, adjacente à un château ou village (voisinage requis pour la construction seulement, pas pour l'amélioration) | Inerte tant qu'il n'est pas ancré ou occupé (voir ci-dessus) ; sinon `N` R par niveau, versés à une seule infrastructure : le château adjacent du même contrôleur, sinon le village adjacent du même contrôleur, sinon la case du moulin elle-même (voir [economie.md](economie.md#moulins)) | 3 / 5 / 7 |
+| Dépôt de vivres | Aucune condition structurelle | +2 cases de portée de ravitaillement, seulement lorsqu'il est ancré ou occupé (voir ci-dessus) ; inerte sinon | 3 |
+| Château | Aucune | +1 défense tant qu'il reste ancré ou occupé (voir ci-dessus), sinon inerte ; verse le revenu territorial (§3) lorsqu'il est contrôlé ; devient une cité (+2 défense au lieu de +1) lorsqu'il est la capitale d'un fief ([titres.md](titres.md#constitution-dun-fief)) | 10 |
+| Village | Généré neutre, non constructible | Verse le revenu territorial une fois contrôlé ; produit `village_income` R par tour dans son propre stock tant qu'il reste neutre, qu'il n'ait jamais été tenu ou qu'il vienne d'être abandonné (seule infrastructure qui ne devient jamais inerte, voir ci-dessus) | — |
 
 Un moulin isolé (sans château ni village adjacent du même contrôleur) produit
-sur sa propre case ; cette case devient alors elle-même une source de
-ravitaillement pour son contrôleur. La production n'y est pas rapatriée
-automatiquement : un ordre de transfert (`T`) reste nécessaire pour
-l'acheminer. La contrainte de voisinage productif ne s'applique qu'à la
-construction d'un nouveau moulin : un moulin déjà bâti peut toujours être
-amélioré, même isolé, en payant sur son propre stock (voir
-[economie.md](economie.md#moulins)). Une construction remplace la
-structure existante uniquement lorsque la règle de l'ordre le prévoit : un
-château construit sur un village remplace le village et conserve le stock de
-la case. Le contrôle reste acquis après le départ d'une armée jusqu'à l'arrêt
-d'une armée ennemie.
+sur sa propre case, tant qu'il reste ancré ou occupé ; cette case devient
+alors elle-même une source de ravitaillement pour son contrôleur. La
+production n'y est pas rapatriée automatiquement : un ordre de transfert (`T`)
+reste nécessaire pour l'acheminer. La contrainte de voisinage productif ne
+s'applique qu'à la construction d'un nouveau moulin : un moulin déjà bâti peut
+toujours être amélioré, même isolé, en payant sur son propre stock (voir
+[economie.md](economie.md#moulins)). Une construction remplace la structure
+existante uniquement lorsque la règle de l'ordre le prévoit : un château
+construit sur un village remplace le village et conserve le stock de la case.
 
 ## 8. Évolution du document
 
@@ -607,9 +632,12 @@ Le score d'un joueur est la somme des éléments suivants :
 
 Les points d'infrastructure et de ressource ne sont attribués que lorsque le
 territoire est contrôlé. Un noble libre est compté pour son propriétaire. Un
-noble capturé, qu'il soit otage ou au donjon, est compté pour le joueur qui
-contrôle le territoire où il se trouve ; il ne compte pas pour son propriétaire
-initial. Un territoire neutre ne rapporte aucun élément de score.
+noble capturé, qu'il soit otage ou au donjon, est compté pour le joueur dont
+une armée le détient physiquement (celle qui stationne sur sa case), et non
+pour le contrôleur de cette case : hors fief, le contrôle territorial est
+désormais éphémère (§7) et peut avoir disparu alors que l'armée captrice y
+stationne toujours ; il ne compte pas pour son propriétaire initial. Un
+territoire neutre ne rapporte aucun élément de score.
 
 À la fin d'une partie, un unique survivant gagne toujours, même si la durée
 vient d'être atteinte. Sinon, le joueur qui possède le score le plus élevé gagne.

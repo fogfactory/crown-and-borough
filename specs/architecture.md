@@ -449,6 +449,12 @@ Les modèles métier sont dans `internal/models`. Ils valident notamment :
 - une seule armée et une seule infrastructure par territoire ;
 - la cohérence entre les index de `GameState` et les entités ;
 - la saison calculée à partir du tour absolu ;
+- que la capitale d'un joueur, lorsqu'elle est désignée, porte bien un
+  château contrôlé par ce joueur (`TerritoryState.OwnerID`) ; en revanche,
+  `Validate` n'exige **pas** qu'un territoire contrôlé hors fief et hors
+  capitale porte une armée de son propriétaire : cette propriété n'est vraie
+  qu'à l'issue d'une résolution (voir ci-dessous), jamais imposée au
+  chargement d'une partie existante ;
 - pour chaque fief : un identifiant unique, un titre cohérent avec la taille
   du groupe (`FiefTitleForSize`), une capitale en tête du groupe, aucun
   territoire partagé avec un autre fief, un propriétaire connu qui contrôle
@@ -471,6 +477,20 @@ parmi les investissements d'hiver ; une section `fiefs` dédiée couvre la
 conquête, la vacance, la dissolution et l'occupation d'un membre non-capitale
 d'un fief, y compris hors hiver (voir [titres.md](titres.md)). Le moteur ne
 dépend ni du HTTP ni du rendu front.
+
+`TerritoryState.OwnerID` (`owner` dans `state.json`) reflète le contrôle tel
+que défini par [titres.md](titres.md#contrôle-et-occupation) : une prise
+positionnelle, maintenue indéfiniment pour un membre de fief ou la capitale
+d'un joueur, mais **éphémère** partout ailleurs, où elle ne survit qu'à la
+présence continue d'une armée du contrôleur
+([#215](https://github.com/fogfactory/crown-and-borough/issues/215)). Le
+moteur matérialise cette règle plutôt que de la calculer à la volée à chaque
+lecture : `OwnerID` reste la source de vérité lue par toutes les autres
+règles, et une passe de normalisation idempotente
+(`releaseUnanchoredControl`) libère (`OwnerID` à `nil`) tout territoire
+devenu non ancré à la fin de chaque passage qui modifie le contrôle — la mise
+à jour du contrôle territorial d'un tour d'action, et la fin de l'hiver après
+le rapatriement des stocks.
 
 La réception des chaînes est immédiate et atomique. La validation est en une
 seule couche : `orders.ValidateChain` porte toutes les règles statiques

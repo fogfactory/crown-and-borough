@@ -16,9 +16,12 @@ cette issue. Aucune compatibilité avec les parties existantes n'est requise
 
 ## Vocabulaire
 
-- **Contrôlé** : le statut porté par la case (`OwnerID`). Hors fief, il est
-  positionnel (dernier joueur dont une armée s'est arrêtée sur la case) ; dans
-  un fief, il est transitif (joueur qui détient le fief). Voir
+- **Contrôlé** : le statut porté par la case (`OwnerID`). Hors fief, la prise
+  est positionnelle (dernier joueur dont une armée s'est arrêtée sur la case),
+  mais son maintien est **éphémère** : la case ne reste au joueur que tant
+  qu'elle est ancrée (fief, capitale du joueur) ou qu'une de ses armées y
+  stationne encore ([#215](https://github.com/fogfactory/crown-and-borough/issues/215)).
+  Dans un fief, il est transitif (joueur qui détient le fief). Voir
   [titres.md](titres.md#contrôle-et-occupation).
 - **Occupé** : une armée est présente sur la case. Information dérivée, jamais
   stockée.
@@ -102,7 +105,11 @@ Issue : [#192](https://github.com/fogfactory/crown-and-borough/issues/192)
   [#195](https://github.com/fogfactory/crown-and-borough/issues/195)
   ci-dessous.
 - Un village **neutre** continue de produire `village_income` R par tour dans
-  son propre stock, récupéré à sa capture.
+  son propre stock, récupéré à sa capture, qu'il n'ait jamais été tenu ou qu'il
+  vienne d'être abandonné faute d'ancrage
+  ([#215](https://github.com/fogfactory/crown-and-borough/issues/215)) : c'est
+  la seule infrastructure qui garde une production neutre après abandon,
+  contrairement à un moulin (voir « Moulins » ci-dessous).
 
 ## Flux de la ressource R
 
@@ -132,7 +139,14 @@ même territoire le même tour.
 Issue : [#195](https://github.com/fogfactory/crown-and-borough/issues/195).
 **Appliqué.**
 
-Un moulin de niveau `N` produit `N` R (`2N` sous le Beau temps, 0 sous le
+Un moulin outre-fief et hors capitale, sans armée dessus, est **inerte**
+([#215](https://github.com/fogfactory/crown-and-borough/issues/215)) : il ne
+produit rien du tout, ni pour lui-même ni pour un voisin, tant qu'il reste
+dans cet état — qu'il n'ait jamais été tenu ou qu'il vienne d'être abandonné.
+Un moulin membre d'un fief, sur la capitale d'un joueur, ou actuellement tenu
+par une armée, reste actif et produit normalement, décrit ci-dessous.
+
+Un moulin actif de niveau `N` produit `N` R (`2N` sous le Beau temps, 0 sous le
 mauvais temps) et verse sa production à **une seule** infrastructure, dans cet
 ordre de préférence :
 
@@ -204,7 +218,13 @@ un village déjà fortifié est rejeté sans prélèvement.
 Un château, un village ou un dépôt de vivres contribue au ravitaillement
 (ancre, portée de base, bonus de portée) du joueur qui **contrôle** sa case.
 Une conquête récente hors fief est contrôlée dès qu'une armée s'y arrête et
-garde donc immédiatement sa valeur logistique.
+garde donc immédiatement sa valeur logistique. Un château ou un dépôt hors
+fief et hors capitale perd cette valeur dès que sa case n'est plus contrôlée
+par personne, ce qui arrive dès que la dernière armée qui l'ancrait
+positionnellement en repart
+([#215](https://github.com/fogfactory/crown-and-borough/issues/215)) ; un
+dépôt inerte de la sorte n'étend alors la portée de personne, exactement
+comme un dépôt occupé contre son contrôleur ci-dessous.
 
 Une case contrôlée mais **occupée contre son contrôleur** (titres.md,
 [#196](https://github.com/fogfactory/crown-and-borough/issues/196)) n'est
