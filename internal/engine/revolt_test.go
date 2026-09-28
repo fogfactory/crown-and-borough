@@ -126,6 +126,43 @@ func TestRevoltResolvesAsCombatOnOccupiedTerritory(t *testing.T) {
 	}
 }
 
+// TestRevoltOnVacatedTerritoryStaysNeutral checks #215: a rebel army placed
+// on a territory its former controller just vacated does not inherit
+// control -- a NEUTRAL army occupies without administering, exactly like on
+// any other territory -- and the former controller does not keep it either,
+// since it carries no fief or capital anchor and none of its own armies
+// remain there.
+func TestRevoltOnVacatedTerritoryStaysNeutral(t *testing.T) {
+	state := revoltTestState(t,
+		[]models.Territory{
+			supplyTerritory("AAA", "AAA", models.TerrainPlain, "BBB"),
+			supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA", "CCC"),
+			supplyTerritory("CCC", "CCC", models.TerrainPlain, "BBB"),
+		},
+		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "BBB", Size: 1}},
+	)
+	setTerritoryOwner(state, "BBB", "P1")
+	addNoble(state, "N1", "ONE", "P1", "BBB")
+	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"CCC"}})
+	validateTestState(t, state)
+	balance := testBalance()
+	balance.SpecialOrders.Effects.RevoltArmyMinSize = 1
+	balance.SpecialOrders.Effects.RevoltArmyMaxSize = 1
+	resolution, err := ResolveWithDeckOrders(state, balance, map[models.PlayerID][]models.DeckOrder{
+		"P1": {{ID: "O1", Type: models.DeckOrderTypePlay, Kind: models.CardKindRevolt, TargetTerritoryID: "BBB"}},
+	})
+	if err != nil {
+		t.Fatalf("ResolveWithDeckOrders: %v", err)
+	}
+	rebels := neutralArmyAt(t, resolution.State, "BBB")
+	if rebels.Size != 1 {
+		t.Fatalf("rebel size = %d, want the fixed one-troop roll", rebels.Size)
+	}
+	if owner := resolution.State.TerritoryStates["BBB"].OwnerID; owner != nil {
+		t.Errorf("BBB owner = %v, want nil (P1 lost its anchor and the rebels never take control)", owner)
+	}
+}
+
 func TestRevoltRefusedInWinter(t *testing.T) {
 	state := revoltTestState(t,
 		[]models.Territory{supplyTerritory("AAA", "AAA", models.TerrainPlain)},

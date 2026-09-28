@@ -253,6 +253,13 @@ func updateTerritorialControl(ctx *resolutionContext) {
 			CaptorPlayerID: army.OwnerID,
 		})
 	}
+
+	// A fief dissolved this same turn (its capital's castle pillaged) already
+	// lost its membership above, in removeInfrastructureWithStock, before
+	// either pass ran: a former member without a fresh army of its own is
+	// released here, in the same pass that releases every other unanchored
+	// territory (#215).
+	ctx.releaseUnanchoredControl()
 }
 
 func (ctx *resolutionContext) clearCapitalOnControlLoss(previousOwnerID models.PlayerID, territoryID models.TerritoryID) {

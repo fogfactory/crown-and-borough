@@ -65,6 +65,10 @@ func ResolveWinterWithDeckOrders(
 	ctx.resolveVacantFiefsAtWinterEnd()
 	ctx.conserveWinterStocks()
 	ctx.repatriateWinterStocks()
+	// Released after repatriation: a capital replaced this same winter by E C
+	// still rapatriates its surplus above as the old capital before losing its
+	// anchor here (#215).
+	ctx.releaseUnanchoredControl()
 	ctx.emitWinterStockEvents(stockBefore)
 
 	if err := state.Validate(); err != nil {

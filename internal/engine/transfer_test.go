@@ -275,6 +275,42 @@ func TestResolveTransferRejectsTargetOccupiedByNonController(t *testing.T) {
 	}
 }
 
+// TestResolveTransferRejectsAbandonedCastleTarget checks #215: a transfer
+// aimed at an empty castle with no controller (an enemy's, abandoned once
+// its army left, outside every fief and capital) is invalid, exactly like a
+// target with no settlement at all: control.controlsTerritory rejects it
+// through the ordinary "no controller" branch, no dedicated code needed.
+func TestResolveTransferRejectsAbandonedCastleTarget(t *testing.T) {
+	state := testState(t, []models.Territory{
+		supplyTerritory("AAA", "AAA", models.TerrainPlain, "BBB"),
+		supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA"),
+	}, []models.Army{
+		{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+	})
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	setTerritoryResources(state, "AAA", 4)
+	addChain(t, state, "A1", "N1", models.Order{
+		Type:       models.OrderTypeTransfer,
+		PositionID: "AAA",
+		TargetIDs:  []models.TerritoryID{"BBB"},
+		Amount:     1,
+	})
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	outcome, ok := findOutcome(resolution.Events, "O1")
+	if !ok || outcome.Outcome != OutcomeInvalid || outcome.Reason != "invalid_transfer_destination" {
+		t.Fatalf("outcome = %#v, want invalid invalid_transfer_destination", outcome)
+	}
+	if got := resolution.State.TerritoryStates["AAA"].Resources; got != 4 {
+		t.Errorf("source resources = %d, want unchanged 4 (no prelevement)", got)
+	}
+}
+
 // TestResolveWinterTransferRejectsOccupiedSource verifies that a winter
 // transfer order cannot debit a settlement occupied against its controller
 // (titres.md, #196).

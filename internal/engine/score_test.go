@@ -16,9 +16,12 @@ func TestComputeScoresCountsCategoriesAndCaptiveHolder(t *testing.T) {
 			{ID: "CCC"},
 		},
 		TerritoryStates: map[models.TerritoryID]models.TerritoryState{
-			"AAA": {OwnerID: &p1, Resources: 3, Infrastructures: infraPointer("I1")},
+			// A captive noble's point goes to whoever physically holds it, the
+			// army stationed on its territory (#215), so AAA and CCC each carry
+			// the army that will hold N2 and N3 below.
+			"AAA": {OwnerID: &p1, Resources: 3, Infrastructures: infraPointer("I1"), Army: armyPointer("A1")},
 			"BBB": {OwnerID: &p1, Resources: 2, Infrastructures: infraPointer("I2")},
-			"CCC": {OwnerID: &p2, Resources: 1, Infrastructures: infraPointer("I3")},
+			"CCC": {OwnerID: &p2, Resources: 1, Infrastructures: infraPointer("I3"), Army: armyPointer("A2")},
 		},
 		Infrastructures: []models.Infrastructure{
 			{ID: "I1", Type: models.InfraTypeCastle, TerritoryID: "AAA"},
@@ -43,6 +46,65 @@ func TestComputeScoresCountsCategoriesAndCaptiveHolder(t *testing.T) {
 	}
 	if got, want := scores[p2], (ScoreBreakdown{Territories: 1, Villages: 2, Nobles: 4, Troops: 2, Resources: 1, Total: 10}); got != want {
 		t.Fatalf("P2 score = %#v, want %#v", got, want)
+	}
+}
+
+// TestComputeScoresCaptiveGoesToHolderNotController checks #215: a hostage
+// or dungeon noble's point goes to whoever physically holds it (the army
+// stationed on its territory), not to that territory's controller, since
+// control outside a fief is now ephemeral and can lapse -- or belong to a
+// third party via a fief -- while the captor's army still stands there.
+func TestComputeScoresCaptiveGoesToHolderNotController(t *testing.T) {
+	p1, p2, p3 := models.PlayerID("P1"), models.PlayerID("P2"), models.PlayerID("P3")
+	state := &models.GameState{
+		Players:     []models.Player{{ID: p1}, {ID: p2}, {ID: p3}},
+		Territories: []models.Territory{{ID: "AAA"}},
+		TerritoryStates: map[models.TerritoryID]models.TerritoryState{
+			// AAA is controlled by P1 (e.g. a fief member) but P2's army is the
+			// one physically standing on it, holding N1 hostage.
+			"AAA": {OwnerID: &p1, Army: armyPointer("A1")},
+		},
+		Armies: []models.Army{{ID: "A1", OwnerID: p2, TerritoryID: "AAA", Size: 1}},
+		Nobles: []models.Noble{{ID: "N1", OwnerID: p3, LocationID: "AAA", Status: models.NobleStatusHostage}},
+	}
+
+	scores := ComputeScores(state)
+	if got := scores[p2].Nobles; got != 2 {
+		t.Errorf("P2 nobles score = %d, want 2 (the holder, not AAA's controller)", got)
+	}
+	if got := scores[p1].Nobles; got != 0 {
+		t.Errorf("P1 nobles score = %d, want 0 (AAA's controller does not hold N1)", got)
+	}
+}
+
+// TestComputeScoresCaptiveFallsBackToAnchorOwnerWithoutArmy verifies that a
+// hostage or dungeon noble left on anchored ground (a fief member or a
+// player's own capital) with no army present still scores for that anchor's
+// owner, instead of being dropped for lack of a physical holder (#215): an
+// anchored territory stays controlled indefinitely without an army, so a
+// captive left behind there is not stranded on nobody's land.
+func TestComputeScoresCaptiveFallsBackToAnchorOwnerWithoutArmy(t *testing.T) {
+	p1, p2 := models.PlayerID("P1"), models.PlayerID("P2")
+	state := &models.GameState{
+		Players:     []models.Player{{ID: p1}, {ID: p2}},
+		Territories: []models.Territory{{ID: "AAA"}},
+		TerritoryStates: map[models.TerritoryID]models.TerritoryState{
+			// AAA is a fief member of P1 with no army present.
+			"AAA": {OwnerID: &p1},
+		},
+		Fiefs: []models.Fief{{
+			ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "AAA",
+			Territories: []models.TerritoryID{"AAA"}, OwnerID: p1,
+		}},
+		Nobles: []models.Noble{{ID: "N1", OwnerID: p2, LocationID: "AAA", Status: models.NobleStatusHostage}},
+	}
+
+	scores := ComputeScores(state)
+	if got := scores[p1].Nobles; got != 2 {
+		t.Errorf("P1 nobles score = %d, want 2 (falls back to the anchor owner)", got)
+	}
+	if got := scores[p2].Nobles; got != 0 {
+		t.Errorf("P2 nobles score = %d, want 0 (owner is not the holder)", got)
 	}
 }
 

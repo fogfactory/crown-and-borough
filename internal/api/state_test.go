@@ -177,14 +177,17 @@ func TestProjectStateProjectsMillProductionAndDestination(t *testing.T) {
 			{ID: "MIL", Name: "Moulinet", Terrain: models.TerrainPlain, Adjacencies: []models.TerritoryID{"CAS"}},
 		},
 		NextChainID: 1,
-		NextArmyID:  1,
+		NextArmyID:  2,
 		Infrastructures: []models.Infrastructure{
 			{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "CAS"},
 			{ID: "I2", Type: models.InfraTypeMill, Level: 2, TerritoryID: "MIL"},
 		},
+		// P1's army holds MIL: outside every fief and capital, a mill only
+		// produces while occupied (#215).
+		Armies: []models.Army{{ID: "A1", OwnerID: p1, TerritoryID: "MIL", Size: 1}},
 		TerritoryStates: map[models.TerritoryID]models.TerritoryState{
 			"CAS": {OwnerID: &p1, Infrastructures: ptrInfraID("I1")},
-			"MIL": {OwnerID: &p1, Infrastructures: ptrInfraID("I2")},
+			"MIL": {OwnerID: &p1, Infrastructures: ptrInfraID("I2"), Army: ptrArmyID("A1")},
 		},
 	}
 	if err := state.Validate(); err != nil {

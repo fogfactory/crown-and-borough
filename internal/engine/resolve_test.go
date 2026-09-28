@@ -39,8 +39,11 @@ func TestResolveAttackIsPureAndUpdatesControl(t *testing.T) {
 	if owner == nil || *owner != "P1" {
 		t.Errorf("BBB owner = %v, want P1", owner)
 	}
-	if sourceOwner := resolution.State.TerritoryStates["AAA"].OwnerID; sourceOwner == nil || *sourceOwner != "P1" {
-		t.Errorf("AAA owner = %v, want P1 remanence after departure", sourceOwner)
+	// AAA carries no fief or capital and A1 left it: control outside a fief is
+	// ephemeral, so it reverts to neutral once no army of its former
+	// controller remains there (#215).
+	if sourceOwner := resolution.State.TerritoryStates["AAA"].OwnerID; sourceOwner != nil {
+		t.Errorf("AAA owner = %v, want nil (released once its army departed)", sourceOwner)
 	}
 	if !containsEvent(resolution.Events, EventTypeMovement) || !containsEvent(resolution.Events, EventTypeControlChanged) {
 		t.Errorf("events = %#v, want movement and control events", resolution.Events)
@@ -93,6 +96,10 @@ func TestResolveCastleBlocksEqualAttack(t *testing.T) {
 	addNoble(state, "N1", "ONE", "P1", "AAA")
 	setNobleStatus(state, "N1", models.NobleStatusHostage)
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
+	// BBB is P2's own capital: a permanent anchor outside any fief, the only
+	// thing keeping this empty castle from going inert (#215).
+	setTerritoryOwner(state, "BBB", "P2")
+	setCapital(state, "P2", "I1")
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"}})
 	validateTestState(t, state)
 

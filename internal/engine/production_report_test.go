@@ -34,7 +34,13 @@ func TestProductionReportBreaksDownSourceAndBonus(t *testing.T) {
 			supplyTerritory("AAA", "AAA", models.TerrainPlain, "BBB"),
 			supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA"),
 		},
-		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}},
+		[]models.Army{
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+			// P1's army holds BBB's mill: outside every fief and capital, a
+			// mill only produces while occupied (#215). Its local rations (3,
+			// plain terrain) cover its demand (1), so it never starves.
+			{ID: "A2", OwnerID: "P1", TerritoryID: "BBB", Size: 1},
+		},
 	)
 	setTerritoryOwner(state, "AAA", "P1")
 	setTerritoryOwner(state, "BBB", "P1")
@@ -153,10 +159,18 @@ func TestProductionReportShowsFamineSuppression(t *testing.T) {
 	state := effectTestState()
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 2, TerritoryID: "BBB"})
-	state.Armies = []models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}}
+	// A2 holds BBB's mill: outside every fief and capital, a mill only
+	// produces while occupied (#215).
+	state.Armies = []models.Army{
+		{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+		{ID: "A2", OwnerID: "P1", TerritoryID: "BBB", Size: 1},
+	}
 	aaaState := state.TerritoryStates["AAA"]
 	aaaState.Army = armyPointer("A1")
 	state.TerritoryStates["AAA"] = aaaState
+	bbbState := state.TerritoryStates["BBB"]
+	bbbState.Army = armyPointer("A2")
+	state.TerritoryStates["BBB"] = bbbState
 	setTerritoryOwner(state, "AAA", "P1")
 	setTerritoryOwner(state, "BBB", "P1")
 	setCurrentCalamity(state, models.CardKindFamine, "AAA")

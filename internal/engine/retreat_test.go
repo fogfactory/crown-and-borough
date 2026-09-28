@@ -134,10 +134,11 @@ func TestResolveRetreatToControlledEmptyCastle_OverridesAttackedTerritory(t *tes
 	addNoble(state, "N3", "THR", "P3", "DDD")
 	setNobleStatus(state, "N3", models.NobleStatusHostage)
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "CCC"})
-	p1 := models.PlayerID("P1")
-	cccState := state.TerritoryStates["CCC"]
-	cccState.OwnerID = &p1
-	state.TerritoryStates["CCC"] = cccState
+	// CCC is P1's own capital: a permanent anchor outside any fief, the only
+	// thing keeping this empty, retreating-army-owned castle in bucket 1
+	// instead of falling through with every other empty cell (#215).
+	setTerritoryOwner(state, "CCC", "P1")
+	setCapital(state, "P1", "I1")
 
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeHold, PositionID: "AAA"})
 	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"AAA"}})
@@ -150,14 +151,17 @@ func TestResolveRetreatToControlledEmptyCastle_OverridesAttackedTerritory(t *tes
 		t.Fatalf("Resolve: %v", err)
 	}
 
-	// Even though CCC was attacked this turn, A1 can retreat there because it is controlled by P1!
+	// Even though CCC was attacked this turn, A1 can retreat there because it is P1's own capital!
 	a1 := armyByID(t, resolution.State, "A1")
 	if a1.TerritoryID != "CCC" {
 		t.Errorf("A1 territory = %q, want CCC (bucket 1 overrides attackedTerritories)", a1.TerritoryID)
 	}
 }
 
-func TestResolveRetreatNeutralEmptyCastleExcluded(t *testing.T) {
+// TestResolveRetreatNeutralEmptyCastleNowAvailable checks #215: a castle with
+// no fief, no capital and no army standing on it is inert, so it no longer
+// blocks a retreat into it like a live fortress would.
+func TestResolveRetreatNeutralEmptyCastleNowAvailable(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
 			territory("AAA", "AAA", "BBB", "CCC"),
@@ -171,7 +175,7 @@ func TestResolveRetreatNeutralEmptyCastleExcluded(t *testing.T) {
 	)
 	addNoble(state, "N1", "ONE", "P1", "AAA")
 	addNoble(state, "N2", "TWO", "P2", "BBB")
-	// CCC is neutral castle
+	// CCC is a neutral castle: never owned, no fief, no capital.
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "CCC"})
 
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeHold, PositionID: "AAA"})
@@ -183,13 +187,17 @@ func TestResolveRetreatNeutralEmptyCastleExcluded(t *testing.T) {
 		t.Fatalf("Resolve: %v", err)
 	}
 
-	// Neutral castle cannot be retreated into -> A1 destroyed
-	if hasArmy(resolution.State, "A1") {
-		t.Error("A1 should be destroyed, neutral castle cannot receive retreat")
+	// The inert neutral castle now receives the retreat instead of destroying A1.
+	a1 := armyByID(t, resolution.State, "A1")
+	if a1.TerritoryID != "CCC" {
+		t.Errorf("A1 territory = %q, want CCC (inert neutral castle accepts the retreat)", a1.TerritoryID)
 	}
 }
 
-func TestResolveRetreatEnemyEmptyCastleExcluded(t *testing.T) {
+// TestResolveRetreatEnemyCapitalCastleExcluded checks that an anchored castle
+// -- here an enemy's own capital, still standing without an army on it --
+// keeps blocking a retreat, unlike the unanchored case above (#215).
+func TestResolveRetreatEnemyCapitalCastleExcluded(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
 			territory("AAA", "AAA", "BBB", "CCC"),
@@ -203,12 +211,11 @@ func TestResolveRetreatEnemyEmptyCastleExcluded(t *testing.T) {
 	)
 	addNoble(state, "N1", "ONE", "P1", "AAA")
 	addNoble(state, "N2", "TWO", "P2", "BBB")
-	// CCC is enemy castle controlled by P3
-	p3 := models.PlayerID("P3")
-	cccState := state.TerritoryStates["CCC"]
-	cccState.OwnerID = &p3
-	state.TerritoryStates["CCC"] = cccState
+	// CCC is P3's own capital: a permanent anchor that keeps this empty castle
+	// standing against a retreat, even without an army of P3's on it.
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "CCC"})
+	setTerritoryOwner(state, "CCC", "P3")
+	setCapital(state, "P3", "I1")
 
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeHold, PositionID: "AAA"})
 	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"AAA"}})
@@ -219,9 +226,9 @@ func TestResolveRetreatEnemyEmptyCastleExcluded(t *testing.T) {
 		t.Fatalf("Resolve: %v", err)
 	}
 
-	// Enemy castle cannot be retreated into -> A1 destroyed
+	// Enemy capital castle cannot be retreated into -> A1 destroyed
 	if hasArmy(resolution.State, "A1") {
-		t.Error("A1 should be destroyed, enemy castle cannot receive retreat")
+		t.Error("A1 should be destroyed, an anchored enemy castle cannot receive retreat")
 	}
 }
 

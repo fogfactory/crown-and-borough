@@ -24,8 +24,11 @@ type ScoreBreakdown struct {
 }
 
 // ComputeScores calculates the public score for every player in the state.
-// Infrastructure, resources, and captive nobles are awarded to the player who
-// controls their current territory; a free noble is awarded to its owner.
+// Infrastructure and resources are awarded to the player who controls their
+// current territory. A free noble is awarded to its owner; a captive noble
+// (hostage or dungeon) is awarded to whoever physically holds it — the army
+// on its territory, falling back to that territory's anchor owner when no
+// army is present (#215) — rather than to the territory's controller.
 func ComputeScores(state *models.GameState) map[models.PlayerID]ScoreBreakdown {
 	scores := make(map[models.PlayerID]ScoreBreakdown)
 	if state == nil {
@@ -38,6 +41,10 @@ func ComputeScores(state *models.GameState) map[models.PlayerID]ScoreBreakdown {
 	infrastructures := make(map[models.InfraID]models.Infrastructure, len(state.Infrastructures))
 	for _, infrastructure := range state.Infrastructures {
 		infrastructures[infrastructure.ID] = infrastructure
+	}
+	armies := make(map[models.ArmyID]models.Army, len(state.Armies))
+	for _, army := range state.Armies {
+		armies[army.ID] = army
 	}
 	for _, territory := range state.Territories {
 		territoryState := state.TerritoryStates[territory.ID]
@@ -78,11 +85,30 @@ func ComputeScores(state *models.GameState) map[models.PlayerID]ScoreBreakdown {
 	for _, noble := range state.Nobles {
 		playerID := noble.OwnerID
 		if noble.Status == models.NobleStatusHostage || noble.Status == models.NobleStatusDungeon {
+			// A captive noble's point goes to whoever physically holds it: the
+			// army currently stationed on its territory, since control outside
+			// a fief is now ephemeral and can lapse while the captor's army
+			// still stands there (#215). Absent an army, it falls back to the
+			// territory's anchor owner (a fief or a player's own capital stays
+			// controlled indefinitely with no army present) rather than being
+			// dropped, since a hostage left behind on still-anchored ground is
+			// not stranded on nobody's land.
 			territoryState, exists := state.TerritoryStates[noble.LocationID]
-			if !exists || territoryState.OwnerID == nil {
+			if !exists {
 				continue
 			}
-			playerID = *territoryState.OwnerID
+			switch {
+			case territoryState.Army != nil:
+				holder, exists := armies[*territoryState.Army]
+				if !exists {
+					continue
+				}
+				playerID = holder.OwnerID
+			case territoryState.OwnerID != nil:
+				playerID = *territoryState.OwnerID
+			default:
+				continue
+			}
 		}
 		score, exists := scores[playerID]
 		if !exists {

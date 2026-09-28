@@ -165,24 +165,22 @@ func resolveNeutralFamines(ctx *resolutionContext) {
 }
 
 // produceNeutralStocks credits the local production of every unclaimed
-// territory that produces one: a neutral village (base village_income plus
-// any mill routed to it), or a neutral mill with no eligible adjacent
-// village to route to instead, which stocks itself (see #195).
+// territory that carries a village: its base village_income, plus any mill
+// routed to it, per neutralVillageProductionBreakdown. A neutral mill never
+// produces on its own any more: unlike a village, a mill outside every fief
+// and capital is inert while no army stands on it (#215, see millActive), so
+// an unclaimed, self-supplied mill (no eligible adjacent village to route to
+// instead, see #195) simply produces nothing until an army reclaims it.
 func produceNeutralStocks(ctx *resolutionContext) {
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
 		state := ctx.state.TerritoryStates[territoryID]
 		if state.OwnerID != nil {
 			continue
 		}
-		var parts sourceProductionParts
-		switch {
-		case ctx.hasInfrastructure(territoryID, models.InfraTypeVillage):
-			parts = neutralVillageProductionBreakdown(ctx, territoryID)
-		case ctx.isSelfSuppliedMill(territoryID):
-			parts = millSelfProductionBreakdown(ctx, territoryID)
-		default:
+		if !ctx.hasInfrastructure(territoryID, models.InfraTypeVillage) {
 			continue
 		}
+		parts := neutralVillageProductionBreakdown(ctx, territoryID)
 		ctx.supplySources[territoryID] = parts
 		production := parts.total()
 		state.Resources += production
@@ -344,11 +342,15 @@ func controlledSupplySources(ctx *resolutionContext, ownerID models.PlayerID) []
 // destination outside this ledger. A neighboring mill only contributes here
 // when territoryID is its single designated recipient (see #195's
 // millRecipient): a mill no longer credits every adjacent castle or village.
+// An inert neighboring mill (see millActive, #215) contributes nothing.
 func sourceProductionBreakdown(ctx *resolutionContext, territoryID models.TerritoryID) sourceProductionParts {
 	parts := sourceProductionParts{}
 	for _, neighborID := range ctx.sortedNeighbors(territoryID) {
 		infrastructure := ctx.infrastructureAt(neighborID)
 		if infrastructure == nil || infrastructure.Type != models.InfraTypeMill {
+			continue
+		}
+		if !ctx.millActive(neighborID) {
 			continue
 		}
 		if millRecipient(ctx, neighborID) != territoryID {
@@ -368,12 +370,16 @@ func sourceProductionBreakdown(ctx *resolutionContext, territoryID models.Territ
 // stock (village_income as its base), subject to the same harvest and
 // weather rules as any other source. A neighboring mill only contributes
 // here when this village is its single designated recipient (see #195), and
-// only a neutral mill can route to a neutral village (see sameController).
+// only a neutral mill can route to a neutral village (see sameController); an
+// inert one (see millActive, #215) contributes nothing regardless.
 func neutralVillageProductionBreakdown(ctx *resolutionContext, territoryID models.TerritoryID) sourceProductionParts {
 	parts := harvestAdjustedParts(ctx, territoryID, ctx.balance.VillageIncome)
 	for _, neighborID := range ctx.sortedNeighbors(territoryID) {
 		infrastructure := ctx.infrastructureAt(neighborID)
 		if infrastructure == nil || infrastructure.Type != models.InfraTypeMill {
+			continue
+		}
+		if !ctx.millActive(neighborID) {
 			continue
 		}
 		if millRecipient(ctx, neighborID) != territoryID {
