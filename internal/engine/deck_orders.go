@@ -18,6 +18,7 @@ var cardDefinitions = map[models.CardKind]CardDefinition{
 	models.CardKindFairWeather:     fairWeatherCardDefinition{},
 	models.CardKindAbundantHarvest: abundantHarvestCardDefinition{},
 	models.CardKindRevolt:          revoltCardDefinition{},
+	models.CardKindSeigneurialTax:  seigneurialTaxCardDefinition{},
 }
 
 type deckOrderIntent struct {
@@ -45,6 +46,21 @@ func validateActionDeckOrders(game *models.GameState, balance assetgen.Balance, 
 		}
 	}
 	validationContext := newResolutionContext(game, balance)
+	// A revolt targeting a fief only taxed by a card submitted in this same
+	// batch must not be rejected outright: resolveSeasonEffects will apply
+	// the tax before the revolt (deck_seigneurial_tax_order.go), so the
+	// combination is legal even though neither card has actually been
+	// applied yet at validation time.
+	for _, playerOrders := range deckOrders {
+		for _, order := range playerOrders {
+			if order.Type != models.DeckOrderTypePlay || order.Kind != models.CardKindSeigneurialTax {
+				continue
+			}
+			if fief := validationContext.fiefByCapital(order.TargetTerritoryID); fief != nil {
+				validationContext.pendingTaxWindowFiefs[fief.ID] = true
+			}
+		}
+	}
 	for _, playerID := range sortedDeckPlayerIDs(deckOrders) {
 		if !players[playerID] {
 			return fmt.Errorf("engine: resolve: unknown player %q", playerID)
@@ -104,7 +120,7 @@ func (ctx *resolutionContext) applyDeckCardOrder(playerID models.PlayerID, order
 		return
 	}
 	regionSeed := order.RegionSeed
-	if order.Kind == models.CardKindRevolt {
+	if order.Kind == models.CardKindRevolt || order.Kind == models.CardKindSeigneurialTax {
 		regionSeed = order.TargetTerritoryID
 	}
 	ctx.deckIntents = append(ctx.deckIntents, deckOrderIntent{playerID: playerID, order: order})

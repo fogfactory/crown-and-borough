@@ -32,6 +32,32 @@ func TestParseDeckOrdersAliasesAndComments(t *testing.T) {
 	}
 }
 
+func TestParseDeckOrdersSeigneurialTaxTargetsFiefCapital(t *testing.T) {
+	game := orderTestState()
+	game.Regions = []models.Region{{ID: "ROS", Seed: "ROS", Territories: []models.TerritoryID{"ROS", "BOI"}}}
+	game.Fiefs = []models.Fief{{
+		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "BOI",
+		Territories: []models.TerritoryID{"BOI", "BRU", "CHA"}, OwnerID: "P1",
+	}}
+	parsed, parseErrors := ParseDeckOrders("p tx boi\nP ST BOI", game)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseDeckOrders errors = %#v", parseErrors)
+	}
+	if len(parsed) != 2 {
+		t.Fatalf("parsed = %#v, want 2 orders", parsed)
+	}
+	for _, order := range parsed {
+		if order.Type != models.DeckOrderTypePlay || order.Kind != models.CardKindSeigneurialTax || order.TargetTerritoryID != "BOI" {
+			t.Errorf("order = %#v, want a tax play targeting the fief capital BOI", order)
+		}
+	}
+	// ROS is a region seed but not a fief capital: the tax exception to
+	// "TER is a region's seed village" only allows a fief capital.
+	if _, parseErrors := ParseDeckOrders("P TX ROS", game); len(parseErrors) != 1 || parseErrors[0].Code != ParseCodeSpecialRegion {
+		t.Fatalf("parseErrors = %#v, want one ParseCodeSpecialRegion error for a non-capital target", parseErrors)
+	}
+}
+
 func TestParseDeckOrdersRejectsInvalidShapesKindsAndSeeds(t *testing.T) {
 	game := orderTestState()
 	game.Regions = []models.Region{{ID: "ROS", Seed: "ROS", Territories: []models.TerritoryID{"ROS", "BOI"}}}

@@ -192,16 +192,19 @@ la dissolution automatique de #194).
 
 Issue : [#189](https://github.com/fogfactory/crown-and-borough/issues/189).
 
-Une carte de taxe (jouée depuis le deck d'ordres spéciaux, voir
-[ordres-speciaux.md](ordres-speciaux.md)) permet au joueur qui détient un fief
-de doubler, pour le tour, le revenu territorial de ce fief, village inclus.
-L'ordre `P <KIND> XXX` cible la capitale du fief, par exception à la règle
-« `TER` est le village seed d'une région », au printemps, en été ou en
-automne. Il est rejeté si le joueur ne détient pas le fief. La production des
-moulins n'est jamais touchée. Jouer la taxe sur la capitale du fief autorise
-la Révolte (voir [ordres-speciaux.md](ordres-speciaux.md)) sur **tout
-territoire du fief**, pas seulement sa capitale, la saison où elle est jouée
-et la saison suivante, indépendamment de toute famine.
+Une carte de taxe (kind `seigneurial_tax`, code d'ordre `TX`, jouée depuis le
+deck d'ordres spéciaux, voir [ordres-speciaux.md](ordres-speciaux.md)) permet
+au joueur qui détient un fief — vacant compris — de doubler, pour le tour, le
+revenu territorial de ce fief, village inclus. L'ordre `P TX XXX` cible la
+capitale du fief, par exception à la règle « `TER` est le village seed d'une
+région », au printemps, en été ou en automne. Il est rejeté si le joueur ne
+détient pas le fief. La production des moulins n'est jamais touchée. Deux
+cartes de taxe jouées sur le même fief le même tour ne se cumulent pas : la
+seconde est consommée sans effet, avec un rapport explicite. Jouer la taxe
+sur la capitale du fief autorise la Révolte (voir
+[ordres-speciaux.md](ordres-speciaux.md)) sur **tout territoire du fief**,
+pas seulement sa capitale, la saison où elle est jouée et la saison
+suivante, indépendamment de toute famine.
 
 Le **roi** pourra taxer n'importe quel fief constitué, mais seulement celui
 qui n'est pas déjà taxé par son seigneur ce tour-là (priorité au titulaire
@@ -211,11 +214,6 @@ la capitale du fief. Cette taxe royale est suivie dans le milestone
 
 Le détail du calcul (montant par territoire, avec et sans village) est défini
 dans [economie.md](economie.md).
-
-> À trancher dans #189 : le code du kind ; la taxe d'un fief vacant
-> (recommandé : autorisée pour le joueur qui le détient) ; deux cartes sur le
-> même fief le même tour (recommandé : pas de cumul, seconde carte consommée
-> sans effet).
 
 ## Points et victoire
 

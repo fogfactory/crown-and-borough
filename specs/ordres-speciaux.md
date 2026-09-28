@@ -33,7 +33,14 @@ Aucun noble n'est requis :
 - `D C BT` ou `D C RA` abandonne une carte bonus, en hiver uniquement ;
 - `P BT TER` joue Beau temps au printemps, en été ou en automne ;
 - `P RA TER` joue Récolte abondante au printemps, en été ou en automne ;
-- `P RE TER` joue Révolte sur le territoire pendant ces saisons, si une mauvaise récolte affecte la région du territoire, ou si une taxe seigneuriale a été jouée sur la capitale du fief auquel appartient le territoire la saison courante ou la saison précédente ; chaque carte ajoute un jet borné à l'armée neutre commune du territoire, qui se bat contre l'occupant le cas échéant.
+- `P RE TER` joue Révolte sur le territoire pendant ces saisons, si une mauvaise récolte affecte la région du territoire, ou si une taxe seigneuriale a été jouée sur la capitale du fief auquel appartient le territoire la saison courante ou la saison précédente ; chaque carte ajoute un jet borné à l'armée neutre commune du territoire, qui se bat contre l'occupant le cas échéant ;
+- `P TX XXX` joue la Taxe seigneuriale (titres.md) au printemps, en été ou en
+  automne ; XXX est, par exception à la règle « `TER` est le village seed
+  d'une région » ci-dessous, la **capitale d'un fief** que le joueur détient
+  (vacant compris). Elle double le revenu territorial du fief pour le tour,
+  village inclus, sans jamais toucher la production des moulins ; deux cartes
+  jouées sur le même fief le même tour ne se cumulent pas, la seconde est
+  consommée sans effet.
 
 La main est reconstituée automatiquement en hiver après les défausses, selon la
 limite de remplissage de la balance. Aucun ordre de pioche n'est nécessaire.

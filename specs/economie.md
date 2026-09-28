@@ -122,10 +122,9 @@ Issue : [#192](https://github.com/fogfactory/crown-and-borough/issues/192)
 | Village neutre | 1 R → son propre stock | — |
 | Moulin (niveau `N`) | `N` R → château adjacent du même contrôleur, sinon village adjacent du même contrôleur, sinon reste sur le moulin | Dîme religieuse jouée sur l'évêché : `N` R → capitale du joueur qui a joué la dîme, au lieu du village/château adjacent |
 
-La taxe du seigneur est livrée par
-[#189](https://github.com/fogfactory/crown-and-borough/issues/189) ; la taxe
-royale et la dîme restent suivies dans les milestones Politique royale et
-Religieux.
+La taxe du seigneur ([#189](https://github.com/fogfactory/crown-and-borough/issues/189))
+est appliquée par le moteur ; la taxe royale et la dîme restent suivies dans
+les milestones Politique royale et Religieux.
 
 La taxe seigneuriale double toujours exactement le revenu de territoire,
 village inclus ; elle ne touche jamais la production des moulins. La dîme

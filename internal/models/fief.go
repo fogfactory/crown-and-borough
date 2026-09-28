@@ -19,3 +19,14 @@ type Fief struct {
 	OwnerID            PlayerID      `json:"owner"`
 	HolderNobleID      *NobleID      `json:"holderNoble,omitempty"`
 }
+
+// TaxedFief records one turn a fief's capital was played the seigneurial tax
+// card (titres.md "Taxe seigneuriale", #189): it widens revolt eligibility to
+// every territory of the fief, independently of famine, for the turn it is
+// played and the following one. Turn is the absolute GameState.Turn counter
+// rather than a (season, year) pair, so the eligibility window is a plain
+// comparison regardless of the winter boundary it may straddle.
+type TaxedFief struct {
+	FiefID FiefID `json:"fiefId"`
+	Turn   int    `json:"turn"`
+}
