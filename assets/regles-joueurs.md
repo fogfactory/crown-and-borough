@@ -648,6 +648,7 @@ conditions de construction sont détaillés section 8.
 | Dépôt de vivres | +{{depot_range_bonus}} cases de portée de ravitaillement tant qu'il est ancré ou occupé ; inerte sinon |
 | Château | +{{castle_defense_bonus}} défense tant qu'il reste ancré ou occupé, sinon inerte ; ancre de ravitaillement ; verse le revenu territorial (section 7) ; devient une cité (+{{city_defense_bonus}}, sans cumul) sur la capitale d'un fief (section 8) |
 | Village | Ancre après capture, verse le revenu territorial une fois contrôlé (produit {{village_income}} R par tour dans son propre stock tant qu'il est neutre, jamais tenu ou tout juste abandonné — seule infrastructure qui ne devient jamais inerte) |
+| Village fortifié | Identique au village (stock, production, revenu), et gagne en plus +{{castle_defense_bonus}} défense tant qu'il reste ancré ou occupé, sinon inerte (section 8) |
 
 ---
 
@@ -661,7 +662,7 @@ investissements directs, une ligne par ordre, appliqués dans l'ordre saisi.
 | Recruter un noble | `R N XXX` | `XXX` contrôlé, avec un château ou un village et une armée du joueur | {{costs.noble}} |
 | Recruter une troupe | `R T XXX` | `XXX` contrôlé, et un noble libre du joueur sur `XXX` ou adjacent | {{costs.troop}} |
 | Construire ou améliorer un moulin | `C M XXX` | `XXX` contrôlé ; un **nouveau** moulin exige une case **vide** adjacente à un château ou village, ou portant elle-même un château ou village ; un moulin **existant** peut toujours être amélioré, même isolé | {{costs.mill_levels.0}} (N1), {{costs.mill_levels.1}} (N2), {{costs.mill_levels.2}} (N3) |
-| Construire un château | `C C XXX` | `XXX` contrôlé | {{costs.castle}} |
+| Construire un château, ou fortifier un village | `C C XXX` | `XXX` contrôlé ; sur un village, le fortifie au lieu d'y construire un château ; rejeté sans prélèvement si le village est déjà fortifié | {{costs.castle}} |
 | Construire un dépôt de vivres | `C D XXX` | `XXX` contrôlé | {{costs.supply_depot}} |
 | Désigner une capitale | `E C XXX` | un château contrôlé sur `XXX` | 0 |
 | Placer un noble en otage | `O N NNN` | `NNN` est un prisonnier adverse détenu par le joueur | 0 |
@@ -701,11 +702,13 @@ stock (voir « Vocabulaire des ressources » ci-dessous).
 Les investissements qui ciblent un territoire exigent le **contrôle de ce
 territoire** et qu'il ne soit pas **occupé contre son contrôleur** (section
 6) : une armée adverse — ou une révolte — y stationnant rejette l'ordre sans
-prélèvement. Une construction remplace la structure existante uniquement
-quand la règle le prévoit : un **château construit sur un village remplace
-le village** et conserve le stock de la case. Un moulin isolé (sans château
-ni village adjacent du même contrôleur) produit sur sa propre case (voir
-section 7) et peut toujours être amélioré.
+prélèvement. `C C` sur un village le **fortifie** pour le coût d'un château,
+au lieu de le remplacer : le village fortifié conserve son stock, sa
+production et son revenu, et gagne en plus le bonus défensif d'un château
+(voir « Ce que rapportent les infrastructures » ci-dessus). `C C` sur un
+village déjà fortifié est rejeté sans prélèvement. Un moulin isolé (sans
+château ni village adjacent du même contrôleur) produit sur sa propre case
+(voir section 7) et peut toujours être amélioré.
 
 ### Fiefs
 

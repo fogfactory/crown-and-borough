@@ -49,6 +49,28 @@ func TestComputeScoresCountsCategoriesAndCaptiveHolder(t *testing.T) {
 	}
 }
 
+// TestComputeScoresFortifiedVillageScoresAsVillage locks in #193: a fortified
+// village still scores Villages += 2, not Castles += 5, since it keeps its
+// InfraType and is never a distinct infrastructure.
+func TestComputeScoresFortifiedVillageScoresAsVillage(t *testing.T) {
+	p1 := models.PlayerID("P1")
+	state := &models.GameState{
+		Players:     []models.Player{{ID: p1}},
+		Territories: []models.Territory{{ID: "AAA"}},
+		TerritoryStates: map[models.TerritoryID]models.TerritoryState{
+			"AAA": {OwnerID: &p1, Infrastructures: infraPointer("I1")},
+		},
+		Infrastructures: []models.Infrastructure{
+			{ID: "I1", Type: models.InfraTypeVillage, TerritoryID: "AAA", Fortified: true},
+		},
+	}
+
+	scores := ComputeScores(state)
+	if got, want := scores[p1], (ScoreBreakdown{Territories: 1, Villages: 2, Total: 3}); got != want {
+		t.Fatalf("P1 score = %#v, want %#v", got, want)
+	}
+}
+
 // TestComputeScoresCaptiveGoesToHolderNotController checks #215: a hostage
 // or dungeon noble's point goes to whoever physically holds it (the army
 // stationed on its territory), not to that territory's controller, since

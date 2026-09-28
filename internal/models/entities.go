@@ -65,13 +65,18 @@ type Noble struct {
 // per level and a castle honours its defensive bonus regardless of its level
 // (GDD §7, §8). An infrastructure belongs to its tile, not to a player: there
 // is no owner, whoever controls the territory benefits from it. A neutral
-// village is simply a village infrastructure on an uncontrolled territory
-// (its owner field no longer exists).
+// village is simply a village infrastructure on an uncontrolled territory.
+// Fortified only ever applies to a village (GDD §8, #193): it keeps its
+// InfraType (not a distinct infrastructure) and every village behavior
+// (stock, production, income), and additionally gains a castle's defensive
+// bonus, with the same auto-capture exception. It is always false for every
+// other InfraType.
 type Infrastructure struct {
 	ID          InfraID     `json:"id"`
 	Type        InfraType   `json:"type"`
 	Level       int         `json:"level"` // >= 1; mill yields +1 R per level (GDD §7)
 	TerritoryID TerritoryID `json:"territory"`
+	Fortified   bool        `json:"fortified,omitempty"`
 }
 
 // TerritoryState is the dynamic layer attached to a single territory: who

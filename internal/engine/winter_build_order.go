@@ -66,10 +66,39 @@ func (order buildOrder) Apply(ctx *ExecutionContext) {
 			})
 			return
 		}
-		if existing.Type != models.InfraTypeVillage || winterOrder.InfraType != models.InfraTypeCastle {
-			resolution.rejectWinterOrder(playerID, winterOrder, "structure_present")
+		if existing.Type == models.InfraTypeVillage && winterOrder.InfraType == models.InfraTypeCastle {
+			// C C on a village fortifies it instead of replacing it with a
+			// castle: it keeps its InfraID and every village behavior, and
+			// additionally gains a castle's defensive bonus (#193).
+			if existing.Fortified {
+				resolution.rejectWinterOrder(playerID, winterOrder, "village_already_fortified")
+				return
+			}
+			fortifyCost, exists := infrastructureCost(resolution.balance.Costs, models.InfraTypeCastle)
+			if !exists {
+				resolution.rejectWinterOrder(playerID, winterOrder, "invalid_infrastructure")
+				return
+			}
+			spent, paid := resolution.payWinterCost(playerID, winterOrder.TerritoryID, fortifyCost)
+			if !paid {
+				resolution.rejectWinterOrder(playerID, winterOrder, "insufficient_resources")
+				return
+			}
+			existing.Fortified = true
+			resolution.events = append(resolution.events, Event{
+				Type:               EventTypeFortify,
+				Phase:              winterPhase,
+				OwnerID:            playerID,
+				OrderID:            winterOrder.ID,
+				TerritoryID:        winterOrder.TerritoryID,
+				InfrastructureID:   existing.ID,
+				InfrastructureType: models.InfraTypeVillage,
+				ResourceSpent:      spent,
+			})
 			return
 		}
+		resolution.rejectWinterOrder(playerID, winterOrder, "structure_present")
+		return
 	}
 	cost, exists := infrastructureCost(resolution.balance.Costs, winterOrder.InfraType)
 	if !exists {
@@ -80,9 +109,6 @@ func (order buildOrder) Apply(ctx *ExecutionContext) {
 	if !paid {
 		resolution.rejectWinterOrder(playerID, winterOrder, "insufficient_resources")
 		return
-	}
-	if existing != nil {
-		resolution.removeInfrastructurePreservingStock(existing.ID)
 	}
 	infrastructure := resolution.addWinterInfrastructure(winterOrder.InfraType, winterOrder.TerritoryID)
 	capitalAssigned := false

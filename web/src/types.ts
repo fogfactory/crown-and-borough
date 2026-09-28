@@ -135,6 +135,8 @@ export interface Chain {
 export interface Infrastructure {
   type: InfraType
   level: number
+  /** Only ever true on a village fortified by `C C` (#193). */
+  fortified?: boolean
 }
 
 export interface Noble {

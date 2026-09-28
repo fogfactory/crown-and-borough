@@ -251,6 +251,10 @@ contrôleur, sinon le village adjacent du même contrôleur, sinon le moulin
 lui-même). `millDestination` est donc identique à `id` lorsque le moulin est
 isolé.
 
+Une entrée d'`infrastructures` ne porte `fortified: true` que sur un village
+fortifié par `C C` (economie.md#village-fortifié) ; le champ est absent
+partout ailleurs.
+
 `projectedConsumption` est la somme des rations effectivement tirées du stock
 ou du réseau de ravitaillement au prochain tour d'action (une armée
 pleinement nourrie localement, ou qui finirait affamée, compte pour `0`, pas

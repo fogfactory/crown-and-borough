@@ -1102,7 +1102,11 @@ func TestResolveWinterConstruction(t *testing.T) {
 		}
 	})
 
-	t.Run("castle replaces a village and becomes the first capital", func(t *testing.T) {
+	// A village fortified by C C keeps its own InfraType and, since it never
+	// becomes a castle, is never eligible for the automatic first-capital
+	// assignment either (that assignment keys off the order's InfraType, but
+	// electing a capital still requires an actual controlled castle, GDD §8).
+	t.Run("C C on a village fortifies it in place without electing a capital", func(t *testing.T) {
 		state := winterTestState(t, []models.Territory{territory("AAA", "AAA")}, nil)
 		setTerritoryOwner(state, "AAA", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA"})
@@ -1116,20 +1120,22 @@ func TestResolveWinterConstruction(t *testing.T) {
 			t.Fatalf("ResolveWinter: %v", err)
 		}
 		infrastructure := infrastructureAtState(t, resolution.State, "AAA")
-		if infrastructure.Type != models.InfraTypeCastle {
-			t.Errorf("replacement infrastructure = %#v, want castle", infrastructure)
+		if infrastructure.ID != "I1" || infrastructure.Type != models.InfraTypeVillage || !infrastructure.Fortified {
+			t.Errorf("infrastructure = %#v, want fortified village I1", infrastructure)
 		}
-		if got := capitalID(t, resolution.State, "P1"); got != infrastructure.ID {
-			t.Errorf("capital = %q, want new castle %q", got, infrastructure.ID)
+		for _, player := range resolution.State.Players {
+			if player.ID == "P1" && player.CapitalCastleID != nil {
+				t.Errorf("capital = %q, want none: a fortified village is not a castle", *player.CapitalCastleID)
+			}
 		}
 		capitalEvents := eventsOfType(resolution.Events, EventTypeCapitalElected)
-		buildEvents := eventsOfType(resolution.Events, EventTypeBuild)
-		if len(capitalEvents) != 1 || len(buildEvents) != 1 || capitalEvents[0].OrderID != "O1" || buildEvents[0].OrderID != "O1" || !capitalEvents[0].Automatic || buildEvents[0].ResourceSpent != testBalance().Costs.Castle {
-			t.Errorf("events = %#v, want automatic capital and build events for order O1", resolution.Events)
+		fortifyEvents := eventsOfType(resolution.Events, EventTypeFortify)
+		if len(capitalEvents) != 0 || len(fortifyEvents) != 1 || fortifyEvents[0].OrderID != "O1" || fortifyEvents[0].ResourceSpent != testBalance().Costs.Castle {
+			t.Errorf("events = %#v, want a single fortify event for order O1 and no capital election", resolution.Events)
 		}
 	})
 
-	t.Run("castle replacement preserves the village stock", func(t *testing.T) {
+	t.Run("village fortification preserves the village stock", func(t *testing.T) {
 		balance := testBalance()
 		balance.Costs.Castle = 0
 		state := winterTestState(t, []models.Territory{territory("AAA", "AAA")}, nil)
@@ -1145,7 +1151,31 @@ func TestResolveWinterConstruction(t *testing.T) {
 			t.Fatalf("ResolveWinter: %v", err)
 		}
 		if got := resolution.State.TerritoryStates["AAA"].Resources; got != 3 {
-			t.Errorf("replacement stock = %d, want ceil(5/2)=3", got)
+			t.Errorf("fortified village stock = %d, want ceil(5/2)=3", got)
+		}
+	})
+
+	// TestResolveWinterConstruction/village_already_fortified locks in #193:
+	// a second C C on an already-fortified village is rejected with no
+	// charge.
+	t.Run("village already fortified", func(t *testing.T) {
+		state := winterTestState(t, []models.Territory{territory("AAA", "AAA")}, nil)
+		setTerritoryOwner(state, "AAA", "P1")
+		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA", Fortified: true})
+		setTerritoryResources(state, "AAA", 10)
+		validateTestState(t, state)
+
+		resolution, err := ResolveWinter(state, testBalance(), map[models.PlayerID][]models.WinterOrder{
+			"P1": {{ID: "O1", Type: models.WinterOrderTypeBuild, TerritoryID: "AAA", InfraType: models.InfraTypeCastle}},
+		})
+		if err != nil {
+			t.Fatalf("ResolveWinter: %v", err)
+		}
+		if event := firstRejectedEvent(t, resolution.Events); event.Reason != "village_already_fortified" {
+			t.Errorf("rejection = %#v", event)
+		}
+		if got := resolution.State.TerritoryStates["AAA"].Resources; got != 5 {
+			t.Errorf("stock = %d, want ceil(10/2)=5 after conservation without payment", got)
 		}
 	})
 

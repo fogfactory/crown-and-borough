@@ -58,15 +58,17 @@ func nextFiefID(fiefs []models.Fief) models.FiefID {
 	return models.FiefID(fmt.Sprintf("F%d", next))
 }
 
-// fortificationBonus is the defensive bonus a territory's castle provides:
-// none without a castle, the city bonus when the castle sits on a fief's
-// capital (it replaces, rather than stacks with, the plain castle bonus), the
-// plain castle bonus when the castle is anchored some other way (a non-capital
-// fief member, or a player's own capital) or currently held by an army, and
-// none at all otherwise: an empty castle outside every fief and capital is
-// inert, like any other unanchored infrastructure (#215).
+// fortificationBonus is the defensive bonus a territory's castle or fortified
+// village provides: none without either, the city bonus when a castle sits on
+// a fief's capital (it replaces, rather than stacks with, the plain castle
+// bonus -- a fortified village can never itself be a fief capital, which
+// always requires an actual castle), the plain castle bonus when the castle
+// or fortified village is anchored some other way (a non-capital fief member,
+// or a player's own capital) or currently held by an army, and none at all
+// otherwise: an empty castle or fortified village outside every fief and
+// capital is inert, like any other unanchored infrastructure (#215, #193).
 func (ctx *resolutionContext) fortificationBonus(territoryID models.TerritoryID) int {
-	if !ctx.hasCastle(territoryID) {
+	if !ctx.hasCastle(territoryID) && !ctx.hasFortifiedVillage(territoryID) {
 		return 0
 	}
 	if ctx.fiefByCapital(territoryID) != nil {

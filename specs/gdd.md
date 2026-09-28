@@ -60,7 +60,8 @@ liste d'investissements directs, traités dans l'ordre saisi :
 - `A N XXX` — annoblir gratuitement une armée sur `XXX` lorsque le joueur n'a plus aucun noble ;
 - `R T XXX` — recruter une troupe sur `XXX` ;
 - `C M XXX` — construire ou améliorer un moulin sur `XXX` ;
-- `C C XXX` — construire un château sur `XXX` ;
+- `C C XXX` — construire un château sur `XXX` vide, ou fortifier le village
+  de `XXX` ([economie.md](economie.md#village-fortifié)) ;
 - `C D XXX` — construire un dépôt de vivres sur `XXX` ;
 - `E C XXX` — désigner le château de `XXX` comme capitale ;
 - `O N NNN` — placer le noble prisonnier `NNN` en statut `hostage` ;
@@ -360,15 +361,17 @@ Les règles de combat sont les suivantes :
   destination reste contestée et le mouvement pacifique est repoussé. Une destination est contestée
   lorsqu'au moins une attaque adverse y participe et qu'aucune armée
   attaquante ne remporte le combat (statu quo ou défense conservée) ;
-- un château apporte son bonus défensif fixe, même sans armée, tant qu'il reste
+- un château, ou un village fortifié ([economie.md](economie.md#village-fortifié)),
+  apporte son bonus défensif fixe, même sans armée, tant qu'il reste
   **ancré** — membre d'un fief ou capitale d'un joueur (voir
   [titres.md](titres.md#contrôle-et-occupation)) — sauf si tous les attaquants
-  appartiennent au propriétaire du château (auto-capture d'un château ami
-  vide) ; un château vide qui n'est ni membre d'un fief ni la capitale d'un
-  joueur est **inerte** et n'apporte aucun bonus ; le château de la capitale
-  d'un fief est une cité et apporte à la place un bonus fixe supérieur, sans
-  cumul avec le bonus de château (voir
-  [titres.md](titres.md#constitution-dun-fief)) ;
+  appartiennent à son propriétaire (auto-capture d'une place amie vide) ; un
+  château ou un village fortifié vide qui n'est ni membre d'un fief ni la
+  capitale d'un joueur est **inerte** et n'apporte aucun bonus ; le château de
+  la capitale d'un fief est une cité et apporte à la place un bonus fixe
+  supérieur, sans cumul avec le bonus de château (voir
+  [titres.md](titres.md#constitution-dun-fief)) — un village fortifié ne peut
+  jamais être la capitale d'un fief, qui exige un château ;
 - une jonction ou une dispersion dont l'origine est visée par une attaque,
   quel qu'en soit l'auteur (allié, ennemi, ou une attaque à force nulle faute
   de vivres), est annulée d'emblée : aucune de ses troupes ne part, qu'elle
