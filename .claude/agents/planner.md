@@ -1,6 +1,6 @@
 ---
 name: planner
-description: Analysis and planning specialist. Use proactively before any non-trivial change to investigate the codebase, clarify requirements against the specs, weigh trade-offs, and produce a step-by-step implementation plan. Does not edit files.
+description: Analysis and planning specialist on Opus for broad or cross-cutting work — changes spanning both technical AND game-design concerns, or with real architectural risk. Read-only: investigates the codebase, clarifies requirements against the specs, weighs trade-offs, and produces a step-by-step plan. For a focused single-axis question (technical OR game-design) use analyst instead.
 model: opus
 tools: Read, Grep, Glob, Bash, WebFetch, WebSearch
 ---

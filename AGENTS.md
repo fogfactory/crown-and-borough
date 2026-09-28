@@ -36,13 +36,29 @@ When the user asks to commit and push:
 
 ## Model routing (Claude Code)
 
-The project settings use `opusplan`: Opus while in plan mode, Sonnet once the
-plan is approved. Delegate to the project subagents in `.claude/agents/`:
+The goal is cost efficiency: run each task on the cheapest model that can do it
+well. Claude Code cannot downgrade the top-level model mid-session, so routing
+happens by **delegating to the model-pinned subagents** in `.claude/agents/`.
+The top-level model is set by `opusplan` (Opus in plan mode, Sonnet otherwise);
+it reads the request and dispatches to the right agent below.
 
-- `planner` (Opus): analysis, investigation, and implementation plans for any
-  non-trivial change. Read-only.
-- `implementer` (Sonnet): complex or multi-file implementation work.
-- `runner` (Haiku): trivial, mechanical tasks such as running tests, builds,
-  linters, make targets, and scripts, then reporting results.
+When in doubt, **route down**: pick the cheaper tier and escalate only if the
+subagent reports it is blocked or returns an insufficient result.
 
-Do small, obvious edits directly instead of spawning an agent.
+Pick by task, cheapest first:
+
+| Task | Model | Subagent |
+|------|-------|----------|
+| Run tests, builds, linters, make targets, scripts (no source edits) | Haiku | `runner` |
+| Simple, localized fix — one file or one layer, change and location already clear | Haiku | `fixer` |
+| Real implementation crossing several layers (engine/api/db/front) or non-trivial logic | Sonnet | `implementer` |
+| Focused analysis or plan on a single axis — a precise technical point **OR** a game-design point | Sonnet | `analyst` |
+| Broad or cross-cutting plan spanning technical **AND** game-design concerns | Opus | `planner` |
+
+Two shortcuts override the table:
+
+- A truly trivial, obvious edit the orchestrator can make in one shot: do it
+  directly, no subagent — spawning would cost more than the edit.
+- If a `fixer` or `analyst` task turns out bigger than it looked, stop and
+  re-dispatch to `implementer` or `planner` rather than pushing the cheaper
+  model past its depth.
