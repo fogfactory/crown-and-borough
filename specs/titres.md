@@ -198,7 +198,10 @@ de doubler, pour le tour, le revenu territorial de ce fief, village inclus.
 L'ordre `P <KIND> XXX` cible la capitale du fief, par exception à la règle
 « `TER` est le village seed d'une région », au printemps, en été ou en
 automne. Il est rejeté si le joueur ne détient pas le fief. La production des
-moulins n'est jamais touchée.
+moulins n'est jamais touchée. Jouer la taxe sur la capitale du fief autorise
+la Révolte (voir [ordres-speciaux.md](ordres-speciaux.md)) sur **tout
+territoire du fief**, pas seulement sa capitale, la saison où elle est jouée
+et la saison suivante, indépendamment de toute famine.
 
 Le **roi** pourra taxer n'importe quel fief constitué, mais seulement celui
 qui n'est pas déjà taxé par son seigneur ce tour-là (priorité au titulaire

@@ -33,7 +33,7 @@ Aucun noble n'est requis :
 - `D C BT` ou `D C RA` abandonne une carte bonus, en hiver uniquement ;
 - `P BT TER` joue Beau temps au printemps, en été ou en automne ;
 - `P RA TER` joue Récolte abondante au printemps, en été ou en automne ;
-- `P RE TER` joue Révolte sur le territoire pendant ces saisons, si une mauvaise récolte affecte la région du territoire ; chaque carte ajoute un jet borné à l'armée neutre commune du territoire, qui se bat contre l'occupant le cas échéant.
+- `P RE TER` joue Révolte sur le territoire pendant ces saisons, si une mauvaise récolte affecte la région du territoire, ou si une taxe seigneuriale a été jouée sur la capitale du fief auquel appartient le territoire la saison courante ou la saison précédente ; chaque carte ajoute un jet borné à l'armée neutre commune du territoire, qui se bat contre l'occupant le cas échéant.
 
 La main est reconstituée automatiquement en hiver après les défausses, selon la
 limite de remplissage de la balance. Aucun ordre de pioche n'est nécessaire.
@@ -71,8 +71,12 @@ interne de la carte.
 - La famine supprime les rations de terrain de chaque territoire de sa région
   et la production de base des châteaux et villages de la région ; les moulins
   ne sont pas touchés.
-- La révolte est une carte bonus, jouable si une famine active affecte la région.
-  Elle crée des armées `NEUTRAL` sur les cases vides, selon la balance.
+- La révolte est une carte bonus, jouable sur un territoire si une famine
+  active affecte sa région, ou si une taxe seigneuriale a été jouée sur la
+  capitale du fief auquel appartient ce territoire, la saison courante ou la
+  saison précédente — tout territoire du fief est alors éligible, pas
+  seulement sa capitale taxée. Elle crée des armées `NEUTRAL` sur les cases
+  vides, selon la balance.
 
 ## Bonus régionaux
 
