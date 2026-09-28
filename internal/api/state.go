@@ -137,9 +137,12 @@ type OrderView struct {
 }
 
 // InfraView contains the visible kind and level of an infrastructure.
+// Fortified is only ever true on a village (#193): a village fortified
+// through C C keeps its type but gains a castle's defensive bonus.
 type InfraView struct {
-	Type  models.InfraType `json:"type"`
-	Level int              `json:"level"`
+	Type      models.InfraType `json:"type"`
+	Level     int              `json:"level"`
+	Fortified bool             `json:"fortified,omitempty"`
 }
 
 // NobleView contains the visible identity, code, status, owner, and location
@@ -282,8 +285,9 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 		if territoryState.Infrastructures != nil {
 			if infrastructure, ok := infrastructuresByID[*territoryState.Infrastructures]; ok {
 				territoryView.Infrastructures = append(territoryView.Infrastructures, InfraView{
-					Type:  infrastructure.Type,
-					Level: infrastructure.Level,
+					Type:      infrastructure.Type,
+					Level:     infrastructure.Level,
+					Fortified: infrastructure.Fortified,
 				})
 			}
 		}

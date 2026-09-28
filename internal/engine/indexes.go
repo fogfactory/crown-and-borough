@@ -189,6 +189,21 @@ func (ctx *resolutionContext) hasCastle(territoryID models.TerritoryID) bool {
 	return ctx.hasInfrastructure(territoryID, models.InfraTypeCastle)
 }
 
+// hasFortifiedVillage reports whether territoryID carries a fortified
+// village (#193). Kept narrow and separate from hasCastle: a fortified
+// village must not block retreat destinations like a real castle
+// (movement.go) and must not switch to the castle stock cap at winter
+// repatriation (winter.go) -- only fortificationBonus should treat the two
+// alike.
+func (ctx *resolutionContext) hasFortifiedVillage(territoryID models.TerritoryID) bool {
+	state := ctx.state.TerritoryStates[territoryID]
+	if state.Infrastructures == nil {
+		return false
+	}
+	infrastructure := ctx.infrastructuresByID[*state.Infrastructures]
+	return infrastructure != nil && infrastructure.Type == models.InfraTypeVillage && infrastructure.Fortified
+}
+
 func (ctx *resolutionContext) rebuildOccupancy() error {
 	for territoryID, state := range ctx.state.TerritoryStates {
 		state.Army = nil

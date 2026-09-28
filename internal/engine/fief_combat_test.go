@@ -78,6 +78,73 @@ func TestFortificationBonusReplacesCastleWithCityBonus(t *testing.T) {
 	})
 }
 
+// TestFortificationBonusFortifiedVillage verifies that a fortified village
+// which is a fief's non-capital member (a fief anchors every member, not
+// only its capital -- a fortified village can never itself be a fief's
+// capital, which always requires an actual castle) defends with the plain
+// castle bonus like an anchored castle would (#193), and that the
+// auto-capture exception already carved out for castleOwnedByAllAttackers
+// suppresses that bonus identically when every attacker already belongs to
+// the village's own owner.
+func TestFortificationBonusFortifiedVillage(t *testing.T) {
+	newFortifiedVillageFiefState := func(t *testing.T, armies []models.Army) *models.GameState {
+		t.Helper()
+		state := testState(t,
+			[]models.Territory{
+				territory("AAA", "AAA", "BBB", "ZZZ"),
+				territory("BBB", "BBB", "AAA", "CCC"),
+				territory("CCC", "CCC", "BBB"),
+				territory("ZZZ", "ZZZ", "AAA"),
+			},
+			armies,
+		)
+		setTerritoryOwner(state, "AAA", "P1")
+		setTerritoryOwner(state, "BBB", "P1")
+		setTerritoryOwner(state, "CCC", "P1")
+		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "CCC"})
+		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA", Fortified: true})
+		state.Fiefs = []models.Fief{{
+			ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "CCC",
+			Territories: []models.TerritoryID{"CCC", "AAA", "BBB"}, OwnerID: "P1",
+		}}
+		return state
+	}
+
+	t.Run("fortified village member defends with the castle bonus", func(t *testing.T) {
+		state := newFortifiedVillageFiefState(t, []models.Army{{ID: "A1", OwnerID: "P2", TerritoryID: "ZZZ", Size: 1}})
+		keepTestArmiesSupplied(state)
+		addNoble(state, "N1", "ONE", "P2", "ZZZ")
+		addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "ZZZ", TargetIDs: []models.TerritoryID{"AAA"}})
+		validateTestState(t, state)
+
+		resolution, err := Resolve(state, testBalance())
+		if err != nil {
+			t.Fatalf("Resolve: %v", err)
+		}
+		event, found := combatAt(resolution.Events, "AAA")
+		if !found || event.CastleBonus != 1 {
+			t.Fatalf("combat at AAA = %#v, found=%t, want castleBonus 1", event, found)
+		}
+	})
+
+	t.Run("auto-capture exception suppresses the fortified village bonus", func(t *testing.T) {
+		state := newFortifiedVillageFiefState(t, []models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "ZZZ", Size: 1}})
+		keepTestArmiesSupplied(state)
+		addNoble(state, "N1", "ONE", "P1", "ZZZ")
+		addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "ZZZ", TargetIDs: []models.TerritoryID{"AAA"}})
+		validateTestState(t, state)
+
+		resolution, err := Resolve(state, testBalance())
+		if err != nil {
+			t.Fatalf("Resolve: %v", err)
+		}
+		event, found := combatAt(resolution.Events, "AAA")
+		if !found || event.CastleBonus != 0 {
+			t.Fatalf("combat at AAA = %#v, found=%t, want castleBonus 0 (auto-capture exception)", event, found)
+		}
+	})
+}
+
 // TestFortificationBonusAutoCaptureException verifies that a fief owner
 // recapturing (or garrisoning) its own empty city gets no defensive bonus at
 // all: the exception already carved out for castleOwnedByAllAttackers

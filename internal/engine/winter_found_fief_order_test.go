@@ -129,6 +129,29 @@ func TestFoundFiefOrderSameNobleMultipleTitles(t *testing.T) {
 	}
 }
 
+// TestFoundFiefOrderRejectsFortifiedVillageAsCapital verifies that a
+// fortified village can never be a fief's capital: T F still requires an
+// actual castle there (#193).
+func TestFoundFiefOrderRejectsFortifiedVillageAsCapital(t *testing.T) {
+	state := foundFiefTestState(t)
+	// Replace AAA's castle with a fortified village: the only structure on
+	// the intended capital is now a village, fortified or not.
+	for index := range state.Infrastructures {
+		if state.Infrastructures[index].ID == "I1" {
+			state.Infrastructures[index] = models.Infrastructure{
+				ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA", Fortified: true,
+			}
+		}
+	}
+	_, event := applyFoundFief(state, models.WinterOrder{
+		NobleCode: "HUG", TerritoryID: "AAA",
+		TerritoryIDs: []models.TerritoryID{"AAA", "BBB", "CCC"},
+	})
+	if event.Type != EventTypeRejected || event.Reason != "fief_capital_requires_castle" {
+		t.Fatalf("event = %#v, want fief_capital_requires_castle", event)
+	}
+}
+
 func TestFoundFiefOrderNeutralArmyBlocks(t *testing.T) {
 	state := foundFiefTestState(t)
 	placeArmyAt(state, "A9", models.NeutralPlayerID, "CCC", 2)

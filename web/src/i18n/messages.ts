@@ -43,6 +43,7 @@ const englishMessages = {
   'infrastructure.supply_depot': 'Supply depot',
   'infrastructure.castle': 'Castle',
   'infrastructure.village': 'Village',
+  'infrastructure.fortified': 'Fortified',
   'app.turn': 'Turn {turn} · {season}',
   'app.activePlayer': 'Active player',
   'app.privateView': 'Private view',
@@ -393,6 +394,7 @@ const englishMessages = {
   'reports.reason.no_capital': 'The noble owner has no capital.',
   'reports.reason.no_army_at_capital': 'The noble owner has no army at the capital.',
   'reports.reason.structure_present': 'The territory already has an infrastructure.',
+  'reports.reason.village_already_fortified': 'This village is already fortified.',
   'reports.reason.mill_requires_productive_neighbor':
     'A mill requires a productive castle or village adjacent to the territory.',
   'reports.reason.capital_requires_controlled_castle':
@@ -722,6 +724,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'infrastructure.supply_depot': 'Dépôt de vivres',
   'infrastructure.castle': 'Château',
   'infrastructure.village': 'Village',
+  'infrastructure.fortified': 'Fortifié',
   'app.turn': 'Tour {turn} · {season}',
   'app.activePlayer': 'Joueur actif',
   'app.privateView': 'Vue privée',
@@ -1078,6 +1081,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.reason.no_army_at_capital':
     "Le propriétaire du noble n'a pas d'armée dans sa capitale.",
   'reports.reason.structure_present': 'Le territoire possède déjà une infrastructure.',
+  'reports.reason.village_already_fortified': 'Ce village est déjà fortifié.',
   'reports.reason.mill_requires_productive_neighbor':
     'Un moulin exige un château ou village productif adjacent au territoire.',
   'reports.reason.capital_requires_controlled_castle':

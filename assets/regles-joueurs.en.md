@@ -610,6 +610,7 @@ conditions are detailed in section 8.
 | Supply depot | +{{depot_range_bonus}} territories of supply range while anchored or occupied; inert otherwise |
 | Castle | +{{castle_defense_bonus}} defense while it stays anchored or occupied, inert otherwise; supply anchor; receives territory income (section 7); becomes a city (+{{city_defense_bonus}}, not stacked) on a fief's capital (section 8) |
 | Village | Supply anchor after capture, receives territory income once controlled (produces {{village_income}} R per turn into its own stock while neutral, never held, or just abandoned — the only infrastructure that never goes inert) |
+| Fortified village | Identical to a village (stock, production, income), and additionally gains +{{castle_defense_bonus}} defense while it stays anchored or occupied, inert otherwise (section 8) |
 
 ---
 
@@ -623,7 +624,7 @@ per line, applied in the entered order.
 | Recruit a noble | `R N XXX` | `XXX` controlled, with a castle or village and a player army | {{costs.noble}} |
 | Recruit a troop | `R T XXX` | `XXX` controlled, and a free player noble on `XXX` or adjacent | {{costs.troop}} |
 | Build or upgrade a mill | `C M XXX` | `XXX` controlled; a **new** mill requires an **empty** territory adjacent to a castle or village, or itself carrying one; an **existing** mill can always be upgraded, even in isolation | {{costs.mill_levels.0}} (L1), {{costs.mill_levels.1}} (L2), {{costs.mill_levels.2}} (L3) |
-| Build a castle | `C C XXX` | `XXX` controlled | {{costs.castle}} |
+| Build a castle, or fortify a village | `C C XXX` | `XXX` controlled; on a village, fortifies it instead of building a castle there; rejected with no stock deducted if the village is already fortified | {{costs.castle}} |
 | Build a supply depot | `C D XXX` | `XXX` controlled | {{costs.supply_depot}} |
 | Designate a capital | `E C XXX` | a controlled castle on `XXX` | 0 |
 | Place a noble in hostage status | `O N NNN` | `NNN` is an opposing prisoner held by the player | 0 |
@@ -661,11 +662,13 @@ isolation, paying from its own stock (see "Resource Vocabulary" below).
 Investments targeting a territory require **control of that territory** and
 that it not be **occupied against its controller** (section 6): an enemy
 army — or a revolt — stationed there rejects the order with no stock
-deducted. A construction replaces the existing structure only when the rule
-says so: a
-**castle built on a village replaces the village** and keeps the territory's
-stock. An isolated mill (no castle or village of its own control adjacent)
-produces on its own territory (see section 7) and can always be upgraded.
+deducted. `C C` on a village **fortifies** it for the cost of a castle,
+instead of replacing it: the fortified village keeps its stock, production,
+and income, and additionally gains a castle's defensive bonus (see "What Infrastructure
+Provides" above). `C C` on an already-fortified village is
+rejected with no stock deducted. An isolated mill (no castle or village of
+its own control adjacent) produces on its own territory (see section 7) and
+can always be upgraded.
 
 ### Fiefs
 

@@ -69,6 +69,7 @@ const REASON_KEYS: Record<string, MessageKey> = {
   no_capital: 'reports.reason.no_capital',
   no_army_at_capital: 'reports.reason.no_army_at_capital',
   structure_present: 'reports.reason.structure_present',
+  village_already_fortified: 'reports.reason.village_already_fortified',
   mill_requires_productive_neighbor: 'reports.reason.mill_requires_productive_neighbor',
   capital_requires_controlled_castle: 'reports.reason.capital_requires_controlled_castle',
   attack_wins: 'reports.reason.attack_wins',
@@ -307,6 +308,11 @@ function investmentLabel(
       return `C ${WINTER_INFRA_SYMBOLS[investment.type ?? 'mill'] ?? '?'} ${territory}`
     case 'upgrade':
       return `C ${WINTER_INFRA_SYMBOLS[investment.type ?? 'mill'] ?? '?'} ${territory}`
+    case 'fortify':
+      // A fortify event always comes from a `C C` order (the syntax
+      // fortifying a village instead of building a castle, #193): show it
+      // with the castle symbol the player actually typed, not the village's.
+      return `C ${WINTER_INFRA_SYMBOLS.castle} ${territory}`
     case 'capital_elected':
       return `E C ${territory}`
     case 'liberation':

@@ -32,6 +32,7 @@ const (
 	EventTypeRecruit            EventType = "recruit"
 	EventTypeBuild              EventType = "build"
 	EventTypeUpgrade            EventType = "upgrade"
+	EventTypeFortify            EventType = "fortify"
 	EventTypeRejected           EventType = "rejected"
 	EventTypeCapitalElected     EventType = "capital_elected"
 	EventTypeLiberation         EventType = "liberation"

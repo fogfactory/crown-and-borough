@@ -201,17 +201,15 @@ châteaux et villages paient les investissements d'hiver.
 Issue : [#193](https://github.com/fogfactory/crown-and-borough/issues/193).
 
 `C C XXX` sur un village contrôlé le **fortifie** pour le coût d'un château
-(10 R) au lieu de le remplacer par un château. Un village ne peut plus être
-remplacé par un château. Le village fortifié conserve son stock, sa
-production et son bonus de revenu, et gagne le bonus défensif d'un château
-(`castle_defense_bonus`), avec la même exception d'auto-capture. Un `C C` sur
-un village déjà fortifié est rejeté sans prélèvement.
-
-> À trancher dans #193 : un village fortifié compte-t-il comme un village
-> partout sauf pour la défense (recommandé, via un indicateur sur le village)
-> ou comme un nouveau type d'infrastructure ? Conséquences à fixer : score,
-> désignation comme capitale (`E C`), droit d'être capitale de fief, voix
-> d'évêché.
+(10 R). Le village fortifié est un village porteur d'un simple indicateur, pas
+un nouveau type d'infrastructure : il conserve son stock, sa production et son
+bonus de revenu comme n'importe quel village, et gagne en plus le bonus
+défensif d'un château (`castle_defense_bonus`), avec la même exception
+d'auto-capture. Il compte pour 2 points de score comme tout village (GDD §9,
+pas les 5 points d'un château), ne peut pas être désigné capitale par `E C`
+(qui exige un château) et ne peut pas être la capitale d'un fief (`T F`, qui
+exige également un château). Un `C C` sur un village déjà fortifié est rejeté
+sans prélèvement.
 
 ## Portée de ravitaillement
 
