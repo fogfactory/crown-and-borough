@@ -79,15 +79,22 @@ type InfrastructureReport struct {
 	Territory models.TerritoryID `json:"territory"`
 }
 
-// IncomeReport is one player's territory income credited to one destination
-// this turn: territories and villages counted, the harvest-adjusted amounts,
-// and where it landed. Destination is empty and Lost is true when the player
-// controlled no capital, castle, or village to receive it; several
-// destinations can appear for the same player the same turn in that case,
-// since each territory then picks its own closest fallback.
+// IncomeReport is one player's territory income credited to one (destination,
+// fief) pair this turn: territories and villages counted, the
+// harvest-adjusted amounts, and where it landed. Destination is empty and
+// Lost is true when the player controlled no capital, castle, or village to
+// receive it; several destinations can appear for the same player the same
+// turn in that case, since each territory then picks its own closest
+// fallback. Fief is the trigram of the fief's capital (equal to Destination
+// for that line) and Title its rank, both empty when the territories in this
+// line are not part of a fief: a fief whose capital happens to also be the
+// player's own capital still gets its own line, distinct from the player's
+// non-fief income to the same Destination.
 type IncomeReport struct {
 	Owner       models.PlayerID    `json:"owner"`
 	Destination models.TerritoryID `json:"destination,omitempty"`
+	Fief        models.TerritoryID `json:"fief,omitempty"`
+	Title       models.FiefTitle   `json:"title,omitempty"`
 	Territories int                `json:"territories"`
 	Villages    int                `json:"villages"`
 	Base        int                `json:"base"`
@@ -303,10 +310,14 @@ type WinterInvestmentReport struct {
 }
 
 // FiefReport is one fief lifecycle change outside its constitution or
-// attribution (those are recorded in Winter.Investments alongside the other
+// attribution (those, plus the default attribution of a still-vacant fief at
+// the end of winter, are recorded in Winter.Investments alongside the other
 // investment orders): a conquered fief transferred to a new owner, a fief
-// left vacant by the death of its titleholder, or a fief dissolved for losing
-// its capital's castle or staying unassigned at the end of winter.
+// left vacant by the death of its titleholder, a fief dissolved for losing
+// its capital's castle, or a non-capital member newly occupied by an army
+// (including a NEUTRAL revolt) whose owner differs from the fief's. For that
+// last kind, Territory is the occupied member (distinct from Capital, which
+// still identifies the fief) and Occupant is the occupying army's owner.
 type FiefReport struct {
 	Kind          EventType            `json:"kind"`
 	Owner         models.PlayerID      `json:"owner"`
@@ -314,6 +325,8 @@ type FiefReport struct {
 	Capital       models.TerritoryID   `json:"capital"`
 	Title         models.FiefTitle     `json:"title"`
 	Territories   []models.TerritoryID `json:"territories"`
+	Territory     models.TerritoryID   `json:"territory,omitempty"`
+	Occupant      models.PlayerID      `json:"occupant,omitempty"`
 	Noble         models.NobleID       `json:"noble,omitempty"`
 	NobleName     string               `json:"nobleName,omitempty"`
 	Reason        string               `json:"reason,omitempty"`
@@ -406,13 +419,18 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 	for _, event := range events {
 		switch event.Type {
 		case EventTypeIncome:
-			report.Income = append(report.Income, IncomeReport{
+			income := IncomeReport{
 				Owner: event.OwnerID, Destination: event.DestinationID,
 				Territories: event.TerritoryCount, Villages: event.VillageCount,
 				Base: event.BaseProduction, Bonus: event.BonusProduction,
 				Suppressed: event.SuppressedProduction, Credited: event.Production,
 				StockAfter: event.StockAfter, Lost: event.Lost,
-			})
+			}
+			if event.FiefID != "" {
+				income.Fief = event.DestinationID
+				income.Title = event.FiefTitle
+			}
+			report.Income = append(report.Income, income)
 		case EventTypeMillProduction:
 			report.Mills = append(report.Mills, MillReport{
 				Territory: event.TerritoryID, Owner: event.OwnerID, Level: event.Level,
@@ -590,7 +608,7 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 				Reason: event.Reason,
 			})
 		case EventTypeWinterStock, EventTypeRecruit, EventTypeBuild, EventTypeUpgrade,
-			EventTypeRejected, EventTypeCapitalElected, EventTypeFiefFounded, EventTypeFiefAssigned:
+			EventTypeRejected, EventTypeCapitalElected, EventTypeFiefFounded, EventTypeFiefAssigned, EventTypeFiefAutoAssigned:
 			if report.Winter == nil {
 				report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}
 			}
@@ -630,6 +648,12 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 				Capital: event.TerritoryID, Title: event.FiefTitle,
 				Territories: append([]models.TerritoryID(nil), event.FiefTerritories...),
 				Noble:       event.NobleID, NobleName: event.NobleName, Reason: event.Reason,
+			})
+		case EventTypeFiefMemberOccupied:
+			report.Fiefs = append(report.Fiefs, FiefReport{
+				Kind: event.Type, Owner: event.OwnerID, Occupant: event.CaptorPlayerID,
+				Capital: event.DestinationID, Title: event.FiefTitle,
+				Territory: event.TerritoryID,
 			})
 		case EventTypeChainProgression:
 			if index, exists := orderIndexes[eventKey(event.ChainID, event.OrderID)]; exists {

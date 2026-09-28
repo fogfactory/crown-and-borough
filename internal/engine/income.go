@@ -1,18 +1,26 @@
 package engine
 
 import (
+	"sort"
+
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
 // territoryIncomeReport aggregates one player's territory income by
-// destination for the turn report. Destinations differ per territory only
-// when the player controls no valid capital: each territory then finds its
-// own closest controlled castle or village (see territoryIncomeDestination),
-// so several destinations can appear for the same player the same turn.
+// (destination, fief) for the turn report. Destinations differ per territory
+// only when the player controls no valid capital: each territory then finds
+// its own closest controlled castle or village (see
+// territoryIncomeDestination), so several destinations can appear for the
+// same player the same turn. fiefID is empty for territory income routed
+// outside any fief; it is otherwise kept as a distinct grouping key from
+// destinationID so a fief whose capital happens to also be the player's own
+// capital still gets its own report line (titres.md, #196).
 type territoryIncomeReport struct {
 	ownerID       models.PlayerID
 	destinationID models.TerritoryID
+	fiefID        models.FiefID
+	fiefTitle     models.FiefTitle
 	territories   int
 	villages      int
 	base          int
@@ -43,12 +51,12 @@ func resolveTerritoryIncome(ctx *resolutionContext) {
 }
 
 // computeTerritoryIncome computes, but does not credit, every controlled
-// territory's harvest-adjusted income, both grouped by (owner, destination)
-// for the turn report and individually per territory for the front's
+// territory's harvest-adjusted income, both grouped by (owner, destination,
+// fief) for the turn report and individually per territory for the front's
 // per-territory forecast. It is the seam both ForecastIncome and
 // ForecastTerritoryIncome reuse to project income without touching state.
-func computeTerritoryIncome(ctx *resolutionContext) (map[models.PlayerID]map[models.TerritoryID]*territoryIncomeReport, map[models.TerritoryID]TerritoryIncomeForecast) {
-	reports := make(map[models.PlayerID]map[models.TerritoryID]*territoryIncomeReport)
+func computeTerritoryIncome(ctx *resolutionContext) (map[models.PlayerID]map[models.TerritoryID]map[models.FiefID]*territoryIncomeReport, map[models.TerritoryID]TerritoryIncomeForecast) {
+	reports := make(map[models.PlayerID]map[models.TerritoryID]map[models.FiefID]*territoryIncomeReport)
 	perTerritory := make(map[models.TerritoryID]TerritoryIncomeForecast)
 	for _, ownerID := range sortedPlayerIDs(ctx.state.Players) {
 		for _, territoryID := range sortedStateTerritoryIDs(ctx) {
@@ -58,15 +66,28 @@ func computeTerritoryIncome(ctx *resolutionContext) (map[models.PlayerID]map[mod
 			}
 			hasVillage := ctx.hasInfrastructure(territoryID, models.InfraTypeVillage)
 			parts := territoryIncomeParts(ctx, territoryID, hasVillage)
-			destinationID := ctx.territoryIncomeDestination(ownerID, territoryID)
+			fief := ctx.territoryFief(ownerID, territoryID)
+			destinationID := ctx.territoryIncomeDestination(ownerID, territoryID, fief)
 			perTerritory[territoryID] = TerritoryIncomeForecast{Amount: parts.total(), Destination: destinationID}
-			if reports[ownerID] == nil {
-				reports[ownerID] = make(map[models.TerritoryID]*territoryIncomeReport)
+			var fiefID models.FiefID
+			var fiefTitle models.FiefTitle
+			if fief != nil {
+				fiefID = fief.ID
+				fiefTitle = fief.Title
 			}
-			report, exists := reports[ownerID][destinationID]
+			if reports[ownerID] == nil {
+				reports[ownerID] = make(map[models.TerritoryID]map[models.FiefID]*territoryIncomeReport)
+			}
+			if reports[ownerID][destinationID] == nil {
+				reports[ownerID][destinationID] = make(map[models.FiefID]*territoryIncomeReport)
+			}
+			report, exists := reports[ownerID][destinationID][fiefID]
 			if !exists {
-				report = &territoryIncomeReport{ownerID: ownerID, destinationID: destinationID, lost: destinationID == ""}
-				reports[ownerID][destinationID] = report
+				report = &territoryIncomeReport{
+					ownerID: ownerID, destinationID: destinationID,
+					fiefID: fiefID, fiefTitle: fiefTitle, lost: destinationID == "",
+				}
+				reports[ownerID][destinationID][fiefID] = report
 			}
 			report.territories++
 			if hasVillage {
@@ -80,43 +101,60 @@ func computeTerritoryIncome(ctx *resolutionContext) (map[models.PlayerID]map[mod
 	return reports, perTerritory
 }
 
-func creditTerritoryIncome(ctx *resolutionContext, reports map[models.PlayerID]map[models.TerritoryID]*territoryIncomeReport) {
+func creditTerritoryIncome(ctx *resolutionContext, reports map[models.PlayerID]map[models.TerritoryID]map[models.FiefID]*territoryIncomeReport) {
 	for _, ownerID := range sortedPlayerIDs(ctx.state.Players) {
 		for _, destinationID := range sortedTerritoryMap(reports[ownerID]) {
-			report := reports[ownerID][destinationID]
-			amount := report.base + report.bonus
-			if destinationID == "" || amount == 0 {
-				continue
+			for _, fiefID := range sortedFiefIDMap(reports[ownerID][destinationID]) {
+				report := reports[ownerID][destinationID][fiefID]
+				amount := report.base + report.bonus
+				if destinationID == "" || amount == 0 {
+					continue
+				}
+				state := ctx.state.TerritoryStates[destinationID]
+				state.Resources += amount
+				ctx.state.TerritoryStates[destinationID] = state
 			}
-			state := ctx.state.TerritoryStates[destinationID]
-			state.Resources += amount
-			ctx.state.TerritoryStates[destinationID] = state
 		}
 	}
 }
 
-func emitTerritoryIncomeEvents(ctx *resolutionContext, reports map[models.PlayerID]map[models.TerritoryID]*territoryIncomeReport) {
+func emitTerritoryIncomeEvents(ctx *resolutionContext, reports map[models.PlayerID]map[models.TerritoryID]map[models.FiefID]*territoryIncomeReport) {
 	for _, ownerID := range sortedPlayerIDs(ctx.state.Players) {
 		for _, destinationID := range sortedTerritoryMap(reports[ownerID]) {
-			report := reports[ownerID][destinationID]
-			ctx.events = append(ctx.events, Event{
-				Type:                 EventTypeIncome,
-				Phase:                0,
-				OwnerID:              ownerID,
-				DestinationID:        destinationID,
-				TerritoryCount:       report.territories,
-				VillageCount:         report.villages,
-				BaseProduction:       report.base,
-				BonusProduction:      report.bonus,
-				SuppressedProduction: report.suppressed,
-				Production:           report.base + report.bonus,
-				Lost:                 report.lost,
-				StockAfter:           ctx.destinationStock(destinationID),
-				Season:               ctx.state.Season,
-				Year:                 ctx.state.Year(),
-			})
+			for _, fiefID := range sortedFiefIDMap(reports[ownerID][destinationID]) {
+				report := reports[ownerID][destinationID][fiefID]
+				ctx.events = append(ctx.events, Event{
+					Type:                 EventTypeIncome,
+					Phase:                0,
+					OwnerID:              ownerID,
+					DestinationID:        destinationID,
+					FiefID:               report.fiefID,
+					FiefTitle:            report.fiefTitle,
+					TerritoryCount:       report.territories,
+					VillageCount:         report.villages,
+					BaseProduction:       report.base,
+					BonusProduction:      report.bonus,
+					SuppressedProduction: report.suppressed,
+					Production:           report.base + report.bonus,
+					Lost:                 report.lost,
+					StockAfter:           ctx.destinationStock(destinationID),
+					Season:               ctx.state.Season,
+					Year:                 ctx.state.Year(),
+				})
+			}
 		}
 	}
+}
+
+// sortedFiefIDMap returns the keys of a map[models.FiefID]V in deterministic
+// order, empty id (income routed outside any fief) sorting first.
+func sortedFiefIDMap[V any](values map[models.FiefID]V) []models.FiefID {
+	ids := make([]models.FiefID, 0, len(values))
+	for id := range values {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	return ids
 }
 
 func (ctx *resolutionContext) destinationStock(destinationID models.TerritoryID) int {
@@ -154,13 +192,31 @@ func harvestAdjustedParts(ctx *resolutionContext, territoryID models.TerritoryID
 	}
 }
 
+// territoryFief returns the fief territoryID belongs to when it is owned by
+// ownerID (its capital included), or nil otherwise: a territory transferred
+// to a fief's conqueror this same turn already reports the conqueror as
+// owner (transferFiefOnCapitalCapture), so this stays a simple membership
+// check rather than a positional one.
+func (ctx *resolutionContext) territoryFief(ownerID models.PlayerID, territoryID models.TerritoryID) *models.Fief {
+	fief := ctx.fiefContaining(territoryID)
+	if fief == nil || fief.OwnerID != ownerID {
+		return nil
+	}
+	return fief
+}
+
 // territoryIncomeDestination is the credited target of one controlled
-// territory's income: the player's capital when it is valid, else the
-// closest controlled castle, else the closest controlled village (BFS over
-// crossable borders, trigram tie-break), else none when the income is lost.
-// Fief capitals are out of scope for this seam; #196 will extend it to try
-// the fief's capital before the player's own.
-func (ctx *resolutionContext) territoryIncomeDestination(ownerID models.PlayerID, territoryID models.TerritoryID) models.TerritoryID {
+// territory's income: the fief's capital when territoryID belongs to fief
+// (the caller's own territoryFief(ownerID, territoryID) lookup, passed in
+// rather than redone here, even when that fief capital is itself occupied by
+// another player: income is never intercepted, titres.md), else the player's
+// own capital when it is valid, else the closest controlled castle, else the
+// closest controlled village (BFS over crossable borders, trigram
+// tie-break), else none when the income is lost.
+func (ctx *resolutionContext) territoryIncomeDestination(ownerID models.PlayerID, territoryID models.TerritoryID, fief *models.Fief) models.TerritoryID {
+	if fief != nil {
+		return fief.CapitalTerritoryID
+	}
 	if capitalTerritoryID, _, hasCapital := ctx.capitalTerritory(ownerID); hasCapital {
 		return capitalTerritoryID
 	}

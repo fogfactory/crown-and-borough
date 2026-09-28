@@ -10,11 +10,13 @@ func nobleIDPtr(id models.NobleID) *models.NobleID {
 	return &id
 }
 
-// TestDissolveVacantFiefsAtWinterEnd verifies that a fief still vacant at the
-// end of winter is dissolved (titres.md): its territories simply revert to
-// ordinary control, and dissolution runs after the winter orders themselves.
-func TestDissolveVacantFiefsAtWinterEnd(t *testing.T) {
+// TestVacantFiefAutoAssignedAtWinterEnd verifies that a fief still vacant at
+// the end of winter is no longer dissolved: it is attributed by default to
+// its owner's free noble with the lowest trigram, with a warning event
+// (titres.md "Perte et vacance d'un fief").
+func TestVacantFiefAutoAssignedAtWinterEnd(t *testing.T) {
 	state := foundFiefTestState(t)
+	addNoble(state, "N2", "ABC", "P1", "AAA")
 	state.Fiefs = []models.Fief{{
 		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "AAA",
 		Territories: []models.TerritoryID{"AAA", "BBB", "CCC"}, OwnerID: "P1",
@@ -25,12 +27,47 @@ func TestDissolveVacantFiefsAtWinterEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveWinter: %v", err)
 	}
-	if len(resolution.State.Fiefs) != 0 {
-		t.Fatalf("fiefs = %#v, want none (dissolved)", resolution.State.Fiefs)
+	if len(resolution.State.Fiefs) != 1 {
+		t.Fatalf("fiefs = %#v, want the fief to survive, auto-assigned", resolution.State.Fiefs)
 	}
-	dissolved := eventsOfType(resolution.Events, EventTypeFiefDissolved)
-	if len(dissolved) != 1 || dissolved[0].FiefID != "F1" || dissolved[0].Reason != "vacant_at_winter_end" {
-		t.Fatalf("dissolved events = %#v", dissolved)
+	// N2/ABC sorts before N1/HUG: it is the default holder.
+	if holder := resolution.State.Fiefs[0].HolderNobleID; holder == nil || *holder != "N2" {
+		t.Fatalf("holder = %v, want N2 (ABC, lowest trigram)", holder)
+	}
+	assigned := eventsOfType(resolution.Events, EventTypeFiefAutoAssigned)
+	if len(assigned) != 1 || assigned[0].FiefID != "F1" || assigned[0].NobleID != "N2" || assigned[0].NobleCode != "ABC" {
+		t.Fatalf("auto-assigned events = %#v", assigned)
+	}
+	if len(eventsOfType(resolution.Events, EventTypeFiefDissolved)) != 0 {
+		t.Errorf("events = %#v, want no dissolution", resolution.Events)
+	}
+}
+
+// TestVacantFiefStaysVacantWithoutFreeNoble verifies that a fief whose owner
+// has no free noble is neither dissolved nor attributed: it simply stays
+// vacant, still producing and scoring, until a noble is free or its capital's
+// castle falls (titres.md "Perte et vacance d'un fief").
+func TestVacantFiefStaysVacantWithoutFreeNoble(t *testing.T) {
+	state := foundFiefTestState(t)
+	setNobleStatus(state, "N1", models.NobleStatusHostage)
+	state.Fiefs = []models.Fief{{
+		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "AAA",
+		Territories: []models.TerritoryID{"AAA", "BBB", "CCC"}, OwnerID: "P1",
+	}}
+	validateTestState(t, state)
+
+	resolution, err := ResolveWinter(state, testBalance(), nil)
+	if err != nil {
+		t.Fatalf("ResolveWinter: %v", err)
+	}
+	if len(resolution.State.Fiefs) != 1 || resolution.State.Fiefs[0].HolderNobleID != nil {
+		t.Fatalf("fiefs = %#v, want the fief to stay vacant, undissolved", resolution.State.Fiefs)
+	}
+	if len(eventsOfType(resolution.Events, EventTypeFiefDissolved)) != 0 {
+		t.Errorf("events = %#v, want no dissolution", resolution.Events)
+	}
+	if len(eventsOfType(resolution.Events, EventTypeFiefAutoAssigned)) != 0 {
+		t.Errorf("events = %#v, want no auto-assignment", resolution.Events)
 	}
 }
 
@@ -63,11 +100,13 @@ func TestFiefAssignedSameWinterSurvivesDissolution(t *testing.T) {
 }
 
 // TestTransferFiefOnCapitalCapture verifies that conquering a fief's capital
-// hands the whole fief, vacant, to the conqueror (titres.md), while a
-// non-capital fief territory changing hands leaves the fief untouched (#196
-// is not implemented yet: non-capital control stays positional).
+// hands the whole fief, vacant, to the conqueror, including transferring
+// control of every other member still held by the previous owner (titres.md
+// "Contrôle et occupation", #196). transferFiefOnCapitalCapture itself is a
+// no-op when called directly on a non-capital territory: fief_control_test.go
+// covers the full updateTerritorialControl behavior for occupied members.
 func TestTransferFiefOnCapitalCapture(t *testing.T) {
-	t.Run("capital capture transfers the fief, vacant", func(t *testing.T) {
+	t.Run("capital capture transfers the fief, vacant, and every other member", func(t *testing.T) {
 		state := foundFiefTestState(t)
 		holder := models.NobleID("N1")
 		state.Fiefs = []models.Fief{{
@@ -90,6 +129,21 @@ func TestTransferFiefOnCapitalCapture(t *testing.T) {
 		conquered := eventsOfType(ctx.events, EventTypeFiefConquered)
 		if len(conquered) != 1 || conquered[0].PreviousOwnerID != "P1" || conquered[0].OwnerID != "P2" {
 			t.Fatalf("conquered events = %#v", conquered)
+		}
+		for _, memberID := range []models.TerritoryID{"BBB", "CCC"} {
+			state := ctx.state.TerritoryStates[memberID]
+			if state.OwnerID == nil || *state.OwnerID != "P2" {
+				t.Errorf("%s owner = %v, want P2 (transitive control)", memberID, state.OwnerID)
+			}
+		}
+		changed := eventsOfType(ctx.events, EventTypeControlChanged)
+		if len(changed) != 2 {
+			t.Fatalf("control_changed events = %#v, want one per non-capital member", changed)
+		}
+		for _, event := range changed {
+			if event.Reason != "fief_transferred" || event.OwnerID != "P2" || event.PreviousOwnerID != "P1" {
+				t.Errorf("control_changed event = %#v, want reason fief_transferred P1->P2", event)
+			}
 		}
 	})
 

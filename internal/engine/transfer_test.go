@@ -236,3 +236,75 @@ func findEvent(events []Event, eventType EventType) (Event, bool) {
 	}
 	return Event{}, false
 }
+
+// TestResolveTransferRejectsTargetOccupiedByNonController verifies that a
+// transfer aimed at an army stationed on a territory it does not itself
+// control (only occupies) is rejected with a dedicated reason, rather than
+// silently handing resources to an army with no claim on the territory
+// (titres.md, #196).
+func TestResolveTransferRejectsTargetOccupiedByNonController(t *testing.T) {
+	state := testState(t, []models.Territory{
+		supplyTerritory("AAA", "AAA", models.TerrainPlain, "BBB"),
+		supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA"),
+	}, []models.Army{
+		{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+		{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
+	})
+	// BBB is controlled by P3, only occupied (not controlled) by P2's army.
+	setTerritoryOwner(state, "BBB", "P3")
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	setTerritoryResources(state, "AAA", 4)
+	addChain(t, state, "A1", "N1", models.Order{
+		Type:       models.OrderTypeTransfer,
+		PositionID: "AAA",
+		TargetIDs:  []models.TerritoryID{"BBB"},
+		Amount:     1,
+	})
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	outcome, ok := findOutcome(resolution.Events, "O1")
+	if !ok || outcome.Outcome != OutcomeInvalid || outcome.Reason != "transfer_target_occupied" {
+		t.Fatalf("outcome = %#v, want invalid transfer_target_occupied", outcome)
+	}
+	if got := resolution.State.TerritoryStates["AAA"].Resources; got != 4 {
+		t.Errorf("source resources = %d, want unchanged 4 (no prelevement)", got)
+	}
+}
+
+// TestResolveWinterTransferRejectsOccupiedSource verifies that a winter
+// transfer order cannot debit a settlement occupied against its controller
+// (titres.md, #196).
+func TestResolveWinterTransferRejectsOccupiedSource(t *testing.T) {
+	state := testState(t, []models.Territory{
+		supplyTerritory("AAA", "AAA", models.TerrainPlain, "BBB"),
+		supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA"),
+	}, []models.Army{
+		{ID: "A1", OwnerID: "P2", TerritoryID: "AAA", Size: 1},
+	})
+	state.Turn = 4
+	state.Season = models.SeasonWinter
+	setTerritoryOwner(state, "AAA", "P1")
+	setTerritoryOwner(state, "BBB", "P2")
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "BBB"})
+	setTerritoryResources(state, "AAA", 5)
+	validateTestState(t, state)
+
+	resolution, err := ResolveWinter(state, testBalance(), map[models.PlayerID][]models.WinterOrder{
+		"P1": {{ID: "O1", Type: models.WinterOrderTypeTransfer, SourceID: "AAA", TargetID: "BBB", Amount: 3}},
+	})
+	if err != nil {
+		t.Fatalf("ResolveWinter: %v", err)
+	}
+	rejected := eventsOfType(resolution.Events, EventTypeRejected)
+	if len(rejected) != 1 || rejected[0].Reason != "territory_occupied_by_other_player" {
+		t.Fatalf("rejected events = %#v, want territory_occupied_by_other_player", rejected)
+	}
+	if got := resolution.State.TerritoryStates["AAA"].Resources; got != 3 {
+		t.Errorf("source resources after winter conservation = %d, want 3 (ceil(5/2)), no transfer debit", got)
+	}
+}

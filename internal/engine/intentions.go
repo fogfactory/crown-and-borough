@@ -244,6 +244,13 @@ func (ctx *resolutionContext) enumerateOrder(record *orderRecord, army models.Ar
 				record.invalidate("invalid_transfer_destination")
 				return
 			}
+			if ctx.occupiedAgainstController(targetID, targetArmy) {
+				// The recipient army only occupies its own territory (e.g. a
+				// fief member it does not own): it cannot be handed resources
+				// through it (titres.md).
+				record.invalidate("transfer_target_occupied")
+				return
+			}
 			intent.recipientArmyID = targetArmy.ID
 			intent.recipientPlayer = targetArmy.OwnerID
 		} else {

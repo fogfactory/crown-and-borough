@@ -560,6 +560,14 @@ func TestValidateFiefErrors(t *testing.T) {
 			bru.OwnerID = ptrID("P2")
 			g.TerritoryStates["BRU"] = bru
 		}, "is not controlled by owner"},
+		{"non-capital member not controlled by owner", func(g *models.GameState) {
+			// Control is transitive in a fief (titres.md "Contrôle et
+			// occupation", #196): every member, not just the capital, must
+			// be controlled by the fief's owner.
+			bcl := g.TerritoryStates["BCL"]
+			bcl.OwnerID = ptrID("P2")
+			g.TerritoryStates["BCL"] = bcl
+		}, "BCL"},
 		{"unknown holder noble", func(g *models.GameState) {
 			g.Fiefs[0].HolderNobleID = ptrNobleID("N9")
 		}, "unknown holder noble"},

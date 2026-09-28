@@ -177,7 +177,9 @@ func previewWinter(preview *OrdersPreview, game *models.GameState, balance asset
 // winterPaymentReserves is the stock a player can spend on winter orders: the
 // resources of every controlled castle and village, plus the stock of any
 // mill targeted by one of winterOrders' build lines, since a mill upgrade can
-// pay for itself first (see #195's millUpgradePaymentSources).
+// pay for itself first (see #195's millUpgradePaymentSources). A settlement
+// or mill occupied against its controller is excluded: it pays for no
+// investment (titres.md).
 func winterPaymentReserves(game *models.GameState, playerID models.PlayerID, winterOrders []models.WinterOrder) int {
 	settlements := make(map[models.InfraID]bool)
 	for _, infrastructure := range game.Infrastructures {
@@ -191,6 +193,9 @@ func winterPaymentReserves(game *models.GameState, playerID models.PlayerID, win
 		if territoryState.OwnerID == nil || *territoryState.OwnerID != playerID || territoryState.Resources <= 0 {
 			continue
 		}
+		if territoryOccupiedAgainstController(game, territoryID) {
+			continue
+		}
 		if territoryState.Infrastructures != nil && settlements[*territoryState.Infrastructures] {
 			total += territoryState.Resources
 			counted[territoryID] = true
@@ -202,6 +207,9 @@ func winterPaymentReserves(game *models.GameState, playerID models.PlayerID, win
 		}
 		territoryState, exists := game.TerritoryStates[order.TerritoryID]
 		if !exists || territoryState.OwnerID == nil || *territoryState.OwnerID != playerID {
+			continue
+		}
+		if territoryOccupiedAgainstController(game, order.TerritoryID) {
 			continue
 		}
 		total += territoryState.Resources

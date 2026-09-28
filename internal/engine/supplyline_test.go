@@ -395,3 +395,21 @@ func TestFindTransferProjectsEndpointOccupiedByRecipient(t *testing.T) {
 		t.Errorf("blocked transfer line = %#v, want no route", line)
 	}
 }
+
+// TestFindSupplyZoneOccupiedSourceIsUnavailable verifies that a controlled
+// castle occupied against its controller behaves as an absent source for
+// FindSupplyZone, exactly like an uncontrolled or empty one (titres.md,
+// #196).
+func TestFindSupplyZoneOccupiedSourceIsUnavailable(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{supplyTerritory("AAA", "AAA", models.TerrainPlain)},
+		[]models.Army{{ID: "A1", OwnerID: "P2", TerritoryID: "AAA", Size: 2}},
+	)
+	setTerritoryOwner(state, "AAA", "P1")
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+	validateTestState(t, state)
+
+	if _, err := FindSupplyZone(state, testBalance(), "AAA"); !errors.Is(err, ErrSupplyLineNoSource) {
+		t.Errorf("occupied source error = %v, want ErrSupplyLineNoSource", err)
+	}
+}
