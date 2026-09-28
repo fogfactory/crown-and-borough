@@ -55,7 +55,7 @@ describe('WinterOrdersOverlay found_fief group', () => {
     label: 'T F HUG AAA BBB CCC',
   }
 
-  it('draws an ownership-style blazon on each non-capital member in the intention color', () => {
+  it('draws a translucent ownership-style blazon on each non-capital member in the intention color', () => {
     const { container } = renderOverlay([foundFief])
 
     const badges = container.querySelectorAll('[data-ownership-badge]')
@@ -65,6 +65,8 @@ describe('WinterOrdersOverlay found_fief group', () => {
     for (const badge of badges) {
       // OwnershipBadge stacks 3 shield paths: background, owner fill, casing.
       expect(badge.querySelectorAll('path')[1]?.getAttribute('fill')).toBe('#a84632')
+      // Lighter than a real, settled ownership badge since this is only a draft.
+      expect(badge.getAttribute('opacity')).toBe('0.6')
     }
   })
 

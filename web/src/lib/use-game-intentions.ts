@@ -96,7 +96,10 @@ export function useGameIntentions({
               state,
               playerID,
               draftOrdersByNoble(preview?.chains),
-              { includeInstalledInWinter: state.season === 'winter' },
+              {
+                includeInstalledInWinter: state.season === 'winter',
+                color: state.players.find((player) => player.id === playerID)?.color,
+              },
             )
           : [],
     [installedIntentions, map, playerID, preview, spectator, state, submittedIntentions],

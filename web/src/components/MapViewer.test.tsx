@@ -547,7 +547,7 @@ describe('MapViewer territorial overlays', () => {
     expect(svg.querySelectorAll('[data-ownership-badge]').length).toBe(0)
   })
 
-  it('draws a dashed fief outline around its territory group', () => {
+  it('prints the fief capital trigram on each member territory ownership badge', () => {
     const fiefState: StateData = {
       ...state,
       players: [{ id: 'P1', name: 'One', color: '#123456' }],
@@ -557,10 +557,14 @@ describe('MapViewer territorial overlays', () => {
     }
     const { svg } = renderMap(map, fiefState)
 
+    // The capital label tag still shows.
     expect(svg.querySelector('g[aria-label="Fiefs"]')).not.toBeNull()
-    const outline = svg.querySelector('[data-fief-outline="ROS"]')
-    expect(outline).not.toBeNull()
-    expect(outline?.getAttribute('stroke')).toBe('#123456')
+    // No boundary outline is drawn anymore: the badges below suffice.
+    expect(svg.querySelector('[data-fief-outline]')).toBeNull()
+
+    const controlLayer = svg.querySelector('g[aria-label="Territorial control"]')
+    const rosBadge = controlLayer?.querySelector('[data-ownership-badge="P1"]')
+    expect(rosBadge?.querySelector('text')?.textContent).toBe('ROS')
   })
 
   it('omits the fief layer when the game has no fiefs', () => {

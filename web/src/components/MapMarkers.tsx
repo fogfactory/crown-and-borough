@@ -190,6 +190,8 @@ export function OwnershipBadge({
   color,
   scale,
   label,
+  code,
+  opacity = 1,
 }: {
   ownerId: string
   x: number
@@ -197,11 +199,16 @@ export function OwnershipBadge({
   color: string
   scale: number
   label: string
+  /** Short code (e.g. a fief's capital trigram) printed on the shield to
+   * tell apart several badges that would otherwise share the same color. */
+  code?: string
+  opacity?: number
 }) {
   return (
     <g
       data-ownership-badge={ownerId}
       transform={`translate(${x} ${y}) scale(${scale})`}
+      opacity={opacity}
       pointerEvents="none"
     >
       <title>{label}</title>
@@ -219,6 +226,18 @@ export function OwnershipBadge({
         stroke={MARKER_CASING_COLOR}
         strokeWidth={1.6}
       />
+      {code && (
+        <text
+          y={-5.5}
+          fill="#fff8e7"
+          fontSize={7}
+          fontWeight="800"
+          textAnchor="middle"
+          dominantBaseline="central"
+        >
+          {code}
+        </text>
+      )}
     </g>
   )
 }

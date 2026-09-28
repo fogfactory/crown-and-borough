@@ -1,6 +1,5 @@
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
-import { computeFiefOutlines, fiefOutlinePath } from '@/lib/fief-geometry'
 import { centroid } from '@/lib/map-svg-geometry'
 import { fitLabelFontSize } from '@/lib/region-geometry'
 import type { Fief, FiefTitle, PlayerId, Territory } from '@/types'
@@ -13,8 +12,9 @@ const FIEF_TITLE_KEYS: Record<FiefTitle, MessageKey> = {
 }
 
 /**
- * Dashed outline around each fief's territory group, colored by its owner,
- * with a label near the capital's centroid (titres.md, issue #194).
+ * Name tag near each fief's capital (titres.md, issue #194). The per-
+ * territory ownership badges (`OwnershipLayer`) carry the capital's trigram
+ * to tell fiefs apart, so this layer no longer needs a boundary outline.
  */
 export function MapFiefLayer({
   territories,
@@ -29,13 +29,11 @@ export function MapFiefLayer({
 }) {
   const { t } = useLanguage()
   if (fiefs.length === 0) return null
-  const outlines = computeFiefOutlines(territories, fiefs)
 
   return (
     <g aria-label={t('map.fiefs')} pointerEvents="none">
       {fiefs.map((fief) => {
         const color = playerColors.get(fief.owner) ?? '#a84632'
-        const path = fiefOutlinePath(outlines, fief.capital)
         const capitalTerritory = territories.find(
           (territory) => territory.id === fief.capital,
         )
@@ -52,18 +50,6 @@ export function MapFiefLayer({
 
         return (
           <g key={fief.capital} data-fief-capital={fief.capital}>
-            {path && (
-              <path
-                data-fief-outline={fief.capital}
-                d={path}
-                fill="none"
-                stroke={color}
-                strokeWidth={2.4 * annotationScale}
-                strokeDasharray={`${5 * annotationScale} ${3.5 * annotationScale}`}
-                strokeOpacity={0.85}
-                vectorEffect="non-scaling-stroke"
-              />
-            )}
             <g transform={`translate(${labelX} ${labelY - 46 * annotationScale})`}>
               <title>{label}</title>
               <rect

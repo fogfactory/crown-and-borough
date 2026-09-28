@@ -325,6 +325,7 @@ export function MapViewer({
                 state={state}
                 playerColors={playerColors}
                 annotationScale={annotationScale}
+                fiefs={state.fiefs ?? []}
               />
             )}
 

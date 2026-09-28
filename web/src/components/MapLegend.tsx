@@ -291,18 +291,30 @@ export function MapLegend({
             <span>{t('legend.army')}</span>
           </div>
           <div className="flex items-center gap-2">
-            <svg className="size-4 shrink-0" viewBox="-10 -10 20 20" aria-hidden="true">
-              <rect
-                x={-8}
-                y={-8}
-                width={16}
-                height={16}
-                rx={2}
-                fill="none"
-                stroke="#a84632"
-                strokeWidth={1.6}
-                strokeDasharray="3 2"
+            <svg className="size-4 shrink-0" viewBox="-11 -13 22 26" aria-hidden="true">
+              <path
+                d={OWNERSHIP_SHIELD_PATH}
+                fill="#fff8e7"
+                stroke="#fff8e7"
+                strokeWidth={5}
               />
+              <path d={OWNERSHIP_SHIELD_PATH} fill="#a84632" />
+              <path
+                d={OWNERSHIP_SHIELD_PATH}
+                fill="none"
+                stroke={LEGEND_CASING}
+                strokeWidth={1.6}
+              />
+              <text
+                y={-5.5}
+                fill="#fff8e7"
+                fontSize={7}
+                fontWeight="800"
+                textAnchor="middle"
+                dominantBaseline="central"
+              >
+                ROS
+              </text>
             </svg>
             <span>{t('legend.fief')}</span>
           </div>

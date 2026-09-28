@@ -242,6 +242,7 @@ export function WinterOrdersOverlay({
                 y={y2 - 18 * annotationScale}
                 color={color}
                 scale={annotationScale}
+                opacity={0.6}
                 label={t('map.fiefGroupMember', { capital: capital.name })}
               />,
             ]
