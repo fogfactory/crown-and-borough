@@ -1223,6 +1223,13 @@ describe('MapViewer intentions overlay', () => {
       DRAFT_INTENTION_COLOR,
       '#a84632',
     ])
+    // The draft is still tentative, so its whole group (line, outline,
+    // badge) renders lighter than the installed chain's full-strength group.
+    const groups = svg.querySelectorAll('g[aria-label="Intentions overlay"] > g')
+    expect(Array.from(groups).map((group) => group.getAttribute('opacity'))).toEqual([
+      '0.6',
+      '1',
+    ])
   })
 
   it('renders defensive support dashed with a circle head at the supported center', () => {
