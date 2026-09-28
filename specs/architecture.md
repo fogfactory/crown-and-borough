@@ -221,7 +221,8 @@ L'état projeté sépare la couche dynamique du `GameState` de stockage :
       "title": "barony",
       "territories": ["ROS", "BOI", "BRU"],
       "owner": "P1",
-      "holder": "HUG"
+      "holder": "HUG",
+      "projectedIncome": 3
     }
   ]
 }
@@ -285,7 +286,10 @@ adressé par sa capitale (`capital`) ; **aucun identifiant interne** n'est
 exposé — l'ID de fief reste un détail d'implémentation du moteur, utile pour
 l'unicité et le corpus de test. `territories` liste le groupe dans l'ordre de
 constitution, capitale en premier. `holder` est le code du noble titulaire, ou
-absent lorsque le fief est vacant.
+absent lorsque le fief est vacant. `projectedIncome` somme le revenu
+territorial prévisionnel (`engine.ForecastTerritoryIncome`) de tous les
+membres du fief, capitale comprise : la projection du fief lui-même, distincte
+de celle de la seule case capitale.
 
 `GET /api/games/{id}/state` renvoie la vue filtrée du joueur connecté ; le
 hotseat demande celle du joueur sélectionné avec `?player=P1` en mode de
@@ -448,10 +452,11 @@ Les modèles métier sont dans `internal/models`. Ils valident notamment :
 - pour chaque fief : un identifiant unique, un titre cohérent avec la taille
   du groupe (`FiefTitleForSize`), une capitale en tête du groupe, aucun
   territoire partagé avec un autre fief, un propriétaire connu qui contrôle
-  la capitale, et un titulaire optionnel qui appartient à ce même propriétaire
-  (voir [titres.md](titres.md)). Un château sur la capitale n'est **pas**
-  exigé structurellement : sa perte dissout le fief immédiatement côté moteur
-  plutôt que de laisser un état transitoire invalide.
+  **tous** les membres du groupe (pas seulement la capitale : le contrôle est
+  transitif dans un fief, voir [titres.md](titres.md)), et un titulaire
+  optionnel qui appartient à ce même propriétaire. Un château sur la capitale
+  n'est **pas** exigé structurellement : sa perte dissout le fief immédiatement
+  côté moteur plutôt que de laisser un état transitoire invalide.
 
 `ResolveTurn` choisit la résolution d'action ou d'hiver selon la saison, avance
 le calendrier et renvoie un `TurnReport`. La soumission `special` est indépendante
@@ -460,10 +465,12 @@ validés et consommés avant les phases militaires ; leurs effets sont agrégés
 région avant le ravitaillement et l'énumération des intentions. Le rapport
 contient des sections typées pour les joueurs, ordres, combats, mouvements,
 ravitaillement, famine, nobles, rumeurs publiques et investissements d'hiver.
-La constitution et l'attribution d'un fief (`T F`/`T A`) apparaissent parmi
-les investissements d'hiver ; une section `fiefs` dédiée couvre la conquête,
-la vacance et la dissolution d'un fief, y compris hors hiver (voir
-[titres.md](titres.md)). Le moteur ne dépend ni du HTTP ni du rendu front.
+La constitution et l'attribution d'un fief (`T F`/`T A`), ainsi que
+l'attribution par défaut d'un fief encore vacant en fin d'hiver, apparaissent
+parmi les investissements d'hiver ; une section `fiefs` dédiée couvre la
+conquête, la vacance, la dissolution et l'occupation d'un membre non-capitale
+d'un fief, y compris hors hiver (voir [titres.md](titres.md)). Le moteur ne
+dépend ni du HTTP ni du rendu front.
 
 La réception des chaînes est immédiate et atomique. La validation est en une
 seule couche : `orders.ValidateChain` porte toutes les règles statiques

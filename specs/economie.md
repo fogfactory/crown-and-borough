@@ -71,8 +71,9 @@ dans la région du territoire qui produit ce revenu.
 ## Revenu territorial
 
 Issue : [#192](https://github.com/fogfactory/crown-and-borough/issues/192)
-(hors fief). **Appliqué.** Le revenu dirigé vers la capitale d'un fief est
-suivi par [#196](https://github.com/fogfactory/crown-and-borough/issues/196).
+(hors fief), revenu dirigé vers la capitale d'un fief par
+[#196](https://github.com/fogfactory/crown-and-borough/issues/196).
+**Appliqué.**
 
 - À chaque tour d'action (printemps, été, automne ; jamais en hiver), chaque
   territoire contrôlé rapporte `territory_income` R (1), plus
@@ -87,9 +88,13 @@ suivi par [#196](https://github.com/fogfactory/crown-and-borough/issues/196).
   village contrôlé le plus proche, sinon il est perdu. Deux territoires du
   même joueur peuvent donc alimenter des destinations différentes le même
   tour tant qu'aucune capitale n'existe.
-- Dans un fief, il est versé au stock de la **capitale du fief**, y compris
-  lorsqu'une armée adverse occupe le territoire (hors périmètre de #192,
-  suivi par #196).
+- Dans un fief, il est versé au stock de la **capitale du fief** — y compris
+  lorsque le territoire producteur ou la capitale du fief elle-même est
+  occupée par une armée adverse, le revenu n'étant jamais intercepté par
+  l'occupant. Le regroupement du rapport de revenu se fait par (destination,
+  fief) : un fief dont la capitale coïncide avec la capitale du joueur
+  produit donc une ligne distincte de celle du reste du domaine, même s'ils
+  partagent la même destination.
 - La production de base des châteaux et villages contrôlés
   (`base_production`) est supprimée : le revenu territorial la remplace. Le
   revenu territorial et la production des moulins restent deux flux
@@ -201,13 +206,16 @@ Un château, un village ou un dépôt de vivres contribue au ravitaillement
 Une conquête récente hors fief est contrôlée dès qu'une armée s'y arrête et
 garde donc immédiatement sa valeur logistique.
 
-> À trancher dans #196, pour une case d'un fief contrôlée par un joueur mais
-> occupée par une armée adverse : qui peut consommer le stock ou piller
-> (recommandé : l'occupant peut piller mais pas consommer ; pour le
-> contrôleur, la case bloque le flux) ; les investissements d'hiver y sont-ils
-> autorisés (recommandé : non) ; un dépôt y garde-t-il son bonus de portée
-> (recommandé : inutilisable par les deux joueurs tant que la case est
-> occupée).
+Une case contrôlée mais **occupée contre son contrôleur** (titres.md,
+[#196](https://github.com/fogfactory/crown-and-borough/issues/196)) n'est
+plus une source de ravitaillement, ni pour le contrôleur ni pour l'occupant ;
+un dépôt qui s'y trouve n'étend la portée de personne. L'occupant peut
+toujours piller son infrastructure ; le contrôleur, lui, ne peut plus
+consommer le stock local tant que la case reste occupée. Les investissements
+d'hiver ciblés sur une case occupée sont rejetés sans prélèvement
+(`territory_occupied_by_other_player`), et une telle case ne peut ni payer un
+investissement ni recevoir le rapatriement de stock de fin d'hiver (voir
+« Hiver » ci-dessous).
 
 ## Transfert de ressources
 
@@ -222,8 +230,14 @@ l'armée émettrice vers `YYY`.
   plusieurs transferts comme n'importe quels autres ordres.
 - `YYY` doit être un château, un village ou la case d'une armée contrôlée par un
   autre joueur vivant. Un dépôt sans armée n'est pas une destination valide.
+  Lorsque `YYY` porte une armée, celle-ci doit **contrôler** sa propre case :
+  une armée qui ne fait que l'occuper (par exemple un membre de fief non
+  contrôlé par son propriétaire) ne peut pas recevoir le transfert
+  (`transfer_target_occupied`).
 - Le stock source ne nécessite pas de château ni de village. Toute case
-  contrôlée peut conserver un cache pendant un tour d'action.
+  contrôlée peut conserver un cache pendant un tour d'action, sauf si elle
+  est occupée contre son contrôleur (`transfer_source_not_controlled`) : ni
+  l'émetteur ni le réseau ne peuvent alors s'appuyer dessus.
 - Le transfert suit le réseau de ravitaillement du donneur : portée de base de
   trois cases, bonus des dépôts contrôlés et blocage par les armées adverses.
   L'armée adverse du destinataire bloque également lorsqu'elle se trouve sur
@@ -261,8 +275,10 @@ priorité le stock de sa case, puis le réseau de sources contrôlées.
 `G XXX YYY N` est un ordre de gestion hivernal. Il ne dépend d'aucune armée,
 n'est pas interceptable et n'utilise pas le plafond de transport.
 
-- `XXX` doit être un château ou un village contrôlé par le donneur ; le débit
-  suit les règles habituelles des paiements d'hiver.
+- `XXX` doit être un château ou un village contrôlé par le donneur, non
+  occupé contre son contrôleur ; le débit suit les règles habituelles des
+  paiements d'hiver, qui excluent elles aussi toute colonie ou tout moulin
+  occupé (`territory_occupied_by_other_player`).
 - `YYY` doit être un château ou un village contrôlé par un autre joueur vivant.
   Il n'est donc pas nécessaire que la destination appartienne au donneur : le
   transfert peut alimenter directement le château ou le village du joueur
@@ -274,6 +290,9 @@ n'est pas interceptable et n'utilise pas le plafond de transport.
 - Les stocks d'un dépôt de ravitaillement sont conservés intégralement.
 - Tout stock placé sur une autre case est perdu à l'hiver. Les stocks hors
   château et village ne peuvent pas payer les investissements hivernaux.
+- Le rapatriement de fin d'hiver ne concerne pas une colonie occupée contre
+  son contrôleur : son stock y reste et suit la conservation normale
+  (`ceil(stock / 2)`) plutôt que d'être remonté vers la capitale.
 
 ## Prospérité
 
