@@ -25,7 +25,7 @@ servent.
 
 1. **La couleur vive appartient aux joueurs.** Les teintures héraldiques ne
    disent qu'une chose : « à qui ». Elles colorent les bannières, les écus, les
-   figurines, les bâtiments et les intentions. L'interface n'en emprunte aucune.
+   pions, les bâtiments et les intentions. L'interface n'en emprunte aucune.
 2. **L'encre décrit le monde, le laiton désigne l'action.** Le terrain, les
    frontières et le texte sont à l'encre sépia. Le bouton principal, l'onglet
    actif, le focus et la sélection sont en laiton.
@@ -50,17 +50,17 @@ servent.
 | 4 | Couleur d'action | Laiton ; vermillon réservé aux erreurs ; aucun joueur en or | Encre seule, vert-de-gris, rouge sceau |
 | 5 | Contrôle | Bannière sur chaque territoire contrôlé ; l'occupation se lit à l'armée présente | Lavis, liseré intérieur, vues à bascule |
 | 6 | Terrain | Carte gravée : symboles d'encre sur un papier commun | Aquarelle, aplats pastel, tuiles de plateau |
-| 7 | Frontières infranchissables | Selon le terrain : marais, crête ou escarpement | Crête seule, fleuve, rempart |
+| 7 | Frontières infranchissables | Série d'icônes choisie selon les terrains adjacents : montagnes, escarpement, marais dense, rivière | Lignes stylisées (crête hachurée, rempart, fleuve dessiné en trait) |
 | 8 | Évêchés | Affichage actuel restylé : cadre, liseré et calque | Tiret-point et blason |
 | 9 | Armées | Écu chiffré | Bloc de régiment, meeple, pile de jetons |
-| 10 | Nobles | Figurine couronnée | Sceau de cire, blason personnel, pastille |
-| 11 | Identité des joueurs | Teinture et blason générés | Hachures héraldiques, blason choisi, couleur seule |
+| 10 | Nobles | Pion simple, enrichi d'attributs cumulatifs selon les titres | Sceau de cire, blason personnel, pastille |
+| 11 | Identité des joueurs | Teinture et blason générés, puis blason choisi par le joueur (deuxième étape) | Hachures héraldiques, couleur seule |
 | 12 | Bâtiments | Silhouettes actuelles recolorées | Tampons à l'encre, maquettes, jetons |
-| 13 | Disposition sur ordinateur | Disposition actuelle améliorée | Carte maximale et tiroir, trois colonnes, table de jeu |
-| 14 | Saisie des ordres | Hybride : cartes d'ordres et texte synchronisés | Texte assisté, constructeur seul, texte seul |
-| 15 | Saison | Roue des saisons et voile de la carte | Roue seule, piste du temps, voile seul |
-| 16 | Téléphone | Panneau glissant corrigé | Onglets plein écran, carte pivotée, paysage |
-| 17 | Rapport de tour | Cartes d'événements et liste nettoyée ; la carte ne montre un événement qu'au clic | Chronique, rejeu animé |
+| 13 | Disposition sur ordinateur | Carte maximale et tiroir à signets | Disposition actuelle améliorée, trois colonnes, table de jeu |
+| 14 | Saisie des ordres | Texte assisté ; cartes d'ordres possibles plus tard, le texte assisté restant disponible | Constructeur seul, texte seul |
+| 15 | Saison | Ambiance seule : la teinte de la carte et de l'interface annonce la saison | Roue des saisons, piste du temps |
+| 16 | Téléphone | Onglets plein écran ; l'onglet Ordres partage l'écran avec la carte, synchronisée avec la saisie | Panneau glissant corrigé, carte pivotée, paysage |
+| 17 | Rapport de tour | Cartes d'événements ; la carte ne montre un événement qu'au clic | Liste nettoyée, chronique, rejeu animé |
 | 18 | Emblème | Sceau de cire | Cartouche, blason écartelé, emblème actuel |
 | 19 | Mouvement | Aucune animation | Micro-animations, sons, résolution animée |
 | 20 | Phasage | Fondations d'abord | Carte, ergonomie ou écran complet d'abord |
@@ -91,7 +91,7 @@ dur dans les classes Tailwind.
 | Token | Valeur | Usage |
 |---|---|---|
 | `brass-300` | `#e2c47a` | Filets décoratifs : cadre de la carte, cartouches |
-| `brass-400` | `#c9a24a` | Fond du bouton principal, halo de sélection, quartier courant de la roue |
+| `brass-400` | `#c9a24a` | Fond du bouton principal, halo de sélection, couronnes des nobles titrés |
 | `brass-500` | `#b8923f` | Survol du bouton principal |
 | `brass-700` | `#7d5a1c` | Texte en laiton (onglet actif, liens), anneau de focus, trait de sélection |
 | `vermilion-700` | `#a4301c` | Texte et icône d'erreur |
@@ -157,6 +157,11 @@ carte ; la pièce le distingue encore en niveaux de gris et pour un daltonien.
   pièce.
 - L'ordre d'attribution suit l'ordre des sièges, comme la palette actuelle
   d'`internal/engine/game.go`.
+- **Deux étapes.** D'abord, chaque joueur reçoit les armoiries générées
+  ci-dessus. Ensuite, un joueur pourra choisir son propre blason (champ,
+  pièce, meuble) dans son profil ; ce choix se superpose aux armoiries
+  générées et reste soumis aux mêmes règles (teinture en champ, métal en
+  pièce, pas d'or en teinture, pas de doublon dans une partie).
 
 ### Évêchés
 
@@ -173,12 +178,15 @@ dessine jamais de liseré : c'est ce qui évite de confondre les deux.
 
 ### Saisons
 
-| Saison | Couleur de la roue | Voile de la carte |
+| Saison | Teinte d'interface | Voile de la carte |
 |---|---|---|
 | Printemps | `#9cc36b` | `#9cc36b` à 14 % |
 | Été | `#e3b341` | `#e3b341` à 14 % |
 | Automne | `#c0703a` | `#c0703a` à 17 % |
 | Hiver | `#bcd3e6` | `#e3edf7` à 42 %, avec la neige actuelle |
+
+La teinte d'interface est décorative : elle n'est jamais le fond d'un texte
+et ne remplace pas le laiton des actions.
 
 ### Contrastes
 
@@ -298,25 +306,28 @@ limiter la taille du DOM.
 
 - **Franchissable :** pointillé rond `ink-900` à 75 %, 1,7 px, comme
   aujourd'hui.
-- **Infranchissable,** selon les deux territoires qu'elle sépare, dans cet
-  ordre :
-  1. si l'un est un marécage, **marais** : trait ondulé `#3f6b5e` de 1,5 px
-     sur un halo `#9cc1b4`, avec une touffe de roseaux à l'encre toutes les
-     11 unités environ ;
-  2. sinon, si l'un est une montagne, **crête** : trait `ink-900` de 2 px
-     hérissé de hachures perpendiculaires alternées (2,6 à 4,8 unités) toutes
-     les 3 unités ;
-  3. sinon, **escarpement** : trait `ink-900` de 1,8 px portant des dents d'un
-     seul côté toutes les 4 unités, tournées vers le territoire le plus bas
-     (montagne > colline > forêt > plaine > marécage ; à égalité, vers le
-     trigramme le plus grand).
+- **Infranchissable :** une série d'icônes posées le long de la frontière,
+  comme la chaîne de pics actuelle, jamais une ligne stylisée. L'icône dépend
+  des deux territoires qu'elle sépare, dans cet ordre :
+  1. si la frontière appartient à une rivière (voir ci-dessous), **rivière** :
+     tronçons d'eau ondulés bleus (`#3d76a6`) ;
+  2. sinon, si l'un des territoires est un marécage, **marais dense** :
+     touffes de roseaux serrées sur des traits d'eau ;
+  3. sinon, si l'un est une montagne, **montagnes** : la chaîne de pics
+     actuelle (glyphe `peaks`), redessinée à l'encre `ink-900` ;
+  4. sinon, **escarpement** : petits blocs de falaise en profil, tournés vers
+     le territoire le plus bas (montagne > colline > forêt > plaine >
+     marécage ; à égalité, vers le trigramme le plus grand). Si le dessin
+     reste illisible à la taille des icônes, la chaîne de pics le remplace.
 - **Contour extérieur :** `ink-900`, 2,2 px.
 
-Ces trois symboles remplacent la chaîne de pics (`ImpassableBorderChain`,
-`web/src/components/MapIconLayers.tsx`). Quand les rivières de
-[cartographie.md](cartographie.md) seront livrées, les frontières
-infranchissables qui forment une rivière prendront un symbole de fleuve (trait
-bleu ondulé `#3d76a6` sur un halo `#d6e6ef`).
+**Précision.** Les icônes gardent l'espacement, la taille et la rotation de
+l'actuelle `ImpassableBorderChain` (`web/src/components/MapIconLayers.tsx`),
+avec un halo `paper-map` pour rester lisibles sur les symboles de terrain.
+Toutes sont monochromes à l'encre, sauf la rivière. Les rivières de
+[cartographie.md](cartographie.md) (suites de frontières infranchissables
+reliées à un bord) n'existent pas encore ; en attendant, la règle commence au
+marais.
 
 ### Évêchés
 
@@ -358,14 +369,39 @@ ligne de base ; mât `ink-900`, drapeau de 12 × 8 unités.
 - L'écu remplace le disque numéroté de `LiveLayer`
   (`web/src/components/MapTerritoryLayers.tsx`).
 
-### Nobles : figurine couronnée
+### Nobles : pion et attributs de titre
 
-- Chaque noble est une figurine de 11 × 17 unités (socle, corps, tête) à la
-  teinture de son joueur, coiffée d'une couronne `brass-400` cernée d'encre.
-- Otage : figurine grisée (cendrée). Au cachot : figurine grisée derrière des
-  barreaux à l'encre.
+- Chaque noble est un pion simple de 11 × 17 unités (socle, corps, tête) à la
+  teinture de son joueur.
+- Les titres s'ajoutent comme attributs **cumulatifs** posés sur le pion :
+
+  | Titre | Attribut |
+  |---|---|
+  | Baron | Couronne simple : cercle et trois perles |
+  | Comte | Couronne à neuf perles |
+  | Marquis | Couronne à fleurons et perles alternés |
+  | Duc | Couronne à fleurons |
+  | Roi | Couronne fermée surmontée d'une croix |
+  | Évêque | Crosse tenue à côté du pion |
+  | Cardinal | Robe rouge et chapeau de cardinal |
+  | Pape | Robe blanche et tiare |
+
+  Un noble porte la couronne de son plus haut titre séculier et y ajoute ses
+  attributs religieux : un duc évêque porte la couronne de duc et la crosse.
+  Les couronnes sont en `brass-400` cernées d'encre ; la robe du cardinal
+  (`#a4231c`) et celle du pape (`#f1ede3`) remplacent la teinture du corps,
+  qui reste visible sur le socle.
+- Otage : pion grisé (cendré). Au cachot : pion grisé derrière des barreaux à
+  l'encre. Les attributs restent visibles.
 - Plusieurs nobles sur une case se placent côte à côte, espacés de 12 unités.
-- La figurine remplace le losange de `NobleMarker`.
+- Le pion remplace le losange de `NobleMarker`.
+
+Les titres ne sont pas encore livrés dans `develop` : ceux des fiefs sont en
+cours ([titres.md](titres.md)), les titres religieux ([religieux.md](religieux.md))
+et royaux ([politique.md](politique.md)) viendront par itérations. Chaque
+attribut arrive avec le titre qu'il représente ; tant qu'aucun titre n'existe,
+tous les nobles sont des pions simples. La liste des titres séculiers suit
+celle que les specs retiendront (le marquisat y est encore à trancher).
 
 ### Bâtiments
 
@@ -406,82 +442,100 @@ s'affiche. Les seuils sont à régler sur des cartes réelles : 52 territoires �
 ### Légende
 
 La légende montre des échantillons de symboles au lieu de pastilles de couleur :
-les cinq terrains, les trois frontières infranchissables et le pointillé
-franchissable, la bannière, l'écu, la figurine (libre, otage, au cachot) et les
-bâtiments. Les boutons des calques (intentions, contrôle, évêchés, calamités,
+les cinq terrains, les icônes de frontière infranchissable et le pointillé
+franchissable, la bannière, l'écu, le pion de noble (libre, otage, au cachot,
+puis les attributs de titre à mesure qu'ils existent) et les bâtiments. Les boutons des calques (intentions, contrôle, évêchés, calamités,
 cartes) sont conservés.
 
 ## Écrans et composants
 
 ### Disposition sur ordinateur
 
-La disposition actuelle, carte à gauche et panneau à droite, est conservée et
-allégée :
+La carte occupe toute la largeur ; les panneaux passent dans un tiroir :
 
-- **En-tête sur une ligne :** sceau et « Crown & Borough » en Cinzel ; roue
-  des saisons suivie de « Automne 1002 · tour 7 sur 40 » ; scores ; pastilles de
-  soumission ; joueur actif en hotseat ; navigation Règles et FAQ ; un menu
-  « Partie » qui regroupe la création d'une partie (joueurs, graine, années),
-  la résolution forcée et la langue.
-- **Panneau :** les onglets tiennent lieu de titre ; le titre qui répète
-  l'onglet actif (`GamePanelCard.tsx`) disparaît. Onglets soulignés, l'actif
-  en `brass-700`.
+- **Barre du haut, fine et sur une ligne :** sceau et « Crown & Borough » en
+  Cinzel ; saison, année et tour en texte (« Automne 1002 · tour 7 sur 40 ») ;
+  scores ; pastilles de soumission ; joueur actif en hotseat ; navigation
+  Règles et FAQ ; un menu « Partie » qui regroupe la création d'une partie
+  (joueurs, graine, années), la résolution forcée et la langue.
+- **Tiroir à droite :** posé sur la carte, avec des onglets en marque-pages
+  (Ordres, Rapport, Règles) qui dépassent de son bord gauche. Il se replie
+  pour rendre toute la carte ; le marque-page actif est en `brass-400`. Les
+  onglets tiennent lieu de titre : le titre qui répète l'onglet actif
+  (`GamePanelCard.tsx`) disparaît.
 - **Action principale :** le bouton d'envoi des ordres vit dans un pied de
-  panneau collant, toujours visible quelle que soit la longueur du panneau.
-  Libellé proposé : « Sceller les ordres ».
+  tiroir collant, toujours visible. Libellé proposé : « Sceller les ordres ».
 
-**Précision.** Le bandeau « Carte publique · vue commune » posé sur la carte
-disparaît ; l'aide aux gestes rejoint la légende.
+**Précision.** Le tiroir mesure 384 à 416 px comme la colonne actuelle ; la
+carte se recadre quand il s'ouvre ou se replie. Le bandeau « Carte publique ·
+vue commune » posé sur la carte disparaît ; l'aide aux gestes rejoint la
+légende.
 
 ### Téléphone
 
-- Le panneau glissant s'ouvre replié (cran `peek`) au lieu de la mi-hauteur
-  (`web/src/components/ui/panel-sheet.tsx`).
-- La carte se cadre dans la partie visible au-dessus du panneau et se recadre
-  quand le panneau change de cran.
-- Sélectionner un territoire ouvre le panneau à mi-hauteur, comme aujourd'hui.
-- L'en-tête tient sur une ligne : sceau, roue des saisons, scores et un menu
-  pour la navigation, la langue et les réglages. Plus rien ne déborde.
+- Navigation d'application par une barre d'onglets en bas : Carte, Ordres,
+  Rapport, Règles. Chaque vue a tout l'écran ; le panneau glissant actuel
+  (`web/src/components/ui/panel-sheet.tsx`) disparaît.
+- **Carte :** plein écran, ouverte sur les territoires du joueur.
+- **Ordres :** écran partagé, la carte en haut et la saisie en bas. La carte
+  suit la saisie : taper ou compléter un trigramme la recentre sur ce
+  territoire et le sélectionne ; toucher un territoire sur la carte insère
+  son trigramme à la position du curseur.
+- **Rapport :** toucher un événement bascule sur la carte, cadrée sur
+  l'événement.
+- L'en-tête tient sur une ligne : sceau, saison et tour, scores et un menu
+  pour la langue et les réglages. Plus rien ne déborde.
 - Toute cible tactile mesure au moins 44 × 44 px.
+
+**Précision.** Dans l'onglet Ordres, la carte prend environ 40 % de la hauteur,
+au-dessus du clavier virtuel ; la synchronisation ne se déclenche que sur un
+trigramme complet et valide, pour ne pas faire sauter la carte à chaque
+frappe.
 
 ### Saisie des ordres
 
-- Une chaîne a deux vues synchronisées : « Cartes d'ordres », par défaut, et
-  « Parchemin », la zone de texte actuelle.
-- On construit un ordre en choisissant un verbe (A, S, H, J, P, D, T) puis sa
-  ou ses cibles, sur la carte ou dans une liste. L'ordre s'ajoute comme une
-  carte qu'on peut réordonner (glisser-déposer ou flèches du clavier) et
-  retirer.
-- Une carte d'ordre montre la lettre du verbe sur la teinture du joueur, le
-  libellé (« Attaquer ») et le trajet en IBM Plex Mono (`PCT → VPR`).
-- Le constructeur ne fait qu'écrire le texte de la chaîne. La validation reste
-  celle de `POST /api/games/{id}/orders/preview`, dont chaque erreur s'affiche
-  sur la carte fautive : le client ne réimplémente aucune règle d'ordre (voir
-  [architecture.md](architecture.md)).
-- Le texte tapé dans le parchemin revient en cartes grâce aux ordres parsés
-  que renvoie la même prévisualisation, déjà utilisés par la surcouche
-  d'intentions (`web/src/lib/intent-overlay.ts`).
+La saisie reste textuelle, assistée :
+
+- **Coloration :** trigrammes, verbes et quantités ont chacun leur style
+  (IBM Plex Mono ; verbe en `brass-700`, trigramme sur fond `paper-100`).
+- **Autocomplétion :** les trigrammes proposés sont ceux que la position
+  rend plausibles (territoires adjacents d'abord), avec le nom de la commune.
+- **Lien avec la carte :** cliquer un territoire insère son trigramme à la
+  position du curseur ; un trigramme saisi recentre et sélectionne la carte
+  (voir [Téléphone](#téléphone)).
+- **Validation en direct :** les erreurs de
+  `POST /api/games/{id}/orders/preview` s'affichent sur la ligne fautive, en
+  soulignement `vermilion-700` et en message sous la zone. Le client ne
+  réimplémente aucune règle d'ordre (voir [architecture.md](architecture.md)) ;
+  l'autocomplétion ne fait que suggérer.
 - Le même principe s'applique aux investissements d'hiver et aux cartes
   spéciales.
 
+**Évolution possible.** Des cartes d'ordres (choisir un verbe, puis la cible
+sur la carte, et réordonner les cartes) pourront s'ajouter plus tard, comme
+une seconde vue de la même chaîne, sans retirer le texte assisté. Elles
+s'appuieraient sur les ordres parsés que renvoie la prévisualisation, déjà
+utilisés par la surcouche d'intentions (`web/src/lib/intent-overlay.ts`).
+
 ### Saison
 
-- Une roue des saisons prend place dans l'en-tête : quatre quartiers aux
-  couleurs de saison, le quartier courant plein et les autres à 40 %, des
-  pictogrammes à l'encre, un repère sur le quartier courant, et l'infobulle
-  « Automne de l'an 1002 · tour 7 sur 40 ».
-- La carte prend le voile de la saison (tableau [Saisons](#saisons)). En hiver
-  s'y ajoutent la neige actuelle et le panneau d'ordres d'hiver en
+- Aucun widget dédié : l'ambiance annonce la saison. La carte prend le voile
+  de la saison (tableau [Saisons](#saisons)) ; l'interface en reprend la
+  teinte d'interface sur un filet sous la barre du haut et sur le marque-page
+  actif du tiroir.
+- En hiver s'ajoutent la neige actuelle et le panneau d'ordres d'hiver en
   `winter-100` et `winter-700`.
+- La saison, l'année et le tour restent écrits en toutes lettres dans la
+  barre du haut, pour ne jamais dépendre de la couleur seule.
 
 ### Rapport de tour
 
 - Chaque événement devient une carte (pictogramme à l'encre, titre, détail),
-  regroupée par catégorie ; l'en-tête de chaque catégorie donne son nombre
-  d'événements, et les catégories vides sont masquées.
-- Par défaut, rien n'est dessiné sur la carte. Cliquer un événement le
-  sélectionne, cadre la carte sur les territoires concernés et y dessine
-  l'événement (déplacement, combat, retraite…) jusqu'à la sélection suivante.
+  regroupée par catégorie ; les catégories vides sont masquées.
+- Par défaut, rien n'est dessiné sur la carte. Le bouton « Voir » d'un
+  événement le sélectionne, cadre la carte sur les territoires concernés et y
+  dessine l'événement (déplacement, combat, retraite…) jusqu'à la sélection
+  suivante.
 - Ces cartes remplacent les listes actuelles de `ReportPanel.tsx`.
 
 ### Composants de base
@@ -495,7 +549,7 @@ disparaît ; l'aide aux gestes rejoint la légende.
   teinture `-700` correspondante.
 - **Rayons :** 4 px pour les contrôles, 6 px pour les panneaux.
 - **Ombres :** une seule ombre douce, réservée aux éléments flottants (menus,
-  popovers, panneau glissant).
+  popovers, tiroir).
 
 ### Emblème
 
@@ -514,8 +568,7 @@ disparaît ; l'aide aux gestes rejoint la légende.
 - Aucune animation décorative : ni apparition animée des menus et popovers
   (`tw-animate-css`), ni déplacement animé des pièces, ni son.
 - **Précision.** Seules restent les transitions fonctionnelles qui évitent un
-  saut brutal, comme le changement de cran du panneau glissant (150 ms au
-  plus). Elles sont désactivées quand le système demande de réduire les
+  saut brutal, comme l'ouverture du tiroir (150 ms au plus). Elles sont désactivées quand le système demande de réduire les
   animations (`prefers-reduced-motion`).
 
 ## Accessibilité
@@ -538,22 +591,28 @@ disparaît ; l'aide aux gestes rejoint la légende.
 3. **Nouvelle identité :** basculer les tokens sur cette charte, charger
    Cinzel, Alegreya et IBM Plex Mono, recolorer les composants shadcn, retirer
    Geist et le bloc `.dark`. Sortie : contrastes AA vérifiés.
-4. **Carte gravée :** terrain, frontières, évêchés, bannières, écus,
-   figurines, bâtiments, sélection, saisons, légende, teintures et armoiries
-   des joueurs.
-5. **Ergonomie :** en-tête sur une ligne et menu « Partie », panneau sans
-   titre redondant et action collante, roue des saisons, panneau glissant
-   corrigé, rapport en cartes d'événements.
-6. **Saisie hybride des ordres.**
+4. **Carte gravée :** terrain, icônes de frontière, évêchés, bannières, écus,
+   pions de nobles, bâtiments, sélection, saisons, légende, teintures et
+   armoiries générées des joueurs.
+5. **Ergonomie :** barre du haut et menu « Partie », tiroir à signets et
+   action collante, ambiance de saison, onglets du téléphone avec l'écran
+   partagé Ordres, rapport en cartes d'événements.
+6. **Saisie assistée des ordres :** coloration, autocomplétion, lien avec la
+   carte, validation en direct.
 7. **Emblème et pages annexes :** sceau, favicon, accueil, connexion, règles
    et FAQ.
 
+Viennent ensuite, au rythme des specs : les attributs de titre des nobles,
+le choix du blason par le joueur, puis, éventuellement, les cartes d'ordres.
+
 ## Questions ouvertes
 
-- **Armoiries des joueurs :** dérivées côté front de l'ordre du siège, sans
-  changement de contrat, ou attribuées par le moteur via un nouveau champ de
-  `state.json` ? À trancher dans l'issue de la phase 4. Recommandation :
-  dérivation côté front, le moteur ne gardant que la teinture.
+- **Armoiries des joueurs :** les armoiries générées peuvent être dérivées
+  côté front de l'ordre du siège, sans changement de contrat. Le blason
+  choisi par le joueur, lui, doit être stocké (profil) et publié dans
+  `state.json`, ce qui change le contrat. À trancher dans l'issue de la
+  phase 4 : dériver d'abord côté front, ou introduire le champ dès la
+  génération pour préparer le choix.
 - **Palette du moteur :** `internal/engine/game.go` attribue aujourd'hui
   16 couleurs. Passer aux teintures change les valeurs de `players[].color`
   des nouvelles parties ; le schéma, lui, ne change pas.
