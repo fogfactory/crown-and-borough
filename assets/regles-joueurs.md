@@ -423,7 +423,7 @@ même chaîne — il n'existe pas d'ordres mixtes au sein d'une armée.
 - une jonction ou une dispersion dont l'**origine** subit une attaque —
   alliée, ennemie, ou même une attaque à force nulle faute de vivres — est
   **annulée d'office** : aucune de ses troupes ne part, que cette attaque
-  gagne ou perde le combat sur cette case. Il n'y a plus de fuite par
+  gagne ou perde le combat sur cette case. Il n'y a pas de fuite par
   jonction ou dispersion : quitter une case attaquée demande de survivre au
   combat qui s'y joue.
 
@@ -442,8 +442,8 @@ vers une destination adjacente choisie par ordre de priorité décroissant :
    case vide qu'elle ne fait que contrôler positionnellement et qui n'a pas
    été combattue ce tour ; une case simplement contrôlée de façon
    positionnelle, y compris celle que le retraité vient de quitter ce même
-   tour, n'est plus prioritaire à ce titre et relève de cette deuxième
-   priorité comme n'importe quelle autre case vide ;
+   tour, relève de cette deuxième priorité comme n'importe quelle autre case
+   vide — seul l'ancrage donne la première priorité ;
 3. armée amie adjacente non délogée (priorité à la plus petite en troupes),
    avec fusion : l'hôte gagne `N − 1` troupes si la retraitante a `N ≥ 2`
    troupes, ou `1` troupe si `N = 1` (aucune perte). Plusieurs armées
@@ -552,7 +552,7 @@ qu'1 ration et doit couvrir le reste ailleurs ; en montagne (production
 
 **Sources de ravitaillement** : les châteaux, villages et caches contrôlés,
 ainsi qu'un moulin isolé (voir ci-dessous). Un château ou un village ne
-produit plus de R stockable par lui-même : sa contribution vient des moulins
+produit pas de R stockable par lui-même : sa contribution vient des moulins
 qui lui sont adjacents et du revenu territorial reçu (voir « Revenu
 territorial » ci-dessous) ; une case ordinaire n'a pas de production propre,
 mais son stock (s'il y en a) sert de cache. Le flux traverse les cases
@@ -578,7 +578,7 @@ case du moulin**, sinon le village adjacent du même contrôleur, sinon la case
 du moulin elle-même. Un château ou un village adjacent d'un autre joueur est
 ignoré. Le contrôleur « neutre » est un contrôleur comme un autre : un moulin
 neutre ne verse jamais à un joueur, seulement à un village neutre adjacent,
-sinon sur sa propre case. Un moulin ne compte donc plus jamais pour deux
+sinon sur sa propre case. Un moulin ne compte donc jamais pour deux
 infrastructures à la fois. Un moulin isolé (sans château ni village adjacent
 du même contrôleur) produit sur sa propre case, qui devient alors elle-même
 une source ; cette production n'est pas automatiquement acheminée ailleurs,
@@ -731,7 +731,7 @@ qui le détient. En fin d'hiver, un fief encore vacant à ce moment-là est
 **attribué automatiquement** au noble libre dont le trigramme est le plus
 petit, avec un avertissement dans le rapport te signalant de reprendre la main
 la fois suivante ; sans aucun noble libre, il reste simplement vacant — il
-n'est **plus jamais dissous** faute d'attribution. Si le château de la
+n'est jamais dissous faute d'attribution. Si le château de la
 capitale est détruit (pillage, y compris le pillage automatique de famine),
 le fief est dissous **immédiatement**, quelle que soit la saison : c'est la
 seule cause de dissolution d'un fief. La capture du titulaire (otage ou
@@ -819,7 +819,7 @@ Bonus régionaux :
 
 - Beau temps **double** la production des moulins de la région ;
 - Bonne récolte **double** les rations de terrain de chaque case de la région
-  et la production des châteaux et villages de la région.
+  et le revenu territorial de la région.
 
 Le deck contient **{{special_orders.deck_size}} cartes** :
 **{{special_orders.card.plague}}** peste, **{{special_orders.card.bad_weather}}**
@@ -849,7 +849,7 @@ ne se résout en hiver.
   le maintien et le soutien défensif, et les moulins de la région ne
   produisent rien ;
 - la mauvaise récolte supprime les rations de terrain de chaque case de sa
-  région et la production des châteaux et villages de la région ;
+  région et le revenu territorial de la région ;
 - la Révolte se joue sur un territoire (`P RE TER`) pendant les saisons
   d'action, à condition que sa région subisse une mauvaise récolte. Chaque
   carte ajoute un jet entre **{{special_orders.effects.revolt_army_min_size}}**
@@ -910,5 +910,5 @@ territoire contrôlé. Un noble libre compte pour son propriétaire ; un noble
 capturé, otage ou au donjon, compte pour le joueur dont une armée le détient
 physiquement — celle qui stationne sur sa case —, et non pour le contrôleur
 de cette case ni pour son propriétaire d'origine : hors fief, le contrôle
-territorial est désormais éphémère (section 6) et peut avoir disparu alors
-que l'armée captrice y stationne toujours.
+territorial est éphémère (section 6) et peut avoir disparu alors que
+l'armée captrice y stationne toujours.

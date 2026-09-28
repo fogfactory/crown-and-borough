@@ -143,7 +143,7 @@ jamais partie de ces sources.
   noble libre du joueur qui le détient dont le trigramme est le plus petit
   par ordre lexicographique, avec un avertissement dans le rapport ; sans
   aucun noble libre disponible à ce moment, le fief reste simplement vacant
-  (il n'est plus jamais dissous faute d'attribution, voir
+  (il n'est jamais dissous faute d'attribution, voir
   [titres.md](titres.md#perte-et-vacance-dun-fief)) ;
 - la saison suivante est le printemps.
 
@@ -175,8 +175,8 @@ simultanée des ordres d'armée :
 - la peste réduit les armées et peut affecter les nobles ;
 - le mauvais temps bloque les déplacements provenant de sa région et arrête
   ses moulins ; le Beau temps double leur production ;
-- la famine supprime les rations de terrain de sa région et la production de
-  ses châteaux et villages ; la Récolte abondante les double ;
+- la famine supprime les rations de terrain de sa région et son revenu
+  territorial ; la Récolte abondante les double ;
 - la révolte est une carte bonus conditionnelle qui crée des armées `NEUTRAL`.
 
 Le détail des cartes est suivi dans [`ordres-speciaux.md`](ordres-speciaux.md).
@@ -535,8 +535,8 @@ déterminée par ordre de priorité décroissant :
 2. Toute autre case vide non ancrée au retraité, sans château **ancré** (à
    quiconque) et non combattue ce tour ; une case que le retraité contrôlait
    simplement de façon positionnelle, y compris celle qu'il vient de quitter
-   ce même tour, n'est plus prioritaire à ce titre et relève de cette
-   deuxième priorité comme n'importe quelle autre case vide.
+   ce même tour, relève de cette deuxième priorité comme n'importe quelle
+   autre case vide — seul l'ancrage donne la première priorité.
 3. Armée amie adjacente non délogée (priorité à la plus petite en troupes), avec
    fusion : la taille de l'hôte augmente de `N − 1` si la retraitante a `N ≥ 2`
    troupes, sinon de `1` (`N = 1` sans perte). Plusieurs armées retraitantes
@@ -563,8 +563,8 @@ Les infrastructures appartiennent à leur case. Le joueur qui contrôle la case
 en bénéficie ; il n'y a pas de propriétaire stocké sur l'infrastructure.
 
 La prise de contrôle reste positionnelle hors fief : une armée qui s'arrête sur
-une case en prend le contrôle. Mais hors fief, ce contrôle est désormais
-**éphémère** : un territoire ne reste « à quelqu'un » que tant qu'il est
+une case en prend le contrôle. Ce contrôle est cependant **éphémère** hors
+fief : un territoire ne reste « à quelqu'un » que tant qu'il est
 **ancré** — membre d'un fief, capitale du joueur (une exception permanente,
 même sans armée), ou actuellement occupé par une armée de ce joueur. Dès
 qu'aucune de ces trois conditions n'est plus vraie, le territoire redevient
@@ -635,7 +635,7 @@ territoire est contrôlé. Un noble libre est compté pour son propriétaire. Un
 noble capturé, qu'il soit otage ou au donjon, est compté pour le joueur dont
 une armée le détient physiquement (celle qui stationne sur sa case), et non
 pour le contrôleur de cette case : hors fief, le contrôle territorial est
-désormais éphémère (§7) et peut avoir disparu alors que l'armée captrice y
+éphémère (§7) et peut avoir disparu alors que l'armée captrice y
 stationne toujours ; il ne compte pas pour son propriétaire initial. Un
 territoire neutre ne rapporte aucun élément de score.
 
