@@ -4,6 +4,7 @@ import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
 import type {
+  FiefTitle,
   InfraType,
   MapData,
   Outcome,
@@ -12,11 +13,19 @@ import type {
   ReportArmy,
   CardReport,
   FiefReport,
+  IncomeReport,
   SeasonEffectReport,
   TurnReport,
   WinterInvestmentReport,
   WinterOrder,
 } from '@/types'
+
+const FIEF_TITLE_KEYS: Record<FiefTitle, MessageKey> = {
+  barony: 'fief.title.barony',
+  county: 'fief.title.county',
+  marquisate: 'fief.title.marquisate',
+  duchy: 'fief.title.duchy',
+}
 
 interface ReportPanelProps {
   report: TurnReport | null
@@ -44,6 +53,7 @@ const REASON_KEYS: Record<string, MessageKey> = {
   famished_sender: 'reports.reason.famished_sender',
   transfer_over_capacity: 'reports.reason.transfer_over_capacity',
   transfer_path_blocked: 'reports.reason.transfer_path_blocked',
+  transfer_target_occupied: 'reports.reason.transfer_target_occupied',
   invalid_transfer_destination: 'reports.reason.invalid_transfer_destination',
   transfer_source_not_controlled: 'reports.reason.transfer_source_not_controlled',
   transfer_same_territory: 'reports.reason.transfer_same_territory',
@@ -134,7 +144,7 @@ const REASON_KEYS: Record<string, MessageKey> = {
   fief_not_owned: 'reports.reason.fief_not_owned',
   fief_not_vacant: 'reports.reason.fief_not_vacant',
   capital_castle_lost: 'reports.reason.capital_castle_lost',
-  vacant_at_winter_end: 'reports.reason.vacant_at_winter_end',
+  fief_auto_assigned_default_holder: 'reports.reason.fief_auto_assigned_default_holder',
 }
 
 const RECEPTION_REASON_KEYS: Record<string, MessageKey> = {
@@ -171,6 +181,26 @@ function playerLabel(
 
 function playerColor(players: Player[], playerId?: PlayerId): string {
   return players.find((player) => player.id === playerId)?.color ?? '#b7a786'
+}
+
+/**
+ * Income line destination label: a fief line prints its title and capital
+ * (`{title} of {capital}`) instead of the bare destination trigram, since
+ * several lines can otherwise share the same destination code (a fief whose
+ * capital is also the player's own capital, titres.md #196).
+ */
+function incomeDestinationLabel(
+  line: IncomeReport,
+  map: MapData | null,
+  t: Translate,
+): string {
+  if (line.fief && line.title) {
+    return t('map.fiefLabel', {
+      title: t(FIEF_TITLE_KEYS[line.title]),
+      capital: territoryLabel(map, line.fief, t),
+    })
+  }
+  return territoryLabel(map, line.destination, t)
 }
 
 function playerMarker(players: Player[], playerId: PlayerId | undefined, t: Translate) {
@@ -290,6 +320,7 @@ function investmentLabel(
       return `T F ${investment.nobleCode ?? '—'} ${group.map((id) => territoryLabel(map, id, t)).join(' ')}`
     }
     case 'fief_assigned':
+    case 'fief_auto_assigned':
       return `T A ${investment.nobleCode ?? '—'} ${territory}`
     default:
       return t('reports.winterOrder')
@@ -362,6 +393,12 @@ function fiefEventLabel(
         capital,
         owner,
         reason: reportReason(fief.reason, t) ?? fief.reason ?? '—',
+      })
+    case 'fief_member_occupied':
+      return t('reports.fiefMemberOccupied', {
+        territory: territoryLabel(map, fief.territory, t),
+        capital,
+        occupant: playerLabel(players, fief.occupant, t),
       })
     default:
       return capital
@@ -746,7 +783,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                     {playerMarker(players, line.owner, t)}
                     {line.destination ? (
                       <span className="text-xs text-[#806f57]">
-                        {territoryLabel(map, line.destination, t)}
+                        {incomeDestinationLabel(line, map, t)}
                       </span>
                     ) : null}
                   </span>
@@ -996,34 +1033,48 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
             {t('reports.winter')}
           </h4>
           <div className="space-y-1 text-sm">
-            {winterInvestments.map((investment, index) => (
-              <div
-                key={`${investment.kind}-${investment.player}-${index}`}
-                className="flex items-start justify-between gap-3 rounded-md bg-[#f3ead9] px-3 py-2"
-              >
-                <span className="flex min-w-0 items-start gap-2">
-                  {playerMarker(players, investment.player, t)}
-                  <span>
-                    <strong className="font-mono text-xs">
-                      {investmentLabel(investment, map, t)}
-                    </strong>
-                    <span className="mt-1 block text-xs text-[#806f57]">
-                      {investment.player} · {winterDetails(investment, map, t)}
+            {winterInvestments.map((investment, index) => {
+              const isAutoAssignedWarning = investment.kind === 'fief_auto_assigned'
+              return (
+                <div
+                  key={`${investment.kind}-${investment.player}-${index}`}
+                  className={`flex items-start justify-between gap-3 rounded-md px-3 py-2 ${
+                    isAutoAssignedWarning
+                      ? 'border border-[#e07a30] bg-[#fdecd9]'
+                      : 'bg-[#f3ead9]'
+                  }`}
+                >
+                  <span className="flex min-w-0 items-start gap-2">
+                    {playerMarker(players, investment.player, t)}
+                    <span>
+                      <strong className="font-mono text-xs">
+                        {investmentLabel(investment, map, t)}
+                      </strong>
+                      {isAutoAssignedWarning && (
+                        <span className="mt-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#a8541a]">
+                          {t('reports.fiefAutoAssignedWarning')}
+                        </span>
+                      )}
+                      <span className="mt-1 block text-xs text-[#806f57]">
+                        {investment.player} · {winterDetails(investment, map, t)}
+                      </span>
                     </span>
                   </span>
-                </span>
-                <span className={`shrink-0 text-xs ${outcomeClass(investment.outcome)}`}>
-                  {outcomeLabel(investment.outcome, t)}
-                  {investment.outcome === 'success' && (
-                    <span className="mt-1 block text-right text-[10px] text-[#806f57]">
-                      {investment.cost > 0
-                        ? t('reports.cost', { cost: investment.cost })
-                        : t('reports.noCost')}
-                    </span>
-                  )}
-                </span>
-              </div>
-            ))}
+                  <span
+                    className={`shrink-0 text-xs ${outcomeClass(investment.outcome)}`}
+                  >
+                    {outcomeLabel(investment.outcome, t)}
+                    {investment.outcome === 'success' && (
+                      <span className="mt-1 block text-right text-[10px] text-[#806f57]">
+                        {investment.cost > 0
+                          ? t('reports.cost', { cost: investment.cost })
+                          : t('reports.noCost')}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )
+            })}
             {winterStocks.map((stock) => (
               <div
                 key={stock.territory}
@@ -1053,7 +1104,14 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
           </h4>
           <ul className="space-y-1 text-sm text-[#7a5a20]">
             {fiefs.map((fief, index) => (
-              <li key={`${fief.kind}-${fief.capital}-${index}`}>
+              <li
+                key={`${fief.kind}-${fief.capital}-${index}`}
+                className={
+                  fief.kind === 'fief_member_occupied'
+                    ? 'font-semibold text-[#8d321e]'
+                    : undefined
+                }
+              >
                 {fiefEventLabel(fief, players, map, t)}
               </li>
             ))}

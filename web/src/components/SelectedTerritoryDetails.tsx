@@ -4,6 +4,7 @@ import { formatOrderLabel } from '@/lib/order-label'
 import { formatCardLabel } from '@/lib/card-hand'
 import { playerDisplayName, type PlayerName } from '@/lib/player-label'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
+import { isOccupiedAgainstController } from '@/lib/occupation'
 import { hasSupplySource } from '@/lib/supply'
 import type {
   MapData,
@@ -112,6 +113,7 @@ export function SelectedTerritoryDetails({
     ? state.nobles.find((noble) => noble.code === selectedFief.holder)
     : null
   const isFiefCapital = selectedFief?.capital === selectedTerritory.id
+  const occupied = isOccupiedAgainstController(selectedState)
   const selectedChain = selectedState?.army?.chain ?? null
   const presentNobles = state.nobles.filter(
     (noble) => noble.location === selectedTerritory.id,
@@ -147,6 +149,16 @@ export function SelectedTerritoryDetails({
             {t('app.cityBonus')}
           </p>
         )}
+        {occupied && (
+          <p className="mt-2 ml-2 inline-flex items-center rounded-full border border-[#a84632]/40 bg-[#f8dcd4]/60 px-2.5 py-1 text-xs font-semibold text-[#8d321e]">
+            {t('app.occupiedBy', {
+              player: displayOwner(
+                selectedState?.army?.owner,
+                selectedState?.army?.owner ?? '',
+              ),
+            })}
+          </p>
+        )}
       </div>
 
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-3 text-sm">
@@ -178,6 +190,16 @@ export function SelectedTerritoryDetails({
                 ? `${selectedFiefHolder.code} · ${selectedFiefHolder.name}`
                 : t('app.fiefVacant')}
             </dd>
+            {selectedFief.projectedIncome !== undefined && (
+              <>
+                <dt className="text-[#806f57]">{t('app.fiefProjectedIncome')}</dt>
+                <dd className="font-medium">
+                  {t('app.fiefProjectedIncomeAmount', {
+                    amount: selectedFief.projectedIncome,
+                  })}
+                </dd>
+              </>
+            )}
           </>
         )}
         {selectedState && (

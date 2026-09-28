@@ -4,7 +4,8 @@ import {
   OwnershipBadge,
 } from '@/components/MapMarkers'
 import { useLanguage } from '@/i18n/LanguageContext'
-import { centroid } from '@/lib/map-svg-geometry'
+import { centroid, pointsToPath } from '@/lib/map-svg-geometry'
+import { isOccupiedAgainstController } from '@/lib/occupation'
 import type { RegionStyle } from '@/lib/region-color'
 import type { Fief, Region, StateData, Territory } from '@/types'
 
@@ -12,8 +13,11 @@ import type { Fief, Region, StateData, Territory } from '@/types'
  * Owner shields under each controlled territory's center. A territory that
  * belongs to a fief prints its capital's trigram on the shield instead of a
  * plain color, so several fiefs held by the same player stay tellable apart
- * (titres.md, issue #194) — membership doesn't move control until #196, so
- * the shield still reflects the territory's own owner either way.
+ * (titres.md, issue #194). Since #196, control is transitive within a fief:
+ * a non-capital member stays under its fief's control even while an enemy
+ * (or NEUTRAL revolt) army sits on it, so the shield keeps the controller's
+ * color and the tooltip names the occupant instead; `OccupiedHatchLayer`
+ * paints the hatch overlay for that same case.
  */
 export function OwnershipLayer({
   territories,
@@ -51,9 +55,25 @@ export function OwnershipLayer({
         const ownerName =
           state.players.find((player) => player.id === owner)?.name ?? owner
         const fiefCapital = fiefCapitalByTerritory.get(territory.id)
-        const label = fiefCapital
-          ? t('map.ownershipBadgeFief', { owner: ownerName, capital: fiefCapital })
-          : t('map.ownershipBadge', { owner: ownerName })
+        const armyOwnerID = territoryState.army?.owner
+        const occupantName = isOccupiedAgainstController(territoryState)
+          ? (state.players.find((player) => player.id === armyOwnerID)?.name ??
+            armyOwnerID)
+          : null
+        const label = occupantName
+          ? fiefCapital
+            ? t('map.ownershipBadgeFiefOccupied', {
+                owner: ownerName,
+                capital: fiefCapital,
+                occupant: occupantName,
+              })
+            : t('map.ownershipBadgeOccupied', {
+                owner: ownerName,
+                occupant: occupantName,
+              })
+          : fiefCapital
+            ? t('map.ownershipBadgeFief', { owner: ownerName, capital: fiefCapital })
+            : t('map.ownershipBadge', { owner: ownerName })
         return (
           <OwnershipBadge
             key={territory.id}
@@ -64,6 +84,46 @@ export function OwnershipLayer({
             scale={annotationScale}
             code={fiefCapital}
             label={label}
+          />
+        )
+      })}
+    </g>
+  )
+}
+
+/**
+ * Diagonal hatch over a territory that is controlled but currently occupied
+ * against its controller (titres.md, issue #196): a non-capital fief member
+ * under enemy or revolt garrison, but also a plain (non-fief) territory held
+ * against a NEUTRAL revolt, since positional control elsewhere changes owner
+ * immediately for any other army. Rendered under `OwnershipLayer`'s badges,
+ * whose tooltip already names the occupant.
+ */
+export function OccupiedHatchLayer({
+  territories,
+  state,
+}: {
+  territories: Territory[]
+  state: StateData
+}) {
+  const { t } = useLanguage()
+
+  return (
+    <g aria-label={t('map.occupiedZone')} pointerEvents="none">
+      {territories.map((territory) => {
+        const territoryState = state.territories.find(
+          (candidate) => candidate.id === territory.id,
+        )
+        if (!isOccupiedAgainstController(territoryState)) {
+          return null
+        }
+
+        return (
+          <path
+            key={territory.id}
+            data-occupied-territory-id={territory.id}
+            d={pointsToPath(territory.points)}
+            fill="url(#occupied-hatch)"
           />
         )
       })}

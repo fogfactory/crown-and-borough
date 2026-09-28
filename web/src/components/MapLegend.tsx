@@ -368,6 +368,32 @@ export function MapLegend({
             </svg>
             <span>{t('legend.control')}</span>
           </div>
+          <div className="flex items-center gap-2">
+            <svg className="size-3 shrink-0" viewBox="0 0 12 12" aria-hidden="true">
+              <rect width="12" height="12" fill="#f8f0e2" />
+              <rect width="12" height="12" fill="url(#legend-occupied-hatch)" />
+              <defs>
+                <pattern
+                  id="legend-occupied-hatch"
+                  width="4"
+                  height="4"
+                  patternUnits="userSpaceOnUse"
+                  patternTransform="rotate(-45)"
+                >
+                  <line
+                    x1="2"
+                    y1="0"
+                    x2="2"
+                    y2="4"
+                    stroke="#a84632"
+                    strokeWidth="1.2"
+                    strokeOpacity="0.6"
+                  />
+                </pattern>
+              </defs>
+            </svg>
+            <span>{t('legend.occupied')}</span>
+          </div>
         </div>
         <p className="border-t border-[#b7a786]/60 pt-2 leading-relaxed">
           {t('legend.passable')}

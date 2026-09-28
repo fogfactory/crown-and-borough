@@ -573,6 +573,87 @@ describe('MapViewer territorial overlays', () => {
     expect(svg.querySelector('g[aria-label="Fiefs"]')).toBeNull()
   })
 
+  it('hatches a fief member controlled but occupied by another army', () => {
+    const occupiedState: StateData = {
+      ...state,
+      players: [
+        { id: 'P1', name: 'One', color: '#123456' },
+        { id: 'P2', name: 'Two', color: '#2d5f9e' },
+      ],
+      territories: [
+        { id: 'ROS', owner: 'P1', resources: 0, army: null, infrastructures: [] },
+        {
+          id: 'BRU',
+          owner: 'P1',
+          resources: 0,
+          army: { owner: 'P2', size: 2, chain: null },
+          infrastructures: [],
+        },
+      ],
+      fiefs: [
+        { capital: 'ROS', title: 'barony', territories: ['ROS', 'BRU'], owner: 'P1' },
+      ],
+    }
+
+    const { svg } = renderMap(map, occupiedState)
+
+    const occupiedZone = svg.querySelector('g[aria-label="Occupied territories"]')
+    expect(occupiedZone).toBeInTheDocument()
+    expect(occupiedZone?.querySelectorAll('[data-occupied-territory-id]')).toHaveLength(1)
+    expect(occupiedZone?.querySelector('path')).toHaveAttribute(
+      'data-occupied-territory-id',
+      'BRU',
+    )
+    expect(occupiedZone?.querySelector('path')).toHaveAttribute(
+      'fill',
+      'url(#occupied-hatch)',
+    )
+    const badgeTitles = svg.querySelectorAll('[data-ownership-badge="P1"] title')
+    const occupiedBadgeTitle = Array.from(badgeTitles).find((title) =>
+      title.textContent?.includes('occupied by'),
+    )
+    expect(occupiedBadgeTitle).toHaveTextContent(
+      'One controls this territory, part of the fief of ROS, occupied by Two',
+    )
+  })
+
+  it('omits the occupied hatch when the player control layer is off', () => {
+    const occupiedState: StateData = {
+      ...state,
+      players: [
+        { id: 'P1', name: 'One', color: '#123456' },
+        { id: 'P2', name: 'Two', color: '#2d5f9e' },
+      ],
+      territories: [
+        { id: 'ROS', owner: 'P1', resources: 0, army: null, infrastructures: [] },
+        {
+          id: 'BRU',
+          owner: 'P1',
+          resources: 0,
+          army: { owner: 'P2', size: 2, chain: null },
+          infrastructures: [],
+        },
+      ],
+      fiefs: [
+        { capital: 'ROS', title: 'barony', territories: ['ROS', 'BRU'], owner: 'P1' },
+      ],
+    }
+
+    const { svg } = renderMap(
+      map,
+      occupiedState,
+      vi.fn(),
+      null,
+      [],
+      true,
+      '#a84632',
+      false,
+      false,
+    )
+
+    expect(svg.querySelector('g[aria-label="Occupied territories"]')).toBeNull()
+  })
+
   it('scales map annotations with the mean territory area', () => {
     const scaledState: StateData = {
       ...state,

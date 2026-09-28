@@ -80,6 +80,9 @@ const englishMessages = {
   'app.fiefTitle': 'Fief',
   'app.fiefHolder': 'Titulaire',
   'app.fiefVacant': 'Vacant',
+  'app.fiefProjectedIncome': 'Fief projected income',
+  'app.fiefProjectedIncomeAmount': '+{amount} R per action turn',
+  'app.occupiedBy': 'Occupied by {player}',
   'app.terrain': 'Terrain',
   'app.region': 'Region',
   'app.regionSeedLabel': 'regional seat / card target: {seed}',
@@ -92,6 +95,8 @@ const englishMessages = {
   'app.projectedIncome': 'Projected income',
   'app.projectedTerritoryIncomeAmount': 'Territory: +{amount} R per action turn',
   'app.projectedIncomeDestination': '→ {destination} (capital)',
+  'app.projectedNonFiefIncomeAmount': 'Outside fief: +{amount} R per action turn',
+  'app.projectedFiefIncomeAmount': '{title} of {capital}: +{amount} R per action turn',
   'app.projectedMillIncomeAmount': 'Mills: +{amount} R per action turn',
   'app.projectedConsumption': 'Projected consumption',
   'app.projectedConsumptionAmount': '−{amount} R per action turn',
@@ -163,6 +168,10 @@ const englishMessages = {
   'map.ownershipBadge': '{owner} controls this territory',
   'map.ownershipBadgeFief':
     '{owner} controls this territory, part of the fief of {capital}',
+  'map.ownershipBadgeOccupied': '{owner} controls this territory, occupied by {occupant}',
+  'map.ownershipBadgeFiefOccupied':
+    '{owner} controls this territory, part of the fief of {capital}, occupied by {occupant}',
+  'map.occupiedZone': 'Occupied territories',
   'map.winterVeil': 'Winter veil',
   'map.winterOverlay': 'Winter orders overlay',
   'map.winterSnow': 'Winter snow',
@@ -265,6 +274,8 @@ const englishMessages = {
     '{capital}: the fief passes from {previousOwner} to {owner}, vacant',
   'reports.fiefVacated': '{capital}: the fief held by {owner} is now vacant',
   'reports.fiefDissolved': '{capital}: {owner}’s fief is dissolved ({reason})',
+  'reports.fiefMemberOccupied': '{territory} (fief of {capital}) occupied by {occupant}',
+  'reports.fiefAutoAssignedWarning': 'Default attribution — remember to submit T A',
   'reports.cards': 'Cards',
   'reports.cardDrawn': '{player}: {card} drawn',
   'reports.cardDiscarded': '{player}: {card} discarded',
@@ -357,6 +368,8 @@ const englishMessages = {
   'reports.reason.famished_sender': 'A famished army cannot transfer resources.',
   'reports.reason.transfer_over_capacity': 'The army cannot carry that many resources.',
   'reports.reason.transfer_path_blocked': 'The supply path is blocked by an enemy army.',
+  'reports.reason.transfer_target_occupied':
+    'The recipient army only occupies this territory: it cannot receive resources through it.',
   'reports.reason.invalid_transfer_destination': 'The transfer destination is invalid.',
   'reports.reason.transfer_source_not_controlled':
     'The source territory is not controlled by the army owner.',
@@ -465,7 +478,8 @@ const englishMessages = {
   'reports.reason.fief_not_owned': 'The fief does not belong to the player.',
   'reports.reason.fief_not_vacant': 'The fief already has a titulaire.',
   'reports.reason.capital_castle_lost': "The fief capital's castle was destroyed.",
-  'reports.reason.vacant_at_winter_end': 'The fief stayed vacant at the end of winter.',
+  'reports.reason.fief_auto_assigned_default_holder':
+    'No T A order this winter: automatically assigned to the free noble with the smallest trigram.',
   'reports.reason.reception.concurrent':
     'Concurrent reception: {territory} was targeted by {count} chains in turn {turn}.',
   'reports.reason.reception.noArmy': 'No army occupies receiving position {territory}.',
@@ -488,6 +502,7 @@ const englishMessages = {
   'legend.noble': 'Noble (owner color)',
   'legend.prisoner': 'Prisoner noble (hostage / dungeon)',
   'legend.control': 'Colored shield = territorial control',
+  'legend.occupied': 'Occupied (controlled, held by another army)',
   'legend.intentions': 'Intentions overlay',
   'legend.intentionsHint':
     'Drafts + submitted orders + installed chains + winter investments · translucent map overlay',
@@ -548,7 +563,7 @@ const englishMessages = {
     "The command post replays the same ravitaillement resolution used at the end of the turn, including how several of your armies split a shared source's stock, so it flags exactly the armies that would starve if nothing changes. It stays an estimate for two reasons outside its control: it always assumes a normal harvest, since a bad harvest or bad weather card already drawn for this season, but not yet revealed, never changes this projection; and it assumes your orders stay exactly as currently drafted, since it runs before you submit them and cannot foresee a last-minute transfer, dispersal, or new infrastructure that would change the outcome. It is never shown in winter, since ravitaillement does not happen then.",
   'faq.q15': 'How does founding a fief work, and what happens if I lose it?',
   'faq.a15':
-    "A `T F` winter order founds a fief from a free noble and a group of at least 3 controlled, contiguous territories, capital first; the capital must carry a castle, which becomes a city worth +2 defense instead of the usual +1, and the group must be free of enemy or revolt armies and of any territory already in another fief. The title (barony, county, marquisate, duchy) follows the group size, and the cost is 2 R per territory. If the titulaire dies or the capital is conquered, the fief becomes vacant: it keeps producing and scoring its point, and `T A` can assign it to a free noble before the end of winter, after which an unassigned fief is dissolved. Losing the capital's castle to pillage dissolves the fief immediately, in any season.",
+    "A `T F` winter order founds a fief from a free noble and a group of at least 3 controlled, contiguous territories, capital first; the capital must carry a castle, which becomes a city worth +2 defense instead of the usual +1, and the group must be free of enemy or revolt armies and of any territory already in another fief. The title (barony, county, marquisate, duchy) follows the group size, and the cost is 2 R per territory. Control inside a fief is transitive: once founded, an enemy (or revolt) army stopping on a non-capital member only **occupies** it — it keeps producing and scoring for you, and control never changes hands until the capital itself falls. If the titulaire dies, or another player conquers the capital (which transfers the whole fief to them and clears the previous titulaire), the fief becomes vacant: it keeps producing and scoring its point, and `T A` can assign it to a free noble before the end of winter; without one, it is no longer dissolved for lack of an order — it is instead assigned automatically to the free noble with the smallest trigram, with a warning to take back manual attribution next turn, or stays vacant if the owner has no free noble at all. Losing the capital's castle to pillage dissolves the fief immediately, in any season.",
   'error.line': 'Line {line}: {message}',
   'error.invalidOrder': 'Invalid order',
   'error.winter.order_shape':
@@ -742,6 +757,9 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'app.fiefTitle': 'Fief',
   'app.fiefHolder': 'Titulaire',
   'app.fiefVacant': 'Vacant',
+  'app.fiefProjectedIncome': 'Revenu prévu du fief',
+  'app.fiefProjectedIncomeAmount': '+{amount} R par tour d’action',
+  'app.occupiedBy': 'Occupé par {player}',
   'app.terrain': 'Terrain',
   'app.region': 'Région',
   'app.regionSeedLabel': 'chef-lieu / cible des cartes : {seed}',
@@ -755,6 +773,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'app.projectedIncome': 'Revenu prévu',
   'app.projectedTerritoryIncomeAmount': 'Territoire : +{amount} R par tour d’action',
   'app.projectedIncomeDestination': '→ {destination} (capitale)',
+  'app.projectedNonFiefIncomeAmount': 'Hors fief : +{amount} R par tour d’action',
+  'app.projectedFiefIncomeAmount': '{title} de {capital} : +{amount} R par tour d’action',
   'app.projectedMillIncomeAmount': 'Moulins : +{amount} R par tour d’action',
   'app.projectedConsumption': 'Consommation prévue',
   'app.projectedConsumptionAmount': '−{amount} R par tour d’action',
@@ -825,6 +845,10 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'fief.title.duchy': 'Duché',
   'map.ownershipBadge': '{owner} contrôle ce territoire',
   'map.ownershipBadgeFief': '{owner} contrôle ce territoire, membre du fief de {capital}',
+  'map.ownershipBadgeOccupied': '{owner} contrôle ce territoire, occupé par {occupant}',
+  'map.ownershipBadgeFiefOccupied':
+    '{owner} contrôle ce territoire, membre du fief de {capital}, occupé par {occupant}',
+  'map.occupiedZone': 'Territoires occupés',
   'map.winterVeil': 'Voile hivernal',
   'map.winterOverlay': "Calque des ordres d'hiver",
   'map.winterSnow': 'Neige hivernale',
@@ -928,6 +952,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     '{capital} : le fief passe de {previousOwner} à {owner}, vacant',
   'reports.fiefVacated': '{capital} : le fief détenu par {owner} devient vacant',
   'reports.fiefDissolved': '{capital} : le fief de {owner} est dissous ({reason})',
+  'reports.fiefMemberOccupied': '{territory} (fief de {capital}) occupé par {occupant}',
+  'reports.fiefAutoAssignedWarning': 'Attribution par défaut — pense à soumettre T A',
   'reports.cards': 'Cartes',
   'reports.cardDrawn': '{player} : {card} piochée',
   'reports.cardDiscarded': '{player} : {card} défaussée',
@@ -1022,6 +1048,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     "L'armée ne peut pas transporter autant de ressources.",
   'reports.reason.transfer_path_blocked':
     'La route de ravitaillement est bloquée par une armée ennemie.',
+  'reports.reason.transfer_target_occupied':
+    "L'armée destinataire ne fait qu'occuper ce territoire : elle ne peut pas y recevoir de ressources.",
   'reports.reason.invalid_transfer_destination':
     'La destination du transfert est invalide.',
   'reports.reason.transfer_source_not_controlled':
@@ -1139,7 +1167,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.reason.fief_not_vacant': 'Le fief a déjà un titulaire.',
   'reports.reason.capital_castle_lost':
     'Le château de la capitale du fief a été détruit.',
-  'reports.reason.vacant_at_winter_end': "Le fief est resté vacant à la fin de l'hiver.",
+  'reports.reason.fief_auto_assigned_default_holder':
+    'Aucun ordre T A cet hiver : attribution automatique au noble libre au trigramme le plus petit.',
   'reports.reason.reception.concurrent':
     'Réception concurrente : {territory} a été ciblé par {count} chaînes au tour {turn}.',
   'reports.reason.reception.noArmy':
@@ -1163,6 +1192,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'legend.noble': 'Noble (couleur du propriétaire)',
   'legend.prisoner': 'Noble prisonnier (otage / donjon)',
   'legend.control': 'Écu coloré = contrôle territorial',
+  'legend.occupied': 'Occupé (contrôlé, tenu par une autre armée)',
   'legend.intentions': "Calque d'intentions",
   'legend.intentionsHint':
     "Brouillons + ordres soumis + chaînes installées + investissements d'hiver · calque translucide",
@@ -1225,7 +1255,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     'Le poste de commandement rejoue la même résolution de ravitaillement que celle appliquée en fin de tour, y compris la façon dont plusieurs de tes armées se partagent le stock d’une même source : il signale donc exactement les armées qui seraient affamées si rien ne change. Ça reste une estimation pour deux raisons hors de son contrôle : elle suppose toujours une récolte normale, puisqu’une carte de mauvaise récolte ou de mauvais temps déjà tirée pour cette saison mais pas encore révélée ne change jamais cette projection ; et elle suppose que tes ordres restent exactement tels que rédigés actuellement, puisqu’elle s’exécute avant leur soumission et ne peut pas anticiper un transfert, une dispersion ou une nouvelle infrastructure de dernière minute qui changerait l’issue. Elle n’est jamais affichée en hiver, puisque le ravitaillement n’a pas lieu à cette saison.',
   'faq.q15': 'Comment constituer un fief, et que se passe-t-il si je le perds ?',
   'faq.a15':
-    'Un ordre d’hiver `T F` constitue un fief à partir d’un noble libre et d’un groupe d’au moins 3 territoires contrôlés et contigus, capitale en tête ; la capitale doit porter un château, qui devient une cité valant +2 en défense au lieu du +1 habituel, et le groupe doit être libre de toute armée ennemie ou de révolte, et de tout territoire déjà en fief. Le titre (baronnie, comté, marquisat, duché) dépend de la taille du groupe, et le coût est de 2 R par territoire. Si le titulaire meurt ou que la capitale est conquise, le fief devient vacant : il continue de produire et de compter son point, et `T A` peut l’attribuer à un noble libre avant la fin de l’hiver, faute de quoi un fief non attribué est dissous. La perte du château de la capitale par pillage dissout le fief immédiatement, quelle que soit la saison.',
+    'Un ordre d’hiver `T F` constitue un fief à partir d’un noble libre et d’un groupe d’au moins 3 territoires contrôlés et contigus, capitale en tête ; la capitale doit porter un château, qui devient une cité valant +2 en défense au lieu du +1 habituel, et le groupe doit être libre de toute armée ennemie ou de révolte, et de tout territoire déjà en fief. Le titre (baronnie, comté, marquisat, duché) dépend de la taille du groupe, et le coût est de 2 R par territoire. Le contrôle est transitif dans un fief : une fois constitué, une armée ennemie (ou de révolte) qui s’arrête sur un membre autre que la capitale ne fait que l’**occuper** — il continue de te produire et de te compter, et le contrôle ne change de main que si la capitale elle-même tombe. Si le titulaire meurt, ou qu’un autre joueur conquiert la capitale (ce qui transfère tout le fief chez lui et efface l’ancien titulaire), le fief devient vacant : il continue de produire et de compter son point, et `T A` peut l’attribuer à un noble libre avant la fin de l’hiver ; à défaut, il n’est plus dissous faute d’ordre — il est attribué automatiquement au noble libre au trigramme le plus petit, avec un avertissement à reprendre l’attribution manuelle au tour suivant, ou reste vacant si le propriétaire n’a aucun noble libre. La perte du château de la capitale par pillage dissout le fief immédiatement, quelle que soit la saison.',
   'error.line': 'Ligne {line} : {message}',
   'error.invalidOrder': 'Ordre invalide',
   'error.winter.order_shape':

@@ -447,6 +447,84 @@ describe('SelectedTerritoryDetails', () => {
     expect(screen.getByText('JEA · Jean de Rosemont')).toBeInTheDocument()
   })
 
+  it('shows the projected fief income next to the titulaire', () => {
+    const fiefState: StateData = {
+      ...state,
+      fiefs: [
+        {
+          capital: 'ROS',
+          title: 'barony',
+          territories: ['ROS', 'BRU'],
+          owner: 'P2',
+          holder: 'JEA',
+          projectedIncome: 5,
+        },
+      ],
+    }
+
+    render(
+      <SelectedTerritoryDetails
+        state={fiefState}
+        selectedTerritory={map.territories[0]}
+        selectedState={fiefState.territories[0]}
+        selectedSupplyLine={null}
+        sourceTerritory={null}
+        supplyLoading={false}
+        supplyError={null}
+      />,
+    )
+
+    expect(screen.getByText('Fief projected income')).toBeInTheDocument()
+    expect(screen.getByText('+5 R per action turn')).toBeInTheDocument()
+  })
+
+  it('shows an occupied badge when an enemy army sits on a controlled territory', () => {
+    const occupiedState: StateData = {
+      ...state,
+      territories: [
+        {
+          ...state.territories[0],
+          owner: 'P1',
+          army: { owner: 'P2', size: 4, chain: null },
+        },
+      ],
+    }
+
+    render(
+      <SelectedTerritoryDetails
+        state={occupiedState}
+        selectedTerritory={map.territories[0]}
+        selectedState={occupiedState.territories[0]}
+        preferredPlayers={[
+          { id: 'P1', name: 'Alice' },
+          { id: 'P2', name: 'Bob' },
+        ]}
+        selectedSupplyLine={null}
+        sourceTerritory={null}
+        supplyLoading={false}
+        supplyError={null}
+      />,
+    )
+
+    expect(screen.getByText('Occupied by Bob')).toBeInTheDocument()
+  })
+
+  it('omits the occupied badge when the controller owns the army present', () => {
+    render(
+      <SelectedTerritoryDetails
+        state={state}
+        selectedTerritory={map.territories[0]}
+        selectedState={state.territories[0]}
+        selectedSupplyLine={null}
+        sourceTerritory={null}
+        supplyLoading={false}
+        supplyError={null}
+      />,
+    )
+
+    expect(screen.queryByText(/Occupied by/)).not.toBeInTheDocument()
+  })
+
   it('shows a vacant fief titulaire without a badge on a non-capital territory', () => {
     const fiefState: StateData = {
       ...state,
