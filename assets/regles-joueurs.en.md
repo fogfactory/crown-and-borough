@@ -99,9 +99,10 @@ following sections.
 **The situation.** Hugues owns ROS (his capital, a castle) with a 2-troop army
 and his noble HUG, as well as FOU, a small 1-troop garrison holding his second
 noble, ODA. Both ROS and FOU are adjacent to ATL, held by Brune: a 2-troop army
-and her noble MIA. ATL is adjacent to NOR, an empty territory Brune controls.
+and her noble MIA. ATL is adjacent to NOR, an empty territory with no
+controller.
 
-<svg viewBox="0 0 540 280" width="100%" role="img" aria-label="ROS and FOU (Hugues) are adjacent to ATL (Brune), itself adjacent to NOR (Brune, empty)" style="max-width:480px;margin:16px auto;display:block;font-family:system-ui,sans-serif">
+<svg viewBox="0 0 540 280" width="100%" role="img" aria-label="ROS and FOU (Hugues) are adjacent to ATL (Brune), itself adjacent to NOR (no controller, empty)" style="max-width:480px;margin:16px auto;display:block;font-family:system-ui,sans-serif">
   <line x1="90" y1="70" x2="300" y2="130" stroke="#b7a786" stroke-width="2"/>
   <line x1="90" y1="190" x2="300" y2="130" stroke="#b7a786" stroke-width="2"/>
   <line x1="300" y1="130" x2="460" y2="130" stroke="#b7a786" stroke-width="2"/>
@@ -119,7 +120,7 @@ and her noble MIA. ATL is adjacent to NOR, an empty territory Brune controls.
   <text x="300" y="188" text-anchor="middle" font-size="11" fill="#594b3c">2 troops · MIA</text>
   <circle cx="460" cy="130" r="30" fill="#f8f0e2" stroke="#3a5a8c" stroke-width="2" stroke-dasharray="4 3"/>
   <text x="460" y="136" text-anchor="middle" font-size="16" font-weight="700" fill="#30291f">NOR</text>
-  <text x="460" y="174" text-anchor="middle" font-size="11" fill="#3a5a8c">controlled by Brune</text>
+  <text x="460" y="174" text-anchor="middle" font-size="11" fill="#3a5a8c">no controller</text>
   <text x="460" y="188" text-anchor="middle" font-size="11" fill="#594b3c">empty</text>
 </svg>
 
@@ -152,9 +153,9 @@ attack weighs 2 (the ROS army) + 1 (the FOU support) = 3; Brune's defense
 weighs 2. To keep this example simple, we ignore the noble bonus detailed in
 section 6 here — it would apply identically on both sides of this
 calculation. 3 against 2: Hugues wins, and his army occupies ATL. Brune's army
-is dislodged and must retreat; NOR is empty and controlled by her, so it's her
-destination (section 6 covers the full priority order). Noble MIA follows her
-army to NOR.
+is dislodged and must retreat; NOR is empty, has no controller, and wasn't
+fought over this turn, so it's her retreat destination (section 6 covers the
+full priority order). Noble MIA follows her army to NOR.
 
 **What everyone sees afterward.** Both chains involved had only one line: they
 are complete, and both of Hugues's armies are now No Orders for the next
@@ -373,9 +374,12 @@ orders.
 - support strength is the supporting army's size, with the same bonus;
 - an army's defense receives the same bonus under the same condition;
 - a castle gives a fixed defensive bonus of **+{{castle_defense_bonus}}**,
-  even without an army — unless all attackers belong to the castle's owner
-  (see self-capture, section 5); a fief capital's castle is a **city** and
-  gives **+{{city_defense_bonus}}** instead (see "Fiefs", section 8);
+  even without an army, **as long as it stays anchored** — a fief member or a
+  player's own capital — unless all attackers belong to the castle's owner
+  (see self-capture, section 5); an empty castle that is neither a fief
+  member nor a player's capital is **inert** and gives no bonus (see "Fiefs",
+  section 8); a fief capital's castle is a **city** and gives
+  **+{{city_defense_bonus}}** instead;
 - the **strictly unique** highest strength wins; a top tie produces a
   **standoff**, including on an empty territory;
 - you never dislodge your own army: an attack on a territory held by one of
@@ -404,11 +408,16 @@ tie, Hugues wins.
 A dislodged army loses its movement and must retreat as a whole, to an
 adjacent destination chosen by descending priority order:
 
-1. an empty territory controlled by the retreating army's owner (with or
-   without a castle), even if fought over this turn — that's the case for NOR
-   for Brune in section 3;
-2. an uncontrolled empty territory (neutral or enemy), without a castle and
-   not fought over this turn;
+1. an empty territory **anchored** to the retreating army's owner — a member
+   of one of their fiefs, or their own capital (section 8) — even if fought
+   over this turn;
+2. any other empty territory that isn't anchored, has no **anchored** castle
+   (anyone's), and wasn't fought over this turn — that's the case for NOR for
+   Brune in section 3, an empty territory she only controls positionally and
+   that wasn't fought over this turn; a territory merely controlled
+   positionally, including the one the retreating army just left this same
+   turn, is no longer prioritized on that basis and falls back to this second
+   priority like any other empty territory;
 3. an adjacent, non-dislodged friendly army (smallest troop size first), with
    merging: the host gains `N − 1` troops if the retreating army has `N ≥ 2`
    troops, or `1` troop if `N = 1` (no loss). Multiple retreating armies can
@@ -418,23 +427,33 @@ adjacent destination chosen by descending priority order:
 Ties within a bucket are broken by distance to the nearest controlled castle
 or village, then ascending trigram. For friendly armies, sorting is by troop
 size ascending, then distance to the nearest controlled source, then
-ascending trigram. The attacker's origin territory is always excluded, and
-neutral or enemy empty castles defend against retreat: they are never a valid
-destination. Two armies that must retreat to the same empty territory with no
+ascending trigram. The attacker's origin territory is always excluded. An
+**anchored** castle — a member of a fief or a player's capital, even neutral
+or enemy to the retreating army — defends against retreat and is never a
+valid destination; an empty **inert** castle (neither fief, nor capital, nor
+army) becomes a valid second-priority destination again, just like no castle
+at all. Two armies that must retreat to the same empty territory with no
 alternative are destroyed. Retreat resolution order follows the ascending
 trigram of their origin territory.
 
-Territorial control follows the army that stops there; acquired control
-remains after the army leaves, until an enemy army stops there. Within a fief
-(section 8), control is **transitive**: a member other than its capital stays
-controlled by the fief's owner even when an enemy army — or a revolt — stops
-there; it **occupies** the member without controlling it. Only capturing the
-**capital** transfers control of every member to the conqueror at once. A
-cell occupied against its controller (fief or not) is no longer a usable
-supply source or depot for anyone, and rejects any winter investment aimed at
-it (see sections 7 and 8); it still keeps its defensive bonus for the
-occupant, and its territory income keeps flowing to its normal destination,
-never intercepted.
+Taking control of a territory still follows the army that stops there, but
+keeping it now depends on its **anchor**: a member of a fief, or a player's
+own capital — a permanent exception, even without an army on it. Outside an
+anchor, control is **ephemeral**: a territory stays "someone's" only while
+one of that player's armies is currently stationed there; as soon as that
+stops being true, it reverts to neutral (no controller) at the next control
+update, until any army, whoever owns it, stops there again and retakes it
+positionally. Within a fief (section 8), control is instead **transitive**: a
+member other than its capital stays controlled by the fief's owner even when
+an enemy army — or a revolt — stops there; it **occupies** the member without
+controlling it. Only capturing the **capital** transfers control of every
+member to the conqueror at once; a `NEUTRAL` revolt never takes control of a
+territory, fief or not — so it never hands a release back to a former
+non-fief controller. A cell occupied against its controller (fief or not) is
+no longer a usable supply source or depot for anyone, and rejects any winter
+investment aimed at it (see sections 7 and 8); it still keeps its defensive
+bonus for the occupant, and its territory income keeps flowing to its normal
+destination, never intercepted.
 
 ### Nobles During a Combat
 
@@ -508,13 +527,20 @@ flow crosses allied, neutral, or enemy-controlled territories, and only stops
 before a territory occupied by an enemy army. A cell **occupied against its
 controller** (section 6) — for instance a fief member held by an opponent who
 never took control of it — is however no longer a usable source or depot for
-anyone, controller or occupant. Base range is {{supply_range}} territories;
-each controlled supply depot, not occupied, encountered along the route adds
+anyone, controller or occupant. Outside any fief and outside a capital, a
+castle or depot with no army on it is likewise **inert**: it then has no
+controller left at all (section 6), and is no longer a usable source or depot
+for anyone. Base range is {{supply_range}} territories; each controlled
+supply depot, not occupied, encountered along the route adds
 {{depot_range_bonus}} territories. A neutral village keeps its stock,
 inaccessible before capture.
 
-A level-`N` mill produces `N` R and credits exactly **one** infrastructure:
-the adjacent castle **under the same control as the mill's own territory**,
+A mill outside any fief and outside a capital, with no army on it, is itself
+**inert**: it produces nothing at all while it stays in that state, whether
+it was never held or was just abandoned. An active mill — a member of a fief,
+on a player's capital, or currently held by an army — of level `N` produces
+`N` R and credits exactly **one** infrastructure: the adjacent castle **under
+the same control as the mill's own territory**,
 else the adjacent village under the same control, else the mill's own
 territory. A castle or village adjacent to the mill but controlled by another
 player is ignored. "Neutral" control is a controller like any other: a
@@ -580,10 +606,10 @@ conditions are detailed in section 8.
 
 | Infrastructure | v1 effect |
 |---|---|
-| Mill | `N` stockable R per level, credited to a single adjacent infrastructure (castle, else village, else itself) |
-| Supply depot | +{{depot_range_bonus}} territories of supply range when controlled |
-| Castle | +{{castle_defense_bonus}} defense, supply anchor, receives territory income (section 7); becomes a city (+{{city_defense_bonus}}, not stacked) on a fief's capital (section 8) |
-| Village | Supply anchor after capture, receives territory income once controlled (produces {{village_income}} R per turn into its own stock while neutral) |
+| Mill | Inert (no production) outside a fief/capital with no army; otherwise `N` stockable R per level, credited to a single adjacent infrastructure (castle, else village, else itself) |
+| Supply depot | +{{depot_range_bonus}} territories of supply range while anchored or occupied; inert otherwise |
+| Castle | +{{castle_defense_bonus}} defense while it stays anchored or occupied, inert otherwise; supply anchor; receives territory income (section 7); becomes a city (+{{city_defense_bonus}}, not stacked) on a fief's capital (section 8) |
+| Village | Supply anchor after capture, receives territory income once controlled (produces {{village_income}} R per turn into its own stock while neutral, never held, or just abandoned — the only infrastructure that never goes inert) |
 
 ---
 
@@ -831,5 +857,7 @@ no winner.
 
 Infrastructure and resources only score on a controlled territory. A free
 noble counts for its owner. A captured noble, hostage or in the dungeon,
-counts for the player who controls the territory where it stands, not for its
-original owner.
+counts for the player whose army physically holds it — the one stationed on
+its territory —, not for that territory's controller nor for its original
+owner: outside a fief, territorial control is now ephemeral (section 6) and
+may have vanished while the capturing army still stands there.
