@@ -397,8 +397,8 @@ orders.
 - a join or a dispersal whose **origin** comes under attack — allied, enemy,
   or even a starving attack at zero strength — is **cancelled outright**: none
   of its troops leaves, whether that attack wins or loses the combat there.
-  There is no more fleeing through a join or a dispersal: leaving an attacked
-  territory now means surviving the combat fought over it.
+  There is no fleeing through a join or a dispersal: leaving an attacked
+  territory means surviving the combat fought over it.
 
 That's exactly the calculation walked through in section 3: 3 against 2, no
 tie, Hugues wins.
@@ -416,8 +416,8 @@ adjacent destination chosen by descending priority order:
    Brune in section 3, an empty territory she only controls positionally and
    that wasn't fought over this turn; a territory merely controlled
    positionally, including the one the retreating army just left this same
-   turn, is no longer prioritized on that basis and falls back to this second
-   priority like any other empty territory;
+   turn, falls back to this second priority like any other empty territory —
+   only an anchor earns the first;
 3. an adjacent, non-dislodged friendly army (smallest troop size first), with
    merging: the host gains `N − 1` troops if the retreating army has `N ≥ 2`
    troops, or `1` troop if `N = 1` (no loss). Multiple retreating armies can
@@ -436,13 +436,13 @@ at all. Two armies that must retreat to the same empty territory with no
 alternative are destroyed. Retreat resolution order follows the ascending
 trigram of their origin territory.
 
-Taking control of a territory still follows the army that stops there, but
-keeping it now depends on its **anchor**: a member of a fief, or a player's
-own capital — a permanent exception, even without an army on it. Outside an
-anchor, control is **ephemeral**: a territory stays "someone's" only while
-one of that player's armies is currently stationed there; as soon as that
-stops being true, it reverts to neutral (no controller) at the next control
-update, until any army, whoever owns it, stops there again and retakes it
+Taking control of a territory follows the army that stops there; keeping it
+depends on its **anchor**: a member of a fief, or a player's own capital — a
+permanent exception, even without an army on it. Outside an anchor, control
+is **ephemeral**: a territory stays "someone's" only while one of that
+player's armies is currently stationed there; as soon as that stops being
+true, it reverts to neutral (no controller) at the next control update,
+until any army, whoever owns it, stops there again and retakes it
 positionally. Within a fief (section 8), control is instead **transitive**: a
 member other than its capital stays controlled by the fief's owner even when
 an enemy army — or a revolt — stops there; it **occupies** the member without
@@ -519,10 +519,10 @@ receives only 1 ration and must cover the rest elsewhere; in the mountains
 (production {{ration_terrain.mountain}}), it depends entirely on supply.
 
 **Supply sources**: controlled castles, villages, and caches, plus an isolated
-mill (see below). A castle or village no longer produces stockable R by
-itself: its contribution comes from the mills adjacent to it and from the
-territory income it receives (see "Territory Income" below); a bare territory
-has no production of its own, but its stock (if any) serves as a cache. The
+mill (see below). A castle or village produces no stockable R by itself: its
+contribution comes from the mills adjacent to it and from the territory
+income it receives (see "Territory Income" below); a bare territory has no
+production of its own, but its stock (if any) serves as a cache. The
 flow crosses allied, neutral, or enemy-controlled territories, and only stops
 before a territory occupied by an enemy army. A cell **occupied against its
 controller** (section 6) — for instance a fief member held by an opponent who
@@ -689,8 +689,8 @@ If the titulaire dies (plague) or the capital changes hands, the fief becomes
 of winter, a fief still vacant at that point is **automatically assigned** to
 the free noble whose trigram sorts first, with a warning in the report
 telling you to take back manual assignment next turn; with no free noble at
-all, it simply stays vacant — it is **never dissolved** for lack of
-assignment any more. If the capital's castle is destroyed (pillage, including
+all, it simply stays vacant — it is never dissolved for lack of assignment.
+If the capital's castle is destroyed (pillage, including
 automatic famine pillage), the fief is dissolved **immediately**, regardless
 of the season: this is the only way a fief is dissolved. Capturing the
 titulaire (hostage or dungeon), by contrast, has no effect on the fief.
@@ -774,7 +774,7 @@ Regional bonuses:
 
 - Fair weather **doubles** the production of the region's mills;
 - Abundant harvest **doubles** the terrain rations of every territory of the
-  region and the production of the region's castles and villages.
+  region and the region's territory income.
 
 The deck contains **{{special_orders.deck_size}} cards**:
 **{{special_orders.card.plague}}** plague, **{{special_orders.card.bad_weather}}**
@@ -801,7 +801,7 @@ countered. No calamity resolves in winter.
 - bad weather blocks movements originating from or targeting its region,
   except holds and defensive support, and the region's mills produce nothing;
 - bad harvest removes the terrain rations of every territory of its region and
-  the production of the region's castles and villages;
+  the region's territory income;
 - Revolt is played on a territory (`P RV TER`) during action seasons,
   provided its region suffers a bad harvest. Each card adds a roll between
   **{{special_orders.effects.revolt_army_min_size}}** and
@@ -859,5 +859,5 @@ Infrastructure and resources only score on a controlled territory. A free
 noble counts for its owner. A captured noble, hostage or in the dungeon,
 counts for the player whose army physically holds it — the one stationed on
 its territory —, not for that territory's controller nor for its original
-owner: outside a fief, territorial control is now ephemeral (section 6) and
-may have vanished while the capturing army still stands there.
+owner: outside a fief, territorial control is ephemeral (section 6) and may
+have vanished while the capturing army still stands there.
