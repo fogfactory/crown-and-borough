@@ -166,13 +166,20 @@ func TestResolveSupplyProductionAndStocks(t *testing.T) {
 				supplyTerritory("CCC", "CCC", models.TerrainPlain, "DDD"),
 				supplyTerritory("DDD", "DDD", models.TerrainPlain, "CCC"),
 			},
-			nil,
+			// P1's army holds BBB's mill: outside every fief and capital, a
+			// mill only produces while occupied (#215). Its local rations (3,
+			// plain terrain) comfortably cover its own demand (1), so it never
+			// starves and never pillages its own mill.
+			[]models.Army{{ID: "A2", OwnerID: "P1", TerritoryID: "BBB", Size: 1}},
 		)
 		setTerritoryOwner(state, "AAA", "P1")
 		setTerritoryOwner(state, "BBB", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 2, TerritoryID: "BBB"})
 		addInfrastructure(state, models.Infrastructure{ID: "I3", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "CCC"})
+		// DDD's mill is never claimed: outside every fief and capital, with no
+		// army on it, it is inert (#215) and no longer grandfathers production
+		// into CCC's neutral village.
 		addInfrastructure(state, models.Infrastructure{ID: "I4", Type: models.InfraTypeMill, Level: 5, TerritoryID: "DDD"})
 		neutralState := state.TerritoryStates["CCC"]
 		neutralState.Resources = 7
@@ -189,16 +196,16 @@ func TestResolveSupplyProductionAndStocks(t *testing.T) {
 		if got := resolution.State.TerritoryStates["AAA"].Resources; got != 4 {
 			t.Errorf("controlled castle stock = %d, want territory income 2 plus adjacent mill level 2", got)
 		}
-		if got := resolution.State.TerritoryStates["CCC"].Resources; got != 13 {
-			t.Errorf("neutral village stock = %d, want persisted 7 plus base and grandfathered mill production", got)
+		if got := resolution.State.TerritoryStates["CCC"].Resources; got != 8 {
+			t.Errorf("neutral village stock = %d, want persisted 7 plus its own base production only (DDD's inert mill contributes nothing)", got)
 		}
 		event := supplyEventForSource(t, resolution.Events, "AAA")
 		if event.Production != 2 || event.Demand != 0 {
 			t.Errorf("source event = %#v, want mill production 2 (territory income is a separate event) and no demand", event)
 		}
 		neutralEvent := supplyEventForSource(t, resolution.Events, "CCC")
-		if neutralEvent.OwnerID != "" || neutralEvent.Production != 6 || neutralEvent.StockAfter != 13 {
-			t.Errorf("neutral event = %#v, want base plus adjacent mill production", neutralEvent)
+		if neutralEvent.OwnerID != "" || neutralEvent.Production != 1 || neutralEvent.StockAfter != 8 {
+			t.Errorf("neutral event = %#v, want base production only, DDD's inert mill excluded", neutralEvent)
 		}
 		if len(supplyEvents(resolution.Events)) != 2 {
 			t.Errorf("supply events = %#v, want controlled and neutral village events", resolution.Events)
@@ -630,6 +637,14 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 1, TerritoryID: "BBB"})
 		addInfrastructure(state, models.Infrastructure{ID: "I3", Type: models.InfraTypeMill, Level: 1, TerritoryID: "DDD"})
+		// AAA, BBB and CCC form a fief: BBB carries no army of its own, and
+		// outside every fief and capital an unoccupied mill is inert (#215),
+		// so its production needs this anchor to keep routing to AAA exactly
+		// like before.
+		state.Fiefs = []models.Fief{{
+			ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "AAA",
+			Territories: []models.TerritoryID{"AAA", "BBB", "CCC"}, OwnerID: "P1",
+		}}
 		// DDD's mill has no eligible neighbor of its own (CCC carries no
 		// settlement), so under #195 it would otherwise self-supply and
 		// become a closer source than AAA for both armies: keeping DDD
@@ -739,6 +754,11 @@ func TestResolveAssignedFamineTieBreaksAndHasZeroStrength(t *testing.T) {
 			{ID: "A1", OwnerID: "P1", TerritoryID: "BBB", Size: 2},
 			{ID: "A2", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
 			{ID: "A3", OwnerID: "P2", TerritoryID: "CCC", Size: 1},
+			// A4 holds DDD's mill: outside every fief and capital, a mill
+			// only produces while occupied (#215). Its local rations (3,
+			// plain terrain) cover its own demand (1), so it never competes
+			// for ZZZ's pooled deficit below.
+			{ID: "A4", OwnerID: "P1", TerritoryID: "DDD", Size: 1},
 		},
 	)
 	setTerritoryOwner(state, "ZZZ", "P1")
@@ -1162,6 +1182,54 @@ func TestControlledSupplySourcesExcludesOccupiedTerritory(t *testing.T) {
 	}
 }
 
+// TestAbandonedVillageKeepsNeutralProduction checks #215's decision 3: once
+// released for lack of an anchor, a village keeps its status quo neutral
+// production (village_income into its own stock) exactly like one that was
+// never claimed -- unlike a mill (see TestUnanchoredMillProducesNothing),
+// villages are deliberately not made inert.
+func TestAbandonedVillageKeepsNeutralProduction(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			supplyTerritory("AAA", "AAA", models.TerrainPlain, "BBB"),
+			supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA"),
+		},
+		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}},
+	)
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA"})
+	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"}})
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if owner := resolution.State.TerritoryStates["AAA"].OwnerID; owner != nil {
+		t.Fatalf("AAA owner = %v, want nil after A1 departed (test setup drifted)", owner)
+	}
+
+	balance := testBalance()
+	// AAA already carries its territory income from turn 1 (TerritoryIncome
+	// plus VillageIncome, credited to itself, its own closest controlled
+	// village): abandonment does not reset the stock, only the controller.
+	stockBeforeAbandonment := balance.TerritoryIncome + balance.VillageIncome
+	if got := resolution.State.TerritoryStates["AAA"].Resources; got != stockBeforeAbandonment {
+		t.Fatalf("AAA stock after turn 1 = %d, want %d (test setup drifted)", got, stockBeforeAbandonment)
+	}
+
+	next, err := Resolve(resolution.State, balance)
+	if err != nil {
+		t.Fatalf("Resolve after abandonment: %v", err)
+	}
+	if got, want := next.State.TerritoryStates["AAA"].Resources, stockBeforeAbandonment+balance.VillageIncome; got != want {
+		t.Errorf("abandoned village stock = %d, want %d (turn 1's stock plus this turn's neutral production)", got, want)
+	}
+	event := supplyEventForSource(t, next.Events, "AAA")
+	if event.OwnerID != "" || event.Production != balance.VillageIncome {
+		t.Errorf("abandoned village supply event = %#v, want neutral base production %d", event, balance.VillageIncome)
+	}
+}
+
 // TestIsControlledDepotUnusableWhenOccupied verifies that a depot on a
 // territory occupied against its controller extends nobody's supply range
 // (titres.md, economie.md#portée-de-ravitaillement, #196).
@@ -1180,5 +1248,36 @@ func TestIsControlledDepotUnusableWhenOccupied(t *testing.T) {
 	}
 	if ctx.isControlledDepot("AAA", "P2") {
 		t.Errorf("isControlledDepot(P2) = true, want false: P2 only occupies, it does not control")
+	}
+}
+
+// TestIsControlledDepotUnusableWhenUnanchored checks #215: a depot outside
+// every fief and capital, once its owner's army leaves and no anchor keeps
+// it, no longer extends anyone's supply range -- isControlledDepot already
+// requires an exact OwnerID match, so the ordinary release below is enough.
+func TestIsControlledDepotUnusableWhenUnanchored(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			territory("AAA", "AAA", "BBB"),
+			territory("BBB", "BBB", "AAA"),
+		},
+		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}},
+	)
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeSupplyDepot, Level: 1, TerritoryID: "AAA"})
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"}})
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if owner := resolution.State.TerritoryStates["AAA"].OwnerID; owner != nil {
+		t.Fatalf("AAA owner = %v, want nil after A1 departed (test setup drifted)", owner)
+	}
+
+	ctx := newResolutionContext(cloneGameState(resolution.State), testBalance())
+	if ctx.isControlledDepot("AAA", "P1") {
+		t.Errorf("isControlledDepot(P1) = true, want false: released, no fief/capital/army anchor left")
 	}
 }

@@ -31,7 +31,11 @@ func (mill millProduction) selfSupplied() bool {
 
 // computeMillProduction lists every mill's production and single destination
 // this turn, sorted by the mill's own trigram. It is a pure read of ctx
-// (weather regions, infrastructure, control) and never mutates state.
+// (weather regions, infrastructure, control) and never mutates state. A mill
+// outside every fief and capital, with no army currently on it, is inert like
+// any other unanchored infrastructure: it neither produces for a destination
+// nor stocks itself (#215), unlike a village's own base production, which
+// keeps its status quo neutral behavior (see produceNeutralStocks).
 func computeMillProduction(ctx *resolutionContext) []millProduction {
 	var mills []millProduction
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
@@ -39,7 +43,10 @@ func computeMillProduction(ctx *resolutionContext) []millProduction {
 		if infrastructure == nil || infrastructure.Type != models.InfraTypeMill {
 			continue
 		}
-		production, bonus, suppressed := millWeatherProduction(ctx, territoryID, infrastructure.Level)
+		production, bonus, suppressed := 0, 0, 0
+		if ctx.millActive(territoryID) {
+			production, bonus, suppressed = millWeatherProduction(ctx, territoryID, infrastructure.Level)
+		}
 		mills = append(mills, millProduction{
 			millID:           territoryID,
 			ownerID:          ctx.state.TerritoryStates[territoryID].OwnerID,
@@ -52,6 +59,13 @@ func computeMillProduction(ctx *resolutionContext) []millProduction {
 		})
 	}
 	return mills
+}
+
+// millActive reports whether a mill currently produces: anchored (fief
+// member or a player's capital) or currently held by an army, exactly like a
+// castle's fortificationBonus (#215).
+func (ctx *resolutionContext) millActive(territoryID models.TerritoryID) bool {
+	return ctx.territoryAnchored(territoryID) || ctx.currentArmyAt(territoryID) != nil
 }
 
 // millWeatherProduction applies the weather calamity and bonus cards to one

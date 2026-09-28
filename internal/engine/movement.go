@@ -1339,18 +1339,22 @@ func (ctx *resolutionContext) classifyRetreatDestinations(displaced *dislodgedAr
 			continue
 		}
 
-		state := ctx.state.TerritoryStates[territoryID]
-		hasCastle := ctx.hasCastle(territoryID)
-
-		// Bucket 1: Empty and controlled by retreating army's owner (with or without castle).
-		// Overrides attackedTerritories.
-		if state.OwnerID != nil && *state.OwnerID == owner {
+		// Bucket 1: empty and anchored to the retreating army's owner: one of
+		// its own fiefs' members, or its own capital (#215). A territory the
+		// owner merely happened to control positionally, including one it
+		// just vacated this same turn, is not an anchor and falls through to
+		// bucket 2 like any other empty cell.
+		if controller, anchored := ctx.anchorOwner(territoryID); anchored && controller == owner {
 			buckets.controlledEmpty = append(buckets.controlledEmpty, territoryID)
 			continue
 		}
 
-		// Bucket 2: Empty, uncontrolled (neutral or enemy), no castle, not attacked this turn.
-		if !hasCastle && !ctx.attackedTerritories[territoryID] {
+		// Bucket 2: empty, not attacked this turn, and no active castle: a
+		// castle anchored to anyone (fief or capital) still blocks a retreat
+		// there, but an unanchored, unoccupied castle is inert, like the
+		// absence of one (#215).
+		castleBlocks := ctx.hasCastle(territoryID) && ctx.territoryAnchored(territoryID)
+		if !castleBlocks && !ctx.attackedTerritories[territoryID] {
 			buckets.emptyOther = append(buckets.emptyOther, territoryID)
 		}
 	}

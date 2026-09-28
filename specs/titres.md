@@ -18,18 +18,44 @@ compatibilité avec les parties existantes n'est requise (version majeure).
 
 ## Contrôle et occupation
 
-Issue : [#196](https://github.com/fogfactory/crown-and-borough/issues/196).
+Issue : [#196](https://github.com/fogfactory/crown-and-borough/issues/196)
+(contrôle transitif dans un fief), rendu éphémère hors fief par
+[#215](https://github.com/fogfactory/crown-and-borough/issues/215).
 **Livré.**
 
-Le socle ne connaît qu'un statut territorial, positionnel : une case reste au
-dernier joueur dont l'armée s'y est arrêtée. Les fiefs le rendent transitif,
-sans introduire de second statut stocké :
+La prise de contrôle reste positionnelle : une armée qui s'arrête sur une
+case en prend le contrôle. Mais le maintien de ce contrôle diffère selon
+l'**ancrage** de la case :
 
-- **contrôlé** : le statut porté par la case (`OwnerID`). Hors fief, il reste
-  positionnel. Dans un fief, la case est contrôlée par le joueur qui détient
-  le fief, même lorsqu'une armée adverse (ou une révolte `NEUTRAL`) s'y
-  arrête. Seule la prise de la capitale du fief transfère le fief et donc le
-  contrôle de tous ses territoires (voir ci-dessous).
+- **ancrée** : membre d'un fief, ou capitale d'un joueur (une exception
+  permanente, au même titre qu'une capitale de fief, même sans aucune armée
+  dessus). Une case ancrée reste au joueur qui la contrôle indéfiniment, sans
+  qu'une armée y stationne.
+- **non ancrée** : toute autre case. Son contrôle est **éphémère** : elle ne
+  reste « à quelqu'un » que tant qu'une armée de ce joueur y stationne
+  actuellement. Dès que ce n'est plus le cas — l'armée est partie, délogée,
+  détruite — la case redevient neutre (`OwnerID` vidé) à la prochaine passe de
+  normalisation du contrôle, jusqu'à ce qu'une armée, quelle qu'elle soit,
+  s'y arrête à nouveau et la reprenne positionnellement. Une révolte
+  `NEUTRAL` qui s'y arrête ne prend jamais le contrôle (voir « occupé »
+  ci-dessous) : elle ne fait donc jamais gagner cette libération à son
+  ancien contrôleur.
+
+Cette normalisation tourne à la fin de chaque passe qui modifie le contrôle :
+à la fin de la mise à jour du contrôle territorial d'un tour d'action (après
+la capture positionnelle et le transfert transitif d'un fief), et en hiver
+après le rapatriement des stocks (pour qu'une capitale remplacée par `E C` ce
+même hiver rapatrie encore son surplus avant de perdre son ancrage). Elle est
+idempotente : une case déjà neutre, ou toujours ancrée, n'est jamais touchée
+deux fois. Elle ne rapporte un événement `control_changed` (raison
+`abandoned`) que pour une case qui porte une infrastructure, pour ne pas
+noyer le rapport de bruit sur une case vide sans intérêt.
+
+- **contrôlé** : le statut porté par la case (`OwnerID`), déterminé par les
+  règles d'ancrage ci-dessus. Dans un fief, la case est contrôlée par le
+  joueur qui détient le fief, même lorsqu'une armée adverse (ou une révolte
+  `NEUTRAL`) s'y arrête. Seule la prise de la capitale du fief transfère le
+  fief et donc le contrôle de tous ses territoires (voir ci-dessous).
 - **occupé** : une armée est présente sur la case. C'est une information
   dérivée, jamais stockée. Une case a un **contrôleur** (`OwnerID` non vide)
   et est **occupée contre son contrôleur** lorsqu'une armée y stationne dont
@@ -59,11 +85,16 @@ Une case d'un fief occupée contre son contrôleur :
 
 La prise de la capitale d'un fief transfère le contrôle de **tous** ses
 membres au conquérant en une seule passe, même ceux occupés par une tierce
-armée (l'occupation continue, seul le contrôleur change). Hors fief, le
-contrôle reste strictement positionnel, sans régression.
+armée (l'occupation continue, seul le contrôleur change). Hors fief, la prise
+de contrôle reste positionnelle, mais son maintien est désormais éphémère
+(voir ci-dessus, [#215](https://github.com/fogfactory/crown-and-borough/issues/215)) :
+sans ancrage, il ne survit pas au départ de la dernière armée du contrôleur.
 
-La capitale d'un joueur n'est pas un fief implicite. Hors fief, une capitale
-sans armée reste contrôlée tant qu'aucune armée adverse ne s'y arrête.
+La capitale d'un joueur n'est pas un fief implicite, mais elle est un ancrage
+permanent au même titre qu'une capitale de fief : hors fief, une capitale
+reste contrôlée indéfiniment, avec ou sans armée dessus, tant qu'elle n'est
+pas prise par une autre armée qui s'y arrête positionnellement (une révolte
+`NEUTRAL` ne la prend jamais).
 
 ## Constitution d'un fief
 

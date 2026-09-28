@@ -195,8 +195,39 @@ func corpusDigest(t *testing.T, seed int64) string {
 		sum := sha256.Sum256(encoded)
 		digests = append(digests, hex.EncodeToString(sum[:4]))
 		state = resolution.State
+		assertControlAnchored(t, seed, turn, state)
 	}
 	return strings.Join(digests, " ")
+}
+
+// assertControlAnchored checks #215's invariant on a resolved state: every
+// territory with a controller (OwnerID) is either a fief member controlled
+// by its fief's owner, the controller's own capital, or currently held by
+// one of the controller's armies. releaseUnanchoredControl runs at the end
+// of every control-changing pass, so nothing should ever fall through the
+// cracks across the corpus's ~20 000 resolved turns; this is a free
+// regression check on top of the golden digests above, which only pin the
+// observable result, not this structural property. It exercises the actual
+// production predicates (anchorOwner, currentArmyAt) rather than an
+// independent re-derivation of the same three conditions, so a bug in either
+// predicate cannot pass silently just because this check happened to agree
+// with it.
+func assertControlAnchored(t *testing.T, seed int64, turn int, state *models.GameState) {
+	t.Helper()
+	ctx := newResolutionContext(state, testBalance())
+	for territoryID, territoryState := range state.TerritoryStates {
+		if territoryState.OwnerID == nil {
+			continue
+		}
+		owner := *territoryState.OwnerID
+		if anchorOwner, anchored := ctx.anchorOwner(territoryID); anchored && anchorOwner == owner {
+			continue
+		}
+		if army := ctx.currentArmyAt(territoryID); army != nil && army.OwnerID == owner {
+			continue
+		}
+		t.Errorf("seed %d turn %d: territory %q owned by %q without a fief, capital, or army anchor", seed, turn, territoryID, owner)
+	}
 }
 
 // corpusState builds a valid action-turn state from seed. Every order is

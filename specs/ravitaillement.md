@@ -18,6 +18,12 @@ décrite dans [`architecture.md`](architecture.md).
 - Les châteaux et villages contrôlés sont des sources de ravitaillement.
 - Une case contrôlée qui contient un stock positif est également une source ;
   l'armée présente consomme d'abord ce stock local.
+- Hors fief et hors capitale, un château ou un dépôt sans armée dessus est
+  **inerte** ([#215](https://github.com/fogfactory/crown-and-borough/issues/215)) :
+  il n'est plus ni source ni dépôt utilisable pour personne, exactement comme
+  s'il était occupé contre son contrôleur — sauf qu'il n'a alors même plus de
+  contrôleur du tout. Un village garde en revanche sa production neutre même
+  abandonné (voir [economie.md](economie.md#revenu-territorial)).
 - Le flux traverse les cases alliées, neutres ou contrôlées par un autre joueur
   et ne s'arrête que devant une case occupée par une armée adverse. Un château,
   un village ou un dépôt adverse sans armée ne bloque pas le flux.

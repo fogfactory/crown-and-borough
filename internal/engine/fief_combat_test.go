@@ -21,6 +21,9 @@ func TestFortificationBonusReplacesCastleWithCityBonus(t *testing.T) {
 		)
 		setTerritoryOwner(state, "AAA", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+		// AAA is P1's own capital: a permanent anchor outside any fief, the
+		// only thing keeping this empty castle from going inert (#215).
+		setCapital(state, "P1", "I1")
 		keepTestArmiesSupplied(state)
 		addNoble(state, "N1", "ONE", "P2", "BBB")
 		addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"AAA"}})
@@ -107,6 +110,39 @@ func TestFortificationBonusAutoCaptureException(t *testing.T) {
 	event, found := combatAt(resolution.Events, "AAA")
 	if !found || event.CastleBonus != 0 {
 		t.Fatalf("combat at AAA = %#v, found=%t, want castleBonus 0 (auto-capture exception)", event, found)
+	}
+}
+
+// TestFortificationBonusUnanchoredEmptyCastleIsInert checks #215: a castle
+// with no fief, no capital and no army standing on it gives no defensive
+// bonus at all -- it is inert, like any other unanchored infrastructure --
+// unlike the anchored cases covered by
+// TestFortificationBonusReplacesCastleWithCityBonus.
+func TestFortificationBonusUnanchoredEmptyCastleIsInert(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			territory("AAA", "AAA", "BBB"),
+			territory("BBB", "BBB", "AAA"),
+		},
+		[]models.Army{{ID: "A1", OwnerID: "P2", TerritoryID: "BBB", Size: 1}},
+	)
+	// AAA is a never-claimed castle: no owner, no fief, no capital, no army.
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+	keepTestArmiesSupplied(state)
+	addNoble(state, "N1", "ONE", "P2", "BBB")
+	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"AAA"}})
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	event, found := combatAt(resolution.Events, "AAA")
+	if !found || event.CastleBonus != 0 {
+		t.Fatalf("combat at AAA = %#v, found=%t, want castleBonus 0 (unanchored castle is inert)", event, found)
+	}
+	if outcome, found := outcomeForArmy(resolution.Events, "A1"); !found || outcome.Outcome != OutcomeSuccess {
+		t.Errorf("A1 outcome = %#v, found=%t, want success against the inert castle", outcome, found)
 	}
 }
 

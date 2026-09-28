@@ -34,7 +34,7 @@ online à réaliser et à suivre par issue.
 | Carte | Génération Voronoï seedée, territoires nommés par trigramme, frontières franchissables ou infranchissables, graphe connexe, villages neutres et territoires dédiés | Fait |
 | Modèle | Joueurs, territoires, armées uniques par territoire, nobles, infrastructures, stocks, chaînes | Fait |
 | Ordres | Parser texte, ordres A/S/H/J/P/D, liaisons `single` et `loop`, validation et remplacement atomique des chaînes ; statuts nobles en ordres d'hiver O/P | Fait |
-| Résolution | Progression simultanée, attaques, soutiens, combats multi-contendants, bonus de commandement noble, retraites, jonctions, dispersions, contrôle territorial | Fait |
+| Résolution | Progression simultanée, attaques, soutiens, combats multi-contendants, bonus de commandement noble, retraites, jonctions, dispersions, contrôle territorial éphémère hors fief et capitale (voir [`titres.md`](titres.md#contrôle-et-occupation)) | Fait |
 | Logistique | Rations de terrain, ravitaillement BFS, portée, dépôts de vivres, coûts exponentiels, stocks et famine | Fait |
 | Hiver | Recrutement, constructions v1, capitale, libération des nobles, conservation et rapatriement des stocks | Fait |
 | Fiefs | Constitution (`T F`) et attribution (`T A`) par ordre d'hiver, bonus de cité, contrôle transitif et occupation, conquête, vacance avec attribution par défaut (plus de dissolution faute d'attribution), dissolution par perte du château capitale, revenu vers la capitale du fief, score dédié (voir [`titres.md`](titres.md)) | Fait |

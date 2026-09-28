@@ -100,6 +100,12 @@ func TestCardEffectsOnRationsAndProduction(t *testing.T) {
 			// loss summary tests, which don't want AAA counted as a second
 			// territory-income loss line.
 			setTerritoryOwner(state, "AAA", "P1")
+			// An army holds the mill: outside every fief and capital, a mill
+			// only produces while occupied (#215).
+			state.Armies = []models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}}
+			aaaState := state.TerritoryStates["AAA"]
+			aaaState.Army = armyPointer("A1")
+			state.TerritoryStates["AAA"] = aaaState
 			if tt.calamity != "" {
 				setCurrentCalamity(state, tt.calamity, "AAA")
 			}

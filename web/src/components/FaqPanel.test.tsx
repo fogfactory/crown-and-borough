@@ -33,7 +33,10 @@ describe('FaqPanel', () => {
     expect(
       screen.getByText(/attribué automatiquement au noble libre/),
     ).toBeInTheDocument()
-    expect(container.querySelectorAll('details')).toHaveLength(15)
+    expect(
+      screen.getByText(/Combien de temps dure le contrôle hors fief/),
+    ).toBeInTheDocument()
+    expect(container.querySelectorAll('details')).toHaveLength(16)
   })
 
   it('renders the English tactical FAQ', () => {
@@ -66,6 +69,9 @@ describe('FaqPanel', () => {
         /assigned automatically to the free noble with the smallest trigram/,
       ),
     ).toBeInTheDocument()
-    expect(container.querySelectorAll('details')).toHaveLength(15)
+    expect(
+      screen.getByText(/How long does control last outside a fief/),
+    ).toBeInTheDocument()
+    expect(container.querySelectorAll('details')).toHaveLength(16)
   })
 })

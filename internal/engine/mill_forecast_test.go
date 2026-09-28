@@ -15,7 +15,9 @@ func TestForecastMillIncomeCreditsAdjacentSettlement(t *testing.T) {
 			supplyTerritory("AAA", "AAA", models.TerrainMountain, "MIL"),
 			supplyTerritory("MIL", "MIL", models.TerrainMountain, "AAA"),
 		},
-		nil,
+		// An army holds the mill: outside every fief and capital, a mill only
+		// produces while occupied (#215).
+		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "MIL", Size: 1}},
 	)
 	setTerritoryOwner(state, "AAA", "P1")
 	setTerritoryOwner(state, "MIL", "P1")
@@ -39,7 +41,9 @@ func TestForecastMillIncomeCreditsSingleDestination(t *testing.T) {
 			supplyTerritory("BBB", "BBB", models.TerrainMountain, "MIL"),
 			supplyTerritory("MIL", "MIL", models.TerrainMountain, "AAA", "BBB"),
 		},
-		nil,
+		// An army holds the mill: outside every fief and capital, a mill only
+		// produces while occupied (#215).
+		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "MIL", Size: 1}},
 	)
 	setTerritoryOwner(state, "AAA", "P1")
 	setTerritoryOwner(state, "BBB", "P1")

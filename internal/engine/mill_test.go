@@ -140,7 +140,9 @@ func TestMillWeatherProductionSuppressedByBadWeather(t *testing.T) {
 			supplyTerritory("MIL", "MIL", models.TerrainPlain, "CAS"),
 			supplyTerritory("CAS", "CAS", models.TerrainPlain, "MIL"),
 		},
-		nil,
+		// An army holds the mill: outside every fief and capital, a mill only
+		// produces while occupied (#215).
+		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "MIL", Size: 1}},
 	)
 	setTerritoryOwner(state, "MIL", "P1")
 	setTerritoryOwner(state, "CAS", "P1")
@@ -164,7 +166,9 @@ func TestMillWeatherProductionDoubledByFairWeather(t *testing.T) {
 			supplyTerritory("MIL", "MIL", models.TerrainPlain, "CAS"),
 			supplyTerritory("CAS", "CAS", models.TerrainPlain, "MIL"),
 		},
-		nil,
+		// An army holds the mill: outside every fief and capital, a mill only
+		// produces while occupied (#215).
+		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "MIL", Size: 1}},
 	)
 	setTerritoryOwner(state, "MIL", "P1")
 	setTerritoryOwner(state, "CAS", "P1")
@@ -210,6 +214,34 @@ func TestIsolatedMillProducesOnItsOwnTileAndFeedsSupply(t *testing.T) {
 	}
 }
 
+// TestUnanchoredMillProducesNothing checks #215: a mill outside every fief
+// and capital, with no army on it, is inert -- unlike
+// TestIsolatedMillProducesOnItsOwnTileAndFeedsSupply's occupied isolated
+// mill, it produces nothing at all, not even for itself, whether it was
+// never claimed or abandoned once its army left.
+func TestUnanchoredMillProducesNothing(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{supplyTerritory("MIL", "MIL", models.TerrainMountain)},
+		nil,
+	)
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "MIL"})
+	validateTestState(t, state)
+
+	ctx := newResolutionContext(state, testBalance())
+	mills := computeMillProduction(ctx)
+	if len(mills) != 1 || mills[0].total() != 0 {
+		t.Fatalf("mills = %#v, want zero production for an unanchored, unoccupied mill", mills)
+	}
+
+	resolution, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if got := resolution.State.TerritoryStates["MIL"].Resources; got != 0 {
+		t.Errorf("MIL stock = %d, want 0 (the inert mill never stocks itself)", got)
+	}
+}
+
 // TestMillReportLineHasRoutedDestination checks the turn report exposes the
 // mill's single destination alongside its production.
 func TestMillReportLineHasRoutedDestination(t *testing.T) {
@@ -218,7 +250,9 @@ func TestMillReportLineHasRoutedDestination(t *testing.T) {
 			supplyTerritory("MIL", "MIL", models.TerrainPlain, "CAS"),
 			supplyTerritory("CAS", "CAS", models.TerrainPlain, "MIL"),
 		},
-		nil,
+		// An army holds the mill: outside every fief and capital, a mill only
+		// produces while occupied (#215).
+		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "MIL", Size: 1}},
 	)
 	setTerritoryOwner(state, "MIL", "P1")
 	setTerritoryOwner(state, "CAS", "P1")

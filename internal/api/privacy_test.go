@@ -287,6 +287,36 @@ func TestCombatParticipationIncludesSupportingArmies(t *testing.T) {
 	}
 }
 
+// TestCombatParticipationSkipsAbandonedCastleOwner checks #215: once a
+// castle's former controller has lost it to abandonment (no fief, capital,
+// or army left there), territoryOwner reads OwnerID nil on both snapshots
+// and grants combat visibility to nobody for the empty-defender contender,
+// unlike TestCombatParticipationSkipsNeutralOwner's live neutral defender.
+func TestCombatParticipationSkipsAbandonedCastleOwner(t *testing.T) {
+	// AAA has no OwnerID on either snapshot: P1 controlled it once, but its
+	// army left and no anchor kept it, so releaseUnanchoredControl already
+	// cleared it before this later turn's combat.
+	before := &models.GameState{Armies: []models.Army{
+		{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 2},
+	}}
+	after := &models.GameState{Armies: append([]models.Army(nil), before.Armies...)}
+	privacy := ensurePrivacy(after)
+	trackCombatParticipation(before, after, []engine.CombatReport{{
+		Territory: "AAA",
+		Contenders: []engine.CombatContender{
+			{ArmyID: "A2", OwnerID: "P2", Force: 2},
+			{ArmyID: "", OwnerID: "", Force: 0, Defender: true},
+		},
+	}}, privacy)
+
+	if privacy.CombatParticipation["P1"]["combat-AAA"] {
+		t.Error("P1, the castle's former controller, was marked as a combat participant")
+	}
+	if !privacy.CombatParticipation["P2"]["combat-AAA"] {
+		t.Error("the attacker was not marked as a combat participant")
+	}
+}
+
 func TestDevGamesAPITracksPrivateChainProjection(t *testing.T) {
 	gameStore, rules := newGamesTestStore(t)
 	handler := NewDevGamesHandler(gameStore, rules, "P1")
