@@ -37,15 +37,16 @@ type ChainPreview struct {
 // ParseError is set. Applied, Reason, Cost, Level and Territory describe the
 // simulated outcome of Order.
 type WinterLinePreview struct {
-	Line       int
-	Order      *models.WinterOrder
-	Discard    *models.DeckOrder
-	ParseError *InputError
-	Applied    bool
-	Reason     string
-	Cost       int
-	Level      int
-	Territory  models.TerritoryID
+	Line        int
+	Order       *models.WinterOrder
+	Discard     *models.DeckOrder
+	ParseError  *InputError
+	Applied     bool
+	Reason      string
+	Cost        int
+	Level       int
+	Territory   models.TerritoryID
+	Territories []models.TerritoryID
 }
 
 // WinterCostPreview compares the resources the simulated winter sheet spends
@@ -122,6 +123,7 @@ func previewWinter(preview *OrdersPreview, game *models.GameState, balance asset
 			order.ID = models.OrderID(fmt.Sprintf("W%d", line.Line))
 			winterOrders = append(winterOrders, order)
 			entry.Order = &order
+			entry.Territories = append([]models.TerritoryID(nil), order.TerritoryIDs...)
 		}
 		preview.Winter = append(preview.Winter, entry)
 	}

@@ -25,9 +25,12 @@ describe('FaqPanel', () => {
     expect(
       screen.getByText(/Comment les cartes spéciales et les calamités/),
     ).toBeInTheDocument()
-    expect(screen.getByText(/Comment se calcule mon revenu territorial/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/Comment se calcule mon revenu territorial/),
+    ).toBeInTheDocument()
     expect(screen.getByText(/Pourquoi le risque de famine affiché/)).toBeInTheDocument()
-    expect(container.querySelectorAll('details')).toHaveLength(14)
+    expect(screen.getByText(/Comment constituer un fief/)).toBeInTheDocument()
+    expect(container.querySelectorAll('details')).toHaveLength(15)
   })
 
   it('renders the English tactical FAQ', () => {
@@ -51,7 +54,10 @@ describe('FaqPanel', () => {
       screen.getByText(/How do special cards and calamities apply/),
     ).toBeInTheDocument()
     expect(screen.getByText(/How is my territory income calculated/)).toBeInTheDocument()
-    expect(screen.getByText(/Why is the projected famine risk only an estimate/)).toBeInTheDocument()
-    expect(container.querySelectorAll('details')).toHaveLength(14)
+    expect(
+      screen.getByText(/Why is the projected famine risk only an estimate/),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/How does founding a fief work/)).toBeInTheDocument()
+    expect(container.querySelectorAll('details')).toHaveLength(15)
   })
 })

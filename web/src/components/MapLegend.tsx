@@ -257,7 +257,10 @@ export function MapLegend({
           </label>
         )}
         {onToggleRegions && (
-          <div className="flex flex-wrap gap-1.5 rounded-md bg-[#eef3f7] px-2 py-1.5" data-region-swatches>
+          <div
+            className="flex flex-wrap gap-1.5 rounded-md bg-[#eef3f7] px-2 py-1.5"
+            data-region-swatches
+          >
             {HERALDIC_COLORS.map((color, index) => (
               <span
                 key={`region-color-${index}`}
@@ -286,6 +289,34 @@ export function MapLegend({
           <div className="flex items-center gap-2">
             <span className="size-3 shrink-0 rounded-full border-2 border-[#fff8e7] bg-[#a84632]" />
             <span>{t('legend.army')}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <svg className="size-4 shrink-0" viewBox="-11 -13 22 26" aria-hidden="true">
+              <path
+                d={OWNERSHIP_SHIELD_PATH}
+                fill="#fff8e7"
+                stroke="#fff8e7"
+                strokeWidth={5}
+              />
+              <path d={OWNERSHIP_SHIELD_PATH} fill="#a84632" />
+              <path
+                d={OWNERSHIP_SHIELD_PATH}
+                fill="none"
+                stroke={LEGEND_CASING}
+                strokeWidth={1.6}
+              />
+              <text
+                y={-5.5}
+                fill="#fff8e7"
+                fontSize={7}
+                fontWeight="800"
+                textAnchor="middle"
+                dominantBaseline="central"
+              >
+                ROS
+              </text>
+            </svg>
+            <span>{t('legend.fief')}</span>
           </div>
           <div className="flex items-center gap-2">
             <svg className="size-3 shrink-0" viewBox="-10 -10 20 20" aria-hidden="true">

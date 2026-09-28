@@ -120,7 +120,12 @@ describe('SelectedTerritoryDetails', () => {
         state={state}
         selectedTerritory={map.territories[0]}
         selectedState={state.territories[0]}
-        selectedSupplyLine={{ ...armySupply, famineRations: 1, bonusRations: 1, localProduction: 3 }}
+        selectedSupplyLine={{
+          ...armySupply,
+          famineRations: 1,
+          bonusRations: 1,
+          localProduction: 3,
+        }}
         sourceTerritory={map.territories[1]}
         supplyLoading={false}
         supplyError={null}
@@ -389,7 +394,9 @@ describe('SelectedTerritoryDetails', () => {
   it('shows the territory income as lost when it has no destination', () => {
     const lostState: StateData = {
       ...state,
-      territories: [{ ...state.territories[0], projectedIncome: 1, incomeDestination: undefined }],
+      territories: [
+        { ...state.territories[0], projectedIncome: 1, incomeDestination: undefined },
+      ],
     }
 
     render(
@@ -407,5 +414,60 @@ describe('SelectedTerritoryDetails', () => {
     expect(
       screen.getByText('Income lost: no capital, castle, or village to receive it'),
     ).toBeInTheDocument()
+  })
+
+  it('shows the city badge and fief titulaire on a fief capital', () => {
+    const fiefState: StateData = {
+      ...state,
+      fiefs: [
+        {
+          capital: 'ROS',
+          title: 'barony',
+          territories: ['ROS', 'BRU'],
+          owner: 'P2',
+          holder: 'JEA',
+        },
+      ],
+    }
+
+    render(
+      <SelectedTerritoryDetails
+        state={fiefState}
+        selectedTerritory={map.territories[0]}
+        selectedState={fiefState.territories[0]}
+        selectedSupplyLine={null}
+        sourceTerritory={null}
+        supplyLoading={false}
+        supplyError={null}
+      />,
+    )
+
+    expect(screen.getByText('City (+2 defense)')).toBeInTheDocument()
+    expect(screen.getByText('Barony — ROS')).toBeInTheDocument()
+    expect(screen.getByText('JEA · Jean de Rosemont')).toBeInTheDocument()
+  })
+
+  it('shows a vacant fief titulaire without a badge on a non-capital territory', () => {
+    const fiefState: StateData = {
+      ...state,
+      fiefs: [
+        { capital: 'BRU', title: 'barony', territories: ['BRU', 'ROS'], owner: 'P2' },
+      ],
+    }
+
+    render(
+      <SelectedTerritoryDetails
+        state={fiefState}
+        selectedTerritory={map.territories[0]}
+        selectedState={fiefState.territories[0]}
+        selectedSupplyLine={null}
+        sourceTerritory={null}
+        supplyLoading={false}
+        supplyError={null}
+      />,
+    )
+
+    expect(screen.queryByText('City (+2 defense)')).not.toBeInTheDocument()
+    expect(screen.getByText('Vacant')).toBeInTheDocument()
   })
 })

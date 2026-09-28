@@ -19,6 +19,7 @@ type ScoreBreakdown struct {
 	Nobles      int `json:"nobles"`
 	Troops      int `json:"troops"`
 	Resources   int `json:"resources"`
+	Fiefs       int `json:"fiefs"`
 	Total       int `json:"total"`
 }
 
@@ -91,9 +92,20 @@ func ComputeScores(state *models.GameState) map[models.PlayerID]ScoreBreakdown {
 		scores[playerID] = score
 	}
 
+	// Each fief earns 1 point regardless of size, vacant or not, until it
+	// is dissolved (titres.md).
+	for _, fief := range state.Fiefs {
+		score, exists := scores[fief.OwnerID]
+		if !exists {
+			continue
+		}
+		score.Fiefs++
+		scores[fief.OwnerID] = score
+	}
+
 	for playerID, score := range scores {
 		score.Total = score.Territories + score.Villages + score.Mills + score.Castles +
-			score.Nobles + score.Troops + score.Resources
+			score.Nobles + score.Troops + score.Resources + score.Fiefs
 		scores[playerID] = score
 	}
 	return scores

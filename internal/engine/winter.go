@@ -62,6 +62,7 @@ func ResolveWinterWithDeckOrders(
 	resolveWinterDeckOrders(ctx, deckOrders)
 	// No calamity resolves in winter: the winter turn draws and schedules the
 	// following year's calamities but applies none.
+	ctx.dissolveVacantFiefs()
 	ctx.conserveWinterStocks()
 	ctx.repatriateWinterStocks()
 	ctx.emitWinterStockEvents(stockBefore)
@@ -94,12 +95,23 @@ func validateWinterPlayers(game *models.GameState, orders map[models.PlayerID][]
 }
 
 func (ctx *resolutionContext) rejectWinterOrder(playerID models.PlayerID, order models.WinterOrder, reason string) {
+	ctx.rejectWinterOrderAt(playerID, order, reason, "")
+}
+
+// rejectWinterOrderAt rejects a winter order like rejectWinterOrder, but
+// attributes it to territoryID rather than defaulting to the order's own
+// TerritoryID. A found_fief order spans several territories (TerritoryID is
+// only the capital), so a rejection caused by one of the other group members
+// must point there for the map marker to land on the actual offending
+// territory instead of always the capital.
+func (ctx *resolutionContext) rejectWinterOrderAt(playerID models.PlayerID, order models.WinterOrder, reason string, territoryID models.TerritoryID) {
 	orderCopy := order
 	ctx.events = append(ctx.events, Event{
 		Type:          EventTypeRejected,
 		Phase:         winterPhase,
 		OwnerID:       playerID,
 		OrderID:       order.ID,
+		TerritoryID:   territoryID,
 		ResourceSpent: 0,
 		Reason:        reason,
 		WinterOrder:   &orderCopy,

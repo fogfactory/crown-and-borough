@@ -126,3 +126,45 @@ func (s NobleStatus) IsValid() bool {
 	}
 	return false
 }
+
+// FiefTitle is the nobility rank of a fief, derived from its territory count
+// (titres.md, #194).
+type FiefTitle string
+
+const (
+	FiefTitleBarony     FiefTitle = "barony"
+	FiefTitleCounty     FiefTitle = "county"
+	FiefTitleMarquisate FiefTitle = "marquisate"
+	FiefTitleDuchy      FiefTitle = "duchy"
+)
+
+// IsValid reports whether the fief title is a known value.
+func (t FiefTitle) IsValid() bool {
+	switch t {
+	case FiefTitleBarony, FiefTitleCounty, FiefTitleMarquisate, FiefTitleDuchy:
+		return true
+	}
+	return false
+}
+
+// FiefMinTerritories is the smallest group a T F order can constitute
+// (titres.md).
+const FiefMinTerritories = 3
+
+// FiefTitleForSize returns the title a fief of size territories holds, and
+// false below FiefMinTerritories. A barony has exactly 3 territories, a
+// county 4, a marquisate 5, and a duchy 6 or more.
+func FiefTitleForSize(size int) (FiefTitle, bool) {
+	switch {
+	case size < FiefMinTerritories:
+		return "", false
+	case size == 3:
+		return FiefTitleBarony, true
+	case size == 4:
+		return FiefTitleCounty, true
+	case size == 5:
+		return FiefTitleMarquisate, true
+	default:
+		return FiefTitleDuchy, true
+	}
+}

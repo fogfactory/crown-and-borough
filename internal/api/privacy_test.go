@@ -221,7 +221,7 @@ func TestProjectReportNormalizesNilCollections(t *testing.T) {
 	if err := json.Unmarshal(data, &document); err != nil {
 		t.Fatalf("decode empty projected report: %v", err)
 	}
-	for _, field := range []string{"players", "receptions", "production", "income", "mills", "consumption", "combats", "orders", "moves", "nobles"} {
+	for _, field := range []string{"players", "receptions", "production", "income", "mills", "consumption", "combats", "orders", "moves", "nobles", "fiefs"} {
 		if value, ok := document[field]; !ok || value == nil {
 			t.Errorf("projected report field %q = %#v, want JSON array", field, value)
 		}
@@ -238,6 +238,19 @@ func TestProjectReportKeepsIncome(t *testing.T) {
 	view := projectReport(report, "P1", nil)
 	if len(view.Income) != 1 || view.Income[0].Owner != "P1" || view.Income[0].Credited != 6 {
 		t.Fatalf("projected income = %#v, want the report's income line preserved", view.Income)
+	}
+}
+
+func TestProjectReportKeepsFiefs(t *testing.T) {
+	report := engine.TurnReport{
+		Fiefs: []engine.FiefReport{{
+			Kind: engine.EventTypeFiefConquered, Owner: "P2", PreviousOwner: "P1",
+			Capital: "ROS", Title: models.FiefTitleBarony, Territories: []models.TerritoryID{"ROS", "BOI", "BRU"},
+		}},
+	}
+	view := projectReport(report, "P1", nil)
+	if len(view.Fiefs) != 1 || view.Fiefs[0].Owner != "P2" || view.Fiefs[0].PreviousOwner != "P1" || view.Fiefs[0].Capital != "ROS" {
+		t.Fatalf("projected fiefs = %#v, want the report's fief line preserved", view.Fiefs)
 	}
 }
 

@@ -27,6 +27,7 @@ const englishMessages = {
   'score.nobles': 'Nobles',
   'score.troops': 'Troops',
   'score.resources': 'Resources',
+  'score.fiefs': 'Fiefs',
   'score.total': 'Total',
   'app.loading': 'Loading...',
   'season.spring': 'Spring',
@@ -75,6 +76,10 @@ const englishMessages = {
   'nav.faq': 'FAQ',
   'app.selectTerritory': 'Select a territory',
   'app.capitalOf': 'Capital of {player}',
+  'app.cityBonus': 'City (+2 defense)',
+  'app.fiefTitle': 'Fief',
+  'app.fiefHolder': 'Titulaire',
+  'app.fiefVacant': 'Vacant',
   'app.terrain': 'Terrain',
   'app.region': 'Region',
   'app.regionSeedLabel': 'regional seat / card target: {seed}',
@@ -148,7 +153,16 @@ const englishMessages = {
   'map.regionBands': 'Regional name bands',
   'map.regionBadges': 'Regional name badges',
   'map.regionLabel': 'Bishopric of {name} ({seed})',
+  'map.fiefs': 'Fiefs',
+  'map.fiefLabel': '{title} of {capital}',
+  'map.fiefGroupMember': 'Would join the fief founded on {capital}',
+  'fief.title.barony': 'Barony',
+  'fief.title.county': 'County',
+  'fief.title.marquisate': 'Marquisate',
+  'fief.title.duchy': 'Duchy',
   'map.ownershipBadge': '{owner} controls this territory',
+  'map.ownershipBadgeFief':
+    '{owner} controls this territory, part of the fief of {capital}',
   'map.winterVeil': 'Winter veil',
   'map.winterOverlay': 'Winter orders overlay',
   'map.winterSnow': 'Winter snow',
@@ -167,7 +181,8 @@ const englishMessages = {
   'orders.winterTitle': 'Winter orders',
   'orders.winterDescription':
     'Direct investments only, without chains or military movement. Use D C KIND to discard a card; the hand is replenished automatically. Orders are applied in the order entered. Resolution waits for every player.',
-  'orders.winterPlaceholder': 'R T ROS\nD C BT\nO N NNN\nP N NNN\nL N NNN',
+  'orders.winterPlaceholder':
+    'R T ROS\nD C BT\nO N NNN\nP N NNN\nL N NNN\nT F NNN ROS BOI BRU\nT A NNN ROS',
   'orders.winterAria': 'Winter orders for {player}',
   'orders.winterErrorsAria': 'Winter order syntax errors',
   'orders.chainErrorsAria': 'Order chain errors',
@@ -236,17 +251,20 @@ const englishMessages = {
   'reports.productionMillProduction': 'mills',
   'reports.productionBonusProduction': 'regional bonus',
   'reports.productionSuppressed': '{count} suppressed by a calamity',
-  'reports.productionStockLine':
-    'stock: {before} → {after} (consumed {consumed})',
+  'reports.productionStockLine': 'stock: {before} → {after} (consumed {consumed})',
   'reports.productionSent': 'sent {count} to {territory}',
   'reports.consumptionTitle': 'Consumption',
   'reports.consumptionSource': 'source {source}',
   'reports.consumptionDemand': 'demand {count}',
   'reports.consumptionLine':
     'local {local} · from sources {transfer} · received {total} · missing {missing}',
-  'reports.consumptionPillageCredit':
-    'pillage: {count} R credited to {territory}',
+  'reports.consumptionPillageCredit': 'pillage: {count} R credited to {territory}',
   'reports.winter': 'Winter',
+  'reports.fiefs': 'Fiefs',
+  'reports.fiefConquered':
+    '{capital}: the fief passes from {previousOwner} to {owner}, vacant',
+  'reports.fiefVacated': '{capital}: the fief held by {owner} is now vacant',
+  'reports.fiefDissolved': '{capital}: {owner}’s fief is dissolved ({reason})',
   'reports.cards': 'Cards',
   'reports.cardDrawn': '{player}: {card} drawn',
   'reports.cardDiscarded': '{player}: {card} discarded',
@@ -258,13 +276,17 @@ const englishMessages = {
   'reports.calamityCanceled': '{card} canceled in {region}',
   'reports.bonusEffect': '{card} active in {region}',
   'reports.neutralArmyCreated': 'Neutral army of {count} troops raised at {territory}',
-  'reports.neutralArmyCreatedTroop': 'Neutral army of {count} troop raised at {territory}',
+  'reports.neutralArmyCreatedTroop':
+    'Neutral army of {count} troop raised at {territory}',
   'reports.plagueDeath': 'Noble {noble} died from plague at {territory}',
   'reports.plagueSurvived': 'Noble {noble} at {territory} survived the plague',
-  'reports.neutralFamine': 'Starving neutral army at {territory}: {before} → {after} troops',
+  'reports.neutralFamine':
+    'Starving neutral army at {territory}: {before} → {after} troops',
   'reports.cardCanceled': '{player}: {card} canceled at {territory}',
-  'reports.calamityPlagueArmy': 'Army of {owner} at {territory}: {before} → {after} troops',
-  'reports.calamityBadWeatherBlocked': 'Army of {owner} at {territory}: move to {target} blocked',
+  'reports.calamityPlagueArmy':
+    'Army of {owner} at {territory}: {before} → {after} troops',
+  'reports.calamityBadWeatherBlocked':
+    'Army of {owner} at {territory}: move to {target} blocked',
   'reports.calamityBadWeatherBlockedNoTarget':
     'Army of {owner} at {territory}: order blocked by bad weather',
   'reports.calamityFamineRegion':
@@ -272,7 +294,8 @@ const englishMessages = {
   'reports.calamityFamineSettlement': '{territory}: {production} R not produced',
   'reports.calamityBadWeatherRegion':
     'Bad weather in {region}: {production} R of mill production suppressed',
-  'reports.calamityBadWeatherMill': 'Mill at {territory} idle: {production} R not produced',
+  'reports.calamityBadWeatherMill':
+    'Mill at {territory} idle: {production} R not produced',
   'reports.rumors': 'Rumors',
   'rumor.fair_weather':
     'The land is rich and the skies are kind; astrologers expect a generous harvest.',
@@ -426,8 +449,23 @@ const englishMessages = {
   'reports.reason.bad_weather': 'Blocked by bad weather.',
   'reports.reason.disperse_residual_dislodged': 'The dispersal remainder was dislodged.',
   'reports.reason.invalid_transfer_shape': 'The transfer order has an invalid shape.',
-  'reports.reason.no_available_first_name':
-    'No first name is available for a new noble.',
+  'reports.reason.no_available_first_name': 'No first name is available for a new noble.',
+  'reports.reason.fief_holder_not_owned':
+    'The designated titulaire does not belong to the player.',
+  'reports.reason.fief_holder_not_free': 'The designated titulaire is not free.',
+  'reports.reason.fief_duplicate_territory': 'The fief group lists a territory twice.',
+  'reports.reason.fief_too_small': 'The fief group has fewer than 3 territories.',
+  'reports.reason.fief_capital_requires_castle': 'The fief capital has no castle.',
+  'reports.reason.fief_territory_already_in_fief':
+    'A territory of the group already belongs to another fief.',
+  'reports.reason.fief_territory_occupied_by_other_player':
+    'An enemy or revolt army occupies a territory of the group.',
+  'reports.reason.fief_not_contiguous': 'The fief group is not contiguous.',
+  'reports.reason.fief_not_found': 'No fief has this capital.',
+  'reports.reason.fief_not_owned': 'The fief does not belong to the player.',
+  'reports.reason.fief_not_vacant': 'The fief already has a titulaire.',
+  'reports.reason.capital_castle_lost': "The fief capital's castle was destroyed.",
+  'reports.reason.vacant_at_winter_end': 'The fief stayed vacant at the end of winter.',
   'reports.reason.reception.concurrent':
     'Concurrent reception: {territory} was targeted by {count} chains in turn {turn}.',
   'reports.reason.reception.noArmy': 'No army occupies receiving position {territory}.',
@@ -446,14 +484,14 @@ const englishMessages = {
   'legend.village': 'Village',
   'legend.castle': 'Castle',
   'legend.army': 'Army (numbered marker)',
+  'legend.fief': "Fief member (owner color, capital's trigram)",
   'legend.noble': 'Noble (owner color)',
   'legend.prisoner': 'Prisoner noble (hostage / dungeon)',
   'legend.control': 'Colored shield = territorial control',
   'legend.intentions': 'Intentions overlay',
   'legend.intentionsHint':
     'Drafts + submitted orders + installed chains + winter investments · translucent map overlay',
-  'legend.passable':
-    'Mountain icons = impassable border · dashed line = passable border',
+  'legend.passable': 'Mountain icons = impassable border · dashed line = passable border',
   'legend.show': 'Show legend',
   'legend.hide': 'Hide legend',
   'rules.reference': 'Reference for v1 rules, orders, and supply.',
@@ -492,10 +530,10 @@ const englishMessages = {
     'A dispersal is peaceful strength-0 splitting. Each listed destination receives at most one troop, in written order; destinations may repeat to stack troops. Several allied armies may disperse toward the same destination in one turn: their arriving troops are stacked into one army, including when the destination already contains a friendly army or a friendly join arrival. Dispersals from different players do not share a destination. If the origin is emptied, every noble must be assigned to a produced group: `*` assigns all remaining nobles to one destination and `*NNN` assigns NNN. For example, `BRI D ATL*HUG NOR*JEA` sends HUG with ATL and JEA with NOR; without valid assignments, emptying BRI makes the order invalid. If a troop remains at BRI, unmentioned nobles may remain there with it.',
   'faq.q9': 'How do mills affect production?',
   'faq.a9':
-    'A controlled castle or village no longer produces stock by itself: every territory you control yields `territory_income` R per action turn, plus `village_income` R if it carries a village, credited directly to your capital (see the next question on territory income). Mills are unrelated to that income: a mill is built on an empty controlled territory adjacent to a castle or village. Once built, it can be upgraded even in isolation. It can reach level 3: construction costs `3 R`, then upgrades cost `5 R` and `7 R`. A `C M` at level 3 is rejected with no payment. Each level adds `+1 R`, credited to a single destination: the adjacent castle under the same control, else the adjacent village under the same control, else the mill\'s own territory — a mill never credits two settlements at once, and never crosses control (a neutral mill only feeds a neutral village, never a player\'s). An isolated mill (no eligible neighbor) stocks its own production and becomes a supply source in its own right, but that stock still needs a transfer order (`T`) to reach anywhere else. In winter, a mill\'s upgrade first spends its own stock, then its single destination\'s, before falling back to the usual winter payment network; its remaining stock is halved like a castle\'s or village\'s, but never repatriated to the capital. Existing mills above level 3 remain productive, but cannot be upgraded.',
+    "A controlled castle or village no longer produces stock by itself: every territory you control yields `territory_income` R per action turn, plus `village_income` R if it carries a village, credited directly to your capital (see the next question on territory income). Mills are unrelated to that income: a mill is built on an empty controlled territory adjacent to a castle or village. Once built, it can be upgraded even in isolation. It can reach level 3: construction costs `3 R`, then upgrades cost `5 R` and `7 R`. A `C M` at level 3 is rejected with no payment. Each level adds `+1 R`, credited to a single destination: the adjacent castle under the same control, else the adjacent village under the same control, else the mill's own territory — a mill never credits two settlements at once, and never crosses control (a neutral mill only feeds a neutral village, never a player's). An isolated mill (no eligible neighbor) stocks its own production and becomes a supply source in its own right, but that stock still needs a transfer order (`T`) to reach anywhere else. In winter, a mill's upgrade first spends its own stock, then its single destination's, before falling back to the usual winter payment network; its remaining stock is halved like a castle's or village's, but never repatriated to the capital. Existing mills above level 3 remain productive, but cannot be upgraded.",
   'faq.q13': 'How is my territory income calculated and where does it go?',
   'faq.a13':
-    'Each action turn (never in winter), every territory you control yields `territory_income` R, plus `village_income` R if it carries a village. It is credited before supply, directly to your capital: it never travels through the supply network and can never be intercepted. Without a designated capital (or right after it falls), each territory\'s income independently seeks the closest controlled castle over crossable borders (trigram tie-break), then the closest controlled village, else it is lost — two of your territories can therefore feed different destinations the same turn while you have no capital. A bad harvest suppresses this income in the region of the territory producing it; an abundant harvest doubles it, exactly like terrain rations. A neutral village keeps producing `village_income` R per turn into its own stock, recovered on capture.',
+    "Each action turn (never in winter), every territory you control yields `territory_income` R, plus `village_income` R if it carries a village. It is credited before supply, directly to your capital: it never travels through the supply network and can never be intercepted. Without a designated capital (or right after it falls), each territory's income independently seeks the closest controlled castle over crossable borders (trigram tie-break), then the closest controlled village, else it is lost — two of your territories can therefore feed different destinations the same turn while you have no capital. A bad harvest suppresses this income in the region of the territory producing it; an abundant harvest doubles it, exactly like terrain rations. A neutral village keeps producing `village_income` R per turn into its own stock, recovered on capture.",
   'faq.q10': 'Where does my defeated army retreat to?',
   'faq.a10':
     "A dislodged army retreats to an adjacent territory chosen by priority order: first an empty territory you control (even if it was fought over this turn), then an empty uncontrolled territory (neutral or enemy) that has no castle and wasn't fought over this turn, then a non-dislodged friendly army it merges into — the host gains `N − 1` troops for a retreating army of `N ≥ 2`, or `1` troop with no loss when `N = 1`. Ties within a category are broken by distance to the nearest castle or village you control, then ascending trigram; for friendly-army merges, by troop size ascending first. The attacker's origin territory is always excluded, and an empty neutral or enemy castle can never host a retreat. If two armies must retreat to the same empty territory with no other option, both are destroyed. A noble present on the army follows it to its destination, including when it merges into a host.",
@@ -508,6 +546,9 @@ const englishMessages = {
   'faq.q14': 'Why is the projected famine risk only an estimate?',
   'faq.a14':
     "The command post replays the same ravitaillement resolution used at the end of the turn, including how several of your armies split a shared source's stock, so it flags exactly the armies that would starve if nothing changes. It stays an estimate for two reasons outside its control: it always assumes a normal harvest, since a bad harvest or bad weather card already drawn for this season, but not yet revealed, never changes this projection; and it assumes your orders stay exactly as currently drafted, since it runs before you submit them and cannot foresee a last-minute transfer, dispersal, or new infrastructure that would change the outcome. It is never shown in winter, since ravitaillement does not happen then.",
+  'faq.q15': 'How does founding a fief work, and what happens if I lose it?',
+  'faq.a15':
+    "A `T F` winter order founds a fief from a free noble and a group of at least 3 controlled, contiguous territories, capital first; the capital must carry a castle, which becomes a city worth +2 defense instead of the usual +1, and the group must be free of enemy or revolt armies and of any territory already in another fief. The title (barony, county, marquisate, duchy) follows the group size, and the cost is 2 R per territory. If the titulaire dies or the capital is conquered, the fief becomes vacant: it keeps producing and scoring its point, and `T A` can assign it to a free noble before the end of winter, after which an unassigned fief is dissolved. Losing the capital's castle to pillage dissolves the fief immediately, in any season.",
   'error.line': 'Line {line}: {message}',
   'error.invalidOrder': 'Invalid order',
   'error.winter.order_shape':
@@ -647,6 +688,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'score.nobles': 'Nobles',
   'score.troops': 'Troupes',
   'score.resources': 'Ressources',
+  'score.fiefs': 'Fiefs',
   'score.total': 'Total',
   'app.loading': 'Chargement...',
   'season.spring': 'Printemps',
@@ -696,6 +738,10 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'nav.faq': 'FAQ',
   'app.selectTerritory': 'Sélectionnez un territoire',
   'app.capitalOf': 'Capitale de {player}',
+  'app.cityBonus': 'Cité (+2 défense)',
+  'app.fiefTitle': 'Fief',
+  'app.fiefHolder': 'Titulaire',
+  'app.fiefVacant': 'Vacant',
   'app.terrain': 'Terrain',
   'app.region': 'Région',
   'app.regionSeedLabel': 'chef-lieu / cible des cartes : {seed}',
@@ -704,7 +750,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'app.control': 'Contrôle',
   'app.resources': 'Ressources',
   'app.territoryIncome': 'Rapporte {amount} R à {destination}',
-  'app.territoryIncomeLost': 'Revenu perdu : aucune capitale, château ou village pour le recevoir',
+  'app.territoryIncomeLost':
+    'Revenu perdu : aucune capitale, château ou village pour le recevoir',
   'app.projectedIncome': 'Revenu prévu',
   'app.projectedTerritoryIncomeAmount': 'Territoire : +{amount} R par tour d’action',
   'app.projectedIncomeDestination': '→ {destination} (capitale)',
@@ -769,7 +816,15 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'map.regionBands': 'Bandes des noms régionaux',
   'map.regionBadges': 'Pastilles des noms régionaux',
   'map.regionLabel': 'Évêché de {name} ({seed})',
+  'map.fiefs': 'Fiefs',
+  'map.fiefLabel': '{title} de {capital}',
+  'map.fiefGroupMember': 'Rejoindrait le fief constitué sur {capital}',
+  'fief.title.barony': 'Baronnie',
+  'fief.title.county': 'Comté',
+  'fief.title.marquisate': 'Marquisat',
+  'fief.title.duchy': 'Duché',
   'map.ownershipBadge': '{owner} contrôle ce territoire',
+  'map.ownershipBadgeFief': '{owner} contrôle ce territoire, membre du fief de {capital}',
   'map.winterVeil': 'Voile hivernal',
   'map.winterOverlay': "Calque des ordres d'hiver",
   'map.winterSnow': 'Neige hivernale',
@@ -788,7 +843,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'orders.winterTitle': "Ordres d'hiver",
   'orders.winterDescription':
     "Investissements directs uniquement, sans chaînes ni mouvements militaires. Utilisez D C KIND pour défausser une carte ; la main est reconstituée automatiquement. Les ordres sont appliqués dans l'ordre saisi. La résolution attend tous les joueurs.",
-  'orders.winterPlaceholder': 'R T ROS\nD C BT\nO N NNN\nP N NNN\nL N NNN',
+  'orders.winterPlaceholder':
+    'R T ROS\nD C BT\nO N NNN\nP N NNN\nL N NNN\nT F NNN ROS BOI BRU\nT A NNN ROS',
   'orders.winterAria': "Ordres d'hiver de {player}",
   'orders.winterErrorsAria': "Erreurs de syntaxe des ordres d'hiver",
   'orders.chainErrorsAria': "Erreurs dans les chaînes d'ordres",
@@ -858,17 +914,20 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.productionMillProduction': 'moulins',
   'reports.productionBonusProduction': 'bonus régional',
   'reports.productionSuppressed': '{count} supprimés par une calamité',
-  'reports.productionStockLine':
-    'stock : {before} → {after} (consommé {consumed})',
+  'reports.productionStockLine': 'stock : {before} → {after} (consommé {consumed})',
   'reports.productionSent': 'envoyé {count} vers {territory}',
   'reports.consumptionTitle': 'Consommation',
   'reports.consumptionSource': 'source {source}',
   'reports.consumptionDemand': 'demande {count}',
   'reports.consumptionLine':
     'local {local} · sources {transfer} · reçu {total} · manque {missing}',
-  'reports.consumptionPillageCredit':
-    'pillage : {count} R créditées à {territory}',
+  'reports.consumptionPillageCredit': 'pillage : {count} R créditées à {territory}',
   'reports.winter': 'Hiver',
+  'reports.fiefs': 'Fiefs',
+  'reports.fiefConquered':
+    '{capital} : le fief passe de {previousOwner} à {owner}, vacant',
+  'reports.fiefVacated': '{capital} : le fief détenu par {owner} devient vacant',
+  'reports.fiefDissolved': '{capital} : le fief de {owner} est dissous ({reason})',
   'reports.cards': 'Cartes',
   'reports.cardDrawn': '{player} : {card} piochée',
   'reports.cardDiscarded': '{player} : {card} défaussée',
@@ -882,10 +941,12 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.neutralArmyCreatedTroop': 'Armée neutre de {count} troupe créée à {territory}',
   'reports.plagueDeath': 'Le noble {noble} meurt de la peste à {territory}',
   'reports.plagueSurvived': 'Le noble {noble} à {territory} survit à la peste',
-  'reports.neutralFamine': 'Armée neutre affamée à {territory} : {before} → {after} troupes',
+  'reports.neutralFamine':
+    'Armée neutre affamée à {territory} : {before} → {after} troupes',
   'reports.cardCanceled': '{player} : {card} annulée à {territory}',
   'reports.cardRestored': '{player} : {card} récupérée',
-  'reports.calamityPlagueArmy': 'Armée de {owner} à {territory} : {before} → {after} troupes',
+  'reports.calamityPlagueArmy':
+    'Armée de {owner} à {territory} : {before} → {after} troupes',
   'reports.calamityBadWeatherBlocked':
     'Armée de {owner} à {territory} : mouvement vers {target} bloqué',
   'reports.calamityBadWeatherBlockedNoTarget':
@@ -895,7 +956,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.calamityFamineSettlement': '{territory} : {production} R non produites',
   'reports.calamityBadWeatherRegion':
     'Mauvais temps dans {region} : {production} R de production des moulins supprimées',
-  'reports.calamityBadWeatherMill': 'Moulin à {territory} à l’arrêt : {production} R non produites',
+  'reports.calamityBadWeatherMill':
+    'Moulin à {territory} à l’arrêt : {production} R non produites',
   'reports.rumors': 'Rumeurs',
   'rumor.fair_weather':
     'La terre est grasse et le temps clément ; les astrologues espèrent de bonnes récoltes.',
@@ -1055,9 +1117,29 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.reason.mill_max_level_reached': 'Le moulin a atteint son niveau maximal.',
   'reports.reason.bad_weather': 'Bloqué par le mauvais temps.',
   'reports.reason.disperse_residual_dislodged': 'Le reliquat de dispersion a été délogé.',
-  'reports.reason.invalid_transfer_shape': "La forme de l'ordre de transfert est invalide.",
+  'reports.reason.invalid_transfer_shape':
+    "La forme de l'ordre de transfert est invalide.",
   'reports.reason.no_available_first_name':
     "Aucun prénom n'est disponible pour un nouveau noble.",
+  'reports.reason.fief_holder_not_owned':
+    "Le titulaire désigné n'appartient pas au joueur.",
+  'reports.reason.fief_holder_not_free': "Le titulaire désigné n'est pas libre.",
+  'reports.reason.fief_duplicate_territory':
+    'Le groupe du fief liste deux fois le même territoire.',
+  'reports.reason.fief_too_small': 'Le groupe du fief compte moins de 3 territoires.',
+  'reports.reason.fief_capital_requires_castle':
+    'La capitale du fief ne porte pas de château.',
+  'reports.reason.fief_territory_already_in_fief':
+    'Un territoire du groupe appartient déjà à un autre fief.',
+  'reports.reason.fief_territory_occupied_by_other_player':
+    'Une armée ennemie ou de révolte occupe un territoire du groupe.',
+  'reports.reason.fief_not_contiguous': "Le groupe du fief n'est pas contigu.",
+  'reports.reason.fief_not_found': 'Aucun fief ne porte cette capitale.',
+  'reports.reason.fief_not_owned': "Le fief n'appartient pas au joueur.",
+  'reports.reason.fief_not_vacant': 'Le fief a déjà un titulaire.',
+  'reports.reason.capital_castle_lost':
+    'Le château de la capitale du fief a été détruit.',
+  'reports.reason.vacant_at_winter_end': "Le fief est resté vacant à la fin de l'hiver.",
   'reports.reason.reception.concurrent':
     'Réception concurrente : {territory} a été ciblé par {count} chaînes au tour {turn}.',
   'reports.reason.reception.noArmy':
@@ -1077,6 +1159,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'legend.village': 'Village',
   'legend.castle': 'Château',
   'legend.army': 'Armée (pastille numérotée)',
+  'legend.fief': 'Territoire de fief (couleur du propriétaire, trigramme de la capitale)',
   'legend.noble': 'Noble (couleur du propriétaire)',
   'legend.prisoner': 'Noble prisonnier (otage / donjon)',
   'legend.control': 'Écu coloré = contrôle territorial',
@@ -1140,6 +1223,9 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'faq.q14': 'Pourquoi le risque de famine affiché n’est-il qu’une estimation ?',
   'faq.a14':
     'Le poste de commandement rejoue la même résolution de ravitaillement que celle appliquée en fin de tour, y compris la façon dont plusieurs de tes armées se partagent le stock d’une même source : il signale donc exactement les armées qui seraient affamées si rien ne change. Ça reste une estimation pour deux raisons hors de son contrôle : elle suppose toujours une récolte normale, puisqu’une carte de mauvaise récolte ou de mauvais temps déjà tirée pour cette saison mais pas encore révélée ne change jamais cette projection ; et elle suppose que tes ordres restent exactement tels que rédigés actuellement, puisqu’elle s’exécute avant leur soumission et ne peut pas anticiper un transfert, une dispersion ou une nouvelle infrastructure de dernière minute qui changerait l’issue. Elle n’est jamais affichée en hiver, puisque le ravitaillement n’a pas lieu à cette saison.',
+  'faq.q15': 'Comment constituer un fief, et que se passe-t-il si je le perds ?',
+  'faq.a15':
+    'Un ordre d’hiver `T F` constitue un fief à partir d’un noble libre et d’un groupe d’au moins 3 territoires contrôlés et contigus, capitale en tête ; la capitale doit porter un château, qui devient une cité valant +2 en défense au lieu du +1 habituel, et le groupe doit être libre de toute armée ennemie ou de révolte, et de tout territoire déjà en fief. Le titre (baronnie, comté, marquisat, duché) dépend de la taille du groupe, et le coût est de 2 R par territoire. Si le titulaire meurt ou que la capitale est conquise, le fief devient vacant : il continue de produire et de compter son point, et `T A` peut l’attribuer à un noble libre avant la fin de l’hiver, faute de quoi un fief non attribué est dissous. La perte du château de la capitale par pillage dissout le fief immédiatement, quelle que soit la saison.',
   'error.line': 'Ligne {line} : {message}',
   'error.invalidOrder': 'Ordre invalide',
   'error.winter.order_shape':

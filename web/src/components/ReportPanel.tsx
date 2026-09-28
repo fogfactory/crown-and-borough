@@ -11,6 +11,7 @@ import type {
   PlayerId,
   ReportArmy,
   CardReport,
+  FiefReport,
   SeasonEffectReport,
   TurnReport,
   WinterInvestmentReport,
@@ -120,6 +121,20 @@ const REASON_KEYS: Record<string, MessageKey> = {
   disperse_residual_dislodged: 'reports.reason.disperse_residual_dislodged',
   invalid_transfer_shape: 'reports.reason.invalid_transfer_shape',
   no_available_first_name: 'reports.reason.no_available_first_name',
+  fief_holder_not_owned: 'reports.reason.fief_holder_not_owned',
+  fief_holder_not_free: 'reports.reason.fief_holder_not_free',
+  fief_duplicate_territory: 'reports.reason.fief_duplicate_territory',
+  fief_too_small: 'reports.reason.fief_too_small',
+  fief_capital_requires_castle: 'reports.reason.fief_capital_requires_castle',
+  fief_territory_already_in_fief: 'reports.reason.fief_territory_already_in_fief',
+  fief_territory_occupied_by_other_player:
+    'reports.reason.fief_territory_occupied_by_other_player',
+  fief_not_contiguous: 'reports.reason.fief_not_contiguous',
+  fief_not_found: 'reports.reason.fief_not_found',
+  fief_not_owned: 'reports.reason.fief_not_owned',
+  fief_not_vacant: 'reports.reason.fief_not_vacant',
+  capital_castle_lost: 'reports.reason.capital_castle_lost',
+  vacant_at_winter_end: 'reports.reason.vacant_at_winter_end',
 }
 
 const RECEPTION_REASON_KEYS: Record<string, MessageKey> = {
@@ -235,6 +250,16 @@ function winterOrderLabel(order: WinterOrder, map: MapData | null, t: Translate)
       return `P N ${order.nobleCode ?? '—'}`
     case 'transfer':
       return `G ${territoryLabel(map, order.source, t)} ${territoryLabel(map, order.target, t)} ${order.amount ?? '—'}`
+    case 'found_fief': {
+      const group = order.territories?.length
+        ? order.territories
+        : order.territory
+          ? [order.territory]
+          : []
+      return `T F ${order.nobleCode ?? '—'} ${group.map((id) => territoryLabel(map, id, t)).join(' ')}`
+    }
+    case 'assign_fief':
+      return `T A ${order.nobleCode ?? '—'} ${territory}`
   }
 }
 
@@ -258,6 +283,14 @@ function investmentLabel(
       return `L N ${investment.nobleCode ?? '—'}`
     case 'transfer':
       return `G ${territoryLabel(map, investment.source, t)} ${territoryLabel(map, investment.target, t)} ${investment.amount ?? '—'}`
+    case 'fief_founded': {
+      const group = investment.territories?.length
+        ? investment.territories
+        : [investment.territory ?? '']
+      return `T F ${investment.nobleCode ?? '—'} ${group.map((id) => territoryLabel(map, id, t)).join(' ')}`
+    }
+    case 'fief_assigned':
+      return `T A ${investment.nobleCode ?? '—'} ${territory}`
     default:
       return t('reports.winterOrder')
   }
@@ -307,6 +340,34 @@ function winterDetails(
   return territoryLabel(map, investment.territory, t)
 }
 
+function fiefEventLabel(
+  fief: FiefReport,
+  players: Player[],
+  map: MapData | null,
+  t: Translate,
+): string {
+  const capital = territoryLabel(map, fief.capital, t)
+  const owner = playerLabel(players, fief.owner, t)
+  switch (fief.kind) {
+    case 'fief_conquered':
+      return t('reports.fiefConquered', {
+        capital,
+        previousOwner: playerLabel(players, fief.previousOwner, t),
+        owner,
+      })
+    case 'fief_vacated':
+      return t('reports.fiefVacated', { capital, owner })
+    case 'fief_dissolved':
+      return t('reports.fiefDissolved', {
+        capital,
+        owner,
+        reason: reportReason(fief.reason, t) ?? fief.reason ?? '—',
+      })
+    default:
+      return capital
+  }
+}
+
 function cardEventLabel(card: CardReport, map: MapData | null, t: Translate): string {
   const label = formatCardLabel(card.kind, t)
   const region = territoryLabel(map, card.region, t)
@@ -331,7 +392,11 @@ function cardEventLabel(card: CardReport, map: MapData | null, t: Translate): st
   }
 }
 
-function seasonEffectLabel(effect: SeasonEffectReport, map: MapData | null, t: Translate): string {
+function seasonEffectLabel(
+  effect: SeasonEffectReport,
+  map: MapData | null,
+  t: Translate,
+): string {
   const region = territoryLabel(map, effect.region, t)
   const card = effect.cardKind ? formatCardLabel(effect.cardKind, t) : ''
   switch (effect.kind) {
@@ -473,9 +538,7 @@ function seasonEffectLine(
         key,
         muted: true,
         label: t(
-          count === 1
-            ? 'reports.neutralArmyCreatedTroop'
-            : 'reports.neutralArmyCreated',
+          count === 1 ? 'reports.neutralArmyCreatedTroop' : 'reports.neutralArmyCreated',
           { count, territory: territoryLabel(map, effect.territory, t) },
         ),
       }
@@ -546,6 +609,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
   const cards = report.cards ?? report.winter?.cards ?? []
   const seasonEffects = report.seasonEffects ?? []
   const seasonEffectView = groupSeasonEffects(seasonEffects, map, t)
+  const fiefs = report.fiefs ?? []
 
   return (
     <section className="min-w-0 space-y-4">
@@ -699,7 +763,9 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                   </span>
                 </div>
                 <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-[#806f57]">
-                  <span>{t('reports.incomeTerritories', { count: line.territories })}</span>
+                  <span>
+                    {t('reports.incomeTerritories', { count: line.territories })}
+                  </span>
                   {line.villages > 0 && (
                     <span>{t('reports.incomeVillages', { count: line.villages })}</span>
                   )}
@@ -770,11 +836,26 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
           <div className="space-y-1 text-sm">
             {production.map((line) => {
               const chips: Array<{ label: string; value: number }> = [
-                { label: t('reports.productionTerrainRations'), value: line.terrainRations },
-                { label: t('reports.productionBonusRations'), value: line.bonusRations ?? 0 },
-                { label: t('reports.productionBaseProduction'), value: line.baseProduction ?? 0 },
-                { label: t('reports.productionMillProduction'), value: line.millProduction ?? 0 },
-                { label: t('reports.productionBonusProduction'), value: line.bonusProduction ?? 0 },
+                {
+                  label: t('reports.productionTerrainRations'),
+                  value: line.terrainRations,
+                },
+                {
+                  label: t('reports.productionBonusRations'),
+                  value: line.bonusRations ?? 0,
+                },
+                {
+                  label: t('reports.productionBaseProduction'),
+                  value: line.baseProduction ?? 0,
+                },
+                {
+                  label: t('reports.productionMillProduction'),
+                  value: line.millProduction ?? 0,
+                },
+                {
+                  label: t('reports.productionBonusProduction'),
+                  value: line.bonusProduction ?? 0,
+                },
               ].filter((chip) => chip.value > 0)
               const suppressed =
                 (line.suppressedRations ?? 0) + (line.suppressedProduction ?? 0)
@@ -784,10 +865,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                 (line.stockConsumed ?? 0) > 0 ||
                 (line.stockAfter ?? 0) > 0
               return (
-                <div
-                  key={line.territory}
-                  className="rounded-md bg-[#f3ead9] px-3 py-2"
-                >
+                <div key={line.territory} className="rounded-md bg-[#f3ead9] px-3 py-2">
                   <div className="flex items-center justify-between gap-3">
                     <span className="flex min-w-0 items-center gap-2">
                       {playerMarker(players, line.owner, t)}
@@ -869,10 +947,9 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                     </span>
                   </span>
                   <span className="shrink-0 text-[#806f57]">
-                    {t(
-                      line.size === 1 ? 'app.troop' : 'app.troops',
-                      { count: line.size },
-                    )}{' '}
+                    {t(line.size === 1 ? 'app.troop' : 'app.troops', {
+                      count: line.size,
+                    })}{' '}
                     · {t('reports.consumptionDemand', { count: line.demand })}
                   </span>
                 </div>
@@ -969,6 +1046,21 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
         </div>
       )}
 
+      {fiefs.length > 0 && (
+        <div className="space-y-2 rounded-lg border border-[#c9b688] bg-[#fbf3df] p-3">
+          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#7a5a20]">
+            {t('reports.fiefs')}
+          </h4>
+          <ul className="space-y-1 text-sm text-[#7a5a20]">
+            {fiefs.map((fief, index) => (
+              <li key={`${fief.kind}-${fief.capital}-${index}`}>
+                {fiefEventLabel(fief, players, map, t)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {rumors.length > 0 && (
         <div className="space-y-2 rounded-lg border border-[#c8b0d9] bg-[#fbf5ff] p-3">
           <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#684b7d]">
@@ -989,7 +1081,9 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
           </h4>
           <ol className="space-y-1 text-sm text-[#684b7d]">
             {cards.map((card, index) => (
-              <li key={`${card.eventType}-${card.kind}-${index}`}>{cardEventLabel(card, map, t)}</li>
+              <li key={`${card.eventType}-${card.kind}-${index}`}>
+                {cardEventLabel(card, map, t)}
+              </li>
             ))}
           </ol>
         </div>
@@ -1002,10 +1096,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
           </h4>
           <ol className="space-y-2 text-sm text-[#8d321e]">
             {seasonEffectView.flat.map((line) => (
-              <li
-                key={line.key}
-                className={line.muted ? 'text-[#806f57]' : undefined}
-              >
+              <li key={line.key} className={line.muted ? 'text-[#806f57]' : undefined}>
                 {line.label}
               </li>
             ))}

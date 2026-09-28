@@ -47,6 +47,11 @@ export type EventType =
   | 'famine'
   | 'card_canceled'
   | 'rumor'
+  | 'fief_founded'
+  | 'fief_assigned'
+  | 'fief_conquered'
+  | 'fief_vacated'
+  | 'fief_dissolved'
 
 export type PlayerId = string
 
@@ -155,6 +160,22 @@ export interface Region {
   territories: string[]
 }
 
+export type FiefTitle = 'barony' | 'county' | 'marquisate' | 'duchy'
+
+/**
+ * A fief is addressed by its capital's trigram: no internal fief id is ever
+ * exposed by the server (titres.md, issue #194). `territories` lists the
+ * whole group in constitution order, capital first. `holder` is the
+ * titulaire noble's code, absent when the fief is vacant.
+ */
+export interface Fief {
+  capital: string
+  title: FiefTitle
+  territories: string[]
+  owner: PlayerId
+  holder?: string
+}
+
 export interface MapData {
   territories: Territory[]
   regions?: Region[]
@@ -210,6 +231,8 @@ export interface ScoreBreakdown {
   nobles: number
   troops: number
   resources: number
+  /** Absent on report snapshots recorded before issue #194. */
+  fiefs?: number
   total: number
 }
 
@@ -244,6 +267,7 @@ export interface StateData {
   players: Player[]
   territories: TerritoryState[]
   nobles: Noble[]
+  fiefs?: Fief[]
   specialHand?: CardKind[]
   activeRegionEffects?: ActiveRegionEffect[]
   announcements?: AnnouncementReport[]
@@ -377,6 +401,8 @@ export interface WinterLinePreview {
   status: WinterLineStatus
   type?: WinterOrderType
   territory?: string
+  /** Present only for `found_fief`: the whole group, capital first. */
+  territories?: string[]
   source?: string
   target?: string
   amount?: number
@@ -623,6 +649,9 @@ export interface WinterInvestmentReport {
   noble?: string
   nobleCode?: string
   nobleName?: string
+  /** Present only for `fief_founded`/`fief_assigned`. */
+  title?: FiefTitle
+  territories?: string[]
   reason?: string
   order?: WinterOrder
 }
@@ -636,6 +665,8 @@ export type WinterOrderType =
   | 'hostage'
   | 'dungeon'
   | 'transfer'
+  | 'found_fief'
+  | 'assign_fief'
 
 export interface WinterOrder {
   id?: string
@@ -646,6 +677,8 @@ export interface WinterOrder {
   source?: string
   target?: string
   amount?: number
+  /** Present only for `found_fief`: the whole group, capital first. */
+  territories?: string[]
 }
 
 export interface WinterStockReport {
@@ -702,6 +735,25 @@ export interface WinterReport {
   rumors?: RumorReport[]
 }
 
+/**
+ * One fief lifecycle change outside its constitution or attribution (those
+ * are recorded in `winter.investments` alongside the other investment
+ * orders): a conquered fief transferred to a new owner, a fief left vacant
+ * by the death of its titulaire, or a fief dissolved for losing its
+ * capital's castle or staying unassigned at the end of winter.
+ */
+export interface FiefReport {
+  kind: EventType
+  owner: PlayerId
+  previousOwner?: PlayerId
+  capital: string
+  title: FiefTitle
+  territories: string[]
+  noble?: string
+  nobleName?: string
+  reason?: string
+}
+
 export interface TurnReport {
   header: ReportHeader
   players: PlayerReport[]
@@ -720,4 +772,5 @@ export interface TurnReport {
   announcements?: AnnouncementReport[]
   augury?: AuguryReport
   winter?: WinterReport
+  fiefs?: FiefReport[]
 }

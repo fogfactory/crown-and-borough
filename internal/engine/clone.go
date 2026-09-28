@@ -54,6 +54,17 @@ func cloneGameState(source *models.GameState) *models.GameState {
 		}
 		clone.TerritoryStates[territoryID] = copyState
 	}
+	if source.Fiefs != nil {
+		clone.Fiefs = make([]models.Fief, len(source.Fiefs))
+		for i, fief := range source.Fiefs {
+			clone.Fiefs[i] = fief
+			clone.Fiefs[i].Territories = cloneSlice(fief.Territories)
+			if fief.HolderNobleID != nil {
+				holderNobleID := *fief.HolderNobleID
+				clone.Fiefs[i].HolderNobleID = &holderNobleID
+			}
+		}
+	}
 	clone.SpecialDeck = cloneSpecialDeck(source.SpecialDeck)
 	if source.Auguries != nil {
 		clone.Auguries = make(map[int]models.YearAugury, len(source.Auguries))

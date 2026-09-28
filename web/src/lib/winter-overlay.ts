@@ -9,6 +9,8 @@ export type WinterIntentionKind =
   | 'dungeon'
   | 'capital'
   | 'transfer'
+  | 'fief_found'
+  | 'fief_assign'
   | 'error'
 
 export type WinterIntentionSource = 'draft' | 'submitted'
@@ -20,6 +22,8 @@ export interface WinterIntention {
   source: WinterIntentionSource
   color?: string
   territory?: string
+  /** Present only for `fief_found`: the whole group, capital first. */
+  territories?: string[]
   sourceTerritory?: string
   targetTerritory?: string
   amount?: number
@@ -64,6 +68,10 @@ function kindOf(preview: WinterLinePreview): WinterIntentionKind {
       return 'capital'
     case 'transfer':
       return 'transfer'
+    case 'found_fief':
+      return 'fief_found'
+    case 'assign_fief':
+      return 'fief_assign'
     default:
       return 'error'
   }
@@ -105,6 +113,7 @@ export function buildWinterIntentions(
         noble: preview.noble,
         infrastructure: preview.infrastructure,
         level: preview.level,
+        territories: preview.type === 'found_fief' ? preview.territories : undefined,
       },
     ]
   })

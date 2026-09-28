@@ -67,7 +67,12 @@ liste d'investissements directs, traités dans l'ordre saisi :
 - `P N NNN` — placer le noble prisonnier `NNN` en statut `dungeon` ;
 - `L N NNN` — libérer le noble de code `NNN` ;
 - `G XXX YYY N` — transférer `N` ressources du château ou village `XXX` vers
-  le château ou village `YYY` d'un autre joueur.
+  le château ou village `YYY` d'un autre joueur ;
+- `T F NNN XXX YYY ZZZ …` — constituer un fief : `NNN` est le noble titulaire,
+  `XXX` la capitale (premier territoire, qui doit porter un château), suivi
+  du reste du groupe (voir [titres.md](titres.md#constitution-dun-fief)) ;
+- `T A NNN XXX` — attribuer le fief vacant de capitale `XXX` au noble libre
+  `NNN` du joueur qui le détient.
 
 `XXX` est le trigramme du territoire ciblé, sauf pour `O N`, `P N` et `L N`,
 qui ciblent un noble. La feuille d'hiver peut aussi contenir `D C KIND` pour
@@ -90,6 +95,8 @@ paiement, donc un ordre rejeté ne prélève aucune ressource.
 | Dépôt de vivres | 3 |
 | Changement de statut d'un noble | 0 |
 | Libération d'un noble | 0 |
+| Fief (par territoire du groupe) | 2 |
+| Attribution d'un fief vacant | 0 |
 
 Un moulin peut atteindre le niveau 3 inclus. Une construction coûte 3 R et les
 passages aux niveaux 2 et 3 coûtent respectivement 5 R et 7 R. Un ordre `C M`
@@ -119,6 +126,9 @@ au paiement d'hiver habituel (voir [economie.md](economie.md#amélioration-dun-m
   laissant au maximum 1 R par village et 2 R par château hors capitale ; le
   stock d'un moulin n'est jamais rapatrié ;
 - sans capitale, les stocks restent sur place ;
+- tout fief encore vacant (sans titulaire) est dissous : ses territoires
+  redeviennent contrôlés hors fief, sans effet rétroactif sur les points déjà
+  comptés (voir [titres.md](titres.md#perte-et-vacance-dun-fief)) ;
 - la saison suivante est le printemps.
 
 Les stocks hors château et village ne peuvent pas payer les investissements
@@ -331,7 +341,9 @@ Les règles de combat sont les suivantes :
   attaquante ne remporte le combat (statu quo ou défense conservée) ;
 - un château apporte son bonus défensif fixe, même sans armée, sauf si tous les
   attaquants appartiennent au propriétaire du château (auto-capture d'un château
-  ami vide) ;
+  ami vide) ; le château de la capitale d'un fief est une cité et apporte à la
+  place un bonus fixe supérieur, sans cumul avec le bonus de château (voir
+  [titres.md](titres.md#constitution-dun-fief)) ;
 - une jonction ou une dispersion dont l'origine est visée par une attaque,
   quel qu'en soit l'auteur (allié, ennemi, ou une attaque à force nulle faute
   de vivres), est annulée d'emblée : aucune de ses troupes ne part, qu'elle
@@ -520,7 +532,7 @@ en bénéficie ; il n'y a pas de propriétaire stocké sur l'infrastructure.
 |---|---|---|---:|
 | Moulin | Construction sur case vide contrôlée, adjacente à un château ou village (voisinage requis pour la construction seulement, pas pour l'amélioration) | `N` R par niveau, versés à une seule infrastructure : le château adjacent du même contrôleur, sinon le village adjacent du même contrôleur, sinon la case du moulin elle-même (voir [economie.md](economie.md#moulins)) | 3 / 5 / 7 |
 | Dépôt de vivres | Aucune condition structurelle | +2 cases de portée de ravitaillement lorsqu'il est contrôlé | 3 |
-| Château | Aucune | +1 défense, ancre de ravitaillement, verse le revenu territorial (§3) | 10 |
+| Château | Aucune | +1 défense, ancre de ravitaillement, verse le revenu territorial (§3) ; devient une cité (+2 défense au lieu de +1) lorsqu'il est la capitale d'un fief ([titres.md](titres.md#constitution-dun-fief)) | 10 |
 | Village | Généré neutre, non constructible | Ancre après capture, verse le revenu territorial une fois contrôlé ; produit `village_income` R par tour tant qu'il reste neutre | — |
 
 Un moulin isolé (sans château ni village adjacent du même contrôleur) produit
@@ -566,6 +578,7 @@ Le score d'un joueur est la somme des éléments suivants :
 | Noble détenu | 2 |
 | Troupe | 1 par unité dans ses armées |
 | Ressource `R` | 1 par unité en stock sur ses territoires contrôlés |
+| Fief détenu | 1, vacant compris, jusqu'à sa dissolution ([titres.md](titres.md)) |
 
 Les points d'infrastructure et de ressource ne sont attribués que lorsque le
 territoire est contrôlé. Un noble libre est compté pour son propriétaire. Un

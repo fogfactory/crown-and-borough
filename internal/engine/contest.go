@@ -130,8 +130,8 @@ func (adj *adjudicator) contestResults() map[models.TerritoryID]contestResult {
 		defender := ctx.startArmyAt(territoryID)
 		present := defender != nil && adj.stays(defender.ID)
 		result := contestResult{territoryID: territoryID}
-		if ctx.hasCastle(territoryID) && (present || !ctx.castleOwnedByAllAttackers(territoryID)) {
-			result.castleBonus = ctx.balance.CastleDefenseBonus
+		if present || !ctx.castleOwnedByAllAttackers(territoryID) {
+			result.castleBonus = ctx.fortificationBonus(territoryID)
 		}
 		result.baseDefense, result.defense = result.castleBonus, result.castleBonus
 		defenderOwnerID := models.PlayerID("")

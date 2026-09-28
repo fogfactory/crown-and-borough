@@ -54,6 +54,7 @@ type GameState struct {
 	SpecialDeck         *SpecialDeck                   `json:"specialDeck,omitempty"`
 	Auguries            map[int]YearAugury             `json:"auguries"`
 	ActiveRegionEffects []ActiveRegionEffect           `json:"activeRegionEffects"`
+	Fiefs               []Fief                         `json:"fiefs,omitempty"`
 }
 
 // NewGameState returns a fresh empty state at turn 1, spring of year 1, with
@@ -81,6 +82,9 @@ func NewGameState() *GameState {
 		Regions:             []Region{},
 		Auguries:            map[int]YearAugury{},
 		ActiveRegionEffects: []ActiveRegionEffect{},
+		// Fiefs is left nil: unlike the collections above, it is tagged
+		// omitempty (no fief exists in most games) so a round-tripped state
+		// must stay nil rather than an empty non-nil slice.
 	}
 }
 
@@ -506,6 +510,63 @@ func (g *GameState) Validate() error {
 		state := g.TerritoryStates[infrastructure.TerritoryID]
 		if state.OwnerID == nil || *state.OwnerID != player.ID {
 			return fmt.Errorf("models: player %q: capital castle %q is not controlled by its owner", player.ID, *player.CapitalCastleID)
+		}
+	}
+	// 10. Fiefs: unique id, a title matching the group size, the capital first
+	// in a territory group without duplicates or overlap with another fief, a
+	// known owner controlling the capital, and an optional holder noble owned
+	// by the same player. A castle on the capital is NOT required here:
+	// losing it dissolves the fief immediately (see engine), so a state
+	// observed mid-resolution never needs one structurally.
+	fiefIDs := make(map[FiefID]bool, len(g.Fiefs))
+	fiefTerritories := make(map[TerritoryID]FiefID, len(g.Territories))
+	for i := range g.Fiefs {
+		fief := &g.Fiefs[i]
+		if fief.ID == "" {
+			return fmt.Errorf("models: fief: empty id")
+		}
+		if fiefIDs[fief.ID] {
+			return fmt.Errorf("models: fief %q: duplicate id", fief.ID)
+		}
+		fiefIDs[fief.ID] = true
+		if len(fief.Territories) < FiefMinTerritories {
+			return fmt.Errorf("models: fief %q: must have at least %d territories, got %d", fief.ID, FiefMinTerritories, len(fief.Territories))
+		}
+		wantTitle, ok := FiefTitleForSize(len(fief.Territories))
+		if !ok || fief.Title != wantTitle {
+			return fmt.Errorf("models: fief %q: title %q does not match its %d territories (want %q)", fief.ID, fief.Title, len(fief.Territories), wantTitle)
+		}
+		if len(fief.Territories) == 0 || fief.Territories[0] != fief.CapitalTerritoryID {
+			return fmt.Errorf("models: fief %q: first territory must be the capital %q", fief.ID, fief.CapitalTerritoryID)
+		}
+		seen := make(map[TerritoryID]bool, len(fief.Territories))
+		for _, territoryID := range fief.Territories {
+			if terrs[territoryID] == nil {
+				return fmt.Errorf("models: fief %q: unknown territory %q", fief.ID, territoryID)
+			}
+			if seen[territoryID] {
+				return fmt.Errorf("models: fief %q: duplicate territory %q", fief.ID, territoryID)
+			}
+			seen[territoryID] = true
+			if otherFief, exists := fiefTerritories[territoryID]; exists {
+				return fmt.Errorf("models: fief %q: territory %q already belongs to fief %q", fief.ID, territoryID, otherFief)
+			}
+			fiefTerritories[territoryID] = fief.ID
+		}
+		if !players[fief.OwnerID] {
+			return fmt.Errorf("models: fief %q: unknown owner %q", fief.ID, fief.OwnerID)
+		}
+		capitalState, exists := g.TerritoryStates[fief.CapitalTerritoryID]
+		if !exists || capitalState.OwnerID == nil || *capitalState.OwnerID != fief.OwnerID {
+			return fmt.Errorf("models: fief %q: capital %q is not controlled by owner %q", fief.ID, fief.CapitalTerritoryID, fief.OwnerID)
+		}
+		if fief.HolderNobleID != nil {
+			if !nobles[*fief.HolderNobleID] {
+				return fmt.Errorf("models: fief %q: unknown holder noble %q", fief.ID, *fief.HolderNobleID)
+			}
+			if nobleOwners[*fief.HolderNobleID] != fief.OwnerID {
+				return fmt.Errorf("models: fief %q: holder noble %q belongs to %q, not owner %q", fief.ID, *fief.HolderNobleID, nobleOwners[*fief.HolderNobleID], fief.OwnerID)
+			}
 		}
 	}
 	if err := validateSpecialDeck(g.SpecialDeck, g.Auguries, players); err != nil {

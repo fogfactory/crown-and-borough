@@ -30,6 +30,11 @@ func ptrInfraID(id string) *models.InfraID {
 	return &infrastructureID
 }
 
+func ptrNobleID(id string) *models.NobleID {
+	nobleID := models.NobleID(id)
+	return &nobleID
+}
+
 // validState returns a complete, valid state: 2 players, 4 territories in a
 // ring with commune trigrams, 2 armies, 1 noble, 1 mill level 2 and 1 castle,
 // 1 neutral territory, and stock on its castle. Tests mutate a fresh instance to build
@@ -140,6 +145,8 @@ func TestWinterOrderTypeIsValid(t *testing.T) {
 		models.WinterOrderTypeHostage,
 		models.WinterOrderTypeDungeon,
 		models.WinterOrderTypeTransfer,
+		models.WinterOrderTypeFoundFief,
+		models.WinterOrderTypeAssignFief,
 	} {
 		if !valid.IsValid() {
 			t.Errorf("WinterOrderType %q: want valid", valid)
@@ -470,6 +477,131 @@ func TestTrigramInvariants(t *testing.T) {
 				t.Fatalf("Validate() error %q does not contain %q", err, tc.want)
 			}
 		})
+	}
+}
+
+// validFiefState extends validState with a 3-territory fief (BRU as capital,
+// where the castle already sits, plus BCL and ROS) held by P1 with no
+// titleholder, so tests can attach a holder or mutate a single invariant.
+func validFiefState() *models.GameState {
+	g := validState()
+	bcl := g.TerritoryStates["BCL"]
+	bcl.OwnerID = ptrID("P1")
+	g.TerritoryStates["BCL"] = bcl
+	g.Fiefs = []models.Fief{{
+		ID:                 "F1",
+		Title:              models.FiefTitleBarony,
+		CapitalTerritoryID: "BRU",
+		Territories:        []models.TerritoryID{"BRU", "BCL", "ROS"},
+		OwnerID:            "P1",
+	}}
+	return g
+}
+
+func TestValidateFiefValid(t *testing.T) {
+	g := validFiefState()
+	if err := g.Validate(); err != nil {
+		t.Errorf("Validate() = %v, want nil", err)
+	}
+}
+
+func TestValidateFiefNilIsAccepted(t *testing.T) {
+	g := validState()
+	if g.Fiefs != nil {
+		t.Fatalf("validState() already sets Fiefs = %#v, want nil", g.Fiefs)
+	}
+	if err := g.Validate(); err != nil {
+		t.Errorf("Validate() with nil Fiefs = %v, want nil", err)
+	}
+}
+
+func TestValidateFiefWithHolder(t *testing.T) {
+	g := validFiefState()
+	g.Fiefs[0].HolderNobleID = ptrNobleID("N1")
+	if err := g.Validate(); err != nil {
+		t.Errorf("Validate() = %v, want nil", err)
+	}
+}
+
+func TestValidateFiefErrors(t *testing.T) {
+	cases := []struct {
+		name   string
+		mutate func(g *models.GameState)
+		want   string
+	}{
+		{"empty id", func(g *models.GameState) { g.Fiefs[0].ID = "" }, "empty id"},
+		{"duplicate id", func(g *models.GameState) {
+			g.Fiefs = append(g.Fiefs, g.Fiefs[0])
+		}, "duplicate id"},
+		{"too few territories", func(g *models.GameState) {
+			g.Fiefs[0].Territories = []models.TerritoryID{"BRU", "BCL"}
+		}, "at least 3 territories"},
+		{"title does not match size", func(g *models.GameState) {
+			g.Fiefs[0].Title = models.FiefTitleCounty
+		}, "does not match"},
+		{"capital not first", func(g *models.GameState) {
+			g.Fiefs[0].Territories = []models.TerritoryID{"BCL", "BRU", "ROS"}
+		}, "must be the capital"},
+		{"unknown territory", func(g *models.GameState) {
+			g.Fiefs[0].Territories = []models.TerritoryID{"BRU", "BCL", "ZZZ"}
+		}, "unknown territory"},
+		{"duplicate territory", func(g *models.GameState) {
+			g.Fiefs[0].Territories = []models.TerritoryID{"BRU", "BCL", "BCL"}
+		}, "duplicate territory"},
+		{"territory already in another fief", func(g *models.GameState) {
+			g.Fiefs = append(g.Fiefs, models.Fief{
+				ID: "F2", Title: models.FiefTitleBarony, CapitalTerritoryID: "BRU",
+				Territories: []models.TerritoryID{"BRU", "BCL", "ROS"}, OwnerID: "P1",
+			})
+		}, "already belongs to fief"},
+		{"unknown owner", func(g *models.GameState) { g.Fiefs[0].OwnerID = "P9" }, "unknown owner"},
+		{"capital not controlled by owner", func(g *models.GameState) {
+			bru := g.TerritoryStates["BRU"]
+			bru.OwnerID = ptrID("P2")
+			g.TerritoryStates["BRU"] = bru
+		}, "is not controlled by owner"},
+		{"unknown holder noble", func(g *models.GameState) {
+			g.Fiefs[0].HolderNobleID = ptrNobleID("N9")
+		}, "unknown holder noble"},
+		{"holder noble owned by another player", func(g *models.GameState) {
+			g.Nobles = append(g.Nobles, models.Noble{ID: "N2", Code: "ANN", Name: "Anne", OwnerID: "P2", LocationID: "BCL", Status: models.NobleStatusFree})
+			g.Fiefs[0].HolderNobleID = ptrNobleID("N2")
+		}, "belongs to"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			g := validFiefState()
+			tc.mutate(g)
+			err := g.Validate()
+			if err == nil {
+				t.Fatalf("Validate() = nil, want error containing %q", tc.want)
+			}
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("Validate() error %q does not contain %q", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestFiefTitleForSize(t *testing.T) {
+	cases := []struct {
+		size  int
+		title models.FiefTitle
+		ok    bool
+	}{
+		{0, "", false},
+		{2, "", false},
+		{3, models.FiefTitleBarony, true},
+		{4, models.FiefTitleCounty, true},
+		{5, models.FiefTitleMarquisate, true},
+		{6, models.FiefTitleDuchy, true},
+		{9, models.FiefTitleDuchy, true},
+	}
+	for _, tc := range cases {
+		title, ok := models.FiefTitleForSize(tc.size)
+		if title != tc.title || ok != tc.ok {
+			t.Errorf("FiefTitleForSize(%d) = (%q, %v), want (%q, %v)", tc.size, title, ok, tc.title, tc.ok)
+		}
 	}
 }
 

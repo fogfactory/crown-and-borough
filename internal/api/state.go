@@ -23,6 +23,7 @@ type StateView struct {
 	Players             []PlayerView                              `json:"players"`
 	Territories         []TerritoryView                           `json:"territories"`
 	Nobles              []NobleView                               `json:"nobles"`
+	Fiefs               []FiefView                                `json:"fiefs"`
 	SpecialHand         []models.CardKind                         `json:"specialHand"`
 	ActiveRegionEffects []models.ActiveRegionEffect               `json:"activeRegionEffects"`
 	Announcements       []engine.AnnouncementReport               `json:"announcements"`
@@ -152,6 +153,17 @@ type NobleView struct {
 	Status   models.NobleStatus `json:"status"`
 }
 
+// FiefView is a fief addressed by its capital's trigram: no internal fief id
+// is exposed to the client (titres.md, #194). Holder is nil when the fief is
+// vacant.
+type FiefView struct {
+	Capital     models.TerritoryID   `json:"capital"`
+	Title       models.FiefTitle     `json:"title"`
+	Territories []models.TerritoryID `json:"territories"`
+	Owner       models.PlayerID      `json:"owner"`
+	Holder      *models.NobleCode    `json:"holder,omitempty"`
+}
+
 func projectState(state *models.GameState, balance assetgen.Balance) StateView {
 	return projectStateForViewer(state, nil, balance)
 }
@@ -180,6 +192,7 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 		Players:             []PlayerView{},
 		Territories:         []TerritoryView{},
 		Nobles:              []NobleView{},
+		Fiefs:               []FiefView{},
 		SpecialHand:         []models.CardKind{},
 		ActiveRegionEffects: []models.ActiveRegionEffect{},
 		Announcements:       []engine.AnnouncementReport{},
@@ -301,6 +314,20 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 			Location: noble.LocationID,
 			Status:   noble.Status,
 		})
+	}
+	for _, fief := range state.Fiefs {
+		fiefView := FiefView{
+			Capital:     fief.CapitalTerritoryID,
+			Title:       fief.Title,
+			Territories: append([]models.TerritoryID(nil), fief.Territories...),
+			Owner:       fief.OwnerID,
+		}
+		if fief.HolderNobleID != nil {
+			if code, exists := nobleCodesByID[*fief.HolderNobleID]; exists {
+				fiefView.Holder = &code
+			}
+		}
+		view.Fiefs = append(view.Fiefs, fiefView)
 	}
 	if viewer != nil && state.SpecialDeck != nil {
 		cardKinds := make(map[models.SpecialCardID]models.CardKind, len(state.SpecialDeck.Cards))

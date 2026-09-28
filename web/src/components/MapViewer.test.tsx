@@ -547,6 +547,32 @@ describe('MapViewer territorial overlays', () => {
     expect(svg.querySelectorAll('[data-ownership-badge]').length).toBe(0)
   })
 
+  it('prints the fief capital trigram on each member territory ownership badge', () => {
+    const fiefState: StateData = {
+      ...state,
+      players: [{ id: 'P1', name: 'One', color: '#123456' }],
+      fiefs: [
+        { capital: 'ROS', title: 'barony', territories: ['ROS', 'BRU'], owner: 'P1' },
+      ],
+    }
+    const { svg } = renderMap(map, fiefState)
+
+    // The capital label tag still shows.
+    expect(svg.querySelector('g[aria-label="Fiefs"]')).not.toBeNull()
+    // No boundary outline is drawn anymore: the badges below suffice.
+    expect(svg.querySelector('[data-fief-outline]')).toBeNull()
+
+    const controlLayer = svg.querySelector('g[aria-label="Territorial control"]')
+    const rosBadge = controlLayer?.querySelector('[data-ownership-badge="P1"]')
+    expect(rosBadge?.querySelector('text')?.textContent).toBe('ROS')
+  })
+
+  it('omits the fief layer when the game has no fiefs', () => {
+    const { svg } = renderMap()
+
+    expect(svg.querySelector('g[aria-label="Fiefs"]')).toBeNull()
+  })
+
   it('scales map annotations with the mean territory area', () => {
     const scaledState: StateData = {
       ...state,
@@ -1196,6 +1222,13 @@ describe('MapViewer intentions overlay', () => {
     expect(lines.map((line) => line.getAttribute('stroke'))).toEqual([
       DRAFT_INTENTION_COLOR,
       '#a84632',
+    ])
+    // The draft is still tentative, so its whole group (line, outline,
+    // badge) renders lighter than the installed chain's full-strength group.
+    const groups = svg.querySelectorAll('g[aria-label="Intentions overlay"] > g')
+    expect(Array.from(groups).map((group) => group.getAttribute('opacity'))).toEqual([
+      '0.6',
+      '1',
     ])
   })
 

@@ -157,6 +157,81 @@ func TestParseWinterOrders(t *testing.T) {
 	})
 }
 
+func TestParseWinterOrdersFief(t *testing.T) {
+	state := winterTestState(t,
+		[]models.Territory{
+			territory("AAA", "AAA"), territory("BBB", "BBB"), territory("CCC", "CCC"),
+			territory("DDD", "DDD"),
+		},
+		nil,
+	)
+	addNoble(state, "N1", "NOB", "P1", "AAA")
+	validateTestState(t, state)
+
+	t.Run("T F parses the noble then the capital-first group", func(t *testing.T) {
+		parsed, parseErrors := orders.ParseWinterOrders("t f nob aaa bbb ccc", state)
+		if len(parseErrors) != 0 {
+			t.Fatalf("ParseWinterOrders errors = %#v", parseErrors)
+		}
+		if len(parsed) != 1 {
+			t.Fatalf("len(parsed) = %d, want 1", len(parsed))
+		}
+		order := parsed[0]
+		if order.Type != models.WinterOrderTypeFoundFief {
+			t.Fatalf("Type = %q, want found_fief", order.Type)
+		}
+		if order.NobleCode != "NOB" {
+			t.Errorf("NobleCode = %q, want NOB", order.NobleCode)
+		}
+		if order.TerritoryID != "AAA" {
+			t.Errorf("TerritoryID = %q, want AAA (capital)", order.TerritoryID)
+		}
+		if got, want := order.TerritoryIDs, []models.TerritoryID{"AAA", "BBB", "CCC"}; !reflect.DeepEqual(got, want) {
+			t.Errorf("TerritoryIDs = %#v, want %#v", got, want)
+		}
+	})
+
+	t.Run("T F accepts groups larger than the minimum", func(t *testing.T) {
+		parsed, parseErrors := orders.ParseWinterOrders("T F NOB AAA BBB CCC DDD", state)
+		if len(parseErrors) != 0 {
+			t.Fatalf("ParseWinterOrders errors = %#v", parseErrors)
+		}
+		if got, want := parsed[0].TerritoryIDs, []models.TerritoryID{"AAA", "BBB", "CCC", "DDD"}; !reflect.DeepEqual(got, want) {
+			t.Errorf("TerritoryIDs = %#v, want %#v", got, want)
+		}
+	})
+
+	t.Run("T A parses the free noble and the fief capital", func(t *testing.T) {
+		parsed, parseErrors := orders.ParseWinterOrders("T A NOB AAA", state)
+		if len(parseErrors) != 0 {
+			t.Fatalf("ParseWinterOrders errors = %#v", parseErrors)
+		}
+		if len(parsed) != 1 {
+			t.Fatalf("len(parsed) = %d, want 1", len(parsed))
+		}
+		order := parsed[0]
+		if order.Type != models.WinterOrderTypeAssignFief || order.NobleCode != "NOB" || order.TerritoryID != "AAA" {
+			t.Errorf("order = %#v, want assign_fief NOB AAA", order)
+		}
+	})
+
+	t.Run("rejects malformed T lines", func(t *testing.T) {
+		cases := []string{
+			"T X AAA BBB CCC", // unknown subtype
+			"T F NOB AAA BBB", // fewer than 3 territories
+			"T A NOB",         // missing capital
+			"T A NOB AAA BBB", // too many targets
+			"T F ZZZ AAA BBB CCC",
+			"T A NOB ZZZ",
+		}
+		for _, line := range cases {
+			if _, parseErrors := orders.ParseWinterOrders(line, state); len(parseErrors) == 0 {
+				t.Errorf("ParseWinterOrders(%q) = no error, want one", line)
+			}
+		}
+	})
+}
+
 func TestResolveWinterPaymentOrder(t *testing.T) {
 	t.Run("target settlement pays before another source", func(t *testing.T) {
 		balance := testBalance()

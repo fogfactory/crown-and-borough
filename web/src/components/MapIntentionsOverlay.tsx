@@ -30,7 +30,7 @@ export function IntentionsOverlay({
           `url(#intent-${kind}${isDraft ? '-draft' : ''})`
 
         return (
-          <g key={`${intention.armyTerritory}-${index}`}>
+          <g key={`${intention.armyTerritory}-${index}`} opacity={isDraft ? 0.6 : 1}>
             <title>
               {intention.nobleCode ? `${intention.nobleCode} · ` : ''}
               {intention.label}

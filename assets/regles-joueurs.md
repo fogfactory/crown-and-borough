@@ -396,7 +396,9 @@ même chaîne — il n'existe pas d'ordres mixtes au sein d'une armée.
 - la défense d'une armée reçoit ce bonus dans les mêmes conditions ;
 - un château apporte un bonus défensif fixe de **+{{castle_defense_bonus}}**,
   même sans armée — sauf si tous les attaquants appartiennent à son
-  propriétaire (voir l'auto-capture, section 5) ;
+  propriétaire (voir l'auto-capture, section 5) ; le château d'une capitale
+  de fief est une **cité** et apporte **+{{city_defense_bonus}}** à la place
+  (voir « Fiefs », section 8) ;
 - la plus haute force **strictement unique** l'emporte ; une égalité au
   sommet produit un **statu quo**, y compris sur une case vide ;
 - on ne déloge jamais sa propre armée : une attaque sur une case tenue par
@@ -599,7 +601,7 @@ conditions de construction sont détaillés section 8.
 |---|---|
 | Moulin | `N` R stockable par niveau, versés à une seule infrastructure adjacente (château, sinon village, sinon lui-même) |
 | Dépôt de vivres | +{{depot_range_bonus}} cases de portée de ravitaillement lorsqu'il est contrôlé |
-| Château | +{{castle_defense_bonus}} défense, ancre de ravitaillement, verse le revenu territorial (section 7) |
+| Château | +{{castle_defense_bonus}} défense, ancre de ravitaillement, verse le revenu territorial (section 7) ; devient une cité (+{{city_defense_bonus}}, sans cumul) sur la capitale d'un fief (section 8) |
 | Village | Ancre après capture, verse le revenu territorial une fois contrôlé (produit {{village_income}} R par tour dans son propre stock tant qu'il est neutre) |
 
 ---
@@ -621,6 +623,8 @@ investissements directs, une ligne par ordre, appliqués dans l'ordre saisi.
 | Placer un noble au donjon | `P N NNN` | `NNN` est un prisonnier adverse détenu par le joueur | 0 |
 | Libérer un noble | `L N NNN` | `NNN` est détenu par le joueur ; la capitale de son propriétaire contient une armée de celui-ci | {{costs.liberation}} |
 | Transférer des ressources | `G XXX YYY N` | `XXX` est un château ou village contrôlé par le donneur ; `YYY` est un château ou village contrôlé par un autre joueur | 0 |
+| Constituer un fief | `T F NNN XXX YYY ZZZ …` | `NNN` est un noble libre du joueur ; `XXX` (capitale) et le reste du groupe sont contrôlés, contigus et sans château requis hors capitale ; aucun territoire déjà en fief ; aucune armée adverse ou de révolte sur le groupe | {{costs.fief_per_territory}} par territoire |
+| Attribuer un fief vacant | `T A NNN XXX` | `NNN` est un noble libre du joueur ; `XXX` est la capitale d'un fief vacant qu'il détient | 0 |
 
 C'est ici, en hiver, que se règle le sort des nobles ennemis capturés en
 combat (section 6) : `O`/`P` fait basculer un prisonnier entre `hostage` et
@@ -655,6 +659,28 @@ quand la règle le prévoit : un **château construit sur un village remplace
 le village** et conserve le stock de la case. Un moulin isolé (sans château
 ni village adjacent du même contrôleur) produit sur sa propre case (voir
 section 7) et peut toujours être amélioré.
+
+### Fiefs
+
+`T F` constitue un fief : un groupe d'au moins 3 territoires contrôlés et
+contigus, dont le premier est la **capitale** (elle seule doit porter un
+château). Le titre dépend de la taille du groupe : baronnie (3), comté (4),
+marquisat (5), duché (6 et plus). Le château de la capitale devient une
+**cité** et apporte **+{{city_defense_bonus}}** en défense au total (à la
+place du bonus de château habituel, pas en plus). Le titre appartient au
+noble titulaire désigné, qui doit être libre au moment de la constitution ;
+un même noble peut porter plusieurs titres, et un joueur peut détenir
+plusieurs fiefs.
+
+Si le titulaire meurt (peste) ou si la capitale change de main, le fief
+devient **vacant** : il continue de produire et de compter son point de score,
+mais n'a plus de titulaire. `T A` l'attribue alors à un noble libre du joueur
+qui le détient ; sans attribution avant la fin de l'hiver, le fief est
+dissous et ses territoires redeviennent des territoires ordinaires. Si le
+château de la capitale est détruit (pillage, y compris le pillage
+automatique de famine), le fief est dissous **immédiatement**, quelle que
+soit la saison. La capture du titulaire (otage ou donjon) n'a, elle, aucun
+effet sur le fief.
 
 ### Vocabulaire des ressources
 
@@ -819,6 +845,7 @@ parfaite au sommet ne désigne aucun gagnant.
 | Noble détenu | 2 |
 | Troupe | 1 par unité dans ses armées |
 | Ressource `R` | 1 par unité en stock sur ses territoires contrôlés |
+| Fief détenu | 1, vacant compris, jusqu'à sa dissolution |
 
 Les infrastructures et les ressources ne rapportent des points que sur un
 territoire contrôlé. Un noble libre compte pour son propriétaire ; un noble

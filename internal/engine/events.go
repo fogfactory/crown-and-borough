@@ -56,6 +56,11 @@ const (
 	EventTypeConsumption       EventType = "consumption"
 	EventTypeCardCanceled      EventType = "card_canceled"
 	EventTypeRumor             EventType = "rumor"
+	EventTypeFiefFounded       EventType = "fief_founded"
+	EventTypeFiefAssigned      EventType = "fief_assigned"
+	EventTypeFiefConquered     EventType = "fief_conquered"
+	EventTypeFiefVacated       EventType = "fief_vacated"
+	EventTypeFiefDissolved     EventType = "fief_dissolved"
 )
 
 // Outcome is the execution result of one current order.
@@ -177,4 +182,8 @@ type Event struct {
 	IndexBefore     int                 `json:"indexBefore,omitempty"`
 	IndexAfter      int                 `json:"indexAfter,omitempty"`
 	WinterOrder     *models.WinterOrder `json:"winterOrder,omitempty"`
+
+	FiefID          models.FiefID        `json:"fiefId,omitempty"`
+	FiefTitle       models.FiefTitle     `json:"fiefTitle,omitempty"`
+	FiefTerritories []models.TerritoryID `json:"fiefTerritories,omitempty"`
 }

@@ -372,7 +372,8 @@ orders.
 - an army's defense receives the same bonus under the same condition;
 - a castle gives a fixed defensive bonus of **+{{castle_defense_bonus}}**,
   even without an army — unless all attackers belong to the castle's owner
-  (see self-capture, section 5);
+  (see self-capture, section 5); a fief capital's castle is a **city** and
+  gives **+{{city_defense_bonus}}** instead (see "Fiefs", section 8);
 - the **strictly unique** highest strength wins; a top tie produces a
   **standoff**, including on an empty territory;
 - you never dislodge your own army: an attack on a territory held by one of
@@ -563,7 +564,7 @@ conditions are detailed in section 8.
 |---|---|
 | Mill | `N` stockable R per level, credited to a single adjacent infrastructure (castle, else village, else itself) |
 | Supply depot | +{{depot_range_bonus}} territories of supply range when controlled |
-| Castle | +{{castle_defense_bonus}} defense, supply anchor, receives territory income (section 7) |
+| Castle | +{{castle_defense_bonus}} defense, supply anchor, receives territory income (section 7); becomes a city (+{{city_defense_bonus}}, not stacked) on a fief's capital (section 8) |
 | Village | Supply anchor after capture, receives territory income once controlled (produces {{village_income}} R per turn into its own stock while neutral) |
 
 ---
@@ -585,6 +586,8 @@ per line, applied in the entered order.
 | Place a noble in the dungeon | `P N NNN` | `NNN` is an opposing prisoner held by the player | 0 |
 | Liberate a noble | `L N NNN` | `NNN` is held by the player; its owner's capital contains one of that owner's armies | {{costs.liberation}} |
 | Transfer resources | `G XXX YYY N` | `XXX` is a castle or village controlled by the donor; `YYY` is a castle or village controlled by another player | 0 |
+| Found a fief | `T F NNN XXX YYY ZZZ …` | `NNN` is a free player noble; `XXX` (capital) and the rest of the group are controlled, contiguous, and need no castle outside the capital; no territory already in a fief; no enemy or revolt army on the group | {{costs.fief_per_territory}} per territory |
+| Assign a vacant fief | `T A NNN XXX` | `NNN` is a free player noble; `XXX` is the capital of a vacant fief the player holds | 0 |
 
 This is where, in winter, the fate of enemy nobles captured in combat
 (section 6) is decided: `O`/`P` moves a prisoner between `hostage` and
@@ -616,6 +619,26 @@ construction replaces the existing structure only when the rule says so: a
 **castle built on a village replaces the village** and keeps the territory's
 stock. An isolated mill (no castle or village of its own control adjacent)
 produces on its own territory (see section 7) and can always be upgraded.
+
+### Fiefs
+
+`T F` founds a fief: a group of at least 3 controlled, contiguous
+territories, whose first entry is the **capital** (only it needs a castle).
+The title depends on the group's size: barony (3), county (4), marquisate
+(5), duchy (6 or more). The capital's castle becomes a **city** and provides
+**+{{city_defense_bonus}}** defense in total (replacing the usual castle
+bonus, not stacking with it). The title belongs to the designated titulaire
+noble, who must be free at the time of founding; a single noble may hold
+several titles, and a player may hold several fiefs.
+
+If the titulaire dies (plague) or the capital changes hands, the fief becomes
+**vacant**: it keeps producing and scoring its point, but has no titulaire.
+`T A` then assigns it to a free noble of the player who holds it; without an
+assignment before the end of winter, the fief is dissolved and its
+territories revert to ordinary control. If the capital's castle is destroyed
+(pillage, including automatic famine pillage), the fief is dissolved
+**immediately**, regardless of the season. Capturing the titulaire (hostage
+or dungeon), by contrast, has no effect on the fief.
 
 ### Resource Vocabulary
 
@@ -771,6 +794,7 @@ no winner.
 | Held noble | 2 |
 | Troop | 1 per unit in their armies |
 | Resource `R` | 1 per unit in stock on their controlled territories |
+| Held fief | 1, vacant included, until dissolved |
 
 Infrastructure and resources only score on a controlled territory. A free
 noble counts for its owner. A captured noble, hostage or in the dungeon,

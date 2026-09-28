@@ -235,6 +235,9 @@ func (ctx *resolutionContext) removeInfrastructureWithStock(infrastructureID mod
 				player.CapitalCastleID = nil
 			}
 		}
+		// Losing a fief capital's castle dissolves the fief immediately,
+		// regardless of why the castle disappeared (titres.md).
+		ctx.dissolveFiefOnCapitalCastleLoss(infrastructure.TerritoryID)
 	}
 	filtered := make([]models.Infrastructure, 0, len(ctx.state.Infrastructures)-1)
 	for _, candidate := range ctx.state.Infrastructures {

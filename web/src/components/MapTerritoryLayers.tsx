@@ -6,21 +6,35 @@ import {
 import { useLanguage } from '@/i18n/LanguageContext'
 import { centroid } from '@/lib/map-svg-geometry'
 import type { RegionStyle } from '@/lib/region-color'
-import type { Region, StateData, Territory } from '@/types'
+import type { Fief, Region, StateData, Territory } from '@/types'
 
-/** Owner shields under each controlled territory's center. */
+/**
+ * Owner shields under each controlled territory's center. A territory that
+ * belongs to a fief prints its capital's trigram on the shield instead of a
+ * plain color, so several fiefs held by the same player stay tellable apart
+ * (titres.md, issue #194) — membership doesn't move control until #196, so
+ * the shield still reflects the territory's own owner either way.
+ */
 export function OwnershipLayer({
   territories,
   state,
   playerColors,
   annotationScale,
+  fiefs = [],
 }: {
   territories: Territory[]
   state: StateData
   playerColors: Map<string, string>
   annotationScale: number
+  fiefs?: Fief[]
 }) {
   const { t } = useLanguage()
+  const fiefCapitalByTerritory = new Map<string, string>()
+  for (const fief of fiefs) {
+    for (const territoryId of fief.territories) {
+      fiefCapitalByTerritory.set(territoryId, fief.capital)
+    }
+  }
 
   return (
     <g aria-label={t('map.control')} pointerEvents="none">
@@ -36,6 +50,10 @@ export function OwnershipLayer({
         const [centerX, centerY] = centroid(territory.points)
         const ownerName =
           state.players.find((player) => player.id === owner)?.name ?? owner
+        const fiefCapital = fiefCapitalByTerritory.get(territory.id)
+        const label = fiefCapital
+          ? t('map.ownershipBadgeFief', { owner: ownerName, capital: fiefCapital })
+          : t('map.ownershipBadge', { owner: ownerName })
         return (
           <OwnershipBadge
             key={territory.id}
@@ -44,7 +62,8 @@ export function OwnershipLayer({
             y={centerY + 26 * annotationScale}
             color={playerColors.get(owner) ?? '#475569'}
             scale={annotationScale}
-            label={t('map.ownershipBadge', { owner: ownerName })}
+            code={fiefCapital}
+            label={label}
           />
         )
       })}
