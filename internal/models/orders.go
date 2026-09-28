@@ -48,6 +48,8 @@ const (
 	WinterOrderTypeHostage       WinterOrderType = "hostage"
 	WinterOrderTypeDungeon       WinterOrderType = "dungeon"
 	WinterOrderTypeTransfer      WinterOrderType = "transfer"
+	WinterOrderTypeFoundFief     WinterOrderType = "found_fief"
+	WinterOrderTypeAssignFief    WinterOrderType = "assign_fief"
 )
 
 // IsValid reports whether a winter order type is known to the winter resolver.
@@ -55,7 +57,8 @@ func (t WinterOrderType) IsValid() bool {
 	switch t {
 	case WinterOrderTypeRecruitNoble, WinterOrderTypeRecruitTroop, WinterOrderTypeBuild,
 		WinterOrderTypeElectCapital, WinterOrderTypeLiberateNoble,
-		WinterOrderTypeHostage, WinterOrderTypeDungeon, WinterOrderTypeTransfer:
+		WinterOrderTypeHostage, WinterOrderTypeDungeon, WinterOrderTypeTransfer,
+		WinterOrderTypeFoundFief, WinterOrderTypeAssignFief:
 		return true
 	}
 	return false
@@ -105,16 +108,21 @@ type Order struct {
 }
 
 // WinterOrder is one direct winter management instruction. Fields irrelevant
-// to Type are left at their zero value.
+// to Type are left at their zero value. For WinterOrderTypeFoundFief,
+// TerritoryID holds the capital (also TerritoryIDs[0]) and TerritoryIDs holds
+// the whole group in source order; NobleCode is the titleholder. For
+// WinterOrderTypeAssignFief, TerritoryID is the fief's capital and NobleCode
+// is the noble it is attributed to.
 type WinterOrder struct {
-	ID          OrderID         `json:"id"`
-	Type        WinterOrderType `json:"type"`
-	TerritoryID TerritoryID     `json:"territory,omitempty"`
-	SourceID    TerritoryID     `json:"source,omitempty"`
-	TargetID    TerritoryID     `json:"target,omitempty"`
-	Amount      int             `json:"amount,omitempty"`
-	InfraType   InfraType       `json:"infrastructureType,omitempty"`
-	NobleCode   NobleCode       `json:"nobleCode,omitempty"`
+	ID           OrderID         `json:"id"`
+	Type         WinterOrderType `json:"type"`
+	TerritoryID  TerritoryID     `json:"territory,omitempty"`
+	SourceID     TerritoryID     `json:"source,omitempty"`
+	TargetID     TerritoryID     `json:"target,omitempty"`
+	TerritoryIDs []TerritoryID   `json:"territories,omitempty"`
+	Amount       int             `json:"amount,omitempty"`
+	InfraType    InfraType       `json:"infrastructureType,omitempty"`
+	NobleCode    NobleCode       `json:"nobleCode,omitempty"`
 }
 
 type DeckOrderType string

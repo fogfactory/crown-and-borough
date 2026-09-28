@@ -18,6 +18,9 @@ cost_base: 2
 pillage_bonus: 2
 noble_command_bonus: 1
 castle_defense_bonus: 1
+# A fief capital's castle becomes a city: +2 total, replacing (not stacking
+# with) castle_defense_bonus (titres.md).
+city_defense_bonus: 2
 ration_terrain:
   plain: 2
   forest: 1
@@ -37,6 +40,8 @@ costs:
   noble: 2
   supply_depot: 3
   liberation: 0
+  # Per territory, paid by a T F winter order (titres.md).
+  fief_per_territory: 2
 
 # P1.7 game setup values.
 starting_nobles: 1

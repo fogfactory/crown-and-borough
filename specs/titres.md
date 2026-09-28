@@ -10,9 +10,10 @@ socle actuel ; les flux de ressources dépendent de
 
 Les règles de contrôle, de fief et de taxe ci-dessous sont des décisions de
 conception actées pour le milestone
-[Économie & Fiefs](https://github.com/fogfactory/crown-and-borough/milestone/19),
-pas encore implémentées. Chaque section renvoie à l'issue qui la livre ; les
-points « à trancher » sont tranchés au début de cette issue. Aucune
+[Économie & Fiefs](https://github.com/fogfactory/crown-and-borough/milestone/19).
+Chaque section renvoie à l'issue qui la livre. La constitution, la perte et la
+vacance d'un fief, ainsi que les points qui en découlent, sont livrées par
+[#194](https://github.com/fogfactory/crown-and-borough/issues/194). Aucune
 compatibilité avec les parties existantes n'est requise (version majeure).
 
 ## Contrôle et occupation
@@ -46,18 +47,26 @@ sans armée reste contrôlée tant qu'aucune armée adverse ne s'y arrête.
 
 Issue : [#194](https://github.com/fogfactory/crown-and-borough/issues/194).
 
-Un fief se constitue par un **ordre d'hiver** qui désigne un noble titulaire
-et un groupe de territoires, dont le premier est la **capitale du fief**
-(syntaxe proposée : `T F NNN XXX YYY ZZZ …`). Le groupe doit :
+Un fief se constitue par l'**ordre d'hiver** `T F NNN XXX YYY ZZZ …` : `NNN`
+est le noble titulaire, `XXX` la **capitale du fief** (premier territoire du
+groupe), et `YYY ZZZ …` le reste du groupe. Le groupe doit :
 
-- compter au moins 3 territoires, contigus par des frontières franchissables ;
+- compter au moins 3 territoires, contigus par des frontières franchissables
+  (BFS restreint au groupe, frontières géométriques non franchissables
+  exclues) ;
 - être entièrement contrôlé par le joueur ;
-- avoir un château sur sa capitale ;
-- ne contenir aucun territoire appartenant déjà à un fief.
+- avoir un château sur sa capitale (les autres territoires du groupe peuvent
+  porter d'autres châteaux, sans effet particulier) ;
+- ne contenir aucun territoire appartenant déjà à un fief ;
+- ne compter aucune armée adverse **ni NEUTRAL** (révolte) sur l'une de ses
+  cases : l'une ou l'autre bloque la constitution.
 
-Tout rejet est explicite et ne prélève rien. Le coût vaut
-`fief_cost_per_territory` (2 R) par territoire et se paie comme les autres
-investissements d'hiver. Le titre dépend de la taille :
+Tout rejet est explicite et ne prélève rien : toutes les conditions
+ci-dessus, dans cet ordre logique, sont vérifiées avant tout paiement. Le
+coût vaut `fief_per_territory` (2 R) par territoire et se paie comme les
+autres investissements d'hiver, débité comme un `C C`/`C M` classique (case
+ciblée puis réseau de paiement d'hiver habituel). Le titre dépend de la
+taille :
 
 | Titre | Territoires | Coût par défaut |
 |---|---:|---:|
@@ -67,35 +76,51 @@ investissements d'hiver. Le titre dépend de la taille :
 | Duché | 6 et plus | 2 R par territoire |
 
 Le titre appartient au **noble** titulaire, qui doit être un noble libre du
-joueur. Un joueur peut détenir plusieurs fiefs simultanément. Lorsqu'un fief
-est créé, son château capitale devient une **cité** et apporte `+2` en
-défense.
+joueur au moment de la constitution (son statut n'est ensuite pas modifié : il
+reste libre et peut continuer à émettre des chaînes). Un même noble peut
+porter **plusieurs titres** simultanément, et un joueur peut détenir plusieurs
+fiefs. Lorsqu'un fief est créé, son château capitale devient une **cité** et
+apporte `+2` en défense **au total** : ce bonus remplace celui du château
+(`castle_defense_bonus`, aujourd'hui 1) plutôt que de s'y ajouter, avec la même
+exception d'auto-capture (aucun bonus si tous les attaquants appartiennent au
+propriétaire d'une cité vide).
+
+L'attribution d'un fief vacant se fait par l'ordre d'hiver `T A NNN XXX` :
+`NNN` est un noble libre du joueur qui détient le fief, `XXX` sa capitale.
+Cet ordre est gratuit (0 R).
 
 L'agrandissement d'un fief existant est différé : il n'est pas prévu dans ce
 milestone.
-
-> À trancher dans #194 : la syntaxe définitive des ordres de constitution et
-> d'attribution ; le bonus de cité (+2 au total, recommandé, ou +2 en plus du
-> +1 du château) ; un même noble peut-il porter plusieurs titres (recommandé :
-> oui) ; le groupe peut-il contenir d'autres châteaux (recommandé : oui) ou
-> une armée adverse (recommandé : non).
 
 ## Perte et vacance d'un fief
 
 Issue : [#194](https://github.com/fogfactory/crown-and-borough/issues/194).
 
 - **Capitale du fief prise** : lorsqu'un autre joueur prend le contrôle de la
-  case de la capitale, le fief entier passe à ce joueur, **vacant**.
+  case de la capitale (mise à jour du contrôle territorial, immédiatement
+  après la résolution des mouvements), le fief entier passe à ce joueur,
+  **vacant** (le titulaire perd son titre). Seule la capitale déclenche ce
+  transfert ; une autre case du fief qui change de main hors capitale n'a
+  aucun effet sur le fief (le contrôle y reste positionnel tant que
+  [#196](https://github.com/fogfactory/crown-and-borough/issues/196) n'est pas
+  livrée). Une révolte (armée `NEUTRAL`) ne prend jamais le contrôle d'une
+  case : elle ne transfère donc jamais un fief, même en délogeant le
+  titulaire de sa capitale.
 - **Mort du titulaire** (par exemple de la peste) : le fief reste au joueur
   qui le détient mais devient vacant.
-- **Capture du titulaire** (otage ou donjon) : aucun effet sur le fief.
-- **Fief vacant** : il continue d'exister et de produire. Un ordre d'hiver
-  l'attribue à un noble libre du joueur qui le détient ; sans attribution à la
-  fin de l'hiver, le fief est dissous et ses territoires redeviennent
-  contrôlés hors fief.
-
-> À trancher dans #194 : un fief vacant compte-t-il son point de victoire
-> (recommandé : oui, jusqu'à sa dissolution).
+- **Capture du titulaire** (otage ou donjon) : aucun effet sur le fief ; le
+  noble existe toujours, seul son statut change.
+- **Château de la capitale détruit** (pillage, y compris le pillage
+  automatique de famine) : le fief est **dissous immédiatement**, quelle que
+  soit la saison. Contrairement à une première intuition, il n'y a ni
+  suspension du bonus de cité ni délai d'attente : la perte du château qui
+  fait la capitale met fin au fief sur-le-champ.
+- **Fief vacant** : il continue d'exister, de produire et de compter son point
+  de score jusqu'à sa dissolution. Un ordre d'hiver (`T A`) l'attribue à un
+  noble libre du joueur qui le détient. En fin d'hiver, après résolution des
+  ordres d'hiver (y compris une éventuelle attribution du même tour) et avant
+  la conservation des stocks, tout fief encore vacant est dissous et ses
+  territoires redeviennent contrôlés hors fief.
 
 ## Taxe seigneuriale
 

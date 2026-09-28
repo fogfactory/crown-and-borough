@@ -179,6 +179,7 @@ func updateTerritorialControl(ctx *resolutionContext) {
 		state.OwnerID = &ownerID
 		ctx.state.TerritoryStates[army.TerritoryID] = state
 		ctx.clearCapitalOnControlLoss(previousOwnerID, army.TerritoryID)
+		ctx.transferFiefOnCapitalCapture(army.TerritoryID, ownerID)
 		ctx.events = append(ctx.events, Event{
 			Type:            EventTypeControlChanged,
 			Phase:           5,

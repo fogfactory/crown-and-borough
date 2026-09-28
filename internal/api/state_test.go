@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
@@ -77,6 +78,60 @@ func TestProjectStateMatchesStateContract(t *testing.T) {
 	}
 	if !reflect.DeepEqual(decoded, view) {
 		t.Errorf("StateView JSON round trip = %#v, want %#v", decoded, view)
+	}
+}
+
+// TestProjectStateFiefs verifies that a fief is addressed by its capital's
+// trigram and its titleholder by their code, with no internal fief id exposed
+// (titres.md, #194).
+func TestProjectStateFiefs(t *testing.T) {
+	state := projectTestState()
+	holder := models.NobleID("N1")
+	state.Fiefs = []models.Fief{{
+		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "ROS",
+		Territories: []models.TerritoryID{"ROS", "BRU", "FOU"}, OwnerID: "P1", HolderNobleID: &holder,
+	}}
+	view := projectState(state, assetgen.Balance{})
+	if len(view.Fiefs) != 1 {
+		t.Fatalf("fiefs = %#v, want 1", view.Fiefs)
+	}
+	fief := view.Fiefs[0]
+	if fief.Capital != "ROS" || fief.Title != models.FiefTitleBarony || fief.Owner != "P1" {
+		t.Errorf("fief = %#v", fief)
+	}
+	if fief.Holder == nil || *fief.Holder != "HUG" {
+		t.Errorf("fief holder = %v, want HUG", fief.Holder)
+	}
+	if got, want := fief.Territories, []models.TerritoryID{"ROS", "BRU", "FOU"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("fief territories = %#v, want %#v", got, want)
+	}
+	data, err := json.Marshal(view.Fiefs)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if strings.Contains(string(data), `"id"`) || strings.Contains(string(data), "F1") {
+		t.Errorf("fief JSON %s leaks the internal fief id", data)
+	}
+}
+
+// TestProjectStateFiefVacant verifies that a vacant fief (no titleholder)
+// omits the holder field instead of returning a null or empty code.
+func TestProjectStateFiefVacant(t *testing.T) {
+	state := projectTestState()
+	state.Fiefs = []models.Fief{{
+		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "ROS",
+		Territories: []models.TerritoryID{"ROS", "BRU", "FOU"}, OwnerID: "P1",
+	}}
+	view := projectState(state, assetgen.Balance{})
+	if len(view.Fiefs) != 1 || view.Fiefs[0].Holder != nil {
+		t.Fatalf("fiefs = %#v, want a vacant fief with no holder", view.Fiefs)
+	}
+	data, err := json.Marshal(view.Fiefs[0])
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if strings.Contains(string(data), "holder") {
+		t.Errorf("vacant fief JSON %s should omit holder", data)
 	}
 }
 

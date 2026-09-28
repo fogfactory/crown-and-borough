@@ -28,6 +28,7 @@ cost_base: 2
 pillage_bonus: 2
 noble_command_bonus: 1
 castle_defense_bonus: 1
+city_defense_bonus: 2
 ration_terrain:
   plain: 2
   forest: 1
@@ -44,6 +45,7 @@ costs:
   noble: 2
   supply_depot: 3
   liberation: 0
+  fief_per_territory: 2
 starting_nobles: 1
 starting_troops: 1
 starting_resources: 10

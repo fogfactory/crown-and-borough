@@ -37,6 +37,7 @@ online à réaliser et à suivre par issue.
 | Résolution | Progression simultanée, attaques, soutiens, combats multi-contendants, bonus de commandement noble, retraites, jonctions, dispersions, contrôle territorial | Fait |
 | Logistique | Rations de terrain, ravitaillement BFS, portée, dépôts de vivres, coûts exponentiels, stocks et famine | Fait |
 | Hiver | Recrutement, constructions v1, capitale, libération des nobles, conservation et rapatriement des stocks | Fait |
+| Fiefs | Constitution (`T F`) et attribution (`T A`) par ordre d'hiver, bonus de cité, conquête, vacance et dissolution, score dédié (voir [`titres.md`](titres.md)) | Fait |
 | Boucle de jeu | Cycle printemps/été/automne/hiver, rapport de tour, partie initiale déterministe | Fait |
 | Front | Carte interactive, poste de commandement, sélection de joueur, ordres par noble, rapport et signalisation de l'hiver | Fait |
 | Online v1 | Session unique en mémoire, création/réinitialisation de partie, soumission par joueur, résolution synchrone, résolution forcée, endpoint de ravitaillement, hôte observateur sans slot | Fait |

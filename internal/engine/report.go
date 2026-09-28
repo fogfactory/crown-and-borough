@@ -28,6 +28,7 @@ type TurnReport struct {
 	Announcements []AnnouncementReport `json:"announcements"`
 	Augury        *AuguryReport        `json:"augury,omitempty"`
 	Winter        *WinterReport        `json:"winter,omitempty"`
+	Fiefs         []FiefReport         `json:"fiefs"`
 	State         *models.GameState    `json:"-"`
 }
 
@@ -281,22 +282,41 @@ type RumorReport struct {
 }
 
 type WinterInvestmentReport struct {
-	Kind           EventType           `json:"kind"`
-	Player         models.PlayerID     `json:"player"`
-	Outcome        Outcome             `json:"outcome"`
-	Cost           int                 `json:"cost"`
-	Source         models.TerritoryID  `json:"source,omitempty"`
-	Target         models.TerritoryID  `json:"target,omitempty"`
-	Amount         int                 `json:"amount,omitempty"`
-	Territory      models.TerritoryID  `json:"territory,omitempty"`
-	Infrastructure models.InfraID      `json:"infrastructure,omitempty"`
-	Type           models.InfraType    `json:"type,omitempty"`
-	Level          int                 `json:"level,omitempty"`
-	Noble          models.NobleID      `json:"noble,omitempty"`
-	NobleCode      models.NobleCode    `json:"nobleCode,omitempty"`
-	NobleName      string              `json:"nobleName,omitempty"`
-	Reason         string              `json:"reason,omitempty"`
-	Order          *models.WinterOrder `json:"order,omitempty"`
+	Kind           EventType            `json:"kind"`
+	Player         models.PlayerID      `json:"player"`
+	Outcome        Outcome              `json:"outcome"`
+	Cost           int                  `json:"cost"`
+	Source         models.TerritoryID   `json:"source,omitempty"`
+	Target         models.TerritoryID   `json:"target,omitempty"`
+	Amount         int                  `json:"amount,omitempty"`
+	Territory      models.TerritoryID   `json:"territory,omitempty"`
+	Infrastructure models.InfraID       `json:"infrastructure,omitempty"`
+	Type           models.InfraType     `json:"type,omitempty"`
+	Level          int                  `json:"level,omitempty"`
+	Noble          models.NobleID       `json:"noble,omitempty"`
+	NobleCode      models.NobleCode     `json:"nobleCode,omitempty"`
+	NobleName      string               `json:"nobleName,omitempty"`
+	Title          models.FiefTitle     `json:"title,omitempty"`
+	Territories    []models.TerritoryID `json:"territories,omitempty"`
+	Reason         string               `json:"reason,omitempty"`
+	Order          *models.WinterOrder  `json:"order,omitempty"`
+}
+
+// FiefReport is one fief lifecycle change outside its constitution or
+// attribution (those are recorded in Winter.Investments alongside the other
+// investment orders): a conquered fief transferred to a new owner, a fief
+// left vacant by the death of its titleholder, or a fief dissolved for losing
+// its capital's castle or staying unassigned at the end of winter.
+type FiefReport struct {
+	Kind          EventType            `json:"kind"`
+	Owner         models.PlayerID      `json:"owner"`
+	PreviousOwner models.PlayerID      `json:"previousOwner,omitempty"`
+	Capital       models.TerritoryID   `json:"capital"`
+	Title         models.FiefTitle     `json:"title"`
+	Territories   []models.TerritoryID `json:"territories"`
+	Noble         models.NobleID       `json:"noble,omitempty"`
+	NobleName     string               `json:"nobleName,omitempty"`
+	Reason        string               `json:"reason,omitempty"`
 }
 
 type WinterStockReport struct {
@@ -328,6 +348,7 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 		Rumors:        []RumorReport{},
 		Cards:         []CardReport{},
 		Announcements: []AnnouncementReport{},
+		Fiefs:         []FiefReport{},
 	}
 	report.Receptions = append(report.Receptions, receptions...)
 	if before != nil {
@@ -569,7 +590,7 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 				Reason: event.Reason,
 			})
 		case EventTypeWinterStock, EventTypeRecruit, EventTypeBuild, EventTypeUpgrade,
-			EventTypeRejected, EventTypeCapitalElected:
+			EventTypeRejected, EventTypeCapitalElected, EventTypeFiefFounded, EventTypeFiefAssigned:
 			if report.Winter == nil {
 				report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}
 			}
@@ -589,7 +610,10 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 				Cost:           event.ResourceSpent,
 				Infrastructure: event.InfrastructureID, Type: event.InfrastructureType,
 				Level: event.Level, Noble: event.NobleID, NobleCode: event.NobleCode,
-				NobleName: event.NobleName, Reason: event.Reason,
+				NobleName:   event.NobleName,
+				Title:       event.FiefTitle,
+				Territories: append([]models.TerritoryID(nil), event.FiefTerritories...),
+				Reason:      event.Reason,
 			}
 			if event.Type == EventTypeRejected {
 				investment.Outcome = OutcomeFailure
@@ -600,6 +624,13 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 				investment.Order = &order
 			}
 			report.Winter.Investments = append(report.Winter.Investments, investment)
+		case EventTypeFiefConquered, EventTypeFiefVacated, EventTypeFiefDissolved:
+			report.Fiefs = append(report.Fiefs, FiefReport{
+				Kind: event.Type, Owner: event.OwnerID, PreviousOwner: event.PreviousOwnerID,
+				Capital: event.TerritoryID, Title: event.FiefTitle,
+				Territories: append([]models.TerritoryID(nil), event.FiefTerritories...),
+				Noble:       event.NobleID, NobleName: event.NobleName, Reason: event.Reason,
+			})
 		case EventTypeChainProgression:
 			if index, exists := orderIndexes[eventKey(event.ChainID, event.OrderID)]; exists {
 				report.Orders[index].Progression = event.Progression

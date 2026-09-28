@@ -33,6 +33,16 @@ const INFRASTRUCTURE_LABEL_KEYS: Record<
   village: 'infrastructure.village',
 }
 
+const FIEF_TITLE_KEYS: Record<
+  NonNullable<StateData['fiefs']>[number]['title'],
+  MessageKey
+> = {
+  barony: 'fief.title.barony',
+  county: 'fief.title.county',
+  marquisate: 'fief.title.marquisate',
+  duchy: 'fief.title.duchy',
+}
+
 type MapTerritory = MapData['territories'][number]
 type TerritoryState = StateData['territories'][number]
 
@@ -95,6 +105,13 @@ export function SelectedTerritoryDetails({
   const selectedCapitalPlayer = state.players.find(
     (player) => player.capitalTerritory === selectedTerritory.id,
   )
+  const selectedFief = (state.fiefs ?? []).find((fief) =>
+    fief.territories.includes(selectedTerritory.id),
+  )
+  const selectedFiefHolder = selectedFief?.holder
+    ? state.nobles.find((noble) => noble.code === selectedFief.holder)
+    : null
+  const isFiefCapital = selectedFief?.capital === selectedTerritory.id
   const selectedChain = selectedState?.army?.chain ?? null
   const presentNobles = state.nobles.filter(
     (noble) => noble.location === selectedTerritory.id,
@@ -125,6 +142,11 @@ export function SelectedTerritoryDetails({
             })}
           </p>
         )}
+        {isFiefCapital && (
+          <p className="mt-2 ml-2 inline-flex items-center rounded-full border border-[#a84632]/40 bg-[#f8dcd4]/60 px-2.5 py-1 text-xs font-semibold text-[#8d321e]">
+            {t('app.cityBonus')}
+          </p>
+        )}
       </div>
 
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-3 text-sm">
@@ -140,6 +162,21 @@ export function SelectedTerritoryDetails({
               <span className="ml-2 text-xs font-semibold text-[#684b7d]">
                 {t('app.regionSeedLabel', { seed: selectedRegion.seed })}
               </span>
+            </dd>
+          </>
+        )}
+        {selectedFief && (
+          <>
+            <dt className="text-[#806f57]">{t('app.fiefTitle')}</dt>
+            <dd className="font-medium">
+              {t(FIEF_TITLE_KEYS[selectedFief.title])} —{' '}
+              {territoryLabel(selectedFief.capital)}
+            </dd>
+            <dt className="text-[#806f57]">{t('app.fiefHolder')}</dt>
+            <dd className="font-medium">
+              {selectedFiefHolder
+                ? `${selectedFiefHolder.code} · ${selectedFiefHolder.name}`
+                : t('app.fiefVacant')}
             </dd>
           </>
         )}
@@ -185,7 +222,9 @@ export function SelectedTerritoryDetails({
                     {formatCardLabel(effect.kind, t)}
                   </span>
                   <span className="mt-1 block text-xs text-[#806f57]">
-                    {t('app.effectSeason', { season: t(SEASON_LABEL_KEYS[effect.season]) })}
+                    {t('app.effectSeason', {
+                      season: t(SEASON_LABEL_KEYS[effect.season]),
+                    })}
                   </span>
                 </li>
               )

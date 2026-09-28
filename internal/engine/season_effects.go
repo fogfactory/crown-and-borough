@@ -377,10 +377,8 @@ func resolveRevoltCombats(ctx *resolutionContext) {
 }
 
 func resolveRevoltCombat(ctx *resolutionContext, territoryID models.TerritoryID, rebelForce int, occupant *models.Army) {
-	defense := occupant.Size + nobleCommandBonus(ctx, *occupant)
-	if ctx.hasCastle(territoryID) {
-		defense += ctx.balance.CastleDefenseBonus
-	}
+	fortificationBonus := ctx.fortificationBonus(territoryID)
+	defense := occupant.Size + nobleCommandBonus(ctx, *occupant) + fortificationBonus
 	rebels := CombatContender{OwnerID: models.NeutralPlayerID, Force: rebelForce}
 	defenders := CombatContender{ArmyID: occupant.ID, OwnerID: occupant.OwnerID, Force: defense, NobleBonus: nobleCommandBonus(ctx, *occupant), Defender: true}
 	result := contestResult{
@@ -388,12 +386,8 @@ func resolveRevoltCombat(ctx *resolutionContext, territoryID models.TerritoryID,
 		defenderID:  occupant.ID,
 		baseDefense: defense - nobleCommandBonus(ctx, *occupant),
 		defense:     defense,
-		castleBonus: 0,
+		castleBonus: fortificationBonus,
 		contenders:  []CombatContender{rebels, defenders},
-	}
-	if ctx.hasCastle(territoryID) {
-		result.castleBonus = ctx.balance.CastleDefenseBonus
-		result.baseDefense = defense - nobleCommandBonus(ctx, *occupant)
 	}
 	if rebelForce > defense {
 		rebel := placeRevoltArmyForCombat(ctx, territoryID, rebelForce)
@@ -716,6 +710,7 @@ func resolvePlagueMortality(ctx *resolutionContext) {
 		}
 	}
 	ctx.rebuildIndexes()
+	ctx.vacateFiefsOfMissingHolders()
 }
 
 func newPlagueRNG(seed string, turn int, nobleID models.NobleID) *rand.Rand {

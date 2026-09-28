@@ -479,8 +479,8 @@ func (adj *adjudicator) adjudicateMove(armyID models.ArmyID) bool {
 		threshold = adj.holdStrength(*defender)
 	} else {
 		strength, _ = adj.attackForce(armyID, "")
-		if ctx.hasCastle(attack.target) && !ctx.castleOwnedByAllAttackers(attack.target) {
-			threshold = ctx.balance.CastleDefenseBonus
+		if bonus := ctx.fortificationBonus(attack.target); bonus > 0 && !ctx.castleOwnedByAllAttackers(attack.target) {
+			threshold = bonus
 		}
 	}
 	if strength <= threshold {
@@ -563,10 +563,7 @@ func (adj *adjudicator) holdStrength(defender models.Army) int {
 // dislodged, which cancels it, as if it had left.
 func (adj *adjudicator) defenseStrength(defender models.Army) (int, int) {
 	ctx := adj.ctx
-	base := 0
-	if ctx.hasCastle(defender.TerritoryID) {
-		base = ctx.balance.CastleDefenseBonus
-	}
+	base := ctx.fortificationBonus(defender.TerritoryID)
 	if !ctx.famished[defender.ID] {
 		size := defender.Size
 		if outcome := adj.peacefulOutcome(defender.ID, adj.peaceful[defender.ID] != nil && adj.dislodged(defender.ID)); outcome.hasResidual {

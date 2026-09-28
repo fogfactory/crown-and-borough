@@ -98,7 +98,11 @@ export function WinterOrdersOverlay({
                         ? 'O'
                         : intention.kind === 'dungeon'
                           ? 'P'
-                          : 'E'
+                          : intention.kind === 'fief_found'
+                            ? 'F'
+                            : intention.kind === 'fief_assign'
+                              ? 'A'
+                              : 'E'
               const detail =
                 intention.kind === 'recruit_noble'
                   ? 'R'
@@ -197,6 +201,37 @@ export function WinterOrdersOverlay({
               )}
             </g>
           )
+        })}
+      {winterIntentions
+        .filter(
+          (intention) =>
+            intention.kind === 'fief_found' && (intention.territories?.length ?? 0) > 1,
+        )
+        .flatMap((intention) => {
+          const capital = territories.find(
+            (territory) => territory.id === intention.territory,
+          )
+          if (!capital) return []
+          const capitalCenter = centroid(capital.points)
+          const members = (intention.territories ?? []).slice(1)
+          return members.map((memberId) => {
+            const member = territories.find((territory) => territory.id === memberId)
+            if (!member) return null
+            const [x2, y2] = centroid(member.points)
+            return (
+              <line
+                key={`fief-group-${intention.line}-${memberId}`}
+                x1={capitalCenter[0]}
+                y1={capitalCenter[1]}
+                x2={x2}
+                y2={y2}
+                stroke={intention.color ?? DRAFT_INTENTION_COLOR}
+                strokeWidth={annotationScale * 1.5}
+                strokeDasharray={`${annotationScale * 4} ${annotationScale * 3}`}
+                strokeOpacity={intention.valid ? 0.75 : 0.35}
+              />
+            )
+          })
         })}
       {winterIntentions
         .filter((intention) => !intention.valid && !intention.territory)

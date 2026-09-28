@@ -22,6 +22,7 @@ type Balance struct {
 	PillageBonus       int                    `json:"pillage_bonus" yaml:"pillage_bonus"`
 	NobleCommandBonus  int                    `json:"noble_command_bonus" yaml:"noble_command_bonus"`
 	CastleDefenseBonus int                    `json:"castle_defense_bonus" yaml:"castle_defense_bonus"`
+	CityDefenseBonus   int                    `json:"city_defense_bonus" yaml:"city_defense_bonus"`
 	RationTerrain      map[models.Terrain]int `json:"ration_terrain" yaml:"ration_terrain"`
 	WinterStockDivisor int                    `json:"winter_stock_divisor" yaml:"winter_stock_divisor"`
 	VillageStockCap    int                    `json:"village_stock_cap" yaml:"village_stock_cap"`
@@ -54,12 +55,13 @@ type SpecialOrderEffects struct {
 
 // Costs groups all resource costs used by winter investments.
 type Costs struct {
-	Castle      int   `json:"castle" yaml:"castle"`
-	MillLevels  []int `json:"mill_levels" yaml:"mill_levels"`
-	Troop       int   `json:"troop" yaml:"troop"`
-	Noble       int   `json:"noble" yaml:"noble"`
-	SupplyDepot int   `json:"supply_depot" yaml:"supply_depot"`
-	Liberation  int   `json:"liberation" yaml:"liberation"`
+	Castle           int   `json:"castle" yaml:"castle"`
+	MillLevels       []int `json:"mill_levels" yaml:"mill_levels"`
+	Troop            int   `json:"troop" yaml:"troop"`
+	Noble            int   `json:"noble" yaml:"noble"`
+	SupplyDepot      int   `json:"supply_depot" yaml:"supply_depot"`
+	Liberation       int   `json:"liberation" yaml:"liberation"`
+	FiefPerTerritory int   `json:"fief_per_territory" yaml:"fief_per_territory"`
 }
 
 type rawBalance struct {
@@ -71,6 +73,7 @@ type rawBalance struct {
 	PillageBonus       *int              `yaml:"pillage_bonus"`
 	NobleCommandBonus  *int              `yaml:"noble_command_bonus"`
 	CastleDefenseBonus *int              `yaml:"castle_defense_bonus"`
+	CityDefenseBonus   *int              `yaml:"city_defense_bonus"`
 	RationTerrain      map[string]*int   `yaml:"ration_terrain"`
 	WinterStockDivisor *int              `yaml:"winter_stock_divisor"`
 	VillageStockCap    *int              `yaml:"village_stock_cap"`
@@ -101,12 +104,13 @@ type rawSpecialOrderEffects struct {
 }
 
 type rawCosts struct {
-	Castle      *int   `yaml:"castle"`
-	MillLevels  []*int `yaml:"mill_levels"`
-	Troop       *int   `yaml:"troop"`
-	Noble       *int   `yaml:"noble"`
-	SupplyDepot *int   `yaml:"supply_depot"`
-	Liberation  *int   `yaml:"liberation"`
+	Castle           *int   `yaml:"castle"`
+	MillLevels       []*int `yaml:"mill_levels"`
+	Troop            *int   `yaml:"troop"`
+	Noble            *int   `yaml:"noble"`
+	SupplyDepot      *int   `yaml:"supply_depot"`
+	Liberation       *int   `yaml:"liberation"`
+	FiefPerTerritory *int   `yaml:"fief_per_territory"`
 }
 
 var balanceTerrains = [...]models.Terrain{
@@ -194,6 +198,10 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 	if err != nil {
 		return Balance{}, err
 	}
+	cityDefenseBonus, err := requiredNonNegativeInt(path, "city_defense_bonus", raw.CityDefenseBonus)
+	if err != nil {
+		return Balance{}, err
+	}
 	startingNobles, err := requiredNonNegativeInt(path, "starting_nobles", raw.StartingNobles)
 	if err != nil {
 		return Balance{}, err
@@ -239,6 +247,7 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 		PillageBonus:       pillageBonus,
 		NobleCommandBonus:  nobleCommandBonus,
 		CastleDefenseBonus: castleDefenseBonus,
+		CityDefenseBonus:   cityDefenseBonus,
 		RationTerrain:      rationTerrain,
 		WinterStockDivisor: winterStockDivisor,
 		VillageStockCap:    villageStockCap,
@@ -285,13 +294,18 @@ func (raw rawBalance) costs(path string) (Costs, error) {
 	if err != nil {
 		return Costs{}, err
 	}
+	fiefPerTerritory, err := requiredNonNegativeInt(path, "costs.fief_per_territory", raw.Costs.FiefPerTerritory)
+	if err != nil {
+		return Costs{}, err
+	}
 	return Costs{
-		Castle:      castle,
-		MillLevels:  millLevels,
-		Troop:       troop,
-		Noble:       noble,
-		SupplyDepot: supplyDepot,
-		Liberation:  liberation,
+		Castle:           castle,
+		MillLevels:       millLevels,
+		Troop:            troop,
+		Noble:            noble,
+		SupplyDepot:      supplyDepot,
+		Liberation:       liberation,
+		FiefPerTerritory: fiefPerTerritory,
 	}, nil
 }
 

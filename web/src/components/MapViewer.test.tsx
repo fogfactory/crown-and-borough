@@ -547,6 +547,28 @@ describe('MapViewer territorial overlays', () => {
     expect(svg.querySelectorAll('[data-ownership-badge]').length).toBe(0)
   })
 
+  it('draws a dashed fief outline around its territory group', () => {
+    const fiefState: StateData = {
+      ...state,
+      players: [{ id: 'P1', name: 'One', color: '#123456' }],
+      fiefs: [
+        { capital: 'ROS', title: 'barony', territories: ['ROS', 'BRU'], owner: 'P1' },
+      ],
+    }
+    const { svg } = renderMap(map, fiefState)
+
+    expect(svg.querySelector('g[aria-label="Fiefs"]')).not.toBeNull()
+    const outline = svg.querySelector('[data-fief-outline="ROS"]')
+    expect(outline).not.toBeNull()
+    expect(outline?.getAttribute('stroke')).toBe('#123456')
+  })
+
+  it('omits the fief layer when the game has no fiefs', () => {
+    const { svg } = renderMap()
+
+    expect(svg.querySelector('g[aria-label="Fiefs"]')).toBeNull()
+  })
+
   it('scales map annotations with the mean territory area', () => {
     const scaledState: StateData = {
       ...state,

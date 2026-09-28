@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/fogfactory/crown-and-borough/internal/i18n"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
@@ -142,6 +143,9 @@ func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (mod
 			Amount:   amount,
 		}, nil
 	}
+	if fields[0] == "T" {
+		return parseFiefOrderLine(fields, lineNumber, indexes)
+	}
 	if len(fields) > 3 {
 		error := parseMessage(lineNumber, ParseCodeTooManyTargets, "error.winter.target_only_one")
 		return models.WinterOrder{}, &error
@@ -206,6 +210,58 @@ func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (mod
 		return models.WinterOrder{Type: orderType, NobleCode: models.NobleCode(fields[2])}, nil
 	default:
 		error := parseMessage(lineNumber, ParseCodeUnknownSymbol, "error.winter.unknown_symbol", fields[0])
+		return models.WinterOrder{}, &error
+	}
+}
+
+// parseFiefOrderLine handles the two T subtypes: F (found, T F NNN XXX YYY
+// ZZZ …, the titleholder noble then the group with the capital first) and A
+// (assign, T A NNN XXX, a free noble then the vacant fief's capital). It only
+// checks syntax: group size, duplicate territories, and contiguity are
+// explicit engine rejects (see winter_found_fief_order.go).
+func parseFiefOrderLine(fields []string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
+	switch fields[1] {
+	case "F":
+		if len(fields) < 3+models.FiefMinTerritories {
+			error := parseMessage(lineNumber, ParseCodeMissingTarget, i18n.WinterFiefFoundShape)
+			return models.WinterOrder{}, &error
+		}
+		if parseError := winterNobleCode(fields[2], lineNumber, indexes); parseError != nil {
+			return models.WinterOrder{}, parseError
+		}
+		territoryIDs := make([]models.TerritoryID, 0, len(fields)-3)
+		for _, code := range fields[3:] {
+			territoryID, parseError := winterTerritoryID(code, lineNumber, indexes)
+			if parseError != nil {
+				return models.WinterOrder{}, parseError
+			}
+			territoryIDs = append(territoryIDs, territoryID)
+		}
+		return models.WinterOrder{
+			Type:         models.WinterOrderTypeFoundFief,
+			NobleCode:    models.NobleCode(fields[2]),
+			TerritoryID:  territoryIDs[0],
+			TerritoryIDs: territoryIDs,
+		}, nil
+	case "A":
+		if len(fields) != 4 {
+			error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.WinterFiefAssignShape)
+			return models.WinterOrder{}, &error
+		}
+		if parseError := winterNobleCode(fields[2], lineNumber, indexes); parseError != nil {
+			return models.WinterOrder{}, parseError
+		}
+		territoryID, parseError := winterTerritoryID(fields[3], lineNumber, indexes)
+		if parseError != nil {
+			return models.WinterOrder{}, parseError
+		}
+		return models.WinterOrder{
+			Type:        models.WinterOrderTypeAssignFief,
+			NobleCode:   models.NobleCode(fields[2]),
+			TerritoryID: territoryID,
+		}, nil
+	default:
+		error := parseMessage(lineNumber, ParseCodeUnknownSymbol, i18n.WinterFiefShape)
 		return models.WinterOrder{}, &error
 	}
 }

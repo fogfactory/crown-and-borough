@@ -46,6 +46,37 @@ func TestComputeScoresCountsCategoriesAndCaptiveHolder(t *testing.T) {
 	}
 }
 
+// TestComputeScoresFiefs verifies that each fief contributes exactly 1 point
+// to its owner, vacant or not, until it is dissolved (titres.md).
+func TestComputeScoresFiefs(t *testing.T) {
+	p1, p2 := models.PlayerID("P1"), models.PlayerID("P2")
+	state := &models.GameState{
+		Players:         []models.Player{{ID: p1}, {ID: p2}},
+		Territories:     []models.Territory{{ID: "AAA"}, {ID: "BBB"}, {ID: "CCC"}},
+		TerritoryStates: map[models.TerritoryID]models.TerritoryState{},
+		Fiefs: []models.Fief{
+			{ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "AAA", Territories: []models.TerritoryID{"AAA", "BBB", "CCC"}, OwnerID: p1},
+			{ID: "F2", Title: models.FiefTitleBarony, CapitalTerritoryID: "AAA", Territories: []models.TerritoryID{"AAA", "BBB", "CCC"}, OwnerID: p1},
+		},
+	}
+	scores := ComputeScores(state)
+	if got := scores[p1].Fiefs; got != 2 {
+		t.Errorf("P1 fiefs score = %d, want 2 (vacant still counts)", got)
+	}
+	if got := scores[p1].Total; got != 2 {
+		t.Errorf("P1 total = %d, want 2", got)
+	}
+	if got := scores[p2].Fiefs; got != 0 {
+		t.Errorf("P2 fiefs score = %d, want 0", got)
+	}
+
+	state.Fiefs = nil
+	scores = ComputeScores(state)
+	if got := scores[p1].Fiefs; got != 0 {
+		t.Errorf("P1 fiefs score after dissolution = %d, want 0", got)
+	}
+}
+
 func TestWinnerForFinishedGameUsesScoreAtYearLimit(t *testing.T) {
 	p1, p2 := models.PlayerID("P1"), models.PlayerID("P2")
 	state := &models.GameState{

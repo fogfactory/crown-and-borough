@@ -62,6 +62,7 @@ func ResolveWinterWithDeckOrders(
 	resolveWinterDeckOrders(ctx, deckOrders)
 	// No calamity resolves in winter: the winter turn draws and schedules the
 	// following year's calamities but applies none.
+	ctx.dissolveVacantFiefs()
 	ctx.conserveWinterStocks()
 	ctx.repatriateWinterStocks()
 	ctx.emitWinterStockEvents(stockBefore)

@@ -378,6 +378,7 @@ type TurnReportView struct {
 	Announcements []engine.AnnouncementReport `json:"announcements"`
 	Augury        *engine.AuguryReport        `json:"augury,omitempty"`
 	Winter        *engine.WinterReport        `json:"winter,omitempty"`
+	Fiefs         []engine.FiefReport         `json:"fiefs"`
 }
 
 // OrderReportView keeps order outcomes useful to spectators without returning
@@ -532,6 +533,7 @@ func projectReport(report engine.TurnReport, viewer models.PlayerID, privacy *mo
 		Announcements: append([]engine.AnnouncementReport{}, report.Announcements...),
 		Augury:        report.Augury,
 		Winter:        report.Winter,
+		Fiefs:         append([]engine.FiefReport{}, report.Fiefs...),
 	}
 	for _, order := range report.Orders {
 		if viewer == models.SpectatorViewer || privacy != nil && viewerKnowsChainSnapshot(privacy, viewer, order.Chain) {

@@ -214,6 +214,15 @@ L'état projeté sépare la couche dynamique du `GameState` de stockage :
       "location": "ROS",
       "status": "free"
     }
+  ],
+  "fiefs": [
+    {
+      "capital": "ROS",
+      "title": "barony",
+      "territories": ["ROS", "BOI", "BRU"],
+      "owner": "P1",
+      "holder": "HUG"
+    }
   ]
 }
 ```
@@ -270,6 +279,13 @@ vue d'état. Les positions et les cibles des ordres utilisent les trigrammes
 territoriaux.
 `capitalTerritory` désigne le territoire du château actuellement choisi comme
 capitale par le joueur ; le champ est absent lorsqu'il n'a pas de capitale.
+
+`fiefs` liste les fiefs constitués (voir [titres.md](titres.md)). Un fief est
+adressé par sa capitale (`capital`) ; **aucun identifiant interne** n'est
+exposé — l'ID de fief reste un détail d'implémentation du moteur, utile pour
+l'unicité et le corpus de test. `territories` liste le groupe dans l'ordre de
+constitution, capitale en premier. `holder` est le code du noble titulaire, ou
+absent lorsque le fief est vacant.
 
 `GET /api/games/{id}/state` renvoie la vue filtrée du joueur connecté ; le
 hotseat demande celle du joueur sélectionné avec `?player=P1` en mode de
@@ -428,7 +444,14 @@ Les modèles métier sont dans `internal/models`. Ils valident notamment :
 - la symétrie du graphe et l'existence des références ;
 - une seule armée et une seule infrastructure par territoire ;
 - la cohérence entre les index de `GameState` et les entités ;
-- la saison calculée à partir du tour absolu.
+- la saison calculée à partir du tour absolu ;
+- pour chaque fief : un identifiant unique, un titre cohérent avec la taille
+  du groupe (`FiefTitleForSize`), une capitale en tête du groupe, aucun
+  territoire partagé avec un autre fief, un propriétaire connu qui contrôle
+  la capitale, et un titulaire optionnel qui appartient à ce même propriétaire
+  (voir [titres.md](titres.md)). Un château sur la capitale n'est **pas**
+  exigé structurellement : sa perte dissout le fief immédiatement côté moteur
+  plutôt que de laisser un état transitoire invalide.
 
 `ResolveTurn` choisit la résolution d'action ou d'hiver selon la saison, avance
 le calendrier et renvoie un `TurnReport`. La soumission `special` est indépendante
@@ -436,8 +459,11 @@ des chaînes de nobles et des investissements d'hiver. Les ordres de cartes sont
 validés et consommés avant les phases militaires ; leurs effets sont agrégés par
 région avant le ravitaillement et l'énumération des intentions. Le rapport
 contient des sections typées pour les joueurs, ordres, combats, mouvements,
-ravitaillement, famine, nobles, rumeurs publiques et investissements d'hiver. Le
-moteur ne dépend ni du HTTP ni du rendu front.
+ravitaillement, famine, nobles, rumeurs publiques et investissements d'hiver.
+La constitution et l'attribution d'un fief (`T F`/`T A`) apparaissent parmi
+les investissements d'hiver ; une section `fiefs` dédiée couvre la conquête,
+la vacance et la dissolution d'un fief, y compris hors hiver (voir
+[titres.md](titres.md)). Le moteur ne dépend ni du HTTP ni du rendu front.
 
 La réception des chaînes est immédiate et atomique. La validation est en une
 seule couche : `orders.ValidateChain` porte toutes les règles statiques
@@ -512,7 +538,9 @@ BRI D BRI ATL NOR
 ```
 
 Les ordres d'hiver v1 comprennent `A N`, `R N`, `R T`, `C M`, `C C`, `C D`, `E C`,
-`O N`, `P N`, `L N` et `G XXX YYY N`, avec `D C KIND` pour les défausses de cartes bonus.
+`O N`, `P N`, `L N`, `G XXX YYY N`, `T F NNN XXX YYY ZZZ …` (constituer un
+fief) et `T A NNN XXX` (attribuer un fief vacant), avec `D C KIND` pour les
+défausses de cartes bonus.
 Une soumission `special` séparée contient les ordres jouables du deck : `P KIND TER`
 au printemps, en été et en automne. En hiver, la main est reconstituée
 automatiquement après les défausses selon la balance ; il n'existe pas d'ordre de
