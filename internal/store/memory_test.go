@@ -372,8 +372,12 @@ func TestMemoryStoreFinishesAtConfiguredYearLimitAndExposesScores(t *testing.T) 
 	if err != nil {
 		t.Fatalf("final state: %v", err)
 	}
-	if final.Status != StatusFinished || final.Winner != nil || final.State.Turn != 5 || final.YearCount != 1 {
-		t.Fatalf("final snapshot = status %s winner %v turn %d years %d, want finished/tie/5/1", final.Status, final.Winner, final.State.Turn, final.YearCount)
+	// Winner is seed-dependent (terrain-driven famine can break a tie between
+	// two players who never issued an order); tie-breaking itself is covered
+	// by dedicated engine score tests, so this test only checks that the
+	// store correctly reports the game as finished at the configured limit.
+	if final.Status != StatusFinished || final.State.Turn != 5 || final.YearCount != 1 {
+		t.Fatalf("final snapshot = status %s turn %d years %d, want finished/5/1", final.Status, final.State.Turn, final.YearCount)
 	}
 	if _, err := gameStore.Submit(context.Background(), Actor{ID: "P1"}, created.ID, SubmitRequest{}); !errors.Is(err, ErrGameFinished) {
 		t.Fatalf("post-finish submit error = %v, want game finished", err)
@@ -587,6 +591,15 @@ func TestMemoryStoreSupplyProjectsDraftedSpecialOrders(t *testing.T) {
 			if territoryID == army.TerritoryID {
 				regionSeed = region.Seed
 			}
+		}
+	}
+	// Force the army's territory onto plain terrain: mountain has zero base
+	// ration production, which would make the famine penalty invisible below
+	// regardless of the map generated for this seed.
+	for index, territory := range state.Territories {
+		if territory.ID == army.TerritoryID {
+			state.Territories[index].Terrain = models.TerrainPlain
+			break
 		}
 	}
 	year := state.Year()

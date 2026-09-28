@@ -15,22 +15,23 @@ const (
 	gridH = 160
 	// TerritoriesPerPlayer is the fixed development map scale.
 	TerritoriesPerPlayer = 8
-	// TerritoriesPerVillage reserves four additional territories for each
-	// generated neutral village.
-	TerritoriesPerVillage = 4
+	// TerritoriesPerSeat reserves four additional territories for each
+	// chef-lieu (region seed): StartCount+1 of them in a game map.
+	TerritoriesPerSeat = 4
 )
 
 // Config controls the raster-generation viewport and delivered population.
 // Width and Height are not serialized: final dimensions are derived from the
 // re-anchored interior polygons. SiteCount is the number of delivered interior
 // territories; sacrificial frame sites exist only during raster generation.
-// VillageSitesFrom reserves the suffix beginning at this index for village
-// flags; zero leaves all delivered territories eligible.
+// StartCount is the number of starting positions to place, each with its own
+// dedicated home village. SeatCount is the number of chefs-lieux (region
+// seeds) to place; a game map sets it to StartCount+1.
 type Config struct {
-	Width, Height    int
-	SiteCount        int
-	VillageCount     int
-	VillageSitesFrom int
+	Width, Height int
+	SiteCount     int
+	StartCount    int
+	SeatCount     int
 }
 
 // Territory is the static map representation of a territory. Geometry belongs
@@ -51,9 +52,13 @@ type Territory struct {
 }
 
 // MapData is the complete static map document exposed by the development API.
+// Starts holds the generated starting-territory IDs, in the deterministic
+// order CreateGame assigns to players; it is internal to the engine and never
+// published in map.json.
 type MapData struct {
 	Territories []Territory     `json:"territories"`
 	Regions     []models.Region `json:"regions"`
+	Starts      []string        `json:"-"`
 }
 
 // maxGenerateAttempts bounds the derived sub-seeds tried when a random draw
@@ -121,10 +126,16 @@ func generateAttempt(seed string, assets assetgen.Assets, cfg Config) (MapData, 
 		return MapData{}, err
 	}
 
-	villages, err := assignVillages(newRNG(seed, "village"), terrain, geometry.centroids, cfg.VillageCount, cfg.VillageSitesFrom)
+	distances := siteDistances(passableEdges, cfg.SiteCount)
+	starts, homeVillages, err := selectStarts(newRNG(seed, "starts"), distances, cfg.StartCount)
 	if err != nil {
 		return MapData{}, err
 	}
+	seats, err := placeSeats(newRNG(seed, "seats"), geometry.centroids, distances, starts, homeVillages, cfg.SeatCount)
+	if err != nil {
+		return MapData{}, err
+	}
+
 	names, err := nameTerritories(newRNG(seed, "naming"), assets, terrain)
 	if err != nil {
 		return MapData{}, err
@@ -136,24 +147,44 @@ func generateAttempt(seed string, assets assetgen.Assets, cfg Config) (MapData, 
 	}
 	adjacency := adjacencyIDs(passableEdges, territoryIDs)
 	impassable := adjacencyIDs(impassableEdges, territoryIDs)
+
+	village := make([]bool, cfg.SiteCount)
+	for _, home := range homeVillages {
+		village[home] = true
+	}
+	for _, seat := range seats {
+		village[seat] = true
+	}
+
 	territories := make([]Territory, cfg.SiteCount)
 	for i := range territories {
 		territories[i] = Territory{
 			ID:          names[i].code,
 			Name:        names[i].name,
 			Terrain:     terrain[i],
-			Village:     villages[i],
+			Village:     village[i],
 			Points:      geometry.polygons[i],
 			Adjacencies: adjacency[i],
 			Impassable:  impassable[i],
 		}
 	}
 
-	regions, err := generateRegions(territories)
+	seatIDs := make([]models.TerritoryID, len(seats))
+	for index, seat := range seats {
+		seatIDs[index] = models.TerritoryID(names[seat].code)
+	}
+	regions, err := generateRegions(territories, seatIDs)
 	if err != nil {
 		return MapData{}, err
 	}
-	return MapData{Territories: territories, Regions: regions}, nil
+
+	startIDs := make([]string, len(starts))
+	for index, start := range starts {
+		startIDs[index] = names[start].code
+	}
+	sort.Strings(startIDs)
+
+	return MapData{Territories: territories, Regions: regions, Starts: startIDs}, nil
 }
 
 func validateConfig(cfg Config) error {
@@ -169,17 +200,14 @@ func validateConfig(cfg Config) error {
 	if cfg.SiteCount > gridW*gridH {
 		return fmt.Errorf("mapgen: site count must not exceed raster capacity %d", gridW*gridH)
 	}
-	if cfg.VillageCount < 1 {
-		return fmt.Errorf("mapgen: village count must be at least 1")
+	if cfg.StartCount < 1 {
+		return fmt.Errorf("mapgen: start count must be at least 1")
 	}
-	if cfg.VillageCount > cfg.SiteCount {
-		return fmt.Errorf("mapgen: village count %d exceeds site count %d", cfg.VillageCount, cfg.SiteCount)
+	if cfg.SeatCount < 1 {
+		return fmt.Errorf("mapgen: seat count must be at least 1")
 	}
-	if cfg.VillageSitesFrom < 0 || (cfg.VillageSitesFrom != 0 && cfg.VillageSitesFrom >= cfg.SiteCount) {
-		return fmt.Errorf("mapgen: village site start %d is outside site range [0, %d)", cfg.VillageSitesFrom, cfg.SiteCount)
-	}
-	if cfg.VillageSitesFrom > 0 && cfg.SiteCount-cfg.VillageSitesFrom < cfg.VillageCount {
-		return fmt.Errorf("mapgen: village site range has %d sites, need at least %d", cfg.SiteCount-cfg.VillageSitesFrom, cfg.VillageCount)
+	if needed := 2*cfg.StartCount + cfg.SeatCount; needed > cfg.SiteCount {
+		return fmt.Errorf("mapgen: site count %d cannot fit %d starts, %d home villages and %d seats", cfg.SiteCount, cfg.StartCount, cfg.StartCount, cfg.SeatCount)
 	}
 	return nil
 }

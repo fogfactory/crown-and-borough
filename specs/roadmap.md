@@ -11,7 +11,8 @@ La v1 comprend :
 
 - le moteur de jeu en Go pur ;
 - la génération déterministe d'une carte de `8 x N` territoires de jeu et de
-  `(N + 1) x 4` territoires dédiés aux villages ;
+  `(N + 1) x 4` territoires supplémentaires, portant `2 x N + 1` villages au
+  total (un village dédié par territoire de départ, plus `N + 1` chefs-lieux) ;
 - les chaînes d'ordres, leur progression simultanée, les combats, les retraites,
   les jonctions, les dispersions et le pillage ;
 - le ravitaillement, la famine et la résolution des ordres d'hiver ;
@@ -46,10 +47,14 @@ online à réaliser et à suivre par issue.
 
 - Une partie accepte de 2 à 16 joueurs.
 - La carte contient `8 x N` territoires de jeu et `(N + 1) x 4` territoires
-  supplémentaires dédiés aux `N + 1` villages neutres.
+  supplémentaires, et porte `2 x N + 1` villages neutres : `N + 1` chefs-lieux
+  et un village dédié par territoire de départ.
 - Les `N` châteaux de départ sont placés sur des territoires qui ne portent pas
-  ces villages neutres, avec au moins 4 étapes franchissables entre deux
-  départs ; ils ne consomment donc aucun des `N + 1` villages.
+  ces villages, avec au moins 4 étapes franchissables entre deux départs. Le
+  village dédié d'un territoire de départ est à exactement 2 étapes de lui, à
+  au moins 3 étapes de tout autre départ, et à au moins 2 étapes de tout autre
+  village ; les chefs-lieux restent à au moins 3 étapes de tout départ et 2
+  étapes de tout village dédié.
 - Les villages neutres produisent et stockent leur production. Leur stock est
   inaccessible avant capture et reste sur place lors de la capture.
 - Une seule infrastructure occupe une case. Les infrastructures appartiennent
