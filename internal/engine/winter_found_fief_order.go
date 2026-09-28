@@ -30,7 +30,7 @@ func (order foundFiefOrder) Apply(ctx *ExecutionContext) {
 	seen := make(map[models.TerritoryID]bool, len(territories))
 	for _, territoryID := range territories {
 		if seen[territoryID] {
-			resolution.rejectWinterOrder(playerID, winterOrder, "fief_duplicate_territory")
+			resolution.rejectWinterOrderAt(playerID, winterOrder, "fief_duplicate_territory", territoryID)
 			return
 		}
 		seen[territoryID] = true
@@ -47,21 +47,21 @@ func (order foundFiefOrder) Apply(ctx *ExecutionContext) {
 
 	for _, territoryID := range territories {
 		if !resolution.territoryExists(territoryID) {
-			resolution.rejectWinterOrder(playerID, winterOrder, "unknown_territory")
+			resolution.rejectWinterOrderAt(playerID, winterOrder, "unknown_territory", territoryID)
 			return
 		}
 		if !resolution.controlsTerritory(playerID, territoryID) {
-			resolution.rejectWinterOrder(playerID, winterOrder, "territory_not_controlled")
+			resolution.rejectWinterOrderAt(playerID, winterOrder, "territory_not_controlled", territoryID)
 			return
 		}
 		if resolution.fiefContaining(territoryID) != nil {
-			resolution.rejectWinterOrder(playerID, winterOrder, "fief_territory_already_in_fief")
+			resolution.rejectWinterOrderAt(playerID, winterOrder, "fief_territory_already_in_fief", territoryID)
 			return
 		}
 		// Other castles than the capital's are tolerated in the group; only an
 		// enemy or neutral (revolt) army stationed there blocks constitution.
 		if army := resolution.currentArmyAt(territoryID); army != nil && army.OwnerID != playerID {
-			resolution.rejectWinterOrder(playerID, winterOrder, "fief_territory_occupied_by_other_player")
+			resolution.rejectWinterOrderAt(playerID, winterOrder, "fief_territory_occupied_by_other_player", territoryID)
 			return
 		}
 	}

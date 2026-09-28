@@ -1,6 +1,7 @@
 import {
   DRAFT_INTENTION_COLOR,
   InfrastructureMarker,
+  OwnershipBadge,
   WinterBadge,
   WinterMarkerTriangle,
   WinterTransferArrow,
@@ -213,24 +214,37 @@ export function WinterOrdersOverlay({
           )
           if (!capital) return []
           const capitalCenter = centroid(capital.points)
+          const color = intention.color ?? DRAFT_INTENTION_COLOR
           const members = (intention.territories ?? []).slice(1)
-          return members.map((memberId) => {
+          return members.flatMap((memberId) => {
             const member = territories.find((territory) => territory.id === memberId)
-            if (!member) return null
+            if (!member) return []
             const [x2, y2] = centroid(member.points)
-            return (
+            return [
               <line
-                key={`fief-group-${intention.line}-${memberId}`}
+                key={`fief-group-line-${intention.line}-${memberId}`}
                 x1={capitalCenter[0]}
                 y1={capitalCenter[1]}
                 x2={x2}
                 y2={y2}
-                stroke={intention.color ?? DRAFT_INTENTION_COLOR}
-                strokeWidth={annotationScale * 1.5}
+                stroke={color}
+                strokeWidth={annotationScale * 2}
                 strokeDasharray={`${annotationScale * 4} ${annotationScale * 3}`}
-                strokeOpacity={intention.valid ? 0.75 : 0.35}
-              />
-            )
+                strokeOpacity={intention.valid ? 0.9 : 0.4}
+              />,
+              // A blazon on each non-capital member echoes the ownership
+              // badge pattern so the drafted group reads at a glance, since
+              // membership does not yet change control or income (#196).
+              <OwnershipBadge
+                key={`fief-group-badge-${intention.line}-${memberId}`}
+                ownerId={memberId}
+                x={x2}
+                y={y2 - 18 * annotationScale}
+                color={color}
+                scale={annotationScale}
+                label={t('map.fiefGroupMember', { capital: capital.name })}
+              />,
+            ]
           })
         })}
       {winterIntentions

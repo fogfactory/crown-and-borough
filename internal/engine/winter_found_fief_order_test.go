@@ -143,10 +143,15 @@ func TestFoundFiefOrderNeutralArmyBlocks(t *testing.T) {
 
 func TestFoundFiefOrderRejections(t *testing.T) {
 	cases := []struct {
-		name   string
-		mutate func(state *models.GameState)
-		order  models.WinterOrder
-		reason string
+		name string
+		// wantTerritory is the offending territory a rejection reason tied
+		// to one specific group member should be attributed to, so a map
+		// marker lands there rather than always on the capital. Left empty
+		// for reasons that are not about one particular territory.
+		wantTerritory models.TerritoryID
+		mutate        func(state *models.GameState)
+		order         models.WinterOrder
+		reason        string
 	}{
 		{
 			name:   "unknown noble",
@@ -166,9 +171,10 @@ func TestFoundFiefOrderRejections(t *testing.T) {
 			reason: "fief_holder_not_free",
 		},
 		{
-			name:   "duplicate territory",
-			order:  models.WinterOrder{NobleCode: "HUG", TerritoryID: "AAA", TerritoryIDs: []models.TerritoryID{"AAA", "BBB", "BBB"}},
-			reason: "fief_duplicate_territory",
+			name:          "duplicate territory",
+			order:         models.WinterOrder{NobleCode: "HUG", TerritoryID: "AAA", TerritoryIDs: []models.TerritoryID{"AAA", "BBB", "BBB"}},
+			reason:        "fief_duplicate_territory",
+			wantTerritory: "BBB",
 		},
 		{
 			name:   "too small",
@@ -176,15 +182,17 @@ func TestFoundFiefOrderRejections(t *testing.T) {
 			reason: "fief_too_small",
 		},
 		{
-			name:   "unknown territory",
-			order:  models.WinterOrder{NobleCode: "HUG", TerritoryID: "AAA", TerritoryIDs: []models.TerritoryID{"AAA", "BBB", "ZZZ"}},
-			reason: "unknown_territory",
+			name:          "unknown territory",
+			order:         models.WinterOrder{NobleCode: "HUG", TerritoryID: "AAA", TerritoryIDs: []models.TerritoryID{"AAA", "BBB", "ZZZ"}},
+			reason:        "unknown_territory",
+			wantTerritory: "ZZZ",
 		},
 		{
-			name:   "territory not controlled",
-			mutate: func(state *models.GameState) { setTerritoryOwner(state, "CCC", "P2") },
-			order:  models.WinterOrder{NobleCode: "HUG", TerritoryID: "AAA", TerritoryIDs: []models.TerritoryID{"AAA", "BBB", "CCC"}},
-			reason: "territory_not_controlled",
+			name:          "territory not controlled",
+			mutate:        func(state *models.GameState) { setTerritoryOwner(state, "CCC", "P2") },
+			order:         models.WinterOrder{NobleCode: "HUG", TerritoryID: "AAA", TerritoryIDs: []models.TerritoryID{"AAA", "BBB", "CCC"}},
+			reason:        "territory_not_controlled",
+			wantTerritory: "CCC",
 		},
 		{
 			name:   "capital requires castle",
@@ -199,14 +207,16 @@ func TestFoundFiefOrderRejections(t *testing.T) {
 					Territories: []models.TerritoryID{"EEE", "FFF", "GGG"}, OwnerID: "P1",
 				}}
 			},
-			order:  models.WinterOrder{NobleCode: "HUG", TerritoryID: "AAA", TerritoryIDs: []models.TerritoryID{"AAA", "BBB", "FFF"}},
-			reason: "fief_territory_already_in_fief",
+			order:         models.WinterOrder{NobleCode: "HUG", TerritoryID: "AAA", TerritoryIDs: []models.TerritoryID{"AAA", "BBB", "FFF"}},
+			reason:        "fief_territory_already_in_fief",
+			wantTerritory: "FFF",
 		},
 		{
-			name:   "territory occupied by another player",
-			mutate: func(state *models.GameState) { placeArmyAt(state, "A9", "P2", "CCC", 2) },
-			order:  models.WinterOrder{NobleCode: "HUG", TerritoryID: "AAA", TerritoryIDs: []models.TerritoryID{"AAA", "BBB", "CCC"}},
-			reason: "fief_territory_occupied_by_other_player",
+			name:          "territory occupied by another player",
+			mutate:        func(state *models.GameState) { placeArmyAt(state, "A9", "P2", "CCC", 2) },
+			order:         models.WinterOrder{NobleCode: "HUG", TerritoryID: "AAA", TerritoryIDs: []models.TerritoryID{"AAA", "BBB", "CCC"}},
+			reason:        "fief_territory_occupied_by_other_player",
+			wantTerritory: "CCC",
 		},
 		{
 			name:   "not contiguous",
@@ -236,6 +246,9 @@ func TestFoundFiefOrderRejections(t *testing.T) {
 			}
 			if event.Reason != tc.reason {
 				t.Errorf("reason = %q, want %q", event.Reason, tc.reason)
+			}
+			if event.TerritoryID != tc.wantTerritory {
+				t.Errorf("TerritoryID = %q, want %q", event.TerritoryID, tc.wantTerritory)
 			}
 			if event.ResourceSpent != 0 {
 				t.Errorf("ResourceSpent = %d, want 0", event.ResourceSpent)

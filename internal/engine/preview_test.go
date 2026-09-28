@@ -136,6 +136,32 @@ func TestPreviewOrdersReportsFiefGroupTerritories(t *testing.T) {
 	}
 }
 
+// TestPreviewOrdersReportsFiefRejectionOnOffendingTerritory verifies that a
+// found_fief line rejected because of one non-capital member (here CCC, not
+// controlled by P1) is attributed to that territory rather than defaulting
+// to the capital, so the map marker lands on the actual offending territory.
+func TestPreviewOrdersReportsFiefRejectionOnOffendingTerritory(t *testing.T) {
+	game := foundFiefTestState(t)
+	setTerritoryOwner(game, "CCC", "P2")
+	placeArmyAt(game, "A2", "P2", "CCC", 1)
+	game.NextArmyID = 3
+	validateTestState(t, game)
+
+	preview, err := PreviewOrders(game, testBalance(), "P1", OrdersInput{
+		Winter: []WinterSubmission{{Player: "P1", Lines: "T F HUG AAA BBB CCC"}},
+	})
+	if err != nil {
+		t.Fatalf("PreviewOrders: %v", err)
+	}
+	if len(preview.Winter) != 1 {
+		t.Fatalf("winter lines = %#v, want one line", preview.Winter)
+	}
+	line := preview.Winter[0]
+	if line.Applied || line.Reason != "territory_not_controlled" || line.Territory != "CCC" {
+		t.Fatalf("fief line = %#v, want a territory_not_controlled rejection on CCC", line)
+	}
+}
+
 func TestWinterPaymentReservesCountsAnIsolatedMillTargetedForUpgrade(t *testing.T) {
 	state := winterTestState(t, []models.Territory{territory("AAA", "AAA")}, nil)
 	setTerritoryOwner(state, "AAA", "P1")

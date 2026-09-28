@@ -123,6 +123,7 @@ describe('useGameIntentions', () => {
       kind: 'build',
       territory: 'ROS',
       valid: true,
+      color: '#a84632',
     })
   })
 

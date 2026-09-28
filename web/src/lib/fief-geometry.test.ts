@@ -65,4 +65,19 @@ describe('computeFiefOutlines', () => {
     const outlines = computeFiefOutlines(territories, [])
     expect(fiefOutlinePath(outlines, 'ZZZ')).toBe('')
   })
+
+  it('stays one connected loop regardless of which side of a shared edge is the fief member', () => {
+    // AAA (not in the fief) is processed before BBB, so the shared AAA/BBB
+    // edge has AAA as its "first" territory and BBB (a member) as "second" —
+    // the classification must treat that symmetrically with the reverse
+    // case already covered above, or the boundary fragments into an open
+    // loop that skips the AAA-facing side of BBB.
+    const fiefs: Fief[] = [
+      { capital: 'BBB', title: 'barony', territories: ['BBB', 'CCC'], owner: 'P1' },
+    ]
+    const outlines = computeFiefOutlines(territories, fiefs)
+    const loops = outlines.outlines.get('BBB')?.loops ?? []
+    expect(loops).toHaveLength(1)
+    expect(loops[0]).toHaveLength(6)
+  })
 })
