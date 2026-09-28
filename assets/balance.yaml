@@ -65,6 +65,7 @@ special_orders:
     fair_weather: 3
     abundant_harvest: 3
     revolt: 1
+    seigneurial_tax: 2
   effects:
     plague_army_divisor: 2
     plague_noble_mortality_percentage: 50

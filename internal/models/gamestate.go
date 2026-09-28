@@ -55,6 +55,7 @@ type GameState struct {
 	Auguries            map[int]YearAugury             `json:"auguries"`
 	ActiveRegionEffects []ActiveRegionEffect           `json:"activeRegionEffects"`
 	Fiefs               []Fief                         `json:"fiefs,omitempty"`
+	TaxedFiefs          []TaxedFief                    `json:"taxedFiefs,omitempty"`
 }
 
 // NewGameState returns a fresh empty state at turn 1, spring of year 1, with
@@ -82,9 +83,10 @@ func NewGameState() *GameState {
 		Regions:             []Region{},
 		Auguries:            map[int]YearAugury{},
 		ActiveRegionEffects: []ActiveRegionEffect{},
-		// Fiefs is left nil: unlike the collections above, it is tagged
-		// omitempty (no fief exists in most games) so a round-tripped state
-		// must stay nil rather than an empty non-nil slice.
+		// Fiefs and TaxedFiefs are left nil: unlike the collections above,
+		// they are tagged omitempty (no fief exists in most games, and no
+		// seigneurial tax has been played) so a round-tripped state must stay
+		// nil rather than an empty non-nil slice.
 	}
 }
 
@@ -582,6 +584,9 @@ func (g *GameState) Validate() error {
 		return err
 	}
 	if err := validateActiveRegionEffects(g.ActiveRegionEffects, g.Regions); err != nil {
+		return err
+	}
+	if err := validateTaxedFiefs(g.TaxedFiefs, fiefIDs); err != nil {
 		return err
 	}
 	if err := validatePrivacy(g.Privacy, players); err != nil {

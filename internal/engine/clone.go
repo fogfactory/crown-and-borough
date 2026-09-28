@@ -65,6 +65,9 @@ func cloneGameState(source *models.GameState) *models.GameState {
 			}
 		}
 	}
+	if source.TaxedFiefs != nil {
+		clone.TaxedFiefs = cloneSlice(source.TaxedFiefs)
+	}
 	clone.SpecialDeck = cloneSpecialDeck(source.SpecialDeck)
 	if source.Auguries != nil {
 		clone.Auguries = make(map[int]models.YearAugury, len(source.Auguries))

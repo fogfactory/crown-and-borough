@@ -39,7 +39,7 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 	})
 	played := make(map[models.TerritoryID]map[models.CardKind]int)
 	for _, intent := range intents {
-		if intent.order.Kind == models.CardKindRevolt {
+		if intent.order.Kind == models.CardKindRevolt || intent.order.Kind == models.CardKindSeigneurialTax {
 			continue
 		}
 		seed := intent.order.RegionSeed
@@ -49,7 +49,7 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 		played[seed][intent.order.Kind]++
 	}
 	for _, intent := range intents {
-		if intent.order.Kind == models.CardKindRevolt {
+		if intent.order.Kind == models.CardKindRevolt || intent.order.Kind == models.CardKindSeigneurialTax {
 			continue
 		}
 		seed := intent.order.RegionSeed
@@ -126,6 +126,15 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 			ctx.state.ActiveRegionEffects = append(ctx.state.ActiveRegionEffects, models.ActiveRegionEffect{
 				Kind: kind, RegionSeed: regionSeed, Season: ctx.state.Season, Year: ctx.state.Year(),
 			})
+		}
+	}
+	// Tax cards are applied before revolt cards: applyRevolt below must be
+	// able to see a fief taxed earlier in this very same turn
+	// (titres.md "Taxe seigneuriale").
+	ctx.state.TaxedFiefs = pruneTaxedFiefs(ctx.state.TaxedFiefs, ctx.state.Turn)
+	for _, intent := range intents {
+		if intent.order.Kind == models.CardKindSeigneurialTax {
+			applySeigneurialTax(ctx, intent.playerID, intent.order)
 		}
 	}
 	for _, intent := range intents {
@@ -293,19 +302,59 @@ func applyPlague(ctx *resolutionContext, regionSeed models.TerritoryID) {
 	}
 }
 
+// applySeigneurialTax consumes one seigneurial tax card on its target fief's
+// capital. The first successful play on a given fief this turn doubles the
+// fief's territorial income (income.go, applied later this same Resolve
+// call) and opens Révolte on every territory of the fief for this turn and
+// the next (fief.go, checked by applyRevolt). Ownership is re-checked
+// defensively even though CanPlay already validated it: deck orders resolve
+// before movement, so nothing can invalidate it within the same turn.
+// A second tax on the same fief the same turn does not stack: it is
+// consumed with no effect (titres.md "Taxe seigneuriale").
+func applySeigneurialTax(ctx *resolutionContext, playerID models.PlayerID, order models.DeckOrder) {
+	fief := ctx.fiefByCapital(order.TargetTerritoryID)
+	if fief == nil || fief.OwnerID != playerID {
+		ctx.events = append(ctx.events, Event{
+			Type: EventTypeRejected, Phase: phaseForSeason(ctx.state.Season),
+			OwnerID: playerID, OrderID: order.ID, Reason: "seigneurial_tax_requires_fief_owner",
+		})
+		return
+	}
+	if ctx.taxedFiefsThisTurn[fief.ID] {
+		ctx.events = append(ctx.events, Event{
+			Type: EventTypeCardCanceled, Phase: phaseForSeason(ctx.state.Season),
+			CardKind: models.CardKindSeigneurialTax, TerritoryID: fief.CapitalTerritoryID,
+			FiefID: fief.ID, FiefTitle: fief.Title, OwnerID: playerID,
+			Reason: "seigneurial_tax_already_applied", Season: ctx.state.Season, Year: ctx.state.Year(),
+		})
+		return
+	}
+	ctx.taxedFiefsThisTurn[fief.ID] = true
+	ctx.state.TaxedFiefs = append(ctx.state.TaxedFiefs, models.TaxedFief{FiefID: fief.ID, Turn: ctx.state.Turn})
+	ctx.events = append(ctx.events, Event{
+		Type: EventTypeBonusEffect, Phase: phaseForSeason(ctx.state.Season),
+		CardKind: models.CardKindSeigneurialTax, TerritoryID: fief.CapitalTerritoryID,
+		RegionSeed: fief.CapitalTerritoryID, FiefID: fief.ID, FiefTitle: fief.Title, OwnerID: playerID,
+		Season: ctx.state.Season, Year: ctx.state.Year(),
+	})
+}
+
 // applyRevolt consumes one revolt card on the target territory: it rolls for
 // reinforcements and adds them to the common neutral army building there, or
 // defers the fight to the post-movement revolt pass while the territory is
 // held by a player army. A revolt whose famine has been canceled in the
-// meantime is annulled with the card.
+// meantime, and whose territory's fief was not taxed this turn or the
+// previous one either, is annulled with the card (titres.md "Taxe
+// seigneuriale").
 func applyRevolt(ctx *resolutionContext, targetTerritory models.TerritoryID, orderID models.OrderID, playerID models.PlayerID) {
 	if targetTerritory == "" {
 		return
 	}
 	regionSeed := regionForTerritory(ctx, targetTerritory)
-	if !ctx.famineRegions[regionSeed] {
-		// The famine was countered before the revolt applied: the card returns
-		// to its player's hand and the annulment is credited to them.
+	if !ctx.famineRegions[regionSeed] && !ctx.revoltEligibleByTax(targetTerritory) {
+		// Neither condition holds any more at apply time (a countered famine,
+		// or no tax window on the territory's fief): the card returns to its
+		// player's hand and the annulment is credited to them.
 		ctx.events = append(ctx.events, Event{
 			Type: EventTypeCardCanceled, Phase: phaseForSeason(ctx.state.Season),
 			CardKind: models.CardKindRevolt, RegionSeed: regionSeed, TerritoryID: targetTerritory,

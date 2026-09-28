@@ -756,35 +756,46 @@ from noble chains and requiring no noble. Winter discards are written in the
 
 - `P FW ROS`: play Fair weather on the region seeded by ROS;
 - `P AH ROS`: play Abundant harvest on that region;
-- `P RV BRU`: play Revolt on the BRU territory, only when an active bad
-  harvest affects its region;
+- `P RV BRU`: play Revolt on the BRU territory, when an active bad harvest
+  affects its region, or when a seigneurial tax was played on the capital of
+  BRU's fief this turn or the previous one — every territory of the fief is
+  then eligible, not only its taxed capital;
+- `P TX BRU`: play the Seigneurial tax on BRU, provided BRU is the capital of
+  a fief the player controls (a vacant fief included) — the one exception
+  where the target is not a region's seed village;
 - `D C FW` or `D C AH`: discard a card, winter only.
 
 The hand is replenished automatically in winter after discards; no draw order
 is needed.
 
-Fair weather, Abundant harvest, and Revolt can be played in spring, summer,
-and autumn, but not winter. Played cards are consumed before army-order
-resolution. Fair weather cancels only bad weather, and Abundant harvest
-cancels only bad harvest; a card that cancels a calamity does not provide its
-regional bonus. Duplicate cards of the same kind are consumed, but only one is
-effective: with an active calamity the first card cancels and a second one
-applies the regional bonus; without a calamity the first card applies it
-directly. The bonus applies only once per kind and region; further cards are
-consumed without effect.
+Fair weather, Abundant harvest, Revolt, and the Seigneurial tax can be played
+in spring, summer, and autumn, but not winter. Played cards are consumed
+before army-order resolution. Fair weather cancels only bad weather, and
+Abundant harvest cancels only bad harvest; a card that cancels a calamity does
+not provide its regional bonus. Duplicate cards of the same kind are
+consumed, but only one is effective: with an active calamity the first card
+cancels and a second one applies the regional bonus; without a calamity the
+first card applies it directly. The bonus applies only once per kind and
+region; further cards are consumed without effect. The Seigneurial tax
+follows a separate rule, per fief rather than per region: two cards played on
+the same fief the same turn never stack, the second is simply consumed
+without effect.
 
 Regional bonuses:
 
 - Fair weather **doubles** the production of the region's mills;
 - Abundant harvest **doubles** the terrain rations of every territory of the
-  region and the region's territory income.
+  region and the region's territory income;
+- the Seigneurial tax **doubles** the targeted fief's territorial income,
+  village included, for the turn — it never touches mill production.
 
 The deck contains **{{special_orders.deck_size}} cards**:
 **{{special_orders.card.plague}}** plague, **{{special_orders.card.bad_weather}}**
 bad weather, **{{special_orders.card.famine}}** bad harvest,
 **{{special_orders.card.fair_weather}}** fair weather,
-**{{special_orders.card.abundant_harvest}}** abundant harvest, and
-**{{special_orders.card.revolt}}** revolt cards. A hand is limited to
+**{{special_orders.card.abundant_harvest}}** abundant harvest,
+**{{special_orders.card.revolt}}** revolt, and
+**{{special_orders.card.seigneurial_tax}}** seigneurial tax cards. A hand is limited to
 **{{special_orders.hand_limit}} cards**, and each player automatically
 receives up to **{{special_orders.draw_orders_limit}} bonus cards per
 winter**, after discards.
@@ -806,7 +817,10 @@ countered. No calamity resolves in winter.
 - bad harvest removes the terrain rations of every territory of its region and
   the region's territory income;
 - Revolt is played on a territory (`P RV TER`) during action seasons,
-  provided its region suffers a bad harvest. Each card adds a roll between
+  provided its region suffers a bad harvest, or a Seigneurial tax was played
+  on the capital of the territory's fief this turn or the previous one —
+  every territory of the fief is then eligible, not only its taxed capital.
+  Each card adds a roll between
   **{{special_orders.effects.revolt_army_min_size}}** and
   **{{special_orders.effects.revolt_army_max_size}}** troops to the
   territory's common neutral army; the territory may be neutral (mere
@@ -817,7 +831,13 @@ countered. No calamity resolves in winter.
   canceled and their players take their cards back. A crushed rebellion
   retreats like any defeated army instead of vanishing. Neutral armies never
   lose strength to a famine, but lose one troop at the end of the turn when
-  the local production of their territory cannot feed them.
+  the local production of their territory cannot feed them;
+- the Seigneurial tax is played on a fief's capital (`P TX XXX`) the player
+  controls, a vacant fief included. It doubles the fief's territorial income
+  for the turn, village included, and never touches mill production.
+  Rejected if the player does not control the targeted fief, or if XXX is
+  not its capital. Two cards played on the same fief the same turn do not
+  stack: the second is consumed with no effect.
 
 Public rumors are recalculated in every report from the current bonus hands of
 all players. They appear when at least two players hold a card, without

@@ -802,34 +802,48 @@ dans la feuille `winter`.
 - `P BT ROS` : jouer Beau temps sur la région dont ROS est le seed ;
 - `P RA ROS` : jouer Bonne récolte sur cette région ;
 - `P RE BRU` : jouer Révolte sur le territoire BRU, uniquement si une
-  mauvaise récolte active affecte sa région ;
+  mauvaise récolte active affecte sa région, ou si une taxe seigneuriale a
+  été jouée sur la capitale du fief auquel BRU appartient ce tour-ci ou le
+  tour précédent — tout territoire du fief est alors éligible, pas seulement
+  sa capitale taxée ;
+- `P TX BRU` : jouer la Taxe seigneuriale sur BRU, à condition que BRU soit
+  la capitale d'un fief que le joueur détient (vacant compris) — c'est la
+  seule exception où la cible n'est pas le village seed d'une région ;
 - `D C BT` ou `D C RA` : défausser une carte, en hiver uniquement.
 
 La main est reconstituée automatiquement en hiver après les défausses ;
 aucun ordre de pioche n'est nécessaire.
 
-Beau temps, Bonne récolte et Révolte sont jouables au printemps, en été et
-en automne, mais pas en hiver. Les cartes jouées sont consommées avant la
-résolution des ordres d'armée. Beau temps annule uniquement le mauvais
-temps, Bonne récolte annule uniquement la mauvaise récolte ; une carte qui
-annule une calamité ne produit pas son bonus régional. Deux cartes du même
-kind sont consommées, mais une seule est effective : avec une calamité
-active, la première annule et une seconde applique le bonus régional ; sans
-calamité, la première l'applique directement. Le bonus ne s'applique qu'une
-fois par kind et par région ; les cartes au-delà sont consommées sans effet.
+Beau temps, Bonne récolte, Révolte et Taxe seigneuriale sont jouables au
+printemps, en été et en automne, mais pas en hiver. Les cartes jouées sont
+consommées avant la résolution des ordres d'armée. Beau temps annule
+uniquement le mauvais temps, Bonne récolte annule uniquement la mauvaise
+récolte ; une carte qui annule une calamité ne produit pas son bonus
+régional. Deux cartes du même kind sont consommées, mais une seule est
+effective : avec une calamité active, la première annule et une seconde
+applique le bonus régional ; sans calamité, la première l'applique
+directement. Le bonus ne s'applique qu'une fois par kind et par région ; les
+cartes au-delà sont consommées sans effet. La Taxe seigneuriale suit une
+règle à part, par fief plutôt que par région : deux cartes jouées sur le même
+fief le même tour ne se cumulent jamais, la seconde est simplement consommée
+sans effet.
 
 Bonus régionaux :
 
 - Beau temps **double** la production des moulins de la région ;
 - Bonne récolte **double** les rations de terrain de chaque case de la région
-  et le revenu territorial de la région.
+  et le revenu territorial de la région ;
+- la Taxe seigneuriale **double** le revenu territorial du fief ciblé,
+  village compris, pour le tour — elle ne touche jamais la production des
+  moulins.
 
 Le deck contient **{{special_orders.deck_size}} cartes** :
 **{{special_orders.card.plague}}** peste, **{{special_orders.card.bad_weather}}**
 mauvais temps, **{{special_orders.card.famine}}** mauvaise récolte,
 **{{special_orders.card.fair_weather}}** beau temps,
-**{{special_orders.card.abundant_harvest}}** bonne récolte et
-**{{special_orders.card.revolt}}** révolte. La main est limitée à
+**{{special_orders.card.abundant_harvest}}** bonne récolte,
+**{{special_orders.card.revolt}}** révolte et
+**{{special_orders.card.seigneurial_tax}}** taxe seigneuriale. La main est limitée à
 **{{special_orders.hand_limit}} cartes**, et chaque joueur reçoit
 automatiquement jusqu'à **{{special_orders.draw_orders_limit}} cartes bonus
 par hiver**, après ses défausses.
@@ -854,7 +868,10 @@ ne se résout en hiver.
 - la mauvaise récolte supprime les rations de terrain de chaque case de sa
   région et le revenu territorial de la région ;
 - la Révolte se joue sur un territoire (`P RE TER`) pendant les saisons
-  d'action, à condition que sa région subisse une mauvaise récolte. Chaque
+  d'action, à condition que sa région subisse une mauvaise récolte, ou
+  qu'une Taxe seigneuriale ait été jouée sur la capitale du fief du
+  territoire ce tour-ci ou le tour précédent — tout territoire du fief est
+  alors éligible, pas seulement sa capitale taxée. Chaque
   carte ajoute un jet entre **{{special_orders.effects.revolt_army_min_size}}**
   et **{{special_orders.effects.revolt_army_max_size}}** troupes à l'armée
   neutre commune du territoire ; le territoire peut être neutre (simple
@@ -866,7 +883,13 @@ ne se résout en hiver.
   carte. Une rébellion vaincue se retire comme toute armée défaite, au lieu
   de disparaître. Les armées neutres ne perdent jamais leur force à cause
   d'une famine, mais perdent une troupe en fin de tour si la production
-  locale de leur territoire ne suffit pas à les nourrir.
+  locale de leur territoire ne suffit pas à les nourrir ;
+- la Taxe seigneuriale se joue sur la capitale d'un fief (`P TX XXX`) que le
+  joueur détient, vacant compris. Elle double le revenu territorial du fief
+  pour le tour, village inclus, sans jamais toucher la production des
+  moulins. Rejetée si le joueur ne détient pas le fief ciblé, ou si XXX n'en
+  est pas la capitale. Deux cartes jouées sur le même fief le même tour ne se
+  cumulent pas : la seconde est consommée sans effet.
 
 Les rumeurs publiques sont recalculées dans chaque rapport à partir des
 mains bonus actuelles de tous les joueurs. Elles apparaissent lorsqu'au

@@ -224,12 +224,14 @@ const englishMessages = {
   'card.plague': 'Plague',
   'card.bad_weather': 'Bad weather',
   'card.famine': 'Bad harvest',
+  'card.seigneurial_tax': 'Seigneurial tax',
   'card.short.fair_weather': 'FW',
   'card.short.abundant_harvest': 'AH',
   'card.short.revolt': 'RV',
   'card.short.plague': 'PL',
   'card.short.bad_weather': 'BW',
   'card.short.famine': 'BH',
+  'card.short.seigneurial_tax': 'ST',
   'orders.noNobleAvailable': 'No noble is available for this player.',
   'orders.chainAria': 'Chain for {noble}',
   'orders.noEmittingNoble': 'No noble can emit: action orders are not required.',
@@ -332,6 +334,14 @@ const englishMessages = {
     'Discontent spreads through several villages; peasants begin to arm themselves.',
   'rumor.revolt.level3':
     'Revolt is stirring across the kingdom; the countryside is ready to rise.',
+  'rumor.seigneurial_tax':
+    'Stewards are seen combing through ledgers; the lords are preparing to squeeze their fiefs.',
+  'rumor.seigneurial_tax.level1':
+    'A steward or two is seen combing through ledgers; a fief may be squeezed this season.',
+  'rumor.seigneurial_tax.level2':
+    'Several lords are pressuring their bailiffs; more than one fief will be taxed hard.',
+  'rumor.seigneurial_tax.level3':
+    "Tax collectors ride out across the realm; several fiefs are about to be squeezed to the last denier.",
   'reports.ordersExecuted': 'Orders executed',
   'reports.hiddenOrder': 'An order was processed, but its details are hidden.',
   'reports.noEvents': 'No {label} events.',
@@ -559,7 +569,7 @@ const englishMessages = {
     "`XXX T YYY N` executes after supply, once per army per turn — the army then performs no other order. `YYY` must be a castle, village, or the territory of another living player's army: a bare supply depot cannot receive. The route follows the donor's supply range (3 territories, plus any controlled depots along the way); an enemy army on an intermediate territory blocks the transfer, but an enemy army at the destination does not. The amount is capped at `2^(N - 1)` for an army of `N` troops, and a famished army cannot transfer at all. If the stock is insufficient, a `single` transfer simply fails with no effect and the chain continues; in `loop`, the order keeps retrying and sends whatever remains as a partial delivery once the stock drops below the requested amount.",
   'faq.q12': 'How do special cards and calamities apply?',
   'faq.a12':
-    'Calamities (plague, bad weather, bad harvest) are drawn automatically and programmed ahead of time into a season slot of the following year; they are announced as soon as they are drawn and apply on their own, without you playing a card. Your bonus cards (fair weather, abundant harvest, revolt) are played instead, with an order in the `special` field — no noble needed — in spring, summer, or autumn, never in winter. Fair weather only cancels bad weather, and abundant harvest only cancels bad harvest; a card that cancels a calamity does not also grant its regional bonus. Weather acts on mills: bad weather stops them, fair weather doubles their production. The harvest acts on the land: bad harvest removes terrain rations and territory income, abundant harvest doubles them. If several cards of the same kind are played on the same region, only one is effective: with an active calamity the first cancels it and a second applies the bonus, without a calamity the first applies it directly — the rest are consumed with no effect. Revolt (`P RV TER`) requires an active bad harvest in the region already: it raises a neutral army, or, if the territory is occupied, triggers a combat where the loser retreats or is destroyed.',
+    'Calamities (plague, bad weather, bad harvest) are drawn automatically and programmed ahead of time into a season slot of the following year; they are announced as soon as they are drawn and apply on their own, without you playing a card. Your bonus cards (fair weather, abundant harvest, revolt) are played instead, with an order in the `special` field — no noble needed — in spring, summer, or autumn, never in winter. Fair weather only cancels bad weather, and abundant harvest only cancels bad harvest; a card that cancels a calamity does not also grant its regional bonus. Weather acts on mills: bad weather stops them, fair weather doubles their production. The harvest acts on the land: bad harvest removes terrain rations and territory income, abundant harvest doubles them. If several cards of the same kind are played on the same region, only one is effective: with an active calamity the first cancels it and a second applies the bonus, without a calamity the first applies it directly — the rest are consumed with no effect. Revolt (`P RV TER`) requires an active bad harvest in the region, or a seigneurial tax played on the capital of the territory\'s fief this turn or the previous one (see the next question): it raises a neutral army, or, if the territory is occupied, triggers a combat where the loser retreats or is destroyed.',
   'faq.q14': 'Why is the projected famine risk only an estimate?',
   'faq.a14':
     "The command post replays the same ravitaillement resolution used at the end of the turn, including how several of your armies split a shared source's stock, so it flags exactly the armies that would starve if nothing changes. It stays an estimate for two reasons outside its control: it always assumes a normal harvest, since a bad harvest or bad weather card already drawn for this season, but not yet revealed, never changes this projection; and it assumes your orders stay exactly as currently drafted, since it runs before you submit them and cannot foresee a last-minute transfer, dispersal, or new infrastructure that would change the outcome. It is never shown in winter, since ravitaillement does not happen then.",
@@ -569,6 +579,9 @@ const englishMessages = {
   'faq.q16': 'How long does control last outside a fief?',
   'faq.a16':
     'Outside a fief, holding a territory is never permanent: control stays with you only while one of your armies is currently stationed there. Your own capital, and every member of one of your fiefs, are the only exceptions — permanent anchors that stay controlled even with no army on them. The moment your last army leaves an ordinary territory — moved away, dislodged, or destroyed — it reverts to neutral at the next control update, with no owner, until any army, yours or not, stops there again and retakes it positionally. A `NEUTRAL` revolt stopping there only occupies it: it never takes control, so it never hands the release back to you either. Losing control this way also makes a castle, mill, or supply depot standing there **inert**: no defensive bonus, no production, no extended supply range, until an army anchors the territory again. A village is the only exception: it keeps producing its own income regardless.',
+  'faq.q17': 'How does the seigneurial tax card work?',
+  'faq.a17':
+    "`P TX XXX` (or `P ST XXX`) plays the seigneurial tax on XXX, the fief's capital — the one exception to `TER` always being a region's seed village — in spring, summer, or autumn, never in winter. It is rejected if you do not control the targeted fief; a vacant fief can still be taxed by whoever holds it. It doubles the fief's territorial income for the turn, village included, and never touches mill production. Two tax cards played on the same fief the same turn do not stack: the second is consumed with no effect. Playing it also opens Révolte on every territory of the fief, capital included, independently of any bad harvest, for the turn it is played and the following one.",
   'error.line': 'Line {line}: {message}',
   'error.invalidOrder': 'Invalid order',
   'error.winter.order_shape':
@@ -903,6 +916,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'card.fair_weather': 'Beau temps',
   'card.abundant_harvest': 'Bonne récolte',
   'card.revolt': 'Révolte',
+  'card.seigneurial_tax': 'Taxe seigneuriale',
   'card.plague': 'Peste',
   'card.bad_weather': 'Mauvais temps',
   'card.famine': 'Mauvaise récolte',
@@ -912,6 +926,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'card.short.plague': 'PE',
   'card.short.bad_weather': 'MT',
   'card.short.famine': 'MR',
+  'card.short.seigneurial_tax': 'TX',
   'orders.noNobleAvailable': 'Aucun noble disponible pour ce joueur.',
   'orders.chainAria': 'Chaîne de {noble}',
   'orders.noEmittingNoble':
@@ -1014,6 +1029,14 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     'La grogne gagne plusieurs villages ; les paysans commencent à s’armer.',
   'rumor.revolt.level3':
     'La révolte gronde dans tout le royaume ; les campagnes sont prêtes à se soulever.',
+  'rumor.seigneurial_tax':
+    'Des intendants passent les registres au peigne fin ; des seigneurs s’apprêtent à pressurer leur fief.',
+  'rumor.seigneurial_tax.level1':
+    'Un intendant ou deux passent les registres au peigne fin ; un fief pourrait être pressuré cette saison.',
+  'rumor.seigneurial_tax.level2':
+    'Plusieurs seigneurs pressent leurs baillis ; plus d’un fief sera taxé lourdement.',
+  'rumor.seigneurial_tax.level3':
+    'Des collecteurs sillonnent le royaume ; plusieurs fiefs vont être pressurés jusqu’au dernier denier.',
   'reports.ordersExecuted': 'Ordres exécutés',
   'reports.hiddenOrder': 'Un ordre a été traité, mais ses détails sont masqués.',
   'reports.noEvents': 'Aucun événement de {label}.',
@@ -1256,7 +1279,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     '`XXX T YYY N` s’exécute après le ravitaillement, une fois par armée et par tour — elle ne fait alors aucun autre ordre. `YYY` doit être un château, un village, ou la case d’une armée d’un autre joueur vivant : un dépôt de vivres sans armée ne peut pas recevoir. La route suit la portée de ravitaillement du donneur (3 cases, plus les dépôts contrôlés rencontrés en chemin) ; toute armée adverse sur une case intermédiaire bloque le transfert, mais une armée adverse en destination ne l’empêche pas. Le montant est plafonné à `2^(N - 1)` pour une armée de `N` troupes, et une armée affamée ne peut pas transférer du tout. Si le stock est insuffisant, un transfert `single` échoue simplement sans effet et la chaîne continue ; en `loop`, l’ordre retente et envoie le reliquat en livraison partielle dès que le stock devient inférieur au montant demandé.',
   'faq.q12': 'Comment les cartes spéciales et les calamités s’appliquent-elles ?',
   'faq.a12':
-    'Les calamités (peste, mauvais temps, mauvaise récolte) sont tirées automatiquement et programmées à l’avance dans un slot saisonnier de l’année suivante ; elles s’annoncent dès leur tirage et s’appliquent d’elles-mêmes, sans que tu joues de carte. Tes cartes bonus (beau temps, bonne récolte, révolte) se jouent, elles, avec un ordre dans le champ `special` — pas besoin de noble — au printemps, en été ou en automne, jamais en hiver. Beau temps n’annule que le mauvais temps, et bonne récolte n’annule que la mauvaise récolte ; jouer une carte qui annule une calamité ne produit pas en plus son bonus régional. La météo agit sur les moulins : le mauvais temps les arrête, le beau temps double leur production. La récolte agit sur la terre : la mauvaise récolte supprime les rations de terrain et le revenu territorial, la bonne récolte les double. Si plusieurs cartes du même type sont jouées sur la même région, une seule est effective : avec une calamité active la première l’annule et une seconde applique le bonus, sans calamité la première l’applique directement — le reste est consommé sans effet. La révolte (`P RE TER`) exige qu’une mauvaise récolte affecte déjà la région : elle fait apparaître une armée neutre ou, si le territoire est occupé, déclenche un combat où le perdant se retire ou est détruit.',
+    'Les calamités (peste, mauvais temps, mauvaise récolte) sont tirées automatiquement et programmées à l’avance dans un slot saisonnier de l’année suivante ; elles s’annoncent dès leur tirage et s’appliquent d’elles-mêmes, sans que tu joues de carte. Tes cartes bonus (beau temps, bonne récolte, révolte) se jouent, elles, avec un ordre dans le champ `special` — pas besoin de noble — au printemps, en été ou en automne, jamais en hiver. Beau temps n’annule que le mauvais temps, et bonne récolte n’annule que la mauvaise récolte ; jouer une carte qui annule une calamité ne produit pas en plus son bonus régional. La météo agit sur les moulins : le mauvais temps les arrête, le beau temps double leur production. La récolte agit sur la terre : la mauvaise récolte supprime les rations de terrain et le revenu territorial, la bonne récolte les double. Si plusieurs cartes du même type sont jouées sur la même région, une seule est effective : avec une calamité active la première l’annule et une seconde applique le bonus, sans calamité la première l’applique directement — le reste est consommé sans effet. La révolte (`P RE TER`) exige qu’une mauvaise récolte affecte la région, ou qu’une taxe seigneuriale ait été jouée sur la capitale du fief du territoire ce tour-ci ou le précédent (voir la question suivante) : elle fait apparaître une armée neutre ou, si le territoire est occupé, déclenche un combat où le perdant se retire ou est détruit.',
   'faq.q14': 'Pourquoi le risque de famine affiché n’est-il qu’une estimation ?',
   'faq.a14':
     'Le poste de commandement rejoue la même résolution de ravitaillement que celle appliquée en fin de tour, y compris la façon dont plusieurs de tes armées se partagent le stock d’une même source : il signale donc exactement les armées qui seraient affamées si rien ne change. Ça reste une estimation pour deux raisons hors de son contrôle : elle suppose toujours une récolte normale, puisqu’une carte de mauvaise récolte ou de mauvais temps déjà tirée pour cette saison mais pas encore révélée ne change jamais cette projection ; et elle suppose que tes ordres restent exactement tels que rédigés actuellement, puisqu’elle s’exécute avant leur soumission et ne peut pas anticiper un transfert, une dispersion ou une nouvelle infrastructure de dernière minute qui changerait l’issue. Elle n’est jamais affichée en hiver, puisque le ravitaillement n’a pas lieu à cette saison.',
@@ -1266,6 +1289,9 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'faq.q16': 'Combien de temps dure le contrôle hors fief ?',
   'faq.a16':
     'Hors fief, tenir un territoire n’est jamais permanent : le contrôle ne te reste que tant qu’une de tes armées y stationne actuellement. Ta propre capitale, et chaque membre d’un de tes fiefs, sont les seules exceptions — des ancrages permanents qui restent contrôlés même sans armée dessus. Dès que ta dernière armée quitte un territoire ordinaire — partie, délogée ou détruite —, il redevient neutre à la prochaine mise à jour du contrôle, sans propriétaire, jusqu’à ce qu’une armée, la tienne ou non, s’y arrête à nouveau et le reprenne positionnellement. Une révolte `NEUTRAL` qui s’y arrête ne fait que l’occuper : elle ne prend jamais le contrôle, donc elle ne te rend jamais cette libération non plus. Perdre le contrôle ainsi rend aussi **inerte** un château, un moulin ou un dépôt qui s’y trouve : plus de bonus défensif, plus de production, plus de portée de ravitaillement étendue, jusqu’à ce qu’une armée ancre à nouveau le territoire. Le village est la seule exception : il continue de produire son propre revenu quoi qu’il arrive.',
+  'faq.q17': 'Comment fonctionne la carte de taxe seigneuriale ?',
+  'faq.a17':
+    'L’ordre `P TX XXX` (ou `P ST XXX`) joue la taxe seigneuriale sur XXX, la capitale du fief — la seule exception où `TER` n’est pas le village seed d’une région — au printemps, en été ou en automne, jamais en hiver. Il est rejeté si tu ne contrôles pas le fief ciblé ; un fief vacant reste taxable par celui qui le détient. Elle double le revenu territorial du fief pour ce tour, village compris, et ne touche jamais la production des moulins. Deux cartes de taxe jouées sur le même fief le même tour ne se cumulent pas : la seconde est consommée sans effet. La jouer autorise aussi la Révolte sur tout territoire du fief, capitale comprise, indépendamment de toute mauvaise récolte, la saison où elle est jouée et la saison suivante.',
   'error.line': 'Ligne {line} : {message}',
   'error.invalidOrder': 'Ordre invalide',
   'error.winter.order_shape':

@@ -67,6 +67,14 @@ func computeTerritoryIncome(ctx *resolutionContext) (map[models.PlayerID]map[mod
 			hasVillage := ctx.hasInfrastructure(territoryID, models.InfraTypeVillage)
 			parts := territoryIncomeParts(ctx, territoryID, hasVillage)
 			fief := ctx.territoryFief(ownerID, territoryID)
+			if fief != nil && ctx.taxedFiefsThisTurn[fief.ID] {
+				// Seigneurial tax doubles the fief's territorial income,
+				// village included, for the turn (titres.md "Taxe
+				// seigneuriale"); it never touches mill production, which
+				// this parts value does not carry.
+				parts.base *= 2
+				parts.bonus *= 2
+			}
 			destinationID := ctx.territoryIncomeDestination(ownerID, territoryID, fief)
 			perTerritory[territoryID] = TerritoryIncomeForecast{Amount: parts.total(), Destination: destinationID}
 			var fiefID models.FiefID

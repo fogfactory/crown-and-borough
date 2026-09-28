@@ -66,3 +66,8 @@ fiefs, qui relève exclusivement de la taxe seigneuriale.
 La règle devra préciser le cas où plusieurs cardinaux ciblent le même évêché le
 même tour, et si un évêché sans évêque élu reste taxable par un cardinal ou le
 pape.
+
+> À trancher : comme la taxe seigneuriale
+> ([titres.md](titres.md)), la dîme devrait sans doute autoriser la Révolte
+> (voir [ordres-speciaux.md](ordres-speciaux.md)) sur tout territoire de
+> l'évêché taxé, la saison où elle est jouée et la saison suivante.

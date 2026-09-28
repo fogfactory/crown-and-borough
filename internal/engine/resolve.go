@@ -33,6 +33,7 @@ func ResolveWithDeckOrders(game *models.GameState, balance assetgen.Balance, dec
 	state := cloneGameState(game)
 	ctx := newResolutionContext(state, balance)
 	revealCurrentAugury(ctx)
+	markPendingTaxWindowFiefs(ctx, deckOrders)
 	resolveDeckOrders(ctx, deckOrders)
 	resolveSeasonEffects(ctx)
 

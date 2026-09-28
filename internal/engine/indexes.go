@@ -57,36 +57,50 @@ type resolutionContext struct {
 	supplyConsumption   map[models.ArmyID]*consumptionDetail
 	poolRations         map[models.TerritoryID]map[models.TerritoryID]int
 	pendingRevoltSizes  map[models.TerritoryID]int
+	// taxedFiefsThisTurn holds the fiefs whose seigneurial tax successfully
+	// applied this turn (first play only, titres.md "Taxe seigneuriale"): it
+	// doubles their territory income (income.go) and widens revolt
+	// eligibility (deck_revolt_order.go) for the turn, on top of the
+	// persisted state.TaxedFiefs window from the previous turn.
+	taxedFiefsThisTurn map[models.FiefID]bool
+	// pendingTaxWindowFiefs is populated only while validating a whole deck
+	// order submission (validateActionDeckOrders): it lets a revolt order see
+	// a tax order co-submitted this same turn for the same fief before
+	// either has actually been applied, so the submission is not rejected
+	// outright for a combination that resolveSeasonEffects will honor.
+	pendingTaxWindowFiefs map[models.FiefID]bool
 }
 
 func newResolutionContext(state *models.GameState, balance assetgen.Balance) *resolutionContext {
 	ctx := &resolutionContext{
-		state:                state,
-		balance:              balance,
-		startArmiesByID:      make(map[models.ArmyID]models.Army, len(state.Armies)),
-		startArmyAtTerritory: make(map[models.TerritoryID]models.ArmyID, len(state.Armies)),
-		startNoblesByID:      make(map[models.NobleID]models.Noble, len(state.Nobles)),
-		famished:             make(map[models.ArmyID]bool),
-		records:              make(map[models.ArmyID]*orderRecord),
-		attacks:              make(map[models.ArmyID]*attackIntent),
-		joins:                make(map[models.ArmyID]*joinIntent),
-		disperses:            make(map[models.ArmyID]*disperseIntent),
-		transfers:            make(map[models.ArmyID]*transferIntent),
-		disperseResults:      make(map[models.ArmyID]*disperseResolution),
-		supports:             make(map[models.ArmyID]*supportIntent),
-		joinResults:          make(map[models.ArmyID]*joinResolution),
-		attackedTerritories:  make(map[models.TerritoryID]bool),
-		dislodged:            make(map[models.ArmyID]*dislodgedArmy),
-		cancelledPeaceful:    make(map[models.ArmyID]bool),
-		badWeatherRegions:    make(map[models.TerritoryID]bool),
-		famineRegions:        make(map[models.TerritoryID]bool),
-		supplyRations:        make(map[models.TerritoryID]rationProductionParts),
-		supplySources:        make(map[models.TerritoryID]sourceProductionParts),
-		supplyStockBefore:    make(map[models.TerritoryID]int),
-		supplyStockConsumed:  make(map[models.TerritoryID]int),
-		supplyConsumption:    make(map[models.ArmyID]*consumptionDetail),
-		poolRations:          make(map[models.TerritoryID]map[models.TerritoryID]int),
-		pendingRevoltSizes:   make(map[models.TerritoryID]int),
+		state:                 state,
+		balance:               balance,
+		startArmiesByID:       make(map[models.ArmyID]models.Army, len(state.Armies)),
+		startArmyAtTerritory:  make(map[models.TerritoryID]models.ArmyID, len(state.Armies)),
+		startNoblesByID:       make(map[models.NobleID]models.Noble, len(state.Nobles)),
+		famished:              make(map[models.ArmyID]bool),
+		records:               make(map[models.ArmyID]*orderRecord),
+		attacks:               make(map[models.ArmyID]*attackIntent),
+		joins:                 make(map[models.ArmyID]*joinIntent),
+		disperses:             make(map[models.ArmyID]*disperseIntent),
+		transfers:             make(map[models.ArmyID]*transferIntent),
+		disperseResults:       make(map[models.ArmyID]*disperseResolution),
+		supports:              make(map[models.ArmyID]*supportIntent),
+		joinResults:           make(map[models.ArmyID]*joinResolution),
+		attackedTerritories:   make(map[models.TerritoryID]bool),
+		dislodged:             make(map[models.ArmyID]*dislodgedArmy),
+		cancelledPeaceful:     make(map[models.ArmyID]bool),
+		badWeatherRegions:     make(map[models.TerritoryID]bool),
+		famineRegions:         make(map[models.TerritoryID]bool),
+		supplyRations:         make(map[models.TerritoryID]rationProductionParts),
+		supplySources:         make(map[models.TerritoryID]sourceProductionParts),
+		supplyStockBefore:     make(map[models.TerritoryID]int),
+		supplyStockConsumed:   make(map[models.TerritoryID]int),
+		supplyConsumption:     make(map[models.ArmyID]*consumptionDetail),
+		poolRations:           make(map[models.TerritoryID]map[models.TerritoryID]int),
+		pendingRevoltSizes:    make(map[models.TerritoryID]int),
+		taxedFiefsThisTurn:    make(map[models.FiefID]bool),
+		pendingTaxWindowFiefs: make(map[models.FiefID]bool),
 	}
 	for _, noble := range state.Nobles {
 		ctx.startNoblesByID[noble.ID] = noble

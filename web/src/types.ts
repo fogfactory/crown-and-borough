@@ -7,7 +7,13 @@ export type InfraType = 'mill' | 'supply_depot' | 'castle' | 'village'
 export type NobleStatus = 'free' | 'hostage' | 'dungeon'
 
 export type CardKind =
-  'fair_weather' | 'abundant_harvest' | 'revolt' | 'plague' | 'bad_weather' | 'famine'
+  | 'fair_weather'
+  | 'abundant_harvest'
+  | 'revolt'
+  | 'plague'
+  | 'bad_weather'
+  | 'famine'
+  | 'seigneurial_tax'
 
 export type OrderType =
   'attack' | 'support' | 'hold' | 'join' | 'pillage' | 'disperse' | 'transfer'

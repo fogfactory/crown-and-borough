@@ -36,7 +36,10 @@ describe('FaqPanel', () => {
     expect(
       screen.getByText(/Combien de temps dure le contrôle hors fief/),
     ).toBeInTheDocument()
-    expect(container.querySelectorAll('details')).toHaveLength(16)
+    expect(
+      screen.getByText(/Comment fonctionne la carte de taxe seigneuriale/),
+    ).toBeInTheDocument()
+    expect(container.querySelectorAll('details')).toHaveLength(17)
   })
 
   it('renders the English tactical FAQ', () => {
@@ -72,6 +75,9 @@ describe('FaqPanel', () => {
     expect(
       screen.getByText(/How long does control last outside a fief/),
     ).toBeInTheDocument()
-    expect(container.querySelectorAll('details')).toHaveLength(16)
+    expect(
+      screen.getByText(/How does the seigneurial tax card work/),
+    ).toBeInTheDocument()
+    expect(container.querySelectorAll('details')).toHaveLength(17)
   })
 })

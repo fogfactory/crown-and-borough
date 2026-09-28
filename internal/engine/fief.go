@@ -29,7 +29,10 @@ func (ctx *resolutionContext) fiefContaining(territoryID models.TerritoryID) *mo
 	return nil
 }
 
-// removeFief deletes the fief identified by fiefID from state.
+// removeFief deletes the fief identified by fiefID from state, along with any
+// persisted tax window pointing at it (titres.md "Taxe seigneuriale"): a
+// dissolved fief can no longer widen revolt eligibility for territories that
+// are not even members of a fief any more.
 func (ctx *resolutionContext) removeFief(fiefID models.FiefID) {
 	filtered := make([]models.Fief, 0, len(ctx.state.Fiefs))
 	for _, fief := range ctx.state.Fiefs {
@@ -38,6 +41,60 @@ func (ctx *resolutionContext) removeFief(fiefID models.FiefID) {
 		}
 	}
 	ctx.state.Fiefs = filtered
+	if len(ctx.state.TaxedFiefs) == 0 {
+		return
+	}
+	filteredTax := make([]models.TaxedFief, 0, len(ctx.state.TaxedFiefs))
+	for _, taxed := range ctx.state.TaxedFiefs {
+		if taxed.FiefID != fiefID {
+			filteredTax = append(filteredTax, taxed)
+		}
+	}
+	ctx.state.TaxedFiefs = filteredTax
+}
+
+// fiefTaxWindowActive reports whether fiefID's persisted tax window
+// (state.TaxedFiefs) still covers the current turn: the turn the tax was
+// played, or the turn right after (titres.md "Taxe seigneuriale"). It does
+// not see a tax played this same turn -- that is folded in separately via
+// taxedFiefsThisTurn (once applied) or pendingTaxWindowFiefs (while still
+// validating a submission), both checked by revoltEligibleByTax below.
+func (ctx *resolutionContext) fiefTaxWindowActive(fiefID models.FiefID) bool {
+	for _, taxed := range ctx.state.TaxedFiefs {
+		if taxed.FiefID == fiefID && (taxed.Turn == ctx.state.Turn || taxed.Turn == ctx.state.Turn-1) {
+			return true
+		}
+	}
+	return false
+}
+
+// revoltEligibleByTax reports whether territoryID's fief was taxed recently
+// enough to allow Révolte on it independently of famine: the persisted
+// window from a previous turn, a tax already applied this turn, or a tax
+// merely co-submitted this turn while a submission is still being validated
+// (titres.md "Taxe seigneuriale").
+func (ctx *resolutionContext) revoltEligibleByTax(territoryID models.TerritoryID) bool {
+	fief := ctx.fiefContaining(territoryID)
+	if fief == nil {
+		return false
+	}
+	if ctx.taxedFiefsThisTurn[fief.ID] || ctx.pendingTaxWindowFiefs[fief.ID] {
+		return true
+	}
+	return ctx.fiefTaxWindowActive(fief.ID)
+}
+
+// pruneTaxedFiefs drops every persisted tax window entry that can no longer
+// cover the current or next turn, so state.TaxedFiefs stays bounded instead
+// of growing for the whole game (titres.md "Taxe seigneuriale").
+func pruneTaxedFiefs(taxedFiefs []models.TaxedFief, currentTurn int) []models.TaxedFief {
+	filtered := make([]models.TaxedFief, 0, len(taxedFiefs))
+	for _, taxed := range taxedFiefs {
+		if taxed.Turn >= currentTurn-1 {
+			filtered = append(filtered, taxed)
+		}
+	}
+	return filtered
 }
 
 // nextFiefID allocates the next unused sequential fief id. Like nextNobleID
