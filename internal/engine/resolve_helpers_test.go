@@ -273,7 +273,7 @@ func territory(id, code string, neighbors ...models.TerritoryID) models.Territor
 }
 
 // controllerOf returns the player controlling territoryID in state, nil when
-// nobody does: the pointer form the stored owner used to have.
+// nobody does.
 func controllerOf(state *models.GameState, territoryID models.TerritoryID) *models.PlayerID {
 	controller, controlled := state.TerritoryController(territoryID)
 	if !controlled {

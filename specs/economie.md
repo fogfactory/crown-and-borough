@@ -16,7 +16,7 @@ cette issue. Aucune compatibilité avec les parties existantes n'est requise
 
 ## Vocabulaire
 
-- **Contrôlé** : le statut porté par la case (`OwnerID`). Hors fief, la prise
+- **Contrôlé** : le statut de la case, dérivé de son ancrage ou de l'armée présente. Hors fief, la prise
   est positionnelle (dernier joueur dont une armée s'est arrêtée sur la case),
   mais son maintien est **éphémère** : la case ne reste au joueur que tant
   qu'elle est ancrée (fief, capitale du joueur) ou qu'une de ses armées y
