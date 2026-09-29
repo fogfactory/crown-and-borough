@@ -390,45 +390,71 @@ n'est pas interceptable et n'utilise pas le plafond de transport.
 Issue : [#197](https://github.com/fogfactory/crown-and-borough/issues/197).
 
 Objectif : faire apparaître de nouveaux villages sans action directe d'un
-joueur, tout en laissant sa gestion (contrôle, sièges, fiefs) influencer où
-et quand ça arrive. Le déclencheur reste un exode plutôt qu'un surplus : un
-lieu-dit éprouvé voit sa population fuir et fonder un village ailleurs. La
-règle est évaluée en hiver, après la conservation des stocks.
+joueur, comme la marque d'une prospérité générale que la guerre et la
+politique des nobles n'absorbent pas entièrement. Le déclencheur est donc un
+surplus, mesuré à l'échelle du monde plutôt que d'un seul joueur : plus les
+seigneurs laissent de vivres se perdre à la conservation hivernale faute de
+les avoir dépensés, plus de nouvelles fondations ont des chances de naître,
+chez l'un ou l'autre selon qui a le plus laissé perdre. La règle est évaluée
+en hiver, après la conservation des stocks.
 
-Règle retenue pour une première version — **exode élargi** :
+Règle retenue pour une première version — **fondation par surplus** :
 
-1. le lieu-dit fuit vers la case libre (sans infrastructure) la plus proche
-   **non adjacente à un village ou un château existant**, en respectant
-   l'ordre de priorité suivant : dans un fief du joueur qui contrôle le
-   lieu-dit d'origine, sinon contrôlée par ce joueur, sinon n'importe quelle
-   case libre restante, y compris neutre ou contrôlée par un autre joueur ;
-2. si aucune case ne satisfait la contrainte d'adjacence à aucun niveau de
+1. La perte à la conservation hivernale suit la règle de conservation déjà en
+   vigueur (voir Hiver ci-dessus) : un dépôt de ravitaillement conserve son
+   stock intégralement, donc n'engendre jamais de perte ; un château, un
+   village ou un moulin conserve la moitié arrondie vers le haut de son
+   stock et perd l'autre moitié arrondie vers le bas (`floor(stock / 2)`) ;
+   toute autre case — une case sans infrastructure, où du stock a pu être
+   déposé par un ordre de transfert — perd la totalité de son stock, faute
+   d'être un château, un village ou un moulin, et ce même stock n'est pas
+   rapatriable à l'hiver.
+2. La perte de toutes les cases de la carte, tous joueurs confondus, est
+   sommée en un total unique pour l'hiver. Chaque tranche de `N` franchie
+   par ce total déclenche une fondation : un total inférieur à `N` n'en
+   déclenche aucune, un total dans `[N, 2N[` en déclenche une, un total
+   dans `[2N, 3N[` en déclenche deux, etc.
+3. Les cases ayant subi une perte sont classées par perte décroissante cette
+   année, départagées par trigramme croissant en cas d'égalité. La
+   `k`-ième fondation déclenchée part du `k`-ième territoire de ce
+   classement. Un même territoire n'est jamais l'origine de plus d'une
+   fondation le même hiver.
+4. Chaque fondation se place sur la case libre (sans infrastructure) la plus
+   proche de son territoire d'origine, **non adjacente à un village ou un
+   château existant**, en respectant l'ordre de priorité suivant : dans un
+   fief du joueur qui contrôle le territoire d'origine, sinon contrôlée par
+   ce joueur, sinon n'importe quelle case libre restante, y compris neutre
+   ou contrôlée par un autre joueur.
+5. Si aucune case ne satisfait la contrainte d'adjacence à aucun niveau de
    priorité, une dégradation en cascade s'applique : un dépôt de vivres est
    amélioré en village, à défaut un moulin est amélioré en village, sinon rien
    ne se passe.
 
 La contrainte de non-adjacence évite qu'un nouveau village apparaisse collé à
 une infrastructure existante ; elle s'applique à tous les niveaux de priorité
-de l'étape 1, pas seulement au dernier.
+de l'étape 4, pas seulement au dernier. Les fondations sont résolues dans
+l'ordre du classement de l'étape 3 : un village fondé par l'une devient une
+infrastructure existante pour les suivantes, aussi bien pour la contrainte de
+non-adjacence que pour la recherche de case libre.
+
+Le territoire d'origine n'est pas modifié par la fondation : ni dégradé, ni
+privé de son stock au-delà de la conservation normale.
 
 Le village fondé appartient au **contrôleur de la case** d'arrivée : le
 détenteur du fief, le contrôleur positionnel, ou personne si la case est
-neutre.
+neutre. Ce contrôleur n'a aucun rapport nécessaire avec le joueur dont le
+territoire d'origine a déclenché la fondation.
 
-> À trancher dans #197, par des parties de test :
+> À trancher dans #197 :
 >
-> - le déclencheur : pertes cumulées de l'année par la guerre (pillage, stock
->   consommé par la famine ou le siège, calamité) au-delà de `N`
->   (recommandé), ou perte de stock à la conservation d'hiver au-delà de `N` ;
 > - la valeur de `N`, dans la balance, calibrée avec la nouvelle table de
 >   rations (l'ancien seuil `N = 5` supposait une plaine à 3 et le bonus
->   château/village) ;
-> - le sort du lieu-dit d'origine (conservé ou dégradé) ;
-> - le départage entre cases à égalité de distance (recommandé : trigramme).
+>   château/village) — à recalibrer pour une perte de conservation sommée
+>   sur toute la carte plutôt qu'un seul lieu-dit.
 
 Piste complémentaire, non retenue pour une première version mais à garder en
 réserve si la carte reste trop statique en pratique : une croissance passive
 et indépendante des joueurs, où un territoire neutre inoccupé et sans conflit
 à proximité depuis plusieurs tours a une chance déterministe (seedée comme le
-deck) de fonder un village chaque année. Contrairement à l'exode, cette piste
-ne dépend d'aucune décision de joueur.
+deck) de fonder un village chaque année. Contrairement à la fondation par
+surplus, cette piste ne dépend d'aucune décision de joueur.
