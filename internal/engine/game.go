@@ -164,7 +164,7 @@ func CreateGameWithYears(seed string, players []PlayerInit, yearCount int, balan
 	if err != nil {
 		return nil, fmt.Errorf("engine: %w", err)
 	}
-	if balance.StartingNobles < 0 || balance.StartingTroops < 0 || balance.StartingResources < 0 {
+	if balance.StartingNobles < 0 || balance.StartingTroops < 0 || balance.StartingOutposts < 0 || balance.StartingResources < 0 {
 		return nil, fmt.Errorf("engine: starting balance values must be non-negative")
 	}
 
@@ -328,6 +328,31 @@ func CreateGameWithYears(seed string, players []PlayerInit, yearCount int, balan
 					Status:           models.NobleStatusFree,
 					LastEmissionTurn: 0,
 				})
+			}
+		}
+	}
+
+	if balance.StartingOutposts > 0 {
+		for index, startID := range starts {
+			player := &state.Players[index]
+			ownerID := player.ID
+			outpostTerritories, err := startingOutpostTerritories(state, startID, balance, balance.StartingOutposts)
+			if err != nil {
+				return nil, fmt.Errorf("engine: create game: %w", err)
+			}
+			for _, territoryID := range outpostTerritories {
+				armyID := models.ArmyID(fmt.Sprintf("A%d", state.NextArmyID))
+				state.NextArmyID++
+				state.Armies = append(state.Armies, models.Army{
+					ID:          armyID,
+					OwnerID:     player.ID,
+					TerritoryID: territoryID,
+					Size:        1,
+				})
+				territoryState := state.TerritoryStates[territoryID]
+				territoryState.OwnerID = &ownerID
+				territoryState.Army = &armyID
+				state.TerritoryStates[territoryID] = territoryState
 			}
 		}
 	}

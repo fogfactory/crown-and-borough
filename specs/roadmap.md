@@ -50,11 +50,14 @@ online à réaliser et à suivre par issue.
   supplémentaires, et porte `2 x N + 1` villages neutres : `N + 1` chefs-lieux
   et un village dédié par territoire de départ.
 - Les `N` châteaux de départ sont placés sur des territoires qui ne portent pas
-  ces villages, avec au moins 4 étapes franchissables entre deux départs. Le
-  village dédié d'un territoire de départ est à exactement 2 étapes de lui, à
-  au moins 3 étapes de tout autre départ, et à au moins 2 étapes de tout autre
-  village ; les chefs-lieux restent à au moins 3 étapes de tout départ et 2
-  étapes de tout village dédié.
+  ces villages et qui ne sont ni une montagne ni bordés de moins de deux
+  voisins franchissables non montagneux (viabilité du premier tour, voir
+  [`economie.md`](economie.md#position-de-départ)), avec au moins 4 étapes
+  franchissables entre deux départs. Le village dédié d'un territoire de
+  départ est à exactement 2 étapes de lui, à au moins 3 étapes de tout autre
+  départ, et à au moins 2 étapes de tout autre village ; les chefs-lieux
+  restent à au moins 3 étapes de tout départ et 2 étapes de tout village
+  dédié.
 - Les villages neutres produisent et stockent leur production. Leur stock est
   inaccessible avant capture et reste sur place lors de la capture.
 - Une seule infrastructure occupe une case. Les infrastructures appartiennent

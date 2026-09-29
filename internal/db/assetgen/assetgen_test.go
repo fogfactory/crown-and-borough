@@ -48,6 +48,7 @@ costs:
   fief_per_territory: 2
 starting_nobles: 1
 starting_troops: 1
+starting_outposts: 2
 starting_resources: 10
 special_orders:
   hand_limit: 4

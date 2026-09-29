@@ -381,6 +381,43 @@ func TestHomeVillageEquity(t *testing.T) {
 	}
 }
 
+// TestStartEligibility checks that every generated starting territory is
+// non-mountain and has at least two non-mountain passable neighbours, across
+// player counts and seeds, so a capital always has room to place its
+// outpost armies without risking turn-one famine (#203).
+func TestStartEligibility(t *testing.T) {
+	assets := loadTestAssets(t)
+	for _, players := range []int{2, 3, 4, 5, 8, 16} {
+		players := players
+		t.Run(fmt.Sprintf("players-%d", players), func(t *testing.T) {
+			cfg := playerTestConfig(players)
+			for _, seed := range testSeeds {
+				data := generateMap(t, seed, assets, cfg)
+				terrainByID := make(map[string]models.Terrain, len(data.Territories))
+				adjacencyByID := make(map[string][]string, len(data.Territories))
+				for _, territory := range data.Territories {
+					terrainByID[territory.ID] = territory.Terrain
+					adjacencyByID[territory.ID] = territory.Adjacencies
+				}
+				for _, start := range data.Starts {
+					if terrainByID[start] == models.TerrainMountain {
+						t.Errorf("seed %q: start %s is a mountain", seed, start)
+					}
+					nonMountainNeighbours := 0
+					for _, neighbour := range adjacencyByID[start] {
+						if terrainByID[neighbour] != models.TerrainMountain {
+							nonMountainNeighbours++
+						}
+					}
+					if nonMountainNeighbours < 2 {
+						t.Errorf("seed %q: start %s has %d non-mountain neighbours, want >= 2", seed, start, nonMountainNeighbours)
+					}
+				}
+			}
+		})
+	}
+}
+
 func territoryDistances(adjacency map[string][]string, start string) map[string]int {
 	distances := map[string]int{start: 0}
 	queue := []string{start}

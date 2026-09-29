@@ -36,9 +36,13 @@ positions) are visible to everyone at all times. What stays private are
 **intentions**: online, a player only sees the exact detail of a chain or a
 combat when they take part in it — section 3 shows this on a worked example.
 
-Each player starts on a distinct territory, where a **castle** is built for
-free (their **capital**), with {{starting_resources}} R in stock, an army of
-{{starting_troops}} troops, and {{starting_nobles}} free noble(s).
+Each player starts on a distinct territory, never a mountain and always
+bordered by at least two non-mountain territories, where a **castle** is
+built for free (their **capital**), with {{starting_resources}} R in stock, a
+garrison of {{starting_troops}} troops, and {{starting_nobles}} free
+noble(s). The player also receives {{starting_outposts}} one-troop outposts,
+placed from the start on that many distinct non-mountain territories
+neighbouring their capital, ready to expand their territory from turn one.
 
 A game lasts a number of years chosen at creation (10 by default); section 10
 covers the end of the game and scoring.

@@ -118,6 +118,7 @@ func renderRules(document []byte, balance Balance) ([]byte, error) {
 		"costs.fief_per_territory":                    stringValue(balance.Costs.FiefPerTerritory),
 		"starting_nobles":                             stringValue(balance.StartingNobles),
 		"starting_troops":                             stringValue(balance.StartingTroops),
+		"starting_outposts":                           stringValue(balance.StartingOutposts),
 		"starting_resources":                          stringValue(balance.StartingResources),
 		"special_orders.deck_size":                    stringValue(balance.SpecialOrders.DeckSize),
 		"special_orders.calamity_percentage":          stringValue(balance.SpecialOrders.CalamityPercentage),

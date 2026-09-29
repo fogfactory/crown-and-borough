@@ -44,9 +44,11 @@ costs:
   fief_per_territory: 2
 
 # P1.7 game setup values.
-starting_nobles: 1
+starting_nobles: 2
 starting_troops: 2
-starting_resources: 10
+# 1-troop armies pre-placed on non-mountain neighbours of the capital (#203).
+starting_outposts: 2
+starting_resources: 6
 
 special_orders:
   hand_limit: 4

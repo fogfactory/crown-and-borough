@@ -40,10 +40,14 @@ Ce qui reste privé, ce sont les **intentions** : en ligne, un joueur ne voit
 le détail exact d'une chaîne ou d'un combat que s'il y participe — la
 section 3 le montre sur un exemple.
 
-Chaque joueur démarre sur un territoire distinct, où un **château** est
-construit gratuitement (sa **capitale**), avec {{starting_resources}} R de
-stock, une armée de {{starting_troops}} troupes et {{starting_nobles}}
-noble(s) libre(s).
+Chaque joueur démarre sur un territoire distinct, jamais une montagne et
+toujours bordé d'au moins deux territoires non montagneux, où un **château**
+est construit gratuitement (sa **capitale**), avec {{starting_resources}} R de
+stock, une garnison de {{starting_troops}} troupes et {{starting_nobles}}
+noble(s) libre(s). Le joueur reçoit en plus {{starting_outposts}} avant-postes
+d'une troupe chacun, placés d'emblée sur autant de territoires voisins non
+montagneux de sa capitale, prêts à étendre son territoire dès le premier
+tour.
 
 La partie dure un nombre d'années choisi à sa création (10 par défaut) ; la
 section 10 détaille la fin de partie et le score.

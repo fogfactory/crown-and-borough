@@ -189,10 +189,17 @@ Le détail des cartes est suivi dans [`ordres-speciaux.md`](ordres-speciaux.md).
 
 Une partie accepte de 2 à 16 joueurs dans le moteur ; une partie en ligne est
 limitée à 2 à 8 joueurs. Chaque joueur commence sur un territoire distinct qui
-n'est pas un village. Les territoires de départ sont séparés d'au moins quatre
-étapes dans le graphe des frontières franchissables. Un château y est
-construit gratuitement, devient la capitale par défaut, et le joueur reçoit
-ses nobles, ses armées et ses ressources de départ selon `assets/balance.yaml`.
+n'est ni un village ni une montagne, et qui compte au moins deux voisins
+franchissables eux-mêmes non montagneux : cette réserve garantit à la fois que
+la garnison de départ ne meurt jamais de faim et qu'il existe assez de
+territoires voisins viables pour y placer les avant-postes de départ. Les
+territoires de départ sont séparés d'au moins quatre étapes dans le graphe des
+frontières franchissables. Un château y est construit gratuitement et devient
+la capitale par défaut. Le joueur y reçoit sa garnison, ses nobles et ses
+ressources de départ selon `assets/balance.yaml` ; il reçoit en outre
+`starting_outposts` armées d'une troupe chacune, placées dès le début de la
+partie sur autant de territoires voisins non montagneux distincts de sa
+capitale, retenus en priorité pour leur ration de terrain la plus élevée.
 
 Chaque territoire de départ possède un village dédié, situé à exactement deux
 étapes de lui dans le graphe franchissable, à au moins trois étapes de tout
