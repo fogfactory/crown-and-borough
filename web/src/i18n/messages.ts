@@ -497,6 +497,11 @@ const englishMessages = {
   'reports.reason.capital_castle_lost': "The fief capital's castle was destroyed.",
   'reports.reason.fief_auto_assigned_default_holder':
     'No T A order this winter: automatically assigned to the free noble with the smallest trigram.',
+  'reports.reason.prosperity_fief': "founded in the origin's controller's fief",
+  'reports.reason.prosperity_controlled': "founded on land the origin's controller controls",
+  'reports.reason.prosperity_free': 'founded on free land',
+  'reports.reason.prosperity_depot_upgraded': 'no eligible land: a supply depot became a village',
+  'reports.reason.prosperity_mill_upgraded': 'no eligible land or depot: a mill became a village',
   'reports.reason.reception.concurrent':
     'Concurrent reception: {territory} was targeted by {count} chains in turn {turn}.',
   'reports.reason.reception.noArmy': 'No army occupies receiving position {territory}.',
@@ -587,6 +592,9 @@ const englishMessages = {
   'faq.q17': 'How does the seigneurial tax card work?',
   'faq.a17':
     "`P TX XXX` (or `P ST XXX`) plays the seigneurial tax on XXX, the fief's capital — the one exception to `TER` always being a region's seed village — in spring, summer, or autumn, never in winter. It is rejected if you do not control the targeted fief; a vacant fief can still be taxed by whoever holds it. It doubles the fief's territorial income for the turn, village included, and never touches mill production. Two tax cards played on the same fief the same turn do not stack: the second is consumed with no effect. Playing it also opens Révolte on every territory of the fief, capital included, independently of any bad harvest, for the turn it is played and the following one.",
+  'faq.q18': 'Where do the new villages that appear on their own come from?',
+  'faq.a18':
+    'They are the exodus of prosperity: right after winter conservation, the total stock lost that winter, summed across the whole map, triggers one founding per full threshold crossed. It starts from whichever territories lost the most, and lands on the nearest free tile that is not next to an existing village or castle — inside a fief of the origin territory\'s controller when possible, else land that player controls, else anywhere free at all. The founded village belongs to whoever controls the arrival tile, which may not be the player whose loss triggered it.',
   'error.line': 'Line {line}: {message}',
   'error.invalidOrder': 'Invalid order',
   'error.winter.order_shape':
@@ -1210,6 +1218,14 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     'Le château de la capitale du fief a été détruit.',
   'reports.reason.fief_auto_assigned_default_holder':
     'Aucun ordre T A cet hiver : attribution automatique au noble libre au trigramme le plus petit.',
+  'reports.reason.prosperity_fief': 'fondé dans le fief du seigneur du territoire d’origine',
+  'reports.reason.prosperity_controlled':
+    'fondé sur une terre contrôlée par ce même seigneur',
+  'reports.reason.prosperity_free': 'fondé sur une terre libre',
+  'reports.reason.prosperity_depot_upgraded':
+    'aucune terre éligible : un dépôt de vivres devient un village',
+  'reports.reason.prosperity_mill_upgraded':
+    'aucune terre ni dépôt éligible : un moulin devient un village',
   'reports.reason.reception.concurrent':
     'Réception concurrente : {territory} a été ciblé par {count} chaînes au tour {turn}.',
   'reports.reason.reception.noArmy':
@@ -1303,6 +1319,9 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'faq.q17': 'Comment fonctionne la carte de taxe seigneuriale ?',
   'faq.a17':
     'L’ordre `P TX XXX` (ou `P ST XXX`) joue la taxe seigneuriale sur XXX, la capitale du fief — la seule exception où `TER` n’est pas le village seed d’une région — au printemps, en été ou en automne, jamais en hiver. Il est rejeté si tu ne contrôles pas le fief ciblé ; un fief vacant reste taxable par celui qui le détient. Elle double le revenu territorial du fief pour ce tour, village compris, et ne touche jamais la production des moulins. Deux cartes de taxe jouées sur le même fief le même tour ne se cumulent pas : la seconde est consommée sans effet. La jouer autorise aussi la Révolte sur tout territoire du fief, capitale comprise, indépendamment de toute mauvaise récolte, la saison où elle est jouée et la saison suivante.',
+  'faq.q18': 'D’où viennent les nouveaux villages qui apparaissent tout seuls ?',
+  'faq.a18':
+    'Ils sont l’exode de la prospérité : juste après la conservation hivernale, la perte totale de stock de l’hiver, sommée sur toute la carte, déclenche une fondation à chaque tranche du seuil franchie. Elle part des territoires ayant le plus perdu, et se place sur la case libre la plus proche qui n’est adjacente à aucun village ou château existant — dans un fief du contrôleur du territoire d’origine quand c’est possible, sinon une terre qu’il contrôle, sinon n’importe où en terre libre. Le village fondé appartient au contrôleur de la case d’arrivée, qui peut être différent du joueur dont la perte a déclenché la fondation.',
   'error.line': 'Ligne {line} : {message}',
   'error.invalidOrder': 'Ordre invalide',
   'error.winter.order_shape':

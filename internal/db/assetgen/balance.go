@@ -14,26 +14,27 @@ import (
 // Balance contains every editable numerical game rule. FirstNames is loaded
 // alongside balance.yaml so pure engine resolvers can create nobles without I/O.
 type Balance struct {
-	TerritoryIncome    int                    `json:"territory_income" yaml:"territory_income"`
-	VillageIncome      int                    `json:"village_income" yaml:"village_income"`
-	SupplyRange        int                    `json:"supply_range" yaml:"supply_range"`
-	DepotRangeBonus    int                    `json:"depot_range_bonus" yaml:"depot_range_bonus"`
-	CostBase           int                    `json:"cost_base" yaml:"cost_base"`
-	PillageBonus       int                    `json:"pillage_bonus" yaml:"pillage_bonus"`
-	NobleCommandBonus  int                    `json:"noble_command_bonus" yaml:"noble_command_bonus"`
-	CastleDefenseBonus int                    `json:"castle_defense_bonus" yaml:"castle_defense_bonus"`
-	CityDefenseBonus   int                    `json:"city_defense_bonus" yaml:"city_defense_bonus"`
-	RationTerrain      map[models.Terrain]int `json:"ration_terrain" yaml:"ration_terrain"`
-	WinterStockDivisor int                    `json:"winter_stock_divisor" yaml:"winter_stock_divisor"`
-	VillageStockCap    int                    `json:"village_stock_cap" yaml:"village_stock_cap"`
-	CastleStockCap     int                    `json:"castle_stock_cap" yaml:"castle_stock_cap"`
-	Costs              Costs                  `json:"costs" yaml:"costs"`
-	StartingNobles     int                    `json:"starting_nobles" yaml:"starting_nobles"`
-	StartingTroops     int                    `json:"starting_troops" yaml:"starting_troops"`
-	StartingOutposts   int                    `json:"starting_outposts" yaml:"starting_outposts"`
-	StartingResources  int                    `json:"starting_resources" yaml:"starting_resources"`
-	SpecialOrders      SpecialOrdersBalance   `json:"special_orders" yaml:"special_orders"`
-	FirstNames         []Asset                `json:"-" yaml:"-"`
+	TerritoryIncome         int                    `json:"territory_income" yaml:"territory_income"`
+	VillageIncome           int                    `json:"village_income" yaml:"village_income"`
+	SupplyRange             int                    `json:"supply_range" yaml:"supply_range"`
+	DepotRangeBonus         int                    `json:"depot_range_bonus" yaml:"depot_range_bonus"`
+	CostBase                int                    `json:"cost_base" yaml:"cost_base"`
+	PillageBonus            int                    `json:"pillage_bonus" yaml:"pillage_bonus"`
+	NobleCommandBonus       int                    `json:"noble_command_bonus" yaml:"noble_command_bonus"`
+	CastleDefenseBonus      int                    `json:"castle_defense_bonus" yaml:"castle_defense_bonus"`
+	CityDefenseBonus        int                    `json:"city_defense_bonus" yaml:"city_defense_bonus"`
+	RationTerrain           map[models.Terrain]int `json:"ration_terrain" yaml:"ration_terrain"`
+	WinterStockDivisor      int                    `json:"winter_stock_divisor" yaml:"winter_stock_divisor"`
+	VillageStockCap         int                    `json:"village_stock_cap" yaml:"village_stock_cap"`
+	CastleStockCap          int                    `json:"castle_stock_cap" yaml:"castle_stock_cap"`
+	ProsperityLossThreshold int                    `json:"prosperity_loss_threshold" yaml:"prosperity_loss_threshold"`
+	Costs                   Costs                  `json:"costs" yaml:"costs"`
+	StartingNobles          int                    `json:"starting_nobles" yaml:"starting_nobles"`
+	StartingTroops          int                    `json:"starting_troops" yaml:"starting_troops"`
+	StartingOutposts        int                    `json:"starting_outposts" yaml:"starting_outposts"`
+	StartingResources       int                    `json:"starting_resources" yaml:"starting_resources"`
+	SpecialOrders           SpecialOrdersBalance   `json:"special_orders" yaml:"special_orders"`
+	FirstNames              []Asset                `json:"-" yaml:"-"`
 }
 
 type SpecialOrdersBalance struct {
@@ -66,25 +67,26 @@ type Costs struct {
 }
 
 type rawBalance struct {
-	TerritoryIncome    *int              `yaml:"territory_income"`
-	VillageIncome      *int              `yaml:"village_income"`
-	SupplyRange        *int              `yaml:"supply_range"`
-	DepotRangeBonus    *int              `yaml:"depot_range_bonus"`
-	CostBase           *int              `yaml:"cost_base"`
-	PillageBonus       *int              `yaml:"pillage_bonus"`
-	NobleCommandBonus  *int              `yaml:"noble_command_bonus"`
-	CastleDefenseBonus *int              `yaml:"castle_defense_bonus"`
-	CityDefenseBonus   *int              `yaml:"city_defense_bonus"`
-	RationTerrain      map[string]*int   `yaml:"ration_terrain"`
-	WinterStockDivisor *int              `yaml:"winter_stock_divisor"`
-	VillageStockCap    *int              `yaml:"village_stock_cap"`
-	CastleStockCap     *int              `yaml:"castle_stock_cap"`
-	Costs              *rawCosts         `yaml:"costs"`
-	StartingNobles     *int              `yaml:"starting_nobles"`
-	StartingTroops     *int              `yaml:"starting_troops"`
-	StartingOutposts   *int              `yaml:"starting_outposts"`
-	StartingResources  *int              `yaml:"starting_resources"`
-	SpecialOrders      *rawSpecialOrders `yaml:"special_orders"`
+	TerritoryIncome         *int              `yaml:"territory_income"`
+	VillageIncome           *int              `yaml:"village_income"`
+	SupplyRange             *int              `yaml:"supply_range"`
+	DepotRangeBonus         *int              `yaml:"depot_range_bonus"`
+	CostBase                *int              `yaml:"cost_base"`
+	PillageBonus            *int              `yaml:"pillage_bonus"`
+	NobleCommandBonus       *int              `yaml:"noble_command_bonus"`
+	CastleDefenseBonus      *int              `yaml:"castle_defense_bonus"`
+	CityDefenseBonus        *int              `yaml:"city_defense_bonus"`
+	RationTerrain           map[string]*int   `yaml:"ration_terrain"`
+	WinterStockDivisor      *int              `yaml:"winter_stock_divisor"`
+	VillageStockCap         *int              `yaml:"village_stock_cap"`
+	CastleStockCap          *int              `yaml:"castle_stock_cap"`
+	ProsperityLossThreshold *int              `yaml:"prosperity_loss_threshold"`
+	Costs                   *rawCosts         `yaml:"costs"`
+	StartingNobles          *int              `yaml:"starting_nobles"`
+	StartingTroops          *int              `yaml:"starting_troops"`
+	StartingOutposts        *int              `yaml:"starting_outposts"`
+	StartingResources       *int              `yaml:"starting_resources"`
+	SpecialOrders           *rawSpecialOrders `yaml:"special_orders"`
 }
 
 type rawSpecialOrders struct {
@@ -240,30 +242,35 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 	if err != nil {
 		return Balance{}, err
 	}
+	prosperityLossThreshold, err := requiredPositiveInt(path, "prosperity_loss_threshold", raw.ProsperityLossThreshold)
+	if err != nil {
+		return Balance{}, err
+	}
 	costs, err := raw.costs(path)
 	if err != nil {
 		return Balance{}, err
 	}
 	return Balance{
-		TerritoryIncome:    territoryIncome,
-		VillageIncome:      villageIncome,
-		SupplyRange:        supplyRange,
-		DepotRangeBonus:    depotRangeBonus,
-		CostBase:           costBase,
-		PillageBonus:       pillageBonus,
-		NobleCommandBonus:  nobleCommandBonus,
-		CastleDefenseBonus: castleDefenseBonus,
-		CityDefenseBonus:   cityDefenseBonus,
-		RationTerrain:      rationTerrain,
-		WinterStockDivisor: winterStockDivisor,
-		VillageStockCap:    villageStockCap,
-		CastleStockCap:     castleStockCap,
-		Costs:              costs,
-		StartingNobles:     startingNobles,
-		StartingTroops:     startingTroops,
-		StartingOutposts:   startingOutposts,
-		StartingResources:  startingResources,
-		SpecialOrders:      specialOrders,
+		TerritoryIncome:         territoryIncome,
+		VillageIncome:           villageIncome,
+		SupplyRange:             supplyRange,
+		DepotRangeBonus:         depotRangeBonus,
+		CostBase:                costBase,
+		PillageBonus:            pillageBonus,
+		NobleCommandBonus:       nobleCommandBonus,
+		CastleDefenseBonus:      castleDefenseBonus,
+		CityDefenseBonus:        cityDefenseBonus,
+		RationTerrain:           rationTerrain,
+		WinterStockDivisor:      winterStockDivisor,
+		VillageStockCap:         villageStockCap,
+		CastleStockCap:          castleStockCap,
+		ProsperityLossThreshold: prosperityLossThreshold,
+		Costs:                   costs,
+		StartingNobles:          startingNobles,
+		StartingTroops:          startingTroops,
+		StartingOutposts:        startingOutposts,
+		StartingResources:       startingResources,
+		SpecialOrders:           specialOrders,
 	}, nil
 }
 

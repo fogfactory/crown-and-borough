@@ -773,6 +773,22 @@ There is no need to spend everything before winter ends: unspent stock is
 first conserved, then surplus is repatriated under these caps. Conservation
 and repatriation happen after investments.
 
+**Prosperity and exodus**: right after conservation, the total stock loss
+that just occurred — summed across the whole map, every player combined —
+can found new villages: every full {{prosperity_loss_threshold}} R lost
+triggers one founding. Territories that lost stock this winter are ranked by
+loss descending (trigram ascending on ties), and each triggered founding
+comes from the next territory in that ranking, without ever degrading it or
+taking more stock from it than normal conservation already did. The founding
+lands on the closest free tile to that origin territory, not adjacent to an
+existing village or castle, in priority order: inside a fief of the player
+who controls the origin territory, else land that player controls, else
+anywhere free at all, including neutral or another player's; if no tile
+qualifies at any level, a supply depot becomes a village instead, or failing
+that a mill. The founded village belongs to the controller of the arrival
+tile, with no necessary link to the player whose origin territory triggered
+the founding.
+
 ---
 
 ## 9. Special Cards and Calamities

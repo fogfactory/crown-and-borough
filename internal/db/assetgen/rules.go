@@ -110,6 +110,7 @@ func renderRules(document []byte, balance Balance) ([]byte, error) {
 		"winter_stock_divisor":                        stringValue(balance.WinterStockDivisor),
 		"village_stock_cap":                           stringValue(balance.VillageStockCap),
 		"castle_stock_cap":                            stringValue(balance.CastleStockCap),
+		"prosperity_loss_threshold":                   stringValue(balance.ProsperityLossThreshold),
 		"costs.castle":                                stringValue(balance.Costs.Castle),
 		"costs.troop":                                 stringValue(balance.Costs.Troop),
 		"costs.noble":                                 stringValue(balance.Costs.Noble),

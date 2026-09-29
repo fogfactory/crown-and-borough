@@ -39,7 +39,10 @@ describe('FaqPanel', () => {
     expect(
       screen.getByText(/Comment fonctionne la carte de taxe seigneuriale/),
     ).toBeInTheDocument()
-    expect(container.querySelectorAll('details')).toHaveLength(17)
+    expect(
+      screen.getByText(/D’où viennent les nouveaux villages/),
+    ).toBeInTheDocument()
+    expect(container.querySelectorAll('details')).toHaveLength(18)
   })
 
   it('renders the English tactical FAQ', () => {
@@ -78,6 +81,9 @@ describe('FaqPanel', () => {
     expect(
       screen.getByText(/How does the seigneurial tax card work/),
     ).toBeInTheDocument()
-    expect(container.querySelectorAll('details')).toHaveLength(17)
+    expect(
+      screen.getByText(/Where do the new villages that appear on their own come from/),
+    ).toBeInTheDocument()
+    expect(container.querySelectorAll('details')).toHaveLength(18)
   })
 })

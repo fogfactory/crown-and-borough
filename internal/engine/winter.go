@@ -43,6 +43,9 @@ func ResolveWinterWithDeckOrders(
 	if balance.WinterStockDivisor < 1 {
 		return Resolution{}, fmt.Errorf("engine: resolve winter: winter stock divisor must be > 0")
 	}
+	if balance.ProsperityLossThreshold < 1 {
+		return Resolution{}, fmt.Errorf("engine: resolve winter: prosperity loss threshold must be > 0")
+	}
 	if err := validateWinterPlayers(game, orders); err != nil {
 		return Resolution{}, err
 	}
@@ -63,7 +66,13 @@ func ResolveWinterWithDeckOrders(
 	// No calamity resolves in winter: the winter turn draws and schedules the
 	// following year's calamities but applies none.
 	ctx.resolveVacantFiefsAtWinterEnd()
+	// Prosperity measures conservation loss only, not stock spent or moved by
+	// winter/deck orders above: snapshot right before conservation runs, not
+	// stockBefore (captured pre-orders, used only by emitWinterStockEvents
+	// for the whole-turn stock report).
+	stockBeforeConservation := winterStocks(ctx)
 	ctx.conserveWinterStocks()
+	ctx.resolveProsperity(stockBeforeConservation)
 	ctx.repatriateWinterStocks()
 	// Released after repatriation: a capital replaced this same winter by E C
 	// still rapatriates its surplus above as the old capital before losing its

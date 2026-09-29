@@ -819,6 +819,22 @@ non dépensé est d'abord conservé, puis le surplus est rapatrié selon ces
 plafonds. La conservation et le rapatriement sont effectués après les
 investissements.
 
+**Prospérité et exode** : juste après la conservation, la perte totale de
+stock qui vient d'avoir lieu — sommée sur toute la carte, tous joueurs
+confondus — peut faire naître de nouveaux villages : chaque tranche de
+{{prosperity_loss_threshold}} R perdue déclenche une fondation. Les cases
+ayant perdu du stock cet hiver sont classées par perte décroissante
+(trigramme croissant en cas d'égalité), et chaque fondation déclenchée part
+de la case suivante de ce classement, sans jamais la dégrader ni la priver de
+stock au-delà de la conservation normale. La fondation se place sur la case
+libre la plus proche de ce territoire d'origine, non adjacente à un village
+ou un château existant, en priorité dans un fief du joueur qui contrôle le
+territoire d'origine, sinon sous son contrôle, sinon n'importe où, y compris
+neutre ou chez un autre joueur ; à défaut de case valide à aucun niveau, un
+dépôt de vivres devient un village, ou sinon un moulin. Le village fondé
+appartient au contrôleur de la case d'arrivée, sans rapport nécessaire avec
+le joueur dont le territoire d'origine a déclenché la fondation.
+
 ---
 
 ## 9. Cartes spéciales et calamités

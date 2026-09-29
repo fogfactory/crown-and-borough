@@ -30,6 +30,9 @@ ration_terrain:
 winter_stock_divisor: 2
 village_stock_cap: 1
 castle_stock_cap: 2
+# Every full multiple of this threshold in the map-wide winter conservation
+# loss triggers one prosperity founding (economie.md#prospérité).
+prosperity_loss_threshold: 10
 
 # Winter investment costs.
 costs:
