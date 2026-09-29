@@ -41,9 +41,7 @@ func TestResolveTransferFailsForArmyStarvingSinceLastTurn(t *testing.T) {
 	state2.Armies = append(state2.Armies, models.Army{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1})
 	recipientState := state2.TerritoryStates["BBB"]
 	recipientArmyID := models.ArmyID("A2")
-	recipientOwner := models.PlayerID("P2")
 	recipientState.Army = &recipientArmyID
-	recipientState.OwnerID = &recipientOwner
 	state2.TerritoryStates["BBB"] = recipientState
 	state2.NextArmyID = nextArmyID(state2.Armies)
 	addNoble(state2, "N1", "ONE", "P1", "AAA")
@@ -305,12 +303,18 @@ func TestResolveTransferRejectsTargetOccupiedByNonController(t *testing.T) {
 	state := testState(t, []models.Territory{
 		supplyTerritory("AAA", "AAA", models.TerrainPlain, "BBB"),
 		supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA"),
+		supplyTerritory("CCC", "CCC", models.TerrainPlain),
+		supplyTerritory("DDD", "DDD", models.TerrainPlain),
 	}, []models.Army{
 		{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
 		{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
 	})
-	// BBB is controlled by P3, only occupied (not controlled) by P2's army.
-	setTerritoryOwner(state, "BBB", "P3")
+	// BBB is a member of P3's barony, only occupied (not controlled) by P2's
+	// army.
+	state.Fiefs = []models.Fief{{
+		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "CCC",
+		Territories: []models.TerritoryID{"CCC", "BBB", "DDD"}, OwnerID: "P3",
+	}}
 	addNoble(state, "N1", "ONE", "P1", "AAA")
 	setTerritoryResources(state, "AAA", 4)
 	addChain(t, state, "A1", "N1", models.Order{
@@ -377,13 +381,18 @@ func TestResolveWinterTransferRejectsOccupiedSource(t *testing.T) {
 	state := testState(t, []models.Territory{
 		supplyTerritory("AAA", "AAA", models.TerrainPlain, "BBB"),
 		supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA"),
+		supplyTerritory("CCC", "CCC", models.TerrainPlain),
+		supplyTerritory("DDD", "DDD", models.TerrainPlain),
 	}, []models.Army{
 		{ID: "A1", OwnerID: "P2", TerritoryID: "AAA", Size: 1},
 	})
 	state.Turn = 4
 	state.Season = models.SeasonWinter
-	setTerritoryOwner(state, "AAA", "P1")
-	setTerritoryOwner(state, "BBB", "P2")
+	// AAA is a member of P1's barony, occupied by P2's army.
+	state.Fiefs = []models.Fief{{
+		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "CCC",
+		Territories: []models.TerritoryID{"CCC", "AAA", "DDD"}, OwnerID: "P1",
+	}}
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "BBB"})
 	setTerritoryResources(state, "AAA", 5)

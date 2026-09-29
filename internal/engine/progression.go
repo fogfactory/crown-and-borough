@@ -166,7 +166,18 @@ func (ctx *resolutionContext) freezeLoopSupport(armyID models.ArmyID) bool {
 // capital's capture transfers the whole fief (transferFiefOnCapitalCapture).
 // Both passes iterate armies sorted by ID, which is also a stable per-army,
 // per-territory order since exactly one army can occupy a territory.
+//
+// Control is derived from fiefs, capitals and armies, so the first pass does
+// not write a controller: it walks a working copy of the start-of-resolution
+// control to find which stops change it, and applies the consequences that
+// are stored (a captured capital designation is cleared, a captured fief
+// changes hands) with their control_changed events. Once both passes are done,
+// what no longer has a controller is reported as abandoned.
 func updateTerritorialControl(ctx *resolutionContext) {
+	control := make(map[models.TerritoryID]models.PlayerID, len(ctx.startControl))
+	for territoryID, controller := range ctx.startControl {
+		control[territoryID] = controller
+	}
 	startOwnerAt := make(map[models.TerritoryID]models.PlayerID, len(ctx.startArmyAtTerritory))
 	for territoryID, armyID := range ctx.startArmyAtTerritory {
 		startOwnerAt[territoryID] = ctx.startArmiesByID[armyID].OwnerID
@@ -188,7 +199,7 @@ func updateTerritorialControl(ctx *resolutionContext) {
 		}
 	}
 
-	// Pass 1: control. A non-capital fief member never changes OwnerID under
+	// Pass 1: control. A non-capital fief member never changes controller under
 	// a visiting army: it is occupied, not conquered.
 	for _, armyID := range sortedArmyMap(ctx.armiesByID) {
 		army := ctx.armiesByID[armyID]
@@ -200,19 +211,14 @@ func updateTerritorialControl(ctx *resolutionContext) {
 		if fief := fiefAt[army.TerritoryID]; fief != nil && fief.CapitalTerritoryID != army.TerritoryID && fief.OwnerID != army.OwnerID {
 			continue
 		}
-		state := ctx.state.TerritoryStates[army.TerritoryID]
-		if state.OwnerID != nil && *state.OwnerID == army.OwnerID {
+		previousOwnerID, controlled := control[army.TerritoryID]
+		if controlled && previousOwnerID == army.OwnerID {
 			continue
 		}
-		previousOwnerID := models.PlayerID("")
-		if state.OwnerID != nil {
-			previousOwnerID = *state.OwnerID
-		}
 		ownerID := army.OwnerID
-		state.OwnerID = &ownerID
-		ctx.state.TerritoryStates[army.TerritoryID] = state
+		control[army.TerritoryID] = ownerID
 		ctx.clearCapitalOnControlLoss(previousOwnerID, army.TerritoryID)
-		ctx.transferFiefOnCapitalCapture(army.TerritoryID, ownerID)
+		ctx.transferFiefOnCapitalCapture(army.TerritoryID, ownerID, control)
 		ctx.events = append(ctx.events, Event{
 			Type:            EventTypeControlChanged,
 			Phase:           5,
@@ -257,9 +263,9 @@ func updateTerritorialControl(ctx *resolutionContext) {
 	// A fief dissolved this same turn (its capital's castle pillaged) already
 	// lost its membership above, in removeInfrastructureWithStock, before
 	// either pass ran: a former member without a fresh army of its own is
-	// released here, in the same pass that releases every other unanchored
-	// territory (#215).
-	ctx.releaseUnanchoredControl()
+	// reported here, with every other territory left without a controller
+	// (#215).
+	ctx.emitAbandonedControl(control)
 }
 
 func (ctx *resolutionContext) clearCapitalOnControlLoss(previousOwnerID models.PlayerID, territoryID models.TerritoryID) {

@@ -60,7 +60,7 @@ func (order foundFiefOrder) Apply(ctx *ExecutionContext) {
 		}
 		// Other castles than the capital's are tolerated in the group; only an
 		// enemy or neutral (revolt) army stationed there blocks constitution.
-		if resolution.occupiedAgainstController(territoryID, resolution.currentArmyAt(territoryID)) {
+		if resolution.occupiedAgainstStartController(territoryID, resolution.currentArmyAt(territoryID)) {
 			resolution.rejectWinterOrderAt(playerID, winterOrder, "fief_territory_occupied_by_other_player", territoryID)
 			return
 		}

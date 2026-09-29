@@ -170,7 +170,7 @@ func TestProjectStateProjectsMillProductionAndDestination(t *testing.T) {
 		Turn:   5,
 		Season: models.SeasonSpring,
 		Players: []models.Player{
-			{ID: p1, Name: "Hugues", Color: "#a84632"},
+			{ID: p1, Name: "Hugues", Color: "#a84632", CapitalCastleID: ptrInfraID("I1")},
 		},
 		Territories: []models.Territory{
 			{ID: "CAS", Name: "Castellan", Terrain: models.TerrainPlain, Adjacencies: []models.TerritoryID{"MIL"}},
@@ -186,8 +186,8 @@ func TestProjectStateProjectsMillProductionAndDestination(t *testing.T) {
 		// produces while occupied (#215).
 		Armies: []models.Army{{ID: "A1", OwnerID: p1, TerritoryID: "MIL", Size: 1}},
 		TerritoryStates: map[models.TerritoryID]models.TerritoryState{
-			"CAS": {OwnerID: &p1, Infrastructures: ptrInfraID("I1")},
-			"MIL": {OwnerID: &p1, Infrastructures: ptrInfraID("I2"), Army: ptrArmyID("A1")},
+			"CAS": {Infrastructures: ptrInfraID("I1")},
+			"MIL": {Infrastructures: ptrInfraID("I2"), Army: ptrArmyID("A1")},
 		},
 	}
 	if err := state.Validate(); err != nil {
@@ -277,10 +277,10 @@ func projectTestState() *models.GameState {
 			{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "FOU"},
 		},
 		TerritoryStates: map[models.TerritoryID]models.TerritoryState{
-			"ROS": {OwnerID: &p1, Resources: 3, Army: ptrArmyID("A1"), Infrastructures: ptrInfraID("I1")},
-			"BOI": {OwnerID: &p2, Resources: 0, Army: ptrArmyID("A2")},
-			"BRU": {OwnerID: nil, Resources: 0},
-			"FOU": {OwnerID: nil, Resources: 0, Infrastructures: ptrInfraID("I2")},
+			"ROS": {Resources: 3, Army: ptrArmyID("A1"), Infrastructures: ptrInfraID("I1")},
+			"BOI": {Resources: 0, Army: ptrArmyID("A2")},
+			"BRU": {Resources: 0},
+			"FOU": {Resources: 0, Infrastructures: ptrInfraID("I2")},
 		},
 	}
 	if err := state.Validate(); err != nil {

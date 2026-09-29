@@ -97,10 +97,7 @@ func (ctx *resolutionContext) emitProsperityFounded(originID, destinationID mode
 	if infrastructure == nil {
 		return
 	}
-	ownerID := models.PlayerID("")
-	if state := ctx.state.TerritoryStates[destinationID]; state.OwnerID != nil {
-		ownerID = *state.OwnerID
-	}
+	ownerID, _ := ctx.controllerAtStart(destinationID)
 	ctx.events = append(ctx.events, Event{
 		Type:               EventTypeProsperityFounded,
 		Phase:              winterPhase,
@@ -119,9 +116,7 @@ func (ctx *resolutionContext) emitProsperityFounded(originID, destinationID mode
 // remaining free tile. Returns the tile, the priority reason, and whether one
 // was found.
 func (ctx *resolutionContext) prosperityDestination(originID models.TerritoryID) (models.TerritoryID, string, bool) {
-	originState := ctx.state.TerritoryStates[originID]
-	if originState.OwnerID != nil {
-		playerID := *originState.OwnerID
+	if playerID, controlled := ctx.controllerAtStart(originID); controlled {
 		if destinationID := ctx.prosperityFreeTile(originID, func(candidateID models.TerritoryID) bool {
 			return ctx.territoryFief(playerID, candidateID) != nil
 		}); destinationID != "" {

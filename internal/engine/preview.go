@@ -190,7 +190,7 @@ func winterPaymentReserves(game *models.GameState, playerID models.PlayerID, win
 	counted := make(map[models.TerritoryID]bool)
 	total := 0
 	for territoryID, territoryState := range game.TerritoryStates {
-		if territoryState.OwnerID == nil || *territoryState.OwnerID != playerID || territoryState.Resources <= 0 {
+		if controller, controlled := game.TerritoryController(territoryID); !controlled || controller != playerID || territoryState.Resources <= 0 {
 			continue
 		}
 		if territoryOccupiedAgainstController(game, territoryID) {
@@ -206,7 +206,7 @@ func winterPaymentReserves(game *models.GameState, playerID models.PlayerID, win
 			continue
 		}
 		territoryState, exists := game.TerritoryStates[order.TerritoryID]
-		if !exists || territoryState.OwnerID == nil || *territoryState.OwnerID != playerID {
+		if controller, controlled := game.TerritoryController(order.TerritoryID); !exists || !controlled || controller != playerID {
 			continue
 		}
 		if territoryOccupiedAgainstController(game, order.TerritoryID) {

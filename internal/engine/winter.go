@@ -74,10 +74,10 @@ func ResolveWinterWithDeckOrders(
 	ctx.conserveWinterStocks()
 	ctx.resolveProsperity(stockBeforeConservation)
 	ctx.repatriateWinterStocks()
-	// Released after repatriation: a capital replaced this same winter by E C
+	// Reported after repatriation: a capital replaced this same winter by E C
 	// still rapatriates its surplus above as the old capital before losing its
 	// anchor here (#215).
-	ctx.releaseUnanchoredControl()
+	ctx.emitAbandonedControl(ctx.startControl)
 	ctx.emitWinterStockEvents(stockBefore)
 
 	if err := state.Validate(); err != nil {
@@ -135,9 +135,13 @@ func (ctx *resolutionContext) territoryExists(territoryID models.TerritoryID) bo
 	return ctx.territoriesByID[territoryID] != nil
 }
 
+// controlsTerritory reports whether playerID controlled territoryID when the
+// winter began. Winter orders change fiefs and capitals but never move an army,
+// and what they unanchor only takes effect at the end of the winter (see
+// emitAbandonedControl), so every winter rule reads the start-of-winter
+// control, whatever an earlier order of the same winter did.
 func (ctx *resolutionContext) controlsTerritory(playerID models.PlayerID, territoryID models.TerritoryID) bool {
-	state, exists := ctx.state.TerritoryStates[territoryID]
-	return exists && state.OwnerID != nil && *state.OwnerID == playerID
+	return controlledBy(ctx.controllerAtStart, playerID, territoryID)
 }
 
 func (ctx *resolutionContext) playerByID(playerID models.PlayerID) *models.Player {
@@ -149,13 +153,17 @@ func (ctx *resolutionContext) playerByID(playerID models.PlayerID) *models.Playe
 	return nil
 }
 
+// capitalTerritory returns the castle territory of playerID's capital. A
+// capital castle is always controlled by its owner, since a capital is a
+// permanent anchor (models.GameState.TerritoryController) and losing the
+// control of it clears the designation.
 func (ctx *resolutionContext) capitalTerritory(playerID models.PlayerID) (models.TerritoryID, models.InfraID, bool) {
 	player := ctx.playerByID(playerID)
 	if player == nil || player.CapitalCastleID == nil {
 		return "", "", false
 	}
 	infrastructure := ctx.infrastructuresByID[*player.CapitalCastleID]
-	if infrastructure == nil || infrastructure.Type != models.InfraTypeCastle || !ctx.controlsTerritory(playerID, infrastructure.TerritoryID) {
+	if infrastructure == nil || infrastructure.Type != models.InfraTypeCastle {
 		return "", "", false
 	}
 	return infrastructure.TerritoryID, infrastructure.ID, true
@@ -239,7 +247,7 @@ func (ctx *resolutionContext) payFromSources(sources []models.TerritoryID, cost 
 // anything farther out.
 func (ctx *resolutionContext) millUpgradePaymentSources(playerID models.PlayerID, millID models.TerritoryID) []models.TerritoryID {
 	sources := []models.TerritoryID{millID}
-	if recipientID := millRecipient(ctx, millID); recipientID != millID && !ctx.occupiedAgainstController(recipientID, ctx.currentArmyAt(recipientID)) {
+	if recipientID := millRecipientIn(ctx, millID, ctx.controllerAtStart); recipientID != millID && !ctx.occupiedAgainstStartController(recipientID, ctx.currentArmyAt(recipientID)) {
 		sources = append(sources, recipientID)
 	}
 	seen := make(map[models.TerritoryID]bool, len(sources))
@@ -268,7 +276,7 @@ func (ctx *resolutionContext) winterPaymentSources(playerID models.PlayerID, tar
 		if !ctx.controlsTerritory(playerID, territoryID) || !ctx.hasSettlement(territoryID) {
 			continue
 		}
-		if ctx.occupiedAgainstController(territoryID, ctx.currentArmyAt(territoryID)) {
+		if ctx.occupiedAgainstStartController(territoryID, ctx.currentArmyAt(territoryID)) {
 			// A settlement occupied against its controller pays for no
 			// winter investment, its own or anyone else's (titres.md).
 			continue
@@ -438,16 +446,17 @@ func (ctx *resolutionContext) conserveWinterStocks() {
 func (ctx *resolutionContext) repatriateWinterStocks() {
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
 		state := ctx.state.TerritoryStates[territoryID]
-		if state.OwnerID == nil || !ctx.hasSettlement(territoryID) {
+		controllerID, controlled := ctx.controllerAtStart(territoryID)
+		if !controlled || !ctx.hasSettlement(territoryID) {
 			continue
 		}
-		if ctx.occupiedAgainstController(territoryID, ctx.currentArmyAt(territoryID)) {
+		if ctx.occupiedAgainstStartController(territoryID, ctx.currentArmyAt(territoryID)) {
 			// Occupied against its controller: its stock stays there and
 			// follows the normal conservation rule instead of being
 			// repatriated (titres.md).
 			continue
 		}
-		capitalTerritoryID, _, hasCapital := ctx.capitalTerritory(*state.OwnerID)
+		capitalTerritoryID, _, hasCapital := ctx.capitalTerritory(controllerID)
 		if !hasCapital || capitalTerritoryID == territoryID {
 			continue
 		}
@@ -473,10 +482,9 @@ func (ctx *resolutionContext) emitWinterStockEvents(stockBefore map[models.Terri
 		if !ctx.hasSettlement(territoryID) && stockBefore[territoryID] == 0 && state.Resources == 0 {
 			continue
 		}
-		ownerID := models.PlayerID("")
-		if state.OwnerID != nil {
-			ownerID = *state.OwnerID
-		}
+		// The control the winter ends on, once emitAbandonedControl has
+		// reported what its orders unanchored.
+		ownerID, _ := ctx.controllerNow(territoryID)
 		ctx.events = append(ctx.events, Event{
 			Type:        EventTypeWinterStock,
 			Phase:       winterPhase,

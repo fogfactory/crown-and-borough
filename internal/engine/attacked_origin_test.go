@@ -214,9 +214,7 @@ func TestResolveLoopDispersePendingCancelledRetriesNextChainStep(t *testing.T) {
 	first.State.NextArmyID = 4
 	territoryState := first.State.TerritoryStates["CCC"]
 	army3 := models.ArmyID("A3")
-	owner3 := models.PlayerID("P3")
 	territoryState.Army = &army3
-	territoryState.OwnerID = &owner3
 	first.State.TerritoryStates["CCC"] = territoryState
 	addNoble(first.State, "N3", "THR", "P3", "CCC")
 	addChain(t, first.State, "A3", "N3", models.Order{Type: models.OrderTypeAttack, PositionID: "CCC", TargetIDs: []models.TerritoryID{"AAA"}})
@@ -281,9 +279,7 @@ func TestResolveLoopDispersePendingCancelledAndDislodgedReportsDislodged(t *test
 	first.State.NextArmyID = 4
 	territoryState := first.State.TerritoryStates["CCC"]
 	army3 := models.ArmyID("A3")
-	owner3 := models.PlayerID("P3")
 	territoryState.Army = &army3
-	territoryState.OwnerID = &owner3
 	first.State.TerritoryStates["CCC"] = territoryState
 	addNoble(first.State, "N3", "THR", "P3", "CCC")
 	addChain(t, first.State, "A3", "N3", models.Order{Type: models.OrderTypeAttack, PositionID: "CCC", TargetIDs: []models.TerritoryID{"AAA"}})

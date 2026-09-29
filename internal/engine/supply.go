@@ -83,6 +83,7 @@ type consumptionDetail struct {
 // it only sets models.Army.Starving for the penalty the following turn reads
 // (see ctx.famished's seeding in newResolutionContext).
 func resolveSupply(ctx *resolutionContext) {
+	ctx.settledControl = ctx.snapshotControlNow()
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
 		ctx.supplyStockBefore[territoryID] = ctx.state.TerritoryStates[territoryID].Resources
 	}
@@ -186,13 +187,13 @@ func resolveNeutralFamines(ctx *resolutionContext) {
 // instead, see #195) simply produces nothing until an army reclaims it.
 func produceNeutralStocks(ctx *resolutionContext) {
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
-		state := ctx.state.TerritoryStates[territoryID]
-		if state.OwnerID != nil {
+		if _, controlled := ctx.controllerNow(territoryID); controlled {
 			continue
 		}
 		if !ctx.hasInfrastructure(territoryID, models.InfraTypeVillage) {
 			continue
 		}
+		state := ctx.state.TerritoryStates[territoryID]
 		parts := neutralVillageProductionBreakdown(ctx, territoryID)
 		ctx.supplySources[territoryID] = parts
 		production := parts.total()
@@ -312,10 +313,10 @@ func terrainRationProduction(ctx *resolutionContext, territoryID models.Territor
 func controlledSupplySources(ctx *resolutionContext, ownerID models.PlayerID) []*supplySource {
 	sources := make([]*supplySource, 0)
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
-		state := ctx.state.TerritoryStates[territoryID]
-		if state.OwnerID == nil || *state.OwnerID != ownerID {
+		if !controlledBy(ctx.controllerNow, ownerID, territoryID) {
 			continue
 		}
+		state := ctx.state.TerritoryStates[territoryID]
 		if ctx.occupiedAgainstController(territoryID, ctx.currentArmyAt(territoryID)) {
 			// A controlled cell occupied by another player's (or a revolt's)
 			// army is no longer a supply source for its controller: neither
@@ -432,7 +433,7 @@ func supplyNetwork(ctx *resolutionContext, sourceID models.TerritoryID, ownerID 
 				continue
 			}
 			remaining := current.remaining - 1
-			if ctx.isControlledDepot(neighborID, ownerID) {
+			if ctx.isControlledDepot(neighborID, ownerID, ctx.controllerNow) {
 				remaining += ctx.balance.DepotRangeBonus
 			}
 			reachable[neighborID] = current.distance + 1
@@ -450,7 +451,8 @@ func supplyNetwork(ctx *resolutionContext, sourceID models.TerritoryID, ownerID 
 // same range and depot rules as ordinary supply, but permits the requested
 // destination to be occupied by an enemy army. Enemy armies on intermediate
 // territories still block the route, including an army belonging to the
-// recipient when it is not the final destination.
+// recipient when it is not the final destination. Transfers are validated
+// before any army moves, so it reads the start-of-resolution control.
 func transferNetwork(ctx *resolutionContext, sourceID models.TerritoryID, ownerID models.PlayerID, targetID models.TerritoryID) map[models.TerritoryID]int {
 	type visit struct {
 		territoryID models.TerritoryID
@@ -476,7 +478,7 @@ func transferNetwork(ctx *resolutionContext, sourceID models.TerritoryID, ownerI
 				}
 			}
 			remaining := current.remaining - 1
-			if ctx.isControlledDepot(neighborID, ownerID) {
+			if ctx.isControlledDepot(neighborID, ownerID, ctx.controllerAtStart) {
 				remaining += ctx.balance.DepotRangeBonus
 			}
 			reachable[neighborID] = current.distance + 1
@@ -707,7 +709,7 @@ func (ctx *resolutionContext) resolveFamine(candidate famineCandidate) {
 		if gain >= 0 {
 			event.SavedByPillage = true
 			if gain > 0 {
-				creditTerritoryID := ctx.closestControlledSettlement(candidate.army.TerritoryID, candidate.army.OwnerID)
+				creditTerritoryID := ctx.closestControlledSettlement(candidate.army.TerritoryID, candidate.army.OwnerID, ctx.controllerSettled)
 				if creditTerritoryID != "" {
 					creditState := ctx.state.TerritoryStates[creditTerritoryID]
 					creditState.Resources += gain
@@ -772,10 +774,10 @@ func (ctx *resolutionContext) emitProductionEvents() {
 		rations := ctx.supplyRations[territoryID]
 		source := ctx.supplySources[territoryID]
 		state := ctx.state.TerritoryStates[territoryID]
-		var ownerID models.PlayerID
-		if state.OwnerID != nil {
-			ownerID = *state.OwnerID
-		}
+		// The control the turn settled on, not the current one: a famine
+		// auto-pillage above may have dissolved a fief since the production
+		// this ledger reports was credited.
+		ownerID, _ := ctx.controllerSettled(territoryID)
 		var sentRations map[models.TerritoryID]int
 		if dispatch := ctx.poolRations[territoryID]; len(dispatch) > 0 {
 			sentRations = make(map[models.TerritoryID]int, len(dispatch))
@@ -878,16 +880,15 @@ func (ctx *resolutionContext) hasSettlement(territoryID models.TerritoryID) bool
 // controlled by ownerID and usable by it: a depot on a cell occupied against
 // its controller extends nobody's range, neither the controller's nor the
 // occupant's (economie.md#portée-de-ravitaillement).
-func (ctx *resolutionContext) isControlledDepot(territoryID models.TerritoryID, ownerID models.PlayerID) bool {
-	state := ctx.state.TerritoryStates[territoryID]
-	if state.OwnerID == nil || *state.OwnerID != ownerID {
+func (ctx *resolutionContext) isControlledDepot(territoryID models.TerritoryID, ownerID models.PlayerID, view controlView) bool {
+	if !controlledBy(view, ownerID, territoryID) {
 		return false
 	}
 	infrastructure := ctx.infrastructureAt(territoryID)
 	if infrastructure == nil || infrastructure.Type != models.InfraTypeSupplyDepot {
 		return false
 	}
-	return !ctx.occupiedAgainstController(territoryID, ctx.currentArmyAt(territoryID))
+	return !occupiedAgainst(view, territoryID, ctx.currentArmyAt(territoryID))
 }
 
 func (ctx *resolutionContext) infrastructureAt(territoryID models.TerritoryID) *models.Infrastructure {

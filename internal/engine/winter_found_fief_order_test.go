@@ -21,10 +21,13 @@ func foundFiefTestState(t *testing.T) *models.GameState {
 		territory("GGG", "GGG", "FFF"),
 	}
 	state := winterTestState(t, territories, nil)
-	for _, id := range []models.TerritoryID{"AAA", "BBB", "CCC", "DDD", "EEE", "FFF", "GGG"} {
+	for _, id := range []models.TerritoryID{"BBB", "CCC", "DDD", "EEE", "FFF", "GGG"} {
 		setTerritoryOwner(state, id, "P1")
 	}
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+	// AAA is P1's capital: a permanent anchor that an occupier does not
+	// dislodge.
+	setCapital(state, "P1", "I1")
 	addNoble(state, "N1", "HUG", "P1", "AAA")
 	territoryState := state.TerritoryStates["AAA"]
 	territoryState.Resources = 50
@@ -33,6 +36,7 @@ func foundFiefTestState(t *testing.T) *models.GameState {
 }
 
 func placeArmyAt(state *models.GameState, armyID models.ArmyID, ownerID models.PlayerID, territoryID models.TerritoryID, size int) {
+	removeAnchorArmy(state, territoryID)
 	state.Armies = append(state.Armies, models.Army{ID: armyID, OwnerID: ownerID, TerritoryID: territoryID, Size: size})
 	territoryState := state.TerritoryStates[territoryID]
 	armyIDCopy := armyID
@@ -154,7 +158,7 @@ func TestFoundFiefOrderRejectsFortifiedVillageAsCapital(t *testing.T) {
 
 func TestFoundFiefOrderNeutralArmyBlocks(t *testing.T) {
 	state := foundFiefTestState(t)
-	placeArmyAt(state, "A9", models.NeutralPlayerID, "CCC", 2)
+	placeArmyAt(state, "A9", models.NeutralPlayerID, "AAA", 2)
 	_, event := applyFoundFief(state, models.WinterOrder{
 		NobleCode: "HUG", TerritoryID: "AAA",
 		TerritoryIDs: []models.TerritoryID{"AAA", "BBB", "CCC"},
@@ -236,10 +240,10 @@ func TestFoundFiefOrderRejections(t *testing.T) {
 		},
 		{
 			name:          "territory occupied by another player",
-			mutate:        func(state *models.GameState) { placeArmyAt(state, "A9", "P2", "CCC", 2) },
+			mutate:        func(state *models.GameState) { placeArmyAt(state, "A9", "P2", "AAA", 2) },
 			order:         models.WinterOrder{NobleCode: "HUG", TerritoryID: "AAA", TerritoryIDs: []models.TerritoryID{"AAA", "BBB", "CCC"}},
 			reason:        "fief_territory_occupied_by_other_player",
-			wantTerritory: "CCC",
+			wantTerritory: "AAA",
 		},
 		{
 			name:   "not contiguous",

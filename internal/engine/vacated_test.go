@@ -579,7 +579,7 @@ func TestResolveDisperseDepartureChangesOriginDefense(t *testing.T) {
 		addNoble(state, "N3", "THR", "P3", "ATL")
 		setTerritoryOwner(state, "SVM", "P2")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "SVM"})
-		state.TerritoryStates["SVM"] = models.TerritoryState{OwnerID: state.TerritoryStates["SVM"].OwnerID, Infrastructures: infraPointer("I1"), Resources: 1, Army: state.TerritoryStates["SVM"].Army}
+		state.TerritoryStates["SVM"] = models.TerritoryState{Infrastructures: infraPointer("I1"), Resources: 1, Army: state.TerritoryStates["SVM"].Army}
 		// SVM is under attack from A2, so A1's dispersion to two targets is
 		// cancelled just the same: it defends with its full size 2, not a
 		// residual left over from a partial departure, and A2 does not win.

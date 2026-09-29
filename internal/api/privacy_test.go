@@ -289,13 +289,13 @@ func TestCombatParticipationIncludesSupportingArmies(t *testing.T) {
 
 // TestCombatParticipationSkipsAbandonedCastleOwner checks #215: once a
 // castle's former controller has lost it to abandonment (no fief, capital,
-// or army left there), territoryOwner reads OwnerID nil on both snapshots
+// or army left there), territoryOwner finds no controller on both snapshots
 // and grants combat visibility to nobody for the empty-defender contender,
 // unlike TestCombatParticipationSkipsNeutralOwner's live neutral defender.
 func TestCombatParticipationSkipsAbandonedCastleOwner(t *testing.T) {
-	// AAA has no OwnerID on either snapshot: P1 controlled it once, but its
-	// army left and no anchor kept it, so releaseUnanchoredControl already
-	// cleared it before this later turn's combat.
+	// AAA has no controller on either snapshot: P1 controlled it once, but its
+	// army left and no anchor kept it, so it was already uncontrolled before
+	// this later turn's combat.
 	before := &models.GameState{Armies: []models.Army{
 		{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 2},
 	}}

@@ -21,9 +21,6 @@ func taxTestState(t *testing.T) *models.GameState {
 		},
 		nil,
 	)
-	for _, id := range []models.TerritoryID{"PCP", "FCP", "MEM", "OTH"} {
-		setTerritoryOwner(state, id, "P1")
-	}
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "PCP"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "FCP"})
 	addInfrastructure(state, models.Infrastructure{ID: "I3", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "MEM"})
@@ -204,10 +201,8 @@ func TestSeigneurialTaxDoublingCanceledWhenCapitalCapturedSameTurn(t *testing.T)
 		}
 	}
 	state.Armies = []models.Army{{ID: "A1", OwnerID: "P2", TerritoryID: "ENY", Size: 3}}
-	enyOwner := models.PlayerID("P2")
 	enyState := state.TerritoryStates["ENY"]
 	armyID := models.ArmyID("A1")
-	enyState.OwnerID = &enyOwner
 	enyState.Army = &armyID
 	state.TerritoryStates["ENY"] = enyState
 	state.NextArmyID = nextArmyID(state.Armies)

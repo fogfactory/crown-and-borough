@@ -246,11 +246,18 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 	millProduction := engine.ForecastMillProduction(state, balance)
 	famineRiskByPlayer := engine.ForecastFamineRisk(state, balance)
 
+	// Control is not stored: the projected owner is derived here from the
+	// fiefs, the capitals and the stationed armies.
+	controllers := state.TerritoryControllers()
 	for _, territory := range state.Territories {
 		territoryState := state.TerritoryStates[territory.ID]
+		var owner *models.PlayerID
+		if controller, controlled := controllers[territory.ID]; controlled {
+			owner = &controller
+		}
 		territoryView := TerritoryView{
 			ID:              territory.ID,
-			Owner:           territoryState.OwnerID,
+			Owner:           owner,
 			Resources:       territoryState.Resources,
 			Infrastructures: make([]InfraView, 0, 1),
 		}
@@ -260,8 +267,8 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 				destination := forecast.Destination
 				territoryView.IncomeDestination = &destination
 			}
-			if territoryState.OwnerID != nil {
-				projectedIncomeByPlayer[*territoryState.OwnerID] += forecast.Amount
+			if owner != nil {
+				projectedIncomeByPlayer[*owner] += forecast.Amount
 			}
 		}
 		if forecast, ok := millProduction[territory.ID]; ok {

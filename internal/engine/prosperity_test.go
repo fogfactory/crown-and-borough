@@ -158,9 +158,6 @@ func TestProsperityDestinationPriority(t *testing.T) {
 		}, nil)
 		addVillageWithResources(state, "I1", "ORI", "P1", 8) // loss = 4
 		setTerritoryOwner(state, "CTL", "P1")                // closer, merely controlled
-		setTerritoryOwner(state, "FIE", "P1")
-		setTerritoryOwner(state, "CFA", "P1")
-		setTerritoryOwner(state, "CFB", "P1")
 		state.Fiefs = []models.Fief{{
 			ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "CFA",
 			Territories: []models.TerritoryID{"CFA", "CFB", "FIE"}, OwnerID: "P1",

@@ -35,14 +35,14 @@ func TestResolveAttackIsPureAndUpdatesControl(t *testing.T) {
 	if noble := nobleByID(t, resolution.State, "N1"); noble.LocationID != "BBB" {
 		t.Errorf("N1 location = %q, want BBB", noble.LocationID)
 	}
-	owner := resolution.State.TerritoryStates["BBB"].OwnerID
+	owner := controllerOf(resolution.State, "BBB")
 	if owner == nil || *owner != "P1" {
 		t.Errorf("BBB owner = %v, want P1", owner)
 	}
 	// AAA carries no fief or capital and A1 left it: control outside a fief is
 	// ephemeral, so it reverts to neutral once no army of its former
 	// controller remains there (#215).
-	if sourceOwner := resolution.State.TerritoryStates["AAA"].OwnerID; sourceOwner != nil {
+	if sourceOwner := controllerOf(resolution.State, "AAA"); sourceOwner != nil {
 		t.Errorf("AAA owner = %v, want nil (released once its army departed)", sourceOwner)
 	}
 	if !containsEvent(resolution.Events, EventTypeMovement) || !containsEvent(resolution.Events, EventTypeControlChanged) {
@@ -98,7 +98,6 @@ func TestResolveCastleBlocksEqualAttack(t *testing.T) {
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
 	// BBB is P2's own capital: a permanent anchor outside any fief, the only
 	// thing keeping this empty castle from going inert (#215).
-	setTerritoryOwner(state, "BBB", "P2")
 	setCapital(state, "P2", "I1")
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"}})
 	validateTestState(t, state)
@@ -658,7 +657,6 @@ func TestResolveLoopDisperseMovesResolvedBranchesAndRetriesResidual(t *testing.T
 	carrierDefeat.Armies = append(carrierDefeat.Armies, models.Army{ID: attackerID, OwnerID: attackerOwner, TerritoryID: "EEE", Size: 2})
 	attackerState := carrierDefeat.TerritoryStates["EEE"]
 	attackerState.Army = &attackerID
-	attackerState.OwnerID = &attackerOwner
 	carrierDefeat.TerritoryStates["EEE"] = attackerState
 	addInfrastructure(carrierDefeat, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "EEE"})
 	carrierDefeat.NextArmyID = 5
@@ -688,7 +686,6 @@ func TestResolveLoopDisperseMovesResolvedBranchesAndRetriesResidual(t *testing.T
 	residualJoin.Armies = append(residualJoin.Armies, models.Army{ID: joiningID, OwnerID: joiningOwner, TerritoryID: "EEE", Size: 1})
 	joiningState := residualJoin.TerritoryStates["EEE"]
 	joiningState.Army = &joiningID
-	joiningState.OwnerID = &joiningOwner
 	residualJoin.TerritoryStates["EEE"] = joiningState
 	residualJoin.NextArmyID = 5
 	addNoble(residualJoin, "N4", "FOU", "P1", "EEE")
@@ -771,10 +768,6 @@ func TestResolvePillageCreditsNearestControlledSettlement(t *testing.T) {
 	addNoble(state, "N1", "ONE", "P1", "AAA")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "AAA"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
-	owner := models.PlayerID("P1")
-	castleState := state.TerritoryStates["BBB"]
-	castleState.OwnerID = &owner
-	state.TerritoryStates["BBB"] = castleState
 	// No army garrisons BBB: anchor it as P1's capital so control resolution
 	// (now ahead of ravitaillement, #208) does not release it as unanchored
 	// before supply can credit the pillage gain to it.

@@ -18,10 +18,8 @@ func TestResolveSelfAttackOnOwnCastle_Size1Succeeds(t *testing.T) {
 	)
 	addNoble(state, "N1", "ONE", "P1", "AAA")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
-	p1 := models.PlayerID("P1")
-	bbbState := state.TerritoryStates["BBB"]
-	bbbState.OwnerID = &p1
-	state.TerritoryStates["BBB"] = bbbState
+	// BBB is P1's own castle: its capital, a permanent anchor with no army.
+	setCapital(state, "P1", "I1")
 
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"}})
 	validateTestState(t, state)
@@ -35,7 +33,7 @@ func TestResolveSelfAttackOnOwnCastle_Size1Succeeds(t *testing.T) {
 	if army.TerritoryID != "BBB" {
 		t.Errorf("A1 territory = %q, want BBB (self-capture should succeed)", army.TerritoryID)
 	}
-	if bbbOwner := resolution.State.TerritoryStates["BBB"].OwnerID; bbbOwner == nil || *bbbOwner != "P1" {
+	if bbbOwner := controllerOf(resolution.State, "BBB"); bbbOwner == nil || *bbbOwner != "P1" {
 		t.Errorf("BBB owner = %v, want P1", bbbOwner)
 	}
 }
@@ -55,10 +53,8 @@ func TestResolveSelfAttackOnOwnCastle_ContestedByOutsider(t *testing.T) {
 	addNoble(state, "N1", "ONE", "P1", "AAA")
 	addNoble(state, "N2", "TWO", "P2", "CCC")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
-	p1 := models.PlayerID("P1")
-	bbbState := state.TerritoryStates["BBB"]
-	bbbState.OwnerID = &p1
-	state.TerritoryStates["BBB"] = bbbState
+	// BBB is P1's own castle: its capital, a permanent anchor with no army.
+	setCapital(state, "P1", "I1")
 
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"}})
 	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "CCC", TargetIDs: []models.TerritoryID{"BBB"}})
@@ -95,10 +91,8 @@ func TestResolveRetreatToControlledEmptyCastle_Bucket1(t *testing.T) {
 	addNoble(state, "N1", "ONE", "P1", "AAA")
 	addNoble(state, "N2", "TWO", "P2", "BBB")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "CCC"})
-	p1 := models.PlayerID("P1")
-	cccState := state.TerritoryStates["CCC"]
-	cccState.OwnerID = &p1
-	state.TerritoryStates["CCC"] = cccState
+	// CCC is P1's own castle: its capital, a permanent anchor with no army.
+	setCapital(state, "P1", "I1")
 
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeHold, PositionID: "AAA"})
 	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"AAA"}})
@@ -137,7 +131,6 @@ func TestResolveRetreatToControlledEmptyCastle_OverridesAttackedTerritory(t *tes
 	// CCC is P1's own capital: a permanent anchor outside any fief, the only
 	// thing keeping this empty, retreating-army-owned castle in bucket 1
 	// instead of falling through with every other empty cell (#215).
-	setTerritoryOwner(state, "CCC", "P1")
 	setCapital(state, "P1", "I1")
 
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeHold, PositionID: "AAA"})
@@ -214,7 +207,6 @@ func TestResolveRetreatEnemyCapitalCastleExcluded(t *testing.T) {
 	// CCC is P3's own capital: a permanent anchor that keeps this empty castle
 	// standing against a retreat, even without an army of P3's on it.
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "CCC"})
-	setTerritoryOwner(state, "CCC", "P3")
 	setCapital(state, "P3", "I1")
 
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeHold, PositionID: "AAA"})
@@ -297,9 +289,7 @@ func TestResolveRetreatFriendlyArmySequentialMerge(t *testing.T) {
 
 	// Supply A4 at DDD with a controlled castle and stock
 	addInfrastructure(state, models.Infrastructure{ID: "I4", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "DDD"})
-	p2 := models.PlayerID("P2")
 	dddState := state.TerritoryStates["DDD"]
-	dddState.OwnerID = &p2
 	dddState.Resources = 10
 	state.TerritoryStates["DDD"] = dddState
 	// A1 and A3 both retreat into and fuse with A5 at EEE this same turn,
@@ -476,21 +466,10 @@ func TestResolveRetreatSupplyLineTieBreakWithinBucket(t *testing.T) {
 	)
 	addNoble(state, "N1", "ONE", "P1", "AAA")
 	addNoble(state, "N2", "TWO", "P2", "BBB")
-	p1 := models.PlayerID("P1")
-	// Make DDD and ZZZ controlled by P1
-	dddState := state.TerritoryStates["DDD"]
-	dddState.OwnerID = &p1
-	state.TerritoryStates["DDD"] = dddState
-
-	zzzState := state.TerritoryStates["ZZZ"]
-	zzzState.OwnerID = &p1
-	state.TerritoryStates["ZZZ"] = zzzState
-
-	// SRC is a castle controlled by P1
+	// SRC is P1's own castle: its capital, the supply anchor DDD and ZZZ are
+	// ranked against.
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "SRC"})
-	srcState := state.TerritoryStates["SRC"]
-	srcState.OwnerID = &p1
-	state.TerritoryStates["SRC"] = srcState
+	setCapital(state, "P1", "I1")
 
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeHold, PositionID: "AAA"})
 	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"AAA"}})

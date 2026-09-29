@@ -471,16 +471,15 @@ Les modèles métier sont dans `internal/models`. Ils valident notamment :
 - la cohérence entre les index de `GameState` et les entités ;
 - la saison calculée à partir du tour absolu ;
 - que la capitale d'un joueur, lorsqu'elle est désignée, porte bien un
-  château contrôlé par ce joueur (`TerritoryState.OwnerID`) ; en revanche,
-  `Validate` n'exige **pas** qu'un territoire contrôlé hors fief et hors
-  capitale porte une armée de son propriétaire : cette propriété n'est vraie
-  qu'à l'issue d'une résolution (voir ci-dessous), jamais imposée au
-  chargement d'une partie existante ;
+  château et ne se trouve pas dans le fief d'un autre joueur ; en revanche,
+  `Validate` n'exige **pas** qu'un territoire hors fief et hors capitale porte
+  une armée : le contrôle est dérivé (voir ci-dessous), jamais stocké ni
+  imposé au chargement d'une partie existante ;
 - pour chaque fief : un identifiant unique, un titre cohérent avec la taille
   du groupe (`FiefTitleForSize`), une capitale en tête du groupe, aucun
-  territoire partagé avec un autre fief, un propriétaire connu qui contrôle
-  **tous** les membres du groupe (pas seulement la capitale : le contrôle est
-  transitif dans un fief, voir [titres.md](titres.md)), et un titulaire
+  territoire partagé avec un autre fief, un propriétaire connu (qui contrôle
+  **tous** les membres du groupe par construction : le contrôle est transitif
+  dans un fief, voir [titres.md](titres.md)), et un titulaire
   optionnel qui appartient à ce même propriétaire. Un château sur la capitale
   n'est **pas** exigé structurellement : sa perte dissout le fief immédiatement
   côté moteur plutôt que de laisser un état transitoire invalide.
@@ -509,19 +508,31 @@ conquête, la vacance, la dissolution et l'occupation d'un membre non-capitale
 d'un fief, y compris hors hiver (voir [titres.md](titres.md)). Le moteur ne
 dépend ni du HTTP ni du rendu front.
 
-`TerritoryState.OwnerID` (`owner` dans `state.json`) reflète le contrôle tel
-que défini par [titres.md](titres.md#contrôle-et-occupation) : une prise
-positionnelle, maintenue indéfiniment pour un membre de fief ou la capitale
-d'un joueur, mais **éphémère** partout ailleurs, où elle ne survit qu'à la
-présence continue d'une armée du contrôleur
-([#215](https://github.com/fogfactory/crown-and-borough/issues/215)). Le
-moteur matérialise cette règle plutôt que de la calculer à la volée à chaque
-lecture : `OwnerID` reste la source de vérité lue par toutes les autres
-règles, et une passe de normalisation idempotente
-(`releaseUnanchoredControl`) libère (`OwnerID` à `nil`) tout territoire
-devenu non ancré à la fin de chaque passage qui modifie le contrôle — la mise
-à jour du contrôle territorial d'un tour d'action, et la fin de l'hiver après
-le rapatriement des stocks.
+Le contrôle territorial n'est pas stocké : `TerritoryState` ne porte aucun
+propriétaire. Il est dérivé à la demande, tel que défini par
+[titres.md](titres.md#contrôle-et-occupation) : le propriétaire du fief dont le
+territoire est membre, sinon le joueur dont la capitale s'y trouve, sinon le
+propriétaire de l'armée stationnée. Une armée neutre (révolte) occupe sans
+jamais contrôler. Le contrôle hors fief et hors capitale est donc **éphémère**
+par construction : il ne survit qu'à la présence continue d'une armée du
+contrôleur
+([#215](https://github.com/fogfactory/crown-and-borough/issues/215)). Le champ
+`owner` de `state.json` est un contrat public : la projection
+(`internal/api`) le calcule au vol avec `GameState.TerritoryController`, comme
+les scores et les rapports (`GameState.TerritoryControllers`).
+
+Dans une résolution, le moteur lit le contrôle à deux moments, qui ne sont pas
+interchangeables puisque les armées bougent et que les fiefs peuvent se
+dissoudre pendant le tour : `controllerAtStart` est l'instantané du contrôle
+laissé par la résolution précédente, figé à la création du contexte, lu par
+tout ce qui précède la passe de contrôle de la phase 5 (intentions, combats,
+mouvements, retraites, crédit de pillage) et par tout l'hiver ; `controllerNow`
+dérive le contrôle des fiefs, capitales et armées courants, et sert au
+ravitaillement de fin de tour. La passe de contrôle de la phase 5 part du
+contrôle initial, en déduit les prises de contrôle (capitale désignée effacée,
+fief transféré) et publie un `control_changed` de raison `abandoned` pour
+chaque territoire à infrastructure qui n'a plus de contrôleur à la fin du
+tour ou de l'hiver.
 
 La réception des chaînes est immédiate et atomique. La validation est en une
 seule couche : `orders.ValidateChain` porte toutes les règles statiques

@@ -281,10 +281,15 @@ func TestMemoryStoreTreatsEliminatedPlayersAsSubmittedAndSetsWinner(t *testing.T
 		t.Fatal("P2 has no starting capital")
 	}
 	for territoryID, territory := range game.state.TerritoryStates {
-		if territory.OwnerID != nil && *territory.OwnerID == "P2" {
-			territory.OwnerID = nil
-			territory.Army = nil
-			game.state.TerritoryStates[territoryID] = territory
+		if territory.Army == nil {
+			continue
+		}
+		for _, army := range game.state.Armies {
+			if army.ID == *territory.Army && army.OwnerID == "P2" {
+				territory.Army = nil
+				game.state.TerritoryStates[territoryID] = territory
+				break
+			}
 		}
 	}
 	armies := game.state.Armies[:0]

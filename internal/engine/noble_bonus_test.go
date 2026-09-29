@@ -206,9 +206,7 @@ func TestResolveFamishedNobleCommandHasZeroForce(t *testing.T) {
 	state2.Armies = append(state2.Armies, models.Army{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1})
 	territoryState := state2.TerritoryStates["BBB"]
 	armyID := models.ArmyID("A2")
-	ownerID := models.PlayerID("P2")
 	territoryState.Army = &armyID
-	territoryState.OwnerID = &ownerID
 	state2.TerritoryStates["BBB"] = territoryState
 	state2.NextArmyID = nextArmyID(state2.Armies)
 	addChain(t, state2, "A1", "N1", models.Order{

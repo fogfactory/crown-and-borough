@@ -49,7 +49,7 @@ func computeMillProduction(ctx *resolutionContext) []millProduction {
 		}
 		mills = append(mills, millProduction{
 			millID:           territoryID,
-			ownerID:          ctx.state.TerritoryStates[territoryID].OwnerID,
+			ownerID:          controllerPointer(ctx.controllerNow, territoryID),
 			infrastructureID: infrastructure.ID,
 			level:            infrastructure.Level,
 			destinationID:    millRecipient(ctx, territoryID),
@@ -93,13 +93,20 @@ func millWeatherProduction(ctx *resolutionContext, millID models.TerritoryID, le
 // trigram order breaks the tie, exactly like #192's territory income
 // destination.
 func millRecipient(ctx *resolutionContext, millID models.TerritoryID) models.TerritoryID {
-	millController := ctx.state.TerritoryStates[millID].OwnerID
+	return millRecipientIn(ctx, millID, ctx.controllerNow)
+}
+
+// millRecipientIn is millRecipient on the control read by view: the winter
+// upgrade payment reads the start-of-winter control, the ravitaillement the
+// current one.
+func millRecipientIn(ctx *resolutionContext, millID models.TerritoryID, view controlView) models.TerritoryID {
+	millController := controllerPointer(view, millID)
 	for _, infraType := range []models.InfraType{models.InfraTypeCastle, models.InfraTypeVillage} {
 		for _, neighborID := range ctx.sortedNeighbors(millID) {
 			if !ctx.hasInfrastructure(neighborID, infraType) {
 				continue
 			}
-			if sameController(millController, ctx.state.TerritoryStates[neighborID].OwnerID) {
+			if sameController(millController, controllerPointer(view, neighborID)) {
 				return neighborID
 			}
 		}
@@ -125,6 +132,16 @@ func millSelfProductionBreakdown(ctx *resolutionContext, millID models.Territory
 	}
 	production, bonus, suppressed := millWeatherProduction(ctx, millID, infrastructure.Level)
 	return sourceProductionParts{mill: production, bonus: bonus, suppressed: suppressed}
+}
+
+// controllerPointer is the controller of territoryID in view, nil when nobody
+// controls it.
+func controllerPointer(view controlView, territoryID models.TerritoryID) *models.PlayerID {
+	controller, controlled := view(territoryID)
+	if !controlled {
+		return nil
+	}
+	return &controller
 }
 
 // sameController reports whether two territory controllers are the same

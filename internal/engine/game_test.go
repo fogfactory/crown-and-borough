@@ -69,7 +69,7 @@ func TestCreateGameInitialSetupAndDeterminism(t *testing.T) {
 		}
 		starts[castle.TerritoryID] = true
 		state := first.TerritoryStates[castle.TerritoryID]
-		if state.OwnerID == nil || *state.OwnerID != player.ID {
+		if got := controllerOf(first, castle.TerritoryID); got == nil || *got != player.ID {
 			t.Fatalf("starting territory %s is not controlled by %s", castle.TerritoryID, player.ID)
 		}
 		if state.Resources != balance.StartingResources {
@@ -169,7 +169,7 @@ func TestCreateGameStartingOutposts(t *testing.T) {
 					t.Errorf("player %s outpost %s is a mountain", player.ID, army.TerritoryID)
 				}
 				state := game.TerritoryStates[army.TerritoryID]
-				if state.OwnerID == nil || *state.OwnerID != player.ID {
+				if got := controllerOf(game, army.TerritoryID); got == nil || *got != player.ID {
 					t.Errorf("player %s outpost %s is not controlled by its owner", player.ID, army.TerritoryID)
 				}
 				if state.Army == nil || *state.Army != army.ID {
@@ -352,9 +352,8 @@ func TestCreateGameCountsCastlesVillagesAndStartingTerritories(t *testing.T) {
 				if !villageFlags[infrastructure.TerritoryID] {
 					t.Errorf("players=%d: village infrastructure %s is not on a generated village", playerCount, infrastructure.ID)
 				}
-				territoryState := game.TerritoryStates[infrastructure.TerritoryID]
-				if territoryState.OwnerID != nil {
-					t.Errorf("players=%d: village territory %s is controlled by %s", playerCount, infrastructure.TerritoryID, *territoryState.OwnerID)
+				if controller := controllerOf(game, infrastructure.TerritoryID); controller != nil {
+					t.Errorf("players=%d: village territory %s is controlled by %s", playerCount, infrastructure.TerritoryID, *controller)
 				}
 			}
 		}

@@ -73,9 +73,7 @@ func testState(t *testing.T, territories []models.Territory, armies []models.Arm
 	for _, army := range armies {
 		territoryState := state.TerritoryStates[army.TerritoryID]
 		armyID := army.ID
-		ownerID := army.OwnerID
 		territoryState.Army = &armyID
-		territoryState.OwnerID = &ownerID
 		state.TerritoryStates[army.TerritoryID] = territoryState
 	}
 	state.NextArmyID = nextArmyID(armies)
@@ -178,21 +176,19 @@ func findOutcome(events []Event, orderID models.OrderID) (Event, bool) {
 	return Event{}, false
 }
 
-// addAnchorArmy appends a one-troop army of ownerID at territoryID, purely to
-// anchor that territory against control resolution's unanchored release
-// (releaseUnanchoredControl, now ahead of ravitaillement, #208): a bare owned
-// territory with no fief and no capital no longer survives to the end of the
-// turn on its own. Every default territory() is plain terrain (3 rations),
-// so this one-troop army is always self-sufficient and never touches pooled
-// supply or a wider scenario's deficit math.
+// addAnchorArmy appends a one-troop army of ownerID at territoryID, which is
+// how a test makes ownerID control that territory: control is derived from
+// fiefs, capitals and armies, so a bare territory with no fief and no capital
+// is controlled only by the army standing on it. Every default territory() is
+// plain terrain (3 rations), so this one-troop army is always self-sufficient
+// and never touches pooled supply or a wider scenario's deficit math.
 func addAnchorArmy(t *testing.T, state *models.GameState, id models.ArmyID, ownerID models.PlayerID, territoryID models.TerritoryID) {
 	t.Helper()
+	removeAnchorArmy(state, territoryID)
 	state.Armies = append(state.Armies, models.Army{ID: id, OwnerID: ownerID, TerritoryID: territoryID, Size: 1})
 	territoryState := state.TerritoryStates[territoryID]
 	armyID := id
 	territoryState.Army = &armyID
-	ownerCopy := ownerID
-	territoryState.OwnerID = &ownerCopy
 	state.TerritoryStates[territoryID] = territoryState
 	state.NextArmyID = nextArmyID(state.Armies)
 }
@@ -274,4 +270,44 @@ func territory(id, code string, neighbors ...models.TerritoryID) models.Territor
 		Terrain:     models.TerrainPlain,
 		Adjacencies: neighbors,
 	}
+}
+
+// controllerOf returns the player controlling territoryID in state, nil when
+// nobody does: the pointer form the stored owner used to have.
+func controllerOf(state *models.GameState, territoryID models.TerritoryID) *models.PlayerID {
+	controller, controlled := state.TerritoryController(territoryID)
+	if !controlled {
+		return nil
+	}
+	return &controller
+}
+
+// holdAsFiefMember makes ownerID the controller of territoryID as a non-capital
+// member of a new barony, whose capital and third member are two isolated
+// filler territories added to the state. It is how a fixture puts another
+// player's army on territory its owner still controls: only an anchored
+// territory (fief member or capital) stays controlled under an occupier.
+func holdAsFiefMember(state *models.GameState, territoryID models.TerritoryID, ownerID models.PlayerID) {
+	exists := make(map[models.TerritoryID]bool, len(state.Territories))
+	for _, existing := range state.Territories {
+		exists[existing.ID] = true
+	}
+	var fillers []models.TerritoryID
+	for index := 0; len(fillers) < 2; index++ {
+		id := models.TerritoryID(fmt.Sprintf("Z%c%c", 'A'+index/26, 'A'+index%26))
+		if !exists[id] {
+			fillers = append(fillers, id)
+		}
+	}
+	for _, id := range fillers {
+		state.Territories = append(state.Territories, territory(string(id), string(id)))
+		state.TerritoryStates[id] = models.TerritoryState{}
+	}
+	state.Fiefs = append(state.Fiefs, models.Fief{
+		ID:                 models.FiefID(fmt.Sprintf("FZ%d", len(state.Fiefs)+1)),
+		Title:              models.FiefTitleBarony,
+		CapitalTerritoryID: fillers[0],
+		Territories:        []models.TerritoryID{fillers[0], territoryID, fillers[1]},
+		OwnerID:            ownerID,
+	})
 }

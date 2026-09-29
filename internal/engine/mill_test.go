@@ -255,7 +255,6 @@ func TestMillReportLineHasRoutedDestination(t *testing.T) {
 		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "MIL", Size: 1}},
 	)
 	setTerritoryOwner(state, "MIL", "P1")
-	setTerritoryOwner(state, "CAS", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 2, TerritoryID: "MIL"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "CAS"})
 	// No army garrisons CAS: anchor it as P1's capital so control resolution
