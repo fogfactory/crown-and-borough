@@ -3,7 +3,20 @@ package mapgen
 import (
 	"math/rand/v2"
 	"testing"
+
+	"github.com/fogfactory/crown-and-borough/internal/models"
 )
+
+// allPlainTerrain returns a terrain slice of n plain sites, the eligibility
+// filter's no-op case: every non-isolated site remains a valid start
+// candidate.
+func allPlainTerrain(n int) []models.Terrain {
+	terrain := make([]models.Terrain, n)
+	for index := range terrain {
+		terrain[index] = models.TerrainPlain
+	}
+	return terrain
+}
 
 // TestSelectStartsSmallGraphSuccess tests that selectStarts finds a valid
 // assignment on a small hand-built graph where placement is clearly possible.
@@ -28,7 +41,7 @@ func TestSelectStartsSmallGraphSuccess(t *testing.T) {
 	distances := siteDistances(edges, 9)
 
 	rng := rand.New(rand.NewPCG(42, 0))
-	starts, homes, err := selectStarts(rng, distances, 2)
+	starts, homes, err := selectStarts(rng, distances, edges, allPlainTerrain(9), 2)
 
 	if err != nil {
 		t.Fatalf("selectStarts returned unexpected error: %v", err)
@@ -85,7 +98,7 @@ func TestSelectStartsSmallGraphFailure(t *testing.T) {
 	distances := siteDistances(edges, 4)
 
 	rng := rand.New(rand.NewPCG(42, 0))
-	starts, homes, err := selectStarts(rng, distances, 2)
+	starts, homes, err := selectStarts(rng, distances, edges, allPlainTerrain(4), 2)
 
 	if err == nil {
 		t.Fatal("selectStarts should return an error when constraints are unsatisfiable")
@@ -100,6 +113,112 @@ func TestSelectStartsSmallGraphFailure(t *testing.T) {
 	}
 	if !stringContains(err.Error(), "cannot place") {
 		t.Errorf("error message %q does not indicate placement failure", err.Error())
+	}
+}
+
+// TestEligibleStartSitesFiltersMountainsAndIsolation checks the standalone
+// eligibility filter: a mountain site is never eligible, and a non-mountain
+// site with fewer than minStartNonMountainNeighbours non-mountain neighbours
+// is skipped, regardless of its own terrain (#203).
+func TestEligibleStartSitesFiltersMountainsAndIsolation(t *testing.T) {
+	// Star graph: hub 0 connects to leaves 1..4.
+	//   0: plain, 2 non-mountain neighbours among {1,2} -> eligible if 1,2 are non-mountain
+	//   1: forest, mountain terrain hub? no, checks its own neighbours (just 0)
+	edges := [][2]int{
+		{0, 1}, {0, 2}, {0, 3}, {0, 4},
+	}
+	terrain := []models.Terrain{
+		models.TerrainPlain,   // 0: hub, 4 neighbours, all non-mountain but 3 -> eligible
+		models.TerrainForest,  // 1: leaf, 1 neighbour (0, non-mountain) -> ineligible (only 1 neighbour)
+		models.TerrainMountain, // 2: mountain itself -> ineligible
+		models.TerrainHill,    // 3: leaf, 1 neighbour -> ineligible
+		models.TerrainSwamp,   // 4: leaf, 1 neighbour -> ineligible
+	}
+	order := []int{0, 1, 2, 3, 4}
+
+	eligible := eligibleStartSites(order, edges, terrain)
+	if len(eligible) != 1 || eligible[0] != 0 {
+		t.Fatalf("eligibleStartSites = %v, want only the hub [0]", eligible)
+	}
+}
+
+// TestEligibleStartSitesRequiresTwoNonMountainNeighbours checks that a
+// non-mountain site surrounded by only one non-mountain neighbour (the rest
+// mountain) is ineligible, and becomes eligible once a second non-mountain
+// neighbour is available.
+func TestEligibleStartSitesRequiresTwoNonMountainNeighbours(t *testing.T) {
+	// Line: 0-1-2, with 1 as the candidate.
+	edges := [][2]int{{0, 1}, {1, 2}}
+	order := []int{0, 1, 2}
+
+	oneNonMountain := []models.Terrain{models.TerrainPlain, models.TerrainPlain, models.TerrainMountain}
+	if eligible := eligibleStartSites(order, edges, oneNonMountain); len(eligible) != 0 {
+		t.Fatalf("eligibleStartSites = %v, want none: site 1 has only one non-mountain neighbour", eligible)
+	}
+
+	twoNonMountain := []models.Terrain{models.TerrainPlain, models.TerrainPlain, models.TerrainForest}
+	eligible := eligibleStartSites(order, edges, twoNonMountain)
+	if len(eligible) != 1 || eligible[0] != 1 {
+		t.Fatalf("eligibleStartSites = %v, want only site 1 once it has two non-mountain neighbours", eligible)
+	}
+}
+
+// TestSelectStartsSkipsIneligibleSites checks that selectStarts never
+// chooses a mountain site, or a non-mountain site without at least two
+// non-mountain neighbours, as a starting territory (#203).
+func TestSelectStartsSkipsIneligibleSites(t *testing.T) {
+	// Line topology, 9 territories, with a mountain at each end. Even
+	// though the endpoints are far from everything else (good for the
+	// minimum starting distance), they must never be chosen: they are
+	// mountains, and besides have only one neighbour each.
+	edges := [][2]int{
+		{0, 1}, {1, 2}, {2, 3}, {3, 4}, {4, 5}, {5, 6}, {6, 7}, {7, 8},
+	}
+	terrain := []models.Terrain{
+		models.TerrainMountain, models.TerrainPlain, models.TerrainPlain,
+		models.TerrainPlain, models.TerrainPlain, models.TerrainPlain,
+		models.TerrainPlain, models.TerrainPlain, models.TerrainMountain,
+	}
+	distances := siteDistances(edges, 9)
+
+	rng := rand.New(rand.NewPCG(42, 0))
+	starts, _, err := selectStarts(rng, distances, edges, terrain, 2)
+	if err != nil {
+		t.Fatalf("selectStarts returned unexpected error: %v", err)
+	}
+	for _, start := range starts {
+		if terrain[start] == models.TerrainMountain {
+			t.Errorf("selectStarts chose mountain site %d as a start", start)
+		}
+		if start == 1 || start == 7 {
+			t.Errorf("selectStarts chose site %d, which has only one non-mountain neighbour", start)
+		}
+	}
+}
+
+// TestSelectStartsErrorsWithNoEligibleSite checks that selectStarts fails
+// clearly, rather than panicking or silently succeeding, when no site
+// satisfies the eligibility filter.
+func TestSelectStartsErrorsWithNoEligibleSite(t *testing.T) {
+	edges := [][2]int{
+		{0, 1}, {1, 2}, {2, 3},
+	}
+	terrain := make([]models.Terrain, 4)
+	for index := range terrain {
+		terrain[index] = models.TerrainMountain
+	}
+	distances := siteDistances(edges, 4)
+
+	rng := rand.New(rand.NewPCG(42, 0))
+	starts, homes, err := selectStarts(rng, distances, edges, terrain, 1)
+	if err == nil {
+		t.Fatal("selectStarts should return an error when no site is eligible")
+	}
+	if len(starts) != 0 || len(homes) != 0 {
+		t.Errorf("on error, returns should be empty; got %d starts and %d homes", len(starts), len(homes))
+	}
+	if !stringContains(err.Error(), "eligible") {
+		t.Errorf("error message %q does not indicate an eligibility failure", err.Error())
 	}
 }
 

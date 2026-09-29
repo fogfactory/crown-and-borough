@@ -5,6 +5,8 @@ import (
 	"math"
 	"math/rand/v2"
 	"sort"
+
+	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
 const (
@@ -27,6 +29,10 @@ const (
 	// seatMinimumHomeDistance keeps a chef-lieu away from every home
 	// village.
 	seatMinimumHomeDistance = 2
+	// minStartNonMountainNeighbours is the minimum number of non-mountain
+	// passable neighbours a starting territory must have, so a capital
+	// always has room to place its outpost armies (#203).
+	minStartNonMountainNeighbours = 2
 )
 
 // siteDistances returns, for every site, the graph distance (in passable
@@ -73,7 +79,13 @@ func bfsDistances(adjacency [][]int, n, start int) []int {
 // home village routinely fails to find a valid assignment at high player
 // counts even though one exists, because early start choices can strand
 // later ones without any legal home site.
-func selectStarts(rng *rand.Rand, distances [][]int, count int) (starts, homes []int, err error) {
+//
+// Only sites eligible per eligibleStartSites can become a starting
+// territory: a start's own terrain and neighbourhood determine turn-one
+// viability (#203), so ineligible sites are filtered out of the start
+// candidate pool before the search begins. Home villages are not
+// constrained this way and are still drawn from every site.
+func selectStarts(rng *rand.Rand, distances [][]int, edges [][2]int, terrain []models.Terrain, count int) (starts, homes []int, err error) {
 	n := len(distances)
 	if count < 1 {
 		return nil, nil, fmt.Errorf("mapgen: starting position count must be positive, got %d", count)
@@ -88,6 +100,11 @@ func selectStarts(rng *rand.Rand, distances [][]int, count int) (starts, homes [
 	}
 	shuffle(rng, order)
 
+	startOrder := eligibleStartSites(order, edges, terrain)
+	if len(startOrder) < count {
+		return nil, nil, fmt.Errorf("mapgen: only %d sites are eligible starting positions, need %d", len(startOrder), count)
+	}
+
 	homeCandidates := make([][]int, n)
 	for site := 0; site < n; site++ {
 		for _, candidate := range order {
@@ -101,10 +118,41 @@ func selectStarts(rng *rand.Rand, distances [][]int, count int) (starts, homes [
 	usedAsHome := make([]bool, n)
 	starts = make([]int, 0, count)
 	homes = make([]int, 0, count)
-	if !backtrackStarts(order, distances, homeCandidates, count, 0, &starts, &homes, usedAsStart, usedAsHome) {
+	if !backtrackStarts(startOrder, distances, homeCandidates, count, 0, &starts, &homes, usedAsStart, usedAsHome) {
 		return nil, nil, fmt.Errorf("mapgen: cannot place %d starting positions with home villages", count)
 	}
 	return starts, homes, nil
+}
+
+// eligibleStartSites returns the subset of order (preserving its order) that
+// qualifies as a starting territory: non-mountain terrain with at least
+// minStartNonMountainNeighbours non-mountain passable neighbours. A start
+// that fails this filter risks starving its garrison turn one and leaves no
+// room for its outpost armies (#203).
+func eligibleStartSites(order []int, edges [][2]int, terrain []models.Terrain) []int {
+	adjacency := make([][]int, len(terrain))
+	for _, edge := range edges {
+		adjacency[edge[0]] = append(adjacency[edge[0]], edge[1])
+		adjacency[edge[1]] = append(adjacency[edge[1]], edge[0])
+	}
+
+	eligible := make([]int, 0, len(order))
+	for _, site := range order {
+		if terrain[site] == models.TerrainMountain {
+			continue
+		}
+		nonMountainNeighbours := 0
+		for _, neighbour := range adjacency[site] {
+			if terrain[neighbour] != models.TerrainMountain {
+				nonMountainNeighbours++
+			}
+		}
+		if nonMountainNeighbours < minStartNonMountainNeighbours {
+			continue
+		}
+		eligible = append(eligible, site)
+	}
+	return eligible
 }
 
 func backtrackStarts(

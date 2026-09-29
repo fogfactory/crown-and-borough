@@ -71,6 +71,35 @@ sont retirés de la balance. La récolte s'applique au revenu territorial
 (territoires et villages, voir ci-dessous) exactement de la même façon,
 dans la région du territoire qui produit ce revenu.
 
+## Position de départ
+
+Issue : [#203](https://github.com/fogfactory/crown-and-borough/issues/203).
+
+**Appliqué.** Cette section détaille et complète `gdd.md` §2. Objectif :
+garantir que chaque position de départ reste viable sous la table de rations
+ci-dessus, et donner à chaque joueur de quoi étendre son territoire dès le
+premier tour.
+
+Le territoire de départ n'est jamais une montagne et compte toujours au moins
+deux voisins franchissables eux-mêmes non montagneux ; son terrain naturel
+(plaine, forêt, colline ou marécage) n'est en revanche jamais réécrit. Cette
+seule contrainte de filtrage suffit à garantir la viabilité économique du
+premier tour : une garnison de deux troupes (`starting_troops`) coûte 2 R par
+tour, couverts par la ration locale (au moins 1 R hors plaine) complétée par
+le revenu territorial de la capitale et son stock de départ
+(`starting_resources`), quel que soit le terrain retenu.
+
+En plus de sa garnison, chaque joueur reçoit `starting_outposts` armées d'une
+troupe chacune, placées dès la création de la partie sur autant de
+territoires voisins non montagneux distincts de sa capitale — retenus par
+ration de terrain décroissante, puis par trigramme croissant en cas d'égalité.
+Une armée d'une troupe coûte 1 R par tour, toujours couvert par la seule
+ration locale d'un terrain non montagneux : un avant-poste ne dépend donc
+d'aucun stock ni d'aucun ravitaillement pour se nourrir. Un avant-poste ne
+porte aucune infrastructure ni aucune ressource propre à la création, mais
+étant adjacent à la capitale (un château), il satisfait la condition de
+voisinage productif requise pour y construire un moulin dès le premier hiver.
+
 ## Revenu territorial
 
 Issue : [#192](https://github.com/fogfactory/crown-and-borough/issues/192)

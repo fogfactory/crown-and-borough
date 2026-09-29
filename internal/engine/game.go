@@ -164,7 +164,7 @@ func CreateGameWithYears(seed string, players []PlayerInit, yearCount int, balan
 	if err != nil {
 		return nil, fmt.Errorf("engine: %w", err)
 	}
-	if balance.StartingNobles < 0 || balance.StartingTroops < 0 || balance.StartingResources < 0 {
+	if balance.StartingNobles < 0 || balance.StartingTroops < 0 || balance.StartingOutposts < 0 || balance.StartingResources < 0 {
 		return nil, fmt.Errorf("engine: starting balance values must be non-negative")
 	}
 
@@ -302,12 +302,53 @@ func CreateGameWithYears(seed string, players []PlayerInit, yearCount int, balan
 		state.TerritoryStates[territoryID] = territoryState
 	}
 
+	// Place outposts before nobles, so we know which territories have starting
+	// armies when distributing nobles across them round-robin.
+	outpostsByPlayer := make(map[models.PlayerID][]models.TerritoryID)
+	if balance.StartingOutposts > 0 {
+		for index, startID := range starts {
+			player := &state.Players[index]
+			ownerID := player.ID
+			outpostTerritories, err := startingOutpostTerritories(state, startID, balance, balance.StartingOutposts)
+			if err != nil {
+				return nil, fmt.Errorf("engine: create game: %w", err)
+			}
+			outpostsByPlayer[player.ID] = outpostTerritories
+			for _, territoryID := range outpostTerritories {
+				armyID := models.ArmyID(fmt.Sprintf("A%d", state.NextArmyID))
+				state.NextArmyID++
+				state.Armies = append(state.Armies, models.Army{
+					ID:          armyID,
+					OwnerID:     player.ID,
+					TerritoryID: territoryID,
+					Size:        1,
+				})
+				territoryState := state.TerritoryStates[territoryID]
+				territoryState.OwnerID = &ownerID
+				territoryState.Army = &armyID
+				state.TerritoryStates[territoryID] = territoryState
+			}
+		}
+	}
+
 	if balance.StartingNobles > 0 {
 		firstNames := append([]assetgen.Asset(nil), assets.Prenoms...)
 		shuffleSetupNames(newSetupRNG(seed), firstNames)
 		usedCodes := make(map[string]bool)
 		nameIndex := 0
 		for playerIndex, startID := range starts {
+			player := &state.Players[playerIndex]
+
+			// Build the list of territories with starting armies for this player,
+			// in order: capital first (if StartingTroops > 0), then outposts.
+			armyTerritories := make([]models.TerritoryID, 0, 1+balance.StartingOutposts)
+			if balance.StartingTroops > 0 {
+				armyTerritories = append(armyTerritories, startID)
+			}
+			armyTerritories = append(armyTerritories, outpostsByPlayer[player.ID]...)
+
+			// Distribute nobles round-robin across starting armies.
+			// If a player has no starting armies (edge case), fall back to capital.
 			for nobleIndex := 0; nobleIndex < balance.StartingNobles; nobleIndex++ {
 				for nameIndex < len(firstNames) && usedCodes[firstNames[nameIndex].Code] {
 					nameIndex++
@@ -318,13 +359,20 @@ func CreateGameWithYears(seed string, players []PlayerInit, yearCount int, balan
 				firstName := firstNames[nameIndex]
 				nameIndex++
 				usedCodes[firstName.Code] = true
-				territory := territoryByID(state.Territories, startID)
+
+				// Select the noble's location round-robin across starting armies.
+				nobleLocationID := startID
+				if len(armyTerritories) > 0 {
+					nobleLocationID = armyTerritories[nobleIndex%len(armyTerritories)]
+				}
+
+				territory := territoryByID(state.Territories, nobleLocationID)
 				state.Nobles = append(state.Nobles, models.Noble{
 					ID:               models.NobleID(fmt.Sprintf("N%d", len(state.Nobles)+1)),
 					Code:             firstName.Code,
 					Name:             fmt.Sprintf("%s de %s", firstName.Name, territory.Name),
-					OwnerID:          state.Players[playerIndex].ID,
-					LocationID:       startID,
+					OwnerID:          player.ID,
+					LocationID:       nobleLocationID,
 					Status:           models.NobleStatusFree,
 					LastEmissionTurn: 0,
 				})

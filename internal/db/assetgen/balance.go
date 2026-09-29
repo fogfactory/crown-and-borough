@@ -30,6 +30,7 @@ type Balance struct {
 	Costs              Costs                  `json:"costs" yaml:"costs"`
 	StartingNobles     int                    `json:"starting_nobles" yaml:"starting_nobles"`
 	StartingTroops     int                    `json:"starting_troops" yaml:"starting_troops"`
+	StartingOutposts   int                    `json:"starting_outposts" yaml:"starting_outposts"`
 	StartingResources  int                    `json:"starting_resources" yaml:"starting_resources"`
 	SpecialOrders      SpecialOrdersBalance   `json:"special_orders" yaml:"special_orders"`
 	FirstNames         []Asset                `json:"-" yaml:"-"`
@@ -81,6 +82,7 @@ type rawBalance struct {
 	Costs              *rawCosts         `yaml:"costs"`
 	StartingNobles     *int              `yaml:"starting_nobles"`
 	StartingTroops     *int              `yaml:"starting_troops"`
+	StartingOutposts   *int              `yaml:"starting_outposts"`
 	StartingResources  *int              `yaml:"starting_resources"`
 	SpecialOrders      *rawSpecialOrders `yaml:"special_orders"`
 }
@@ -210,6 +212,10 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 	if err != nil {
 		return Balance{}, err
 	}
+	startingOutposts, err := requiredNonNegativeInt(path, "starting_outposts", raw.StartingOutposts)
+	if err != nil {
+		return Balance{}, err
+	}
 	startingResources, err := requiredNonNegativeInt(path, "starting_resources", raw.StartingResources)
 	if err != nil {
 		return Balance{}, err
@@ -255,6 +261,7 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 		Costs:              costs,
 		StartingNobles:     startingNobles,
 		StartingTroops:     startingTroops,
+		StartingOutposts:   startingOutposts,
 		StartingResources:  startingResources,
 		SpecialOrders:      specialOrders,
 	}, nil

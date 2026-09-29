@@ -127,7 +127,7 @@ func generateAttempt(seed string, assets assetgen.Assets, cfg Config) (MapData, 
 	}
 
 	distances := siteDistances(passableEdges, cfg.SiteCount)
-	starts, homeVillages, err := selectStarts(newRNG(seed, "starts"), distances, cfg.StartCount)
+	starts, homeVillages, err := selectStarts(newRNG(seed, "starts"), distances, passableEdges, terrain, cfg.StartCount)
 	if err != nil {
 		return MapData{}, err
 	}
