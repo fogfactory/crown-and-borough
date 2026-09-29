@@ -148,6 +148,7 @@ func TestCreateGameStartingOutposts(t *testing.T) {
 
 			outposts := 0
 			seen := make(map[models.TerritoryID]bool, balance.StartingOutposts)
+			outpostTerritories := make([]models.TerritoryID, 0, balance.StartingOutposts)
 			for _, army := range armies {
 				if army.TerritoryID == capitalID {
 					continue
@@ -160,6 +161,7 @@ func TestCreateGameStartingOutposts(t *testing.T) {
 					t.Errorf("player %s has two outpost armies on %s", player.ID, army.TerritoryID)
 				}
 				seen[army.TerritoryID] = true
+				outpostTerritories = append(outpostTerritories, army.TerritoryID)
 				if !containsTerritoryID(adjacencyByID[capitalID], army.TerritoryID) {
 					t.Errorf("player %s outpost %s is not adjacent to capital %s", player.ID, army.TerritoryID, capitalID)
 				}
@@ -176,6 +178,32 @@ func TestCreateGameStartingOutposts(t *testing.T) {
 			}
 			if outposts != balance.StartingOutposts {
 				t.Fatalf("player %s has %d outposts, want %d", player.ID, outposts, balance.StartingOutposts)
+			}
+
+			// Verify that nobles are distributed across starting armies, not all
+			// stacked at the capital. With StartingNobles > 0, the first noble
+			// should be at the capital, and additional nobles distributed round-robin
+			// across outposts (if any).
+			playerNobles := make([]models.Noble, 0)
+			for _, noble := range game.Nobles {
+				if noble.OwnerID == player.ID {
+					playerNobles = append(playerNobles, noble)
+				}
+			}
+			if len(playerNobles) != balance.StartingNobles {
+				t.Errorf("player %s has %d nobles, want %d", player.ID, len(playerNobles), balance.StartingNobles)
+			}
+			for i, noble := range playerNobles {
+				expectedLocationIdx := i % (1 + balance.StartingOutposts)
+				var expectedLocation models.TerritoryID
+				if expectedLocationIdx == 0 {
+					expectedLocation = capitalID
+				} else {
+					expectedLocation = outpostTerritories[expectedLocationIdx-1]
+				}
+				if noble.LocationID != expectedLocation {
+					t.Errorf("player %s noble %d is at %s, want %s (round-robin index %d)", player.ID, i, noble.LocationID, expectedLocation, expectedLocationIdx)
+				}
 			}
 		}
 		if err := game.Validate(); err != nil {
