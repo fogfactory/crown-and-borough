@@ -137,6 +137,7 @@ const englishMessages = {
   'app.demand': 'Demand',
   'app.toCover': 'To cover',
   'app.noAccessibleSource': 'No accessible source: famine is possible.',
+  'app.armyStarving': 'Starving: this army fights at strength 0 this turn.',
   'app.transferPreview': 'Transfer preview',
   'app.transferTarget': 'Destination',
   'app.transferReachable': 'The transfer route is reachable.',
@@ -188,6 +189,8 @@ const englishMessages = {
   'map.territoryLabel': '{name}, {terrain}',
   'map.resourcesMarker': 'Resources: {count}',
   'map.armyMarker': 'Army of {owner}, size {size}',
+  'map.armyMarkerStarving': 'Army of {owner}, size {size} — starving: fights at strength 0 this turn',
+  'map.armyStarvingBadge': 'Starving: will fight at strength 0 this turn',
   'orders.winterTitle': 'Winter orders',
   'orders.winterDescription':
     'Direct investments only, without chains or military movement. Use D C KIND to discard a card; the hand is replenished automatically. Orders are applied in the order entered. Resolution waits for every player.',
@@ -363,6 +366,8 @@ const englishMessages = {
   'reports.savedByPillage': ' · saved by pillage',
   'reports.lostTroop': ' · loses {count} troop',
   'reports.lostTroops': ' · loses {count} troops',
+  'reports.famineWarning':
+    'short on rations — act before next turn or it will pillage its own position or lose a troop',
   'reports.conservation': '{territory} · conservation',
   'reports.winterOrder': 'Winter order',
   'reports.level': 'Level {level}',
@@ -833,6 +838,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'app.demand': 'Demande',
   'app.toCover': 'À couvrir',
   'app.noAccessibleSource': 'Aucune source accessible : famine possible.',
+  'app.armyStarving': 'Affamée : cette armée combat à force 0 ce tour-ci.',
   'app.transferPreview': 'Aperçu du transfert',
   'app.transferTarget': 'Destination',
   'app.transferReachable': 'La route du transfert est accessible.',
@@ -883,6 +889,9 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'map.territoryLabel': '{name}, {terrain}',
   'map.resourcesMarker': 'Ressources : {count}',
   'map.armyMarker': 'Armée de {owner}, taille {size}',
+  'map.armyMarkerStarving':
+    'Armée de {owner}, taille {size} — affamée : combat à force 0 ce tour-ci',
+  'map.armyStarvingBadge': 'Affamée : combattra à force 0 ce tour-ci',
   'orders.winterTitle': "Ordres d'hiver",
   'orders.winterDescription':
     "Investissements directs uniquement, sans chaînes ni mouvements militaires. Utilisez D C KIND pour défausser une carte ; la main est reconstituée automatiquement. Les ordres sont appliqués dans l'ordre saisi. La résolution attend tous les joueurs.",
@@ -1058,6 +1067,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.savedByPillage': ' · sauvée par pillage',
   'reports.lostTroop': ' · perd {count} troupe',
   'reports.lostTroops': ' · perd {count} troupes',
+  'reports.famineWarning':
+    'manque de vivres — agis avant le tour suivant ou elle pillera sa case ou perdra une troupe',
   'reports.conservation': '{territory} · conservation',
   'reports.winterOrder': "Ordre d'hiver",
   'reports.level': 'Niveau {level}',

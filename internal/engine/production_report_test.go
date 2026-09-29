@@ -132,6 +132,10 @@ func TestProductionReportTracesDispatchToMultipleArmies(t *testing.T) {
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 3, TerritoryID: "BBB"})
 	state.Regions = []models.Region{{ID: "AAA", Seed: "AAA", Territories: []models.TerritoryID{"AAA", "BBB", "CCC"}}}
+	// No army garrisons AAA: anchor it as P1's capital so control resolution
+	// (now ahead of ravitaillement, #208) does not release it as unanchored
+	// before supply can use it as a source.
+	setCapital(state, "P1", "I1")
 	validateTestState(t, state)
 	resolution, err := Resolve(state, testBalance())
 	if err != nil {

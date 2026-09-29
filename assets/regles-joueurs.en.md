@@ -64,10 +64,14 @@ The three action seasons (spring, summer, autumn) all work the same way:
    armies.
 2. The engine checks each submission: a syntax or reception error rejects the
    affected submission, without touching the rest of the game (section 4).
-3. The engine resolves **everyone together**: supply, intentions, supports,
-   combats, movement, retreats, joins, dispersals, and chain progression.
-4. Territorial control, noble positions, and events are updated, then a **turn
-   report** is produced.
+3. The engine resolves **everyone together**: intentions, supports, combats,
+   movement, retreats, joins, dispersals, resource transfers, and chain
+   progression.
+4. Territorial control and noble positions are updated from the positions and
+   outcomes of that resolution.
+5. The engine resolves **supply** on these final positions and control —
+   territories just captured included: territory income, mill production,
+   rations, and famine (section 7) — then a **turn report** is produced.
 
 An army executes **at most one line of its chain per action season**: an `A`
 or `J` order therefore crosses at most one adjacent territory in that
@@ -82,7 +86,7 @@ in the order they were entered (section 8).
 
 | Season | What happens |
 |---|---|
-| Spring, summer, autumn | Supply is calculated first, then intentions, supports, combats, movement, joins, dispersals, and chain progression are resolved together. Each army has only one current line. |
+| Spring, summer, autumn | Intentions, supports, combats, movement, joins, dispersals, transfers, and chain progression are resolved together, then territorial control is updated, then supply is calculated last on these final positions and control. Each army has only one current line. |
 | Winter | No supply or chain order is resolved: investments are applied one by one, in the entered list, then stocks are conserved and repatriated. |
 
 Spring, summer, and autumn orders are therefore not a queue between players:
@@ -338,21 +342,22 @@ BRI D BRI ATL NOR          # BRI keeps the chain; the other groups split away
 
 ### Transfer (`T`)
 
-**The gist**: `XXX T YYY N` is executed after supply, by the army on `XXX`.
-`YYY` must be a castle, village, or the territory of an army that **controls**
-its own territory and belongs to another living player (an army that merely
-occupies `YYY`, for instance on a fief member it does not control, cannot
-receive); a bare depot cannot receive. The source territory only needs to
-contain stock, and must not be occupied against its controller.
+**The gist**: `XXX T YYY N` is executed during order resolution, before the
+end-of-turn supply phase (section 7), by the army on `XXX`. `YYY` must be a
+castle, village, or the territory of an army that **controls** its own
+territory and belongs to another living player (an army that merely occupies
+`YYY`, for instance on a fief member it does not control, cannot receive); a
+bare depot cannot receive. The source territory only needs to contain stock,
+and must not be occupied against its controller.
 
 **Edge cases**:
 
 - the route follows the donor's supply range (`{{supply_range}}` territories,
   plus controlled depots); any enemy army on an intermediate territory blocks
   it, but an enemy army at the destination is allowed;
-- a famished army cannot transfer; the amount is capped at
-  `{{cost_base}}^(N - 1)` for an army of `N` troops, without subtracting local
-  rations; the army performs no other order that turn;
+- a famished army (section 7) cannot send a transfer; the amount is capped at `{{cost_base}}^(N - 1)` for an army of `N`
+  troops, without subtracting local rations; the army performs no other order
+  that turn;
 - a stock shortage has no effect and does not break a `single` chain; in
   `loop`, the transfer retries, and when the remaining stock is below the
   requested amount, the remainder is sent as a partial final delivery and the
@@ -482,9 +487,10 @@ dungeon, covered in section 8, removes that ability.
 
 ### The Exponential Cost of an Army
 
-Supply is resolved **at the start of every action season**, before orders,
-combats, and movement; there is no supply phase in winter. An army of `N`
-troops demands:
+Supply is resolved **at the end of every action season**, after orders,
+combats, and movement, on the turn's final positions and territorial control
+— territories just captured included; there is no supply phase in winter. An
+army of `N` troops demands:
 
 ```text
 cost = {{cost_base}}^(N - 1)  rations
@@ -556,9 +562,12 @@ this production.
 
 Each action season (never in winter), every territory you control yields
 {{territory_income}} R, plus {{village_income}} R more if it carries a
-village. This income is credited **before supply**: it never travels through
-the supply network and can never be intercepted, even when the producing
-territory — or its destination — is occupied by an enemy army.
+village. This income is credited **at the end of the turn**, with the rest of
+supply, on the turn's final territorial control: a territory captured during
+the turn credits its new controller, not the one from the start of the turn.
+It never travels through the supply network and can never be intercepted,
+even when the producing territory — or its destination — is occupied by an
+enemy army.
 
 A territory that belongs to a **fief** (section 8) credits the **fief's
 capital** instead of your own. Outside any fief, it goes straight to your
@@ -582,18 +591,32 @@ When there is a deficit:
 2. remaining armies enter **famine**, starting with those furthest from their
    source, then the largest, then descending trigram.
 
-A famished army **attacks and defends at strength 0** for the turn, even when
-it carries a free noble. If it occupies infrastructure, it **pillages it
-automatically**; the pillage bonus, reduced by its residual demand, may end
-its famine. If pillage is insufficient or impossible, it loses **1 troop**,
-never falling below 1 — but it stays famished and at strength 0 for the whole
-current season, even if that loss would make its future demand sustainable;
-the loss repeats in every season the army remains famished.
+An army that lacks rations at this end-of-turn resolution is marked
+**famished**, a status that persists through the entire following turn: it
+**attacks and defends at strength 0**, even when it carries a free noble — the
+noble bonus does not apply — and it cannot send a resource transfer (it can
+still receive one, see section 5). This first turn in deficit costs it
+nothing else: no pillage of the infrastructure on its territory, no troop
+loss. You therefore have the entire following turn to pull it out of deficit,
+either by moving it away from the affected area or by sending it resources
+through a transfer.
 
-Example: a 2-troop army in deficit demands 2 rations. If its stocks and
-pillage cannot cover the deficit, it loses one troop and becomes a 1-troop
-army; it still stays at strength 0 this turn, even though a 1-troop army would
-then only demand 1 ration.
+Its status is only recalculated at the next supply resolution, at the end of
+that following turn. If it reached a sufficient source in the meantime, it
+becomes valid again from that turn on. If it is still in deficit at that
+point, while already famished, it **pillages the infrastructure on its
+territory automatically**, if it occupies one: the pillage bonus, reduced by
+its residual demand, may cover the deficit. If pillage is insufficient or
+impossible, it loses **1 troop**, never falling below 1, and stays famished
+for the turn after that.
+
+Example: a 2-troop army in deficit demands 2 rations. Lacking sufficient
+stocks, it ends the turn in deficit and is marked famished: it will attack and
+defend at strength 0 for the entire following turn, but loses nothing for
+now. If, at the following turn's resolution, its stocks and pillage still
+cannot cover its deficit, it loses one troop, becomes a 1-troop army, and
+stays famished for the turn after that — its fate depends on what it reaches
+as a supply source by that resolution, not on its new demand.
 
 In the interface, selecting an army or a controlled source shows its supply or
 the area it reaches (outside winter only). A transfer being drafted also shows
@@ -837,7 +860,9 @@ countered. No calamity resolves in winter.
   for the turn, village included, and never touches mill production.
   Rejected if the player does not control the targeted fief, or if XXX is
   not its capital. Two cards played on the same fief the same turn do not
-  stack: the second is consumed with no effect.
+  stack: the second is consumed with no effect. If the taxed fief's capital is
+  captured during that same turn, the tax is canceled: nobody receives the
+  doubling for that transition turn.
 
 Public rumors are recalculated in every report from the current bonus hands of
 all players. They appear when at least two players hold a card, without

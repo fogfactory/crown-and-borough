@@ -36,9 +36,12 @@ type FamineRiskForecast struct {
 // which armies would starve. It ignores any calamity or bonus card already
 // drawn this turn, like ForecastIncome/ForecastTerritoryIncome (the command
 // post projection must never leak an undrawn harvest card's effect), and
-// necessarily assumes no order changes anything else before resolution (no
-// transfer, dispersal, or newly built infrastructure) — it is a snapshot of
-// "if orders stay exactly as currently drafted", not a guarantee.
+// necessarily assumes no order changes anything else before resolution — most
+// of all that every army stays exactly where it is now, since ravitaillement
+// resolves on post-movement, post-combat positions (#208) that this snapshot,
+// taken before any order runs, cannot foresee (no attack, join, dispersal,
+// transfer, or newly built infrastructure) — it is a snapshot of "if nothing
+// moves and orders stay exactly as currently drafted", not a guarantee.
 // Ravitaillement never happens in winter, so a winter state always forecasts
 // nil.
 //

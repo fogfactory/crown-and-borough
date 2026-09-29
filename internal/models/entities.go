@@ -37,13 +37,22 @@ type Territory struct {
 // Army is the single force entity stationed on a territory. Size is the number
 // of abstract troops in the army. ChainID is nil when the army is Sans Ordre.
 // When equal-size armies must be ordered, the territory ID is the lexicographic
-// tie-break (GDD §4, §8).
+// tie-break (GDD §4, §8). Starving is set by the previous turn's famine
+// resolution when this army's demand went unmet without an auto-pillage
+// rescue (engine.resolveFamine, #208): it fights at strength 0, cannot
+// support, grants no noble bonus, and cannot send a transfer for the turn it
+// carries, then is recomputed (including cleared) at that same turn's own
+// ravitaillement. A dispersed army copies it to every resulting splinter
+// (plain struct-copy semantics, like every other field but ChainID and Size);
+// a fusion keeps only the surviving host's own value and discards the
+// absorbed army's, again with no special-casing needed.
 type Army struct {
 	ID          ArmyID      `json:"id"`
 	OwnerID     PlayerID    `json:"owner"`
 	TerritoryID TerritoryID `json:"territory"`
 	Size        int         `json:"size"`
 	ChainID     *ChainID    `json:"chain"`
+	Starving    bool        `json:"starving,omitempty"`
 }
 
 // Noble is an immortal, non-combatant entity that emits at most one order

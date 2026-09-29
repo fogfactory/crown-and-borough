@@ -7,6 +7,61 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
+// TestResolveTransferFailsForArmyStarvingSinceLastTurn covers #208's point
+// that famished_sender now reads the sending army's persisted
+// models.Army.Starving flag, carried over from last turn's ravitaillement,
+// not a flag computed within this same turn (which no longer runs before
+// movement at all).
+func TestResolveTransferFailsForArmyStarvingSinceLastTurn(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{supplyTerritory("AAA", "AAA", models.TerrainMountain)},
+		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2}},
+	)
+	validateTestState(t, state)
+
+	turn1, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("turn 1 Resolve: %v", err)
+	}
+	if army := armyByID(t, turn1.State, "A1"); !army.Starving {
+		t.Fatalf("A1 after turn 1 = %+v, want starving", army)
+	}
+
+	state2 := cloneGameState(turn1.State)
+	state2.Territories = append(state2.Territories, territory("BBB", "BBB", "AAA"))
+	state2.TerritoryStates["BBB"] = models.TerritoryState{}
+	for i := range state2.Territories {
+		if state2.Territories[i].ID == "AAA" {
+			state2.Territories[i].Adjacencies = append(state2.Territories[i].Adjacencies, "BBB")
+		}
+	}
+	// A recipient army of another player at BBB, so the transfer order
+	// itself is otherwise valid: only the sender's persisted famine should
+	// block it.
+	state2.Armies = append(state2.Armies, models.Army{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1})
+	recipientState := state2.TerritoryStates["BBB"]
+	recipientArmyID := models.ArmyID("A2")
+	recipientOwner := models.PlayerID("P2")
+	recipientState.Army = &recipientArmyID
+	recipientState.OwnerID = &recipientOwner
+	state2.TerritoryStates["BBB"] = recipientState
+	state2.NextArmyID = nextArmyID(state2.Armies)
+	addNoble(state2, "N1", "ONE", "P1", "AAA")
+	addChain(t, state2, "A1", "N1", models.Order{
+		Type: models.OrderTypeTransfer, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"}, Amount: 1,
+	})
+	validateTestState(t, state2)
+
+	turn2, err := Resolve(state2, testBalance())
+	if err != nil {
+		t.Fatalf("turn 2 Resolve: %v", err)
+	}
+	outcome, found := findOutcome(turn2.Events, "O1")
+	if !found || outcome.Reason != "famished_sender" {
+		t.Errorf("transfer outcome = %#v, found=%t, want famished_sender", outcome, found)
+	}
+}
+
 func TestResolveTransferToRecipientArmyAndConsumesLocalCacheFirst(t *testing.T) {
 	state := testState(t, []models.Territory{
 		supplyTerritory("AAA", "AAA", models.TerrainPlain, "BBB"),
@@ -79,7 +134,11 @@ func TestResolveLoopTransferUsesPartialFinalShipment(t *testing.T) {
 		{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
 	})
 	addNoble(state, "N1", "ONE", "P1", "AAA")
-	setTerritoryResources(state, "AAA", 4)
+	// Preset below the requested amount (the army's transfer capacity, 4):
+	// transfers now execute before ravitaillement (#208), so nothing else
+	// draws from AAA's stock first any more, and the shortfall must come
+	// from the preset itself to still force a partial shipment.
+	setTerritoryResources(state, "AAA", 3)
 	addChain(t, state, "A1", "N1", models.Order{
 		Type:       models.OrderTypeTransfer,
 		PositionID: "AAA",

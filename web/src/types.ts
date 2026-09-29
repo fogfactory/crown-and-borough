@@ -120,6 +120,12 @@ export interface Army {
   owner: PlayerId
   size: number
   chain: Chain | null
+  /**
+   * Set by last turn's ravitaillement when this army's demand went unmet: it
+   * fights at strength 0 this turn, until ravitaillement re-evaluates it at
+   * this same turn's own end (issue #208).
+   */
+  starving?: boolean
 }
 
 export interface Order {
@@ -582,6 +588,8 @@ export interface ConsumptionReport {
   totalReceived: number
   missing: number
   famine?: boolean
+  /** First consecutive deficit: a bare warning, no pillage or troop lost yet. */
+  warned?: boolean
   savedByPillage?: boolean
   troopsLost?: number
   pillageInfrastructure?: InfraType

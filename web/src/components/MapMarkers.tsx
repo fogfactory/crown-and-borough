@@ -1,7 +1,7 @@
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
 import type { WinterIntention } from '@/lib/winter-overlay'
-import type { GameIconGlyph as GameIconGlyphSpec } from '@/lib/game-icon-glyphs'
+import { GAME_ICON_GLYPHS, type GameIconGlyph as GameIconGlyphSpec } from '@/lib/game-icon-glyphs'
 import { OWNERSHIP_SHIELD_PATH } from '@/components/MapLegend'
 import type { Infrastructure, Noble, Point } from '@/types'
 
@@ -233,6 +233,43 @@ export function NobleMarker({
       {prisoner && (
         <circle cx="0" cy="0" r="4.5" fill="none" stroke="#8d321e" strokeWidth="1.5" />
       )}
+    </g>
+  )
+}
+
+/** Danger red shared with every other "unfed"/risk indicator in the app
+ * (command post's famine risk text, SelectedTerritoryDetails' unreachable
+ * source warning). */
+const FAMINE_MARKER_COLOR = '#8d321e'
+
+/** Same "desert-skull" glyph as the famine calamity overlay (game-icons.net,
+ * CC BY 3.0, Delapouite), reused here so a starving army reads at a glance
+ * with the icon players already associate with famine elsewhere on the map. */
+const FAMINE_GLYPH = GAME_ICON_GLYPHS['desert-skull']
+
+/**
+ * Small badge overlaid on an army's own marker when it is starving
+ * (models.Army.Starving, issue #208): it will fight at strength 0 this turn.
+ * Danger red keeps it visually distinct from every other overlay (ownership
+ * shield, capital crown, fortification wall), all of which use the owner's
+ * or a neutral tone rather than this shared danger red.
+ */
+export function FamineMarker({ x, y, scale }: { x: number; y: number; scale: number }) {
+  const { t } = useLanguage()
+  const size = 13 * scale
+  return (
+    <g data-starving-marker="true" pointerEvents="none">
+      <title>{t('map.armyStarvingBadge')}</title>
+      <GameIconGlyph
+        glyph={FAMINE_GLYPH}
+        x={x - size / 2}
+        y={y - size / 2}
+        size={size}
+        fill={FAMINE_MARKER_COLOR}
+        stroke="#fff8e7"
+        strokeWidth={20}
+        opacity={1}
+      />
     </g>
   )
 }

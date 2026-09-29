@@ -330,6 +330,7 @@ func applySeigneurialTax(ctx *resolutionContext, playerID models.PlayerID, order
 		return
 	}
 	ctx.taxedFiefsThisTurn[fief.ID] = true
+	ctx.taxedFiefOwnerAtApply[fief.ID] = playerID
 	ctx.state.TaxedFiefs = append(ctx.state.TaxedFiefs, models.TaxedFief{FiefID: fief.ID, Turn: ctx.state.Turn})
 	ctx.events = append(ctx.events, Event{
 		Type: EventTypeBonusEffect, Phase: phaseForSeason(ctx.state.Season),

@@ -47,6 +47,14 @@ func TestResolveTerritoryIncomeCreditsCapital(t *testing.T) {
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "BBB"})
 	setCapital(state, "P1", "I1")
+	// No army garrisons any of these territories: anchor all five under
+	// P1's fief so control resolution (now ahead of ravitaillement, #208)
+	// does not release the unowned-by-army ones as unanchored before income
+	// can credit them.
+	state.Fiefs = []models.Fief{{
+		ID: "F1", Title: models.FiefTitleMarquisate, CapitalTerritoryID: "AAA",
+		Territories: []models.TerritoryID{"AAA", "BBB", "CCC", "DDD", "EEE"}, OwnerID: "P1",
+	}}
 	validateTestState(t, state)
 
 	resolution, err := Resolve(state, testBalance())
@@ -102,7 +110,14 @@ func TestTerritoryIncomeFallsBackToClosestControlledCastle(t *testing.T) {
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "NEA"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "END"})
 	// No capital is designated (it just fell): PLN must reach its closest
-	// controlled castle, NEA, rather than the more distant END.
+	// controlled castle, NEA, rather than the more distant END. None of the
+	// four is a fief member either, so each needs its own anchor army
+	// against control resolution's unanchored release (now ahead of
+	// ravitaillement, #208).
+	addAnchorArmy(t, state, "A1", "P1", "PLN")
+	addAnchorArmy(t, state, "A2", "P1", "NEA")
+	addAnchorArmy(t, state, "A3", "P1", "FAR")
+	addAnchorArmy(t, state, "A4", "P1", "END")
 	validateTestState(t, state)
 
 	resolution, err := Resolve(state, testBalance())
@@ -136,6 +151,12 @@ func TestTerritoryIncomeFallbackTrigramTieBreak(t *testing.T) {
 	}
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "ZZZ"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+	// None of the three is a fief member or a capital: each needs its own
+	// anchor army against control resolution's unanchored release (now ahead
+	// of ravitaillement, #208).
+	addAnchorArmy(t, state, "A1", "P1", "CTR")
+	addAnchorArmy(t, state, "A2", "P1", "ZZZ")
+	addAnchorArmy(t, state, "A3", "P1", "AAA")
 	validateTestState(t, state)
 
 	resolution, err := Resolve(state, testBalance())
@@ -168,6 +189,11 @@ func TestTerritoryIncomeFallsBackToVillage(t *testing.T) {
 	setTerritoryOwner(state, "PLN", "P1")
 	setTerritoryOwner(state, "VIL", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "VIL"})
+	// Neither is a fief member or a capital: each needs its own anchor army
+	// against control resolution's unanchored release (now ahead of
+	// ravitaillement, #208).
+	addAnchorArmy(t, state, "A1", "P1", "PLN")
+	addAnchorArmy(t, state, "A2", "P1", "VIL")
 	validateTestState(t, state)
 
 	resolution, err := Resolve(state, testBalance())
@@ -185,6 +211,10 @@ func TestTerritoryIncomeFallsBackToVillage(t *testing.T) {
 func TestTerritoryIncomeLostWithoutAnySettlement(t *testing.T) {
 	state := testState(t, []models.Territory{territory("PLN", "PLN")}, nil)
 	setTerritoryOwner(state, "PLN", "P1")
+	// Not a fief member or a capital: an anchor army keeps it owned by P1
+	// against control resolution's unanchored release (now ahead of
+	// ravitaillement, #208), without giving it any settlement.
+	addAnchorArmy(t, state, "A1", "P1", "PLN")
 	validateTestState(t, state)
 
 	resolution, err := Resolve(state, testBalance())
@@ -245,14 +275,34 @@ func TestTerritoryIncomeHarvestEffects(t *testing.T) {
 // TestTerritoryIncomePaysDespiteEnemyOccupation checks that control, not
 // occupation, decides who is paid: an enemy army sitting on a controlled
 // territory does not interrupt its owner's income.
+// TestTerritoryIncomePaysDespiteEnemyOccupation checks that control, not
+// occupation, decides who is paid: an enemy army sitting on a non-capital
+// fief member does not flip its control (titres.md "Contrôle et
+// occupation") or interrupt its owner's income. AAA must be a fief member
+// (not a bare, unanchored territory, and not the fief's own capital, which
+// pass1 lets a visiting army capture like any other): those are the only
+// territories control resolution -- now ahead of ravitaillement, #208 --
+// still leaves under their controller's ownership despite a same-turn enemy
+// visitor.
 func TestTerritoryIncomePaysDespiteEnemyOccupation(t *testing.T) {
 	state := testState(t,
-		[]models.Territory{territory("AAA", "AAA", "BBB"), territory("BBB", "BBB", "AAA")},
+		[]models.Territory{
+			territory("CCC", "CCC", "AAA"),
+			territory("AAA", "AAA", "CCC", "BBB"),
+			territory("BBB", "BBB", "AAA"),
+		},
 		nil,
 	)
-	setTerritoryOwner(state, "AAA", "P1")
-	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
-	// P2's army occupies P1's controlled territory, but does not own it.
+	for _, id := range []models.TerritoryID{"CCC", "AAA", "BBB"} {
+		setTerritoryOwner(state, id, "P1")
+	}
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "CCC"})
+	state.Fiefs = []models.Fief{{
+		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "CCC",
+		Territories: []models.TerritoryID{"CCC", "AAA", "BBB"}, OwnerID: "P1",
+	}}
+	// P2's army occupies the fief's non-capital member AAA, but does not own
+	// it.
 	enemyArmy := models.Army{ID: "A1", OwnerID: "P2", TerritoryID: "AAA", Size: 1}
 	state.Armies = append(state.Armies, enemyArmy)
 	aaaState := state.TerritoryStates["AAA"]
@@ -266,9 +316,9 @@ func TestTerritoryIncomePaysDespiteEnemyOccupation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	event := incomeEventFor(t, resolution.Events, "P1", "AAA")
-	if event.Lost || event.TerritoryCount != 1 || event.Production != 1 {
-		t.Fatalf("income event = %#v, want P1 paid despite the occupying enemy army", event)
+	event := incomeEventFor(t, resolution.Events, "P1", "CCC")
+	if event.Lost || event.TerritoryCount != 3 || event.Production != 3 {
+		t.Fatalf("income event = %#v, want P1 paid for all three fief members despite the occupying enemy army", event)
 	}
 }
 
@@ -285,6 +335,10 @@ func TestTerritoryIncomeFeedsSupplyTheSameTurn(t *testing.T) {
 	)
 	setTerritoryOwner(state, "BBB", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
+	// No army garrisons BBB: anchor it as P1's capital so control resolution
+	// (now ahead of ravitaillement, #208) does not release it as unanchored
+	// before supply can use its income as a source.
+	setCapital(state, "P1", "I1")
 	validateTestState(t, state)
 
 	resolution, err := Resolve(state, testBalance())
@@ -468,6 +522,10 @@ func TestFiefIncomeSeparateLineWhenCapitalCoincidesWithPlayerCapital(t *testing.
 		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "CAP",
 		Territories: []models.TerritoryID{"CAP", "MEM", "OTH"}, OwnerID: "P1",
 	}}
+	// OUT is deliberately outside the fief (the point of this test): it
+	// needs its own anchor army against control resolution's unanchored
+	// release (now ahead of ravitaillement, #208).
+	addAnchorArmy(t, state, "A1", "P1", "OUT")
 	validateTestState(t, state)
 
 	resolution, err := Resolve(state, testBalance())

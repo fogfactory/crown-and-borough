@@ -37,7 +37,6 @@ func ResolveWithDeckOrders(game *models.GameState, balance assetgen.Balance, dec
 	resolveDeckOrders(ctx, deckOrders)
 	resolveSeasonEffects(ctx)
 
-	resolveSupply(ctx)
 	// Chains are attached before Resolve is called; this function only handles
 	// the simultaneous resolution core.
 	enumerateIntentions(ctx)
@@ -51,6 +50,17 @@ func ResolveWithDeckOrders(game *models.GameState, balance assetgen.Balance, dec
 	}
 	resolveRevoltCombats(ctx)
 	progressChainsAndControl(ctx)
+	// Ravitaillement (territory income, rations, mills, famine) resolves last,
+	// on the armies' post-combat, post-movement, post-control positions: an
+	// army that flees into a source is fed there this same turn, a village
+	// captured this turn already feeds from the moment it changes hands
+	// (#208). Its famine penalty is never applied this same turn (an army
+	// famished here fights at full strength until next turn, see
+	// models.Army.Starving); the auto-pillage it can trigger may dissolve a
+	// fief capital's castle, so releaseUnanchoredControl runs again right
+	// after, idempotently, to release whatever that dissolution unanchors.
+	resolveSupply(ctx)
+	ctx.releaseUnanchoredControl()
 	if err := ctx.rebuildOccupancy(); err != nil {
 		return Resolution{}, err
 	}

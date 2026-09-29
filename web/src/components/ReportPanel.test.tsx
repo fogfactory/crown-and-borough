@@ -124,6 +124,19 @@ const report: TurnReport = {
       pillageInfrastructure: 'mill',
       resourceCredit: 0,
     },
+    {
+      army: 'A3',
+      owner: 'P1',
+      territory: 'BRU',
+      size: 1,
+      demand: 1,
+      receivedLocal: 0,
+      receivedTransfer: 0,
+      totalReceived: 0,
+      missing: 1,
+      famine: true,
+      warned: true,
+    },
   ],
   combats: [],
   orders: [
@@ -382,6 +395,9 @@ describe('ReportPanel', () => {
     ).toBeInTheDocument()
     expect(screen.getByText(/· sauvée par pillage/)).toBeInTheDocument()
     expect(screen.getByText(/· perd 1 troupe/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/manque de vivres — agis avant le tour suivant/),
+    ).toBeInTheDocument()
     expect(screen.getByText(/Un bel ensoleillement gagne le royaume/)).toBeInTheDocument()
     expect(screen.getByText(/Beau temps \(BT\) jouée sur ROS/)).toBeInTheDocument()
     expect(screen.getByText(/Peste \(PE\) à venir en Été dans ROS/)).toBeInTheDocument()

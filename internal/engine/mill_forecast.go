@@ -13,8 +13,12 @@ import (
 // under the same control, else its adjacent village under the same control,
 // else itself), so this sums exactly the production the player's own
 // settlements and self-supplied mills will receive; it no longer double-
-// counts a mill adjacent to several of the player's settlements. Ravitaillement
-// never happens in winter, so a winter state always forecasts nil.
+// counts a mill adjacent to several of the player's settlements. Like every
+// ravitaillement forecast, it assumes nothing moves before resolution: mill
+// control and occupancy are evaluated on the current, pre-order state, even
+// though ravitaillement itself resolves on post-movement, post-combat
+// positions (#208). Ravitaillement never happens in winter, so a winter
+// state always forecasts nil.
 func ForecastMillIncome(state *models.GameState, balance assetgen.Balance) map[models.PlayerID]int {
 	if state == nil || state.Season == models.SeasonWinter {
 		return nil
@@ -43,8 +47,9 @@ type MillProductionForecast struct {
 // ForecastMillProduction computes, for every mill, the normal production and
 // single destination it will credit on the next action turn, ignoring any
 // calamity or bonus card already drawn this turn (like ForecastMillIncome).
-// Ravitaillement never happens in winter, so a winter state always forecasts
-// nil.
+// Like every ravitaillement forecast, it assumes nothing moves before
+// resolution (#208). Ravitaillement never happens in winter, so a winter
+// state always forecasts nil.
 func ForecastMillProduction(state *models.GameState, balance assetgen.Balance) map[models.TerritoryID]MillProductionForecast {
 	if state == nil || state.Season == models.SeasonWinter {
 		return nil

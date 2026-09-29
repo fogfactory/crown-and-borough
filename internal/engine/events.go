@@ -159,6 +159,7 @@ type Event struct {
 	TroopsLost         int                        `json:"troopsLost,omitempty"`
 	RationsLost        int                        `json:"rationsLost,omitempty"`
 	SavedByPillage     bool                       `json:"savedByPillage,omitempty"`
+	Warned             bool                       `json:"warned,omitempty"`
 
 	TerrainRations       int                        `json:"terrainRations,omitempty"`
 	BonusRations         int                        `json:"bonusRations,omitempty"`

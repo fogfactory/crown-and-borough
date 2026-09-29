@@ -174,6 +174,25 @@ func findOutcome(events []Event, orderID models.OrderID) (Event, bool) {
 	return Event{}, false
 }
 
+// addAnchorArmy appends a one-troop army of ownerID at territoryID, purely to
+// anchor that territory against control resolution's unanchored release
+// (releaseUnanchoredControl, now ahead of ravitaillement, #208): a bare owned
+// territory with no fief and no capital no longer survives to the end of the
+// turn on its own. Every default territory() is plain terrain (3 rations),
+// so this one-troop army is always self-sufficient and never touches pooled
+// supply or a wider scenario's deficit math.
+func addAnchorArmy(t *testing.T, state *models.GameState, id models.ArmyID, ownerID models.PlayerID, territoryID models.TerritoryID) {
+	t.Helper()
+	state.Armies = append(state.Armies, models.Army{ID: id, OwnerID: ownerID, TerritoryID: territoryID, Size: 1})
+	territoryState := state.TerritoryStates[territoryID]
+	armyID := id
+	territoryState.Army = &armyID
+	ownerCopy := ownerID
+	territoryState.OwnerID = &ownerCopy
+	state.TerritoryStates[territoryID] = territoryState
+	state.NextArmyID = nextArmyID(state.Armies)
+}
+
 func addInfrastructure(state *models.GameState, infrastructure models.Infrastructure) {
 	state.Infrastructures = append(state.Infrastructures, infrastructure)
 	territoryState := state.TerritoryStates[infrastructure.TerritoryID]

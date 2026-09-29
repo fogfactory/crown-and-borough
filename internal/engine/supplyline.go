@@ -63,7 +63,11 @@ type TransferLine struct {
 
 // FindSupplyLine projects the supply assignment for an army without mutating
 // the game. Army assignment uses the same network and source selection logic as
-// resolveSupply; a selected source also exposes its own reachable zone.
+// resolveSupply; a selected source also exposes its own reachable zone. Like
+// every ravitaillement projection, it assumes nothing moves before
+// resolution: it reads the army and control as they are now, even though
+// resolveSupply itself resolves on post-movement, post-combat positions
+// (#208).
 func FindSupplyLine(game *models.GameState, balance assetgen.Balance, territoryID models.TerritoryID) (SupplyLine, error) {
 	ctx, err := supplyQueryContext(game, balance, territoryID, nil)
 	if err != nil {

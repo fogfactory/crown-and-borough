@@ -67,6 +67,7 @@ type consumptionDetail struct {
 	receivedLocal         int
 	receivedTransfer      int
 	famined               bool
+	warned                bool
 	troopsLost            int
 	savedByPillage        bool
 	pillageInfrastructure models.InfraType
@@ -74,11 +75,22 @@ type consumptionDetail struct {
 	creditTerritory       models.TerritoryID
 }
 
-// resolveSupply calculates the complete start-of-turn supply phase before any
-// order can move an army or change control.
+// resolveSupply calculates the complete end-of-turn ravitaillement phase,
+// after every order has moved an army or changed control this turn (#208): it
+// reads and feeds armies where they actually stand once combat, movement and
+// control are settled, not where they started the turn. A famine here never
+// weakens the army in this same turn's own combat (already resolved earlier);
+// it only sets models.Army.Starving for the penalty the following turn reads
+// (see ctx.famished's seeding in newResolutionContext).
 func resolveSupply(ctx *resolutionContext) {
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
 		ctx.supplyStockBefore[territoryID] = ctx.state.TerritoryStates[territoryID].Resources
+	}
+	// Starving is recomputed in full every turn: clear it here so an army
+	// that meets its demand this turn is no longer flagged, then resolveFamine
+	// (below) sets it back on whichever one fails to.
+	for index := range ctx.state.Armies {
+		ctx.state.Armies[index].Starving = false
 	}
 	resolveTerritoryIncome(ctx)
 	receivedRations := resolveRations(ctx)
@@ -105,7 +117,7 @@ func resolveSupply(ctx *resolutionContext) {
 	for _, source := range allSources {
 		ctx.events = append(ctx.events, Event{
 			Type:          EventTypeSupply,
-			Phase:         0,
+			Phase:         6,
 			SourceID:      source.territoryID,
 			OwnerID:       source.ownerID,
 			Production:    source.production,
@@ -133,10 +145,14 @@ func resolveSupply(ctx *resolutionContext) {
 
 // resolveNeutralFamines applies the neutral starvation rule: neutral armies
 // never lose strength to a famine, but lose one troop when the local
-// production of their territory cannot feed them.
+// production of their territory cannot feed them. Unlike player famines
+// (resolveFamine), this stays a single-step penalty with no warning turn: the
+// two-turn grace period exists so a player can react to a warning by moving
+// the army or sending it a transfer, and no player controls a neutral army to
+// do either.
 func resolveNeutralFamines(ctx *resolutionContext) {
-	for _, armyID := range sortedArmyMap(ctx.startArmiesByID) {
-		army := ctx.startArmiesByID[armyID]
+	for _, armyID := range sortedArmyMap(ctx.armiesByID) {
+		army := ctx.armiesByID[armyID]
 		if army.OwnerID != models.NeutralPlayerID || army.Size <= 1 {
 			continue
 		}
@@ -144,19 +160,16 @@ func resolveNeutralFamines(ctx *resolutionContext) {
 		if local >= armyCost(army.Size, ctx.balance.CostBase) {
 			continue
 		}
+		sizeBefore := army.Size
 		army.Size--
-		ctx.startArmiesByID[army.ID] = army
-		if live := ctx.armiesByID[army.ID]; live != nil {
-			live.Size = army.Size
-		}
 		ctx.events = append(ctx.events, Event{
 			Type:        EventTypeFamine,
-			Phase:       0,
+			Phase:       6,
 			ArmyID:      army.ID,
 			OwnerID:     models.NeutralPlayerID,
 			RegionSeed:  regionForTerritory(ctx, army.TerritoryID),
 			TerritoryID: army.TerritoryID,
-			Troops:      army.Size + 1,
+			Troops:      sizeBefore,
 			TroopsLost:  1,
 			Season:      ctx.state.Season,
 			Year:        ctx.state.Year(),
@@ -187,7 +200,7 @@ func produceNeutralStocks(ctx *resolutionContext) {
 		ctx.state.TerritoryStates[territoryID] = state
 		ctx.events = append(ctx.events, Event{
 			Type:       EventTypeSupply,
-			Phase:      0,
+			Phase:      6,
 			SourceID:   territoryID,
 			Production: production,
 			StockAfter: state.Resources,
@@ -208,9 +221,9 @@ func updateSupplyEventStocks(ctx *resolutionContext) {
 }
 
 func resolveRations(ctx *resolutionContext) map[models.ArmyID]int {
-	received := make(map[models.ArmyID]int, len(ctx.startArmiesByID))
+	received := make(map[models.ArmyID]int, len(ctx.armiesByID))
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
-		army := ctx.startArmyAt(territoryID)
+		army := ctx.currentArmyAt(territoryID)
 		if army == nil {
 			continue
 		}
@@ -303,7 +316,7 @@ func controlledSupplySources(ctx *resolutionContext, ownerID models.PlayerID) []
 		if state.OwnerID == nil || *state.OwnerID != ownerID {
 			continue
 		}
-		if ctx.occupiedAgainstController(territoryID, ctx.startArmyAt(territoryID)) {
+		if ctx.occupiedAgainstController(territoryID, ctx.currentArmyAt(territoryID)) {
 			// A controlled cell occupied by another player's (or a revolt's)
 			// army is no longer a supply source for its controller: neither
 			// side may draw from it (titres.md, economie.md#portée-de-ravitaillement).
@@ -415,7 +428,7 @@ func supplyNetwork(ctx *resolutionContext, sourceID models.TerritoryID, ownerID 
 			if _, visited := reachable[neighborID]; visited {
 				continue
 			}
-			if army := ctx.startArmyAt(neighborID); army != nil && army.OwnerID != ownerID {
+			if army := ctx.currentArmyAt(neighborID); army != nil && army.OwnerID != ownerID {
 				continue
 			}
 			remaining := current.remaining - 1
@@ -458,7 +471,7 @@ func transferNetwork(ctx *resolutionContext, sourceID models.TerritoryID, ownerI
 				continue
 			}
 			if neighborID != targetID {
-				if army := ctx.startArmyAt(neighborID); army != nil && army.OwnerID != ownerID {
+				if army := ctx.currentArmyAt(neighborID); army != nil && army.OwnerID != ownerID {
 					continue
 				}
 			}
@@ -485,7 +498,7 @@ func assignSupply(
 ) ([]supplyAssignment, []famineCandidate) {
 	assignments := make([]supplyAssignment, 0)
 	direct := make([]famineCandidate, 0)
-	for _, army := range startArmiesForPlayer(ctx, ownerID) {
+	for _, army := range liveArmiesForPlayer(ctx, ownerID) {
 		detail := ctx.consumptionDetailFor(army)
 		detail.size = army.Size
 		detail.ownerID = army.OwnerID
@@ -658,12 +671,32 @@ func sortAssignedFamine(ctx *resolutionContext, candidates []famineCandidate) {
 func (ctx *resolutionContext) resolveFamine(candidate famineCandidate) {
 	event := Event{
 		Type:        EventTypeFamine,
-		Phase:       0,
+		Phase:       6,
 		ArmyID:      candidate.army.ID,
 		OwnerID:     candidate.army.OwnerID,
 		TerritoryID: candidate.army.TerritoryID,
 		SourceID:    candidate.sourceID,
 		Troops:      candidate.army.Size,
+	}
+	if !ctx.famished[candidate.army.ID] {
+		// First turn this army falls into deficit: only a warning. It is
+		// marked Starving for next turn's own combat, support and
+		// noble-bonus penalty (ctx.famished's seeding in
+		// newResolutionContext), but its infrastructure is spared and it
+		// keeps every troop this turn, so its owner has this whole next turn
+		// to react — move the army away or send it a resource transfer
+		// (only the famished sender is blocked, not the recipient) — before
+		// a second consecutive deficit triggers the auto-pillage below.
+		event.Warned = true
+		if army := ctx.armiesByID[candidate.army.ID]; army != nil {
+			army.Starving = true
+		}
+		if detail := ctx.supplyConsumption[candidate.army.ID]; detail != nil {
+			detail.famined = true
+			detail.warned = true
+		}
+		ctx.events = append(ctx.events, event)
+		return
 	}
 	infrastructure := ctx.infrastructureAt(candidate.army.TerritoryID)
 	if infrastructure != nil {
@@ -686,11 +719,17 @@ func (ctx *resolutionContext) resolveFamine(candidate famineCandidate) {
 		}
 	}
 	if !event.SavedByPillage {
-		ctx.famished[candidate.army.ID] = true
-		if army := ctx.armiesByID[candidate.army.ID]; army != nil && army.Size > 1 {
-			army.Size--
-			ctx.startArmiesByID[candidate.army.ID] = *army
-			event.TroopsLost = 1
+		// Starving carries the penalty into next turn's own combat, support
+		// and noble-bonus checks (ctx.famished's seeding in
+		// newResolutionContext): this turn's own combat already resolved
+		// earlier and is never reopened by a famine discovered only now
+		// (#208).
+		if army := ctx.armiesByID[candidate.army.ID]; army != nil {
+			army.Starving = true
+			if army.Size > 1 {
+				army.Size--
+				event.TroopsLost = 1
+			}
 		}
 	}
 	if detail := ctx.supplyConsumption[candidate.army.ID]; detail != nil {
@@ -746,7 +785,7 @@ func (ctx *resolutionContext) emitProductionEvents() {
 		}
 		ctx.events = append(ctx.events, Event{
 			Type:                 EventTypeProduction,
-			Phase:                0,
+			Phase:                6,
 			TerritoryID:          territoryID,
 			RegionSeed:           regionForTerritory(ctx, territoryID),
 			OwnerID:              ownerID,
@@ -780,7 +819,7 @@ func (ctx *resolutionContext) emitMillProductionEvents(mills []millProduction) {
 		}
 		ctx.events = append(ctx.events, Event{
 			Type:                 EventTypeMillProduction,
-			Phase:                0,
+			Phase:                6,
 			TerritoryID:          mill.millID,
 			DestinationID:        mill.destinationID,
 			OwnerID:              ownerID,
@@ -809,7 +848,7 @@ func (ctx *resolutionContext) emitConsumptionEvents() {
 		detail := ctx.supplyConsumption[armyID]
 		ctx.events = append(ctx.events, Event{
 			Type:               EventTypeConsumption,
-			Phase:              0,
+			Phase:              6,
 			ArmyID:             armyID,
 			OwnerID:            detail.ownerID,
 			TerritoryID:        detail.territoryID,
@@ -820,6 +859,7 @@ func (ctx *resolutionContext) emitConsumptionEvents() {
 			ReceivedTransfer:   detail.receivedTransfer,
 			TroopsLost:         detail.troopsLost,
 			SavedByPillage:     detail.savedByPillage,
+			Warned:             detail.warned,
 			InfrastructureType: detail.pillageInfrastructure,
 			ResourceCredit:     detail.resourceCredit,
 			CreditTerritoryID:  detail.creditTerritory,
@@ -847,7 +887,7 @@ func (ctx *resolutionContext) isControlledDepot(territoryID models.TerritoryID, 
 	if infrastructure == nil || infrastructure.Type != models.InfraTypeSupplyDepot {
 		return false
 	}
-	return !ctx.occupiedAgainstController(territoryID, ctx.startArmyAt(territoryID))
+	return !ctx.occupiedAgainstController(territoryID, ctx.currentArmyAt(territoryID))
 }
 
 func (ctx *resolutionContext) infrastructureAt(territoryID models.TerritoryID) *models.Infrastructure {
@@ -858,10 +898,14 @@ func (ctx *resolutionContext) infrastructureAt(territoryID models.TerritoryID) *
 	return ctx.infrastructuresByID[*state.Infrastructures]
 }
 
-func startArmiesForPlayer(ctx *resolutionContext, ownerID models.PlayerID) []models.Army {
+// liveArmiesForPlayer lists ownerID's armies where they actually stand now:
+// resolveSupply resolves at the end of the turn, on post-combat,
+// post-movement positions (#208), unlike the frozen start-of-turn snapshot
+// ctx.startArmiesByID keeps for the earlier resolution phases.
+func liveArmiesForPlayer(ctx *resolutionContext, ownerID models.PlayerID) []models.Army {
 	armies := make([]models.Army, 0)
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
-		army := ctx.startArmyAt(territoryID)
+		army := ctx.currentArmyAt(territoryID)
 		if army != nil && army.OwnerID == ownerID {
 			armies = append(armies, *army)
 		}

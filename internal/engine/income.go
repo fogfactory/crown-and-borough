@@ -39,7 +39,10 @@ type TerritoryIncomeForecast struct {
 }
 
 // resolveTerritoryIncome credits every controlled territory's income to its
-// destination before any other production this turn: it is never called in
+// destination first within the end-of-turn ravitaillement block resolveSupply
+// runs (#208), before rations and mill production, on the territories'
+// post-combat, post-movement, post-control ownership: a territory captured
+// earlier this same turn already credits its new owner. It is never called in
 // winter (see ResolveWinter, and Resolve's guard against winter states).
 // Income bypasses the supply network entirely, so it cannot be intercepted;
 // the harvest calamity and bonus apply in the income-producing territory's
@@ -67,11 +70,16 @@ func computeTerritoryIncome(ctx *resolutionContext) (map[models.PlayerID]map[mod
 			hasVillage := ctx.hasInfrastructure(territoryID, models.InfraTypeVillage)
 			parts := territoryIncomeParts(ctx, territoryID, hasVillage)
 			fief := ctx.territoryFief(ownerID, territoryID)
-			if fief != nil && ctx.taxedFiefsThisTurn[fief.ID] {
+			if fief != nil && ctx.taxedFiefsThisTurn[fief.ID] && ctx.taxedFiefOwnerAtApply[fief.ID] == fief.OwnerID {
 				// Seigneurial tax doubles the fief's territorial income,
 				// village included, for the turn (titres.md "Taxe
 				// seigneuriale"); it never touches mill production, which
-				// this parts value does not carry.
+				// this parts value does not carry. Income now credits after
+				// captures (#208): if the fief's capital changed hands this
+				// same turn, fief.OwnerID no longer matches the player who
+				// applied the tax, so the doubling is silently dropped for
+				// this turn rather than crediting the conqueror's income
+				// with a tax it never played.
 				parts.base *= 2
 				parts.bonus *= 2
 			}
@@ -133,7 +141,7 @@ func emitTerritoryIncomeEvents(ctx *resolutionContext, reports map[models.Player
 				report := reports[ownerID][destinationID][fiefID]
 				ctx.events = append(ctx.events, Event{
 					Type:                 EventTypeIncome,
-					Phase:                0,
+					Phase:                6,
 					OwnerID:              ownerID,
 					DestinationID:        destinationID,
 					FiefID:               report.fiefID,
@@ -243,7 +251,9 @@ func (ctx *resolutionContext) territoryIncomeDestination(ownerID models.PlayerID
 // already drawn this turn: the command post projection must never leak an
 // undrawn harvest card's effect. It runs the same resolveTerritoryIncome
 // computation used during resolution, on a throwaway clone, so it never
-// mutates state and always matches the actual resolution logic.
+// mutates state and always matches the actual resolution logic; it assumes
+// nothing moves before resolution, since income now credits after captures
+// (#208) but this projection can only see the current, pre-order control.
 func ForecastIncome(state *models.GameState, balance assetgen.Balance) []Event {
 	if state == nil {
 		return nil
@@ -257,7 +267,8 @@ func ForecastIncome(state *models.GameState, balance assetgen.Balance) []Event {
 // ForecastTerritoryIncome computes each controlled territory's normal
 // projected income and destination, ignoring any calamity or bonus card
 // already drawn this turn, for the territory detail panel's "rapporte X R à
-// YYY" line. It performs no mutation.
+// YYY" line. It performs no mutation, and like ForecastIncome assumes
+// nothing moves before resolution.
 func ForecastTerritoryIncome(state *models.GameState, balance assetgen.Balance) map[models.TerritoryID]TerritoryIncomeForecast {
 	if state == nil {
 		return nil

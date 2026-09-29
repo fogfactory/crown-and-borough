@@ -110,8 +110,18 @@ milestones GitHub `Online Foundations`, `Online Friends MVP` et `Online Hosted`.
 Les politiques, ordres spéciaux et autres règles que le GDD accueillera plus
 tard doivent être ajoutés comme des compléments à ce cœur v1. Ils ne doivent
 pas modifier les invariants de base : résolution simultanée, armée unique par
-territoire, chaînes d'ordres, ravitaillement, famine, hiver et contrôle
-territorial.
+territoire, chaînes d'ordres, hiver et contrôle territorial.
+
+Le ravitaillement et la famine ne figurent pas dans cette liste d'invariants
+protégés : leur algorithme (demande exponentielle, rations de terrain,
+sources, portée, résolution du déficit) reste stable, mais le moment où ils se
+résolvent dans le tour est un paramètre de calibrage économique assumé, suivi
+par issue plutôt que figé ici
+([#208](https://github.com/fogfactory/crown-and-borough/issues/208)) : le
+ravitaillement, le revenu territorial et les moulins se résolvent aujourd'hui
+en fin de tour d'action, sur les positions et le contrôle territorial
+définitifs du tour. Tout changement de ce timing reste documenté dans
+[`ravitaillement.md`](ravitaillement.md) et [`economie.md`](economie.md).
 
 Tout ajout ou bug découvert après le socle actuel est suivi dans GitHub plutôt
 que par un nouveau plan d'implémentation local. Les spécifications thématiques
