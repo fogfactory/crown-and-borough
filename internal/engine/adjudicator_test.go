@@ -256,6 +256,11 @@ func TestResolveDisperseFusesWithWinnerWhileEnemyDisperses(t *testing.T) {
 		},
 	)
 	keepTestArmiesSupplied(state)
+	// The join fuses A1 and A3 into a single size-3 army at TBB this same
+	// turn: ravitaillement now resolves after that fusion, on its exponential
+	// cost (#208), which keepTestArmiesSupplied's per-army preset (sized
+	// before the fusion) does not cover on its own.
+	setTerritoryResources(state, "TBB", 10)
 	addNoble(state, "N1", "ONE", "P3", "TAA")
 	addNoble(state, "N2", "TWO", "P2", "TEE")
 	addNoble(state, "N3", "THR", "P3", "TCC")

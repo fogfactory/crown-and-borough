@@ -302,6 +302,10 @@ func TestResolveRetreatFriendlyArmySequentialMerge(t *testing.T) {
 	dddState.OwnerID = &p2
 	dddState.Resources = 10
 	state.TerritoryStates["DDD"] = dddState
+	// A1 and A3 both retreat into and fuse with A5 at EEE this same turn,
+	// growing it to size 4: ravitaillement now resolves after that fusion,
+	// on its exponential cost (#208), which EEE has no other stock to cover.
+	setTerritoryResources(state, "EEE", 10)
 
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeHold, PositionID: "AAA"})
 	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"AAA"}})
@@ -385,6 +389,10 @@ func TestResolveRetreatFriendlyArmyMultipleSize1(t *testing.T) {
 	addChain(t, state, "A3", "N3", models.Order{Type: models.OrderTypeHold, PositionID: "CCC"})
 	addChain(t, state, "A4", "N4", models.Order{Type: models.OrderTypeAttack, PositionID: "DDD", TargetIDs: []models.TerritoryID{"CCC"}})
 	addChain(t, state, "A5", "N5", models.Order{Type: models.OrderTypeHold, PositionID: "EEE"})
+	// A1 and A3 both retreat into and fuse with A5 at EEE this same turn,
+	// growing it to size 3: ravitaillement now resolves after that fusion,
+	// on its exponential cost (#208), which EEE has no other stock to cover.
+	setTerritoryResources(state, "EEE", 10)
 	validateTestState(t, state)
 
 	resolution, err := Resolve(state, testBalance())

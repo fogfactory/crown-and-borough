@@ -87,11 +87,15 @@ type TerritoryView struct {
 // ArmyView contains the visible owner, size, and current chain of an army. Its
 // ID is an internal storage detail: the frontend addresses an army by territory.
 // The current v1 endpoint exposes every chain; server-side player filtering is
-// tracked as a later online feature.
+// tracked as a later online feature. Starving mirrors models.Army.Starving:
+// set by last turn's ravitaillement when this army's demand went unmet, it
+// fights at strength 0 this turn until ravitaillement re-evaluates it at the
+// turn's own end (#208).
 type ArmyView struct {
-	Owner models.PlayerID `json:"owner"`
-	Size  int             `json:"size"`
-	Chain *ChainView      `json:"chain"`
+	Owner    models.PlayerID `json:"owner"`
+	Size     int             `json:"size"`
+	Chain    *ChainView      `json:"chain"`
+	Starving bool            `json:"starving,omitempty"`
 }
 
 // ChainView is the public, code-addressed representation of an active chain.
@@ -268,8 +272,9 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 		if territoryState.Army != nil {
 			if army, ok := armiesByID[*territoryState.Army]; ok {
 				armyView := &ArmyView{
-					Owner: army.OwnerID,
-					Size:  army.Size,
+					Owner:    army.OwnerID,
+					Size:     army.Size,
+					Starving: army.Starving,
 				}
 				if chain, exists := chainsByArmyID[army.ID]; exists {
 					armyView.Chain = projectChain(chain, nobleCodesByID)

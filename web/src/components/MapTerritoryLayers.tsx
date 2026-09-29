@@ -1,4 +1,5 @@
 import {
+  FamineMarker,
   InfrastructureMarker,
   NobleMarker,
   OwnershipBadge,
@@ -198,10 +199,15 @@ export function LiveLayer({
             {territoryState.army && (
               <g key={`${territory.id}-army`}>
                 <title>
-                  {t('map.armyMarker', {
-                    owner: territoryState.army.owner,
-                    size: territoryState.army.size,
-                  })}
+                  {territoryState.army.starving
+                    ? t('map.armyMarkerStarving', {
+                        owner: territoryState.army.owner,
+                        size: territoryState.army.size,
+                      })
+                    : t('map.armyMarker', {
+                        owner: territoryState.army.owner,
+                        size: territoryState.army.size,
+                      })}
                 </title>
                 <circle
                   cx={centerX - 9 * annotationScale}
@@ -221,6 +227,13 @@ export function LiveLayer({
                 >
                   {territoryState.army.size}
                 </text>
+                {territoryState.army.starving && (
+                  <FamineMarker
+                    x={centerX - 9 * annotationScale + 7 * annotationScale}
+                    y={centerY + 26 * annotationScale - 7 * annotationScale}
+                    scale={annotationScale}
+                  />
+                )}
               </g>
             )}
             {territoryNobles.map((noble, index) => (

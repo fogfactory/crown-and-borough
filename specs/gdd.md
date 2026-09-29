@@ -37,13 +37,16 @@ Au printemps, en été et en automne :
 2. Le moteur vérifie les soumissions. Une erreur de syntaxe ou de réception
    empêche la résolution de la soumission concernée sans modifier l'état.
 3. Le moteur consomme et agrège les cartes valides, puis applique leurs effets
-   avant le ravitaillement et l'énumération des intentions d'armée.
-4. Le moteur résout simultanément le ravitaillement, les intentions, les
-   soutiens, les combats, les déplacements, les retraites, les jonctions, les
-   dispersions et la progression des chaînes.
-5. Le contrôle territorial, les déplacements de nobles et les événements sont
-   mis à jour.
-6. Le serveur construit un rapport de tour typé à partir des événements de la
+   avant l'énumération des intentions d'armée.
+4. Le moteur résout simultanément les intentions, les soutiens, les combats,
+   les déplacements, les retraites, les jonctions, les dispersions, les
+   transferts de ressources et la progression des chaînes.
+5. Le contrôle territorial et les déplacements de nobles sont mis à jour à
+   partir des positions et des résultats de cette résolution.
+6. Le moteur résout le ravitaillement de fin de tour sur ces positions et ce
+   contrôle définitifs, territoires tout juste capturés compris : revenu
+   territorial, production des moulins et rations, puis famine (section 5).
+7. Le serveur construit un rapport de tour typé à partir des événements de la
    résolution.
 
 La chaîne soumise est attachée immédiatement à l'armée présente sur la
@@ -265,17 +268,19 @@ Une case ne porte qu'une seule infrastructure.
 C'est le territoire contrôlé, et non l'infrastructure bâtie, qui produit la
 ressource `R` stockable : chaque saison d'action (jamais en hiver), chaque
 territoire contrôlé rapporte `territory_income` R, plus `village_income` R
-s'il porte un village, versés avant le ravitaillement (voir
-`assets/balance.yaml`). Un territoire membre d'un fief le verse à la
-**capitale du fief** plutôt qu'à la capitale du joueur, y compris lorsque le
-territoire producteur ou la capitale du fief elle-même est occupée par une
-armée adverse : ce revenu n'est jamais intercepté par l'occupant (voir
-[titres.md](titres.md#contrôle-et-occupation)). Hors fief, il est versé
-directement au stock de la capitale du joueur ; sans capitale, le revenu de
-chaque territoire va au château contrôlé le plus proche, sinon au village
-contrôlé le plus proche, sinon il est perdu. La famine supprime ce revenu
-dans la région du territoire qui le produit ; la Récolte abondante le double,
-comme pour les rations.
+s'il porte un village (voir `assets/balance.yaml`). Ce revenu est crédité en
+fin de tour, avec le reste du ravitaillement (section 5), sur le contrôle
+final du tour : un territoire capturé pendant le tour verse son revenu à son
+nouveau contrôleur, pas à celui du début de tour. Un territoire membre d'un
+fief le verse à la **capitale du fief** plutôt qu'à la capitale du joueur, y
+compris lorsque le territoire producteur ou la capitale du fief elle-même est
+occupée par une armée adverse : ce revenu n'est jamais intercepté par
+l'occupant (voir [titres.md](titres.md#contrôle-et-occupation)). Hors fief, il
+est versé directement au stock de la capitale du joueur ; sans capitale, le
+revenu de chaque territoire va au château contrôlé le plus proche, sinon au
+village contrôlé le plus proche, sinon il est perdu. La famine supprime ce
+revenu dans la région du territoire qui le produit ; la Récolte abondante le
+double, comme pour les rations.
 
 Un village est une infrastructure rare et neutre à la génération ; il ne
 peut pas être construit. Neutre, il produit `village_income` R par tour dans
@@ -389,9 +394,12 @@ Les règles de combat sont les suivantes :
   réussissent dès qu'une résolution cohérente avec ces règles le permet
   (mouvement circulaire).
 
-### Ravitaillement exponentiel
+### Ravitaillement et famine
 
-Une armée de `N` troupes sur une case demande :
+Le ravitaillement est résolu en fin de tour d'action (voir section 2), sur les
+positions et le contrôle territorial définitifs du tour, territoires tout
+juste capturés compris : revenu territorial, production des moulins, rations
+de terrain, puis famine. Une armée de `N` troupes sur une case demande :
 
 `coût = 2^(N - 1)`
 
@@ -416,15 +424,21 @@ En cas de déficit :
 2. les armées restantes passent en famine, en commençant par les plus éloignées
    de leur source, puis les plus grosses, puis le trigramme décroissant.
 
-Une armée en famine combat à force 0 pour le tour et ne peut que se déplacer à
-force 0, même si elle est commandée par un noble. Si elle se trouve sur une
-infrastructure, elle la pille
-automatiquement. Le bonus de pillage, diminué de sa demande résiduelle, peut la
-sortir de famine. Si le pillage est insuffisant ou impossible, elle perd une
-troupe, sans jamais descendre sous 1 troupe. Elle reste
-néanmoins en famine pour le tour en cours : même si cette perte rendait sa
-demande future soutenable, la désorganisation lui conserve une force de 0 pour
-ce tour.
+Une armée en famine pille automatiquement l'infrastructure de sa case, si elle
+en occupe une. Le bonus de pillage, diminué de sa demande résiduelle, peut la
+sortir de famine. Si le pillage est insuffisant ou impossible, elle perd
+immédiatement une troupe, sans jamais descendre sous 1 troupe.
+
+Une armée qui termine ainsi le tour en famine est marquée **affamée**, un
+statut qui persiste jusqu'à la résolution de ravitaillement suivante. Pendant
+tout le tour suivant, une armée affamée combat et se défend à force 0, même si
+elle est commandée par un noble : le bonus de noble ne s'applique alors pas ;
+elle ne peut pas émettre de transfert de ressources (`T`, section 6). À la
+résolution de ravitaillement du tour suivant, son
+statut est recalculé exactement comme celui de n'importe quelle armée : si
+elle a atteint une source suffisante entre-temps, elle redevient valide dès ce
+tour ; sinon, elle subit à nouveau le pillage automatique ou la perte d'une
+troupe et reste affamée pour le tour d'après.
 
 ## 6. Ordres et chaînes de commandement
 
@@ -487,9 +501,10 @@ arrivées pacifiques ne s'effectue.
 
 Un transfert qui manque de ressources n'a aucun effet et n'interrompt pas la
 chaîne. En boucle, un transfert vide le reliquat du stock par une livraison
-partielle avant de progresser. Une armée affamée ne peut pas transférer. Les
-stocks présents sur les cases ordinaires sont des sources de ravitaillement
-pendant les tours d'action ; l'armée locale les consomme en priorité.
+partielle avant de progresser. Une armée affamée (section 5) ne peut pas
+émettre de transfert. Les stocks présents sur les cases
+ordinaires sont des sources de ravitaillement pendant les tours d'action ;
+l'armée locale les consomme en priorité.
 
 Une armée sans chaîne est Sans Ordre et ne reçoit aucun soutien automatique.
 Toute erreur statique d'une chaîne est contrôlée à la soumission : syntaxe,

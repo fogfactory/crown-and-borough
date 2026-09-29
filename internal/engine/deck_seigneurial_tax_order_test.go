@@ -189,6 +189,56 @@ func TestSeigneurialTaxOpensRevoltWindowOnEveryFiefTerritory(t *testing.T) {
 	}
 }
 
+// TestSeigneurialTaxDoublingCanceledWhenCapitalCapturedSameTurn covers #208:
+// the fief's capital changing hands the same turn the tax is played must not
+// let the doubling either apply to the old owner (who no longer controls the
+// fief by the time income credits, after captures) or leak to the conqueror
+// (who never played the tax). It must simply not apply, with no error.
+func TestSeigneurialTaxDoublingCanceledWhenCapitalCapturedSameTurn(t *testing.T) {
+	state := taxTestState(t)
+	state.Territories = append(state.Territories, territory("ENY", "ENY", "FCP"))
+	state.TerritoryStates["ENY"] = models.TerritoryState{}
+	for i := range state.Territories {
+		if state.Territories[i].ID == "FCP" {
+			state.Territories[i].Adjacencies = append(state.Territories[i].Adjacencies, "ENY")
+		}
+	}
+	state.Armies = []models.Army{{ID: "A1", OwnerID: "P2", TerritoryID: "ENY", Size: 3}}
+	enyOwner := models.PlayerID("P2")
+	enyState := state.TerritoryStates["ENY"]
+	armyID := models.ArmyID("A1")
+	enyState.OwnerID = &enyOwner
+	enyState.Army = &armyID
+	state.TerritoryStates["ENY"] = enyState
+	state.NextArmyID = nextArmyID(state.Armies)
+	addNoble(state, "N2", "TWO", "P2", "ENY")
+	addChain(t, state, "A1", "N2", models.Order{
+		Type: models.OrderTypeAttack, PositionID: "ENY", TargetIDs: []models.TerritoryID{"FCP"},
+	})
+	validateTestState(t, state)
+
+	resolution, err := ResolveWithDeckOrders(state, testBalance(), map[models.PlayerID][]models.DeckOrder{
+		"P1": {{ID: "O1", Type: models.DeckOrderTypePlay, Kind: models.CardKindSeigneurialTax, TargetTerritoryID: "FCP"}},
+	})
+	if err != nil {
+		t.Fatalf("ResolveWithDeckOrders: %v", err)
+	}
+	if resolution.State.Fiefs[0].OwnerID != "P2" {
+		t.Fatalf("fief owner = %q, want P2 after the uncontested capture", resolution.State.Fiefs[0].OwnerID)
+	}
+	// P2, the conqueror, must receive the fief's normal (undoubled) income:
+	// 3 territories plus MEM's village, 4 R, not 8.
+	conquerorEvent := incomeEventForFief(t, resolution.Events, "P2", "FCP", "F1")
+	if conquerorEvent.Production != 4 {
+		t.Fatalf("conqueror income event = %#v, want 4 R, not doubled", conquerorEvent)
+	}
+	for _, event := range resolution.Events {
+		if event.Type == EventTypeIncome && event.OwnerID == "P1" && event.FiefID == "F1" {
+			t.Fatalf("events = %#v, want no income event for P1 on the fief it no longer controls", event)
+		}
+	}
+}
+
 // TestSeigneurialTaxAndRevoltInTheSameSubmission mirrors hotseat test 3's
 // sharpest case: the tax and a revolt on another territory of the same
 // fief, both played in the very same order submission (not a follow-up

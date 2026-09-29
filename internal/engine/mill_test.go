@@ -258,6 +258,10 @@ func TestMillReportLineHasRoutedDestination(t *testing.T) {
 	setTerritoryOwner(state, "CAS", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 2, TerritoryID: "MIL"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "CAS"})
+	// No army garrisons CAS: anchor it as P1's capital so control resolution
+	// (now ahead of ravitaillement, #208) does not release it as unanchored
+	// before supply can route the mill's production there.
+	setCapital(state, "P1", "I2")
 	validateTestState(t, state)
 
 	resolution, err := Resolve(state, testBalance())

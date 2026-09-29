@@ -238,7 +238,13 @@ L'état projeté sépare la couche dynamique du `GameState` de stockage :
 `projectedIncome` est le revenu territorial (`territory_income` +
 `village_income` éventuel) que rapporterait ce joueur ou ce territoire au
 prochain tour d'action, en ignorant les cartes calamité déjà tirées ce tour
-pour ne pas en révéler l'effet à l'avance ; il vaut `0` en hiver.
+pour ne pas en révéler l'effet à l'avance ; il vaut `0` en hiver. Le revenu
+réel est crédité en fin de tour, sur le contrôle territorial définitif
+([#208](https://github.com/fogfactory/crown-and-borough/issues/208)) ; cette
+projection reste délibérément statique : elle porte sur le contrôle actuel,
+tel qu'il serait **si aucune armée ne bougeait d'ici la résolution**, sans
+anticiper l'effet des ordres en cours de rédaction sur les captures de
+territoire.
 `incomeDestination` est le territoire qui recevra ce revenu (la capitale du
 joueur, à défaut le château contrôlé le plus proche, à défaut le village
 contrôlé le plus proche) ; il est absent si le revenu est perdu faute de
@@ -263,24 +269,28 @@ fortifié par `C C` (economie.md#village-fortifié) ; le champ est absent
 partout ailleurs.
 
 `projectedConsumption` est la somme des rations effectivement tirées du stock
-ou du réseau de ravitaillement au prochain tour d'action (une armée
-pleinement nourrie localement, ou qui finirait affamée, compte pour `0`, pas
-pour son coût total), avec les mêmes garanties que `projectedIncome` (récolte
-normale, ignore les cartes calamité déjà tirées) ; il vaut `0` en hiver,
-saison sans ravitaillement. `armiesAtRisk` liste les armées qui seraient
-effectivement affamées si rien ne change avant la résolution : le calcul
-rejoue la même allocation que la résolution réelle
+ou du réseau de ravitaillement sur les positions **actuelles** des armées (une
+armée pleinement nourrie localement, ou qui finirait affamée, compte pour `0`,
+pas pour son coût total), avec les mêmes garanties que `projectedIncome`
+(récolte normale, ignore les cartes calamité déjà tirées) ; il vaut `0` en
+hiver, saison sans ravitaillement. `armiesAtRisk` liste les armées qui
+seraient effectivement affamées si rien ne change avant la résolution : le
+calcul rejoue la même allocation que la résolution réelle
 (`assignSupply`/`resolveSupplyStocks`/`selectAssignedFamine`) sur un état
 jetable, y compris le partage contesté d'une même source entre plusieurs
 armées du joueur — ce n'est pas une heuristique par armée isolée. `deficit`
 est le manque de rations qui reste sans réponse, pas un nombre de troupes qui
 mourraient (une famine réelle coûte toujours exactement 1 troupe). Cette
-projection reste une estimation pour deux raisons hors de son contrôle :
-elle suppose toujours une récolte normale (les cartes calamité déjà tirées
-mais pas encore révélées ne la modifient jamais), et elle suppose que les
-ordres restent tels que rédigés actuellement, puisqu'elle s'exécute avant
-leur soumission. `armiesAtRisk` est absent quand aucune armée n'est
-concernée.
+projection reste une estimation statique, explicitement présentée au joueur
+comme valable **si les armées ne bougent pas** : elle suppose toujours une
+récolte normale (les cartes calamité déjà tirées mais pas encore révélées ne
+la modifient jamais), et elle ne rejoue pas les mouvements, combats ni
+transferts du brouillon d'ordres en cours de rédaction, alors que le
+ravitaillement réel se résout après eux, en fin de tour
+([#208](https://github.com/fogfactory/crown-and-borough/issues/208)) — un
+calcul hypothétique post-mouvement resterait à la fois plus juste et nettement
+plus complexe à produire avant soumission, et n'est pas couvert ici.
+`armiesAtRisk` est absent quand aucune armée n'est concernée.
 
 `army` vaut `null` lorsqu'aucune armée n'occupe la case. Dans une armée, `chain`
 vaut `null` lorsqu'aucune chaîne n'est active. Une chaîne existante dont le
@@ -479,9 +489,19 @@ Les modèles métier sont dans `internal/models`. Ils valident notamment :
 le calendrier et renvoie un `TurnReport`. La soumission `special` est indépendante
 des chaînes de nobles et des investissements d'hiver. Les ordres de cartes sont
 validés et consommés avant les phases militaires ; leurs effets sont agrégés par
-région avant le ravitaillement et l'énumération des intentions. Le rapport
-contient des sections typées pour les joueurs, ordres, combats, mouvements,
-ravitaillement, famine, nobles, rumeurs publiques et investissements d'hiver.
+région avant l'énumération des intentions. `Resolve` enchaîne ensuite les
+intentions, les soutiens, les combats, les déplacements, les retraites, les
+jonctions, les dispersions, les transferts de ressources et la progression des
+chaînes, met à jour le contrôle territorial, puis résout le ravitaillement de
+fin de tour (revenu territorial, moulins, rations, famine) sur les positions et
+le contrôle ainsi obtenus, territoires tout juste capturés compris
+([#208](https://github.com/fogfactory/crown-and-borough/issues/208)). Une
+armée en déficit à cette étape est marquée affamée : elle combat à force 0,
+sans bonus de noble, et ne peut ni transférer ni recevoir de transfert pendant
+tout le tour suivant, jusqu'à sa prochaine évaluation (voir
+[`ravitaillement.md`](ravitaillement.md)). Le rapport contient des sections
+typées pour les joueurs, ordres, combats, mouvements, ravitaillement, famine,
+nobles, rumeurs publiques et investissements d'hiver.
 La constitution et l'attribution d'un fief (`T F`/`T A`), ainsi que
 l'attribution par défaut d'un fief encore vacant en fin d'hiver, apparaissent
 parmi les investissements d'hiver ; une section `fiefs` dédiée couvre la

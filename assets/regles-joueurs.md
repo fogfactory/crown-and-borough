@@ -72,11 +72,15 @@ la même façon :
 2. Le moteur vérifie chaque soumission : une erreur de syntaxe ou de
    réception rejette la soumission fautive, sans toucher au reste de la
    partie (section 4).
-3. Le moteur résout **tout le monde ensemble** : ravitaillement, intentions,
-   soutiens, combats, déplacements, retraites, jonctions, dispersions et
-   progression des chaînes.
-4. Le contrôle territorial, la position des nobles et les événements sont mis
-   à jour, puis un **rapport de tour** est produit.
+3. Le moteur résout **tout le monde ensemble** : intentions, soutiens,
+   combats, déplacements, retraites, jonctions, dispersions, transferts de
+   ressources et progression des chaînes.
+4. Le contrôle territorial et la position des nobles sont mis à jour à partir
+   des positions et des résultats de cette résolution.
+5. Le moteur résout le **ravitaillement** sur ces positions et ce contrôle
+   définitifs — territoires tout juste capturés compris : revenu territorial,
+   production des moulins, rations et famine (section 7) — puis un **rapport
+   de tour** est produit.
 
 Une armée n'exécute **qu'une seule ligne de sa chaîne par saison d'action** :
 un ordre `A` ou `J` franchit donc au plus une case adjacente pendant cette
@@ -93,7 +97,7 @@ d'investissements directs, traités dans l'ordre où il les a écrits
 
 | Saison | Ce qui s'y passe |
 |---|---|
-| Printemps, été, automne | Ravitaillement calculé en premier, puis intentions, soutiens, combats, déplacements, jonctions, dispersions et progressions de chaînes résolus ensemble. Une seule ligne courante par armée. |
+| Printemps, été, automne | Intentions, soutiens, combats, déplacements, jonctions, dispersions, transferts et progressions de chaînes résolus ensemble, puis contrôle territorial mis à jour, puis ravitaillement calculé en dernier sur ces positions et ce contrôle définitifs. Une seule ligne courante par armée. |
 | Hiver | Pas de ravitaillement ni d'ordre de chaîne : les investissements sont appliqués un par un, dans la liste saisie, puis les stocks sont conservés et rapatriés. |
 
 Les ordres de printemps, été et automne ne forment donc pas une file d'attente
@@ -360,13 +364,14 @@ BRI D BRI ATL NOR          # BRI garde la chaîne, les autres groupes se sépare
 
 ### Transfert (`T`)
 
-**L'essentiel** : `XXX T YYY N` est exécuté après le ravitaillement, par
-l'armée en `XXX`. `YYY` doit être un château, un village, ou la case d'une
-armée **contrôlant** sa propre case et appartenant à un autre joueur vivant
-(une armée qui ne fait qu'occuper `YYY`, par exemple sur un membre de fief
-qu'elle ne contrôle pas, ne peut pas recevoir) ; un dépôt sans armée ne peut
-pas recevoir. Le stock source peut exister sans infrastructure, mais pas s'il
-est occupé contre son contrôleur.
+**L'essentiel** : `XXX T YYY N` est exécuté pendant la résolution des ordres,
+avant le ravitaillement de fin de tour (section 7), par l'armée en `XXX`.
+`YYY` doit être un château, un village, ou la case d'une armée **contrôlant**
+sa propre case et appartenant à un autre joueur vivant (une armée qui ne fait
+qu'occuper `YYY`, par exemple sur un membre de fief qu'elle ne contrôle pas,
+ne peut pas recevoir) ; un dépôt sans armée ne peut pas recevoir. Le stock
+source peut exister sans infrastructure, mais pas s'il est occupé contre son
+contrôleur.
 
 **Cas particuliers** :
 
@@ -374,9 +379,10 @@ est occupé contre son contrôleur.
   cases, plus les dépôts contrôlés) ; toute armée adverse sur une case
   intermédiaire la bloque, mais une armée adverse en destination est
   autorisée ;
-- une armée affamée ne peut pas transférer ; le montant est plafonné à
-  `{{cost_base}}^(N - 1)` pour une armée de `N` troupes, sans déduire les
-  rations locales ; l'armée ne fait aucun autre ordre ce tour ;
+- une armée affamée (section 7) ne peut pas émettre de transfert ; le montant
+  est plafonné à `{{cost_base}}^(N - 1)` pour une
+  armée de `N` troupes, sans déduire les rations locales ; l'armée ne fait
+  aucun autre ordre ce tour ;
 - un manque de stock n'a aucun effet et ne casse pas une chaîne `single` ; en
   `loop`, le transfert retente, et si le stock restant est inférieur au
   montant demandé, le reliquat est envoyé par une livraison partielle et
@@ -513,9 +519,11 @@ son passage au cachot, décrit section 8, lui retire cette capacité.
 
 ### Le coût exponentiel d'une armée
 
-Le ravitaillement est résolu **au début de chaque saison d'action**, avant
-les ordres, les combats et les déplacements ; il n'existe pas de phase de
-ravitaillement en hiver. Une armée de `N` troupes demande :
+Le ravitaillement est résolu **en fin de chaque saison d'action**, après les
+ordres, les combats et les déplacements, sur les positions et le contrôle
+territorial définitifs du tour — territoires tout juste capturés compris ; il
+n'existe pas de phase de ravitaillement en hiver. Une armée de `N` troupes
+demande :
 
 ```text
 coût = {{cost_base}}^(N - 1)  rations
@@ -589,10 +597,12 @@ conditionne jamais cette production.
 
 À chaque saison d'action (jamais en hiver), chaque territoire que tu
 contrôles rapporte {{territory_income}} R, plus {{village_income}} R
-supplémentaire s'il porte un village. Ce revenu est crédité **avant le
-ravitaillement** : il ne circule pas par le réseau de ravitaillement et ne
-peut donc jamais être intercepté, même quand le territoire producteur — ou sa
-destination — est occupé par une armée adverse.
+supplémentaire s'il porte un village. Ce revenu est crédité **en fin de
+tour**, avec le reste du ravitaillement, sur le contrôle territorial définitif
+du tour : un territoire capturé pendant le tour verse son revenu à son nouveau
+contrôleur, pas à celui du début de tour. Il ne circule pas par le réseau de
+ravitaillement et ne peut donc jamais être intercepté, même quand le
+territoire producteur — ou sa destination — est occupé par une armée adverse.
 
 Un territoire membre d'un **fief** (section 8) verse son revenu au stock de
 la **capitale du fief** plutôt qu'à ta capitale. Hors fief, il va directement
@@ -619,19 +629,28 @@ En cas de déficit :
    éloignées de leur source, puis les plus grosses, puis le trigramme
    décroissant.
 
-Une armée en famine **combat et se défend à force 0** pour le tour, même si
-elle porte un noble libre. Si elle occupe une infrastructure, elle la
-**pille automatiquement** ; le bonus de pillage, diminué de sa demande
-résiduelle, peut la sortir de famine. Si le pillage est insuffisant ou
-impossible, elle perd **1 troupe**, sans jamais descendre sous 1 — mais elle
-reste affamée et à force 0 pour toute la saison en cours, même si cette
-perte rendait sa demande future soutenable ; la perte se répète à chaque
-saison où l'armée reste affamée.
+Une armée qui manque de rations à cette résolution de fin de tour **pille
+automatiquement** l'infrastructure de sa case, si elle en occupe une ; le
+bonus de pillage, diminué de sa demande résiduelle, peut la sortir du déficit.
+Si le pillage est insuffisant ou impossible, elle perd **1 troupe**, sans
+jamais descendre sous 1.
+
+Une armée qui termine ainsi le tour en déficit est marquée **affamée**, un
+statut qui persiste pendant tout le tour suivant : elle **combat et se défend
+à force 0**, même si elle porte un noble libre — le bonus de noble ne
+s'applique pas — et elle ne peut pas émettre de transfert de ressources
+(section 5). Son statut n'est recalculé qu'à la
+prochaine résolution de ravitaillement, en fin de ce tour suivant : si elle a
+atteint une source suffisante entre-temps, elle redevient valide dès ce tour ;
+sinon, elle subit à nouveau le pillage automatique ou la perte d'une troupe et
+reste affamée pour le tour d'après.
 
 Exemple : une armée de 2 troupes en déficit demande 2 rations. Si ses stocks
-et son pillage ne couvrent pas ce déficit, elle perd une troupe et passe à
-1 troupe ; elle reste néanmoins à force 0 ce tour, même si une armée d'1
-troupe ne demanderait ensuite qu'1 ration.
+et son pillage ne couvrent pas ce déficit en fin de tour, elle perd une troupe
+et passe à 1 troupe, et est marquée affamée : elle combattra et se défendra à
+force 0 tout le tour suivant, même si une armée d'1 troupe ne demanderait
+ensuite qu'1 ration — son sort dépend de ce qu'elle atteint comme source d'ici
+la fin de ce tour suivant, pas de sa nouvelle demande.
 
 Dans l'interface, sélectionner une armée ou une source contrôlée affiche son
 ravitaillement ou la zone qu'elle atteint (hors hiver). Un transfert en cours
@@ -889,7 +908,9 @@ ne se résout en hiver.
   pour le tour, village inclus, sans jamais toucher la production des
   moulins. Rejetée si le joueur ne détient pas le fief ciblé, ou si XXX n'en
   est pas la capitale. Deux cartes jouées sur le même fief le même tour ne se
-  cumulent pas : la seconde est consommée sans effet.
+  cumulent pas : la seconde est consommée sans effet. Si la capitale du fief
+  taxé est capturée pendant ce même tour, la taxe est annulée : personne ne
+  touche le doublement pour ce tour de transition.
 
 Les rumeurs publiques sont recalculées dans chaque rapport à partir des
 mains bonus actuelles de tous les joueurs. Elles apparaissent lorsqu'au

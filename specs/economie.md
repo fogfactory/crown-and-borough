@@ -81,9 +81,11 @@ Issue : [#192](https://github.com/fogfactory/crown-and-borough/issues/192)
 - À chaque tour d'action (printemps, été, automne ; jamais en hiver), chaque
   territoire contrôlé rapporte `territory_income` R (1), plus
   `village_income` R (1) s'il porte un village.
-- Le revenu est crédité au moment où la production est créditée aujourd'hui,
-  avant le ravitaillement. Il n'est pas acheminé par le réseau et ne peut pas
-  être intercepté.
+- Le revenu est crédité en **fin de tour**, avec le reste du ravitaillement
+  ([#208](https://github.com/fogfactory/crown-and-borough/issues/208)), sur le
+  contrôle territorial définitif du tour : un territoire capturé pendant le
+  tour verse son revenu à son nouveau contrôleur, pas à celui du début de
+  tour. Il n'est pas acheminé par le réseau et ne peut pas être intercepté.
 - Hors fief, il est versé au stock de la **capitale du joueur**. Sans
   capitale (ou si elle vient de tomber), le revenu de **chaque territoire**
   est calculé indépendamment : il va au château contrôlé le plus proche
@@ -97,7 +99,11 @@ Issue : [#192](https://github.com/fogfactory/crown-and-borough/issues/192)
   l'occupant. Le regroupement du rapport de revenu se fait par (destination,
   fief) : un fief dont la capitale coïncide avec la capitale du joueur
   produit donc une ligne distincte de celle du reste du domaine, même s'ils
-  partagent la même destination.
+  partagent la même destination. Lorsque la capitale d'un fief taxé
+  ([#189](https://github.com/fogfactory/crown-and-borough/issues/189)) est
+  capturée pendant le tour même où la taxe seigneuriale s'applique, la taxe
+  est annulée pour ce tour de transition : personne ne touche le doublement,
+  ni l'ancien ni le nouveau détenteur du fief.
 - La production de base des châteaux et villages contrôlés
   (`base_production`) est supprimée : le revenu territorial la remplace. Le
   revenu territorial et la production des moulins restent deux flux
@@ -137,6 +143,14 @@ même territoire le même tour.
 
 Issue : [#195](https://github.com/fogfactory/crown-and-borough/issues/195).
 **Appliqué.**
+
+La production des moulins suit le même timing de fin de tour que le revenu
+territorial et la famine ([#208](https://github.com/fogfactory/crown-and-borough/issues/208)) :
+elle se calcule sur le contrôle et l'occupation définitifs du tour, avec les
+mêmes calamités météo (mauvais temps, Beau temps). L'algorithme de production
+et de destination d'un moulin lui-même n'en est pas modifié. Un moulin détruit
+par un ordre de pillage (`T P`) pendant la résolution des mouvements ne
+produit rien ce tour-là : la destruction précède le calcul de fin de tour.
 
 Un moulin outre-fief et hors capitale, sans armée dessus, est **inerte**
 ([#215](https://github.com/fogfactory/crown-and-borough/issues/215)) : il ne
@@ -291,11 +305,13 @@ l'armée émettrice vers `YYY`.
 - Le réseau peut être estimé à la soumission et dans l'overlay, puis est
   recalculé sur la position de début du tour lorsque l'ordre est exécuté. Une
   route bloquée rend l'ordre invalide.
-- Une armée affamée ne peut pas transférer. Elle ne transporte pas plus que sa
-  consommation brute : `2^(N - 1)` ressources pour une armée de `N` troupes,
-  sans déduire les rations locales.
-- L'ordre est traité après le ravitaillement. L'armée qui le porte ne réalise
-  aucun autre ordre pendant ce tour.
+- Une armée affamée ([#208](https://github.com/fogfactory/crown-and-borough/issues/208))
+  ne peut pas émettre de transfert. Elle ne transporte pas plus que sa
+  consommation brute : `2^(N - 1)` ressources pour une armée
+  de `N` troupes, sans déduire les rations locales.
+- L'ordre est traité pendant la résolution des ordres d'armée, avant le
+  ravitaillement de fin de tour. L'armée qui le porte ne réalise aucun autre
+  ordre pendant ce tour.
 - Un manque de ressources n'a aucun effet et ne casse pas une chaîne `single` ;
   elle avance alors vers l'ordre suivant. En mode `loop`, elle retente le
   transfert.

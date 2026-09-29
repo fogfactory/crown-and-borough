@@ -210,6 +210,13 @@ func TestResolveNoHelpSupportAffectsHeadToHeadSwap(t *testing.T) {
 	}
 }
 
+// TestResolveNoHelpSupportOfHeadToHeadWinnerIsApplied checks that a support
+// order is still reported applied even when the side it supports would have
+// won the head-to-head anyway. A1 outnumbers A2 (2 against 1) so it wins on
+// troop count alone, plus its own noble bonus; famine plays no part in the
+// outcome (famine now only weakens combat the turn after an army starves,
+// never the same turn, #208), unlike the size-1-against-2 matchup this test
+// previously relied on a famished A2 to let A1 win.
 func TestResolveNoHelpSupportOfHeadToHeadWinnerIsApplied(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
@@ -218,8 +225,8 @@ func TestResolveNoHelpSupportOfHeadToHeadWinnerIsApplied(t *testing.T) {
 			territory("CCC", "CCC", "AAA", "BBB"),
 		},
 		[]models.Army{
-			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
-			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 2},
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
+			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
 			{ID: "A3", OwnerID: "P2", TerritoryID: "CCC", Size: 1},
 		},
 	)

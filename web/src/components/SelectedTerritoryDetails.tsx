@@ -330,6 +330,11 @@ export function SelectedTerritoryDetails({
                     })}
                   </span>
                 </div>
+                {selectedState.army.starving && (
+                  <p className="mt-2 text-xs font-semibold text-[#8d321e]">
+                    {t('app.armyStarving')}
+                  </p>
+                )}
                 <div className="mt-2 border-t border-[#b7a786]/40 pt-2 text-xs text-[#806f57]">
                   {selectedChain?.visibility === 'hidden' ? (
                     <p className="rounded-md border border-[#b7a786]/50 bg-[#fffaf0] px-2 py-1.5 italic">

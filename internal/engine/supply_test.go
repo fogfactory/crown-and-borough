@@ -82,11 +82,18 @@ func TestResolveSupplyRationsAndEvents(t *testing.T) {
 	}
 
 	t.Run("neutral village stores production without supplying an army", func(t *testing.T) {
+		// A1 stands on a separate, self-sufficient plain territory rather
+		// than on AAA itself: an army standing directly on AAA would capture
+		// it before ravitaillement now runs (control resolves first, #208),
+		// which is exactly what the capture-feeds-the-same-turn scenario
+		// below is about, not this one.
 		state := testState(t,
-			[]models.Territory{supplyTerritory("AAA", "AAA", models.TerrainMountain)},
-			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}},
+			[]models.Territory{
+				supplyTerritory("AAA", "AAA", models.TerrainMountain, "BBB"),
+				supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA"),
+			},
+			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "BBB", Size: 1}},
 		)
-		clearTerritoryOwner(state, "AAA")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA"})
 		validateTestState(t, state)
 
@@ -138,6 +145,10 @@ func TestResolveSupplyRationsAndEvents(t *testing.T) {
 		)
 		setTerritoryOwner(state, "BBB", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
+		// No army garrisons BBB: anchor it as P1's capital so control
+		// resolution (now ahead of ravitaillement, #208) does not release it
+		// as unanchored before supply can use it as a source.
+		setCapital(state, "P1", "I1")
 		validateTestState(t, state)
 
 		resolution, err := Resolve(state, testBalance())
@@ -181,6 +192,10 @@ func TestResolveSupplyProductionAndStocks(t *testing.T) {
 		// army on it, it is inert (#215) and no longer grandfathers production
 		// into CCC's neutral village.
 		addInfrastructure(state, models.Infrastructure{ID: "I4", Type: models.InfraTypeMill, Level: 5, TerritoryID: "DDD"})
+		// No army garrisons AAA: anchor it as P1's capital so control
+		// resolution (now ahead of ravitaillement, #208) does not release it
+		// as unanchored before supply can use it as a source.
+		setCapital(state, "P1", "I1")
 		neutralState := state.TerritoryStates["CCC"]
 		neutralState.Resources = 7
 		state.TerritoryStates["CCC"] = neutralState
@@ -225,6 +240,16 @@ func TestResolveSupplyProductionAndStocks(t *testing.T) {
 			[]models.Army{
 				{ID: "A1", OwnerID: "P1", TerritoryID: "CCC", Size: 3},
 				{ID: "A2", OwnerID: "P1", TerritoryID: "DDD", Size: 1},
+				// A3 and A4 anchor BBB and AAA against control resolution's
+				// unanchored release, now ahead of ravitaillement (#208):
+				// neither carries a fief or a player capital (BBB is a
+				// village and could not be one anyway), which the no-capital
+				// fallback routing this scenario is about requires to stay
+				// absent. Both are fully fed by their own local terrain
+				// rations and never touch pooled stock, leaving every
+				// assertion below unchanged.
+				{ID: "A3", OwnerID: "P1", TerritoryID: "BBB", Size: 1},
+				{ID: "A4", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
 			},
 		)
 		setTerritoryOwner(state, "AAA", "P1")
@@ -323,7 +348,12 @@ func TestResolveSupplyProductionAndStocks(t *testing.T) {
 	})
 }
 
-func TestNeutralVillageCapturePreservesStockAndDelaysSupply(t *testing.T) {
+// TestNeutralVillageCaptureFeedsSupplyTheSameTurn mirrors #208's acceptance
+// case: a village captured this turn is already a controlled source, its
+// territory income already routed to the capital, by the end of this same
+// turn -- ravitaillement now resolves after control (progressChainsAndControl),
+// not before it.
+func TestNeutralVillageCaptureFeedsSupplyTheSameTurn(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
 			supplyTerritory("AAA", "AAA", models.TerrainPlain, "BBB"),
@@ -351,30 +381,35 @@ func TestNeutralVillageCapturePreservesStockAndDelaysSupply(t *testing.T) {
 	if target.OwnerID == nil || *target.OwnerID != "P1" {
 		t.Errorf("captured village owner = %v, want P1", target.OwnerID)
 	}
-	if target.Resources != 4 {
-		t.Errorf("captured village stock = %d, want preloaded 3 plus neutral production", target.Resources)
+	// Once captured, BBB's own stock only carries its preloaded 3: as a
+	// controlled source (not a neutral one any more) its territory income
+	// routes to the still-valid capital at AAA instead, this same turn.
+	if target.Resources != 3 {
+		t.Errorf("captured village stock = %d, want preloaded 3 unchanged", target.Resources)
 	}
-	neutralEvent := supplyEventForSource(t, resolution.Events, "BBB")
-	if neutralEvent.OwnerID != "" || neutralEvent.Demand != 0 || neutralEvent.StockAfter != 4 {
-		t.Errorf("capture-turn supply event = %#v, want neutral stock before capture", neutralEvent)
+	capturedEvent := supplyEventForSource(t, resolution.Events, "BBB")
+	if capturedEvent.OwnerID != "P1" || capturedEvent.Demand != 0 || capturedEvent.Production != 0 || capturedEvent.StockAfter != 3 {
+		t.Errorf("capture-turn supply event = %#v, want P1's controlled stock, no local production", capturedEvent)
+	}
+	// AAA's own income (1) plus BBB's (2, territory + village), both credited
+	// to the capital the same turn BBB changes hands.
+	if got := resolution.State.TerritoryStates["AAA"].Resources; got != 3 {
+		t.Errorf("capital stock after capture turn = %d, want its own income 1 plus BBB's 2", got)
 	}
 
 	next, err := Resolve(resolution.State, testBalance())
 	if err != nil {
 		t.Fatalf("Resolve after capture: %v", err)
 	}
-	// Once controlled, BBB no longer produces locally (no mill of its own):
-	// its territory income now flows to the still-valid capital at AAA
-	// instead of staying on BBB's own stock.
 	controlledEvent := supplyEventForSource(t, next.Events, "BBB")
-	if controlledEvent.OwnerID != "P1" || controlledEvent.Production != 0 || controlledEvent.StockAfter != 4 {
+	if controlledEvent.OwnerID != "P1" || controlledEvent.Production != 0 || controlledEvent.StockAfter != 3 {
 		t.Errorf("post-capture supply event = %#v, want no local production once controlled", controlledEvent)
 	}
-	if got := next.State.TerritoryStates["BBB"].Resources; got != 4 {
-		t.Errorf("post-capture village stock = %d, want unchanged 4", got)
+	if got := next.State.TerritoryStates["BBB"].Resources; got != 3 {
+		t.Errorf("post-capture village stock = %d, want unchanged 3", got)
 	}
-	if got := next.State.TerritoryStates["AAA"].Resources; got != 4 {
-		t.Errorf("capital stock before winter = %d, want its own income 1 plus BBB's 2 (territory + village) plus turn 1's 1", got)
+	if got := next.State.TerritoryStates["AAA"].Resources; got != 6 {
+		t.Errorf("capital stock before winter = %d, want turn 1's 3 plus a second turn's own income 1 plus BBB's 2", got)
 	}
 
 	winter := cloneGameState(next.State)
@@ -412,6 +447,10 @@ func TestResolveSupplyNetworks(t *testing.T) {
 		)
 		setTerritoryOwner(state, "AAA", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+		// No army garrisons AAA: anchor it as P1's capital so control
+		// resolution (now ahead of ravitaillement, #208) does not release it
+		// as unanchored before supply can use it as a source.
+		setCapital(state, "P1", "I1")
 		validateTestState(t, state)
 
 		resolution, err := Resolve(state, testBalance())
@@ -433,12 +472,21 @@ func TestResolveSupplyNetworks(t *testing.T) {
 				supplyTerritory("MMM", "MMM", models.TerrainMountain, "ZZZ", "AAA"),
 				supplyTerritory("AAA", "AAA", models.TerrainPlain, "MMM"),
 			},
-			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "MMM", Size: 2}},
+			[]models.Army{
+				{ID: "A1", OwnerID: "P1", TerritoryID: "MMM", Size: 2},
+				// A2 anchors AAA (a village, so it cannot be a capital like
+				// ZZZ below) against control resolution's unanchored release,
+				// now ahead of ravitaillement (#208); it is fully fed by
+				// AAA's own local terrain rations and never competes for the
+				// tie-break this scenario is about.
+				{ID: "A2", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+			},
 		)
 		setTerritoryOwner(state, "ZZZ", "P1")
 		setTerritoryOwner(state, "AAA", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "ZZZ"})
 		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA"})
+		setCapital(state, "P1", "I1")
 		validateTestState(t, state)
 
 		resolution, err := Resolve(state, testBalance())
@@ -466,7 +514,17 @@ func TestResolveSupplyNetworks(t *testing.T) {
 				supplyTerritory("GGG", "GGG", models.TerrainPlain, "FFF", "HHH"),
 				supplyTerritory("HHH", "HHH", models.TerrainMountain, "GGG"),
 			},
-			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "HHH", Size: 2}},
+			[]models.Army{
+				{ID: "A1", OwnerID: "P1", TerritoryID: "HHH", Size: 2},
+				// A2, A3 and A4 anchor AAA, DDD and FFF against control
+				// resolution's unanchored release, now ahead of
+				// ravitaillement (#208), so the castle and both depots stay
+				// controlled sources for the relay this scenario is about.
+				// All three are fully fed by their own local terrain rations.
+				{ID: "A2", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+				{ID: "A3", OwnerID: "P1", TerritoryID: "DDD", Size: 1},
+				{ID: "A4", OwnerID: "P1", TerritoryID: "FFF", Size: 1},
+			},
 		)
 		setTerritoryOwner(state, "AAA", "P1")
 		setTerritoryOwner(state, "DDD", "P1")
@@ -503,6 +561,10 @@ func TestResolveSupplyNetworks(t *testing.T) {
 		setTerritoryOwner(state, "AAA", "P1")
 		setTerritoryOwner(state, "BBB", "P2")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+		// No army garrisons AAA: anchor it as P1's capital so control
+		// resolution (now ahead of ravitaillement, #208) does not release it
+		// as unanchored before supply can use it as a source.
+		setCapital(state, "P1", "I1")
 		validateTestState(t, state)
 
 		resolution, err := Resolve(state, testBalance())
@@ -529,6 +591,13 @@ func TestResolveSupplyNetworks(t *testing.T) {
 		setTerritoryOwner(state, "AAA", "P1")
 		setTerritoryOwner(state, "BBB", "P2")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+		// No army garrisons AAA: anchor it as P1's capital so control
+		// resolution (now ahead of ravitaillement, #208) does not release it
+		// as unanchored before supply can use it as a source. BBB's own,
+		// unanchored P2 ownership is released the same way, but that does not
+		// change this scenario: supplyNetwork only blocks on an army, never
+		// on bare ownership.
+		setCapital(state, "P1", "I1")
 		validateTestState(t, state)
 
 		resolution, err := Resolve(state, testBalance())
@@ -559,6 +628,10 @@ func TestResolveSupplyIsolatedByOwner(t *testing.T) {
 	setTerritoryOwner(state, "AAA", "P1")
 	clearTerritoryOwner(state, "BBB")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+	// No army garrisons AAA: anchor it as P1's capital so control resolution
+	// (now ahead of ravitaillement, #208) does not release it as unanchored
+	// before supply can use it as a source.
+	setCapital(state, "P1", "I1")
 	validateTestState(t, state)
 
 	resolution, err := Resolve(state, testBalance())
@@ -582,23 +655,39 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 				supplyTerritory("CCC", "CCC", models.TerrainPlain, "BBB"),
 			},
 			[]models.Army{
-				{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
+				// Size 3 (not 2): A1's own presence now captures AAA before
+				// ravitaillement runs (control resolves first, #208), turning
+				// its mill into a legitimate self-supplied source (no
+				// same-control neighbor, BBB belongs to P2) instead of the
+				// inert neutral one the old turn order left it as. A size-3
+				// demand still outstrips that mill's level-1 production, so
+				// the deficit -- and the pillage-and-credit point -- survive.
+				{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 3},
 				{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
 			},
 		)
 		setTerritoryOwner(state, "BBB", "P2")
 		setTerritoryOwner(state, "CCC", "P1")
-		// AAA has no eligible same-control neighbor for its mill (BBB
-		// belongs to P2), so under #195 an owned AAA would self-supply and
-		// feed A1 well enough to cancel the famine this scenario is about.
-		// Keeping AAA neutral (A1 still camps on it) preserves the direct
-		// famine and the mill-pillage-and-credit point instead.
 		clearTerritoryOwner(state, "AAA")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "AAA"})
 		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "CCC"})
+		// No army garrisons CCC: anchor it as P1's capital so control
+		// resolution (now ahead of ravitaillement, #208) does not release it
+		// as unanchored before supply can credit the pillage gain to it.
+		setCapital(state, "P1", "I2")
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state, testBalance())
+		// This scenario is about direct famine and pillage, not territory
+		// income: zeroing it out keeps CCC's pooled stock at 0, so AAA's
+		// deficit (see above) cannot be covered from elsewhere in P1's
+		// network before the pillage-and-credit point this test is about. A
+		// higher-than-default pillage bonus is still needed to make saving a
+		// size-3 army's full deficit worth a positive credit.
+		balance := testBalance()
+		balance.TerritoryIncome = 0
+		balance.VillageIncome = 0
+		balance.PillageBonus = 4
+		resolution, err := Resolve(state, balance)
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
@@ -609,13 +698,13 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 		if len(resolution.State.Infrastructures) != 1 || resolution.State.Infrastructures[0].ID != "I2" {
 			t.Errorf("infrastructures = %#v, want only the castle left", resolution.State.Infrastructures)
 		}
-		// CCC is the only controlled castle, so it receives its own
-		// territory income (1, AAA is neutral) plus the pillage gain (1).
-		if got := resolution.State.TerritoryStates["CCC"].Resources; got != 2 {
-			t.Errorf("credited source resources = %d, want territory income plus pillage credit", got)
+		// CCC carries no territory income in this scenario (zeroed out), so
+		// its only resources are the pillage credit.
+		if got := resolution.State.TerritoryStates["CCC"].Resources; got != 1 {
+			t.Errorf("credited source resources = %d, want only the pillage credit", got)
 		}
-		if event := supplyEventForSource(t, resolution.Events, "CCC"); event.StockAfter != 2 {
-			t.Errorf("credited source event stock = %d, want 2", event.StockAfter)
+		if event := supplyEventForSource(t, resolution.Events, "CCC"); event.StockAfter != 1 {
+			t.Errorf("credited source event stock = %d, want 1", event.StockAfter)
 		}
 	})
 
@@ -639,40 +728,42 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 		addInfrastructure(state, models.Infrastructure{ID: "I3", Type: models.InfraTypeMill, Level: 1, TerritoryID: "DDD"})
 		// AAA, BBB and CCC form a fief: BBB carries no army of its own, and
 		// outside every fief and capital an unoccupied mill is inert (#215),
-		// so its production needs this anchor to keep routing to AAA exactly
-		// like before.
+		// so its production needs this anchor to keep routing to AAA.
 		state.Fiefs = []models.Fief{{
 			ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "AAA",
 			Territories: []models.TerritoryID{"AAA", "BBB", "CCC"}, OwnerID: "P1",
 		}}
-		// DDD's mill has no eligible neighbor of its own (CCC carries no
-		// settlement), so under #195 it would otherwise self-supply and
-		// become a closer source than AAA for both armies: keeping DDD
-		// neutral (despite A2 camping on it) preserves this scenario's
-		// point, which is the assigned-famine deficit order through the
-		// single castle at AAA, not mill routing.
-		clearTerritoryOwner(state, "DDD")
 		validateTestState(t, state)
 
 		balance := testBalance()
 		balance.PillageBonus = 3
 		// This scenario is about the famine deficit order, not territory
-		// income: zeroing it out avoids CCC's and DDD's income cascading
-		// into AAA (the only castle) and perturbing the deficit. AAA's
-		// baseline production instead comes from the adjacent mill at BBB,
-		// exactly matching the old base-production deficit of 3.
+		// income: zeroing it out avoids AAA's, CCC's and DDD's income
+		// cascading into the deficit.
 		balance.TerritoryIncome = 0
 		balance.VillageIncome = 0
 		resolution, err := Resolve(state, balance)
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
-		event := famineEventForArmy(t, resolution.Events, "A2")
-		if !event.SavedByPillage || event.ResourceCredit != 0 || event.InfrastructureID != "I3" || event.SourceID != "AAA" {
-			t.Errorf("A2 famine event = %#v, want zero-gain recovery through AAA", event)
+		// A2's own presence now captures DDD before ravitaillement runs
+		// (control resolves first, #208), turning its mill into a legitimate
+		// self-supplied source (CCC carries no settlement of its own):
+		// DDD -- not AAA -- becomes the closest source for both armies (0
+		// for A2 standing right on it, 1 for A1 at neighboring CCC). A1 is
+		// therefore now the farther-assigned army evaluated first
+		// (sortAssignedFamine): it exhausts DDD's single level of mill
+		// production and, with no infrastructure of its own at CCC to
+		// pillage, loses a troop outright. A2, evaluated second, recovers
+		// through its own mill at exactly zero gain (PillageBonus 3 against
+		// its own demand 3).
+		a1Event := famineEventForArmy(t, resolution.Events, "A1")
+		if a1Event.SavedByPillage || a1Event.SourceID != "DDD" || a1Event.TroopsLost != 1 {
+			t.Errorf("A1 famine event = %#v, want an unsaved deficit through DDD", a1Event)
 		}
-		if hasFamineEvent(resolution.Events, "A1") {
-			t.Errorf("events = %#v, want A2 to consume all remaining deficit before A1", resolution.Events)
+		a2Event := famineEventForArmy(t, resolution.Events, "A2")
+		if !a2Event.SavedByPillage || a2Event.ResourceCredit != 0 || a2Event.InfrastructureID != "I3" || a2Event.SourceID != "DDD" {
+			t.Errorf("A2 famine event = %#v, want zero-gain recovery through its own mill", a2Event)
 		}
 		if ctxInfrastructurePresent(resolution.State, "I3") {
 			t.Error("auto-pillage should remove I3")
@@ -729,6 +820,10 @@ func TestResolveSupplyFamineEventOrder(t *testing.T) {
 	)
 	setTerritoryOwner(state, "AAA", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+	// No army garrisons AAA: anchor it as P1's capital so control resolution
+	// (now ahead of ravitaillement, #208) does not release it as unanchored
+	// before supply can use it as a source.
+	setCapital(state, "P1", "I1")
 	validateTestState(t, state)
 
 	resolution, err := Resolve(state, testBalance())
@@ -741,7 +836,14 @@ func TestResolveSupplyFamineEventOrder(t *testing.T) {
 	}
 }
 
-func TestResolveAssignedFamineTieBreaksAndHasZeroStrength(t *testing.T) {
+// TestResolveAssignedFamineTieBreaks mirrors the previous
+// TestResolveAssignedFamineTieBreaksAndHasZeroStrength, minus its
+// zero-strength-attack half: famine no longer weakens this same turn's
+// combat (it only sets models.Army.Starving for next turn, see #208), so a
+// famished attacker's force is covered by TestResolveFamineCombatEffects's
+// two-turn scenario instead. A2 stays put (no order) here purely to isolate
+// the assigned-famine tie-break between AAA and BBB.
+func TestResolveAssignedFamineTieBreaks(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
 			supplyTerritory("ZZZ", "ZZZ", models.TerrainPlain, "BBB", "AAA", "DDD"),
@@ -765,8 +867,10 @@ func TestResolveAssignedFamineTieBreaksAndHasZeroStrength(t *testing.T) {
 	setTerritoryOwner(state, "DDD", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "ZZZ"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 1, TerritoryID: "DDD"})
-	addNoble(state, "N2", "TWO", "P1", "AAA")
-	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"CCC"}})
+	// No army garrisons ZZZ: anchor it as P1's capital so control resolution
+	// (now ahead of ravitaillement, #208) does not release it as unanchored
+	// before supply can use it as a source.
+	setCapital(state, "P1", "I1")
 	validateTestState(t, state)
 
 	// This scenario is about the assigned-famine tie-break, not territory
@@ -788,104 +892,109 @@ func TestResolveAssignedFamineTieBreaksAndHasZeroStrength(t *testing.T) {
 	if hasFamineEvent(resolution.Events, "A1") {
 		t.Errorf("events = %#v, want AAA selected before BBB", resolution.Events)
 	}
-	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "AAA" {
-		t.Errorf("A2 = %+v, want zero-strength attack to lose", army)
-	}
-	if got := combatContenderForce(t, resolution.Events, "CCC", "A2"); got != 0 {
-		t.Errorf("A2 attack force = %d, want source-assigned famine to have zero strength", got)
+	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "AAA" || army.Size != 1 {
+		t.Errorf("A2 = %+v, want it to stay at AAA with one troop lost", army)
 	}
 }
 
+// TestResolveFamineCombatEffects mirrors #208's F2 redesign: famine now
+// resolves at the end of the turn, on the army's post-combat position, so it
+// can no longer weaken this same turn's own combat. A starving army fights
+// at full strength the turn it starves (its combat already resolved before
+// ravitaillement runs) and only fights at strength 0 the turn after, if its
+// carried-over models.Army.Starving flag is still true by then (unmet demand
+// again). Every subtest below therefore spans two Resolve calls: turn 1
+// starves the army (no orders, so nothing but ravitaillement happens), turn
+// 2 exercises the combat effect.
 func TestResolveFamineCombatEffects(t *testing.T) {
-	t.Run("two-troop swamp army has zero famine force", func(t *testing.T) {
-		state := testState(t,
-			[]models.Territory{
-				supplyTerritory("AAA", "AAA", models.TerrainSwamp, "BBB"),
-				supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA"),
-			},
-			[]models.Army{
-				{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
-				{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
-			},
-		)
-		addNoble(state, "N1", "ONE", "P1", "AAA")
-		addChain(t, state, "A1", "N1", models.Order{
-			Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"},
-		})
-		validateTestState(t, state)
-
-		resolution, err := Resolve(state, testBalance())
-		if err != nil {
-			t.Fatalf("Resolve: %v", err)
-		}
-		famine := famineEventForArmy(t, resolution.Events, "A1")
-		if famine.Troops != 2 || famine.TroopsLost != 1 || !hasFamineEvent(resolution.Events, "A1") {
-			t.Errorf("famine event = %#v, want two troops, one lost, and famine", famine)
-		}
-		if army := armyByID(t, resolution.State, "A1"); army.Size != 1 || army.TerritoryID != "AAA" {
-			t.Errorf("A1 = %+v, want one troop remaining at AAA", army)
-		}
-		if got := combatContenderForce(t, resolution.Events, "BBB", "A1"); got != 0 {
-			t.Errorf("A1 attack force = %d, want famine force 0", got)
-		}
-	})
-
-	t.Run("famine removes attack strength", func(t *testing.T) {
+	t.Run("attacker fights at full strength the turn it starves, zero the turn after", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{
 				supplyTerritory("AAA", "AAA", models.TerrainMountain, "BBB"),
 				supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA"),
 			},
-			[]models.Army{
-				{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
-				{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
-			},
+			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2}},
 		)
-		addNoble(state, "N1", "ONE", "P1", "AAA")
-		addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"}})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state, testBalance())
+		turn1, err := Resolve(state, testBalance())
 		if err != nil {
-			t.Fatalf("Resolve: %v", err)
+			t.Fatalf("turn 1 Resolve: %v", err)
 		}
-		if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "AAA" || army.Size != 1 {
-			t.Errorf("A1 = %+v, want a zero-strength attack and one lost troop", army)
+		army := armyByID(t, turn1.State, "A1")
+		if !army.Starving || army.Size != 1 {
+			t.Fatalf("A1 after turn 1 = %+v, want starving with one troop lost", army)
 		}
-		if got := combatContenderForce(t, resolution.Events, "BBB", "A1"); got != 0 {
-			t.Errorf("A1 combat force = %d, want 0", got)
+
+		state2 := cloneGameState(turn1.State)
+		addNoble(state2, "N1", "ONE", "P1", "AAA")
+		state2.Armies = append([]models.Army(nil), state2.Armies...)
+		state2.Armies = append(state2.Armies, models.Army{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1})
+		territoryState := state2.TerritoryStates["BBB"]
+		armyID := models.ArmyID("A2")
+		ownerID := models.PlayerID("P2")
+		territoryState.Army = &armyID
+		territoryState.OwnerID = &ownerID
+		state2.TerritoryStates["BBB"] = territoryState
+		state2.NextArmyID = nextArmyID(state2.Armies)
+		addChain(t, state2, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"}})
+		validateTestState(t, state2)
+
+		turn2, err := Resolve(state2, testBalance())
+		if err != nil {
+			t.Fatalf("turn 2 Resolve: %v", err)
+		}
+		if got := combatContenderForce(t, turn2.Events, "BBB", "A1"); got != 0 {
+			t.Errorf("A1 attack force in turn 2 = %d, want famine force 0", got)
 		}
 	})
 
-	t.Run("famine removes defense strength but preserves retreat", func(t *testing.T) {
+	t.Run("defender loses force but still retreats, only from the turn after it starves", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{
 				supplyTerritory("AAA", "AAA", models.TerrainMountain, "BBB", "CCC"),
 				supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA"),
 				supplyTerritory("CCC", "CCC", models.TerrainPlain, "AAA"),
 			},
-			[]models.Army{
-				{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
-				{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
-			},
+			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2}},
 		)
-		addNoble(state, "N2", "TWO", "P2", "BBB")
-		addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"AAA"}})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state, testBalance())
+		turn1, err := Resolve(state, testBalance())
 		if err != nil {
-			t.Fatalf("Resolve: %v", err)
+			t.Fatalf("turn 1 Resolve: %v", err)
 		}
-		if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "CCC" || army.Size != 1 {
-			t.Errorf("A1 = %+v, want normal retreat after one lost troop", army)
+		if army := armyByID(t, turn1.State, "A1"); !army.Starving || army.Size != 1 {
+			t.Fatalf("A1 after turn 1 = %+v, want starving with one troop lost", army)
 		}
-		if got := combatContenderForce(t, resolution.Events, "AAA", "A1"); got != 0 {
-			t.Errorf("A1 defense force = %d, want 0", got)
+
+		state2 := cloneGameState(turn1.State)
+		addNoble(state2, "N2", "TWO", "P2", "BBB")
+		state2.Armies = append([]models.Army(nil), state2.Armies...)
+		state2.Armies = append(state2.Armies, models.Army{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1})
+		territoryState := state2.TerritoryStates["BBB"]
+		armyID := models.ArmyID("A2")
+		ownerID := models.PlayerID("P2")
+		territoryState.Army = &armyID
+		territoryState.OwnerID = &ownerID
+		state2.TerritoryStates["BBB"] = territoryState
+		state2.NextArmyID = nextArmyID(state2.Armies)
+		addChain(t, state2, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"AAA"}})
+		validateTestState(t, state2)
+
+		turn2, err := Resolve(state2, testBalance())
+		if err != nil {
+			t.Fatalf("turn 2 Resolve: %v", err)
+		}
+		if got := combatContenderForce(t, turn2.Events, "AAA", "A1"); got != 0 {
+			t.Errorf("A1 defense force in turn 2 = %d, want 0", got)
+		}
+		if army := armyByID(t, turn2.State, "A1"); army.TerritoryID != "CCC" {
+			t.Errorf("A1 = %+v, want a normal retreat despite zero defense force", army)
 		}
 	})
 
-	t.Run("famished support remains valid but adds no force", func(t *testing.T) {
+	t.Run("support from a starving army remains valid but adds no force, only from the turn after it starves", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{
 				supplyTerritory("AAA", "AAA", models.TerrainPlain, "BBB", "CCC"),
@@ -895,28 +1004,53 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 			[]models.Army{
 				{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
 				{ID: "A2", OwnerID: "P1", TerritoryID: "CCC", Size: 2},
-				{ID: "A3", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
 			},
 		)
-		addNoble(state, "N1", "ONE", "P1", "AAA")
-		addNoble(state, "N2", "TWO", "P1", "CCC")
-		addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"}})
-		addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeSupport, PositionID: "CCC", TargetIDs: []models.TerritoryID{"AAA", "BBB"}})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state, testBalance())
+		turn1, err := Resolve(state, testBalance())
 		if err != nil {
-			t.Fatalf("Resolve: %v", err)
+			t.Fatalf("turn 1 Resolve: %v", err)
 		}
-		if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "BBB" {
-			t.Errorf("A1 = %+v, want the free noble's bonus to win", army)
+		// CCC's mountain terrain cannot feed a two-troop army and P1 has no
+		// other source anywhere in this scenario, so A2 (the supporter)
+		// starves; A1 (fed by AAA's plain terrain alone) does not.
+		if army := armyByID(t, turn1.State, "A2"); !army.Starving {
+			t.Fatalf("A2 after turn 1 = %+v, want starving", army)
 		}
-		if got := combatContenderForce(t, resolution.Events, "BBB", "A1"); got != 2 {
-			t.Errorf("A1 attack force = %d, want army plus noble bonus while famished support contributes nothing", got)
+		if army := armyByID(t, turn1.State, "A1"); army.Starving {
+			t.Fatalf("A1 after turn 1 = %+v, want fed by its own plain terrain", army)
+		}
+
+		state2 := cloneGameState(turn1.State)
+		addNoble(state2, "N1", "ONE", "P1", "AAA")
+		addNoble(state2, "N2", "TWO", "P1", "CCC")
+		state2.Armies = append([]models.Army(nil), state2.Armies...)
+		state2.Armies = append(state2.Armies, models.Army{ID: "A3", OwnerID: "P2", TerritoryID: "BBB", Size: 1})
+		territoryState := state2.TerritoryStates["BBB"]
+		armyID := models.ArmyID("A3")
+		ownerID := models.PlayerID("P2")
+		territoryState.Army = &armyID
+		territoryState.OwnerID = &ownerID
+		state2.TerritoryStates["BBB"] = territoryState
+		state2.NextArmyID = nextArmyID(state2.Armies)
+		addChain(t, state2, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"}})
+		addChain(t, state2, "A2", "N2", models.Order{Type: models.OrderTypeSupport, PositionID: "CCC", TargetIDs: []models.TerritoryID{"AAA", "BBB"}})
+		validateTestState(t, state2)
+
+		turn2, err := Resolve(state2, testBalance())
+		if err != nil {
+			t.Fatalf("turn 2 Resolve: %v", err)
+		}
+		if army := armyByID(t, turn2.State, "A1"); army.TerritoryID != "BBB" {
+			t.Errorf("A1 = %+v, want the free noble's bonus alone to still win", army)
+		}
+		if got := combatContenderForce(t, turn2.Events, "BBB", "A1"); got != 2 {
+			t.Errorf("A1 attack force = %d, want army plus noble bonus while the starving support contributes nothing", got)
 		}
 	})
 
-	t.Run("zero-strength attack can move to an empty territory", func(t *testing.T) {
+	t.Run("a zero-force attack can still move to an empty territory, only from the turn after it starves", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{
 				supplyTerritory("AAA", "AAA", models.TerrainMountain, "BBB"),
@@ -924,91 +1058,27 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 			},
 			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2}},
 		)
-		addNoble(state, "N1", "ONE", "P1", "AAA")
-		addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"}})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state, testBalance())
+		turn1, err := Resolve(state, testBalance())
 		if err != nil {
-			t.Fatalf("Resolve: %v", err)
+			t.Fatalf("turn 1 Resolve: %v", err)
 		}
-		if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "BBB" || army.Size != 1 {
-			t.Errorf("A1 = %+v, want famished army to move after losing one troop", army)
+		if army := armyByID(t, turn1.State, "A1"); !army.Starving || army.Size != 1 {
+			t.Fatalf("A1 after turn 1 = %+v, want starving with one troop lost", army)
 		}
-	})
 
-	t.Run("famished join remains a peaceful movement", func(t *testing.T) {
-		state := testState(t,
-			[]models.Territory{
-				supplyTerritory("AAA", "AAA", models.TerrainMountain, "BBB"),
-				supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA"),
-			},
-			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2}},
-		)
-		addNoble(state, "N1", "ONE", "P1", "AAA")
-		addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeJoin, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"}})
-		validateTestState(t, state)
+		state2 := cloneGameState(turn1.State)
+		addNoble(state2, "N1", "ONE", "P1", "AAA")
+		addChain(t, state2, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"}})
+		validateTestState(t, state2)
 
-		resolution, err := Resolve(state, testBalance())
+		turn2, err := Resolve(state2, testBalance())
 		if err != nil {
-			t.Fatalf("Resolve: %v", err)
+			t.Fatalf("turn 2 Resolve: %v", err)
 		}
-		if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "BBB" || army.Size != 1 {
-			t.Errorf("A1 = %+v, want famished join to move after losing one troop", army)
-		}
-	})
-
-	t.Run("famished dispersion still executes", func(t *testing.T) {
-		state := testState(t,
-			[]models.Territory{
-				supplyTerritory("AAA", "AAA", models.TerrainMountain, "BBB"),
-				supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA"),
-			},
-			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2}},
-		)
-		addNoble(state, "N1", "ONE", "P1", "AAA")
-		addChain(t, state, "A1", "N1", models.Order{
-			Type:             models.OrderTypeDisperse,
-			PositionID:       "AAA",
-			TargetIDs:        []models.TerritoryID{"AAA", "BBB"},
-			NobleAssignments: map[models.TerritoryID][]models.NobleCode{"AAA": {"ONE"}},
-		})
-		validateTestState(t, state)
-
-		resolution, err := Resolve(state, testBalance())
-		if err != nil {
-			t.Fatalf("Resolve: %v", err)
-		}
-		if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "AAA" || army.Size != 1 {
-			t.Errorf("carrier = %+v, want the famine minimum at AAA", army)
-		}
-		if hasArmy(resolution.State, "A2") {
-			t.Error("famine attrition should leave only one troop to disperse")
-		}
-	})
-
-	t.Run("moving onto infrastructure does not auto-pillage it", func(t *testing.T) {
-		state := testState(t,
-			[]models.Territory{
-				supplyTerritory("AAA", "AAA", models.TerrainMountain, "BBB"),
-				supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA"),
-			},
-			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2}},
-		)
-		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "BBB"})
-		addNoble(state, "N1", "ONE", "P1", "AAA")
-		addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"}})
-		validateTestState(t, state)
-
-		resolution, err := Resolve(state, testBalance())
-		if err != nil {
-			t.Fatalf("Resolve: %v", err)
-		}
-		if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "BBB" {
-			t.Errorf("A1 = %+v, want movement onto BBB", army)
-		}
-		if !ctxInfrastructurePresent(resolution.State, "I1") {
-			t.Error("I1 should survive because auto-pillage only uses the start position")
+		if army := armyByID(t, turn2.State, "A1"); army.TerritoryID != "BBB" {
+			t.Errorf("A1 = %+v, want the zero-force attack to still move onto the empty territory", army)
 		}
 	})
 }
@@ -1028,6 +1098,10 @@ func TestResolveSupplyIsPureAndDeterministic(t *testing.T) {
 	setTerritoryOwner(state, "AAA", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 1, TerritoryID: "CCC"})
+	// No army garrisons AAA: anchor it as P1's capital so control resolution
+	// (now ahead of ravitaillement, #208) does not release it as unanchored
+	// before supply can use it as a source.
+	setCapital(state, "P1", "I1")
 	validateTestState(t, state)
 	before := cloneGameState(state)
 
@@ -1209,19 +1283,21 @@ func TestAbandonedVillageKeepsNeutralProduction(t *testing.T) {
 	}
 
 	balance := testBalance()
-	// AAA already carries its territory income from turn 1 (TerritoryIncome
-	// plus VillageIncome, credited to itself, its own closest controlled
-	// village): abandonment does not reset the stock, only the controller.
-	stockBeforeAbandonment := balance.TerritoryIncome + balance.VillageIncome
-	if got := resolution.State.TerritoryStates["AAA"].Resources; got != stockBeforeAbandonment {
-		t.Fatalf("AAA stock after turn 1 = %d, want %d (test setup drifted)", got, stockBeforeAbandonment)
+	// Control resolution (now ahead of ravitaillement, #208) already
+	// releases AAA as unanchored within this same turn 1, before income
+	// runs: AAA is neutral by then, so it only earns the neutral village's
+	// own base production (VillageIncome), not the owned territory income
+	// (TerritoryIncome plus VillageIncome) it would have kept under A1.
+	stockAfterAbandonment := balance.VillageIncome
+	if got := resolution.State.TerritoryStates["AAA"].Resources; got != stockAfterAbandonment {
+		t.Fatalf("AAA stock after turn 1 = %d, want %d (test setup drifted)", got, stockAfterAbandonment)
 	}
 
 	next, err := Resolve(resolution.State, balance)
 	if err != nil {
 		t.Fatalf("Resolve after abandonment: %v", err)
 	}
-	if got, want := next.State.TerritoryStates["AAA"].Resources, stockBeforeAbandonment+balance.VillageIncome; got != want {
+	if got, want := next.State.TerritoryStates["AAA"].Resources, stockAfterAbandonment+balance.VillageIncome; got != want {
 		t.Errorf("abandoned village stock = %d, want %d (turn 1's stock plus this turn's neutral production)", got, want)
 	}
 	event := supplyEventForSource(t, next.Events, "AAA")
@@ -1279,5 +1355,190 @@ func TestIsControlledDepotUnusableWhenUnanchored(t *testing.T) {
 	ctx := newResolutionContext(cloneGameState(resolution.State), testBalance())
 	if ctx.isControlledDepot("AAA", "P1") {
 		t.Errorf("isControlledDepot(P1) = true, want false: released, no fief/capital/army anchor left")
+	}
+}
+
+// TestResolveFleeingArmyIsFedBySourceTheSameTurn covers #208's acceptance
+// case: an army that flees a starving cell into one with an accessible
+// source is fed there this same turn -- ravitaillement resolves on
+// post-movement positions, after control.
+func TestResolveFleeingArmyIsFedBySourceTheSameTurn(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			supplyTerritory("AAA", "AAA", models.TerrainMountain, "BBB"),
+			supplyTerritory("BBB", "BBB", models.TerrainMountain, "AAA"),
+		},
+		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2}},
+	)
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
+	setTerritoryResources(state, "BBB", 10)
+	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"}})
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "BBB" || army.Starving {
+		t.Errorf("A1 = %+v, want it to have moved to BBB and not be starving", army)
+	}
+	if hasFamineEvent(resolution.Events, "A1") {
+		t.Errorf("events = %#v, want no famine: A1's new position BBB has its own source", resolution.Events)
+	}
+}
+
+// TestResolveDispersionReducesDemandTheSameTurn covers #208's acceptance
+// case: a dispersion executed this turn already reduces the pooled demand
+// this same turn's ravitaillement resolves, since it runs on post-movement
+// positions.
+func TestResolveDispersionReducesDemandTheSameTurn(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			supplyTerritory("AAA", "AAA", models.TerrainMountain, "BBB"),
+			supplyTerritory("BBB", "BBB", models.TerrainMountain, "AAA"),
+		},
+		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2}},
+	)
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	addChain(t, state, "A1", "N1", models.Order{
+		Type:             models.OrderTypeDisperse,
+		PositionID:       "AAA",
+		TargetIDs:        []models.TerritoryID{"AAA", "BBB"},
+		NobleAssignments: map[models.TerritoryID][]models.NobleCode{"AAA": {"ONE"}},
+	})
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	// Split into two one-troop armies (cost 1 each, not the size-2 army's
+	// cost 2), each fed by its own mountain terrain's single ration: the
+	// dispersion's lower pooled demand already applies this same turn.
+	if hasFamineEvent(resolution.Events, "A1") {
+		t.Errorf("events = %#v, want the carrier fed after dispersing", resolution.Events)
+	}
+	if hasFamineEvent(resolution.Events, "A2") {
+		t.Errorf("events = %#v, want the dispersed splinter fed too", resolution.Events)
+	}
+	if !hasArmy(resolution.State, "A2") {
+		t.Fatal("dispersion should have created a second one-troop army at BBB")
+	}
+}
+
+// TestResolveTransferFeedsRecipientTheSameTurn covers #208's acceptance
+// case: a transfer submitted this turn already feeds its recipient this same
+// turn's ravitaillement, since transfers execute during movement, ahead of
+// ravitaillement.
+func TestResolveTransferFeedsRecipientTheSameTurn(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			supplyTerritory("AAA", "AAA", models.TerrainPlain, "BBB"),
+			supplyTerritory("BBB", "BBB", models.TerrainMountain, "AAA"),
+		},
+		[]models.Army{
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+			{ID: "A2", OwnerID: "P1", TerritoryID: "BBB", Size: 3},
+		},
+	)
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	setTerritoryResources(state, "AAA", 10)
+	addChain(t, state, "A1", "N1", models.Order{
+		Type: models.OrderTypeTransfer, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"}, Amount: 1,
+	})
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if hasFamineEvent(resolution.Events, "A2") {
+		t.Errorf("events = %#v, want A2 fed by this same turn's transfer", resolution.Events)
+	}
+}
+
+// TestResolveFaminePillageDissolvesFiefAndReleasesControl covers #208's
+// acceptance case: the auto-pillage a same-turn famine triggers can destroy a
+// fief capital's castle, dissolving the fief; releaseUnanchoredControl then
+// runs again after ravitaillement (idempotently) to release the fief's other
+// members, which lost their only anchor along with it.
+func TestResolveFaminePillageDissolvesFiefAndReleasesControl(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			supplyTerritory("CAP", "CAP", models.TerrainMountain, "MEM"),
+			supplyTerritory("MEM", "MEM", models.TerrainPlain, "CAP", "OTH"),
+			supplyTerritory("OTH", "OTH", models.TerrainPlain, "MEM"),
+		},
+		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "CAP", Size: 2}},
+	)
+	setTerritoryOwner(state, "MEM", "P1")
+	setTerritoryOwner(state, "OTH", "P1")
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "CAP"})
+	state.Fiefs = []models.Fief{{
+		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "CAP",
+		Territories: []models.TerritoryID{"CAP", "MEM", "OTH"}, OwnerID: "P1",
+	}}
+	validateTestState(t, state)
+
+	// This scenario is about the auto-pillage and its fallout, not territory
+	// income: zeroing it out keeps the fief's own income from covering A1's
+	// deficit before the famine this test is about. A1's demand
+	// (armyCost(2)=2) outstrips CAP's single mountain ration, and the
+	// balance's default pillage bonus (2) covers the resulting deficit (1)
+	// with a non-negative gain, so CAP's castle is auto-pillaged and saves
+	// A1 from losing a troop.
+	balance := testBalance()
+	balance.TerritoryIncome = 0
+	balance.VillageIncome = 0
+	resolution, err := Resolve(state, balance)
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	famine := famineEventForArmy(t, resolution.Events, "A1")
+	if !famine.SavedByPillage || famine.InfrastructureType != models.InfraTypeCastle {
+		t.Fatalf("famine event = %#v, want the capital's castle auto-pillaged and A1 saved", famine)
+	}
+	if len(resolution.State.Fiefs) != 0 {
+		t.Errorf("fiefs = %#v, want F1 dissolved with its capital's castle", resolution.State.Fiefs)
+	}
+	if owner := resolution.State.TerritoryStates["MEM"].OwnerID; owner != nil {
+		t.Errorf("MEM owner = %v, want nil: released with the fief that anchored it", owner)
+	}
+	if owner := resolution.State.TerritoryStates["OTH"].OwnerID; owner != nil {
+		t.Errorf("OTH owner = %v, want nil: released with the fief that anchored it", owner)
+	}
+}
+
+// TestResolveFirstTurnHasNoFamineBeforeMovement covers #208's acceptance
+// case: the very first action turn of a game carries no models.Army.Starving
+// from any previous turn, so ctx.famished starts empty and an army destined
+// to starve by this same turn's own end still attacks at full strength.
+func TestResolveFirstTurnHasNoFamineBeforeMovement(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			supplyTerritory("AAA", "AAA", models.TerrainMountain, "BBB"),
+			supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA"),
+		},
+		[]models.Army{
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
+			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
+		},
+	)
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"}})
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	// Nothing carried into this very first turn from a previous one, so
+	// A1's attack lands at full force despite AAA (its starting position)
+	// being unable to feed it: only the position it ends this same turn on
+	// (BBB, won and fully self-sufficient) matters for this turn's own
+	// ravitaillement.
+	if got := combatContenderForce(t, resolution.Events, "BBB", "A1"); got != 3 {
+		t.Errorf("A1 attack force = %d, want army (2) plus noble bonus (1)", got)
 	}
 }

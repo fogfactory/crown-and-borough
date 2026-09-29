@@ -69,6 +69,13 @@ type resolutionContext struct {
 	// either has actually been applied, so the submission is not rejected
 	// outright for a combination that resolveSeasonEffects will honor.
 	pendingTaxWindowFiefs map[models.FiefID]bool
+	// taxedFiefOwnerAtApply records, for every fief taxedFiefsThisTurn flags,
+	// which player applied the tax (always that fief's owner at apply time,
+	// applySeigneurialTax): income.go compares it to the fief's owner once
+	// income is credited, after captures, to cancel the doubling for a fief
+	// whose capital changed hands this same turn (#208) rather than crediting
+	// a stale doubling to the wrong income line.
+	taxedFiefOwnerAtApply map[models.FiefID]models.PlayerID
 }
 
 func newResolutionContext(state *models.GameState, balance assetgen.Balance) *resolutionContext {
@@ -101,6 +108,7 @@ func newResolutionContext(state *models.GameState, balance assetgen.Balance) *re
 		pendingRevoltSizes:    make(map[models.TerritoryID]int),
 		taxedFiefsThisTurn:    make(map[models.FiefID]bool),
 		pendingTaxWindowFiefs: make(map[models.FiefID]bool),
+		taxedFiefOwnerAtApply: make(map[models.FiefID]models.PlayerID),
 	}
 	for _, noble := range state.Nobles {
 		ctx.startNoblesByID[noble.ID] = noble
@@ -113,6 +121,15 @@ func newResolutionContext(state *models.GameState, balance assetgen.Balance) *re
 		}
 		ctx.startArmiesByID[army.ID] = copyArmy
 		ctx.startArmyAtTerritory[army.TerritoryID] = army.ID
+		if army.Starving {
+			// Seeded from last turn's ravitaillement (models.Army.Starving),
+			// not recomputed here: resolveSupply now resolves at the end of
+			// this same turn, so every same-turn reader of ctx.famished
+			// (attack force, support, noble bonus, transfer) needs the
+			// penalty this army already carried in, not one this turn has not
+			// resolved yet (#208).
+			ctx.famished[army.ID] = true
+		}
 	}
 	ctx.rebuildIndexes()
 	return ctx

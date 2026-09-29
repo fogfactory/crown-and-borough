@@ -775,6 +775,10 @@ func TestResolvePillageCreditsNearestControlledSettlement(t *testing.T) {
 	castleState := state.TerritoryStates["BBB"]
 	castleState.OwnerID = &owner
 	state.TerritoryStates["BBB"] = castleState
+	// No army garrisons BBB: anchor it as P1's capital so control resolution
+	// (now ahead of ravitaillement, #208) does not release it as unanchored
+	// before supply can credit the pillage gain to it.
+	setCapital(state, "P1", "I2")
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypePillage, PositionID: "AAA"})
 	validateTestState(t, state)
 
@@ -785,11 +789,11 @@ func TestResolvePillageCreditsNearestControlledSettlement(t *testing.T) {
 	if len(resolution.State.Infrastructures) != 1 || resolution.State.Infrastructures[0].ID != "I2" {
 		t.Errorf("infrastructures = %#v, want only I2", resolution.State.Infrastructures)
 	}
-	// BBB is the closest controlled castle for both itself and AAA (no
-	// capital is designated), so it receives territory income for both
-	// territories, plus AAA's adjacent mill production, plus the pillage
-	// credit.
-	wantResources := testBalance().PillageBonus + 2*testBalance().TerritoryIncome + 1
+	// BBB (P1's capital) receives territory income for both territories plus
+	// the pillage credit. The explicit T P order executes before
+	// ravitaillement now resolves (#208), so I1 is already gone by the time
+	// mill production is computed: AAA's mill no longer contributes.
+	wantResources := testBalance().PillageBonus + 2*testBalance().TerritoryIncome
 	if got := resolution.State.TerritoryStates["BBB"].Resources; got != wantResources {
 		t.Errorf("castle resources = %d, want %d", got, wantResources)
 	}
