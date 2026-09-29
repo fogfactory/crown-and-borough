@@ -1007,7 +1007,12 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                     missing: line.missing,
                   })}
                 </p>
-                {line.famine && (
+                {line.famine && line.warned && (
+                  <p className="mt-1 font-semibold">
+                    {t('reports.famineWarning')}
+                  </p>
+                )}
+                {line.famine && !line.warned && (
                   <p className="mt-1 font-semibold">
                     {line.savedByPillage ? t('reports.savedByPillage') : ''}
                     {(line.troopsLost ?? 0) > 0

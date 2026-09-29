@@ -116,7 +116,10 @@ func TestResolveSupplyRationsAndEvents(t *testing.T) {
 	t.Run("neutral supply event reflects auto-pillage in the same phase", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{supplyTerritory("AAA", "AAA", models.TerrainMountain)},
-			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 3}},
+			// Starving: true simulates a deficit already carried over from a
+			// previous turn's warning: only that persistent, second
+			// consecutive deficit triggers auto-pillage.
+			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 3, Starving: true}},
 		)
 		clearTerritoryOwner(state, "AAA")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA"})
@@ -647,6 +650,41 @@ func TestResolveSupplyIsolatedByOwner(t *testing.T) {
 }
 
 func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
+	t.Run("a first-turn deficit only warns: no pillage, no troop lost", func(t *testing.T) {
+		state := testState(t,
+			[]models.Territory{supplyTerritory("AAA", "AAA", models.TerrainMountain)},
+			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 3}},
+		)
+		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "AAA"})
+		validateTestState(t, state)
+
+		resolution, err := Resolve(state, testBalance())
+		if err != nil {
+			t.Fatalf("Resolve: %v", err)
+		}
+		event := famineEventForArmy(t, resolution.Events, "A1")
+		if !event.Warned || event.SavedByPillage || event.TroopsLost != 0 || event.InfrastructureID != "" {
+			t.Errorf("famine event = %#v, want a bare warning: no pillage, no troop lost", event)
+		}
+		if army := armyByID(t, resolution.State, "A1"); !army.Starving || army.Size != 3 {
+			t.Errorf("A1 = %+v, want Starving set with its full size kept", army)
+		}
+		if len(resolution.State.Infrastructures) != 1 {
+			t.Errorf("infrastructures = %#v, want the mill spared on a first-turn warning", resolution.State.Infrastructures)
+		}
+		report := BuildTurnReport(state, resolution.State, resolution.Events, nil)
+		var consumption *ConsumptionReport
+		for index := range report.Consumption {
+			if report.Consumption[index].Army == "A1" {
+				consumption = &report.Consumption[index]
+				break
+			}
+		}
+		if consumption == nil || !consumption.Famine || !consumption.Warned || consumption.TroopsLost != 0 || consumption.SavedByPillage {
+			t.Errorf("consumption report = %#v, want a warned famine line with no penalty", report.Consumption)
+		}
+	})
+
 	t.Run("direct famine can pillage, recover, and credit a controlled settlement", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{
@@ -662,7 +700,11 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 				// inert neutral one the old turn order left it as. A size-3
 				// demand still outstrips that mill's level-1 production, so
 				// the deficit -- and the pillage-and-credit point -- survive.
-				{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 3},
+				// Starving: true simulates the deficit already carried over
+				// from a previous turn's warning: only a persistent, second
+				// consecutive deficit triggers auto-pillage (see the
+				// first-turn-warns subtest above).
+				{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 3, Starving: true},
 				{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
 			},
 		)
@@ -717,8 +759,12 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 				supplyTerritory("DDD", "DDD", models.TerrainMountain, "CCC"),
 			},
 			[]models.Army{
-				{ID: "A1", OwnerID: "P1", TerritoryID: "CCC", Size: 2},
-				{ID: "A2", OwnerID: "P1", TerritoryID: "DDD", Size: 3},
+				// Starving: true on both simulates a deficit already carried
+				// over from a previous turn's warning: only that persistent,
+				// second consecutive deficit triggers auto-pillage or troop
+				// loss (see the first-turn-warns subtest above).
+				{ID: "A1", OwnerID: "P1", TerritoryID: "CCC", Size: 2, Starving: true},
+				{ID: "A2", OwnerID: "P1", TerritoryID: "DDD", Size: 3, Starving: true},
 			},
 		)
 		setTerritoryOwner(state, "AAA", "P1")
@@ -773,7 +819,11 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 	t.Run("negative pillage gain starves a size-three army down to two", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{supplyTerritory("AAA", "AAA", models.TerrainMountain)},
-			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 3}},
+			// Starving: true simulates a deficit already carried over from a
+			// previous turn's warning: only that persistent, second
+			// consecutive deficit triggers auto-pillage or troop loss (see
+			// the first-turn-warns subtest above).
+			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 3, Starving: true}},
 		)
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "AAA"})
 		validateTestState(t, state)
@@ -854,7 +904,10 @@ func TestResolveAssignedFamineTieBreaks(t *testing.T) {
 		},
 		[]models.Army{
 			{ID: "A1", OwnerID: "P1", TerritoryID: "BBB", Size: 2},
-			{ID: "A2", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
+			// Starving: true simulates a deficit already carried over from a
+			// previous turn's warning: only that persistent, second
+			// consecutive deficit triggers troop loss.
+			{ID: "A2", OwnerID: "P1", TerritoryID: "AAA", Size: 2, Starving: true},
 			{ID: "A3", OwnerID: "P2", TerritoryID: "CCC", Size: 1},
 			// A4 holds DDD's mill: outside every fief and capital, a mill
 			// only produces while occupied (#215). Its local rations (3,
@@ -922,8 +975,10 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 			t.Fatalf("turn 1 Resolve: %v", err)
 		}
 		army := armyByID(t, turn1.State, "A1")
-		if !army.Starving || army.Size != 1 {
-			t.Fatalf("A1 after turn 1 = %+v, want starving with one troop lost", army)
+		// Turn 1 only warns: Starving is set but no troop is lost yet (a
+		// persistent, second consecutive deficit would be needed for that).
+		if !army.Starving || army.Size != 2 {
+			t.Fatalf("A1 after turn 1 = %+v, want starving with no troop lost yet", army)
 		}
 
 		state2 := cloneGameState(turn1.State)
@@ -964,8 +1019,10 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 		if err != nil {
 			t.Fatalf("turn 1 Resolve: %v", err)
 		}
-		if army := armyByID(t, turn1.State, "A1"); !army.Starving || army.Size != 1 {
-			t.Fatalf("A1 after turn 1 = %+v, want starving with one troop lost", army)
+		// Turn 1 only warns: Starving is set but no troop is lost yet (a
+		// persistent, second consecutive deficit would be needed for that).
+		if army := armyByID(t, turn1.State, "A1"); !army.Starving || army.Size != 2 {
+			t.Fatalf("A1 after turn 1 = %+v, want starving with no troop lost yet", army)
 		}
 
 		state2 := cloneGameState(turn1.State)
@@ -1064,8 +1121,10 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 		if err != nil {
 			t.Fatalf("turn 1 Resolve: %v", err)
 		}
-		if army := armyByID(t, turn1.State, "A1"); !army.Starving || army.Size != 1 {
-			t.Fatalf("A1 after turn 1 = %+v, want starving with one troop lost", army)
+		// Turn 1 only warns: Starving is set but no troop is lost yet (a
+		// persistent, second consecutive deficit would be needed for that).
+		if army := armyByID(t, turn1.State, "A1"); !army.Starving || army.Size != 2 {
+			t.Fatalf("A1 after turn 1 = %+v, want starving with no troop lost yet", army)
 		}
 
 		state2 := cloneGameState(turn1.State)
@@ -1470,7 +1529,10 @@ func TestResolveFaminePillageDissolvesFiefAndReleasesControl(t *testing.T) {
 			supplyTerritory("MEM", "MEM", models.TerrainPlain, "CAP", "OTH"),
 			supplyTerritory("OTH", "OTH", models.TerrainPlain, "MEM"),
 		},
-		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "CAP", Size: 2}},
+		// Starving: true simulates a deficit already carried over from a
+		// previous turn's warning: only that persistent, second consecutive
+		// deficit triggers auto-pillage.
+		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "CAP", Size: 2, Starving: true}},
 	)
 	setTerritoryOwner(state, "MEM", "P1")
 	setTerritoryOwner(state, "OTH", "P1")
@@ -1507,6 +1569,52 @@ func TestResolveFaminePillageDissolvesFiefAndReleasesControl(t *testing.T) {
 	}
 	if owner := resolution.State.TerritoryStates["OTH"].OwnerID; owner != nil {
 		t.Errorf("OTH owner = %v, want nil: released with the fief that anchored it", owner)
+	}
+}
+
+// TestResolveFamineRecoveryByTransferClearsStarving covers the player's
+// warning-turn reaction the #208 grace period exists for: a resource
+// transfer, resolved before ravitaillement in this same turn's movement
+// phase, can cover an already-Starving army's demand in time to cancel its
+// second, would-be-penalized deficit outright. famished_sender only blocks
+// the starving army from sending a transfer of its own (see
+// TestResolveTransferFailsForArmyStarvingSinceLastTurn); nothing blocks it
+// from receiving one.
+func TestResolveFamineRecoveryByTransferClearsStarving(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			supplyTerritory("AAA", "AAA", models.TerrainMountain, "BBB"),
+			supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA"),
+		},
+		[]models.Army{
+			// Starving: true simulates the warning A1 already received last
+			// turn: a second consecutive deficit would trigger auto-pillage
+			// or troop loss, unless this turn's own ravitaillement covers it.
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2, Starving: true},
+			{ID: "A2", OwnerID: "P1", TerritoryID: "BBB", Size: 1},
+		},
+	)
+	setTerritoryOwner(state, "AAA", "P1")
+	setTerritoryOwner(state, "BBB", "P1")
+	setTerritoryResources(state, "BBB", 1)
+	addNoble(state, "N2", "TWO", "P1", "BBB")
+	// A1's demand (armyCost(2)=2) outstrips AAA's single mountain ration (1)
+	// by exactly 1: A2's transfer of its stocked resource covers that last
+	// point before ravitaillement runs.
+	addChain(t, state, "A2", "N2", models.Order{
+		Type: models.OrderTypeTransfer, PositionID: "BBB", TargetIDs: []models.TerritoryID{"AAA"}, Amount: 1,
+	})
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if hasFamineEvent(resolution.Events, "A1") {
+		t.Errorf("events = %#v, want the transfer to cover A1's deficit before famine is evaluated", resolution.Events)
+	}
+	if army := armyByID(t, resolution.State, "A1"); army.Starving || army.Size != 2 {
+		t.Errorf("A1 = %+v, want Starving cleared and its full size kept", army)
 	}
 }
 

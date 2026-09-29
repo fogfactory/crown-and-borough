@@ -588,6 +588,8 @@ export interface ConsumptionReport {
   totalReceived: number
   missing: number
   famine?: boolean
+  /** First consecutive deficit: a bare warning, no pillage or troop lost yet. */
+  warned?: boolean
   savedByPillage?: boolean
   troopsLost?: number
   pillageInfrastructure?: InfraType

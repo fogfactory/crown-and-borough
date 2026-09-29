@@ -629,28 +629,33 @@ En cas de déficit :
    éloignées de leur source, puis les plus grosses, puis le trigramme
    décroissant.
 
-Une armée qui manque de rations à cette résolution de fin de tour **pille
-automatiquement** l'infrastructure de sa case, si elle en occupe une ; le
-bonus de pillage, diminué de sa demande résiduelle, peut la sortir du déficit.
-Si le pillage est insuffisant ou impossible, elle perd **1 troupe**, sans
-jamais descendre sous 1.
+Une armée qui manque de rations à cette résolution de fin de tour est marquée
+**affamée**, un statut qui persiste pendant tout le tour suivant : elle
+**combat et se défend à force 0**, même si elle porte un noble libre — le
+bonus de noble ne s'applique pas — et elle ne peut pas émettre de transfert de
+ressources (elle peut toujours en recevoir un, voir section 5). Ce premier
+tour de déficit ne lui coûte rien d'autre : ni pillage de l'infrastructure de
+sa case, ni perte de troupe. Tu disposes donc de tout le tour suivant pour la
+sortir du déficit en la déplaçant hors de la zone touchée ou en lui envoyant
+des ressources par transfert.
 
-Une armée qui termine ainsi le tour en déficit est marquée **affamée**, un
-statut qui persiste pendant tout le tour suivant : elle **combat et se défend
-à force 0**, même si elle porte un noble libre — le bonus de noble ne
-s'applique pas — et elle ne peut pas émettre de transfert de ressources
-(section 5). Son statut n'est recalculé qu'à la
-prochaine résolution de ravitaillement, en fin de ce tour suivant : si elle a
-atteint une source suffisante entre-temps, elle redevient valide dès ce tour ;
-sinon, elle subit à nouveau le pillage automatique ou la perte d'une troupe et
-reste affamée pour le tour d'après.
+Son statut n'est recalculé qu'à la prochaine résolution de ravitaillement, en
+fin de ce tour suivant. Si elle a atteint une source suffisante entre-temps,
+elle redevient valide dès ce tour. Si elle est encore en déficit à ce
+moment-là, alors qu'elle est déjà affamée, elle **pille automatiquement**
+l'infrastructure de sa case, si elle en occupe une : le bonus de pillage,
+diminué de sa demande résiduelle, peut la sortir du déficit. Si le pillage est
+insuffisant ou impossible, elle perd **1 troupe**, sans jamais descendre sous
+1, et reste affamée pour le tour d'après.
 
-Exemple : une armée de 2 troupes en déficit demande 2 rations. Si ses stocks
-et son pillage ne couvrent pas ce déficit en fin de tour, elle perd une troupe
-et passe à 1 troupe, et est marquée affamée : elle combattra et se défendra à
-force 0 tout le tour suivant, même si une armée d'1 troupe ne demanderait
-ensuite qu'1 ration — son sort dépend de ce qu'elle atteint comme source d'ici
-la fin de ce tour suivant, pas de sa nouvelle demande.
+Exemple : une armée de 2 troupes en déficit demande 2 rations. Faute de
+stocks suffisants, elle termine le tour en déficit et est marquée affamée :
+elle combattra et se défendra à force 0 tout le tour suivant, mais ne perd
+rien pour l'instant. Si, à la résolution du tour suivant, ses stocks et son
+pillage ne couvrent toujours pas son déficit, elle perd une troupe et passe à
+1 troupe, et reste affamée pour le tour d'après — son sort dépend de ce
+qu'elle atteint comme source d'ici cette résolution, pas de sa nouvelle
+demande.
 
 Dans l'interface, sélectionner une armée ou une source contrôlée affiche son
 ravitaillement ou la zone qu'elle atteint (hors hiver). Un transfert en cours

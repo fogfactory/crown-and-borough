@@ -43,16 +43,19 @@ décrite dans [`architecture.md`](architecture.md).
   deux cases.
 - En déficit, les stocks sont épuisés puis les armées passent en famine selon
   la distance, la taille et le trigramme territorial.
-- Une armée en déficit à cette résolution de fin de tour pille automatiquement
-  une infrastructure située sur sa case. Si le pillage est insuffisant ou
-  impossible, elle perd une troupe, jusqu'à un minimum de 1 troupe.
 - Une armée qui termine ainsi le tour en déficit est marquée **affamée**, un
   statut qui persiste pendant tout le tour suivant : elle combat et se défend
-  à force zéro, même avec un noble commandant, et ne peut être ni source ni
-  destinataire d'un transfert de ressources. Son statut est recalculé à la
-  prochaine résolution de ravitaillement, sur les mêmes règles : elle redevient
-  valide dès qu'elle atteint une source suffisante, sinon elle subit à nouveau
-  le pillage automatique ou la perte d'une troupe et reste affamée.
+  à force zéro, même avec un noble commandant, et ne peut émettre de transfert
+  de ressources (elle peut toujours en recevoir). Ce premier tour de déficit
+  ne lui coûte ni pillage de l'infrastructure de sa case, ni perte de troupe,
+  ce qui laisse au joueur tout le tour suivant pour la déplacer ou lui envoyer
+  des ressources.
+- Son statut est recalculé à la prochaine résolution de ravitaillement, sur
+  les mêmes règles : elle redevient valide dès qu'elle atteint une source
+  suffisante. Si elle est encore en déficit à ce moment alors qu'elle est déjà
+  affamée, elle pille automatiquement une infrastructure située sur sa case ;
+  si le pillage est insuffisant ou impossible, elle perd une troupe, jusqu'à
+  un minimum de 1 troupe, et reste affamée pour le tour d'après.
 
 La projection de ravitaillement affichée au joueur (`/supply`) applique les
 calamités de la saison en cours et les cartes bonus de son brouillon sur les

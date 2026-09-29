@@ -153,6 +153,7 @@ type ConsumptionReport struct {
 	TotalReceived         int                `json:"totalReceived"`
 	Missing               int                `json:"missing"`
 	Famine                bool               `json:"famine,omitempty"`
+	Warned                bool               `json:"warned,omitempty"`
 	SavedByPillage        bool               `json:"savedByPillage,omitempty"`
 	TroopsLost            int                `json:"troopsLost,omitempty"`
 	PillageInfrastructure models.InfraType   `json:"pillageInfrastructure,omitempty"`
@@ -462,6 +463,7 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 				TotalReceived:         event.ReceivedLocal + event.ReceivedTransfer,
 				Missing:               missing,
 				Famine:                missing > 0,
+				Warned:                event.Warned,
 				SavedByPillage:        event.SavedByPillage,
 				TroopsLost:            event.TroopsLost,
 				PillageInfrastructure: event.InfrastructureType,

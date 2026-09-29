@@ -424,21 +424,24 @@ En cas de déficit :
 2. les armées restantes passent en famine, en commençant par les plus éloignées
    de leur source, puis les plus grosses, puis le trigramme décroissant.
 
-Une armée en famine pille automatiquement l'infrastructure de sa case, si elle
-en occupe une. Le bonus de pillage, diminué de sa demande résiduelle, peut la
-sortir de famine. Si le pillage est insuffisant ou impossible, elle perd
-immédiatement une troupe, sans jamais descendre sous 1 troupe.
+Une armée qui termine le tour en famine est marquée **affamée**, un statut qui
+persiste jusqu'à la résolution de ravitaillement suivante. Pendant tout le
+tour suivant, une armée affamée combat et se défend à force 0, même si elle
+est commandée par un noble : le bonus de noble ne s'applique alors pas ; elle
+ne peut pas émettre de transfert de ressources (`T`, section 6). Ce premier
+tour de famine ne lui inflige aucune autre conséquence : ni pillage de
+l'infrastructure de sa case, ni perte de troupe, ce qui laisse au joueur tout
+le tour suivant pour réagir en déplaçant l'armée ou en lui envoyant des
+ressources par transfert.
 
-Une armée qui termine ainsi le tour en famine est marquée **affamée**, un
-statut qui persiste jusqu'à la résolution de ravitaillement suivante. Pendant
-tout le tour suivant, une armée affamée combat et se défend à force 0, même si
-elle est commandée par un noble : le bonus de noble ne s'applique alors pas ;
-elle ne peut pas émettre de transfert de ressources (`T`, section 6). À la
-résolution de ravitaillement du tour suivant, son
-statut est recalculé exactement comme celui de n'importe quelle armée : si
-elle a atteint une source suffisante entre-temps, elle redevient valide dès ce
-tour ; sinon, elle subit à nouveau le pillage automatique ou la perte d'une
-troupe et reste affamée pour le tour d'après.
+À la résolution de ravitaillement du tour suivant, son statut est recalculé
+exactement comme celui de n'importe quelle armée : si elle a atteint une
+source suffisante entre-temps, elle redevient valide dès ce tour. Si elle est
+encore en déficit alors qu'elle est déjà affamée, elle pille automatiquement
+l'infrastructure de sa case, si elle en occupe une : le bonus de pillage,
+diminué de sa demande résiduelle, peut la sortir de famine. Si le pillage est
+insuffisant ou impossible, elle perd une troupe, sans jamais descendre sous 1
+troupe, et reste affamée pour le tour d'après.
 
 ## 6. Ordres et chaînes de commandement
 

@@ -67,6 +67,7 @@ type consumptionDetail struct {
 	receivedLocal         int
 	receivedTransfer      int
 	famined               bool
+	warned                bool
 	troopsLost            int
 	savedByPillage        bool
 	pillageInfrastructure models.InfraType
@@ -144,7 +145,11 @@ func resolveSupply(ctx *resolutionContext) {
 
 // resolveNeutralFamines applies the neutral starvation rule: neutral armies
 // never lose strength to a famine, but lose one troop when the local
-// production of their territory cannot feed them.
+// production of their territory cannot feed them. Unlike player famines
+// (resolveFamine), this stays a single-step penalty with no warning turn: the
+// two-turn grace period exists so a player can react to a warning by moving
+// the army or sending it a transfer, and no player controls a neutral army to
+// do either.
 func resolveNeutralFamines(ctx *resolutionContext) {
 	for _, armyID := range sortedArmyMap(ctx.armiesByID) {
 		army := ctx.armiesByID[armyID]
@@ -673,6 +678,26 @@ func (ctx *resolutionContext) resolveFamine(candidate famineCandidate) {
 		SourceID:    candidate.sourceID,
 		Troops:      candidate.army.Size,
 	}
+	if !ctx.famished[candidate.army.ID] {
+		// First turn this army falls into deficit: only a warning. It is
+		// marked Starving for next turn's own combat, support and
+		// noble-bonus penalty (ctx.famished's seeding in
+		// newResolutionContext), but its infrastructure is spared and it
+		// keeps every troop this turn, so its owner has this whole next turn
+		// to react — move the army away or send it a resource transfer
+		// (only the famished sender is blocked, not the recipient) — before
+		// a second consecutive deficit triggers the auto-pillage below.
+		event.Warned = true
+		if army := ctx.armiesByID[candidate.army.ID]; army != nil {
+			army.Starving = true
+		}
+		if detail := ctx.supplyConsumption[candidate.army.ID]; detail != nil {
+			detail.famined = true
+			detail.warned = true
+		}
+		ctx.events = append(ctx.events, event)
+		return
+	}
 	infrastructure := ctx.infrastructureAt(candidate.army.TerritoryID)
 	if infrastructure != nil {
 		event.InfrastructureID = infrastructure.ID
@@ -834,6 +859,7 @@ func (ctx *resolutionContext) emitConsumptionEvents() {
 			ReceivedTransfer:   detail.receivedTransfer,
 			TroopsLost:         detail.troopsLost,
 			SavedByPillage:     detail.savedByPillage,
+			Warned:             detail.warned,
 			InfrastructureType: detail.pillageInfrastructure,
 			ResourceCredit:     detail.resourceCredit,
 			CreditTerritoryID:  detail.creditTerritory,

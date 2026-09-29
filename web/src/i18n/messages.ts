@@ -366,6 +366,8 @@ const englishMessages = {
   'reports.savedByPillage': ' · saved by pillage',
   'reports.lostTroop': ' · loses {count} troop',
   'reports.lostTroops': ' · loses {count} troops',
+  'reports.famineWarning':
+    'short on rations — act before next turn or it will pillage its own position or lose a troop',
   'reports.conservation': '{territory} · conservation',
   'reports.winterOrder': 'Winter order',
   'reports.level': 'Level {level}',
@@ -1065,6 +1067,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.savedByPillage': ' · sauvée par pillage',
   'reports.lostTroop': ' · perd {count} troupe',
   'reports.lostTroops': ' · perd {count} troupes',
+  'reports.famineWarning':
+    'manque de vivres — agis avant le tour suivant ou elle pillera sa case ou perdra une troupe',
   'reports.conservation': '{territory} · conservation',
   'reports.winterOrder': "Ordre d'hiver",
   'reports.level': 'Niveau {level}',
