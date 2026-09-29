@@ -648,6 +648,16 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 				investment.Order = &order
 			}
 			report.Winter.Investments = append(report.Winter.Investments, investment)
+		case EventTypeProsperityFounded:
+			if report.Winter == nil {
+				report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}
+			}
+			report.Winter.Investments = append(report.Winter.Investments, WinterInvestmentReport{
+				Kind: EventTypeProsperityFounded, Player: event.OwnerID, Outcome: OutcomeSuccess,
+				Source: event.SourceID, Target: event.DestinationID,
+				Infrastructure: event.InfrastructureID, Type: event.InfrastructureType,
+				Reason: event.Reason,
+			})
 		case EventTypeFiefConquered, EventTypeFiefVacated, EventTypeFiefDissolved:
 			report.Fiefs = append(report.Fiefs, FiefReport{
 				Kind: event.Type, Owner: event.OwnerID, PreviousOwner: event.PreviousOwnerID,

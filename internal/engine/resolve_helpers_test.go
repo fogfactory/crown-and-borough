@@ -30,6 +30,10 @@ func testBalance() assetgen.Balance {
 		WinterStockDivisor: 2,
 		VillageStockCap:    1,
 		CastleStockCap:     2,
+		// High enough that no unrelated winter test accidentally triggers a
+		// prosperity founding: dedicated prosperity tests override this with a
+		// small threshold (prosperity_test.go).
+		ProsperityLossThreshold: 1_000_000,
 		Costs: assetgen.Costs{
 			Castle:           10,
 			MillLevels:       []int{3, 5, 7},

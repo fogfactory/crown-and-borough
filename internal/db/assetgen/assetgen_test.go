@@ -38,6 +38,7 @@ ration_terrain:
 winter_stock_divisor: 2
 village_stock_cap: 1
 castle_stock_cap: 2
+prosperity_loss_threshold: 10
 costs:
   castle: 10
   mill_levels: [3, 5, 7]

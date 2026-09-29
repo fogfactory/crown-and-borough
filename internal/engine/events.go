@@ -64,6 +64,7 @@ const (
 	EventTypeFiefDissolved      EventType = "fief_dissolved"
 	EventTypeFiefMemberOccupied EventType = "fief_member_occupied"
 	EventTypeFiefAutoAssigned   EventType = "fief_auto_assigned"
+	EventTypeProsperityFounded  EventType = "prosperity_founded"
 )
 
 // Outcome is the execution result of one current order.

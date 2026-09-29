@@ -146,6 +146,11 @@ const REASON_KEYS: Record<string, MessageKey> = {
   fief_not_vacant: 'reports.reason.fief_not_vacant',
   capital_castle_lost: 'reports.reason.capital_castle_lost',
   fief_auto_assigned_default_holder: 'reports.reason.fief_auto_assigned_default_holder',
+  prosperity_fief: 'reports.reason.prosperity_fief',
+  prosperity_controlled: 'reports.reason.prosperity_controlled',
+  prosperity_free: 'reports.reason.prosperity_free',
+  prosperity_depot_upgraded: 'reports.reason.prosperity_depot_upgraded',
+  prosperity_mill_upgraded: 'reports.reason.prosperity_mill_upgraded',
 }
 
 const RECEPTION_REASON_KEYS: Record<string, MessageKey> = {
@@ -328,6 +333,8 @@ function investmentLabel(
     case 'fief_assigned':
     case 'fief_auto_assigned':
       return `T A ${investment.nobleCode ?? '—'} ${territory}`
+    case 'prosperity_founded':
+      return `${WINTER_INFRA_SYMBOLS.village} ${territoryLabel(map, investment.target, t)} ← ${territoryLabel(map, investment.source, t)}`
     default:
       return t('reports.winterOrder')
   }

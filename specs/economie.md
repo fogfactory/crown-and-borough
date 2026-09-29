@@ -389,7 +389,7 @@ n'est pas interceptable et n'utilise pas le plafond de transport.
 
 Issue : [#197](https://github.com/fogfactory/crown-and-borough/issues/197).
 
-Objectif : faire apparaître de nouveaux villages sans action directe d'un
+**Appliqué.** Objectif : faire apparaître de nouveaux villages sans action directe d'un
 joueur, comme la marque d'une prospérité générale que la guerre et la
 politique des nobles n'absorbent pas entièrement. Le déclencheur est donc un
 surplus, mesuré à l'échelle du monde plutôt que d'un seul joueur : plus les
@@ -398,7 +398,7 @@ les avoir dépensés, plus de nouvelles fondations ont des chances de naître,
 chez l'un ou l'autre selon qui a le plus laissé perdre. La règle est évaluée
 en hiver, après la conservation des stocks.
 
-Règle retenue pour une première version — **fondation par surplus** :
+Règle retenue — **fondation par surplus** :
 
 1. La perte à la conservation hivernale suit la règle de conservation déjà en
    vigueur (voir Hiver ci-dessus) : un dépôt de ravitaillement conserve son
@@ -410,10 +410,11 @@ Règle retenue pour une première version — **fondation par surplus** :
    d'être un château, un village ou un moulin, et ce même stock n'est pas
    rapatriable à l'hiver.
 2. La perte de toutes les cases de la carte, tous joueurs confondus, est
-   sommée en un total unique pour l'hiver. Chaque tranche de `N` franchie
-   par ce total déclenche une fondation : un total inférieur à `N` n'en
-   déclenche aucune, un total dans `[N, 2N[` en déclenche une, un total
-   dans `[2N, 3N[` en déclenche deux, etc.
+   sommée en un total unique pour l'hiver. Chaque tranche du seuil
+   `prosperity_loss_threshold` (balance, `N` ci-dessous) franchie par ce
+   total déclenche une fondation : un total inférieur à `N` n'en déclenche
+   aucune, un total dans `[N, 2N[` en déclenche une, un total dans
+   `[2N, 3N[` en déclenche deux, etc.
 3. Les cases ayant subi une perte sont classées par perte décroissante cette
    année, départagées par trigramme croissant en cas d'égalité. La
    `k`-ième fondation déclenchée part du `k`-ième territoire de ce
@@ -445,12 +446,9 @@ détenteur du fief, le contrôleur positionnel, ou personne si la case est
 neutre. Ce contrôleur n'a aucun rapport nécessaire avec le joueur dont le
 territoire d'origine a déclenché la fondation.
 
-> À trancher dans #197 :
->
-> - la valeur de `N`, dans la balance, calibrée avec la nouvelle table de
->   rations (l'ancien seuil `N = 5` supposait une plaine à 3 et le bonus
->   château/village) — à recalibrer pour une perte de conservation sommée
->   sur toute la carte plutôt qu'un seul lieu-dit.
+Le seuil `N` est le réglage `prosperity_loss_threshold` de `assets/balance.yaml`,
+calibré sur une perte de conservation sommée sur toute la carte plutôt que sur
+un seul lieu-dit.
 
 Piste complémentaire, non retenue pour une première version mais à garder en
 réserve si la carte reste trop statique en pratique : une croissance passive
