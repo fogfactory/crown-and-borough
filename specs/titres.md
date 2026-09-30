@@ -215,12 +215,99 @@ dans [economie.md](economie.md).
 
 ## Points et victoire
 
-- chaque fief rapporte 1 point, quelle que soit sa taille, en plus du barème
-  de `gdd.md` §9 (livré par
-  [#194](https://github.com/fogfactory/crown-and-borough/issues/194)) ;
-- une partie peut se terminer à la durée prévue en tours ou lorsqu'un joueur
-  atteint un seuil de suprématie.
+**Dépend aussi de :** [Succession](succession.md), pour l'application des
+mariages et alliances au score.
 
-Les autres évolutions du score (points par tranche de territoires contrôlés)
-et le choix entre durée, seuil fixe et seuil dépendant du nombre de joueurs
-restent à arrêter dans le milestone Titres & Victoire.
+L'état actuellement livré (milestone
+[Économie & Fiefs](https://github.com/fogfactory/crown-and-borough/milestone/19),
+issue [#194](https://github.com/fogfactory/crown-and-borough/issues/194)) se
+contente d'ajouter 1 point par fief, quelle que soit sa taille, **en plus**
+du barème du GDD §9 (territoire, village, moulin, château, noble, troupe,
+ressource). Ce système de titres et de victoire **remplace intégralement**
+cet état intermédiaire — le barème du GDD §9 et son complément fief compris
+— par le seul score de titres ci-dessous. Le remplacement prend effet
+lorsque les milestones **Titres & Victoire** et **Succession &
+Couronnement** sont tous deux livrés ; `gdd.md` §9 est alors réécrit en
+conséquence, comme le prévoit la section « Évolution du document » du GDD.
+
+### Score de titres
+
+Chaque titre détenu rapporte **1 point, quel qu'il soit** : baronnie, comté,
+duché, cardinal, pape, roi, ou [dignité](dames.md#dignités). Il
+n'y a pas de pondération par rang — un baron et un roi comptent chacun pour
+1 point de score, quelle que soit la différence de pouvoir en jeu par
+ailleurs (voix, revenus, bonus de titre).
+
+Le score d'un joueur est la somme des titres qu'il détient, ajustée par ses
+mariages : voir [succession.md § Mariages et alliances](succession.md#mariages-et-alliances)
+pour le calcul du poids d'alliance et des catégories tête/mixte/secondaire.
+
+### Seuil de victoire et fin de partie
+
+Une partie se termine immédiatement dès qu'un joueur franchit un seuil de
+suprématie sur son score de titres. Deux seuils distincts existent, fixés
+dans `assets/balance.yaml` en fonction du nombre de joueurs :
+
+- **seuil solo** : score individuel requis pour une victoire majeure sans
+  alliance ;
+- **seuil d'alliance** : score combiné (les deux époux d'une tête active,
+  voir succession.md) requis pour une victoire majeure commune. Le seuil
+  d'alliance est strictement supérieur au seuil solo — une victoire à deux
+  doit coûter plus cher que réussir seul, pas seulement cumuler deux scores
+  plus faciles à atteindre séparément.
+
+**Un joueur qui a une tête active ne peut jamais gagner seul**, même si son
+score individuel atteint ou dépasse le seuil solo : tant qu'une tête est
+active, seul le score combiné contre le seuil d'alliance est évalué pour lui.
+Un joueur sans tête active (aucun mariage tête, ou toutes ses têtes sont
+retombées faute d'être la mieux classée — ce qui ne devrait pas arriver
+puisqu'une tête existante est toujours active pour son porteur, sauf
+décès) reste évalué contre le seuil solo.
+
+Si aucun seuil n'est atteint à la durée maximale de la partie (1 à 50 années,
+GDD §2), la partie se termine sur le score de titres le plus élevé à cet
+instant, selon les mêmes règles de seuil et d'alliance.
+
+> À trancher : formule exacte des deux seuils (fixes vs proportionnels au
+> nombre de joueurs, écart minimal entre seuil solo et seuil d'alliance), à
+> arrêter dans l'issue de milestone dédiée au calibrage.
+
+### Victoire majeure, victoire mineure, échec
+
+- **Victoire majeure** : un joueur sans tête active qui franchit le seuil
+  solo est déclaré vainqueur majeur seul. Un joueur avec tête active ne peut
+  être vainqueur majeur qu'avec son conjoint, et seulement si leur score
+  combiné franchit le seuil d'alliance ; les deux époux sont alors vainqueurs
+  à égalité, sans hiérarchie entre eux.
+- **Victoire mineure** : parmi tous les joueurs reliés au vainqueur majeur
+  par une chaîne de mariages (tête inactive, mixte ou secondaire, y compris
+  transitive à travers plusieurs maisons), seul celui dont le lien a le
+  poids d'alliance le plus élevé obtient une victoire mineure. Les autres
+  membres de la chaîne n'obtiennent rien de cette victoire.
+- **Échec** : tout joueur restant, éliminé ou non, qui n'obtient ni victoire
+  majeure ni victoire mineure.
+
+Une égalité stricte de score entre deux joueurs ou alliances non mariés ne
+désigne aucun vainqueur officiel, comme au GDD §9.
+
+### Titres de courtoisie
+
+Le conjoint d'un titulaire de fief (baron, comte, duc) ou de couronne (roi)
+porte un titre de courtoisie assorti — baronne, comtesse, duchesse, reine —
+quel que soit son sexe et quelle que soit la catégorie du mariage (tête,
+mixte ou secondaire). Ce titre est **strictement d'affichage** : il n'entre
+dans aucun calcul de score, de poids d'alliance, de vote ou de rang de
+succession, et ne confère aucun accès aux titres réservés aux hommes
+(évêque, cardinal, pape, roi lui-même). Il suit le titulaire réel du fief ou
+de la couronne et change ou disparaît avec lui (remariage, mort, perte du
+titre).
+
+### Lisibilité et simulateur
+
+Le calcul combine poids d'alliance, tête active, catégorie de mariage et deux
+seuils distincts : il n'est pas raisonnable de demander aux joueurs de le
+recalculer de tête. Le front doit exposer un simulateur — à la manière de
+`POST /api/games/{id}/orders/preview` pour les ordres — qui projette, à la
+demande, le score de titres et le statut de victoire (majeure/mineure/échec)
+d'un joueur pour un état hypothétique (avant de conclure un mariage, après un
+Claim, etc.), sans engager l'action. Voir l'issue dédiée dans le milestone.
