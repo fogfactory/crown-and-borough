@@ -130,6 +130,32 @@ jobs:
             exit 1
           fi
 
+  scan-image:
+    name: Scan the pushed image for vulnerabilities
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to Google Cloud with Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "$ARTIFACT_REGISTRY" --quiet
+
+      - name: Scan the digest-pinned image for known vulnerabilities
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ needs.build-and-push.outputs.image }}@${{ needs.build-and-push.outputs.digest }}
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+
   deploy-rules:
     name: Deploy Firestore rules and indexes
     needs: build-and-push
@@ -160,6 +186,7 @@ jobs:
     needs:
       - build-and-push
       - deploy-rules
+      - scan-image
     runs-on: ubuntu-latest
     outputs:
       revision: ${{ steps.deploy.outputs.revision }}

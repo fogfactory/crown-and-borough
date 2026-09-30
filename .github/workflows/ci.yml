@@ -41,6 +41,14 @@ jobs:
             --build-arg VITE_FIREBASE_PROJECT_ID=ci-public-project \
             --build-arg VITE_FIREBASE_APP_ID=ci-public-app-id \
             .
+      - name: Scan image for known vulnerabilities
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: crown-and-borough:ci
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
 
   container-smoke:
     runs-on: ubuntu-latest
