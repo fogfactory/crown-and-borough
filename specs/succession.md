@@ -38,13 +38,13 @@ libres ou otages à la fois (valeur indicative dans `assets/balance.yaml`, à
 calibrer avec le nombre de joueurs). Un noble au cachot compte dans ce
 plafond ; un noble mort ou définitivement retiré (bâtard placé en bas de
 ligne après annulation papale d'un Claim, voir « Claims ») libère une place.
-`R N XXX` est rejeté avec le motif `noble_limit_reached` si le plafond est
-déjà atteint, sans prélèvement.
+`R N XXX YYY` est rejeté avec le motif `noble_limit_reached` si le plafond
+est déjà atteint.
 
 ### Deck de nobles
 
-Le recrutement `R N XXX` ne pioche plus librement dans le pool de prénoms de
-`assets/prenoms.csv` : il tire la carte du dessus d'un **deck de nobles
+Le recrutement ne pioche plus librement dans le pool de prénoms de
+`assets/prenoms.csv` : chaque joueur pioche dans un **deck de nobles
 unique**, fini et partagé par tous les joueurs, généré déterministiquement à
 partir de la seed de partie comme le deck d'ordres spéciaux. Le deck
 contient :
@@ -54,22 +54,32 @@ contient :
 - des **cartes de personnage**, plus rares, qui recrutent un noble nommé
   avec un trait fixe : cardinaux (avancement facilité vers le cardinalat,
   résolu par [religieux.md](religieux.md)), figures féminines marquantes
-  façon « D'Arc » de *Fief* avec un bonus concret et spécifique (commandement
-  renforcé, immunité partielle, etc.), et d'autres personnages à définir dans
-  l'issue de milestone.
+  avec un bonus concret et spécifique (commandement renforcé, immunité
+  partielle, etc. — distinctes des [titres féminins](dames.md#titres-féminins),
+  attribués en cours de partie plutôt qu'au recrutement), et d'autres
+  personnages à définir dans l'issue de milestone.
 
-Un joueur ne peut recruter qu'**une seule carte par tour d'hiver**, quel que
-soit le nombre d'ordres `R N XXX` soumis : les ordres excédentaires du même
-tour sont rejetés avec le motif `noble_draw_already_used`, sans prélèvement.
+Le recrutement se déroule en deux temps, chacun une entrée d'ordre d'hiver
+distincte plutôt qu'une pioche automatique :
+
+- **pioche** (`T N`, un ordre gratuit) : ajoute la carte du dessus du deck à
+  la main de cartes noble du joueur, au plus une fois par tour d'hiver
+  (`noble_draw_already_used` au-delà) ;
+- **jeu** (`R N XXX YYY`, gratuit également, sans coût en R) : joue la carte
+  `XXX` présente dans la main du joueur — son trigramme — pour faire
+  apparaître le noble correspondant sur le château ou village `YYY`, sous
+  réserve des mêmes conditions de contrôle et d'armée présente qu'aujourd'hui.
+
 Cette limite, combinée au plafond de nobles ci-dessus, fait du recrutement
 une ressource rare plutôt qu'une action économique libre.
 
 > À trancher dans l'issue de milestone : composition exacte du deck (nombre
 > de cartes anonymes vs personnages, liste des personnages et de leurs
-> traits), et comment simplifier la pioche côté UX pour qu'un joueur n'ait
-> pas à gérer une main de cartes noble en plus de sa main de cartes
-> spéciales — piste actuelle : la pioche est immédiate et automatique dans la
-> résolution de `R N XXX`, sans étape de choix ni de main intermédiaire.
+> traits) ; ergonomie de la pioche côté UX — la main de cartes noble
+> s'ajoute à la main de cartes spéciales existante, donc le formulaire
+> d'hiver devra sans doute exposer des boutons dédiés (piocher, jouer une
+> carte de la main sur une cible) plutôt qu'une syntaxe brute à composer à
+> la main.
 
 ## Mariages et alliances
 

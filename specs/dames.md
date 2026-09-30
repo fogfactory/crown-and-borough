@@ -3,8 +3,10 @@
 **Milestone lié :** [Succession & Couronnement](https://github.com/fogfactory/crown-and-borough/milestone/24)
 
 **Dépend de :** [Succession](succession.md) pour le sexe des nobles et la
-ligne de succession, [Titres & Victoire](titres.md) pour le score, et
-[Ordres spéciaux](ordres-speciaux.md) pour le deck de cartes.
+ligne de succession, [Titres & Victoire](titres.md) pour le score,
+[Religieux](religieux.md) pour le mécanisme de nomination réutilisé par les
+titres féminins, et [Ordres spéciaux](ordres-speciaux.md) pour le deck de
+cartes.
 
 ## Principe
 
@@ -18,17 +20,20 @@ indépendamment :
 - **réseau et influence de cour** : un pouvoir informel, disponible à toute
   dame sans condition, qui agit sur l'information et les élections sans
   jamais détenir elle-même un titre religieux ou royal ;
-- **cartes de dot** : un sous-ensemble élargi du deck d'ordres spéciaux,
-  dans l'esprit de la carte « D'Arc » de *Fief*, qui échange l'indisponibilité
-  au mariage d'une dame contre un avantage concret et ponctuel.
+- **titres féminins** : un pendant féminin aux titres religieux, attribué en
+  cours de partie de la même manière qu'un cardinal (carte de nomination du
+  deck d'ordres spéciaux), qui confère un bonus permanent et/ou une action
+  réservée, dans l'esprit de la carte « D'Arc » de *Fief*.
 
 > Distinction avec le deck de nobles : [succession.md § Deck de nobles](succession.md#deck-de-nobles)
-> introduit aussi des personnages féminins nommés façon « D'Arc », mais comme
-> **trait fixe dès le recrutement**. Les cartes de dot ci-dessous s'appliquent
-> en cours de partie à une dame déjà recrutée, quelle qu'elle soit — les deux
-> mécanismes coexistent sans se substituer l'un à l'autre. L'archétype
-> « femme savante » (guérisseuse, astrologue, herboriste) n'existe que par ce
-> second mécanisme, jamais comme trait natif au recrutement.
+> peut aussi recruter des personnages féminins nommés avec un trait fixe dès
+> le recrutement. Un titre féminin est différent : il s'attribue en cours de
+> partie à une dame déjà recrutée, quelle qu'elle soit (recrutée anonyme ou
+> personnage), exactement comme un noble déjà recruté devient cardinal par
+> nomination plutôt qu'en naissant cardinal. Les deux mécanismes coexistent
+> sans se substituer l'un à l'autre. L'archétype « femme savante »
+> (guérisseuse, astrologue, herboriste) n'existe que par l'attribution d'un
+> titre féminin, jamais comme trait natif au recrutement.
 
 ## Réseau et influence de cour
 
@@ -55,43 +60,50 @@ Ces effets sont cumulables entre dames d'un même joueur, mais chaque dame ne
 peut exercer qu'un rôle de cour à la fois (elle ne peut pas être simultanément
 en négociation de mariage et en poste d'influence électorale).
 
-## Cartes de dot
+## Titres féminins
 
-Un sous-ensemble du deck d'ordres spéciaux, plus fourni et plus varié que la
-carte unique « D'Arc » de *Fief*, cible spécifiquement une dame nommée. Jouer
-une carte de dot rend la dame indisponible au mariage (elle ne peut plus être
-promise ni voir un mariage existant évoluer en tête) pour une durée fixée par
-la carte, en échange d'un effet concret immédiat ou continu : commandement
-d'armée à bonus renforcé, immunité à la capture, accès à une action réservée
-normalement à un titre masculin (lever une taxe, poser une dîme) par
-délégation, ou récupération d'information stratégique.
+Un ensemble de titres nommés, plus fourni et plus varié que la carte unique
+« D'Arc » de *Fief*, attribuables à une dame par une carte de nomination du
+deck d'ordres spéciaux — le même mécanisme que la nomination d'un cardinal
+(voir [religieux.md § Cardinaux et pape](religieux.md#cardinaux-et-pape)).
+Contrairement à un titre séculier, un titre féminin ne se rachète pas : il se
+mérite en jeu.
 
-> À trancher dans l'issue de milestone : liste complète des cartes, leurs
-> effets exacts, leur durée d'indisponibilité au mariage, et si l'effet
-> cesse automatiquement à la mort de la dame ou doit être révoqué
-> explicitement.
+**Une dame mariée ne peut pas recevoir de titre féminin**, point : la
+condition est symétrique à celle d'un homme marié qui ne peut devenir
+évêque. Une dame titrée ne peut pas non plus se marier tant qu'elle détient
+son titre.
+
+Chaque titre est **permanent** (pas de durée, pas de défausse) et confère un
+bonus fixe et/ou une action réservée, tant que la dame reste libre :
+
+- « D'Arc » : `+1` à la force de toute armée qu'elle commande, cumulable
+  avec le bonus de commandement noble de `+1` (soit `+2` au total) ;
+- d'autres titres pourront accorder une action supplémentaire réservée,
+  à la manière de calmer une révolte.
+
+Un titre féminin compte comme n'importe quel titre dans le score (voir
+[titres.md § Score de titres](titres.md#score-de-titres)).
+
+> À trancher dans l'issue de milestone : liste complète des titres et leurs
+> effets exacts, et si le titre est perdu définitivement en cas de capture,
+> de mort, ou seulement suspendu tant que la dame est otage.
 
 Une dame envoyée en otage volontaire (voir [succession.md § Otage volontaire](succession.md#otage-volontaire))
-transfère l'effet passif de sa carte de dot au joueur qui la détient tant
+transfère le bonus de son titre féminin au joueur qui la détient tant
 qu'elle reste hostage, qu'elle en soit propriétaire d'origine ou non — un
 instrument diplomatique à part entière, distinct d'une capture de guerre.
 
-Une dame déjà mariée en tête ne peut pas recevoir de carte de dot sans que
-son conjoint et la maison alliée en soient informés (l'effet de la carte,
-mais pas nécessairement son détail complet, suit les règles de divulgation du
-GDD §4) : la carte ne peut donc pas servir à dissoudre discrètement une
-alliance existante sans conséquence diplomatique visible.
-
 ## Carte de procès
 
-Une carte spéciale cible une dame adverse (prioritairement une dame porteuse
-d'une carte de dot, dont le pouvoir la rend visible et menaçante) pour tenter
-de la retirer du jeu — capture, déchéance de son rôle de cour, ou annulation
-de l'effet d'une carte de dot en cours. Elle fait écho, sans jamais
-recourir à une mécanique surnaturelle, à la persécution historique des
-femmes savantes : le jeu ne doit pas la traiter comme une simple carte
-d'attaque gratuite, mais comme une action risquée aux conséquences
-politiques visibles.
+Une carte spéciale cible une dame, pas nécessairement celle d'un adversaire
+(prioritairement une dame porteuse d'un titre féminin, dont le pouvoir la
+rend visible et menaçante) : un procès réussi **la tue**. Elle fait écho,
+sans jamais recourir à une mécanique surnaturelle, à la persécution
+historique des femmes savantes : le jeu ne doit pas la traiter comme une
+simple carte d'attaque gratuite, mais comme une action risquée, aux
+conséquences politiques visibles, et parfois retournée contre sa propre
+maison plutôt que contre un adversaire.
 
 Le risque est mécanique, pas seulement narratif : jouer un procès **sans
 fondement suffisant** (à définir précisément dans l'issue de milestone — par
@@ -106,7 +118,6 @@ procès bien fondé (dame effectivement porteuse d'un pouvoir contesté)
 réussit plus sûrement et sans ce risque de retournement.
 
 > À trancher dans l'issue de milestone : condition précise de fondement,
-> formule du risque de retournement, effet exact d'un procès réussi (la
-> dame est-elle capturée, simplement déchue de son rôle de cour, ou les deux
-> selon la gravité), et si un procès peut cibler une dame sans aucun pouvoir
-> particulier (dans ce cas, il devrait être systématiquement non fondé).
+> formule du risque de retournement, et si un procès peut cibler une dame
+> sans aucun pouvoir particulier (dans ce cas, il devrait être
+> systématiquement non fondé).

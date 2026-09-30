@@ -99,18 +99,11 @@ du document » du GDD.
 
 ### Score de titres
 
-| Titre | Points |
-|---|---:|
-| Baronnie | 1 |
-| Comté | 2 |
-| Duché | 3 |
-| Cardinal | 2 |
-| Pape | 5 |
-| Roi | 5 |
-
-> À trancher : valeurs indicatives, à valider en table de jeu avec les
-> milestones Religieux et Politique royale pour équilibrer titres
-> religieux/royaux face aux fiefs séculiers.
+Chaque titre détenu rapporte **1 point, quel qu'il soit** : baronnie, comté,
+duché, cardinal, pape, roi, ou [titre féminin](dames.md#titres-féminins). Il
+n'y a pas de pondération par rang — un baron et un roi comptent chacun pour
+1 point de score, quelle que soit la différence de pouvoir en jeu par
+ailleurs (voix, revenus, bonus de titre).
 
 Le score d'un joueur est la somme des titres qu'il détient, ajustée par ses
 mariages : voir [succession.md § Mariages et alliances](succession.md#mariages-et-alliances)
