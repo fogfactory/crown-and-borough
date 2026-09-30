@@ -100,7 +100,7 @@ du document » du GDD.
 ### Score de titres
 
 Chaque titre détenu rapporte **1 point, quel qu'il soit** : baronnie, comté,
-duché, cardinal, pape, roi, ou [titre féminin](dames.md#titres-féminins). Il
+duché, cardinal, pape, roi, ou [dignité](dames.md#dignités). Il
 n'y a pas de pondération par rang — un baron et un roi comptent chacun pour
 1 point de score, quelle que soit la différence de pouvoir en jeu par
 ailleurs (voix, revenus, bonus de titre).

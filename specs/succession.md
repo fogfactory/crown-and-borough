@@ -55,7 +55,7 @@ contient :
   avec un trait fixe : cardinaux (avancement facilité vers le cardinalat,
   résolu par [religieux.md](religieux.md)), figures féminines marquantes
   avec un bonus concret et spécifique (commandement renforcé, immunité
-  partielle, etc. — distinctes des [titres féminins](dames.md#titres-féminins),
+  partielle, etc. — distinctes des [dignités](dames.md#dignités),
   attribués en cours de partie plutôt qu'au recrutement), et d'autres
   personnages à définir dans l'issue de milestone.
 

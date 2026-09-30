@@ -5,8 +5,7 @@
 **Dépend de :** [Succession](succession.md) pour le sexe des nobles et la
 ligne de succession, [Titres & Victoire](titres.md) pour le score,
 [Religieux](religieux.md) pour le mécanisme de nomination réutilisé par les
-titres féminins, et [Ordres spéciaux](ordres-speciaux.md) pour le deck de
-cartes.
+dignités, et [Ordres spéciaux](ordres-speciaux.md) pour le deck de cartes.
 
 ## Principe
 
@@ -20,20 +19,23 @@ indépendamment :
 - **réseau et influence de cour** : un pouvoir informel, disponible à toute
   dame sans condition, qui agit sur l'information et les élections sans
   jamais détenir elle-même un titre religieux ou royal ;
-- **titres féminins** : un pendant féminin aux titres religieux, attribué en
-  cours de partie de la même manière qu'un cardinal (carte de nomination du
-  deck d'ordres spéciaux), qui confère un bonus permanent et/ou une action
-  réservée, dans l'esprit de la carte « D'Arc » de *Fief*.
+- **dignités** : un même mécanisme d'attribution en cours de partie, par
+  carte de nomination du deck d'ordres spéciaux, couvre aussi bien les
+  dignités ecclésiastiques masculines déjà décrites dans
+  [religieux.md](religieux.md#cardinaux-et-pape) (évêque, cardinal, pape) que
+  les dignités introduites ici, dans l'esprit de la carte « D'Arc » de
+  *Fief* — ouvertes aux nobles femmes, à qui la voie ecclésiastique et
+  royale reste fermée (voir [succession.md § Sexe des nobles](succession.md#sexe-des-nobles)).
 
 > Distinction avec le deck de nobles : [succession.md § Deck de nobles](succession.md#deck-de-nobles)
 > peut aussi recruter des personnages féminins nommés avec un trait fixe dès
-> le recrutement. Un titre féminin est différent : il s'attribue en cours de
+> le recrutement. Une dignité est différente : elle s'attribue en cours de
 > partie à une dame déjà recrutée, quelle qu'elle soit (recrutée anonyme ou
 > personnage), exactement comme un noble déjà recruté devient cardinal par
 > nomination plutôt qu'en naissant cardinal. Les deux mécanismes coexistent
 > sans se substituer l'un à l'autre. L'archétype « femme savante »
-> (guérisseuse, astrologue, herboriste) n'existe que par l'attribution d'un
-> titre féminin, jamais comme trait natif au recrutement.
+> (guérisseuse, astrologue, herboriste) n'existe que par l'attribution d'une
+> dignité, jamais comme trait natif au recrutement.
 
 ## Réseau et influence de cour
 
@@ -60,45 +62,48 @@ Ces effets sont cumulables entre dames d'un même joueur, mais chaque dame ne
 peut exercer qu'un rôle de cour à la fois (elle ne peut pas être simultanément
 en négociation de mariage et en poste d'influence électorale).
 
-## Titres féminins
+## Dignités
 
-Un ensemble de titres nommés, plus fourni et plus varié que la carte unique
-« D'Arc » de *Fief*, attribuables à une dame par une carte de nomination du
-deck d'ordres spéciaux — le même mécanisme que la nomination d'un cardinal
-(voir [religieux.md § Cardinaux et pape](religieux.md#cardinaux-et-pape)).
-Contrairement à un titre séculier, un titre féminin ne se rachète pas : il se
-mérite en jeu.
+Ce chantier introduit un ensemble de dignités nommées, plus fourni et plus
+varié que la carte unique « D'Arc » de *Fief*, attribuables à une dame par
+une carte de nomination du deck d'ordres spéciaux — le même mécanisme que la
+nomination d'un cardinal (voir [religieux.md § Cardinaux et pape](religieux.md#cardinaux-et-pape)),
+sans qu'un terme distinct les cantonne à part des dignités ecclésiastiques :
+les deux relèvent de la même catégorie de jeu, seule leur porte d'entrée
+diffère (l'une close aux femmes, l'autre ouverte aux nobles des deux sexes
+mais close à qui est déjà titulaire de l'autre voie). Contrairement à un
+titre séculier, une dignité ne se rachète pas : elle se mérite en jeu.
 
-**Une dame mariée ne peut pas recevoir de titre féminin**, point : la
-condition est symétrique à celle d'un homme marié qui ne peut devenir
-évêque. Une dame titrée ne peut pas non plus se marier tant qu'elle détient
-son titre.
+**Une dame mariée ne peut pas recevoir de dignité**, point : la condition
+est symétrique à celle d'un homme marié qui ne peut devenir évêque. Une
+dame titulaire d'une dignité ne peut pas non plus se marier tant qu'elle la
+détient.
 
-Chaque titre est **permanent** (pas de durée, pas de défausse) et confère un
-bonus fixe et/ou une action réservée, tant que la dame reste libre :
+Chaque dignité est **permanente** (pas de durée, pas de défausse) et confère
+un bonus fixe et/ou une action réservée, tant que la dame reste libre :
 
 - « D'Arc » : `+1` à la force de toute armée qu'elle commande, cumulable
   avec le bonus de commandement noble de `+1` (soit `+2` au total) ;
-- d'autres titres pourront accorder une action supplémentaire réservée,
+- d'autres dignités pourront accorder une action supplémentaire réservée,
   à la manière de calmer une révolte.
 
-Un titre féminin compte comme n'importe quel titre dans le score (voir
+Une dignité compte comme n'importe quel titre dans le score (voir
 [titres.md § Score de titres](titres.md#score-de-titres)).
 
-> À trancher dans l'issue de milestone : liste complète des titres et leurs
-> effets exacts, et si le titre est perdu définitivement en cas de capture,
-> de mort, ou seulement suspendu tant que la dame est otage.
+> À trancher dans l'issue de milestone : liste complète des dignités et
+> leurs effets exacts, et si la dignité est perdue définitivement en cas de
+> capture, de mort, ou seulement suspendue tant que la dame est otage.
 
 Une dame envoyée en otage volontaire (voir [succession.md § Otage volontaire](succession.md#otage-volontaire))
-transfère le bonus de son titre féminin au joueur qui la détient tant
-qu'elle reste hostage, qu'elle en soit propriétaire d'origine ou non — un
-instrument diplomatique à part entière, distinct d'une capture de guerre.
+transfère le bonus de sa dignité au joueur qui la détient tant qu'elle reste
+hostage, qu'elle en soit propriétaire d'origine ou non — un instrument
+diplomatique à part entière, distinct d'une capture de guerre.
 
 ## Carte de procès
 
 Une carte spéciale cible une dame, pas nécessairement celle d'un adversaire
-(prioritairement une dame porteuse d'un titre féminin, dont le pouvoir la
-rend visible et menaçante) : un procès réussi **la tue**. Elle fait écho,
+(prioritairement une dame porteuse d'une dignité, dont le pouvoir la rend
+visible et menaçante) : un procès réussi **la tue**. Elle fait écho,
 sans jamais recourir à une mécanique surnaturelle, à la persécution
 historique des femmes savantes : le jeu ne doit pas la traiter comme une
 simple carte d'attaque gratuite, mais comme une action risquée, aux
@@ -107,7 +112,7 @@ maison plutôt que contre un adversaire.
 
 Le risque est mécanique, pas seulement narratif : jouer un procès **sans
 fondement suffisant** (à définir précisément dans l'issue de milestone — par
-exemple, cibler une dame sans carte de dot active, ou cibler la dame d'un
+exemple, cibler une dame sans dignité active, ou cibler la dame d'un
 joueur avec lequel l'auteur n'est pas en conflit ouvert) déclenche un jet ou
 un seuil qui peut faire échouer le procès et retourner ses conséquences
 contre son auteur, en réutilisant le mécanisme de révolte déjà prévu au GDD
