@@ -34,9 +34,16 @@ func TestProductionReportBreaksDownSourceAndBonus(t *testing.T) {
 			supplyTerritory("AAA", "AAA", models.TerrainPlain, "BBB"),
 			supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA"),
 		},
-		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}},
+		[]models.Army{
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+			// P1's army holds BBB's mill: outside every fief and capital, a
+			// mill only produces while occupied (#215). Its local rations (3,
+			// plain terrain) cover its demand (1), so it never starves.
+			{ID: "A2", OwnerID: "P1", TerritoryID: "BBB", Size: 1},
+		},
 	)
 	setTerritoryOwner(state, "AAA", "P1")
+	setTerritoryOwner(state, "BBB", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 2, TerritoryID: "BBB"})
 	state.SpecialDeck = &models.SpecialDeck{
@@ -48,8 +55,6 @@ func TestProductionReportBreaksDownSourceAndBonus(t *testing.T) {
 	state.Regions = []models.Region{{ID: "AAA", Seed: "AAA", Territories: []models.TerritoryID{"AAA", "BBB"}}}
 	validateTestState(t, state)
 	balance := testBalance()
-	balance.SpecialOrders.Effects.BonusMillProduction = 1
-	balance.SpecialOrders.Effects.BonusArmyRation = 1
 	resolution, err := ResolveWithDeckOrders(state, balance, map[models.PlayerID][]models.DeckOrder{
 		"P1": {{ID: "O1", Type: models.DeckOrderTypePlay, Kind: models.CardKindFairWeather, RegionSeed: "AAA"}},
 	})
@@ -58,14 +63,14 @@ func TestProductionReportBreaksDownSourceAndBonus(t *testing.T) {
 	}
 	report := BuildTurnReport(state, resolution.State, resolution.Events, nil)
 	line := productionLineFor(t, report, "AAA")
-	if line.TerrainRations != 3 || line.InfraRations != 2 || line.BonusRations != 1 {
-		t.Fatalf("ration breakdown = %#v, want terrain 3, infra 2, bonus 1", line)
+	if line.TerrainRations != 3 || line.BonusRations != 0 {
+		t.Fatalf("ration breakdown = %#v, want terrain 3 without fair weather bonus", line)
 	}
-	if line.BaseProduction != 1 || line.MillProduction != 2 || line.BonusProduction != 1 {
-		t.Fatalf("production breakdown = %#v, want base 1, mills 2, bonus 1", line)
+	if line.BaseProduction != 0 || line.MillProduction != 2 || line.BonusProduction != 2 {
+		t.Fatalf("production breakdown = %#v, want no base production, mills 2 doubled by fair weather", line)
 	}
-	if line.Produced != 10 {
-		t.Fatalf("produced = %d, want 10", line.Produced)
+	if line.Produced != 7 {
+		t.Fatalf("produced = %d, want 7", line.Produced)
 	}
 	consumption := consumptionLineFor(t, report, "A1")
 	if consumption.Demand != 1 || consumption.ReceivedLocal != 1 || consumption.ReceivedTransfer != 0 || consumption.Missing != 0 {
@@ -123,10 +128,13 @@ func TestProductionReportTracesDispatchToMultipleArmies(t *testing.T) {
 			{ID: "A2", OwnerID: "P1", TerritoryID: "CCC", Size: 2},
 		},
 	)
-	setTerritoryOwner(state, "AAA", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 3, TerritoryID: "BBB"})
 	state.Regions = []models.Region{{ID: "AAA", Seed: "AAA", Territories: []models.TerritoryID{"AAA", "BBB", "CCC"}}}
+	// No army garrisons AAA: anchor it as P1's capital so control resolution
+	// (now ahead of ravitaillement, #208) does not release it as unanchored
+	// before supply can use it as a source.
+	setCapital(state, "P1", "I1")
 	validateTestState(t, state)
 	resolution, err := Resolve(state, testBalance())
 	if err != nil {
@@ -134,8 +142,8 @@ func TestProductionReportTracesDispatchToMultipleArmies(t *testing.T) {
 	}
 	report := BuildTurnReport(state, resolution.State, resolution.Events, nil)
 	source := productionLineFor(t, report, "AAA")
-	if source.BaseProduction != 1 || source.MillProduction != 3 || source.Produced != 4 {
-		t.Fatalf("AAA production = %#v, want base 1 plus mills 3", source)
+	if source.BaseProduction != 0 || source.MillProduction != 3 || source.Produced != 3 {
+		t.Fatalf("AAA production = %#v, want no base production, mills 3", source)
 	}
 	if len(source.SentToRations) != 2 || source.SentToRations["BBB"] != 3 || source.SentToRations["CCC"] != 1 {
 		t.Fatalf("AAA dispatch = %#v, want 3 rations to BBB and 1 to CCC", source.SentToRations)
@@ -154,10 +162,18 @@ func TestProductionReportShowsFamineSuppression(t *testing.T) {
 	state := effectTestState()
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 2, TerritoryID: "BBB"})
-	state.Armies = []models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}}
+	// A2 holds BBB's mill: outside every fief and capital, a mill only
+	// produces while occupied (#215).
+	state.Armies = []models.Army{
+		{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+		{ID: "A2", OwnerID: "P1", TerritoryID: "BBB", Size: 1},
+	}
 	aaaState := state.TerritoryStates["AAA"]
 	aaaState.Army = armyPointer("A1")
 	state.TerritoryStates["AAA"] = aaaState
+	bbbState := state.TerritoryStates["BBB"]
+	bbbState.Army = armyPointer("A2")
+	state.TerritoryStates["BBB"] = bbbState
 	setTerritoryOwner(state, "AAA", "P1")
 	setTerritoryOwner(state, "BBB", "P1")
 	setCurrentCalamity(state, models.CardKindFamine, "AAA")
@@ -166,17 +182,17 @@ func TestProductionReportShowsFamineSuppression(t *testing.T) {
 	resolveSupply(ctx)
 	report := BuildTurnReport(state, ctx.state, ctx.events, nil)
 	line := productionLineFor(t, report, "AAA")
-	if line.InfraRations != 0 || line.SuppressedRations != 2 {
-		t.Fatalf("ration suppression = %#v, want 2 suppressed infrastructure rations", line)
+	if line.TerrainRations != 0 || line.SuppressedRations != 3 {
+		t.Fatalf("ration suppression = %#v, want all 3 terrain rations suppressed", line)
 	}
-	if line.MillProduction != 0 || line.SuppressedProduction != 2 {
-		t.Fatalf("mill suppression = %#v, want 2 suppressed mill R", line)
+	if line.BaseProduction != 0 || line.MillProduction != 2 || line.SuppressedProduction != 0 {
+		t.Fatalf("production suppression = %#v, want the mill intact and no base production line", line)
 	}
-	if line.Produced != 4 {
-		t.Fatalf("produced = %d, want terrain 3 plus base 1", line.Produced)
+	if line.Produced != 2 {
+		t.Fatalf("produced = %d, want the mill's 2 R only", line.Produced)
 	}
 	consumption := consumptionLineFor(t, report, "A1")
-	if consumption.Famine || consumption.Demand != 1 || consumption.ReceivedLocal != 1 {
-		t.Fatalf("A1 consumption = %#v, want demand 1 fully covered by terrain rations", consumption)
+	if consumption.Famine || consumption.Demand != 1 || consumption.ReceivedLocal != 0 || consumption.ReceivedTransfer != 1 {
+		t.Fatalf("A1 consumption = %#v, want demand 1 covered by the castle stock", consumption)
 	}
 }

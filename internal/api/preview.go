@@ -43,6 +43,7 @@ type WinterLinePreviewView struct {
 	Status         string                 `json:"status"`
 	Type           models.WinterOrderType `json:"type,omitempty"`
 	Territory      models.TerritoryID     `json:"territory,omitempty"`
+	Territories    []models.TerritoryID   `json:"territories,omitempty"`
 	Source         models.TerritoryID     `json:"source,omitempty"`
 	Target         models.TerritoryID     `json:"target,omitempty"`
 	Amount         int                    `json:"amount,omitempty"`
@@ -147,6 +148,7 @@ func winterLineView(line engine.WinterLinePreview, language i18n.Language) Winte
 		}
 		view.Type = order.Type
 		view.Territory = line.Territory
+		view.Territories = append([]models.TerritoryID(nil), line.Territories...)
 		view.Source = order.SourceID
 		view.Target = order.TargetID
 		view.Amount = order.Amount

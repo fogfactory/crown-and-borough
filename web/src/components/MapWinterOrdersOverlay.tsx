@@ -1,6 +1,7 @@
 import {
   DRAFT_INTENTION_COLOR,
   InfrastructureMarker,
+  OwnershipBadge,
   WinterBadge,
   WinterMarkerTriangle,
   WinterTransferArrow,
@@ -98,7 +99,11 @@ export function WinterOrdersOverlay({
                         ? 'O'
                         : intention.kind === 'dungeon'
                           ? 'P'
-                          : 'E'
+                          : intention.kind === 'fief_found'
+                            ? 'F'
+                            : intention.kind === 'fief_assign'
+                              ? 'A'
+                              : 'E'
               const detail =
                 intention.kind === 'recruit_noble'
                   ? 'R'
@@ -197,6 +202,51 @@ export function WinterOrdersOverlay({
               )}
             </g>
           )
+        })}
+      {winterIntentions
+        .filter(
+          (intention) =>
+            intention.kind === 'fief_found' && (intention.territories?.length ?? 0) > 1,
+        )
+        .flatMap((intention) => {
+          const capital = territories.find(
+            (territory) => territory.id === intention.territory,
+          )
+          if (!capital) return []
+          const capitalCenter = centroid(capital.points)
+          const color = intention.color ?? DRAFT_INTENTION_COLOR
+          const members = (intention.territories ?? []).slice(1)
+          return members.flatMap((memberId) => {
+            const member = territories.find((territory) => territory.id === memberId)
+            if (!member) return []
+            const [x2, y2] = centroid(member.points)
+            return [
+              <line
+                key={`fief-group-line-${intention.line}-${memberId}`}
+                x1={capitalCenter[0]}
+                y1={capitalCenter[1]}
+                x2={x2}
+                y2={y2}
+                stroke={color}
+                strokeWidth={annotationScale * 2}
+                strokeDasharray={`${annotationScale * 4} ${annotationScale * 3}`}
+                strokeOpacity={intention.valid ? 0.9 : 0.4}
+              />,
+              // A blazon on each non-capital member echoes the ownership
+              // badge pattern so the drafted group reads at a glance, since
+              // membership does not yet change control or income (#196).
+              <OwnershipBadge
+                key={`fief-group-badge-${intention.line}-${memberId}`}
+                ownerId={memberId}
+                x={x2}
+                y={y2 - 18 * annotationScale}
+                color={color}
+                scale={annotationScale}
+                opacity={0.6}
+                label={t('map.fiefGroupMember', { capital: capital.name })}
+              />,
+            ]
+          })
         })}
       {winterIntentions
         .filter((intention) => !intention.valid && !intention.territory)

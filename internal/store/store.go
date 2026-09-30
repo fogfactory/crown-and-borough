@@ -223,7 +223,7 @@ type GameStore interface {
 	Get(context.Context, Actor, GameID) (GameSnapshot, error)
 	Map(context.Context, Actor, GameID) (mapgen.MapData, error)
 	State(context.Context, Actor, GameID) (GameSnapshot, error)
-	Supply(context.Context, Actor, GameID, models.TerritoryID) (engine.SupplyLine, error)
+	Supply(context.Context, Actor, GameID, models.TerritoryID, string) (engine.SupplyLine, error)
 	Submit(context.Context, Actor, GameID, SubmitRequest) (SubmitResult, error)
 	Resolve(context.Context, Actor, GameID) (SubmitResult, error)
 	Reports(context.Context, Actor, GameID) ([]ReportRecord, error)

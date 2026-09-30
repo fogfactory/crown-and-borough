@@ -10,6 +10,7 @@ const scoreKeys: Array<[keyof ScoreBreakdown, MessageKey]> = [
   ['nobles', 'score.nobles'],
   ['troops', 'score.troops'],
   ['resources', 'score.resources'],
+  ['fiefs', 'score.fiefs'],
 ]
 
 const emptyScore: ScoreBreakdown = {
@@ -20,6 +21,7 @@ const emptyScore: ScoreBreakdown = {
   nobles: 0,
   troops: 0,
   resources: 0,
+  fiefs: 0,
   total: 0,
 }
 
@@ -69,7 +71,7 @@ export function Scoreboard({
                 {scoreKeys.map(([key, labelKey]) => (
                   <div key={key} className="contents">
                     <dt className="text-[#806f57]">{t(labelKey)}</dt>
-                    <dd className="text-right font-medium">{score[key]}</dd>
+                    <dd className="text-right font-medium">{score[key] ?? 0}</dd>
                   </div>
                 ))}
               </dl>

@@ -36,9 +36,13 @@ positions) are visible to everyone at all times. What stays private are
 **intentions**: online, a player only sees the exact detail of a chain or a
 combat when they take part in it — section 3 shows this on a worked example.
 
-Each player starts on a distinct territory, where a **castle** is built for
-free (their **capital**), with {{starting_resources}} R in stock, an army of
-{{starting_troops}} troops, and {{starting_nobles}} free noble(s).
+Each player starts on a distinct territory, never a mountain and always
+bordered by at least two non-mountain territories, where a **castle** is
+built for free (their **capital**), with {{starting_resources}} R in stock, a
+garrison of {{starting_troops}} troops, and {{starting_nobles}} free
+noble(s). The player also receives {{starting_outposts}} one-troop outposts,
+placed from the start on that many distinct non-mountain territories
+neighbouring their capital, ready to expand their territory from turn one.
 
 A game lasts a number of years chosen at creation (10 by default); section 10
 covers the end of the game and scoring.
@@ -64,10 +68,14 @@ The three action seasons (spring, summer, autumn) all work the same way:
    armies.
 2. The engine checks each submission: a syntax or reception error rejects the
    affected submission, without touching the rest of the game (section 4).
-3. The engine resolves **everyone together**: supply, intentions, supports,
-   combats, movement, retreats, joins, dispersals, and chain progression.
-4. Territorial control, noble positions, and events are updated, then a **turn
-   report** is produced.
+3. The engine resolves **everyone together**: intentions, supports, combats,
+   movement, retreats, joins, dispersals, resource transfers, and chain
+   progression.
+4. Territorial control and noble positions are updated from the positions and
+   outcomes of that resolution.
+5. The engine resolves **supply** on these final positions and control —
+   territories just captured included: territory income, mill production,
+   rations, and famine (section 7) — then a **turn report** is produced.
 
 An army executes **at most one line of its chain per action season**: an `A`
 or `J` order therefore crosses at most one adjacent territory in that
@@ -82,7 +90,7 @@ in the order they were entered (section 8).
 
 | Season | What happens |
 |---|---|
-| Spring, summer, autumn | Supply is calculated first, then intentions, supports, combats, movement, joins, dispersals, and chain progression are resolved together. Each army has only one current line. |
+| Spring, summer, autumn | Intentions, supports, combats, movement, joins, dispersals, transfers, and chain progression are resolved together, then territorial control is updated, then supply is calculated last on these final positions and control. Each army has only one current line. |
 | Winter | No supply or chain order is resolved: investments are applied one by one, in the entered list, then stocks are conserved and repatriated. |
 
 Spring, summer, and autumn orders are therefore not a queue between players:
@@ -99,9 +107,10 @@ following sections.
 **The situation.** Hugues owns ROS (his capital, a castle) with a 2-troop army
 and his noble HUG, as well as FOU, a small 1-troop garrison holding his second
 noble, ODA. Both ROS and FOU are adjacent to ATL, held by Brune: a 2-troop army
-and her noble MIA. ATL is adjacent to NOR, an empty territory Brune controls.
+and her noble MIA. ATL is adjacent to NOR, an empty territory with no
+controller.
 
-<svg viewBox="0 0 540 280" width="100%" role="img" aria-label="ROS and FOU (Hugues) are adjacent to ATL (Brune), itself adjacent to NOR (Brune, empty)" style="max-width:480px;margin:16px auto;display:block;font-family:system-ui,sans-serif">
+<svg viewBox="0 0 540 280" width="100%" role="img" aria-label="ROS and FOU (Hugues) are adjacent to ATL (Brune), itself adjacent to NOR (no controller, empty)" style="max-width:480px;margin:16px auto;display:block;font-family:system-ui,sans-serif">
   <line x1="90" y1="70" x2="300" y2="130" stroke="#b7a786" stroke-width="2"/>
   <line x1="90" y1="190" x2="300" y2="130" stroke="#b7a786" stroke-width="2"/>
   <line x1="300" y1="130" x2="460" y2="130" stroke="#b7a786" stroke-width="2"/>
@@ -119,7 +128,7 @@ and her noble MIA. ATL is adjacent to NOR, an empty territory Brune controls.
   <text x="300" y="188" text-anchor="middle" font-size="11" fill="#594b3c">2 troops · MIA</text>
   <circle cx="460" cy="130" r="30" fill="#f8f0e2" stroke="#3a5a8c" stroke-width="2" stroke-dasharray="4 3"/>
   <text x="460" y="136" text-anchor="middle" font-size="16" font-weight="700" fill="#30291f">NOR</text>
-  <text x="460" y="174" text-anchor="middle" font-size="11" fill="#3a5a8c">controlled by Brune</text>
+  <text x="460" y="174" text-anchor="middle" font-size="11" fill="#3a5a8c">no controller</text>
   <text x="460" y="188" text-anchor="middle" font-size="11" fill="#594b3c">empty</text>
 </svg>
 
@@ -152,9 +161,9 @@ attack weighs 2 (the ROS army) + 1 (the FOU support) = 3; Brune's defense
 weighs 2. To keep this example simple, we ignore the noble bonus detailed in
 section 6 here — it would apply identically on both sides of this
 calculation. 3 against 2: Hugues wins, and his army occupies ATL. Brune's army
-is dislodged and must retreat; NOR is empty and controlled by her, so it's her
-destination (section 6 covers the full priority order). Noble MIA follows her
-army to NOR.
+is dislodged and must retreat; NOR is empty, has no controller, and wasn't
+fought over this turn, so it's her retreat destination (section 6 covers the
+full priority order). Noble MIA follows her army to NOR.
 
 **What everyone sees afterward.** Both chains involved had only one line: they
 are complete, and both of Hugues's armies are now No Orders for the next
@@ -337,19 +346,22 @@ BRI D BRI ATL NOR          # BRI keeps the chain; the other groups split away
 
 ### Transfer (`T`)
 
-**The gist**: `XXX T YYY N` is executed after supply, by the army on `XXX`.
-`YYY` must be a castle, village, or the territory of an army controlled by
-another living player; a bare depot cannot receive. The source territory only
-needs to contain stock.
+**The gist**: `XXX T YYY N` is executed during order resolution, before the
+end-of-turn supply phase (section 7), by the army on `XXX`. `YYY` must be a
+castle, village, or the territory of an army that **controls** its own
+territory and belongs to another living player (an army that merely occupies
+`YYY`, for instance on a fief member it does not control, cannot receive); a
+bare depot cannot receive. The source territory only needs to contain stock,
+and must not be occupied against its controller.
 
 **Edge cases**:
 
 - the route follows the donor's supply range (`{{supply_range}}` territories,
   plus controlled depots); any enemy army on an intermediate territory blocks
   it, but an enemy army at the destination is allowed;
-- a famished army cannot transfer; the amount is capped at
-  `{{cost_base}}^(N - 1)` for an army of `N` troops, without subtracting local
-  rations; the army performs no other order that turn;
+- a famished army (section 7) cannot send a transfer; the amount is capped at `{{cost_base}}^(N - 1)` for an army of `N`
+  troops, without subtracting local rations; the army performs no other order
+  that turn;
 - a stock shortage has no effect and does not break a `single` chain; in
   `loop`, the transfer retries, and when the remaining stock is below the
   requested amount, the remainder is sent as a partial final delivery and the
@@ -371,8 +383,12 @@ orders.
 - support strength is the supporting army's size, with the same bonus;
 - an army's defense receives the same bonus under the same condition;
 - a castle gives a fixed defensive bonus of **+{{castle_defense_bonus}}**,
-  even without an army — unless all attackers belong to the castle's owner
-  (see self-capture, section 5);
+  even without an army, **as long as it stays anchored** — a fief member or a
+  player's own capital — unless all attackers belong to the castle's owner
+  (see self-capture, section 5); an empty castle that is neither a fief
+  member nor a player's capital is **inert** and gives no bonus (see "Fiefs",
+  section 8); a fief capital's castle is a **city** and gives
+  **+{{city_defense_bonus}}** instead;
 - the **strictly unique** highest strength wins; a top tie produces a
   **standoff**, including on an empty territory;
 - you never dislodge your own army: an attack on a territory held by one of
@@ -390,8 +406,8 @@ orders.
 - a join or a dispersal whose **origin** comes under attack — allied, enemy,
   or even a starving attack at zero strength — is **cancelled outright**: none
   of its troops leaves, whether that attack wins or loses the combat there.
-  There is no more fleeing through a join or a dispersal: leaving an attacked
-  territory now means surviving the combat fought over it.
+  There is no fleeing through a join or a dispersal: leaving an attacked
+  territory means surviving the combat fought over it.
 
 That's exactly the calculation walked through in section 3: 3 against 2, no
 tie, Hugues wins.
@@ -401,11 +417,16 @@ tie, Hugues wins.
 A dislodged army loses its movement and must retreat as a whole, to an
 adjacent destination chosen by descending priority order:
 
-1. an empty territory controlled by the retreating army's owner (with or
-   without a castle), even if fought over this turn — that's the case for NOR
-   for Brune in section 3;
-2. an uncontrolled empty territory (neutral or enemy), without a castle and
-   not fought over this turn;
+1. an empty territory **anchored** to the retreating army's owner — a member
+   of one of their fiefs, or their own capital (section 8) — even if fought
+   over this turn;
+2. any other empty territory that isn't anchored, has no **anchored** castle
+   (anyone's), and wasn't fought over this turn — that's the case for NOR for
+   Brune in section 3, an empty territory she only controls positionally and
+   that wasn't fought over this turn; a territory merely controlled
+   positionally, including the one the retreating army just left this same
+   turn, falls back to this second priority like any other empty territory —
+   only an anchor earns the first;
 3. an adjacent, non-dislodged friendly army (smallest troop size first), with
    merging: the host gains `N − 1` troops if the retreating army has `N ≥ 2`
    troops, or `1` troop if `N = 1` (no loss). Multiple retreating armies can
@@ -415,14 +436,33 @@ adjacent destination chosen by descending priority order:
 Ties within a bucket are broken by distance to the nearest controlled castle
 or village, then ascending trigram. For friendly armies, sorting is by troop
 size ascending, then distance to the nearest controlled source, then
-ascending trigram. The attacker's origin territory is always excluded, and
-neutral or enemy empty castles defend against retreat: they are never a valid
-destination. Two armies that must retreat to the same empty territory with no
+ascending trigram. The attacker's origin territory is always excluded. An
+**anchored** castle — a member of a fief or a player's capital, even neutral
+or enemy to the retreating army — defends against retreat and is never a
+valid destination; an empty **inert** castle (neither fief, nor capital, nor
+army) becomes a valid second-priority destination again, just like no castle
+at all. Two armies that must retreat to the same empty territory with no
 alternative are destroyed. Retreat resolution order follows the ascending
 trigram of their origin territory.
 
-Territorial control follows the army that stops there; acquired control
-remains after the army leaves, until an enemy army stops there.
+Taking control of a territory follows the army that stops there; keeping it
+depends on its **anchor**: a member of a fief, or a player's own capital — a
+permanent exception, even without an army on it. Outside an anchor, control
+is **ephemeral**: a territory stays "someone's" only while one of that
+player's armies is currently stationed there; as soon as that stops being
+true, it reverts to neutral (no controller) at the next control update,
+until any army, whoever owns it, stops there again and retakes it
+positionally. Within a fief (section 8), control is instead **transitive**: a
+member other than its capital stays controlled by the fief's owner even when
+an enemy army — or a revolt — stops there; it **occupies** the member without
+controlling it. Only capturing the **capital** transfers control of every
+member to the conqueror at once; a `NEUTRAL` revolt never takes control of a
+territory, fief or not — so it never hands a release back to a former
+non-fief controller. A cell occupied against its controller (fief or not) is
+no longer a usable supply source or depot for anyone, and rejects any winter
+investment aimed at it (see sections 7 and 8); it still keeps its defensive
+bonus for the occupant, and its territory income keeps flowing to its normal
+destination, never intercepted.
 
 ### Nobles During a Combat
 
@@ -451,9 +491,10 @@ dungeon, covered in section 8, removes that ability.
 
 ### The Exponential Cost of an Army
 
-Supply is resolved **at the start of every action season**, before orders,
-combats, and movement; there is no supply phase in winter. An army of `N`
-troops demands:
+Supply is resolved **at the end of every action season**, after orders,
+combats, and movement, on the turn's final positions and territorial control
+— territories just captured included; there is no supply phase in winter. An
+army of `N` troops demands:
 
 ```text
 cost = {{cost_base}}^(N - 1)  rations
@@ -477,30 +518,73 @@ takes your territory's ration.
 
 **Territory food production (rations)**: plain {{ration_terrain.plain}};
 forest {{ration_terrain.forest}}; hill {{ration_terrain.hill}}; mountain
-{{ration_terrain.mountain}}; swamp {{ration_terrain.swamp}};
-**+{{infra_rations_bonus}}** when the territory has a castle or village.
+{{ration_terrain.mountain}}; swamp {{ration_terrain.swamp}}. A castle or
+village adds no rations: only the terrain feeds an army locally. A bad harvest
+removes every local ration of its region; an abundant harvest doubles them.
 
-Example: a 2-troop army on a hill with a castle (local production
-{{ration_terrain.hill}}, castle bonus {{infra_rations_bonus}}) receives 2
-rations, covering its full demand. The same army on a swamp (production
-{{ration_terrain.swamp}}) receives only 1 ration and must cover the rest
-elsewhere.
+Example: a 2-troop army on a plain (local production
+{{ration_terrain.plain}}) receives 2 rations, covering its full demand, castle
+or not. The same army in a forest (production {{ration_terrain.forest}})
+receives only 1 ration and must cover the rest elsewhere; in the mountains
+(production {{ration_terrain.mountain}}), it depends entirely on supply.
 
-**Supply sources**: controlled castles, villages, and caches. A castle or
-village produces {{base_production}} R of stock per turn; a bare territory has
-no production of its own, but its stock (if any) serves as a cache. The flow
-crosses allied, neutral, or enemy-controlled territories, and only stops
-before a territory occupied by an enemy army. Base range is
-{{supply_range}} territories; each controlled supply depot encountered along
-the route adds {{depot_range_bonus}} territories. A neutral village keeps its
-stock, inaccessible before capture.
+**Supply sources**: controlled castles, villages, and caches, plus an isolated
+mill (see below). A castle or village produces no stockable R by itself: its
+contribution comes from the mills adjacent to it and from the territory
+income it receives (see "Territory Income" below); a bare territory has no
+production of its own, but its stock (if any) serves as a cache. The
+flow crosses allied, neutral, or enemy-controlled territories, and only stops
+before a territory occupied by an enemy army. A cell **occupied against its
+controller** (section 6) — for instance a fief member held by an opponent who
+never took control of it — is however no longer a usable source or depot for
+anyone, controller or occupant. Outside any fief and outside a capital, a
+castle or depot with no army on it is likewise **inert**: it then has no
+controller left at all (section 6), and is no longer a usable source or depot
+for anyone. Base range is {{supply_range}} territories; each controlled
+supply depot, not occupied, encountered along the route adds
+{{depot_range_bonus}} territories. A neutral village keeps its stock,
+inaccessible before capture.
 
-Each source calculates its own production by adding the level of **every
-adjacent mill**: one mill can feed every neighboring source, with no owner
-filter, and an orphaned mill (with no adjacent castle or village) produces
-`0 R`. For example, a village surrounded by two level-1 mills produces
-`{{base_production}} + 1 + 1 R`. The presence or position of a noble never
-conditions this production.
+A mill outside any fief and outside a capital, with no army on it, is itself
+**inert**: it produces nothing at all while it stays in that state, whether
+it was never held or was just abandoned. An active mill — a member of a fief,
+on a player's capital, or currently held by an army — of level `N` produces
+`N` R and credits exactly **one** infrastructure: the adjacent castle **under
+the same control as the mill's own territory**,
+else the adjacent village under the same control, else the mill's own
+territory. A castle or village adjacent to the mill but controlled by another
+player is ignored. "Neutral" control is a controller like any other: a
+neutral mill never feeds a player, only a neutral village adjacent to it,
+else its own territory. A mill therefore never credits two infrastructures at
+once. An isolated mill (no eligible castle or village of its own control)
+produces on its own territory, which then becomes a source in its own right;
+that production isn't automatically routed elsewhere — it still needs a
+transfer order (`T`). The presence or position of a noble never conditions
+this production.
+
+### Territory Income
+
+Each action season (never in winter), every territory you control yields
+{{territory_income}} R, plus {{village_income}} R more if it carries a
+village. This income is credited **at the end of the turn**, with the rest of
+supply, on the turn's final territorial control: a territory captured during
+the turn credits its new controller, not the one from the start of the turn.
+It never travels through the supply network and can never be intercepted,
+even when the producing territory — or its destination — is occupied by an
+enemy army.
+
+A territory that belongs to a **fief** (section 8) credits the **fief's
+capital** instead of your own. Outside any fief, it goes straight to your
+**capital**'s stock.
+
+Without a designated capital (or right after it falls), each territory's
+income goes to the closest controlled castle over crossable borders
+(trigram tie-break), else the closest controlled village, else it is lost —
+distinct territories can therefore feed different destinations the same turn
+while no capital exists. A bad harvest suppresses this income in the region
+of the territory producing it; an abundant harvest doubles it, exactly like
+terrain rations. A **neutral** village keeps producing {{village_income}} R
+per turn into its own stock, recovered on capture.
 
 ### Stocks and Famine
 
@@ -511,18 +595,32 @@ When there is a deficit:
 2. remaining armies enter **famine**, starting with those furthest from their
    source, then the largest, then descending trigram.
 
-A famished army **attacks and defends at strength 0** for the turn, even when
-it carries a free noble. If it occupies infrastructure, it **pillages it
-automatically**; the pillage bonus, reduced by its residual demand, may end
-its famine. If pillage is insufficient or impossible, it loses **1 troop**,
-never falling below 1 — but it stays famished and at strength 0 for the whole
-current season, even if that loss would make its future demand sustainable;
-the loss repeats in every season the army remains famished.
+An army that lacks rations at this end-of-turn resolution is marked
+**famished**, a status that persists through the entire following turn: it
+**attacks and defends at strength 0**, even when it carries a free noble — the
+noble bonus does not apply — and it cannot send a resource transfer (it can
+still receive one, see section 5). This first turn in deficit costs it
+nothing else: no pillage of the infrastructure on its territory, no troop
+loss. You therefore have the entire following turn to pull it out of deficit,
+either by moving it away from the affected area or by sending it resources
+through a transfer.
 
-Example: a 2-troop army in deficit demands 2 rations. If its stocks and
-pillage cannot cover the deficit, it loses one troop and becomes a 1-troop
-army; it still stays at strength 0 this turn, even though a 1-troop army would
-then only demand 1 ration.
+Its status is only recalculated at the next supply resolution, at the end of
+that following turn. If it reached a sufficient source in the meantime, it
+becomes valid again from that turn on. If it is still in deficit at that
+point, while already famished, it **pillages the infrastructure on its
+territory automatically**, if it occupies one: the pillage bonus, reduced by
+its residual demand, may cover the deficit. If pillage is insufficient or
+impossible, it loses **1 troop**, never falling below 1, and stays famished
+for the turn after that.
+
+Example: a 2-troop army in deficit demands 2 rations. Lacking sufficient
+stocks, it ends the turn in deficit and is marked famished: it will attack and
+defend at strength 0 for the entire following turn, but loses nothing for
+now. If, at the following turn's resolution, its stocks and pillage still
+cannot cover its deficit, it loses one troop, becomes a 1-troop army, and
+stays famished for the turn after that — its fate depends on what it reaches
+as a supply source by that resolution, not on its new demand.
 
 In the interface, selecting an army or a controlled source shows its supply or
 the area it reaches (outside winter only). A transfer being drafted also shows
@@ -535,10 +633,11 @@ conditions are detailed in section 8.
 
 | Infrastructure | v1 effect |
 |---|---|
-| Mill | +1 stockable R per level at each adjacent source |
-| Supply depot | +{{depot_range_bonus}} territories of supply range when controlled |
-| Castle | +{{castle_defense_bonus}} defense, +{{infra_rations_bonus}} rations, produces {{base_production}} stockable R per turn, supply anchor |
-| Village | +{{infra_rations_bonus}} rations, produces {{base_production}} stockable R per turn, supply anchor after capture |
+| Mill | Inert (no production) outside a fief/capital with no army; otherwise `N` stockable R per level, credited to a single adjacent infrastructure (castle, else village, else itself) |
+| Supply depot | +{{depot_range_bonus}} territories of supply range while anchored or occupied; inert otherwise |
+| Castle | +{{castle_defense_bonus}} defense while it stays anchored or occupied, inert otherwise; supply anchor; receives territory income (section 7); becomes a city (+{{city_defense_bonus}}, not stacked) on a fief's capital (section 8) |
+| Village | Supply anchor after capture, receives territory income once controlled (produces {{village_income}} R per turn into its own stock while neutral, never held, or just abandoned — the only infrastructure that never goes inert) |
+| Fortified village | Identical to a village (stock, production, income), and additionally gains +{{castle_defense_bonus}} defense while it stays anchored or occupied, inert otherwise (section 8) |
 
 ---
 
@@ -551,14 +650,16 @@ per line, applied in the entered order.
 |---|---|---|---|
 | Recruit a noble | `R N XXX` | `XXX` controlled, with a castle or village and a player army | {{costs.noble}} |
 | Recruit a troop | `R T XXX` | `XXX` controlled, and a free player noble on `XXX` or adjacent | {{costs.troop}} |
-| Build or upgrade a mill | `C M XXX` | `XXX` controlled; a new mill on an **empty** territory adjacent to a productive castle or village, or an existing mill adjacent to that source | {{costs.mill_levels.0}} (L1), {{costs.mill_levels.1}} (L2), {{costs.mill_levels.2}} (L3) |
-| Build a castle | `C C XXX` | `XXX` controlled | {{costs.castle}} |
+| Build or upgrade a mill | `C M XXX` | `XXX` controlled; a **new** mill requires an **empty** territory adjacent to a castle or village, or itself carrying one; an **existing** mill can always be upgraded, even in isolation | {{costs.mill_levels.0}} (L1), {{costs.mill_levels.1}} (L2), {{costs.mill_levels.2}} (L3) |
+| Build a castle, or fortify a village | `C C XXX` | `XXX` controlled; on a village, fortifies it instead of building a castle there; rejected with no stock deducted if the village is already fortified | {{costs.castle}} |
 | Build a supply depot | `C D XXX` | `XXX` controlled | {{costs.supply_depot}} |
 | Designate a capital | `E C XXX` | a controlled castle on `XXX` | 0 |
 | Place a noble in hostage status | `O N NNN` | `NNN` is an opposing prisoner held by the player | 0 |
 | Place a noble in the dungeon | `P N NNN` | `NNN` is an opposing prisoner held by the player | 0 |
 | Liberate a noble | `L N NNN` | `NNN` is held by the player; its owner's capital contains one of that owner's armies | {{costs.liberation}} |
 | Transfer resources | `G XXX YYY N` | `XXX` is a castle or village controlled by the donor; `YYY` is a castle or village controlled by another player | 0 |
+| Found a fief | `T F NNN XXX YYY ZZZ …` | `NNN` is a free player noble; `XXX` (capital) and the rest of the group are controlled, contiguous, and need no castle outside the capital; no territory already in a fief; no enemy or revolt army on the group | {{costs.fief_per_territory}} per territory |
+| Assign a vacant fief | `T A NNN XXX` | `NNN` is a free player noble; `XXX` is the capital of a vacant fief the player holds | 0 |
 
 This is where, in winter, the fate of enemy nobles captured in combat
 (section 6) is decided: `O`/`P` moves a prisoner between `hostage` and
@@ -580,12 +681,49 @@ A mill starts at level 1 and can reach level 3 inclusive. Construction costs
 {{costs.mill_levels.1}} R and {{costs.mill_levels.2}} R respectively. `C M` on
 a level-3 mill is rejected with reason `mill_max_level_reached`, with no stock
 deducted. Mills above level 3 already present in a game are preserved and
-remain productive; only new upgrades are blocked.
+remain productive; only new upgrades are blocked. The adjacency requirement
+(an empty territory next to a castle or village) only applies to
+**building** a new mill; an existing mill can always be upgraded, even in
+isolation, paying from its own stock (see "Resource Vocabulary" below).
 
-Investments targeting a territory require **control of that territory**. A
-construction replaces the existing structure only when the rule says so: a
-**castle built on a village replaces the village** and keeps the territory's
-stock. An orphaned mill produces nothing.
+Investments targeting a territory require **control of that territory** and
+that it not be **occupied against its controller** (section 6): an enemy
+army — or a revolt — stationed there rejects the order with no stock
+deducted. `C C` on a village **fortifies** it for the cost of a castle,
+instead of replacing it: the fortified village keeps its stock, production,
+and income, and additionally gains a castle's defensive bonus (see "What Infrastructure
+Provides" above). `C C` on an already-fortified village is
+rejected with no stock deducted. An isolated mill (no castle or village of
+its own control adjacent) produces on its own territory (see section 7) and
+can always be upgraded.
+
+### Fiefs
+
+`T F` founds a fief: a group of at least 3 controlled, contiguous
+territories, whose first entry is the **capital** (only it needs a castle).
+The title depends on the group's size: barony (3), county (4), marquisate
+(5), duchy (6 or more). The capital's castle becomes a **city** and provides
+**+{{city_defense_bonus}}** defense in total (replacing the usual castle
+bonus, not stacking with it). The title belongs to the designated titulaire
+noble, who must be free at the time of founding; a single noble may hold
+several titles, and a player may hold several fiefs.
+
+Control of a fief is **transitive** (section 6): a member other than the
+capital stays yours even when an enemy army stops there; it **occupies** the
+member without taking it from you. Only capturing the **capital** costs you
+the entire fief, every member at once.
+
+If the titulaire dies (plague) or the capital changes hands, the fief becomes
+**vacant**: it keeps producing and scoring its point, but has no titulaire.
+`T A` then assigns it to a free noble of the player who holds it. At the end
+of winter, a fief still vacant at that point is **automatically assigned** to
+the free noble whose trigram sorts first, with a warning in the report
+telling you to take back manual assignment next turn; with no free noble at
+all, it simply stays vacant — it is never dissolved for lack of assignment.
+If the capital's castle is destroyed (pillage, including
+automatic famine pillage), the fief is dissolved **immediately**, regardless
+of the season: this is the only way a fief is dissolved. Capturing the
+titulaire (hostage or dungeon), by contrast, has no effect on the fief.
 
 ### Resource Vocabulary
 
@@ -597,37 +735,59 @@ stock. An orphaned mill produces nothing.
 - **stock** is therefore the amount of `R` kept on a territory.
 
 Each controlled castle or village is a separate source, and any controlled
-territory with positive stock is an action-season cache source. Every castle
-or village produces {{base_production}} R per turn independently of the
-others: a second castle is therefore a second source, even though only one
-castle is designated as the capital. A mill adds its level to every adjacent
-source, even across owner boundaries — see section 7 for the details of this
-production.
+territory with positive stock is an action-season cache source, as is an
+isolated mill (see section 7): a second castle is therefore a second source,
+even though only one castle is designated as the capital. Its stock depends
+on the territory income it receives (section 7, if it is the capital or its
+fallback) and on the mills adjacent to it under the same control — see
+section 7 for the details of this production.
 
 **Payment**: the cost is taken first from the stock on the target territory,
 then from the nearest controlled source; if the total reserve is
 insufficient, **no partial payment** is made and the investment is rejected
-(reported, with no cost lost). Example: a `C M ATL` costing
-{{costs.mill_levels.0}} R first consumes ATL's stock, then the remainder from
-the nearest controlled source; if those stocks do not total the required
-cost, the build is rejected with no partial payment made.
+(reported, with no cost lost). A settlement or mill occupied against its
+controller is never part of these reserves. Upgrading a mill (`C M ATL`) is
+the exception
+to this order: it first consumes the mill's own stock, then the stock of the
+infrastructure that would receive its production (castle first, else
+village), before falling back to the usual payment network; if those stocks
+do not total the required cost, the upgrade is rejected with no partial
+payment made.
 
 **End of winter**:
 
-- each remaining castle or village stock is kept at
+- each remaining castle, village, or mill stock is kept at
   `ceil(stock / {{winter_stock_divisor}})` — a stock of 5 R therefore becomes
   3 R;
-- a supply depot keeps its stock in full; stock outside a castle, village, or
-  depot is lost;
+- a supply depot keeps its stock in full; stock outside a castle, village,
+  mill, or depot is lost;
 - castle and village stocks outside the capital are brought back to the
   capital, leaving at most {{village_stock_cap}} R per village and
-  {{castle_stock_cap}} R per castle;
+  {{castle_stock_cap}} R per castle; a mill's stock is **never** repatriated,
+  and neither is a settlement's stock while it is occupied against its
+  controller (it stays there and follows normal conservation instead);
 - without a capital, those stocks remain where they are; depot stock remains
   on its territory.
 
 There is no need to spend everything before winter ends: unspent stock is
 first conserved, then surplus is repatriated under these caps. Conservation
 and repatriation happen after investments.
+
+**Prosperity and exodus**: right after conservation, the total stock loss
+that just occurred — summed across the whole map, every player combined —
+can found new villages: every full {{prosperity_loss_threshold}} R lost
+triggers one founding. Territories that lost stock this winter are ranked by
+loss descending (trigram ascending on ties), and each triggered founding
+comes from the next territory in that ranking, without ever degrading it or
+taking more stock from it than normal conservation already did. The founding
+lands on the closest free tile to that origin territory, not adjacent to an
+existing village or castle, in priority order: inside a fief of the player
+who controls the origin territory, else land that player controls, else
+anywhere free at all, including neutral or another player's; if no tile
+qualifies at any level, a supply depot becomes a village instead, or failing
+that a mill. The founded village belongs to the controller of the arrival
+tile, with no necessary link to the player whose origin territory triggered
+the founding.
 
 ---
 
@@ -639,29 +799,46 @@ from noble chains and requiring no noble. Winter discards are written in the
 
 - `P FW ROS`: play Fair weather on the region seeded by ROS;
 - `P AH ROS`: play Abundant harvest on that region;
-- `P RV BRU`: play Revolt on the BRU territory, only when an active bad
-  harvest affects its region;
+- `P RV BRU`: play Revolt on the BRU territory, when an active bad harvest
+  affects its region, or when a seigneurial tax was played on the capital of
+  BRU's fief this turn or the previous one — every territory of the fief is
+  then eligible, not only its taxed capital;
+- `P TX BRU`: play the Seigneurial tax on BRU, provided BRU is the capital of
+  a fief the player controls (a vacant fief included) — the one exception
+  where the target is not a region's seed village;
 - `D C FW` or `D C AH`: discard a card, winter only.
 
 The hand is replenished automatically in winter after discards; no draw order
 is needed.
 
-Fair weather, Abundant harvest, and Revolt can be played in spring, summer,
-and autumn, but not winter. Played cards are consumed before army-order
-resolution. Fair weather cancels only bad weather, and Abundant harvest
-cancels only bad harvest; a card that cancels a calamity does not provide its
-regional bonus. Duplicate cards of the same kind are consumed, but only one is
-effective: with an active calamity the first card cancels and a second one
-applies the regional bonus; without a calamity the first card applies it
-directly. The bonus stays capped at one unit per category and region; further
-cards are consumed without effect.
+Fair weather, Abundant harvest, Revolt, and the Seigneurial tax can be played
+in spring, summer, and autumn, but not winter. Played cards are consumed
+before army-order resolution. Fair weather cancels only bad weather, and
+Abundant harvest cancels only bad harvest; a card that cancels a calamity does
+not provide its regional bonus. Duplicate cards of the same kind are
+consumed, but only one is effective: with an active calamity the first card
+cancels and a second one applies the regional bonus; without a calamity the
+first card applies it directly. The bonus applies only once per kind and
+region; further cards are consumed without effect. The Seigneurial tax
+follows a separate rule, per fief rather than per region: two cards played on
+the same fief the same turn never stack, the second is simply consumed
+without effect.
+
+Regional bonuses:
+
+- Fair weather **doubles** the production of the region's mills;
+- Abundant harvest **doubles** the terrain rations of every territory of the
+  region and the region's territory income;
+- the Seigneurial tax **doubles** the targeted fief's territorial income,
+  village included, for the turn — it never touches mill production.
 
 The deck contains **{{special_orders.deck_size}} cards**:
 **{{special_orders.card.plague}}** plague, **{{special_orders.card.bad_weather}}**
 bad weather, **{{special_orders.card.famine}}** bad harvest,
 **{{special_orders.card.fair_weather}}** fair weather,
-**{{special_orders.card.abundant_harvest}}** abundant harvest, and
-**{{special_orders.card.revolt}}** revolt cards. A hand is limited to
+**{{special_orders.card.abundant_harvest}}** abundant harvest,
+**{{special_orders.card.revolt}}** revolt, and
+**{{special_orders.card.seigneurial_tax}}** seigneurial tax cards. A hand is limited to
 **{{special_orders.hand_limit}} cards**, and each player automatically
 receives up to **{{special_orders.draw_orders_limit}} bonus cards per
 winter**, after discards.
@@ -679,10 +856,14 @@ countered. No calamity resolves in winter.
 - plague reduces armies by a divisor of
   **{{special_orders.effects.plague_army_divisor}}** and may remove a noble;
 - bad weather blocks movements originating from or targeting its region,
-  except holds and defensive support;
-- bad harvest disables mills and infrastructure ration bonuses in its region;
+  except holds and defensive support, and the region's mills produce nothing;
+- bad harvest removes the terrain rations of every territory of its region and
+  the region's territory income;
 - Revolt is played on a territory (`P RV TER`) during action seasons,
-  provided its region suffers a bad harvest. Each card adds a roll between
+  provided its region suffers a bad harvest, or a Seigneurial tax was played
+  on the capital of the territory's fief this turn or the previous one —
+  every territory of the fief is then eligible, not only its taxed capital.
+  Each card adds a roll between
   **{{special_orders.effects.revolt_army_min_size}}** and
   **{{special_orders.effects.revolt_army_max_size}}** troops to the
   territory's common neutral army; the territory may be neutral (mere
@@ -693,7 +874,15 @@ countered. No calamity resolves in winter.
   canceled and their players take their cards back. A crushed rebellion
   retreats like any defeated army instead of vanishing. Neutral armies never
   lose strength to a famine, but lose one troop at the end of the turn when
-  the local production of their territory cannot feed them.
+  the local production of their territory cannot feed them;
+- the Seigneurial tax is played on a fief's capital (`P TX XXX`) the player
+  controls, a vacant fief included. It doubles the fief's territorial income
+  for the turn, village included, and never touches mill production.
+  Rejected if the player does not control the targeted fief, or if XXX is
+  not its capital. Two cards played on the same fief the same turn do not
+  stack: the second is consumed with no effect. If the taxed fief's capital is
+  captured during that same turn, the tax is canceled: nobody receives the
+  doubling for that transition turn.
 
 Public rumors are recalculated in every report from the current bonus hands of
 all players. They appear when at least two players hold a card, without
@@ -732,8 +921,11 @@ no winner.
 | Held noble | 2 |
 | Troop | 1 per unit in their armies |
 | Resource `R` | 1 per unit in stock on their controlled territories |
+| Held fief | 1, vacant included, until dissolved |
 
 Infrastructure and resources only score on a controlled territory. A free
 noble counts for its owner. A captured noble, hostage or in the dungeon,
-counts for the player who controls the territory where it stands, not for its
-original owner.
+counts for the player whose army physically holds it — the one stationed on
+its territory —, not for that territory's controller nor for its original
+owner: outside a fief, territorial control is ephemeral (section 6) and may
+have vanished while the capturing army still stands there.

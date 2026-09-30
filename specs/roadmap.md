@@ -11,7 +11,8 @@ La v1 comprend :
 
 - le moteur de jeu en Go pur ;
 - la génération déterministe d'une carte de `8 x N` territoires de jeu et de
-  `(N + 1) x 4` territoires dédiés aux villages ;
+  `(N + 1) x 4` territoires supplémentaires, portant `2 x N + 1` villages au
+  total (un village dédié par territoire de départ, plus `N + 1` chefs-lieux) ;
 - les chaînes d'ordres, leur progression simultanée, les combats, les retraites,
   les jonctions, les dispersions et le pillage ;
 - le ravitaillement, la famine et la résolution des ordres d'hiver ;
@@ -34,9 +35,10 @@ online à réaliser et à suivre par issue.
 | Carte | Génération Voronoï seedée, territoires nommés par trigramme, frontières franchissables ou infranchissables, graphe connexe, villages neutres et territoires dédiés | Fait |
 | Modèle | Joueurs, territoires, armées uniques par territoire, nobles, infrastructures, stocks, chaînes | Fait |
 | Ordres | Parser texte, ordres A/S/H/J/P/D, liaisons `single` et `loop`, validation et remplacement atomique des chaînes ; statuts nobles en ordres d'hiver O/P | Fait |
-| Résolution | Progression simultanée, attaques, soutiens, combats multi-contendants, bonus de commandement noble, retraites, jonctions, dispersions, contrôle territorial | Fait |
+| Résolution | Progression simultanée, attaques, soutiens, combats multi-contendants, bonus de commandement noble, retraites, jonctions, dispersions, contrôle territorial éphémère hors fief et capitale (voir [`titres.md`](titres.md#contrôle-et-occupation)) | Fait |
 | Logistique | Rations de terrain, ravitaillement BFS, portée, dépôts de vivres, coûts exponentiels, stocks et famine | Fait |
 | Hiver | Recrutement, constructions v1, capitale, libération des nobles, conservation et rapatriement des stocks | Fait |
+| Fiefs | Constitution (`T F`) et attribution (`T A`) par ordre d'hiver, bonus de cité, contrôle transitif et occupation, conquête, vacance avec attribution par défaut (plus de dissolution faute d'attribution), dissolution par perte du château capitale, revenu vers la capitale du fief, score dédié (voir [`titres.md`](titres.md)) | Fait |
 | Boucle de jeu | Cycle printemps/été/automne/hiver, rapport de tour, partie initiale déterministe | Fait |
 | Front | Carte interactive, poste de commandement, sélection de joueur, ordres par noble, rapport et signalisation de l'hiver | Fait |
 | Online v1 | Session unique en mémoire, création/réinitialisation de partie, soumission par joueur, résolution synchrone, résolution forcée, endpoint de ravitaillement, hôte observateur sans slot | Fait |
@@ -45,10 +47,17 @@ online à réaliser et à suivre par issue.
 
 - Une partie accepte de 2 à 16 joueurs.
 - La carte contient `8 x N` territoires de jeu et `(N + 1) x 4` territoires
-  supplémentaires dédiés aux `N + 1` villages neutres.
+  supplémentaires, et porte `2 x N + 1` villages neutres : `N + 1` chefs-lieux
+  et un village dédié par territoire de départ.
 - Les `N` châteaux de départ sont placés sur des territoires qui ne portent pas
-  ces villages neutres, avec au moins 4 étapes franchissables entre deux
-  départs ; ils ne consomment donc aucun des `N + 1` villages.
+  ces villages et qui ne sont ni une montagne ni bordés de moins de deux
+  voisins franchissables non montagneux (viabilité du premier tour, voir
+  [`economie.md`](economie.md#position-de-départ)), avec au moins 4 étapes
+  franchissables entre deux départs. Le village dédié d'un territoire de
+  départ est à exactement 2 étapes de lui, à au moins 3 étapes de tout autre
+  départ, et à au moins 2 étapes de tout autre village ; les chefs-lieux
+  restent à au moins 3 étapes de tout départ et 2 étapes de tout village
+  dédié.
 - Les villages neutres produisent et stockent leur production. Leur stock est
   inaccessible avant capture et reste sur place lors de la capture.
 - Une seule infrastructure occupe une case. Les infrastructures appartiennent
@@ -104,8 +113,18 @@ milestones GitHub `Online Foundations`, `Online Friends MVP` et `Online Hosted`.
 Les politiques, ordres spéciaux et autres règles que le GDD accueillera plus
 tard doivent être ajoutés comme des compléments à ce cœur v1. Ils ne doivent
 pas modifier les invariants de base : résolution simultanée, armée unique par
-territoire, chaînes d'ordres, ravitaillement, famine, hiver et contrôle
-territorial.
+territoire, chaînes d'ordres, hiver et contrôle territorial.
+
+Le ravitaillement et la famine ne figurent pas dans cette liste d'invariants
+protégés : leur algorithme (demande exponentielle, rations de terrain,
+sources, portée, résolution du déficit) reste stable, mais le moment où ils se
+résolvent dans le tour est un paramètre de calibrage économique assumé, suivi
+par issue plutôt que figé ici
+([#208](https://github.com/fogfactory/crown-and-borough/issues/208)) : le
+ravitaillement, le revenu territorial et les moulins se résolvent aujourd'hui
+en fin de tour d'action, sur les positions et le contrôle territorial
+définitifs du tour. Tout changement de ce timing reste documenté dans
+[`ravitaillement.md`](ravitaillement.md) et [`economie.md`](economie.md).
 
 Tout ajout ou bug découvert après le socle actuel est suivi dans GitHub plutôt
 que par un nouveau plan d'implémentation local. Les spécifications thématiques

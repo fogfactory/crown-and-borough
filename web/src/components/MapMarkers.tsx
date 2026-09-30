@@ -1,7 +1,7 @@
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
 import type { WinterIntention } from '@/lib/winter-overlay'
-import type { GameIconGlyph as GameIconGlyphSpec } from '@/lib/game-icon-glyphs'
+import { GAME_ICON_GLYPHS, type GameIconGlyph as GameIconGlyphSpec } from '@/lib/game-icon-glyphs'
 import { OWNERSHIP_SHIELD_PATH } from '@/components/MapLegend'
 import type { Infrastructure, Noble, Point } from '@/types'
 
@@ -28,6 +28,27 @@ const MARKER_GLYPHS: Record<Infrastructure['type'], string> = {
 
 /** Capital crown stays a light stroke glyph (Tabler Icons, MIT). */
 const CROWN_PATH = 'M12 6l4 6l5 -4l-2 10h-14l-2 -10l5 4l4 -6'
+
+/**
+ * Fortification overlay (game-icons.net "defensive wall" by HeavenlyDog, CC
+ * BY 3.0 -- "thick castle wall very hard to climb upon or destroy"; search
+ * "defensive wall" at https://game-icons.net). Drawn full width but squashed
+ * to a third of its height, bottom-aligned and in front of the village glyph,
+ * like a low stone course the village sits behind: three tiled full copies
+ * read as visual noise at the marker's actual ~26px map footprint, and a
+ * single undistorted copy either hid under the village's own silhouette or
+ * read as an unrelated blob. Kept in a light grey stone tone (not the wood
+ * tone the source icon suggests, and not the owner color) so it reads as
+ * stone architecture, not allegiance.
+ */
+const FORTIFICATION_WALL_GLYPH =
+  'M25 41v110h462V41h-21v55h-36V41h-60v55h-36V41h-60v55h-36V41h-60v55h-36V41H82v55H46V41H25zm0 128v206h62v-46H64v-18h71v-46H96v-18h96v18h-39v46h71v18h-7v46h270V169h-30v39h-18v-39H329v39h-18v-39H201v39h-18v-39H73v39H55v-39H25zm247 78h176v18h-87v55h-18v-55h-71v-18zm-167 82v46h94v-46h-94zm-80 64v94h47.973l14.297-57.184 17.46 4.368L91.527 487h328.946l-13.203-52.816 17.46-4.368L439.027 487H487v-94H346.98l13.846 69.234-17.652 3.532L328.62 393H183.38l-14.554 72.766-17.652-3.532L165.02 393H25z'
+const FORTIFICATION_WALL_FILL = '#b8b8b4'
+/** Bottom-aligned, full-width, one-third-height transform for the wall
+ * overlay: squashing scaleY (not scaleX too) keeps it spanning the glyph's
+ * full width as a low course, and dy pushes the squashed copy's bottom back
+ * down to the glyph's own bottom edge. */
+const FORTIFICATION_WALL_TRANSFORM = `translate(0 ${512 - 512 / 3}) scale(1 ${1 / 3})`
 
 /** Neutral fill/stroke for infrastructure without a controlling player. */
 const NEUTRAL_MARKER_FILL = '#efe6d0'
@@ -78,7 +99,8 @@ export function InfrastructureMarker({
   variant = 'normal',
 }: InfrastructureMarkerProps) {
   const { t } = useLanguage()
-  const label = `${t(INFRASTRUCTURE_LABEL_KEYS[infrastructure.type])} · ${t('app.level', { level: infrastructure.level })}${isCapital ? ` · ${t('app.capital')}` : ''}`
+  const fortified = infrastructure.type === 'village' && infrastructure.fortified === true
+  const label = `${t(INFRASTRUCTURE_LABEL_KEYS[infrastructure.type])} · ${t('app.level', { level: infrastructure.level })}${fortified ? ` · ${t('infrastructure.fortified')}` : ''}${isCapital ? ` · ${t('app.capital')}` : ''}`
   const glyph = MARKER_GLYPHS[infrastructure.type]
   const fill = ownerColor ?? NEUTRAL_MARKER_FILL
 
@@ -104,10 +126,21 @@ export function InfrastructureMarker({
           <g transform="translate(-13 -13) scale(0.05078125)">
             <path d={glyph} fill="#fff8e7" />
             <path d={glyph} fill="none" stroke={INTENT_OUTLINE_COLOR} strokeWidth={10} />
+            {fortified && (
+              <g transform={FORTIFICATION_WALL_TRANSFORM}>
+                <path d={FORTIFICATION_WALL_GLYPH} fill="#fff8e7" />
+                <path
+                  d={FORTIFICATION_WALL_GLYPH}
+                  fill="none"
+                  stroke={INTENT_OUTLINE_COLOR}
+                  strokeWidth={10}
+                />
+              </g>
+            )}
           </g>
         </>
       ) : (
-        <g transform="translate(-13 -13) scale(0.05078125)">
+        <g transform="translate(-13 -13) scale(0.05078125)" data-fortified-marker={fortified || undefined}>
           {/* Light halo keeps the glyph readable on any terrain fill. */}
           <path
             d={glyph}
@@ -119,6 +152,27 @@ export function InfrastructureMarker({
           {/* Owner color fills the building, dark casing defines its shape. */}
           <path d={glyph} fill={fill} />
           <path d={glyph} fill="none" stroke={MARKER_CASING_COLOR} strokeWidth={8} />
+          {fortified && (
+            /* Fortification wall sits in front of the village glyph, along
+               its bottom edge, same halo/fill/casing treatment, light grey
+               stone tone. */
+            <g transform={FORTIFICATION_WALL_TRANSFORM}>
+              <path
+                d={FORTIFICATION_WALL_GLYPH}
+                fill="#fff8e7"
+                stroke="#fff8e7"
+                strokeWidth={20}
+                opacity={0.9}
+              />
+              <path d={FORTIFICATION_WALL_GLYPH} fill={FORTIFICATION_WALL_FILL} />
+              <path
+                d={FORTIFICATION_WALL_GLYPH}
+                fill="none"
+                stroke={MARKER_CASING_COLOR}
+                strokeWidth={8}
+              />
+            </g>
+          )}
         </g>
       )}
       {isCapital && (
@@ -183,6 +237,43 @@ export function NobleMarker({
   )
 }
 
+/** Danger red shared with every other "unfed"/risk indicator in the app
+ * (command post's famine risk text, SelectedTerritoryDetails' unreachable
+ * source warning). */
+const FAMINE_MARKER_COLOR = '#8d321e'
+
+/** Same "desert-skull" glyph as the famine calamity overlay (game-icons.net,
+ * CC BY 3.0, Delapouite), reused here so a starving army reads at a glance
+ * with the icon players already associate with famine elsewhere on the map. */
+const FAMINE_GLYPH = GAME_ICON_GLYPHS['desert-skull']
+
+/**
+ * Small badge overlaid on an army's own marker when it is starving
+ * (models.Army.Starving, issue #208): it will fight at strength 0 this turn.
+ * Danger red keeps it visually distinct from every other overlay (ownership
+ * shield, capital crown, fortification wall), all of which use the owner's
+ * or a neutral tone rather than this shared danger red.
+ */
+export function FamineMarker({ x, y, scale }: { x: number; y: number; scale: number }) {
+  const { t } = useLanguage()
+  const size = 13 * scale
+  return (
+    <g data-starving-marker="true" pointerEvents="none">
+      <title>{t('map.armyStarvingBadge')}</title>
+      <GameIconGlyph
+        glyph={FAMINE_GLYPH}
+        x={x - size / 2}
+        y={y - size / 2}
+        size={size}
+        fill={FAMINE_MARKER_COLOR}
+        stroke="#fff8e7"
+        strokeWidth={20}
+        opacity={1}
+      />
+    </g>
+  )
+}
+
 export function OwnershipBadge({
   ownerId,
   x,
@@ -190,6 +281,8 @@ export function OwnershipBadge({
   color,
   scale,
   label,
+  code,
+  opacity = 1,
 }: {
   ownerId: string
   x: number
@@ -197,11 +290,16 @@ export function OwnershipBadge({
   color: string
   scale: number
   label: string
+  /** Short code (e.g. a fief's capital trigram) printed on the shield to
+   * tell apart several badges that would otherwise share the same color. */
+  code?: string
+  opacity?: number
 }) {
   return (
     <g
       data-ownership-badge={ownerId}
       transform={`translate(${x} ${y}) scale(${scale})`}
+      opacity={opacity}
       pointerEvents="none"
     >
       <title>{label}</title>
@@ -219,6 +317,18 @@ export function OwnershipBadge({
         stroke={MARKER_CASING_COLOR}
         strokeWidth={1.6}
       />
+      {code && (
+        <text
+          y={-5.5}
+          fill="#fff8e7"
+          fontSize={7}
+          fontWeight="800"
+          textAnchor="middle"
+          dominantBaseline="central"
+        >
+          {code}
+        </text>
+      )}
     </g>
   )
 }

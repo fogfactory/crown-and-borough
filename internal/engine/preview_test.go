@@ -108,3 +108,73 @@ func TestPreviewOrdersSimulatesEachWinterLine(t *testing.T) {
 		t.Fatal("PreviewOrders mutated the game state")
 	}
 }
+
+func TestPreviewOrdersReportsFiefGroupTerritories(t *testing.T) {
+	game := foundFiefTestState(t)
+	// GameFinished needs a second player still in the game: give P2 the
+	// territory outside the fief group so the winter preview can resolve.
+	placeArmyAt(game, "A2", "P2", "GGG", 1)
+	game.NextArmyID = 3
+	validateTestState(t, game)
+
+	preview, err := PreviewOrders(game, testBalance(), "P1", OrdersInput{
+		Winter: []WinterSubmission{{Player: "P1", Lines: "T F HUG AAA BBB CCC"}},
+	})
+	if err != nil {
+		t.Fatalf("PreviewOrders: %v", err)
+	}
+	if len(preview.Winter) != 1 {
+		t.Fatalf("winter lines = %#v, want one line", preview.Winter)
+	}
+	line := preview.Winter[0]
+	if line.Order == nil || !line.Applied || line.Territory != "AAA" {
+		t.Fatalf("fief line = %#v, want an applied found_fief order on AAA", line)
+	}
+	if got, want := line.Territories, []models.TerritoryID{"AAA", "BBB", "CCC"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("fief line territories = %#v, want %#v", got, want)
+	}
+}
+
+// TestPreviewOrdersReportsFiefRejectionOnOffendingTerritory verifies that a
+// found_fief line rejected because of one non-capital member (here CCC, not
+// controlled by P1) is attributed to that territory rather than defaulting
+// to the capital, so the map marker lands on the actual offending territory.
+func TestPreviewOrdersReportsFiefRejectionOnOffendingTerritory(t *testing.T) {
+	game := foundFiefTestState(t)
+	placeArmyAt(game, "A2", "P2", "CCC", 1)
+	game.NextArmyID = 3
+	validateTestState(t, game)
+
+	preview, err := PreviewOrders(game, testBalance(), "P1", OrdersInput{
+		Winter: []WinterSubmission{{Player: "P1", Lines: "T F HUG AAA BBB CCC"}},
+	})
+	if err != nil {
+		t.Fatalf("PreviewOrders: %v", err)
+	}
+	if len(preview.Winter) != 1 {
+		t.Fatalf("winter lines = %#v, want one line", preview.Winter)
+	}
+	line := preview.Winter[0]
+	if line.Applied || line.Reason != "territory_not_controlled" || line.Territory != "CCC" {
+		t.Fatalf("fief line = %#v, want a territory_not_controlled rejection on CCC", line)
+	}
+}
+
+func TestWinterPaymentReservesCountsAnIsolatedMillTargetedForUpgrade(t *testing.T) {
+	state := winterTestState(t, []models.Territory{territory("AAA", "AAA")}, nil)
+	setTerritoryOwner(state, "AAA", "P1")
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "AAA"})
+	setTerritoryResources(state, "AAA", 5)
+
+	withoutOrder := winterPaymentReserves(state, "P1", nil)
+	if withoutOrder != 0 {
+		t.Errorf("reserves without a build order = %d, want 0 (a mill's stock is not spendable at large)", withoutOrder)
+	}
+
+	targeted := winterPaymentReserves(state, "P1", []models.WinterOrder{
+		{ID: "O1", Type: models.WinterOrderTypeBuild, TerritoryID: "AAA", InfraType: models.InfraTypeMill},
+	})
+	if targeted != 5 {
+		t.Errorf("reserves with the mill targeted for upgrade = %d, want 5 (its own stock)", targeted)
+	}
+}

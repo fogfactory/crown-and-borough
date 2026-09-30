@@ -60,6 +60,26 @@ export function MapSvgDefs({
           strokeOpacity="0.5"
         />
       </pattern>
+      {/* Opposite diagonal and a distinct color from the supply hatch, for a
+          fief member controlled but held by another army (titres.md,
+          issue #196). */}
+      <pattern
+        id="occupied-hatch"
+        width={8 * annotationScale}
+        height={8 * annotationScale}
+        patternUnits="userSpaceOnUse"
+        patternTransform="rotate(-45)"
+      >
+        <line
+          x1={4 * annotationScale}
+          y1="0"
+          x2={4 * annotationScale}
+          y2={8 * annotationScale}
+          stroke="#a84632"
+          strokeWidth={2 * annotationScale}
+          strokeOpacity="0.55"
+        />
+      </pattern>
       {TERRAIN_PATTERNS.map((terrain) => (
         <TerrainPattern key={terrain.terrain} terrain={terrain} scale={annotationScale} />
       ))}

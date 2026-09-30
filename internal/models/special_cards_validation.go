@@ -90,6 +90,23 @@ func validateSpecialDeck(deck *SpecialDeck, auguries map[int]YearAugury, players
 	return nil
 }
 
+// validateTaxedFiefs checks that every persisted tax window still points at
+// a known fief with a positive turn. Engine code is responsible for dropping
+// an entry the moment its fief dissolves (titres.md "Taxe seigneuriale"), so
+// a dangling reference here is a corrupted state rather than a normal
+// transient the validator should tolerate.
+func validateTaxedFiefs(taxedFiefs []TaxedFief, fiefIDs map[FiefID]bool) error {
+	for index, taxed := range taxedFiefs {
+		if !fiefIDs[taxed.FiefID] {
+			return fmt.Errorf("models: taxed fief %d: unknown fief %q", index, taxed.FiefID)
+		}
+		if taxed.Turn < 1 {
+			return fmt.Errorf("models: taxed fief %d: invalid turn %d", index, taxed.Turn)
+		}
+	}
+	return nil
+}
+
 func validateActiveRegionEffects(effects []ActiveRegionEffect, regions []Region) error {
 	if len(regions) == 0 {
 		return nil

@@ -20,23 +20,25 @@ const (
 		"ADE;Adélaïde\n" +
 		"MAH;Mahaut\n"
 	validBalance = `# The loader accepts YAML documentation comments.
-base_production: 1
+territory_income: 1
+village_income: 1
 supply_range: 3
 depot_range_bonus: 2
-infra_rations_bonus: 2
 cost_base: 2
 pillage_bonus: 2
 noble_command_bonus: 1
 castle_defense_bonus: 1
+city_defense_bonus: 2
 ration_terrain:
-  plain: 3
-  forest: 2
-  hill: 2
-  mountain: 1
+  plain: 2
+  forest: 1
+  hill: 1
+  mountain: 0
   swamp: 1
 winter_stock_divisor: 2
 village_stock_cap: 1
 castle_stock_cap: 2
+prosperity_loss_threshold: 10
 costs:
   castle: 10
   mill_levels: [3, 5, 7]
@@ -44,8 +46,10 @@ costs:
   noble: 2
   supply_depot: 3
   liberation: 0
+  fief_per_territory: 2
 starting_nobles: 1
 starting_troops: 1
+starting_outposts: 2
 starting_resources: 10
 special_orders:
   hand_limit: 4
@@ -64,13 +68,12 @@ special_orders:
     fair_weather: 3
     abundant_harvest: 3
     revolt: 1
+    seigneurial_tax: 2
   effects:
     plague_army_divisor: 2
     plague_noble_mortality_percentage: 50
     revolt_army_min_size: 1
-    revolt_army_max_size: 3
-    bonus_mill_production: 1
-    bonus_army_ration: 1`
+    revolt_army_max_size: 3`
 )
 
 func writeAssets(t *testing.T, dir, communes, prenoms string) {
@@ -106,7 +109,7 @@ func TestLoadRealBalance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadBalance(real asset) = %v", err)
 	}
-	if balance.BaseProduction != 1 || balance.DepotRangeBonus != 2 || balance.NobleCommandBonus != 1 || balance.WinterStockDivisor != 2 || balance.VillageStockCap != 1 || balance.CastleStockCap != 2 || balance.Costs.Castle != 10 || balance.Costs.Liberation != 0 || len(balance.Costs.MillLevels) != 3 || balance.Costs.MillLevels[0] != 3 || balance.Costs.MillLevels[1] != 5 || balance.Costs.MillLevels[2] != 7 {
+	if balance.TerritoryIncome != 1 || balance.VillageIncome != 1 || balance.DepotRangeBonus != 2 || balance.NobleCommandBonus != 1 || balance.WinterStockDivisor != 2 || balance.VillageStockCap != 1 || balance.CastleStockCap != 2 || balance.Costs.Castle != 10 || balance.Costs.Liberation != 0 || len(balance.Costs.MillLevels) != 3 || balance.Costs.MillLevels[0] != 3 || balance.Costs.MillLevels[1] != 5 || balance.Costs.MillLevels[2] != 7 {
 		t.Errorf("loaded costs = %#v / %#v", balance, balance.Costs)
 	}
 	if len(balance.FirstNames) < 100 {
@@ -124,8 +127,8 @@ func TestLoadBalanceValid(t *testing.T) {
 		t.Fatalf("LoadBalance(valid asset) = %v", err)
 	}
 	if balance.SupplyRange != 3 || balance.NobleCommandBonus != 1 ||
-		balance.RationTerrain["plain"] != 3 || balance.RationTerrain["forest"] != 2 ||
-		balance.RationTerrain["hill"] != 2 || balance.RationTerrain["mountain"] != 1 ||
+		balance.RationTerrain["plain"] != 2 || balance.RationTerrain["forest"] != 1 ||
+		balance.RationTerrain["hill"] != 1 || balance.RationTerrain["mountain"] != 0 ||
 		balance.RationTerrain["swamp"] != 1 {
 		t.Errorf("loaded balance = %#v", balance)
 	}
@@ -162,17 +165,32 @@ func TestLoadBalanceInvalid(t *testing.T) {
 		},
 		{
 			name:    "missing terrain value",
-			content: strings.Replace(validBalance, "  mountain: 1\n  swamp: 1\n", "  mountain: 1\n", 1),
+			content: strings.Replace(validBalance, "  mountain: 0\n  swamp: 1\n", "  mountain: 0\n", 1),
 			want:    "ration_terrain.swamp",
 		},
 		{
+			name:    "removed additive card bonus",
+			content: strings.Replace(validBalance, "    revolt_army_max_size: 3", "    revolt_army_max_size: 3\n    bonus_army_ration: 1", 1),
+			want:    "bonus_army_ration",
+		},
+		{
+			name:    "removed infrastructure rations bonus",
+			content: strings.Replace(validBalance, "territory_income: 1\n", "territory_income: 1\ninfra_rations_bonus: 2\n", 1),
+			want:    "infra_rations_bonus",
+		},
+		{
+			name:    "removed base production",
+			content: strings.Replace(validBalance, "territory_income: 1\n", "base_production: 1\nterritory_income: 1\n", 1),
+			want:    "base_production",
+		},
+		{
 			name:    "unknown setting",
-			content: strings.Replace(validBalance, "base_production: 1\n", "unknown_setting: 1\nbase_production: 1\n", 1),
+			content: strings.Replace(validBalance, "territory_income: 1\n", "unknown_setting: 1\nterritory_income: 1\n", 1),
 			want:    "unknown_setting",
 		},
 		{
 			name:    "malformed YAML",
-			content: "base_production: [\n",
+			content: "territory_income: [\n",
 			want:    "invalid YAML",
 		},
 	}

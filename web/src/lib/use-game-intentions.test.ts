@@ -93,6 +93,7 @@ describe('useGameIntentions', () => {
     expect(result.current.intentions[0]).toMatchObject({
       symbol: 'A',
       source: 'draft',
+      color: '#a84632',
     })
     expect(result.current.winterIntentions).toHaveLength(0)
     expect(result.current.intentionsColor).toBe('#a84632')
@@ -123,6 +124,7 @@ describe('useGameIntentions', () => {
       kind: 'build',
       territory: 'ROS',
       valid: true,
+      color: '#a84632',
     })
   })
 

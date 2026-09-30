@@ -11,7 +11,7 @@ import (
 )
 
 var specialCalamityKinds = []models.CardKind{models.CardKindPlague, models.CardKindBadWeather, models.CardKindFamine}
-var specialBonusKinds = []models.CardKind{models.CardKindFairWeather, models.CardKindAbundantHarvest, models.CardKindRevolt}
+var specialBonusKinds = []models.CardKind{models.CardKindFairWeather, models.CardKindAbundantHarvest, models.CardKindRevolt, models.CardKindSeigneurialTax}
 
 func buildSpecialDeck(seed string, balance assetgen.Balance) (*models.SpecialDeck, error) {
 	config := balance.SpecialOrders

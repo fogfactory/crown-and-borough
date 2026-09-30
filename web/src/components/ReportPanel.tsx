@@ -4,6 +4,7 @@ import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
 import type {
+  FiefTitle,
   InfraType,
   MapData,
   Outcome,
@@ -11,11 +12,20 @@ import type {
   PlayerId,
   ReportArmy,
   CardReport,
+  FiefReport,
+  IncomeReport,
   SeasonEffectReport,
   TurnReport,
   WinterInvestmentReport,
   WinterOrder,
 } from '@/types'
+
+const FIEF_TITLE_KEYS: Record<FiefTitle, MessageKey> = {
+  barony: 'fief.title.barony',
+  county: 'fief.title.county',
+  marquisate: 'fief.title.marquisate',
+  duchy: 'fief.title.duchy',
+}
 
 interface ReportPanelProps {
   report: TurnReport | null
@@ -43,6 +53,7 @@ const REASON_KEYS: Record<string, MessageKey> = {
   famished_sender: 'reports.reason.famished_sender',
   transfer_over_capacity: 'reports.reason.transfer_over_capacity',
   transfer_path_blocked: 'reports.reason.transfer_path_blocked',
+  transfer_target_occupied: 'reports.reason.transfer_target_occupied',
   invalid_transfer_destination: 'reports.reason.invalid_transfer_destination',
   transfer_source_not_controlled: 'reports.reason.transfer_source_not_controlled',
   transfer_same_territory: 'reports.reason.transfer_same_territory',
@@ -58,6 +69,7 @@ const REASON_KEYS: Record<string, MessageKey> = {
   no_capital: 'reports.reason.no_capital',
   no_army_at_capital: 'reports.reason.no_army_at_capital',
   structure_present: 'reports.reason.structure_present',
+  village_already_fortified: 'reports.reason.village_already_fortified',
   mill_requires_productive_neighbor: 'reports.reason.mill_requires_productive_neighbor',
   capital_requires_controlled_castle: 'reports.reason.capital_requires_controlled_castle',
   attack_wins: 'reports.reason.attack_wins',
@@ -120,6 +132,25 @@ const REASON_KEYS: Record<string, MessageKey> = {
   disperse_residual_dislodged: 'reports.reason.disperse_residual_dislodged',
   invalid_transfer_shape: 'reports.reason.invalid_transfer_shape',
   no_available_first_name: 'reports.reason.no_available_first_name',
+  fief_holder_not_owned: 'reports.reason.fief_holder_not_owned',
+  fief_holder_not_free: 'reports.reason.fief_holder_not_free',
+  fief_duplicate_territory: 'reports.reason.fief_duplicate_territory',
+  fief_too_small: 'reports.reason.fief_too_small',
+  fief_capital_requires_castle: 'reports.reason.fief_capital_requires_castle',
+  fief_territory_already_in_fief: 'reports.reason.fief_territory_already_in_fief',
+  fief_territory_occupied_by_other_player:
+    'reports.reason.fief_territory_occupied_by_other_player',
+  fief_not_contiguous: 'reports.reason.fief_not_contiguous',
+  fief_not_found: 'reports.reason.fief_not_found',
+  fief_not_owned: 'reports.reason.fief_not_owned',
+  fief_not_vacant: 'reports.reason.fief_not_vacant',
+  capital_castle_lost: 'reports.reason.capital_castle_lost',
+  fief_auto_assigned_default_holder: 'reports.reason.fief_auto_assigned_default_holder',
+  prosperity_fief: 'reports.reason.prosperity_fief',
+  prosperity_controlled: 'reports.reason.prosperity_controlled',
+  prosperity_free: 'reports.reason.prosperity_free',
+  prosperity_depot_upgraded: 'reports.reason.prosperity_depot_upgraded',
+  prosperity_mill_upgraded: 'reports.reason.prosperity_mill_upgraded',
 }
 
 const RECEPTION_REASON_KEYS: Record<string, MessageKey> = {
@@ -156,6 +187,26 @@ function playerLabel(
 
 function playerColor(players: Player[], playerId?: PlayerId): string {
   return players.find((player) => player.id === playerId)?.color ?? '#b7a786'
+}
+
+/**
+ * Income line destination label: a fief line prints its title and capital
+ * (`{title} of {capital}`) instead of the bare destination trigram, since
+ * several lines can otherwise share the same destination code (a fief whose
+ * capital is also the player's own capital, titres.md #196).
+ */
+function incomeDestinationLabel(
+  line: IncomeReport,
+  map: MapData | null,
+  t: Translate,
+): string {
+  if (line.fief && line.title) {
+    return t('map.fiefLabel', {
+      title: t(FIEF_TITLE_KEYS[line.title]),
+      capital: territoryLabel(map, line.fief, t),
+    })
+  }
+  return territoryLabel(map, line.destination, t)
 }
 
 function playerMarker(players: Player[], playerId: PlayerId | undefined, t: Translate) {
@@ -235,6 +286,16 @@ function winterOrderLabel(order: WinterOrder, map: MapData | null, t: Translate)
       return `P N ${order.nobleCode ?? '—'}`
     case 'transfer':
       return `G ${territoryLabel(map, order.source, t)} ${territoryLabel(map, order.target, t)} ${order.amount ?? '—'}`
+    case 'found_fief': {
+      const group = order.territories?.length
+        ? order.territories
+        : order.territory
+          ? [order.territory]
+          : []
+      return `T F ${order.nobleCode ?? '—'} ${group.map((id) => territoryLabel(map, id, t)).join(' ')}`
+    }
+    case 'assign_fief':
+      return `T A ${order.nobleCode ?? '—'} ${territory}`
   }
 }
 
@@ -252,12 +313,28 @@ function investmentLabel(
       return `C ${WINTER_INFRA_SYMBOLS[investment.type ?? 'mill'] ?? '?'} ${territory}`
     case 'upgrade':
       return `C ${WINTER_INFRA_SYMBOLS[investment.type ?? 'mill'] ?? '?'} ${territory}`
+    case 'fortify':
+      // A fortify event always comes from a `C C` order (the syntax
+      // fortifying a village instead of building a castle, #193): show it
+      // with the castle symbol the player actually typed, not the village's.
+      return `C ${WINTER_INFRA_SYMBOLS.castle} ${territory}`
     case 'capital_elected':
       return `E C ${territory}`
     case 'liberation':
       return `L N ${investment.nobleCode ?? '—'}`
     case 'transfer':
       return `G ${territoryLabel(map, investment.source, t)} ${territoryLabel(map, investment.target, t)} ${investment.amount ?? '—'}`
+    case 'fief_founded': {
+      const group = investment.territories?.length
+        ? investment.territories
+        : [investment.territory ?? '']
+      return `T F ${investment.nobleCode ?? '—'} ${group.map((id) => territoryLabel(map, id, t)).join(' ')}`
+    }
+    case 'fief_assigned':
+    case 'fief_auto_assigned':
+      return `T A ${investment.nobleCode ?? '—'} ${territory}`
+    case 'prosperity_founded':
+      return `${WINTER_INFRA_SYMBOLS.village} ${territoryLabel(map, investment.target, t)} ← ${territoryLabel(map, investment.source, t)}`
     default:
       return t('reports.winterOrder')
   }
@@ -307,6 +384,40 @@ function winterDetails(
   return territoryLabel(map, investment.territory, t)
 }
 
+function fiefEventLabel(
+  fief: FiefReport,
+  players: Player[],
+  map: MapData | null,
+  t: Translate,
+): string {
+  const capital = territoryLabel(map, fief.capital, t)
+  const owner = playerLabel(players, fief.owner, t)
+  switch (fief.kind) {
+    case 'fief_conquered':
+      return t('reports.fiefConquered', {
+        capital,
+        previousOwner: playerLabel(players, fief.previousOwner, t),
+        owner,
+      })
+    case 'fief_vacated':
+      return t('reports.fiefVacated', { capital, owner })
+    case 'fief_dissolved':
+      return t('reports.fiefDissolved', {
+        capital,
+        owner,
+        reason: reportReason(fief.reason, t) ?? fief.reason ?? '—',
+      })
+    case 'fief_member_occupied':
+      return t('reports.fiefMemberOccupied', {
+        territory: territoryLabel(map, fief.territory, t),
+        capital,
+        occupant: playerLabel(players, fief.occupant, t),
+      })
+    default:
+      return capital
+  }
+}
+
 function cardEventLabel(card: CardReport, map: MapData | null, t: Translate): string {
   const label = formatCardLabel(card.kind, t)
   const region = territoryLabel(map, card.region, t)
@@ -331,7 +442,11 @@ function cardEventLabel(card: CardReport, map: MapData | null, t: Translate): st
   }
 }
 
-function seasonEffectLabel(effect: SeasonEffectReport, map: MapData | null, t: Translate): string {
+function seasonEffectLabel(
+  effect: SeasonEffectReport,
+  map: MapData | null,
+  t: Translate,
+): string {
   const region = territoryLabel(map, effect.region, t)
   const card = effect.cardKind ? formatCardLabel(effect.cardKind, t) : ''
   switch (effect.kind) {
@@ -410,21 +525,25 @@ function seasonEffectLine(
           }),
         }
       }
-      if ((effect.productionLost ?? 0) > 0) {
-        return {
-          key,
-          label: t('reports.calamityFamineMill', {
-            territory: territoryLabel(map, effect.territory, t),
-            production: effect.productionLost ?? 0,
-          }),
-        }
-      }
       return {
         key,
-        label: t('reports.calamityFamineRations', {
-          rations: effect.rationsLost ?? 0,
+        label: t('reports.calamityFamineSettlement', {
           territory: territoryLabel(map, effect.territory, t),
+          production: effect.productionLost ?? 0,
         }),
+      }
+    case 'bad_weather_loss':
+      return {
+        key,
+        label: effect.territory
+          ? t('reports.calamityBadWeatherMill', {
+              territory: territoryLabel(map, effect.territory, t),
+              production: effect.productionLost ?? 0,
+            })
+          : t('reports.calamityBadWeatherRegion', {
+              region,
+              production: effect.productionLost ?? 0,
+            }),
       }
     case 'plague_noble_death':
       return {
@@ -469,9 +588,7 @@ function seasonEffectLine(
         key,
         muted: true,
         label: t(
-          count === 1
-            ? 'reports.neutralArmyCreatedTroop'
-            : 'reports.neutralArmyCreated',
+          count === 1 ? 'reports.neutralArmyCreatedTroop' : 'reports.neutralArmyCreated',
           { count, territory: territoryLabel(map, effect.territory, t) },
         ),
       }
@@ -509,6 +626,7 @@ function groupSeasonEffects(
         break
       case 'bad_weather_blocked':
       case 'famine_loss':
+      case 'bad_weather_loss':
       case 'plague_noble_death':
       case 'plague_noble_survived':
       case 'card_canceled':
@@ -530,6 +648,8 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
   if (!report) return null
   const receptions = report.receptions ?? []
   const combats = report.combats ?? []
+  const income = report.income ?? []
+  const mills = report.mills ?? []
   const production = report.production ?? []
   const consumption = report.consumption ?? []
   const orders = report.orders ?? []
@@ -539,6 +659,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
   const cards = report.cards ?? report.winter?.cards ?? []
   const seasonEffects = report.seasonEffects ?? []
   const seasonEffectView = groupSeasonEffects(seasonEffects, map, t)
+  const fiefs = report.fiefs ?? []
 
   return (
     <section className="min-w-0 space-y-4">
@@ -659,6 +780,104 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
 
       <div className="space-y-2">
         <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
+          {t('reports.incomeTitle')}
+        </h4>
+        {income.length === 0 ? (
+          emptyMessage(t('reports.incomeTitle').toLowerCase(), t)
+        ) : (
+          <div className="space-y-1 text-sm">
+            {income.map((line, index) => (
+              <div
+                key={`${line.owner}-${line.destination ?? 'lost'}-${index}`}
+                className="rounded-md bg-[#f3ead9] px-3 py-2"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="flex min-w-0 items-center gap-2">
+                    {playerMarker(players, line.owner, t)}
+                    {line.destination ? (
+                      <span className="text-xs text-[#806f57]">
+                        {incomeDestinationLabel(line, map, t)}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span
+                    className={
+                      line.lost
+                        ? 'shrink-0 text-xs font-semibold text-[#a84632]'
+                        : 'shrink-0 text-xs font-semibold text-[#376341]'
+                    }
+                  >
+                    {line.lost
+                      ? t('reports.incomeLost')
+                      : t('reports.incomeCredited', { count: line.credited })}
+                  </span>
+                </div>
+                <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-[#806f57]">
+                  <span>
+                    {t('reports.incomeTerritories', { count: line.territories })}
+                  </span>
+                  {line.villages > 0 && (
+                    <span>{t('reports.incomeVillages', { count: line.villages })}</span>
+                  )}
+                  {(line.suppressed ?? 0) > 0 && (
+                    <span className="font-semibold text-[#8d321e]">
+                      {t('reports.incomeSuppressed', { count: line.suppressed ?? 0 })}
+                    </span>
+                  )}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
+          {t('reports.millsTitle')}
+        </h4>
+        {mills.length === 0 ? (
+          emptyMessage(t('reports.millsTitle').toLowerCase(), t)
+        ) : (
+          <div className="space-y-1 text-sm">
+            {mills.map((line, index) => {
+              const stopped = line.production === 0 && (line.suppressed ?? 0) > 0
+              const keptInPlace = line.destination === line.territory
+              return (
+                <div
+                  key={`${line.territory}-${index}`}
+                  className="flex items-center justify-between gap-3 rounded-md bg-[#f3ead9] px-3 py-2"
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    {playerMarker(players, line.owner, t)}
+                    <span className="text-xs text-[#806f57]">
+                      {territoryLabel(map, line.territory, t)}
+                    </span>
+                  </span>
+                  <span
+                    className={
+                      stopped
+                        ? 'shrink-0 text-xs font-semibold text-[#a84632]'
+                        : 'shrink-0 text-xs font-semibold text-[#376341]'
+                    }
+                  >
+                    {stopped
+                      ? t('reports.millStopped')
+                      : keptInPlace
+                        ? t('reports.millKept', { count: line.production })
+                        : t('reports.millCredited', {
+                            count: line.production,
+                            destination: territoryLabel(map, line.destination, t),
+                          })}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
           {t('reports.productionTitle')}
         </h4>
         {production.length === 0 ? (
@@ -667,12 +886,26 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
           <div className="space-y-1 text-sm">
             {production.map((line) => {
               const chips: Array<{ label: string; value: number }> = [
-                { label: t('reports.productionTerrainRations'), value: line.terrainRations },
-                { label: t('reports.productionInfraRations'), value: line.infraRations ?? 0 },
-                { label: t('reports.productionBonusRations'), value: line.bonusRations ?? 0 },
-                { label: t('reports.productionBaseProduction'), value: line.baseProduction ?? 0 },
-                { label: t('reports.productionMillProduction'), value: line.millProduction ?? 0 },
-                { label: t('reports.productionBonusProduction'), value: line.bonusProduction ?? 0 },
+                {
+                  label: t('reports.productionTerrainRations'),
+                  value: line.terrainRations,
+                },
+                {
+                  label: t('reports.productionBonusRations'),
+                  value: line.bonusRations ?? 0,
+                },
+                {
+                  label: t('reports.productionBaseProduction'),
+                  value: line.baseProduction ?? 0,
+                },
+                {
+                  label: t('reports.productionMillProduction'),
+                  value: line.millProduction ?? 0,
+                },
+                {
+                  label: t('reports.productionBonusProduction'),
+                  value: line.bonusProduction ?? 0,
+                },
               ].filter((chip) => chip.value > 0)
               const suppressed =
                 (line.suppressedRations ?? 0) + (line.suppressedProduction ?? 0)
@@ -682,10 +915,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                 (line.stockConsumed ?? 0) > 0 ||
                 (line.stockAfter ?? 0) > 0
               return (
-                <div
-                  key={line.territory}
-                  className="rounded-md bg-[#f3ead9] px-3 py-2"
-                >
+                <div key={line.territory} className="rounded-md bg-[#f3ead9] px-3 py-2">
                   <div className="flex items-center justify-between gap-3">
                     <span className="flex min-w-0 items-center gap-2">
                       {playerMarker(players, line.owner, t)}
@@ -767,10 +997,9 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                     </span>
                   </span>
                   <span className="shrink-0 text-[#806f57]">
-                    {t(
-                      line.size === 1 ? 'app.troop' : 'app.troops',
-                      { count: line.size },
-                    )}{' '}
+                    {t(line.size === 1 ? 'app.troop' : 'app.troops', {
+                      count: line.size,
+                    })}{' '}
                     · {t('reports.consumptionDemand', { count: line.demand })}
                   </span>
                 </div>
@@ -785,7 +1014,12 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                     missing: line.missing,
                   })}
                 </p>
-                {line.famine && (
+                {line.famine && line.warned && (
+                  <p className="mt-1 font-semibold">
+                    {t('reports.famineWarning')}
+                  </p>
+                )}
+                {line.famine && !line.warned && (
                   <p className="mt-1 font-semibold">
                     {line.savedByPillage ? t('reports.savedByPillage') : ''}
                     {(line.troopsLost ?? 0) > 0
@@ -817,34 +1051,48 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
             {t('reports.winter')}
           </h4>
           <div className="space-y-1 text-sm">
-            {winterInvestments.map((investment, index) => (
-              <div
-                key={`${investment.kind}-${investment.player}-${index}`}
-                className="flex items-start justify-between gap-3 rounded-md bg-[#f3ead9] px-3 py-2"
-              >
-                <span className="flex min-w-0 items-start gap-2">
-                  {playerMarker(players, investment.player, t)}
-                  <span>
-                    <strong className="font-mono text-xs">
-                      {investmentLabel(investment, map, t)}
-                    </strong>
-                    <span className="mt-1 block text-xs text-[#806f57]">
-                      {investment.player} · {winterDetails(investment, map, t)}
+            {winterInvestments.map((investment, index) => {
+              const isAutoAssignedWarning = investment.kind === 'fief_auto_assigned'
+              return (
+                <div
+                  key={`${investment.kind}-${investment.player}-${index}`}
+                  className={`flex items-start justify-between gap-3 rounded-md px-3 py-2 ${
+                    isAutoAssignedWarning
+                      ? 'border border-[#e07a30] bg-[#fdecd9]'
+                      : 'bg-[#f3ead9]'
+                  }`}
+                >
+                  <span className="flex min-w-0 items-start gap-2">
+                    {playerMarker(players, investment.player, t)}
+                    <span>
+                      <strong className="font-mono text-xs">
+                        {investmentLabel(investment, map, t)}
+                      </strong>
+                      {isAutoAssignedWarning && (
+                        <span className="mt-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#a8541a]">
+                          {t('reports.fiefAutoAssignedWarning')}
+                        </span>
+                      )}
+                      <span className="mt-1 block text-xs text-[#806f57]">
+                        {investment.player} · {winterDetails(investment, map, t)}
+                      </span>
                     </span>
                   </span>
-                </span>
-                <span className={`shrink-0 text-xs ${outcomeClass(investment.outcome)}`}>
-                  {outcomeLabel(investment.outcome, t)}
-                  {investment.outcome === 'success' && (
-                    <span className="mt-1 block text-right text-[10px] text-[#806f57]">
-                      {investment.cost > 0
-                        ? t('reports.cost', { cost: investment.cost })
-                        : t('reports.noCost')}
-                    </span>
-                  )}
-                </span>
-              </div>
-            ))}
+                  <span
+                    className={`shrink-0 text-xs ${outcomeClass(investment.outcome)}`}
+                  >
+                    {outcomeLabel(investment.outcome, t)}
+                    {investment.outcome === 'success' && (
+                      <span className="mt-1 block text-right text-[10px] text-[#806f57]">
+                        {investment.cost > 0
+                          ? t('reports.cost', { cost: investment.cost })
+                          : t('reports.noCost')}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )
+            })}
             {winterStocks.map((stock) => (
               <div
                 key={stock.territory}
@@ -864,6 +1112,28 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
               winterStocks.length === 0 &&
               emptyMessage(t('reports.winter').toLowerCase(), t)}
           </div>
+        </div>
+      )}
+
+      {fiefs.length > 0 && (
+        <div className="space-y-2 rounded-lg border border-[#c9b688] bg-[#fbf3df] p-3">
+          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#7a5a20]">
+            {t('reports.fiefs')}
+          </h4>
+          <ul className="space-y-1 text-sm text-[#7a5a20]">
+            {fiefs.map((fief, index) => (
+              <li
+                key={`${fief.kind}-${fief.capital}-${index}`}
+                className={
+                  fief.kind === 'fief_member_occupied'
+                    ? 'font-semibold text-[#8d321e]'
+                    : undefined
+                }
+              >
+                {fiefEventLabel(fief, players, map, t)}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
@@ -887,7 +1157,9 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
           </h4>
           <ol className="space-y-1 text-sm text-[#684b7d]">
             {cards.map((card, index) => (
-              <li key={`${card.eventType}-${card.kind}-${index}`}>{cardEventLabel(card, map, t)}</li>
+              <li key={`${card.eventType}-${card.kind}-${index}`}>
+                {cardEventLabel(card, map, t)}
+              </li>
             ))}
           </ol>
         </div>
@@ -900,10 +1172,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
           </h4>
           <ol className="space-y-2 text-sm text-[#8d321e]">
             {seasonEffectView.flat.map((line) => (
-              <li
-                key={line.key}
-                className={line.muted ? 'text-[#806f57]' : undefined}
-              >
+              <li key={line.key} className={line.muted ? 'text-[#806f57]' : undefined}>
                 {line.label}
               </li>
             ))}

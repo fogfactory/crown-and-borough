@@ -14,14 +14,16 @@ modèle de noble enrichi par [l'issue #18](https://github.com/fogfactory/crown-a
 La carte est divisée en `N + 1` évêchés de taille approximativement égale.
 Le découpage réutilise directement les régions déjà générées pour les
 calamités et les cartes bonus (`internal/engine/mapgen/regions.go`, une
-région par village neutre seed, couverture totale et connexité garanties) :
+région par chef-lieu seed, couverture totale et connexité garanties) :
 même cardinalité `N + 1`, mêmes garanties de connexité. Ce découpage est déjà
 implémenté et n'a pas besoin d'un nouveau travail de cartographie ; seule son
 exposition en tant qu'évêché (nommage, contrat) relève de ce milestone. Un
 territoire appartient à exactement une région/évêché, indépendamment de son
 appartenance ou non à un fief séculier — les deux découpages sont disjoints
 dans leur origine (fief : dynamique, acheté ; évêché : statique, fixé à la
-génération de la carte).
+génération de la carte). Le village dédié de chaque territoire de départ est
+un lieu-dit de son évêché comme n'importe quel autre village ; seul le
+chef-lieu sert de seed à la région.
 
 ### Déclenchement de l'élection
 
@@ -148,6 +150,11 @@ fiefs, qui relève exclusivement de la taxe seigneuriale.
 La règle devra préciser le cas où plusieurs cardinaux ciblent le même évêché le
 même tour, et si un évêché sans évêque élu reste taxable par un cardinal ou le
 pape.
+
+> À trancher : comme la taxe seigneuriale ([titres.md](titres.md)), la dîme
+> devrait sans doute autoriser la Révolte (voir
+> [ordres-speciaux.md](ordres-speciaux.md)) sur tout territoire de l'évêché
+> taxé, la saison où elle est jouée et la saison suivante.
 
 ### Excommunication
 

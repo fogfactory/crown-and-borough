@@ -461,9 +461,7 @@ func TestAssignChainRejectsPendingDisperseExecutor(t *testing.T) {
 	game.Armies = append(game.Armies, models.Army{ID: "A3", OwnerID: "P1", TerritoryID: "FOU", Size: 1})
 	state := game.TerritoryStates["FOU"]
 	armyID := models.ArmyID("A3")
-	ownerID := models.PlayerID("P1")
 	state.Army = &armyID
-	state.OwnerID = &ownerID
 	game.TerritoryStates["FOU"] = state
 	game.Armies[0].ChainID = &chainID
 	game.Chains = []models.Chain{{
@@ -622,8 +620,8 @@ func orderTestState() *models.GameState {
 		{ID: "N4", Code: "CAL", Name: "Calixte", OwnerID: p2, LocationID: "BOI", Status: models.NobleStatusFree},
 	}
 	game.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
-		"ROS": {OwnerID: &p1, Army: &a1},
-		"BOI": {OwnerID: &p2, Army: &a2},
+		"ROS": {Army: &a1},
+		"BOI": {Army: &a2},
 		"BRU": {},
 		"FOU": {},
 		"CHA": {},

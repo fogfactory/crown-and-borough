@@ -7,90 +7,220 @@ socle actuel ; les flux de ressources dépendent de
 [Économie et prospérité](economie.md) et les titres religieux de
 [Religieux](religieux.md).
 
-## Occupé contre contrôlé
 
-Le socle actuel ne connaît qu'un seul statut territorial, positionnel : une
-case reste au dernier joueur dont l'armée s'y est arrêtée. Les titres
-introduisent un second statut, plus stable, et distinguent :
+Les règles de contrôle, de fief et de taxe ci-dessous sont des décisions de
+conception actées pour le milestone
+[Économie & Fiefs](https://github.com/fogfactory/crown-and-borough/milestone/19).
+Chaque section renvoie à l'issue qui la livre. La constitution, la perte et la
+vacance d'un fief, ainsi que les points qui en découlent, sont livrées par
+[#194](https://github.com/fogfactory/crown-and-borough/issues/194). Aucune
+compatibilité avec les parties existantes n'est requise (version majeure).
 
-- **occupé** : le statut positionnel actuel, inchangé — dernier joueur dont
-  l'armée s'est arrêtée sur la case. Un territoire occupé rapporte des
-  ressources à la **capitale du joueur** (voir [economie.md](economie.md)).
-- **contrôlé** : le territoire fait partie d'un fief constitué. Il rapporte des
-  ressources à la **capitale du fief**, sans dépendre de la présence d'une
-  armée — une armée ennemie qui s'y arrête n'interrompt pas la production tant
-  que la capitale du fief elle-même n'est pas prise.
+## Contrôle et occupation
 
-**Exception :** la capitale d'un joueur est toujours considérée comme
-contrôlée, même si elle n'appartient à aucun fief constitué — elle agit comme
-un fief gratuit et implicite de taille 1. Ce statut suit la capitale à chaque
-redésignation (`E C XXX`) : tout château nouvellement désigné capitale devient
-contrôlé s'il ne l'était pas déjà.
+Issue : [#196](https://github.com/fogfactory/crown-and-borough/issues/196)
+(contrôle transitif dans un fief), rendu éphémère hors fief par
+[#215](https://github.com/fogfactory/crown-and-borough/issues/215).
+**Livré.**
 
-La règle devra préciser ce qu'il advient d'un fief dont la capitale est prise
-par un autre joueur (le fief tombe-t-il entièrement, ou seule la capitale
-change-t-elle de contrôleur ?) et si une armée ennemie stationnée sur un
-territoire contrôlé (hors capitale) peut malgré tout bloquer son propre
-ravitaillement au passage.
+La prise de contrôle reste positionnelle : une armée qui s'arrête sur une
+case en prend le contrôle. Mais le maintien de ce contrôle diffère selon
+l'**ancrage** de la case :
+
+- **ancrée** : membre d'un fief, ou capitale d'un joueur (une exception
+  permanente, au même titre qu'une capitale de fief, même sans aucune armée
+  dessus). Une case ancrée reste au joueur qui la contrôle indéfiniment, sans
+  qu'une armée y stationne.
+- **non ancrée** : toute autre case. Son contrôle est **éphémère** : elle ne
+  reste « à quelqu'un » que tant qu'une armée de ce joueur y stationne
+  actuellement. Dès que ce n'est plus le cas — l'armée est partie, délogée,
+  détruite — la case redevient neutre, jusqu'à ce qu'une armée, quelle qu'elle soit,
+  s'y arrête à nouveau et la reprenne positionnellement. Une révolte
+  `NEUTRAL` qui s'y arrête ne prend jamais le contrôle (voir « occupé »
+  ci-dessous) : elle ne fait donc jamais gagner cette libération à son
+  ancien contrôleur.
+
+Le contrôle n'est jamais stocké : il est dérivé à la demande (propriétaire du
+fief pour un membre de fief, sinon joueur dont la capitale s'y trouve, sinon
+propriétaire de l'armée non `NEUTRAL` qui y stationne). Lorsqu'une case
+portant une infrastructure perd ainsi son contrôle à la fin d'une passe qui
+modifie le contrôle (mise à jour du contrôle territorial d'un tour d'action,
+ou hiver après le rapatriement des stocks), un événement `control_changed`
+(raison `abandoned`) est rapporté ; une case vide sans intérêt n'en produit
+pas, pour ne pas noyer le rapport.
+
+- **contrôlé** : le statut de la case, dérivé par les
+  règles d'ancrage ci-dessus. Dans un fief, la case est contrôlée par le
+  joueur qui détient le fief, même lorsqu'une armée adverse (ou une révolte
+  `NEUTRAL`) s'y arrête. Seule la prise de la capitale du fief transfère le
+  fief et donc le contrôle de tous ses territoires (voir ci-dessous).
+- **occupé** : une armée est présente sur la case. C'est une information
+  dérivée, jamais stockée. Une case a un **contrôleur** (case contrôlée)
+  et est **occupée contre son contrôleur** lorsqu'une armée y stationne dont
+  le propriétaire diffère de ce contrôleur — une révolte `NEUTRAL` y compris.
+  Cette notion s'applique à toute case contrôlée, en fief ou non (une
+  capitale de joueur occupée par une révolte en relève tout autant), mais ne
+  change jamais son contrôleur : seule la prise de la capitale d'un fief (ou
+  la prise positionnelle hors fief) transfère le contrôle.
+
+Une case d'un fief occupée contre son contrôleur :
+
+- ne rapporte pas son revenu à l'occupant : le revenu continue vers la
+  capitale du fief, jamais intercepté (voir
+  [economie.md](economie.md#revenu-territorial)) ;
+- n'est plus une source de ravitaillement ni un dépôt utilisable, ni pour le
+  contrôleur ni pour l'occupant (voir
+  [economie.md](economie.md#portée-de-ravitaillement)) ;
+- rejette tout investissement d'hiver ciblé sur elle, sans prélèvement
+  (motif `territory_occupied_by_other_player`) ;
+- ne peut ni payer un investissement d'hiver ni recevoir de rapatriement de
+  stock de fin d'hiver ;
+- garde son bonus défensif (château ou cité) pour l'occupant : aucun
+  changement sur ce point, précédent déjà établi pour une révolte sur une
+  cité ;
+- reste pillable par l'occupant, sans effet sur le fief lorsque ce n'est pas
+  la capitale.
+
+La prise de la capitale d'un fief transfère le contrôle de **tous** ses
+membres au conquérant en une seule passe, même ceux occupés par une tierce
+armée (l'occupation continue, seul le contrôleur change). Hors fief, la prise
+de contrôle reste positionnelle, mais son maintien est désormais éphémère
+(voir ci-dessus, [#215](https://github.com/fogfactory/crown-and-borough/issues/215)) :
+sans ancrage, il ne survit pas au départ de la dernière armée du contrôleur.
+
+La capitale d'un joueur n'est pas un fief implicite, mais elle est un ancrage
+permanent au même titre qu'une capitale de fief : hors fief, une capitale
+reste contrôlée indéfiniment, avec ou sans armée dessus, tant qu'elle n'est
+pas prise par une autre armée qui s'y arrête positionnellement (une révolte
+`NEUTRAL` ne la prend jamais).
 
 ## Constitution d'un fief
 
-Un fief se constitue en rachetant un groupe de territoires **adjacents,
-occupés par le même joueur et contenant un château**. Le rachat transforme ces
-territoires d'occupés à contrôlés ; le château devient la **capitale du
-fief**. Le coût et la dénomination dépendent de la taille du groupe racheté :
+Issue : [#194](https://github.com/fogfactory/crown-and-borough/issues/194).
 
-| Titre | Territoires inclus | Coût indicatif |
+Un fief se constitue par l'**ordre d'hiver** `T F NNN XXX YYY ZZZ …` : `NNN`
+est le noble titulaire, `XXX` la **capitale du fief** (premier territoire du
+groupe), et `YYY ZZZ …` le reste du groupe. Le groupe doit :
+
+- compter au moins 3 territoires, contigus par des frontières franchissables
+  (BFS restreint au groupe, frontières géométriques non franchissables
+  exclues) ;
+- être entièrement contrôlé par le joueur ;
+- avoir un château sur sa capitale (les autres territoires du groupe peuvent
+  porter d'autres châteaux, sans effet particulier) ;
+- ne contenir aucun territoire appartenant déjà à un fief ;
+- ne compter aucune armée adverse **ni NEUTRAL** (révolte) sur l'une de ses
+  cases : l'une ou l'autre bloque la constitution.
+
+Tout rejet est explicite et ne prélève rien : toutes les conditions
+ci-dessus, dans cet ordre logique, sont vérifiées avant tout paiement. Le
+coût vaut `fief_per_territory` (2 R) par territoire et se paie comme les
+autres investissements d'hiver, débité comme un `C C`/`C M` classique (case
+ciblée puis réseau de paiement d'hiver habituel). Le titre dépend de la
+taille :
+
+| Titre | Territoires | Coût par défaut |
 |---|---:|---:|
 | Baronnie | 3 | 6 R |
 | Comté | 4 | 8 R |
-| Duché | 6 | 12 R |
+| Marquisat | 5 | 10 R |
+| Duché | 6 et plus | 2 R par territoire |
 
-> À trancher : la table historique incluait un palier Marquisat (5
-> territoires, 10 R) entre comté et duché ; la dernière discussion de design
-> n'a mentionné que trois paliers (baronnie/comté/duché). À confirmer avant
-> implémentation.
+Le titre appartient au **noble** titulaire, qui doit être un noble libre du
+joueur au moment de la constitution (son statut n'est ensuite pas modifié : il
+reste libre et peut continuer à émettre des chaînes). Un même noble peut
+porter **plusieurs titres** simultanément, et un joueur peut détenir plusieurs
+fiefs. Lorsqu'un fief est créé, son château capitale devient une **cité** et
+apporte `+2` en défense **au total** : ce bonus remplace celui du château
+(`castle_defense_bonus`, aujourd'hui 1) plutôt que de s'y ajouter, avec la même
+exception d'auto-capture (aucun bonus si tous les attaquants appartiennent au
+propriétaire d'une cité vide).
 
-La règle devra encore préciser :
+L'attribution d'un fief vacant se fait par l'ordre d'hiver `T A NNN XXX` :
+`NNN` est un noble libre du joueur qui détient le fief, `XXX` sa capitale.
+Cet ordre est gratuit (0 R).
 
-- les conditions de contiguïté exactes et le traitement des recouvrements
-  entre deux fiefs candidats ;
-- si un fief peut s'agrandir a posteriori en rachetant des territoires
-  occupés adjacents à un fief existant, et à quel coût ;
-- le sort d'un moulin ou d'un village occupé par un autre joueur à l'intérieur
-  d'un fief nouvellement constitué.
+L'agrandissement d'un fief existant est différé : il n'est pas prévu dans ce
+milestone.
 
-Lorsqu'un fief est créé, son château capitale devient une cité et apporte
-`+2` en défense.
+## Perte et vacance d'un fief
 
-Un joueur peut détenir plusieurs fiefs simultanément ; chacun rapporte ses
-propres revenus (voir [economie.md](economie.md)) et son propre point de
-victoire.
+Issue : [#194](https://github.com/fogfactory/crown-and-borough/issues/194),
+attribution par défaut livrée par
+[#196](https://github.com/fogfactory/crown-and-borough/issues/196) (remplace
+la dissolution automatique de #194).
+
+- **Capitale du fief prise** : lorsqu'un autre joueur prend le contrôle de la
+  case de la capitale (mise à jour du contrôle territorial, immédiatement
+  après la résolution des mouvements), le fief entier passe à ce joueur,
+  **vacant** (le titulaire perd son titre), et le contrôle de **tous** les
+  autres membres du fief bascule vers ce même joueur dans la même passe
+  (contrôle transitif, voir « Contrôle et occupation » ci-dessus) — y compris
+  un membre occupé par une tierce armée, qui continue de l'occuper mais sous
+  le nouveau contrôleur. Seule la capitale déclenche ce transfert : une autre
+  case du fief occupée sans que la capitale ne tombe ne change jamais de
+  contrôleur. Une révolte (armée `NEUTRAL`) ne prend jamais le contrôle d'une
+  case : elle ne transfère donc jamais un fief, même en délogeant le
+  titulaire de sa capitale.
+- **Mort du titulaire** (par exemple de la peste) : le fief reste au joueur
+  qui le détient mais devient vacant.
+- **Capture du titulaire** (otage ou donjon) : aucun effet sur le fief ; le
+  noble existe toujours, seul son statut change.
+- **Château de la capitale détruit** (pillage, y compris le pillage
+  automatique de famine) : le fief est **dissous immédiatement**, quelle que
+  soit la saison. Contrairement à une première intuition, il n'y a ni
+  suspension du bonus de cité ni délai d'attente : la perte du château qui
+  fait la capitale met fin au fief sur-le-champ. C'est la **seule** cause de
+  dissolution d'un fief.
+- **Fief vacant** : il continue d'exister, de produire et de compter son
+  point de score jusqu'à son attribution ou la dissolution de sa capitale. Un
+  ordre d'hiver (`T A`) l'attribue à un noble libre du joueur qui le détient.
+  En fin d'hiver, après résolution des ordres d'hiver (y compris une
+  éventuelle attribution du même tour) et avant la conservation des stocks,
+  tout fief encore vacant est **attribué par défaut** au noble libre du
+  joueur dont le trigramme est le plus petit par ordre lexicographique, avec
+  un avertissement dans le rapport invitant le joueur à reprendre la main sur
+  l'attribution au tour suivant. Si le joueur n'a aucun noble libre à ce
+  moment, le fief reste simplement vacant (**plus jamais dissous** faute
+  d'attribution) : il continue de produire et de compter son point de score
+  jusqu'à ce qu'un noble libre soit disponible ou que sa capitale soit
+  dissoute.
 
 ## Taxe seigneuriale
 
-Une carte de taxe (jouée depuis le deck d'ordres spéciaux, voir
-[ordres-speciaux.md](ordres-speciaux.md)) permet à un seigneur ou à un roi de
-prélever un revenu supplémentaire sur un fief constitué :
+Issue : [#189](https://github.com/fogfactory/crown-and-borough/issues/189).
 
-- le **seigneur** (titulaire du fief) double le revenu de territoire de son
-  propre fief pour ce tour ;
-- le **roi** peut taxer n'importe quel fief constitué, mais seulement celui
-  qui n'est pas déjà taxé par son seigneur ce tour-là (priorité au titulaire
-  local) ; le supplément est alors détourné vers la capitale du roi au lieu de
-  la capitale du fief.
+Une carte de taxe (kind `seigneurial_tax`, code d'ordre `TX`, jouée depuis le
+deck d'ordres spéciaux, voir [ordres-speciaux.md](ordres-speciaux.md)) permet
+au joueur qui détient un fief — vacant compris — de doubler, pour le tour, le
+revenu territorial de ce fief, village inclus. L'ordre `P TX XXX` cible la
+capitale du fief, par exception à la règle « `TER` est le village seed d'une
+région », au printemps, en été ou en automne. Il est rejeté si le joueur ne
+détient pas le fief. La production des moulins n'est jamais touchée. Deux
+cartes de taxe jouées sur le même fief le même tour ne se cumulent pas : la
+seconde est consommée sans effet, avec un rapport explicite. Jouer la taxe
+sur la capitale du fief autorise la Révolte (voir
+[ordres-speciaux.md](ordres-speciaux.md)) sur **tout territoire du fief**,
+pas seulement sa capitale, la saison où elle est jouée et la saison
+suivante, indépendamment de toute famine.
+
+Le **roi** pourra taxer n'importe quel fief constitué, mais seulement celui
+qui n'est pas déjà taxé par son seigneur ce tour-là (priorité au titulaire
+local) ; le supplément est alors détourné vers la capitale du roi au lieu de
+la capitale du fief. Cette taxe royale est suivie dans le milestone
+[Politique royale](politique.md).
 
 Le détail du calcul (montant par territoire, avec et sans village) est défini
-dans [economie.md](economie.md). Les cas de conflit entre plusieurs
-prétendants au titre royal restent à trancher dans l'issue du milestone
-[Politique royale](politique.md).
+dans [economie.md](economie.md).
 
 ## Points et victoire
 
-- chaque fief rapporte 1 point, quelle que soit sa taille ;
-- chaque portion de 5 territoires contrôlés rapporte 1 point supplémentaire ;
+- chaque fief rapporte 1 point, quelle que soit sa taille, en plus du barème
+  de `gdd.md` §9 (livré par
+  [#194](https://github.com/fogfactory/crown-and-borough/issues/194)) ;
 - une partie peut se terminer à la durée prévue en tours ou lorsqu'un joueur
   atteint un seuil de suprématie.
 
-Le choix entre durée, seuil fixe et seuil dépendant du nombre de joueurs reste à
-arrêter dans l'issue du milestone.
+Les autres évolutions du score (points par tranche de territoires contrôlés)
+et le choix entre durée, seuil fixe et seuil dépendant du nombre de joueurs
+restent à arrêter dans le milestone Titres & Victoire.

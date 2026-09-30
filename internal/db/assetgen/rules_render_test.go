@@ -13,8 +13,8 @@ import (
 func TestLoadRulesRendersBalanceValues(t *testing.T) {
 	dir := t.TempDir()
 	template := "{{ration_terrain.plain}} {{ration_terrain.forest}} {{ration_terrain.hill}} " +
-		"{{ration_terrain.mountain}} {{ration_terrain.swamp}} {{infra_rations_bonus}} " +
-		"{{base_production}} {{costs.mill_levels.0}} {{costs.mill_levels.1}} " +
+		"{{ration_terrain.mountain}} {{ration_terrain.swamp}} {{castle_defense_bonus}} " +
+		"{{territory_income}} {{village_income}} {{costs.mill_levels.0}} {{costs.mill_levels.1}} " +
 		"{{costs.mill_levels.2}}\n"
 	for _, name := range []string{playerRulesAsset, englishRulesAsset} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(template), 0o644); err != nil {
@@ -30,9 +30,10 @@ func TestLoadRulesRendersBalanceValues(t *testing.T) {
 			models.TerrainMountain: 5,
 			models.TerrainSwamp:    6,
 		},
-		InfraRationsBonus: 7,
-		BaseProduction:    8,
-		Costs:             Costs{MillLevels: []int{9, 10, 11}},
+		CastleDefenseBonus: 7,
+		TerritoryIncome:    8,
+		VillageIncome:      12,
+		Costs:              Costs{MillLevels: []int{9, 10, 11}},
 	}
 	rules, err := LoadRules(dir, balance)
 	if err != nil {
@@ -43,7 +44,7 @@ func TestLoadRulesRendersBalanceValues(t *testing.T) {
 		if !ok {
 			t.Fatalf("rules[%s] missing", language)
 		}
-		if got, want := string(document), "3 2 4 5 6 7 8 9 10 11\n"; got != want {
+		if got, want := string(document), "3 2 4 5 6 7 8 12 9 10 11\n"; got != want {
 			t.Errorf("rules[%s] = %q, want %q", language, got, want)
 		}
 	}

@@ -149,11 +149,18 @@ La carte est statique pour une partie et commune à tous les clients :
 - `adjacencies` contient les frontières géométriques franchissables ;
 - `impassable` contient les frontières géométriques infranchissables ;
 - les deux listes sont triées, symétriques et disjointes ;
-- `village` décrit le point de génération ; l'état courant des infrastructures
-  est porté par `state.json`.
+- `village` décrit le point de génération, aussi bien pour un chef-lieu que
+  pour le village dédié d'un territoire de départ : les deux sont des
+  infrastructures identiques dans `map.json` et `state.json` ; seul
+  `regions[].seed` identifie le chef-lieu qui seed une région. L'état courant
+  des infrastructures est porté par `state.json`.
 
 La génération utilise `8 x joueurs` territoires de jeu et `(joueurs + 1) x 4`
-territoires supplémentaires dédiés aux `joueurs + 1` villages. Chaque partie
+territoires supplémentaires, pour un total de `2 x joueurs + 1` villages
+(un village dédié par territoire de départ, plus `joueurs + 1` chefs-lieux).
+Les territoires de départ eux-mêmes ne sont pas publiés dans `map.json` ; ils
+restent internes au moteur, qui reste la seule source de vérité pour leur
+choix (voir [`gdd.md`](gdd.md#joueurs-départ-et-élimination)). Chaque partie
 sert sa carte via `GET /api/games/{id}/map`.
 
 ### `state.json`
@@ -169,7 +176,11 @@ L'état projeté sépare la couche dynamique du `GameState` de stockage :
       "id": "P1",
       "name": "Joueur 1",
       "color": "#a84632",
-      "capitalTerritory": "ROS"
+      "capitalTerritory": "ROS",
+      "projectedIncome": 6,
+      "projectedMillIncome": 2,
+      "projectedConsumption": 4,
+      "armiesAtRisk": [{ "territoryId": "MOR", "size": 2, "deficit": 1 }]
     }
   ],
   "territories": [
@@ -177,6 +188,10 @@ L'état projeté sépare la couche dynamique du `GameState` de stockage :
       "id": "ROS",
       "owner": "P1",
       "resources": 4,
+      "projectedIncome": 6,
+      "incomeDestination": "ROS",
+      "millProduction": 2,
+      "millDestination": "ROS",
       "army": {
         "owner": "P1",
         "size": 2,
@@ -206,9 +221,76 @@ L'état projeté sépare la couche dynamique du `GameState` de stockage :
       "location": "ROS",
       "status": "free"
     }
+  ],
+  "fiefs": [
+    {
+      "capital": "ROS",
+      "title": "barony",
+      "territories": ["ROS", "BOI", "BRU"],
+      "owner": "P1",
+      "holder": "HUG",
+      "projectedIncome": 3
+    }
   ]
 }
 ```
+
+`projectedIncome` est le revenu territorial (`territory_income` +
+`village_income` éventuel) que rapporterait ce joueur ou ce territoire au
+prochain tour d'action, en ignorant les cartes calamité déjà tirées ce tour
+pour ne pas en révéler l'effet à l'avance ; il vaut `0` en hiver. Le revenu
+réel est crédité en fin de tour, sur le contrôle territorial définitif
+([#208](https://github.com/fogfactory/crown-and-borough/issues/208)) ; cette
+projection reste délibérément statique : elle porte sur le contrôle actuel,
+tel qu'il serait **si aucune armée ne bougeait d'ici la résolution**, sans
+anticiper l'effet des ordres en cours de rédaction sur les captures de
+territoire.
+`incomeDestination` est le territoire qui recevra ce revenu (la capitale du
+joueur, à défaut le château contrôlé le plus proche, à défaut le village
+contrôlé le plus proche) ; il est absent si le revenu est perdu faute de
+destination. `projectedMillIncome` est la somme de la production que
+recevront les propres installations de ce joueur (ses châteaux, villages et
+moulins isolés) au même tour ; distincte de `projectedIncome` car un moulin ne
+passe pas par la capitale et, depuis
+[#195](https://github.com/fogfactory/crown-and-borough/issues/195), ne
+crédite plus qu'une seule destination (voir la section Moulins) ; il vaut `0`
+en hiver.
+
+`millProduction` et `millDestination` ne sont présents que sur la case d'un
+moulin : `millProduction` est sa production projetée (harmonisée avec la
+météo, en ignorant les cartes calamité ou bonus déjà tirées ce tour), et
+`millDestination` le territoire qui la recevra (le château adjacent du même
+contrôleur, sinon le village adjacent du même contrôleur, sinon le moulin
+lui-même). `millDestination` est donc identique à `id` lorsque le moulin est
+isolé.
+
+Une entrée d'`infrastructures` ne porte `fortified: true` que sur un village
+fortifié par `C C` (economie.md#village-fortifié) ; le champ est absent
+partout ailleurs.
+
+`projectedConsumption` est la somme des rations effectivement tirées du stock
+ou du réseau de ravitaillement sur les positions **actuelles** des armées (une
+armée pleinement nourrie localement, ou qui finirait affamée, compte pour `0`,
+pas pour son coût total), avec les mêmes garanties que `projectedIncome`
+(récolte normale, ignore les cartes calamité déjà tirées) ; il vaut `0` en
+hiver, saison sans ravitaillement. `armiesAtRisk` liste les armées qui
+seraient effectivement affamées si rien ne change avant la résolution : le
+calcul rejoue la même allocation que la résolution réelle
+(`assignSupply`/`resolveSupplyStocks`/`selectAssignedFamine`) sur un état
+jetable, y compris le partage contesté d'une même source entre plusieurs
+armées du joueur — ce n'est pas une heuristique par armée isolée. `deficit`
+est le manque de rations qui reste sans réponse, pas un nombre de troupes qui
+mourraient (une famine réelle coûte toujours exactement 1 troupe). Cette
+projection reste une estimation statique, explicitement présentée au joueur
+comme valable **si les armées ne bougent pas** : elle suppose toujours une
+récolte normale (les cartes calamité déjà tirées mais pas encore révélées ne
+la modifient jamais), et elle ne rejoue pas les mouvements, combats ni
+transferts du brouillon d'ordres en cours de rédaction, alors que le
+ravitaillement réel se résout après eux, en fin de tour
+([#208](https://github.com/fogfactory/crown-and-borough/issues/208)) — un
+calcul hypothétique post-mouvement resterait à la fois plus juste et nettement
+plus complexe à produire avant soumission, et n'est pas couvert ici.
+`armiesAtRisk` est absent quand aucune armée n'est concernée.
 
 `army` vaut `null` lorsqu'aucune armée n'occupe la case. Dans une armée, `chain`
 vaut `null` lorsqu'aucune chaîne n'est active. Une chaîne existante dont le
@@ -219,6 +301,16 @@ vue d'état. Les positions et les cibles des ordres utilisent les trigrammes
 territoriaux.
 `capitalTerritory` désigne le territoire du château actuellement choisi comme
 capitale par le joueur ; le champ est absent lorsqu'il n'a pas de capitale.
+
+`fiefs` liste les fiefs constitués (voir [titres.md](titres.md)). Un fief est
+adressé par sa capitale (`capital`) ; **aucun identifiant interne** n'est
+exposé — l'ID de fief reste un détail d'implémentation du moteur, utile pour
+l'unicité et le corpus de test. `territories` liste le groupe dans l'ordre de
+constitution, capitale en premier. `holder` est le code du noble titulaire, ou
+absent lorsque le fief est vacant. `projectedIncome` somme le revenu
+territorial prévisionnel (`engine.ForecastTerritoryIncome`) de tous les
+membres du fief, capitale comprise : la projection du fief lui-même, distincte
+de celle de la seule case capitale.
 
 `GET /api/games/{id}/state` renvoie la vue filtrée du joueur connecté ; le
 hotseat demande celle du joueur sélectionné avec `?player=P1` en mode de
@@ -332,7 +424,7 @@ global lorsqu'une autre partie est déjà active.
 | `POST` | `/api/games/{id}/join` | Rejoint un slot avec le code d'invitation ; l'UID Firebase courant est l'identité du membre. |
 | `GET` | `/api/games/{id}/map` | Renvoie le `map.json` commun, dont `territories[].id` est le trigramme. |
 | `GET` | `/api/games/{id}/state` | Renvoie la projection privée du joueur connecté ; un hôte observateur reçoit la projection complète ; aucun `?player=` public. |
-| `GET` | `/api/games/{id}/supply?territory=ROS` | Calcule la ligne ou la zone de ravitaillement demandée. |
+| `GET` | `/api/games/{id}/supply?territory=ROS&special=…` | Calcule la ligne ou la zone de ravitaillement demandée, après les calamités de la saison (peste, famine, mauvais temps) et les cartes du brouillon `special` du joueur connecté (Beau temps, Bonne récolte ; la Révolte est ignorée pour ne pas révéler son tirage). La ligne détaille `terrainProduction`, `famineRations` et `bonusRations`. |
 | `GET` | `/api/games/{id}/supply?territory=ROS&target=BOI` | Estime la route d'un transfert d'action vers `BOI`. |
 | `POST` | `/api/games/{id}/orders` | Remplace la soumission du joueur courant (`chains`, `winter`, `special`) ; résout automatiquement lorsque tous les joueurs attendus ont soumis : un joueur éliminé n'est jamais attendu et, en saison d'action, un joueur sans noble libre ou otage non plus. Un hôte observateur ne peut pas soumettre. Le corps ne contient aucun identifiant joueur. |
 | `POST` | `/api/games/{id}/orders/preview` | Résolution à blanc du brouillon du joueur courant, sans rien enregistrer : erreurs (syntaxe, adjacence, réception), ordres parsés de chaque chaîne, issue simulée de chaque ligne d'hiver et coût d'hiver. Le client l'appelle pendant la saisie et ne réimplémente aucune règle d'ordre. |
@@ -377,16 +469,70 @@ Les modèles métier sont dans `internal/models`. Ils valident notamment :
 - la symétrie du graphe et l'existence des références ;
 - une seule armée et une seule infrastructure par territoire ;
 - la cohérence entre les index de `GameState` et les entités ;
-- la saison calculée à partir du tour absolu.
+- la saison calculée à partir du tour absolu ;
+- que la capitale d'un joueur, lorsqu'elle est désignée, porte bien un
+  château et ne se trouve pas dans le fief d'un autre joueur ; en revanche,
+  `Validate` n'exige **pas** qu'un territoire hors fief et hors capitale porte
+  une armée : le contrôle est dérivé (voir ci-dessous), jamais stocké ni
+  imposé au chargement d'une partie existante ;
+- pour chaque fief : un identifiant unique, un titre cohérent avec la taille
+  du groupe (`FiefTitleForSize`), une capitale en tête du groupe, aucun
+  territoire partagé avec un autre fief, un propriétaire connu (qui contrôle
+  **tous** les membres du groupe par construction : le contrôle est transitif
+  dans un fief, voir [titres.md](titres.md)), et un titulaire
+  optionnel qui appartient à ce même propriétaire. Un château sur la capitale
+  n'est **pas** exigé structurellement : sa perte dissout le fief immédiatement
+  côté moteur plutôt que de laisser un état transitoire invalide.
 
 `ResolveTurn` choisit la résolution d'action ou d'hiver selon la saison, avance
 le calendrier et renvoie un `TurnReport`. La soumission `special` est indépendante
 des chaînes de nobles et des investissements d'hiver. Les ordres de cartes sont
 validés et consommés avant les phases militaires ; leurs effets sont agrégés par
-région avant le ravitaillement et l'énumération des intentions. Le rapport
-contient des sections typées pour les joueurs, ordres, combats, mouvements,
-ravitaillement, famine, nobles, rumeurs publiques et investissements d'hiver. Le
-moteur ne dépend ni du HTTP ni du rendu front.
+région avant l'énumération des intentions. `Resolve` enchaîne ensuite les
+intentions, les soutiens, les combats, les déplacements, les retraites, les
+jonctions, les dispersions, les transferts de ressources et la progression des
+chaînes, met à jour le contrôle territorial, puis résout le ravitaillement de
+fin de tour (revenu territorial, moulins, rations, famine) sur les positions et
+le contrôle ainsi obtenus, territoires tout juste capturés compris
+([#208](https://github.com/fogfactory/crown-and-borough/issues/208)). Une
+armée en déficit à cette étape est marquée affamée : elle combat à force 0,
+sans bonus de noble, et ne peut ni transférer ni recevoir de transfert pendant
+tout le tour suivant, jusqu'à sa prochaine évaluation (voir
+[`ravitaillement.md`](ravitaillement.md)). Le rapport contient des sections
+typées pour les joueurs, ordres, combats, mouvements, ravitaillement, famine,
+nobles, rumeurs publiques et investissements d'hiver.
+La constitution et l'attribution d'un fief (`T F`/`T A`), ainsi que
+l'attribution par défaut d'un fief encore vacant en fin d'hiver, apparaissent
+parmi les investissements d'hiver ; une section `fiefs` dédiée couvre la
+conquête, la vacance, la dissolution et l'occupation d'un membre non-capitale
+d'un fief, y compris hors hiver (voir [titres.md](titres.md)). Le moteur ne
+dépend ni du HTTP ni du rendu front.
+
+Le contrôle territorial n'est pas stocké : `TerritoryState` ne porte aucun
+propriétaire. Il est dérivé à la demande, tel que défini par
+[titres.md](titres.md#contrôle-et-occupation) : le propriétaire du fief dont le
+territoire est membre, sinon le joueur dont la capitale s'y trouve, sinon le
+propriétaire de l'armée stationnée. Une armée neutre (révolte) occupe sans
+jamais contrôler. Le contrôle hors fief et hors capitale est donc **éphémère**
+par construction : il ne survit qu'à la présence continue d'une armée du
+contrôleur
+([#215](https://github.com/fogfactory/crown-and-borough/issues/215)). Le champ
+`owner` de `state.json` est un contrat public : la projection
+(`internal/api`) le calcule au vol avec `GameState.TerritoryController`, comme
+les scores et les rapports (`GameState.TerritoryControllers`).
+
+Dans une résolution, le moteur lit le contrôle à deux moments, qui ne sont pas
+interchangeables puisque les armées bougent et que les fiefs peuvent se
+dissoudre pendant le tour : `controllerAtStart` est l'instantané du contrôle
+laissé par la résolution précédente, figé à la création du contexte, lu par
+tout ce qui précède la passe de contrôle de la phase 5 (intentions, combats,
+mouvements, retraites, crédit de pillage) et par tout l'hiver ; `controllerNow`
+dérive le contrôle des fiefs, capitales et armées courants, et sert au
+ravitaillement de fin de tour. La passe de contrôle de la phase 5 part du
+contrôle initial, en déduit les prises de contrôle (capitale désignée effacée,
+fief transféré) et publie un `control_changed` de raison `abandoned` pour
+chaque territoire à infrastructure qui n'a plus de contrôleur à la fin du
+tour ou de l'hiver.
 
 La réception des chaînes est immédiate et atomique. La validation est en une
 seule couche : `orders.ValidateChain` porte toutes les règles statiques
@@ -461,7 +607,9 @@ BRI D BRI ATL NOR
 ```
 
 Les ordres d'hiver v1 comprennent `A N`, `R N`, `R T`, `C M`, `C C`, `C D`, `E C`,
-`O N`, `P N`, `L N` et `G XXX YYY N`, avec `D C KIND` pour les défausses de cartes bonus.
+`O N`, `P N`, `L N`, `G XXX YYY N`, `T F NNN XXX YYY ZZZ …` (constituer un
+fief) et `T A NNN XXX` (attribuer un fief vacant), avec `D C KIND` pour les
+défausses de cartes bonus.
 Une soumission `special` séparée contient les ordres jouables du deck : `P KIND TER`
 au printemps, en été et en automne. En hiver, la main est reconstituée
 automatiquement après les défausses selon la balance ; il n'existe pas d'ordre de

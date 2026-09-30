@@ -16,11 +16,10 @@ func (order recruitTroopOrder) Apply(ctx *ExecutionContext) {
 		resolution.rejectWinterOrder(playerID, winterOrder, "territory_not_controlled")
 		return
 	}
-	army := resolution.currentArmyAt(winterOrder.TerritoryID)
-	if army != nil && army.OwnerID != playerID {
-		resolution.rejectWinterOrder(playerID, winterOrder, "territory_occupied_by_other_player")
+	if resolution.rejectIfOccupied(playerID, winterOrder, winterOrder.TerritoryID) {
 		return
 	}
+	army := resolution.currentArmyAt(winterOrder.TerritoryID)
 	if !resolution.hasEligibleTroopNoble(playerID, winterOrder.TerritoryID) {
 		resolution.rejectWinterOrder(playerID, winterOrder, "troop_requires_adjacent_noble")
 		return

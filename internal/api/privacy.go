@@ -311,9 +311,8 @@ func territoryOwner(before, after *models.GameState, territoryID models.Territor
 		if state == nil {
 			continue
 		}
-		territoryState, exists := state.TerritoryStates[territoryID]
-		if exists && territoryState.OwnerID != nil {
-			return *territoryState.OwnerID
+		if controller, controlled := state.TerritoryController(territoryID); controlled {
+			return controller
 		}
 	}
 	return ""
@@ -365,6 +364,8 @@ type TurnReportView struct {
 	Players       []engine.PlayerReport       `json:"players"`
 	Receptions    []engine.ReceptionReport    `json:"receptions"`
 	Production    []engine.ProductionReport   `json:"production"`
+	Income        []engine.IncomeReport       `json:"income"`
+	Mills         []engine.MillReport         `json:"mills"`
 	Consumption   []engine.ConsumptionReport  `json:"consumption"`
 	Combats       []CombatView                `json:"combats"`
 	Orders        []OrderReportView           `json:"orders"`
@@ -376,6 +377,7 @@ type TurnReportView struct {
 	Announcements []engine.AnnouncementReport `json:"announcements"`
 	Augury        *engine.AuguryReport        `json:"augury,omitempty"`
 	Winter        *engine.WinterReport        `json:"winter,omitempty"`
+	Fiefs         []engine.FiefReport         `json:"fiefs"`
 }
 
 // OrderReportView keeps order outcomes useful to spectators without returning
@@ -517,6 +519,8 @@ func projectReport(report engine.TurnReport, viewer models.PlayerID, privacy *mo
 		Players:       append([]engine.PlayerReport{}, report.Players...),
 		Receptions:    append([]engine.ReceptionReport{}, report.Receptions...),
 		Production:    append([]engine.ProductionReport{}, report.Production...),
+		Income:        append([]engine.IncomeReport{}, report.Income...),
+		Mills:         append([]engine.MillReport{}, report.Mills...),
 		Consumption:   append([]engine.ConsumptionReport{}, report.Consumption...),
 		Combats:       make([]CombatView, 0, len(report.Combats)),
 		Orders:        make([]OrderReportView, 0, len(report.Orders)),
@@ -528,6 +532,7 @@ func projectReport(report engine.TurnReport, viewer models.PlayerID, privacy *mo
 		Announcements: append([]engine.AnnouncementReport{}, report.Announcements...),
 		Augury:        report.Augury,
 		Winter:        report.Winter,
+		Fiefs:         append([]engine.FiefReport{}, report.Fiefs...),
 	}
 	for _, order := range report.Orders {
 		if viewer == models.SpectatorViewer || privacy != nil && viewerKnowsChainSnapshot(privacy, viewer, order.Chain) {

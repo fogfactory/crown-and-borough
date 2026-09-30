@@ -19,13 +19,13 @@ réordonnancement.
 
 | Thème | Spécification | Milestone | Dépendances indicatives |
 |---|---|---|---|
-| Titres et victoire | [`titres.md`](titres.md) | [Titres & Victoire](https://github.com/fogfactory/crown-and-borough/milestone/2) | Socle actuel |
+| Titres et victoire | [`titres.md`](titres.md) | [Titres & Victoire](https://github.com/fogfactory/crown-and-borough/milestone/2) ; fiefs et taxe dans [Économie & Fiefs](https://github.com/fogfactory/crown-and-borough/milestone/19) | Socle actuel |
 | Cartographie | [`cartographie.md`](cartographie.md) | [Cartographie](https://github.com/fogfactory/crown-and-borough/milestone/3) | Indépendant, mais utile au thème religieux |
 | Ordres spéciaux | [`ordres-speciaux.md`](ordres-speciaux.md) | [Ordres spéciaux & Calamités](https://github.com/fogfactory/crown-and-borough/milestone/4) | Socle actuel |
 | Religieux | [`religieux.md`](religieux.md) | [Religieux](https://github.com/fogfactory/crown-and-borough/milestone/5) | Titres, Cartographie |
 | Politique royale | [`politique.md`](politique.md) | [Politique royale](https://github.com/fogfactory/crown-and-borough/milestone/6) | Titres, Religieux |
 | Succession | [`succession.md`](succession.md) | [Succession](https://github.com/fogfactory/crown-and-borough/milestone/7) | Titres, Religieux, Politique, cartes spéciales |
-| Économie et prospérité | [`economie.md`](economie.md) | [Économie & Prospérité](https://github.com/fogfactory/crown-and-borough/milestone/8) | Socle actuel ; Titres pour les seigneuries |
+| Économie et prospérité | [`economie.md`](economie.md) | [Économie & Fiefs](https://github.com/fogfactory/crown-and-borough/milestone/19) (transferts livrés dans [Économie & Prospérité](https://github.com/fogfactory/crown-and-borough/milestone/8)) | Socle actuel ; fiefs de `titres.md` |
 | Information | [`information.md`](information.md) | [Brouillard de guerre](https://github.com/fogfactory/crown-and-borough/milestone/9) | [Vue privée online #42](https://github.com/fogfactory/crown-and-borough/issues/42) |
 
 ## Dépendances proposées

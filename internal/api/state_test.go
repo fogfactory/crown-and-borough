@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
@@ -12,7 +13,7 @@ import (
 
 func TestProjectStateMatchesStateContract(t *testing.T) {
 	state := projectTestState()
-	view := projectState(state)
+	view := projectState(state, assetgen.Balance{})
 
 	if view.Turn != state.Turn || view.Season != state.Season {
 		t.Errorf("view metadata = %d/%s, want %d/%s", view.Turn, view.Season, state.Turn, state.Season)
@@ -80,9 +81,63 @@ func TestProjectStateMatchesStateContract(t *testing.T) {
 	}
 }
 
+// TestProjectStateFiefs verifies that a fief is addressed by its capital's
+// trigram and its titleholder by their code, with no internal fief id exposed
+// (titres.md, #194).
+func TestProjectStateFiefs(t *testing.T) {
+	state := projectTestState()
+	holder := models.NobleID("N1")
+	state.Fiefs = []models.Fief{{
+		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "ROS",
+		Territories: []models.TerritoryID{"ROS", "BRU", "FOU"}, OwnerID: "P1", HolderNobleID: &holder,
+	}}
+	view := projectState(state, assetgen.Balance{})
+	if len(view.Fiefs) != 1 {
+		t.Fatalf("fiefs = %#v, want 1", view.Fiefs)
+	}
+	fief := view.Fiefs[0]
+	if fief.Capital != "ROS" || fief.Title != models.FiefTitleBarony || fief.Owner != "P1" {
+		t.Errorf("fief = %#v", fief)
+	}
+	if fief.Holder == nil || *fief.Holder != "HUG" {
+		t.Errorf("fief holder = %v, want HUG", fief.Holder)
+	}
+	if got, want := fief.Territories, []models.TerritoryID{"ROS", "BRU", "FOU"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("fief territories = %#v, want %#v", got, want)
+	}
+	data, err := json.Marshal(view.Fiefs)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if strings.Contains(string(data), `"id"`) || strings.Contains(string(data), "F1") {
+		t.Errorf("fief JSON %s leaks the internal fief id", data)
+	}
+}
+
+// TestProjectStateFiefVacant verifies that a vacant fief (no titleholder)
+// omits the holder field instead of returning a null or empty code.
+func TestProjectStateFiefVacant(t *testing.T) {
+	state := projectTestState()
+	state.Fiefs = []models.Fief{{
+		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "ROS",
+		Territories: []models.TerritoryID{"ROS", "BRU", "FOU"}, OwnerID: "P1",
+	}}
+	view := projectState(state, assetgen.Balance{})
+	if len(view.Fiefs) != 1 || view.Fiefs[0].Holder != nil {
+		t.Fatalf("fiefs = %#v, want a vacant fief with no holder", view.Fiefs)
+	}
+	data, err := json.Marshal(view.Fiefs[0])
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if strings.Contains(string(data), "holder") {
+		t.Errorf("vacant fief JSON %s should omit holder", data)
+	}
+}
+
 func TestProjectStateNesting(t *testing.T) {
 	state := projectTestState()
-	view := projectState(state)
+	view := projectState(state, assetgen.Balance{})
 
 	viewByID := make(map[models.TerritoryID]TerritoryView, len(view.Territories))
 	for _, territory := range view.Territories {
@@ -107,12 +162,62 @@ func TestProjectStateNesting(t *testing.T) {
 	}
 }
 
+func TestProjectStateProjectsMillProductionAndDestination(t *testing.T) {
+	p1 := models.PlayerID("P1")
+	state := &models.GameState{
+		ID:     "state-view-mill",
+		Seed:   "state-view-mill",
+		Turn:   5,
+		Season: models.SeasonSpring,
+		Players: []models.Player{
+			{ID: p1, Name: "Hugues", Color: "#a84632", CapitalCastleID: ptrInfraID("I1")},
+		},
+		Territories: []models.Territory{
+			{ID: "CAS", Name: "Castellan", Terrain: models.TerrainPlain, Adjacencies: []models.TerritoryID{"MIL"}},
+			{ID: "MIL", Name: "Moulinet", Terrain: models.TerrainPlain, Adjacencies: []models.TerritoryID{"CAS"}},
+		},
+		NextChainID: 1,
+		NextArmyID:  2,
+		Infrastructures: []models.Infrastructure{
+			{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "CAS"},
+			{ID: "I2", Type: models.InfraTypeMill, Level: 2, TerritoryID: "MIL"},
+		},
+		// P1's army holds MIL: outside every fief and capital, a mill only
+		// produces while occupied (#215).
+		Armies: []models.Army{{ID: "A1", OwnerID: p1, TerritoryID: "MIL", Size: 1}},
+		TerritoryStates: map[models.TerritoryID]models.TerritoryState{
+			"CAS": {Infrastructures: ptrInfraID("I1")},
+			"MIL": {Infrastructures: ptrInfraID("I2"), Army: ptrArmyID("A1")},
+		},
+	}
+	if err := state.Validate(); err != nil {
+		t.Fatalf("invalid fixture: %v", err)
+	}
+
+	view := projectState(state, assetgen.Balance{})
+
+	viewByID := make(map[models.TerritoryID]TerritoryView, len(view.Territories))
+	for _, territory := range view.Territories {
+		viewByID[territory.ID] = territory
+	}
+	mill := viewByID["MIL"]
+	if mill.MillProduction != 2 {
+		t.Errorf("mill production = %d, want 2 (its level, no weather effect)", mill.MillProduction)
+	}
+	if mill.MillDestination == nil || *mill.MillDestination != "CAS" {
+		t.Errorf("mill destination = %v, want CAS", mill.MillDestination)
+	}
+	if castle := viewByID["CAS"]; castle.MillProduction != 0 || castle.MillDestination != nil {
+		t.Errorf("castle mill projection = %+v, want zero value (only the mill's own territory carries it)", castle)
+	}
+}
+
 func TestProjectStateOmitsUnavailableCapital(t *testing.T) {
 	state := projectTestState()
 	missingCapitalID := models.InfraID("missing")
 	state.Players[0].CapitalCastleID = &missingCapitalID
 
-	view := projectState(state)
+	view := projectState(state, assetgen.Balance{})
 	if got := view.Players[0].CapitalTerritory; got != nil {
 		t.Errorf("unavailable capital territory = %v, want nil", got)
 	}
@@ -172,10 +277,10 @@ func projectTestState() *models.GameState {
 			{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "FOU"},
 		},
 		TerritoryStates: map[models.TerritoryID]models.TerritoryState{
-			"ROS": {OwnerID: &p1, Resources: 3, Army: ptrArmyID("A1"), Infrastructures: ptrInfraID("I1")},
-			"BOI": {OwnerID: &p2, Resources: 0, Army: ptrArmyID("A2")},
-			"BRU": {OwnerID: nil, Resources: 0},
-			"FOU": {OwnerID: nil, Resources: 0, Infrastructures: ptrInfraID("I2")},
+			"ROS": {Resources: 3, Army: ptrArmyID("A1"), Infrastructures: ptrInfraID("I1")},
+			"BOI": {Resources: 0, Army: ptrArmyID("A2")},
+			"BRU": {Resources: 0},
+			"FOU": {Resources: 0, Infrastructures: ptrInfraID("I2")},
 		},
 	}
 	if err := state.Validate(); err != nil {
@@ -320,10 +425,11 @@ func loadStateTestAssets(t *testing.T) assetgen.Assets {
 func generateStateTestMap(t *testing.T, assets assetgen.Assets) mapgen.MapData {
 	t.Helper()
 	mapData, err := mapgen.Generate("state-test-map", assets, mapgen.Config{
-		Width:        1000,
-		Height:       700,
-		SiteCount:    mapgen.TerritoriesPerPlayer * 4,
-		VillageCount: 5,
+		Width:      1000,
+		Height:     700,
+		SiteCount:  mapgen.TerritoriesPerPlayer*4 + mapgen.TerritoriesPerSeat*5,
+		StartCount: 4,
+		SeatCount:  5,
 	})
 	if err != nil {
 		t.Fatalf("generate map: %v", err)

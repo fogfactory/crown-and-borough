@@ -25,7 +25,24 @@ describe('FaqPanel', () => {
     expect(
       screen.getByText(/Comment les cartes spéciales et les calamités/),
     ).toBeInTheDocument()
-    expect(container.querySelectorAll('details')).toHaveLength(12)
+    expect(
+      screen.getByText(/Comment se calcule mon revenu territorial/),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/Pourquoi le risque de famine affiché/)).toBeInTheDocument()
+    expect(screen.getByText(/Comment constituer un fief/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/attribué automatiquement au noble libre/),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/Combien de temps dure le contrôle hors fief/),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/Comment fonctionne la carte de taxe seigneuriale/),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/D’où viennent les nouveaux villages/),
+    ).toBeInTheDocument()
+    expect(container.querySelectorAll('details')).toHaveLength(18)
   })
 
   it('renders the English tactical FAQ', () => {
@@ -48,6 +65,25 @@ describe('FaqPanel', () => {
     expect(
       screen.getByText(/How do special cards and calamities apply/),
     ).toBeInTheDocument()
-    expect(container.querySelectorAll('details')).toHaveLength(12)
+    expect(screen.getByText(/How is my territory income calculated/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/Why is the projected famine risk only an estimate/),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/How does founding a fief work/)).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        /assigned automatically to the free noble with the smallest trigram/,
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/How long does control last outside a fief/),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/How does the seigneurial tax card work/),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/Where do the new villages that appear on their own come from/),
+    ).toBeInTheDocument()
+    expect(container.querySelectorAll('details')).toHaveLength(18)
   })
 })

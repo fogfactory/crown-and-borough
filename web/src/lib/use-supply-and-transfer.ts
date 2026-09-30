@@ -21,6 +21,11 @@ export interface UseSupplyAndTransferOptions {
   draftOrders: Record<string, Order[]>
   /** Player whose drafts are shown; transfer targets require owning the army. */
   ownerId: PlayerId | null
+  /**
+   * Drafted special orders of that player, so the supply projection reflects
+   * the cards they intend to play this turn.
+   */
+  specialDraft?: string
   /** Resource root for the supply endpoint ('/api' hotseat, '/api/games/{id}' online). */
   basePath?: string
   /**
@@ -67,6 +72,7 @@ export function useSupplyAndTransfer({
   selectedState,
   draftOrders,
   ownerId,
+  specialDraft = '',
   basePath = '/api',
   fetcher,
   networkErrorMessage,
@@ -108,10 +114,9 @@ export function useSupplyAndTransfer({
     const controller = new AbortController()
     setSupplyLoading(true)
     setSupplyError(null)
-    fetcher<SupplyLine>(
-      `${basePath}/supply?territory=${encodeURIComponent(selectedId)}`,
-      controller.signal,
-    )
+    const query = new URLSearchParams({ territory: selectedId })
+    if (specialDraft.trim() !== '') query.set('special', specialDraft)
+    fetcher<SupplyLine>(`${basePath}/supply?${query.toString()}`, controller.signal)
       .then((line) => {
         if (!controller.signal.aborted) setSupplyLine(line)
       })
@@ -136,6 +141,7 @@ export function useSupplyAndTransfer({
     onAuthError,
     selectedId,
     selectedState,
+    specialDraft,
     state,
   ])
 

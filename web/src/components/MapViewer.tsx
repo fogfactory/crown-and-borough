@@ -2,6 +2,7 @@ import { useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 
 import { MapLegend, TERRAIN_COLORS, TERRAIN_LABEL_KEYS } from '@/components/MapLegend'
 import { MapControls } from '@/components/MapControls'
+import { MapFiefLayer } from '@/components/MapFiefLayer'
 import { snowPatternVariant } from '@/components/MapDecorations'
 import {
   CalamityIconLayer,
@@ -18,6 +19,7 @@ import {
 import { MapSvgDefs } from '@/components/MapSvgDefs'
 import {
   LiveLayer,
+  OccupiedHatchLayer,
   OwnershipLayer,
   TerritoryLabels,
 } from '@/components/MapTerritoryLayers'
@@ -324,7 +326,21 @@ export function MapViewer({
                 state={state}
                 playerColors={playerColors}
                 annotationScale={annotationScale}
+                fiefs={state.fiefs ?? []}
               />
+            )}
+
+            {showOwnership && (state.fiefs?.length ?? 0) > 0 && (
+              <MapFiefLayer
+                territories={map.territories}
+                fiefs={state.fiefs ?? []}
+                playerColors={playerColors}
+                annotationScale={annotationScale}
+              />
+            )}
+
+            {showOwnership && (
+              <OccupiedHatchLayer territories={map.territories} state={state} />
             )}
 
             {supplyReachable.size > 0 && (

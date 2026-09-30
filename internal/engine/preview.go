@@ -37,15 +37,16 @@ type ChainPreview struct {
 // ParseError is set. Applied, Reason, Cost, Level and Territory describe the
 // simulated outcome of Order.
 type WinterLinePreview struct {
-	Line       int
-	Order      *models.WinterOrder
-	Discard    *models.DeckOrder
-	ParseError *InputError
-	Applied    bool
-	Reason     string
-	Cost       int
-	Level      int
-	Territory  models.TerritoryID
+	Line        int
+	Order       *models.WinterOrder
+	Discard     *models.DeckOrder
+	ParseError  *InputError
+	Applied     bool
+	Reason      string
+	Cost        int
+	Level       int
+	Territory   models.TerritoryID
+	Territories []models.TerritoryID
 }
 
 // WinterCostPreview compares the resources the simulated winter sheet spends
@@ -122,11 +123,12 @@ func previewWinter(preview *OrdersPreview, game *models.GameState, balance asset
 			order.ID = models.OrderID(fmt.Sprintf("W%d", line.Line))
 			winterOrders = append(winterOrders, order)
 			entry.Order = &order
+			entry.Territories = append([]models.TerritoryID(nil), order.TerritoryIDs...)
 		}
 		preview.Winter = append(preview.Winter, entry)
 	}
 
-	cost := &WinterCostPreview{Available: winterPaymentReserves(game, playerID)}
+	cost := &WinterCostPreview{Available: winterPaymentReserves(game, playerID, winterOrders)}
 	preview.WinterCost = cost
 	if len(winterOrders) == 0 && len(deckOrders) == 0 {
 		return nil
@@ -172,23 +174,46 @@ func previewWinter(preview *OrdersPreview, game *models.GameState, balance asset
 	return nil
 }
 
-// winterPaymentReserves is the stock a player can spend on winter orders:
-// the resources of every controlled castle and village.
-func winterPaymentReserves(game *models.GameState, playerID models.PlayerID) int {
+// winterPaymentReserves is the stock a player can spend on winter orders: the
+// resources of every controlled castle and village, plus the stock of any
+// mill targeted by one of winterOrders' build lines, since a mill upgrade can
+// pay for itself first (see #195's millUpgradePaymentSources). A settlement
+// or mill occupied against its controller is excluded: it pays for no
+// investment (titres.md).
+func winterPaymentReserves(game *models.GameState, playerID models.PlayerID, winterOrders []models.WinterOrder) int {
 	settlements := make(map[models.InfraID]bool)
 	for _, infrastructure := range game.Infrastructures {
 		if infrastructure.Type == models.InfraTypeCastle || infrastructure.Type == models.InfraTypeVillage {
 			settlements[infrastructure.ID] = true
 		}
 	}
+	counted := make(map[models.TerritoryID]bool)
 	total := 0
-	for _, territoryState := range game.TerritoryStates {
-		if territoryState.OwnerID == nil || *territoryState.OwnerID != playerID || territoryState.Resources <= 0 {
+	for territoryID, territoryState := range game.TerritoryStates {
+		if controller, controlled := game.TerritoryController(territoryID); !controlled || controller != playerID || territoryState.Resources <= 0 {
+			continue
+		}
+		if territoryOccupiedAgainstController(game, territoryID) {
 			continue
 		}
 		if territoryState.Infrastructures != nil && settlements[*territoryState.Infrastructures] {
 			total += territoryState.Resources
+			counted[territoryID] = true
 		}
+	}
+	for _, order := range winterOrders {
+		if order.Type != models.WinterOrderTypeBuild || order.InfraType != models.InfraTypeMill || counted[order.TerritoryID] {
+			continue
+		}
+		territoryState, exists := game.TerritoryStates[order.TerritoryID]
+		if controller, controlled := game.TerritoryController(order.TerritoryID); !exists || !controlled || controller != playerID {
+			continue
+		}
+		if territoryOccupiedAgainstController(game, order.TerritoryID) {
+			continue
+		}
+		total += territoryState.Resources
+		counted[order.TerritoryID] = true
 	}
 	return total
 }

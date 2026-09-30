@@ -19,12 +19,16 @@ type ScoreBreakdown struct {
 	Nobles      int `json:"nobles"`
 	Troops      int `json:"troops"`
 	Resources   int `json:"resources"`
+	Fiefs       int `json:"fiefs"`
 	Total       int `json:"total"`
 }
 
 // ComputeScores calculates the public score for every player in the state.
-// Infrastructure, resources, and captive nobles are awarded to the player who
-// controls their current territory; a free noble is awarded to its owner.
+// Infrastructure and resources are awarded to the player who controls their
+// current territory. A free noble is awarded to its owner; a captive noble
+// (hostage or dungeon) is awarded to whoever physically holds it — the army
+// on its territory, falling back to that territory's anchor owner when no
+// army is present (#215) — rather than to the territory's controller.
 func ComputeScores(state *models.GameState) map[models.PlayerID]ScoreBreakdown {
 	scores := make(map[models.PlayerID]ScoreBreakdown)
 	if state == nil {
@@ -38,12 +42,17 @@ func ComputeScores(state *models.GameState) map[models.PlayerID]ScoreBreakdown {
 	for _, infrastructure := range state.Infrastructures {
 		infrastructures[infrastructure.ID] = infrastructure
 	}
+	armies := make(map[models.ArmyID]models.Army, len(state.Armies))
+	for _, army := range state.Armies {
+		armies[army.ID] = army
+	}
+	controllers := state.TerritoryControllers()
 	for _, territory := range state.Territories {
 		territoryState := state.TerritoryStates[territory.ID]
-		if territoryState.OwnerID == nil {
+		playerID, controlled := controllers[territory.ID]
+		if !controlled {
 			continue
 		}
-		playerID := *territoryState.OwnerID
 		score, exists := scores[playerID]
 		if !exists {
 			continue
@@ -77,11 +86,35 @@ func ComputeScores(state *models.GameState) map[models.PlayerID]ScoreBreakdown {
 	for _, noble := range state.Nobles {
 		playerID := noble.OwnerID
 		if noble.Status == models.NobleStatusHostage || noble.Status == models.NobleStatusDungeon {
+			// A captive noble's point goes to whoever physically holds it: the
+			// army currently stationed on its territory, since control outside
+			// a fief is now ephemeral and can lapse while the captor's army
+			// still stands there (#215). Absent an army, it falls back to the
+			// territory's anchor owner (a fief or a player's own capital stays
+			// controlled indefinitely with no army present) rather than being
+			// dropped, since a hostage left behind on still-anchored ground is
+			// not stranded on nobody's land.
 			territoryState, exists := state.TerritoryStates[noble.LocationID]
-			if !exists || territoryState.OwnerID == nil {
+			if !exists {
 				continue
 			}
-			playerID = *territoryState.OwnerID
+			switch {
+			case territoryState.Army != nil:
+				holder, exists := armies[*territoryState.Army]
+				if !exists {
+					continue
+				}
+				playerID = holder.OwnerID
+			default:
+				anchorOwner, anchored := state.FiefOwnerAt(noble.LocationID)
+				if !anchored {
+					anchorOwner, anchored = state.CapitalOwnerAt(noble.LocationID)
+				}
+				if !anchored {
+					continue
+				}
+				playerID = anchorOwner
+			}
 		}
 		score, exists := scores[playerID]
 		if !exists {
@@ -91,9 +124,20 @@ func ComputeScores(state *models.GameState) map[models.PlayerID]ScoreBreakdown {
 		scores[playerID] = score
 	}
 
+	// Each fief earns 1 point regardless of size, vacant or not, until it
+	// is dissolved (titres.md).
+	for _, fief := range state.Fiefs {
+		score, exists := scores[fief.OwnerID]
+		if !exists {
+			continue
+		}
+		score.Fiefs++
+		scores[fief.OwnerID] = score
+	}
+
 	for playerID, score := range scores {
 		score.Total = score.Territories + score.Villages + score.Mills + score.Castles +
-			score.Nobles + score.Troops + score.Resources
+			score.Nobles + score.Troops + score.Resources + score.Fiefs
 		scores[playerID] = score
 	}
 	return scores
@@ -105,8 +149,13 @@ func PlayerAlive(state *models.GameState, playerID models.PlayerID) bool {
 	if state == nil {
 		return false
 	}
-	for _, territoryState := range state.TerritoryStates {
-		if territoryState.OwnerID != nil && *territoryState.OwnerID == playerID {
+	for _, fief := range state.Fiefs {
+		if fief.OwnerID == playerID {
+			return true
+		}
+	}
+	for _, player := range state.Players {
+		if player.ID == playerID && player.CapitalCastleID != nil {
 			return true
 		}
 	}

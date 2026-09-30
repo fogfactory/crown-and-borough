@@ -15,6 +15,8 @@ func TestNewExecutableWinterOrder(t *testing.T) {
 		models.WinterOrderTypeLiberateNoble,
 		models.WinterOrderTypeHostage,
 		models.WinterOrderTypeDungeon,
+		models.WinterOrderTypeFoundFief,
+		models.WinterOrderTypeAssignFief,
 	}
 	for _, orderType := range validTypes {
 		if executable := newExecutableWinterOrder(models.WinterOrder{Type: orderType}); executable == nil {

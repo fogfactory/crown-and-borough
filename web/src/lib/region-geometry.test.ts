@@ -81,7 +81,11 @@ describe('chainSegments', () => {
 })
 
 describe('computeRegionOutlines', () => {
-  function territory(id: string, points: Array<[number, number]>, village = false): Territory {
+  function territory(
+    id: string,
+    points: Array<[number, number]>,
+    village = false,
+  ): Territory {
     return {
       id,
       name: id,
@@ -114,13 +118,31 @@ describe('computeRegionOutlines', () => {
       territory('AAA', squarePoints(0, 0, 50)),
       territory('BBB', squarePoints(50, 0, 50)),
     ]
-    const regions: Region[] = [
-      { id: 'R1', seed: 'AAA', territories: ['AAA', 'BBB'] },
-    ]
+    const regions: Region[] = [{ id: 'R1', seed: 'AAA', territories: ['AAA', 'BBB'] }]
     const { outlines } = computeRegionOutlines(territories, regions)
     expect(outlines.get('R1')?.loops).toHaveLength(1)
     expect(outlines.get('R1')?.outerSegments).toHaveLength(6)
     expect(outlines.get('R1')?.loops[0]).toHaveLength(6)
+  })
+
+  it('stays one connected loop when a region only partially covers the map (e.g. a fief)', () => {
+    // AAA is not part of any region and is processed before BBB, so the
+    // shared AAA/BBB edge has AAA (unassigned) as its "first" territory and
+    // BBB (a member) as "second". Classifying edges by only the first side's
+    // region silently dropped this exact edge, fragmenting the boundary —
+    // invisible for the regions this function was built for (they fully
+    // partition the map, so every territory always has one), but broken for
+    // a partial assignment like a fief's territory group.
+    const territories = [
+      territory('AAA', squarePoints(0, 0, 50)),
+      territory('BBB', squarePoints(50, 0, 50)),
+      territory('CCC', squarePoints(100, 0, 50)),
+    ]
+    const regions: Region[] = [{ id: 'R1', seed: 'BBB', territories: ['BBB', 'CCC'] }]
+    const { outlines } = computeRegionOutlines(territories, regions)
+    const loops = outlines.get('R1')?.loops ?? []
+    expect(loops).toHaveLength(1)
+    expect(loops[0]).toHaveLength(6)
   })
 
   function grid3x3(): Territory[] {
@@ -143,7 +165,8 @@ describe('computeRegionOutlines', () => {
       { id: 'CORE', seed: 'EEE', territories: ['EEE'] },
     ]
     const { outlines } = computeRegionOutlines(territories, regions)
-    const regionOf = (id: string) => regions.find((region) => region.territories.includes(id))?.id
+    const regionOf = (id: string) =>
+      regions.find((region) => region.territories.includes(id))?.id
     const territoryAt = (point: [number, number]) => {
       for (const candidate of territories) {
         if (polygonContains(candidate.points, point)) {
@@ -187,7 +210,13 @@ describe('computeRegionOutlines', () => {
 
 describe('polyline helpers', () => {
   it('measures polyline length', () => {
-    expect(polylineLength([[0, 0], [3, 0], [3, 4]] as Point[])).toBeCloseTo(7, 9)
+    expect(
+      polylineLength([
+        [0, 0],
+        [3, 0],
+        [3, 4],
+      ] as Point[]),
+    ).toBeCloseTo(7, 9)
   })
 })
 

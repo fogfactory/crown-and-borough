@@ -137,12 +137,13 @@ func (s *FirestoreStore) Map(ctx context.Context, actor store.Actor, id store.Ga
 	return snapshot.Map, nil
 }
 
-func (s *FirestoreStore) Supply(ctx context.Context, actor store.Actor, id store.GameID, territoryID models.TerritoryID) (engine.SupplyLine, error) {
+func (s *FirestoreStore) Supply(ctx context.Context, actor store.Actor, id store.GameID, territoryID models.TerritoryID, special string) (engine.SupplyLine, error) {
 	snapshot, err := s.Get(ctx, actor, id)
 	if err != nil {
 		return engine.SupplyLine{}, err
 	}
-	return engine.FindSupply(snapshot.State, s.balance, territoryID)
+	playerID, _ := snapshot.PlayerFor(actor)
+	return engine.FindPlayerSupply(snapshot.State, s.balance, territoryID, playerID, special)
 }
 
 func (s *FirestoreStore) TransferSupply(ctx context.Context, actor store.Actor, id store.GameID, sourceID, targetID models.TerritoryID) (engine.TransferLine, error) {
@@ -444,7 +445,7 @@ func (s *FirestoreStore) readReports(ctx context.Context, id store.GameID) ([]st
 }
 
 func (s *FirestoreStore) viewDocument(id store.GameID, uid string, playerID models.PlayerID, revision store.Revision, state *models.GameState, updatedAt time.Time) (viewDocument, error) {
-	view := api.ProjectStateForPlayer(state, playerID)
+	view := api.ProjectStateForPlayer(state, playerID, s.balance)
 	stateMap, err := jsonMap(view)
 	if err != nil {
 		return viewDocument{}, err
@@ -469,7 +470,7 @@ func (s *FirestoreStore) observerDocument(
 	updatedAt time.Time,
 	latestReportTurn int,
 ) (observerDocument, error) {
-	view := api.ProjectStateForPlayer(state, models.SpectatorViewer)
+	view := api.ProjectStateForPlayer(state, models.SpectatorViewer, s.balance)
 	stateMap, err := jsonMap(view)
 	if err != nil {
 		return observerDocument{}, err

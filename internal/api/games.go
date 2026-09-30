@@ -241,7 +241,7 @@ func (h *GamesHandler) getState(w http.ResponseWriter, r *http.Request, actor st
 		writeAPIError(w, http.StatusForbidden, "not_member", "actor is not a member of this game")
 		return
 	}
-	writeGameState(w, snapshot.Revision, projectStateForPlayer(snapshot.State, viewerID))
+	writeGameState(w, snapshot.Revision, projectStateForPlayer(snapshot.State, viewerID, h.balance))
 }
 
 func (h *GamesHandler) getBalance(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
@@ -272,7 +272,9 @@ func (h *GamesHandler) getSupply(w http.ResponseWriter, r *http.Request, actor s
 		writeJSON(w, http.StatusOK, line)
 		return
 	}
-	line, err := h.store.Supply(r.Context(), actor, id, territory)
+	// special carries the viewer's drafted deck orders, so the projection
+	// reflects the cards they intend to play this turn.
+	line, err := h.store.Supply(r.Context(), actor, id, territory, r.URL.Query().Get("special"))
 	if err != nil {
 		h.writeStoreError(w, err)
 		return
@@ -558,7 +560,7 @@ func (h *GamesHandler) writeSubmitResult(w http.ResponseWriter, actor store.Acto
 		Resolved:  result.Resolved,
 		Forced:    result.Forced,
 		Revision:  result.Snapshot.Revision,
-		State:     projectStateForPlayer(result.Snapshot.State, viewerID),
+		State:     projectStateForPlayer(result.Snapshot.State, viewerID, h.balance),
 	}
 	if result.Report != nil {
 		report := projectReport(result.Report.Report, viewerID, result.Report.Privacy)
