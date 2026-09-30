@@ -13,6 +13,8 @@ import { GameLayout } from '@/components/GameLayout'
 import { GamePanelCard } from '@/components/GamePanelCard'
 import { MapViewer } from '@/components/MapViewer'
 import { SelectedTerritoryDetails } from '@/components/SelectedTerritoryDetails'
+import { ProjectedConsumptionSummary } from '@/components/ProjectedConsumptionSummary'
+import { ProjectedIncomeSummary } from '@/components/ProjectedIncomeSummary'
 import { OrdersPanel } from '@/components/OrdersPanel'
 import { ReportPane, type ReportSummary } from '@/components/ReportPane'
 import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
@@ -539,6 +541,7 @@ export function GamePage() {
     selectedState,
     draftOrders,
     ownerId: playerID,
+    specialDraft,
     basePath: gameId ? `/api/games/${encodeURIComponent(gameId)}` : '/api',
     fetcher: supplyFetcher,
     networkErrorMessage: t('error.network'),
@@ -972,6 +975,8 @@ export function GamePage() {
           }
           command={
             <>
+              <ProjectedIncomeSummary state={state} playerId={playerID} />
+              <ProjectedConsumptionSummary state={state} playerId={playerID} />
               <SelectedTerritoryDetails
                 state={state}
                 selectedTerritory={selectedTerritory}

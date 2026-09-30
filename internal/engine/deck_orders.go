@@ -18,6 +18,7 @@ var cardDefinitions = map[models.CardKind]CardDefinition{
 	models.CardKindFairWeather:     fairWeatherCardDefinition{},
 	models.CardKindAbundantHarvest: abundantHarvestCardDefinition{},
 	models.CardKindRevolt:          revoltCardDefinition{},
+	models.CardKindSeigneurialTax:  seigneurialTaxCardDefinition{},
 }
 
 type deckOrderIntent struct {
@@ -45,6 +46,7 @@ func validateActionDeckOrders(game *models.GameState, balance assetgen.Balance, 
 		}
 	}
 	validationContext := newResolutionContext(game, balance)
+	markPendingTaxWindowFiefs(validationContext, deckOrders)
 	for _, playerID := range sortedDeckPlayerIDs(deckOrders) {
 		if !players[playerID] {
 			return fmt.Errorf("engine: resolve: unknown player %q", playerID)
@@ -85,6 +87,25 @@ func sortedDeckPlayerIDs(deckOrders map[models.PlayerID][]models.DeckOrder) []mo
 	return playerIDs
 }
 
+// markPendingTaxWindowFiefs flags, on ctx, every fief targeted by a
+// seigneurial tax order in this same deck order batch. A revolt targeting
+// one of those fiefs must not be rejected: resolveSeasonEffects applies the
+// tax before the revolt (deck_seigneurial_tax_order.go), so the combination
+// is legal even though neither card has actually been applied yet when
+// resolveDeckOrders checks each order's CanPlay.
+func markPendingTaxWindowFiefs(ctx *resolutionContext, deckOrders map[models.PlayerID][]models.DeckOrder) {
+	for _, playerOrders := range deckOrders {
+		for _, order := range playerOrders {
+			if order.Type != models.DeckOrderTypePlay || order.Kind != models.CardKindSeigneurialTax {
+				continue
+			}
+			if fief := ctx.fiefByCapital(order.TargetTerritoryID); fief != nil {
+				ctx.pendingTaxWindowFiefs[fief.ID] = true
+			}
+		}
+	}
+}
+
 func resolveDeckOrders(ctx *resolutionContext, deckOrders map[models.PlayerID][]models.DeckOrder) {
 	for _, playerID := range sortedDeckPlayerIDs(deckOrders) {
 		for _, order := range deckOrders[playerID] {
@@ -104,7 +125,7 @@ func (ctx *resolutionContext) applyDeckCardOrder(playerID models.PlayerID, order
 		return
 	}
 	regionSeed := order.RegionSeed
-	if order.Kind == models.CardKindRevolt {
+	if order.Kind == models.CardKindRevolt || order.Kind == models.CardKindSeigneurialTax {
 		regionSeed = order.TargetTerritoryID
 	}
 	ctx.deckIntents = append(ctx.deckIntents, deckOrderIntent{playerID: playerID, order: order})

@@ -25,6 +25,15 @@ type resolutionContext struct {
 	startArmyAtTerritory map[models.TerritoryID]models.ArmyID
 	startNoblesByID      map[models.NobleID]models.Noble
 	famished             map[models.ArmyID]bool
+	// startControl is the control the previous resolution left behind, frozen
+	// when the context is created (see controllerAtStart in occupation.go).
+	startControl map[models.TerritoryID]models.PlayerID
+	// settledControl is the control phase 5 settled, frozen at the start of the
+	// end-of-turn ravitaillement: a famine auto-pillage there can dissolve a
+	// fief, and what it unanchors is reported as abandoned at the very end of
+	// the resolution, while the supply reports themselves keep reading the
+	// control the turn settled on (see snapshotControlNow).
+	settledControl map[models.TerritoryID]models.PlayerID
 
 	records             map[models.ArmyID]*orderRecord
 	attacks             map[models.ArmyID]*attackIntent
@@ -47,8 +56,8 @@ type resolutionContext struct {
 	specialReshuffles   int
 	badWeatherRegions   map[models.TerritoryID]bool
 	famineRegions       map[models.TerritoryID]bool
-	bonusMillRegions    map[models.TerritoryID]int
-	bonusRationRegions  map[models.TerritoryID]int
+	fairWeatherRegions  map[models.TerritoryID]bool
+	goodHarvestRegions  map[models.TerritoryID]bool
 	plagueDeaths        []models.Noble
 	supplyRations       map[models.TerritoryID]rationProductionParts
 	supplySources       map[models.TerritoryID]sourceProductionParts
@@ -57,36 +66,59 @@ type resolutionContext struct {
 	supplyConsumption   map[models.ArmyID]*consumptionDetail
 	poolRations         map[models.TerritoryID]map[models.TerritoryID]int
 	pendingRevoltSizes  map[models.TerritoryID]int
+	// taxedFiefsThisTurn holds the fiefs whose seigneurial tax successfully
+	// applied this turn (first play only, titres.md "Taxe seigneuriale"): it
+	// doubles their territory income (income.go) and widens revolt
+	// eligibility (deck_revolt_order.go) for the turn, on top of the
+	// persisted state.TaxedFiefs window from the previous turn.
+	taxedFiefsThisTurn map[models.FiefID]bool
+	// pendingTaxWindowFiefs is populated only while validating a whole deck
+	// order submission (validateActionDeckOrders): it lets a revolt order see
+	// a tax order co-submitted this same turn for the same fief before
+	// either has actually been applied, so the submission is not rejected
+	// outright for a combination that resolveSeasonEffects will honor.
+	pendingTaxWindowFiefs map[models.FiefID]bool
+	// taxedFiefOwnerAtApply records, for every fief taxedFiefsThisTurn flags,
+	// which player applied the tax (always that fief's owner at apply time,
+	// applySeigneurialTax): income.go compares it to the fief's owner once
+	// income is credited, after captures, to cancel the doubling for a fief
+	// whose capital changed hands this same turn (#208) rather than crediting
+	// a stale doubling to the wrong income line.
+	taxedFiefOwnerAtApply map[models.FiefID]models.PlayerID
 }
 
 func newResolutionContext(state *models.GameState, balance assetgen.Balance) *resolutionContext {
 	ctx := &resolutionContext{
-		state:                state,
-		balance:              balance,
-		startArmiesByID:      make(map[models.ArmyID]models.Army, len(state.Armies)),
-		startArmyAtTerritory: make(map[models.TerritoryID]models.ArmyID, len(state.Armies)),
-		startNoblesByID:      make(map[models.NobleID]models.Noble, len(state.Nobles)),
-		famished:             make(map[models.ArmyID]bool),
-		records:              make(map[models.ArmyID]*orderRecord),
-		attacks:              make(map[models.ArmyID]*attackIntent),
-		joins:                make(map[models.ArmyID]*joinIntent),
-		disperses:            make(map[models.ArmyID]*disperseIntent),
-		transfers:            make(map[models.ArmyID]*transferIntent),
-		disperseResults:      make(map[models.ArmyID]*disperseResolution),
-		supports:             make(map[models.ArmyID]*supportIntent),
-		joinResults:          make(map[models.ArmyID]*joinResolution),
-		attackedTerritories:  make(map[models.TerritoryID]bool),
-		dislodged:            make(map[models.ArmyID]*dislodgedArmy),
-		cancelledPeaceful:    make(map[models.ArmyID]bool),
-		badWeatherRegions:    make(map[models.TerritoryID]bool),
-		famineRegions:        make(map[models.TerritoryID]bool),
-		supplyRations:        make(map[models.TerritoryID]rationProductionParts),
-		supplySources:        make(map[models.TerritoryID]sourceProductionParts),
-		supplyStockBefore:    make(map[models.TerritoryID]int),
-		supplyStockConsumed:  make(map[models.TerritoryID]int),
-		supplyConsumption:    make(map[models.ArmyID]*consumptionDetail),
-		poolRations:          make(map[models.TerritoryID]map[models.TerritoryID]int),
-		pendingRevoltSizes:   make(map[models.TerritoryID]int),
+		state:                 state,
+		balance:               balance,
+		startArmiesByID:       make(map[models.ArmyID]models.Army, len(state.Armies)),
+		startArmyAtTerritory:  make(map[models.TerritoryID]models.ArmyID, len(state.Armies)),
+		startNoblesByID:       make(map[models.NobleID]models.Noble, len(state.Nobles)),
+		famished:              make(map[models.ArmyID]bool),
+		startControl:          state.TerritoryControllers(),
+		records:               make(map[models.ArmyID]*orderRecord),
+		attacks:               make(map[models.ArmyID]*attackIntent),
+		joins:                 make(map[models.ArmyID]*joinIntent),
+		disperses:             make(map[models.ArmyID]*disperseIntent),
+		transfers:             make(map[models.ArmyID]*transferIntent),
+		disperseResults:       make(map[models.ArmyID]*disperseResolution),
+		supports:              make(map[models.ArmyID]*supportIntent),
+		joinResults:           make(map[models.ArmyID]*joinResolution),
+		attackedTerritories:   make(map[models.TerritoryID]bool),
+		dislodged:             make(map[models.ArmyID]*dislodgedArmy),
+		cancelledPeaceful:     make(map[models.ArmyID]bool),
+		badWeatherRegions:     make(map[models.TerritoryID]bool),
+		famineRegions:         make(map[models.TerritoryID]bool),
+		supplyRations:         make(map[models.TerritoryID]rationProductionParts),
+		supplySources:         make(map[models.TerritoryID]sourceProductionParts),
+		supplyStockBefore:     make(map[models.TerritoryID]int),
+		supplyStockConsumed:   make(map[models.TerritoryID]int),
+		supplyConsumption:     make(map[models.ArmyID]*consumptionDetail),
+		poolRations:           make(map[models.TerritoryID]map[models.TerritoryID]int),
+		pendingRevoltSizes:    make(map[models.TerritoryID]int),
+		taxedFiefsThisTurn:    make(map[models.FiefID]bool),
+		pendingTaxWindowFiefs: make(map[models.FiefID]bool),
+		taxedFiefOwnerAtApply: make(map[models.FiefID]models.PlayerID),
 	}
 	for _, noble := range state.Nobles {
 		ctx.startNoblesByID[noble.ID] = noble
@@ -99,6 +131,15 @@ func newResolutionContext(state *models.GameState, balance assetgen.Balance) *re
 		}
 		ctx.startArmiesByID[army.ID] = copyArmy
 		ctx.startArmyAtTerritory[army.TerritoryID] = army.ID
+		if army.Starving {
+			// Seeded from last turn's ravitaillement (models.Army.Starving),
+			// not recomputed here: resolveSupply now resolves at the end of
+			// this same turn, so every same-turn reader of ctx.famished
+			// (attack force, support, noble bonus, transfer) needs the
+			// penalty this army already carried in, not one this turn has not
+			// resolved yet (#208).
+			ctx.famished[army.ID] = true
+		}
 	}
 	ctx.rebuildIndexes()
 	return ctx
@@ -189,6 +230,21 @@ func (ctx *resolutionContext) hasCastle(territoryID models.TerritoryID) bool {
 	return ctx.hasInfrastructure(territoryID, models.InfraTypeCastle)
 }
 
+// hasFortifiedVillage reports whether territoryID carries a fortified
+// village (#193). Kept narrow and separate from hasCastle: a fortified
+// village must not block retreat destinations like a real castle
+// (movement.go) and must not switch to the castle stock cap at winter
+// repatriation (winter.go) -- only fortificationBonus should treat the two
+// alike.
+func (ctx *resolutionContext) hasFortifiedVillage(territoryID models.TerritoryID) bool {
+	state := ctx.state.TerritoryStates[territoryID]
+	if state.Infrastructures == nil {
+		return false
+	}
+	infrastructure := ctx.infrastructuresByID[*state.Infrastructures]
+	return infrastructure != nil && infrastructure.Type == models.InfraTypeVillage && infrastructure.Fortified
+}
+
 func (ctx *resolutionContext) rebuildOccupancy() error {
 	for territoryID, state := range ctx.state.TerritoryStates {
 		state.Army = nil
@@ -235,6 +291,9 @@ func (ctx *resolutionContext) removeInfrastructureWithStock(infrastructureID mod
 				player.CapitalCastleID = nil
 			}
 		}
+		// Losing a fief capital's castle dissolves the fief immediately,
+		// regardless of why the castle disappeared (titres.md).
+		ctx.dissolveFiefOnCapitalCastleLoss(infrastructure.TerritoryID)
 	}
 	filtered := make([]models.Infrastructure, 0, len(ctx.state.Infrastructures)-1)
 	for _, candidate := range ctx.state.Infrastructures {

@@ -13,46 +13,58 @@ type Resolution struct {
 type EventType string
 
 const (
-	EventTypeOrderOutcome      EventType = "order_outcome"
-	EventTypeCombat            EventType = "combat"
-	EventTypeMovement          EventType = "movement"
-	EventTypeFusion            EventType = "fusion"
-	EventTypeDispersion        EventType = "dispersion"
-	EventTypePillage           EventType = "pillage"
-	EventTypeRetreat           EventType = "retreat"
-	EventTypeArmyDestroyed     EventType = "army_destroyed"
-	EventTypeNobleMovement     EventType = "noble_movement"
-	EventTypeCapture           EventType = "capture"
-	EventTypeControlChanged    EventType = "control_changed"
-	EventTypeChainProgression  EventType = "chain_progression"
-	EventTypeSupply            EventType = "supply"
-	EventTypeFamine            EventType = "famine"
-	EventTypeTransfer          EventType = "transfer"
-	EventTypeWinterStock       EventType = "winter_stock"
-	EventTypeRecruit           EventType = "recruit"
-	EventTypeBuild             EventType = "build"
-	EventTypeUpgrade           EventType = "upgrade"
-	EventTypeRejected          EventType = "rejected"
-	EventTypeCapitalElected    EventType = "capital_elected"
-	EventTypeLiberation        EventType = "liberation"
-	EventTypeDeckDraw          EventType = "deck_draw"
-	EventTypeDeckDiscard       EventType = "deck_discard"
-	EventTypeDeckRestore       EventType = "deck_restore"
-	EventTypeCalamityScheduled EventType = "calamity_scheduled"
-	EventTypeAuguryRevealed    EventType = "augury_revealed"
-	EventTypeDeckOrderPlayed   EventType = "deck_order_played"
-	EventTypeCalamityApplied   EventType = "calamity_applied"
-	EventTypeCalamityCanceled  EventType = "calamity_canceled"
-	EventTypeBonusEffect       EventType = "bonus_effect"
-	EventTypeNeutralArmy       EventType = "neutral_army_created"
-	EventTypePlagueDeath       EventType = "plague_noble_death"
-	EventTypePlagueSurvived    EventType = "plague_noble_survived"
-	EventTypeBadWeatherBlocked EventType = "bad_weather_blocked"
-	EventTypeFamineLoss        EventType = "famine_loss"
-	EventTypeProduction        EventType = "production"
-	EventTypeConsumption       EventType = "consumption"
-	EventTypeCardCanceled      EventType = "card_canceled"
-	EventTypeRumor             EventType = "rumor"
+	EventTypeOrderOutcome       EventType = "order_outcome"
+	EventTypeCombat             EventType = "combat"
+	EventTypeMovement           EventType = "movement"
+	EventTypeFusion             EventType = "fusion"
+	EventTypeDispersion         EventType = "dispersion"
+	EventTypePillage            EventType = "pillage"
+	EventTypeRetreat            EventType = "retreat"
+	EventTypeArmyDestroyed      EventType = "army_destroyed"
+	EventTypeNobleMovement      EventType = "noble_movement"
+	EventTypeCapture            EventType = "capture"
+	EventTypeControlChanged     EventType = "control_changed"
+	EventTypeChainProgression   EventType = "chain_progression"
+	EventTypeSupply             EventType = "supply"
+	EventTypeFamine             EventType = "famine"
+	EventTypeTransfer           EventType = "transfer"
+	EventTypeWinterStock        EventType = "winter_stock"
+	EventTypeRecruit            EventType = "recruit"
+	EventTypeBuild              EventType = "build"
+	EventTypeUpgrade            EventType = "upgrade"
+	EventTypeFortify            EventType = "fortify"
+	EventTypeRejected           EventType = "rejected"
+	EventTypeCapitalElected     EventType = "capital_elected"
+	EventTypeLiberation         EventType = "liberation"
+	EventTypeDeckDraw           EventType = "deck_draw"
+	EventTypeDeckDiscard        EventType = "deck_discard"
+	EventTypeDeckRestore        EventType = "deck_restore"
+	EventTypeCalamityScheduled  EventType = "calamity_scheduled"
+	EventTypeAuguryRevealed     EventType = "augury_revealed"
+	EventTypeDeckOrderPlayed    EventType = "deck_order_played"
+	EventTypeCalamityApplied    EventType = "calamity_applied"
+	EventTypeCalamityCanceled   EventType = "calamity_canceled"
+	EventTypeBonusEffect        EventType = "bonus_effect"
+	EventTypeNeutralArmy        EventType = "neutral_army_created"
+	EventTypePlagueDeath        EventType = "plague_noble_death"
+	EventTypePlagueSurvived     EventType = "plague_noble_survived"
+	EventTypeBadWeatherBlocked  EventType = "bad_weather_blocked"
+	EventTypeFamineLoss         EventType = "famine_loss"
+	EventTypeBadWeatherLoss     EventType = "bad_weather_loss"
+	EventTypeProduction         EventType = "production"
+	EventTypeMillProduction     EventType = "mill_production"
+	EventTypeIncome             EventType = "income"
+	EventTypeConsumption        EventType = "consumption"
+	EventTypeCardCanceled       EventType = "card_canceled"
+	EventTypeRumor              EventType = "rumor"
+	EventTypeFiefFounded        EventType = "fief_founded"
+	EventTypeFiefAssigned       EventType = "fief_assigned"
+	EventTypeFiefConquered      EventType = "fief_conquered"
+	EventTypeFiefVacated        EventType = "fief_vacated"
+	EventTypeFiefDissolved      EventType = "fief_dissolved"
+	EventTypeFiefMemberOccupied EventType = "fief_member_occupied"
+	EventTypeFiefAutoAssigned   EventType = "fief_auto_assigned"
+	EventTypeProsperityFounded  EventType = "prosperity_founded"
 )
 
 // Outcome is the execution result of one current order.
@@ -148,9 +160,9 @@ type Event struct {
 	TroopsLost         int                        `json:"troopsLost,omitempty"`
 	RationsLost        int                        `json:"rationsLost,omitempty"`
 	SavedByPillage     bool                       `json:"savedByPillage,omitempty"`
+	Warned             bool                       `json:"warned,omitempty"`
 
 	TerrainRations       int                        `json:"terrainRations,omitempty"`
-	InfraRations         int                        `json:"infraRations,omitempty"`
 	BonusRations         int                        `json:"bonusRations,omitempty"`
 	SuppressedRations    int                        `json:"suppressedRations,omitempty"`
 	BaseProduction       int                        `json:"baseProduction,omitempty"`
@@ -160,6 +172,9 @@ type Event struct {
 	ReceivedLocal        int                        `json:"receivedLocal,omitempty"`
 	ReceivedTransfer     int                        `json:"receivedTransfer,omitempty"`
 	SentRations          map[models.TerritoryID]int `json:"sentRations,omitempty"`
+	TerritoryCount       int                        `json:"territoryCount,omitempty"`
+	VillageCount         int                        `json:"villageCount,omitempty"`
+	Lost                 bool                       `json:"lost,omitempty"`
 
 	NobleID         models.NobleID      `json:"noble,omitempty"`
 	NobleCode       models.NobleCode    `json:"nobleCode,omitempty"`
@@ -172,4 +187,8 @@ type Event struct {
 	IndexBefore     int                 `json:"indexBefore,omitempty"`
 	IndexAfter      int                 `json:"indexAfter,omitempty"`
 	WinterOrder     *models.WinterOrder `json:"winterOrder,omitempty"`
+
+	FiefID          models.FiefID        `json:"fiefId,omitempty"`
+	FiefTitle       models.FiefTitle     `json:"fiefTitle,omitempty"`
+	FiefTerritories []models.TerritoryID `json:"fiefTerritories,omitempty"`
 }

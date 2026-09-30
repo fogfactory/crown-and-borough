@@ -19,6 +19,9 @@ func (order buildOrder) Apply(ctx *ExecutionContext) {
 		resolution.rejectWinterOrder(playerID, winterOrder, "territory_not_controlled")
 		return
 	}
+	if resolution.rejectIfOccupied(playerID, winterOrder, winterOrder.TerritoryID) {
+		return
+	}
 	if !isBuildableInfrastructure(winterOrder.InfraType) {
 		resolution.rejectWinterOrder(playerID, winterOrder, "invalid_infrastructure")
 		return
@@ -33,14 +36,18 @@ func (order buildOrder) Apply(ctx *ExecutionContext) {
 			return
 		}
 	}
-	if winterOrder.InfraType == models.InfraTypeMill && !resolution.millCanBeBuiltAt(winterOrder.TerritoryID) {
+	// The productive-neighbor requirement only gates building a new mill
+	// (existing == nil): upgrading one already standing is always allowed,
+	// even in isolation, since it can pay for itself (see #195).
+	if existing == nil && winterOrder.InfraType == models.InfraTypeMill && !resolution.millCanBeBuiltAt(winterOrder.TerritoryID) {
 		resolution.rejectWinterOrder(playerID, winterOrder, "mill_requires_productive_neighbor")
 		return
 	}
 	if existing != nil {
 		if existing.Type == models.InfraTypeMill && winterOrder.InfraType == models.InfraTypeMill {
 			nextLevel := existing.Level + 1
-			spent, paid := resolution.payWinterCost(playerID, winterOrder.TerritoryID, upgradeCost)
+			sources := resolution.millUpgradePaymentSources(playerID, winterOrder.TerritoryID)
+			spent, paid := resolution.payFromSources(sources, upgradeCost)
 			if !paid {
 				resolution.rejectWinterOrder(playerID, winterOrder, "insufficient_resources")
 				return
@@ -59,10 +66,39 @@ func (order buildOrder) Apply(ctx *ExecutionContext) {
 			})
 			return
 		}
-		if existing.Type != models.InfraTypeVillage || winterOrder.InfraType != models.InfraTypeCastle {
-			resolution.rejectWinterOrder(playerID, winterOrder, "structure_present")
+		if existing.Type == models.InfraTypeVillage && winterOrder.InfraType == models.InfraTypeCastle {
+			// C C on a village fortifies it instead of replacing it with a
+			// castle: it keeps its InfraID and every village behavior, and
+			// additionally gains a castle's defensive bonus (#193).
+			if existing.Fortified {
+				resolution.rejectWinterOrder(playerID, winterOrder, "village_already_fortified")
+				return
+			}
+			fortifyCost, exists := infrastructureCost(resolution.balance.Costs, models.InfraTypeCastle)
+			if !exists {
+				resolution.rejectWinterOrder(playerID, winterOrder, "invalid_infrastructure")
+				return
+			}
+			spent, paid := resolution.payWinterCost(playerID, winterOrder.TerritoryID, fortifyCost)
+			if !paid {
+				resolution.rejectWinterOrder(playerID, winterOrder, "insufficient_resources")
+				return
+			}
+			existing.Fortified = true
+			resolution.events = append(resolution.events, Event{
+				Type:               EventTypeFortify,
+				Phase:              winterPhase,
+				OwnerID:            playerID,
+				OrderID:            winterOrder.ID,
+				TerritoryID:        winterOrder.TerritoryID,
+				InfrastructureID:   existing.ID,
+				InfrastructureType: models.InfraTypeVillage,
+				ResourceSpent:      spent,
+			})
 			return
 		}
+		resolution.rejectWinterOrder(playerID, winterOrder, "structure_present")
+		return
 	}
 	cost, exists := infrastructureCost(resolution.balance.Costs, winterOrder.InfraType)
 	if !exists {
@@ -73,9 +109,6 @@ func (order buildOrder) Apply(ctx *ExecutionContext) {
 	if !paid {
 		resolution.rejectWinterOrder(playerID, winterOrder, "insufficient_resources")
 		return
-	}
-	if existing != nil {
-		resolution.removeInfrastructurePreservingStock(existing.ID)
 	}
 	infrastructure := resolution.addWinterInfrastructure(winterOrder.InfraType, winterOrder.TerritoryID)
 	capitalAssigned := false

@@ -11,14 +11,15 @@ import (
 
 func testBalance() assetgen.Balance {
 	return assetgen.Balance{
-		BaseProduction:     1,
+		TerritoryIncome:    1,
+		VillageIncome:      1,
 		SupplyRange:        3,
 		DepotRangeBonus:    2,
-		InfraRationsBonus:  2,
 		CostBase:           2,
 		PillageBonus:       2,
 		NobleCommandBonus:  1,
 		CastleDefenseBonus: 1,
+		CityDefenseBonus:   2,
 		RationTerrain: map[models.Terrain]int{
 			models.TerrainPlain:    3,
 			models.TerrainForest:   2,
@@ -29,13 +30,18 @@ func testBalance() assetgen.Balance {
 		WinterStockDivisor: 2,
 		VillageStockCap:    1,
 		CastleStockCap:     2,
+		// High enough that no unrelated winter test accidentally triggers a
+		// prosperity founding: dedicated prosperity tests override this with a
+		// small threshold (prosperity_test.go).
+		ProsperityLossThreshold: 1_000_000,
 		Costs: assetgen.Costs{
-			Castle:      10,
-			MillLevels:  []int{3, 5, 7},
-			Troop:       1,
-			Noble:       2,
-			SupplyDepot: 3,
-			Liberation:  0,
+			Castle:           10,
+			MillLevels:       []int{3, 5, 7},
+			Troop:            1,
+			Noble:            2,
+			SupplyDepot:      3,
+			Liberation:       0,
+			FiefPerTerritory: 2,
 		},
 		StartingNobles:    1,
 		StartingTroops:    1,
@@ -67,9 +73,7 @@ func testState(t *testing.T, territories []models.Territory, armies []models.Arm
 	for _, army := range armies {
 		territoryState := state.TerritoryStates[army.TerritoryID]
 		armyID := army.ID
-		ownerID := army.OwnerID
 		territoryState.Army = &armyID
-		territoryState.OwnerID = &ownerID
 		state.TerritoryStates[army.TerritoryID] = territoryState
 	}
 	state.NextArmyID = nextArmyID(armies)
@@ -87,7 +91,9 @@ func keepTestArmiesSupplied(state *models.GameState) {
 		addInfrastructure(state, models.Infrastructure{
 			ID: infrastructureID, Type: models.InfraTypeVillage, Level: 1, TerritoryID: army.TerritoryID,
 		})
-		stock := armyCost(army.Size, balance.CostBase) - balance.BaseProduction - 1
+		// The village has no capital or closer settlement to compete with, so
+		// it always receives its own territory income (territory + village).
+		stock := armyCost(army.Size, balance.CostBase) - (balance.TerritoryIncome + balance.VillageIncome) - 1
 		if stock < 0 {
 			stock = 0
 		}
@@ -170,6 +176,23 @@ func findOutcome(events []Event, orderID models.OrderID) (Event, bool) {
 	return Event{}, false
 }
 
+// addAnchorArmy appends a one-troop army of ownerID at territoryID, which is
+// how a test makes ownerID control that territory: control is derived from
+// fiefs, capitals and armies, so a bare territory with no fief and no capital
+// is controlled only by the army standing on it. Every default territory() is
+// plain terrain (3 rations), so this one-troop army is always self-sufficient
+// and never touches pooled supply or a wider scenario's deficit math.
+func addAnchorArmy(t *testing.T, state *models.GameState, id models.ArmyID, ownerID models.PlayerID, territoryID models.TerritoryID) {
+	t.Helper()
+	removeAnchorArmy(state, territoryID)
+	state.Armies = append(state.Armies, models.Army{ID: id, OwnerID: ownerID, TerritoryID: territoryID, Size: 1})
+	territoryState := state.TerritoryStates[territoryID]
+	armyID := id
+	territoryState.Army = &armyID
+	state.TerritoryStates[territoryID] = territoryState
+	state.NextArmyID = nextArmyID(state.Armies)
+}
+
 func addInfrastructure(state *models.GameState, infrastructure models.Infrastructure) {
 	state.Infrastructures = append(state.Infrastructures, infrastructure)
 	territoryState := state.TerritoryStates[infrastructure.TerritoryID]
@@ -247,4 +270,44 @@ func territory(id, code string, neighbors ...models.TerritoryID) models.Territor
 		Terrain:     models.TerrainPlain,
 		Adjacencies: neighbors,
 	}
+}
+
+// controllerOf returns the player controlling territoryID in state, nil when
+// nobody does.
+func controllerOf(state *models.GameState, territoryID models.TerritoryID) *models.PlayerID {
+	controller, controlled := state.TerritoryController(territoryID)
+	if !controlled {
+		return nil
+	}
+	return &controller
+}
+
+// holdAsFiefMember makes ownerID the controller of territoryID as a non-capital
+// member of a new barony, whose capital and third member are two isolated
+// filler territories added to the state. It is how a fixture puts another
+// player's army on territory its owner still controls: only an anchored
+// territory (fief member or capital) stays controlled under an occupier.
+func holdAsFiefMember(state *models.GameState, territoryID models.TerritoryID, ownerID models.PlayerID) {
+	exists := make(map[models.TerritoryID]bool, len(state.Territories))
+	for _, existing := range state.Territories {
+		exists[existing.ID] = true
+	}
+	var fillers []models.TerritoryID
+	for index := 0; len(fillers) < 2; index++ {
+		id := models.TerritoryID(fmt.Sprintf("Z%c%c", 'A'+index/26, 'A'+index%26))
+		if !exists[id] {
+			fillers = append(fillers, id)
+		}
+	}
+	for _, id := range fillers {
+		state.Territories = append(state.Territories, territory(string(id), string(id)))
+		state.TerritoryStates[id] = models.TerritoryState{}
+	}
+	state.Fiefs = append(state.Fiefs, models.Fief{
+		ID:                 models.FiefID(fmt.Sprintf("FZ%d", len(state.Fiefs)+1)),
+		Title:              models.FiefTitleBarony,
+		CapitalTerritoryID: fillers[0],
+		Territories:        []models.TerritoryID{fillers[0], territoryID, fillers[1]},
+		OwnerID:            ownerID,
+	})
 }

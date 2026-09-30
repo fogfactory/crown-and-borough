@@ -14,24 +14,27 @@ import (
 // Balance contains every editable numerical game rule. FirstNames is loaded
 // alongside balance.yaml so pure engine resolvers can create nobles without I/O.
 type Balance struct {
-	BaseProduction     int                    `json:"base_production" yaml:"base_production"`
-	SupplyRange        int                    `json:"supply_range" yaml:"supply_range"`
-	DepotRangeBonus    int                    `json:"depot_range_bonus" yaml:"depot_range_bonus"`
-	InfraRationsBonus  int                    `json:"infra_rations_bonus" yaml:"infra_rations_bonus"`
-	CostBase           int                    `json:"cost_base" yaml:"cost_base"`
-	PillageBonus       int                    `json:"pillage_bonus" yaml:"pillage_bonus"`
-	NobleCommandBonus  int                    `json:"noble_command_bonus" yaml:"noble_command_bonus"`
-	CastleDefenseBonus int                    `json:"castle_defense_bonus" yaml:"castle_defense_bonus"`
-	RationTerrain      map[models.Terrain]int `json:"ration_terrain" yaml:"ration_terrain"`
-	WinterStockDivisor int                    `json:"winter_stock_divisor" yaml:"winter_stock_divisor"`
-	VillageStockCap    int                    `json:"village_stock_cap" yaml:"village_stock_cap"`
-	CastleStockCap     int                    `json:"castle_stock_cap" yaml:"castle_stock_cap"`
-	Costs              Costs                  `json:"costs" yaml:"costs"`
-	StartingNobles     int                    `json:"starting_nobles" yaml:"starting_nobles"`
-	StartingTroops     int                    `json:"starting_troops" yaml:"starting_troops"`
-	StartingResources  int                    `json:"starting_resources" yaml:"starting_resources"`
-	SpecialOrders      SpecialOrdersBalance   `json:"special_orders" yaml:"special_orders"`
-	FirstNames         []Asset                `json:"-" yaml:"-"`
+	TerritoryIncome         int                    `json:"territory_income" yaml:"territory_income"`
+	VillageIncome           int                    `json:"village_income" yaml:"village_income"`
+	SupplyRange             int                    `json:"supply_range" yaml:"supply_range"`
+	DepotRangeBonus         int                    `json:"depot_range_bonus" yaml:"depot_range_bonus"`
+	CostBase                int                    `json:"cost_base" yaml:"cost_base"`
+	PillageBonus            int                    `json:"pillage_bonus" yaml:"pillage_bonus"`
+	NobleCommandBonus       int                    `json:"noble_command_bonus" yaml:"noble_command_bonus"`
+	CastleDefenseBonus      int                    `json:"castle_defense_bonus" yaml:"castle_defense_bonus"`
+	CityDefenseBonus        int                    `json:"city_defense_bonus" yaml:"city_defense_bonus"`
+	RationTerrain           map[models.Terrain]int `json:"ration_terrain" yaml:"ration_terrain"`
+	WinterStockDivisor      int                    `json:"winter_stock_divisor" yaml:"winter_stock_divisor"`
+	VillageStockCap         int                    `json:"village_stock_cap" yaml:"village_stock_cap"`
+	CastleStockCap          int                    `json:"castle_stock_cap" yaml:"castle_stock_cap"`
+	ProsperityLossThreshold int                    `json:"prosperity_loss_threshold" yaml:"prosperity_loss_threshold"`
+	Costs                   Costs                  `json:"costs" yaml:"costs"`
+	StartingNobles          int                    `json:"starting_nobles" yaml:"starting_nobles"`
+	StartingTroops          int                    `json:"starting_troops" yaml:"starting_troops"`
+	StartingOutposts        int                    `json:"starting_outposts" yaml:"starting_outposts"`
+	StartingResources       int                    `json:"starting_resources" yaml:"starting_resources"`
+	SpecialOrders           SpecialOrdersBalance   `json:"special_orders" yaml:"special_orders"`
+	FirstNames              []Asset                `json:"-" yaml:"-"`
 }
 
 type SpecialOrdersBalance struct {
@@ -50,38 +53,40 @@ type SpecialOrderEffects struct {
 	PlagueNobleMortalityPercentage int `json:"plague_noble_mortality_percentage" yaml:"plague_noble_mortality_percentage"`
 	RevoltArmyMinSize              int `json:"revolt_army_min_size" yaml:"revolt_army_min_size"`
 	RevoltArmyMaxSize              int `json:"revolt_army_max_size" yaml:"revolt_army_max_size"`
-	BonusMillProduction            int `json:"bonus_mill_production" yaml:"bonus_mill_production"`
-	BonusArmyRation                int `json:"bonus_army_ration" yaml:"bonus_army_ration"`
 }
 
 // Costs groups all resource costs used by winter investments.
 type Costs struct {
-	Castle      int   `json:"castle" yaml:"castle"`
-	MillLevels  []int `json:"mill_levels" yaml:"mill_levels"`
-	Troop       int   `json:"troop" yaml:"troop"`
-	Noble       int   `json:"noble" yaml:"noble"`
-	SupplyDepot int   `json:"supply_depot" yaml:"supply_depot"`
-	Liberation  int   `json:"liberation" yaml:"liberation"`
+	Castle           int   `json:"castle" yaml:"castle"`
+	MillLevels       []int `json:"mill_levels" yaml:"mill_levels"`
+	Troop            int   `json:"troop" yaml:"troop"`
+	Noble            int   `json:"noble" yaml:"noble"`
+	SupplyDepot      int   `json:"supply_depot" yaml:"supply_depot"`
+	Liberation       int   `json:"liberation" yaml:"liberation"`
+	FiefPerTerritory int   `json:"fief_per_territory" yaml:"fief_per_territory"`
 }
 
 type rawBalance struct {
-	BaseProduction     *int              `yaml:"base_production"`
-	SupplyRange        *int              `yaml:"supply_range"`
-	DepotRangeBonus    *int              `yaml:"depot_range_bonus"`
-	InfraRationsBonus  *int              `yaml:"infra_rations_bonus"`
-	CostBase           *int              `yaml:"cost_base"`
-	PillageBonus       *int              `yaml:"pillage_bonus"`
-	NobleCommandBonus  *int              `yaml:"noble_command_bonus"`
-	CastleDefenseBonus *int              `yaml:"castle_defense_bonus"`
-	RationTerrain      map[string]*int   `yaml:"ration_terrain"`
-	WinterStockDivisor *int              `yaml:"winter_stock_divisor"`
-	VillageStockCap    *int              `yaml:"village_stock_cap"`
-	CastleStockCap     *int              `yaml:"castle_stock_cap"`
-	Costs              *rawCosts         `yaml:"costs"`
-	StartingNobles     *int              `yaml:"starting_nobles"`
-	StartingTroops     *int              `yaml:"starting_troops"`
-	StartingResources  *int              `yaml:"starting_resources"`
-	SpecialOrders      *rawSpecialOrders `yaml:"special_orders"`
+	TerritoryIncome         *int              `yaml:"territory_income"`
+	VillageIncome           *int              `yaml:"village_income"`
+	SupplyRange             *int              `yaml:"supply_range"`
+	DepotRangeBonus         *int              `yaml:"depot_range_bonus"`
+	CostBase                *int              `yaml:"cost_base"`
+	PillageBonus            *int              `yaml:"pillage_bonus"`
+	NobleCommandBonus       *int              `yaml:"noble_command_bonus"`
+	CastleDefenseBonus      *int              `yaml:"castle_defense_bonus"`
+	CityDefenseBonus        *int              `yaml:"city_defense_bonus"`
+	RationTerrain           map[string]*int   `yaml:"ration_terrain"`
+	WinterStockDivisor      *int              `yaml:"winter_stock_divisor"`
+	VillageStockCap         *int              `yaml:"village_stock_cap"`
+	CastleStockCap          *int              `yaml:"castle_stock_cap"`
+	ProsperityLossThreshold *int              `yaml:"prosperity_loss_threshold"`
+	Costs                   *rawCosts         `yaml:"costs"`
+	StartingNobles          *int              `yaml:"starting_nobles"`
+	StartingTroops          *int              `yaml:"starting_troops"`
+	StartingOutposts        *int              `yaml:"starting_outposts"`
+	StartingResources       *int              `yaml:"starting_resources"`
+	SpecialOrders           *rawSpecialOrders `yaml:"special_orders"`
 }
 
 type rawSpecialOrders struct {
@@ -100,17 +105,16 @@ type rawSpecialOrderEffects struct {
 	PlagueNobleMortalityPercentage *int `yaml:"plague_noble_mortality_percentage"`
 	RevoltArmyMinSize              *int `yaml:"revolt_army_min_size"`
 	RevoltArmyMaxSize              *int `yaml:"revolt_army_max_size"`
-	BonusMillProduction            *int `yaml:"bonus_mill_production"`
-	BonusArmyRation                *int `yaml:"bonus_army_ration"`
 }
 
 type rawCosts struct {
-	Castle      *int   `yaml:"castle"`
-	MillLevels  []*int `yaml:"mill_levels"`
-	Troop       *int   `yaml:"troop"`
-	Noble       *int   `yaml:"noble"`
-	SupplyDepot *int   `yaml:"supply_depot"`
-	Liberation  *int   `yaml:"liberation"`
+	Castle           *int   `yaml:"castle"`
+	MillLevels       []*int `yaml:"mill_levels"`
+	Troop            *int   `yaml:"troop"`
+	Noble            *int   `yaml:"noble"`
+	SupplyDepot      *int   `yaml:"supply_depot"`
+	Liberation       *int   `yaml:"liberation"`
+	FiefPerTerritory *int   `yaml:"fief_per_territory"`
 }
 
 var balanceTerrains = [...]models.Terrain{
@@ -163,7 +167,11 @@ func LoadBalance(dir string) (Balance, error) {
 }
 
 func (raw rawBalance) balance(path string) (Balance, error) {
-	baseProduction, err := requiredNonNegativeInt(path, "base_production", raw.BaseProduction)
+	territoryIncome, err := requiredNonNegativeInt(path, "territory_income", raw.TerritoryIncome)
+	if err != nil {
+		return Balance{}, err
+	}
+	villageIncome, err := requiredNonNegativeInt(path, "village_income", raw.VillageIncome)
 	if err != nil {
 		return Balance{}, err
 	}
@@ -175,7 +183,6 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 	if err != nil {
 		return Balance{}, err
 	}
-	infraRationsBonus, err := requiredNonNegativeInt(path, "infra_rations_bonus", raw.InfraRationsBonus)
 	if err != nil {
 		return Balance{}, err
 	}
@@ -195,11 +202,19 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 	if err != nil {
 		return Balance{}, err
 	}
+	cityDefenseBonus, err := requiredNonNegativeInt(path, "city_defense_bonus", raw.CityDefenseBonus)
+	if err != nil {
+		return Balance{}, err
+	}
 	startingNobles, err := requiredNonNegativeInt(path, "starting_nobles", raw.StartingNobles)
 	if err != nil {
 		return Balance{}, err
 	}
 	startingTroops, err := requiredNonNegativeInt(path, "starting_troops", raw.StartingTroops)
+	if err != nil {
+		return Balance{}, err
+	}
+	startingOutposts, err := requiredNonNegativeInt(path, "starting_outposts", raw.StartingOutposts)
 	if err != nil {
 		return Balance{}, err
 	}
@@ -227,28 +242,35 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 	if err != nil {
 		return Balance{}, err
 	}
+	prosperityLossThreshold, err := requiredPositiveInt(path, "prosperity_loss_threshold", raw.ProsperityLossThreshold)
+	if err != nil {
+		return Balance{}, err
+	}
 	costs, err := raw.costs(path)
 	if err != nil {
 		return Balance{}, err
 	}
 	return Balance{
-		BaseProduction:     baseProduction,
-		SupplyRange:        supplyRange,
-		DepotRangeBonus:    depotRangeBonus,
-		InfraRationsBonus:  infraRationsBonus,
-		CostBase:           costBase,
-		PillageBonus:       pillageBonus,
-		NobleCommandBonus:  nobleCommandBonus,
-		CastleDefenseBonus: castleDefenseBonus,
-		RationTerrain:      rationTerrain,
-		WinterStockDivisor: winterStockDivisor,
-		VillageStockCap:    villageStockCap,
-		CastleStockCap:     castleStockCap,
-		Costs:              costs,
-		StartingNobles:     startingNobles,
-		StartingTroops:     startingTroops,
-		StartingResources:  startingResources,
-		SpecialOrders:      specialOrders,
+		TerritoryIncome:         territoryIncome,
+		VillageIncome:           villageIncome,
+		SupplyRange:             supplyRange,
+		DepotRangeBonus:         depotRangeBonus,
+		CostBase:                costBase,
+		PillageBonus:            pillageBonus,
+		NobleCommandBonus:       nobleCommandBonus,
+		CastleDefenseBonus:      castleDefenseBonus,
+		CityDefenseBonus:        cityDefenseBonus,
+		RationTerrain:           rationTerrain,
+		WinterStockDivisor:      winterStockDivisor,
+		VillageStockCap:         villageStockCap,
+		CastleStockCap:          castleStockCap,
+		ProsperityLossThreshold: prosperityLossThreshold,
+		Costs:                   costs,
+		StartingNobles:          startingNobles,
+		StartingTroops:          startingTroops,
+		StartingOutposts:        startingOutposts,
+		StartingResources:       startingResources,
+		SpecialOrders:           specialOrders,
 	}, nil
 }
 
@@ -286,13 +308,18 @@ func (raw rawBalance) costs(path string) (Costs, error) {
 	if err != nil {
 		return Costs{}, err
 	}
+	fiefPerTerritory, err := requiredNonNegativeInt(path, "costs.fief_per_territory", raw.Costs.FiefPerTerritory)
+	if err != nil {
+		return Costs{}, err
+	}
 	return Costs{
-		Castle:      castle,
-		MillLevels:  millLevels,
-		Troop:       troop,
-		Noble:       noble,
-		SupplyDepot: supplyDepot,
-		Liberation:  liberation,
+		Castle:           castle,
+		MillLevels:       millLevels,
+		Troop:            troop,
+		Noble:            noble,
+		SupplyDepot:      supplyDepot,
+		Liberation:       liberation,
+		FiefPerTerritory: fiefPerTerritory,
 	}, nil
 }
 

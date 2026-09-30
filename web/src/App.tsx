@@ -8,6 +8,8 @@ import { MapViewer } from '@/components/MapViewer'
 import { SelectedTerritoryDetails } from '@/components/SelectedTerritoryDetails'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { OrdersPanel } from '@/components/OrdersPanel'
+import { ProjectedConsumptionSummary } from '@/components/ProjectedConsumptionSummary'
+import { ProjectedIncomeSummary } from '@/components/ProjectedIncomeSummary'
 import { ReportPane } from '@/components/ReportPane'
 import { Scoreboard } from '@/components/Scoreboard'
 import { SubmissionDots } from '@/components/SubmissionDots'
@@ -297,7 +299,7 @@ function AppContent() {
 
   const supplyFetcher = useCallback(
     async <T,>(path: string, signal: AbortSignal): Promise<T> => {
-      const response = await fetch(path, { signal })
+      const response = await fetch(asPlayer(path, selectedPlayer), { signal })
       if (!response.ok) {
         throw new Error(t('error.requestFailed', { status: response.status }))
       }
@@ -319,7 +321,7 @@ function AppContent() {
       }
       return payload
     },
-    [t],
+    [selectedPlayer, t],
   )
 
   const ordersBody = useMemo(
@@ -372,6 +374,7 @@ function AppContent() {
     selectedState,
     draftOrders,
     ownerId: selectedPlayer,
+    specialDraft: specialDrafts[selectedPlayer] ?? '',
     basePath: gameId ? hotseatGamePath(gameId) : '/api',
     fetcher: supplyFetcher,
     networkErrorMessage: t('error.requestFailed', { status: 500 }),
@@ -818,6 +821,8 @@ function AppContent() {
               }
               command={
                 <>
+                  <ProjectedIncomeSummary state={state} playerId={selectedPlayer} />
+                  <ProjectedConsumptionSummary state={state} playerId={selectedPlayer} />
                   <SelectedTerritoryDetails
                     state={state}
                     selectedTerritory={selectedTerritory}

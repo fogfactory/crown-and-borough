@@ -69,7 +69,7 @@ func TestCreateGameInitialSetupAndDeterminism(t *testing.T) {
 		}
 		starts[castle.TerritoryID] = true
 		state := first.TerritoryStates[castle.TerritoryID]
-		if state.OwnerID == nil || *state.OwnerID != player.ID {
+		if got := controllerOf(first, castle.TerritoryID); got == nil || *got != player.ID {
 			t.Fatalf("starting territory %s is not controlled by %s", castle.TerritoryID, player.ID)
 		}
 		if state.Resources != balance.StartingResources {
@@ -98,6 +98,207 @@ func TestCreateGameInitialSetupAndDeterminism(t *testing.T) {
 	}
 	if err := first.Validate(); err != nil {
 		t.Fatalf("created state is invalid: %v", err)
+	}
+}
+
+// TestCreateGameStartingOutposts checks the #203 starting setup on the real
+// balance.yaml: each player receives its capital garrison plus
+// StartingOutposts 1-troop armies, pre-placed on distinct non-mountain
+// territories adjacent to (and controlled from) the capital, so turn-one
+// expansion has somewhere to go without risking a mountain famine.
+func TestCreateGameStartingOutposts(t *testing.T) {
+	assets := loadGameTestAssets(t)
+	balance, err := assetgen.LoadBalance("../../assets")
+	if err != nil {
+		t.Fatalf("load balance: %v", err)
+	}
+	if balance.StartingOutposts < 1 {
+		t.Fatalf("balance.yaml starting_outposts = %d, want at least 1", balance.StartingOutposts)
+	}
+
+	for _, playerCount := range []int{2, 3, 4} {
+		players := make([]PlayerInit, playerCount)
+		game, err := CreateGame("setup-outposts", players, balance, assets)
+		if err != nil {
+			t.Fatalf("CreateGame(%d): %v", playerCount, err)
+		}
+		terrainByID := make(map[models.TerritoryID]models.Terrain, len(game.Territories))
+		adjacencyByID := make(map[models.TerritoryID][]models.TerritoryID, len(game.Territories))
+		for _, territory := range game.Territories {
+			terrainByID[territory.ID] = territory.Terrain
+			adjacencyByID[territory.ID] = territory.Adjacencies
+		}
+
+		for _, player := range game.Players {
+			if player.CapitalCastleID == nil {
+				t.Fatalf("player %s has no capital", player.ID)
+			}
+			castle := infrastructureByID(game, *player.CapitalCastleID)
+			capitalID := castle.TerritoryID
+
+			armies := make([]models.Army, 0)
+			for _, army := range game.Armies {
+				if army.OwnerID == player.ID {
+					armies = append(armies, army)
+				}
+			}
+			if want := 1 + balance.StartingOutposts; len(armies) != want {
+				t.Fatalf("player %s has %d armies, want %d (1 capital garrison + %d outposts)", player.ID, len(armies), want, balance.StartingOutposts)
+			}
+
+			outposts := 0
+			seen := make(map[models.TerritoryID]bool, balance.StartingOutposts)
+			outpostTerritories := make([]models.TerritoryID, 0, balance.StartingOutposts)
+			for _, army := range armies {
+				if army.TerritoryID == capitalID {
+					continue
+				}
+				outposts++
+				if army.Size != 1 {
+					t.Errorf("player %s outpost at %s has size %d, want 1", player.ID, army.TerritoryID, army.Size)
+				}
+				if seen[army.TerritoryID] {
+					t.Errorf("player %s has two outpost armies on %s", player.ID, army.TerritoryID)
+				}
+				seen[army.TerritoryID] = true
+				outpostTerritories = append(outpostTerritories, army.TerritoryID)
+				if !containsTerritoryID(adjacencyByID[capitalID], army.TerritoryID) {
+					t.Errorf("player %s outpost %s is not adjacent to capital %s", player.ID, army.TerritoryID, capitalID)
+				}
+				if terrainByID[army.TerritoryID] == models.TerrainMountain {
+					t.Errorf("player %s outpost %s is a mountain", player.ID, army.TerritoryID)
+				}
+				state := game.TerritoryStates[army.TerritoryID]
+				if got := controllerOf(game, army.TerritoryID); got == nil || *got != player.ID {
+					t.Errorf("player %s outpost %s is not controlled by its owner", player.ID, army.TerritoryID)
+				}
+				if state.Army == nil || *state.Army != army.ID {
+					t.Errorf("player %s outpost %s territory does not index army %s", player.ID, army.TerritoryID, army.ID)
+				}
+			}
+			if outposts != balance.StartingOutposts {
+				t.Fatalf("player %s has %d outposts, want %d", player.ID, outposts, balance.StartingOutposts)
+			}
+
+			// Verify that nobles are distributed across starting armies, not all
+			// stacked at the capital. With StartingNobles > 0, the first noble
+			// should be at the capital, and additional nobles distributed round-robin
+			// across outposts (if any).
+			playerNobles := make([]models.Noble, 0)
+			for _, noble := range game.Nobles {
+				if noble.OwnerID == player.ID {
+					playerNobles = append(playerNobles, noble)
+				}
+			}
+			if len(playerNobles) != balance.StartingNobles {
+				t.Errorf("player %s has %d nobles, want %d", player.ID, len(playerNobles), balance.StartingNobles)
+			}
+			for i, noble := range playerNobles {
+				expectedLocationIdx := i % (1 + balance.StartingOutposts)
+				var expectedLocation models.TerritoryID
+				if expectedLocationIdx == 0 {
+					expectedLocation = capitalID
+				} else {
+					expectedLocation = outpostTerritories[expectedLocationIdx-1]
+				}
+				if noble.LocationID != expectedLocation {
+					t.Errorf("player %s noble %d is at %s, want %s (round-robin index %d)", player.ID, i, noble.LocationID, expectedLocation, expectedLocationIdx)
+				}
+			}
+		}
+		if err := game.Validate(); err != nil {
+			t.Fatalf("players=%d: created state is invalid: %v", playerCount, err)
+		}
+	}
+}
+
+func containsTerritoryID(values []models.TerritoryID, wanted models.TerritoryID) bool {
+	for _, value := range values {
+		if value == wanted {
+			return true
+		}
+	}
+	return false
+}
+
+// TestResolveTurnNoFamineOnStartingSetup checks the #203 acceptance
+// criterion: with the real balance.yaml starting setup and no orders, turn
+// one produces no famine for any army. The capital garrison is fed by its
+// starting stock, territory income, and local terrain rations; every
+// outpost army is fed by its own territory's terrain ration alone.
+func TestResolveTurnNoFamineOnStartingSetup(t *testing.T) {
+	assets := loadGameTestAssets(t)
+	balance, err := assetgen.LoadBalance("../../assets")
+	if err != nil {
+		t.Fatalf("load balance: %v", err)
+	}
+	game, err := CreateGame("setup-no-famine", []PlayerInit{{Name: "One"}, {Name: "Two"}}, balance, assets)
+	if err != nil {
+		t.Fatalf("CreateGame: %v", err)
+	}
+	report, err := ResolveTurn(game, balance, OrdersInput{})
+	if err != nil {
+		t.Fatalf("ResolveTurn: %v", err)
+	}
+	for _, consumption := range report.Consumption {
+		if consumption.Famine {
+			t.Errorf("army %s (owner %s, territory %s) famined turn one: demand %d, received %d",
+				consumption.Army, consumption.Owner, consumption.Territory, consumption.Demand, consumption.TotalReceived)
+		}
+		if consumption.Missing > 0 {
+			t.Errorf("army %s (owner %s, territory %s) has unmet demand %d turn one", consumption.Army, consumption.Owner, consumption.Territory, consumption.Missing)
+		}
+	}
+}
+
+// TestResolveTurnBuildsMillOnStartingOutpost checks the #203 acceptance
+// criterion: a starting outpost, though it carries no infrastructure of its
+// own, sits adjacent to the capital settlement, so a winter "C M" order can
+// build a mill there from year one.
+func TestResolveTurnBuildsMillOnStartingOutpost(t *testing.T) {
+	assets := loadGameTestAssets(t)
+	balance, err := assetgen.LoadBalance("../../assets")
+	if err != nil {
+		t.Fatalf("load balance: %v", err)
+	}
+	game, err := CreateGame("setup-mill-outpost", []PlayerInit{{Name: "One"}, {Name: "Two"}}, balance, assets)
+	if err != nil {
+		t.Fatalf("CreateGame: %v", err)
+	}
+	player := game.Players[0]
+	var outpostID models.TerritoryID
+	for _, army := range game.Armies {
+		if army.OwnerID == player.ID && (player.CapitalCastleID == nil || army.TerritoryID != infrastructureByID(game, *player.CapitalCastleID).TerritoryID) {
+			outpostID = army.TerritoryID
+			break
+		}
+	}
+	if outpostID == "" {
+		t.Fatal("player has no starting outpost")
+	}
+
+	current := game
+	for current.Season != models.SeasonWinter {
+		next, resolveErr := ResolveTurn(current, balance, OrdersInput{})
+		if resolveErr != nil {
+			t.Fatalf("advance to winter: %v", resolveErr)
+		}
+		current = next.State
+	}
+	report, err := ResolveTurn(current, balance, OrdersInput{
+		Winter: []WinterSubmission{{Player: player.ID, Lines: "C M " + string(outpostID)}},
+	})
+	if err != nil {
+		t.Fatalf("winter ResolveTurn: %v", err)
+	}
+	built := false
+	for _, investment := range report.Winter.Investments {
+		if investment.Kind == EventTypeBuild && investment.Territory == outpostID && investment.Type == models.InfraTypeMill {
+			built = true
+		}
+	}
+	if !built {
+		t.Fatalf("winter investments = %#v, want a mill build on outpost %s", report.Winter.Investments, outpostID)
 	}
 }
 
@@ -151,9 +352,8 @@ func TestCreateGameCountsCastlesVillagesAndStartingTerritories(t *testing.T) {
 				if !villageFlags[infrastructure.TerritoryID] {
 					t.Errorf("players=%d: village infrastructure %s is not on a generated village", playerCount, infrastructure.ID)
 				}
-				territoryState := game.TerritoryStates[infrastructure.TerritoryID]
-				if territoryState.OwnerID != nil {
-					t.Errorf("players=%d: village territory %s is controlled by %s", playerCount, infrastructure.TerritoryID, *territoryState.OwnerID)
+				if controller := controllerOf(game, infrastructure.TerritoryID); controller != nil {
+					t.Errorf("players=%d: village territory %s is controlled by %s", playerCount, infrastructure.TerritoryID, *controller)
 				}
 			}
 		}
@@ -172,8 +372,8 @@ func TestCreateGameCountsCastlesVillagesAndStartingTerritories(t *testing.T) {
 				}
 			}
 		}
-		if villageCount != playerCount+1 {
-			t.Errorf("players=%d: neutral villages = %d, want %d", playerCount, villageCount, playerCount+1)
+		if villageCount != 2*playerCount+1 {
+			t.Errorf("players=%d: neutral villages = %d, want %d", playerCount, villageCount, 2*playerCount+1)
 		}
 		for territoryID, territoryState := range game.TerritoryStates {
 			if territoryState.Infrastructures == nil {

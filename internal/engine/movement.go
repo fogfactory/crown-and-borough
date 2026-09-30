@@ -1212,7 +1212,7 @@ func (ctx *resolutionContext) executePillage(record *orderRecord, army *models.A
 	}
 	infrastructureType := infrastructure.Type
 	ctx.removeInfrastructure(infrastructureID)
-	creditTerritoryID := ctx.closestControlledSettlement(army.TerritoryID, army.OwnerID)
+	creditTerritoryID := ctx.closestControlledSettlement(army.TerritoryID, army.OwnerID, ctx.controllerAtStart)
 	if creditTerritoryID != "" {
 		creditState := ctx.state.TerritoryStates[creditTerritoryID]
 		creditState.Resources += ctx.balance.PillageBonus
@@ -1240,7 +1240,17 @@ func (ctx *resolutionContext) creditAmount(territoryID models.TerritoryID) int {
 	return ctx.balance.PillageBonus
 }
 
-func (ctx *resolutionContext) closestControlledSettlement(startID models.TerritoryID, ownerID models.PlayerID) models.TerritoryID {
+func (ctx *resolutionContext) closestControlledSettlement(startID models.TerritoryID, ownerID models.PlayerID, view controlView) models.TerritoryID {
+	return ctx.closestControlledTerritory(startID, ownerID, view, func(candidateID models.TerritoryID) bool {
+		return ctx.hasInfrastructure(candidateID, models.InfraTypeCastle) || ctx.hasInfrastructure(candidateID, models.InfraTypeVillage)
+	})
+}
+
+// closestControlledTerritory does a level-by-level BFS over crossable borders
+// from startID, returning the closest territory controlled by ownerID in view
+// that satisfies match, with a trigram tie-break among equidistant candidates. It
+// returns "" when none is reachable.
+func (ctx *resolutionContext) closestControlledTerritory(startID models.TerritoryID, ownerID models.PlayerID, view controlView, match func(models.TerritoryID) bool) models.TerritoryID {
 	type queueItem struct {
 		territoryID models.TerritoryID
 		distance    int
@@ -1256,8 +1266,7 @@ func (ctx *resolutionContext) closestControlledSettlement(startID models.Territo
 		}
 		candidates := make([]models.TerritoryID, 0)
 		for _, item := range level {
-			state := ctx.state.TerritoryStates[item.territoryID]
-			if state.OwnerID != nil && *state.OwnerID == ownerID && (ctx.hasInfrastructure(item.territoryID, models.InfraTypeCastle) || ctx.hasInfrastructure(item.territoryID, models.InfraTypeVillage)) {
+			if controlledBy(view, ownerID, item.territoryID) && match(item.territoryID) {
 				candidates = append(candidates, item.territoryID)
 			}
 		}
@@ -1292,8 +1301,7 @@ func (ctx *resolutionContext) distanceToClosestControlledSettlement(startID mode
 	for len(queue) > 0 {
 		item := queue[0]
 		queue = queue[1:]
-		state := ctx.state.TerritoryStates[item.territoryID]
-		if state.OwnerID != nil && *state.OwnerID == ownerID && (ctx.hasInfrastructure(item.territoryID, models.InfraTypeCastle) || ctx.hasInfrastructure(item.territoryID, models.InfraTypeVillage)) {
+		if controlledBy(ctx.controllerAtStart, ownerID, item.territoryID) && (ctx.hasInfrastructure(item.territoryID, models.InfraTypeCastle) || ctx.hasInfrastructure(item.territoryID, models.InfraTypeVillage)) {
 			return item.distance
 		}
 		for _, neighborID := range ctx.sortedNeighbors(item.territoryID) {
@@ -1329,18 +1337,22 @@ func (ctx *resolutionContext) classifyRetreatDestinations(displaced *dislodgedAr
 			continue
 		}
 
-		state := ctx.state.TerritoryStates[territoryID]
-		hasCastle := ctx.hasCastle(territoryID)
-
-		// Bucket 1: Empty and controlled by retreating army's owner (with or without castle).
-		// Overrides attackedTerritories.
-		if state.OwnerID != nil && *state.OwnerID == owner {
+		// Bucket 1: empty and anchored to the retreating army's owner: one of
+		// its own fiefs' members, or its own capital (#215). A territory the
+		// owner merely happened to control positionally, including one it
+		// just vacated this same turn, is not an anchor and falls through to
+		// bucket 2 like any other empty cell.
+		if controller, anchored := ctx.anchorOwner(territoryID); anchored && controller == owner {
 			buckets.controlledEmpty = append(buckets.controlledEmpty, territoryID)
 			continue
 		}
 
-		// Bucket 2: Empty, uncontrolled (neutral or enemy), no castle, not attacked this turn.
-		if !hasCastle && !ctx.attackedTerritories[territoryID] {
+		// Bucket 2: empty, not attacked this turn, and no active castle: a
+		// castle anchored to anyone (fief or capital) still blocks a retreat
+		// there, but an unanchored, unoccupied castle is inert, like the
+		// absence of one (#215).
+		castleBlocks := ctx.hasCastle(territoryID) && ctx.territoryAnchored(territoryID)
+		if !castleBlocks && !ctx.attackedTerritories[territoryID] {
 			buckets.emptyOther = append(buckets.emptyOther, territoryID)
 		}
 	}

@@ -53,16 +53,35 @@ const report: TurnReport = {
     },
   ],
   receptions: [],
+  income: [
+    {
+      owner: 'P1',
+      destination: 'ROS',
+      territories: 3,
+      villages: 1,
+      base: 4,
+      bonus: 0,
+      suppressed: 1,
+      credited: 4,
+    },
+    {
+      owner: 'P2',
+      territories: 1,
+      villages: 0,
+      base: 0,
+      credited: 0,
+      lost: true,
+    },
+  ],
   production: [
     {
       territory: 'ROS',
       owner: 'P1',
       terrainRations: 1,
-      infraRations: 2,
       baseProduction: 1,
       millProduction: 2,
       bonusProduction: 1,
-      produced: 7,
+      produced: 5,
       sentToRations: { BRU: 3 },
       stockBefore: 5,
       stockConsumed: 2,
@@ -72,7 +91,7 @@ const report: TurnReport = {
       territory: 'BRU',
       region: 'ROS',
       terrainRations: 1,
-      suppressedRations: 2,
+      suppressedRations: 1,
       produced: 1,
     },
   ],
@@ -104,6 +123,19 @@ const report: TurnReport = {
       savedByPillage: true,
       pillageInfrastructure: 'mill',
       resourceCredit: 0,
+    },
+    {
+      army: 'A3',
+      owner: 'P1',
+      territory: 'BRU',
+      size: 1,
+      demand: 1,
+      receivedLocal: 0,
+      receivedTransfer: 0,
+      totalReceived: 0,
+      missing: 1,
+      famine: true,
+      warned: true,
     },
   ],
   combats: [],
@@ -209,8 +241,22 @@ const report: TurnReport = {
       sizeBefore: 5,
       sizeAfter: 2,
     },
-    { kind: 'plague_noble_death', cardKind: 'plague', region: 'ROS', season: 'spring', noble: 'ROB', territory: 'ROS' },
-    { kind: 'plague_noble_survived', cardKind: 'plague', region: 'ROS', season: 'spring', noble: 'JEA', territory: 'ROS' },
+    {
+      kind: 'plague_noble_death',
+      cardKind: 'plague',
+      region: 'ROS',
+      season: 'spring',
+      noble: 'ROB',
+      territory: 'ROS',
+    },
+    {
+      kind: 'plague_noble_survived',
+      cardKind: 'plague',
+      region: 'ROS',
+      season: 'spring',
+      noble: 'JEA',
+      territory: 'ROS',
+    },
     {
       kind: 'bad_weather_blocked',
       cardKind: 'bad_weather',
@@ -221,11 +267,54 @@ const report: TurnReport = {
       target: 'BRU',
     },
     { kind: 'calamity_applied', cardKind: 'famine', region: 'ROS', season: 'spring' },
-    { kind: 'famine_loss', cardKind: 'famine', region: 'ROS', season: 'spring', productionLost: 2, rationsLost: 2 },
-    { kind: 'famine_loss', cardKind: 'famine', region: 'ROS', season: 'spring', territory: 'BRU', productionLost: 2 },
+    {
+      kind: 'famine_loss',
+      cardKind: 'famine',
+      region: 'ROS',
+      season: 'spring',
+      productionLost: 2,
+      rationsLost: 2,
+    },
+    {
+      kind: 'famine_loss',
+      cardKind: 'famine',
+      region: 'ROS',
+      season: 'spring',
+      territory: 'BRU',
+      productionLost: 1,
+    },
+    {
+      kind: 'bad_weather_loss',
+      cardKind: 'bad_weather',
+      region: 'ROS',
+      season: 'spring',
+      productionLost: 3,
+    },
+    {
+      kind: 'bad_weather_loss',
+      cardKind: 'bad_weather',
+      region: 'ROS',
+      season: 'spring',
+      territory: 'BRU',
+      productionLost: 3,
+    },
     { kind: 'bonus_effect', cardKind: 'fair_weather', region: 'ROS', season: 'spring' },
-    { kind: 'card_canceled', cardKind: 'revolt', region: 'ROS', season: 'spring', owner: 'P1', territory: 'BRU' },
-    { kind: 'neutral_army_created', cardKind: 'revolt', region: 'ROS', season: 'spring', territory: 'BRU', troops: 2 },
+    {
+      kind: 'card_canceled',
+      cardKind: 'revolt',
+      region: 'ROS',
+      season: 'spring',
+      owner: 'P1',
+      territory: 'BRU',
+    },
+    {
+      kind: 'neutral_army_created',
+      cardKind: 'revolt',
+      region: 'ROS',
+      season: 'spring',
+      territory: 'BRU',
+      troops: 2,
+    },
   ],
   winter: {
     investments: [
@@ -283,34 +372,58 @@ describe('ReportPanel', () => {
     expect(screen.queryByText('coût : 0 R')).not.toBeInTheDocument()
     expect(screen.getByText(/Ressources insuffisantes/)).toBeInTheDocument()
     expect(screen.getAllByLabelText('Couleur de One')).not.toHaveLength(0)
-    expect(screen.getByText(/7 produits/)).toBeInTheDocument()
+    expect(screen.getByText('+4 R crédités')).toBeInTheDocument()
+    expect(screen.getByText('3 territoires')).toBeInTheDocument()
+    expect(screen.getByText('1 villages')).toBeInTheDocument()
+    expect(screen.getByText('1 supprimés par une mauvaise récolte')).toBeInTheDocument()
+    expect(
+      screen.getByText('perdu, aucune capitale, château ou village pour le recevoir'),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/5 produits/)).toBeInTheDocument()
     expect(screen.getByText(/production de base 1/)).toBeInTheDocument()
     expect(screen.getByText(/moulins 2/)).toBeInTheDocument()
     expect(screen.getByText(/bonus régional 1/)).toBeInTheDocument()
     expect(screen.getByText(/stock : 5 → 3 \(consommé 2\)/)).toBeInTheDocument()
     expect(screen.getByText(/envoyé 3 vers BRU/)).toBeInTheDocument()
-    expect(screen.getByText(/2 supprimés par la mauvaise récolte/)).toBeInTheDocument()
+    expect(screen.getByText(/1 supprimés par une calamité/)).toBeInTheDocument()
     expect(screen.getByText(/demande 2/)).toBeInTheDocument()
-    expect(screen.getByText(/local 2 · sources 0 · reçu 2 · manque 0/)).toBeInTheDocument()
-    expect(screen.getByText(/source ROS · local 1 · sources 0 · reçu 1 · manque 3/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/local 2 · sources 0 · reçu 2 · manque 0/),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/source ROS · local 1 · sources 0 · reçu 1 · manque 3/),
+    ).toBeInTheDocument()
     expect(screen.getByText(/· sauvée par pillage/)).toBeInTheDocument()
     expect(screen.getByText(/· perd 1 troupe/)).toBeInTheDocument()
     expect(
-      screen.getByText(/Un bel ensoleillement gagne le royaume/),
+      screen.getByText(/manque de vivres — agis avant le tour suivant/),
     ).toBeInTheDocument()
+    expect(screen.getByText(/Un bel ensoleillement gagne le royaume/)).toBeInTheDocument()
     expect(screen.getByText(/Beau temps \(BT\) jouée sur ROS/)).toBeInTheDocument()
     expect(screen.getByText(/Peste \(PE\) à venir en Été dans ROS/)).toBeInTheDocument()
     expect(screen.getByText(/P1 : Révolte \(RE\) annulée à BRU/)).toBeInTheDocument()
     expect(screen.getByText(/P1 : Révolte \(RE\) récupérée/)).toBeInTheDocument()
-    expect(screen.getByText(/Mauvaise récolte \(MR\) active dans ROS/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/Mauvaise récolte \(MR\) active dans ROS/),
+    ).toBeInTheDocument()
     expect(screen.getByText(/Beau temps \(BT\) actif dans ROS/)).toBeInTheDocument()
     expect(screen.getByText('Peste (PE) active dans ROS')).toBeInTheDocument()
     expect(screen.getByText(/Armée de P1 à ROS : 5 → 2 troupes/)).toBeInTheDocument()
     expect(screen.getByText('Le noble ROB meurt de la peste à ROS')).toBeInTheDocument()
     expect(screen.getByText('Le noble JEA à ROS survit à la peste')).toBeInTheDocument()
-    expect(screen.getByText(/Armée de P1 à ROS : mouvement vers BRU bloqué/)).toBeInTheDocument()
-    expect(screen.getByText(/2 R de production supprimées, 2 rations/)).toBeInTheDocument()
-    expect(screen.getByText(/Moulin à BRU désactivé : 2 R non produites/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/Armée de P1 à ROS : mouvement vers BRU bloqué/),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/2 R de production supprimées, 2 rations/),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/BRU : 1 R non produites/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/3 R de production des moulins supprimées/),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/Moulin à BRU à l’arrêt : 3 R non produites/),
+    ).toBeInTheDocument()
     expect(screen.getByText('Armée neutre de 2 troupes créée à BRU')).toBeInTheDocument()
   })
 
@@ -355,6 +468,132 @@ describe('ReportPanel', () => {
 
     expect(
       screen.getByText(/Le moulin a atteint son niveau maximal\./),
+    ).toBeInTheDocument()
+  })
+
+  it('labels a fief income line with its title and capital instead of the bare destination', () => {
+    const fiefIncomeReport: TurnReport = {
+      ...report,
+      income: [
+        {
+          owner: 'P1',
+          destination: 'BRU',
+          fief: 'BRU',
+          title: 'barony',
+          territories: 2,
+          villages: 0,
+          base: 3,
+          credited: 3,
+        },
+      ],
+    }
+
+    render(
+      <LanguageProvider initialLanguage="en">
+        <ReportPanel report={fiefIncomeReport} map={map} players={players} />
+      </LanguageProvider>,
+    )
+
+    expect(screen.getByText('Barony of BRU')).toBeInTheDocument()
+  })
+
+  it('reports a fief member occupied by an enemy army', () => {
+    const occupiedReport: TurnReport = {
+      ...report,
+      fiefs: [
+        {
+          kind: 'fief_member_occupied',
+          owner: 'P1',
+          occupant: 'P2',
+          capital: 'ROS',
+          title: 'barony',
+          territories: [],
+          territory: 'BRU',
+        },
+      ],
+    }
+
+    render(
+      <LanguageProvider initialLanguage="en">
+        <ReportPanel report={occupiedReport} map={map} players={players} />
+      </LanguageProvider>,
+    )
+
+    const occupiedLine = screen.getByText('BRU (fief of ROS) occupied by P2')
+    expect(occupiedLine).toBeInTheDocument()
+    expect(occupiedLine).toHaveClass('text-[#8d321e]')
+  })
+
+  it('warns distinctly about a fief automatically assigned at the end of winter', () => {
+    const autoAssignedReport: TurnReport = {
+      ...report,
+      winter: {
+        investments: [
+          {
+            kind: 'fief_auto_assigned',
+            player: 'P1',
+            outcome: 'success',
+            cost: 0,
+            territory: 'ROS',
+            nobleCode: 'JEA',
+            reason: 'fief_auto_assigned_default_holder',
+          },
+        ],
+        stocks: [],
+      },
+    }
+
+    render(
+      <LanguageProvider initialLanguage="en">
+        <ReportPanel report={autoAssignedReport} map={map} players={players} />
+      </LanguageProvider>,
+    )
+
+    expect(screen.getByText('T A JEA ROS')).toBeInTheDocument()
+    expect(
+      screen.getByText('Default attribution — remember to submit T A'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        /No T A order this winter: automatically assigned to the free noble with the smallest trigram\./,
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('localizes the transfer-target-occupied rejection reason', () => {
+    const rejectedTransferReport: TurnReport = {
+      ...report,
+      orders: [
+        {
+          army: 'A1',
+          chain: 'C1',
+          order: 'O1',
+          owner: 'P1',
+          noble: 'JEA',
+          type: 'transfer',
+          source: 'ROS',
+          target: 'BRU',
+          amount: 2,
+          liaison: 'single',
+          outcome: 'invalid',
+          reason: 'transfer_target_occupied',
+          progression: 'broken',
+          indexBefore: 0,
+          indexAfter: 0,
+        },
+      ],
+    }
+
+    render(
+      <LanguageProvider initialLanguage="en">
+        <ReportPanel report={rejectedTransferReport} map={map} players={players} />
+      </LanguageProvider>,
+    )
+
+    expect(
+      screen.getByText(
+        'The recipient army only occupies this territory: it cannot receive resources through it.',
+      ),
     ).toBeInTheDocument()
   })
 

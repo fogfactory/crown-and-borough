@@ -635,6 +635,42 @@ expected to contain only the Go binary, public game assets, and CA certificates.
 Firebase Web configuration is public build configuration; Admin credentials are
 provided to the Go SDK through Cloud Run Application Default Credentials.
 
+## Vulnerability Scanning And Dependency Updates
+
+Trivy scans the built container image twice, independently of source-level
+`go.mod`/`package-lock.json` review:
+
+- in `ci.yml`, against the image built from the pull request's sources, so a
+  vulnerable dependency fails CI before merge;
+- in `deploy-cloudrun.yml`, against the exact digest-pinned image that
+  `build-and-push` just pushed to Artifact Registry, before `deploy-cloudrun`
+  is allowed to run. This catches vulnerabilities disclosed between merge and
+  release tag, and scans the artifact that is actually promoted rather than a
+  freshly rebuilt approximation of it.
+
+Policy: any `CRITICAL` or `HIGH` severity finding with an available fix fails
+the workflow (`ignore-unfixed: true`, `exit-code: 1`). Findings without a
+published fix do not block the build, since failing on them would only be
+actionable by pinning to an unreleased patch; they remain visible in the
+Trivy output. There is no `.trivyignore` in the repository; an exception
+needs a comment explaining why the finding does not apply here.
+
+Dependabot (`.github/dependabot.yml`) opens weekly version-update pull
+requests for the four ecosystems the image depends on: `gomod` (root),
+`npm` (`web/`), `github-actions` (root, grouped into one pull request), and
+`docker` (the `Dockerfile`'s `node:22-alpine` and `golang:1.26-alpine` base
+images). Each pull request runs the full CI suite, including the Trivy scan
+above, before it can be merged. A base image bump is still worth a manual
+look at the final `scratch` stage: only the Go binary, `assets`, and the CA
+bundle are copied out of the `build` stage (see `Dockerfile`), so most base
+image changes only affect build-time tooling, not what ships.
+
+Dependabot version updates are separate from GitHub's Dependabot alerts and
+security updates, which are a repository setting (Settings → Code security)
+rather than a file in this repository; both must stay enabled for the
+`gomod` and `npm` ecosystems to get expedited security-only pull requests
+alongside the weekly version updates configured here.
+
 ## Costs, Quotas, And Logs
 
 The free tier is a cost objective, not a guarantee. Billing can be affected by

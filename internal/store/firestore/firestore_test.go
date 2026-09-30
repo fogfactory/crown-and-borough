@@ -49,6 +49,9 @@ func TestJSONMapRoundTripPreservesCanonicalState(t *testing.T) {
 	if !reflect.DeepEqual(state, &decodedState) {
 		t.Fatalf("state round trip changed value")
 	}
+	// Starts is deliberately excluded from map.json (json:"-"): it is engine
+	// wiring, not published map data, so the round trip loses it by design.
+	mapData.Starts = nil
 	if !reflect.DeepEqual(mapData, decodedMap) {
 		t.Fatalf("map round trip changed value")
 	}

@@ -35,7 +35,7 @@ func TestWinterOrderApplyRejectsInvalidCases(t *testing.T) {
 			name:  "recruit noble without owned army",
 			order: models.WinterOrder{Type: models.WinterOrderTypeRecruitNoble, TerritoryID: "AAA"},
 			setup: func(state *models.GameState) {
-				setTerritoryOwner(state, "AAA", "P1")
+				holdAsFiefMember(state, "AAA", "P1")
 				addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA"})
 			},
 			wantReason: "noble_requires_owned_army",
@@ -44,9 +44,8 @@ func TestWinterOrderApplyRejectsInvalidCases(t *testing.T) {
 			name:  "recruit noble insufficient resources",
 			order: models.WinterOrder{Type: models.WinterOrderTypeRecruitNoble, TerritoryID: "AAA"},
 			setup: func(state *models.GameState) {
-				setTerritoryOwner(state, "AAA", "P1")
 				state.Armies = append(state.Armies, models.Army{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1})
-				state.TerritoryStates["AAA"] = models.TerritoryState{OwnerID: playerPointer("P1"), Army: armyPointer("A1"), Resources: 0, Infrastructures: infraPointer("I1")}
+				state.TerritoryStates["AAA"] = models.TerritoryState{Army: armyPointer("A1"), Resources: 0, Infrastructures: infraPointer("I1")}
 				addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA"})
 			},
 			wantReason: "insufficient_resources",
@@ -61,10 +60,12 @@ func TestWinterOrderApplyRejectsInvalidCases(t *testing.T) {
 			name:  "recruit troop with enemy army",
 			order: models.WinterOrder{Type: models.WinterOrderTypeRecruitTroop, TerritoryID: "AAA"},
 			setup: func(state *models.GameState) {
-				setTerritoryOwner(state, "AAA", "P1")
+				// AAA is P1's own castle (its capital, a permanent anchor)
+				// that a P2 army occupies.
 				state.Armies = []models.Army{{ID: "A1", OwnerID: "P2", TerritoryID: "AAA", Size: 1}}
-				state.TerritoryStates["AAA"] = models.TerritoryState{OwnerID: playerPointer("P1"), Army: armyPointer("A1"), Resources: 1, Infrastructures: infraPointer("I1")}
-				addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA"})
+				state.TerritoryStates["AAA"] = models.TerritoryState{Army: armyPointer("A1"), Resources: 1, Infrastructures: infraPointer("I1")}
+				addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+				setCapital(state, "P1", "I1")
 				addNoble(state, "N1", "ONE", "P1", "AAA")
 			},
 			wantReason: "territory_occupied_by_other_player",
@@ -75,7 +76,7 @@ func TestWinterOrderApplyRejectsInvalidCases(t *testing.T) {
 			setup: func(state *models.GameState) {
 				controlledArmyAndSettlement(state)
 				addNoble(state, "N1", "ONE", "P1", "AAA")
-				state.TerritoryStates["AAA"] = models.TerritoryState{OwnerID: playerPointer("P1"), Army: armyPointer("A1"), Resources: 0, Infrastructures: infraPointer("I1")}
+				state.TerritoryStates["AAA"] = models.TerritoryState{Army: armyPointer("A1"), Resources: 0, Infrastructures: infraPointer("I1")}
 			},
 			wantReason: "insufficient_resources",
 		},
@@ -153,7 +154,7 @@ func TestWinterOrderApplyRejectsInvalidCases(t *testing.T) {
 			order: models.WinterOrder{Type: models.WinterOrderTypeLiberateNoble, NobleCode: "ONE"},
 			setup: func(state *models.GameState) {
 				state.Armies = []models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}}
-				state.TerritoryStates["AAA"] = models.TerritoryState{OwnerID: playerPointer("P1"), Army: armyPointer("A1"), Resources: 10}
+				state.TerritoryStates["AAA"] = models.TerritoryState{Army: armyPointer("A1"), Resources: 10}
 				addNoble(state, "N1", "ONE", "P2", "AAA")
 				setNobleStatus(state, "N1", models.NobleStatusHostage)
 			},
@@ -204,16 +205,12 @@ func controlledSettlement(state *models.GameState) {
 func controlledArmyAndSettlement(state *models.GameState) {
 	controlledSettlement(state)
 	state.Armies = []models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}}
-	state.TerritoryStates["AAA"] = models.TerritoryState{OwnerID: playerPointer("P1"), Army: armyPointer("A1"), Resources: 10, Infrastructures: infraPointer("I1")}
+	state.TerritoryStates["AAA"] = models.TerritoryState{Army: armyPointer("A1"), Resources: 10, Infrastructures: infraPointer("I1")}
 }
 
 func holderArmy(state *models.GameState) {
 	state.Armies = []models.Army{{ID: "A1", OwnerID: "P2", TerritoryID: "AAA", Size: 1}}
-	state.TerritoryStates["AAA"] = models.TerritoryState{OwnerID: playerPointer("P2"), Army: armyPointer("A1"), Resources: 10}
-}
-
-func playerPointer(playerID models.PlayerID) *models.PlayerID {
-	return &playerID
+	state.TerritoryStates["AAA"] = models.TerritoryState{Army: armyPointer("A1"), Resources: 10}
 }
 
 func armyPointer(armyID models.ArmyID) *models.ArmyID {

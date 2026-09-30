@@ -109,4 +109,45 @@ describe('buildWinterIntentions', () => {
       buildWinterIntentions([lines[0]], draft, { source: 'submitted' })[0].source,
     ).toBe('submitted')
   })
+
+  it('carries the fief group for a found_fief line, capital first', () => {
+    const foundLine: WinterLinePreview[] = [
+      {
+        line: 1,
+        status: 'applied',
+        type: 'found_fief',
+        territory: 'ROS',
+        territories: ['ROS', 'BOI', 'BRU'],
+        noble: 'HUG',
+        cost: 6,
+      },
+    ]
+    expect(buildWinterIntentions(foundLine, 'T F HUG ROS BOI BRU')[0]).toMatchObject({
+      kind: 'fief_found',
+      valid: true,
+      territory: 'ROS',
+      territories: ['ROS', 'BOI', 'BRU'],
+      noble: 'HUG',
+    })
+  })
+
+  it('maps an assign_fief line without a territory group', () => {
+    const assignLine: WinterLinePreview[] = [
+      {
+        line: 1,
+        status: 'applied',
+        type: 'assign_fief',
+        territory: 'ROS',
+        noble: 'HUG',
+        cost: 0,
+      },
+    ]
+    expect(buildWinterIntentions(assignLine, 'T A HUG ROS')[0]).toMatchObject({
+      kind: 'fief_assign',
+      valid: true,
+      territory: 'ROS',
+      territories: undefined,
+      noble: 'HUG',
+    })
+  })
 })

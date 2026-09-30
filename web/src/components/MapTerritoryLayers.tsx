@@ -1,26 +1,45 @@
 import {
+  FamineMarker,
   InfrastructureMarker,
   NobleMarker,
   OwnershipBadge,
 } from '@/components/MapMarkers'
 import { useLanguage } from '@/i18n/LanguageContext'
-import { centroid } from '@/lib/map-svg-geometry'
+import { centroid, pointsToPath } from '@/lib/map-svg-geometry'
+import { isOccupiedAgainstController } from '@/lib/occupation'
 import type { RegionStyle } from '@/lib/region-color'
-import type { Region, StateData, Territory } from '@/types'
+import type { Fief, Region, StateData, Territory } from '@/types'
 
-/** Owner shields under each controlled territory's center. */
+/**
+ * Owner shields under each controlled territory's center. A territory that
+ * belongs to a fief prints its capital's trigram on the shield instead of a
+ * plain color, so several fiefs held by the same player stay tellable apart
+ * (titres.md, issue #194). Since #196, control is transitive within a fief:
+ * a non-capital member stays under its fief's control even while an enemy
+ * (or NEUTRAL revolt) army sits on it, so the shield keeps the controller's
+ * color and the tooltip names the occupant instead; `OccupiedHatchLayer`
+ * paints the hatch overlay for that same case.
+ */
 export function OwnershipLayer({
   territories,
   state,
   playerColors,
   annotationScale,
+  fiefs = [],
 }: {
   territories: Territory[]
   state: StateData
   playerColors: Map<string, string>
   annotationScale: number
+  fiefs?: Fief[]
 }) {
   const { t } = useLanguage()
+  const fiefCapitalByTerritory = new Map<string, string>()
+  for (const fief of fiefs) {
+    for (const territoryId of fief.territories) {
+      fiefCapitalByTerritory.set(territoryId, fief.capital)
+    }
+  }
 
   return (
     <g aria-label={t('map.control')} pointerEvents="none">
@@ -36,6 +55,26 @@ export function OwnershipLayer({
         const [centerX, centerY] = centroid(territory.points)
         const ownerName =
           state.players.find((player) => player.id === owner)?.name ?? owner
+        const fiefCapital = fiefCapitalByTerritory.get(territory.id)
+        const armyOwnerID = territoryState.army?.owner
+        const occupantName = isOccupiedAgainstController(territoryState)
+          ? (state.players.find((player) => player.id === armyOwnerID)?.name ??
+            armyOwnerID)
+          : null
+        const label = occupantName
+          ? fiefCapital
+            ? t('map.ownershipBadgeFiefOccupied', {
+                owner: ownerName,
+                capital: fiefCapital,
+                occupant: occupantName,
+              })
+            : t('map.ownershipBadgeOccupied', {
+                owner: ownerName,
+                occupant: occupantName,
+              })
+          : fiefCapital
+            ? t('map.ownershipBadgeFief', { owner: ownerName, capital: fiefCapital })
+            : t('map.ownershipBadge', { owner: ownerName })
         return (
           <OwnershipBadge
             key={territory.id}
@@ -44,7 +83,48 @@ export function OwnershipLayer({
             y={centerY + 26 * annotationScale}
             color={playerColors.get(owner) ?? '#475569'}
             scale={annotationScale}
-            label={t('map.ownershipBadge', { owner: ownerName })}
+            code={fiefCapital}
+            label={label}
+          />
+        )
+      })}
+    </g>
+  )
+}
+
+/**
+ * Diagonal hatch over a territory that is controlled but currently occupied
+ * against its controller (titres.md, issue #196): a non-capital fief member
+ * under enemy or revolt garrison, but also a plain (non-fief) territory held
+ * against a NEUTRAL revolt, since positional control elsewhere changes owner
+ * immediately for any other army. Rendered under `OwnershipLayer`'s badges,
+ * whose tooltip already names the occupant.
+ */
+export function OccupiedHatchLayer({
+  territories,
+  state,
+}: {
+  territories: Territory[]
+  state: StateData
+}) {
+  const { t } = useLanguage()
+
+  return (
+    <g aria-label={t('map.occupiedZone')} pointerEvents="none">
+      {territories.map((territory) => {
+        const territoryState = state.territories.find(
+          (candidate) => candidate.id === territory.id,
+        )
+        if (!isOccupiedAgainstController(territoryState)) {
+          return null
+        }
+
+        return (
+          <path
+            key={territory.id}
+            data-occupied-territory-id={territory.id}
+            d={pointsToPath(territory.points)}
+            fill="url(#occupied-hatch)"
           />
         )
       })}
@@ -119,10 +199,15 @@ export function LiveLayer({
             {territoryState.army && (
               <g key={`${territory.id}-army`}>
                 <title>
-                  {t('map.armyMarker', {
-                    owner: territoryState.army.owner,
-                    size: territoryState.army.size,
-                  })}
+                  {territoryState.army.starving
+                    ? t('map.armyMarkerStarving', {
+                        owner: territoryState.army.owner,
+                        size: territoryState.army.size,
+                      })
+                    : t('map.armyMarker', {
+                        owner: territoryState.army.owner,
+                        size: territoryState.army.size,
+                      })}
                 </title>
                 <circle
                   cx={centerX - 9 * annotationScale}
@@ -142,6 +227,13 @@ export function LiveLayer({
                 >
                   {territoryState.army.size}
                 </text>
+                {territoryState.army.starving && (
+                  <FamineMarker
+                    x={centerX - 9 * annotationScale + 7 * annotationScale}
+                    y={centerY + 26 * annotationScale - 7 * annotationScale}
+                    scale={annotationScale}
+                  />
+                )}
               </g>
             )}
             {territoryNobles.map((noble, index) => (

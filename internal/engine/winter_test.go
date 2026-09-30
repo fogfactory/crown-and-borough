@@ -157,6 +157,81 @@ func TestParseWinterOrders(t *testing.T) {
 	})
 }
 
+func TestParseWinterOrdersFief(t *testing.T) {
+	state := winterTestState(t,
+		[]models.Territory{
+			territory("AAA", "AAA"), territory("BBB", "BBB"), territory("CCC", "CCC"),
+			territory("DDD", "DDD"),
+		},
+		nil,
+	)
+	addNoble(state, "N1", "NOB", "P1", "AAA")
+	validateTestState(t, state)
+
+	t.Run("T F parses the noble then the capital-first group", func(t *testing.T) {
+		parsed, parseErrors := orders.ParseWinterOrders("t f nob aaa bbb ccc", state)
+		if len(parseErrors) != 0 {
+			t.Fatalf("ParseWinterOrders errors = %#v", parseErrors)
+		}
+		if len(parsed) != 1 {
+			t.Fatalf("len(parsed) = %d, want 1", len(parsed))
+		}
+		order := parsed[0]
+		if order.Type != models.WinterOrderTypeFoundFief {
+			t.Fatalf("Type = %q, want found_fief", order.Type)
+		}
+		if order.NobleCode != "NOB" {
+			t.Errorf("NobleCode = %q, want NOB", order.NobleCode)
+		}
+		if order.TerritoryID != "AAA" {
+			t.Errorf("TerritoryID = %q, want AAA (capital)", order.TerritoryID)
+		}
+		if got, want := order.TerritoryIDs, []models.TerritoryID{"AAA", "BBB", "CCC"}; !reflect.DeepEqual(got, want) {
+			t.Errorf("TerritoryIDs = %#v, want %#v", got, want)
+		}
+	})
+
+	t.Run("T F accepts groups larger than the minimum", func(t *testing.T) {
+		parsed, parseErrors := orders.ParseWinterOrders("T F NOB AAA BBB CCC DDD", state)
+		if len(parseErrors) != 0 {
+			t.Fatalf("ParseWinterOrders errors = %#v", parseErrors)
+		}
+		if got, want := parsed[0].TerritoryIDs, []models.TerritoryID{"AAA", "BBB", "CCC", "DDD"}; !reflect.DeepEqual(got, want) {
+			t.Errorf("TerritoryIDs = %#v, want %#v", got, want)
+		}
+	})
+
+	t.Run("T A parses the free noble and the fief capital", func(t *testing.T) {
+		parsed, parseErrors := orders.ParseWinterOrders("T A NOB AAA", state)
+		if len(parseErrors) != 0 {
+			t.Fatalf("ParseWinterOrders errors = %#v", parseErrors)
+		}
+		if len(parsed) != 1 {
+			t.Fatalf("len(parsed) = %d, want 1", len(parsed))
+		}
+		order := parsed[0]
+		if order.Type != models.WinterOrderTypeAssignFief || order.NobleCode != "NOB" || order.TerritoryID != "AAA" {
+			t.Errorf("order = %#v, want assign_fief NOB AAA", order)
+		}
+	})
+
+	t.Run("rejects malformed T lines", func(t *testing.T) {
+		cases := []string{
+			"T X AAA BBB CCC", // unknown subtype
+			"T F NOB AAA BBB", // fewer than 3 territories
+			"T A NOB",         // missing capital
+			"T A NOB AAA BBB", // too many targets
+			"T F ZZZ AAA BBB CCC",
+			"T A NOB ZZZ",
+		}
+		for _, line := range cases {
+			if _, parseErrors := orders.ParseWinterOrders(line, state); len(parseErrors) == 0 {
+				t.Errorf("ParseWinterOrders(%q) = no error, want one", line)
+			}
+		}
+	})
+}
+
 func TestResolveWinterPaymentOrder(t *testing.T) {
 	t.Run("target settlement pays before another source", func(t *testing.T) {
 		balance := testBalance()
@@ -170,7 +245,6 @@ func TestResolveWinterPaymentOrder(t *testing.T) {
 		)
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "BBB"})
 		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
-		setTerritoryOwner(state, "AAA", "P1")
 		setCapital(state, "P1", "I2")
 		setTerritoryResources(state, "BBB", 3)
 		setTerritoryResources(state, "AAA", 3)
@@ -448,7 +522,7 @@ func TestResolveWinterRecruitNoble(t *testing.T) {
 			state: func(t *testing.T) *models.GameState {
 				state := winterTestState(t, []models.Territory{territory("AAA", "AAA")}, nil)
 				addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA"})
-				setTerritoryOwner(state, "AAA", "P1")
+				holdAsFiefMember(state, "AAA", "P1")
 				return state
 			},
 			reason: "noble_requires_owned_army",
@@ -494,7 +568,6 @@ func TestResolveWinterLiberateNoble(t *testing.T) {
 			},
 			nil,
 		)
-		setTerritoryOwner(state, "AAA", "P1")
 		setTerritoryOwner(state, "BBB", "P2")
 		state.Armies = []models.Army{
 			{ID: "A1", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
@@ -634,7 +707,7 @@ func TestResolveWinterRecruitTroop(t *testing.T) {
 			},
 			nil,
 		)
-		setTerritoryOwner(state, "AAA", "P1")
+		holdAsFiefMember(state, "AAA", "P1")
 		setTerritoryOwner(state, "BBB", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "BBB"})
 		setTerritoryResources(state, "BBB", 2)
@@ -665,7 +738,7 @@ func TestResolveWinterRecruitTroop(t *testing.T) {
 			},
 			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2}},
 		)
-		setTerritoryOwner(state, "BBB", "P1")
+		holdAsFiefMember(state, "BBB", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA"})
 		setTerritoryResources(state, "AAA", 2)
 		addNoble(state, "N1", "ONE", "P1", "BBB")
@@ -960,19 +1033,14 @@ func TestResolveWinterConstruction(t *testing.T) {
 		}
 	})
 
-	t.Run("orphaned mills cannot be upgraded", func(t *testing.T) {
-		state := winterTestState(t,
-			[]models.Territory{
-				territory("AAA", "AAA"),
-				territory("BBB", "BBB"),
-			},
-			nil,
-		)
+	t.Run("isolated mill can still be upgraded, paying from its own stock", func(t *testing.T) {
+		// The productive-neighbor requirement only gates building a new
+		// mill: an isolated mill already standing can always be upgraded,
+		// since it can now pay for itself (see #195).
+		state := winterTestState(t, []models.Territory{territory("AAA", "AAA")}, nil)
 		setTerritoryOwner(state, "AAA", "P1")
-		setTerritoryOwner(state, "BBB", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "AAA"})
-		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
-		setTerritoryResources(state, "BBB", 3)
+		setTerritoryResources(state, "AAA", 5)
 		validateTestState(t, state)
 
 		resolution, err := ResolveWinter(state, testBalance(), map[models.PlayerID][]models.WinterOrder{
@@ -981,18 +1049,62 @@ func TestResolveWinterConstruction(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ResolveWinter: %v", err)
 		}
-		if got := infrastructureAtState(t, resolution.State, "AAA").Level; got != 1 {
-			t.Errorf("orphaned mill level = %d, want unchanged", got)
+		if got := infrastructureAtState(t, resolution.State, "AAA").Level; got != 2 {
+			t.Errorf("isolated mill level = %d, want 2 after a self-funded upgrade", got)
 		}
-		if got := resolution.State.TerritoryStates["BBB"].Resources; got != 2 {
-			t.Errorf("funding stock = %d, want conservation only with no payment", got)
+		upgrades := eventsOfType(resolution.Events, EventTypeUpgrade)
+		if len(upgrades) != 1 || upgrades[0].ResourceSpent != 5 {
+			t.Errorf("upgrade events = %#v, want one upgrade spending 5 from the mill's own stock", upgrades)
 		}
-		if event := firstRejectedEvent(t, resolution.Events); event.Reason != "mill_requires_productive_neighbor" {
-			t.Errorf("rejection = %#v", event)
+		if got := resolution.State.TerritoryStates["AAA"].Resources; got != 0 {
+			t.Errorf("mill stock after upgrade = %d, want 0 (5 spent, ceil(0/2) conserved)", got)
 		}
 	})
 
-	t.Run("castle replaces a village and becomes the first capital", func(t *testing.T) {
+	t.Run("mill upgrade pays itself first, then the adjacent castle before the village", func(t *testing.T) {
+		state := winterTestState(t,
+			[]models.Territory{
+				territory("MIL", "MIL", "AVI", "ZCH"),
+				territory("AVI", "AVI", "MIL"),
+				territory("ZCH", "ZCH", "MIL"),
+			},
+			nil,
+		)
+		setTerritoryOwner(state, "MIL", "P1")
+		setTerritoryOwner(state, "AVI", "P1")
+		setTerritoryOwner(state, "ZCH", "P1")
+		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "MIL"})
+		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AVI"})
+		addInfrastructure(state, models.Infrastructure{ID: "I3", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "ZCH"})
+		setTerritoryResources(state, "MIL", 2)
+		setTerritoryResources(state, "AVI", 100)
+		setTerritoryResources(state, "ZCH", 3)
+		validateTestState(t, state)
+
+		resolution, err := ResolveWinter(state, testBalance(), map[models.PlayerID][]models.WinterOrder{
+			"P1": {{ID: "O1", Type: models.WinterOrderTypeBuild, TerritoryID: "MIL", InfraType: models.InfraTypeMill}},
+		})
+		if err != nil {
+			t.Fatalf("ResolveWinter: %v", err)
+		}
+		if got := infrastructureAtState(t, resolution.State, "MIL").Level; got != 2 {
+			t.Errorf("mill level = %d, want 2", got)
+		}
+		// Cost 5 = 2 from the mill's own stock, plus 3 from the castle at
+		// ZCH, even though the village at AVI's trigram sorts first.
+		if got := resolution.State.TerritoryStates["ZCH"].Resources; got != 0 {
+			t.Errorf("castle stock = %d, want fully spent before the village", got)
+		}
+		if got := resolution.State.TerritoryStates["AVI"].Resources; got != 50 {
+			t.Errorf("village stock = %d, want untouched by payment, only halved by winter conservation", got)
+		}
+	})
+
+	// A village fortified by C C keeps its own InfraType and, since it never
+	// becomes a castle, is never eligible for the automatic first-capital
+	// assignment either (that assignment keys off the order's InfraType, but
+	// electing a capital still requires an actual controlled castle, GDD §8).
+	t.Run("C C on a village fortifies it in place without electing a capital", func(t *testing.T) {
 		state := winterTestState(t, []models.Territory{territory("AAA", "AAA")}, nil)
 		setTerritoryOwner(state, "AAA", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA"})
@@ -1006,20 +1118,22 @@ func TestResolveWinterConstruction(t *testing.T) {
 			t.Fatalf("ResolveWinter: %v", err)
 		}
 		infrastructure := infrastructureAtState(t, resolution.State, "AAA")
-		if infrastructure.Type != models.InfraTypeCastle {
-			t.Errorf("replacement infrastructure = %#v, want castle", infrastructure)
+		if infrastructure.ID != "I1" || infrastructure.Type != models.InfraTypeVillage || !infrastructure.Fortified {
+			t.Errorf("infrastructure = %#v, want fortified village I1", infrastructure)
 		}
-		if got := capitalID(t, resolution.State, "P1"); got != infrastructure.ID {
-			t.Errorf("capital = %q, want new castle %q", got, infrastructure.ID)
+		for _, player := range resolution.State.Players {
+			if player.ID == "P1" && player.CapitalCastleID != nil {
+				t.Errorf("capital = %q, want none: a fortified village is not a castle", *player.CapitalCastleID)
+			}
 		}
 		capitalEvents := eventsOfType(resolution.Events, EventTypeCapitalElected)
-		buildEvents := eventsOfType(resolution.Events, EventTypeBuild)
-		if len(capitalEvents) != 1 || len(buildEvents) != 1 || capitalEvents[0].OrderID != "O1" || buildEvents[0].OrderID != "O1" || !capitalEvents[0].Automatic || buildEvents[0].ResourceSpent != testBalance().Costs.Castle {
-			t.Errorf("events = %#v, want automatic capital and build events for order O1", resolution.Events)
+		fortifyEvents := eventsOfType(resolution.Events, EventTypeFortify)
+		if len(capitalEvents) != 0 || len(fortifyEvents) != 1 || fortifyEvents[0].OrderID != "O1" || fortifyEvents[0].ResourceSpent != testBalance().Costs.Castle {
+			t.Errorf("events = %#v, want a single fortify event for order O1 and no capital election", resolution.Events)
 		}
 	})
 
-	t.Run("castle replacement preserves the village stock", func(t *testing.T) {
+	t.Run("village fortification preserves the village stock", func(t *testing.T) {
 		balance := testBalance()
 		balance.Costs.Castle = 0
 		state := winterTestState(t, []models.Territory{territory("AAA", "AAA")}, nil)
@@ -1035,7 +1149,31 @@ func TestResolveWinterConstruction(t *testing.T) {
 			t.Fatalf("ResolveWinter: %v", err)
 		}
 		if got := resolution.State.TerritoryStates["AAA"].Resources; got != 3 {
-			t.Errorf("replacement stock = %d, want ceil(5/2)=3", got)
+			t.Errorf("fortified village stock = %d, want ceil(5/2)=3", got)
+		}
+	})
+
+	// TestResolveWinterConstruction/village_already_fortified locks in #193:
+	// a second C C on an already-fortified village is rejected with no
+	// charge.
+	t.Run("village already fortified", func(t *testing.T) {
+		state := winterTestState(t, []models.Territory{territory("AAA", "AAA")}, nil)
+		setTerritoryOwner(state, "AAA", "P1")
+		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA", Fortified: true})
+		setTerritoryResources(state, "AAA", 10)
+		validateTestState(t, state)
+
+		resolution, err := ResolveWinter(state, testBalance(), map[models.PlayerID][]models.WinterOrder{
+			"P1": {{ID: "O1", Type: models.WinterOrderTypeBuild, TerritoryID: "AAA", InfraType: models.InfraTypeCastle}},
+		})
+		if err != nil {
+			t.Fatalf("ResolveWinter: %v", err)
+		}
+		if event := firstRejectedEvent(t, resolution.Events); event.Reason != "village_already_fortified" {
+			t.Errorf("rejection = %#v", event)
+		}
+		if got := resolution.State.TerritoryStates["AAA"].Resources; got != 5 {
+			t.Errorf("stock = %d, want ceil(10/2)=5 after conservation without payment", got)
 		}
 	})
 
@@ -1115,7 +1253,6 @@ func TestResolveWinterStocksAndRepatriation(t *testing.T) {
 			},
 			nil,
 		)
-		setTerritoryOwner(state, "AAA", "P1")
 		setTerritoryOwner(state, "BBB", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "BBB"})
@@ -1150,7 +1287,6 @@ func TestResolveWinterStocksAndRepatriation(t *testing.T) {
 			},
 			nil,
 		)
-		setTerritoryOwner(state, "AAA", "P1")
 		setTerritoryOwner(state, "BBB", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
@@ -1178,7 +1314,6 @@ func TestResolveWinterStocksAndRepatriation(t *testing.T) {
 			},
 			nil,
 		)
-		setTerritoryOwner(state, "AAA", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "BBB"})
 		setCapital(state, "P1", "I1")
@@ -1201,9 +1336,35 @@ func TestResolveWinterStocksAndRepatriation(t *testing.T) {
 		}
 	})
 
+	t.Run("mill stock is conserved but never repatriated, even with a known capital", func(t *testing.T) {
+		state := winterTestState(t,
+			[]models.Territory{
+				territory("AAA", "AAA", "MIL"),
+				territory("MIL", "MIL", "AAA"),
+			},
+			nil,
+		)
+		setTerritoryOwner(state, "MIL", "P1")
+		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 1, TerritoryID: "MIL"})
+		setCapital(state, "P1", "I1")
+		setTerritoryResources(state, "MIL", 7)
+		validateTestState(t, state)
+
+		resolution, err := ResolveWinter(state, testBalance(), nil)
+		if err != nil {
+			t.Fatalf("ResolveWinter: %v", err)
+		}
+		if got := resolution.State.TerritoryStates["MIL"].Resources; got != 4 {
+			t.Errorf("mill stock = %d, want ceil(7/2)=4 conserved like a castle or village", got)
+		}
+		if got := resolution.State.TerritoryStates["AAA"].Resources; got != 0 {
+			t.Errorf("capital stock = %d, want no repatriation from the mill", got)
+		}
+	})
+
 	t.Run("a player without a capital keeps its controlled stock in place", func(t *testing.T) {
 		state := winterTestState(t, []models.Territory{territory("AAA", "AAA")}, nil)
-		setTerritoryOwner(state, "AAA", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA"})
 		setTerritoryResources(state, "AAA", 5)
 		validateTestState(t, state)
@@ -1225,7 +1386,6 @@ func TestResolveWinterStocksAndRepatriation(t *testing.T) {
 			},
 			nil,
 		)
-		setTerritoryOwner(state, "AAA", "P1")
 		setTerritoryOwner(state, "BBB", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
@@ -1255,7 +1415,6 @@ func TestResolveWinterStocksAndRepatriation(t *testing.T) {
 			},
 			nil,
 		)
-		setTerritoryOwner(state, "AAA", "P1")
 		setTerritoryOwner(state, "BBB", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "BBB"})
@@ -1285,7 +1444,6 @@ func TestResolveWinterCapital(t *testing.T) {
 			},
 			nil,
 		)
-		setTerritoryOwner(state, "AAA", "P1")
 		setTerritoryOwner(state, "BBB", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
@@ -1370,7 +1528,6 @@ func TestResolveWinterCapital(t *testing.T) {
 			[]models.Territory{territory("AAA", "AAA")},
 			[]models.Army{{ID: "A1", OwnerID: "P2", TerritoryID: "AAA", Size: 1}},
 		)
-		setTerritoryOwner(state, "AAA", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 		setCapital(state, "P1", "I1")
 		validateTestState(t, state)
@@ -1391,7 +1548,7 @@ func TestResolveWinterCapital(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Resolve(recapture): %v", err)
 		}
-		if owner := retaken.State.TerritoryStates["AAA"].OwnerID; owner == nil || *owner != "P1" {
+		if owner := controllerOf(retaken.State, "AAA"); owner == nil || *owner != "P1" {
 			t.Errorf("territory owner = %v, want P1", owner)
 		}
 		for _, player := range retaken.State.Players {
@@ -1562,17 +1719,20 @@ func TestResolveWinterTruceMultiPlayerAndDeterminism(t *testing.T) {
 
 func TestResolveUsesConfiguredBalance(t *testing.T) {
 	state := testState(t, []models.Territory{territory("AAA", "AAA")}, nil)
-	setTerritoryOwner(state, "AAA", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+	// No army garrisons AAA: anchor it as P1's capital so control resolution
+	// (now ahead of ravitaillement, #208) does not release it as unanchored
+	// before income can credit it.
+	setCapital(state, "P1", "I1")
 	validateTestState(t, state)
 	balance := testBalance()
-	balance.BaseProduction = 7
+	balance.TerritoryIncome = 7
 
 	resolution, err := Resolve(state, balance)
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
 	if got := resolution.State.TerritoryStates["AAA"].Resources; got != 7 {
-		t.Errorf("stock = %d, want configured base production 7", got)
+		t.Errorf("stock = %d, want configured territory income 7", got)
 	}
 }

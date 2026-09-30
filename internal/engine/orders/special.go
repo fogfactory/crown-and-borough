@@ -71,6 +71,16 @@ func parseDeckOrderLine(line string, lineNumber int, game *models.GameState) (mo
 		}
 		return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: kind, TargetTerritoryID: target}, nil
 	}
+	if kind == models.CardKindSeigneurialTax {
+		// TER is a fief capital here, by exception to the usual "TER is a
+		// region's seed village" rule (titres.md "Taxe seigneuriale"):
+		// ownership of the targeted fief is checked later by CanPlay.
+		if !isFiefCapital(game, target) {
+			error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderRegionUnknown, fields[2])
+			return models.DeckOrder{}, &error
+		}
+		return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: kind, TargetTerritoryID: target}, nil
+	}
 	if !isSpecialRegionSeed(game, target) {
 		error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderRegionUnknown, fields[2])
 		return models.DeckOrder{}, &error
@@ -84,6 +94,18 @@ func isTerritory(game *models.GameState, territoryID models.TerritoryID) bool {
 	}
 	for _, territory := range game.Territories {
 		if territory.ID == territoryID {
+			return true
+		}
+	}
+	return false
+}
+
+func isFiefCapital(game *models.GameState, territoryID models.TerritoryID) bool {
+	if game == nil {
+		return false
+	}
+	for _, fief := range game.Fiefs {
+		if fief.CapitalTerritoryID == territoryID {
 			return true
 		}
 	}
@@ -104,6 +126,8 @@ func parseSpecialKind(value string, lineNumber int) (models.CardKind, *ParseErro
 		"RV": models.CardKindRevolt,
 		"FA": models.CardKindFamine,
 		"FN": models.CardKindFamine,
+		"TX": models.CardKindSeigneurialTax,
+		"ST": models.CardKindSeigneurialTax,
 	}[value]
 	if !exists {
 		error := parseMessage(lineNumber, ParseCodeSpecialKind, i18n.DeckOrderKindUnknown, value)

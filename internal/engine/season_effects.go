@@ -21,8 +21,8 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 	}
 	ctx.badWeatherRegions = make(map[models.TerritoryID]bool)
 	ctx.famineRegions = make(map[models.TerritoryID]bool)
-	ctx.bonusMillRegions = make(map[models.TerritoryID]int)
-	ctx.bonusRationRegions = make(map[models.TerritoryID]int)
+	ctx.fairWeatherRegions = make(map[models.TerritoryID]bool)
+	ctx.goodHarvestRegions = make(map[models.TerritoryID]bool)
 	bonusEffects := make(map[models.TerritoryID]map[models.CardKind]bool)
 	intents := append([]deckOrderIntent(nil), ctx.deckIntents...)
 	sort.SliceStable(intents, func(i, j int) bool {
@@ -39,7 +39,7 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 	})
 	played := make(map[models.TerritoryID]map[models.CardKind]int)
 	for _, intent := range intents {
-		if intent.order.Kind == models.CardKindRevolt {
+		if intent.order.Kind == models.CardKindRevolt || intent.order.Kind == models.CardKindSeigneurialTax {
 			continue
 		}
 		seed := intent.order.RegionSeed
@@ -49,7 +49,7 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 		played[seed][intent.order.Kind]++
 	}
 	for _, intent := range intents {
-		if intent.order.Kind == models.CardKindRevolt {
+		if intent.order.Kind == models.CardKindRevolt || intent.order.Kind == models.CardKindSeigneurialTax {
 			continue
 		}
 		seed := intent.order.RegionSeed
@@ -69,8 +69,12 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 			cancels = false
 		}
 		if !cancels || count > 1 {
-			ctx.bonusMillRegions[seed]++
-			ctx.bonusRationRegions[seed]++
+			switch kind {
+			case models.CardKindFairWeather:
+				ctx.fairWeatherRegions[seed] = true
+			case models.CardKindAbundantHarvest:
+				ctx.goodHarvestRegions[seed] = true
+			}
 			if bonusEffects[seed] == nil {
 				bonusEffects[seed] = make(map[models.CardKind]bool)
 			}
@@ -124,6 +128,15 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 			})
 		}
 	}
+	// Tax cards are applied before revolt cards: applyRevolt below must be
+	// able to see a fief taxed earlier in this very same turn
+	// (titres.md "Taxe seigneuriale").
+	ctx.state.TaxedFiefs = pruneTaxedFiefs(ctx.state.TaxedFiefs, ctx.state.Turn)
+	for _, intent := range intents {
+		if intent.order.Kind == models.CardKindSeigneurialTax {
+			applySeigneurialTax(ctx, intent.playerID, intent.order)
+		}
+	}
 	for _, intent := range intents {
 		if intent.order.Kind == models.CardKindRevolt {
 			applyRevolt(ctx, intent.order.TargetTerritoryID, intent.order.ID, intent.playerID)
@@ -131,45 +144,51 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 	}
 	resolvePlagueMortality(ctx)
 	emitFamineLosses(ctx)
+	emitBadWeatherLosses(ctx)
 }
 
-// emitFamineLosses reports the production the bad harvest calamity suppresses:
-// one regional summary followed by one detail line per disabled mill and per
-// settlement losing its infrastructure rations.
+// emitFamineLosses reports what the bad harvest calamity suppresses: one
+// regional summary with the territory income and terrain rations lost,
+// followed by one detail line per controlled territory (income) or neutral
+// village (its own production) producing nothing.
 func emitFamineLosses(ctx *resolutionContext) {
-	seeds := make([]models.TerritoryID, 0, len(ctx.famineRegions))
-	for seed := range ctx.famineRegions {
-		seeds = append(seeds, seed)
-	}
-	sort.Slice(seeds, func(i, j int) bool { return seeds[i] < seeds[j] })
-	for _, seed := range seeds {
+	for _, seed := range sortedRegionFlags(ctx.famineRegions) {
 		productionLost := 0
 		rationsLost := 0
 		details := make([]Event, 0)
 		for _, territoryID := range regionTerritories(ctx, seed) {
-			infrastructure := ctx.infrastructureAt(territoryID)
-			if infrastructure == nil {
+			if territory := ctx.territoriesByID[territoryID]; territory != nil {
+				rationsLost += ctx.balance.RationTerrain[territory.Terrain]
+			}
+			_, controlled := ctx.controllerAtStart(territoryID)
+			hasVillage := ctx.hasInfrastructure(territoryID, models.InfraTypeVillage)
+			var lost int
+			var infrastructureType models.InfraType
+			switch {
+			case controlled:
+				lost = ctx.balance.TerritoryIncome
+				if hasVillage {
+					lost += ctx.balance.VillageIncome
+				}
+				if infrastructure := ctx.infrastructureAt(territoryID); infrastructure != nil {
+					infrastructureType = infrastructure.Type
+				}
+			case hasVillage:
+				lost = ctx.balance.VillageIncome
+				infrastructureType = models.InfraTypeVillage
+			default:
 				continue
 			}
-			switch infrastructure.Type {
-			case models.InfraTypeMill:
-				lost := infrastructure.Level + ctx.bonusMillRegions[seed]*ctx.balance.SpecialOrders.Effects.BonusMillProduction
-				productionLost += lost
-				details = append(details, Event{
-					Type: EventTypeFamineLoss, Phase: phaseForSeason(ctx.state.Season),
-					CardKind: models.CardKindFamine, RegionSeed: seed, TerritoryID: territoryID,
-					InfrastructureType: models.InfraTypeMill, Level: infrastructure.Level,
-					Production: lost, Season: ctx.state.Season, Year: ctx.state.Year(),
-				})
-			case models.InfraTypeCastle, models.InfraTypeVillage:
-				rationsLost += ctx.balance.InfraRationsBonus
-				details = append(details, Event{
-					Type: EventTypeFamineLoss, Phase: phaseForSeason(ctx.state.Season),
-					CardKind: models.CardKindFamine, RegionSeed: seed, TerritoryID: territoryID,
-					InfrastructureType: infrastructure.Type, RationsLost: ctx.balance.InfraRationsBonus,
-					Season: ctx.state.Season, Year: ctx.state.Year(),
-				})
+			if lost == 0 {
+				continue
 			}
+			productionLost += lost
+			details = append(details, Event{
+				Type: EventTypeFamineLoss, Phase: phaseForSeason(ctx.state.Season),
+				CardKind: models.CardKindFamine, RegionSeed: seed, TerritoryID: territoryID,
+				InfrastructureType: infrastructureType, Production: lost,
+				Season: ctx.state.Season, Year: ctx.state.Year(),
+			})
 		}
 		if productionLost == 0 && rationsLost == 0 {
 			continue
@@ -182,6 +201,48 @@ func emitFamineLosses(ctx *resolutionContext) {
 		})
 		ctx.events = append(ctx.events, details...)
 	}
+}
+
+// emitBadWeatherLosses reports the mill production the bad weather calamity
+// suppresses: one regional summary followed by one detail line per mill.
+func emitBadWeatherLosses(ctx *resolutionContext) {
+	for _, seed := range sortedRegionFlags(ctx.badWeatherRegions) {
+		productionLost := 0
+		details := make([]Event, 0)
+		for _, territoryID := range regionTerritories(ctx, seed) {
+			infrastructure := ctx.infrastructureAt(territoryID)
+			if infrastructure == nil || infrastructure.Type != models.InfraTypeMill {
+				continue
+			}
+			productionLost += infrastructure.Level
+			details = append(details, Event{
+				Type: EventTypeBadWeatherLoss, Phase: phaseForSeason(ctx.state.Season),
+				CardKind: models.CardKindBadWeather, RegionSeed: seed, TerritoryID: territoryID,
+				InfrastructureType: models.InfraTypeMill, Level: infrastructure.Level,
+				Production: infrastructure.Level, Season: ctx.state.Season, Year: ctx.state.Year(),
+			})
+		}
+		if productionLost == 0 {
+			continue
+		}
+		ctx.events = append(ctx.events, Event{
+			Type: EventTypeBadWeatherLoss, Phase: phaseForSeason(ctx.state.Season),
+			CardKind: models.CardKindBadWeather, RegionSeed: seed, Production: productionLost,
+			Season: ctx.state.Season, Year: ctx.state.Year(),
+		})
+		ctx.events = append(ctx.events, details...)
+	}
+}
+
+func sortedRegionFlags(flags map[models.TerritoryID]bool) []models.TerritoryID {
+	seeds := make([]models.TerritoryID, 0, len(flags))
+	for seed, active := range flags {
+		if active {
+			seeds = append(seeds, seed)
+		}
+	}
+	sort.Slice(seeds, func(i, j int) bool { return seeds[i] < seeds[j] })
+	return seeds
 }
 
 func copyTerritoryFlags(source map[models.TerritoryID]bool) map[models.TerritoryID]bool {
@@ -241,19 +302,60 @@ func applyPlague(ctx *resolutionContext, regionSeed models.TerritoryID) {
 	}
 }
 
+// applySeigneurialTax consumes one seigneurial tax card on its target fief's
+// capital. The first successful play on a given fief this turn doubles the
+// fief's territorial income (income.go, applied later this same Resolve
+// call) and opens Révolte on every territory of the fief for this turn and
+// the next (fief.go, checked by applyRevolt). Ownership is re-checked
+// defensively even though CanPlay already validated it: deck orders resolve
+// before movement, so nothing can invalidate it within the same turn.
+// A second tax on the same fief the same turn does not stack: it is
+// consumed with no effect (titres.md "Taxe seigneuriale").
+func applySeigneurialTax(ctx *resolutionContext, playerID models.PlayerID, order models.DeckOrder) {
+	fief := ctx.fiefByCapital(order.TargetTerritoryID)
+	if fief == nil || fief.OwnerID != playerID {
+		ctx.events = append(ctx.events, Event{
+			Type: EventTypeRejected, Phase: phaseForSeason(ctx.state.Season),
+			OwnerID: playerID, OrderID: order.ID, Reason: "seigneurial_tax_requires_fief_owner",
+		})
+		return
+	}
+	if ctx.taxedFiefsThisTurn[fief.ID] {
+		ctx.events = append(ctx.events, Event{
+			Type: EventTypeCardCanceled, Phase: phaseForSeason(ctx.state.Season),
+			CardKind: models.CardKindSeigneurialTax, TerritoryID: fief.CapitalTerritoryID,
+			FiefID: fief.ID, FiefTitle: fief.Title, OwnerID: playerID,
+			Reason: "seigneurial_tax_already_applied", Season: ctx.state.Season, Year: ctx.state.Year(),
+		})
+		return
+	}
+	ctx.taxedFiefsThisTurn[fief.ID] = true
+	ctx.taxedFiefOwnerAtApply[fief.ID] = playerID
+	ctx.state.TaxedFiefs = append(ctx.state.TaxedFiefs, models.TaxedFief{FiefID: fief.ID, Turn: ctx.state.Turn})
+	ctx.events = append(ctx.events, Event{
+		Type: EventTypeBonusEffect, Phase: phaseForSeason(ctx.state.Season),
+		CardKind: models.CardKindSeigneurialTax, TerritoryID: fief.CapitalTerritoryID,
+		RegionSeed: fief.CapitalTerritoryID, FiefID: fief.ID, FiefTitle: fief.Title, OwnerID: playerID,
+		Season: ctx.state.Season, Year: ctx.state.Year(),
+	})
+}
+
 // applyRevolt consumes one revolt card on the target territory: it rolls for
 // reinforcements and adds them to the common neutral army building there, or
 // defers the fight to the post-movement revolt pass while the territory is
 // held by a player army. A revolt whose famine has been canceled in the
-// meantime is annulled with the card.
+// meantime, and whose territory's fief was not taxed this turn or the
+// previous one either, is annulled with the card (titres.md "Taxe
+// seigneuriale").
 func applyRevolt(ctx *resolutionContext, targetTerritory models.TerritoryID, orderID models.OrderID, playerID models.PlayerID) {
 	if targetTerritory == "" {
 		return
 	}
 	regionSeed := regionForTerritory(ctx, targetTerritory)
-	if !ctx.famineRegions[regionSeed] {
-		// The famine was countered before the revolt applied: the card returns
-		// to its player's hand and the annulment is credited to them.
+	if !ctx.famineRegions[regionSeed] && !ctx.revoltEligibleByTax(targetTerritory) {
+		// Neither condition holds any more at apply time (a countered famine,
+		// or no tax window on the territory's fief): the card returns to its
+		// player's hand and the annulment is credited to them.
 		ctx.events = append(ctx.events, Event{
 			Type: EventTypeCardCanceled, Phase: phaseForSeason(ctx.state.Season),
 			CardKind: models.CardKindRevolt, RegionSeed: regionSeed, TerritoryID: targetTerritory,
@@ -325,10 +427,8 @@ func resolveRevoltCombats(ctx *resolutionContext) {
 }
 
 func resolveRevoltCombat(ctx *resolutionContext, territoryID models.TerritoryID, rebelForce int, occupant *models.Army) {
-	defense := occupant.Size + nobleCommandBonus(ctx, *occupant)
-	if ctx.hasCastle(territoryID) {
-		defense += ctx.balance.CastleDefenseBonus
-	}
+	fortificationBonus := ctx.fortificationBonus(territoryID)
+	defense := occupant.Size + nobleCommandBonus(ctx, *occupant) + fortificationBonus
 	rebels := CombatContender{OwnerID: models.NeutralPlayerID, Force: rebelForce}
 	defenders := CombatContender{ArmyID: occupant.ID, OwnerID: occupant.OwnerID, Force: defense, NobleBonus: nobleCommandBonus(ctx, *occupant), Defender: true}
 	result := contestResult{
@@ -336,12 +436,8 @@ func resolveRevoltCombat(ctx *resolutionContext, territoryID models.TerritoryID,
 		defenderID:  occupant.ID,
 		baseDefense: defense - nobleCommandBonus(ctx, *occupant),
 		defense:     defense,
-		castleBonus: 0,
+		castleBonus: fortificationBonus,
 		contenders:  []CombatContender{rebels, defenders},
-	}
-	if ctx.hasCastle(territoryID) {
-		result.castleBonus = ctx.balance.CastleDefenseBonus
-		result.baseDefense = defense - nobleCommandBonus(ctx, *occupant)
 	}
 	if rebelForce > defense {
 		rebel := placeRevoltArmyForCombat(ctx, territoryID, rebelForce)
@@ -664,6 +760,7 @@ func resolvePlagueMortality(ctx *resolutionContext) {
 		}
 	}
 	ctx.rebuildIndexes()
+	ctx.vacateFiefsOfMissingHolders()
 }
 
 func newPlagueRNG(seed string, turn int, nobleID models.NobleID) *rand.Rand {

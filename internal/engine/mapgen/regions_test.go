@@ -44,7 +44,7 @@ func TestGenerateRegionsUsesStableTieBreakAndSortsOutput(t *testing.T) {
 		{ID: "AAA", Village: true, Adjacencies: []string{"ZZZ"}},
 		{ID: "BBB", Village: true, Adjacencies: []string{"ZZZ"}},
 	}
-	regions, err := generateRegions(territories)
+	regions, err := generateRegions(territories, []models.TerritoryID{"AAA", "BBB"})
 	if err != nil {
 		t.Fatalf("generateRegions = %v", err)
 	}
@@ -64,7 +64,24 @@ func TestGenerateRegionsRequiresConnectedCoverage(t *testing.T) {
 		{ID: "AAA", Village: true},
 		{ID: "BBB"},
 	}
-	if _, err := generateRegions(territories); err == nil {
+	if _, err := generateRegions(territories, []models.TerritoryID{"AAA"}); err == nil {
 		t.Fatal("generateRegions = nil error, want disconnected coverage error")
+	}
+}
+
+func TestGenerateRegionsRejectsUnknownSeed(t *testing.T) {
+	territories := []Territory{
+		{ID: "AAA", Adjacencies: []string{"BBB"}, Village: true},
+		{ID: "BBB", Adjacencies: []string{"AAA"}},
+	}
+	if _, err := generateRegions(territories, []models.TerritoryID{"ZZZ"}); err == nil {
+		t.Fatal("generateRegions = nil error, want unknown seed error")
+	}
+}
+
+func TestGenerateRegionsRejectsNoSeeds(t *testing.T) {
+	territories := []Territory{{ID: "AAA"}}
+	if _, err := generateRegions(territories, nil); err == nil {
+		t.Fatal("generateRegions = nil error, want no-seeds error")
 	}
 }

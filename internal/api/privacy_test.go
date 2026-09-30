@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 	"github.com/fogfactory/crown-and-borough/internal/store"
@@ -19,7 +20,7 @@ func TestProjectStateDistinguishesKnownHiddenAndAbsentChains(t *testing.T) {
 	snapshot := makeChainSnapshot(state.Chains[0], state.Turn)
 	putChainSnapshot(privacy, "P1", snapshot)
 
-	known := projectStateForPlayer(state, "P1")
+	known := projectStateForPlayer(state, "P1", assetgen.Balance{})
 	if got := known.Territories[0].Army.Chain; got == nil || got.Visibility != "known" {
 		t.Fatalf("known chain = %#v, want visibility known", got)
 	}
@@ -27,7 +28,7 @@ func TestProjectStateDistinguishesKnownHiddenAndAbsentChains(t *testing.T) {
 		t.Fatalf("absent chain = %#v, want nil", got)
 	}
 
-	hidden := projectStateForPlayer(state, "P2")
+	hidden := projectStateForPlayer(state, "P2", assetgen.Balance{})
 	if got := hidden.Territories[0].Army.Chain; got == nil || got.Visibility != "hidden" {
 		t.Fatalf("hidden chain = %#v, want visibility hidden", got)
 	}
@@ -47,7 +48,7 @@ func TestProjectStateDistinguishesKnownHiddenAndAbsentChains(t *testing.T) {
 
 func TestProjectStateGivesSpectatorFullChainVisibility(t *testing.T) {
 	state := projectTestState()
-	view := projectStateForPlayer(state, models.SpectatorViewer)
+	view := projectStateForPlayer(state, models.SpectatorViewer, assetgen.Balance{})
 	if got := view.Territories[0].Army.Chain; got == nil || got.Visibility != "known" {
 		t.Fatalf("spectator chain = %#v, want visibility known", got)
 	}
@@ -122,9 +123,9 @@ func TestProjectStateDoesNotMutatePrivacyState(t *testing.T) {
 		t.Fatalf("marshal before projection: %v", err)
 	}
 
-	_ = projectStateForPlayer(state, "P1")
-	_ = projectStateForPlayer(state, "P2")
-	_ = projectState(state)
+	_ = projectStateForPlayer(state, "P1", assetgen.Balance{})
+	_ = projectStateForPlayer(state, "P2", assetgen.Balance{})
+	_ = projectState(state, assetgen.Balance{})
 
 	after, err := json.Marshal(state)
 	if err != nil {
@@ -220,10 +221,48 @@ func TestProjectReportNormalizesNilCollections(t *testing.T) {
 	if err := json.Unmarshal(data, &document); err != nil {
 		t.Fatalf("decode empty projected report: %v", err)
 	}
-	for _, field := range []string{"players", "receptions", "production", "consumption", "combats", "orders", "moves", "nobles"} {
+	for _, field := range []string{"players", "receptions", "production", "income", "mills", "consumption", "combats", "orders", "moves", "nobles", "fiefs"} {
 		if value, ok := document[field]; !ok || value == nil {
 			t.Errorf("projected report field %q = %#v, want JSON array", field, value)
 		}
+	}
+}
+
+func TestProjectReportKeepsIncome(t *testing.T) {
+	report := engine.TurnReport{
+		Income: []engine.IncomeReport{{
+			Owner: "P1", Destination: "ROS", Territories: 5, Villages: 1,
+			Base: 6, Credited: 6, StockAfter: 6,
+		}},
+	}
+	view := projectReport(report, "P1", nil)
+	if len(view.Income) != 1 || view.Income[0].Owner != "P1" || view.Income[0].Credited != 6 {
+		t.Fatalf("projected income = %#v, want the report's income line preserved", view.Income)
+	}
+}
+
+func TestProjectReportKeepsFiefs(t *testing.T) {
+	report := engine.TurnReport{
+		Fiefs: []engine.FiefReport{{
+			Kind: engine.EventTypeFiefConquered, Owner: "P2", PreviousOwner: "P1",
+			Capital: "ROS", Title: models.FiefTitleBarony, Territories: []models.TerritoryID{"ROS", "BOI", "BRU"},
+		}},
+	}
+	view := projectReport(report, "P1", nil)
+	if len(view.Fiefs) != 1 || view.Fiefs[0].Owner != "P2" || view.Fiefs[0].PreviousOwner != "P1" || view.Fiefs[0].Capital != "ROS" {
+		t.Fatalf("projected fiefs = %#v, want the report's fief line preserved", view.Fiefs)
+	}
+}
+
+func TestProjectReportKeepsMills(t *testing.T) {
+	report := engine.TurnReport{
+		Mills: []engine.MillReport{{
+			Territory: "MIL", Owner: "P1", Level: 2, Destination: "CAS", Production: 2,
+		}},
+	}
+	view := projectReport(report, "P1", nil)
+	if len(view.Mills) != 1 || view.Mills[0].Territory != "MIL" || view.Mills[0].Destination != "CAS" || view.Mills[0].Production != 2 {
+		t.Fatalf("projected mills = %#v, want the report's mill line preserved", view.Mills)
 	}
 }
 
@@ -245,6 +284,36 @@ func TestCombatParticipationIncludesSupportingArmies(t *testing.T) {
 	}
 	if !privacy.CombatParticipation["P2"]["combat-CCC"] {
 		t.Error("supporting player was not marked as a combat participant")
+	}
+}
+
+// TestCombatParticipationSkipsAbandonedCastleOwner checks #215: once a
+// castle's former controller has lost it to abandonment (no fief, capital,
+// or army left there), territoryOwner finds no controller on both snapshots
+// and grants combat visibility to nobody for the empty-defender contender,
+// unlike TestCombatParticipationSkipsNeutralOwner's live neutral defender.
+func TestCombatParticipationSkipsAbandonedCastleOwner(t *testing.T) {
+	// AAA has no controller on either snapshot: P1 controlled it once, but its
+	// army left and no anchor kept it, so it was already uncontrolled before
+	// this later turn's combat.
+	before := &models.GameState{Armies: []models.Army{
+		{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 2},
+	}}
+	after := &models.GameState{Armies: append([]models.Army(nil), before.Armies...)}
+	privacy := ensurePrivacy(after)
+	trackCombatParticipation(before, after, []engine.CombatReport{{
+		Territory: "AAA",
+		Contenders: []engine.CombatContender{
+			{ArmyID: "A2", OwnerID: "P2", Force: 2},
+			{ArmyID: "", OwnerID: "", Force: 0, Defender: true},
+		},
+	}}, privacy)
+
+	if privacy.CombatParticipation["P1"]["combat-AAA"] {
+		t.Error("P1, the castle's former controller, was marked as a combat participant")
+	}
+	if !privacy.CombatParticipation["P2"]["combat-AAA"] {
+		t.Error("the attacker was not marked as a combat participant")
 	}
 }
 

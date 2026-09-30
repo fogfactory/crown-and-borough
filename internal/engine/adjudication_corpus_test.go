@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -49,15 +50,15 @@ const (
 
 func TestAdjudicationCorpus(t *testing.T) {
 	if *corpusDump >= 0 {
-		state, description := corpusState(t, *corpusDump)
+		state, description, startControl := corpusState(t, *corpusDump)
 		for turn := 1; turn <= 2; turn++ {
-			resolution, err := Resolve(state, testBalance())
+			resolution, err := resolveFromControl(state, testBalance(), nil, startControl)
 			encoded, _ := json.MarshalIndent(resolution, "", "  ")
 			t.Logf("seed %d turn %d\n%s\nerr=%v\n%s", *corpusDump, turn, description, err, encoded)
 			if err != nil {
 				return
 			}
-			state, description = resolution.State, ""
+			state, description, startControl = resolution.State, "", nil
 		}
 		return
 	}
@@ -180,10 +181,10 @@ func clearCorpusDivergences(t *testing.T) {
 // stops the sequence.
 func corpusDigest(t *testing.T, seed int64) string {
 	t.Helper()
-	state, _ := corpusState(t, seed)
+	state, _, startControl := corpusState(t, seed)
 	digests := make([]string, 0, 2)
 	for turn := 1; turn <= 2; turn++ {
-		resolution, err := Resolve(state, testBalance())
+		resolution, err := resolveFromControl(state, testBalance(), nil, startControl)
 		if err != nil {
 			digests = append(digests, corpusErrorDigest)
 			break
@@ -192,17 +193,86 @@ func corpusDigest(t *testing.T, seed int64) string {
 		if err != nil {
 			t.Fatalf("seed %d: marshal resolution: %v", seed, err)
 		}
-		sum := sha256.Sum256(encoded)
+		sum := sha256.Sum256(legacyControlJSON(t, encoded, resolution.State))
 		digests = append(digests, hex.EncodeToString(sum[:4]))
-		state = resolution.State
+		state, startControl = resolution.State, nil
+		assertControlAnchored(t, seed, turn, state)
 	}
 	return strings.Join(digests, " ")
+}
+
+// territoryStateStart matches the beginning of a marshaled TerritoryState.
+var territoryStateStart = regexp.MustCompile(`"([^"]+)":\{"resources":`)
+
+// legacyControlJSON rewrites a marshaled resolution into the shape the golden
+// digests were recorded in, when TerritoryState still stored its controller:
+// an "owner" field, first, holding the controller derived from state. The
+// controller is derived now, so it is not marshaled any more, but the digests
+// still pin it, which keeps the corpus a check that the derived control equals
+// the control the previous implementation stored after every turn.
+func legacyControlJSON(t *testing.T, encoded []byte, state *models.GameState) []byte {
+	t.Helper()
+	controllers := state.TerritoryControllers()
+	return territoryStateStart.ReplaceAllFunc(encoded, func(match []byte) []byte {
+		submatch := territoryStateStart.FindSubmatch(match)
+		owner := []byte("null")
+		if controller, controlled := controllers[models.TerritoryID(submatch[1])]; controlled {
+			var err error
+			if owner, err = json.Marshal(controller); err != nil {
+				t.Fatalf("marshal controller: %v", err)
+			}
+		}
+		return []byte(fmt.Sprintf(`"%s":{"owner":%s,"resources":`, submatch[1], owner))
+	})
+}
+
+// assertControlAnchored checks #215's invariant on a resolved state: a
+// territory has a controller only through a fief membership, the controller's
+// own capital, or one of the controller's armies standing on it. Control is
+// derived from those three anchors now, so the check has become an agreement
+// test between the derivations production uses: the per-territory state
+// method (API projection, validation), its bulk form (scores, reports) and
+// the engine's index-based read, on a fresh context where the start-of-turn
+// snapshot and the current derivation must coincide. It is a free regression
+// check across the corpus's ~20 000 resolved turns, on top of the golden
+// digests above, which only pin the observable result.
+func assertControlAnchored(t *testing.T, seed int64, turn int, state *models.GameState) {
+	t.Helper()
+	ctx := newResolutionContext(state, testBalance())
+	bulk := state.TerritoryControllers()
+	for _, territory := range state.Territories {
+		territoryID := territory.ID
+		want, wantControlled := bulk[territoryID]
+		if got, controlled := state.TerritoryController(territoryID); controlled != wantControlled || got != want {
+			t.Errorf("seed %d turn %d: territory %q controller %q (%t), bulk derivation says %q (%t)", seed, turn, territoryID, got, controlled, want, wantControlled)
+		}
+		if got, controlled := ctx.controllerNow(territoryID); controlled != wantControlled || got != want {
+			t.Errorf("seed %d turn %d: territory %q engine controller %q (%t), state derivation says %q (%t)", seed, turn, territoryID, got, controlled, want, wantControlled)
+		}
+		if got, controlled := ctx.controllerAtStart(territoryID); controlled != wantControlled || got != want {
+			t.Errorf("seed %d turn %d: territory %q start controller %q (%t), state derivation says %q (%t)", seed, turn, territoryID, got, controlled, want, wantControlled)
+		}
+		if !wantControlled {
+			continue
+		}
+		if anchorOwner, anchored := ctx.anchorOwner(territoryID); anchored && anchorOwner == want {
+			continue
+		}
+		if army := ctx.currentArmyAt(territoryID); army != nil && army.OwnerID == want {
+			continue
+		}
+		t.Errorf("seed %d turn %d: territory %q controlled by %q without a fief, capital, or army anchor", seed, turn, territoryID, want)
+	}
 }
 
 // corpusState builds a valid action-turn state from seed. Every order is
 // statically valid (adjacent targets, terminal joins), so Resolve reaches the
 // adjudicator; supports favour real attacks to exercise the combat table.
-func corpusState(t *testing.T, seed int64) (*models.GameState, string) {
+// Besides the state, it returns the control the turn starts from: the
+// controllers derived from the armies, plus the empty castles that stay held
+// by a player without any army or anchor on them, which the state can no longer
+// express (see resolveFromControl).
+func corpusState(t *testing.T, seed int64) (*models.GameState, string, map[models.TerritoryID]models.PlayerID) {
 	t.Helper()
 	random := rand.New(rand.NewSource(seed))
 	count := 4 + random.Intn(5)
@@ -255,6 +325,7 @@ func corpusState(t *testing.T, seed int64) (*models.GameState, string) {
 		})
 	}
 	state := testState(t, territories, armies)
+	heldBy := make(map[models.TerritoryID]models.PlayerID)
 
 	var description strings.Builder
 	for index, id := range ids {
@@ -264,8 +335,7 @@ func corpusState(t *testing.T, seed int64) (*models.GameState, string) {
 			territoryState := state.TerritoryStates[id]
 			territoryState.Resources = random.Intn(6)
 			if territoryState.Army == nil && random.Intn(2) == 0 {
-				ownerID := models.PlayerID(fmt.Sprintf("P%d", 1+random.Intn(3)))
-				territoryState.OwnerID = &ownerID
+				heldBy[id] = models.PlayerID(fmt.Sprintf("P%d", 1+random.Intn(3)))
 			}
 			state.TerritoryStates[id] = territoryState
 		case roll < 5 && state.TerritoryStates[id].Army != nil:
@@ -276,8 +346,10 @@ func corpusState(t *testing.T, seed int64) (*models.GameState, string) {
 		}
 		territoryState := state.TerritoryStates[id]
 		owner := "-"
-		if territoryState.OwnerID != nil {
-			owner = string(*territoryState.OwnerID)
+		if controller, controlled := heldBy[id]; controlled {
+			owner = string(controller)
+		} else if controller, controlled := state.TerritoryController(id); controlled {
+			owner = string(controller)
 		}
 		infrastructure := "-"
 		if territoryState.Infrastructures != nil {
@@ -393,5 +465,9 @@ func corpusState(t *testing.T, seed int64) (*models.GameState, string) {
 	if err := state.Validate(); err != nil {
 		t.Fatalf("seed %d: invalid corpus state: %v\n%s", seed, err, description.String())
 	}
-	return state, description.String()
+	startControl := state.TerritoryControllers()
+	for id, controller := range heldBy {
+		startControl[id] = controller
+	}
+	return state, description.String(), startControl
 }

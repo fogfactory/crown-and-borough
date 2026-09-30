@@ -130,8 +130,8 @@ func (adj *adjudicator) contestResults() map[models.TerritoryID]contestResult {
 		defender := ctx.startArmyAt(territoryID)
 		present := defender != nil && adj.stays(defender.ID)
 		result := contestResult{territoryID: territoryID}
-		if ctx.hasCastle(territoryID) && (present || !ctx.castleOwnedByAllAttackers(territoryID)) {
-			result.castleBonus = ctx.balance.CastleDefenseBonus
+		if present || !ctx.castleOwnedByAllAttackers(territoryID) {
+			result.castleBonus = ctx.fortificationBonus(territoryID)
 		}
 		result.baseDefense, result.defense = result.castleBonus, result.castleBonus
 		defenderOwnerID := models.PlayerID("")
@@ -279,11 +279,10 @@ func nobleCommandBonus(ctx *resolutionContext, army models.Army) int {
 }
 
 func (ctx *resolutionContext) castleOwnedByAllAttackers(territoryID models.TerritoryID) bool {
-	state := ctx.state.TerritoryStates[territoryID]
-	if state.OwnerID == nil {
+	owner, controlled := ctx.controllerAtStart(territoryID)
+	if !controlled {
 		return false
 	}
-	owner := *state.OwnerID
 	hasAttacker := false
 	for _, attack := range ctx.attacks {
 		if attack.target != territoryID {

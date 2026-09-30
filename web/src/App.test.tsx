@@ -484,7 +484,7 @@ describe('App command/report tabs', () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        `${GAME_PATH}/supply?territory=ROS&target=BRU`,
+        `${GAME_PATH}/supply?territory=ROS&target=BRU&player=P1`,
         expect.objectContaining({ signal: expect.anything() }),
       )
     })
@@ -669,7 +669,7 @@ describe('App command/report tabs', () => {
       armyOwner: 'P1',
       armySize: 0,
       terrainProduction: 2,
-      localProduction: 4,
+      localProduction: 2,
       rations: 0,
       totalDemand: 0,
       demand: 0,
@@ -700,7 +700,7 @@ describe('App command/report tabs', () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        `${GAME_PATH}/supply?territory=BRU`,
+        `${GAME_PATH}/supply?territory=BRU&player=P1`,
         expect.objectContaining({ signal: expect.anything() }),
       )
     })

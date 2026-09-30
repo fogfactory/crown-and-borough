@@ -45,6 +45,11 @@ func TestResolveJoinFusesWithAllyAttackAfterEnemyAttackFails(t *testing.T) {
 		TargetIDs:  []models.TerritoryID{"YYY"},
 	})
 	keepTestArmiesSupplied(state)
+	// A1 joins A2's winning attack, fusing into a size-3 army at YYY this
+	// same turn: ravitaillement now resolves after that fusion, on its
+	// exponential cost (#208), which keepTestArmiesSupplied's per-army preset
+	// (sized before the fusion) does not cover on its own.
+	setTerritoryResources(state, "YYY", 10)
 	validateTestState(t, state)
 
 	resolution, err := Resolve(state, testBalance())

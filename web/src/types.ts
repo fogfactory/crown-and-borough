@@ -7,7 +7,13 @@ export type InfraType = 'mill' | 'supply_depot' | 'castle' | 'village'
 export type NobleStatus = 'free' | 'hostage' | 'dungeon'
 
 export type CardKind =
-  'fair_weather' | 'abundant_harvest' | 'revolt' | 'plague' | 'bad_weather' | 'famine'
+  | 'fair_weather'
+  | 'abundant_harvest'
+  | 'revolt'
+  | 'plague'
+  | 'bad_weather'
+  | 'famine'
+  | 'seigneurial_tax'
 
 export type OrderType =
   'attack' | 'support' | 'hold' | 'join' | 'pillage' | 'disperse' | 'transfer'
@@ -43,9 +49,17 @@ export type EventType =
   | 'plague_noble_survived'
   | 'bad_weather_blocked'
   | 'famine_loss'
+  | 'bad_weather_loss'
   | 'famine'
   | 'card_canceled'
   | 'rumor'
+  | 'fief_founded'
+  | 'fief_assigned'
+  | 'fief_conquered'
+  | 'fief_vacated'
+  | 'fief_dissolved'
+  | 'fief_member_occupied'
+  | 'fief_auto_assigned'
 
 export type PlayerId = string
 
@@ -106,6 +120,12 @@ export interface Army {
   owner: PlayerId
   size: number
   chain: Chain | null
+  /**
+   * Set by last turn's ravitaillement when this army's demand went unmet: it
+   * fights at strength 0 this turn, until ravitaillement re-evaluates it at
+   * this same turn's own end (issue #208).
+   */
+  starving?: boolean
 }
 
 export interface Order {
@@ -127,6 +147,8 @@ export interface Chain {
 export interface Infrastructure {
   type: InfraType
   level: number
+  /** Only ever true on a village fortified by `C C` (#193). */
+  fortified?: boolean
 }
 
 export interface Noble {
@@ -154,6 +176,27 @@ export interface Region {
   territories: string[]
 }
 
+export type FiefTitle = 'barony' | 'county' | 'marquisate' | 'duchy'
+
+/**
+ * A fief is addressed by its capital's trigram: no internal fief id is ever
+ * exposed by the server (titres.md, issue #194). `territories` lists the
+ * whole group in constitution order, capital first. `holder` is the
+ * titulaire noble's code, absent when the fief is vacant. `projectedIncome`
+ * sums the next action turn's territory income forecast over every member
+ * territory: the fief's own income projection, distinct from the capital
+ * territory's own `projectedIncome` since it also receives every other
+ * member's income (titres.md, #196).
+ */
+export interface Fief {
+  capital: string
+  title: FiefTitle
+  territories: string[]
+  owner: PlayerId
+  holder?: string
+  projectedIncome?: number
+}
+
 export interface MapData {
   territories: Territory[]
   regions?: Region[]
@@ -164,6 +207,41 @@ export interface Player {
   name: string
   color: string
   capitalTerritory?: string
+  /** Territory income projected for the next action turn (never in winter). */
+  projectedIncome?: number
+  /**
+   * Mill production projected for the next action turn, credited to the
+   * player's own settlements and self-supplied mills (never in winter).
+   * Since issue #195, each mill credits exactly one destination (its
+   * adjacent castle under the same control, else its adjacent village, else
+   * itself), so this is the sum of what the player's own territories will
+   * receive.
+   */
+  projectedMillIncome?: number
+  /**
+   * Net rations every army the player controls will draw from stock or the
+   * supply network beyond what its own territory already produces for it,
+   * projected for the next action turn (never populated in winter).
+   */
+  projectedConsumption?: number
+  /**
+   * Armies that would starve next action turn if nothing changes before
+   * resolution: an estimate only because orders aren't submitted yet and an
+   * undrawn calamity card is never reflected (see ArmyRisk).
+   */
+  armiesAtRisk?: ArmyRisk[]
+}
+
+/**
+ * One army the famine risk forecast flags as starving, addressed by its
+ * territory like the rest of the app addresses armies. Deficit is the
+ * ration shortfall that goes unmet, not a troop count (an actual famine
+ * costs 1 troop, regardless of the deficit's size).
+ */
+export interface ArmyRisk {
+  territoryId: string
+  size: number
+  deficit: number
 }
 
 export interface ScoreBreakdown {
@@ -174,6 +252,8 @@ export interface ScoreBreakdown {
   nobles: number
   troops: number
   resources: number
+  /** Absent on report snapshots recorded before issue #194. */
+  fiefs?: number
   total: number
 }
 
@@ -183,6 +263,18 @@ export interface TerritoryState {
   resources: number
   army: Army | null
   infrastructures: Infrastructure[]
+  /** Territory income this territory would yield next action turn. */
+  projectedIncome?: number
+  /** Where that income would land: the owner's capital or its fallback. */
+  incomeDestination?: string
+  /** Present only on a mill's own territory: its projected production. */
+  millProduction?: number
+  /**
+   * Present only on a mill's own territory: where that production would
+   * land (its adjacent castle under the same control, else its adjacent
+   * village, else itself, in which case this equals `id`).
+   */
+  millDestination?: string
 }
 
 export interface StateData {
@@ -196,6 +288,7 @@ export interface StateData {
   players: Player[]
   territories: TerritoryState[]
   nobles: Noble[]
+  fiefs?: Fief[]
   specialHand?: CardKind[]
   activeRegionEffects?: ActiveRegionEffect[]
   announcements?: AnnouncementReport[]
@@ -230,6 +323,10 @@ export interface SupplyLine {
   armyOwner: PlayerId
   armySize: number
   terrainProduction: number
+  /** Terrain rations removed by the current season's famine. */
+  famineRations?: number
+  /** Rations added by a regional bonus card. */
+  bonusRations?: number
   localProduction: number
   rations: number
   totalDemand: number
@@ -325,6 +422,8 @@ export interface WinterLinePreview {
   status: WinterLineStatus
   type?: WinterOrderType
   territory?: string
+  /** Present only for `found_fief`: the whole group, capital first. */
+  territories?: string[]
   source?: string
   target?: string
   amount?: number
@@ -420,12 +519,50 @@ export interface PlayerReport {
   infrastructures: ReportInfrastructure[]
 }
 
+/**
+ * `fief` and `title` are set together, distinguishing a fief's income line
+ * from a player's non-fief income to the same `destination`: a fief whose
+ * capital happens to also be the player's own capital still gets its own
+ * line (titres.md, #196). `fief` is the trigram of the fief's capital,
+ * equal to `destination` for that line.
+ */
+export interface IncomeReport {
+  owner: PlayerId
+  destination?: string
+  fief?: string
+  title?: FiefTitle
+  territories: number
+  villages: number
+  base: number
+  bonus?: number
+  suppressed?: number
+  credited: number
+  stockAfter?: number
+  lost?: boolean
+}
+
+/**
+ * One mill's harvest-and-weather-adjusted production and its single
+ * beneficiary this turn (see issue #195): the adjacent castle or village
+ * under the mill's own control, or the mill's own territory when none
+ * qualifies (in which case `destination` equals `territory`). `suppressed`
+ * is the production lost to bad weather instead.
+ */
+export interface MillReport {
+  territory: string
+  owner?: PlayerId
+  level: number
+  destination: string
+  production: number
+  bonus?: number
+  suppressed?: number
+}
+
 export interface ProductionReport {
   territory: string
   region?: string
   owner?: PlayerId
   terrainRations: number
-  infraRations?: number
   bonusRations?: number
   suppressedRations?: number
   baseProduction?: number
@@ -451,6 +588,8 @@ export interface ConsumptionReport {
   totalReceived: number
   missing: number
   famine?: boolean
+  /** First consecutive deficit: a bare warning, no pillage or troop lost yet. */
+  warned?: boolean
   savedByPillage?: boolean
   troopsLost?: number
   pillageInfrastructure?: InfraType
@@ -542,6 +681,9 @@ export interface WinterInvestmentReport {
   noble?: string
   nobleCode?: string
   nobleName?: string
+  /** Present only for `fief_founded`/`fief_assigned`/`fief_auto_assigned`. */
+  title?: FiefTitle
+  territories?: string[]
   reason?: string
   order?: WinterOrder
 }
@@ -555,6 +697,8 @@ export type WinterOrderType =
   | 'hostage'
   | 'dungeon'
   | 'transfer'
+  | 'found_fief'
+  | 'assign_fief'
 
 export interface WinterOrder {
   id?: string
@@ -565,6 +709,8 @@ export interface WinterOrder {
   source?: string
   target?: string
   amount?: number
+  /** Present only for `found_fief`: the whole group, capital first. */
+  territories?: string[]
 }
 
 export interface WinterStockReport {
@@ -621,10 +767,37 @@ export interface WinterReport {
   rumors?: RumorReport[]
 }
 
+/**
+ * One fief lifecycle change outside its constitution or attribution (those,
+ * plus the default attribution of a still-vacant fief at the end of winter,
+ * are recorded in `winter.investments` alongside the other investment
+ * orders): a conquered fief transferred to a new owner, a fief left vacant
+ * by the death of its titulaire, a fief dissolved for losing its capital's
+ * castle, or a non-capital member newly occupied by an army (including a
+ * NEUTRAL revolt) whose owner differs from the fief's. For that last kind,
+ * `territory` is the occupied member (distinct from `capital`, which still
+ * identifies the fief) and `occupant` is the occupying army's owner.
+ */
+export interface FiefReport {
+  kind: EventType
+  owner: PlayerId
+  previousOwner?: PlayerId
+  capital: string
+  title: FiefTitle
+  territories: string[]
+  territory?: string
+  occupant?: PlayerId
+  noble?: string
+  nobleName?: string
+  reason?: string
+}
+
 export interface TurnReport {
   header: ReportHeader
   players: PlayerReport[]
   receptions: ReceptionReport[]
+  income?: IncomeReport[]
+  mills?: MillReport[]
   production: ProductionReport[]
   consumption: ConsumptionReport[]
   combats: CombatReport[]
@@ -637,4 +810,5 @@ export interface TurnReport {
   announcements?: AnnouncementReport[]
   augury?: AuguryReport
   winter?: WinterReport
+  fiefs?: FiefReport[]
 }

@@ -96,7 +96,10 @@ export function useGameIntentions({
               state,
               playerID,
               draftOrdersByNoble(preview?.chains),
-              { includeInstalledInWinter: state.season === 'winter' },
+              {
+                includeInstalledInWinter: state.season === 'winter',
+                color: state.players.find((player) => player.id === playerID)?.color,
+              },
             )
           : [],
     [installedIntentions, map, playerID, preview, spectator, state, submittedIntentions],
@@ -117,7 +120,9 @@ export function useGameIntentions({
       )
     }
     if (!playerID) return []
-    return buildWinterIntentions(preview?.winter ?? [], winterText)
+    return buildWinterIntentions(preview?.winter ?? [], winterText, {
+      color: state.players.find((player) => player.id === playerID)?.color,
+    })
   }, [playerID, preview, spectator, state, submittedOrders, winterText])
 
   const intentionsColor =

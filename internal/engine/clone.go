@@ -40,10 +40,6 @@ func cloneGameState(source *models.GameState) *models.GameState {
 	clone.TerritoryStates = make(map[models.TerritoryID]models.TerritoryState, len(source.TerritoryStates))
 	for territoryID, state := range source.TerritoryStates {
 		copyState := state
-		if state.OwnerID != nil {
-			ownerID := *state.OwnerID
-			copyState.OwnerID = &ownerID
-		}
 		if state.Army != nil {
 			armyID := *state.Army
 			copyState.Army = &armyID
@@ -53,6 +49,20 @@ func cloneGameState(source *models.GameState) *models.GameState {
 			copyState.Infrastructures = &infrastructureID
 		}
 		clone.TerritoryStates[territoryID] = copyState
+	}
+	if source.Fiefs != nil {
+		clone.Fiefs = make([]models.Fief, len(source.Fiefs))
+		for i, fief := range source.Fiefs {
+			clone.Fiefs[i] = fief
+			clone.Fiefs[i].Territories = cloneSlice(fief.Territories)
+			if fief.HolderNobleID != nil {
+				holderNobleID := *fief.HolderNobleID
+				clone.Fiefs[i].HolderNobleID = &holderNobleID
+			}
+		}
+	}
+	if source.TaxedFiefs != nil {
+		clone.TaxedFiefs = cloneSlice(source.TaxedFiefs)
 	}
 	clone.SpecialDeck = cloneSpecialDeck(source.SpecialDeck)
 	if source.Auguries != nil {

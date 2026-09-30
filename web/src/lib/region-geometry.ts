@@ -169,9 +169,7 @@ export function chainSegments(segments: Array<[Point, Point]>): Point[][] {
  * unused. Each returned edge is re-oriented so its `from` continues the
  * previous edge's `to`.
  */
-function chainEdgeRuns<T extends { from: Point; to: Point }>(
-  edges: T[],
-): T[][] {
+function chainEdgeRuns<T extends { from: Point; to: Point }>(edges: T[]): T[][] {
   const incident = new Map<string, number[]>()
   edges.forEach((edge, index) => {
     for (const point of [edge.from, edge.to]) {
@@ -200,7 +198,11 @@ function chainEdgeRuns<T extends { from: Point; to: Point }>(
       used[nextIndex] = true
       const edge = edges[nextIndex]
       cursor = pointsEqual(edge.from, cursor) ? edge.to : edge.from
-      sequence.push(pointsEqual(edge.from, sequence[sequence.length - 1].to) ? edge : { ...edge, from: edge.to, to: edge.from })
+      sequence.push(
+        pointsEqual(edge.from, sequence[sequence.length - 1].to)
+          ? edge
+          : { ...edge, from: edge.to, to: edge.from },
+      )
     }
     if (sequence.length >= 2) {
       sequences.push(sequence)
@@ -278,21 +280,33 @@ export function computeRegionOutlines(
   }
 
   const outerEdges: Array<{ from: Point; to: Point; regionId: string }> = []
+  const addOuterSegment = (
+    regionId: string,
+    segment: [Point, Point],
+    edge: EdgeRecord,
+  ) => {
+    addSegment(regionId, segment)
+    outlineFor(regionId).outerSegments.push(segment)
+    outerEdges.push({ from: edge.from, to: edge.to, regionId })
+  }
   for (const edge of edges.values()) {
     const firstRegion = regionByTerritory.get(edge.first)
     const secondRegion = edge.second ? regionByTerritory.get(edge.second) : undefined
     const segment: [Point, Point] = [edge.from, edge.to]
-    if (!secondRegion) {
-      if (firstRegion) {
-        addSegment(firstRegion, segment)
-        outlineFor(firstRegion).outerSegments.push(segment)
-        outerEdges.push({ from: edge.from, to: edge.to, regionId: firstRegion })
-      }
-      continue
-    }
     if (firstRegion && secondRegion && firstRegion !== secondRegion) {
       addSegment(firstRegion, segment)
       addSegment(secondRegion, segment)
+      continue
+    }
+    // Exactly one side carries a region: a true map-edge segment (no second
+    // territory) or, for a partial assignment like a fief, a segment facing
+    // an unassigned neighbor. Either way it belongs to that one region's
+    // boundary. `regions` fully partitioning the map (as the static regions
+    // do) never reaches the second case, since every territory then has one.
+    if (firstRegion && !secondRegion) {
+      addOuterSegment(firstRegion, segment, edge)
+    } else if (secondRegion && !firstRegion) {
+      addOuterSegment(secondRegion, segment, edge)
     }
   }
 
@@ -304,11 +318,8 @@ export function computeRegionOutlines(
   // two outer edges), then split it into the maximal contiguous stretches of
   // each region, so a region hugging the border on several sides still gets
   // one continuous strip per contact run.
-for (const edgeLoop of chainEdgeRuns(outerEdges)) {
-    const closed = pointsEqual(
-      edgeLoop[edgeLoop.length - 1].to,
-      edgeLoop[0].from,
-    )
+  for (const edgeLoop of chainEdgeRuns(outerEdges)) {
+    const closed = pointsEqual(edgeLoop[edgeLoop.length - 1].to, edgeLoop[0].from)
     let pivot = 0
     if (closed) {
       for (let index = 0; index < edgeLoop.length; index += 1) {
@@ -323,8 +334,7 @@ for (const edgeLoop of chainEdgeRuns(outerEdges)) {
     let runStart = 0
     for (let index = 1; index <= rotated.length; index += 1) {
       const boundary =
-        index === rotated.length ||
-        rotated[index].regionId !== rotated[runStart].regionId
+        index === rotated.length || rotated[index].regionId !== rotated[runStart].regionId
       if (!boundary) {
         continue
       }
@@ -347,10 +357,10 @@ for (const edgeLoop of chainEdgeRuns(outerEdges)) {
 }
 
 function loopCentroid(points: Point[]): Point {
-  const total = points.reduce(
-    (sum, [x, y]) => ({ x: sum.x + x, y: sum.y + y }),
-    { x: 0, y: 0 },
-  )
+  const total = points.reduce((sum, [x, y]) => ({ x: sum.x + x, y: sum.y + y }), {
+    x: 0,
+    y: 0,
+  })
   return [total.x / points.length, total.y / points.length]
 }
 
@@ -401,8 +411,10 @@ export function fitLabelFontSize(
 export function polylineLength(points: Point[]): number {
   let total = 0
   for (let index = 1; index < points.length; index += 1) {
-    total += Math.hypot(points[index][0] - points[index - 1][0], points[index][1] - points[index - 1][1])
+    total += Math.hypot(
+      points[index][0] - points[index - 1][0],
+      points[index][1] - points[index - 1][1],
+    )
   }
   return total
 }
-

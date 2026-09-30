@@ -72,6 +72,9 @@ const (
 	WinterUnknownSubtype         = "error.winter.unknown_subtype"
 	WinterTransferShape          = "error.winter.transfer_shape"
 	WinterTransferAmount         = "error.winter.transfer_amount"
+	WinterFiefShape              = "error.winter.fief_shape"
+	WinterFiefFoundShape         = "error.winter.fief_found_shape"
+	WinterFiefAssignShape        = "error.winter.fief_assign_shape"
 	WinterMillMaxLevelReached    = "mill_max_level_reached"
 	DeckOrderShape               = "error.special.order_shape"
 	DeckOrderKindUnknown         = "error.special.kind_unknown"
@@ -167,6 +170,9 @@ func init() {
 	register(WinterTransferShape, "G requires a source, a destination, and an amount", "G exige une source, une destination et un montant")
 	register(WinterTransferAmount, "transfer amount %q must be a positive integer", "le montant du transfert %q doit être un entier positif")
 	register(WinterMillMaxLevelReached, "the mill has reached its maximum level", "le moulin a atteint son niveau maximal")
+	register(WinterFiefShape, "T requires a fief subtype (F or A)", "T exige un sous-type de fief (F ou A)")
+	register(WinterFiefFoundShape, "T F requires a noble and at least 3 territory codes, the first being the capital", "T F exige un noble et au moins 3 codes de territoire, le premier étant la capitale")
+	register(WinterFiefAssignShape, "T A requires a noble and one fief capital code", "T A exige un noble et un code de capitale de fief")
 	register(DeckOrderShape, "a special order has an invalid shape", "la forme de l'ordre spécial est invalide")
 	register(DeckOrderKindUnknown, "unknown special card kind %q", "kind de carte spéciale inconnu : %q")
 	register(DeckOrderKindNotPlayable, "card kind %q cannot be used as a player order", "le kind %q ne peut pas être joué comme ordre de joueur")
