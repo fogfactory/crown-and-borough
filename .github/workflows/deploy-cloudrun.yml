@@ -148,7 +148,7 @@ jobs:
         run: gcloud auth configure-docker "$ARTIFACT_REGISTRY" --quiet
 
       - name: Scan the digest-pinned image for known vulnerabilities
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ needs.build-and-push.outputs.image }}@${{ needs.build-and-push.outputs.digest }}
           format: table
