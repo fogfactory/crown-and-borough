@@ -719,6 +719,7 @@ func buildPlayerReports(before, after *models.GameState) []PlayerReport {
 		report.ResourcesBefore, report.ControlledBefore = playerTerritoryTotals(before, player.ID)
 		report.ResourcesAfter, report.ControlledAfter = playerTerritoryTotals(after, player.ID)
 		if after != nil {
+			afterControllers := after.TerritoryControllers()
 			for _, army := range after.Armies {
 				if army.OwnerID == player.ID {
 					report.Armies = append(report.Armies, ArmyReport{ID: army.ID, Owner: army.OwnerID, Territory: army.TerritoryID, Size: army.Size})
@@ -730,7 +731,7 @@ func buildPlayerReports(before, after *models.GameState) []PlayerReport {
 				}
 			}
 			for _, infrastructure := range after.Infrastructures {
-				if state := after.TerritoryStates[infrastructure.TerritoryID]; state.OwnerID != nil && *state.OwnerID == player.ID {
+				if afterControllers[infrastructure.TerritoryID] == player.ID {
 					report.Infrastructures = append(report.Infrastructures, InfrastructureReport{ID: infrastructure.ID, Type: infrastructure.Type, Level: infrastructure.Level, Territory: infrastructure.TerritoryID})
 				}
 			}
@@ -749,9 +750,10 @@ func playerTerritoryTotals(state *models.GameState, playerID models.PlayerID) (i
 	}
 	resources := 0
 	controlled := 0
+	controllers := state.TerritoryControllers()
 	for _, territory := range state.Territories {
 		territoryState := state.TerritoryStates[territory.ID]
-		if territoryState.OwnerID == nil || *territoryState.OwnerID != playerID {
+		if controller, isControlled := controllers[territory.ID]; !isControlled || controller != playerID {
 			continue
 		}
 		controlled++

@@ -160,12 +160,12 @@ func emitFamineLosses(ctx *resolutionContext) {
 			if territory := ctx.territoriesByID[territoryID]; territory != nil {
 				rationsLost += ctx.balance.RationTerrain[territory.Terrain]
 			}
-			state := ctx.state.TerritoryStates[territoryID]
+			_, controlled := ctx.controllerAtStart(territoryID)
 			hasVillage := ctx.hasInfrastructure(territoryID, models.InfraTypeVillage)
 			var lost int
 			var infrastructureType models.InfraType
 			switch {
-			case state.OwnerID != nil:
+			case controlled:
 				lost = ctx.balance.TerritoryIncome
 				if hasVillage {
 					lost += ctx.balance.VillageIncome

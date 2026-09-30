@@ -19,7 +19,6 @@ func TestFortificationBonusReplacesCastleWithCityBonus(t *testing.T) {
 			},
 			[]models.Army{{ID: "A1", OwnerID: "P2", TerritoryID: "BBB", Size: 1}},
 		)
-		setTerritoryOwner(state, "AAA", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 		// AAA is P1's own capital: a permanent anchor outside any fief, the
 		// only thing keeping this empty castle from going inert (#215).
@@ -49,9 +48,6 @@ func TestFortificationBonusReplacesCastleWithCityBonus(t *testing.T) {
 			},
 			[]models.Army{{ID: "A1", OwnerID: "P2", TerritoryID: "ZZZ", Size: 1}},
 		)
-		setTerritoryOwner(state, "AAA", "P1")
-		setTerritoryOwner(state, "BBB", "P1")
-		setTerritoryOwner(state, "CCC", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 		state.Fiefs = []models.Fief{{
 			ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "AAA",
@@ -98,9 +94,6 @@ func TestFortificationBonusFortifiedVillage(t *testing.T) {
 			},
 			armies,
 		)
-		setTerritoryOwner(state, "AAA", "P1")
-		setTerritoryOwner(state, "BBB", "P1")
-		setTerritoryOwner(state, "CCC", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "CCC"})
 		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA", Fortified: true})
 		state.Fiefs = []models.Fief{{
@@ -158,8 +151,6 @@ func TestFortificationBonusAutoCaptureException(t *testing.T) {
 		},
 		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "BBB", Size: 1}},
 	)
-	setTerritoryOwner(state, "AAA", "P1")
-	setTerritoryOwner(state, "CCC", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 	state.Fiefs = []models.Fief{{
 		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "AAA",
@@ -219,8 +210,7 @@ func TestRevoltAgainstCityUsesCityBonus(t *testing.T) {
 	state := effectTestState()
 	state.Armies = []models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}}
 	armyID := models.ArmyID("A1")
-	state.TerritoryStates["AAA"] = models.TerritoryState{OwnerID: ptrIDEngine("P1"), Army: &armyID}
-	setTerritoryOwner(state, "BBB", "P1")
+	state.TerritoryStates["AAA"] = models.TerritoryState{Army: &armyID}
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 	state.Fiefs = []models.Fief{{
 		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "AAA",
@@ -242,8 +232,4 @@ func TestRevoltAgainstCityUsesCityBonus(t *testing.T) {
 	if event.Defense != 3 || event.Reason != "defense_holds" {
 		t.Errorf("event = %#v, want defense 3 holding", event)
 	}
-}
-
-func ptrIDEngine(id models.PlayerID) *models.PlayerID {
-	return &id
 }

@@ -2,21 +2,103 @@ package engine
 
 import "github.com/fogfactory/crown-and-borough/internal/models"
 
-// occupiedAgainstController reports whether territoryID is occupied against
-// its controller: the territory has a controller (OwnerID) and army sits on
-// it whose owner differs from that controller. A NEUTRAL revolt army counts
-// as an occupier like any other player's army (titres.md "Contrôle et
-// occupation"). It is the single seam every "occupied cell" rule (supply
-// source, depot range bonus, transfer, winter investment, payment reserve,
-// stock repatriation) goes through, so they all agree on what "occupied"
-// means. Uncontrolled territory (OwnerID == nil) is never occupied against a
-// controller: it has none.
-func (ctx *resolutionContext) occupiedAgainstController(territoryID models.TerritoryID, army *models.Army) bool {
+// Territorial control is derived, never stored (titres.md, "Control and
+// occupation"; models.GameState.TerritoryController): the owner of the fief a
+// territory belongs to, else the player whose capital castle stands on it,
+// else the owner of the army stationed on it. A neutral (revolt) army occupies
+// a territory but never controls it.
+//
+// The engine reads it at two moments of a resolution, which are not
+// interchangeable because armies move, fiefs dissolve and capitals change hands
+// while a turn resolves:
+//
+//   - controllerAtStart is the frozen snapshot of the control the previous
+//     resolution left behind (fiefs, capitals and armies as they were when the
+//     context was created). Everything that runs before the control pass of
+//     phase 5 (intentions, contests, movement, retreats, pillage credit) and
+//     the whole winter resolution read it: a territory an army just vacated or
+//     a fief a pillage just dissolved keeps its start-of-turn controller until
+//     the control pass settles it.
+//   - controllerNow derives control from the current fiefs, capitals and
+//     armies. It is what the end-of-turn ravitaillement reads, once phase 5
+//     has settled positions and control.
+
+// controlView reads the controller of a territory at one moment of a
+// resolution: controllerAtStart or controllerNow.
+type controlView func(models.TerritoryID) (models.PlayerID, bool)
+
+// controllerAtStart returns the controller of territoryID in the snapshot taken
+// when the context was created.
+func (ctx *resolutionContext) controllerAtStart(territoryID models.TerritoryID) (models.PlayerID, bool) {
+	controller, controlled := ctx.startControl[territoryID]
+	return controller, controlled
+}
+
+// controllerNow derives the controller of territoryID from the current fiefs,
+// capitals and armies.
+func (ctx *resolutionContext) controllerNow(territoryID models.TerritoryID) (models.PlayerID, bool) {
+	if ownerID, anchored := ctx.anchorOwner(territoryID); anchored {
+		return ownerID, true
+	}
+	if army := ctx.currentArmyAt(territoryID); army != nil && army.OwnerID != models.NeutralPlayerID {
+		return army.OwnerID, true
+	}
+	return "", false
+}
+
+// controllerSettled returns the controller of territoryID in the snapshot
+// resolveSupply takes when it starts, i.e. the control phase 5 settled: what
+// the ravitaillement reports and credits read once a famine auto-pillage may
+// have changed the fiefs and capitals underneath.
+func (ctx *resolutionContext) controllerSettled(territoryID models.TerritoryID) (models.PlayerID, bool) {
+	controller, controlled := ctx.settledControl[territoryID]
+	return controller, controlled
+}
+
+// snapshotControlNow freezes controllerNow for every territory.
+func (ctx *resolutionContext) snapshotControlNow() map[models.TerritoryID]models.PlayerID {
+	snapshot := make(map[models.TerritoryID]models.PlayerID, len(ctx.state.Territories))
+	for _, territory := range ctx.state.Territories {
+		if controller, controlled := ctx.controllerNow(territory.ID); controlled {
+			snapshot[territory.ID] = controller
+		}
+	}
+	return snapshot
+}
+
+// controlledBy reports whether playerID controls territoryID in view.
+func controlledBy(view controlView, playerID models.PlayerID, territoryID models.TerritoryID) bool {
+	controller, controlled := view(territoryID)
+	return controlled && controller == playerID
+}
+
+// occupiedAgainst reports whether territoryID is occupied against its
+// controller in view: the territory has a controller and army sits on it
+// whose owner differs from that controller. A NEUTRAL revolt army counts as
+// an occupier like any other player's army (titres.md "Contrôle et
+// occupation"). Only an anchored territory (fief member or capital) can be
+// occupied: outside them the army on the territory is its controller.
+func occupiedAgainst(view controlView, territoryID models.TerritoryID, army *models.Army) bool {
 	if army == nil {
 		return false
 	}
-	state := ctx.state.TerritoryStates[territoryID]
-	return state.OwnerID != nil && army.OwnerID != *state.OwnerID
+	controller, controlled := view(territoryID)
+	return controlled && army.OwnerID != controller
+}
+
+// occupiedAgainstController is occupiedAgainst on the current control. It is
+// the single seam every end-of-turn "occupied cell" rule (supply source, depot
+// range bonus) goes through, so they all agree on what "occupied" means.
+// Uncontrolled territory is never occupied against a controller: it has none.
+func (ctx *resolutionContext) occupiedAgainstController(territoryID models.TerritoryID, army *models.Army) bool {
+	return occupiedAgainst(ctx.controllerNow, territoryID, army)
+}
+
+// occupiedAgainstStartController is occupiedAgainst on the start-of-resolution
+// control: what the phases before the control pass and the winter rules (transfer,
+// investment, payment reserve, stock repatriation) read.
+func (ctx *resolutionContext) occupiedAgainstStartController(territoryID models.TerritoryID, army *models.Army) bool {
+	return occupiedAgainst(ctx.controllerAtStart, territoryID, army)
 }
 
 // rejectIfOccupied rejects order with "territory_occupied_by_other_player"
@@ -26,9 +108,9 @@ func (ctx *resolutionContext) occupiedAgainstController(territoryID models.Terri
 // occupied territory (build, elect capital, recruit troop, transfer's
 // source) shares this reason and this attribution, unlike found_fief, whose
 // own reason and per-member attribution keep it a direct
-// occupiedAgainstController call.
+// occupiedAgainstStartController call.
 func (ctx *resolutionContext) rejectIfOccupied(playerID models.PlayerID, order models.WinterOrder, territoryID models.TerritoryID) bool {
-	if !ctx.occupiedAgainstController(territoryID, ctx.currentArmyAt(territoryID)) {
+	if !ctx.occupiedAgainstStartController(territoryID, ctx.currentArmyAt(territoryID)) {
 		return false
 	}
 	ctx.rejectWinterOrder(playerID, order, "territory_occupied_by_other_player")
@@ -37,16 +119,20 @@ func (ctx *resolutionContext) rejectIfOccupied(playerID models.PlayerID, order m
 
 // territoryOccupiedAgainstController is the resolutionContext-free variant of
 // occupiedAgainstController for callers, such as preview.go, that only carry
-// a GameState. It reads the army currently stationed on territoryID directly
-// off TerritoryState.
+// a GameState at rest. It reads the army currently stationed on territoryID
+// directly off TerritoryState.
 func territoryOccupiedAgainstController(game *models.GameState, territoryID models.TerritoryID) bool {
 	state := game.TerritoryStates[territoryID]
-	if state.OwnerID == nil || state.Army == nil {
+	if state.Army == nil {
+		return false
+	}
+	controller, controlled := game.TerritoryController(territoryID)
+	if !controlled {
 		return false
 	}
 	for _, army := range game.Armies {
 		if army.ID == *state.Army {
-			return army.OwnerID != *state.OwnerID
+			return army.OwnerID != controller
 		}
 	}
 	return false
@@ -93,56 +179,34 @@ func (ctx *resolutionContext) territoryAnchored(territoryID models.TerritoryID) 
 	return anchored
 }
 
-// releaseUnanchoredControl normalizes every territory's OwnerID at the end of
-// a turn's control changes (updateTerritorialControl for an action turn,
-// ResolveWinter after repatriateWinterStocks): control outside a fief is
-// ephemeral (titres.md, "Control and occupation"), so a controlled territory
-// keeps its OwnerID only while it is a fief member, its controller's own
-// capital, or currently held by one of the controller's armies. Anything else
-// reverts to neutral (OwnerID nil), free to be retaken positionally by the
-// next army that stops there. Idempotent: a territory already neutral, or
-// still anchored, is left untouched. Reported by a control_changed event,
-// reason "abandoned", only when the released territory carries an
-// infrastructure, so an empty cell losing a stale OwnerID does not clutter
-// the report.
-func (ctx *resolutionContext) releaseUnanchoredControl() {
+// emitAbandonedControl reports the territories that lost their controller
+// since before was taken: control outside a fief is ephemeral (titres.md,
+// "Control and occupation"), so a territory controlled in before that is no
+// longer a fief member, its controller's own capital, or held by one of the
+// controller's armies is now free, to be retaken positionally by the next army
+// that stops there. Reported by a control_changed event, reason "abandoned",
+// only when the territory carries an infrastructure, so an empty cell losing
+// its controller does not clutter the report. Nothing is written back: control
+// is derived, so the territory is already uncontrolled.
+func (ctx *resolutionContext) emitAbandonedControl(before map[models.TerritoryID]models.PlayerID) {
 	phase := 5
 	if ctx.state.Season == models.SeasonWinter {
 		phase = winterPhase
 	}
-	// Indexed once for every territory in the loop below, instead of each
-	// iteration re-scanning every fief's member list via fiefContaining (the
-	// per-call cost anchorOwner pays elsewhere, where it is only ever called
-	// for a single, already-known territory).
-	fiefOwnerAt := make(map[models.TerritoryID]models.PlayerID, len(ctx.state.Fiefs))
-	for _, fief := range ctx.state.Fiefs {
-		for _, member := range fief.Territories {
-			fiefOwnerAt[member] = fief.OwnerID
-		}
-	}
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
-		state := ctx.state.TerritoryStates[territoryID]
-		if state.OwnerID == nil {
+		previousOwnerID, controlled := before[territoryID]
+		if !controlled {
 			continue
 		}
-		playerID := *state.OwnerID
-		if fiefOwner, anchored := fiefOwnerAt[territoryID]; anchored && fiefOwner == playerID {
+		if controller, stillControlled := ctx.controllerNow(territoryID); stillControlled && controller == previousOwnerID {
 			continue
 		}
-		if capitalOwner, anchored := ctx.capitalOwnerAt(territoryID); anchored && capitalOwner == playerID {
-			continue
-		}
-		if army := ctx.currentArmyAt(territoryID); army != nil && army.OwnerID == playerID {
-			continue
-		}
-		state.OwnerID = nil
-		ctx.state.TerritoryStates[territoryID] = state
-		if state.Infrastructures != nil {
+		if ctx.state.TerritoryStates[territoryID].Infrastructures != nil {
 			ctx.events = append(ctx.events, Event{
 				Type:            EventTypeControlChanged,
 				Phase:           phase,
 				TerritoryID:     territoryID,
-				PreviousOwnerID: playerID,
+				PreviousOwnerID: previousOwnerID,
 				OwnerID:         "",
 				Reason:          "abandoned",
 			})

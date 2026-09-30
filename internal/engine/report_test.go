@@ -47,7 +47,7 @@ func TestTurnReportContainsResolutionSectionsAndRoundTrips(t *testing.T) {
 	for _, adjacentID := range start.Adjacencies {
 		candidate := territoryByID(game.Territories, adjacentID)
 		candidateState := game.TerritoryStates[candidate.ID]
-		if candidateState.OwnerID == nil && candidateState.Army == nil {
+		if controllerOf(game, candidate.ID) == nil && candidateState.Army == nil {
 			target = candidate
 			break
 		}
@@ -143,7 +143,7 @@ func TestBuildTurnReportKeepsCompleteOrderSyntaxFromBeforeSnapshot(t *testing.T)
 	armyID := models.ArmyID("A1")
 	before.Armies = []models.Army{{ID: armyID, OwnerID: owner, TerritoryID: "ROS", Size: 2}}
 	before.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
-		"ROS": {OwnerID: &owner, Army: &armyID},
+		"ROS": {Army: &armyID},
 		"BRU": {},
 		"CHA": {},
 	}

@@ -25,6 +25,15 @@ type resolutionContext struct {
 	startArmyAtTerritory map[models.TerritoryID]models.ArmyID
 	startNoblesByID      map[models.NobleID]models.Noble
 	famished             map[models.ArmyID]bool
+	// startControl is the control the previous resolution left behind, frozen
+	// when the context is created (see controllerAtStart in occupation.go).
+	startControl map[models.TerritoryID]models.PlayerID
+	// settledControl is the control phase 5 settled, frozen at the start of the
+	// end-of-turn ravitaillement: a famine auto-pillage there can dissolve a
+	// fief, and what it unanchors is reported as abandoned at the very end of
+	// the resolution, while the supply reports themselves keep reading the
+	// control the turn settled on (see snapshotControlNow).
+	settledControl map[models.TerritoryID]models.PlayerID
 
 	records             map[models.ArmyID]*orderRecord
 	attacks             map[models.ArmyID]*attackIntent
@@ -86,6 +95,7 @@ func newResolutionContext(state *models.GameState, balance assetgen.Balance) *re
 		startArmyAtTerritory:  make(map[models.TerritoryID]models.ArmyID, len(state.Armies)),
 		startNoblesByID:       make(map[models.NobleID]models.Noble, len(state.Nobles)),
 		famished:              make(map[models.ArmyID]bool),
+		startControl:          state.TerritoryControllers(),
 		records:               make(map[models.ArmyID]*orderRecord),
 		attacks:               make(map[models.ArmyID]*attackIntent),
 		joins:                 make(map[models.ArmyID]*joinIntent),

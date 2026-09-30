@@ -41,9 +41,6 @@ func TestResolveTerritoryIncomeCreditsCapital(t *testing.T) {
 		},
 		nil,
 	)
-	for _, id := range []models.TerritoryID{"AAA", "BBB", "CCC", "DDD", "EEE"} {
-		setTerritoryOwner(state, id, "P1")
-	}
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "BBB"})
 	setCapital(state, "P1", "I1")
@@ -104,9 +101,6 @@ func TestTerritoryIncomeFallsBackToClosestControlledCastle(t *testing.T) {
 		},
 		nil,
 	)
-	for _, id := range []models.TerritoryID{"PLN", "NEA", "FAR", "END"} {
-		setTerritoryOwner(state, id, "P1")
-	}
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "NEA"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "END"})
 	// No capital is designated (it just fell): PLN must reach its closest
@@ -146,9 +140,6 @@ func TestTerritoryIncomeFallbackTrigramTieBreak(t *testing.T) {
 		},
 		nil,
 	)
-	for _, id := range []models.TerritoryID{"CTR", "ZZZ", "AAA"} {
-		setTerritoryOwner(state, id, "P1")
-	}
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "ZZZ"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 	// None of the three is a fief member or a capital: each needs its own
@@ -186,8 +177,6 @@ func TestTerritoryIncomeFallsBackToVillage(t *testing.T) {
 		},
 		nil,
 	)
-	setTerritoryOwner(state, "PLN", "P1")
-	setTerritoryOwner(state, "VIL", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "VIL"})
 	// Neither is a fief member or a capital: each needs its own anchor army
 	// against control resolution's unanchored release (now ahead of
@@ -210,7 +199,6 @@ func TestTerritoryIncomeFallsBackToVillage(t *testing.T) {
 // when the player controls neither a capital, a castle, nor a village.
 func TestTerritoryIncomeLostWithoutAnySettlement(t *testing.T) {
 	state := testState(t, []models.Territory{territory("PLN", "PLN")}, nil)
-	setTerritoryOwner(state, "PLN", "P1")
 	// Not a fief member or a capital: an anchor army keeps it owned by P1
 	// against control resolution's unanchored release (now ahead of
 	// ravitaillement, #208), without giving it any settlement.
@@ -293,9 +281,6 @@ func TestTerritoryIncomePaysDespiteEnemyOccupation(t *testing.T) {
 		},
 		nil,
 	)
-	for _, id := range []models.TerritoryID{"CCC", "AAA", "BBB"} {
-		setTerritoryOwner(state, id, "P1")
-	}
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "CCC"})
 	state.Fiefs = []models.Fief{{
 		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "CCC",
@@ -333,7 +318,6 @@ func TestTerritoryIncomeFeedsSupplyTheSameTurn(t *testing.T) {
 		},
 		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2}},
 	)
-	setTerritoryOwner(state, "BBB", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
 	// No army garrisons BBB: anchor it as P1's capital so control resolution
 	// (now ahead of ravitaillement, #208) does not release it as unanchored
@@ -355,8 +339,8 @@ func TestTerritoryIncomeFeedsSupplyTheSameTurn(t *testing.T) {
 // scheduled for the current season and region.
 func TestForecastIncomeIgnoresDrawnCalamities(t *testing.T) {
 	state := effectTestState()
-	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 	setTerritoryOwner(state, "AAA", "P1")
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 	setCurrentCalamity(state, models.CardKindFamine, "AAA")
 
 	events := ForecastIncome(state, testBalance())
@@ -418,9 +402,6 @@ func TestFiefMemberIncomeRoutedToFiefCapital(t *testing.T) {
 		},
 		nil,
 	)
-	for _, id := range []models.TerritoryID{"PCP", "FCP", "MEM", "OTH"} {
-		setTerritoryOwner(state, id, "P1")
-	}
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "PCP"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "FCP"})
 	setCapital(state, "P1", "I1")
@@ -482,9 +463,6 @@ func TestFiefIncomeNotInterceptedWhenCapitalOccupied(t *testing.T) {
 	)
 	// testState sets FCP's owner from the P2 army stationed there; restore
 	// P1's transitive fief control (an occupied capital is not conquered).
-	setTerritoryOwner(state, "FCP", "P1")
-	setTerritoryOwner(state, "MEM", "P1")
-	setTerritoryOwner(state, "OTH", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "FCP"})
 	state.Fiefs = []models.Fief{{
 		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "FCP",
@@ -513,9 +491,6 @@ func TestFiefIncomeSeparateLineWhenCapitalCoincidesWithPlayerCapital(t *testing.
 		},
 		nil,
 	)
-	for _, id := range []models.TerritoryID{"CAP", "MEM", "OTH", "OUT"} {
-		setTerritoryOwner(state, id, "P1")
-	}
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "CAP"})
 	setCapital(state, "P1", "I1")
 	state.Fiefs = []models.Fief{{

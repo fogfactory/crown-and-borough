@@ -114,7 +114,8 @@ func TestTransferFiefOnCapitalCapture(t *testing.T) {
 			Territories: []models.TerritoryID{"AAA", "BBB", "CCC"}, OwnerID: "P1", HolderNobleID: &holder,
 		}}
 		ctx := newResolutionContext(state, testBalance())
-		ctx.transferFiefOnCapitalCapture("AAA", "P2")
+		control := ctx.snapshotControlNow()
+		ctx.transferFiefOnCapitalCapture("AAA", "P2", control)
 
 		if len(ctx.state.Fiefs) != 1 {
 			t.Fatalf("fiefs = %#v, want the fief to survive, transferred", ctx.state.Fiefs)
@@ -131,9 +132,12 @@ func TestTransferFiefOnCapitalCapture(t *testing.T) {
 			t.Fatalf("conquered events = %#v", conquered)
 		}
 		for _, memberID := range []models.TerritoryID{"BBB", "CCC"} {
-			state := ctx.state.TerritoryStates[memberID]
-			if state.OwnerID == nil || *state.OwnerID != "P2" {
-				t.Errorf("%s owner = %v, want P2 (transitive control)", memberID, state.OwnerID)
+			// The fief's new owner controls every member (transitive control).
+			if got, _ := ctx.controllerNow(memberID); got != "P2" {
+				t.Errorf("%s controller = %q, want P2 (transitive control)", memberID, got)
+			}
+			if control[memberID] != "P2" {
+				t.Errorf("%s in the control pass = %q, want P2", memberID, control[memberID])
 			}
 		}
 		changed := eventsOfType(ctx.events, EventTypeControlChanged)
@@ -155,7 +159,7 @@ func TestTransferFiefOnCapitalCapture(t *testing.T) {
 			Territories: []models.TerritoryID{"AAA", "BBB", "CCC"}, OwnerID: "P1", HolderNobleID: &holder,
 		}}
 		ctx := newResolutionContext(state, testBalance())
-		ctx.transferFiefOnCapitalCapture("BBB", "P2")
+		ctx.transferFiefOnCapitalCapture("BBB", "P2", ctx.snapshotControlNow())
 
 		if len(ctx.state.Fiefs) != 1 || ctx.state.Fiefs[0].OwnerID != "P1" || ctx.state.Fiefs[0].HolderNobleID == nil {
 			t.Fatalf("fiefs = %#v, want the fief unchanged", ctx.state.Fiefs)
@@ -201,9 +205,6 @@ func TestDissolveFiefOnCapitalCastleLoss(t *testing.T) {
 		},
 		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}},
 	)
-	setTerritoryOwner(state, "AAA", "P1")
-	setTerritoryOwner(state, "BBB", "P1")
-	setTerritoryOwner(state, "CCC", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 	addNoble(state, "N1", "HUG", "P1", "AAA")
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypePillage, PositionID: "AAA"})

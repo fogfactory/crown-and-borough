@@ -63,8 +63,7 @@ func computeTerritoryIncome(ctx *resolutionContext) (map[models.PlayerID]map[mod
 	perTerritory := make(map[models.TerritoryID]TerritoryIncomeForecast)
 	for _, ownerID := range sortedPlayerIDs(ctx.state.Players) {
 		for _, territoryID := range sortedStateTerritoryIDs(ctx) {
-			state := ctx.state.TerritoryStates[territoryID]
-			if state.OwnerID == nil || *state.OwnerID != ownerID {
+			if !controlledBy(ctx.controllerNow, ownerID, territoryID) {
 				continue
 			}
 			hasVillage := ctx.hasInfrastructure(territoryID, models.InfraTypeVillage)
@@ -236,12 +235,12 @@ func (ctx *resolutionContext) territoryIncomeDestination(ownerID models.PlayerID
 	if capitalTerritoryID, _, hasCapital := ctx.capitalTerritory(ownerID); hasCapital {
 		return capitalTerritoryID
 	}
-	if castleID := ctx.closestControlledTerritory(territoryID, ownerID, func(candidateID models.TerritoryID) bool {
+	if castleID := ctx.closestControlledTerritory(territoryID, ownerID, ctx.controllerNow, func(candidateID models.TerritoryID) bool {
 		return ctx.hasInfrastructure(candidateID, models.InfraTypeCastle)
 	}); castleID != "" {
 		return castleID
 	}
-	return ctx.closestControlledTerritory(territoryID, ownerID, func(candidateID models.TerritoryID) bool {
+	return ctx.closestControlledTerritory(territoryID, ownerID, ctx.controllerNow, func(candidateID models.TerritoryID) bool {
 		return ctx.hasInfrastructure(candidateID, models.InfraTypeVillage)
 	})
 }

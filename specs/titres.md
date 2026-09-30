@@ -34,35 +34,33 @@ l'**ancrage** de la case :
 - **non ancrée** : toute autre case. Son contrôle est **éphémère** : elle ne
   reste « à quelqu'un » que tant qu'une armée de ce joueur y stationne
   actuellement. Dès que ce n'est plus le cas — l'armée est partie, délogée,
-  détruite — la case redevient neutre (`OwnerID` vidé) à la prochaine passe de
-  normalisation du contrôle, jusqu'à ce qu'une armée, quelle qu'elle soit,
+  détruite — la case redevient neutre, jusqu'à ce qu'une armée, quelle qu'elle soit,
   s'y arrête à nouveau et la reprenne positionnellement. Une révolte
   `NEUTRAL` qui s'y arrête ne prend jamais le contrôle (voir « occupé »
   ci-dessous) : elle ne fait donc jamais gagner cette libération à son
   ancien contrôleur.
 
-Cette normalisation tourne à la fin de chaque passe qui modifie le contrôle :
-à la fin de la mise à jour du contrôle territorial d'un tour d'action (après
-la capture positionnelle et le transfert transitif d'un fief), et en hiver
-après le rapatriement des stocks (pour qu'une capitale remplacée par `E C` ce
-même hiver rapatrie encore son surplus avant de perdre son ancrage). Elle est
-idempotente : une case déjà neutre, ou toujours ancrée, n'est jamais touchée
-deux fois. Elle ne rapporte un événement `control_changed` (raison
-`abandoned`) que pour une case qui porte une infrastructure, pour ne pas
-noyer le rapport de bruit sur une case vide sans intérêt.
+Le contrôle n'est jamais stocké : il est dérivé à la demande (propriétaire du
+fief pour un membre de fief, sinon joueur dont la capitale s'y trouve, sinon
+propriétaire de l'armée non `NEUTRAL` qui y stationne). Lorsqu'une case
+portant une infrastructure perd ainsi son contrôle à la fin d'une passe qui
+modifie le contrôle (mise à jour du contrôle territorial d'un tour d'action,
+ou hiver après le rapatriement des stocks), un événement `control_changed`
+(raison `abandoned`) est rapporté ; une case vide sans intérêt n'en produit
+pas, pour ne pas noyer le rapport.
 
-- **contrôlé** : le statut porté par la case (`OwnerID`), déterminé par les
+- **contrôlé** : le statut de la case, dérivé par les
   règles d'ancrage ci-dessus. Dans un fief, la case est contrôlée par le
   joueur qui détient le fief, même lorsqu'une armée adverse (ou une révolte
   `NEUTRAL`) s'y arrête. Seule la prise de la capitale du fief transfère le
   fief et donc le contrôle de tous ses territoires (voir ci-dessous).
 - **occupé** : une armée est présente sur la case. C'est une information
-  dérivée, jamais stockée. Une case a un **contrôleur** (`OwnerID` non vide)
+  dérivée, jamais stockée. Une case a un **contrôleur** (case contrôlée)
   et est **occupée contre son contrôleur** lorsqu'une armée y stationne dont
   le propriétaire diffère de ce contrôleur — une révolte `NEUTRAL` y compris.
   Cette notion s'applique à toute case contrôlée, en fief ou non (une
   capitale de joueur occupée par une révolte en relève tout autant), mais ne
-  change jamais son `OwnerID` : seule la prise de la capitale d'un fief (ou
+  change jamais son contrôleur : seule la prise de la capitale d'un fief (ou
   la prise positionnelle hors fief) transfère le contrôle.
 
 Une case d'un fief occupée contre son contrôleur :

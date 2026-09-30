@@ -13,7 +13,6 @@ func TestLiberateNobleOrderApply(t *testing.T) {
 	})
 	addNoble(state, "N1", "NOB", "P1", "AAA")
 	setNobleStatus(state, "N1", models.NobleStatusHostage)
-	setTerritoryOwner(state, "BBB", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
 	setCapital(state, "P1", "I1")
 	ctx := newResolutionContext(state, testBalance())

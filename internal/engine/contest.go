@@ -279,11 +279,10 @@ func nobleCommandBonus(ctx *resolutionContext, army models.Army) int {
 }
 
 func (ctx *resolutionContext) castleOwnedByAllAttackers(territoryID models.TerritoryID) bool {
-	state := ctx.state.TerritoryStates[territoryID]
-	if state.OwnerID == nil {
+	owner, controlled := ctx.controllerAtStart(territoryID)
+	if !controlled {
 		return false
 	}
-	owner := *state.OwnerID
 	hasAttacker := false
 	for _, attack := range ctx.attacks {
 		if attack.target != territoryID {

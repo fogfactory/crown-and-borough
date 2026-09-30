@@ -277,11 +277,12 @@ func supplyQueryContext(
 }
 
 func controlledSupplyOwner(ctx *resolutionContext, territoryID models.TerritoryID) (models.PlayerID, bool) {
-	state := ctx.state.TerritoryStates[territoryID]
-	if state.OwnerID == nil {
+	controllerID, controlled := ctx.controllerAtStart(territoryID)
+	if !controlled {
 		return "", false
 	}
-	if ctx.occupiedAgainstController(territoryID, ctx.startArmyAt(territoryID)) {
+	state := ctx.state.TerritoryStates[territoryID]
+	if ctx.occupiedAgainstStartController(territoryID, ctx.startArmyAt(territoryID)) {
 		// Occupied against its controller: unusable as a supply source by
 		// either side (titres.md, economie.md#portée-de-ravitaillement).
 		return "", false
@@ -290,11 +291,11 @@ func controlledSupplyOwner(ctx *resolutionContext, territoryID models.TerritoryI
 	if infrastructure != nil {
 		switch infrastructure.Type {
 		case models.InfraTypeCastle, models.InfraTypeVillage:
-			return *state.OwnerID, true
+			return controllerID, true
 		}
 	}
 	if state.Resources > 0 {
-		return *state.OwnerID, true
+		return controllerID, true
 	}
 	return "", false
 }

@@ -1,7 +1,9 @@
 package engine
 
 import (
+	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/models"
@@ -121,7 +123,6 @@ func TestResolveSupplyRationsAndEvents(t *testing.T) {
 			// consecutive deficit triggers auto-pillage.
 			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 3, Starving: true}},
 		)
-		clearTerritoryOwner(state, "AAA")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA"})
 		validateTestState(t, state)
 
@@ -146,7 +147,6 @@ func TestResolveSupplyRationsAndEvents(t *testing.T) {
 			},
 			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 3}},
 		)
-		setTerritoryOwner(state, "BBB", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
 		// No army garrisons BBB: anchor it as P1's capital so control
 		// resolution (now ahead of ravitaillement, #208) does not release it
@@ -186,7 +186,6 @@ func TestResolveSupplyProductionAndStocks(t *testing.T) {
 			// starves and never pillages its own mill.
 			[]models.Army{{ID: "A2", OwnerID: "P1", TerritoryID: "BBB", Size: 1}},
 		)
-		setTerritoryOwner(state, "AAA", "P1")
 		setTerritoryOwner(state, "BBB", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 2, TerritoryID: "BBB"})
@@ -381,8 +380,8 @@ func TestNeutralVillageCaptureFeedsSupplyTheSameTurn(t *testing.T) {
 		t.Fatalf("Resolve capture: %v", err)
 	}
 	target := resolution.State.TerritoryStates["BBB"]
-	if target.OwnerID == nil || *target.OwnerID != "P1" {
-		t.Errorf("captured village owner = %v, want P1", target.OwnerID)
+	if owner := controllerOf(resolution.State, "BBB"); owner == nil || *owner != "P1" {
+		t.Errorf("captured village owner = %v, want P1", owner)
 	}
 	// Once captured, BBB's own stock only carries its preloaded 3: as a
 	// controlled source (not a neutral one any more) its territory income
@@ -448,7 +447,6 @@ func TestResolveSupplyNetworks(t *testing.T) {
 				{ID: "A2", OwnerID: "P1", TerritoryID: "EEE", Size: 2},
 			},
 		)
-		setTerritoryOwner(state, "AAA", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 		// No army garrisons AAA: anchor it as P1's capital so control
 		// resolution (now ahead of ravitaillement, #208) does not release it
@@ -485,7 +483,6 @@ func TestResolveSupplyNetworks(t *testing.T) {
 				{ID: "A2", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
 			},
 		)
-		setTerritoryOwner(state, "ZZZ", "P1")
 		setTerritoryOwner(state, "AAA", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "ZZZ"})
 		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA"})
@@ -529,7 +526,6 @@ func TestResolveSupplyNetworks(t *testing.T) {
 				{ID: "A4", OwnerID: "P1", TerritoryID: "FFF", Size: 1},
 			},
 		)
-		setTerritoryOwner(state, "AAA", "P1")
 		setTerritoryOwner(state, "DDD", "P1")
 		setTerritoryOwner(state, "FFF", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
@@ -561,7 +557,6 @@ func TestResolveSupplyNetworks(t *testing.T) {
 				{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
 			},
 		)
-		setTerritoryOwner(state, "AAA", "P1")
 		setTerritoryOwner(state, "BBB", "P2")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 		// No army garrisons AAA: anchor it as P1's capital so control
@@ -591,15 +586,10 @@ func TestResolveSupplyNetworks(t *testing.T) {
 			},
 			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "CCC", Size: 2}},
 		)
-		setTerritoryOwner(state, "AAA", "P1")
-		setTerritoryOwner(state, "BBB", "P2")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
-		// No army garrisons AAA: anchor it as P1's capital so control
-		// resolution (now ahead of ravitaillement, #208) does not release it
-		// as unanchored before supply can use it as a source. BBB's own,
-		// unanchored P2 ownership is released the same way, but that does not
-		// change this scenario: supplyNetwork only blocks on an army, never
-		// on bare ownership.
+		// No army garrisons AAA: anchor it as P1's capital so it stays
+		// controlled and usable as a source. BBB is bare ground nobody
+		// controls: supplyNetwork only blocks on an army, never on ownership.
 		setCapital(state, "P1", "I1")
 		validateTestState(t, state)
 
@@ -628,8 +618,6 @@ func TestResolveSupplyIsolatedByOwner(t *testing.T) {
 			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 2},
 		},
 	)
-	setTerritoryOwner(state, "AAA", "P1")
-	clearTerritoryOwner(state, "BBB")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 	// No army garrisons AAA: anchor it as P1's capital so control resolution
 	// (now ahead of ravitaillement, #208) does not release it as unanchored
@@ -709,8 +697,6 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 			},
 		)
 		setTerritoryOwner(state, "BBB", "P2")
-		setTerritoryOwner(state, "CCC", "P1")
-		clearTerritoryOwner(state, "AAA")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "AAA"})
 		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "CCC"})
 		// No army garrisons CCC: anchor it as P1's capital so control
@@ -767,8 +753,6 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 				{ID: "A2", OwnerID: "P1", TerritoryID: "DDD", Size: 3, Starving: true},
 			},
 		)
-		setTerritoryOwner(state, "AAA", "P1")
-		setTerritoryOwner(state, "BBB", "P1")
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 1, TerritoryID: "BBB"})
 		addInfrastructure(state, models.Infrastructure{ID: "I3", Type: models.InfraTypeMill, Level: 1, TerritoryID: "DDD"})
@@ -868,7 +852,6 @@ func TestResolveSupplyFamineEventOrder(t *testing.T) {
 			{ID: "A2", OwnerID: "P2", TerritoryID: "CCC", Size: 2},
 		},
 	)
-	setTerritoryOwner(state, "AAA", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 	// No army garrisons AAA: anchor it as P1's capital so control resolution
 	// (now ahead of ravitaillement, #208) does not release it as unanchored
@@ -916,7 +899,6 @@ func TestResolveAssignedFamineTieBreaks(t *testing.T) {
 			{ID: "A4", OwnerID: "P1", TerritoryID: "DDD", Size: 1},
 		},
 	)
-	setTerritoryOwner(state, "ZZZ", "P1")
 	setTerritoryOwner(state, "DDD", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "ZZZ"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 1, TerritoryID: "DDD"})
@@ -987,9 +969,7 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 		state2.Armies = append(state2.Armies, models.Army{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1})
 		territoryState := state2.TerritoryStates["BBB"]
 		armyID := models.ArmyID("A2")
-		ownerID := models.PlayerID("P2")
 		territoryState.Army = &armyID
-		territoryState.OwnerID = &ownerID
 		state2.TerritoryStates["BBB"] = territoryState
 		state2.NextArmyID = nextArmyID(state2.Armies)
 		addChain(t, state2, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"}})
@@ -1031,9 +1011,7 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 		state2.Armies = append(state2.Armies, models.Army{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1})
 		territoryState := state2.TerritoryStates["BBB"]
 		armyID := models.ArmyID("A2")
-		ownerID := models.PlayerID("P2")
 		territoryState.Army = &armyID
-		territoryState.OwnerID = &ownerID
 		state2.TerritoryStates["BBB"] = territoryState
 		state2.NextArmyID = nextArmyID(state2.Armies)
 		addChain(t, state2, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"AAA"}})
@@ -1086,9 +1064,7 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 		state2.Armies = append(state2.Armies, models.Army{ID: "A3", OwnerID: "P2", TerritoryID: "BBB", Size: 1})
 		territoryState := state2.TerritoryStates["BBB"]
 		armyID := models.ArmyID("A3")
-		ownerID := models.PlayerID("P2")
 		territoryState.Army = &armyID
-		territoryState.OwnerID = &ownerID
 		state2.TerritoryStates["BBB"] = territoryState
 		state2.NextArmyID = nextArmyID(state2.Armies)
 		addChain(t, state2, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"}})
@@ -1154,7 +1130,6 @@ func TestResolveSupplyIsPureAndDeterministic(t *testing.T) {
 			{ID: "A2", OwnerID: "P2", TerritoryID: "CCC", Size: 2},
 		},
 	)
-	setTerritoryOwner(state, "AAA", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 1, TerritoryID: "CCC"})
 	// No army garrisons AAA: anchor it as P1's capital so control resolution
@@ -1198,16 +1173,57 @@ func supplyTerritory(id, code string, terrain models.Terrain, neighbors ...model
 	return territory
 }
 
+// fixtureAnchorPrefix starts the id of the armies setTerritoryOwner places.
+const fixtureAnchorPrefix = "AO"
+
+// setTerritoryOwner makes ownerID control territoryID in a fixture. Control is
+// derived from fiefs, capitals and armies, so it cannot be stated directly: a
+// territory the owner already controls through a fief or a capital is left as
+// is, and any other gets a one-troop army of ownerID standing on it (an anchor
+// army of a previous call changes hands instead). Set fiefs and capitals up
+// before calling it, or rather do not call it for the territories they cover;
+// the territory must not hold another army.
 func setTerritoryOwner(state *models.GameState, territoryID models.TerritoryID, ownerID models.PlayerID) {
+	if armyID := state.TerritoryStates[territoryID].Army; armyID != nil && strings.HasPrefix(string(*armyID), fixtureAnchorPrefix) {
+		for index := range state.Armies {
+			if state.Armies[index].ID == *armyID {
+				state.Armies[index].OwnerID = ownerID
+			}
+		}
+		return
+	}
+	if controller, controlled := state.TerritoryController(territoryID); controlled {
+		if controller == ownerID {
+			return
+		}
+		panic(fmt.Sprintf("setTerritoryOwner: %s is already controlled by %s", territoryID, controller))
+	}
+	if state.TerritoryStates[territoryID].Army != nil {
+		panic(fmt.Sprintf("setTerritoryOwner: %s holds a neutral army", territoryID))
+	}
+	armyID := models.ArmyID(fixtureAnchorPrefix + string(territoryID))
+	state.Armies = append(state.Armies, models.Army{ID: armyID, OwnerID: ownerID, TerritoryID: territoryID, Size: 1})
 	territoryState := state.TerritoryStates[territoryID]
-	owner := ownerID
-	territoryState.OwnerID = &owner
+	territoryState.Army = &armyID
 	state.TerritoryStates[territoryID] = territoryState
 }
 
-func clearTerritoryOwner(state *models.GameState, territoryID models.TerritoryID) {
+// removeAnchorArmy takes back the anchor army setTerritoryOwner placed on
+// territoryID, if any, before a fixture puts a real army there.
+func removeAnchorArmy(state *models.GameState, territoryID models.TerritoryID) {
+	armyID := state.TerritoryStates[territoryID].Army
+	if armyID == nil || !strings.HasPrefix(string(*armyID), fixtureAnchorPrefix) {
+		return
+	}
+	armies := make([]models.Army, 0, len(state.Armies))
+	for _, army := range state.Armies {
+		if army.ID != *armyID {
+			armies = append(armies, army)
+		}
+	}
+	state.Armies = armies
 	territoryState := state.TerritoryStates[territoryID]
-	territoryState.OwnerID = nil
+	territoryState.Army = nil
 	state.TerritoryStates[territoryID] = territoryState
 }
 
@@ -1299,16 +1315,27 @@ func combatContenderForce(t *testing.T, events []Event, territoryID models.Terri
 // economie.md#portée-de-ravitaillement, #196).
 func TestControlledSupplySourcesExcludesOccupiedTerritory(t *testing.T) {
 	state := testState(t,
-		[]models.Territory{supplyTerritory("AAA", "AAA", models.TerrainPlain)},
+		[]models.Territory{
+			supplyTerritory("AAA", "AAA", models.TerrainPlain, "BBB"),
+			supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA", "CCC"),
+			supplyTerritory("CCC", "CCC", models.TerrainPlain, "BBB"),
+		},
 		[]models.Army{{ID: "A1", OwnerID: "P2", TerritoryID: "AAA", Size: 2}},
 	)
-	setTerritoryOwner(state, "AAA", "P1")
-	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA"})
+	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
+	// AAA is a non-capital member of P1's barony: P2's army occupies it.
+	state.Fiefs = []models.Fief{{
+		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "BBB",
+		Territories: []models.TerritoryID{"BBB", "AAA", "CCC"}, OwnerID: "P1",
+	}}
 	validateTestState(t, state)
 
 	ctx := newResolutionContext(cloneGameState(state), testBalance())
-	if sources := controlledSupplySources(ctx, "P1"); len(sources) != 0 {
-		t.Fatalf("P1 sources = %#v, want none: AAA is occupied against its controller", sources)
+	for _, source := range controlledSupplySources(ctx, "P1") {
+		if source.territoryID == "AAA" {
+			t.Fatalf("P1 sources = %#v, want AAA excluded: it is occupied against its controller", source)
+		}
 	}
 	if sources := controlledSupplySources(ctx, "P2"); len(sources) != 0 {
 		t.Fatalf("P2 sources = %#v, want none: P2 only occupies AAA, it does not control it", sources)
@@ -1337,7 +1364,7 @@ func TestAbandonedVillageKeepsNeutralProduction(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	if owner := resolution.State.TerritoryStates["AAA"].OwnerID; owner != nil {
+	if owner := controllerOf(resolution.State, "AAA"); owner != nil {
 		t.Fatalf("AAA owner = %v, want nil after A1 departed (test setup drifted)", owner)
 	}
 
@@ -1370,18 +1397,25 @@ func TestAbandonedVillageKeepsNeutralProduction(t *testing.T) {
 // (titres.md, economie.md#portée-de-ravitaillement, #196).
 func TestIsControlledDepotUnusableWhenOccupied(t *testing.T) {
 	state := testState(t,
-		[]models.Territory{supplyTerritory("AAA", "AAA", models.TerrainPlain)},
+		[]models.Territory{
+			supplyTerritory("AAA", "AAA", models.TerrainPlain, "BBB"),
+			supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA", "CCC"),
+			supplyTerritory("CCC", "CCC", models.TerrainPlain, "BBB"),
+		},
 		[]models.Army{{ID: "A1", OwnerID: "P2", TerritoryID: "AAA", Size: 2}},
 	)
-	setTerritoryOwner(state, "AAA", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeSupplyDepot, Level: 1, TerritoryID: "AAA"})
+	state.Fiefs = []models.Fief{{
+		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "BBB",
+		Territories: []models.TerritoryID{"BBB", "AAA", "CCC"}, OwnerID: "P1",
+	}}
 	validateTestState(t, state)
 
 	ctx := newResolutionContext(cloneGameState(state), testBalance())
-	if ctx.isControlledDepot("AAA", "P1") {
+	if ctx.isControlledDepot("AAA", "P1", ctx.controllerNow) {
 		t.Errorf("isControlledDepot(P1) = true, want false: occupied against its controller")
 	}
-	if ctx.isControlledDepot("AAA", "P2") {
+	if ctx.isControlledDepot("AAA", "P2", ctx.controllerNow) {
 		t.Errorf("isControlledDepot(P2) = true, want false: P2 only occupies, it does not control")
 	}
 }
@@ -1389,7 +1423,7 @@ func TestIsControlledDepotUnusableWhenOccupied(t *testing.T) {
 // TestIsControlledDepotUnusableWhenUnanchored checks #215: a depot outside
 // every fief and capital, once its owner's army leaves and no anchor keeps
 // it, no longer extends anyone's supply range -- isControlledDepot already
-// requires an exact OwnerID match, so the ordinary release below is enough.
+// requires the player to control the territory, which it no longer does.
 func TestIsControlledDepotUnusableWhenUnanchored(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
@@ -1407,12 +1441,12 @@ func TestIsControlledDepotUnusableWhenUnanchored(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	if owner := resolution.State.TerritoryStates["AAA"].OwnerID; owner != nil {
+	if owner := controllerOf(resolution.State, "AAA"); owner != nil {
 		t.Fatalf("AAA owner = %v, want nil after A1 departed (test setup drifted)", owner)
 	}
 
 	ctx := newResolutionContext(cloneGameState(resolution.State), testBalance())
-	if ctx.isControlledDepot("AAA", "P1") {
+	if ctx.isControlledDepot("AAA", "P1", ctx.controllerNow) {
 		t.Errorf("isControlledDepot(P1) = true, want false: released, no fief/capital/army anchor left")
 	}
 }
@@ -1519,9 +1553,8 @@ func TestResolveTransferFeedsRecipientTheSameTurn(t *testing.T) {
 
 // TestResolveFaminePillageDissolvesFiefAndReleasesControl covers #208's
 // acceptance case: the auto-pillage a same-turn famine triggers can destroy a
-// fief capital's castle, dissolving the fief; releaseUnanchoredControl then
-// runs again after ravitaillement (idempotently) to release the fief's other
-// members, which lost their only anchor along with it.
+// fief capital's castle, dissolving the fief; the fief's other members lose
+// their only anchor along with it, so they end the turn uncontrolled.
 func TestResolveFaminePillageDissolvesFiefAndReleasesControl(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
@@ -1534,8 +1567,6 @@ func TestResolveFaminePillageDissolvesFiefAndReleasesControl(t *testing.T) {
 		// deficit triggers auto-pillage.
 		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "CAP", Size: 2, Starving: true}},
 	)
-	setTerritoryOwner(state, "MEM", "P1")
-	setTerritoryOwner(state, "OTH", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "CAP"})
 	state.Fiefs = []models.Fief{{
 		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "CAP",
@@ -1564,11 +1595,63 @@ func TestResolveFaminePillageDissolvesFiefAndReleasesControl(t *testing.T) {
 	if len(resolution.State.Fiefs) != 0 {
 		t.Errorf("fiefs = %#v, want F1 dissolved with its capital's castle", resolution.State.Fiefs)
 	}
-	if owner := resolution.State.TerritoryStates["MEM"].OwnerID; owner != nil {
+	if owner := controllerOf(resolution.State, "MEM"); owner != nil {
 		t.Errorf("MEM owner = %v, want nil: released with the fief that anchored it", owner)
 	}
-	if owner := resolution.State.TerritoryStates["OTH"].OwnerID; owner != nil {
+	if owner := controllerOf(resolution.State, "OTH"); owner != nil {
 		t.Errorf("OTH owner = %v, want nil: released with the fief that anchored it", owner)
+	}
+}
+
+// TestResolveFaminePillageReportsMembersUnderTheControlTheTurnSettledOn checks
+// that a fief dissolved by a famine auto-pillage does not rewrite what the
+// same ravitaillement reports: the village of a former member produced under
+// its fief owner, so its production line names P1, and it is then reported as
+// abandoned once the dissolution leaves it without a controller.
+func TestResolveFaminePillageReportsMembersUnderTheControlTheTurnSettledOn(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			supplyTerritory("CAP", "CAP", models.TerrainMountain, "MEM"),
+			supplyTerritory("MEM", "MEM", models.TerrainPlain, "CAP", "OTH"),
+			supplyTerritory("OTH", "OTH", models.TerrainPlain, "MEM"),
+		},
+		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "CAP", Size: 2, Starving: true}},
+	)
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "CAP"})
+	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "MEM"})
+	state.Fiefs = []models.Fief{{
+		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "CAP",
+		Territories: []models.TerritoryID{"CAP", "MEM", "OTH"}, OwnerID: "P1",
+	}}
+	validateTestState(t, state)
+
+	balance := testBalance()
+	balance.TerritoryIncome = 0
+	balance.VillageIncome = 0
+	resolution, err := Resolve(state, balance)
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if len(resolution.State.Fiefs) != 0 {
+		t.Fatalf("fiefs = %#v, want F1 dissolved with its capital's castle (test setup drifted)", resolution.State.Fiefs)
+	}
+	var production *Event
+	for index, event := range resolution.Events {
+		if event.Type == EventTypeProduction && event.TerritoryID == "MEM" {
+			production = &resolution.Events[index]
+		}
+	}
+	if production == nil || production.OwnerID != "P1" {
+		t.Errorf("MEM production event = %#v, want it reported under its fief owner P1", production)
+	}
+	var abandoned []Event
+	for _, event := range eventsOfType(resolution.Events, EventTypeControlChanged) {
+		if event.Reason == "abandoned" {
+			abandoned = append(abandoned, event)
+		}
+	}
+	if len(abandoned) != 1 || abandoned[0].TerritoryID != "MEM" || abandoned[0].PreviousOwnerID != "P1" || abandoned[0].Phase != 5 {
+		t.Errorf("abandoned events = %#v, want exactly MEM released from P1 (OTH carries nothing)", abandoned)
 	}
 }
 

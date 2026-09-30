@@ -26,10 +26,16 @@ func winterDeckState() *models.GameState {
 		{ID: "ROS", Name: "ROS", Terrain: models.TerrainPlain},
 		{ID: "BOI", Name: "BOI", Terrain: models.TerrainPlain},
 	}
-	p1, p2 := models.PlayerID("P1"), models.PlayerID("P2")
+	// Both players stay in the game through the army that holds their
+	// territory.
+	state.Armies = []models.Army{
+		{ID: "A1", OwnerID: "P1", TerritoryID: "ROS", Size: 1},
+		{ID: "A2", OwnerID: "P2", TerritoryID: "BOI", Size: 1},
+	}
+	state.NextArmyID = 3
 	state.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
-		"ROS": {OwnerID: &p1},
-		"BOI": {OwnerID: &p2},
+		"ROS": {Army: armyPointer("A1")},
+		"BOI": {Army: armyPointer("A2")},
 	}
 	state.SpecialDeck = &models.SpecialDeck{
 		Cards: []models.SpecialCard{
@@ -64,6 +70,7 @@ func TestResolveWinterAutomaticallyRefillsThroughCalamity(t *testing.T) {
 func TestResolveWinterAutomaticallyRefillsConfiguredCount(t *testing.T) {
 	state := winterDeckState()
 	state.Players = []models.Player{{ID: "P1", Name: "One"}}
+	state.Armies = state.Armies[:1]
 	state.TerritoryStates["BOI"] = models.TerritoryState{}
 	state.SpecialDeck.Cards = []models.SpecialCard{
 		{ID: "C1", Kind: models.CardKindFairWeather},

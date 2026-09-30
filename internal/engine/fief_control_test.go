@@ -21,9 +21,6 @@ func fiefControlTestState(t *testing.T, extraArmies []models.Army) *models.GameS
 		},
 		extraArmies,
 	)
-	setTerritoryOwner(state, "AAA", "P1")
-	setTerritoryOwner(state, "BBB", "P1")
-	setTerritoryOwner(state, "CCC", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 	state.Fiefs = []models.Fief{{
 		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "AAA",
@@ -44,7 +41,7 @@ func placeCurrentArmyOnly(ctx *resolutionContext, armyID models.ArmyID, ownerID 
 
 // TestFiefMemberOccupationDoesNotChangeControl verifies that an enemy army
 // newly stopping on a non-capital fief member occupies it without changing
-// its OwnerID, and reports the occupation exactly once (titres.md "Contrôle
+// its controller, and reports the occupation exactly once (titres.md "Contrôle
 // et occupation", #196).
 func TestFiefMemberOccupationDoesNotChangeControl(t *testing.T) {
 	state := fiefControlTestState(t, nil)
@@ -54,9 +51,8 @@ func TestFiefMemberOccupationDoesNotChangeControl(t *testing.T) {
 
 	updateTerritorialControl(ctx)
 
-	bbb := ctx.state.TerritoryStates["BBB"]
-	if bbb.OwnerID == nil || *bbb.OwnerID != "P1" {
-		t.Fatalf("BBB owner = %v, want P1 (occupation does not change control)", bbb.OwnerID)
+	if got, _ := ctx.controllerNow("BBB"); got != "P1" {
+		t.Fatalf("BBB controller = %q, want P1 (occupation does not change control)", got)
 	}
 	if len(eventsOfType(ctx.events, EventTypeControlChanged)) != 0 {
 		t.Errorf("events = %#v, want no control_changed", ctx.events)
@@ -84,9 +80,8 @@ func TestFiefMemberOccupationNotRepeatedWhileGarrisonStays(t *testing.T) {
 	if len(eventsOfType(ctx.events, EventTypeFiefMemberOccupied)) != 0 {
 		t.Errorf("events = %#v, want no repeated occupation event", ctx.events)
 	}
-	bbb := ctx.state.TerritoryStates["BBB"]
-	if bbb.OwnerID == nil || *bbb.OwnerID != "P1" {
-		t.Fatalf("BBB owner = %v, want P1 (still occupied, not conquered)", bbb.OwnerID)
+	if got, _ := ctx.controllerNow("BBB"); got != "P1" {
+		t.Fatalf("BBB controller = %q, want P1 (still occupied, not conquered)", got)
 	}
 }
 
@@ -101,9 +96,8 @@ func TestFiefMemberOccupationByRevolt(t *testing.T) {
 
 	updateTerritorialControl(ctx)
 
-	bbb := ctx.state.TerritoryStates["BBB"]
-	if bbb.OwnerID == nil || *bbb.OwnerID != "P1" {
-		t.Fatalf("BBB owner = %v, want P1 (revolt never takes control)", bbb.OwnerID)
+	if got, _ := ctx.controllerNow("BBB"); got != "P1" {
+		t.Fatalf("BBB controller = %q, want P1 (revolt never takes control)", got)
 	}
 	occupied := eventsOfType(ctx.events, EventTypeFiefMemberOccupied)
 	if len(occupied) != 1 || occupied[0].CaptorPlayerID != models.NeutralPlayerID {
@@ -123,16 +117,17 @@ func TestPositionalControlUnaffectedOutsideFief(t *testing.T) {
 		},
 		nil,
 	)
-	setTerritoryOwner(state, "AAA", "P1")
 	validateTestState(t, state)
 	ctx := newResolutionContext(state, testBalance())
+	// P1 held AAA positionally when the turn started (its army has since
+	// left); P2's army now stands there.
+	ctx.startControl["AAA"] = "P1"
 	placeCurrentArmyOnly(ctx, "A1", "P2", "AAA", 2)
 
 	updateTerritorialControl(ctx)
 
-	aaa := ctx.state.TerritoryStates["AAA"]
-	if aaa.OwnerID == nil || *aaa.OwnerID != "P2" {
-		t.Fatalf("AAA owner = %v, want P2 (positional control)", aaa.OwnerID)
+	if got, _ := ctx.controllerNow("AAA"); got != "P2" {
+		t.Fatalf("AAA controller = %q, want P2 (positional control)", got)
 	}
 	changed := eventsOfType(ctx.events, EventTypeControlChanged)
 	if len(changed) != 1 || changed[0].PreviousOwnerID != "P1" || changed[0].OwnerID != "P2" {
@@ -157,9 +152,8 @@ func TestFiefCapitalCaptureThroughUpdateTerritorialControl(t *testing.T) {
 	updateTerritorialControl(ctx)
 
 	for _, territoryID := range []models.TerritoryID{"AAA", "BBB", "CCC"} {
-		territoryState := ctx.state.TerritoryStates[territoryID]
-		if territoryState.OwnerID == nil || *territoryState.OwnerID != "P2" {
-			t.Errorf("%s owner = %v, want P2", territoryID, territoryState.OwnerID)
+		if got, _ := ctx.controllerNow(territoryID); got != "P2" {
+			t.Errorf("%s controller = %q, want P2", territoryID, got)
 		}
 	}
 	if len(ctx.state.Fiefs) != 1 || ctx.state.Fiefs[0].OwnerID != "P2" || ctx.state.Fiefs[0].HolderNobleID != nil {
@@ -190,9 +184,8 @@ func TestFiefMemberOccupationReportedWhenCapitalFallsWithPreExistingGarrison(t *
 
 	updateTerritorialControl(ctx)
 
-	bbb := ctx.state.TerritoryStates["BBB"]
-	if bbb.OwnerID == nil || *bbb.OwnerID != "P2" {
-		t.Fatalf("BBB owner = %v, want P2 (transferred with the fallen capital)", bbb.OwnerID)
+	if got, _ := ctx.controllerNow("BBB"); got != "P2" {
+		t.Fatalf("BBB controller = %q, want P2 (transferred with the fallen capital)", got)
 	}
 	occupied := eventsOfType(ctx.events, EventTypeFiefMemberOccupied)
 	if len(occupied) != 1 {

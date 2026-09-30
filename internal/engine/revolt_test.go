@@ -158,7 +158,7 @@ func TestRevoltOnVacatedTerritoryStaysNeutral(t *testing.T) {
 	if rebels.Size != 1 {
 		t.Fatalf("rebel size = %d, want the fixed one-troop roll", rebels.Size)
 	}
-	if owner := resolution.State.TerritoryStates["BBB"].OwnerID; owner != nil {
+	if owner := controllerOf(resolution.State, "BBB"); owner != nil {
 		t.Errorf("BBB owner = %v, want nil (P1 lost its anchor and the rebels never take control)", owner)
 	}
 }
@@ -271,8 +271,6 @@ func TestNeutralRebelRetreatsWhenDefeated(t *testing.T) {
 			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 3},
 		},
 	)
-	setTerritoryOwner(state, "AAA", "P1")
-	setTerritoryOwner(state, "CCC", "P2")
 	validateTestState(t, state)
 	balance := testBalance()
 	balance.SpecialOrders.Effects.RevoltArmyMinSize = 1

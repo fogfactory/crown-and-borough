@@ -141,13 +141,13 @@ func (ctx *resolutionContext) fortificationBonus(territoryID models.TerritoryID)
 // took its capital: the fief becomes vacant (its titulaire's authority does
 // not carry over) but keeps producing and scoring until dissolved (titres.md).
 // Control is transitive in a fief (titres.md "Contrôle et occupation"), so
-// the capture also flips OwnerID on every other member still held by the
-// previous owner, clearing that member's capital status if it carried one
-// and reporting one control_changed event per member, reason
-// "fief_transferred". It is a no-op when territoryID is not a fief capital,
-// or when the new owner already held the fief (an intervening ally stop, not
-// a capture).
-func (ctx *resolutionContext) transferFiefOnCapitalCapture(territoryID models.TerritoryID, newOwnerID models.PlayerID) {
+// the capture also hands every other member still held by the previous owner
+// to the new one in control, the control pass's working view of who controls
+// what, clearing that member's capital status if it carried one and reporting
+// one control_changed event per member, reason "fief_transferred". It is a
+// no-op when territoryID is not a fief capital, or when the new owner already
+// held the fief (an intervening ally stop, not a capture).
+func (ctx *resolutionContext) transferFiefOnCapitalCapture(territoryID models.TerritoryID, newOwnerID models.PlayerID, control map[models.TerritoryID]models.PlayerID) {
 	fief := ctx.fiefByCapital(territoryID)
 	if fief == nil || fief.OwnerID == newOwnerID {
 		return
@@ -169,17 +169,12 @@ func (ctx *resolutionContext) transferFiefOnCapitalCapture(territoryID models.Te
 		if memberID == fief.CapitalTerritoryID {
 			continue
 		}
-		state := ctx.state.TerritoryStates[memberID]
-		if state.OwnerID != nil && *state.OwnerID == newOwnerID {
+		memberPreviousOwnerID, controlled := control[memberID]
+		if controlled && memberPreviousOwnerID == newOwnerID {
 			continue
 		}
-		memberPreviousOwnerID := models.PlayerID("")
-		if state.OwnerID != nil {
-			memberPreviousOwnerID = *state.OwnerID
-		}
 		ownerID := newOwnerID
-		state.OwnerID = &ownerID
-		ctx.state.TerritoryStates[memberID] = state
+		control[memberID] = ownerID
 		ctx.clearCapitalOnControlLoss(memberPreviousOwnerID, memberID)
 		ctx.events = append(ctx.events, Event{
 			Type:            EventTypeControlChanged,

@@ -441,7 +441,7 @@ func (g *GameState) Validate() error {
 		}
 	}
 
-	// 9. Territory states: exact coverage, valid owners, and a valid army
+	// 9. Territory states: exact coverage and a valid army
 	// pointer whose territory agrees with the map key. At most one
 	// infrastructure is allowed per territory (GDD §3), and resources are
 	// non-negative.
@@ -451,9 +451,6 @@ func (g *GameState) Validate() error {
 		}
 		if st.Resources < 0 {
 			return fmt.Errorf("models: territoryState %q: negative resources %d", id, st.Resources)
-		}
-		if st.OwnerID != nil && !players[*st.OwnerID] {
-			return fmt.Errorf("models: territoryState %q: unknown owner %q", id, *st.OwnerID)
 		}
 		if st.Army != nil {
 			army := armies[*st.Army]
@@ -509,15 +506,14 @@ func (g *GameState) Validate() error {
 			continue
 		}
 		infrastructure := infras[*player.CapitalCastleID]
-		state := g.TerritoryStates[infrastructure.TerritoryID]
-		if state.OwnerID == nil || *state.OwnerID != player.ID {
+		if fiefOwner, inFief := g.FiefOwnerAt(infrastructure.TerritoryID); inFief && fiefOwner != player.ID {
 			return fmt.Errorf("models: player %q: capital castle %q is not controlled by its owner", player.ID, *player.CapitalCastleID)
 		}
 	}
 	// 10. Fiefs: unique id, a title matching the group size, the capital first
 	// in a territory group without duplicates or overlap with another fief, a
-	// known owner controlling the capital, and an optional holder noble owned
-	// by the same player. A castle on the capital is NOT required here:
+	// known owner, and an optional holder noble owned by the same player. A
+	// castle on the capital is NOT required here:
 	// losing it dissolves the fief immediately (see engine), so a state
 	// observed mid-resolution never needs one structurally.
 	fiefIDs := make(map[FiefID]bool, len(g.Fiefs))
@@ -557,19 +553,6 @@ func (g *GameState) Validate() error {
 		}
 		if !players[fief.OwnerID] {
 			return fmt.Errorf("models: fief %q: unknown owner %q", fief.ID, fief.OwnerID)
-		}
-		capitalState, exists := g.TerritoryStates[fief.CapitalTerritoryID]
-		if !exists || capitalState.OwnerID == nil || *capitalState.OwnerID != fief.OwnerID {
-			return fmt.Errorf("models: fief %q: capital %q is not controlled by owner %q", fief.ID, fief.CapitalTerritoryID, fief.OwnerID)
-		}
-		// Control is transitive in a fief (titres.md "Contrôle et
-		// occupation"): every member, not just the capital, is controlled by
-		// the fief's owner regardless of any occupying army.
-		for _, territoryID := range fief.Territories {
-			memberState := g.TerritoryStates[territoryID]
-			if memberState.OwnerID == nil || *memberState.OwnerID != fief.OwnerID {
-				return fmt.Errorf("models: fief %q: territory %q is not controlled by owner %q", fief.ID, territoryID, fief.OwnerID)
-			}
 		}
 		if fief.HolderNobleID != nil {
 			if !nobles[*fief.HolderNobleID] {

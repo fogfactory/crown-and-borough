@@ -247,9 +247,7 @@ func CreateGameWithYears(seed string, players []PlayerInit, yearCount int, balan
 	nextInfrastructureID := 1
 	for index, startID := range starts {
 		player := &state.Players[index]
-		ownerID := player.ID
 		territoryState := state.TerritoryStates[startID]
-		territoryState.OwnerID = &ownerID
 		territoryState.Resources = balance.StartingResources
 		state.TerritoryStates[startID] = territoryState
 
@@ -308,7 +306,6 @@ func CreateGameWithYears(seed string, players []PlayerInit, yearCount int, balan
 	if balance.StartingOutposts > 0 {
 		for index, startID := range starts {
 			player := &state.Players[index]
-			ownerID := player.ID
 			outpostTerritories, err := startingOutpostTerritories(state, startID, balance, balance.StartingOutposts)
 			if err != nil {
 				return nil, fmt.Errorf("engine: create game: %w", err)
@@ -324,7 +321,6 @@ func CreateGameWithYears(seed string, players []PlayerInit, yearCount int, balan
 					Size:        1,
 				})
 				territoryState := state.TerritoryStates[territoryID]
-				territoryState.OwnerID = &ownerID
 				territoryState.Army = &armyID
 				state.TerritoryStates[territoryID] = territoryState
 			}

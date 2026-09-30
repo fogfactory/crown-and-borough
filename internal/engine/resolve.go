@@ -15,6 +15,16 @@ func Resolve(game *models.GameState, balance assetgen.Balance) (Resolution, erro
 }
 
 func ResolveWithDeckOrders(game *models.GameState, balance assetgen.Balance, deckOrders map[models.PlayerID][]models.DeckOrder) (Resolution, error) {
+	return resolveFromControl(game, balance, deckOrders, nil)
+}
+
+// resolveFromControl is ResolveWithDeckOrders starting from an explicit
+// control snapshot instead of the one derived from game (nil derives it, which
+// is what every production caller wants). The adjudication corpus uses it to
+// replay states that no derivation can produce, such as an empty castle still
+// held by a player who has left, and so check that the phases resolve them
+// exactly as they did when control was stored.
+func resolveFromControl(game *models.GameState, balance assetgen.Balance, deckOrders map[models.PlayerID][]models.DeckOrder, startControl map[models.TerritoryID]models.PlayerID) (Resolution, error) {
 	if game == nil {
 		return Resolution{}, fmt.Errorf("engine: resolve: nil game state")
 	}
@@ -32,6 +42,9 @@ func ResolveWithDeckOrders(game *models.GameState, balance assetgen.Balance, dec
 	}
 	state := cloneGameState(game)
 	ctx := newResolutionContext(state, balance)
+	if startControl != nil {
+		ctx.startControl = startControl
+	}
 	revealCurrentAugury(ctx)
 	markPendingTaxWindowFiefs(ctx, deckOrders)
 	resolveDeckOrders(ctx, deckOrders)
@@ -57,10 +70,10 @@ func ResolveWithDeckOrders(game *models.GameState, balance assetgen.Balance, dec
 	// (#208). Its famine penalty is never applied this same turn (an army
 	// famished here fights at full strength until next turn, see
 	// models.Army.Starving); the auto-pillage it can trigger may dissolve a
-	// fief capital's castle, so releaseUnanchoredControl runs again right
-	// after, idempotently, to release whatever that dissolution unanchors.
+	// fief capital's castle, so what that dissolution unanchors is reported as
+	// abandoned right after, against the control the turn settled on.
 	resolveSupply(ctx)
-	ctx.releaseUnanchoredControl()
+	ctx.emitAbandonedControl(ctx.settledControl)
 	if err := ctx.rebuildOccupancy(); err != nil {
 		return Resolution{}, err
 	}

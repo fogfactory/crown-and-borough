@@ -40,10 +40,6 @@ func cloneGameState(source *models.GameState) *models.GameState {
 	clone.TerritoryStates = make(map[models.TerritoryID]models.TerritoryState, len(source.TerritoryStates))
 	for territoryID, state := range source.TerritoryStates {
 		copyState := state
-		if state.OwnerID != nil {
-			ownerID := *state.OwnerID
-			copyState.OwnerID = &ownerID
-		}
 		if state.Army != nil {
 			armyID := *state.Army
 			copyState.Army = &armyID

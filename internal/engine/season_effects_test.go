@@ -62,13 +62,13 @@ func TestResolveSeasonEffectsFairWeatherCancelsBadWeatherWithoutBonus(t *testing
 	}
 }
 
-// cardEffectState puts a level-2 mill on AAA and a controlled castle on BBB,
+// cardEffectState puts a level-2 mill on AAA and P1's capital castle on BBB,
 // both plains of region AAA.
 func cardEffectState() *models.GameState {
 	state := effectTestState()
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 2, TerritoryID: "AAA"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
-	setTerritoryOwner(state, "BBB", "P1")
+	setCapital(state, "P1", "I2")
 	return state
 }
 
@@ -99,7 +99,6 @@ func TestCardEffectsOnRationsAndProduction(t *testing.T) {
 			// cardEffectState leaves AAA neutral for the famine/bad-weather
 			// loss summary tests, which don't want AAA counted as a second
 			// territory-income loss line.
-			setTerritoryOwner(state, "AAA", "P1")
 			// An army holds the mill: outside every fief and capital, a mill
 			// only produces while occupied (#215).
 			state.Armies = []models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}}

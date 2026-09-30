@@ -311,9 +311,8 @@ func territoryOwner(before, after *models.GameState, territoryID models.Territor
 		if state == nil {
 			continue
 		}
-		territoryState, exists := state.TerritoryStates[territoryID]
-		if exists && territoryState.OwnerID != nil {
-			return *territoryState.OwnerID
+		if controller, controlled := state.TerritoryController(territoryID); controlled {
+			return controller
 		}
 	}
 	return ""

@@ -56,7 +56,7 @@ func TestBuildOrderRejectsOccupiedTerritory(t *testing.T) {
 	state := winterTestState(t, []models.Territory{territory("AAA", "AAA")},
 		[]models.Army{{ID: "A1", OwnerID: "P2", TerritoryID: "AAA", Size: 2}},
 	)
-	setTerritoryOwner(state, "AAA", "P1")
+	holdAsFiefMember(state, "AAA", "P1")
 	setTerritoryResources(state, "AAA", 10)
 	ctx := newResolutionContext(state, testBalance())
 	buildOrder{order: models.WinterOrder{ID: "O1", TerritoryID: "AAA", InfraType: models.InfraTypeCastle}}.Apply(&ExecutionContext{resolution: ctx, playerID: "P1"})

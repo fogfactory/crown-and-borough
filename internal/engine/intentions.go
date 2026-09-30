@@ -233,8 +233,7 @@ func (ctx *resolutionContext) enumerateOrder(record *orderRecord, army models.Ar
 		}
 	case models.OrderTypeTransfer:
 		targetID := order.TargetIDs[0]
-		sourceState := ctx.state.TerritoryStates[army.TerritoryID]
-		if sourceState.OwnerID == nil || *sourceState.OwnerID != army.OwnerID {
+		if !controlledBy(ctx.controllerAtStart, army.OwnerID, army.TerritoryID) {
 			record.invalidate("transfer_source_not_controlled")
 			return
 		}
@@ -244,7 +243,7 @@ func (ctx *resolutionContext) enumerateOrder(record *orderRecord, army models.Ar
 				record.invalidate("invalid_transfer_destination")
 				return
 			}
-			if ctx.occupiedAgainstController(targetID, targetArmy) {
+			if ctx.occupiedAgainstStartController(targetID, targetArmy) {
 				// The recipient army only occupies its own territory (e.g. a
 				// fief member it does not own): it cannot be handed resources
 				// through it (titres.md).
@@ -254,12 +253,12 @@ func (ctx *resolutionContext) enumerateOrder(record *orderRecord, army models.Ar
 			intent.recipientArmyID = targetArmy.ID
 			intent.recipientPlayer = targetArmy.OwnerID
 		} else {
-			targetState := ctx.state.TerritoryStates[targetID]
-			if targetState.OwnerID == nil || *targetState.OwnerID == army.OwnerID || !PlayerAlive(ctx.state, *targetState.OwnerID) || !ctx.hasSettlement(targetID) {
+			targetControllerID, targetControlled := ctx.controllerAtStart(targetID)
+			if !targetControlled || targetControllerID == army.OwnerID || !PlayerAlive(ctx.state, targetControllerID) || !ctx.hasSettlement(targetID) {
 				record.invalidate("invalid_transfer_destination")
 				return
 			}
-			intent.recipientPlayer = *targetState.OwnerID
+			intent.recipientPlayer = targetControllerID
 		}
 		reachable := transferNetwork(ctx, army.TerritoryID, army.OwnerID, targetID)
 		if _, reachable := reachable[targetID]; !reachable {

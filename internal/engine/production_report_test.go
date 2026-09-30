@@ -128,7 +128,6 @@ func TestProductionReportTracesDispatchToMultipleArmies(t *testing.T) {
 			{ID: "A2", OwnerID: "P1", TerritoryID: "CCC", Size: 2},
 		},
 	)
-	setTerritoryOwner(state, "AAA", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 3, TerritoryID: "BBB"})
 	state.Regions = []models.Region{{ID: "AAA", Seed: "AAA", Territories: []models.TerritoryID{"AAA", "BBB", "CCC"}}}

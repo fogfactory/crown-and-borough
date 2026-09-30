@@ -1212,7 +1212,7 @@ func (ctx *resolutionContext) executePillage(record *orderRecord, army *models.A
 	}
 	infrastructureType := infrastructure.Type
 	ctx.removeInfrastructure(infrastructureID)
-	creditTerritoryID := ctx.closestControlledSettlement(army.TerritoryID, army.OwnerID)
+	creditTerritoryID := ctx.closestControlledSettlement(army.TerritoryID, army.OwnerID, ctx.controllerAtStart)
 	if creditTerritoryID != "" {
 		creditState := ctx.state.TerritoryStates[creditTerritoryID]
 		creditState.Resources += ctx.balance.PillageBonus
@@ -1240,17 +1240,17 @@ func (ctx *resolutionContext) creditAmount(territoryID models.TerritoryID) int {
 	return ctx.balance.PillageBonus
 }
 
-func (ctx *resolutionContext) closestControlledSettlement(startID models.TerritoryID, ownerID models.PlayerID) models.TerritoryID {
-	return ctx.closestControlledTerritory(startID, ownerID, func(candidateID models.TerritoryID) bool {
+func (ctx *resolutionContext) closestControlledSettlement(startID models.TerritoryID, ownerID models.PlayerID, view controlView) models.TerritoryID {
+	return ctx.closestControlledTerritory(startID, ownerID, view, func(candidateID models.TerritoryID) bool {
 		return ctx.hasInfrastructure(candidateID, models.InfraTypeCastle) || ctx.hasInfrastructure(candidateID, models.InfraTypeVillage)
 	})
 }
 
 // closestControlledTerritory does a level-by-level BFS over crossable borders
-// from startID, returning the closest territory controlled by ownerID that
-// satisfies match, with a trigram tie-break among equidistant candidates. It
+// from startID, returning the closest territory controlled by ownerID in view
+// that satisfies match, with a trigram tie-break among equidistant candidates. It
 // returns "" when none is reachable.
-func (ctx *resolutionContext) closestControlledTerritory(startID models.TerritoryID, ownerID models.PlayerID, match func(models.TerritoryID) bool) models.TerritoryID {
+func (ctx *resolutionContext) closestControlledTerritory(startID models.TerritoryID, ownerID models.PlayerID, view controlView, match func(models.TerritoryID) bool) models.TerritoryID {
 	type queueItem struct {
 		territoryID models.TerritoryID
 		distance    int
@@ -1266,8 +1266,7 @@ func (ctx *resolutionContext) closestControlledTerritory(startID models.Territor
 		}
 		candidates := make([]models.TerritoryID, 0)
 		for _, item := range level {
-			state := ctx.state.TerritoryStates[item.territoryID]
-			if state.OwnerID != nil && *state.OwnerID == ownerID && match(item.territoryID) {
+			if controlledBy(view, ownerID, item.territoryID) && match(item.territoryID) {
 				candidates = append(candidates, item.territoryID)
 			}
 		}
@@ -1302,8 +1301,7 @@ func (ctx *resolutionContext) distanceToClosestControlledSettlement(startID mode
 	for len(queue) > 0 {
 		item := queue[0]
 		queue = queue[1:]
-		state := ctx.state.TerritoryStates[item.territoryID]
-		if state.OwnerID != nil && *state.OwnerID == ownerID && (ctx.hasInfrastructure(item.territoryID, models.InfraTypeCastle) || ctx.hasInfrastructure(item.territoryID, models.InfraTypeVillage)) {
+		if controlledBy(ctx.controllerAtStart, ownerID, item.territoryID) && (ctx.hasInfrastructure(item.territoryID, models.InfraTypeCastle) || ctx.hasInfrastructure(item.territoryID, models.InfraTypeVillage)) {
 			return item.distance
 		}
 		for _, neighborID := range ctx.sortedNeighbors(item.territoryID) {

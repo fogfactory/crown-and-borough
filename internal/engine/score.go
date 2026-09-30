@@ -46,12 +46,13 @@ func ComputeScores(state *models.GameState) map[models.PlayerID]ScoreBreakdown {
 	for _, army := range state.Armies {
 		armies[army.ID] = army
 	}
+	controllers := state.TerritoryControllers()
 	for _, territory := range state.Territories {
 		territoryState := state.TerritoryStates[territory.ID]
-		if territoryState.OwnerID == nil {
+		playerID, controlled := controllers[territory.ID]
+		if !controlled {
 			continue
 		}
-		playerID := *territoryState.OwnerID
 		score, exists := scores[playerID]
 		if !exists {
 			continue
@@ -104,10 +105,15 @@ func ComputeScores(state *models.GameState) map[models.PlayerID]ScoreBreakdown {
 					continue
 				}
 				playerID = holder.OwnerID
-			case territoryState.OwnerID != nil:
-				playerID = *territoryState.OwnerID
 			default:
-				continue
+				anchorOwner, anchored := state.FiefOwnerAt(noble.LocationID)
+				if !anchored {
+					anchorOwner, anchored = state.CapitalOwnerAt(noble.LocationID)
+				}
+				if !anchored {
+					continue
+				}
+				playerID = anchorOwner
 			}
 		}
 		score, exists := scores[playerID]
@@ -143,8 +149,13 @@ func PlayerAlive(state *models.GameState, playerID models.PlayerID) bool {
 	if state == nil {
 		return false
 	}
-	for _, territoryState := range state.TerritoryStates {
-		if territoryState.OwnerID != nil && *territoryState.OwnerID == playerID {
+	for _, fief := range state.Fiefs {
+		if fief.OwnerID == playerID {
+			return true
+		}
+	}
+	for _, player := range state.Players {
+		if player.ID == playerID && player.CapitalCastleID != nil {
 			return true
 		}
 	}

@@ -113,7 +113,6 @@ func TestPreviewOrdersReportsFiefGroupTerritories(t *testing.T) {
 	game := foundFiefTestState(t)
 	// GameFinished needs a second player still in the game: give P2 the
 	// territory outside the fief group so the winter preview can resolve.
-	setTerritoryOwner(game, "GGG", "P2")
 	placeArmyAt(game, "A2", "P2", "GGG", 1)
 	game.NextArmyID = 3
 	validateTestState(t, game)
@@ -142,7 +141,6 @@ func TestPreviewOrdersReportsFiefGroupTerritories(t *testing.T) {
 // to the capital, so the map marker lands on the actual offending territory.
 func TestPreviewOrdersReportsFiefRejectionOnOffendingTerritory(t *testing.T) {
 	game := foundFiefTestState(t)
-	setTerritoryOwner(game, "CCC", "P2")
 	placeArmyAt(game, "A2", "P2", "CCC", 1)
 	game.NextArmyID = 3
 	validateTestState(t, game)
