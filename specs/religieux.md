@@ -59,11 +59,14 @@ cumul global, indépendant de la présence locale :
 - 1 voix par lieu-dit contrôlé **ou** occupé dans l'évêché concerné ;
 - 1 voix par évêque que le joueur possède, où qu'il se trouve ;
 - 2 voix par cardinal que le joueur possède ;
-- 3 voix si le joueur est pape.
+- 3 voix si un des nobles du joueur est pape.
 
-Ces bonus s'additionnent aux voix territoriales même si le joueur ne
-contrôle/occupe aucun lieu-dit de l'évêché concerné : un pape sans aucun
-territoire local vote quand même avec ses 3 voix.
+Comme pour les autres titres, le pape est un noble, pas le joueur lui-même :
+ce bonus s'attache au joueur propriétaire de ce noble, exactement comme les
+bonus évêque et cardinal ci-dessus. Ces bonus s'additionnent aux voix
+territoriales même si le joueur ne contrôle/occupe aucun lieu-dit de
+l'évêché concerné : un joueur dont un noble est pape vote quand même avec
+ses 3 voix, sans aucun territoire local.
 
 Le candidat avec la plus haute majorité relative gagne. En cas d'égalité au
 sommet, aucun vainqueur n'est désigné et l'évêché reste vacant (voir
