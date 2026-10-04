@@ -739,7 +739,14 @@ func resolvePlagueMortality(ctx *resolutionContext) {
 	removedChains := make(map[models.ChainID]bool)
 	remainingChains := ctx.state.Chains[:0]
 	for _, noble := range ctx.plagueDeaths {
-		ctx.state.RemovedNobleIDs = append(ctx.state.RemovedNobleIDs, noble.ID)
+		ctx.state.RemovedNobles = append(ctx.state.RemovedNobles, models.RemovedNoble{
+			ID:      noble.ID,
+			Code:    noble.Code,
+			Name:    noble.Name,
+			OwnerID: noble.OwnerID,
+			Cause:   models.DeathCauseNatural,
+			Turn:    ctx.state.Turn,
+		})
 	}
 	for _, chain := range ctx.state.Chains {
 		if !dead[chain.NobleID] {

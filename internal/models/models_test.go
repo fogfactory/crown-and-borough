@@ -135,6 +135,21 @@ func TestNobleStatusIsValid(t *testing.T) {
 	}
 }
 
+func TestDeathCauseIsValid(t *testing.T) {
+	for _, valid := range []models.DeathCause{
+		models.DeathCauseNatural, models.DeathCauseExecution, models.DeathCauseAssassination,
+	} {
+		if !valid.IsValid() {
+			t.Errorf("DeathCause %q: want valid", valid)
+		}
+	}
+	for _, invalid := range []models.DeathCause{"", "poison", "NATURAL"} {
+		if invalid.IsValid() {
+			t.Errorf("DeathCause %q: want invalid", invalid)
+		}
+	}
+}
+
 func TestWinterOrderTypeIsValid(t *testing.T) {
 	for _, valid := range []models.WinterOrderType{
 		models.WinterOrderTypeRecruitNoble,
@@ -314,6 +329,30 @@ func TestValidateErrors(t *testing.T) {
 		{"noble invalid status", func(g *models.GameState) { g.Nobles[0].Status = "captured" }, "invalid status"},
 		{"noble negative last emission turn", func(g *models.GameState) { g.Nobles[0].LastEmissionTurn = -1 }, "last emission turn"},
 		{"noble future last emission turn", func(g *models.GameState) { g.Nobles[0].LastEmissionTurn = g.Turn + 1 }, "last emission turn"},
+		{"removed noble duplicate id", func(g *models.GameState) {
+			g.RemovedNobles = append(g.RemovedNobles,
+				models.RemovedNoble{ID: "N9", Code: "ANN", OwnerID: "P1", Cause: models.DeathCauseNatural},
+				models.RemovedNoble{ID: "N9", Code: "BEA", OwnerID: "P1", Cause: models.DeathCauseNatural},
+			)
+		}, "duplicate or empty id"},
+		{"removed noble still exists", func(g *models.GameState) {
+			g.RemovedNobles = append(g.RemovedNobles, models.RemovedNoble{ID: "N1", Code: "ANN", OwnerID: "P1", Cause: models.DeathCauseNatural})
+		}, "still exists"},
+		{"removed noble invalid code", func(g *models.GameState) {
+			g.RemovedNobles = append(g.RemovedNobles, models.RemovedNoble{ID: "N9", Code: "ann", OwnerID: "P1", Cause: models.DeathCauseNatural})
+		}, "invalid code"},
+		{"removed noble duplicate code", func(g *models.GameState) {
+			g.RemovedNobles = append(g.RemovedNobles, models.RemovedNoble{ID: "N9", Code: "HUG", OwnerID: "P1", Cause: models.DeathCauseNatural})
+		}, "duplicate code"},
+		{"removed noble unknown owner", func(g *models.GameState) {
+			g.RemovedNobles = append(g.RemovedNobles, models.RemovedNoble{ID: "N9", Code: "ANN", OwnerID: "P9", Cause: models.DeathCauseNatural})
+		}, "unknown owner"},
+		{"removed noble invalid cause", func(g *models.GameState) {
+			g.RemovedNobles = append(g.RemovedNobles, models.RemovedNoble{ID: "N9", Code: "ANN", OwnerID: "P1", Cause: "poison"})
+		}, "invalid death cause"},
+		{"removed noble future turn", func(g *models.GameState) {
+			g.RemovedNobles = append(g.RemovedNobles, models.RemovedNoble{ID: "N9", Code: "ANN", OwnerID: "P1", Cause: models.DeathCauseNatural, Turn: g.Turn + 1})
+		}, "must be between 0"},
 		{"next chain id zero", func(g *models.GameState) { g.NextChainID = 0 }, "next chain id"},
 		{"next army id zero", func(g *models.GameState) { g.NextArmyID = 0 }, "next army id"},
 		{"next army id collides with stored army", func(g *models.GameState) { g.NextArmyID = 2 }, "next army id"},

@@ -19,6 +19,7 @@ type resolutionContext struct {
 	territoriesByID     map[models.TerritoryID]*models.Territory
 	noblesByID          map[models.NobleID]*models.Noble
 	noblesByCode        map[models.NobleCode]models.NobleID
+	removedNobleCodes   map[string]bool
 	infrastructuresByID map[models.InfraID]*models.Infrastructure
 
 	startArmiesByID      map[models.ArmyID]models.Army
@@ -169,6 +170,13 @@ func (ctx *resolutionContext) rebuildIndexes() {
 		noble := &ctx.state.Nobles[i]
 		ctx.noblesByID[noble.ID] = noble
 		ctx.noblesByCode[models.NobleCode(noble.Code)] = noble.ID
+	}
+	// A dead noble's first-name trigram stays reserved like its ID (see
+	// nextNobleID): hasAvailableFirstName/drawFirstName must not hand it out
+	// to a later recruit (specs/succession.md § Lignée).
+	ctx.removedNobleCodes = make(map[string]bool, len(ctx.state.RemovedNobles))
+	for _, removed := range ctx.state.RemovedNobles {
+		ctx.removedNobleCodes[removed.Code] = true
 	}
 	ctx.infrastructuresByID = make(map[models.InfraID]*models.Infrastructure, len(ctx.state.Infrastructures))
 	for i := range ctx.state.Infrastructures {

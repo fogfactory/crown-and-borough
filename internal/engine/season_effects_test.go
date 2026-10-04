@@ -200,6 +200,28 @@ func TestResolveSeasonEffectsPlagueNobleMortalityIsDeterministic(t *testing.T) {
 	}
 }
 
+func TestPlagueDeathRecordsRemovedNobleAndReservesID(t *testing.T) {
+	state := effectTestState()
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	setCurrentCalamity(state, models.CardKindPlague, "AAA")
+	balance := testBalance()
+	balance.SpecialOrders.Effects.PlagueNobleMortalityPercentage = 100
+	ctx := newResolutionContext(state, balance)
+	resolveSeasonEffects(ctx)
+
+	if len(ctx.state.RemovedNobles) != 1 {
+		t.Fatalf("removed nobles = %#v, want one entry", ctx.state.RemovedNobles)
+	}
+	removed := ctx.state.RemovedNobles[0]
+	if removed.ID != "N1" || removed.Cause != models.DeathCauseNatural || removed.OwnerID != "P1" {
+		t.Fatalf("removed noble = %#v, want N1 natural death owned by P1", removed)
+	}
+
+	if got := nextNobleID(ctx.state.Nobles, ctx.state.RemovedNobles); got != "N2" {
+		t.Fatalf("nextNobleID = %q, want N2 (N1 stays reserved)", got)
+	}
+}
+
 func TestEnumerateOrderRejectsBadWeatherMovementFromRegion(t *testing.T) {
 	state := effectTestState()
 	state.Armies = []models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}}

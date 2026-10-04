@@ -41,7 +41,7 @@ func (order recruitNobleOrder) Apply(ctx *ExecutionContext) {
 	firstName := resolution.drawFirstName(ctx.firstNameRNG, resolution.balance.FirstNames)
 	territory := resolution.territoriesByID[winterOrder.TerritoryID]
 	noble := models.Noble{
-		ID:               nextNobleID(resolution.state.Nobles),
+		ID:               nextNobleID(resolution.state.Nobles, resolution.state.RemovedNobles),
 		Code:             firstName.Code,
 		Name:             fmt.Sprintf("%s de %s", firstName.Name, territory.Name),
 		OwnerID:          playerID,

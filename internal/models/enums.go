@@ -127,6 +127,27 @@ func (s NobleStatus) IsValid() bool {
 	return false
 }
 
+// DeathCause identifies how a noble left play for good. It is recorded on the
+// RemovedNoble entry so the lineage can tell a natural death (e.g. plague)
+// apart from a deliberate killing, even though no order yet triggers an
+// execution or an assassination (specs/succession.md § Lignée).
+type DeathCause string
+
+const (
+	DeathCauseNatural       DeathCause = "natural"
+	DeathCauseExecution     DeathCause = "execution"
+	DeathCauseAssassination DeathCause = "assassination"
+)
+
+// IsValid reports whether the death cause is a known value.
+func (c DeathCause) IsValid() bool {
+	switch c {
+	case DeathCauseNatural, DeathCauseExecution, DeathCauseAssassination:
+		return true
+	}
+	return false
+}
+
 // FiefTitle is the nobility rank of a fief, derived from its territory count
 // (titres.md, #194).
 type FiefTitle string
