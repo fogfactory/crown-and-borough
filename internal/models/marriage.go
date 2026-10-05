@@ -4,20 +4,34 @@ import "fmt"
 
 // Marriage records a concluded marriage between two nobles of two distinct
 // players (specs/succession.md § Conclusion d'un mariage). NobleA and NobleB
-// are kept in the order the marriage was concluded. A marriage outlives its
-// spouses: the record stays when a noble dies, so a surviving spouse cannot
-// remarry and the lineage keeps the alliance. Turn is the absolute
-// GameState.Turn of the winter that concluded it.
+// are kept in the order the marriage was concluded. The record outlives its
+// spouses so the lineage keeps the alliance, but the marriage itself ends
+// with the death of either spouse: the survivor is free to remarry (see
+// Active). Turn is the absolute GameState.Turn of the winter that concluded
+// it.
 type Marriage struct {
 	NobleA NobleID `json:"nobleA"`
 	NobleB NobleID `json:"nobleB"`
 	Turn   int     `json:"turn"`
 }
 
-// MarriageOf returns the marriage the noble belongs to, living or not.
+// Active reports whether both spouses are still alive: the death of either
+// ends the marriage.
+func (m Marriage) Active(g *GameState) bool {
+	living := 0
+	for _, noble := range g.Nobles {
+		if noble.ID == m.NobleA || noble.ID == m.NobleB {
+			living++
+		}
+	}
+	return living == 2
+}
+
+// MarriageOf returns the active marriage the noble belongs to, if any. A
+// marriage ended by the death of the other spouse no longer counts.
 func (g *GameState) MarriageOf(nobleID NobleID) (Marriage, bool) {
 	for _, marriage := range g.Marriages {
-		if marriage.NobleA == nobleID || marriage.NobleB == nobleID {
+		if (marriage.NobleA == nobleID || marriage.NobleB == nobleID) && marriage.Active(g) {
 			return marriage, true
 		}
 	}
@@ -39,14 +53,19 @@ func (g *GameState) validateMarriages(nobles, removedNobles map[NobleID]bool) er
 	}
 	married := make(map[NobleID]bool, 2*len(g.Marriages))
 	for _, marriage := range g.Marriages {
+		active := marriage.Active(g)
 		for _, id := range []NobleID{marriage.NobleA, marriage.NobleB} {
 			if !nobles[id] && !removedNobles[id] {
 				return fmt.Errorf("models: marriage: unknown noble %q", id)
 			}
-			if married[id] {
-				return fmt.Errorf("models: marriage: noble %q is married more than once", id)
+			// Only active marriages exclude each other: a widowed noble keeps
+			// its ended marriage on record and may marry again.
+			if active && married[id] {
+				return fmt.Errorf("models: marriage: noble %q is in more than one active marriage", id)
 			}
-			married[id] = true
+			if active {
+				married[id] = true
+			}
 		}
 		if marriage.NobleA == marriage.NobleB {
 			return fmt.Errorf("models: marriage: noble %q cannot marry itself", marriage.NobleA)

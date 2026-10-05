@@ -126,8 +126,11 @@ respecte pas une est rejeté avec le motif indiqué :
   mariage, la règle posée dans dames.md étant qu'une dame titulaire d'une
   dignité ne peut pas se marier tant qu'elle la détient.
 
-Un noble ne contracte qu'un seul mariage. Le mariage subsiste à la mort d'un
-époux : il reste enregistré et le survivant ne peut pas se remarier. Si un
+Un noble n'a qu'un seul mariage à la fois. Le mariage prend fin à la mort de
+l'un des époux (il reste enregistré dans la lignée) et le survivant peut se
+remarier. Il perd alors, le cas échéant, le titre obtenu par alliance, et
+ses bonus de score s'éteignent avec le mariage (voir les sections
+suivantes). Si un
 même noble figure dans plusieurs couples d'ordres réciproques, seul le
 premier dans l'ordre de résolution (joueurs par identifiant, puis ordre de la
 feuille) est conclu ; les autres sont rejetés `noble_already_married`.

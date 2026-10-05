@@ -220,3 +220,23 @@ func TestValidateRejectsInvalidMarriages(t *testing.T) {
 		})
 	}
 }
+
+func TestMarriageSurvivorMayRemarry(t *testing.T) {
+	state := marriageTestState(t)
+	// ANN's first husband DEC died: the old marriage stays on record.
+	state.RemovedNobles = []models.RemovedNoble{{ID: "N9", Code: "DEC", Name: "Dec", Sex: models.SexMale, OwnerID: "P1", Cause: models.DeathCauseExecution, Turn: 2}}
+	state.Marriages = []models.Marriage{{NobleA: "N9", NobleB: "N2", Turn: 1}}
+	if err := state.Validate(); err != nil {
+		t.Fatalf("Validate() with a widowed spouse = %v", err)
+	}
+	resolution := resolveMarriageSheets(t, state, map[models.PlayerID][]models.WinterOrder{
+		"P1": {marriageSheetOrder("O1", "HUG", "ANN")},
+		"P2": {marriageSheetOrder("O1", "ANN", "HUG")},
+	})
+	if len(resolution.State.Marriages) != 2 || resolution.State.Marriages[1].NobleB != "N2" {
+		t.Fatalf("marriages = %#v, want the widow remarried", resolution.State.Marriages)
+	}
+	if err := resolution.State.Validate(); err != nil {
+		t.Errorf("Validate() after remarriage = %v", err)
+	}
+}
