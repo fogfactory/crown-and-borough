@@ -27,7 +27,7 @@ ENV VITE_FIREBASE_API_KEY="$VITE_FIREBASE_API_KEY" \
 RUN VITE_APP_VERSION="${VITE_APP_VERSION:-$APP_VERSION}" npm run build
 
 # Go build stage
-FROM golang:1.26-alpine AS build
+FROM golang:1.27-alpine AS build
 
 WORKDIR /app
 
