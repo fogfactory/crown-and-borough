@@ -65,6 +65,8 @@ const (
 	EventTypeFiefMemberOccupied EventType = "fief_member_occupied"
 	EventTypeFiefAutoAssigned   EventType = "fief_auto_assigned"
 	EventTypeProsperityFounded  EventType = "prosperity_founded"
+	EventTypeMarriage           EventType = "marriage"
+	EventTypeMarriageRefused    EventType = "marriage_refused"
 )
 
 // Outcome is the execution result of one current order.
@@ -187,6 +189,11 @@ type Event struct {
 	IndexBefore     int                 `json:"indexBefore,omitempty"`
 	IndexAfter      int                 `json:"indexAfter,omitempty"`
 	WinterOrder     *models.WinterOrder `json:"winterOrder,omitempty"`
+
+	SpouseNobleID   models.NobleID   `json:"spouseNoble,omitempty"`
+	SpouseNobleCode models.NobleCode `json:"spouseNobleCode,omitempty"`
+	SpouseNobleName string           `json:"spouseNobleName,omitempty"`
+	SpouseOwnerID   models.PlayerID  `json:"spouseOwner,omitempty"`
 
 	FiefID          models.FiefID        `json:"fiefId,omitempty"`
 	FiefTitle       models.FiefTitle     `json:"fiefTitle,omitempty"`

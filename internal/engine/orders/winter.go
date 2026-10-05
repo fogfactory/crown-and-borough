@@ -146,6 +146,9 @@ func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (mod
 	if fields[0] == "T" {
 		return parseFiefOrderLine(fields, lineNumber, indexes)
 	}
+	if fields[0] == "M" {
+		return parseMarriageOrderLine(fields, lineNumber, indexes)
+	}
 	if len(fields) > 3 {
 		error := parseMessage(lineNumber, ParseCodeTooManyTargets, "error.winter.target_only_one")
 		return models.WinterOrder{}, &error
@@ -294,4 +297,27 @@ func winterNobleCode(code string, lineNumber int, indexes gameIndexes) *ParseErr
 func unknownWinterSubtype(lineNumber int, symbol, subtype string) *ParseError {
 	error := parseMessage(lineNumber, ParseCodeUnknownSymbol, "error.winter.unknown_subtype", symbol, subtype)
 	return &error
+}
+
+// parseMarriageOrderLine handles M N XXX YYY: XXX is the player's own noble,
+// YYY the other player's noble it asks to marry. Ownership, sex and the other
+// conditions are engine rejects (see winter_marriage_order.go).
+func parseMarriageOrderLine(fields []string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
+	if fields[1] != "N" {
+		return models.WinterOrder{}, unknownWinterSubtype(lineNumber, fields[0], fields[1])
+	}
+	if len(fields) != 4 || fields[2] == fields[3] {
+		error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.WinterMarriageShape)
+		return models.WinterOrder{}, &error
+	}
+	for _, code := range fields[2:] {
+		if parseError := winterNobleCode(code, lineNumber, indexes); parseError != nil {
+			return models.WinterOrder{}, parseError
+		}
+	}
+	return models.WinterOrder{
+		Type:       models.WinterOrderTypeMarriage,
+		NobleCode:  models.NobleCode(fields[2]),
+		SpouseCode: models.NobleCode(fields[3]),
+	}, nil
 }

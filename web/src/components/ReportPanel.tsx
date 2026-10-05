@@ -13,6 +13,7 @@ import type {
   ReportArmy,
   CardReport,
   FiefReport,
+  MarriageReport,
   IncomeReport,
   SeasonEffectReport,
   TurnReport,
@@ -66,6 +67,15 @@ const REASON_KEYS: Record<string, MessageKey> = {
   troop_requires_adjacent_noble: 'reports.reason.troop_requires_adjacent_noble',
   noble_not_prisoner: 'reports.reason.noble_not_prisoner',
   noble_not_held: 'reports.reason.noble_not_held',
+  marriage_not_reciprocated: 'reports.reason.marriage_not_reciprocated',
+  marriage_pending: 'reports.reason.marriage_pending',
+  marriage_refused: 'reports.reason.marriage_refused',
+  marriage_same_owner: 'reports.reason.marriage_same_owner',
+  marriage_same_sex: 'reports.reason.marriage_same_sex',
+  marriage_forbidden: 'reports.reason.marriage_forbidden',
+  noble_not_owned: 'reports.reason.noble_not_owned',
+  noble_not_free: 'reports.reason.noble_not_free',
+  noble_already_married: 'reports.reason.noble_already_married',
   no_capital: 'reports.reason.no_capital',
   no_army_at_capital: 'reports.reason.no_army_at_capital',
   structure_present: 'reports.reason.structure_present',
@@ -296,6 +306,8 @@ function winterOrderLabel(order: WinterOrder, map: MapData | null, t: Translate)
     }
     case 'assign_fief':
       return `T A ${order.nobleCode ?? '—'} ${territory}`
+    case 'marriage':
+      return `M N ${order.nobleCode ?? '—'} ${order.spouseCode ?? '—'}`
   }
 }
 
@@ -333,6 +345,8 @@ function investmentLabel(
     case 'fief_assigned':
     case 'fief_auto_assigned':
       return `T A ${investment.nobleCode ?? '—'} ${territory}`
+    case 'marriage_refused':
+      return `M N ${investment.nobleCode ?? '—'}`
     case 'prosperity_founded':
       return `${WINTER_INFRA_SYMBOLS.village} ${territoryLabel(map, investment.target, t)} ← ${territoryLabel(map, investment.source, t)}`
     default:
@@ -382,6 +396,24 @@ function winterDetails(
   if (investment.nobleName) return investment.nobleName
   if (investment.level) return t('reports.level', { level: investment.level })
   return territoryLabel(map, investment.territory, t)
+}
+
+function marriageLabel(
+  marriage: MarriageReport,
+  players: Player[],
+  t: Translate,
+): string {
+  return t(
+    marriage.outcome === 'success'
+      ? 'reports.marriageConcluded'
+      : 'reports.marriageFailed',
+    {
+      noble: marriage.nobleName || marriage.nobleCode,
+      owner: playerLabel(players, marriage.owner, t),
+      spouse: marriage.spouseName || marriage.spouseCode,
+      spouseOwner: playerLabel(players, marriage.spouseOwner, t),
+    },
+  )
 }
 
 function fiefEventLabel(
@@ -660,6 +692,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
   const seasonEffects = report.seasonEffects ?? []
   const seasonEffectView = groupSeasonEffects(seasonEffects, map, t)
   const fiefs = report.fiefs ?? []
+  const marriages = report.marriages ?? []
 
   return (
     <section className="min-w-0 space-y-4">
@@ -1015,9 +1048,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                   })}
                 </p>
                 {line.famine && line.warned && (
-                  <p className="mt-1 font-semibold">
-                    {t('reports.famineWarning')}
-                  </p>
+                  <p className="mt-1 font-semibold">{t('reports.famineWarning')}</p>
                 )}
                 {line.famine && !line.warned && (
                   <p className="mt-1 font-semibold">
@@ -1112,6 +1143,23 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
               winterStocks.length === 0 &&
               emptyMessage(t('reports.winter').toLowerCase(), t)}
           </div>
+        </div>
+      )}
+
+      {marriages.length > 0 && (
+        <div className="space-y-2 rounded-lg border border-[#c9b688] bg-[#fbf3df] p-3">
+          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#7a5a20]">
+            {t('reports.marriages')}
+          </h4>
+          <ul className="space-y-1 text-sm text-[#7a5a20]">
+            {marriages.map((marriage, index) => (
+              <li
+                key={`${marriage.outcome}-${marriage.noble}-${marriage.spouse}-${index}`}
+              >
+                {marriageLabel(marriage, players, t)}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

@@ -161,6 +161,13 @@ func previewWinter(preview *OrdersPreview, game *models.GameState, balance asset
 		}
 		entry.Applied = event.Type != EventTypeRejected
 		entry.Reason = event.Reason
+		if event.Reason == "marriage_not_reciprocated" {
+			// The other player's sheet is private: the preview cannot know
+			// whether the marriage will be reciprocated, so the line stays
+			// valid and is only flagged as pending.
+			entry.Applied = true
+			entry.Reason = "marriage_pending"
+		}
 		entry.Cost = event.ResourceSpent
 		entry.Level = event.Level
 		entry.Territory = event.TerritoryID

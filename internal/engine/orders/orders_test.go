@@ -631,3 +631,19 @@ func orderTestState() *models.GameState {
 	}
 	return game
 }
+
+func TestParseMarriageWinterOrder(t *testing.T) {
+	game := orderTestState()
+	orders, parseErrors := ParseWinterOrders("M N JEA CAL", game)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseWinterOrders errors = %#v", parseErrors)
+	}
+	if len(orders) != 1 || orders[0].Type != models.WinterOrderTypeMarriage || orders[0].NobleCode != "JEA" || orders[0].SpouseCode != "CAL" {
+		t.Fatalf("orders = %#v, want one marriage JEA/CAL", orders)
+	}
+	for _, text := range []string{"M N JEA", "M N JEA CAL ROS", "M N JEA JEA", "M X JEA CAL", "M N JEA ZZZ"} {
+		if _, parseErrors := ParseWinterOrders(text, game); len(parseErrors) == 0 {
+			t.Errorf("ParseWinterOrders(%q) accepted a malformed marriage", text)
+		}
+	}
+}

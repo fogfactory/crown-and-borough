@@ -62,6 +62,7 @@ func ResolveWinterWithDeckOrders(
 			executeWinterOrder(ctx, playerID, order, firstNameRNG)
 		}
 	}
+	ctx.resolveMarriages()
 	resolveWinterDeckOrders(ctx, deckOrders)
 	// No calamity resolves in winter: the winter turn draws and schedules the
 	// following year's calamities but applies none.

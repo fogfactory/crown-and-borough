@@ -75,6 +75,7 @@ const (
 	WinterFiefShape              = "error.winter.fief_shape"
 	WinterFiefFoundShape         = "error.winter.fief_found_shape"
 	WinterFiefAssignShape        = "error.winter.fief_assign_shape"
+	WinterMarriageShape          = "error.winter.marriage_shape"
 	WinterMillMaxLevelReached    = "mill_max_level_reached"
 	DeckOrderShape               = "error.special.order_shape"
 	DeckOrderKindUnknown         = "error.special.kind_unknown"
@@ -172,6 +173,7 @@ func init() {
 	register(WinterMillMaxLevelReached, "the mill has reached its maximum level", "le moulin a atteint son niveau maximal")
 	register(WinterFiefShape, "T requires a fief subtype (F or A)", "T exige un sous-type de fief (F ou A)")
 	register(WinterFiefFoundShape, "T F requires a noble and at least 3 territory codes, the first being the capital", "T F exige un noble et au moins 3 codes de territoire, le premier étant la capitale")
+	register(WinterMarriageShape, "M N requires two distinct noble codes: your noble, then the one it marries", "M N exige deux codes de noble distincts : votre noble, puis celui qu'il épouse")
 	register(WinterFiefAssignShape, "T A requires a noble and one fief capital code", "T A exige un noble et un code de capitale de fief")
 	register(DeckOrderShape, "a special order has an invalid shape", "la forme de l'ordre spécial est invalide")
 	register(DeckOrderKindUnknown, "unknown special card kind %q", "kind de carte spéciale inconnu : %q")
