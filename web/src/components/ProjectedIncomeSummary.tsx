@@ -42,6 +42,10 @@ export function ProjectedIncomeSummary({ state, playerId }: ProjectedIncomeSumma
     0,
   )
   const nonFiefIncome = (player.projectedIncome ?? 0) - fiefIncomeTotal
+  const totalResources = state.territories.reduce(
+    (total, territory) => total + (territory.owner === playerId ? territory.resources : 0),
+    0,
+  )
 
   return (
     <div className="rounded-lg border border-[#b7a786] bg-[#f8f0e2] px-3 py-2 text-sm">
@@ -84,6 +88,9 @@ export function ProjectedIncomeSummary({ state, playerId }: ProjectedIncomeSumma
       )}
       <p className="mt-1 font-medium">
         {t('app.projectedMillIncomeAmount', { amount: player.projectedMillIncome ?? 0 })}
+      </p>
+      <p className="mt-2 border-t border-[#d4c4b0] pt-2 font-medium">
+        {t('app.currentResourcesAmount', { amount: totalResources })}
       </p>
     </div>
   )
