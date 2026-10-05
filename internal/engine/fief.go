@@ -227,12 +227,13 @@ func (ctx *resolutionContext) dissolveFiefOnCapitalCastleLoss(territoryID models
 
 // resolveVacantFiefsAtWinterEnd runs at the end of every winter, after winter
 // orders (including a same-turn T A) and before stock conservation. A fief is
-// never dissolved for lack of attribution any more (titres.md "Perte et
-// vacance d'un fief"): when its owner still has a free noble, the fief is
-// attributed by default to the one whose trigram sorts first, with a warning
-// event telling the player to take back manual attribution next turn.
-// Without any free noble, the fief simply stays vacant: it keeps producing
-// and scoring until attributed or dissolved by its capital's castle falling
+// never dissolved for lack of attribution (titres.md "Perte et vacance d'un
+// fief"): it is attributed by default to the first noble of its owner's line
+// of succession (succession.md § Lignée), whatever that noble's status
+// (a hostage or prisoner is not skipped), with a warning event telling the
+// player to take back manual attribution next turn. An owner without any
+// living noble leaves the fief vacant: it keeps producing and scoring until
+// attributed or dissolved by its capital's castle falling
 // (dissolveFiefOnCapitalCastleLoss, unaffected by this function).
 func (ctx *resolutionContext) resolveVacantFiefsAtWinterEnd() {
 	for i := range ctx.state.Fiefs {
@@ -240,10 +241,11 @@ func (ctx *resolutionContext) resolveVacantFiefsAtWinterEnd() {
 		if fief.HolderNobleID != nil {
 			continue
 		}
-		nobleID, exists := ctx.smallestFreeNoble(fief.OwnerID)
-		if !exists {
+		line := ctx.state.SuccessionLine(fief.OwnerID)
+		if len(line) == 0 {
 			continue
 		}
+		nobleID := line[0].ID
 		noble := ctx.noblesByID[nobleID]
 		fief.HolderNobleID = &nobleID
 		ctx.events = append(ctx.events, Event{
@@ -260,29 +262,6 @@ func (ctx *resolutionContext) resolveVacantFiefsAtWinterEnd() {
 			Reason:          "fief_auto_assigned_default_holder",
 		})
 	}
-}
-
-// smallestFreeNoble returns the id of playerID's free noble whose trigram
-// sorts first, for the deterministic default fief attribution above. It is
-// the same eligibility as the T A order (assignFiefOrder): owned by
-// playerID, NobleStatusFree (so implicitly alive and uncaptured). Holding
-// another fief's title is not disqualifying: a noble may hold several
-// (titres.md "Constitution d'un fief").
-func (ctx *resolutionContext) smallestFreeNoble(playerID models.PlayerID) (models.NobleID, bool) {
-	var best *models.Noble
-	for i := range ctx.state.Nobles {
-		noble := &ctx.state.Nobles[i]
-		if noble.OwnerID != playerID || noble.Status != models.NobleStatusFree {
-			continue
-		}
-		if best == nil || noble.Code < best.Code {
-			best = noble
-		}
-	}
-	if best == nil {
-		return "", false
-	}
-	return best.ID, true
 }
 
 func (ctx *resolutionContext) dissolveFief(fief models.Fief, reason string) {

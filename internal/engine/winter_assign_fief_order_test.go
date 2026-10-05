@@ -14,9 +14,34 @@ func assignFiefTestState(t *testing.T) *models.GameState {
 	state.Fiefs = []models.Fief{{
 		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "AAA",
 		Territories: []models.TerritoryID{"AAA", "BBB", "CCC"}, OwnerID: "P1",
+	}, {
+		// N1 heads the line and already holds a barony, so N2 may receive one.
+		ID: "F0", Title: models.FiefTitleBarony, CapitalTerritoryID: "EEE",
+		Territories: []models.TerritoryID{"EEE", "FFF", "GGG"}, OwnerID: "P1",
+		HolderNobleID: nobleIDPtr("N1"),
 	}}
 	addNoble(state, "N2", "ANN", "P1", "BBB")
 	return state
+}
+
+func TestAssignFiefOrderBlockedBySuccessionRank(t *testing.T) {
+	cases := map[string]func(state *models.GameState){
+		"head of line without title": func(state *models.GameState) { state.Fiefs[1].HolderNobleID = nil },
+		"head of line lower title": func(state *models.GameState) {
+			state.Fiefs[0].Title = models.FiefTitleCounty
+			state.Fiefs[0].Territories = []models.TerritoryID{"AAA", "BBB", "CCC", "DDD"}
+		},
+	}
+	for name, mutate := range cases {
+		t.Run(name, func(t *testing.T) {
+			state := assignFiefTestState(t)
+			mutate(state)
+			_, event := applyAssignFief(state, models.WinterOrder{NobleCode: "ANN", TerritoryID: "AAA"})
+			if event.Type != EventTypeRejected || event.Reason != "succession_rank_blocked" {
+				t.Fatalf("event = %#v, want rejected succession_rank_blocked", event)
+			}
+		})
+	}
 }
 
 func applyAssignFief(state *models.GameState, order models.WinterOrder) (*resolutionContext, Event) {
@@ -36,7 +61,7 @@ func TestAssignFiefOrderSuccess(t *testing.T) {
 	if event.ResourceSpent != 0 {
 		t.Errorf("ResourceSpent = %d, want 0", event.ResourceSpent)
 	}
-	if len(ctx.state.Fiefs) != 1 || ctx.state.Fiefs[0].HolderNobleID == nil || *ctx.state.Fiefs[0].HolderNobleID != "N2" {
+	if len(ctx.state.Fiefs) != 2 || ctx.state.Fiefs[0].HolderNobleID == nil || *ctx.state.Fiefs[0].HolderNobleID != "N2" {
 		t.Fatalf("fiefs = %#v, want N2 as holder", ctx.state.Fiefs)
 	}
 	if err := state.Validate(); err != nil {
@@ -86,12 +111,6 @@ func TestAssignFiefOrderRejections(t *testing.T) {
 			mutate: func(state *models.GameState) { addNoble(state, "N3", "BOB", "P2", "BBB") },
 			order:  models.WinterOrder{NobleCode: "BOB", TerritoryID: "AAA"},
 			reason: "fief_holder_not_owned",
-		},
-		{
-			name:   "holder not free",
-			mutate: func(state *models.GameState) { setNobleStatus(state, "N2", models.NobleStatusDungeon) },
-			order:  models.WinterOrder{NobleCode: "ANN", TerritoryID: "AAA"},
-			reason: "fief_holder_not_free",
 		},
 	}
 	for _, tc := range cases {

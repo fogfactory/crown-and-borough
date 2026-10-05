@@ -21,10 +21,6 @@ func (order foundFiefOrder) Apply(ctx *ExecutionContext) {
 		resolution.rejectWinterOrder(playerID, winterOrder, "fief_holder_not_owned")
 		return
 	}
-	if noble.Status != models.NobleStatusFree {
-		resolution.rejectWinterOrder(playerID, winterOrder, "fief_holder_not_free")
-		return
-	}
 
 	territories := winterOrder.TerritoryIDs
 	seen := make(map[models.TerritoryID]bool, len(territories))
@@ -74,6 +70,11 @@ func (order foundFiefOrder) Apply(ctx *ExecutionContext) {
 	}
 	if !fiefGroupContiguous(resolution, territories) {
 		resolution.rejectWinterOrder(playerID, winterOrder, "fief_not_contiguous")
+		return
+	}
+
+	if !resolution.state.CanReceiveTitle(nobleID, title) {
+		resolution.rejectWinterOrder(playerID, winterOrder, "succession_rank_blocked")
 		return
 	}
 

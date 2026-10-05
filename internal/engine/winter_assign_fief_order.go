@@ -34,8 +34,9 @@ func (order assignFiefOrder) Apply(ctx *ExecutionContext) {
 		resolution.rejectWinterOrder(playerID, winterOrder, "fief_holder_not_owned")
 		return
 	}
-	if noble.Status != models.NobleStatusFree {
-		resolution.rejectWinterOrder(playerID, winterOrder, "fief_holder_not_free")
+
+	if !resolution.state.CanReceiveTitle(nobleID, fief.Title) {
+		resolution.rejectWinterOrder(playerID, winterOrder, "succession_rank_blocked")
 		return
 	}
 

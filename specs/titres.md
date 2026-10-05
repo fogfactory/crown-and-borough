@@ -126,9 +126,14 @@ taille :
 | Marquisat | 5 | 10 R |
 | Duché | 6 et plus | 2 R par territoire |
 
-Le titre appartient au **noble** titulaire, qui doit être un noble libre du
-joueur au moment de la constitution (son statut n'est ensuite pas modifié : il
-reste libre et peut continuer à émettre des chaînes). Un même noble peut
+Le titre appartient au **noble** titulaire, qui doit être un noble du
+joueur, quel que soit son statut (un otage ou un prisonnier peut être
+titulaire ; il ne vote pas tant qu'il est prisonnier, un otage vote). La
+constitution ne modifie pas son statut. Il doit aussi respecter
+la **ligne de succession** : tous les nobles placés au-dessus de lui (ordre
+d'achat, voir [succession.md](succession.md#lignée)) détiennent déjà un fief de
+titre équivalent ou supérieur à celui qui est constitué, faute de quoi l'ordre
+est rejeté (`succession_rank_blocked`). Un même noble peut
 porter **plusieurs titres** simultanément, et un joueur peut détenir plusieurs
 fiefs. Lorsqu'un fief est créé, son château capitale devient une **cité** et
 apporte `+2` en défense **au total** : ce bonus remplace celui du château
@@ -137,8 +142,9 @@ exception d'auto-capture (aucun bonus si tous les attaquants appartiennent au
 propriétaire d'une cité vide).
 
 L'attribution d'un fief vacant se fait par l'ordre d'hiver `T A NNN XXX` :
-`NNN` est un noble libre du joueur qui détient le fief, `XXX` sa capitale.
-Cet ordre est gratuit (0 R).
+`NNN` est un noble du joueur qui détient le fief, `XXX` sa capitale.
+Cet ordre est gratuit (0 R) et soumis à la même règle de ligne de succession
+que la constitution (`succession_rank_blocked`).
 
 L'agrandissement d'un fief existant est différé : il n'est pas prévu dans ce
 milestone.
@@ -174,17 +180,18 @@ la dissolution automatique de #194).
   dissolution d'un fief.
 - **Fief vacant** : il continue d'exister, de produire et de compter son
   point de score jusqu'à son attribution ou la dissolution de sa capitale. Un
-  ordre d'hiver (`T A`) l'attribue à un noble libre du joueur qui le détient.
+  ordre d'hiver (`T A`) l'attribue à un noble du joueur qui le détient, sous réserve de la
+  ligne de succession.
   En fin d'hiver, après résolution des ordres d'hiver (y compris une
   éventuelle attribution du même tour) et avant la conservation des stocks,
-  tout fief encore vacant est **attribué par défaut** au noble libre du
-  joueur dont le trigramme est le plus petit par ordre lexicographique, avec
-  un avertissement dans le rapport invitant le joueur à reprendre la main sur
-  l'attribution au tour suivant. Si le joueur n'a aucun noble libre à ce
-  moment, le fief reste simplement vacant (**plus jamais dissous** faute
-  d'attribution) : il continue de produire et de compter son point de score
-  jusqu'à ce qu'un noble libre soit disponible ou que sa capitale soit
-  dissoute.
+  tout fief encore vacant est **attribué par défaut** au **premier noble de la
+  ligne de succession** du joueur, quel que soit son statut (un otage ou un
+  prisonnier n'est pas écarté), avec un avertissement dans le rapport invitant
+  le joueur à reprendre la main sur l'attribution au tour suivant. Si le
+  joueur n'a plus aucun noble vivant, le fief reste simplement vacant
+  (**plus jamais dissous** faute d'attribution) : il continue de produire et
+  de compter son point de score jusqu'à ce qu'un noble soit disponible ou que
+  sa capitale soit dissoute.
 
 ## Taxe seigneuriale
 

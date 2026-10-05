@@ -143,7 +143,7 @@ const REASON_KEYS: Record<string, MessageKey> = {
   invalid_transfer_shape: 'reports.reason.invalid_transfer_shape',
   no_available_first_name: 'reports.reason.no_available_first_name',
   fief_holder_not_owned: 'reports.reason.fief_holder_not_owned',
-  fief_holder_not_free: 'reports.reason.fief_holder_not_free',
+  succession_rank_blocked: 'reports.reason.succession_rank_blocked',
   fief_duplicate_territory: 'reports.reason.fief_duplicate_territory',
   fief_too_small: 'reports.reason.fief_too_small',
   fief_capital_requires_castle: 'reports.reason.fief_capital_requires_castle',

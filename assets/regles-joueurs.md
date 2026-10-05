@@ -697,8 +697,8 @@ investissements directs, une ligne par ordre, appliqués dans l'ordre saisi.
 | Placer un noble au donjon | `P N NNN` | `NNN` est un prisonnier adverse détenu par le joueur | 0 |
 | Libérer un noble | `L N NNN` | `NNN` est détenu par le joueur ; la capitale de son propriétaire contient une armée de celui-ci | {{costs.liberation}} |
 | Transférer des ressources | `G XXX YYY N` | `XXX` est un château ou village contrôlé par le donneur ; `YYY` est un château ou village contrôlé par un autre joueur | 0 |
-| Constituer un fief | `T F NNN XXX YYY ZZZ …` | `NNN` est un noble libre du joueur ; `XXX` (capitale) et le reste du groupe sont contrôlés, contigus et sans château requis hors capitale ; aucun territoire déjà en fief ; aucune armée adverse ou de révolte sur le groupe | {{costs.fief_per_territory}} par territoire |
-| Attribuer un fief vacant | `T A NNN XXX` | `NNN` est un noble libre du joueur ; `XXX` est la capitale d'un fief vacant qu'il détient | 0 |
+| Constituer un fief | `T F NNN XXX YYY ZZZ …` | `NNN` est un noble du joueur, même otage ou prisonnier ; `XXX` (capitale) et le reste du groupe sont contrôlés, contigus et sans château requis hors capitale ; aucun territoire déjà en fief ; aucune armée adverse ou de révolte sur le groupe | {{costs.fief_per_territory}} par territoire |
+| Attribuer un fief vacant | `T A NNN XXX` | `NNN` est un noble du joueur, même otage ou prisonnier ; `XXX` est la capitale d'un fief vacant qu'il détient | 0 |
 | Marier deux nobles | `M N NNN MMM` | `NNN` est un noble libre du joueur, `MMM` un noble libre d'un autre joueur, de sexe différent, tous deux non mariés ; l'autre joueur doit soumettre `M N MMM NNN` le même hiver, sinon le mariage est refusé | 0 |
 
 C'est ici, en hiver, que se règle le sort des nobles ennemis capturés en
@@ -766,12 +766,15 @@ perdre le fief entier, avec tous ses membres, d'un coup.
 
 Si le titulaire meurt (peste) ou si la capitale change de main, le fief
 devient **vacant** : il continue de produire et de compter son point de score,
-mais n'a plus de titulaire. `T A` l'attribue alors à un noble libre du joueur
-qui le détient. En fin d'hiver, un fief encore vacant à ce moment-là est
-**attribué automatiquement** au noble libre dont le trigramme est le plus
-petit, avec un avertissement dans le rapport te signalant de reprendre la main
-la fois suivante ; sans aucun noble libre, il reste simplement vacant — il
-n'est jamais dissous faute d'attribution. Si le château de la
+mais n'a plus de titulaire. `T A` l'attribue alors à un noble du joueur
+qui le détient, à condition que tous les nobles placés avant lui dans ta ligne
+de succession (l'ordre dans lequel tu les as recrutés) détiennent déjà un fief
+de titre équivalent ou supérieur ; la constitution d'un fief obéit à la même
+règle. En fin d'hiver, un fief encore vacant à ce moment-là est **attribué
+automatiquement** au premier noble de ta ligne de succession, même s'il est
+otage ou prisonnier, avec un avertissement dans le rapport te signalant de
+reprendre la main la fois suivante ; sans aucun noble vivant, il reste
+simplement vacant — il n'est jamais dissous faute d'attribution. Si le château de la
 capitale est détruit (pillage, y compris le pillage automatique de famine),
 le fief est dissous **immédiatement**, quelle que soit la saison : c'est la
 seule cause de dissolution d'un fief. La capture du titulaire (otage ou

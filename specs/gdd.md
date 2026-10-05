@@ -75,7 +75,7 @@ liste d'investissements directs, traités dans l'ordre saisi :
 - `T F NNN XXX YYY ZZZ …` — constituer un fief : `NNN` est le noble titulaire,
   `XXX` la capitale (premier territoire, qui doit porter un château), suivi
   du reste du groupe (voir [titres.md](titres.md#constitution-dun-fief)) ;
-- `T A NNN XXX` — attribuer le fief vacant de capitale `XXX` au noble libre
+- `T A NNN XXX` — attribuer le fief vacant de capitale `XXX` au noble
   `NNN` du joueur qui le détient.
 - `M N XXX YYY` — marier le noble `XXX` du joueur au noble `YYY` d'un autre
   joueur ; l'ordre n'est conclu que si l'autre joueur soumet `M N YYY XXX`
@@ -147,9 +147,9 @@ jamais partie de ces sources.
   du joueur, ni une armée du joueur) redevient neutre à la fin de l'hiver,
   après ce rapatriement (voir [titres.md](titres.md#contrôle-et-occupation)) ;
 - tout fief encore vacant (sans titulaire) est **attribué par défaut** au
-  noble libre du joueur qui le détient dont le trigramme est le plus petit
-  par ordre lexicographique, avec un avertissement dans le rapport ; sans
-  aucun noble libre disponible à ce moment, le fief reste simplement vacant
+  premier noble de la ligne de succession du joueur qui le détient, quel que
+  soit son statut, avec un avertissement dans le rapport ; sans aucun noble
+  vivant à ce moment, le fief reste simplement vacant
   (il n'est jamais dissous faute d'attribution, voir
   [titres.md](titres.md#perte-et-vacance-dun-fief)) ;
 - la saison suivante est le printemps.
