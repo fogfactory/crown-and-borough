@@ -50,6 +50,7 @@ const (
 	WinterOrderTypeTransfer      WinterOrderType = "transfer"
 	WinterOrderTypeFoundFief     WinterOrderType = "found_fief"
 	WinterOrderTypeAssignFief    WinterOrderType = "assign_fief"
+	WinterOrderTypeMarriage      WinterOrderType = "marriage"
 )
 
 // IsValid reports whether a winter order type is known to the winter resolver.
@@ -58,7 +59,7 @@ func (t WinterOrderType) IsValid() bool {
 	case WinterOrderTypeRecruitNoble, WinterOrderTypeRecruitTroop, WinterOrderTypeBuild,
 		WinterOrderTypeElectCapital, WinterOrderTypeLiberateNoble,
 		WinterOrderTypeHostage, WinterOrderTypeDungeon, WinterOrderTypeTransfer,
-		WinterOrderTypeFoundFief, WinterOrderTypeAssignFief:
+		WinterOrderTypeFoundFief, WinterOrderTypeAssignFief, WinterOrderTypeMarriage:
 		return true
 	}
 	return false
@@ -112,7 +113,9 @@ type Order struct {
 // TerritoryID holds the capital (also TerritoryIDs[0]) and TerritoryIDs holds
 // the whole group in source order; NobleCode is the titleholder. For
 // WinterOrderTypeAssignFief, TerritoryID is the fief's capital and NobleCode
-// is the noble it is attributed to.
+// is the noble it is attributed to. For WinterOrderTypeMarriage, NobleCode is
+// the player's own noble and SpouseCode the other player's noble it asks to
+// marry (specs/succession.md § Conclusion d'un mariage).
 type WinterOrder struct {
 	ID           OrderID         `json:"id"`
 	Type         WinterOrderType `json:"type"`
@@ -123,6 +126,7 @@ type WinterOrder struct {
 	Amount       int             `json:"amount,omitempty"`
 	InfraType    InfraType       `json:"infrastructureType,omitempty"`
 	NobleCode    NobleCode       `json:"nobleCode,omitempty"`
+	SpouseCode   NobleCode       `json:"spouseCode,omitempty"`
 }
 
 type DeckOrderType string

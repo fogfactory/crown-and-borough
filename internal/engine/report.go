@@ -29,6 +29,7 @@ type TurnReport struct {
 	Augury        *AuguryReport        `json:"augury,omitempty"`
 	Winter        *WinterReport        `json:"winter,omitempty"`
 	Fiefs         []FiefReport         `json:"fiefs"`
+	Marriages     []MarriageReport     `json:"marriages"`
 	State         *models.GameState    `json:"-"`
 }
 
@@ -314,6 +315,22 @@ type WinterInvestmentReport struct {
 	Order          *models.WinterOrder  `json:"order,omitempty"`
 }
 
+// MarriageReport announces one marriage concluded this winter, or a failed
+// negotiation (Outcome failure: the Noble's owner proposed, the Spouse's owner
+// did not answer in kind), see specs/succession.md § Conclusion d'un mariage.
+// It is public: every viewer receives it, as an announcement or a rumor.
+type MarriageReport struct {
+	Outcome     Outcome          `json:"outcome"`
+	Noble       models.NobleID   `json:"noble"`
+	NobleCode   models.NobleCode `json:"nobleCode"`
+	NobleName   string           `json:"nobleName"`
+	Owner       models.PlayerID  `json:"owner"`
+	Spouse      models.NobleID   `json:"spouse"`
+	SpouseCode  models.NobleCode `json:"spouseCode"`
+	SpouseName  string           `json:"spouseName"`
+	SpouseOwner models.PlayerID  `json:"spouseOwner"`
+}
+
 // FiefReport is one fief lifecycle change outside its constitution or
 // attribution (those, plus the default attribution of a still-vacant fief at
 // the end of winter, are recorded in Winter.Investments alongside the other
@@ -367,6 +384,7 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 		Cards:         []CardReport{},
 		Announcements: []AnnouncementReport{},
 		Fiefs:         []FiefReport{},
+		Marriages:     []MarriageReport{},
 	}
 	report.Receptions = append(report.Receptions, receptions...)
 	if before != nil {
@@ -664,6 +682,28 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 				Capital: event.TerritoryID, Title: event.FiefTitle,
 				Territories: append([]models.TerritoryID(nil), event.FiefTerritories...),
 				Noble:       event.NobleID, NobleName: event.NobleName, Reason: event.Reason,
+			})
+		case EventTypeMarriageRefused:
+			// The player who did not order the marriage sees it refused; every
+			// other player only gets the failed negotiation as a rumor.
+			report.Marriages = append(report.Marriages, MarriageReport{
+				Outcome: OutcomeFailure,
+				Noble:   event.SpouseNobleID, NobleCode: event.SpouseNobleCode, NobleName: event.SpouseNobleName, Owner: event.SpouseOwnerID,
+				Spouse: event.NobleID, SpouseCode: event.NobleCode, SpouseName: event.NobleName, SpouseOwner: event.OwnerID,
+			})
+			if report.Winter == nil {
+				report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}
+			}
+			report.Winter.Investments = append(report.Winter.Investments, WinterInvestmentReport{
+				Kind: event.Type, Player: event.OwnerID, Outcome: OutcomeFailure,
+				Noble: event.NobleID, NobleCode: event.NobleCode, NobleName: event.NobleName,
+				Reason: "marriage_refused",
+			})
+		case EventTypeMarriage:
+			report.Marriages = append(report.Marriages, MarriageReport{
+				Outcome: OutcomeSuccess,
+				Noble:   event.NobleID, NobleCode: event.NobleCode, NobleName: event.NobleName, Owner: event.OwnerID,
+				Spouse: event.SpouseNobleID, SpouseCode: event.SpouseNobleCode, SpouseName: event.SpouseNobleName, SpouseOwner: event.SpouseOwnerID,
 			})
 		case EventTypeFiefMemberOccupied:
 			report.Fiefs = append(report.Fiefs, FiefReport{

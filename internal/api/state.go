@@ -24,6 +24,7 @@ type StateView struct {
 	Territories         []TerritoryView                           `json:"territories"`
 	Nobles              []NobleView                               `json:"nobles"`
 	Fiefs               []FiefView                                `json:"fiefs"`
+	Marriages           []MarriageView                            `json:"marriages"`
 	SpecialHand         []models.CardKind                         `json:"specialHand"`
 	ActiveRegionEffects []models.ActiveRegionEffect               `json:"activeRegionEffects"`
 	Announcements       []engine.AnnouncementReport               `json:"announcements"`
@@ -173,6 +174,15 @@ type FiefView struct {
 	Owner           models.PlayerID      `json:"owner"`
 	Holder          *models.NobleCode    `json:"holder,omitempty"`
 	ProjectedIncome int                  `json:"projectedIncome"`
+}
+
+// MarriageView is one concluded marriage, public to every viewer
+// (specs/succession.md § Conclusion d'un mariage). The marriage outlives its
+// spouses, so a dead spouse is still named by its code.
+type MarriageView struct {
+	NobleA models.NobleCode `json:"nobleA"`
+	NobleB models.NobleCode `json:"nobleB"`
+	Turn   int              `json:"turn"`
 }
 
 func projectState(state *models.GameState, balance assetgen.Balance) StateView {
@@ -353,6 +363,19 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 			}
 		}
 		view.Fiefs = append(view.Fiefs, fiefView)
+	}
+	view.Marriages = []MarriageView{}
+	if len(state.Marriages) != 0 {
+		codes := make(map[models.NobleID]models.NobleCode, len(state.Nobles)+len(state.RemovedNobles))
+		for _, noble := range state.Nobles {
+			codes[noble.ID] = models.NobleCode(noble.Code)
+		}
+		for _, removed := range state.RemovedNobles {
+			codes[removed.ID] = models.NobleCode(removed.Code)
+		}
+		for _, marriage := range state.Marriages {
+			view.Marriages = append(view.Marriages, MarriageView{NobleA: codes[marriage.NobleA], NobleB: codes[marriage.NobleB], Turn: marriage.Turn})
+		}
 	}
 	if viewer != nil && state.SpecialDeck != nil {
 		cardKinds := make(map[models.SpecialCardID]models.CardKind, len(state.SpecialDeck.Cards))

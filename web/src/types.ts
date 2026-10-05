@@ -692,6 +692,7 @@ export type WinterOrderType =
   | 'transfer'
   | 'found_fief'
   | 'assign_fief'
+  | 'marriage'
 
 export interface WinterOrder {
   id?: string
@@ -699,6 +700,8 @@ export interface WinterOrder {
   territory?: string
   infrastructureType?: InfraType
   nobleCode?: string
+  /** Present only for `marriage`: the other player's noble. */
+  spouseCode?: string
   source?: string
   target?: string
   amount?: number

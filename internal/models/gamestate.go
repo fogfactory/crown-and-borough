@@ -56,6 +56,7 @@ type GameState struct {
 	ActiveRegionEffects []ActiveRegionEffect           `json:"activeRegionEffects"`
 	Fiefs               []Fief                         `json:"fiefs,omitempty"`
 	TaxedFiefs          []TaxedFief                    `json:"taxedFiefs,omitempty"`
+	Marriages           []Marriage                     `json:"marriages,omitempty"`
 }
 
 // NewGameState returns a fresh empty state at turn 1, spring of year 1, with
@@ -289,6 +290,12 @@ func (g *GameState) Validate() error {
 			return fmt.Errorf("models: removed noble %q: turn %d must be between 0 and %d", r.ID, r.Turn, g.Turn)
 		}
 		removedNobles[r.ID] = true
+	}
+
+	// 6c. Marriages: concluded between a living or removed noble of each of two
+	// distinct players, of different sex, and at most one marriage per noble.
+	if err := g.validateMarriages(nobles, removedNobles); err != nil {
+		return err
 	}
 
 	// 7. Chains: unique ids, valid references and complete stored orders. The

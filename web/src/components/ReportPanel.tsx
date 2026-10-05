@@ -66,6 +66,15 @@ const REASON_KEYS: Record<string, MessageKey> = {
   troop_requires_adjacent_noble: 'reports.reason.troop_requires_adjacent_noble',
   noble_not_prisoner: 'reports.reason.noble_not_prisoner',
   noble_not_held: 'reports.reason.noble_not_held',
+  marriage_not_reciprocated: 'reports.reason.marriage_not_reciprocated',
+  marriage_pending: 'reports.reason.marriage_pending',
+  marriage_refused: 'reports.reason.marriage_refused',
+  marriage_same_owner: 'reports.reason.marriage_same_owner',
+  marriage_same_sex: 'reports.reason.marriage_same_sex',
+  marriage_forbidden: 'reports.reason.marriage_forbidden',
+  noble_not_owned: 'reports.reason.noble_not_owned',
+  noble_not_free: 'reports.reason.noble_not_free',
+  noble_already_married: 'reports.reason.noble_already_married',
   no_capital: 'reports.reason.no_capital',
   no_army_at_capital: 'reports.reason.no_army_at_capital',
   structure_present: 'reports.reason.structure_present',
@@ -296,6 +305,8 @@ function winterOrderLabel(order: WinterOrder, map: MapData | null, t: Translate)
     }
     case 'assign_fief':
       return `T A ${order.nobleCode ?? '—'} ${territory}`
+    case 'marriage':
+      return `M N ${order.nobleCode ?? '—'} ${order.spouseCode ?? '—'}`
   }
 }
 

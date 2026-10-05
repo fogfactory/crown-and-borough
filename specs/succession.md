@@ -88,6 +88,60 @@ Il n'existe pas de limite au nombre de mariages d'un joueur : chaque noble en
 même joueur. Un joueur peut ainsi être simultanément allié, à des degrés
 différents, avec plusieurs autres joueurs.
 
+### Conclusion d'un mariage
+
+Un mariage se conclut en hiver par un ordre **symétrique**, gratuit et sans
+noble émetteur (il n'est pas une chaîne) :
+
+- le joueur qui possède le noble `XXX` soumet `M N XXX YYY` ;
+- le joueur qui possède le noble `YYY` soumet `M N YYY XXX`.
+
+Le consentement est **simultané** : le mariage n'existe que si les deux ordres
+sont soumis le même hiver, chacun nommant l'autre noble. Il n'y a ni
+proposition en attente ni acceptation différée : une demande sans
+réciproque est rejetée (`marriage_not_reciprocated`) et doit être soumise à
+nouveau l'hiver suivant.
+
+Le refus est visible des deux côtés. Le rapport du joueur qui a soumis l'ordre
+porte le rejet ; celui de l'autre joueur, qui n'a pas donné l'ordre
+réciproque, signale le mariage refusé. Les autres joueurs reçoivent une
+**rumeur** (section `marriages` du rapport, résultat `failure`) : « la
+négociation de mariage entre XXX et YYY a échoué ». La rumeur est systématique
+et nomme les deux nobles, sans préciser qui avait fait la demande.
+
+Conditions, vérifiées pour chacun des deux nobles ; un ordre qui n'en
+respecte pas une est rejeté avec le motif indiqué :
+
+- `XXX` appartient au joueur qui soumet l'ordre (`noble_not_owned`) ;
+- `XXX` et `YYY` appartiennent à deux joueurs distincts
+  (`marriage_same_owner`) ;
+- `XXX` et `YYY` sont de sexe différent, un homme et une dame
+  (`marriage_same_sex`) ;
+- les deux nobles sont libres : ni otage ni au cachot (`noble_not_free`) ;
+- aucun des deux n'est déjà marié (`noble_already_married`).
+- aucun des deux ne porte une dignité qui interdit le mariage
+  (`marriage_forbidden`). Cette condition est un point d'extension : tant que
+  les dignités n'existent pas ([dames.md](dames.md#dignités)), elle ne rejette
+  rien ; l'issue des dignités (#259) précise lesquelles interdisent le
+  mariage, la règle posée dans dames.md étant qu'une dame titulaire d'une
+  dignité ne peut pas se marier tant qu'elle la détient.
+
+Un noble ne contracte qu'un seul mariage. Le mariage subsiste à la mort d'un
+époux : il reste enregistré et le survivant ne peut pas se remarier. Si un
+même noble figure dans plusieurs couples d'ordres réciproques, seul le
+premier dans l'ordre de résolution (joueurs par identifiant, puis ordre de la
+feuille) est conclu ; les autres sont rejetés `noble_already_married`.
+
+Les ordres de mariage sont résolus après tous les autres ordres d'hiver
+individuels du tour : un noble libéré (`L N`) le même hiver peut donc être
+marié. La conclusion enregistre le mariage sans en calculer les effets : le
+poids, la catégorie et les bonus relèvent des sections suivantes.
+
+**Annonce.** Un mariage conclu est public : le rapport de tous les joueurs
+(et des spectateurs) mentionne les deux nobles et leurs maisons dans la
+section `marriages` du rapport (résultat `success`) et l'état de partie les
+expose à tous.
+
 ### Poids d'alliance
 
 Chaque mariage reçoit un poids d'alliance, qui détermine sa catégorie et sert

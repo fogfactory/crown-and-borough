@@ -77,9 +77,12 @@ liste d'investissements directs, traités dans l'ordre saisi :
   du reste du groupe (voir [titres.md](titres.md#constitution-dun-fief)) ;
 - `T A NNN XXX` — attribuer le fief vacant de capitale `XXX` au noble libre
   `NNN` du joueur qui le détient.
+- `M N XXX YYY` — marier le noble `XXX` du joueur au noble `YYY` d'un autre
+  joueur ; l'ordre n'est conclu que si l'autre joueur soumet `M N YYY XXX`
+  le même hiver (voir [succession.md](succession.md#conclusion-dun-mariage)).
 
-`XXX` est le trigramme du territoire ciblé, sauf pour `O N`, `P N` et `L N`,
-qui ciblent un noble. La feuille d'hiver peut aussi contenir `D C KIND` pour
+`XXX` est le trigramme du territoire ciblé, sauf pour `O N`, `P N`, `L N` et
+`M N`, qui ciblent des nobles. La feuille d'hiver peut aussi contenir `D C KIND` pour
 défausser une carte bonus (voir « Cartes bonus et calamités » ci-dessous).
 
 Les investissements territoriaux exigent le contrôle du territoire ciblé et

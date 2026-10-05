@@ -30,6 +30,7 @@ var winterOrderFactories = map[models.WinterOrderType]winterOrderFactory{
 	models.WinterOrderTypeTransfer:      func(order models.WinterOrder) ExecutableOrder { return transferOrder{order: order} },
 	models.WinterOrderTypeFoundFief:     func(order models.WinterOrder) ExecutableOrder { return foundFiefOrder{order: order} },
 	models.WinterOrderTypeAssignFief:    func(order models.WinterOrder) ExecutableOrder { return assignFiefOrder{order: order} },
+	models.WinterOrderTypeMarriage:      func(order models.WinterOrder) ExecutableOrder { return marriageOrder{order: order} },
 }
 
 func newExecutableWinterOrder(order models.WinterOrder) ExecutableOrder {

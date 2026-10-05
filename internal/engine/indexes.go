@@ -20,6 +20,7 @@ type resolutionContext struct {
 	noblesByID          map[models.NobleID]*models.Noble
 	noblesByCode        map[models.NobleCode]models.NobleID
 	removedNobleCodes   map[string]bool
+	pendingMarriages    []pendingMarriage
 	infrastructuresByID map[models.InfraID]*models.Infrastructure
 
 	startArmiesByID      map[models.ArmyID]models.Army
