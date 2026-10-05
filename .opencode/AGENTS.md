@@ -26,6 +26,9 @@ nouvelle ou modifiée doit être reportée dans les specs correspondantes.
 - Utiliser `fix/*` ou `bugfix/*` pour un correctif vers `main`, `ux/*` pour une
   amélioration UX vers `main`, et `feat/*` ou `feature/*` pour une feature vers
   `develop`.
+- Les branches créées par Claude Code (`claude/*`) sont acceptées par la policy
+  de PR : le titre Conventional Commit détermine la cible (`feat` vers
+  `develop`, `fix` vers `main`, le reste vers `develop`).
 - Ne jamais pousser directement sur `main` ou `develop`. Toujours passer par
   une PR avec revue et CI verte.
 - Les titres de PR suivent `type(scope): description`. `fix` produit un patch,
