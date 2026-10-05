@@ -232,8 +232,8 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 	view.YearCount = state.YearCount
 	view.Season = state.Season
 	view.Scores = engine.ComputeScores(state)
-	view.Finished = engine.GameFinished(state)
-	view.Winner = engine.WinnerForFinishedGame(state)
+	view.Finished = engine.GameFinished(state, balance)
+	view.Winner = engine.WinnerForFinishedGame(state, balance)
 	view.Players = make([]PlayerView, 0, len(state.Players))
 	view.Territories = make([]TerritoryView, 0, len(state.Territories))
 	view.Nobles = make([]NobleView, 0, len(state.Nobles))

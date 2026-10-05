@@ -741,7 +741,7 @@ func (s *MemoryStore) resolveLocked(game *memoryGame, playerID models.PlayerID, 
 		strictMembership: game.strictMembership,
 		joinedAt:         cloneJoinedAt(game.joinedAt),
 	}
-	nextGame.updateStatusLocked()
+	nextGame.updateStatusLocked(s.balance)
 	snapshot, err := s.snapshotLocked(nextGame)
 	if err != nil {
 		return SubmitResult{}, err
@@ -803,8 +803,8 @@ func (game *memoryGame) submissionStatusLocked() ([]models.PlayerID, []models.Pl
 	})
 }
 
-func (game *memoryGame) updateStatusLocked() {
-	finished, winner := turn.Outcome(game.state)
+func (game *memoryGame) updateStatusLocked(balance assetgen.Balance) {
+	finished, winner := turn.Outcome(game.state, balance)
 	game.winner = winner
 	game.status = StatusPlaying
 	if finished {

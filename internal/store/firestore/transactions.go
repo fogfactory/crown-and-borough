@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/fogfactory/crown-and-borough/internal/api"
+	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 	"github.com/fogfactory/crown-and-borough/internal/store"
@@ -484,7 +485,7 @@ func (s *FirestoreStore) commitResolution(ctx context.Context, claim resolutionC
 		game.SubmittedUIDs = []string{}
 		game.RequiredUIDs = sortedRequiredUIDs(report.State, playerSlots(game.Players))
 		game.UpdatedAt = updatedAt
-		game.Status, game.WinnerUID = statusForState(report.State)
+		game.Status, game.WinnerUID = statusForState(report.State, s.balance)
 		rawReport := reportDocument{
 			SchemaVersion: schemaVersion,
 			GameID:        snapshot.ID,
@@ -675,8 +676,8 @@ func wrapTransactionResult(err error) error {
 	return err
 }
 
-func statusForState(state *models.GameState) (store.Status, string) {
-	finished, winner := turn.Outcome(state)
+func statusForState(state *models.GameState, balance assetgen.Balance) (store.Status, string) {
+	finished, winner := turn.Outcome(state, balance)
 	switch {
 	case !finished:
 		return store.StatusPlaying, ""

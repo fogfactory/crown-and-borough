@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 
+	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
@@ -98,10 +99,43 @@ func PlayerMustSubmit(state *models.GameState, playerID models.PlayerID) bool {
 	return false
 }
 
-// GameFinished reports whether a state has reached an elimination or duration
-// end condition. Turn values after the final winter are one greater than the
-// configured number of years times four.
-func GameFinished(state *models.GameState) bool {
+// VictoryThresholds returns the solo and alliance title-score thresholds for
+// playerCount players (titres.md § Seuil de victoire et fin de partie). The
+// alliance threshold is strictly above the solo one. Both are zero when the
+// balance defines no victory block, which disables threshold victories.
+func VictoryThresholds(balance assetgen.Balance, playerCount int) (solo, alliance int) {
+	victory := balance.Victory
+	if victory.AllianceMargin < 1 {
+		return 0, 0
+	}
+	solo = victory.SoloBase + victory.SoloPerPlayer*playerCount
+	return solo, solo + victory.AllianceMargin
+}
+
+// thresholdWinners returns the players whose title score reaches the solo
+// threshold. No player can hold an active head yet (marriage categories and
+// alliance weights are still to come), so every player is evaluated against
+// the solo threshold; the alliance threshold only applies once an active head
+// exists.
+func thresholdWinners(state *models.GameState, balance assetgen.Balance) []models.PlayerID {
+	solo, _ := VictoryThresholds(balance, len(state.Players))
+	if solo < 1 {
+		return nil
+	}
+	scores := ComputeScores(state)
+	var reached []models.PlayerID
+	for _, player := range state.Players {
+		if scores[player.ID].Total >= solo {
+			reached = append(reached, player.ID)
+		}
+	}
+	return reached
+}
+
+// GameFinished reports whether a state has reached an elimination, supremacy
+// threshold or duration end condition. Turn values after the final winter are
+// one greater than the configured number of years times four.
+func GameFinished(state *models.GameState, balance assetgen.Balance) bool {
 	if state == nil {
 		return false
 	}
@@ -111,18 +145,17 @@ func GameFinished(state *models.GameState) bool {
 			alive++
 		}
 	}
-	return alive <= 1 || (state.YearCount > 0 && state.Turn > state.YearCount*4)
+	return alive <= 1 || len(thresholdWinners(state, balance)) > 0 ||
+		(state.YearCount > 0 && state.Turn > state.YearCount*4)
 }
 
 // WinnerForFinishedGame returns the winner once GameFinished is true. A sole
-// survivor wins immediately, otherwise the highest score wins at the duration
-// limit. An exact tie has no winner. This is interim pending victory
-// thresholds and major/minor victory (#253, #254): until then a duration-limit
-// game with a tied title score — including the common 0-0 case before any
-// titles have been awarded — simply has no winner.
-
-func WinnerForFinishedGame(state *models.GameState) *models.PlayerID {
-	if state == nil || !GameFinished(state) {
+// survivor wins immediately; otherwise, among the players that crossed the
+// supremacy threshold (or, at the duration limit, among all players) the
+// highest title score wins. An exact tie for the top score has no winner.
+// Major/minor victory (#254) will refine this.
+func WinnerForFinishedGame(state *models.GameState, balance assetgen.Balance) *models.PlayerID {
+	if state == nil || !GameFinished(state, balance) {
 		return nil
 	}
 	alive := make([]models.PlayerID, 0, len(state.Players))
@@ -135,18 +168,22 @@ func WinnerForFinishedGame(state *models.GameState) *models.PlayerID {
 		winner := alive[0]
 		return &winner
 	}
-	if state.YearCount == 0 || state.Turn <= state.YearCount*4 {
-		return nil
-	}
 
+	candidates := thresholdWinners(state, balance)
+	if len(candidates) == 0 {
+		candidates = make([]models.PlayerID, 0, len(state.Players))
+		for _, player := range state.Players {
+			candidates = append(candidates, player.ID)
+		}
+	}
 	scores := ComputeScores(state)
 	var winner models.PlayerID
 	highest := -1
 	tied := false
-	for _, player := range state.Players {
-		score := scores[player.ID].Total
+	for _, id := range candidates {
+		score := scores[id].Total
 		if score > highest {
-			winner = player.ID
+			winner = id
 			highest = score
 			tied = false
 		} else if score == highest {

@@ -47,6 +47,10 @@ costs:
   supply_depot: 3
   liberation: 0
   fief_per_territory: 2
+victory:
+  solo_base: 4
+  solo_per_player: 2
+  alliance_margin: 3
 starting_nobles: 1
 starting_troops: 1
 starting_outposts: 2

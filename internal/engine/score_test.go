@@ -1,8 +1,10 @@
 package engine
 
 import (
+	"fmt"
 	"testing"
 
+	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
@@ -104,10 +106,10 @@ func TestWinnerForFinishedGameUsesScoreAtYearLimit(t *testing.T) {
 		},
 	}
 
-	if !GameFinished(state) {
+	if !GameFinished(state, testBalance()) {
 		t.Fatal("state should be finished at the year limit")
 	}
-	winner := WinnerForFinishedGame(state)
+	winner := WinnerForFinishedGame(state, testBalance())
 	if winner == nil || *winner != p1 {
 		t.Fatalf("winner = %v, want %s", winner, p1)
 	}
@@ -129,7 +131,7 @@ func TestWinnerForFinishedGamePrefersSoleSurvivor(t *testing.T) {
 		Nobles: []models.Noble{{ID: "N2", Sex: models.SexMale, OwnerID: p2, LocationID: "AAA", Status: models.NobleStatusFree}},
 	}
 
-	winner := WinnerForFinishedGame(state)
+	winner := WinnerForFinishedGame(state, testBalance())
 	if winner == nil || *winner != p1 {
 		t.Fatalf("winner = %v, want sole survivor %s", winner, p1)
 	}
@@ -159,7 +161,7 @@ func TestWinnerForFinishedGameReturnsNoWinnerForExactTie(t *testing.T) {
 		},
 	}
 
-	if winner := WinnerForFinishedGame(state); winner != nil {
+	if winner := WinnerForFinishedGame(state, testBalance()); winner != nil {
 		t.Fatalf("winner = %v, want no winner for exact tie", winner)
 	}
 }
@@ -209,5 +211,67 @@ func TestPlayerMustSubmitWaitsForPlayerWithCardInHand(t *testing.T) {
 	state.SpecialDeck = &models.SpecialDeck{Hands: map[models.PlayerID][]models.SpecialCardID{"P1": {"C1"}}}
 	if !PlayerMustSubmit(state, "P1") {
 		t.Fatal("PlayerMustSubmit = false with a playable card in hand")
+	}
+}
+
+func victoryBalance() assetgen.Balance {
+	balance := testBalance()
+	balance.Victory = assetgen.VictoryBalance{SoloBase: 1, SoloPerPlayer: 1, AllianceMargin: 2}
+	return balance
+}
+
+func TestVictoryThresholdsAllianceStrictlyAboveSolo(t *testing.T) {
+	balance := victoryBalance()
+	for players := 2; players <= 6; players++ {
+		solo, alliance := VictoryThresholds(balance, players)
+		if solo != 1+players {
+			t.Fatalf("solo(%d) = %d, want %d", players, solo, 1+players)
+		}
+		if alliance <= solo {
+			t.Fatalf("alliance(%d) = %d, want strictly above solo %d", players, alliance, solo)
+		}
+	}
+	if solo, alliance := VictoryThresholds(testBalance(), 3); solo != 0 || alliance != 0 {
+		t.Fatalf("thresholds without victory block = %d/%d, want disabled", solo, alliance)
+	}
+}
+
+func thresholdState(fiefsForP1 int) *models.GameState {
+	p1, p2 := models.PlayerID("P1"), models.PlayerID("P2")
+	state := &models.GameState{
+		Turn:        1,
+		YearCount:   10,
+		Players:     []models.Player{{ID: p1}, {ID: p2}},
+		Territories: []models.Territory{{ID: "AAA"}, {ID: "BBB"}},
+		TerritoryStates: map[models.TerritoryID]models.TerritoryState{
+			"AAA": {Army: armyPointer("A1")},
+			"BBB": {Army: armyPointer("A2")},
+		},
+		Armies: []models.Army{
+			{ID: "A1", OwnerID: p1, TerritoryID: "AAA", Size: 1},
+			{ID: "A2", OwnerID: p2, TerritoryID: "BBB", Size: 1},
+		},
+	}
+	for i := 0; i < fiefsForP1; i++ {
+		state.Fiefs = append(state.Fiefs, models.Fief{
+			ID: models.FiefID(fmt.Sprintf("F%d", i)), Title: models.FiefTitleBarony,
+			CapitalTerritoryID: "AAA", Territories: []models.TerritoryID{"AAA"}, OwnerID: p1,
+		})
+	}
+	return state
+}
+
+func TestGameEndsWhenSoloThresholdIsReached(t *testing.T) {
+	balance := victoryBalance() // two players: solo threshold 3
+	below := thresholdState(2)
+	if GameFinished(below, balance) {
+		t.Fatal("game finished below the solo threshold")
+	}
+	reached := thresholdState(3)
+	if !GameFinished(reached, balance) {
+		t.Fatal("game should end when the solo threshold is reached")
+	}
+	if winner := WinnerForFinishedGame(reached, balance); winner == nil || *winner != "P1" {
+		t.Fatalf("winner = %v, want P1", winner)
 	}
 }

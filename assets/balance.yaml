@@ -46,6 +46,14 @@ costs:
   # Per territory, paid by a T F winter order (titres.md).
   fief_per_territory: 2
 
+# Title-score supremacy thresholds (titres.md § Seuil de victoire et fin de
+# partie). solo = solo_base + solo_per_player * players; the alliance threshold
+# is solo + alliance_margin, so alliance_margin must be strictly positive.
+victory:
+  solo_base: 4
+  solo_per_player: 2
+  alliance_margin: 3
+
 # P1.7 game setup values.
 starting_nobles: 2
 starting_troops: 2

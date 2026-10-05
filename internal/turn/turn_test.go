@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
@@ -110,11 +111,11 @@ func TestCloneOrdersKeepsSpecialOrders(t *testing.T) {
 
 func TestOutcomeReportsSoleSurvivor(t *testing.T) {
 	state := progressState()
-	if finished, _ := Outcome(state); finished {
+	if finished, _ := Outcome(state, assetgen.Balance{}); finished {
 		t.Fatal("Outcome = finished with three players alive")
 	}
 	state.Armies = state.Armies[:1]
-	finished, winner := Outcome(state)
+	finished, winner := Outcome(state, assetgen.Balance{})
 	if !finished || winner == nil || *winner != "P1" {
 		t.Fatalf("Outcome = %v, %v; want finished with winner P1", finished, winner)
 	}

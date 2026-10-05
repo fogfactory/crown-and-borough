@@ -29,12 +29,23 @@ type Balance struct {
 	CastleStockCap          int                    `json:"castle_stock_cap" yaml:"castle_stock_cap"`
 	ProsperityLossThreshold int                    `json:"prosperity_loss_threshold" yaml:"prosperity_loss_threshold"`
 	Costs                   Costs                  `json:"costs" yaml:"costs"`
+	Victory                 VictoryBalance         `json:"victory" yaml:"victory"`
 	StartingNobles          int                    `json:"starting_nobles" yaml:"starting_nobles"`
 	StartingTroops          int                    `json:"starting_troops" yaml:"starting_troops"`
 	StartingOutposts        int                    `json:"starting_outposts" yaml:"starting_outposts"`
 	StartingResources       int                    `json:"starting_resources" yaml:"starting_resources"`
 	SpecialOrders           SpecialOrdersBalance   `json:"special_orders" yaml:"special_orders"`
 	FirstNames              []Asset                `json:"-" yaml:"-"`
+}
+
+// VictoryBalance derives the title-score supremacy thresholds from the player
+// count (titres.md § Seuil de victoire et fin de partie): solo = SoloBase +
+// SoloPerPlayer*players, alliance = solo + AllianceMargin. AllianceMargin is
+// strictly positive so an alliance victory always costs more than a solo one.
+type VictoryBalance struct {
+	SoloBase       int `json:"solo_base" yaml:"solo_base"`
+	SoloPerPlayer  int `json:"solo_per_player" yaml:"solo_per_player"`
+	AllianceMargin int `json:"alliance_margin" yaml:"alliance_margin"`
 }
 
 type SpecialOrdersBalance struct {
@@ -82,11 +93,18 @@ type rawBalance struct {
 	CastleStockCap          *int              `yaml:"castle_stock_cap"`
 	ProsperityLossThreshold *int              `yaml:"prosperity_loss_threshold"`
 	Costs                   *rawCosts         `yaml:"costs"`
+	Victory                 *rawVictory       `yaml:"victory"`
 	StartingNobles          *int              `yaml:"starting_nobles"`
 	StartingTroops          *int              `yaml:"starting_troops"`
 	StartingOutposts        *int              `yaml:"starting_outposts"`
 	StartingResources       *int              `yaml:"starting_resources"`
 	SpecialOrders           *rawSpecialOrders `yaml:"special_orders"`
+}
+
+type rawVictory struct {
+	SoloBase       *int `yaml:"solo_base"`
+	SoloPerPlayer  *int `yaml:"solo_per_player"`
+	AllianceMargin *int `yaml:"alliance_margin"`
 }
 
 type rawSpecialOrders struct {
@@ -250,6 +268,10 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 	if err != nil {
 		return Balance{}, err
 	}
+	victory, err := raw.victory(path)
+	if err != nil {
+		return Balance{}, err
+	}
 	return Balance{
 		TerritoryIncome:         territoryIncome,
 		VillageIncome:           villageIncome,
@@ -266,12 +288,32 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 		CastleStockCap:          castleStockCap,
 		ProsperityLossThreshold: prosperityLossThreshold,
 		Costs:                   costs,
+		Victory:                 victory,
 		StartingNobles:          startingNobles,
 		StartingTroops:          startingTroops,
 		StartingOutposts:        startingOutposts,
 		StartingResources:       startingResources,
 		SpecialOrders:           specialOrders,
 	}, nil
+}
+
+func (raw rawBalance) victory(path string) (VictoryBalance, error) {
+	if raw.Victory == nil {
+		return VictoryBalance{}, missingBalanceValue(path, "victory")
+	}
+	soloBase, err := requiredNonNegativeInt(path, "victory.solo_base", raw.Victory.SoloBase)
+	if err != nil {
+		return VictoryBalance{}, err
+	}
+	soloPerPlayer, err := requiredNonNegativeInt(path, "victory.solo_per_player", raw.Victory.SoloPerPlayer)
+	if err != nil {
+		return VictoryBalance{}, err
+	}
+	allianceMargin, err := requiredPositiveInt(path, "victory.alliance_margin", raw.Victory.AllianceMargin)
+	if err != nil {
+		return VictoryBalance{}, err
+	}
+	return VictoryBalance{SoloBase: soloBase, SoloPerPlayer: soloPerPlayer, AllianceMargin: allianceMargin}, nil
 }
 
 func (raw rawBalance) costs(path string) (Costs, error) {

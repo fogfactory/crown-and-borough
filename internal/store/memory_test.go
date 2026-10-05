@@ -303,7 +303,7 @@ func TestMemoryStoreTreatsEliminatedPlayersAsSubmittedAndSetsWinner(t *testing.T
 		game.mu.Unlock()
 		t.Fatalf("eliminated fixture is invalid: %v", err)
 	}
-	game.updateStatusLocked()
+	game.updateStatusLocked(assetgen.Balance{})
 	status, winner := game.status, game.winner
 	game.mu.Unlock()
 

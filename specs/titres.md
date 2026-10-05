@@ -270,9 +270,11 @@ Si aucun seuil n'est atteint à la durée maximale de la partie (1 à 50 années
 GDD §2), la partie se termine sur le score de titres le plus élevé à cet
 instant, selon les mêmes règles de seuil et d'alliance.
 
-> À trancher : formule exacte des deux seuils (fixes vs proportionnels au
-> nombre de joueurs, écart minimal entre seuil solo et seuil d'alliance), à
-> arrêter dans l'issue de milestone dédiée au calibrage.
+Les seuils se calculent dans `assets/balance.yaml` (bloc `victory`) :
+seuil solo = `solo_base` + `solo_per_player` × nombre de joueurs ; seuil
+d'alliance = seuil solo + `alliance_margin`, avec `alliance_margin` strictement
+positif. Les valeurs de départ (4 + 2 par joueur, écart de 3) sont à calibrer
+dans l'issue de milestone dédiée.
 
 ### Victoire majeure, victoire mineure, échec
 

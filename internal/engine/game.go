@@ -393,7 +393,7 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 	if err := game.Validate(); err != nil {
 		return TurnReport{}, fmt.Errorf("engine: resolve turn: invalid game state: %w", err)
 	}
-	if GameFinished(game) {
+	if GameFinished(game, balance) {
 		return TurnReport{}, ErrGameFinished
 	}
 
