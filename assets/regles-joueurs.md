@@ -751,6 +751,14 @@ noble titulaire désigné, qui doit être libre au moment de la constitution ;
 un même noble peut porter plusieurs titres, et un joueur peut détenir
 plusieurs fiefs.
 
+Le titulaire d'un fief est désigné par sa forme d'adresse — Baron/Baronne
+(baronnie), Comte/Comtesse (comté), Marquis/Marquise (marquisat),
+Duc/Duchesse (duché) — suivie de son prénom et de la capitale du fief ; un
+noble sans fief est « Sieur » ou « Dame ». Son conjoint (mariage en cours)
+porte le titre de courtoisie assorti, quel que soit son sexe, tant que le
+titulaire garde le fief. C'est un simple affichage : il n'a aucun effet sur
+le score, les alliances ou la succession.
+
 Le contrôle d'un fief est **transitif** (section 6) : un membre autre que la
 capitale reste à toi même lorsqu'une armée adverse s'y arrête ; elle
 l'**occupe** sans te le prendre. Seule la prise de la **capitale** te fait
