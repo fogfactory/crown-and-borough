@@ -83,7 +83,9 @@ jobs:
             } else if (/^release-please--/.test(head)) {
               requireBase("main", "Release Please pull requests");
             } else if (/^(dependabot|renovate)\//.test(head)) {
-              requireBase("develop", "Dependency update branches");
+              // Dependency updates go straight to main; main is synced back into
+              // develop by automation.
+              requireBase("main", "Dependency update branches");
             } else if (/^claude\//.test(head)) {
               // Branches created by Claude Code worktrees carry no change-type
               // prefix: the Conventional Commit title decides the target.
