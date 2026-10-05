@@ -84,9 +84,25 @@ jobs:
               requireBase("main", "Release Please pull requests");
             } else if (/^(dependabot|renovate)\//.test(head)) {
               requireBase("develop", "Dependency update branches");
+            } else if (/^claude\//.test(head)) {
+              // Branches created by Claude Code worktrees carry no change-type
+              // prefix: the Conventional Commit title decides the target.
+              if (commitType === "feat") {
+                requireBase("develop", "Feature pull requests");
+                if (!hasLabel("release:minor") && !hasLabel("release:major")) {
+                  errors.push("Feature pull requests need release:minor or release:major.");
+                }
+              } else if (commitType === "fix") {
+                requireBase("main", "Bugfix pull requests");
+                if (!hasLabel("release:patch")) {
+                  errors.push("Bugfix pull requests need the release:patch label.");
+                }
+              } else {
+                requireBase("develop", "Maintenance pull requests");
+              }
             } else {
               errors.push(
-                "Use a branch prefix that describes the change: feat/, fix/, ux/, chore/, docs/, refactor/, test/, ci/, or build/.",
+                "Use a branch prefix that describes the change: feat/, fix/, ux/, chore/, docs/, refactor/, test/, ci/, build/, or claude/.",
               );
             }
 
