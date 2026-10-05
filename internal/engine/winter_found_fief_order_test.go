@@ -192,10 +192,10 @@ func TestFoundFiefOrderRejections(t *testing.T) {
 			reason: "fief_holder_not_owned",
 		},
 		{
-			name:   "holder not free",
-			mutate: func(state *models.GameState) { setNobleStatus(state, "N1", models.NobleStatusHostage) },
-			order:  models.WinterOrder{NobleCode: "HUG", TerritoryID: "AAA", TerritoryIDs: []models.TerritoryID{"AAA", "BBB", "CCC"}},
-			reason: "fief_holder_not_free",
+			name:   "head of line has no title",
+			mutate: func(state *models.GameState) { addNoble(state, "N2", "ANN", "P1", "AAA") },
+			order:  models.WinterOrder{NobleCode: "ANN", TerritoryID: "AAA", TerritoryIDs: []models.TerritoryID{"AAA", "BBB", "CCC"}},
+			reason: "succession_rank_blocked",
 		},
 		{
 			name:          "duplicate territory",

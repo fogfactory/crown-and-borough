@@ -12,7 +12,7 @@ func nobleIDPtr(id models.NobleID) *models.NobleID {
 
 // TestVacantFiefAutoAssignedAtWinterEnd verifies that a fief still vacant at
 // the end of winter is no longer dissolved: it is attributed by default to
-// its owner's free noble with the lowest trigram, with a warning event
+// the first noble of its owner's line of succession, with a warning event
 // (titres.md "Perte et vacance d'un fief").
 func TestVacantFiefAutoAssignedAtWinterEnd(t *testing.T) {
 	state := foundFiefTestState(t)
@@ -30,12 +30,13 @@ func TestVacantFiefAutoAssignedAtWinterEnd(t *testing.T) {
 	if len(resolution.State.Fiefs) != 1 {
 		t.Fatalf("fiefs = %#v, want the fief to survive, auto-assigned", resolution.State.Fiefs)
 	}
-	// N2/ABC sorts before N1/HUG: it is the default holder.
-	if holder := resolution.State.Fiefs[0].HolderNobleID; holder == nil || *holder != "N2" {
-		t.Fatalf("holder = %v, want N2 (ABC, lowest trigram)", holder)
+	// N1/HUG was recruited first: it heads the line, although N2/ABC sorts
+	// before it by trigram.
+	if holder := resolution.State.Fiefs[0].HolderNobleID; holder == nil || *holder != "N1" {
+		t.Fatalf("holder = %v, want N1 (head of the line of succession)", holder)
 	}
 	assigned := eventsOfType(resolution.Events, EventTypeFiefAutoAssigned)
-	if len(assigned) != 1 || assigned[0].FiefID != "F1" || assigned[0].NobleID != "N2" || assigned[0].NobleCode != "ABC" {
+	if len(assigned) != 1 || assigned[0].FiefID != "F1" || assigned[0].NobleID != "N1" || assigned[0].NobleCode != "HUG" {
 		t.Fatalf("auto-assigned events = %#v", assigned)
 	}
 	if len(eventsOfType(resolution.Events, EventTypeFiefDissolved)) != 0 {
@@ -43,13 +44,13 @@ func TestVacantFiefAutoAssignedAtWinterEnd(t *testing.T) {
 	}
 }
 
-// TestVacantFiefStaysVacantWithoutFreeNoble verifies that a fief whose owner
-// has no free noble is neither dissolved nor attributed: it simply stays
-// vacant, still producing and scoring, until a noble is free or its capital's
-// castle falls (titres.md "Perte et vacance d'un fief").
-func TestVacantFiefStaysVacantWithoutFreeNoble(t *testing.T) {
+// TestVacantFiefAutoAssignedToCapturedHeadOfLine verifies that the head of
+// the line is not skipped when it is a hostage or prisoner, and that a fief
+// whose owner has no living noble stays vacant, undissolved.
+func TestVacantFiefAutoAssignedToCapturedHeadOfLine(t *testing.T) {
 	state := foundFiefTestState(t)
 	setNobleStatus(state, "N1", models.NobleStatusHostage)
+	addNoble(state, "N2", "ABC", "P1", "AAA")
 	state.Fiefs = []models.Fief{{
 		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "AAA",
 		Territories: []models.TerritoryID{"AAA", "BBB", "CCC"}, OwnerID: "P1",
@@ -60,14 +61,28 @@ func TestVacantFiefStaysVacantWithoutFreeNoble(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveWinter: %v", err)
 	}
+	if holder := resolution.State.Fiefs[0].HolderNobleID; holder == nil || *holder != "N1" {
+		t.Fatalf("holder = %v, want the hostage N1 (not skipped)", holder)
+	}
+}
+
+func TestVacantFiefStaysVacantWithoutNoble(t *testing.T) {
+	state := foundFiefTestState(t)
+	state.Nobles = nil
+	state.Fiefs = []models.Fief{{
+		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "AAA",
+		Territories: []models.TerritoryID{"AAA", "BBB", "CCC"}, OwnerID: "P1",
+	}}
+
+	resolution, err := ResolveWinter(state, testBalance(), nil)
+	if err != nil {
+		t.Fatalf("ResolveWinter: %v", err)
+	}
 	if len(resolution.State.Fiefs) != 1 || resolution.State.Fiefs[0].HolderNobleID != nil {
 		t.Fatalf("fiefs = %#v, want the fief to stay vacant, undissolved", resolution.State.Fiefs)
 	}
 	if len(eventsOfType(resolution.Events, EventTypeFiefDissolved)) != 0 {
 		t.Errorf("events = %#v, want no dissolution", resolution.Events)
-	}
-	if len(eventsOfType(resolution.Events, EventTypeFiefAutoAssigned)) != 0 {
-		t.Errorf("events = %#v, want no auto-assignment", resolution.Events)
 	}
 }
 

@@ -496,7 +496,8 @@ const englishMessages = {
   'reports.reason.no_available_first_name': 'No first name is available for a new noble.',
   'reports.reason.fief_holder_not_owned':
     'The designated titulaire does not belong to the player.',
-  'reports.reason.fief_holder_not_free': 'The designated titulaire is not free.',
+  'reports.reason.succession_rank_blocked':
+    'A noble ahead in the line of succession does not yet hold an equal or higher title.',
   'reports.reason.fief_duplicate_territory': 'The fief group lists a territory twice.',
   'reports.reason.fief_too_small': 'The fief group has fewer than 3 territories.',
   'reports.reason.fief_capital_requires_castle': 'The fief capital has no castle.',
@@ -1228,7 +1229,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     "Aucun prénom n'est disponible pour un nouveau noble.",
   'reports.reason.fief_holder_not_owned':
     "Le titulaire désigné n'appartient pas au joueur.",
-  'reports.reason.fief_holder_not_free': "Le titulaire désigné n'est pas libre.",
+  'reports.reason.succession_rank_blocked':
+    'Un noble placé plus haut dans la ligne de succession ne détient pas encore un titre équivalent ou supérieur.',
   'reports.reason.fief_duplicate_territory':
     'Le groupe du fief liste deux fois le même territoire.',
   'reports.reason.fief_too_small': 'Le groupe du fief compte moins de 3 territoires.',

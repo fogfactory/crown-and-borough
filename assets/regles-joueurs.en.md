@@ -658,8 +658,8 @@ per line, applied in the entered order.
 | Place a noble in the dungeon | `P N NNN` | `NNN` is an opposing prisoner held by the player | 0 |
 | Liberate a noble | `L N NNN` | `NNN` is held by the player; its owner's capital contains one of that owner's armies | {{costs.liberation}} |
 | Transfer resources | `G XXX YYY N` | `XXX` is a castle or village controlled by the donor; `YYY` is a castle or village controlled by another player | 0 |
-| Found a fief | `T F NNN XXX YYY ZZZ …` | `NNN` is a free player noble; `XXX` (capital) and the rest of the group are controlled, contiguous, and need no castle outside the capital; no territory already in a fief; no enemy or revolt army on the group | {{costs.fief_per_territory}} per territory |
-| Assign a vacant fief | `T A NNN XXX` | `NNN` is a free player noble; `XXX` is the capital of a vacant fief the player holds | 0 |
+| Found a fief | `T F NNN XXX YYY ZZZ …` | `NNN` is a player noble, even a hostage or prisoner; `XXX` (capital) and the rest of the group are controlled, contiguous, and need no castle outside the capital; no territory already in a fief; no enemy or revolt army on the group | {{costs.fief_per_territory}} per territory |
+| Assign a vacant fief | `T A NNN XXX` | `NNN` is a player noble, even a hostage or prisoner; `XXX` is the capital of a vacant fief the player holds | 0 |
 | Marry two nobles | `M N NNN MMM` | `NNN` is a free player noble, `MMM` a free noble of another player, of the opposite sex, both unmarried; the other player must submit `M N MMM NNN` the same winter, otherwise the marriage is refused | 0 |
 
 This is where, in winter, the fate of enemy nobles captured in combat
@@ -724,11 +724,14 @@ the entire fief, every member at once.
 
 If the titulaire dies (plague) or the capital changes hands, the fief becomes
 **vacant**: it keeps producing and scoring its point, but has no titulaire.
-`T A` then assigns it to a free noble of the player who holds it. At the end
-of winter, a fief still vacant at that point is **automatically assigned** to
-the free noble whose trigram sorts first, with a warning in the report
-telling you to take back manual assignment next turn; with no free noble at
-all, it simply stays vacant — it is never dissolved for lack of assignment.
+`T A` then assigns it to a noble of the player who holds it, provided
+every noble ahead of them in your line of succession (the order in which you
+recruited them) already holds a fief of an equal or higher title; founding a
+fief follows the same rule. At the end of winter, a fief still vacant at that
+point is **automatically assigned** to the first noble in your line of
+succession, even a hostage or prisoner, with a warning in the report telling
+you to take back manual assignment next turn; with no living noble at all, it
+simply stays vacant — it is never dissolved for lack of assignment.
 If the capital's castle is destroyed (pillage, including
 automatic famine pillage), the fief is dissolved **immediately**, regardless
 of the season: this is the only way a fief is dissolved. Capturing the
