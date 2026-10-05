@@ -570,7 +570,7 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 		case EventTypeNobleMovement, EventTypeCapture, EventTypeLiberation:
 			noble := afterNobles[event.NobleID]
 			report.Nobles = append(report.Nobles, NobleReport{
-				Kind: event.Type, Noble: event.NobleID, Code: models.NobleCode(noble.Code), Name: noble.Name,
+				Kind: event.Type, Noble: event.NobleID, Code: models.NobleCode(noble.Code), Name: after.NobleDisplayName(noble),
 				Owner: noble.OwnerID, Army: event.ArmyID, Territory: event.TerritoryID,
 				Source: event.SourceID, Destination: event.DestinationID, PreviousStatus: event.PreviousStatus,
 				Status: event.Status, Captor: event.CaptorPlayerID,
@@ -727,7 +727,7 @@ func buildPlayerReports(before, after *models.GameState) []PlayerReport {
 			}
 			for _, noble := range after.Nobles {
 				if noble.OwnerID == player.ID {
-					report.Nobles = append(report.Nobles, NobleReport{Noble: noble.ID, Code: models.NobleCode(noble.Code), Name: noble.Name, Owner: noble.OwnerID, Territory: noble.LocationID, Status: noble.Status})
+					report.Nobles = append(report.Nobles, NobleReport{Noble: noble.ID, Code: models.NobleCode(noble.Code), Name: after.NobleDisplayName(noble), Owner: noble.OwnerID, Territory: noble.LocationID, Status: noble.Status})
 				}
 			}
 			for _, infrastructure := range after.Infrastructures {

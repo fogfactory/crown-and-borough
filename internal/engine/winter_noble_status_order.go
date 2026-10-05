@@ -44,7 +44,7 @@ func applyNobleStatusOrder(ctx *ExecutionContext, order models.WinterOrder, stat
 		TerritoryID:    noble.LocationID,
 		NobleID:        noble.ID,
 		NobleCode:      models.NobleCode(noble.Code),
-		NobleName:      noble.Name,
+		NobleName:      resolution.state.NobleDisplayName(*noble),
 		PreviousStatus: previousStatus,
 		Status:         noble.Status,
 		CaptorPlayerID: playerID,

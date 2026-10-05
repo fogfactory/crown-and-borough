@@ -52,7 +52,7 @@ func (order assignFiefOrder) Apply(ctx *ExecutionContext) {
 		FiefTerritories: append([]models.TerritoryID(nil), fief.Territories...),
 		NobleID:         nobleID,
 		NobleCode:       models.NobleCode(noble.Code),
-		NobleName:       noble.Name,
+		NobleName:       resolution.state.NobleDisplayName(*noble),
 		ResourceSpent:   0,
 	})
 }

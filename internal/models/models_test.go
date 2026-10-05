@@ -157,6 +157,47 @@ func TestSex(t *testing.T) {
 	}
 }
 
+func TestNobleDisplayName(t *testing.T) {
+	male := models.Noble{ID: "N1", Name: "Guillaume de Rosemont", Sex: models.SexMale}
+	female := models.Noble{ID: "N2", Name: "Mahaut de Rosemont", Sex: models.SexFemale}
+	holds := func(noble models.Noble, title models.FiefTitle) models.Fief {
+		id := noble.ID
+		return models.Fief{Title: title, HolderNobleID: &id}
+	}
+	tests := []struct {
+		name  string
+		fiefs []models.Fief
+		noble models.Noble
+		want  string
+	}{
+		{"male without fief", nil, male, "Sieur Guillaume de Rosemont"},
+		{"female without fief", nil, female, "Dame Mahaut de Rosemont"},
+		{"baron", []models.Fief{holds(male, models.FiefTitleBarony)}, male, "Baron Guillaume de Rosemont"},
+		{"baroness", []models.Fief{holds(female, models.FiefTitleBarony)}, female, "Baronne Mahaut de Rosemont"},
+		{"count", []models.Fief{holds(male, models.FiefTitleCounty)}, male, "Comte Guillaume de Rosemont"},
+		{"countess", []models.Fief{holds(female, models.FiefTitleCounty)}, female, "Comtesse Mahaut de Rosemont"},
+		{"marquis", []models.Fief{holds(male, models.FiefTitleMarquisate)}, male, "Marquis Guillaume de Rosemont"},
+		{"marquise", []models.Fief{holds(female, models.FiefTitleMarquisate)}, female, "Marquise Mahaut de Rosemont"},
+		{"duke", []models.Fief{holds(male, models.FiefTitleDuchy)}, male, "Duc Guillaume de Rosemont"},
+		{"duchess", []models.Fief{holds(female, models.FiefTitleDuchy)}, female, "Duchesse Mahaut de Rosemont"},
+		{"highest of several fiefs", []models.Fief{holds(male, models.FiefTitleCounty), holds(male, models.FiefTitleDuchy), holds(male, models.FiefTitleBarony)}, male, "Duc Guillaume de Rosemont"},
+		{"fief held by someone else", []models.Fief{holds(female, models.FiefTitleDuchy)}, male, "Sieur Guillaume de Rosemont"},
+		{"vacant fief", []models.Fief{{Title: models.FiefTitleDuchy}}, male, "Sieur Guillaume de Rosemont"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			state := &models.GameState{Fiefs: tt.fiefs}
+			if got := state.NobleDisplayName(tt.noble); got != tt.want {
+				t.Errorf("NobleDisplayName = %q, want %q", got, tt.want)
+			}
+		})
+	}
+	var nilState *models.GameState
+	if got, want := nilState.NobleDisplayName(male), "Sieur Guillaume de Rosemont"; got != want {
+		t.Errorf("nil state NobleDisplayName = %q, want %q", got, want)
+	}
+}
+
 func TestDeathCauseIsValid(t *testing.T) {
 	for _, valid := range []models.DeathCause{
 		models.DeathCauseNatural, models.DeathCauseExecution, models.DeathCauseAssassination,

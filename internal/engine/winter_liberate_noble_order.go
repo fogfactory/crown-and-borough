@@ -52,7 +52,7 @@ func (order liberateNobleOrder) Apply(ctx *ExecutionContext) {
 		OrderID:        winterOrder.ID,
 		NobleID:        noble.ID,
 		NobleCode:      models.NobleCode(noble.Code),
-		NobleName:      noble.Name,
+		NobleName:      resolution.state.NobleDisplayName(*noble),
 		PreviousStatus: previousStatus,
 		Status:         noble.Status,
 		TerritoryID:    capitalTerritoryID,

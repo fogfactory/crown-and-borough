@@ -30,3 +30,39 @@ type TaxedFief struct {
 	FiefID FiefID `json:"fiefId"`
 	Turn   int    `json:"turn"`
 }
+
+// courtesyTitles maps a fief title to the form of address of its holder, by
+// sex. A noble holding no fief is a "Sieur" or a "Dame".
+var courtesyTitles = map[FiefTitle][2]string{
+	FiefTitleBarony:     {"Baron", "Baronne"},
+	FiefTitleCounty:     {"Comte", "Comtesse"},
+	FiefTitleMarquisate: {"Marquis", "Marquise"},
+	FiefTitleDuchy:      {"Duc", "Duchesse"},
+}
+
+var fiefTitleRanks = map[FiefTitle]int{
+	FiefTitleBarony: 1, FiefTitleCounty: 2, FiefTitleMarquisate: 3, FiefTitleDuchy: 4,
+}
+
+// NobleDisplayName is the name shown to players: the noble's Name preceded by
+// the form of address of the highest fief it holds ("Baron", "Comtesse",
+// "Marquis", "Duc"...), or by the default "Sieur"/"Dame" when it holds none.
+// Name itself stays the stored identity. It is safe to call on a nil state.
+func (g *GameState) NobleDisplayName(n Noble) string {
+	var best FiefTitle
+	if g != nil {
+		for _, fief := range g.Fiefs {
+			if fief.HolderNobleID != nil && *fief.HolderNobleID == n.ID && fiefTitleRanks[fief.Title] > fiefTitleRanks[best] {
+				best = fief.Title
+			}
+		}
+	}
+	forms, held := courtesyTitles[best]
+	if !held {
+		forms = [2]string{"Sieur", "Dame"}
+	}
+	if n.Sex == SexFemale {
+		return forms[1] + " " + n.Name
+	}
+	return forms[0] + " " + n.Name
+}

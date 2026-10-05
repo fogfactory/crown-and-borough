@@ -60,7 +60,7 @@ func (order recruitNobleOrder) Apply(ctx *ExecutionContext) {
 		TerritoryID:   winterOrder.TerritoryID,
 		NobleID:       noble.ID,
 		NobleCode:     models.NobleCode(noble.Code),
-		NobleName:     noble.Name,
+		NobleName:     resolution.state.NobleDisplayName(noble),
 		ResourceSpent: spent,
 	})
 }

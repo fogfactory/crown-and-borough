@@ -256,7 +256,7 @@ func (ctx *resolutionContext) resolveVacantFiefsAtWinterEnd() {
 			FiefTerritories: append([]models.TerritoryID(nil), fief.Territories...),
 			NobleID:         nobleID,
 			NobleCode:       models.NobleCode(noble.Code),
-			NobleName:       noble.Name,
+			NobleName:       ctx.state.NobleDisplayName(*noble),
 			Reason:          "fief_auto_assigned_default_holder",
 		})
 	}
