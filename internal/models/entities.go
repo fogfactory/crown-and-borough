@@ -64,6 +64,7 @@ type Noble struct {
 	ID               NobleID     `json:"id"`
 	Code             string      `json:"code"` // first-name trigram (GDD §6), unique within a game
 	Name             string      `json:"name"`
+	Sex              Sex         `json:"sex"` // fixed at recruitment (specs/succession.md § Sexe des nobles)
 	OwnerID          PlayerID    `json:"owner"`
 	LocationID       TerritoryID `json:"location"`
 	Status           NobleStatus `json:"status"`
@@ -82,6 +83,7 @@ type RemovedNoble struct {
 	ID      NobleID    `json:"id"`
 	Code    string     `json:"code"`
 	Name    string     `json:"name"`
+	Sex     Sex        `json:"sex"`
 	OwnerID PlayerID   `json:"owner"`
 	Cause   DeathCause `json:"cause"`
 	Turn    int        `json:"turn"`

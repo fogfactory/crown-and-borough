@@ -164,8 +164,8 @@ func TestProgressFromUIDsMapsSubmittedMembersToPlayers(t *testing.T) {
 			{ID: "A2", OwnerID: "P2", Size: 1},
 		},
 		Nobles: []models.Noble{
-			{ID: "N1", OwnerID: "P1", Status: models.NobleStatusFree},
-			{ID: "N2", OwnerID: "P2", Status: models.NobleStatusDungeon},
+			{ID: "N1", Sex: models.SexMale, OwnerID: "P1", Status: models.NobleStatusFree},
+			{ID: "N2", Sex: models.SexMale, OwnerID: "P2", Status: models.NobleStatusDungeon},
 		},
 	}
 	game := gameDocument{Players: []playerDocument{{ID: "P1", ActorID: "uid-1"}, {ID: "P2", ActorID: "uid-2"}}}
@@ -190,8 +190,8 @@ func TestGameDocumentTracksRequiredPlayers(t *testing.T) {
 			{ID: "A2", OwnerID: "P2", Size: 1},
 		},
 		Nobles: []models.Noble{
-			{ID: "N1", OwnerID: "P1", Status: models.NobleStatusFree},
-			{ID: "N2", OwnerID: "P2", Status: models.NobleStatusDungeon},
+			{ID: "N1", Sex: models.SexMale, OwnerID: "P1", Status: models.NobleStatusFree},
+			{ID: "N2", Sex: models.SexMale, OwnerID: "P2", Status: models.NobleStatusDungeon},
 		},
 	}
 	snapshot := store.GameSnapshot{

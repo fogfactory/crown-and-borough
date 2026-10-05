@@ -2,6 +2,7 @@ package engine
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -193,7 +194,7 @@ func corpusDigest(t *testing.T, seed int64) string {
 		if err != nil {
 			t.Fatalf("seed %d: marshal resolution: %v", seed, err)
 		}
-		sum := sha256.Sum256(legacyControlJSON(t, encoded, resolution.State))
+		sum := sha256.Sum256(legacyNobleJSON(legacyControlJSON(t, encoded, resolution.State)))
 		digests = append(digests, hex.EncodeToString(sum[:4]))
 		state, startControl = resolution.State, nil
 		assertControlAnchored(t, seed, turn, state)
@@ -224,6 +225,13 @@ func legacyControlJSON(t *testing.T, encoded []byte, state *models.GameState) []
 		}
 		return []byte(fmt.Sprintf(`"%s":{"owner":%s,"resources":`, submatch[1], owner))
 	})
+}
+
+// legacyNobleJSON drops the "sex" field the corpus nobles gained (all male) so
+// the golden digests, recorded before nobles had a sex, keep pinning the
+// resolution itself.
+func legacyNobleJSON(encoded []byte) []byte {
+	return bytes.ReplaceAll(encoded, []byte(`"sex":"male",`), nil)
 }
 
 // assertControlAnchored checks #215's invariant on a resolved state: a

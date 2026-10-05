@@ -257,7 +257,7 @@ func projectTestState() *models.GameState {
 			{ID: "FOU", Name: "Fougères", Terrain: models.TerrainSwamp, Adjacencies: []models.TerritoryID{"BRU", "ROS"}},
 		},
 		Nobles: []models.Noble{
-			{ID: "N1", Code: "HUG", Name: "Hugues de Rosemont", OwnerID: p1, LocationID: "ROS", Status: models.NobleStatusFree},
+			{ID: "N1", Sex: models.SexMale, Code: "HUG", Name: "Hugues de Rosemont", OwnerID: p1, LocationID: "ROS", Status: models.NobleStatusFree},
 		},
 		Armies: []models.Army{
 			{ID: "A1", OwnerID: p1, TerritoryID: "ROS", Size: 1, ChainID: ptrChainID("C1")},

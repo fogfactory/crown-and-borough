@@ -743,6 +743,7 @@ func resolvePlagueMortality(ctx *resolutionContext) {
 			ID:      noble.ID,
 			Code:    noble.Code,
 			Name:    noble.Name,
+			Sex:     noble.Sex,
 			OwnerID: noble.OwnerID,
 			Cause:   models.DeathCauseNatural,
 			Turn:    ctx.state.Turn,

@@ -614,10 +614,10 @@ func orderTestState() *models.GameState {
 	}
 	game.NextArmyID = 3
 	game.Nobles = []models.Noble{
-		{ID: "N1", Code: "JEA", Name: "Jean", OwnerID: p1, LocationID: "ROS", Status: models.NobleStatusFree},
-		{ID: "N2", Code: "ANN", Name: "Anne", OwnerID: p1, LocationID: "ROS", Status: models.NobleStatusFree},
-		{ID: "N3", Code: "BOB", Name: "Bob", OwnerID: p2, LocationID: "ROS", Status: models.NobleStatusHostage},
-		{ID: "N4", Code: "CAL", Name: "Calixte", OwnerID: p2, LocationID: "BOI", Status: models.NobleStatusFree},
+		{ID: "N1", Sex: models.SexMale, Code: "JEA", Name: "Jean", OwnerID: p1, LocationID: "ROS", Status: models.NobleStatusFree},
+		{ID: "N2", Sex: models.SexMale, Code: "ANN", Name: "Anne", OwnerID: p1, LocationID: "ROS", Status: models.NobleStatusFree},
+		{ID: "N3", Sex: models.SexMale, Code: "BOB", Name: "Bob", OwnerID: p2, LocationID: "ROS", Status: models.NobleStatusHostage},
+		{ID: "N4", Sex: models.SexMale, Code: "CAL", Name: "Calixte", OwnerID: p2, LocationID: "BOI", Status: models.NobleStatusFree},
 	}
 	game.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
 		"ROS": {Army: &a1},

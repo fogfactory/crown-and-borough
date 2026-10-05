@@ -226,7 +226,8 @@ func TestResolveFamishedNobleCommandHasZeroForce(t *testing.T) {
 
 func testNoble(id models.NobleID, code string, ownerID models.PlayerID, territoryID models.TerritoryID, status models.NobleStatus) models.Noble {
 	return models.Noble{
-		ID: id, Code: code, Name: string(code), OwnerID: ownerID,
+		Sex: models.SexMale,
+		ID:  id, Code: code, Name: string(code), OwnerID: ownerID,
 		LocationID: territoryID, Status: status,
 	}
 }

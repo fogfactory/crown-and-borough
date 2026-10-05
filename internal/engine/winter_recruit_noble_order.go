@@ -44,6 +44,7 @@ func (order recruitNobleOrder) Apply(ctx *ExecutionContext) {
 		ID:               nextNobleID(resolution.state.Nobles, resolution.state.RemovedNobles),
 		Code:             firstName.Code,
 		Name:             fmt.Sprintf("%s de %s", firstName.Name, territory.Name),
+		Sex:              models.Sex(firstName.Sex),
 		OwnerID:          playerID,
 		LocationID:       winterOrder.TerritoryID,
 		Status:           models.NobleStatusFree,
