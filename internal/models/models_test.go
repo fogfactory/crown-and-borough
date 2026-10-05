@@ -162,7 +162,7 @@ func TestNobleDisplayName(t *testing.T) {
 	female := models.Noble{ID: "N2", Name: "Mahaut de Rosemont", Sex: models.SexFemale}
 	holds := func(noble models.Noble, title models.FiefTitle) models.Fief {
 		id := noble.ID
-		return models.Fief{Title: title, HolderNobleID: &id}
+		return models.Fief{Title: title, CapitalTerritoryID: "ROC", HolderNobleID: &id}
 	}
 	tests := []struct {
 		name  string
@@ -172,21 +172,21 @@ func TestNobleDisplayName(t *testing.T) {
 	}{
 		{"male without fief", nil, male, "Sieur Guillaume de Rosemont"},
 		{"female without fief", nil, female, "Dame Mahaut de Rosemont"},
-		{"baron", []models.Fief{holds(male, models.FiefTitleBarony)}, male, "Baron Guillaume de Rosemont"},
-		{"baroness", []models.Fief{holds(female, models.FiefTitleBarony)}, female, "Baronne Mahaut de Rosemont"},
-		{"count", []models.Fief{holds(male, models.FiefTitleCounty)}, male, "Comte Guillaume de Rosemont"},
-		{"countess", []models.Fief{holds(female, models.FiefTitleCounty)}, female, "Comtesse Mahaut de Rosemont"},
-		{"marquis", []models.Fief{holds(male, models.FiefTitleMarquisate)}, male, "Marquis Guillaume de Rosemont"},
-		{"marquise", []models.Fief{holds(female, models.FiefTitleMarquisate)}, female, "Marquise Mahaut de Rosemont"},
-		{"duke", []models.Fief{holds(male, models.FiefTitleDuchy)}, male, "Duc Guillaume de Rosemont"},
-		{"duchess", []models.Fief{holds(female, models.FiefTitleDuchy)}, female, "Duchesse Mahaut de Rosemont"},
-		{"highest of several fiefs", []models.Fief{holds(male, models.FiefTitleCounty), holds(male, models.FiefTitleDuchy), holds(male, models.FiefTitleBarony)}, male, "Duc Guillaume de Rosemont"},
+		{"baron", []models.Fief{holds(male, models.FiefTitleBarony)}, male, "Baron Guillaume de Rochevent"},
+		{"baroness", []models.Fief{holds(female, models.FiefTitleBarony)}, female, "Baronne Mahaut de Rochevent"},
+		{"count", []models.Fief{holds(male, models.FiefTitleCounty)}, male, "Comte Guillaume de Rochevent"},
+		{"countess", []models.Fief{holds(female, models.FiefTitleCounty)}, female, "Comtesse Mahaut de Rochevent"},
+		{"marquis", []models.Fief{holds(male, models.FiefTitleMarquisate)}, male, "Marquis Guillaume de Rochevent"},
+		{"marquise", []models.Fief{holds(female, models.FiefTitleMarquisate)}, female, "Marquise Mahaut de Rochevent"},
+		{"duke", []models.Fief{holds(male, models.FiefTitleDuchy)}, male, "Duc Guillaume de Rochevent"},
+		{"duchess", []models.Fief{holds(female, models.FiefTitleDuchy)}, female, "Duchesse Mahaut de Rochevent"},
+		{"highest of several fiefs", []models.Fief{holds(male, models.FiefTitleCounty), holds(male, models.FiefTitleDuchy), holds(male, models.FiefTitleBarony)}, male, "Duc Guillaume de Rochevent"},
 		{"fief held by someone else", []models.Fief{holds(female, models.FiefTitleDuchy)}, male, "Sieur Guillaume de Rosemont"},
 		{"vacant fief", []models.Fief{{Title: models.FiefTitleDuchy}}, male, "Sieur Guillaume de Rosemont"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			state := &models.GameState{Fiefs: tt.fiefs}
+			state := &models.GameState{Fiefs: tt.fiefs, Territories: []models.Territory{{ID: "ROC", Name: "Rochevent"}}}
 			if got := state.NobleDisplayName(tt.noble); got != tt.want {
 				t.Errorf("NobleDisplayName = %q, want %q", got, tt.want)
 			}

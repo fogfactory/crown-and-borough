@@ -1,5 +1,7 @@
 package models
 
+import "strings"
+
 // FiefID identifies a fief. It is an internal engine detail used for
 // uniqueness and the test corpus only: the API and reports address a fief by
 // its capital territory's trigram instead (titres.md, #194).
@@ -44,25 +46,45 @@ var fiefTitleRanks = map[FiefTitle]int{
 	FiefTitleBarony: 1, FiefTitleCounty: 2, FiefTitleMarquisate: 3, FiefTitleDuchy: 4,
 }
 
-// NobleDisplayName is the name shown to players: the noble's Name preceded by
-// the form of address of the highest fief it holds ("Baron", "Comtesse",
-// "Marquis", "Duc"...), or by the default "Sieur"/"Dame" when it holds none.
-// Name itself stays the stored identity. It is safe to call on a nil state.
+// NobleDisplayName is the name shown to players. A noble holding no fief is
+// its stored Name ("Prénom de Territoire", its birthplace) preceded by
+// "Sieur" or "Dame". A fief holder takes the form of address of the highest
+// fief it holds ("Baron", "Comtesse", "Marquis", "Duc"...) and the fief's
+// capital replaces its birthplace: "Baron Hugon de Rochevent". Name itself
+// stays the stored identity. It is safe to call on a nil state.
 func (g *GameState) NobleDisplayName(n Noble) string {
-	var best FiefTitle
+	var best *Fief
 	if g != nil {
-		for _, fief := range g.Fiefs {
-			if fief.HolderNobleID != nil && *fief.HolderNobleID == n.ID && fiefTitleRanks[fief.Title] > fiefTitleRanks[best] {
-				best = fief.Title
+		for i := range g.Fiefs {
+			fief := &g.Fiefs[i]
+			if fief.HolderNobleID == nil || *fief.HolderNobleID != n.ID {
+				continue
+			}
+			if best == nil || fiefTitleRanks[fief.Title] > fiefTitleRanks[best.Title] {
+				best = fief
 			}
 		}
 	}
-	forms, held := courtesyTitles[best]
+	var forms [2]string
+	held := false
+	name := n.Name
+	if best != nil {
+		forms, held = courtesyTitles[best.Title]
+	}
+	if held {
+		for _, territory := range g.Territories {
+			if territory.ID == best.CapitalTerritoryID {
+				firstName, _, _ := strings.Cut(n.Name, " ")
+				name = firstName + " de " + territory.Name
+				break
+			}
+		}
+	}
 	if !held {
 		forms = [2]string{"Sieur", "Dame"}
 	}
 	if n.Sex == SexFemale {
-		return forms[1] + " " + n.Name
+		return forms[1] + " " + name
 	}
-	return forms[0] + " " + n.Name
+	return forms[0] + " " + name
 }
