@@ -57,6 +57,11 @@ victory:
   reference_fief_size: 4
 
 # P1.7 game setup values.
+# Living nobles (free, hostage or in a dungeon) a player may own at once.
+# noble_limit is the base; game effects may raise it, never above
+# noble_limit_max (succession.md#plafond-de-nobles).
+noble_limit: 4
+noble_limit_max: 6
 starting_nobles: 2
 starting_troops: 2
 # 1-troop armies pre-placed on non-mountain neighbours of the capital (#203).

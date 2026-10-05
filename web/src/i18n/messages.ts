@@ -405,6 +405,8 @@ const englishMessages = {
     'The territory is not controlled by this player.',
   'reports.reason.noble_requires_owned_army':
     'A player army is required on the territory.',
+  'reports.reason.noble_limit_reached':
+    'The player already owns the maximum number of nobles.',
   'reports.reason.noble_requires_settlement':
     'A castle or village is required on the territory.',
   'reports.reason.troop_requires_adjacent_noble':
@@ -1132,6 +1134,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     "Le territoire n'est pas contrôlé par ce joueur.",
   'reports.reason.noble_requires_owned_army':
     'Une armée du joueur est nécessaire sur le territoire.',
+  'reports.reason.noble_limit_reached':
+    'Le joueur possède déjà le nombre maximal de nobles.',
   'reports.reason.noble_requires_settlement':
     'Un château ou un village est nécessaire sur le territoire.',
   'reports.reason.troop_requires_adjacent_noble':

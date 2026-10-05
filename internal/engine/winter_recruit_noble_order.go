@@ -6,6 +6,24 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
+// nobleCount returns the living nobles owned by the player: free, hostage or
+// held in a dungeon. Dead and removed nobles are no longer in state.Nobles.
+func (resolution *resolutionContext) nobleCount(playerID models.PlayerID) int {
+	count := 0
+	for _, noble := range resolution.state.Nobles {
+		if noble.OwnerID == playerID {
+			count++
+		}
+	}
+	return count
+}
+
+// nobleLimit returns the player's current noble cap: the base balance value,
+// clamped to the balance maximum once game effects raise it.
+func (resolution *resolutionContext) nobleLimit(_ models.PlayerID) int {
+	return min(resolution.balance.NobleLimit, resolution.balance.NobleLimitMax)
+}
+
 type recruitNobleOrder struct{ order models.WinterOrder }
 
 func (order recruitNobleOrder) Apply(ctx *ExecutionContext) {
@@ -27,6 +45,10 @@ func (order recruitNobleOrder) Apply(ctx *ExecutionContext) {
 	army := resolution.currentArmyAt(winterOrder.TerritoryID)
 	if army == nil || army.OwnerID != playerID {
 		resolution.rejectWinterOrder(playerID, winterOrder, "noble_requires_owned_army")
+		return
+	}
+	if resolution.nobleCount(playerID) >= resolution.nobleLimit(playerID) {
+		resolution.rejectWinterOrder(playerID, winterOrder, "noble_limit_reached")
 		return
 	}
 	if !resolution.hasAvailableFirstName(resolution.balance.FirstNames) {

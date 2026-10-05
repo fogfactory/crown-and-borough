@@ -51,6 +51,21 @@ func TestWinterOrderApplyRejectsInvalidCases(t *testing.T) {
 			wantReason: "insufficient_resources",
 		},
 		{
+			name:  "recruit noble at the noble limit",
+			order: models.WinterOrder{Type: models.WinterOrderTypeRecruitNoble, TerritoryID: "AAA"},
+			setup: func(state *models.GameState) {
+				controlledArmyAndSettlement(state)
+				state.TerritoryStates["AAA"] = models.TerritoryState{Army: armyPointer("A1"), Resources: 10, Infrastructures: infraPointer("I1")}
+				addNoble(state, "N1", "ONE", "P1", "AAA")
+				addNoble(state, "N2", "TWO", "P1", "AAA")
+				addNoble(state, "N3", "THR", "P1", "AAA")
+				addNoble(state, "N4", "FOU", "P1", "AAA")
+				// A dungeon noble still counts toward the cap.
+				state.Nobles[3].Status = models.NobleStatusDungeon
+			},
+			wantReason: "noble_limit_reached",
+		},
+		{
 			name:       "recruit troop without noble",
 			order:      models.WinterOrder{Type: models.WinterOrderTypeRecruitTroop, TerritoryID: "AAA"},
 			setup:      controlledArmyAndSettlement,

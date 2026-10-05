@@ -51,6 +51,8 @@ victory:
   solo_territory_percent: 50
   alliance_territory_percent: 66
   reference_fief_size: 4
+noble_limit: 4
+noble_limit_max: 6
 starting_nobles: 1
 starting_troops: 1
 starting_outposts: 2
