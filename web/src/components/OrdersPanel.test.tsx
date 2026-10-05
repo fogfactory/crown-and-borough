@@ -552,14 +552,14 @@ describe('OrdersPanel noble deck (winter)', () => {
   })
 
   it('shows the combined hand counter and disables the draw when the hand is full', () => {
-    renderDeck('', vi.fn(), { ...deckState, specialHand: ['BT', 'BT'] as StateData['specialHand'] })
+    renderDeck('', vi.fn(), { ...deckState, specialHand: ['fair_weather', 'fair_weather'] })
     expect(screen.getByText('Main : 4/4 cartes (spéciales : 2, nobles : 2)')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Piocher une carte de noble/ })).toBeDisabled()
     expect(screen.getByText(/Votre main est pleine/)).toBeInTheDocument()
   })
 
   it('keeps the draw enabled while the shared hand has room', () => {
-    renderDeck('', vi.fn(), { ...deckState, specialHand: ['BT'] as StateData['specialHand'] })
+    renderDeck('', vi.fn(), { ...deckState, specialHand: ['fair_weather'] })
     expect(screen.getByText('Main : 3/4 cartes (spéciales : 1, nobles : 2)')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Piocher une carte de noble/ })).toBeEnabled()
   })
