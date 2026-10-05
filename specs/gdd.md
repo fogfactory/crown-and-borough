@@ -92,7 +92,9 @@ adverse ou une révolte y stationnant rejette l'ordre sans prélèvement
 outre un noble libre du joueur, situé sur la cible ou sur un territoire
 adjacent à celle-ci par une frontière franchissable.
 Le recrutement d'un noble exige une infrastructure de peuplement (château ou
-village) et une armée du joueur sur la case. Un ordre rejeté est signalé dans
+village) et une armée du joueur sur la case, et que le joueur ne possède pas
+déjà 4 nobles vivants (libres, otages ou au cachot ; certains effets de jeu
+peuvent relever ce plafond jusqu'à 6). Un ordre rejeté est signalé dans
 le rapport avec son motif ; toutes les conditions sont vérifiées avant le
 paiement, donc un ordre rejeté ne prélève aucune ressource.
 

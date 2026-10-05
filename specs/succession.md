@@ -34,12 +34,14 @@ de deck réutilisée, [Religieux](religieux.md) pour les cardinaux et
 ### Plafond de nobles
 
 Chaque joueur ne peut détenir plus d'un nombre fixe de nobles vivants et
-libres ou otages à la fois (valeur indicative dans `assets/balance.yaml`, à
-calibrer avec le nombre de joueurs). Un noble au cachot compte dans ce
+libres ou otages à la fois : `noble_limit` (4) dans `assets/balance.yaml`.
+Certains effets de jeu peuvent relever ce plafond, sans jamais dépasser
+`noble_limit_max` (6) ; le premier est la dignité de bâtard (voir « Deck de
+nobles »), qui le relève de 1 tant qu'un noble du joueur la porte. Un noble au cachot compte dans ce
 plafond ; un noble mort ou définitivement retiré (bâtard placé en bas de
 ligne après annulation papale d'un Claim, voir « Claims ») libère une place.
 `R N XXX YYY` est rejeté avec le motif `noble_limit_reached` si le plafond
-est déjà atteint.
+est déjà atteint ; l'ordre actuel `R N XXX` l'applique de la même façon.
 
 ### Deck de nobles
 
@@ -58,6 +60,17 @@ contient :
   partielle, etc. — distinctes des [dignités](dames.md#dignités),
   attribués en cours de partie plutôt qu'au recrutement), et d'autres
   personnages à définir dans l'issue de milestone.
+
+Le deck contient aussi quelques **cartes de bâtard** (au moins une par
+partie). Le bâtard est une **dignité affectable à un noble**, du même type que
+les dignités ecclésiastiques et les [dignités](dames.md#dignités) féminines ;
+tant qu'un noble du joueur la porte, le plafond de nobles du joueur augmente
+de 1.
+
+> À trancher dans l'issue du deck de nobles (#247) : carte de personnage ou
+> attribution à un noble existant, conditions d'éligibilité, sort du plafond
+> si le porteur meurt ou est capturé, articulation avec le bâtard issu d'une
+> annulation papale.
 
 Le recrutement se déroule en deux temps, chacun une entrée d'ordre d'hiver
 distincte plutôt qu'une pioche automatique :

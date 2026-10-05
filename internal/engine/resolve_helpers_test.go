@@ -43,6 +43,8 @@ func testBalance() assetgen.Balance {
 			Liberation:       0,
 			FiefPerTerritory: 2,
 		},
+		NobleLimit:        4,
+		NobleLimitMax:     6,
 		StartingNobles:    1,
 		StartingTroops:    1,
 		StartingResources: 10,

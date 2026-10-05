@@ -687,7 +687,7 @@ investissements directs, une ligne par ordre, appliqués dans l'ordre saisi.
 
 | Investissement | Syntaxe | Condition | Coût (R) |
 |---|---|---|---|
-| Recruter un noble | `R N XXX` | `XXX` contrôlé, avec un château ou un village et une armée du joueur | {{costs.noble}} |
+| Recruter un noble | `R N XXX` | `XXX` contrôlé, avec un château ou un village et une armée du joueur, et moins de {{noble_limit}} nobles vivants possédés | {{costs.noble}} |
 | Recruter une troupe | `R T XXX` | `XXX` contrôlé, et un noble libre du joueur sur `XXX` ou adjacent | {{costs.troop}} |
 | Construire ou améliorer un moulin | `C M XXX` | `XXX` contrôlé ; un **nouveau** moulin exige une case **vide** adjacente à un château ou village, ou portant elle-même un château ou village ; un moulin **existant** peut toujours être amélioré, même isolé | {{costs.mill_levels.0}} (N1), {{costs.mill_levels.1}} (N2), {{costs.mill_levels.2}} (N3) |
 | Construire un château, ou fortifier un village | `C C XXX` | `XXX` contrôlé ; sur un village, le fortifie au lieu d'y construire un château ; rejeté sans prélèvement si le village est déjà fortifié | {{costs.castle}} |

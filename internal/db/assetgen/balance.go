@@ -30,6 +30,8 @@ type Balance struct {
 	ProsperityLossThreshold int                    `json:"prosperity_loss_threshold" yaml:"prosperity_loss_threshold"`
 	Costs                   Costs                  `json:"costs" yaml:"costs"`
 	Victory                 VictoryBalance         `json:"victory" yaml:"victory"`
+	NobleLimit              int                    `json:"noble_limit" yaml:"noble_limit"`
+	NobleLimitMax           int                    `json:"noble_limit_max" yaml:"noble_limit_max"`
 	StartingNobles          int                    `json:"starting_nobles" yaml:"starting_nobles"`
 	StartingTroops          int                    `json:"starting_troops" yaml:"starting_troops"`
 	StartingOutposts        int                    `json:"starting_outposts" yaml:"starting_outposts"`
@@ -96,6 +98,8 @@ type rawBalance struct {
 	ProsperityLossThreshold *int              `yaml:"prosperity_loss_threshold"`
 	Costs                   *rawCosts         `yaml:"costs"`
 	Victory                 *rawVictory       `yaml:"victory"`
+	NobleLimit              *int              `yaml:"noble_limit"`
+	NobleLimitMax           *int              `yaml:"noble_limit_max"`
 	StartingNobles          *int              `yaml:"starting_nobles"`
 	StartingTroops          *int              `yaml:"starting_troops"`
 	StartingOutposts        *int              `yaml:"starting_outposts"`
@@ -226,9 +230,23 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 	if err != nil {
 		return Balance{}, err
 	}
+	nobleLimit, err := requiredPositiveInt(path, "noble_limit", raw.NobleLimit)
+	if err != nil {
+		return Balance{}, err
+	}
+	nobleLimitMax, err := requiredPositiveInt(path, "noble_limit_max", raw.NobleLimitMax)
+	if err != nil {
+		return Balance{}, err
+	}
+	if nobleLimitMax < nobleLimit {
+		return Balance{}, fmt.Errorf("assetgen: %s: noble_limit_max (%d) must be >= noble_limit (%d)", path, nobleLimitMax, nobleLimit)
+	}
 	startingNobles, err := requiredNonNegativeInt(path, "starting_nobles", raw.StartingNobles)
 	if err != nil {
 		return Balance{}, err
+	}
+	if startingNobles > nobleLimit {
+		return Balance{}, fmt.Errorf("assetgen: %s: starting_nobles (%d) must be <= noble_limit (%d)", path, startingNobles, nobleLimit)
 	}
 	startingTroops, err := requiredNonNegativeInt(path, "starting_troops", raw.StartingTroops)
 	if err != nil {
@@ -291,6 +309,8 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 		ProsperityLossThreshold: prosperityLossThreshold,
 		Costs:                   costs,
 		Victory:                 victory,
+		NobleLimit:              nobleLimit,
+		NobleLimitMax:           nobleLimitMax,
 		StartingNobles:          startingNobles,
 		StartingTroops:          startingTroops,
 		StartingOutposts:        startingOutposts,

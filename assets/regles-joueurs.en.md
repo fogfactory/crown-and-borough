@@ -648,7 +648,7 @@ per line, applied in the entered order.
 
 | Investment | Syntax | Condition | Cost (R) |
 |---|---|---|---|
-| Recruit a noble | `R N XXX` | `XXX` controlled, with a castle or village and a player army | {{costs.noble}} |
+| Recruit a noble | `R N XXX` | `XXX` controlled, with a castle or village and a player army, and fewer than {{noble_limit}} living nobles owned | {{costs.noble}} |
 | Recruit a troop | `R T XXX` | `XXX` controlled, and a free player noble on `XXX` or adjacent | {{costs.troop}} |
 | Build or upgrade a mill | `C M XXX` | `XXX` controlled; a **new** mill requires an **empty** territory adjacent to a castle or village, or itself carrying one; an **existing** mill can always be upgraded, even in isolation | {{costs.mill_levels.0}} (L1), {{costs.mill_levels.1}} (L2), {{costs.mill_levels.2}} (L3) |
 | Build a castle, or fortify a village | `C C XXX` | `XXX` controlled; on a village, fortifies it instead of building a castle there; rejected with no stock deducted if the village is already fortified | {{costs.castle}} |

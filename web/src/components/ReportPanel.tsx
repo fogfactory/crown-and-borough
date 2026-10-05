@@ -64,6 +64,7 @@ const REASON_KEYS: Record<string, MessageKey> = {
   territory_not_controlled: 'reports.reason.territory_not_controlled',
   noble_requires_owned_army: 'reports.reason.noble_requires_owned_army',
   noble_requires_settlement: 'reports.reason.noble_requires_settlement',
+  noble_limit_reached: 'reports.reason.noble_limit_reached',
   troop_requires_adjacent_noble: 'reports.reason.troop_requires_adjacent_noble',
   noble_not_prisoner: 'reports.reason.noble_not_prisoner',
   noble_not_held: 'reports.reason.noble_not_held',
