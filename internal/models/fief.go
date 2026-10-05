@@ -46,22 +46,43 @@ var fiefTitleRanks = map[FiefTitle]int{
 	FiefTitleBarony: 1, FiefTitleCounty: 2, FiefTitleMarquisate: 3, FiefTitleDuchy: 4,
 }
 
+// highestHeldFief returns the highest-ranked fief the noble holds, or nil.
+func (g *GameState) highestHeldFief(id NobleID) *Fief {
+	var best *Fief
+	for i := range g.Fiefs {
+		fief := &g.Fiefs[i]
+		if fief.HolderNobleID == nil || *fief.HolderNobleID != id {
+			continue
+		}
+		if best == nil || fiefTitleRanks[fief.Title] > fiefTitleRanks[best.Title] {
+			best = fief
+		}
+	}
+	return best
+}
+
 // NobleDisplayName is the name shown to players. A noble holding no fief is
 // its stored Name ("Prénom de Territoire", its birthplace) preceded by
 // "Sieur" or "Dame". A fief holder takes the form of address of the highest
 // fief it holds ("Baron", "Comtesse", "Marquis", "Duc"...) and the fief's
-// capital replaces its birthplace: "Baron Hugon de Rochevent". Name itself
-// stays the stored identity. It is safe to call on a nil state.
+// capital replaces its birthplace: "Baron Hugon de Rochevent". The spouse of
+// a fief holder (active marriage, any sex) bears the courtesy title matching
+// the spouse's fief ("Comtesse Mahaut de Rochevent") when it outranks the
+// noble's own fief, if any. This is display only: Name itself stays the
+// stored identity and no rule reads the courtesy title. It is safe to call
+// on a nil state.
 func (g *GameState) NobleDisplayName(n Noble) string {
 	var best *Fief
 	if g != nil {
-		for i := range g.Fiefs {
-			fief := &g.Fiefs[i]
-			if fief.HolderNobleID == nil || *fief.HolderNobleID != n.ID {
-				continue
+		best = g.highestHeldFief(n.ID)
+		if marriage, ok := g.MarriageOf(n.ID); ok {
+			spouseID := marriage.NobleA
+			if spouseID == n.ID {
+				spouseID = marriage.NobleB
 			}
-			if best == nil || fiefTitleRanks[fief.Title] > fiefTitleRanks[best.Title] {
-				best = fief
+			if spouseFief := g.highestHeldFief(spouseID); spouseFief != nil &&
+				(best == nil || fiefTitleRanks[spouseFief.Title] > fiefTitleRanks[best.Title]) {
+				best = spouseFief
 			}
 		}
 	}

@@ -709,6 +709,14 @@ bonus, not stacking with it). The title belongs to the designated titulaire
 noble, who must be free at the time of founding; a single noble may hold
 several titles, and a player may hold several fiefs.
 
+A fief's titulaire is addressed by form of address (shown in French) —
+Baron/Baronne (barony), Comte/Comtesse (county), Marquis/Marquise
+(marquisate), Duc/Duchesse (duchy) — followed by their first name and the fief's capital;
+a noble without a fief is a "Sieur" or a "Dame". Their spouse (marriage in
+force) bears the matching courtesy title, whatever their sex, for as long as
+the titulaire keeps the fief. It is display only: it has no effect on score,
+alliances or succession.
+
 Control of a fief is **transitive** (section 6): a member other than the
 capital stays yours even when an enemy army stops there; it **occupies** the
 member without taking it from you. Only capturing the **capital** costs you
