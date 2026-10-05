@@ -65,9 +65,9 @@ describe('Scoreboard', () => {
       </LanguageProvider>,
     )
 
-    expect(screen.getByText('Goal: 4 titles, solo victory')).toBeInTheDocument()
-    expect(
-      screen.getByText('Goal: 6 titles combined, alliance victory with Alice'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Goal: 4 titles')).toBeInTheDocument()
+    expect(screen.getByTestId('victory-mode-P1')).toHaveTextContent('Solo')
+    expect(screen.getByText('Goal: 6 titles combined')).toBeInTheDocument()
+    expect(screen.getByTestId('victory-mode-P2')).toHaveTextContent('Alliance with Alice')
   })
 })
