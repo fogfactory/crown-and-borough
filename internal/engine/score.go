@@ -12,23 +12,19 @@ var ErrGameFinished = errors.New("engine: game is finished")
 // is deliberately stored alongside the categories so API consumers do not
 // need to duplicate the scoring formula.
 type ScoreBreakdown struct {
-	Territories int `json:"territories"`
-	Villages    int `json:"villages"`
-	Mills       int `json:"mills"`
-	Castles     int `json:"castles"`
-	Nobles      int `json:"nobles"`
-	Troops      int `json:"troops"`
-	Resources   int `json:"resources"`
-	Fiefs       int `json:"fiefs"`
-	Total       int `json:"total"`
+	Titles int `json:"titles"`
+	Total  int `json:"total"`
 }
 
-// ComputeScores calculates the public score for every player in the state.
-// Infrastructure and resources are awarded to the player who controls their
-// current territory. A free noble is awarded to its owner; a captive noble
-// (hostage or dungeon) is awarded to whoever physically holds it — the army
-// on its territory, falling back to that territory's anchor owner when no
-// army is present (#215) — rather than to the territory's controller.
+// ComputeScores calculates the public score for every player in the state,
+// per the title score (titres.md § Score de titres): each title held is
+// worth 1 point regardless of rank, replacing the former GDD §9 formula
+// (territories, infrastructure, armies, nobles). For now the only title
+// source is state.Fiefs — a fief still counts while vacant, until it is
+// dissolved. Cardinal, pape, roi, and dignité titles will add further
+// sources to this count once Succession & Couronnement lands (#243-266);
+// the loop below is structured so each source stays a self-contained pass
+// over state, without pulling in that machinery ahead of time.
 func ComputeScores(state *models.GameState) map[models.PlayerID]ScoreBreakdown {
 	scores := make(map[models.PlayerID]ScoreBreakdown)
 	if state == nil {
@@ -38,92 +34,6 @@ func ComputeScores(state *models.GameState) map[models.PlayerID]ScoreBreakdown {
 		scores[player.ID] = ScoreBreakdown{}
 	}
 
-	infrastructures := make(map[models.InfraID]models.Infrastructure, len(state.Infrastructures))
-	for _, infrastructure := range state.Infrastructures {
-		infrastructures[infrastructure.ID] = infrastructure
-	}
-	armies := make(map[models.ArmyID]models.Army, len(state.Armies))
-	for _, army := range state.Armies {
-		armies[army.ID] = army
-	}
-	controllers := state.TerritoryControllers()
-	for _, territory := range state.Territories {
-		territoryState := state.TerritoryStates[territory.ID]
-		playerID, controlled := controllers[territory.ID]
-		if !controlled {
-			continue
-		}
-		score, exists := scores[playerID]
-		if !exists {
-			continue
-		}
-		score.Territories++
-		score.Resources += territoryState.Resources
-		if territoryState.Infrastructures != nil {
-			if infrastructure, exists := infrastructures[*territoryState.Infrastructures]; exists {
-				switch infrastructure.Type {
-				case models.InfraTypeVillage:
-					score.Villages += 2
-				case models.InfraTypeMill:
-					score.Mills++
-				case models.InfraTypeCastle:
-					score.Castles += 5
-				}
-			}
-		}
-		scores[playerID] = score
-	}
-
-	for _, army := range state.Armies {
-		score, exists := scores[army.OwnerID]
-		if !exists {
-			continue
-		}
-		score.Troops += army.Size
-		scores[army.OwnerID] = score
-	}
-
-	for _, noble := range state.Nobles {
-		playerID := noble.OwnerID
-		if noble.Status == models.NobleStatusHostage || noble.Status == models.NobleStatusDungeon {
-			// A captive noble's point goes to whoever physically holds it: the
-			// army currently stationed on its territory, since control outside
-			// a fief is now ephemeral and can lapse while the captor's army
-			// still stands there (#215). Absent an army, it falls back to the
-			// territory's anchor owner (a fief or a player's own capital stays
-			// controlled indefinitely with no army present) rather than being
-			// dropped, since a hostage left behind on still-anchored ground is
-			// not stranded on nobody's land.
-			territoryState, exists := state.TerritoryStates[noble.LocationID]
-			if !exists {
-				continue
-			}
-			switch {
-			case territoryState.Army != nil:
-				holder, exists := armies[*territoryState.Army]
-				if !exists {
-					continue
-				}
-				playerID = holder.OwnerID
-			default:
-				anchorOwner, anchored := state.FiefOwnerAt(noble.LocationID)
-				if !anchored {
-					anchorOwner, anchored = state.CapitalOwnerAt(noble.LocationID)
-				}
-				if !anchored {
-					continue
-				}
-				playerID = anchorOwner
-			}
-		}
-		score, exists := scores[playerID]
-		if !exists {
-			continue
-		}
-		score.Nobles += 2
-		scores[playerID] = score
-	}
-
 	// Each fief earns 1 point regardless of size, vacant or not, until it
 	// is dissolved (titres.md).
 	for _, fief := range state.Fiefs {
@@ -131,13 +41,12 @@ func ComputeScores(state *models.GameState) map[models.PlayerID]ScoreBreakdown {
 		if !exists {
 			continue
 		}
-		score.Fiefs++
+		score.Titles++
 		scores[fief.OwnerID] = score
 	}
 
 	for playerID, score := range scores {
-		score.Total = score.Territories + score.Villages + score.Mills + score.Castles +
-			score.Nobles + score.Troops + score.Resources + score.Fiefs
+		score.Total = score.Titles
 		scores[playerID] = score
 	}
 	return scores
@@ -207,7 +116,11 @@ func GameFinished(state *models.GameState) bool {
 
 // WinnerForFinishedGame returns the winner once GameFinished is true. A sole
 // survivor wins immediately, otherwise the highest score wins at the duration
-// limit. An exact tie has no winner.
+// limit. An exact tie has no winner. This is interim pending victory
+// thresholds and major/minor victory (#253, #254): until then a duration-limit
+// game with a tied title score — including the common 0-0 case before any
+// titles have been awarded — simply has no winner.
+
 func WinnerForFinishedGame(state *models.GameState) *models.PlayerID {
 	if state == nil || !GameFinished(state) {
 		return nil

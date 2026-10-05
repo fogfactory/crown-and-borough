@@ -218,17 +218,19 @@ dans [economie.md](economie.md).
 **Dépend aussi de :** [Succession](succession.md), pour l'application des
 mariages et alliances au score.
 
-L'état actuellement livré (milestone
-[Économie & Fiefs](https://github.com/fogfactory/crown-and-borough/milestone/19),
-issue [#194](https://github.com/fogfactory/crown-and-borough/issues/194)) se
-contente d'ajouter 1 point par fief, quelle que soit sa taille, **en plus**
-du barème du GDD §9 (territoire, village, moulin, château, noble, troupe,
-ressource). Ce système de titres et de victoire **remplace intégralement**
-cet état intermédiaire — le barème du GDD §9 et son complément fief compris
-— par le seul score de titres ci-dessous. Le remplacement prend effet
-lorsque les milestones **Titres & Victoire** et **Succession &
-Couronnement** sont tous deux livrés ; `gdd.md` §9 est alors réécrit en
-conséquence, comme le prévoit la section « Évolution du document » du GDD.
+L'état actuellement livré (issue
+[#251](https://github.com/fogfactory/crown-and-borough/issues/251)) remplace
+intégralement l'ancien barème du GDD §9 (territoire, village, moulin,
+château, noble, troupe, ressource) et son complément fief ([#194](https://github.com/fogfactory/crown-and-borough/issues/194))
+par le seul score de titres ci-dessous : `gdd.md` §9 a été réécrit en
+conséquence par anticipation sur le reste de la section « Évolution du
+document » du GDD, puisque les titres de cardinal, pape, roi et
+[dignité](dames.md#dignités) n'existent pas encore côté moteur et que la
+pondération par mariage (`succession.md § Mariages et alliances`) reste à
+livrer. Le score se limite donc pour l'instant au nombre de fiefs détenus
+(baronnie, comté, duché) ; une partie à durée fixe se termine fréquemment
+sur une égalité 0-0 sans vainqueur tant que ces sources manquent, ce qui est
+accepté comme transitoire.
 
 ### Score de titres
 

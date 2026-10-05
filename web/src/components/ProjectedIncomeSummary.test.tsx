@@ -25,7 +25,29 @@ const state: StateData = {
       projectedMillIncome: 0,
     },
   ],
-  territories: [],
+  territories: [
+    {
+      id: 'ROS',
+      owner: 'P1',
+      resources: 10,
+      army: null,
+      infrastructures: [],
+    },
+    {
+      id: 'BOI',
+      owner: 'P1',
+      resources: 15,
+      army: null,
+      infrastructures: [],
+    },
+    {
+      id: 'BRU',
+      owner: 'P2',
+      resources: 5,
+      army: null,
+      infrastructures: [],
+    },
+  ],
   nobles: [],
 }
 
@@ -42,6 +64,7 @@ describe('ProjectedIncomeSummary', () => {
       screen.getByText('Territory: +6 R per action turn → ROS (capital)'),
     ).toBeInTheDocument()
     expect(screen.getByText('Mills: +2 R per action turn')).toBeInTheDocument()
+    expect(screen.getByText('Current stockpile: 25 R')).toBeInTheDocument()
   })
 
   it('omits the destination without a capital', () => {
@@ -53,6 +76,7 @@ describe('ProjectedIncomeSummary', () => {
 
     expect(screen.getByText('Territory: +0 R per action turn')).toBeInTheDocument()
     expect(screen.getByText('Mills: +0 R per action turn')).toBeInTheDocument()
+    expect(screen.getByText('Current stockpile: 5 R')).toBeInTheDocument()
   })
 
   it('splits territory income into one line per fief plus the non-fief remainder', () => {
@@ -66,6 +90,36 @@ describe('ProjectedIncomeSummary', () => {
           capitalTerritory: 'ROS',
           projectedIncome: 10,
           projectedMillIncome: 2,
+        },
+      ],
+      territories: [
+        {
+          id: 'ROS',
+          owner: 'P1',
+          resources: 12,
+          army: null,
+          infrastructures: [],
+        },
+        {
+          id: 'BOI',
+          owner: 'P1',
+          resources: 8,
+          army: null,
+          infrastructures: [],
+        },
+        {
+          id: 'BRU',
+          owner: 'P1',
+          resources: 10,
+          army: null,
+          infrastructures: [],
+        },
+        {
+          id: 'CHA',
+          owner: 'P1',
+          resources: 6,
+          army: null,
+          infrastructures: [],
         },
       ],
       fiefs: [
@@ -99,6 +153,7 @@ describe('ProjectedIncomeSummary', () => {
     expect(screen.getByText('Barony of BOI: +4 R per action turn')).toBeInTheDocument()
     expect(screen.getByText('County of CHA: +3 R per action turn')).toBeInTheDocument()
     expect(screen.getByText('Mills: +2 R per action turn')).toBeInTheDocument()
+    expect(screen.getByText('Current stockpile: 36 R')).toBeInTheDocument()
     expect(
       screen.queryByText('Territory: +10 R per action turn → ROS (capital)'),
     ).not.toBeInTheDocument()

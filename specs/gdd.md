@@ -654,28 +654,15 @@ La partie se termine après la résolution du dernier tour de la durée choisie,
 ou immédiatement lorsqu'un seul joueur reste en lice. Les scores sont recalculés
 après chaque tour et sont visibles par tous les joueurs.
 
-Le score d'un joueur est la somme des éléments suivants :
-
-| Élément | Points |
-|---|---:|
-| Territoire contrôlé | 1 |
-| Village contrôlé | 2 |
-| Moulin contrôlé | 1 |
-| Château contrôlé | 5 |
-| Noble détenu | 2 |
-| Troupe | 1 par unité dans ses armées |
-| Ressource `R` | 1 par unité en stock sur ses territoires contrôlés |
-| Fief détenu | 1, vacant compris, jusqu'à sa dissolution ([titres.md](titres.md)) |
-
-Les points d'infrastructure et de ressource ne sont attribués que lorsque le
-territoire est contrôlé. Un noble libre est compté pour son propriétaire. Un
-noble capturé, qu'il soit otage ou au donjon, est compté pour le joueur dont
-une armée le détient physiquement (celle qui stationne sur sa case), et non
-pour le contrôleur de cette case : hors fief, le contrôle territorial est
-éphémère (§7) et peut avoir disparu alors que l'armée captrice y
-stationne toujours ; il ne compte pas pour son propriétaire initial. Un
-territoire neutre ne rapporte aucun élément de score.
+Le score d'un joueur est son score de titres : chaque titre détenu rapporte
+1 point, quel que soit son rang (baronnie, comté, duché pour l'instant ;
+cardinal, pape, roi et dignité suivront). Territoire, infrastructure, armée
+et noble détenus ne rapportent plus rien par eux-mêmes. Voir
+[titres.md § Score de titres](titres.md#score-de-titres) pour le détail et
+l'état de livraison.
 
 À la fin d'une partie, un unique survivant gagne toujours, même si la durée
 vient d'être atteinte. Sinon, le joueur qui possède le score le plus élevé gagne.
-Une égalité parfaite de score ne désigne aucun gagnant officiel.
+Une égalité parfaite de score ne désigne aucun gagnant officiel — y compris
+l'égalité 0-0 fréquente avant que les autres sources de titres et la
+pondération par mariage ne soient livrées.

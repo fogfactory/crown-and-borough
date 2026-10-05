@@ -71,7 +71,7 @@ func TestGameDocumentCarriesDurationAndScores(t *testing.T) {
 	state := models.NewGameState()
 	state.Players = []models.Player{{ID: "P1", Name: "Alice"}}
 	scores := map[models.PlayerID]engine.ScoreBreakdown{
-		"P1": {Territories: 1, Total: 1},
+		"P1": {Titles: 1, Total: 1},
 	}
 	snapshot := store.GameSnapshot{
 		ID:        "game-1",

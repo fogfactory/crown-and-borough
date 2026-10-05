@@ -2,26 +2,10 @@ import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
 import type { Player, ScoreBreakdown } from '@/types'
 
-const scoreKeys: Array<[keyof ScoreBreakdown, MessageKey]> = [
-  ['territories', 'score.territories'],
-  ['villages', 'score.villages'],
-  ['mills', 'score.mills'],
-  ['castles', 'score.castles'],
-  ['nobles', 'score.nobles'],
-  ['troops', 'score.troops'],
-  ['resources', 'score.resources'],
-  ['fiefs', 'score.fiefs'],
-]
+const scoreKeys: Array<[keyof ScoreBreakdown, MessageKey]> = [['titles', 'score.titles']]
 
 const emptyScore: ScoreBreakdown = {
-  territories: 0,
-  villages: 0,
-  mills: 0,
-  castles: 0,
-  nobles: 0,
-  troops: 0,
-  resources: 0,
-  fiefs: 0,
+  titles: 0,
   total: 0,
 }
 
