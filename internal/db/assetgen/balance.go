@@ -75,7 +75,6 @@ type Costs struct {
 	Castle           int   `json:"castle" yaml:"castle"`
 	MillLevels       []int `json:"mill_levels" yaml:"mill_levels"`
 	Troop            int   `json:"troop" yaml:"troop"`
-	Noble            int   `json:"noble" yaml:"noble"`
 	SupplyDepot      int   `json:"supply_depot" yaml:"supply_depot"`
 	Liberation       int   `json:"liberation" yaml:"liberation"`
 	FiefPerTerritory int   `json:"fief_per_territory" yaml:"fief_per_territory"`
@@ -135,7 +134,6 @@ type rawCosts struct {
 	Castle           *int   `yaml:"castle"`
 	MillLevels       []*int `yaml:"mill_levels"`
 	Troop            *int   `yaml:"troop"`
-	Noble            *int   `yaml:"noble"`
 	SupplyDepot      *int   `yaml:"supply_depot"`
 	Liberation       *int   `yaml:"liberation"`
 	FiefPerTerritory *int   `yaml:"fief_per_territory"`
@@ -366,10 +364,6 @@ func (raw rawBalance) costs(path string) (Costs, error) {
 	if err != nil {
 		return Costs{}, err
 	}
-	noble, err := requiredNonNegativeInt(path, "costs.noble", raw.Costs.Noble)
-	if err != nil {
-		return Costs{}, err
-	}
 	supplyDepot, err := requiredNonNegativeInt(path, "costs.supply_depot", raw.Costs.SupplyDepot)
 	if err != nil {
 		return Costs{}, err
@@ -386,7 +380,6 @@ func (raw rawBalance) costs(path string) (Costs, error) {
 		Castle:           castle,
 		MillLevels:       millLevels,
 		Troop:            troop,
-		Noble:            noble,
 		SupplyDepot:      supplyDepot,
 		Liberation:       liberation,
 		FiefPerTerritory: fiefPerTerritory,

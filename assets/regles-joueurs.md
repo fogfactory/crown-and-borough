@@ -514,7 +514,7 @@ du combat ou de la défense.
 
 Lorsqu'une armée portant des nobles est **détruite** sur une case occupée par
 une armée ennemie, ces nobles sont capturés et deviennent `hostage` par
-défaut. Un noble otage peut continuer à émettre une chaîne (section 4) ; seul
+défaut (un bâtard, lui, est placé directement au cachot). Un noble otage peut continuer à émettre une chaîne (section 4) ; seul
 son passage au cachot, décrit section 8, lui retire cette capacité.
 
 ---
@@ -687,7 +687,9 @@ investissements directs, une ligne par ordre, appliqués dans l'ordre saisi.
 
 | Investissement | Syntaxe | Condition | Coût (R) |
 |---|---|---|---|
-| Recruter un noble | `R N XXX` | `XXX` contrôlé, avec un château ou un village et une armée du joueur, et moins de {{noble_limit}} nobles vivants possédés | {{costs.noble}} |
+| Piocher une carte de noble | `T N` | une seule fois par hiver et par joueur ; le deck de nobles, commun à tous, ne doit pas être épuisé | 0 |
+| Recruter un noble | `R N CCC XXX` | `CCC` est une carte de noble de ta main ; `XXX` contrôlé, avec un château ou un village et une armée du joueur, et moins de nobles vivants possédés que ton plafond, {{noble_limit}} de base (voir ci-dessous) | 0 |
+| Conférer une dignité | `D N NNN CCC` | `NNN` est un noble du joueur ; `CCC` est une carte de dignité de ta main (`BAS` : bâtard) ; un noble n'est bâtard qu'une fois | 0 |
 | Recruter une troupe | `R T XXX` | `XXX` contrôlé, et un noble libre du joueur sur `XXX` ou adjacent | {{costs.troop}} |
 | Construire ou améliorer un moulin | `C M XXX` | `XXX` contrôlé ; un **nouveau** moulin exige une case **vide** adjacente à un château ou village, ou portant elle-même un château ou village ; un moulin **existant** peut toujours être amélioré, même isolé | {{costs.mill_levels.0}} (N1), {{costs.mill_levels.1}} (N2), {{costs.mill_levels.2}} (N3) |
 | Construire un château, ou fortifier un village | `C C XXX` | `XXX` contrôlé ; sur un village, le fortifie au lieu d'y construire un château ; rejeté sans prélèvement si le village est déjà fortifié | {{costs.castle}} |
@@ -701,13 +703,54 @@ investissements directs, une ligne par ordre, appliqués dans l'ordre saisi.
 | Attribuer un fief vacant | `T A NNN XXX` | `NNN` est un noble du joueur, même otage ou prisonnier ; `XXX` est la capitale d'un fief vacant qu'il détient | 0 |
 | Marier deux nobles | `M N NNN MMM` | `NNN` est un noble libre du joueur, `MMM` un noble libre d'un autre joueur, de sexe différent, tous deux non mariés ; l'autre joueur doit soumettre `M N MMM NNN` le même hiver, sinon le mariage est refusé | 0 |
 
+**Le deck de nobles.** Les nobles ne s'achètent pas : ils se piochent dans un **deck de nobles**
+unique et commun à tous les joueurs, mélangé à la création de la partie.
+Il contient des **cartes de noble** (un prénom, son trigramme et son sexe,
+autant d'hommes que de femmes) et des **cartes de dignité**, au moins une par
+partie. Chaque hiver, `T N` ajoute la carte du dessus du deck à ta main, une
+seule fois par joueur (au-delà, ou si la pioche et la défausse sont toutes
+deux vides, l'ordre est rejeté). Ta main est limitée à
+**{{special_orders.hand_limit}} cartes**, cartes de noble, de dignité et
+d'ordres spéciaux confondues : `T N` est rejeté si elle est pleine. Tu pioches
+au plus **{{special_orders.draw_orders_limit}} cartes par hiver**, tous decks
+confondus, dont une seule dans le deck de nobles. `R N CCC XXX` joue la carte de noble `CCC` de ta main : le noble
+apparaît sur `XXX` sans rien te coûter, tant que tu possèdes moins de
+ton plafond de nobles vivants (libres, otages ou au donjon), {{noble_limit}} de
+base. Une carte que tu
+n'as pas en main est rejetée.
+
+Une carte jouée reste sur le noble qu'elle a fait apparaître ou qui porte sa
+dignité. Quand ce noble meurt, sa carte de noble sort du jeu et une nouvelle
+carte de noble du même sexe, au prénom encore inutilisé, rejoint la défausse
+(aucune s'il ne reste plus de prénom libre) ; le trigramme du défunt n'est
+jamais réutilisé. Une carte de dignité retourne à la défausse quand son porteur
+meurt ou perd la dignité. Quand la pioche est vide, la défausse est mélangée
+pour la reconstituer.
+
+Une carte de dignité se joue sur l'un de tes nobles avec `D N NNN CCC` ; la
+seule dignité du deck est le **bâtard** (`BAS`), qu'un noble ne porte qu'une
+fois. Un bâtard :
+
+- relève ton plafond de nobles de 1 tant qu'il vit, même marié, otage ou au
+  donjon ; chaque bâtard ajoute 1, sans jamais dépasser {{noble_limit_max}} ;
+- est toujours le dernier de ta ligne de succession et ne reçoit un nouveau
+  fief que s'il est le dernier de ta lignée ; un fief qu'il détient déjà lui
+  reste ;
+- ne peut pas être roi ;
+- peut se marier, mais son mariage n'est pas une alliance (ni poids, ni
+  catégorie, ni partage de score) ;
+- est placé directement au donjon, jamais en otage, lorsqu'il est capturé au
+  combat ;
+- compte comme un titre dans ton score.
+
 C'est ici, en hiver, que se règle le sort des nobles ennemis capturés en
 combat (section 6) : `O`/`P` fait basculer un prisonnier entre `hostage` et
 `dungeon` ; un otage peut encore émettre une chaîne pour son propriétaire
 d'origine tant qu'il reste otage, mais plus une fois au donjon — le détenteur
 peut d'ailleurs lire ces chaînes dans les parties en ligne, même lorsqu'elles
 commandent une armée restée chez le propriétaire du noble. La capture
-produit par défaut le statut `hostage`. `L N NNN` est émis par le
+produit par défaut le statut `hostage`, sauf pour un bâtard (voir « Le deck de nobles »
+ci-dessus) qui est placé directement au donjon. `L N NNN` est émis par le
 **détenteur**, pas par le propriétaire : si la capitale du propriétaire
 existe et contient une armée de celui-ci, le noble y réapparaît libre ; sinon
 l'ordre est rejeté.
@@ -768,7 +811,8 @@ Si le titulaire meurt (peste) ou si la capitale change de main, le fief
 devient **vacant** : il continue de produire et de compter son point de score,
 mais n'a plus de titulaire. `T A` l'attribue alors à un noble du joueur
 qui le détient, à condition que tous les nobles placés avant lui dans ta ligne
-de succession (l'ordre dans lequel tu les as recrutés) détiennent déjà un fief
+de succession (l'ordre dans lequel tu les as recrutés, les bâtards
+comptant toujours en dernier) détiennent déjà un fief
 de titre équivalent ou supérieur ; la constitution d'un fief obéit à la même
 règle. En fin d'hiver, un fief encore vacant à ce moment-là est **attribué
 automatiquement** au premier noble de ta ligne de succession, même s'il est
@@ -867,8 +911,8 @@ dans la feuille `winter`.
   seule exception où la cible n'est pas le village seed d'une région ;
 - `D C BT` ou `D C RA` : défausser une carte, en hiver uniquement.
 
-La main est reconstituée automatiquement en hiver après les défausses ;
-aucun ordre de pioche n'est nécessaire.
+La main est reconstituée automatiquement en hiver après les ordres d'hiver et
+les défausses ; aucun ordre de pioche n'est nécessaire.
 
 Beau temps, Bonne récolte, Révolte et Taxe seigneuriale sont jouables au
 printemps, en été et en automne, mais pas en hiver. Les cartes jouées sont
@@ -900,9 +944,12 @@ mauvais temps, **{{special_orders.card.famine}}** mauvaise récolte,
 **{{special_orders.card.abundant_harvest}}** bonne récolte,
 **{{special_orders.card.revolt}}** révolte et
 **{{special_orders.card.seigneurial_tax}}** taxe seigneuriale. La main est limitée à
-**{{special_orders.hand_limit}} cartes**, et chaque joueur reçoit
-automatiquement jusqu'à **{{special_orders.draw_orders_limit}} cartes bonus
-par hiver**, après ses défausses.
+**{{special_orders.hand_limit}} cartes**, cartes de noble et de dignité
+comprises. Après ses ordres d'hiver et ses défausses, chaque joueur reçoit
+automatiquement des cartes bonus, jusqu'à
+**{{special_orders.draw_orders_limit}} par hiver** tous decks confondus (une
+carte de noble piochée compte pour une) et dans la limite des places libres de
+sa main.
 
 Une calamité tirée est programmée dans le premier slot disponible de l'année
 suivante : printemps (**{{special_orders.calamity_slots.spring}}**), été

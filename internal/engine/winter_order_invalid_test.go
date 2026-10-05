@@ -41,14 +41,13 @@ func TestWinterOrderApplyRejectsInvalidCases(t *testing.T) {
 			wantReason: "noble_requires_owned_army",
 		},
 		{
-			name:  "recruit noble insufficient resources",
-			order: models.WinterOrder{Type: models.WinterOrderTypeRecruitNoble, TerritoryID: "AAA"},
+			name:  "recruit noble card not in hand",
+			order: models.WinterOrder{Type: models.WinterOrderTypeRecruitNoble, CardCode: "ELE", TerritoryID: "AAA"},
 			setup: func(state *models.GameState) {
-				state.Armies = append(state.Armies, models.Army{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1})
-				state.TerritoryStates["AAA"] = models.TerritoryState{Army: armyPointer("A1"), Resources: 0, Infrastructures: infraPointer("I1")}
-				addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA"})
+				controlledArmyAndSettlement(state)
+				giveNobleCard(state, "P2", "ELE", "Eleonore", models.SexFemale)
 			},
-			wantReason: "insufficient_resources",
+			wantReason: "card_not_in_hand",
 		},
 		{
 			name:  "recruit noble at the noble limit",

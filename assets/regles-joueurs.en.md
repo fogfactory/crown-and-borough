@@ -481,7 +481,7 @@ dispersal (`*` or `*NNN`, section 5); it only grants its command bonus if that
 group actually carries it when it fights or defends.
 
 When an army carrying nobles is **destroyed** on a territory occupied by an
-enemy army, those nobles are captured and become `hostage` by default. A
+enemy army, those nobles are captured and become `hostage` by default (a bastard goes straight to the dungeon). A
 hostage noble may continue to emit a chain (section 4); only moving it to the
 dungeon, covered in section 8, removes that ability.
 
@@ -648,7 +648,9 @@ per line, applied in the entered order.
 
 | Investment | Syntax | Condition | Cost (R) |
 |---|---|---|---|
-| Recruit a noble | `R N XXX` | `XXX` controlled, with a castle or village and a player army, and fewer than {{noble_limit}} living nobles owned | {{costs.noble}} |
+| Draw a noble card | `T N` | once per winter and per player; the noble deck, shared by all players, must not be empty | 0 |
+| Recruit a noble | `R N CCC XXX` | `CCC` is a noble card in your hand; `XXX` controlled, with a castle or village and a player army, and fewer living nobles owned than your cap, {{noble_limit}} at the base (see below) | 0 |
+| Grant a dignity | `D N NNN CCC` | `NNN` is a player noble; `CCC` is a dignity card in your hand (`BAS`: bastard); a noble is a bastard only once | 0 |
 | Recruit a troop | `R T XXX` | `XXX` controlled, and a free player noble on `XXX` or adjacent | {{costs.troop}} |
 | Build or upgrade a mill | `C M XXX` | `XXX` controlled; a **new** mill requires an **empty** territory adjacent to a castle or village, or itself carrying one; an **existing** mill can always be upgraded, even in isolation | {{costs.mill_levels.0}} (L1), {{costs.mill_levels.1}} (L2), {{costs.mill_levels.2}} (L3) |
 | Build a castle, or fortify a village | `C C XXX` | `XXX` controlled; on a village, fortifies it instead of building a castle there; rejected with no stock deducted if the village is already fortified | {{costs.castle}} |
@@ -662,12 +664,50 @@ per line, applied in the entered order.
 | Assign a vacant fief | `T A NNN XXX` | `NNN` is a player noble, even a hostage or prisoner; `XXX` is the capital of a vacant fief the player holds | 0 |
 | Marry two nobles | `M N NNN MMM` | `NNN` is a free player noble, `MMM` a free noble of another player, of the opposite sex, both unmarried; the other player must submit `M N MMM NNN` the same winter, otherwise the marriage is refused | 0 |
 
+**The noble deck.** Nobles are not bought: they are drawn from a single
+**noble deck**, shared by all players, shuffled when the game is
+created. It holds **noble cards** (a first name, its trigram and its sex, as
+many men as women) and **dignity cards**, at least one per game. Each winter,
+`T N` adds the top card of the deck to your hand, once per player (beyond
+that, or when the draw pile and the discard pile are both empty, the order is
+rejected). Your hand is limited to **{{special_orders.hand_limit}} cards**,
+noble, dignity and special-order cards together: `T N` is rejected when it is
+full. You draw at most **{{special_orders.draw_orders_limit}} cards per
+winter**, across all decks, of which only one from the noble deck. `R N CCC XXX` plays
+the noble card `CCC` from your hand: the noble appears on `XXX` at no cost, as
+long as you own fewer living nobles (free, hostage or in the dungeon) than
+your cap, {{noble_limit}} at the base. A card that is not in your hand is
+rejected.
+
+A played card stays on the noble it brought into play or that carries its
+dignity. When that noble dies, its noble card leaves the game and a new noble
+card of the same sex, with a first name not yet used, joins the discard pile
+(none if no first name is left); the dead noble's trigram is never reused. A
+dignity card returns to the discard pile when its carrier dies or loses the
+dignity. When the draw pile is empty, the discard pile is shuffled to rebuild
+it.
+
+A dignity card is played on one of your nobles with `D N NNN CCC`; the only
+dignity in the deck is the **bastard** (`BAS`), which a noble carries only
+once. A bastard:
+
+- raises your noble cap by 1 while alive, even when married, hostage or in
+  the dungeon; each bastard adds 1, never beyond {{noble_limit_max}};
+- is always last in your line of succession and receives a new fief only if it
+  is the last of your lineage; a fief it already holds stays with it;
+- cannot be king;
+- may marry, but its marriage is not an alliance (no weight, no category, no
+  shared score);
+- goes straight to the dungeon, never as a hostage, when captured in combat;
+- counts as a title in your score.
+
 This is where, in winter, the fate of enemy nobles captured in combat
 (section 6) is decided: `O`/`P` moves a prisoner between `hostage` and
 `dungeon`; a hostage noble may still emit a chain for its original owner while
 it remains a hostage, but no longer once in the dungeon — the holder can in
 fact read those chains in online games, even when they command an army that
-stayed with the noble's owner. Capture normally produces `hostage` status.
+stayed with the noble's owner. Capture normally produces `hostage` status,
+except for a bastard (see "The noble deck" above), who goes straight to the dungeon.
 `L N NNN` is issued by the **holder**, not the owner: if the owner's capital
 exists and contains one of their armies, the noble reappears there free;
 otherwise the order is rejected.
@@ -726,7 +766,7 @@ If the titulaire dies (plague) or the capital changes hands, the fief becomes
 **vacant**: it keeps producing and scoring its point, but has no titulaire.
 `T A` then assigns it to a noble of the player who holds it, provided
 every noble ahead of them in your line of succession (the order in which you
-recruited them) already holds a fief of an equal or higher title; founding a
+recruited them, bastards always counting last) already holds a fief of an equal or higher title; founding a
 fief follows the same rule. At the end of winter, a fief still vacant at that
 point is **automatically assigned** to the first noble in your line of
 succession, even a hostage or prisoner, with a warning in the report telling
@@ -820,7 +860,7 @@ from noble chains and requiring no noble. Winter discards are written in the
   where the target is not a region's seed village;
 - `D C FW` or `D C AH`: discard a card, winter only.
 
-The hand is replenished automatically in winter after discards; no draw order
+The hand is replenished automatically in winter after winter orders and discards; no draw order
 is needed.
 
 Fair weather, Abundant harvest, Revolt, and the Seigneurial tax can be played
@@ -851,9 +891,11 @@ bad weather, **{{special_orders.card.famine}}** bad harvest,
 **{{special_orders.card.abundant_harvest}}** abundant harvest,
 **{{special_orders.card.revolt}}** revolt, and
 **{{special_orders.card.seigneurial_tax}}** seigneurial tax cards. A hand is limited to
-**{{special_orders.hand_limit}} cards**, and each player automatically
-receives up to **{{special_orders.draw_orders_limit}} bonus cards per
-winter**, after discards.
+**{{special_orders.hand_limit}} cards**, noble and dignity cards included.
+After their winter orders and discards, each player automatically receives
+bonus cards, up to **{{special_orders.draw_orders_limit}} per winter** across
+all decks (a noble card drawn counts as one) and within the free slots of
+their hand.
 
 A drawn calamity is programmed into the first free slot of the following
 year: spring (**{{special_orders.calamity_slots.spring}}**), summer

@@ -47,6 +47,17 @@ func ComputeScores(state *models.GameState) map[models.PlayerID]ScoreBreakdown {
 		scores[fief.OwnerID] = score
 	}
 
+	// Each dignity a living noble carries (the bastard, specs/succession.md
+	// § Bâtard) counts as a title.
+	for _, noble := range state.Nobles {
+		score, exists := scores[noble.OwnerID]
+		if !exists {
+			continue
+		}
+		score.Titles += len(noble.Dignities)
+		scores[noble.OwnerID] = score
+	}
+
 	for playerID, score := range scores {
 		score.Total = score.Titles
 		scores[playerID] = score

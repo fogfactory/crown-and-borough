@@ -78,8 +78,15 @@ func resolveWinterDeckOrders(ctx *resolutionContext, deckOrders map[models.Playe
 			}
 		}
 	}
+	// The refill runs after the winter orders (so after any noble draw) and
+	// the discards. A player draws at most draw_orders_limit cards per winter
+	// across both decks: a noble draw ordered this winter uses one of them.
 	for _, playerID := range sortedPlayerIDs(ctx.state.Players) {
-		for draw := 0; draw < ctx.balance.SpecialOrders.DrawOrdersLimit; draw++ {
+		draws := ctx.balance.SpecialOrders.DrawOrdersLimit
+		if ctx.nobleDraws[playerID] {
+			draws--
+		}
+		for draw := 0; draw < draws; draw++ {
 			if !ctx.drawUsefulDeckCard(playerID) {
 				break
 			}
@@ -88,7 +95,7 @@ func resolveWinterDeckOrders(ctx *resolutionContext, deckOrders map[models.Playe
 }
 
 func (ctx *resolutionContext) drawUsefulDeckCard(playerID models.PlayerID) bool {
-	if ctx.state.SpecialDeck == nil || len(ctx.state.SpecialDeck.Hands[playerID]) >= ctx.balance.SpecialOrders.HandLimit {
+	if ctx.state.SpecialDeck == nil || ctx.handSize(playerID) >= ctx.balance.SpecialOrders.HandLimit {
 		return false
 	}
 	cycle := len(ctx.state.SpecialDeck.DrawPile) + len(ctx.state.SpecialDeck.Discard)

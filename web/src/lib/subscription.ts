@@ -11,6 +11,7 @@ import {
 import { useEffect, useRef, useState } from 'react'
 
 import { getFirebaseServices } from '@/lib/firebase'
+import { DEFAULT_HAND_LIMIT } from '@/types'
 import type {
   GameSlot,
   GameSummary,
@@ -203,6 +204,9 @@ export function normalizeStateData(value: unknown): StateData | null {
     territories: state.territories,
     nobles: state.nobles,
     specialHand: Array.isArray(state.specialHand) ? state.specialHand : [],
+    nobleHand: Array.isArray(state.nobleHand) ? state.nobleHand : [],
+    nobleDeckSize: numberValue(state.nobleDeckSize, 0),
+    handLimit: numberValue(state.handLimit, DEFAULT_HAND_LIMIT),
     activeRegionEffects: Array.isArray(state.activeRegionEffects)
       ? state.activeRegionEffects
       : [],

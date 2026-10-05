@@ -38,7 +38,6 @@ func testBalance() assetgen.Balance {
 			Castle:           10,
 			MillLevels:       []int{3, 5, 7},
 			Troop:            1,
-			Noble:            2,
 			SupplyDepot:      3,
 			Liberation:       0,
 			FiefPerTerritory: 2,
@@ -48,6 +47,7 @@ func testBalance() assetgen.Balance {
 		StartingNobles:    1,
 		StartingTroops:    1,
 		StartingResources: 10,
+		SpecialOrders:     assetgen.SpecialOrdersBalance{HandLimit: 4, DrawOrdersLimit: 2},
 		FirstNames: []assetgen.Asset{
 			{Code: "ADE", Name: "Adelaide", Sex: "female"},
 			{Code: "GUI", Name: "Guillaume", Sex: "male"},
@@ -313,4 +313,46 @@ func holdAsFiefMember(state *models.GameState, territoryID models.TerritoryID, o
 		Territories:        []models.TerritoryID{fillers[0], territoryID, fillers[1]},
 		OwnerID:            ownerID,
 	})
+}
+
+// giveNobleCard puts a noble card (code, first name, sex) in the player's hand,
+// creating the noble deck when the state has none, and returns its ID.
+func giveNobleCard(state *models.GameState, playerID models.PlayerID, code, name string, sex models.Sex) models.NobleCardID {
+	return giveCard(state, playerID, models.NobleCard{Kind: models.NobleCardKindNoble, Code: code, Name: name, Sex: sex})
+}
+
+// giveDignityCard puts a bastard dignity card in the player's hand.
+func giveDignityCard(state *models.GameState, playerID models.PlayerID) models.NobleCardID {
+	return giveCard(state, playerID, models.NobleCard{Kind: models.NobleCardKindDignity, Code: models.DignityBastardCardCode, Dignity: models.DignityBastard})
+}
+
+func giveCard(state *models.GameState, playerID models.PlayerID, card models.NobleCard) models.NobleCardID {
+	ensureNobleDeck(state)
+	card.ID = models.NobleCardID(fmt.Sprintf("K%d", len(state.NobleDeck.Cards)+1))
+	state.NobleDeck.Cards = append(state.NobleDeck.Cards, card)
+	state.NobleDeck.Hands[playerID] = append(state.NobleDeck.Hands[playerID], card.ID)
+	return card.ID
+}
+
+// pileNobleCard puts a noble card on the bottom of the draw pile.
+func pileNobleCard(state *models.GameState, code, name string, sex models.Sex) models.NobleCardID {
+	ensureNobleDeck(state)
+	card := models.NobleCard{
+		ID:   models.NobleCardID(fmt.Sprintf("K%d", len(state.NobleDeck.Cards)+1)),
+		Kind: models.NobleCardKindNoble, Code: code, Name: name, Sex: sex,
+	}
+	state.NobleDeck.Cards = append(state.NobleDeck.Cards, card)
+	state.NobleDeck.DrawPile = append(state.NobleDeck.DrawPile, card.ID)
+	return card.ID
+}
+
+func ensureNobleDeck(state *models.GameState) {
+	if state.NobleDeck != nil {
+		return
+	}
+	state.NobleDeck = &models.NobleDeck{
+		Cards: []models.NobleCard{}, DrawPile: []models.NobleCardID{},
+		Discard: []models.NobleCardID{}, Hands: map[models.PlayerID][]models.NobleCardID{},
+		Played: []models.NobleCardPlay{}, NamePool: []models.NobleName{},
+	}
 }

@@ -43,7 +43,6 @@ costs:
   castle: 10
   mill_levels: [3, 5, 7]
   troop: 1
-  noble: 2
   supply_depot: 3
   liberation: 0
   fief_per_territory: 2

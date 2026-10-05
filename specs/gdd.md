@@ -59,7 +59,9 @@ L'hiver est une trêve de gestion : aucune chaîne d'action, aucun mouvement,
 aucun combat et aucun ravitaillement ne sont résolus. Le joueur soumet une
 liste d'investissements directs, traités dans l'ordre saisi :
 
-- `R N XXX` — recruter un noble sur `XXX` ;
+- `T N` — piocher une carte dans le deck de nobles (une fois par hiver) ;
+- `R N CCC XXX` — jouer la carte de noble `CCC` de la main pour recruter ce noble sur `XXX` ;
+- `D N NNN CCC` — jouer la carte de dignité `CCC` (`BAS` : bâtard) de la main sur le noble `NNN` ;
 - `A N XXX` — annoblir gratuitement une armée sur `XXX` lorsque le joueur n'a plus aucun noble ;
 - `R T XXX` — recruter une troupe sur `XXX` ;
 - `C M XXX` — construire ou améliorer un moulin sur `XXX` ;
@@ -91,12 +93,32 @@ adverse ou une révolte y stationnant rejette l'ordre sans prélèvement
 (`territory_occupied_by_other_player`). Le recrutement d'une troupe exige en
 outre un noble libre du joueur, situé sur la cible ou sur un territoire
 adjacent à celle-ci par une frontière franchissable.
-Le recrutement d'un noble exige une infrastructure de peuplement (château ou
-village) et une armée du joueur sur la case, et que le joueur ne possède pas
-déjà 4 nobles vivants (libres, otages ou au cachot ; certains effets de jeu
-peuvent relever ce plafond jusqu'à 6). Un ordre rejeté est signalé dans
-le rapport avec son motif ; toutes les conditions sont vérifiées avant le
-paiement, donc un ordre rejeté ne prélève aucune ressource.
+Les nobles se recrutent depuis un deck de nobles partagé par tous les
+joueurs et généré de façon déterministe à partir de la seed de partie : des
+cartes de noble (nom, trigramme et sexe, à parts égales entre hommes et
+femmes) et des cartes de dignité (le bâtard). `T N` ajoute la carte du dessus
+à la main du joueur, une fois par joueur et par hiver (`noble_draw_already_used`
+au-delà ; `hand_limit_reached` quand la main partagée — ordres spéciaux, cartes
+de noble et de dignité — atteint `special_orders.hand_limit` ; `noble_deck_empty` quand la pioche et la défausse sont vides ; une
+pioche vide est reconstituée en mélangeant la défausse). `R N CCC XXX` joue une
+carte de noble de la main : le noble apparaît sur `XXX`, qui exige une
+infrastructure de peuplement (château ou village) et une armée du joueur, et
+le joueur ne doit pas déjà posséder 4 nobles vivants (libres, otages ou au
+cachot). Le recrutement ne coûte aucune ressource. Une carte absente de la
+main est rejetée (`card_not_in_hand`). Chaque noble porteur de la dignité de
+**bâtard** relève ce plafond de 1 (6 au plus), quel que soit son statut ;
+ce noble est toujours le dernier de la ligne de succession, ne reçoit un
+nouveau titre que s'il est le dernier de sa lignée, garde celui qu'il détient, ne peut pas être roi, est placé
+directement au cachot quand il est capturé en combat, et son mariage n'est
+pas une alliance. `D N NNN CCC` joue une carte de dignité sur un noble du
+joueur (`noble_not_owned`, `noble_already_bastard`). Un ordre rejeté est
+signalé dans le rapport avec son motif ; toutes les conditions sont
+vérifiées avant de consommer la carte, donc un ordre rejeté ne la consomme
+pas. La dignité de bâtard compte comme un titre dans le score. Une carte
+jouée reste suivie tant que son noble vit ; à la mort de ce noble, sa carte de
+noble sort du jeu et une nouvelle carte de noble du même sexe (prénom encore
+libre, aucune s'il n'en reste pas) rejoint la défausse, tandis qu'une carte de
+dignité y retourne, de même que lorsque la dignité est retirée par un effet.
 
 | Investissement | Coût en R |
 |---|---:|
@@ -166,8 +188,13 @@ joueur ; la destination n'a pas besoin d'appartenir au donneur.
 
 Chaque joueur détient une main de cartes bonus. Pendant l'hiver, la feuille
 d'hiver peut contenir `D C KIND` pour défausser une carte, sans noble requis ;
-la main est ensuite reconstituée automatiquement jusqu'à la limite de cartes,
-dans la limite de remplissage prévue par la balance. Il n'existe pas d'ordre de
+la main est ensuite reconstituée automatiquement, après les ordres d'hiver et
+les défausses. La limite de main (`special_orders.hand_limit`) est partagée
+avec les cartes du deck de nobles (nobles et dignités), et un joueur pioche au
+plus `special_orders.draw_orders_limit` cartes par hiver tous decks confondus,
+dont au plus une du deck de nobles : le remplissage n'excède ni ce plafond,
+diminué de la pioche de noble éventuelle, ni les places libres de la main
+partagée. Il n'existe pas d'ordre de
 pioche (`T C`). Les cartes jouables passent par une soumission `special`
 distincte des chaînes : `P KIND TER` est autorisé au printemps, en été et en
 automne.
@@ -547,7 +574,8 @@ Un noble `hostage` est détenu mais peut encore émettre une chaîne. Un noble
 `dungeon` est au cachot et ne peut plus émettre. Les ordres d'hiver `O N NNN` et
 `P N NNN` ne ciblent qu'un noble adverse détenu sur la case d'une armée du
 joueur ; ils peuvent faire passer le statut de `hostage` à `dungeon` et
-inversement. `hostage` est l'état par défaut après capture.
+inversement. `hostage` est l'état par défaut après capture, sauf pour un noble
+porteur de la dignité de bâtard, qui est placé directement au `dungeon`.
 
 Les nobles chevauchent les armées : ils suivent les déplacements et les
 retraites. Une dispersion peut affecter explicitement les nobles présents, avec

@@ -62,10 +62,15 @@ export type EventType =
   | 'fief_auto_assigned'
   | 'marriage'
   | 'marriage_refused'
+  | 'noble_draw'
+  | 'dignity'
 
 export type PlayerId = string
 
 export const NEUTRAL_PLAYER_ID = 'NEUTRAL'
+
+/** Mirrors balance special_orders.hand_limit. */
+export const DEFAULT_HAND_LIMIT = 4
 
 export type GameStatus = 'playing' | 'finished'
 
@@ -163,6 +168,26 @@ export interface Noble {
   sex?: 'male' | 'female'
   /** Code of the spouse while the marriage is active (both spouses alive). */
   spouse?: string
+  /** Permanent public distinctions the noble carries. */
+  dignities?: Dignity[]
+}
+
+/** A permanent distinction played on a noble; only the bastard exists. */
+export type Dignity = 'bastard'
+
+export type NobleCardKind = 'noble' | 'dignity'
+
+/** One card of the viewer's own noble hand (never other players' hands). */
+export interface NobleCard {
+  id: string
+  kind: NobleCardKind
+  /** Code typed in `R N CCC XXX` / `D N NNN CCC`. */
+  code: string
+  /** Set on noble cards only. */
+  name?: string
+  sex?: 'male' | 'female'
+  /** Set on dignity cards only. */
+  dignity?: Dignity
 }
 
 export interface Territory {
@@ -301,6 +326,11 @@ export interface StateData {
   nobles: Noble[]
   fiefs?: Fief[]
   specialHand?: CardKind[]
+  nobleHand?: NobleCard[]
+  /** Cards left in the shared noble draw pile. */
+  nobleDeckSize?: number
+  /** Shared hand limit (special + noble cards); the client falls back to DEFAULT_HAND_LIMIT when absent. */
+  handLimit?: number
   activeRegionEffects?: ActiveRegionEffect[]
   announcements?: AnnouncementReport[]
 }
@@ -323,7 +353,6 @@ export interface WinterCosts {
   castle: number
   millLevels: number[]
   troop: number
-  noble: number
   supplyDepot: number
   liberation: number
 }
@@ -697,6 +726,8 @@ export interface WinterInvestmentReport {
   territories?: string[]
   reason?: string
   order?: WinterOrder
+  /** Present only for `dignity`. */
+  dignity?: Dignity
 }
 
 export type WinterOrderType =
@@ -711,10 +742,14 @@ export type WinterOrderType =
   | 'found_fief'
   | 'assign_fief'
   | 'marriage'
+  | 'draw_noble'
+  | 'play_dignity'
 
 export interface WinterOrder {
   id?: string
   type: WinterOrderType
+  /** Noble or dignity card code for `recruit_noble` / `play_dignity`. */
+  cardCode?: string
   territory?: string
   infrastructureType?: InfraType
   nobleCode?: string

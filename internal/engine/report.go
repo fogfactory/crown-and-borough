@@ -312,6 +312,7 @@ type WinterInvestmentReport struct {
 	Title          models.FiefTitle     `json:"title,omitempty"`
 	Territories    []models.TerritoryID `json:"territories,omitempty"`
 	Reason         string               `json:"reason,omitempty"`
+	Dignity        models.Dignity       `json:"dignity,omitempty"`
 	Order          *models.WinterOrder  `json:"order,omitempty"`
 }
 
@@ -632,7 +633,7 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 				Reason: event.Reason, Fief: event.FiefTitle,
 			})
 		case EventTypeWinterStock, EventTypeRecruit, EventTypeBuild, EventTypeUpgrade, EventTypeFortify,
-			EventTypeRejected, EventTypeCapitalElected, EventTypeFiefFounded, EventTypeFiefAssigned, EventTypeFiefAutoAssigned:
+			EventTypeRejected, EventTypeCapitalElected, EventTypeNobleDraw, EventTypeDignity, EventTypeFiefFounded, EventTypeFiefAssigned, EventTypeFiefAutoAssigned:
 			if report.Winter == nil {
 				report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}
 			}
@@ -656,6 +657,7 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 				Title:       event.FiefTitle,
 				Territories: append([]models.TerritoryID(nil), event.FiefTerritories...),
 				Reason:      event.Reason,
+				Dignity:     event.Dignity,
 			}
 			if event.Type == EventTypeRejected {
 				investment.Outcome = OutcomeFailure

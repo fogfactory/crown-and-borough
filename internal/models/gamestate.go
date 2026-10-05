@@ -52,6 +52,7 @@ type GameState struct {
 	TerritoryStates     map[TerritoryID]TerritoryState `json:"territoryStates"`
 	Regions             []Region                       `json:"regions"`
 	SpecialDeck         *SpecialDeck                   `json:"specialDeck,omitempty"`
+	NobleDeck           *NobleDeck                     `json:"nobleDeck,omitempty"`
 	Auguries            map[int]YearAugury             `json:"auguries"`
 	ActiveRegionEffects []ActiveRegionEffect           `json:"activeRegionEffects"`
 	Fiefs               []Fief                         `json:"fiefs,omitempty"`
@@ -253,13 +254,17 @@ func (g *GameState) Validate() error {
 		if n.LastEmissionTurn < 0 || n.LastEmissionTurn > g.Turn {
 			return fmt.Errorf("models: noble %q: last emission turn %d must be between 0 and %d", n.ID, n.LastEmissionTurn, g.Turn)
 		}
+		if err := validateNobleDignities(*n); err != nil {
+			return err
+		}
 		nobles[n.ID] = true
 		nobleOwners[n.ID] = n.OwnerID
 	}
 
 	// 6b. Removed nobles: the lineage of nobles who permanently left play.
-	// Their id and code stay reserved forever (engine.nextNobleID,
-	// resolutionContext.removedNobleCodes), so both must still be checked for
+	// Their id and code stay reserved forever (engine.nextNobleID, and the
+	// noble deck never offers a code again once its card is played), so both
+	// must still be checked for
 	// collision here against the live nobles above and each other.
 	removedNobles := make(map[NobleID]bool, len(g.RemovedNobles))
 	for i := range g.RemovedNobles {
@@ -598,6 +603,9 @@ func (g *GameState) Validate() error {
 		}
 	}
 	if err := validateSpecialDeck(g.SpecialDeck, g.Auguries, players); err != nil {
+		return err
+	}
+	if err := validateNobleDeck(g.NobleDeck, players, nobleCodes, g.Nobles); err != nil {
 		return err
 	}
 	if err := validateActiveRegionEffects(g.ActiveRegionEffects, g.Regions); err != nil {

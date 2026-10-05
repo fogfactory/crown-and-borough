@@ -90,6 +90,15 @@ export function buildWinterIntentions(
   const source = options.source ?? 'draft'
   return lines.flatMap((preview): WinterIntention[] => {
     if (preview.status === 'discard') return []
+    // Draws and dignities touch no territory: nothing to draw on the map
+    // unless the engine refuses them.
+    if (
+      (preview.type === 'draw_noble' || preview.type === 'play_dignity') &&
+      preview.status !== 'rejected' &&
+      preview.status !== 'invalid'
+    ) {
+      return []
+    }
     const label = lineText(draft, preview.line)
     const common = { line: preview.line, source, color: options.color, label }
     if (preview.status === 'invalid') {

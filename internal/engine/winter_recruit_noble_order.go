@@ -18,12 +18,22 @@ func (resolution *resolutionContext) nobleCount(playerID models.PlayerID) int {
 	return count
 }
 
-// nobleLimit returns the player's current noble cap: the base balance value,
-// clamped to the balance maximum once game effects raise it.
-func (resolution *resolutionContext) nobleLimit(_ models.PlayerID) int {
-	return min(resolution.balance.NobleLimit, resolution.balance.NobleLimitMax)
+// nobleLimit returns the player's current noble cap: the base balance value
+// raised by the bonus of every noble of the player, whatever its status or
+// marriage (each bastard adds one), then clamped to the balance maximum.
+func (resolution *resolutionContext) nobleLimit(playerID models.PlayerID) int {
+	limit := resolution.balance.NobleLimit
+	for _, noble := range resolution.state.Nobles {
+		if noble.OwnerID == playerID {
+			limit += noble.NobleLimitBonus()
+		}
+	}
+	return min(limit, resolution.balance.NobleLimitMax)
 }
 
+// recruitNobleOrder is R N XXX YYY: it plays the noble card XXX from the
+// player's hand to make the noble appear on the castle or village YYY
+// (specs/succession.md § Deck de nobles). It costs no R.
 type recruitNobleOrder struct{ order models.WinterOrder }
 
 func (order recruitNobleOrder) Apply(ctx *ExecutionContext) {
@@ -51,38 +61,33 @@ func (order recruitNobleOrder) Apply(ctx *ExecutionContext) {
 		resolution.rejectWinterOrder(playerID, winterOrder, "noble_limit_reached")
 		return
 	}
-	if !resolution.hasAvailableFirstName(resolution.balance.FirstNames) {
-		resolution.rejectWinterOrder(playerID, winterOrder, "no_available_first_name")
+	card, handIndex, inHand := resolution.state.NobleDeck.HandCard(playerID, models.NobleCardKindNoble, winterOrder.CardCode)
+	if !inHand {
+		resolution.rejectWinterOrder(playerID, winterOrder, "card_not_in_hand")
 		return
 	}
-	spent, paid := resolution.payWinterCost(playerID, winterOrder.TerritoryID, resolution.balance.Costs.Noble)
-	if !paid {
-		resolution.rejectWinterOrder(playerID, winterOrder, "insufficient_resources")
-		return
-	}
-	firstName := resolution.drawFirstName(ctx.firstNameRNG, resolution.balance.FirstNames)
 	territory := resolution.territoriesByID[winterOrder.TerritoryID]
 	noble := models.Noble{
 		ID:               nextNobleID(resolution.state.Nobles, resolution.state.RemovedNobles),
-		Code:             firstName.Code,
-		Name:             fmt.Sprintf("%s de %s", firstName.Name, territory.Name),
-		Sex:              models.Sex(firstName.Sex),
+		Code:             card.Code,
+		Name:             fmt.Sprintf("%s de %s", card.Name, territory.Name),
+		Sex:              card.Sex,
 		OwnerID:          playerID,
 		LocationID:       winterOrder.TerritoryID,
 		Status:           models.NobleStatusFree,
 		LastEmissionTurn: 0,
 	}
+	resolution.consumeNobleCard(playerID, handIndex, noble.ID)
 	resolution.state.Nobles = append(resolution.state.Nobles, noble)
 	resolution.rebuildIndexes()
 	resolution.events = append(resolution.events, Event{
-		Type:          EventTypeRecruit,
-		Phase:         winterPhase,
-		OwnerID:       playerID,
-		OrderID:       winterOrder.ID,
-		TerritoryID:   winterOrder.TerritoryID,
-		NobleID:       noble.ID,
-		NobleCode:     models.NobleCode(noble.Code),
-		NobleName:     resolution.state.NobleDisplayName(noble),
-		ResourceSpent: spent,
+		Type:        EventTypeRecruit,
+		Phase:       winterPhase,
+		OwnerID:     playerID,
+		OrderID:     winterOrder.ID,
+		TerritoryID: winterOrder.TerritoryID,
+		NobleID:     noble.ID,
+		NobleCode:   models.NobleCode(noble.Code),
+		NobleName:   resolution.state.NobleDisplayName(noble),
 	})
 }

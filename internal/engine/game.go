@@ -377,6 +377,13 @@ func CreateGameWithYears(seed string, players []PlayerInit, yearCount int, balan
 		}
 	}
 
+	// The noble deck takes the names the starting nobles left free.
+	startingCodes := make(map[string]bool, len(state.Nobles))
+	for _, noble := range state.Nobles {
+		startingCodes[noble.Code] = true
+	}
+	state.NobleDeck = buildNobleDeck(seed, state.Players, balance.NobleLimitMax, assets.Prenoms, startingCodes)
+
 	if err := state.Validate(); err != nil {
 		return nil, fmt.Errorf("engine: create game: invalid generated state: %w", err)
 	}

@@ -128,11 +128,11 @@ func TestEligibleStartSitesFiltersMountainsAndIsolation(t *testing.T) {
 		{0, 1}, {0, 2}, {0, 3}, {0, 4},
 	}
 	terrain := []models.Terrain{
-		models.TerrainPlain,   // 0: hub, 4 neighbours, all non-mountain but 3 -> eligible
-		models.TerrainForest,  // 1: leaf, 1 neighbour (0, non-mountain) -> ineligible (only 1 neighbour)
+		models.TerrainPlain,    // 0: hub, 4 neighbours, all non-mountain but 3 -> eligible
+		models.TerrainForest,   // 1: leaf, 1 neighbour (0, non-mountain) -> ineligible (only 1 neighbour)
 		models.TerrainMountain, // 2: mountain itself -> ineligible
-		models.TerrainHill,    // 3: leaf, 1 neighbour -> ineligible
-		models.TerrainSwamp,   // 4: leaf, 1 neighbour -> ineligible
+		models.TerrainHill,     // 3: leaf, 1 neighbour -> ineligible
+		models.TerrainSwamp,    // 4: leaf, 1 neighbour -> ineligible
 	}
 	order := []int{0, 1, 2, 3, 4}
 
