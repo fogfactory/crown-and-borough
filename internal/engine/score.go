@@ -54,6 +54,45 @@ func ComputeScores(state *models.GameState) map[models.PlayerID]ScoreBreakdown {
 	return scores
 }
 
+// Victory modes a player is currently evaluated under.
+const (
+	VictoryModeSolo     = "solo"
+	VictoryModeAlliance = "alliance"
+)
+
+// PlayerVictory describes what one player needs to win: the mode they are
+// evaluated under, the title score required in that mode and, for an alliance,
+// the partner whose score is added to theirs.
+type PlayerVictory struct {
+	Mode     string           `json:"mode"`
+	Required int              `json:"required"`
+	Partner  *models.PlayerID `json:"partner,omitempty"`
+}
+
+// VictoryStatus is the public view of the victory thresholds for a state.
+type VictoryStatus struct {
+	SoloThreshold     int                               `json:"soloThreshold"`
+	AllianceThreshold int                               `json:"allianceThreshold"`
+	Players           map[models.PlayerID]PlayerVictory `json:"players"`
+}
+
+// ComputeVictoryStatus returns the thresholds and each player's victory mode.
+// No player can hold an active head yet (marriage categories and alliance
+// weights are still to come, #254), so every player is in solo mode; once a
+// head exists its owner switches to alliance mode with the spouse's player as
+// Partner and the alliance threshold as Required.
+func ComputeVictoryStatus(state *models.GameState, balance assetgen.Balance) VictoryStatus {
+	status := VictoryStatus{Players: map[models.PlayerID]PlayerVictory{}}
+	if state == nil {
+		return status
+	}
+	status.SoloThreshold, status.AllianceThreshold = VictoryThresholds(balance, len(state.Players))
+	for _, player := range state.Players {
+		status.Players[player.ID] = PlayerVictory{Mode: VictoryModeSolo, Required: status.SoloThreshold}
+	}
+	return status
+}
+
 // PlayerAlive reports whether a player still controls a territory or owns a
 // live army. Nobles alone do not keep a player in the game.
 func PlayerAlive(state *models.GameState, playerID models.PlayerID) bool {

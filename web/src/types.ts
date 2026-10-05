@@ -255,6 +255,18 @@ export interface ScoreBreakdown {
   total: number
 }
 
+export interface PlayerVictory {
+  mode: 'solo' | 'alliance'
+  required: number
+  partner?: PlayerId
+}
+
+export interface VictoryStatus {
+  soloThreshold: number
+  allianceThreshold: number
+  players: Record<PlayerId, PlayerVictory>
+}
+
 export interface TerritoryState {
   id: string
   owner: PlayerId | null
@@ -281,6 +293,7 @@ export interface StateData {
   year?: number
   yearCount?: number
   scores?: Record<PlayerId, ScoreBreakdown>
+  victory?: VictoryStatus
   finished?: boolean
   winner?: PlayerId | null
   players: Player[]

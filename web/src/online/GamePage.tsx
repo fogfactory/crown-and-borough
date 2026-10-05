@@ -125,6 +125,7 @@ function Lobby({
   onInvite,
   inviting,
   scores,
+  victory,
 }: {
   summary: GameSummary
   uid: string
@@ -133,6 +134,7 @@ function Lobby({
   onInvite: () => void
   inviting: boolean
   scores?: StateData['scores']
+  victory?: StateData['victory']
 }) {
   const { t } = useLanguage()
   return (
@@ -185,7 +187,7 @@ function Lobby({
             </li>
           ))}
         </ul>
-        <Scoreboard players={summary.players} scores={scores} />
+        <Scoreboard players={summary.players} scores={scores} victory={victory} />
         {invitation && (
           <div className="rounded-lg border border-[#815f1e]/40 bg-[#f8e8ae]/50 px-3 py-3 text-sm">
             <p className="font-semibold text-[#6d5118]">
@@ -846,7 +848,7 @@ export function GamePage() {
               ),
             )}
           >
-            <Scoreboard players={state.players} scores={state.scores ?? summary.scores} />
+            <Scoreboard players={state.players} scores={state.scores ?? summary.scores} victory={state.victory} />
           </HeaderPopover>
           <HeaderPopover
             label={t('online.lobby')}
@@ -861,6 +863,7 @@ export function GamePage() {
               onInvite={() => void createInvitation()}
               inviting={inviting}
               scores={state.scores ?? summary.scores}
+              victory={state.victory}
             />
           </HeaderPopover>
           <SubmissionDots

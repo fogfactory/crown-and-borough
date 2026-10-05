@@ -278,3 +278,16 @@ func TestGameEndsWhenSoloThresholdIsReached(t *testing.T) {
 		t.Fatalf("winner = %v, want P1", winner)
 	}
 }
+
+func TestComputeVictoryStatusReportsSoloGoalForEveryPlayer(t *testing.T) {
+	status := ComputeVictoryStatus(thresholdState(0), victoryBalance())
+	if status.SoloThreshold != 2 || status.AllianceThreshold != 3 {
+		t.Fatalf("thresholds = %d/%d, want 2/3", status.SoloThreshold, status.AllianceThreshold)
+	}
+	for _, id := range []models.PlayerID{"P1", "P2"} {
+		got := status.Players[id]
+		if got.Mode != VictoryModeSolo || got.Required != 2 || got.Partner != nil {
+			t.Fatalf("player %s victory = %+v, want solo requiring 2", id, got)
+		}
+	}
+}

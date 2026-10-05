@@ -43,4 +43,31 @@ describe('Scoreboard', () => {
     expect(screen.getByText('Titles')).toBeInTheDocument()
     expect(screen.getAllByText('0')).toHaveLength(2)
   })
+
+  it('shows the victory goal and mode of each player', () => {
+    render(
+      <LanguageProvider initialLanguage="en">
+        <Scoreboard
+          players={[
+            { id: 'P1', name: 'Alice', color: '#a84632' },
+            { id: 'P2', name: 'Bob', color: '#325ca8' },
+          ]}
+          scores={{ P1: { titles: 1, total: 1 }, P2: { titles: 0, total: 0 } }}
+          victory={{
+            soloThreshold: 4,
+            allianceThreshold: 6,
+            players: {
+              P1: { mode: 'solo', required: 4 },
+              P2: { mode: 'alliance', required: 6, partner: 'P1' },
+            },
+          }}
+        />
+      </LanguageProvider>,
+    )
+
+    expect(screen.getByText('Goal: 4 titles, solo victory')).toBeInTheDocument()
+    expect(
+      screen.getByText('Goal: 6 titles combined, alliance victory with Alice'),
+    ).toBeInTheDocument()
+  })
 })

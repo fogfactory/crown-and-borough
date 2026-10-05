@@ -1,6 +1,6 @@
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
-import type { Player, ScoreBreakdown } from '@/types'
+import type { Player, ScoreBreakdown, VictoryStatus } from '@/types'
 
 const scoreKeys: Array<[keyof ScoreBreakdown, MessageKey]> = [['titles', 'score.titles']]
 
@@ -12,11 +12,14 @@ const emptyScore: ScoreBreakdown = {
 export function Scoreboard({
   players,
   scores,
+  victory,
 }: {
   players: Player[]
   scores?: Record<string, ScoreBreakdown>
+  victory?: VictoryStatus
 }) {
   const { t } = useLanguage()
+  const playerName = (id: string) => players.find((p) => p.id === id)?.name || id
   return (
     <section
       aria-labelledby="scoreboard-title"
@@ -59,6 +62,18 @@ export function Scoreboard({
                   </div>
                 ))}
               </dl>
+              {victory?.players[player.id] && (
+                <p className="mt-2 text-xs text-[#806f57]">
+                  {victory.players[player.id].mode === 'alliance'
+                    ? t('score.goalAlliance', {
+                        required: victory.players[player.id].required,
+                        partner: playerName(victory.players[player.id].partner ?? ''),
+                      })
+                    : t('score.goalSolo', {
+                        required: victory.players[player.id].required,
+                      })}
+                </p>
+              )}
             </li>
           )
         })}
