@@ -196,6 +196,7 @@ export function normalizeStateData(value: unknown): StateData | null {
     year: numberValue(state.year, Math.floor((state.turn - 1) / 4) + 1),
     yearCount: numberValue(state.yearCount, 10),
     scores: scoresFromData(state.scores),
+    ...(state.victory && typeof state.victory === 'object' ? { victory: state.victory } : {}),
     finished: state.finished === true,
     winner: typeof state.winner === 'string' ? state.winner : null,
     players: state.players,

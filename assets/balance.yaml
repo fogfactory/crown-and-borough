@@ -46,6 +46,16 @@ costs:
   # Per territory, paid by a T F winter order (titres.md).
   fief_per_territory: 2
 
+# Title-score supremacy thresholds (titres.md § Seuil de victoire et fin de
+# partie). Each threshold is the share of the game territories (8 per player)
+# a player (solo) or an alliance should hold through fiefs, divided by the
+# average fief size (a barony has 3 territories, a duchy 6 or more) and rounded
+# up. Approximate by design. The alliance share must exceed the solo share.
+victory:
+  solo_territory_percent: 50
+  alliance_territory_percent: 66
+  reference_fief_size: 4
+
 # P1.7 game setup values.
 starting_nobles: 2
 starting_troops: 2

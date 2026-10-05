@@ -148,11 +148,11 @@ func Resolve(state *models.GameState, balance assetgen.Balance, submissions map[
 
 // Outcome reports whether the game is over and, if so, its winner. A finished
 // game without a winner is an exact score tie.
-func Outcome(state *models.GameState) (finished bool, winner *models.PlayerID) {
-	if !engine.GameFinished(state) {
+func Outcome(state *models.GameState, balance assetgen.Balance) (finished bool, winner *models.PlayerID) {
+	if !engine.GameFinished(state, balance) {
 		return false, nil
 	}
-	return true, engine.WinnerForFinishedGame(state)
+	return true, engine.WinnerForFinishedGame(state, balance)
 }
 
 // CloneOrders copies every order list of input, including special orders.

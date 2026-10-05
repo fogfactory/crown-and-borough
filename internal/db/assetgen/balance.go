@@ -29,12 +29,25 @@ type Balance struct {
 	CastleStockCap          int                    `json:"castle_stock_cap" yaml:"castle_stock_cap"`
 	ProsperityLossThreshold int                    `json:"prosperity_loss_threshold" yaml:"prosperity_loss_threshold"`
 	Costs                   Costs                  `json:"costs" yaml:"costs"`
+	Victory                 VictoryBalance         `json:"victory" yaml:"victory"`
 	StartingNobles          int                    `json:"starting_nobles" yaml:"starting_nobles"`
 	StartingTroops          int                    `json:"starting_troops" yaml:"starting_troops"`
 	StartingOutposts        int                    `json:"starting_outposts" yaml:"starting_outposts"`
 	StartingResources       int                    `json:"starting_resources" yaml:"starting_resources"`
 	SpecialOrders           SpecialOrdersBalance   `json:"special_orders" yaml:"special_orders"`
 	FirstNames              []Asset                `json:"-" yaml:"-"`
+}
+
+// VictoryBalance derives the title-score supremacy thresholds from the board
+// size (titres.md § Seuil de victoire et fin de partie). A threshold is the
+// share of the game territories (SoloTerritoryPercent / AllianceTerritoryPercent)
+// a player or alliance should hold through fiefs, divided by ReferenceFiefSize,
+// the average number of territories behind one title (a barony has 3, a duchy
+// 6 or more). The result is approximate by design: fief sizes vary.
+type VictoryBalance struct {
+	SoloTerritoryPercent     int `json:"solo_territory_percent" yaml:"solo_territory_percent"`
+	AllianceTerritoryPercent int `json:"alliance_territory_percent" yaml:"alliance_territory_percent"`
+	ReferenceFiefSize        int `json:"reference_fief_size" yaml:"reference_fief_size"`
 }
 
 type SpecialOrdersBalance struct {
@@ -82,11 +95,18 @@ type rawBalance struct {
 	CastleStockCap          *int              `yaml:"castle_stock_cap"`
 	ProsperityLossThreshold *int              `yaml:"prosperity_loss_threshold"`
 	Costs                   *rawCosts         `yaml:"costs"`
+	Victory                 *rawVictory       `yaml:"victory"`
 	StartingNobles          *int              `yaml:"starting_nobles"`
 	StartingTroops          *int              `yaml:"starting_troops"`
 	StartingOutposts        *int              `yaml:"starting_outposts"`
 	StartingResources       *int              `yaml:"starting_resources"`
 	SpecialOrders           *rawSpecialOrders `yaml:"special_orders"`
+}
+
+type rawVictory struct {
+	SoloTerritoryPercent     *int `yaml:"solo_territory_percent"`
+	AllianceTerritoryPercent *int `yaml:"alliance_territory_percent"`
+	ReferenceFiefSize        *int `yaml:"reference_fief_size"`
 }
 
 type rawSpecialOrders struct {
@@ -250,6 +270,10 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 	if err != nil {
 		return Balance{}, err
 	}
+	victory, err := raw.victory(path)
+	if err != nil {
+		return Balance{}, err
+	}
 	return Balance{
 		TerritoryIncome:         territoryIncome,
 		VillageIncome:           villageIncome,
@@ -266,12 +290,38 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 		CastleStockCap:          castleStockCap,
 		ProsperityLossThreshold: prosperityLossThreshold,
 		Costs:                   costs,
+		Victory:                 victory,
 		StartingNobles:          startingNobles,
 		StartingTroops:          startingTroops,
 		StartingOutposts:        startingOutposts,
 		StartingResources:       startingResources,
 		SpecialOrders:           specialOrders,
 	}, nil
+}
+
+func (raw rawBalance) victory(path string) (VictoryBalance, error) {
+	if raw.Victory == nil {
+		return VictoryBalance{}, missingBalanceValue(path, "victory")
+	}
+	solo, err := requiredPositiveInt(path, "victory.solo_territory_percent", raw.Victory.SoloTerritoryPercent)
+	if err != nil {
+		return VictoryBalance{}, err
+	}
+	alliance, err := requiredPositiveInt(path, "victory.alliance_territory_percent", raw.Victory.AllianceTerritoryPercent)
+	if err != nil {
+		return VictoryBalance{}, err
+	}
+	size, err := requiredPositiveInt(path, "victory.reference_fief_size", raw.Victory.ReferenceFiefSize)
+	if err != nil {
+		return VictoryBalance{}, err
+	}
+	if solo > 100 || alliance > 100 {
+		return VictoryBalance{}, fmt.Errorf("%s: victory territory percentages must not exceed 100", path)
+	}
+	if alliance <= solo {
+		return VictoryBalance{}, fmt.Errorf("%s: victory.alliance_territory_percent must be strictly above victory.solo_territory_percent", path)
+	}
+	return VictoryBalance{SoloTerritoryPercent: solo, AllianceTerritoryPercent: alliance, ReferenceFiefSize: size}, nil
 }
 
 func (raw rawBalance) costs(path string) (Costs, error) {

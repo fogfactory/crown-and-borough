@@ -47,6 +47,10 @@ costs:
   supply_depot: 3
   liberation: 0
   fief_per_territory: 2
+victory:
+  solo_territory_percent: 50
+  alliance_territory_percent: 66
+  reference_fief_size: 4
 starting_nobles: 1
 starting_troops: 1
 starting_outposts: 2

@@ -1,6 +1,6 @@
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
-import type { Player, ScoreBreakdown } from '@/types'
+import type { Player, ScoreBreakdown, VictoryStatus } from '@/types'
 
 const scoreKeys: Array<[keyof ScoreBreakdown, MessageKey]> = [['titles', 'score.titles']]
 
@@ -12,11 +12,14 @@ const emptyScore: ScoreBreakdown = {
 export function Scoreboard({
   players,
   scores,
+  victory,
 }: {
   players: Player[]
   scores?: Record<string, ScoreBreakdown>
+  victory?: VictoryStatus
 }) {
   const { t } = useLanguage()
+  const playerName = (id: string) => players.find((p) => p.id === id)?.name || id
   return (
     <section
       aria-labelledby="scoreboard-title"
@@ -33,6 +36,7 @@ export function Scoreboard({
       <ul className="mt-2 grid gap-2 min-[420px]:grid-cols-2">
         {players.map((player) => {
           const score = scores?.[player.id] ?? emptyScore
+          const goal = victory?.players[player.id]
           return (
             <li
               key={player.id}
@@ -59,6 +63,28 @@ export function Scoreboard({
                   </div>
                 ))}
               </dl>
+              {goal && (
+                <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                  <span className="text-[#806f57]">
+                    {t(goal.mode === 'alliance' ? 'score.goalCombined' : 'score.goal', {
+                      required: goal.required,
+                    })}
+                  </span>
+                  <span
+                    data-testid={`victory-mode-${player.id}`}
+                    className={`rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] ${
+                      goal.mode === 'alliance'
+                        ? 'border-[#8a929b] bg-[#e4e7ea] text-[#3f464d]'
+                        : 'border-[#b8860b] bg-[#f8e8ae] text-[#6b4e0a]'
+                    }`}
+                  >
+                    {t(goal.mode === 'alliance' ? 'score.modeAlliance' : 'score.modeSolo')}
+                    {goal.mode === 'alliance' && goal.partner
+                      ? ` ${t('score.alliancePartner', { partner: playerName(goal.partner) })}`
+                      : ''}
+                  </span>
+                </div>
+              )}
             </li>
           )
         })}

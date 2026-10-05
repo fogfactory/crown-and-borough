@@ -486,7 +486,7 @@ func TestResolveTurnFinishesAfterConfiguredYears(t *testing.T) {
 	if game.Turn != 5 || game.YearCount != 1 {
 		t.Fatalf("final state = turn %d, years %d; want turn 5, year count 1", game.Turn, game.YearCount)
 	}
-	if !GameFinished(game) {
+	if !GameFinished(game, testBalance()) {
 		t.Fatal("game should be finished after the fourth turn")
 	}
 	if _, err := ResolveTurn(game, testBalance(), OrdersInput{}); !errors.Is(err, ErrGameFinished) {

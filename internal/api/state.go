@@ -18,6 +18,7 @@ type StateView struct {
 	YearCount           int                                       `json:"yearCount"`
 	Season              models.Season                             `json:"season"`
 	Scores              map[models.PlayerID]engine.ScoreBreakdown `json:"scores"`
+	Victory             engine.VictoryStatus                      `json:"victory"`
 	Finished            bool                                      `json:"finished"`
 	Winner              *models.PlayerID                          `json:"winner,omitempty"`
 	Players             []PlayerView                              `json:"players"`
@@ -222,6 +223,7 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 		ActiveRegionEffects: []models.ActiveRegionEffect{},
 		Announcements:       []engine.AnnouncementReport{},
 		Scores:              map[models.PlayerID]engine.ScoreBreakdown{},
+		Victory:             engine.VictoryStatus{Players: map[models.PlayerID]engine.PlayerVictory{}},
 	}
 	if state == nil {
 		return view
@@ -232,8 +234,9 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 	view.YearCount = state.YearCount
 	view.Season = state.Season
 	view.Scores = engine.ComputeScores(state)
-	view.Finished = engine.GameFinished(state)
-	view.Winner = engine.WinnerForFinishedGame(state)
+	view.Victory = engine.ComputeVictoryStatus(state, balance)
+	view.Finished = engine.GameFinished(state, balance)
+	view.Winner = engine.WinnerForFinishedGame(state, balance)
 	view.Players = make([]PlayerView, 0, len(state.Players))
 	view.Territories = make([]TerritoryView, 0, len(state.Territories))
 	view.Nobles = make([]NobleView, 0, len(state.Nobles))

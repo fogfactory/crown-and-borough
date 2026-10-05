@@ -651,7 +651,7 @@ function AppContent() {
                   ),
                 )}
               >
-                <Scoreboard players={state.players} scores={state.scores} />
+                <Scoreboard players={state.players} scores={state.scores} victory={state.victory} />
               </HeaderPopover>
             )}
             <SubmissionDots
