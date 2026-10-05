@@ -247,11 +247,12 @@ Issue : [#193](https://github.com/fogfactory/crown-and-borough/issues/193).
 un nouveau type d'infrastructure : il conserve son stock, sa production et son
 bonus de revenu comme n'importe quel village, et gagne en plus le bonus
 défensif d'un château (`castle_defense_bonus`), avec la même exception
-d'auto-capture. Il compte pour 2 points de score comme tout village (GDD §9,
-pas les 5 points d'un château), ne peut pas être désigné capitale par `E C`
-(qui exige un château) et ne peut pas être la capitale d'un fief (`T F`, qui
-exige également un château). Un `C C` sur un village déjà fortifié est rejeté
-sans prélèvement.
+d'auto-capture. Il ne rapporte par lui-même aucun point de score (GDD §9,
+[titres.md § Score de titres](titres.md#score-de-titres)) : seul le titre du
+fief dont il deviendrait capitale en rapporterait, et il ne peut justement
+pas être désigné capitale par `E C` (qui exige un château) ni être la
+capitale d'un fief (`T F`, qui exige également un château). Un `C C` sur un
+village déjà fortifié est rejeté sans prélèvement.
 
 ## Densité des villages
 

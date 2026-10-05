@@ -6,7 +6,11 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
-func TestComputeScoresCountsCategoriesAndCaptiveHolder(t *testing.T) {
+// TestComputeScoresTerritoriesArmiesAndNoblesAloneScoreZero verifies that
+// controlling territories, owning armies, and holding nobles no longer
+// contribute to the score on their own (#251): only titles (fiefs, for now)
+// count, per titres.md § Score de titres.
+func TestComputeScoresTerritoriesArmiesAndNoblesAloneScoreZero(t *testing.T) {
 	p1, p2 := models.PlayerID("P1"), models.PlayerID("P2")
 	state := &models.GameState{
 		Players: []models.Player{{ID: p1}, {ID: p2}},
@@ -16,9 +20,6 @@ func TestComputeScoresCountsCategoriesAndCaptiveHolder(t *testing.T) {
 			{ID: "CCC"},
 		},
 		TerritoryStates: map[models.TerritoryID]models.TerritoryState{
-			// A captive noble's point goes to whoever physically holds it, the
-			// army stationed on its territory (#215), so AAA and CCC each carry
-			// the army that will hold N2 and N3 below.
 			"AAA": {Resources: 3, Infrastructures: infraPointer("I1"), Army: armyPointer("A1")},
 			"BBB": {Resources: 2, Infrastructures: infraPointer("I2"), Army: armyPointer("A3")},
 			"CCC": {Resources: 1, Infrastructures: infraPointer("I3"), Army: armyPointer("A2")},
@@ -42,103 +43,18 @@ func TestComputeScoresCountsCategoriesAndCaptiveHolder(t *testing.T) {
 	}
 
 	scores := ComputeScores(state)
-	if got, want := scores[p1], (ScoreBreakdown{Territories: 2, Castles: 5, Mills: 1, Nobles: 4, Troops: 5, Resources: 5, Total: 22}); got != want {
+	if got, want := scores[p1], (ScoreBreakdown{Total: 0}); got != want {
 		t.Fatalf("P1 score = %#v, want %#v", got, want)
 	}
-	if got, want := scores[p2], (ScoreBreakdown{Territories: 1, Villages: 2, Nobles: 4, Troops: 2, Resources: 1, Total: 10}); got != want {
+	if got, want := scores[p2], (ScoreBreakdown{Total: 0}); got != want {
 		t.Fatalf("P2 score = %#v, want %#v", got, want)
 	}
 }
 
-// TestComputeScoresFortifiedVillageScoresAsVillage locks in #193: a fortified
-// village still scores Villages += 2, not Castles += 5, since it keeps its
-// InfraType and is never a distinct infrastructure.
-func TestComputeScoresFortifiedVillageScoresAsVillage(t *testing.T) {
-	p1 := models.PlayerID("P1")
-	state := &models.GameState{
-		Players:     []models.Player{{ID: p1}},
-		Territories: []models.Territory{{ID: "AAA"}},
-		TerritoryStates: map[models.TerritoryID]models.TerritoryState{
-			"AAA": {Infrastructures: infraPointer("I1"), Army: armyPointer("A1")},
-		},
-		Armies: []models.Army{{ID: "A1", OwnerID: p1, TerritoryID: "AAA", Size: 1}},
-		Infrastructures: []models.Infrastructure{
-			{ID: "I1", Type: models.InfraTypeVillage, TerritoryID: "AAA", Fortified: true},
-		},
-	}
-
-	scores := ComputeScores(state)
-	if got, want := scores[p1], (ScoreBreakdown{Territories: 1, Villages: 2, Troops: 1, Total: 4}); got != want {
-		t.Fatalf("P1 score = %#v, want %#v", got, want)
-	}
-}
-
-// TestComputeScoresCaptiveGoesToHolderNotController checks #215: a hostage
-// or dungeon noble's point goes to whoever physically holds it (the army
-// stationed on its territory), not to that territory's controller, since
-// control outside a fief is now ephemeral and can lapse -- or belong to a
-// third party via a fief -- while the captor's army still stands there.
-func TestComputeScoresCaptiveGoesToHolderNotController(t *testing.T) {
-	p1, p2, p3 := models.PlayerID("P1"), models.PlayerID("P2"), models.PlayerID("P3")
-	state := &models.GameState{
-		Players:     []models.Player{{ID: p1}, {ID: p2}, {ID: p3}},
-		Territories: []models.Territory{{ID: "AAA"}},
-		TerritoryStates: map[models.TerritoryID]models.TerritoryState{
-			// AAA is controlled by P1 (e.g. a fief member) but P2's army is the
-			// one physically standing on it, holding N1 hostage.
-			"AAA": {Army: armyPointer("A1")},
-		},
-		Fiefs: []models.Fief{{
-			ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "AAA",
-			Territories: []models.TerritoryID{"AAA"}, OwnerID: p1,
-		}},
-		Armies: []models.Army{{ID: "A1", OwnerID: p2, TerritoryID: "AAA", Size: 1}},
-		Nobles: []models.Noble{{ID: "N1", OwnerID: p3, LocationID: "AAA", Status: models.NobleStatusHostage}},
-	}
-
-	scores := ComputeScores(state)
-	if got := scores[p2].Nobles; got != 2 {
-		t.Errorf("P2 nobles score = %d, want 2 (the holder, not AAA's controller)", got)
-	}
-	if got := scores[p1].Nobles; got != 0 {
-		t.Errorf("P1 nobles score = %d, want 0 (AAA's controller does not hold N1)", got)
-	}
-}
-
-// TestComputeScoresCaptiveFallsBackToAnchorOwnerWithoutArmy verifies that a
-// hostage or dungeon noble left on anchored ground (a fief member or a
-// player's own capital) with no army present still scores for that anchor's
-// owner, instead of being dropped for lack of a physical holder (#215): an
-// anchored territory stays controlled indefinitely without an army, so a
-// captive left behind there is not stranded on nobody's land.
-func TestComputeScoresCaptiveFallsBackToAnchorOwnerWithoutArmy(t *testing.T) {
-	p1, p2 := models.PlayerID("P1"), models.PlayerID("P2")
-	state := &models.GameState{
-		Players:     []models.Player{{ID: p1}, {ID: p2}},
-		Territories: []models.Territory{{ID: "AAA"}},
-		TerritoryStates: map[models.TerritoryID]models.TerritoryState{
-			// AAA is a fief member of P1 with no army present.
-			"AAA": {},
-		},
-		Fiefs: []models.Fief{{
-			ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "AAA",
-			Territories: []models.TerritoryID{"AAA"}, OwnerID: p1,
-		}},
-		Nobles: []models.Noble{{ID: "N1", OwnerID: p2, LocationID: "AAA", Status: models.NobleStatusHostage}},
-	}
-
-	scores := ComputeScores(state)
-	if got := scores[p1].Nobles; got != 2 {
-		t.Errorf("P1 nobles score = %d, want 2 (falls back to the anchor owner)", got)
-	}
-	if got := scores[p2].Nobles; got != 0 {
-		t.Errorf("P2 nobles score = %d, want 0 (owner is not the holder)", got)
-	}
-}
-
-// TestComputeScoresFiefs verifies that each fief contributes exactly 1 point
-// to its owner, vacant or not, until it is dissolved (titres.md).
-func TestComputeScoresFiefs(t *testing.T) {
+// TestComputeScoresTitles verifies that each fief contributes exactly 1
+// point to its owner, vacant or not, until it is dissolved, and that the
+// title's rank (barony, county, duchy) does not matter (titres.md).
+func TestComputeScoresTitles(t *testing.T) {
 	p1, p2 := models.PlayerID("P1"), models.PlayerID("P2")
 	state := &models.GameState{
 		Players:         []models.Player{{ID: p1}, {ID: p2}},
@@ -146,25 +62,22 @@ func TestComputeScoresFiefs(t *testing.T) {
 		TerritoryStates: map[models.TerritoryID]models.TerritoryState{},
 		Fiefs: []models.Fief{
 			{ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "AAA", Territories: []models.TerritoryID{"AAA", "BBB", "CCC"}, OwnerID: p1},
-			{ID: "F2", Title: models.FiefTitleBarony, CapitalTerritoryID: "AAA", Territories: []models.TerritoryID{"AAA", "BBB", "CCC"}, OwnerID: p1},
+			{ID: "F2", Title: models.FiefTitleCounty, CapitalTerritoryID: "AAA", Territories: []models.TerritoryID{"AAA", "BBB", "CCC"}, OwnerID: p1},
+			{ID: "F3", Title: models.FiefTitleDuchy, CapitalTerritoryID: "AAA", Territories: []models.TerritoryID{"AAA", "BBB", "CCC"}, OwnerID: p1},
 		},
 	}
 	scores := ComputeScores(state)
-	if got := scores[p1].Fiefs; got != 2 {
-		t.Errorf("P1 fiefs score = %d, want 2 (vacant still counts)", got)
+	if got, want := scores[p1], (ScoreBreakdown{Titles: 3, Total: 3}); got != want {
+		t.Errorf("P1 score = %#v, want %#v (vacant still counts, rank does not matter)", got, want)
 	}
-	// The fief members are controlled territories, so they score too.
-	if got := scores[p1].Total; got != 5 {
-		t.Errorf("P1 total = %d, want 5 (3 controlled territories and 2 fiefs)", got)
-	}
-	if got := scores[p2].Fiefs; got != 0 {
-		t.Errorf("P2 fiefs score = %d, want 0", got)
+	if got, want := scores[p2], (ScoreBreakdown{Titles: 0, Total: 0}); got != want {
+		t.Errorf("P2 score = %#v, want %#v", got, want)
 	}
 
 	state.Fiefs = nil
 	scores = ComputeScores(state)
-	if got := scores[p1].Fiefs; got != 0 {
-		t.Errorf("P1 fiefs score after dissolution = %d, want 0", got)
+	if got, want := scores[p1], (ScoreBreakdown{Titles: 0, Total: 0}); got != want {
+		t.Errorf("P1 score after dissolution = %#v, want %#v", got, want)
 	}
 }
 
@@ -185,6 +98,9 @@ func TestWinnerForFinishedGameUsesScoreAtYearLimit(t *testing.T) {
 		Armies: []models.Army{
 			{ID: "A1", OwnerID: p1, TerritoryID: "AAA", Size: 1},
 			{ID: "A2", OwnerID: p2, TerritoryID: "BBB", Size: 1},
+		},
+		Fiefs: []models.Fief{
+			{ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "AAA", Territories: []models.TerritoryID{"AAA"}, OwnerID: p1},
 		},
 	}
 
@@ -219,6 +135,10 @@ func TestWinnerForFinishedGamePrefersSoleSurvivor(t *testing.T) {
 	}
 }
 
+// TestWinnerForFinishedGameReturnsNoWinnerForExactTie covers the common
+// transitional case of a 0-0 tie: neither player holds a title, so the
+// duration limit ends with no winner (accepted until victory thresholds,
+// #253/#254, land).
 func TestWinnerForFinishedGameReturnsNoWinnerForExactTie(t *testing.T) {
 	p1, p2 := models.PlayerID("P1"), models.PlayerID("P2")
 	state := &models.GameState{

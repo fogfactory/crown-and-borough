@@ -64,13 +64,7 @@ function scoreBreakdown(value: unknown): ScoreBreakdown {
   const source =
     typeof value === 'object' && value !== null ? (value as DocumentData) : {}
   return {
-    territories: numberValue(source.territories),
-    villages: numberValue(source.villages),
-    mills: numberValue(source.mills),
-    castles: numberValue(source.castles),
-    nobles: numberValue(source.nobles),
-    troops: numberValue(source.troops),
-    resources: numberValue(source.resources),
+    titles: numberValue(source.titles),
     total: numberValue(source.total),
   }
 }

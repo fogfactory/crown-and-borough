@@ -352,7 +352,9 @@ func TestMemoryStoreFinishesAtConfiguredYearLimitAndExposesScores(t *testing.T) 
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	if created.YearCount != 1 || len(created.Scores) != 2 || created.Scores["P1"].Total == 0 {
+	// A fresh game starts with no fiefs declared yet, so the title score is
+	// 0 for every player until one is created.
+	if created.YearCount != 1 || len(created.Scores) != 2 || created.Scores["P1"].Total != 0 {
 		t.Fatalf("initial duration/scores = years %d scores %#v", created.YearCount, created.Scores)
 	}
 

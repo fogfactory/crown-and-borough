@@ -245,15 +245,8 @@ export interface ArmyRisk {
 }
 
 export interface ScoreBreakdown {
-  territories: number
-  villages: number
-  mills: number
-  castles: number
-  nobles: number
-  troops: number
-  resources: number
-  /** Absent on report snapshots recorded before issue #194. */
-  fiefs?: number
+  /** Absent on report snapshots recorded before issue #251. */
+  titles?: number
   total: number
 }
 
