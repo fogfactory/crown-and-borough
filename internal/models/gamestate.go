@@ -237,6 +237,9 @@ func (g *GameState) Validate() error {
 			return fmt.Errorf("models: noble %q: duplicate code %q (already used by %q)", n.ID, n.Code, prev)
 		}
 		nobleCodes[n.Code] = n.ID
+		if !n.Sex.IsValid() {
+			return fmt.Errorf("models: noble %q: invalid sex %q", n.ID, n.Sex)
+		}
 		if !players[n.OwnerID] {
 			return fmt.Errorf("models: noble %q: unknown owner %q", n.ID, n.OwnerID)
 		}
@@ -273,6 +276,9 @@ func (g *GameState) Validate() error {
 			return fmt.Errorf("models: removed noble %q: duplicate code %q (already used by %q)", r.ID, r.Code, prev)
 		}
 		nobleCodes[r.Code] = r.ID
+		if !r.Sex.IsValid() {
+			return fmt.Errorf("models: removed noble %q: invalid sex %q", r.ID, r.Sex)
+		}
 		if !players[r.OwnerID] {
 			return fmt.Errorf("models: removed noble %q: unknown owner %q", r.ID, r.OwnerID)
 		}

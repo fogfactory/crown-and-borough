@@ -15,10 +15,10 @@ const (
 		"MDO;Mont-Dore;mountain\n" +
 		"FOU;Fougères;swamp\n" +
 		"BLV;Belval;any\n"
-	validPrenoms = "code;nom\n" +
-		"GUI;Guillaume\n" +
-		"ADE;Adélaïde\n" +
-		"MAH;Mahaut\n"
+	validPrenoms = "code;nom;sexe\n" +
+		"GUI;Guillaume;male\n" +
+		"ADE;Adélaïde;female\n" +
+		"MAH;Mahaut;female\n"
 	validBalance = `# The loader accepts YAML documentation comments.
 territory_income: 1
 village_income: 1
@@ -239,12 +239,22 @@ func TestLoadRealAssets(t *testing.T) {
 			t.Errorf("no commune with terrain %q", terrain)
 		}
 	}
+	seenSexes := make(map[string]bool)
 	for _, a := range assets.Prenoms {
 		if !isTrigram(a.Code) {
 			t.Errorf("prénom %q: invalid code %q", a.Name, a.Code)
 		}
 		if a.Name == "" {
 			t.Errorf("prénom with empty name, code %q", a.Code)
+		}
+		if a.Sex != "male" && a.Sex != "female" {
+			t.Errorf("prénom %q: invalid sex %q", a.Name, a.Sex)
+		}
+		seenSexes[a.Sex] = true
+	}
+	for _, sex := range []string{"male", "female"} {
+		if !seenSexes[sex] {
+			t.Errorf("no prénom with sex %q", sex)
 		}
 	}
 
@@ -338,6 +348,25 @@ func TestLoadHeaderOnly(t *testing.T) {
 
 	if _, err := Load(dir); err == nil {
 		t.Fatal("Load(header-only communes.csv) = nil error, want error")
+	}
+}
+
+func TestLoadInvalidPrenoms(t *testing.T) {
+	tests := map[string]string{
+		"invalid sex":        "code;nom;sexe\nGUI;Guillaume;other\n",
+		"empty sex":          "code;nom;sexe\nGUI;Guillaume;\n",
+		"missing sex column": "code;nom\nGUI;Guillaume\n",
+	}
+	for name, prenoms := range tests {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeAssets(t, dir, "", prenoms)
+			if _, err := Load(dir); err == nil {
+				t.Fatal("Load() = nil error, want error")
+			} else if !strings.Contains(err.Error(), "prenoms.csv") {
+				t.Errorf("error %q does not mention prenoms.csv", err)
+			}
+		})
 	}
 }
 

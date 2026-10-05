@@ -721,9 +721,9 @@ func resolvePlagueMortality(ctx *resolutionContext) {
 		if newPlagueRNG(ctx.state.Seed, ctx.state.Turn, nobleID).IntN(100) < mortality {
 			dead[nobleID] = true
 			ctx.plagueDeaths = append(ctx.plagueDeaths, startNoble)
-			ctx.events = append(ctx.events, Event{Type: EventTypePlagueDeath, Phase: phaseForSeason(ctx.state.Season), RegionSeed: region, NobleID: nobleID, NobleCode: models.NobleCode(startNoble.Code), NobleName: startNoble.Name, TerritoryID: startNoble.LocationID, Season: ctx.state.Season, Year: ctx.state.Year()})
+			ctx.events = append(ctx.events, Event{Type: EventTypePlagueDeath, Phase: phaseForSeason(ctx.state.Season), RegionSeed: region, NobleID: nobleID, NobleCode: models.NobleCode(startNoble.Code), NobleName: ctx.state.NobleDisplayName(startNoble), TerritoryID: startNoble.LocationID, Season: ctx.state.Season, Year: ctx.state.Year()})
 		} else {
-			ctx.events = append(ctx.events, Event{Type: EventTypePlagueSurvived, Phase: phaseForSeason(ctx.state.Season), RegionSeed: region, NobleID: nobleID, NobleCode: models.NobleCode(startNoble.Code), NobleName: startNoble.Name, TerritoryID: startNoble.LocationID, Season: ctx.state.Season, Year: ctx.state.Year()})
+			ctx.events = append(ctx.events, Event{Type: EventTypePlagueSurvived, Phase: phaseForSeason(ctx.state.Season), RegionSeed: region, NobleID: nobleID, NobleCode: models.NobleCode(startNoble.Code), NobleName: ctx.state.NobleDisplayName(startNoble), TerritoryID: startNoble.LocationID, Season: ctx.state.Season, Year: ctx.state.Year()})
 		}
 	}
 	if len(dead) == 0 {
@@ -743,6 +743,7 @@ func resolvePlagueMortality(ctx *resolutionContext) {
 			ID:      noble.ID,
 			Code:    noble.Code,
 			Name:    noble.Name,
+			Sex:     noble.Sex,
 			OwnerID: noble.OwnerID,
 			Cause:   models.DeathCauseNatural,
 			Turn:    ctx.state.Turn,

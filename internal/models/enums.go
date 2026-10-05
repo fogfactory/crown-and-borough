@@ -127,6 +127,27 @@ func (s NobleStatus) IsValid() bool {
 	return false
 }
 
+// Sex is the sex of a noble, fixed when it is recruited (specs/succession.md
+// § Sexe des nobles). Its values match the "sexe" column of prenoms.csv.
+type Sex string
+
+const (
+	SexMale   Sex = "male"
+	SexFemale Sex = "female"
+)
+
+// IsValid reports whether the sex is a known value.
+func (s Sex) IsValid() bool {
+	return s == SexMale || s == SexFemale
+}
+
+// CanHoldReligiousOrRoyalTitle reports whether a noble of this sex may become
+// bishop, cardinal, pope or king. Secular titles and the line of succession
+// are open to both sexes.
+func (s Sex) CanHoldReligiousOrRoyalTitle() bool {
+	return s == SexMale
+}
+
 // DeathCause identifies how a noble left play for good. It is recorded on the
 // RemovedNoble entry so the lineage can tell a natural death (e.g. plague)
 // apart from a deliberate killing, even though no order yet triggers an

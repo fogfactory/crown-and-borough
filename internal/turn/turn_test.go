@@ -53,10 +53,10 @@ func progressState() *models.GameState {
 			{ID: "A3", OwnerID: "P3", Size: 1},
 		},
 		Nobles: []models.Noble{
-			{ID: "N1", OwnerID: "P1", Status: models.NobleStatusFree},
-			{ID: "N2", OwnerID: "P2", Status: models.NobleStatusDungeon},
-			{ID: "N3", OwnerID: "P3", Status: models.NobleStatusDungeon},
-			{ID: "N4", OwnerID: "P4", Status: models.NobleStatusFree},
+			{ID: "N1", Sex: models.SexMale, OwnerID: "P1", Status: models.NobleStatusFree},
+			{ID: "N2", Sex: models.SexMale, OwnerID: "P2", Status: models.NobleStatusDungeon},
+			{ID: "N3", Sex: models.SexMale, OwnerID: "P3", Status: models.NobleStatusDungeon},
+			{ID: "N4", Sex: models.SexMale, OwnerID: "P4", Status: models.NobleStatusFree},
 		},
 		SpecialDeck: &models.SpecialDeck{
 			Hands: map[models.PlayerID][]models.SpecialCardID{"P3": {"C1"}},

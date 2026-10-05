@@ -148,8 +148,8 @@ func TestBuildTurnReportKeepsCompleteOrderSyntaxFromBeforeSnapshot(t *testing.T)
 		"CHA": {},
 	}
 	before.Nobles = []models.Noble{
-		{ID: "N1", Code: "JEA", Name: "Jean", OwnerID: owner, LocationID: "ROS", Status: models.NobleStatusFree},
-		{ID: "N2", Code: "BOB", Name: "Robert", OwnerID: "P1", LocationID: "ROS", Status: models.NobleStatusHostage},
+		{ID: "N1", Sex: models.SexMale, Code: "JEA", Name: "Jean", OwnerID: owner, LocationID: "ROS", Status: models.NobleStatusFree},
+		{ID: "N2", Sex: models.SexMale, Code: "BOB", Name: "Robert", OwnerID: "P1", LocationID: "ROS", Status: models.NobleStatusHostage},
 	}
 	before.Chains = []models.Chain{{
 		ID: "C1", ArmyID: armyID, NobleID: "N1", CurrentIndex: 0,

@@ -367,6 +367,7 @@ func CreateGameWithYears(seed string, players []PlayerInit, yearCount int, balan
 					ID:               models.NobleID(fmt.Sprintf("N%d", len(state.Nobles)+1)),
 					Code:             firstName.Code,
 					Name:             fmt.Sprintf("%s de %s", firstName.Name, territory.Name),
+					Sex:              models.Sex(firstName.Sex),
 					OwnerID:          player.ID,
 					LocationID:       nobleLocationID,
 					Status:           models.NobleStatusFree,

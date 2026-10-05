@@ -31,8 +31,8 @@ func TestRecruitNobleOrderRejectsFirstNameReservedByRemovedNoble(t *testing.T) {
 	// live noble, GUI and MAH by dead nobles whose code must stay reserved
 	// just like their id (specs/succession.md § Lignée).
 	state.RemovedNobles = []models.RemovedNoble{
-		{ID: "N8", Code: "GUI", OwnerID: "P1", Cause: models.DeathCauseNatural},
-		{ID: "N9", Code: "MAH", OwnerID: "P1", Cause: models.DeathCauseNatural},
+		{ID: "N8", Sex: models.SexMale, Code: "GUI", OwnerID: "P1", Cause: models.DeathCauseNatural},
+		{ID: "N9", Sex: models.SexMale, Code: "MAH", OwnerID: "P1", Cause: models.DeathCauseNatural},
 	}
 	ctx := newResolutionContext(state, testBalance())
 	recruitNobleOrder{order: models.WinterOrder{ID: "O1", TerritoryID: "AAA"}}.Apply(&ExecutionContext{resolution: ctx, playerID: "P1", firstNameRNG: newWinterRNG(state.Seed, state.Turn)})

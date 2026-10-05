@@ -17,10 +17,12 @@ import (
 	"strings"
 )
 
-// Asset is a noble first name with its trigram code.
+// Asset is a noble first name with its trigram code and sex ("male" or
+// "female", the values of models.Sex).
 type Asset struct {
 	Code string
 	Name string
+	Sex  string
 }
 
 // Commune is a territory name with its trigram code and preferred terrain.
@@ -111,7 +113,7 @@ func loadCommunes(path string) ([]Commune, error) {
 }
 
 func loadAssets(path string) ([]Asset, error) {
-	rows, err := loadCSV(path, 2)
+	rows, err := loadCSV(path, 3)
 	if err != nil {
 		return nil, err
 	}
@@ -120,12 +122,15 @@ func loadAssets(path string) ([]Asset, error) {
 	seenNames := make(map[string]bool, len(rows))
 	for i, row := range rows {
 		line := i + 2 // header is line 1
-		code, name := strings.TrimSpace(row[0]), strings.TrimSpace(row[1])
+		code, name, sex := strings.TrimSpace(row[0]), strings.TrimSpace(row[1]), strings.TrimSpace(row[2])
 		if !isTrigram(code) {
 			return nil, fmt.Errorf("assetgen: %s: line %d: invalid code %q (want exactly 3 uppercase letters)", path, line, code)
 		}
 		if name == "" {
 			return nil, fmt.Errorf("assetgen: %s: line %d: empty name", path, line)
+		}
+		if sex != "male" && sex != "female" {
+			return nil, fmt.Errorf("assetgen: %s: line %d: invalid sex %q (want male|female)", path, line, sex)
 		}
 		if seenCodes[code] {
 			return nil, fmt.Errorf("assetgen: %s: line %d: duplicate code %q", path, line, code)
@@ -135,7 +140,7 @@ func loadAssets(path string) ([]Asset, error) {
 		}
 		seenCodes[code] = true
 		seenNames[name] = true
-		assets = append(assets, Asset{Code: code, Name: name})
+		assets = append(assets, Asset{Code: code, Name: name, Sex: sex})
 	}
 	return assets, nil
 }

@@ -35,10 +35,10 @@ func TestComputeScoresTerritoriesArmiesAndNoblesAloneScoreZero(t *testing.T) {
 			{ID: "A3", OwnerID: p1, TerritoryID: "BBB", Size: 1},
 		},
 		Nobles: []models.Noble{
-			{ID: "N1", OwnerID: p1, LocationID: "AAA", Status: models.NobleStatusFree},
-			{ID: "N2", OwnerID: p2, LocationID: "AAA", Status: models.NobleStatusHostage},
-			{ID: "N3", OwnerID: p1, LocationID: "CCC", Status: models.NobleStatusDungeon},
-			{ID: "N4", OwnerID: p2, LocationID: "CCC", Status: models.NobleStatusFree},
+			{ID: "N1", Sex: models.SexMale, OwnerID: p1, LocationID: "AAA", Status: models.NobleStatusFree},
+			{ID: "N2", Sex: models.SexMale, OwnerID: p2, LocationID: "AAA", Status: models.NobleStatusHostage},
+			{ID: "N3", Sex: models.SexMale, OwnerID: p1, LocationID: "CCC", Status: models.NobleStatusDungeon},
+			{ID: "N4", Sex: models.SexMale, OwnerID: p2, LocationID: "CCC", Status: models.NobleStatusFree},
 		},
 	}
 
@@ -126,7 +126,7 @@ func TestWinnerForFinishedGamePrefersSoleSurvivor(t *testing.T) {
 			"AAA": {Army: armyPointer("A1")},
 		},
 		Armies: []models.Army{{ID: "A1", OwnerID: p1, TerritoryID: "AAA", Size: 1}},
-		Nobles: []models.Noble{{ID: "N2", OwnerID: p2, LocationID: "AAA", Status: models.NobleStatusFree}},
+		Nobles: []models.Noble{{ID: "N2", Sex: models.SexMale, OwnerID: p2, LocationID: "AAA", Status: models.NobleStatusFree}},
 	}
 
 	winner := WinnerForFinishedGame(state)
@@ -173,9 +173,9 @@ func TestPlayerMustSubmit(t *testing.T) {
 			{ID: "A2", OwnerID: "P2", Size: 1},
 		},
 		Nobles: []models.Noble{
-			{ID: "N1", OwnerID: "P1", Status: models.NobleStatusHostage},
-			{ID: "N2", OwnerID: "P2", Status: models.NobleStatusDungeon},
-			{ID: "N3", OwnerID: "P3", Status: models.NobleStatusFree},
+			{ID: "N1", Sex: models.SexMale, OwnerID: "P1", Status: models.NobleStatusHostage},
+			{ID: "N2", Sex: models.SexMale, OwnerID: "P2", Status: models.NobleStatusDungeon},
+			{ID: "N3", Sex: models.SexMale, OwnerID: "P3", Status: models.NobleStatusFree},
 		},
 	}
 	for _, test := range []struct {
@@ -201,7 +201,7 @@ func TestPlayerMustSubmitWaitsForPlayerWithCardInHand(t *testing.T) {
 		Season:  models.SeasonSummer,
 		Players: []models.Player{{ID: "P1"}},
 		Armies:  []models.Army{{ID: "A1", OwnerID: "P1", Size: 1}},
-		Nobles:  []models.Noble{{ID: "N1", OwnerID: "P1", Status: models.NobleStatusDungeon}},
+		Nobles:  []models.Noble{{ID: "N1", Sex: models.SexMale, OwnerID: "P1", Status: models.NobleStatusDungeon}},
 	}
 	if PlayerMustSubmit(state, "P1") {
 		t.Fatal("PlayerMustSubmit = true without an emitting noble or a card")

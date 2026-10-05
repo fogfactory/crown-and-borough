@@ -105,7 +105,7 @@ func (order foundFiefOrder) Apply(ctx *ExecutionContext) {
 		FiefTerritories: fief.Territories,
 		NobleID:         nobleID,
 		NobleCode:       models.NobleCode(noble.Code),
-		NobleName:       noble.Name,
+		NobleName:       resolution.state.NobleDisplayName(*noble),
 		ResourceSpent:   spent,
 	})
 }

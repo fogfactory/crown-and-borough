@@ -329,7 +329,7 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 		view.Nobles = append(view.Nobles, NobleView{
 			ID:       noble.ID,
 			Code:     models.NobleCode(noble.Code),
-			Name:     noble.Name,
+			Name:     state.NobleDisplayName(noble),
 			Owner:    noble.OwnerID,
 			Location: noble.LocationID,
 			Status:   noble.Status,

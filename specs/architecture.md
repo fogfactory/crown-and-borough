@@ -622,7 +622,7 @@ possèdent ni symbole de parser ni coût dans `balance.yaml`.
 Les assets sont chargés au démarrage et validés avant de créer la session :
 
 - `communes.csv` fournit les noms, codes et affinités de terrain ;
-- `prenoms.csv` fournit les noms et codes de nobles ;
+- `prenoms.csv` fournit les noms, codes et sexes (`male` ou `female`) de nobles ; le noble recruté hérite du sexe de son prénom ;
 - `balance.yaml` fournit les coûts, productions, portées, rations, bonus de
   défense, bonus de commandement noble, valeurs de départ et paramètres du
   deck d’ordres spéciaux utilisés par le moteur.

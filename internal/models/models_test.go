@@ -59,7 +59,7 @@ func validState() *models.GameState {
 	}
 	g.NextArmyID = 3
 	g.Nobles = []models.Noble{
-		{ID: "N1", Code: "HUG", Name: "Hugues", OwnerID: "P1", LocationID: "ROS", Status: models.NobleStatusFree},
+		{ID: "N1", Sex: models.SexMale, Code: "HUG", Name: "Hugues", OwnerID: "P1", LocationID: "ROS", Status: models.NobleStatusFree},
 	}
 	g.Infrastructures = []models.Infrastructure{
 		{ID: "I1", Type: models.InfraTypeMill, Level: 2, TerritoryID: "ROS"},
@@ -132,6 +132,69 @@ func TestNobleStatusIsValid(t *testing.T) {
 		if invalid.IsValid() {
 			t.Errorf("NobleStatus %q: want invalid", invalid)
 		}
+	}
+}
+
+func TestSex(t *testing.T) {
+	for _, valid := range []models.Sex{models.SexMale, models.SexFemale} {
+		if !valid.IsValid() {
+			t.Errorf("Sex %q: want valid", valid)
+		}
+	}
+	for _, invalid := range []models.Sex{"", "M", "MALE", "other"} {
+		if invalid.IsValid() {
+			t.Errorf("Sex %q: want invalid", invalid)
+		}
+		if invalid.CanHoldReligiousOrRoyalTitle() {
+			t.Errorf("Sex %q: unknown sex must not hold religious or royal titles", invalid)
+		}
+	}
+	if !models.SexMale.CanHoldReligiousOrRoyalTitle() {
+		t.Error("male noble: want eligible for religious and royal titles")
+	}
+	if models.SexFemale.CanHoldReligiousOrRoyalTitle() {
+		t.Error("female noble: want ineligible for religious and royal titles")
+	}
+}
+
+func TestNobleDisplayName(t *testing.T) {
+	male := models.Noble{ID: "N1", Name: "Guillaume de Rosemont", Sex: models.SexMale}
+	female := models.Noble{ID: "N2", Name: "Mahaut de Rosemont", Sex: models.SexFemale}
+	holds := func(noble models.Noble, title models.FiefTitle) models.Fief {
+		id := noble.ID
+		return models.Fief{Title: title, CapitalTerritoryID: "ROC", HolderNobleID: &id}
+	}
+	tests := []struct {
+		name  string
+		fiefs []models.Fief
+		noble models.Noble
+		want  string
+	}{
+		{"male without fief", nil, male, "Sieur Guillaume de Rosemont"},
+		{"female without fief", nil, female, "Dame Mahaut de Rosemont"},
+		{"baron", []models.Fief{holds(male, models.FiefTitleBarony)}, male, "Baron Guillaume de Rochevent"},
+		{"baroness", []models.Fief{holds(female, models.FiefTitleBarony)}, female, "Baronne Mahaut de Rochevent"},
+		{"count", []models.Fief{holds(male, models.FiefTitleCounty)}, male, "Comte Guillaume de Rochevent"},
+		{"countess", []models.Fief{holds(female, models.FiefTitleCounty)}, female, "Comtesse Mahaut de Rochevent"},
+		{"marquis", []models.Fief{holds(male, models.FiefTitleMarquisate)}, male, "Marquis Guillaume de Rochevent"},
+		{"marquise", []models.Fief{holds(female, models.FiefTitleMarquisate)}, female, "Marquise Mahaut de Rochevent"},
+		{"duke", []models.Fief{holds(male, models.FiefTitleDuchy)}, male, "Duc Guillaume de Rochevent"},
+		{"duchess", []models.Fief{holds(female, models.FiefTitleDuchy)}, female, "Duchesse Mahaut de Rochevent"},
+		{"highest of several fiefs", []models.Fief{holds(male, models.FiefTitleCounty), holds(male, models.FiefTitleDuchy), holds(male, models.FiefTitleBarony)}, male, "Duc Guillaume de Rochevent"},
+		{"fief held by someone else", []models.Fief{holds(female, models.FiefTitleDuchy)}, male, "Sieur Guillaume de Rosemont"},
+		{"vacant fief", []models.Fief{{Title: models.FiefTitleDuchy}}, male, "Sieur Guillaume de Rosemont"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			state := &models.GameState{Fiefs: tt.fiefs, Territories: []models.Territory{{ID: "ROC", Name: "Rochevent"}}}
+			if got := state.NobleDisplayName(tt.noble); got != tt.want {
+				t.Errorf("NobleDisplayName = %q, want %q", got, tt.want)
+			}
+		})
+	}
+	var nilState *models.GameState
+	if got, want := nilState.NobleDisplayName(male), "Sieur Guillaume de Rosemont"; got != want {
+		t.Errorf("nil state NobleDisplayName = %q, want %q", got, want)
 	}
 }
 
@@ -319,39 +382,43 @@ func TestValidateErrors(t *testing.T) {
 			g.TerritoryStates["BCL"] = models.TerritoryState{Resources: 0, Army: ptrArmyID("A9")}
 		}, "unknown army"},
 		{"duplicate noble id", func(g *models.GameState) {
-			g.Nobles = append(g.Nobles, models.Noble{ID: "N1", Code: "ANN", Name: "Anne", OwnerID: "P2", LocationID: "BCL"})
+			g.Nobles = append(g.Nobles, models.Noble{Sex: models.SexMale, ID: "N1", Code: "ANN", Name: "Anne", OwnerID: "P2", LocationID: "BCL"})
 		}, "duplicate id"},
 		{"duplicate noble code", func(g *models.GameState) {
-			g.Nobles = append(g.Nobles, models.Noble{ID: "N2", Code: "HUG", Name: "Hugues II", OwnerID: "P2", LocationID: "BCL"})
+			g.Nobles = append(g.Nobles, models.Noble{Sex: models.SexMale, ID: "N2", Code: "HUG", Name: "Hugues II", OwnerID: "P2", LocationID: "BCL"})
 		}, "duplicate code"},
 		{"noble unknown owner", func(g *models.GameState) { g.Nobles[0].OwnerID = "P9" }, "unknown owner"},
 		{"noble unknown territory", func(g *models.GameState) { g.Nobles[0].LocationID = "ZZZ" }, "unknown territory"},
+		{"noble invalid sex", func(g *models.GameState) { g.Nobles[0].Sex = "" }, "invalid sex"},
 		{"noble invalid status", func(g *models.GameState) { g.Nobles[0].Status = "captured" }, "invalid status"},
 		{"noble negative last emission turn", func(g *models.GameState) { g.Nobles[0].LastEmissionTurn = -1 }, "last emission turn"},
 		{"noble future last emission turn", func(g *models.GameState) { g.Nobles[0].LastEmissionTurn = g.Turn + 1 }, "last emission turn"},
 		{"removed noble duplicate id", func(g *models.GameState) {
 			g.RemovedNobles = append(g.RemovedNobles,
-				models.RemovedNoble{ID: "N9", Code: "ANN", OwnerID: "P1", Cause: models.DeathCauseNatural},
-				models.RemovedNoble{ID: "N9", Code: "BEA", OwnerID: "P1", Cause: models.DeathCauseNatural},
+				models.RemovedNoble{Sex: models.SexMale, ID: "N9", Code: "ANN", OwnerID: "P1", Cause: models.DeathCauseNatural},
+				models.RemovedNoble{Sex: models.SexMale, ID: "N9", Code: "BEA", OwnerID: "P1", Cause: models.DeathCauseNatural},
 			)
 		}, "duplicate or empty id"},
 		{"removed noble still exists", func(g *models.GameState) {
-			g.RemovedNobles = append(g.RemovedNobles, models.RemovedNoble{ID: "N1", Code: "ANN", OwnerID: "P1", Cause: models.DeathCauseNatural})
+			g.RemovedNobles = append(g.RemovedNobles, models.RemovedNoble{Sex: models.SexMale, ID: "N1", Code: "ANN", OwnerID: "P1", Cause: models.DeathCauseNatural})
 		}, "still exists"},
+		{"removed noble invalid sex", func(g *models.GameState) {
+			g.RemovedNobles = append(g.RemovedNobles, models.RemovedNoble{ID: "N9", Code: "ANN", OwnerID: "P1", Cause: models.DeathCauseNatural})
+		}, "invalid sex"},
 		{"removed noble invalid code", func(g *models.GameState) {
-			g.RemovedNobles = append(g.RemovedNobles, models.RemovedNoble{ID: "N9", Code: "ann", OwnerID: "P1", Cause: models.DeathCauseNatural})
+			g.RemovedNobles = append(g.RemovedNobles, models.RemovedNoble{Sex: models.SexMale, ID: "N9", Code: "ann", OwnerID: "P1", Cause: models.DeathCauseNatural})
 		}, "invalid code"},
 		{"removed noble duplicate code", func(g *models.GameState) {
-			g.RemovedNobles = append(g.RemovedNobles, models.RemovedNoble{ID: "N9", Code: "HUG", OwnerID: "P1", Cause: models.DeathCauseNatural})
+			g.RemovedNobles = append(g.RemovedNobles, models.RemovedNoble{Sex: models.SexMale, ID: "N9", Code: "HUG", OwnerID: "P1", Cause: models.DeathCauseNatural})
 		}, "duplicate code"},
 		{"removed noble unknown owner", func(g *models.GameState) {
-			g.RemovedNobles = append(g.RemovedNobles, models.RemovedNoble{ID: "N9", Code: "ANN", OwnerID: "P9", Cause: models.DeathCauseNatural})
+			g.RemovedNobles = append(g.RemovedNobles, models.RemovedNoble{Sex: models.SexMale, ID: "N9", Code: "ANN", OwnerID: "P9", Cause: models.DeathCauseNatural})
 		}, "unknown owner"},
 		{"removed noble invalid cause", func(g *models.GameState) {
-			g.RemovedNobles = append(g.RemovedNobles, models.RemovedNoble{ID: "N9", Code: "ANN", OwnerID: "P1", Cause: "poison"})
+			g.RemovedNobles = append(g.RemovedNobles, models.RemovedNoble{Sex: models.SexMale, ID: "N9", Code: "ANN", OwnerID: "P1", Cause: "poison"})
 		}, "invalid death cause"},
 		{"removed noble future turn", func(g *models.GameState) {
-			g.RemovedNobles = append(g.RemovedNobles, models.RemovedNoble{ID: "N9", Code: "ANN", OwnerID: "P1", Cause: models.DeathCauseNatural, Turn: g.Turn + 1})
+			g.RemovedNobles = append(g.RemovedNobles, models.RemovedNoble{Sex: models.SexMale, ID: "N9", Code: "ANN", OwnerID: "P1", Cause: models.DeathCauseNatural, Turn: g.Turn + 1})
 		}, "must be between 0"},
 		{"next chain id zero", func(g *models.GameState) { g.NextChainID = 0 }, "next chain id"},
 		{"next army id zero", func(g *models.GameState) { g.NextArmyID = 0 }, "next army id"},
@@ -594,7 +661,7 @@ func TestValidateFiefErrors(t *testing.T) {
 			g.Fiefs[0].HolderNobleID = ptrNobleID("N9")
 		}, "unknown holder noble"},
 		{"holder noble owned by another player", func(g *models.GameState) {
-			g.Nobles = append(g.Nobles, models.Noble{ID: "N2", Code: "ANN", Name: "Anne", OwnerID: "P2", LocationID: "BCL", Status: models.NobleStatusFree})
+			g.Nobles = append(g.Nobles, models.Noble{Sex: models.SexMale, ID: "N2", Code: "ANN", Name: "Anne", OwnerID: "P2", LocationID: "BCL", Status: models.NobleStatusFree})
 			g.Fiefs[0].HolderNobleID = ptrNobleID("N2")
 		}, "belongs to"},
 	}

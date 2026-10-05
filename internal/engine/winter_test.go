@@ -489,6 +489,10 @@ func TestResolveWinterRecruitNoble(t *testing.T) {
 			if !strings.HasSuffix(noble.Name, " de AAA") {
 				t.Errorf("noble name = %q, want territory suffix", noble.Name)
 			}
+			wantSex := map[string]models.Sex{"ADE": models.SexFemale, "GUI": models.SexMale, "MAH": models.SexFemale}[noble.Code]
+			if noble.Sex != wantSex {
+				t.Errorf("noble %s sex = %q, want %q (sex of its first name)", noble.Code, noble.Sex, wantSex)
+			}
 		}
 		recruits := eventsOfType(first.Events, EventTypeRecruit)
 		if len(recruits) != 2 || recruits[0].NobleCode == "" || recruits[0].NobleName == "" {

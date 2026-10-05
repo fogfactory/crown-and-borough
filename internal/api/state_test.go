@@ -59,7 +59,7 @@ func TestProjectStateMatchesStateContract(t *testing.T) {
 	if got := view.Territories[0].Infrastructures; !reflect.DeepEqual(got, []InfraView{{Type: models.InfraTypeCastle, Level: 1}}) {
 		t.Errorf("AAA infrastructure = %#v, want nested castle", got)
 	}
-	if len(view.Nobles) != 1 || view.Nobles[0] != (NobleView{ID: "N1", Code: "HUG", Name: "Hugues de Rosemont", Owner: "P1", Location: "ROS", Status: models.NobleStatusFree}) {
+	if len(view.Nobles) != 1 || view.Nobles[0] != (NobleView{ID: "N1", Code: "HUG", Name: "Sieur Hugues de Rosemont", Owner: "P1", Location: "ROS", Status: models.NobleStatusFree}) {
 		t.Errorf("nobles = %#v, want N1", view.Nobles)
 	}
 
@@ -257,7 +257,7 @@ func projectTestState() *models.GameState {
 			{ID: "FOU", Name: "Fougères", Terrain: models.TerrainSwamp, Adjacencies: []models.TerritoryID{"BRU", "ROS"}},
 		},
 		Nobles: []models.Noble{
-			{ID: "N1", Code: "HUG", Name: "Hugues de Rosemont", OwnerID: p1, LocationID: "ROS", Status: models.NobleStatusFree},
+			{ID: "N1", Sex: models.SexMale, Code: "HUG", Name: "Hugues de Rosemont", OwnerID: p1, LocationID: "ROS", Status: models.NobleStatusFree},
 		},
 		Armies: []models.Army{
 			{ID: "A1", OwnerID: p1, TerritoryID: "ROS", Size: 1, ChainID: ptrChainID("C1")},

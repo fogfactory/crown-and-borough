@@ -47,9 +47,9 @@ func testBalance() assetgen.Balance {
 		StartingTroops:    1,
 		StartingResources: 10,
 		FirstNames: []assetgen.Asset{
-			{Code: "ADE", Name: "Adelaide"},
-			{Code: "GUI", Name: "Guillaume"},
-			{Code: "MAH", Name: "Mahaut"},
+			{Code: "ADE", Name: "Adelaide", Sex: "female"},
+			{Code: "GUI", Name: "Guillaume", Sex: "male"},
+			{Code: "MAH", Name: "Mahaut", Sex: "female"},
 		},
 	}
 }
@@ -105,6 +105,7 @@ func keepTestArmiesSupplied(state *models.GameState) {
 
 func addNoble(state *models.GameState, id models.NobleID, code string, ownerID models.PlayerID, territoryID models.TerritoryID) {
 	state.Nobles = append(state.Nobles, models.Noble{
+		Sex:        models.SexMale,
 		ID:         id,
 		Code:       code,
 		Name:       string(code),
