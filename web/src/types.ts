@@ -60,6 +60,8 @@ export type EventType =
   | 'fief_dissolved'
   | 'fief_member_occupied'
   | 'fief_auto_assigned'
+  | 'marriage'
+  | 'marriage_refused'
 
 export type PlayerId = string
 
@@ -158,6 +160,9 @@ export interface Noble {
   owner: PlayerId
   location: string
   status: NobleStatus
+  sex?: 'male' | 'female'
+  /** Code of the spouse while the marriage is active (both spouses alive). */
+  spouse?: string
 }
 
 export interface Territory {
@@ -788,6 +793,23 @@ export interface FiefReport {
   reason?: string
 }
 
+/**
+ * A marriage concluded this winter (`outcome: 'success'`) or a failed
+ * negotiation (`outcome: 'failure'`: `noble`'s owner proposed, `spouse`'s owner
+ * did not answer in kind). Public: every player receives it.
+ */
+export interface MarriageReport {
+  outcome: 'success' | 'failure'
+  noble: string
+  nobleCode: string
+  nobleName: string
+  owner: PlayerId
+  spouse: string
+  spouseCode: string
+  spouseName: string
+  spouseOwner: PlayerId
+}
+
 export interface TurnReport {
   header: ReportHeader
   players: PlayerReport[]
@@ -807,4 +829,5 @@ export interface TurnReport {
   augury?: AuguryReport
   winter?: WinterReport
   fiefs?: FiefReport[]
+  marriages?: MarriageReport[]
 }

@@ -159,6 +159,10 @@ type NobleView struct {
 	Owner    models.PlayerID    `json:"owner"`
 	Location models.TerritoryID `json:"location"`
 	Status   models.NobleStatus `json:"status"`
+	Sex      models.Sex         `json:"sex"`
+	// Spouse is the code of the noble this one is married to, set only while
+	// the marriage is active (both spouses alive).
+	Spouse *models.NobleCode `json:"spouse,omitempty"`
 }
 
 // FiefView is a fief addressed by its capital's trigram: no internal fief id
@@ -336,14 +340,24 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 		view.Players = append(view.Players, playerView)
 	}
 	for _, noble := range state.Nobles {
-		view.Nobles = append(view.Nobles, NobleView{
+		nobleView := NobleView{
 			ID:       noble.ID,
 			Code:     models.NobleCode(noble.Code),
 			Name:     state.NobleDisplayName(noble),
 			Owner:    noble.OwnerID,
 			Location: noble.LocationID,
 			Status:   noble.Status,
-		})
+			Sex:      noble.Sex,
+		}
+		if marriage, married := state.MarriageOf(noble.ID); married {
+			spouseID := marriage.NobleA
+			if spouseID == noble.ID {
+				spouseID = marriage.NobleB
+			}
+			spouseCode := nobleCodesByID[spouseID]
+			nobleView.Spouse = &spouseCode
+		}
+		view.Nobles = append(view.Nobles, nobleView)
 	}
 	for _, fief := range state.Fiefs {
 		fiefView := FiefView{

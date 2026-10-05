@@ -288,6 +288,16 @@ export function SelectedTerritoryDetails({
                     <dd className="font-medium text-[#594b3c]">
                       {displayOwner(noble.owner, noble.owner)}
                     </dd>
+                    {noble.spouse && (
+                      <>
+                        <dt>{t('app.marriage')}</dt>
+                        <dd className="font-medium text-[#594b3c]">
+                          {t(noble.sex === 'female' ? 'app.wifeOf' : 'app.husbandOf', {
+                            spouse: noble.spouse,
+                          })}
+                        </dd>
+                      </>
+                    )}
                     {holder && (
                       <>
                         <dt>{t('app.holder')}</dt>

@@ -13,6 +13,7 @@ import type {
   ReportArmy,
   CardReport,
   FiefReport,
+  MarriageReport,
   IncomeReport,
   SeasonEffectReport,
   TurnReport,
@@ -344,6 +345,8 @@ function investmentLabel(
     case 'fief_assigned':
     case 'fief_auto_assigned':
       return `T A ${investment.nobleCode ?? '—'} ${territory}`
+    case 'marriage_refused':
+      return `M N ${investment.nobleCode ?? '—'}`
     case 'prosperity_founded':
       return `${WINTER_INFRA_SYMBOLS.village} ${territoryLabel(map, investment.target, t)} ← ${territoryLabel(map, investment.source, t)}`
     default:
@@ -393,6 +396,24 @@ function winterDetails(
   if (investment.nobleName) return investment.nobleName
   if (investment.level) return t('reports.level', { level: investment.level })
   return territoryLabel(map, investment.territory, t)
+}
+
+function marriageLabel(
+  marriage: MarriageReport,
+  players: Player[],
+  t: Translate,
+): string {
+  return t(
+    marriage.outcome === 'success'
+      ? 'reports.marriageConcluded'
+      : 'reports.marriageFailed',
+    {
+      noble: marriage.nobleName || marriage.nobleCode,
+      owner: playerLabel(players, marriage.owner, t),
+      spouse: marriage.spouseName || marriage.spouseCode,
+      spouseOwner: playerLabel(players, marriage.spouseOwner, t),
+    },
+  )
 }
 
 function fiefEventLabel(
@@ -671,6 +692,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
   const seasonEffects = report.seasonEffects ?? []
   const seasonEffectView = groupSeasonEffects(seasonEffects, map, t)
   const fiefs = report.fiefs ?? []
+  const marriages = report.marriages ?? []
 
   return (
     <section className="min-w-0 space-y-4">
@@ -1026,9 +1048,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                   })}
                 </p>
                 {line.famine && line.warned && (
-                  <p className="mt-1 font-semibold">
-                    {t('reports.famineWarning')}
-                  </p>
+                  <p className="mt-1 font-semibold">{t('reports.famineWarning')}</p>
                 )}
                 {line.famine && !line.warned && (
                   <p className="mt-1 font-semibold">
@@ -1123,6 +1143,23 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
               winterStocks.length === 0 &&
               emptyMessage(t('reports.winter').toLowerCase(), t)}
           </div>
+        </div>
+      )}
+
+      {marriages.length > 0 && (
+        <div className="space-y-2 rounded-lg border border-[#c9b688] bg-[#fbf3df] p-3">
+          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#7a5a20]">
+            {t('reports.marriages')}
+          </h4>
+          <ul className="space-y-1 text-sm text-[#7a5a20]">
+            {marriages.map((marriage, index) => (
+              <li
+                key={`${marriage.outcome}-${marriage.noble}-${marriage.spouse}-${index}`}
+              >
+                {marriageLabel(marriage, players, t)}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

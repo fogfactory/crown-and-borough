@@ -101,6 +101,9 @@ const englishMessages = {
   'app.noblesPresent': 'Nobles present',
   'app.owner': 'Owner',
   'app.holder': 'Holder',
+  'app.marriage': 'Marriage',
+  'app.husbandOf': 'Husband of {spouse}',
+  'app.wifeOf': 'Wife of {spouse}',
   'app.hostageBy': 'held by {player}',
   'app.dungeonBy': 'imprisoned by {player}',
   'app.noNoble': 'No noble present',
@@ -189,7 +192,7 @@ const englishMessages = {
   'orders.winterDescription':
     'Direct investments only, without chains or military movement. Use D C KIND to discard a card; the hand is replenished automatically. Orders are applied in the order entered. Resolution waits for every player.',
   'orders.winterPlaceholder':
-    'R T ROS\nD C BT\nO N NNN\nP N NNN\nL N NNN\nT F NNN ROS BOI BRU\nT A NNN ROS',
+    'R T ROS\nD C BT\nO N NNN\nP N NNN\nL N NNN\nT F NNN ROS BOI BRU\nT A NNN ROS\nM N NNN MMM',
   'orders.winterAria': 'Winter orders for {player}',
   'orders.winterErrorsAria': 'Winter order syntax errors',
   'orders.chainErrorsAria': 'Order chain errors',
@@ -270,6 +273,9 @@ const englishMessages = {
   'reports.consumptionPillageCredit': 'pillage: {count} R credited to {territory}',
   'reports.winter': 'Winter',
   'reports.fiefs': 'Fiefs',
+  'reports.marriages': 'Marriages',
+  'reports.marriageConcluded': 'Marriage: {noble} ({owner}) and {spouse} ({spouseOwner}).',
+  'reports.marriageFailed': 'Rumor: the marriage negotiation between {noble} and {spouse} failed.',
   'reports.fiefConquered':
     '{capital}: the fief passes from {previousOwner} to {owner}, vacant',
   'reports.fiefVacated': '{capital}: the fief held by {owner} is now vacant',
@@ -813,6 +819,9 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'app.noblesPresent': 'Nobles présents',
   'app.owner': 'Propriétaire',
   'app.holder': 'Détenteur',
+  'app.marriage': 'Mariage',
+  'app.husbandOf': 'Époux de {spouse}',
+  'app.wifeOf': 'Épouse de {spouse}',
   'app.hostageBy': 'invité par {player}',
   'app.dungeonBy': 'emprisonné par {player}',
   'app.noNoble': 'Aucun noble présent',
@@ -901,7 +910,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'orders.winterDescription':
     "Investissements directs uniquement, sans chaînes ni mouvements militaires. Utilisez D C KIND pour défausser une carte ; la main est reconstituée automatiquement. Les ordres sont appliqués dans l'ordre saisi. La résolution attend tous les joueurs.",
   'orders.winterPlaceholder':
-    'R T ROS\nD C BT\nO N NNN\nP N NNN\nL N NNN\nT F NNN ROS BOI BRU\nT A NNN ROS',
+    'R T ROS\nD C BT\nO N NNN\nP N NNN\nL N NNN\nT F NNN ROS BOI BRU\nT A NNN ROS\nM N NNN MMM',
   'orders.winterAria': "Ordres d'hiver de {player}",
   'orders.winterErrorsAria': "Erreurs de syntaxe des ordres d'hiver",
   'orders.chainErrorsAria': "Erreurs dans les chaînes d'ordres",
@@ -983,6 +992,9 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.consumptionPillageCredit': 'pillage : {count} R créditées à {territory}',
   'reports.winter': 'Hiver',
   'reports.fiefs': 'Fiefs',
+  'reports.marriages': 'Mariages',
+  'reports.marriageConcluded': 'Mariage : {noble} ({owner}) et {spouse} ({spouseOwner}).',
+  'reports.marriageFailed': 'Rumeur : la négociation de mariage entre {noble} et {spouse} a échoué.',
   'reports.fiefConquered':
     '{capital} : le fief passe de {previousOwner} à {owner}, vacant',
   'reports.fiefVacated': '{capital} : le fief détenu par {owner} devient vacant',

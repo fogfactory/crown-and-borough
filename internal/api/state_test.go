@@ -59,7 +59,7 @@ func TestProjectStateMatchesStateContract(t *testing.T) {
 	if got := view.Territories[0].Infrastructures; !reflect.DeepEqual(got, []InfraView{{Type: models.InfraTypeCastle, Level: 1}}) {
 		t.Errorf("AAA infrastructure = %#v, want nested castle", got)
 	}
-	if len(view.Nobles) != 1 || view.Nobles[0] != (NobleView{ID: "N1", Code: "HUG", Name: "Sieur Hugues de Rosemont", Owner: "P1", Location: "ROS", Status: models.NobleStatusFree}) {
+	if len(view.Nobles) != 1 || view.Nobles[0] != (NobleView{ID: "N1", Code: "HUG", Name: "Sieur Hugues de Rosemont", Owner: "P1", Location: "ROS", Status: models.NobleStatusFree, Sex: models.SexMale}) {
 		t.Errorf("nobles = %#v, want N1", view.Nobles)
 	}
 
@@ -435,4 +435,40 @@ func generateStateTestMap(t *testing.T, assets assetgen.Assets) mapgen.MapData {
 		t.Fatalf("generate map: %v", err)
 	}
 	return mapData
+}
+
+// An active marriage shows on both spouses as their spouse's code, with the
+// sex the client needs to word "Époux de" / "Épouse de"; a widowed noble no
+// longer shows one.
+func TestProjectStateNobleSpouse(t *testing.T) {
+	state := projectTestState()
+	state.Nobles = []models.Noble{
+		{ID: "N1", Code: "JEA", Name: "Jean", Sex: models.SexMale, OwnerID: "P1", LocationID: "ROS", Status: models.NobleStatusFree},
+		{ID: "N2", Code: "ANN", Name: "Anne", Sex: models.SexFemale, OwnerID: "P2", LocationID: "ROS", Status: models.NobleStatusFree},
+		{ID: "N3", Code: "EVE", Name: "Eve", Sex: models.SexFemale, OwnerID: "P2", LocationID: "ROS", Status: models.NobleStatusFree},
+	}
+	state.RemovedNobles = nil
+	state.Marriages = []models.Marriage{{NobleA: "N1", NobleB: "N2", Turn: 1}}
+	view := projectState(state, assetgen.Balance{})
+	byCode := map[models.NobleCode]NobleView{}
+	for _, noble := range view.Nobles {
+		byCode[noble.Code] = noble
+	}
+	if got := byCode["JEA"].Spouse; got == nil || *got != "ANN" || byCode["JEA"].Sex != models.SexMale {
+		t.Errorf("JEA = %#v, want husband of ANN", byCode["JEA"])
+	}
+	if got := byCode["ANN"].Spouse; got == nil || *got != "JEA" || byCode["ANN"].Sex != models.SexFemale {
+		t.Errorf("ANN = %#v, want wife of JEA", byCode["ANN"])
+	}
+	if byCode["EVE"].Spouse != nil {
+		t.Errorf("EVE = %#v, want no spouse", byCode["EVE"])
+	}
+	state.Nobles = state.Nobles[1:]
+	state.RemovedNobles = []models.RemovedNoble{{ID: "N1", Code: "JEA", Name: "Jean", Sex: models.SexMale, OwnerID: "P1", Cause: models.DeathCauseNatural, Turn: 1}}
+	view = projectState(state, assetgen.Balance{})
+	for _, noble := range view.Nobles {
+		if noble.Spouse != nil {
+			t.Errorf("%s = %#v, want no spouse once widowed", noble.Code, noble)
+		}
+	}
 }

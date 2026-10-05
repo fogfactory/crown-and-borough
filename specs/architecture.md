@@ -608,7 +608,8 @@ BRI D BRI ATL NOR
 
 Les ordres d'hiver v1 comprennent `A N`, `R N`, `R T`, `C M`, `C C`, `C D`, `E C`,
 `O N`, `P N`, `L N`, `G XXX YYY N`, `T F NNN XXX YYY ZZZ …` (constituer un
-fief) et `T A NNN XXX` (attribuer un fief vacant), avec `D C KIND` pour les
+fief) et `T A NNN XXX` (attribuer un fief vacant), `M N XXX YYY` (marier deux nobles de
+deux joueurs, ordre symétrique), avec `D C KIND` pour les
 défausses de cartes bonus.
 Une soumission `special` séparée contient les ordres jouables du deck : `P KIND TER`
 au printemps, en été et en automne. En hiver, la main est reconstituée

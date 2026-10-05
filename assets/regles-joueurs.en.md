@@ -660,6 +660,7 @@ per line, applied in the entered order.
 | Transfer resources | `G XXX YYY N` | `XXX` is a castle or village controlled by the donor; `YYY` is a castle or village controlled by another player | 0 |
 | Found a fief | `T F NNN XXX YYY ZZZ …` | `NNN` is a free player noble; `XXX` (capital) and the rest of the group are controlled, contiguous, and need no castle outside the capital; no territory already in a fief; no enemy or revolt army on the group | {{costs.fief_per_territory}} per territory |
 | Assign a vacant fief | `T A NNN XXX` | `NNN` is a free player noble; `XXX` is the capital of a vacant fief the player holds | 0 |
+| Marry two nobles | `M N NNN MMM` | `NNN` is a free player noble, `MMM` a free noble of another player, of the opposite sex, both unmarried; the other player must submit `M N MMM NNN` the same winter, otherwise the marriage is refused | 0 |
 
 This is where, in winter, the fate of enemy nobles captured in combat
 (section 6) is decided: `O`/`P` moves a prisoner between `hostage` and

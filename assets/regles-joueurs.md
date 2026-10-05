@@ -699,6 +699,7 @@ investissements directs, une ligne par ordre, appliqués dans l'ordre saisi.
 | Transférer des ressources | `G XXX YYY N` | `XXX` est un château ou village contrôlé par le donneur ; `YYY` est un château ou village contrôlé par un autre joueur | 0 |
 | Constituer un fief | `T F NNN XXX YYY ZZZ …` | `NNN` est un noble libre du joueur ; `XXX` (capitale) et le reste du groupe sont contrôlés, contigus et sans château requis hors capitale ; aucun territoire déjà en fief ; aucune armée adverse ou de révolte sur le groupe | {{costs.fief_per_territory}} par territoire |
 | Attribuer un fief vacant | `T A NNN XXX` | `NNN` est un noble libre du joueur ; `XXX` est la capitale d'un fief vacant qu'il détient | 0 |
+| Marier deux nobles | `M N NNN MMM` | `NNN` est un noble libre du joueur, `MMM` un noble libre d'un autre joueur, de sexe différent, tous deux non mariés ; l'autre joueur doit soumettre `M N MMM NNN` le même hiver, sinon le mariage est refusé | 0 |
 
 C'est ici, en hiver, que se règle le sort des nobles ennemis capturés en
 combat (section 6) : `O`/`P` fait basculer un prisonnier entre `hostage` et
