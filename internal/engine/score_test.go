@@ -216,7 +216,7 @@ func TestPlayerMustSubmitWaitsForPlayerWithCardInHand(t *testing.T) {
 
 func victoryBalance() assetgen.Balance {
 	balance := testBalance()
-	balance.Victory = assetgen.VictoryBalance{SoloBase: 1, SoloPerPlayer: 1, AllianceMargin: 2}
+	balance.Victory = assetgen.VictoryBalance{SoloBase: 1, SoloPerPlayer: 1, AllianceBase: 3, AlliancePerPlayer: 1}
 	return balance
 }
 

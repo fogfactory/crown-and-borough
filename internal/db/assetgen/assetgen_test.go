@@ -48,9 +48,10 @@ costs:
   liberation: 0
   fief_per_territory: 2
 victory:
-  solo_base: 4
-  solo_per_player: 2
-  alliance_margin: 3
+  solo_base: 2
+  solo_per_player: 1
+  alliance_base: 3
+  alliance_per_player: 1
 starting_nobles: 1
 starting_troops: 1
 starting_outposts: 2

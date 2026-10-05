@@ -40,12 +40,14 @@ type Balance struct {
 
 // VictoryBalance derives the title-score supremacy thresholds from the player
 // count (titres.md § Seuil de victoire et fin de partie): solo = SoloBase +
-// SoloPerPlayer*players, alliance = solo + AllianceMargin. AllianceMargin is
-// strictly positive so an alliance victory always costs more than a solo one.
+// SoloPerPlayer*players, alliance = AllianceBase + AlliancePerPlayer*players.
+// The loader guarantees the alliance threshold is strictly above the solo one
+// for every player count.
 type VictoryBalance struct {
-	SoloBase       int `json:"solo_base" yaml:"solo_base"`
-	SoloPerPlayer  int `json:"solo_per_player" yaml:"solo_per_player"`
-	AllianceMargin int `json:"alliance_margin" yaml:"alliance_margin"`
+	SoloBase          int `json:"solo_base" yaml:"solo_base"`
+	SoloPerPlayer     int `json:"solo_per_player" yaml:"solo_per_player"`
+	AllianceBase      int `json:"alliance_base" yaml:"alliance_base"`
+	AlliancePerPlayer int `json:"alliance_per_player" yaml:"alliance_per_player"`
 }
 
 type SpecialOrdersBalance struct {
@@ -102,9 +104,10 @@ type rawBalance struct {
 }
 
 type rawVictory struct {
-	SoloBase       *int `yaml:"solo_base"`
-	SoloPerPlayer  *int `yaml:"solo_per_player"`
-	AllianceMargin *int `yaml:"alliance_margin"`
+	SoloBase          *int `yaml:"solo_base"`
+	SoloPerPlayer     *int `yaml:"solo_per_player"`
+	AllianceBase      *int `yaml:"alliance_base"`
+	AlliancePerPlayer *int `yaml:"alliance_per_player"`
 }
 
 type rawSpecialOrders struct {
@@ -309,11 +312,18 @@ func (raw rawBalance) victory(path string) (VictoryBalance, error) {
 	if err != nil {
 		return VictoryBalance{}, err
 	}
-	allianceMargin, err := requiredPositiveInt(path, "victory.alliance_margin", raw.Victory.AllianceMargin)
+	allianceBase, err := requiredNonNegativeInt(path, "victory.alliance_base", raw.Victory.AllianceBase)
 	if err != nil {
 		return VictoryBalance{}, err
 	}
-	return VictoryBalance{SoloBase: soloBase, SoloPerPlayer: soloPerPlayer, AllianceMargin: allianceMargin}, nil
+	alliancePerPlayer, err := requiredNonNegativeInt(path, "victory.alliance_per_player", raw.Victory.AlliancePerPlayer)
+	if err != nil {
+		return VictoryBalance{}, err
+	}
+	if allianceBase <= soloBase || alliancePerPlayer < soloPerPlayer {
+		return VictoryBalance{}, fmt.Errorf("%s: victory.alliance threshold must stay strictly above the solo threshold for every player count (alliance_base > solo_base and alliance_per_player >= solo_per_player)", path)
+	}
+	return VictoryBalance{SoloBase: soloBase, SoloPerPlayer: soloPerPlayer, AllianceBase: allianceBase, AlliancePerPlayer: alliancePerPlayer}, nil
 }
 
 func (raw rawBalance) costs(path string) (Costs, error) {

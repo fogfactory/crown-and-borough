@@ -105,11 +105,12 @@ func PlayerMustSubmit(state *models.GameState, playerID models.PlayerID) bool {
 // balance defines no victory block, which disables threshold victories.
 func VictoryThresholds(balance assetgen.Balance, playerCount int) (solo, alliance int) {
 	victory := balance.Victory
-	if victory.AllianceMargin < 1 {
+	if victory.AllianceBase < 1 {
 		return 0, 0
 	}
 	solo = victory.SoloBase + victory.SoloPerPlayer*playerCount
-	return solo, solo + victory.AllianceMargin
+	alliance = victory.AllianceBase + victory.AlliancePerPlayer*playerCount
+	return solo, alliance
 }
 
 // thresholdWinners returns the players whose title score reaches the solo

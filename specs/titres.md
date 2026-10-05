@@ -272,9 +272,10 @@ instant, selon les mêmes règles de seuil et d'alliance.
 
 Les seuils se calculent dans `assets/balance.yaml` (bloc `victory`) :
 seuil solo = `solo_base` + `solo_per_player` × nombre de joueurs ; seuil
-d'alliance = seuil solo + `alliance_margin`, avec `alliance_margin` strictement
-positif. Les valeurs de départ (4 + 2 par joueur, écart de 3) sont à calibrer
-dans l'issue de milestone dédiée.
+d'alliance = `alliance_base` + `alliance_per_player` × nombre de joueurs, le
+chargeur exigeant qu'il reste strictement supérieur au seuil solo quel que soit
+le nombre de joueurs. Valeurs de départ : solo 2 + 1 par joueur, alliance
+3 + 1 par joueur, à calibrer dans l'issue de milestone dédiée.
 
 ### Victoire majeure, victoire mineure, échec
 

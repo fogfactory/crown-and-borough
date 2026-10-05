@@ -47,12 +47,14 @@ costs:
   fief_per_territory: 2
 
 # Title-score supremacy thresholds (titres.md § Seuil de victoire et fin de
-# partie). solo = solo_base + solo_per_player * players; the alliance threshold
-# is solo + alliance_margin, so alliance_margin must be strictly positive.
+# partie). solo = solo_base + solo_per_player * players; alliance =
+# alliance_base + alliance_per_player * players. The alliance threshold must stay
+# strictly above the solo one for every player count.
 victory:
-  solo_base: 4
-  solo_per_player: 2
-  alliance_margin: 3
+  solo_base: 2
+  solo_per_player: 1
+  alliance_base: 3
+  alliance_per_player: 1
 
 # P1.7 game setup values.
 starting_nobles: 2
