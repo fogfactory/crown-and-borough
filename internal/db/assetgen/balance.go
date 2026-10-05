@@ -38,16 +38,16 @@ type Balance struct {
 	FirstNames              []Asset                `json:"-" yaml:"-"`
 }
 
-// VictoryBalance derives the title-score supremacy thresholds from the player
-// count (titres.md § Seuil de victoire et fin de partie): solo = SoloBase +
-// SoloPerPlayer*players, alliance = AllianceBase + AlliancePerPlayer*players.
-// The loader guarantees the alliance threshold is strictly above the solo one
-// for every player count.
+// VictoryBalance derives the title-score supremacy thresholds from the board
+// size (titres.md § Seuil de victoire et fin de partie). A threshold is the
+// share of the game territories (SoloTerritoryPercent / AllianceTerritoryPercent)
+// a player or alliance should hold through fiefs, divided by ReferenceFiefSize,
+// the average number of territories behind one title (a barony has 3, a duchy
+// 6 or more). The result is approximate by design: fief sizes vary.
 type VictoryBalance struct {
-	SoloBase          int `json:"solo_base" yaml:"solo_base"`
-	SoloPerPlayer     int `json:"solo_per_player" yaml:"solo_per_player"`
-	AllianceBase      int `json:"alliance_base" yaml:"alliance_base"`
-	AlliancePerPlayer int `json:"alliance_per_player" yaml:"alliance_per_player"`
+	SoloTerritoryPercent     int `json:"solo_territory_percent" yaml:"solo_territory_percent"`
+	AllianceTerritoryPercent int `json:"alliance_territory_percent" yaml:"alliance_territory_percent"`
+	ReferenceFiefSize        int `json:"reference_fief_size" yaml:"reference_fief_size"`
 }
 
 type SpecialOrdersBalance struct {
@@ -104,10 +104,9 @@ type rawBalance struct {
 }
 
 type rawVictory struct {
-	SoloBase          *int `yaml:"solo_base"`
-	SoloPerPlayer     *int `yaml:"solo_per_player"`
-	AllianceBase      *int `yaml:"alliance_base"`
-	AlliancePerPlayer *int `yaml:"alliance_per_player"`
+	SoloTerritoryPercent     *int `yaml:"solo_territory_percent"`
+	AllianceTerritoryPercent *int `yaml:"alliance_territory_percent"`
+	ReferenceFiefSize        *int `yaml:"reference_fief_size"`
 }
 
 type rawSpecialOrders struct {
@@ -304,26 +303,25 @@ func (raw rawBalance) victory(path string) (VictoryBalance, error) {
 	if raw.Victory == nil {
 		return VictoryBalance{}, missingBalanceValue(path, "victory")
 	}
-	soloBase, err := requiredNonNegativeInt(path, "victory.solo_base", raw.Victory.SoloBase)
+	solo, err := requiredPositiveInt(path, "victory.solo_territory_percent", raw.Victory.SoloTerritoryPercent)
 	if err != nil {
 		return VictoryBalance{}, err
 	}
-	soloPerPlayer, err := requiredNonNegativeInt(path, "victory.solo_per_player", raw.Victory.SoloPerPlayer)
+	alliance, err := requiredPositiveInt(path, "victory.alliance_territory_percent", raw.Victory.AllianceTerritoryPercent)
 	if err != nil {
 		return VictoryBalance{}, err
 	}
-	allianceBase, err := requiredNonNegativeInt(path, "victory.alliance_base", raw.Victory.AllianceBase)
+	size, err := requiredPositiveInt(path, "victory.reference_fief_size", raw.Victory.ReferenceFiefSize)
 	if err != nil {
 		return VictoryBalance{}, err
 	}
-	alliancePerPlayer, err := requiredNonNegativeInt(path, "victory.alliance_per_player", raw.Victory.AlliancePerPlayer)
-	if err != nil {
-		return VictoryBalance{}, err
+	if solo > 100 || alliance > 100 {
+		return VictoryBalance{}, fmt.Errorf("%s: victory territory percentages must not exceed 100", path)
 	}
-	if allianceBase <= soloBase || alliancePerPlayer < soloPerPlayer {
-		return VictoryBalance{}, fmt.Errorf("%s: victory.alliance threshold must stay strictly above the solo threshold for every player count (alliance_base > solo_base and alliance_per_player >= solo_per_player)", path)
+	if alliance <= solo {
+		return VictoryBalance{}, fmt.Errorf("%s: victory.alliance_territory_percent must be strictly above victory.solo_territory_percent", path)
 	}
-	return VictoryBalance{SoloBase: soloBase, SoloPerPlayer: soloPerPlayer, AllianceBase: allianceBase, AlliancePerPlayer: alliancePerPlayer}, nil
+	return VictoryBalance{SoloTerritoryPercent: solo, AllianceTerritoryPercent: alliance, ReferenceFiefSize: size}, nil
 }
 
 func (raw rawBalance) costs(path string) (Costs, error) {

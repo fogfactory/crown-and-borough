@@ -47,14 +47,14 @@ costs:
   fief_per_territory: 2
 
 # Title-score supremacy thresholds (titres.md § Seuil de victoire et fin de
-# partie). solo = solo_base + solo_per_player * players; alliance =
-# alliance_base + alliance_per_player * players. The alliance threshold must stay
-# strictly above the solo one for every player count.
+# partie). Each threshold is the share of the game territories (8 per player)
+# a player (solo) or an alliance should hold through fiefs, divided by the
+# average fief size (a barony has 3 territories, a duchy 6 or more) and rounded
+# up. Approximate by design. The alliance share must exceed the solo share.
 victory:
-  solo_base: 2
-  solo_per_player: 1
-  alliance_base: 3
-  alliance_per_player: 1
+  solo_territory_percent: 50
+  alliance_territory_percent: 66
+  reference_fief_size: 4
 
 # P1.7 game setup values.
 starting_nobles: 2

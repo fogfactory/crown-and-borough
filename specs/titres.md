@@ -270,12 +270,17 @@ Si aucun seuil n'est atteint à la durée maximale de la partie (1 à 50 années
 GDD §2), la partie se termine sur le score de titres le plus élevé à cet
 instant, selon les mêmes règles de seuil et d'alliance.
 
-Les seuils se calculent dans `assets/balance.yaml` (bloc `victory`) :
-seuil solo = `solo_base` + `solo_per_player` × nombre de joueurs ; seuil
-d'alliance = `alliance_base` + `alliance_per_player` × nombre de joueurs, le
-chargeur exigeant qu'il reste strictement supérieur au seuil solo quel que soit
-le nombre de joueurs. Valeurs de départ : solo 2 + 1 par joueur, alliance
-3 + 1 par joueur, à calibrer dans l'issue de milestone dédiée.
+Les seuils se calculent dans `assets/balance.yaml` (bloc `victory`) à partir
+de la taille du plateau : part des territoires de jeu (8 par joueur) que le
+joueur (solo) ou l'alliance doit tenir au travers de fiefs, divisée par la
+taille moyenne d'un fief (`reference_fief_size`, 4) et arrondie au supérieur.
+Valeurs de départ : la moitié des territoires pour gagner seul, les deux tiers
+(66 %) à deux, soit 2/3 titres (solo/alliance) à 2 joueurs, 3/4 à 3 joueurs, 4/6 à 4 joueurs et 6/8 à 6 joueurs.
+Le chiffre est volontairement approximatif, la taille des fiefs variant : un
+joueur qui ne tient que des baronnies (3 territoires) atteint le seuil avec
+moins de territoires, un joueur de duchés avec davantage. Le seuil d'alliance
+reste toujours strictement supérieur au seuil solo. La valeur plus élevée des
+titres de roi et de pape est différée à l'issue de calibrage.
 
 ### Victoire majeure, victoire mineure, échec
 

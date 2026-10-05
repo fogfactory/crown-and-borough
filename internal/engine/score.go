@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
+	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
@@ -100,16 +101,23 @@ func PlayerMustSubmit(state *models.GameState, playerID models.PlayerID) bool {
 }
 
 // VictoryThresholds returns the solo and alliance title-score thresholds for
-// playerCount players (titres.md § Seuil de victoire et fin de partie). The
-// alliance threshold is strictly above the solo one. Both are zero when the
+// playerCount players (titres.md § Seuil de victoire et fin de partie). Each is
+// the configured share of the game territories (mapgen.TerritoriesPerPlayer
+// per player) divided by the reference fief size, rounded up. The alliance
+// threshold is always strictly above the solo one. Both are zero when the
 // balance defines no victory block, which disables threshold victories.
 func VictoryThresholds(balance assetgen.Balance, playerCount int) (solo, alliance int) {
 	victory := balance.Victory
-	if victory.AllianceBase < 1 {
+	if victory.ReferenceFiefSize < 1 || victory.SoloTerritoryPercent < 1 {
 		return 0, 0
 	}
-	solo = victory.SoloBase + victory.SoloPerPlayer*playerCount
-	alliance = victory.AllianceBase + victory.AlliancePerPlayer*playerCount
+	denominator := 100 * victory.ReferenceFiefSize
+	territories := mapgen.TerritoriesPerPlayer * playerCount
+	solo = (territories*victory.SoloTerritoryPercent + denominator - 1) / denominator
+	alliance = (territories*victory.AllianceTerritoryPercent + denominator - 1) / denominator
+	if alliance <= solo {
+		alliance = solo + 1
+	}
 	return solo, alliance
 }
 

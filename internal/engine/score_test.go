@@ -216,18 +216,21 @@ func TestPlayerMustSubmitWaitsForPlayerWithCardInHand(t *testing.T) {
 
 func victoryBalance() assetgen.Balance {
 	balance := testBalance()
-	balance.Victory = assetgen.VictoryBalance{SoloBase: 1, SoloPerPlayer: 1, AllianceBase: 3, AlliancePerPlayer: 1}
+	balance.Victory = assetgen.VictoryBalance{SoloTerritoryPercent: 50, AllianceTerritoryPercent: 66, ReferenceFiefSize: 4}
 	return balance
 }
 
-func TestVictoryThresholdsAllianceStrictlyAboveSolo(t *testing.T) {
+func TestVictoryThresholdsFollowBoardSize(t *testing.T) {
 	balance := victoryBalance()
-	for players := 2; players <= 6; players++ {
+	want := map[int][2]int{2: {2, 3}, 3: {3, 4}, 4: {4, 6}, 6: {6, 8}}
+	for players, expected := range want {
 		solo, alliance := VictoryThresholds(balance, players)
-		if solo != 1+players {
-			t.Fatalf("solo(%d) = %d, want %d", players, solo, 1+players)
+		if solo != expected[0] || alliance != expected[1] {
+			t.Fatalf("thresholds(%d) = %d/%d, want %d/%d", players, solo, alliance, expected[0], expected[1])
 		}
-		if alliance <= solo {
+	}
+	for players := 2; players <= 8; players++ {
+		if solo, alliance := VictoryThresholds(balance, players); alliance <= solo {
 			t.Fatalf("alliance(%d) = %d, want strictly above solo %d", players, alliance, solo)
 		}
 	}
@@ -262,12 +265,12 @@ func thresholdState(fiefsForP1 int) *models.GameState {
 }
 
 func TestGameEndsWhenSoloThresholdIsReached(t *testing.T) {
-	balance := victoryBalance() // two players: solo threshold 3
-	below := thresholdState(2)
+	balance := victoryBalance() // two players: solo threshold 2
+	below := thresholdState(1)
 	if GameFinished(below, balance) {
 		t.Fatal("game finished below the solo threshold")
 	}
-	reached := thresholdState(3)
+	reached := thresholdState(2)
 	if !GameFinished(reached, balance) {
 		t.Fatal("game should end when the solo threshold is reached")
 	}
