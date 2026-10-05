@@ -180,7 +180,7 @@ func (ctx *resolutionContext) setCapital(playerID models.PlayerID, infrastructur
 
 func (ctx *resolutionContext) hasAvailableFirstName(firstNames []assetgen.Asset) bool {
 	for _, firstName := range firstNames {
-		if _, exists := ctx.noblesByCode[models.NobleCode(firstName.Code)]; !exists {
+		if _, exists := ctx.noblesByCode[models.NobleCode(firstName.Code)]; !exists && !ctx.removedNobleCodes[firstName.Code] {
 			return true
 		}
 	}
@@ -191,7 +191,7 @@ func (ctx *resolutionContext) drawFirstName(rng *rand.Rand, firstNames []assetge
 	start := rng.IntN(len(firstNames))
 	for offset := 0; offset < len(firstNames); offset++ {
 		candidate := firstNames[(start+offset)%len(firstNames)]
-		if _, exists := ctx.noblesByCode[models.NobleCode(candidate.Code)]; !exists {
+		if _, exists := ctx.noblesByCode[models.NobleCode(candidate.Code)]; !exists && !ctx.removedNobleCodes[candidate.Code] {
 			return candidate
 		}
 	}
@@ -378,8 +378,15 @@ func (ctx *resolutionContext) addWinterInfrastructure(infrastructureType models.
 	return ctx.infrastructuresByID[infrastructure.ID]
 }
 
-func nextNobleID(nobles []models.Noble) models.NobleID {
-	return models.NobleID(fmt.Sprintf("N%d", nextIDSequence(nobleIDs(nobles), 'N')))
+// nextNobleID scans both the living nobles and the lineage of removed ones:
+// a dead noble's ID must stay reserved forever rather than be handed out
+// again to a later recruit (specs/succession.md § Lignée).
+func nextNobleID(nobles []models.Noble, removedNobles []models.RemovedNoble) models.NobleID {
+	ids := nobleIDs(nobles)
+	for _, removed := range removedNobles {
+		ids = append(ids, string(removed.ID))
+	}
+	return models.NobleID(fmt.Sprintf("N%d", nextIDSequence(ids, 'N')))
 }
 
 func nextInfrastructureID(infrastructures []models.Infrastructure) models.InfraID {

@@ -70,6 +70,23 @@ type Noble struct {
 	LastEmissionTurn int         `json:"lastEmissionTurn"`
 }
 
+// RemovedNoble is the lineage record of a noble who has permanently left
+// play (specs/succession.md § Lignée): it keeps the identity that noble had
+// while alive, plus the cause and turn of death, instead of discarding that
+// history once the noble leaves GameState.Nobles. Its position in the
+// recruitment order stays recoverable from its ID, a global, strictly
+// increasing sequence shared with GameState.Nobles. Both its ID and its Code
+// stay reserved forever so a later recruit never collides with them (see
+// engine.nextNobleID and resolutionContext.removedNobleCodes).
+type RemovedNoble struct {
+	ID      NobleID    `json:"id"`
+	Code    string     `json:"code"`
+	Name    string     `json:"name"`
+	OwnerID PlayerID   `json:"owner"`
+	Cause   DeathCause `json:"cause"`
+	Turn    int        `json:"turn"`
+}
+
 // Infrastructure is a buildable structure. Level is >= 1: a mill yields +1 R
 // per level and a castle honours its defensive bonus regardless of its level
 // (GDD §7, §8). An infrastructure belongs to its tile, not to a player: there

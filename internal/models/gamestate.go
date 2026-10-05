@@ -42,7 +42,7 @@ type GameState struct {
 	Players             []Player                       `json:"players"`
 	Territories         []Territory                    `json:"territories"`
 	Nobles              []Noble                        `json:"nobles"`
-	RemovedNobleIDs     []NobleID                      `json:"removedNobleIds"`
+	RemovedNobles       []RemovedNoble                 `json:"removedNobles"`
 	Armies              []Army                         `json:"armies"`
 	Chains              []Chain                        `json:"chains"`
 	Privacy             *PrivacyMeta                   `json:"privacy,omitempty"`
@@ -63,15 +63,15 @@ type GameState struct {
 // {} rather than null.
 func NewGameState() *GameState {
 	return &GameState{
-		Turn:            1,
-		Season:          SeasonForTurn(1),
-		YearCount:       DefaultGameYears,
-		Players:         []Player{},
-		Territories:     []Territory{},
-		Nobles:          []Noble{},
-		RemovedNobleIDs: []NobleID{},
-		Armies:          []Army{},
-		Chains:          []Chain{},
+		Turn:          1,
+		Season:        SeasonForTurn(1),
+		YearCount:     DefaultGameYears,
+		Players:       []Player{},
+		Territories:   []Territory{},
+		Nobles:        []Noble{},
+		RemovedNobles: []RemovedNoble{},
+		Armies:        []Army{},
+		Chains:        []Chain{},
 		Privacy: &PrivacyMeta{
 			ChainKnowledge:      map[PlayerID]map[ChainID]ChainSnapshot{},
 			CombatParticipation: map[PlayerID]map[string]bool{},
@@ -253,15 +253,36 @@ func (g *GameState) Validate() error {
 		nobleOwners[n.ID] = n.OwnerID
 	}
 
-	removedNobles := make(map[NobleID]bool, len(g.RemovedNobleIDs))
-	for _, nobleID := range g.RemovedNobleIDs {
-		if nobleID == "" || removedNobles[nobleID] {
-			return fmt.Errorf("models: removed noble %q: duplicate or empty id", nobleID)
+	// 6b. Removed nobles: the lineage of nobles who permanently left play.
+	// Their id and code stay reserved forever (engine.nextNobleID,
+	// resolutionContext.removedNobleCodes), so both must still be checked for
+	// collision here against the live nobles above and each other.
+	removedNobles := make(map[NobleID]bool, len(g.RemovedNobles))
+	for i := range g.RemovedNobles {
+		r := &g.RemovedNobles[i]
+		if r.ID == "" || removedNobles[r.ID] {
+			return fmt.Errorf("models: removed noble %q: duplicate or empty id", r.ID)
 		}
-		if nobles[nobleID] {
-			return fmt.Errorf("models: removed noble %q: still exists", nobleID)
+		if nobles[r.ID] {
+			return fmt.Errorf("models: removed noble %q: still exists", r.ID)
 		}
-		removedNobles[nobleID] = true
+		if !isCode(r.Code, 3) {
+			return fmt.Errorf("models: removed noble %q: invalid code %q (want exactly 3 uppercase letters)", r.ID, r.Code)
+		}
+		if prev, dup := nobleCodes[r.Code]; dup {
+			return fmt.Errorf("models: removed noble %q: duplicate code %q (already used by %q)", r.ID, r.Code, prev)
+		}
+		nobleCodes[r.Code] = r.ID
+		if !players[r.OwnerID] {
+			return fmt.Errorf("models: removed noble %q: unknown owner %q", r.ID, r.OwnerID)
+		}
+		if !r.Cause.IsValid() {
+			return fmt.Errorf("models: removed noble %q: invalid death cause %q", r.ID, r.Cause)
+		}
+		if r.Turn < 0 || r.Turn > g.Turn {
+			return fmt.Errorf("models: removed noble %q: turn %d must be between 0 and %d", r.ID, r.Turn, g.Turn)
+		}
+		removedNobles[r.ID] = true
 	}
 
 	// 7. Chains: unique ids, valid references and complete stored orders. The
