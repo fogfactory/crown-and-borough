@@ -10,7 +10,7 @@ jobs:
   go:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -30,7 +30,7 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build image with public Firebase configuration
         run: |
           docker build -t crown-and-borough:ci \
@@ -46,7 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: docker
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build smoke image
         run: |
           docker build -t crown-and-borough:smoke \
@@ -134,7 +134,7 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -148,7 +148,7 @@ jobs:
   firestore:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
@@ -164,7 +164,7 @@ jobs:
   workflows:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Validate GitHub Actions workflows
         run: >-
           docker run --rm
