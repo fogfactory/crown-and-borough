@@ -53,12 +53,15 @@ jusqu'à repasser sous le plafond.
 
 Chaque joueur pioche dans un **deck de nobles unique**, partagé par
 tous les joueurs, généré déterministiquement à partir de la seed de partie
-comme le deck d'ordres spéciaux. Il contient deux sortes de cartes :
+comme le deck d'ordres spéciaux. Il contient trois sortes de cartes :
 
 - des **cartes de noble**, chacune portant un nom, un trigramme et un sexe
   tirés de `assets/prenoms.csv`, sans trait de départ. Elles sont réparties
   à parts égales entre hommes et femmes (la seed tranche la carte restante
   quand leur nombre est impair) ;
+- des **cartes de prétention** (code `CLM`), qui ne recrutent personne : elles
+  se jouent avec `C N HHH CCC` pour qu'un noble du joueur réclame les titres
+  d'un noble d'une autre famille, voir [Prétentions](#prétentions-claims) ;
 - des **cartes de dignité**, qui ne recrutent personne : elles se jouent sur
   un noble déjà en jeu pour lui conférer une [dignité](dames.md#dignités).
   La seule dignité du deck est le [bâtard](#bâtard) ; d'autres s'y ajouteront
@@ -69,11 +72,16 @@ comme le deck d'ordres spéciaux. Il contient deux sortes de cartes :
 un nom encore libre (les nobles de départ en consomment aussi). Parmi elles,
 les dignités duplicables représentent une carte sur `joueurs − 1`, sans
 dépasser une carte sur quatre : `max(1, deck / max(joueurs − 1, 4))` cartes,
-arrondies à l'entier inférieur. Ce quota garantit au moins un bâtard par
-partie ; le reste du deck est constitué de cartes de noble.
+arrondies à l'entier inférieur. Les cartes de prétention
+représentent une carte sur `2 × max(joueurs − 1, 4)`, au moins une. Ce quota
+garantit au moins un bâtard et une prétention par partie ; le reste du deck est constitué de cartes de noble.
 
-Le recrutement se déroule en deux temps, chacun une entrée d'ordre d'hiver
-distincte :
+La **pioche** (`T N`) et la **défausse** (`D C CCC`) sont des ordres d'hiver. Les
+ordres qui **jouent** une carte (`R N`, `C N`, `D N`) se soumettent à
+n'importe quelle saison, d'action ou d'hiver : ils s'appliquent au début de la
+résolution, avant les ordres d'armée, et un noble recruté ne participe au tour
+qu'à partir du suivant. Le recrutement se déroule en deux temps, chacun une
+entrée d'ordre distincte :
 
 - **pioche** (`T N`, un ordre gratuit) : ajoute la carte du dessus du deck à
   la main de cartes de noble du joueur, au plus une fois par joueur et par
@@ -335,7 +343,10 @@ meurt, les titres de fief qu'il détient reviennent à l'héritier. Le roi et le
 pape peuvent annuler le Claim ; une annulation par le pape confère au seigneur
 la dignité de [bâtard](#bâtard) (issues #256 et #257, non livrées).
 
-**Ordre.** `C N HHH CCC` (gratuit, aucune carte) : `HHH` est un noble du
+**Ordre.** `C N HHH CCC` (gratuit) consomme une **carte de prétention** de la main de
+cartes de noble du joueur (`card_not_in_hand` sinon ; la carte reste sur
+l'héritier tant que sa prétention vit et retourne à la défausse quand elle
+s'éteint) : `HHH` est un noble du
 joueur, l'héritier, et `CCC` un noble d'un autre joueur dont il réclame les
 titres. Conditions, un ordre qui n'en respecte pas une est rejeté avec le
 motif indiqué :

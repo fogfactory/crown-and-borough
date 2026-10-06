@@ -177,7 +177,7 @@ export interface Noble {
 /** A permanent distinction played on a noble; only the bastard exists. */
 export type Dignity = 'bastard'
 
-export type NobleCardKind = 'noble' | 'dignity'
+export type NobleCardKind = 'noble' | 'dignity' | 'claim'
 
 /** One card of the viewer's own noble hand (never other players' hands). */
 export interface NobleCard {
@@ -327,6 +327,7 @@ export interface StateData {
   territories: TerritoryState[]
   nobles: Noble[]
   fiefs?: Fief[]
+  marriages?: { nobleA: string; nobleB: string; turn: number }[]
   specialHand?: CardKind[]
   nobleHand?: NobleCard[]
   /** Cards left in the shared noble draw pile. */

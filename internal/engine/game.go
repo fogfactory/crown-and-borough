@@ -408,9 +408,6 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 	if game.Season == models.SeasonWinter && len(input.Chains) != 0 {
 		inputErrors.Errors = append(inputErrors.Errors, newInputError("", "", 0, "chains_in_winter", i18n.ErrorChainsInWinter))
 	}
-	if game.Season != models.SeasonWinter && len(input.Winter) != 0 {
-		inputErrors.Errors = append(inputErrors.Errors, newInputError("", "", 0, "winter_out_of_season", i18n.ErrorWinterOutOfSeason))
-	}
 
 	players := make(map[models.PlayerID]bool, len(game.Players))
 	for _, player := range game.Players {
@@ -500,6 +497,18 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 		parsed, parsedDeck, parseErrors := orders.ParseWinterOrdersWithDeckOrders(submission.Lines, game)
 		for _, parseError := range parseErrors {
 			inputErrors.Errors = append(inputErrors.Errors, newInputError(submission.Player, "", parseError.Line, "parse_"+parseError.Code, parseError.MessageKey, parseError.MessageArgs...))
+		}
+		if len(parseErrors) == 0 && game.Season != models.SeasonWinter {
+			// Outside winter, only the orders that play a character card of
+			// the noble deck are accepted.
+			misplaced := len(parsedDeck) != 0
+			for _, order := range parsed {
+				misplaced = misplaced || !isCharacterCardOrder(order.Type)
+			}
+			if misplaced {
+				inputErrors.Errors = append(inputErrors.Errors, newInputError(submission.Player, "", 0, "winter_out_of_season", i18n.ErrorWinterOutOfSeason))
+				continue
+			}
 		}
 		if len(parseErrors) == 0 {
 			winterOrders[submission.Player] = append(winterOrders[submission.Player], parsed...)
@@ -599,7 +608,7 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 	if game.Season == models.SeasonWinter {
 		resolution, err = ResolveWinterWithDeckOrders(working, balance, winterOrders, deckOrders)
 	} else {
-		resolution, err = ResolveWithDeckOrders(working, balance, deckOrders)
+		resolution, err = ResolveWithOrders(working, balance, deckOrders, winterOrders)
 	}
 	if err != nil {
 		return TurnReport{}, err

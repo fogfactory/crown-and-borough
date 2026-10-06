@@ -53,7 +53,7 @@ func TestAdjudicationCorpus(t *testing.T) {
 	if *corpusDump >= 0 {
 		state, description, startControl := corpusState(t, *corpusDump)
 		for turn := 1; turn <= 2; turn++ {
-			resolution, err := resolveFromControl(state, testBalance(), nil, startControl)
+			resolution, err := resolveFromControl(state, testBalance(), nil, nil, startControl)
 			encoded, _ := json.MarshalIndent(resolution, "", "  ")
 			t.Logf("seed %d turn %d\n%s\nerr=%v\n%s", *corpusDump, turn, description, err, encoded)
 			if err != nil {
@@ -185,7 +185,7 @@ func corpusDigest(t *testing.T, seed int64) string {
 	state, _, startControl := corpusState(t, seed)
 	digests := make([]string, 0, 2)
 	for turn := 1; turn <= 2; turn++ {
-		resolution, err := resolveFromControl(state, testBalance(), nil, startControl)
+		resolution, err := resolveFromControl(state, testBalance(), nil, nil, startControl)
 		if err != nil {
 			digests = append(digests, corpusErrorDigest)
 			break

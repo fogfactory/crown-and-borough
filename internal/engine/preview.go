@@ -91,7 +91,9 @@ func PreviewOrders(game *models.GameState, balance assetgen.Balance, playerID mo
 			chain, _ := orders.ParseChain(submission.Text, game)
 			preview.Chains = append(preview.Chains, ChainPreview{Noble: submission.Noble, Orders: chain.Orders})
 		}
-		return preview, nil
+		if len(input.Winter) == 0 {
+			return preview, nil
+		}
 	}
 
 	lines := make([]string, 0, len(input.Winter))
@@ -134,15 +136,33 @@ func previewWinter(preview *OrdersPreview, game *models.GameState, balance asset
 		return nil
 	}
 
-	resolution, err := ResolveWinterWithDeckOrders(game, balance,
-		map[models.PlayerID][]models.WinterOrder{playerID: winterOrders},
-		map[models.PlayerID][]models.DeckOrder{playerID: deckOrders},
-	)
-	if err != nil {
-		return fmt.Errorf("engine: preview winter: %w", err)
+	var events []Event
+	if game.Season == models.SeasonWinter {
+		resolution, err := ResolveWinterWithDeckOrders(game, balance,
+			map[models.PlayerID][]models.WinterOrder{playerID: winterOrders},
+			map[models.PlayerID][]models.DeckOrder{playerID: deckOrders},
+		)
+		if err != nil {
+			return fmt.Errorf("engine: preview winter: %w", err)
+		}
+		events = resolution.Events
+	} else {
+		// Outside winter only the character-card orders apply; any other
+		// line was already reported by the input validation.
+		cardOrders := []models.WinterOrder{}
+		for _, order := range winterOrders {
+			if isCharacterCardOrder(order.Type) {
+				cardOrders = append(cardOrders, order)
+			}
+		}
+		var err error
+		events, err = applyCharacterCardOrders(cloneGameState(game), balance, map[models.PlayerID][]models.WinterOrder{playerID: cardOrders})
+		if err != nil {
+			return fmt.Errorf("engine: preview card orders: %w", err)
+		}
 	}
 	outcomes := make(map[models.OrderID]Event)
-	for _, event := range resolution.Events {
+	for _, event := range events {
 		if event.OrderID == "" {
 			continue
 		}

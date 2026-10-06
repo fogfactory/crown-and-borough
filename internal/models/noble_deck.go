@@ -14,15 +14,21 @@ const (
 	// NobleCardKindDignity confers a dignity on an owned noble when played
 	// (D N).
 	NobleCardKindDignity NobleCardKind = "dignity"
+	// NobleCardKindClaim is consumed by a claim order (C N) played on one of
+	// the player's nobles, its heir.
+	NobleCardKindClaim NobleCardKind = "claim"
 )
+
+// ClaimCardCode is the code of the claim cards, as typed in D C CLM.
+const ClaimCardCode = "CLM"
 
 // IsValid reports whether the kind is a known value.
 func (k NobleCardKind) IsValid() bool {
-	return k == NobleCardKindNoble || k == NobleCardKindDignity
+	return k == NobleCardKindNoble || k == NobleCardKindDignity || k == NobleCardKindClaim
 }
 
 // NobleCard is one card of the noble deck (specs/succession.md § Deck de
-// nobles). A noble card carries the identity of the noble it recruits (Code
+// nobles). A claim card carries no identity: it is played on an heir. A noble card carries the identity of the noble it recruits (Code
 // is its trigram); a dignity card carries the Dignity it confers and its
 // card code (several dignity cards of the same dignity share it).
 type NobleCard struct {
@@ -114,7 +120,7 @@ func (d *NobleDeck) HandCardByCode(playerID PlayerID, code string) (NobleCard, i
 	return NobleCard{}, -1, false
 }
 
-func validateNobleDeck(deck *NobleDeck, players map[PlayerID]bool, nobleCodes map[string]NobleID, nobles []Noble) error {
+func validateNobleDeck(deck *NobleDeck, players map[PlayerID]bool, nobleCodes map[string]NobleID, nobles []Noble, claims []Claim) error {
 	if deck == nil {
 		return nil
 	}
@@ -136,6 +142,10 @@ func validateNobleDeck(deck *NobleDeck, players map[PlayerID]bool, nobleCodes ma
 				return fmt.Errorf("models: noble card %q: duplicate code %q", card.ID, card.Code)
 			}
 			cardCodes[card.Code] = true
+		case NobleCardKindClaim:
+			if card.Code != ClaimCardCode || card.Name != "" || card.Sex != "" || card.Dignity != "" {
+				return fmt.Errorf("models: noble card %q: invalid claim card", card.ID)
+			}
 		case NobleCardKindDignity:
 			if !card.Dignity.IsValid() || card.Code != card.Dignity.Effect().CardCode || card.Name != "" || card.Sex != "" {
 				return fmt.Errorf("models: noble card %q: invalid dignity", card.ID)
@@ -187,6 +197,10 @@ func validateNobleDeck(deck *NobleDeck, players map[PlayerID]bool, nobleCodes ma
 			return fmt.Errorf("models: noble card %q: played on unknown noble %q", play.Card, play.Noble)
 		case card.Kind == NobleCardKindNoble && noble.Code != card.Code:
 			return fmt.Errorf("models: noble card %q: noble %q has code %q", play.Card, noble.ID, noble.Code)
+		case card.Kind == NobleCardKindClaim:
+			if !hasClaim(claims, noble.ID) {
+				return fmt.Errorf("models: noble card %q: noble %q holds no claim", play.Card, noble.ID)
+			}
 		case card.Kind == NobleCardKindDignity && !noble.Has(card.Dignity):
 			return fmt.Errorf("models: noble card %q: noble %q does not carry dignity %q", play.Card, noble.ID, card.Dignity)
 		}

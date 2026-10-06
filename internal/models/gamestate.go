@@ -611,7 +611,7 @@ func (g *GameState) Validate() error {
 	if err := validateSpecialDeck(g.SpecialDeck, g.Auguries, players); err != nil {
 		return err
 	}
-	if err := validateNobleDeck(g.NobleDeck, players, nobleCodes, g.Nobles); err != nil {
+	if err := validateNobleDeck(g.NobleDeck, players, nobleCodes, g.Nobles, g.Claims); err != nil {
 		return err
 	}
 	if err := validateActiveRegionEffects(g.ActiveRegionEffects, g.Regions); err != nil {

@@ -37,6 +37,7 @@ func countKinds(deck *models.NobleDeck) (males, females, dignities int) {
 		switch {
 		case card.Kind == models.NobleCardKindDignity:
 			dignities++
+		case card.Kind == models.NobleCardKindClaim:
 		case card.Sex == models.SexMale:
 			males++
 		default:
@@ -77,7 +78,7 @@ func TestBuildNobleDeckSizesParityAndBastards(t *testing.T) {
 				if card.Kind != models.NobleCardKindNoble {
 					continue
 				}
-				if used[card.Code] || card.Code == models.DignityBastardCardCode || codes[card.Code] {
+				if used[card.Code] || card.Code == models.DignityBastardCardCode || card.Code == models.ClaimCardCode || codes[card.Code] {
 					t.Errorf("noble card %+v reuses a taken code", card)
 				}
 				codes[card.Code] = true
@@ -96,8 +97,14 @@ func TestBuildNobleDeckFourPlayers(t *testing.T) {
 	prenoms := realPrenoms(t)
 	deck := buildNobleDeck("deck-four", deckTestPlayers(4), 6, prenoms, startingCodes(prenoms, 8))
 	males, females, dignities := countKinds(deck)
-	if len(deck.Cards) != 28 || dignities != 7 || males+females != 21 {
-		t.Errorf("deck = %d cards (%d dignities, %d nobles), want 28 (7, 21)", len(deck.Cards), dignities, males+females)
+	claims := 0
+	for _, card := range deck.Cards {
+		if card.Kind == models.NobleCardKindClaim {
+			claims++
+		}
+	}
+	if len(deck.Cards) != 28 || dignities != 7 || claims != 3 || males+females != 18 {
+		t.Errorf("deck = %d cards (%d dignities, %d claims, %d nobles), want 28 (7, 3, 18)", len(deck.Cards), dignities, claims, males+females)
 	}
 	for _, player := range deckTestPlayers(4) {
 		if hand, exists := deck.Hands[player.ID]; !exists || len(hand) != 0 {
@@ -118,10 +125,10 @@ func TestBuildNobleDeckIsDeterministicAndSeeded(t *testing.T) {
 		t.Error("two seeds built the same shuffled draw pile")
 	}
 	// The seed decides which sex gets the odd card: 2 players make 11 noble
-	// cards.
+	// cards (5 players make 23 noble cards).
 	sawMale, sawFemale := false, false
 	for index := 0; index < 20; index++ {
-		deck := buildNobleDeck(fmt.Sprintf("odd-%d", index), deckTestPlayers(2), 6, prenoms, startingCodes(prenoms, 4))
+		deck := buildNobleDeck(fmt.Sprintf("odd-%d", index), deckTestPlayers(5), 6, prenoms, startingCodes(prenoms, 10))
 		males, females, _ := countKinds(deck)
 		switch males - females {
 		case 1:

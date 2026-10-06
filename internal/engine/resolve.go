@@ -15,7 +15,48 @@ func Resolve(game *models.GameState, balance assetgen.Balance) (Resolution, erro
 }
 
 func ResolveWithDeckOrders(game *models.GameState, balance assetgen.Balance, deckOrders map[models.PlayerID][]models.DeckOrder) (Resolution, error) {
-	return resolveFromControl(game, balance, deckOrders, nil)
+	return resolveFromControl(game, balance, deckOrders, nil, nil)
+}
+
+// ResolveWithOrders is ResolveWithDeckOrders plus the character-card orders
+// of the noble deck (R N, C N, D N), which can be played in any season and
+// are applied before everything else resolves. A noble they bring into play
+// takes part in the turn only from the next one.
+func ResolveWithOrders(game *models.GameState, balance assetgen.Balance, deckOrders map[models.PlayerID][]models.DeckOrder, cardOrders map[models.PlayerID][]models.WinterOrder) (Resolution, error) {
+	return resolveFromControl(game, balance, deckOrders, cardOrders, nil)
+}
+
+// isCharacterCardOrder tells the winter orders that play a card of the noble
+// deck: they are the only ones accepted outside winter.
+func isCharacterCardOrder(orderType models.WinterOrderType) bool {
+	switch orderType {
+	case models.WinterOrderTypeRecruitNoble, models.WinterOrderTypeClaim, models.WinterOrderTypeDignity:
+		return true
+	}
+	return false
+}
+
+// applyCharacterCardOrders plays the card orders on state, in player order
+// then sheet order, and returns their events.
+func applyCharacterCardOrders(state *models.GameState, balance assetgen.Balance, cardOrders map[models.PlayerID][]models.WinterOrder) ([]Event, error) {
+	if err := validateWinterPlayers(state, cardOrders); err != nil {
+		return nil, err
+	}
+	for _, playerOrders := range cardOrders {
+		for _, order := range playerOrders {
+			if !isCharacterCardOrder(order.Type) {
+				return nil, fmt.Errorf("engine: resolve: order %q cannot be played outside winter", order.Type)
+			}
+		}
+	}
+	ctx := newResolutionContext(state, balance)
+	firstNameRNG := newWinterRNG(state.Seed, state.Turn)
+	for _, playerID := range sortedPlayerIDs(state.Players) {
+		for _, order := range cardOrders[playerID] {
+			executeWinterOrder(ctx, playerID, order, firstNameRNG)
+		}
+	}
+	return ctx.events, nil
 }
 
 // resolveFromControl is ResolveWithDeckOrders starting from an explicit
@@ -24,7 +65,7 @@ func ResolveWithDeckOrders(game *models.GameState, balance assetgen.Balance, dec
 // replay states that no derivation can produce, such as an empty castle still
 // held by a player who has left, and so check that the phases resolve them
 // exactly as they did when control was stored.
-func resolveFromControl(game *models.GameState, balance assetgen.Balance, deckOrders map[models.PlayerID][]models.DeckOrder, startControl map[models.TerritoryID]models.PlayerID) (Resolution, error) {
+func resolveFromControl(game *models.GameState, balance assetgen.Balance, deckOrders map[models.PlayerID][]models.DeckOrder, cardOrders map[models.PlayerID][]models.WinterOrder, startControl map[models.TerritoryID]models.PlayerID) (Resolution, error) {
 	if game == nil {
 		return Resolution{}, fmt.Errorf("engine: resolve: nil game state")
 	}
@@ -41,7 +82,12 @@ func resolveFromControl(game *models.GameState, balance assetgen.Balance, deckOr
 		return Resolution{}, err
 	}
 	state := cloneGameState(game)
+	cardEvents, err := applyCharacterCardOrders(state, balance, cardOrders)
+	if err != nil {
+		return Resolution{}, err
+	}
 	ctx := newResolutionContext(state, balance)
+	ctx.events = append(ctx.events, cardEvents...)
 	if startControl != nil {
 		ctx.startControl = startControl
 	}

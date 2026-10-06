@@ -650,7 +650,7 @@ per line, applied in the entered order.
 |---|---|---|---|
 | Draw a noble card | `T N` | once per winter and per player; the noble deck, shared by all players, must not be empty | 0 |
 | Recruit a noble | `R N CCC XXX` | `CCC` is a noble card in your hand; `XXX` controlled, with a castle or village and a player army, and fewer living nobles owned than your cap, {{noble_limit}} at the base (see below) | 0 |
-| Claim titles | `C N HHH CCC` | `HHH` is one of your nobles, placed during a marriage of `CCC` with one of your nobles, not a bastard and without a current claim; `CCC` is a noble of another player | 0 |
+| Claim titles | `C N HHH CCC` | you hold a claim card (`CLM`); `HHH` is one of your nobles, placed during a marriage of `CCC` with one of your nobles, not a bastard and without a current claim; `CCC` is a noble of another player | 0 |
 | Grant a dignity | `D N NNN CCC` | `NNN` is a player noble; `CCC` is a dignity card in your hand (`BAS`: bastard); a noble is a bastard only once | 0 |
 | Discard a noble card | `D C CCC` | `CCC` is a card in your noble hand (noble trigram or `BAS`); no limit per winter; the card goes to the deck's discard pile | 0 |
 | Recruit a troop | `R T XXX` | `XXX` controlled, and a free player noble on `XXX` or adjacent | {{costs.troop}} |
@@ -691,7 +691,10 @@ dignity card returns to the discard pile when its carrier dies or loses the
 dignity. When the draw pile is empty, the discard pile is shuffled to rebuild
 it.
 
-A **claim** lets one of your nobles, the heir `HHH`, claim the titles of a noble
+Noble (`R N`), claim (`C N`) and dignity (`D N`) cards can be played in any season, action or
+winter; `T N` and `D C` remain winter orders.
+
+A **claim**, which consumes a claim card (`CLM`), lets one of your nobles, the heir `HHH`, claim the titles of a noble
 `CCC` of another player with `C N HHH CCC`, provided `HHH` was placed during a
 marriage between `CCC` and one of your nobles. An heir claims a single noble and
 cannot be a bastard. Claims stack:

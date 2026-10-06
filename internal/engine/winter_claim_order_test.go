@@ -22,7 +22,13 @@ func claimTestState(t *testing.T) *models.GameState {
 	state.Nobles[2].PlacedTurn = 8
 	state.Nobles[3].PlacedTurn = 8
 	state.Marriages = []models.Marriage{{NobleA: "N1", NobleB: "N2", Turn: 8}}
+	giveClaimCard(state, "P1")
+	giveClaimCard(state, "P2")
 	return state
+}
+
+func giveClaimCard(state *models.GameState, playerID models.PlayerID) models.NobleCardID {
+	return giveCard(state, playerID, models.NobleCard{Kind: models.NobleCardKindClaim, Code: models.ClaimCardCode})
 }
 
 func claimSheetOrder(id models.OrderID, heir, target models.NobleCode) models.WinterOrder {
@@ -237,5 +243,99 @@ func TestStackedClaimFallsBackToNextLivingHeir(t *testing.T) {
 	ctx := newResolutionContext(state, testBalance())
 	if heir := ctx.claimHeirOf("N2"); heir == nil || heir.ID != "N4" {
 		t.Errorf("heir = %+v, want N4, the oldest living claim", heir)
+	}
+}
+
+func TestClaimCardIsConsumedAndReturnsToDiscard(t *testing.T) {
+	state := claimTestState(t)
+	resolution := resolveNobleDeckWinter(t, state, map[models.PlayerID][]models.WinterOrder{"P1": {claimSheetOrder("O1", "KID", "ANN")}})
+	deck := resolution.State.NobleDeck
+	if len(deck.Hands["P1"]) != 0 || len(deck.Played) != 1 || deck.Played[0].Noble != "N3" {
+		t.Fatalf("hand = %v, played = %v, want the claim card played on the heir", deck.Hands["P1"], deck.Played)
+	}
+	// The heir becomes a bastard: the claim is void and the card is discarded.
+	giveDignityCard(resolution.State, "P1")
+	next := resolution.State
+	next.Turn += 4
+	voided := resolveNobleDeckWinter(t, next, map[models.PlayerID][]models.WinterOrder{"P1": {
+		{ID: "O1", Type: models.WinterOrderTypeDignity, NobleCode: "KID", CardCode: "BAS"},
+	}})
+	deck = voided.State.NobleDeck
+	if len(voided.State.Claims) != 0 || len(deck.Played) != 1 || len(deck.Discard) != 1 {
+		t.Errorf("claims = %v, played = %v, discard = %v, want the claim card discarded", voided.State.Claims, deck.Played, deck.Discard)
+	}
+}
+
+func TestClaimWithoutCardIsRejected(t *testing.T) {
+	state := claimTestState(t)
+	state.NobleDeck.Discard = append(state.NobleDeck.Discard, state.NobleDeck.Hands["P1"]...)
+	state.NobleDeck.Hands["P1"] = nil
+	resolution := resolveNobleDeckWinter(t, state, map[models.PlayerID][]models.WinterOrder{"P1": {claimSheetOrder("O1", "KID", "ANN")}})
+	if reasons := rejectionReasons(resolution.Events); len(reasons) != 1 || reasons[0] != "card_not_in_hand" {
+		t.Errorf("rejections = %v, want card_not_in_hand", reasons)
+	}
+	if len(resolution.State.Claims) != 0 {
+		t.Errorf("claims = %+v, want none", resolution.State.Claims)
+	}
+}
+
+func TestClaimCardPlayedWhenTargetDiesGoesToDiscard(t *testing.T) {
+	state := claimDeathState(t)
+	ensureNobleDeck(state)
+	cardID := giveClaimCard(state, "P1")
+	state.NobleDeck.Hands["P1"] = nil
+	state.NobleDeck.Played = []models.NobleCardPlay{{Card: cardID, Noble: "N3"}}
+	ctx := resolveClaimDeath(state)
+	if len(ctx.state.NobleDeck.Played) != 0 || len(ctx.state.NobleDeck.Discard) != 1 {
+		t.Errorf("played = %v, discard = %v, want the card back on the discard pile", ctx.state.NobleDeck.Played, ctx.state.NobleDeck.Discard)
+	}
+	validateTestState(t, ctx.state)
+}
+
+// actionSeasonClaimState is claimTestState moved to a spring turn.
+func actionSeasonClaimState(t *testing.T) *models.GameState {
+	t.Helper()
+	state := claimTestState(t)
+	state.Turn = 13
+	state.Season = models.SeasonSpring
+	return state
+}
+
+func TestCharacterCardOrdersCanBePlayedInActionSeasons(t *testing.T) {
+	state := actionSeasonClaimState(t)
+	giveNobleCard(state, "P1", "ELE", "Eleonore", models.SexFemale)
+	validateTestState(t, state)
+	resolution, err := ResolveWithOrders(state, testBalance(), nil, map[models.PlayerID][]models.WinterOrder{"P1": {
+		claimSheetOrder("O1", "KID", "ANN"),
+		{ID: "O2", Type: models.WinterOrderTypeRecruitNoble, CardCode: "ELE", TerritoryID: "AAA"},
+	}})
+	if err != nil {
+		t.Fatalf("ResolveWithOrders: %v", err)
+	}
+	if reasons := rejectionReasons(resolution.Events); len(reasons) != 0 {
+		t.Fatalf("rejections = %v, want none", reasons)
+	}
+	if len(resolution.State.Claims) != 1 {
+		t.Errorf("claims = %+v, want the claim recorded in spring", resolution.State.Claims)
+	}
+	last := resolution.State.Nobles[len(resolution.State.Nobles)-1]
+	if last.Code != "ELE" || last.PlacedTurn != 13 {
+		t.Errorf("recruited noble = %+v, want ELE placed on turn 13", last)
+	}
+}
+
+func TestResolveTurnAcceptsOnlyCardOrdersOutsideWinter(t *testing.T) {
+	state := actionSeasonClaimState(t)
+	// A second living player keeps the game from being finished.
+	state.Territories = append(state.Territories, territory("BBB", "Bbb", "AAA"))
+	state.Territories[0].Adjacencies = append(state.Territories[0].Adjacencies, "BBB")
+	state.Armies = append(state.Armies, models.Army{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1})
+	state.TerritoryStates["BBB"] = models.TerritoryState{Army: armyPointer("A2")}
+	state.NextArmyID = 3
+	for line, wantErr := range map[string]bool{"C N KID ANN": false, "R T AAA": true, "T N": true, "D C CLM": true} {
+		_, err := ResolveTurn(state, testBalance(), OrdersInput{Winter: []WinterSubmission{{Player: "P1", Lines: line}}})
+		if (err != nil) != wantErr {
+			t.Errorf("ResolveTurn(%q) error = %v, want error %v", line, err, wantErr)
+		}
 	}
 }

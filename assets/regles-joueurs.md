@@ -689,7 +689,7 @@ investissements directs, une ligne par ordre, appliqués dans l'ordre saisi.
 |---|---|---|---|
 | Piocher une carte de noble | `T N` | une seule fois par hiver et par joueur ; le deck de nobles, commun à tous, ne doit pas être épuisé | 0 |
 | Recruter un noble | `R N CCC XXX` | `CCC` est une carte de noble de ta main ; `XXX` contrôlé, avec un château ou un village et une armée du joueur, et moins de nobles vivants possédés que ton plafond, {{noble_limit}} de base (voir ci-dessous) | 0 |
-| Réclamer des titres | `C N HHH CCC` | `HHH` est un de tes nobles, posé pendant un mariage de `CCC` avec l'un de tes nobles, non bâtard et sans prétention en cours ; `CCC` est un noble d'un autre joueur | 0 |
+| Réclamer des titres | `C N HHH CCC` | `CLM` est une carte de prétention de ta main ; `HHH` est un de tes nobles, posé pendant un mariage de `CCC` avec l'un de tes nobles, non bâtard et sans prétention en cours ; `CCC` est un noble d'un autre joueur | 0 |
 | Conférer une dignité | `D N NNN CCC` | `NNN` est un noble du joueur ; `CCC` est une carte de dignité de ta main (`BAS` : bâtard) ; un noble n'est bâtard qu'une fois | 0 |
 | Défausser une carte de noble | `D C CCC` | `CCC` est une carte de ta main de nobles (trigramme de noble ou `BAS`) ; sans limite par hiver ; la carte va à la défausse du deck | 0 |
 | Recruter une troupe | `R T XXX` | `XXX` contrôlé, et un noble libre du joueur sur `XXX` ou adjacent | {{costs.troop}} |
@@ -731,7 +731,10 @@ jamais réutilisé. Une carte de dignité retourne à la défausse quand son por
 meurt ou perd la dignité. Quand la pioche est vide, la défausse est mélangée
 pour la reconstituer.
 
-Un **Claim** permet à un de tes nobles, l'héritier `HHH`, de réclamer les titres
+Les cartes de noble (`R N`), de prétention (`C N`) et de dignité (`D N`) se jouent à
+n'importe quelle saison, d'action ou d'hiver ; `T N` et `D C` restent des ordres d'hiver.
+
+Un **Claim**, qui consomme une carte de prétention (`CLM`), permet à un de tes nobles, l'héritier `HHH`, de réclamer les titres
 d'un noble `CCC` d'un autre joueur avec `C N HHH CCC`, à condition que `HHH` ait
 été posé pendant un mariage entre `CCC` et l'un de tes nobles. Un héritier ne
 réclame qu'un seul noble et ne peut pas être bâtard. Les Claims s'empilent :

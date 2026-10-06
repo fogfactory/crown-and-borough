@@ -8,10 +8,10 @@ import (
 
 // claimOrder is C N HHH CCC (specs/succession.md § Prétentions): the player's
 // noble HHH, the heir, claims the fief titles of CCC, a noble of another
-// player. HHH must have been placed while CCC was married to one of the
-// player's nobles; it must not be a bastard nor already hold a claim. Claims
-// stack: when CCC dies they rank by age, then wife's family first. It costs
-// no R.
+// player. It consumes a claim card from the player's noble hand. HHH must
+// have been placed while CCC was married to one of the player's nobles; it
+// must not be a bastard nor already hold a claim. Claims stack: when CCC dies
+// they rank by age, then wife's family first. It costs no R.
 type claimOrder struct{ order models.WinterOrder }
 
 func (order claimOrder) Apply(ctx *ExecutionContext) {
@@ -51,6 +51,12 @@ func (order claimOrder) Apply(ctx *ExecutionContext) {
 		return
 	}
 	spouseID := marriage.SpouseOf(target.ID)
+	_, handIndex, inHand := resolution.state.NobleDeck.HandCard(playerID, models.NobleCardKindClaim, models.ClaimCardCode)
+	if !inHand {
+		resolution.rejectWinterOrder(playerID, winterOrder, "card_not_in_hand")
+		return
+	}
+	resolution.consumeNobleCard(playerID, handIndex, heir.ID)
 	resolution.state.Claims = append(resolution.state.Claims, models.Claim{
 		Heir: heir.ID, Target: target.ID, Spouse: spouseID, Turn: resolution.state.Turn,
 		WifeSide: resolution.wifeFamily(playerID, target, spouseID),
@@ -92,6 +98,26 @@ func (ctx *resolutionContext) wifeFamily(playerID models.PlayerID, target *model
 // (specs/succession.md § Bâtard).
 func (ctx *resolutionContext) voidClaimOf(heirID models.NobleID) {
 	ctx.state.Claims = slices.DeleteFunc(ctx.state.Claims, func(claim models.Claim) bool { return claim.Heir == heirID })
+	ctx.discardClaimCard(heirID)
+}
+
+// discardClaimCard sends the claim card played on the heir back to the
+// discard pile once its claim is over.
+func (ctx *resolutionContext) discardClaimCard(heirID models.NobleID) {
+	deck := ctx.state.NobleDeck
+	if deck == nil {
+		return
+	}
+	for index, play := range deck.Played {
+		if play.Noble != heirID {
+			continue
+		}
+		if card, exists := deck.Card(play.Card); exists && card.Kind == models.NobleCardKindClaim {
+			deck.Played = slices.Delete(deck.Played, index, index+1)
+			deck.Discard = append(deck.Discard, play.Card)
+			return
+		}
+	}
 }
 
 // settleClaimsOfDead drops the claims whose heir or target left play, after
@@ -99,6 +125,13 @@ func (ctx *resolutionContext) voidClaimOf(heirID models.NobleID) {
 // noble has been honoured by vacateFiefsOfMissingHolders first.
 func (ctx *resolutionContext) settleClaimsOfDead() {
 	ctx.state.Claims = slices.DeleteFunc(ctx.state.Claims, func(claim models.Claim) bool {
-		return ctx.noblesByID[claim.Heir] == nil || ctx.noblesByID[claim.Target] == nil
+		if ctx.noblesByID[claim.Heir] != nil && ctx.noblesByID[claim.Target] != nil {
+			return false
+		}
+		// A living heir gets its card back; a dead one already released it.
+		if ctx.noblesByID[claim.Heir] != nil {
+			ctx.discardClaimCard(claim.Heir)
+		}
+		return true
 	})
 }

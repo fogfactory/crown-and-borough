@@ -129,7 +129,7 @@ var supportedTags = []language.Tag{language.English, language.French}
 
 func init() {
 	register(ErrorChainsInWinter, "chains cannot be submitted during winter", "les chaînes ne peuvent pas être soumises pendant l'hiver")
-	register(ErrorWinterOutOfSeason, "winter orders can only be submitted during winter", "les ordres d'hiver ne peuvent être soumis qu'en hiver")
+	register(ErrorWinterOutOfSeason, "outside winter, only the card orders R N, C N and D N can be submitted", "hors de l'hiver, seuls les ordres de carte R N, C N et D N peuvent être soumis")
 	register(ErrorUnknownPlayer, "player %q does not exist", "le joueur %q n'existe pas")
 	register(ErrorPlayerRequired, "one player's orders must be submitted at a time", "les ordres d'un seul joueur doivent être soumis à la fois")
 	register(ErrorForeignChain, "chain %d belongs to player %q", "la chaîne %d appartient au joueur %q")

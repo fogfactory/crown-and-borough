@@ -33,13 +33,13 @@ describe('buildOrdersBody', () => {
   it('sends one headed chain per noble able to emit and the card orders', () => {
     const body = buildOrdersBody(state, 'P1', {
       chainDrafts: { HUG: 'ROS A BRU', JEA: 'ROS H', BOB: 'BRU H' },
-      winterDraft: 'R T ROS',
+      winterDraft: 'R T ROS\nC N HUG BOB\nR N ELE ROS',
       specialDraft: 'P BH ROS',
     })
 
     expect(body).toEqual({
       chains: [{ noble: 'HUG', text: 'HUG\nROS A BRU' }],
-      winter: [],
+      winter: [{ lines: 'C N HUG BOB\nR N ELE ROS' }],
       special: [{ text: 'P BH ROS' }],
     })
   })

@@ -38,6 +38,15 @@ func (g *GameState) ClaimsOn(target NobleID) []Claim {
 	return claims
 }
 
+func hasClaim(claims []Claim, heir NobleID) bool {
+	for _, claim := range claims {
+		if claim.Heir == heir {
+			return true
+		}
+	}
+	return false
+}
+
 // ClaimOf returns the claim the heir holds.
 func (g *GameState) ClaimOf(heir NobleID) (Claim, bool) {
 	for _, claim := range g.Claims {

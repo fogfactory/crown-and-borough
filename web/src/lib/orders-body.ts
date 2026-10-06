@@ -14,6 +14,16 @@ export interface OrdersDrafts {
   specialDraft: string
 }
 
+const CARD_ORDER = /^\s*(R\s+N|C\s+N|D\s+N)\s/i
+
+/** Keeps the lines that play a noble-deck card: the only winter-sheet orders accepted outside winter. */
+function keepCardOrders(draft: string): string {
+  return draft
+    .split('\n')
+    .filter((line) => CARD_ORDER.test(line))
+    .join('\n')
+}
+
 /**
  * Builds the order submission of `player` from its drafts: one chain per
  * noble able to emit (with its header), the winter sheet in winter, where card
@@ -34,12 +44,16 @@ export function buildOrdersBody(
           text: addNobleHeader(noble.code, chainDrafts[noble.code] ?? ''),
         }))
         .filter((chain) => hasChainContent(chain.noble, chain.text))
-  const winterLines = [winterDraft, winterSeason ? specialDraft : '']
+  // Outside winter the sheet only carries the noble-deck card orders.
+  const winterLines = [
+    winterSeason ? winterDraft : keepCardOrders(winterDraft),
+    winterSeason ? specialDraft : '',
+  ]
     .filter((text) => text.trim() !== '')
     .join('\n')
   return {
     chains,
-    winter: winterSeason && winterLines !== '' ? [{ lines: winterLines }] : [],
+    winter: winterLines !== '' ? [{ lines: winterLines }] : [],
     special: !winterSeason && specialDraft.trim() !== '' ? [{ text: specialDraft }] : [],
   }
 }
