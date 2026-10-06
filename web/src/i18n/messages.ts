@@ -216,7 +216,7 @@ const englishMessages = {
   'dignity.bastard': 'Bastard',
   'orders.nobleDeckTitle': 'Noble deck',
   'orders.nobleDeckDescription':
-    'Draw the top card of the shared deck (T N), then play noble cards on a castle or village where you hold an army (R N CCC XXX) and dignity cards on one of your nobles (D N NNN CCC). The hand limit is shared between special cards and noble cards; at most 2 cards are drawn per winter across both decks, and at most one of them from the noble deck.',
+    'Draw the top card of the shared deck (T N), then play noble cards on a castle or village where you hold an army (R N CCC XXX) claim cards for an heir against a noble married into your family (C N HHH CCC) and dignity cards on one of your nobles (D N NNN CCC). The hand limit is shared between special cards and noble cards; at most 2 cards are drawn per winter across both decks, and at most one of them from the noble deck.',
   'orders.nobleDraw': 'Draw a noble card (T N)',
   'orders.nobleDeckSize': 'Deck: {count} card(s) left',
   'orders.handCounter': 'Hand: {count}/{limit} cards (special: {special}, noble: {noble})',
@@ -983,7 +983,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'dignity.bastard': 'Bâtard',
   'orders.nobleDeckTitle': 'Deck de nobles',
   'orders.nobleDeckDescription':
-    'Piochez la carte du dessus du deck commun (T N), puis jouez les cartes de noble sur un château ou village où vous avez une armée (R N CCC XXX) et les dignités sur l’un de vos nobles (D N NNN CCC). La limite de main est partagée entre cartes spéciales et cartes de noble ; au plus 2 cartes sont piochées par hiver, tous decks confondus, dont une seule dans le deck de nobles.',
+    'Piochez la carte du dessus du deck commun (T N), puis jouez les cartes de noble sur un château ou village où vous avez une armée (R N CCC XXX) les prétentions d’un héritier contre un noble marié dans votre famille (C N HHH CCC) et les dignités sur l’un de vos nobles (D N NNN CCC). La limite de main est partagée entre cartes spéciales et cartes de noble ; au plus 2 cartes sont piochées par hiver, tous decks confondus, dont une seule dans le deck de nobles.',
   'orders.nobleDraw': 'Piocher une carte de noble (T N)',
   'orders.nobleDeckSize': 'Deck : {count} carte(s) restante(s)',
   'orders.handCounter': 'Main : {count}/{limit} cartes (spéciales : {special}, nobles : {noble})',

@@ -264,6 +264,17 @@ noble. Aucun ne coûte de ressource en saison d'action.
 | `D` | `XXX D DEST1 DEST2 ...` | Dispersion pacifique à force 0 : les destinations sont traitées dans leur ordre d'apparition, peuvent se répéter, et les troupes arrivant sur une même case sont empilées. |
 | `T` | `XXX T YYY N` | Transfert de `N` ressources vers un château, un village ou une armée adverse via le réseau de ravitaillement. |
 
+**Ordres de cartes de noble.** Les cartes du deck de nobles se jouent aussi
+au printemps, en été et en automne, sur une feuille séparée des chaînes (voir
+section 8 pour les conditions). Ils sont gratuits et s'appliquent avant les
+ordres d'armée ; un noble recruté n'agit qu'au tour suivant.
+
+| Syntaxe | Effet |
+|---|---|
+| `R N CCC XXX` | Recruter le noble de la carte `CCC` sur `XXX`. |
+| `C N HHH NNN` | Prétention : l'héritier `HHH` réclame les titres du noble `NNN` d'un autre joueur (consomme une carte `CLM`). |
+| `D N NNN BAS` | Conférer la dignité de bâtard à `NNN` (consomme une carte `BAS`). |
+
 ### Attaque (`A`) et jonction (`J`)
 
 **L'essentiel** : `YYY` doit être adjacent à `XXX` par une frontière
@@ -741,8 +752,7 @@ réclame qu'un seul noble et ne peut pas être bâtard. Les Claims s'empilent :
 ils sont classés du plus ancien au plus récent, et à égalité dans le même
 hiver celui de la famille de l'épouse passe d'abord. Quand `CCC` meurt, les
 fiefs dont il est titulaire passent au premier héritier vivant du classement, avec leurs territoires, quel que soit son rang dans ta ligne de
-succession ; sans fief ou sans héritier vivant, le Claim s'éteint. Tu es le
-seul à connaître ton Claim jusqu'à ce moment. Une carte de bâtard jouée sur
+succession ; sans fief ou sans héritier vivant, le Claim s'éteint. Un Claim est public : tous les joueurs le voient dans le rapport. Une carte de bâtard jouée sur
 l'héritier annule son Claim ; jouée sur un noble parent, elle ne l'annule pas.
 
 Une carte de dignité se joue sur l'un de tes nobles avec `D N NNN CCC` ; la

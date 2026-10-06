@@ -17,13 +17,14 @@ import (
 // free name, of which maleAvailable and femaleAvailable remain. Dignity
 // cards are one card in max(players-1, 4), at least one. The noble cards are
 // split evenly between the sexes; oddMale tells which sex gets the extra one
-// when their number is odd. Claim cards are one card in twice that share, at
-// least one. The size is zero when no noble card can be made.
+// when their number is odd. Claim cards come on top of that size: one card in
+// twice the dignity share, at least one, never replacing a noble card. The size
+// is zero when no noble card can be made.
 func nobleDeckSize(players, limitMax, maleAvailable, femaleAvailable int, oddMale bool) (size, dignities, claims, males, females int) {
 	for size = players * (limitMax + 1); size > 0; size-- {
 		dignities = max(1, size/max(players-1, 4))
 		claims = max(1, size/(2*max(players-1, 4)))
-		nobles := size - dignities - claims
+		nobles := size - dignities
 		if nobles <= 0 {
 			continue
 		}

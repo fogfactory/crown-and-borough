@@ -247,6 +247,17 @@ an action season.
 | `D` | `XXX D DEST1 DEST2 ...` | Peaceful dispersal at strength 0: destinations are processed in appearance order, may repeat, and troops arriving on the same territory are stacked. |
 | `T` | `XXX T YYY N` | Transfer `N` resources to a castle, village, or opposing army through the supply network. |
 
+**Noble card orders.** Noble-deck cards can also be played in spring, summer
+and autumn, on a sheet separate from the chains (see section 8 for the
+conditions). They are free and apply before the army orders; a recruited noble
+acts from the next turn.
+
+| Syntax | Effect |
+|---|---|
+| `R N CCC XXX` | Recruit the noble of card `CCC` on `XXX`. |
+| `C N HHH NNN` | Claim: heir `HHH` claims the titles of another player's noble `NNN` (consumes a `CLM` card). |
+| `D N NNN BAS` | Make `NNN` a bastard (consumes a `BAS` card). |
+
 ### Attack (`A`) and Join (`J`)
 
 **The gist**: `YYY` must be adjacent to `XXX` through a passable border; the
@@ -701,8 +712,7 @@ cannot be a bastard. Claims stack:
 they rank from oldest to newest, and within the same winter the wife's
 family comes first. When `CCC` dies, the fiefs `CCC` holds pass to the first
 living heir in the ranking, with their territories, whatever its rank in your line of
-succession; with no fief or no living heir, the claim lapses. You are the only
-one who knows about your claim until then. A bastard card played on the heir
+succession; with no fief or no living heir, the claim lapses. A claim is public: every player sees it in the report. A bastard card played on the heir
 cancels its claim; played on a parent noble, it does not.
 
 A dignity card is played on one of your nobles with `D N NNN CCC`; the only

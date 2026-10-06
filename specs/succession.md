@@ -72,9 +72,11 @@ comme le deck d'ordres spéciaux. Il contient trois sortes de cartes :
 un nom encore libre (les nobles de départ en consomment aussi). Parmi elles,
 les dignités duplicables représentent une carte sur `joueurs − 1`, sans
 dépasser une carte sur quatre : `max(1, deck / max(joueurs − 1, 4))` cartes,
-arrondies à l'entier inférieur. Les cartes de prétention
-représentent une carte sur `2 × max(joueurs − 1, 4)`, au moins une. Ce quota
-garantit au moins un bâtard et une prétention par partie ; le reste du deck est constitué de cartes de noble.
+arrondies à l'entier inférieur. Ce quota garantit au moins un bâtard par
+partie ; le reste du deck est constitué de cartes de noble. Les cartes de
+prétention s'ajoutent à cette taille sans remplacer de carte de noble : une
+carte sur `2 × max(joueurs − 1, 4)` de la taille de base, au moins une (31
+cartes à 4 joueurs, dont 3 de prétention).
 
 La **pioche** (`T N`) et la **défausse** (`D C CCC`) sont des ordres d'hiver. Les
 ordres qui **jouent** une carte (`R N`, `C N`, `D N`) se soumettent à
@@ -380,6 +382,5 @@ Les titres royaux ne sont pas encore implémentés : ils suivront la même règl
 Une carte de bâtard jouée sur un noble « parent » (le noble visé ou son
 conjoint) n'annule pas la prétention.
 
-**Visibilité.** La prétention est connue de son seul joueur (rapport
-d'hiver) jusqu'à la mort du seigneur, où le changement de main du fief est
-public.
+**Visibilité.** Une prétention est publique : elle figure dans le rapport de
+tous les joueurs dès qu'elle est jouée.
