@@ -50,6 +50,14 @@ victory:
   solo_territory_percent: 50
   alliance_territory_percent: 66
   reference_fief_size: 4
+alliance:
+  succession_ranks: [3, 2, 1]
+  title_ranks:
+    barony: 1
+    county: 2
+    marquisate: 3
+    duchy: 4
+  density_bonus: 1
 noble_limit: 4
 noble_limit_max: 6
 starting_nobles: 1

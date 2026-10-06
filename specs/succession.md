@@ -232,10 +232,14 @@ poids(noble)   = rang_succession(noble) + rang_titre(noble)
 poids(couple)  = min(poids(épouxA), poids(épouxB)) + bonus_densité
 
 rang_succession : tête de ligne = 3, second = 2, troisième et suivants = 1
-rang_titre      : sans titre = 0, baron = 1, comte = 2, duc = 3, roi/pape = 4
+rang_titre      : sans titre = 0, baron = 1, comte = 2, marquis = 3, duc = 4,
+                  roi/pape = 5 (à ajouter avec la couronne)
 bonus_densité   : +1 par mariage supplémentaire déjà existant entre les deux
                   mêmes maisons, non plafonné
 ```
+
+Les rangs de succession, les rangs de titre et le bonus de densité sont
+configurés dans `assets/balance.yaml` (section `alliance`).
 
 `min(...)` retient le maillon le plus faible du couple : un duc qui épouse une
 cadette obscure n'obtient pas une tête au même titre qu'un double mariage de
