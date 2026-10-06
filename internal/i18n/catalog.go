@@ -79,6 +79,7 @@ const (
 	WinterNobleDrawShape         = "error.winter.noble_draw_shape"
 	WinterRecruitNobleShape      = "error.winter.recruit_noble_shape"
 	WinterDignityShape           = "error.winter.dignity_shape"
+	WinterClaimShape             = "error.winter.claim_shape"
 	WinterDiscardNobleShape      = "error.winter.discard_noble_shape"
 	WinterMillMaxLevelReached    = "mill_max_level_reached"
 	DeckOrderShape               = "error.special.order_shape"
@@ -181,6 +182,7 @@ func init() {
 	register(WinterNobleDrawShape, "T N takes no argument", "T N ne prend aucun argument")
 	register(WinterRecruitNobleShape, "R N requires a noble card code and a castle or village code", "R N exige un code de carte de noble et un code de château ou village")
 	register(WinterDiscardNobleShape, "D C takes one card code from your noble hand (noble trigram or dignity code)", "D C prend un code de carte de votre main de nobles (trigramme de noble ou code de dignité)")
+	register(WinterClaimShape, "C N requires the code of one of your nobles (the heir) and the code of the noble whose titles it claims", "C N exige le code de l'un de vos nobles (l'héritier) et le code du noble dont il revendique les titres")
 	register(WinterDignityShape, "D N requires one of your noble codes and a dignity card code", "D N exige un code de l'un de vos nobles et un code de carte de dignité")
 	register(WinterFiefAssignShape, "T A requires a noble and one fief capital code", "T A exige un noble et un code de capitale de fief")
 	register(DeckOrderShape, "a special order has an invalid shape", "la forme de l'ordre spécial est invalide")

@@ -240,6 +240,11 @@ const englishMessages = {
   'reports.reason.hand_limit_reached': 'Your hand is full (shared limit for special and noble cards).',
   'reports.reason.card_not_in_hand': 'This card is not in your noble hand.',
   'reports.reason.noble_already_bastard': 'This noble is already a bastard.',
+  'reports.reason.claim_requires_marriage':
+    'The heir must have been placed while the claimed noble was married to one of your nobles.',
+  'reports.reason.claim_on_own_noble': 'You cannot claim the titles of your own noble.',
+  'reports.reason.claim_by_bastard': 'A bastard cannot claim titles.',
+  'reports.reason.claim_already_staked': 'This noble already holds a claim.',
   'orders.deckTitle': 'Special cards',
   'orders.deckDescription':
     'Play cards independently of noble chains. Use P KIND TER during action seasons.',
@@ -994,6 +999,11 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.reason.hand_limit_reached': 'Votre main est pleine (limite partagée entre cartes spéciales et cartes de noble).',
   'reports.reason.card_not_in_hand': "Cette carte n'est pas dans votre main de nobles.",
   'reports.reason.noble_already_bastard': 'Ce noble est déjà bâtard.',
+  'reports.reason.claim_requires_marriage':
+    "L'héritier doit avoir été posé pendant le mariage du noble visé avec l'un de vos nobles.",
+  'reports.reason.claim_on_own_noble': 'Vous ne pouvez pas prétendre aux titres de votre propre noble.',
+  'reports.reason.claim_by_bastard': 'Un bâtard ne peut pas prétendre à des titres.',
+  'reports.reason.claim_already_staked': 'Ce noble porte déjà une prétention.',
   'orders.deckTitle': 'Cartes spéciales',
   'orders.deckDescription':
     'Jouez les cartes indépendamment des chaînes de nobles. Utilisez P KIND TER pendant les saisons d’action.',

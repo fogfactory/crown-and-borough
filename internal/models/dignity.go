@@ -34,6 +34,9 @@ type DignityEffect struct {
 	// CapturedToDungeon sends the carrier straight to the dungeon when it is
 	// captured in combat instead of making it a hostage.
 	CapturedToDungeon bool
+	// VoidsClaims forbids the carrier to claim titles and cancels the claim
+	// it already holds as heir.
+	VoidsClaims bool
 	// TargetPredicate is the targeting predicate special cards use to
 	// recognise the carrier.
 	TargetPredicate string
@@ -48,6 +51,7 @@ var dignityEffects = map[Dignity]DignityEffect{
 		CannotBeKing:          true,
 		MarriageIsNotAlliance: true,
 		CapturedToDungeon:     true,
+		VoidsClaims:           true,
 		TargetPredicate:       "is_bastard",
 	},
 }
@@ -119,4 +123,9 @@ func (n Noble) MarriageIsAlliance() bool {
 // when captured in combat.
 func (n Noble) CapturedToDungeon() bool {
 	return n.anyDignity(func(e DignityEffect) bool { return e.CapturedToDungeon })
+}
+
+// VoidsClaims reports whether the noble can no longer be the heir of a claim.
+func (n Noble) VoidsClaims() bool {
+	return n.anyDignity(func(e DignityEffect) bool { return e.VoidsClaims })
 }

@@ -54,6 +54,7 @@ const (
 	WinterOrderTypeDrawNoble     WinterOrderType = "draw_noble"
 	WinterOrderTypeDignity       WinterOrderType = "play_dignity"
 	WinterOrderTypeDiscardNoble  WinterOrderType = "discard_noble_card"
+	WinterOrderTypeClaim         WinterOrderType = "claim"
 )
 
 // IsValid reports whether a winter order type is known to the winter resolver.
@@ -63,7 +64,8 @@ func (t WinterOrderType) IsValid() bool {
 		WinterOrderTypeElectCapital, WinterOrderTypeLiberateNoble,
 		WinterOrderTypeHostage, WinterOrderTypeDungeon, WinterOrderTypeTransfer,
 		WinterOrderTypeFoundFief, WinterOrderTypeAssignFief, WinterOrderTypeMarriage,
-		WinterOrderTypeDrawNoble, WinterOrderTypeDignity, WinterOrderTypeDiscardNoble:
+		WinterOrderTypeDrawNoble, WinterOrderTypeDignity, WinterOrderTypeDiscardNoble,
+		WinterOrderTypeClaim:
 		return true
 	}
 	return false
@@ -125,7 +127,9 @@ type Order struct {
 // WinterOrderTypeDignity, NobleCode is the player's own noble and CardCode
 // the dignity card played on it. For WinterOrderTypeDiscardNoble, CardCode is
 // the code (noble trigram or dignity code) of the noble-hand card discarded
-// unplayed. WinterOrderTypeDrawNoble carries no field.
+// unplayed. WinterOrderTypeDrawNoble carries no field. For
+// WinterOrderTypeClaim, NobleCode is the player's own noble, the heir, and
+// SpouseCode the noble of another player whose titles it claims.
 type WinterOrder struct {
 	ID           OrderID         `json:"id"`
 	Type         WinterOrderType `json:"type"`

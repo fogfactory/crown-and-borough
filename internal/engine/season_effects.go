@@ -770,6 +770,7 @@ func resolvePlagueMortality(ctx *resolutionContext) {
 	}
 	ctx.rebuildIndexes()
 	ctx.vacateFiefsOfMissingHolders()
+	ctx.settleClaimsOfDead()
 }
 
 func newPlagueRNG(seed string, turn int, nobleID models.NobleID) *rand.Rand {

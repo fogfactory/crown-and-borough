@@ -608,7 +608,7 @@ P BRI
 BRI D BRI ATL NOR
 ```
 
-Les ordres d'hiver v1 comprennent `A N`, `T N` (piocher une carte du deck de nobles), `R N CCC XXX` (jouer la carte de noble `CCC` de la main pour recruter sur `XXX`), `D N NNN CCC` (jouer la carte de dignité `CCC` sur le noble `NNN`), `D C CCC` (défausser la carte de noble ou de dignité `CCC` de la main de nobles, type `discard_noble_card`, événement public `noble_discard` sans nom de carte ; le code à trois lettres le distingue de `D C KIND`), `R T`, `C M`, `C C`, `C D`, `E C`,
+Les ordres d'hiver v1 comprennent `A N`, `T N` (piocher une carte du deck de nobles), `R N CCC XXX` (jouer la carte de noble `CCC` de la main pour recruter sur `XXX`), `C N HHH CCC` (prétention de l'héritier `HHH` sur `CCC`, type `claim`, événement `claim`, état `claims`, tour de pose `placedTurn` des nobles), `D N NNN CCC` (jouer la carte de dignité `CCC` sur le noble `NNN`), `D C CCC` (défausser la carte de noble ou de dignité `CCC` de la main de nobles, type `discard_noble_card`, événement public `noble_discard` sans nom de carte ; le code à trois lettres le distingue de `D C KIND`), `R T`, `C M`, `C C`, `C D`, `E C`,
 `O N`, `P N`, `L N`, `G XXX YYY N`, `T F NNN XXX YYY ZZZ …` (constituer un
 fief) et `T A NNN XXX` (attribuer un fief vacant), `M N XXX YYY` (marier deux nobles de
 deux joueurs, ordre symétrique), avec `D C KIND` pour les

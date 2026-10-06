@@ -61,6 +61,7 @@ liste d'investissements directs, traités dans l'ordre saisi :
 
 - `T N` — piocher une carte dans le deck de nobles (une fois par hiver) ;
 - `R N CCC XXX` — jouer la carte de noble `CCC` de la main pour recruter ce noble sur `XXX` ;
+- `C N HHH CCC` — l'héritier `HHH` (noble du joueur posé pendant un mariage de `CCC`) réclame les titres de fief du noble `CCC` d'un autre joueur ([succession.md](succession.md#prétentions-claims)) ;
 - `D N NNN CCC` — jouer la carte de dignité `CCC` (`BAS` : bâtard) de la main sur le noble `NNN` ;
 - `D C CCC` — défausser sans la jouer la carte `CCC` (trigramme de noble ou code de dignité) de la main de nobles, gratuit et sans limite par hiver ;
 - `A N XXX` — annoblir gratuitement une armée sur `XXX` lorsque le joueur n'a plus aucun noble ;

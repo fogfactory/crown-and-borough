@@ -76,6 +76,7 @@ func (order recruitNobleOrder) Apply(ctx *ExecutionContext) {
 		LocationID:       winterOrder.TerritoryID,
 		Status:           models.NobleStatusFree,
 		LastEmissionTurn: 0,
+		PlacedTurn:       resolution.state.Turn,
 	}
 	resolution.consumeNobleCard(playerID, handIndex, noble.ID)
 	resolution.state.Nobles = append(resolution.state.Nobles, noble)

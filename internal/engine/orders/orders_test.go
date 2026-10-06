@@ -677,3 +677,20 @@ func TestParseMarriageWinterOrder(t *testing.T) {
 		}
 	}
 }
+
+func TestParseWinterClaimOrder(t *testing.T) {
+	game := orderTestState()
+	orders, parseErrors := ParseWinterOrders("C N JEA CAL", game)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseWinterOrders errors = %#v", parseErrors)
+	}
+	want := []models.WinterOrder{{ID: "O1", Type: models.WinterOrderTypeClaim, NobleCode: "JEA", SpouseCode: "CAL"}}
+	if !reflect.DeepEqual(orders, want) {
+		t.Errorf("orders = %#v, want %#v", orders, want)
+	}
+	for _, line := range []string{"C N JEA", "C N JEA CAL BOB", "C N JEA JEA", "C N J1A CAL", "C N JEA ZZZ"} {
+		if _, parseErrors := ParseWinterOrders(line, game); len(parseErrors) == 0 {
+			t.Errorf("ParseWinterOrders(%q) accepted a malformed claim", line)
+		}
+	}
+}

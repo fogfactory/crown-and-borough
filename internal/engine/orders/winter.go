@@ -185,6 +185,9 @@ func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (mod
 	if fields[0] == "D" && fields[1] == "N" {
 		return parseDignityOrderLine(fields, lineNumber, indexes)
 	}
+	if fields[0] == "C" && fields[1] == "N" {
+		return parseClaimOrderLine(fields, lineNumber, indexes)
+	}
 	if len(fields) > 3 {
 		error := parseMessage(lineNumber, ParseCodeTooManyTargets, "error.winter.target_only_one")
 		return models.WinterOrder{}, &error
@@ -399,5 +402,25 @@ func parseDignityOrderLine(fields []string, lineNumber int, indexes gameIndexes)
 		Type:      models.WinterOrderTypeDignity,
 		NobleCode: models.NobleCode(fields[2]),
 		CardCode:  fields[3],
+	}, nil
+}
+
+// parseClaimOrderLine handles C N HHH CCC: HHH is one of the player's nobles,
+// the heir, and CCC the noble of another player whose titles it claims.
+// Ownership, the marriage and the other conditions are engine rejects.
+func parseClaimOrderLine(fields []string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
+	if len(fields) != 4 || fields[2] == fields[3] {
+		error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.WinterClaimShape)
+		return models.WinterOrder{}, &error
+	}
+	for _, code := range fields[2:] {
+		if parseError := winterNobleCode(code, lineNumber, indexes); parseError != nil {
+			return models.WinterOrder{}, parseError
+		}
+	}
+	return models.WinterOrder{
+		Type:       models.WinterOrderTypeClaim,
+		NobleCode:  models.NobleCode(fields[2]),
+		SpouseCode: models.NobleCode(fields[3]),
 	}, nil
 }

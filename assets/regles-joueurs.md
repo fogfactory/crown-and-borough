@@ -689,6 +689,7 @@ investissements directs, une ligne par ordre, appliqués dans l'ordre saisi.
 |---|---|---|---|
 | Piocher une carte de noble | `T N` | une seule fois par hiver et par joueur ; le deck de nobles, commun à tous, ne doit pas être épuisé | 0 |
 | Recruter un noble | `R N CCC XXX` | `CCC` est une carte de noble de ta main ; `XXX` contrôlé, avec un château ou un village et une armée du joueur, et moins de nobles vivants possédés que ton plafond, {{noble_limit}} de base (voir ci-dessous) | 0 |
+| Réclamer des titres | `C N HHH CCC` | `HHH` est un de tes nobles, posé pendant un mariage de `CCC` avec l'un de tes nobles, non bâtard et sans prétention en cours ; `CCC` est un noble d'un autre joueur | 0 |
 | Conférer une dignité | `D N NNN CCC` | `NNN` est un noble du joueur ; `CCC` est une carte de dignité de ta main (`BAS` : bâtard) ; un noble n'est bâtard qu'une fois | 0 |
 | Défausser une carte de noble | `D C CCC` | `CCC` est une carte de ta main de nobles (trigramme de noble ou `BAS`) ; sans limite par hiver ; la carte va à la défausse du deck | 0 |
 | Recruter une troupe | `R T XXX` | `XXX` contrôlé, et un noble libre du joueur sur `XXX` ou adjacent | {{costs.troop}} |
@@ -729,6 +730,17 @@ carte de noble du même sexe, au prénom encore inutilisé, rejoint la défausse
 jamais réutilisé. Une carte de dignité retourne à la défausse quand son porteur
 meurt ou perd la dignité. Quand la pioche est vide, la défausse est mélangée
 pour la reconstituer.
+
+Un **Claim** permet à un de tes nobles, l'héritier `HHH`, de réclamer les titres
+d'un noble `CCC` d'un autre joueur avec `C N HHH CCC`, à condition que `HHH` ait
+été posé pendant un mariage entre `CCC` et l'un de tes nobles. Un héritier ne
+réclame qu'un seul noble et ne peut pas être bâtard. Les Claims s'empilent :
+ils sont classés du plus ancien au plus récent, et à égalité dans le même
+hiver celui de la famille de l'épouse passe d'abord. Quand `CCC` meurt, les
+fiefs dont il est titulaire passent au premier héritier vivant du classement, avec leurs territoires, quel que soit son rang dans ta ligne de
+succession ; sans fief ou sans héritier vivant, le Claim s'éteint. Tu es le
+seul à connaître ton Claim jusqu'à ce moment. Une carte de bâtard jouée sur
+l'héritier annule son Claim ; jouée sur un noble parent, elle ne l'annule pas.
 
 Une carte de dignité se joue sur l'un de tes nobles avec `D N NNN CCC` ; la
 seule dignité du deck est le **bâtard** (`BAS`), qu'un noble ne porte qu'une

@@ -71,6 +71,10 @@ const REASON_KEYS: Record<string, MessageKey> = {
   hand_limit_reached: 'reports.reason.hand_limit_reached',
   card_not_in_hand: 'reports.reason.card_not_in_hand',
   noble_already_bastard: 'reports.reason.noble_already_bastard',
+  claim_requires_marriage: 'reports.reason.claim_requires_marriage',
+  claim_on_own_noble: 'reports.reason.claim_on_own_noble',
+  claim_by_bastard: 'reports.reason.claim_by_bastard',
+  claim_already_staked: 'reports.reason.claim_already_staked',
   troop_requires_adjacent_noble: 'reports.reason.troop_requires_adjacent_noble',
   noble_not_prisoner: 'reports.reason.noble_not_prisoner',
   noble_not_held: 'reports.reason.noble_not_held',
@@ -293,6 +297,8 @@ function winterOrderLabel(order: WinterOrder, map: MapData | null, t: Translate)
       return 'T N'
     case 'discard_noble_card':
       return `D C ${order.cardCode ?? '—'}`
+    case 'claim':
+      return `C N ${order.nobleCode ?? '—'} ${order.spouseCode ?? '—'}`
     case 'play_dignity':
       return `D N ${order.nobleCode ?? '—'} ${order.cardCode ?? '—'}`
     case 'recruit_troop':
@@ -370,6 +376,8 @@ function investmentLabel(
     case 'noble_discard':
       // The public report does not name the discarded card.
       return 'D C'
+    case 'claim':
+      return `C N ${investment.nobleCode ?? '—'} ${investment.claimTarget ?? '—'}`
     case 'dignity':
       return `D N ${investment.nobleCode ?? '—'} ${DIGNITY_CARD_CODES[investment.dignity ?? 'bastard']}`
     case 'prosperity_founded':

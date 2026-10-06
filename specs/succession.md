@@ -147,8 +147,8 @@ noble (`noble_already_bastard`) et compte comme un titre dans le score.
   jamais en otage. Il reste susceptible d'être otage s'il est remis à un
   autre joueur par un effet autre que la capture (otage volontaire) ou si son
   propriétaire change son statut.
-- **Claims.** Un Claim ne peut pas être joué sur un bâtard ; jouer une carte
-  de bâtard sur le noble visé par un Claim annule ce Claim.
+- **Claims.** Un bâtard ne peut pas être l'héritier d'un Claim ; jouer une
+  carte de bâtard sur l'héritier annule son Claim (voir « Prétentions »).
 - **Deck d'ordres spéciaux.** Les cartes du deck d'ordres spéciaux peuvent
   cibler ou reconnaître un bâtard de la famille du joueur (prédicat de
   ciblage `is_bastard`).
@@ -327,11 +327,48 @@ Cet ordre combine deux mécaniques déjà en place :
 > peut refuser d'émettre des chaînes pour se soustraire à l'observation
 > (probablement non, pour rester cohérent avec le statut `hostage` existant).
 
-## Claims
+## Prétentions (Claims)
 
-L'événement `Claim` permet de recruter un noble héritier qui réclame le titre
-d'un seigneur marié à un membre de sa famille. À la mort du marié, le titre lui
-revient. Le roi et le pape peuvent annuler le Claim. Une annulation par le pape
-confère au seigneur la dignité de [bâtard](#bâtard). Un Claim ne peut pas être
-joué sur un bâtard ; jouer une carte de bâtard sur le noble visé par un Claim
-annule ce Claim.
+Un **Claim** (prétention) permet à un noble « héritier », né d'une alliance,
+de réclamer les titres d'un seigneur de l'autre famille. Quand ce seigneur
+meurt, les titres de fief qu'il détient reviennent à l'héritier. Le roi et le
+pape peuvent annuler le Claim ; une annulation par le pape confère au seigneur
+la dignité de [bâtard](#bâtard) (issues #256 et #257, non livrées).
+
+**Ordre.** `C N HHH CCC` (gratuit, aucune carte) : `HHH` est un noble du
+joueur, l'héritier, et `CCC` un noble d'un autre joueur dont il réclame les
+titres. Conditions, un ordre qui n'en respecte pas une est rejeté avec le
+motif indiqué :
+
+- `HHH` appartient au joueur (`noble_not_owned`) et `CCC` à un autre joueur
+  (`claim_on_own_noble`) ;
+- `HHH` a été posé (recruté) pendant un mariage entre `CCC` et l'un des
+  nobles du joueur : le mariage était conclu au tour de la pose et n'avait pas
+  pris fin avant elle par la mort d'un époux (`claim_requires_marriage`). Le
+  mariage peut avoir pris fin depuis. Un noble de départ n'a jamais été posé
+  pendant un mariage. Le moteur retient, pour cela, le tour de pose de chaque
+  noble et les tours de conclusion des mariages et de décès ;
+- `HHH` n'est pas bâtard (`claim_by_bastard`) et ne porte pas déjà une
+  prétention (`claim_already_staked`) : un héritier ne réclame qu'un seul
+  noble.
+
+**Empilement.** Les Claims s'empilent : plusieurs héritiers, de la même
+famille ou de l'autre, peuvent réclamer les titres d'un même noble, sur un
+même couple ou non. Ils sont classés par ancienneté (le Claim joué le plus
+tôt d'abord) ; parmi les Claims du même hiver, celui de la famille de
+l'épouse passe en premier, puis l'ordre de jeu départage.
+
+**Effet.** Quand `CCC` meurt, chaque fief dont il est titulaire passe tout
+entier, avec ses territoires, au propriétaire du premier héritier vivant dans
+le classement, et cet héritier en devient le titulaire, sans condition de rang
+de succession (événement public de fief changeant de main, motif `claim`).
+Sans fief à `CCC` ou sans héritier vivant, les prétentions s'éteignent sans effet ; une fois le fief transmis, les autres prétentions sur `CCC` s'éteignent aussi.
+Les titres royaux ne sont pas encore implémentés : ils suivront la même règle.
+
+**Bâtard.** Jouer une carte de bâtard sur l'héritier annule sa prétention.
+Une carte de bâtard jouée sur un noble « parent » (le noble visé ou son
+conjoint) n'annule pas la prétention.
+
+**Visibilité.** La prétention est connue de son seul joueur (rapport
+d'hiver) jusqu'à la mort du seigneur, où le changement de main du fief est
+public.

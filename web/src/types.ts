@@ -65,6 +65,7 @@ export type EventType =
   | 'noble_draw'
   | 'noble_discard'
   | 'dignity'
+  | 'claim'
 
 export type PlayerId = string
 
@@ -729,6 +730,9 @@ export interface WinterInvestmentReport {
   order?: WinterOrder
   /** Present only for `dignity`. */
   dignity?: Dignity
+  /** Present only for `claim`: the noble whose titles the heir claims. */
+  claimTarget?: string
+  claimTargetName?: string
 }
 
 export type WinterOrderType =
@@ -746,6 +750,7 @@ export type WinterOrderType =
   | 'draw_noble'
   | 'play_dignity'
   | 'discard_noble_card'
+  | 'claim'
 
 export interface WinterOrder {
   id?: string
@@ -755,7 +760,7 @@ export interface WinterOrder {
   territory?: string
   infrastructureType?: InfraType
   nobleCode?: string
-  /** Present only for `marriage`: the other player's noble. */
+  /** Present only for `marriage` and `claim`: the other player's noble. */
   spouseCode?: string
   source?: string
   target?: string
