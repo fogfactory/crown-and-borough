@@ -14,7 +14,7 @@ func allianceBalance() assetgen.Balance {
 			models.FiefTitleBarony: 1, models.FiefTitleCounty: 2,
 			models.FiefTitleMarquisate: 3, models.FiefTitleDuchy: 4,
 		},
-		DensityBonus: 1,
+		DensityBonus: 1, HeadMinWeight: 5, MixedMinWeight: 2,
 	}}
 }
 
@@ -71,5 +71,45 @@ func TestAllianceWeightIgnoresBastardMarriages(t *testing.T) {
 	}
 	if got, _ := AllianceWeight(state, allianceBalance(), state.Marriages[0]); got != 3 {
 		t.Fatalf("weight = %d, want 3 (no density from a bastard marriage)", got)
+	}
+}
+
+func TestMarriageCategoryThresholds(t *testing.T) {
+	state := allianceState()
+	state.Fiefs = append(state.Fiefs, models.Fief{ID: "F2", OwnerID: "P2", Title: models.FiefTitleCounty})
+	holder := models.NobleID("N3")
+	state.Fiefs[1].HolderNobleID = &holder
+	state.Marriages = []models.Marriage{{NobleA: "N1", NobleB: "N3"}}
+	// N1 = 7, N3 = head (3) + county (2) = 5.
+	if got, ok := MarriageCategory(state, allianceBalance(), state.Marriages[0]); !ok || got != AllianceHead {
+		t.Fatalf("category = %q, %v; want head", got, ok)
+	}
+	state.Marriages = []models.Marriage{{NobleA: "N1", NobleB: "N4"}}
+	if got, _ := MarriageCategory(state, allianceBalance(), state.Marriages[0]); got != AllianceMixed {
+		t.Fatalf("category = %q, want mixed (N4 weighs 2)", got)
+	}
+	state.Marriages = []models.Marriage{{NobleA: "N2", NobleB: "N5"}}
+	if got, _ := MarriageCategory(state, allianceBalance(), state.Marriages[0]); got != AllianceSecondary {
+		t.Fatalf("category = %q, want secondary", got)
+	}
+}
+
+func TestMarriageCategoryReclassifiesOnTitleLossAndDeath(t *testing.T) {
+	state := allianceState()
+	state.Fiefs = append(state.Fiefs, models.Fief{ID: "F2", OwnerID: "P2", Title: models.FiefTitleCounty})
+	holder := models.NobleID("N3")
+	state.Fiefs[1].HolderNobleID = &holder
+	state.Marriages = []models.Marriage{{NobleA: "N1", NobleB: "N3"}}
+	balance := allianceBalance()
+	if got, _ := MarriageCategory(state, balance, state.Marriages[0]); got != AllianceHead {
+		t.Fatalf("before = %q, want head", got)
+	}
+	state.Fiefs[1].HolderNobleID = nil
+	if got, _ := MarriageCategory(state, balance, state.Marriages[0]); got != AllianceMixed {
+		t.Fatalf("after title loss = %q, want mixed", got)
+	}
+	state.Nobles = state.Nobles[1:]
+	if _, ok := MarriageCategory(state, balance, state.Marriages[0]); ok {
+		t.Fatal("a marriage ended by a death has no category")
 	}
 }

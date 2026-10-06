@@ -260,8 +260,9 @@ leur dispersion.
 Un mariage dont l'un des époux est [bâtard](#bâtard) n'est pas une alliance :
 il n'a ni poids, ni catégorie, et ne compte pas dans le bonus de densité.
 
-Le poids du couple classe le mariage en catégorie, par seuil (valeurs
-indicatives, à caler dans `assets/balance.yaml`) :
+Le poids du couple classe le mariage en catégorie, par seuil
+(`head_min_weight` et `mixed_min_weight`, section `alliance` de
+`assets/balance.yaml`) :
 
 | Catégorie | Poids | Effet |
 |---|---:|---|
