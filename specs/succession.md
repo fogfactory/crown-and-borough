@@ -159,9 +159,18 @@ noble (`noble_already_bastard`) et compte comme un titre dans le score.
   propriétaire change son statut.
 - **Claims.** Un bâtard ne peut pas être l'héritier d'un Claim ; jouer une
   carte de bâtard sur l'héritier annule son Claim (voir « Prétentions »).
+- **Ciblage adverse.** Contrairement aux autres dignités, strictement
+  réservées aux nobles du joueur, le bâtard peut être joué sur le noble d'un
+  autre joueur (`CrossPlayerTarget`, propriété du moteur déclarée par
+  dignité plutôt que codée en dur). Aucune condition d'autorité (roi ou
+  autre) ne le restreint : n'importe quel joueur peut déchoir le noble d'un
+  adversaire en lui attribuant la dignité de bâtard. C'est ce qui rend
+  inutile un ordre séparé d'annulation de Claim par le roi ou le pape (voir
+  « Prétentions ») — la carte de bâtard, jouée sur l'héritier adverse, fait
+  déjà ce travail.
 - **Deck d'ordres spéciaux.** Les cartes du deck d'ordres spéciaux peuvent
-  cibler ou reconnaître un bâtard de la famille du joueur (prédicat de
-  ciblage `is_bastard`).
+  cibler ou reconnaître un bâtard, qu'il appartienne au joueur ou à un
+  adversaire (prédicat de ciblage `is_bastard`).
 
 Les effets d'une dignité sont déclarés en un seul endroit du moteur (table de
 dignités) que chaque règle concernée interroge (plafond, succession, titres,
@@ -345,9 +354,12 @@ Cet ordre combine deux mécaniques déjà en place :
 
 Un **Claim** (prétention) permet à un noble « héritier », né d'une alliance,
 de réclamer les titres d'un seigneur de l'autre famille. Quand ce seigneur
-meurt, les titres de fief qu'il détient reviennent à l'héritier. Le roi et le
-pape peuvent annuler le Claim ; une annulation par le pape confère au seigneur
-la dignité de [bâtard](#bâtard) (issues #256 et #257, non livrées).
+meurt, les titres de fief qu'il détient reviennent à l'héritier. Il n'existe
+pas d'ordre dédié d'annulation du Claim par le roi ou le pape : jouer une
+carte de bâtard sur l'héritier, y compris celui d'un adversaire, annule sa
+prétention (voir « Bâtard » ci-dessus et « Bâtard » plus bas) ; le pape
+dispose par ailleurs de l'excommunication (voir [dames.md § Carte de
+procès](dames.md#carte-de-procès)) pour les cas que le bâtard ne couvre pas.
 
 **Ordre.** `C N HHH CCC` (gratuit) consomme une **carte de prétention** de la main de
 cartes de noble du joueur (`card_not_in_hand` sinon ; la carte reste sur
