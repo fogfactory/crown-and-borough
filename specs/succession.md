@@ -103,7 +103,10 @@ entrée d'ordre distincte :
   de contrôle, d'armée présente et de plafond ;
 - **jeu d'une carte de dignité** (`D N XXX CCC`, gratuit) : joue la carte de
   dignité `CCC` de la main (son code, `BAS` pour le bâtard) sur le noble
-  `XXX` du joueur. Deux cartes de même dignité sont interchangeables ;
+  `XXX`, qu'il appartienne au joueur ou à un adversaire — **toute dignité se
+  joue sur n'importe quel noble, secrètes comprises** ; ce n'est pas une
+  propriété qui varierait d'une dignité à l'autre. Deux cartes de même
+  dignité sont interchangeables ;
 - **défausse d'une carte de la main** (`D C CCC`, gratuit, sans limite par
   hiver) : retire de la main la carte `CCC` (trigramme d'un noble ou code d'une
   dignité) sans la jouer ; elle va à la défausse du deck de nobles telle
@@ -158,10 +161,12 @@ noble (`noble_already_bastard`) et compte comme un titre dans le score.
   autre joueur par un effet autre que la capture (otage volontaire) ou si son
   propriétaire change son statut.
 - **Claims.** Un bâtard ne peut pas être l'héritier d'un Claim ; jouer une
-  carte de bâtard sur l'héritier annule son Claim (voir « Prétentions »).
+  carte de bâtard sur l'héritier — y compris celui d'un adversaire, comme
+  toute carte de dignité — annule son Claim (voir « Prétentions »). Sans
+  condition d'autorité (ce n'est pas une prérogative royale), c'est ce qui
+  rend inutile un ordre séparé d'annulation de Claim par le roi ou le pape.
 - **Deck d'ordres spéciaux.** Les cartes du deck d'ordres spéciaux peuvent
-  cibler ou reconnaître un bâtard de la famille du joueur (prédicat de
-  ciblage `is_bastard`).
+  cibler ou reconnaître un bâtard (prédicat de ciblage `is_bastard`).
 
 Les effets d'une dignité sont déclarés en un seul endroit du moteur (table de
 dignités) que chaque règle concernée interroge (plafond, succession, titres,
@@ -346,9 +351,12 @@ Cet ordre combine deux mécaniques déjà en place :
 
 Un **Claim** (prétention) permet à un noble « héritier », né d'une alliance,
 de réclamer les titres d'un seigneur de l'autre famille. Quand ce seigneur
-meurt, les titres de fief qu'il détient reviennent à l'héritier. Le roi et le
-pape peuvent annuler le Claim ; une annulation par le pape confère au seigneur
-la dignité de [bâtard](#bâtard) (issues #256 et #257, non livrées).
+meurt, les titres de fief qu'il détient reviennent à l'héritier. Il n'existe
+pas d'ordre dédié d'annulation du Claim par le roi ou le pape : jouer une
+carte de bâtard sur l'héritier, y compris celui d'un adversaire, annule sa
+prétention (voir « Bâtard » ci-dessus et « Bâtard » plus bas) ; le pape
+dispose par ailleurs de l'excommunication (voir [dames.md § Carte de
+procès](dames.md#carte-de-procès)) pour les cas que le bâtard ne couvre pas.
 
 **Ordre.** `C N HHH CCC` (gratuit) consomme une **carte de prétention** de la main de
 cartes de noble du joueur (`card_not_in_hand` sinon ; la carte reste sur
