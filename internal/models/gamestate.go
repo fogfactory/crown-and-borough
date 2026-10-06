@@ -58,6 +58,7 @@ type GameState struct {
 	Fiefs               []Fief                         `json:"fiefs,omitempty"`
 	TaxedFiefs          []TaxedFief                    `json:"taxedFiefs,omitempty"`
 	Marriages           []Marriage                     `json:"marriages,omitempty"`
+	Claims              []Claim                        `json:"claims,omitempty"`
 }
 
 // NewGameState returns a fresh empty state at turn 1, spring of year 1, with
@@ -300,6 +301,11 @@ func (g *GameState) Validate() error {
 	// 6c. Marriages: concluded between a living or removed noble of each of two
 	// distinct players, of different sex, and at most one marriage per noble.
 	if err := g.validateMarriages(nobles, removedNobles); err != nil {
+		return err
+	}
+
+	// 6d. Claims: each heir claims at most one living noble of another player.
+	if err := g.validateClaims(nobles, removedNobles); err != nil {
 		return err
 	}
 
@@ -605,7 +611,7 @@ func (g *GameState) Validate() error {
 	if err := validateSpecialDeck(g.SpecialDeck, g.Auguries, players); err != nil {
 		return err
 	}
-	if err := validateNobleDeck(g.NobleDeck, players, nobleCodes, g.Nobles); err != nil {
+	if err := validateNobleDeck(g.NobleDeck, players, nobleCodes, g.Nobles, g.Claims); err != nil {
 		return err
 	}
 	if err := validateActiveRegionEffects(g.ActiveRegionEffects, g.Regions); err != nil {

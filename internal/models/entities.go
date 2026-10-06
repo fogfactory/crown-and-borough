@@ -69,6 +69,10 @@ type Noble struct {
 	LocationID       TerritoryID `json:"location"`
 	Status           NobleStatus `json:"status"`
 	LastEmissionTurn int         `json:"lastEmissionTurn"`
+	// PlacedTurn is the absolute turn the noble was recruited (0 for a
+	// starting noble): a claim needs it to fall within one of the noble's
+	// parents' marriage (specs/succession.md § Prétentions).
+	PlacedTurn int `json:"placedTurn,omitempty"`
 	// Dignities are the permanent distinctions the noble carries, conferred
 	// by a dignity card (specs/succession.md § Bâtard).
 	Dignities []Dignity `json:"dignities,omitempty"`

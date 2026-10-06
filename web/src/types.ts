@@ -65,6 +65,7 @@ export type EventType =
   | 'noble_draw'
   | 'noble_discard'
   | 'dignity'
+  | 'claim'
 
 export type PlayerId = string
 
@@ -176,7 +177,7 @@ export interface Noble {
 /** A permanent distinction played on a noble; only the bastard exists. */
 export type Dignity = 'bastard'
 
-export type NobleCardKind = 'noble' | 'dignity'
+export type NobleCardKind = 'noble' | 'dignity' | 'claim'
 
 /** One card of the viewer's own noble hand (never other players' hands). */
 export interface NobleCard {
@@ -326,6 +327,7 @@ export interface StateData {
   territories: TerritoryState[]
   nobles: Noble[]
   fiefs?: Fief[]
+  marriages?: { nobleA: string; nobleB: string; turn: number }[]
   specialHand?: CardKind[]
   nobleHand?: NobleCard[]
   /** Cards left in the shared noble draw pile. */
@@ -729,6 +731,9 @@ export interface WinterInvestmentReport {
   order?: WinterOrder
   /** Present only for `dignity`. */
   dignity?: Dignity
+  /** Present only for `claim`: the noble whose titles the heir claims. */
+  claimTarget?: string
+  claimTargetName?: string
 }
 
 export type WinterOrderType =
@@ -746,6 +751,7 @@ export type WinterOrderType =
   | 'draw_noble'
   | 'play_dignity'
   | 'discard_noble_card'
+  | 'claim'
 
 export interface WinterOrder {
   id?: string
@@ -755,7 +761,7 @@ export interface WinterOrder {
   territory?: string
   infrastructureType?: InfraType
   nobleCode?: string
-  /** Present only for `marriage`: the other player's noble. */
+  /** Present only for `marriage` and `claim`: the other player's noble. */
   spouseCode?: string
   source?: string
   target?: string

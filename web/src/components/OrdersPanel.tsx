@@ -45,6 +45,25 @@ function ownedNobles(state: StateData, player: PlayerId): Noble[] {
   return state.nobles.filter((noble) => noble.owner === player)
 }
 
+// Nobles of other players married to one of the player's living nobles: the
+// possible targets of a claim.
+function claimTargets(state: StateData, player: PlayerId): Noble[] {
+  const byCode = new Map(state.nobles.map((noble) => [noble.code, noble]))
+  const targets = new Map<string, Noble>()
+  for (const marriage of state.marriages ?? []) {
+    const spouseA = byCode.get(marriage.nobleA)
+    const spouseB = byCode.get(marriage.nobleB)
+    if (!spouseA || !spouseB) continue
+    for (const [mine, other] of [
+      [spouseA, spouseB],
+      [spouseB, spouseA],
+    ]) {
+      if (mine.owner === player && other.owner !== player) targets.set(other.code, other)
+    }
+  }
+  return [...targets.values()]
+}
+
 function chainPlaceholder(): string {
   return 'XXX A YYY'
 }
@@ -196,6 +215,11 @@ function draftNobleDiscardCount(draft: string): number {
   return draftLines(draft).filter((line) => /^D\s+C\s+[A-Z]{3}$/.test(line)).length
 }
 
+/** Counts the `C N HHH CCC` lines of the draft: each consumes a claim card. */
+function draftClaimCount(draft: string): number {
+  return draftLines(draft).filter((line) => /^C\s+N\s+/.test(line)).length
+}
+
 function draftMentionsCard(draft: string, code: string): boolean {
   const upper = code.toUpperCase()
   return draftLines(draft).some((line) => {
@@ -214,52 +238,80 @@ function NobleCardRow({
   state,
   winterDraft,
   onWinterChange,
+  cardsOnly = false,
 }: {
   card: NobleCard
   player: PlayerId
   state: StateData
   winterDraft: string
   onWinterChange: (text: string) => void
+  /** Outside winter only cards can be played: no discard. */
+  cardsOnly?: boolean
 }) {
   const { t } = useLanguage()
   const [target, setTarget] = useState('')
-  const used = draftMentionsCard(winterDraft, card.code)
+  const [claimTarget, setClaimTarget] = useState('')
+  const isClaim = card.kind === 'claim'
+  const claimCardCount = (state.nobleHand ?? []).filter((c) => c.kind === 'claim').length
+  const used = isClaim
+    ? draftClaimCount(winterDraft) >= claimCardCount
+    : draftMentionsCard(winterDraft, card.code)
   const isDignity = card.kind === 'dignity'
-  const options = isDignity
-    ? ownedNobles(state, player)
-        .filter((noble) => !(noble.dignities ?? []).includes(card.dignity ?? 'bastard'))
-        .map((noble) => ({ value: noble.code, label: `${noble.code} · ${noble.name}` }))
-    : state.territories
-        .filter(
-          (territory) =>
-            territory.owner === player &&
-            territory.army?.owner === player &&
-            territory.infrastructures.some(
-              (infra) => infra.type === 'castle' || infra.type === 'village',
-            ),
-        )
-        .map((territory) => ({ value: territory.id, label: territory.id }))
+  const claimOptions = isClaim
+    ? claimTargets(state, player).map((noble) => ({
+        value: noble.code,
+        label: `${noble.code} · ${noble.name}`,
+      }))
+    : []
+  const selectedClaim = claimOptions.some((option) => option.value === claimTarget)
+    ? claimTarget
+    : (claimOptions[0]?.value ?? '')
+  const options =
+    isDignity || isClaim
+      ? ownedNobles(state, player)
+          .filter((noble) =>
+            isClaim
+              ? !(noble.dignities ?? []).includes('bastard')
+              : !(noble.dignities ?? []).includes(card.dignity ?? 'bastard'),
+          )
+          .map((noble) => ({ value: noble.code, label: `${noble.code} · ${noble.name}` }))
+      : state.territories
+          .filter(
+            (territory) =>
+              territory.owner === player &&
+              territory.army?.owner === player &&
+              territory.infrastructures.some(
+                (infra) => infra.type === 'castle' || infra.type === 'village',
+              ),
+          )
+          .map((territory) => ({ value: territory.id, label: territory.id }))
   const selected = options.some((option) => option.value === target)
     ? target
     : (options[0]?.value ?? '')
-  const label = isDignity
-    ? t('orders.nobleHandDignity', {
-        dignity: t(`dignity.${card.dignity ?? 'bastard'}` as MessageKey),
-        code: card.code,
-      })
-    : t('orders.nobleHandNoble', {
-        name: card.name ?? card.code,
-        code: card.code,
-        sex: t(card.sex === 'female' ? 'orders.nobleHandFemale' : 'orders.nobleHandMale'),
-      })
+  const label = isClaim
+    ? t('orders.nobleHandClaim', { code: card.code })
+    : isDignity
+      ? t('orders.nobleHandDignity', {
+          dignity: t(`dignity.${card.dignity ?? 'bastard'}` as MessageKey),
+          code: card.code,
+        })
+      : t('orders.nobleHandNoble', {
+          name: card.name ?? card.code,
+          code: card.code,
+          sex: t(
+            card.sex === 'female' ? 'orders.nobleHandFemale' : 'orders.nobleHandMale',
+          ),
+        })
   const discard = () => {
     onWinterChange(appendDraftLine(winterDraft, `D C ${card.code}`))
   }
   const play = () => {
-    if (selected === '') return
-    const line = isDignity
-      ? `D N ${selected} ${card.code}`
-      : `R N ${card.code} ${selected}`
+    if (selected === '' || (isClaim && selectedClaim === '')) return
+    const line = isClaim
+      ? `C N ${selected} ${selectedClaim}`
+      : isDignity
+        ? `D N ${selected} ${card.code}`
+        : `R N ${card.code} ${selected}`
     onWinterChange(appendDraftLine(winterDraft, line))
   }
   return (
@@ -270,7 +322,11 @@ function NobleCardRow({
         onChange={(event) => setTarget(event.target.value)}
         className="rounded border border-[#9bbbd3] bg-white px-1 py-0.5"
         aria-label={t(
-          isDignity ? 'orders.nobleHandDignityTargetAria' : 'orders.nobleHandTerritoryAria',
+          isClaim
+            ? 'orders.nobleHandClaimHeirAria'
+            : isDignity
+              ? 'orders.nobleHandDignityTargetAria'
+              : 'orders.nobleHandTerritoryAria',
           { code: card.code },
         )}
       >
@@ -280,25 +336,47 @@ function NobleCardRow({
           </option>
         ))}
       </select>
+      {isClaim && (
+        <select
+          value={selectedClaim}
+          onChange={(event) => setClaimTarget(event.target.value)}
+          className="rounded border border-[#9bbbd3] bg-white px-1 py-0.5"
+          aria-label={t('orders.nobleHandClaimTargetAria', { code: card.code })}
+        >
+          {claimOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      )}
       <Button
         type="button"
         variant="outline"
         size="sm"
-        disabled={used || selected === ''}
+        disabled={used || selected === '' || (isClaim && selectedClaim === '')}
         onClick={play}
       >
-        {t(isDignity ? 'orders.nobleHandPlayDignity' : 'orders.nobleHandPlayTerritory')}
+        {t(
+          isClaim
+            ? 'orders.nobleHandPlayClaim'
+            : isDignity
+              ? 'orders.nobleHandPlayDignity'
+              : 'orders.nobleHandPlayTerritory',
+        )}
       </Button>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        disabled={used}
-        aria-label={t('orders.nobleHandDiscardAria', { code: card.code })}
-        onClick={discard}
-      >
-        {t('orders.nobleHandDiscard')}
-      </Button>
+      {!cardsOnly && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={used}
+          aria-label={t('orders.nobleHandDiscardAria', { code: card.code })}
+          onClick={discard}
+        >
+          {t('orders.nobleHandDiscard')}
+        </Button>
+      )}
     </li>
   )
 }
@@ -308,11 +386,14 @@ function NobleDeckSection({
   player,
   winterDraft,
   onWinterChange,
+  cardsOnly = false,
 }: {
   state: StateData
   player: PlayerId
   winterDraft: string
   onWinterChange: (text: string) => void
+  /** Outside winter: play the cards of the hand, no draw nor discard. */
+  cardsOnly?: boolean
 }) {
   const { t } = useLanguage()
   const hand = state.nobleHand ?? []
@@ -329,31 +410,37 @@ function NobleDeckSection({
         {t('orders.nobleDeckTitle')}
       </h4>
       <p className="text-xs leading-relaxed text-[#55738a]">
-        {t('orders.nobleDeckDescription')}
+        {t(
+          cardsOnly
+            ? 'orders.nobleCardsActionDescription'
+            : 'orders.nobleDeckDescription',
+        )}
       </p>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={drawDisabled}
-          onClick={() => onWinterChange(appendDraftLine(winterDraft, 'T N'))}
-        >
-          {t('orders.nobleDraw')}
-        </Button>
-        <span className="text-xs text-[#55738a]">
-          {t('orders.nobleDeckSize', { count: deckSize })}
-        </span>
-        {drawn && (
-          <span className="text-xs text-[#55738a]">{t('orders.nobleDrawUsed')}</span>
-        )}
-        {!drawn && deckSize === 0 && (
-          <span className="text-xs text-[#8d321e]">{t('orders.nobleDeckEmpty')}</span>
-        )}
-        {!drawn && deckSize > 0 && handFull && (
-          <span className="text-xs text-[#8d321e]">{t('orders.nobleHandFull')}</span>
-        )}
-      </div>
+      {!cardsOnly && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={drawDisabled}
+            onClick={() => onWinterChange(appendDraftLine(winterDraft, 'T N'))}
+          >
+            {t('orders.nobleDraw')}
+          </Button>
+          <span className="text-xs text-[#55738a]">
+            {t('orders.nobleDeckSize', { count: deckSize })}
+          </span>
+          {drawn && (
+            <span className="text-xs text-[#55738a]">{t('orders.nobleDrawUsed')}</span>
+          )}
+          {!drawn && deckSize === 0 && (
+            <span className="text-xs text-[#8d321e]">{t('orders.nobleDeckEmpty')}</span>
+          )}
+          {!drawn && deckSize > 0 && handFull && (
+            <span className="text-xs text-[#8d321e]">{t('orders.nobleHandFull')}</span>
+          )}
+        </div>
+      )}
       <p className="text-xs text-[#55738a]">
         {t('orders.handCounter', {
           count: specialCount + hand.length,
@@ -375,6 +462,7 @@ function NobleDeckSection({
               state={state}
               winterDraft={winterDraft}
               onWinterChange={onWinterChange}
+              cardsOnly={cardsOnly}
             />
           ))}
         </ul>
@@ -563,6 +651,36 @@ export function OrdersPanel({
         specialDraft={specialDraft}
         onSpecialChange={onSpecialChange}
       />
+      {(state.nobleHand ?? []).length > 0 && (
+        <>
+          <NobleDeckSection
+            state={state}
+            player={player}
+            winterDraft={winterDraft}
+            onWinterChange={onWinterChange}
+            cardsOnly
+          />
+          <textarea
+            value={winterDraft}
+            onChange={(event) => onWinterChange(event.target.value)}
+            className="min-h-16 w-full resize-y rounded-lg border border-[#9bbbd3] bg-[#f7fbff] p-3 font-mono text-xs text-[#263f52] outline-none transition focus:border-[#5c94bd] focus:ring-2 focus:ring-[#5c94bd]/20"
+            placeholder={t('orders.nobleCardsPlaceholder')}
+            aria-label={t('orders.nobleCardsAria', { player })}
+          />
+          <PreviewErrors
+            errors={(preview?.winter ?? [])
+              .filter((line) => line.status === 'invalid')
+              .map((line) => ({ line: line.line, message: line.message ?? '' }))}
+            label={t('orders.winterErrorsAria')}
+          />
+          <WinterOrderDiagnostics
+            diagnostics={(preview?.winter ?? []).filter(
+              (line) => line.status === 'rejected',
+            )}
+            t={t}
+          />
+        </>
+      )}
       {nobles.length === 0 ? (
         <p className="rounded-lg border border-dashed border-[#b7a786] bg-[#f8f0e2] p-3 text-sm italic text-[#806f57]">
           {t('orders.noNobleAvailable')}
@@ -622,7 +740,10 @@ export function OrdersPanel({
       <Button
         type="button"
         className="w-full"
-        disabled={submitting || (!hasEmittingNoble && specialDraft.trim() === '')}
+        disabled={
+          submitting ||
+          (!hasEmittingNoble && specialDraft.trim() === '' && winterDraft.trim() === '')
+        }
         onClick={onSubmit}
       >
         {submitting

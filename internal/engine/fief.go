@@ -187,9 +187,49 @@ func (ctx *resolutionContext) transferFiefOnCapitalCapture(territoryID models.Te
 	}
 }
 
+// claimHeirOf returns the living heir of the first claim staked on the dead
+// noble, in the order the claims were played, or nil when none stands.
+func (ctx *resolutionContext) claimHeirOf(deadID models.NobleID) *models.Noble {
+	for _, claim := range ctx.state.ClaimsOn(deadID) {
+		if heir := ctx.noblesByID[claim.Heir]; heir != nil {
+			return heir
+		}
+	}
+	return nil
+}
+
+// passFiefToHeir hands a fief whose titulaire died to the heir that claimed
+// its title (specs/succession.md § Prétentions): the fief changes owner with
+// all its territories, like a conquered fief, and the heir becomes its
+// titulaire without any succession rank check.
+func (ctx *resolutionContext) passFiefToHeir(fief *models.Fief, heir models.Noble) {
+	previousOwnerID := fief.OwnerID
+	for _, memberID := range fief.Territories {
+		ctx.clearCapitalOnControlLoss(previousOwnerID, memberID)
+	}
+	heirID := heir.ID
+	fief.OwnerID = heir.OwnerID
+	fief.HolderNobleID = &heirID
+	ctx.events = append(ctx.events, Event{
+		Type:            EventTypeFiefConquered,
+		Phase:           phaseForSeason(ctx.state.Season),
+		TerritoryID:     fief.CapitalTerritoryID,
+		FiefID:          fief.ID,
+		FiefTitle:       fief.Title,
+		FiefTerritories: append([]models.TerritoryID(nil), fief.Territories...),
+		PreviousOwnerID: previousOwnerID,
+		OwnerID:         heir.OwnerID,
+		NobleID:         heir.ID,
+		NobleCode:       models.NobleCode(heir.Code),
+		NobleName:       ctx.state.NobleDisplayName(heir),
+		Reason:          "claim",
+	})
+}
+
 // vacateFiefsOfMissingHolders clears the titulaire of every fief whose noble
 // no longer exists (death, e.g. from plague): the fief stays with its owner,
-// vacant, until it is attributed again or dissolved (titres.md). Call after
+// vacant, until it is attributed again or dissolved (titres.md). A fief whose
+// titulaire was the target of a claim passes to the heir instead. Call after
 // the caller has removed the dead nobles and rebuilt indexes.
 func (ctx *resolutionContext) vacateFiefsOfMissingHolders() {
 	for i := range ctx.state.Fiefs {
@@ -198,6 +238,10 @@ func (ctx *resolutionContext) vacateFiefsOfMissingHolders() {
 			continue
 		}
 		if ctx.noblesByID[*fief.HolderNobleID] != nil {
+			continue
+		}
+		if heir := ctx.claimHeirOf(*fief.HolderNobleID); heir != nil {
+			ctx.passFiefToHeir(fief, *heir)
 			continue
 		}
 		fief.HolderNobleID = nil

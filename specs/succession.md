@@ -53,12 +53,15 @@ jusqu'à repasser sous le plafond.
 
 Chaque joueur pioche dans un **deck de nobles unique**, partagé par
 tous les joueurs, généré déterministiquement à partir de la seed de partie
-comme le deck d'ordres spéciaux. Il contient deux sortes de cartes :
+comme le deck d'ordres spéciaux. Il contient trois sortes de cartes :
 
 - des **cartes de noble**, chacune portant un nom, un trigramme et un sexe
   tirés de `assets/prenoms.csv`, sans trait de départ. Elles sont réparties
   à parts égales entre hommes et femmes (la seed tranche la carte restante
   quand leur nombre est impair) ;
+- des **cartes de prétention** (code `CLM`), qui ne recrutent personne : elles
+  se jouent avec `C N HHH CCC` pour qu'un noble du joueur réclame les titres
+  d'un noble d'une autre famille, voir [Prétentions](#prétentions-claims) ;
 - des **cartes de dignité**, qui ne recrutent personne : elles se jouent sur
   un noble déjà en jeu pour lui conférer une [dignité](dames.md#dignités).
   La seule dignité du deck est le [bâtard](#bâtard) ; d'autres s'y ajouteront
@@ -70,10 +73,17 @@ un nom encore libre (les nobles de départ en consomment aussi). Parmi elles,
 les dignités duplicables représentent une carte sur `joueurs − 1`, sans
 dépasser une carte sur quatre : `max(1, deck / max(joueurs − 1, 4))` cartes,
 arrondies à l'entier inférieur. Ce quota garantit au moins un bâtard par
-partie ; le reste du deck est constitué de cartes de noble.
+partie ; le reste du deck est constitué de cartes de noble. Les cartes de
+prétention s'ajoutent à cette taille sans remplacer de carte de noble : une
+carte sur `2 × max(joueurs − 1, 4)` de la taille de base, au moins une (31
+cartes à 4 joueurs, dont 3 de prétention).
 
-Le recrutement se déroule en deux temps, chacun une entrée d'ordre d'hiver
-distincte :
+La **pioche** (`T N`) et la **défausse** (`D C CCC`) sont des ordres d'hiver. Les
+ordres qui **jouent** une carte (`R N`, `C N`, `D N`) se soumettent à
+n'importe quelle saison, d'action ou d'hiver : ils s'appliquent au début de la
+résolution, avant les ordres d'armée, et un noble recruté ne participe au tour
+qu'à partir du suivant. Le recrutement se déroule en deux temps, chacun une
+entrée d'ordre distincte :
 
 - **pioche** (`T N`, un ordre gratuit) : ajoute la carte du dessus du deck à
   la main de cartes de noble du joueur, au plus une fois par joueur et par
@@ -147,8 +157,8 @@ noble (`noble_already_bastard`) et compte comme un titre dans le score.
   jamais en otage. Il reste susceptible d'être otage s'il est remis à un
   autre joueur par un effet autre que la capture (otage volontaire) ou si son
   propriétaire change son statut.
-- **Claims.** Un Claim ne peut pas être joué sur un bâtard ; jouer une carte
-  de bâtard sur le noble visé par un Claim annule ce Claim.
+- **Claims.** Un bâtard ne peut pas être l'héritier d'un Claim ; jouer une
+  carte de bâtard sur l'héritier annule son Claim (voir « Prétentions »).
 - **Deck d'ordres spéciaux.** Les cartes du deck d'ordres spéciaux peuvent
   cibler ou reconnaître un bâtard de la famille du joueur (prédicat de
   ciblage `is_bastard`).
@@ -331,11 +341,50 @@ Cet ordre combine deux mécaniques déjà en place :
 > peut refuser d'émettre des chaînes pour se soustraire à l'observation
 > (probablement non, pour rester cohérent avec le statut `hostage` existant).
 
-## Claims
+## Prétentions (Claims)
 
-L'événement `Claim` permet de recruter un noble héritier qui réclame le titre
-d'un seigneur marié à un membre de sa famille. À la mort du marié, le titre lui
-revient. Le roi et le pape peuvent annuler le Claim. Une annulation par le pape
-confère au seigneur la dignité de [bâtard](#bâtard). Un Claim ne peut pas être
-joué sur un bâtard ; jouer une carte de bâtard sur le noble visé par un Claim
-annule ce Claim.
+Un **Claim** (prétention) permet à un noble « héritier », né d'une alliance,
+de réclamer les titres d'un seigneur de l'autre famille. Quand ce seigneur
+meurt, les titres de fief qu'il détient reviennent à l'héritier. Le roi et le
+pape peuvent annuler le Claim ; une annulation par le pape confère au seigneur
+la dignité de [bâtard](#bâtard) (issues #256 et #257, non livrées).
+
+**Ordre.** `C N HHH CCC` (gratuit) consomme une **carte de prétention** de la main de
+cartes de noble du joueur (`card_not_in_hand` sinon ; la carte reste sur
+l'héritier tant que sa prétention vit et retourne à la défausse quand elle
+s'éteint) : `HHH` est un noble du
+joueur, l'héritier, et `CCC` un noble d'un autre joueur dont il réclame les
+titres. Conditions, un ordre qui n'en respecte pas une est rejeté avec le
+motif indiqué :
+
+- `HHH` appartient au joueur (`noble_not_owned`) et `CCC` à un autre joueur
+  (`claim_on_own_noble`) ;
+- `HHH` a été posé (recruté) pendant un mariage entre `CCC` et l'un des
+  nobles du joueur : le mariage était conclu au tour de la pose et n'avait pas
+  pris fin avant elle par la mort d'un époux (`claim_requires_marriage`). Le
+  mariage peut avoir pris fin depuis. Un noble de départ n'a jamais été posé
+  pendant un mariage. Le moteur retient, pour cela, le tour de pose de chaque
+  noble et les tours de conclusion des mariages et de décès ;
+- `HHH` n'est pas bâtard (`claim_by_bastard`) et ne porte pas déjà une
+  prétention (`claim_already_staked`) : un héritier ne réclame qu'un seul
+  noble.
+
+**Empilement.** Les Claims s'empilent : plusieurs héritiers, de la même
+famille ou de l'autre, peuvent réclamer les titres d'un même noble, sur un
+même couple ou non. Ils sont classés par ancienneté (le Claim joué le plus
+tôt d'abord) ; parmi les Claims du même hiver, celui de la famille de
+l'épouse passe en premier, puis l'ordre de jeu départage.
+
+**Effet.** Quand `CCC` meurt, chaque fief dont il est titulaire passe tout
+entier, avec ses territoires, au propriétaire du premier héritier vivant dans
+le classement, et cet héritier en devient le titulaire, sans condition de rang
+de succession (événement public de fief changeant de main, motif `claim`).
+Sans fief à `CCC` ou sans héritier vivant, les prétentions s'éteignent sans effet ; une fois le fief transmis, les autres prétentions sur `CCC` s'éteignent aussi.
+Les titres royaux ne sont pas encore implémentés : ils suivront la même règle.
+
+**Bâtard.** Jouer une carte de bâtard sur l'héritier annule sa prétention.
+Une carte de bâtard jouée sur un noble « parent » (le noble visé ou son
+conjoint) n'annule pas la prétention.
+
+**Visibilité.** Une prétention est publique : elle figure dans le rapport de
+tous les joueurs dès qu'elle est jouée.

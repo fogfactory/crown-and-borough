@@ -71,6 +71,10 @@ const REASON_KEYS: Record<string, MessageKey> = {
   hand_limit_reached: 'reports.reason.hand_limit_reached',
   card_not_in_hand: 'reports.reason.card_not_in_hand',
   noble_already_bastard: 'reports.reason.noble_already_bastard',
+  claim_requires_marriage: 'reports.reason.claim_requires_marriage',
+  claim_on_own_noble: 'reports.reason.claim_on_own_noble',
+  claim_by_bastard: 'reports.reason.claim_by_bastard',
+  claim_already_staked: 'reports.reason.claim_already_staked',
   troop_requires_adjacent_noble: 'reports.reason.troop_requires_adjacent_noble',
   noble_not_prisoner: 'reports.reason.noble_not_prisoner',
   noble_not_held: 'reports.reason.noble_not_held',
@@ -293,6 +297,8 @@ function winterOrderLabel(order: WinterOrder, map: MapData | null, t: Translate)
       return 'T N'
     case 'discard_noble_card':
       return `D C ${order.cardCode ?? '—'}`
+    case 'claim':
+      return `C N ${order.nobleCode ?? '—'} ${order.spouseCode ?? '—'}`
     case 'play_dignity':
       return `D N ${order.nobleCode ?? '—'} ${order.cardCode ?? '—'}`
     case 'recruit_troop':
@@ -370,6 +376,8 @@ function investmentLabel(
     case 'noble_discard':
       // The public report does not name the discarded card.
       return 'D C'
+    case 'claim':
+      return `C N ${investment.nobleCode ?? '—'} ${investment.claimTarget ?? '—'}`
     case 'dignity':
       return `D N ${investment.nobleCode ?? '—'} ${DIGNITY_CARD_CODES[investment.dignity ?? 'bastard']}`
     case 'prosperity_founded':
@@ -418,6 +426,12 @@ function winterDetails(
   t: Translate,
 ): string {
   if (investment.reason) return reportReason(investment.reason, t) ?? investment.reason
+  if (investment.kind === 'claim' && investment.nobleName) {
+    return t('reports.claimDetails', {
+      heir: investment.nobleName,
+      target: investment.claimTargetName || investment.claimTarget || '—',
+    })
+  }
   if (investment.nobleName) return investment.nobleName
   if (investment.level) return t('reports.level', { level: investment.level })
   return territoryLabel(map, investment.territory, t)
@@ -1104,7 +1118,9 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
       {report.winter && (
         <div className="space-y-2">
           <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
-            {t('reports.winter')}
+            {t(
+              report.header.season === 'winter' ? 'reports.winter' : 'reports.nobleCards',
+            )}
           </h4>
           <div className="space-y-1 text-sm">
             {winterInvestments.map((investment, index) => {
@@ -1166,7 +1182,14 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
             ))}
             {winterInvestments.length === 0 &&
               winterStocks.length === 0 &&
-              emptyMessage(t('reports.winter').toLowerCase(), t)}
+              emptyMessage(
+                t(
+                  report.header.season === 'winter'
+                    ? 'reports.winter'
+                    : 'reports.nobleCards',
+                ).toLowerCase(),
+                t,
+              )}
           </div>
         </div>
       )}

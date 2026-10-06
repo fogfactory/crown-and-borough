@@ -67,6 +67,9 @@ func cloneGameState(source *models.GameState) *models.GameState {
 	if source.Marriages != nil {
 		clone.Marriages = cloneSlice(source.Marriages)
 	}
+	if source.Claims != nil {
+		clone.Claims = cloneSlice(source.Claims)
+	}
 	if source.TaxedFiefs != nil {
 		clone.TaxedFiefs = cloneSlice(source.TaxedFiefs)
 	}

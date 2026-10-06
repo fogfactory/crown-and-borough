@@ -17,10 +17,13 @@ import (
 // free name, of which maleAvailable and femaleAvailable remain. Dignity
 // cards are one card in max(players-1, 4), at least one. The noble cards are
 // split evenly between the sexes; oddMale tells which sex gets the extra one
-// when their number is odd. The size is zero when no noble card can be made.
-func nobleDeckSize(players, limitMax, maleAvailable, femaleAvailable int, oddMale bool) (size, dignities, males, females int) {
+// when their number is odd. Claim cards come on top of that size: one card in
+// twice the dignity share, at least one, never replacing a noble card. The size
+// is zero when no noble card can be made.
+func nobleDeckSize(players, limitMax, maleAvailable, femaleAvailable int, oddMale bool) (size, dignities, claims, males, females int) {
 	for size = players * (limitMax + 1); size > 0; size-- {
 		dignities = max(1, size/max(players-1, 4))
+		claims = max(1, size/(2*max(players-1, 4)))
 		nobles := size - dignities
 		if nobles <= 0 {
 			continue
@@ -34,10 +37,10 @@ func nobleDeckSize(players, limitMax, maleAvailable, femaleAvailable int, oddMal
 			}
 		}
 		if males <= maleAvailable && females <= femaleAvailable {
-			return size, dignities, males, females
+			return size, dignities, claims, males, females
 		}
 	}
-	return 0, 0, 0, 0
+	return 0, 0, 0, 0, 0
 }
 
 // buildNobleDeck generates the shared noble deck deterministically from the
@@ -52,6 +55,7 @@ func buildNobleDeck(seed string, players []models.Player, limitMax int, prenoms 
 		reserved[code] = true
 	}
 	reserved[models.DignityBastardCardCode] = true
+	reserved[models.ClaimCardCode] = true
 	var male, female []assetgen.Asset
 	for _, prenom := range prenoms {
 		if reserved[prenom.Code] {
@@ -63,7 +67,7 @@ func buildNobleDeck(seed string, players []models.Player, limitMax int, prenoms 
 			male = append(male, prenom)
 		}
 	}
-	size, dignities, males, females := nobleDeckSize(len(players), limitMax, len(male), len(female), oddMale)
+	size, dignities, claims, males, females := nobleDeckSize(len(players), limitMax, len(male), len(female), oddMale)
 	if size == 0 {
 		return nil
 	}
@@ -90,6 +94,13 @@ func buildNobleDeck(seed string, players []models.Player, limitMax int, prenoms 
 			Kind:    models.NobleCardKindDignity,
 			Code:    models.DignityBastardCardCode,
 			Dignity: models.DignityBastard,
+		})
+	}
+	for index := 0; index < claims; index++ {
+		cards = append(cards, models.NobleCard{
+			ID:   nobleCardID(len(cards) + 1),
+			Kind: models.NobleCardKindClaim,
+			Code: models.ClaimCardCode,
 		})
 	}
 	drawPile := make([]models.NobleCardID, len(cards))
@@ -233,7 +244,7 @@ func (ctx *resolutionContext) releaseNobleCards(noble models.Noble) {
 			continue
 		}
 		card, _ := deck.Card(play.Card)
-		if card.Kind == models.NobleCardKindDignity {
+		if card.Kind != models.NobleCardKindNoble {
 			deck.Discard = append(deck.Discard, play.Card)
 			continue
 		}

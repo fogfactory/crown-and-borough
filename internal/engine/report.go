@@ -313,7 +313,11 @@ type WinterInvestmentReport struct {
 	Territories    []models.TerritoryID `json:"territories,omitempty"`
 	Reason         string               `json:"reason,omitempty"`
 	Dignity        models.Dignity       `json:"dignity,omitempty"`
-	Order          *models.WinterOrder  `json:"order,omitempty"`
+	// ClaimTarget and ClaimTargetName identify the noble an EventTypeClaim
+	// heir claims the titles of.
+	ClaimTarget     models.NobleCode    `json:"claimTarget,omitempty"`
+	ClaimTargetName string              `json:"claimTargetName,omitempty"`
+	Order           *models.WinterOrder `json:"order,omitempty"`
 }
 
 // MarriageReport announces one marriage concluded this winter, or a failed
@@ -633,7 +637,7 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 				Reason: event.Reason, Fief: event.FiefTitle,
 			})
 		case EventTypeWinterStock, EventTypeRecruit, EventTypeBuild, EventTypeUpgrade, EventTypeFortify,
-			EventTypeRejected, EventTypeCapitalElected, EventTypeNobleDraw, EventTypeNobleDiscard, EventTypeDignity, EventTypeFiefFounded, EventTypeFiefAssigned, EventTypeFiefAutoAssigned:
+			EventTypeRejected, EventTypeCapitalElected, EventTypeNobleDraw, EventTypeNobleDiscard, EventTypeDignity, EventTypeClaim, EventTypeFiefFounded, EventTypeFiefAssigned, EventTypeFiefAutoAssigned:
 			if report.Winter == nil {
 				report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}
 			}
@@ -658,6 +662,10 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 				Territories: append([]models.TerritoryID(nil), event.FiefTerritories...),
 				Reason:      event.Reason,
 				Dignity:     event.Dignity,
+			}
+			if event.Type == EventTypeClaim {
+				investment.ClaimTarget = event.SpouseNobleCode
+				investment.ClaimTargetName = event.SpouseNobleName
 			}
 			if event.Type == EventTypeRejected {
 				investment.Outcome = OutcomeFailure

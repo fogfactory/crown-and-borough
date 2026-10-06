@@ -70,6 +70,7 @@ const (
 	EventTypeNobleDraw          EventType = "noble_draw"
 	EventTypeDignity            EventType = "dignity"
 	EventTypeNobleDiscard       EventType = "noble_discard"
+	EventTypeClaim              EventType = "claim"
 )
 
 // Outcome is the execution result of one current order.

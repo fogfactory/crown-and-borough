@@ -37,6 +37,7 @@ func countKinds(deck *models.NobleDeck) (males, females, dignities int) {
 		switch {
 		case card.Kind == models.NobleCardKindDignity:
 			dignities++
+		case card.Kind == models.NobleCardKindClaim:
 		case card.Sex == models.SexMale:
 			males++
 		default:
@@ -44,6 +45,16 @@ func countKinds(deck *models.NobleDeck) (males, females, dignities int) {
 		}
 	}
 	return males, females, dignities
+}
+
+func claimsOf(deck *models.NobleDeck) int {
+	claims := 0
+	for _, card := range deck.Cards {
+		if card.Kind == models.NobleCardKindClaim {
+			claims++
+		}
+	}
+	return claims
 }
 
 func TestBuildNobleDeckSizesParityAndBastards(t *testing.T) {
@@ -56,7 +67,11 @@ func TestBuildNobleDeckSizesParityAndBastards(t *testing.T) {
 				t.Fatal("deck = nil, want a deck")
 			}
 			males, females, dignities := countKinds(deck)
-			size := len(deck.Cards)
+			claims := claimsOf(deck)
+			size := len(deck.Cards) - claims
+			if want := max(1, (size)/(2*max(players-1, 4))); claims != want {
+				t.Errorf("claim cards = %d, want %d on top of the deck", claims, want)
+			}
 			if size > players*7 {
 				t.Errorf("size = %d, want at most %d", size, players*7)
 			}
@@ -69,7 +84,7 @@ func TestBuildNobleDeckSizesParityAndBastards(t *testing.T) {
 			if diff := males - females; diff < -1 || diff > 1 {
 				t.Errorf("males = %d, females = %d, want an even split", males, females)
 			}
-			if len(deck.DrawPile) != size || len(deck.Played) != 0 || len(deck.Discard) != 0 {
+			if len(deck.DrawPile) != len(deck.Cards) || len(deck.Played) != 0 || len(deck.Discard) != 0 {
 				t.Errorf("draw pile = %d, played = %d, want the whole deck in the pile", len(deck.DrawPile), len(deck.Played))
 			}
 			codes := map[string]bool{}
@@ -77,7 +92,7 @@ func TestBuildNobleDeckSizesParityAndBastards(t *testing.T) {
 				if card.Kind != models.NobleCardKindNoble {
 					continue
 				}
-				if used[card.Code] || card.Code == models.DignityBastardCardCode || codes[card.Code] {
+				if used[card.Code] || card.Code == models.DignityBastardCardCode || card.Code == models.ClaimCardCode || codes[card.Code] {
 					t.Errorf("noble card %+v reuses a taken code", card)
 				}
 				codes[card.Code] = true
@@ -96,8 +111,9 @@ func TestBuildNobleDeckFourPlayers(t *testing.T) {
 	prenoms := realPrenoms(t)
 	deck := buildNobleDeck("deck-four", deckTestPlayers(4), 6, prenoms, startingCodes(prenoms, 8))
 	males, females, dignities := countKinds(deck)
-	if len(deck.Cards) != 28 || dignities != 7 || males+females != 21 {
-		t.Errorf("deck = %d cards (%d dignities, %d nobles), want 28 (7, 21)", len(deck.Cards), dignities, males+females)
+	claims := claimsOf(deck)
+	if len(deck.Cards) != 31 || dignities != 7 || claims != 3 || males+females != 21 {
+		t.Errorf("deck = %d cards (%d dignities, %d claims, %d nobles), want 31 (7, 3, 21)", len(deck.Cards), dignities, claims, males+females)
 	}
 	for _, player := range deckTestPlayers(4) {
 		if hand, exists := deck.Hands[player.ID]; !exists || len(hand) != 0 {
@@ -118,10 +134,10 @@ func TestBuildNobleDeckIsDeterministicAndSeeded(t *testing.T) {
 		t.Error("two seeds built the same shuffled draw pile")
 	}
 	// The seed decides which sex gets the odd card: 2 players make 11 noble
-	// cards.
+	// cards (5 players make 23 noble cards).
 	sawMale, sawFemale := false, false
 	for index := 0; index < 20; index++ {
-		deck := buildNobleDeck(fmt.Sprintf("odd-%d", index), deckTestPlayers(2), 6, prenoms, startingCodes(prenoms, 4))
+		deck := buildNobleDeck(fmt.Sprintf("odd-%d", index), deckTestPlayers(5), 6, prenoms, startingCodes(prenoms, 10))
 		males, females, _ := countKinds(deck)
 		switch males - females {
 		case 1:
@@ -171,8 +187,8 @@ func TestCreateGameBuildsNobleDeckWithoutStartingNames(t *testing.T) {
 		t.Error("the same seed created two different noble decks")
 	}
 	deck := first.NobleDeck
-	if deck == nil || len(deck.Cards) != 28 {
-		t.Fatalf("deck = %+v, want 28 cards", deck)
+	if deck == nil || len(deck.Cards) != 31 {
+		t.Fatalf("deck = %+v, want 31 cards", deck)
 	}
 	starting := map[string]bool{}
 	for _, noble := range first.Nobles {

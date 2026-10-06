@@ -188,3 +188,34 @@ func TestValidateNobleDeckPlayedCards(t *testing.T) {
 		t.Error("Validate accepted a card played on an unknown noble")
 	}
 }
+
+func TestValidateClaims(t *testing.T) {
+	build := func(claims ...models.Claim) *models.GameState {
+		g := models.NewGameState()
+		g.Players = []models.Player{{ID: "P1", Name: "One"}, {ID: "P2", Name: "Two"}}
+		g.Territories = []models.Territory{{ID: "AAA", Name: "AAA", Terrain: models.TerrainPlain}}
+		g.TerritoryStates = map[models.TerritoryID]models.TerritoryState{"AAA": {}}
+		g.Nobles = []models.Noble{
+			{ID: "N1", Code: "ONE", Name: "One", Sex: models.SexMale, OwnerID: "P1", LocationID: "AAA", Status: models.NobleStatusFree},
+			{ID: "N2", Code: "TWO", Name: "Two", Sex: models.SexFemale, OwnerID: "P2", LocationID: "AAA", Status: models.NobleStatusFree},
+			{ID: "N3", Code: "TRE", Name: "Tre", Sex: models.SexMale, OwnerID: "P1", LocationID: "AAA", Status: models.NobleStatusFree},
+		}
+		g.Claims = claims
+		return g
+	}
+	if err := build(models.Claim{Heir: "N1", Target: "N2", Spouse: "N3"}).Validate(); err != nil {
+		t.Fatalf("valid claim rejected: %v", err)
+	}
+	for name, claims := range map[string][]models.Claim{
+		"unknown heir":   {{Heir: "N9", Target: "N2", Spouse: "N3"}},
+		"unknown target": {{Heir: "N1", Target: "N9", Spouse: "N3"}},
+		"unknown spouse": {{Heir: "N1", Target: "N2", Spouse: "N9"}},
+		"same owner":     {{Heir: "N1", Target: "N3", Spouse: "N2"}},
+		"two claims":     {{Heir: "N1", Target: "N2", Spouse: "N3"}, {Heir: "N1", Target: "N2", Spouse: "N3"}},
+		"future turn":    {{Heir: "N1", Target: "N2", Spouse: "N3", Turn: 5}},
+	} {
+		if err := build(claims...).Validate(); err == nil {
+			t.Errorf("%s: invalid claims accepted", name)
+		}
+	}
+}

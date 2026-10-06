@@ -71,6 +71,9 @@ func (order dignityOrder) Apply(ctx *ExecutionContext) {
 	}
 	resolution.consumeNobleCard(playerID, handIndex, noble.ID)
 	noble.Dignities = append(noble.Dignities, card.Dignity)
+	if card.Dignity.Effect().VoidsClaims {
+		resolution.voidClaimOf(noble.ID)
+	}
 	resolution.events = append(resolution.events, Event{
 		Type:      EventTypeDignity,
 		Phase:     winterPhase,
