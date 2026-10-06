@@ -103,7 +103,10 @@ entrée d'ordre distincte :
   de contrôle, d'armée présente et de plafond ;
 - **jeu d'une carte de dignité** (`D N XXX CCC`, gratuit) : joue la carte de
   dignité `CCC` de la main (son code, `BAS` pour le bâtard) sur le noble
-  `XXX` du joueur. Deux cartes de même dignité sont interchangeables ;
+  `XXX`, qu'il appartienne au joueur ou à un adversaire — **toute dignité se
+  joue sur n'importe quel noble, secrètes comprises** ; ce n'est pas une
+  propriété qui varierait d'une dignité à l'autre. Deux cartes de même
+  dignité sont interchangeables ;
 - **défausse d'une carte de la main** (`D C CCC`, gratuit, sans limite par
   hiver) : retire de la main la carte `CCC` (trigramme d'un noble ou code d'une
   dignité) sans la jouer ; elle va à la défausse du deck de nobles telle
@@ -158,19 +161,12 @@ noble (`noble_already_bastard`) et compte comme un titre dans le score.
   autre joueur par un effet autre que la capture (otage volontaire) ou si son
   propriétaire change son statut.
 - **Claims.** Un bâtard ne peut pas être l'héritier d'un Claim ; jouer une
-  carte de bâtard sur l'héritier annule son Claim (voir « Prétentions »).
-- **Ciblage adverse.** Contrairement aux autres dignités, strictement
-  réservées aux nobles du joueur, le bâtard peut être joué sur le noble d'un
-  autre joueur (`CrossPlayerTarget`, propriété du moteur déclarée par
-  dignité plutôt que codée en dur). Aucune condition d'autorité (roi ou
-  autre) ne le restreint : n'importe quel joueur peut déchoir le noble d'un
-  adversaire en lui attribuant la dignité de bâtard. C'est ce qui rend
-  inutile un ordre séparé d'annulation de Claim par le roi ou le pape (voir
-  « Prétentions ») — la carte de bâtard, jouée sur l'héritier adverse, fait
-  déjà ce travail.
+  carte de bâtard sur l'héritier — y compris celui d'un adversaire, comme
+  toute carte de dignité — annule son Claim (voir « Prétentions »). Sans
+  condition d'autorité (ce n'est pas une prérogative royale), c'est ce qui
+  rend inutile un ordre séparé d'annulation de Claim par le roi ou le pape.
 - **Deck d'ordres spéciaux.** Les cartes du deck d'ordres spéciaux peuvent
-  cibler ou reconnaître un bâtard, qu'il appartienne au joueur ou à un
-  adversaire (prédicat de ciblage `is_bastard`).
+  cibler ou reconnaître un bâtard (prédicat de ciblage `is_bastard`).
 
 Les effets d'une dignité sont déclarés en un seul endroit du moteur (table de
 dignités) que chaque règle concernée interroge (plafond, succession, titres,
