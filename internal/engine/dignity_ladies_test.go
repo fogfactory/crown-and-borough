@@ -3,6 +3,7 @@ package engine
 import (
 	"testing"
 
+	"github.com/fogfactory/crown-and-borough/internal/engine/orders"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
@@ -232,5 +233,34 @@ func TestAbbessNeedsARegionSeed(t *testing.T) {
 	}
 	if noble := resolution.State.Nobles[0]; noble.AbbeyRegion != "AAA" || !noble.Has(models.DignityAbbess) {
 		t.Errorf("noble = %+v, want an abbess of AAA", noble)
+	}
+}
+
+func TestDignityCanTargetANobleRecruitedEarlierInTheSameSheet(t *testing.T) {
+	state := deckOrdersState(t)
+	giveCard(state, "P1", models.NobleCard{Kind: models.NobleCardKindNoble, Code: "MAH", Name: "Mahaut", Sex: models.SexFemale})
+	giveCard(state, "P1", models.NobleCard{Kind: models.NobleCardKindDignity, Code: "ARC", Dignity: models.DignityDArc})
+	validateTestState(t, state)
+
+	text := "R N MAH AAA\nD N MAH ARC"
+	parsed, parseErrors := orders.ParseWinterOrders(text, state)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseWinterOrders(%q) = %v, want the recruited noble to be targetable", text, parseErrors)
+	}
+	if _, parseErrors := orders.ParseWinterOrders("D N MAH ARC\nR N MAH AAA", state); len(parseErrors) == 0 {
+		t.Error("a dignity before the recruit was accepted")
+	}
+	resolution := resolveNobleDeckWinter(t, state, map[models.PlayerID][]models.WinterOrder{"P1": parsed})
+	if reasons := rejectionReasons(resolution.Events); len(reasons) != 0 {
+		t.Fatalf("rejections = %v, want none", reasons)
+	}
+	found := false
+	for _, noble := range resolution.State.Nobles {
+		if noble.Code == "MAH" {
+			found = noble.Has(models.DignityDArc)
+		}
+	}
+	if !found {
+		t.Error("the recruited noble did not receive the dignity")
 	}
 }

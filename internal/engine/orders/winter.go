@@ -175,7 +175,15 @@ func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (mod
 		return parseMarriageOrderLine(fields, lineNumber, indexes)
 	}
 	if fields[0] == "R" && fields[1] == "N" {
-		return parseRecruitNobleLine(fields, lineNumber, indexes)
+		order, parseError := parseRecruitNobleLine(fields, lineNumber, indexes)
+		if parseError == nil {
+			// The recruited noble can be targeted by the later orders of the
+			// same sheet (a dignity, a claim): its code is its card code.
+			if _, exists := indexes.noblesByCode[fields[2]]; !exists {
+				indexes.noblesByCode[fields[2]] = ""
+			}
+		}
+		return order, parseError
 	}
 	if fields[0] == "D" && fields[1] == "C" {
 		if !isCode(fields[2]) {

@@ -715,7 +715,8 @@ living heir in the ranking, with their territories, whatever its rank in your li
 succession; with no fief or no living heir, the claim lapses. A claim is public: every player sees it in the report. A bastard card played on the heir
 cancels its claim; played on a parent noble, it does not.
 
-A dignity card is played on one of your nobles with `D N NNN CCC`. A noble
+A dignity card is played on one of your nobles with `D N NNN CCC`, including a
+noble you just recruited with an `R N` placed earlier in the same sheet. A noble
 carries a given dignity only once. The deck holds the **bastard** (`BAS`), open
 to any noble, and one card for each dignity of the ladies (see below). A bastard:
 

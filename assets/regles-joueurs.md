@@ -755,7 +755,8 @@ fiefs dont il est titulaire passent au premier héritier vivant du classement, a
 succession ; sans fief ou sans héritier vivant, le Claim s'éteint. Un Claim est public : tous les joueurs le voient dans le rapport. Une carte de bâtard jouée sur
 l'héritier annule son Claim ; jouée sur un noble parent, elle ne l'annule pas.
 
-Une carte de dignité se joue sur l'un de tes nobles avec `D N NNN CCC`. Un noble
+Une carte de dignité se joue sur l'un de tes nobles avec `D N NNN CCC`, y compris
+un noble que tu viens de recruter par un `R N` placé plus haut dans la même feuille. Un noble
 ne porte une dignité qu'une fois. Le deck contient le **bâtard** (`BAS`), ouvert
 à tout noble, et une carte pour chaque dignité des dames (voir plus bas). Un bâtard :
 
