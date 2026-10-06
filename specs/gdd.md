@@ -62,7 +62,7 @@ liste d'investissements directs, traités dans l'ordre saisi :
 - `T N` — piocher une carte dans le deck de nobles (une fois par hiver) ; les ordres qui jouent une carte du deck de nobles (`R N`, `C N`, `D N`) se soumettent aussi pendant les saisons d'action, dans le champ `winter` ;
 - `R N CCC XXX` — jouer la carte de noble `CCC` de la main pour recruter ce noble sur `XXX` ;
 - `C N HHH CCC` — consomme une carte de prétention : l'héritier `HHH` (noble du joueur posé pendant un mariage de `CCC`) réclame les titres de fief du noble `CCC` d'un autre joueur ([succession.md](succession.md#prétentions-claims)) ;
-- `D N NNN CCC` — jouer la carte de dignité `CCC` (`BAS` : bâtard) de la main sur le noble `NNN` ;
+- `D N NNN CCC` — jouer la carte de dignité `CCC` (`BAS` : bâtard ; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `SOR` : dignités des dames ; `D N NNN ABB TER` pour l'Abbesse, voir `specs/dames.md`) de la main sur le noble `NNN` ;
 - `D C CCC` — défausser sans la jouer la carte `CCC` (trigramme de noble ou code de dignité) de la main de nobles, gratuit et sans limite par hiver ;
 - `A N XXX` — annoblir gratuitement une armée sur `XXX` lorsque le joueur n'a plus aucun noble ;
 - `R T XXX` — recruter une troupe sur `XXX` ;
@@ -98,7 +98,7 @@ adjacent à celle-ci par une frontière franchissable.
 Les nobles se recrutent depuis un deck de nobles partagé par tous les
 joueurs et généré de façon déterministe à partir de la seed de partie : des
 cartes de noble (nom, trigramme et sexe, à parts égales entre hommes et
-femmes) et des cartes de dignité (le bâtard). `T N` ajoute la carte du dessus
+femmes) et des cartes de dignité (le bâtard et, en plus de la taille de base, une carte par dignité des dames). `T N` ajoute la carte du dessus
 à la main du joueur, une fois par joueur et par hiver (`noble_draw_already_used`
 au-delà ; `hand_limit_reached` quand la main partagée — ordres spéciaux, cartes
 de noble et de dignité — atteint `special_orders.hand_limit` ; `noble_deck_empty` quand la pioche et la défausse sont vides ; une
@@ -116,7 +116,7 @@ ce noble est toujours le dernier de la ligne de succession, ne reçoit un
 nouveau titre que s'il est le dernier de sa lignée, garde celui qu'il détient, ne peut pas être roi, est placé
 directement au cachot quand il est capturé en combat, et son mariage n'est
 pas une alliance. `D N NNN CCC` joue une carte de dignité sur un noble du
-joueur (`noble_not_owned`, `noble_already_bastard`). Un ordre rejeté est
+joueur (`noble_not_owned`, `noble_already_<dignité>`, `dignity_female_only`, `noble_married` pour une dignité Bloquée, `dignity_region_required`). Un ordre rejeté est
 signalé dans le rapport avec son motif ; toutes les conditions sont
 vérifiées avant de consommer la carte, donc un ordre rejeté ne la consomme
 pas. La dignité de bâtard compte comme un titre dans le score. Une carte

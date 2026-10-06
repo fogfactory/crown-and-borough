@@ -35,8 +35,9 @@ func startingCodes(prenoms []assetgen.Asset, count int) map[string]bool {
 func countKinds(deck *models.NobleDeck) (males, females, dignities int) {
 	for _, card := range deck.Cards {
 		switch {
-		case card.Kind == models.NobleCardKindDignity:
+		case card.Kind == models.NobleCardKindDignity && card.Dignity == models.DignityBastard:
 			dignities++
+		case card.Kind == models.NobleCardKindDignity:
 		case card.Kind == models.NobleCardKindClaim:
 		case card.Sex == models.SexMale:
 			males++
@@ -45,6 +46,18 @@ func countKinds(deck *models.NobleDeck) (males, females, dignities int) {
 		}
 	}
 	return males, females, dignities
+}
+
+// ladyDignityCards counts the lady dignity cards, one per dignity, which come
+// on top of the base deck size.
+func ladyDignityCards(deck *models.NobleDeck) int {
+	count := 0
+	for _, card := range deck.Cards {
+		if card.Kind == models.NobleCardKindDignity && card.Dignity != models.DignityBastard {
+			count++
+		}
+	}
+	return count
 }
 
 func claimsOf(deck *models.NobleDeck) int {
@@ -68,7 +81,10 @@ func TestBuildNobleDeckSizesParityAndBastards(t *testing.T) {
 			}
 			males, females, dignities := countKinds(deck)
 			claims := claimsOf(deck)
-			size := len(deck.Cards) - claims
+			if ladies := ladyDignityCards(deck); ladies != len(models.LadyDignities) {
+				t.Errorf("lady dignity cards = %d, want %d", ladies, len(models.LadyDignities))
+			}
+			size := len(deck.Cards) - claims - ladyDignityCards(deck)
 			if want := max(1, (size)/(2*max(players-1, 4))); claims != want {
 				t.Errorf("claim cards = %d, want %d on top of the deck", claims, want)
 			}
@@ -112,8 +128,8 @@ func TestBuildNobleDeckFourPlayers(t *testing.T) {
 	deck := buildNobleDeck("deck-four", deckTestPlayers(4), 6, prenoms, startingCodes(prenoms, 8))
 	males, females, dignities := countKinds(deck)
 	claims := claimsOf(deck)
-	if len(deck.Cards) != 31 || dignities != 7 || claims != 3 || males+females != 21 {
-		t.Errorf("deck = %d cards (%d dignities, %d claims, %d nobles), want 31 (7, 3, 21)", len(deck.Cards), dignities, claims, males+females)
+	if len(deck.Cards) != 40 || dignities != 7 || claims != 3 || males+females != 21 {
+		t.Errorf("deck = %d cards (%d dignities, %d claims, %d nobles), want 40 (7 bastards, 9 lady dignities, 3, 21)", len(deck.Cards), dignities, claims, males+females)
 	}
 	for _, player := range deckTestPlayers(4) {
 		if hand, exists := deck.Hands[player.ID]; !exists || len(hand) != 0 {
@@ -187,8 +203,8 @@ func TestCreateGameBuildsNobleDeckWithoutStartingNames(t *testing.T) {
 		t.Error("the same seed created two different noble decks")
 	}
 	deck := first.NobleDeck
-	if deck == nil || len(deck.Cards) != 31 {
-		t.Fatalf("deck = %+v, want 31 cards", deck)
+	if deck == nil || len(deck.Cards) != 40 {
+		t.Fatalf("deck = %+v, want 40 cards", deck)
 	}
 	starting := map[string]bool{}
 	for _, noble := range first.Nobles {

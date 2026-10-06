@@ -240,6 +240,12 @@ func (g *GameState) Validate() error {
 			return fmt.Errorf("models: noble %q: duplicate code %q (already used by %q)", n.ID, n.Code, prev)
 		}
 		nobleCodes[n.Code] = n.ID
+		if n.SecretCode != "" {
+			if prev, dup := nobleCodes[n.SecretCode]; dup {
+				return fmt.Errorf("models: noble %q: duplicate secret code %q (already used by %q)", n.ID, n.SecretCode, prev)
+			}
+			nobleCodes[n.SecretCode] = n.ID
+		}
 		if !n.Sex.IsValid() {
 			return fmt.Errorf("models: noble %q: invalid sex %q", n.ID, n.Sex)
 		}

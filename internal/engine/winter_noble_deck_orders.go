@@ -1,6 +1,10 @@
 package engine
 
-import "github.com/fogfactory/crown-and-borough/internal/models"
+import (
+	"slices"
+
+	"github.com/fogfactory/crown-and-borough/internal/models"
+)
 
 // drawNobleOrder is T N (specs/succession.md § Deck de nobles): it adds the
 // top card of the shared noble deck to the player's hand, at most once per
@@ -65,12 +69,44 @@ func (order dignityOrder) Apply(ctx *ExecutionContext) {
 		resolution.rejectWinterOrder(playerID, winterOrder, "card_not_in_hand")
 		return
 	}
-	if noble.Has(card.Dignity) {
-		resolution.rejectWinterOrder(playerID, winterOrder, "noble_already_"+string(card.Dignity))
+	_, married := resolution.state.MarriageOf(noble.ID)
+	if reason := card.Dignity.CanReceive(*noble, married); reason != "" {
+		resolution.rejectWinterOrder(playerID, winterOrder, reason)
 		return
+	}
+	effect := card.Dignity.Effect()
+	if effect.NeedsRegion != (winterOrder.TerritoryID != "") {
+		resolution.rejectWinterOrder(playerID, winterOrder, "dignity_region_required")
+		return
+	}
+	if effect.NeedsRegion && !resolution.isRegionSeed(winterOrder.TerritoryID) {
+		resolution.rejectWinterOrder(playerID, winterOrder, "dignity_region_unknown")
+		return
+	}
+	poolIndex := -1
+	if effect.ChangesSexToMale {
+		poolIndex = resolution.firstFreeMaleName()
+		if poolIndex < 0 {
+			resolution.rejectWinterOrder(playerID, winterOrder, "no_free_name")
+			return
+		}
 	}
 	resolution.consumeNobleCard(playerID, handIndex, noble.ID)
 	noble.Dignities = append(noble.Dignities, card.Dignity)
+	if effect.NeedsRegion {
+		noble.AbbeyRegion = winterOrder.TerritoryID
+	}
+	if effect.ChangesSexToMale {
+		// Silent: a new male noble, drawn from the unused names, replaces the
+		// lady in public; her identity stays known to her owner only.
+		deck := resolution.state.NobleDeck
+		identity := deck.NamePool[poolIndex]
+		deck.NamePool = slices.Delete(deck.NamePool, poolIndex, poolIndex+1)
+		noble.SecretCode, noble.SecretName, noble.SecretSex = noble.Code, noble.Name, noble.Sex
+		delete(resolution.noblesByCode, winterOrder.NobleCode)
+		noble.Code, noble.Name, noble.Sex = identity.Code, identity.Name, models.SexMale
+		resolution.noblesByCode[models.NobleCode(noble.Code)] = noble.ID
+	}
 	if card.Dignity.Effect().VoidsClaims {
 		resolution.voidClaimOf(noble.ID)
 	}
@@ -138,4 +174,26 @@ func (ctx *resolutionContext) handSize(playerID models.PlayerID) int {
 		size += len(ctx.state.NobleDeck.Hands[playerID])
 	}
 	return size
+}
+
+// isRegionSeed reports whether the territory is the seed of a region
+// (bishopric).
+func (ctx *resolutionContext) isRegionSeed(territoryID models.TerritoryID) bool {
+	for _, region := range ctx.state.Regions {
+		if region.Seed == territoryID {
+			return true
+		}
+	}
+	return false
+}
+
+// firstFreeMaleName returns the index in the name pool of the first unused
+// male name, or -1.
+func (ctx *resolutionContext) firstFreeMaleName() int {
+	if ctx.state.NobleDeck == nil {
+		return -1
+	}
+	return slices.IndexFunc(ctx.state.NobleDeck.NamePool, func(name models.NobleName) bool {
+		return name.Sex == models.SexMale
+	})
 }

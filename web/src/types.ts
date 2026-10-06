@@ -172,10 +172,22 @@ export interface Noble {
   spouse?: string
   /** Permanent public distinctions the noble carries. */
   dignities?: Dignity[]
+  /** Private identity replaced by a chevalier d'Éon; sent to its owner only. */
+  secret?: { code: string; name: string; sex: 'male' | 'female' }
 }
 
-/** A permanent distinction played on a noble; only the bastard exists. */
-export type Dignity = 'bastard'
+/** A permanent distinction played on a noble (bastard and the dignities of the ladies). */
+export type Dignity =
+  | 'bastard'
+  | 'd_arc'
+  | 'castellan'
+  | 'abbess'
+  | 'herbalist'
+  | 'astrologer'
+  | 'chevalier_d_eon'
+  | 'correspondent'
+  | 'spy'
+  | 'witch'
 
 export type NobleCardKind = 'noble' | 'dignity' | 'claim'
 
@@ -329,6 +341,10 @@ export interface StateData {
   fiefs?: Fief[]
   marriages?: { nobleA: string; nobleB: string; turn: number }[]
   specialHand?: CardKind[]
+  /** Winter only: next calamities of the draw pile, revealed by a free astrologue. */
+  calamityForecast?: CardKind[]
+  /** Hands revealed by a spy held hostage by their owner. */
+  spiedHands?: Array<{ player: PlayerId; specialHand: CardKind[]; nobleHand: NobleCard[] }>
   nobleHand?: NobleCard[]
   /** Cards left in the shared noble draw pile. */
   nobleDeckSize?: number
@@ -750,6 +766,7 @@ export type WinterOrderType =
   | 'marriage'
   | 'draw_noble'
   | 'play_dignity'
+  | 'calamity_veto'
   | 'discard_noble_card'
   | 'claim'
 
@@ -768,6 +785,8 @@ export interface WinterOrder {
   amount?: number
   /** Present only for `found_fief`: the whole group, capital first. */
   territories?: string[]
+  /** Present only for `calamity_veto`: the struck forecast positions. */
+  indices?: number[]
 }
 
 export interface WinterStockReport {

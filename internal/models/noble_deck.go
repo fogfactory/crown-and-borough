@@ -195,7 +195,7 @@ func validateNobleDeck(deck *NobleDeck, players map[PlayerID]bool, nobleCodes ma
 		switch {
 		case !alive:
 			return fmt.Errorf("models: noble card %q: played on unknown noble %q", play.Card, play.Noble)
-		case card.Kind == NobleCardKindNoble && noble.Code != card.Code:
+		case card.Kind == NobleCardKindNoble && noble.Code != card.Code && noble.SecretCode != card.Code:
 			return fmt.Errorf("models: noble card %q: noble %q has code %q", play.Card, noble.ID, noble.Code)
 		case card.Kind == NobleCardKindClaim:
 			if !hasClaim(claims, noble.ID) {

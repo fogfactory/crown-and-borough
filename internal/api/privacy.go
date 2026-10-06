@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/engine/orders"
@@ -117,6 +118,7 @@ func recordChainKnowledge(before, after *models.GameState, chain models.Chain, p
 		deleteChainSnapshot(privacy, army.OwnerID, *previousChainID)
 	}
 	putChainSnapshot(privacy, noble.OwnerID, snapshot)
+	recordDignityKnowledge(before, privacy, chain, noble, snapshot)
 
 	if noble.Status != models.NobleStatusHostage {
 		return
@@ -536,6 +538,7 @@ func projectReport(report engine.TurnReport, viewer models.PlayerID, privacy *mo
 		Fiefs:         append([]engine.FiefReport{}, report.Fiefs...),
 		Marriages:     append([]engine.MarriageReport{}, report.Marriages...),
 	}
+	view.Winter = redactHiddenDignities(report.Winter, viewer)
 	for _, order := range report.Orders {
 		if viewer == models.SpectatorViewer || privacy != nil && viewerKnowsChainSnapshot(privacy, viewer, order.Chain) {
 			view.Orders = append(view.Orders, knownOrderReport(order))
@@ -634,4 +637,125 @@ func generalCombatSummary(combat engine.CombatReport) (string, string) {
 		return "attack_wins", "An attack overcame the defense."
 	}
 	return "defense_holds", "The defense held."
+}
+
+// redactHiddenDignities drops from the winter report the nominations of
+// hidden dignities that the viewer did not play: the other players only see a
+// lady, never her dignity (specs/dames.md § Dignités cachées).
+func redactHiddenDignities(winter *engine.WinterReport, viewer models.PlayerID) *engine.WinterReport {
+	if winter == nil || viewer == models.SpectatorViewer {
+		return winter
+	}
+	redacted := *winter
+	redacted.Investments = make([]engine.WinterInvestmentReport, 0, len(winter.Investments))
+	for _, investment := range winter.Investments {
+		if investment.Player != viewer && revealsHiddenDignity(investment) {
+			continue
+		}
+		redacted.Investments = append(redacted.Investments, investment)
+	}
+	return &redacted
+}
+
+// recordDignityKnowledge gives the owners of the information dignities the
+// chains they reveal (specs/dames.md § Dignités): the castellan knows the
+// orders given on her fief, the abbess those started in her region, the
+// correspondent those of the player holding her hostage. Only a chain emitted
+// this turn is seen: an army entering from outside without changing its chain
+// stays hidden from the castellan.
+func recordDignityKnowledge(before *models.GameState, privacy *models.PrivacyMeta, chain models.Chain, emitter models.Noble, snapshot models.ChainSnapshot) {
+	for _, lady := range before.Nobles {
+		if len(lady.Dignities) == 0 {
+			continue
+		}
+		var viewers []models.PlayerID
+		holder := hostHolder(before, lady)
+		if lady.SeesFiefOrders() && inCastle(before, lady.LocationID) {
+			if fief := fiefOf(before, lady.LocationID); fief != nil && chainTouches(chain, fief.Territories) {
+				viewers = append(viewers, lady.OwnerID)
+				if holder != "" {
+					viewers = append(viewers, holder)
+				}
+			}
+		}
+		if lady.SeesAbbeyOrders() && lady.AbbeyRegion != "" {
+			territories := regionTerritories(before, lady.AbbeyRegion)
+			if slices.Contains(territories, lady.LocationID) && len(chain.Orders) > 0 && slices.Contains(territories, chain.Orders[0].PositionID) {
+				viewers = append(viewers, lady.OwnerID)
+			}
+		}
+		if lady.SeesHostOrders() && holder != "" && emitter.OwnerID == holder {
+			viewers = append(viewers, lady.OwnerID)
+		}
+		for _, viewer := range viewers {
+			putChainSnapshot(privacy, viewer, snapshot)
+		}
+	}
+}
+
+// hostHolder is the owner of the army that holds the hostage noble, or "".
+func hostHolder(state *models.GameState, noble models.Noble) models.PlayerID {
+	if noble.Status != models.NobleStatusHostage {
+		return ""
+	}
+	if army := armyAtTerritory(state, noble.LocationID); army != nil && army.OwnerID != noble.OwnerID {
+		return army.OwnerID
+	}
+	return ""
+}
+
+func inCastle(state *models.GameState, territoryID models.TerritoryID) bool {
+	for _, infrastructure := range state.Infrastructures {
+		if infrastructure.TerritoryID == territoryID && infrastructure.Type == models.InfraTypeCastle {
+			return true
+		}
+	}
+	return false
+}
+
+func fiefOf(state *models.GameState, territoryID models.TerritoryID) *models.Fief {
+	for index := range state.Fiefs {
+		if slices.Contains(state.Fiefs[index].Territories, territoryID) {
+			return &state.Fiefs[index]
+		}
+	}
+	return nil
+}
+
+func regionTerritories(state *models.GameState, seed models.TerritoryID) []models.TerritoryID {
+	for _, region := range state.Regions {
+		if region.Seed == seed {
+			return region.Territories
+		}
+	}
+	return nil
+}
+
+// chainTouches reports whether an order of the chain stands on or targets one
+// of the territories.
+func chainTouches(chain models.Chain, territories []models.TerritoryID) bool {
+	for _, order := range chain.Orders {
+		if slices.Contains(territories, order.PositionID) {
+			return true
+		}
+		for _, target := range order.TargetIDs {
+			if slices.Contains(territories, target) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// revealsHiddenDignity tells the winter entries that would give away a hidden
+// dignity: its nomination, or the rejection of the order that played its card.
+func revealsHiddenDignity(investment engine.WinterInvestmentReport) bool {
+	if investment.Dignity != "" && investment.Dignity.Effect().Hidden {
+		return true
+	}
+	if investment.Order == nil || investment.Order.Type != models.WinterOrderTypeDignity {
+		return false
+	}
+	dignity, known := models.DignityForCardCode(investment.Order.CardCode)
+	return known && dignity.Effect().Hidden
 }

@@ -18,7 +18,8 @@ import (
 // cards are one card in max(players-1, 4), at least one. The noble cards are
 // split evenly between the sexes; oddMale tells which sex gets the extra one
 // when their number is odd. Claim cards come on top of that size: one card in
-// twice the dignity share, at least one, never replacing a noble card. The size
+// twice the dignity share, at least one, never replacing a noble card, and
+// one card of each lady dignity does the same. The size
 // is zero when no noble card can be made.
 func nobleDeckSize(players, limitMax, maleAvailable, femaleAvailable int, oddMale bool) (size, dignities, claims, males, females int) {
 	for size = players * (limitMax + 1); size > 0; size-- {
@@ -56,6 +57,9 @@ func buildNobleDeck(seed string, players []models.Player, limitMax int, prenoms 
 	}
 	reserved[models.DignityBastardCardCode] = true
 	reserved[models.ClaimCardCode] = true
+	for _, dignity := range models.LadyDignities {
+		reserved[dignity.Effect().CardCode] = true
+	}
 	var male, female []assetgen.Asset
 	for _, prenom := range prenoms {
 		if reserved[prenom.Code] {
@@ -94,6 +98,15 @@ func buildNobleDeck(seed string, players []models.Player, limitMax int, prenoms 
 			Kind:    models.NobleCardKindDignity,
 			Code:    models.DignityBastardCardCode,
 			Dignity: models.DignityBastard,
+		})
+	}
+	// One card of each lady dignity, on top of the base size like the claims.
+	for _, dignity := range models.LadyDignities {
+		cards = append(cards, models.NobleCard{
+			ID:      nobleCardID(len(cards) + 1),
+			Kind:    models.NobleCardKindDignity,
+			Code:    dignity.Effect().CardCode,
+			Dignity: dignity,
 		})
 	}
 	for index := 0; index < claims; index++ {

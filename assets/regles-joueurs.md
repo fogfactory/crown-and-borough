@@ -273,7 +273,7 @@ ordres d'armée ; un noble recruté n'agit qu'au tour suivant.
 |---|---|
 | `R N CCC XXX` | Recruter le noble de la carte `CCC` sur `XXX`. |
 | `C N HHH NNN` | Prétention : l'héritier `HHH` réclame les titres du noble `NNN` d'un autre joueur (consomme une carte `CLM`). |
-| `D N NNN BAS` | Conférer la dignité de bâtard à `NNN` (consomme une carte `BAS`). |
+| `D N NNN CCC` | Conférer à `NNN` la dignité de la carte `CCC` (`BAS` : bâtard ; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `SOR` : dignités des dames). |
 
 ### Attaque (`A`) et jonction (`J`)
 
@@ -701,7 +701,7 @@ investissements directs, une ligne par ordre, appliqués dans l'ordre saisi.
 | Piocher une carte de noble | `T N` | une seule fois par hiver et par joueur ; le deck de nobles, commun à tous, ne doit pas être épuisé | 0 |
 | Recruter un noble | `R N CCC XXX` | `CCC` est une carte de noble de ta main ; `XXX` contrôlé, avec un château ou un village et une armée du joueur, et moins de nobles vivants possédés que ton plafond, {{noble_limit}} de base (voir ci-dessous) | 0 |
 | Réclamer des titres | `C N HHH CCC` | `CLM` est une carte de prétention de ta main ; `HHH` est un de tes nobles, posé pendant un mariage de `CCC` avec l'un de tes nobles, non bâtard et sans prétention en cours ; `CCC` est un noble d'un autre joueur | 0 |
-| Conférer une dignité | `D N NNN CCC` | `NNN` est un noble du joueur ; `CCC` est une carte de dignité de ta main (`BAS` : bâtard) ; un noble n'est bâtard qu'une fois | 0 |
+| Conférer une dignité | `D N NNN CCC` | `NNN` est un noble du joueur ; `CCC` est une carte de dignité de ta main (`BAS` : bâtard ; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `SOR` : dames ; Bloquées : non mariées) ; un noble ne porte une dignité qu'une fois | 0 |
 | Défausser une carte de noble | `D C CCC` | `CCC` est une carte de ta main de nobles (trigramme de noble ou `BAS`) ; sans limite par hiver ; la carte va à la défausse du deck | 0 |
 | Recruter une troupe | `R T XXX` | `XXX` contrôlé, et un noble libre du joueur sur `XXX` ou adjacent | {{costs.troop}} |
 | Construire ou améliorer un moulin | `C M XXX` | `XXX` contrôlé ; un **nouveau** moulin exige une case **vide** adjacente à un château ou village, ou portant elle-même un château ou village ; un moulin **existant** peut toujours être amélioré, même isolé | {{costs.mill_levels.0}} (N1), {{costs.mill_levels.1}} (N2), {{costs.mill_levels.2}} (N3) |
@@ -755,9 +755,9 @@ fiefs dont il est titulaire passent au premier héritier vivant du classement, a
 succession ; sans fief ou sans héritier vivant, le Claim s'éteint. Un Claim est public : tous les joueurs le voient dans le rapport. Une carte de bâtard jouée sur
 l'héritier annule son Claim ; jouée sur un noble parent, elle ne l'annule pas.
 
-Une carte de dignité se joue sur l'un de tes nobles avec `D N NNN CCC` ; la
-seule dignité du deck est le **bâtard** (`BAS`), qu'un noble ne porte qu'une
-fois. Un bâtard :
+Une carte de dignité se joue sur l'un de tes nobles avec `D N NNN CCC`. Un noble
+ne porte une dignité qu'une fois. Le deck contient le **bâtard** (`BAS`), ouvert
+à tout noble, et une carte pour chaque dignité des dames (voir plus bas). Un bâtard :
 
 - relève ton plafond de nobles de 1 tant qu'il vit, même marié, otage ou au
   donjon ; chaque bâtard ajoute 1, sans jamais dépasser {{noble_limit_max}} ;
@@ -770,6 +770,27 @@ fois. Un bâtard :
 - est placé directement au donjon, jamais en otage, lorsqu'il est capturé au
   combat ;
 - compte comme un titre dans ton score.
+
+Les dignités des dames sont permanentes et comptent chacune comme un titre dans
+ton score. Elles ne se jouent que sur une dame (`dignity_female_only`). Une
+dignité **Bloquée** ne se joue pas sur une dame mariée (`noble_married`) et
+interdit ensuite le mariage ; une dignité **Libre** se joue sur une dame mariée
+ou non et laisse le mariage possible. Leurs bonus cessent tant que la dame est
+au donjon ; une dame otage les conserve et son geôlier en profite aussi (bonus passifs seulement : seul son propriétaire lui donne des ordres). Les
+dignités **cachées** ne sont connues que de ton joueur : les autres joueurs
+voient une dame sans dignité, ni dans la vue d'état ni dans le rapport.
+
+| Dignité | Code | Mariage | Effet |
+|---|---|---|---|
+| D'Arc | `ARC` | Bloquée | `+1` à la force de l'armée qu'elle commande, en plus du `+1` de commandement noble. |
+| Châtelaine | `CTL` | Libre | Dans un château, elle te fait connaître les ordres émis ce tour sur son fief, y compris ceux qui ciblent des armées adverses. Une armée venue de l'extérieur qui entre sans modifier sa chaîne reste cachée. |
+| Abbesse | `ABB` | Bloquée | Se joue avec le village seed d'une région (`D N NNN ABB TER`), définitif. Tant qu'elle s'y trouve, tu connais les chaînes d'ordres émises dans cette région. |
+| Herboriste | `HRB` | Bloquée | Tes troupes et nobles sur sa case et les cases adjacentes sont immunisés à la peste ; ton armée sur sa case consomme 2 rations de moins par tour, sans descendre sous zéro. |
+| Astrologue | `AST` | Libre | En hiver, tu vois en privé les 4 prochaines calamités de la pioche des ordres spéciaux. `V C NNN I [J]` en raye une ou deux (positions 1 à 4), une fois par hiver et par astrologue, par son seul propriétaire ; les calamités suivantes les remplacent. |
+| Chevalier d'Éon (cachée) | `EON` | Libre, dame non mariée | La dame est remplacée par un noble homme, au prénom et au code tirés des prénoms inutilisés, avec toutes les prérogatives d'un homme (il se marie donc avec une femme). Son identité de dame reste secrète : toi seul la connais. |
+| Correspondante (cachée) | `COR` | Libre | Otage chez un joueur, elle te fait voir tous les ordres que ce joueur émet. |
+| Espionne (cachée) | `ESP` | Libre | Otage chez un joueur, elle te dévoile sa main complète (ordres spéciaux, nobles et dignités). |
+| Sorcière (cachée) | `SOR` | Libre | Toute armée d'un autre joueur dans sa région consomme 1 ration de plus par tour, sans autre précision pour ses propriétaires. |
 
 C'est ici, en hiver, que se règle le sort des nobles ennemis capturés en
 combat (section 6) : `O`/`P` fait basculer un prisonnier entre `hostage` et

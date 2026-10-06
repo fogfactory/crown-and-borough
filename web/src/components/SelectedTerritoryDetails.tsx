@@ -303,6 +303,14 @@ export function SelectedTerritoryDetails({
                         </dd>
                       </>
                     )}
+                    {noble.secret && (
+                      <>
+                        <dt>{t('app.secretIdentity')}</dt>
+                        <dd className="font-medium text-[#594b3c]">
+                          {noble.secret.code} · {noble.secret.name}
+                        </dd>
+                      </>
+                    )}
                     {noble.spouse && (
                       <>
                         <dt>{t('app.marriage')}</dt>

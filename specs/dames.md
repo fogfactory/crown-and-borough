@@ -74,10 +74,11 @@ diffère (l'une close aux femmes, l'autre ouverte aux nobles des deux sexes
 mais close à qui est déjà titulaire de l'autre voie). Contrairement à un
 titre séculier, une dignité ne se rachète pas : elle se mérite en jeu.
 
-**Une dame mariée ne peut pas recevoir de dignité**, point : la condition
-est symétrique à celle d'un homme marié qui ne peut devenir évêque. Chaque
-dignité précise ensuite si sa titulaire peut se marier **après** la
-nomination (**Libre**) ou non (**Bloqué**).
+Chaque dignité précise si sa titulaire peut se marier **après** la
+nomination (**Libre**) ou non (**Bloqué**). Une dignité **Bloquée** ne peut
+pas être posée sur une dame mariée, comme un homme marié ne peut devenir
+évêque ; une dignité **Libre** peut l'être, à l'exception de l'Éon, qui exige
+une dame non mariée.
 
 Chaque dignité est **permanente** (pas de durée, pas de défausse) et confère
 un bonus fixe et/ou une action réservée. **Les bonus ne s'appliquent que
@@ -222,6 +223,36 @@ Révélée, elle est **excommuniée d'office**.
 > À trancher à l'implémentation : comportement exact d'un Éon excommunié
 > sur un titre acquis par élection ; une dignité perdue en cas de mort ou de
 > capture.
+
+### Statut d'implémentation (#259)
+
+Livrées : toutes les dignités, sauf les parties qui dépendent de l'enquête, de
+l'excommunication, du procès et des élections d'évêque : démasquage de
+l'Éon, voix d'élection et calme des révoltes de l'Abbesse, ordre d'hiver de la
+Châtelaine, ordre « Infiltrer » de l'Espionne.
+
+Précisions retenues :
+
+- les évêchés sont les régions du jeu ; l'Abbesse se pose avec le village
+  seed de sa région (`D N NNN ABB TER`) ;
+- otage = capturé en combat (statut `hostage`), quelle que soit la
+  provenance ; prisonnière = au `dungeon`. Une dame otage conserve ses bonus
+  et son geôlier en profite aussi ; les dames cachées Correspondante et
+  Espionne n'agissent que lorsqu'elles sont otages ;
+- l'Astrologue voit les **4 prochaines cartes calamité de la pioche** des
+  ordres spéciaux, en hiver, à son seul joueur, et en raye une ou deux avec
+  `V C NNN I [J]`, une fois par hiver ; les cartes rayées vont à la défausse
+  et les calamités suivantes les remplacent ;
+- l'Éon remplace la dame par un noble homme au prénom et au code tirés des
+  prénoms inutilisés ; l'identité de la dame (code, prénom, sexe) n'est connue
+  que de son propriétaire ;
+- le geôlier d'une otage profite des bonus passifs, jamais des ordres : seul
+  le propriétaire de l'Astrologue peut rayer des calamités ;
+- la Châtelaine ne voit que les chaînes émises ce tour : une armée qui entre
+  dans le fief sans modifier sa chaîne reste cachée ;
+- l'Herboriste réduit la demande de ravitaillement de l'armée de son
+  bénéficiaire sur sa case ; la Sorcière augmente de 1 celle des armées d'un
+  autre propriétaire dans sa région (les alliances n'existent pas encore).
 
 ## Carte de procès
 

@@ -230,8 +230,7 @@ func resolveRations(ctx *resolutionContext) map[models.ArmyID]int {
 		}
 		parts := rationProductionBreakdown(ctx, territoryID)
 		ctx.supplyRations[territoryID] = parts
-		distribution := distributeRations(parts.total(), []models.Army{*army}, ctx.balance.CostBase)
-		received[army.ID] = distribution[army.ID]
+		received[army.ID] = min(parts.total(), armyDemand(ctx, *army))
 		if army.OwnerID == models.NeutralPlayerID {
 			continue
 		}
@@ -239,7 +238,7 @@ func resolveRations(ctx *resolutionContext) map[models.ArmyID]int {
 		detail.size = army.Size
 		detail.ownerID = army.OwnerID
 		detail.territoryID = army.TerritoryID
-		detail.demand = armyCost(army.Size, ctx.balance.CostBase)
+		detail.demand = armyDemand(ctx, *army)
 		detail.receivedLocal = received[army.ID]
 	}
 	return received
@@ -506,9 +505,9 @@ func assignSupply(
 		detail.ownerID = army.OwnerID
 		detail.territoryID = army.TerritoryID
 		if detail.demand == 0 {
-			detail.demand = armyCost(army.Size, ctx.balance.CostBase)
+			detail.demand = armyDemand(ctx, army)
 		}
-		demand := armyCost(army.Size, ctx.balance.CostBase) - receivedRations[army.ID]
+		demand := armyDemand(ctx, army) - receivedRations[army.ID]
 		if demand == 0 {
 			continue
 		}
