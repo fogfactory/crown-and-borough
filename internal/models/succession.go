@@ -92,7 +92,7 @@ func (g *GameState) CanReceiveTitle(nobleID NobleID, title FiefTitle) bool {
 		if above.ID == nobleID {
 			return true
 		}
-		held := g.highestHeldFief(above.ID)
+		held := g.HighestHeldFief(above.ID)
 		if held == nil || held.Title.Rank() < title.Rank() {
 			return false
 		}

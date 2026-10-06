@@ -109,8 +109,7 @@ func (n Noble) CanBeKing() bool {
 }
 
 // MarriageIsAlliance reports whether a marriage of this noble counts as an
-// alliance. Alliance weights are not implemented yet; this is the hook they
-// will query.
+// alliance (see engine.AllianceWeight).
 func (n Noble) MarriageIsAlliance() bool {
 	return !n.anyDignity(func(e DignityEffect) bool { return e.MarriageIsNotAlliance })
 }

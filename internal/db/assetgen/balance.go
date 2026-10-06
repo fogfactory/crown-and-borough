@@ -30,6 +30,7 @@ type Balance struct {
 	ProsperityLossThreshold int                    `json:"prosperity_loss_threshold" yaml:"prosperity_loss_threshold"`
 	Costs                   Costs                  `json:"costs" yaml:"costs"`
 	Victory                 VictoryBalance         `json:"victory" yaml:"victory"`
+	Alliance                AllianceBalance        `json:"alliance" yaml:"alliance"`
 	NobleLimit              int                    `json:"noble_limit" yaml:"noble_limit"`
 	NobleLimitMax           int                    `json:"noble_limit_max" yaml:"noble_limit_max"`
 	StartingNobles          int                    `json:"starting_nobles" yaml:"starting_nobles"`
@@ -50,6 +51,17 @@ type VictoryBalance struct {
 	SoloTerritoryPercent     int `json:"solo_territory_percent" yaml:"solo_territory_percent"`
 	AllianceTerritoryPercent int `json:"alliance_territory_percent" yaml:"alliance_territory_percent"`
 	ReferenceFiefSize        int `json:"reference_fief_size" yaml:"reference_fief_size"`
+}
+
+// AllianceBalance holds the alliance weight parameters (specs/succession.md
+// § Poids d'alliance). SuccessionRanks[i] is the weight of the noble at line
+// position i; the last entry applies to every later position. TitleRanks maps
+// each fief title to its weight (no title weighs 0). DensityBonus is added per
+// additional alliance between the same two players, without cap.
+type AllianceBalance struct {
+	SuccessionRanks []int                    `json:"succession_ranks" yaml:"succession_ranks"`
+	TitleRanks      map[models.FiefTitle]int `json:"title_ranks" yaml:"title_ranks"`
+	DensityBonus    int                      `json:"density_bonus" yaml:"density_bonus"`
 }
 
 type SpecialOrdersBalance struct {
@@ -97,6 +109,7 @@ type rawBalance struct {
 	ProsperityLossThreshold *int              `yaml:"prosperity_loss_threshold"`
 	Costs                   *rawCosts         `yaml:"costs"`
 	Victory                 *rawVictory       `yaml:"victory"`
+	Alliance                *rawAlliance      `yaml:"alliance"`
 	NobleLimit              *int              `yaml:"noble_limit"`
 	NobleLimitMax           *int              `yaml:"noble_limit_max"`
 	StartingNobles          *int              `yaml:"starting_nobles"`
@@ -104,6 +117,12 @@ type rawBalance struct {
 	StartingOutposts        *int              `yaml:"starting_outposts"`
 	StartingResources       *int              `yaml:"starting_resources"`
 	SpecialOrders           *rawSpecialOrders `yaml:"special_orders"`
+}
+
+type rawAlliance struct {
+	SuccessionRanks []*int          `yaml:"succession_ranks"`
+	TitleRanks      map[string]*int `yaml:"title_ranks"`
+	DensityBonus    *int            `yaml:"density_bonus"`
 }
 
 type rawVictory struct {
@@ -290,6 +309,10 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 	if err != nil {
 		return Balance{}, err
 	}
+	alliance, err := raw.alliance(path)
+	if err != nil {
+		return Balance{}, err
+	}
 	return Balance{
 		TerritoryIncome:         territoryIncome,
 		VillageIncome:           villageIncome,
@@ -307,6 +330,7 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 		ProsperityLossThreshold: prosperityLossThreshold,
 		Costs:                   costs,
 		Victory:                 victory,
+		Alliance:                alliance,
 		NobleLimit:              nobleLimit,
 		NobleLimitMax:           nobleLimitMax,
 		StartingNobles:          startingNobles,
@@ -340,6 +364,45 @@ func (raw rawBalance) victory(path string) (VictoryBalance, error) {
 		return VictoryBalance{}, fmt.Errorf("%s: victory.alliance_territory_percent must be strictly above victory.solo_territory_percent", path)
 	}
 	return VictoryBalance{SoloTerritoryPercent: solo, AllianceTerritoryPercent: alliance, ReferenceFiefSize: size}, nil
+}
+
+func (raw rawBalance) alliance(path string) (AllianceBalance, error) {
+	if raw.Alliance == nil {
+		return AllianceBalance{}, missingBalanceValue(path, "alliance")
+	}
+	if len(raw.Alliance.SuccessionRanks) == 0 {
+		return AllianceBalance{}, missingBalanceValue(path, "alliance.succession_ranks")
+	}
+	ranks := make([]int, len(raw.Alliance.SuccessionRanks))
+	for index, value := range raw.Alliance.SuccessionRanks {
+		rank, err := requiredNonNegativeInt(path, fmt.Sprintf("alliance.succession_ranks[%d]", index), value)
+		if err != nil {
+			return AllianceBalance{}, err
+		}
+		if index > 0 && rank > ranks[index-1] {
+			return AllianceBalance{}, fmt.Errorf("assetgen: %s: alliance.succession_ranks must not increase along the line", path)
+		}
+		ranks[index] = rank
+	}
+	titles := []models.FiefTitle{models.FiefTitleBarony, models.FiefTitleCounty, models.FiefTitleMarquisate, models.FiefTitleDuchy}
+	titleRanks := make(map[models.FiefTitle]int, len(titles))
+	for key := range raw.Alliance.TitleRanks {
+		if !models.FiefTitle(key).IsValid() {
+			return AllianceBalance{}, fmt.Errorf("assetgen: %s: alliance.title_ranks: unknown fief title %q", path, key)
+		}
+	}
+	for _, title := range titles {
+		rank, err := requiredNonNegativeInt(path, "alliance.title_ranks."+string(title), raw.Alliance.TitleRanks[string(title)])
+		if err != nil {
+			return AllianceBalance{}, err
+		}
+		titleRanks[title] = rank
+	}
+	density, err := requiredNonNegativeInt(path, "alliance.density_bonus", raw.Alliance.DensityBonus)
+	if err != nil {
+		return AllianceBalance{}, err
+	}
+	return AllianceBalance{SuccessionRanks: ranks, TitleRanks: titleRanks, DensityBonus: density}, nil
 }
 
 func (raw rawBalance) costs(path string) (Costs, error) {

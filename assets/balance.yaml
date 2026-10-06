@@ -55,6 +55,21 @@ victory:
   alliance_territory_percent: 66
   reference_fief_size: 4
 
+# Alliance weight (succession.md § Poids d'alliance). A noble weighs its
+# succession rank plus its title rank; a marriage weighs the weaker spouse plus
+# density_bonus per other alliance between the same two players, uncapped.
+alliance:
+  # Weight by position in the line of succession; the last value applies to
+  # every later position.
+  succession_ranks: [3, 2, 1]
+  # Weight of the highest fief title held (no title weighs 0).
+  title_ranks:
+    barony: 1
+    county: 2
+    marquisate: 3
+    duchy: 4
+  density_bonus: 1
+
 # P1.7 game setup values.
 # Living nobles (free, hostage or in a dungeon) a player may own at once.
 # noble_limit is the base; game effects may raise it, never above

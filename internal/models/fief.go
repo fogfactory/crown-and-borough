@@ -46,8 +46,8 @@ var fiefTitleRanks = map[FiefTitle]int{
 	FiefTitleBarony: 1, FiefTitleCounty: 2, FiefTitleMarquisate: 3, FiefTitleDuchy: 4,
 }
 
-// highestHeldFief returns the highest-ranked fief the noble holds, or nil.
-func (g *GameState) highestHeldFief(id NobleID) *Fief {
+// HighestHeldFief returns the highest-ranked fief the noble holds, or nil.
+func (g *GameState) HighestHeldFief(id NobleID) *Fief {
 	var best *Fief
 	for i := range g.Fiefs {
 		fief := &g.Fiefs[i]
@@ -74,13 +74,13 @@ func (g *GameState) highestHeldFief(id NobleID) *Fief {
 func (g *GameState) NobleDisplayName(n Noble) string {
 	var best *Fief
 	if g != nil {
-		best = g.highestHeldFief(n.ID)
+		best = g.HighestHeldFief(n.ID)
 		if marriage, ok := g.MarriageOf(n.ID); ok {
 			spouseID := marriage.NobleA
 			if spouseID == n.ID {
 				spouseID = marriage.NobleB
 			}
-			if spouseFief := g.highestHeldFief(spouseID); spouseFief != nil &&
+			if spouseFief := g.HighestHeldFief(spouseID); spouseFief != nil &&
 				(best == nil || fiefTitleRanks[spouseFief.Title] > fiefTitleRanks[best.Title]) {
 				best = spouseFief
 			}
