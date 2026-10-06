@@ -426,6 +426,12 @@ function winterDetails(
   t: Translate,
 ): string {
   if (investment.reason) return reportReason(investment.reason, t) ?? investment.reason
+  if (investment.kind === 'claim' && investment.nobleName) {
+    return t('reports.claimDetails', {
+      heir: investment.nobleName,
+      target: investment.claimTargetName || investment.claimTarget || '—',
+    })
+  }
   if (investment.nobleName) return investment.nobleName
   if (investment.level) return t('reports.level', { level: investment.level })
   return territoryLabel(map, investment.territory, t)
@@ -1112,7 +1118,9 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
       {report.winter && (
         <div className="space-y-2">
           <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
-            {t('reports.winter')}
+            {t(
+              report.header.season === 'winter' ? 'reports.winter' : 'reports.nobleCards',
+            )}
           </h4>
           <div className="space-y-1 text-sm">
             {winterInvestments.map((investment, index) => {
@@ -1174,7 +1182,14 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
             ))}
             {winterInvestments.length === 0 &&
               winterStocks.length === 0 &&
-              emptyMessage(t('reports.winter').toLowerCase(), t)}
+              emptyMessage(
+                t(
+                  report.header.season === 'winter'
+                    ? 'reports.winter'
+                    : 'reports.nobleCards',
+                ).toLowerCase(),
+                t,
+              )}
           </div>
         </div>
       )}

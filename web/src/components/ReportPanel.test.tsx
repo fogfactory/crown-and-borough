@@ -471,6 +471,42 @@ describe('ReportPanel', () => {
     ).toBeInTheDocument()
   })
 
+  it('shows the claim target and titles the card section outside winter', () => {
+    const claimReport: TurnReport = {
+      ...report,
+      header: { ...report.header, season: 'spring' },
+      winter: {
+        investments: [
+          {
+            kind: 'claim',
+            player: 'P1',
+            outcome: 'success',
+            cost: 0,
+            noble: 'N3',
+            nobleCode: 'JUL',
+            nobleName: 'Dame Julienne',
+            claimTarget: 'JEN',
+            claimTargetName: 'Dame Jeanne',
+          },
+        ],
+        stocks: [],
+      },
+    }
+
+    render(
+      <LanguageProvider initialLanguage="fr">
+        <ReportPanel report={claimReport} map={map} players={players} />
+      </LanguageProvider>,
+    )
+
+    expect(screen.getByText('C N JUL JEN')).toBeInTheDocument()
+    expect(
+      screen.getByText(/Dame Julienne revendique les titres de Dame Jeanne/),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Cartes de noble')).toBeInTheDocument()
+    expect(screen.queryByText('Hiver')).toBeNull()
+  })
+
   it('labels a fief income line with its title and capital instead of the bare destination', () => {
     const fiefIncomeReport: TurnReport = {
       ...report,
