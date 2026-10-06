@@ -191,13 +191,19 @@ export function draftHasNobleDraw(draft: string): boolean {
   return draftLines(draft).some((line) => /^T\s+N$/.test(line))
 }
 
+/** Counts the `D C CCC` lines of the draft: each frees a hand slot. */
+function draftNobleDiscardCount(draft: string): number {
+  return draftLines(draft).filter((line) => /^D\s+C\s+[A-Z]{3}$/.test(line)).length
+}
+
 function draftMentionsCard(draft: string, code: string): boolean {
   const upper = code.toUpperCase()
   return draftLines(draft).some((line) => {
     const fields = line.split(/\s+/)
     return (
       (fields[0] === 'R' && fields[1] === 'N' && fields[2] === upper) ||
-      (fields[0] === 'D' && fields[1] === 'N' && fields[3] === upper)
+      (fields[0] === 'D' && fields[1] === 'N' && fields[3] === upper) ||
+      (fields[0] === 'D' && fields[1] === 'C' && fields[2] === upper)
     )
   })
 }
@@ -246,6 +252,9 @@ function NobleCardRow({
         code: card.code,
         sex: t(card.sex === 'female' ? 'orders.nobleHandFemale' : 'orders.nobleHandMale'),
       })
+  const discard = () => {
+    onWinterChange(appendDraftLine(winterDraft, `D C ${card.code}`))
+  }
   const play = () => {
     if (selected === '') return
     const line = isDignity
@@ -280,6 +289,16 @@ function NobleCardRow({
       >
         {t(isDignity ? 'orders.nobleHandPlayDignity' : 'orders.nobleHandPlayTerritory')}
       </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={used}
+        aria-label={t('orders.nobleHandDiscardAria', { code: card.code })}
+        onClick={discard}
+      >
+        {t('orders.nobleHandDiscard')}
+      </Button>
     </li>
   )
 }
@@ -301,7 +320,8 @@ function NobleDeckSection({
   const drawn = draftHasNobleDraw(winterDraft)
   const handLimit = state.handLimit ?? DEFAULT_HAND_LIMIT
   const specialCount = (state.specialHand ?? []).length
-  const handFull = specialCount + hand.length >= handLimit
+  const handFull =
+    specialCount + hand.length - draftNobleDiscardCount(winterDraft) >= handLimit
   const drawDisabled = drawn || deckSize === 0 || handFull
   return (
     <section className="space-y-2 rounded-lg border border-[#9bbbd3] bg-[#f7fbff] p-3">

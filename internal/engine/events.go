@@ -69,6 +69,7 @@ const (
 	EventTypeMarriageRefused    EventType = "marriage_refused"
 	EventTypeNobleDraw          EventType = "noble_draw"
 	EventTypeDignity            EventType = "dignity"
+	EventTypeNobleDiscard       EventType = "noble_discard"
 )
 
 // Outcome is the execution result of one current order.

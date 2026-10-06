@@ -582,4 +582,23 @@ describe('OrdersPanel noble deck (winter)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Jouer sur un noble' }))
     expect(onWinterChange).toHaveBeenCalledWith('# note\nD N HUG BAS\n')
   })
+
+  it('discards a noble or dignity card from the hand', () => {
+    const onWinterChange = renderDeck('')
+    fireEvent.click(screen.getByRole('button', { name: 'Défausser la carte ALB' }))
+    expect(onWinterChange).toHaveBeenCalledWith('D C ALB\n')
+    fireEvent.click(screen.getByRole('button', { name: 'Défausser la carte BAS' }))
+    expect(onWinterChange).toHaveBeenLastCalledWith('D C BAS\n')
+  })
+
+  it('disables the discard of a card already used by a draft line', () => {
+    renderDeck('D C ALB\nD N HUG BAS\n')
+    expect(screen.getByRole('button', { name: 'Défausser la carte ALB' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Défausser la carte BAS' })).toBeDisabled()
+  })
+
+  it('lets a drafted discard free a slot for the draw', () => {
+    renderDeck('D C ALB\n', vi.fn(), { ...deckState, specialHand: ['fair_weather', 'fair_weather'] })
+    expect(screen.getByRole('button', { name: /Piocher une carte de noble/ })).toBeEnabled()
+  })
 })

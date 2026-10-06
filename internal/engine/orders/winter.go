@@ -47,7 +47,7 @@ func ParseWinterOrdersWithDeckOrders(text string, game *models.GameState) ([]mod
 			continue
 		}
 		fields := strings.Fields(line)
-		if len(fields) >= 2 && fields[0] == "D" && fields[1] == "C" {
+		if isSpecialDiscardLine(fields) {
 			order, parseError := parseDeckOrderLine(line, lineNumber+1, game)
 			if parseError != nil {
 				parseErrors = append(parseErrors, *parseError)
@@ -93,7 +93,7 @@ func ParseWinterSheetLines(text string, game *models.GameState) []WinterSheetLin
 		}
 		parsed := WinterSheetLine{Line: lineNumber + 1}
 		fields := strings.Fields(line)
-		if len(fields) >= 2 && fields[0] == "D" && fields[1] == "C" {
+		if isSpecialDiscardLine(fields) {
 			order, parseError := parseDeckOrderLine(line, lineNumber+1, game)
 			if parseError != nil {
 				parsed.Error = parseError
@@ -113,6 +113,18 @@ func ParseWinterSheetLines(text string, game *models.GameState) []WinterSheetLin
 	return lines
 }
 
+// isSpecialDiscardLine tells a special-card discard (D C KIND, a two-letter
+// kind such as BT or TX) from a noble-hand discard (D C CCC, a three-letter
+// noble trigram or dignity code): the code length decides, and no special
+// kind code has three letters, so the two never collide. A malformed D C line
+// is reported by the special-card parser unless its code has three letters.
+func isSpecialDiscardLine(fields []string) bool {
+	if len(fields) < 2 || fields[0] != "D" || fields[1] != "C" {
+		return false
+	}
+	return len(fields) != 3 || !isCode(fields[2])
+}
+
 func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
 	fields := strings.Fields(line)
 	if len(fields) >= 2 && fields[0] == "T" && fields[1] == "N" {
@@ -121,6 +133,10 @@ func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (mod
 			return models.WinterOrder{}, &error
 		}
 		return models.WinterOrder{Type: models.WinterOrderTypeDrawNoble}, nil
+	}
+	if len(fields) >= 2 && fields[0] == "D" && fields[1] == "C" && len(fields) != 3 {
+		error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.WinterDiscardNobleShape)
+		return models.WinterOrder{}, &error
 	}
 	if len(fields) < 3 {
 		error := parseMessage(lineNumber, ParseCodeMissingTarget, "error.winter.order_shape")
@@ -158,6 +174,13 @@ func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (mod
 	}
 	if fields[0] == "R" && fields[1] == "N" {
 		return parseRecruitNobleLine(fields, lineNumber, indexes)
+	}
+	if fields[0] == "D" && fields[1] == "C" {
+		if !isCode(fields[2]) {
+			error := parseMessage(lineNumber, ParseCodeInvalidCode, "error.winter.noble_code_format", fields[2])
+			return models.WinterOrder{}, &error
+		}
+		return models.WinterOrder{Type: models.WinterOrderTypeDiscardNoble, CardCode: fields[2]}, nil
 	}
 	if fields[0] == "D" && fields[1] == "N" {
 		return parseDignityOrderLine(fields, lineNumber, indexes)

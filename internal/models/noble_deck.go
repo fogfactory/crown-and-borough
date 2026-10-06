@@ -56,7 +56,9 @@ type NobleCardPlay struct {
 // into it (Reshuffles counts these shuffles, which seed them). A noble card
 // leaves the deck for good when its noble dies, and a new card of the same
 // sex, taken from NamePool, goes to the discard pile; a dignity card goes to
-// the discard pile when its carrier dies or loses the dignity.
+// the discard pile when its carrier dies or loses the dignity. A player can
+// also discard any card of their hand (D C), which then goes to the discard
+// pile unchanged.
 type NobleDeck struct {
 	Cards      []NobleCard                `json:"cards"`
 	DrawPile   []NobleCardID              `json:"drawPile"`
@@ -90,6 +92,22 @@ func (d *NobleDeck) HandCard(playerID PlayerID, kind NobleCardKind, code string)
 	}
 	for index, id := range d.Hands[playerID] {
 		if card, exists := d.Card(id); exists && card.Kind == kind && card.Code == code {
+			return card, index, true
+		}
+	}
+	return NobleCard{}, -1, false
+}
+
+// HandCardByCode finds, in the player's hand, the first card of either kind
+// whose code matches. Noble codes are trigrams that never equal a dignity
+// card code (those are reserved when the deck is built), so the match is
+// unambiguous for noble cards.
+func (d *NobleDeck) HandCardByCode(playerID PlayerID, code string) (NobleCard, int, bool) {
+	if d == nil {
+		return NobleCard{}, -1, false
+	}
+	for index, id := range d.Hands[playerID] {
+		if card, exists := d.Card(id); exists && card.Code == code {
 			return card, index, true
 		}
 	}

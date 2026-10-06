@@ -690,6 +690,7 @@ investissements directs, une ligne par ordre, appliqués dans l'ordre saisi.
 | Piocher une carte de noble | `T N` | une seule fois par hiver et par joueur ; le deck de nobles, commun à tous, ne doit pas être épuisé | 0 |
 | Recruter un noble | `R N CCC XXX` | `CCC` est une carte de noble de ta main ; `XXX` contrôlé, avec un château ou un village et une armée du joueur, et moins de nobles vivants possédés que ton plafond, {{noble_limit}} de base (voir ci-dessous) | 0 |
 | Conférer une dignité | `D N NNN CCC` | `NNN` est un noble du joueur ; `CCC` est une carte de dignité de ta main (`BAS` : bâtard) ; un noble n'est bâtard qu'une fois | 0 |
+| Défausser une carte de noble | `D C CCC` | `CCC` est une carte de ta main de nobles (trigramme de noble ou `BAS`) ; sans limite par hiver ; la carte va à la défausse du deck | 0 |
 | Recruter une troupe | `R T XXX` | `XXX` contrôlé, et un noble libre du joueur sur `XXX` ou adjacent | {{costs.troop}} |
 | Construire ou améliorer un moulin | `C M XXX` | `XXX` contrôlé ; un **nouveau** moulin exige une case **vide** adjacente à un château ou village, ou portant elle-même un château ou village ; un moulin **existant** peut toujours être amélioré, même isolé | {{costs.mill_levels.0}} (N1), {{costs.mill_levels.1}} (N2), {{costs.mill_levels.2}} (N3) |
 | Construire un château, ou fortifier un village | `C C XXX` | `XXX` contrôlé ; sur un village, le fortifie au lieu d'y construire un château ; rejeté sans prélèvement si le village est déjà fortifié | {{costs.castle}} |
@@ -717,7 +718,9 @@ confondus, dont une seule dans le deck de nobles. `R N CCC XXX` joue la carte de
 apparaît sur `XXX` sans rien te coûter, tant que tu possèdes moins de
 ton plafond de nobles vivants (libres, otages ou au donjon), {{noble_limit}} de
 base. Une carte que tu
-n'as pas en main est rejetée.
+n'as pas en main est rejetée. `D C CCC` défausse sans la jouer une carte de ta main de nobles :
+elle rejoint la défausse du deck, libère une place dans ta main (un `T N` placé plus bas dans la
+même feuille peut l'utiliser) et n'est pas nommée dans le rapport public.
 
 Une carte jouée reste sur le noble qu'elle a fait apparaître ou qui porte sa
 dignité. Quand ce noble meurt, sa carte de noble sort du jeu et une nouvelle

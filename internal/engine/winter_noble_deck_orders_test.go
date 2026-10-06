@@ -565,3 +565,125 @@ func TestNobleDrawAndSpecialRefillShareTwoDrawsPerWinter(t *testing.T) {
 		t.Errorf("special hand = %d cards, want 1 (the noble draw uses one of the two draws)", got)
 	}
 }
+
+func discardOrder(id models.OrderID, code string) models.WinterOrder {
+	return models.WinterOrder{ID: id, Type: models.WinterOrderTypeDiscardNoble, CardCode: code}
+}
+
+func TestDiscardNobleCardMovesNobleAndDignityCardsToDiscard(t *testing.T) {
+	state := deckOrdersState(t)
+	nobleCard := giveNobleCard(state, "P1", "ELE", "Eleonore", models.SexFemale)
+	dignityCard := giveDignityCard(state, "P1")
+	resolution := resolveNobleDeckWinter(t, state, map[models.PlayerID][]models.WinterOrder{
+		"P1": {discardOrder("O1", "ELE"), discardOrder("O2", "BAS")},
+	})
+	deck := resolution.State.NobleDeck
+	if len(deck.Hands["P1"]) != 0 || !slices.Equal(deck.Discard, []models.NobleCardID{nobleCard, dignityCard}) {
+		t.Errorf("hand = %v, discard = %v, want both cards discarded in order", deck.Hands["P1"], deck.Discard)
+	}
+	if card, exists := deck.Card(nobleCard); !exists || card.Code != "ELE" || card.Name != "Eleonore" {
+		t.Errorf("discarded noble card = %+v, want it kept unchanged in the deck", card)
+	}
+	if reasons := rejectionReasons(resolution.Events); len(reasons) != 0 {
+		t.Errorf("rejections = %v, want none", reasons)
+	}
+	events := eventsOfType(resolution.Events, EventTypeNobleDiscard)
+	if len(events) != 2 {
+		t.Fatalf("discard events = %+v, want two", events)
+	}
+	for _, event := range events {
+		if event.CardID != "" || event.NobleCode != "" || event.Dignity != "" {
+			t.Errorf("discard event %+v names the card, want it left out of the public report", event)
+		}
+	}
+	validateTestState(t, resolution.State)
+	if len(state.NobleDeck.Hands["P1"]) != 2 {
+		t.Error("ResolveWinter mutated its input deck")
+	}
+}
+
+func TestDiscardNobleCardRejectsCardNotInHandAndSecondDiscard(t *testing.T) {
+	state := deckOrdersState(t)
+	giveNobleCard(state, "P1", "ELE", "Eleonore", models.SexFemale)
+	giveNobleCard(state, "P2", "GUI", "Guy", models.SexMale)
+	resolution := resolveNobleDeckWinter(t, state, map[models.PlayerID][]models.WinterOrder{
+		"P1": {discardOrder("O1", "GUI"), discardOrder("O2", "BAS"), discardOrder("O3", "ELE"), discardOrder("O4", "ELE")},
+	})
+	if reasons := rejectionReasons(resolution.Events); len(reasons) != 3 || slices.ContainsFunc(reasons, func(reason string) bool { return reason != "card_not_in_hand" }) {
+		t.Errorf("rejections = %v, want three card_not_in_hand", reasons)
+	}
+	deck := resolution.State.NobleDeck
+	if len(deck.Discard) != 1 || len(deck.Hands["P2"]) != 1 {
+		t.Errorf("discard = %v, P2 hand = %v, want only P1's ELE discarded", deck.Discard, deck.Hands["P2"])
+	}
+}
+
+func TestDiscardedCardCannotBePlayedTheSameWinter(t *testing.T) {
+	state := deckOrdersState(t)
+	giveNobleCard(state, "P1", "ELE", "Eleonore", models.SexFemale)
+	resolution := resolveNobleDeckWinter(t, state, map[models.PlayerID][]models.WinterOrder{
+		"P1": {discardOrder("O1", "ELE"), {ID: "O2", Type: models.WinterOrderTypeRecruitNoble, CardCode: "ELE", TerritoryID: "AAA"}},
+	})
+	if reasons := rejectionReasons(resolution.Events); len(reasons) != 1 || reasons[0] != "card_not_in_hand" {
+		t.Errorf("rejections = %v, want card_not_in_hand for the play", reasons)
+	}
+	if len(resolution.State.Nobles) != 0 {
+		t.Errorf("nobles = %+v, want none recruited", resolution.State.Nobles)
+	}
+}
+
+func TestDiscardFreesHandSlotForDrawInTheSameSheet(t *testing.T) {
+	build := func() *models.GameState {
+		state := deckOrdersState(t)
+		for _, code := range []string{"AAB", "AAC", "AAD", "AAE"} {
+			giveNobleCard(state, "P1", code, code, models.SexMale)
+		}
+		pileNobleCard(state, "ELE", "Eleonore", models.SexFemale)
+		return state
+	}
+	draw := models.WinterOrder{ID: "O2", Type: models.WinterOrderTypeDrawNoble}
+	full := resolveNobleDeckWinter(t, build(), map[models.PlayerID][]models.WinterOrder{"P1": {{ID: "O1", Type: models.WinterOrderTypeDrawNoble}}})
+	if reasons := rejectionReasons(full.Events); len(reasons) != 1 || reasons[0] != "hand_limit_reached" {
+		t.Fatalf("rejections = %v, want hand_limit_reached with a full hand", reasons)
+	}
+	freed := resolveNobleDeckWinter(t, build(), map[models.PlayerID][]models.WinterOrder{"P1": {discardOrder("O1", "AAB"), draw}})
+	if reasons := rejectionReasons(freed.Events); len(reasons) != 0 {
+		t.Errorf("rejections = %v, want the draw to use the freed slot", reasons)
+	}
+	if hand := freed.State.NobleDeck.Hands["P1"]; len(hand) != 4 {
+		t.Errorf("hand = %v, want four cards after discard and draw", hand)
+	}
+	validateTestState(t, freed.State)
+}
+
+func TestDiscardedNobleCardsAreReshuffledIntoTheDrawPile(t *testing.T) {
+	state := deckOrdersState(t)
+	ensureNobleDeck(state)
+	cardID := giveNobleCard(state, "P1", "ELE", "Eleonore", models.SexFemale)
+	discarded := resolveNobleDeckWinter(t, state, map[models.PlayerID][]models.WinterOrder{"P1": {discardOrder("O1", "ELE")}}).State
+	discarded.Turn += 4
+	resolution := resolveNobleDeckWinter(t, discarded, map[models.PlayerID][]models.WinterOrder{"P1": {{ID: "O1", Type: models.WinterOrderTypeDrawNoble}}})
+	deck := resolution.State.NobleDeck
+	if deck.Reshuffles != 1 || !slices.Equal(deck.Hands["P1"], []models.NobleCardID{cardID}) || len(deck.Discard) != 0 {
+		t.Errorf("deck = %+v, want the discarded card reshuffled and drawn back", deck)
+	}
+}
+
+func TestDeckValidationKeepsEveryCardInOneLocationAfterDiscard(t *testing.T) {
+	state := deckOrdersState(t)
+	cardID := giveNobleCard(state, "P1", "ELE", "Eleonore", models.SexFemale)
+	resolution := resolveNobleDeckWinter(t, state, map[models.PlayerID][]models.WinterOrder{"P1": {discardOrder("O1", "ELE")}})
+	validateTestState(t, resolution.State)
+	// A discarded noble card still reserves its code against a living noble.
+	broken := cloneGameState(resolution.State)
+	addNoble(broken, "N1", "ELE", "P1", "AAA")
+	if err := broken.Validate(); err == nil {
+		t.Error("Validate accepted a living noble carrying the code of a discarded card")
+	}
+	// A card cannot be in the discard and still in a hand.
+	broken = cloneGameState(resolution.State)
+	broken.NobleDeck.Hands["P1"] = append(broken.NobleDeck.Hands["P1"], cardID)
+	if err := broken.Validate(); err == nil {
+		t.Error("Validate accepted a card both in hand and in the discard pile")
+	}
+}

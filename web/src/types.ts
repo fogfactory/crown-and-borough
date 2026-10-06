@@ -63,6 +63,7 @@ export type EventType =
   | 'marriage'
   | 'marriage_refused'
   | 'noble_draw'
+  | 'noble_discard'
   | 'dignity'
 
 export type PlayerId = string
@@ -744,11 +745,12 @@ export type WinterOrderType =
   | 'marriage'
   | 'draw_noble'
   | 'play_dignity'
+  | 'discard_noble_card'
 
 export interface WinterOrder {
   id?: string
   type: WinterOrderType
-  /** Noble or dignity card code for `recruit_noble` / `play_dignity`. */
+  /** Noble or dignity card code for `recruit_noble` / `play_dignity` / `discard_noble_card`. */
   cardCode?: string
   territory?: string
   infrastructureType?: InfraType

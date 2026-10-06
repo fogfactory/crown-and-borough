@@ -120,6 +120,36 @@ func TestParseWinterOrdersWithDeckDiscards(t *testing.T) {
 	}
 }
 
+func TestParseWinterDiscardSplitsSpecialAndNobleCards(t *testing.T) {
+	game := orderTestState()
+	winter, deck, parseErrors := ParseWinterOrdersWithDeckOrders("D C BT\nD C ele\nD C BAS\nD C TX", game)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseWinterOrdersWithDeckOrders errors = %#v", parseErrors)
+	}
+	if len(deck) != 2 || deck[0].Kind != models.CardKindFairWeather || deck[1].Kind != models.CardKindSeigneurialTax {
+		t.Errorf("deck orders = %#v, want the two-letter kinds as special discards", deck)
+	}
+	want := []models.WinterOrder{
+		{ID: "O2", Type: models.WinterOrderTypeDiscardNoble, CardCode: "ELE"},
+		{ID: "O3", Type: models.WinterOrderTypeDiscardNoble, CardCode: "BAS"},
+	}
+	if !reflect.DeepEqual(winter, want) {
+		t.Errorf("winter orders = %#v, want %#v", winter, want)
+	}
+	lines := ParseWinterSheetLines("D C ELE\nD C BT", game)
+	if lines[0].Winter == nil || lines[0].Deck != nil || lines[1].Deck == nil || lines[1].Winter != nil {
+		t.Errorf("sheet lines = %#v, want the trigram as a winter order and BT as a deck order", lines)
+	}
+	for _, line := range []string{"D C", "D C ELE BAS", "D C E1E", "D C ZZ"} {
+		if _, _, parseErrors := ParseWinterOrdersWithDeckOrders(line, game); len(parseErrors) == 0 {
+			t.Errorf("ParseWinterOrdersWithDeckOrders(%q) accepted a malformed discard", line)
+		}
+	}
+	if _, parseErrors := ParseWinterOrders("D C", game); len(parseErrors) == 0 {
+		t.Error("ParseWinterOrders accepted a bare D C")
+	}
+}
+
 func TestParseChainWildcardAssignmentsAndPartialResults(t *testing.T) {
 	game := orderTestState()
 	chain, parseErrors := ParseChain(`

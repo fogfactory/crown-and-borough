@@ -633,7 +633,7 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 				Reason: event.Reason, Fief: event.FiefTitle,
 			})
 		case EventTypeWinterStock, EventTypeRecruit, EventTypeBuild, EventTypeUpgrade, EventTypeFortify,
-			EventTypeRejected, EventTypeCapitalElected, EventTypeNobleDraw, EventTypeDignity, EventTypeFiefFounded, EventTypeFiefAssigned, EventTypeFiefAutoAssigned:
+			EventTypeRejected, EventTypeCapitalElected, EventTypeNobleDraw, EventTypeNobleDiscard, EventTypeDignity, EventTypeFiefFounded, EventTypeFiefAssigned, EventTypeFiefAutoAssigned:
 			if report.Winter == nil {
 				report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}
 			}

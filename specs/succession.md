@@ -93,7 +93,15 @@ distincte :
   de contrôle, d'armée présente et de plafond ;
 - **jeu d'une carte de dignité** (`D N XXX CCC`, gratuit) : joue la carte de
   dignité `CCC` de la main (son code, `BAS` pour le bâtard) sur le noble
-  `XXX` du joueur. Deux cartes de même dignité sont interchangeables.
+  `XXX` du joueur. Deux cartes de même dignité sont interchangeables ;
+- **défausse d'une carte de la main** (`D C CCC`, gratuit, sans limite par
+  hiver) : retire de la main la carte `CCC` (trigramme d'un noble ou code d'une
+  dignité) sans la jouer ; elle va à la défausse du deck de nobles telle
+  quelle et y reste jusqu'au mélange de la défausse. La place libérée peut
+  servir à un `T N` plus loin dans la même feuille. Une carte absente de la
+  main est rejetée (`card_not_in_hand`). Le rapport public ne nomme pas la
+  carte défaussée. `D C` suivi d'un code à deux lettres reste la défausse
+  d'une carte d'ordre spécial.
 
 Cette limite, combinée au plafond de nobles, fait du recrutement une
 ressource rare plutôt qu'une action économique libre.

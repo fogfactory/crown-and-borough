@@ -291,6 +291,8 @@ function winterOrderLabel(order: WinterOrder, map: MapData | null, t: Translate)
       return order.cardCode ? `R N ${order.cardCode} ${territory}` : `R N ${territory}`
     case 'draw_noble':
       return 'T N'
+    case 'discard_noble_card':
+      return `D C ${order.cardCode ?? '—'}`
     case 'play_dignity':
       return `D N ${order.nobleCode ?? '—'} ${order.cardCode ?? '—'}`
     case 'recruit_troop':
@@ -365,6 +367,9 @@ function investmentLabel(
       return `M N ${investment.nobleCode ?? '—'}`
     case 'noble_draw':
       return 'T N'
+    case 'noble_discard':
+      // The public report does not name the discarded card.
+      return 'D C'
     case 'dignity':
       return `D N ${investment.nobleCode ?? '—'} ${DIGNITY_CARD_CODES[investment.dignity ?? 'bastard']}`
     case 'prosperity_founded':

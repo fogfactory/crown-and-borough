@@ -62,6 +62,7 @@ liste d'investissements directs, traités dans l'ordre saisi :
 - `T N` — piocher une carte dans le deck de nobles (une fois par hiver) ;
 - `R N CCC XXX` — jouer la carte de noble `CCC` de la main pour recruter ce noble sur `XXX` ;
 - `D N NNN CCC` — jouer la carte de dignité `CCC` (`BAS` : bâtard) de la main sur le noble `NNN` ;
+- `D C CCC` — défausser sans la jouer la carte `CCC` (trigramme de noble ou code de dignité) de la main de nobles, gratuit et sans limite par hiver ;
 - `A N XXX` — annoblir gratuitement une armée sur `XXX` lorsque le joueur n'a plus aucun noble ;
 - `R T XXX` — recruter une troupe sur `XXX` ;
 - `C M XXX` — construire ou améliorer un moulin sur `XXX` ;
@@ -100,7 +101,10 @@ femmes) et des cartes de dignité (le bâtard). `T N` ajoute la carte du dessus
 à la main du joueur, une fois par joueur et par hiver (`noble_draw_already_used`
 au-delà ; `hand_limit_reached` quand la main partagée — ordres spéciaux, cartes
 de noble et de dignité — atteint `special_orders.hand_limit` ; `noble_deck_empty` quand la pioche et la défausse sont vides ; une
-pioche vide est reconstituée en mélangeant la défausse). `R N CCC XXX` joue une
+pioche vide est reconstituée en mélangeant la défausse). `D C CCC` défausse une carte
+de la main de nobles sans la jouer : elle rejoint la défausse du deck telle quelle,
+libère une place de main et n'est pas nommée dans le rapport public
+(`card_not_in_hand` si elle n'est pas en main). `R N CCC XXX` joue une
 carte de noble de la main : le noble apparaît sur `XXX`, qui exige une
 infrastructure de peuplement (château ou village) et une armée du joueur, et
 le joueur ne doit pas déjà posséder 4 nobles vivants (libres, otages ou au

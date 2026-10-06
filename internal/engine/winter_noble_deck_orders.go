@@ -83,6 +83,36 @@ func (order dignityOrder) Apply(ctx *ExecutionContext) {
 	})
 }
 
+// discardNobleCardOrder is D C CCC: it discards the card CCC (a noble
+// trigram or a dignity code) from the player's noble hand without playing it.
+// It is free, has no per-winter limit and puts the card on the discard pile
+// unchanged: a noble card keeps its name and code, still out of play until
+// the discard pile is reshuffled. The slot it frees can be used by a later
+// T N of the same sheet.
+type discardNobleCardOrder struct{ order models.WinterOrder }
+
+func (order discardNobleCardOrder) Apply(ctx *ExecutionContext) {
+	resolution := ctx.resolution
+	playerID := ctx.playerID
+	deck := resolution.state.NobleDeck
+	_, handIndex, inHand := deck.HandCardByCode(playerID, order.order.CardCode)
+	if !inHand {
+		resolution.rejectWinterOrder(playerID, order.order, "card_not_in_hand")
+		return
+	}
+	hand := deck.Hands[playerID]
+	cardID := hand[handIndex]
+	deck.Hands[playerID] = append(hand[:handIndex:handIndex], hand[handIndex+1:]...)
+	deck.Discard = append(deck.Discard, cardID)
+	// Like noble_draw, the event does not name the card.
+	resolution.events = append(resolution.events, Event{
+		Type:    EventTypeNobleDiscard,
+		Phase:   winterPhase,
+		OwnerID: playerID,
+		OrderID: order.order.ID,
+	})
+}
+
 // consumeNobleCard moves the card at handIndex of the player's hand to the
 // played list, on the noble it recruited or that carries its dignity.
 func (ctx *resolutionContext) consumeNobleCard(playerID models.PlayerID, handIndex int, nobleID models.NobleID) {

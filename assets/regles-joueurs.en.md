@@ -651,6 +651,7 @@ per line, applied in the entered order.
 | Draw a noble card | `T N` | once per winter and per player; the noble deck, shared by all players, must not be empty | 0 |
 | Recruit a noble | `R N CCC XXX` | `CCC` is a noble card in your hand; `XXX` controlled, with a castle or village and a player army, and fewer living nobles owned than your cap, {{noble_limit}} at the base (see below) | 0 |
 | Grant a dignity | `D N NNN CCC` | `NNN` is a player noble; `CCC` is a dignity card in your hand (`BAS`: bastard); a noble is a bastard only once | 0 |
+| Discard a noble card | `D C CCC` | `CCC` is a card in your noble hand (noble trigram or `BAS`); no limit per winter; the card goes to the deck's discard pile | 0 |
 | Recruit a troop | `R T XXX` | `XXX` controlled, and a free player noble on `XXX` or adjacent | {{costs.troop}} |
 | Build or upgrade a mill | `C M XXX` | `XXX` controlled; a **new** mill requires an **empty** territory adjacent to a castle or village, or itself carrying one; an **existing** mill can always be upgraded, even in isolation | {{costs.mill_levels.0}} (L1), {{costs.mill_levels.1}} (L2), {{costs.mill_levels.2}} (L3) |
 | Build a castle, or fortify a village | `C C XXX` | `XXX` controlled; on a village, fortifies it instead of building a castle there; rejected with no stock deducted if the village is already fortified | {{costs.castle}} |
@@ -677,7 +678,9 @@ winter**, across all decks, of which only one from the noble deck. `R N CCC XXX`
 the noble card `CCC` from your hand: the noble appears on `XXX` at no cost, as
 long as you own fewer living nobles (free, hostage or in the dungeon) than
 your cap, {{noble_limit}} at the base. A card that is not in your hand is
-rejected.
+rejected. `D C CCC` discards a card from your noble hand without playing it: it joins the deck's
+discard pile, frees a slot in your hand (a `T N` placed lower in the same sheet can use it) and is
+not named in the public report.
 
 A played card stays on the noble it brought into play or that carries its
 dignity. When that noble dies, its noble card leaves the game and a new noble
