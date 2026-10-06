@@ -14,7 +14,8 @@ dans leur ordre d'achat.
 
 Un titre de seigneur ne peut être octroyé à un noble que si tous les nobles
 placés au-dessus de lui dans la ligne de succession possèdent déjà un titre de
-niveau supérieur ou équivalent.
+niveau supérieur ou équivalent. Un [bâtard](#bâtard) est toujours placé en
+dernier de la ligne et ne reçoit un titre que s'il est le dernier de sa lignée.
 
 ## Sexe des nobles
 
@@ -34,65 +35,128 @@ de deck réutilisée, [Religieux](religieux.md) pour les cardinaux et
 ### Plafond de nobles
 
 Chaque joueur ne peut détenir plus d'un nombre fixe de nobles vivants et
-libres ou otages à la fois : `noble_limit` (4) dans `assets/balance.yaml`.
-Certains effets de jeu peuvent relever ce plafond, sans jamais dépasser
-`noble_limit_max` (6) ; le premier est la dignité de bâtard (voir « Deck de
-nobles »), qui le relève de 1 tant qu'un noble du joueur la porte. Un noble au cachot compte dans ce
-plafond ; un noble mort ou définitivement retiré (bâtard placé en bas de
-ligne après annulation papale d'un Claim, voir « Claims ») libère une place.
-`R N XXX YYY` est rejeté avec le motif `noble_limit_reached` si le plafond
-est déjà atteint ; l'ordre actuel `R N XXX` l'applique de la même façon.
+libres, otages ou au cachot à la fois : `noble_limit` (4) dans
+`assets/balance.yaml`. Certains effets de jeu peuvent relever ce plafond,
+sans jamais dépasser `noble_limit_max` (6) ; le premier est la dignité de
+[bâtard](#bâtard), dont chaque porteur relève le plafond de 1 (deux bâtards :
++2), quels que soient son statut (libre, otage ou au cachot) et son état
+civil. Un
+noble au cachot compte dans ce plafond ; un noble mort ou définitivement
+retiré (bâtard placé en bas de ligne après annulation papale d'un Claim, voir
+« Claims ») libère une place. `R N CCC XXX` est rejeté avec le motif
+`noble_limit_reached` si le plafond est déjà atteint. Si le plafond baisse
+(mort du porteur d'une dignité de bâtard), un joueur peut se retrouver
+au-dessus : aucun noble n'est expulsé, le recrutement est seulement bloqué
+jusqu'à repasser sous le plafond.
 
 ### Deck de nobles
 
-Le recrutement ne pioche plus librement dans le pool de prénoms de
-`assets/prenoms.csv` : chaque joueur pioche dans un **deck de nobles
-unique**, fini et partagé par tous les joueurs, généré déterministiquement à
-partir de la seed de partie comme le deck d'ordres spéciaux. Le deck
-contient :
+Chaque joueur pioche dans un **deck de nobles unique**, partagé par
+tous les joueurs, généré déterministiquement à partir de la seed de partie
+comme le deck d'ordres spéciaux. Il contient deux sortes de cartes :
 
-- des **nobles anonymes** (majorité du deck), nom et sexe tirés de
-  `prenoms.csv`, sans trait de départ ;
-- des **cartes de personnage**, plus rares, qui recrutent un noble nommé
-  avec un trait fixe : cardinaux (avancement facilité vers le cardinalat,
-  résolu par [religieux.md](religieux.md)), figures féminines marquantes
-  avec un bonus concret et spécifique (commandement renforcé, immunité
-  partielle, etc. — distinctes des [dignités](dames.md#dignités),
-  attribués en cours de partie plutôt qu'au recrutement), et d'autres
-  personnages à définir dans l'issue de milestone.
+- des **cartes de noble**, chacune portant un nom, un trigramme et un sexe
+  tirés de `assets/prenoms.csv`, sans trait de départ. Elles sont réparties
+  à parts égales entre hommes et femmes (la seed tranche la carte restante
+  quand leur nombre est impair) ;
+- des **cartes de dignité**, qui ne recrutent personne : elles se jouent sur
+  un noble déjà en jeu pour lui conférer une [dignité](dames.md#dignités).
+  La seule dignité du deck est le [bâtard](#bâtard) ; d'autres s'y ajouteront
+  avec les issues des cardinaux et des figures féminines.
 
-Le deck contient aussi quelques **cartes de bâtard** (au moins une par
-partie). Le bâtard est une **dignité affectable à un noble**, du même type que
-les dignités ecclésiastiques et les [dignités](dames.md#dignités) féminines ;
-tant qu'un noble du joueur la porte, le plafond de nobles du joueur augmente
-de 1.
-
-> À trancher dans l'issue du deck de nobles (#247) : carte de personnage ou
-> attribution à un noble existant, conditions d'éligibilité, sort du plafond
-> si le porteur meurt ou est capturé, articulation avec le bâtard issu d'une
-> annulation papale.
+**Taille.** Le deck compte `joueurs × (noble_limit_max + 1)` cartes (28 à
+4 joueurs), réduit au besoin pour que les cartes de noble puissent recevoir
+un nom encore libre (les nobles de départ en consomment aussi). Parmi elles,
+les dignités duplicables représentent une carte sur `joueurs − 1`, sans
+dépasser une carte sur quatre : `max(1, deck / max(joueurs − 1, 4))` cartes,
+arrondies à l'entier inférieur. Ce quota garantit au moins un bâtard par
+partie ; le reste du deck est constitué de cartes de noble.
 
 Le recrutement se déroule en deux temps, chacun une entrée d'ordre d'hiver
-distincte plutôt qu'une pioche automatique :
+distincte :
 
 - **pioche** (`T N`, un ordre gratuit) : ajoute la carte du dessus du deck à
-  la main de cartes noble du joueur, au plus une fois par tour d'hiver
-  (`noble_draw_already_used` au-delà) ;
-- **jeu** (`R N XXX YYY`, gratuit également, sans coût en R) : joue la carte
-  `XXX` présente dans la main du joueur — son trigramme — pour faire
-  apparaître le noble correspondant sur le château ou village `YYY`, sous
-  réserve des mêmes conditions de contrôle et d'armée présente qu'aujourd'hui.
+  la main de cartes de noble du joueur, au plus une fois par joueur et par
+  tour d'hiver (`noble_draw_already_used` au-delà). La limite de main est
+  partagée avec la main d'ordres spéciaux : la main de cartes de noble
+  (nobles et dignités) et la main d'ordres spéciaux ne peuvent ensemble
+  dépasser `special_orders.hand_limit` cartes, sinon l'ordre est rejeté
+  (`hand_limit_reached`). Un joueur pioche au plus `special_orders.draw_orders_limit`
+  cartes par hiver, tous decks confondus, dont au plus une dans le deck de
+  personnages (nobles et dignités) : une pioche de noble réduit d'une carte
+  le remplissage automatique de la main d'ordres spéciaux. Quand la pioche est vide,
+  la défausse est mélangée pour la reconstituer ; si la pioche et la défausse
+  sont toutes deux vides, l'ordre est rejeté (`noble_deck_empty`) ;
+- **jeu d'une carte de noble** (`R N CCC XXX`, gratuit, sans coût en R) : joue
+  la carte `CCC` de la main — son trigramme — pour faire apparaître le noble
+  correspondant sur le château ou village `XXX`, sous réserve des conditions
+  de contrôle, d'armée présente et de plafond ;
+- **jeu d'une carte de dignité** (`D N XXX CCC`, gratuit) : joue la carte de
+  dignité `CCC` de la main (son code, `BAS` pour le bâtard) sur le noble
+  `XXX` du joueur. Deux cartes de même dignité sont interchangeables ;
+- **défausse d'une carte de la main** (`D C CCC`, gratuit, sans limite par
+  hiver) : retire de la main la carte `CCC` (trigramme d'un noble ou code d'une
+  dignité) sans la jouer ; elle va à la défausse du deck de nobles telle
+  quelle et y reste jusqu'au mélange de la défausse. La place libérée peut
+  servir à un `T N` plus loin dans la même feuille. Une carte absente de la
+  main est rejetée (`card_not_in_hand`). Le rapport public ne nomme pas la
+  carte défaussée. `D C` suivi d'un code à deux lettres reste la défausse
+  d'une carte d'ordre spécial.
 
-Cette limite, combinée au plafond de nobles ci-dessus, fait du recrutement
-une ressource rare plutôt qu'une action économique libre.
+Cette limite, combinée au plafond de nobles, fait du recrutement une
+ressource rare plutôt qu'une action économique libre.
 
-> À trancher dans l'issue de milestone : composition exacte du deck (nombre
-> de cartes anonymes vs personnages, liste des personnages et de leurs
-> traits) ; ergonomie de la pioche côté UX — la main de cartes noble
-> s'ajoute à la main de cartes spéciales existante, donc le formulaire
-> d'hiver devra sans doute exposer des boutons dédiés (piocher, jouer une
-> carte de la main sur une cible) plutôt qu'une syntaxe brute à composer à
-> la main.
+**Défausse et remélange.** Une carte jouée reste suivie, liée au noble sur
+lequel elle agit, tant que ce noble vit.
+
+- Quand un noble recruté par une carte meurt ou quitte définitivement le jeu,
+  sa carte de noble sort du deck et une **nouvelle carte de noble du même
+  sexe**, portant un nom et un trigramme encore inutilisés (ni sur une carte,
+  ni sur un noble, ni sur un noble mort), rejoint la défausse ; s'il n'en reste
+  aucun, rien n'est ajouté. Le trigramme du défunt reste réservé. Un noble de
+  départ, qui n'a pas de carte, ne laisse rien.
+- Une carte de dignité retourne à la défausse quand son porteur meurt ou quand
+  la dignité est retirée par un effet de jeu (point d'entrée unique du moteur,
+  `removeDignity`).
+- Quand une pioche trouve la pile vide, la défausse est mélangée de façon
+  déterministe (graine dérivée de la seed de partie et d'un compteur de
+  remélanges stocké dans l'état) pour former la nouvelle pioche.
+
+### Bâtard
+
+Le bâtard est une dignité permanente, attribuable à tout noble du joueur par
+une carte de dignité (ou par l'annulation papale d'un Claim, voir
+« Claims »). Elle se cumule avec toute autre dignité, quel que soit le sexe,
+l'état civil ou le statut du noble ; elle ne s'attribue qu'une fois au même
+noble (`noble_already_bastard`) et compte comme un titre dans le score.
+
+- **Plafond.** Chaque noble du joueur qui est bâtard relève `noble_limit` de 1
+  (deux bâtards : +2), sans jamais dépasser `noble_limit_max`, même si le
+  porteur est marié, otage ou au cachot. Le bonus disparaît à sa mort.
+- **Succession.** Un bâtard est toujours dernier de la ligne de succession,
+  quel que soit son ordre d'achat. Il ne peut recevoir un nouveau titre que s'il
+  est le dernier membre de sa lignée (tous les autres nobles du joueur étant
+  déjà morts ou bâtards, ou le joueur n'ayant aucun noble non bâtard). Un
+  noble qui devient bâtard conserve les titres qu'il détient. Un bâtard ne
+  peut pas être roi.
+- **Mariage.** Un bâtard peut se marier, mais son mariage n'est pas
+  constitutif d'une alliance : il est enregistré dans la lignée sans poids,
+  sans catégorie, sans partage de score et sans compter dans le bonus de
+  densité.
+- **Capture.** Un bâtard capturé en combat est placé directement au cachot,
+  jamais en otage. Il reste susceptible d'être otage s'il est remis à un
+  autre joueur par un effet autre que la capture (otage volontaire) ou si son
+  propriétaire change son statut.
+- **Claims.** Un Claim ne peut pas être joué sur un bâtard ; jouer une carte
+  de bâtard sur le noble visé par un Claim annule ce Claim.
+- **Deck d'ordres spéciaux.** Les cartes du deck d'ordres spéciaux peuvent
+  cibler ou reconnaître un bâtard de la famille du joueur (prédicat de
+  ciblage `is_bastard`).
+
+Les effets d'une dignité sont déclarés en un seul endroit du moteur (table de
+dignités) que chaque règle concernée interroge (plafond, succession, titres,
+mariage, capture, ciblage) : une nouvelle dignité ajoute une entrée plutôt
+qu'un test dispersé.
 
 ## Mariages et alliances
 
@@ -178,6 +242,9 @@ cadette obscure n'obtient pas une tête au même titre qu'un double mariage de
 premiers héritiers. Le bonus de densité récompense à l'inverse la
 concentration de plusieurs mariages entre les deux mêmes maisons plutôt que
 leur dispersion.
+
+Un mariage dont l'un des époux est [bâtard](#bâtard) n'est pas une alliance :
+il n'a ni poids, ni catégorie, et ne compte pas dans le bonus de densité.
 
 Le poids du couple classe le mariage en catégorie, par seuil (valeurs
 indicatives, à caler dans `assets/balance.yaml`) :
@@ -265,4 +332,6 @@ Cet ordre combine deux mécaniques déjà en place :
 L'événement `Claim` permet de recruter un noble héritier qui réclame le titre
 d'un seigneur marié à un membre de sa famille. À la mort du marié, le titre lui
 revient. Le roi et le pape peuvent annuler le Claim. Une annulation par le pape
-rend le seigneur bâtard et le place en bas de la ligne de succession.
+confère au seigneur la dignité de [bâtard](#bâtard). Un Claim ne peut pas être
+joué sur un bâtard ; jouer une carte de bâtard sur le noble visé par un Claim
+annule ce Claim.

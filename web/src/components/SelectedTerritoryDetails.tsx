@@ -288,6 +288,21 @@ export function SelectedTerritoryDetails({
                     <dd className="font-medium text-[#594b3c]">
                       {displayOwner(noble.owner, noble.owner)}
                     </dd>
+                    {noble.dignities && noble.dignities.length > 0 && (
+                      <>
+                        <dt>{t('app.dignity')}</dt>
+                        <dd className="flex flex-wrap gap-1 font-medium text-[#594b3c]">
+                          {noble.dignities.map((dignity) => (
+                            <span
+                              key={dignity}
+                              className="rounded bg-[#e8d9b8] px-1.5 py-0.5 text-[10px] uppercase tracking-wide"
+                            >
+                              {t(`dignity.${dignity}` as MessageKey)}
+                            </span>
+                          ))}
+                        </dd>
+                      </>
+                    )}
                     {noble.spouse && (
                       <>
                         <dt>{t('app.marriage')}</dt>

@@ -87,6 +87,9 @@ un bonus fixe et/ou une action réservée, tant que la dame reste libre :
 - d'autres dignités pourront accorder une action supplémentaire réservée,
   à la manière de calmer une révolte.
 
+Le [bâtard](succession.md#bâtard) est une dignité de même nature, ouverte à
+tout noble et cumulable avec les autres.
+
 Une dignité compte comme n'importe quel titre dans le score (voir
 [titres.md § Score de titres](titres.md#score-de-titres)).
 

@@ -17,6 +17,9 @@ func cloneGameState(source *models.GameState) *models.GameState {
 		clone.Territories[i].Adjacencies = cloneSlice(territory.Adjacencies)
 	}
 	clone.Nobles = cloneSlice(source.Nobles)
+	for i, noble := range source.Nobles {
+		clone.Nobles[i].Dignities = cloneSlice(noble.Dignities)
+	}
 	clone.Armies = make([]models.Army, len(source.Armies))
 	for i, army := range source.Armies {
 		clone.Armies[i] = army
@@ -68,6 +71,7 @@ func cloneGameState(source *models.GameState) *models.GameState {
 		clone.TaxedFiefs = cloneSlice(source.TaxedFiefs)
 	}
 	clone.SpecialDeck = cloneSpecialDeck(source.SpecialDeck)
+	clone.NobleDeck = cloneNobleDeck(source.NobleDeck)
 	if source.Auguries != nil {
 		clone.Auguries = make(map[int]models.YearAugury, len(source.Auguries))
 		for year, augury := range source.Auguries {

@@ -317,7 +317,9 @@ hotseat demande celle du joueur sélectionné avec `?player=P1` en mode de
 développement. La politique de divulgation est la suivante :
 
 - la carte et les valeurs dynamiques chiffrées restent communes ;
+- `handLimit` est la limite de main partagée (`special_orders.hand_limit`), commune à `specialHand` et `nobleHand` (cartes de noble et de dignité), et publique ;
 - `specialHand` contient uniquement les kinds bonus de la main du joueur courant ; la pioche, la défausse et les IDs internes restent absents ;
+- `nobleHand` contient uniquement les cartes du deck de nobles de la main du joueur courant (`id`, `kind` `noble` ou `dignity`, `code`, et selon le kind `name` et `sex` ou `dignity`) ; `nobleDeckSize` est le nombre de cartes restant dans la pioche et `nobleDiscardSize` le nombre de cartes de la défausse, publics ; l'ordre de la pioche et les mains des autres joueurs restent absents. Chaque noble de `nobles` expose ses `dignities` (par exemple `bastard`), publiques ;
 - un joueur voit le détail des chaînes qu'il a émises, ainsi que celles émises
   par un noble qu'il détient comme otage, tant que la chaîne reste compatible
   avec la progression de l'armée ;
@@ -606,24 +608,48 @@ P BRI
 BRI D BRI ATL NOR
 ```
 
-Les ordres d'hiver v1 comprennent `A N`, `R N`, `R T`, `C M`, `C C`, `C D`, `E C`,
+Les ordres d'hiver v1 comprennent `A N`, `T N` (piocher une carte du deck de nobles), `R N CCC XXX` (jouer la carte de noble `CCC` de la main pour recruter sur `XXX`), `D N NNN CCC` (jouer la carte de dignité `CCC` sur le noble `NNN`), `D C CCC` (défausser la carte de noble ou de dignité `CCC` de la main de nobles, type `discard_noble_card`, événement public `noble_discard` sans nom de carte ; le code à trois lettres le distingue de `D C KIND`), `R T`, `C M`, `C C`, `C D`, `E C`,
 `O N`, `P N`, `L N`, `G XXX YYY N`, `T F NNN XXX YYY ZZZ …` (constituer un
 fief) et `T A NNN XXX` (attribuer un fief vacant), `M N XXX YYY` (marier deux nobles de
 deux joueurs, ordre symétrique), avec `D C KIND` pour les
 défausses de cartes bonus.
 Une soumission `special` séparée contient les ordres jouables du deck : `P KIND TER`
 au printemps, en été et en automne. En hiver, la main est reconstituée
-automatiquement après les défausses selon la balance ; il n'existe pas d'ordre de
-pioche. Aucun de ces ordres n'exige de noble et ils ne sont jamais intégrés à la
+automatiquement après les ordres d'hiver et les défausses : elle pioche
+`special_orders.draw_orders_limit` cartes au plus, moins une si le joueur a
+pioché une carte de noble (`T N`) cet hiver, sans dépasser les places libres de
+la main partagée (`hand_limit` moins les cartes d'ordres spéciaux, de noble et
+de dignité détenues) ; il n'existe pas d'ordre de pioche spécial. `T N` est
+rejeté (`hand_limit_reached`) quand la main partagée est pleine. Aucun de ces ordres n'exige de noble et ils ne sont jamais intégrés à la
 grammaire des chaînes de nobles. Les infrastructures absentes du modèle v1 ne
 possèdent ni symbole de parser ni coût dans `balance.yaml`.
+
+Le deck de nobles est une donnée persistée de l'état de partie, `nobleDeck`
+(`cards`, `drawPile`, `discard`, `hands` par joueur, `played`, `reshuffles`,
+`namePool`), absente de la vue `state.json` hors `nobleHand`, `nobleDeckSize`
+et `nobleDiscardSize` ci-dessus. Il est généré à la
+création de la partie à partir de la seed, une fois les nobles de départ
+tirés : `joueurs × (noble_limit_max + 1)` cartes, réduit pour que chaque carte
+de noble reçoive un nom libre de `prenoms.csv`, réparties à parts égales entre
+les sexes, dont `max(1, taille / max(joueurs − 1, 4))` cartes de dignité
+(bâtard, code `BAS`). Une carte jouée passe dans `played`, liée au noble sur lequel elle
+agit (`{card, noble}`), tant que celui-ci vit. À la mort du noble, sa carte de
+noble sort de `cards` et une nouvelle carte de noble du même sexe, prise dans
+`namePool` (les prénoms que ni une carte, ni un noble, ni un noble mort
+n'utilisent), rejoint `discard` ; une carte de dignité y retourne, de même que
+lorsqu'un effet retire la dignité (helper unique `removeDignity`). Quand la
+pioche est vide, `discard` est mélangé dans `drawPile` avec une graine dérivée
+de la seed de partie et du compteur `reshuffles`, qu'il incrémente. Les dignités d'un noble sont persistées dans son
+champ `dignities`, et leurs effets déclarés dans une seule table du modèle
+(`models.dignityEffects`, interrogée par le plafond de nobles, la ligne de
+succession, l'éligibilité aux titres, la capture et le ciblage `is_bastard`).
 
 ## 8. Assets et balance
 
 Les assets sont chargés au démarrage et validés avant de créer la session :
 
 - `communes.csv` fournit les noms, codes et affinités de terrain ;
-- `prenoms.csv` fournit les noms, codes et sexes (`male` ou `female`) de nobles ; le noble recruté hérite du sexe de son prénom ;
+- `prenoms.csv` fournit les noms, codes et sexes (`male` ou `female`) de nobles ; les nobles de départ et les cartes de noble du deck de nobles y puisent, et le noble recruté hérite du nom, du trigramme et du sexe de sa carte ;
 - `balance.yaml` fournit les coûts, productions, portées, rations, bonus de
   défense, bonus de commandement noble, valeurs de départ et paramètres du
   deck d’ordres spéciaux utilisés par le moteur.

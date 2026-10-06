@@ -1,4 +1,4 @@
-import type { ChangeEvent } from 'react'
+import { useState, type ChangeEvent } from 'react'
 import { IconBook, IconSnowflake } from '@tabler/icons-react'
 
 import { Button } from '@/components/ui/button'
@@ -7,8 +7,10 @@ import { formatCardHand, formatCardLabel } from '@/lib/card-hand'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
+import { DEFAULT_HAND_LIMIT } from '@/types'
 import type {
   Noble,
+  NobleCard,
   OrdersPreview,
   OrdersPreviewError,
   PlayerId,
@@ -171,6 +173,216 @@ function DeckOrdersSection({
   )
 }
 
+/** Appends one order line to a winter draft, on its own line. */
+export function appendDraftLine(draft: string, line: string): string {
+  const trimmed = draft.replace(/\s+$/, '')
+  return trimmed === '' ? `${line}\n` : `${trimmed}\n${line}\n`
+}
+
+function draftLines(draft: string): string[] {
+  return draft
+    .split('\n')
+    .map((line) => line.replace(/#.*$/, '').trim().toUpperCase())
+    .filter((line) => line !== '')
+}
+
+/** True when the draft already carries a `T N` draw order. */
+export function draftHasNobleDraw(draft: string): boolean {
+  return draftLines(draft).some((line) => /^T\s+N$/.test(line))
+}
+
+/** Counts the `D C CCC` lines of the draft: each frees a hand slot. */
+function draftNobleDiscardCount(draft: string): number {
+  return draftLines(draft).filter((line) => /^D\s+C\s+[A-Z]{3}$/.test(line)).length
+}
+
+function draftMentionsCard(draft: string, code: string): boolean {
+  const upper = code.toUpperCase()
+  return draftLines(draft).some((line) => {
+    const fields = line.split(/\s+/)
+    return (
+      (fields[0] === 'R' && fields[1] === 'N' && fields[2] === upper) ||
+      (fields[0] === 'D' && fields[1] === 'N' && fields[3] === upper) ||
+      (fields[0] === 'D' && fields[1] === 'C' && fields[2] === upper)
+    )
+  })
+}
+
+function NobleCardRow({
+  card,
+  player,
+  state,
+  winterDraft,
+  onWinterChange,
+}: {
+  card: NobleCard
+  player: PlayerId
+  state: StateData
+  winterDraft: string
+  onWinterChange: (text: string) => void
+}) {
+  const { t } = useLanguage()
+  const [target, setTarget] = useState('')
+  const used = draftMentionsCard(winterDraft, card.code)
+  const isDignity = card.kind === 'dignity'
+  const options = isDignity
+    ? ownedNobles(state, player)
+        .filter((noble) => !(noble.dignities ?? []).includes(card.dignity ?? 'bastard'))
+        .map((noble) => ({ value: noble.code, label: `${noble.code} · ${noble.name}` }))
+    : state.territories
+        .filter(
+          (territory) =>
+            territory.owner === player &&
+            territory.army?.owner === player &&
+            territory.infrastructures.some(
+              (infra) => infra.type === 'castle' || infra.type === 'village',
+            ),
+        )
+        .map((territory) => ({ value: territory.id, label: territory.id }))
+  const selected = options.some((option) => option.value === target)
+    ? target
+    : (options[0]?.value ?? '')
+  const label = isDignity
+    ? t('orders.nobleHandDignity', {
+        dignity: t(`dignity.${card.dignity ?? 'bastard'}` as MessageKey),
+        code: card.code,
+      })
+    : t('orders.nobleHandNoble', {
+        name: card.name ?? card.code,
+        code: card.code,
+        sex: t(card.sex === 'female' ? 'orders.nobleHandFemale' : 'orders.nobleHandMale'),
+      })
+  const discard = () => {
+    onWinterChange(appendDraftLine(winterDraft, `D C ${card.code}`))
+  }
+  const play = () => {
+    if (selected === '') return
+    const line = isDignity
+      ? `D N ${selected} ${card.code}`
+      : `R N ${card.code} ${selected}`
+    onWinterChange(appendDraftLine(winterDraft, line))
+  }
+  return (
+    <li className="flex flex-wrap items-center gap-2 text-xs text-[#263f52]">
+      <span className="font-medium">{label}</span>
+      <select
+        value={selected}
+        onChange={(event) => setTarget(event.target.value)}
+        className="rounded border border-[#9bbbd3] bg-white px-1 py-0.5"
+        aria-label={t(
+          isDignity ? 'orders.nobleHandDignityTargetAria' : 'orders.nobleHandTerritoryAria',
+          { code: card.code },
+        )}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={used || selected === ''}
+        onClick={play}
+      >
+        {t(isDignity ? 'orders.nobleHandPlayDignity' : 'orders.nobleHandPlayTerritory')}
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={used}
+        aria-label={t('orders.nobleHandDiscardAria', { code: card.code })}
+        onClick={discard}
+      >
+        {t('orders.nobleHandDiscard')}
+      </Button>
+    </li>
+  )
+}
+
+function NobleDeckSection({
+  state,
+  player,
+  winterDraft,
+  onWinterChange,
+}: {
+  state: StateData
+  player: PlayerId
+  winterDraft: string
+  onWinterChange: (text: string) => void
+}) {
+  const { t } = useLanguage()
+  const hand = state.nobleHand ?? []
+  const deckSize = state.nobleDeckSize ?? 0
+  const drawn = draftHasNobleDraw(winterDraft)
+  const handLimit = state.handLimit ?? DEFAULT_HAND_LIMIT
+  const specialCount = (state.specialHand ?? []).length
+  const handFull =
+    specialCount + hand.length - draftNobleDiscardCount(winterDraft) >= handLimit
+  const drawDisabled = drawn || deckSize === 0 || handFull
+  return (
+    <section className="space-y-2 rounded-lg border border-[#9bbbd3] bg-[#f7fbff] p-3">
+      <h4 className="font-serif text-base font-semibold text-[#2c5b7d]">
+        {t('orders.nobleDeckTitle')}
+      </h4>
+      <p className="text-xs leading-relaxed text-[#55738a]">
+        {t('orders.nobleDeckDescription')}
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={drawDisabled}
+          onClick={() => onWinterChange(appendDraftLine(winterDraft, 'T N'))}
+        >
+          {t('orders.nobleDraw')}
+        </Button>
+        <span className="text-xs text-[#55738a]">
+          {t('orders.nobleDeckSize', { count: deckSize })}
+        </span>
+        {drawn && (
+          <span className="text-xs text-[#55738a]">{t('orders.nobleDrawUsed')}</span>
+        )}
+        {!drawn && deckSize === 0 && (
+          <span className="text-xs text-[#8d321e]">{t('orders.nobleDeckEmpty')}</span>
+        )}
+        {!drawn && deckSize > 0 && handFull && (
+          <span className="text-xs text-[#8d321e]">{t('orders.nobleHandFull')}</span>
+        )}
+      </div>
+      <p className="text-xs text-[#55738a]">
+        {t('orders.handCounter', {
+          count: specialCount + hand.length,
+          limit: handLimit,
+          special: specialCount,
+          noble: hand.length,
+        })}
+      </p>
+      <p className="text-xs font-semibold text-[#2c5b7d]">{t('orders.nobleHand')}</p>
+      {hand.length === 0 ? (
+        <p className="text-xs text-[#55738a]">{t('orders.nobleHandEmpty')}</p>
+      ) : (
+        <ul className="space-y-1" aria-label={t('orders.nobleHand')}>
+          {hand.map((card) => (
+            <NobleCardRow
+              key={card.id}
+              card={card}
+              player={player}
+              state={state}
+              winterDraft={winterDraft}
+              onWinterChange={onWinterChange}
+            />
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
 function DeckHandSummary({ state }: { state: StateData }) {
   const { t } = useLanguage()
   const hand = state.specialHand ?? []
@@ -287,6 +499,12 @@ export function OrdersPanel({
           </div>
         )}
         <DeckHandSummary state={state} />
+        <NobleDeckSection
+          state={state}
+          player={player}
+          winterDraft={winterDraft}
+          onWinterChange={onWinterChange}
+        />
         <textarea
           value={winterDraft}
           onChange={(event) => onWinterChange(event.target.value)}

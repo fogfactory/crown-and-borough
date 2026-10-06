@@ -829,6 +829,42 @@ func TestResolveNobleCapture(t *testing.T) {
 	})
 }
 
+func TestResolveNobleCaptureBastardGoesToDungeon(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			territory("AAA", "AAA", "BBB"),
+			territory("BBB", "BBB", "AAA"),
+		},
+		[]models.Army{
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 2},
+		},
+	)
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	addNoble(state, "N3", "THR", "P1", "AAA")
+	addNoble(state, "N2", "TWO", "P2", "BBB")
+	state.Nobles[0].Dignities = []models.Dignity{models.DignityBastard}
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
+	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"AAA"}})
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if noble := nobleByID(t, resolution.State, "N1"); noble.Status != models.NobleStatusDungeon {
+		t.Errorf("bastard N1 = %+v, want straight to the dungeon", noble)
+	}
+	if noble := nobleByID(t, resolution.State, "N3"); noble.Status != models.NobleStatusHostage {
+		t.Errorf("non-bastard N3 = %+v, want hostage", noble)
+	}
+	for _, event := range eventsOfType(resolution.Events, EventTypeCapture) {
+		if event.NobleID == "N1" && event.Status != models.NobleStatusDungeon {
+			t.Errorf("capture event = %+v, want status dungeon", event)
+		}
+	}
+}
+
 func TestResolveLoopProgression(t *testing.T) {
 	t.Run("hold", func(t *testing.T) {
 		state := testState(t,

@@ -47,7 +47,7 @@ func ParseWinterOrdersWithDeckOrders(text string, game *models.GameState) ([]mod
 			continue
 		}
 		fields := strings.Fields(line)
-		if len(fields) >= 2 && fields[0] == "D" && fields[1] == "C" {
+		if isSpecialDiscardLine(fields) {
 			order, parseError := parseDeckOrderLine(line, lineNumber+1, game)
 			if parseError != nil {
 				parseErrors = append(parseErrors, *parseError)
@@ -93,7 +93,7 @@ func ParseWinterSheetLines(text string, game *models.GameState) []WinterSheetLin
 		}
 		parsed := WinterSheetLine{Line: lineNumber + 1}
 		fields := strings.Fields(line)
-		if len(fields) >= 2 && fields[0] == "D" && fields[1] == "C" {
+		if isSpecialDiscardLine(fields) {
 			order, parseError := parseDeckOrderLine(line, lineNumber+1, game)
 			if parseError != nil {
 				parsed.Error = parseError
@@ -113,8 +113,31 @@ func ParseWinterSheetLines(text string, game *models.GameState) []WinterSheetLin
 	return lines
 }
 
+// isSpecialDiscardLine tells a special-card discard (D C KIND, a two-letter
+// kind such as BT or TX) from a noble-hand discard (D C CCC, a three-letter
+// noble trigram or dignity code): the code length decides, and no special
+// kind code has three letters, so the two never collide. A malformed D C line
+// is reported by the special-card parser unless its code has three letters.
+func isSpecialDiscardLine(fields []string) bool {
+	if len(fields) < 2 || fields[0] != "D" || fields[1] != "C" {
+		return false
+	}
+	return len(fields) != 3 || !isCode(fields[2])
+}
+
 func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
 	fields := strings.Fields(line)
+	if len(fields) >= 2 && fields[0] == "T" && fields[1] == "N" {
+		if len(fields) != 2 {
+			error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.WinterNobleDrawShape)
+			return models.WinterOrder{}, &error
+		}
+		return models.WinterOrder{Type: models.WinterOrderTypeDrawNoble}, nil
+	}
+	if len(fields) >= 2 && fields[0] == "D" && fields[1] == "C" && len(fields) != 3 {
+		error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.WinterDiscardNobleShape)
+		return models.WinterOrder{}, &error
+	}
 	if len(fields) < 3 {
 		error := parseMessage(lineNumber, ParseCodeMissingTarget, "error.winter.order_shape")
 		return models.WinterOrder{}, &error
@@ -149,6 +172,19 @@ func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (mod
 	if fields[0] == "M" {
 		return parseMarriageOrderLine(fields, lineNumber, indexes)
 	}
+	if fields[0] == "R" && fields[1] == "N" {
+		return parseRecruitNobleLine(fields, lineNumber, indexes)
+	}
+	if fields[0] == "D" && fields[1] == "C" {
+		if !isCode(fields[2]) {
+			error := parseMessage(lineNumber, ParseCodeInvalidCode, "error.winter.noble_code_format", fields[2])
+			return models.WinterOrder{}, &error
+		}
+		return models.WinterOrder{Type: models.WinterOrderTypeDiscardNoble, CardCode: fields[2]}, nil
+	}
+	if fields[0] == "D" && fields[1] == "N" {
+		return parseDignityOrderLine(fields, lineNumber, indexes)
+	}
 	if len(fields) > 3 {
 		error := parseMessage(lineNumber, ParseCodeTooManyTargets, "error.winter.target_only_one")
 		return models.WinterOrder{}, &error
@@ -161,8 +197,6 @@ func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (mod
 			return models.WinterOrder{}, parseError
 		}
 		switch fields[1] {
-		case "N":
-			return models.WinterOrder{Type: models.WinterOrderTypeRecruitNoble, TerritoryID: territoryID}, nil
 		case "T":
 			return models.WinterOrder{Type: models.WinterOrderTypeRecruitTroop, TerritoryID: territoryID}, nil
 		default:
@@ -319,5 +353,51 @@ func parseMarriageOrderLine(fields []string, lineNumber int, indexes gameIndexes
 		Type:       models.WinterOrderTypeMarriage,
 		NobleCode:  models.NobleCode(fields[2]),
 		SpouseCode: models.NobleCode(fields[3]),
+	}, nil
+}
+
+// parseRecruitNobleLine handles R N XXX YYY: XXX is the code of a noble card
+// played from the player's hand, YYY the castle or village where the noble
+// appears. Whether the card is in hand is an engine reject (the card codes of
+// the deck are not part of the public state).
+func parseRecruitNobleLine(fields []string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
+	if len(fields) != 4 {
+		error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.WinterRecruitNobleShape)
+		return models.WinterOrder{}, &error
+	}
+	if !isCode(fields[2]) {
+		error := parseMessage(lineNumber, ParseCodeInvalidCode, "error.winter.noble_code_format", fields[2])
+		return models.WinterOrder{}, &error
+	}
+	territoryID, parseError := winterTerritoryID(fields[3], lineNumber, indexes)
+	if parseError != nil {
+		return models.WinterOrder{}, parseError
+	}
+	return models.WinterOrder{
+		Type:        models.WinterOrderTypeRecruitNoble,
+		CardCode:    fields[2],
+		TerritoryID: territoryID,
+	}, nil
+}
+
+// parseDignityOrderLine handles D N XXX CCC: XXX is one of the player's
+// nobles, CCC the code of a dignity card played from the player's hand.
+// Ownership and the card being in hand are engine rejects.
+func parseDignityOrderLine(fields []string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
+	if len(fields) != 4 {
+		error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.WinterDignityShape)
+		return models.WinterOrder{}, &error
+	}
+	if parseError := winterNobleCode(fields[2], lineNumber, indexes); parseError != nil {
+		return models.WinterOrder{}, parseError
+	}
+	if !isCode(fields[3]) {
+		error := parseMessage(lineNumber, ParseCodeInvalidCode, "error.winter.noble_code_format", fields[3])
+		return models.WinterOrder{}, &error
+	}
+	return models.WinterOrder{
+		Type:      models.WinterOrderTypeDignity,
+		NobleCode: models.NobleCode(fields[2]),
+		CardCode:  fields[3],
 	}, nil
 }

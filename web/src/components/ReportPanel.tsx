@@ -17,6 +17,7 @@ import type {
   IncomeReport,
   SeasonEffectReport,
   TurnReport,
+  Dignity,
   WinterInvestmentReport,
   WinterOrder,
 } from '@/types'
@@ -65,6 +66,11 @@ const REASON_KEYS: Record<string, MessageKey> = {
   noble_requires_owned_army: 'reports.reason.noble_requires_owned_army',
   noble_requires_settlement: 'reports.reason.noble_requires_settlement',
   noble_limit_reached: 'reports.reason.noble_limit_reached',
+  noble_draw_already_used: 'reports.reason.noble_draw_already_used',
+  noble_deck_empty: 'reports.reason.noble_deck_empty',
+  hand_limit_reached: 'reports.reason.hand_limit_reached',
+  card_not_in_hand: 'reports.reason.card_not_in_hand',
+  noble_already_bastard: 'reports.reason.noble_already_bastard',
   troop_requires_adjacent_noble: 'reports.reason.troop_requires_adjacent_noble',
   noble_not_prisoner: 'reports.reason.noble_not_prisoner',
   noble_not_held: 'reports.reason.noble_not_held',
@@ -282,7 +288,13 @@ function winterOrderLabel(order: WinterOrder, map: MapData | null, t: Translate)
   const territory = territoryLabel(map, order.territory, t)
   switch (order.type) {
     case 'recruit_noble':
-      return `R N ${territory}`
+      return order.cardCode ? `R N ${order.cardCode} ${territory}` : `R N ${territory}`
+    case 'draw_noble':
+      return 'T N'
+    case 'discard_noble_card':
+      return `D C ${order.cardCode ?? '—'}`
+    case 'play_dignity':
+      return `D N ${order.nobleCode ?? '—'} ${order.cardCode ?? '—'}`
     case 'recruit_troop':
       return `R T ${territory}`
     case 'build':
@@ -312,6 +324,9 @@ function winterOrderLabel(order: WinterOrder, map: MapData | null, t: Translate)
   }
 }
 
+// Code of the card that confers each dignity, as typed in `D N NNN CCC`.
+const DIGNITY_CARD_CODES: Record<Dignity, string> = { bastard: 'BAS' }
+
 function investmentLabel(
   investment: WinterInvestmentReport,
   map: MapData | null,
@@ -321,7 +336,9 @@ function investmentLabel(
   const territory = territoryLabel(map, investment.territory, t)
   switch (investment.kind) {
     case 'recruit':
-      return investment.nobleCode ? `R N ${territory}` : `R T ${territory}`
+      return investment.nobleCode
+        ? `R N ${investment.nobleCode} ${territory}`
+        : `R T ${territory}`
     case 'build':
       return `C ${WINTER_INFRA_SYMBOLS[investment.type ?? 'mill'] ?? '?'} ${territory}`
     case 'upgrade':
@@ -348,6 +365,13 @@ function investmentLabel(
       return `T A ${investment.nobleCode ?? '—'} ${territory}`
     case 'marriage_refused':
       return `M N ${investment.nobleCode ?? '—'}`
+    case 'noble_draw':
+      return 'T N'
+    case 'noble_discard':
+      // The public report does not name the discarded card.
+      return 'D C'
+    case 'dignity':
+      return `D N ${investment.nobleCode ?? '—'} ${DIGNITY_CARD_CODES[investment.dignity ?? 'bastard']}`
     case 'prosperity_founded':
       return `${WINTER_INFRA_SYMBOLS.village} ${territoryLabel(map, investment.target, t)} ← ${territoryLabel(map, investment.source, t)}`
     default:

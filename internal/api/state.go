@@ -13,22 +13,28 @@ import (
 // storage-oriented GameState directly, and includes the public calendar and
 // score snapshot.
 type StateView struct {
-	Turn                int                                       `json:"turn"`
-	Year                int                                       `json:"year"`
-	YearCount           int                                       `json:"yearCount"`
-	Season              models.Season                             `json:"season"`
-	Scores              map[models.PlayerID]engine.ScoreBreakdown `json:"scores"`
-	Victory             engine.VictoryStatus                      `json:"victory"`
-	Finished            bool                                      `json:"finished"`
-	Winner              *models.PlayerID                          `json:"winner,omitempty"`
-	Players             []PlayerView                              `json:"players"`
-	Territories         []TerritoryView                           `json:"territories"`
-	Nobles              []NobleView                               `json:"nobles"`
-	Fiefs               []FiefView                                `json:"fiefs"`
-	Marriages           []MarriageView                            `json:"marriages"`
-	SpecialHand         []models.CardKind                         `json:"specialHand"`
-	ActiveRegionEffects []models.ActiveRegionEffect               `json:"activeRegionEffects"`
-	Announcements       []engine.AnnouncementReport               `json:"announcements"`
+	Turn        int                                       `json:"turn"`
+	Year        int                                       `json:"year"`
+	YearCount   int                                       `json:"yearCount"`
+	Season      models.Season                             `json:"season"`
+	Scores      map[models.PlayerID]engine.ScoreBreakdown `json:"scores"`
+	Victory     engine.VictoryStatus                      `json:"victory"`
+	Finished    bool                                      `json:"finished"`
+	Winner      *models.PlayerID                          `json:"winner,omitempty"`
+	Players     []PlayerView                              `json:"players"`
+	Territories []TerritoryView                           `json:"territories"`
+	Nobles      []NobleView                               `json:"nobles"`
+	Fiefs       []FiefView                                `json:"fiefs"`
+	Marriages   []MarriageView                            `json:"marriages"`
+	// HandLimit is special_orders.hand_limit: the cap on the cards a player
+	// holds, special-orders hand and noble hand together.
+	HandLimit           int                         `json:"handLimit"`
+	SpecialHand         []models.CardKind           `json:"specialHand"`
+	NobleHand           []NobleCardView             `json:"nobleHand"`
+	NobleDeckSize       int                         `json:"nobleDeckSize"`
+	NobleDiscardSize    int                         `json:"nobleDiscardSize"`
+	ActiveRegionEffects []models.ActiveRegionEffect `json:"activeRegionEffects"`
+	Announcements       []engine.AnnouncementReport `json:"announcements"`
 }
 
 // PlayerView contains the public player metadata needed by the hotseat
@@ -164,6 +170,20 @@ type NobleView struct {
 	// Spouse is the code of the noble this one is married to, set only while
 	// the marriage is active (both spouses alive).
 	Spouse *models.NobleCode `json:"spouse,omitempty"`
+	// Dignities are the permanent distinctions the noble carries (the
+	// bastard); they are public.
+	Dignities []models.Dignity `json:"dignities,omitempty"`
+}
+
+// NobleCardView is one card of the viewer's own noble hand. The hands of the
+// other players and the order of the draw pile are never projected.
+type NobleCardView struct {
+	ID      models.NobleCardID   `json:"id"`
+	Kind    models.NobleCardKind `json:"kind"`
+	Code    string               `json:"code"`
+	Name    string               `json:"name,omitempty"`
+	Sex     models.Sex           `json:"sex,omitempty"`
+	Dignity models.Dignity       `json:"dignity,omitempty"`
 }
 
 // FiefView is a fief addressed by its capital's trigram: no internal fief id
@@ -219,7 +239,9 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 		Territories:         []TerritoryView{},
 		Nobles:              []NobleView{},
 		Fiefs:               []FiefView{},
+		HandLimit:           balance.SpecialOrders.HandLimit,
 		SpecialHand:         []models.CardKind{},
+		NobleHand:           []NobleCardView{},
 		ActiveRegionEffects: []models.ActiveRegionEffect{},
 		Announcements:       []engine.AnnouncementReport{},
 		Scores:              map[models.PlayerID]engine.ScoreBreakdown{},
@@ -352,6 +374,9 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 			Status:   noble.Status,
 			Sex:      noble.Sex,
 		}
+		if len(noble.Dignities) != 0 {
+			nobleView.Dignities = append([]models.Dignity(nil), noble.Dignities...)
+		}
 		if marriage, married := state.MarriageOf(noble.ID); married {
 			spouseID := marriage.NobleA
 			if spouseID == noble.ID {
@@ -402,6 +427,19 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 		for _, cardID := range state.SpecialDeck.Hands[*viewer] {
 			if kind, exists := cardKinds[cardID]; exists && kind.IsBonus() {
 				view.SpecialHand = append(view.SpecialHand, kind)
+			}
+		}
+	}
+	if state.NobleDeck != nil {
+		view.NobleDeckSize = len(state.NobleDeck.DrawPile)
+		view.NobleDiscardSize = len(state.NobleDeck.Discard)
+		if viewer != nil {
+			for _, cardID := range state.NobleDeck.Hands[*viewer] {
+				if card, exists := state.NobleDeck.Card(cardID); exists {
+					view.NobleHand = append(view.NobleHand, NobleCardView{
+						ID: card.ID, Kind: card.Kind, Code: card.Code, Name: card.Name, Sex: card.Sex, Dignity: card.Dignity,
+					})
+				}
 			}
 		}
 	}

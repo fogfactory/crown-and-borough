@@ -1586,6 +1586,9 @@ func (ctx *resolutionContext) captureNoblesAfterDestruction(plan *retreatPlan) {
 		}
 		previousStatus := noble.Status
 		noble.Status = models.NobleStatusHostage
+		if noble.CapturedToDungeon() {
+			noble.Status = models.NobleStatusDungeon
+		}
 		ctx.events = append(ctx.events, Event{
 			Type:           EventTypeCapture,
 			Phase:          4,

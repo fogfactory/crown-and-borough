@@ -67,6 +67,9 @@ const (
 	EventTypeProsperityFounded  EventType = "prosperity_founded"
 	EventTypeMarriage           EventType = "marriage"
 	EventTypeMarriageRefused    EventType = "marriage_refused"
+	EventTypeNobleDraw          EventType = "noble_draw"
+	EventTypeDignity            EventType = "dignity"
+	EventTypeNobleDiscard       EventType = "noble_discard"
 )
 
 // Outcome is the execution result of one current order.
@@ -189,6 +192,9 @@ type Event struct {
 	IndexBefore     int                 `json:"indexBefore,omitempty"`
 	IndexAfter      int                 `json:"indexAfter,omitempty"`
 	WinterOrder     *models.WinterOrder `json:"winterOrder,omitempty"`
+
+	// Dignity is the dignity a EventTypeDignity event confers.
+	Dignity models.Dignity `json:"dignity,omitempty"`
 
 	SpouseNobleID   models.NobleID   `json:"spouseNoble,omitempty"`
 	SpouseNobleCode models.NobleCode `json:"spouseNobleCode,omitempty"`

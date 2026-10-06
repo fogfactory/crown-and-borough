@@ -179,26 +179,6 @@ func (ctx *resolutionContext) setCapital(playerID models.PlayerID, infrastructur
 	player.CapitalCastleID = &capitalID
 }
 
-func (ctx *resolutionContext) hasAvailableFirstName(firstNames []assetgen.Asset) bool {
-	for _, firstName := range firstNames {
-		if _, exists := ctx.noblesByCode[models.NobleCode(firstName.Code)]; !exists && !ctx.removedNobleCodes[firstName.Code] {
-			return true
-		}
-	}
-	return false
-}
-
-func (ctx *resolutionContext) drawFirstName(rng *rand.Rand, firstNames []assetgen.Asset) assetgen.Asset {
-	start := rng.IntN(len(firstNames))
-	for offset := 0; offset < len(firstNames); offset++ {
-		candidate := firstNames[(start+offset)%len(firstNames)]
-		if _, exists := ctx.noblesByCode[models.NobleCode(candidate.Code)]; !exists && !ctx.removedNobleCodes[candidate.Code] {
-			return candidate
-		}
-	}
-	return assetgen.Asset{}
-}
-
 func newWinterRNG(seed string, turn int) *rand.Rand {
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s|winter-noble|%d", seed, turn)))
 	lo := binary.BigEndian.Uint64(digest[:8])

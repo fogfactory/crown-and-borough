@@ -93,7 +93,7 @@ func TestParseWinterOrders(t *testing.T) {
 
 	t.Run("parses every form case insensitively", func(t *testing.T) {
 		parsed, parseErrors := orders.ParseWinterOrders(`
-            r n aaa
+            r n ade aaa
             R T BBB # troop
             c m ccc
             C C DDD
@@ -129,6 +129,9 @@ func TestParseWinterOrders(t *testing.T) {
 			if wantID := models.OrderID("O" + strconv.Itoa(index+1)); parsed[index].ID != wantID {
 				t.Errorf("parsed[%d].ID = %q, want %q", index, parsed[index].ID, wantID)
 			}
+		}
+		if parsed[0].CardCode != "ADE" || parsed[0].TerritoryID != "AAA" {
+			t.Errorf("recruit noble order = %#v, want card ADE at AAA", parsed[0])
 		}
 		if parsed[2].InfraType != models.InfraTypeMill || parsed[4].InfraType != models.InfraTypeSupplyDepot {
 			t.Errorf("build infrastructure types = %#v", parsed)
@@ -457,11 +460,13 @@ func TestResolveWinterRecruitNoble(t *testing.T) {
 		state.Seed = "winter-nobles"
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 		setTerritoryResources(state, "AAA", 8)
+		giveNobleCard(state, "P1", "ADE", "Adelaide", models.SexFemale)
+		giveNobleCard(state, "P1", "GUI", "Guy", models.SexMale)
 		validateTestState(t, state)
 		ordersByPlayer := map[models.PlayerID][]models.WinterOrder{
 			"P1": {
-				{ID: "O1", Type: models.WinterOrderTypeRecruitNoble, TerritoryID: "AAA"},
-				{ID: "O2", Type: models.WinterOrderTypeRecruitNoble, TerritoryID: "AAA"},
+				{ID: "O1", Type: models.WinterOrderTypeRecruitNoble, CardCode: "ADE", TerritoryID: "AAA"},
+				{ID: "O2", Type: models.WinterOrderTypeRecruitNoble, CardCode: "GUI", TerritoryID: "AAA"},
 			},
 		}
 
@@ -486,10 +491,10 @@ func TestResolveWinterRecruitNoble(t *testing.T) {
 			if noble.LocationID != "AAA" || noble.OwnerID != "P1" || noble.Status != models.NobleStatusFree {
 				t.Errorf("noble = %#v, want free P1 noble at AAA", noble)
 			}
-			if !strings.HasSuffix(noble.Name, " de AAA") {
+			if !strings.HasSuffix(noble.Name, " de AAA") || !strings.HasPrefix(noble.Name, map[string]string{"ADE": "Adelaide", "GUI": "Guy"}[noble.Code]) {
 				t.Errorf("noble name = %q, want territory suffix", noble.Name)
 			}
-			wantSex := map[string]models.Sex{"ADE": models.SexFemale, "GUI": models.SexMale, "MAH": models.SexFemale}[noble.Code]
+			wantSex := map[string]models.Sex{"ADE": models.SexFemale, "GUI": models.SexMale}[noble.Code]
 			if noble.Sex != wantSex {
 				t.Errorf("noble %s sex = %q, want %q (sex of its first name)", noble.Code, noble.Sex, wantSex)
 			}
@@ -500,8 +505,8 @@ func TestResolveWinterRecruitNoble(t *testing.T) {
 		}
 		for index, recruit := range recruits {
 			wantOrderID := models.OrderID("O" + strconv.Itoa(index+1))
-			if recruit.OrderID != wantOrderID || recruit.ResourceSpent != testBalance().Costs.Noble {
-				t.Errorf("recruit[%d] = %#v, want order %s and resource spend %d", index, recruit, wantOrderID, testBalance().Costs.Noble)
+			if recruit.OrderID != wantOrderID || recruit.ResourceSpent != 0 {
+				t.Errorf("recruit[%d] = %#v, want order %s and no resource spend", index, recruit, wantOrderID)
 			}
 		}
 	})
@@ -547,7 +552,7 @@ func TestResolveWinterRecruitNoble(t *testing.T) {
 			state := tt.state(t)
 			validateTestState(t, state)
 			resolution, err := ResolveWinter(state, testBalance(), map[models.PlayerID][]models.WinterOrder{
-				"P1": {{ID: "O1", Type: models.WinterOrderTypeRecruitNoble, TerritoryID: "AAA"}},
+				"P1": {{ID: "O1", Type: models.WinterOrderTypeRecruitNoble, CardCode: "ADE", TerritoryID: "AAA"}},
 			})
 			if err != nil {
 				t.Fatalf("ResolveWinter: %v", err)

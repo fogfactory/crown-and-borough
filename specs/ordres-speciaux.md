@@ -6,11 +6,18 @@
 
 ## Pioche et main
 
-- chaque hiver, un joueur tire un ou deux ordres spéciaux selon la règle de la
-  partie ;
+- chaque hiver, un joueur pioche au plus `special_orders.draw_orders_limit`
+  cartes (2), tous decks confondus : le remplissage automatique des ordres
+  spéciaux et la pioche `T N` du deck de personnages (au plus une carte, voir
+  `succession.md`) partagent ce plafond ;
 - les cartes peuvent être conservées pour une résolution ultérieure ;
-- le joueur peut abandonner des cartes existantes ;
-- la main est limitée à quatre ordres spéciaux.
+- le joueur peut abandonner des cartes existantes (`D C KIND` pour une carte
+  d'ordre spécial ; `D C CCC` pour une carte de la main de nobles, voir
+  `succession.md`) ;
+- la main est limitée à `special_orders.hand_limit` cartes (4), quel que soit
+  le deck d'origine : ordres spéciaux, cartes de noble et cartes de dignité
+  comptent ensemble. `T N` est rejeté (`hand_limit_reached`) quand la main est
+  pleine.
 
 Chaque carte devra déclarer son coût, ses conditions, son moment d'utilisation,
 son effet et les informations visibles par les autres joueurs.
@@ -42,8 +49,13 @@ Aucun noble n'est requis :
   jouées sur le même fief le même tour ne se cumulent pas, la seconde est
   consommée sans effet.
 
-La main est reconstituée automatiquement en hiver après les défausses, selon la
-limite de remplissage de la balance. Aucun ordre de pioche n'est nécessaire.
+La main est reconstituée automatiquement en hiver, après les ordres d'hiver
+(dont `T N` et les cartes jouées, qui libèrent leur place) et après les
+défausses. Le joueur reçoit `draw_orders_limit` cartes, moins une s'il a pioché
+une carte de personnage cet hiver, et sans dépasser les places libres de la
+main partagée (`hand_limit` moins les cartes d'ordres spéciaux, de noble et de
+dignité détenues). Les joueurs sont traités par identifiant croissant. Aucun
+ordre de pioche n'est nécessaire.
 
 Les cartes jouées sont consommées puis leurs effets sont appliqués avant le
 ravitaillement et la résolution simultanée des ordres d'armée.

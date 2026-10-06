@@ -69,6 +69,9 @@ type Noble struct {
 	LocationID       TerritoryID `json:"location"`
 	Status           NobleStatus `json:"status"`
 	LastEmissionTurn int         `json:"lastEmissionTurn"`
+	// Dignities are the permanent distinctions the noble carries, conferred
+	// by a dignity card (specs/succession.md § Bâtard).
+	Dignities []Dignity `json:"dignities,omitempty"`
 }
 
 // RemovedNoble is the lineage record of a noble who has permanently left
@@ -78,7 +81,7 @@ type Noble struct {
 // recruitment order stays recoverable from its ID, a global, strictly
 // increasing sequence shared with GameState.Nobles. Both its ID and its Code
 // stay reserved forever so a later recruit never collides with them (see
-// engine.nextNobleID and resolutionContext.removedNobleCodes).
+// engine.nextNobleID; a noble card is consumed when played, so its code is never drawn again).
 type RemovedNoble struct {
 	ID      NobleID    `json:"id"`
 	Code    string     `json:"code"`

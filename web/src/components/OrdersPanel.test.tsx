@@ -485,3 +485,120 @@ describe('OrdersPanel seasonal presentation', () => {
     ).not.toBeInTheDocument()
   })
 })
+
+describe('OrdersPanel noble deck (winter)', () => {
+  const deckState: StateData = {
+    ...state,
+    season: 'winter',
+    territories: [
+      {
+        id: 'ROS',
+        owner: 'P1',
+        resources: 0,
+        army: { owner: 'P1', size: 2, chain: null },
+        infrastructures: [{ type: 'castle', level: 1 }],
+      },
+      {
+        id: 'BRU',
+        owner: 'P1',
+        resources: 0,
+        army: null,
+        infrastructures: [{ type: 'village', level: 1 }],
+      },
+    ],
+    nobles: [
+      { id: 'n1', code: 'HUG', name: 'Hugues', owner: 'P1', location: 'ROS', status: 'free' },
+    ],
+    nobleDeckSize: 5,
+    nobleHand: [
+      { id: 'c1', kind: 'noble', code: 'ALB', name: 'Albert', sex: 'male' },
+      { id: 'c2', kind: 'dignity', code: 'BAS', dignity: 'bastard' },
+    ],
+  }
+
+  function renderDeck(winterDraft: string, onWinterChange = vi.fn(), s = deckState) {
+    render(
+      <LanguageProvider initialLanguage="fr">
+        <OrdersPanel
+          state={s}
+          player="P1"
+          chainDrafts={{}}
+          winterDraft={winterDraft}
+          specialDraft=""
+          submitted={false}
+          submitting={false}
+          error={null}
+          onChainChange={vi.fn()}
+          onWinterChange={onWinterChange}
+          onSpecialChange={vi.fn()}
+          onSubmit={vi.fn()}
+          onOpenRules={vi.fn()}
+        />
+      </LanguageProvider>,
+    )
+    return onWinterChange
+  }
+
+  it('draws a card and shows the deck size', () => {
+    const onWinterChange = renderDeck('')
+    expect(screen.getByText('Deck : 5 carte(s) restante(s)')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Piocher une carte de noble/ }))
+    expect(onWinterChange).toHaveBeenCalledWith('T N\n')
+  })
+
+  it('disables the draw when already ordered or the deck is empty', () => {
+    renderDeck('T N\n')
+    expect(screen.getByRole('button', { name: /Piocher une carte de noble/ })).toBeDisabled()
+  })
+
+  it('shows the combined hand counter and disables the draw when the hand is full', () => {
+    renderDeck('', vi.fn(), { ...deckState, specialHand: ['fair_weather', 'fair_weather'] })
+    expect(screen.getByText('Main : 4/4 cartes (spéciales : 2, nobles : 2)')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Piocher une carte de noble/ })).toBeDisabled()
+    expect(screen.getByText(/Votre main est pleine/)).toBeInTheDocument()
+  })
+
+  it('keeps the draw enabled while the shared hand has room', () => {
+    renderDeck('', vi.fn(), { ...deckState, specialHand: ['fair_weather'] })
+    expect(screen.getByText('Main : 3/4 cartes (spéciales : 1, nobles : 2)')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Piocher une carte de noble/ })).toBeEnabled()
+  })
+
+  it('disables the draw on an empty deck', () => {
+    renderDeck('', vi.fn(), { ...deckState, nobleDeckSize: 0 })
+    expect(screen.getByRole('button', { name: /Piocher une carte de noble/ })).toBeDisabled()
+  })
+
+  it('plays a noble card only on controlled settlements with an army', () => {
+    const onWinterChange = renderDeck('')
+    const select = screen.getByLabelText('Territoire pour la carte ALB')
+    expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual(['ROS'])
+    fireEvent.click(screen.getByRole('button', { name: 'Jouer sur un territoire' }))
+    expect(onWinterChange).toHaveBeenCalledWith('R N ALB ROS\n')
+  })
+
+  it('plays a dignity card on an own noble', () => {
+    const onWinterChange = renderDeck('# note')
+    fireEvent.click(screen.getByRole('button', { name: 'Jouer sur un noble' }))
+    expect(onWinterChange).toHaveBeenCalledWith('# note\nD N HUG BAS\n')
+  })
+
+  it('discards a noble or dignity card from the hand', () => {
+    const onWinterChange = renderDeck('')
+    fireEvent.click(screen.getByRole('button', { name: 'Défausser la carte ALB' }))
+    expect(onWinterChange).toHaveBeenCalledWith('D C ALB\n')
+    fireEvent.click(screen.getByRole('button', { name: 'Défausser la carte BAS' }))
+    expect(onWinterChange).toHaveBeenLastCalledWith('D C BAS\n')
+  })
+
+  it('disables the discard of a card already used by a draft line', () => {
+    renderDeck('D C ALB\nD N HUG BAS\n')
+    expect(screen.getByRole('button', { name: 'Défausser la carte ALB' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Défausser la carte BAS' })).toBeDisabled()
+  })
+
+  it('lets a drafted discard free a slot for the draw', () => {
+    renderDeck('D C ALB\n', vi.fn(), { ...deckState, specialHand: ['fair_weather', 'fair_weather'] })
+    expect(screen.getByRole('button', { name: /Piocher une carte de noble/ })).toBeEnabled()
+  })
+})

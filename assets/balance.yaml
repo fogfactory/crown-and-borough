@@ -40,7 +40,6 @@ costs:
   # Index 0 is the construction cost; index N-1 is the cost to reach level N.
   mill_levels: [3, 5, 7]
   troop: 1
-  noble: 2
   supply_depot: 3
   liberation: 0
   # Per territory, paid by a T F winter order (titres.md).

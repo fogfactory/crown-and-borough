@@ -10,7 +10,9 @@ import (
 // Noble IDs are a global, strictly increasing recruitment sequence, so the
 // order is recovered from them. Hostages and prisoners stay in the line; dead
 // nobles (GameState.RemovedNobles) have left it. IDs that do not follow the
-// "N<number>" form sort last, in slice order.
+// "N<number>" form sort last, in slice order. A noble whose dignity places it
+// last in the line (the bastard, specs/succession.md § Bâtard) comes after
+// every other noble, whatever its purchase order.
 func (g *GameState) SuccessionLine(playerID PlayerID) []Noble {
 	line := []Noble{}
 	for _, noble := range g.Nobles {
@@ -19,6 +21,9 @@ func (g *GameState) SuccessionLine(playerID PlayerID) []Noble {
 		}
 	}
 	sort.SliceStable(line, func(i, j int) bool {
+		if lastI, lastJ := line[i].LastInSuccession(), line[j].LastInSuccession(); lastI != lastJ {
+			return lastJ
+		}
 		a, aOK := nobleSequence(line[i].ID)
 		b, bOK := nobleSequence(line[j].ID)
 		if aOK != bOK {
@@ -57,7 +62,10 @@ func (t FiefTitle) Rank() int { return fiefTitleRanks[t] }
 // CanReceiveTitle reports whether nobleID may be granted a fief of the given
 // title (specs/succession.md § Lignée): every noble placed above it in its
 // owner's line of succession must already hold a fief of an equal or higher
-// title. Hostages and prisoners stay in the line and are not skipped.
+// title. Hostages and prisoners stay in the line and are not skipped. A
+// noble whose dignity places it last in the line (the bastard,
+// specs/succession.md § Bâtard) may only receive a title when it is the last
+// of its lineage: no other noble of its owner is free of that dignity.
 func (g *GameState) CanReceiveTitle(nobleID NobleID, title FiefTitle) bool {
 	var owner PlayerID
 	found := false
@@ -70,7 +78,17 @@ func (g *GameState) CanReceiveTitle(nobleID NobleID, title FiefTitle) bool {
 	if !found {
 		return false
 	}
-	for _, above := range g.SuccessionLine(owner) {
+	line := g.SuccessionLine(owner)
+	for _, candidate := range line {
+		if candidate.ID == nobleID && candidate.LastInSuccession() {
+			for _, other := range line {
+				if !other.LastInSuccession() {
+					return false
+				}
+			}
+		}
+	}
+	for _, above := range line {
 		if above.ID == nobleID {
 			return true
 		}
