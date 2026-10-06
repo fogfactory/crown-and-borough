@@ -86,3 +86,31 @@ func AllianceWeight(state *models.GameState, balance assetgen.Balance, marriage 
 	}
 	return weight, true
 }
+
+// AllianceCategory ranks a marriage by alliance weight.
+type AllianceCategory string
+
+const (
+	AllianceHead      AllianceCategory = "head"
+	AllianceMixed     AllianceCategory = "mixed"
+	AllianceSecondary AllianceCategory = "secondary"
+)
+
+// MarriageCategory classifies an active alliance by its current weight. It is
+// derived from the state on every call, so deaths, executions, assassinations,
+// claims and title changes reclassify the marriage without any stored value.
+// It reports false when the marriage is not an active alliance.
+func MarriageCategory(state *models.GameState, balance assetgen.Balance, marriage models.Marriage) (AllianceCategory, bool) {
+	weight, ok := AllianceWeight(state, balance, marriage)
+	if !ok {
+		return "", false
+	}
+	switch {
+	case weight >= balance.Alliance.HeadMinWeight:
+		return AllianceHead, true
+	case weight >= balance.Alliance.MixedMinWeight:
+		return AllianceMixed, true
+	default:
+		return AllianceSecondary, true
+	}
+}
