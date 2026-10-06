@@ -149,9 +149,8 @@ func (ctx *resolutionContext) marriageRejection(declaration pendingMarriage) str
 	return ""
 }
 
-// marriageForbidden is the extension point for dignities that forbid
-// marriage (specs/dames.md § Dignités, issue #259): no dignity exists yet, so
-// no noble is barred.
-func marriageForbidden(*resolutionContext, *models.Noble) bool {
-	return false
+// marriageForbidden reports whether a dignity forbids the noble to marry
+// (specs/dames.md § Dignités, the Bloqué dignities).
+func marriageForbidden(_ *resolutionContext, noble *models.Noble) bool {
+	return noble.MarriageBlockedByDignity()
 }

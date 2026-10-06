@@ -22,7 +22,10 @@ type resolutionContext struct {
 	pendingMarriages []pendingMarriage
 	// nobleDraws holds the players who already drew a noble card this winter
 	// (one draw per player per winter, specs/succession.md § Deck de nobles).
-	nobleDraws          map[models.PlayerID]bool
+	nobleDraws map[models.PlayerID]bool
+	// calamityVetoes holds the astrologers that already struck calamities
+	// from the forecast this winter.
+	calamityVetoes      map[models.NobleID]bool
 	infrastructuresByID map[models.InfraID]*models.Infrastructure
 
 	startArmiesByID      map[models.ArmyID]models.Army

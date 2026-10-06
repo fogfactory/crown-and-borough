@@ -83,7 +83,7 @@ starting_outposts: 2
 starting_resources: 6
 
 special_orders:
-  hand_limit: 4
+  hand_limit: 6
   draw_orders_limit: 2
   deck_size: 30
   calamity_percentage: 30

@@ -292,7 +292,7 @@ func applyPlague(ctx *resolutionContext, regionSeed models.TerritoryID) {
 	}
 	for _, territoryID := range regionTerritories(ctx, regionSeed) {
 		army := ctx.currentArmyAt(territoryID)
-		if army == nil {
+		if army == nil || plagueProtected(ctx, army.OwnerID, territoryID) {
 			continue
 		}
 		before := army.Size
@@ -715,7 +715,7 @@ func resolvePlagueMortality(ctx *resolutionContext) {
 	dead := make(map[models.NobleID]bool)
 	for nobleID, startNoble := range ctx.startNoblesByID {
 		region := regionForTerritory(ctx, startNoble.LocationID)
-		if !plagueRegions[region] {
+		if !plagueRegions[region] || plagueProtected(ctx, startNoble.OwnerID, startNoble.LocationID) {
 			continue
 		}
 		if newPlagueRNG(ctx.state.Seed, ctx.state.Turn, nobleID).IntN(100) < mortality {

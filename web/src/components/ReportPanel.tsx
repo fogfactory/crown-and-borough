@@ -300,7 +300,9 @@ function winterOrderLabel(order: WinterOrder, map: MapData | null, t: Translate)
     case 'claim':
       return `C N ${order.nobleCode ?? '—'} ${order.spouseCode ?? '—'}`
     case 'play_dignity':
-      return `D N ${order.nobleCode ?? '—'} ${order.cardCode ?? '—'}`
+      return `D N ${order.nobleCode ?? '—'} ${order.cardCode ?? '—'}${order.territory ? ` ${order.territory}` : ''}`
+    case 'calamity_veto':
+      return `V C ${order.nobleCode ?? '—'} ${(order.indices ?? []).join(' ')}`.trim()
     case 'recruit_troop':
       return `R T ${territory}`
     case 'build':
@@ -331,7 +333,18 @@ function winterOrderLabel(order: WinterOrder, map: MapData | null, t: Translate)
 }
 
 // Code of the card that confers each dignity, as typed in `D N NNN CCC`.
-const DIGNITY_CARD_CODES: Record<Dignity, string> = { bastard: 'BAS' }
+const DIGNITY_CARD_CODES: Record<Dignity, string> = {
+  bastard: 'BAS',
+  d_arc: 'ARC',
+  castellan: 'CTL',
+  abbess: 'ABB',
+  herbalist: 'HRB',
+  astrologer: 'AST',
+  chevalier_d_eon: 'EON',
+  correspondent: 'COR',
+  spy: 'ESP',
+  witch: 'SOR',
+}
 
 function investmentLabel(
   investment: WinterInvestmentReport,

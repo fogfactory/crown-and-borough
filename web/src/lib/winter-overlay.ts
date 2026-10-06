@@ -95,6 +95,7 @@ export function buildWinterIntentions(
     if (
       (preview.type === 'draw_noble' ||
         preview.type === 'play_dignity' ||
+        preview.type === 'calamity_veto' ||
         preview.type === 'discard_noble_card') &&
       preview.status !== 'rejected' &&
       preview.status !== 'invalid'

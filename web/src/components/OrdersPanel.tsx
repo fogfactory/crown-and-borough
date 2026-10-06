@@ -9,6 +9,7 @@ import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
 import { DEFAULT_HAND_LIMIT } from '@/types'
 import type {
+  Dignity,
   Noble,
   NobleCard,
   OrdersPreview,
@@ -39,6 +40,17 @@ interface OrdersPanelProps {
   onSubmit: () => void
   onOpenRules: (section: RulesSection) => void
   onRestoreFromServer?: (target?: string) => void
+}
+
+// Dignities a married lady cannot receive (the others suit a married lady).
+const MARRIAGE_EXCLUDED_DIGNITIES: Dignity[] = ['d_arc', 'abbess', 'herbalist', 'chevalier_d_eon']
+
+// A lady dignity needs a lady; the bastard is open to any noble.
+function canReceiveDignity(noble: Noble, dignity: Dignity): boolean {
+  if ((noble.dignities ?? []).includes(dignity)) return false
+  if (dignity === 'bastard') return true
+  if (noble.sex !== 'female') return false
+  return !noble.spouse || !MARRIAGE_EXCLUDED_DIGNITIES.includes(dignity)
 }
 
 function ownedNobles(state: StateData, player: PlayerId): Noble[] {
@@ -251,12 +263,14 @@ function NobleCardRow({
   const { t } = useLanguage()
   const [target, setTarget] = useState('')
   const [claimTarget, setClaimTarget] = useState('')
+  const [abbeyRegion, setAbbeyRegion] = useState('')
   const isClaim = card.kind === 'claim'
   const claimCardCount = (state.nobleHand ?? []).filter((c) => c.kind === 'claim').length
   const used = isClaim
     ? draftClaimCount(winterDraft) >= claimCardCount
     : draftMentionsCard(winterDraft, card.code)
   const isDignity = card.kind === 'dignity'
+  const needsRegion = card.dignity === 'abbess'
   const claimOptions = isClaim
     ? claimTargets(state, player).map((noble) => ({
         value: noble.code,
@@ -272,7 +286,7 @@ function NobleCardRow({
           .filter((noble) =>
             isClaim
               ? !(noble.dignities ?? []).includes('bastard')
-              : !(noble.dignities ?? []).includes(card.dignity ?? 'bastard'),
+              : canReceiveDignity(noble, card.dignity ?? 'bastard'),
           )
           .map((noble) => ({ value: noble.code, label: `${noble.code} · ${noble.name}` }))
       : state.territories
@@ -307,10 +321,11 @@ function NobleCardRow({
   }
   const play = () => {
     if (selected === '' || (isClaim && selectedClaim === '')) return
+    if (needsRegion && abbeyRegion.trim().length !== 3) return
     const line = isClaim
       ? `C N ${selected} ${selectedClaim}`
       : isDignity
-        ? `D N ${selected} ${card.code}`
+        ? `D N ${selected} ${card.code}${needsRegion ? ` ${abbeyRegion.toUpperCase()}` : ''}`
         : `R N ${card.code} ${selected}`
     onWinterChange(appendDraftLine(winterDraft, line))
   }
@@ -336,6 +351,16 @@ function NobleCardRow({
           </option>
         ))}
       </select>
+      {needsRegion && (
+        <input
+          value={abbeyRegion}
+          maxLength={3}
+          onChange={(event) => setAbbeyRegion(event.target.value)}
+          placeholder={t('orders.abbeyRegionPlaceholder')}
+          aria-label={t('orders.abbeyRegionAria', { code: card.code })}
+          className="w-16 rounded border border-[#9bbbd3] bg-white px-1 py-0.5 uppercase"
+        />
+      )}
       {isClaim && (
         <select
           value={selectedClaim}
@@ -354,7 +379,12 @@ function NobleCardRow({
         type="button"
         variant="outline"
         size="sm"
-        disabled={used || selected === '' || (isClaim && selectedClaim === '')}
+        disabled={
+          used ||
+          selected === '' ||
+          (isClaim && selectedClaim === '') ||
+          (needsRegion && abbeyRegion.trim().length !== 3)
+        }
         onClick={play}
       >
         {t(
@@ -409,6 +439,26 @@ function NobleDeckSection({
       <h4 className="font-serif text-base font-semibold text-[#2c5b7d]">
         {t('orders.nobleDeckTitle')}
       </h4>
+      {(state.spiedHands ?? []).map((hand) => (
+        <p key={hand.player} className="text-xs font-medium text-[#2c5b7d]">
+          {t('orders.spiedHand', {
+            player: hand.player,
+            cards: [
+              ...hand.specialHand.map((kind) => t(`card.${kind}` as MessageKey)),
+              ...hand.nobleHand.map((card) => card.name ?? card.code),
+            ].join(', '),
+          })}
+        </p>
+      ))}
+      {(state.calamityForecast ?? []).length > 0 && (
+        <p className="text-xs font-medium text-[#2c5b7d]">
+          {t('orders.calamityForecast', {
+            kinds: (state.calamityForecast ?? [])
+              .map((kind) => t(`card.${kind}` as MessageKey))
+              .join(', '),
+          })}
+        </p>
+      )}
       <p className="text-xs leading-relaxed text-[#55738a]">
         {t(
           cardsOnly

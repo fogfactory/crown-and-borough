@@ -256,7 +256,7 @@ acts from the next turn.
 |---|---|
 | `R N CCC XXX` | Recruit the noble of card `CCC` on `XXX`. |
 | `C N HHH NNN` | Claim: heir `HHH` claims the titles of another player's noble `NNN` (consumes a `CLM` card). |
-| `D N NNN BAS` | Make `NNN` a bastard (consumes a `BAS` card). |
+| `D N NNN CCC` | Give `NNN` the dignity of card `CCC` (`BAS`: bastard; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `SOR`: dignities of the ladies). |
 
 ### Attack (`A`) and Join (`J`)
 
@@ -662,7 +662,7 @@ per line, applied in the entered order.
 | Draw a noble card | `T N` | once per winter and per player; the noble deck, shared by all players, must not be empty | 0 |
 | Recruit a noble | `R N CCC XXX` | `CCC` is a noble card in your hand; `XXX` controlled, with a castle or village and a player army, and fewer living nobles owned than your cap, {{noble_limit}} at the base (see below) | 0 |
 | Claim titles | `C N HHH CCC` | you hold a claim card (`CLM`); `HHH` is one of your nobles, placed during a marriage of `CCC` with one of your nobles, not a bastard and without a current claim; `CCC` is a noble of another player | 0 |
-| Grant a dignity | `D N NNN CCC` | `NNN` is a player noble; `CCC` is a dignity card in your hand (`BAS`: bastard); a noble is a bastard only once | 0 |
+| Grant a dignity | `D N NNN CCC` | `NNN` is a player noble; `CCC` is a dignity card in your hand (`BAS`: bastard; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `SOR`: ladies; Blocked ones: unmarried only); a noble carries a dignity only once | 0 |
 | Discard a noble card | `D C CCC` | `CCC` is a card in your noble hand (noble trigram or `BAS`); no limit per winter; the card goes to the deck's discard pile | 0 |
 | Recruit a troop | `R T XXX` | `XXX` controlled, and a free player noble on `XXX` or adjacent | {{costs.troop}} |
 | Build or upgrade a mill | `C M XXX` | `XXX` controlled; a **new** mill requires an **empty** territory adjacent to a castle or village, or itself carrying one; an **existing** mill can always be upgraded, even in isolation | {{costs.mill_levels.0}} (L1), {{costs.mill_levels.1}} (L2), {{costs.mill_levels.2}} (L3) |
@@ -715,9 +715,10 @@ living heir in the ranking, with their territories, whatever its rank in your li
 succession; with no fief or no living heir, the claim lapses. A claim is public: every player sees it in the report. A bastard card played on the heir
 cancels its claim; played on a parent noble, it does not.
 
-A dignity card is played on one of your nobles with `D N NNN CCC`; the only
-dignity in the deck is the **bastard** (`BAS`), which a noble carries only
-once. A bastard:
+A dignity card is played on one of your nobles with `D N NNN CCC`, including a
+noble you just recruited with an `R N` placed earlier in the same sheet. A noble
+carries a given dignity only once. The deck holds the **bastard** (`BAS`), open
+to any noble, and one card for each dignity of the ladies (see below). A bastard:
 
 - raises your noble cap by 1 while alive, even when married, hostage or in
   the dungeon; each bastard adds 1, never beyond {{noble_limit_max}};
@@ -728,6 +729,27 @@ once. A bastard:
   shared score);
 - goes straight to the dungeon, never as a hostage, when captured in combat;
 - counts as a title in your score.
+
+The dignities of the ladies are permanent and each counts as a title in your
+score. They can only be played on a lady (`dignity_female_only`). A **Blocked**
+dignity cannot be played on a married lady (`noble_married`) and forbids
+marriage afterwards; a **Free** dignity can be played on a married or unmarried
+lady and leaves marriage open. Their bonuses stop while the lady is in the
+dungeon; a hostage lady keeps them and her captor profits too (passive bonuses only: only her owner gives her orders). **Hidden**
+dignities are known to your player only: other players see a lady without a
+dignity, in neither the state view nor the report.
+
+| Dignity | Code | Marriage | Effect |
+|---|---|---|---|
+| D'Arc | `ARC` | Blocked | `+1` force to the army she commands, on top of the noble command bonus of `+1`. |
+| Castellan | `CTL` | Free | In a castle, you learn the orders issued this turn on her fief, including those targeting enemy armies. An army coming from outside that enters without changing its chain stays hidden. |
+| Abbess | `ABB` | Blocked | Played with the village seed of a region (`D N NNN ABB TER`), for good. While she is in it, you know the order chains issued in that region. |
+| Herbalist | `HRB` | Blocked | Your troops and nobles on her territory and the adjacent ones are immune to plague; your army on her territory consumes 2 fewer rations per turn, never below zero. |
+| Astrologer | `AST` | Free | In winter, you privately see the next 4 calamities of the special-orders draw pile. `V C NNN I [J]` strikes one or two (positions 1 to 4), once per winter per astrologer, by her owner only; the following calamities take their place. |
+| Chevalier d'Éon (hidden) | `EON` | Free, unmarried lady | The lady is replaced by a male noble, with a first name and code drawn from the unused names and all the prerogatives of a man (so he marries a woman). Her identity as a lady stays secret: only you know it. |
+| Correspondent (hidden) | `COR` | Free | Hostage of a player, she lets you see every order that player issues. |
+| Spy (hidden) | `ESP` | Free | Hostage of a player, she reveals their whole hand (special orders, nobles and dignities). |
+| Witch (hidden) | `SOR` | Free | Every army of another player in her region consumes 1 more ration per turn, with no explanation for its owner. |
 
 This is where, in winter, the fate of enemy nobles captured in combat
 (section 6) is decided: `O`/`P` moves a prisoner between `hostage` and

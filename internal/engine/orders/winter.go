@@ -2,6 +2,8 @@ package orders
 
 import (
 	"fmt"
+	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/fogfactory/crown-and-borough/internal/i18n"
@@ -173,7 +175,15 @@ func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (mod
 		return parseMarriageOrderLine(fields, lineNumber, indexes)
 	}
 	if fields[0] == "R" && fields[1] == "N" {
-		return parseRecruitNobleLine(fields, lineNumber, indexes)
+		order, parseError := parseRecruitNobleLine(fields, lineNumber, indexes)
+		if parseError == nil {
+			// The recruited noble can be targeted by the later orders of the
+			// same sheet (a dignity, a claim): its code is its card code.
+			if _, exists := indexes.noblesByCode[fields[2]]; !exists {
+				indexes.noblesByCode[fields[2]] = ""
+			}
+		}
+		return order, parseError
 	}
 	if fields[0] == "D" && fields[1] == "C" {
 		if !isCode(fields[2]) {
@@ -187,6 +197,9 @@ func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (mod
 	}
 	if fields[0] == "C" && fields[1] == "N" {
 		return parseClaimOrderLine(fields, lineNumber, indexes)
+	}
+	if fields[0] == "V" && fields[1] == "C" {
+		return parseCalamityVetoLine(fields, lineNumber, indexes)
 	}
 	if len(fields) > 3 {
 		error := parseMessage(lineNumber, ParseCodeTooManyTargets, "error.winter.target_only_one")
@@ -387,7 +400,7 @@ func parseRecruitNobleLine(fields []string, lineNumber int, indexes gameIndexes)
 // nobles, CCC the code of a dignity card played from the player's hand.
 // Ownership and the card being in hand are engine rejects.
 func parseDignityOrderLine(fields []string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
-	if len(fields) != 4 {
+	if len(fields) != 4 && len(fields) != 5 {
 		error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.WinterDignityShape)
 		return models.WinterOrder{}, &error
 	}
@@ -398,10 +411,45 @@ func parseDignityOrderLine(fields []string, lineNumber int, indexes gameIndexes)
 		error := parseMessage(lineNumber, ParseCodeInvalidCode, "error.winter.noble_code_format", fields[3])
 		return models.WinterOrder{}, &error
 	}
-	return models.WinterOrder{
+	order := models.WinterOrder{
 		Type:      models.WinterOrderTypeDignity,
 		NobleCode: models.NobleCode(fields[2]),
 		CardCode:  fields[3],
+	}
+	if len(fields) == 5 {
+		territoryID, parseError := winterTerritoryID(fields[4], lineNumber, indexes)
+		if parseError != nil {
+			return models.WinterOrder{}, parseError
+		}
+		order.TerritoryID = territoryID
+	}
+	return order, nil
+}
+
+// parseCalamityVetoLine handles V C XXX I [J]: XXX is the astrologer noble,
+// I and J the distinct positions (1 to 4) of the forecast calamities to
+// remove. Ownership and the dignity are engine rejects.
+func parseCalamityVetoLine(fields []string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
+	if len(fields) != 4 && len(fields) != 5 {
+		error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.WinterCalamityVetoShape)
+		return models.WinterOrder{}, &error
+	}
+	if parseError := winterNobleCode(fields[2], lineNumber, indexes); parseError != nil {
+		return models.WinterOrder{}, parseError
+	}
+	indices := make([]int, 0, 2)
+	for _, field := range fields[3:] {
+		index, err := strconv.Atoi(field)
+		if err != nil || index < 1 || index > 4 || slices.Contains(indices, index) {
+			error := parseMessage(lineNumber, ParseCodeInvalidCode, i18n.WinterCalamityVetoShape)
+			return models.WinterOrder{}, &error
+		}
+		indices = append(indices, index)
+	}
+	return models.WinterOrder{
+		Type:      models.WinterOrderTypeCalamityVeto,
+		NobleCode: models.NobleCode(fields[2]),
+		Indices:   indices,
 	}, nil
 }
 

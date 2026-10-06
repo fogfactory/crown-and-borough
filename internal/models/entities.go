@@ -76,6 +76,15 @@ type Noble struct {
 	// Dignities are the permanent distinctions the noble carries, conferred
 	// by a dignity card (specs/succession.md § Bâtard).
 	Dignities []Dignity `json:"dignities,omitempty"`
+	// SecretCode, SecretName and SecretSex are the private identity a noble
+	// replaced by a chevalier d'Éon keeps: only its owner knows it. Code, Name
+	// and Sex are the public male identity. SecretCode stays reserved.
+	SecretCode string `json:"secretCode,omitempty"`
+	SecretName string `json:"secretName,omitempty"`
+	SecretSex  Sex    `json:"secretSex,omitempty"`
+	// AbbeyRegion is the seed of the region (bishopric) an abbess is attached
+	// to, fixed when the dignity is played.
+	AbbeyRegion TerritoryID `json:"abbeyRegion,omitempty"`
 }
 
 // RemovedNoble is the lineage record of a noble who has permanently left

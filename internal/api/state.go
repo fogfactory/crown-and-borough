@@ -28,11 +28,18 @@ type StateView struct {
 	Marriages   []MarriageView                            `json:"marriages"`
 	// HandLimit is special_orders.hand_limit: the cap on the cards a player
 	// holds, special-orders hand and noble hand together.
-	HandLimit           int                         `json:"handLimit"`
-	SpecialHand         []models.CardKind           `json:"specialHand"`
-	NobleHand           []NobleCardView             `json:"nobleHand"`
-	NobleDeckSize       int                         `json:"nobleDeckSize"`
-	NobleDiscardSize    int                         `json:"nobleDiscardSize"`
+	HandLimit        int               `json:"handLimit"`
+	SpecialHand      []models.CardKind `json:"specialHand"`
+	NobleHand        []NobleCardView   `json:"nobleHand"`
+	NobleDeckSize    int               `json:"nobleDeckSize"`
+	NobleDiscardSize int               `json:"nobleDiscardSize"`
+	// CalamityForecast lists, in winter, the next calamity cards of the draw
+	// pile that a free astrologue of the viewer reveals (specs/dames.md
+	// § Astrologue). It is private to that player.
+	CalamityForecast []models.CardKind `json:"calamityForecast,omitempty"`
+	// SpiedHands are the hands a spy of the viewer reveals: the whole hand of
+	// the player holding her hostage.
+	SpiedHands          []SpiedHandView             `json:"spiedHands,omitempty"`
 	ActiveRegionEffects []models.ActiveRegionEffect `json:"activeRegionEffects"`
 	Announcements       []engine.AnnouncementReport `json:"announcements"`
 }
@@ -173,6 +180,8 @@ type NobleView struct {
 	// Dignities are the permanent distinctions the noble carries (the
 	// bastard); they are public.
 	Dignities []models.Dignity `json:"dignities,omitempty"`
+	// Secret is the private identity a chevalier d'Éon replaced; owner only.
+	Secret *SecretIdentityView `json:"secret,omitempty"`
 }
 
 // NobleCardView is one card of the viewer's own noble hand. The hands of the
@@ -374,8 +383,15 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 			Status:   noble.Status,
 			Sex:      noble.Sex,
 		}
-		if len(noble.Dignities) != 0 {
-			nobleView.Dignities = append([]models.Dignity(nil), noble.Dignities...)
+		revealHidden := viewer != nil && (*viewer == noble.OwnerID || *viewer == models.SpectatorViewer)
+		for _, dignity := range noble.Dignities {
+			if dignity.Effect().Hidden && !revealHidden {
+				continue
+			}
+			nobleView.Dignities = append(nobleView.Dignities, dignity)
+		}
+		if noble.SecretCode != "" && revealHidden {
+			nobleView.Secret = &SecretIdentityView{Code: models.NobleCode(noble.SecretCode), Name: noble.SecretName, Sex: noble.SecretSex}
 		}
 		if marriage, married := state.MarriageOf(noble.ID); married {
 			spouseID := marriage.NobleA
@@ -443,6 +459,10 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 			}
 		}
 	}
+	if viewer != nil {
+		view.CalamityForecast = calamityForecastFor(state, *viewer)
+		view.SpiedHands = spiedHandsFor(state, *viewer)
+	}
 	view.ActiveRegionEffects = append([]models.ActiveRegionEffect(nil), state.ActiveRegionEffects...)
 	view.Announcements = engine.PendingAnnouncements(state, state.Year(), state.Season, true)
 	return view
@@ -493,4 +513,72 @@ func projectOrder(order models.Order) OrderView {
 		}
 	}
 	return orderView
+}
+
+// SpiedHandView is the hand of a player seen through a spy.
+type SpiedHandView struct {
+	Player      models.PlayerID   `json:"player"`
+	SpecialHand []models.CardKind `json:"specialHand"`
+	NobleHand   []NobleCardView   `json:"nobleHand"`
+}
+
+// calamityForecastFor is the next calamities of the special deck draw pile
+// the astrologues serving the viewer reveal in winter: her own, or one she
+// holds hostage.
+func calamityForecastFor(state *models.GameState, viewer models.PlayerID) []models.CardKind {
+	if state.Season != models.SeasonWinter {
+		return nil
+	}
+	forecast := 0
+	for _, noble := range state.Nobles {
+		if noble.OwnerID == viewer || hostHolder(state, noble) == viewer {
+			forecast = max(forecast, noble.CalamityForecast())
+		}
+	}
+	var kinds []models.CardKind
+	for _, calamity := range engine.CalamityForecast(state, forecast) {
+		kinds = append(kinds, calamity.Kind)
+	}
+	return kinds
+}
+
+// spiedHandsFor lists the hands of the players that hold a spy of the viewer
+// hostage.
+func spiedHandsFor(state *models.GameState, viewer models.PlayerID) []SpiedHandView {
+	var hands []SpiedHandView
+	seen := map[models.PlayerID]bool{}
+	for _, noble := range state.Nobles {
+		host := hostHolder(state, noble)
+		if noble.OwnerID != viewer || host == "" || seen[host] || !noble.SeesHostHand() {
+			continue
+		}
+		seen[host] = true
+		hand := SpiedHandView{Player: host, SpecialHand: []models.CardKind{}, NobleHand: []NobleCardView{}}
+		if state.SpecialDeck != nil {
+			kinds := make(map[models.SpecialCardID]models.CardKind, len(state.SpecialDeck.Cards))
+			for _, card := range state.SpecialDeck.Cards {
+				kinds[card.ID] = card.Kind
+			}
+			for _, cardID := range state.SpecialDeck.Hands[host] {
+				hand.SpecialHand = append(hand.SpecialHand, kinds[cardID])
+			}
+		}
+		if state.NobleDeck != nil {
+			for _, cardID := range state.NobleDeck.Hands[host] {
+				if card, exists := state.NobleDeck.Card(cardID); exists {
+					hand.NobleHand = append(hand.NobleHand, NobleCardView{ID: card.ID, Kind: card.Kind, Code: card.Code, Name: card.Name, Sex: card.Sex, Dignity: card.Dignity})
+				}
+			}
+		}
+		hands = append(hands, hand)
+	}
+	return hands
+}
+
+// SecretIdentityView is the private identity of a noble replaced by a
+// chevalier d'Éon.
+type SecretIdentityView struct {
+	Code models.NobleCode `json:"code"`
+	Name string           `json:"name"`
+	Sex  models.Sex       `json:"sex"`
 }

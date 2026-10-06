@@ -265,17 +265,26 @@ func (result contestResult) hasAttackStandoff() bool {
 	return count > 1 && attackAtTop
 }
 
+// nobleCommandBonus is the force the free nobles of the army owner add on
+// its territory: the command bonus once, plus what their dignities grant
+// (D'Arc, specs/dames.md § Dignités). A famished army gets neither.
 func nobleCommandBonus(ctx *resolutionContext, army models.Army) int {
-	if ctx.famished[army.ID] || ctx.balance.NobleCommandBonus == 0 {
+	if ctx.famished[army.ID] {
 		return 0
 	}
+	commanded := false
+	dignityBonus := 0
 	for _, nobleID := range ctx.noblesAt(army.TerritoryID) {
 		noble := ctx.noblesByID[nobleID]
 		if noble != nil && noble.OwnerID == army.OwnerID && noble.Status == models.NobleStatusFree {
-			return ctx.balance.NobleCommandBonus
+			commanded = true
+			dignityBonus += noble.ArmyForceBonus()
 		}
 	}
-	return 0
+	if !commanded {
+		return 0
+	}
+	return ctx.balance.NobleCommandBonus + dignityBonus
 }
 
 func (ctx *resolutionContext) castleOwnedByAllAttackers(territoryID models.TerritoryID) bool {

@@ -55,6 +55,7 @@ const (
 	WinterOrderTypeDignity       WinterOrderType = "play_dignity"
 	WinterOrderTypeDiscardNoble  WinterOrderType = "discard_noble_card"
 	WinterOrderTypeClaim         WinterOrderType = "claim"
+	WinterOrderTypeCalamityVeto  WinterOrderType = "calamity_veto"
 )
 
 // IsValid reports whether a winter order type is known to the winter resolver.
@@ -65,7 +66,7 @@ func (t WinterOrderType) IsValid() bool {
 		WinterOrderTypeHostage, WinterOrderTypeDungeon, WinterOrderTypeTransfer,
 		WinterOrderTypeFoundFief, WinterOrderTypeAssignFief, WinterOrderTypeMarriage,
 		WinterOrderTypeDrawNoble, WinterOrderTypeDignity, WinterOrderTypeDiscardNoble,
-		WinterOrderTypeClaim:
+		WinterOrderTypeClaim, WinterOrderTypeCalamityVeto:
 		return true
 	}
 	return false
@@ -142,6 +143,9 @@ type WinterOrder struct {
 	NobleCode    NobleCode       `json:"nobleCode,omitempty"`
 	SpouseCode   NobleCode       `json:"spouseCode,omitempty"`
 	CardCode     string          `json:"cardCode,omitempty"`
+	// Indices are the 1-based positions in the astrologer forecast a
+	// calamity veto removes.
+	Indices []int `json:"indices,omitempty"`
 }
 
 type DeckOrderType string

@@ -499,6 +499,7 @@ describe('OrdersPanel noble deck (winter)', () => {
   const deckState: StateData = {
     ...state,
     season: 'winter',
+    handLimit: 4,
     territories: [
       {
         id: 'ROS',

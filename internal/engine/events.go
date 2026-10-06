@@ -69,8 +69,10 @@ const (
 	EventTypeMarriageRefused    EventType = "marriage_refused"
 	EventTypeNobleDraw          EventType = "noble_draw"
 	EventTypeDignity            EventType = "dignity"
-	EventTypeNobleDiscard       EventType = "noble_discard"
-	EventTypeClaim              EventType = "claim"
+	// EventTypeCalamityVeto is private: no report section lists it.
+	EventTypeCalamityVeto EventType = "calamity_veto"
+	EventTypeNobleDiscard EventType = "noble_discard"
+	EventTypeClaim        EventType = "claim"
 )
 
 // Outcome is the execution result of one current order.

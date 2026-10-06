@@ -135,7 +135,7 @@ func projectSupplyLine(
 
 	receivedRations := resolveRations(ctx)
 	rations := ctx.supplyRations[territoryID]
-	totalDemand := armyCost(army.Size, balance.CostBase)
+	totalDemand := armyDemand(ctx, *army)
 	demand := totalDemand - receivedRations[army.ID]
 	line := SupplyLine{
 		Kind:              SupplyLineKindArmy,
