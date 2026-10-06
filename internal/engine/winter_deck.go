@@ -70,7 +70,26 @@ func cardKind(deck *models.SpecialDeck, cardID models.SpecialCardID) models.Card
 	return ""
 }
 
+// retireCurrentAugury ends the year: every calamity card scheduled for it has
+// been applied, so the cards go to the discard pile (and are reshuffled into
+// the draw pile with it) instead of staying out of the deck for good, and the
+// augury is dropped.
+func retireCurrentAugury(ctx *resolutionContext) {
+	year := ctx.state.Year()
+	augury, exists := ctx.state.Auguries[year]
+	if !exists {
+		return
+	}
+	if deck := ctx.state.SpecialDeck; deck != nil {
+		for _, calamity := range augury.Calamities {
+			deck.Discard = append(deck.Discard, calamity.CardID)
+		}
+	}
+	delete(ctx.state.Auguries, year)
+}
+
 func resolveWinterDeckOrders(ctx *resolutionContext, deckOrders map[models.PlayerID][]models.DeckOrder) {
+	retireCurrentAugury(ctx)
 	for _, playerID := range sortedPlayerIDs(ctx.state.Players) {
 		for _, order := range deckOrders[playerID] {
 			if order.Type == models.DeckOrderTypeDiscard {
