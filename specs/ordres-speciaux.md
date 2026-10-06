@@ -14,7 +14,7 @@
 - le joueur peut abandonner des cartes existantes (`D C KIND` pour une carte
   d'ordre spécial ; `D C CCC` pour une carte de la main de nobles, voir
   `succession.md`) ;
-- la main est limitée à `special_orders.hand_limit` cartes (4), quel que soit
+- la main est limitée à `special_orders.hand_limit` cartes (6), quel que soit
   le deck d'origine : ordres spéciaux, cartes de noble et cartes de dignité
   comptent ensemble. `T N` est rejeté (`hand_limit_reached`) quand la main est
   pleine.

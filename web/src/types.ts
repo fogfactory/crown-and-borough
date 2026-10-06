@@ -72,7 +72,7 @@ export type PlayerId = string
 export const NEUTRAL_PLAYER_ID = 'NEUTRAL'
 
 /** Mirrors balance special_orders.hand_limit. */
-export const DEFAULT_HAND_LIMIT = 4
+export const DEFAULT_HAND_LIMIT = 6
 
 export type GameStatus = 'playing' | 'finished'
 
