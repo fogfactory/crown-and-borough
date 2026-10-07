@@ -257,7 +257,7 @@ Tout autre mariage est un mariage d'influence : chaque famille gagne en bonus
 le nombre de titres de la famille du conjoint (jamais son score bonifié), ce qui
 compte pour gagner seul ou via une autre tête. Le bonus est affiché à part
 (`alliance`). Les seuils de victoire de `assets/balance.yaml` (50 %/66 % du
-territoire) ont été relevés à 60 %/75 % pour tenir compte de ces bonus.
+territoire) ont été relevés à 75 %/90 % pour tenir compte de ces bonus.
 
 ### Seuil de victoire et fin de partie
 

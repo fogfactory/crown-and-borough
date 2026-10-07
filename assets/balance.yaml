@@ -53,8 +53,8 @@ costs:
 # The solo share is high enough to leave room for the mixed/secondary marriage
 # bonuses (succession.md § Poids d'alliance), which add to the title score.
 victory:
-  solo_territory_percent: 60
-  alliance_territory_percent: 75
+  solo_territory_percent: 75
+  alliance_territory_percent: 90
   reference_fief_size: 4
 
 # Alliance weight (succession.md § Poids d'alliance). A noble weighs its
