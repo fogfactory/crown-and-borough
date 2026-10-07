@@ -336,7 +336,7 @@ export interface TerritoryState {
   millDestination?: string
 }
 
-export type MarriageCategory = 'head' | 'mixed' | 'secondary'
+export type MarriageCategory = 'head' | 'secondary'
 
 /** A concluded marriage; it outlives its spouses but is inactive once one dies. */
 export interface Marriage {

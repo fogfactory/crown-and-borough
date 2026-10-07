@@ -45,10 +45,9 @@ const GOLD = '#b8860b'
 const SILVER = '#9aa3ad'
 const CLAIM = '#7a4fa3'
 
-/** Stroke of a marriage by kind: gold bold head, gold dashed mixed, thin silver secondary, hatched ended. */
+/** Stroke of a marriage by kind: gold bold head, thin silver secondary, hatched ended. */
 const EDGE_STYLE: Record<EdgeKind, { stroke: string; width: number; dash?: string }> = {
   head: { stroke: GOLD, width: 5 },
-  mixed: { stroke: GOLD, width: 2.5, dash: '7 5' },
   secondary: { stroke: SILVER, width: 1.5 },
   ended: { stroke: 'url(#lineage-hatch)', width: 7 },
 }
@@ -343,7 +342,6 @@ function Legend({ withClaims }: { withClaims: boolean }) {
   const { t } = useLanguage()
   const kinds: Array<[EdgeKind | 'claim', MessageKey]> = [
     ['head', 'lineage.legend.head'],
-    ['mixed', 'lineage.legend.mixed'],
     ['secondary', 'lineage.legend.secondary'],
     ['ended', 'lineage.legend.ended'],
   ]
@@ -361,7 +359,6 @@ function Legend({ withClaims }: { withClaims: boolean }) {
 }
 
 function kindLabel(link: LineageLink): MessageKey {
-  if (link.reserve) return 'lineage.kind.reserve'
   return `lineage.kind.${link.kind}` as MessageKey
 }
 

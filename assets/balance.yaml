@@ -58,9 +58,9 @@ victory:
 
 # Alliance weight (succession.md § Poids d'alliance). A noble weighs its
 # succession rank plus its title rank; a marriage weighs the weaker spouse plus
-# density_bonus per other alliance between the same two players, uncapped. A
-# marriage is a head alliance from head_min_weight, mixed from mixed_min_weight,
-# secondary below.
+# density_bonus per other alliance between the same two players, uncapped. The
+# heaviest marriages become head alliances (see succession.md § Tête active),
+# the others are secondary.
 alliance:
   # Weight by position in the line of succession; the last value applies to
   # every later position.
@@ -72,8 +72,6 @@ alliance:
     marquisate: 3
     duchy: 4
   density_bonus: 1
-  head_min_weight: 5
-  mixed_min_weight: 2
 
 # P1.7 game setup values.
 # Living nobles (free, hostage or in a dungeon) a player may own at once.

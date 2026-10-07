@@ -249,7 +249,7 @@ ailleurs (voix, revenus, bonus de titre).
 
 Le score d'un joueur est la somme des titres qu'il détient, ajustée par ses
 mariages : voir [succession.md § Mariages et alliances](succession.md#mariages-et-alliances)
-pour le calcul du poids d'alliance et des catégories tête/mixte/secondaire.
+pour le calcul du poids d'alliance et des catégories tête/secondaire.
 
 Un mariage qui est la tête active des deux familles est une alliance complète :
 pas de bonus individuel, les scores s'additionnent pour la victoire commune.
@@ -276,10 +276,9 @@ dans `assets/balance.yaml` en fonction du nombre de joueurs :
 **Un joueur qui a une tête active ne peut jamais gagner seul**, même si son
 score individuel atteint ou dépasse le seuil solo : tant qu'une tête est
 active, seul le score combiné contre le seuil d'alliance est évalué pour lui.
-Un joueur sans tête active (aucun mariage tête, ou toutes ses têtes sont
-retombées faute d'être la mieux classée — ce qui ne devrait pas arriver
-puisqu'une tête existante est toujours active pour son porteur, sauf
-décès) reste évalué contre le seuil solo.
+Un joueur sans tête active (aucune alliance, ou seulement des alliances
+secondaires parce que l'autre maison a une alliance mieux valorisée
+ailleurs) reste évalué contre le seuil solo.
 
 Si aucun seuil n'est atteint à la durée maximale de la partie (1 à 50 années,
 GDD §2), la partie se termine sur le score de titres le plus élevé à cet
@@ -305,7 +304,7 @@ titres de roi et de pape est différée à l'issue de calibrage.
   combiné franchit le seuil d'alliance ; les deux époux sont alors vainqueurs
   à égalité, sans hiérarchie entre eux.
 - **Victoire mineure** : parmi tous les joueurs reliés au vainqueur majeur
-  par une chaîne de mariages (tête inactive, mixte ou secondaire, y compris
+  par une chaîne de mariages d'alliance (tête ou secondaire, y compris
   transitive à travers plusieurs maisons), seul celui dont le lien a le
   poids d'alliance le plus élevé obtient une victoire mineure. Les autres
   membres de la chaîne n'obtiennent rien de cette victoire.
@@ -325,8 +324,8 @@ vainqueur.
 
 Le conjoint d'un titulaire de fief (baron, comte, duc) ou de couronne (roi)
 porte un titre de courtoisie assorti — baronne, comtesse, duchesse, reine —
-quel que soit son sexe et quelle que soit la catégorie du mariage (tête,
-mixte ou secondaire). Ce titre est **strictement d'affichage** : il n'entre
+quel que soit son sexe et quelle que soit la catégorie du mariage (tête
+ou secondaire). Ce titre est **strictement d'affichage** : il n'entre
 dans aucun calcul de score, de poids d'alliance, de vote ou de rang de
 succession, et ne confère aucun accès aux titres réservés aux hommes
 (évêque, cardinal, pape, roi lui-même). Il suit le titulaire réel du fief ou

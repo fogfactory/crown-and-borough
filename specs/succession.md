@@ -265,37 +265,36 @@ leur dispersion.
 Un mariage dont l'un des époux est [bâtard](#bâtard) n'est pas une alliance :
 il n'a ni poids, ni catégorie, et ne compte pas dans le bonus de densité.
 
-Le poids du couple classe le mariage en catégorie, par seuil
-(`head_min_weight` et `mixed_min_weight`, section `alliance` de
-`assets/balance.yaml`) :
+Le poids du couple sert à classer les alliances entre elles ; il ne fixe aucun
+seuil. Chaque alliance est soit **tête**, soit **secondaire** :
 
-| Catégorie | Poids | Effet |
-|---|---:|---|
-| Tête | ≥ 5 | Alliance complète : score additionné, victoire commune possible (voir [titres.md § Victoire majeure, victoire mineure, échec](titres.md#victoire-majeure-victoire-mineure-échec)) |
-| Mixte | 2 à 4 | Mariage d'influence : les titres de la famille du conjoint s'ajoutent au score, sans victoire commune |
-| Secondaire | ≤ 1 | Mariage d'influence, même effet que le mixte |
-
-> À trancher : seuils indicatifs, à valider avec la balance générale du score
-> de titres.
+| Catégorie | Définition | Effet |
+|---|---|---|
+| Tête | Alliance retenue comme tête active de ses deux maisons (voir [Tête active](#tête-active)) | Alliance complète : score additionné, victoire commune possible (voir [titres.md § Victoire majeure, victoire mineure, échec](titres.md#victoire-majeure-victoire-mineure-échec)) |
+| Secondaire | Toute autre alliance | Mariage d'influence : les titres de la famille du conjoint s'ajoutent au score, sans victoire commune |
 
 ### Tête active
 
-La catégorie d'un mariage est la même pour les deux maisons. Une maison n'a
-au plus qu'une tête active, et un mariage tête l'est pour ses deux maisons ou
-pour aucune. Les mariages tête sont attribués par poids d'alliance décroissant
-(à égalité, le plus ancien d'abord) : un mariage tête n'est retenu que si
-aucune de ses deux maisons n'a déjà une tête. Tous les autres mariages de
-poids tête comptent comme des mariages mixtes pour les deux maisons (titres de
+La catégorie d'une alliance est la même pour les deux maisons. Une maison n'a
+au plus qu'une tête active, et une tête l'est pour ses deux maisons ou pour
+aucune. Les alliances sont examinées par poids d'alliance décroissant (à
+égalité, la plus ancienne d'abord) : une alliance est retenue comme tête si
+aucune de ses deux maisons n'a déjà une tête. Une alliance est donc tête
+lorsqu'elle est la mieux valorisée pour ses deux maisons, quel que soit son
+poids : le mariage de deux premiers héritiers sans titre est une tête tant
+qu'aucune de leurs deux maisons ne dispose d'une alliance mieux valorisée.
+Toutes les autres alliances sont secondaires pour les deux maisons (titres de
 la famille du conjoint, sans victoire commune).
 
 La tête active change dynamiquement, sans jamais nécessiter de déclaration du
 joueur :
 
-- au décès, à l'exécution ou à l'assassinat du noble qui la porte, l'alliance
-  bascule au mariage tête suivant dans l'ordre de poids ;
+- au décès, à l'exécution ou à l'assassinat du noble qui la porte, la tête
+  passe à l'alliance suivante dans l'ordre de poids, celle qui devient la
+  mieux valorisée pour ses deux maisons ;
 - un Claim, une annulation par le pape, ou un changement de titre (élection,
-  succession) peut modifier le poids d'un mariage et donc reclasser sa
-  catégorie ou son statut d'activité.
+  succession) peut modifier le poids d'une alliance et donc la reclasser en
+  tête ou en secondaire.
 
 Tant qu'un joueur a une tête active, il ne peut plus gagner seul : sa
 victoire majeure ne peut être que commune avec son conjoint de tête, contre

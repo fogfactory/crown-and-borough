@@ -486,7 +486,7 @@ func TestProjectStateLineageAndMarriageCategory(t *testing.T) {
 	state.RemovedNobles = nil
 	state.Fiefs = nil
 	state.Marriages = []models.Marriage{{NobleA: "N1", NobleB: "N2", Turn: 1}}
-	balance := assetgen.Balance{Alliance: assetgen.AllianceBalance{SuccessionRanks: []int{3, 2, 1}, HeadMinWeight: 3, MixedMinWeight: 2}}
+	balance := assetgen.Balance{Alliance: assetgen.AllianceBalance{SuccessionRanks: []int{3, 2, 1}}}
 	view := projectState(state, balance)
 
 	for _, player := range view.Players {
@@ -518,7 +518,7 @@ func TestProjectStateHeadSuccessorAndClaims(t *testing.T) {
 	state.Turn = 5
 	state.Marriages = []models.Marriage{{NobleA: "N1", NobleB: "N2", Turn: 1}, {NobleA: "N4", NobleB: "N3", Turn: 2}}
 	state.Claims = []models.Claim{{Heir: "N4", Target: "N2", Spouse: "N1", Turn: 3}}
-	balance := assetgen.Balance{Alliance: assetgen.AllianceBalance{SuccessionRanks: []int{3, 2}, HeadMinWeight: 2, MixedMinWeight: 1}}
+	balance := assetgen.Balance{Alliance: assetgen.AllianceBalance{SuccessionRanks: []int{3, 2}}}
 	view := projectState(state, balance)
 
 	first := view.Marriages[0]

@@ -57,15 +57,11 @@ type VictoryBalance struct {
 // § Poids d'alliance). SuccessionRanks[i] is the weight of the noble at line
 // position i; the last entry applies to every later position. TitleRanks maps
 // each fief title to its weight (no title weighs 0). DensityBonus is added per
-// additional alliance between the same two players, without cap. A marriage
-// weighing at least HeadMinWeight is a head alliance, at least MixedMinWeight a
-// mixed one, and anything lighter a secondary one.
+// additional alliance between the same two players, without cap.
 type AllianceBalance struct {
 	SuccessionRanks []int                    `json:"succession_ranks" yaml:"succession_ranks"`
 	TitleRanks      map[models.FiefTitle]int `json:"title_ranks" yaml:"title_ranks"`
 	DensityBonus    int                      `json:"density_bonus" yaml:"density_bonus"`
-	HeadMinWeight   int                      `json:"head_min_weight" yaml:"head_min_weight"`
-	MixedMinWeight  int                      `json:"mixed_min_weight" yaml:"mixed_min_weight"`
 }
 
 type SpecialOrdersBalance struct {
@@ -126,8 +122,6 @@ type rawAlliance struct {
 	SuccessionRanks []*int          `yaml:"succession_ranks"`
 	TitleRanks      map[string]*int `yaml:"title_ranks"`
 	DensityBonus    *int            `yaml:"density_bonus"`
-	HeadMinWeight   *int            `yaml:"head_min_weight"`
-	MixedMinWeight  *int            `yaml:"mixed_min_weight"`
 }
 
 type rawVictory struct {
@@ -406,18 +400,7 @@ func (raw rawBalance) alliance(path string) (AllianceBalance, error) {
 	if err != nil {
 		return AllianceBalance{}, err
 	}
-	head, err := requiredPositiveInt(path, "alliance.head_min_weight", raw.Alliance.HeadMinWeight)
-	if err != nil {
-		return AllianceBalance{}, err
-	}
-	mixed, err := requiredPositiveInt(path, "alliance.mixed_min_weight", raw.Alliance.MixedMinWeight)
-	if err != nil {
-		return AllianceBalance{}, err
-	}
-	if mixed >= head {
-		return AllianceBalance{}, fmt.Errorf("assetgen: %s: alliance.mixed_min_weight must be below alliance.head_min_weight", path)
-	}
-	return AllianceBalance{SuccessionRanks: ranks, TitleRanks: titleRanks, DensityBonus: density, HeadMinWeight: head, MixedMinWeight: mixed}, nil
+	return AllianceBalance{SuccessionRanks: ranks, TitleRanks: titleRanks, DensityBonus: density}, nil
 }
 
 func (raw rawBalance) costs(path string) (Costs, error) {

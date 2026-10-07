@@ -37,7 +37,7 @@ export interface House {
   members: HouseMember[]
 }
 
-export type EdgeKind = 'ended' | 'head' | 'mixed' | 'secondary'
+export type EdgeKind = 'ended' | 'head' | 'secondary'
 
 export interface LineageLink {
   key: string
@@ -50,8 +50,6 @@ export interface LineageLink {
   weight?: number
   activeHeadFor: PlayerId[]
   headSuccessors: NonNullable<Marriage['headSuccessors']>
-  /** Head weight that is not the active head: a reserve head, drawn as mixed. */
-  reserve: boolean
   kind: EdgeKind
 }
 
@@ -69,8 +67,7 @@ export interface AlliancePair {
 }
 
 const KIND_RANK: Record<Exclude<EdgeKind, 'ended'>, number> = {
-  head: 3,
-  mixed: 2,
+  head: 2,
   secondary: 1,
 }
 const FIEF_RANK: Record<FiefTitle, number> = {
@@ -161,13 +158,8 @@ export function buildLinks(houses: House[], marriages: Marriage[]): LineageLink[
     const active = marriage.active ?? true
     const activeHeadFor = marriage.activeHeadFor ?? []
     const isActiveHead = activeHeadFor.length > 0
-    const reserve = active && marriage.category === 'head' && !isActiveHead
     let kind: EdgeKind = 'ended'
-    if (active && marriage.category) {
-      if (isActiveHead) kind = 'head'
-      else if (reserve || marriage.category === 'mixed') kind = 'mixed'
-      else kind = 'secondary'
-    }
+    if (active && marriage.category) kind = isActiveHead ? 'head' : 'secondary'
     return {
       key: `${marriage.nobleA}-${marriage.nobleB}`,
       a: marriage.nobleA,
@@ -179,7 +171,6 @@ export function buildLinks(houses: House[], marriages: Marriage[]): LineageLink[
       weight: marriage.weight,
       activeHeadFor,
       headSuccessors: marriage.headSuccessors ?? [],
-      reserve,
       kind,
     }
   })

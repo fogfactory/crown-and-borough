@@ -227,7 +227,7 @@ type FiefView struct {
 //
 // Active is false once a spouse has died. Category and Weight are set only
 // for an active alliance (not for a bastard's marriage): Category is the
-// marriage's own category (head, mixed or secondary) and Weight its alliance
+// marriage's own category (head or secondary) and Weight its alliance
 // weight. ActiveHeadFor lists the houses for which this marriage is the
 // active head (specs/succession.md § Tête active).
 type MarriageView struct {

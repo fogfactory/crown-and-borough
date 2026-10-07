@@ -67,7 +67,7 @@ describe('lineage', () => {
     expect(houses[0].members[2].dead).toBe(true)
   })
 
-  it('classifies marriages: active head, reserve head and mixed, secondary, ended', () => {
+  it('classifies marriages: active head, secondary, ended', () => {
     const houses = buildHouses(players, nobles, [], [])
     const links = buildLinks(houses, [
       {
@@ -84,7 +84,7 @@ describe('lineage', () => {
         nobleB: 'EVE',
         turn: 2,
         active: true,
-        category: 'head',
+        category: 'secondary',
         weight: 5,
       },
       {
@@ -97,8 +97,7 @@ describe('lineage', () => {
       },
       { nobleA: 'EVE', nobleB: 'MAR', turn: 3, active: false },
     ])
-    expect(links.map((l) => l.kind)).toEqual(['head', 'mixed', 'secondary', 'ended'])
-    expect(links[1].reserve).toBe(true)
+    expect(links.map((l) => l.kind)).toEqual(['head', 'secondary', 'secondary', 'ended'])
     const pairs = buildAlliancePairs(links)
     expect(pairs).toHaveLength(2)
     expect(pairs[0]).toMatchObject({ weight: 10, kind: 'head', head: true })
@@ -122,7 +121,7 @@ describe('lineage', () => {
         nobleB: 'MAR',
         turn: 3,
         active: true,
-        category: 'mixed',
+        category: 'secondary',
         weight: 3,
       },
     ])
