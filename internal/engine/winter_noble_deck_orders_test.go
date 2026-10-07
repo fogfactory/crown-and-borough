@@ -128,20 +128,20 @@ func TestDignityOrderConfersBastard(t *testing.T) {
 	resolution := resolveNobleDeckWinter(t, state, map[models.PlayerID][]models.WinterOrder{
 		"P1": {play("O1", "ONE"), play("O2", "ONE"), play("O3", "TWO")},
 	})
-	if reasons := rejectionReasons(resolution.Events); len(reasons) != 2 || reasons[0] != "noble_already_bastard" || reasons[1] != "noble_not_owned" {
-		t.Errorf("rejections = %v, want noble_already_bastard then noble_not_owned", reasons)
+	if reasons := rejectionReasons(resolution.Events); len(reasons) != 1 || reasons[0] != "noble_already_bastard" {
+		t.Errorf("rejections = %v, want only noble_already_bastard", reasons)
 	}
 	for _, noble := range resolution.State.Nobles {
-		if want := noble.ID == "N1"; noble.IsBastard() != want {
-			t.Errorf("noble %s bastard = %v, want %v", noble.ID, noble.IsBastard(), want)
+		if !noble.IsBastard() {
+			t.Errorf("noble %s is not a bastard, want both (own and opponent's)", noble.ID)
 		}
 	}
 	deck := resolution.State.NobleDeck
-	if len(deck.Hands["P1"]) != 1 || len(deck.Played) != 1 {
-		t.Errorf("hand = %v, played = %v, want one card consumed", deck.Hands["P1"], deck.Played)
+	if len(deck.Hands["P1"]) != 0 || len(deck.Played) != 2 {
+		t.Errorf("hand = %v, played = %v, want two cards consumed", deck.Hands["P1"], deck.Played)
 	}
-	if events := eventsOfType(resolution.Events, EventTypeDignity); len(events) != 1 || events[0].Dignity != models.DignityBastard || events[0].NobleCode != "ONE" {
-		t.Errorf("dignity events = %+v, want one bastard on ONE", events)
+	if events := eventsOfType(resolution.Events, EventTypeDignity); len(events) != 2 || events[0].Dignity != models.DignityBastard || events[0].NobleCode != "ONE" || events[1].NobleCode != "TWO" {
+		t.Errorf("dignity events = %+v, want bastards on ONE then TWO", events)
 	}
 	if state.Nobles[0].IsBastard() {
 		t.Error("ResolveWinter mutated its input noble")

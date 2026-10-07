@@ -116,8 +116,8 @@ main est rejetée (`card_not_in_hand`). Les ordres suivants de la même feuille
 ce noble est toujours le dernier de la ligne de succession, ne reçoit un
 nouveau titre que s'il est le dernier de sa lignée, garde celui qu'il détient, ne peut pas être roi, est placé
 directement au cachot quand il est capturé en combat, et son mariage n'est
-pas une alliance. `D N NNN CCC` joue une carte de dignité sur un noble du
-joueur (`noble_not_owned`, `noble_already_<dignité>`, `dignity_female_only`, `noble_married` pour une dignité Bloquée, `dignity_region_required`). Un ordre rejeté est
+pas une alliance. `D N NNN CCC` joue une carte de dignité sur n'importe quel noble, à soi
+ou à un adversaire (`noble_already_<dignité>`, `dignity_female_only`, `noble_married` pour une dignité Bloquée, `dignity_region_required`). Un ordre rejeté est
 signalé dans le rapport avec son motif ; toutes les conditions sont
 vérifiées avant de consommer la carte, donc un ordre rejeté ne la consomme
 pas. La dignité de bâtard compte comme un titre dans le score. Une carte
