@@ -150,6 +150,40 @@ func TestBastardDignityOnHeirVoidsClaimButNotOnParent(t *testing.T) {
 	}
 }
 
+func TestClaimAgainstMarriedEonUnmasksHerAndVoidsTheClaim(t *testing.T) {
+	state := claimTestState(t)
+	// ANN (N2), married to HUG, is secretly a chevalier d'Éon.
+	state.Nobles[1].Dignities = []models.Dignity{models.DignityChevalierDEon}
+	resolution := resolveNobleDeckWinter(t, state, map[models.PlayerID][]models.WinterOrder{"P1": {claimSheetOrder("O1", "KID", "ANN")}})
+	if reasons := rejectionReasons(resolution.Events); len(reasons) != 0 {
+		t.Fatalf("rejections = %v, want none", reasons)
+	}
+	if len(resolution.State.Claims) != 0 {
+		t.Errorf("claims = %+v, want the claim lost", resolution.State.Claims)
+	}
+	ann := resolution.State.Nobles[1]
+	if !ann.Has(models.DignityBastard) {
+		t.Errorf("ann dignities = %v, want bastard added", ann.Dignities)
+	}
+	if !ann.EonUnmasked {
+		t.Error("ann.EonUnmasked = false, want true")
+	}
+	if _, married := resolution.State.MarriageOf(ann.ID); married {
+		t.Error("ann is still married, want the marriage annulled")
+	}
+	if events := eventsOfType(resolution.Events, EventTypeEonUnmasked); len(events) != 1 || events[0].NobleCode != "ANN" {
+		t.Errorf("eon_unmasked events = %+v, want one on ANN", events)
+	}
+	if events := eventsOfType(resolution.Events, EventTypeClaim); len(events) != 1 || events[0].Reason != "claim_lost_married_eon" {
+		t.Errorf("claim events = %+v, want one lost claim event", events)
+	}
+	// The card was still spent even though the claim is lost: it goes
+	// straight to the discard pile, never played on a noble.
+	if deck := resolution.State.NobleDeck; len(deck.Hands["P1"]) != 0 || len(deck.Played) != 0 || len(deck.Discard) != 1 {
+		t.Errorf("hand = %v, played = %v, discard = %v, want the claim card discarded", deck.Hands["P1"], deck.Played, deck.Discard)
+	}
+}
+
 func TestMarriageCoveringBounds(t *testing.T) {
 	state := claimTestState(t)
 	state.RemovedNobles = []models.RemovedNoble{{ID: "N8", Code: "DED", Name: "Ded", Sex: models.SexMale, OwnerID: "P1", Cause: models.DeathCauseNatural, Turn: 8}}

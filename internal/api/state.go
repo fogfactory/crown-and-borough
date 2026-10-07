@@ -456,12 +456,13 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 		}
 		revealHidden := viewer != nil && (*viewer == noble.OwnerID || *viewer == models.SpectatorViewer)
 		for _, dignity := range noble.Dignities {
-			if dignity.Effect().Hidden && !revealHidden {
+			hidden := dignity.Effect().Hidden && !(dignity == models.DignityChevalierDEon && noble.EonUnmasked)
+			if hidden && !revealHidden {
 				continue
 			}
 			nobleView.Dignities = append(nobleView.Dignities, dignity)
 		}
-		if noble.SecretCode != "" && revealHidden {
+		if noble.SecretCode != "" && (revealHidden || noble.EonUnmasked) {
 			nobleView.Secret = &SecretIdentityView{Code: models.NobleCode(noble.SecretCode), Name: noble.SecretName, Sex: noble.SecretSex}
 		}
 		if marriage, married := state.MarriageOf(noble.ID); married {

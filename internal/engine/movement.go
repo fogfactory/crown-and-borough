@@ -1599,6 +1599,7 @@ func (ctx *resolutionContext) captureNoblesAfterDestruction(plan *retreatPlan) {
 			Status:         noble.Status,
 			CaptorPlayerID: occupier.OwnerID,
 		})
+		ctx.unmaskEon(noble, 4)
 	}
 }
 

@@ -68,6 +68,7 @@ export type EventType =
   | 'noble_discard'
   | 'dignity'
   | 'claim'
+  | 'eon_unmasked'
 
 export type PlayerId = string
 

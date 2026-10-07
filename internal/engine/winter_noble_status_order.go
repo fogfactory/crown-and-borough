@@ -34,6 +34,9 @@ func applyNobleStatusOrder(ctx *ExecutionContext, order models.WinterOrder, stat
 	}
 	previousStatus := noble.Status
 	noble.Status = status
+	if status == models.NobleStatusDungeon {
+		resolution.unmaskEon(noble, winterPhase)
+	}
 	orderCopy := order
 	resolution.events = append(resolution.events, Event{
 		Type:           EventTypeCapture,

@@ -164,6 +164,17 @@ func (ctx *resolutionContext) consumeNobleCard(playerID models.PlayerID, handInd
 	deck.Played = append(deck.Played, models.NobleCardPlay{Card: cardID, Noble: nobleID})
 }
 
+// discardHandCard moves the card at handIndex of the player's hand straight
+// to the discard pile, spent without ever being played on a noble (a Claim
+// lost against a married chevalier d'Éon, specs/dames.md § Chevalier d'Éon).
+func (ctx *resolutionContext) discardHandCard(playerID models.PlayerID, handIndex int) {
+	deck := ctx.state.NobleDeck
+	hand := deck.Hands[playerID]
+	cardID := hand[handIndex]
+	deck.Hands[playerID] = append(hand[:handIndex:handIndex], hand[handIndex+1:]...)
+	deck.Discard = append(deck.Discard, cardID)
+}
+
 // handSize counts the cards a player holds, the special-orders hand and the
 // noble hand (noble and dignity cards) together: the hand limit applies to
 // their sum.

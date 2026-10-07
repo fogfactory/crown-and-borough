@@ -30,3 +30,19 @@ func TestNobleStatusOrdersApply(t *testing.T) {
 		})
 	}
 }
+
+func TestDungeonOrderUnmasksChevalierDEon(t *testing.T) {
+	state := winterTestState(t, []models.Territory{territory("AAA", "AAA")}, []models.Army{{ID: "A1", OwnerID: "P2", TerritoryID: "AAA", Size: 1}})
+	addNoble(state, "N1", "NOB", "P1", "AAA")
+	state.Nobles[0].Sex = models.SexFemale
+	state.Nobles[0].Dignities = []models.Dignity{models.DignityChevalierDEon}
+	setNobleStatus(state, "N1", models.NobleStatusHostage)
+	ctx := newResolutionContext(state, testBalance())
+	dungeonOrder{order: models.WinterOrder{ID: "O1", NobleCode: "NOB"}}.Apply(&ExecutionContext{resolution: ctx, playerID: "P2"})
+	if !state.Nobles[0].EonUnmasked {
+		t.Error("EonUnmasked = false, want true once imprisoned")
+	}
+	if events := eventsOfType(ctx.events, EventTypeEonUnmasked); len(events) != 1 || events[0].NobleID != "N1" {
+		t.Errorf("eon_unmasked events = %+v, want one on N1", events)
+	}
+}

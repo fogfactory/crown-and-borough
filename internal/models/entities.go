@@ -82,6 +82,12 @@ type Noble struct {
 	SecretCode string `json:"secretCode,omitempty"`
 	SecretName string `json:"secretName,omitempty"`
 	SecretSex  Sex    `json:"secretSex,omitempty"`
+	// EonUnmasked is set once a chevalier d'Éon's secret identity has been
+	// revealed to every player (specs/dames.md § Chevalier d'Éon): capture in
+	// combat, imprisonment (dungeon), or a Claim played against her. Once
+	// true, her dignity and secret identity stop being hidden to viewers
+	// other than her owner.
+	EonUnmasked bool `json:"eonUnmasked,omitempty"`
 	// AbbeyRegion is the seed of the region (bishopric) an abbess is attached
 	// to, fixed when the dignity is played.
 	AbbeyRegion TerritoryID `json:"abbeyRegion,omitempty"`

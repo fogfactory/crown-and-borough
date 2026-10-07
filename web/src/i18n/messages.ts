@@ -332,6 +332,10 @@ const englishMessages = {
   'reports.reason.claim_on_own_noble': 'You cannot claim the titles of your own noble.',
   'reports.reason.claim_by_bastard': 'A bastard cannot claim titles.',
   'reports.reason.claim_already_staked': 'This noble already holds a claim.',
+  'reports.reason.claim_against_married_eon':
+    'This noble became a bastard after a claim was played against the married chevalier d’Éon.',
+  'reports.reason.claim_lost_married_eon':
+    'The claim is lost: it targeted a married chevalier d’Éon, now unmasked.',
   'orders.deckTitle': 'Special cards',
   'orders.deckDescription':
     'Play cards independently of noble chains. Use P KIND TER during action seasons.',
@@ -428,6 +432,7 @@ const englishMessages = {
   'reports.plagueSurvived': 'Noble {noble} at {territory} survived the plague',
   'reports.trialExecuted': 'Noble {noble}, revealed as {dignity}, was tried and executed at {territory}',
   'reports.trialUnfounded': 'The trial of noble {noble} was unfounded: nobody was executed',
+  'reports.eonUnmasked': 'Noble {noble} is unmasked: she was a chevalier d’Éon in disguise',
   'reports.neutralFamine':
     'Starving neutral army at {territory}: {before} → {after} troops',
   'reports.cardCanceled': '{player}: {card} canceled at {territory}',
@@ -1188,6 +1193,10 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.reason.claim_on_own_noble': 'Vous ne pouvez pas prétendre aux titres de votre propre noble.',
   'reports.reason.claim_by_bastard': 'Un bâtard ne peut pas prétendre à des titres.',
   'reports.reason.claim_already_staked': 'Ce noble porte déjà une prétention.',
+  'reports.reason.claim_against_married_eon':
+    "Ce noble devient bâtard après qu'un Claim a été joué contre le chevalier d’Éon marié.",
+  'reports.reason.claim_lost_married_eon':
+    'Le Claim est perdu : il visait un chevalier d’Éon marié, désormais démasqué.',
   'orders.deckTitle': 'Cartes spéciales',
   'orders.deckDescription':
     'Jouez les cartes indépendamment des chaînes de nobles. Utilisez P KIND TER pendant les saisons d’action.',
@@ -1283,6 +1292,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.plagueSurvived': 'Le noble {noble} à {territory} survit à la peste',
   'reports.trialExecuted': 'Le noble {noble}, révélé comme {dignity}, est jugé et exécuté à {territory}',
   'reports.trialUnfounded': 'Le procès du noble {noble} est non fondé : personne n’est exécuté',
+  'reports.eonUnmasked': 'Le noble {noble} est démasqué : c’était un chevalier d’Éon déguisé',
   'reports.neutralFamine':
     'Armée neutre affamée à {territory} : {before} → {after} troupes',
   'reports.cardCanceled': '{player} : {card} annulée à {territory}',
