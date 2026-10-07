@@ -65,6 +65,9 @@ func (order transferNobleOrder) Apply(ctx *ExecutionContext) {
 		CaptorPlayerID: recipient.OwnerID,
 		WinterOrder:    &orderCopy,
 	})
+	if noble.Status == models.NobleStatusDungeon {
+		resolution.unmaskEon(noble, winterPhase)
+	}
 }
 
 // controlsNoble reports whether the player can hand the noble over: their own

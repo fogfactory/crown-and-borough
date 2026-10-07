@@ -74,6 +74,7 @@ const (
 	EventTypeCalamityVeto EventType = "calamity_veto"
 	EventTypeNobleDiscard EventType = "noble_discard"
 	EventTypeClaim        EventType = "claim"
+	EventTypeEonUnmasked  EventType = "eon_unmasked"
 )
 
 // Outcome is the execution result of one current order.

@@ -56,6 +56,11 @@ func (order claimOrder) Apply(ctx *ExecutionContext) {
 		resolution.rejectWinterOrder(playerID, winterOrder, "card_not_in_hand")
 		return
 	}
+	if target.Has(models.DignityChevalierDEon) {
+		resolution.discardHandCard(playerID, handIndex)
+		resolution.loseClaimToMarriedEon(playerID, winterOrder, heir, target, marriage)
+		return
+	}
 	resolution.consumeNobleCard(playerID, handIndex, heir.ID)
 	resolution.state.Claims = append(resolution.state.Claims, models.Claim{
 		Heir: heir.ID, Target: target.ID, Spouse: spouseID, Turn: resolution.state.Turn,
@@ -73,6 +78,29 @@ func (order claimOrder) Apply(ctx *ExecutionContext) {
 		SpouseNobleCode: models.NobleCode(target.Code),
 		SpouseNobleName: resolution.state.NobleDisplayName(*target),
 		SpouseOwnerID:   target.OwnerID,
+	})
+}
+
+// loseClaimToMarriedEon resolves a Claim played against a married chevalier
+// d'Éon (specs/dames.md § Chevalier d'Éon): the target becomes a bastard, the
+// Éon is unmasked, the marriage that justified the Claim is annulled, and the
+// Claim itself is lost (its card was already consumed; no Claim is recorded).
+func (ctx *resolutionContext) loseClaimToMarriedEon(playerID models.PlayerID, order models.WinterOrder, heir, target *models.Noble, marriage models.Marriage) {
+	target.Dignities = append(target.Dignities, models.DignityBastard)
+	ctx.events = append(ctx.events, Event{
+		Type: EventTypeDignity, Phase: winterPhase, OwnerID: target.OwnerID, OrderID: order.ID,
+		NobleID: target.ID, NobleCode: models.NobleCode(target.Code), NobleName: ctx.state.NobleDisplayName(*target),
+		Dignity: models.DignityBastard, Reason: "claim_against_married_eon",
+	})
+	ctx.unmaskEon(target, winterPhase)
+	ctx.state.Marriages = slices.DeleteFunc(ctx.state.Marriages, func(m models.Marriage) bool {
+		return m.NobleA == marriage.NobleA && m.NobleB == marriage.NobleB && m.Turn == marriage.Turn
+	})
+	ctx.events = append(ctx.events, Event{
+		Type: EventTypeClaim, Phase: winterPhase, OwnerID: playerID, OrderID: order.ID,
+		NobleID: heir.ID, NobleCode: models.NobleCode(heir.Code), NobleName: ctx.state.NobleDisplayName(*heir),
+		SpouseNobleID: target.ID, SpouseNobleCode: models.NobleCode(target.Code), SpouseNobleName: ctx.state.NobleDisplayName(*target),
+		SpouseOwnerID: target.OwnerID, Reason: "claim_lost_married_eon",
 	})
 }
 

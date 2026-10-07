@@ -226,9 +226,12 @@ Révélée, elle est **excommuniée d'office**.
 
 ### Statut d'implémentation (#259)
 
-Livrées : toutes les dignités, sauf les parties qui dépendent de l'enquête, de
-l'excommunication, du procès et des élections d'évêque : démasquage de
-l'Éon, voix d'élection et calme des révoltes de l'Abbesse, ordre d'hiver de la
+Livrées : toutes les dignités, ainsi que le démasquage de l'Éon par capture
+militaire, emprisonnement et Claim contre une Éon mariée. Restent à livrer,
+dépendant de l'enquête, de l'excommunication, du procès et des élections
+d'évêque : démasquage de l'Éon par enquête, excommunication d'office d'un
+Éon ou d'une Sorcière démasquée (et la vacance des titres qui en découle),
+voix d'élection et calme des révoltes de l'Abbesse, ordre d'hiver de la
 Châtelaine, ordre « Infiltrer » de l'Espionne.
 
 Précisions retenues :

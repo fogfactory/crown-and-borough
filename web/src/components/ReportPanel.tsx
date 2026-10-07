@@ -75,6 +75,8 @@ const REASON_KEYS: Record<string, MessageKey> = {
   claim_on_own_noble: 'reports.reason.claim_on_own_noble',
   claim_by_bastard: 'reports.reason.claim_by_bastard',
   claim_already_staked: 'reports.reason.claim_already_staked',
+  claim_against_married_eon: 'reports.reason.claim_against_married_eon',
+  claim_lost_married_eon: 'reports.reason.claim_lost_married_eon',
   troop_requires_adjacent_noble: 'reports.reason.troop_requires_adjacent_noble',
   noble_not_prisoner: 'reports.reason.noble_not_prisoner',
   noble_not_held: 'reports.reason.noble_not_held',
@@ -661,6 +663,11 @@ function seasonEffectLine(
           territory: territoryLabel(map, effect.territory, t),
         }),
       }
+    case 'eon_unmasked':
+      return {
+        key,
+        label: t('reports.eonUnmasked', { noble: effect.noble ?? '—' }),
+      }
     case 'famine':
       return {
         key,
@@ -730,6 +737,7 @@ function groupSeasonEffects(
       case 'plague_noble_death':
       case 'plague_noble_survived':
       case 'trial':
+      case 'eon_unmasked':
       case 'card_canceled':
         groupFor(effect).lines.push(line)
         break

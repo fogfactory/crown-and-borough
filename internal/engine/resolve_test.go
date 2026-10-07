@@ -865,6 +865,41 @@ func TestResolveNobleCaptureBastardGoesToDungeon(t *testing.T) {
 	}
 }
 
+func TestResolveNobleCaptureUnmasksChevalierDEon(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			territory("AAA", "AAA", "BBB"),
+			territory("BBB", "BBB", "AAA"),
+		},
+		[]models.Army{
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 2},
+		},
+	)
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	addNoble(state, "N2", "TWO", "P2", "BBB")
+	state.Nobles[0].Sex = models.SexFemale
+	state.Nobles[0].Dignities = []models.Dignity{models.DignityChevalierDEon}
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
+	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"AAA"}})
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	noble := nobleByID(t, resolution.State, "N1")
+	if noble.Status != models.NobleStatusHostage {
+		t.Errorf("captured noble = %+v, want hostage (capture, not sent hostage)", noble)
+	}
+	if !noble.EonUnmasked {
+		t.Error("EonUnmasked = false, want true once captured in combat")
+	}
+	if events := eventsOfType(resolution.Events, EventTypeEonUnmasked); len(events) != 1 || events[0].NobleID != "N1" {
+		t.Errorf("eon_unmasked events = %+v, want one on N1", events)
+	}
+}
+
 func TestResolveLoopProgression(t *testing.T) {
 	t.Run("hold", func(t *testing.T) {
 		state := testState(t,
