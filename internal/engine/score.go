@@ -15,7 +15,10 @@ var ErrGameFinished = errors.New("engine: game is finished")
 // need to duplicate the scoring formula.
 type ScoreBreakdown struct {
 	Titles int `json:"titles"`
-	Total  int `json:"total"`
+	// Alliance is the bonus earned from marriages that are not the active
+	// head (specs/succession.md § Poids d'alliance).
+	Alliance int `json:"alliance"`
+	Total    int `json:"total"`
 }
 
 // ComputeScores calculates the public score for every player in the state,
@@ -27,7 +30,7 @@ type ScoreBreakdown struct {
 // sources to this count once Succession & Couronnement lands (#243-266);
 // the loop below is structured so each source stays a self-contained pass
 // over state, without pulling in that machinery ahead of time.
-func ComputeScores(state *models.GameState) map[models.PlayerID]ScoreBreakdown {
+func ComputeScores(state *models.GameState, balance assetgen.Balance) map[models.PlayerID]ScoreBreakdown {
 	scores := make(map[models.PlayerID]ScoreBreakdown)
 	if state == nil {
 		return scores
@@ -58,11 +61,52 @@ func ComputeScores(state *models.GameState) map[models.PlayerID]ScoreBreakdown {
 		scores[noble.OwnerID] = score
 	}
 
+	applyMarriageBonuses(state, balance, scores)
+
 	for playerID, score := range scores {
-		score.Total = score.Titles
+		score.Total = score.Titles + score.Alliance
 		scores[playerID] = score
 	}
 	return scores
+}
+
+// applyMarriageBonuses adds the marriage bonuses to the score of each house
+// (specs/succession.md § Poids d'alliance). Bonuses are computed from the
+// spouse house's own title count, never from a bonus-inflated score, so
+// marriages cannot feed each other. For each active alliance, the category
+// the marriage has for that house decides the bonus: a mixed marriage (or a
+// head that is not the active head) adds half the spouse's titles, rounded
+// down; a secondary one adds 1 point per spouse title. The active head adds
+// nothing here: its scores are combined for the joint victory instead.
+func applyMarriageBonuses(state *models.GameState, balance assetgen.Balance, scores map[models.PlayerID]ScoreBreakdown) {
+	titles := make(map[models.PlayerID]int, len(scores))
+	for playerID, score := range scores {
+		titles[playerID] = score.Titles
+	}
+	for _, marriage := range state.Marriages {
+		houseA, houseB := marriageHouses(state, marriage)
+		if houseA == houseB {
+			continue
+		}
+		for _, side := range [2][2]models.PlayerID{{houseA, houseB}, {houseB, houseA}} {
+			player, spouse := side[0], side[1]
+			score, exists := scores[player]
+			if !exists {
+				continue
+			}
+			category, ok := EffectiveMarriageCategory(state, balance, player, marriage)
+			if !ok {
+				continue
+			}
+			switch category {
+			case AllianceMixed:
+				score.Alliance += titles[spouse] / 2
+			case AllianceSecondary:
+				score.Alliance += titles[spouse]
+			}
+			scores[player] = score
+		}
+	}
 }
 
 // Victory modes a player is currently evaluated under.
@@ -181,7 +225,7 @@ func thresholdWinners(state *models.GameState, balance assetgen.Balance) []model
 	if solo < 1 {
 		return nil
 	}
-	scores := ComputeScores(state)
+	scores := ComputeScores(state, balance)
 	var reached []models.PlayerID
 	for _, player := range state.Players {
 		if scores[player.ID].Total >= solo {
@@ -235,7 +279,7 @@ func WinnerForFinishedGame(state *models.GameState, balance assetgen.Balance) *m
 			candidates = append(candidates, player.ID)
 		}
 	}
-	scores := ComputeScores(state)
+	scores := ComputeScores(state, balance)
 	var winner models.PlayerID
 	highest := -1
 	tied := false

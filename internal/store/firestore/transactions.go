@@ -480,7 +480,7 @@ func (s *FirestoreStore) commitResolution(ctx context.Context, claim resolutionC
 		game.Turn = report.State.Turn
 		game.Season = report.State.Season
 		game.YearCount = report.State.YearCount
-		game.Scores = scoreDocuments(engine.ComputeScores(report.State))
+		game.Scores = scoreDocuments(engine.ComputeScores(report.State, s.balance))
 		game.Revision = canonical.Revision
 		game.SubmittedUIDs = []string{}
 		game.RequiredUIDs = sortedRequiredUIDs(report.State, playerSlots(game.Players))

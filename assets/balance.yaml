@@ -50,9 +50,11 @@ costs:
 # a player (solo) or an alliance should hold through fiefs, divided by the
 # average fief size (a barony has 3 territories, a duchy 6 or more) and rounded
 # up. Approximate by design. The alliance share must exceed the solo share.
+# The solo share is high enough to leave room for the mixed/secondary marriage
+# bonuses (succession.md § Poids d'alliance), which add to the title score.
 victory:
-  solo_territory_percent: 50
-  alliance_territory_percent: 66
+  solo_territory_percent: 60
+  alliance_territory_percent: 75
   reference_fief_size: 4
 
 # Alliance weight (succession.md § Poids d'alliance). A noble weighs its

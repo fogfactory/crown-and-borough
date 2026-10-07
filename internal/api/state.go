@@ -264,7 +264,7 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 	view.Year = state.Year()
 	view.YearCount = state.YearCount
 	view.Season = state.Season
-	view.Scores = engine.ComputeScores(state)
+	view.Scores = engine.ComputeScores(state, balance)
 	view.Victory = engine.ComputeVictoryStatus(state, balance)
 	view.Finished = engine.GameFinished(state, balance)
 	view.Winner = engine.WinnerForFinishedGame(state, balance)

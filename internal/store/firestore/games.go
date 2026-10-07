@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"slices"
 	"sort"
 	"strings"
@@ -386,7 +387,7 @@ func (s *FirestoreStore) loadSnapshotWithDocument(ctx context.Context, actor sto
 	if err != nil {
 		return store.GameSnapshot{}, err
 	}
-	return gameSnapshot(game, state, mapData, submissions, reports), nil
+	return gameSnapshot(s.balance, game, state, mapData, submissions, reports), nil
 }
 
 func (s *FirestoreStore) readSubmissions(ctx context.Context, id store.GameID, turn int) (map[models.PlayerID]engine.OrdersInput, error) {
@@ -561,7 +562,7 @@ func gameDocumentFromSnapshot(snapshot store.GameSnapshot, createdAt, updatedAt 
 	}
 }
 
-func gameSnapshot(document gameDocument, state *models.GameState, mapData mapgen.MapData, submissions map[models.PlayerID]engine.OrdersInput, reports []store.ReportRecord) store.GameSnapshot {
+func gameSnapshot(balance assetgen.Balance, document gameDocument, state *models.GameState, mapData mapgen.MapData, submissions map[models.PlayerID]engine.OrdersInput, reports []store.ReportRecord) store.GameSnapshot {
 	players := playerSlots(document.Players)
 	var winner *models.PlayerID
 	if document.WinnerUID != "" {
@@ -573,7 +574,7 @@ func gameSnapshot(document gameDocument, state *models.GameState, mapData mapgen
 		scores[models.PlayerID(playerID)] = score
 	}
 	if len(scores) == 0 {
-		scores = engine.ComputeScores(state)
+		scores = engine.ComputeScores(state, balance)
 	}
 	yearCount := document.YearCount
 	if yearCount == 0 {
