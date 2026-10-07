@@ -5,7 +5,6 @@
     "useDefineForClassFields": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     },
@@ -18,6 +17,7 @@
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
+    "types": ["node"],
 
     /* Linting */
     "strict": true,
