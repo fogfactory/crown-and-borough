@@ -11,6 +11,7 @@ import { OrdersPanel } from '@/components/OrdersPanel'
 import { ProjectedConsumptionSummary } from '@/components/ProjectedConsumptionSummary'
 import { ProjectedIncomeSummary } from '@/components/ProjectedIncomeSummary'
 import { ReportPane } from '@/components/ReportPane'
+import { LineageDialog } from '@/components/LineageDialog'
 import { Scoreboard } from '@/components/Scoreboard'
 import { SubmissionDots } from '@/components/SubmissionDots'
 import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
@@ -641,18 +642,37 @@ function AppContent() {
               )}
             </div>
             {state && (
-              <HeaderPopover
-                label={t('app.scores')}
-                icon={<IconTrophy aria-hidden="true" className="size-4" />}
-                hint={String(
-                  Math.max(
-                    0,
-                    ...Object.values(state.scores ?? {}).map((score) => score.total ?? 0),
-                  ),
-                )}
-              >
-                <Scoreboard players={state.players} scores={state.scores} victory={state.victory} />
-              </HeaderPopover>
+              <>
+                <HeaderPopover
+                  label={t('app.scores')}
+                  icon={<IconTrophy aria-hidden="true" className="size-4" />}
+                  hint={String(
+                    Math.max(
+                      0,
+                      ...Object.values(state.scores ?? {}).map(
+                        (score) => score.total ?? 0,
+                      ),
+                    ),
+                  )}
+                >
+                  <Scoreboard
+                    players={state.players}
+                    scores={state.scores}
+                    victory={state.victory}
+                  />
+                </HeaderPopover>
+                <LineageDialog
+                  players={state.players}
+                  nobles={state.nobles}
+                  deceased={state.deceased}
+                  claims={state.claims}
+                  defaultFocus={selectedPlayer}
+                  fiefs={state.fiefs}
+                  marriages={state.marriages}
+                  scores={state.scores}
+                  victory={state.victory}
+                />
+              </>
             )}
             <SubmissionDots
               players={(state?.players ?? []).map((player) => ({

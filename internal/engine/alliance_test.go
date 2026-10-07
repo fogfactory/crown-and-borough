@@ -15,7 +15,7 @@ func allianceBalance() assetgen.Balance {
 			models.FiefTitleBarony: 1, models.FiefTitleCounty: 2,
 			models.FiefTitleMarquisate: 3, models.FiefTitleDuchy: 4,
 		},
-		DensityBonus: 1, HeadMinWeight: 5, MixedMinWeight: 2,
+		DensityBonus: 1,
 	}}
 }
 
@@ -75,69 +75,92 @@ func TestAllianceWeightIgnoresBastardMarriages(t *testing.T) {
 	}
 }
 
-func TestMarriageCategoryThresholds(t *testing.T) {
+func TestMarriageBetweenFirstHeirsIsHeadWhateverItsWeight(t *testing.T) {
 	state := allianceState()
-	state.Fiefs = append(state.Fiefs, models.Fief{ID: "F2", OwnerID: "P2", Title: models.FiefTitleCounty})
-	holder := models.NobleID("N3")
-	state.Fiefs[1].HolderNobleID = &holder
+	state.Fiefs = nil
 	state.Marriages = []models.Marriage{{NobleA: "N1", NobleB: "N3"}}
-	// N1 = 7, N3 = head (3) + county (2) = 5.
+	// Both spouses lead their line and hold no title: weight 3.
 	if got, ok := MarriageCategory(state, allianceBalance(), state.Marriages[0]); !ok || got != AllianceHead {
 		t.Fatalf("category = %q, %v; want head", got, ok)
 	}
-	state.Marriages = []models.Marriage{{NobleA: "N1", NobleB: "N4"}}
-	if got, _ := MarriageCategory(state, allianceBalance(), state.Marriages[0]); got != AllianceMixed {
-		t.Fatalf("category = %q, want mixed (N4 weighs 2)", got)
-	}
 	state.Marriages = []models.Marriage{{NobleA: "N2", NobleB: "N5"}}
-	if got, _ := MarriageCategory(state, allianceBalance(), state.Marriages[0]); got != AllianceSecondary {
-		t.Fatalf("category = %q, want secondary", got)
+	if got, _ := MarriageCategory(state, allianceBalance(), state.Marriages[0]); got != AllianceHead {
+		t.Fatalf("category = %q, want head: the only marriage between two houses is the best of both", got)
+	}
+}
+
+func TestMarriageCategoryHeadOnlyWhenBestForBothHouses(t *testing.T) {
+	state := allianceState()
+	// N1-N3 weighs 3 + 1; N2-N5 weighs 1 + 1; N2-N5 loses to N1-N3 for both houses.
+	state.Marriages = []models.Marriage{{NobleA: "N2", NobleB: "N5", Turn: 1}, {NobleA: "N1", NobleB: "N3", Turn: 2}}
+	balance := allianceBalance()
+	if got, _ := MarriageCategory(state, balance, state.Marriages[1]); got != AllianceHead {
+		t.Fatalf("heavier marriage = %q, want head", got)
+	}
+	if got, _ := MarriageCategory(state, balance, state.Marriages[0]); got != AllianceSecondary {
+		t.Fatalf("lighter marriage = %q, want secondary", got)
+	}
+}
+
+func TestMarriageCategoryNeedsTheBestOfBothHouses(t *testing.T) {
+	state := allianceState()
+	state.Players = append(state.Players, models.Player{ID: "P3"})
+	state.Nobles = append(state.Nobles, models.Noble{ID: "N6", OwnerID: "P3", Sex: models.SexFemale})
+	// P1's best is N1-N3 (weight 3) but P2's best is N4-N6... N4 is second in
+	// P2's line (2), N6 leads P3's (3): weight 2. N1-N3 weighs 3 and wins P2.
+	state.Marriages = []models.Marriage{{NobleA: "N1", NobleB: "N3", Turn: 1}, {NobleA: "N4", NobleB: "N6", Turn: 2}}
+	balance := allianceBalance()
+	if got, _ := MarriageCategory(state, balance, state.Marriages[0]); got != AllianceHead {
+		t.Fatalf("N1-N3 = %q, want head", got)
+	}
+	if got, _ := MarriageCategory(state, balance, state.Marriages[1]); got != AllianceSecondary {
+		t.Fatalf("N4-N6 = %q, want secondary: P2 already has its head", got)
 	}
 }
 
 func TestMarriageCategoryReclassifiesOnTitleLossAndDeath(t *testing.T) {
 	state := allianceState()
-	state.Fiefs = append(state.Fiefs, models.Fief{ID: "F2", OwnerID: "P2", Title: models.FiefTitleCounty})
-	holder := models.NobleID("N3")
-	state.Fiefs[1].HolderNobleID = &holder
-	state.Marriages = []models.Marriage{{NobleA: "N1", NobleB: "N3"}}
+	state.Fiefs = append(state.Fiefs,
+		models.Fief{ID: "F2", OwnerID: "P1", HolderNobleID: ptrNoble("N2"), Title: models.FiefTitleDuchy},
+		models.Fief{ID: "F3", OwnerID: "P2", HolderNobleID: ptrNoble("N4"), Title: models.FiefTitleDuchy})
+	// N1-N3 weighs 3 + 1; N2-N4 weighs min(2+4, 2+4) + 1 = 7.
+	state.Marriages = []models.Marriage{{NobleA: "N1", NobleB: "N3", Turn: 1}, {NobleA: "N2", NobleB: "N4", Turn: 2}}
 	balance := allianceBalance()
-	if got, _ := MarriageCategory(state, balance, state.Marriages[0]); got != AllianceHead {
+	if got, _ := MarriageCategory(state, balance, state.Marriages[1]); got != AllianceHead {
 		t.Fatalf("before = %q, want head", got)
 	}
-	state.Fiefs[1].HolderNobleID = nil
-	if got, _ := MarriageCategory(state, balance, state.Marriages[0]); got != AllianceMixed {
-		t.Fatalf("after title loss = %q, want mixed", got)
+	state.Fiefs[2].HolderNobleID = nil
+	if got, _ := MarriageCategory(state, balance, state.Marriages[1]); got != AllianceSecondary {
+		t.Fatalf("after title loss = %q, want secondary", got)
 	}
-	state.Nobles = state.Nobles[1:]
-	if _, ok := MarriageCategory(state, balance, state.Marriages[0]); ok {
+	state.Nobles = slices.DeleteFunc(slices.Clone(state.Nobles), func(n models.Noble) bool { return n.ID == "N2" })
+	if _, ok := MarriageCategory(state, balance, state.Marriages[1]); ok {
 		t.Fatal("a marriage ended by a death has no category")
 	}
 }
 
 func TestActiveHeadMarriageIsHighestWeightAndRebasculates(t *testing.T) {
 	balance := allianceBalance()
-	balance.Alliance.HeadMinWeight = 3
 	state := allianceState()
 	state.Fiefs = append(state.Fiefs,
 		models.Fief{ID: "F2", OwnerID: "P1", HolderNobleID: ptrNoble("N2"), Title: models.FiefTitleCounty},
 		models.Fief{ID: "F3", OwnerID: "P2", HolderNobleID: ptrNoble("N4"), Title: models.FiefTitleCounty})
-	// N2-N3: min(2+2, 3) = 3 (head). N1-N4: min(3+4, 2+2) = 4 (head, heavier).
+	// N2-N3: min(2+2, 3) + 1 = 4. N1-N4: min(3+4, 2+2) + 1 = 5, heavier.
 	state.Marriages = []models.Marriage{{NobleA: "N2", NobleB: "N3", Turn: 1}, {NobleA: "N1", NobleB: "N4", Turn: 2}}
 	active, ok := ActiveHeadMarriage(state, balance, "P1")
 	if !ok || active.NobleA != "N1" {
 		t.Fatalf("active = %+v, %v; want N1-N4", active, ok)
 	}
-	if got, _ := EffectiveMarriageCategory(state, balance, "P1", state.Marriages[0]); got != AllianceMixed {
-		t.Fatalf("other head = %s, want mixed", got)
+	if got, _ := MarriageCategory(state, balance, state.Marriages[0]); got != AllianceSecondary {
+		t.Fatalf("other marriage = %s, want secondary", got)
 	}
-	// The noble carrying the active head dies: the next head takes over.
+	// The noble carrying the active head dies: the next marriage takes over.
 	state.Nobles = slices.DeleteFunc(slices.Clone(state.Nobles), func(n models.Noble) bool { return n.ID == "N1" })
 	active, ok = ActiveHeadMarriage(state, balance, "P1")
 	if !ok || active.NobleA != "N2" {
 		t.Fatalf("after death active = %+v, %v; want N2-N3", active, ok)
 	}
-	if got, _ := EffectiveMarriageCategory(state, balance, "P1", active); got != AllianceHead {
+	if got, _ := MarriageCategory(state, balance, active); got != AllianceHead {
 		t.Fatalf("new active = %s, want head", got)
 	}
 }

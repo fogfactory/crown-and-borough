@@ -104,9 +104,7 @@ func applyMarriageBonuses(state *models.GameState, balance assetgen.Balance, sco
 		if houseA == houseB {
 			continue
 		}
-		categoryA, okA := EffectiveMarriageCategory(state, balance, houseA, marriage)
-		categoryB, okB := EffectiveMarriageCategory(state, balance, houseB, marriage)
-		if !okA || !okB || (categoryA == AllianceHead && categoryB == AllianceHead) {
+		if category, ok := MarriageCategory(state, balance, marriage); !ok || category == AllianceHead {
 			continue
 		}
 		for _, side := range [2][2]models.PlayerID{{houseA, houseB}, {houseB, houseA}} {

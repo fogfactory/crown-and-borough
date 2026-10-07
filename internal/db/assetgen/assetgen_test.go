@@ -57,8 +57,6 @@ alliance:
     marquisate: 3
     duchy: 4
   density_bonus: 1
-  head_min_weight: 5
-  mixed_min_weight: 2
 noble_limit: 4
 noble_limit_max: 6
 starting_nobles: 1

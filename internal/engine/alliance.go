@@ -89,41 +89,44 @@ func AllianceWeight(state *models.GameState, balance assetgen.Balance, marriage 
 	return weight, true
 }
 
-// AllianceCategory ranks a marriage by alliance weight.
+// AllianceCategory is the category of an active alliance: head or secondary.
 type AllianceCategory string
 
 const (
 	AllianceHead      AllianceCategory = "head"
-	AllianceMixed     AllianceCategory = "mixed"
 	AllianceSecondary AllianceCategory = "secondary"
 )
 
-// MarriageCategory classifies an active alliance by its current weight. It is
-// derived from the state on every call, so deaths, executions, assassinations,
-// claims and title changes reclassify the marriage without any stored value.
-// It reports false when the marriage is not an active alliance.
+// MarriageCategory classifies an active alliance: head when it is the active
+// head of both its houses, secondary otherwise (specs/succession.md § Tête
+// active). It is derived from the state on every call, so deaths, executions,
+// assassinations, claims and title changes reclassify the marriage without
+// any stored value. It reports false when the marriage is not an active
+// alliance.
 func MarriageCategory(state *models.GameState, balance assetgen.Balance, marriage models.Marriage) (AllianceCategory, bool) {
-	weight, ok := AllianceWeight(state, balance, marriage)
-	if !ok {
+	if _, ok := AllianceWeight(state, balance, marriage); !ok {
 		return "", false
 	}
-	switch {
-	case weight >= balance.Alliance.HeadMinWeight:
-		return AllianceHead, true
-	case weight >= balance.Alliance.MixedMinWeight:
-		return AllianceMixed, true
-	default:
-		return AllianceSecondary, true
+	houseA, houseB := marriageHouses(state, marriage)
+	if houseA != houseB {
+		heads := activeHeads(state, balance)
+		if sameMarriage(heads[houseA], marriage) && sameMarriage(heads[houseB], marriage) {
+			return AllianceHead, true
+		}
 	}
+	return AllianceSecondary, true
+}
+
+func sameMarriage(a, b models.Marriage) bool {
+	return a.NobleA == b.NobleA && a.NobleB == b.NobleB
 }
 
 // activeHeads assigns each house its active head (specs/succession.md § Tête
-// active). Head-category alliances are taken by descending alliance weight,
-// ties going to the oldest marriage, then to the first recorded; one is kept
-// only if neither of its houses already has a head, so a marriage is a head
-// for both houses or for neither. Every other head-weight marriage counts as
-// mixed for both. It is derived from the state on every call, so deaths,
-// executions and title changes reassign heads with no stored value.
+// active). Alliances are taken by descending alliance weight, ties going to
+// the oldest marriage, then to the first recorded; one is kept only if
+// neither of its houses already has a head, so a marriage is a head for both
+// houses or for neither. It is derived from the state on every call, so
+// deaths, executions and title changes reassign heads with no stored value.
 func activeHeads(state *models.GameState, balance assetgen.Balance) map[models.PlayerID]models.Marriage {
 	type candidate struct {
 		marriage models.Marriage
@@ -135,10 +138,10 @@ func activeHeads(state *models.GameState, balance assetgen.Balance) map[models.P
 		if houseA == houseB {
 			continue
 		}
-		if category, ok := MarriageCategory(state, balance, marriage); !ok || category != AllianceHead {
+		weight, ok := AllianceWeight(state, balance, marriage)
+		if !ok {
 			continue
 		}
-		weight, _ := AllianceWeight(state, balance, marriage)
 		candidates = append(candidates, candidate{marriage, weight})
 	}
 	slices.SortStableFunc(candidates, func(a, b candidate) int {
@@ -168,26 +171,4 @@ func ActiveHeadMarriage(state *models.GameState, balance assetgen.Balance, playe
 	}
 	marriage, found := activeHeads(state, balance)[player]
 	return marriage, found
-}
-
-// EffectiveMarriageCategory is the category a marriage has, the same for both
-// houses: a head-weight marriage that is not the active head of its houses
-// counts as mixed. It reports false when the marriage is not an active
-// alliance or does not involve the player.
-func EffectiveMarriageCategory(state *models.GameState, balance assetgen.Balance, player models.PlayerID, marriage models.Marriage) (AllianceCategory, bool) {
-	houseA, houseB := marriageHouses(state, marriage)
-	if houseA != player && houseB != player {
-		return "", false
-	}
-	category, ok := MarriageCategory(state, balance, marriage)
-	if !ok {
-		return "", false
-	}
-	if category != AllianceHead {
-		return category, true
-	}
-	if active, found := activeHeads(state, balance)[player]; found && active.NobleA == marriage.NobleA && active.NobleB == marriage.NobleB {
-		return AllianceHead, true
-	}
-	return AllianceMixed, true
 }
