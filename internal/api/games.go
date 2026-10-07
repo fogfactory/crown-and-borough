@@ -116,6 +116,7 @@ func (h *GamesHandler) routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/games/{id}/supply", h.withActor(h.getSupply))
 	mux.HandleFunc("POST /api/games/{id}/orders", h.withActor(h.submit))
 	mux.HandleFunc("POST /api/games/{id}/orders/preview", h.withActor(h.preview))
+	mux.HandleFunc("POST /api/games/{id}/victory/simulate", h.withActor(h.simulateVictory))
 	mux.HandleFunc("GET /api/games/{id}/my-submission", h.withActor(h.mySubmission))
 	mux.HandleFunc("GET /api/games/{id}/submitted-orders", h.withActor(h.submittedOrders))
 	mux.HandleFunc("POST /api/games/{id}/join", h.withActor(h.join))

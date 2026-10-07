@@ -340,4 +340,5 @@ recalculer de tête. Le front doit exposer un simulateur — à la manière de
 `POST /api/games/{id}/orders/preview` pour les ordres — qui projette, à la
 demande, le score de titres et le statut de victoire (majeure/mineure/échec)
 d'un joueur pour un état hypothétique (avant de conclure un mariage, après un
-Claim, etc.), sans engager l'action. Voir l'issue dédiée dans le milestone.
+Claim, etc.), sans engager l'action : `POST /api/games/{id}/victory/simulate`
+(voir `architecture.md`).
