@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
+	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
@@ -470,5 +471,66 @@ func TestProjectStateNobleSpouse(t *testing.T) {
 		if noble.Spouse != nil {
 			t.Errorf("%s = %#v, want no spouse once widowed", noble.Code, noble)
 		}
+	}
+}
+
+// The projection exposes each player's line of succession and, for every
+// marriage, its category, weight and the houses it is the active head of.
+func TestProjectStateLineageAndMarriageCategory(t *testing.T) {
+	state := projectTestState()
+	state.Nobles = []models.Noble{
+		{ID: "N2", Code: "ANN", Name: "Anne", Sex: models.SexFemale, OwnerID: "P2", LocationID: "ROS", Status: models.NobleStatusFree},
+		{ID: "N1", Code: "JEA", Name: "Jean", Sex: models.SexMale, OwnerID: "P1", LocationID: "ROS", Status: models.NobleStatusFree},
+		{ID: "N3", Code: "EVE", Name: "Eve", Sex: models.SexFemale, OwnerID: "P2", LocationID: "ROS", Status: models.NobleStatusFree},
+	}
+	state.RemovedNobles = nil
+	state.Fiefs = nil
+	state.Marriages = []models.Marriage{{NobleA: "N1", NobleB: "N2", Turn: 1}}
+	balance := assetgen.Balance{Alliance: assetgen.AllianceBalance{SuccessionRanks: []int{3, 2, 1}, HeadMinWeight: 3, MixedMinWeight: 2}}
+	view := projectState(state, balance)
+
+	for _, player := range view.Players {
+		if player.ID == "P2" && (len(player.Succession) != 2 || player.Succession[0] != "ANN" || player.Succession[1] != "EVE") {
+			t.Errorf("P2 succession = %v, want [ANN EVE]", player.Succession)
+		}
+	}
+	if len(view.Marriages) != 1 {
+		t.Fatalf("marriages = %d, want 1", len(view.Marriages))
+	}
+	marriage := view.Marriages[0]
+	if !marriage.Active || marriage.Category != engine.AllianceHead || marriage.Weight != 3 || len(marriage.ActiveHeadFor) != 2 {
+		t.Errorf("marriage = %#v, want an active head marriage of weight 3, active head for both houses", marriage)
+	}
+}
+
+// A head marriage names the marriage that would replace it as active head,
+// and claims are exposed with their rank among the claims on the same target.
+func TestProjectStateHeadSuccessorAndClaims(t *testing.T) {
+	state := projectTestState()
+	state.Nobles = []models.Noble{
+		{ID: "N1", Code: "JEA", Name: "Jean", Sex: models.SexMale, OwnerID: "P1", LocationID: "ROS", Status: models.NobleStatusFree},
+		{ID: "N2", Code: "ANN", Name: "Anne", Sex: models.SexFemale, OwnerID: "P2", LocationID: "ROS", Status: models.NobleStatusFree},
+		{ID: "N3", Code: "EVE", Name: "Eve", Sex: models.SexFemale, OwnerID: "P2", LocationID: "ROS", Status: models.NobleStatusFree},
+		{ID: "N4", Code: "LUC", Name: "Luc", Sex: models.SexMale, OwnerID: "P1", LocationID: "ROS", Status: models.NobleStatusFree},
+	}
+	state.RemovedNobles = nil
+	state.Fiefs = nil
+	state.Turn = 5
+	state.Marriages = []models.Marriage{{NobleA: "N1", NobleB: "N2", Turn: 1}, {NobleA: "N4", NobleB: "N3", Turn: 2}}
+	state.Claims = []models.Claim{{Heir: "N4", Target: "N2", Spouse: "N1", Turn: 3}}
+	balance := assetgen.Balance{Alliance: assetgen.AllianceBalance{SuccessionRanks: []int{3, 2}, HeadMinWeight: 2, MixedMinWeight: 1}}
+	view := projectState(state, balance)
+
+	first := view.Marriages[0]
+	if len(first.HeadSuccessors) != 2 {
+		t.Fatalf("head successors = %#v, want one per house", first.HeadSuccessors)
+	}
+	for _, successor := range first.HeadSuccessors {
+		if successor.Marriage == nil || successor.Marriage.NobleA != "LUC" || successor.Marriage.NobleB != "EVE" {
+			t.Errorf("successor for %s = %#v, want LUC x EVE", successor.Player, successor.Marriage)
+		}
+	}
+	if len(view.Claims) != 1 || view.Claims[0].Heir != "LUC" || view.Claims[0].Target != "ANN" || view.Claims[0].Rank != 1 {
+		t.Errorf("claims = %#v, want LUC on ANN, rank 1", view.Claims)
 	}
 }

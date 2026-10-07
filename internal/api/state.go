@@ -30,6 +30,10 @@ type StateView struct {
 	Nobles      []NobleView       `json:"nobles"`
 	Fiefs       []FiefView        `json:"fiefs"`
 	Marriages   []MarriageView    `json:"marriages"`
+	// Deceased lists the nobles removed from the game, so the lineage can
+	// still show them and the marriages they were part of.
+	Deceased []DeceasedView `json:"deceased"`
+	Claims   []ClaimView    `json:"claims"`
 	// HandLimit is special_orders.hand_limit: the cap on the cards a player
 	// holds, special-orders hand and noble hand together.
 	HandLimit        int               `json:"handLimit"`
@@ -72,6 +76,9 @@ type PlayerView struct {
 	ProjectedMillIncome  int                 `json:"projectedMillIncome"`
 	ProjectedConsumption int                 `json:"projectedConsumption"`
 	ArmiesAtRisk         []ArmyRiskView      `json:"armiesAtRisk,omitempty"`
+	// Succession lists the codes of the player's living nobles in line of
+	// succession order (specs/succession.md § Lignée).
+	Succession []models.NobleCode `json:"succession"`
 }
 
 // ArmyRiskView is the public shape of engine.ArmyFamineRisk: one army the
@@ -217,10 +224,60 @@ type FiefView struct {
 // MarriageView is one concluded marriage, public to every viewer
 // (specs/succession.md § Conclusion d'un mariage). The marriage outlives its
 // spouses, so a dead spouse is still named by its code.
+//
+// Active is false once a spouse has died. Category and Weight are set only
+// for an active alliance (not for a bastard's marriage): Category is the
+// marriage's own category (head, mixed or secondary) and Weight its alliance
+// weight. ActiveHeadFor lists the houses for which this marriage is the
+// active head (specs/succession.md § Tête active).
 type MarriageView struct {
+	NobleA        models.NobleCode        `json:"nobleA"`
+	NobleB        models.NobleCode        `json:"nobleB"`
+	Turn          int                     `json:"turn"`
+	Active        bool                    `json:"active"`
+	Category      engine.AllianceCategory `json:"category,omitempty"`
+	Weight        int                     `json:"weight,omitempty"`
+	ActiveHeadFor []models.PlayerID       `json:"activeHeadFor,omitempty"`
+	// HeadSuccessors tells, for each house this marriage is the active head
+	// of, which marriage would become that house's active head if this one
+	// ended (no marriage when none would).
+	HeadSuccessors []HeadSuccessorView `json:"headSuccessors,omitempty"`
+}
+
+// HeadSuccessorView is the marriage that would take over as a house's active
+// head. Marriage is nil when the house would be left without a head.
+type HeadSuccessorView struct {
+	Player   models.PlayerID `json:"player"`
+	Marriage *MarriageRef    `json:"marriage,omitempty"`
+}
+
+// MarriageRef names a marriage by its two spouses' codes.
+type MarriageRef struct {
 	NobleA models.NobleCode `json:"nobleA"`
 	NobleB models.NobleCode `json:"nobleB"`
-	Turn   int              `json:"turn"`
+}
+
+// ClaimView is a pretension staked by Heir on the titles of Target
+// (specs/succession.md § Prétentions), public to every viewer. Rank is the
+// heir's position among the claims on Target, 1 being the first to inherit.
+type ClaimView struct {
+	Heir     models.NobleCode `json:"heir"`
+	Target   models.NobleCode `json:"target"`
+	Spouse   models.NobleCode `json:"spouse"`
+	Turn     int              `json:"turn"`
+	WifeSide bool             `json:"wifeSide,omitempty"`
+	Rank     int              `json:"rank"`
+}
+
+// DeceasedView is a noble that has left the game, public to every viewer
+// like the marriages it appears in.
+type DeceasedView struct {
+	Code  models.NobleCode  `json:"code"`
+	Name  string            `json:"name"`
+	Owner models.PlayerID   `json:"owner"`
+	Sex   models.Sex        `json:"sex"`
+	Cause models.DeathCause `json:"cause"`
+	Turn  int               `json:"turn"`
 }
 
 func projectState(state *models.GameState, balance assetgen.Balance) StateView {
@@ -375,6 +432,10 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 				})
 			}
 		}
+		playerView.Succession = []models.NobleCode{}
+		for _, noble := range state.SuccessionLine(player.ID) {
+			playerView.Succession = append(playerView.Succession, models.NobleCode(noble.Code))
+		}
 		if player.CapitalCastleID != nil {
 			if infrastructure, ok := infrastructuresByID[*player.CapitalCastleID]; ok && infrastructure.Type == models.InfraTypeCastle {
 				capitalTerritory := infrastructure.TerritoryID
@@ -432,6 +493,20 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 		}
 		view.Fiefs = append(view.Fiefs, fiefView)
 	}
+	view.Deceased = []DeceasedView{}
+	for _, removed := range state.RemovedNobles {
+		view.Deceased = append(view.Deceased, DeceasedView{Code: models.NobleCode(removed.Code), Name: removed.Name, Owner: removed.OwnerID, Sex: removed.Sex, Cause: removed.Cause, Turn: removed.Turn})
+	}
+	view.Claims = []ClaimView{}
+	for _, claim := range state.Claims {
+		rank := 0
+		for i, other := range state.ClaimsOn(claim.Target) {
+			if other.Heir == claim.Heir {
+				rank = i + 1
+			}
+		}
+		view.Claims = append(view.Claims, ClaimView{Heir: nobleCodesByID[claim.Heir], Target: nobleCodesByID[claim.Target], Spouse: nobleCodesByID[claim.Spouse], Turn: claim.Turn, WifeSide: claim.WifeSide, Rank: rank})
+	}
 	view.Marriages = []MarriageView{}
 	if len(state.Marriages) != 0 {
 		codes := make(map[models.NobleID]models.NobleCode, len(state.Nobles)+len(state.RemovedNobles))
@@ -442,7 +517,18 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 			codes[removed.ID] = models.NobleCode(removed.Code)
 		}
 		for _, marriage := range state.Marriages {
-			view.Marriages = append(view.Marriages, MarriageView{NobleA: codes[marriage.NobleA], NobleB: codes[marriage.NobleB], Turn: marriage.Turn})
+			marriageView := MarriageView{NobleA: codes[marriage.NobleA], NobleB: codes[marriage.NobleB], Turn: marriage.Turn, Active: marriage.Active(state)}
+			if category, ok := engine.MarriageCategory(state, balance, marriage); ok {
+				marriageView.Category = category
+				marriageView.Weight, _ = engine.AllianceWeight(state, balance, marriage)
+				for _, player := range state.Players {
+					if head, found := engine.ActiveHeadMarriage(state, balance, player.ID); found && head.NobleA == marriage.NobleA && head.NobleB == marriage.NobleB {
+						marriageView.ActiveHeadFor = append(marriageView.ActiveHeadFor, player.ID)
+						marriageView.HeadSuccessors = append(marriageView.HeadSuccessors, headSuccessor(state, balance, player.ID, marriage, codes))
+					}
+				}
+			}
+			view.Marriages = append(view.Marriages, marriageView)
 		}
 	}
 	if viewer != nil && state.SpecialDeck != nil {
@@ -591,4 +677,23 @@ type SecretIdentityView struct {
 	Code models.NobleCode `json:"code"`
 	Name string           `json:"name"`
 	Sex  models.Sex       `json:"sex"`
+}
+
+// headSuccessor simulates the end of marriage and returns the marriage that
+// would then be player's active head. The simulation drops the marriage from a
+// copy of the state, so alliance weights (density bonus included) are
+// recomputed without it.
+func headSuccessor(state *models.GameState, balance assetgen.Balance, player models.PlayerID, marriage models.Marriage, codes map[models.NobleID]models.NobleCode) HeadSuccessorView {
+	without := *state
+	without.Marriages = make([]models.Marriage, 0, len(state.Marriages))
+	for _, other := range state.Marriages {
+		if other.NobleA != marriage.NobleA || other.NobleB != marriage.NobleB {
+			without.Marriages = append(without.Marriages, other)
+		}
+	}
+	view := HeadSuccessorView{Player: player}
+	if next, found := engine.ActiveHeadMarriage(&without, balance, player); found {
+		view.Marriage = &MarriageRef{NobleA: codes[next.NobleA], NobleB: codes[next.NobleB]}
+	}
+	return view
 }
