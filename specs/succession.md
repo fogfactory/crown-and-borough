@@ -272,8 +272,8 @@ Le poids du couple classe le mariage en catégorie, par seuil
 | Catégorie | Poids | Effet |
 |---|---:|---|
 | Tête | ≥ 5 | Alliance complète : score additionné, victoire commune possible (voir [titres.md § Victoire majeure, victoire mineure, échec](titres.md#victoire-majeure-victoire-mineure-échec)) |
-| Mixte | 2 à 4 | La moitié des titres du conjoint s'ajoute au score, sans victoire commune |
-| Secondaire | ≤ 1 | +1 point par titre du conjoint, sans partage de score |
+| Mixte | 2 à 4 | Mariage d'influence : les titres de la famille du conjoint s'ajoutent au score, sans victoire commune |
+| Secondaire | ≤ 1 | Mariage d'influence, même effet que le mixte |
 
 > À trancher : seuils indicatifs, à valider avec la balance générale du score
 > de titres.
@@ -283,7 +283,7 @@ Le poids du couple classe le mariage en catégorie, par seuil
 Un joueur peut détenir plusieurs mariages tête simultanément, portés par des
 nobles différents. Un seul est actif à la fois pour la victoire commune :
 celui au poids d'alliance le plus élevé. Les autres têtes du même joueur
-comptent alors comme des mixtes (50 % des titres du conjoint, sans victoire
+comptent alors comme des mariages d'influence (titres de la famille du conjoint, sans victoire
 commune) tant qu'une tête supérieure reste active.
 
 La tête active change dynamiquement, sans jamais nécessiter de déclaration du

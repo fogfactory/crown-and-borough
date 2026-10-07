@@ -824,7 +824,7 @@ func (s *MemoryStore) snapshotLocked(game *memoryGame) (GameSnapshot, error) {
 		YearCount:    game.state.YearCount,
 		Status:       game.status,
 		Winner:       clonePlayerID(game.winner),
-		Scores:       engine.ComputeScores(game.state),
+		Scores:       engine.ComputeScores(game.state, s.balance),
 		Players:      append([]PlayerSlot(nil), game.players...),
 		Map:          cloneMap(game.mapData),
 		State:        state,

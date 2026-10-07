@@ -23,7 +23,7 @@ func nobleAllianceWeight(state *models.GameState, balance assetgen.AllianceBalan
 	weight := 0
 	ranks := balance.SuccessionRanks
 	for position, noble := range state.SuccessionLine(owner) {
-		if noble.ID == nobleID {
+		if noble.ID == nobleID && len(ranks) > 0 {
 			weight = ranks[min(position, len(ranks)-1)]
 			break
 		}

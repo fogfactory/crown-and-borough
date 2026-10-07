@@ -251,6 +251,14 @@ Le score d'un joueur est la somme des titres qu'il détient, ajustée par ses
 mariages : voir [succession.md § Mariages et alliances](succession.md#mariages-et-alliances)
 pour le calcul du poids d'alliance et des catégories tête/mixte/secondaire.
 
+Un mariage qui est la tête active des deux familles est une alliance complète :
+pas de bonus individuel, les scores s'additionnent pour la victoire commune.
+Tout autre mariage est un mariage d'influence : chaque famille gagne en bonus
+le nombre de titres de la famille du conjoint (jamais son score bonifié), ce qui
+compte pour gagner seul ou via une autre tête. Le bonus est affiché à part
+(`alliance`). Les seuils de victoire de `assets/balance.yaml` (50 %/66 % du
+territoire) ont été relevés à 75 %/90 % pour tenir compte de ces bonus.
+
 ### Seuil de victoire et fin de partie
 
 Une partie se termine immédiatement dès qu'un joueur franchit un seuil de

@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"reflect"
 	"slices"
 	"testing"
@@ -145,7 +146,7 @@ func TestDignityOrderConfersBastard(t *testing.T) {
 	if state.Nobles[0].IsBastard() {
 		t.Error("ResolveWinter mutated its input noble")
 	}
-	scores := ComputeScores(resolution.State)
+	scores := ComputeScores(resolution.State, assetgen.Balance{})
 	if scores["P1"].Titles != 1 {
 		t.Errorf("P1 titles = %d, want the bastard dignity to count as one title", scores["P1"].Titles)
 	}

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"sort"
 
 	"github.com/fogfactory/crown-and-borough/internal/models"
@@ -375,6 +376,12 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 }
 
 func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Event, receptions []ReceptionReport, handLimit int) TurnReport {
+	return BuildTurnReportWithBalance(before, after, events, receptions, handLimit, assetgen.Balance{})
+}
+
+// BuildTurnReportWithBalance is BuildTurnReportWithHandLimit with the balance
+// needed to score marriage bonuses in the player reports.
+func BuildTurnReportWithBalance(before, after *models.GameState, events []Event, receptions []ReceptionReport, handLimit int, balance assetgen.Balance) TurnReport {
 	report := TurnReport{
 		Players:       []PlayerReport{},
 		Receptions:    []ReceptionReport{},
@@ -400,7 +407,7 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 			report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}
 		}
 	}
-	report.Players = buildPlayerReports(before, after)
+	report.Players = buildPlayerReports(before, after, balance)
 	if before != nil && after != nil {
 		report.Announcements = PendingAnnouncements(after, report.Header.Year, report.Header.Season, false)
 	}
@@ -748,7 +755,7 @@ func BuildReport(before, after *models.GameState, events []Event, receptions []R
 	return BuildTurnReport(before, after, events, receptions)
 }
 
-func buildPlayerReports(before, after *models.GameState) []PlayerReport {
+func buildPlayerReports(before, after *models.GameState, balance assetgen.Balance) []PlayerReport {
 	players := []models.Player{}
 	if after != nil {
 		players = append(players, after.Players...)
@@ -756,8 +763,8 @@ func buildPlayerReports(before, after *models.GameState) []PlayerReport {
 		players = append(players, before.Players...)
 	}
 	reports := make([]PlayerReport, 0, len(players))
-	beforeScores := ComputeScores(before)
-	afterScores := ComputeScores(after)
+	beforeScores := ComputeScores(before, balance)
+	afterScores := ComputeScores(after, balance)
 	for _, player := range players {
 		report := PlayerReport{
 			ID:              player.ID,

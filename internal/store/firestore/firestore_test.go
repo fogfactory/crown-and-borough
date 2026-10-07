@@ -88,7 +88,7 @@ func TestGameDocumentCarriesDurationAndScores(t *testing.T) {
 	if document.Scores == nil || len(document.Scores) != 1 || document.Scores["P1"].Total != 1 {
 		t.Fatalf("document scores = %#v, want P1 score", document.Scores)
 	}
-	restored := gameSnapshot(document, state, mapgen.MapData{}, nil, nil)
+	restored := gameSnapshot(assetgen.Balance{}, document, state, mapgen.MapData{}, nil, nil)
 	if restored.Scores["P1"].Total != 1 {
 		t.Fatalf("restored scores = %#v, want P1 score", restored.Scores)
 	}
@@ -121,7 +121,7 @@ func TestGameDocumentCarriesSpectatorWithoutChangingSchemaVersion(t *testing.T) 
 	if !reflect.DeepEqual(document.MemberUIDs, []string{"host"}) {
 		t.Fatalf("member UIDs = %#v, want host only", document.MemberUIDs)
 	}
-	restored := gameSnapshot(document, state, mapgen.MapData{}, nil, nil)
+	restored := gameSnapshot(assetgen.Balance{}, document, state, mapgen.MapData{}, nil, nil)
 	if restored.SpectatorUID != "host" {
 		t.Fatalf("restored spectator UID = %q, want host", restored.SpectatorUID)
 	}

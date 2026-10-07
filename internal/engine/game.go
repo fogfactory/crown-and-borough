@@ -622,7 +622,7 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 		return TurnReport{}, fmt.Errorf("engine: resolve turn: invalid advanced result: %w", err)
 	}
 
-	report := BuildTurnReportWithHandLimit(working, result, resolution.Events, receptions, balance.SpecialOrders.HandLimit)
+	report := BuildTurnReportWithBalance(working, result, resolution.Events, receptions, balance.SpecialOrders.HandLimit, balance)
 	report.State = result
 	return report, nil
 }
