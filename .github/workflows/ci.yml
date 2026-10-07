@@ -117,7 +117,7 @@ jobs:
           grep -Fq '<div id="root"></div>' fallback.html
           frontend_asset="$(grep -oE '/assets/index-[^"]+\.js' index.html)"
           curl -fsS "http://127.0.0.1:8080$frontend_asset" > frontend.js
-          grep -Fq '"ci"' frontend.js
+          grep -Eq '["'"'"'`]ci["'"'"'`]' frontend.js
           grep -Fq '"status":"ready"' ready.json
           grep -Fq '"version":"ci"' version.json
           grep -Fq 'du jeu' rules.md
