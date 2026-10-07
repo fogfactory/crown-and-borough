@@ -13,7 +13,7 @@ export default tseslint.config([
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
-      reactHooks.configs['recommended-latest'],
+      reactHooks.configs.flat.recommended,
       reactRefresh.configs.vite,
       eslintConfigPrettier,
     ],
@@ -23,6 +23,11 @@ export default tseslint.config([
     },
     rules: {
       'react-refresh/only-export-components': 'off',
+      // eslint-plugin-react-hooks v7 adds React Compiler rules. The app does not
+      // use the compiler yet, so only the classic hook rules are enforced.
+      'react-hooks/preserve-manual-memoization': 'off',
+      'react-hooks/refs': 'off',
+      'react-hooks/set-state-in-effect': 'off',
     },
   },
 ])
