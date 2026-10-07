@@ -340,4 +340,5 @@ recalculer de tête. Le front doit exposer un simulateur — à la manière de
 `POST /api/games/{id}/orders/preview` pour les ordres — qui projette, à la
 demande, le score de titres et le statut de victoire (majeure/mineure/échec)
 d'un joueur pour un état hypothétique (avant de conclure un mariage, après un
-Claim, etc.), sans engager l'action. Voir l'issue dédiée dans le milestone.
+Claim, etc.), sans engager l'action : `POST /api/games/{id}/victory/simulate`
+(voir `architecture.md`). Le simulateur est un mode de la vue « Lignée et alliances » : le bouton « Simuler » permet de cliquer un noble (tuer, marier à…, prétendre à…) ou un lien de mariage (rompre), avec annuler/rétablir/réinitialiser. L'arbre, les liens, les scores et le panneau d'état de victoire de chaque maison (score avant/après, seuil, mode, statut) reflètent l'état hypothétique, jusqu'à réinitialisation.

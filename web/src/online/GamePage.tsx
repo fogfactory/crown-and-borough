@@ -35,6 +35,10 @@ import { ApiError, apiRequest, type TokenProvider } from '@/lib/api'
 import { stripNobleHeader } from '@/lib/order-text'
 import { buildOrdersBody } from '@/lib/orders-body'
 import { draftOrdersByNoble } from '@/lib/transfer-preview'
+import {
+  SimulationRejectedError,
+  type VictorySimulationRequest,
+} from '@/lib/use-victory-simulation'
 import { useOrdersPreview, type OrdersPreviewRequest } from '@/lib/use-orders-preview'
 import {
   internalYear,
@@ -63,6 +67,7 @@ import type {
   SubmittedOrdersResponse,
   TurnReport,
   OrdersPreview,
+  VictorySimulation,
 } from '@/types'
 
 interface Invitation {
@@ -525,6 +530,20 @@ export function GamePage() {
       })
   }, [gameId, getIdToken, language, playerID])
   const preview = useOrdersPreview(ordersBody, previewRequest)
+  const simulationRequest = useMemo<VictorySimulationRequest | null>(() => {
+    if (!gameId || !playerID) return null
+    const path = `/api/games/${encodeURIComponent(gameId)}/victory/simulate`
+    return (actions, signal) =>
+      apiRequest<VictorySimulation>({ getIdToken }, path, {
+        method: 'POST',
+        body: JSON.stringify({ actions }),
+        signal,
+      }).catch((error: unknown) => {
+        throw error instanceof ApiError && error.status === 422
+          ? new SimulationRejectedError(error.message)
+          : error
+      })
+  }, [gameId, getIdToken, playerID])
   const draftOrders = useMemo(() => draftOrdersByNoble(preview?.chains), [preview])
 
   const {
@@ -868,6 +887,8 @@ export function GamePage() {
   marriages={state.marriages}
   scores={state.scores ?? summary.scores}
   victory={state.victory}
+  simulationRequest={simulationRequest}
+  simulationKey={`${state.turn}-${state.season}`}
 />
           <HeaderPopover
             label={t('online.lobby')}
