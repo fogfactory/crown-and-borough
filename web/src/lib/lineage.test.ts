@@ -6,6 +6,7 @@ import {
   buildLinks,
   CARD_H,
   CARD_W,
+  claimRoute,
   GAP_X,
   layoutColumns,
   PITCH,
@@ -205,6 +206,53 @@ describe('lineage', () => {
           expect(Math.max(...ys) > top && Math.min(...ys) < top + CARD_H).toBe(false)
         }
       }
+    }
+  })
+
+  it('routes a claim as a filiation into the marriage line without crossing a card', () => {
+    const houses = buildHouses(players, nobles, [], [])
+    const links = buildLinks(houses, [
+      {
+        nobleA: 'ANN',
+        nobleB: 'MAR',
+        turn: 1,
+        active: true,
+        category: 'secondary',
+        weight: 1,
+      },
+    ])
+    const claim = { heir: 'LUC', target: 'ANN', spouse: 'MAR' }
+    const { columns } = layoutColumns(houses, links, 'P2', [claim])
+    const box = new Map<string, { x: number; y: number }>()
+    columns.forEach((column, index) =>
+      column.house.members.forEach((member, i) =>
+        box.set(member.code, {
+          x: index * (CARD_W + GAP_X),
+          y: (column.offset + i) * PITCH,
+        }),
+      ),
+    )
+    const [start, corner, end] = claimRoute(
+      box.get('LUC')!,
+      box.get('ANN')!,
+      box.get('MAR')!,
+    )
+    expect(corner[1]).toBe(start[1])
+    expect(end[0]).toBe(corner[0])
+    const marriageY = (box.get('ANN')!.y + box.get('MAR')!.y) / 2 + CARD_H / 2
+    expect(end[1]).toBe(marriageY)
+    for (const [code, at] of box) {
+      if (code === 'LUC') continue
+      const hit =
+        (Math.min(start[0], corner[0]) < at.x + CARD_W &&
+          Math.max(start[0], corner[0]) > at.x &&
+          start[1] > at.y &&
+          start[1] < at.y + CARD_H) ||
+        (corner[0] > at.x &&
+          corner[0] < at.x + CARD_W &&
+          Math.min(corner[1], end[1]) < at.y + CARD_H &&
+          Math.max(corner[1], end[1]) > at.y)
+      expect(hit).toBe(false)
     }
   })
 })

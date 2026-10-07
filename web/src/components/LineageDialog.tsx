@@ -17,8 +17,10 @@ import {
   buildLinks,
   CARD_H,
   CARD_W,
+  claimRoute,
   GAP_X,
   layoutColumns,
+  marriageSegment,
   PITCH,
   type AlliancePair,
   type EdgeKind,
@@ -410,13 +412,13 @@ function LineageTree({
   const { t } = useLanguage()
   const scroller = useRef<HTMLDivElement>(null)
   const drag = useRef<{ code: string; x: number; y: number; from: Offset } | null>(null)
-  const claimPairs = useMemo<Array<[string, string]>>(
-    () => claims.map((claim) => [claim.heir, claim.target]),
+  const claimRefs = useMemo(
+    () => claims.map(({ heir, target, spouse }) => ({ heir, target, spouse })),
     [claims],
   )
   const { columns, rows } = useMemo(
-    () => layoutColumns(houses, links, focus, claimPairs),
-    [houses, links, focus, claimPairs],
+    () => layoutColumns(houses, links, focus, claimRefs),
+    [houses, links, focus, claimRefs],
   )
 
   // Automatic position of each card, then the user's own displacement.
@@ -452,10 +454,8 @@ function LineageTree({
   }, [focus, columns])
 
   const segment = (from: { x: number; y: number }, to: { x: number; y: number }) => {
-    const leftToRight = from.x <= to.x
-    const x1 = leftToRight ? from.x + CARD_W : from.x
-    const x2 = leftToRight ? to.x : to.x + CARD_W
-    return `M${x1},${from.y + CARD_H / 2} L${x2},${to.y + CARD_H / 2}`
+    const { x1, y1, x2, y2 } = marriageSegment(from, to)
+    return `M${x1},${y1} L${x2},${y2}`
   }
 
   const startDrag = (event: ReactPointerEvent<HTMLButtonElement>, code: string) => {
@@ -504,13 +504,22 @@ function LineageTree({
             )
           })}
           {claims.map((claim) => {
-            const from = position.get(claim.heir)
-            const to = position.get(claim.target)
-            if (!from || !to) return null
+            const heir = position.get(claim.heir)
+            const target = position.get(claim.target)
+            const spouse = position.get(claim.spouse)
+            if (!heir || !target || !spouse) return null
+            // Without a visible marriage line (ended marriages hidden), the
+            // filiation points at the target's card instead.
+            const shown = links.some(
+              (l) =>
+                (l.a === claim.target && l.b === claim.spouse) ||
+                (l.b === claim.target && l.a === claim.spouse),
+            )
+            const [start, corner, end] = claimRoute(heir, target, shown ? spouse : target)
             return (
               <path
                 key={`claim-${claim.heir}`}
-                d={segment(from, to)}
+                d={`M${start[0]},${start[1]} L${corner[0]},${corner[1]} L${end[0]},${end[1]}`}
                 fill="none"
                 stroke={CLAIM}
                 strokeWidth={2}

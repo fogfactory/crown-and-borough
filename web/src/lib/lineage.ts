@@ -229,6 +229,47 @@ export const CARD_H = 100
 export const GAP_X = 80
 export const PITCH = 112
 
+/** Top-left corner of a card, in pixels. */
+export interface Box {
+  x: number
+  y: number
+}
+
+/** The straight line of a marriage, from the right edge of the left card to the left edge of the right one. */
+export function marriageSegment(a: Box, b: Box) {
+  const [left, right] = a.x <= b.x ? [a, b] : [b, a]
+  return {
+    x1: left.x + CARD_W,
+    y1: left.y + CARD_H / 2,
+    x2: right.x,
+    y2: right.y + CARD_H / 2,
+  }
+}
+
+/**
+ * Route of a claim, drawn as a filiation: from the heir's card, horizontally
+ * to the middle of the marriage line between the target and the spouse, then
+ * vertically into that line. Only horizontal and vertical strokes.
+ */
+export function claimRoute(heir: Box, target: Box, spouse: Box): Array<[number, number]> {
+  const { x1, y1, x2, y2 } = marriageSegment(target, spouse)
+  const midX = (x1 + x2) / 2
+  const midY = (y1 + y2) / 2
+  const startY = heir.y + CARD_H / 2
+  const startX = midX <= heir.x ? heir.x : heir.x + CARD_W
+  return [
+    [startX, startY],
+    [midX, startY],
+    [midX, midY],
+  ]
+}
+
+export interface ClaimRef {
+  heir: string
+  target: string
+  spouse: string
+}
+
 export interface ColumnLayout {
   house: House
   /** Row of the house's first member, so linked spouses share a row. */
@@ -248,18 +289,21 @@ export interface ColumnLayout {
  *    pushes that column one row down, repeatedly, until it passes through a
  *    gap. The focus house never moves.
  *
- * `extra` are further links to keep clear (claims), as pairs of noble codes.
+ * Claims are drawn as filiations (see `claimRoute`): when one would run over
+ * a card, the column of that card moves down by half a row, which lets the
+ * stroke pass between two cards.
  */
 export function layoutColumns(
   houses: House[],
   links: LineageLink[],
   focus: PlayerId | null,
-  extra: Array<[string, string]> = [],
+  claims: ClaimRef[] = [],
 ): { columns: ColumnLayout[]; rows: number } {
   const pairs: Array<{ a: string; b: string; weight: number }> = [
     ...links.map((link) => ({ a: link.a, b: link.b, weight: link.active ? 3 : 1 })),
-    ...extra.map(([a, b]) => ({ a, b, weight: 1 })),
+    ...claims.map(({ heir, target }) => ({ a: heir, b: target, weight: 1 })),
   ]
+  const linkPairs = pairs.slice(0, links.length)
   const houseOf = new Map<string, House>()
   for (const house of houses)
     for (const member of house.members) houseOf.set(member.code, house)
@@ -322,7 +366,8 @@ export function layoutColumns(
   const cardTop = (row: number) => row * PITCH
   for (let guard = 0; guard < 60; guard++) {
     let blocked: PlayerId | undefined
-    for (const { a, b } of pairs) {
+    let step = 1
+    for (const { a, b } of linkPairs) {
       const ha = houseOf.get(a)
       const hb = houseOf.get(b)
       if (!ha || !hb) continue
@@ -351,8 +396,60 @@ export function layoutColumns(
       }
       if (blocked) break
     }
+    if (!blocked) {
+      const boxOf = (code: string): Box | undefined => {
+        const house = houseOf.get(code)
+        if (!house) return undefined
+        return {
+          x: column.get(house.player.id)! * (CARD_W + GAP_X),
+          y: cardTop(rowOfCode(code)),
+        }
+      }
+      for (const claim of claims) {
+        const heir = boxOf(claim.heir)
+        const target = boxOf(claim.target)
+        const spouse = boxOf(claim.spouse)
+        const heirHouse = houseOf.get(claim.heir)
+        if (!heir || !target || !spouse || !heirHouse) continue
+        if (
+          !links.some(
+            (l) =>
+              (l.a === claim.target && l.b === claim.spouse) ||
+              (l.b === claim.target && l.a === claim.spouse),
+          )
+        )
+          continue
+        const [start, corner, end] = claimRoute(heir, target, spouse)
+        for (let k = 0; k < sequence.length && !blocked; k++) {
+          const mid = sequence[k]
+          if (mid === heirHouse) continue
+          const midIsFocus = mid.player.id === focusHouse?.player.id
+          // The focus house never moves: its heir's house moves instead.
+          if (midIsFocus && heirHouse.player.id === focusHouse?.player.id) continue
+          const left = k * (CARD_W + GAP_X)
+          const base = offsets.get(mid.player.id) ?? 0
+          const hit = mid.members.some((_, index) => {
+            const top = cardTop(base + index)
+            const inY = (y: number) => y > top - 4 && y < top + CARD_H + 4
+            const inX = (x: number) => x > left - 4 && x < left + CARD_W + 4
+            const hRun =
+              Math.min(start[0], corner[0]) < left + CARD_W &&
+              Math.max(start[0], corner[0]) > left
+            const vRun =
+              Math.min(corner[1], end[1]) < top + CARD_H &&
+              Math.max(corner[1], end[1]) > top
+            return (hRun && inY(start[1])) || (vRun && inX(corner[0]))
+          })
+          if (hit) {
+            blocked = midIsFocus ? heirHouse.player.id : mid.player.id
+            step = 0.5
+          }
+        }
+        if (blocked) break
+      }
+    }
     if (!blocked) break
-    offsets.set(blocked, (offsets.get(blocked) ?? 0) + 1)
+    offsets.set(blocked, (offsets.get(blocked) ?? 0) + step)
   }
 
   const min = Math.min(...sequence.map((house) => offsets.get(house.player.id) ?? 0))
