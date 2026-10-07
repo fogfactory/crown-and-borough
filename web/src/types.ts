@@ -102,6 +102,8 @@ export interface GameSummary {
   seed: string
   status: GameStatus
   winner?: PlayerId | null
+  winners?: PlayerId[]
+  minorWinner?: PlayerId | null
   currentPlayer?: PlayerId
   canInvite?: boolean
   inviteAvailable?: boolean
@@ -339,6 +341,8 @@ export interface StateData {
   victory?: VictoryStatus
   finished?: boolean
   winner?: PlayerId | null
+  winners?: PlayerId[]
+  minorWinner?: PlayerId | null
   players: Player[]
   territories: TerritoryState[]
   nobles: Noble[]

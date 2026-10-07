@@ -13,19 +13,23 @@ import (
 // storage-oriented GameState directly, and includes the public calendar and
 // score snapshot.
 type StateView struct {
-	Turn        int                                       `json:"turn"`
-	Year        int                                       `json:"year"`
-	YearCount   int                                       `json:"yearCount"`
-	Season      models.Season                             `json:"season"`
-	Scores      map[models.PlayerID]engine.ScoreBreakdown `json:"scores"`
-	Victory     engine.VictoryStatus                      `json:"victory"`
-	Finished    bool                                      `json:"finished"`
-	Winner      *models.PlayerID                          `json:"winner,omitempty"`
-	Players     []PlayerView                              `json:"players"`
-	Territories []TerritoryView                           `json:"territories"`
-	Nobles      []NobleView                               `json:"nobles"`
-	Fiefs       []FiefView                                `json:"fiefs"`
-	Marriages   []MarriageView                            `json:"marriages"`
+	Turn      int                                       `json:"turn"`
+	Year      int                                       `json:"year"`
+	YearCount int                                       `json:"yearCount"`
+	Season    models.Season                             `json:"season"`
+	Scores    map[models.PlayerID]engine.ScoreBreakdown `json:"scores"`
+	Victory   engine.VictoryStatus                      `json:"victory"`
+	Finished  bool                                      `json:"finished"`
+	Winner    *models.PlayerID                          `json:"winner,omitempty"`
+	// Winners lists every major winner (two spouses for a joint victory);
+	// MinorWinner is the player granted the minor victory, if any.
+	Winners     []models.PlayerID `json:"winners,omitempty"`
+	MinorWinner *models.PlayerID  `json:"minorWinner,omitempty"`
+	Players     []PlayerView      `json:"players"`
+	Territories []TerritoryView   `json:"territories"`
+	Nobles      []NobleView       `json:"nobles"`
+	Fiefs       []FiefView        `json:"fiefs"`
+	Marriages   []MarriageView    `json:"marriages"`
 	// HandLimit is special_orders.hand_limit: the cap on the cards a player
 	// holds, special-orders hand and noble hand together.
 	HandLimit        int               `json:"handLimit"`
@@ -267,7 +271,13 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 	view.Scores = engine.ComputeScores(state, balance)
 	view.Victory = engine.ComputeVictoryStatus(state, balance)
 	view.Finished = engine.GameFinished(state, balance)
-	view.Winner = engine.WinnerForFinishedGame(state, balance)
+	if view.Finished {
+		outcome := engine.ResolveVictory(state, balance)
+		view.Winners, view.MinorWinner = outcome.Major, outcome.Minor
+		if len(outcome.Major) == 1 {
+			view.Winner = &outcome.Major[0]
+		}
+	}
 	view.Players = make([]PlayerView, 0, len(state.Players))
 	view.Territories = make([]TerritoryView, 0, len(state.Territories))
 	view.Nobles = make([]NobleView, 0, len(state.Nobles))
