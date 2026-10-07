@@ -300,48 +300,49 @@ func marriageScoreState() *models.GameState {
 	return state
 }
 
-func TestComputeScoresMarriageBonuses(t *testing.T) {
+func TestComputeScoresInfluenceMarriageGivesSpouseHouseTitles(t *testing.T) {
 	balance := allianceBalance()
 	p1, p2 := models.PlayerID("P1"), models.PlayerID("P2")
-
-	state := marriageScoreState()
-	state.Marriages = []models.Marriage{{NobleA: "N1", NobleB: "N4"}} // mixed (weight 2)
-	scores := ComputeScores(state, balance)
-	if got, want := scores[p1], (ScoreBreakdown{Titles: 1, Alliance: 1, Total: 2}); got != want {
-		t.Errorf("mixed P1 = %#v, want %#v (half of 3, rounded down)", got, want)
-	}
-	if got, want := scores[p2], (ScoreBreakdown{Titles: 3, Alliance: 0, Total: 3}); got != want {
-		t.Errorf("mixed P2 = %#v, want %#v (half of 1, rounded down)", got, want)
-	}
-
-	state.Marriages = []models.Marriage{{NobleA: "N2", NobleB: "N5"}} // secondary
-	scores = ComputeScores(state, balance)
-	if got, want := scores[p1], (ScoreBreakdown{Titles: 1, Alliance: 3, Total: 4}); got != want {
-		t.Errorf("secondary P1 = %#v, want %#v (+1 per spouse title)", got, want)
-	}
-	if got, want := scores[p2], (ScoreBreakdown{Titles: 3, Alliance: 1, Total: 4}); got != want {
-		t.Errorf("secondary P2 = %#v, want %#v", got, want)
-	}
-
-	state.Marriages = []models.Marriage{{NobleA: "N1", NobleB: "N3"}}
-	holder := models.NobleID("N3")
-	state.Fiefs = append(state.Fiefs, models.Fief{ID: "G4", OwnerID: "P2", HolderNobleID: &holder, Title: models.FiefTitleDuchy})
-	scores = ComputeScores(state, balance)
-	if scores[p1].Alliance != 0 || scores[p2].Alliance != 0 {
-		t.Errorf("active head must give no individual bonus, got %#v / %#v", scores[p1], scores[p2])
+	for name, marriage := range map[string]models.Marriage{
+		"mixed":     {NobleA: "N1", NobleB: "N4"},
+		"secondary": {NobleA: "N2", NobleB: "N5"},
+	} {
+		state := marriageScoreState()
+		state.Marriages = []models.Marriage{marriage}
+		scores := ComputeScores(state, balance)
+		if got, want := scores[p1], (ScoreBreakdown{Titles: 1, Alliance: 3, Total: 4}); got != want {
+			t.Errorf("%s P1 = %#v, want %#v", name, got, want)
+		}
+		if got, want := scores[p2], (ScoreBreakdown{Titles: 3, Alliance: 1, Total: 4}); got != want {
+			t.Errorf("%s P2 = %#v, want %#v", name, got, want)
+		}
 	}
 }
 
-func TestComputeScoresNonActiveHeadCountsAsMixed(t *testing.T) {
+func TestComputeScoresMutualActiveHeadGivesNoIndividualBonus(t *testing.T) {
+	state := marriageScoreState()
+	holder := models.NobleID("N3")
+	state.Fiefs = append(state.Fiefs, models.Fief{ID: "G4", OwnerID: "P2", HolderNobleID: &holder, Title: models.FiefTitleDuchy})
+	state.Marriages = []models.Marriage{{NobleA: "N1", NobleB: "N3"}}
+	if c, ok := MarriageCategory(state, allianceBalance(), state.Marriages[0]); !ok || c != AllianceHead {
+		t.Fatalf("setup: category = %q, want head", c)
+	}
+	scores := ComputeScores(state, allianceBalance())
+	if scores["P1"].Alliance != 0 || scores["P2"].Alliance != 0 {
+		t.Errorf("mutual active head must give no bonus, got %#v / %#v", scores["P1"], scores["P2"])
+	}
+}
+
+func TestComputeScoresNonActiveHeadIsInfluenceMarriage(t *testing.T) {
 	balance := allianceBalance()
 	state := marriageScoreState()
-	holder3, holder4 := models.NobleID("N3"), models.NobleID("N4")
+	holder3, holder4, holder2 := models.NobleID("N3"), models.NobleID("N4"), models.NobleID("N2")
 	state.Fiefs = append(state.Fiefs,
 		models.Fief{ID: "G4", OwnerID: "P2", HolderNobleID: &holder3, Title: models.FiefTitleDuchy},
-		models.Fief{ID: "G5", OwnerID: "P2", HolderNobleID: &holder4, Title: models.FiefTitleDuchy})
-	holderN2 := models.NobleID("N2")
-	state.Fiefs = append(state.Fiefs, models.Fief{ID: "G6", OwnerID: "P1", HolderNobleID: &holderN2, Title: models.FiefTitleDuchy})
-	// P1 holds two head marriages; the lighter one is not the active head.
+		models.Fief{ID: "G5", OwnerID: "P2", HolderNobleID: &holder4, Title: models.FiefTitleDuchy},
+		models.Fief{ID: "G6", OwnerID: "P1", HolderNobleID: &holder2, Title: models.FiefTitleDuchy})
+	// Two head marriages between the same houses: only the first (older) is
+	// the active head; the second is an influence marriage for both.
 	state.Marriages = []models.Marriage{{NobleA: "N1", NobleB: "N3", Turn: 1}, {NobleA: "N2", NobleB: "N4", Turn: 2}}
 	for _, m := range state.Marriages {
 		if c, ok := MarriageCategory(state, balance, m); !ok || c != AllianceHead {
@@ -349,12 +350,11 @@ func TestComputeScoresNonActiveHeadCountsAsMixed(t *testing.T) {
 		}
 	}
 	scores := ComputeScores(state, balance)
-	// P2 has 5 titles; P1 has 2. P1's non-active head counts as mixed: +2.
-	// P2's two heads are both with P1; one is active, the other mixed: +1.
-	if got := scores[models.PlayerID("P1")].Alliance; got != 2 {
-		t.Errorf("P1 alliance bonus = %d, want 2", got)
+	// P1 has 2 titles and P2 has 5.
+	if got := scores["P1"].Alliance; got != 5 {
+		t.Errorf("P1 alliance bonus = %d, want 5", got)
 	}
-	if got := scores[models.PlayerID("P2")].Alliance; got != 1 {
-		t.Errorf("P2 alliance bonus = %d, want 1", got)
+	if got := scores["P2"].Alliance; got != 2 {
+		t.Errorf("P2 alliance bonus = %d, want 2", got)
 	}
 }
