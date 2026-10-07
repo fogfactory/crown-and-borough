@@ -83,7 +83,7 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker "$ARTIFACT_REGISTRY" --quiet
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       - name: Compute image name
         id: image
