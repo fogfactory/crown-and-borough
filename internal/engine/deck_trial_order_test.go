@@ -61,6 +61,19 @@ func TestTrialExecutesAnUnmarriedLadyWithAVisibleDignityAndOpensRevolt(t *testin
 	}
 }
 
+func TestTrialRevealsAHiddenDignityAndExecutes(t *testing.T) {
+	state := trialTestState(t, models.DignityWitch, models.SexFemale)
+	validateTestState(t, state)
+	resolution, err := ResolveWithDeckOrders(state, testBalance(), playTrial())
+	if err != nil {
+		t.Fatalf("ResolveWithDeckOrders: %v", err)
+	}
+	trials := eventsOfType(resolution.Events, EventTypeTrial)
+	if len(resolution.State.Nobles) != 0 || len(trials) != 1 || trials[0].Reason != "trial_executed" || trials[0].Dignity != models.DignityWitch {
+		t.Fatalf("nobles = %#v, trial events = %#v; want the witch executed and revealed", resolution.State.Nobles, trials)
+	}
+}
+
 func TestTrialIsUnfoundedOnIneligibleTargets(t *testing.T) {
 	cases := map[string]struct {
 		dignity models.Dignity
@@ -70,7 +83,6 @@ func TestTrialIsUnfoundedOnIneligibleTargets(t *testing.T) {
 		"man":             {models.DignityHerbalist, models.SexMale, false},
 		"no dignity":      {"", models.SexFemale, false},
 		"abbess":          {models.DignityAbbess, models.SexFemale, false},
-		"hidden dignity":  {models.DignityWitch, models.SexFemale, false},
 		"married lady":    {models.DignityCastellan, models.SexFemale, true},
 		"bastard (woman)": {models.DignityBastard, models.SexFemale, false},
 	}

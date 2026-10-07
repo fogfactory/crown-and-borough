@@ -68,13 +68,16 @@ func resolveTrials(ctx *resolutionContext) {
 		event.NobleCode = models.NobleCode(noble.Code)
 		event.NobleName = ctx.state.NobleDisplayName(*noble)
 		event.TerritoryID = noble.LocationID
-		if !noble.DirectTrialTarget(married) {
+		dignity, liable := noble.TrialDignity(married)
+		if !liable {
 			event.Reason = "trial_unfounded"
 			ctx.events = append(ctx.events, event)
 			continue
 		}
 		region := regionForTerritory(ctx, noble.LocationID)
 		event.Reason = "trial_executed"
+		// The trial reveals the dignity, hidden or not.
+		event.Dignity = dignity
 		event.RegionSeed = region
 		ctx.events = append(ctx.events, event)
 		ctx.executeNoble(*noble)

@@ -265,7 +265,8 @@ action risquée, aux conséquences politiques visibles.
 **Procès direct** : une dame peut être jugée et exécutée si elle remplit
 ces trois conditions :
 
-- elle porte une dignité **visible** (publique, ou révélée par une enquête) ;
+- elle porte une dignité de dame, **publique ou cachée** (le procès révèle une
+  dignité cachée) ;
 - elle n'est **pas mariée** ;
 - elle n'est pas l'Abbesse.
 
@@ -284,7 +285,7 @@ mariage est donc une protection pour les dignités qui le permettent
 
 Le procès est jugé en **toute fin de tour**, une fois tous les autres effets
 du tour résolus. Si la cible remplit les conditions du procès direct, elle
-est exécutée : elle quitte le jeu définitivement (cause « exécution » dans la
+est exécutée, et sa dignité, cachée ou non, est révélée à tous : elle quitte le jeu définitivement (cause « exécution » dans la
 lignée) et ses fiefs, prétentions et cartes sont réglés comme pour toute
 mort. L'exécution ouvre l'opportunité de jouer une **carte révolte** (les
 armées `NEUTRAL` de révolte du GDD, § Cartes bonus et calamités) sur tout
@@ -292,7 +293,7 @@ territoire de la région (évêché) où se trouvait la dame, pendant la saison
 d'action suivante.
 
 Un procès dont la cible n'est pas éligible au moment du jugement (déjà
-exécutée par un autre procès, mariée entre-temps, dignité non visible, etc.)
+exécutée par un autre procès, mariée entre-temps, Abbesse, sans dignité, etc.)
 est non fondé : la carte est consommée et rien d'autre ne se passe.
 
 ### Statut d'implémentation (#260)
@@ -300,8 +301,8 @@ est non fondé : la carte est consommée et rien d'autre ne se passe.
 Livré : la carte événement de procès (`P PR HHH`, deck des ordres spéciaux) et
 le procès direct. Restent à livrer avec leurs dépendances : le procès sur un
 excommunié (excommunication, #235), le déclenchement par deux cardinaux
-(cardinaux et pape) et la visibilité d'une dignité cachée révélée (enquête) :
-tant que ces pouvoirs n'existent pas, une dignité cachée n'est jamais visible.
+(cardinaux et pape) et la révélation d'une dignité cachée par l'enquête. Une dignité cachée ne
+protège pas du procès direct : elle est révélée par l'exécution.
 
 ## Pouvoirs requis ailleurs
 

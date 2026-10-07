@@ -994,12 +994,11 @@ countered. No calamity resolves in winter.
   doubling for that transition turn;
 - Trial is played on a noble (`P TR NNN`), yours or an opponent's, in spring,
   summer, or autumn. It is judged at the very end of the turn, once every
-  other effect has resolved. Only an **unmarried lady carrying a visible
-  dignity**, other than the Abbess, can be tried: she is then **executed** and
-  gone for good, and Revolt becomes playable on any territory of the region
+  other effect has resolved. Only an **unmarried lady carrying a dignity**,
+  hidden or not, other than the Abbess, can be tried: the trial **reveals** her
+  dignity and she is **executed**, gone for good, and Revolt becomes playable on any territory of the region
   where she stood during the following action season. Any other trial is
-  unfounded: the card is consumed and nothing else happens. A hidden dignity
-  is not visible.
+  unfounded: the card is consumed and nothing else happens.
 
 Public rumors are recalculated in every report from the current bonus hands of
 all players. They appear when at least two players hold a card, without

@@ -830,6 +830,7 @@ export interface SeasonEffectReport {
   productionLost?: number
   rationsLost?: number
   reason?: string
+  dignity?: Dignity
 }
 
 export interface AuguryReport {

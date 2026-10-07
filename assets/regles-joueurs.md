@@ -1054,11 +1054,11 @@ ne se résout en hiver.
 - le Procès se joue sur un noble (`P PR NNN`), le vôtre ou celui d'un
   adversaire, au printemps, en été ou en automne. Il est jugé en toute fin de
   tour, une fois tous les autres effets résolus. Seule une **dame non mariée
-  portant une dignité visible**, hors Abbesse, peut être jugée : elle est
-  alors **exécutée** et ne reviendra pas, et la Révolte devient jouable sur
+  portant une dignité**, cachée ou non, hors Abbesse, peut être jugée : le
+  procès **révèle** sa dignité et elle est **exécutée** sans retour, et la Révolte devient jouable sur
   tout territoire de la région où elle se trouvait pendant la saison d'action
   suivante. Tout autre procès est non fondé : la carte est consommée et rien
-  d'autre ne se passe. Une dignité cachée n'est pas visible.
+  d'autre ne se passe.
 
 Les rumeurs publiques sont recalculées dans chaque rapport à partir des
 mains bonus actuelles de tous les joueurs. Elles apparaissent lorsqu'au

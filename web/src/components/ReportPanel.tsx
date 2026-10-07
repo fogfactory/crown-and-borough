@@ -640,15 +640,14 @@ function seasonEffectLine(
     case 'trial':
       return {
         key,
-        label: t(
+        label:
           effect.reason === 'trial_executed'
-            ? 'reports.trialExecuted'
-            : 'reports.trialUnfounded',
-          {
-            noble: effect.noble ?? '—',
-            territory: territoryLabel(map, effect.territory, t),
-          },
-        ),
+            ? t('reports.trialExecuted', {
+                noble: effect.noble ?? '—',
+                territory: territoryLabel(map, effect.territory, t),
+                dignity: t(`dignity.${effect.dignity ?? 'bastard'}`),
+              })
+            : t('reports.trialUnfounded', { noble: effect.noble ?? '—' }),
       }
     case 'plague_noble_survived':
       return {

@@ -316,25 +316,27 @@ func (n Noble) SeesHostHand() bool {
 	return n.activeDignity(func(e DignityEffect) bool { return e.SeesHostHand })
 }
 
-// DirectTrialTarget reports whether the noble can be tried without prior
-// excommunication: a lady, not married, carrying a visible dignity of the
-// ladies (public: a hidden one stays out of reach until it is revealed), and
-// not exempt from the direct trial (specs/dames.md § Carte de procès).
-func (n Noble) DirectTrialTarget(married bool) bool {
-	if n.Sex != SexFemale || married {
-		return false
+// TrialDignity returns the dignity of the ladies that makes the noble liable
+// to the direct trial, hidden ones included: a trial reveals it. It reports
+// false for a noble who cannot be tried directly: not a lady, married, without
+// a dignity of the ladies, or exempt from the direct trial (the Abbess,
+// specs/dames.md § Carte de procès). A chevalier d'Éon is a lady under her
+// public male identity.
+func (n Noble) TrialDignity(married bool) (Dignity, bool) {
+	if married || (n.Sex != SexFemale && n.SecretSex != SexFemale) {
+		return "", false
 	}
-	visible := false
+	var found Dignity
 	for _, dignity := range n.Dignities {
 		effect := dignityEffects[dignity]
 		if effect.ExemptFromDirectTrial {
-			return false
+			return "", false
 		}
-		if effect.FemaleOnly && !effect.Hidden {
-			visible = true
+		if effect.FemaleOnly && found == "" {
+			found = dignity
 		}
 	}
-	return visible
+	return found, found != ""
 }
 
 // CanReceive returns why a dignity cannot be played on the noble, or
