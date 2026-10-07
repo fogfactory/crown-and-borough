@@ -2,6 +2,7 @@ package engine
 
 import (
 	"errors"
+	"slices"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
@@ -19,7 +20,12 @@ type ScoreBreakdown struct {
 	// not the active head of both houses (specs/succession.md § Poids
 	// d'alliance).
 	Alliance int `json:"alliance"`
-	Total    int `json:"total"`
+	// Ally is what the active-head spouse's house brings to a player evaluated
+	// in alliance mode: the spouse's titles plus the spouse's own marriage
+	// bonus, never the player's own contribution back, so the two sides
+	// cannot feed each other. Total = Titles + Alliance + Ally.
+	Ally  int `json:"ally"`
+	Total int `json:"total"`
 }
 
 // ComputeScores calculates the public score for every player in the state,
@@ -64,8 +70,17 @@ func ComputeScores(state *models.GameState, balance assetgen.Balance) map[models
 
 	applyMarriageBonuses(state, balance, scores)
 
+	own := make(map[models.PlayerID]int, len(scores))
 	for playerID, score := range scores {
-		score.Total = score.Titles + score.Alliance
+		own[playerID] = score.Titles + score.Alliance
+	}
+	for playerID, score := range scores {
+		if partner, locked := activeHeadPartner(state, balance, playerID); locked {
+			if partnerOwn, known := own[partner]; known {
+				score.Ally = partnerOwn
+			}
+		}
+		score.Total = own[playerID] + score.Ally
 		scores[playerID] = score
 	}
 	return scores
@@ -127,10 +142,10 @@ type VictoryStatus struct {
 }
 
 // ComputeVictoryStatus returns the thresholds and each player's victory mode.
-// No player can hold an active head yet (marriage categories and alliance
-// weights are still to come, #254), so every player is in solo mode; once a
-// head exists its owner switches to alliance mode with the spouse's player as
-// Partner and the alliance threshold as Required.
+// A player with an active head (specs/titres.md § Seuil de victoire) can never
+// win alone: they are evaluated in alliance mode against the alliance
+// threshold, with the spouse's player as Partner. Every other player is
+// evaluated against the solo threshold.
 func ComputeVictoryStatus(state *models.GameState, balance assetgen.Balance) VictoryStatus {
 	status := VictoryStatus{Players: map[models.PlayerID]PlayerVictory{}}
 	if state == nil {
@@ -138,9 +153,31 @@ func ComputeVictoryStatus(state *models.GameState, balance assetgen.Balance) Vic
 	}
 	status.SoloThreshold, status.AllianceThreshold = VictoryThresholds(balance, len(state.Players))
 	for _, player := range state.Players {
+		if partner, locked := activeHeadPartner(state, balance, player.ID); locked {
+			status.Players[player.ID] = PlayerVictory{Mode: VictoryModeAlliance, Required: status.AllianceThreshold, Partner: &partner}
+			continue
+		}
 		status.Players[player.ID] = PlayerVictory{Mode: VictoryModeSolo, Required: status.SoloThreshold}
 	}
 	return status
+}
+
+// activeHeadPartner returns the player married through player's active head,
+// and whether player has one. A head marriage between two nobles of the same
+// house locks nobody.
+func activeHeadPartner(state *models.GameState, balance assetgen.Balance, player models.PlayerID) (models.PlayerID, bool) {
+	marriage, found := ActiveHeadMarriage(state, balance, player)
+	if !found {
+		return "", false
+	}
+	houseA, houseB := marriageHouses(state, marriage)
+	if houseA == houseB {
+		return "", false
+	}
+	if houseA == player {
+		return houseB, true
+	}
+	return houseA, true
 }
 
 // PlayerAlive reports whether a player still controls a territory or owns a
@@ -210,24 +247,70 @@ func VictoryThresholds(balance assetgen.Balance, playerCount int) (solo, allianc
 	return solo, alliance
 }
 
-// thresholdWinners returns the players whose title score reaches the solo
-// threshold. No player can hold an active head yet (marriage categories and
-// alliance weights are still to come), so every player is evaluated against
-// the solo threshold; the alliance threshold only applies once an active head
-// exists.
-func thresholdWinners(state *models.GameState, balance assetgen.Balance) []models.PlayerID {
-	solo, _ := VictoryThresholds(balance, len(state.Players))
-	if solo < 1 {
-		return nil
-	}
+// victoryUnit is what is scored against a threshold: one player without an
+// active head against the solo threshold, or the two spouses of an active head
+// with their combined score against the alliance threshold.
+type victoryUnit struct {
+	players  []models.PlayerID
+	score    int
+	required int
+	alliance bool
+	// crown and territories break a tie on score: whether the unit holds
+	// the crown, then the territories its players control.
+	crown       bool
+	territories int
+}
+
+func (u victoryUnit) reached() bool { return u.required >= 1 && u.score >= u.required }
+
+// victoryUnits lists the units of the state, one per solo player and one per
+// alliance (deduplicated when both spouses have the marriage as active head).
+func victoryUnits(state *models.GameState, balance assetgen.Balance) []victoryUnit {
+	solo, alliance := VictoryThresholds(balance, len(state.Players))
 	scores := ComputeScores(state, balance)
-	var reached []models.PlayerID
+	held := map[models.PlayerID]int{}
+	for _, controller := range state.TerritoryControllers() {
+		held[controller]++
+	}
+	var units []victoryUnit
+	// The crown has no engine state yet (titles of king are still to come);
+	// crownHolder stays empty until it does.
+	var crownHolder models.PlayerID
+	seen := map[[2]models.PlayerID]bool{}
 	for _, player := range state.Players {
-		if scores[player.ID].Total >= solo {
-			reached = append(reached, player.ID)
+		partner, locked := activeHeadPartner(state, balance, player.ID)
+		if _, known := scores[partner]; !locked || !known {
+			units = append(units, victoryUnit{players: []models.PlayerID{player.ID}, score: scores[player.ID].Total, required: solo, crown: crownHolder == player.ID, territories: held[player.ID]})
+			continue
+		}
+		key := [2]models.PlayerID{player.ID, partner}
+		if partner < player.ID {
+			key = [2]models.PlayerID{partner, player.ID}
+		}
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		units = append(units, victoryUnit{
+			players:     []models.PlayerID{key[0], key[1]},
+			score:       scores[player.ID].Total, // already includes the ally's share
+			required:    alliance,
+			alliance:    true,
+			crown:       crownHolder != "" && (crownHolder == key[0] || crownHolder == key[1]),
+			territories: held[player.ID] + held[partner],
+		})
+	}
+	return units
+}
+
+// thresholdReached reports whether any unit crossed its threshold.
+func thresholdReached(state *models.GameState, balance assetgen.Balance) bool {
+	for _, unit := range victoryUnits(state, balance) {
+		if unit.reached() {
+			return true
 		}
 	}
-	return reached
+	return false
 }
 
 // GameFinished reports whether a state has reached an elimination, supremacy
@@ -243,53 +326,175 @@ func GameFinished(state *models.GameState, balance assetgen.Balance) bool {
 			alive++
 		}
 	}
-	return alive <= 1 || len(thresholdWinners(state, balance)) > 0 ||
+	return alive <= 1 || thresholdReached(state, balance) ||
 		(state.YearCount > 0 && state.Turn > state.YearCount*4)
 }
 
-// WinnerForFinishedGame returns the winner once GameFinished is true. A sole
-// survivor wins immediately; otherwise, among the players that crossed the
-// supremacy threshold (or, at the duration limit, among all players) the
-// highest title score wins. An exact tie for the top score has no winner.
-// Major/minor victory (#254) will refine this.
-func WinnerForFinishedGame(state *models.GameState, balance assetgen.Balance) *models.PlayerID {
+// VictoryOutcome is the result of a finished game (specs/titres.md § Victoire
+// majeure, victoire mineure, échec). Major lists the major winners: one
+// player, or the two spouses of a winning alliance with no hierarchy between
+// them. Minor is the single minor winner, if any; every other player fails.
+type VictoryOutcome struct {
+	Major []models.PlayerID `json:"major"`
+	Minor *models.PlayerID  `json:"minor,omitempty"`
+}
+
+// ResolveVictory returns the outcome once GameFinished is true. A sole
+// survivor wins immediately; otherwise, among the units that crossed their
+// threshold (or, at the duration limit, among all units) the highest score
+// wins, ties resolved by compareUnits; units still tied are all major winners. The minor victory goes to
+// the player best linked, through a chain of marriages, to a major winner.
+func ResolveVictory(state *models.GameState, balance assetgen.Balance) VictoryOutcome {
+	outcome := VictoryOutcome{Major: []models.PlayerID{}}
 	if state == nil || !GameFinished(state, balance) {
-		return nil
+		return outcome
 	}
-	alive := make([]models.PlayerID, 0, len(state.Players))
+	var alive []models.PlayerID
 	for _, player := range state.Players {
 		if PlayerAlive(state, player.ID) {
 			alive = append(alive, player.ID)
 		}
 	}
 	if len(alive) == 1 {
-		winner := alive[0]
-		return &winner
+		outcome.Major = alive
+		return outcome
 	}
 
-	candidates := thresholdWinners(state, balance)
-	if len(candidates) == 0 {
-		candidates = make([]models.PlayerID, 0, len(state.Players))
-		for _, player := range state.Players {
-			candidates = append(candidates, player.ID)
+	units := victoryUnits(state, balance)
+	var candidates []victoryUnit
+	for _, unit := range units {
+		if unit.reached() {
+			candidates = append(candidates, unit)
 		}
 	}
-	scores := ComputeScores(state, balance)
+	reachedThreshold := len(candidates) > 0
+	if !reachedThreshold {
+		candidates = units
+	}
+	// Several units crossing their threshold at once: a solo win beats an
+	// alliance win, then the higher score, then the crown, then the most
+	// territories. Units still tied share the victory. A game where nobody
+	// holds a title has no winner.
+	var best []victoryUnit
+	for _, unit := range candidates {
+		if len(best) == 0 {
+			best = []victoryUnit{unit}
+			continue
+		}
+		switch compareUnits(unit, best[0], reachedThreshold) {
+		case 1:
+			best = []victoryUnit{unit}
+		case 0:
+			best = append(best, unit)
+		}
+	}
+	if len(best) == 0 || best[0].score == 0 {
+		return outcome
+	}
+	for _, unit := range best {
+		for _, id := range unit.players {
+			if !slices.Contains(outcome.Major, id) {
+				outcome.Major = append(outcome.Major, id)
+			}
+		}
+	}
+	outcome.Minor = minorWinner(state, balance, outcome.Major)
+	return outcome
+}
+
+// compareUnits returns 1 when a beats b, -1 when b beats a and 0 on a tie.
+// soloFirst ranks a solo unit above an alliance one.
+func compareUnits(a, b victoryUnit, soloFirst bool) int {
+	if soloFirst && a.alliance != b.alliance {
+		if a.alliance {
+			return -1
+		}
+		return 1
+	}
+	for _, pair := range [3][2]int{{a.score, b.score}, {boolInt(a.crown), boolInt(b.crown)}, {a.territories, b.territories}} {
+		if pair[0] != pair[1] {
+			if pair[0] > pair[1] {
+				return 1
+			}
+			return -1
+		}
+	}
+	return 0
+}
+
+func boolInt(v bool) int {
+	if v {
+		return 1
+	}
+	return 0
+}
+
+// minorWinner picks, among the players linked to a major winner by a chain of
+// active marriages of any category, the one whose strongest link into that
+// chain has the highest alliance weight. A tie has no minor winner.
+func minorWinner(state *models.GameState, balance assetgen.Balance, major []models.PlayerID) *models.PlayerID {
+	type link struct {
+		a, b   models.PlayerID
+		weight int
+	}
+	var links []link
+	for _, marriage := range state.Marriages {
+		weight, ok := AllianceWeight(state, balance, marriage)
+		houseA, houseB := marriageHouses(state, marriage)
+		if ok && houseA != houseB {
+			links = append(links, link{houseA, houseB, weight})
+		}
+	}
+	reached := map[models.PlayerID]bool{}
+	for _, id := range major {
+		reached[id] = true
+	}
+	for grew := true; grew; {
+		grew = false
+		for _, l := range links {
+			if reached[l.a] != reached[l.b] {
+				reached[l.a], reached[l.b] = true, true
+				grew = true
+			}
+		}
+	}
+	isMajor := map[models.PlayerID]bool{}
+	for _, id := range major {
+		isMajor[id] = true
+	}
+	best := map[models.PlayerID]int{}
+	for _, l := range links {
+		for _, side := range [2][2]models.PlayerID{{l.a, l.b}, {l.b, l.a}} {
+			if reached[side[0]] && !isMajor[side[0]] && reached[side[1]] {
+				best[side[0]] = max(best[side[0]], l.weight)
+			}
+		}
+	}
 	var winner models.PlayerID
-	highest := -1
-	tied := false
-	for _, id := range candidates {
-		score := scores[id].Total
-		if score > highest {
-			winner = id
-			highest = score
-			tied = false
-		} else if score == highest {
+	top, tied := -1, false
+	for _, player := range state.Players {
+		weight, linked := best[player.ID]
+		switch {
+		case !linked:
+		case weight > top:
+			winner, top, tied = player.ID, weight, false
+		case weight == top:
 			tied = true
 		}
 	}
-	if tied || winner == "" {
+	if tied || top < 0 {
 		return nil
 	}
 	return &winner
+}
+
+// WinnerForFinishedGame returns the sole major winner once GameFinished is
+// true, or nil when nobody won or two spouses won jointly (see ResolveVictory
+// for the full outcome).
+func WinnerForFinishedGame(state *models.GameState, balance assetgen.Balance) *models.PlayerID {
+	outcome := ResolveVictory(state, balance)
+	if len(outcome.Major) != 1 {
+		return nil
+	}
+	return &outcome.Major[0]
 }

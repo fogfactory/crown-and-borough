@@ -63,18 +63,24 @@ export function Scoreboard({
                 {scoreKeys
                   .filter(([key]) => key !== 'alliance' || (score.alliance ?? 0) > 0)
                   .map(([key, labelKey]) => (
-                  <div key={key} className="contents">
-                    <dt className="text-[#806f57]">{t(labelKey)}</dt>
-                    <dd className="text-right font-medium">{score[key] ?? 0}</dd>
+                    <div key={key} className="contents">
+                      <dt className="text-[#806f57]">{t(labelKey)}</dt>
+                      <dd className="text-right font-medium">{score[key] ?? 0}</dd>
+                    </div>
+                  ))}
+                {goal?.mode === 'alliance' && goal.partner && (
+                  <div className="contents" data-testid={`ally-${player.id}`}>
+                    <dt className="text-[#806f57]">
+                      {t('score.ally', { partner: playerName(goal.partner) })}
+                    </dt>
+                    <dd className="text-right font-medium">{score.ally ?? 0}</dd>
                   </div>
-                ))}
+                )}
               </dl>
               {goal && (
                 <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
                   <span className="text-[#806f57]">
-                    {t(goal.mode === 'alliance' ? 'score.goalCombined' : 'score.goal', {
-                      required: goal.required,
-                    })}
+                    {t('score.goal', { required: goal.required })}
                   </span>
                   <span
                     data-testid={`victory-mode-${player.id}`}
@@ -84,10 +90,9 @@ export function Scoreboard({
                         : 'border-[#b8860b] bg-[#f8e8ae] text-[#6b4e0a]'
                     }`}
                   >
-                    {t(goal.mode === 'alliance' ? 'score.modeAlliance' : 'score.modeSolo')}
-                    {goal.mode === 'alliance' && goal.partner
-                      ? ` ${t('score.alliancePartner', { partner: playerName(goal.partner) })}`
-                      : ''}
+                    {t(
+                      goal.mode === 'alliance' ? 'score.modeAlliance' : 'score.modeSolo',
+                    )}
                   </span>
                 </div>
               )}

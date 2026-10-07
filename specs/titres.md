@@ -312,8 +312,14 @@ titres de roi et de pape est différée à l'issue de calibrage.
 - **Échec** : tout joueur restant, éliminé ou non, qui n'obtient ni victoire
   majeure ni victoire mineure.
 
-Une égalité stricte de score entre deux joueurs ou alliances non mariés ne
-désigne aucun vainqueur officiel, comme au GDD §9.
+Lorsque plusieurs joueurs ou alliances remplissent la condition de victoire
+au même hiver, ils sont départagés dans cet ordre : une victoire solo l'emporte
+sur une victoire d'alliance ; puis le score le plus élevé ; puis celui (ou
+l'alliance) qui détient le titre de roi ; puis celui qui cumule le plus de
+territoires (les deux époux additionnés pour une alliance). Si l'égalité persiste
+sur tous ces critères, les joueurs ou alliances restants sont vainqueurs
+majeurs ex æquo. Une partie où personne ne détient de titre (0-0) n'a aucun
+vainqueur.
 
 ### Titres de courtoisie
 

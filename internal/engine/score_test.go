@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"slices"
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
@@ -356,5 +357,138 @@ func TestComputeScoresNonActiveHeadIsInfluenceMarriage(t *testing.T) {
 	}
 	if got := scores["P2"].Alliance; got != 2 {
 		t.Errorf("P2 alliance bonus = %d, want 2", got)
+	}
+}
+
+// victoryMarriageState is a three-player game (solo threshold 3, alliance 4)
+// where P1 and P2 are joined by a head marriage (N1-N3, weight 3) and P3 by a
+// weaker marriage to P2 (N5-N4, weight 2). P1 holds p1Fiefs fiefs and P2
+// p2Fiefs.
+func victoryMarriageState(p1Fiefs, p2Fiefs int) (*models.GameState, assetgen.Balance) {
+	balance := victoryBalance()
+	balance.Alliance = allianceBalance().Alliance
+	balance.Alliance.HeadMinWeight = 3
+	state := &models.GameState{
+		Turn:      1,
+		YearCount: 10,
+		Players:   []models.Player{{ID: "P1"}, {ID: "P2"}, {ID: "P3"}},
+		Nobles: []models.Noble{
+			{ID: "N1", OwnerID: "P1", Sex: models.SexMale},
+			{ID: "N3", OwnerID: "P2", Sex: models.SexFemale},
+			{ID: "N4", OwnerID: "P2", Sex: models.SexFemale},
+			{ID: "N5", OwnerID: "P3", Sex: models.SexFemale},
+		},
+		Armies: []models.Army{{ID: "A3", OwnerID: "P3", TerritoryID: "AAA", Size: 1}},
+		Marriages: []models.Marriage{
+			{NobleA: "N1", NobleB: "N3"},
+			{NobleA: "N5", NobleB: "N4"},
+		},
+	}
+	for owner, count := range map[models.PlayerID]int{"P1": p1Fiefs, "P2": p2Fiefs} {
+		for i := 0; i < count; i++ {
+			state.Fiefs = append(state.Fiefs, models.Fief{
+				ID: models.FiefID(fmt.Sprintf("%s-F%d", owner, i)), OwnerID: owner, Title: models.FiefTitleBarony,
+			})
+		}
+	}
+	return state, balance
+}
+
+func TestActiveHeadLocksPlayerToAllianceThreshold(t *testing.T) {
+	state, balance := victoryMarriageState(3, 0)
+	status := ComputeVictoryStatus(state, balance)
+	if got := status.Players["P1"]; got.Mode != VictoryModeAlliance || got.Required != 4 || got.Partner == nil || *got.Partner != "P2" {
+		t.Fatalf("P1 victory = %+v, want alliance requiring 4 with partner P2", got)
+	}
+	if got := status.Players["P3"]; got.Mode != VictoryModeSolo {
+		t.Fatalf("P3 victory = %+v, want solo", got)
+	}
+	if GameFinished(state, balance) {
+		t.Fatal("P1 reached the solo threshold but must not win alone")
+	}
+}
+
+func TestJointMajorVictoryAndMinorVictoryThroughMarriageChain(t *testing.T) {
+	state, balance := victoryMarriageState(3, 1)
+	outcome := ResolveVictory(state, balance)
+	if !slices.Equal(outcome.Major, []models.PlayerID{"P1", "P2"}) {
+		t.Fatalf("major = %v, want [P1 P2]", outcome.Major)
+	}
+	if outcome.Minor == nil || *outcome.Minor != "P3" {
+		t.Fatalf("minor = %v, want P3", outcome.Minor)
+	}
+	if winner := WinnerForFinishedGame(state, balance); winner != nil {
+		t.Fatalf("sole winner = %v, want none for a joint victory", *winner)
+	}
+
+	state.Marriages = state.Marriages[:1]
+	if outcome := ResolveVictory(state, balance); outcome.Minor != nil {
+		t.Fatalf("minor = %v, want none without a chain", *outcome.Minor)
+	}
+}
+
+func TestVictoryTieBreaksOnTerritories(t *testing.T) {
+	balance := victoryBalance()
+	state := thresholdState(2)
+	state.Fiefs = append(state.Fiefs, models.Fief{ID: "G", Title: models.FiefTitleBarony, OwnerID: "P2"},
+		models.Fief{ID: "G2", Title: models.FiefTitleBarony, OwnerID: "P2"})
+	if winner := WinnerForFinishedGame(state, balance); winner != nil {
+		t.Fatalf("winner = %v, want none on equal score and territories", *winner)
+	}
+	state.Fiefs[0].Territories = []models.TerritoryID{"AAA"}
+	state.Fiefs[1].Territories = []models.TerritoryID{"BBB"}
+	state.Fiefs[2].Territories = []models.TerritoryID{"CCC"}
+	state.Territories = append(state.Territories, models.Territory{ID: "CCC"})
+	if winner := WinnerForFinishedGame(state, balance); winner == nil || *winner != "P1" {
+		t.Fatalf("winner = %v, want P1 with more territories", winner)
+	}
+}
+
+func TestSoloVictoryBeatsAllianceVictory(t *testing.T) {
+	state, balance := victoryMarriageState(3, 1)
+	for i := 0; i < 3; i++ {
+		state.Fiefs = append(state.Fiefs, models.Fief{
+			ID: models.FiefID(fmt.Sprintf("P3-F%d", i)), OwnerID: "P3", Title: models.FiefTitleBarony,
+		})
+	}
+	outcome := ResolveVictory(state, balance)
+	if !slices.Equal(outcome.Major, []models.PlayerID{"P3"}) {
+		t.Fatalf("major = %v, want [P3]: solo beats alliance", outcome.Major)
+	}
+}
+
+func TestTiedUnitsShareMajorVictory(t *testing.T) {
+	balance := victoryBalance()
+	state := thresholdState(2)
+	for i := 0; i < 2; i++ {
+		state.Fiefs = append(state.Fiefs, models.Fief{
+			ID: models.FiefID(fmt.Sprintf("Q%d", i)), Title: models.FiefTitleBarony, OwnerID: "P2",
+		})
+	}
+	outcome := ResolveVictory(state, balance)
+	if !slices.Equal(outcome.Major, []models.PlayerID{"P1", "P2"}) {
+		t.Fatalf("major = %v, want [P1 P2] sharing the victory", outcome.Major)
+	}
+	if winner := WinnerForFinishedGame(state, balance); winner != nil {
+		t.Fatalf("sole winner = %v, want none when tied", *winner)
+	}
+}
+
+func TestAllyShareIsPartnerOwnScoreWithoutRecursion(t *testing.T) {
+	state, balance := victoryMarriageState(3, 1)
+	scores := ComputeScores(state, balance)
+	// P2: 1 title + 3 from the influence marriage with P3 (3 titles later).
+	state.Fiefs = append(state.Fiefs, models.Fief{ID: "P3-F0", OwnerID: "P3", Title: models.FiefTitleBarony},
+		models.Fief{ID: "P3-F1", OwnerID: "P3", Title: models.FiefTitleBarony}, models.Fief{ID: "P3-F2", OwnerID: "P3", Title: models.FiefTitleBarony})
+	scores = ComputeScores(state, balance)
+	p1, p2 := scores["P1"], scores["P2"]
+	if p1.Titles != 3 || p1.Alliance != 0 || p1.Ally != 4 || p1.Total != 7 {
+		t.Fatalf("P1 = %+v, want titles 3, ally 4 (P2: 1 title + 3 influence), total 7", p1)
+	}
+	if p2.Titles != 1 || p2.Alliance != 3 || p2.Ally != 3 || p2.Total != 7 {
+		t.Fatalf("P2 = %+v, want titles 1, alliance 3, ally 3 (P1's titles only), total 7", p2)
+	}
+	if scores["P3"].Ally != 0 {
+		t.Fatalf("P3 is solo, ally = %d, want 0", scores["P3"].Ally)
 	}
 }

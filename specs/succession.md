@@ -280,11 +280,13 @@ Le poids du couple classe le mariage en catégorie, par seuil
 
 ### Tête active
 
-Un joueur peut détenir plusieurs mariages tête simultanément, portés par des
-nobles différents. Un seul est actif à la fois pour la victoire commune :
-celui au poids d'alliance le plus élevé. Les autres têtes du même joueur
-comptent alors comme des mariages d'influence (titres de la famille du conjoint, sans victoire
-commune) tant qu'une tête supérieure reste active.
+La catégorie d'un mariage est la même pour les deux maisons. Une maison n'a
+au plus qu'une tête active, et un mariage tête l'est pour ses deux maisons ou
+pour aucune. Les mariages tête sont attribués par poids d'alliance décroissant
+(à égalité, le plus ancien d'abord) : un mariage tête n'est retenu que si
+aucune de ses deux maisons n'a déjà une tête. Tous les autres mariages de
+poids tête comptent comme des mariages mixtes pour les deux maisons (titres de
+la famille du conjoint, sans victoire commune).
 
 La tête active change dynamiquement, sans jamais nécessiter de déclaration du
 joueur :
