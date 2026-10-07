@@ -849,7 +849,14 @@ export function GamePage() {
               ),
             )}
           >
-            <Scoreboard players={state.players} scores={state.scores ?? summary.scores} victory={state.victory} />
+            <Scoreboard
+              players={state.players}
+              scores={state.scores ?? summary.scores}
+              victory={state.victory}
+              finished={state.finished}
+              winners={state.winners}
+              minorWinner={state.minorWinner}
+            />
           </HeaderPopover>
 <LineageDialog
   players={state.players}

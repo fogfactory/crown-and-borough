@@ -659,6 +659,9 @@ function AppContent() {
                     players={state.players}
                     scores={state.scores}
                     victory={state.victory}
+                    finished={state.finished}
+                    winners={state.winners}
+                    minorWinner={state.minorWinner}
                   />
                 </HeaderPopover>
                 <LineageDialog

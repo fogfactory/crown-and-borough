@@ -17,10 +17,16 @@ export function Scoreboard({
   players,
   scores,
   victory,
+  finished,
+  winners,
+  minorWinner,
 }: {
   players: Player[]
   scores?: Record<string, ScoreBreakdown>
   victory?: VictoryStatus
+  finished?: boolean
+  winners?: string[]
+  minorWinner?: string | null
 }) {
   const { t } = useLanguage()
   const playerName = (id: string) => players.find((p) => p.id === id)?.name || id
@@ -41,6 +47,18 @@ export function Scoreboard({
         {players.map((player) => {
           const score = scores?.[player.id] ?? emptyScore
           const goal = victory?.players[player.id]
+          // A player is covered by a major victory directly or through the
+          // spouse sharing their joint win.
+          const outcome = finished
+            ? winners?.includes(player.id) ||
+              (goal?.partner !== undefined && winners?.includes(goal.partner))
+              ? 'Major'
+              : minorWinner === player.id
+                ? 'Minor'
+                : 'Failure'
+            : goal && goal.required >= 1 && score.total >= goal.required
+              ? 'Reached'
+              : null
           return (
             <li
               key={player.id}
@@ -94,6 +112,22 @@ export function Scoreboard({
                       goal.mode === 'alliance' ? 'score.modeAlliance' : 'score.modeSolo',
                     )}
                   </span>
+                  {outcome && (
+                    <span
+                      data-testid={`victory-status-${player.id}`}
+                      className={`rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] ${
+                        outcome === 'Major'
+                          ? 'border-[#b8860b] bg-[#f8e8ae] text-[#6b4e0a]'
+                          : outcome === 'Failure'
+                            ? 'border-[#a84632]/50 bg-[#f4d9d2] text-[#7a2b1c]'
+                            : 'border-[#8a929b] bg-[#e4e7ea] text-[#3f464d]'
+                      }`}
+                    >
+                      {t(
+                        `score.${outcome === 'Reached' ? 'goalReached' : `outcome${outcome}`}` as MessageKey,
+                      )}
+                    </span>
+                  )}
                 </div>
               )}
             </li>

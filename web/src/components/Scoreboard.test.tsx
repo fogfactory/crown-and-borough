@@ -91,4 +91,35 @@ describe('Scoreboard', () => {
     expect(screen.getByTestId('ally-P2')).toHaveTextContent('Ally (Alice)')
     expect(screen.getByTestId('ally-P2')).toHaveTextContent('1')
   })
+
+  it('shows major, minor and failure outcomes once the game is finished', () => {
+    render(
+      <LanguageProvider initialLanguage="en">
+        <Scoreboard
+          players={[
+            { id: 'P1', name: 'Alice', color: '#a84632' },
+            { id: 'P2', name: 'Bob', color: '#325ca8' },
+            { id: 'P3', name: 'Carol', color: '#32a85c' },
+          ]}
+          scores={{ P1: { total: 5 }, P2: { total: 3 }, P3: { total: 1 } }}
+          victory={{
+            soloThreshold: 4,
+            allianceThreshold: 6,
+            players: {
+              P1: { mode: 'solo', required: 4 },
+              P2: { mode: 'solo', required: 4 },
+              P3: { mode: 'solo', required: 4 },
+            },
+          }}
+          finished
+          winners={['P1']}
+          minorWinner="P2"
+        />
+      </LanguageProvider>,
+    )
+
+    expect(screen.getByTestId('victory-status-P1')).toHaveTextContent('Major victory')
+    expect(screen.getByTestId('victory-status-P2')).toHaveTextContent('Minor victory')
+    expect(screen.getByTestId('victory-status-P3')).toHaveTextContent('Defeat')
+  })
 })
