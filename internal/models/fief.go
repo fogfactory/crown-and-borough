@@ -33,6 +33,16 @@ type TaxedFief struct {
 	Turn   int    `json:"turn"`
 }
 
+// TrialRevoltWindow records the revolt opportunity an executed trial opens
+// on the region (bishopric) where the executed noble stood (specs/dames.md
+// § Carte de procès): a revolt card may target any territory of the region
+// during the action season of turn FromTurn, the first one after the
+// execution. Turn is the absolute GameState.Turn counter.
+type TrialRevoltWindow struct {
+	RegionSeed TerritoryID `json:"regionSeed"`
+	FromTurn   int         `json:"fromTurn"`
+}
+
 // courtesyTitles maps a fief title to the form of address of its holder, by
 // sex. A noble holding no fief is a "Sieur" or a "Dame".
 var courtesyTitles = map[FiefTitle][2]string{

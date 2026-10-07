@@ -955,7 +955,10 @@ dans la feuille `winter`.
   mauvaise récolte active affecte sa région, ou si une taxe seigneuriale a
   été jouée sur la capitale du fief auquel BRU appartient ce tour-ci ou le
   tour précédent — tout territoire du fief est alors éligible, pas seulement
-  sa capitale taxée ;
+  sa capitale taxée, ou si un procès a exécuté une dame dans la région de BRU
+  à la saison d'action précédente ;
+- `P PR NNN` : jouer Procès sur le noble de code NNN — adverse ou non —, jugé
+  à la fin du tour (voir plus bas) ;
 - `P TX BRU` : jouer la Taxe seigneuriale sur BRU, à condition que BRU soit
   la capitale d'un fief que le joueur détient (vacant compris) — c'est la
   seule exception où la cible n'est pas le village seed d'une région ;
@@ -964,7 +967,7 @@ dans la feuille `winter`.
 La main est reconstituée automatiquement en hiver après les ordres d'hiver et
 les défausses ; aucun ordre de pioche n'est nécessaire.
 
-Beau temps, Bonne récolte, Révolte et Taxe seigneuriale sont jouables au
+Beau temps, Bonne récolte, Révolte, Taxe seigneuriale et Procès sont jouables au
 printemps, en été et en automne, mais pas en hiver. Les cartes jouées sont
 consommées avant la résolution des ordres d'armée. Beau temps annule
 uniquement le mauvais temps, Bonne récolte annule uniquement la mauvaise
@@ -992,8 +995,9 @@ Le deck contient **{{special_orders.deck_size}} cartes** :
 mauvais temps, **{{special_orders.card.famine}}** mauvaise récolte,
 **{{special_orders.card.fair_weather}}** beau temps,
 **{{special_orders.card.abundant_harvest}}** bonne récolte,
-**{{special_orders.card.revolt}}** révolte et
-**{{special_orders.card.seigneurial_tax}}** taxe seigneuriale. La main est limitée à
+**{{special_orders.card.revolt}}** révolte,
+**{{special_orders.card.seigneurial_tax}}** taxe seigneuriale et
+**{{special_orders.card.trial}}** procès. La main est limitée à
 **{{special_orders.hand_limit}} cartes**, cartes de noble et de dignité
 comprises. Après ses ordres d'hiver et ses défausses, chaque joueur reçoit
 automatiquement des cartes bonus, jusqu'à
@@ -1024,7 +1028,9 @@ ne se résout en hiver.
   d'action, à condition que sa région subisse une mauvaise récolte, ou
   qu'une Taxe seigneuriale ait été jouée sur la capitale du fief du
   territoire ce tour-ci ou le tour précédent — tout territoire du fief est
-  alors éligible, pas seulement sa capitale taxée. Chaque
+  alors éligible, pas seulement sa capitale taxée —, ou qu'un Procès ait
+  exécuté une dame dans sa région : tout territoire de cette région est alors
+  éligible pendant la saison d'action qui suit l'exécution. Chaque
   carte ajoute un jet entre **{{special_orders.effects.revolt_army_min_size}}**
   et **{{special_orders.effects.revolt_army_max_size}}** troupes à l'armée
   neutre commune du territoire ; le territoire peut être neutre (simple
@@ -1044,7 +1050,15 @@ ne se résout en hiver.
   est pas la capitale. Deux cartes jouées sur le même fief le même tour ne se
   cumulent pas : la seconde est consommée sans effet. Si la capitale du fief
   taxé est capturée pendant ce même tour, la taxe est annulée : personne ne
-  touche le doublement pour ce tour de transition.
+  touche le doublement pour ce tour de transition ;
+- le Procès se joue sur un noble (`P PR NNN`), le vôtre ou celui d'un
+  adversaire, au printemps, en été ou en automne. Il est jugé en toute fin de
+  tour, une fois tous les autres effets résolus. Seule une **dame non mariée
+  portant une dignité visible**, hors Abbesse, peut être jugée : elle est
+  alors **exécutée** et ne reviendra pas, et la Révolte devient jouable sur
+  tout territoire de la région où elle se trouvait pendant la saison d'action
+  suivante. Tout autre procès est non fondé : la carte est consommée et rien
+  d'autre ne se passe. Une dignité cachée n'est pas visible.
 
 Les rumeurs publiques sont recalculées dans chaque rapport à partir des
 mains bonus actuelles de tous les joueurs. Elles apparaissent lorsqu'au

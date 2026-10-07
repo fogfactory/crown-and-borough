@@ -285,6 +285,7 @@ const englishMessages = {
   'card.bad_weather': 'Bad weather',
   'card.famine': 'Bad harvest',
   'card.seigneurial_tax': 'Seigneurial tax',
+  'card.trial': 'Trial',
   'card.short.fair_weather': 'FW',
   'card.short.abundant_harvest': 'AH',
   'card.short.revolt': 'RV',
@@ -292,6 +293,7 @@ const englishMessages = {
   'card.short.bad_weather': 'BW',
   'card.short.famine': 'BH',
   'card.short.seigneurial_tax': 'ST',
+  'card.short.trial': 'TR',
   'orders.noNobleAvailable': 'No noble is available for this player.',
   'orders.chainAria': 'Chain for {noble}',
   'orders.noEmittingNoble': 'No noble can emit: action orders are not required.',
@@ -359,6 +361,8 @@ const englishMessages = {
     'Neutral army of {count} troop raised at {territory}',
   'reports.plagueDeath': 'Noble {noble} died from plague at {territory}',
   'reports.plagueSurvived': 'Noble {noble} at {territory} survived the plague',
+  'reports.trialExecuted': 'Noble {noble} was tried and executed at {territory}',
+  'reports.trialUnfounded': 'The trial of noble {noble} was unfounded: nobody was executed',
   'reports.neutralFamine':
     'Starving neutral army at {territory}: {before} → {after} troops',
   'reports.cardCanceled': '{player}: {card} canceled at {territory}',
@@ -653,7 +657,7 @@ const englishMessages = {
     "`XXX T YYY N` executes after supply, once per army per turn — the army then performs no other order. `YYY` must be a castle, village, or the territory of another living player's army: a bare supply depot cannot receive. The route follows the donor's supply range (3 territories, plus any controlled depots along the way); an enemy army on an intermediate territory blocks the transfer, but an enemy army at the destination does not. The amount is capped at `2^(N - 1)` for an army of `N` troops, and a famished army cannot transfer at all. If the stock is insufficient, a `single` transfer simply fails with no effect and the chain continues; in `loop`, the order keeps retrying and sends whatever remains as a partial delivery once the stock drops below the requested amount.",
   'faq.q12': 'How do special cards and calamities apply?',
   'faq.a12':
-    'Calamities (plague, bad weather, bad harvest) are drawn automatically and programmed ahead of time into a season slot of the following year; they are announced as soon as they are drawn and apply on their own, without you playing a card. Your bonus cards (fair weather, abundant harvest, revolt) are played instead, with an order in the `special` field — no noble needed — in spring, summer, or autumn, never in winter. Fair weather only cancels bad weather, and abundant harvest only cancels bad harvest; a card that cancels a calamity does not also grant its regional bonus. Weather acts on mills: bad weather stops them, fair weather doubles their production. The harvest acts on the land: bad harvest removes terrain rations and territory income, abundant harvest doubles them. If several cards of the same kind are played on the same region, only one is effective: with an active calamity the first cancels it and a second applies the bonus, without a calamity the first applies it directly — the rest are consumed with no effect. Revolt (`P RV TER`) requires an active bad harvest in the region, or a seigneurial tax played on the capital of the territory\'s fief this turn or the previous one (see the next question): it raises a neutral army, or, if the territory is occupied, triggers a combat where the loser retreats or is destroyed.',
+    'Calamities (plague, bad weather, bad harvest) are drawn automatically and programmed ahead of time into a season slot of the following year; they are announced as soon as they are drawn and apply on their own, without you playing a card. Your bonus cards (fair weather, abundant harvest, revolt) are played instead, with an order in the `special` field — no noble needed — in spring, summer, or autumn, never in winter. Fair weather only cancels bad weather, and abundant harvest only cancels bad harvest; a card that cancels a calamity does not also grant its regional bonus. Weather acts on mills: bad weather stops them, fair weather doubles their production. The harvest acts on the land: bad harvest removes terrain rations and territory income, abundant harvest doubles them. If several cards of the same kind are played on the same region, only one is effective: with an active calamity the first cancels it and a second applies the bonus, without a calamity the first applies it directly — the rest are consumed with no effect. Revolt (`P RV TER`) requires an active bad harvest in the region, a seigneurial tax played on the capital of the territory\'s fief this turn or the previous one (see the next question), or a trial that executed a lady in the territory\'s region last season (`P PR NNN`, or `P TR NNN`, puts the noble with code NNN on trial: only an unmarried lady with a visible dignity, other than the Abbess, is executed — any other trial is unfounded and its card is spent; the revolt may then be played on that region during the next action season): it raises a neutral army, or, if the territory is occupied, triggers a combat where the loser retreats or is destroyed.',
   'faq.q14': 'Why is the projected famine risk only an estimate?',
   'faq.a14':
     "The command post replays the same ravitaillement resolution used at the end of the turn, including how several of your armies split a shared source's stock, so it flags exactly the armies that would starve if nothing changes. It stays an estimate for two reasons outside its control: it always assumes a normal harvest, since a bad harvest or bad weather card already drawn for this season, but not yet revealed, never changes this projection; and it assumes your orders stay exactly as currently drafted, since it runs before you submit them and cannot foresee a last-minute transfer, dispersal, or new infrastructure that would change the outcome. It is never shown in winter, since ravitaillement does not happen then.",
@@ -1065,6 +1069,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'card.abundant_harvest': 'Bonne récolte',
   'card.revolt': 'Révolte',
   'card.seigneurial_tax': 'Taxe seigneuriale',
+  'card.trial': 'Procès',
   'card.plague': 'Peste',
   'card.bad_weather': 'Mauvais temps',
   'card.famine': 'Mauvaise récolte',
@@ -1075,6 +1080,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'card.short.bad_weather': 'MT',
   'card.short.famine': 'MR',
   'card.short.seigneurial_tax': 'TX',
+  'card.short.trial': 'PR',
   'orders.noNobleAvailable': 'Aucun noble disponible pour ce joueur.',
   'orders.chainAria': 'Chaîne de {noble}',
   'orders.noEmittingNoble':
@@ -1141,6 +1147,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.neutralArmyCreatedTroop': 'Armée neutre de {count} troupe créée à {territory}',
   'reports.plagueDeath': 'Le noble {noble} meurt de la peste à {territory}',
   'reports.plagueSurvived': 'Le noble {noble} à {territory} survit à la peste',
+  'reports.trialExecuted': 'Le noble {noble} est jugé et exécuté à {territory}',
+  'reports.trialUnfounded': 'Le procès du noble {noble} est non fondé : personne n’est exécuté',
   'reports.neutralFamine':
     'Armée neutre affamée à {territory} : {before} → {after} troupes',
   'reports.cardCanceled': '{player} : {card} annulée à {territory}',
@@ -1454,7 +1462,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     '`XXX T YYY N` s’exécute après le ravitaillement, une fois par armée et par tour — elle ne fait alors aucun autre ordre. `YYY` doit être un château, un village, ou la case d’une armée d’un autre joueur vivant : un dépôt de vivres sans armée ne peut pas recevoir. La route suit la portée de ravitaillement du donneur (3 cases, plus les dépôts contrôlés rencontrés en chemin) ; toute armée adverse sur une case intermédiaire bloque le transfert, mais une armée adverse en destination ne l’empêche pas. Le montant est plafonné à `2^(N - 1)` pour une armée de `N` troupes, et une armée affamée ne peut pas transférer du tout. Si le stock est insuffisant, un transfert `single` échoue simplement sans effet et la chaîne continue ; en `loop`, l’ordre retente et envoie le reliquat en livraison partielle dès que le stock devient inférieur au montant demandé.',
   'faq.q12': 'Comment les cartes spéciales et les calamités s’appliquent-elles ?',
   'faq.a12':
-    'Les calamités (peste, mauvais temps, mauvaise récolte) sont tirées automatiquement et programmées à l’avance dans un slot saisonnier de l’année suivante ; elles s’annoncent dès leur tirage et s’appliquent d’elles-mêmes, sans que tu joues de carte. Tes cartes bonus (beau temps, bonne récolte, révolte) se jouent, elles, avec un ordre dans le champ `special` — pas besoin de noble — au printemps, en été ou en automne, jamais en hiver. Beau temps n’annule que le mauvais temps, et bonne récolte n’annule que la mauvaise récolte ; jouer une carte qui annule une calamité ne produit pas en plus son bonus régional. La météo agit sur les moulins : le mauvais temps les arrête, le beau temps double leur production. La récolte agit sur la terre : la mauvaise récolte supprime les rations de terrain et le revenu territorial, la bonne récolte les double. Si plusieurs cartes du même type sont jouées sur la même région, une seule est effective : avec une calamité active la première l’annule et une seconde applique le bonus, sans calamité la première l’applique directement — le reste est consommé sans effet. La révolte (`P RE TER`) exige qu’une mauvaise récolte affecte la région, ou qu’une taxe seigneuriale ait été jouée sur la capitale du fief du territoire ce tour-ci ou le précédent (voir la question suivante) : elle fait apparaître une armée neutre ou, si le territoire est occupé, déclenche un combat où le perdant se retire ou est détruit.',
+    'Les calamités (peste, mauvais temps, mauvaise récolte) sont tirées automatiquement et programmées à l’avance dans un slot saisonnier de l’année suivante ; elles s’annoncent dès leur tirage et s’appliquent d’elles-mêmes, sans que tu joues de carte. Tes cartes bonus (beau temps, bonne récolte, révolte) se jouent, elles, avec un ordre dans le champ `special` — pas besoin de noble — au printemps, en été ou en automne, jamais en hiver. Beau temps n’annule que le mauvais temps, et bonne récolte n’annule que la mauvaise récolte ; jouer une carte qui annule une calamité ne produit pas en plus son bonus régional. La météo agit sur les moulins : le mauvais temps les arrête, le beau temps double leur production. La récolte agit sur la terre : la mauvaise récolte supprime les rations de terrain et le revenu territorial, la bonne récolte les double. Si plusieurs cartes du même type sont jouées sur la même région, une seule est effective : avec une calamité active la première l’annule et une seconde applique le bonus, sans calamité la première l’applique directement — le reste est consommé sans effet. La révolte (`P RE TER`) exige qu’une mauvaise récolte affecte la région, qu’une taxe seigneuriale ait été jouée sur la capitale du fief du territoire ce tour-ci ou le précédent (voir la question suivante), ou qu’un procès ait exécuté une dame dans la région du territoire (`P PR NNN` ou `P TR NNN` met en procès le noble de code NNN : seule une dame non mariée à dignité visible, hors Abbesse, est exécutée — tout autre procès est non fondé et sa carte est consommée ; la révolte peut alors être jouée sur cette région à la prochaine saison d’action) : elle fait apparaître une armée neutre ou, si le territoire est occupé, déclenche un combat où le perdant se retire ou est détruit.',
   'faq.q14': 'Pourquoi le risque de famine affiché n’est-il qu’une estimation ?',
   'faq.a14':
     'Le poste de commandement rejoue la même résolution de ravitaillement que celle appliquée en fin de tour, y compris la façon dont plusieurs de tes armées se partagent le stock d’une même source : il signale donc exactement les armées qui seraient affamées si rien ne change. Ça reste une estimation pour deux raisons hors de son contrôle : elle suppose toujours une récolte normale, puisqu’une carte de mauvaise récolte ou de mauvais temps déjà tirée pour cette saison mais pas encore révélée ne change jamais cette projection ; et elle suppose que tes ordres restent exactement tels que rédigés actuellement, puisqu’elle s’exécute avant leur soumission et ne peut pas anticiper un transfert, une dispersion ou une nouvelle infrastructure de dernière minute qui changerait l’issue. Elle n’est jamais affichée en hiver, puisque le ravitaillement n’a pas lieu à cette saison.',

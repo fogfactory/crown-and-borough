@@ -40,7 +40,10 @@ Aucun noble n'est requis :
 - `D C BT` ou `D C RA` abandonne une carte bonus, en hiver uniquement ;
 - `P BT TER` joue Beau temps au printemps, en été ou en automne ;
 - `P RA TER` joue Récolte abondante au printemps, en été ou en automne ;
-- `P RE TER` joue Révolte sur le territoire pendant ces saisons, si une mauvaise récolte affecte la région du territoire, ou si une taxe seigneuriale a été jouée sur la capitale du fief auquel appartient le territoire la saison courante ou la saison précédente ; chaque carte ajoute un jet borné à l'armée neutre commune du territoire, qui se bat contre l'occupant le cas échéant ;
+- `P RE TER` joue Révolte sur le territoire pendant ces saisons, si une mauvaise récolte affecte la région du territoire, si une taxe seigneuriale a été jouée sur la capitale du fief auquel appartient le territoire la saison courante ou la saison précédente, ou si un procès a exécuté une dame dans la région du territoire à la saison d'action précédente ; chaque carte ajoute un jet borné à l'armée neutre commune du territoire, qui se bat contre l'occupant le cas échéant ;
+- `P PR HHH` joue un Procès sur le noble HHH, par exception à la règle « `TER` est
+  le village seed d'une région » ci-dessous ; la carte est consommée à la pose et
+  le procès est jugé en fin de tour (dames.md § Carte de procès) ;
 - `P TX XXX` joue la Taxe seigneuriale (titres.md) au printemps, en été ou en
   automne ; XXX est, par exception à la règle « `TER` est le village seed
   d'une région » ci-dessous, la **capitale d'un fief** que le joueur détient
@@ -94,7 +97,8 @@ interne de la carte.
   active affecte sa région, ou si une taxe seigneuriale a été jouée sur la
   capitale du fief auquel appartient ce territoire, la saison courante ou la
   saison précédente — tout territoire du fief est alors éligible, pas
-  seulement sa capitale taxée. Elle crée des armées `NEUTRAL` sur les cases
+  seulement sa capitale taxée —, ou si un procès a exécuté une dame dans la
+  région à la saison d'action précédente. Elle crée des armées `NEUTRAL` sur les cases
   vides, selon la balance.
 
 ## Bonus régionaux

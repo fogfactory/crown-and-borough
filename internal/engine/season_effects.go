@@ -39,7 +39,7 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 	})
 	played := make(map[models.TerritoryID]map[models.CardKind]int)
 	for _, intent := range intents {
-		if intent.order.Kind == models.CardKindRevolt || intent.order.Kind == models.CardKindSeigneurialTax {
+		if intent.order.Kind == models.CardKindRevolt || intent.order.Kind == models.CardKindSeigneurialTax || intent.order.Kind == models.CardKindTrial {
 			continue
 		}
 		seed := intent.order.RegionSeed
@@ -49,7 +49,7 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 		played[seed][intent.order.Kind]++
 	}
 	for _, intent := range intents {
-		if intent.order.Kind == models.CardKindRevolt || intent.order.Kind == models.CardKindSeigneurialTax {
+		if intent.order.Kind == models.CardKindRevolt || intent.order.Kind == models.CardKindSeigneurialTax || intent.order.Kind == models.CardKindTrial {
 			continue
 		}
 		seed := intent.order.RegionSeed
@@ -132,6 +132,7 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 	// able to see a fief taxed earlier in this very same turn
 	// (titres.md "Taxe seigneuriale").
 	ctx.state.TaxedFiefs = pruneTaxedFiefs(ctx.state.TaxedFiefs, ctx.state.Turn)
+	ctx.state.TrialRevoltWindows = pruneTrialRevoltWindows(ctx.state.TrialRevoltWindows, ctx.state.Turn)
 	for _, intent := range intents {
 		if intent.order.Kind == models.CardKindSeigneurialTax {
 			applySeigneurialTax(ctx, intent.playerID, intent.order)
@@ -352,7 +353,7 @@ func applyRevolt(ctx *resolutionContext, targetTerritory models.TerritoryID, ord
 		return
 	}
 	regionSeed := regionForTerritory(ctx, targetTerritory)
-	if !ctx.famineRegions[regionSeed] && !ctx.revoltEligibleByTax(targetTerritory) {
+	if !ctx.famineRegions[regionSeed] && !ctx.revoltEligibleByTax(targetTerritory) && !ctx.revoltEligibleByTrial(targetTerritory) {
 		// Neither condition holds any more at apply time (a countered famine,
 		// or no tax window on the territory's fief): the card returns to its
 		// player's hand and the annulment is credited to them.

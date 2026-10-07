@@ -87,6 +87,7 @@ const (
 	DeckOrderKindUnknown         = "error.special.kind_unknown"
 	DeckOrderKindNotPlayable     = "error.special.kind_not_playable"
 	DeckOrderRegionUnknown       = "error.special.region_unknown"
+	DeckOrderNobleUnknown        = "error.special.noble_unknown"
 
 	ValidationUnknownNoble                 = "error.validation.unknown_noble"
 	ValidationEmptyChain                   = "error.validation.empty_chain"
@@ -190,6 +191,7 @@ func init() {
 	register(DeckOrderShape, "a special order has an invalid shape", "la forme de l'ordre spécial est invalide")
 	register(DeckOrderKindUnknown, "unknown special card kind %q", "kind de carte spéciale inconnu : %q")
 	register(DeckOrderKindNotPlayable, "card kind %q cannot be used as a player order", "le kind %q ne peut pas être joué comme ordre de joueur")
+	register(DeckOrderNobleUnknown, "noble %q does not exist", "le noble %q n'existe pas")
 	register(DeckOrderRegionUnknown, "region seed %q does not exist", "le seed de région %q n'existe pas")
 
 	register(ValidationUnknownNoble, "noble %q does not exist", "le noble %q n'existe pas")

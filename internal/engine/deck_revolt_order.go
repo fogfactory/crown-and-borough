@@ -24,6 +24,9 @@ func (revoltCardDefinition) CanPlay(ctx *ExecutionContext, order models.DeckOrde
 	if ctx.resolution.revoltEligibleByTax(order.TargetTerritoryID) {
 		return true, ""
 	}
+	if ctx.resolution.revoltEligibleByTrial(order.TargetTerritoryID) {
+		return true, ""
+	}
 	return false, "revolt_requires_famine_or_tax"
 }
 

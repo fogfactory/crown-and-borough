@@ -280,11 +280,28 @@ mariage est donc une protection pour les dignités qui le permettent
 - ou **deux cardinaux d'accord**, qui envoient chacun un ordre de procès
   (sans carte) le même hiver.
 
-### Retournement
+### Jugement et conséquences
 
-Un procès non fondé ou raté ne tue pas sa cible et offre à la place
-l'opportunité de placer une **carte révolte** (les armées `NEUTRAL` de
-révolte du GDD, § Cartes bonus et calamités), sur un territoire de l'auteur.
+Le procès est jugé en **toute fin de tour**, une fois tous les autres effets
+du tour résolus. Si la cible remplit les conditions du procès direct, elle
+est exécutée : elle quitte le jeu définitivement (cause « exécution » dans la
+lignée) et ses fiefs, prétentions et cartes sont réglés comme pour toute
+mort. L'exécution ouvre l'opportunité de jouer une **carte révolte** (les
+armées `NEUTRAL` de révolte du GDD, § Cartes bonus et calamités) sur tout
+territoire de la région (évêché) où se trouvait la dame, pendant la saison
+d'action suivante.
+
+Un procès dont la cible n'est pas éligible au moment du jugement (déjà
+exécutée par un autre procès, mariée entre-temps, dignité non visible, etc.)
+est non fondé : la carte est consommée et rien d'autre ne se passe.
+
+### Statut d'implémentation (#260)
+
+Livré : la carte événement de procès (`P PR HHH`, deck des ordres spéciaux) et
+le procès direct. Restent à livrer avec leurs dépendances : le procès sur un
+excommunié (excommunication, #235), le déclenchement par deux cardinaux
+(cardinaux et pape) et la visibilité d'une dignité cachée révélée (enquête) :
+tant que ces pouvoirs n'existent pas, une dignité cachée n'est jamais visible.
 
 ## Pouvoirs requis ailleurs
 

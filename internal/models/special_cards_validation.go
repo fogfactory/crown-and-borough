@@ -128,3 +128,21 @@ func validateActiveRegionEffects(effects []ActiveRegionEffect, regions []Region)
 	}
 	return nil
 }
+
+// validateTrialRevoltWindows checks that every revolt window an executed
+// trial opened points at a known region with a positive turn.
+func validateTrialRevoltWindows(windows []TrialRevoltWindow, regions []Region) error {
+	regionSeeds := make(map[TerritoryID]bool, len(regions))
+	for _, region := range regions {
+		regionSeeds[region.Seed] = true
+	}
+	for index, window := range windows {
+		if len(regions) != 0 && !regionSeeds[window.RegionSeed] {
+			return fmt.Errorf("models: trial revolt window %d: unknown region seed %q", index, window.RegionSeed)
+		}
+		if window.FromTurn < 1 {
+			return fmt.Errorf("models: trial revolt window %d: invalid turn %d", index, window.FromTurn)
+		}
+	}
+	return nil
+}

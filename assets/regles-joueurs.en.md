@@ -904,7 +904,10 @@ from noble chains and requiring no noble. Winter discards are written in the
 - `P RV BRU`: play Revolt on the BRU territory, when an active bad harvest
   affects its region, or when a seigneurial tax was played on the capital of
   BRU's fief this turn or the previous one — every territory of the fief is
-  then eligible, not only its taxed capital;
+  then eligible, not only its taxed capital, or when a trial executed a lady
+  in BRU's region during the previous action season;
+- `P TR NNN`: play Trial on the noble with code NNN — an opponent's or not —,
+  judged at the end of the turn (see below);
 - `P TX BRU`: play the Seigneurial tax on BRU, provided BRU is the capital of
   a fief the player controls (a vacant fief included) — the one exception
   where the target is not a region's seed village;
@@ -913,7 +916,7 @@ from noble chains and requiring no noble. Winter discards are written in the
 The hand is replenished automatically in winter after winter orders and discards; no draw order
 is needed.
 
-Fair weather, Abundant harvest, Revolt, and the Seigneurial tax can be played
+Fair weather, Abundant harvest, Revolt, the Seigneurial tax, and Trial can be played
 in spring, summer, and autumn, but not winter. Played cards are consumed
 before army-order resolution. Fair weather cancels only bad weather, and
 Abundant harvest cancels only bad harvest; a card that cancels a calamity does
@@ -939,8 +942,9 @@ The deck contains **{{special_orders.deck_size}} cards**:
 bad weather, **{{special_orders.card.famine}}** bad harvest,
 **{{special_orders.card.fair_weather}}** fair weather,
 **{{special_orders.card.abundant_harvest}}** abundant harvest,
-**{{special_orders.card.revolt}}** revolt, and
-**{{special_orders.card.seigneurial_tax}}** seigneurial tax cards. A hand is limited to
+**{{special_orders.card.revolt}}** revolt,
+**{{special_orders.card.seigneurial_tax}}** seigneurial tax, and
+**{{special_orders.card.trial}}** trial cards. A hand is limited to
 **{{special_orders.hand_limit}} cards**, noble and dignity cards included.
 After their winter orders and discards, each player automatically receives
 bonus cards, up to **{{special_orders.draw_orders_limit}} per winter** across
@@ -966,8 +970,9 @@ countered. No calamity resolves in winter.
 - Revolt is played on a territory (`P RV TER`) during action seasons,
   provided its region suffers a bad harvest, or a Seigneurial tax was played
   on the capital of the territory's fief this turn or the previous one —
-  every territory of the fief is then eligible, not only its taxed capital.
-  Each card adds a roll between
+  every territory of the fief is then eligible, not only its taxed capital —
+  or a Trial executed a lady in its region: every territory of that region is
+  then eligible during the action season that follows the execution. Each card adds a roll between
   **{{special_orders.effects.revolt_army_min_size}}** and
   **{{special_orders.effects.revolt_army_max_size}}** troops to the
   territory's common neutral army; the territory may be neutral (mere
@@ -986,7 +991,15 @@ countered. No calamity resolves in winter.
   not its capital. Two cards played on the same fief the same turn do not
   stack: the second is consumed with no effect. If the taxed fief's capital is
   captured during that same turn, the tax is canceled: nobody receives the
-  doubling for that transition turn.
+  doubling for that transition turn;
+- Trial is played on a noble (`P TR NNN`), yours or an opponent's, in spring,
+  summer, or autumn. It is judged at the very end of the turn, once every
+  other effect has resolved. Only an **unmarried lady carrying a visible
+  dignity**, other than the Abbess, can be tried: she is then **executed** and
+  gone for good, and Revolt becomes playable on any territory of the region
+  where she stood during the following action season. Any other trial is
+  unfounded: the card is consumed and nothing else happens. A hidden dignity
+  is not visible.
 
 Public rumors are recalculated in every report from the current bonus hands of
 all players. They appear when at least two players hold a card, without

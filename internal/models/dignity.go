@@ -101,6 +101,10 @@ type DignityEffect struct {
 	// RivalConsumption is the extra ration cost per turn of every army that is
 	// not the owner's in the carrier's region.
 	RivalConsumption int
+	// ExemptFromDirectTrial keeps the carrier out of reach of the direct trial:
+	// she can only be tried once excommunicated (specs/dames.md § Carte de
+	// procès).
+	ExemptFromDirectTrial bool
 	// ChangesSexToMale turns the carrier into a male noble when it is played
 	// (the chevalier d'Éon).
 	ChangesSexToMale bool
@@ -125,7 +129,7 @@ var dignityEffects = map[Dignity]DignityEffect{
 	DignityCastellan: {CardCode: DignityCastellanCardCode, FemaleOnly: true, SeesFiefOrders: true},
 	DignityAbbess: {
 		CardCode: DignityAbbessCardCode, FemaleOnly: true, RequiresUnmarried: true,
-		MarriageBlocked: true, NeedsRegion: true, SeesAbbeyOrders: true,
+		MarriageBlocked: true, NeedsRegion: true, SeesAbbeyOrders: true, ExemptFromDirectTrial: true,
 	},
 	DignityHerbalist: {
 		CardCode: DignityHerbalistCardCode, FemaleOnly: true, RequiresUnmarried: true,
@@ -310,6 +314,27 @@ func (n Noble) SeesHostOrders() bool {
 }
 func (n Noble) SeesHostHand() bool {
 	return n.activeDignity(func(e DignityEffect) bool { return e.SeesHostHand })
+}
+
+// DirectTrialTarget reports whether the noble can be tried without prior
+// excommunication: a lady, not married, carrying a visible dignity of the
+// ladies (public: a hidden one stays out of reach until it is revealed), and
+// not exempt from the direct trial (specs/dames.md § Carte de procès).
+func (n Noble) DirectTrialTarget(married bool) bool {
+	if n.Sex != SexFemale || married {
+		return false
+	}
+	visible := false
+	for _, dignity := range n.Dignities {
+		effect := dignityEffects[dignity]
+		if effect.ExemptFromDirectTrial {
+			return false
+		}
+		if effect.FemaleOnly && !effect.Hidden {
+			visible = true
+		}
+	}
+	return visible
 }
 
 // CanReceive returns why a dignity cannot be played on the noble, or

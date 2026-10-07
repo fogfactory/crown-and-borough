@@ -73,6 +73,9 @@ func cloneGameState(source *models.GameState) *models.GameState {
 	if source.TaxedFiefs != nil {
 		clone.TaxedFiefs = cloneSlice(source.TaxedFiefs)
 	}
+	if source.TrialRevoltWindows != nil {
+		clone.TrialRevoltWindows = cloneSlice(source.TrialRevoltWindows)
+	}
 	clone.SpecialDeck = cloneSpecialDeck(source.SpecialDeck)
 	clone.NobleDeck = cloneNobleDeck(source.NobleDeck)
 	if source.Auguries != nil {

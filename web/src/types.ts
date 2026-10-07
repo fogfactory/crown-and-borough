@@ -14,6 +14,7 @@ export type CardKind =
   | 'bad_weather'
   | 'famine'
   | 'seigneurial_tax'
+  | 'trial'
 
 export type OrderType =
   'attack' | 'support' | 'hold' | 'join' | 'pillage' | 'disperse' | 'transfer'
@@ -47,6 +48,7 @@ export type EventType =
   | 'neutral_army_created'
   | 'plague_noble_death'
   | 'plague_noble_survived'
+  | 'trial'
   | 'bad_weather_blocked'
   | 'famine_loss'
   | 'bad_weather_loss'

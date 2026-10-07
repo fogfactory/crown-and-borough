@@ -120,6 +120,9 @@ func resolveFromControl(game *models.GameState, balance assetgen.Balance, deckOr
 	// abandoned right after, against the control the turn settled on.
 	resolveSupply(ctx)
 	ctx.emitAbandonedControl(ctx.settledControl)
+	// Trials resolve last of all, on the world the turn settled on (specs/dames.md
+	// § Carte de procès).
+	resolveTrials(ctx)
 	if err := ctx.rebuildOccupancy(); err != nil {
 		return Resolution{}, err
 	}

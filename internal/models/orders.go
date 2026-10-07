@@ -161,6 +161,8 @@ type DeckOrder struct {
 	Kind              CardKind      `json:"kind,omitempty"`
 	RegionSeed        TerritoryID   `json:"regionSeed,omitempty"`
 	TargetTerritoryID TerritoryID   `json:"targetTerritory,omitempty"`
+	// TargetNobleID is the noble a trial card puts on trial.
+	TargetNobleID NobleID `json:"targetNoble,omitempty"`
 }
 
 func (t DeckOrderType) IsValid() bool {

@@ -84,6 +84,7 @@ special_orders:
     abundant_harvest: 3
     revolt: 1
     seigneurial_tax: 2
+    trial: 1
   effects:
     plague_army_divisor: 2
     plague_noble_mortality_percentage: 50

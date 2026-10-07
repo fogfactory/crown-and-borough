@@ -81,6 +81,16 @@ func parseDeckOrderLine(line string, lineNumber int, game *models.GameState) (mo
 		}
 		return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: kind, TargetTerritoryID: target}, nil
 	}
+	if kind == models.CardKindTrial {
+		// HHH is a noble code here, by exception to the usual "TER is a
+		// region's seed village" rule (specs/dames.md § Carte de procès).
+		nobleID, found := nobleIDByCode(game, fields[2])
+		if !found {
+			error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderNobleUnknown, fields[2])
+			return models.DeckOrder{}, &error
+		}
+		return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: kind, TargetNobleID: nobleID}, nil
+	}
 	if !isSpecialRegionSeed(game, target) {
 		error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderRegionUnknown, fields[2])
 		return models.DeckOrder{}, &error
@@ -98,6 +108,18 @@ func isTerritory(game *models.GameState, territoryID models.TerritoryID) bool {
 		}
 	}
 	return false
+}
+
+func nobleIDByCode(game *models.GameState, code string) (models.NobleID, bool) {
+	if game == nil {
+		return "", false
+	}
+	for _, noble := range game.Nobles {
+		if noble.Code == code {
+			return noble.ID, true
+		}
+	}
+	return "", false
 }
 
 func isFiefCapital(game *models.GameState, territoryID models.TerritoryID) bool {
@@ -128,6 +150,8 @@ func parseSpecialKind(value string, lineNumber int) (models.CardKind, *ParseErro
 		"FN": models.CardKindFamine,
 		"TX": models.CardKindSeigneurialTax,
 		"ST": models.CardKindSeigneurialTax,
+		"PR": models.CardKindTrial,
+		"TR": models.CardKindTrial,
 	}[value]
 	if !exists {
 		error := parseMessage(lineNumber, ParseCodeSpecialKind, i18n.DeckOrderKindUnknown, value)

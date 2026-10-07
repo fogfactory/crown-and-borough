@@ -637,6 +637,19 @@ function seasonEffectLine(
           territory: territoryLabel(map, effect.territory, t),
         }),
       }
+    case 'trial':
+      return {
+        key,
+        label: t(
+          effect.reason === 'trial_executed'
+            ? 'reports.trialExecuted'
+            : 'reports.trialUnfounded',
+          {
+            noble: effect.noble ?? '—',
+            territory: territoryLabel(map, effect.territory, t),
+          },
+        ),
+      }
     case 'plague_noble_survived':
       return {
         key,
@@ -713,6 +726,7 @@ function groupSeasonEffects(
       case 'bad_weather_loss':
       case 'plague_noble_death':
       case 'plague_noble_survived':
+      case 'trial':
       case 'card_canceled':
         groupFor(effect).lines.push(line)
         break
