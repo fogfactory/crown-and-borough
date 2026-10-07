@@ -289,7 +289,7 @@ de la taille du plateau : part des territoires de jeu (8 par joueur) que le
 joueur (solo) ou l'alliance doit tenir au travers de fiefs, divisée par la
 taille moyenne d'un fief (`reference_fief_size`, 4) et arrondie au supérieur.
 Valeurs de départ : la moitié des territoires pour gagner seul, les deux tiers
-(66 %) à deux, soit 2/3 titres (solo/alliance) à 2 joueurs, 3/4 à 3 joueurs, 4/6 à 4 joueurs et 6/8 à 6 joueurs.
+(66 %) à deux, soit 3 titres (solo seul : une alliance à deux joueurs réunirait tous les joueurs) à 2 joueurs, 5/6 à 3 joueurs, 6/8 à 4 joueurs et 9/11 à 6 joueurs.
 Le chiffre est volontairement approximatif, la taille des fiefs variant : un
 joueur qui ne tient que des baronnies (3 territoires) atteint le seuil avec
 moins de territoires, un joueur de duchés avec davantage. Le seuil d'alliance
