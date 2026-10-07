@@ -6,7 +6,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react'
-import { IconHierarchy2, IconX } from '@tabler/icons-react'
+import { IconFlask, IconHierarchy2, IconX } from '@tabler/icons-react'
 import { Dialog } from 'radix-ui'
 
 import { useLanguage } from '@/i18n/LanguageContext'
@@ -28,7 +28,13 @@ import {
   type HouseMember,
   type LineageLink,
 } from '@/lib/lineage'
+import { useSimulationHistory } from '@/lib/simulation-history'
+import {
+  useVictorySimulation,
+  type VictorySimulationRequest,
+} from '@/lib/use-victory-simulation'
 import { cn } from '@/lib/utils'
+import { VictoryStatusPanel } from '@/components/VictoryStatusPanel'
 import type {
   Claim,
   DeceasedNoble,
@@ -38,6 +44,7 @@ import type {
   Player,
   PlayerId,
   ScoreBreakdown,
+  SimulationAction,
   VictoryStatus,
 } from '@/types'
 
@@ -71,6 +78,29 @@ interface LineageDialogProps {
   victory?: VictoryStatus
   /** House focused when the dialog opens (the viewer's own). */
   defaultFocus?: PlayerId | null
+  /** Enables the simulation mode: projects hypothetical actions on the server. */
+  simulationRequest?: VictorySimulationRequest | null
+  /** Changes when the real state moves on; the simulation is then reset. */
+  simulationKey?: string
+}
+
+/** What a click selected while simulating. */
+type Selection =
+  | { type: 'noble'; code: string }
+  | { type: 'link'; a: string; b: string }
+
+/** A started two-step action waiting for the second click. */
+interface Pending {
+  kind: 'marry' | 'claim'
+  from: string
+}
+
+/** Wiring of the tree's cards and marriage lines to the simulation. */
+interface TreeEdit {
+  selected: Selection | null
+  pending: Pending | null
+  onNoble: (code: string) => void
+  onLink: (a: string, b: string) => void
 }
 
 type View = 'tree' | 'graph'
@@ -118,16 +148,77 @@ export function LineageDialog(props: LineageDialogProps) {
   const [showClaims, setShowClaims] = useState(true)
   const [moves, setMoves] = useState<Record<string, Offset>>({})
 
+  const [simulating, setSimulating] = useState(false)
+  const [selection, setSelection] = useState<Selection | null>(null)
+  const [pending, setPending] = useState<Pending | null>(null)
+  const [rejection, setRejection] = useState<string | null>(null)
+  const history = useSimulationHistory()
+  const sim = useVictorySimulation(
+    history.actions,
+    props.simulationRequest ?? null,
+    simulating,
+  )
+  const projected = simulating ? sim.simulation : null
+  const data = projected?.state ?? props
+  const nobles = data.nobles
+  const deceased = data.deceased
+  const fiefs = data.fiefs
+  const marriages = data.marriages
+  const claimList = data.claims
+  const scores = projected?.state.scores ?? props.scores
+  const victory = projected?.state.victory ?? props.victory
+
+  const { dropLast, reset: resetHistory } = history
+  useEffect(() => {
+    if (sim.rejection && history.actions.length > 0) {
+      setRejection(sim.rejection)
+      dropLast()
+    }
+    // Only a new refusal matters; the actions it refers to are already dropped.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sim.rejection])
+  useEffect(() => {
+    resetHistory()
+    setSelection(null)
+    setPending(null)
+    setRejection(null)
+  }, [props.simulationKey, resetHistory])
+
+  const clearTransient = () => {
+    setSelection(null)
+    setPending(null)
+    setRejection(null)
+  }
+  const apply = (action: SimulationAction) => {
+    history.push(action)
+    clearTransient()
+  }
+  const onNoble = (code: string) => {
+    setRejection(null)
+    if (pending) {
+      if (code === pending.from) return
+      apply({ type: pending.kind, noble: pending.from, other: code })
+      return
+    }
+    setSelection({ type: 'noble', code })
+  }
+  const onLink = (a: string, b: string) => {
+    if (pending) return
+    setRejection(null)
+    setSelection({ type: 'link', a, b })
+  }
+  const stopSimulating = () => {
+    setSimulating(false)
+    clearTransient()
+  }
+  const nameOf = (code: string) =>
+    nobles.find((n) => n.code === code)?.name ||
+    (deceased ?? []).find((n) => n.code === code)?.name ||
+    code
+
   const allHouses = useMemo(
-    () =>
-      buildHouses(
-        props.players,
-        props.nobles,
-        props.deceased ?? [],
-        props.fiefs ?? [],
-        props.claims ?? [],
-      ),
-    [props.players, props.nobles, props.deceased, props.fiefs, props.claims],
+    () => buildHouses(props.players, nobles, deceased ?? [], fiefs ?? [], claimList ?? []),
+    [props.players, nobles, deceased, fiefs, claimList],
   )
   const houses = useMemo(
     () => allHouses.filter((house) => !hidden.has(house.player.id)),
@@ -137,19 +228,19 @@ export function LineageDialog(props: LineageDialogProps) {
     const visible = new Set(
       houses.flatMap((house) => house.members.map((member) => member.code)),
     )
-    return buildLinks(allHouses, props.marriages ?? []).filter(
+    return buildLinks(allHouses, marriages ?? []).filter(
       (link) => visible.has(link.a) && visible.has(link.b) && (showEnded || link.active),
     )
-  }, [allHouses, houses, props.marriages, showEnded])
+  }, [allHouses, houses, marriages, showEnded])
   const claims = useMemo(() => {
     if (!showClaims) return []
     const visible = new Set(
       houses.flatMap((house) => house.members.map((member) => member.code)),
     )
-    return (props.claims ?? []).filter(
+    return (claimList ?? []).filter(
       (claim) => visible.has(claim.heir) && visible.has(claim.target),
     )
-  }, [houses, props.claims, showClaims])
+  }, [houses, claimList, showClaims])
   const focusId =
     focus && houses.some((house) => house.player.id === focus) ? focus : null
   const playerName = (house: House) => house.player.name || house.player.id
@@ -290,6 +381,42 @@ export function LineageDialog(props: LineageDialogProps) {
                 </>
               )}
             </div>
+            {props.simulationRequest && (
+              <SimulationBar
+                simulating={simulating}
+                view={view}
+                nobles={nobles}
+                selection={selection}
+                pending={pending}
+                actions={history.actions}
+                canUndo={history.canUndo}
+                canRedo={history.canRedo}
+                loading={sim.loading}
+                failed={sim.failed}
+                rejection={rejection}
+                nameOf={nameOf}
+                onStart={() => setSimulating(true)}
+                onStop={stopSimulating}
+                onUndo={() => {
+                  history.undo()
+                  clearTransient()
+                }}
+                onRedo={() => {
+                  history.redo()
+                  clearTransient()
+                }}
+                onReset={() => {
+                  history.reset()
+                  clearTransient()
+                }}
+                onAction={apply}
+                onPending={(next) => {
+                  setPending(next)
+                  setSelection(null)
+                }}
+                onCancel={clearTransient}
+              />
+            )}
           </header>
           {view === 'tree' ? (
             <LineageTree
@@ -297,6 +424,11 @@ export function LineageDialog(props: LineageDialogProps) {
               links={links}
               claims={claims}
               focus={focusId}
+              edit={
+                simulating
+                  ? { selected: selection, pending, onNoble, onLink }
+                  : undefined
+              }
               moves={moves}
               onMove={(code, offset) =>
                 setMoves((current) => ({ ...current, [code]: offset }))
@@ -308,14 +440,189 @@ export function LineageDialog(props: LineageDialogProps) {
               links={links}
               focus={focusId}
               onFocus={setFocus}
-              scores={props.scores}
-              victory={props.victory}
+              scores={scores}
+              victory={victory}
             />
           )}
+          <VictoryStatusPanel
+            players={props.players}
+            scores={scores}
+            victory={victory}
+            simulation={projected}
+          />
           <Legend withClaims={view === 'tree'} />
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
+  )
+}
+
+function SimulationBar({
+  simulating,
+  view,
+  nobles,
+  selection,
+  pending,
+  actions,
+  canUndo,
+  canRedo,
+  loading,
+  failed,
+  rejection,
+  nameOf,
+  onStart,
+  onStop,
+  onUndo,
+  onRedo,
+  onReset,
+  onAction,
+  onPending,
+  onCancel,
+}: {
+  simulating: boolean
+  view: View
+  nobles: Noble[]
+  selection: Selection | null
+  pending: Pending | null
+  actions: SimulationAction[]
+  canUndo: boolean
+  canRedo: boolean
+  loading: boolean
+  failed: boolean
+  rejection: string | null
+  nameOf: (code: string) => string
+  onStart: () => void
+  onStop: () => void
+  onUndo: () => void
+  onRedo: () => void
+  onReset: () => void
+  onAction: (action: SimulationAction) => void
+  onPending: (pending: Pending) => void
+  onCancel: () => void
+}) {
+  const { t } = useLanguage()
+  const button =
+    'rounded-md border border-[#b7a786] bg-[#fffaf0] px-2 py-0.5 text-xs font-semibold enabled:hover:bg-[#f3ead9] disabled:opacity-40'
+  if (!simulating) {
+    return (
+      <div className="flex w-full">
+        <button type="button" onClick={onStart} className={cn(button, 'inline-flex items-center gap-1')}>
+          <IconFlask aria-hidden="true" className="size-4" />
+          {t('sim.start')}
+        </button>
+      </div>
+    )
+  }
+  const noble = selection?.type === 'noble' ? nobles.find((n) => n.code === selection.code) : undefined
+  const alive = noble !== undefined
+  const log = (action: SimulationAction) =>
+    t(`sim.log.${action.type}` as MessageKey, {
+      noble: nameOf(action.noble),
+      other: 'other' in action ? nameOf(action.other) : '',
+    })
+  return (
+    <div className="flex w-full flex-col gap-2 rounded-lg border border-[#b8860b]/60 bg-[#f8e8ae]/40 p-2 text-xs">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-semibold text-[#6b4e0a]">{t('sim.banner')}</span>
+        <button type="button" className={button} disabled={!canUndo} onClick={onUndo}>
+          {t('sim.undo')}
+        </button>
+        <button type="button" className={button} disabled={!canRedo} onClick={onRedo}>
+          {t('sim.redo')}
+        </button>
+        <button type="button" className={button} disabled={actions.length === 0} onClick={onReset}>
+          {t('sim.reset')}
+        </button>
+        <button type="button" className={cn(button, 'ml-auto')} onClick={onStop}>
+          {t('sim.stop')}
+        </button>
+      </div>
+      {view === 'graph' ? (
+        <p>{t('sim.graphHint')}</p>
+      ) : pending ? (
+        <div className="flex flex-wrap items-center gap-2" role="status">
+          <span className="font-semibold">
+            {t(pending.kind === 'marry' ? 'sim.pickSpouse' : 'sim.pickTarget', {
+              name: nameOf(pending.from),
+            })}
+          </span>
+          <button type="button" className={button} onClick={onCancel}>
+            {t('sim.cancel')}
+          </button>
+        </div>
+      ) : selection?.type === 'noble' ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-semibold">
+            {t('sim.selectedNoble', { name: nameOf(selection.code) })}
+          </span>
+          <button
+            type="button"
+            className={button}
+            disabled={!alive}
+            onClick={() => onAction({ type: 'kill', noble: selection.code })}
+          >
+            {t('sim.kill')}
+          </button>
+          <button
+            type="button"
+            className={button}
+            disabled={!alive || Boolean(noble?.spouse)}
+            onClick={() => onPending({ kind: 'marry', from: selection.code })}
+          >
+            {t('sim.marry')}
+          </button>
+          <button
+            type="button"
+            className={button}
+            disabled={!alive}
+            onClick={() => onPending({ kind: 'claim', from: selection.code })}
+          >
+            {t('sim.claim')}
+          </button>
+          <button type="button" className={button} onClick={onCancel}>
+            {t('sim.cancel')}
+          </button>
+        </div>
+      ) : selection?.type === 'link' ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-semibold">
+            {t('sim.selectedLink', { a: nameOf(selection.a), b: nameOf(selection.b) })}
+          </span>
+          <button
+            type="button"
+            className={button}
+            onClick={() => onAction({ type: 'divorce', noble: selection.a, other: selection.b })}
+          >
+            {t('sim.divorce')}
+          </button>
+          <button type="button" className={button} onClick={onCancel}>
+            {t('sim.cancel')}
+          </button>
+        </div>
+      ) : (
+        <p>{t('sim.hint')}</p>
+      )}
+      {rejection && (
+        <p role="alert" className="font-semibold text-[#7a2b1c]">
+          {t('sim.rejected', { reason: rejection })}
+        </p>
+      )}
+      {failed && (
+        <p role="alert" className="font-semibold text-[#7a2b1c]">
+          {t('sim.failed')}
+        </p>
+      )}
+      {loading && <p className="text-[#806f57]">{t('sim.loading')}</p>}
+      {actions.length > 0 && (
+        <ol className="flex flex-wrap gap-1.5" aria-label={t('sim.panel')}>
+          {actions.map((action, index) => (
+            <li key={index} className="rounded-full border border-[#b8860b]/60 bg-[#fffaf0] px-2 py-0.5">
+              {log(action)}
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
   )
 }
 
@@ -396,6 +703,7 @@ function LineageTree({
   links,
   claims,
   focus,
+  edit,
   moves,
   onMove,
 }: {
@@ -403,6 +711,7 @@ function LineageTree({
   links: LineageLink[]
   claims: Claim[]
   focus: PlayerId | null
+  edit?: TreeEdit
   moves: Record<string, Offset>
   onMove: (code: string, offset: Offset) => void
 }) {
@@ -489,15 +798,42 @@ function LineageTree({
             const to = position.get(link.b)
             if (!from || !to) return null
             const style = EDGE_STYLE[link.kind]
+            const selected =
+              edit?.selected?.type === 'link' &&
+              ((edit.selected.a === link.a && edit.selected.b === link.b) ||
+                (edit.selected.a === link.b && edit.selected.b === link.a))
             return (
-              <path
-                key={link.key}
-                d={segment(from, to)}
-                fill="none"
-                stroke={style.stroke}
-                strokeWidth={style.width}
-                strokeDasharray={style.dash}
-              />
+              <g key={link.key}>
+                {selected && (
+                  <path
+                    d={segment(from, to)}
+                    fill="none"
+                    stroke="#a84632"
+                    strokeWidth={style.width + 6}
+                    strokeOpacity={0.35}
+                  />
+                )}
+                <path
+                  d={segment(from, to)}
+                  fill="none"
+                  stroke={style.stroke}
+                  strokeWidth={style.width}
+                  strokeDasharray={style.dash}
+                />
+                {edit && link.active && (
+                  <path
+                    d={segment(from, to)}
+                    data-testid={`link-${link.a}-${link.b}`}
+                    role="button"
+                    aria-label={`${link.a} - ${link.b}`}
+                    fill="none"
+                    stroke="transparent"
+                    strokeWidth={16}
+                    style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+                    onClick={() => edit.onLink(link.a, link.b)}
+                  />
+                )}
+              </g>
             )
           })}
           {claims.map((claim) => {
@@ -569,7 +905,14 @@ function LineageTree({
                           ? 'border-dashed border-[#b7a786]/70 opacity-60'
                           : 'border-[#b7a786]',
                         moves[member.code] && 'z-20 shadow-md',
+                        edit && 'cursor-pointer',
+                        edit?.selected?.type === 'noble' &&
+                          edit.selected.code === member.code &&
+                          'ring-2 ring-[#a84632]',
+                        edit?.pending?.from === member.code &&
+                          'outline-2 outline-dashed outline-[#7a4fa3]',
                       )}
+                      onClick={edit ? () => edit.onNoble(member.code) : undefined}
                       style={{
                         width: CARD_W,
                         height: CARD_H,

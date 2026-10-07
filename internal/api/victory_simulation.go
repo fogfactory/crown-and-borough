@@ -9,23 +9,20 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/store"
 )
 
-type victorySimulationRequest struct {
-	MarriageEnds []struct {
-		Noble  models.NobleCode `json:"noble"`
-		Spouse models.NobleCode `json:"spouse"`
-	} `json:"marriageEnds"`
-	Deaths    []models.NobleCode `json:"deaths"`
-	Marriages []struct {
-		Noble  models.NobleCode `json:"noble"`
-		Spouse models.NobleCode `json:"spouse"`
-	} `json:"marriages"`
-	Claims []struct {
-		Heir   models.NobleCode `json:"heir"`
-		Target models.NobleCode `json:"target"`
-	} `json:"claims"`
+// simulationActionRequest is one hypothetical change: kill (noble), marry or
+// divorce (noble, other), claim (noble is the heir, other the target). Nobles
+// are given by code.
+type simulationActionRequest struct {
+	Type  engine.SimulationActionKind `json:"type"`
+	Noble models.NobleCode            `json:"noble"`
+	Other models.NobleCode            `json:"other,omitempty"`
 }
 
-// VictoryReadingView is the score and victory status of the player in one state.
+type victorySimulationRequest struct {
+	Actions []simulationActionRequest `json:"actions"`
+}
+
+// VictoryReadingView is a player's score and victory status in one state.
 type VictoryReadingView struct {
 	Score   engine.ScoreBreakdown `json:"score"`
 	Victory engine.PlayerVictory  `json:"victory"`
@@ -33,14 +30,21 @@ type VictoryReadingView struct {
 	Missing int                   `json:"missing"`
 }
 
-// VictorySimulationView compares the current state with the hypothetical one.
+// VictorySimulationView compares every player's reading now and after the
+// actions. State is the projected state, served like state.json so the client
+// draws the hypothetical board without re-implementing any rule.
 type VictorySimulationView struct {
-	Current   VictoryReadingView `json:"current"`
-	Projected VictoryReadingView `json:"projected"`
+	Current   map[models.PlayerID]VictoryReadingView `json:"current"`
+	Projected map[models.PlayerID]VictoryReadingView `json:"projected"`
+	State     StateView                              `json:"state"`
 }
 
-func readingView(reading engine.VictoryReading) VictoryReadingView {
-	return VictoryReadingView{Score: reading.Score, Victory: reading.Victory, Status: reading.Status, Missing: reading.Missing}
+func readingViews(readings map[models.PlayerID]engine.VictoryReading) map[models.PlayerID]VictoryReadingView {
+	views := make(map[models.PlayerID]VictoryReadingView, len(readings))
+	for id, reading := range readings {
+		views[id] = VictoryReadingView{Score: reading.Score, Victory: reading.Victory, Status: reading.Status, Missing: reading.Missing}
+	}
+	return views
 }
 
 func (h *GamesHandler) simulateVictory(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
@@ -57,29 +61,23 @@ func (h *GamesHandler) simulateVictory(w http.ResponseWriter, r *http.Request, a
 		h.writeStoreError(w, err)
 		return
 	}
-	playerID, ok := snapshot.PlayerFor(actor)
+	viewerID, ok := snapshot.ViewerFor(actor)
 	if !ok {
-		writeAPIError(w, http.StatusForbidden, "not_member", "only a player of this game can simulate victory")
+		writeAPIError(w, http.StatusForbidden, "not_member", "only a member of this game can simulate victory")
 		return
 	}
-	var scenario engine.VictoryScenario
-	scenario.Deaths = request.Deaths
-	for _, end := range request.MarriageEnds {
-		scenario.MarriageEnds = append(scenario.MarriageEnds, engine.MarriageHypothesis{Noble: end.Noble, Spouse: end.Spouse})
+	actions := make([]engine.SimulationAction, 0, len(request.Actions))
+	for _, action := range request.Actions {
+		actions = append(actions, engine.SimulationAction{Kind: action.Type, Noble: action.Noble, Other: action.Other})
 	}
-	for _, marriage := range request.Marriages {
-		scenario.Marriages = append(scenario.Marriages, engine.MarriageHypothesis{Noble: marriage.Noble, Spouse: marriage.Spouse})
-	}
-	for _, claim := range request.Claims {
-		scenario.Claims = append(scenario.Claims, engine.ClaimHypothesis{Heir: claim.Heir, Target: claim.Target})
-	}
-	projection, err := engine.SimulateVictory(snapshot.State, h.balance, playerID, scenario)
+	simulation, err := engine.SimulateVictory(snapshot.State, h.balance, actions)
 	if err != nil {
 		writeAPIError(w, http.StatusUnprocessableEntity, "invalid_simulation", err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, VictorySimulationView{
-		Current:   readingView(projection.Current),
-		Projected: readingView(projection.Projected),
+		Current:   readingViews(simulation.Current),
+		Projected: readingViews(simulation.Projected),
+		State:     projectStateForPlayer(simulation.State, viewerID, h.balance),
 	})
 }

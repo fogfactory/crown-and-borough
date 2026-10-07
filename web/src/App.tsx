@@ -13,6 +13,10 @@ import { ProjectedIncomeSummary } from '@/components/ProjectedIncomeSummary'
 import { ReportPane } from '@/components/ReportPane'
 import { LineageDialog } from '@/components/LineageDialog'
 import { Scoreboard } from '@/components/Scoreboard'
+import {
+  SimulationRejectedError,
+  type VictorySimulationRequest,
+} from '@/lib/use-victory-simulation'
 import { SubmissionDots } from '@/components/SubmissionDots'
 import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
 import { InfoPage } from '@/components/InfoPage'
@@ -51,6 +55,7 @@ import type {
   StateData,
   SupplyLine,
   TransferLine,
+  VictorySimulation,
   TurnReport,
   OrdersResponse,
   OrdersPreview,
@@ -297,6 +302,25 @@ function AppContent() {
   const selectedRegion = map?.regions?.find((region) =>
     region.territories.includes(selectedId ?? ''),
   )
+
+  const simulationRequest = useMemo<VictorySimulationRequest | null>(() => {
+    if (!gameId) return null
+    const path = asPlayer(`${hotseatGamePath(gameId)}/victory/simulate`, selectedPlayer)
+    return async (actions, signal) => {
+      const response = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actions }),
+        signal,
+      })
+      if (response.status === 422) {
+        const payload = (await response.json().catch(() => null)) as { message?: string } | null
+        throw new SimulationRejectedError(payload?.message ?? 'rejected')
+      }
+      if (!response.ok) throw new Error(`simulation failed (${response.status})`)
+      return (await response.json()) as VictorySimulation
+    }
+  }, [gameId, selectedPlayer])
 
   const supplyFetcher = useCallback(
     async <T,>(path: string, signal: AbortSignal): Promise<T> => {
@@ -674,6 +698,8 @@ function AppContent() {
                   marriages={state.marriages}
                   scores={state.scores}
                   victory={state.victory}
+                  simulationRequest={simulationRequest}
+                  simulationKey={`${state.turn}-${state.season}`}
                 />
               </>
             )}

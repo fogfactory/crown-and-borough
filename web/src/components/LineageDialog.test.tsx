@@ -1,9 +1,10 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 
 import { LineageDialog } from '@/components/LineageDialog'
 import { LanguageProvider } from '@/i18n/LanguageContext'
-import type { Noble } from '@/types'
+import { SimulationRejectedError } from '@/lib/use-victory-simulation'
+import type { Noble, SimulationAction, VictoryReading, VictorySimulation } from '@/types'
 
 const noble = (
   code: string,
@@ -20,11 +21,12 @@ const noble = (
   ...extra,
 })
 
-function renderDialog() {
+function renderDialog(simulationRequest?: (actions: SimulationAction[]) => Promise<VictorySimulation>) {
   render(
     <LanguageProvider initialLanguage="en">
       <LineageDialog
         defaultFocus="P1"
+        simulationRequest={simulationRequest}
         players={[
           { id: 'P1', name: 'Alice', color: '#a84632', succession: ['JEA'] },
           { id: 'P2', name: 'Bob', color: '#2f6f9f', succession: ['ANN', 'EVE'] },
@@ -116,5 +118,90 @@ describe('LineageDialog', () => {
     expect(screen.getByText(/Takes over for Bob/)).toBeInTheDocument()
     expect(screen.getByText('Duc Jean × Dame Eve')).toBeInTheDocument()
     expect(screen.getByText(/Alice would have no head/)).toBeInTheDocument()
+  })
+
+  describe('simulation', () => {
+    const reading = (total: number, status: VictoryReading['status']): VictoryReading => ({
+      score: { titles: total, total },
+      victory: { mode: 'solo', required: 3 },
+      status,
+      missing: Math.max(3 - total, 0),
+    })
+    const projection = (killed: boolean): VictorySimulation => ({
+      current: { P1: reading(2, 'ongoing'), P2: reading(1, 'ongoing') },
+      projected: {
+        P1: reading(killed ? 3 : 2, killed ? 'major' : 'ongoing'),
+        P2: reading(1, killed ? 'failure' : 'ongoing'),
+      },
+      state: {
+        turn: 1,
+        season: 'spring',
+        players: [
+          { id: 'P1', name: 'Alice', color: '#a84632' },
+          { id: 'P2', name: 'Bob', color: '#2f6f9f' },
+        ],
+        nobles: [noble('ANN', 'P2', 'Duchesse Anne', { sex: 'female' })],
+        deceased: killed
+          ? [{ code: 'JEA', name: 'Duc Jean', owner: 'P1', cause: 'natural', turn: 1 }]
+          : [],
+        fiefs: [],
+        marriages: [],
+        claims: [],
+        scores: { P1: { titles: 3, total: 3 }, P2: { titles: 1, total: 1 } },
+        victory: { soloThreshold: 3, allianceThreshold: 4, players: {} },
+      } as unknown as VictorySimulation['state'],
+    })
+
+    it('kills a noble, updates the board and the status panel, then undoes it', async () => {
+      const request = vi.fn(async (actions: SimulationAction[]) => projection(actions.length > 0))
+      renderDialog(request)
+      fireEvent.click(screen.getByRole('button', { name: 'Simulate' }))
+      const card = screen.getByRole('region', { name: 'Alice' }).querySelector('[data-noble="JEA"]')!
+      fireEvent.click(card)
+      fireEvent.click(screen.getByRole('button', { name: 'Kill' }))
+
+      await waitFor(() =>
+        expect(request).toHaveBeenLastCalledWith([{ type: 'kill', noble: 'JEA' }], expect.anything()),
+      )
+      expect(await screen.findByTestId('panel-status-P1')).toHaveTextContent('Major victory')
+      expect(screen.getByTestId('panel-delta-P1')).toHaveTextContent('+1')
+      expect(screen.getByTestId('panel-status-P2')).toHaveTextContent('Defeat')
+      expect(screen.getByText('Duc Jean dies')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+      await waitFor(() => expect(request).toHaveBeenLastCalledWith([], expect.anything()))
+      expect(screen.queryByText('Duc Jean dies')).not.toBeInTheDocument()
+    })
+
+    it('asks for a second click to marry two nobles', async () => {
+      const request = vi.fn(async () => projection(false))
+      renderDialog(request)
+      fireEvent.click(screen.getByRole('button', { name: 'Simulate' }))
+      fireEvent.click(screen.getByRole('region', { name: 'Bob' }).querySelector('[data-noble="EVE"]')!)
+      fireEvent.click(screen.getByRole('button', { name: 'Marry to…' }))
+      expect(screen.getByRole('status')).toHaveTextContent('Click the spouse of Dame Eve')
+      fireEvent.click(screen.getByRole('region', { name: 'Alice' }).querySelector('[data-noble="JEA"]')!)
+      await waitFor(() =>
+        expect(request).toHaveBeenLastCalledWith(
+          [{ type: 'marry', noble: 'EVE', other: 'JEA' }],
+          expect.anything(),
+        ),
+      )
+    })
+
+    it('drops an action the server refuses and says why', async () => {
+      const request = vi.fn(async (actions: SimulationAction[]): Promise<VictorySimulation> => {
+        if (actions.length > 0) throw new SimulationRejectedError('noble "JEA" is already married')
+        return projection(false)
+      })
+      renderDialog(request)
+      fireEvent.click(screen.getByRole('button', { name: 'Simulate' }))
+      const card = screen.getByRole('region', { name: 'Alice' }).querySelector('[data-noble="JEA"]')!
+      fireEvent.click(card)
+      fireEvent.click(screen.getByRole('button', { name: 'Kill' }))
+      expect(await screen.findByRole('alert')).toHaveTextContent('already married')
+      await waitFor(() => expect(screen.queryByText('Duc Jean dies')).not.toBeInTheDocument())
+      expect(within(screen.getByRole('button', { name: 'Reset' }).parentElement!).getByRole('button', { name: 'Reset' })).toBeDisabled()
+    })
   })
 })

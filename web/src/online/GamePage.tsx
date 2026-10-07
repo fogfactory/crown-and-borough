@@ -21,7 +21,6 @@ import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
 import type { Panel } from '@/components/CommandReportRulesTabs'
 import { LineageDialog } from '@/components/LineageDialog'
 import { Scoreboard } from '@/components/Scoreboard'
-import { VictorySimulatorDialog } from '@/components/VictorySimulatorDialog'
 import { SubmissionDots } from '@/components/SubmissionDots'
 import { Button } from '@/components/ui/button'
 import { HeaderPopover } from '@/components/ui/header-popover'
@@ -36,7 +35,10 @@ import { ApiError, apiRequest, type TokenProvider } from '@/lib/api'
 import { stripNobleHeader } from '@/lib/order-text'
 import { buildOrdersBody } from '@/lib/orders-body'
 import { draftOrdersByNoble } from '@/lib/transfer-preview'
-import type { VictorySimulationRequest } from '@/lib/use-victory-simulation'
+import {
+  SimulationRejectedError,
+  type VictorySimulationRequest,
+} from '@/lib/use-victory-simulation'
 import { useOrdersPreview, type OrdersPreviewRequest } from '@/lib/use-orders-preview'
 import {
   internalYear,
@@ -531,11 +533,15 @@ export function GamePage() {
   const simulationRequest = useMemo<VictorySimulationRequest | null>(() => {
     if (!gameId || !playerID) return null
     const path = `/api/games/${encodeURIComponent(gameId)}/victory/simulate`
-    return (scenario, signal) =>
+    return (actions, signal) =>
       apiRequest<VictorySimulation>({ getIdToken }, path, {
         method: 'POST',
-        body: JSON.stringify(scenario),
+        body: JSON.stringify({ actions }),
         signal,
+      }).catch((error: unknown) => {
+        throw error instanceof ApiError && error.status === 422
+          ? new SimulationRejectedError(error.message)
+          : error
       })
   }, [gameId, getIdToken, playerID])
   const draftOrders = useMemo(() => draftOrdersByNoble(preview?.chains), [preview])
@@ -869,16 +875,6 @@ export function GamePage() {
               finished={state.finished}
               winners={state.winners}
               minorWinner={state.minorWinner}
-              simulator={
-                playerID ? (
-                  <VictorySimulatorDialog
-                    players={state.players}
-                    nobles={state.nobles}
-                    playerId={playerID}
-                    request={simulationRequest}
-                  />
-                ) : undefined
-              }
             />
           </HeaderPopover>
 <LineageDialog
@@ -891,6 +887,8 @@ export function GamePage() {
   marriages={state.marriages}
   scores={state.scores ?? summary.scores}
   victory={state.victory}
+  simulationRequest={simulationRequest}
+  simulationKey={`${state.turn}-${state.season}`}
 />
           <HeaderPopover
             label={t('online.lobby')}

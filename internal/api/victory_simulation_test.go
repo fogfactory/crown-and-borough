@@ -9,7 +9,8 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/store"
 )
 
-func TestVictorySimulationProjectsMarriageWithoutCommittingIt(t *testing.T) {
+func simulationFixture(t *testing.T) (http.Handler, store.GameStore, store.GameID, []string) {
+	t.Helper()
 	handler, gameStore := newPreviewTestHandler(t)
 	game := createGameHTTP(t, handler, "P1", `{"name":"Sim","seed":"victory-sim","players":["One","Two"]}`)
 	snapshot, err := gameStore.State(context.Background(), store.Actor{ID: "P1", Development: true}, game.ID)
@@ -25,8 +26,13 @@ func TestVictorySimulationProjectsMarriageWithoutCommittingIt(t *testing.T) {
 			other = noble.Code
 		}
 	}
-	path := "/api/games/" + string(game.ID) + "/victory/simulate?player=P1"
-	response := requestGames(t, handler, http.MethodPost, path, `{"marriages":[{"noble":"`+own+`","spouse":"`+other+`"}]}`)
+	return handler, gameStore, game.ID, []string{own, other}
+}
+
+func TestVictorySimulationProjectsMarriageWithoutCommittingIt(t *testing.T) {
+	handler, gameStore, id, codes := simulationFixture(t)
+	path := "/api/games/" + string(id) + "/victory/simulate?player=P1"
+	response := requestGames(t, handler, http.MethodPost, path, `{"actions":[{"type":"marry","noble":"`+codes[0]+`","other":"`+codes[1]+`"}]}`)
 	if response.Code != http.StatusOK {
 		t.Fatalf("simulate = %d: %s", response.Code, response.Body.String())
 	}
@@ -34,43 +40,44 @@ func TestVictorySimulationProjectsMarriageWithoutCommittingIt(t *testing.T) {
 	if err := json.Unmarshal(response.Body.Bytes(), &view); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if view.Current.Victory.Mode != "solo" || view.Current.Victory.Required < 1 {
-		t.Fatalf("current reading = %+v", view.Current)
+	if view.Current["P1"].Victory.Mode != "solo" || view.Current["P1"].Victory.Required < 1 {
+		t.Fatalf("current reading = %+v", view.Current["P1"])
 	}
-	if view.Projected.Score.Total < view.Current.Score.Total {
-		t.Fatalf("a marriage lowered the score: %+v", view)
+	if len(view.State.Marriages) != 1 {
+		t.Fatalf("projected state marriages = %d, want 1", len(view.State.Marriages))
 	}
-	after, _ := gameStore.State(context.Background(), store.Actor{ID: "P1", Development: true}, game.ID)
-	if len(after.State.Marriages) != len(snapshot.State.Marriages) {
+	after, _ := gameStore.State(context.Background(), store.Actor{ID: "P1", Development: true}, id)
+	if len(after.State.Marriages) != 0 {
 		t.Fatal("simulation committed the marriage")
 	}
 }
 
-func TestVictorySimulationRejectsImpossibleScenario(t *testing.T) {
-	handler, _ := newPreviewTestHandler(t)
-	game := createGameHTTP(t, handler, "P1", `{"name":"Sim","seed":"victory-sim","players":["One","Two"]}`)
-	path := "/api/games/" + string(game.ID) + "/victory/simulate?player=P1"
-	response := requestGames(t, handler, http.MethodPost, path, `{"claims":[{"heir":"ZZZ","target":"YYY"}]}`)
-	if response.Code != http.StatusUnprocessableEntity {
-		t.Fatalf("simulate = %d: %s", response.Code, response.Body.String())
+func TestVictorySimulationKillMovesNobleToDeceased(t *testing.T) {
+	handler, _, id, codes := simulationFixture(t)
+	path := "/api/games/" + string(id) + "/victory/simulate?player=P1"
+	response := requestGames(t, handler, http.MethodPost, path, `{"actions":[{"type":"kill","noble":"`+codes[0]+`"}]}`)
+	if response.Code != http.StatusOK {
+		t.Fatalf("kill = %d: %s", response.Code, response.Body.String())
+	}
+	var view VictorySimulationView
+	if err := json.Unmarshal(response.Body.Bytes(), &view); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(view.State.Deceased) != 1 || string(view.State.Deceased[0].Code) != codes[0] {
+		t.Fatalf("deceased = %+v", view.State.Deceased)
 	}
 }
 
-func TestVictorySimulationAcceptsDeathsAndMarriageEnds(t *testing.T) {
-	handler, gameStore := newPreviewTestHandler(t)
-	game := createGameHTTP(t, handler, "P1", `{"name":"Sim","seed":"victory-sim","players":["One","Two"]}`)
-	snapshot, err := gameStore.State(context.Background(), store.Actor{ID: "P1", Development: true}, game.ID)
-	if err != nil {
-		t.Fatalf("load state: %v", err)
-	}
-	dead := snapshot.State.Nobles[0].Code
-	path := "/api/games/" + string(game.ID) + "/victory/simulate?player=P1"
-	response := requestGames(t, handler, http.MethodPost, path, `{"deaths":["`+dead+`"]}`)
-	if response.Code != http.StatusOK {
-		t.Fatalf("deaths = %d: %s", response.Code, response.Body.String())
-	}
-	response = requestGames(t, handler, http.MethodPost, path, `{"marriageEnds":[{"noble":"AAA","spouse":"BBB"}]}`)
-	if response.Code != http.StatusUnprocessableEntity {
-		t.Fatalf("marriage end = %d: %s", response.Code, response.Body.String())
+func TestVictorySimulationRejectsImpossibleAction(t *testing.T) {
+	handler, _, id, _ := simulationFixture(t)
+	path := "/api/games/" + string(id) + "/victory/simulate?player=P1"
+	for _, body := range []string{
+		`{"actions":[{"type":"claim","noble":"ZZZ","other":"YYY"}]}`,
+		`{"actions":[{"type":"divorce","noble":"AAA","other":"BBB"}]}`,
+		`{"actions":[{"type":"fly","noble":"AAA"}]}`,
+	} {
+		if response := requestGames(t, handler, http.MethodPost, path, body); response.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("%s = %d: %s", body, response.Code, response.Body.String())
+		}
 	}
 }

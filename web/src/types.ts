@@ -972,15 +972,15 @@ export interface VictoryReading {
   missing: number
 }
 
+/** Answer of POST /api/games/{id}/victory/simulate. */
 export interface VictorySimulation {
-  current: VictoryReading
-  projected: VictoryReading
+  current: Record<PlayerId, VictoryReading>
+  projected: Record<PlayerId, VictoryReading>
+  /** The hypothetical state, served like state.json. */
+  state: StateData
 }
 
-/** Body of POST /api/games/{id}/victory/simulate; nobles are given by code. */
-export interface VictoryScenario {
-  marriages: Array<{ noble: string; spouse: string }>
-  marriageEnds: Array<{ noble: string; spouse: string }>
-  deaths: string[]
-  claims: Array<{ heir: string; target: string }>
-}
+/** One hypothetical change; nobles are given by code. */
+export type SimulationAction =
+  | { type: 'kill'; noble: string }
+  | { type: 'marry' | 'divorce' | 'claim'; noble: string; other: string }
