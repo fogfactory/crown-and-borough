@@ -171,6 +171,9 @@ func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (mod
 	if fields[0] == "T" {
 		return parseFiefOrderLine(fields, lineNumber, indexes)
 	}
+	if fields[0] == "H" {
+		return parseTransferNobleLine(fields, lineNumber, indexes)
+	}
 	if fields[0] == "M" {
 		return parseMarriageOrderLine(fields, lineNumber, indexes)
 	}
@@ -241,14 +244,6 @@ func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (mod
 			return models.WinterOrder{}, parseError
 		}
 		return models.WinterOrder{Type: models.WinterOrderTypeElectCapital, TerritoryID: territoryID}, nil
-	case "L":
-		if fields[1] != "N" {
-			return models.WinterOrder{}, unknownWinterSubtype(lineNumber, fields[0], fields[1])
-		}
-		if parseError := winterNobleCode(fields[2], lineNumber, indexes); parseError != nil {
-			return models.WinterOrder{}, parseError
-		}
-		return models.WinterOrder{Type: models.WinterOrderTypeLiberateNoble, NobleCode: models.NobleCode(fields[2])}, nil
 	case "O", "P":
 		if fields[1] != "N" {
 			return models.WinterOrder{}, unknownWinterSubtype(lineNumber, fields[0], fields[1])
@@ -352,6 +347,45 @@ func unknownWinterSubtype(lineNumber int, symbol, subtype string) *ParseError {
 // parseMarriageOrderLine handles M N XXX YYY: XXX is the player's own noble,
 // YYY the other player's noble it asks to marry. Ownership, sex and the other
 // conditions are engine rejects (see winter_marriage_order.go).
+// parseTransferNobleLine handles H N NNN XXX [O|P]: NNN is a noble under the
+// player's control, XXX the territory of the army it is handed to, O or P an optional new
+// status (hostage or dungeon). Whether the
+// noble is controlled and XXX holds a recipient army are engine rejects.
+func parseTransferNobleLine(fields []string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
+	if fields[1] != "N" {
+		return models.WinterOrder{}, unknownWinterSubtype(lineNumber, fields[0], fields[1])
+	}
+	if len(fields) != 4 && len(fields) != 5 {
+		error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.WinterTransferNobleShape)
+		return models.WinterOrder{}, &error
+	}
+	if parseError := winterNobleCode(fields[2], lineNumber, indexes); parseError != nil {
+		return models.WinterOrder{}, parseError
+	}
+	territoryID, parseError := winterTerritoryID(fields[3], lineNumber, indexes)
+	if parseError != nil {
+		return models.WinterOrder{}, parseError
+	}
+	var status models.NobleStatus
+	if len(fields) == 5 {
+		switch fields[4] {
+		case "O":
+			status = models.NobleStatusHostage
+		case "P":
+			status = models.NobleStatusDungeon
+		default:
+			error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.WinterTransferNobleShape)
+			return models.WinterOrder{}, &error
+		}
+	}
+	return models.WinterOrder{
+		Type:        models.WinterOrderTypeTransferNoble,
+		NobleCode:   models.NobleCode(fields[2]),
+		TerritoryID: territoryID,
+		Status:      status,
+	}, nil
+}
+
 func parseMarriageOrderLine(fields []string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
 	if fields[1] != "N" {
 		return models.WinterOrder{}, unknownWinterSubtype(lineNumber, fields[0], fields[1])

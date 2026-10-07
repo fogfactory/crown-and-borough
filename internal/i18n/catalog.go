@@ -76,6 +76,7 @@ const (
 	WinterFiefFoundShape         = "error.winter.fief_found_shape"
 	WinterFiefAssignShape        = "error.winter.fief_assign_shape"
 	WinterMarriageShape          = "error.winter.marriage_shape"
+	WinterTransferNobleShape     = "error.winter.transfer_noble_shape"
 	WinterNobleDrawShape         = "error.winter.noble_draw_shape"
 	WinterRecruitNobleShape      = "error.winter.recruit_noble_shape"
 	WinterDignityShape           = "error.winter.dignity_shape"
@@ -180,6 +181,7 @@ func init() {
 	register(WinterMillMaxLevelReached, "the mill has reached its maximum level", "le moulin a atteint son niveau maximal")
 	register(WinterFiefShape, "T requires a subtype (N, F or A)", "T exige un sous-type (N, F ou A)")
 	register(WinterFiefFoundShape, "T F requires a noble and at least 3 territory codes, the first being the capital", "T F exige un noble et au moins 3 codes de territoire, le premier étant la capitale")
+	register(WinterTransferNobleShape, "H N requires a noble code then a territory, and optionally O or P: H N NNN XXX [O|P]", "H N exige un code de noble puis un territoire, et en option O ou P : H N NNN XXX [O|P]")
 	register(WinterMarriageShape, "M N requires two distinct noble codes: your noble, then the one it marries", "M N exige deux codes de noble distincts : votre noble, puis celui qu'il épouse")
 	register(WinterNobleDrawShape, "T N takes no argument", "T N ne prend aucun argument")
 	register(WinterRecruitNobleShape, "R N requires a noble card code and a castle or village code", "R N exige un code de carte de noble et un code de château ou village")

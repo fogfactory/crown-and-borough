@@ -599,7 +599,7 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 				ResourceAmount: event.ResourceAmount, Partial: event.Partial, CreditTerritory: event.CreditTerritoryID,
 				PreviousOwner: event.PreviousOwnerID, Owner: event.OwnerID,
 			})
-		case EventTypeNobleMovement, EventTypeCapture, EventTypeLiberation:
+		case EventTypeNobleMovement, EventTypeCapture, EventTypeNobleTransfer:
 			noble := afterNobles[event.NobleID]
 			report.Nobles = append(report.Nobles, NobleReport{
 				Kind: event.Type, Noble: event.NobleID, Code: models.NobleCode(noble.Code), Name: after.NobleDisplayName(noble),
@@ -616,13 +616,15 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 					Order: &orderCopy,
 				})
 			}
-			if event.Type == EventTypeLiberation && report.Winter != nil {
+			if event.Type == EventTypeNobleTransfer && report.Winter != nil && event.WinterOrder != nil {
+				orderCopy := *event.WinterOrder
 				report.Winter.Investments = append(report.Winter.Investments, WinterInvestmentReport{
 					Kind: event.Type, Player: event.OwnerID, Outcome: OutcomeSuccess, Territory: event.TerritoryID,
 					Noble: event.NobleID, NobleCode: event.NobleCode, NobleName: event.NobleName,
-					Cost: event.ResourceSpent,
+					Cost: event.ResourceSpent, Order: &orderCopy,
 				})
 			}
+
 		case EventTypeRumor:
 			if report.Winter == nil {
 				report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}

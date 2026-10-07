@@ -4,7 +4,7 @@ export type WinterIntentionKind =
   | 'build'
   | 'recruit_troop'
   | 'recruit_noble'
-  | 'liberate'
+  | 'transfer_noble'
   | 'hostage'
   | 'dungeon'
   | 'capital'
@@ -58,8 +58,8 @@ function kindOf(preview: WinterLinePreview): WinterIntentionKind {
       return 'recruit_troop'
     case 'recruit_noble':
       return 'recruit_noble'
-    case 'liberate_noble':
-      return 'liberate'
+    case 'transfer_noble':
+      return 'transfer_noble'
     case 'hostage':
       return 'hostage'
     case 'dungeon':

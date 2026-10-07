@@ -198,7 +198,7 @@ const englishMessages = {
   'orders.winterDescription':
     'Direct investments only, without chains or military movement. Use D C KIND to discard a card; the hand is replenished automatically. Orders are applied in the order entered. Resolution waits for every player.',
   'orders.winterPlaceholder':
-    'R T ROS\nD C BT\nO N NNN\nP N NNN\nL N NNN\nT F NNN ROS BOI BRU\nT A NNN ROS\nM N NNN MMM',
+    'R T ROS\nD C BT\nO N NNN\nP N NNN\nH N NNN ROS\nT F NNN ROS BOI BRU\nT A NNN ROS\nM N NNN MMM',
   'orders.winterAria': 'Winter orders for {player}',
   'orders.winterErrorsAria': 'Winter order syntax errors',
   'orders.chainErrorsAria': 'Order chain errors',
@@ -475,6 +475,10 @@ const englishMessages = {
     'A free noble must be on or adjacent to the territory.',
   'reports.reason.noble_not_prisoner': 'The noble is not a prisoner.',
   'reports.reason.noble_not_held': 'The noble is not held by this player.',
+  'reports.reason.noble_not_controlled': 'The noble is neither yours and free, nor held by one of your armies.',
+  'reports.reason.no_army_at_destination': 'No other player’s army stands on the destination.',
+  'reports.reason.transfer_to_self': 'A noble cannot be handed to your own army.',
+  'reports.reason.transfer_status_to_owner': 'A status cannot be set when handing a noble back to its owner.',
   'reports.reason.marriage_not_reciprocated': 'The other player did not submit the matching marriage order.',
   'reports.reason.marriage_refused': 'The marriage was refused: you did not submit the matching order.',
   'reports.reason.marriage_pending': 'Marriage pending: it only takes place if the other player submits the matching order.',
@@ -986,7 +990,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'orders.winterDescription':
     "Investissements directs uniquement, sans chaînes ni mouvements militaires. Utilisez D C KIND pour défausser une carte ; la main est reconstituée automatiquement. Les ordres sont appliqués dans l'ordre saisi. La résolution attend tous les joueurs.",
   'orders.winterPlaceholder':
-    'R T ROS\nD C BT\nO N NNN\nP N NNN\nL N NNN\nT F NNN ROS BOI BRU\nT A NNN ROS\nM N NNN MMM',
+    'R T ROS\nD C BT\nO N NNN\nP N NNN\nH N NNN ROS\nT F NNN ROS BOI BRU\nT A NNN ROS\nM N NNN MMM',
   'orders.winterAria': "Ordres d'hiver de {player}",
   'orders.winterErrorsAria': "Erreurs de syntaxe des ordres d'hiver",
   'orders.chainErrorsAria': "Erreurs dans les chaînes d'ordres",
@@ -1267,6 +1271,10 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     'Un noble libre doit être sur le territoire ou adjacent.',
   'reports.reason.noble_not_prisoner': "Le noble n'est pas prisonnier.",
   'reports.reason.noble_not_held': "Le noble n'est pas détenu par ce joueur.",
+  'reports.reason.noble_not_controlled': "Le noble n'est ni libre et à vous, ni détenu par l'une de vos armées.",
+  'reports.reason.no_army_at_destination': "Aucune armée d'un autre joueur ne se trouve sur la destination.",
+  'reports.reason.transfer_to_self': "Un noble ne peut pas être remis à votre propre armée.",
+  'reports.reason.transfer_status_to_owner': "Aucun statut ne peut être fixé quand le noble est rendu à son propriétaire.",
   'reports.reason.marriage_not_reciprocated': "L'autre joueur n'a pas soumis l'ordre de mariage correspondant.",
   'reports.reason.marriage_refused': "Mariage refusé : vous n'avez pas soumis l'ordre correspondant.",
   'reports.reason.marriage_pending': "Mariage en attente : il n'a lieu que si l'autre joueur soumet l'ordre correspondant.",

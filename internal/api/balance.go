@@ -9,7 +9,6 @@ type WinterCostsView struct {
 	MillLevels  []int `json:"millLevels"`
 	Troop       int   `json:"troop"`
 	SupplyDepot int   `json:"supplyDepot"`
-	Liberation  int   `json:"liberation"`
 }
 
 func winterCostsView(balance assetgen.Balance) WinterCostsView {
@@ -18,6 +17,5 @@ func winterCostsView(balance assetgen.Balance) WinterCostsView {
 		MillLevels:  append([]int(nil), balance.Costs.MillLevels...),
 		Troop:       balance.Costs.Troop,
 		SupplyDepot: balance.Costs.SupplyDepot,
-		Liberation:  balance.Costs.Liberation,
 	}
 }

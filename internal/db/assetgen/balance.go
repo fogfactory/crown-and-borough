@@ -92,7 +92,6 @@ type Costs struct {
 	MillLevels       []int `json:"mill_levels" yaml:"mill_levels"`
 	Troop            int   `json:"troop" yaml:"troop"`
 	SupplyDepot      int   `json:"supply_depot" yaml:"supply_depot"`
-	Liberation       int   `json:"liberation" yaml:"liberation"`
 	FiefPerTerritory int   `json:"fief_per_territory" yaml:"fief_per_territory"`
 }
 
@@ -160,7 +159,6 @@ type rawCosts struct {
 	MillLevels       []*int `yaml:"mill_levels"`
 	Troop            *int   `yaml:"troop"`
 	SupplyDepot      *int   `yaml:"supply_depot"`
-	Liberation       *int   `yaml:"liberation"`
 	FiefPerTerritory *int   `yaml:"fief_per_territory"`
 }
 
@@ -448,10 +446,6 @@ func (raw rawBalance) costs(path string) (Costs, error) {
 	if err != nil {
 		return Costs{}, err
 	}
-	liberation, err := requiredNonNegativeInt(path, "costs.liberation", raw.Costs.Liberation)
-	if err != nil {
-		return Costs{}, err
-	}
 	fiefPerTerritory, err := requiredNonNegativeInt(path, "costs.fief_per_territory", raw.Costs.FiefPerTerritory)
 	if err != nil {
 		return Costs{}, err
@@ -461,7 +455,6 @@ func (raw rawBalance) costs(path string) (Costs, error) {
 		MillLevels:       millLevels,
 		Troop:            troop,
 		SupplyDepot:      supplyDepot,
-		Liberation:       liberation,
 		FiefPerTerritory: fiefPerTerritory,
 	}, nil
 }

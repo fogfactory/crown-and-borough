@@ -44,7 +44,6 @@ costs:
   mill_levels: [3, 5, 7]
   troop: 1
   supply_depot: 3
-  liberation: 0
   fief_per_territory: 2
 victory:
   solo_territory_percent: 50
@@ -125,7 +124,7 @@ func TestLoadRealBalance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadBalance(real asset) = %v", err)
 	}
-	if balance.TerritoryIncome != 1 || balance.VillageIncome != 1 || balance.DepotRangeBonus != 2 || balance.NobleCommandBonus != 1 || balance.WinterStockDivisor != 2 || balance.VillageStockCap != 1 || balance.CastleStockCap != 2 || balance.Costs.Castle != 10 || balance.Costs.Liberation != 0 || len(balance.Costs.MillLevels) != 3 || balance.Costs.MillLevels[0] != 3 || balance.Costs.MillLevels[1] != 5 || balance.Costs.MillLevels[2] != 7 {
+	if balance.TerritoryIncome != 1 || balance.VillageIncome != 1 || balance.DepotRangeBonus != 2 || balance.NobleCommandBonus != 1 || balance.WinterStockDivisor != 2 || balance.VillageStockCap != 1 || balance.CastleStockCap != 2 || balance.Costs.Castle != 10 || len(balance.Costs.MillLevels) != 3 || balance.Costs.MillLevels[0] != 3 || balance.Costs.MillLevels[1] != 5 || balance.Costs.MillLevels[2] != 7 {
 		t.Errorf("loaded costs = %#v / %#v", balance, balance.Costs)
 	}
 	if len(balance.FirstNames) < 100 {

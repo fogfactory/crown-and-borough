@@ -41,7 +41,6 @@ costs:
   mill_levels: [3, 5, 7]
   troop: 1
   supply_depot: 3
-  liberation: 0
   # Per territory, paid by a T F winter order (titres.md).
   fief_per_territory: 2
 

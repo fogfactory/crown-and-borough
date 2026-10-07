@@ -671,7 +671,7 @@ per line, applied in the entered order.
 | Designate a capital | `E C XXX` | a controlled castle on `XXX` | 0 |
 | Place a noble in hostage status | `O N NNN` | `NNN` is an opposing prisoner held by the player | 0 |
 | Place a noble in the dungeon | `P N NNN` | `NNN` is an opposing prisoner held by the player | 0 |
-| Liberate a noble | `L N NNN` | `NNN` is held by the player; its owner's capital contains one of that owner's armies | {{costs.liberation}} |
+| Hand a noble to another player | `H N NNN XXX [O\|P]` | `NNN` is a free noble of the player, or a hostage or prisoner they hold; `XXX` holds another player's army. The noble keeps its status with that player (a free noble becomes a hostage), which `O` (hostage) or `P` (dungeon) can set; if that player is its owner, it is freed on `XXX` | 0 |
 | Transfer resources | `G XXX YYY N` | `XXX` is a castle or village controlled by the donor; `YYY` is a castle or village controlled by another player | 0 |
 | Found a fief | `T F NNN XXX YYY ZZZ …` | `NNN` is a player noble, even a hostage or prisoner; `XXX` (capital) and the rest of the group are controlled, contiguous, and need no castle outside the capital; no territory already in a fief; no enemy or revolt army on the group | {{costs.fief_per_territory}} per territory |
 | Assign a vacant fief | `T A NNN XXX` | `NNN` is a player noble, even a hostage or prisoner; `XXX` is the capital of a vacant fief the player holds | 0 |
@@ -759,9 +759,12 @@ it remains a hostage, but no longer once in the dungeon — the holder can in
 fact read those chains in online games, even when they command an army that
 stayed with the noble's owner. Capture normally produces `hostage` status,
 except for a bastard (see "The noble deck" above), who goes straight to the dungeon.
-`L N NNN` is issued by the **holder**, not the owner: if the owner's capital
-exists and contains one of their armies, the noble reappears there free;
-otherwise the order is rejected.
+`H N NNN XXX` hands a noble you control to another player's army standing on
+`XXX`. It lets you voluntarily send one of your free nobles as a hostage (its
+host then sees its chains and benefits from the passive bonuses of a lady),
+free a prisoner by sending it back to its owner's army (it is then free on
+`XXX`, at no cost), or pass a hostage on to
+another player. Only the holder of a hostage can send it back or pass it on.
 
 A winter transfer is therefore not limited to the donor's own castles and
 villages: `G` can directly supply a structure controlled by the recipient. The

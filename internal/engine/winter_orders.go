@@ -24,7 +24,7 @@ var winterOrderFactories = map[models.WinterOrderType]winterOrderFactory{
 	models.WinterOrderTypeRecruitTroop:  func(order models.WinterOrder) ExecutableOrder { return recruitTroopOrder{order: order} },
 	models.WinterOrderTypeBuild:         func(order models.WinterOrder) ExecutableOrder { return buildOrder{order: order} },
 	models.WinterOrderTypeElectCapital:  func(order models.WinterOrder) ExecutableOrder { return electCapitalOrder{order: order} },
-	models.WinterOrderTypeLiberateNoble: func(order models.WinterOrder) ExecutableOrder { return liberateNobleOrder{order: order} },
+	models.WinterOrderTypeTransferNoble: func(order models.WinterOrder) ExecutableOrder { return transferNobleOrder{order: order} },
 	models.WinterOrderTypeHostage:       func(order models.WinterOrder) ExecutableOrder { return hostageOrder{order: order} },
 	models.WinterOrderTypeDungeon:       func(order models.WinterOrder) ExecutableOrder { return dungeonOrder{order: order} },
 	models.WinterOrderTypeTransfer:      func(order models.WinterOrder) ExecutableOrder { return transferOrder{order: order} },

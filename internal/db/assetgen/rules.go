@@ -114,7 +114,6 @@ func renderRules(document []byte, balance Balance) ([]byte, error) {
 		"costs.castle":                                stringValue(balance.Costs.Castle),
 		"costs.troop":                                 stringValue(balance.Costs.Troop),
 		"costs.supply_depot":                          stringValue(balance.Costs.SupplyDepot),
-		"costs.liberation":                            stringValue(balance.Costs.Liberation),
 		"costs.fief_per_territory":                    stringValue(balance.Costs.FiefPerTerritory),
 		"noble_limit":                                 stringValue(balance.NobleLimit),
 		"noble_limit_max":                             stringValue(balance.NobleLimitMax),

@@ -44,7 +44,7 @@ const (
 	WinterOrderTypeRecruitTroop  WinterOrderType = "recruit_troop"
 	WinterOrderTypeBuild         WinterOrderType = "build"
 	WinterOrderTypeElectCapital  WinterOrderType = "elect_capital"
-	WinterOrderTypeLiberateNoble WinterOrderType = "liberate_noble"
+	WinterOrderTypeTransferNoble WinterOrderType = "transfer_noble"
 	WinterOrderTypeHostage       WinterOrderType = "hostage"
 	WinterOrderTypeDungeon       WinterOrderType = "dungeon"
 	WinterOrderTypeTransfer      WinterOrderType = "transfer"
@@ -62,7 +62,7 @@ const (
 func (t WinterOrderType) IsValid() bool {
 	switch t {
 	case WinterOrderTypeRecruitNoble, WinterOrderTypeRecruitTroop, WinterOrderTypeBuild,
-		WinterOrderTypeElectCapital, WinterOrderTypeLiberateNoble,
+		WinterOrderTypeElectCapital, WinterOrderTypeTransferNoble,
 		WinterOrderTypeHostage, WinterOrderTypeDungeon, WinterOrderTypeTransfer,
 		WinterOrderTypeFoundFief, WinterOrderTypeAssignFief, WinterOrderTypeMarriage,
 		WinterOrderTypeDrawNoble, WinterOrderTypeDignity, WinterOrderTypeDiscardNoble,
@@ -143,6 +143,9 @@ type WinterOrder struct {
 	NobleCode    NobleCode       `json:"nobleCode,omitempty"`
 	SpouseCode   NobleCode       `json:"spouseCode,omitempty"`
 	CardCode     string          `json:"cardCode,omitempty"`
+	// Status is the optional status a noble transfer gives a noble handed to
+	// another owner's army (hostage or dungeon); empty keeps its status.
+	Status NobleStatus `json:"status,omitempty"`
 	// Indices are the 1-based positions in the astrologer forecast a
 	// calamity veto removes.
 	Indices []int `json:"indices,omitempty"`

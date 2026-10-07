@@ -39,7 +39,6 @@ func testBalance() assetgen.Balance {
 			MillLevels:       []int{3, 5, 7},
 			Troop:            1,
 			SupplyDepot:      3,
-			Liberation:       0,
 			FiefPerTerritory: 2,
 		},
 		NobleLimit:        4,
