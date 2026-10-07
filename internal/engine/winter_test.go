@@ -99,7 +99,7 @@ func TestParseWinterOrders(t *testing.T) {
             C C DDD
             c d ggg
             e c hhh
-            l n nob
+            h n nob aaa p
             o n nob
             p n nob
             G AAA BBB 3
@@ -117,7 +117,7 @@ func TestParseWinterOrders(t *testing.T) {
 			models.WinterOrderTypeBuild,
 			models.WinterOrderTypeBuild,
 			models.WinterOrderTypeElectCapital,
-			models.WinterOrderTypeLiberateNoble,
+			models.WinterOrderTypeTransferNoble,
 			models.WinterOrderTypeHostage,
 			models.WinterOrderTypeDungeon,
 			models.WinterOrderTypeTransfer,
@@ -145,7 +145,7 @@ func TestParseWinterOrders(t *testing.T) {
 	})
 
 	t.Run("rejects the complete batch on malformed or unknown lines", func(t *testing.T) {
-		parsed, parseErrors := orders.ParseWinterOrders("R T AAA\nC X BBB\nR N XXX\nL N BAD", state)
+		parsed, parseErrors := orders.ParseWinterOrders("R T AAA\nC X BBB\nR N XXX\nH N BAD AAA", state)
 		if parsed != nil {
 			t.Errorf("parsed = %#v, want nil for invalid batch", parsed)
 		}
@@ -567,8 +567,9 @@ func TestResolveWinterRecruitNoble(t *testing.T) {
 	}
 }
 
-func TestResolveWinterLiberateNoble(t *testing.T) {
-	newState := func(t *testing.T, withCapital bool) *models.GameState {
+func TestResolveWinterTransferNoble(t *testing.T) {
+	// P1 holds BBB with its army, P2 holds AAA; NOB is a P1 noble.
+	newState := func(t *testing.T) *models.GameState {
 		t.Helper()
 		state := winterTestState(t,
 			[]models.Territory{
@@ -589,114 +590,177 @@ func TestResolveWinterLiberateNoble(t *testing.T) {
 		oneState := state.TerritoryStates["AAA"]
 		oneState.Army = &state.Armies[1].ID
 		state.TerritoryStates["AAA"] = oneState
-		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
-		if withCapital {
-			setCapital(state, "P1", "I1")
-		}
-		addNoble(state, "N1", "NOB", "P1", "BBB")
-		state.Nobles[0].Status = models.NobleStatusHostage
+		addNoble(state, "N1", "NOB", "P1", "AAA")
 		return state
 	}
+	transfer := func(player models.PlayerID, destination models.TerritoryID) map[models.PlayerID][]models.WinterOrder {
+		return map[models.PlayerID][]models.WinterOrder{
+			player: {{ID: "O1", Type: models.WinterOrderTypeTransferNoble, NobleCode: "NOB", TerritoryID: destination}},
+		}
+	}
 
-	t.Run("returns a prisoner to its owner's capital", func(t *testing.T) {
-		state := newState(t, true)
+	t.Run("sends a free noble as a hostage to another player", func(t *testing.T) {
+		state := newState(t)
 		validateTestState(t, state)
-		resolution, err := ResolveWinter(state, testBalance(), map[models.PlayerID][]models.WinterOrder{
-			"P2": {{ID: "O1", Type: models.WinterOrderTypeLiberateNoble, NobleCode: "NOB"}},
-		})
+		resolution, err := ResolveWinter(state, testBalance(), transfer("P1", "BBB"))
+		if err != nil {
+			t.Fatalf("ResolveWinter: %v", err)
+		}
+		noble := nobleByID(t, resolution.State, "N1")
+		if noble.Status != models.NobleStatusHostage || noble.LocationID != "BBB" || noble.OwnerID != "P1" {
+			t.Errorf("noble = %#v, want P1 hostage at BBB", noble)
+		}
+		transfers := eventsOfType(resolution.Events, EventTypeNobleTransfer)
+		if len(transfers) != 1 || transfers[0].CaptorPlayerID != "P2" || transfers[0].PreviousStatus != models.NobleStatusFree {
+			t.Errorf("transfer events = %#v, want one handing NOB to P2", transfers)
+		}
+	})
+
+	t.Run("releases a hostage by sending it to its owner", func(t *testing.T) {
+		state := newState(t)
+		state.Nobles[0].LocationID = "BBB"
+		state.Nobles[0].Status = models.NobleStatusHostage
+		validateTestState(t, state)
+		resolution, err := ResolveWinter(state, testBalance(), transfer("P2", "AAA"))
 		if err != nil {
 			t.Fatalf("ResolveWinter: %v", err)
 		}
 		noble := nobleByID(t, resolution.State, "N1")
 		if noble.Status != models.NobleStatusFree || noble.LocationID != "AAA" {
-			t.Errorf("liberated noble = %#v, want free at AAA", noble)
-		}
-		liberations := eventsOfType(resolution.Events, EventTypeLiberation)
-		if len(liberations) != 1 || liberations[0].PreviousStatus != models.NobleStatusHostage || liberations[0].OrderID != "O1" || liberations[0].ResourceSpent != 0 {
-			t.Errorf("liberation events = %#v, want order O1 and resource spend 0", liberations)
+			t.Errorf("released noble = %#v, want free at AAA", noble)
 		}
 	})
 
-	t.Run("uses the configured liberation cost", func(t *testing.T) {
-		state := newState(t, true)
-		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
-		setCapital(state, "P2", "I2")
-		setTerritoryResources(state, "BBB", 2)
+	t.Run("frees a prisoner at no cost", func(t *testing.T) {
+		state := newState(t)
+		state.Nobles[0].LocationID = "BBB"
+		state.Nobles[0].Status = models.NobleStatusDungeon
 		validateTestState(t, state)
-		balance := testBalance()
-		balance.Costs.Liberation = 2
-		resolution, err := ResolveWinter(state, balance, map[models.PlayerID][]models.WinterOrder{
-			"P2": {{ID: "O1", Type: models.WinterOrderTypeLiberateNoble, NobleCode: "NOB"}},
-		})
+		resolution, err := ResolveWinter(state, testBalance(), transfer("P2", "AAA"))
 		if err != nil {
 			t.Fatalf("ResolveWinter: %v", err)
 		}
-		if got := resolution.State.TerritoryStates["BBB"].Resources; got != 0 {
-			t.Errorf("holder capital stock = %d, want 0 after liberation payment", got)
+		if noble := nobleByID(t, resolution.State, "N1"); noble.Status != models.NobleStatusFree {
+			t.Errorf("noble = %#v, want free", noble)
 		}
 	})
 
-	t.Run("allows the owner to release when its army holds the noble", func(t *testing.T) {
-		state := newState(t, true)
-		state.Armies[0].OwnerID = "P1"
-		validateTestState(t, state)
-		resolution, err := ResolveWinter(state, testBalance(), map[models.PlayerID][]models.WinterOrder{
-			"P1": {{ID: "O1", Type: models.WinterOrderTypeLiberateNoble, NobleCode: "NOB"}},
-		})
+	t.Run("keeps the status of a held noble passed on, unless one is given", func(t *testing.T) {
+		for _, tc := range []struct {
+			name      string
+			initial   models.NobleStatus
+			requested models.NobleStatus
+			want      models.NobleStatus
+		}{
+			{"dungeon kept", models.NobleStatusDungeon, "", models.NobleStatusDungeon},
+			{"hostage kept", models.NobleStatusHostage, "", models.NobleStatusHostage},
+			{"hostage to dungeon", models.NobleStatusHostage, models.NobleStatusDungeon, models.NobleStatusDungeon},
+			{"dungeon to hostage", models.NobleStatusDungeon, models.NobleStatusHostage, models.NobleStatusHostage},
+		} {
+			state := newState(t)
+			state.Territories = append(state.Territories, territory("CCC", "CCC", "BBB"))
+			state.Territories[1].Adjacencies = append(state.Territories[1].Adjacencies, "CCC")
+			state.TerritoryStates["CCC"] = models.TerritoryState{Army: armyPointer("A3")}
+			state.Armies = append(state.Armies, models.Army{ID: "A3", OwnerID: "P3", TerritoryID: "CCC", Size: 1})
+			state.NextArmyID = 4
+			state.Nobles[0].LocationID = "BBB"
+			state.Nobles[0].Status = tc.initial
+			orders := transfer("P2", "CCC")
+			orders["P2"][0].Status = tc.requested
+			resolution, err := ResolveWinter(state, testBalance(), orders)
+			if err != nil {
+				t.Fatalf("%s: ResolveWinter: %v", tc.name, err)
+			}
+			if noble := nobleByID(t, resolution.State, "N1"); noble.Status != tc.want {
+				t.Errorf("%s: status = %q, want %q", tc.name, noble.Status, tc.want)
+			}
+		}
+	})
+
+	t.Run("rejects a status when the recipient owns the noble", func(t *testing.T) {
+		state := newState(t)
+		state.Nobles[0].LocationID = "BBB"
+		state.Nobles[0].Status = models.NobleStatusHostage
+		orders := transfer("P2", "AAA")
+		orders["P2"][0].Status = models.NobleStatusDungeon
+		resolution, err := ResolveWinter(state, testBalance(), orders)
+		if err != nil {
+			t.Fatalf("ResolveWinter: %v", err)
+		}
+		if event := firstRejectedEvent(t, resolution.Events); event.Reason != "transfer_status_to_owner" {
+			t.Errorf("rejection = %#v", event)
+		}
+	})
+
+	t.Run("passes a hostage on to a third player", func(t *testing.T) {
+		state := newState(t)
+		state.Territories = append(state.Territories, territory("CCC", "CCC", "BBB"))
+		state.Territories[1].Adjacencies = append(state.Territories[1].Adjacencies, "CCC")
+		state.TerritoryStates["CCC"] = models.TerritoryState{Army: armyPointer("A3")}
+		state.NextArmyID = 4
+		state.Armies = append(state.Armies, models.Army{ID: "A3", OwnerID: "P3", TerritoryID: "CCC", Size: 1})
+		state.Nobles[0].LocationID = "BBB"
+		state.Nobles[0].Status = models.NobleStatusHostage
+		resolution, err := ResolveWinter(state, testBalance(), transfer("P2", "CCC"))
 		if err != nil {
 			t.Fatalf("ResolveWinter: %v", err)
 		}
 		noble := nobleByID(t, resolution.State, "N1")
-		if noble.Status != models.NobleStatusFree || noble.LocationID != "AAA" {
-			t.Errorf("liberated noble = %#v, want free at AAA", noble)
+		if noble.Status != models.NobleStatusHostage || noble.LocationID != "CCC" {
+			t.Errorf("noble = %#v, want hostage at CCC", noble)
 		}
 	})
 
 	tests := []struct {
-		name   string
-		mutate func(*models.GameState)
-		reason string
+		name        string
+		mutate      func(*models.GameState)
+		player      models.PlayerID
+		destination models.TerritoryID
+		reason      string
 	}{
 		{
-			name: "noble is already free",
-			mutate: func(state *models.GameState) {
-				state.Nobles[0].Status = models.NobleStatusFree
-			},
-			reason: "noble_not_prisoner",
+			name:        "noble is not under the player's control",
+			player:      "P2",
+			destination: "AAA",
+			reason:      "noble_not_controlled",
 		},
 		{
-			name: "noble is not held",
+			name: "noble is a prisoner of another player",
 			mutate: func(state *models.GameState) {
-				state.Armies[0].OwnerID = "P1"
+				state.Nobles[0].LocationID = "BBB"
+				state.Nobles[0].Status = models.NobleStatusHostage
 			},
-			reason: "noble_not_held",
+			player:      "P1",
+			destination: "AAA",
+			reason:      "noble_not_controlled",
 		},
 		{
-			name: "owner has no capital",
+			name: "destination has no army",
 			mutate: func(state *models.GameState) {
-				state.Players[0].CapitalCastleID = nil
+				state.Armies = state.Armies[1:]
+				twoState := state.TerritoryStates["BBB"]
+				twoState.Army = nil
+				state.TerritoryStates["BBB"] = twoState
 			},
-			reason: "no_capital",
+			player:      "P1",
+			destination: "BBB",
+			reason:      "no_army_at_destination",
 		},
 		{
-			name: "owner capital has no army",
-			mutate: func(state *models.GameState) {
-				capitalState := state.TerritoryStates["AAA"]
-				capitalState.Army = nil
-				state.TerritoryStates["AAA"] = capitalState
-				state.Armies = state.Armies[:1]
-			},
-			reason: "no_army_at_capital",
+			name:        "destination holds the player's own army",
+			player:      "P1",
+			destination: "AAA",
+			reason:      "transfer_to_self",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			state := newState(t, true)
-			tt.mutate(state)
+			state := newState(t)
+			if tt.mutate != nil {
+				tt.mutate(state)
+			}
 			validateTestState(t, state)
-			resolution, err := ResolveWinter(state, testBalance(), map[models.PlayerID][]models.WinterOrder{
-				"P2": {{ID: "O1", Type: models.WinterOrderTypeLiberateNoble, NobleCode: "NOB"}},
-			})
+			resolution, err := ResolveWinter(state, testBalance(), transfer(tt.player, tt.destination))
 			if err != nil {
 				t.Fatalf("ResolveWinter: %v", err)
 			}
@@ -1490,7 +1554,7 @@ func TestResolveWinterCapital(t *testing.T) {
 		}
 	})
 
-	t.Run("destroyed capital is cleared and blocks liberation", func(t *testing.T) {
+	t.Run("destroyed capital is cleared", func(t *testing.T) {
 		state := winterTestState(t,
 			[]models.Territory{territory("AAA", "AAA")},
 			[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}},
@@ -1517,18 +1581,6 @@ func TestResolveWinterCapital(t *testing.T) {
 		}
 		if got := action.State.TerritoryStates["AAA"].Resources; got != 0 {
 			t.Errorf("destroyed castle stock = %d, want cleared with the settlement", got)
-		}
-		action.State.Armies[0].OwnerID = "P2"
-		action.State.Turn = 4
-		action.State.Season = models.SeasonWinter
-		winter, err := ResolveWinter(action.State, testBalance(), map[models.PlayerID][]models.WinterOrder{
-			"P2": {{ID: "O1", Type: models.WinterOrderTypeLiberateNoble, NobleCode: "TWO"}},
-		})
-		if err != nil {
-			t.Fatalf("ResolveWinter(after destruction) = %v", err)
-		}
-		if event := firstRejectedEvent(t, winter.Events); event.Reason != "no_capital" {
-			t.Errorf("rejection = %#v", event)
 		}
 	})
 

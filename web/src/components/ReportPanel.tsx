@@ -78,6 +78,10 @@ const REASON_KEYS: Record<string, MessageKey> = {
   troop_requires_adjacent_noble: 'reports.reason.troop_requires_adjacent_noble',
   noble_not_prisoner: 'reports.reason.noble_not_prisoner',
   noble_not_held: 'reports.reason.noble_not_held',
+  noble_not_controlled: 'reports.reason.noble_not_controlled',
+  no_army_at_destination: 'reports.reason.no_army_at_destination',
+  transfer_to_self: 'reports.reason.transfer_to_self',
+  transfer_status_to_owner: 'reports.reason.transfer_status_to_owner',
   marriage_not_reciprocated: 'reports.reason.marriage_not_reciprocated',
   marriage_pending: 'reports.reason.marriage_pending',
   marriage_refused: 'reports.reason.marriage_refused',
@@ -309,8 +313,8 @@ function winterOrderLabel(order: WinterOrder, map: MapData | null, t: Translate)
       return `C ${WINTER_INFRA_SYMBOLS[order.infrastructureType ?? 'mill'] ?? '?'} ${territory}`
     case 'elect_capital':
       return `E C ${territory}`
-    case 'liberate_noble':
-      return `L N ${order.nobleCode ?? '—'}`
+    case 'transfer_noble':
+      return `H N ${order.nobleCode ?? '—'} ${territory}${order.status ? ` ${order.status === 'dungeon' ? 'P' : 'O'}` : ''}`
     case 'hostage':
       return `O N ${order.nobleCode ?? '—'}`
     case 'dungeon':
@@ -369,8 +373,8 @@ function investmentLabel(
       return `C ${WINTER_INFRA_SYMBOLS.castle} ${territory}`
     case 'capital_elected':
       return `E C ${territory}`
-    case 'liberation':
-      return `L N ${investment.nobleCode ?? '—'}`
+    case 'noble_transfer':
+      return `H N ${investment.nobleCode ?? '—'} ${territory}`
     case 'transfer':
       return `G ${territoryLabel(map, investment.source, t)} ${territoryLabel(map, investment.target, t)} ${investment.amount ?? '—'}`
     case 'fief_founded': {

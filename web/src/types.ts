@@ -35,7 +35,7 @@ export type EventType =
   | 'control_changed'
   | 'noble_movement'
   | 'capture'
-  | 'liberation'
+  | 'noble_transfer'
   | 'transfer'
   | 'deck_draw'
   | 'deck_discard'
@@ -377,7 +377,6 @@ export interface WinterCosts {
   millLevels: number[]
   troop: number
   supplyDepot: number
-  liberation: number
 }
 
 export interface SupplyLine {
@@ -761,7 +760,7 @@ export type WinterOrderType =
   | 'recruit_troop'
   | 'build'
   | 'elect_capital'
-  | 'liberate_noble'
+  | 'transfer_noble'
   | 'hostage'
   | 'dungeon'
   | 'transfer'
@@ -782,6 +781,8 @@ export interface WinterOrder {
   territory?: string
   infrastructureType?: InfraType
   nobleCode?: string
+  /** Optional new status of a `transfer_noble` order. */
+  status?: NobleStatus
   /** Present only for `marriage` and `claim`: the other player's noble. */
   spouseCode?: string
   source?: string

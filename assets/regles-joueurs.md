@@ -710,7 +710,7 @@ investissements directs, une ligne par ordre, appliqués dans l'ordre saisi.
 | Désigner une capitale | `E C XXX` | un château contrôlé sur `XXX` | 0 |
 | Placer un noble en otage | `O N NNN` | `NNN` est un prisonnier adverse détenu par le joueur | 0 |
 | Placer un noble au donjon | `P N NNN` | `NNN` est un prisonnier adverse détenu par le joueur | 0 |
-| Libérer un noble | `L N NNN` | `NNN` est détenu par le joueur ; la capitale de son propriétaire contient une armée de celui-ci | {{costs.liberation}} |
+| Remettre un noble à un autre joueur | `H N NNN XXX [O\|P]` | `NNN` est un noble libre du joueur, ou un otage ou prisonnier qu'il détient ; `XXX` porte l'armée d'un autre joueur. Le noble garde son statut chez ce joueur (un noble libre devient otage), que `O` (otage) ou `P` (donjon) peut fixer ; si c'est son propriétaire, il est libéré sur `XXX` | 0 |
 | Transférer des ressources | `G XXX YYY N` | `XXX` est un château ou village contrôlé par le donneur ; `YYY` est un château ou village contrôlé par un autre joueur | 0 |
 | Constituer un fief | `T F NNN XXX YYY ZZZ …` | `NNN` est un noble du joueur, même otage ou prisonnier ; `XXX` (capitale) et le reste du groupe sont contrôlés, contigus et sans château requis hors capitale ; aucun territoire déjà en fief ; aucune armée adverse ou de révolte sur le groupe | {{costs.fief_per_territory}} par territoire |
 | Attribuer un fief vacant | `T A NNN XXX` | `NNN` est un noble du joueur, même otage ou prisonnier ; `XXX` est la capitale d'un fief vacant qu'il détient | 0 |
@@ -800,10 +800,13 @@ d'origine tant qu'il reste otage, mais plus une fois au donjon — le détenteur
 peut d'ailleurs lire ces chaînes dans les parties en ligne, même lorsqu'elles
 commandent une armée restée chez le propriétaire du noble. La capture
 produit par défaut le statut `hostage`, sauf pour un bâtard (voir « Le deck de nobles »
-ci-dessus) qui est placé directement au donjon. `L N NNN` est émis par le
-**détenteur**, pas par le propriétaire : si la capitale du propriétaire
-existe et contient une armée de celui-ci, le noble y réapparaît libre ; sinon
-l'ordre est rejeté.
+ci-dessus) qui est placé directement au donjon. `H N NNN XXX` remet un noble que vous contrôlez à l'armée d'un autre joueur
+présente sur `XXX`. Il sert à envoyer volontairement un de vos nobles libres
+en otage (son hôte voit alors ses chaînes, et profite des bonus passifs d'une
+dame), à libérer un prisonnier en le renvoyant à l'armée de son propriétaire
+(il est alors libre sur `XXX`, gratuitement), ou
+à céder un otage à un autre joueur. Seul le détenteur d'un otage peut le
+renvoyer ou le céder.
 
 Un transfert d'hiver ne se limite donc pas aux villages et châteaux du
 donneur : `G` peut alimenter directement une structure contrôlée par le

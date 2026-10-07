@@ -85,7 +85,7 @@ un bonus fixe et/ou une action réservée. **Les bonus ne s'appliquent que
 tant que la dame n'est pas prisonnière.** Otage (volontaire) et prisonnier
 sont deux statuts distincts : une dame otage conserve ses bonus.
 
-Une dame envoyée en otage volontaire (voir [succession.md § Otage volontaire](succession.md#otage-volontaire))
+Une dame envoyée en otage volontaire (voir [succession.md § Transfert de noble et otage volontaire](succession.md#transfert-de-noble-et-otage-volontaire))
 transfère le bonus de sa dignité au joueur qui la détient tant qu'elle reste
 otage, qu'elle en soit propriétaire d'origine ou non — un instrument
 diplomatique à part entière, distinct d'une capture de guerre. Le

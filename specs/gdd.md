@@ -73,7 +73,7 @@ liste d'investissements directs, traités dans l'ordre saisi :
 - `E C XXX` — désigner le château de `XXX` comme capitale ;
 - `O N NNN` — placer le noble prisonnier `NNN` en statut `hostage` ;
 - `P N NNN` — placer le noble prisonnier `NNN` en statut `dungeon` ;
-- `L N NNN` — libérer le noble de code `NNN` ;
+- `H N NNN XXX [O|P]` — remettre le noble `NNN` que le joueur contrôle (l'un de ses nobles libres, ou un otage ou prisonnier qu'il détient) à l'armée d'un autre joueur présente sur `XXX` ; le noble y garde son statut (un noble libre devient `hostage`), que `O` (`hostage`) ou `P` (`dungeon`) peut fixer ; il est libéré, gratuitement, si cette armée appartient à son propriétaire ([succession.md](succession.md#transfert-de-noble-et-otage-volontaire)) ;
 - `G XXX YYY N` — transférer `N` ressources du château ou village `XXX` vers
   le château ou village `YYY` d'un autre joueur ;
 - `T F NNN XXX YYY ZZZ …` — constituer un fief : `NNN` est le noble titulaire,
@@ -85,7 +85,7 @@ liste d'investissements directs, traités dans l'ordre saisi :
   joueur ; l'ordre n'est conclu que si l'autre joueur soumet `M N YYY XXX`
   le même hiver (voir [succession.md](succession.md#conclusion-dun-mariage)).
 
-`XXX` est le trigramme du territoire ciblé, sauf pour `O N`, `P N`, `L N` et
+`XXX` est le trigramme du territoire ciblé, sauf pour `O N`, `P N` et
 `M N`, qui ciblent des nobles. La feuille d'hiver peut aussi contenir `D C KIND` pour
 défausser une carte bonus (voir « Cartes bonus et calamités » ci-dessous).
 
@@ -595,9 +595,7 @@ bonus fixe de `+1` décrit à la section 5.
 Lorsqu'une armée est détruite sur une case occupée par une armée ennemie, les
 nobles qu'elle portait sont capturés et deviennent `hostage`. Ils peuvent encore
 émettre des chaînes, dont le détail sera connu du détenteur dans les parties en
-ligne. Le détenteur peut les libérer en hiver avec `L N NNN` ; si la capitale du
-propriétaire existe et contient une armée de celui-ci, ils réapparaissent libres
-dans cette capitale. Un joueur sans noble libre ou otage apte à émettre n'a pas
+ligne. Le détenteur peut les rendre à leur propriétaire en hiver avec `H N NNN XXX`, `XXX` portant une armée de celui-ci : ils réapparaissent libres sur `XXX`. Un joueur sans noble libre ou otage apte à émettre n'a pas
 à soumettre de chaînes pendant une saison d'action.
 
 ### Retraites

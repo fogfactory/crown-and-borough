@@ -228,7 +228,7 @@ func TestWinterOrderTypeIsValid(t *testing.T) {
 		models.WinterOrderTypeRecruitTroop,
 		models.WinterOrderTypeBuild,
 		models.WinterOrderTypeElectCapital,
-		models.WinterOrderTypeLiberateNoble,
+		models.WinterOrderTypeTransferNoble,
 		models.WinterOrderTypeHostage,
 		models.WinterOrderTypeDungeon,
 		models.WinterOrderTypeTransfer,

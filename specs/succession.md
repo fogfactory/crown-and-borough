@@ -228,7 +228,7 @@ premier dans l'ordre de résolution (joueurs par identifiant, puis ordre de la
 feuille) est conclu ; les autres sont rejetés `noble_already_married`.
 
 Les ordres de mariage sont résolus après tous les autres ordres d'hiver
-individuels du tour : un noble libéré (`L N`) le même hiver peut donc être
+individuels du tour : un noble libéré (`H N`) le même hiver peut donc être
 marié. La conclusion enregistre le mariage sans en calculer les effets : le
 poids, la catégorie et les bonus relèvent des sections suivantes.
 
@@ -313,17 +313,36 @@ La règle devra encore préciser (issue de milestone) :
   éliminé et un joueur actif — notamment si le score du joueur éliminé
   continue de compter pour son ex-conjoint.
 
-## Otage volontaire
+## Transfert de noble et otage volontaire
 
 **Dépend aussi de :** la réception des nobles et le statut `hostage` du GDD
 §6.
 
-Un nouvel ordre d'hiver permet à un joueur de remettre volontairement un de
-ses propres nobles libres à un autre joueur, qui le reçoit en statut
-`hostage` sans combat ni capture. Contrairement à une capture, l'envoi est
-unilatéral et ne demande pas le consentement du destinataire (comme le
-transfert de ressources `G XXX YYY N` du GDD §2, qui n'exige pas non plus que
-la destination appartienne au donneur).
+L'ordre d'hiver `H N NNN XXX` remet le noble `NNN` à l'armée qui se trouve sur
+le territoire `XXX`. Il porte sur tout noble que le joueur **contrôle** :
+
+- un de ses nobles libres ;
+- un noble `hostage` ou `dungeon` détenu par l'une de ses armées.
+
+`XXX` doit porter l'armée d'un autre joueur (pas une armée neutre, pas une
+armée du donneur). L'envoi est unilatéral et ne demande pas le consentement du
+destinataire, comme le transfert de ressources `G XXX YYY N` du GDD §2. Le
+noble reste chez le destinataire sans combat ni capture, et son propriétaire
+d'origine ne change pas. Son statut est conservé (un noble libre devient
+`hostage`) ; un argument optionnel `O` (`hostage`) ou `P` (`dungeon`) le fixe
+explicitement lorsque le destinataire n'est pas son propriétaire. L'ordre est
+alors gratuit dans tous les cas. Trois usages découlent de la même règle :
+
+- **otage volontaire** : un joueur envoie un de ses nobles libres chez un
+  autre joueur ;
+- **libération** : un détenteur renvoie son prisonnier à l'armée de son
+  propriétaire. Le noble est alors libre sur `XXX`, sans coût ;
+- **cession** : un détenteur remet son otage à un tiers, allié ou non.
+
+Les rejets sont `noble_not_controlled`, `no_army_at_destination`,
+`transfer_to_self` et `transfer_status_to_owner` (un statut est donné alors
+que le destinataire est le propriétaire). Aucun droit de rappel
+n'existe : seul le détenteur d'un otage peut le renvoyer ou le céder.
 
 Cet ordre combine deux mécaniques déjà en place :
 
@@ -331,21 +350,14 @@ Cet ordre combine deux mécaniques déjà en place :
   receveur connaît les chaînes émises par le noble reçu tant qu'il reste
   hostage (GDD §4) — envoyer un noble volontairement, c'est donc aussi
   choisir de rendre son activité visible à un tiers, un geste diplomatique
-  lisible plutôt qu'un pur repli défensif ;
+  lisible plutôt qu'un pur repli défensif. Le noble ne peut pas refuser
+  d'émettre des chaînes ;
 - **effets passifs des dames** : lorsque le noble envoyé est une dame
   porteuse d'un effet de cour ou d'une carte de dot (voir
-  [dames.md](dames.md)), l'effet passif s'applique désormais au **joueur qui
-  la détient**, pas à son propriétaire d'origine. Envoyer une dame savante
-  en gage devient un instrument diplomatique à part entière — prêter un
-  savoir plutôt qu'un simple otage de valeur.
-
-> À trancher dans l'issue de milestone : syntaxe exacte de l'ordre et
-> condition de ciblage (territoire portant une armée du destinataire,
-> capitale du destinataire, ou autre point d'ancrage) ; si le propriétaire
-> d'origine conserve un droit de rappel ou de rançon au-delà de la libération
-> standard `L N NNN` par le détenteur ; et si un noble envoyé volontairement
-> peut refuser d'émettre des chaînes pour se soustraire à l'observation
-> (probablement non, pour rester cohérent avec le statut `hostage` existant).
+  [dames.md](dames.md)), l'effet passif s'applique aussi au **joueur qui
+  la détient**. Envoyer une dame savante en gage est un instrument
+  diplomatique à part entière — prêter un savoir plutôt qu'un simple otage
+  de valeur.
 
 ## Prétentions (Claims)
 

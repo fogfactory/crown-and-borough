@@ -35,7 +35,7 @@ const (
 	EventTypeFortify            EventType = "fortify"
 	EventTypeRejected           EventType = "rejected"
 	EventTypeCapitalElected     EventType = "capital_elected"
-	EventTypeLiberation         EventType = "liberation"
+	EventTypeNobleTransfer      EventType = "noble_transfer"
 	EventTypeDeckDraw           EventType = "deck_draw"
 	EventTypeDeckDiscard        EventType = "deck_discard"
 	EventTypeDeckRestore        EventType = "deck_restore"

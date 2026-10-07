@@ -158,21 +158,10 @@ func TestWinterOrderApplyRejectsInvalidCases(t *testing.T) {
 			wantReason: "noble_not_held",
 		},
 		{
-			name:       "liberate unknown noble",
-			order:      models.WinterOrder{Type: models.WinterOrderTypeLiberateNoble, NobleCode: "BAD"},
+			name:       "transfer unknown noble",
+			order:      models.WinterOrder{Type: models.WinterOrderTypeTransferNoble, NobleCode: "BAD", TerritoryID: "AAA"},
 			setup:      holderArmy,
 			wantReason: "unknown_noble",
-		},
-		{
-			name:  "liberate without owner capital",
-			order: models.WinterOrder{Type: models.WinterOrderTypeLiberateNoble, NobleCode: "ONE"},
-			setup: func(state *models.GameState) {
-				state.Armies = []models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}}
-				state.TerritoryStates["AAA"] = models.TerritoryState{Army: armyPointer("A1"), Resources: 10}
-				addNoble(state, "N1", "ONE", "P2", "AAA")
-				setNobleStatus(state, "N1", models.NobleStatusHostage)
-			},
-			wantReason: "no_capital",
 		},
 	}
 
