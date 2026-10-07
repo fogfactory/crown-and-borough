@@ -10,6 +10,11 @@ import (
 )
 
 type victorySimulationRequest struct {
+	MarriageEnds []struct {
+		Noble  models.NobleCode `json:"noble"`
+		Spouse models.NobleCode `json:"spouse"`
+	} `json:"marriageEnds"`
+	Deaths    []models.NobleCode `json:"deaths"`
 	Marriages []struct {
 		Noble  models.NobleCode `json:"noble"`
 		Spouse models.NobleCode `json:"spouse"`
@@ -58,6 +63,10 @@ func (h *GamesHandler) simulateVictory(w http.ResponseWriter, r *http.Request, a
 		return
 	}
 	var scenario engine.VictoryScenario
+	scenario.Deaths = request.Deaths
+	for _, end := range request.MarriageEnds {
+		scenario.MarriageEnds = append(scenario.MarriageEnds, engine.MarriageHypothesis{Noble: end.Noble, Spouse: end.Spouse})
+	}
 	for _, marriage := range request.Marriages {
 		scenario.Marriages = append(scenario.Marriages, engine.MarriageHypothesis{Noble: marriage.Noble, Spouse: marriage.Spouse})
 	}

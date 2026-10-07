@@ -31,7 +31,14 @@ type ClaimHypothesis struct {
 }
 
 // VictoryScenario is the hypothetical change applied to a copy of the state.
+// Changes apply in this order: marriage ends, deaths, new marriages, claims.
 type VictoryScenario struct {
+	// MarriageEnds names the two spouses of an existing marriage to dissolve.
+	MarriageEnds []MarriageHypothesis
+	// Deaths lists nobles who die: their marriage ends, their dignities are
+	// lost and their fiefs pass to the living heir of a claim on them, or are
+	// left vacant with their owner.
+	Deaths    []models.NobleCode
 	Marriages []MarriageHypothesis
 	Claims    []ClaimHypothesis
 }
@@ -79,6 +86,57 @@ func applyVictoryScenario(state *models.GameState, playerID models.PlayerID, sce
 		}
 		return models.Noble{}, fmt.Errorf("unknown noble %q", code)
 	}
+	for _, hypothesis := range scenario.MarriageEnds {
+		noble, err := byCode(hypothesis.Noble)
+		if err != nil {
+			return err
+		}
+		spouse, err := byCode(hypothesis.Spouse)
+		if err != nil {
+			return err
+		}
+		before := len(state.Marriages)
+		state.Marriages = slices.DeleteFunc(state.Marriages, func(m models.Marriage) bool {
+			return m.Active(state) && m.SpouseOf(noble.ID) == spouse.ID
+		})
+		if len(state.Marriages) == before {
+			return fmt.Errorf("nobles %q and %q are not married", hypothesis.Noble, hypothesis.Spouse)
+		}
+	}
+	dead := map[models.NobleID]bool{}
+	for _, code := range scenario.Deaths {
+		noble, err := byCode(code)
+		if err != nil {
+			return err
+		}
+		dead[noble.ID] = true
+	}
+	for id := range dead {
+		for index := range state.Fiefs {
+			fief := &state.Fiefs[index]
+			if fief.HolderNobleID == nil || *fief.HolderNobleID != id {
+				continue
+			}
+			fief.HolderNobleID = nil
+			for _, claim := range state.ClaimsOn(id) {
+				if dead[claim.Heir] {
+					continue
+				}
+				for _, heir := range state.Nobles {
+					if heir.ID == claim.Heir {
+						heirID := heir.ID
+						fief.OwnerID = heir.OwnerID
+						fief.HolderNobleID = &heirID
+						break
+					}
+				}
+				if fief.HolderNobleID != nil {
+					break
+				}
+			}
+		}
+	}
+	state.Nobles = slices.DeleteFunc(state.Nobles, func(n models.Noble) bool { return dead[n.ID] })
 	for _, hypothesis := range scenario.Marriages {
 		noble, err := byCode(hypothesis.Noble)
 		if err != nil {

@@ -55,3 +55,22 @@ func TestVictorySimulationRejectsImpossibleScenario(t *testing.T) {
 		t.Fatalf("simulate = %d: %s", response.Code, response.Body.String())
 	}
 }
+
+func TestVictorySimulationAcceptsDeathsAndMarriageEnds(t *testing.T) {
+	handler, gameStore := newPreviewTestHandler(t)
+	game := createGameHTTP(t, handler, "P1", `{"name":"Sim","seed":"victory-sim","players":["One","Two"]}`)
+	snapshot, err := gameStore.State(context.Background(), store.Actor{ID: "P1", Development: true}, game.ID)
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	dead := snapshot.State.Nobles[0].Code
+	path := "/api/games/" + string(game.ID) + "/victory/simulate?player=P1"
+	response := requestGames(t, handler, http.MethodPost, path, `{"deaths":["`+dead+`"]}`)
+	if response.Code != http.StatusOK {
+		t.Fatalf("deaths = %d: %s", response.Code, response.Body.String())
+	}
+	response = requestGames(t, handler, http.MethodPost, path, `{"marriageEnds":[{"noble":"AAA","spouse":"BBB"}]}`)
+	if response.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("marriage end = %d: %s", response.Code, response.Body.String())
+	}
+}

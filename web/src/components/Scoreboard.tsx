@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
 import type { Player, ScoreBreakdown, VictoryStatus } from '@/types'
@@ -20,6 +22,7 @@ export function Scoreboard({
   finished,
   winners,
   minorWinner,
+  simulator,
 }: {
   players: Player[]
   scores?: Record<string, ScoreBreakdown>
@@ -27,6 +30,8 @@ export function Scoreboard({
   finished?: boolean
   winners?: string[]
   minorWinner?: string | null
+  /** Trigger of the victory simulator dialog, shown beside the title. */
+  simulator?: ReactNode
 }) {
   const { t } = useLanguage()
   const playerName = (id: string) => players.find((p) => p.id === id)?.name || id
@@ -42,6 +47,7 @@ export function Scoreboard({
         >
           {t('app.scores')}
         </h2>
+        {simulator}
       </div>
       <ul className="mt-2 grid gap-2 min-[420px]:grid-cols-2">
         {players.map((player) => {

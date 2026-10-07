@@ -961,3 +961,26 @@ export interface DeceasedNoble {
   cause: 'natural' | 'execution' | 'assassination'
   turn: number
 }
+
+export type VictoryProjectionStatus = 'major' | 'minor' | 'failure' | 'ongoing'
+
+export interface VictoryReading {
+  score: ScoreBreakdown
+  victory: PlayerVictory
+  status: VictoryProjectionStatus
+  /** Score still to gain to reach the required threshold; 0 once reached. */
+  missing: number
+}
+
+export interface VictorySimulation {
+  current: VictoryReading
+  projected: VictoryReading
+}
+
+/** Body of POST /api/games/{id}/victory/simulate; nobles are given by code. */
+export interface VictoryScenario {
+  marriages: Array<{ noble: string; spouse: string }>
+  marriageEnds: Array<{ noble: string; spouse: string }>
+  deaths: string[]
+  claims: Array<{ heir: string; target: string }>
+}

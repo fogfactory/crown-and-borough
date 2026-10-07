@@ -341,4 +341,4 @@ recalculer de tête. Le front doit exposer un simulateur — à la manière de
 demande, le score de titres et le statut de victoire (majeure/mineure/échec)
 d'un joueur pour un état hypothétique (avant de conclure un mariage, après un
 Claim, etc.), sans engager l'action : `POST /api/games/{id}/victory/simulate`
-(voir `architecture.md`).
+(voir `architecture.md`). Le simulateur du front s'ouvre depuis le tableau des scores et empile mariages, fins de mariage, décès et prétentions honorées ; il recalcule à chaque modification et affiche score actuel/projeté, seuil, points manquants, mode, partenaire et statut.
