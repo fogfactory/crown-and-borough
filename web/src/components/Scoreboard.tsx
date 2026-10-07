@@ -2,10 +2,14 @@ import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
 import type { Player, ScoreBreakdown, VictoryStatus } from '@/types'
 
-const scoreKeys: Array<[keyof ScoreBreakdown, MessageKey]> = [['titles', 'score.titles']]
+const scoreKeys: Array<[keyof ScoreBreakdown, MessageKey]> = [
+  ['titles', 'score.titles'],
+  ['alliance', 'score.alliance'],
+]
 
 const emptyScore: ScoreBreakdown = {
   titles: 0,
+  alliance: 0,
   total: 0,
 }
 
@@ -56,7 +60,9 @@ export function Scoreboard({
                 </span>
               </div>
               <dl className="mt-2 grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 text-xs">
-                {scoreKeys.map(([key, labelKey]) => (
+                {scoreKeys
+                  .filter(([key]) => key !== 'alliance' || (score.alliance ?? 0) > 0)
+                  .map(([key, labelKey]) => (
                   <div key={key} className="contents">
                     <dt className="text-[#806f57]">{t(labelKey)}</dt>
                     <dd className="text-right font-medium">{score[key] ?? 0}</dd>

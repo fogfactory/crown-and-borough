@@ -26,6 +26,25 @@ describe('Scoreboard', () => {
     expect(screen.getAllByText('3')).toHaveLength(2)
   })
 
+  it('shows the marriage influence bonus only when there is one', () => {
+    render(
+      <LanguageProvider initialLanguage="en">
+        <Scoreboard
+          players={[
+            { id: 'P1', name: 'Alice', color: '#a84632' },
+            { id: 'P2', name: 'Bob', color: '#2f6f9f' },
+          ]}
+          scores={{
+            P1: { titles: 1, alliance: 3, total: 4 },
+            P2: { titles: 3, total: 3 },
+          }}
+        />
+      </LanguageProvider>,
+    )
+
+    expect(screen.getAllByText('Marriage influence')).toHaveLength(1)
+  })
+
   it('defaults titles to 0 for a score snapshot recorded before issue #251', () => {
     render(
       <LanguageProvider initialLanguage="en">

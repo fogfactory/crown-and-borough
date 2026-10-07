@@ -293,6 +293,8 @@ export interface ArmyRisk {
 export interface ScoreBreakdown {
   /** Absent on report snapshots recorded before issue #251. */
   titles?: number
+  /** Marriage influence bonus; absent before issue #252. */
+  alliance?: number
   total: number
 }
 
