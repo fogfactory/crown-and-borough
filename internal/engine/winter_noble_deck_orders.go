@@ -47,7 +47,9 @@ func (order drawNobleOrder) Apply(ctx *ExecutionContext) {
 }
 
 // dignityOrder is D N XXX CCC: it plays the dignity card CCC from the
-// player's hand on their noble XXX. It is free.
+// player's hand on the noble XXX, whoever owns it: any dignity can be played
+// on any noble, secret ones included. Only the card must come from the
+// player's own hand. It is free.
 type dignityOrder struct{ order models.WinterOrder }
 
 func (order dignityOrder) Apply(ctx *ExecutionContext) {
@@ -60,8 +62,8 @@ func (order dignityOrder) Apply(ctx *ExecutionContext) {
 		return
 	}
 	noble := resolution.noblesByID[nobleID]
-	if noble == nil || noble.OwnerID != playerID {
-		resolution.rejectWinterOrder(playerID, winterOrder, "noble_not_owned")
+	if noble == nil {
+		resolution.rejectWinterOrder(playerID, winterOrder, "unknown_noble")
 		return
 	}
 	card, handIndex, inHand := resolution.state.NobleDeck.HandCard(playerID, models.NobleCardKindDignity, winterOrder.CardCode)

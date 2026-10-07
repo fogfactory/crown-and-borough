@@ -701,7 +701,7 @@ investissements directs, une ligne par ordre, appliqués dans l'ordre saisi.
 | Piocher une carte de noble | `T N` | une seule fois par hiver et par joueur ; le deck de nobles, commun à tous, ne doit pas être épuisé | 0 |
 | Recruter un noble | `R N CCC XXX` | `CCC` est une carte de noble de ta main ; `XXX` contrôlé, avec un château ou un village et une armée du joueur, et moins de nobles vivants possédés que ton plafond, {{noble_limit}} de base (voir ci-dessous) | 0 |
 | Réclamer des titres | `C N HHH CCC` | `CLM` est une carte de prétention de ta main ; `HHH` est un de tes nobles, posé pendant un mariage de `CCC` avec l'un de tes nobles, non bâtard et sans prétention en cours ; `CCC` est un noble d'un autre joueur | 0 |
-| Conférer une dignité | `D N NNN CCC` | `NNN` est un noble du joueur ; `CCC` est une carte de dignité de ta main (`BAS` : bâtard ; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `SOR` : dames ; Bloquées : non mariées) ; un noble ne porte une dignité qu'une fois | 0 |
+| Conférer une dignité | `D N NNN CCC` | `NNN` est un noble quelconque, à toi ou à un adversaire ; `CCC` est une carte de dignité de ta main (`BAS` : bâtard ; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `SOR` : dames ; Bloquées : non mariées) ; un noble ne porte une dignité qu'une fois | 0 |
 | Défausser une carte de noble | `D C CCC` | `CCC` est une carte de ta main de nobles (trigramme de noble ou `BAS`) ; sans limite par hiver ; la carte va à la défausse du deck | 0 |
 | Recruter une troupe | `R T XXX` | `XXX` contrôlé, et un noble libre du joueur sur `XXX` ou adjacent | {{costs.troop}} |
 | Construire ou améliorer un moulin | `C M XXX` | `XXX` contrôlé ; un **nouveau** moulin exige une case **vide** adjacente à un château ou village, ou portant elle-même un château ou village ; un moulin **existant** peut toujours être amélioré, même isolé | {{costs.mill_levels.0}} (N1), {{costs.mill_levels.1}} (N2), {{costs.mill_levels.2}} (N3) |
@@ -755,8 +755,9 @@ fiefs dont il est titulaire passent au premier héritier vivant du classement, a
 succession ; sans fief ou sans héritier vivant, le Claim s'éteint. Un Claim est public : tous les joueurs le voient dans le rapport. Une carte de bâtard jouée sur
 l'héritier annule son Claim ; jouée sur un noble parent, elle ne l'annule pas.
 
-Une carte de dignité se joue sur l'un de tes nobles avec `D N NNN CCC`, y compris
-un noble que tu viens de recruter par un `R N` placé plus haut dans la même feuille. Un noble
+Une carte de dignité se joue sur n'importe quel noble, à toi ou à un adversaire, secrets compris,
+avec `D N NNN CCC`, y compris un noble que tu viens de recruter par un `R N`
+placé plus haut dans la même feuille. Un noble
 ne porte une dignité qu'une fois. Le deck contient le **bâtard** (`BAS`), ouvert
 à tout noble, et une carte pour chaque dignité des dames (voir plus bas). Un bâtard :
 

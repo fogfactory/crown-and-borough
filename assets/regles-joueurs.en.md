@@ -662,7 +662,7 @@ per line, applied in the entered order.
 | Draw a noble card | `T N` | once per winter and per player; the noble deck, shared by all players, must not be empty | 0 |
 | Recruit a noble | `R N CCC XXX` | `CCC` is a noble card in your hand; `XXX` controlled, with a castle or village and a player army, and fewer living nobles owned than your cap, {{noble_limit}} at the base (see below) | 0 |
 | Claim titles | `C N HHH CCC` | you hold a claim card (`CLM`); `HHH` is one of your nobles, placed during a marriage of `CCC` with one of your nobles, not a bastard and without a current claim; `CCC` is a noble of another player | 0 |
-| Grant a dignity | `D N NNN CCC` | `NNN` is a player noble; `CCC` is a dignity card in your hand (`BAS`: bastard; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `SOR`: ladies; Blocked ones: unmarried only); a noble carries a dignity only once | 0 |
+| Grant a dignity | `D N NNN CCC` | `NNN` is any noble, yours or an opponent's; `CCC` is a dignity card in your hand (`BAS`: bastard; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `SOR`: ladies; Blocked ones: unmarried only); a noble carries a dignity only once | 0 |
 | Discard a noble card | `D C CCC` | `CCC` is a card in your noble hand (noble trigram or `BAS`); no limit per winter; the card goes to the deck's discard pile | 0 |
 | Recruit a troop | `R T XXX` | `XXX` controlled, and a free player noble on `XXX` or adjacent | {{costs.troop}} |
 | Build or upgrade a mill | `C M XXX` | `XXX` controlled; a **new** mill requires an **empty** territory adjacent to a castle or village, or itself carrying one; an **existing** mill can always be upgraded, even in isolation | {{costs.mill_levels.0}} (L1), {{costs.mill_levels.1}} (L2), {{costs.mill_levels.2}} (L3) |
@@ -715,7 +715,8 @@ living heir in the ranking, with their territories, whatever its rank in your li
 succession; with no fief or no living heir, the claim lapses. A claim is public: every player sees it in the report. A bastard card played on the heir
 cancels its claim; played on a parent noble, it does not.
 
-A dignity card is played on one of your nobles with `D N NNN CCC`, including a
+A dignity card is played on any noble, yours or an opponent's, secret ones
+included, with `D N NNN CCC`, including a
 noble you just recruited with an `R N` placed earlier in the same sheet. A noble
 carries a given dignity only once. The deck holds the **bastard** (`BAS`), open
 to any noble, and one card for each dignity of the ladies (see below). A bastard:
