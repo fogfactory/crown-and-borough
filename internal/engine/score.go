@@ -20,7 +20,12 @@ type ScoreBreakdown struct {
 	// not the active head of both houses (specs/succession.md § Poids
 	// d'alliance).
 	Alliance int `json:"alliance"`
-	Total    int `json:"total"`
+	// Ally is what the active-head spouse's house brings to a player evaluated
+	// in alliance mode: the spouse's titles plus the spouse's own marriage
+	// bonus, never the player's own contribution back, so the two sides
+	// cannot feed each other. Total = Titles + Alliance + Ally.
+	Ally  int `json:"ally"`
+	Total int `json:"total"`
 }
 
 // ComputeScores calculates the public score for every player in the state,
@@ -65,8 +70,17 @@ func ComputeScores(state *models.GameState, balance assetgen.Balance) map[models
 
 	applyMarriageBonuses(state, balance, scores)
 
+	own := make(map[models.PlayerID]int, len(scores))
 	for playerID, score := range scores {
-		score.Total = score.Titles + score.Alliance
+		own[playerID] = score.Titles + score.Alliance
+	}
+	for playerID, score := range scores {
+		if partner, locked := activeHeadPartner(state, balance, playerID); locked {
+			if partnerOwn, known := own[partner]; known {
+				score.Ally = partnerOwn
+			}
+		}
+		score.Total = own[playerID] + score.Ally
 		scores[playerID] = score
 	}
 	return scores
@@ -279,7 +293,7 @@ func victoryUnits(state *models.GameState, balance assetgen.Balance) []victoryUn
 		seen[key] = true
 		units = append(units, victoryUnit{
 			players:     []models.PlayerID{key[0], key[1]},
-			score:       scores[player.ID].Total + scores[partner].Total,
+			score:       scores[player.ID].Total, // already includes the ally's share
 			required:    alliance,
 			alliance:    true,
 			crown:       crownHolder != "" && (crownHolder == key[0] || crownHolder == key[1]),

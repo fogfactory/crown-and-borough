@@ -42,7 +42,7 @@ describe('Scoreboard', () => {
       </LanguageProvider>,
     )
 
-    expect(screen.getAllByText('Marriage influence')).toHaveLength(1)
+    expect(screen.getAllByText('Marriages')).toHaveLength(1)
   })
 
   it('defaults titles to 0 for a score snapshot recorded before issue #251', () => {
@@ -71,7 +71,7 @@ describe('Scoreboard', () => {
             { id: 'P1', name: 'Alice', color: '#a84632' },
             { id: 'P2', name: 'Bob', color: '#325ca8' },
           ]}
-          scores={{ P1: { titles: 1, total: 1 }, P2: { titles: 0, total: 0 } }}
+          scores={{ P1: { titles: 1, total: 1 }, P2: { titles: 0, ally: 1, total: 1 } }}
           victory={{
             soloThreshold: 4,
             allianceThreshold: 6,
@@ -84,9 +84,11 @@ describe('Scoreboard', () => {
       </LanguageProvider>,
     )
 
-    expect(screen.getByText('Goal: 4 titles')).toBeInTheDocument()
+    expect(screen.getByText('Goal: 4 influence')).toBeInTheDocument()
     expect(screen.getByTestId('victory-mode-P1')).toHaveTextContent('Solo')
-    expect(screen.getByText('Goal: 6 titles combined')).toBeInTheDocument()
-    expect(screen.getByTestId('victory-mode-P2')).toHaveTextContent('Alliance with Alice')
+    expect(screen.getByText('Goal: 6 influence')).toBeInTheDocument()
+    expect(screen.getByTestId('victory-mode-P2')).toHaveTextContent(/^Alliance$/)
+    expect(screen.getByTestId('ally-P2')).toHaveTextContent('Ally (Alice)')
+    expect(screen.getByTestId('ally-P2')).toHaveTextContent('1')
   })
 })

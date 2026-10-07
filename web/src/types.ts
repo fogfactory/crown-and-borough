@@ -297,6 +297,8 @@ export interface ScoreBreakdown {
   titles?: number
   /** Marriage influence bonus; absent before issue #252. */
   alliance?: number
+  /** Share brought by the active-head spouse's house. */
+  ally?: number
   total: number
 }
 

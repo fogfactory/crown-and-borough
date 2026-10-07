@@ -473,3 +473,22 @@ func TestTiedUnitsShareMajorVictory(t *testing.T) {
 		t.Fatalf("sole winner = %v, want none when tied", *winner)
 	}
 }
+
+func TestAllyShareIsPartnerOwnScoreWithoutRecursion(t *testing.T) {
+	state, balance := victoryMarriageState(3, 1)
+	scores := ComputeScores(state, balance)
+	// P2: 1 title + 3 from the influence marriage with P3 (3 titles later).
+	state.Fiefs = append(state.Fiefs, models.Fief{ID: "P3-F0", OwnerID: "P3", Title: models.FiefTitleBarony},
+		models.Fief{ID: "P3-F1", OwnerID: "P3", Title: models.FiefTitleBarony}, models.Fief{ID: "P3-F2", OwnerID: "P3", Title: models.FiefTitleBarony})
+	scores = ComputeScores(state, balance)
+	p1, p2 := scores["P1"], scores["P2"]
+	if p1.Titles != 3 || p1.Alliance != 0 || p1.Ally != 4 || p1.Total != 7 {
+		t.Fatalf("P1 = %+v, want titles 3, ally 4 (P2: 1 title + 3 influence), total 7", p1)
+	}
+	if p2.Titles != 1 || p2.Alliance != 3 || p2.Ally != 3 || p2.Total != 7 {
+		t.Fatalf("P2 = %+v, want titles 1, alliance 3, ally 3 (P1's titles only), total 7", p2)
+	}
+	if scores["P3"].Ally != 0 {
+		t.Fatalf("P3 is solo, ally = %d, want 0", scores["P3"].Ally)
+	}
+}
