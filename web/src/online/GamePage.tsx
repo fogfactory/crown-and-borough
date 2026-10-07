@@ -19,6 +19,7 @@ import { OrdersPanel } from '@/components/OrdersPanel'
 import { ReportPane, type ReportSummary } from '@/components/ReportPane'
 import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
 import type { Panel } from '@/components/CommandReportRulesTabs'
+import { LineageDialog } from '@/components/LineageDialog'
 import { Scoreboard } from '@/components/Scoreboard'
 import { SubmissionDots } from '@/components/SubmissionDots'
 import { Button } from '@/components/ui/button'
@@ -850,6 +851,17 @@ export function GamePage() {
           >
             <Scoreboard players={state.players} scores={state.scores ?? summary.scores} victory={state.victory} />
           </HeaderPopover>
+<LineageDialog
+  players={state.players}
+  nobles={state.nobles}
+  deceased={state.deceased}
+                  claims={state.claims}
+                  defaultFocus={playerID}
+  fiefs={state.fiefs}
+  marriages={state.marriages}
+  scores={state.scores ?? summary.scores}
+  victory={state.victory}
+/>
           <HeaderPopover
             label={t('online.lobby')}
             icon={<IconUsersGroup aria-hidden="true" className="size-4" />}

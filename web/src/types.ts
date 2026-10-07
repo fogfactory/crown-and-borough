@@ -266,6 +266,8 @@ export interface Player {
    * receive.
    */
   projectedMillIncome?: number
+  /** Codes of the player's living nobles in line-of-succession order. */
+  succession?: string[]
   /**
    * Net rations every army the player controls will draw from stock or the
    * supply network beyond what its own territory already produces for it,
@@ -334,6 +336,35 @@ export interface TerritoryState {
   millDestination?: string
 }
 
+export type MarriageCategory = 'head' | 'mixed' | 'secondary'
+
+/** A concluded marriage; it outlives its spouses but is inactive once one dies. */
+export interface Marriage {
+  nobleA: string
+  nobleB: string
+  turn: number
+  /** False once a spouse has died. */
+  active?: boolean
+  /** Only set for an active alliance. */
+  category?: MarriageCategory
+  weight?: number
+  /** Players for whom this marriage is the active head. */
+  activeHeadFor?: PlayerId[]
+  /** For each house this is the active head of: the marriage that would take over if it ended. */
+  headSuccessors?: Array<{ player: PlayerId; marriage?: { nobleA: string; nobleB: string } }>
+}
+
+/** A pretension staked by `heir` on the titles of `target`. */
+export interface Claim {
+  heir: string
+  target: string
+  spouse: string
+  turn: number
+  wifeSide?: boolean
+  /** Position among the claims on the same target; 1 inherits first. */
+  rank: number
+}
+
 export interface StateData {
   turn: number
   season: Season
@@ -349,7 +380,9 @@ export interface StateData {
   territories: TerritoryState[]
   nobles: Noble[]
   fiefs?: Fief[]
-  marriages?: { nobleA: string; nobleB: string; turn: number }[]
+  marriages?: Marriage[]
+  deceased?: DeceasedNoble[]
+  claims?: Claim[]
   specialHand?: CardKind[]
   /** Winter only: next calamities of the draw pile, revealed by a free astrologue. */
   calamityForecast?: CardKind[]
@@ -917,4 +950,14 @@ export interface TurnReport {
   winter?: WinterReport
   fiefs?: FiefReport[]
   marriages?: MarriageReport[]
+}
+
+/** A noble that has left the game (still named by the lineage and its marriages). */
+export interface DeceasedNoble {
+  code: string
+  name: string
+  owner: PlayerId
+  sex?: 'male' | 'female'
+  cause: 'natural' | 'execution' | 'assassination'
+  turn: number
 }
