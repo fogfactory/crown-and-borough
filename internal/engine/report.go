@@ -282,6 +282,8 @@ type SeasonEffectReport struct {
 	ProductionLost int                `json:"productionLost,omitempty"`
 	RationsLost    int                `json:"rationsLost,omitempty"`
 	Reason         string             `json:"reason,omitempty"`
+	// Dignity is the dignity a trial revealed on the executed lady.
+	Dignity models.Dignity `json:"dignity,omitempty"`
 	// Fief is the title (e.g. "Baronnie") of the fief the effect applies to,
 	// set only for the seigneurial tax card: Territory already carries the
 	// fief's capital for that card.
@@ -634,7 +636,7 @@ func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Even
 				Owner: event.OwnerID, Army: event.ArmyID, Noble: event.NobleCode,
 				Territory: event.TerritoryID, Target: event.TargetID, Troops: event.Troops, SizeBefore: event.SizeBefore,
 				SizeAfter: event.SizeAfter, ProductionLost: event.Production, RationsLost: event.RationsLost,
-				Reason: event.Reason, Fief: event.FiefTitle,
+				Reason: event.Reason, Dignity: event.Dignity, Fief: event.FiefTitle,
 			})
 		case EventTypeWinterStock, EventTypeRecruit, EventTypeBuild, EventTypeUpgrade, EventTypeFortify,
 			EventTypeRejected, EventTypeCapitalElected, EventTypeNobleDraw, EventTypeNobleDiscard, EventTypeDignity, EventTypeClaim, EventTypeFiefFounded, EventTypeFiefAssigned, EventTypeFiefAutoAssigned:
