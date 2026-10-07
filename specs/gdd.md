@@ -687,19 +687,80 @@ printemps, été, automne et hiver. Le compteur interne `year` commence à 1 ;
 l'interface affiche l'année historique `1000 + year`, soit « Année 1001 » au premier
 tour joué.
 
-La partie se termine après la résolution du dernier tour de la durée choisie,
-ou immédiatement lorsqu'un seul joueur reste en lice. Les scores sont recalculés
-après chaque tour et sont visibles par tous les joueurs.
+La partie se termine dans l'un de ces trois cas, évalués après chaque tour :
+
+- un seul joueur reste en lice ;
+- un joueur ou une alliance franchit son seuil de suprématie (voir ci-dessous) ;
+- le dernier tour de la durée choisie vient d'être résolu.
+
+Les scores sont recalculés après chaque tour et sont visibles par tous les
+joueurs.
+
+### Score de titres
 
 Le score d'un joueur est son score de titres : chaque titre détenu rapporte
-1 point, quel que soit son rang (baronnie, comté, duché pour l'instant ;
-cardinal, pape, roi et dignité suivront). Territoire, infrastructure, armée
-et noble détenus ne rapportent plus rien par eux-mêmes. Voir
-[titres.md § Score de titres](titres.md#score-de-titres) pour le détail et
-l'état de livraison.
+1 point, quel que soit son rang (baronnie, comté, duché, dignité ; cardinal,
+pape et roi suivront), y compris un fief vacant tant qu'il n'est pas dissolu.
+Territoire, infrastructure, armée, noble et ressource ne rapportent rien par
+eux-mêmes.
 
-À la fin d'une partie, un unique survivant gagne toujours, même si la durée
-vient d'être atteinte. Sinon, le joueur qui possède le score le plus élevé gagne.
-Une égalité parfaite de score ne désigne aucun gagnant officiel — y compris
-l'égalité 0-0 fréquente avant que les autres sources de titres et la
-pondération par mariage ne soient livrées.
+Les mariages ajustent ce score (voir
+[succession.md § Mariages et alliances](succession.md#mariages-et-alliances)) :
+
+- le mariage retenu comme **tête active** des deux maisons est une alliance
+  complète : aucun bonus individuel, les deux scores s'additionnent pour la
+  victoire commune ;
+- tout autre mariage entre deux maisons est un mariage d'influence : chaque
+  maison gagne le nombre de titres de la maison du conjoint (jamais son score
+  bonifié). Le bonus est affiché à part (`alliance`).
+
+Voir [titres.md § Score de titres](titres.md#score-de-titres) pour le détail.
+
+### Seuils de suprématie
+
+Deux seuils sont fixés dans `assets/balance.yaml` (bloc `victory`) en fonction
+du nombre de joueurs : une part des territoires de jeu (8 par joueur) que le
+joueur ou l'alliance doit tenir au travers de fiefs, divisée par la taille
+moyenne d'un fief (4) et arrondie au supérieur.
+
+- **Seuil solo** (75 % des territoires) : score requis pour un joueur sans tête
+  active.
+- **Seuil d'alliance** (90 %) : score combiné requis pour les deux époux d'une
+  tête active. Il est toujours strictement supérieur au seuil solo.
+
+| Joueurs | 2 | 3 | 4 | 6 |
+|---|---:|---:|---:|---:|
+| Seuil solo (titres) | 3 | 5 | 6 | 9 |
+| Seuil d'alliance (titres) | — | 6 | 8 | 11 |
+
+À deux joueurs, une alliance réunirait tous les joueurs : seul le seuil solo a
+un sens.
+
+Un joueur qui a une tête active ne peut jamais gagner seul, même si son score
+atteint le seuil solo : seul le score combiné contre le seuil d'alliance est
+évalué pour lui.
+
+### Victoire majeure, victoire mineure, échec
+
+À la fin de la partie, chaque joueur obtient l'un de ces trois résultats :
+
+- **Victoire majeure** : un joueur sans tête active qui franchit le seuil solo
+  gagne seul ; deux époux dont le score combiné franchit le seuil d'alliance
+  gagnent ensemble, à égalité. Un unique survivant gagne toujours. Si aucun
+  seuil n'est atteint à la durée choisie, le score le plus élevé l'emporte,
+  avec les mêmes règles de tête active.
+- **Victoire mineure** : parmi les joueurs reliés au vainqueur majeur par une
+  chaîne de mariages d'alliance, un seul obtient une victoire mineure : celui
+  dont le lien a le poids d'alliance le plus élevé. Une égalité sur ce poids
+  n'en désigne aucun.
+- **Échec** : tout autre joueur, éliminé ou non.
+
+Si plusieurs joueurs ou alliances remplissent la condition au même tour, ils
+sont départagés dans cet ordre : victoire solo avant victoire d'alliance, score
+le plus élevé, détention du titre de roi, plus grand nombre de territoires
+contrôlés (les deux époux additionnés pour une alliance). Les ex æquo restants
+sont tous vainqueurs majeurs. Une partie où personne ne détient de titre n'a
+aucun vainqueur.
+
+Voir [titres.md § Victoire majeure, victoire mineure, échec](titres.md#victoire-majeure-victoire-mineure-échec)
+pour le détail.
