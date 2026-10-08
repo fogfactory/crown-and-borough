@@ -134,12 +134,12 @@ ciblent des armées adverses. Angle mort : une armée venue de l'extérieur du
 fief qui y entre **sans modifier sa chaîne d'ordres** ne lui est pas
 révélée.
 
-Ordre d'état réservé : par défaut, ces informations ne sont connues que de
-son joueur ; elle peut décider, dans un ordre d'hiver, de les révéler aussi
-au propriétaire du fief si celui-ci est différent.
-
 Otage : ses bonus vont à la fois à son propriétaire d'origine et au joueur
 qui la détient.
+
+> Abandonné : l'ordre réservé qui aurait permis de partager volontairement
+> ces informations avec le propriétaire du fief, s'il est différent, n'est
+> pas retenu. Seul le passif ci-dessus (`SeesFiefOrders`) est livré.
 
 #### Abbesse
 
@@ -203,12 +203,13 @@ Révélée, elle conserve ses bonus et n'est pas excommuniée.
 Passif : si elle est hébergée en otage chez un joueur, son propriétaire voit
 la **main complète** de ce joueur (cartes d'événements et de personnages).
 
-Ordre réservé « Infiltrer » : une fois par hiver, elle consulte la main d'un
-joueur ayant des troupes dans un évêché où son propriétaire (ou son hôte, si
-elle est otage) contrôle ou occupe des territoires.
-
 Révélée par une enquête ou une capture, elle conserve ses bonus et n'est pas
 excommuniée ; la règle générale du procès s'applique à elle.
+
+> Abandonné : l'ordre réservé « Infiltrer », qui aurait permis de consulter
+> à distance la main d'un joueur simplement présent dans le même évêché
+> qu'elle, n'est pas retenu. Seul le passif ci-dessus (`SeesHostHand`,
+> otage uniquement) est livré.
 
 #### Sorcière [cachée]
 
@@ -226,13 +227,15 @@ Révélée, elle est **excommuniée d'office**.
 
 ### Statut d'implémentation (#259)
 
-Livrées : toutes les dignités, ainsi que le démasquage de l'Éon par capture
-militaire, emprisonnement et Claim contre une Éon mariée. Restent à livrer,
-dépendant de l'enquête, de l'excommunication, du procès et des élections
-d'évêque : démasquage de l'Éon par enquête, excommunication d'office d'un
-Éon ou d'une Sorcière démasquée (et la vacance des titres qui en découle),
-voix d'élection et calme des révoltes de l'Abbesse, ordre d'hiver de la
-Châtelaine, ordre « Infiltrer » de l'Espionne.
+Livrées : toutes les dignités et leurs passifs, ainsi que le démasquage de
+l'Éon par capture militaire, emprisonnement et Claim contre une Éon mariée.
+Abandonnés (voir les notes « Abandonné » ci-dessus) : l'ordre d'hiver de la
+Châtelaine et l'ordre « Infiltrer » de l'Espionne — seuls leurs passifs
+respectifs sont livrés. Restent à livrer, dépendant de l'enquête, de
+l'excommunication et des élections d'évêque (milestone Religieux) :
+démasquage de l'Éon par enquête, excommunication d'office d'un Éon ou d'une
+Sorcière démasquée (et la vacance des titres qui en découle), voix
+d'élection et calme des révoltes de l'Abbesse.
 
 Précisions retenues :
 
