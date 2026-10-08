@@ -77,10 +77,12 @@ type ReligionBalance struct {
 	Votes                           VoteWeight `json:"votes" yaml:"votes"`
 }
 
-// VoteWeight is the number of voices of a territory held and of the highest
-// religious title of a noble.
+// VoteWeight is the number of voices of a territory held (Seat for the seat of
+// the bishopric in its own bishop election) and of the highest religious title
+// of a noble.
 type VoteWeight struct {
 	Territory int `json:"territory" yaml:"territory"`
+	Seat      int `json:"seat" yaml:"seat"`
 	Bishop    int `json:"bishop" yaml:"bishop"`
 	Cardinal  int `json:"cardinal" yaml:"cardinal"`
 	Pope      int `json:"pope" yaml:"pope"`
@@ -162,6 +164,7 @@ type rawReligion struct {
 	ExcommunicationsPerTargetPlayer *int `yaml:"excommunications_per_target_player"`
 	Votes                           *struct {
 		Territory *int `yaml:"territory"`
+		Seat      *int `yaml:"seat"`
 		Bishop    *int `yaml:"bishop"`
 		Cardinal  *int `yaml:"cardinal"`
 		Pope      *int `yaml:"pope"`
@@ -422,6 +425,12 @@ func (raw rawBalance) religion(path string) (ReligionBalance, error) {
 	votes := r.Votes
 	if out.Votes.Territory, err = requiredPositiveInt(path, "religion.votes.territory", votes.Territory); err != nil {
 		return ReligionBalance{}, err
+	}
+	if out.Votes.Seat, err = requiredPositiveInt(path, "religion.votes.seat", votes.Seat); err != nil {
+		return ReligionBalance{}, err
+	}
+	if out.Votes.Seat < out.Votes.Territory {
+		return ReligionBalance{}, fmt.Errorf("assetgen: %s: religion.votes.seat must not be below religion.votes.territory", path)
 	}
 	if out.Votes.Bishop, err = requiredPositiveInt(path, "religion.votes.bishop", votes.Bishop); err != nil {
 		return ReligionBalance{}, err

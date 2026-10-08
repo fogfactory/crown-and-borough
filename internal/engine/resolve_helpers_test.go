@@ -49,7 +49,7 @@ func testBalance() assetgen.Balance {
 		SpecialOrders:     assetgen.SpecialOrdersBalance{HandLimit: 4, DrawOrdersLimit: 2},
 		Religion: assetgen.ReligionBalance{
 			CardinalCost: 8, CardinalCapBase: 1, CardinalPlayersPerExtra: 6, ExcommunicationsPerWinter: 1, ExcommunicationsPerTargetPlayer: 1,
-			Votes: assetgen.VoteWeight{Territory: 1, Bishop: 1, Cardinal: 2, Pope: 3},
+			Votes: assetgen.VoteWeight{Territory: 1, Seat: 2, Bishop: 1, Cardinal: 2, Pope: 3},
 		},
 		FirstNames: []assetgen.Asset{
 			{Code: "ADE", Name: "Adelaide", Sex: "female"},

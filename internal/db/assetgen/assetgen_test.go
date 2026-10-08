@@ -65,6 +65,7 @@ religion:
   excommunications_per_target_player: 1
   votes:
     territory: 1
+    seat: 2
     bishop: 1
     cardinal: 2
     pope: 3

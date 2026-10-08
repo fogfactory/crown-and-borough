@@ -56,7 +56,9 @@ présence physique dans l'évêché.
 Le total de voix d'un joueur dans une élection (évêque ou pape) est un
 cumul global, indépendant de la présence locale :
 
-- 1 voix par lieu-dit contrôlé **ou** occupé dans l'évêché concerné ;
+- 1 voix par lieu-dit contrôlé **ou** occupé dans l'évêché concerné, sauf le
+  chef-lieu de l'évêché (le seed de la région), qui vaut 2 voix dans l'élection
+  de son évêque ;
 - 1 voix par évêque que le joueur possède, où qu'il se trouve ;
 - 2 voix par cardinal que le joueur possède ;
 - 3 voix si un des nobles du joueur est pape.
