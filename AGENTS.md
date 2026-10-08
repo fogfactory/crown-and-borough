@@ -27,7 +27,7 @@
 - Do not create production tags manually. release-please creates the SemVer
   tag and GitHub release after its release pull request is merged.
 - `main` is synchronized back into `develop` by automation. Do not create a
-  second synchronization pull request; resolve the generated one if it has a
+  second synchronization pull request; resolve the generated one (branch `chore/sync-main-into-develop`) if it has a
   conflict.
 
 ## Commits and pushes
