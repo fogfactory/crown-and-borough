@@ -229,7 +229,9 @@ feuille) est conclu ; les autres sont rejetés `noble_already_married`.
 
 Les ordres de mariage sont résolus après tous les autres ordres d'hiver
 individuels du tour : un noble libéré (`H N`) le même hiver peut donc être
-marié. La conclusion enregistre le mariage sans en calculer les effets : le
+marié. Ils précèdent les élections et le jugement des procès, et suivent les
+enquêtes et les dissolutions de mariage du pape ([hiver.md](hiver.md#ordre-de-résolution)).
+La conclusion enregistre le mariage sans en calculer les effets : le
 poids, la catégorie et les bonus relèvent des sections suivantes.
 
 **Annonce.** Un mariage conclu est public : le rapport de tous les joueurs
