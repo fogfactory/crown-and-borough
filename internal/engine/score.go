@@ -33,7 +33,7 @@ type ScoreBreakdown struct {
 // worth 1 point regardless of rank, replacing the former GDD §9 formula
 // (territories, infrastructure, armies, nobles). For now the only title
 // source is state.Fiefs — a fief still counts while vacant, until it is
-// dissolved. Cardinal, pape, roi, and dignité titles will add further
+// dissolved. Religious titles never score. Roi and dignité titles will add further
 // sources to this count once Succession & Couronnement lands (#243-266);
 // the loop below is structured so each source stays a self-contained pass
 // over state, without pulling in that machinery ahead of time.

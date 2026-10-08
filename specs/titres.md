@@ -197,21 +197,31 @@ la dissolution automatique de #194).
 
 Issue : [#189](https://github.com/fogfactory/crown-and-borough/issues/189).
 
-Une carte de taxe (kind `seigneurial_tax`, code d'ordre `TX`, jouée depuis le
-deck d'ordres spéciaux, voir [ordres-speciaux.md](ordres-speciaux.md)) permet
-au joueur qui détient un fief — vacant compris — de doubler, pour le tour, le
-revenu territorial de ce fief, village inclus. L'ordre `P TX XXX` cible la
-capitale du fief, par exception à la règle « `TER` est le village seed d'une
-région », au printemps, en été ou en automne. Il est rejeté si le joueur ne
-détient pas le fief. La production des moulins n'est jamais touchée. Deux
-cartes de taxe jouées sur le même fief le même tour ne se cumulent pas : la
-seconde est consommée sans effet, avec un rapport explicite. Jouer la taxe
-sur la capitale du fief autorise la Révolte (voir
-[ordres-speciaux.md](ordres-speciaux.md)) sur **tout territoire du fief**,
-pas seulement sa capitale, la saison où elle est jouée et la saison
-suivante, indépendamment de toute famine.
+La carte **Impôts** (kind `seigneurial_tax`, code d'ordre `TX`, jouée depuis le
+deck d'ordres spéciaux, voir [ordres-speciaux.md](ordres-speciaux.md)) se joue
+par `P TX HHH XXX` : `HHH` est le **noble émetteur**, `XXX` la cible, au
+printemps, en été ou en automne. L'émetteur et la cible déterminent la nature
+de l'impôt :
 
-Le **roi** pourra taxer n'importe quel fief constitué, mais seulement celui
+- émetteur **seigneur titré** (baron, comte, duc) et cible la capitale d'un de
+  ses fiefs, vacant compris : **taxe seigneuriale**. Elle double, pour le tour,
+  le revenu territorial de ce fief, village inclus. L'ordre est rejeté si
+  l'émetteur ne détient pas le fief ;
+- émetteur **roi** et cible la capitale de n'importe quel fief constitué :
+  **taxe royale** (voir ci-dessous) ;
+- émetteur **évêque, cardinal ou pape** et cible un évêché : **dîme** (voir
+  [religieux.md § Dîme](religieux.md#dîme)).
+
+`XXX` est donc, par exception à la règle « `TER` est le village seed d'une
+région », la capitale d'un fief ou le village seed d'un évêché. La production
+des moulins n'est jamais touchée par une taxe. Deux cartes de taxe jouées sur
+le même fief le même tour ne se cumulent pas : la seconde est consommée sans
+effet, avec un rapport explicite. Dans tous les cas, jouer un impôt autorise la
+Révolte (voir [ordres-speciaux.md](ordres-speciaux.md)) sur **tout territoire
+du fief ou de l'évêché ciblé**, pas seulement sa capitale, la saison où il est
+joué et la saison suivante, indépendamment de toute famine.
+
+Le **roi** peut taxer n'importe quel fief constitué, mais seulement celui
 qui n'est pas déjà taxé par son seigneur ce tour-là (priorité au titulaire
 local) ; le supplément est alors détourné vers la capitale du roi au lieu de
 la capitale du fief. Cette taxe royale est suivie dans le milestone
@@ -231,18 +241,19 @@ intégralement l'ancien barème du GDD §9 (territoire, village, moulin,
 château, noble, troupe, ressource) et son complément fief ([#194](https://github.com/fogfactory/crown-and-borough/issues/194))
 par le seul score de titres ci-dessous : `gdd.md` §9 a été réécrit en
 conséquence par anticipation sur le reste de la section « Évolution du
-document » du GDD, puisque les titres de cardinal, pape, roi et
+document » du GDD, puisque les titres de roi et
 [dignité](dames.md#dignités) n'existent pas encore côté moteur et que la
 pondération par mariage (`succession.md § Mariages et alliances`) reste à
 livrer. Le score se limite donc pour l'instant au nombre de fiefs détenus
-(baronnie, comté, duché) ; une partie à durée fixe se termine fréquemment
+(baronnie, comté, marquisat, duché) ; une partie à durée fixe se termine fréquemment
 sur une égalité 0-0 sans vainqueur tant que ces sources manquent, ce qui est
 accepté comme transitoire.
 
 ### Score de titres
 
-Chaque titre détenu rapporte **1 point, quel qu'il soit** : baronnie, comté,
-duché, cardinal, pape, roi, ou [dignité](dames.md#dignités). Il
+Chaque titre détenu rapporte **1 point, quel qu'il soit** : baronnie, comté, marquisat,
+duché, roi, ou [dignité](dames.md#dignités). Aucun titre religieux
+(évêque, cardinal, pape) ne rapporte de point de score. Il
 n'y a pas de pondération par rang — un baron et un roi comptent chacun pour
 1 point de score, quelle que soit la différence de pouvoir en jeu par
 ailleurs (voix, revenus, bonus de titre).
@@ -293,8 +304,8 @@ Valeurs de départ : la moitié des territoires pour gagner seul, les deux tiers
 Le chiffre est volontairement approximatif, la taille des fiefs variant : un
 joueur qui ne tient que des baronnies (3 territoires) atteint le seuil avec
 moins de territoires, un joueur de duchés avec davantage. Le seuil d'alliance
-reste toujours strictement supérieur au seuil solo. La valeur plus élevée des
-titres de roi et de pape est différée à l'issue de calibrage.
+reste toujours strictement supérieur au seuil solo. La valeur plus élevée du
+titre de roi est différée à l'issue de calibrage.
 
 ### Victoire majeure, victoire mineure, échec
 
