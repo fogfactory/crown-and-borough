@@ -87,7 +87,6 @@ const REASON_KEYS: Record<string, MessageKey> = {
   marriage_not_reciprocated: 'reports.reason.marriage_not_reciprocated',
   election_not_open: 'reports.reason.election_not_open',
   candidate_not_eligible: 'reports.reason.candidate_not_eligible',
-  candidate_already_running: 'reports.reason.candidate_already_running',
   candidacy_already_filed: 'reports.reason.candidacy_already_filed',
   unknown_candidate: 'reports.reason.unknown_candidate',
   vote_already_cast: 'reports.reason.vote_already_cast',

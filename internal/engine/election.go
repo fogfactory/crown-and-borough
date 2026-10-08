@@ -177,6 +177,13 @@ func (ctx *resolutionContext) bishopCandidateRejection(noble *models.Noble) stri
 	if ctx.state.IsBishop(noble.ID) {
 		return "candidate_not_eligible"
 	}
+	// Elected to another bishopric earlier this winter: the title is not
+	// conferred yet, but the noble cannot hold a second one.
+	for _, title := range ctx.pendingTitles {
+		if title.noble == noble.ID && title.kind == models.ElectionBishop {
+			return "candidate_not_eligible"
+		}
+	}
 	return ""
 }
 
@@ -190,19 +197,43 @@ func (ctx *resolutionContext) popeCandidateRejection(noble *models.Noble) string
 	return ""
 }
 
-// electionVoices computes the weight of every player in the election, on the
-// state the election stage opens with.
-func (ctx *resolutionContext) electionVoices(open *election) map[models.PlayerID]int {
-	voices := map[models.PlayerID]int{}
+// VoiceSource is one reason a player holds voices in an election: a
+// territory of the bishopric (the seat or another one) or a religious title of
+// one of the player's nobles.
+type VoiceSource struct {
+	Kind      string                `json:"kind"` // "seat", "territory" or "title"
+	Territory models.TerritoryID    `json:"territory,omitempty"`
+	Noble     models.NobleCode      `json:"noble,omitempty"`
+	NobleName string                `json:"nobleName,omitempty"`
+	Title     models.ReligiousTitle `json:"title,omitempty"`
+	Votes     int                   `json:"votes"`
+}
+
+// electionVoiceSources lists, for every player, what gives it voices in the
+// election, on the state the election stage opens with.
+func (ctx *resolutionContext) electionVoiceSources(open *election) map[models.PlayerID][]VoiceSource {
+	sources := map[models.PlayerID][]VoiceSource{}
+	titleSource := func(noble models.Noble, votes int) {
+		if votes == 0 {
+			return
+		}
+		sources[noble.OwnerID] = append(sources[noble.OwnerID], VoiceSource{
+			Kind:      "title",
+			Noble:     models.NobleCode(noble.Code),
+			NobleName: ctx.state.NobleDisplayName(noble),
+			Title:     ctx.state.VotingReligiousTitle(noble.ID),
+			Votes:     votes,
+		})
+	}
 	if open.key.kind == models.ElectionPope {
 		// One voice per cardinal whose title is active; a cardinal in a
 		// dungeon keeps its seat in the denominator but votes nothing.
 		for _, noble := range ctx.state.Nobles {
 			if ctx.state.IsCardinal(noble.ID) && ctx.state.VotingReligiousTitle(noble.ID) != models.ReligiousTitleNone {
-				voices[noble.OwnerID]++
+				titleSource(noble, 1)
 			}
 		}
-		return voices
+		return sources
 	}
 	weights := ctx.balance.Religion.Votes
 	for _, region := range ctx.state.Regions {
@@ -214,16 +245,25 @@ func (ctx *resolutionContext) electionVoices(open *election) map[models.PlayerID
 			if !held {
 				continue
 			}
+			source := VoiceSource{Kind: "territory", Territory: territoryID, Votes: weights.Territory}
 			if territoryID == region.Seed {
-				voices[controller] += weights.Seat
-			} else {
-				voices[controller] += weights.Territory
+				source.Kind, source.Votes = "seat", weights.Seat
 			}
+			sources[controller] = append(sources[controller], source)
 		}
 	}
-	for _, player := range ctx.state.Players {
-		if votes := TitleVotes(ctx.state, player.ID, ctx.balance); votes > 0 {
-			voices[player.ID] += votes
+	for _, noble := range ctx.state.Nobles {
+		titleSource(noble, weights.TitleVotes(ctx.state.VotingReligiousTitle(noble.ID)))
+	}
+	return sources
+}
+
+// electionVoices computes the weight of every player in the election.
+func (ctx *resolutionContext) electionVoices(open *election) map[models.PlayerID]int {
+	voices := map[models.PlayerID]int{}
+	for playerID, sources := range ctx.electionVoiceSources(open) {
+		for _, source := range sources {
+			voices[playerID] += source.Votes
 		}
 	}
 	return voices
@@ -252,42 +292,40 @@ func (ctx *resolutionContext) candidateEntry(open *election, noble *models.Noble
 	return nil
 }
 
-// resolveWinterElections validates the recorded candidacies, then the votes,
-// counts every election on one snapshot and queues the titles won for the
-// investiture. Candidacies are validated in resolution order (players by
-// identifier, then sheet order): a noble can run in one election only, the
-// first valid candidacy keeps it.
+// resolveWinterElections settles the elections one after the other, bishoprics
+// by region identifier then the conclave. Each election validates its own
+// candidacies, then its votes, then counts; voices are all computed on the
+// winter snapshot, but a noble who won an earlier election of the winter is no
+// longer eligible to a later one of the same kind. The titles won are queued
+// for the investiture.
 func (ctx *resolutionContext) resolveWinterElections() {
 	orders := ctx.electionOrders
 	ctx.electionOrders = nil
 	for _, open := range ctx.elections {
 		open.voices = ctx.electionVoices(open)
 	}
-	running := map[models.NobleID]bool{}
 	for _, recorded := range orders {
-		if recorded.order.Type != models.WinterOrderTypeCandidacy {
-			continue
+		if ctx.matchElection(recorded.order) == nil {
+			ctx.rejectWinterOrder(recorded.playerID, recorded.order, "election_not_open")
 		}
-		ctx.fileCandidacy(recorded, running)
-	}
-	for _, recorded := range orders {
-		if recorded.order.Type != models.WinterOrderTypeVote {
-			continue
-		}
-		ctx.castVote(recorded)
 	}
 	for _, open := range ctx.elections {
+		for _, recorded := range orders {
+			if recorded.order.Type == models.WinterOrderTypeCandidacy && ctx.matchElection(recorded.order) == open {
+				ctx.fileCandidacy(open, recorded)
+			}
+		}
+		for _, recorded := range orders {
+			if recorded.order.Type == models.WinterOrderTypeVote && ctx.matchElection(recorded.order) == open {
+				ctx.castVote(open, recorded)
+			}
+		}
 		ctx.concludeElection(open)
 	}
 }
 
-func (ctx *resolutionContext) fileCandidacy(recorded electionOrder, running map[models.NobleID]bool) {
+func (ctx *resolutionContext) fileCandidacy(open *election, recorded electionOrder) {
 	order := recorded.order
-	open := ctx.matchElection(order)
-	if open == nil {
-		ctx.rejectWinterOrder(recorded.playerID, order, "election_not_open")
-		return
-	}
 	nobleID, exists := ctx.noblesByCode[order.NobleCode]
 	noble := ctx.noblesByID[nobleID]
 	if !exists || noble == nil {
@@ -306,22 +344,12 @@ func (ctx *resolutionContext) fileCandidacy(recorded electionOrder, running map[
 		ctx.rejectWinterOrder(recorded.playerID, order, "candidacy_already_filed")
 		return
 	}
-	if running[noble.ID] {
-		ctx.rejectWinterOrder(recorded.playerID, order, "candidate_already_running")
-		return
-	}
 	open.filed[recorded.playerID] = true
-	running[noble.ID] = true
 	open.candidates = append(open.candidates, &electionEntry{noble: noble})
 }
 
-func (ctx *resolutionContext) castVote(recorded electionOrder) {
+func (ctx *resolutionContext) castVote(open *election, recorded electionOrder) {
 	order := recorded.order
-	open := ctx.matchElection(order)
-	if open == nil {
-		ctx.rejectWinterOrder(recorded.playerID, order, "election_not_open")
-		return
-	}
 	nobleID, exists := ctx.noblesByCode[order.NobleCode]
 	noble := ctx.noblesByID[nobleID]
 	var entry *electionEntry

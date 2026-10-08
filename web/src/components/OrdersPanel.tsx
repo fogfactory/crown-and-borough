@@ -2,6 +2,12 @@ import { useState, type ChangeEvent } from 'react'
 import { IconBook, IconSnowflake } from '@tabler/icons-react'
 
 import { Button } from '@/components/ui/button'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import type { RulesSection } from '@/components/RulesPanel'
 import { formatCardHand, formatCardLabel } from '@/lib/card-hand'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
@@ -16,6 +22,7 @@ import type {
   OrdersPreviewError,
   PlayerId,
   StateData,
+  VoiceSource,
   WinterLinePreview,
 } from '@/types'
 
@@ -521,6 +528,125 @@ function NobleDeckSection({
   )
 }
 
+function voiceSourceLabel(source: VoiceSource, t: Translate): string {
+  if (source.kind === 'title') {
+    return t('orders.voiceTitle', {
+      name: source.nobleName ?? source.noble ?? '',
+      title: t(`orders.voiceTitle.${source.title ?? 'bishop'}` as MessageKey),
+      votes: source.votes,
+    })
+  }
+  return t(source.kind === 'seat' ? 'orders.voiceSeat' : 'orders.voiceTerritory', {
+    territory: source.territory ?? '',
+    votes: source.votes,
+  })
+}
+
+function OpenElectionsSection({
+  state,
+  winterDraft,
+  onWinterChange,
+}: {
+  state: StateData
+  winterDraft: string
+  onWinterChange: (value: string) => void
+}) {
+  const { t } = useLanguage()
+  const elections = state.openElections ?? []
+  if (elections.length === 0) return null
+  const lines = draftLines(winterDraft)
+
+  return (
+    <section className="space-y-2 rounded-lg border border-[#9bbbd3] bg-[#f7fbff] p-3">
+      <h4 className="font-serif text-base font-semibold text-[#2c5b7d]">
+        {t('orders.electionsTitle')}
+      </h4>
+      <p className="text-xs leading-relaxed text-[#55738a]">
+        {t('orders.electionsTimingNote')}
+      </p>
+      <TooltipProvider delayDuration={100}>
+        {elections.map((election) => {
+          const name =
+            state.bishoprics?.find((bishopric) => bishopric.region === election.region)
+              ?.name ?? election.region ?? ''
+          const isPope = election.kind === 'pope'
+          const seat = election.seat ?? ''
+          return (
+            <details
+              key={`${election.kind}-${election.region ?? ''}`}
+              open
+              className="rounded-md border border-[#c9dcea] bg-white/60 px-2 py-1.5 text-xs text-[#2c5b7d]"
+            >
+              <summary className="cursor-pointer font-semibold">
+                {isPope
+                  ? t('orders.electionPopeHeading')
+                  : t('orders.electionBishopHeading', { name, seat })}
+              </summary>
+              <div className="mt-1.5 space-y-1.5">
+                <p className="text-[#55738a]">
+                  {isPope
+                    ? t('orders.electionPopeRule', { required: election.required ?? 0 })
+                    : t('orders.electionBishopRule', { seat })}
+                </p>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span
+                      tabIndex={0}
+                      className="inline-block cursor-help border-b border-dotted border-[#5c94bd] font-medium"
+                    >
+                      {t('orders.electionVoices', { voices: election.voices })}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent className="flex-col items-start">
+                    {election.voiceSources.length === 0 ? (
+                      <span>{t('orders.electionNoVoice')}</span>
+                    ) : (
+                      election.voiceSources.map((source, index) => (
+                        <span key={index}>{voiceSourceLabel(source, t)}</span>
+                      ))
+                    )}
+                  </TooltipContent>
+                </Tooltip>
+                {election.candidates.length > 0 ? (
+                  <div className="space-y-1">
+                    <p className="text-[#55738a]">{t('orders.electionCandidateHint')}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {election.candidates.map((candidate) => {
+                        const line = isPope
+                          ? `K P ${candidate.code}`
+                          : `K E ${candidate.code} ${seat}`
+                        const added = lines.includes(line.toUpperCase())
+                        const commented = `${line} # ${t('orders.electionCandidacyComment', { name: candidate.name })}`
+                        return (
+                          <Button
+                            key={candidate.code}
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={added}
+                            title={added ? t('orders.electionCandidateAdded') : line}
+                            onClick={() =>
+                              onWinterChange(appendDraftLine(winterDraft, commented))
+                            }
+                          >
+                            {candidate.name} ({candidate.code})
+                          </Button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[#55738a]">{t('orders.electionNoCandidate')}</p>
+                )}
+              </div>
+            </details>
+          )
+        })}
+      </TooltipProvider>
+    </section>
+  )
+}
+
 function DeckHandSummary({ state }: { state: StateData }) {
   const { t } = useLanguage()
   const hand = state.specialHand ?? []
@@ -637,6 +763,11 @@ export function OrdersPanel({
           </div>
         )}
         <DeckHandSummary state={state} />
+        <OpenElectionsSection
+          state={state}
+          winterDraft={winterDraft}
+          onWinterChange={onWinterChange}
+        />
         <NobleDeckSection
           state={state}
           player={player}
