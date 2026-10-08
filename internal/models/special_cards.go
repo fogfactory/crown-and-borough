@@ -61,7 +61,9 @@ type SpecialCard struct {
 }
 
 type Region struct {
-	ID          RegionID      `json:"id"`
+	ID RegionID `json:"id"`
+	// Name is the name of the bishopric: the commune of its seed territory.
+	Name        string        `json:"name"`
 	Seed        TerritoryID   `json:"seed"`
 	Territories []TerritoryID `json:"territories"`
 }

@@ -202,6 +202,7 @@ func simulateDeath(state *models.GameState, dead models.Noble) {
 		ID: dead.ID, Code: dead.Code, Name: dead.Name, Sex: dead.Sex, OwnerID: dead.OwnerID,
 		Cause: models.DeathCauseNatural, Turn: state.Turn,
 	})
+	state.DropReligiousTitlesOfMissingNobles()
 }
 
 func readVictories(state *models.GameState, balance assetgen.Balance) map[models.PlayerID]VictoryReading {

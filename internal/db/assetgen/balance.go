@@ -38,6 +38,7 @@ type Balance struct {
 	StartingOutposts        int                    `json:"starting_outposts" yaml:"starting_outposts"`
 	StartingResources       int                    `json:"starting_resources" yaml:"starting_resources"`
 	SpecialOrders           SpecialOrdersBalance   `json:"special_orders" yaml:"special_orders"`
+	Religion                ReligionBalance        `json:"religion" yaml:"religion"`
 	FirstNames              []Asset                `json:"-" yaml:"-"`
 }
 
@@ -62,6 +63,42 @@ type AllianceBalance struct {
 	SuccessionRanks []int                    `json:"succession_ranks" yaml:"succession_ranks"`
 	TitleRanks      map[models.FiefTitle]int `json:"title_ranks" yaml:"title_ranks"`
 	DensityBonus    int                      `json:"density_bonus" yaml:"density_bonus"`
+}
+
+// ReligionBalance holds the religious title parameters (specs/religieux.md).
+// The cardinals in play are capped at CardinalCapBase plus one per full
+// CardinalPlayersPerExtra players.
+type ReligionBalance struct {
+	CardinalCost                    int        `json:"cardinal_cost" yaml:"cardinal_cost"`
+	CardinalCapBase                 int        `json:"cardinal_cap_base" yaml:"cardinal_cap_base"`
+	CardinalPlayersPerExtra         int        `json:"cardinal_players_per_extra" yaml:"cardinal_players_per_extra"`
+	ExcommunicationsPerWinter       int        `json:"excommunications_per_winter" yaml:"excommunications_per_winter"`
+	ExcommunicationsPerTargetPlayer int        `json:"excommunications_per_target_player" yaml:"excommunications_per_target_player"`
+	Votes                           VoteWeight `json:"votes" yaml:"votes"`
+}
+
+// VoteWeight is the number of voices of a territory held (Seat for the seat of
+// the bishopric in its own bishop election) and of the highest religious title
+// of a noble.
+type VoteWeight struct {
+	Territory int `json:"territory" yaml:"territory"`
+	Seat      int `json:"seat" yaml:"seat"`
+	Bishop    int `json:"bishop" yaml:"bishop"`
+	Cardinal  int `json:"cardinal" yaml:"cardinal"`
+	Pope      int `json:"pope" yaml:"pope"`
+}
+
+// TitleVotes returns the voices of a noble whose highest religious title is t.
+func (v VoteWeight) TitleVotes(t models.ReligiousTitle) int {
+	switch t {
+	case models.ReligiousTitleBishop:
+		return v.Bishop
+	case models.ReligiousTitleCardinal:
+		return v.Cardinal
+	case models.ReligiousTitlePope:
+		return v.Pope
+	}
+	return 0
 }
 
 type SpecialOrdersBalance struct {
@@ -116,6 +153,22 @@ type rawBalance struct {
 	StartingOutposts        *int              `yaml:"starting_outposts"`
 	StartingResources       *int              `yaml:"starting_resources"`
 	SpecialOrders           *rawSpecialOrders `yaml:"special_orders"`
+	Religion                *rawReligion      `yaml:"religion"`
+}
+
+type rawReligion struct {
+	CardinalCost                    *int `yaml:"cardinal_cost"`
+	CardinalCapBase                 *int `yaml:"cardinal_cap_base"`
+	CardinalPlayersPerExtra         *int `yaml:"cardinal_players_per_extra"`
+	ExcommunicationsPerWinter       *int `yaml:"excommunications_per_winter"`
+	ExcommunicationsPerTargetPlayer *int `yaml:"excommunications_per_target_player"`
+	Votes                           *struct {
+		Territory *int `yaml:"territory"`
+		Seat      *int `yaml:"seat"`
+		Bishop    *int `yaml:"bishop"`
+		Cardinal  *int `yaml:"cardinal"`
+		Pope      *int `yaml:"pope"`
+	} `yaml:"votes"`
 }
 
 type rawAlliance struct {
@@ -311,6 +364,10 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 	if err != nil {
 		return Balance{}, err
 	}
+	religion, err := raw.religion(path)
+	if err != nil {
+		return Balance{}, err
+	}
 	return Balance{
 		TerritoryIncome:         territoryIncome,
 		VillageIncome:           villageIncome,
@@ -336,7 +393,58 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 		StartingOutposts:        startingOutposts,
 		StartingResources:       startingResources,
 		SpecialOrders:           specialOrders,
+		Religion:                religion,
 	}, nil
+}
+
+func (raw rawBalance) religion(path string) (ReligionBalance, error) {
+	if raw.Religion == nil {
+		return ReligionBalance{}, missingBalanceValue(path, "religion")
+	}
+	r := raw.Religion
+	var out ReligionBalance
+	var err error
+	if out.CardinalCost, err = requiredPositiveInt(path, "religion.cardinal_cost", r.CardinalCost); err != nil {
+		return ReligionBalance{}, err
+	}
+	if out.CardinalCapBase, err = requiredPositiveInt(path, "religion.cardinal_cap_base", r.CardinalCapBase); err != nil {
+		return ReligionBalance{}, err
+	}
+	if out.CardinalPlayersPerExtra, err = requiredPositiveInt(path, "religion.cardinal_players_per_extra", r.CardinalPlayersPerExtra); err != nil {
+		return ReligionBalance{}, err
+	}
+	if out.ExcommunicationsPerWinter, err = requiredPositiveInt(path, "religion.excommunications_per_winter", r.ExcommunicationsPerWinter); err != nil {
+		return ReligionBalance{}, err
+	}
+	if out.ExcommunicationsPerTargetPlayer, err = requiredPositiveInt(path, "religion.excommunications_per_target_player", r.ExcommunicationsPerTargetPlayer); err != nil {
+		return ReligionBalance{}, err
+	}
+	if r.Votes == nil {
+		return ReligionBalance{}, missingBalanceValue(path, "religion.votes")
+	}
+	votes := r.Votes
+	if out.Votes.Territory, err = requiredPositiveInt(path, "religion.votes.territory", votes.Territory); err != nil {
+		return ReligionBalance{}, err
+	}
+	if out.Votes.Seat, err = requiredPositiveInt(path, "religion.votes.seat", votes.Seat); err != nil {
+		return ReligionBalance{}, err
+	}
+	if out.Votes.Seat < out.Votes.Territory {
+		return ReligionBalance{}, fmt.Errorf("assetgen: %s: religion.votes.seat must not be below religion.votes.territory", path)
+	}
+	if out.Votes.Bishop, err = requiredPositiveInt(path, "religion.votes.bishop", votes.Bishop); err != nil {
+		return ReligionBalance{}, err
+	}
+	if out.Votes.Cardinal, err = requiredPositiveInt(path, "religion.votes.cardinal", votes.Cardinal); err != nil {
+		return ReligionBalance{}, err
+	}
+	if out.Votes.Pope, err = requiredPositiveInt(path, "religion.votes.pope", votes.Pope); err != nil {
+		return ReligionBalance{}, err
+	}
+	if out.Votes.Bishop > out.Votes.Cardinal || out.Votes.Cardinal > out.Votes.Pope {
+		return ReligionBalance{}, fmt.Errorf("assetgen: %s: religion.votes must not decrease from bishop to cardinal to pope", path)
+	}
+	return out, nil
 }
 
 func (raw rawBalance) victory(path string) (VictoryBalance, error) {

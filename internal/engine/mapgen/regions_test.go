@@ -85,3 +85,20 @@ func TestGenerateRegionsRejectsNoSeeds(t *testing.T) {
 		t.Fatal("generateRegions = nil error, want no-seeds error")
 	}
 }
+
+func TestGeneratedRegionsAreNamedAfterTheirSeedCommune(t *testing.T) {
+	assets := loadTestAssets(t)
+	data, err := Generate("bishopric-names", assets, testConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := map[string]string{}
+	for _, territory := range data.Territories {
+		names[territory.ID] = territory.Name
+	}
+	for _, region := range data.Regions {
+		if region.Name == "" || region.Name != names[string(region.Seed)] {
+			t.Errorf("region %q name = %q, want seed commune %q", region.ID, region.Name, names[string(region.Seed)])
+		}
+	}
+}

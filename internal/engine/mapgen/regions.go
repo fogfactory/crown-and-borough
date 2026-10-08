@@ -151,7 +151,7 @@ func generateRegions(territories []Territory, seeds []models.TerritoryID) ([]mod
 	for _, seed := range seeds {
 		territoriesInRegion := members[seed]
 		sort.Slice(territoriesInRegion, func(i, j int) bool { return territoriesInRegion[i] < territoriesInRegion[j] })
-		regions = append(regions, models.Region{ID: models.RegionID(seed), Seed: seed, Territories: territoriesInRegion})
+		regions = append(regions, models.Region{ID: models.RegionID(seed), Name: byID[seed].Name, Seed: seed, Territories: territoriesInRegion})
 	}
 	if err := rebalanceRegions(territories, regions); err != nil {
 		return nil, err

@@ -57,6 +57,18 @@ alliance:
     marquisate: 3
     duchy: 4
   density_bonus: 1
+religion:
+  cardinal_cost: 8
+  cardinal_cap_base: 1
+  cardinal_players_per_extra: 6
+  excommunications_per_winter: 1
+  excommunications_per_target_player: 1
+  votes:
+    territory: 1
+    seat: 2
+    bishop: 1
+    cardinal: 2
+    pope: 3
 noble_limit: 4
 noble_limit_max: 6
 starting_nobles: 1

@@ -34,6 +34,13 @@ type StateView struct {
 	// still show them and the marriages they were part of.
 	Deceased []DeceasedView `json:"deceased"`
 	Claims   []ClaimView    `json:"claims"`
+	// Bishoprics lists every bishopric (the regions of the map) with its
+	// bishop, and Cardinals, Pope and Excommunicated give the other religious
+	// standings; all are public (specs/religieux.md).
+	Bishoprics     []BishopricView       `json:"bishoprics"`
+	Cardinals      []models.NobleCode    `json:"cardinals"`
+	Pope           *models.NobleCode     `json:"pope,omitempty"`
+	Excommunicated []ExcommunicationView `json:"excommunicated"`
 	// HandLimit is special_orders.hand_limit: the cap on the cards a player
 	// holds, special-orders hand and noble hand together.
 	HandLimit        int               `json:"handLimit"`
@@ -191,6 +198,8 @@ type NobleView struct {
 	// Dignities are the permanent distinctions the noble carries (the
 	// bastard); they are public.
 	Dignities []models.Dignity `json:"dignities,omitempty"`
+	// ReligiousTitle is the highest religious title the noble holds, if any.
+	ReligiousTitle models.ReligiousTitle `json:"religiousTitle,omitempty"`
 	// Secret is the private identity a chevalier d'Éon replaced; owner only.
 	Secret *SecretIdentityView `json:"secret,omitempty"`
 }
@@ -204,6 +213,23 @@ type NobleCardView struct {
 	Name    string               `json:"name,omitempty"`
 	Sex     models.Sex           `json:"sex,omitempty"`
 	Dignity models.Dignity       `json:"dignity,omitempty"`
+}
+
+// BishopricView is a bishopric: a region of the map, named after its seed
+// commune, with its bishop (nil when vacant).
+type BishopricView struct {
+	Region      models.RegionID      `json:"region"`
+	Name        string               `json:"name"`
+	Territories []models.TerritoryID `json:"territories"`
+	Bishop      *models.NobleCode    `json:"bishop,omitempty"`
+}
+
+// ExcommunicationView is an excommunicated noble with the reason (ex officio
+// or papal).
+type ExcommunicationView struct {
+	Noble  models.NobleCode             `json:"noble"`
+	Reason models.ExcommunicationReason `json:"reason"`
+	Turn   int                          `json:"turn"`
 }
 
 // FiefView is a fief addressed by its capital's trigram: no internal fief id
@@ -309,6 +335,9 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 		Territories:         []TerritoryView{},
 		Nobles:              []NobleView{},
 		Fiefs:               []FiefView{},
+		Bishoprics:          []BishopricView{},
+		Cardinals:           []models.NobleCode{},
+		Excommunicated:      []ExcommunicationView{},
 		HandLimit:           balance.SpecialOrders.HandLimit,
 		SpecialHand:         []models.CardKind{},
 		NobleHand:           []NobleCardView{},
@@ -497,6 +526,10 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 	view.Deceased = []DeceasedView{}
 	for _, removed := range state.RemovedNobles {
 		view.Deceased = append(view.Deceased, DeceasedView{Code: models.NobleCode(removed.Code), Name: removed.Name, Owner: removed.OwnerID, Sex: removed.Sex, Cause: removed.Cause, Turn: removed.Turn})
+	}
+	view.Bishoprics, view.Cardinals, view.Pope, view.Excommunicated = projectReligion(state, nobleCodesByID)
+	for i, noble := range view.Nobles {
+		view.Nobles[i].ReligiousTitle = state.ReligiousTitleOf(noble.ID)
 	}
 	view.Claims = []ClaimView{}
 	for _, claim := range state.Claims {
@@ -697,4 +730,32 @@ func headSuccessor(state *models.GameState, balance assetgen.Balance, player mod
 		view.Marriage = &MarriageRef{NobleA: codes[next.NobleA], NobleB: codes[next.NobleB]}
 	}
 	return view
+}
+
+// projectReligion exposes the bishoprics and the religious standings, all
+// public, naming nobles by their public code.
+func projectReligion(state *models.GameState, codes map[models.NobleID]models.NobleCode) ([]BishopricView, []models.NobleCode, *models.NobleCode, []ExcommunicationView) {
+	bishoprics := make([]BishopricView, 0, len(state.Regions))
+	for _, region := range state.Regions {
+		bishopric := BishopricView{Region: region.ID, Name: region.Name, Territories: append([]models.TerritoryID(nil), region.Territories...)}
+		if bishop, exists := state.BishopOf(region.ID); exists {
+			code := codes[bishop]
+			bishopric.Bishop = &code
+		}
+		bishoprics = append(bishoprics, bishopric)
+	}
+	cardinals := make([]models.NobleCode, 0, len(state.Cardinals))
+	for _, cardinal := range state.Cardinals {
+		cardinals = append(cardinals, codes[cardinal])
+	}
+	var pope *models.NobleCode
+	if state.Pope != nil {
+		code := codes[*state.Pope]
+		pope = &code
+	}
+	excommunicated := make([]ExcommunicationView, 0, len(state.Excommunications))
+	for _, excommunication := range state.Excommunications {
+		excommunicated = append(excommunicated, ExcommunicationView{Noble: codes[excommunication.Noble], Reason: excommunication.Reason, Turn: excommunication.Turn})
+	}
+	return bishoprics, cardinals, pope, excommunicated
 }

@@ -98,6 +98,7 @@ func (ctx *resolutionContext) executeNoble(noble models.Noble) {
 	})
 	ctx.rebuildIndexes()
 	ctx.vacateFiefsOfMissingHolders()
+	ctx.state.DropReligiousTitlesOfMissingNobles()
 	ctx.settleClaimsOfDead()
 }
 
