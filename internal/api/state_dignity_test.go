@@ -164,11 +164,11 @@ func TestProjectStateExposesBishopricsAndReligiousStandings(t *testing.T) {
 	if view.Pope == nil || *view.Pope != "GUI" || len(view.Cardinals) != 1 || len(view.Excommunicated) != 1 || view.Excommunicated[0].Noble != "ADE" {
 		t.Errorf("pope %v cardinals %v excommunicated %v", view.Pope, view.Cardinals, view.Excommunicated)
 	}
-	if n := view.Nobles[0]; n.ReligiousTitle != models.ReligiousTitlePope || n.ReligiousStatus != models.ReligiousStatusActive {
+	if n := view.Nobles[0]; n.ReligiousTitle != models.ReligiousTitlePope {
 		t.Errorf("pope noble view = %+v", n)
 	}
-	if n := view.Nobles[1]; n.ReligiousTitle != "" || n.ReligiousStatus != models.ReligiousStatusExcluded {
-		t.Errorf("excommunicated noble view = %+v", n)
+	if n := view.Nobles[1]; n.ReligiousTitle != "" {
+		t.Errorf("untitled noble view = %+v", n)
 	}
 	empty := ProjectState(nil, assetgen.Balance{})
 	if empty.Bishoprics == nil || empty.Cardinals == nil || empty.Excommunicated == nil {

@@ -198,11 +198,8 @@ type NobleView struct {
 	// Dignities are the permanent distinctions the noble carries (the
 	// bastard); they are public.
 	Dignities []models.Dignity `json:"dignities,omitempty"`
-	// ReligiousTitle is the highest religious title the noble holds and
-	// ReligiousStatus its effective standing (active, suspended or excluded);
-	// both are set only for a titled or excommunicated noble.
-	ReligiousTitle  models.ReligiousTitle  `json:"religiousTitle,omitempty"`
-	ReligiousStatus models.ReligiousStatus `json:"religiousStatus,omitempty"`
+	// ReligiousTitle is the highest religious title the noble holds, if any.
+	ReligiousTitle models.ReligiousTitle `json:"religiousTitle,omitempty"`
 	// Secret is the private identity a chevalier d'Éon replaced; owner only.
 	Secret *SecretIdentityView `json:"secret,omitempty"`
 }
@@ -532,12 +529,7 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 	}
 	view.Bishoprics, view.Cardinals, view.Pope, view.Excommunicated = projectReligion(state, nobleCodesByID)
 	for i, noble := range view.Nobles {
-		if title := state.ReligiousTitleOf(noble.ID); title != models.ReligiousTitleNone {
-			view.Nobles[i].ReligiousTitle = title
-			view.Nobles[i].ReligiousStatus = state.ReligiousStatusOf(noble.ID)
-		} else if _, excommunicated := state.ExcommunicationOf(noble.ID); excommunicated {
-			view.Nobles[i].ReligiousStatus = models.ReligiousStatusExcluded
-		}
+		view.Nobles[i].ReligiousTitle = state.ReligiousTitleOf(noble.ID)
 	}
 	view.Claims = []ClaimView{}
 	for _, claim := range state.Claims {

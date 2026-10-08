@@ -246,10 +246,10 @@ L'état projeté sépare la couche dynamique du `GameState` de stockage :
 Les titres religieux sont publics. `bishoprics` liste tous les évêchés (les
 régions de la carte) ; `bishop` est absent quand l'évêché est vacant.
 `cardinals` et `pope` désignent des nobles par leur code ; `excommunicated`
-donne la raison (`ex_officio` ou `papal`). Un noble titré ou excommunié
-porte aussi `religiousTitle` (`bishop`, `cardinal` ou `pope`, le plus haut) et
-`religiousStatus` : `active`, `suspended` (au cachot, titres et voix
-suspendus) ou `excluded` (excommunié).
+donne la raison (`ex_officio` ou `papal`). Un noble titré porte aussi `religiousTitle` (`bishop`, `cardinal` ou `pope`,
+le plus haut). Un noble au cachot ou excommunié ne vote pas et n'exerce pas
+ses titres ; le cachot se lit sur `status`, l'excommunication dans
+`excommunicated`.
 
 `projectedIncome` est le revenu territorial (`territory_income` +
 `village_income` éventuel) que rapporterait ce joueur ou ce territoire au

@@ -101,7 +101,7 @@ func TestValidateReligion(t *testing.T) {
 	}
 }
 
-func TestReligiousStatusAndHighestTitle(t *testing.T) {
+func TestVotingReligiousTitleIsTheHighestTitleOfAFreeNoble(t *testing.T) {
 	g := religiousState()
 	pope := models.NobleID("N1")
 	g.Bishops = []models.Bishop{{Region: "ROS", Noble: "N1"}, {Region: "BRU", Noble: "N3"}}
@@ -116,23 +116,21 @@ func TestReligiousStatusAndHighestTitle(t *testing.T) {
 	if got := g.ReligiousTitleOf("N1"); got != models.ReligiousTitlePope {
 		t.Errorf("N1 title = %q, want pope", got)
 	}
-	if got := g.ReligiousStatusOf("N1"); got != models.ReligiousStatusActive {
-		t.Errorf("N1 status = %q, want active", got)
-	}
-	if got := g.ReligiousStatusOf("N2"); got != models.ReligiousStatusExcluded {
-		t.Errorf("N2 status = %q, want excluded", got)
-	}
-	if got := g.ReligiousStatusOf("N3"); got != models.ReligiousStatusSuspended {
-		t.Errorf("N3 status = %q, want suspended", got)
-	}
-	if got := g.ReligiousTitleOf("N3"); got != models.ReligiousTitleBishop {
-		t.Errorf("suspended N3 keeps its title, got %q", got)
-	}
-	if got := g.VotingReligiousTitle("N3"); got != models.ReligiousTitleNone {
-		t.Errorf("suspended N3 votes with %q, want none", got)
-	}
 	if got := g.VotingReligiousTitle("N1"); got != models.ReligiousTitlePope {
 		t.Errorf("N1 votes with %q, want pope", got)
+	}
+	if got := g.ReligiousTitleOf("N3"); got != models.ReligiousTitleBishop {
+		t.Errorf("jailed N3 keeps its title, got %q", got)
+	}
+	if got := g.VotingReligiousTitle("N3"); got != models.ReligiousTitleNone {
+		t.Errorf("jailed N3 votes with %q, want none", got)
+	}
+	g.Nobles[2].Status = models.NobleStatusHostage
+	if got := g.VotingReligiousTitle("N3"); got != models.ReligiousTitleBishop {
+		t.Errorf("hostage N3 votes with %q, want bishop", got)
+	}
+	if got := g.VotingReligiousTitle("N2"); got != models.ReligiousTitleNone {
+		t.Errorf("excommunicated N2 votes with %q, want none", got)
 	}
 }
 

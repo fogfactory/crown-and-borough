@@ -39,19 +39,6 @@ func (t ReligiousTitle) Rank() int {
 	return 0
 }
 
-// ReligiousStatus is the effective religious standing of a noble.
-type ReligiousStatus string
-
-const (
-	// ReligiousStatusActive: the noble's titles give their votes and powers.
-	ReligiousStatusActive ReligiousStatus = "active"
-	// ReligiousStatusSuspended: the noble is in a dungeon; it keeps its titles
-	// but their votes and powers are suspended.
-	ReligiousStatusSuspended ReligiousStatus = "suspended"
-	// ReligiousStatusExcluded: the noble is excommunicated.
-	ReligiousStatusExcluded ReligiousStatus = "excluded"
-)
-
 // ExcommunicationReason tells how a noble was excommunicated.
 type ExcommunicationReason string
 
@@ -149,31 +136,19 @@ func (g *GameState) ReligiousTitleOf(id NobleID) ReligiousTitle {
 	return ReligiousTitleNone
 }
 
-// ReligiousStatusOf returns the effective religious standing of a noble:
-// excluded when excommunicated, suspended in a dungeon, active otherwise. An
-// unknown noble is excluded.
-func (g *GameState) ReligiousStatusOf(id NobleID) ReligiousStatus {
-	if _, excommunicated := g.ExcommunicationOf(id); excommunicated {
-		return ReligiousStatusExcluded
-	}
-	for _, noble := range g.Nobles {
-		if noble.ID == id {
-			if noble.Status == NobleStatusDungeon {
-				return ReligiousStatusSuspended
-			}
-			return ReligiousStatusActive
-		}
-	}
-	return ReligiousStatusExcluded
-}
-
 // VotingReligiousTitle is the title that counts for the noble's votes and
-// powers: its highest title while its standing is active, none otherwise.
+// powers: its highest title unless the noble is excommunicated or in a dungeon
+// (titles are then suspended, not lost), none otherwise.
 func (g *GameState) VotingReligiousTitle(id NobleID) ReligiousTitle {
-	if g.ReligiousStatusOf(id) != ReligiousStatusActive {
+	if _, excommunicated := g.ExcommunicationOf(id); excommunicated {
 		return ReligiousTitleNone
 	}
-	return g.ReligiousTitleOf(id)
+	for _, noble := range g.Nobles {
+		if noble.ID == id && noble.Status != NobleStatusDungeon {
+			return g.ReligiousTitleOf(id)
+		}
+	}
+	return ReligiousTitleNone
 }
 
 // CardinalCap is the maximum number of cardinals in play: the number of players

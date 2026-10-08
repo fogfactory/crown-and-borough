@@ -177,15 +177,13 @@ export interface Noble {
   spouse?: string
   /** Permanent public distinctions the noble carries. */
   dignities?: Dignity[]
-  /** Highest religious title held, and effective religious standing (titled or excommunicated nobles only). */
+  /** Highest religious title held, if any. */
   religiousTitle?: ReligiousTitle
-  religiousStatus?: ReligiousStatus
   /** Private identity replaced by a chevalier d'Éon; sent to its owner only. */
   secret?: { code: string; name: string; sex: 'male' | 'female' }
 }
 
 export type ReligiousTitle = 'bishop' | 'cardinal' | 'pope'
-export type ReligiousStatus = 'active' | 'suspended' | 'excluded'
 
 /** A bishopric is a region of the map; `bishop` is a noble code, absent when vacant. */
 export interface Bishopric {
