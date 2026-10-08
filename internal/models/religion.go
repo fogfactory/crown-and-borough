@@ -174,6 +174,36 @@ func CardinalCap(players, base, playersPerExtra int) int {
 	return base + players/playersPerExtra
 }
 
+// Excommunicate records the excommunication of a noble and strips every
+// religious title it holds: the loss is definitive and the seats are vacant at
+// once, even if the excommunication is lifted later (specs/religieux.md § Fin
+// de titre). Excommunicating an already excommunicated noble is a no-op.
+func (g *GameState) Excommunicate(excommunication Excommunication) {
+	id := excommunication.Noble
+	if _, already := g.ExcommunicationOf(id); already {
+		return
+	}
+	g.Bishops = slices.DeleteFunc(g.Bishops, func(bishop Bishop) bool { return bishop.Noble == id })
+	g.Cardinals = slices.DeleteFunc(g.Cardinals, func(cardinal NobleID) bool { return cardinal == id })
+	if g.IsPope(id) {
+		// The pope's own papal excommunications end with the throne, as at death.
+		g.Pope = nil
+		g.Excommunications = slices.DeleteFunc(g.Excommunications, func(e Excommunication) bool {
+			return e.Reason == ExcommunicationPapal
+		})
+	}
+	g.Excommunications = append(g.Excommunications, excommunication)
+}
+
+// LiftExcommunication ends the excommunication of a noble. The titles it cost
+// are not restored; the noble becomes eligible again. An ex officio
+// excommunication cannot be lifted and is left in place.
+func (g *GameState) LiftExcommunication(id NobleID) {
+	g.Excommunications = slices.DeleteFunc(g.Excommunications, func(e Excommunication) bool {
+		return e.Noble == id && e.Reason == ExcommunicationPapal
+	})
+}
+
 // DropReligiousTitlesOfMissingNobles clears the religious titles and
 // excommunications bound to nobles who left play: a dead noble's titles are
 // vacant, an excommunication ends with its subject, and a papal excommunication

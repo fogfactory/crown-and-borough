@@ -140,6 +140,38 @@ func TestVotingReligiousTitleIsTheHighestTitleOfAFreeNoble(t *testing.T) {
 	}
 }
 
+func TestExcommunicationStripsTitlesForGood(t *testing.T) {
+	g := religiousState()
+	g.Bishops = []models.Bishop{{Region: "ROS", Noble: "N2"}, {Region: "BRU", Noble: "N3"}}
+	g.Cardinals = []models.NobleID{"N2"}
+	g.Excommunicate(models.Excommunication{Noble: "N2", Reason: models.ExcommunicationExOfficio, Turn: 1})
+	if got := g.ReligiousTitleOf("N2"); got != models.ReligiousTitleNone {
+		t.Errorf("excommunicated N2 still holds %q", got)
+	}
+	if _, ok := g.BishopOf("ROS"); ok {
+		t.Error("bishopric of N2 should be vacant")
+	}
+	if got := g.ReligiousTitleOf("N3"); got != models.ReligiousTitleBishop {
+		t.Errorf("N3 lost its title: %q", got)
+	}
+	if err := g.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	g.LiftExcommunication("N2")
+	if len(g.Excommunications) != 1 {
+		t.Errorf("ex officio excommunication must not be liftable: %v", g.Excommunications)
+	}
+	g.Excommunications[0].Reason = models.ExcommunicationPapal
+	g.Excommunications[0].By = "N3"
+	g.LiftExcommunication("N2")
+	if got := g.ReligiousTitleOf("N2"); got != models.ReligiousTitleNone {
+		t.Errorf("lifting restored %q", got)
+	}
+	if len(g.Excommunications) != 0 {
+		t.Errorf("excommunication not lifted: %v", g.Excommunications)
+	}
+}
+
 func TestDropReligiousTitlesOfMissingNobles(t *testing.T) {
 	g := religiousState()
 	pope := models.NobleID("N1")

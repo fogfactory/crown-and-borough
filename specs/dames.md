@@ -233,8 +233,9 @@ Abandonnés (voir les notes « Abandonné » ci-dessus) : l'ordre d'hiver de la
 Châtelaine et l'ordre « Infiltrer » de l'Espionne — seuls leurs passifs
 respectifs sont livrés. Restent à livrer, dépendant de l'enquête, de
 l'excommunication et des élections d'évêque (milestone Religieux) :
-démasquage de l'Éon par enquête, excommunication d'office d'un Éon ou d'une
-Sorcière démasquée (et la vacance des titres qui en découle), voix
+démasquage de l'Éon et de la Sorcière par enquête (l'excommunication d'office
+d'un Éon démasqué et la vacance de ses titres religieux sont livrées ; celle de
+la Sorcière sera branchée avec l'enquête), voix
 d'élection et calme des révoltes de l'Abbesse.
 
 Précisions retenues :
