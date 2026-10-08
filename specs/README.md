@@ -22,6 +22,7 @@ réordonnancement.
 | Titres et victoire | [`titres.md`](titres.md) | [Titres & Victoire](https://github.com/fogfactory/crown-and-borough/milestone/2) ; fiefs et taxe dans [Économie & Fiefs](https://github.com/fogfactory/crown-and-borough/milestone/19) | Socle actuel |
 | Cartographie | [`cartographie.md`](cartographie.md) | [Cartographie](https://github.com/fogfactory/crown-and-borough/milestone/3) | Indépendant, mais utile au thème religieux |
 | Ordres spéciaux | [`ordres-speciaux.md`](ordres-speciaux.md) | [Ordres spéciaux & Calamités](https://github.com/fogfactory/crown-and-borough/milestone/4) | Socle actuel |
+| Résolution de l'hiver | [`hiver.md`](hiver.md) | [Religieux](https://github.com/fogfactory/crown-and-borough/milestone/5) | Titres, Religieux, Succession, Dames |
 | Religieux | [`religieux.md`](religieux.md) | [Religieux](https://github.com/fogfactory/crown-and-borough/milestone/5) | Titres, Cartographie |
 | Politique royale | [`politique.md`](politique.md) | [Politique royale](https://github.com/fogfactory/crown-and-borough/milestone/6) | Titres, Religieux |
 | Succession | [`succession.md`](succession.md) | [Succession](https://github.com/fogfactory/crown-and-borough/milestone/7) | Titres, Religieux, Politique, cartes spéciales |

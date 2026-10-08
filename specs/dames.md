@@ -293,7 +293,10 @@ mariage est donc une protection pour les dignités qui le permettent
 ### Jugement et conséquences
 
 Le procès est jugé en **toute fin de tour**, une fois tous les autres effets
-du tour résolus. Si la cible remplit les conditions du procès direct, elle
+du tour résolus. Pour un procès à deux cardinaux, l'ordre précis par rapport aux
+excommunications, enquêtes, mariages et élections du même hiver est fixé par
+[hiver.md](hiver.md#ordre-de-résolution) : un noble excommunié ou démasqué
+cet hiver est jugeable, une dame mariée cet hiver ne l'est plus. Si la cible remplit les conditions du procès direct, elle
 est exécutée, et sa dignité, cachée ou non, est révélée à tous : elle quitte le jeu définitivement (cause « exécution » dans la
 lignée) et ses fiefs, prétentions et cartes sont réglés comme pour toute
 mort. L'exécution ouvre l'opportunité de jouer une **carte révolte** (les

@@ -2,6 +2,10 @@
 
 **Milestone lié :** [Religieux](https://github.com/fogfactory/crown-and-borough/milestone/5)
 
+**Ordre de résolution :** l'ordre exact des ordres d'hiver religieux entre eux et
+avec les autres ordres (mariage, enquête, procès, gestion) est fixé par
+[hiver.md](hiver.md), qui prime en cas de divergence.
+
 **Dépend de :** [Titres & Victoire](titres.md) pour les lieux et les points,
 et de [Cartographie](cartographie.md) pour le découpage des évêchés ; le flux
 de ressource de la dîme dépend de [Économie et prospérité](economie.md). Les conditions d'éligibilité reposent sur le sexe
@@ -33,10 +37,12 @@ un joueur — la condition la plus permissive des deux statuts définis dans
 déclenchement.
 
 Tant que cette condition reste vraie, l'élection est **réévaluée à chaque
-tour** : un évêché sans évêque (jamais élu, ou vacant après une égalité, une
+hiver** : un évêché sans évêque (jamais élu, ou vacant après une égalité, une
 mort ou une excommunication) retente automatiquement l'élection à chaque
-tour tant que tous ses lieux-dits restent occupés ou contrôlés, sans ordre
-dédié pour la relancer.
+hiver tant que tous ses lieux-dits restent occupés ou contrôlés, sans ordre
+dédié pour la relancer. Le registre des élections ouvertes est figé au début
+de l'hiver : un siège rendu vacant pendant l'hiver n'est électable qu'à
+l'hiver suivant ([hiver.md](hiver.md#principes)).
 
 ### Candidature
 
@@ -50,7 +56,7 @@ Syntaxe (une ligne par ordre, sans coût) :
 
 - `K E NNN BBB` : candidature du noble `NNN` du joueur à l'évêché dont le
   village seed est `BBB` ;
-- `K P NNN` : candidature du noble `NNN`, cardinal, au conclave ;
+- `K P NNN` : candidature du noble `NNN`, évêque ou cardinal, au conclave ;
 - `V E NNN BBB` : vote du joueur pour le candidat `NNN` à l'évêché `BBB` ;
 - `V P NNN` : vote du joueur pour le candidat `NNN` au conclave.
 
@@ -58,9 +64,13 @@ Un joueur ne vote que pour un candidat déclaré à la même élection, qu'il so
 à lui ou à un autre joueur. Le moteur regroupe les candidatures par élection,
 puis les votes par élection et par candidat. Pour une même élection, un joueur
 peut saisir plusieurs candidatures ou plusieurs votes : le **premier ordre
-valide** de la feuille est retenu, les suivants sont ignorés. Les élections se
-résolvent dans un ordre déterministe : évêchés par ordre stable (identifiant de
-région), puis conclave.
+valide** de la feuille est retenu, les suivants sont ignorés. Un même noble ne
+peut être candidat qu'à une seule élection par hiver (première candidature
+valide). Les élections se comptent simultanément sur un instantané des
+titres ; elles sont rapportées dans un ordre déterministe : évêchés par
+identifiant de région, puis conclave. Un titre gagné pendant l'hiver (élection,
+achat de cardinal) n'est conféré qu'à l'investiture, après tous les décomptes
+([hiver.md](hiver.md#ordre-de-résolution)).
 
 ### Votes
 
@@ -83,7 +93,8 @@ ce bonus s'attache au joueur propriétaire de ce noble. Ces bonus s'additionnent
 aux voix territoriales même si le joueur ne contrôle ni n'occupe aucun
 lieu-dit de l'évêché concerné.
 
-Le candidat avec la plus haute majorité relative gagne. En cas d'égalité au
+Le candidat avec la plus haute majorité relative gagne. Les bulletins
+individuels restent privés ; le rapport publie le total par candidat. En cas d'égalité au
 sommet, ou sans candidat éligible, aucun vainqueur n'est désigné et l'évêché
 reste vacant (voir « Déclenchement de l'élection »).
 
@@ -98,8 +109,12 @@ directement depuis un noble libre. Deux voies, cumulables :
   n'importe quel joueur (pas seulement le pape), ciblant obligatoirement un
   de ses propres évêques ;
 - un **achat direct en hiver**, contre R, ciblant également un évêque du
-  joueur qui paie. Le coût est à fixer dans `assets/balance.yaml` au même
-  titre que les autres investissements hivernaux.
+  joueur qui paie (`N C NNN`, syntaxe proposée). Le coût est à fixer dans
+  `assets/balance.yaml` au même titre que les autres investissements
+  hivernaux. L'achat se résout parmi les ordres de gestion et le titre est
+  conféré à l'investiture : le nouveau cardinal ne vote ni ne se présente au
+  conclave du même hiver ; une excommunication du même hiver, résolue avant,
+  rend l'achat caduc sans prélèvement.
 
 Dans les deux cas, le nombre total de cardinaux en jeu est plafonné à
 `N - 1` (`N` = nombre de joueurs) ; une nomination ou un achat qui
@@ -114,11 +129,13 @@ qu'un pape existe.
 
 Dès que deux cardinaux ou plus sont en jeu, un conclave est organisé. Seuls
 les cardinaux votent, à raison d'**une voix chacun**, quel que soit leur
-joueur ; les candidats sont des cardinaux éligibles (`K P`). Le vote se fait
+joueur ; les candidats sont des évêques ou cardinaux éligibles (`K P`), titrés avant
+le début de l'hiver (cumul à la Fief : l'élu garde ses autres titres). Le vote se fait
 par `V P` : l'ordre est porté par un cardinal du joueur, qui exprime la voix
 de chacun de ses cardinaux pour le candidat nommé (le premier ordre valide
-d'un joueur est retenu). L'élection exige la **majorité absolue** des
-cardinaux en jeu. Sans majorité absolue, le trône reste vacant et le conclave
+d'un joueur est retenu). L'élection exige la **majorité absolue** : strictement plus de la moitié de
+tous les cardinaux en jeu, y compris ceux dont la voix est suspendue (cachot).
+Le conclave n'est ouvert que si le trône est vacant. Sans majorité absolue, le trône reste vacant et le conclave
 est réévalué chaque tour tant que la condition (≥ 2 cardinaux) reste vraie,
 selon le même principe que l'évêché vacant.
 
@@ -196,7 +213,8 @@ d'hiver gratuit :
 - `X E NNN` : excommunie le noble `NNN` ;
 - `X L NNN` : lève l'excommunication de `NNN`.
 
-Limites : **1 excommunication par hiver**, et **1 excommunié à la fois par
+Elle se résout en première étape de l'hiver, avant les ordres de gestion
+(achat de cardinal compris), les enquêtes et les élections. Limites : **1 excommunication par hiver**, et **1 excommunié à la fois par
 joueur adverse** (excommunier un second noble du même joueur exige d'abord
 d'en lever un). Le pape peut viser ses propres nobles, mais pas lui-même.
 
@@ -218,7 +236,9 @@ est aussi cardinal compte comme cardinal. Les deux cardinaux peuvent
 appartenir au même joueur. La cible suit le périmètre de la carte de procès
 ([dames.md § Carte de procès](dames.md#carte-de-procès)) : procès direct pour
 une dame éligible, excommunication préalable pour tout autre personnage. Le
-jugement a lieu en toute fin de tour. Deux ordres sur des cibles différentes
+jugement a lieu en toute fin de tour, après les élections et la fin
+d'hiver ([hiver.md](hiver.md#ordre-de-résolution)) ; un noble excommunié le
+même hiver est jugeable. Deux ordres sur des cibles différentes
 ne s'additionnent pas : ils sont sans effet.
 
 ### Enquête
@@ -227,7 +247,10 @@ Un cardinal ou le pape peut jouer `Q NNN` en hiver : une enquête par cardinal
 ou pape et par hiver. Elle cible un noble ou une dame de n'importe quel joueur
 et révèle sa dignité cachée (Éon, Correspondante, Espionne, Sorcière) avec les
 conséquences de [dames.md](dames.md). Elle est résolue après les
-excommunications et avant le jugement des procès. Une cible sans dignité
+excommunications et les ordres de gestion, avant les mariages, les élections
+et le jugement des procès ([hiver.md](hiver.md#ordre-de-résolution)). Un Éon
+ou une Sorcière démasqué est excommunié d'office dès l'enquête : il peut être
+jugé le même hiver. Une cible sans dignité
 cachée consomme le coût sans effet et sans information.
 
 Le coût, en R, est proportionnel au rang de la cible. Il se lit dans
@@ -266,6 +289,13 @@ que pour la dîme.
 > **Dépendance #18 :** ce pouvoir est spécifié ici mais son implémentation
 > est différée après [l'issue #18](https://github.com/fogfactory/crown-and-borough/issues/18),
 > faute de modèle de mariage/alliance à ce jour.
+
+Le pape et un des époux (ou son propriétaire) soumettent chacun `X D NNN`
+(syntaxe proposée) pour le même couple ; un seul ordre suffit si le pape
+possède l'un des époux. La dissolution se résout avant la conclusion des
+mariages du même hiver : les deux nobles redeviennent célibataires et peuvent
+être remariés ou se présenter à une élection dès cet hiver ; aucune prétention
+n'est retirée ([hiver.md](hiver.md#effets-croisés)).
 
 Le **pape uniquement** peut jouer un ordre spécial dissolvant un mariage
 existant entre deux nobles, quel que soit leur propriétaire. Les effets

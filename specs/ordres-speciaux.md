@@ -65,6 +65,9 @@ main partagée (`hand_limit` moins les cartes d'ordres spéciaux, de noble et de
 dignité détenues). Les joueurs sont traités par identifiant croissant. Aucun
 ordre de pioche n'est nécessaire.
 
+L'ordre des ordres d'hiver entre eux (excommunication, gestion, enquête, mariage,
+élection, procès) est fixé par [hiver.md](hiver.md).
+
 Les cartes jouées sont consommées puis leurs effets sont appliqués avant le
 ravitaillement et la résolution simultanée des ordres d'armée.
 
