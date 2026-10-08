@@ -154,35 +154,34 @@ même titre que les autres cartes du deck spécial (voir
 
 ### Dîme
 
-Une carte de dîme (jouée depuis le deck d'ordres spéciaux, voir
-[ordres-speciaux.md](ordres-speciaux.md)) détourne la production des moulins
-d'un évêché vers la capitale du joueur qui la joue, au lieu du village ou du
-château normalement bénéficiaire (voir le flux de ressource dans
-[economie.md](economie.md)). Elle ne touche jamais le revenu de territoire des
-fiefs, qui relève exclusivement de la taxe seigneuriale.
+La dîme est l'une des deux issues de la carte **Impôts** du deck d'ordres
+spéciaux (voir [ordres-speciaux.md](ordres-speciaux.md) et, pour la taxe,
+[titres.md § Taxe seigneuriale](titres.md#taxe-seigneuriale)). Le joueur précise
+le **noble émetteur** et la **cible** : lorsque l'émetteur est un évêque, un
+cardinal ou le pape et que la cible est un évêché, l'impôt est une dîme. Elle
+détourne la production des moulins de l'évêché vers la capitale du joueur qui
+la joue, au lieu du village ou du château normalement bénéficiaire (voir le
+flux de ressource dans [economie.md](economie.md)). Elle ne touche jamais le
+revenu de territoire des fiefs, qui relève exclusivement de la taxe.
 
-- l'**évêque** peut poser une dîme sur son propre évêché ;
-- le **cardinal** peut la poser sur n'importe quel évêché, mais seulement celui
-  qui n'est pas déjà tenu par son évêque ce tour-là (priorité au titulaire
-  local, symétrique à la règle roi/seigneur de [titres.md](titres.md)) ;
-- le **pape** peut la poser sur n'importe quel évêché, avec la même priorité
-  au titulaire local (évêque, ou cardinal s'il a déjà posé une dîme ce tour).
+- l'**évêque** et le **cardinal** (toujours évêque) ciblent l'évêché dont
+  l'émetteur est l'évêque ;
+- le **pape** peut cibler n'importe quel évêché.
 
-Syntaxe : `P DI XXX` dans la soumission `special`, `XXX` étant le village
-seed de l'évêché visé.
+Syntaxe : `P TX HHH XXX` dans la soumission `special`, `HHH` étant le noble
+émetteur et `XXX` le village seed de l'évêché visé.
 
-- **Plusieurs cardinaux sur un même évêché** : la production des moulins de
-  l'évêché est répartie **équitablement** entre les joueurs dont un cardinal a
-  posé une dîme dessus (un joueur compte une fois, même avec plusieurs
-  cardinaux ou ordres). Le partage se fait en unités entières de ressource,
-  moulin par moulin ; le **surnuméraire** (reste de la division) est laissé sur
-  place, sur le moulin, selon le flux normal de [economie.md](economie.md).
-- **Évêché sans évêque** : il reste taxable par un cardinal ou le pape ; la
-  priorité du titulaire local ne s'applique qu'à un évêque en place.
-- **Révolte** : comme la taxe seigneuriale ([titres.md](titres.md)), la dîme
-  autorise la Révolte (voir [ordres-speciaux.md](ordres-speciaux.md)) sur tout
-  territoire de l'évêché taxé, la saison où elle est jouée et la saison
-  suivante.
+- **Plusieurs dîmes sur un même évêché** : la production des moulins de
+  l'évêché est répartie **équitablement** entre les joueurs qui ont posé une
+  dîme dessus (un joueur compte une fois, même avec plusieurs émetteurs ou
+  ordres). Le partage se fait en unités entières de ressource, moulin par
+  moulin ; le **surnuméraire** (reste de la division) est laissé sur place, sur
+  le moulin, selon le flux normal de [economie.md](economie.md).
+- **Évêché sans évêque** : le pape peut le taxer ; aucun évêque ni cardinal ne
+  peut le cibler, faute d'émetteur titulaire.
+- **Révolte** : comme pour toute taxe, tout territoire de l'évêché ciblé est
+  éligible à la Révolte (voir [ordres-speciaux.md](ordres-speciaux.md)), la
+  saison où la dîme est jouée et la saison suivante.
 
 ### Excommunication
 

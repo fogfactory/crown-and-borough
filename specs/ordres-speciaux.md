@@ -40,19 +40,21 @@ Aucun noble n'est requis :
 - `D C BT` ou `D C RA` abandonne une carte bonus, en hiver uniquement ;
 - `P BT TER` joue Beau temps au printemps, en été ou en automne ;
 - `P RA TER` joue Récolte abondante au printemps, en été ou en automne ;
-- `P RE TER` joue Révolte sur le territoire pendant ces saisons, si une mauvaise récolte affecte la région du territoire, si une taxe seigneuriale a été jouée sur la capitale du fief auquel appartient le territoire la saison courante ou la saison précédente, ou si un procès a exécuté une dame dans la région du territoire à la saison d'action précédente ; chaque carte ajoute un jet borné à l'armée neutre commune du territoire, qui se bat contre l'occupant le cas échéant ;
+- `P RE TER` joue Révolte sur le territoire pendant ces saisons, si une mauvaise récolte affecte la région du territoire, si un impôt (taxe ou dîme) a été joué sur la capitale du fief ou l'évêché auquel appartient le territoire la saison courante ou la saison précédente, ou si un procès a exécuté une dame dans la région du territoire à la saison d'action précédente ; chaque carte ajoute un jet borné à l'armée neutre commune du territoire, qui se bat contre l'occupant le cas échéant ;
 - `P PR HHH` joue un Procès sur le noble HHH, par exception à la règle « `TER` est
   le village seed d'une région » ci-dessous ; la carte est consommée à la pose et
   le procès est jugé en fin de tour (dames.md § Carte de procès) ;
-- `P DI XXX` joue la Dîme (religieux.md § Dîme) ; XXX est le village seed de
-  l'évêché visé ; la carte est consommée à la pose ;
-- `P TX XXX` joue la Taxe seigneuriale (titres.md) au printemps, en été ou en
-  automne ; XXX est, par exception à la règle « `TER` est le village seed
-  d'une région » ci-dessous, la **capitale d'un fief** que le joueur détient
-  (vacant compris). Elle double le revenu territorial du fief pour le tour,
-  village inclus, sans jamais toucher la production des moulins ; deux cartes
-  jouées sur le même fief le même tour ne se cumulent pas, la seconde est
-  consommée sans effet.
+- `P TX HHH XXX` joue la carte Impôts (titres.md, religieux.md) au printemps, en
+  été ou en automne ; HHH est le **noble émetteur** et XXX la cible, par
+  exception à la règle « `TER` est le village seed d'une région » ci-dessous :
+  la **capitale d'un fief** (taxe seigneuriale ou royale, vacant compris) ou le
+  **village seed d'un évêché** (dîme). L'émetteur détermine ce qui est permis :
+  seigneur titré sur ses fiefs, roi sur tout fief constitué, évêque et
+  cardinal sur leur évêché, pape sur tout évêché. La taxe double le revenu
+  territorial du fief pour le tour, village inclus, sans jamais toucher la
+  production des moulins ; la dîme détourne la production des moulins de
+  l'évêché. Deux cartes jouées sur le même fief le même tour ne se cumulent pas,
+  la seconde est consommée sans effet.
 
 La main est reconstituée automatiquement en hiver, après les ordres d'hiver
 (dont `T N` et les cartes jouées, qui libèrent leur place) et après les
@@ -96,8 +98,8 @@ interne de la carte.
   et la production de base des châteaux et villages de la région ; les moulins
   ne sont pas touchés.
 - La révolte est une carte bonus, jouable sur un territoire si une famine
-  active affecte sa région, ou si une taxe seigneuriale a été jouée sur la
-  capitale du fief auquel appartient ce territoire, la saison courante ou la
+  active affecte sa région, ou si un impôt (taxe ou dîme) a été joué sur la
+  capitale du fief ou l'évêché auquel appartient ce territoire, la saison courante ou la
   saison précédente — tout territoire du fief est alors éligible, pas
   seulement sa capitale taxée —, ou si un procès a exécuté une dame dans la
   région à la saison d'action précédente. Elle crée des armées `NEUTRAL` sur les cases
