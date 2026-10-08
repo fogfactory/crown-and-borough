@@ -155,6 +155,9 @@ func (g *GameState) VotingReligiousTitle(id NobleID) ReligiousTitle {
 // per full playersPerExtra players (religion.cardinal_cap_base and
 // religion.cardinal_players_per_extra), so 1 below 6 players, 2 below 12, etc.
 func CardinalCap(players, base, playersPerExtra int) int {
+	if playersPerExtra <= 0 {
+		return base
+	}
 	return base + players/playersPerExtra
 }
 
@@ -245,6 +248,8 @@ func (g *GameState) validateReligion(nobles map[NobleID]bool) error {
 			return fmt.Errorf("models: excommunication of %q: unknown pope %q", id, excommunication.By)
 		case excommunication.Reason == ExcommunicationPapal && excommunication.By == id:
 			return fmt.Errorf("models: excommunication of %q: a noble cannot excommunicate itself", id)
+		case excommunication.Reason == ExcommunicationPapal && (g.Pope == nil || *g.Pope != excommunication.By):
+			return fmt.Errorf("models: excommunication of %q: %q is not the pope", id, excommunication.By)
 		case excommunication.Reason == ExcommunicationExOfficio && excommunication.By != "":
 			return fmt.Errorf("models: excommunication of %q: an ex officio excommunication has no pope", id)
 		}

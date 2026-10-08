@@ -64,10 +64,16 @@ func TestValidateReligion(t *testing.T) {
 			g.Pope = &pope
 		}, ""},
 		{"excommunicated titleholder", func(g *models.GameState) {
-			g.Bishops = []models.Bishop{{Region: "ROS", Noble: "N2"}}
+			g.Bishops = []models.Bishop{{Region: "ROS", Noble: "N2"}, {Region: "BRU", Noble: "N1"}}
+			g.Pope = &pope
 			g.Excommunications = []models.Excommunication{{Noble: "N2", Reason: models.ExcommunicationPapal, By: "N1", Turn: 1}}
 		}, "still holds a religious title"},
+		{"papal by a non-pope", func(g *models.GameState) {
+			g.Excommunications = []models.Excommunication{{Noble: "N2", Reason: models.ExcommunicationPapal, By: "N1", Turn: 1}}
+		}, "is not the pope"},
 		{"papal excommunication", func(g *models.GameState) {
+			g.Bishops = []models.Bishop{{Region: "ROS", Noble: "N1"}}
+			g.Pope = &pope
 			g.Excommunications = []models.Excommunication{{Noble: "N2", Reason: models.ExcommunicationPapal, By: "N1", Turn: 1}}
 		}, ""},
 		{"papal without pope", func(g *models.GameState) {
