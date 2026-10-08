@@ -20,6 +20,13 @@ type resolutionContext struct {
 	noblesByID       map[models.NobleID]*models.Noble
 	noblesByCode     map[models.NobleCode]models.NobleID
 	pendingMarriages []pendingMarriage
+	// elections is the registry of the elections open when the winter began;
+	// electionOrders holds the candidacies and votes of the sheets until the
+	// election stage; pendingTitles holds the titles won, conferred at the
+	// investiture (specs/hiver.md).
+	elections      []*election
+	electionOrders []electionOrder
+	pendingTitles  []pendingTitle
 	// nobleDraws holds the players who already drew a noble card this winter
 	// (one draw per player per winter, specs/succession.md § Deck de nobles).
 	nobleDraws map[models.PlayerID]bool

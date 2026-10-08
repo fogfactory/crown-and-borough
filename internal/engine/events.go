@@ -75,6 +75,11 @@ const (
 	EventTypeNobleDiscard EventType = "noble_discard"
 	EventTypeClaim        EventType = "claim"
 	EventTypeEonUnmasked  EventType = "eon_unmasked"
+	// EventTypeElectionOpened, EventTypeElectionResult and
+	// EventTypeInvestiture carry only public totals, never a ballot.
+	EventTypeElectionOpened EventType = "election_opened"
+	EventTypeElectionResult EventType = "election_result"
+	EventTypeInvestiture    EventType = "investiture"
 )
 
 // Outcome is the execution result of one current order.
@@ -205,6 +210,10 @@ type Event struct {
 	SpouseNobleCode models.NobleCode `json:"spouseNobleCode,omitempty"`
 	SpouseNobleName string           `json:"spouseNobleName,omitempty"`
 	SpouseOwnerID   models.PlayerID  `json:"spouseOwner,omitempty"`
+
+	// Election is the public description of an election, its result or the
+	// title an investiture confers.
+	Election *ElectionResult `json:"election,omitempty"`
 
 	FiefID          models.FiefID        `json:"fiefId,omitempty"`
 	FiefTitle       models.FiefTitle     `json:"fiefTitle,omitempty"`

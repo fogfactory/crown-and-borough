@@ -39,6 +39,19 @@ func (t ReligiousTitle) Rank() int {
 	return 0
 }
 
+// ElectionKind identifies the seat an election fills (specs/religieux.md).
+type ElectionKind string
+
+const (
+	// ElectionBishop fills the seat of one bishopric.
+	ElectionBishop ElectionKind = "bishop"
+	// ElectionPope fills the papal throne (the conclave).
+	ElectionPope ElectionKind = "pope"
+)
+
+// IsValid reports whether the election kind is a known value.
+func (k ElectionKind) IsValid() bool { return k == ElectionBishop || k == ElectionPope }
+
 // ExcommunicationReason tells how a noble was excommunicated.
 type ExcommunicationReason string
 

@@ -57,12 +57,23 @@ func ResolveWinterWithDeckOrders(
 	ctx := newResolutionContext(state, balance)
 	stockBefore := winterStocks(ctx)
 	firstNameRNG := newWinterRNG(state.Seed, state.Turn)
+	// The winter resolves in the stages of specs/hiver.md. Stage 0 freezes the
+	// registry of open elections; stages 1 (papal sanctions), 3 (cardinal
+	// actions) and 4 (marriage dissolutions) have no order yet.
+	ctx.openWinterElections()
+	// Stage 2: management orders, players by identifier then sheet order.
+	// Candidacies and votes are only recorded here, they resolve in stage 6.
 	for _, playerID := range sortedPlayerIDs(state.Players) {
 		for _, order := range orders[playerID] {
 			executeWinterOrder(ctx, playerID, order, firstNameRNG)
 		}
 	}
+	// Stage 5: marriages.
 	ctx.resolveMarriages()
+	// Stage 6: elections, counted on one snapshot; stage 7: investiture.
+	ctx.resolveWinterElections()
+	ctx.investWinterTitles()
+	// Stage 8: end of winter (hands, vacant fiefs, stocks, prosperity).
 	resolveWinterDeckOrders(ctx, deckOrders)
 	// No calamity resolves in winter: the winter turn draws and schedules the
 	// following year's calamities but applies none.

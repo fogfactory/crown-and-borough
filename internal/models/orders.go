@@ -56,6 +56,8 @@ const (
 	WinterOrderTypeDiscardNoble  WinterOrderType = "discard_noble_card"
 	WinterOrderTypeClaim         WinterOrderType = "claim"
 	WinterOrderTypeCalamityVeto  WinterOrderType = "calamity_veto"
+	WinterOrderTypeCandidacy     WinterOrderType = "candidacy"
+	WinterOrderTypeVote          WinterOrderType = "vote"
 )
 
 // IsValid reports whether a winter order type is known to the winter resolver.
@@ -66,7 +68,8 @@ func (t WinterOrderType) IsValid() bool {
 		WinterOrderTypeHostage, WinterOrderTypeDungeon, WinterOrderTypeTransfer,
 		WinterOrderTypeFoundFief, WinterOrderTypeAssignFief, WinterOrderTypeMarriage,
 		WinterOrderTypeDrawNoble, WinterOrderTypeDignity, WinterOrderTypeDiscardNoble,
-		WinterOrderTypeClaim, WinterOrderTypeCalamityVeto:
+		WinterOrderTypeClaim, WinterOrderTypeCalamityVeto,
+		WinterOrderTypeCandidacy, WinterOrderTypeVote:
 		return true
 	}
 	return false
@@ -130,7 +133,10 @@ type Order struct {
 // the code (noble trigram or dignity code) of the noble-hand card discarded
 // unplayed. WinterOrderTypeDrawNoble carries no field. For
 // WinterOrderTypeClaim, NobleCode is the player's own noble, the heir, and
-// SpouseCode the noble of another player whose titles it claims.
+// SpouseCode the noble of another player whose titles it claims. For
+// WinterOrderTypeCandidacy and WinterOrderTypeVote, Election names the
+// election, NobleCode the candidate and TerritoryID the seed village of the
+// bishopric (bishop elections only).
 type WinterOrder struct {
 	ID           OrderID         `json:"id"`
 	Type         WinterOrderType `json:"type"`
@@ -143,6 +149,8 @@ type WinterOrder struct {
 	NobleCode    NobleCode       `json:"nobleCode,omitempty"`
 	SpouseCode   NobleCode       `json:"spouseCode,omitempty"`
 	CardCode     string          `json:"cardCode,omitempty"`
+	// Election is the election a candidacy or a vote belongs to.
+	Election ElectionKind `json:"election,omitempty"`
 	// Status is the optional status a noble transfer gives a noble handed to
 	// another owner's army (hostage or dungeon); empty keeps its status.
 	Status NobleStatus `json:"status,omitempty"`
