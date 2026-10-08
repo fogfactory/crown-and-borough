@@ -21,10 +21,20 @@ func TestForecastWinterElectionsAnnouncesRegistryForViewer(t *testing.T) {
 	if ros.Voices != 3 {
 		t.Fatalf("P1 voices = %d, want 3", ros.Voices)
 	}
-	if !slices.Equal(ros.Candidates, []models.NobleCode{"HUG", "OTO"}) {
-		t.Fatalf("P1 candidates = %v, want HUG and OTO", ros.Candidates)
+	codes := func(nobles []ElectionNoble) []models.NobleCode {
+		var out []models.NobleCode
+		for _, noble := range nobles {
+			out = append(out, noble.Code)
+		}
+		return out
 	}
-	if other := ForecastWinterElections(state, testBalance(), "P2"); other[0].Voices != 1 || !slices.Equal(other[0].Candidates, []models.NobleCode{"LEO"}) {
+	if !slices.Equal(codes(ros.Candidates), []models.NobleCode{"HUG", "OTO"}) || ros.Candidates[0].Name == "" {
+		t.Fatalf("P1 candidates = %v, want HUG and OTO with names", ros.Candidates)
+	}
+	if len(ros.VoiceSources) != 2 || ros.VoiceSources[0].Kind != "seat" || ros.VoiceSources[1].Kind != "territory" {
+		t.Fatalf("P1 voice sources = %+v, want the seat then BBB", ros.VoiceSources)
+	}
+	if other := ForecastWinterElections(state, testBalance(), "P2"); other[0].Voices != 1 || !slices.Equal(codes(other[0].Candidates), []models.NobleCode{"LEO"}) {
 		t.Fatalf("P2 view = %+v, want its own voices and nobles only", other[0])
 	}
 }

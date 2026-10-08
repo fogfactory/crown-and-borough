@@ -203,8 +203,19 @@ export interface OpenElection {
   required?: number
   /** The viewer's own voices in this election. */
   voices: number
+  /** What gives the viewer those voices. */
+  voiceSources: VoiceSource[]
   /** The viewer's nobles accepted as candidates today. */
-  candidates: string[]
+  candidates: Array<{ code: string; name: string }>
+}
+
+export interface VoiceSource {
+  kind: 'seat' | 'territory' | 'title'
+  territory?: string
+  noble?: string
+  nobleName?: string
+  title?: 'bishop' | 'cardinal' | 'pope'
+  votes: number
 }
 
 export interface Excommunication {

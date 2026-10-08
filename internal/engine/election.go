@@ -197,19 +197,43 @@ func (ctx *resolutionContext) popeCandidateRejection(noble *models.Noble) string
 	return ""
 }
 
-// electionVoices computes the weight of every player in the election, on the
-// state the election stage opens with.
-func (ctx *resolutionContext) electionVoices(open *election) map[models.PlayerID]int {
-	voices := map[models.PlayerID]int{}
+// VoiceSource is one reason a player holds voices in an election: a
+// territory of the bishopric (the seat or another one) or a religious title of
+// one of the player's nobles.
+type VoiceSource struct {
+	Kind      string                `json:"kind"` // "seat", "territory" or "title"
+	Territory models.TerritoryID    `json:"territory,omitempty"`
+	Noble     models.NobleCode      `json:"noble,omitempty"`
+	NobleName string                `json:"nobleName,omitempty"`
+	Title     models.ReligiousTitle `json:"title,omitempty"`
+	Votes     int                   `json:"votes"`
+}
+
+// electionVoiceSources lists, for every player, what gives it voices in the
+// election, on the state the election stage opens with.
+func (ctx *resolutionContext) electionVoiceSources(open *election) map[models.PlayerID][]VoiceSource {
+	sources := map[models.PlayerID][]VoiceSource{}
+	titleSource := func(noble models.Noble, votes int) {
+		if votes == 0 {
+			return
+		}
+		sources[noble.OwnerID] = append(sources[noble.OwnerID], VoiceSource{
+			Kind:      "title",
+			Noble:     models.NobleCode(noble.Code),
+			NobleName: ctx.state.NobleDisplayName(noble),
+			Title:     ctx.state.VotingReligiousTitle(noble.ID),
+			Votes:     votes,
+		})
+	}
 	if open.key.kind == models.ElectionPope {
 		// One voice per cardinal whose title is active; a cardinal in a
 		// dungeon keeps its seat in the denominator but votes nothing.
 		for _, noble := range ctx.state.Nobles {
 			if ctx.state.IsCardinal(noble.ID) && ctx.state.VotingReligiousTitle(noble.ID) != models.ReligiousTitleNone {
-				voices[noble.OwnerID]++
+				titleSource(noble, 1)
 			}
 		}
-		return voices
+		return sources
 	}
 	weights := ctx.balance.Religion.Votes
 	for _, region := range ctx.state.Regions {
@@ -221,16 +245,25 @@ func (ctx *resolutionContext) electionVoices(open *election) map[models.PlayerID
 			if !held {
 				continue
 			}
+			source := VoiceSource{Kind: "territory", Territory: territoryID, Votes: weights.Territory}
 			if territoryID == region.Seed {
-				voices[controller] += weights.Seat
-			} else {
-				voices[controller] += weights.Territory
+				source.Kind, source.Votes = "seat", weights.Seat
 			}
+			sources[controller] = append(sources[controller], source)
 		}
 	}
-	for _, player := range ctx.state.Players {
-		if votes := TitleVotes(ctx.state, player.ID, ctx.balance); votes > 0 {
-			voices[player.ID] += votes
+	for _, noble := range ctx.state.Nobles {
+		titleSource(noble, weights.TitleVotes(ctx.state.VotingReligiousTitle(noble.ID)))
+	}
+	return sources
+}
+
+// electionVoices computes the weight of every player in the election.
+func (ctx *resolutionContext) electionVoices(open *election) map[models.PlayerID]int {
+	voices := map[models.PlayerID]int{}
+	for playerID, sources := range ctx.electionVoiceSources(open) {
+		for _, source := range sources {
+			voices[playerID] += source.Votes
 		}
 	}
 	return voices

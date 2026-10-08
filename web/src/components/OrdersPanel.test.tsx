@@ -691,7 +691,7 @@ describe('OrdersPanel noble deck (winter)', () => {
 })
 
 describe('OrdersPanel winter elections', () => {
-  it('announces open elections with the orders to enter and the timing note', () => {
+  function renderElections(onWinterChange = vi.fn(), winterDraft = '') {
     render(
       <LanguageProvider initialLanguage="en">
         <OrdersPanel
@@ -700,29 +700,61 @@ describe('OrdersPanel winter elections', () => {
             season: 'winter',
             bishoprics: [{ region: 'R1', name: 'Ros', territories: ['AAA'] }],
             openElections: [
-              { kind: 'bishop', region: 'R1', seat: 'AAA', voices: 3, candidates: ['HUG'] },
-              { kind: 'pope', required: 2, voices: 0, candidates: [] },
+              {
+                kind: 'bishop',
+                region: 'R1',
+                seat: 'AAA',
+                voices: 3,
+                voiceSources: [
+                  { kind: 'seat', territory: 'AAA', votes: 2 },
+                  { kind: 'territory', territory: 'BBB', votes: 1 },
+                ],
+                candidates: [{ code: 'HUG', name: 'Sieur Hugues de Ros' }],
+              },
+              { kind: 'pope', required: 2, voices: 0, voiceSources: [], candidates: [] },
             ],
           }}
           player="P1"
           chainDrafts={{}}
-          winterDraft=""
+          winterDraft={winterDraft}
           specialDraft=""
           submitted={false}
           submitting={false}
           error={null}
           onChainChange={vi.fn()}
-          onWinterChange={vi.fn()}
+          onWinterChange={onWinterChange}
           onSpecialChange={vi.fn()}
           onSubmit={vi.fn()}
           onOpenRules={vi.fn()}
         />
       </LanguageProvider>,
     )
+  }
+
+  it('announces open elections with their rules and the timing note', () => {
+    renderElections()
     expect(screen.getByText('Elections this winter')).toBeTruthy()
-    expect(screen.getByText(/Bishopric of Ros — candidacy: K E NNN AAA/)).toBeTruthy()
-    expect(screen.getByText('Your eligible candidates: HUG')).toBeTruthy()
-    expect(screen.getByText(/Conclave — candidacy: K P NNN.*2 voices/)).toBeTruthy()
+    expect(screen.getByText('Bishopric of Ros (seat AAA)')).toBeTruthy()
+    expect(screen.getByText('Relative majority. Candidacy: K E NNN AAA. Vote: V E NNN AAA')).toBeTruthy()
+    expect(screen.getByText('Your voices: 3')).toBeTruthy()
+    expect(screen.getByText(/Absolute majority: 2 voices/)).toBeTruthy()
     expect(screen.getByText(/can only be used next winter/)).toBeTruthy()
+  })
+
+  it('adds a candidacy line when a candidate is clicked', () => {
+    const onWinterChange = vi.fn()
+    renderElections(onWinterChange)
+    fireEvent.click(screen.getByRole('button', { name: 'Sieur Hugues de Ros (HUG)' }))
+    expect(onWinterChange).toHaveBeenCalledWith(
+      'K E HUG AAA # candidacy Sieur Hugues de Ros\n',
+    )
+  })
+
+  it('disables a candidate already on the sheet', () => {
+    renderElections(vi.fn(), 'K E HUG AAA # candidacy Sieur Hugues de Ros\n')
+    const button = screen.getByRole('button', {
+      name: 'Sieur Hugues de Ros (HUG)',
+    }) as HTMLButtonElement
+    expect(button.disabled).toBe(true)
   })
 })
