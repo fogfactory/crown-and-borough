@@ -73,6 +73,23 @@ alliance:
     duchy: 4
   density_bonus: 1
 
+# Religious titles (religieux.md). cardinal_cost is the R paid for the winter
+# purchase of a cardinal; the cardinals in play are capped at the number of
+# players minus cardinal_cap_margin. The pope excommunicates at most
+# excommunications_per_winter nobles per winter, and a rival player has at most
+# excommunications_per_target_player excommunicated nobles at a time. votes are
+# the voices per territory held and per highest religious title of a noble.
+religion:
+  cardinal_cost: 8
+  cardinal_cap_margin: 1
+  excommunications_per_winter: 1
+  excommunications_per_target_player: 1
+  votes:
+    territory: 1
+    bishop: 1
+    cardinal: 2
+    pope: 3
+
 # P1.7 game setup values.
 # Living nobles (free, hostage or in a dungeon) a player may own at once.
 # noble_limit is the base; game effects may raise it, never above

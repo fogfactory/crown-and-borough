@@ -60,6 +60,12 @@ type GameState struct {
 	TrialRevoltWindows  []TrialRevoltWindow            `json:"trialRevoltWindows,omitempty"`
 	Marriages           []Marriage                     `json:"marriages,omitempty"`
 	Claims              []Claim                        `json:"claims,omitempty"`
+	// Bishops, Cardinals, Pope and Excommunications hold the religious titles
+	// (specs/religieux.md). Bishoprics are the Regions.
+	Bishops          []Bishop          `json:"bishops,omitempty"`
+	Cardinals        []NobleID         `json:"cardinals,omitempty"`
+	Pope             *NobleID          `json:"pope,omitempty"`
+	Excommunications []Excommunication `json:"excommunications,omitempty"`
 }
 
 // NewGameState returns a fresh empty state at turn 1, spring of year 1, with
@@ -619,6 +625,9 @@ func (g *GameState) Validate() error {
 		return err
 	}
 	if err := validateNobleDeck(g.NobleDeck, players, nobleCodes, g.Nobles, g.Claims); err != nil {
+		return err
+	}
+	if err := g.validateReligion(nobles); err != nil {
 		return err
 	}
 	if err := validateActiveRegionEffects(g.ActiveRegionEffects, g.Regions); err != nil {

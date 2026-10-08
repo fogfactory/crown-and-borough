@@ -177,8 +177,28 @@ export interface Noble {
   spouse?: string
   /** Permanent public distinctions the noble carries. */
   dignities?: Dignity[]
+  /** Highest religious title held, and effective religious standing (titled or excommunicated nobles only). */
+  religiousTitle?: ReligiousTitle
+  religiousStatus?: ReligiousStatus
   /** Private identity replaced by a chevalier d'Éon; sent to its owner only. */
   secret?: { code: string; name: string; sex: 'male' | 'female' }
+}
+
+export type ReligiousTitle = 'bishop' | 'cardinal' | 'pope'
+export type ReligiousStatus = 'active' | 'suspended' | 'excluded'
+
+/** A bishopric is a region of the map; `bishop` is a noble code, absent when vacant. */
+export interface Bishopric {
+  region: string
+  name: string
+  territories: string[]
+  bishop?: string
+}
+
+export interface Excommunication {
+  noble: string
+  reason: 'ex_officio' | 'papal'
+  turn: number
 }
 
 /** A permanent distinction played on a noble (bastard and the dignities of the ladies). */
@@ -221,6 +241,8 @@ export interface Territory {
 
 export interface Region {
   id: string
+  /** Name of the bishopric: the commune of its seed territory. */
+  name?: string
   seed: string
   territories: string[]
 }
@@ -384,6 +406,10 @@ export interface StateData {
   marriages?: Marriage[]
   deceased?: DeceasedNoble[]
   claims?: Claim[]
+  bishoprics?: Bishopric[]
+  cardinals?: string[]
+  pope?: string
+  excommunicated?: Excommunication[]
   specialHand?: CardKind[]
   /** Winter only: next calamities of the draw pile, revealed by a free astrologue. */
   calamityForecast?: CardKind[]

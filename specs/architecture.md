@@ -138,6 +138,7 @@ La carte est statique pour une partie et commune à tous les clients :
   "regions": [
     {
       "id": "ROS",
+      "name": "Rosemont",
       "seed": "ROS",
       "territories": ["ROS", "BOI"]
     }
@@ -145,6 +146,7 @@ La carte est statique pour une partie et commune à tous les clients :
 }
 ```
 
+- `regions[].name` est le nom de l'évêché : la commune de son chef-lieu ;
 - `points` décrit le polygone SVG ;
 - `adjacencies` contient les frontières géométriques franchissables ;
 - `impassable` contient les frontières géométriques infranchissables ;
@@ -231,9 +233,23 @@ L'état projeté sépare la couche dynamique du `GameState` de stockage :
       "holder": "HUG",
       "projectedIncome": 3
     }
-  ]
+  ],
+  "bishoprics": [
+    { "region": "ROS", "name": "Rosemont", "territories": ["ROS", "BOI"], "bishop": "HUG" }
+  ],
+  "cardinals": ["HUG"],
+  "pope": "HUG",
+  "excommunicated": [{ "noble": "ADE", "reason": "papal", "turn": 8 }]
 }
 ```
+
+Les titres religieux sont publics. `bishoprics` liste tous les évêchés (les
+régions de la carte) ; `bishop` est absent quand l'évêché est vacant.
+`cardinals` et `pope` désignent des nobles par leur code ; `excommunicated`
+donne la raison (`ex_officio` ou `papal`). Un noble titré ou excommunié
+porte aussi `religiousTitle` (`bishop`, `cardinal` ou `pope`, le plus haut) et
+`religiousStatus` : `active`, `suspended` (au cachot, titres et voix
+suspendus) ou `excluded` (excommunié).
 
 `projectedIncome` est le revenu territorial (`territory_income` +
 `village_income` éventuel) que rapporterait ce joueur ou ce territoire au

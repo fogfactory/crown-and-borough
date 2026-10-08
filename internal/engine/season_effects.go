@@ -771,6 +771,7 @@ func resolvePlagueMortality(ctx *resolutionContext) {
 	}
 	ctx.rebuildIndexes()
 	ctx.vacateFiefsOfMissingHolders()
+	ctx.state.DropReligiousTitlesOfMissingNobles()
 	ctx.settleClaimsOfDead()
 }
 

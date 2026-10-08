@@ -143,3 +143,35 @@ func TestCastellanSeesChainsOnHerFiefOnlyInACastle(t *testing.T) {
 		t.Error("the castellan in a castle did not see the chain on her fief")
 	}
 }
+
+func TestProjectStateExposesBishopricsAndReligiousStandings(t *testing.T) {
+	state := eonState()
+	state.Nobles = append(state.Nobles, models.Noble{ID: "N2", Code: "ADE", Name: "Adhemar", Sex: models.SexMale, OwnerID: "P2", Status: models.NobleStatusDungeon})
+	state.Regions = []models.Region{
+		{ID: "AAA", Name: "Aaa", Seed: "AAA", Territories: []models.TerritoryID{"AAA"}},
+		{ID: "BBB", Name: "Bbb", Seed: "BBB", Territories: []models.TerritoryID{"BBB"}},
+	}
+	pope := models.NobleID("N1")
+	state.Bishops = []models.Bishop{{Region: "AAA", Noble: "N1"}}
+	state.Cardinals = []models.NobleID{"N1"}
+	state.Pope = &pope
+	state.Excommunications = []models.Excommunication{{Noble: "N2", Reason: models.ExcommunicationPapal, By: "N1", Turn: 1}}
+
+	view := ProjectStateForPlayer(state, "P2", assetgen.Balance{})
+	if len(view.Bishoprics) != 2 || view.Bishoprics[0].Bishop == nil || *view.Bishoprics[0].Bishop != "GUI" || view.Bishoprics[1].Bishop != nil || view.Bishoprics[0].Name != "Aaa" {
+		t.Errorf("bishoprics = %+v", view.Bishoprics)
+	}
+	if view.Pope == nil || *view.Pope != "GUI" || len(view.Cardinals) != 1 || len(view.Excommunicated) != 1 || view.Excommunicated[0].Noble != "ADE" {
+		t.Errorf("pope %v cardinals %v excommunicated %v", view.Pope, view.Cardinals, view.Excommunicated)
+	}
+	if n := view.Nobles[0]; n.ReligiousTitle != models.ReligiousTitlePope || n.ReligiousStatus != models.ReligiousStatusActive {
+		t.Errorf("pope noble view = %+v", n)
+	}
+	if n := view.Nobles[1]; n.ReligiousTitle != "" || n.ReligiousStatus != models.ReligiousStatusExcluded {
+		t.Errorf("excommunicated noble view = %+v", n)
+	}
+	empty := ProjectState(nil, assetgen.Balance{})
+	if empty.Bishoprics == nil || empty.Cardinals == nil || empty.Excommunicated == nil {
+		t.Error("empty projection must serialize [] not null")
+	}
+}
