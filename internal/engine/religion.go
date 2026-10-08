@@ -21,5 +21,5 @@ func TitleVotes(state *models.GameState, playerID models.PlayerID, balance asset
 
 // CardinalCap is the maximum number of cardinals the game allows.
 func CardinalCap(state *models.GameState, balance assetgen.Balance) int {
-	return models.CardinalCap(len(state.Players), balance.Religion.CardinalCapMargin)
+	return models.CardinalCap(len(state.Players), balance.Religion.CardinalCapBase, balance.Religion.CardinalPlayersPerExtra)
 }

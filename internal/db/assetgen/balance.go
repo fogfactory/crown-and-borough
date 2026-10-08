@@ -66,10 +66,12 @@ type AllianceBalance struct {
 }
 
 // ReligionBalance holds the religious title parameters (specs/religieux.md).
-// The cardinals in play are capped at the player count minus CardinalCapMargin.
+// The cardinals in play are capped at CardinalCapBase plus one per full
+// CardinalPlayersPerExtra players.
 type ReligionBalance struct {
 	CardinalCost                    int        `json:"cardinal_cost" yaml:"cardinal_cost"`
-	CardinalCapMargin               int        `json:"cardinal_cap_margin" yaml:"cardinal_cap_margin"`
+	CardinalCapBase                 int        `json:"cardinal_cap_base" yaml:"cardinal_cap_base"`
+	CardinalPlayersPerExtra         int        `json:"cardinal_players_per_extra" yaml:"cardinal_players_per_extra"`
 	ExcommunicationsPerWinter       int        `json:"excommunications_per_winter" yaml:"excommunications_per_winter"`
 	ExcommunicationsPerTargetPlayer int        `json:"excommunications_per_target_player" yaml:"excommunications_per_target_player"`
 	Votes                           VoteWeight `json:"votes" yaml:"votes"`
@@ -154,7 +156,8 @@ type rawBalance struct {
 
 type rawReligion struct {
 	CardinalCost                    *int `yaml:"cardinal_cost"`
-	CardinalCapMargin               *int `yaml:"cardinal_cap_margin"`
+	CardinalCapBase                 *int `yaml:"cardinal_cap_base"`
+	CardinalPlayersPerExtra         *int `yaml:"cardinal_players_per_extra"`
 	ExcommunicationsPerWinter       *int `yaml:"excommunications_per_winter"`
 	ExcommunicationsPerTargetPlayer *int `yaml:"excommunications_per_target_player"`
 	Votes                           *struct {
@@ -401,7 +404,10 @@ func (raw rawBalance) religion(path string) (ReligionBalance, error) {
 	if out.CardinalCost, err = requiredPositiveInt(path, "religion.cardinal_cost", r.CardinalCost); err != nil {
 		return ReligionBalance{}, err
 	}
-	if out.CardinalCapMargin, err = requiredNonNegativeInt(path, "religion.cardinal_cap_margin", r.CardinalCapMargin); err != nil {
+	if out.CardinalCapBase, err = requiredPositiveInt(path, "religion.cardinal_cap_base", r.CardinalCapBase); err != nil {
+		return ReligionBalance{}, err
+	}
+	if out.CardinalPlayersPerExtra, err = requiredPositiveInt(path, "religion.cardinal_players_per_extra", r.CardinalPlayersPerExtra); err != nil {
 		return ReligionBalance{}, err
 	}
 	if out.ExcommunicationsPerWinter, err = requiredPositiveInt(path, "religion.excommunications_per_winter", r.ExcommunicationsPerWinter); err != nil {

@@ -75,13 +75,14 @@ alliance:
 
 # Religious titles (religieux.md). cardinal_cost is the R paid for the winter
 # purchase of a cardinal; the cardinals in play are capped at the number of
-# players minus cardinal_cap_margin. The pope excommunicates at most
+# cardinal_cap_base plus one per full cardinal_players_per_extra players. The pope excommunicates at most
 # excommunications_per_winter nobles per winter, and a rival player has at most
 # excommunications_per_target_player excommunicated nobles at a time. votes are
 # the voices per territory held and per highest religious title of a noble.
 religion:
   cardinal_cost: 8
-  cardinal_cap_margin: 1
+  cardinal_cap_base: 1
+  cardinal_players_per_extra: 6
   excommunications_per_winter: 1
   excommunications_per_target_player: 1
   votes:

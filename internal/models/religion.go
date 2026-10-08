@@ -151,9 +151,12 @@ func (g *GameState) VotingReligiousTitle(id NobleID) ReligiousTitle {
 	return ReligiousTitleNone
 }
 
-// CardinalCap is the maximum number of cardinals in play: the number of players
-// minus the margin from balance (religion.cardinal_cap_margin), never negative.
-func CardinalCap(players, margin int) int { return max(players-margin, 0) }
+// CardinalCap is the maximum number of cardinals in play: base plus one more
+// per full playersPerExtra players (religion.cardinal_cap_base and
+// religion.cardinal_players_per_extra), so 1 below 6 players, 2 below 12, etc.
+func CardinalCap(players, base, playersPerExtra int) int {
+	return base + players/playersPerExtra
+}
 
 // DropReligiousTitlesOfMissingNobles clears the religious titles and
 // excommunications bound to nobles who left play: a dead noble's titles are
