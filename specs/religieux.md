@@ -4,10 +4,9 @@
 
 **Dépend de :** [Titres & Victoire](titres.md) pour les lieux et les points,
 et de [Cartographie](cartographie.md) pour le découpage des évêchés ; le flux
-de ressource de la dîme dépend de [Économie et prospérité](economie.md). La
-candidature complète à un titre religieux (célibataire, mâle) dépend du
-modèle de noble enrichi par [l'issue #18](https://github.com/fogfactory/crown-and-borough/issues/18)
-(succession, mariages, Claims) : voir « Candidature » ci-dessous.
+de ressource de la dîme dépend de [Économie et prospérité](economie.md). Les conditions d'éligibilité reposent sur le sexe
+([#245](https://github.com/fogfactory/crown-and-borough/issues/245)) et le mariage
+([#288](https://github.com/fogfactory/crown-and-borough/issues/288)) du noble.
 
 ## Évêchés et évêques
 
@@ -41,36 +40,52 @@ dédié pour la relancer.
 
 ### Candidature
 
-Tout noble libre d'un joueur peut se porter candidat, sans contrainte de
-présence physique dans l'évêché.
+Tous les ordres d'une élection (candidature, vote) se saisissent dans la
+feuille d'ordres d'hiver ; les joueurs s'accordent hors jeu. Un noble est
+**éligible** s'il est un homme célibataire, ni capturé, ni excommunié ; pour
+l'élection épiscopale, il n'est pas non plus déjà évêque. Aucune présence
+physique dans l'évêché n'est requise.
 
-> **Dépendance #18 :** *Fief* réserve les titres religieux aux nobles mâles
-> célibataires. Cette contrainte est actée pour Crown & Borough mais ne peut
-> pas être implémentée avant que [l'issue #18](https://github.com/fogfactory/crown-and-borough/issues/18)
-> introduise le sexe et le statut marital du noble. Ce milestone Religieux
-> est donc séquencé après #18 pour ce point : jusqu'à l'arrivée de ce modèle,
-> tout noble libre est éligible sans distinction.
+Syntaxe (une ligne par ordre, sans coût) :
+
+- `K E NNN BBB` : candidature du noble `NNN` du joueur à l'évêché dont le
+  village seed est `BBB` ;
+- `K P NNN` : candidature du noble `NNN`, cardinal, au conclave ;
+- `V E NNN BBB` : vote du joueur pour le candidat `NNN` à l'évêché `BBB` ;
+- `V P NNN` : vote du joueur pour le candidat `NNN` au conclave.
+
+Un joueur ne vote que pour un candidat déclaré à la même élection, qu'il soit
+à lui ou à un autre joueur. Le moteur regroupe les candidatures par élection,
+puis les votes par élection et par candidat. Pour une même élection, un joueur
+peut saisir plusieurs candidatures ou plusieurs votes : le **premier ordre
+valide** de la feuille est retenu, les suivants sont ignorés. Les élections se
+résolvent dans un ordre déterministe : évêchés par ordre stable (identifiant de
+région), puis conclave.
 
 ### Votes
 
-Le total de voix d'un joueur dans une élection (évêque ou pape) est un
-cumul global, indépendant de la présence locale :
+Le total de voix d'un joueur dans une élection épiscopale est un cumul global,
+indépendant de la présence locale :
 
 - 1 voix par lieu-dit contrôlé **ou** occupé dans l'évêché concerné ;
 - 1 voix par évêque que le joueur possède, où qu'il se trouve ;
 - 2 voix par cardinal que le joueur possède ;
 - 3 voix si un des nobles du joueur est pape.
 
+Les titres se cumulent sur un même noble, façon *Fief* : un cardinal est
+forcément évêque et garde son évêché ; le pape est évêque ou cardinal et garde
+ses titres. Pour les voix, seul le **titre le plus haut** de chaque noble
+compte (pape 3, cardinal 2, évêque 1). Un noble excommunié ou au cachot ne
+vote pas (voir « Fin de titre »).
+
 Comme pour les autres titres, le pape est un noble, pas le joueur lui-même :
-ce bonus s'attache au joueur propriétaire de ce noble, exactement comme les
-bonus évêque et cardinal ci-dessus. Ces bonus s'additionnent aux voix
-territoriales même si le joueur ne contrôle/occupe aucun lieu-dit de
-l'évêché concerné : un joueur dont un noble est pape vote quand même avec
-ses 3 voix, sans aucun territoire local.
+ce bonus s'attache au joueur propriétaire de ce noble. Ces bonus s'additionnent
+aux voix territoriales même si le joueur ne contrôle ni n'occupe aucun
+lieu-dit de l'évêché concerné.
 
 Le candidat avec la plus haute majorité relative gagne. En cas d'égalité au
-sommet, aucun vainqueur n'est désigné et l'évêché reste vacant (voir
-« Déclenchement de l'élection »).
+sommet, ou sans candidat éligible, aucun vainqueur n'est désigné et l'évêché
+reste vacant (voir « Déclenchement de l'élection »).
 
 ## Cardinaux et pape
 
@@ -97,13 +112,15 @@ qu'un pape existe.
 
 ### Élection papale
 
-Dès que deux cardinaux ou plus sont en jeu, une élection papale est
-organisée parmi eux, avec les mêmes règles de vote que l'élection épiscopale
-(voir « Votes » ci-dessus), mais à la **majorité absolue** plutôt que
-relative. Une élection sans majorité absolue ne désigne aucun vainqueur ; le
-trône reste vacant et l'élection est réévaluée chaque tour tant que la
-condition (≥ 2 cardinaux) reste vraie, selon le même principe que
-l'évêché vacant.
+Dès que deux cardinaux ou plus sont en jeu, un conclave est organisé. Seuls
+les cardinaux votent, à raison d'**une voix chacun**, quel que soit leur
+joueur ; les candidats sont des cardinaux éligibles (`K P`). Le vote se fait
+par `V P` : l'ordre est porté par un cardinal du joueur, qui exprime la voix
+de chacun de ses cardinaux pour le candidat nommé (le premier ordre valide
+d'un joueur est retenu). L'élection exige la **majorité absolue** des
+cardinaux en jeu. Sans majorité absolue, le trône reste vacant et le conclave
+est réévalué chaque tour tant que la condition (≥ 2 cardinaux) reste vraie,
+selon le même principe que l'évêché vacant.
 
 ## Fin de titre
 
@@ -113,11 +130,12 @@ excommunication uniquement :
 - **Mort** du noble titré : le titre est immédiatement vacant. L'élection
   correspondante (évêché ou conclave) est réévaluée dès le tour suivant si
   sa condition de déclenchement reste vraie.
-- **Excommunication** (voir « Pouvoirs » ci-dessous) : le titre est
-  immédiatement vacant, comme pour une mort, et le noble excommunié devient
-  **définitivement inéligible** à tout titre religieux futur (évêque,
-  cardinal ou pape), y compris après une éventuelle libération ou un
-  changement de camp.
+- **Excommunication** (voir « Pouvoirs » ci-dessous) : un évêque ou cardinal
+  excommunié **perd son titre définitivement**, même après la levée de
+  l'excommunication ; le titre est immédiatement vacant, comme pour une
+  mort. Tant qu'elle dure, l'excommunié ne vote pas et n'est pas candidat ;
+  à la levée, il redevient éligible à un titre religieux. Le pape ne peut
+  pas s'excommunier lui-même.
 - **Capture** (`hostage` ou `dungeon`) : le titre est **conservé**, il n'y a
   jamais de vacance ni de nouvelle élection déclenchée par une capture. Un
   noble titré `hostage` conserve l'intégralité de ses voix et pouvoirs
@@ -129,7 +147,7 @@ excommunication uniquement :
 
 ## Pouvoirs
 
-Les pouvoirs religieux v1 sont au nombre de quatre. Sauf mention contraire,
+Les pouvoirs religieux v1 sont l'excommunication, le procès à deux cardinaux, l'enquête, la dîme, l'apaisement de révolte et la dissolution de mariage. Sauf mention contraire,
 ils sont des ordres spéciaux résolus indépendamment des chaînes d'ordres, au
 même titre que les autres cartes du deck spécial (voir
 [ordres-speciaux.md](ordres-speciaux.md)).
@@ -150,24 +168,64 @@ fiefs, qui relève exclusivement de la taxe seigneuriale.
 - le **pape** peut la poser sur n'importe quel évêché, avec la même priorité
   au titulaire local (évêque, ou cardinal s'il a déjà posé une dîme ce tour).
 
-La règle devra préciser le cas où plusieurs cardinaux ciblent le même évêché le
-même tour, et si un évêché sans évêque élu reste taxable par un cardinal ou le
-pape.
+Syntaxe : `P DI XXX` dans la soumission `special`, `XXX` étant le village
+seed de l'évêché visé.
 
-> À trancher : comme la taxe seigneuriale ([titres.md](titres.md)), la dîme
-> devrait sans doute autoriser la Révolte (voir
-> [ordres-speciaux.md](ordres-speciaux.md)) sur tout territoire de l'évêché
-> taxé, la saison où elle est jouée et la saison suivante.
+- **Plusieurs cardinaux sur un même évêché** : la production des moulins de
+  l'évêché est répartie **équitablement** entre les joueurs dont un cardinal a
+  posé une dîme dessus (un joueur compte une fois, même avec plusieurs
+  cardinaux ou ordres). Le partage se fait en unités entières de ressource,
+  moulin par moulin ; le **surnuméraire** (reste de la division) est laissé sur
+  place, sur le moulin, selon le flux normal de [economie.md](economie.md).
+- **Évêché sans évêque** : il reste taxable par un cardinal ou le pape ; la
+  priorité du titulaire local ne s'applique qu'à un évêque en place.
+- **Révolte** : comme la taxe seigneuriale ([titres.md](titres.md)), la dîme
+  autorise la Révolte (voir [ordres-speciaux.md](ordres-speciaux.md)) sur tout
+  territoire de l'évêché taxé, la saison où elle est jouée et la saison
+  suivante.
 
 ### Excommunication
 
-Le **pape uniquement** peut excommunier n'importe quel noble, titré ou non,
-d'un ordre spécial dédié. L'excommunication d'un noble titré met fin à son
-titre immédiatement (voir « Fin de titre ») et le rend définitivement
-inéligible à tout titre religieux futur. Un noble excommunié qui n'est pas
-titré ne subit que cette inéligibilité future ; l'excommunication n'a aucun
-effet sur ses titres séculiers (fief, royauté), qui restent une couche
-distincte des titres religieux.
+Le **pape uniquement** peut excommunier un noble, titré ou non, par un ordre
+d'hiver gratuit :
+
+- `X E NNN` : excommunie le noble `NNN` ;
+- `X L NNN` : lève l'excommunication de `NNN`.
+
+Limites : **1 excommunication par hiver**, et **1 excommunié à la fois par
+joueur adverse** (excommunier un second noble du même joueur exige d'abord
+d'en lever un). Le pape peut viser ses propres nobles, mais pas lui-même.
+
+Effets : l'excommunié ne vote pas et n'est pas candidat ; un évêque ou
+cardinal excommunié perd son titre définitivement (voir « Fin de titre »). À
+la levée, le noble redevient éligible. L'excommunication n'a aucun effet sur
+les titres séculiers (fief, royauté). La mort du pape met fin à toutes ses
+excommunications.
+
+Les excommunications d'office (Éon et Sorcière démasqués, voir
+[dames.md](dames.md)) ne comptent pas dans les limites ci-dessus et ne sont pas
+levables.
+
+### Procès à deux cardinaux
+
+Deux cardinaux **distincts** envoient chacun `J NNN` (procès sans carte, noble
+ou dame `NNN`) le même hiver ; le pape seul ne suffit jamais, mais un pape qui
+est aussi cardinal compte comme cardinal. Les deux cardinaux peuvent
+appartenir au même joueur. La cible suit le périmètre de la carte de procès
+([dames.md § Carte de procès](dames.md#carte-de-procès)) : procès direct pour
+une dame éligible, excommunication préalable pour tout autre personnage. Le
+jugement a lieu en toute fin de tour. Deux ordres sur des cibles différentes
+ne s'additionnent pas : ils sont sans effet.
+
+### Enquête
+
+Un cardinal ou le pape peut jouer `Q NNN` en hiver : coût fixe
+`religious.inquiry_cost` R (`assets/balance.yaml`), une enquête par cardinal ou
+pape et par hiver. Elle cible un noble ou une dame de n'importe quel joueur et
+révèle sa dignité cachée (Éon, Correspondante, Espionne, Sorcière) avec les
+conséquences de [dames.md](dames.md). Elle est résolue après les
+excommunications et avant le jugement des procès. Une cible sans dignité cachée
+consomme le coût sans effet et sans information.
 
 ### Apaisement de révolte
 

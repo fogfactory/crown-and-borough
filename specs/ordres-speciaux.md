@@ -44,6 +44,8 @@ Aucun noble n'est requis :
 - `P PR HHH` joue un Procès sur le noble HHH, par exception à la règle « `TER` est
   le village seed d'une région » ci-dessous ; la carte est consommée à la pose et
   le procès est jugé en fin de tour (dames.md § Carte de procès) ;
+- `P DI XXX` joue la Dîme (religieux.md § Dîme) ; XXX est le village seed de
+  l'évêché visé ; la carte est consommée à la pose ;
 - `P TX XXX` joue la Taxe seigneuriale (titres.md) au printemps, en été ou en
   automne ; XXX est, par exception à la règle « `TER` est le village seed
   d'une région » ci-dessous, la **capitale d'un fief** que le joueur détient

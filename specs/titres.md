@@ -231,7 +231,7 @@ intégralement l'ancien barème du GDD §9 (territoire, village, moulin,
 château, noble, troupe, ressource) et son complément fief ([#194](https://github.com/fogfactory/crown-and-borough/issues/194))
 par le seul score de titres ci-dessous : `gdd.md` §9 a été réécrit en
 conséquence par anticipation sur le reste de la section « Évolution du
-document » du GDD, puisque les titres de cardinal, pape, roi et
+document » du GDD, puisque les titres de roi et
 [dignité](dames.md#dignités) n'existent pas encore côté moteur et que la
 pondération par mariage (`succession.md § Mariages et alliances`) reste à
 livrer. Le score se limite donc pour l'instant au nombre de fiefs détenus
@@ -242,7 +242,8 @@ accepté comme transitoire.
 ### Score de titres
 
 Chaque titre détenu rapporte **1 point, quel qu'il soit** : baronnie, comté,
-duché, cardinal, pape, roi, ou [dignité](dames.md#dignités). Il
+duché, roi, ou [dignité](dames.md#dignités). Aucun titre religieux
+(évêque, cardinal, pape) ne rapporte de point de score. Il
 n'y a pas de pondération par rang — un baron et un roi comptent chacun pour
 1 point de score, quelle que soit la différence de pouvoir en jeu par
 ailleurs (voix, revenus, bonus de titre).
@@ -293,8 +294,8 @@ Valeurs de départ : la moitié des territoires pour gagner seul, les deux tiers
 Le chiffre est volontairement approximatif, la taille des fiefs variant : un
 joueur qui ne tient que des baronnies (3 territoires) atteint le seuil avec
 moins de territoires, un joueur de duchés avec davantage. Le seuil d'alliance
-reste toujours strictement supérieur au seuil solo. La valeur plus élevée des
-titres de roi et de pape est différée à l'issue de calibrage.
+reste toujours strictement supérieur au seuil solo. La valeur plus élevée du
+titre de roi est différée à l'issue de calibrage.
 
 ### Victoire majeure, victoire mineure, échec
 

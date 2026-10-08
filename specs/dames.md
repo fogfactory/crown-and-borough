@@ -284,8 +284,11 @@ mariage est donc une protection pour les dignités qui le permettent
 ### Déclenchement
 
 - une **carte événement** de procès, tirée dans le deck ;
-- ou **deux cardinaux d'accord**, qui envoient chacun un ordre de procès
-  (sans carte) le même hiver.
+- ou **deux cardinaux distincts d'accord**, qui envoient chacun `J HHH`
+  (ordre de procès sans carte, voir
+  [religieux.md § Procès à deux cardinaux](religieux.md#procès-à-deux-cardinaux))
+  le même hiver ; le pape seul ne suffit jamais, et les deux cardinaux peuvent
+  appartenir au même joueur.
 
 ### Jugement et conséquences
 
@@ -315,10 +318,13 @@ protège pas du procès direct : elle est révélée par l'exécution.
 Ces dignités dépendent de pouvoirs à spécifier dans
 [religieux.md](religieux.md) et sur l'issue du pape :
 
-- **Excommunication** : ordre spécial du pape, seul habilité. L'excommunié
-  perd ses titres religieux incompatibles, qui deviennent vacants.
+- **Excommunication** : ordre d'hiver du pape, seul habilité (1 par hiver,
+  1 excommunié à la fois par joueur adverse, levable). Un évêque ou cardinal
+  excommunié perd son titre définitivement ; l'excommunié ne vote pas et n'est
+  pas candidat. Les excommunications d'office ne comptent pas dans la limite et
+  ne sont pas levables.
 - **Dissolution de mariage** : le pape peut dissoudre un mariage à la demande
   d'un des époux, sans retirer les Claims éventuels.
-- **Enquête** : ordre de cardinal ou de pape, qui cible un noble ou une dame
+- **Enquête** (`Q NNN`, coût `religious.inquiry_cost`) : ordre de cardinal ou de pape, qui cible un noble ou une dame
   et révèle une dignité cachée (Éon, Correspondante, Espionne, Sorcière).
 - **Calme des révoltes** : pouvoir d'évêque, partagé avec l'Abbesse.
