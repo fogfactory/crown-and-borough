@@ -694,3 +694,25 @@ func TestParseWinterClaimOrder(t *testing.T) {
 		}
 	}
 }
+
+func TestParseElectionWinterOrders(t *testing.T) {
+	game := orderTestState()
+	orders, parseErrors := ParseWinterOrders("K E JEA ROS\nK P JEA\nV E CAL ROS\nV P CAL", game)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseWinterOrders errors = %#v", parseErrors)
+	}
+	want := []models.WinterOrder{
+		{ID: "O1", Type: models.WinterOrderTypeCandidacy, Election: models.ElectionBishop, NobleCode: "JEA", TerritoryID: "ROS"},
+		{ID: "O2", Type: models.WinterOrderTypeCandidacy, Election: models.ElectionPope, NobleCode: "JEA"},
+		{ID: "O3", Type: models.WinterOrderTypeVote, Election: models.ElectionBishop, NobleCode: "CAL", TerritoryID: "ROS"},
+		{ID: "O4", Type: models.WinterOrderTypeVote, Election: models.ElectionPope, NobleCode: "CAL"},
+	}
+	if !reflect.DeepEqual(orders, want) {
+		t.Fatalf("orders = %#v, want %#v", orders, want)
+	}
+	for _, text := range []string{"K E JEA", "K E JEA ROS ROS", "K P JEA ROS", "V P", "V E CAL", "K X JEA", "K E ZZZ ROS", "K E JEA ZZZ"} {
+		if _, parseErrors := ParseWinterOrders(text, game); len(parseErrors) == 0 {
+			t.Errorf("ParseWinterOrders(%q) accepted a malformed election order", text)
+		}
+	}
+}

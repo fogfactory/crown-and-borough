@@ -381,6 +381,7 @@ type TurnReportView struct {
 	Winter        *engine.WinterReport        `json:"winter,omitempty"`
 	Fiefs         []engine.FiefReport         `json:"fiefs"`
 	Marriages     []engine.MarriageReport     `json:"marriages"`
+	Elections     []engine.ElectionResult     `json:"elections"`
 }
 
 // OrderReportView keeps order outcomes useful to spectators without returning
@@ -537,6 +538,7 @@ func projectReport(report engine.TurnReport, viewer models.PlayerID, privacy *mo
 		Winter:        report.Winter,
 		Fiefs:         append([]engine.FiefReport{}, report.Fiefs...),
 		Marriages:     append([]engine.MarriageReport{}, report.Marriages...),
+		Elections:     append([]engine.ElectionResult{}, report.Elections...),
 	}
 	view.Winter = redactHiddenDignities(report.Winter, viewer)
 	for _, order := range report.Orders {
@@ -649,7 +651,7 @@ func redactHiddenDignities(winter *engine.WinterReport, viewer models.PlayerID) 
 	redacted := *winter
 	redacted.Investments = make([]engine.WinterInvestmentReport, 0, len(winter.Investments))
 	for _, investment := range winter.Investments {
-		if investment.Player != viewer && revealsHiddenDignity(investment) {
+		if investment.Player != viewer && (revealsHiddenDignity(investment) || isPrivateBallot(investment)) {
 			continue
 		}
 		redacted.Investments = append(redacted.Investments, investment)
@@ -749,6 +751,13 @@ func chainTouches(chain models.Chain, territories []models.TerritoryID) bool {
 
 // revealsHiddenDignity tells the winter entries that would give away a hidden
 // dignity: its nomination, or the rejection of the order that played its card.
+// isPrivateBallot reports whether the investment is a rejected vote: the order
+// it carries names the candidate its author backed, and ballots stay private
+// (specs/religieux.md § Votes).
+func isPrivateBallot(investment engine.WinterInvestmentReport) bool {
+	return investment.Order != nil && investment.Order.Type == models.WinterOrderTypeVote
+}
+
 func revealsHiddenDignity(investment engine.WinterInvestmentReport) bool {
 	if investment.Dignity != "" && investment.Dignity.Effect().Hidden {
 		return true

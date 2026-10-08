@@ -12,13 +12,13 @@ de résolution** et les **effets croisés**. Il est la référence unique : les
 specs thématiques décrivent chaque ordre, celui-ci dit quand il s'exécute et ce
 qu'il voit des autres.
 
-> **État.** Spécification cible. Le moteur actuel (`ResolveWinterWithDeckOrders`)
-> traite les ordres joueur par joueur dans l'ordre saisi, puis les mariages,
-> puis le deck. Le passage à la résolution par étapes ci-dessous est suivi par
-> [#374](https://github.com/fogfactory/crown-and-borough/issues/374). Les
-> comparaisons avec le moteur actuel disparaissent lors de l'implémentation ;
-> seule la règle finale est alors reportée dans `gdd.md` et les règles joueurs
-> ([#377](https://github.com/fogfactory/crown-and-borough/issues/377)).
+> **État.** Les étapes 0 (instantané et registre des élections), 2, 5, 6
+> (élections), 7 (investiture) et 8 sont en place dans le moteur
+> ([#374](https://github.com/fogfactory/crown-and-borough/issues/374)). Les
+> étapes 1, 3, 4 et 9 s'ajoutent avec leurs ordres (excommunication, enquête,
+> dissolution, procès à deux cardinaux). La reprise dans `gdd.md` et les règles
+> joueurs relève de
+> [#377](https://github.com/fogfactory/crown-and-borough/issues/377).
 
 ## Principes
 

@@ -175,3 +175,16 @@ func TestProjectStateExposesBishopricsAndReligiousStandings(t *testing.T) {
 		t.Error("empty projection must serialize [] not null")
 	}
 }
+
+func TestRedactHiddenDignitiesHidesRejectedBallots(t *testing.T) {
+	winter := &engine.WinterReport{Investments: []engine.WinterInvestmentReport{
+		{Player: "P1", Order: &models.WinterOrder{Type: models.WinterOrderTypeVote, NobleCode: "HUG"}},
+		{Player: "P1", Order: &models.WinterOrder{Type: models.WinterOrderTypeCandidacy, NobleCode: "HUG"}},
+	}}
+	if got := redactHiddenDignities(winter, "P2").Investments; len(got) != 1 || got[0].Order.Type != models.WinterOrderTypeCandidacy {
+		t.Fatalf("other viewer sees %#v, want only the candidacy", got)
+	}
+	if got := redactHiddenDignities(winter, "P1").Investments; len(got) != 2 {
+		t.Fatalf("author sees %d investments, want 2", len(got))
+	}
+}

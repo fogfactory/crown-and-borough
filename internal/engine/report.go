@@ -31,7 +31,10 @@ type TurnReport struct {
 	Winter        *WinterReport        `json:"winter,omitempty"`
 	Fiefs         []FiefReport         `json:"fiefs"`
 	Marriages     []MarriageReport     `json:"marriages"`
-	State         *models.GameState    `json:"-"`
+	// Elections are the public results of the winter elections: candidates
+	// and total voices, never the individual ballots.
+	Elections []ElectionResult  `json:"elections"`
+	State     *models.GameState `json:"-"`
 }
 
 // ReportHeader identifies the season described by the report, before the
@@ -399,6 +402,7 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 		Announcements: []AnnouncementReport{},
 		Fiefs:         []FiefReport{},
 		Marriages:     []MarriageReport{},
+		Elections:     []ElectionResult{},
 	}
 	report.Receptions = append(report.Receptions, receptions...)
 	if before != nil {
@@ -720,6 +724,10 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 				Noble: event.NobleID, NobleCode: event.NobleCode, NobleName: event.NobleName,
 				Reason: "marriage_refused",
 			})
+		case EventTypeElectionResult:
+			if event.Election != nil {
+				report.Elections = append(report.Elections, *event.Election)
+			}
 		case EventTypeMarriage:
 			report.Marriages = append(report.Marriages, MarriageReport{
 				Outcome: OutcomeSuccess,

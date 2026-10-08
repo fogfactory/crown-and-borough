@@ -204,6 +204,9 @@ func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (mod
 	if fields[0] == "V" && fields[1] == "C" {
 		return parseCalamityVetoLine(fields, lineNumber, indexes)
 	}
+	if fields[0] == "K" || fields[0] == "V" {
+		return parseElectionOrderLine(fields, lineNumber, indexes)
+	}
 	if len(fields) > 3 {
 		error := parseMessage(lineNumber, ParseCodeTooManyTargets, "error.winter.target_only_one")
 		return models.WinterOrder{}, &error
@@ -505,4 +508,41 @@ func parseClaimOrderLine(fields []string, lineNumber int, indexes gameIndexes) (
 		NobleCode:  models.NobleCode(fields[2]),
 		SpouseCode: models.NobleCode(fields[3]),
 	}, nil
+}
+
+// parseElectionOrderLine handles K E NNN BBB / K P NNN (candidacy) and
+// V E NNN BBB / V P NNN (vote): NNN is the candidate, BBB the seed village of
+// the bishopric. Whether the election is open, who owns the noble and whether
+// it may run are engine rejects (see election.go).
+func parseElectionOrderLine(fields []string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
+	orderType, shape := models.WinterOrderTypeCandidacy, i18n.WinterCandidacyShape
+	if fields[0] == "V" {
+		orderType, shape = models.WinterOrderTypeVote, i18n.WinterVoteShape
+	}
+	var election models.ElectionKind
+	var wantFields int
+	switch fields[1] {
+	case "E":
+		election, wantFields = models.ElectionBishop, 4
+	case "P":
+		election, wantFields = models.ElectionPope, 3
+	default:
+		return models.WinterOrder{}, unknownWinterSubtype(lineNumber, fields[0], fields[1])
+	}
+	if len(fields) != wantFields {
+		error := parseMessage(lineNumber, ParseCodeTooManyTargets, shape)
+		return models.WinterOrder{}, &error
+	}
+	if parseError := winterNobleCode(fields[2], lineNumber, indexes); parseError != nil {
+		return models.WinterOrder{}, parseError
+	}
+	order := models.WinterOrder{Type: orderType, Election: election, NobleCode: models.NobleCode(fields[2])}
+	if election == models.ElectionBishop {
+		seat, parseError := winterTerritoryID(fields[3], lineNumber, indexes)
+		if parseError != nil {
+			return models.WinterOrder{}, parseError
+		}
+		order.TerritoryID = seat
+	}
+	return order, nil
 }
