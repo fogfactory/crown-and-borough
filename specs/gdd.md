@@ -699,7 +699,7 @@ joueurs.
 ### Score de titres
 
 Le score d'un joueur est son score de titres : chaque titre détenu rapporte
-1 point, quel que soit son rang (baronnie, comté, duché, dignité ; le roi suivra ;
+1 point, quel que soit son rang (baronnie, comté, marquisat, duché, dignité ; le roi suivra ;
 aucun titre religieux ne compte), y compris un fief vacant tant qu'il n'est pas dissolu.
 Territoire, infrastructure, armée, noble et ressource ne rapportent rien par
 eux-mêmes.

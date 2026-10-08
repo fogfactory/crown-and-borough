@@ -244,6 +244,7 @@ Le coût, en R, est proportionnel au rang de la cible. Il se lit dans
 | Évêque | 3 |
 | Cardinal | 4 |
 | Époux ou épouse | coût du conjoint − 1 |
+| Noble sans titre ni conjoint | 1 |
 
 Les critères ne se cumulent pas : si plusieurs s'appliquent à la cible, on
 retient le plus cher. Le coût « conjoint − 1 » se calcule sur le coût du

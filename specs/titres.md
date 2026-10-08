@@ -245,7 +245,7 @@ document » du GDD, puisque les titres de roi et
 [dignité](dames.md#dignités) n'existent pas encore côté moteur et que la
 pondération par mariage (`succession.md § Mariages et alliances`) reste à
 livrer. Le score se limite donc pour l'instant au nombre de fiefs détenus
-(baronnie, comté, duché) ; une partie à durée fixe se termine fréquemment
+(baronnie, comté, marquisat, duché) ; une partie à durée fixe se termine fréquemment
 sur une égalité 0-0 sans vainqueur tant que ces sources manquent, ce qui est
 accepté comme transitoire.
 
