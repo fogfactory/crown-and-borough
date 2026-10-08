@@ -325,6 +325,6 @@ Ces dignités dépendent de pouvoirs à spécifier dans
   ne sont pas levables.
 - **Dissolution de mariage** : le pape peut dissoudre un mariage à la demande
   d'un des époux, sans retirer les Claims éventuels.
-- **Enquête** (`Q NNN`, coût `religious.inquiry_cost`) : ordre de cardinal ou de pape, qui cible un noble ou une dame
+- **Enquête** (`Q NNN`, coût proportionnel au titre de la cible, voir religieux.md § Enquête) : ordre de cardinal ou de pape, qui cible un noble ou une dame
   et révèle une dignité cachée (Éon, Correspondante, Espionne, Sorcière).
 - **Calme des révoltes** : pouvoir d'évêque, partagé avec l'Abbesse.

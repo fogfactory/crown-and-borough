@@ -223,13 +223,32 @@ ne s'additionnent pas : ils sont sans effet.
 
 ### Enquête
 
-Un cardinal ou le pape peut jouer `Q NNN` en hiver : coût fixe
-`religious.inquiry_cost` R (`assets/balance.yaml`), une enquête par cardinal ou
-pape et par hiver. Elle cible un noble ou une dame de n'importe quel joueur et
-révèle sa dignité cachée (Éon, Correspondante, Espionne, Sorcière) avec les
+Un cardinal ou le pape peut jouer `Q NNN` en hiver : une enquête par cardinal
+ou pape et par hiver. Elle cible un noble ou une dame de n'importe quel joueur
+et révèle sa dignité cachée (Éon, Correspondante, Espionne, Sorcière) avec les
 conséquences de [dames.md](dames.md). Elle est résolue après les
-excommunications et avant le jugement des procès. Une cible sans dignité cachée
-consomme le coût sans effet et sans information.
+excommunications et avant le jugement des procès. Une cible sans dignité
+cachée consomme le coût sans effet et sans information.
+
+Le coût, en R, est proportionnel au rang de la cible. Il se lit dans
+`assets/balance.yaml` (bloc `religious.inquiry_cost`) :
+
+| Titre de la cible | Coût |
+|---|---|
+| Baron | 2 |
+| Comte | 3 |
+| Marquis | 4 |
+| Duc | 5 |
+| Roi | 5 |
+| Pape | 5 |
+| Évêque | 3 |
+| Cardinal | 4 |
+| Époux ou épouse | coût du conjoint − 1 |
+
+Les critères ne se cumulent pas : si plusieurs s'appliquent à la cible, on
+retient le plus cher. Le coût « conjoint − 1 » se calcule sur le coût du
+conjoint déterminé par ses propres titres (sans lui appliquer à son tour la
+réduction de mariage).
 
 ### Apaisement de révolte
 
