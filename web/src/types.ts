@@ -193,6 +193,20 @@ export interface Bishopric {
   bishop?: string
 }
 
+/** An election the winter announces, read for the viewing player. */
+export interface OpenElection {
+  kind: 'bishop' | 'pope'
+  region?: string
+  /** Seed village the orders name (bishop elections only). */
+  seat?: string
+  /** Voices an absolute majority needs; absent for a relative majority. */
+  required?: number
+  /** The viewer's own voices in this election. */
+  voices: number
+  /** The viewer's nobles accepted as candidates today. */
+  candidates: string[]
+}
+
 export interface Excommunication {
   noble: string
   reason: 'ex_officio' | 'papal'
@@ -411,6 +425,8 @@ export interface StateData {
   specialHand?: CardKind[]
   /** Winter only: next calamities of the draw pile, revealed by a free astrologue. */
   calamityForecast?: CardKind[]
+  /** Winter only: elections open since the start of the winter. */
+  openElections?: OpenElection[]
   /** Hands revealed by a spy held hostage by their owner. */
   spiedHands?: Array<{ player: PlayerId; specialHand: CardKind[]; nobleHand: NobleCard[] }>
   nobleHand?: NobleCard[]

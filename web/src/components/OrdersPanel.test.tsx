@@ -689,3 +689,40 @@ describe('OrdersPanel noble deck (winter)', () => {
     ).toBeEnabled()
   })
 })
+
+describe('OrdersPanel winter elections', () => {
+  it('announces open elections with the orders to enter and the timing note', () => {
+    render(
+      <LanguageProvider initialLanguage="en">
+        <OrdersPanel
+          state={{
+            ...state,
+            season: 'winter',
+            bishoprics: [{ region: 'R1', name: 'Ros', territories: ['AAA'] }],
+            openElections: [
+              { kind: 'bishop', region: 'R1', seat: 'AAA', voices: 3, candidates: ['HUG'] },
+              { kind: 'pope', required: 2, voices: 0, candidates: [] },
+            ],
+          }}
+          player="P1"
+          chainDrafts={{}}
+          winterDraft=""
+          specialDraft=""
+          submitted={false}
+          submitting={false}
+          error={null}
+          onChainChange={vi.fn()}
+          onWinterChange={vi.fn()}
+          onSpecialChange={vi.fn()}
+          onSubmit={vi.fn()}
+          onOpenRules={vi.fn()}
+        />
+      </LanguageProvider>,
+    )
+    expect(screen.getByText('Elections this winter')).toBeTruthy()
+    expect(screen.getByText(/Bishopric of Ros — candidacy: K E NNN AAA/)).toBeTruthy()
+    expect(screen.getByText('Your eligible candidates: HUG')).toBeTruthy()
+    expect(screen.getByText(/Conclave — candidacy: K P NNN.*2 voices/)).toBeTruthy()
+    expect(screen.getByText(/can only be used next winter/)).toBeTruthy()
+  })
+})

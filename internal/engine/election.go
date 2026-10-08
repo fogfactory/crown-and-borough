@@ -177,6 +177,13 @@ func (ctx *resolutionContext) bishopCandidateRejection(noble *models.Noble) stri
 	if ctx.state.IsBishop(noble.ID) {
 		return "candidate_not_eligible"
 	}
+	// Elected to another bishopric earlier this winter: the title is not
+	// conferred yet, but the noble cannot hold a second one.
+	for _, title := range ctx.pendingTitles {
+		if title.noble == noble.ID && title.kind == models.ElectionBishop {
+			return "candidate_not_eligible"
+		}
+	}
 	return ""
 }
 
@@ -252,42 +259,40 @@ func (ctx *resolutionContext) candidateEntry(open *election, noble *models.Noble
 	return nil
 }
 
-// resolveWinterElections validates the recorded candidacies, then the votes,
-// counts every election on one snapshot and queues the titles won for the
-// investiture. Candidacies are validated in resolution order (players by
-// identifier, then sheet order): a noble can run in one election only, the
-// first valid candidacy keeps it.
+// resolveWinterElections settles the elections one after the other, bishoprics
+// by region identifier then the conclave. Each election validates its own
+// candidacies, then its votes, then counts; voices are all computed on the
+// winter snapshot, but a noble who won an earlier election of the winter is no
+// longer eligible to a later one of the same kind. The titles won are queued
+// for the investiture.
 func (ctx *resolutionContext) resolveWinterElections() {
 	orders := ctx.electionOrders
 	ctx.electionOrders = nil
 	for _, open := range ctx.elections {
 		open.voices = ctx.electionVoices(open)
 	}
-	running := map[models.NobleID]bool{}
 	for _, recorded := range orders {
-		if recorded.order.Type != models.WinterOrderTypeCandidacy {
-			continue
+		if ctx.matchElection(recorded.order) == nil {
+			ctx.rejectWinterOrder(recorded.playerID, recorded.order, "election_not_open")
 		}
-		ctx.fileCandidacy(recorded, running)
-	}
-	for _, recorded := range orders {
-		if recorded.order.Type != models.WinterOrderTypeVote {
-			continue
-		}
-		ctx.castVote(recorded)
 	}
 	for _, open := range ctx.elections {
+		for _, recorded := range orders {
+			if recorded.order.Type == models.WinterOrderTypeCandidacy && ctx.matchElection(recorded.order) == open {
+				ctx.fileCandidacy(open, recorded)
+			}
+		}
+		for _, recorded := range orders {
+			if recorded.order.Type == models.WinterOrderTypeVote && ctx.matchElection(recorded.order) == open {
+				ctx.castVote(open, recorded)
+			}
+		}
 		ctx.concludeElection(open)
 	}
 }
 
-func (ctx *resolutionContext) fileCandidacy(recorded electionOrder, running map[models.NobleID]bool) {
+func (ctx *resolutionContext) fileCandidacy(open *election, recorded electionOrder) {
 	order := recorded.order
-	open := ctx.matchElection(order)
-	if open == nil {
-		ctx.rejectWinterOrder(recorded.playerID, order, "election_not_open")
-		return
-	}
 	nobleID, exists := ctx.noblesByCode[order.NobleCode]
 	noble := ctx.noblesByID[nobleID]
 	if !exists || noble == nil {
@@ -306,22 +311,12 @@ func (ctx *resolutionContext) fileCandidacy(recorded electionOrder, running map[
 		ctx.rejectWinterOrder(recorded.playerID, order, "candidacy_already_filed")
 		return
 	}
-	if running[noble.ID] {
-		ctx.rejectWinterOrder(recorded.playerID, order, "candidate_already_running")
-		return
-	}
 	open.filed[recorded.playerID] = true
-	running[noble.ID] = true
 	open.candidates = append(open.candidates, &electionEntry{noble: noble})
 }
 
-func (ctx *resolutionContext) castVote(recorded electionOrder) {
+func (ctx *resolutionContext) castVote(open *election, recorded electionOrder) {
 	order := recorded.order
-	open := ctx.matchElection(order)
-	if open == nil {
-		ctx.rejectWinterOrder(recorded.playerID, order, "election_not_open")
-		return
-	}
 	nobleID, exists := ctx.noblesByCode[order.NobleCode]
 	noble := ctx.noblesByID[nobleID]
 	var entry *electionEntry

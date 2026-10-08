@@ -64,11 +64,11 @@ Un joueur ne vote que pour un candidat déclaré à la même élection, qu'il so
 à lui ou à un autre joueur. Le moteur regroupe les candidatures par élection,
 puis les votes par élection et par candidat. Pour une même élection, un joueur
 peut saisir plusieurs candidatures ou plusieurs votes : le **premier ordre
-valide** de la feuille est retenu, les suivants sont ignorés. Un même noble ne
-peut être candidat qu'à une seule élection par hiver (première candidature
-valide). Les élections se comptent simultanément sur un instantané des
-titres ; elles sont rapportées dans un ordre déterministe : évêchés par
-identifiant de région, puis conclave. Un titre gagné pendant l'hiver (élection,
+valide** de la feuille est retenu, les suivants sont ignorés. Un même noble peut
+être candidat à plusieurs élections, mais pas à un évêché après avoir été élu
+à un autre le même hiver. Les élections se résolvent l'une après l'autre
+(évêchés par identifiant de région, puis conclave), avec des voix lues sur un
+instantané des titres. Un titre gagné pendant l'hiver (élection,
 achat de cardinal) n'est conféré qu'à l'investiture, après tous les décomptes
 ([hiver.md](hiver.md#ordre-de-résolution)).
 

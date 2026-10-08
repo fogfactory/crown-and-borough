@@ -147,24 +147,47 @@ func TestElectionNotOpenWhenBishopricHasANeutralTerritory(t *testing.T) {
 	}
 }
 
-func TestNobleRunsInOneElectionOnly(t *testing.T) {
+func TestNobleCanRunInSeveralElectionsUntilElected(t *testing.T) {
 	state := electionTestState(t)
 	state.Armies[3].OwnerID = "P1"
 	resolution := resolveElectionSheets(t, state, map[models.PlayerID][]models.WinterOrder{
 		"P1": {
 			candidacy("O1", "HUG", "AAA"),
-			candidacy("O2", "HUG", "DDD"), // same noble elsewhere
-			candidacy("O3", "OTO", "AAA"), // second candidacy of the player in R1
-			candidacy("O4", "OTO", "DDD"),
+			ballot("O2", "HUG", "AAA"),
+			candidacy("O3", "HUG", "DDD"), // elected in R1 first: no longer eligible
+			candidacy("O4", "OTO", "AAA"), // second candidacy of the player in R1
+			ballot("O5", "HUG", "DDD"),    // HUG is not a candidate of R2
 		},
 	})
 	reasons := electionRejections(resolution.Events)
-	if reasons["O2"] != "candidate_already_running" || reasons["O3"] != "candidacy_already_filed" || reasons["O4"] != "" {
+	if reasons["O1"] != "" || reasons["O3"] != "candidate_not_eligible" || reasons["O4"] != "candidacy_already_filed" || reasons["O5"] != "unknown_candidate" {
 		t.Fatalf("rejections = %#v", reasons)
 	}
-	results := eventsOfType(resolution.Events, EventTypeElectionResult)
-	if len(results[0].Election.Candidates) != 1 || len(results[1].Election.Candidates) != 1 {
-		t.Fatalf("results = %#v", results)
+	if bishop, ok := resolution.State.BishopOf("R1"); !ok || bishop != "N1" {
+		t.Fatalf("bishop of R1 = %q, %v, want N1", bishop, ok)
+	}
+	if _, ok := resolution.State.BishopOf("R2"); ok {
+		t.Fatalf("R2 must stay vacant")
+	}
+}
+
+func TestNobleRunsAgainAfterLosingAnElection(t *testing.T) {
+	state := electionTestState(t)
+	state.Armies[3].OwnerID = "P1"
+	resolution := resolveElectionSheets(t, state, map[models.PlayerID][]models.WinterOrder{
+		"P1": {candidacy("O1", "HUG", "AAA"), candidacy("O2", "HUG", "DDD"), ballot("O3", "HUG", "DDD")},
+		"P2": {candidacy("O1", "LEO", "AAA"), ballot("O2", "LEO", "AAA")},
+	})
+	// P1 casts no ballot in R1, so LEO wins it; HUG lost R1 and still wins R2.
+	reasons := electionRejections(resolution.Events)
+	if reasons["O2"] != "" || reasons["O3"] != "" {
+		t.Fatalf("rejections = %#v", reasons)
+	}
+	if bishop, ok := resolution.State.BishopOf("R1"); !ok || bishop != "N2" {
+		t.Fatalf("bishop of R1 = %q, %v, want N2", bishop, ok)
+	}
+	if bishop, ok := resolution.State.BishopOf("R2"); !ok || bishop != "N1" {
+		t.Fatalf("bishop of R2 = %q, %v, want N1", bishop, ok)
 	}
 }
 

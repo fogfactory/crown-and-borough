@@ -12,6 +12,13 @@ de résolution** et les **effets croisés**. Il est la référence unique : les
 specs thématiques décrivent chaque ordre, celui-ci dit quand il s'exécute et ce
 qu'il voit des autres.
 
+> **Annonce.** En hiver, la projection d'état de chaque joueur porte
+> `openElections` : les élections du registre, ses propres voix et ses nobles
+> éligibles ; l'aperçu d'ordres rappelle la syntaxe `K`/`V` et qu'un titre
+> acquis cet hiver n'est utilisable qu'à l'hiver suivant
+> ([#375](https://github.com/fogfactory/crown-and-borough/issues/375)). Aucun
+> bulletin n'y figure.
+>
 > **État.** Les étapes 0 (instantané et registre des élections), 2, 5, 6
 > (élections), 7 (investiture) et 8 sont en place dans le moteur
 > ([#374](https://github.com/fogfactory/crown-and-borough/issues/374)). Les
@@ -46,10 +53,11 @@ qu'il voit des autres.
    étapes (aucune armée ne bouge). Constituer un fief (`T F`) ne change donc
    jamais les voix territoriales d'un évêché, qui comptent les lieux-dits
    « contrôlés **ou** occupés ».
-6. **Les élections se comptent simultanément.** Tous les décomptes d'un hiver
-   lisent un même instantané de titres, pris au début de l'étape des élections
-   (principe 3 compris) ; aucun résultat d'une élection ne pèse sur une autre
-   élection du même hiver.
+6. **Les élections se résolvent l'une après l'autre.** Évêchés par identifiant
+   de région croissant, puis conclave. Les voix se lisent toutes sur
+   l'instantané des titres (principe 3 compris) : un résultat ne change les
+   voix d'aucune autre élection. Seule l'éligibilité en tient compte : un noble
+   élu à un évêché n'est plus éligible aux évêchés suivants du même hiver.
 7. **Les morts d'hiver arrivent en dernier.** Le seul ordre d'hiver qui tue est
    le procès à deux cardinaux, jugé après toute autre résolution (comme la
    carte de procès l'est à la fin d'un tour d'action).
@@ -64,7 +72,7 @@ qu'il voit des autres.
 | 3 | **Actions des cardinaux** | Enquêtes `Q NNN` (dans l'ordre des joueurs, puis de la feuille) ; dépôt des ordres de procès `J NNN` (jugés à l'étape 8). | [religieux.md](religieux.md#enquête) |
 | 4 | **Dissolutions de mariage** | `X D NNN` du pape et demande de l'époux, par couple. | [religieux.md](religieux.md#dissolution-de-mariage) |
 | 5 | **Mariages** | Ordres `M N` réciproques. | [succession.md](succession.md#conclusion-dun-mariage) |
-| 6 | **Élections** | Candidatures `K E` / `K P`, votes `V E` / `V P` : évêchés par identifiant de région croissant, puis conclave. Décompte simultané sur l'instantané des titres. | [religieux.md](religieux.md) |
+| 6 | **Élections** | Candidatures `K E` / `K P`, votes `V E` / `V P` : évêchés par identifiant de région croissant, puis conclave. Résolues dans cet ordre ; voix lues sur l'instantané des titres. | [religieux.md](religieux.md) |
 | 7 | **Investiture** | Les élus deviennent évêque ou pape ; les achats de cardinal de l'étape 2 prennent effet. | ce document |
 | 8 | **Fin d'hiver** | Défausses et remplissage des mains, fiefs vacants attribués par défaut, conservation des stocks, prospérité, rapatriement, territoires sans ancre redevenus neutres, rapports. | GDD § Phase d'hiver |
 | 9 | **Jugement des procès** | Procès `J` déposés à l'étape 3, jugés dans l'ordre croissant du code de la cible. Mort normale (lignée, fiefs, Claims). | [dames.md](dames.md#carte-de-procès) |
@@ -137,9 +145,10 @@ condition ne prélève jamais.
 ### Candidatures
 
 - Un joueur ne présente qu'**une candidature par élection** (la première
-  valide de la feuille) et un même noble ne peut être candidat qu'à **une
-  seule élection par hiver** (première candidature valide dans l'ordre de
-  résolution) ; les suivantes sont rejetées (`candidate_already_running`).
+  valide de la feuille). Un même noble peut être candidat à plusieurs
+  élections, mais la candidature à une élection est rejetée
+  (`candidate_not_eligible`) si le noble a été élu à un évêché plus tôt dans
+  l'hiver.
 - Éligibilité évaluée à l'étape 6 : homme, célibataire, libre (ni `hostage`
   ni `dungeon`), non excommunié. Élection épiscopale : en outre pas déjà
   évêque. Conclave : **évêque ou cardinal** en titre à l'instantané (un
@@ -167,9 +176,9 @@ condition ne prélève jamais.
 
 - Majorité relative (évêque) ou absolue (pape). Égalité au sommet ou aucun
   candidat éligible : siège vacant, réévalué à l'hiver suivant.
-- Les décomptes ne dépendent pas de l'ordre des élections. Seule l'unicité de
-  la candidature d'un noble (ci-dessus) lie deux élections entre elles, et
-  elle est fixée avant tout décompte.
+- Les voix ne dépendent pas de l'ordre des élections ; seule l'éligibilité des
+  candidats en dépend (ci-dessus). Un vote pour un candidat écarté est rejeté
+  (`unknown_candidate`).
 - Le rapport public donne, pour chaque élection, les candidats et le total de
   voix par candidat. Les bulletins individuels des joueurs restent privés.
 

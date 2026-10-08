@@ -521,6 +521,53 @@ function NobleDeckSection({
   )
 }
 
+function OpenElectionsSection({ state }: { state: StateData }) {
+  const { t } = useLanguage()
+  const elections = state.openElections ?? []
+  if (elections.length === 0) return null
+
+  return (
+    <section className="space-y-2 rounded-lg border border-[#9bbbd3] bg-[#f7fbff] p-3">
+      <h4 className="font-serif text-base font-semibold text-[#2c5b7d]">
+        {t('orders.electionsTitle')}
+      </h4>
+      <p className="text-xs leading-relaxed text-[#55738a]">
+        {t('orders.electionsTimingNote')}
+      </p>
+      <ul className="space-y-2 text-xs text-[#2c5b7d]">
+        {elections.map((election) => {
+          const name =
+            state.bishoprics?.find((bishopric) => bishopric.region === election.region)
+              ?.name ?? election.region ?? ''
+          return (
+            <li key={`${election.kind}-${election.region ?? ''}`} className="space-y-0.5">
+              <p className="font-medium">
+                {election.kind === 'pope'
+                  ? t('orders.electionPope', {
+                      required: election.required ?? 0,
+                      voices: election.voices,
+                    })
+                  : t('orders.electionBishop', {
+                      name,
+                      seat: election.seat ?? '',
+                      voices: election.voices,
+                    })}
+              </p>
+              <p className="text-[#55738a]">
+                {election.candidates.length > 0
+                  ? t('orders.electionCandidates', {
+                      candidates: election.candidates.join(', '),
+                    })
+                  : t('orders.electionNoCandidate')}
+              </p>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
+  )
+}
+
 function DeckHandSummary({ state }: { state: StateData }) {
   const { t } = useLanguage()
   const hand = state.specialHand ?? []
@@ -637,6 +684,7 @@ export function OrdersPanel({
           </div>
         )}
         <DeckHandSummary state={state} />
+        <OpenElectionsSection state={state} />
         <NobleDeckSection
           state={state}
           player={player}

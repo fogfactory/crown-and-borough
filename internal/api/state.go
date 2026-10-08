@@ -52,6 +52,11 @@ type StateView struct {
 	// pile that a free astrologue of the viewer reveals (specs/dames.md
 	// § Astrologue). It is private to that player.
 	CalamityForecast []models.CardKind `json:"calamityForecast,omitempty"`
+	// OpenElections lists, in winter, the elections the registry frozen at
+	// the start of the winter holds, with the viewer's own voices and eligible
+	// nobles (see engine.ForecastWinterElections). Ballots are never part of
+	// it.
+	OpenElections []engine.OpenElection `json:"openElections,omitempty"`
 	// SpiedHands are the hands a spy of the viewer reveals: the whole hand of
 	// the player holding her hostage.
 	SpiedHands          []SpiedHandView             `json:"spiedHands,omitempty"`
@@ -591,6 +596,7 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 	}
 	if viewer != nil {
 		view.CalamityForecast = calamityForecastFor(state, *viewer)
+		view.OpenElections = engine.ForecastWinterElections(state, balance, *viewer)
 		view.SpiedHands = spiedHandsFor(state, *viewer)
 	}
 	view.ActiveRegionEffects = append([]models.ActiveRegionEffect(nil), state.ActiveRegionEffects...)
