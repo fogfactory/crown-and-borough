@@ -164,21 +164,26 @@ la joue, au lieu du village ou du château normalement bénéficiaire (voir le
 flux de ressource dans [economie.md](economie.md)). Elle ne touche jamais le
 revenu de territoire des fiefs, qui relève exclusivement de la taxe.
 
-- l'**évêque** et le **cardinal** (toujours évêque) ciblent l'évêché dont
-  l'émetteur est l'évêque ;
-- le **pape** peut cibler n'importe quel évêché.
+- l'**évêque** ne cible que son propre évêché ;
+- le **cardinal** et le **pape** peuvent cibler n'importe quel évêché.
 
 Syntaxe : `P TX HHH XXX` dans la soumission `special`, `HHH` étant le noble
 émetteur et `XXX` le village seed de l'évêché visé.
 
-- **Plusieurs dîmes sur un même évêché** : la production des moulins de
-  l'évêché est répartie **équitablement** entre les joueurs qui ont posé une
-  dîme dessus (un joueur compte une fois, même avec plusieurs émetteurs ou
-  ordres). Le partage se fait en unités entières de ressource, moulin par
-  moulin ; le **surnuméraire** (reste de la division) est laissé sur place, sur
-  le moulin, selon le flux normal de [economie.md](economie.md).
-- **Évêché sans évêque** : le pape peut le taxer ; aucun évêque ni cardinal ne
-  peut le cibler, faute d'émetteur titulaire.
+- **Priorité** : lorsque plusieurs dîmes visent le même évêché le même tour,
+  l'**évêque** de cet évêché l'emporte sur les cardinaux et sur le pape ; les
+  **cardinaux** l'emportent sur le pape. Le pape ne récupère donc que la dîme
+  des évêchés sur lesquels aucune autre dîme n'a été posée. Les dîmes
+  battues par une priorité sont consommées sans effet.
+- **Plusieurs cardinaux sur un même évêché** (sans dîme de l'évêque) : la
+  production des moulins de l'évêché est répartie **équitablement** entre les
+  joueurs dont un cardinal a posé une dîme dessus (un joueur compte une fois,
+  même avec plusieurs cardinaux ou ordres). Le partage se fait en unités
+  entières de ressource, moulin par moulin ; le **surnuméraire** (reste de la
+  division) est laissé sur place, sur le moulin, selon le flux normal de
+  [economie.md](economie.md). Il n'y a pas de répartition entre les autres
+  titres.
+- **Évêché sans évêque** : il reste taxable par un cardinal ou le pape.
 - **Révolte** : comme pour toute taxe, tout territoire de l'évêché ciblé est
   éligible à la Révolte (voir [ordres-speciaux.md](ordres-speciaux.md)), la
   saison où la dîme est jouée et la saison suivante.

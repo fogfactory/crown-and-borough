@@ -49,8 +49,9 @@ Aucun noble n'est requis :
   exception à la règle « `TER` est le village seed d'une région » ci-dessous :
   la **capitale d'un fief** (taxe seigneuriale ou royale, vacant compris) ou le
   **village seed d'un évêché** (dîme). L'émetteur détermine ce qui est permis :
-  seigneur titré sur ses fiefs, roi sur tout fief constitué, évêque et
-  cardinal sur leur évêché, pape sur tout évêché. La taxe double le revenu
+  seigneur titré sur ses fiefs, roi sur tout fief constitué, évêque sur son
+  évêché, cardinal et pape sur tout évêché (priorité évêque, puis cardinaux, puis
+  pape). La taxe double le revenu
   territorial du fief pour le tour, village inclus, sans jamais toucher la
   production des moulins ; la dîme détourne la production des moulins de
   l'évêché. Deux cartes jouées sur le même fief le même tour ne se cumulent pas,
