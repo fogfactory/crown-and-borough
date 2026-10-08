@@ -117,7 +117,9 @@ directement depuis un noble libre. Deux voies, cumulables :
   rend l'achat caduc sans prélèvement.
 
 Dans les deux cas, le nombre total de cardinaux en jeu est plafonné à
-`N - 1` (`N` = nombre de joueurs) ; une nomination ou un achat qui
+`1 + ⌊N / 6⌋` (`N` = nombre de joueurs : 1 en dessous de 6 joueurs, 2 en
+dessous de 12, etc. ; paramètres `religion.cardinal_cap_base` et
+`religion.cardinal_players_per_extra` de `assets/balance.yaml`) ; une nomination ou un achat qui
 dépasserait ce plafond est rejeté sans effet (carte perdue ou R non prélevé,
 selon la règle générale de rejet des ordres du GDD §2). Il n'existe pas de
 mécanisme de bootstrap dédié : la nomination n'étant pas réservée au pape,

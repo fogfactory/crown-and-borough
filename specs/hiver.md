@@ -86,7 +86,7 @@ Deux conséquences directes du tableau :
 | Excommunication (étape 1) | Titre perdu définitivement ; plus de voix ni candidature. | Le siège est vacant mais n'est pas dans le registre : élection à l'hiver suivant. Un excommunié ne peut pas être candidat. Le dénominateur de la majorité absolue papale baisse s'il était cardinal. |
 | Levée (étape 1) | Le noble redevient éligible. Aucun titre rendu. | Peut être candidat dès cet hiver. |
 | Démasquage par enquête (étape 3) | Éon et Sorcière : excommunication d'office, même effet que ci-dessus. Correspondante et Espionne : aucun effet religieux. | Idem excommunication. |
-| Achat de cardinal (étape 2) | R prélevés à l'étape 2 ; le plafond `N - 1` compte les achats en attente. | Aucun avant l'investiture : le nouveau cardinal ne vote pas au conclave, n'y est pas candidat (en tant que cardinal) et ne compte pas pour la majorité absolue. |
+| Achat de cardinal (étape 2) | R prélevés à l'étape 2 ; le plafond (`1 + ⌊N / 6⌋`) compte les achats en attente. | Aucun avant l'investiture : le nouveau cardinal ne vote pas au conclave, n'y est pas candidat (en tant que cardinal) et ne compte pas pour la majorité absolue. |
 | Élection d'un évêque (étape 6) | Titre conféré à l'investiture. | Aucun : ses voix d'évêque ne comptent pas dans les autres élections de l'hiver. |
 | Élection du pape (étape 6) | Titre conféré à l'investiture. | Aucun : ses 3 voix n'ont pas compté, ses pouvoirs commencent l'hiver suivant. |
 | Procès exécuté (étape 9) | Mort ; titres vacants (hors cible excommuniée, déjà sans titre). | Siège électable l'hiver suivant. |
@@ -178,7 +178,7 @@ condition ne prélève jamais.
 | Ordre | Étape | Qui peut | Conditions lues |
 |---|---|---|---|
 | `X E` / `X L` | 1 | Pape (titre actif, non au cachot) | Cible de n'importe quel joueur ; 1 `X E` par hiver ; 1 excommunié à la fois par joueur adverse (une levée précédente de la feuille libère la place). Jamais sur soi. |
-| `N C NNN` (achat de cardinal) | 2 | Joueur propriétaire d'un évêque | Évêque non excommunié ; plafond `N - 1` incluant les achats en attente ; coût `religious.cardinal_cost` (balance). |
+| `N C NNN` (achat de cardinal) | 2 | Joueur propriétaire d'un évêque | Évêque non excommunié ; plafond `1 + ⌊N / 6⌋` incluant les achats en attente (`religion.cardinal_cap_base`, `religion.cardinal_players_per_extra`) ; coût `religion.cardinal_cost` (balance). |
 | `Q NNN` | 3 | Cardinal ou pape titré à l'instantané, ni excommunié ni au cachot à l'étape 3 | 1 par cardinal ou pape et par hiver ; coût selon le rang de la cible lu après l'étape 2 ; consommé sans effet si aucune dignité cachée. |
 | `J NNN` | 3 (dépôt) / 9 (jugement) | Deux cardinaux distincts, titrés à l'instantané, ni excommuniés ni au cachot à l'étape 3 | Mêmes cible et motif pour les deux ; mêmes règles d'éligibilité de cible que la carte de procès, relues au jugement. |
 | `X D NNN` | 4 | Pape + un époux | Le pape et le propriétaire d'un des époux soumettent chacun `X D NNN` pour le même couple (un seul ordre si le pape est lui-même propriétaire d'un époux). Les deux nobles doivent être mariés à l'étape 4. |
