@@ -911,6 +911,9 @@ from noble chains and requiring no noble. Winter discards are written in the
   BRU's fief this turn or the previous one — every territory of the fief is
   then eligible, not only its taxed capital, or when a trial executed a lady
   in BRU's region during the previous action season;
+- `P FQ HHH BRU` and `P PQ HHH BRU`: have the cleric HHH (pope, cardinal,
+  bishop or abbess) appease the revolt at BRU, with no card (see "Revolt
+  appeasement" below);
 - `P TR NNN`: play Trial on the noble with code NNN — an opponent's or not —,
   judged at the end of the turn (see below);
 - `P TX BRU`: play the Seigneurial tax on BRU, provided BRU is the capital of
@@ -990,6 +993,17 @@ countered. No calamity resolves in winter.
   retreats like any defeated army instead of vanishing. Neutral armies never
   lose strength to a famine, but lose one troop at the end of the turn when
   the local production of their territory cannot feed them;
+- Revolt appeasement uses no card and is played in spring, summer or autumn,
+  before the turn's Revolt cards, by one of the player's clerics (pope,
+  cardinal, bishop or abbess; title not suspended) on a territory holding a
+  neutral army. A noble appeases once per turn. Two ways:
+  - the **free rite** (`P FQ HHH TER`), in the region where the cleric stands
+    (an abbess has no other way): a d6 removes the rebel army on 1 to 3,
+    fails harmlessly on 4 or 5, and on 6 fails and kills the cleric;
+  - the **paid appeasement** (`P PQ HHH TER`), risk-free: a bishop in their own
+    bishopric, a cardinal or the pope anywhere pay
+    **{{religion.appeasement_cost_base}}** to the power of the rebel army's
+    size in R (2, 4, 8, 16…), or the order is rejected;
 - the Seigneurial tax is played on a fief's capital (`P TX XXX`) the player
   controls, a vacant fief included. It doubles the fief's territorial income
   for the turn, village included, and never touches mill production.

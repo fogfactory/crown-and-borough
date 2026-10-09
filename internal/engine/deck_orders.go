@@ -28,6 +28,9 @@ type deckOrderIntent struct {
 }
 
 func newExecutableDeckOrder(playerID models.PlayerID, order models.DeckOrder) ExecutableOrder {
+	if order.Type.IsAppeasement() {
+		return appeaseOrder{playerID: playerID, order: order}
+	}
 	definition := cardDefinitions[order.Kind]
 	if definition == nil || order.Type != models.DeckOrderTypePlay {
 		return nil
@@ -53,6 +56,11 @@ func validateActionDeckOrders(game *models.GameState, balance assetgen.Balance, 
 			return fmt.Errorf("engine: resolve: unknown player %q", playerID)
 		}
 		for _, order := range deckOrders[playerID] {
+			if order.Type.IsAppeasement() {
+				// Plays no card; an illegal one is rejected alone when applied
+				// (appeaseOrder.Apply), never by failing the whole turn.
+				continue
+			}
 			if order.Type != models.DeckOrderTypePlay {
 				return fmt.Errorf("engine: resolve: deck order %q is not valid in an action season", order.Type)
 			}

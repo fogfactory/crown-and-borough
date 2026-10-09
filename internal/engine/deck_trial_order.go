@@ -90,11 +90,16 @@ func resolveTrials(ctx *resolutionContext) {
 // executeNoble removes a noble put to death by a trial from play, with the
 // aftermath of any death (cards released, fiefs vacated, claims settled).
 func (ctx *resolutionContext) executeNoble(noble models.Noble) {
+	ctx.removeNoble(noble, models.DeathCauseExecution)
+}
+
+// removeNoble removes a dead noble from play with the aftermath of any death.
+func (ctx *resolutionContext) removeNoble(noble models.Noble, cause models.DeathCause) {
 	ctx.state.Nobles = removeNoble(ctx.state.Nobles, noble.ID)
 	ctx.releaseNobleCards(noble)
 	ctx.state.RemovedNobles = append(ctx.state.RemovedNobles, models.RemovedNoble{
 		ID: noble.ID, Code: noble.Code, Name: noble.Name, Sex: noble.Sex, OwnerID: noble.OwnerID,
-		Cause: models.DeathCauseExecution, Turn: ctx.state.Turn,
+		Cause: cause, Turn: ctx.state.Turn,
 	})
 	ctx.rebuildIndexes()
 	ctx.vacateFiefsOfMissingHolders()

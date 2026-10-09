@@ -1121,3 +1121,84 @@ describe('OrdersPanel title and card order dialogs', () => {
     expect(onSpecialChange).toHaveBeenCalledWith(expect.stringMatching(/^P BT AAA # .* on AAA\n$/))
   })
 })
+
+describe('revolt appeasement orders', () => {
+  const appeaseState: StateData = {
+    ...state,
+    season: 'spring',
+    appeasementCostBase: 2,
+    bishoprics: [
+      { region: 'AAA', name: 'Aaa', territories: ['AAA', 'BBB'], bishop: 'RAI' },
+      { region: 'CCC', name: 'Ccc', territories: ['CCC'] },
+    ],
+    territories: [
+      {
+        id: 'BBB',
+        owner: null,
+        resources: 0,
+        army: { owner: 'NEUTRAL', size: 3, chain: null },
+        infrastructures: [],
+      },
+      {
+        id: 'CCC',
+        owner: null,
+        resources: 0,
+        army: { owner: 'NEUTRAL', size: 1, chain: null },
+        infrastructures: [],
+      },
+    ],
+    nobles: [
+      {
+        id: 'N1',
+        code: 'RAI',
+        name: 'Rainaud',
+        firstName: 'Rainaud',
+        owner: 'P1',
+        location: 'AAA',
+        status: 'free',
+        religiousTitle: 'bishop',
+      },
+    ],
+  }
+
+  function renderAppease(onSpecialChange = vi.fn(), s = appeaseState) {
+    render(
+      <LanguageProvider initialLanguage="en">
+        <OrdersPanel
+          state={s}
+          player="P1"
+          chainDrafts={{}}
+          winterDraft=""
+          specialDraft=""
+          submitted={false}
+          submitting={false}
+          error={null}
+          onChainChange={vi.fn()}
+          onWinterChange={vi.fn()}
+          onSpecialChange={onSpecialChange}
+          onSubmit={vi.fn()}
+          onOpenRules={vi.fn()}
+        />
+      </LanguageProvider>,
+    )
+    return onSpecialChange
+  }
+
+  it('offers the rite in the cleric region and the paid way only in their bishopric', () => {
+    const onSpecialChange = renderAppease()
+    // One button per cleric; the dialog picks the way.
+    fireEvent.click(screen.getByRole('button', { name: /Bishop Rainaud · Appease a revolt/ }))
+    fireEvent.change(screen.getByLabelText('Way'), { target: { value: 'paid' } })
+    // Only BBB (the bishopric) is offered, with its 2^3 price.
+    expect(screen.getByText('Cost: 8 R')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
+    expect(onSpecialChange).toHaveBeenCalledWith(
+      expect.stringMatching(/^P AP RAI BBB # .*\n$/),
+    )
+  })
+
+  it('offers nothing in winter', () => {
+    renderAppease(vi.fn(), { ...appeaseState, season: 'winter' })
+    expect(screen.queryByRole('button', { name: /Appease a revolt/ })).not.toBeInTheDocument()
+  })
+})

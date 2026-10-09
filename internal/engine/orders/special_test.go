@@ -93,3 +93,22 @@ func TestParseDeckOrdersPreservesLineNumbersAndAtomicity(t *testing.T) {
 		t.Fatalf("parsed/errors = %#v/%#v, want nil and lines 3/4", parsed, parseErrors)
 	}
 }
+
+func TestParseDeckOrdersAppeasement(t *testing.T) {
+	game := orderTestState()
+	parsed, parseErrors := ParseDeckOrders("p ag jea ros\nP PQ ann BOI", game)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseDeckOrders errors = %#v", parseErrors)
+	}
+	if parsed[0].Type != models.DeckOrderTypeAppeaseRite || parsed[0].TargetNobleID != "N1" || parsed[0].TargetTerritoryID != "ROS" {
+		t.Errorf("rite = %#v", parsed[0])
+	}
+	if parsed[1].Type != models.DeckOrderTypeAppeasePaid || parsed[1].TargetNobleID != "N2" || parsed[1].TargetTerritoryID != "BOI" {
+		t.Errorf("paid = %#v", parsed[1])
+	}
+	for _, line := range []string{"P AP JEA", "P AP JEA ROS BOI", "P AP XXX ROS", "P AP JEA ZZZ"} {
+		if _, parseErrors := ParseDeckOrders(line, game); len(parseErrors) == 0 {
+			t.Errorf("%q should not parse", line)
+		}
+	}
+}

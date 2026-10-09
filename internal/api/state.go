@@ -63,6 +63,9 @@ type StateView struct {
 	// RevoltTargets lists, outside winter, the territories a Révolte card can
 	// be played on (a public rule: famine, recent tax or trial in the region).
 	RevoltTargets []models.TerritoryID `json:"revoltTargets,omitempty"`
+	// AppeasementCostBase is the base of the paid revolt appeasement price:
+	// base^size R for a rebel army of that size.
+	AppeasementCostBase int `json:"appeasementCostBase,omitempty"`
 	// SpiedHands are the hands a spy of the viewer reveals: the whole hand of
 	// the player holding her hostage.
 	SpiedHands          []SpiedHandView             `json:"spiedHands,omitempty"`
@@ -610,6 +613,7 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 		view.SpiedHands = spiedHandsFor(state, *viewer)
 	}
 	view.RevoltTargets = engine.ForecastRevoltTargets(state, balance)
+	view.AppeasementCostBase = balance.Religion.AppeasementCostBase
 	view.ActiveRegionEffects = append([]models.ActiveRegionEffect(nil), state.ActiveRegionEffects...)
 	view.Announcements = engine.PendingAnnouncements(state, state.Year(), state.Season, true)
 	return view

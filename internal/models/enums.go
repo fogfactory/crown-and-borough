@@ -158,12 +158,15 @@ const (
 	DeathCauseNatural       DeathCause = "natural"
 	DeathCauseExecution     DeathCause = "execution"
 	DeathCauseAssassination DeathCause = "assassination"
+	// DeathCauseMartyr is the death of a cleric who fails the free revolt
+	// appeasement rite (specs/religieux.md § Apaisement de révolte).
+	DeathCauseMartyr DeathCause = "martyr"
 )
 
 // IsValid reports whether the death cause is a known value.
 func (c DeathCause) IsValid() bool {
 	switch c {
-	case DeathCauseNatural, DeathCauseExecution, DeathCauseAssassination:
+	case DeathCauseNatural, DeathCauseExecution, DeathCauseAssassination, DeathCauseMartyr:
 		return true
 	}
 	return false

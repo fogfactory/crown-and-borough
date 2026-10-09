@@ -46,6 +46,7 @@ const (
 	EventTypeCalamityCanceled   EventType = "calamity_canceled"
 	EventTypeBonusEffect        EventType = "bonus_effect"
 	EventTypeNeutralArmy        EventType = "neutral_army_created"
+	EventTypeRevoltAppeased     EventType = "revolt_appeased"
 	EventTypePlagueDeath        EventType = "plague_noble_death"
 	EventTypePlagueSurvived     EventType = "plague_noble_survived"
 	EventTypeBadWeatherBlocked  EventType = "bad_weather_blocked"
@@ -183,6 +184,7 @@ type Event struct {
 	StockBefore        int                        `json:"stockBefore,omitempty"`
 	StockAfter         int                        `json:"stockAfter,omitempty"`
 	ResourceSpent      int                        `json:"resourceSpent,omitempty"`
+	Cost               int                        `json:"cost,omitempty"`
 	Troops             int                        `json:"troops,omitempty"`
 	TroopsLost         int                        `json:"troopsLost,omitempty"`
 	RationsLost        int                        `json:"rationsLost,omitempty"`

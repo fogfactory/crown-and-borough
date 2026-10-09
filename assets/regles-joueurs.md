@@ -962,6 +962,9 @@ dans la feuille `winter`.
   tour précédent — tout territoire du fief est alors éligible, pas seulement
   sa capitale taxée, ou si un procès a exécuté une dame dans la région de BRU
   à la saison d'action précédente ;
+- `P AG HHH BRU` et `P AP HHH BRU` : faire apaiser par l'ecclésiastique HHH
+  (pape, cardinal, évêque ou abbesse) la révolte de BRU, sans carte (voir
+  « Apaisement de révolte » plus bas) ;
 - `P PR NNN` : jouer Procès sur le noble de code NNN — adverse ou non —, jugé
   à la fin du tour (voir plus bas) ;
 - `P TX BRU` : jouer la Taxe seigneuriale sur BRU, à condition que BRU soit
@@ -1049,6 +1052,19 @@ ne se résout en hiver.
   de disparaître. Les armées neutres ne perdent jamais leur force à cause
   d'une famine, mais perdent une troupe en fin de tour si la production
   locale de leur territoire ne suffit pas à les nourrir ;
+- l'Apaisement de révolte ne consomme aucune carte et se joue au printemps, en
+  été ou en automne, avant les cartes de Révolte du tour, par un
+  ecclésiastique du joueur (pape, cardinal, évêque ou abbesse ; titre non
+  suspendu) sur un territoire portant une armée neutre. Un noble n'apaise
+  qu'une fois par tour. Deux voies :
+  - le **rite gratuit** (`P AG HHH TER`), dans la région où se trouve
+    l'ecclésiastique (l'abbesse n'a accès qu'à cette voie) : un d6 retire
+    l'armée rebelle sur 1 à 3, échoue sans suite sur 4 ou 5, et sur 6 échoue
+    et tue l'ecclésiastique ;
+  - l'**apaisement payant** (`P AP HHH TER`), sans risque : un évêque sur son
+    évêché, un cardinal ou le pape sur n'importe quel territoire paient
+    **{{religion.appeasement_cost_base}}** puissance la taille de l'armée
+    rebelle en R (2, 4, 8, 16…), ou l'ordre est rejeté ;
 - la Taxe seigneuriale se joue sur la capitale d'un fief (`P TX XXX`) que le
   joueur détient, vacant compris. Elle double le revenu territorial du fief
   pour le tour, village inclus, sans jamais toucher la production des

@@ -32,6 +32,9 @@ func ParseDeckOrders(text string, game *models.GameState) ([]models.DeckOrder, [
 
 func parseDeckOrderLine(line string, lineNumber int, game *models.GameState) (models.DeckOrder, *ParseError) {
 	fields := strings.Fields(line)
+	if order, parseError, handled := parseAppeasementLine(fields, lineNumber, game); handled {
+		return order, parseError
+	}
 	if len(fields) < 3 {
 		error := parseMessage(lineNumber, ParseCodeMissingTarget, i18n.DeckOrderShape)
 		return models.DeckOrder{}, &error
@@ -170,4 +173,41 @@ func isSpecialRegionSeed(game *models.GameState, seed models.TerritoryID) bool {
 		}
 	}
 	return false
+}
+
+// parseAppeasementLine reads "P AG HHH TER" (free rite) and "P AP HHH TER"
+// (paid appeasement): HHH is the cleric's noble code and TER a territory (EN
+// aliases FQ and PQ). handled is false for any other line.
+func parseAppeasementLine(fields []string, lineNumber int, game *models.GameState) (models.DeckOrder, *ParseError, bool) {
+	if len(fields) < 2 || fields[0] != "P" {
+		return models.DeckOrder{}, nil, false
+	}
+	var orderType models.DeckOrderType
+	switch fields[1] {
+	case "AG", "FQ":
+		orderType = models.DeckOrderTypeAppeaseRite
+	case "AP", "PQ":
+		orderType = models.DeckOrderTypeAppeasePaid
+	default:
+		return models.DeckOrder{}, nil, false
+	}
+	if len(fields) < 4 {
+		error := parseMessage(lineNumber, ParseCodeMissingTarget, i18n.DeckOrderShape)
+		return models.DeckOrder{}, &error, true
+	}
+	if len(fields) > 4 {
+		error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.DeckOrderShape)
+		return models.DeckOrder{}, &error, true
+	}
+	nobleID, found := nobleIDByCode(game, fields[2])
+	if !found {
+		error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderNobleUnknown, fields[2])
+		return models.DeckOrder{}, &error, true
+	}
+	target := models.TerritoryID(fields[3])
+	if !isTerritory(game, target) {
+		error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderRegionUnknown, fields[3])
+		return models.DeckOrder{}, &error, true
+	}
+	return models.DeckOrder{Type: orderType, TargetNobleID: nobleID, TargetTerritoryID: target}, nil, true
 }

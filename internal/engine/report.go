@@ -288,6 +288,7 @@ type SeasonEffectReport struct {
 	ProductionLost int                `json:"productionLost,omitempty"`
 	RationsLost    int                `json:"rationsLost,omitempty"`
 	Reason         string             `json:"reason,omitempty"`
+	Cost           int                `json:"cost,omitempty"`
 	// Dignity is the dignity a trial revealed on the executed lady.
 	Dignity models.Dignity `json:"dignity,omitempty"`
 	// Fief is the title (e.g. "Baronnie") of the fief the effect applies to,
@@ -645,13 +646,13 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 				}
 				report.Winter.Cards = append(report.Winter.Cards, card)
 			}
-		case EventTypeCalamityApplied, EventTypeCalamityCanceled, EventTypeBonusEffect, EventTypeNeutralArmy, EventTypePlagueDeath, EventTypePlagueSurvived, EventTypeBadWeatherBlocked, EventTypeFamineLoss, EventTypeBadWeatherLoss, EventTypeTrial, EventTypeEonUnmasked, EventTypeExcommunication, EventTypeExcommunicationLifted:
+		case EventTypeCalamityApplied, EventTypeCalamityCanceled, EventTypeBonusEffect, EventTypeNeutralArmy, EventTypeRevoltAppeased, EventTypePlagueDeath, EventTypePlagueSurvived, EventTypeBadWeatherBlocked, EventTypeFamineLoss, EventTypeBadWeatherLoss, EventTypeTrial, EventTypeEonUnmasked, EventTypeExcommunication, EventTypeExcommunicationLifted:
 			report.SeasonEffects = append(report.SeasonEffects, SeasonEffectReport{
 				Kind: event.Type, CardKind: event.CardKind, Region: event.RegionSeed, Season: event.Season,
 				Owner: event.OwnerID, Army: event.ArmyID, Noble: event.NobleCode,
 				Territory: event.TerritoryID, Target: event.TargetID, Troops: event.Troops, SizeBefore: event.SizeBefore,
 				SizeAfter: event.SizeAfter, ProductionLost: event.Production, RationsLost: event.RationsLost,
-				Reason: event.Reason, Dignity: event.Dignity, Fief: event.FiefTitle,
+				Reason: event.Reason, Dignity: event.Dignity, Fief: event.FiefTitle, Cost: event.Cost,
 			})
 		case EventTypeWinterStock, EventTypeRecruit, EventTypeBuild, EventTypeUpgrade, EventTypeFortify,
 			EventTypeRejected, EventTypeRitual, EventTypeCapitalElected, EventTypeNobleDraw, EventTypeNobleDiscard, EventTypeDignity, EventTypeClaim, EventTypeCardinalPurchase, EventTypeFiefFounded, EventTypeFiefAssigned, EventTypeFiefAutoAssigned:

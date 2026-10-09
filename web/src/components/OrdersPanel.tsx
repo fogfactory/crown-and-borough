@@ -3,7 +3,7 @@ import { IconBook, IconSnowflake, IconX } from '@tabler/icons-react'
 
 import { Button } from '@/components/ui/button'
 import { OrderLauncher } from '@/components/OrderDialog'
-import { SpecialCardOrders, TitleOrdersSection } from '@/components/TitleOrders'
+import { AppeasementOrders, SpecialCardOrders, TitleOrdersSection } from '@/components/TitleOrders'
 import {
   Tooltip,
   TooltipContent,
@@ -206,11 +206,13 @@ function CalamityWarnings({ state }: { state: StateData }) {
 
 function DeckOrdersSection({
   state,
+  player,
   regions,
   specialDraft,
   onSpecialChange,
 }: {
   state: StateData
+  player: PlayerId
   regions: Region[]
   specialDraft: string
   onSpecialChange: (text: string) => void
@@ -232,6 +234,12 @@ function DeckOrdersSection({
       <SpecialCardOrders
         state={state}
         regions={regions}
+        draft={specialDraft}
+        onChange={onSpecialChange}
+      />
+      <AppeasementOrders
+        state={state}
+        player={player}
         draft={specialDraft}
         onChange={onSpecialChange}
       />
@@ -924,6 +932,7 @@ export function OrdersPanel({
       </div>
       <DeckOrdersSection
         state={state}
+        player={player}
         regions={regions}
         specialDraft={specialDraft}
         onSpecialChange={onSpecialChange}

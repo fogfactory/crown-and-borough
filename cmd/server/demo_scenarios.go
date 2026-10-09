@@ -22,6 +22,10 @@ var demoScenarios = map[string]struct {
 		description: "winter, P1 is pope with a bishop-astrologer, a Witch, cards in hand; P2 holds a cardinal and an excommunicated noble",
 		apply:       forgeWinter,
 	},
+	"appeasement": {
+		description: "spring, P1 has a bishop, a cardinal and an abbess; rebel armies of 1 to 3 troops stand in their regions and elsewhere; P1 has plenty of R",
+		apply:       forgeAppeasement,
+	},
 	"action": {
 		description: "spring, P1 holds bonus cards; a famine is active, a bad weather is announced (one bent by a ritual)",
 		apply:       forgeAction,
@@ -156,5 +160,97 @@ func forgeAction(state *models.GameState) error {
 		}
 	}
 	giveSpecialCards(state, "P1", models.CardKindFairWeather, models.CardKindAbundantHarvest, models.CardKindRevolt)
+	return nil
+}
+
+// forgeAppeasement sets up the revolt appeasement cases (specs/religieux.md):
+// P1's first noble is the bishop of the region it stands in, its second noble
+// a cardinal (and bishop of another region), and a new abbess stands beside
+// the cardinal. Rebel armies wait in four places: 2 troops and 1 troop in the
+// bishop's region, 3 troops in the cardinal's, 1 troop in a region where P1 has
+// no cleric. The orders to try, with the noble codes printed by the game:
+//
+//	P AG <bishop> <rebels in his region>      free rite, may kill
+//	P AP <bishop> <rebels in his region>      paid, 2^size R
+//	P AP <bishop> <rebels elsewhere>          rejected: not his bishopric
+//	P AP <cardinal> <rebels anywhere>         paid, anywhere
+//	P AG <abbess> <rebels where she stands>   the only way open to her
+func forgeAppeasement(state *models.GameState) error {
+	p1 := ownedNobles(state, "P1")
+	if len(p1) < 2 || len(state.Regions) < 3 {
+		return fmt.Errorf("the base game lacks nobles or regions")
+	}
+	regionOf := func(territoryID models.TerritoryID) int {
+		for index, region := range state.Regions {
+			for _, id := range region.Territories {
+				if id == territoryID {
+					return index
+				}
+			}
+		}
+		return -1
+	}
+	bishop, cardinal := state.Nobles[p1[0]], state.Nobles[p1[1]]
+	bishopRegion, cardinalRegion := regionOf(bishop.LocationID), regionOf(cardinal.LocationID)
+	if bishopRegion < 0 || cardinalRegion < 0 {
+		return fmt.Errorf("a noble stands outside every region")
+	}
+	if cardinalRegion == bishopRegion {
+		// Their own bishoprics must differ: the cardinal takes the next region.
+		cardinalRegion = (bishopRegion + 1) % len(state.Regions)
+	}
+	state.Bishops = []models.Bishop{
+		{Region: state.Regions[bishopRegion].ID, Noble: bishop.ID},
+		{Region: state.Regions[cardinalRegion].ID, Noble: cardinal.ID},
+	}
+	state.Cardinals = []models.NobleID{cardinal.ID}
+	state.Nobles = append(state.Nobles, models.Noble{
+		ID: "N901", Code: "ZAB", Name: "Aliénor", Sex: models.SexFemale, OwnerID: "P1",
+		LocationID: cardinal.LocationID, Status: models.NobleStatusFree,
+		Dignities: []models.Dignity{models.DignityAbbess}, AbbeyRegion: state.Regions[cardinalRegion].Seed,
+	})
+	occupied := make(map[models.TerritoryID]bool)
+	for _, army := range state.Armies {
+		occupied[army.TerritoryID] = true
+	}
+	freeIn := func(region int) (models.TerritoryID, bool) {
+		for _, id := range state.Regions[region].Territories {
+			if !occupied[id] {
+				occupied[id] = true
+				return id, true
+			}
+		}
+		return "", false
+	}
+	other := 0
+	for other == bishopRegion || other == cardinalRegion {
+		other++
+	}
+	next := 1
+	for _, rebel := range []struct {
+		region int
+		size   int
+	}{{bishopRegion, 2}, {bishopRegion, 1}, {cardinalRegion, 3}, {other, 1}} {
+		territoryID, found := freeIn(rebel.region)
+		if !found {
+			return fmt.Errorf("region %d has no free territory for a rebel army", rebel.region)
+		}
+		armyID := models.ArmyID(fmt.Sprintf("ZR%d", next))
+		next++
+		state.Armies = append(state.Armies, models.Army{ID: armyID, OwnerID: models.NeutralPlayerID, TerritoryID: territoryID, Size: rebel.size})
+		territoryState := state.TerritoryStates[territoryID]
+		territoryState.Army = &armyID
+		state.TerritoryStates[territoryID] = territoryState
+		fmt.Printf("demo appeasement: %d rebel troops at %s (region %s)\n", rebel.size, territoryID, state.Regions[rebel.region].Seed)
+	}
+	state.NextArmyID += len(state.Armies)
+	for territoryID, territoryState := range state.TerritoryStates {
+		if owner, controlled := state.TerritoryController(territoryID); controlled && owner == "P1" && territoryState.Infrastructures != nil {
+			territoryState.Resources = 40
+			state.TerritoryStates[territoryID] = territoryState
+		}
+	}
+	fmt.Printf("demo appeasement: bishop %s (region %s), cardinal %s (bishop of %s), abbess ZAB stands at %s\n",
+		bishop.Code, state.Regions[bishopRegion].Seed, cardinal.Code, state.Regions[cardinalRegion].Seed, cardinal.LocationID)
 	return nil
 }

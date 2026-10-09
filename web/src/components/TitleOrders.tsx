@@ -545,3 +545,106 @@ const SHORT_CODES: Record<CardKind, string> = {
 function shortCode(kind: CardKind): string {
   return SHORT_CODES[kind]
 }
+
+/** Region seed of a territory, from the bishoprics (a region is a bishopric). */
+function regionSeedOf(state: StateData, territory: string): string | undefined {
+  return state.bishoprics?.find((bishopric) => bishopric.territories.includes(territory))?.region
+}
+
+/**
+ * Revolt appeasement of the player's clerics (pope, cardinal, bishop, abbess),
+ * played in the action sheet without a card: the free rite (`P AG HHH TER`) in
+ * the region where the cleric stands, and the safe paid appeasement
+ * (`P AP HHH TER`) of a bishop in their bishopric, a cardinal or the pope.
+ */
+export function AppeasementOrders({
+  state,
+  player,
+  draft,
+  onChange,
+}: {
+  state: StateData
+  player: PlayerId
+  draft: string
+  onChange: (text: string) => void
+}) {
+  const { t } = useLanguage()
+  const costBase = state.appeasementCostBase ?? 2
+  const rebels = state.territories.filter((entry) => entry.army?.owner === 'NEUTRAL')
+  if (state.season === 'winter' || rebels.length === 0) return null
+  const lines = draftLines(draft)
+  const add = (line: string) => onChange(appendDraftLine(draft, line))
+  const clerics = state.nobles.filter(
+    (noble) =>
+      noble.owner === player &&
+      noble.status !== 'dungeon' &&
+      (noble.religiousTitle || (noble.dignities ?? []).includes('abbess')) &&
+      !lines.some(
+        (line) => /^P (?:AG|FQ|AP|PQ) /.test(line) && line.split(/\s+/)[2] === noble.code,
+      ),
+  )
+  const rebelOption = (entry: StateData['territories'][number]): OrderFieldOption => ({
+    value: entry.id,
+    label: t('orders.appease.rebels', { territory: entry.id, count: entry.army?.size ?? 0 }),
+  })
+  const holder = (noble: Noble) =>
+    t(`orders.holder.${noble.religiousTitle ?? 'abbess'}` as MessageKey, {
+      name: noble.firstName ?? noble.name,
+    })
+
+  const launchers: React.ReactNode[] = []
+  for (const noble of clerics) {
+    const here = regionSeedOf(state, noble.location)
+    const ritual = rebels.filter((entry) => here && regionSeedOf(state, entry.id) === here)
+    const title = noble.religiousTitle
+    const ownRegions = new Set(
+      (state.bishoprics ?? [])
+        .filter((bishopric) => bishopric.bishop === noble.code)
+        .map((bishopric) => bishopric.region),
+    )
+    const paid = rebels.filter((entry) =>
+      title === 'cardinal' || title === 'pope'
+        ? true
+        : title === 'bishop' && ownRegions.has(regionSeedOf(state, entry.id) ?? ''),
+    )
+    const modes: OrderFieldOption[] = []
+    if (ritual.length > 0) modes.push({ value: 'rite', label: t('orders.appease.rite') })
+    if (paid.length > 0) modes.push({ value: 'paid', label: t('orders.appease.paid') })
+    if (modes.length === 0) continue
+    launchers.push(
+      <OrderLauncher
+        key={`appease-${noble.code}`}
+        label={`${holder(noble)} · ${t('orders.appease')}`}
+        title={t('orders.appease')}
+        description={t('orders.appeaseHelp')}
+        hint={(values) => {
+          if (values.mode !== 'paid') return t('orders.appease.riteHelp')
+          const size = state.territories.find((entry) => entry.id === values.territory)?.army?.size ?? 0
+          return size > 0 ? t('orders.hint.cost', { cost: costBase ** size }) : null
+        }}
+        fields={[
+          { key: 'mode', label: t('orders.field.appeaseMode'), options: modes },
+          {
+            key: 'territory',
+            label: t('orders.field.territory'),
+            options: (values) => (values.mode === 'paid' ? paid : ritual).map(rebelOption),
+          },
+        ]}
+        buildOrder={(values) =>
+          values.territory
+            ? {
+                line: `P ${values.mode === 'paid' ? 'AP' : 'AG'} ${noble.code} ${values.territory}`,
+                comment: t(
+                  values.mode === 'paid' ? 'orders.comment.appeasePaid' : 'orders.comment.appeaseRite',
+                  { name: noble.name, territory: values.territory },
+                ),
+              }
+            : null
+        }
+        onConfirm={add}
+      />,
+    )
+  }
+  if (launchers.length === 0) return null
+  return <div className="flex flex-wrap gap-1.5">{launchers}</div>
+}

@@ -46,6 +46,7 @@ export type EventType =
   | 'calamity_canceled'
   | 'bonus_effect'
   | 'neutral_army_created'
+  | 'revolt_appeased'
   | 'plague_noble_death'
   | 'plague_noble_survived'
   | 'trial'
@@ -472,6 +473,8 @@ export interface StateData {
   openElections?: OpenElection[]
   /** Outside winter: the territories a Révolte card can be played on. */
   revoltTargets?: string[]
+  /** Outside winter: the paid appeasement of a rebel army of n troops costs base^n R. */
+  appeasementCostBase?: number
   /** Winter only: the possible winter orders of the viewer. */
   winterAids?: WinterAids
   /** Hands revealed by a spy held hostage by their owner. */
@@ -967,6 +970,7 @@ export interface SeasonEffectReport {
   productionLost?: number
   rationsLost?: number
   reason?: string
+  cost?: number
   dignity?: Dignity
 }
 
@@ -1053,7 +1057,7 @@ export interface DeceasedNoble {
   name: string
   owner: PlayerId
   sex?: 'male' | 'female'
-  cause: 'natural' | 'execution' | 'assassination'
+  cause: 'natural' | 'execution' | 'assassination' | 'martyr'
   turn: number
 }
 

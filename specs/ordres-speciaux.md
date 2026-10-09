@@ -45,6 +45,9 @@ Aucun noble n'est requis :
 - `P BT TER` joue Beau temps au printemps, en été ou en automne ;
 - `P RA TER` joue Récolte abondante au printemps, en été ou en automne ;
 - `P RE TER` joue Révolte sur le territoire pendant ces saisons, si une mauvaise récolte affecte la région du territoire, si un impôt (taxe ou dîme) a été joué sur la capitale du fief ou l'évêché auquel appartient le territoire la saison courante ou la saison précédente, ou si un procès a exécuté une dame dans la région du territoire à la saison d'action précédente ; chaque carte ajoute un jet borné à l'armée neutre commune du territoire, qui se bat contre l'occupant le cas échéant ;
+- `P AG HHH TER` (rite gratuit, risqué) et `P AP HHH TER` (payant, sûr) font jouer
+  à un ecclésiastique l'apaisement de révolte, sans carte : voir
+  [religieux.md § Apaisement de révolte](religieux.md#apaisement-de-révolte) ;
 - `P PR HHH` joue un Procès sur le noble HHH, par exception à la règle « `TER` est
   le village seed d'une région » ci-dessous ; la carte est consommée à la pose et
   le procès est jugé en fin de tour (dames.md § Carte de procès) ;
