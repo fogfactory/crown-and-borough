@@ -126,7 +126,7 @@ func TestHerbalistProtectsFromPlageOnItsCellAndNeighbours(t *testing.T) {
 	}
 }
 
-func TestHerbalistSparesRationsAndWitchBurdensRivals(t *testing.T) {
+func TestHerbalistSparesRationsAndPoisonerBurdensRivals(t *testing.T) {
 	state := effectTestState()
 	state.Armies = []models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 3}, {ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1}}
 	state.TerritoryStates["AAA"] = models.TerritoryState{Army: armyPointer("A1")}
@@ -151,10 +151,10 @@ func TestHerbalistSparesRationsAndWitchBurdensRivals(t *testing.T) {
 	if got := armyDemand(ctx, state.Armies[1]); got != 0 {
 		t.Errorf("holder demand = %d, want 0 (cost 1 spared)", got)
 	}
-	// The witch burdens every rival army of her region, not her owner's.
+	// The poisoner burdens every rival army of her region, not her owner's.
 	state.Nobles[0].Status = models.NobleStatusFree
 	state.Nobles[0].LocationID = "AAA"
-	state.Nobles[0].Dignities = []models.Dignity{models.DignityWitch}
+	state.Nobles[0].Dignities = []models.Dignity{models.DignityPoisoner}
 	ctx = newResolutionContext(state, testBalance())
 	if got := armyDemand(ctx, state.Armies[0]); got != base {
 		t.Errorf("owner demand = %d, want %d", got, base)

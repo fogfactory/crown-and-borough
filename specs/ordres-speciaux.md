@@ -30,6 +30,10 @@ pioche, le renouvellement, les défausses et la résolution déterministe des
 calamités. Les calamités se résolvent au printemps, en été et en automne ;
 aucune calamité ne se résout en hiver. L’augure du printemps révèle pour chaque
 calamité son kind, sa saison et sa région ; les augures futures restent cachées.
+La saison d'une calamité est tirée au hasard parmi les saisons de l'année
+suivante qui ont encore un slot libre (un par saison) ; sa région est tirée au
+hasard, sauf pour une calamité déviée par le rituel de la Sorcière
+([dames.md](dames.md#sorcière-cachée)).
 
 ## Syntaxe des ordres
 

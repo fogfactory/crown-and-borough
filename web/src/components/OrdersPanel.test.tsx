@@ -786,6 +786,7 @@ describe('OrdersPanel title and card order dialogs', () => {
     cardinalCost: 8,
     fiefSites: [],
     fiefCostPerTerritory: 2,
+    rituals: [],
   }
 
   function renderWinter(
@@ -993,6 +994,43 @@ describe('OrdersPanel title and card order dialogs', () => {
     fireEvent.change(within(dialog).getByLabelText('Calamity to strike'), { target: { value: '2' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
     expect(onWinterChange).toHaveBeenCalledWith('V C POP 2 # strike calamity 2\n')
+  })
+
+  it('configures a ritual: call a calamity, or fix a season, never both', () => {
+    const onWinterChange = renderWinter({
+      winterAids: { ...aids, rituals: [{ noble: 'POP', region: 'AAA' }] },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Ritual (S R)' }))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText('It would strike the region of AAA.')).toBeTruthy()
+    fireEvent.change(within(dialog).getByLabelText('Calamity or season'), { target: { value: 'MT' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
+    expect(onWinterChange).toHaveBeenCalledWith('S R POP MT # ritual: call Bad weather\n')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ritual (S R)' }))
+    const second = screen.getByRole('dialog')
+    fireEvent.change(within(second).getByLabelText('Effect'), { target: { value: 'season' } })
+    expect(
+      within(within(second).getByLabelText('Calamity or season')).getAllByRole('option'),
+    ).toHaveLength(3)
+    fireEvent.click(within(second).getByRole('button', { name: 'Add the order' }))
+    expect(onWinterChange).toHaveBeenLastCalledWith(expect.stringMatching(/^S R POP 1 # ritual: fix /))
+  })
+
+  it('offers no ritual without a Witch, or once one is on the sheet', () => {
+    renderWinter({ winterAids: aids })
+    expect(screen.queryByRole('button', { name: 'Ritual (S R)' })).toBeNull()
+  })
+
+  it('words the announcement of a ritual calamity differently', () => {
+    renderAction({
+      announcements: [
+        { kind: 'bad_weather', season: 'summer', region: 'AAA', year: 1001, ritual: true },
+        { kind: 'famine', season: 'autumn', region: 'BBB', year: 1001 },
+      ],
+    })
+    expect(screen.getByText(/AAA \(unusual omens\)/)).toBeTruthy()
+    expect(screen.getAllByText(/unusual omens/)).toHaveLength(1)
   })
 
   it('plays a special card on a region outside winter', () => {

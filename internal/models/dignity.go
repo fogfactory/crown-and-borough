@@ -18,6 +18,7 @@ const (
 	DignityChevalierDEon Dignity = "chevalier_d_eon"
 	DignityCorrespondent Dignity = "correspondent"
 	DignitySpy           Dignity = "spy"
+	DignityPoisoner      Dignity = "poisoner"
 	DignityWitch         Dignity = "witch"
 )
 
@@ -39,6 +40,7 @@ const (
 	DignityEonCardCode        = "EON"
 	DignityCorrespondentCode  = "COR"
 	DignitySpyCardCode        = "ESP"
+	DignityPoisonerCardCode   = "EMP"
 	DignityWitchCardCode      = "SOR"
 	DignityCardinalCardCode   = "CAR"
 )
@@ -113,6 +115,9 @@ type DignityEffect struct {
 	// she can only be tried once excommunicated (specs/dames.md § Carte de
 	// procès).
 	ExemptFromDirectTrial bool
+	// Ritual lets the free carrier's owner order a winter ritual that bends
+	// the calamities of the next year (specs/dames.md § Sorcière).
+	Ritual bool
 	// ChangesSexToMale turns the carrier into a male noble when it is played
 	// (the chevalier d'Éon).
 	ChangesSexToMale bool
@@ -151,13 +156,14 @@ var dignityEffects = map[Dignity]DignityEffect{
 	},
 	DignityCorrespondent: {CardCode: DignityCorrespondentCode, FemaleOnly: true, Hidden: true, SeesHostOrders: true},
 	DignitySpy:           {CardCode: DignitySpyCardCode, FemaleOnly: true, Hidden: true, SeesHostHand: true},
-	DignityWitch:         {CardCode: DignityWitchCardCode, FemaleOnly: true, Hidden: true, RivalConsumption: 1},
+	DignityPoisoner:      {CardCode: DignityPoisonerCardCode, FemaleOnly: true, Hidden: true, RivalConsumption: 1},
+	DignityWitch:         {CardCode: DignityWitchCardCode, FemaleOnly: true, Hidden: true, Ritual: true},
 }
 
 // LadyDignities lists the dignities of the ladies, in deck order.
 var LadyDignities = []Dignity{
 	DignityDArc, DignityCastellan, DignityAbbess, DignityHerbalist, DignityAstrologer,
-	DignityChevalierDEon, DignityCorrespondent, DignitySpy, DignityWitch,
+	DignityChevalierDEon, DignityCorrespondent, DignitySpy, DignityPoisoner, DignityWitch,
 }
 
 // IsValid reports whether the dignity is a known value.
@@ -263,6 +269,12 @@ func (n Noble) DignityActive() bool { return n.Status != NobleStatusDungeon }
 
 func (n Noble) activeDignity(test func(DignityEffect) bool) bool {
 	return n.DignityActive() && n.anyDignity(test)
+}
+
+// CanPerformRitual reports whether the noble can order a ritual: she carries
+// a ritual dignity and is not in a dungeon.
+func (n Noble) CanPerformRitual() bool {
+	return n.activeDignity(func(e DignityEffect) bool { return e.Ritual })
 }
 
 // ProtectsFromPlague reports whether the noble shields its surroundings from

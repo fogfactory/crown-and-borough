@@ -62,7 +62,8 @@ liste d'investissements directs, traités dans l'ordre saisi :
 - `T N` — piocher une carte dans le deck de nobles (une fois par hiver) ; les ordres qui jouent une carte du deck de nobles (`R N`, `C N`, `D N`) se soumettent aussi pendant les saisons d'action, dans le champ `winter` ;
 - `R N CCC XXX` — jouer la carte de noble `CCC` de la main pour recruter ce noble sur `XXX` ;
 - `C N HHH CCC` — consomme une carte de prétention : l'héritier `HHH` (noble du joueur posé pendant un mariage de `CCC`) réclame les titres de fief du noble `CCC` d'un autre joueur ([succession.md](succession.md#prétentions-claims)) ;
-- `D N NNN CCC` — jouer la carte de dignité `CCC` (`BAS` : bâtard ; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `SOR` : dignités des dames ; `D N NNN ABB TER` pour l'Abbesse, voir `specs/dames.md`) de la main sur le noble `NNN` ;
+- `D N NNN CCC` — jouer la carte de dignité `CCC` (`BAS` : bâtard ; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `EMP`, `SOR` : dignités des dames ; `D N NNN ABB TER` pour l'Abbesse, voir `specs/dames.md`) de la main sur le noble `NNN` ;
+- `S R NNN CAL` / `S R NNN N` — rituel de la Sorcière `NNN` : appeler la calamité `CAL` (`PE`, `MT`, `FA`) ou fixer la saison `N` (`1` à `3`) d'une calamité de l'année suivante, sur la région de la Sorcière ([dames.md](dames.md#sorcière-cachée)) ;
 - `D C CCC` — défausser sans la jouer la carte `CCC` (trigramme de noble ou code de dignité) de la main de nobles, gratuit et sans limite par hiver ;
 - `A N XXX` — annoblir gratuitement une armée sur `XXX` lorsque le joueur n'a plus aucun noble ;
 - `R T XXX` — recruter une troupe sur `XXX` ;

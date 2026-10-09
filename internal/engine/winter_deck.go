@@ -90,6 +90,7 @@ func retireCurrentAugury(ctx *resolutionContext) {
 
 func resolveWinterDeckOrders(ctx *resolutionContext, deckOrders map[models.PlayerID][]models.DeckOrder) {
 	retireCurrentAugury(ctx)
+	defer ctx.concludeRitual()
 	for _, playerID := range sortedPlayerIDs(ctx.state.Players) {
 		for _, order := range deckOrders[playerID] {
 			if order.Type == models.DeckOrderTypeDiscard {
@@ -187,6 +188,10 @@ func (ctx *resolutionContext) programCalamity(cardID models.SpecialCardID, kind 
 		return false
 	}
 	season := free[newCalamitySeasonRNG(ctx.state.Seed, ctx.state.Turn, cardID).IntN(len(free))]
+	ritual := ctx.ritualFor(kind, len(augury.Calamities) == 0, free)
+	if ritual != nil && ritual.order.Season != "" {
+		season = ritual.order.Season
+	}
 	seeds := make([]models.TerritoryID, len(ctx.state.Regions))
 	for index, region := range ctx.state.Regions {
 		seeds[index] = region.Seed
@@ -194,9 +199,13 @@ func (ctx *resolutionContext) programCalamity(cardID models.SpecialCardID, kind 
 	sort.Slice(seeds, func(i, j int) bool { return seeds[i] < seeds[j] })
 	regionRNG := newCalamityRegionRNG(ctx.state.Seed, ctx.state.Turn, cardID)
 	regionSeed := seeds[regionRNG.IntN(len(seeds))]
-	augury.Calamities = append(augury.Calamities, models.Calamity{CardID: cardID, Kind: kind, Year: year, Season: season, RegionSeed: regionSeed})
+	if ritual != nil {
+		regionSeed = ritual.region
+		ctx.completeRitual(ritual, kind, season)
+	}
+	augury.Calamities = append(augury.Calamities, models.Calamity{CardID: cardID, Kind: kind, Year: year, Season: season, RegionSeed: regionSeed, Ritual: ritual != nil})
 	ctx.state.Auguries[year] = augury
-	ctx.events = append(ctx.events, Event{Type: EventTypeCalamityScheduled, Phase: winterPhase, CardID: cardID, CardKind: kind, RegionSeed: regionSeed, Season: season, Year: year})
+	ctx.events = append(ctx.events, Event{Type: EventTypeCalamityScheduled, Phase: winterPhase, CardID: cardID, CardKind: kind, RegionSeed: regionSeed, Season: season, Year: year, Ritual: ritual != nil})
 	return true
 }
 

@@ -318,6 +318,8 @@ function winterOrderLabel(order: WinterOrder, map: MapData | null, t: Translate)
       return `D N ${order.nobleCode ?? '—'} ${order.cardCode ?? '—'}${order.territory ? ` ${order.territory}` : ''}`
     case 'calamity_veto':
       return `V C ${order.nobleCode ?? '—'} ${(order.indices ?? []).join(' ')}`.trim()
+    case 'ritual':
+      return `S R ${order.nobleCode ?? '—'}`
     case 'recruit_troop':
       return `R T ${territory}`
     case 'build':
@@ -358,6 +360,7 @@ const DIGNITY_CARD_CODES: Record<Dignity, string> = {
   chevalier_d_eon: 'EON',
   correspondent: 'COR',
   spy: 'ESP',
+  poisoner: 'EMP',
   witch: 'SOR',
   cardinal: 'CAR',
 }
@@ -407,6 +410,8 @@ function investmentLabel(
       return 'D C'
     case 'claim':
       return `C N ${investment.nobleCode ?? '—'} ${investment.claimTarget ?? '—'}`
+    case 'ritual':
+      return `S R ${investment.nobleCode ?? '—'}`
     case 'dignity':
       return `D N ${investment.nobleCode ?? '—'} ${DIGNITY_CARD_CODES[investment.dignity ?? 'bastard']}`
     case 'prosperity_founded':
@@ -454,6 +459,11 @@ function winterDetails(
   map: MapData | null,
   t: Translate,
 ): string {
+  if (investment.kind === 'ritual') {
+    return t(`reports.ritual.${investment.reason ?? 'declared'}` as MessageKey, {
+      region: territoryLabel(map, investment.territory, t),
+    })
+  }
   if (investment.reason) return reportReason(investment.reason, t) ?? investment.reason
   if (investment.kind === 'claim' && investment.nobleName) {
     return t('reports.claimDetails', {
@@ -532,7 +542,7 @@ function cardEventLabel(card: CardReport, map: MapData | null, t: Translate): st
     case 'deck_restore':
       return t('reports.cardRestored', { card: label, player })
     case 'calamity_scheduled':
-      return t('reports.cardScheduled', {
+      return t(card.ritual ? 'reports.cardScheduledOmens' : 'reports.cardScheduled', {
         card: label,
         region,
         season: card.season ? t(SEASON_LABEL_KEYS[card.season]) : '—',

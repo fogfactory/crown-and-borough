@@ -273,7 +273,7 @@ ordres d'armée ; un noble recruté n'agit qu'au tour suivant.
 |---|---|
 | `R N CCC XXX` | Recruter le noble de la carte `CCC` sur `XXX`. |
 | `C N HHH NNN` | Prétention : l'héritier `HHH` réclame les titres du noble `NNN` d'un autre joueur (consomme une carte `CLM`). |
-| `D N NNN CCC` | Conférer à `NNN` la dignité de la carte `CCC` (`BAS` : bâtard ; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `SOR` : dignités des dames). |
+| `D N NNN CCC` | Conférer à `NNN` la dignité de la carte `CCC` (`BAS` : bâtard ; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `EMP`, `SOR` : dignités des dames). |
 
 ### Attaque (`A`) et jonction (`J`)
 
@@ -701,7 +701,7 @@ investissements directs, une ligne par ordre, appliqués dans l'ordre saisi.
 | Piocher une carte de noble | `T N` | une seule fois par hiver et par joueur ; le deck de nobles, commun à tous, ne doit pas être épuisé | 0 |
 | Recruter un noble | `R N CCC XXX` | `CCC` est une carte de noble de ta main ; `XXX` contrôlé, avec un château ou un village et une armée du joueur, et moins de nobles vivants possédés que ton plafond, {{noble_limit}} de base (voir ci-dessous) | 0 |
 | Réclamer des titres | `C N HHH CCC` | `CLM` est une carte de prétention de ta main ; `HHH` est un de tes nobles, posé pendant un mariage de `CCC` avec l'un de tes nobles, non bâtard et sans prétention en cours ; `CCC` est un noble d'un autre joueur | 0 |
-| Conférer une dignité | `D N NNN CCC` | `NNN` est un noble quelconque, à toi ou à un adversaire ; `CCC` est une carte de dignité de ta main (`BAS` : bâtard ; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `SOR` : dames ; Bloquées : non mariées) ; un noble ne porte une dignité qu'une fois, et une dame ne porte qu'une seule dignité de dame (`dignity_exclusive`) | 0 |
+| Conférer une dignité | `D N NNN CCC` | `NNN` est un noble quelconque, à toi ou à un adversaire ; `CCC` est une carte de dignité de ta main (`BAS` : bâtard ; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `EMP`, `SOR` : dames ; Bloquées : non mariées) ; un noble ne porte une dignité qu'une fois, et une dame ne porte qu'une seule dignité de dame (`dignity_exclusive`) | 0 |
 | Défausser une carte de noble | `D C CCC` | `CCC` est une carte de ta main de nobles (trigramme de noble ou `BAS`) ; sans limite par hiver ; la carte va à la défausse du deck | 0 |
 | Recruter une troupe | `R T XXX` | `XXX` contrôlé, et un noble libre du joueur sur `XXX` ou adjacent | {{costs.troop}} |
 | Construire ou améliorer un moulin | `C M XXX` | `XXX` contrôlé ; un **nouveau** moulin exige une case **vide** adjacente à un château ou village, ou portant elle-même un château ou village ; un moulin **existant** peut toujours être amélioré, même isolé | {{costs.mill_levels.0}} (N1), {{costs.mill_levels.1}} (N2), {{costs.mill_levels.2}} (N3) |
@@ -792,7 +792,8 @@ voient une dame sans dignité, ni dans la vue d'état ni dans le rapport.
 | Chevalier d'Éon (cachée) | `EON` | Libre, dame non mariée | La dame est remplacée par un noble homme, au prénom et au code tirés des prénoms inutilisés, avec toutes les prérogatives d'un homme (il se marie donc avec une femme). Son identité de dame reste secrète : toi seul la connais, jusqu'à ce qu'elle soit démasquée — capturée au combat, faite prisonnière, ou mariée et visée par un Claim (le seigneur visé devient alors bâtard, le mariage est annulé et le Claim est perdu). Une fois démasquée, son identité et sa dignité sont visibles de tous. |
 | Correspondante (cachée) | `COR` | Libre | Otage chez un joueur, elle te fait voir tous les ordres que ce joueur émet. |
 | Espionne (cachée) | `ESP` | Libre | Otage chez un joueur, elle te dévoile sa main complète (ordres spéciaux, nobles et dignités). |
-| Sorcière (cachée) | `SOR` | Libre | Toute armée d'un autre joueur dans sa région consomme 1 ration de plus par tour, sans autre précision pour ses propriétaires. |
+| Empoisonneuse (cachée) | `EMP` | Libre | Toute armée d'un autre joueur dans sa région consomme 1 ration de plus par tour, sans autre précision pour ses propriétaires. |
+| Sorcière (cachée) | `SOR` | Libre | En hiver, ton ordre `S R NNN CAL` appelle une calamité (`PE`, `MT` ou `FA`) : si elle est tirée pour l'année suivante, elle frappe la région où se trouve la Sorcière, sinon le rituel échoue. Ton ordre `S R NNN N` fixe la saison (`1` printemps, `2` été, `3` automne) de la première calamité tirée, qui frappe alors la région de la Sorcière. Un rituel par hiver, l'un ou l'autre ; les autres joueurs voient une annonce de calamité légèrement inhabituelle, sans savoir pourquoi. Aucune protection contre la peste. Révélée, elle est excommuniée d'office. |
 
 C'est ici, en hiver, que se règle le sort des nobles ennemis capturés en
 combat (section 6) : `O`/`P` fait basculer un prisonnier entre `hostage` et

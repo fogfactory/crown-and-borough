@@ -65,7 +65,16 @@ function OrderDialogBody({
   onClose,
 }: OrderDialogProps) {
   const { t } = useLanguage()
-  const [values, setValues] = useState(() => initialValues(fields))
+  const [chosen, setValues] = useState(() => initialValues(fields))
+  // A select whose options changed with another field falls back to its first
+  // option when its previous value is no longer offered.
+  const values = { ...chosen }
+  for (const field of fields) {
+    const options = fieldOptions(field, values)
+    if (options && !field.multi && !options.some((option) => option.value === values[field.key])) {
+      values[field.key] = options[0]?.value ?? ''
+    }
+  }
   const order = buildOrder(values)
 
   return (

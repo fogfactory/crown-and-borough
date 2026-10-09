@@ -23,6 +23,15 @@ type WinterAids struct {
 	// FiefSites are the groups of territories a fief can be founded on.
 	FiefSites            []FiefSite `json:"fiefSites"`
 	FiefCostPerTerritory int        `json:"fiefCostPerTerritory"`
+	// Rituals are the Witches of the viewer that can order a ritual, with the
+	// region (seed village) the calamity would fall on.
+	Rituals []RitualOption `json:"rituals"`
+}
+
+// RitualOption is a Witch able to perform a ritual.
+type RitualOption struct {
+	Noble  models.NobleCode   `json:"noble"`
+	Region models.TerritoryID `json:"region"`
 }
 
 // ExcommunicationTarget is a noble the pope can excommunicate. Blocker is the
@@ -55,10 +64,12 @@ func ForecastWinterAids(state *models.GameState, balance assetgen.Balance, viewe
 		CardinalCost:         balance.Religion.CardinalCost,
 		FiefSites:            []FiefSite{},
 		FiefCostPerTerritory: balance.Costs.FiefPerTerritory,
+		Rituals:              []RitualOption{},
 	}
 	ctx.papalAids(viewer, aids)
 	ctx.cardinalAids(viewer, aids)
 	ctx.fiefAids(viewer, aids)
+	ctx.ritualAids(viewer, aids)
 	return aids
 }
 
@@ -155,6 +166,18 @@ func (ctx *resolutionContext) fiefAids(viewer models.PlayerID, aids *WinterAids)
 		sort.Slice(site.Castles, func(i, j int) bool { return site.Castles[i] < site.Castles[j] })
 		if len(site.Territories) >= models.FiefMinTerritories && len(site.Castles) > 0 {
 			aids.FiefSites = append(aids.FiefSites, site)
+		}
+	}
+}
+
+func (ctx *resolutionContext) ritualAids(viewer models.PlayerID, aids *WinterAids) {
+	for i := range ctx.state.Nobles {
+		noble := &ctx.state.Nobles[i]
+		if noble.OwnerID != viewer || !noble.CanPerformRitual() {
+			continue
+		}
+		if region := regionForTerritory(ctx, noble.LocationID); region != "" {
+			aids.Rituals = append(aids.Rituals, RitualOption{Noble: models.NobleCode(noble.Code), Region: region})
 		}
 	}
 }

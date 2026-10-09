@@ -176,7 +176,7 @@ function CalamityWarnings({ state }: { state: StateData }) {
           <li
             key={`${announcement.year}-${announcement.season}-${announcement.kind}-${index}`}
           >
-            {t('orders.calamityWarningItem', {
+            {t(announcement.ritual ? 'orders.calamityWarningItemOmens' : 'orders.calamityWarningItem', {
               card: formatCardLabel(announcement.kind, t),
               season: t(SEASON_LABEL_KEYS[announcement.season]),
               region: announcement.region,

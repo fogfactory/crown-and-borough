@@ -258,6 +258,7 @@ type AuguryCalamityReport struct {
 	Kind   models.CardKind    `json:"kind"`
 	Season models.Season      `json:"season"`
 	Region models.TerritoryID `json:"region"`
+	Ritual bool               `json:"ritual,omitempty"`
 }
 
 type CardReport struct {
@@ -268,6 +269,7 @@ type CardReport struct {
 	Season    models.Season      `json:"season,omitempty"`
 	Outcome   Outcome            `json:"outcome"`
 	Reason    string             `json:"reason,omitempty"`
+	Ritual    bool               `json:"ritual,omitempty"`
 }
 
 type SeasonEffectReport struct {
@@ -422,7 +424,7 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 		if augury, exists := after.Auguries[after.Year()]; exists && augury.Revealed {
 			report.Augury = &AuguryReport{Year: augury.Year, Capacities: copySeasonCapacities(augury.Capacities), Calamities: []AuguryCalamityReport{}}
 			for _, calamity := range augury.Calamities {
-				report.Augury.Calamities = append(report.Augury.Calamities, AuguryCalamityReport{Kind: calamity.Kind, Season: calamity.Season, Region: calamity.RegionSeed})
+				report.Augury.Calamities = append(report.Augury.Calamities, AuguryCalamityReport{Kind: calamity.Kind, Season: calamity.Season, Region: calamity.RegionSeed, Ritual: calamity.Ritual})
 			}
 		}
 	}
@@ -635,7 +637,7 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 			}
 			report.Winter.Rumors = append(report.Winter.Rumors, RumorReport{Kind: event.CardKind, Key: event.RumorKey, Level: event.RumorLevel})
 		case EventTypeCalamityScheduled, EventTypeDeckDiscard, EventTypeDeckOrderPlayed, EventTypeDeckRestore:
-			card := CardReport{EventType: event.Type, Kind: event.CardKind, Player: event.OwnerID, Region: event.RegionSeed, Season: event.Season, Outcome: OutcomeSuccess}
+			card := CardReport{EventType: event.Type, Kind: event.CardKind, Player: event.OwnerID, Region: event.RegionSeed, Season: event.Season, Outcome: OutcomeSuccess, Ritual: event.Ritual}
 			report.Cards = append(report.Cards, card)
 			if event.Phase == winterPhase {
 				if report.Winter == nil {
@@ -652,7 +654,7 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 				Reason: event.Reason, Dignity: event.Dignity, Fief: event.FiefTitle,
 			})
 		case EventTypeWinterStock, EventTypeRecruit, EventTypeBuild, EventTypeUpgrade, EventTypeFortify,
-			EventTypeRejected, EventTypeCapitalElected, EventTypeNobleDraw, EventTypeNobleDiscard, EventTypeDignity, EventTypeClaim, EventTypeCardinalPurchase, EventTypeFiefFounded, EventTypeFiefAssigned, EventTypeFiefAutoAssigned:
+			EventTypeRejected, EventTypeRitual, EventTypeCapitalElected, EventTypeNobleDraw, EventTypeNobleDiscard, EventTypeDignity, EventTypeClaim, EventTypeCardinalPurchase, EventTypeFiefFounded, EventTypeFiefAssigned, EventTypeFiefAutoAssigned:
 			if report.Winter == nil {
 				report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}
 			}

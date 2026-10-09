@@ -755,7 +755,10 @@ func chainTouches(chain models.Chain, territories []models.TerritoryID) bool {
 // it carries names the candidate its author backed, and ballots stay private
 // (specs/religieux.md § Votes).
 func isPrivateBallot(investment engine.WinterInvestmentReport) bool {
-	return investment.Order != nil && investment.Order.Type == models.WinterOrderTypeVote
+	if investment.Kind == engine.EventTypeRitual {
+		return true
+	}
+	return investment.Order != nil && (investment.Order.Type == models.WinterOrderTypeVote || investment.Order.Type == models.WinterOrderTypeRitual)
 }
 
 func revealsHiddenDignity(investment engine.WinterInvestmentReport) bool {

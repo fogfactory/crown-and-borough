@@ -21,3 +21,18 @@ func TestLadyDignitiesDoNotStack(t *testing.T) {
 		t.Errorf("bastard on an astrologer: reason = %q, want none", reason)
 	}
 }
+
+func TestWitchRitualsAreNotPlagueProof(t *testing.T) {
+	witch := models.Noble{Sex: models.SexFemale, Dignities: []models.Dignity{models.DignityWitch}}
+	if !witch.CanPerformRitual() || witch.ProtectsFromPlague() {
+		t.Errorf("witch: ritual %v, plague proof %v; want a ritual and no plague protection", witch.CanPerformRitual(), witch.ProtectsFromPlague())
+	}
+	witch.Status = models.NobleStatusDungeon
+	if witch.CanPerformRitual() {
+		t.Error("a witch in a dungeon performs a ritual")
+	}
+	poisoner := models.Noble{Sex: models.SexFemale, Dignities: []models.Dignity{models.DignityPoisoner}}
+	if poisoner.CanPerformRitual() || poisoner.Dignities[0].Effect().RivalConsumption != 1 {
+		t.Error("the poisoner must burden rivals and perform no ritual")
+	}
+}

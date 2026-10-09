@@ -256,7 +256,7 @@ acts from the next turn.
 |---|---|
 | `R N CCC XXX` | Recruit the noble of card `CCC` on `XXX`. |
 | `C N HHH NNN` | Claim: heir `HHH` claims the titles of another player's noble `NNN` (consumes a `CLM` card). |
-| `D N NNN CCC` | Give `NNN` the dignity of card `CCC` (`BAS`: bastard; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `SOR`: dignities of the ladies). |
+| `D N NNN CCC` | Give `NNN` the dignity of card `CCC` (`BAS`: bastard; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `EMP`, `SOR`: dignities of the ladies). |
 
 ### Attack (`A`) and Join (`J`)
 
@@ -662,7 +662,7 @@ per line, applied in the entered order.
 | Draw a noble card | `T N` | once per winter and per player; the noble deck, shared by all players, must not be empty | 0 |
 | Recruit a noble | `R N CCC XXX` | `CCC` is a noble card in your hand; `XXX` controlled, with a castle or village and a player army, and fewer living nobles owned than your cap, {{noble_limit}} at the base (see below) | 0 |
 | Claim titles | `C N HHH CCC` | you hold a claim card (`CLM`); `HHH` is one of your nobles, placed during a marriage of `CCC` with one of your nobles, not a bastard and without a current claim; `CCC` is a noble of another player | 0 |
-| Grant a dignity | `D N NNN CCC` | `NNN` is any noble, yours or an opponent's; `CCC` is a dignity card in your hand (`BAS`: bastard; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `SOR`: ladies; Blocked ones: unmarried only); a noble carries a dignity only once, and a lady carries a single lady dignity (`dignity_exclusive`) | 0 |
+| Grant a dignity | `D N NNN CCC` | `NNN` is any noble, yours or an opponent's; `CCC` is a dignity card in your hand (`BAS`: bastard; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `EMP`, `SOR`: ladies; Blocked ones: unmarried only); a noble carries a dignity only once, and a lady carries a single lady dignity (`dignity_exclusive`) | 0 |
 | Discard a noble card | `D C CCC` | `CCC` is a card in your noble hand (noble trigram or `BAS`); no limit per winter; the card goes to the deck's discard pile | 0 |
 | Recruit a troop | `R T XXX` | `XXX` controlled, and a free player noble on `XXX` or adjacent | {{costs.troop}} |
 | Build or upgrade a mill | `C M XXX` | `XXX` controlled; a **new** mill requires an **empty** territory adjacent to a castle or village, or itself carrying one; an **existing** mill can always be upgraded, even in isolation | {{costs.mill_levels.0}} (L1), {{costs.mill_levels.1}} (L2), {{costs.mill_levels.2}} (L3) |
@@ -750,7 +750,8 @@ dignity, in neither the state view nor the report.
 | Chevalier d'Éon (hidden) | `EON` | Free, unmarried lady | The lady is replaced by a male noble, with a first name and code drawn from the unused names and all the prerogatives of a man (so he marries a woman). Her identity as a lady stays secret: only you know it, until she is unmasked — captured in combat, imprisoned, or married and targeted by a Claim (the targeted lord then becomes a bastard, the marriage is annulled, and the Claim is lost). Once unmasked, her identity and dignity are visible to everyone. |
 | Correspondent (hidden) | `COR` | Free | Hostage of a player, she lets you see every order that player issues. |
 | Spy (hidden) | `ESP` | Free | Hostage of a player, she reveals their whole hand (special orders, nobles and dignities). |
-| Witch (hidden) | `SOR` | Free | Every army of another player in her region consumes 1 more ration per turn, with no explanation for its owner. |
+| Poisoner (hidden) | `EMP` | Free | Every army of another player in her region consumes 1 more ration per turn, with no explanation for its owner. |
+| Witch (hidden) | `SOR` | Free | In winter, `S R NNN CAL` calls a calamity (`PE`, `MT` or `FA`): if it is drawn for next year it strikes the region where the Witch stands, otherwise the ritual fails. `S R NNN N` fixes the season (`1` spring, `2` summer, `3` autumn) of the first calamity drawn, which then strikes the Witch's region. One ritual per winter, either one; other players see a slightly unusual calamity announcement, without knowing why. No protection against plague. Once revealed, she is excommunicated ex officio. |
 
 This is where, in winter, the fate of enemy nobles captured in combat
 (section 6) is decided: `O`/`P` moves a prisoner between `hostage` and

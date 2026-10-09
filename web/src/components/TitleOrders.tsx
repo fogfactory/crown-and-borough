@@ -4,7 +4,7 @@ import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { appendDraftLine, draftLines } from '@/lib/winter-draft'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
-import type { CardKind, Noble, PlayerId, Region, StateData } from '@/types'
+import type { CardKind, Noble, PlayerId, Region, Season, StateData } from '@/types'
 
 const PLAYABLE_KINDS: CardKind[] = [
   'fair_weather',
@@ -287,6 +287,57 @@ export function TitleOrdersSection({
               }
             : null
         }
+        onConfirm={add}
+      />,
+    )
+  }
+
+  const ritual = aids.rituals.find((option) => !lines.some((line) => line.startsWith(`S R ${option.noble} `)))
+  if (ritual && !lines.some((line) => line.startsWith('S R '))) {
+    const kinds: CardKind[] = ['plague', 'bad_weather', 'famine']
+    const kindCodes: Record<string, string> = { plague: 'PE', bad_weather: 'MT', famine: 'FA' }
+    const seasons: Array<[string, Season]> = [
+      ['1', 'spring'],
+      ['2', 'summer'],
+      ['3', 'autumn'],
+    ]
+    launchers.push(
+      <OrderLauncher
+        key="s-r"
+        label={t('orders.ritual')}
+        title={t('orders.ritual')}
+        description={t('orders.ritualHelp')}
+        hint={() => t('orders.hint.ritualRegion', { region: ritual.region })}
+        fields={[
+          {
+            key: 'mode',
+            label: t('orders.field.ritualMode'),
+            options: [
+              { value: 'calamity', label: t('orders.ritual.modeCalamity') },
+              { value: 'season', label: t('orders.ritual.modeSeason') },
+            ],
+          },
+          {
+            key: 'choice',
+            label: t('orders.field.ritualChoice'),
+            options: (values) =>
+              values.mode === 'season'
+                ? seasons.map(([value, season]) => ({ value, label: t(SEASON_LABEL_KEYS[season]) }))
+                : kinds.map((kind) => ({ value: kindCodes[kind], label: t(`card.${kind}` as MessageKey) })),
+          },
+        ]}
+        buildOrder={(values) => {
+          if (!values.choice) return null
+          const season = seasons.find(([value]) => value === values.choice)
+          return {
+            line: `S R ${ritual.noble} ${values.choice}`,
+            comment: season
+              ? t('orders.comment.ritualSeason', { season: t(SEASON_LABEL_KEYS[season[1]]) })
+              : t('orders.comment.ritualCalamity', {
+                  card: t(`card.${kinds.find((kind) => kindCodes[kind] === values.choice) ?? 'plague'}` as MessageKey),
+                }),
+          }
+        }}
         onConfirm={add}
       />,
     )

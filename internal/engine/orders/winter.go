@@ -203,6 +203,9 @@ func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (mod
 	if fields[0] == "V" && fields[1] == "C" {
 		return parseCalamityVetoLine(fields, lineNumber, indexes)
 	}
+	if fields[0] == "S" {
+		return parseRitualLine(fields, lineNumber, indexes)
+	}
 	if fields[0] == "X" {
 		return parseExcommunicationLine(fields, lineNumber, indexes)
 	}
@@ -586,4 +589,37 @@ func parseExcommunicationLine(fields []string, lineNumber int, indexes gameIndex
 		return models.WinterOrder{}, parseError
 	}
 	return models.WinterOrder{Type: orderType, NobleCode: models.NobleCode(fields[2])}, nil
+}
+
+// parseRitualLine handles S R NNN CAL (call the calamity CAL: PE, MT or FA)
+// and S R NNN N (fix the season N of next year: 1 spring, 2 summer, 3
+// autumn). NNN is the Witch; ownership and the dignity are engine rejects.
+func parseRitualLine(fields []string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
+	if fields[1] != "R" {
+		return models.WinterOrder{}, unknownWinterSubtype(lineNumber, fields[0], fields[1])
+	}
+	if len(fields) != 4 {
+		error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.WinterRitualShape)
+		return models.WinterOrder{}, &error
+	}
+	if parseError := winterNobleCode(fields[2], lineNumber, indexes); parseError != nil {
+		return models.WinterOrder{}, parseError
+	}
+	order := models.WinterOrder{Type: models.WinterOrderTypeRitual, NobleCode: models.NobleCode(fields[2])}
+	switch fields[3] {
+	case "1":
+		order.Season = models.SeasonSpring
+	case "2":
+		order.Season = models.SeasonSummer
+	case "3":
+		order.Season = models.SeasonAutumn
+	default:
+		kind, parseError := parseSpecialKind(fields[3], lineNumber)
+		if parseError != nil || !kind.IsCalamity() {
+			error := parseMessage(lineNumber, ParseCodeInvalidCode, i18n.WinterRitualShape)
+			return models.WinterOrder{}, &error
+		}
+		order.Calamity = kind
+	}
+	return order, nil
 }

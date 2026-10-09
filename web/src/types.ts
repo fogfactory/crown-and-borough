@@ -69,6 +69,7 @@ export type EventType =
   | 'dignity'
   | 'claim'
   | 'eon_unmasked'
+  | 'ritual'
   | 'excommunication'
   | 'excommunication_lifted'
 
@@ -216,6 +217,8 @@ export interface WinterAids {
   cardinalCost: number
   fiefSites: FiefSite[]
   fiefCostPerTerritory: number
+  /** The viewer's Witches able to perform a ritual, with the region it would hit. */
+  rituals: Array<{ noble: string; region: string }>
 }
 
 /** An election the winter announces, read for the viewing player. */
@@ -260,6 +263,7 @@ export type Dignity =
   | 'chevalier_d_eon'
   | 'correspondent'
   | 'spy'
+  | 'poisoner'
   | 'witch'
   | 'cardinal'
 
@@ -491,6 +495,7 @@ export interface AnnouncementReport {
   season: Season
   region: string
   year: number
+  ritual?: boolean
 }
 
 export interface WinterCosts {
@@ -893,6 +898,7 @@ export type WinterOrderType =
   | 'calamity_veto'
   | 'discard_noble_card'
   | 'claim'
+  | 'ritual'
 
 export interface WinterOrder {
   id?: string
@@ -913,6 +919,9 @@ export interface WinterOrder {
   territories?: string[]
   /** Present only for `calamity_veto`: the struck forecast positions. */
   indices?: number[]
+  /** Present only for `ritual`: the called calamity, or the fixed season (exclusive). */
+  calamity?: CardKind
+  season?: Season
 }
 
 export interface WinterStockReport {
@@ -930,6 +939,8 @@ export interface CardReport {
   season?: Season
   outcome: Outcome
   reason?: string
+  /** A calamity bent by a ritual: worded differently, without saying why. */
+  ritual?: boolean
 }
 
 export interface RumorReport {
@@ -960,7 +971,7 @@ export interface SeasonEffectReport {
 export interface AuguryReport {
   year: number
   capacities: Partial<Record<Season, number>>
-  calamities: Array<{ kind: CardKind; season: Season; region: string }>
+  calamities: Array<{ kind: CardKind; season: Season; region: string; ritual?: boolean }>
 }
 
 export interface WinterReport {

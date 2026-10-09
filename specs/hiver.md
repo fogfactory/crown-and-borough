@@ -75,7 +75,7 @@ qu'il voit des autres.
 |---|---|---|---|
 | 0 | **Instantané** | Fige le contrôle, l'occupation, les statuts, les mariages, les titres, et calcule le registre des élections ouvertes. | ce document |
 | 1 | **Sanctions pontificales** | `X E NNN` (excommunier), `X L NNN` (lever), dans l'ordre de la feuille du pape. | [religieux.md](religieux.md#excommunication) |
-| 2 | **Ordres de gestion** | Ordres individuels actuels : `T N`, `R N`, `D N`, `C N`, `D C`, `A N`, `R T`, `C M/C/D`, `E C`, `O N`, `P N`, `H N`, `G`, `T F`, `T A`, `V C` ; plus l'achat de cardinal (`N C NNN`). Joueurs par identifiant, ordres dans l'ordre saisi. | GDD, [succession.md](succession.md), [titres.md](titres.md) |
+| 2 | **Ordres de gestion** | Ordres individuels actuels : `T N`, `R N`, `D N`, `C N`, `D C`, `A N`, `R T`, `C M/C/D`, `E C`, `O N`, `P N`, `H N`, `G`, `T F`, `T A`, `V C`, `S R` ; plus l'achat de cardinal (`N C NNN`). Joueurs par identifiant, ordres dans l'ordre saisi. | GDD, [succession.md](succession.md), [titres.md](titres.md) |
 | 3 | **Actions des cardinaux** | Enquêtes `Q NNN` (dans l'ordre des joueurs, puis de la feuille) ; dépôt des ordres de procès `J NNN` (jugés à l'étape 8). | [religieux.md](religieux.md#enquête) |
 | 4 | **Dissolutions de mariage** | `X D NNN` du pape et demande de l'époux, par couple. | [religieux.md](religieux.md#dissolution-de-mariage) |
 | 5 | **Mariages** | Ordres `M N` réciproques. | [succession.md](succession.md#conclusion-dun-mariage) |
@@ -195,6 +195,7 @@ condition ne prélève jamais.
 | Ordre | Étape | Qui peut | Conditions lues |
 |---|---|---|---|
 | `X E` / `X L` | 1 | Pape (titre actif, non au cachot) | Cible de n'importe quel joueur ; 1 `X E` par hiver ; 1 excommunié à la fois par joueur adverse (une levée précédente de la feuille libère la place). Jamais sur soi. |
+| `S R` | 2 (déclaration) / 8 (effet) | Propriétaire d'une Sorcière libre (pas au cachot) | Un rituel par hiver ; la calamité ou la saison visée est lue au tirage des calamités de la fin d'hiver ; région de la Sorcière lue à l'étape 2. |
 | `N C NNN` (achat de cardinal) | 2 | Joueur propriétaire d'un évêque | Évêque non excommunié ; plafond `N - 1` incluant les achats en attente ; coût `religious.cardinal_cost` (balance). |
 | `Q NNN` | 3 | Cardinal ou pape titré à l'instantané, ni excommunié ni au cachot à l'étape 3 | 1 par cardinal ou pape et par hiver ; coût selon le rang de la cible lu après l'étape 2 ; consommé sans effet si aucune dignité cachée. |
 | `J NNN` | 3 (dépôt) / 9 (jugement) | Deux cardinaux distincts, titrés à l'instantané, ni excommuniés ni au cachot à l'étape 3 | Mêmes cible et motif pour les deux ; mêmes règles d'éligibilité de cible que la carte de procès, relues au jugement. |
