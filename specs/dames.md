@@ -108,6 +108,10 @@ ou par les conditions propres à chaque dignité.
 
 ### Liste des dignités
 
+Une dame ne porte qu'**une seule** dignité de dame : la carte d'une seconde
+dignité de dame est rejetée (`dignity_exclusive`). La bâtardise, qui n'est
+pas une dignité de dame, et le cardinalat se cumulent avec elle.
+
 | Dignité | Visibilité | Mariage après nomination | Excommunication si révélée |
 |---|---|---|---|
 | D'Arc | publique | Bloqué | non |

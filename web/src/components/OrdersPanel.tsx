@@ -60,8 +60,11 @@ const MARRIAGE_EXCLUDED_DIGNITIES: Dignity[] = ['d_arc', 'abbess', 'herbalist', 
 
 // A lady dignity needs a lady; the bastard is open to any noble.
 function canReceiveDignity(noble: Noble, dignity: Dignity): boolean {
-  if ((noble.dignities ?? []).includes(dignity)) return false
+  const held = noble.dignities ?? []
+  if (held.includes(dignity)) return false
   if (dignity === 'bastard') return true
+  // The dignities of the ladies do not stack: one per noble.
+  if (held.some((other) => other !== 'bastard' && other !== 'cardinal')) return false
   if (noble.sex !== 'female') return false
   return !noble.spouse || !MARRIAGE_EXCLUDED_DIGNITIES.includes(dignity)
 }

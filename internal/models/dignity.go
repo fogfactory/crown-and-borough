@@ -359,6 +359,9 @@ func (d Dignity) CanReceive(noble Noble, married bool) string {
 		return "noble_married"
 	case noble.Has(d):
 		return "noble_already_" + string(d)
+	case effect.FemaleOnly && noble.anyDignity(func(held DignityEffect) bool { return held.FemaleOnly }):
+		// The dignities of the ladies do not stack: one per noble.
+		return "dignity_exclusive"
 	}
 	return ""
 }
