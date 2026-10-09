@@ -716,3 +716,20 @@ func TestParseElectionWinterOrders(t *testing.T) {
 		}
 	}
 }
+
+func TestParseBuyCardinalWinterOrder(t *testing.T) {
+	game := orderTestState()
+	orders, parseErrors := ParseWinterOrders("N C JEA", game)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseWinterOrders errors = %#v", parseErrors)
+	}
+	want := []models.WinterOrder{{ID: "O1", Type: models.WinterOrderTypeBuyCardinal, NobleCode: "JEA"}}
+	if !reflect.DeepEqual(orders, want) {
+		t.Fatalf("orders = %#v, want %#v", orders, want)
+	}
+	for _, text := range []string{"N C", "N C JEA CAL", "N X JEA", "N C ZZZ", "N C J1A"} {
+		if _, parseErrors := ParseWinterOrders(text, game); len(parseErrors) == 0 {
+			t.Errorf("ParseWinterOrders(%q) accepted a malformed cardinal purchase", text)
+		}
+	}
+}

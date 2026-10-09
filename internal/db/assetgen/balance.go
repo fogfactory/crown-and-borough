@@ -66,12 +66,16 @@ type AllianceBalance struct {
 }
 
 // ReligionBalance holds the religious title parameters (specs/religieux.md).
-// The cardinals in play are capped at CardinalCapBase plus one per full
-// CardinalPlayersPerExtra players.
+// Two independent caps bound the cardinals: the purchased ones at
+// CardinalPurchaseBase plus one per full CardinalPurchasePlayersPerExtra
+// players, and the number of cardinal cards in the noble deck at
+// CardinalCardBase plus one per full CardinalCardPlayersPerExtra players.
 type ReligionBalance struct {
 	CardinalCost                    int        `json:"cardinal_cost" yaml:"cardinal_cost"`
-	CardinalCapBase                 int        `json:"cardinal_cap_base" yaml:"cardinal_cap_base"`
-	CardinalPlayersPerExtra         int        `json:"cardinal_players_per_extra" yaml:"cardinal_players_per_extra"`
+	CardinalPurchaseBase            int        `json:"cardinal_purchase_base" yaml:"cardinal_purchase_base"`
+	CardinalPurchasePlayersPerExtra int        `json:"cardinal_purchase_players_per_extra" yaml:"cardinal_purchase_players_per_extra"`
+	CardinalCardBase                int        `json:"cardinal_card_base" yaml:"cardinal_card_base"`
+	CardinalCardPlayersPerExtra     int        `json:"cardinal_card_players_per_extra" yaml:"cardinal_card_players_per_extra"`
 	ExcommunicationsPerWinter       int        `json:"excommunications_per_winter" yaml:"excommunications_per_winter"`
 	ExcommunicationsPerTargetPlayer int        `json:"excommunications_per_target_player" yaml:"excommunications_per_target_player"`
 	Votes                           VoteWeight `json:"votes" yaml:"votes"`
@@ -158,8 +162,10 @@ type rawBalance struct {
 
 type rawReligion struct {
 	CardinalCost                    *int `yaml:"cardinal_cost"`
-	CardinalCapBase                 *int `yaml:"cardinal_cap_base"`
-	CardinalPlayersPerExtra         *int `yaml:"cardinal_players_per_extra"`
+	CardinalPurchaseBase            *int `yaml:"cardinal_purchase_base"`
+	CardinalPurchasePlayersPerExtra *int `yaml:"cardinal_purchase_players_per_extra"`
+	CardinalCardBase                *int `yaml:"cardinal_card_base"`
+	CardinalCardPlayersPerExtra     *int `yaml:"cardinal_card_players_per_extra"`
 	ExcommunicationsPerWinter       *int `yaml:"excommunications_per_winter"`
 	ExcommunicationsPerTargetPlayer *int `yaml:"excommunications_per_target_player"`
 	Votes                           *struct {
@@ -407,10 +413,16 @@ func (raw rawBalance) religion(path string) (ReligionBalance, error) {
 	if out.CardinalCost, err = requiredPositiveInt(path, "religion.cardinal_cost", r.CardinalCost); err != nil {
 		return ReligionBalance{}, err
 	}
-	if out.CardinalCapBase, err = requiredPositiveInt(path, "religion.cardinal_cap_base", r.CardinalCapBase); err != nil {
+	if out.CardinalPurchaseBase, err = requiredPositiveInt(path, "religion.cardinal_purchase_base", r.CardinalPurchaseBase); err != nil {
 		return ReligionBalance{}, err
 	}
-	if out.CardinalPlayersPerExtra, err = requiredPositiveInt(path, "religion.cardinal_players_per_extra", r.CardinalPlayersPerExtra); err != nil {
+	if out.CardinalPurchasePlayersPerExtra, err = requiredPositiveInt(path, "religion.cardinal_purchase_players_per_extra", r.CardinalPurchasePlayersPerExtra); err != nil {
+		return ReligionBalance{}, err
+	}
+	if out.CardinalCardBase, err = requiredPositiveInt(path, "religion.cardinal_card_base", r.CardinalCardBase); err != nil {
+		return ReligionBalance{}, err
+	}
+	if out.CardinalCardPlayersPerExtra, err = requiredPositiveInt(path, "religion.cardinal_card_players_per_extra", r.CardinalCardPlayersPerExtra); err != nil {
 		return ReligionBalance{}, err
 	}
 	if out.ExcommunicationsPerWinter, err = requiredPositiveInt(path, "religion.excommunications_per_winter", r.ExcommunicationsPerWinter); err != nil {

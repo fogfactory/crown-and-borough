@@ -303,6 +303,11 @@ func (ctx *resolutionContext) resolveWinterElections() {
 	ctx.electionOrders = nil
 	for _, open := range ctx.elections {
 		open.voices = ctx.electionVoices(open)
+		if open.absolute {
+			// A cardinal card played, or a cardinal excommunicated, earlier in
+			// the winter changes the cardinals in play at the count.
+			open.denominator = len(ctx.state.Cardinals)
+		}
 	}
 	for _, recorded := range orders {
 		if ctx.matchElection(recorded.order) == nil {

@@ -58,6 +58,7 @@ const (
 	WinterOrderTypeCalamityVeto  WinterOrderType = "calamity_veto"
 	WinterOrderTypeCandidacy     WinterOrderType = "candidacy"
 	WinterOrderTypeVote          WinterOrderType = "vote"
+	WinterOrderTypeBuyCardinal   WinterOrderType = "buy_cardinal"
 )
 
 // IsValid reports whether a winter order type is known to the winter resolver.
@@ -69,7 +70,7 @@ func (t WinterOrderType) IsValid() bool {
 		WinterOrderTypeFoundFief, WinterOrderTypeAssignFief, WinterOrderTypeMarriage,
 		WinterOrderTypeDrawNoble, WinterOrderTypeDignity, WinterOrderTypeDiscardNoble,
 		WinterOrderTypeClaim, WinterOrderTypeCalamityVeto,
-		WinterOrderTypeCandidacy, WinterOrderTypeVote:
+		WinterOrderTypeCandidacy, WinterOrderTypeVote, WinterOrderTypeBuyCardinal:
 		return true
 	}
 	return false
@@ -136,7 +137,8 @@ type Order struct {
 // SpouseCode the noble of another player whose titles it claims. For
 // WinterOrderTypeCandidacy and WinterOrderTypeVote, Election names the
 // election, NobleCode the candidate and TerritoryID the seed village of the
-// bishopric (bishop elections only).
+// bishopric (bishop elections only). For WinterOrderTypeBuyCardinal, NobleCode
+// is the player's own bishop promoted to cardinal at the investiture.
 type WinterOrder struct {
 	ID           OrderID         `json:"id"`
 	Type         WinterOrderType `json:"type"`

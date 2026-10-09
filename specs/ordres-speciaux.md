@@ -125,6 +125,6 @@ joueur.
 
 ## Cartes prévues
 
-Le deck pourra accueillir notamment des impôts, des mariages, des assassinats,
-des nominations de cardinaux et des Claims. Les règles propres aux cartes de
+Le deck pourra accueillir notamment des impôts, des mariages et des
+assassinats. Les cartes de Claim et de cardinal appartiennent au deck de nobles. Les règles propres aux cartes de
 succession, politique et religion restent dans leurs spécifications thématiques.

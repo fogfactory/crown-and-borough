@@ -382,7 +382,7 @@ func CreateGameWithYears(seed string, players []PlayerInit, yearCount int, balan
 	for _, noble := range state.Nobles {
 		startingCodes[noble.Code] = true
 	}
-	state.NobleDeck = buildNobleDeck(seed, state.Players, balance.NobleLimitMax, assets.Prenoms, startingCodes)
+	state.NobleDeck = buildNobleDeck(seed, state.Players, balance.NobleLimitMax, assets.Prenoms, startingCodes, CardinalCardCount(len(state.Players), balance.Religion))
 
 	if err := state.Validate(); err != nil {
 		return nil, fmt.Errorf("engine: create game: invalid generated state: %w", err)

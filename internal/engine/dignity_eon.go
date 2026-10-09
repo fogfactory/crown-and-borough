@@ -29,7 +29,7 @@ func (ctx *resolutionContext) unmaskEon(noble *models.Noble, phase int) {
 // can neither be lifted nor counted in the pope's limits (specs/religieux.md
 // § Fin de titre).
 func (ctx *resolutionContext) excommunicateExOfficio(id models.NobleID) {
-	ctx.state.Excommunicate(models.Excommunication{
+	ctx.excommunicate(models.Excommunication{
 		Noble:  id,
 		Reason: models.ExcommunicationExOfficio,
 		Turn:   ctx.state.Turn,

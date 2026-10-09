@@ -80,6 +80,9 @@ const (
 	EventTypeElectionOpened EventType = "election_opened"
 	EventTypeElectionResult EventType = "election_result"
 	EventTypeInvestiture    EventType = "investiture"
+	// EventTypeCardinalPurchase is the paid N C order; the title itself is
+	// conferred at the investiture.
+	EventTypeCardinalPurchase EventType = "cardinal_purchase"
 )
 
 // Outcome is the execution result of one current order.

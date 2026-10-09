@@ -73,6 +73,7 @@ func ResolveWinterWithDeckOrders(
 	// Stage 6: elections, counted on one snapshot; stage 7: investiture.
 	ctx.resolveWinterElections()
 	ctx.investWinterTitles()
+	ctx.investPurchasedCardinals()
 	// Stage 8: end of winter (hands, vacant fiefs, stocks, prosperity).
 	resolveWinterDeckOrders(ctx, deckOrders)
 	// No calamity resolves in winter: the winter turn draws and schedules the

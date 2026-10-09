@@ -74,16 +74,21 @@ alliance:
   density_bonus: 1
 
 # Religious titles (religieux.md). cardinal_cost is the R paid for the winter
-# purchase of a cardinal; the cardinals in play are capped at cardinal_cap_base
-# plus one per full cardinal_players_per_extra players. The pope excommunicates
+# purchase of a cardinal; the purchased cardinals are capped at
+# cardinal_purchase_base plus one per full cardinal_purchase_players_per_extra
+# players. The noble deck holds cardinal_card_base plus one per full
+# cardinal_card_players_per_extra players cardinal cards (a free way to obtain
+# the title, independent of the purchase cap). The pope excommunicates
 # at most excommunications_per_winter nobles per winter, and a rival player has
 # at most excommunications_per_target_player excommunicated nobles at a time.
 # votes are the voices per territory held (seat: the seat of a bishopric in its
 # own bishop election) and per highest religious title of a noble.
 religion:
   cardinal_cost: 8
-  cardinal_cap_base: 1
-  cardinal_players_per_extra: 6
+  cardinal_purchase_base: 1
+  cardinal_purchase_players_per_extra: 6
+  cardinal_card_base: 1
+  cardinal_card_players_per_extra: 3
   excommunications_per_winter: 1
   excommunications_per_target_player: 1
   votes:

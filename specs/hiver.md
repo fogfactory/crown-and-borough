@@ -19,8 +19,9 @@ qu'il voit des autres.
 > ([#375](https://github.com/fogfactory/crown-and-borough/issues/375)). Aucun
 > bulletin n'y figure.
 >
-> **État.** Les étapes 0 (instantané et registre des élections), 2, 5, 6
-> (élections), 7 (investiture) et 8 sont en place dans le moteur
+> **État.** Les étapes 0 (instantané et registre des élections), 2 (dont l'achat de
+> cardinal `N C NNN` et la carte de cardinal `D N NNN CAR`), 5, 6 (élections), 7 (investiture, y compris les cardinaux
+> achetés) et 8 sont en place dans le moteur
 > ([#374](https://github.com/fogfactory/crown-and-borough/issues/374)). Les
 > étapes 1, 3, 4 et 9 s'ajoutent avec leurs ordres (excommunication, enquête,
 > dissolution, procès à deux cardinaux). La reprise dans `gdd.md` et les règles
@@ -38,10 +39,13 @@ qu'il voit des autres.
 3. **Une perte de titre est immédiate, un gain est différé.** Un titre
    religieux perdu (excommunication, démasquage) cesse de produire voix,
    pouvoirs et candidature dès l'étape où il est perdu. Un titre religieux
-   *gagné* pendant l'hiver (élection, achat de cardinal) n'est conféré qu'à
-   l'**investiture**, à la fin des élections : il ne donne ni voix, ni pouvoir,
+   *gagné* pendant l'hiver par élection ou par achat de cardinal n'est conféré
+   qu'à l'**investiture**, à la fin des élections : il ne donne ni voix, ni pouvoir,
    ni éligibilité avant l'hiver suivant. Un titre ne franchit donc jamais
-   plus d'un échelon par hiver (évêque → cardinal → pape).
+   plus d'un échelon par hiver (évêque → cardinal → pape). Les cartes de
+   dignité font exception : elles se jouent à tout moment, la carte de cardinal
+   (`D N NNN CAR`, étape 2) prend effet aussitôt et ses voix comptent dès les
+   élections du même hiver.
 4. **Le registre des élections est figé au début de l'hiver.** Une élection est
    ouverte si, à l'instant où l'hiver commence, son siège est vacant et sa
    condition de déclenchement est vraie. Un siège rendu vacant pendant l'hiver
@@ -94,12 +98,13 @@ Deux conséquences directes du tableau :
 | Excommunication (étape 1) | Titre perdu définitivement ; plus de voix ni candidature. | Le siège est vacant mais n'est pas dans le registre : élection à l'hiver suivant. Un excommunié ne peut pas être candidat. Le dénominateur de la majorité absolue papale baisse s'il était cardinal. |
 | Levée (étape 1) | Le noble redevient éligible. Aucun titre rendu. | Peut être candidat dès cet hiver. |
 | Démasquage par enquête (étape 3) | Éon et Sorcière : excommunication d'office, même effet que ci-dessus. Correspondante et Espionne : aucun effet religieux. | Idem excommunication. |
-| Achat de cardinal (étape 2) | R prélevés à l'étape 2 ; le plafond `N - 1` compte les achats en attente. | Aucun avant l'investiture : le nouveau cardinal ne vote pas au conclave, n'y est pas candidat (en tant que cardinal) et ne compte pas pour la majorité absolue. |
+| Carte de cardinal (étape 2) | Gratuite, jouée sur un évêque du joueur ; effet immédiat. | Le noble est cardinal dès l'étape 2 : ses 2 voix comptent dans les élections de l'hiver, il vote au conclave s'il est ouvert et compte dans la majorité absolue. L'ouverture du conclave reste décidée par le registre figé à l'étape 0. |
+| Achat de cardinal (étape 2) | R prélevés à l'étape 2 ; le plafond d'achat compte les achats en attente. | Aucun avant l'investiture : le nouveau cardinal ne vote pas au conclave, n'y est pas candidat (en tant que cardinal) et ne compte pas pour la majorité absolue. |
 | Élection d'un évêque (étape 6) | Titre conféré à l'investiture. | Aucun : ses voix d'évêque ne comptent pas dans les autres élections de l'hiver. |
 | Élection du pape (étape 6) | Titre conféré à l'investiture. | Aucun : ses 3 voix n'ont pas compté, ses pouvoirs commencent l'hiver suivant. |
 | Procès exécuté (étape 9) | Mort ; titres vacants (hors cible excommuniée, déjà sans titre). | Siège électable l'hiver suivant. |
 
-Les cartes jouées en saison d'action (nomination de cardinal, dîme, apaisement)
+Les cartes jouées en saison d'action (dîme, apaisement)
 sont appliquées avant l'instantané de l'hiver suivant : leurs effets sont donc
 déjà visibles de toutes les étapes.
 
