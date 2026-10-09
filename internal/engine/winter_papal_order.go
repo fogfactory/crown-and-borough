@@ -86,7 +86,7 @@ func (ctx *resolutionContext) pronounceExcommunication(playerID models.PlayerID,
 		By:     pope.ID,
 		Turn:   ctx.state.Turn,
 	})
-	ctx.emitExcommunicationEvent(EventTypeExcommunication, target)
+	ctx.emitExcommunicationEvent(EventTypeExcommunication, order, target)
 }
 
 func (ctx *resolutionContext) liftExcommunication(playerID models.PlayerID, order models.WinterOrder) {
@@ -105,14 +105,15 @@ func (ctx *resolutionContext) liftExcommunication(playerID models.PlayerID, orde
 		return
 	}
 	ctx.state.LiftExcommunication(target.ID)
-	ctx.emitExcommunicationEvent(EventTypeExcommunicationLifted, target)
+	ctx.emitExcommunicationEvent(EventTypeExcommunicationLifted, order, target)
 }
 
-func (ctx *resolutionContext) emitExcommunicationEvent(eventType EventType, noble *models.Noble) {
+func (ctx *resolutionContext) emitExcommunicationEvent(eventType EventType, order models.WinterOrder, noble *models.Noble) {
 	ctx.events = append(ctx.events, Event{
 		Type:      eventType,
 		Phase:     winterPhase,
 		OwnerID:   noble.OwnerID,
+		OrderID:   order.ID,
 		NobleID:   noble.ID,
 		NobleCode: models.NobleCode(noble.Code),
 		NobleName: ctx.state.NobleDisplayName(*noble),

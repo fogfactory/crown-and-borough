@@ -57,6 +57,9 @@ type StateView struct {
 	// nobles (see engine.ForecastWinterElections). Ballots are never part of
 	// it.
 	OpenElections []engine.OpenElection `json:"openElections,omitempty"`
+	// WinterAids lists, in winter, the possible winter orders of the viewer
+	// (papal sanctions, cardinal purchase, fief sites) with their prices.
+	WinterAids *engine.WinterAids `json:"winterAids,omitempty"`
 	// SpiedHands are the hands a spy of the viewer reveals: the whole hand of
 	// the player holding her hostage.
 	SpiedHands          []SpiedHandView             `json:"spiedHands,omitempty"`
@@ -597,6 +600,7 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 	if viewer != nil {
 		view.CalamityForecast = calamityForecastFor(state, *viewer)
 		view.OpenElections = engine.ForecastWinterElections(state, balance, *viewer)
+		view.WinterAids = engine.ForecastWinterAids(state, balance, *viewer)
 		view.SpiedHands = spiedHandsFor(state, *viewer)
 	}
 	view.ActiveRegionEffects = append([]models.ActiveRegionEffect(nil), state.ActiveRegionEffects...)

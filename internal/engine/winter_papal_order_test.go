@@ -137,3 +137,64 @@ func TestPopeDeathEndsPapalExcommunications(t *testing.T) {
 		t.Errorf("state invalid after the death: %v", err)
 	}
 }
+
+func TestPapalEventsCarryTheOrderID(t *testing.T) {
+	state := papalTestState(t)
+	state.Excommunications = []models.Excommunication{{Noble: "N5", Reason: models.ExcommunicationPapal, By: "N1"}}
+	resolution := resolveElectionSheets(t, state, map[models.PlayerID][]models.WinterOrder{
+		"P1": {
+			papalOrder("O1", models.WinterOrderTypeLiftExcommunication, "SAM"),
+			papalOrder("O2", models.WinterOrderTypeExcommunicate, "LEO"),
+		},
+	})
+	for _, kind := range []EventType{EventTypeExcommunication, EventTypeExcommunicationLifted} {
+		events := eventsOfType(resolution.Events, kind)
+		if len(events) != 1 || events[0].OrderID == "" {
+			t.Errorf("%s events = %+v, want one carrying its order id", kind, events)
+		}
+	}
+}
+
+func TestWinterAidsPapalAndCardinal(t *testing.T) {
+	state := papalTestState(t)
+	state.Excommunications = []models.Excommunication{{Noble: "N5", Reason: models.ExcommunicationPapal, By: "N1"}}
+	state.Cardinals = []models.NobleID{"N2"}
+	aids := ForecastWinterAids(state, testBalance(), "P1")
+	if aids == nil {
+		t.Fatal("aids = nil in winter")
+	}
+	targets := map[models.NobleCode]models.NobleCode{}
+	for _, target := range aids.Excommunicable {
+		targets[target.Code] = target.Blocker
+	}
+	if _, ok := targets["HUG"]; ok {
+		t.Error("the pope can excommunicate himself")
+	}
+	if blocker, ok := targets["LEO"]; !ok || blocker != "SAM" {
+		t.Errorf("LEO target = %q, %v; want blocked by SAM", blocker, ok)
+	}
+	if _, ok := targets["ABE"]; !ok || targets["ABE"] != "" {
+		t.Errorf("ABE should be free to excommunicate: %v", targets)
+	}
+	if len(aids.Liftable) != 1 || aids.Liftable[0] != "SAM" {
+		t.Errorf("liftable = %v, want [SAM]", aids.Liftable)
+	}
+	if len(aids.BuyableCardinals) != 0 {
+		t.Errorf("buyable cardinals = %v, want none for a player without bishop", aids.BuyableCardinals)
+	}
+	other := ForecastWinterAids(state, testBalance(), "P3")
+	if len(other.Excommunicable) != 0 || len(other.Liftable) != 0 {
+		t.Errorf("a non-pope gets papal aids: %+v", other)
+	}
+}
+
+func TestWinterAidsFiefSitesNeedThreeConnectedControlledTerritoriesAndACastle(t *testing.T) {
+	state := electionTestState(t)
+	aids := ForecastWinterAids(state, testBalance(), "P1")
+	if len(aids.FiefSites) != 0 {
+		t.Errorf("sites = %+v, want none with two controlled territories", aids.FiefSites)
+	}
+	if ForecastWinterAids(&models.GameState{Season: models.SeasonSpring}, testBalance(), "P1") != nil {
+		t.Error("aids outside winter")
+	}
+}

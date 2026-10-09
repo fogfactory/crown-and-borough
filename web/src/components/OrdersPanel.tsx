@@ -1,5 +1,5 @@
 import { type ChangeEvent } from 'react'
-import { IconBook, IconSnowflake } from '@tabler/icons-react'
+import { IconBook, IconSnowflake, IconX } from '@tabler/icons-react'
 
 import { Button } from '@/components/ui/button'
 import { OrderLauncher } from '@/components/OrderDialog'
@@ -321,13 +321,6 @@ function NobleCardRow({
             card.sex === 'female' ? 'orders.nobleHandFemale' : 'orders.nobleHandMale',
           ),
         })
-  const playLabel = t(
-    isClaim
-      ? 'orders.nobleHandPlayClaim'
-      : isDignity
-        ? 'orders.nobleHandPlayDignity'
-        : 'orders.nobleHandPlayTerritory',
-  )
   const nobleName = (code: string) =>
     state.nobles.find((noble) => noble.code === code)?.name ?? code
   const fields = isClaim
@@ -385,23 +378,31 @@ function NobleCardRow({
     }
   }
   return (
-    <li className="flex flex-wrap items-center gap-2 text-xs text-[#263f52]">
-      <span className="font-medium">{label}</span>
-      <OrderLauncher
-        label={playLabel}
-        title={`${playLabel} · ${label}`}
-        disabled={used || missingOptions}
-        fields={fields}
-        buildOrder={buildOrder}
-        onConfirm={(line) => onWinterChange(appendDraftLine(winterDraft, line))}
-      />
+    <li className="flex items-center gap-1.5 text-xs text-[#263f52]">
+      {!missingOptions && (
+        <OrderLauncher
+          label={label}
+          title={label}
+          disabled={used}
+          fields={fields}
+          buildOrder={buildOrder}
+          onConfirm={(line) => onWinterChange(appendDraftLine(winterDraft, line))}
+        />
+      )}
+      {missingOptions && (
+        <span className="rounded border border-dashed border-[#9bbbd3] px-2 py-1 text-[#55738a]">
+          {label}
+        </span>
+      )}
       {!cardsOnly && (
         <Button
           type="button"
           variant="outline"
-          size="sm"
+          size="icon-sm"
+          className="border-[#a84632]/50 text-[#a84632] hover:bg-[#f8e5dd] hover:text-[#8d321e]"
           disabled={used}
           aria-label={t('orders.nobleHandDiscardAria', { code: card.code })}
+          title={t('orders.nobleHandDiscardAria', { code: card.code })}
           onClick={() =>
             onWinterChange(
               appendDraftLine(
@@ -411,7 +412,7 @@ function NobleCardRow({
             )
           }
         >
-          {t('orders.nobleHandDiscard')}
+          <IconX aria-hidden="true" className="size-4" />
         </Button>
       )}
     </li>

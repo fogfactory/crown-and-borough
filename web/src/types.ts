@@ -195,6 +195,29 @@ export interface Bishopric {
   bishop?: string
 }
 
+/** A noble the pope can excommunicate; `blocker` must be lifted first. */
+export interface ExcommunicationTarget {
+  code: string
+  blocker?: string
+}
+
+/** Connected controlled territories where a fief can be founded. */
+export interface FiefSite {
+  territories: string[]
+  castles: string[]
+  edges: Array<[string, string]>
+}
+
+/** Winter orders that can succeed for the viewer, with their prices. */
+export interface WinterAids {
+  excommunicable: ExcommunicationTarget[]
+  liftable: string[]
+  buyableCardinals: string[]
+  cardinalCost: number
+  fiefSites: FiefSite[]
+  fiefCostPerTerritory: number
+}
+
 /** An election the winter announces, read for the viewing player. */
 export interface OpenElection {
   kind: 'bishop' | 'pope'
@@ -441,6 +464,8 @@ export interface StateData {
   calamityForecast?: CardKind[]
   /** Winter only: elections open since the start of the winter. */
   openElections?: OpenElection[]
+  /** Winter only: the possible winter orders of the viewer. */
+  winterAids?: WinterAids
   /** Hands revealed by a spy held hostage by their owner. */
   spiedHands?: Array<{ player: PlayerId; specialHand: CardKind[]; nobleHand: NobleCard[] }>
   nobleHand?: NobleCard[]

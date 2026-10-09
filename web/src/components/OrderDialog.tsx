@@ -13,8 +13,10 @@ export interface OrderFieldOption {
 export interface OrderField {
   key: string
   label: string
-  /** Absent for a free text field. */
-  options?: OrderFieldOption[]
+  /** Absent for a free text field; a function when it depends on other fields. */
+  options?: OrderFieldOption[] | ((values: Record<string, string>) => OrderFieldOption[])
+  /** Checkboxes instead of a select: the value is the space-joined codes. */
+  multi?: boolean
   placeholder?: string
   maxLength?: number
 }
@@ -28,6 +30,8 @@ export interface BuiltOrder {
 interface OrderDialogProps {
   title: string
   description?: string
+  /** Extra line under the fields, read from the current values. */
+  hint?: (values: Record<string, string>) => string | null
   fields: OrderField[]
   /** Returns null while the values do not make a valid order. */
   buildOrder: (values: Record<string, string>) => BuiltOrder | null
@@ -36,15 +40,25 @@ interface OrderDialogProps {
   onClose: () => void
 }
 
+function fieldOptions(
+  field: OrderField,
+  values: Record<string, string>,
+): OrderFieldOption[] | undefined {
+  return typeof field.options === 'function' ? field.options(values) : field.options
+}
+
 function initialValues(fields: OrderField[]): Record<string, string> {
-  return Object.fromEntries(
-    fields.map((field) => [field.key, field.options?.[0]?.value ?? '']),
-  )
+  const values: Record<string, string> = {}
+  for (const field of fields) {
+    values[field.key] = field.multi ? '' : (fieldOptions(field, values)?.[0]?.value ?? '')
+  }
+  return values
 }
 
 function OrderDialogBody({
   title,
   description,
+  hint,
   fields,
   buildOrder,
   onConfirm,
@@ -64,36 +78,72 @@ function OrderDialogBody({
         <Dialog.Description className="text-xs leading-relaxed text-[#55738a]">
           {description ?? title}
         </Dialog.Description>
-        {fields.map((field) => (
-          <label key={field.key} className="block space-y-1 text-xs font-semibold">
-            <span>{field.label}</span>
-            {field.options ? (
-              <select
-                value={values[field.key]}
-                onChange={(event) =>
-                  setValues({ ...values, [field.key]: event.target.value })
-                }
-                className="block w-full rounded border border-[#9bbbd3] bg-white px-2 py-1 font-normal"
-              >
-                {field.options.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                value={values[field.key]}
-                maxLength={field.maxLength}
-                placeholder={field.placeholder}
-                onChange={(event) =>
-                  setValues({ ...values, [field.key]: event.target.value })
-                }
-                className="block w-full rounded border border-[#9bbbd3] bg-white px-2 py-1 font-normal uppercase"
-              />
-            )}
-          </label>
-        ))}
+        {fields.map((field) => {
+          const options = fieldOptions(field, values)
+          if (field.multi && options) {
+            const chosen = values[field.key].split(' ').filter(Boolean)
+            return (
+              <fieldset key={field.key} className="space-y-1 text-xs font-semibold">
+                <legend>{field.label}</legend>
+                <div className="flex flex-wrap gap-x-3 gap-y-1 font-normal">
+                  {options.map((option) => (
+                    <label key={option.value} className="flex items-center gap-1">
+                      <input
+                        type="checkbox"
+                        checked={chosen.includes(option.value)}
+                        onChange={(event) =>
+                          setValues({
+                            ...values,
+                            [field.key]: (event.target.checked
+                              ? [...chosen, option.value]
+                              : chosen.filter((code) => code !== option.value)
+                            ).join(' '),
+                          })
+                        }
+                      />
+                      {option.label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            )
+          }
+          return (
+            <label key={field.key} className="block space-y-1 text-xs font-semibold">
+              <span>{field.label}</span>
+              {options ? (
+                <select
+                  value={values[field.key]}
+                  onChange={(event) =>
+                    setValues({ ...values, [field.key]: event.target.value })
+                  }
+                  className="block w-full rounded border border-[#9bbbd3] bg-white px-2 py-1 font-normal"
+                >
+                  {options.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  value={values[field.key]}
+                  maxLength={field.maxLength}
+                  placeholder={field.placeholder}
+                  onChange={(event) =>
+                    setValues({ ...values, [field.key]: event.target.value })
+                  }
+                  className="block w-full rounded border border-[#9bbbd3] bg-white px-2 py-1 font-normal uppercase"
+                />
+              )}
+            </label>
+          )
+        })}
+        {hint && hint(values) && (
+          <p className="rounded border border-[#c9dcea] bg-white/70 px-2 py-1 text-xs text-[#2c5b7d]">
+            {hint(values)}
+          </p>
+        )}
         <p className="rounded bg-white/70 px-2 py-1 font-mono text-xs text-[#55738a]">
           {order ? `${order.line} # ${order.comment}` : '—'}
         </p>

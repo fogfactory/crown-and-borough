@@ -1,5 +1,6 @@
 import { OrderLauncher, type OrderFieldOption } from '@/components/OrderDialog'
 import { formatCardLabel } from '@/lib/card-hand'
+import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { appendDraftLine, draftLines } from '@/lib/winter-draft'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
@@ -32,9 +33,39 @@ function nobleName(state: StateData, code: string): string {
   return state.nobles.find((noble) => noble.code === code)?.name ?? code
 }
 
+const FIEF_TITLE_BY_SIZE: Array<[number, MessageKey]> = [
+  [6, 'fief.title.duchy'],
+  [5, 'fief.title.marquisate'],
+  [4, 'fief.title.county'],
+  [3, 'fief.title.barony'],
+]
+
+function fiefTitleKey(size: number): MessageKey {
+  return (FIEF_TITLE_BY_SIZE.find(([min]) => size >= min) ?? FIEF_TITLE_BY_SIZE[3])[1]
+}
+
+/** True when every territory of the group is reachable from the first one over the edges. */
+function groupConnected(group: string[], edges: Array<[string, string]>): boolean {
+  const inGroup = new Set(group)
+  const seen = new Set([group[0]])
+  const queue = [group[0]]
+  while (queue.length > 0) {
+    const current = queue.shift() as string
+    for (const [a, b] of edges) {
+      const next = a === current ? b : b === current ? a : null
+      if (next && inGroup.has(next) && !seen.has(next)) {
+        seen.add(next)
+        queue.push(next)
+      }
+    }
+  }
+  return seen.size === inGroup.size
+}
+
 /**
  * Orders granted by the titles of the player (pope, bishop, astrologer,
- * fiefs), each configured in a dialog that appends a commented line.
+ * fiefs), each configured in a dialog that appends a commented line. Only the
+ * orders the server reports as possible (winterAids) are offered.
  */
 export function TitleOrdersSection({
   state,
@@ -48,50 +79,51 @@ export function TitleOrdersSection({
   onWinterChange: (text: string) => void
 }) {
   const { t } = useLanguage()
+  const aids = state.winterAids
+  if (!aids) return null
   const add = (line: string) => onWinterChange(appendDraftLine(winterDraft, line))
   const lines = draftLines(winterDraft)
-  const excommunications = state.excommunicated ?? []
-  const excommunicatedCodes = new Set(excommunications.map((entry) => entry.noble))
+  const byCode = new Map(state.nobles.map((noble) => [noble.code, noble]))
+  const toOption = (code: string): OrderFieldOption => {
+    const noble = byCode.get(code)
+    return noble ? nobleOption(noble) : codeOption(code)
+  }
   const own = state.nobles.filter((noble) => noble.owner === player)
 
-  const pope = state.nobles.find((noble) => noble.code === state.pope)
-  const isPope =
-    pope !== undefined &&
-    pope.owner === player &&
-    pope.status !== 'dungeon' &&
-    !excommunicatedCodes.has(pope.code)
-  const excommunicable = state.nobles.filter(
-    (noble) => noble.code !== pope?.code && !excommunicatedCodes.has(noble.code),
+  const liftedInDraft = new Set(
+    lines.filter((line) => line.startsWith('X L ')).map((line) => line.slice(4)),
   )
-  const liftable = state.nobles.filter((noble) =>
-    excommunications.some((entry) => entry.noble === noble.code && entry.reason === 'papal'),
+  const excommunicable = aids.excommunicable.filter(
+    (target) => !target.blocker || liftedInDraft.has(target.blocker),
   )
-
-  const cardinals = new Set(state.cardinals ?? [])
-  const buyable = own.filter(
-    (noble) =>
-      (state.bishoprics ?? []).some((bishopric) => bishopric.bishop === noble.code) &&
-      !cardinals.has(noble.code) &&
-      !excommunicatedCodes.has(noble.code),
-  )
+  const canExcommunicate = excommunicable.length > 0 && !lines.some((line) => line.startsWith('X E '))
+  const liftable = aids.liftable.filter((code) => !liftedInDraft.has(code))
 
   const forecast = state.calamityForecast ?? []
   const astrologers = own.filter((noble) => (noble.dignities ?? []).includes('astrologer'))
+  const canVeto = astrologers.length > 0 && forecast.length > 0 && !lines.some((line) => line.startsWith('V C '))
 
-  const fiefs = state.fiefs ?? []
-  const vacantFiefs = fiefs.filter((fief) => fief.owner === player && !fief.holder)
+  const vacantFiefs = (state.fiefs ?? []).filter((fief) => fief.owner === player && !fief.holder)
+  const buyable = aids.buyableCardinals.filter(
+    (code) => !lines.includes(`N C ${code}`),
+  )
+  const sites = aids.fiefSites
+  const castles = [...new Set(sites.flatMap((site) => site.castles))].sort()
 
   const launchers: React.ReactNode[] = []
 
-  if (isPope) {
+  if (canExcommunicate) {
     launchers.push(
       <OrderLauncher
         key="x-e"
         label={t('orders.excommunicate')}
         title={t('orders.excommunicate')}
-        disabled={excommunicable.length === 0 || lines.some((line) => line.startsWith('X E '))}
         fields={[
-          { key: 'noble', label: t('orders.field.excommunicated'), options: excommunicable.map(nobleOption) },
+          {
+            key: 'noble',
+            label: t('orders.field.excommunicated'),
+            options: excommunicable.map((target) => toOption(target.code)),
+          },
         ]}
         buildOrder={(values) =>
           values.noble
@@ -103,13 +135,17 @@ export function TitleOrdersSection({
         }
         onConfirm={add}
       />,
+    )
+  }
+
+  if (liftable.length > 0) {
+    launchers.push(
       <OrderLauncher
         key="x-l"
         label={t('orders.liftExcommunication')}
         title={t('orders.liftExcommunication')}
-        disabled={liftable.length === 0}
         fields={[
-          { key: 'noble', label: t('orders.field.excommunicated'), options: liftable.map(nobleOption) },
+          { key: 'noble', label: t('orders.field.excommunicated'), options: liftable.map(toOption) },
         ]}
         buildOrder={(values) =>
           values.noble
@@ -130,7 +166,8 @@ export function TitleOrdersSection({
         key="n-c"
         label={t('orders.buyCardinal')}
         title={t('orders.buyCardinal')}
-        fields={[{ key: 'noble', label: t('orders.field.bishop'), options: buyable.map(nobleOption) }]}
+        hint={() => t('orders.hint.cost', { cost: aids.cardinalCost })}
+        fields={[{ key: 'noble', label: t('orders.field.bishop'), options: buyable.map(toOption) }]}
         buildOrder={(values) =>
           values.noble
             ? {
@@ -144,7 +181,7 @@ export function TitleOrdersSection({
     )
   }
 
-  if (astrologers.length > 0 && forecast.length > 0) {
+  if (canVeto) {
     const positions: OrderFieldOption[] = forecast.map((kind, index) => ({
       value: String(index + 1),
       label: `${index + 1} · ${t(`card.${kind}` as MessageKey)}`,
@@ -154,6 +191,7 @@ export function TitleOrdersSection({
         key="v-c"
         label={t('orders.calamityVeto')}
         title={t('orders.calamityVeto')}
+        description={t('orders.calamityVetoHelp')}
         fields={[
           { key: 'noble', label: t('orders.field.astrologer'), options: astrologers.map(nobleOption) },
           { key: 'first', label: t('orders.field.firstCalamity'), options: positions },
@@ -176,25 +214,49 @@ export function TitleOrdersSection({
     )
   }
 
-  if (own.length > 0) {
+  if (sites.length > 0 && own.length > 0) {
+    const siteOf = (capital: string) => sites.find((site) => site.castles.includes(capital))
+    const group = (values: Record<string, string>): string[] => {
+      const site = siteOf(values.capital)
+      if (!site) return []
+      const picked = new Set(values.territories.split(' '))
+      const chosen = site.territories.filter((code) => picked.has(code))
+      return [values.capital, ...chosen.filter((code) => code !== values.capital)]
+    }
     launchers.push(
       <OrderLauncher
         key="t-f"
         label={t('orders.foundFief')}
         title={t('orders.foundFief')}
         description={t('orders.foundFiefHelp')}
+        hint={(values) => {
+          const codes = group(values)
+          if (codes.length < 3) return t('orders.hint.fiefTooSmall')
+          const site = siteOf(values.capital)
+          if (!site || !groupConnected(codes, site.edges)) return t('orders.hint.fiefNotConnected')
+          return t('orders.hint.fiefCost', {
+            title: t(fiefTitleKey(codes.length)),
+            count: codes.length,
+            cost: codes.length * aids.fiefCostPerTerritory,
+          })
+        }}
         fields={[
           { key: 'noble', label: t('orders.field.holder'), options: own.map(nobleOption) },
+          { key: 'capital', label: t('orders.field.capital'), options: castles.map(codeOption) },
           {
             key: 'territories',
             label: t('orders.field.fiefTerritories'),
-            placeholder: 'AAA BBB CCC',
-            maxLength: 80,
+            multi: true,
+            options: (values) =>
+              (siteOf(values.capital)?.territories ?? [])
+                .filter((code) => code !== values.capital)
+                .map(codeOption),
           },
         ]}
         buildOrder={(values) => {
-          const codes = values.territories.trim().toUpperCase().split(/\s+/).filter(Boolean)
-          if (!values.noble || codes.length < 3 || codes.some((code) => !/^[A-Z]{3}$/.test(code))) {
+          const codes = group(values)
+          const site = siteOf(values.capital)
+          if (!values.noble || !site || codes.length < 3 || !groupConnected(codes, site.edges)) {
             return null
           }
           return {
@@ -248,6 +310,22 @@ export function TitleOrdersSection({
   )
 }
 
+/** The calamity each bonus card cancels in the region it targets. */
+const CANCELED_CALAMITY: Partial<Record<CardKind, CardKind>> = {
+  fair_weather: 'bad_weather',
+  abundant_harvest: 'famine',
+}
+
+/** Calamities announced on a region that the card would cancel. */
+function canceledIn(kind: CardKind, state: StateData, seed: string) {
+  const canceled = CANCELED_CALAMITY[kind]
+  return canceled
+    ? (state.announcements ?? []).filter(
+        (announcement) => announcement.kind === canceled && announcement.region === seed,
+      )
+    : []
+}
+
 function specialTargetField(
   kind: CardKind,
   state: StateData,
@@ -267,9 +345,39 @@ function specialTargetField(
       }
     case 'trial':
       return { label: t('orders.field.trialTarget'), options: state.nobles.map(nobleOption) }
-    default:
-      return { label: t('orders.field.region'), options: regionOptions(regions) }
+    default: {
+      // Regions where the card cancels an announced calamity come first.
+      const options = regionOptions(regions).map((option) =>
+        canceledIn(kind, state, option.value).length > 0
+          ? { ...option, label: `${option.label} · ${t('orders.hint.cancelsShort')}` }
+          : option,
+      )
+      return {
+        label: t('orders.field.region'),
+        options: [
+          ...options.filter((option) => option.label.includes(t('orders.hint.cancelsShort'))),
+          ...options.filter((option) => !option.label.includes(t('orders.hint.cancelsShort'))),
+        ],
+      }
+    }
   }
+}
+
+function cancelHint(kind: CardKind, state: StateData, t: Translate, seed: string): string | null {
+  if (!CANCELED_CALAMITY[kind]) return null
+  const canceled = canceledIn(kind, state, seed)
+  if (canceled.length === 0) return t('orders.hint.cancelsNone')
+  return t('orders.hint.cancels', {
+    list: canceled
+      .map((announcement) =>
+        t('orders.hint.cancelItem', {
+          card: t(`card.${announcement.kind}` as MessageKey),
+          season: t(SEASON_LABEL_KEYS[announcement.season]),
+          year: announcement.year,
+        }),
+      )
+      .join(', '),
+  })
 }
 
 /**
@@ -325,6 +433,7 @@ export function SpecialCardOrders({
             label={t('orders.playSpecialCard', { card })}
             title={t('orders.playSpecialCard', { card })}
             disabled={used(kind, 'P') >= copies(kind) || target.options.length === 0}
+            hint={(values) => cancelHint(kind, state, t, values.target)}
             fields={[{ key: 'target', label: target.label, options: target.options }]}
             buildOrder={(values) =>
               values.target
