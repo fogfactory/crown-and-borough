@@ -24,6 +24,9 @@ type WinterAids struct {
 	// InquiryCosts is the R an inquiry costs, per noble.
 	Inquirers    []models.NobleCode       `json:"inquirers"`
 	InquiryCosts map[models.NobleCode]int `json:"inquiryCosts"`
+	// TrialJudges are the viewer's cardinals able to back a J order: each
+	// J line of the sheet is carried by one of them.
+	TrialJudges []models.NobleCode `json:"trialJudges"`
 	// FiefSites are the groups of territories a fief can be founded on.
 	FiefSites            []FiefSite `json:"fiefSites"`
 	FiefCostPerTerritory int        `json:"fiefCostPerTerritory"`
@@ -68,6 +71,7 @@ func ForecastWinterAids(state *models.GameState, balance assetgen.Balance, viewe
 		CardinalCost:         balance.Religion.CardinalCost,
 		Inquirers:            []models.NobleCode{},
 		InquiryCosts:         map[models.NobleCode]int{},
+		TrialJudges:          []models.NobleCode{},
 		FiefSites:            []FiefSite{},
 		FiefCostPerTerritory: balance.Costs.FiefPerTerritory,
 		Rituals:              []RitualOption{},
@@ -130,6 +134,9 @@ func (ctx *resolutionContext) inquiryAids(viewer models.PlayerID, aids *WinterAi
 		aids.InquiryCosts[code] = InquiryCost(ctx.state, ctx.balance.Religion.InquiryCost, noble.ID)
 		if noble.OwnerID == viewer && ctx.canInquire(noble.ID) {
 			aids.Inquirers = append(aids.Inquirers, code)
+		}
+		if noble.OwnerID == viewer && ctx.state.IsCardinal(noble.ID) && ctx.state.VotingReligiousTitle(noble.ID) != models.ReligiousTitleNone {
+			aids.TrialJudges = append(aids.TrialJudges, code)
 		}
 	}
 }

@@ -315,8 +315,8 @@ mariage est donc une protection pour les dignités qui le permettent
 ### Déclenchement
 
 - une **carte événement** de procès, tirée dans le deck ;
-- ou **deux cardinaux distincts d'accord**, qui envoient chacun `J HHH`
-  (ordre de procès sans carte, voir
+- ou **deux cardinaux distincts d'accord**, qui déposent chacun `J HHH NNN`
+  (`HHH` : le cardinal qui porte le procès, `NNN` : la cible ; ordre de procès sans carte, voir
   [religieux.md § Procès à deux cardinaux](religieux.md#procès-à-deux-cardinaux))
   le même hiver ; le pape seul ne suffit jamais, et les deux cardinaux peuvent
   appartenir au même joueur.
@@ -327,8 +327,8 @@ Le procès est jugé en **toute fin de tour**, une fois tous les autres effets
 du tour résolus. Pour un procès à deux cardinaux, l'ordre précis par rapport aux
 excommunications, enquêtes, mariages et élections du même hiver est fixé par
 [hiver.md](hiver.md#ordre-de-résolution) : un noble excommunié ou démasqué
-cet hiver est jugeable, une dame mariée cet hiver ne l'est plus. Si la cible remplit les conditions du procès direct, elle
-est exécutée, et sa dignité, cachée ou non, est révélée à tous : elle quitte le jeu définitivement (cause « exécution » dans la
+cet hiver est jugeable, une dame mariée cet hiver ne l'est plus. Si la cible remplit les conditions du procès direct, ou si elle est
+excommuniée, elle est exécutée, et sa dignité éventuelle, cachée ou non, est révélée à tous : elle quitte le jeu définitivement (cause « exécution » dans la
 lignée) et ses fiefs, prétentions et cartes sont réglés comme pour toute
 mort. L'exécution ouvre l'opportunité de jouer une **carte révolte** (les
 armées `NEUTRAL` de révolte du GDD, § Cartes bonus et calamités) sur tout
@@ -339,13 +339,13 @@ Un procès dont la cible n'est pas éligible au moment du jugement (déjà
 exécutée par un autre procès, mariée entre-temps, Abbesse, sans dignité, etc.)
 est non fondé : la carte est consommée et rien d'autre ne se passe.
 
-### Statut d'implémentation (#260)
+### Statut d'implémentation
 
-Livré : la carte événement de procès (`P PR HHH`, deck des ordres spéciaux) et
-le procès direct. Restent à livrer avec leurs dépendances : le procès sur un
-excommunié (excommunication, #235), le déclenchement par deux cardinaux
-(cardinaux et pape) et la révélation d'une dignité cachée par l'enquête. Une dignité cachée ne
-protège pas du procès direct : elle est révélée par l'exécution.
+Livré : la carte événement de procès (`P PR HHH`, deck des ordres spéciaux), le
+procès direct, le procès sur un noble excommunié et le déclenchement par deux
+cardinaux (`J HHH NNN`, [hiver.md](hiver.md#ordre-de-résolution) étapes 3 et 9).
+Une dignité cachée ne protège pas du procès direct : elle est révélée par
+l'exécution.
 
 ## Pouvoirs requis ailleurs
 

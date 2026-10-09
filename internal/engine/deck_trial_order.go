@@ -42,7 +42,7 @@ func (order trialOrder) Apply(ctx *ExecutionContext) {
 }
 
 // resolveTrials judges the trial cards played this turn, in submission order.
-// A trial on a noble who can be tried directly executes her and opens a revolt
+// A trial on a noble who can be tried executes her and opens a revolt
 // opportunity on the region where she stood, from the next action season; any
 // other trial, including one on a noble already gone, is unfounded: the card
 // is spent and nothing else happens.
@@ -51,40 +51,62 @@ func resolveTrials(ctx *resolutionContext) {
 		if intent.order.Kind != models.CardKindTrial {
 			continue
 		}
-		noble := ctx.noblesByID[intent.order.TargetNobleID]
 		event := Event{
 			Type: EventTypeTrial, Phase: phaseForSeason(ctx.state.Season), OwnerID: intent.playerID,
 			OrderID: intent.order.ID, CardKind: models.CardKindTrial, NobleID: intent.order.TargetNobleID,
 			Season: ctx.state.Season, Year: ctx.state.Year(),
 		}
-		if noble == nil {
-			// The target is gone (executed by another trial or dead this
-			// turn): nothing identifies her, so the verdict stays generic.
-			event.Reason = "trial_unfounded"
-			ctx.events = append(ctx.events, event)
-			continue
-		}
-		_, married := ctx.state.MarriageOf(noble.ID)
-		event.NobleCode = models.NobleCode(noble.Code)
-		event.NobleName = ctx.state.NobleDisplayName(*noble)
-		event.TerritoryID = noble.LocationID
-		dignity, liable := noble.TrialDignity(married)
-		if !liable {
-			event.Reason = "trial_unfounded"
-			ctx.events = append(ctx.events, event)
-			continue
-		}
-		region := regionForTerritory(ctx, noble.LocationID)
-		event.Reason = "trial_executed"
-		// The trial reveals the dignity, hidden or not.
-		event.Dignity = dignity
-		event.RegionSeed = region
-		ctx.events = append(ctx.events, event)
-		ctx.executeNoble(*noble)
-		ctx.state.TrialRevoltWindows = append(ctx.state.TrialRevoltWindows, models.TrialRevoltWindow{
-			RegionSeed: region, FromTurn: nextActionTurn(ctx.state.Turn),
-		})
+		ctx.judgeTrial(event, ctx.noblesByID[intent.order.TargetNobleID])
 	}
+}
+
+// trialVerdict returns the dignity a trial reveals when the noble can be put
+// to death: a lady liable to the direct trial, or any excommunicated noble
+// (specs/dames.md § Carte de procès). The dignity is empty for a noble who
+// holds none.
+func (ctx *resolutionContext) trialVerdict(noble *models.Noble) (models.Dignity, bool) {
+	_, married := ctx.state.MarriageOf(noble.ID)
+	if dignity, liable := noble.TrialDignity(married); liable {
+		return dignity, true
+	}
+	if _, excommunicated := ctx.state.ExcommunicationOf(noble.ID); excommunicated {
+		if len(noble.Dignities) > 0 {
+			return noble.Dignities[0], true
+		}
+		return "", true
+	}
+	return "", false
+}
+
+// judgeTrial emits the verdict of a trial on the noble (nil when she is gone)
+// and, when it is well founded, executes her.
+func (ctx *resolutionContext) judgeTrial(event Event, noble *models.Noble) {
+	if noble == nil {
+		// The target is gone (executed by another trial or dead this
+		// turn): nothing identifies her, so the verdict stays generic.
+		event.Reason = "trial_unfounded"
+		ctx.events = append(ctx.events, event)
+		return
+	}
+	event.NobleCode = models.NobleCode(noble.Code)
+	event.NobleName = ctx.state.NobleDisplayName(*noble)
+	event.TerritoryID = noble.LocationID
+	dignity, liable := ctx.trialVerdict(noble)
+	if !liable {
+		event.Reason = "trial_unfounded"
+		ctx.events = append(ctx.events, event)
+		return
+	}
+	region := regionForTerritory(ctx, noble.LocationID)
+	event.Reason = "trial_executed"
+	// The trial reveals the dignity, hidden or not.
+	event.Dignity = dignity
+	event.RegionSeed = region
+	ctx.events = append(ctx.events, event)
+	ctx.executeNoble(*noble)
+	ctx.state.TrialRevoltWindows = append(ctx.state.TrialRevoltWindows, models.TrialRevoltWindow{
+		RegionSeed: region, FromTurn: nextActionTurn(ctx.state.Turn),
+	})
 }
 
 // executeNoble removes a noble put to death by a trial from play, with the

@@ -734,6 +734,23 @@ func TestParseInquiryWinterOrder(t *testing.T) {
 	}
 }
 
+func TestParseTrialWinterOrder(t *testing.T) {
+	game := orderTestState()
+	orders, parseErrors := ParseWinterOrders("J JEA BOB", game)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseWinterOrders errors = %#v", parseErrors)
+	}
+	want := []models.WinterOrder{{ID: "O1", Type: models.WinterOrderTypeTrial, NobleCode: "JEA", TargetCode: "BOB"}}
+	if !reflect.DeepEqual(orders, want) {
+		t.Fatalf("orders = %#v, want %#v", orders, want)
+	}
+	for _, text := range []string{"J", "J BOB", "J JEA BOB JEA", "J JEA ZZZ", "J B1B JEA"} {
+		if _, parseErrors := ParseWinterOrders(text, game); len(parseErrors) == 0 {
+			t.Errorf("ParseWinterOrders(%q) accepted a malformed trial", text)
+		}
+	}
+}
+
 func TestParseBuyCardinalWinterOrder(t *testing.T) {
 	game := orderTestState()
 	orders, parseErrors := ParseWinterOrders("N C JEA", game)

@@ -269,10 +269,17 @@ levables.
 
 ### Procès à deux cardinaux
 
-Deux cardinaux **distincts** envoient chacun `J NNN` (procès sans carte, noble
-ou dame `NNN`) le même hiver ; le pape seul ne suffit jamais, mais un pape qui
-est aussi cardinal compte comme cardinal. Les deux cardinaux peuvent
-appartenir au même joueur. La cible suit le périmètre de la carte de procès
+Deux cardinaux **distincts** déposent chacun `J HHH NNN` (procès sans carte) le
+même hiver : `HHH` est le cardinal qui porte le procès, `NNN` le noble ou la
+dame jugé. Le pape seul ne suffit jamais, mais un pape qui est aussi cardinal
+compte comme cardinal. Les deux cardinaux peuvent appartenir au même joueur
+(deux lignes sur sa feuille) ou à deux joueurs (une ligne chacun). `HHH` doit
+être un cardinal du joueur, au titre actif (ni excommunié ni au cachot) ; un
+cardinal ne porte qu'un procès par hiver. Un ordre dont `HHH` n'est pas un
+noble du joueur est rejeté (`noble_not_owned`), de même qu'un `HHH` sans titre
+actif de cardinal (`not_cardinal`) ou déjà engagé (`trial_limit`). Un procès
+n'a lieu que si un second cardinal dépose le même : un ordre isolé reste sans
+effet. La cible suit le périmètre de la carte de procès
 ([dames.md § Carte de procès](dames.md#carte-de-procès)) : procès direct pour
 une dame éligible, excommunication préalable pour tout autre personnage. Le
 jugement a lieu en toute fin de tour, après les élections et la fin

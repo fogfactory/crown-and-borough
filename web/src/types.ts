@@ -72,6 +72,7 @@ export type EventType =
   | 'eon_unmasked'
   | 'dignity_revealed'
   | 'inquiry'
+  | 'trial_filed'
   | 'ritual'
   | 'excommunication'
   | 'excommunication_lifted'
@@ -224,6 +225,8 @@ export interface WinterAids {
   inquirers: string[]
   /** R an inquiry costs, per noble code. */
   inquiryCosts: Record<string, number>
+  /** The viewer's cardinals able to back a trial (`J`) order. */
+  trialJudges: string[]
   fiefSites: FiefSite[]
   fiefCostPerTerritory: number
   /** The viewer's Witches able to perform a ritual, with the region it would hit. */
@@ -911,6 +914,7 @@ export type WinterOrderType =
   | 'claim'
   | 'ritual'
   | 'inquiry'
+  | 'trial'
 
 export interface WinterOrder {
   id?: string

@@ -63,6 +63,7 @@ const (
 	WinterOrderTypeLiftExcommunication WinterOrderType = "lift_excommunication"
 	WinterOrderTypeBuyCardinal         WinterOrderType = "buy_cardinal"
 	WinterOrderTypeInquiry             WinterOrderType = "inquiry"
+	WinterOrderTypeTrial               WinterOrderType = "trial"
 )
 
 // IsValid reports whether a winter order type is known to the winter resolver.
@@ -75,7 +76,7 @@ func (t WinterOrderType) IsValid() bool {
 		WinterOrderTypeDrawNoble, WinterOrderTypeDignity, WinterOrderTypeDiscardNoble,
 		WinterOrderTypeClaim, WinterOrderTypeCalamityVeto,
 		WinterOrderTypeCandidacy, WinterOrderTypeVote, WinterOrderTypeBuyCardinal,
-		WinterOrderTypeExcommunicate, WinterOrderTypeLiftExcommunication, WinterOrderTypeRitual, WinterOrderTypeInquiry:
+		WinterOrderTypeExcommunicate, WinterOrderTypeLiftExcommunication, WinterOrderTypeRitual, WinterOrderTypeInquiry, WinterOrderTypeTrial:
 		return true
 	}
 	return false
@@ -148,7 +149,9 @@ type Order struct {
 // is the targeted noble (papal orders, resolved first: specs/religieux.md
 // § Excommunication). For WinterOrderTypeInquiry, NobleCode is the investigating
 // cardinal or pope of the player and TargetCode the investigated noble (stage
-// 3: specs/religieux.md § Enquête).
+// 3: specs/religieux.md § Enquête). For WinterOrderTypeTrial, NobleCode is the
+// cardinal backing the trial and TargetCode the noble put on trial (filed at
+// stage 3, judged at stage 9: specs/religieux.md § Procès à deux cardinaux).
 type WinterOrder struct {
 	ID           OrderID         `json:"id"`
 	Type         WinterOrderType `json:"type"`
@@ -161,8 +164,8 @@ type WinterOrder struct {
 	NobleCode    NobleCode       `json:"nobleCode,omitempty"`
 	SpouseCode   NobleCode       `json:"spouseCode,omitempty"`
 	CardCode     string          `json:"cardCode,omitempty"`
-	// TargetCode is the noble an inquiry investigates (NobleCode is then the
-	// investigating cardinal or pope).
+	// TargetCode is the noble an inquiry investigates or a trial judges
+	// (NobleCode is then the investigating or backing cardinal or pope).
 	TargetCode NobleCode `json:"targetCode,omitempty"`
 	// Election is the election a candidacy or a vote belongs to.
 	Election ElectionKind `json:"election,omitempty"`

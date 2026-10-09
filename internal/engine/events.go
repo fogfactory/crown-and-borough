@@ -79,6 +79,10 @@ const (
 	// EventTypeInquiry is the paid Q order (ResourceSpent), emitted whether or
 	// not the target hid a dignity.
 	EventTypeInquiry EventType = "inquiry"
+	// EventTypeTrialFiled is the private acknowledgement of an accepted J order
+	// (NobleID is the target); the verdict, if a second cardinal backs it, is a
+	// public EventTypeTrial at the end of the winter.
+	EventTypeTrialFiled EventType = "trial_filed"
 	// EventTypeDignityRevealed is the public reveal of a hidden dignity by an
 	// inquiry (Dignity names it); a chevalier d'Éon emits EventTypeEonUnmasked.
 	EventTypeDignityRevealed EventType = "dignity_revealed"

@@ -3,7 +3,7 @@ import { IconBook, IconSnowflake, IconX } from '@tabler/icons-react'
 
 import { Button } from '@/components/ui/button'
 import { OrderLauncher } from '@/components/OrderDialog'
-import { AppeasementOrders, SpecialCardOrders, TitleOrdersSection } from '@/components/TitleOrders'
+import { AppeasementOrders, SpecialCardOrders, TitleOrdersSection, shortCode } from '@/components/TitleOrders'
 import {
   Tooltip,
   TooltipContent,
@@ -18,6 +18,7 @@ import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
 import { DEFAULT_HAND_LIMIT } from '@/types'
 import type {
+  CardKind,
   Dignity,
   Noble,
   NobleCard,
@@ -268,7 +269,7 @@ export function draftHasNobleDraw(draft: string): boolean {
 
 /** Counts the `D C CCC` lines of the draft: each frees a hand slot. */
 function draftNobleDiscardCount(draft: string): number {
-  return draftLines(draft).filter((line) => /^D\s+C\s+[A-Z]{3}$/.test(line)).length
+  return draftLines(draft).filter((line) => /^D\s+C\s+[A-Z]{2,3}$/.test(line)).length
 }
 
 /** Counts the `C N HHH CCC` lines of the draft: each consumes a claim card. */
@@ -462,6 +463,56 @@ function NobleCardRow({
   )
 }
 
+/** A special card of the hand, with the button that discards it (`D C KIND`). */
+function SpecialCardRow({
+  kind,
+  copies,
+  winterDraft,
+  onWinterChange,
+  cardsOnly,
+}: {
+  kind: CardKind
+  copies: number
+  winterDraft: string
+  onWinterChange: (text: string) => void
+  cardsOnly: boolean
+}) {
+  const { t } = useLanguage()
+  const card = formatCardLabel(kind, t)
+  const code = shortCode(kind)
+  const discarded = draftLines(winterDraft).filter((line) =>
+    new RegExp(`^D\\s+C\\s+${code}(\\s|$)`).test(line),
+  ).length
+  return (
+    <li className="flex items-center gap-1.5 text-xs text-[#263f52]">
+      <span className="rounded border border-[#c8b0d9] bg-[#fbf5ff] px-2 py-1">
+        {copies > 1 ? `${card} ×${copies}` : card}
+      </span>
+      {!cardsOnly && (
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          className="border-[#a84632]/50 text-[#a84632] hover:bg-[#f8e5dd] hover:text-[#8d321e]"
+          disabled={discarded >= copies}
+          aria-label={t('orders.discardSpecialCard', { card })}
+          title={t('orders.discardSpecialCard', { card })}
+          onClick={() =>
+            onWinterChange(
+              appendDraftLine(
+                winterDraft,
+                `D C ${code} # ${t('orders.comment.discardSpecial', { card })}`,
+              ),
+            )
+          }
+        >
+          <IconX aria-hidden="true" className="size-4" />
+        </Button>
+      )}
+    </li>
+  )
+}
+
 function NobleDeckSection({
   state,
   player,
@@ -483,14 +534,16 @@ function NobleDeckSection({
   const deckSize = state.nobleDeckSize ?? 0
   const drawn = draftHasNobleDraw(winterDraft)
   const handLimit = state.handLimit ?? DEFAULT_HAND_LIMIT
-  const specialCount = (state.specialHand ?? []).length
+  const specialHand = state.specialHand ?? []
+  const specialKinds = [...new Set(specialHand)]
+  const specialCount = specialHand.length
   const handFull =
     specialCount + hand.length - draftNobleDiscardCount(winterDraft) >= handLimit
   const drawDisabled = drawn || deckSize === 0 || handFull
   return (
     <section className="space-y-2 rounded-lg border border-[#9bbbd3] bg-[#f7fbff] p-3">
       <h4 className="font-serif text-base font-semibold text-[#2c5b7d]">
-        {t('orders.nobleDeckTitle')}
+        {t('orders.handTitle')}
       </h4>
       {(state.spiedHands ?? []).map((hand) => (
         <p key={hand.player} className="text-xs font-medium text-[#2c5b7d]">
@@ -552,11 +605,21 @@ function NobleDeckSection({
           noble: hand.length,
         })}
       </p>
-      <p className="text-xs font-semibold text-[#2c5b7d]">{t('orders.nobleHand')}</p>
-      {hand.length === 0 ? (
-        <p className="text-xs text-[#55738a]">{t('orders.nobleHandEmpty')}</p>
+      <p className="text-xs font-semibold text-[#2c5b7d]">{t('orders.hand')}</p>
+      {hand.length === 0 && specialKinds.length === 0 ? (
+        <p className="text-xs text-[#55738a]">{t('orders.handEmpty')}</p>
       ) : (
-        <ul className="space-y-1" aria-label={t('orders.nobleHand')}>
+        <ul className="space-y-1" aria-label={t('orders.hand')}>
+          {specialKinds.map((kind) => (
+            <SpecialCardRow
+              key={kind}
+              kind={kind}
+              copies={specialHand.filter((card) => card === kind).length}
+              winterDraft={winterDraft}
+              onWinterChange={onWinterChange}
+              cardsOnly={cardsOnly}
+            />
+          ))}
           {hand.map((card) => (
             <NobleCardRow
               key={card.id}
@@ -733,19 +796,8 @@ function OpenElectionsSection({
   )
 }
 
-function DeckHandSummary({
-  state,
-  regions,
-  winterDraft,
-  onWinterChange,
-}: {
-  state: StateData
-  regions: Region[]
-  winterDraft: string
-  onWinterChange: (text: string) => void
-}) {
+function DeckHandSummary({ state }: { state: StateData }) {
   const { t } = useLanguage()
-  const hand = state.specialHand ?? []
 
   return (
     <section className="space-y-2 rounded-lg border border-[#c8b0d9] bg-[#fbf5ff] p-3">
@@ -755,16 +807,6 @@ function DeckHandSummary({
       <p className="text-xs leading-relaxed text-[#806f57]">
         {t('orders.deckWinterDescription')}
       </p>
-      <p className="text-xs text-[#684b7d]">
-        {t('orders.deckHand')}: {formatCardHand(hand, t)}
-      </p>
-      <SpecialCardOrders
-        state={state}
-        regions={regions}
-        draft={winterDraft}
-        onChange={onWinterChange}
-        discard
-      />
       <CalamityWarnings state={state} />
     </section>
   )
@@ -867,12 +909,7 @@ export function OrdersPanel({
             )}
           </div>
         )}
-        <DeckHandSummary
-          state={state}
-          regions={regions}
-          winterDraft={winterDraft}
-          onWinterChange={onWinterChange}
-        />
+        <DeckHandSummary state={state} />
         <TitleOrdersSection
           state={state}
           player={player}

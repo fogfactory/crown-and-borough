@@ -71,6 +71,7 @@ func ResolveWinterWithDeckOrders(
 	}
 	// Stage 3: inquiries of cardinals and of the pope.
 	ctx.resolveInquiries(orders)
+	ctx.fileWinterTrials(orders)
 	// Stage 5: marriages.
 	ctx.resolveMarriages()
 	// Stage 6: elections, counted on one snapshot; stage 7: investiture.
@@ -95,6 +96,8 @@ func ResolveWinterWithDeckOrders(
 	// anchor here (#215).
 	ctx.emitAbandonedControl(ctx.startControl)
 	ctx.emitWinterStockEvents(stockBefore)
+	// Stage 9: trials filed at stage 3, after everything else of the winter.
+	ctx.judgeWinterTrials()
 
 	if err := state.Validate(); err != nil {
 		return Resolution{}, fmt.Errorf("engine: resolve winter: invalid result: %w", err)

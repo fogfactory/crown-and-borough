@@ -232,6 +232,49 @@ export function TitleOrdersSection({
     )
   }
 
+  // A J line names the backing cardinal; a second cardinal, of the same player
+  // or of another, must file the same trial for it to take place.
+  const judges = aids.trialJudges.filter((code) => !lines.some((line) => line.startsWith(`J ${code} `)))
+  if (judges.length > 0) {
+    launchers.push(
+      <OrderLauncher
+        key="trial"
+        label={t('orders.trial')}
+        title={t('orders.trial')}
+        description={t('orders.trialHelp')}
+        hint={(values) =>
+          values.noble ? t('orders.hint.trialSecond', { name: nobleName(state, values.noble) }) : ''
+        }
+        fields={[
+          {
+            key: 'cardinal',
+            label: t('orders.field.trialCardinal'),
+            options: judges.map((code) => ({
+              value: code,
+              label: titleHolder(code, state.pope === code ? 'pope' : 'cardinal'),
+            })),
+          },
+          {
+            key: 'noble',
+            label: t('orders.field.tried'),
+            options: state.nobles
+              .filter((noble) => !judges.includes(noble.code))
+              .map((noble) => nobleOption(noble)),
+          },
+        ]}
+        buildOrder={(values) =>
+          values.cardinal && values.noble
+            ? {
+                line: `J ${values.cardinal} ${values.noble}`,
+                comment: t('orders.comment.trial', { name: nobleName(state, values.noble) }),
+              }
+            : null
+        }
+        onConfirm={add}
+      />,
+    )
+  }
+
   if (canVeto) {
     const positions: OrderFieldOption[] = forecast.map((kind, index) => ({
       value: String(index + 1),
@@ -729,7 +772,7 @@ const SHORT_CODES: Record<CardKind, string> = {
   trial: 'PR',
 }
 
-function shortCode(kind: CardKind): string {
+export function shortCode(kind: CardKind): string {
   return SHORT_CODES[kind]
 }
 

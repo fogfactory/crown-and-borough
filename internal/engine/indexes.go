@@ -30,6 +30,9 @@ type resolutionContext struct {
 	// pendingCardinals holds the bishops promoted to cardinal this winter,
 	// by purchase or by card, titled at the investiture.
 	pendingCardinals []pendingCardinal
+	// winterTrials holds the two-cardinal trials filed at stage 3 and judged
+	// at the very end of the winter.
+	winterTrials []winterTrial
 	// nobleDraws holds the players who already drew a noble card this winter
 	// (one draw per player per winter, specs/succession.md § Deck de nobles).
 	nobleDraws map[models.PlayerID]bool

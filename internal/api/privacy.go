@@ -756,10 +756,10 @@ func chainTouches(chain models.Chain, territories []models.TerritoryID) bool {
 // ballots stay private (specs/religieux.md § Votes); an inquiry names the
 // noble investigated, which only its author may know.
 func isPrivateBallot(investment engine.WinterInvestmentReport) bool {
-	if investment.Kind == engine.EventTypeRitual || investment.Kind == engine.EventTypeInquiry {
+	if investment.Kind == engine.EventTypeRitual || investment.Kind == engine.EventTypeInquiry || investment.Kind == engine.EventTypeTrialFiled {
 		return true
 	}
-	return investment.Order != nil && (investment.Order.Type == models.WinterOrderTypeVote || investment.Order.Type == models.WinterOrderTypeRitual || investment.Order.Type == models.WinterOrderTypeInquiry)
+	return investment.Order != nil && (investment.Order.Type == models.WinterOrderTypeVote || investment.Order.Type == models.WinterOrderTypeRitual || investment.Order.Type == models.WinterOrderTypeInquiry || investment.Order.Type == models.WinterOrderTypeTrial)
 }
 
 func revealsHiddenDignity(investment engine.WinterInvestmentReport) bool {
