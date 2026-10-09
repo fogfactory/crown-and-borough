@@ -208,7 +208,9 @@ automne.
 La limite de main, le remplissage automatique, la taille et la composition du
 deck, ainsi que les capacités des slots de calamité, sont chargées depuis
 `assets/balance.yaml`. La génération initiale du deck est déterministe à partir
-de la seed de partie. Au printemps, l'augure révèle le kind, la saison et la
+de la seed de partie. Chaque calamité tirée est programmée sur une saison de
+l'année suivante tirée au hasard parmi celles dont les slots ne sont pas
+pleins. Au printemps, l'augure révèle le kind, la saison et la
 région de toutes les calamités de l'année ; les augures futures restent cachées.
 
 Les calamités et les cartes bonus sont appliquées avant la résolution

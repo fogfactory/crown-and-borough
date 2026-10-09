@@ -1009,11 +1009,12 @@ automatiquement des cartes bonus, jusqu'à
 carte de noble piochée compte pour une) et dans la limite des places libres de
 sa main.
 
-Une calamité tirée est programmée dans le premier slot disponible de l'année
-suivante : printemps (**{{special_orders.calamity_slots.spring}}**), été
+Une calamité tirée est programmée dans l'année suivante, sur une saison tirée
+au hasard parmi celles qui ont encore un slot libre : printemps
+(**{{special_orders.calamity_slots.spring}}**), été
 (**{{special_orders.calamity_slots.summer}}**) ou automne
-(**{{special_orders.calamity_slots.autumn}}**). Sa région est tirée de
-manière déterministe lors de la programmation. L'augure du printemps révèle
+(**{{special_orders.calamity_slots.autumn}}**). Sa saison et sa région sont
+tirées de manière déterministe lors de la programmation. L'augure du printemps révèle
 le kind, la saison et la région de toutes les calamités de l'année ; les
 augures futures restent cachées. Dès son tirage, la calamité programmée est
 annoncée dans l'encart des cartes spéciales de l'interface, et l'annonce

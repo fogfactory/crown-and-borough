@@ -955,11 +955,12 @@ bonus cards, up to **{{special_orders.draw_orders_limit}} per winter** across
 all decks (a noble card drawn counts as one) and within the free slots of
 their hand.
 
-A drawn calamity is programmed into the first free slot of the following
-year: spring (**{{special_orders.calamity_slots.spring}}**), summer
+A drawn calamity is programmed into the following year, on a season drawn at
+random among those that still have a free slot: spring
+(**{{special_orders.calamity_slots.spring}}**), summer
 (**{{special_orders.calamity_slots.summer}}**), or autumn
-(**{{special_orders.calamity_slots.autumn}}**). Its region is selected
-deterministically when programmed. The spring augury reveals the kind, season,
+(**{{special_orders.calamity_slots.autumn}}**). Its season and region are
+selected deterministically when programmed. The spring augury reveals the kind, season,
 and region of every calamity in that year; future auguries remain hidden. As
 soon as a calamity is drawn, the interface announces it in the special-cards
 panel, and the announcement stays visible until the calamity applies or is

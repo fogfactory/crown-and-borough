@@ -175,16 +175,18 @@ func (ctx *resolutionContext) programCalamity(cardID models.SpecialCardID, kind 
 	for _, calamity := range augury.Calamities {
 		counts[calamity.Season]++
 	}
-	season := models.Season("")
+	// The season is drawn at random among those that still have a free slot,
+	// so the first calamities of a winter do not always fall in spring.
+	free := make([]models.Season, 0, 3)
 	for _, candidate := range []models.Season{models.SeasonSpring, models.SeasonSummer, models.SeasonAutumn} {
 		if counts[candidate] < augury.Capacities[candidate] {
-			season = candidate
-			break
+			free = append(free, candidate)
 		}
 	}
-	if season == "" {
+	if len(free) == 0 {
 		return false
 	}
+	season := free[newCalamitySeasonRNG(ctx.state.Seed, ctx.state.Turn, cardID).IntN(len(free))]
 	seeds := make([]models.TerritoryID, len(ctx.state.Regions))
 	for index, region := range ctx.state.Regions {
 		seeds[index] = region.Seed
@@ -205,6 +207,11 @@ func newReshuffleRNG(seed string, turn, count int) *rand.Rand {
 
 func newCalamityRegionRNG(seed string, turn int, cardID models.SpecialCardID) *rand.Rand {
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s|calamity-region|%d|%s", seed, turn, cardID)))
+	return rand.New(rand.NewPCG(binary.BigEndian.Uint64(digest[:8]), binary.BigEndian.Uint64(digest[8:16])))
+}
+
+func newCalamitySeasonRNG(seed string, turn int, cardID models.SpecialCardID) *rand.Rand {
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s|calamity-season|%d|%s", seed, turn, cardID)))
 	return rand.New(rand.NewPCG(binary.BigEndian.Uint64(digest[:8]), binary.BigEndian.Uint64(digest[8:16])))
 }
 
