@@ -1,7 +1,9 @@
-import { useState, type ChangeEvent } from 'react'
+import { type ChangeEvent } from 'react'
 import { IconBook, IconSnowflake } from '@tabler/icons-react'
 
 import { Button } from '@/components/ui/button'
+import { OrderLauncher } from '@/components/OrderDialog'
+import { SpecialCardOrders, TitleOrdersSection } from '@/components/TitleOrders'
 import {
   Tooltip,
   TooltipContent,
@@ -11,6 +13,7 @@ import {
 import type { RulesSection } from '@/components/RulesPanel'
 import { formatCardHand, formatCardLabel } from '@/lib/card-hand'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
+import { appendDraftLine, draftLines } from '@/lib/winter-draft'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
 import { DEFAULT_HAND_LIMIT } from '@/types'
@@ -21,6 +24,7 @@ import type {
   OrdersPreview,
   OrdersPreviewError,
   PlayerId,
+  Region,
   StateData,
   VoiceSource,
   WinterLinePreview,
@@ -33,6 +37,8 @@ interface OrdersPanelProps {
   winterDraft: string
   /** Server dry run of the drafts; null until the first preview arrives. */
   preview?: OrdersPreview | null
+  /** Regions of the map (seed villages), for the orders that name one. */
+  regions?: Region[]
   specialDraft: string
   submitted: boolean
   submitting: boolean
@@ -82,6 +88,8 @@ function claimTargets(state: StateData, player: PlayerId): Noble[] {
   }
   return [...targets.values()]
 }
+
+export { appendDraftLine }
 
 function chainPlaceholder(): string {
   return 'XXX A YYY'
@@ -179,10 +187,12 @@ function CalamityWarnings({ state }: { state: StateData }) {
 
 function DeckOrdersSection({
   state,
+  regions,
   specialDraft,
   onSpecialChange,
 }: {
   state: StateData
+  regions: Region[]
   specialDraft: string
   onSpecialChange: (text: string) => void
 }) {
@@ -200,6 +210,12 @@ function DeckOrdersSection({
         {t('orders.deckHand')}: {formatCardHand(hand, t)}
       </p>
       <CalamityWarnings state={state} />
+      <SpecialCardOrders
+        state={state}
+        regions={regions}
+        draft={specialDraft}
+        onChange={onSpecialChange}
+      />
       <textarea
         value={specialDraft}
         onChange={(event) => onSpecialChange(event.target.value)}
@@ -209,19 +225,6 @@ function DeckOrdersSection({
       />
     </section>
   )
-}
-
-/** Appends one order line to a winter draft, on its own line. */
-export function appendDraftLine(draft: string, line: string): string {
-  const trimmed = draft.replace(/\s+$/, '')
-  return trimmed === '' ? `${line}\n` : `${trimmed}\n${line}\n`
-}
-
-function draftLines(draft: string): string[] {
-  return draft
-    .split('\n')
-    .map((line) => line.replace(/#.*$/, '').trim().toUpperCase())
-    .filter((line) => line !== '')
 }
 
 /** True when the draft already carries a `T N` draw order. */
@@ -255,6 +258,7 @@ function NobleCardRow({
   card,
   player,
   state,
+  regions,
   winterDraft,
   onWinterChange,
   cardsOnly = false,
@@ -262,15 +266,13 @@ function NobleCardRow({
   card: NobleCard
   player: PlayerId
   state: StateData
+  regions: Region[]
   winterDraft: string
   onWinterChange: (text: string) => void
   /** Outside winter only cards can be played: no discard. */
   cardsOnly?: boolean
 }) {
   const { t } = useLanguage()
-  const [target, setTarget] = useState('')
-  const [claimTarget, setClaimTarget] = useState('')
-  const [abbeyRegion, setAbbeyRegion] = useState('')
   const isClaim = card.kind === 'claim'
   const claimCardCount = (state.nobleHand ?? []).filter((c) => c.kind === 'claim').length
   const used = isClaim
@@ -278,37 +280,33 @@ function NobleCardRow({
     : draftMentionsCard(winterDraft, card.code)
   const isDignity = card.kind === 'dignity'
   const needsRegion = card.dignity === 'abbess'
+  const nobleOptions = ownedNobles(state, player)
+    .filter((noble) =>
+      isClaim
+        ? !(noble.dignities ?? []).includes('bastard')
+        : canReceiveDignity(noble, card.dignity ?? 'bastard'),
+    )
+    .map((noble) => ({ value: noble.code, label: `${noble.code} · ${noble.name}` }))
   const claimOptions = isClaim
     ? claimTargets(state, player).map((noble) => ({
         value: noble.code,
         label: `${noble.code} · ${noble.name}`,
       }))
     : []
-  const selectedClaim = claimOptions.some((option) => option.value === claimTarget)
-    ? claimTarget
-    : (claimOptions[0]?.value ?? '')
-  const options =
-    isDignity || isClaim
-      ? ownedNobles(state, player)
-          .filter((noble) =>
-            isClaim
-              ? !(noble.dignities ?? []).includes('bastard')
-              : canReceiveDignity(noble, card.dignity ?? 'bastard'),
-          )
-          .map((noble) => ({ value: noble.code, label: `${noble.code} · ${noble.name}` }))
-      : state.territories
-          .filter(
-            (territory) =>
-              territory.owner === player &&
-              territory.army?.owner === player &&
-              territory.infrastructures.some(
-                (infra) => infra.type === 'castle' || infra.type === 'village',
-              ),
-          )
-          .map((territory) => ({ value: territory.id, label: territory.id }))
-  const selected = options.some((option) => option.value === target)
-    ? target
-    : (options[0]?.value ?? '')
+  const territoryOptions = state.territories
+    .filter(
+      (territory) =>
+        territory.owner === player &&
+        territory.army?.owner === player &&
+        territory.infrastructures.some(
+          (infra) => infra.type === 'castle' || infra.type === 'village',
+        ),
+    )
+    .map((territory) => ({ value: territory.id, label: territory.id }))
+  const regionOptions = regions.map((region) => ({
+    value: region.seed,
+    label: region.name ? `${region.seed} · ${region.name}` : region.seed,
+  }))
   const label = isClaim
     ? t('orders.nobleHandClaim', { code: card.code })
     : isDignity
@@ -323,85 +321,80 @@ function NobleCardRow({
             card.sex === 'female' ? 'orders.nobleHandFemale' : 'orders.nobleHandMale',
           ),
         })
-  const discard = () => {
-    onWinterChange(appendDraftLine(winterDraft, `D C ${card.code}`))
-  }
-  const play = () => {
-    if (selected === '' || (isClaim && selectedClaim === '')) return
-    if (needsRegion && abbeyRegion.trim().length !== 3) return
-    const line = isClaim
-      ? `C N ${selected} ${selectedClaim}`
+  const playLabel = t(
+    isClaim
+      ? 'orders.nobleHandPlayClaim'
       : isDignity
-        ? `D N ${selected} ${card.code}${needsRegion ? ` ${abbeyRegion.toUpperCase()}` : ''}`
-        : `R N ${card.code} ${selected}`
-    onWinterChange(appendDraftLine(winterDraft, line))
+        ? 'orders.nobleHandPlayDignity'
+        : 'orders.nobleHandPlayTerritory',
+  )
+  const nobleName = (code: string) =>
+    state.nobles.find((noble) => noble.code === code)?.name ?? code
+  const fields = isClaim
+    ? [
+        { key: 'heir', label: t('orders.field.heir'), options: nobleOptions },
+        { key: 'target', label: t('orders.field.claimed'), options: claimOptions },
+      ]
+    : isDignity
+      ? [
+          { key: 'noble', label: t('orders.field.noble'), options: nobleOptions },
+          ...(needsRegion
+            ? [
+                regionOptions.length > 0
+                  ? { key: 'region', label: t('orders.field.region'), options: regionOptions }
+                  : {
+                      key: 'region',
+                      label: t('orders.field.region'),
+                      placeholder: t('orders.abbeyRegionPlaceholder'),
+                      maxLength: 3,
+                    },
+              ]
+            : []),
+        ]
+      : [{ key: 'territory', label: t('orders.field.territory'), options: territoryOptions }]
+  const missingOptions = fields.some((field) => field.options?.length === 0)
+  const buildOrder = (values: Record<string, string>) => {
+    if (isClaim) {
+      if (!values.heir || !values.target) return null
+      return {
+        line: `C N ${values.heir} ${values.target}`,
+        comment: t('orders.comment.claim', {
+          name: nobleName(values.target),
+          heir: nobleName(values.heir),
+        }),
+      }
+    }
+    if (isDignity) {
+      if (!values.noble) return null
+      if (needsRegion && values.region.trim().length !== 3) return null
+      return {
+        line: `D N ${values.noble} ${card.code}${needsRegion ? ` ${values.region.toUpperCase()}` : ''}`,
+        comment: t('orders.comment.dignity', {
+          dignity: t(`dignity.${card.dignity ?? 'bastard'}` as MessageKey),
+          name: nobleName(values.noble),
+        }),
+      }
+    }
+    if (!values.territory) return null
+    return {
+      line: `R N ${card.code} ${values.territory}`,
+      comment: t('orders.comment.recruit', {
+        name: card.name ?? card.code,
+        territory: values.territory,
+      }),
+    }
   }
   return (
     <li className="flex flex-wrap items-center gap-2 text-xs text-[#263f52]">
       <span className="font-medium">{label}</span>
-      <select
-        value={selected}
-        onChange={(event) => setTarget(event.target.value)}
-        className="rounded border border-[#9bbbd3] bg-white px-1 py-0.5"
-        aria-label={t(
-          isClaim
-            ? 'orders.nobleHandClaimHeirAria'
-            : isDignity
-              ? 'orders.nobleHandDignityTargetAria'
-              : 'orders.nobleHandTerritoryAria',
-          { code: card.code },
-        )}
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-      {needsRegion && (
-        <input
-          value={abbeyRegion}
-          maxLength={3}
-          onChange={(event) => setAbbeyRegion(event.target.value)}
-          placeholder={t('orders.abbeyRegionPlaceholder')}
-          aria-label={t('orders.abbeyRegionAria', { code: card.code })}
-          className="w-16 rounded border border-[#9bbbd3] bg-white px-1 py-0.5 uppercase"
-        />
-      )}
-      {isClaim && (
-        <select
-          value={selectedClaim}
-          onChange={(event) => setClaimTarget(event.target.value)}
-          className="rounded border border-[#9bbbd3] bg-white px-1 py-0.5"
-          aria-label={t('orders.nobleHandClaimTargetAria', { code: card.code })}
-        >
-          {claimOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      )}
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        disabled={
-          used ||
-          selected === '' ||
-          (isClaim && selectedClaim === '') ||
-          (needsRegion && abbeyRegion.trim().length !== 3)
-        }
-        onClick={play}
-      >
-        {t(
-          isClaim
-            ? 'orders.nobleHandPlayClaim'
-            : isDignity
-              ? 'orders.nobleHandPlayDignity'
-              : 'orders.nobleHandPlayTerritory',
-        )}
-      </Button>
+      <OrderLauncher
+        label={playLabel}
+        title={`${playLabel} · ${label}`}
+        disabled={used || missingOptions}
+        fields={fields}
+        buildOrder={buildOrder}
+        onConfirm={(line) => onWinterChange(appendDraftLine(winterDraft, line))}
+      />
       {!cardsOnly && (
         <Button
           type="button"
@@ -409,7 +402,14 @@ function NobleCardRow({
           size="sm"
           disabled={used}
           aria-label={t('orders.nobleHandDiscardAria', { code: card.code })}
-          onClick={discard}
+          onClick={() =>
+            onWinterChange(
+              appendDraftLine(
+                winterDraft,
+                `D C ${card.code} # ${t('orders.comment.discard', { name: card.name ?? card.code })}`,
+              ),
+            )
+          }
         >
           {t('orders.nobleHandDiscard')}
         </Button>
@@ -421,12 +421,14 @@ function NobleCardRow({
 function NobleDeckSection({
   state,
   player,
+  regions,
   winterDraft,
   onWinterChange,
   cardsOnly = false,
 }: {
   state: StateData
   player: PlayerId
+  regions: Region[]
   winterDraft: string
   onWinterChange: (text: string) => void
   /** Outside winter: play the cards of the hand, no draw nor discard. */
@@ -517,6 +519,7 @@ function NobleDeckSection({
               card={card}
               player={player}
               state={state}
+              regions={regions}
               winterDraft={winterDraft}
               onWinterChange={onWinterChange}
               cardsOnly={cardsOnly}
@@ -571,6 +574,10 @@ function OpenElectionsSection({
               ?.name ?? election.region ?? ''
           const isPope = election.kind === 'pope'
           const seat = election.seat ?? ''
+          const filable = election.candidates.filter((candidate) => {
+            const line = isPope ? `K P ${candidate.code}` : `K E ${candidate.code} ${seat}`
+            return !lines.includes(line.toUpperCase())
+          })
           return (
             <details
               key={`${election.kind}-${election.region ?? ''}`}
@@ -607,35 +614,64 @@ function OpenElectionsSection({
                     )}
                   </TooltipContent>
                 </Tooltip>
-                {election.candidates.length > 0 ? (
-                  <div className="space-y-1">
-                    <p className="text-[#55738a]">{t('orders.electionCandidateHint')}</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {election.candidates.map((candidate) => {
-                        const line = isPope
+                <div className="flex flex-wrap gap-1.5">
+                  <OrderLauncher
+                    label={t('orders.electionCandidacyLaunch')}
+                    title={`${t('orders.electionCandidacyLaunch')} · ${
+                      isPope ? t('orders.electionPopeHeading') : name
+                    }`}
+                    disabled={filable.length === 0}
+                    fields={[
+                      {
+                        key: 'noble',
+                        label: t('orders.field.candidate'),
+                        options: filable.map((candidate) => ({
+                          value: candidate.code,
+                          label: `${candidate.name} (${candidate.code})`,
+                        })),
+                      },
+                    ]}
+                    buildOrder={(values) => {
+                      const candidate = filable.find((entry) => entry.code === values.noble)
+                      if (!candidate) return null
+                      return {
+                        line: isPope
                           ? `K P ${candidate.code}`
-                          : `K E ${candidate.code} ${seat}`
-                        const added = lines.includes(line.toUpperCase())
-                        const commented = `${line} # ${t('orders.electionCandidacyComment', { name: candidate.name })}`
-                        return (
-                          <Button
-                            key={candidate.code}
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={added}
-                            title={added ? t('orders.electionCandidateAdded') : line}
-                            onClick={() =>
-                              onWinterChange(appendDraftLine(winterDraft, commented))
-                            }
-                          >
-                            {candidate.name} ({candidate.code})
-                          </Button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ) : (
+                          : `K E ${candidate.code} ${seat}`,
+                        comment: t('orders.electionCandidacyComment', { name: candidate.name }),
+                      }
+                    }}
+                    onConfirm={(line) => onWinterChange(appendDraftLine(winterDraft, line))}
+                  />
+                  <OrderLauncher
+                    label={t('orders.electionVoteLaunch')}
+                    title={`${t('orders.electionVoteLaunch')} · ${
+                      isPope ? t('orders.electionPopeHeading') : name
+                    }`}
+                    disabled={election.voices === 0}
+                    fields={[
+                      {
+                        key: 'noble',
+                        label: t('orders.field.votedCandidate'),
+                        placeholder: 'NNN',
+                        maxLength: 3,
+                      },
+                    ]}
+                    buildOrder={(values) => {
+                      const code = values.noble.trim().toUpperCase()
+                      if (!/^[A-Z]{3}$/.test(code)) return null
+                      return {
+                        line: isPope ? `V P ${code}` : `V E ${code} ${seat}`,
+                        comment: t('orders.comment.vote', {
+                          name:
+                            state.nobles.find((noble) => noble.code === code)?.name ?? code,
+                        }),
+                      }
+                    }}
+                    onConfirm={(line) => onWinterChange(appendDraftLine(winterDraft, line))}
+                  />
+                </div>
+                {election.candidates.length === 0 && (
                   <p className="text-[#55738a]">{t('orders.electionNoCandidate')}</p>
                 )}
               </div>
@@ -647,7 +683,17 @@ function OpenElectionsSection({
   )
 }
 
-function DeckHandSummary({ state }: { state: StateData }) {
+function DeckHandSummary({
+  state,
+  regions,
+  winterDraft,
+  onWinterChange,
+}: {
+  state: StateData
+  regions: Region[]
+  winterDraft: string
+  onWinterChange: (text: string) => void
+}) {
   const { t } = useLanguage()
   const hand = state.specialHand ?? []
 
@@ -662,6 +708,13 @@ function DeckHandSummary({ state }: { state: StateData }) {
       <p className="text-xs text-[#684b7d]">
         {t('orders.deckHand')}: {formatCardHand(hand, t)}
       </p>
+      <SpecialCardOrders
+        state={state}
+        regions={regions}
+        draft={winterDraft}
+        onChange={onWinterChange}
+        discard
+      />
       <CalamityWarnings state={state} />
     </section>
   )
@@ -712,6 +765,7 @@ export function OrdersPanel({
   chainDrafts,
   winterDraft,
   preview = null,
+  regions = [],
   specialDraft,
   submitted,
   submitting,
@@ -762,7 +816,18 @@ export function OrdersPanel({
             )}
           </div>
         )}
-        <DeckHandSummary state={state} />
+        <DeckHandSummary
+          state={state}
+          regions={regions}
+          winterDraft={winterDraft}
+          onWinterChange={onWinterChange}
+        />
+        <TitleOrdersSection
+          state={state}
+          player={player}
+          winterDraft={winterDraft}
+          onWinterChange={onWinterChange}
+        />
         <OpenElectionsSection
           state={state}
           winterDraft={winterDraft}
@@ -771,6 +836,7 @@ export function OrdersPanel({
         <NobleDeckSection
           state={state}
           player={player}
+          regions={regions}
           winterDraft={winterDraft}
           onWinterChange={onWinterChange}
         />
@@ -829,6 +895,7 @@ export function OrdersPanel({
       </div>
       <DeckOrdersSection
         state={state}
+        regions={regions}
         specialDraft={specialDraft}
         onSpecialChange={onSpecialChange}
       />
@@ -837,6 +904,7 @@ export function OrdersPanel({
           <NobleDeckSection
             state={state}
             player={player}
+            regions={regions}
             winterDraft={winterDraft}
             onWinterChange={onWinterChange}
             cardsOnly
