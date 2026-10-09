@@ -642,6 +642,25 @@ describe('OrdersPanel noble deck (winter)', () => {
     expect(onWinterChange).toHaveBeenCalledWith('D N ANN BAS # Bâtard pour Anne\n')
   })
 
+  it('plays a hidden dignity on own ladies only, next to a visible one', () => {
+    renderDeck('', vi.fn(), {
+      ...deckState,
+      nobles: [
+        { id: 'n2', code: 'ANN', name: 'Anne', owner: 'P2', location: 'BRU', status: 'free', sex: 'female' },
+        { id: 'n3', code: 'EVE', name: 'Eve', owner: 'P1', location: 'ROS', status: 'free', sex: 'female', dignities: ['astrologer'] },
+        { id: 'n4', code: 'FAY', name: 'Faye', owner: 'P1', location: 'ROS', status: 'free', sex: 'female', dignities: ['spy'] },
+        ...deckState.nobles,
+      ],
+      nobleHand: [{ id: 'c9', kind: 'dignity', code: 'SOR', dignity: 'witch' }],
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Dignité : Sorcière (SOR)' }))
+    expect(
+      within(screen.getByRole('dialog'))
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual(['EVE · Eve'])
+  })
+
   it('plays a claim card with an own heir on a noble married to one of ours', () => {
     const onWinterChange = renderDeck('', vi.fn(), {
       ...deckState,

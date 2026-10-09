@@ -59,12 +59,28 @@ interface OrdersPanelProps {
 const MARRIAGE_EXCLUDED_DIGNITIES: Dignity[] = ['d_arc', 'abbess', 'herbalist', 'chevalier_d_eon']
 
 // A lady dignity needs a lady; the bastard is open to any noble.
+// Dignities only their owner knows (the others see a lady without them).
+const HIDDEN_DIGNITIES: Dignity[] = ['chevalier_d_eon', 'correspondent', 'spy', 'poisoner', 'witch']
+
+function isHiddenDignity(dignity: Dignity): boolean {
+  return HIDDEN_DIGNITIES.includes(dignity)
+}
+
 function canReceiveDignity(noble: Noble, dignity: Dignity): boolean {
   const held = noble.dignities ?? []
   if (held.includes(dignity)) return false
   if (dignity === 'bastard') return true
-  // The dignities of the ladies do not stack: one per noble.
-  if (held.some((other) => other !== 'bastard' && other !== 'cardinal')) return false
+  // A lady carries at most one visible and one hidden dignity of the ladies.
+  if (
+    held.some(
+      (other) =>
+        other !== 'bastard' &&
+        other !== 'cardinal' &&
+        isHiddenDignity(other) === isHiddenDignity(dignity),
+    )
+  ) {
+    return false
+  }
   if (noble.sex !== 'female') return false
   return !noble.spouse || !MARRIAGE_EXCLUDED_DIGNITIES.includes(dignity)
 }
@@ -283,13 +299,16 @@ function NobleCardRow({
     : draftMentionsCard(winterDraft, card.code)
   const isDignity = card.kind === 'dignity'
   const needsRegion = card.dignity === 'abbess'
-  // A dignity can be played on any eligible noble, an opponent's included (own
-  // nobles first); a claim needs one of the player's own nobles as heir.
+  // A visible dignity can be played on any eligible noble, an opponent's
+  // included (own nobles first); a claim needs one of the player's own nobles as heir.
   const nobleOptions = [...state.nobles]
     .filter((noble) =>
       isClaim
         ? noble.owner === player && !(noble.dignities ?? []).includes('bastard')
-        : canReceiveDignity(noble, card.dignity ?? 'bastard'),
+        : canReceiveDignity(noble, card.dignity ?? 'bastard') &&
+          // A hidden dignity goes on one of your own ladies only, so the
+          // order cannot be used to probe other players' hidden dignities.
+          (noble.owner === player || !isHiddenDignity(card.dignity ?? 'bastard')),
     )
     .sort((a, b) => Number(b.owner === player) - Number(a.owner === player))
     .map((noble) => ({
