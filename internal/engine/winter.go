@@ -58,8 +58,7 @@ func ResolveWinterWithDeckOrders(
 	stockBefore := winterStocks(ctx)
 	firstNameRNG := newWinterRNG(state.Seed, state.Turn)
 	// The winter resolves in the stages of specs/hiver.md. Stage 0 freezes the
-	// registry of open elections; stages 1 (papal sanctions), 3 (cardinal
-	// actions) and 4 (marriage dissolutions) have no order yet.
+	// registry of open elections; stage 4 (marriage dissolutions) has no order yet.
 	ctx.openWinterElections()
 	// Stage 1: papal sanctions, before every other order.
 	ctx.resolvePapalSanctions(orders)
@@ -70,6 +69,8 @@ func ResolveWinterWithDeckOrders(
 			executeWinterOrder(ctx, playerID, order, firstNameRNG)
 		}
 	}
+	// Stage 3: inquiries of cardinals and of the pope.
+	ctx.resolveInquiries(orders)
 	// Stage 5: marriages.
 	ctx.resolveMarriages()
 	// Stage 6: elections, counted on one snapshot; stage 7: investiture.

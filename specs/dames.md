@@ -263,11 +263,9 @@ Livrées : toutes les dignités et leurs passifs, ainsi que le démasquage de
 l'Éon par capture militaire, emprisonnement et Claim contre une Éon mariée.
 Abandonnés (voir les notes « Abandonné » ci-dessus) : l'ordre d'hiver de la
 Châtelaine et l'ordre « Infiltrer » de l'Espionne — seuls leurs passifs
-respectifs sont livrés. Restent à livrer, dépendant de l'enquête, de
-l'excommunication et des élections d'évêque (milestone Religieux) :
-démasquage de l'Éon et de la Sorcière par enquête (l'excommunication d'office
-d'un Éon démasqué et la vacance de ses titres religieux sont livrées ; celle de
-la Sorcière sera branchée avec l'enquête). La voix d'élection et le calme des
+respectifs sont livrés. Le démasquage par enquête (`Q HHH NNN`, voir
+[religieux.md § Enquête](religieux.md#enquête)) est livré pour toutes les
+dignités cachées, avec l'excommunication d'office de l'Éon et de la Sorcière. La voix d'élection et le calme des
 révoltes de l'Abbesse sont livrés.
 
 Précisions retenues :
@@ -361,6 +359,6 @@ Ces dignités dépendent de pouvoirs à spécifier dans
   ne sont pas levables.
 - **Dissolution de mariage** : le pape peut dissoudre un mariage à la demande
   d'un des époux, sans retirer les Claims éventuels.
-- **Enquête** (`Q NNN`, coût proportionnel au titre de la cible, voir religieux.md § Enquête) : ordre de cardinal ou de pape, qui cible un noble ou une dame
+- **Enquête** (`Q HHH NNN`, coût proportionnel au titre de la cible, voir religieux.md § Enquête) : ordre de cardinal ou de pape, qui cible un noble ou une dame
   et révèle une dignité cachée (Éon, Correspondante, Espionne, Empoisonneuse, Sorcière).
 - **Calme des révoltes** : pouvoir d'évêque, partagé avec l'Abbesse.

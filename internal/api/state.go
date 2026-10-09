@@ -502,7 +502,7 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 		}
 		revealHidden := viewer != nil && (*viewer == noble.OwnerID || *viewer == models.SpectatorViewer)
 		for _, dignity := range noble.Dignities {
-			hidden := dignity.Effect().Hidden && !(dignity == models.DignityChevalierDEon && noble.EonUnmasked)
+			hidden := dignity.Effect().Hidden && !noble.DignityRevealed && !(dignity == models.DignityChevalierDEon && noble.EonUnmasked)
 			if hidden && !revealHidden {
 				continue
 			}

@@ -70,6 +70,8 @@ export type EventType =
   | 'dignity'
   | 'claim'
   | 'eon_unmasked'
+  | 'dignity_revealed'
+  | 'inquiry'
   | 'ritual'
   | 'excommunication'
   | 'excommunication_lifted'
@@ -218,6 +220,10 @@ export interface WinterAids {
   liftable: string[]
   buyableCardinals: string[]
   cardinalCost: number
+  /** The viewer's cardinals and pope able to order an inquiry. */
+  inquirers: string[]
+  /** R an inquiry costs, per noble code. */
+  inquiryCosts: Record<string, number>
   fiefSites: FiefSite[]
   fiefCostPerTerritory: number
   /** The viewer's Witches able to perform a ritual, with the region it would hit. */
@@ -904,6 +910,7 @@ export type WinterOrderType =
   | 'discard_noble_card'
   | 'claim'
   | 'ritual'
+  | 'inquiry'
 
 export interface WinterOrder {
   id?: string
@@ -917,6 +924,7 @@ export interface WinterOrder {
   status?: NobleStatus
   /** Present only for `marriage` and `claim`: the other player's noble. */
   spouseCode?: string
+  targetCode?: string
   source?: string
   target?: string
   amount?: number

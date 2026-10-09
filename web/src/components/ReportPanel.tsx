@@ -106,6 +106,8 @@ const REASON_KEYS: Record<string, MessageKey> = {
   noble_not_astrologer: 'reports.reason.noble_not_astrologer',
   already_cardinal: 'reports.reason.already_cardinal',
   cardinal_cap_reached: 'reports.reason.cardinal_cap_reached',
+  not_cardinal: 'reports.reason.not_cardinal',
+  inquiry_limit: 'reports.reason.inquiry_limit',
   candidate_not_eligible: 'reports.reason.candidate_not_eligible',
   candidacy_already_filed: 'reports.reason.candidacy_already_filed',
   unknown_candidate: 'reports.reason.unknown_candidate',
@@ -329,6 +331,8 @@ function winterOrderLabel(order: WinterOrder, map: MapData | null, t: Translate)
       return 'T N'
     case 'discard_noble_card':
       return `D C ${order.cardCode ?? '—'}`
+    case 'inquiry':
+      return `Q ${order.nobleCode ?? '—'} ${order.targetCode ?? '—'}`
     case 'claim':
       return `C N ${order.nobleCode ?? '—'} ${order.spouseCode ?? '—'}`
     case 'play_dignity':
@@ -425,6 +429,8 @@ function investmentLabel(
     case 'noble_discard':
       // The public report does not name the discarded card.
       return 'D C'
+    case 'inquiry':
+      return `Q ${investment.nobleCode ?? '—'}`
     case 'claim':
       return `C N ${investment.nobleCode ?? '—'} ${investment.claimTarget ?? '—'}`
     case 'ritual':
@@ -708,6 +714,14 @@ function seasonEffectLine(
           noble: effect.noble ?? '—',
         }),
       }
+    case 'dignity_revealed':
+      return {
+        key,
+        label: t('reports.dignityRevealed', {
+          noble: effect.noble ?? '—',
+          dignity: t(`dignity.${effect.dignity ?? 'bastard'}`),
+        }),
+      }
     case 'eon_unmasked':
       return {
         key,
@@ -806,6 +820,7 @@ function groupSeasonEffects(
       case 'plague_noble_survived':
       case 'trial':
       case 'eon_unmasked':
+      case 'dignity_revealed':
       case 'excommunication':
       case 'excommunication_lifted':
       case 'card_canceled':

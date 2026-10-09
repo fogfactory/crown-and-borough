@@ -97,6 +97,19 @@ religion:
   appeasement_success_rolls: 3
   appeasement_death_rolls: 1
   appeasement_cost_base: 2
+  # Inquiry (Q NNN): R paid per rank of the target. A target is charged its
+  # most expensive title; a spouse costs the spouse's cost minus one (at least
+  # untitled); a noble without title or spouse costs untitled.
+  inquiry_cost:
+    untitled: 1
+    baron: 2
+    count: 3
+    marquis: 4
+    duke: 5
+    king: 5
+    pope: 5
+    bishop: 3
+    cardinal: 4
   votes:
     territory: 1
     seat: 2

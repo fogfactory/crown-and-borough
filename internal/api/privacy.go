@@ -751,14 +751,15 @@ func chainTouches(chain models.Chain, territories []models.TerritoryID) bool {
 
 // revealsHiddenDignity tells the winter entries that would give away a hidden
 // dignity: its nomination, or the rejection of the order that played its card.
-// isPrivateBallot reports whether the investment is a rejected vote: the order
-// it carries names the candidate its author backed, and ballots stay private
-// (specs/religieux.md § Votes).
+// isPrivateBallot reports whether the investment is a rejected vote or an
+// inquiry: the order it carries names the candidate its author backed, and
+// ballots stay private (specs/religieux.md § Votes); an inquiry names the
+// noble investigated, which only its author may know.
 func isPrivateBallot(investment engine.WinterInvestmentReport) bool {
-	if investment.Kind == engine.EventTypeRitual {
+	if investment.Kind == engine.EventTypeRitual || investment.Kind == engine.EventTypeInquiry {
 		return true
 	}
-	return investment.Order != nil && (investment.Order.Type == models.WinterOrderTypeVote || investment.Order.Type == models.WinterOrderTypeRitual)
+	return investment.Order != nil && (investment.Order.Type == models.WinterOrderTypeVote || investment.Order.Type == models.WinterOrderTypeRitual || investment.Order.Type == models.WinterOrderTypeInquiry)
 }
 
 func revealsHiddenDignity(investment engine.WinterInvestmentReport) bool {

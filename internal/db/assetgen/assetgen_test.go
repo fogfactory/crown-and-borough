@@ -68,6 +68,16 @@ religion:
   appeasement_success_rolls: 3
   appeasement_death_rolls: 1
   appeasement_cost_base: 2
+  inquiry_cost:
+    untitled: 1
+    baron: 2
+    count: 3
+    marquis: 4
+    duke: 5
+    king: 5
+    pope: 5
+    bishop: 3
+    cardinal: 4
   votes:
     territory: 1
     seat: 2

@@ -62,6 +62,7 @@ const (
 	WinterOrderTypeExcommunicate       WinterOrderType = "excommunicate"
 	WinterOrderTypeLiftExcommunication WinterOrderType = "lift_excommunication"
 	WinterOrderTypeBuyCardinal         WinterOrderType = "buy_cardinal"
+	WinterOrderTypeInquiry             WinterOrderType = "inquiry"
 )
 
 // IsValid reports whether a winter order type is known to the winter resolver.
@@ -74,7 +75,7 @@ func (t WinterOrderType) IsValid() bool {
 		WinterOrderTypeDrawNoble, WinterOrderTypeDignity, WinterOrderTypeDiscardNoble,
 		WinterOrderTypeClaim, WinterOrderTypeCalamityVeto,
 		WinterOrderTypeCandidacy, WinterOrderTypeVote, WinterOrderTypeBuyCardinal,
-		WinterOrderTypeExcommunicate, WinterOrderTypeLiftExcommunication, WinterOrderTypeRitual:
+		WinterOrderTypeExcommunicate, WinterOrderTypeLiftExcommunication, WinterOrderTypeRitual, WinterOrderTypeInquiry:
 		return true
 	}
 	return false
@@ -145,7 +146,9 @@ type Order struct {
 // is the player's own bishop promoted to cardinal at the investiture. For
 // WinterOrderTypeExcommunicate and WinterOrderTypeLiftExcommunication, NobleCode
 // is the targeted noble (papal orders, resolved first: specs/religieux.md
-// § Excommunication).
+// § Excommunication). For WinterOrderTypeInquiry, NobleCode is the investigating
+// cardinal or pope of the player and TargetCode the investigated noble (stage
+// 3: specs/religieux.md § Enquête).
 type WinterOrder struct {
 	ID           OrderID         `json:"id"`
 	Type         WinterOrderType `json:"type"`
@@ -158,6 +161,9 @@ type WinterOrder struct {
 	NobleCode    NobleCode       `json:"nobleCode,omitempty"`
 	SpouseCode   NobleCode       `json:"spouseCode,omitempty"`
 	CardCode     string          `json:"cardCode,omitempty"`
+	// TargetCode is the noble an inquiry investigates (NobleCode is then the
+	// investigating cardinal or pope).
+	TargetCode NobleCode `json:"targetCode,omitempty"`
 	// Election is the election a candidacy or a vote belongs to.
 	Election ElectionKind `json:"election,omitempty"`
 	// Status is the optional status a noble transfer gives a noble handed to
