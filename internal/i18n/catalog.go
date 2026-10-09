@@ -95,6 +95,14 @@ const (
 	DeckOrderRegionUnknown       = "error.special.region_unknown"
 	DeckOrderNobleUnknown        = "error.special.noble_unknown"
 
+	AppeasementOutOfSeason      = "error.appeasement.out_of_season"
+	AppeasementNotYourCleric    = "error.appeasement.not_your_cleric"
+	AppeasementUnknownTerritory = "error.appeasement.unknown_territory"
+	AppeasementNotCleric        = "error.appeasement.not_cleric"
+	AppeasementNotOwnBishopric  = "error.appeasement.not_own_bishopric"
+	AppeasementNotOwnRegion     = "error.appeasement.not_own_region"
+	AppeasementAlreadyPlayed    = "error.appeasement.already_played"
+
 	ValidationUnknownNoble                 = "error.validation.unknown_noble"
 	ValidationEmptyChain                   = "error.validation.empty_chain"
 	ValidationDuplicateOrder               = "error.validation.duplicate_order"
@@ -204,6 +212,13 @@ func init() {
 	register(DeckOrderKindUnknown, "unknown special card kind %q", "kind de carte spéciale inconnu : %q")
 	register(DeckOrderKindNotPlayable, "card kind %q cannot be used as a player order", "le kind %q ne peut pas être joué comme ordre de joueur")
 	register(DeckOrderNobleUnknown, "noble %q does not exist", "le noble %q n'existe pas")
+	register(AppeasementOutOfSeason, "a revolt appeasement cannot be played in winter", "l'apaisement de révolte ne se joue pas en hiver")
+	register(AppeasementNotYourCleric, "%q is not one of your nobles", "%q n'est pas l'un de vos nobles")
+	register(AppeasementUnknownTerritory, "territory %q does not belong to any region", "le territoire %q n'appartient à aucune région")
+	register(AppeasementNotCleric, "%q holds no active religious title (and is no abbess for the free rite)", "%q ne porte aucun titre religieux actif (ni n'est abbesse pour le rite gratuit)")
+	register(AppeasementNotOwnBishopric, "%q is a bishop and can only pay for appeasement in their own bishopric", "%q est évêque et ne peut payer l'apaisement que dans son propre évêché")
+	register(AppeasementNotOwnRegion, "%q can only perform the free rite in the region where they stand", "%q ne peut tenter le rite gratuit que dans la région où il se trouve")
+	register(AppeasementAlreadyPlayed, "%q already appeases a revolt this turn", "%q apaise déjà une révolte ce tour-ci")
 	register(DeckOrderRegionUnknown, "region seed %q does not exist", "le seed de région %q n'existe pas")
 
 	register(ValidationUnknownNoble, "noble %q does not exist", "le noble %q n'existe pas")

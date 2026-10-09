@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"math/rand/v2"
 
+	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
+	"github.com/fogfactory/crown-and-borough/internal/engine/orders"
+	"github.com/fogfactory/crown-and-borough/internal/i18n"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
@@ -163,4 +166,63 @@ func (ctx *resolutionContext) removeNobleInAction(noble models.Noble) {
 func newAppeasementRNG(seed string, turn int, nobleID models.NobleID) *rand.Rand {
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s|appeasement|%d|%s", seed, turn, nobleID)))
 	return rand.New(rand.NewPCG(binary.BigEndian.Uint64(digest[:8]), binary.BigEndian.Uint64(digest[8:16])))
+}
+
+var appeasementMessageKeys = map[string]string{
+	"deck_order_out_of_season":           i18n.AppeasementOutOfSeason,
+	"appeasement_requires_own_cleric":    i18n.AppeasementNotYourCleric,
+	"appeasement_unknown_territory":      i18n.AppeasementUnknownTerritory,
+	"appeasement_requires_cleric":        i18n.AppeasementNotCleric,
+	"appeasement_requires_own_bishopric": i18n.AppeasementNotOwnBishopric,
+	"appeasement_requires_own_region":    i18n.AppeasementNotOwnRegion,
+}
+
+// ValidateAppeasements reports the appeasement orders of a submission that
+// break the rules. It runs when a submission is checked or previewed, so an
+// invalid order is never stored; the resolution itself never fails on one and
+// simply ignores it (appeaseOrder.Apply).
+func ValidateAppeasements(game *models.GameState, balance assetgen.Balance, input OrdersInput) []InputError {
+	var found []InputError
+	if game == nil {
+		return found
+	}
+	ctx := newResolutionContext(game, balance)
+	played := make(map[models.NobleID]bool)
+	for _, submission := range input.Special {
+		parsed, parseErrors := orders.ParseDeckOrders(submission.Text, game)
+		if len(parseErrors) != 0 {
+			continue
+		}
+		for _, order := range parsed {
+			if !order.Type.IsAppeasement() {
+				continue
+			}
+			code := models.NobleCode("")
+			if noble := ctx.noblesByID[order.TargetNobleID]; noble != nil {
+				code = models.NobleCode(noble.Code)
+			}
+			if reason := appeasementRejection(ctx, game.Season, submission.Player, order); reason != "" {
+				key := appeasementMessageKeys[reason]
+				found = append(found, newInputError(submission.Player, code, 0, reason, key, argsFor(key, order, code)...))
+				continue
+			}
+			if played[order.TargetNobleID] {
+				found = append(found, newInputError(submission.Player, code, 0, "appeasement_already_played", i18n.AppeasementAlreadyPlayed, string(code)))
+				continue
+			}
+			played[order.TargetNobleID] = true
+		}
+	}
+	return found
+}
+
+// argsFor returns the message arguments of an appeasement error key.
+func argsFor(key string, order models.DeckOrder, code models.NobleCode) []any {
+	switch key {
+	case i18n.AppeasementUnknownTerritory:
+		return []any{string(order.TargetTerritoryID)}
+	case i18n.AppeasementOutOfSeason:
+		return nil
+	}
+	return []any{string(code)}
 }

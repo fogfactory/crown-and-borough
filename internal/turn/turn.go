@@ -9,6 +9,7 @@
 package turn
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
@@ -75,7 +76,19 @@ func NormalizeSubmission(playerID models.PlayerID, input engine.OrdersInput) (en
 // rejected before it is stored.
 func ValidateSubmission(state *models.GameState, balance assetgen.Balance, input engine.OrdersInput) error {
 	_, err := engine.ResolveTurn(state, balance, input)
-	return err
+	extra := engine.ValidateAppeasements(state, balance, input)
+	if len(extra) == 0 {
+		return err
+	}
+	var inputErrors *engine.InputErrors
+	switch {
+	case errors.As(err, &inputErrors):
+		inputErrors.Errors = append(inputErrors.Errors, extra...)
+		return inputErrors
+	case err != nil:
+		return err
+	}
+	return &engine.InputErrors{Errors: extra}
 }
 
 // Progress splits the players of state into those who submitted and those the

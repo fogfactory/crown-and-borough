@@ -48,6 +48,8 @@ func validateDeckOrders(game *models.GameState, balance assetgen.Balance, deckOr
 					return fmt.Errorf("engine: resolve winter: player %q has no card of kind %q", playerID, order.Kind)
 				}
 				hands[playerID] = append(hands[playerID][:index], hands[playerID][index+1:]...)
+			case models.DeckOrderTypeAppeaseRite, models.DeckOrderTypeAppeasePaid:
+				// Rejected at submission; ignored here rather than failing the winter.
 			case models.DeckOrderTypePlay:
 				return fmt.Errorf("engine: resolve winter: deck order %q is not playable in winter", order.Kind)
 			default:

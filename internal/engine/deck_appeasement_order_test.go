@@ -210,3 +210,22 @@ func TestOneAppeasementPerNobleAndAnInvalidOneDoesNotBlockTheOthers(t *testing.T
 		t.Fatalf("rejections = %d, want 2", got)
 	}
 }
+
+func TestValidateAppeasementsReportsWhatResolutionIgnores(t *testing.T) {
+	state := appeasementState(t)
+	input := OrdersInput{Special: []DeckSubmission{{Player: "P1", Text: "P AP BIS CCC\nP AG BIS BBB\nP AG BIS BBB"}}}
+	found := ValidateAppeasements(state, testBalance(), input)
+	codes := []string{}
+	for _, inputError := range found {
+		codes = append(codes, inputError.Code)
+		if inputError.MessageKey == "" || inputError.Message == "" {
+			t.Fatalf("error %#v lacks its message", inputError)
+		}
+	}
+	if len(codes) != 2 || codes[0] != "appeasement_requires_own_bishopric" || codes[1] != "appeasement_already_played" {
+		t.Fatalf("codes = %v, want own-bishopric then already-played", codes)
+	}
+	if ValidateAppeasements(state, testBalance(), OrdersInput{Special: []DeckSubmission{{Player: "P1", Text: "P AG BIS BBB"}}}) != nil {
+		t.Fatalf("a legal appeasement must not be reported")
+	}
+}

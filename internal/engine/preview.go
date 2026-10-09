@@ -86,6 +86,8 @@ func PreviewOrders(game *models.GameState, balance assetgen.Balance, playerID mo
 		}
 	}
 
+	preview.Errors = append(preview.Errors, ValidateAppeasements(game, balance, input)...)
+
 	if game.Season != models.SeasonWinter {
 		for _, submission := range input.Chains {
 			chain, _ := orders.ParseChain(submission.Text, game)
