@@ -205,7 +205,7 @@ func forgeAppeasement(state *models.GameState) error {
 	}
 	state.Cardinals = []models.NobleID{cardinal.ID}
 	state.Nobles = append(state.Nobles, models.Noble{
-		ID: "N901", Code: "ALI", Name: "Aliénor", Sex: models.SexFemale, OwnerID: "P1",
+		ID: "N901", Code: "ZAB", Name: "Aliénor", Sex: models.SexFemale, OwnerID: "P1",
 		LocationID: cardinal.LocationID, Status: models.NobleStatusFree,
 		Dignities: []models.Dignity{models.DignityAbbess}, AbbeyRegion: state.Regions[cardinalRegion].Seed,
 	})
@@ -250,7 +250,7 @@ func forgeAppeasement(state *models.GameState) error {
 			state.TerritoryStates[territoryID] = territoryState
 		}
 	}
-	fmt.Printf("demo appeasement: bishop %s (region %s), cardinal %s (bishop of %s), abbess ALI stands at %s\n",
+	fmt.Printf("demo appeasement: bishop %s (region %s), cardinal %s (bishop of %s), abbess ZAB stands at %s\n",
 		bishop.Code, state.Regions[bishopRegion].Seed, cardinal.Code, state.Regions[cardinalRegion].Seed, cardinal.LocationID)
 	return nil
 }
