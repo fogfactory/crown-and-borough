@@ -824,7 +824,7 @@ describe('OrdersPanel title and card order dialogs', () => {
       excommunicated: [{ noble: 'ABE', reason: 'papal', turn: 3 }],
       winterAids: { ...aids, excommunicable: [{ code: 'LEO' }], liftable: ['ABE'] },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Excommunicate (X E)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Pie (pope) · Excommunicate (X E)' }))
     const options = within(screen.getByRole('dialog'))
       .getAllByRole('option')
       .map((o) => o.textContent)
@@ -832,17 +832,17 @@ describe('OrdersPanel title and card order dialogs', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
     expect(onWinterChange).toHaveBeenCalledWith('X E LEO # excommunicate Leon\n')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Lift an excommunication (X L)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Pie (pope) · Lift an excommunication (X L)' }))
     fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
     expect(onWinterChange).toHaveBeenLastCalledWith('X L ABE # lift excommunication of Abel\n')
   })
 
   it('offers no papal order to a player who is not the pope', () => {
     renderWinter({ pope: 'LEO', winterAids: aids })
-    expect(screen.queryByRole('button', { name: 'Excommunicate (X E)' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Lift an excommunication (X L)' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Buy a cardinal (N C)' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Found a fief (T F)' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Excommunicate/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Lift an excommunication/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Buy a cardinal/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Found a fief/ })).toBeNull()
   })
 
   it('lets a bishop buy a cardinal', () => {
@@ -850,7 +850,7 @@ describe('OrdersPanel title and card order dialogs', () => {
       bishoprics: [{ region: 'R1', name: 'Ros', territories: ['AAA'], bishop: 'POP' }],
       winterAids: { ...aids, buyableCardinals: ['POP'] },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Buy a cardinal (N C)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Pie (bishop) · Buy a cardinal (N C)' }))
     expect(screen.getByText('Cost: 8 R')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
     expect(onWinterChange).toHaveBeenCalledWith('N C POP # buy cardinal Pie\n')
@@ -889,7 +889,7 @@ describe('OrdersPanel title and card order dialogs', () => {
       winterAids: { ...aids, buyableCardinals: ['POP'] },
       // the sheet below already carries the order
     }, vi.fn(), 'winter', 'N C POP # buy cardinal Pie\n')
-    expect(screen.queryByRole('button', { name: 'Buy a cardinal (N C)' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Buy a cardinal/ })).toBeNull()
   })
 
   it('plays a special card on a region and discards it in winter', () => {
@@ -988,9 +988,9 @@ describe('OrdersPanel title and card order dialogs', () => {
       calamityForecast: ['plague', 'famine', 'bad_weather'],
       winterAids: aids,
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Strike a calamity off (V C)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Pie (Astrologer) · Strike a calamity off (V C)' }))
     const dialog = screen.getByRole('dialog')
-    expect(within(dialog).getAllByRole('option')).toHaveLength(4)
+    expect(within(dialog).getAllByRole('option')).toHaveLength(3)
     fireEvent.change(within(dialog).getByLabelText('Calamity to strike'), { target: { value: '2' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
     expect(onWinterChange).toHaveBeenCalledWith('V C POP 2 # strike calamity 2\n')
@@ -1000,14 +1000,14 @@ describe('OrdersPanel title and card order dialogs', () => {
     const onWinterChange = renderWinter({
       winterAids: { ...aids, rituals: [{ noble: 'POP', region: 'AAA' }] },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Ritual (S R)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Pie (Witch) · Ritual (S R)' }))
     const dialog = screen.getByRole('dialog')
     expect(within(dialog).getByText('It would strike the region of AAA.')).toBeTruthy()
     fireEvent.change(within(dialog).getByLabelText('Calamity or season'), { target: { value: 'MT' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
     expect(onWinterChange).toHaveBeenCalledWith('S R POP MT # ritual: call Bad weather\n')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ritual (S R)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Pie (Witch) · Ritual (S R)' }))
     const second = screen.getByRole('dialog')
     fireEvent.change(within(second).getByLabelText('Effect'), { target: { value: 'season' } })
     expect(
@@ -1019,7 +1019,7 @@ describe('OrdersPanel title and card order dialogs', () => {
 
   it('offers no ritual without a Witch, or once one is on the sheet', () => {
     renderWinter({ winterAids: aids })
-    expect(screen.queryByRole('button', { name: 'Ritual (S R)' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Ritual \(S R\)/ })).toBeNull()
   })
 
   it('words the announcement of a ritual calamity differently', () => {
@@ -1031,6 +1031,27 @@ describe('OrdersPanel title and card order dialogs', () => {
     })
     expect(screen.getByText(/AAA \(unusual omens\)/)).toBeTruthy()
     expect(screen.getAllByText(/unusual omens/)).toHaveLength(1)
+  })
+
+  it('offers no title order outside winter, even with aids on the state', () => {
+    renderWinter(
+      {
+        pope: 'POP',
+        nobles: [{ ...nobles[0], dignities: ['astrologer', 'witch'] }, ...nobles.slice(1)],
+        calamityForecast: ['plague'],
+        winterAids: {
+          ...aids,
+          excommunicable: [{ code: 'LEO' }],
+          buyableCardinals: ['POP'],
+          rituals: [{ noble: 'POP', region: 'AAA' }],
+        },
+      },
+      vi.fn(),
+      'spring',
+    )
+    for (const name of [/Excommunicate/, /Buy a cardinal/, /Strike a calamity/, /Ritual \(S R\)/]) {
+      expect(screen.queryByRole('button', { name })).toBeNull()
+    }
   })
 
   it('plays a special card on a region outside winter', () => {

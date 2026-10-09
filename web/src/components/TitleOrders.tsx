@@ -80,7 +80,8 @@ export function TitleOrdersSection({
 }) {
   const { t } = useLanguage()
   const aids = state.winterAids
-  if (!aids) return null
+  // Every order below is a winter order: nothing is offered in the other seasons.
+  if (state.season !== 'winter' || !aids) return null
   const add = (line: string) => onWinterChange(appendDraftLine(winterDraft, line))
   const lines = draftLines(winterDraft)
   const byCode = new Map(state.nobles.map((noble) => [noble.code, noble]))
@@ -89,6 +90,10 @@ export function TitleOrdersSection({
     return noble ? nobleOption(noble) : codeOption(code)
   }
   const own = state.nobles.filter((noble) => noble.owner === player)
+  // A power button names its noble and the title or dignity that grants the power.
+  const holderLabel = (code: string, power: string, source: string) =>
+    `${nobleName(state, code)} (${source}) · ${power}`
+  const popeTitle = t('orders.voiceTitle.pope')
 
   const liftedInDraft = new Set(
     lines.filter((line) => line.startsWith('X L ')).map((line) => line.slice(4)),
@@ -100,8 +105,13 @@ export function TitleOrdersSection({
   const liftable = aids.liftable.filter((code) => !liftedInDraft.has(code))
 
   const forecast = state.calamityForecast ?? []
-  const astrologers = own.filter((noble) => (noble.dignities ?? []).includes('astrologer'))
-  const canVeto = astrologers.length > 0 && forecast.length > 0 && !lines.some((line) => line.startsWith('V C '))
+  const astrologers = own.filter(
+    (noble) =>
+      (noble.dignities ?? []).includes('astrologer') &&
+      noble.status !== 'dungeon' &&
+      !lines.some((line) => line.startsWith(`V C ${noble.code} `)),
+  )
+  const canVeto = astrologers.length > 0 && forecast.length > 0
 
   const vacantFiefs = (state.fiefs ?? []).filter((fief) => fief.owner === player && !fief.holder)
   const buyable = aids.buyableCardinals.filter(
@@ -116,7 +126,7 @@ export function TitleOrdersSection({
     launchers.push(
       <OrderLauncher
         key="x-e"
-        label={t('orders.excommunicate')}
+        label={holderLabel(state.pope ?? '', t('orders.excommunicate'), popeTitle)}
         title={t('orders.excommunicate')}
         fields={[
           {
@@ -142,7 +152,7 @@ export function TitleOrdersSection({
     launchers.push(
       <OrderLauncher
         key="x-l"
-        label={t('orders.liftExcommunication')}
+        label={holderLabel(state.pope ?? '', t('orders.liftExcommunication'), popeTitle)}
         title={t('orders.liftExcommunication')}
         fields={[
           { key: 'noble', label: t('orders.field.excommunicated'), options: liftable.map(toOption) },
@@ -160,22 +170,18 @@ export function TitleOrdersSection({
     )
   }
 
-  if (buyable.length > 0) {
+  for (const code of buyable) {
     launchers.push(
       <OrderLauncher
-        key="n-c"
-        label={t('orders.buyCardinal')}
+        key={`n-c-${code}`}
+        label={holderLabel(code, t('orders.buyCardinal'), t('orders.voiceTitle.bishop'))}
         title={t('orders.buyCardinal')}
         hint={() => t('orders.hint.cost', { cost: aids.cardinalCost })}
-        fields={[{ key: 'noble', label: t('orders.field.bishop'), options: buyable.map(toOption) }]}
-        buildOrder={(values) =>
-          values.noble
-            ? {
-                line: `N C ${values.noble}`,
-                comment: t('orders.comment.buyCardinal', { name: nobleName(state, values.noble) }),
-              }
-            : null
-        }
+        fields={[]}
+        buildOrder={() => ({
+          line: `N C ${code}`,
+          comment: t('orders.comment.buyCardinal', { name: nobleName(state, code) }),
+        })}
         onConfirm={add}
       />,
     )
@@ -186,26 +192,26 @@ export function TitleOrdersSection({
       value: String(index + 1),
       label: `${index + 1} · ${t(`card.${kind}` as MessageKey)}`,
     }))
-    launchers.push(
-      <OrderLauncher
-        key="v-c"
-        label={t('orders.calamityVeto')}
-        title={t('orders.calamityVeto')}
-        description={t('orders.calamityVetoHelp')}
-        fields={[
-          { key: 'noble', label: t('orders.field.astrologer'), options: astrologers.map(nobleOption) },
-          { key: 'first', label: t('orders.field.firstCalamity'), options: positions },
-        ]}
-        buildOrder={(values) => {
-          if (!values.noble || !values.first) return null
-          return {
-            line: `V C ${values.noble} ${values.first}`,
-            comment: t('orders.comment.calamityVeto', { positions: values.first }),
+    for (const astrologer of astrologers) {
+      launchers.push(
+        <OrderLauncher
+          key={`v-c-${astrologer.code}`}
+          label={holderLabel(astrologer.code, t('orders.calamityVeto'), t('dignity.astrologer'))}
+          title={t('orders.calamityVeto')}
+          description={t('orders.calamityVetoHelp')}
+          fields={[{ key: 'first', label: t('orders.field.firstCalamity'), options: positions }]}
+          buildOrder={(values) =>
+            values.first
+              ? {
+                  line: `V C ${astrologer.code} ${values.first}`,
+                  comment: t('orders.comment.calamityVeto', { positions: values.first }),
+                }
+              : null
           }
-        }}
-        onConfirm={add}
-      />,
-    )
+          onConfirm={add}
+        />,
+      )
+    }
   }
 
   if (sites.length > 0 && own.length > 0) {
@@ -304,7 +310,7 @@ export function TitleOrdersSection({
     launchers.push(
       <OrderLauncher
         key="s-r"
-        label={t('orders.ritual')}
+        label={holderLabel(ritual.noble, t('orders.ritual'), t('dignity.witch'))}
         title={t('orders.ritual')}
         description={t('orders.ritualHelp')}
         hint={() => t('orders.hint.ritualRegion', { region: ritual.region })}
