@@ -1186,9 +1186,9 @@ describe('revolt appeasement orders', () => {
 
   it('offers the rite in the cleric region and the paid way only in their bishopric', () => {
     const onSpecialChange = renderAppease()
-    fireEvent.click(
-      screen.getByRole('button', { name: /Bishop Rainaud · Appease \(paid\)/ }),
-    )
+    // One button per cleric; the dialog picks the way.
+    fireEvent.click(screen.getByRole('button', { name: /Bishop Rainaud · Appease a revolt/ }))
+    fireEvent.change(screen.getByLabelText('Way'), { target: { value: 'paid' } })
     // Only BBB (the bishopric) is offered, with its 2^3 price.
     expect(screen.getByText('Cost: 8 R')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
@@ -1199,6 +1199,6 @@ describe('revolt appeasement orders', () => {
 
   it('offers nothing in winter', () => {
     renderAppease(vi.fn(), { ...appeaseState, season: 'winter' })
-    expect(screen.queryByRole('button', { name: /Appease/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Appease a revolt/ })).not.toBeInTheDocument()
   })
 })

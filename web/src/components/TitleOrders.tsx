@@ -588,41 +588,14 @@ export function AppeasementOrders({
     label: t('orders.appease.rebels', { territory: entry.id, count: entry.army?.size ?? 0 }),
   })
   const holder = (noble: Noble) =>
-    noble.religiousTitle
-      ? t(`orders.holder.${noble.religiousTitle}` as MessageKey, {
-          name: noble.firstName ?? noble.name,
-        })
-      : `${t('dignity.abbess')} (${noble.firstName ?? noble.name})`
+    t(`orders.holder.${noble.religiousTitle ?? 'abbess'}` as MessageKey, {
+      name: noble.firstName ?? noble.name,
+    })
 
   const launchers: React.ReactNode[] = []
   for (const noble of clerics) {
     const here = regionSeedOf(state, noble.location)
     const ritual = rebels.filter((entry) => here && regionSeedOf(state, entry.id) === here)
-    if (ritual.length > 0) {
-      launchers.push(
-        <OrderLauncher
-          key={`ag-${noble.code}`}
-          label={`${holder(noble)} · ${t('orders.appease.rite')}`}
-          title={t('orders.appease.rite')}
-          description={t('orders.appease.riteHelp')}
-          fields={[
-            { key: 'territory', label: t('orders.field.territory'), options: ritual.map(rebelOption) },
-          ]}
-          buildOrder={(values) =>
-            values.territory
-              ? {
-                  line: `P AG ${noble.code} ${values.territory}`,
-                  comment: t('orders.comment.appeaseRite', {
-                    name: noble.name,
-                    territory: values.territory,
-                  }),
-                }
-              : null
-          }
-          onConfirm={add}
-        />,
-      )
-    }
     const title = noble.religiousTitle
     const ownRegions = new Set(
       (state.bishoprics ?? [])
@@ -634,35 +607,43 @@ export function AppeasementOrders({
         ? true
         : title === 'bishop' && ownRegions.has(regionSeedOf(state, entry.id) ?? ''),
     )
-    if (paid.length > 0) {
-      launchers.push(
-        <OrderLauncher
-          key={`ap-${noble.code}`}
-          label={`${holder(noble)} · ${t('orders.appease.paid')}`}
-          title={t('orders.appease.paid')}
-          description={t('orders.appease.paidHelp')}
-          hint={(values) => {
-            const size = state.territories.find((entry) => entry.id === values.territory)?.army?.size ?? 0
-            return size > 0 ? t('orders.hint.cost', { cost: costBase ** size }) : null
-          }}
-          fields={[
-            { key: 'territory', label: t('orders.field.territory'), options: paid.map(rebelOption) },
-          ]}
-          buildOrder={(values) =>
-            values.territory
-              ? {
-                  line: `P AP ${noble.code} ${values.territory}`,
-                  comment: t('orders.comment.appeasePaid', {
-                    name: noble.name,
-                    territory: values.territory,
-                  }),
-                }
-              : null
-          }
-          onConfirm={add}
-        />,
-      )
-    }
+    const modes: OrderFieldOption[] = []
+    if (ritual.length > 0) modes.push({ value: 'rite', label: t('orders.appease.rite') })
+    if (paid.length > 0) modes.push({ value: 'paid', label: t('orders.appease.paid') })
+    if (modes.length === 0) continue
+    launchers.push(
+      <OrderLauncher
+        key={`appease-${noble.code}`}
+        label={`${holder(noble)} · ${t('orders.appease')}`}
+        title={t('orders.appease')}
+        description={t('orders.appeaseHelp')}
+        hint={(values) => {
+          if (values.mode !== 'paid') return t('orders.appease.riteHelp')
+          const size = state.territories.find((entry) => entry.id === values.territory)?.army?.size ?? 0
+          return size > 0 ? t('orders.hint.cost', { cost: costBase ** size }) : null
+        }}
+        fields={[
+          { key: 'mode', label: t('orders.field.appeaseMode'), options: modes },
+          {
+            key: 'territory',
+            label: t('orders.field.territory'),
+            options: (values) => (values.mode === 'paid' ? paid : ritual).map(rebelOption),
+          },
+        ]}
+        buildOrder={(values) =>
+          values.territory
+            ? {
+                line: `P ${values.mode === 'paid' ? 'AP' : 'AG'} ${noble.code} ${values.territory}`,
+                comment: t(
+                  values.mode === 'paid' ? 'orders.comment.appeasePaid' : 'orders.comment.appeaseRite',
+                  { name: noble.name, territory: values.territory },
+                ),
+              }
+            : null
+        }
+        onConfirm={add}
+      />,
+    )
   }
   if (launchers.length === 0) return null
   return <div className="flex flex-wrap gap-1.5">{launchers}</div>
