@@ -826,6 +826,7 @@ describe('OrdersPanel title and card order dialogs', () => {
     cardinalCost: 8,
     inquirers: [] as string[],
     inquiryCosts: { POP: 1, LEO: 3, ABE: 1 },
+    trialJudges: [] as string[],
     fiefSites: [],
     fiefCostPerTerritory: 2,
     rituals: [],
@@ -909,6 +910,16 @@ describe('OrdersPanel title and card order dialogs', () => {
     expect(onWinterChange).toHaveBeenCalledWith('Q POP LEO # investigate Leon\n')
   })
 
+  it('lets a cardinal file a trial order and warns a second one is needed', () => {
+    const onWinterChange = renderWinter({
+      cardinals: ['POP'],
+      winterAids: { ...aids, trialJudges: ['POP'] },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Put a noble on trial (J)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
+    expect(onWinterChange).toHaveBeenCalledWith(expect.stringMatching(/^J POP [A-Z]{3} # put .* on trial\n$/))
+  })
+
   it('founds a fief from a connected group and prices it', () => {
     const onWinterChange = renderWinter({
       winterAids: {
@@ -948,7 +959,6 @@ describe('OrdersPanel title and card order dialogs', () => {
   it('plays a special card on a region and discards it in winter', () => {
     const onWinterChange = renderWinter({ specialHand: ['fair_weather'] })
     fireEvent.click(screen.getByRole('button', { name: /Discard Fair weather|Discard Beau temps/ }))
-    fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
     expect(onWinterChange).toHaveBeenCalledWith(expect.stringMatching(/^D C BT # discard /))
   })
 

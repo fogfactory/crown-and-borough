@@ -108,6 +108,7 @@ const REASON_KEYS: Record<string, MessageKey> = {
   cardinal_cap_reached: 'reports.reason.cardinal_cap_reached',
   not_cardinal: 'reports.reason.not_cardinal',
   inquiry_limit: 'reports.reason.inquiry_limit',
+  trial_limit: 'reports.reason.trial_limit',
   candidate_not_eligible: 'reports.reason.candidate_not_eligible',
   candidacy_already_filed: 'reports.reason.candidacy_already_filed',
   unknown_candidate: 'reports.reason.unknown_candidate',
@@ -333,6 +334,8 @@ function winterOrderLabel(order: WinterOrder, map: MapData | null, t: Translate)
       return `D C ${order.cardCode ?? '—'}`
     case 'inquiry':
       return `Q ${order.nobleCode ?? '—'} ${order.targetCode ?? '—'}`
+    case 'trial':
+      return `J ${order.nobleCode ?? '—'} ${order.targetCode ?? '—'}`
     case 'claim':
       return `C N ${order.nobleCode ?? '—'} ${order.spouseCode ?? '—'}`
     case 'play_dignity':
@@ -431,6 +434,8 @@ function investmentLabel(
       return 'D C'
     case 'inquiry':
       return `Q ${investment.nobleCode ?? '—'}`
+    case 'trial_filed':
+      return `J ${investment.nobleCode ?? '—'}`
     case 'claim':
       return `C N ${investment.nobleCode ?? '—'} ${investment.claimTarget ?? '—'}`
     case 'ritual':

@@ -26,6 +26,10 @@ var demoScenarios = map[string]struct {
 		description: "winter (see the winter scenario), plus two ladies of P2 hiding a Witch and a Spy: P1's pope and P2's cardinal can investigate them",
 		apply:       forgeInquiry,
 	},
+	"trial": {
+		description: "winter (see the winter scenario): P1's pope (also a cardinal) and P2's cardinal can file the same J trial on P2's excommunicated noble",
+		apply:       forgeWinter,
+	},
 	"appeasement": {
 		description: "spring, P1 has a bishop, a cardinal and an abbess; rebel armies of 1 to 3 troops stand in their regions and elsewhere; P1 has plenty of R",
 		apply:       forgeAppeasement,
@@ -135,6 +139,13 @@ func forgeWinter(state *models.GameState) error {
 		LocationID: state.Nobles[p1[0]].LocationID, Status: models.NobleStatusFree,
 		Dignities: []models.Dignity{models.DignityWitch},
 	})
+	// The winter orders (inquiry, cardinal purchase, fiefs) are paid in R.
+	for territoryID, territoryState := range state.TerritoryStates {
+		if owner, controlled := state.TerritoryController(territoryID); controlled && territoryState.Infrastructures != nil && (owner == "P1" || owner == "P2") {
+			territoryState.Resources = 40
+			state.TerritoryStates[territoryID] = territoryState
+		}
+	}
 	giveSpecialCards(state, "P1", models.CardKindFairWeather, models.CardKindRevolt, models.CardKindTrial, models.CardKindSeigneurialTax)
 	giveNobleCards(state, "P1",
 		models.NobleCard{Kind: models.NobleCardKindNoble, Code: "ZAL", Name: "Albert", Sex: models.SexMale},

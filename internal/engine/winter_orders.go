@@ -42,6 +42,7 @@ var winterOrderFactories = map[models.WinterOrderType]winterOrderFactory{
 	models.WinterOrderTypeLiftExcommunication: func(order models.WinterOrder) ExecutableOrder { return papalOrderEntry{} },
 	models.WinterOrderTypeBuyCardinal:         func(order models.WinterOrder) ExecutableOrder { return buyCardinalOrder{order: order} },
 	models.WinterOrderTypeInquiry:             func(order models.WinterOrder) ExecutableOrder { return inquiryOrderEntry{} },
+	models.WinterOrderTypeTrial:               func(order models.WinterOrder) ExecutableOrder { return trialOrderEntry{} },
 	models.WinterOrderTypeDiscardNoble:        func(order models.WinterOrder) ExecutableOrder { return discardNobleCardOrder{order: order} },
 }
 

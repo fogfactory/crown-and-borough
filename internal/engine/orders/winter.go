@@ -142,6 +142,9 @@ func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (mod
 	if fields[0] == "Q" {
 		return parseInquiryLine(fields, lineNumber, indexes)
 	}
+	if fields[0] == "J" {
+		return parseTrialLine(fields, lineNumber, indexes)
+	}
 	if len(fields) < 3 {
 		error := parseMessage(lineNumber, ParseCodeMissingTarget, "error.winter.order_shape")
 		return models.WinterOrder{}, &error
@@ -584,6 +587,22 @@ func parseInquiryLine(fields []string, lineNumber int, indexes gameIndexes) (mod
 		}
 	}
 	return models.WinterOrder{Type: models.WinterOrderTypeInquiry, NobleCode: models.NobleCode(fields[1]), TargetCode: models.NobleCode(fields[2])}, nil
+}
+
+// parseTrialLine handles J HHH NNN: HHH is the cardinal backing the trial of
+// NNN. Ownership and the title are engine rejects; a second cardinal must file
+// the same trial (stage 3).
+func parseTrialLine(fields []string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
+	if len(fields) != 3 {
+		error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.WinterTrialShape)
+		return models.WinterOrder{}, &error
+	}
+	for _, code := range fields[1:] {
+		if parseError := winterNobleCode(code, lineNumber, indexes); parseError != nil {
+			return models.WinterOrder{}, parseError
+		}
+	}
+	return models.WinterOrder{Type: models.WinterOrderTypeTrial, NobleCode: models.NobleCode(fields[1]), TargetCode: models.NobleCode(fields[2])}, nil
 }
 
 // parseExcommunicationLine handles X E NNN (excommunicate) and X L NNN (lift):
