@@ -228,3 +228,26 @@ func TestReligionJSONRoundTrip(t *testing.T) {
 		}
 	}
 }
+
+func TestPopeDeathEndsPapalExcommunicationsOnly(t *testing.T) {
+	g := religiousState()
+	pope := models.NobleID("N1")
+	g.Bishops = []models.Bishop{{Region: "ROS", Noble: "N1"}}
+	g.Pope = &pope
+	g.Excommunications = []models.Excommunication{
+		{Noble: "N2", Reason: models.ExcommunicationPapal, By: "N1", Turn: 1},
+		{Noble: "N3", Reason: models.ExcommunicationExOfficio, Turn: 1},
+	}
+	g.Nobles = g.Nobles[1:]
+	g.RemovedNobles = []models.RemovedNoble{{ID: "N1", Code: "HUG", Sex: models.SexMale, OwnerID: "P1", Cause: models.DeathCauseNatural, Turn: 1}}
+	g.DropReligiousTitlesOfMissingNobles()
+	if _, ok := g.ExcommunicationOf("N2"); ok {
+		t.Error("papal excommunication survived the pope's death")
+	}
+	if excommunication, ok := g.ExcommunicationOf("N3"); !ok || excommunication.Reason != models.ExcommunicationExOfficio {
+		t.Errorf("ex officio excommunication = %+v, %v; want it kept", excommunication, ok)
+	}
+	if err := g.Validate(); err != nil {
+		t.Errorf("state invalid after cleanup: %v", err)
+	}
+}

@@ -82,6 +82,8 @@ const (
 	WinterDignityShape           = "error.winter.dignity_shape"
 	WinterCandidacyShape         = "error.winter.candidacy_shape"
 	WinterVoteShape              = "error.winter.vote_shape"
+	WinterExcommunicationShape   = "error.winter.excommunication_shape"
+	WinterRitualShape            = "error.winter.ritual_shape"
 	WinterBuyCardinalShape       = "error.winter.buy_cardinal_shape"
 	WinterCalamityVetoShape      = "error.winter.calamity_veto_shape"
 	WinterClaimShape             = "error.winter.claim_shape"
@@ -186,6 +188,8 @@ func init() {
 	register(WinterFiefFoundShape, "T F requires a noble and at least 3 territory codes, the first being the capital", "T F exige un noble et au moins 3 codes de territoire, le premier étant la capitale")
 	register(WinterTransferNobleShape, "H N requires a noble code then a territory, and optionally O or P: H N NNN XXX [O|P]", "H N exige un code de noble puis un territoire, et en option O ou P : H N NNN XXX [O|P]")
 	register(WinterMarriageShape, "M N requires two distinct noble codes: your noble, then the one it marries", "M N exige deux codes de noble distincts : votre noble, puis celui qu'il épouse")
+	register(WinterRitualShape, "S R requires your Witch and either a calamity (PE, MT, FA) or a season (1 spring, 2 summer, 3 autumn): S R NNN MT, S R NNN 2", "S R exige votre Sorcière et soit une calamité (PE, MT, FA), soit une saison (1 printemps, 2 été, 3 automne) : S R NNN MT, S R NNN 2")
+	register(WinterExcommunicationShape, "X E requires the noble to excommunicate; X L requires the noble to reinstate: X E NNN, X L NNN", "X E exige le noble à excommunier ; X L exige le noble à réintégrer : X E NNN, X L NNN")
 	register(WinterBuyCardinalShape, "N C requires one of your bishops", "N C exige un de vos évêques")
 	register(WinterCandidacyShape, "K E requires your noble then the seed village of the bishopric; K P requires your noble", "K E exige votre noble puis le village seed de l'évêché ; K P exige votre noble")
 	register(WinterVoteShape, "V E requires the candidate then the seed village of the bishopric; V P requires the candidate", "V E exige le candidat puis le village seed de l'évêché ; V P exige le candidat")
@@ -194,7 +198,7 @@ func init() {
 	register(WinterDiscardNobleShape, "D C takes one card code from your noble hand (noble trigram or dignity code)", "D C prend un code de carte de votre main de nobles (trigramme de noble ou code de dignité)")
 	register(WinterClaimShape, "C N requires the code of one of your nobles (the heir) and the code of the noble whose titles it claims", "C N exige le code de l'un de vos nobles (l'héritier) et le code du noble dont il revendique les titres")
 	register(WinterDignityShape, "D N requires one of your noble codes and a dignity card code, then a region seed for an abbess", "D N exige un code de l'un de vos nobles et un code de carte de dignité, puis le village seed d'une région pour une abbesse")
-	register(WinterCalamityVetoShape, "V C requires one of your noble codes and one or two forecast positions (1 to 4)", "V C exige un code de l'un de vos nobles et une ou deux positions de la prévision (1 à 4)")
+	register(WinterCalamityVetoShape, "V C requires one of your noble codes and one forecast position (1 to 3)", "V C exige un code de l'un de vos nobles et une position de la prévision (1 à 3)")
 	register(WinterFiefAssignShape, "T A requires a noble and one fief capital code", "T A exige un noble et un code de capitale de fief")
 	register(DeckOrderShape, "a special order has an invalid shape", "la forme de l'ordre spécial est invalide")
 	register(DeckOrderKindUnknown, "unknown special card kind %q", "kind de carte spéciale inconnu : %q")

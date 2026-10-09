@@ -256,7 +256,7 @@ acts from the next turn.
 |---|---|
 | `R N CCC XXX` | Recruit the noble of card `CCC` on `XXX`. |
 | `C N HHH NNN` | Claim: heir `HHH` claims the titles of another player's noble `NNN` (consumes a `CLM` card). |
-| `D N NNN CCC` | Give `NNN` the dignity of card `CCC` (`BAS`: bastard; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `SOR`: dignities of the ladies). |
+| `D N NNN CCC` | Give `NNN` the dignity of card `CCC` (`BAS`: bastard; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `EMP`, `SOR`: dignities of the ladies). |
 
 ### Attack (`A`) and Join (`J`)
 
@@ -662,7 +662,7 @@ per line, applied in the entered order.
 | Draw a noble card | `T N` | once per winter and per player; the noble deck, shared by all players, must not be empty | 0 |
 | Recruit a noble | `R N CCC XXX` | `CCC` is a noble card in your hand; `XXX` controlled, with a castle or village and a player army, and fewer living nobles owned than your cap, {{noble_limit}} at the base (see below) | 0 |
 | Claim titles | `C N HHH CCC` | you hold a claim card (`CLM`); `HHH` is one of your nobles, placed during a marriage of `CCC` with one of your nobles, not a bastard and without a current claim; `CCC` is a noble of another player | 0 |
-| Grant a dignity | `D N NNN CCC` | `NNN` is any noble, yours or an opponent's; `CCC` is a dignity card in your hand (`BAS`: bastard; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `SOR`: ladies; Blocked ones: unmarried only); a noble carries a dignity only once | 0 |
+| Grant a dignity | `D N NNN CCC` | `NNN` is any noble, yours or an opponent's; `CCC` is a dignity card in your hand (`BAS`: bastard; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `EMP`, `SOR`: ladies; Blocked ones: unmarried only); a noble carries a dignity only once, and a lady carries at most one visible and one hidden dignity (`dignity_exclusive`); a hidden dignity is only played on one of your own ladies (`dignity_hidden_own_only`) | 0 |
 | Discard a noble card | `D C CCC` | `CCC` is a card in your noble hand (noble trigram or `BAS`); no limit per winter; the card goes to the deck's discard pile | 0 |
 | Recruit a troop | `R T XXX` | `XXX` controlled, and a free player noble on `XXX` or adjacent | {{costs.troop}} |
 | Build or upgrade a mill | `C M XXX` | `XXX` controlled; a **new** mill requires an **empty** territory adjacent to a castle or village, or itself carrying one; an **existing** mill can always be upgraded, even in isolation | {{costs.mill_levels.0}} (L1), {{costs.mill_levels.1}} (L2), {{costs.mill_levels.2}} (L3) |
@@ -732,7 +732,7 @@ to any noble, and one card for each dignity of the ladies (see below). A bastard
 - counts as a title in your score.
 
 The dignities of the ladies are permanent and each counts as a title in your
-score. They can only be played on a lady (`dignity_female_only`). A **Blocked**
+score. They can only be played on a lady (`dignity_female_only`), and a lady carries at most one visible and one hidden dignity (`dignity_exclusive`); the bastard stacks with them. A hidden dignity is only played on one of your own ladies (`dignity_hidden_own_only`). A **Blocked**
 dignity cannot be played on a married lady (`noble_married`) and forbids
 marriage afterwards; a **Free** dignity can be played on a married or unmarried
 lady and leaves marriage open. Their bonuses stop while the lady is in the
@@ -742,15 +742,16 @@ dignity, in neither the state view nor the report.
 
 | Dignity | Code | Marriage | Effect |
 |---|---|---|---|
-| D'Arc | `ARC` | Blocked | `+1` force to the army she commands, on top of the noble command bonus of `+1`. |
+| D'Arc | `ARC` | Blocked | `+1` force to the army she commands, on top of the noble command bonus of `+1`. The name d'Arc replaces the lady's family name in her titles ("Dame Mahaut d'Arc"). |
 | Castellan | `CTL` | Free | In a castle, you learn the orders issued this turn on her fief, including those targeting enemy armies. An army coming from outside that enters without changing its chain stays hidden. |
 | Abbess | `ABB` | Blocked | Played with the village seed of a region (`D N NNN ABB TER`), for good. While she is in it, you know the order chains issued in that region. |
 | Herbalist | `HRB` | Blocked | Your troops and nobles on her territory and the adjacent ones are immune to plague; your army on her territory consumes 2 fewer rations per turn, never below zero. |
-| Astrologer | `AST` | Free | In winter, you privately see the next 4 calamities of the special-orders draw pile. `V C NNN I [J]` strikes one or two (positions 1 to 4), once per winter per astrologer, by her owner only; the following calamities take their place. |
+| Astrologer | `AST` | Free | In winter, you privately see the next 3 calamities of the special-orders draw pile. `V C NNN I` strikes one (position 1 to 3), once per winter per astrologer, by her owner only; the following calamities take their place. |
 | Chevalier d'Éon (hidden) | `EON` | Free, unmarried lady | The lady is replaced by a male noble, with a first name and code drawn from the unused names and all the prerogatives of a man (so he marries a woman). Her identity as a lady stays secret: only you know it, until she is unmasked — captured in combat, imprisoned, or married and targeted by a Claim (the targeted lord then becomes a bastard, the marriage is annulled, and the Claim is lost). Once unmasked, her identity and dignity are visible to everyone. |
 | Correspondent (hidden) | `COR` | Free | Hostage of a player, she lets you see every order that player issues. |
 | Spy (hidden) | `ESP` | Free | Hostage of a player, she reveals their whole hand (special orders, nobles and dignities). |
-| Witch (hidden) | `SOR` | Free | Every army of another player in her region consumes 1 more ration per turn, with no explanation for its owner. |
+| Poisoner (hidden) | `EMP` | Free | Every army of another player in her region consumes 1 more ration per turn, with no explanation for its owner. |
+| Witch (hidden) | `SOR` | Free | In winter, `S R NNN CAL` calls a calamity (`PE`, `MT` or `FA`): if it is drawn for next year it strikes the region where the Witch stands, otherwise the ritual fails. `S R NNN N` fixes the season (`1` spring, `2` summer, `3` autumn) of the first calamity drawn, which then strikes the Witch's region. One ritual per winter, either one; other players see a slightly unusual calamity announcement, without knowing why. No protection against plague. Once revealed, she is excommunicated ex officio. |
 
 This is where, in winter, the fate of enemy nobles captured in combat
 (section 6) is decided: `O`/`P` moves a prisoner between `hostage` and
@@ -955,11 +956,12 @@ bonus cards, up to **{{special_orders.draw_orders_limit}} per winter** across
 all decks (a noble card drawn counts as one) and within the free slots of
 their hand.
 
-A drawn calamity is programmed into the first free slot of the following
-year: spring (**{{special_orders.calamity_slots.spring}}**), summer
+A drawn calamity is programmed into the following year, on a season drawn at
+random among those that still have a free slot: spring
+(**{{special_orders.calamity_slots.spring}}**), summer
 (**{{special_orders.calamity_slots.summer}}**), or autumn
-(**{{special_orders.calamity_slots.autumn}}**). Its region is selected
-deterministically when programmed. The spring augury reveals the kind, season,
+(**{{special_orders.calamity_slots.autumn}}**). Its season and region are
+selected deterministically when programmed. The spring augury reveals the kind, season,
 and region of every calamity in that year; future auguries remain hidden. As
 soon as a calamity is drawn, the interface announces it in the special-cards
 panel, and the announcement stays visible until the calamity applies or is

@@ -74,6 +74,9 @@ type Calamity struct {
 	Year       int           `json:"year"`
 	Season     Season        `json:"season"`
 	RegionSeed TerritoryID   `json:"regionSeed"`
+	// Ritual marks a calamity bent by a Witch's ritual: its region (and its
+	// season, for a season ritual) were chosen, not drawn.
+	Ritual bool `json:"ritual,omitempty"`
 }
 
 type ActiveRegionEffect struct {

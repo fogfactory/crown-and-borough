@@ -128,8 +128,8 @@ func TestBuildNobleDeckFourPlayers(t *testing.T) {
 	deck := buildNobleDeck("deck-four", deckTestPlayers(4), 6, prenoms, startingCodes(prenoms, 8), 0)
 	males, females, dignities := countKinds(deck)
 	claims := claimsOf(deck)
-	if len(deck.Cards) != 40 || dignities != 7 || claims != 3 || males+females != 21 {
-		t.Errorf("deck = %d cards (%d dignities, %d claims, %d nobles), want 40 (7 bastards, 9 lady dignities, 3, 21)", len(deck.Cards), dignities, claims, males+females)
+	if len(deck.Cards) != 41 || dignities != 7 || claims != 3 || males+females != 21 {
+		t.Errorf("deck = %d cards (%d dignities, %d claims, %d nobles), want 41 (7 bastards, 10 lady dignities, 3, 21)", len(deck.Cards), dignities, claims, males+females)
 	}
 	for _, player := range deckTestPlayers(4) {
 		if hand, exists := deck.Hands[player.ID]; !exists || len(hand) != 0 {
@@ -203,8 +203,8 @@ func TestCreateGameBuildsNobleDeckWithoutStartingNames(t *testing.T) {
 		t.Error("the same seed created two different noble decks")
 	}
 	deck := first.NobleDeck
-	if deck == nil || len(deck.Cards) != 42 {
-		t.Fatalf("deck = %+v, want 42 cards", deck)
+	if deck == nil || len(deck.Cards) != 43 {
+		t.Fatalf("deck = %+v, want 43 cards", deck)
 	}
 	starting := map[string]bool{}
 	for _, noble := range first.Nobles {

@@ -2,7 +2,6 @@ package orders
 
 import (
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -203,6 +202,12 @@ func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (mod
 	}
 	if fields[0] == "V" && fields[1] == "C" {
 		return parseCalamityVetoLine(fields, lineNumber, indexes)
+	}
+	if fields[0] == "S" {
+		return parseRitualLine(fields, lineNumber, indexes)
+	}
+	if fields[0] == "X" {
+		return parseExcommunicationLine(fields, lineNumber, indexes)
 	}
 	if fields[0] == "N" {
 		return parseBuyCardinalLine(fields, lineNumber, indexes)
@@ -466,30 +471,26 @@ func parseDignityOrderLine(fields []string, lineNumber int, indexes gameIndexes)
 	return order, nil
 }
 
-// parseCalamityVetoLine handles V C XXX I [J]: XXX is the astrologer noble,
-// I and J the distinct positions (1 to 4) of the forecast calamities to
-// remove. Ownership and the dignity are engine rejects.
+// parseCalamityVetoLine handles V C XXX I: XXX is the astrologer noble, I the
+// position (1 to 3) of the forecast calamity to strike. Ownership and the
+// dignity are engine rejects.
 func parseCalamityVetoLine(fields []string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
-	if len(fields) != 4 && len(fields) != 5 {
+	if len(fields) != 4 {
 		error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.WinterCalamityVetoShape)
 		return models.WinterOrder{}, &error
 	}
 	if parseError := winterNobleCode(fields[2], lineNumber, indexes); parseError != nil {
 		return models.WinterOrder{}, parseError
 	}
-	indices := make([]int, 0, 2)
-	for _, field := range fields[3:] {
-		index, err := strconv.Atoi(field)
-		if err != nil || index < 1 || index > 4 || slices.Contains(indices, index) {
-			error := parseMessage(lineNumber, ParseCodeInvalidCode, i18n.WinterCalamityVetoShape)
-			return models.WinterOrder{}, &error
-		}
-		indices = append(indices, index)
+	index, err := strconv.Atoi(fields[3])
+	if err != nil || index < 1 || index > 3 {
+		error := parseMessage(lineNumber, ParseCodeInvalidCode, i18n.WinterCalamityVetoShape)
+		return models.WinterOrder{}, &error
 	}
 	return models.WinterOrder{
 		Type:      models.WinterOrderTypeCalamityVeto,
 		NobleCode: models.NobleCode(fields[2]),
-		Indices:   indices,
+		Indices:   []int{index},
 	}, nil
 }
 
@@ -565,4 +566,60 @@ func parseBuyCardinalLine(fields []string, lineNumber int, indexes gameIndexes) 
 		return models.WinterOrder{}, parseError
 	}
 	return models.WinterOrder{Type: models.WinterOrderTypeBuyCardinal, NobleCode: models.NobleCode(fields[2])}, nil
+}
+
+// parseExcommunicationLine handles X E NNN (excommunicate) and X L NNN (lift):
+// NNN is the targeted noble. Whether the player holds the papacy and the
+// limits of the pope are engine rejects (see winter_papal_order.go).
+func parseExcommunicationLine(fields []string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
+	var orderType models.WinterOrderType
+	switch fields[1] {
+	case "E":
+		orderType = models.WinterOrderTypeExcommunicate
+	case "L":
+		orderType = models.WinterOrderTypeLiftExcommunication
+	default:
+		return models.WinterOrder{}, unknownWinterSubtype(lineNumber, fields[0], fields[1])
+	}
+	if len(fields) != 3 {
+		error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.WinterExcommunicationShape)
+		return models.WinterOrder{}, &error
+	}
+	if parseError := winterNobleCode(fields[2], lineNumber, indexes); parseError != nil {
+		return models.WinterOrder{}, parseError
+	}
+	return models.WinterOrder{Type: orderType, NobleCode: models.NobleCode(fields[2])}, nil
+}
+
+// parseRitualLine handles S R NNN CAL (call the calamity CAL: PE, MT or FA)
+// and S R NNN N (fix the season N of next year: 1 spring, 2 summer, 3
+// autumn). NNN is the Witch; ownership and the dignity are engine rejects.
+func parseRitualLine(fields []string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
+	if fields[1] != "R" {
+		return models.WinterOrder{}, unknownWinterSubtype(lineNumber, fields[0], fields[1])
+	}
+	if len(fields) != 4 {
+		error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.WinterRitualShape)
+		return models.WinterOrder{}, &error
+	}
+	if parseError := winterNobleCode(fields[2], lineNumber, indexes); parseError != nil {
+		return models.WinterOrder{}, parseError
+	}
+	order := models.WinterOrder{Type: models.WinterOrderTypeRitual, NobleCode: models.NobleCode(fields[2])}
+	switch fields[3] {
+	case "1":
+		order.Season = models.SeasonSpring
+	case "2":
+		order.Season = models.SeasonSummer
+	case "3":
+		order.Season = models.SeasonAutumn
+	default:
+		kind, parseError := parseSpecialKind(fields[3], lineNumber)
+		if parseError != nil || !kind.IsCalamity() {
+			error := parseMessage(lineNumber, ParseCodeInvalidCode, i18n.WinterRitualShape)
+			return models.WinterOrder{}, &error
+		}
+		order.Calamity = kind
+	}
+	return order, nil
 }

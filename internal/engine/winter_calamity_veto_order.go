@@ -6,10 +6,10 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
-// calamityVetoOrder is V C XXX I [J] (specs/dames.md § Astrologue): the
-// astrologue XXX of the player, strikes the forecast calamities I and
-// J from the draw pile; the following calamities take their place. Each
-// astrologue acts once per winter.
+// calamityVetoOrder is V C XXX I (specs/dames.md § Astrologue): the
+// astrologue XXX of the player strikes the forecast calamity I from the draw
+// pile; the following calamity takes its place. Each astrologue acts once per
+// winter.
 type calamityVetoOrder struct{ order models.WinterOrder }
 
 func (order calamityVetoOrder) Apply(ctx *ExecutionContext) {
@@ -34,6 +34,10 @@ func (order calamityVetoOrder) Apply(ctx *ExecutionContext) {
 	}
 	deck := resolution.state.SpecialDeck
 	if deck == nil {
+		resolution.rejectWinterOrder(playerID, winterOrder, "calamity_not_forecast")
+		return
+	}
+	if len(winterOrder.Indices) != 1 {
 		resolution.rejectWinterOrder(playerID, winterOrder, "calamity_not_forecast")
 		return
 	}

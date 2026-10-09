@@ -273,7 +273,7 @@ ordres d'armée ; un noble recruté n'agit qu'au tour suivant.
 |---|---|
 | `R N CCC XXX` | Recruter le noble de la carte `CCC` sur `XXX`. |
 | `C N HHH NNN` | Prétention : l'héritier `HHH` réclame les titres du noble `NNN` d'un autre joueur (consomme une carte `CLM`). |
-| `D N NNN CCC` | Conférer à `NNN` la dignité de la carte `CCC` (`BAS` : bâtard ; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `SOR` : dignités des dames). |
+| `D N NNN CCC` | Conférer à `NNN` la dignité de la carte `CCC` (`BAS` : bâtard ; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `EMP`, `SOR` : dignités des dames). |
 
 ### Attaque (`A`) et jonction (`J`)
 
@@ -701,7 +701,7 @@ investissements directs, une ligne par ordre, appliqués dans l'ordre saisi.
 | Piocher une carte de noble | `T N` | une seule fois par hiver et par joueur ; le deck de nobles, commun à tous, ne doit pas être épuisé | 0 |
 | Recruter un noble | `R N CCC XXX` | `CCC` est une carte de noble de ta main ; `XXX` contrôlé, avec un château ou un village et une armée du joueur, et moins de nobles vivants possédés que ton plafond, {{noble_limit}} de base (voir ci-dessous) | 0 |
 | Réclamer des titres | `C N HHH CCC` | `CLM` est une carte de prétention de ta main ; `HHH` est un de tes nobles, posé pendant un mariage de `CCC` avec l'un de tes nobles, non bâtard et sans prétention en cours ; `CCC` est un noble d'un autre joueur | 0 |
-| Conférer une dignité | `D N NNN CCC` | `NNN` est un noble quelconque, à toi ou à un adversaire ; `CCC` est une carte de dignité de ta main (`BAS` : bâtard ; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `SOR` : dames ; Bloquées : non mariées) ; un noble ne porte une dignité qu'une fois | 0 |
+| Conférer une dignité | `D N NNN CCC` | `NNN` est un noble quelconque, à toi ou à un adversaire ; `CCC` est une carte de dignité de ta main (`BAS` : bâtard ; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `EMP`, `SOR` : dames ; Bloquées : non mariées) ; un noble ne porte une dignité qu'une fois, et une dame porte au plus une dignité de dame visible et une cachée (`dignity_exclusive`) ; une dignité cachée ne se joue que sur une de tes dames (`dignity_hidden_own_only`) | 0 |
 | Défausser une carte de noble | `D C CCC` | `CCC` est une carte de ta main de nobles (trigramme de noble ou `BAS`) ; sans limite par hiver ; la carte va à la défausse du deck | 0 |
 | Recruter une troupe | `R T XXX` | `XXX` contrôlé, et un noble libre du joueur sur `XXX` ou adjacent | {{costs.troop}} |
 | Construire ou améliorer un moulin | `C M XXX` | `XXX` contrôlé ; un **nouveau** moulin exige une case **vide** adjacente à un château ou village, ou portant elle-même un château ou village ; un moulin **existant** peut toujours être amélioré, même isolé | {{costs.mill_levels.0}} (N1), {{costs.mill_levels.1}} (N2), {{costs.mill_levels.2}} (N3) |
@@ -774,7 +774,7 @@ ne porte une dignité qu'une fois. Le deck contient le **bâtard** (`BAS`), ouve
 - compte comme un titre dans ton score.
 
 Les dignités des dames sont permanentes et comptent chacune comme un titre dans
-ton score. Elles ne se jouent que sur une dame (`dignity_female_only`). Une
+ton score. Elles ne se jouent que sur une dame (`dignity_female_only`), et une dame porte au plus une dignité visible et une cachée (`dignity_exclusive`) ; la bâtardise se cumule avec elles. Une dignité cachée ne se joue que sur une de tes dames (`dignity_hidden_own_only`). Une
 dignité **Bloquée** ne se joue pas sur une dame mariée (`noble_married`) et
 interdit ensuite le mariage ; une dignité **Libre** se joue sur une dame mariée
 ou non et laisse le mariage possible. Leurs bonus cessent tant que la dame est
@@ -784,15 +784,16 @@ voient une dame sans dignité, ni dans la vue d'état ni dans le rapport.
 
 | Dignité | Code | Mariage | Effet |
 |---|---|---|---|
-| D'Arc | `ARC` | Bloquée | `+1` à la force de l'armée qu'elle commande, en plus du `+1` de commandement noble. |
+| D'Arc | `ARC` | Bloquée | `+1` à la force de l'armée qu'elle commande, en plus du `+1` de commandement noble. Son nom d'Arc remplace le nom de famille de la dame dans ses titres (« Dame Mahaut d'Arc »). |
 | Châtelaine | `CTL` | Libre | Dans un château, elle te fait connaître les ordres émis ce tour sur son fief, y compris ceux qui ciblent des armées adverses. Une armée venue de l'extérieur qui entre sans modifier sa chaîne reste cachée. |
 | Abbesse | `ABB` | Bloquée | Se joue avec le village seed d'une région (`D N NNN ABB TER`), définitif. Tant qu'elle s'y trouve, tu connais les chaînes d'ordres émises dans cette région. |
 | Herboriste | `HRB` | Bloquée | Tes troupes et nobles sur sa case et les cases adjacentes sont immunisés à la peste ; ton armée sur sa case consomme 2 rations de moins par tour, sans descendre sous zéro. |
-| Astrologue | `AST` | Libre | En hiver, tu vois en privé les 4 prochaines calamités de la pioche des ordres spéciaux. `V C NNN I [J]` en raye une ou deux (positions 1 à 4), une fois par hiver et par astrologue, par son seul propriétaire ; les calamités suivantes les remplacent. |
+| Astrologue | `AST` | Libre | En hiver, tu vois en privé les 3 prochaines calamités de la pioche des ordres spéciaux. `V C NNN I` en raye une seule (position 1 à 3), une fois par hiver et par astrologue, par son seul propriétaire ; les calamités suivantes les remplacent. |
 | Chevalier d'Éon (cachée) | `EON` | Libre, dame non mariée | La dame est remplacée par un noble homme, au prénom et au code tirés des prénoms inutilisés, avec toutes les prérogatives d'un homme (il se marie donc avec une femme). Son identité de dame reste secrète : toi seul la connais, jusqu'à ce qu'elle soit démasquée — capturée au combat, faite prisonnière, ou mariée et visée par un Claim (le seigneur visé devient alors bâtard, le mariage est annulé et le Claim est perdu). Une fois démasquée, son identité et sa dignité sont visibles de tous. |
 | Correspondante (cachée) | `COR` | Libre | Otage chez un joueur, elle te fait voir tous les ordres que ce joueur émet. |
 | Espionne (cachée) | `ESP` | Libre | Otage chez un joueur, elle te dévoile sa main complète (ordres spéciaux, nobles et dignités). |
-| Sorcière (cachée) | `SOR` | Libre | Toute armée d'un autre joueur dans sa région consomme 1 ration de plus par tour, sans autre précision pour ses propriétaires. |
+| Empoisonneuse (cachée) | `EMP` | Libre | Toute armée d'un autre joueur dans sa région consomme 1 ration de plus par tour, sans autre précision pour ses propriétaires. |
+| Sorcière (cachée) | `SOR` | Libre | En hiver, ton ordre `S R NNN CAL` appelle une calamité (`PE`, `MT` ou `FA`) : si elle est tirée pour l'année suivante, elle frappe la région où se trouve la Sorcière, sinon le rituel échoue. Ton ordre `S R NNN N` fixe la saison (`1` printemps, `2` été, `3` automne) de la première calamité tirée, qui frappe alors la région de la Sorcière. Un rituel par hiver, l'un ou l'autre ; les autres joueurs voient une annonce de calamité légèrement inhabituelle, sans savoir pourquoi. Aucune protection contre la peste. Révélée, elle est excommuniée d'office. |
 
 C'est ici, en hiver, que se règle le sort des nobles ennemis capturés en
 combat (section 6) : `O`/`P` fait basculer un prisonnier entre `hostage` et
@@ -1009,11 +1010,12 @@ automatiquement des cartes bonus, jusqu'à
 carte de noble piochée compte pour une) et dans la limite des places libres de
 sa main.
 
-Une calamité tirée est programmée dans le premier slot disponible de l'année
-suivante : printemps (**{{special_orders.calamity_slots.spring}}**), été
+Une calamité tirée est programmée dans l'année suivante, sur une saison tirée
+au hasard parmi celles qui ont encore un slot libre : printemps
+(**{{special_orders.calamity_slots.spring}}**), été
 (**{{special_orders.calamity_slots.summer}}**) ou automne
-(**{{special_orders.calamity_slots.autumn}}**). Sa région est tirée de
-manière déterministe lors de la programmation. L'augure du printemps révèle
+(**{{special_orders.calamity_slots.autumn}}**). Sa saison et sa région sont
+tirées de manière déterministe lors de la programmation. L'augure du printemps révèle
 le kind, la saison et la région de toutes les calamités de l'année ; les
 augures futures restent cachées. Dès son tirage, la calamité programmée est
 annoncée dans l'encart des cartes spéciales de l'interface, et l'annonce

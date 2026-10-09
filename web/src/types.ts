@@ -69,6 +69,9 @@ export type EventType =
   | 'dignity'
   | 'claim'
   | 'eon_unmasked'
+  | 'ritual'
+  | 'excommunication'
+  | 'excommunication_lifted'
 
 export type PlayerId = string
 
@@ -169,6 +172,8 @@ export interface Noble {
   id: string
   code: string
   name: string
+  /** First name alone, for short labels. */
+  firstName?: string
   owner: PlayerId
   location: string
   status: NobleStatus
@@ -191,6 +196,31 @@ export interface Bishopric {
   name: string
   territories: string[]
   bishop?: string
+}
+
+/** A noble the pope can excommunicate; `blocker` must be lifted first. */
+export interface ExcommunicationTarget {
+  code: string
+  blocker?: string
+}
+
+/** Connected controlled territories where a fief can be founded. */
+export interface FiefSite {
+  territories: string[]
+  castles: string[]
+  edges: Array<[string, string]>
+}
+
+/** Winter orders that can succeed for the viewer, with their prices. */
+export interface WinterAids {
+  excommunicable: ExcommunicationTarget[]
+  liftable: string[]
+  buyableCardinals: string[]
+  cardinalCost: number
+  fiefSites: FiefSite[]
+  fiefCostPerTerritory: number
+  /** The viewer's Witches able to perform a ritual, with the region it would hit. */
+  rituals: Array<{ noble: string; region: string }>
 }
 
 /** An election the winter announces, read for the viewing player. */
@@ -235,6 +265,7 @@ export type Dignity =
   | 'chevalier_d_eon'
   | 'correspondent'
   | 'spy'
+  | 'poisoner'
   | 'witch'
   | 'cardinal'
 
@@ -439,6 +470,10 @@ export interface StateData {
   calamityForecast?: CardKind[]
   /** Winter only: elections open since the start of the winter. */
   openElections?: OpenElection[]
+  /** Outside winter: the territories a Révolte card can be played on. */
+  revoltTargets?: string[]
+  /** Winter only: the possible winter orders of the viewer. */
+  winterAids?: WinterAids
   /** Hands revealed by a spy held hostage by their owner. */
   spiedHands?: Array<{ player: PlayerId; specialHand: CardKind[]; nobleHand: NobleCard[] }>
   nobleHand?: NobleCard[]
@@ -462,6 +497,7 @@ export interface AnnouncementReport {
   season: Season
   region: string
   year: number
+  ritual?: boolean
 }
 
 export interface WinterCosts {
@@ -864,6 +900,7 @@ export type WinterOrderType =
   | 'calamity_veto'
   | 'discard_noble_card'
   | 'claim'
+  | 'ritual'
 
 export interface WinterOrder {
   id?: string
@@ -884,6 +921,9 @@ export interface WinterOrder {
   territories?: string[]
   /** Present only for `calamity_veto`: the struck forecast positions. */
   indices?: number[]
+  /** Present only for `ritual`: the called calamity, or the fixed season (exclusive). */
+  calamity?: CardKind
+  season?: Season
 }
 
 export interface WinterStockReport {
@@ -901,6 +941,8 @@ export interface CardReport {
   season?: Season
   outcome: Outcome
   reason?: string
+  /** A calamity bent by a ritual: worded differently, without saying why. */
+  ritual?: boolean
 }
 
 export interface RumorReport {
@@ -931,7 +973,7 @@ export interface SeasonEffectReport {
 export interface AuguryReport {
   year: number
   capacities: Partial<Record<Season, number>>
-  calamities: Array<{ kind: CardKind; season: Season; region: string }>
+  calamities: Array<{ kind: CardKind; season: Season; region: string; ritual?: boolean }>
 }
 
 export interface WinterReport {

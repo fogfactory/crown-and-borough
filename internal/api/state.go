@@ -57,6 +57,12 @@ type StateView struct {
 	// nobles (see engine.ForecastWinterElections). Ballots are never part of
 	// it.
 	OpenElections []engine.OpenElection `json:"openElections,omitempty"`
+	// WinterAids lists, in winter, the possible winter orders of the viewer
+	// (papal sanctions, cardinal purchase, fief sites) with their prices.
+	WinterAids *engine.WinterAids `json:"winterAids,omitempty"`
+	// RevoltTargets lists, outside winter, the territories a Révolte card can
+	// be played on (a public rule: famine, recent tax or trial in the region).
+	RevoltTargets []models.TerritoryID `json:"revoltTargets,omitempty"`
 	// SpiedHands are the hands a spy of the viewer reveals: the whole hand of
 	// the player holding her hostage.
 	SpiedHands          []SpiedHandView             `json:"spiedHands,omitempty"`
@@ -190,13 +196,15 @@ type InfraView struct {
 // NobleView contains the visible identity, code, status, owner, and location
 // of a noble.
 type NobleView struct {
-	ID       models.NobleID     `json:"id"`
-	Code     models.NobleCode   `json:"code"`
-	Name     string             `json:"name"`
-	Owner    models.PlayerID    `json:"owner"`
-	Location models.TerritoryID `json:"location"`
-	Status   models.NobleStatus `json:"status"`
-	Sex      models.Sex         `json:"sex"`
+	ID   models.NobleID   `json:"id"`
+	Code models.NobleCode `json:"code"`
+	Name string           `json:"name"`
+	// FirstName is the noble's first name alone, for short labels.
+	FirstName string             `json:"firstName"`
+	Owner     models.PlayerID    `json:"owner"`
+	Location  models.TerritoryID `json:"location"`
+	Status    models.NobleStatus `json:"status"`
+	Sex       models.Sex         `json:"sex"`
 	// Spouse is the code of the noble this one is married to, set only while
 	// the marriage is active (both spouses alive).
 	Spouse *models.NobleCode `json:"spouse,omitempty"`
@@ -480,13 +488,14 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 	}
 	for _, noble := range state.Nobles {
 		nobleView := NobleView{
-			ID:       noble.ID,
-			Code:     models.NobleCode(noble.Code),
-			Name:     state.NobleDisplayName(noble),
-			Owner:    noble.OwnerID,
-			Location: noble.LocationID,
-			Status:   noble.Status,
-			Sex:      noble.Sex,
+			ID:        noble.ID,
+			Code:      models.NobleCode(noble.Code),
+			Name:      state.NobleDisplayName(noble),
+			FirstName: noble.FirstName(),
+			Owner:     noble.OwnerID,
+			Location:  noble.LocationID,
+			Status:    noble.Status,
+			Sex:       noble.Sex,
 		}
 		revealHidden := viewer != nil && (*viewer == noble.OwnerID || *viewer == models.SpectatorViewer)
 		for _, dignity := range noble.Dignities {
@@ -597,8 +606,10 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 	if viewer != nil {
 		view.CalamityForecast = calamityForecastFor(state, *viewer)
 		view.OpenElections = engine.ForecastWinterElections(state, balance, *viewer)
+		view.WinterAids = engine.ForecastWinterAids(state, balance, *viewer)
 		view.SpiedHands = spiedHandsFor(state, *viewer)
 	}
+	view.RevoltTargets = engine.ForecastRevoltTargets(state, balance)
 	view.ActiveRegionEffects = append([]models.ActiveRegionEffect(nil), state.ActiveRegionEffects...)
 	view.Announcements = engine.PendingAnnouncements(state, state.Year(), state.Season, true)
 	return view

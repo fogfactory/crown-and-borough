@@ -40,25 +40,28 @@ func (t OrderType) IsValid() bool {
 type WinterOrderType string
 
 const (
-	WinterOrderTypeRecruitNoble  WinterOrderType = "recruit_noble"
-	WinterOrderTypeRecruitTroop  WinterOrderType = "recruit_troop"
-	WinterOrderTypeBuild         WinterOrderType = "build"
-	WinterOrderTypeElectCapital  WinterOrderType = "elect_capital"
-	WinterOrderTypeTransferNoble WinterOrderType = "transfer_noble"
-	WinterOrderTypeHostage       WinterOrderType = "hostage"
-	WinterOrderTypeDungeon       WinterOrderType = "dungeon"
-	WinterOrderTypeTransfer      WinterOrderType = "transfer"
-	WinterOrderTypeFoundFief     WinterOrderType = "found_fief"
-	WinterOrderTypeAssignFief    WinterOrderType = "assign_fief"
-	WinterOrderTypeMarriage      WinterOrderType = "marriage"
-	WinterOrderTypeDrawNoble     WinterOrderType = "draw_noble"
-	WinterOrderTypeDignity       WinterOrderType = "play_dignity"
-	WinterOrderTypeDiscardNoble  WinterOrderType = "discard_noble_card"
-	WinterOrderTypeClaim         WinterOrderType = "claim"
-	WinterOrderTypeCalamityVeto  WinterOrderType = "calamity_veto"
-	WinterOrderTypeCandidacy     WinterOrderType = "candidacy"
-	WinterOrderTypeVote          WinterOrderType = "vote"
-	WinterOrderTypeBuyCardinal   WinterOrderType = "buy_cardinal"
+	WinterOrderTypeRecruitNoble        WinterOrderType = "recruit_noble"
+	WinterOrderTypeRecruitTroop        WinterOrderType = "recruit_troop"
+	WinterOrderTypeBuild               WinterOrderType = "build"
+	WinterOrderTypeElectCapital        WinterOrderType = "elect_capital"
+	WinterOrderTypeTransferNoble       WinterOrderType = "transfer_noble"
+	WinterOrderTypeHostage             WinterOrderType = "hostage"
+	WinterOrderTypeDungeon             WinterOrderType = "dungeon"
+	WinterOrderTypeTransfer            WinterOrderType = "transfer"
+	WinterOrderTypeFoundFief           WinterOrderType = "found_fief"
+	WinterOrderTypeAssignFief          WinterOrderType = "assign_fief"
+	WinterOrderTypeMarriage            WinterOrderType = "marriage"
+	WinterOrderTypeDrawNoble           WinterOrderType = "draw_noble"
+	WinterOrderTypeDignity             WinterOrderType = "play_dignity"
+	WinterOrderTypeDiscardNoble        WinterOrderType = "discard_noble_card"
+	WinterOrderTypeClaim               WinterOrderType = "claim"
+	WinterOrderTypeCalamityVeto        WinterOrderType = "calamity_veto"
+	WinterOrderTypeCandidacy           WinterOrderType = "candidacy"
+	WinterOrderTypeVote                WinterOrderType = "vote"
+	WinterOrderTypeRitual              WinterOrderType = "ritual"
+	WinterOrderTypeExcommunicate       WinterOrderType = "excommunicate"
+	WinterOrderTypeLiftExcommunication WinterOrderType = "lift_excommunication"
+	WinterOrderTypeBuyCardinal         WinterOrderType = "buy_cardinal"
 )
 
 // IsValid reports whether a winter order type is known to the winter resolver.
@@ -70,7 +73,8 @@ func (t WinterOrderType) IsValid() bool {
 		WinterOrderTypeFoundFief, WinterOrderTypeAssignFief, WinterOrderTypeMarriage,
 		WinterOrderTypeDrawNoble, WinterOrderTypeDignity, WinterOrderTypeDiscardNoble,
 		WinterOrderTypeClaim, WinterOrderTypeCalamityVeto,
-		WinterOrderTypeCandidacy, WinterOrderTypeVote, WinterOrderTypeBuyCardinal:
+		WinterOrderTypeCandidacy, WinterOrderTypeVote, WinterOrderTypeBuyCardinal,
+		WinterOrderTypeExcommunicate, WinterOrderTypeLiftExcommunication, WinterOrderTypeRitual:
 		return true
 	}
 	return false
@@ -138,7 +142,10 @@ type Order struct {
 // WinterOrderTypeCandidacy and WinterOrderTypeVote, Election names the
 // election, NobleCode the candidate and TerritoryID the seed village of the
 // bishopric (bishop elections only). For WinterOrderTypeBuyCardinal, NobleCode
-// is the player's own bishop promoted to cardinal at the investiture.
+// is the player's own bishop promoted to cardinal at the investiture. For
+// WinterOrderTypeExcommunicate and WinterOrderTypeLiftExcommunication, NobleCode
+// is the targeted noble (papal orders, resolved first: specs/religieux.md
+// § Excommunication).
 type WinterOrder struct {
 	ID           OrderID         `json:"id"`
 	Type         WinterOrderType `json:"type"`
@@ -159,6 +166,11 @@ type WinterOrder struct {
 	// Indices are the 1-based positions in the astrologer forecast a
 	// calamity veto removes.
 	Indices []int `json:"indices,omitempty"`
+	// Calamity and Season are the two exclusive choices of a ritual: the kind
+	// of calamity the Witch calls, or the season of the next year she fixes
+	// (specs/dames.md § Sorcière).
+	Calamity CardKind `json:"calamity,omitempty"`
+	Season   Season   `json:"season,omitempty"`
 }
 
 type DeckOrderType string

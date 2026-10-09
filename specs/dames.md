@@ -108,6 +108,14 @@ ou par les conditions propres à chaque dignité.
 
 ### Liste des dignités
 
+Une dame porte au plus **une dignité visible et une dignité cachée** : la
+carte d'une seconde dignité de la même catégorie est rejetée
+(`dignity_exclusive`), y compris quand la dignité cachée a été révélée. La
+bâtardise, qui n'est pas une dignité de dame, et le cardinalat se cumulent avec
+elles. Une dignité cachée ne se joue que sur une dame de son propriétaire
+(`dignity_hidden_own_only`, rejet testé avant tout autre) : l'ordre ne permet
+pas de sonder les dignités cachées des autres joueurs.
+
 | Dignité | Visibilité | Mariage après nomination | Excommunication si révélée |
 |---|---|---|---|
 | D'Arc | publique | Bloqué | non |
@@ -118,13 +126,15 @@ ou par les conditions propres à chaque dignité.
 | Chevalier d'Éon | cachée | Libre (avec une femme) | **oui, d'office** |
 | Correspondante | cachée | Libre | non |
 | Espionne | cachée | Libre | non |
+| Empoisonneuse | cachée | Libre | non |
 | Sorcière | cachée | Libre | **oui, d'office** |
 
 #### D'Arc
 
 Passif : `+1` à la force de toute armée qu'elle commande, cumulable avec le
 bonus de commandement noble de `+1` (soit `+2` au total). Aucun ordre
-réservé.
+réservé. Son nom d'Arc remplace le nom de famille de la dame dans ses titres
+habituels (« Dame Mahaut d'Arc », « Baronne Mahaut d'Arc »).
 
 #### Châtelaine
 
@@ -165,8 +175,8 @@ minimum de 0. Aucun ordre réservé. Archétype de la « sorcière » du jeu.
 
 #### Astrologue
 
-Passif : à l'hiver, son joueur voit les **6 prochaines calamités** (soit deux
-années d'avance au maximum de trois calamités par an). L'information est
+Passif : à l'hiver, son joueur voit les **3 prochaines calamités** (toutes celles de l'année
+suivante, à trois calamités par an au maximum). L'information est
 privée à son joueur. Plusieurs astrologues dans une partie ne s'influencent
 pas. Si elle est prisonnière ou morte, la vision cesse ; si elle est
 otage, le joueur qui la détient en profite aussi (voir la Châtelaine).
@@ -211,19 +221,41 @@ excommuniée ; la règle générale du procès s'applique à elle.
 > qu'elle, n'est pas retenu. Seul le passif ci-dessus (`SeesHostHand`,
 > otage uniquement) est livré.
 
-#### Sorcière [cachée]
+#### Empoisonneuse [cachée]
 
-Passif : toute armée présente dans l'évêché de la Sorcière, hors celles de
+Passif : toute armée présente dans l'évêché de l'Empoisonneuse, hors celles de
 son propriétaire (alliés compris), consomme **+1 ressource par tour**. Les
 joueurs concernés voient leur consommation augmenter **sans autre
-précision**. Elle n'a pas de rapport avec le surnaturel : c'est une
-empoisonneuse, miroir de l'Herboriste.
+précision**. C'est le miroir de l'Herboriste.
+
+Révélée par une enquête ou une capture, elle conserve ses bonus et n'est pas
+excommuniée ; la règle générale du procès s'applique à elle.
+
+#### Sorcière [cachée]
+
+Sa magie est dangereuse : elle ne protège pas de la peste. Elle se pratique
+par un **rituel** d'hiver, un seul par hiver, que son propriétaire commande
+tant qu'elle n'est pas au donjon :
+
+- `S R NNN CAL` : la Sorcière `NNN` **appelle une calamité** (`PE` peste, `MT`
+  mauvais temps, `FA` famine). Si une calamité de ce type est tirée pour
+  l'année suivante, elle frappe la **région où se trouve la Sorcière** ; sinon
+  le rituel échoue. La saison reste tirée au hasard ;
+- `S R NNN N` : la Sorcière `NNN` **fixe la saison** de l'année suivante
+  (`1` printemps, `2` été, `3` automne). La première calamité tirée cet hiver
+  prend cette saison et frappe la **région où se trouve la Sorcière**. Le type
+  de la calamité reste celui du tirage. Si la saison n'est pas libre, le
+  rituel échoue.
+
+Les deux effets s'excluent : un rituel appelle une calamité ou fixe une
+saison, jamais les deux. L'ordre est privé ; l'issue (réussite ou échec) n'est
+rapportée qu'à son propriétaire. Une calamité déviée est annoncée aux autres
+joueurs avec une formulation légèrement inhabituelle (« de curieux
+présages »), sans autre précision. Le rituel est résolu à la fin de l'hiver,
+lors du tirage des calamités de l'année suivante ; il ne dévie jamais une
+calamité déjà programmée ([hiver.md](hiver.md#ordre-de-résolution)).
 
 Révélée, elle est **excommuniée d'office**.
-
-> À trancher à l'implémentation : comportement exact d'un Éon excommunié
-> sur un titre acquis par élection ; une dignité perdue en cas de mort ou de
-> capture.
 
 ### Statut d'implémentation (#259)
 
@@ -246,9 +278,9 @@ Précisions retenues :
   provenance ; prisonnière = au `dungeon`. Une dame otage conserve ses bonus
   et son geôlier en profite aussi ; les dames cachées Correspondante et
   Espionne n'agissent que lorsqu'elles sont otages ;
-- l'Astrologue voit les **4 prochaines cartes calamité de la pioche** des
-  ordres spéciaux, en hiver, à son seul joueur, et en raye une ou deux avec
-  `V C NNN I [J]`, une fois par hiver ; les cartes rayées vont à la défausse
+- l'Astrologue voit les **3 prochaines cartes calamité de la pioche** des
+  ordres spéciaux, en hiver, à son seul joueur, et en raye une seule avec
+  `V C NNN I`, une fois par hiver ; les cartes rayées vont à la défausse
   et les calamités suivantes les remplacent ;
 - l'Éon remplace la dame par un noble homme au prénom et au code tirés des
   prénoms inutilisés ; l'identité de la dame (code, prénom, sexe) n'est connue
@@ -258,7 +290,7 @@ Précisions retenues :
 - la Châtelaine ne voit que les chaînes émises ce tour : une armée qui entre
   dans le fief sans modifier sa chaîne reste cachée ;
 - l'Herboriste réduit la demande de ravitaillement de l'armée de son
-  bénéficiaire sur sa case ; la Sorcière augmente de 1 celle des armées d'un
+  bénéficiaire sur sa case ; l'Empoisonneuse augmente de 1 celle des armées d'un
   autre propriétaire dans sa région (les alliances n'existent pas encore).
 
 ## Carte de procès
@@ -330,5 +362,5 @@ Ces dignités dépendent de pouvoirs à spécifier dans
 - **Dissolution de mariage** : le pape peut dissoudre un mariage à la demande
   d'un des époux, sans retirer les Claims éventuels.
 - **Enquête** (`Q NNN`, coût proportionnel au titre de la cible, voir religieux.md § Enquête) : ordre de cardinal ou de pape, qui cible un noble ou une dame
-  et révèle une dignité cachée (Éon, Correspondante, Espionne, Sorcière).
+  et révèle une dignité cachée (Éon, Correspondante, Espionne, Empoisonneuse, Sorcière).
 - **Calme des révoltes** : pouvoir d'évêque, partagé avec l'Abbesse.

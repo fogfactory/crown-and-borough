@@ -87,6 +87,23 @@ const REASON_KEYS: Record<string, MessageKey> = {
   marriage_not_reciprocated: 'reports.reason.marriage_not_reciprocated',
   election_not_open: 'reports.reason.election_not_open',
   cardinal_requires_bishop: 'reports.reason.cardinal_requires_bishop',
+  not_pope: 'reports.reason.not_pope',
+  cannot_excommunicate_self: 'reports.reason.cannot_excommunicate_self',
+  excommunication_limit: 'reports.reason.excommunication_limit',
+  already_excommunicated: 'reports.reason.already_excommunicated',
+  excommunication_slot_taken: 'reports.reason.excommunication_slot_taken',
+  not_excommunicated: 'reports.reason.not_excommunicated',
+  excommunication_not_liftable: 'reports.reason.excommunication_not_liftable',
+  noble_not_witch: 'reports.reason.noble_not_witch',
+  ritual_already_used: 'reports.reason.ritual_already_used',
+  ritual_invalid_target: 'reports.reason.ritual_invalid_target',
+  ritual_no_region: 'reports.reason.ritual_no_region',
+  dignity_exclusive: 'reports.reason.dignity_exclusive',
+  dignity_hidden_own_only: 'reports.reason.dignity_hidden_own_only',
+  dignity_female_only: 'reports.reason.dignity_female_only',
+  calamity_not_forecast: 'reports.reason.calamity_not_forecast',
+  calamity_veto_already_used: 'reports.reason.calamity_veto_already_used',
+  noble_not_astrologer: 'reports.reason.noble_not_astrologer',
   already_cardinal: 'reports.reason.already_cardinal',
   cardinal_cap_reached: 'reports.reason.cardinal_cap_reached',
   candidate_not_eligible: 'reports.reason.candidate_not_eligible',
@@ -318,6 +335,8 @@ function winterOrderLabel(order: WinterOrder, map: MapData | null, t: Translate)
       return `D N ${order.nobleCode ?? '—'} ${order.cardCode ?? '—'}${order.territory ? ` ${order.territory}` : ''}`
     case 'calamity_veto':
       return `V C ${order.nobleCode ?? '—'} ${(order.indices ?? []).join(' ')}`.trim()
+    case 'ritual':
+      return `S R ${order.nobleCode ?? '—'}`
     case 'recruit_troop':
       return `R T ${territory}`
     case 'build':
@@ -358,6 +377,7 @@ const DIGNITY_CARD_CODES: Record<Dignity, string> = {
   chevalier_d_eon: 'EON',
   correspondent: 'COR',
   spy: 'ESP',
+  poisoner: 'EMP',
   witch: 'SOR',
   cardinal: 'CAR',
 }
@@ -407,6 +427,8 @@ function investmentLabel(
       return 'D C'
     case 'claim':
       return `C N ${investment.nobleCode ?? '—'} ${investment.claimTarget ?? '—'}`
+    case 'ritual':
+      return `S R ${investment.nobleCode ?? '—'}`
     case 'dignity':
       return `D N ${investment.nobleCode ?? '—'} ${DIGNITY_CARD_CODES[investment.dignity ?? 'bastard']}`
     case 'prosperity_founded':
@@ -454,6 +476,11 @@ function winterDetails(
   map: MapData | null,
   t: Translate,
 ): string {
+  if (investment.kind === 'ritual') {
+    return t(`reports.ritual.${investment.reason ?? 'declared'}` as MessageKey, {
+      region: territoryLabel(map, investment.territory, t),
+    })
+  }
   if (investment.reason) return reportReason(investment.reason, t) ?? investment.reason
   if (investment.kind === 'claim' && investment.nobleName) {
     return t('reports.claimDetails', {
@@ -532,7 +559,7 @@ function cardEventLabel(card: CardReport, map: MapData | null, t: Translate): st
     case 'deck_restore':
       return t('reports.cardRestored', { card: label, player })
     case 'calamity_scheduled':
-      return t('reports.cardScheduled', {
+      return t(card.ritual ? 'reports.cardScheduledOmens' : 'reports.cardScheduled', {
         card: label,
         region,
         season: card.season ? t(SEASON_LABEL_KEYS[card.season]) : '—',
@@ -673,6 +700,14 @@ function seasonEffectLine(
           territory: territoryLabel(map, effect.territory, t),
         }),
       }
+    case 'excommunication':
+    case 'excommunication_lifted':
+      return {
+        key,
+        label: t(effect.kind === 'excommunication' ? 'reports.excommunication' : 'reports.excommunicationLifted', {
+          noble: effect.noble ?? '—',
+        }),
+      }
     case 'eon_unmasked':
       return {
         key,
@@ -748,6 +783,8 @@ function groupSeasonEffects(
       case 'plague_noble_survived':
       case 'trial':
       case 'eon_unmasked':
+      case 'excommunication':
+      case 'excommunication_lifted':
       case 'card_canceled':
         groupFor(effect).lines.push(line)
         break

@@ -891,6 +891,7 @@ function AppContent() {
                   />
                   {state && (
                     <OrdersPanel
+ regions={map?.regions}
                       state={state}
                       player={selectedPlayer}
                       chainDrafts={chainDrafts[selectedPlayer] ?? {}}

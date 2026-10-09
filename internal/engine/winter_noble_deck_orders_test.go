@@ -296,7 +296,7 @@ func TestAssignFiefRejectsBastardWhileNonBastardLives(t *testing.T) {
 func TestParseNobleDeckOrders(t *testing.T) {
 	state := deckOrdersState(t)
 	addNoble(state, "N1", "ONE", "P1", "AAA")
-	parsed, parseErrors := orders.ParseWinterOrders("t n\nr n ele aaa\nd n one bas\nd n one abb aaa\nv c one 2 3", state)
+	parsed, parseErrors := orders.ParseWinterOrders("t n\nr n ele aaa\nd n one bas\nd n one abb aaa\nv c one 2", state)
 	if len(parseErrors) != 0 {
 		t.Fatalf("ParseWinterOrders errors = %#v", parseErrors)
 	}
@@ -305,12 +305,12 @@ func TestParseNobleDeckOrders(t *testing.T) {
 		{ID: "O2", Type: models.WinterOrderTypeRecruitNoble, CardCode: "ELE", TerritoryID: "AAA"},
 		{ID: "O3", Type: models.WinterOrderTypeDignity, NobleCode: "ONE", CardCode: "BAS"},
 		{ID: "O4", Type: models.WinterOrderTypeDignity, NobleCode: "ONE", CardCode: "ABB", TerritoryID: "AAA"},
-		{ID: "O5", Type: models.WinterOrderTypeCalamityVeto, NobleCode: "ONE", Indices: []int{2, 3}},
+		{ID: "O5", Type: models.WinterOrderTypeCalamityVeto, NobleCode: "ONE", Indices: []int{2}},
 	}
 	if !reflect.DeepEqual(parsed, want) {
 		t.Errorf("parsed = %#v, want %#v", parsed, want)
 	}
-	for _, line := range []string{"T N 3", "R N AAA", "R N ELE AAA ZZZ", "R N ELE ZZZ", "R N el AAA", "D N ONE", "D N XXX BAS", "D N ONE ba", "D N ONE BAS AAA ZZZ", "D N ONE BAS ZZZ", "V C ONE", "V C ONE 5", "V C ONE 1 1", "V C ONE 1 2 3", "T X"} {
+	for _, line := range []string{"T N 3", "R N AAA", "R N ELE AAA ZZZ", "R N ELE ZZZ", "R N el AAA", "D N ONE", "D N XXX BAS", "D N ONE ba", "D N ONE BAS AAA ZZZ", "D N ONE BAS ZZZ", "V C ONE", "V C ONE 5", "V C ONE 1 2", "V C ONE 4", "T X"} {
 		if _, parseErrors := orders.ParseWinterOrders(line, state); len(parseErrors) == 0 {
 			t.Errorf("ParseWinterOrders(%q) accepted a malformed order", line)
 		}

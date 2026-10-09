@@ -35,7 +35,10 @@ type resolutionContext struct {
 	nobleDraws map[models.PlayerID]bool
 	// calamityVetoes holds the astrologers that already struck calamities
 	// from the forecast this winter.
-	calamityVetoes      map[models.NobleID]bool
+	calamityVetoes map[models.NobleID]bool
+	// ritual is the ritual ordered this winter, applied while the calamities
+	// of next year are drawn.
+	ritual              *pendingRitual
 	infrastructuresByID map[models.InfraID]*models.Infrastructure
 
 	startArmiesByID      map[models.ArmyID]models.Army

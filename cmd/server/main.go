@@ -62,6 +62,7 @@ func main() {
 		if err := createHotseatGame(context.Background(), memory); err != nil {
 			log.Fatalf("failed to create default game: %v", err)
 		}
+		applyDemoScenario(memory)
 	}
 	if persistent, ok := gameStore.(*firestorestore.FirestoreStore); ok {
 		if _, restoreErr := persistent.Restore(context.Background()); restoreErr != nil {

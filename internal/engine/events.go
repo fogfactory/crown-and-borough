@@ -80,6 +80,13 @@ const (
 	EventTypeElectionOpened EventType = "election_opened"
 	EventTypeElectionResult EventType = "election_result"
 	EventTypeInvestiture    EventType = "investiture"
+	// EventTypeRitual is private to the Witch's owner: the declaration of a
+	// ritual, then its outcome (Reason "succeeded" or "failed").
+	EventTypeRitual EventType = "ritual"
+	// EventTypeExcommunication and EventTypeExcommunicationLifted are public
+	// papal sanctions (winter stage 1).
+	EventTypeExcommunication       EventType = "excommunication"
+	EventTypeExcommunicationLifted EventType = "excommunication_lifted"
 	// EventTypeCardinalPurchase is the paid N C order; the title itself is
 	// conferred at the investiture.
 	EventTypeCardinalPurchase EventType = "cardinal_purchase"
@@ -137,7 +144,9 @@ type Event struct {
 	Outcome     Outcome              `json:"outcome,omitempty"`
 	Automatic   bool                 `json:"automatic,omitempty"`
 	Reason      string               `json:"reason,omitempty"`
-	Progression Progression          `json:"progression,omitempty"`
+	// Ritual marks a calamity scheduled by a Witch's ritual.
+	Ritual      bool        `json:"ritual,omitempty"`
+	Progression Progression `json:"progression,omitempty"`
 
 	TerritoryID       models.TerritoryID `json:"territory,omitempty"`
 	SourceID          models.TerritoryID `json:"source,omitempty"`

@@ -75,6 +75,12 @@ func (order dignityOrder) Apply(ctx *ExecutionContext) {
 		resolution.playCardinalCard(playerID, winterOrder, noble, handIndex)
 		return
 	}
+	// A hidden dignity is only played on one of the player's own nobles: the
+	// order must not tell whether a lady of another player already hides one.
+	if card.Dignity.Effect().Hidden && noble.OwnerID != playerID {
+		resolution.rejectWinterOrder(playerID, winterOrder, "dignity_hidden_own_only")
+		return
+	}
 	_, married := resolution.state.MarriageOf(noble.ID)
 	if reason := card.Dignity.CanReceive(*noble, married); reason != "" {
 		resolution.rejectWinterOrder(playerID, winterOrder, reason)
