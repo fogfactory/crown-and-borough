@@ -83,7 +83,10 @@ indépendant de la présence locale :
   de son évêque ;
 - 1 voix par évêque que le joueur possède, où qu'il se trouve ;
 - 2 voix par cardinal que le joueur possède ;
-- 3 voix si un des nobles du joueur est pape.
+- 3 voix si un des nobles du joueur est pape ;
+- 1 voix par Abbesse du joueur (au cachot ou excommuniée, elle ne vote pas)
+  dont l'abbaye est dans l'évêché concerné, dans l'élection de son seul
+  évêque. Posée à l'étape 2 de l'hiver, elle vote dès l'étape 6.
 
 Les titres se cumulent sur un même noble, façon *Fief* : un cardinal est
 forcément évêque et garde son évêché ; le pape est évêque ou cardinal et garde

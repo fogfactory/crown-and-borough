@@ -98,6 +98,8 @@ type VoteWeight struct {
 	Bishop    int `json:"bishop" yaml:"bishop"`
 	Cardinal  int `json:"cardinal" yaml:"cardinal"`
 	Pope      int `json:"pope" yaml:"pope"`
+	// Abbess is the voice of the abbey in the bishop election of its bishopric.
+	Abbess int `json:"abbess" yaml:"abbess"`
 }
 
 // TitleVotes returns the voices of a noble whose highest religious title is t.
@@ -185,6 +187,7 @@ type rawReligion struct {
 		Bishop    *int `yaml:"bishop"`
 		Cardinal  *int `yaml:"cardinal"`
 		Pope      *int `yaml:"pope"`
+		Abbess    *int `yaml:"abbess"`
 	} `yaml:"votes"`
 }
 
@@ -474,6 +477,9 @@ func (raw rawBalance) religion(path string) (ReligionBalance, error) {
 		return ReligionBalance{}, err
 	}
 	if out.Votes.Pope, err = requiredPositiveInt(path, "religion.votes.pope", votes.Pope); err != nil {
+		return ReligionBalance{}, err
+	}
+	if out.Votes.Abbess, err = requiredPositiveInt(path, "religion.votes.abbess", votes.Abbess); err != nil {
 		return ReligionBalance{}, err
 	}
 	if out.Votes.Bishop > out.Votes.Cardinal || out.Votes.Cardinal > out.Votes.Pope {

@@ -241,7 +241,7 @@ export interface OpenElection {
 }
 
 export interface VoiceSource {
-  kind: 'seat' | 'territory' | 'title'
+  kind: 'seat' | 'territory' | 'title' | 'abbey'
   territory?: string
   noble?: string
   nobleName?: string

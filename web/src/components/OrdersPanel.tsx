@@ -576,6 +576,12 @@ function voiceSourceLabel(source: VoiceSource, t: Translate): string {
       votes: source.votes,
     })
   }
+  if (source.kind === 'abbey') {
+    return t('orders.voiceAbbey', {
+      name: source.nobleName ?? source.noble ?? '',
+      votes: source.votes,
+    })
+  }
   return t(source.kind === 'seat' ? 'orders.voiceSeat' : 'orders.voiceTerritory', {
     territory: source.territory ?? '',
     votes: source.votes,

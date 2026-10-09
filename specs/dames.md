@@ -267,8 +267,8 @@ respectifs sont livrés. Restent à livrer, dépendant de l'enquête, de
 l'excommunication et des élections d'évêque (milestone Religieux) :
 démasquage de l'Éon et de la Sorcière par enquête (l'excommunication d'office
 d'un Éon démasqué et la vacance de ses titres religieux sont livrées ; celle de
-la Sorcière sera branchée avec l'enquête), voix
-d'élection et calme des révoltes de l'Abbesse.
+la Sorcière sera branchée avec l'enquête). La voix d'élection et le calme des
+révoltes de l'Abbesse sont livrés.
 
 Précisions retenues :
 

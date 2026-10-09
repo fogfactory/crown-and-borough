@@ -51,3 +51,35 @@ func TestForecastWinterElectionsIsWinterOnlyAndLeavesStateUntouched(t *testing.T
 		t.Fatalf("forecast changed the state: %v", state.Bishops)
 	}
 }
+
+func TestAbbessAddsHerAbbeyVoiceToHerBishopElectionOnly(t *testing.T) {
+	state := electionTestState(t)
+	addNoble(state, "N5", "ADE", "P2", "CCC")
+	abbess := &state.Nobles[len(state.Nobles)-1]
+	abbess.Sex = models.SexFemale
+	abbess.Dignities = []models.Dignity{models.DignityAbbess}
+	abbess.AbbeyRegion = "AAA"
+
+	voices := func() (int, int) {
+		open := ForecastWinterElections(state, testBalance(), "P2")
+		return open[0].Voices, open[1].Voices
+	}
+	// P2 holds CCC (1) in R1; the abbey adds 1 there and nothing in R2.
+	if r1, r2 := voices(); r1 != 2 || r2 != 0 {
+		t.Fatalf("voices = %d/%d, want 2/0", r1, r2)
+	}
+	open := ForecastWinterElections(state, testBalance(), "P2")
+	if last := open[0].VoiceSources[len(open[0].VoiceSources)-1]; last.Kind != "abbey" || last.Votes != 1 {
+		t.Fatalf("last voice source = %+v, want the abbey", last)
+	}
+
+	abbess.Status = models.NobleStatusDungeon
+	if r1, _ := voices(); r1 != 1 {
+		t.Fatalf("imprisoned abbess voices = %d, want 1", r1)
+	}
+	abbess.Status = models.NobleStatusFree
+	state.Excommunications = append(state.Excommunications, models.Excommunication{Noble: "N5", Reason: models.ExcommunicationPapal})
+	if r1, _ := voices(); r1 != 1 {
+		t.Fatalf("excommunicated abbess voices = %d, want 1", r1)
+	}
+}
