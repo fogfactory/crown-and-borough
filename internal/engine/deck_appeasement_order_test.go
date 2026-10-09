@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/models"
@@ -80,10 +79,7 @@ func TestPaidAppeasementIsRejectedWithoutEnoughResources(t *testing.T) {
 
 func TestBishopCannotPayOutsideTheirBishopric(t *testing.T) {
 	state := appeasementState(t)
-	_, err := ResolveWithDeckOrders(state, testBalance(), appease(models.DeckOrderTypeAppeasePaid, "N1", "CCC"))
-	if err == nil || !strings.Contains(err.Error(), "appeasement_requires_own_bishopric") {
-		t.Fatalf("err = %v, want appeasement_requires_own_bishopric", err)
-	}
+	requireAppeasementRejected(t, state, appease(models.DeckOrderTypeAppeasePaid, "N1", "CCC"), "appeasement_requires_own_bishopric", "A9")
 }
 
 func TestCardinalPaysAnywhere(t *testing.T) {
@@ -100,10 +96,7 @@ func TestCardinalPaysAnywhere(t *testing.T) {
 
 func TestRiteOnlyWorksInTheClericsRegion(t *testing.T) {
 	state := appeasementState(t)
-	_, err := ResolveWithDeckOrders(state, testBalance(), appease(models.DeckOrderTypeAppeaseRite, "N1", "CCC"))
-	if err == nil || !strings.Contains(err.Error(), "appeasement_requires_own_region") {
-		t.Fatalf("err = %v, want appeasement_requires_own_region", err)
-	}
+	requireAppeasementRejected(t, state, appease(models.DeckOrderTypeAppeaseRite, "N1", "CCC"), "appeasement_requires_own_region", "A9")
 }
 
 func TestRiteOutcomesFollowTheDie(t *testing.T) {
@@ -174,10 +167,46 @@ func TestAbbessRitesWhereverSheStandsButCannotPay(t *testing.T) {
 	if _, err := ResolveWithDeckOrders(state, testBalance(), appease(models.DeckOrderTypeAppeaseRite, "N1", "BBB")); err != nil {
 		t.Fatalf("rite in the region where she stands: %v", err)
 	}
-	if _, err := ResolveWithDeckOrders(state, testBalance(), appease(models.DeckOrderTypeAppeaseRite, "N1", "CCC")); err == nil {
-		t.Fatalf("rite outside the region where she stands must be rejected")
+	requireAppeasementRejected(t, state, appease(models.DeckOrderTypeAppeaseRite, "N1", "CCC"), "appeasement_requires_own_region", "A9")
+	requireAppeasementRejected(t, state, appease(models.DeckOrderTypeAppeasePaid, "N1", "BBB"), "appeasement_requires_cleric", "A8")
+}
+
+// requireAppeasementRejected resolves the orders and checks that only the
+// appeasement is rejected, with the reason: the turn still resolves.
+func requireAppeasementRejected(t *testing.T, state *models.GameState, orders map[models.PlayerID][]models.DeckOrder, reason string, standing models.ArmyID) {
+	t.Helper()
+	resolution, err := ResolveWithDeckOrders(state, testBalance(), orders)
+	if err != nil {
+		t.Fatalf("a rejected appeasement must not fail the turn: %v", err)
 	}
-	if _, err := ResolveWithDeckOrders(state, testBalance(), appease(models.DeckOrderTypeAppeasePaid, "N1", "BBB")); err == nil {
-		t.Fatalf("an abbess cannot pay")
+	rejected := false
+	for _, event := range eventsOfType(resolution.Events, EventTypeRejected) {
+		rejected = rejected || event.Reason == reason
+	}
+	if !rejected {
+		t.Fatalf("no %q rejection in %#v", reason, resolution.Events)
+	}
+	if !hasArmy(resolution.State, standing) {
+		t.Fatalf("rebel army %s must stand after a rejected appeasement", standing)
+	}
+}
+
+func TestOneAppeasementPerNobleAndAnInvalidOneDoesNotBlockTheOthers(t *testing.T) {
+	state := appeasementState(t)
+	state.Cardinals = []models.NobleID{"N1"}
+	orders := map[models.PlayerID][]models.DeckOrder{"P1": {
+		{ID: "O1", Type: models.DeckOrderTypeAppeasePaid, TargetNobleID: "N1", TargetTerritoryID: "CCC"},
+		{ID: "O2", Type: models.DeckOrderTypeAppeasePaid, TargetNobleID: "N1", TargetTerritoryID: "BBB"},
+		{ID: "O3", Type: models.DeckOrderTypeAppeasePaid, TargetNobleID: "NOPE", TargetTerritoryID: "BBB"},
+	}}
+	resolution, err := ResolveWithDeckOrders(state, testBalance(), orders)
+	if err != nil {
+		t.Fatalf("ResolveWithDeckOrders: %v", err)
+	}
+	if hasArmy(resolution.State, "A9") || !hasArmy(resolution.State, "A8") {
+		t.Fatalf("only the first appeasement of the noble must apply")
+	}
+	if got := len(eventsOfType(resolution.Events, EventTypeRejected)); got != 2 {
+		t.Fatalf("rejections = %d, want 2", got)
 	}
 }

@@ -51,20 +51,14 @@ func validateActionDeckOrders(game *models.GameState, balance assetgen.Balance, 
 	}
 	validationContext := newResolutionContext(game, balance)
 	markPendingTaxWindowFiefs(validationContext, deckOrders)
-	appeasing := make(map[models.NobleID]bool)
 	for _, playerID := range sortedDeckPlayerIDs(deckOrders) {
 		if !players[playerID] {
 			return fmt.Errorf("engine: resolve: unknown player %q", playerID)
 		}
 		for _, order := range deckOrders[playerID] {
 			if order.Type.IsAppeasement() {
-				if reason := appeasementRejection(validationContext, game.Season, playerID, order); reason != "" {
-					return fmt.Errorf("engine: resolve: appeasement rejected: %s", reason)
-				}
-				if appeasing[order.TargetNobleID] {
-					return fmt.Errorf("engine: resolve: noble %q appeases more than once", order.TargetNobleID)
-				}
-				appeasing[order.TargetNobleID] = true
+				// Plays no card; an illegal one is rejected alone when applied
+				// (appeaseOrder.Apply), never by failing the whole turn.
 				continue
 			}
 			if order.Type != models.DeckOrderTypePlay {

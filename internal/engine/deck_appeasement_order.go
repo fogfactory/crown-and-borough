@@ -68,6 +68,12 @@ func (order appeaseOrder) Apply(ctx *ExecutionContext) {
 		resolution.rejectDeckOrderReason(order.playerID, order.order, reason)
 		return
 	}
+	for _, event := range resolution.events {
+		if event.Type == EventTypeRevoltAppeased && event.NobleID == order.order.TargetNobleID {
+			resolution.rejectDeckOrderReason(order.playerID, order.order, "appeasement_already_played")
+			return
+		}
+	}
 	territoryID := order.order.TargetTerritoryID
 	rebels := resolution.currentArmyAt(territoryID)
 	if rebels == nil || rebels.OwnerID != models.NeutralPlayerID {
