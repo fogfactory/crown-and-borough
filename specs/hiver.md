@@ -19,11 +19,13 @@ qu'il voit des autres.
 > ([#375](https://github.com/fogfactory/crown-and-borough/issues/375)). Aucun
 > bulletin n'y figure.
 >
-> **État.** Les étapes 0 (instantané et registre des élections), 2, 5, 6
+> **État.** Les étapes 0 (instantané et registre des élections), 1
+> (excommunication et levée,
+> [#376](https://github.com/fogfactory/crown-and-borough/issues/376)), 2, 5, 6
 > (élections), 7 (investiture) et 8 sont en place dans le moteur
 > ([#374](https://github.com/fogfactory/crown-and-borough/issues/374)). Les
-> étapes 1, 3, 4 et 9 s'ajoutent avec leurs ordres (excommunication, enquête,
-> dissolution, procès à deux cardinaux). La reprise dans `gdd.md` et les règles
+> étapes 3, 4 et 9 s'ajoutent avec leurs ordres (enquête, dissolution, procès
+> à deux cardinaux). La reprise dans `gdd.md` et les règles
 > joueurs relève de
 > [#377](https://github.com/fogfactory/crown-and-borough/issues/377).
 

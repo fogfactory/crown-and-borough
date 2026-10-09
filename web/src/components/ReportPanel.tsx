@@ -669,6 +669,14 @@ function seasonEffectLine(
           territory: territoryLabel(map, effect.territory, t),
         }),
       }
+    case 'excommunication':
+    case 'excommunication_lifted':
+      return {
+        key,
+        label: t(effect.kind === 'excommunication' ? 'reports.excommunication' : 'reports.excommunicationLifted', {
+          noble: effect.noble ?? '—',
+        }),
+      }
     case 'eon_unmasked':
       return {
         key,
@@ -744,6 +752,8 @@ function groupSeasonEffects(
       case 'plague_noble_survived':
       case 'trial':
       case 'eon_unmasked':
+      case 'excommunication':
+      case 'excommunication_lifted':
       case 'card_canceled':
         groupFor(effect).lines.push(line)
         break

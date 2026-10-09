@@ -82,6 +82,7 @@ const (
 	WinterDignityShape           = "error.winter.dignity_shape"
 	WinterCandidacyShape         = "error.winter.candidacy_shape"
 	WinterVoteShape              = "error.winter.vote_shape"
+	WinterExcommunicationShape   = "error.winter.excommunication_shape"
 	WinterCalamityVetoShape      = "error.winter.calamity_veto_shape"
 	WinterClaimShape             = "error.winter.claim_shape"
 	WinterDiscardNobleShape      = "error.winter.discard_noble_shape"
@@ -185,6 +186,7 @@ func init() {
 	register(WinterFiefFoundShape, "T F requires a noble and at least 3 territory codes, the first being the capital", "T F exige un noble et au moins 3 codes de territoire, le premier étant la capitale")
 	register(WinterTransferNobleShape, "H N requires a noble code then a territory, and optionally O or P: H N NNN XXX [O|P]", "H N exige un code de noble puis un territoire, et en option O ou P : H N NNN XXX [O|P]")
 	register(WinterMarriageShape, "M N requires two distinct noble codes: your noble, then the one it marries", "M N exige deux codes de noble distincts : votre noble, puis celui qu'il épouse")
+	register(WinterExcommunicationShape, "X E requires the noble to excommunicate; X L requires the noble to reinstate: X E NNN, X L NNN", "X E exige le noble à excommunier ; X L exige le noble à réintégrer : X E NNN, X L NNN")
 	register(WinterCandidacyShape, "K E requires your noble then the seed village of the bishopric; K P requires your noble", "K E exige votre noble puis le village seed de l'évêché ; K P exige votre noble")
 	register(WinterVoteShape, "V E requires the candidate then the seed village of the bishopric; V P requires the candidate", "V E exige le candidat puis le village seed de l'évêché ; V P exige le candidat")
 	register(WinterNobleDrawShape, "T N takes no argument", "T N ne prend aucun argument")

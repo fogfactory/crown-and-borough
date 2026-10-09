@@ -69,6 +69,8 @@ export type EventType =
   | 'dignity'
   | 'claim'
   | 'eon_unmasked'
+  | 'excommunication'
+  | 'excommunication_lifted'
 
 export type PlayerId = string
 

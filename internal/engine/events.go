@@ -80,6 +80,10 @@ const (
 	EventTypeElectionOpened EventType = "election_opened"
 	EventTypeElectionResult EventType = "election_result"
 	EventTypeInvestiture    EventType = "investiture"
+	// EventTypeExcommunication and EventTypeExcommunicationLifted are public
+	// papal sanctions (winter stage 1).
+	EventTypeExcommunication       EventType = "excommunication"
+	EventTypeExcommunicationLifted EventType = "excommunication_lifted"
 )
 
 // Outcome is the execution result of one current order.

@@ -450,6 +450,8 @@ const englishMessages = {
   'reports.plagueSurvived': 'Noble {noble} at {territory} survived the plague',
   'reports.trialExecuted': 'Noble {noble}, revealed as {dignity}, was tried and executed at {territory}',
   'reports.trialUnfounded': 'The trial of noble {noble} was unfounded: nobody was executed',
+  'reports.excommunication': 'Noble {noble} is excommunicated by the pope',
+  'reports.excommunicationLifted': 'The pope lifts the excommunication of noble {noble}',
   'reports.eonUnmasked': 'Noble {noble} is unmasked: she was a chevalier d’Éon in disguise',
   'reports.neutralFamine':
     'Starving neutral army at {territory}: {before} → {after} troops',
@@ -1334,6 +1336,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.plagueSurvived': 'Le noble {noble} à {territory} survit à la peste',
   'reports.trialExecuted': 'Le noble {noble}, révélé comme {dignity}, est jugé et exécuté à {territory}',
   'reports.trialUnfounded': 'Le procès du noble {noble} est non fondé : personne n’est exécuté',
+  'reports.excommunication': 'Le noble {noble} est excommunié par le pape',
+  'reports.excommunicationLifted': 'Le pape lève l’excommunication du noble {noble}',
   'reports.eonUnmasked': 'Le noble {noble} est démasqué : c’était un chevalier d’Éon déguisé',
   'reports.neutralFamine':
     'Armée neutre affamée à {territory} : {before} → {after} troupes',

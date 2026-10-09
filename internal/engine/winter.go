@@ -61,6 +61,8 @@ func ResolveWinterWithDeckOrders(
 	// registry of open elections; stages 1 (papal sanctions), 3 (cardinal
 	// actions) and 4 (marriage dissolutions) have no order yet.
 	ctx.openWinterElections()
+	// Stage 1: papal sanctions, before every other order.
+	ctx.resolvePapalSanctions(orders)
 	// Stage 2: management orders, players by identifier then sheet order.
 	// Candidacies and votes are only recorded here, they resolve in stage 6.
 	for _, playerID := range sortedPlayerIDs(state.Players) {

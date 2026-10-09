@@ -40,24 +40,26 @@ func (t OrderType) IsValid() bool {
 type WinterOrderType string
 
 const (
-	WinterOrderTypeRecruitNoble  WinterOrderType = "recruit_noble"
-	WinterOrderTypeRecruitTroop  WinterOrderType = "recruit_troop"
-	WinterOrderTypeBuild         WinterOrderType = "build"
-	WinterOrderTypeElectCapital  WinterOrderType = "elect_capital"
-	WinterOrderTypeTransferNoble WinterOrderType = "transfer_noble"
-	WinterOrderTypeHostage       WinterOrderType = "hostage"
-	WinterOrderTypeDungeon       WinterOrderType = "dungeon"
-	WinterOrderTypeTransfer      WinterOrderType = "transfer"
-	WinterOrderTypeFoundFief     WinterOrderType = "found_fief"
-	WinterOrderTypeAssignFief    WinterOrderType = "assign_fief"
-	WinterOrderTypeMarriage      WinterOrderType = "marriage"
-	WinterOrderTypeDrawNoble     WinterOrderType = "draw_noble"
-	WinterOrderTypeDignity       WinterOrderType = "play_dignity"
-	WinterOrderTypeDiscardNoble  WinterOrderType = "discard_noble_card"
-	WinterOrderTypeClaim         WinterOrderType = "claim"
-	WinterOrderTypeCalamityVeto  WinterOrderType = "calamity_veto"
-	WinterOrderTypeCandidacy     WinterOrderType = "candidacy"
-	WinterOrderTypeVote          WinterOrderType = "vote"
+	WinterOrderTypeRecruitNoble        WinterOrderType = "recruit_noble"
+	WinterOrderTypeRecruitTroop        WinterOrderType = "recruit_troop"
+	WinterOrderTypeBuild               WinterOrderType = "build"
+	WinterOrderTypeElectCapital        WinterOrderType = "elect_capital"
+	WinterOrderTypeTransferNoble       WinterOrderType = "transfer_noble"
+	WinterOrderTypeHostage             WinterOrderType = "hostage"
+	WinterOrderTypeDungeon             WinterOrderType = "dungeon"
+	WinterOrderTypeTransfer            WinterOrderType = "transfer"
+	WinterOrderTypeFoundFief           WinterOrderType = "found_fief"
+	WinterOrderTypeAssignFief          WinterOrderType = "assign_fief"
+	WinterOrderTypeMarriage            WinterOrderType = "marriage"
+	WinterOrderTypeDrawNoble           WinterOrderType = "draw_noble"
+	WinterOrderTypeDignity             WinterOrderType = "play_dignity"
+	WinterOrderTypeDiscardNoble        WinterOrderType = "discard_noble_card"
+	WinterOrderTypeClaim               WinterOrderType = "claim"
+	WinterOrderTypeCalamityVeto        WinterOrderType = "calamity_veto"
+	WinterOrderTypeCandidacy           WinterOrderType = "candidacy"
+	WinterOrderTypeVote                WinterOrderType = "vote"
+	WinterOrderTypeExcommunicate       WinterOrderType = "excommunicate"
+	WinterOrderTypeLiftExcommunication WinterOrderType = "lift_excommunication"
 )
 
 // IsValid reports whether a winter order type is known to the winter resolver.
@@ -69,7 +71,8 @@ func (t WinterOrderType) IsValid() bool {
 		WinterOrderTypeFoundFief, WinterOrderTypeAssignFief, WinterOrderTypeMarriage,
 		WinterOrderTypeDrawNoble, WinterOrderTypeDignity, WinterOrderTypeDiscardNoble,
 		WinterOrderTypeClaim, WinterOrderTypeCalamityVeto,
-		WinterOrderTypeCandidacy, WinterOrderTypeVote:
+		WinterOrderTypeCandidacy, WinterOrderTypeVote,
+		WinterOrderTypeExcommunicate, WinterOrderTypeLiftExcommunication:
 		return true
 	}
 	return false
@@ -136,7 +139,9 @@ type Order struct {
 // SpouseCode the noble of another player whose titles it claims. For
 // WinterOrderTypeCandidacy and WinterOrderTypeVote, Election names the
 // election, NobleCode the candidate and TerritoryID the seed village of the
-// bishopric (bishop elections only).
+// bishopric (bishop elections only). For WinterOrderTypeExcommunicate and
+// WinterOrderTypeLiftExcommunication, NobleCode is the targeted noble (papal
+// orders, resolved first: specs/religieux.md § Excommunication).
 type WinterOrder struct {
 	ID           OrderID         `json:"id"`
 	Type         WinterOrderType `json:"type"`

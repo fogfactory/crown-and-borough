@@ -204,6 +204,9 @@ func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (mod
 	if fields[0] == "V" && fields[1] == "C" {
 		return parseCalamityVetoLine(fields, lineNumber, indexes)
 	}
+	if fields[0] == "X" {
+		return parseExcommunicationLine(fields, lineNumber, indexes)
+	}
 	if fields[0] == "K" || fields[0] == "V" {
 		return parseElectionOrderLine(fields, lineNumber, indexes)
 	}
@@ -545,4 +548,27 @@ func parseElectionOrderLine(fields []string, lineNumber int, indexes gameIndexes
 		order.TerritoryID = seat
 	}
 	return order, nil
+}
+
+// parseExcommunicationLine handles X E NNN (excommunicate) and X L NNN (lift):
+// NNN is the targeted noble. Whether the player holds the papacy and the
+// limits of the pope are engine rejects (see winter_papal_order.go).
+func parseExcommunicationLine(fields []string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
+	var orderType models.WinterOrderType
+	switch fields[1] {
+	case "E":
+		orderType = models.WinterOrderTypeExcommunicate
+	case "L":
+		orderType = models.WinterOrderTypeLiftExcommunication
+	default:
+		return models.WinterOrder{}, unknownWinterSubtype(lineNumber, fields[0], fields[1])
+	}
+	if len(fields) != 3 {
+		error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.WinterExcommunicationShape)
+		return models.WinterOrder{}, &error
+	}
+	if parseError := winterNobleCode(fields[2], lineNumber, indexes); parseError != nil {
+		return models.WinterOrder{}, parseError
+	}
+	return models.WinterOrder{Type: orderType, NobleCode: models.NobleCode(fields[2])}, nil
 }
