@@ -197,6 +197,10 @@ type DeckOrder struct {
 	// TargetNobleID is the noble a trial card puts on trial, or the cleric
 	// issuing a revolt appeasement.
 	TargetNobleID NobleID `json:"targetNoble,omitempty"`
+	// Tithe marks a Tax card played as a tithe on a bishopric rather than a
+	// seigneurial tax on a fief, which only the order can tell when the target
+	// is both a fief capital and a bishopric seed (religieux.md "Dîme").
+	Tithe bool `json:"tithe,omitempty"`
 }
 
 func (t DeckOrderType) IsValid() bool {

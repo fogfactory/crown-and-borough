@@ -58,7 +58,7 @@ Aucun noble n'est requis :
   **village seed d'un évêché** (dîme). L'émetteur détermine ce qui est permis :
   seigneur titré sur ses fiefs, roi sur tout fief constitué, évêque sur son
   évêché, cardinal et pape sur tout évêché (priorité évêque, puis cardinaux, puis
-  pape). La taxe double le revenu
+  pape). Pour la taxe seigneuriale, `HHH` est le titulaire du fief (il peut être omis pour un fief vacant : `P TX XXX`). `P DI HHH XXX` joue explicitement une dîme. La taxe double le revenu
   territorial du fief pour le tour, village inclus, sans jamais toucher la
   production des moulins ; la dîme détourne la production des moulins de
   l'évêché. Deux cartes jouées sur le même fief le même tour ne se cumulent pas,

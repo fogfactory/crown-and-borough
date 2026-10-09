@@ -107,6 +107,24 @@ func validateTaxedFiefs(taxedFiefs []TaxedFief, fiefIDs map[FiefID]bool) error {
 	return nil
 }
 
+// validateTithedRegions checks that every persisted tithe window points at a
+// known bishopric seed with a positive turn.
+func validateTithedRegions(tithed []TithedRegion, regions []Region) error {
+	seeds := make(map[TerritoryID]bool, len(regions))
+	for _, region := range regions {
+		seeds[region.Seed] = true
+	}
+	for index, entry := range tithed {
+		if !seeds[entry.RegionSeed] {
+			return fmt.Errorf("models: tithed region %d: unknown bishopric %q", index, entry.RegionSeed)
+		}
+		if entry.Turn < 1 {
+			return fmt.Errorf("models: tithed region %d: invalid turn %d", index, entry.Turn)
+		}
+	}
+	return nil
+}
+
 func validateActiveRegionEffects(effects []ActiveRegionEffect, regions []Region) error {
 	if len(regions) == 0 {
 		return nil

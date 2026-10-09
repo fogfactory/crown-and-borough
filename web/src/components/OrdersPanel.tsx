@@ -25,6 +25,7 @@ import type {
   OrdersPreviewError,
   PlayerId,
   Region,
+  Territory,
   StateData,
   VoiceSource,
   WinterLinePreview,
@@ -39,6 +40,8 @@ interface OrdersPanelProps {
   preview?: OrdersPreview | null
   /** Regions of the map (seed villages), for the orders that name one. */
   regions?: Region[]
+  /** Map territories, for the commune names of the Tax card targets. */
+  mapTerritories?: Territory[]
   specialDraft: string
   submitted: boolean
   submitting: boolean
@@ -208,12 +211,14 @@ function DeckOrdersSection({
   state,
   player,
   regions,
+  mapTerritories,
   specialDraft,
   onSpecialChange,
 }: {
   state: StateData
   player: PlayerId
   regions: Region[]
+  mapTerritories?: Territory[]
   specialDraft: string
   onSpecialChange: (text: string) => void
 }) {
@@ -233,6 +238,8 @@ function DeckOrdersSection({
       <CalamityWarnings state={state} />
       <SpecialCardOrders
         state={state}
+        player={player}
+        mapTerritories={mapTerritories}
         regions={regions}
         draft={specialDraft}
         onChange={onSpecialChange}
@@ -803,6 +810,7 @@ export function OrdersPanel({
   winterDraft,
   preview = null,
   regions = [],
+  mapTerritories,
   specialDraft,
   submitted,
   submitting,
@@ -934,6 +942,7 @@ export function OrdersPanel({
         state={state}
         player={player}
         regions={regions}
+        mapTerritories={mapTerritories}
         specialDraft={specialDraft}
         onSpecialChange={onSpecialChange}
       />

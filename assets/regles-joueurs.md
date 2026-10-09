@@ -958,7 +958,8 @@ dans la feuille `winter`.
 - `P RA ROS` : jouer Bonne récolte sur cette région ;
 - `P RE BRU` : jouer Révolte sur le territoire BRU, uniquement si une
   mauvaise récolte active affecte sa région, ou si une taxe seigneuriale a
-  été jouée sur la capitale du fief auquel BRU appartient ce tour-ci ou le
+  été jouée sur la capitale du fief auquel BRU appartient (ou une dîme sur
+  son évêché) ce tour-ci ou le
   tour précédent — tout territoire du fief est alors éligible, pas seulement
   sa capitale taxée, ou si un procès a exécuté une dame dans la région de BRU
   à la saison d'action précédente ;
@@ -970,12 +971,17 @@ dans la feuille `winter`.
 - `P TX BRU` : jouer la Taxe seigneuriale sur BRU, à condition que BRU soit
   la capitale d'un fief que le joueur détient (vacant compris) — c'est la
   seule exception où la cible n'est pas le village seed d'une région ;
+- `P TX HHH XXX` : jouer la carte Impôts par le noble HHH, titulaire du fief
+  dont XXX est la capitale (taxe seigneuriale) ;
+- `P DI HHH XXX` : jouer la carte Impôts par un évêque, un cardinal ou le pape
+  HHH sur l'évêché dont XXX est le village seed : c'est une **dîme** (voir plus
+  bas). Un noble à la fois seigneur et évêque choisit ainsi la taxe ou la dîme ;
 - `D C BT` ou `D C RA` : défausser une carte, en hiver uniquement.
 
 La main est reconstituée automatiquement en hiver après les ordres d'hiver et
 les défausses ; aucun ordre de pioche n'est nécessaire.
 
-Beau temps, Bonne récolte, Révolte, Taxe seigneuriale et Procès sont jouables au
+Beau temps, Bonne récolte, Révolte, Impôts et Procès sont jouables au
 printemps, en été et en automne, mais pas en hiver. Les cartes jouées sont
 consommées avant la résolution des ordres d'armée. Beau temps annule
 uniquement le mauvais temps, Bonne récolte annule uniquement la mauvaise
@@ -984,8 +990,8 @@ régional. Deux cartes du même kind sont consommées, mais une seule est
 effective : avec une calamité active, la première annule et une seconde
 applique le bonus régional ; sans calamité, la première l'applique
 directement. Le bonus ne s'applique qu'une fois par kind et par région ; les
-cartes au-delà sont consommées sans effet. La Taxe seigneuriale suit une
-règle à part, par fief plutôt que par région : deux cartes jouées sur le même
+cartes au-delà sont consommées sans effet. Les Impôts suivent une
+règle à part, par fief ou évêché plutôt que par région : deux cartes jouées sur le même
 fief le même tour ne se cumulent jamais, la seconde est simplement consommée
 sans effet.
 
@@ -1004,7 +1010,7 @@ mauvais temps, **{{special_orders.card.famine}}** mauvaise récolte,
 **{{special_orders.card.fair_weather}}** beau temps,
 **{{special_orders.card.abundant_harvest}}** bonne récolte,
 **{{special_orders.card.revolt}}** révolte,
-**{{special_orders.card.seigneurial_tax}}** taxe seigneuriale et
+**{{special_orders.card.seigneurial_tax}}** impôts (taxe seigneuriale ou dîme) et
 **{{special_orders.card.trial}}** procès. La main est limitée à
 **{{special_orders.hand_limit}} cartes**, cartes de noble et de dignité
 comprises. Après ses ordres d'hiver et ses défausses, chaque joueur reçoit
@@ -1073,6 +1079,18 @@ ne se résout en hiver.
   cumulent pas : la seconde est consommée sans effet. Si la capitale du fief
   taxé est capturée pendant ce même tour, la taxe est annulée : personne ne
   touche le doublement pour ce tour de transition ;
+- la **dîme** est la carte Impôts jouée par un ecclésiastique (`P DI HHH XXX`,
+  XXX étant le village seed d'un évêché) : elle détourne, pour le tour, la
+  production de tous les moulins de l'évêché vers la capitale du joueur qui la
+  joue, sans jamais toucher le revenu de territoire. Un évêque ne taxe que son
+  évêché ; un cardinal et le pape taxent n'importe quel évêché, même sans
+  évêque. Quand plusieurs dîmes visent le même évêché le même tour, la
+  priorité va à l'évêque de cet évêché, puis aux cardinaux, puis au pape ; les
+  dîmes battues sont consommées sans effet. Si plusieurs joueurs ont un
+  cardinal en lice, la production de chaque moulin est partagée équitablement
+  entre eux, en unités entières ; le reste de la division demeure sur le
+  moulin. Comme toute taxe, la dîme rend tous les territoires de l'évêché
+  éligibles à la Révolte ce tour-ci et le suivant ;
 - le Procès se joue sur un noble (`P PR NNN`), le vôtre ou celui d'un
   adversaire, au printemps, en été ou en automne. Il est jugé en toute fin de
   tour, une fois tous les autres effets résolus. Seule une **dame non mariée

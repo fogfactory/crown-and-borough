@@ -908,7 +908,7 @@ from noble chains and requiring no noble. Winter discards are written in the
 - `P AH ROS`: play Abundant harvest on that region;
 - `P RV BRU`: play Revolt on the BRU territory, when an active bad harvest
   affects its region, or when a seigneurial tax was played on the capital of
-  BRU's fief this turn or the previous one — every territory of the fief is
+  BRU's fief (or a tithe on its bishopric) this turn or the previous one — every territory of the fief is
   then eligible, not only its taxed capital, or when a trial executed a lady
   in BRU's region during the previous action season;
 - `P FQ HHH BRU` and `P PQ HHH BRU`: have the cleric HHH (pope, cardinal,
@@ -919,6 +919,11 @@ from noble chains and requiring no noble. Winter discards are written in the
 - `P TX BRU`: play the Seigneurial tax on BRU, provided BRU is the capital of
   a fief the player controls (a vacant fief included) — the one exception
   where the target is not a region's seed village;
+- `P TX HHH XXX`: play the Tax card through the noble HHH, holder of the fief
+  whose capital is XXX (seigneurial tax);
+- `P DI HHH XXX`: play the Tax card through a bishop, cardinal or pope HHH on
+  the bishopric whose seed village is XXX: a **tithe** (see below). A noble who
+  is both lord and bishop thus picks the tax or the tithe;
 - `D C FW` or `D C AH`: discard a card, winter only.
 
 The hand is replenished automatically in winter after winter orders and discards; no draw order
@@ -951,7 +956,7 @@ bad weather, **{{special_orders.card.famine}}** bad harvest,
 **{{special_orders.card.fair_weather}}** fair weather,
 **{{special_orders.card.abundant_harvest}}** abundant harvest,
 **{{special_orders.card.revolt}}** revolt,
-**{{special_orders.card.seigneurial_tax}}** seigneurial tax, and
+**{{special_orders.card.seigneurial_tax}}** tax (seigneurial tax or tithe), and
 **{{special_orders.card.trial}}** trial cards. A hand is limited to
 **{{special_orders.hand_limit}} cards**, noble and dignity cards included.
 After their winter orders and discards, each player automatically receives
@@ -1012,6 +1017,17 @@ countered. No calamity resolves in winter.
   stack: the second is consumed with no effect. If the taxed fief's capital is
   captured during that same turn, the tax is canceled: nobody receives the
   doubling for that transition turn;
+- the **tithe** is the Tax card played by a cleric (`P DI HHH XXX`, XXX being a
+  bishopric's seed village): for the turn, it diverts the production of every
+  mill of the bishopric to the capital of the player who plays it, and never
+  touches territory income. A bishop taxes only their own bishopric; a
+  cardinal and the pope tax any bishopric, even one without a bishop. When
+  several tithes target the same bishopric the same turn, the bishopric's
+  bishop comes first, then the cardinals, then the pope; outranked tithes are
+  consumed with no effect. If several players have a cardinal in the running,
+  each mill's production is split equally among them in whole units; the
+  remainder of the division stays on the mill. Like any tax, the tithe makes
+  every territory of the bishopric eligible for Revolt this turn and the next;
 - Trial is played on a noble (`P TR NNN`), yours or an opponent's, in spring,
   summer, or autumn. It is judged at the very end of the turn, once every
   other effect has resolved. Only an **unmarried lady carrying a dignity**,

@@ -112,3 +112,39 @@ func TestParseDeckOrdersAppeasement(t *testing.T) {
 		}
 	}
 }
+
+func TestParseIssuedTaxLine(t *testing.T) {
+	game := &models.GameState{
+		Nobles:  []models.Noble{{ID: "N1", Code: "AAA"}},
+		Regions: []models.Region{{ID: "R1", Seed: "MIL"}},
+	}
+	order, parseError := parseDeckOrderLine("P TX AAA MIL", 1, game)
+	if parseError != nil {
+		t.Fatalf("parseDeckOrderLine: %v", parseError)
+	}
+	if order.Kind != models.CardKindSeigneurialTax || order.TargetNobleID != "N1" || order.TargetTerritoryID != "MIL" {
+		t.Fatalf("order = %#v, want a tax issued by N1 on MIL", order)
+	}
+	if _, parseError := parseDeckOrderLine("P RE AAA MIL", 1, game); parseError == nil {
+		t.Fatalf("a four-field order other than the tax must be rejected")
+	}
+}
+
+func TestParseTitheOnAFiefCapitalSeed(t *testing.T) {
+	game := &models.GameState{
+		Nobles:  []models.Noble{{ID: "N1", Code: "AAA"}},
+		Regions: []models.Region{{ID: "R1", Seed: "MIL"}},
+		Fiefs:   []models.Fief{{ID: "F1", CapitalTerritoryID: "MIL"}},
+	}
+	tax, parseError := parseDeckOrderLine("P TX AAA MIL", 1, game)
+	if parseError != nil || tax.Tithe {
+		t.Fatalf("P TX on a fief capital = %#v, %v, want a seigneurial tax", tax, parseError)
+	}
+	tithe, parseError := parseDeckOrderLine("P DI AAA MIL", 1, game)
+	if parseError != nil || !tithe.Tithe {
+		t.Fatalf("P DI = %#v, %v, want a tithe", tithe, parseError)
+	}
+	if _, parseError := parseDeckOrderLine("P DI MIL", 1, game); parseError == nil {
+		t.Fatalf("a tithe without issuer must be rejected")
+	}
+}

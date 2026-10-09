@@ -57,6 +57,7 @@ type GameState struct {
 	ActiveRegionEffects []ActiveRegionEffect           `json:"activeRegionEffects"`
 	Fiefs               []Fief                         `json:"fiefs,omitempty"`
 	TaxedFiefs          []TaxedFief                    `json:"taxedFiefs,omitempty"`
+	TithedRegions       []TithedRegion                 `json:"tithedRegions,omitempty"`
 	TrialRevoltWindows  []TrialRevoltWindow            `json:"trialRevoltWindows,omitempty"`
 	Marriages           []Marriage                     `json:"marriages,omitempty"`
 	Claims              []Claim                        `json:"claims,omitempty"`
@@ -634,6 +635,9 @@ func (g *GameState) Validate() error {
 		return err
 	}
 	if err := validateTaxedFiefs(g.TaxedFiefs, fiefIDs); err != nil {
+		return err
+	}
+	if err := validateTithedRegions(g.TithedRegions, g.Regions); err != nil {
 		return err
 	}
 	if err := validateTrialRevoltWindows(g.TrialRevoltWindows, g.Regions); err != nil {

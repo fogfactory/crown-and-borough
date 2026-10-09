@@ -33,6 +33,15 @@ type TaxedFief struct {
 	Turn   int    `json:"turn"`
 }
 
+// TithedRegion records one turn a bishopric was levied the tithe (religieux.md
+// "Dîme"): like a taxed fief, it widens revolt eligibility to every territory
+// of the bishopric for the turn it is levied and the following one. Turn is
+// the absolute GameState.Turn counter.
+type TithedRegion struct {
+	RegionSeed TerritoryID `json:"regionSeed"`
+	Turn       int         `json:"turn"`
+}
+
 // TrialRevoltWindow records the revolt opportunity an executed trial opens
 // on the region (bishopric) where the executed noble stood (specs/dames.md
 // § Carte de procès): a revolt card may target any territory of the region

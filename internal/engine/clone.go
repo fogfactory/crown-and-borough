@@ -86,6 +86,9 @@ func cloneGameState(source *models.GameState) *models.GameState {
 	if source.TaxedFiefs != nil {
 		clone.TaxedFiefs = cloneSlice(source.TaxedFiefs)
 	}
+	if source.TithedRegions != nil {
+		clone.TithedRegions = cloneSlice(source.TithedRegions)
+	}
 	if source.TrialRevoltWindows != nil {
 		clone.TrialRevoltWindows = cloneSlice(source.TrialRevoltWindows)
 	}

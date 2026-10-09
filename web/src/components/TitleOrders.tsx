@@ -4,7 +4,7 @@ import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { appendDraftLine, draftLines } from '@/lib/winter-draft'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
-import type { CardKind, Noble, PlayerId, Region, Season, StateData } from '@/types'
+import type { CardKind, Noble, PlayerId, Region, Season, StateData, Territory } from '@/types'
 
 const PLAYABLE_KINDS: CardKind[] = [
   'fair_weather',
@@ -395,7 +395,7 @@ function revoltOptions(
 ): OrderFieldOption[] {
   const targets = new Set(state.revoltTargets ?? [])
   for (const line of draftLines(draft)) {
-    const match = /^P (?:TX|ST) ([A-Z]{3})\b/.exec(line)
+    const match = /^P (?:TX|ST|DI|TT) (?:[A-Z]{3} )?([A-Z]{3})\b/.exec(line)
     if (!match) continue
     const fief = (state.fiefs ?? []).find((entry) => entry.capital === match[1])
     const region = regions.find((entry) => entry.seed === match[1])
@@ -465,12 +465,18 @@ function cancelHint(kind: CardKind, state: StateData, t: Translate, seed: string
  */
 export function SpecialCardOrders({
   state,
+  player,
+  mapTerritories = [],
   regions,
   draft,
   onChange,
   discard = false,
 }: {
   state: StateData
+  /** Map territories, for the commune names shown in the Tax card targets. */
+  mapTerritories?: Territory[]
+  /** Lets the Tax card offer the player's clerics as tithe issuers. */
+  player?: PlayerId
   regions: Region[]
   draft: string
   onChange: (text: string) => void
@@ -505,6 +511,12 @@ export function SpecialCardOrders({
             />
           )
         }
+        if (kind === 'seigneurial_tax') {
+          const launcher = taxLauncher({ state, player, mapTerritories, t, lines, add: (line) => onChange(appendDraftLine(draft, line)) })
+          return launcher ? (
+            <span key={kind}>{launcher}</span>
+          ) : null
+        }
         const target = specialTargetField(kind, state, regions, t, draft)
         if (target.options.length === 0) return null
         return (
@@ -528,6 +540,142 @@ export function SpecialCardOrders({
         )
       })}
     </div>
+  )
+}
+
+/** Issuer values: `tax:HHH` (lord), `tax:` (vacant fief, no noble), `tithe:HHH` (cleric). */
+const VACANT_FIEF = 'tax:'
+
+/**
+ * The Tax card, always played through a noble of the player: the holder of a
+ * fief taxes it (`P TX HHH XXX`, seigneurial tax), a cleric tithes a bishopric
+ * (`P DI HHH XXX`: a bishop their own, a cardinal or the pope any). One noble
+ * can be both lord and bishop, so the issuer entry also fixes the kind of tax.
+ */
+function taxLauncher({
+  state,
+  player,
+  mapTerritories,
+  t,
+  lines,
+  add,
+}: {
+  state: StateData
+  player?: PlayerId
+  mapTerritories: Territory[]
+  t: Translate
+  lines: string[]
+  add: (line: string) => void
+}) {
+  const copies = (state.specialHand ?? []).filter((card) => card === 'seigneurial_tax').length
+  const used = lines.filter((line) => /^P (?:TX|ST|DI|TT) /.test(line)).length
+  const card = formatCardLabel('seigneurial_tax', t)
+  const communeName = (code: string, fallback?: string) =>
+    mapTerritories.find((territory) => territory.id === code)?.name ?? fallback ?? code
+  const ofName = (name: string) =>
+    t(/^[AEIOUYÀÂÉÈÊÎÔÛ]/i.test(name) ? 'orders.tax.ofVowel' : 'orders.tax.of', { name })
+  const ownFiefs = (state.fiefs ?? []).filter((fief) => fief.owner === player)
+  const fiefOption = (fief: (typeof ownFiefs)[number]): OrderFieldOption => ({
+    value: fief.capital,
+    label: t('orders.tax.fief', {
+      code: fief.capital,
+      title: t(`fief.title.${fief.title}` as MessageKey),
+      name: ofName(communeName(fief.capital)),
+    }),
+  })
+  const nobleLabel = (noble: Noble) => `${noble.code} · ${noble.firstName ?? noble.name}`
+  const bishoprics = state.bishoprics ?? []
+  const clerics = state.nobles.filter(
+    (noble) =>
+      noble.owner === player &&
+      noble.status !== 'dungeon' &&
+      (noble.religiousTitle === 'bishop' ||
+        noble.religiousTitle === 'cardinal' ||
+        noble.religiousTitle === 'pope'),
+  )
+  const bishopricOptions = (cleric: Noble | undefined): OrderFieldOption[] =>
+    bishoprics
+      .filter(
+        (bishopric) =>
+          cleric?.religiousTitle === 'cardinal' ||
+          cleric?.religiousTitle === 'pope' ||
+          bishopric.bishop === cleric?.code,
+      )
+      .map((bishopric) => ({
+        value: bishopric.region,
+        label: t('orders.tax.bishopric', {
+          code: bishopric.region,
+          name: ofName(communeName(bishopric.region, bishopric.name)),
+        }),
+      }))
+  const issuers: OrderFieldOption[] = []
+  const lordCodes = [...new Set(ownFiefs.map((fief) => fief.holder).filter(Boolean))] as string[]
+  for (const code of lordCodes) {
+    const lord = state.nobles.find((noble) => noble.code === code)
+    if (!lord) continue
+    issuers.push({
+      value: `tax:${code}`,
+      label: t('orders.issuer.lord', { noble: nobleLabel(lord) }),
+    })
+  }
+  if (ownFiefs.some((fief) => !fief.holder)) {
+    issuers.push({ value: VACANT_FIEF, label: t('orders.issuer.vacantFief') })
+  }
+  const hasLord = issuers.length > 0
+  for (const cleric of clerics) {
+    if (bishopricOptions(cleric).length === 0) continue
+    issuers.push({
+      value: `tithe:${cleric.code}`,
+      label: t(
+        cleric.religiousTitle === 'bishop' ? 'orders.issuer.ownBishopric' : 'orders.issuer.allBishoprics',
+        { noble: `${nobleLabel(cleric)} (${t(`orders.holder.${cleric.religiousTitle}` as MessageKey, { name: '' }).trim()})` },
+      ),
+    })
+  }
+  const hasTithe = issuers.length > (hasLord ? issuers.filter((issuer) => issuer.value.startsWith('tax:')).length : 0)
+  const help: MessageKey = hasLord
+    ? hasTithe
+      ? 'orders.taxHelp.both'
+      : 'orders.taxHelp.lord'
+    : 'orders.taxHelp.tithe'
+  if (issuers.length === 0) return null
+  const targetOptions = (values: Record<string, string>) => {
+    const [kind, code] = (values.issuer ?? '').split(':')
+    if (kind === 'tithe') return bishopricOptions(clerics.find((cleric) => cleric.code === code))
+    return ownFiefs.filter((fief) => (fief.holder ?? '') === code).map(fiefOption)
+  }
+  const lineFor = (values: Record<string, string>) => {
+    const [kind, code] = values.issuer.split(':')
+    return kind === 'tithe'
+      ? `P DI ${code} ${values.target}`
+      : code
+        ? `P TX ${code} ${values.target}`
+        : `P TX ${values.target}`
+  }
+  return (
+    <OrderLauncher
+      label={t('orders.playSpecialCard', { card })}
+      title={t('orders.playSpecialCard', { card })}
+      description={t(help)}
+      disabled={used >= copies}
+      fields={[
+        { key: 'issuer', label: t('orders.field.issuer'), options: issuers },
+        {
+          key: 'target',
+          label: t('orders.field.taxTarget'),
+          options: targetOptions,
+        },
+      ]}
+      buildOrder={(values) =>
+        values.target
+          ? {
+              line: lineFor(values),
+              comment: t('orders.comment.playSpecial', { card, target: values.target }),
+            }
+          : null
+      }
+      onConfirm={add}
+    />
   )
 }
 
