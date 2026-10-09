@@ -46,6 +46,7 @@ export type EventType =
   | 'calamity_canceled'
   | 'bonus_effect'
   | 'neutral_army_created'
+  | 'revolt_appeased'
   | 'plague_noble_death'
   | 'plague_noble_survived'
   | 'trial'
@@ -967,6 +968,7 @@ export interface SeasonEffectReport {
   productionLost?: number
   rationsLost?: number
   reason?: string
+  cost?: number
   dignity?: Dignity
 }
 
@@ -1053,7 +1055,7 @@ export interface DeceasedNoble {
   name: string
   owner: PlayerId
   sex?: 'male' | 'female'
-  cause: 'natural' | 'execution' | 'assassination'
+  cause: 'natural' | 'execution' | 'assassination' | 'martyr'
   turn: number
 }
 

@@ -303,13 +303,33 @@ réduction de mariage).
 
 ### Apaisement de révolte
 
-Le **pape, les cardinaux et les évêques** peuvent jouer un ordre spécial
-d'apaisement, ciblant un territoire. S'il porte une armée `NEUTRAL` créée par
-la calamité de révolte (voir GDD §2, « Cartes bonus et calamités »), elle est
-retirée immédiatement, rendant le territoire directement reprenable. Un
-évêque ne peut cibler que son propre évêché ; le cardinal et le pape peuvent
-cibler n'importe quel territoire, avec la même priorité au titulaire local
-que pour la dîme.
+Un ecclésiastique — **pape, cardinal, évêque ou abbesse** — peut calmer une
+révolte en retirant l'armée `NEUTRAL` née de la calamité de révolte (voir GDD
+§2, « Cartes bonus et calamités ») d'un territoire. L'ordre ne consomme aucune
+carte, se joue au printemps, en été ou en automne dans la soumission `special`
+et s'applique avant les cartes de Révolte du même tour. `HHH` est le noble
+ecclésiastique (un noble du joueur), `TER` un territoire portant une armée
+`NEUTRAL` ; sans armée à calmer, l'ordre est sans effet. Un noble ne joue
+qu'un apaisement par tour. Un titre suspendu (cachot) ou perdu
+(excommunication) ne permet pas l'apaisement.
+
+Deux voies :
+
+- **`P AG HHH TER` — rite gratuit.** L'ecclésiastique agit dans la région où il
+  se trouve (celle de l'armée qui le porte), pas nécessairement son évêché. Un d6 est lancé
+  (`religion.appeasement_success_rolls` et `religion.appeasement_death_rolls`
+  dans `assets/balance.yaml`) : 1 à 3, l'armée rebelle est retirée ; 4 ou 5,
+  l'échec est sans conséquence ; 6, c'est un échec et l'ecclésiastique meurt
+  (mort « martyr » : titres vacants, fiefs et prétentions réglés comme pour tout
+  décès). L'abbesse n'a accès qu'à cette voie.
+- **`P AP HHH TER` — apaisement payant, sans risque.** Un évêque sur
+  son propre évêché, un cardinal ou le pape sur n'importe quel territoire paient
+  `religion.appeasement_cost_base` puissance la taille de l'armée rebelle
+  en R (2 pour une troupe, 4 pour deux, 8 pour trois, 16 pour quatre…), prélevés
+  sur les stocks du joueur comme les investissements d'hiver. Sans les R,
+  l'ordre est rejeté et rien n'est retiré. Le résultat est certain.
+
+Aliases anglais : `FQ` (rite) et `PQ` (payant).
 
 ### Dissolution de mariage
 

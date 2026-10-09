@@ -178,6 +178,14 @@ type DeckOrderType string
 const (
 	DeckOrderTypeDiscard DeckOrderType = "discard_card"
 	DeckOrderTypePlay    DeckOrderType = "play_card"
+	// DeckOrderTypeAppeaseRite is the free revolt appeasement of a cleric
+	// (specs/religieux.md § Apaisement de révolte): TargetNobleID is the
+	// cleric, TargetTerritoryID the territory. It plays no card and may kill
+	// the cleric.
+	DeckOrderTypeAppeaseRite DeckOrderType = "appease_rite"
+	// DeckOrderTypeAppeasePaid is the safe, paid revolt appeasement of a
+	// bishop (in their bishopric), a cardinal or the pope.
+	DeckOrderTypeAppeasePaid DeckOrderType = "appease_paid"
 )
 
 type DeckOrder struct {
@@ -186,12 +194,19 @@ type DeckOrder struct {
 	Kind              CardKind      `json:"kind,omitempty"`
 	RegionSeed        TerritoryID   `json:"regionSeed,omitempty"`
 	TargetTerritoryID TerritoryID   `json:"targetTerritory,omitempty"`
-	// TargetNobleID is the noble a trial card puts on trial.
+	// TargetNobleID is the noble a trial card puts on trial, or the cleric
+	// issuing a revolt appeasement.
 	TargetNobleID NobleID `json:"targetNoble,omitempty"`
 }
 
 func (t DeckOrderType) IsValid() bool {
-	return t == DeckOrderTypeDiscard || t == DeckOrderTypePlay
+	return t == DeckOrderTypeDiscard || t == DeckOrderTypePlay || t.IsAppeasement()
+}
+
+// IsAppeasement reports whether the order is a revolt appeasement, which
+// plays no card.
+func (t DeckOrderType) IsAppeasement() bool {
+	return t == DeckOrderTypeAppeaseRite || t == DeckOrderTypeAppeasePaid
 }
 
 // PendingDisperse records unresolved branches of a looped dispersion after

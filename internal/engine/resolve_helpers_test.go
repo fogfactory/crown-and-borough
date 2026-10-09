@@ -48,7 +48,7 @@ func testBalance() assetgen.Balance {
 		StartingResources: 10,
 		SpecialOrders:     assetgen.SpecialOrdersBalance{HandLimit: 4, DrawOrdersLimit: 2},
 		Religion: assetgen.ReligionBalance{
-			CardinalCost: 8, CardinalPurchaseBase: 1, CardinalPurchasePlayersPerExtra: 6, CardinalCardBase: 1, CardinalCardPlayersPerExtra: 3, ExcommunicationsPerWinter: 1, ExcommunicationsPerTargetPlayer: 1,
+			CardinalCost: 8, CardinalPurchaseBase: 1, CardinalPurchasePlayersPerExtra: 6, CardinalCardBase: 1, CardinalCardPlayersPerExtra: 3, ExcommunicationsPerWinter: 1, ExcommunicationsPerTargetPlayer: 1, AppeasementSuccessRolls: 3, AppeasementDeathRolls: 1, AppeasementCostBase: 2,
 			Votes: assetgen.VoteWeight{Territory: 1, Seat: 2, Bishop: 1, Cardinal: 2, Pope: 3},
 		},
 		FirstNames: []assetgen.Asset{

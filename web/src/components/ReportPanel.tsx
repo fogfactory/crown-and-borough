@@ -745,6 +745,16 @@ function seasonEffectLine(
         ),
       }
     }
+    case 'revolt_appeased':
+      return {
+        key,
+        owner: effect.owner,
+        label: t(`reports.revoltAppeased.${effect.reason ?? 'failed'}`, {
+          noble: effect.noble ?? '',
+          territory: territoryLabel(map, effect.territory, t),
+          cost: effect.cost ?? 0,
+        }),
+      }
     default:
       return { key, label: seasonEffectLabel(effect, map, t) }
   }

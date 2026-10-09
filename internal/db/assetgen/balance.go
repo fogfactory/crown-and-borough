@@ -71,14 +71,22 @@ type AllianceBalance struct {
 // players, and the number of cardinal cards in the noble deck at
 // CardinalCardBase plus one per full CardinalCardPlayersPerExtra players.
 type ReligionBalance struct {
-	CardinalCost                    int        `json:"cardinal_cost" yaml:"cardinal_cost"`
-	CardinalPurchaseBase            int        `json:"cardinal_purchase_base" yaml:"cardinal_purchase_base"`
-	CardinalPurchasePlayersPerExtra int        `json:"cardinal_purchase_players_per_extra" yaml:"cardinal_purchase_players_per_extra"`
-	CardinalCardBase                int        `json:"cardinal_card_base" yaml:"cardinal_card_base"`
-	CardinalCardPlayersPerExtra     int        `json:"cardinal_card_players_per_extra" yaml:"cardinal_card_players_per_extra"`
-	ExcommunicationsPerWinter       int        `json:"excommunications_per_winter" yaml:"excommunications_per_winter"`
-	ExcommunicationsPerTargetPlayer int        `json:"excommunications_per_target_player" yaml:"excommunications_per_target_player"`
-	Votes                           VoteWeight `json:"votes" yaml:"votes"`
+	CardinalCost                    int `json:"cardinal_cost" yaml:"cardinal_cost"`
+	CardinalPurchaseBase            int `json:"cardinal_purchase_base" yaml:"cardinal_purchase_base"`
+	CardinalPurchasePlayersPerExtra int `json:"cardinal_purchase_players_per_extra" yaml:"cardinal_purchase_players_per_extra"`
+	CardinalCardBase                int `json:"cardinal_card_base" yaml:"cardinal_card_base"`
+	CardinalCardPlayersPerExtra     int `json:"cardinal_card_players_per_extra" yaml:"cardinal_card_players_per_extra"`
+	ExcommunicationsPerWinter       int `json:"excommunications_per_winter" yaml:"excommunications_per_winter"`
+	ExcommunicationsPerTargetPlayer int `json:"excommunications_per_target_player" yaml:"excommunications_per_target_player"`
+	// AppeasementSuccessRolls and AppeasementDeathRolls are the faces of the
+	// d6 of the free revolt appeasement rite: the lowest AppeasementSuccessRolls
+	// faces succeed, the highest AppeasementDeathRolls faces fail and kill the
+	// cleric, the faces between fail. AppeasementCostBase raised to the size of
+	// the rebel army is the price of the safe, paid appeasement.
+	AppeasementSuccessRolls int        `json:"appeasement_success_rolls" yaml:"appeasement_success_rolls"`
+	AppeasementDeathRolls   int        `json:"appeasement_death_rolls" yaml:"appeasement_death_rolls"`
+	AppeasementCostBase     int        `json:"appeasement_cost_base" yaml:"appeasement_cost_base"`
+	Votes                   VoteWeight `json:"votes" yaml:"votes"`
 }
 
 // VoteWeight is the number of voices of a territory held (Seat for the seat of
@@ -168,6 +176,9 @@ type rawReligion struct {
 	CardinalCardPlayersPerExtra     *int `yaml:"cardinal_card_players_per_extra"`
 	ExcommunicationsPerWinter       *int `yaml:"excommunications_per_winter"`
 	ExcommunicationsPerTargetPlayer *int `yaml:"excommunications_per_target_player"`
+	AppeasementSuccessRolls         *int `yaml:"appeasement_success_rolls"`
+	AppeasementDeathRolls           *int `yaml:"appeasement_death_rolls"`
+	AppeasementCostBase             *int `yaml:"appeasement_cost_base"`
 	Votes                           *struct {
 		Territory *int `yaml:"territory"`
 		Seat      *int `yaml:"seat"`
@@ -429,6 +440,18 @@ func (raw rawBalance) religion(path string) (ReligionBalance, error) {
 		return ReligionBalance{}, err
 	}
 	if out.ExcommunicationsPerTargetPlayer, err = requiredPositiveInt(path, "religion.excommunications_per_target_player", r.ExcommunicationsPerTargetPlayer); err != nil {
+		return ReligionBalance{}, err
+	}
+	if out.AppeasementSuccessRolls, err = requiredPositiveInt(path, "religion.appeasement_success_rolls", r.AppeasementSuccessRolls); err != nil {
+		return ReligionBalance{}, err
+	}
+	if out.AppeasementDeathRolls, err = requiredPositiveInt(path, "religion.appeasement_death_rolls", r.AppeasementDeathRolls); err != nil {
+		return ReligionBalance{}, err
+	}
+	if out.AppeasementSuccessRolls+out.AppeasementDeathRolls > 6 {
+		return ReligionBalance{}, fmt.Errorf("assetgen: %s: religion.appeasement_success_rolls and appeasement_death_rolls must fit on a d6", path)
+	}
+	if out.AppeasementCostBase, err = requiredPositiveInt(path, "religion.appeasement_cost_base", r.AppeasementCostBase); err != nil {
 		return ReligionBalance{}, err
 	}
 	if r.Votes == nil {

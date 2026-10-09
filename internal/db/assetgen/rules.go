@@ -139,6 +139,7 @@ func renderRules(document []byte, balance Balance) ([]byte, error) {
 		"special_orders.effects.plague_army_divisor":  stringValue(balance.SpecialOrders.Effects.PlagueArmyDivisor),
 		"special_orders.effects.revolt_army_min_size": stringValue(balance.SpecialOrders.Effects.RevoltArmyMinSize),
 		"special_orders.effects.revolt_army_max_size": stringValue(balance.SpecialOrders.Effects.RevoltArmyMaxSize),
+		"religion.appeasement_cost_base":              stringValue(balance.Religion.AppeasementCostBase),
 	}
 	for index, cost := range balance.Costs.MillLevels {
 		values[fmt.Sprintf("costs.mill_levels.%d", index)] = stringValue(cost)

@@ -65,6 +65,9 @@ religion:
   cardinal_card_players_per_extra: 3
   excommunications_per_winter: 1
   excommunications_per_target_player: 1
+  appeasement_success_rolls: 3
+  appeasement_death_rolls: 1
+  appeasement_cost_base: 2
   votes:
     territory: 1
     seat: 2
