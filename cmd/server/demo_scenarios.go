@@ -22,6 +22,10 @@ var demoScenarios = map[string]struct {
 		description: "winter, P1 is pope with a bishop-astrologer, a Witch, cards in hand; P2 holds a cardinal and an excommunicated noble",
 		apply:       forgeWinter,
 	},
+	"inquiry": {
+		description: "winter (see the winter scenario), plus two ladies of P2 hiding a Witch and a Spy: P1's pope and P2's cardinal can investigate them",
+		apply:       forgeInquiry,
+	},
 	"appeasement": {
 		description: "spring, P1 has a bishop, a cardinal and an abbess; rebel armies of 1 to 3 troops stand in their regions and elsewhere; P1 has plenty of R",
 		apply:       forgeAppeasement,
@@ -136,6 +140,26 @@ func forgeWinter(state *models.GameState) error {
 		models.NobleCard{Kind: models.NobleCardKindNoble, Code: "ZAL", Name: "Albert", Sex: models.SexMale},
 		models.NobleCard{Kind: models.NobleCardKindDignity, Code: models.DignityBastardCardCode, Dignity: models.DignityBastard},
 	)
+	return nil
+}
+
+func forgeInquiry(state *models.GameState) error {
+	if err := forgeWinter(state); err != nil {
+		return err
+	}
+	location := state.Nobles[ownedNobles(state, "P2")[0]].LocationID
+	for _, lady := range []struct {
+		id, code, name string
+		dignity        models.Dignity
+	}{
+		{"N901", "ZMA", "Mabile", models.DignityWitch},
+		{"N902", "ZIS", "Isabeau", models.DignitySpy},
+	} {
+		state.Nobles = append(state.Nobles, models.Noble{
+			ID: models.NobleID(lady.id), Code: lady.code, Name: lady.name, Sex: models.SexFemale, OwnerID: "P2",
+			LocationID: location, Status: models.NobleStatusFree, Dignities: []models.Dignity{lady.dignity},
+		})
+	}
 	return nil
 }
 

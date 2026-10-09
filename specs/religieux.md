@@ -282,18 +282,26 @@ ne s'additionnent pas : ils sont sans effet.
 
 ### Enquête
 
-Un cardinal ou le pape peut jouer `Q NNN` en hiver : une enquête par cardinal
-ou pape et par hiver. Elle cible un noble ou une dame de n'importe quel joueur
-et révèle sa dignité cachée (Éon, Correspondante, Espionne, Sorcière) avec les
-conséquences de [dames.md](dames.md). Elle est résolue après les
+Un cardinal ou le pape `HHH` d'un joueur, au titre actif (ni excommunié ni au
+cachot), peut jouer `Q HHH NNN` en hiver : une enquête par cardinal ou pape et
+par hiver, `NNN` étant le noble enquêté. Elle cible un noble ou une dame de n'importe quel joueur
+et révèle sa dignité cachée (Éon, Correspondante, Espionne, Empoisonneuse,
+Sorcière) à tous les joueurs, avec les conséquences de [dames.md](dames.md).
+La dignité reste portée par la dame ; seule sa visibilité change. Un ordre dont
+`HHH` n'est pas un noble du joueur est rejeté (`noble_not_owned`), de même qu'un
+`HHH` sans titre actif de cardinal ou de pape (`not_cardinal`) ou qui a déjà
+enquêté l'hiver en cours (`inquiry_limit`). Le coût est payé par le joueur,
+quel que soit `HHH`. Elle est résolue après les
 excommunications et les ordres de gestion, avant les mariages, les élections
 et le jugement des procès ([hiver.md](hiver.md#ordre-de-résolution)). Un Éon
 ou une Sorcière démasqué est excommunié d'office dès l'enquête : il peut être
-jugé le même hiver. Une cible sans dignité
-cachée consomme le coût sans effet et sans information.
+jugé le même hiver ; la Correspondante, l'Espionne et l'Empoisonneuse gardent
+leurs bonus. Une cible sans dignité cachée, ou déjà révélée, consomme le coût
+sans effet et sans information. Le coût est prélevé sur les réserves de la
+capitale du joueur, sans prélèvement partiel (`insufficient_resources`).
 
 Le coût, en R, est proportionnel au rang de la cible. Il se lit dans
-`assets/balance.yaml` (bloc `religious.inquiry_cost`) :
+`assets/balance.yaml` (bloc `religion.inquiry_cost`) :
 
 | Titre de la cible | Coût |
 |---|---|

@@ -139,6 +139,9 @@ func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (mod
 		error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.WinterDiscardNobleShape)
 		return models.WinterOrder{}, &error
 	}
+	if fields[0] == "Q" {
+		return parseInquiryLine(fields, lineNumber, indexes)
+	}
 	if len(fields) < 3 {
 		error := parseMessage(lineNumber, ParseCodeMissingTarget, "error.winter.order_shape")
 		return models.WinterOrder{}, &error
@@ -566,6 +569,21 @@ func parseBuyCardinalLine(fields []string, lineNumber int, indexes gameIndexes) 
 		return models.WinterOrder{}, parseError
 	}
 	return models.WinterOrder{Type: models.WinterOrderTypeBuyCardinal, NobleCode: models.NobleCode(fields[2])}, nil
+}
+
+// parseInquiryLine handles Q HHH NNN: HHH is the investigating cardinal or
+// pope, NNN the investigated noble. Ownership and the title are engine rejects.
+func parseInquiryLine(fields []string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
+	if len(fields) != 3 {
+		error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.WinterInquiryShape)
+		return models.WinterOrder{}, &error
+	}
+	for _, code := range fields[1:] {
+		if parseError := winterNobleCode(code, lineNumber, indexes); parseError != nil {
+			return models.WinterOrder{}, parseError
+		}
+	}
+	return models.WinterOrder{Type: models.WinterOrderTypeInquiry, NobleCode: models.NobleCode(fields[1]), TargetCode: models.NobleCode(fields[2])}, nil
 }
 
 // parseExcommunicationLine handles X E NNN (excommunicate) and X L NNN (lift):

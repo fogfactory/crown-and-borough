@@ -20,6 +20,10 @@ type WinterAids struct {
 	// BuyableCardinals are the viewer's bishops that can be promoted by purchase.
 	BuyableCardinals []models.NobleCode `json:"buyableCardinals"`
 	CardinalCost     int                `json:"cardinalCost"`
+	// Inquirers are the viewer's cardinals and pope able to order an inquiry;
+	// InquiryCosts is the R an inquiry costs, per noble.
+	Inquirers    []models.NobleCode       `json:"inquirers"`
+	InquiryCosts map[models.NobleCode]int `json:"inquiryCosts"`
 	// FiefSites are the groups of territories a fief can be founded on.
 	FiefSites            []FiefSite `json:"fiefSites"`
 	FiefCostPerTerritory int        `json:"fiefCostPerTerritory"`
@@ -62,12 +66,15 @@ func ForecastWinterAids(state *models.GameState, balance assetgen.Balance, viewe
 		Liftable:             []models.NobleCode{},
 		BuyableCardinals:     []models.NobleCode{},
 		CardinalCost:         balance.Religion.CardinalCost,
+		Inquirers:            []models.NobleCode{},
+		InquiryCosts:         map[models.NobleCode]int{},
 		FiefSites:            []FiefSite{},
 		FiefCostPerTerritory: balance.Costs.FiefPerTerritory,
 		Rituals:              []RitualOption{},
 	}
 	ctx.papalAids(viewer, aids)
 	ctx.cardinalAids(viewer, aids)
+	ctx.inquiryAids(viewer, aids)
 	ctx.fiefAids(viewer, aids)
 	ctx.ritualAids(viewer, aids)
 	return aids
@@ -112,6 +119,17 @@ func (ctx *resolutionContext) cardinalAids(viewer models.PlayerID, aids *WinterA
 		noble := &ctx.state.Nobles[i]
 		if noble.OwnerID == viewer && ctx.state.IsBishop(noble.ID) && !ctx.state.IsCardinal(noble.ID) {
 			aids.BuyableCardinals = append(aids.BuyableCardinals, models.NobleCode(noble.Code))
+		}
+	}
+}
+
+func (ctx *resolutionContext) inquiryAids(viewer models.PlayerID, aids *WinterAids) {
+	for i := range ctx.state.Nobles {
+		noble := &ctx.state.Nobles[i]
+		code := models.NobleCode(noble.Code)
+		aids.InquiryCosts[code] = InquiryCost(ctx.state, ctx.balance.Religion.InquiryCost, noble.ID)
+		if noble.OwnerID == viewer && ctx.canInquire(noble.ID) {
+			aids.Inquirers = append(aids.Inquirers, code)
 		}
 	}
 }

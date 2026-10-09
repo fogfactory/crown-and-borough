@@ -94,7 +94,7 @@ export function TitleOrdersSection({
   // religious title leads ("Pape Rainaud"), a dignity carries the noble in
   // parentheses ("Astrologue (Dame Hugon)").
   const firstNameOf = (code: string) => byCode.get(code)?.firstName ?? nobleName(state, code)
-  const titleHolder = (code: string, title: 'pope' | 'bishop') =>
+  const titleHolder = (code: string, title: 'pope' | 'bishop' | 'cardinal') =>
     t(`orders.holder.${title}`, { name: firstNameOf(code) })
   const dignityHolder = (code: string, dignity: 'astrologer' | 'witch') => {
     const honorific = byCode.get(code)?.name.split(' ')[0] ?? ''
@@ -188,6 +188,45 @@ export function TitleOrdersSection({
           line: `N C ${code}`,
           comment: t('orders.comment.buyCardinal', { name: nobleName(state, code) }),
         })}
+        onConfirm={add}
+      />,
+    )
+  }
+
+  for (const code of aids.inquirers) {
+    if (lines.some((line) => line.startsWith(`Q ${code} `))) continue
+    const title = state.pope === code ? 'pope' : 'cardinal'
+    launchers.push(
+      <OrderLauncher
+        key={`q-${code}`}
+        label={`${titleHolder(code, title)} · ${t('orders.inquiry')}`}
+        title={t('orders.inquiry')}
+        description={t('orders.inquiryHelp')}
+        hint={(values) =>
+          values.noble ? t('orders.hint.cost', { cost: aids.inquiryCosts[values.noble] ?? 0 }) : ''
+        }
+        fields={[
+          {
+            key: 'noble',
+            label: t('orders.field.investigated'),
+            options: state.nobles
+              .filter((noble) => noble.code !== code)
+              .map((noble) => ({
+                ...nobleOption(noble),
+                label: `${nobleOption(noble).label} — ${aids.inquiryCosts[noble.code] ?? 0} R`,
+              })),
+          },
+        ]}
+        buildOrder={(values) =>
+          values.noble
+            ? {
+                line: `Q ${code} ${values.noble}`,
+                comment: t('orders.comment.inquiry', {
+                  name: nobleName(state, values.noble),
+                }),
+              }
+            : null
+        }
         onConfirm={add}
       />,
     )

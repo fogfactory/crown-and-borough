@@ -88,6 +88,9 @@ type Noble struct {
 	// true, her dignity and secret identity stop being hidden to viewers
 	// other than her owner.
 	EonUnmasked bool `json:"eonUnmasked,omitempty"`
+	// DignityRevealed is set once an inquiry has revealed the noble's hidden
+	// dignity to every player (specs/religieux.md § Enquête).
+	DignityRevealed bool `json:"dignityRevealed,omitempty"`
 	// AbbeyRegion is the seed of the region (bishopric) an abbess is attached
 	// to, fixed when the dignity is played.
 	AbbeyRegion TerritoryID `json:"abbeyRegion,omitempty"`

@@ -76,6 +76,12 @@ const (
 	EventTypeNobleDiscard EventType = "noble_discard"
 	EventTypeClaim        EventType = "claim"
 	EventTypeEonUnmasked  EventType = "eon_unmasked"
+	// EventTypeInquiry is the paid Q order (ResourceSpent), emitted whether or
+	// not the target hid a dignity.
+	EventTypeInquiry EventType = "inquiry"
+	// EventTypeDignityRevealed is the public reveal of a hidden dignity by an
+	// inquiry (Dignity names it); a chevalier d'Éon emits EventTypeEonUnmasked.
+	EventTypeDignityRevealed EventType = "dignity_revealed"
 	// EventTypeElectionOpened, EventTypeElectionResult and
 	// EventTypeInvestiture carry only public totals, never a ballot.
 	EventTypeElectionOpened EventType = "election_opened"

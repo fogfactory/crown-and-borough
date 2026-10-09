@@ -824,6 +824,8 @@ describe('OrdersPanel title and card order dialogs', () => {
     liftable: [],
     buyableCardinals: [],
     cardinalCost: 8,
+    inquirers: [] as string[],
+    inquiryCosts: { POP: 1, LEO: 3, ABE: 1 },
     fiefSites: [],
     fiefCostPerTerritory: 2,
     rituals: [],
@@ -894,6 +896,17 @@ describe('OrdersPanel title and card order dialogs', () => {
     expect(screen.getByText('Cost: 8 R')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
     expect(onWinterChange).toHaveBeenCalledWith('N C POP # buy cardinal Sieur Pie\n')
+  })
+
+  it('lets a cardinal investigate a noble and prices it', () => {
+    const onWinterChange = renderWinter({
+      cardinals: ['POP'],
+      winterAids: { ...aids, inquirers: ['POP'] },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Cardinal Pie · Investigate a noble (Q)' }))
+    expect(screen.getByText('Cost: 3 R')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
+    expect(onWinterChange).toHaveBeenCalledWith('Q POP LEO # investigate Leon\n')
   })
 
   it('founds a fief from a connected group and prices it', () => {

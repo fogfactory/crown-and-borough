@@ -83,10 +83,26 @@ type ReligionBalance struct {
 	// faces succeed, the highest AppeasementDeathRolls faces fail and kill the
 	// cleric, the faces between fail. AppeasementCostBase raised to the size of
 	// the rebel army is the price of the safe, paid appeasement.
-	AppeasementSuccessRolls int        `json:"appeasement_success_rolls" yaml:"appeasement_success_rolls"`
-	AppeasementDeathRolls   int        `json:"appeasement_death_rolls" yaml:"appeasement_death_rolls"`
-	AppeasementCostBase     int        `json:"appeasement_cost_base" yaml:"appeasement_cost_base"`
-	Votes                   VoteWeight `json:"votes" yaml:"votes"`
+	AppeasementSuccessRolls int         `json:"appeasement_success_rolls" yaml:"appeasement_success_rolls"`
+	AppeasementDeathRolls   int         `json:"appeasement_death_rolls" yaml:"appeasement_death_rolls"`
+	AppeasementCostBase     int         `json:"appeasement_cost_base" yaml:"appeasement_cost_base"`
+	InquiryCost             InquiryCost `json:"inquiry_cost" yaml:"inquiry_cost"`
+	Votes                   VoteWeight  `json:"votes" yaml:"votes"`
+}
+
+// InquiryCost is the R a cardinal or the pope pays to investigate a noble, by
+// the noble's highest title (specs/religieux.md § Enquête). Untitled is the
+// cost of a noble holding no title and no spouse.
+type InquiryCost struct {
+	Untitled int `json:"untitled" yaml:"untitled"`
+	Baron    int `json:"baron" yaml:"baron"`
+	Count    int `json:"count" yaml:"count"`
+	Marquis  int `json:"marquis" yaml:"marquis"`
+	Duke     int `json:"duke" yaml:"duke"`
+	King     int `json:"king" yaml:"king"`
+	Pope     int `json:"pope" yaml:"pope"`
+	Bishop   int `json:"bishop" yaml:"bishop"`
+	Cardinal int `json:"cardinal" yaml:"cardinal"`
 }
 
 // VoteWeight is the number of voices of a territory held (Seat for the seat of
@@ -181,7 +197,18 @@ type rawReligion struct {
 	AppeasementSuccessRolls         *int `yaml:"appeasement_success_rolls"`
 	AppeasementDeathRolls           *int `yaml:"appeasement_death_rolls"`
 	AppeasementCostBase             *int `yaml:"appeasement_cost_base"`
-	Votes                           *struct {
+	InquiryCost                     *struct {
+		Untitled *int `yaml:"untitled"`
+		Baron    *int `yaml:"baron"`
+		Count    *int `yaml:"count"`
+		Marquis  *int `yaml:"marquis"`
+		Duke     *int `yaml:"duke"`
+		King     *int `yaml:"king"`
+		Pope     *int `yaml:"pope"`
+		Bishop   *int `yaml:"bishop"`
+		Cardinal *int `yaml:"cardinal"`
+	} `yaml:"inquiry_cost"`
+	Votes *struct {
 		Territory *int `yaml:"territory"`
 		Seat      *int `yaml:"seat"`
 		Bishop    *int `yaml:"bishop"`
@@ -456,6 +483,29 @@ func (raw rawBalance) religion(path string) (ReligionBalance, error) {
 	}
 	if out.AppeasementCostBase, err = requiredPositiveInt(path, "religion.appeasement_cost_base", r.AppeasementCostBase); err != nil {
 		return ReligionBalance{}, err
+	}
+	if r.InquiryCost == nil {
+		return ReligionBalance{}, missingBalanceValue(path, "religion.inquiry_cost")
+	}
+	costs := r.InquiryCost
+	for _, field := range []struct {
+		name  string
+		raw   *int
+		value *int
+	}{
+		{"untitled", costs.Untitled, &out.InquiryCost.Untitled},
+		{"baron", costs.Baron, &out.InquiryCost.Baron},
+		{"count", costs.Count, &out.InquiryCost.Count},
+		{"marquis", costs.Marquis, &out.InquiryCost.Marquis},
+		{"duke", costs.Duke, &out.InquiryCost.Duke},
+		{"king", costs.King, &out.InquiryCost.King},
+		{"pope", costs.Pope, &out.InquiryCost.Pope},
+		{"bishop", costs.Bishop, &out.InquiryCost.Bishop},
+		{"cardinal", costs.Cardinal, &out.InquiryCost.Cardinal},
+	} {
+		if *field.value, err = requiredPositiveInt(path, "religion.inquiry_cost."+field.name, field.raw); err != nil {
+			return ReligionBalance{}, err
+		}
 	}
 	if r.Votes == nil {
 		return ReligionBalance{}, missingBalanceValue(path, "religion.votes")
