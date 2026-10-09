@@ -64,8 +64,9 @@ comme le deck d'ordres spéciaux. Il contient trois sortes de cartes :
   d'un noble d'une autre famille, voir [Prétentions](#prétentions-claims) ;
 - des **cartes de dignité**, qui ne recrutent personne : elles se jouent sur
   un noble déjà en jeu pour lui conférer une [dignité](dames.md#dignités).
-  La seule dignité du deck est le [bâtard](#bâtard) ; d'autres s'y ajouteront
-  avec les issues des cardinaux et des figures féminines.
+  Le deck compte le [bâtard](#bâtard), les dignités des dames et la
+  [carte de cardinal](religieux.md#nomination-et-achat-dun-cardinal) (`CAR`,
+  à jouer sur un de ses évêques).
 
 **Taille.** Le deck compte `joueurs × (noble_limit_max + 1)` cartes (28 à
 4 joueurs), réduit au besoin pour que les cartes de noble puissent recevoir
@@ -76,7 +77,8 @@ arrondies à l'entier inférieur. Ce quota garantit au moins un bâtard par
 partie ; le reste du deck est constitué de cartes de noble. Les cartes de
 prétention s'ajoutent à cette taille sans remplacer de carte de noble : une
 carte sur `2 × max(joueurs − 1, 4)` de la taille de base, au moins une (31
-cartes à 4 joueurs, dont 3 de prétention).
+cartes à 4 joueurs, dont 3 de prétention). Les cartes de cardinal, au nombre
+de `1 + ⌊joueurs / 3⌋`, s'y ajoutent de la même manière.
 
 La **pioche** (`T N`) et la **défausse** (`D C CCC`) sont des ordres d'hiver. Les
 ordres qui **jouent** une carte (`R N`, `C N`, `D N`) se soumettent à

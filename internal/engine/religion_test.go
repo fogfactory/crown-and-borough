@@ -48,8 +48,13 @@ func TestTitleVotesCountsOnlyTheHighestActiveTitle(t *testing.T) {
 			t.Errorf("cardinal cap for %d players = %d, want %d", players, got, want)
 		}
 	}
-	if got := CardinalCap(state, balance); got != 1 {
-		t.Errorf("cardinal cap for 3 players = %d, want 1", got)
+	if got := CardinalPurchaseCap(state, balance); got != 1 {
+		t.Errorf("cardinal purchase cap for 3 players = %d, want 1", got)
+	}
+	for players, want := range map[int]int{2: 1, 3: 2, 5: 2, 6: 3} {
+		if got := CardinalCardCount(players, balance.Religion); got != want {
+			t.Errorf("cardinal cards for %d players = %d, want %d", players, got, want)
+		}
 	}
 }
 

@@ -20,7 +20,7 @@ indépendamment :
   dame sans condition, qui agit sur l'information et les élections sans
   jamais détenir elle-même un titre religieux ou royal ;
 - **dignités** : un même mécanisme d'attribution en cours de partie, par
-  carte de nomination du deck d'ordres spéciaux, couvre aussi bien les
+  carte de dignité du deck de nobles, couvre aussi bien les
   dignités ecclésiastiques masculines déjà décrites dans
   [religieux.md](religieux.md#cardinaux-et-pape) (évêque, cardinal, pape) que
   les dignités introduites ici, dans l'esprit de la carte « D'Arc » de
@@ -66,8 +66,8 @@ en négociation de mariage et en poste d'influence électorale).
 
 Ce chantier introduit un ensemble de dignités nommées, plus fourni et plus
 varié que la carte unique « D'Arc » de *Fief*, attribuables à une dame par
-une carte de nomination du deck d'ordres spéciaux — le même mécanisme que la
-nomination d'un cardinal (voir [religieux.md § Cardinaux et pape](religieux.md#cardinaux-et-pape)),
+une carte de dignité du deck de nobles — le même mécanisme que la carte de
+cardinal (voir [religieux.md § Cardinaux et pape](religieux.md#cardinaux-et-pape)),
 sans qu'un terme distinct les cantonne à part des dignités ecclésiastiques :
 les deux relèvent de la même catégorie de jeu, seule leur porte d'entrée
 diffère (l'une close aux femmes, l'autre ouverte aux nobles des deux sexes

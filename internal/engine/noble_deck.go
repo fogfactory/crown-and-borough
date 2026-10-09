@@ -46,9 +46,10 @@ func nobleDeckSize(players, limitMax, maleAvailable, femaleAvailable int, oddMal
 
 // buildNobleDeck generates the shared noble deck deterministically from the
 // game seed. usedCodes are the codes already taken by the starting nobles; the
-// dignity card codes are reserved too. It returns nil when no noble card
+// dignity card codes are reserved too. cardinalCards is the number of cardinal
+// cards added to the deck. It returns nil when no noble card
 // can be named.
-func buildNobleDeck(seed string, players []models.Player, limitMax int, prenoms []assetgen.Asset, usedCodes map[string]bool) *models.NobleDeck {
+func buildNobleDeck(seed string, players []models.Player, limitMax int, prenoms []assetgen.Asset, usedCodes map[string]bool, cardinalCards int) *models.NobleDeck {
 	rng := newNobleDeckRNG(seed)
 	oddMale := rng.IntN(2) == 0
 	reserved := make(map[string]bool, len(usedCodes)+1)
@@ -57,6 +58,7 @@ func buildNobleDeck(seed string, players []models.Player, limitMax int, prenoms 
 	}
 	reserved[models.DignityBastardCardCode] = true
 	reserved[models.ClaimCardCode] = true
+	reserved[models.DignityCardinalCardCode] = true
 	for _, dignity := range models.LadyDignities {
 		reserved[dignity.Effect().CardCode] = true
 	}
@@ -107,6 +109,16 @@ func buildNobleDeck(seed string, players []models.Player, limitMax int, prenoms 
 			Kind:    models.NobleCardKindDignity,
 			Code:    dignity.Effect().CardCode,
 			Dignity: dignity,
+		})
+	}
+	// The cardinal cards come on top of the base size too: their number is the
+	// cap of the cardinals obtained by card (religion.cardinal_card_*).
+	for index := 0; index < cardinalCards; index++ {
+		cards = append(cards, models.NobleCard{
+			ID:      nobleCardID(len(cards) + 1),
+			Kind:    models.NobleCardKindDignity,
+			Code:    models.DignityCardinalCardCode,
+			Dignity: models.DignityCardinal,
 		})
 	}
 	for index := 0; index < claims; index++ {

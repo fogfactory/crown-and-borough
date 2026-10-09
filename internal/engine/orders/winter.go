@@ -204,6 +204,9 @@ func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (mod
 	if fields[0] == "V" && fields[1] == "C" {
 		return parseCalamityVetoLine(fields, lineNumber, indexes)
 	}
+	if fields[0] == "N" {
+		return parseBuyCardinalLine(fields, lineNumber, indexes)
+	}
 	if fields[0] == "K" || fields[0] == "V" {
 		return parseElectionOrderLine(fields, lineNumber, indexes)
 	}
@@ -545,4 +548,21 @@ func parseElectionOrderLine(fields []string, lineNumber int, indexes gameIndexes
 		order.TerritoryID = seat
 	}
 	return order, nil
+}
+
+// parseBuyCardinalLine handles N C NNN: NNN is one of the player's bishops,
+// promoted to cardinal at the investiture. Ownership, the title, the cap and
+// the cost are engine rejects.
+func parseBuyCardinalLine(fields []string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
+	if fields[1] != "C" {
+		return models.WinterOrder{}, unknownWinterSubtype(lineNumber, fields[0], fields[1])
+	}
+	if len(fields) != 3 {
+		error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.WinterBuyCardinalShape)
+		return models.WinterOrder{}, &error
+	}
+	if parseError := winterNobleCode(fields[2], lineNumber, indexes); parseError != nil {
+		return models.WinterOrder{}, parseError
+	}
+	return models.WinterOrder{Type: models.WinterOrderTypeBuyCardinal, NobleCode: models.NobleCode(fields[2])}, nil
 }

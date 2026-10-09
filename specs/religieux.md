@@ -68,9 +68,10 @@ valide** de la feuille est retenu, les suivants sont ignorés. Un même noble pe
 être candidat à plusieurs élections, mais pas à un évêché après avoir été élu
 à un autre le même hiver. Les élections se résolvent l'une après l'autre
 (évêchés par identifiant de région, puis conclave), avec des voix lues sur un
-instantané des titres. Un titre gagné pendant l'hiver (élection,
-achat de cardinal) n'est conféré qu'à l'investiture, après tous les décomptes
-([hiver.md](hiver.md#ordre-de-résolution)).
+instantané des titres. Un titre gagné pendant l'hiver par élection ou par
+achat de cardinal n'est conféré qu'à l'investiture, après tous les décomptes
+([hiver.md](hiver.md#ordre-de-résolution)) ; la carte de cardinal, comme toute
+dignité, prend effet aussitôt.
 
 ### Votes
 
@@ -105,29 +106,51 @@ reste vacant (voir « Déclenchement de l'élection »).
 ### Nomination et achat d'un cardinal
 
 Un cardinal est obtenu par la promotion d'un évêque déjà en place — jamais
-directement depuis un noble libre. Deux voies, cumulables :
+directement depuis un noble libre. Deux voies, cumulables, chacune avec son
+propre plafond :
 
-- une **carte de nomination**, piochée dans le deck spécial et jouable par
-  n'importe quel joueur (pas seulement le pape), ciblant obligatoirement un
-  de ses propres évêques ;
+- une **carte de cardinal** (code `CAR`), une dignité du
+  [deck de nobles](succession.md#deck-de-nobles), gratuite. Elle se joue comme
+  toute carte de dignité (`D N NNN CAR`) mais exclusivement sur un de ses
+  propres évêques. Le deck contient `1 + ⌊N / 3⌋` cartes de cardinal (`N` =
+  nombre de joueurs : 1 en dessous de 3 joueurs, 2 en dessous de 6, etc. ;
+  `religion.cardinal_card_base` et `religion.cardinal_card_players_per_extra`
+  de `assets/balance.yaml`) : ce nombre est le plafond de cette voie, il n'y a
+  pas d'autre limite que celle des cartes disponibles ;
 - un **achat direct en hiver**, contre R, ciblant également un évêque du
-  joueur qui paie (`N C NNN`, syntaxe proposée). Le coût est à fixer dans
-  `assets/balance.yaml` au même titre que les autres investissements
-  hivernaux. L'achat se résout parmi les ordres de gestion et le titre est
-  conféré à l'investiture : le nouveau cardinal ne vote ni ne se présente au
-  conclave du même hiver ; une excommunication du même hiver, résolue avant,
-  rend l'achat caduc sans prélèvement.
+  joueur qui paie (`N C NNN`). Le coût est `religion.cardinal_cost` dans
+  `assets/balance.yaml` (8 R), prélevé sur les réserves de paiement du joueur
+  depuis sa capitale. Les cardinaux achetés en jeu sont plafonnés à
+  `1 + ⌊N / 6⌋` (1 en dessous de 6 joueurs, 2 en dessous de 12, etc. ;
+  `religion.cardinal_purchase_base` et
+  `religion.cardinal_purchase_players_per_extra`) ; l'ordre qui dépasserait ce
+  plafond est rejeté sans prélèvement. Les achats déjà acceptés dans l'hiver
+  comptent dans le plafond.
 
-Dans les deux cas, le nombre total de cardinaux en jeu est plafonné à
-`1 + ⌊N / 6⌋` (`N` = nombre de joueurs : 1 en dessous de 6 joueurs, 2 en
-dessous de 12, etc. ; paramètres `religion.cardinal_cap_base` et
-`religion.cardinal_players_per_extra` de `assets/balance.yaml`) ; une nomination ou un achat qui
-dépasserait ce plafond est rejeté sans effet (carte perdue ou R non prélevé,
-selon la règle générale de rejet des ordres du GDD §2). Il n'existe pas de
-mécanisme de bootstrap dédié : la nomination n'étant pas réservée au pape,
-les deux premiers cardinaux nécessaires à la toute première élection papale
-peuvent être obtenus normalement par n'importe quel joueur, avant même
-qu'un pape existe.
+Dans les deux cas l'ordre se résout parmi les ordres de gestion. La **carte**,
+comme toute carte de dignité, se joue à tout moment : le noble est cardinal
+aussitôt, ses voix comptent dans les élections du même hiver et il compte dans
+la majorité absolue du conclave. L'**achat** n'est conféré qu'à l'investiture :
+le nouveau cardinal ne vote ni ne se présente au conclave du même hiver. Une
+excommunication du même hiver, résolue avant, rend l'ordre caduc : l'achat
+n'est pas prélevé, la carte reste en main. Un ordre
+rejeté (noble qui n'est pas un évêque du joueur, déjà cardinal ou déjà promu
+cet hiver) ne coûte rien et ne consomme pas la carte.
+
+Les deux plafonds sont indépendants : à 3 joueurs, jusqu'à 2 cardinaux par
+carte et 1 par achat, soit 3 au total, de quoi tenir un conclave. Il n'existe
+pas de mécanisme de bootstrap dédié : n'importe quel joueur peut obtenir les
+premiers cardinaux, avant même qu'un pape existe.
+
+**Origine du titre.** Le cardinal obtenu par carte porte la dignité
+« cardinal » (la carte repose sur lui, comme toute dignité) ; le cardinal acheté
+n'en porte pas. Quand le titre prend fin (mort ou excommunication, voir « Fin de
+titre ») :
+
+- un cardinal **obtenu par carte** rend sa carte à la défausse du deck de nobles
+  (comme toute dignité) : elle peut être repiochée et rejouée ;
+- un cardinal **acheté** libère sa place sous le plafond d'achat : elle est de
+  nouveau disponible à l'achat.
 
 ### Élection papale
 

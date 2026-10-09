@@ -71,6 +71,10 @@ func (order dignityOrder) Apply(ctx *ExecutionContext) {
 		resolution.rejectWinterOrder(playerID, winterOrder, "card_not_in_hand")
 		return
 	}
+	if card.Dignity == models.DignityCardinal {
+		resolution.playCardinalCard(playerID, winterOrder, noble, handIndex)
+		return
+	}
 	_, married := resolution.state.MarriageOf(noble.ID)
 	if reason := card.Dignity.CanReceive(*noble, married); reason != "" {
 		resolution.rejectWinterOrder(playerID, winterOrder, reason)

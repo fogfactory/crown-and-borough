@@ -652,7 +652,7 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 				Reason: event.Reason, Dignity: event.Dignity, Fief: event.FiefTitle,
 			})
 		case EventTypeWinterStock, EventTypeRecruit, EventTypeBuild, EventTypeUpgrade, EventTypeFortify,
-			EventTypeRejected, EventTypeCapitalElected, EventTypeNobleDraw, EventTypeNobleDiscard, EventTypeDignity, EventTypeClaim, EventTypeFiefFounded, EventTypeFiefAssigned, EventTypeFiefAutoAssigned:
+			EventTypeRejected, EventTypeCapitalElected, EventTypeNobleDraw, EventTypeNobleDiscard, EventTypeDignity, EventTypeClaim, EventTypeCardinalPurchase, EventTypeFiefFounded, EventTypeFiefAssigned, EventTypeFiefAutoAssigned:
 			if report.Winter == nil {
 				report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}
 			}
