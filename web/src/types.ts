@@ -473,6 +473,8 @@ export interface StateData {
   openElections?: OpenElection[]
   /** Outside winter: the territories a Révolte card can be played on. */
   revoltTargets?: string[]
+  /** Outside winter: the paid appeasement of a rebel army of n troops costs base^n R. */
+  appeasementCostBase?: number
   /** Winter only: the possible winter orders of the viewer. */
   winterAids?: WinterAids
   /** Hands revealed by a spy held hostage by their owner. */
