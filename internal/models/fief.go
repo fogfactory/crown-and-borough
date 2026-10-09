@@ -71,6 +71,12 @@ func (g *GameState) HighestHeldFief(id NobleID) *Fief {
 	return best
 }
 
+// FirstName is the first name of the noble, without its family name.
+func (n Noble) FirstName() string {
+	firstName, _, _ := strings.Cut(n.Name, " ")
+	return firstName
+}
+
 // NobleDisplayName is the name shown to players. A noble holding no fief is
 // its stored Name ("Prénom de Territoire", its birthplace) preceded by
 // "Sieur" or "Dame". A fief holder takes the form of address of the highest
@@ -80,7 +86,8 @@ func (g *GameState) HighestHeldFief(id NobleID) *Fief {
 // the spouse's fief ("Comtesse Mahaut de Rochevent") when it outranks the
 // noble's own fief, if any. This is display only: Name itself stays the
 // stored identity and no rule reads the courtesy title. It is safe to call
-// on a nil state.
+// on a nil state. The dignity of D'Arc replaces the family name of the lady
+// who carries it, with or without a fief: "Dame Hugon d'Arc".
 func (g *GameState) NobleDisplayName(n Noble) string {
 	var best *Fief
 	if g != nil {
@@ -110,6 +117,10 @@ func (g *GameState) NobleDisplayName(n Noble) string {
 				break
 			}
 		}
+	}
+	if n.Has(DignityDArc) {
+		firstName, _, _ := strings.Cut(n.Name, " ")
+		name = firstName + " d'Arc"
 	}
 	if !held {
 		forms = [2]string{"Sieur", "Dame"}

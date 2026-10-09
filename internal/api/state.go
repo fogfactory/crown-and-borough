@@ -196,13 +196,15 @@ type InfraView struct {
 // NobleView contains the visible identity, code, status, owner, and location
 // of a noble.
 type NobleView struct {
-	ID       models.NobleID     `json:"id"`
-	Code     models.NobleCode   `json:"code"`
-	Name     string             `json:"name"`
-	Owner    models.PlayerID    `json:"owner"`
-	Location models.TerritoryID `json:"location"`
-	Status   models.NobleStatus `json:"status"`
-	Sex      models.Sex         `json:"sex"`
+	ID   models.NobleID   `json:"id"`
+	Code models.NobleCode `json:"code"`
+	Name string           `json:"name"`
+	// FirstName is the noble's first name alone, for short labels.
+	FirstName string             `json:"firstName"`
+	Owner     models.PlayerID    `json:"owner"`
+	Location  models.TerritoryID `json:"location"`
+	Status    models.NobleStatus `json:"status"`
+	Sex       models.Sex         `json:"sex"`
 	// Spouse is the code of the noble this one is married to, set only while
 	// the marriage is active (both spouses alive).
 	Spouse *models.NobleCode `json:"spouse,omitempty"`
@@ -486,13 +488,14 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 	}
 	for _, noble := range state.Nobles {
 		nobleView := NobleView{
-			ID:       noble.ID,
-			Code:     models.NobleCode(noble.Code),
-			Name:     state.NobleDisplayName(noble),
-			Owner:    noble.OwnerID,
-			Location: noble.LocationID,
-			Status:   noble.Status,
-			Sex:      noble.Sex,
+			ID:        noble.ID,
+			Code:      models.NobleCode(noble.Code),
+			Name:      state.NobleDisplayName(noble),
+			FirstName: noble.FirstName(),
+			Owner:     noble.OwnerID,
+			Location:  noble.LocationID,
+			Status:    noble.Status,
+			Sex:       noble.Sex,
 		}
 		revealHidden := viewer != nil && (*viewer == noble.OwnerID || *viewer == models.SpectatorViewer)
 		for _, dignity := range noble.Dignities {

@@ -161,6 +161,8 @@ func TestNobleDisplayName(t *testing.T) {
 	male := models.Noble{ID: "N1", Name: "Guillaume de Rosemont", Sex: models.SexMale}
 	female := models.Noble{ID: "N2", Name: "Mahaut de Rosemont", Sex: models.SexFemale}
 	wed := []models.Marriage{{NobleA: "N1", NobleB: "N2"}}
+	darc := female
+	darc.Dignities = []models.Dignity{models.DignityDArc}
 	holds := func(noble models.Noble, title models.FiefTitle) models.Fief {
 		id := noble.ID
 		return models.Fief{Title: title, CapitalTerritoryID: "ROC", HolderNobleID: &id}
@@ -173,6 +175,8 @@ func TestNobleDisplayName(t *testing.T) {
 		want      string
 	}{
 		{"male without fief", nil, nil, male, "Sieur Guillaume de Rosemont"},
+		{"d'Arc replaces the family name", nil, nil, darc, "Dame Mahaut d'Arc"},
+		{"d'Arc keeps her name with a fief", []models.Fief{holds(darc, models.FiefTitleBarony)}, nil, darc, "Baronne Mahaut d'Arc"},
 		{"female without fief", nil, nil, female, "Dame Mahaut de Rosemont"},
 		{"baron", []models.Fief{holds(male, models.FiefTitleBarony)}, nil, male, "Baron Guillaume de Rochevent"},
 		{"baroness", []models.Fief{holds(female, models.FiefTitleBarony)}, nil, female, "Baronne Mahaut de Rochevent"},

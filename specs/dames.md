@@ -129,7 +129,8 @@ pas une dignité de dame, et le cardinalat se cumulent avec elle.
 
 Passif : `+1` à la force de toute armée qu'elle commande, cumulable avec le
 bonus de commandement noble de `+1` (soit `+2` au total). Aucun ordre
-réservé.
+réservé. Son nom d'Arc remplace le nom de famille de la dame dans ses titres
+habituels (« Dame Mahaut d'Arc », « Baronne Mahaut d'Arc »).
 
 #### Châtelaine
 

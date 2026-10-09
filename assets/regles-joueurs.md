@@ -784,7 +784,7 @@ voient une dame sans dignité, ni dans la vue d'état ni dans le rapport.
 
 | Dignité | Code | Mariage | Effet |
 |---|---|---|---|
-| D'Arc | `ARC` | Bloquée | `+1` à la force de l'armée qu'elle commande, en plus du `+1` de commandement noble. |
+| D'Arc | `ARC` | Bloquée | `+1` à la force de l'armée qu'elle commande, en plus du `+1` de commandement noble. Son nom d'Arc remplace le nom de famille de la dame dans ses titres (« Dame Mahaut d'Arc »). |
 | Châtelaine | `CTL` | Libre | Dans un château, elle te fait connaître les ordres émis ce tour sur son fief, y compris ceux qui ciblent des armées adverses. Une armée venue de l'extérieur qui entre sans modifier sa chaîne reste cachée. |
 | Abbesse | `ABB` | Bloquée | Se joue avec le village seed d'une région (`D N NNN ABB TER`), définitif. Tant qu'elle s'y trouve, tu connais les chaînes d'ordres émises dans cette région. |
 | Herboriste | `HRB` | Bloquée | Tes troupes et nobles sur sa case et les cases adjacentes sont immunisés à la peste ; ton armée sur sa case consomme 2 rations de moins par tour, sans descendre sous zéro. |

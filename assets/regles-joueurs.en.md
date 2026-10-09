@@ -742,7 +742,7 @@ dignity, in neither the state view nor the report.
 
 | Dignity | Code | Marriage | Effect |
 |---|---|---|---|
-| D'Arc | `ARC` | Blocked | `+1` force to the army she commands, on top of the noble command bonus of `+1`. |
+| D'Arc | `ARC` | Blocked | `+1` force to the army she commands, on top of the noble command bonus of `+1`. The name d'Arc replaces the lady's family name in her titles ("Dame Mahaut d'Arc"). |
 | Castellan | `CTL` | Free | In a castle, you learn the orders issued this turn on her fief, including those targeting enemy armies. An army coming from outside that enters without changing its chain stays hidden. |
 | Abbess | `ABB` | Blocked | Played with the village seed of a region (`D N NNN ABB TER`), for good. While she is in it, you know the order chains issued in that region. |
 | Herbalist | `HRB` | Blocked | Your troops and nobles on her territory and the adjacent ones are immune to plague; your army on her territory consumes 2 fewer rations per turn, never below zero. |

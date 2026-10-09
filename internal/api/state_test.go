@@ -60,7 +60,7 @@ func TestProjectStateMatchesStateContract(t *testing.T) {
 	if got := view.Territories[0].Infrastructures; !reflect.DeepEqual(got, []InfraView{{Type: models.InfraTypeCastle, Level: 1}}) {
 		t.Errorf("AAA infrastructure = %#v, want nested castle", got)
 	}
-	if len(view.Nobles) != 1 || !reflect.DeepEqual(view.Nobles[0], NobleView{ID: "N1", Code: "HUG", Name: "Sieur Hugues de Rosemont", Owner: "P1", Location: "ROS", Status: models.NobleStatusFree, Sex: models.SexMale}) {
+	if len(view.Nobles) != 1 || !reflect.DeepEqual(view.Nobles[0], NobleView{ID: "N1", Code: "HUG", Name: "Sieur Hugues de Rosemont", FirstName: "Hugues", Owner: "P1", Location: "ROS", Status: models.NobleStatusFree, Sex: models.SexMale}) {
 		t.Errorf("nobles = %#v, want N1", view.Nobles)
 	}
 
