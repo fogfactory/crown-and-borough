@@ -164,9 +164,12 @@ func (g *GameState) VotingReligiousTitle(id NobleID) ReligiousTitle {
 	return ReligiousTitleNone
 }
 
-// CardinalCap is the maximum number of cardinals in play: base plus one more
-// per full playersPerExtra players (religion.cardinal_cap_base and
-// religion.cardinal_players_per_extra), so 1 below 6 players, 2 below 12, etc.
+// CardinalCap is base plus one more per full playersPerExtra players. It sizes
+// both the purchased cardinals (religion.cardinal_purchase_base and
+// religion.cardinal_purchase_players_per_extra: 1 below 6 players, 2 below 12,
+// etc.) and the cardinal cards of the noble deck (religion.cardinal_card_base
+// and religion.cardinal_card_players_per_extra: 1 below 3 players, 2 below 6,
+// etc.).
 func CardinalCap(players, base, playersPerExtra int) int {
 	if playersPerExtra <= 0 {
 		return base
@@ -261,6 +264,11 @@ func (g *GameState) validateReligion(nobles map[NobleID]bool) error {
 			return fmt.Errorf("models: cardinal %q: must be a bishop", cardinal)
 		}
 		cardinals[cardinal] = true
+	}
+	for _, noble := range g.Nobles {
+		if noble.Has(DignityCardinal) && !cardinals[noble.ID] {
+			return fmt.Errorf("models: noble %q: carries the cardinal dignity without being a cardinal", noble.ID)
+		}
 	}
 	if g.Pope != nil {
 		if !nobles[*g.Pope] {

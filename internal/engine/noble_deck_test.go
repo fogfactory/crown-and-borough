@@ -75,7 +75,7 @@ func TestBuildNobleDeckSizesParityAndBastards(t *testing.T) {
 	for players := 2; players <= 16; players++ {
 		t.Run(fmt.Sprintf("%d players", players), func(t *testing.T) {
 			used := startingCodes(prenoms, 2*players)
-			deck := buildNobleDeck("deck-sizes", deckTestPlayers(players), 6, prenoms, used)
+			deck := buildNobleDeck("deck-sizes", deckTestPlayers(players), 6, prenoms, used, 0)
 			if deck == nil {
 				t.Fatal("deck = nil, want a deck")
 			}
@@ -125,7 +125,7 @@ func TestBuildNobleDeckSizesParityAndBastards(t *testing.T) {
 
 func TestBuildNobleDeckFourPlayers(t *testing.T) {
 	prenoms := realPrenoms(t)
-	deck := buildNobleDeck("deck-four", deckTestPlayers(4), 6, prenoms, startingCodes(prenoms, 8))
+	deck := buildNobleDeck("deck-four", deckTestPlayers(4), 6, prenoms, startingCodes(prenoms, 8), 0)
 	males, females, dignities := countKinds(deck)
 	claims := claimsOf(deck)
 	if len(deck.Cards) != 40 || dignities != 7 || claims != 3 || males+females != 21 {
@@ -141,7 +141,7 @@ func TestBuildNobleDeckFourPlayers(t *testing.T) {
 func TestBuildNobleDeckIsDeterministicAndSeeded(t *testing.T) {
 	prenoms := realPrenoms(t)
 	build := func(seed string) *models.NobleDeck {
-		return buildNobleDeck(seed, deckTestPlayers(4), 6, prenoms, startingCodes(prenoms, 8))
+		return buildNobleDeck(seed, deckTestPlayers(4), 6, prenoms, startingCodes(prenoms, 8), 0)
 	}
 	if !reflect.DeepEqual(build("same"), build("same")) {
 		t.Error("the same seed built two different decks")
@@ -153,7 +153,7 @@ func TestBuildNobleDeckIsDeterministicAndSeeded(t *testing.T) {
 	// cards (5 players make 23 noble cards).
 	sawMale, sawFemale := false, false
 	for index := 0; index < 20; index++ {
-		deck := buildNobleDeck(fmt.Sprintf("odd-%d", index), deckTestPlayers(5), 6, prenoms, startingCodes(prenoms, 10))
+		deck := buildNobleDeck(fmt.Sprintf("odd-%d", index), deckTestPlayers(5), 6, prenoms, startingCodes(prenoms, 10), 0)
 		males, females, _ := countKinds(deck)
 		switch males - females {
 		case 1:
@@ -174,12 +174,12 @@ func TestBuildNobleDeckClampsToAvailableNames(t *testing.T) {
 		{Code: "AAA", Name: "A", Sex: "male"}, {Code: "BBB", Name: "B", Sex: "male"},
 		{Code: "CCC", Name: "C", Sex: "female"}, {Code: "DDD", Name: "D", Sex: "male"},
 	}
-	deck := buildNobleDeck("tiny", deckTestPlayers(2), 6, prenoms, map[string]bool{"DDD": true})
+	deck := buildNobleDeck("tiny", deckTestPlayers(2), 6, prenoms, map[string]bool{"DDD": true}, 0)
 	males, females, dignities := countKinds(deck)
 	if males > 2 || females > 1 || dignities < 1 {
 		t.Errorf("deck = %d males, %d females, %d dignities, want it clamped to the three free names", males, females, dignities)
 	}
-	if deck := buildNobleDeck("none", deckTestPlayers(2), 6, nil, nil); deck != nil {
+	if deck := buildNobleDeck("none", deckTestPlayers(2), 6, nil, nil, 0); deck != nil {
 		t.Errorf("deck = %+v, want nil without any name", deck)
 	}
 }
@@ -203,8 +203,8 @@ func TestCreateGameBuildsNobleDeckWithoutStartingNames(t *testing.T) {
 		t.Error("the same seed created two different noble decks")
 	}
 	deck := first.NobleDeck
-	if deck == nil || len(deck.Cards) != 40 {
-		t.Fatalf("deck = %+v, want 40 cards", deck)
+	if deck == nil || len(deck.Cards) != 42 {
+		t.Fatalf("deck = %+v, want 42 cards", deck)
 	}
 	starting := map[string]bool{}
 	for _, noble := range first.Nobles {

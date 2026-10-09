@@ -19,7 +19,7 @@ func (ctx *resolutionContext) resolvePapalSanctions(orders map[models.PlayerID][
 		for _, order := range orders[playerID] {
 			switch order.Type {
 			case models.WinterOrderTypeExcommunicate:
-				ctx.excommunicate(playerID, order, &excommunicated)
+				ctx.pronounceExcommunication(playerID, order, &excommunicated)
 			case models.WinterOrderTypeLiftExcommunication:
 				ctx.liftExcommunication(playerID, order)
 			}
@@ -51,7 +51,7 @@ func (ctx *resolutionContext) papalTarget(playerID models.PlayerID, order models
 	return pope, target, ""
 }
 
-func (ctx *resolutionContext) excommunicate(playerID models.PlayerID, order models.WinterOrder, done *bool) {
+func (ctx *resolutionContext) pronounceExcommunication(playerID models.PlayerID, order models.WinterOrder, done *bool) {
 	pope, target, reason := ctx.papalTarget(playerID, order)
 	switch {
 	case reason != "":
@@ -80,7 +80,7 @@ func (ctx *resolutionContext) excommunicate(playerID models.PlayerID, order mode
 		}
 	}
 	*done = true
-	ctx.state.Excommunicate(models.Excommunication{
+	ctx.excommunicate(models.Excommunication{
 		Noble:  target.ID,
 		Reason: models.ExcommunicationPapal,
 		By:     pope.ID,

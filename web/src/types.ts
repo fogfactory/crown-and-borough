@@ -238,6 +238,7 @@ export type Dignity =
   | 'correspondent'
   | 'spy'
   | 'witch'
+  | 'cardinal'
 
 export type NobleCardKind = 'noble' | 'dignity' | 'claim'
 

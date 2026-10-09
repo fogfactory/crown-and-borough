@@ -60,6 +60,7 @@ const (
 	WinterOrderTypeVote                WinterOrderType = "vote"
 	WinterOrderTypeExcommunicate       WinterOrderType = "excommunicate"
 	WinterOrderTypeLiftExcommunication WinterOrderType = "lift_excommunication"
+	WinterOrderTypeBuyCardinal         WinterOrderType = "buy_cardinal"
 )
 
 // IsValid reports whether a winter order type is known to the winter resolver.
@@ -71,7 +72,7 @@ func (t WinterOrderType) IsValid() bool {
 		WinterOrderTypeFoundFief, WinterOrderTypeAssignFief, WinterOrderTypeMarriage,
 		WinterOrderTypeDrawNoble, WinterOrderTypeDignity, WinterOrderTypeDiscardNoble,
 		WinterOrderTypeClaim, WinterOrderTypeCalamityVeto,
-		WinterOrderTypeCandidacy, WinterOrderTypeVote,
+		WinterOrderTypeCandidacy, WinterOrderTypeVote, WinterOrderTypeBuyCardinal,
 		WinterOrderTypeExcommunicate, WinterOrderTypeLiftExcommunication:
 		return true
 	}
@@ -139,9 +140,11 @@ type Order struct {
 // SpouseCode the noble of another player whose titles it claims. For
 // WinterOrderTypeCandidacy and WinterOrderTypeVote, Election names the
 // election, NobleCode the candidate and TerritoryID the seed village of the
-// bishopric (bishop elections only). For WinterOrderTypeExcommunicate and
-// WinterOrderTypeLiftExcommunication, NobleCode is the targeted noble (papal
-// orders, resolved first: specs/religieux.md § Excommunication).
+// bishopric (bishop elections only). For WinterOrderTypeBuyCardinal, NobleCode
+// is the player's own bishop promoted to cardinal at the investiture. For
+// WinterOrderTypeExcommunicate and WinterOrderTypeLiftExcommunication, NobleCode
+// is the targeted noble (papal orders, resolved first: specs/religieux.md
+// § Excommunication).
 type WinterOrder struct {
 	ID           OrderID         `json:"id"`
 	Type         WinterOrderType `json:"type"`

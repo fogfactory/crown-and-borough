@@ -27,6 +27,9 @@ type resolutionContext struct {
 	elections      []*election
 	electionOrders []electionOrder
 	pendingTitles  []pendingTitle
+	// pendingCardinals holds the bishops promoted to cardinal this winter,
+	// by purchase or by card, titled at the investiture.
+	pendingCardinals []pendingCardinal
 	// nobleDraws holds the players who already drew a noble card this winter
 	// (one draw per player per winter, specs/succession.md § Deck de nobles).
 	nobleDraws map[models.PlayerID]bool

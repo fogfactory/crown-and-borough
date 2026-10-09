@@ -84,6 +84,9 @@ const (
 	// papal sanctions (winter stage 1).
 	EventTypeExcommunication       EventType = "excommunication"
 	EventTypeExcommunicationLifted EventType = "excommunication_lifted"
+	// EventTypeCardinalPurchase is the paid N C order; the title itself is
+	// conferred at the investiture.
+	EventTypeCardinalPurchase EventType = "cardinal_purchase"
 )
 
 // Outcome is the execution result of one current order.

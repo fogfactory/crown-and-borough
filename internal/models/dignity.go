@@ -21,6 +21,13 @@ const (
 	DignityWitch         Dignity = "witch"
 )
 
+// DignityCardinal is carried by a cardinal that obtained the title with a
+// cardinal card of the noble deck; a purchased cardinal has no card and does
+// not carry it. The card lies on the bishop from the moment it is played, the
+// title itself follows at the investiture; the dignity is lost, with the card
+// going back to the discard pile, when the title ends.
+const DignityCardinal Dignity = "cardinal"
+
 // Codes of the dignity cards in D N XXX CCC.
 const (
 	DignityBastardCardCode    = "BAS"
@@ -33,6 +40,7 @@ const (
 	DignityCorrespondentCode  = "COR"
 	DignitySpyCardCode        = "ESP"
 	DignityWitchCardCode      = "SOR"
+	DignityCardinalCardCode   = "CAR"
 )
 
 // DignityEffect declares everything a dignity changes in the rules. Every
@@ -112,6 +120,7 @@ type DignityEffect struct {
 
 // dignityEffects is the single dignity registry.
 var dignityEffects = map[Dignity]DignityEffect{
+	DignityCardinal: {CardCode: DignityCardinalCardCode},
 	DignityBastard: {
 		CardCode:              DignityBastardCardCode,
 		NobleLimitBonus:       1,

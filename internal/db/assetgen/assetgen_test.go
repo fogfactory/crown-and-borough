@@ -59,8 +59,10 @@ alliance:
   density_bonus: 1
 religion:
   cardinal_cost: 8
-  cardinal_cap_base: 1
-  cardinal_players_per_extra: 6
+  cardinal_purchase_base: 1
+  cardinal_purchase_players_per_extra: 6
+  cardinal_card_base: 1
+  cardinal_card_players_per_extra: 3
   excommunications_per_winter: 1
   excommunications_per_target_player: 1
   votes:

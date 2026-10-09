@@ -86,6 +86,9 @@ const REASON_KEYS: Record<string, MessageKey> = {
   transfer_status_to_owner: 'reports.reason.transfer_status_to_owner',
   marriage_not_reciprocated: 'reports.reason.marriage_not_reciprocated',
   election_not_open: 'reports.reason.election_not_open',
+  cardinal_requires_bishop: 'reports.reason.cardinal_requires_bishop',
+  already_cardinal: 'reports.reason.already_cardinal',
+  cardinal_cap_reached: 'reports.reason.cardinal_cap_reached',
   candidate_not_eligible: 'reports.reason.candidate_not_eligible',
   candidacy_already_filed: 'reports.reason.candidacy_already_filed',
   unknown_candidate: 'reports.reason.unknown_candidate',
@@ -356,6 +359,7 @@ const DIGNITY_CARD_CODES: Record<Dignity, string> = {
   correspondent: 'COR',
   spy: 'ESP',
   witch: 'SOR',
+  cardinal: 'CAR',
 }
 
 function investmentLabel(
