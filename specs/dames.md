@@ -108,9 +108,13 @@ ou par les conditions propres à chaque dignité.
 
 ### Liste des dignités
 
-Une dame ne porte qu'**une seule** dignité de dame : la carte d'une seconde
-dignité de dame est rejetée (`dignity_exclusive`). La bâtardise, qui n'est
-pas une dignité de dame, et le cardinalat se cumulent avec elle.
+Une dame porte au plus **une dignité visible et une dignité cachée** : la
+carte d'une seconde dignité de la même catégorie est rejetée
+(`dignity_exclusive`), y compris quand la dignité cachée a été révélée. La
+bâtardise, qui n'est pas une dignité de dame, et le cardinalat se cumulent avec
+elles. Une dignité cachée ne se joue que sur une dame de son propriétaire
+(`dignity_hidden_own_only`, rejet testé avant tout autre) : l'ordre ne permet
+pas de sonder les dignités cachées des autres joueurs.
 
 | Dignité | Visibilité | Mariage après nomination | Excommunication si révélée |
 |---|---|---|---|

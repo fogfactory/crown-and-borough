@@ -264,3 +264,36 @@ func TestDignityCanTargetANobleRecruitedEarlierInTheSameSheet(t *testing.T) {
 		t.Error("the recruited noble did not receive the dignity")
 	}
 }
+
+func TestHiddenDignityIsPlayedOnOwnLadiesOnly(t *testing.T) {
+	state := ladyState(t, models.DignityWitch)
+	addNoble(state, "N3", "MAB", "P2", "AAA")
+	state.Nobles[len(state.Nobles)-1].Sex = models.SexFemale
+	state.Nobles[len(state.Nobles)-1].Dignities = []models.Dignity{models.DignityPoisoner}
+	resolution := resolveNobleDeckWinter(t, state, map[models.PlayerID][]models.WinterOrder{"P1": {
+		{ID: "O1", Type: models.WinterOrderTypeDignity, NobleCode: "MAB", CardCode: "SOR"},
+	}})
+	if reasons := rejectionReasons(resolution.Events); len(reasons) != 1 || reasons[0] != "dignity_hidden_own_only" {
+		t.Errorf("rejections = %v, want dignity_hidden_own_only whether or not the lady hides one", reasons)
+	}
+}
+
+func TestALadyCarriesOneVisibleAndOneHiddenDignity(t *testing.T) {
+	state := ladyState(t, models.DignityWitch)
+	giveCard(state, "P1", models.NobleCard{Kind: models.NobleCardKindDignity, Code: "EMP", Dignity: models.DignityPoisoner})
+	giveCard(state, "P1", models.NobleCard{Kind: models.NobleCardKindDignity, Code: "CTL", Dignity: models.DignityCastellan})
+	state.Nobles[0].Dignities = []models.Dignity{models.DignityAstrologer}
+	resolution := resolveNobleDeckWinter(t, state, map[models.PlayerID][]models.WinterOrder{"P1": {
+		{ID: "O1", Type: models.WinterOrderTypeDignity, NobleCode: "ELE", CardCode: "SOR"},
+		{ID: "O2", Type: models.WinterOrderTypeDignity, NobleCode: "ELE", CardCode: "EMP"},
+		{ID: "O3", Type: models.WinterOrderTypeDignity, NobleCode: "ELE", CardCode: "CTL"},
+	}})
+	reasons := electionRejections(resolution.Events)
+	if reasons["O1"] != "" || reasons["O2"] != "dignity_exclusive" || reasons["O3"] != "dignity_exclusive" {
+		t.Errorf("rejections = %v, want the witch accepted next to the astrologer, then a second hidden and a second visible refused", reasons)
+	}
+	got := resolution.State.Nobles[0].Dignities
+	if len(got) != 2 || got[0] != models.DignityAstrologer || got[1] != models.DignityWitch {
+		t.Errorf("dignities = %v, want astrologer and witch", got)
+	}
+}

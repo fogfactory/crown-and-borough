@@ -701,7 +701,7 @@ investissements directs, une ligne par ordre, appliqués dans l'ordre saisi.
 | Piocher une carte de noble | `T N` | une seule fois par hiver et par joueur ; le deck de nobles, commun à tous, ne doit pas être épuisé | 0 |
 | Recruter un noble | `R N CCC XXX` | `CCC` est une carte de noble de ta main ; `XXX` contrôlé, avec un château ou un village et une armée du joueur, et moins de nobles vivants possédés que ton plafond, {{noble_limit}} de base (voir ci-dessous) | 0 |
 | Réclamer des titres | `C N HHH CCC` | `CLM` est une carte de prétention de ta main ; `HHH` est un de tes nobles, posé pendant un mariage de `CCC` avec l'un de tes nobles, non bâtard et sans prétention en cours ; `CCC` est un noble d'un autre joueur | 0 |
-| Conférer une dignité | `D N NNN CCC` | `NNN` est un noble quelconque, à toi ou à un adversaire ; `CCC` est une carte de dignité de ta main (`BAS` : bâtard ; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `EMP`, `SOR` : dames ; Bloquées : non mariées) ; un noble ne porte une dignité qu'une fois, et une dame ne porte qu'une seule dignité de dame (`dignity_exclusive`) | 0 |
+| Conférer une dignité | `D N NNN CCC` | `NNN` est un noble quelconque, à toi ou à un adversaire ; `CCC` est une carte de dignité de ta main (`BAS` : bâtard ; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `EMP`, `SOR` : dames ; Bloquées : non mariées) ; un noble ne porte une dignité qu'une fois, et une dame porte au plus une dignité de dame visible et une cachée (`dignity_exclusive`) ; une dignité cachée ne se joue que sur une de tes dames (`dignity_hidden_own_only`) | 0 |
 | Défausser une carte de noble | `D C CCC` | `CCC` est une carte de ta main de nobles (trigramme de noble ou `BAS`) ; sans limite par hiver ; la carte va à la défausse du deck | 0 |
 | Recruter une troupe | `R T XXX` | `XXX` contrôlé, et un noble libre du joueur sur `XXX` ou adjacent | {{costs.troop}} |
 | Construire ou améliorer un moulin | `C M XXX` | `XXX` contrôlé ; un **nouveau** moulin exige une case **vide** adjacente à un château ou village, ou portant elle-même un château ou village ; un moulin **existant** peut toujours être amélioré, même isolé | {{costs.mill_levels.0}} (N1), {{costs.mill_levels.1}} (N2), {{costs.mill_levels.2}} (N3) |
@@ -774,7 +774,7 @@ ne porte une dignité qu'une fois. Le deck contient le **bâtard** (`BAS`), ouve
 - compte comme un titre dans ton score.
 
 Les dignités des dames sont permanentes et comptent chacune comme un titre dans
-ton score. Elles ne se jouent que sur une dame (`dignity_female_only`), et une dame n'en porte qu'une (`dignity_exclusive`) ; la bâtardise se cumule avec elle. Une
+ton score. Elles ne se jouent que sur une dame (`dignity_female_only`), et une dame porte au plus une dignité visible et une cachée (`dignity_exclusive`) ; la bâtardise se cumule avec elles. Une dignité cachée ne se joue que sur une de tes dames (`dignity_hidden_own_only`). Une
 dignité **Bloquée** ne se joue pas sur une dame mariée (`noble_married`) et
 interdit ensuite le mariage ; une dignité **Libre** se joue sur une dame mariée
 ou non et laisse le mariage possible. Leurs bonus cessent tant que la dame est
