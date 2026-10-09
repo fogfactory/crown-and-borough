@@ -211,8 +211,12 @@ revenu de territoire des fiefs, qui relève exclusivement de la taxe.
 - l'**évêque** ne cible que son propre évêché ;
 - le **cardinal** et le **pape** peuvent cibler n'importe quel évêché.
 
-Syntaxe : `P TX HHH XXX` dans la soumission `special`, `HHH` étant le noble
-émetteur et `XXX` le village seed de l'évêché visé.
+Syntaxe : `P DI HHH XXX` dans la soumission `special`, `HHH` étant le noble
+émetteur et `XXX` le village seed de l'évêché visé. `P TX HHH XXX` sur un village
+seed qui n'est la capitale d'aucun fief est aussi une dîme ; le code `DI` lève
+l'ambiguïté lorsque `XXX` est à la fois la capitale d'un fief et le seed d'un
+évêché : un même noble peut être seigneur et évêque et choisir, pour la même
+carte, la taxe ou la dîme.
 
 - **Priorité** : lorsque plusieurs dîmes visent le même évêché le même tour,
   l'**évêque** de cet évêché l'emporte sur les cardinaux et sur le pape ; les
@@ -228,6 +232,11 @@ Syntaxe : `P TX HHH XXX` dans la soumission `special`, `HHH` étant le noble
   [economie.md](economie.md). Il n'y a pas de répartition entre les autres
   titres.
 - **Évêché sans évêque** : il reste taxable par un cardinal ou le pape.
+- **Un joueur, une part** : un même joueur ne perçoit qu'une dîme par évêché
+  et par tour ; ses cartes supplémentaires sont consommées sans effet. Un
+  cardinal ou le pape qui est aussi évêque de l'évêché visé compte comme
+  l'évêque de cet évêché. Le titre suspendu (excommunié, donjon) ne permet pas
+  de poser la dîme.
 - **Révolte** : comme pour toute taxe, tout territoire de l'évêché ciblé est
   éligible à la Révolte (voir [ordres-speciaux.md](ordres-speciaux.md)), la
   saison où la dîme est jouée et la saison suivante.

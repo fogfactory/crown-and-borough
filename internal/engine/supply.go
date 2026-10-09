@@ -357,7 +357,7 @@ func controlledSupplySources(ctx *resolutionContext, ownerID models.PlayerID) []
 // millRecipient): a mill no longer credits every adjacent castle or village.
 // An inert neighboring mill (see millActive, #215) contributes nothing.
 func sourceProductionBreakdown(ctx *resolutionContext, territoryID models.TerritoryID) sourceProductionParts {
-	parts := sourceProductionParts{}
+	parts := sourceProductionParts{mill: ctx.titheProductionAtCapital(territoryID)}
 	for _, neighborID := range ctx.sortedNeighbors(territoryID) {
 		infrastructure := ctx.infrastructureAt(neighborID)
 		if infrastructure == nil || infrastructure.Type != models.InfraTypeMill {

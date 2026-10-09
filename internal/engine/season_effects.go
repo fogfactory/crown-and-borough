@@ -133,8 +133,10 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 	// (titres.md "Taxe seigneuriale").
 	ctx.state.TaxedFiefs = pruneTaxedFiefs(ctx.state.TaxedFiefs, ctx.state.Turn)
 	ctx.state.TrialRevoltWindows = pruneTrialRevoltWindows(ctx.state.TrialRevoltWindows, ctx.state.Turn)
+	ctx.state.TithedRegions = pruneTithedRegions(ctx.state.TithedRegions, ctx.state.Turn)
+	applyTithes(ctx, intents)
 	for _, intent := range intents {
-		if intent.order.Kind == models.CardKindSeigneurialTax {
+		if intent.order.Kind == models.CardKindSeigneurialTax && !ctx.isTitheOrder(intent.order) {
 			applySeigneurialTax(ctx, intent.playerID, intent.order)
 		}
 	}

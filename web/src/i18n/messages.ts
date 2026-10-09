@@ -399,6 +399,22 @@ const englishMessages = {
   'orders.field.holder': 'Titleholder',
   'orders.field.fiefTerritories': 'Territories (capital first)',
   'orders.field.fief': 'Fief (capital)',
+  'orders.field.issuer': 'Issuer',
+  'orders.field.taxTarget': 'Target (fief capital or bishopric)',
+  'orders.issuer.lord': '{noble} · seigneurial tax on their fiefs',
+  'orders.issuer.vacantFief': 'Vacant fief · seigneurial tax (no noble)',
+  'orders.issuer.ownBishopric': '{noble} · tithe on their bishopric',
+  'orders.issuer.allBishoprics': '{noble} · tithe on any bishopric',
+  'orders.tax.fief': '{code} - {title} {name}',
+  'orders.tax.bishopric': '{code} - Bishopric {name}',
+  'orders.tax.of': 'of {name}',
+  'orders.tax.ofVowel': 'of {name}',
+  'orders.taxHelp.both':
+    'You can play a seigneurial tax on a fief you hold (it doubles its territory income), or a tithe on a bishopric through one of your clerics (it diverts the production of its mills to your capital). Pick the issuer first.',
+  'orders.taxHelp.lord':
+    'You can play a seigneurial tax on a fief you hold: it doubles the fief’s territory income for the turn.',
+  'orders.taxHelp.tithe':
+    'You can play a tithe on a bishopric through one of your clerics, diverting the production of its mills to your capital. A bishop taxes only their own bishopric; a cardinal or the pope any.',
   'orders.field.territory': 'Territory',
   'orders.field.region': 'Region (seed village)',
   'orders.field.heir': 'Heir',
@@ -454,7 +470,7 @@ const englishMessages = {
   'card.plague': 'Plague',
   'card.bad_weather': 'Bad weather',
   'card.famine': 'Bad harvest',
-  'card.seigneurial_tax': 'Seigneurial tax',
+  'card.seigneurial_tax': 'Tax',
   'card.trial': 'Trial',
   'card.short.fair_weather': 'FW',
   'card.short.abundant_harvest': 'AH',
@@ -462,7 +478,7 @@ const englishMessages = {
   'card.short.plague': 'PL',
   'card.short.bad_weather': 'BW',
   'card.short.famine': 'BH',
-  'card.short.seigneurial_tax': 'ST',
+  'card.short.seigneurial_tax': 'TX',
   'card.short.trial': 'TR',
   'orders.noNobleAvailable': 'No noble is available for this player.',
   'orders.chainAria': 'Chain for {noble}',
@@ -874,9 +890,9 @@ const englishMessages = {
   'faq.q16': 'How long does control last outside a fief?',
   'faq.a16':
     'Outside a fief, holding a territory is never permanent: control stays with you only while one of your armies is currently stationed there. Your own capital, and every member of one of your fiefs, are the only exceptions — permanent anchors that stay controlled even with no army on them. The moment your last army leaves an ordinary territory — moved away, dislodged, or destroyed — it reverts to neutral at the next control update, with no owner, until any army, yours or not, stops there again and retakes it positionally. A `NEUTRAL` revolt stopping there only occupies it: it never takes control, so it never hands the release back to you either. Losing control this way also makes a castle, mill, or supply depot standing there **inert**: no defensive bonus, no production, no extended supply range, until an army anchors the territory again. A village is the only exception: it keeps producing its own income regardless.',
-  'faq.q17': 'How does the seigneurial tax card work?',
+  'faq.q17': 'How does the Tax card work?',
   'faq.a17':
-    "`P TX XXX` (or `P ST XXX`) plays the seigneurial tax on XXX, the fief's capital — the one exception to `TER` always being a region's seed village — in spring, summer, or autumn, never in winter. It is rejected if you do not control the targeted fief; a vacant fief can still be taxed by whoever holds it. It doubles the fief's territorial income for the turn, village included, and never touches mill production. Two tax cards played on the same fief the same turn do not stack: the second is consumed with no effect. Playing it also opens Révolte on every territory of the fief, capital included, independently of any bad harvest, for the turn it is played and the following one.",
+    "`P TX XXX` (or `P ST XXX`) plays the seigneurial tax on XXX, the fief's capital — the one exception to `TER` always being a region's seed village — in spring, summer, or autumn, never in winter. It is rejected if you do not control the targeted fief; a vacant fief can still be taxed by whoever holds it. It doubles the fief's territorial income for the turn, village included, and never touches mill production. Two tax cards played on the same fief the same turn do not stack: the second is consumed with no effect. Played through a bishop, a cardinal or the pope on a bishopric (`P DI HHH XXX`, XXX being its seed village), it is a tithe instead: it diverts the production of the bishopric's mills to your capital. A bishop taxes only their own bishopric; the bishop outranks the cardinals, who outrank the pope. Playing it also opens Révolte on every territory of the fief or bishopric, capital included, independently of any bad harvest, for the turn it is played and the following one.",
   'faq.q18': 'Where do the new villages that appear on their own come from?',
   'faq.a18':
     'They are the exodus of prosperity: right after winter conservation, the total stock lost that winter, summed across the whole map, triggers one founding per full threshold crossed. It starts from whichever territories lost the most, and lands on the nearest free tile that is not next to an existing village or castle — inside a fief of the origin territory\'s controller when possible, else land that player controls, else anywhere free at all. The founded village belongs to whoever controls the arrival tile, which may not be the player whose loss triggered it.',
@@ -1393,6 +1409,22 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'orders.field.holder': 'Titulaire',
   'orders.field.fiefTerritories': 'Territoires (capitale en premier)',
   'orders.field.fief': 'Fief (capitale)',
+  'orders.field.issuer': 'Émetteur',
+  'orders.field.taxTarget': 'Cible (capitale de fief ou évêché)',
+  'orders.issuer.lord': '{noble} · taxe seigneuriale sur ses fiefs',
+  'orders.issuer.vacantFief': 'Fief vacant · taxe seigneuriale (sans noble)',
+  'orders.issuer.ownBishopric': '{noble} · dîme sur son évêché',
+  'orders.issuer.allBishoprics': '{noble} · dîme sur tous les évêchés',
+  'orders.tax.fief': '{code} - {title} {name}',
+  'orders.tax.bishopric': '{code} - Évêché {name}',
+  'orders.tax.of': 'de {name}',
+  'orders.tax.ofVowel': 'd’{name}',
+  'orders.taxHelp.both':
+    'Vous pouvez jouer une taxe seigneuriale sur un fief que vous détenez (elle double son revenu de territoire), ou une dîme sur un évêché par l’un de vos ecclésiastiques (elle détourne la production de ses moulins vers votre capitale). Choisissez d’abord l’émetteur.',
+  'orders.taxHelp.lord':
+    'Vous pouvez jouer une taxe seigneuriale sur un fief que vous détenez : elle double le revenu de territoire du fief pour le tour.',
+  'orders.taxHelp.tithe':
+    'Vous pouvez jouer une dîme sur un évêché par l’un de vos ecclésiastiques, qui détourne la production de ses moulins vers votre capitale. Un évêque ne taxe que son évêché ; un cardinal ou le pape, n’importe lequel.',
   'orders.field.territory': 'Territoire',
   'orders.field.region': 'Région (village seed)',
   'orders.field.heir': 'Héritier',
@@ -1445,7 +1477,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'card.fair_weather': 'Beau temps',
   'card.abundant_harvest': 'Bonne récolte',
   'card.revolt': 'Révolte',
-  'card.seigneurial_tax': 'Taxe seigneuriale',
+  'card.seigneurial_tax': 'Impôts',
   'card.trial': 'Procès',
   'card.plague': 'Peste',
   'card.bad_weather': 'Mauvais temps',
@@ -1886,9 +1918,9 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'faq.q16': 'Combien de temps dure le contrôle hors fief ?',
   'faq.a16':
     'Hors fief, tenir un territoire n’est jamais permanent : le contrôle ne te reste que tant qu’une de tes armées y stationne actuellement. Ta propre capitale, et chaque membre d’un de tes fiefs, sont les seules exceptions — des ancrages permanents qui restent contrôlés même sans armée dessus. Dès que ta dernière armée quitte un territoire ordinaire — partie, délogée ou détruite —, il redevient neutre à la prochaine mise à jour du contrôle, sans propriétaire, jusqu’à ce qu’une armée, la tienne ou non, s’y arrête à nouveau et le reprenne positionnellement. Une révolte `NEUTRAL` qui s’y arrête ne fait que l’occuper : elle ne prend jamais le contrôle, donc elle ne te rend jamais cette libération non plus. Perdre le contrôle ainsi rend aussi **inerte** un château, un moulin ou un dépôt qui s’y trouve : plus de bonus défensif, plus de production, plus de portée de ravitaillement étendue, jusqu’à ce qu’une armée ancre à nouveau le territoire. Le village est la seule exception : il continue de produire son propre revenu quoi qu’il arrive.',
-  'faq.q17': 'Comment fonctionne la carte de taxe seigneuriale ?',
+  'faq.q17': 'Comment fonctionne la carte Impôts ?',
   'faq.a17':
-    'L’ordre `P TX XXX` (ou `P ST XXX`) joue la taxe seigneuriale sur XXX, la capitale du fief — la seule exception où `TER` n’est pas le village seed d’une région — au printemps, en été ou en automne, jamais en hiver. Il est rejeté si tu ne contrôles pas le fief ciblé ; un fief vacant reste taxable par celui qui le détient. Elle double le revenu territorial du fief pour ce tour, village compris, et ne touche jamais la production des moulins. Deux cartes de taxe jouées sur le même fief le même tour ne se cumulent pas : la seconde est consommée sans effet. La jouer autorise aussi la Révolte sur tout territoire du fief, capitale comprise, indépendamment de toute mauvaise récolte, la saison où elle est jouée et la saison suivante.',
+    'L’ordre `P TX XXX` (ou `P ST XXX`) joue la taxe seigneuriale sur XXX, la capitale du fief — la seule exception où `TER` n’est pas le village seed d’une région — au printemps, en été ou en automne, jamais en hiver. Il est rejeté si tu ne contrôles pas le fief ciblé ; un fief vacant reste taxable par celui qui le détient. Elle double le revenu territorial du fief pour ce tour, village compris, et ne touche jamais la production des moulins. Deux cartes de taxe jouées sur le même fief le même tour ne se cumulent pas : la seconde est consommée sans effet. La jouer autorise aussi la Révolte sur tout territoire du fief, capitale comprise, indépendamment de toute mauvaise récolte, la saison où elle est jouée et la saison suivante. Jouée par un évêque, un cardinal ou le pape sur un évêché (`P DI HHH XXX`, XXX étant son village seed), c’est une dîme : elle détourne vers ta capitale la production des moulins de l’évêché. Un évêque ne taxe que son évêché ; l’évêque passe avant les cardinaux, qui passent avant le pape.',
   'faq.q18': 'D’où viennent les nouveaux villages qui apparaissent tout seuls ?',
   'faq.a18':
     'Ils sont l’exode de la prospérité : juste après la conservation hivernale, la perte totale de stock de l’hiver, sommée sur toute la carte, déclenche une fondation à chaque tranche du seuil franchie. Elle part des territoires ayant le plus perdu, et se place sur la case libre la plus proche qui n’est adjacente à aucun village ou château existant — dans un fief du contrôleur du territoire d’origine quand c’est possible, sinon une terre qu’il contrôle, sinon n’importe où en terre libre. Le village fondé appartient au contrôleur de la case d’arrivée, qui peut être différent du joueur dont la perte a déclenché la fondation.',

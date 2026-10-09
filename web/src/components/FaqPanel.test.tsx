@@ -37,7 +37,7 @@ describe('FaqPanel', () => {
       screen.getByText(/Combien de temps dure le contrôle hors fief/),
     ).toBeInTheDocument()
     expect(
-      screen.getByText(/Comment fonctionne la carte de taxe seigneuriale/),
+      screen.getByText(/Comment fonctionne la carte Impôts/),
     ).toBeInTheDocument()
     expect(
       screen.getByText(/D’où viennent les nouveaux villages/),
@@ -79,7 +79,7 @@ describe('FaqPanel', () => {
       screen.getByText(/How long does control last outside a fief/),
     ).toBeInTheDocument()
     expect(
-      screen.getByText(/How does the seigneurial tax card work/),
+      screen.getByText(/How does the Tax card work/),
     ).toBeInTheDocument()
     expect(
       screen.getByText(/Where do the new villages that appear on their own come from/),

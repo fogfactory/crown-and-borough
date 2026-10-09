@@ -26,6 +26,10 @@ var demoScenarios = map[string]struct {
 		description: "spring, P1 has a bishop, a cardinal and an abbess; rebel armies of 1 to 3 troops stand in their regions and elsewhere; P1 has plenty of R",
 		apply:       forgeAppeasement,
 	},
+	"tithe": {
+		description: "spring, P1 has a bishop and a cardinal (see the appeasement scenario) and two Tax cards: tithe orders on bishoprics",
+		apply:       forgeTithe,
+	},
 	"action": {
 		description: "spring, P1 holds bonus cards; a famine is active, a bad weather is announced (one bent by a ritual)",
 		apply:       forgeAction,
@@ -253,4 +257,51 @@ func forgeAppeasement(state *models.GameState) error {
 	fmt.Printf("demo appeasement: bishop %s (region %s), cardinal %s (bishop of %s), abbess ZAB stands at %s\n",
 		bishop.Code, state.Regions[bishopRegion].Seed, cardinal.Code, state.Regions[cardinalRegion].Seed, cardinal.LocationID)
 	return nil
+}
+
+// forgeTithe reuses the appeasement clerics (a bishop and a cardinal of P1),
+// hands P1 two Tax cards and makes the bishop also the baron of a fief whose
+// capital is the seed of his own bishopric, so the same territory can be taxed
+// as a fief (seigneurial tax) or as a bishopric (tithe). The orders to try:
+//
+//	P TX <bishop> <seed>     seigneurial tax on his fief
+//	P DI <bishop> <seed>     tithe on his bishopric
+//	P DI <cardinal> <seed>   tithe on any bishopric
+func forgeTithe(state *models.GameState) error {
+	if err := forgeAppeasement(state); err != nil {
+		return err
+	}
+	giveSpecialCards(state, "P1", models.CardKindSeigneurialTax, models.CardKindSeigneurialTax)
+	p1 := ownedNobles(state, "P1")
+	bishop := state.Nobles[p1[0]]
+	region, found := state.RegionOfTerritory(bishop.LocationID)
+	if !found {
+		return fmt.Errorf("the bishop stands outside every region")
+	}
+	territories := []models.TerritoryID{region.Seed}
+	for _, territory := range state.Territories {
+		if territory.ID != region.Seed && len(territories) < models.FiefMinTerritories && containsTerritory(territory.Adjacencies, region.Seed) {
+			territories = append(territories, territory.ID)
+		}
+	}
+	if len(territories) < models.FiefMinTerritories {
+		return fmt.Errorf("the bishopric seed %s has too few neighbors for a fief", region.Seed)
+	}
+	title, _ := models.FiefTitleForSize(len(territories))
+	holder := bishop.ID
+	state.Fiefs = append(state.Fiefs, models.Fief{
+		ID: "F901", Title: title, CapitalTerritoryID: region.Seed,
+		Territories: territories, OwnerID: "P1", HolderNobleID: &holder,
+	})
+	fmt.Printf("demo tithe: %s is bishop of %s and holds a fief whose capital is %s\n", bishop.Code, region.Seed, region.Seed)
+	return nil
+}
+
+func containsTerritory(list []models.TerritoryID, target models.TerritoryID) bool {
+	for _, id := range list {
+		if id == target {
+			return true
+		}
+	}
+	return false
 }

@@ -98,6 +98,12 @@ type resolutionContext struct {
 	// either has actually been applied, so the submission is not rejected
 	// outright for a combination that resolveSeasonEffects will honor.
 	pendingTaxWindowFiefs map[models.FiefID]bool
+	// tithesThisTurn holds, per bishopric seed, the players whose tithe
+	// applied this turn (religieux.md "Dîme"): they share the bishopric's
+	// mill production (tithe.go) and its territories are open to Révolte.
+	// pendingTitheRegions plays the role of pendingTaxWindowFiefs for tithes.
+	tithesThisTurn      map[models.TerritoryID][]models.PlayerID
+	pendingTitheRegions map[models.TerritoryID]bool
 	// taxedFiefOwnerAtApply records, for every fief taxedFiefsThisTurn flags,
 	// which player applied the tax (always that fief's owner at apply time,
 	// applySeigneurialTax): income.go compares it to the fief's owner once
@@ -139,6 +145,8 @@ func newResolutionContext(state *models.GameState, balance assetgen.Balance) *re
 		taxedFiefsThisTurn:    make(map[models.FiefID]bool),
 		pendingTaxWindowFiefs: make(map[models.FiefID]bool),
 		taxedFiefOwnerAtApply: make(map[models.FiefID]models.PlayerID),
+		tithesThisTurn:        make(map[models.TerritoryID][]models.PlayerID),
+		pendingTitheRegions:   make(map[models.TerritoryID]bool),
 	}
 	for _, noble := range state.Nobles {
 		ctx.startNoblesByID[noble.ID] = noble

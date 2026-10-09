@@ -74,6 +74,9 @@ func (ctx *resolutionContext) fiefTaxWindowActive(fiefID models.FiefID) bool {
 // merely co-submitted this turn while a submission is still being validated
 // (titres.md "Taxe seigneuriale").
 func (ctx *resolutionContext) revoltEligibleByTax(territoryID models.TerritoryID) bool {
+	if ctx.revoltEligibleByTithe(territoryID) {
+		return true
+	}
 	fief := ctx.fiefContaining(territoryID)
 	if fief == nil {
 		return false

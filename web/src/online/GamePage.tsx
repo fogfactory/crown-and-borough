@@ -1041,6 +1041,7 @@ export function GamePage() {
               {playerID ? (
                 <OrdersPanel
  regions={map?.regions}
+ mapTerritories={map?.territories}
                   state={state}
                   player={playerID}
                   chainDrafts={chainDrafts}

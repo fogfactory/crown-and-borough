@@ -108,7 +108,9 @@ func markPendingTaxWindowFiefs(ctx *resolutionContext, deckOrders map[models.Pla
 			if order.Type != models.DeckOrderTypePlay || order.Kind != models.CardKindSeigneurialTax {
 				continue
 			}
-			if fief := ctx.fiefByCapital(order.TargetTerritoryID); fief != nil {
+			if ctx.isTitheOrder(order) {
+				ctx.pendingTitheRegions[order.TargetTerritoryID] = true
+			} else if fief := ctx.fiefByCapital(order.TargetTerritoryID); fief != nil {
 				ctx.pendingTaxWindowFiefs[fief.ID] = true
 			}
 		}

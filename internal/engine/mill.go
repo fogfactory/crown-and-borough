@@ -73,6 +73,20 @@ func (ctx *resolutionContext) millActive(territoryID models.TerritoryID) bool {
 // weather doubles it (see #191). It returns the parts a sourceProductionParts
 // accumulates: mill (renamed production here), bonus, and suppressed.
 func millWeatherProduction(ctx *resolutionContext, millID models.TerritoryID, level int) (production, bonus, suppressed int) {
+	production, bonus, suppressed = millRawProduction(ctx, millID, level)
+	region := regionForTerritory(ctx, millID)
+	// A tithed bishopric's mills hand their production to the capitals of the
+	// tithing players, who collect it as capital production (tithe.go).
+	diverted := ctx.titheDiversion(region, production+bonus)
+	fromBonus := min(bonus, diverted)
+	bonus -= fromBonus
+	production -= diverted - fromBonus
+	return production, bonus, suppressed
+}
+
+// millRawProduction is a mill's weather-adjusted production before any tithe
+// diversion.
+func millRawProduction(ctx *resolutionContext, millID models.TerritoryID, level int) (production, bonus, suppressed int) {
 	region := regionForTerritory(ctx, millID)
 	if ctx.badWeatherRegions[region] {
 		return 0, 0, level
