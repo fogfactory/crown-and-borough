@@ -186,15 +186,15 @@ func TestCalamityVetoStrikesForecastCalamitiesOnce(t *testing.T) {
 		return models.WinterOrder{ID: id, Type: models.WinterOrderTypeCalamityVeto, NobleCode: "ELE", Indices: indices}
 	}
 	resolution := resolveNobleDeckWinter(t, state, map[models.PlayerID][]models.WinterOrder{
-		"P1": {veto("O1", 5), veto("O2", 1, 3), veto("O3", 1)},
+		"P1": {veto("O1", 4), veto("O2", 1, 3), veto("O3", 3), veto("O4", 1)},
 	})
 	reasons := rejectionReasons(resolution.Events)
-	if len(reasons) != 2 || reasons[0] != "calamity_not_forecast" || reasons[1] != "calamity_veto_already_used" {
+	if len(reasons) != 3 || reasons[0] != "calamity_not_forecast" || reasons[1] != "calamity_not_forecast" || reasons[2] != "calamity_veto_already_used" {
 		t.Errorf("rejections = %v", reasons)
 	}
 	deck := resolution.State.SpecialDeck
-	if len(deck.Discard) < 2 || deck.Discard[0] != "a" || deck.Discard[1] != "d" {
-		t.Errorf("discard = %v, want the 1st and 3rd forecast calamities (a, d)", deck.Discard)
+	if len(deck.Discard) == 0 || deck.Discard[0] != "d" {
+		t.Errorf("discard = %v, want the 3rd forecast calamity (d) struck first", deck.Discard)
 	}
 	// A captor profits from the forecast but cannot strike calamities.
 	state.Nobles[0].Status = models.NobleStatusHostage

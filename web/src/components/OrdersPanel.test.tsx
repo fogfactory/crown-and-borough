@@ -936,6 +936,65 @@ describe('OrdersPanel title and card order dialogs', () => {
     expect(within(dialog).getByText(/^Cancels: Bad weather/)).toBeTruthy()
   })
 
+  function renderAction(extra: Partial<StateData>, specialDraft = '', onSpecialChange = vi.fn()) {
+    render(
+      <LanguageProvider initialLanguage="en">
+        <OrdersPanel
+          state={{ ...state, season: 'spring', nobles, ...extra }}
+          player="P1"
+          chainDrafts={{}}
+          winterDraft=""
+          specialDraft={specialDraft}
+          submitted={false}
+          submitting={false}
+          error={null}
+          onChainChange={vi.fn()}
+          onWinterChange={vi.fn()}
+          onSpecialChange={onSpecialChange}
+          onSubmit={vi.fn()}
+          onOpenRules={vi.fn()}
+        />
+      </LanguageProvider>,
+    )
+    return onSpecialChange
+  }
+
+  it('lists only the valid revolt territories, counting a tax of the same sheet', () => {
+    renderAction(
+      {
+        specialHand: ['revolt'],
+        revoltTargets: ['CCC'],
+        fiefs: [{ capital: 'FFF', title: 'barony', territories: ['FFF', 'GGG', 'HHH'], owner: 'P2' }],
+      },
+      'P TX FFF\n',
+    )
+    fireEvent.click(screen.getByRole('button', { name: /^Play Revolt/ }))
+    expect(
+      within(screen.getByRole('dialog'))
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual(['CCC', 'FFF', 'GGG', 'HHH'])
+  })
+
+  it('hides the revolt card when no territory is eligible', () => {
+    renderAction({ specialHand: ['revolt'], revoltTargets: [] })
+    expect(screen.queryByRole('button', { name: /^Play Revolt/ })).toBeNull()
+  })
+
+  it('strikes a single forecast calamity with the astrologer', () => {
+    const onWinterChange = renderWinter({
+      nobles: [{ ...nobles[0], dignities: ['astrologer'] }, ...nobles.slice(1)],
+      calamityForecast: ['plague', 'famine', 'bad_weather'],
+      winterAids: aids,
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Strike a calamity off (V C)' }))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getAllByRole('option')).toHaveLength(4)
+    fireEvent.change(within(dialog).getByLabelText('Calamity to strike'), { target: { value: '2' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
+    expect(onWinterChange).toHaveBeenCalledWith('V C POP 2 # strike calamity 2\n')
+  })
+
   it('plays a special card on a region outside winter', () => {
     const onSpecialChange = vi.fn()
     render(

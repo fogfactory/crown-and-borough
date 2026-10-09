@@ -60,6 +60,9 @@ type StateView struct {
 	// WinterAids lists, in winter, the possible winter orders of the viewer
 	// (papal sanctions, cardinal purchase, fief sites) with their prices.
 	WinterAids *engine.WinterAids `json:"winterAids,omitempty"`
+	// RevoltTargets lists, outside winter, the territories a Révolte card can
+	// be played on (a public rule: famine, recent tax or trial in the region).
+	RevoltTargets []models.TerritoryID `json:"revoltTargets,omitempty"`
 	// SpiedHands are the hands a spy of the viewer reveals: the whole hand of
 	// the player holding her hostage.
 	SpiedHands          []SpiedHandView             `json:"spiedHands,omitempty"`
@@ -603,6 +606,7 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 		view.WinterAids = engine.ForecastWinterAids(state, balance, *viewer)
 		view.SpiedHands = spiedHandsFor(state, *viewer)
 	}
+	view.RevoltTargets = engine.ForecastRevoltTargets(state, balance)
 	view.ActiveRegionEffects = append([]models.ActiveRegionEffect(nil), state.ActiveRegionEffects...)
 	view.Announcements = engine.PendingAnnouncements(state, state.Year(), state.Season, true)
 	return view

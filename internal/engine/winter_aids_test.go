@@ -29,3 +29,30 @@ func TestWinterAidsFiefSiteIsAConnectedGroupWithACastle(t *testing.T) {
 		t.Errorf("cost per territory = %d", aids.FiefCostPerTerritory)
 	}
 }
+
+func TestForecastRevoltTargetsFollowFamineTaxAndSeason(t *testing.T) {
+	state := foundFiefTestState(t)
+	state.Season = models.SeasonSpring
+	state.Turn = 1
+	state.Regions = []models.Region{
+		{ID: "R1", Name: "One", Seed: "AAA", Territories: []models.TerritoryID{"AAA", "BBB"}},
+		{ID: "R2", Name: "Two", Seed: "CCC", Territories: []models.TerritoryID{"CCC", "DDD", "EEE", "FFF", "GGG"}},
+	}
+	if got := ForecastRevoltTargets(state, testBalance()); len(got) != 0 {
+		t.Fatalf("targets = %v, want none without famine, tax or trial", got)
+	}
+	// A famine announced for the summer is not active this spring; an active one is.
+	year := state.Year()
+	state.Auguries = map[int]models.YearAugury{year: {Year: year, Calamities: []models.Calamity{
+		{Kind: models.CardKindFamine, Year: year, Season: models.SeasonSummer, RegionSeed: "CCC"},
+		{Kind: models.CardKindFamine, Year: year, Season: models.SeasonSpring, RegionSeed: "AAA"},
+	}}}
+	got := ForecastRevoltTargets(state, testBalance())
+	if len(got) != 2 || got[0] != "AAA" || got[1] != "BBB" {
+		t.Errorf("targets = %v, want the territories of the region in famine now (AAA, BBB)", got)
+	}
+	state.Season = models.SeasonWinter
+	if got := ForecastRevoltTargets(state, testBalance()); got != nil {
+		t.Errorf("targets in winter = %v, want nil", got)
+	}
+}

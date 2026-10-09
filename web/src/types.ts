@@ -464,6 +464,8 @@ export interface StateData {
   calamityForecast?: CardKind[]
   /** Winter only: elections open since the start of the winter. */
   openElections?: OpenElection[]
+  /** Outside winter: the territories a Révolte card can be played on. */
+  revoltTargets?: string[]
   /** Winter only: the possible winter orders of the viewer. */
   winterAids?: WinterAids
   /** Hands revealed by a spy held hostage by their owner. */

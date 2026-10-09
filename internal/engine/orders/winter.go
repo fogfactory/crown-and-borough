@@ -2,7 +2,6 @@ package orders
 
 import (
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -469,30 +468,26 @@ func parseDignityOrderLine(fields []string, lineNumber int, indexes gameIndexes)
 	return order, nil
 }
 
-// parseCalamityVetoLine handles V C XXX I [J]: XXX is the astrologer noble,
-// I and J the distinct positions (1 to 4) of the forecast calamities to
-// remove. Ownership and the dignity are engine rejects.
+// parseCalamityVetoLine handles V C XXX I: XXX is the astrologer noble, I the
+// position (1 to 3) of the forecast calamity to strike. Ownership and the
+// dignity are engine rejects.
 func parseCalamityVetoLine(fields []string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
-	if len(fields) != 4 && len(fields) != 5 {
+	if len(fields) != 4 {
 		error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.WinterCalamityVetoShape)
 		return models.WinterOrder{}, &error
 	}
 	if parseError := winterNobleCode(fields[2], lineNumber, indexes); parseError != nil {
 		return models.WinterOrder{}, parseError
 	}
-	indices := make([]int, 0, 2)
-	for _, field := range fields[3:] {
-		index, err := strconv.Atoi(field)
-		if err != nil || index < 1 || index > 4 || slices.Contains(indices, index) {
-			error := parseMessage(lineNumber, ParseCodeInvalidCode, i18n.WinterCalamityVetoShape)
-			return models.WinterOrder{}, &error
-		}
-		indices = append(indices, index)
+	index, err := strconv.Atoi(fields[3])
+	if err != nil || index < 1 || index > 3 {
+		error := parseMessage(lineNumber, ParseCodeInvalidCode, i18n.WinterCalamityVetoShape)
+		return models.WinterOrder{}, &error
 	}
 	return models.WinterOrder{
 		Type:      models.WinterOrderTypeCalamityVeto,
 		NobleCode: models.NobleCode(fields[2]),
-		Indices:   indices,
+		Indices:   []int{index},
 	}, nil
 }
 

@@ -144,7 +144,7 @@ var dignityEffects = map[Dignity]DignityEffect{
 		CardCode: DignityHerbalistCardCode, FemaleOnly: true, RequiresUnmarried: true,
 		MarriageBlocked: true, PlagueImmune: true, RationDiscount: 2,
 	},
-	DignityAstrologer: {CardCode: DignityAstrologerCardCode, FemaleOnly: true, CalamityForecast: 4},
+	DignityAstrologer: {CardCode: DignityAstrologerCardCode, FemaleOnly: true, CalamityForecast: 3},
 	DignityChevalierDEon: {
 		CardCode: DignityEonCardCode, FemaleOnly: true, RequiresUnmarried: true,
 		Hidden: true, ChangesSexToMale: true,

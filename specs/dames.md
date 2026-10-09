@@ -165,8 +165,8 @@ minimum de 0. Aucun ordre réservé. Archétype de la « sorcière » du jeu.
 
 #### Astrologue
 
-Passif : à l'hiver, son joueur voit les **6 prochaines calamités** (soit deux
-années d'avance au maximum de trois calamités par an). L'information est
+Passif : à l'hiver, son joueur voit les **3 prochaines calamités** (toutes celles de l'année
+suivante, à trois calamités par an au maximum). L'information est
 privée à son joueur. Plusieurs astrologues dans une partie ne s'influencent
 pas. Si elle est prisonnière ou morte, la vision cesse ; si elle est
 otage, le joueur qui la détient en profite aussi (voir la Châtelaine).
@@ -246,9 +246,9 @@ Précisions retenues :
   provenance ; prisonnière = au `dungeon`. Une dame otage conserve ses bonus
   et son geôlier en profite aussi ; les dames cachées Correspondante et
   Espionne n'agissent que lorsqu'elles sont otages ;
-- l'Astrologue voit les **4 prochaines cartes calamité de la pioche** des
-  ordres spéciaux, en hiver, à son seul joueur, et en raye une ou deux avec
-  `V C NNN I [J]`, une fois par hiver ; les cartes rayées vont à la défausse
+- l'Astrologue voit les **3 prochaines cartes calamité de la pioche** des
+  ordres spéciaux, en hiver, à son seul joueur, et en raye une seule avec
+  `V C NNN I`, une fois par hiver ; les cartes rayées vont à la défausse
   et les calamités suivantes les remplacent ;
 - l'Éon remplace la dame par un noble homme au prénom et au code tirés des
   prénoms inutilisés ; l'identité de la dame (code, prénom, sexe) n'est connue

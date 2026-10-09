@@ -195,18 +195,12 @@ export function TitleOrdersSection({
         fields={[
           { key: 'noble', label: t('orders.field.astrologer'), options: astrologers.map(nobleOption) },
           { key: 'first', label: t('orders.field.firstCalamity'), options: positions },
-          {
-            key: 'second',
-            label: t('orders.field.secondCalamity'),
-            options: [{ value: '', label: '—' }, ...positions],
-          },
         ]}
         buildOrder={(values) => {
-          if (!values.noble || values.first === values.second) return null
-          const chosen = [values.first, values.second].filter((value) => value !== '')
+          if (!values.noble || !values.first) return null
           return {
-            line: `V C ${values.noble} ${chosen.join(' ')}`,
-            comment: t('orders.comment.calamityVeto', { positions: chosen.join(', ') }),
+            line: `V C ${values.noble} ${values.first}`,
+            comment: t('orders.comment.calamityVeto', { positions: values.first }),
           }
         }}
         onConfirm={add}
@@ -326,17 +320,39 @@ function canceledIn(kind: CardKind, state: StateData, seed: string) {
     : []
 }
 
+/**
+ * Territories a Révolte can target: the ones the server reports, plus every
+ * territory of a fief or bishopric taxed by a tax line of the sheet being
+ * written (`P TX XXX`).
+ */
+function revoltOptions(
+  state: StateData,
+  regions: Region[],
+  draft: string,
+): OrderFieldOption[] {
+  const targets = new Set(state.revoltTargets ?? [])
+  for (const line of draftLines(draft)) {
+    const match = /^P (?:TX|ST) ([A-Z]{3})\b/.exec(line)
+    if (!match) continue
+    const fief = (state.fiefs ?? []).find((entry) => entry.capital === match[1])
+    const region = regions.find((entry) => entry.seed === match[1])
+    for (const code of fief?.territories ?? region?.territories ?? []) targets.add(code)
+  }
+  return [...targets].sort().map(codeOption)
+}
+
 function specialTargetField(
   kind: CardKind,
   state: StateData,
   regions: Region[],
   t: Translate,
+  draft: string,
 ): { label: string; options: OrderFieldOption[] } {
   switch (kind) {
     case 'revolt':
       return {
         label: t('orders.field.territory'),
-        options: state.territories.map((territory) => codeOption(territory.id)),
+        options: revoltOptions(state, regions, draft),
       }
     case 'seigneurial_tax':
       return {
@@ -426,13 +442,14 @@ export function SpecialCardOrders({
             />
           )
         }
-        const target = specialTargetField(kind, state, regions, t)
+        const target = specialTargetField(kind, state, regions, t, draft)
+        if (target.options.length === 0) return null
         return (
           <OrderLauncher
             key={kind}
             label={t('orders.playSpecialCard', { card })}
             title={t('orders.playSpecialCard', { card })}
-            disabled={used(kind, 'P') >= copies(kind) || target.options.length === 0}
+            disabled={used(kind, 'P') >= copies(kind)}
             hint={(values) => cancelHint(kind, state, t, values.target)}
             fields={[{ key: 'target', label: target.label, options: target.options }]}
             buildOrder={(values) =>
