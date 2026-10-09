@@ -5,7 +5,7 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
-// inquiryOrderEntry is Q NNN in the management stage: inquiries resolve in
+// inquiryOrderEntry is Q HHH NNN in the management stage: inquiries resolve in
 // stage 3 (resolveInquiries), so applying them here is a no-op.
 type inquiryOrderEntry struct{}
 
