@@ -114,3 +114,26 @@ func TestPopeCannotExcommunicateSelf(t *testing.T) {
 		t.Errorf("reason = %q", got)
 	}
 }
+
+func TestPopeDeathEndsPapalExcommunications(t *testing.T) {
+	state := papalTestState(t)
+	addNoble(state, "N6", "ELO", "P3", "DDD")
+	state.Excommunications = []models.Excommunication{
+		{Noble: "N5", Reason: models.ExcommunicationPapal, By: "N1"},
+		{Noble: "N6", Reason: models.ExcommunicationExOfficio},
+	}
+	ctx := newResolutionContext(state, testBalance())
+	ctx.executeNoble(*ctx.noblesByID["N1"])
+	if state.Pope != nil {
+		t.Error("the throne is not vacant after the pope's death")
+	}
+	if _, ok := state.ExcommunicationOf("N5"); ok {
+		t.Error("papal excommunication outlived the pope")
+	}
+	if _, ok := state.ExcommunicationOf("N6"); !ok {
+		t.Error("ex officio excommunication ended with the pope")
+	}
+	if err := state.Validate(); err != nil {
+		t.Errorf("state invalid after the death: %v", err)
+	}
+}
