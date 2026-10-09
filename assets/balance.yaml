@@ -82,7 +82,8 @@ alliance:
 # at most excommunications_per_winter nobles per winter, and a rival player has
 # at most excommunications_per_target_player excommunicated nobles at a time.
 # votes are the voices per territory held (seat: the seat of a bishopric in its
-# own bishop election) and per highest religious title of a noble.
+# own bishop election), per highest religious title of a noble and for the
+# abbey of an abbess in the bishop election of its bishopric (abbess).
 religion:
   cardinal_cost: 8
   cardinal_purchase_base: 1
@@ -102,6 +103,7 @@ religion:
     bishop: 1
     cardinal: 2
     pope: 3
+    abbess: 1
 
 # P1.7 game setup values.
 # Living nobles (free, hostage or in a dungeon) a player may own at once.

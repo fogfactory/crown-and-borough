@@ -199,9 +199,9 @@ func (ctx *resolutionContext) popeCandidateRejection(noble *models.Noble) string
 
 // VoiceSource is one reason a player holds voices in an election: a
 // territory of the bishopric (the seat or another one) or a religious title of
-// one of the player's nobles.
+// one of the player's nobles, or the abbey of one of its abbesses.
 type VoiceSource struct {
-	Kind      string                `json:"kind"` // "seat", "territory" or "title"
+	Kind      string                `json:"kind"` // "seat", "territory", "title" or "abbey"
 	Territory models.TerritoryID    `json:"territory,omitempty"`
 	Noble     models.NobleCode      `json:"noble,omitempty"`
 	NobleName string                `json:"nobleName,omitempty"`
@@ -254,8 +254,30 @@ func (ctx *resolutionContext) electionVoiceSources(open *election) map[models.Pl
 	}
 	for _, noble := range ctx.state.Nobles {
 		titleSource(noble, weights.TitleVotes(ctx.state.VotingReligiousTitle(noble.ID)))
+		if ctx.abbeyVotes(noble, open.seat) {
+			sources[noble.OwnerID] = append(sources[noble.OwnerID], VoiceSource{
+				Kind:      "abbey",
+				Noble:     models.NobleCode(noble.Code),
+				NobleName: ctx.state.NobleDisplayName(noble),
+				Votes:     weights.Abbess,
+			})
+		}
 	}
 	return sources
+}
+
+// abbeyVotes reports whether the noble is an abbess whose abbey lies in the
+// bishopric seated at seat and whose voice is active: an abbess in a dungeon or
+// excommunicated gives none (specs/dames.md § Abbesse).
+func (ctx *resolutionContext) abbeyVotes(noble models.Noble, seat models.TerritoryID) bool {
+	if !noble.Has(models.DignityAbbess) || noble.AbbeyRegion == "" || noble.AbbeyRegion != seat {
+		return false
+	}
+	if noble.Status == models.NobleStatusDungeon {
+		return false
+	}
+	_, excommunicated := ctx.state.ExcommunicationOf(noble.ID)
+	return !excommunicated
 }
 
 // electionVoices computes the weight of every player in the election.
