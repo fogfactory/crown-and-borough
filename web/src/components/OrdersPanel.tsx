@@ -283,13 +283,19 @@ function NobleCardRow({
     : draftMentionsCard(winterDraft, card.code)
   const isDignity = card.kind === 'dignity'
   const needsRegion = card.dignity === 'abbess'
-  const nobleOptions = ownedNobles(state, player)
+  // A dignity can be played on any eligible noble, an opponent's included (own
+  // nobles first); a claim needs one of the player's own nobles as heir.
+  const nobleOptions = [...state.nobles]
     .filter((noble) =>
       isClaim
-        ? !(noble.dignities ?? []).includes('bastard')
+        ? noble.owner === player && !(noble.dignities ?? []).includes('bastard')
         : canReceiveDignity(noble, card.dignity ?? 'bastard'),
     )
-    .map((noble) => ({ value: noble.code, label: `${noble.code} · ${noble.name}` }))
+    .sort((a, b) => Number(b.owner === player) - Number(a.owner === player))
+    .map((noble) => ({
+      value: noble.code,
+      label: `${noble.code} · ${noble.name}${noble.owner === player ? '' : ` (${noble.owner})`}`,
+    }))
   const claimOptions = isClaim
     ? claimTargets(state, player).map((noble) => ({
         value: noble.code,

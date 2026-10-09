@@ -172,6 +172,8 @@ export interface Noble {
   id: string
   code: string
   name: string
+  /** First name alone, for short labels. */
+  firstName?: string
   owner: PlayerId
   location: string
   status: NobleStatus

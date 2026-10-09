@@ -90,10 +90,16 @@ export function TitleOrdersSection({
     return noble ? nobleOption(noble) : codeOption(code)
   }
   const own = state.nobles.filter((noble) => noble.owner === player)
-  // A power button names its noble and the title or dignity that grants the power.
-  const holderLabel = (code: string, power: string, source: string) =>
-    `${nobleName(state, code)} (${source}) · ${power}`
-  const popeTitle = t('orders.voiceTitle.pope')
+  // A power button names the title or the dignity that grants the power: a
+  // religious title leads ("Pape Rainaud"), a dignity carries the noble in
+  // parentheses ("Astrologue (Dame Hugon)").
+  const firstNameOf = (code: string) => byCode.get(code)?.firstName ?? nobleName(state, code)
+  const titleHolder = (code: string, title: 'pope' | 'bishop') =>
+    t(`orders.holder.${title}`, { name: firstNameOf(code) })
+  const dignityHolder = (code: string, dignity: 'astrologer' | 'witch') => {
+    const honorific = byCode.get(code)?.name.split(' ')[0] ?? ''
+    return `${t(`dignity.${dignity}`)} (${[honorific, firstNameOf(code)].filter(Boolean).join(' ')})`
+  }
 
   const liftedInDraft = new Set(
     lines.filter((line) => line.startsWith('X L ')).map((line) => line.slice(4)),
@@ -126,7 +132,7 @@ export function TitleOrdersSection({
     launchers.push(
       <OrderLauncher
         key="x-e"
-        label={holderLabel(state.pope ?? '', t('orders.excommunicate'), popeTitle)}
+        label={`${titleHolder(state.pope ?? '', 'pope')} · ${t('orders.excommunicate')}`}
         title={t('orders.excommunicate')}
         fields={[
           {
@@ -152,7 +158,7 @@ export function TitleOrdersSection({
     launchers.push(
       <OrderLauncher
         key="x-l"
-        label={holderLabel(state.pope ?? '', t('orders.liftExcommunication'), popeTitle)}
+        label={`${titleHolder(state.pope ?? '', 'pope')} · ${t('orders.liftExcommunication')}`}
         title={t('orders.liftExcommunication')}
         fields={[
           { key: 'noble', label: t('orders.field.excommunicated'), options: liftable.map(toOption) },
@@ -174,7 +180,7 @@ export function TitleOrdersSection({
     launchers.push(
       <OrderLauncher
         key={`n-c-${code}`}
-        label={holderLabel(code, t('orders.buyCardinal'), t('orders.voiceTitle.bishop'))}
+        label={`${titleHolder(code, 'bishop')} · ${t('orders.buyCardinal')}`}
         title={t('orders.buyCardinal')}
         hint={() => t('orders.hint.cost', { cost: aids.cardinalCost })}
         fields={[]}
@@ -196,7 +202,7 @@ export function TitleOrdersSection({
       launchers.push(
         <OrderLauncher
           key={`v-c-${astrologer.code}`}
-          label={holderLabel(astrologer.code, t('orders.calamityVeto'), t('dignity.astrologer'))}
+          label={`${dignityHolder(astrologer.code, 'astrologer')} · ${t('orders.calamityVeto')}`}
           title={t('orders.calamityVeto')}
           description={t('orders.calamityVetoHelp')}
           fields={[{ key: 'first', label: t('orders.field.firstCalamity'), options: positions }]}
@@ -310,7 +316,7 @@ export function TitleOrdersSection({
     launchers.push(
       <OrderLauncher
         key="s-r"
-        label={holderLabel(ritual.noble, t('orders.ritual'), t('dignity.witch'))}
+        label={`${dignityHolder(ritual.noble, 'witch')} · ${t('orders.ritual')}`}
         title={t('orders.ritual')}
         description={t('orders.ritualHelp')}
         hint={() => t('orders.hint.ritualRegion', { region: ritual.region })}
