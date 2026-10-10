@@ -61,7 +61,7 @@ qu'il voit des autres.
    jamais les voix territoriales d'un évêché, qui comptent les lieux-dits
    « contrôlés **ou** occupés ».
 6. **Les élections se résolvent l'une après l'autre.** Évêchés par identifiant
-   de région croissant, puis conclave. Les voix se lisent toutes sur
+   de région croissant, puis conclave, puis trône. Les voix se lisent toutes sur
    l'instantané des titres (principe 3 compris) : un résultat ne change les
    voix d'aucune autre élection. Seule l'éligibilité en tient compte : un noble
    élu à un évêché n'est plus éligible aux évêchés suivants du même hiver.
@@ -75,11 +75,12 @@ qu'il voit des autres.
 |---|---|---|---|
 | 0 | **Instantané** | Fige le contrôle, l'occupation, les statuts, les mariages, les titres, et calcule le registre des élections ouvertes. | ce document |
 | 1 | **Sanctions pontificales** | `X E NNN` (excommunier), `X L NNN` (lever), dans l'ordre de la feuille du pape. | [religieux.md](religieux.md#excommunication) |
-| 2 | **Ordres de gestion** | Ordres individuels actuels : `T N`, `R N`, `D N`, `C N`, `D C`, `A N`, `R T`, `C M/C/D`, `E C`, `O N`, `P N`, `H N`, `G`, `T F`, `T A`, `V C`, `S R` ; plus l'achat de cardinal (`N C NNN`). Joueurs par identifiant, ordres dans l'ordre saisi. | GDD, [succession.md](succession.md), [titres.md](titres.md) |
+| 2a | **Ordres royaux** | `W X`, `W R`, `W F`, `W G` du roi ou de la régente (autorisations, octroi gratuit) ; lus par l'étape 2. | [politique.md](politique.md#pouvoirs-royaux) |
+| 2 | **Ordres de gestion** | Ordres individuels actuels : `T N`, `R N`, `D N`, `C N`, `D C`, `A N`, `R T`, `C M/C/D`, `E C`, `O N`, `P N`, `H N`, `G`, `T F`, `T A`, `T X`, `T R`, `V C`, `S R` ; plus l'achat de cardinal (`N C NNN`). Joueurs par identifiant, ordres dans l'ordre saisi. | GDD, [succession.md](succession.md), [titres.md](titres.md) |
 | 3 | **Actions des cardinaux** | Enquêtes `Q HHH NNN` (dans l'ordre des joueurs, puis de la feuille) ; dépôt des ordres de procès `J HHH NNN` (jugés à l'étape 9). | [religieux.md](religieux.md#enquête) |
 | 4 | **Dissolutions de mariage** | `X D NNN` du pape et demande de l'époux, par couple. | [religieux.md](religieux.md#dissolution-de-mariage) |
 | 5 | **Mariages** | Ordres `M N` réciproques. | [succession.md](succession.md#conclusion-dun-mariage) |
-| 6 | **Élections** | Candidatures `K E` / `K P`, votes `V E` / `V P` : évêchés par identifiant de région croissant, puis conclave. Résolues dans cet ordre ; voix lues sur l'instantané des titres. | [religieux.md](religieux.md) |
+| 6 | **Élections** | Candidatures `K E` / `K P`, votes `V E` / `V P` : évêchés par identifiant de région croissant, puis conclave, puis trône (`K R` / `V R`). Résolues dans cet ordre ; voix lues sur l'instantané des titres. | [religieux.md](religieux.md) |
 | 7 | **Investiture** | Les élus deviennent évêque ou pape ; les achats de cardinal de l'étape 2 prennent effet. | ce document |
 | 8 | **Fin d'hiver** | Défausses et remplissage des mains, fiefs vacants attribués par défaut, conservation des stocks, prospérité, rapatriement, territoires sans ancre redevenus neutres, rapports. | GDD § Phase d'hiver |
 | 9 | **Jugement des procès** | Procès `J` déposés à l'étape 3, jugés dans l'ordre croissant du code de la cible. Mort normale (lignée, fiefs, Claims). | [dames.md](dames.md#carte-de-procès) |
@@ -222,7 +223,8 @@ saisons d'action sont déjà dans l'instantané. Au jugement :
 
 - L'ordre actuel des transferts `G` (par identifiant de joueur) n'est pas
   modifié.
-- Les élections royales de [politique.md](politique.md) réutiliseront le
-  moteur générique ([#374](https://github.com/fogfactory/crown-and-borough/issues/374))
-  et prendront place dans le tableau (étape 6) lors de leur spécification.
+- L'élection royale ([politique.md](politique.md#élection)) réutilise le moteur
+  générique ([#374](https://github.com/fogfactory/crown-and-borough/issues/374)) ;
+  elle suit le conclave à l'étape 6, la couronne étant conférée à l'investiture
+  (étape 7).
 - La syntaxe `N C` (achat de cardinal) et `X D` (dissolution) est confirmée.

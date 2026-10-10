@@ -146,8 +146,8 @@ L'attribution d'un fief vacant se fait par l'ordre d'hiver `T A NNN XXX` :
 Cet ordre est gratuit (0 R) et soumis à la même règle de ligne de succession
 que la constitution (`succession_rank_blocked`).
 
-L'agrandissement d'un fief existant est différé : il n'est pas prévu dans ce
-milestone.
+L'agrandissement d'un fief existant (annexion et changement de rang) est
+spécifié dans [politique.md](politique.md#seigneurie-et-annexion).
 
 ## Perte et vacance d'un fief
 
@@ -178,6 +178,9 @@ la dissolution automatique de #194).
   suspension du bonus de cité ni délai d'attente : la perte du château qui
   fait la capitale met fin au fief sur-le-champ. C'est la **seule** cause de
   dissolution d'un fief.
+- **Fief de la couronne** : un fief dont le titulaire meurt sans héritier ni
+  noble vivant chez son joueur passe à la couronne et n'est jamais attribué
+  par défaut ; voir [politique.md](politique.md#héritage-dun-fief-sans-héritier).
 - **Fief vacant** : il continue d'exister, de produire et de compter son
   point de score jusqu'à son attribution ou la dissolution de sa capitale. Un
   ordre d'hiver (`T A`) l'attribue à un noble du joueur qui le détient, sous réserve de la
@@ -225,7 +228,7 @@ Le **roi** peut taxer n'importe quel fief constitué, mais seulement celui
 qui n'est pas déjà taxé par son seigneur ce tour-là (priorité au titulaire
 local) ; le supplément est alors détourné vers la capitale du roi au lieu de
 la capitale du fief. Cette taxe royale est suivie dans le milestone
-[Politique royale](politique.md).
+[Royauté](politique.md#pouvoirs-royaux).
 
 Le détail du calcul (montant par territoire, avec et sans village) est défini
 dans [economie.md](economie.md).
