@@ -15,7 +15,7 @@ const PLAYABLE_KINDS: CardKind[] = [
 ]
 
 function nobleOption(noble: Noble): OrderFieldOption {
-  return { value: noble.code, label: `${noble.code} · ${noble.name} (${noble.owner})` }
+  return { value: noble.code, label: `${noble.name} (${noble.code}) · ${noble.owner}` }
 }
 
 function codeOption(code: string): OrderFieldOption {
@@ -741,7 +741,7 @@ function taxLauncher({
       name: ofName(communeName(fief.capital)),
     }),
   })
-  const nobleLabel = (noble: Noble) => `${noble.code} · ${noble.firstName ?? noble.name}`
+  const nobleLabel = (noble: Noble) => `${noble.firstName ?? noble.name} (${noble.code})`
   const bishoprics = state.bishoprics ?? []
   const clerics = state.nobles.filter(
     (noble) =>

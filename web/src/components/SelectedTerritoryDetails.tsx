@@ -126,7 +126,7 @@ export function SelectedTerritoryDetails({
   )
   const territoryLabel = (territoryID: string) => {
     const territory = mapTerritories.find((candidate) => candidate.id === territoryID)
-    return territory ? `${territory.id} · ${territory.name}` : territoryID
+    return territory ? `${territory.name} (${territory.id})` : territoryID
   }
   const activeRegionEffects = selectedRegion
     ? (state.activeRegionEffects ?? []).filter(
@@ -193,7 +193,7 @@ export function SelectedTerritoryDetails({
             <dt className="text-[#806f57]">{t('app.fiefHolder')}</dt>
             <dd className="font-medium">
               {selectedFiefHolder
-                ? `${selectedFiefHolder.code} · ${selectedFiefHolder.name}`
+                ? `${selectedFiefHolder.name} (${selectedFiefHolder.code})`
                 : t('app.fiefVacant')}
             </dd>
             {selectedFief.projectedIncome !== undefined && (
@@ -281,7 +281,7 @@ export function SelectedTerritoryDetails({
                           player: displayOwner(noble.owner, noble.owner),
                         })}
                       />
-                      <strong>{noble.code}</strong> · {noble.name}
+                      <strong>{noble.name}</strong> ({noble.code})
                     </span>
                     <span
                       className={`shrink-0 text-xs ${noble.status === 'dungeon' ? 'text-[#a84632]' : 'text-[#376341]'}`}
@@ -345,7 +345,7 @@ export function SelectedTerritoryDetails({
                       <>
                         <dt>{t('app.secretIdentity')}</dt>
                         <dd className="font-medium text-[#594b3c]">
-                          {noble.secret.code} · {noble.secret.name}
+                          {noble.secret.name} ({noble.secret.code})
                         </dd>
                       </>
                     )}
@@ -482,8 +482,9 @@ export function SelectedTerritoryDetails({
                     <p className="mt-1">
                       {t('app.sourceLabel')}{' '}
                       <strong>
-                        {sourceTerritory?.id ?? selectedSupplyLine.source}
-                        {sourceTerritory ? ` · ${sourceTerritory.name}` : ''}
+                        {sourceTerritory
+                          ? `${sourceTerritory.name} (${sourceTerritory.id})`
+                          : selectedSupplyLine.source}
                       </strong>
                     </p>
                     <p className="mt-1">

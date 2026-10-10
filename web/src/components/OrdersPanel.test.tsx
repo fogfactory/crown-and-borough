@@ -636,7 +636,7 @@ describe('OrdersPanel noble deck (winter)', () => {
       within(dialog)
         .getAllByRole('option')
         .map((o) => o.textContent),
-    ).toEqual(['HUG · Hugues', 'ANN · Anne (P2)'])
+    ).toEqual(['Hugues (HUG)', 'Anne (ANN) · P2'])
     fireEvent.change(within(dialog).getByRole('combobox'), { target: { value: 'ANN' } })
     fireEvent.click(within(dialog).getByRole('button', { name: "Ajouter l'ordre" }))
     expect(onWinterChange).toHaveBeenCalledWith('D N ANN BAS # Bâtard pour Anne\n')
@@ -658,7 +658,7 @@ describe('OrdersPanel noble deck (winter)', () => {
       within(screen.getByRole('dialog'))
         .getAllByRole('option')
         .map((o) => o.textContent),
-    ).toEqual(['EVE · Eve'])
+    ).toEqual(['Eve (EVE)'])
   })
 
   it('plays a claim card with an own heir on a noble married to one of ours', () => {
@@ -692,7 +692,7 @@ describe('OrdersPanel noble deck (winter)', () => {
       within(screen.getByLabelText('Noble visé'))
         .getAllByRole('option')
         .map((o) => o.textContent),
-    ).toEqual(['ANN · Anne'])
+    ).toEqual(['Anne (ANN)'])
     fireEvent.click(within(dialog).getByRole('button', { name: "Ajouter l'ordre" }))
     expect(onWinterChange).toHaveBeenCalledWith('C N HUG ANN # prétention sur Anne par Hugues\n')
   })
@@ -875,7 +875,7 @@ describe('OrdersPanel title and card order dialogs', () => {
     const options = within(screen.getByRole('dialog'))
       .getAllByRole('option')
       .map((o) => o.textContent)
-    expect(options).toEqual(['LEO · Leon (P2)'])
+    expect(options).toEqual(['Leon (LEO) · P2'])
     fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
     expect(onWinterChange).toHaveBeenCalledWith('X E LEO # excommunicate Leon\n')
 

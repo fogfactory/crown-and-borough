@@ -836,6 +836,7 @@ export interface OrderReport {
   order?: string
   owner?: PlayerId
   noble?: string
+  nobleName?: string
   type?: OrderType
   source?: string
   target?: string
@@ -980,6 +981,7 @@ export interface SeasonEffectReport {
   owner?: PlayerId
   army?: string
   noble?: string
+  nobleName?: string
   territory?: string
   target?: string
   troops?: number

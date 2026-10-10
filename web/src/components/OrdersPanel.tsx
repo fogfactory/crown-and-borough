@@ -329,12 +329,12 @@ function NobleCardRow({
     .sort((a, b) => Number(b.owner === player) - Number(a.owner === player))
     .map((noble) => ({
       value: noble.code,
-      label: `${noble.code} · ${noble.name}${noble.owner === player ? '' : ` (${noble.owner})`}`,
+      label: `${noble.name} (${noble.code})${noble.owner === player ? '' : ` · ${noble.owner}`}`,
     }))
   const claimOptions = isClaim
     ? claimTargets(state, player).map((noble) => ({
         value: noble.code,
-        label: `${noble.code} · ${noble.name}`,
+        label: `${noble.name} (${noble.code})`,
       }))
     : []
   const territoryOptions = state.territories
@@ -1034,7 +1034,7 @@ export function OrdersPanel({
           <div key={noble.code} className="space-y-1.5">
             <span className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.12em] text-[#806f57]">
               <span>
-                {noble.code} · {noble.name}
+                {noble.name} ({noble.code})
               </span>
               <span
                 className={
