@@ -761,13 +761,18 @@ function OpenElectionsSection({
                     title={`${t('orders.electionVoteLaunch')} · ${
                       isPope ? t('orders.electionPopeHeading') : name
                     }`}
-                    disabled={election.voices === 0}
+                    disabled={election.voices === 0 || election.eligible.length === 0}
                     fields={[
                       {
                         key: 'noble',
                         label: t('orders.field.votedCandidate'),
-                        placeholder: 'NNN',
-                        maxLength: 3,
+                        options: election.eligible.map((candidate) => ({
+                          value: candidate.code,
+                          label: `${candidate.name} (${candidate.code}) · ${
+                            state.players.find((entry) => entry.id === candidate.owner)
+                              ?.name ?? candidate.owner
+                          }`,
+                        })),
                       },
                     ]}
                     buildOrder={(values) => {

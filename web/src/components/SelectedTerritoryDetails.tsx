@@ -2,6 +2,7 @@ import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
 import { formatOrderLabel } from '@/lib/order-label'
 import { formatCardLabel } from '@/lib/card-hand'
+import { religiousTitlesByHolder } from '@/lib/lineage'
 import { playerDisplayName, type PlayerName } from '@/lib/player-label'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { isOccupiedAgainstController } from '@/lib/occupation'
@@ -115,6 +116,11 @@ export function SelectedTerritoryDetails({
   const isFiefCapital = selectedFief?.capital === selectedTerritory.id
   const occupied = isOccupiedAgainstController(selectedState)
   const selectedChain = selectedState?.army?.chain ?? null
+  const religiousTitles = religiousTitlesByHolder({
+    bishoprics: state.bishoprics,
+    cardinals: state.cardinals,
+    pope: state.pope,
+  })
   const presentNobles = state.nobles.filter(
     (noble) => noble.location === selectedTerritory.id,
   )
@@ -288,6 +294,38 @@ export function SelectedTerritoryDetails({
                     <dd className="font-medium text-[#594b3c]">
                       {displayOwner(noble.owner, noble.owner)}
                     </dd>
+                    {(() => {
+                      const fiefTitles = (state.fiefs ?? []).filter(
+                        (fief) => fief.holder === noble.code,
+                      )
+                      const religious = religiousTitles.get(noble.code) ?? []
+                      if (fiefTitles.length === 0 && religious.length === 0) return null
+                      return (
+                        <>
+                          <dt>{t('app.titles')}</dt>
+                          <dd className="flex flex-wrap gap-1 font-medium text-[#594b3c]">
+                            {religious.map((held) => (
+                              <span
+                                key={`${held.title}-${held.seat ?? ''}`}
+                                className="rounded bg-[#efe6f8] px-1.5 py-0.5 text-[10px] uppercase tracking-wide"
+                              >
+                                {t(`lineage.religious.${held.title}` as MessageKey, {
+                                  seat: held.seat ?? '',
+                                })}
+                              </span>
+                            ))}
+                            {fiefTitles.map((fief) => (
+                              <span
+                                key={fief.capital}
+                                className="rounded bg-[#e8d9b8] px-1.5 py-0.5 text-[10px] uppercase tracking-wide"
+                              >
+                                {t(FIEF_TITLE_KEYS[fief.title])} · {fief.capital}
+                              </span>
+                            ))}
+                          </dd>
+                        </>
+                      )
+                    })()}
                     {noble.dignities && noble.dignities.length > 0 && (
                       <>
                         <dt>{t('app.dignity')}</dt>

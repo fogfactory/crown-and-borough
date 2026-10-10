@@ -1,15 +1,30 @@
 import type {
   Claim,
   DeceasedNoble,
+  Bishopric,
   Dignity,
   Fief,
   FiefTitle,
+  ReligiousTitle,
   Marriage,
   MarriageCategory,
   Noble,
   Player,
   PlayerId,
 } from '@/types'
+
+/** A religious title a noble holds; `seat` names the bishopric of a bishop. */
+export interface HeldReligiousTitle {
+  title: ReligiousTitle
+  seat?: string
+}
+
+/** The religious standings buildHouses reads titles from. */
+export interface Religion {
+  bishoprics?: Bishopric[]
+  cardinals?: string[]
+  pope?: string
+}
 
 export interface HeldFief {
   title: FiefTitle
@@ -24,6 +39,8 @@ export interface HouseMember {
   cause?: DeceasedNoble['cause']
   /** Every dignity the noble carries (each counts as a title). */
   dignities: Dignity[]
+  /** Every religious title the noble holds, highest first. */
+  religious: HeldReligiousTitle[]
   /** Every fief the noble holds, highest first. */
   fiefs: HeldFief[]
   /** The pretension this noble stakes as an heir, if any. */
@@ -77,6 +94,20 @@ const FIEF_RANK: Record<FiefTitle, number> = {
   duchy: 4,
 }
 
+/** Religious titles by noble code, highest first (pope, cardinal, bishop). */
+export function religiousTitlesByHolder(religion: Religion): Map<string, HeldReligiousTitle[]> {
+  const byHolder = new Map<string, HeldReligiousTitle[]>()
+  const add = (code: string | undefined, held: HeldReligiousTitle) => {
+    if (!code) return
+    byHolder.set(code, [...(byHolder.get(code) ?? []), held])
+  }
+  add(religion.pope, { title: 'pope' })
+  for (const code of religion.cardinals ?? []) add(code, { title: 'cardinal' })
+  for (const bishopric of religion.bishoprics ?? [])
+    add(bishopric.bishop, { title: 'bishop', seat: bishopric.name })
+  return byHolder
+}
+
 /**
  * Builds each house's members: living nobles in succession order, then the
  * deceased by date of death. A noble missing from `player.succession` (older
@@ -88,7 +119,9 @@ export function buildHouses(
   deceased: DeceasedNoble[],
   fiefs: Fief[],
   claims: Claim[] = [],
+  religion: Religion = {},
 ): House[] {
+  const religiousByHolder = religiousTitlesByHolder(religion)
   const fiefsByHolder = new Map<string, HeldFief[]>()
   for (const fief of fiefs) {
     if (!fief.holder) continue
@@ -118,6 +151,7 @@ export function buildHouses(
         sex: noble.sex,
         dead: false,
         dignities: noble.dignities ?? [],
+        religious: religiousByHolder.get(noble.code) ?? [],
         fiefs: fiefsByHolder.get(noble.code) ?? [],
         claim: claim
           ? {
@@ -141,6 +175,7 @@ export function buildHouses(
         dead: true,
         cause: noble.cause,
         dignities: [],
+        religious: [],
         fiefs: [],
         claimedBy: 0,
       })

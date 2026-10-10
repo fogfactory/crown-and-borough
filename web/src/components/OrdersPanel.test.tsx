@@ -752,9 +752,13 @@ describe('OrdersPanel winter elections', () => {
                   { kind: 'seat', territory: 'AAA', votes: 2 },
                   { kind: 'territory', territory: 'BBB', votes: 1 },
                 ],
-                candidates: [{ code: 'HUG', name: 'Sieur Hugues de Ros' }],
+                candidates: [{ code: 'HUG', name: 'Sieur Hugues de Ros', owner: 'P1' }],
+                eligible: [
+                  { code: 'HUG', name: 'Sieur Hugues de Ros', owner: 'P1' },
+                  { code: 'ZEM', name: 'Sieur Bertrand', owner: 'P2' },
+                ],
               },
-              { kind: 'pope', required: 2, voices: 0, voiceSources: [], candidates: [] },
+              { kind: 'pope', required: 2, voices: 0, voiceSources: [], candidates: [], eligible: [] },
             ],
           }}
           player="P1"
@@ -798,9 +802,9 @@ describe('OrdersPanel winter elections', () => {
     const onWinterChange = vi.fn()
     renderElections(onWinterChange)
     fireEvent.click(screen.getAllByRole('button', { name: 'Vote (V)' })[0])
-    fireEvent.change(screen.getByLabelText('Candidate code'), { target: { value: 'hug' } })
+    fireEvent.change(screen.getByLabelText('Candidate code'), { target: { value: 'ZEM' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
-    expect(onWinterChange).toHaveBeenCalledWith('V E HUG AAA # vote HUG\n')
+    expect(onWinterChange).toHaveBeenCalledWith('V E ZEM AAA # vote ZEM\n')
   })
 
   it('disables a candidate already on the sheet', () => {
