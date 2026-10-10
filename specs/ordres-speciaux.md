@@ -64,6 +64,11 @@ Aucun noble n'est requis :
   l'évêché. Deux cartes jouées sur le même fief le même tour ne se cumulent pas,
   la seconde est consommée sans effet.
 
+- `P SO NNN`, `P SO XXX`, `P AS HHH NNN`, `P JU HHH` et `P EM AAA BBB` jouent
+  les cartes d'événement Souterrain, Assassinat, Justice et Embuscade, par
+  exception à la règle « `TER` est le village seed d'une région » : voir
+  [Cartes d'événement](#cartes-dévénement).
+
 La main est reconstituée automatiquement en hiver, après les ordres d'hiver
 (dont `T N` et les cartes jouées, qui libèrent leur place) et après les
 défausses. Le joueur reçoit `draw_orders_limit` cartes, moins une s'il a pioché
@@ -130,8 +135,78 @@ Ces effets, tout comme ceux des calamités, sont pris en compte par la
 projection de ravitaillement (`/supply`) avec les cartes du brouillon du
 joueur.
 
+## Cartes d'événement
+
+**Milestone lié :** [Royauté](https://github.com/fogfactory/crown-and-borough/milestone/25).
+
+Quatre cartes tirées du jeu de plateau *Fief* rejoignent le deck d'ordres
+spéciaux, au même titre que Beau temps ou Impôts. Chacune se joue au
+printemps, en été ou en automne par un ordre `P`, est gratuite, est consommée à
+la pose (donc défaussée même si l'effet s'avère nul) et a son effet appliqué
+avant le ravitaillement et la résolution des ordres d'armée. Leurs poids de
+tirage sont des entrées de `special_orders.bonus_weights` (`tunnel`,
+`assassination`, `justice`, `ambush`), à calibrer. Un ordre dont une condition
+n'est pas remplie est rejeté avec le motif indiqué et ne consomme pas la
+carte. Les cartes jouées le même tour se résolvent dans l'ordre : Souterrain,
+Assassinat, Justice, puis (pendant la résolution des mouvements) Embuscade.
+
+### Souterrain
+
+Carte `tunnel`, code `SO`. Elle a deux usages, distingués par l'argument.
+
+- **Évasion** `P SO NNN` : `NNN` est un noble du joueur détenu (`hostage` ou
+  `dungeon`) par l'armée d'un autre joueur (`noble_not_held` sinon). Il
+  s'échappe et réapparaît libre sur la capitale du joueur ; si elle n'est plus
+  contrôlée, sur son château contrôlé de plus petit code (`tunnel_no_refuge`
+  s'il n'en a aucun). Le détenteur voit l'évasion dans son rapport ; les autres
+  joueurs ne voient aucune rumeur nominative.
+- **Sape** `P SO XXX` : `XXX` porte un château ou une cité
+  (`tunnel_no_castle` sinon). Pour tout le tour, le bonus défensif de cette case
+  (château ou cité) est annulé dans tous les combats qui s'y livrent.
+
+### Assassinat
+
+Carte `assassination`, code `AS`. `P AS HHH NNN` : `HHH` est le **commanditaire**,
+un noble libre du joueur (ni `hostage` ni `dungeon`), et `NNN` un noble d'un
+autre joueur, où qu'il soit et quel que soit son statut. `NNN` meurt sans jet
+de dé : mort normale ([succession.md](succession.md)) avec fiefs, prétentions,
+chaîne émise ce tour supprimée, et couronne si c'est le roi.
+
+Le commanditaire est enregistré avec l'assassinat. Le rapport public annonce
+la mort de `NNN` sans nommer de coupable ; le **seul** propriétaire de `NNN`
+apprend le nom de `HHH`. Une rumeur publique signale qu'un assassinat a eu
+lieu.
+
+### Justice
+
+Carte `justice`, code `JU`. `P JU HHH` cible n'importe quel noble `HHH`, de
+n'importe quel joueur (le sien compris), où qu'il soit et quel que soit son
+statut (libre, otage, cachot). Si `HHH` a été le commanditaire d'au moins un
+assassinat, quelle qu'en soit la victime, il est exécuté : mort normale
+(fiefs, prétentions, cartes). Sinon la carte est consommée sans effet. Une
+cible déjà morte est rejetée.
+
+Seul le propriétaire d'une victime connaît le commanditaire : les autres
+joueurs jouent Justice à l'aveugle, sur un soupçon. Le rapport public nomme
+le noble exécuté comme « justice rendue pour un assassinat » ; un échec n'est
+visible que du joueur qui a joué la carte (« aucun effet »), sans rumeur
+publique.
+
+### Embuscade
+
+Carte `ambush`, code `EM`. `P EM AAA BBB` désigne l'attaque prévue ce tour par
+le joueur, de l'origine `AAA` vers la cible `BBB` (`ambush_no_attack` si aucun
+ordre d'attaque de ce joueur ne correspond ; il est vérifié à la soumission
+et relu à la résolution). Si cette attaque est **victorieuse** et que
+l'armée défenseuse bat en retraite avec au moins un noble, un noble adverse
+de cette armée est capturé : celui qui arrive en tête de la ligne de
+succession de son propriétaire. Il est capturé comme à la destruction d'une
+armée ([gdd.md](gdd.md), nobles `hostage` par défaut, bâtard au `dungeon`) et
+placé chez le joueur de l'embuscade. Sans victoire, sans retraite ou sans noble
+dans l'armée en retraite, la carte est consommée sans effet.
+
 ## Cartes prévues
 
-Le deck pourra accueillir notamment des impôts, des mariages et des
-assassinats. Les cartes de Claim et de cardinal appartiennent au deck de nobles. Les règles propres aux cartes de
+Le deck pourra encore accueillir des mariages. Les cartes de Claim et de
+cardinal appartiennent au deck de nobles. Les règles propres aux cartes de
 succession, politique et religion restent dans leurs spécifications thématiques.
