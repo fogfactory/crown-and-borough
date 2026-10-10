@@ -146,8 +146,8 @@ L'attribution d'un fief vacant se fait par l'ordre d'hiver `T A NNN XXX` :
 Cet ordre est gratuit (0 R) et soumis à la même règle de ligne de succession
 que la constitution (`succession_rank_blocked`).
 
-L'agrandissement d'un fief existant est différé : il n'est pas prévu dans ce
-milestone.
+L'agrandissement d'un fief existant (annexion et changement de rang) est
+spécifié dans [politique.md](politique.md#seigneurie-et-annexion).
 
 ## Perte et vacance d'un fief
 
@@ -225,7 +225,7 @@ Le **roi** peut taxer n'importe quel fief constitué, mais seulement celui
 qui n'est pas déjà taxé par son seigneur ce tour-là (priorité au titulaire
 local) ; le supplément est alors détourné vers la capitale du roi au lieu de
 la capitale du fief. Cette taxe royale est suivie dans le milestone
-[Politique royale](politique.md).
+[Royauté](politique.md#pouvoirs-royaux).
 
 Le détail du calcul (montant par territoire, avec et sans village) est défini
 dans [economie.md](economie.md).

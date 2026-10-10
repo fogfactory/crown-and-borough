@@ -155,11 +155,12 @@ Issue : [#192](https://github.com/fogfactory/crown-and-borough/issues/192)
 | Territoire contrôlé hors fief, sans village | 1 R → capitale du joueur | — (pas de taxe hors fief) |
 | Territoire contrôlé hors fief, avec village | 2 R → capitale du joueur | — |
 | Village neutre | 1 R → son propre stock | — |
+| Rente royale | 1 R par fief constitué, créé (non prélevé), → capitale du joueur du roi ; la reine reçoit la moitié arrondie au supérieur → capitale de son joueur | — ([politique.md](politique.md#rente)) |
 | Moulin (niveau `N`) | `N` R → château adjacent du même contrôleur, sinon village adjacent du même contrôleur, sinon reste sur le moulin | Dîme (carte Impôts jouée par un évêque, un cardinal ou le pape sur l'évêché) : `N` R → capitale du joueur qui a joué la dîme, au lieu du village/château adjacent |
 
 La taxe du seigneur ([#189](https://github.com/fogfactory/crown-and-borough/issues/189))
 est appliquée par le moteur ; la taxe royale et la dîme restent suivies dans
-les milestones Politique royale et Religieux.
+les milestones Royauté ([politique.md](politique.md#pouvoirs-royaux)) et Religieux.
 
 La taxe seigneuriale double toujours exactement le revenu de territoire,
 village inclus ; elle ne touche jamais la production des moulins. La dîme

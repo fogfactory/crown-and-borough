@@ -406,7 +406,8 @@ entier, avec ses territoires, au propriétaire du premier héritier vivant dans
 le classement, et cet héritier en devient le titulaire, sans condition de rang
 de succession (événement public de fief changeant de main, motif `claim`).
 Sans fief à `CCC` ou sans héritier vivant, les prétentions s'éteignent sans effet ; une fois le fief transmis, les autres prétentions sur `CCC` s'éteignent aussi.
-Les titres royaux ne sont pas encore implémentés : ils suivront la même règle.
+La couronne suit une règle propre au couple royal, décrite dans
+[politique.md](politique.md#claim-sur-le-couple-royal).
 
 **Bâtard.** Jouer une carte de bâtard sur l'héritier annule sa prétention.
 Une carte de bâtard jouée sur un noble « parent » (le noble visé ou son

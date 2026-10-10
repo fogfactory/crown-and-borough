@@ -24,7 +24,7 @@ réordonnancement.
 | Ordres spéciaux | [`ordres-speciaux.md`](ordres-speciaux.md) | [Ordres spéciaux & Calamités](https://github.com/fogfactory/crown-and-borough/milestone/4) | Socle actuel |
 | Résolution de l'hiver | [`hiver.md`](hiver.md) | [Religieux](https://github.com/fogfactory/crown-and-borough/milestone/5) | Titres, Religieux, Succession, Dames |
 | Religieux | [`religieux.md`](religieux.md) | [Religieux](https://github.com/fogfactory/crown-and-borough/milestone/5) | Titres, Cartographie |
-| Politique royale | [`politique.md`](politique.md) | [Politique royale](https://github.com/fogfactory/crown-and-borough/milestone/6) | Titres, Religieux |
+| Royauté (politique royale) | [`politique.md`](politique.md) | [Royauté](https://github.com/fogfactory/crown-and-borough/milestone/25) (commandement noble : [Politique royale](https://github.com/fogfactory/crown-and-borough/milestone/6)) | Titres, Religieux, Succession |
 | Succession | [`succession.md`](succession.md) | [Succession](https://github.com/fogfactory/crown-and-borough/milestone/7) | Titres, Religieux, Politique, cartes spéciales |
 | Économie et prospérité | [`economie.md`](economie.md) | [Économie & Fiefs](https://github.com/fogfactory/crown-and-borough/milestone/19) (transferts livrés dans [Économie & Prospérité](https://github.com/fogfactory/crown-and-borough/milestone/8)) | Socle actuel ; fiefs de `titres.md` |
 | Information | [`information.md`](information.md) | [Brouillard de guerre](https://github.com/fogfactory/crown-and-borough/milestone/9) | [Vue privée online #42](https://github.com/fogfactory/crown-and-borough/issues/42) |
