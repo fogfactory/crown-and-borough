@@ -67,6 +67,20 @@ describe('lineage', () => {
     expect(houses[0].members[2].dead).toBe(true)
   })
 
+  it('lists the religious titles of a noble, highest first', () => {
+    const houses = buildHouses(players, nobles, [], [], [], {
+      pope: 'LUC',
+      cardinals: ['LUC'],
+      bishoprics: [{ region: 'R1', name: 'Alpilles', territories: [], bishop: 'LUC' }],
+    })
+    const member = houses[0].members.find((entry) => entry.code === 'LUC')
+    expect(member?.religious).toEqual([
+      { title: 'pope' },
+      { title: 'cardinal' },
+      { title: 'bishop', seat: 'Alpilles' },
+    ])
+  })
+
   it('classifies marriages: active head, secondary, ended', () => {
     const houses = buildHouses(players, nobles, [], [])
     const links = buildLinks(houses, [

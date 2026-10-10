@@ -22,6 +22,10 @@ var demoScenarios = map[string]struct {
 		description: "winter, P1 is pope with a bishop-astrologer, a Witch, cards in hand; P2 holds a cardinal and an excommunicated noble",
 		apply:       forgeWinter,
 	},
+	"election": {
+		description: "winter (see the winter scenario), plus a vacant bishopric whose every territory is held by P1 or P2 (armies), with a free man of each player to run: a bishop election opens",
+		apply:       forgeElection,
+	},
 	"inquiry": {
 		description: "winter (see the winter scenario), plus two ladies of P2 hiding a Witch and a Spy: P1's pope and P2's cardinal can investigate them",
 		apply:       forgeInquiry,
@@ -151,6 +155,62 @@ func forgeWinter(state *models.GameState) error {
 		models.NobleCard{Kind: models.NobleCardKindNoble, Code: "ZAL", Name: "Albert", Sex: models.SexMale},
 		models.NobleCard{Kind: models.NobleCardKindDignity, Code: models.DignityBastardCardCode, Dignity: models.DignityBastard},
 	)
+	return nil
+}
+
+// forgeElection opens a bishop election: the first region without bishop and
+// without any army has each of its territories occupied by a one-troop army of
+// P1 or P2 (alternating, unless a player already controls it), and a free man
+// of each player is added to run. The orders to try: `K E <noble> <seat>` to
+// file a candidacy, `V E <noble> <seat>` to vote.
+func forgeElection(state *models.GameState) error {
+	if err := forgeWinter(state); err != nil {
+		return err
+	}
+	armed := make(map[models.TerritoryID]bool)
+	for _, army := range state.Armies {
+		armed[army.TerritoryID] = true
+	}
+	var region *models.Region
+	for index := range state.Regions {
+		candidate := &state.Regions[index]
+		if _, hasBishop := state.BishopOf(candidate.ID); hasBishop {
+			continue
+		}
+		unarmed := true
+		for _, id := range candidate.Territories {
+			if armed[id] {
+				unarmed = false
+			}
+		}
+		if unarmed {
+			region = candidate
+			break
+		}
+	}
+	if region == nil {
+		return fmt.Errorf("no vacant region free of armies")
+	}
+	players := []models.PlayerID{"P1", "P2"}
+	for index, id := range region.Territories {
+		if _, controlled := state.TerritoryController(id); controlled {
+			continue
+		}
+		armyID := models.ArmyID(fmt.Sprintf("ZE%d", index+1))
+		state.Armies = append(state.Armies, models.Army{ID: armyID, OwnerID: players[index%2], TerritoryID: id, Size: 1})
+		territoryState := state.TerritoryStates[id]
+		territoryState.Army = &armyID
+		state.TerritoryStates[id] = territoryState
+	}
+	state.NextArmyID += len(state.Armies)
+	for index, candidate := range []struct{ id, code, name string }{{"N910", "ZEL", "Aldric"}, {"N911", "ZEM", "Bertrand"}} {
+		state.Nobles = append(state.Nobles, models.Noble{
+			ID: models.NobleID(candidate.id), Code: candidate.code, Name: candidate.name, Sex: models.SexMale,
+			OwnerID: players[index], LocationID: state.Nobles[ownedNobles(state, players[index])[0]].LocationID,
+			Status: models.NobleStatusFree,
+		})
+	}
+	fmt.Printf("demo election: bishopric %s (seat %s) is vacant and fully held; candidates ZEL (P1) and ZEM (P2)\n", region.ID, region.Seed)
 	return nil
 }
 

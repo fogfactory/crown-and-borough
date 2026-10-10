@@ -695,6 +695,9 @@ function AppContent() {
                   claims={state.claims}
                   defaultFocus={selectedPlayer}
                   fiefs={state.fiefs}
+                  bishoprics={state.bishoprics}
+                  cardinals={state.cardinals}
+                  pope={state.pope}
                   marriages={state.marriages}
                   scores={state.scores}
                   victory={state.victory}

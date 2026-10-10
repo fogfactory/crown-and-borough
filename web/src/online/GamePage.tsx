@@ -884,6 +884,9 @@ export function GamePage() {
                   claims={state.claims}
                   defaultFocus={playerID}
   fiefs={state.fiefs}
+  bishoprics={state.bishoprics}
+  cardinals={state.cardinals}
+  pope={state.pope}
   marriages={state.marriages}
   scores={state.scores ?? summary.scores}
   victory={state.victory}

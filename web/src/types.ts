@@ -246,7 +246,9 @@ export interface OpenElection {
   /** What gives the viewer those voices. */
   voiceSources: VoiceSource[]
   /** The viewer's nobles accepted as candidates today. */
-  candidates: Array<{ code: string; name: string }>
+  candidates: Array<{ code: string; name: string; owner: PlayerId }>
+  /** Every eligible noble of any player: the pool a vote can name. */
+  eligible: Array<{ code: string; name: string; owner: PlayerId }>
 }
 
 export interface VoiceSource {
@@ -1061,6 +1063,27 @@ export interface TurnReport {
   winter?: WinterReport
   fiefs?: FiefReport[]
   marriages?: MarriageReport[]
+  elections?: ElectionReport[]
+}
+
+export interface ElectionCandidateReport {
+  noble: string
+  nobleCode: string
+  nobleName: string
+  owner: PlayerId
+  votes: number
+}
+
+/** Public outcome of one winter election: totals only, never the ballots. */
+export interface ElectionReport {
+  kind: 'bishop' | 'pope'
+  region?: string
+  seat?: string
+  result: 'elected' | 'tie' | 'no_candidate' | 'no_majority'
+  winner?: string
+  required?: number
+  cast: number
+  candidates: ElectionCandidateReport[]
 }
 
 /** A noble that has left the game (still named by the lineage and its marriages). */

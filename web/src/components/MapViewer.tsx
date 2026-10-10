@@ -10,6 +10,7 @@ import {
   ImpassableBorderChain,
 } from '@/components/MapIconLayers'
 import { IntentionsOverlay } from '@/components/MapIntentionsOverlay'
+import { ReligiousHierarchyPanel } from '@/components/ReligiousHierarchyPanel'
 import {
   RegionBadges,
   RegionBands,
@@ -535,6 +536,8 @@ export function MapViewer({
         </svg>
 
         <MapControls onZoom={zoomBy} />
+
+        <ReligiousHierarchyPanel state={state} />
 
         {(onToggleIntentions ||
           onToggleOwnership ||

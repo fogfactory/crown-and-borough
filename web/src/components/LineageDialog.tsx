@@ -36,6 +36,7 @@ import {
 import { cn } from '@/lib/utils'
 import { VictoryStatusPanel } from '@/components/VictoryStatusPanel'
 import type {
+  Bishopric,
   Claim,
   DeceasedNoble,
   Fief,
@@ -72,6 +73,9 @@ interface LineageDialogProps {
   nobles: Noble[]
   deceased?: DeceasedNoble[]
   fiefs?: Fief[]
+  bishoprics?: Bishopric[]
+  cardinals?: string[]
+  pope?: string
   marriages?: Marriage[]
   claims?: Claim[]
   scores?: Record<string, ScoreBreakdown>
@@ -217,8 +221,12 @@ export function LineageDialog(props: LineageDialogProps) {
     code
 
   const allHouses = useMemo(
-    () => buildHouses(props.players, nobles, deceased ?? [], fiefs ?? [], claimList ?? []),
-    [props.players, nobles, deceased, fiefs, claimList],
+    () => buildHouses(props.players, nobles, deceased ?? [], fiefs ?? [], claimList ?? [], {
+        bishoprics: data.bishoprics,
+        cardinals: data.cardinals,
+        pope: data.pope,
+      }),
+    [props.players, nobles, deceased, fiefs, claimList, data.bishoprics, data.cardinals, data.pope],
   )
   const houses = useMemo(
     () => allHouses.filter((house) => !hidden.has(house.player.id)),
@@ -965,6 +973,16 @@ function LineageTree({
                             ✝ {t(`lineage.cause.${member.cause}` as MessageKey)}
                           </Badge>
                         )}
+                        {member.religious.map((held) => (
+                          <Badge
+                            key={`${held.title}-${held.seat ?? ''}`}
+                            className="border-[#6b4f8a] bg-[#efe6f8] text-[#4d3569]"
+                          >
+                            {t(`lineage.religious.${held.title}` as MessageKey, {
+                              seat: held.seat ?? '',
+                            })}
+                          </Badge>
+                        ))}
                         {member.fiefs.map((fief) => (
                           <Badge key={fief.capital} className="border-[#b7a786]">
                             {titleLabel(t, fief)}

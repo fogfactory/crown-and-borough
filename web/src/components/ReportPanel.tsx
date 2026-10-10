@@ -860,6 +860,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
   const seasonEffectView = groupSeasonEffects(seasonEffects, map, t)
   const fiefs = report.fiefs ?? []
   const marriages = report.marriages ?? []
+  const elections = report.elections ?? []
 
   return (
     <section className="min-w-0 space-y-4">
@@ -1319,6 +1320,53 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                 t,
               )}
           </div>
+        </div>
+      )}
+
+      {elections.length > 0 && (
+        <div className="space-y-2 rounded-lg border border-[#c9b688] bg-[#fbf3df] p-3">
+          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#7a5a20]">
+            {t('reports.elections')}
+          </h4>
+          <ul className="space-y-1 text-sm text-[#7a5a20]">
+            {elections.map((election, index) => {
+              const winner = election.candidates.find(
+                (candidate) => candidate.noble === election.winner,
+              )
+              const seat =
+                election.kind === 'bishop'
+                  ? territoryLabel(map, election.seat, t)
+                  : ''
+              return (
+                <li key={`${election.kind}-${election.region ?? ''}-${index}`}>
+                  <p className="font-semibold">
+                    {election.kind === 'bishop'
+                      ? t('reports.electionBishop', { seat })
+                      : t('reports.electionPope')}
+                    {' — '}
+                    {t(`reports.electionResult.${election.result}`, {
+                      noble: winner
+                        ? `${winner.nobleName} (${winner.nobleCode})`
+                        : '—',
+                    })}
+                  </p>
+                  {election.candidates.length > 0 && (
+                    <p className="text-xs">
+                      {election.candidates
+                        .map(
+                          (candidate) =>
+                            `${candidate.nobleName} (${candidate.owner}) : ${candidate.votes}`,
+                        )
+                        .join(' · ')}
+                      {election.required
+                        ? ` — ${t('reports.electionRequired', { count: election.required })}`
+                        : ''}
+                    </p>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
         </div>
       )}
 

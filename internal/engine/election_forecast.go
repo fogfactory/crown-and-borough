@@ -15,7 +15,9 @@ import (
 // relative majority). Voices is the viewer's own weight in the election.
 // Candidates are the viewer's nobles accepted as candidates on the winter
 // snapshot, so a title won this winter never counts. VoiceSources explains
-// the viewer's voices.
+// the viewer's voices. Eligible lists the nobles of every player who may stand
+// (public data), to help a player choose whom to vote for: whether they do
+// stand is on the other players' private sheets.
 type OpenElection struct {
 	Kind         models.ElectionKind `json:"kind"`
 	Region       models.RegionID     `json:"region,omitempty"`
@@ -24,13 +26,15 @@ type OpenElection struct {
 	Voices       int                 `json:"voices"`
 	VoiceSources []VoiceSource       `json:"voiceSources"`
 	Candidates   []ElectionNoble     `json:"candidates"`
+	Eligible     []ElectionNoble     `json:"eligible"`
 }
 
 // ElectionNoble is a potential candidate: code for the order, display name for
 // the player.
 type ElectionNoble struct {
-	Code models.NobleCode `json:"code"`
-	Name string           `json:"name"`
+	Code  models.NobleCode `json:"code"`
+	Name  string           `json:"name"`
+	Owner models.PlayerID  `json:"owner"`
 }
 
 // ForecastWinterElections returns the elections open when the winter begins,
@@ -51,6 +55,7 @@ func ForecastWinterElections(state *models.GameState, balance assetgen.Balance, 
 			Seat:         election.seat,
 			VoiceSources: []VoiceSource{},
 			Candidates:   []ElectionNoble{},
+			Eligible:     []ElectionNoble{},
 		}
 		for _, source := range ctx.electionVoiceSources(election)[viewer] {
 			announced.VoiceSources = append(announced.VoiceSources, source)
@@ -61,8 +66,13 @@ func ForecastWinterElections(state *models.GameState, balance assetgen.Balance, 
 		}
 		for i := range ctx.state.Nobles {
 			noble := &ctx.state.Nobles[i]
-			if noble.OwnerID == viewer && election.eligible(noble) == "" {
-				announced.Candidates = append(announced.Candidates, ElectionNoble{Code: models.NobleCode(noble.Code), Name: ctx.state.NobleDisplayName(*noble)})
+			if election.eligible(noble) != "" {
+				continue
+			}
+			entry := ElectionNoble{Code: models.NobleCode(noble.Code), Name: ctx.state.NobleDisplayName(*noble), Owner: noble.OwnerID}
+			announced.Eligible = append(announced.Eligible, entry)
+			if noble.OwnerID == viewer {
+				announced.Candidates = append(announced.Candidates, entry)
 			}
 		}
 		open = append(open, announced)

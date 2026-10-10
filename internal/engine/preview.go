@@ -179,6 +179,12 @@ func previewWinter(preview *OrdersPreview, game *models.GameState, balance asset
 		}
 		event, ok := outcomes[entry.Order.ID]
 		if !ok {
+			if isBallotOrder(*entry.Order) {
+				// An accepted candidacy or vote emits no event: only its
+				// rejection does, so silence means the line is valid.
+				entry.Applied = true
+				entry.Territory = winterOrderTerritory(game, *entry.Order)
+			}
 			continue
 		}
 		entry.Applied = event.Type != EventTypeRejected
@@ -189,6 +195,12 @@ func previewWinter(preview *OrdersPreview, game *models.GameState, balance asset
 			// valid and is only flagged as pending.
 			entry.Applied = true
 			entry.Reason = "marriage_pending"
+		}
+		if event.Reason == "unknown_candidate" && entry.Order.Type == models.WinterOrderTypeVote && votesForOtherPlayer(game, playerID, entry.Order.NobleCode) {
+			// Candidacies are filed on the other players' private sheets: the
+			// preview cannot know whether this noble will stand.
+			entry.Applied = true
+			entry.Reason = "candidate_pending"
 		}
 		entry.Cost = event.ResourceSpent
 		entry.Level = event.Level
@@ -262,4 +274,19 @@ func winterOrderTerritory(game *models.GameState, order models.WinterOrder) mode
 		}
 	}
 	return ""
+}
+
+// isBallotOrder reports whether the order is an election candidacy or vote.
+func isBallotOrder(order models.WinterOrder) bool {
+	return order.Type == models.WinterOrderTypeCandidacy || order.Type == models.WinterOrderTypeVote
+}
+
+// votesForOtherPlayer reports whether the code names a noble of another player.
+func votesForOtherPlayer(game *models.GameState, playerID models.PlayerID, code models.NobleCode) bool {
+	for _, noble := range game.Nobles {
+		if noble.Code == string(code) {
+			return noble.OwnerID != playerID
+		}
+	}
+	return false
 }
