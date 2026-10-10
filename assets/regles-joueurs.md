@@ -1031,7 +1031,9 @@ annoncée dans l'encart des cartes spéciales de l'interface, et l'annonce
 reste visible jusqu'à son application ou sa contre-mesure. Aucune calamité
 ne se résout en hiver.
 
-- la peste réduit les armées par division de
+- la peste frappe les armées et les nobles qui commencent ou terminent le tour
+  dans sa région (ils y restent, en sortent ou y entrent, retraite comprise),
+  une seule fois par tour : elle réduit les armées par division de
   **{{special_orders.effects.plague_army_divisor}}** et peut supprimer un
   noble ;
 - le mauvais temps bloque les mouvements provenant ou visant sa région, sauf

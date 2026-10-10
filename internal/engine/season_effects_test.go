@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/models"
@@ -535,5 +536,57 @@ func assertSeasonEffectCounts(t *testing.T, ctx *resolutionContext, wantCanceled
 	}
 	if canceled != wantCanceled || bonus != wantBonus {
 		t.Fatalf("season effect events = %d canceled / %d bonus, want %d/%d", canceled, bonus, wantCanceled, wantBonus)
+	}
+}
+
+// plagueMovementState has region AAA plagued and a third territory CCC outside
+// it, so an army can enter or leave the region.
+func plagueMovementState() *models.GameState {
+	state := effectTestState()
+	state.Territories = append(state.Territories, models.Territory{ID: "CCC", Name: "CCC", Terrain: models.TerrainPlain, Adjacencies: []models.TerritoryID{"BBB"}})
+	state.Territories[1].Adjacencies = []models.TerritoryID{"AAA", "CCC"}
+	state.TerritoryStates["CCC"] = models.TerritoryState{}
+	state.Regions = append(state.Regions, models.Region{ID: "CCC", Seed: "CCC", Territories: []models.TerritoryID{"CCC"}})
+	setCurrentCalamity(state, models.CardKindPlague, "AAA")
+	return state
+}
+
+func plagueBalance() assetgen.Balance {
+	balance := testBalance()
+	balance.SpecialOrders.Effects.PlagueArmyDivisor = 2
+	return balance
+}
+
+func TestPlagueStrikesArmyEnteringRegion(t *testing.T) {
+	state := plagueMovementState()
+	state.Armies = []models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "CCC", Size: 4}}
+	state.TerritoryStates["CCC"] = models.TerritoryState{Army: armyPointer("A1")}
+	ctx := newResolutionContext(state, plagueBalance())
+	resolveSeasonEffects(ctx)
+	if got := ctx.state.Armies[0].Size; got != 4 {
+		t.Fatalf("army outside the region = %d before moving, want 4", got)
+	}
+	ctx.state.Armies[0].TerritoryID = "AAA"
+	applyArrivalPlague(ctx)
+	if got := ctx.state.Armies[0].Size; got != 2 {
+		t.Fatalf("army entering plague region = %d, want 2", got)
+	}
+}
+
+func TestPlagueStrikesArmyLeavingRegionOnce(t *testing.T) {
+	state := plagueMovementState()
+	state.Armies = []models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 4}}
+	state.TerritoryStates["AAA"] = models.TerritoryState{Army: armyPointer("A1")}
+	ctx := newResolutionContext(state, plagueBalance())
+	resolveSeasonEffects(ctx)
+	ctx.state.Armies[0].TerritoryID = "BBB" // moved within the region
+	applyArrivalPlague(ctx)
+	if got := ctx.state.Armies[0].Size; got != 2 {
+		t.Fatalf("army starting and ending in plague region = %d, want 2 (struck once)", got)
+	}
+	ctx.state.Armies[0].TerritoryID = "CCC"
+	applyArrivalPlague(ctx)
+	if got := ctx.state.Armies[0].Size; got != 2 {
+		t.Fatalf("army leaving plague region = %d, want 2", got)
 	}
 }

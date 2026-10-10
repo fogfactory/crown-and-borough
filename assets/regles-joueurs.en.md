@@ -975,7 +975,9 @@ soon as a calamity is drawn, the interface announces it in the special-cards
 panel, and the announcement stays visible until the calamity applies or is
 countered. No calamity resolves in winter.
 
-- plague reduces armies by a divisor of
+- plague strikes the armies and nobles that start or end the turn in its region
+  (staying, leaving or entering, retreats included), once per turn: it reduces
+  armies by a divisor of
   **{{special_orders.effects.plague_army_divisor}}** and may remove a noble;
 - bad weather blocks movements originating from or targeting its region,
   except holds and defensive support, and the region's mills produce nothing;
