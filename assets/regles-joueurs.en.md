@@ -677,6 +677,31 @@ per line, applied in the entered order.
 | Assign a vacant fief | `T A NNN XXX` | `NNN` is a player noble, even a hostage or prisoner; `XXX` is the capital of a vacant fief the player holds | 0 |
 | Marry two nobles | `M N NNN MMM` | `NNN` is a free player noble, `MMM` a free noble of another player, of the opposite sex, both unmarried; the other player must submit `M N MMM NNN` the same winter, otherwise the marriage is refused | 0 |
 
+**Winter resolution order.** Orders are not all applied in the order of your
+sheet: winter resolves in steps, and each order sees the result of earlier
+steps, never of later ones.
+
+1. Snapshot: the game state and the open elections are frozen (a seat vacated
+   this winter is only elected next winter).
+2. Papal sanctions: excommunications (`X E`) and lifts (`X L`).
+3. Management orders: the investments in the table below, the cardinal purchase
+   (`N C`) and the cardinal card (`D N NNN CAR`).
+4. Cardinals: inquiries (`Q`) and trial filings (`J`).
+5. Marriage dissolutions (`X D`).
+6. Marriages (`M N`).
+7. Elections: candidacies (`K E`, `K P`) and votes (`V E`, `V P`), bishoprics by
+   increasing region, then the conclave.
+8. Investiture: winners and purchased cardinals receive their title.
+9. End of winter: hands, vacant fiefs, stocks, reports.
+10. Trial judgment, the only winter order that kills.
+
+Within a step, players go by increasing id, then your orders in sheet order. A
+lost title stops working immediately; a title gained by election or cardinal
+purchase only works next winter (a title therefore climbs one rank per winter),
+except the cardinal card, effective at once. A noble who married or was
+excommunicated before the elections is no longer eligible; a noble excommunicated
+this winter can still be tried the same winter.
+
 **The noble deck.** Nobles are not bought: they are drawn from a single
 **noble deck**, shared by all players, shuffled when the game is
 created. It holds **noble cards** (a first name, its trigram and its sex, as

@@ -191,6 +191,57 @@ ci-dessus). Un transfert d'hiver débite un château ou village contrôlé par l
 donneur, mais peut viser directement le château ou village contrôlé par un autre
 joueur ; la destination n'a pas besoin d'appartenir au donneur.
 
+### Ordre de résolution de l'hiver
+
+L'hiver se résout en étapes fixes. Dans une étape, les ordres sont traités par
+identifiant de joueur croissant, puis dans l'ordre de la feuille. Un ordre lit
+l'état courant : il voit ce que les étapes précédentes ont changé, jamais ce que
+les suivantes changeront. Contrôle, occupation et appartenance régionale sont
+ceux du début de l'hiver pendant toutes les étapes.
+
+0. **Instantané** — fige le contrôle, l'occupation, les statuts, les mariages et
+   les titres, et établit le registre des élections ouvertes : un siège vacant
+   dont la condition de déclenchement est vraie au début de l'hiver. Un siège
+   rendu vacant pendant l'hiver n'est électable qu'à l'hiver suivant.
+1. **Sanctions pontificales** — `X E NNN` (excommunier) et `X L NNN` (lever),
+   dans l'ordre de la feuille du pape.
+2. **Ordres de gestion** — les ordres listés ci-dessus, ainsi que l'achat de
+   cardinal `N C NNN` et la carte de cardinal `D N NNN CAR`. Les coûts en R sont
+   prélevés à cette étape, sans prélèvement partiel ; un ordre rejeté pour une
+   condition ne prélève jamais.
+3. **Actions des cardinaux** — enquêtes `Q HHH NNN`, puis dépôt des ordres de
+   procès `J HHH NNN` (jugés à l'étape 9).
+4. **Dissolutions de mariage** — `X D NNN`, par couple.
+5. **Mariages** — ordres `M N` réciproques.
+6. **Élections** — candidatures `K E` / `K P` et votes `V E` / `V P` : les
+   évêchés par identifiant de région croissant, puis le conclave. Les voix se
+   lisent toutes sur l'instantané des titres ; seule l'éligibilité dépend de
+   l'ordre (un noble élu à un évêché n'est plus éligible aux évêchés suivants du
+   même hiver).
+7. **Investiture** — les élus deviennent évêque ou pape ; les achats de cardinal
+   prennent effet.
+8. **Fin d'hiver** — défausses et remplissage des mains, fiefs vacants attribués
+   par défaut, conservation et rapatriement des stocks, prospérité, territoires
+   sans ancre redevenus neutres, rapports (voir ci-dessous).
+9. **Jugement des procès** — les procès `J` déposés à l'étape 3 sont jugés dans
+    l'ordre croissant du code de la cible. C'est le seul ordre d'hiver qui tue ;
+    la mort suit les règles ordinaires (lignée, fiefs, prétentions).
+
+Un titre religieux perdu (excommunication, démasquage) cesse aussitôt de
+produire voix, pouvoirs et candidature. Un titre *gagné* par élection ou par
+achat de cardinal n'est conféré qu'à l'investiture et ne sert qu'à l'hiver
+suivant : un titre ne franchit jamais plus d'un échelon par hiver. La carte de
+cardinal fait exception : elle prend effet à l'étape 2 et ses voix comptent dès
+les élections du même hiver.
+
+Conséquences : une excommunication précède l'achat de cardinal, qui est alors
+rejeté sans prélèvement ; un noble marié à l'étape 5 n'est plus candidat
+(`candidate_not_eligible`) ; une dame mariée cet hiver n'est plus jugeable en
+procès direct ; un noble excommunié ou démasqué cet hiver peut être jugé le même
+hiver. Le détail de chaque ordre est dans [religieux.md](religieux.md),
+[dames.md](dames.md) et [succession.md](succession.md), le détail de l'ordre dans
+[hiver.md](hiver.md).
+
 ### Cartes bonus et calamités
 
 Chaque joueur détient une main de cartes bonus. Pendant l'hiver, la feuille
