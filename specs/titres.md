@@ -178,6 +178,9 @@ la dissolution automatique de #194).
   suspension du bonus de cité ni délai d'attente : la perte du château qui
   fait la capitale met fin au fief sur-le-champ. C'est la **seule** cause de
   dissolution d'un fief.
+- **Fief de la couronne** : un fief dont le titulaire meurt sans héritier ni
+  noble vivant chez son joueur passe à la couronne et n'est jamais attribué
+  par défaut ; voir [politique.md](politique.md#héritage-dun-fief-sans-héritier).
 - **Fief vacant** : il continue d'exister, de produire et de compter son
   point de score jusqu'à son attribution ou la dissolution de sa capitale. Un
   ordre d'hiver (`T A`) l'attribue à un noble du joueur qui le détient, sous réserve de la

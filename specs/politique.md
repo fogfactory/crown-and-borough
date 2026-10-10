@@ -83,8 +83,8 @@ il n'est plus candidat à aucune autre élection pour ce motif.
   titres religieux).
 - **Capture.** Un roi `hostage` garde ses pouvoirs. Un roi au `dungeon` les voit
   **suspendus** : il ne peut émettre aucun ordre royal ni jouer de taxe royale,
-  mais conserve la couronne, son score et sa rente. S'il y a une reine libre,
-  celle-ci exerce alors la [régence](#reine-et-régente).
+  mais conserve la couronne, son score et sa rente. S'il y a une reine qui
+  n'est pas au cachot, celle-ci exerce alors la [régence](#reine-et-régente).
 - **Mort.** La couronne passe à l'héritier d'un [Claim](succession.md#prétentions-claims)
   sur le couple royal s'il y en a un (voir ci-dessous), sinon la reine devient
   régente et le trône est vacant : une élection est organisée dès que le
@@ -133,7 +133,7 @@ le roi gagne **1 R par fief constitué** sur la carte, quel que soit son
 propriétaire, vacants et fiefs du roi compris. La rente est créée, jamais
 prélevée sur les fiefs, et livrée à la capitale du joueur du roi. Elle ne
 dépend pas de l'état du roi : un roi capturé continue de la percevoir pour son
-joueur. Aucune rente en l'absence de roi.
+joueur. Aucune rente en l'absence de roi, pour le trône comme pour la reine.
 
 La reine gagne en plus la **moitié de la rente, arrondie au supérieur**, livrée
 à la capitale du joueur de la reine. Sa rente ne diminue pas celle du roi. Le
@@ -194,13 +194,13 @@ L'ordre `T F` reste soumis à toutes ses autres conditions.
 [titres.md](titres.md#titres-de-courtoisie) devient mécanique pour elle seule.
 Elle appartient à un autre joueur que le roi (un mariage lie toujours deux
 joueurs distincts). Elle n'a **aucun pouvoir d'ordre** ; son seul effet est sa
-[rente](#rente). Elle cesse d'être reine à la mort du roi, au veuvage (mariage
-terminé), ou si le mariage est dissous. Le roi se marie selon les règles
+[rente](#rente). Elle cesse d'être reine quand le mariage prend fin (mort du roi ou
+dissolution). Le roi se marie selon les règles
 ordinaires de [succession.md](succession.md#conclusion-dun-mariage) ; il n'est
 pas tenu d'être célibataire.
 
 **Régence.** La régente est la reine qui exerce les pouvoirs du roi en son
-nom, sauf la rente du roi (elle conserve la sienne), dans deux cas :
+nom, dans deux cas :
 
 1. **roi au cachot** : tant que le roi est au `dungeon` et que la reine est
    libre ou otage, elle exerce tous les pouvoirs royaux ; la régence cesse dès
@@ -212,8 +212,9 @@ nom, sauf la rente du roi (elle conserve la sienne), dans deux cas :
    normalement, et elle ne peut pas se faire élire (sexe).
 
 Les ordres royaux (`W …`) et la taxe royale sont émis par le noble de la
-régente. Elle ne choisit pas le roi, ne cumule pas la couronne, et la rente
-du roi n'est pas versée pendant la vacance.
+régente. Elle ne cumule pas la couronne. Pendant la captivité du roi, la rente du roi
+et la moitié de la reine continuent d'être versées ; pendant la vacance, il n'y
+a plus de rente, ni pour le roi ni pour la régente.
 
 ## Héritage d'un fief sans héritier
 

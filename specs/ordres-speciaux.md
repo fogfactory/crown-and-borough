@@ -56,7 +56,7 @@ Aucun noble n'est requis :
   exception à la règle « `TER` est le village seed d'une région » ci-dessous :
   la **capitale d'un fief** (taxe seigneuriale ou royale, vacant compris) ou le
   **village seed d'un évêché** (dîme). L'émetteur détermine ce qui est permis :
-  seigneur titré sur ses fiefs, roi sur tout fief constitué, évêque sur son
+  seigneur titré sur ses fiefs, roi (ou régente) sur tout fief constitué, évêque sur son
   évêché, cardinal et pape sur tout évêché (priorité évêque, puis cardinaux, puis
   pape). Pour la taxe seigneuriale, `HHH` est le titulaire du fief (il peut être omis pour un fief vacant : `P TX XXX`). `P DI HHH XXX` joue explicitement une dîme. La taxe double le revenu
   territorial du fief pour le tour, village inclus, sans jamais toucher la
@@ -143,7 +143,8 @@ Quatre cartes tirées du jeu de plateau *Fief* rejoignent le deck d'ordres
 spéciaux, au même titre que Beau temps ou Impôts. Chacune se joue au
 printemps, en été ou en automne par un ordre `P`, est gratuite, est consommée à
 la pose (donc défaussée même si l'effet s'avère nul) et a son effet appliqué
-avant le ravitaillement et la résolution des ordres d'armée. Leurs poids de
+avant le ravitaillement et la résolution des ordres d'armée, sauf l'Embuscade
+dont l'effet est appliqué à la résolution du combat visé. Leurs poids de
 tirage sont des entrées de `special_orders.bonus_weights` (`tunnel`,
 `assassination`, `justice`, `ambush`), à calibrer. Un ordre dont une condition
 n'est pas remplie est rejeté avec le motif indiqué et ne consomme pas la

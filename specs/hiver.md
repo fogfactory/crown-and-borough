@@ -61,7 +61,7 @@ qu'il voit des autres.
    jamais les voix territoriales d'un évêché, qui comptent les lieux-dits
    « contrôlés **ou** occupés ».
 6. **Les élections se résolvent l'une après l'autre.** Évêchés par identifiant
-   de région croissant, puis conclave. Les voix se lisent toutes sur
+   de région croissant, puis conclave, puis trône. Les voix se lisent toutes sur
    l'instantané des titres (principe 3 compris) : un résultat ne change les
    voix d'aucune autre élection. Seule l'éligibilité en tient compte : un noble
    élu à un évêché n'est plus éligible aux évêchés suivants du même hiver.
