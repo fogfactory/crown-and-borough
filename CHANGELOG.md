@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.10.1](https://github.com/fogfactory/crown-and-borough/compare/v0.10.0...v0.10.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* **ci:** accept claude/* branches in the pull request policy ([8e56cae](https://github.com/fogfactory/crown-and-borough/commit/8e56cae1bdea2aef873d2d1cbc9dc678f143be51))
+* **ci:** accept claude/* branches in the pull request policy ([2783277](https://github.com/fogfactory/crown-and-borough/commit/2783277872d47d785a11d8b1d25a929f841e7239))
+* **ci:** target main for dependency PRs and automerge minor/patch updates ([ee2ecea](https://github.com/fogfactory/crown-and-borough/commit/ee2eceae16eb3a1791715fb001e6c79ea6300a38))
+* **deps:** update firebase to v13 and @firebase/rules-unit-testing to v6 ([5cb6bd4](https://github.com/fogfactory/crown-and-borough/commit/5cb6bd41d20624ee86b79bbc2b5cf3913570c093))
+* **deps:** update firebase to v13 and @firebase/rules-unit-testing to v6 ([2a78849](https://github.com/fogfactory/crown-and-borough/commit/2a78849d791f21113328d596762f1585b6cb5770))
+* **deps:** update module cloud.google.com/go/firestore to v1.26.0 ([#305](https://github.com/fogfactory/crown-and-borough/issues/305)) ([b76648e](https://github.com/fogfactory/crown-and-borough/commit/b76648e013d1ea17e0423f60e9ea418d15ae5982))
+* **deps:** update module firebase.google.com/go/v4 to v4.22.0 ([#306](https://github.com/fogfactory/crown-and-borough/issues/306)) ([72f77ac](https://github.com/fogfactory/crown-and-borough/commit/72f77acd8399e14963d492097d61c557f30acacc))
+* **deps:** update module golang.org/x/text to v0.42.0 ([#313](https://github.com/fogfactory/crown-and-borough/issues/313)) ([2f59367](https://github.com/fogfactory/crown-and-borough/commit/2f59367a9b964b94230dad0a668dc46ab1f27a0e))
+* **deps:** update module golang.org/x/text to v0.43.0 ([#393](https://github.com/fogfactory/crown-and-borough/issues/393)) ([6a6cca5](https://github.com/fogfactory/crown-and-borough/commit/6a6cca54d993521c46f4c7d09697b53abf95c075))
+* **deps:** update module google.golang.org/api to v0.300.0 ([#314](https://github.com/fogfactory/crown-and-borough/issues/314)) ([47798e1](https://github.com/fogfactory/crown-and-borough/commit/47798e158a28416b547f115b92b9285f3a51f5ff))
+* **deps:** update module google.golang.org/api to v0.301.0 ([#365](https://github.com/fogfactory/crown-and-borough/issues/365)) ([7041763](https://github.com/fogfactory/crown-and-borough/commit/7041763b3f6bd59e422b1cabd0946df47c9b5ad9))
+* **deps:** update vite 8, plugin-react 6, react-hooks 7 and firebase 12 ([2f39816](https://github.com/fogfactory/crown-and-borough/commit/2f398163693ae9c310ec487af5f9d49e11797ccd))
+* **deps:** update vite 8, plugin-react 6, react-hooks 7 and firebase 12 ([bba23f3](https://github.com/fogfactory/crown-and-borough/commit/bba23f3b199a97a6243672a288d2bd316e79f2b1))
+* **dev:** copy web/.env.local into Claude Code worktrees ([bb986a8](https://github.com/fogfactory/crown-and-borough/commit/bb986a88879d891ea7a0e0d69c7b4fdd7eb6fdb1))
+* **dev:** copy web/.env.local into Claude Code worktrees ([fe23eb4](https://github.com/fogfactory/crown-and-borough/commit/fe23eb4cd4652119295a322abc943e8561d06b57))
+* **rules:** align player rules with engine and balance ([62f43bf](https://github.com/fogfactory/crown-and-borough/commit/62f43bf17008dee514719f0c228bbc7fdf012e76))
+* **rules:** align player rules with engine and balance ([8715d27](https://github.com/fogfactory/crown-and-borough/commit/8715d27026f5080dbc9c7c33f4371b397b8561a2))
+* **store:** skip players without an emitting noble when waiting for submissions ([861ce9e](https://github.com/fogfactory/crown-and-borough/commit/861ce9e271e67bcb7d7e3258008dab6f1ecca384))
+* **store:** skip players without an emitting noble when waiting for submissions ([3614f6c](https://github.com/fogfactory/crown-and-borough/commit/3614f6c66c7e232f32efa4023e02de86c6c28a60))
+
 ## [0.10.0](https://github.com/fogfactory/crown-and-borough/compare/v0.9.1...v0.10.0) (2026-09-23)
 
 
