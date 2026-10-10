@@ -65,6 +65,7 @@ export type EventType =
   | 'fief_auto_assigned'
   | 'marriage'
   | 'marriage_refused'
+  | 'marriage_dissolved'
   | 'noble_draw'
   | 'noble_discard'
   | 'dignity'
@@ -227,6 +228,8 @@ export interface WinterAids {
   inquiryCosts: Record<string, number>
   /** The viewer's cardinals able to back a trial (`J`) order. */
   trialJudges: string[]
+  /** Active marriages the viewer can ask to dissolve (`X D noble`). */
+  dissolvable?: { noble: string; spouse: string }[]
   fiefSites: FiefSite[]
   fiefCostPerTerritory: number
   /** The viewer's Witches able to perform a ritual, with the region it would hit. */
@@ -917,6 +920,7 @@ export type WinterOrderType =
   | 'ritual'
   | 'inquiry'
   | 'trial'
+  | 'dissolve_marriage'
 
 export interface WinterOrder {
   id?: string
@@ -1032,7 +1036,7 @@ export interface FiefReport {
  * did not answer in kind). Public: every player receives it.
  */
 export interface MarriageReport {
-  outcome: 'success' | 'failure'
+  outcome: 'success' | 'failure' | 'dissolved'
   noble: string
   nobleCode: string
   nobleName: string

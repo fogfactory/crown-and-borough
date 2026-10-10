@@ -68,6 +68,7 @@ const (
 	EventTypeProsperityFounded  EventType = "prosperity_founded"
 	EventTypeMarriage           EventType = "marriage"
 	EventTypeMarriageRefused    EventType = "marriage_refused"
+	EventTypeMarriageDissolved  EventType = "marriage_dissolved"
 	EventTypeNobleDraw          EventType = "noble_draw"
 	EventTypeDignity            EventType = "dignity"
 	EventTypeTrial              EventType = "trial"
@@ -110,6 +111,8 @@ const (
 	OutcomeSuccess Outcome = "success"
 	OutcomeFailure Outcome = "failure"
 	OutcomeInvalid Outcome = "invalid"
+	// OutcomeDissolved is a marriage dissolved by the pope (MarriageReport).
+	OutcomeDissolved Outcome = "dissolved"
 )
 
 // Progression records how the order outcome changed its chain.

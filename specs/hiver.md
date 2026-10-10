@@ -26,8 +26,8 @@ qu'il voit des autres.
 > (élections), 7 (investiture, y compris les cardinaux achetés) et 8 sont en
 > place dans le moteur
 > ([#374](https://github.com/fogfactory/crown-and-borough/issues/374)). Les
-> étapes 3, 4 et 9 s'ajoutent avec leurs ordres (enquête, dissolution, procès
-> à deux cardinaux). La reprise dans `gdd.md` et les règles
+> étapes 3, 4 et 9 (enquête, dissolution, procès à deux cardinaux) sont en
+> place. La reprise dans `gdd.md` et les règles
 > joueurs relève de
 > [#377](https://github.com/fogfactory/crown-and-borough/issues/377).
 
@@ -195,6 +195,7 @@ condition ne prélève jamais.
 | Ordre | Étape | Qui peut | Conditions lues |
 |---|---|---|---|
 | `X E` / `X L` | 1 | Pape (titre actif, non au cachot) | Cible de n'importe quel joueur ; 1 `X E` par hiver ; 1 excommunié à la fois par joueur adverse (une levée précédente de la feuille libère la place). Jamais sur soi. |
+| `X D NNN` | 4 | Pape (titre actif, non au cachot) et propriétaire d'un des époux | Mariage actif à l'étape 4 (lu après les étapes 1 à 3) ; l'ordre du pape et la demande d'un propriétaire d'époux ; un seul ordre si le pape possède un époux. |
 | `S R` | 2 (déclaration) / 8 (effet) | Propriétaire d'une Sorcière libre (pas au cachot) | Un rituel par hiver ; la calamité ou la saison visée est lue au tirage des calamités de la fin d'hiver ; région de la Sorcière lue à l'étape 2. |
 | `N C NNN` (achat de cardinal) | 2 | Joueur propriétaire d'un évêque | Évêque non excommunié ; plafond `N - 1` incluant les achats en attente ; coût `religious.cardinal_cost` (balance). |
 | `Q HHH NNN` | 3 | Cardinal ou pape titré à l'instantané, ni excommunié ni au cachot à l'étape 3 | 1 par cardinal ou pape et par hiver ; coût selon le rang de la cible lu après l'étape 2 ; consommé sans effet si aucune dignité cachée. |
@@ -224,7 +225,4 @@ saisons d'action sont déjà dans l'instantané. Au jugement :
 - Les élections royales de [politique.md](politique.md) réutiliseront le
   moteur générique ([#374](https://github.com/fogfactory/crown-and-borough/issues/374))
   et prendront place dans le tableau (étape 6) lors de leur spécification.
-- La syntaxe `N C` (achat de cardinal) et `X D` (dissolution) est proposée ;
-  elle est confirmée à l'implémentation
-  ([#233](https://github.com/fogfactory/crown-and-borough/issues/233),
-  [#238](https://github.com/fogfactory/crown-and-borough/issues/238)).
+- La syntaxe `N C` (achat de cardinal) et `X D` (dissolution) est confirmée.

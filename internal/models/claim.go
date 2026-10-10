@@ -81,6 +81,9 @@ func (g *GameState) MarriageCovering(target NobleID, owner PlayerID, turn int) (
 		if owners[spouse] != owner || marriage.Turn > turn {
 			continue
 		}
+		if marriage.Dissolved && marriage.DissolvedTurn < turn {
+			continue
+		}
 		if died, dead := deaths[spouse]; dead && died < turn {
 			continue
 		}

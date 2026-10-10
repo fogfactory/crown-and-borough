@@ -199,7 +199,7 @@ func init() {
 	register(WinterTransferNobleShape, "H N requires a noble code then a territory, and optionally O or P: H N NNN XXX [O|P]", "H N exige un code de noble puis un territoire, et en option O ou P : H N NNN XXX [O|P]")
 	register(WinterMarriageShape, "M N requires two distinct noble codes: your noble, then the one it marries", "M N exige deux codes de noble distincts : votre noble, puis celui qu'il épouse")
 	register(WinterRitualShape, "S R requires your Witch and either a calamity (PE, MT, FA) or a season (1 spring, 2 summer, 3 autumn): S R NNN MT, S R NNN 2", "S R exige votre Sorcière et soit une calamité (PE, MT, FA), soit une saison (1 printemps, 2 été, 3 automne) : S R NNN MT, S R NNN 2")
-	register(WinterExcommunicationShape, "X E requires the noble to excommunicate; X L requires the noble to reinstate: X E NNN, X L NNN", "X E exige le noble à excommunier ; X L exige le noble à réintégrer : X E NNN, X L NNN")
+	register(WinterExcommunicationShape, "X E requires the noble to excommunicate; X L the noble to reinstate; X D a spouse of the marriage to dissolve: X E NNN, X L NNN, X D NNN", "X E exige le noble à excommunier ; X L le noble à réintégrer ; X D un époux du mariage à dissoudre : X E NNN, X L NNN, X D NNN")
 	register(WinterInquiryShape, "Q requires your cardinal or pope and the investigated noble: Q HHH NNN", "Q exige votre cardinal ou pape puis le noble enquêté : Q HHH NNN")
 	register(WinterTrialShape, "J requires your cardinal then the noble put on trial: J HHH NNN", "J exige votre cardinal puis le noble jugé : J HHH NNN")
 	register(WinterBuyCardinalShape, "N C requires one of your bishops", "N C exige un de vos évêques")
