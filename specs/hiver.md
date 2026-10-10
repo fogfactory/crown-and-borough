@@ -27,9 +27,9 @@ qu'il voit des autres.
 > place dans le moteur
 > ([#374](https://github.com/fogfactory/crown-and-borough/issues/374)). Les
 > étapes 3, 4 et 9 (enquête, dissolution, procès à deux cardinaux) sont en
-> place. La reprise dans `gdd.md` et les règles
-> joueurs relève de
-> [#377](https://github.com/fogfactory/crown-and-borough/issues/377).
+> place. L'ordre de résolution est repris dans `gdd.md`
+> (§ Phase d'hiver) et dans les règles joueurs
+> ([#377](https://github.com/fogfactory/crown-and-borough/issues/377)).
 
 ## Principes
 

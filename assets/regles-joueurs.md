@@ -716,6 +716,31 @@ investissements directs, une ligne par ordre, appliqués dans l'ordre saisi.
 | Attribuer un fief vacant | `T A NNN XXX` | `NNN` est un noble du joueur, même otage ou prisonnier ; `XXX` est la capitale d'un fief vacant qu'il détient | 0 |
 | Marier deux nobles | `M N NNN MMM` | `NNN` est un noble libre du joueur, `MMM` un noble libre d'un autre joueur, de sexe différent, tous deux non mariés ; l'autre joueur doit soumettre `M N MMM NNN` le même hiver, sinon le mariage est refusé | 0 |
 
+**Ordre de résolution de l'hiver.** Les ordres ne sont pas tous appliqués dans
+l'ordre de ta feuille : l'hiver se résout par étapes, et chaque ordre voit le
+résultat des étapes précédentes, jamais des suivantes.
+
+1. Instantané : l'état de la partie et les élections ouvertes sont figés (un
+   siège rendu vacant cet hiver ne s'élit qu'à l'hiver suivant).
+2. Sanctions du pape : excommunications (`X E`) et levées (`X L`).
+3. Ordres de gestion : les investissements du tableau ci-dessous, l'achat de
+   cardinal (`N C`) et la carte de cardinal (`D N NNN CAR`).
+4. Cardinaux : enquêtes (`Q`) et dépôt des procès (`J`).
+5. Dissolutions de mariage (`X D`).
+6. Mariages (`M N`).
+7. Élections : candidatures (`K E`, `K P`) et votes (`V E`, `V P`), évêchés par
+   région croissante puis conclave.
+8. Investiture : les élus et les cardinaux achetés reçoivent leur titre.
+9. Fin d'hiver : mains, fiefs vacants, stocks, rapports.
+10. Jugement des procès, seul ordre d'hiver qui tue.
+
+Dans une étape, les joueurs passent par identifiant croissant, puis tes ordres
+dans l'ordre de ta feuille. Un titre perdu cesse de servir immédiatement ; un
+titre gagné par élection ou par achat de cardinal ne sert qu'à l'hiver suivant
+(un titre ne monte donc que d'un échelon par hiver), sauf la carte de cardinal,
+effective aussitôt. Un noble marié ou excommunié avant les élections n'y est plus
+éligible ; un noble excommunié cet hiver peut encore être jugé le même hiver.
+
 **Le deck de nobles.** Les nobles ne s'achètent pas : ils se piochent dans un **deck de nobles**
 unique et commun à tous les joueurs, mélangé à la création de la partie.
 Il contient des **cartes de noble** (un prénom, son trigramme et son sexe,
