@@ -98,7 +98,11 @@ interne de la carte.
 
 ## Effets des calamités et de la révolte
 
-- La peste réduit chaque armée de la région à `ceil(taille / divisor)`, avec au
+- La peste frappe toute armée et tout noble qui commence ou termine le tour
+  dans la région, qu'il y reste, en sorte ou y entre (retraite comprise) : les
+  occupants de départ sont frappés avant la résolution des ordres, les arrivées
+  une fois mouvements et retraites réglés. Une armée ou un noble n'est frappé
+  qu'une fois par tour. La peste réduit l'armée à `ceil(taille / divisor)`, avec au
   moins une troupe, et peut tuer un noble selon la balance ; un noble tué reçoit
   supprimé de l'état et ne rapporte plus de points. Une chaîne émise pendant le
   tour est supprimée ; une chaîne historique déjà en cours continue.

@@ -82,6 +82,8 @@ type resolutionContext struct {
 	fairWeatherRegions  map[models.TerritoryID]bool
 	goodHarvestRegions  map[models.TerritoryID]bool
 	plagueDeaths        []models.Noble
+	plagueStruckArmies  map[models.ArmyID]bool
+	plagueRolledNobles  map[models.NobleID]bool
 	supplyRations       map[models.TerritoryID]rationProductionParts
 	supplySources       map[models.TerritoryID]sourceProductionParts
 	supplyStockBefore   map[models.TerritoryID]int

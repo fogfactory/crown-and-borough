@@ -217,7 +217,10 @@ région de toutes les calamités de l'année ; les augures futures restent cach�
 Les calamités et les cartes bonus sont appliquées avant la résolution
 simultanée des ordres d'armée :
 
-- la peste réduit les armées et peut affecter les nobles ;
+- la peste frappe toute armée et tout noble qui commence ou termine le tour dans
+  sa région : les occupants de départ avant la résolution, les arrivées (y
+  compris par retraite) une fois mouvements et retraites réglés ; une armée ou
+  un noble n'est frappé qu'une fois par tour ;
 - le mauvais temps bloque les déplacements provenant de sa région et arrête
   ses moulins ; le Beau temps double leur production ;
 - la famine supprime les rations de terrain de sa région et son revenu

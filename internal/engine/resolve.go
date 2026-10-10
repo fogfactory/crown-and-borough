@@ -107,6 +107,7 @@ func resolveFromControl(game *models.GameState, balance assetgen.Balance, deckOr
 	if err := executeMovementsAndRetreats(ctx); err != nil {
 		return Resolution{}, err
 	}
+	applyArrivalPlague(ctx)
 	resolveRevoltCombats(ctx)
 	progressChainsAndControl(ctx)
 	// Ravitaillement (territory income, rations, mills, famine) resolves last,

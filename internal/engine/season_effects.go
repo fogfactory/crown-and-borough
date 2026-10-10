@@ -301,6 +301,7 @@ func applyPlague(ctx *resolutionContext, regionSeed models.TerritoryID) {
 		before := army.Size
 		army.Size = max(1, (army.Size+divisor-1)/divisor)
 		ctx.startArmiesByID[army.ID] = *army
+		ctx.markPlagueStruckArmy(army.ID)
 		ctx.events = append(ctx.events, Event{Type: EventTypeCalamityApplied, Phase: phaseForSeason(ctx.state.Season), CardKind: models.CardKindPlague, RegionSeed: regionSeed, ArmyID: army.ID, OwnerID: army.OwnerID, SizeBefore: before, SizeAfter: army.Size, Season: ctx.state.Season, Year: ctx.state.Year()})
 	}
 }
@@ -701,26 +702,78 @@ func newRevoltRNG(seed string, turn int, orderID models.OrderID) *rand.Rand {
 	return rand.New(rand.NewPCG(binary.BigEndian.Uint64(digest[:8]), binary.BigEndian.Uint64(digest[8:16])))
 }
 
-func resolvePlagueMortality(ctx *resolutionContext) {
-	mortality := ctx.balance.SpecialOrders.Effects.PlagueNobleMortalityPercentage
-	if mortality <= 0 || len(ctx.startNoblesByID) == 0 {
-		return
+func (ctx *resolutionContext) markPlagueStruckArmy(armyID models.ArmyID) {
+	if ctx.plagueStruckArmies == nil {
+		ctx.plagueStruckArmies = make(map[models.ArmyID]bool)
 	}
+	ctx.plagueStruckArmies[armyID] = true
+}
+
+func plagueRegionSet(ctx *resolutionContext) map[models.TerritoryID]bool {
 	plagueRegions := make(map[models.TerritoryID]bool)
 	for _, calamity := range currentSeasonCalamities(ctx) {
 		if calamity.Kind == models.CardKindPlague {
 			plagueRegions[calamity.RegionSeed] = true
 		}
 	}
+	return plagueRegions
+}
+
+// applyArrivalPlague strikes, once movements and retreats are settled, the
+// armies and nobles that ended the turn in a plague region without having been
+// struck at its start. An army or noble is struck at most once per turn.
+func applyArrivalPlague(ctx *resolutionContext) {
+	plagueRegions := plagueRegionSet(ctx)
 	if len(plagueRegions) == 0 {
 		return
 	}
+	if divisor := ctx.balance.SpecialOrders.Effects.PlagueArmyDivisor; divisor >= 1 {
+		for index := range ctx.state.Armies {
+			army := &ctx.state.Armies[index]
+			region := regionForTerritory(ctx, army.TerritoryID)
+			if !plagueRegions[region] || ctx.plagueStruckArmies[army.ID] || plagueProtected(ctx, army.OwnerID, army.TerritoryID) {
+				continue
+			}
+			before := army.Size
+			army.Size = max(1, (army.Size+divisor-1)/divisor)
+			ctx.markPlagueStruckArmy(army.ID)
+			ctx.events = append(ctx.events, Event{Type: EventTypeCalamityApplied, Phase: phaseForSeason(ctx.state.Season), CardKind: models.CardKindPlague, RegionSeed: region, ArmyID: army.ID, OwnerID: army.OwnerID, SizeBefore: before, SizeAfter: army.Size, Season: ctx.state.Season, Year: ctx.state.Year()})
+		}
+	}
+	candidates := make(map[models.NobleID]models.Noble)
+	for _, noble := range ctx.state.Nobles {
+		candidates[noble.ID] = noble
+	}
+	resolvePlagueMortalityFor(ctx, plagueRegions, candidates)
+}
+
+func resolvePlagueMortality(ctx *resolutionContext) {
+	resolvePlagueMortalityFor(ctx, plagueRegionSet(ctx), ctx.startNoblesByID)
+}
+
+// resolvePlagueMortalityFor rolls the plague against the candidate nobles
+// standing in a plague region, skipping any noble already rolled this turn.
+func resolvePlagueMortalityFor(ctx *resolutionContext, plagueRegions map[models.TerritoryID]bool, candidates map[models.NobleID]models.Noble) {
+	mortality := ctx.balance.SpecialOrders.Effects.PlagueNobleMortalityPercentage
+	if mortality <= 0 || len(candidates) == 0 || len(plagueRegions) == 0 {
+		return
+	}
+	if ctx.plagueRolledNobles == nil {
+		ctx.plagueRolledNobles = make(map[models.NobleID]bool)
+	}
 	dead := make(map[models.NobleID]bool)
-	for nobleID, startNoble := range ctx.startNoblesByID {
+	nobleIDs := make([]models.NobleID, 0, len(candidates))
+	for nobleID := range candidates {
+		nobleIDs = append(nobleIDs, nobleID)
+	}
+	sort.Slice(nobleIDs, func(i, j int) bool { return nobleIDs[i] < nobleIDs[j] })
+	for _, nobleID := range nobleIDs {
+		startNoble := candidates[nobleID]
 		region := regionForTerritory(ctx, startNoble.LocationID)
-		if !plagueRegions[region] || plagueProtected(ctx, startNoble.OwnerID, startNoble.LocationID) {
+		if ctx.plagueRolledNobles[nobleID] || !plagueRegions[region] || plagueProtected(ctx, startNoble.OwnerID, startNoble.LocationID) {
 			continue
 		}
+		ctx.plagueRolledNobles[nobleID] = true
 		if newPlagueRNG(ctx.state.Seed, ctx.state.Turn, nobleID).IntN(100) < mortality {
 			dead[nobleID] = true
 			ctx.plagueDeaths = append(ctx.plagueDeaths, startNoble)
