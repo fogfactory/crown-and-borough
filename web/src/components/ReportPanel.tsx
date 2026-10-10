@@ -223,7 +223,8 @@ const RECEPTION_REASON_KEYS: Record<string, MessageKey> = {
   'error.assignment.chain_validation': 'reports.reason.reception.invalid',
 }
 
-function territoryLabel(
+// Raw trigram, for typed order lines (`G ABC DEF 3`) only.
+function territoryCode(
   map: MapData | null,
   id: string | undefined,
   t: Translate,
@@ -233,6 +234,24 @@ function territoryLabel(
     map?.territories.find((candidate) => candidate.id === id)?.id ??
     t('reports.unknownTerritory')
   )
+}
+
+// Display label: full commune name, trigram only as a complement.
+function territoryLabel(
+  map: MapData | null,
+  id: string | undefined,
+  t: Translate,
+): string {
+  if (!id) return '—'
+  const territory = map?.territories.find((candidate) => candidate.id === id)
+  if (!territory) return t('reports.unknownTerritory')
+  return territory.name ? `${territory.name} (${territory.id})` : territory.id
+}
+
+// Display label of a noble: full name first, trigram only as a complement.
+function nobleLabel(code: string | undefined, name: string | undefined): string {
+  if (!code) return name || '—'
+  return name ? `${name} (${code})` : code
 }
 
 function playerLabel(
@@ -318,8 +337,8 @@ function formatReportOrderLabel(
     reportOrder.targets ?? (reportOrder.target ? [reportOrder.target] : undefined)
   return formatOrderLabel({
     type: reportOrder.type ?? 'hold',
-    position: territoryLabel(map, reportOrder.source, t),
-    targets: targets?.map((target) => territoryLabel(map, target, t)),
+    position: territoryCode(map, reportOrder.source, t),
+    targets: targets?.map((target) => territoryCode(map, target, t)),
     nobleAssignments: reportOrder.nobleAssignments,
     liaison: reportOrder.liaison ?? 'single',
     amount: reportOrder.amount,
@@ -327,7 +346,7 @@ function formatReportOrderLabel(
 }
 
 function winterOrderLabel(order: WinterOrder, map: MapData | null, t: Translate): string {
-  const territory = territoryLabel(map, order.territory, t)
+  const territory = territoryCode(map, order.territory, t)
   switch (order.type) {
     case 'recruit_noble':
       return order.cardCode ? `R N ${order.cardCode} ${territory}` : `R N ${territory}`
@@ -362,14 +381,14 @@ function winterOrderLabel(order: WinterOrder, map: MapData | null, t: Translate)
     case 'dungeon':
       return `P N ${order.nobleCode ?? '—'}`
     case 'transfer':
-      return `G ${territoryLabel(map, order.source, t)} ${territoryLabel(map, order.target, t)} ${order.amount ?? '—'}`
+      return `G ${territoryCode(map, order.source, t)} ${territoryCode(map, order.target, t)} ${order.amount ?? '—'}`
     case 'found_fief': {
       const group = order.territories?.length
         ? order.territories
         : order.territory
           ? [order.territory]
           : []
-      return `T F ${order.nobleCode ?? '—'} ${group.map((id) => territoryLabel(map, id, t)).join(' ')}`
+      return `T F ${order.nobleCode ?? '—'} ${group.map((id) => territoryCode(map, id, t)).join(' ')}`
     }
     case 'assign_fief':
       return `T A ${order.nobleCode ?? '—'} ${territory}`
@@ -400,7 +419,7 @@ function investmentLabel(
   t: Translate,
 ): string {
   if (investment.order) return winterOrderLabel(investment.order, map, t)
-  const territory = territoryLabel(map, investment.territory, t)
+  const territory = territoryCode(map, investment.territory, t)
   switch (investment.kind) {
     case 'recruit':
       return investment.nobleCode
@@ -420,12 +439,12 @@ function investmentLabel(
     case 'noble_transfer':
       return `H N ${investment.nobleCode ?? '—'} ${territory}`
     case 'transfer':
-      return `G ${territoryLabel(map, investment.source, t)} ${territoryLabel(map, investment.target, t)} ${investment.amount ?? '—'}`
+      return `G ${territoryCode(map, investment.source, t)} ${territoryCode(map, investment.target, t)} ${investment.amount ?? '—'}`
     case 'fief_founded': {
       const group = investment.territories?.length
         ? investment.territories
         : [investment.territory ?? '']
-      return `T F ${investment.nobleCode ?? '—'} ${group.map((id) => territoryLabel(map, id, t)).join(' ')}`
+      return `T F ${investment.nobleCode ?? '—'} ${group.map((id) => territoryCode(map, id, t)).join(' ')}`
     }
     case 'fief_assigned':
     case 'fief_auto_assigned':
@@ -448,7 +467,7 @@ function investmentLabel(
     case 'dignity':
       return `D N ${investment.nobleCode ?? '—'} ${DIGNITY_CARD_CODES[investment.dignity ?? 'bastard']}`
     case 'prosperity_founded':
-      return `${WINTER_INFRA_SYMBOLS.village} ${territoryLabel(map, investment.target, t)} ← ${territoryLabel(map, investment.source, t)}`
+      return `${WINTER_INFRA_SYMBOLS.village} ${territoryCode(map, investment.target, t)} ← ${territoryCode(map, investment.source, t)}`
     default:
       return t('reports.winterOrder')
   }
@@ -500,11 +519,13 @@ function winterDetails(
   if (investment.reason) return reportReason(investment.reason, t) ?? investment.reason
   if (investment.kind === 'claim' && investment.nobleName) {
     return t('reports.claimDetails', {
-      heir: investment.nobleName,
-      target: investment.claimTargetName || investment.claimTarget || '—',
+      heir: nobleLabel(investment.nobleCode, investment.nobleName),
+      target: nobleLabel(investment.claimTarget, investment.claimTargetName),
     })
   }
-  if (investment.nobleName) return investment.nobleName
+  if (investment.nobleName) {
+    return nobleLabel(investment.nobleCode, investment.nobleName)
+  }
   if (investment.level) return t('reports.level', { level: investment.level })
   return territoryLabel(map, investment.territory, t)
 }
@@ -521,9 +542,9 @@ function marriageLabel(
         ? 'reports.marriageDissolved'
         : 'reports.marriageFailed',
     {
-      noble: marriage.nobleName || marriage.nobleCode,
+      noble: nobleLabel(marriage.nobleCode, marriage.nobleName),
       owner: playerLabel(players, marriage.owner, t),
-      spouse: marriage.spouseName || marriage.spouseCode,
+      spouse: nobleLabel(marriage.spouseCode, marriage.spouseName),
       spouseOwner: playerLabel(players, marriage.spouseOwner, t),
     },
   )
@@ -694,7 +715,7 @@ function seasonEffectLine(
       return {
         key,
         label: t('reports.plagueDeath', {
-          noble: effect.noble ?? '—',
+          noble: nobleLabel(effect.noble, effect.nobleName),
           territory: territoryLabel(map, effect.territory, t),
         }),
       }
@@ -704,17 +725,17 @@ function seasonEffectLine(
         label:
           effect.reason === 'trial_executed'
             ? t('reports.trialExecuted', {
-                noble: effect.noble ?? '—',
+                noble: nobleLabel(effect.noble, effect.nobleName),
                 territory: territoryLabel(map, effect.territory, t),
                 dignity: t(`dignity.${effect.dignity ?? 'bastard'}`),
               })
-            : t('reports.trialUnfounded', { noble: effect.noble ?? '—' }),
+            : t('reports.trialUnfounded', { noble: nobleLabel(effect.noble, effect.nobleName) }),
       }
     case 'plague_noble_survived':
       return {
         key,
         label: t('reports.plagueSurvived', {
-          noble: effect.noble ?? '—',
+          noble: nobleLabel(effect.noble, effect.nobleName),
           territory: territoryLabel(map, effect.territory, t),
         }),
       }
@@ -723,21 +744,21 @@ function seasonEffectLine(
       return {
         key,
         label: t(effect.kind === 'excommunication' ? 'reports.excommunication' : 'reports.excommunicationLifted', {
-          noble: effect.noble ?? '—',
+          noble: nobleLabel(effect.noble, effect.nobleName),
         }),
       }
     case 'dignity_revealed':
       return {
         key,
         label: t('reports.dignityRevealed', {
-          noble: effect.noble ?? '—',
+          noble: nobleLabel(effect.noble, effect.nobleName),
           dignity: t(`dignity.${effect.dignity ?? 'bastard'}`),
         }),
       }
     case 'eon_unmasked':
       return {
         key,
-        label: t('reports.eonUnmasked', { noble: effect.noble ?? '—' }),
+        label: t('reports.eonUnmasked', { noble: nobleLabel(effect.noble, effect.nobleName) }),
       }
     case 'famine':
       return {
@@ -776,7 +797,7 @@ function seasonEffectLine(
         key,
         owner: effect.owner,
         label: t(revoltAppeasedKey(effect.reason), {
-          noble: effect.noble ?? '',
+          noble: nobleLabel(effect.noble, effect.nobleName),
           territory: territoryLabel(map, effect.territory, t),
           cost: effect.cost ?? 0,
         }),
@@ -1126,8 +1147,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                   <div className="flex items-center justify-between gap-3">
                     <span className="flex min-w-0 items-center gap-2">
                       {playerMarker(players, line.owner, t)}
-                      <span className="font-mono text-xs">{line.territory}</span>
-                      <span className="text-xs text-[#806f57]">
+                      <span className="text-xs">
                         {territoryLabel(map, line.territory, t)}
                       </span>
                     </span>
@@ -1155,7 +1175,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                         .map((destination) =>
                           t('reports.productionSent', {
                             count: line.sentToRations?.[destination] ?? 0,
-                            territory: destination,
+                            territory: territoryLabel(map, destination, t),
                           }),
                         )
                         .concat(
@@ -1462,7 +1482,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                         <span className="mt-1 block text-[#806f57]">
                           {order.owner || t('reports.unknownPlayer')} ·{' '}
                           {t('reports.noble', {
-                            noble: order.noble || '—',
+                            noble: nobleLabel(order.noble, order.nobleName),
                           })}
                         </span>
                       </span>

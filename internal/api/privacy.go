@@ -393,6 +393,7 @@ type OrderReportView struct {
 	Order            models.OrderID
 	Owner            models.PlayerID
 	Noble            models.NobleCode
+	NobleName        string
 	Type             models.OrderType
 	Source           models.TerritoryID
 	Target           models.TerritoryID
@@ -421,6 +422,7 @@ func (view OrderReportView) MarshalJSON() ([]byte, error) {
 		Order            models.OrderID                            `json:"order"`
 		Owner            models.PlayerID                           `json:"owner"`
 		Noble            models.NobleCode                          `json:"noble"`
+		NobleName        string                                    `json:"nobleName,omitempty"`
 		Type             models.OrderType                          `json:"type"`
 		Source           models.TerritoryID                        `json:"source"`
 		Target           models.TerritoryID                        `json:"target,omitempty"`
@@ -440,6 +442,7 @@ func (view OrderReportView) MarshalJSON() ([]byte, error) {
 		Order:            view.Order,
 		Owner:            view.Owner,
 		Noble:            view.Noble,
+		NobleName:        view.NobleName,
 		Type:             view.Type,
 		Source:           view.Source,
 		Target:           view.Target,
@@ -605,6 +608,7 @@ func knownOrderReport(order engine.OrderReport) OrderReportView {
 		Order:            order.Order,
 		Owner:            order.Owner,
 		Noble:            order.Noble,
+		NobleName:        order.NobleName,
 		Type:             order.Type,
 		Source:           order.Source,
 		Target:           order.Target,

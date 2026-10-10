@@ -388,7 +388,7 @@ describe('App command/report tabs', () => {
     expect(
       screen.getByRole('button', { name: 'Afficher la légende' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('JEA · Jean de Rosemont')).toBeInTheDocument()
+    expect(screen.getByText('Jean de Rosemont (JEA)')).toBeInTheDocument()
     expect(screen.getAllByText(/Robert de Rosemont/)).not.toHaveLength(0)
     expect(screen.getByText('Otage')).toBeInTheDocument()
     const noblesSection = screen.getByText('Nobles présents').closest('div')
@@ -410,7 +410,7 @@ describe('App command/report tabs', () => {
       screen.getByText('(H ROS)', { selector: 'span' }).closest('li'),
     ).toHaveAttribute('aria-current', 'step')
     expect(await screen.findByText(/Source :/)).toBeInTheDocument()
-    expect(screen.getByText(/ROS · Rosemont/)).toBeInTheDocument()
+    expect(screen.getByText(/Rosemont \(ROS\)/)).toBeInTheDocument()
 
     const draft = screen.getByLabelText('Chaîne de JEA')
     fireEvent.change(draft, { target: { value: 'ROS A BRU' } })

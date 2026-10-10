@@ -162,7 +162,7 @@ describe('SelectedTerritoryDetails', () => {
     expect(screen.getAllByText('Bob').length).toBeGreaterThan(0)
     expect(screen.getByText('4 troops')).toBeInTheDocument()
     expect(screen.getByText(/Source:/)).toBeInTheDocument()
-    expect(screen.getByText(/BRU · Brisecote/)).toBeInTheDocument()
+    expect(screen.getByText(/Brisecote \(BRU\)/)).toBeInTheDocument()
     expect(screen.getByText('Distance: 2 territories')).toBeInTheDocument()
     expect(screen.getByText('Local production')).toBeInTheDocument()
     expect(screen.getByText('Demand')).toBeInTheDocument()
@@ -179,10 +179,10 @@ describe('SelectedTerritoryDetails', () => {
     if (!noblesSection) throw new Error('nobles section did not render')
     const nobleItems = Array.from(noblesSection.querySelectorAll('li'))
     expect(
-      nobleItems.some((item) => item.textContent?.includes('JEA · Jean de Rosemont')),
+      nobleItems.some((item) => item.textContent?.includes('Jean de Rosemont (JEA)')),
     ).toBe(true)
     expect(
-      nobleItems.some((item) => item.textContent?.includes('ROB · Robert de Rosemont')),
+      nobleItems.some((item) => item.textContent?.includes('Robert de Rosemont (ROB)')),
     ).toBe(true)
     expect(within(noblesSection).getAllByText('Owner')).toHaveLength(2)
     expect(within(noblesSection).getByText('Bob')).toBeInTheDocument()
@@ -266,7 +266,7 @@ describe('SelectedTerritoryDetails', () => {
     expect(screen.getByRole('status')).toHaveTextContent(
       'The transfer route is reachable.',
     )
-    expect(screen.getByText('ROS · Rosemont -> BRU · Brisecote')).toBeInTheDocument()
+    expect(screen.getByText('Rosemont (ROS) -> Brisecote (BRU)')).toBeInTheDocument()
 
     fireEvent.change(screen.getByRole('combobox', { name: 'Destination' }), {
       target: { value: 'ROS' },
@@ -296,7 +296,7 @@ describe('SelectedTerritoryDetails', () => {
     expect(screen.getByRole('status')).toHaveTextContent(
       'The supply path is blocked by an enemy army.',
     )
-    expect(screen.queryByText(/ROS · Rosemont -> BRU/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Rosemont \(ROS\) -> Brisecote/)).not.toBeInTheDocument()
   })
 
   it('renders active effects for the selected region', () => {
@@ -388,7 +388,7 @@ describe('SelectedTerritoryDetails', () => {
     )
 
     expect(screen.getByText('Projected income')).toBeInTheDocument()
-    expect(screen.getByText('Yields 2 R to BRU · Brisecote')).toBeInTheDocument()
+    expect(screen.getByText('Yields 2 R to Brisecote (BRU)')).toBeInTheDocument()
   })
 
   it('shows the territory income as lost when it has no destination', () => {
@@ -444,7 +444,7 @@ describe('SelectedTerritoryDetails', () => {
 
     expect(screen.getByText('City (+2 defense)')).toBeInTheDocument()
     expect(screen.getByText('Barony — ROS')).toBeInTheDocument()
-    expect(screen.getByText('JEA · Jean de Rosemont')).toBeInTheDocument()
+    expect(screen.getByText('Jean de Rosemont (JEA)')).toBeInTheDocument()
   })
 
   it('shows the projected fief income next to the titulaire', () => {

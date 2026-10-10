@@ -186,6 +186,7 @@ type OrderReport struct {
 	Order            models.OrderID                            `json:"order"`
 	Owner            models.PlayerID                           `json:"owner"`
 	Noble            models.NobleCode                          `json:"noble"`
+	NobleName        string                                    `json:"nobleName,omitempty"`
 	Type             models.OrderType                          `json:"type"`
 	Amount           int                                       `json:"amount,omitempty"`
 	Source           models.TerritoryID                        `json:"source"`
@@ -280,6 +281,7 @@ type SeasonEffectReport struct {
 	Owner          models.PlayerID    `json:"owner,omitempty"`
 	Army           models.ArmyID      `json:"army,omitempty"`
 	Noble          models.NobleCode   `json:"noble,omitempty"`
+	NobleName      string             `json:"nobleName,omitempty"`
 	Territory      models.TerritoryID `json:"territory,omitempty"`
 	Target         models.TerritoryID `json:"target,omitempty"`
 	Troops         int                `json:"troops,omitempty"`
@@ -546,6 +548,7 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 			if chain, exists := chainsByID[event.ChainID]; exists {
 				if noble, nobleExists := noblesByID[chain.NobleID]; nobleExists {
 					entry.Noble = models.NobleCode(noble.Code)
+					entry.NobleName = before.NobleDisplayName(noble)
 				}
 				for _, order := range chain.Orders {
 					if order.ID != event.OrderID {
@@ -649,7 +652,7 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 		case EventTypeCalamityApplied, EventTypeCalamityCanceled, EventTypeBonusEffect, EventTypeNeutralArmy, EventTypeRevoltAppeased, EventTypePlagueDeath, EventTypePlagueSurvived, EventTypeBadWeatherBlocked, EventTypeFamineLoss, EventTypeBadWeatherLoss, EventTypeTrial, EventTypeEonUnmasked, EventTypeDignityRevealed, EventTypeExcommunication, EventTypeExcommunicationLifted:
 			report.SeasonEffects = append(report.SeasonEffects, SeasonEffectReport{
 				Kind: event.Type, CardKind: event.CardKind, Region: event.RegionSeed, Season: event.Season,
-				Owner: event.OwnerID, Army: event.ArmyID, Noble: event.NobleCode,
+				Owner: event.OwnerID, Army: event.ArmyID, Noble: event.NobleCode, NobleName: event.NobleName,
 				Territory: event.TerritoryID, Target: event.TargetID, Troops: event.Troops, SizeBefore: event.SizeBefore,
 				SizeAfter: event.SizeAfter, ProductionLost: event.Production, RationsLost: event.RationsLost,
 				Reason: event.Reason, Dignity: event.Dignity, Fief: event.FiefTitle, Cost: event.Cost,
