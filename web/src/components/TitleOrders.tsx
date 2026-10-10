@@ -4,7 +4,7 @@ import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { appendDraftLine, draftLines } from '@/lib/winter-draft'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
-import type { CardKind, Noble, PlayerId, Region, Season, StateData, Territory } from '@/types'
+import type { CardKind, Dignity, Noble, PlayerId, Region, Season, StateData, Territory } from '@/types'
 
 const PLAYABLE_KINDS: CardKind[] = [
   'fair_weather',
@@ -61,6 +61,8 @@ function groupConnected(group: string[], edges: Array<[string, string]>): boolea
   }
   return seen.size === inGroup.size
 }
+
+const MARRIAGE_BLOCKING_DIGNITIES: Dignity[] = ['d_arc', 'abbess', 'herbalist', 'chevalier_d_eon']
 
 /**
  * Orders granted by the titles of the player (pope, bishop, astrologer,
@@ -149,6 +151,80 @@ export function TitleOrdersSection({
               }
             : null
         }
+        onConfirm={add}
+      />,
+    )
+  }
+
+  const canMarry = (noble: Noble) =>
+    noble.status === 'free' &&
+    !noble.spouse &&
+    !(noble.dignities ?? []).some((dignity) => MARRIAGE_BLOCKING_DIGNITIES.includes(dignity))
+  const fiances = own.filter(
+    (noble) => canMarry(noble) && !lines.some((line) => line.startsWith(`M N ${noble.code} `)),
+  )
+  if (fiances.length > 0) {
+    launchers.push(
+      <OrderLauncher
+        key="m-n"
+        label={t('orders.marriage')}
+        title={t('orders.marriage')}
+        description={t('orders.marriageHelp')}
+        fields={[
+          { key: 'noble', label: t('orders.field.fiance'), options: fiances.map(nobleOption) },
+          {
+            key: 'spouse',
+            label: t('orders.field.spouse'),
+            options: (values) =>
+              state.nobles
+                .filter((other) => {
+                  const mine = byCode.get(values.noble ?? '')
+                  return (
+                    mine !== undefined &&
+                    canMarry(other) &&
+                    other.owner !== player &&
+                    other.sex !== mine.sex
+                  )
+                })
+                .map(nobleOption),
+          },
+        ]}
+        buildOrder={(values) =>
+          values.noble && values.spouse
+            ? {
+                line: `M N ${values.noble} ${values.spouse}`,
+                comment: t('orders.comment.marriage', {
+                  name: nobleName(state, values.noble),
+                  spouse: nobleName(state, values.spouse),
+                }),
+              }
+            : null
+        }
+        onConfirm={add}
+      />,
+    )
+  }
+
+  for (const marriage of aids.dissolvable ?? []) {
+    if (lines.some((line) => line === `X D ${marriage.noble}` || line === `X D ${marriage.spouse}`)) continue
+    const label =
+      byCode.get(marriage.noble)?.owner === player && state.pope !== marriage.noble
+        ? t('orders.dissolveRequest')
+        : t('orders.dissolve')
+    launchers.push(
+      <OrderLauncher
+        key={`x-d-${marriage.noble}`}
+        label={`${nobleName(state, marriage.noble)} & ${nobleName(state, marriage.spouse)} · ${label}`}
+        title={label}
+        description={t('orders.dissolveHelp')}
+        fields={[]}
+        buildOrder={() => ({
+          line: `X D ${marriage.noble}`,
+          comment: t('orders.comment.dissolve', {
+            name: nobleName(state, marriage.noble),
+            spouse: nobleName(state, marriage.spouse),
+          }),
+        })}
         onConfirm={add}
       />,
     )
