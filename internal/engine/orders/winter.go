@@ -605,8 +605,8 @@ func parseTrialLine(fields []string, lineNumber int, indexes gameIndexes) (model
 	return models.WinterOrder{Type: models.WinterOrderTypeTrial, NobleCode: models.NobleCode(fields[1]), TargetCode: models.NobleCode(fields[2])}, nil
 }
 
-// parseExcommunicationLine handles X E NNN (excommunicate) and X L NNN (lift):
-// NNN is the targeted noble. Whether the player holds the papacy and the
+// parseExcommunicationLine handles X E NNN (excommunicate), X L NNN (lift) and
+// X D NNN (dissolve the marriage of NNN): NNN is the targeted noble. Whether the player holds the papacy and the
 // limits of the pope are engine rejects (see winter_papal_order.go).
 func parseExcommunicationLine(fields []string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
 	var orderType models.WinterOrderType
@@ -615,6 +615,8 @@ func parseExcommunicationLine(fields []string, lineNumber int, indexes gameIndex
 		orderType = models.WinterOrderTypeExcommunicate
 	case "L":
 		orderType = models.WinterOrderTypeLiftExcommunication
+	case "D":
+		orderType = models.WinterOrderTypeDissolveMarriage
 	default:
 		return models.WinterOrder{}, unknownWinterSubtype(lineNumber, fields[0], fields[1])
 	}

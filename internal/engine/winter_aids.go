@@ -27,12 +27,22 @@ type WinterAids struct {
 	// TrialJudges are the viewer's cardinals able to back a J order: each
 	// J line of the sheet is carried by one of them.
 	TrialJudges []models.NobleCode `json:"trialJudges"`
+	// Dissolvable are the active marriages the viewer can ask the dissolution
+	// of: all of them for the viewer's pope, else those of the viewer's nobles.
+	Dissolvable []DissolvableMarriage `json:"dissolvable"`
 	// FiefSites are the groups of territories a fief can be founded on.
 	FiefSites            []FiefSite `json:"fiefSites"`
 	FiefCostPerTerritory int        `json:"fiefCostPerTerritory"`
 	// Rituals are the Witches of the viewer that can order a ritual, with the
 	// region (seed village) the calamity would fall on.
 	Rituals []RitualOption `json:"rituals"`
+}
+
+// DissolvableMarriage is an active marriage an X D order can target; Noble is
+// the spouse to name in the order (the viewer's own when it owns one).
+type DissolvableMarriage struct {
+	Noble  models.NobleCode `json:"noble"`
+	Spouse models.NobleCode `json:"spouse"`
 }
 
 // RitualOption is a Witch able to perform a ritual.
@@ -72,6 +82,7 @@ func ForecastWinterAids(state *models.GameState, balance assetgen.Balance, viewe
 		Inquirers:            []models.NobleCode{},
 		InquiryCosts:         map[models.NobleCode]int{},
 		TrialJudges:          []models.NobleCode{},
+		Dissolvable:          []DissolvableMarriage{},
 		FiefSites:            []FiefSite{},
 		FiefCostPerTerritory: balance.Costs.FiefPerTerritory,
 		Rituals:              []RitualOption{},
@@ -79,6 +90,7 @@ func ForecastWinterAids(state *models.GameState, balance assetgen.Balance, viewe
 	ctx.papalAids(viewer, aids)
 	ctx.cardinalAids(viewer, aids)
 	ctx.inquiryAids(viewer, aids)
+	ctx.dissolutionAids(viewer, aids)
 	ctx.fiefAids(viewer, aids)
 	ctx.ritualAids(viewer, aids)
 	return aids
@@ -204,5 +216,23 @@ func (ctx *resolutionContext) ritualAids(viewer models.PlayerID, aids *WinterAid
 		if region := regionForTerritory(ctx, noble.LocationID); region != "" {
 			aids.Rituals = append(aids.Rituals, RitualOption{Noble: models.NobleCode(noble.Code), Region: region})
 		}
+	}
+}
+
+func (ctx *resolutionContext) dissolutionAids(viewer models.PlayerID, aids *WinterAids) {
+	pope := ctx.activePope(viewer) != nil
+	for _, marriage := range ctx.state.Marriages {
+		if !marriage.Active(ctx.state) {
+			continue
+		}
+		a, b := ctx.noblesByID[marriage.NobleA], ctx.noblesByID[marriage.NobleB]
+		switch {
+		case a.OwnerID == viewer:
+		case b.OwnerID == viewer:
+			a, b = b, a
+		case !pope:
+			continue
+		}
+		aids.Dissolvable = append(aids.Dissolvable, DissolvableMarriage{Noble: models.NobleCode(a.Code), Spouse: models.NobleCode(b.Code)})
 	}
 }

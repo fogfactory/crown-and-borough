@@ -63,6 +63,7 @@ const (
 	WinterOrderTypeLiftExcommunication WinterOrderType = "lift_excommunication"
 	WinterOrderTypeBuyCardinal         WinterOrderType = "buy_cardinal"
 	WinterOrderTypeInquiry             WinterOrderType = "inquiry"
+	WinterOrderTypeDissolveMarriage    WinterOrderType = "dissolve_marriage"
 	WinterOrderTypeTrial               WinterOrderType = "trial"
 )
 

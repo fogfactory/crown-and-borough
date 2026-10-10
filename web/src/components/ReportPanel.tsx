@@ -88,6 +88,9 @@ const REASON_KEYS: Record<string, MessageKey> = {
   election_not_open: 'reports.reason.election_not_open',
   cardinal_requires_bishop: 'reports.reason.cardinal_requires_bishop',
   not_pope: 'reports.reason.not_pope',
+  not_married: 'reports.reason.not_married',
+  dissolution_not_requested: 'reports.reason.dissolution_not_requested',
+  dissolution_not_granted: 'reports.reason.dissolution_not_granted',
   cannot_excommunicate_self: 'reports.reason.cannot_excommunicate_self',
   excommunication_limit: 'reports.reason.excommunication_limit',
   already_excommunicated: 'reports.reason.already_excommunicated',
@@ -332,6 +335,8 @@ function winterOrderLabel(order: WinterOrder, map: MapData | null, t: Translate)
       return 'T N'
     case 'discard_noble_card':
       return `D C ${order.cardCode ?? '—'}`
+    case 'dissolve_marriage':
+      return `X D ${order.nobleCode ?? '—'}`
     case 'inquiry':
       return `Q ${order.nobleCode ?? '—'} ${order.targetCode ?? '—'}`
     case 'trial':
@@ -512,7 +517,9 @@ function marriageLabel(
   return t(
     marriage.outcome === 'success'
       ? 'reports.marriageConcluded'
-      : 'reports.marriageFailed',
+      : marriage.outcome === 'dissolved'
+        ? 'reports.marriageDissolved'
+        : 'reports.marriageFailed',
     {
       noble: marriage.nobleName || marriage.nobleCode,
       owner: playerLabel(players, marriage.owner, t),

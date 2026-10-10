@@ -360,19 +360,31 @@ Aliases anglais : `FQ` (rite) et `PQ` (payant).
 
 ### Dissolution de mariage
 
-> **Dépendance #18 :** ce pouvoir est spécifié ici mais son implémentation
-> est différée après [l'issue #18](https://github.com/fogfactory/crown-and-borough/issues/18),
-> faute de modèle de mariage/alliance à ce jour.
+Ordre d'hiver `X D NNN`, où `NNN` est l'un des deux époux. Il se résout à
+l'étape 4, après les sanctions, les ordres de gestion et les enquêtes, et
+avant les mariages du même hiver ([hiver.md](hiver.md#ordre-de-résolution)).
 
-Le pape et un des époux (ou son propriétaire) soumettent chacun `X D NNN`
-(syntaxe proposée) pour le même couple ; un seul ordre suffit si le pape
-possède l'un des époux. La dissolution se résout avant la conclusion des
-mariages du même hiver : les deux nobles redeviennent célibataires et peuvent
-être remariés ou se présenter à une élection dès cet hiver ; aucune prétention
-n'est retirée ([hiver.md](hiver.md#effets-croisés)).
+Le **pape uniquement** peut dissoudre un mariage, quel que soit le
+propriétaire des époux, et seulement à la demande du propriétaire d'un des
+époux :
 
-Le **pape uniquement** peut jouer un ordre spécial dissolvant un mariage
-existant entre deux nobles, quel que soit leur propriétaire. Les effets
-exacts sur les alliances et la succession seront définis avec le modèle de
-mariage de #18 ; cette section sera complétée à ce moment-là sans revenir sur
-la restriction « pape uniquement » actée ici.
+- le propriétaire du pape (titre actif, hors cachot) soumet `X D NNN` ;
+- le propriétaire d'un des époux soumet `X D NNN` sur son propre noble, qui
+  vaut demande ;
+- un seul ordre suffit si le pape et l'un des époux appartiennent au même
+  joueur ; sinon l'ordre du pape sans demande est rejeté
+  (`dissolution_not_requested`) et une demande sans ordre du pape l'est aussi
+  (`dissolution_not_granted`).
+
+Un noble sans mariage en cours est rejeté (`not_married`). L'ordre est
+gratuit et sans limite par hiver. Le mariage dissous est public (section
+`marriages` du rapport, résultat `dissolved`).
+
+**Effets.** Les deux nobles redeviennent célibataires : ils peuvent être
+remariés ou se présenter à une élection dès cet hiver. Le mariage cesse
+d'être une alliance, comme à la mort d'un époux : le poids, la catégorie, le
+titre obtenu par alliance et les bonus de score s'éteignent
+([succession.md](succession.md#mariages-et-alliances)). La dissolution ne
+retire aucune prétention (Claim), y compris celles que le mariage a
+justifiées, et n'affecte pas la succession déjà ouverte ; le mariage reste
+enregistré dans la lignée.

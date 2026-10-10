@@ -22,6 +22,10 @@ var demoScenarios = map[string]struct {
 		description: "winter, P1 is pope with a bishop-astrologer, a Witch, cards in hand; P2 holds a cardinal and an excommunicated noble",
 		apply:       forgeWinter,
 	},
+	"dissolution": {
+		description: "winter (see the winter scenario), plus two marriages: ZEL (P1, the pope's house) with ZRO (P2), and ZCA (P2) with ZGU (P3); P1 can marry free nobles of P4",
+		apply:       forgeDissolution,
+	},
 	"inquiry": {
 		description: "winter (see the winter scenario), plus two ladies of P2 hiding a Witch and a Spy: P1's pope and P2's cardinal can investigate them",
 		apply:       forgeInquiry,
@@ -151,6 +155,34 @@ func forgeWinter(state *models.GameState) error {
 		models.NobleCard{Kind: models.NobleCardKindNoble, Code: "ZAL", Name: "Albert", Sex: models.SexMale},
 		models.NobleCard{Kind: models.NobleCardKindDignity, Code: models.DignityBastardCardCode, Dignity: models.DignityBastard},
 	)
+	return nil
+}
+
+func forgeDissolution(state *models.GameState) error {
+	if err := forgeWinter(state); err != nil {
+		return err
+	}
+	location := state.Nobles[ownedNobles(state, "P1")[0]].LocationID
+	for _, noble := range []struct {
+		id, code, name, owner string
+		sex                   models.Sex
+	}{
+		{"N910", "ZEL", "Eléonore", "P1", models.SexFemale},
+		{"N911", "ZRO", "Roland", "P2", models.SexMale},
+		{"N912", "ZCA", "Catherine", "P2", models.SexFemale},
+		{"N913", "ZGU", "Guibert", "P3", models.SexMale},
+		{"N914", "ZAD", "Aldric", "P4", models.SexMale},
+		{"N915", "ZLU", "Ludivine", "P1", models.SexFemale},
+	} {
+		state.Nobles = append(state.Nobles, models.Noble{
+			ID: models.NobleID(noble.id), Code: noble.code, Name: noble.name, Sex: noble.sex,
+			OwnerID: models.PlayerID(noble.owner), LocationID: location, Status: models.NobleStatusFree,
+		})
+	}
+	state.Marriages = []models.Marriage{
+		{NobleA: "N910", NobleB: "N911", Turn: 1},
+		{NobleA: "N912", NobleB: "N913", Turn: 1},
+	}
 	return nil
 }
 

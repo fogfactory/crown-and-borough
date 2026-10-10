@@ -731,6 +731,12 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 			if event.Election != nil {
 				report.Elections = append(report.Elections, *event.Election)
 			}
+		case EventTypeMarriageDissolved:
+			report.Marriages = append(report.Marriages, MarriageReport{
+				Outcome: OutcomeDissolved,
+				Noble:   event.NobleID, NobleCode: event.NobleCode, NobleName: event.NobleName, Owner: event.OwnerID,
+				Spouse: event.SpouseNobleID, SpouseCode: event.SpouseNobleCode, SpouseName: event.SpouseNobleName, SpouseOwner: event.SpouseOwnerID,
+			})
 		case EventTypeMarriage:
 			report.Marriages = append(report.Marriages, MarriageReport{
 				Outcome: OutcomeSuccess,

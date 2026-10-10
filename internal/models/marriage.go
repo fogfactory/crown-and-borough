@@ -13,11 +13,19 @@ type Marriage struct {
 	NobleA NobleID `json:"nobleA"`
 	NobleB NobleID `json:"nobleB"`
 	Turn   int     `json:"turn"`
+	// Dissolved is set when the pope dissolved the marriage (stage 4 of the
+	// winter); DissolvedTurn is the turn it happened. The record is kept so
+	// the Claims it justified stay valid.
+	Dissolved     bool `json:"dissolved,omitempty"`
+	DissolvedTurn int  `json:"dissolvedTurn,omitempty"`
 }
 
-// Active reports whether both spouses are still alive: the death of either
-// ends the marriage.
+// Active reports whether both spouses are still alive and the pope has not
+// dissolved the marriage: the death of either ends it.
 func (m Marriage) Active(g *GameState) bool {
+	if m.Dissolved {
+		return false
+	}
 	living := 0
 	for _, noble := range g.Nobles {
 		if noble.ID == m.NobleA || noble.ID == m.NobleB {
