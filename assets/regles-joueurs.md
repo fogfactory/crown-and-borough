@@ -714,6 +714,8 @@ investissements directs, une ligne par ordre, appliqués dans l'ordre saisi.
 | Transférer des ressources | `G XXX YYY N` | `XXX` est un château ou village contrôlé par le donneur ; `YYY` est un château ou village contrôlé par un autre joueur | 0 |
 | Constituer un fief | `T F NNN XXX YYY ZZZ …` | `NNN` est un noble du joueur, même otage ou prisonnier ; `XXX` (capitale) et le reste du groupe sont contrôlés, contigus et sans château requis hors capitale ; aucun territoire déjà en fief ; aucune armée adverse ou de révolte sur le groupe | {{costs.fief_per_territory}} par territoire |
 | Attribuer un fief vacant | `T A NNN XXX` | `NNN` est un noble du joueur, même otage ou prisonnier ; `XXX` est la capitale d'un fief vacant qu'il détient | 0 |
+| Annexer un territoire | `T X NNN XXX YYY` | `NNN` est le titulaire du fief de capitale `XXX` ; `YYY` touche le fief par une frontière franchissable, porte une de tes armées sans armée adverse ou de révolte, et n'est la capitale d'aucun fief ; s'il appartient déjà à un fief, l'accord du roi est nécessaire et le fief cédant garde au moins 3 territoires | {{costs.annex_per_territory}} |
+| Monter un fief d'un rang | `T R NNN XXX` | `NNN` est le titulaire du fief de capitale `XXX` ; le fief n'est pas un duché et n'a pas déjà monté cet hiver ; le titre atteint respecte la ligne de succession | {{costs.rank_per_territory}} par territoire du fief, gratuit avec l'accord du roi |
 | Marier deux nobles | `M N NNN MMM` | `NNN` est un noble libre du joueur, `MMM` un noble libre d'un autre joueur, de sexe différent, tous deux non mariés ; l'autre joueur doit soumettre `M N MMM NNN` le même hiver, sinon le mariage est refusé | 0 |
 
 **Ordre de résolution de l'hiver.** Les ordres ne sont pas tous appliqués dans
@@ -873,6 +875,13 @@ place du bonus de château habituel, pas en plus). Le titre appartient au
 noble titulaire désigné, qui doit être libre au moment de la constitution ;
 un même noble peut porter plusieurs titres, et un joueur peut détenir
 plusieurs fiefs.
+
+`T X` agrandit un fief existant d'un territoire que tu occupes à côté de lui.
+Le titre du fief ne change jamais tout seul : `T R` le monte d'un rang
+(baronnie, comté, marquisat, duché), quelle que soit la taille du fief, une
+seule fois par hiver et par fief. Le titre atteint obéit à la ligne de
+succession, comme à la constitution. Un territoire déjà membre d'un autre
+fief, ou du tien, ne peut être annexé qu'avec l'accord du roi.
 
 Le titulaire d'un fief est désigné par sa forme d'adresse — Baron/Baronne
 (baronnie), Comte/Comtesse (comté), Marquis/Marquise (marquisat),

@@ -81,7 +81,12 @@ liste d'investissements directs, traités dans l'ordre saisi :
   `XXX` la capitale (premier territoire, qui doit porter un château), suivi
   du reste du groupe (voir [titres.md](titres.md#constitution-dun-fief)) ;
 - `T A NNN XXX` — attribuer le fief vacant de capitale `XXX` au noble
-  `NNN` du joueur qui le détient.
+  `NNN` du joueur qui le détient ;
+- `T X NNN XXX YYY` — annexer le territoire `YYY` au fief de capitale `XXX`,
+  dont `NNN` est le titulaire ; le titre du fief ne change pas
+  ([politique.md](politique.md#seigneurie-et-annexion)) ;
+- `T R NNN XXX` — monter d'un rang le titre du fief de capitale `XXX`, une
+  fois par hiver et par fief ([politique.md](politique.md#seigneurie-et-annexion)).
 - `M N XXX YYY` — marier le noble `XXX` du joueur au noble `YYY` d'un autre
   joueur ; l'ordre n'est conclu que si l'autre joueur soumet `M N YYY XXX`
   le même hiver (voir [succession.md](succession.md#conclusion-dun-mariage)).

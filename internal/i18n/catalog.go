@@ -74,6 +74,8 @@ const (
 	WinterTransferAmount         = "error.winter.transfer_amount"
 	WinterFiefShape              = "error.winter.fief_shape"
 	WinterFiefFoundShape         = "error.winter.fief_found_shape"
+	WinterFiefAnnexShape         = "error.winter.fief_annex_shape"
+	WinterFiefRankShape          = "error.winter.fief_rank_shape"
 	WinterFiefAssignShape        = "error.winter.fief_assign_shape"
 	WinterMarriageShape          = "error.winter.marriage_shape"
 	WinterTransferNobleShape     = "error.winter.transfer_noble_shape"
@@ -194,7 +196,7 @@ func init() {
 	register(WinterTransferShape, "G requires a source, a destination, and an amount", "G exige une source, une destination et un montant")
 	register(WinterTransferAmount, "transfer amount %q must be a positive integer", "le montant du transfert %q doit être un entier positif")
 	register(WinterMillMaxLevelReached, "the mill has reached its maximum level", "le moulin a atteint son niveau maximal")
-	register(WinterFiefShape, "T requires a subtype (N, F or A)", "T exige un sous-type (N, F ou A)")
+	register(WinterFiefShape, "T requires a subtype (N, F, A, X or R)", "T exige un sous-type (N, F, A, X ou R)")
 	register(WinterFiefFoundShape, "T F requires a noble and at least 3 territory codes, the first being the capital", "T F exige un noble et au moins 3 codes de territoire, le premier étant la capitale")
 	register(WinterTransferNobleShape, "H N requires a noble code then a territory, and optionally O or P: H N NNN XXX [O|P]", "H N exige un code de noble puis un territoire, et en option O ou P : H N NNN XXX [O|P]")
 	register(WinterMarriageShape, "M N requires two distinct noble codes: your noble, then the one it marries", "M N exige deux codes de noble distincts : votre noble, puis celui qu'il épouse")
@@ -211,6 +213,8 @@ func init() {
 	register(WinterClaimShape, "C N requires the code of one of your nobles (the heir) and the code of the noble whose titles it claims", "C N exige le code de l'un de vos nobles (l'héritier) et le code du noble dont il revendique les titres")
 	register(WinterDignityShape, "D N requires one of your noble codes and a dignity card code, then a region seed for an abbess", "D N exige un code de l'un de vos nobles et un code de carte de dignité, puis le village seed d'une région pour une abbesse")
 	register(WinterCalamityVetoShape, "V C requires one of your noble codes and one forecast position (1 to 3)", "V C exige un code de l'un de vos nobles et une position de la prévision (1 à 3)")
+	register(WinterFiefAnnexShape, "T X requires a noble, the fief capital code and the annexed territory code", "T X exige un noble, le code de la capitale du fief et le code du territoire annexé")
+	register(WinterFiefRankShape, "T R requires a noble and the fief capital code", "T R exige un noble et le code de la capitale du fief")
 	register(WinterFiefAssignShape, "T A requires a noble and one fief capital code", "T A exige un noble et un code de capitale de fief")
 	register(DeckOrderShape, "a special order has an invalid shape", "la forme de l'ordre spécial est invalide")
 	register(DeckOrderKindUnknown, "unknown special card kind %q", "kind de carte spéciale inconnu : %q")

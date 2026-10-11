@@ -632,6 +632,18 @@ func TestValidateFiefWithHolder(t *testing.T) {
 	}
 }
 
+// TestValidateFiefTitleIndependentOfSize: annexation adds territories without
+// changing the title, so a title may be lower or higher than the size's.
+func TestValidateFiefTitleIndependentOfSize(t *testing.T) {
+	for _, title := range []models.FiefTitle{models.FiefTitleBarony, models.FiefTitleCounty, models.FiefTitleDuchy} {
+		g := validFiefState()
+		g.Fiefs[0].Title = title
+		if err := g.Validate(); err != nil {
+			t.Errorf("Validate() with title %q = %v, want nil", title, err)
+		}
+	}
+}
+
 func TestValidateFiefErrors(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -645,9 +657,9 @@ func TestValidateFiefErrors(t *testing.T) {
 		{"too few territories", func(g *models.GameState) {
 			g.Fiefs[0].Territories = []models.TerritoryID{"BRU", "BCL"}
 		}, "at least 3 territories"},
-		{"title does not match size", func(g *models.GameState) {
-			g.Fiefs[0].Title = models.FiefTitleCounty
-		}, "does not match"},
+		{"unknown title", func(g *models.GameState) {
+			g.Fiefs[0].Title = models.FiefTitle("kingdom")
+		}, "invalid title"},
 		{"capital not first", func(g *models.GameState) {
 			g.Fiefs[0].Territories = []models.TerritoryID{"BCL", "BRU", "ROS"}
 		}, "must be the capital"},

@@ -35,11 +35,13 @@ func testBalance() assetgen.Balance {
 		// small threshold (prosperity_test.go).
 		ProsperityLossThreshold: 1_000_000,
 		Costs: assetgen.Costs{
-			Castle:           10,
-			MillLevels:       []int{3, 5, 7},
-			Troop:            1,
-			SupplyDepot:      3,
-			FiefPerTerritory: 2,
+			Castle:            10,
+			MillLevels:        []int{3, 5, 7},
+			Troop:             1,
+			SupplyDepot:       3,
+			FiefPerTerritory:  2,
+			AnnexPerTerritory: 2,
+			RankPerTerritory:  3,
 		},
 		NobleLimit:        4,
 		NobleLimitMax:     6,

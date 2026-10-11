@@ -59,6 +59,19 @@ func nobleSequence(id NobleID) (int, bool) {
 // TitleRank is the succession rank of a fief title: barony 1 up to duchy 4.
 func (t FiefTitle) Rank() int { return fiefTitleRanks[t] }
 
+// Next returns the title one rank above t, and false for the highest one.
+func (t FiefTitle) Next() (FiefTitle, bool) {
+	switch t {
+	case FiefTitleBarony:
+		return FiefTitleCounty, true
+	case FiefTitleCounty:
+		return FiefTitleMarquisate, true
+	case FiefTitleMarquisate:
+		return FiefTitleDuchy, true
+	}
+	return "", false
+}
+
 // CanReceiveTitle reports whether nobleID may be granted a fief of the given
 // title (specs/succession.md § Lignée): every noble placed above it in its
 // owner's line of succession must already hold a fief of an equal or higher

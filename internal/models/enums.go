@@ -172,8 +172,9 @@ func (c DeathCause) IsValid() bool {
 	return false
 }
 
-// FiefTitle is the nobility rank of a fief, derived from its territory count
-// (titres.md, #194).
+// FiefTitle is the nobility rank of a fief. It is set from the territory count
+// when the fief is constituted and only changes by an explicit rank change
+// (titres.md, politique.md § Seigneurie et annexion): annexing never touches it.
 type FiefTitle string
 
 const (

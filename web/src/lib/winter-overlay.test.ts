@@ -150,4 +150,26 @@ describe('buildWinterIntentions', () => {
       noble: 'HUG',
     })
   })
+
+  it('maps annex and rank lines, and flags a refused annexation', () => {
+    const lines: WinterLinePreview[] = [
+      { line: 1, status: 'applied', type: 'annex_territory', territory: 'BRU', noble: 'HUG', cost: 2 },
+      { line: 2, status: 'applied', type: 'change_rank', territory: 'ROS', noble: 'HUG', cost: 6 },
+      {
+        line: 3,
+        status: 'rejected',
+        type: 'annex_territory',
+        territory: 'FOU',
+        noble: 'HUG',
+        reason: 'annex_not_adjacent',
+      },
+    ]
+    const [annex, rank, refused] = buildWinterIntentions(
+      lines,
+      'T X HUG ROS BRU\nT R HUG ROS\nT X HUG ROS FOU',
+    )
+    expect(annex).toMatchObject({ kind: 'fief_annex', valid: true, territory: 'BRU', noble: 'HUG' })
+    expect(rank).toMatchObject({ kind: 'fief_rank', valid: true, territory: 'ROS' })
+    expect(refused).toMatchObject({ kind: 'error', valid: false, reason: 'annex_not_adjacent' })
+  })
 })

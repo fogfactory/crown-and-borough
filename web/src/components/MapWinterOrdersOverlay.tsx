@@ -103,7 +103,11 @@ export function WinterOrdersOverlay({
                             ? 'F'
                             : intention.kind === 'fief_assign'
                               ? 'A'
-                              : 'E'
+                              : intention.kind === 'fief_annex'
+                                ? 'X'
+                                : intention.kind === 'fief_rank'
+                                  ? 'R'
+                                  : 'E'
               const detail =
                 intention.kind === 'recruit_noble'
                   ? 'R'
