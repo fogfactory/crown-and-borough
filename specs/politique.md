@@ -55,8 +55,8 @@ détiennent un fief (vacant exclu : un fief vacant n'a pas de titulaire), un
 évêché, le cardinalat ou la papauté, dames comprises pour les fiefs. Les voix
 se lisent sur l'instantané des titres : un titre gagné cet hiver ne vote pas
 (principe 3 de [hiver.md](hiver.md#principes)) ; un noble excommunié a perdu
-ses titres religieux ; un noble au cachot ne vote pas ; un otage vote pour
-son propriétaire.
+ses titres religieux ; un noble au cachot ne vote pas ; la voix d'un otage revient à la famille qui l'a joué,
+jamais à son geôlier.
 
 **Victoire.** Le candidat arrivé en tête est élu si **toutes** les conditions
 suivantes sont vraies :

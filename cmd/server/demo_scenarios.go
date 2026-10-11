@@ -26,6 +26,10 @@ var demoScenarios = map[string]struct {
 		description: "winter (see the winter scenario), plus a vacant bishopric whose every territory is held by P1 or P2 (armies), with a free man of each player to run: a bishop election opens",
 		apply:       forgeElection,
 	},
+	"king": {
+		description: "winter (see the winter scenario), vacant throne, plus a baron of P1 (ZRA), P2 (ZRB) and P3 (ZRC) holding a barony each: the royal election opens (K R / V R), P1's pope and bishop and P2's cardinal can anoint",
+		apply:       forgeKing,
+	},
 	"dissolution": {
 		description: "winter (see the winter scenario), plus two marriages: ZEL (P1, the pope's house) with ZRO (P2), and ZCA (P2) with ZGU (P3); P1 can marry free nobles of P4",
 		apply:       forgeDissolution,
@@ -215,6 +219,56 @@ func forgeElection(state *models.GameState) error {
 		})
 	}
 	fmt.Printf("demo election: bishopric %s (seat %s) is vacant and fully held; candidates ZEL (P1) and ZEM (P2)\n", region.ID, region.Seed)
+	return nil
+}
+
+// forgeKing leaves the throne vacant (no king in the base game) and gives P1,
+// P2 and P3 a free baron each, holder of a barony built from three territories
+// the player controls. With the winter titles that makes 6 voices, 3 of them
+// from the clergy. The orders to try: `K R <noble>` to file a candidacy,
+// `V R <noble>` to vote.
+func forgeKing(state *models.GameState) error {
+	if err := forgeWinter(state); err != nil {
+		return err
+	}
+	state.King = nil
+	inFief := make(map[models.TerritoryID]bool)
+	for _, fief := range state.Fiefs {
+		for _, id := range fief.Territories {
+			inFief[id] = true
+		}
+	}
+	barons := []struct {
+		player   models.PlayerID
+		id, code string
+		name     string
+	}{{"P1", "N920", "ZRA", "Aldric"}, {"P2", "N921", "ZRB", "Bertrand"}, {"P3", "N922", "ZRC", "Conrad"}}
+	for _, baron := range barons {
+		var group []models.TerritoryID
+		for _, territory := range state.Territories {
+			owner, controlled := state.TerritoryController(territory.ID)
+			if controlled && owner == baron.player && !inFief[territory.ID] && len(group) < models.FiefMinTerritories {
+				group = append(group, territory.ID)
+			}
+		}
+		if len(group) < models.FiefMinTerritories {
+			return fmt.Errorf("%s controls fewer than %d free territories", baron.player, models.FiefMinTerritories)
+		}
+		for _, id := range group {
+			inFief[id] = true
+		}
+		holder := models.NobleID(baron.id)
+		state.Nobles = append(state.Nobles, models.Noble{
+			ID: holder, Code: baron.code, Name: baron.name, Sex: models.SexMale,
+			OwnerID: baron.player, LocationID: state.Nobles[ownedNobles(state, baron.player)[0]].LocationID,
+			Status: models.NobleStatusFree,
+		})
+		state.Fiefs = append(state.Fiefs, models.Fief{
+			ID: models.FiefID("FZK" + baron.code), Title: models.FiefTitleBarony, CapitalTerritoryID: group[0],
+			Territories: group, OwnerID: baron.player, HolderNobleID: &holder,
+		})
+	}
+	fmt.Println("demo king: the throne is vacant; candidates ZRA (P1), ZRB (P2), ZRC (P3), or the pope and cardinal houses' nobles")
 	return nil
 }
 

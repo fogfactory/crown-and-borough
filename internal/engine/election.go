@@ -20,10 +20,13 @@ import (
 
 // Election result codes carried by an EventTypeElectionResult event.
 const (
-	ElectionElected      = "elected"
-	ElectionTie          = "tie"
-	ElectionNoCandidate  = "no_candidate"
-	ElectionNoMajority   = "no_majority"
+	ElectionElected     = "elected"
+	ElectionTie         = "tie"
+	ElectionNoCandidate = "no_candidate"
+	ElectionNoMajority  = "no_majority"
+	// ElectionNoAnointment is a royal election whose leading candidate got
+	// enough voices but not the blessing of the clergy.
+	ElectionNoAnointment = "no_anointment"
 	electionNoVoiceError = "no_voice"
 )
 
@@ -35,11 +38,15 @@ type ElectionCandidate struct {
 	NobleName string           `json:"nobleName"`
 	Owner     models.PlayerID  `json:"owner"`
 	Votes     int              `json:"votes"`
+	// Anointed tells whether the voices of the candidate include the blessing
+	// of the clergy (royal election only).
+	Anointed bool `json:"anointed,omitempty"`
 }
 
 // ElectionResult is the public outcome of one election. Required is the number
-// of voices an absolute majority needs (0 for a relative majority); Cast is
-// the total of voices given to a candidate.
+// of voices an absolute majority needs (0 for a relative majority); MinVotes
+// is the least number of voices a winner needs in a relative-majority
+// election; Cast is the total of voices given to a candidate.
 type ElectionResult struct {
 	Kind       models.ElectionKind `json:"kind"`
 	Region     models.RegionID     `json:"region,omitempty"`
@@ -47,6 +54,7 @@ type ElectionResult struct {
 	Result     string              `json:"result"`
 	Winner     models.NobleID      `json:"winner,omitempty"`
 	Required   int                 `json:"required,omitempty"`
+	MinVotes   int                 `json:"minVotes,omitempty"`
 	Cast       int                 `json:"cast"`
 	Candidates []ElectionCandidate `json:"candidates"`
 }
@@ -65,11 +73,18 @@ type election struct {
 	// relative majority only asks for the highest total.
 	absolute    bool
 	denominator int
+	// minVotes is the least number of voices the winner needs, and anointed
+	// asks that those voices include the blessing of the clergy (royal
+	// election, specs/politique.md).
+	minVotes int
+	anointed bool
 	// eligible returns "" when the noble may run, the rejection reason
 	// otherwise.
 	eligible func(*models.Noble) string
 	// voices is each player's weight, computed on the winter snapshot.
 	voices map[models.PlayerID]int
+	// sources is what gives each player its voices, computed with them.
+	sources map[models.PlayerID][]VoiceSource
 
 	candidates []*electionEntry
 	filed      map[models.PlayerID]bool
@@ -79,6 +94,30 @@ type election struct {
 type electionEntry struct {
 	noble *models.Noble
 	votes int
+	// clergyVotes counts the voices of bishops and above, and highClergy tells
+	// that one of them is a cardinal or the pope: the royal anointment.
+	clergyVotes int
+	highClergy  bool
+}
+
+// royalMinVotes and royalMinBishops are the royal election thresholds
+// (specs/politique.md § Élection): the voices a winner needs, which are also
+// the voting titles needed to open the election, and the voices of bishops (or
+// above) that anoint him. A single cardinal or the pope anoints on his own.
+const (
+	royalMinVotes   = 3
+	royalMinBishops = 2
+)
+
+// clergyLevel tells whether a voting title is a bishop or above (bishop) and
+// whether it is a cardinal or the pope (high): what counts for the royal
+// anointment.
+func clergyLevel(title models.ReligiousTitle) (bishop, high bool) {
+	return title.Rank() >= models.ReligiousTitleBishop.Rank(), title.Rank() >= models.ReligiousTitleCardinal.Rank()
+}
+
+func (entry *electionEntry) anointed() bool {
+	return entry.highClergy || entry.clergyVotes >= royalMinBishops
 }
 
 // electionOrder is a candidacy or a vote recorded during the order stage.
@@ -98,7 +137,7 @@ type pendingTitle struct {
 // winter begins: a bishopric without bishop whose every territory is
 // controlled or occupied, and the conclave when the throne is vacant and at
 // least two cardinals hold their title. Bishoprics come by region identifier,
-// the conclave last.
+// the conclave, then the throne.
 func (ctx *resolutionContext) openWinterElections() {
 	ctx.elections = nil
 	regions := slices.Clone(ctx.state.Regions)
@@ -126,6 +165,16 @@ func (ctx *resolutionContext) openWinterElections() {
 			eligible:    ctx.popeCandidateRejection,
 			filed:       map[models.PlayerID]bool{},
 			voted:       map[models.PlayerID]bool{},
+		})
+	}
+	if ctx.royalElectionOpen() {
+		ctx.elections = append(ctx.elections, &election{
+			key:      electionKey{kind: models.ElectionKing},
+			minVotes: royalMinVotes,
+			anointed: true,
+			eligible: ctx.kingCandidateRejection,
+			filed:    map[models.PlayerID]bool{},
+			voted:    map[models.PlayerID]bool{},
 		})
 	}
 	for _, open := range ctx.elections {
@@ -187,6 +236,80 @@ func (ctx *resolutionContext) bishopCandidateRejection(noble *models.Noble) stri
 	return ""
 }
 
+// kingCandidateRejection holds the eligibility for the crown: a free man who
+// can be king (no bastard) and is not excommunicated, holding at least one
+// fief title. His marital status is irrelevant.
+func (ctx *resolutionContext) kingCandidateRejection(noble *models.Noble) string {
+	switch {
+	case !noble.Sex.CanHoldReligiousOrRoyalTitle(), !noble.CanBeKing():
+		return "candidate_not_eligible"
+	case noble.Status != models.NobleStatusFree:
+		return "candidate_not_eligible"
+	}
+	if _, excommunicated := ctx.state.ExcommunicationOf(noble.ID); excommunicated {
+		return "candidate_not_eligible"
+	}
+	if ctx.state.HighestHeldFief(noble.ID) == nil {
+		return "candidate_not_eligible"
+	}
+	return ""
+}
+
+// royalVoiceSources lists, for every player, the titled nobles that give it a
+// voice in the royal election: one per noble holding a fief (vacant fiefs have
+// no holder), a bishopric, the cardinalate or the papacy, whatever the number
+// of titles. A noble in a dungeon gives none; an excommunicated one has lost
+// its religious titles but keeps its fiefs.
+func (ctx *resolutionContext) royalVoiceSources() map[models.PlayerID][]VoiceSource {
+	sources := map[models.PlayerID][]VoiceSource{}
+	for _, noble := range ctx.state.Nobles {
+		if noble.Status == models.NobleStatusDungeon {
+			continue
+		}
+		fief := ctx.state.HighestHeldFief(noble.ID)
+		title := ctx.state.VotingReligiousTitle(noble.ID)
+		if fief == nil && title == models.ReligiousTitleNone {
+			continue
+		}
+		source := VoiceSource{
+			Kind:      "fief",
+			Noble:     models.NobleCode(noble.Code),
+			NobleName: ctx.state.NobleDisplayName(noble),
+			Title:     title,
+			Votes:     1,
+		}
+		if fief != nil {
+			source.Territory = fief.CapitalTerritoryID
+		}
+		if title != models.ReligiousTitleNone {
+			source.Kind = "title"
+		}
+		sources[noble.OwnerID] = append(sources[noble.OwnerID], source)
+	}
+	return sources
+}
+
+// royalElectionOpen reports whether the royal election is open when the winter
+// begins: the throne is vacant, at least royalMinVotes titles vote, and the
+// clergy can anoint (two voting bishops or more, or one cardinal or the pope).
+func (ctx *resolutionContext) royalElectionOpen() bool {
+	if ctx.state.King != nil {
+		return false
+	}
+	voters, bishops, cardinal := 0, 0, false
+	for _, sources := range ctx.royalVoiceSources() {
+		for _, source := range sources {
+			voters += source.Votes
+			bishop, high := clergyLevel(source.Title)
+			if bishop {
+				bishops++
+			}
+			cardinal = cardinal || high
+		}
+	}
+	return voters >= royalMinVotes && (bishops >= royalMinBishops || cardinal)
+}
+
 func (ctx *resolutionContext) popeCandidateRejection(noble *models.Noble) string {
 	if reason := ctx.commonCandidateRejection(noble); reason != "" {
 		return reason
@@ -212,6 +335,9 @@ type VoiceSource struct {
 // electionVoiceSources lists, for every player, what gives it voices in the
 // election, on the state the election stage opens with.
 func (ctx *resolutionContext) electionVoiceSources(open *election) map[models.PlayerID][]VoiceSource {
+	if open.key.kind == models.ElectionKing {
+		return ctx.royalVoiceSources()
+	}
 	sources := map[models.PlayerID][]VoiceSource{}
 	titleSource := func(noble models.Noble, votes int) {
 		if votes == 0 {
@@ -280,17 +406,6 @@ func (ctx *resolutionContext) abbeyVotes(noble models.Noble, seat models.Territo
 	return !excommunicated
 }
 
-// electionVoices computes the weight of every player in the election.
-func (ctx *resolutionContext) electionVoices(open *election) map[models.PlayerID]int {
-	voices := map[models.PlayerID]int{}
-	for playerID, sources := range ctx.electionVoiceSources(open) {
-		for _, source := range sources {
-			voices[playerID] += source.Votes
-		}
-	}
-	return voices
-}
-
 // matchElection finds the open election an order names, or nil.
 func (ctx *resolutionContext) matchElection(order models.WinterOrder) *election {
 	for _, open := range ctx.elections {
@@ -324,7 +439,13 @@ func (ctx *resolutionContext) resolveWinterElections() {
 	orders := ctx.electionOrders
 	ctx.electionOrders = nil
 	for _, open := range ctx.elections {
-		open.voices = ctx.electionVoices(open)
+		open.sources = ctx.electionVoiceSources(open)
+		open.voices = map[models.PlayerID]int{}
+		for playerID, sources := range open.sources {
+			for _, source := range sources {
+				open.voices[playerID] += source.Votes
+			}
+		}
 		if open.absolute {
 			// A cardinal card played, or a cardinal excommunicated, earlier in
 			// the winter changes the cardinals in play at the count.
@@ -398,17 +519,29 @@ func (ctx *resolutionContext) castVote(open *election, recorded electionOrder) {
 	}
 	open.voted[recorded.playerID] = true
 	entry.votes += voice
+	if open.anointed {
+		for _, source := range open.sources[recorded.playerID] {
+			bishop, high := clergyLevel(source.Title)
+			if bishop {
+				entry.clergyVotes += source.Votes
+			}
+			entry.highClergy = entry.highClergy || high
+		}
+	}
 }
 
 // concludeElection decides the election and reports its public totals. A
-// relative majority needs a single highest total above zero; an absolute
-// majority needs strictly more than half of the denominator. A tie at the top,
-// or no candidate, leaves the seat vacant.
+// relative majority needs a single highest total above zero (and at least
+// minVotes); an absolute majority needs strictly more than half of the
+// denominator. The royal election also asks that the winner be anointed. A tie
+// at the top, a missing anointment, or no candidate, leaves the seat vacant:
+// the runner-up never takes its place.
 func (ctx *resolutionContext) concludeElection(open *election) {
 	result := ElectionResult{
 		Kind:       open.key.kind,
 		Region:     open.key.region,
 		Seat:       open.seat,
+		MinVotes:   open.minVotes,
 		Result:     ElectionNoCandidate,
 		Candidates: make([]ElectionCandidate, 0, len(open.candidates)),
 	}
@@ -424,6 +557,7 @@ func (ctx *resolutionContext) concludeElection(open *election) {
 			NobleName: ctx.state.NobleDisplayName(*entry.noble),
 			Owner:     entry.noble.OwnerID,
 			Votes:     entry.votes,
+			Anointed:  open.anointed && entry.anointed(),
 		})
 		result.Cast += entry.votes
 		switch {
@@ -437,8 +571,10 @@ func (ctx *resolutionContext) concludeElection(open *election) {
 	case top == nil:
 	case tied:
 		result.Result = ElectionTie
-	case top.votes == 0 || (open.absolute && top.votes < result.Required):
+	case top.votes == 0 || top.votes < open.minVotes || (open.absolute && top.votes < result.Required):
 		result.Result = ElectionNoMajority
+	case open.anointed && !top.anointed():
+		result.Result = ElectionNoAnointment
 	default:
 		result.Result = ElectionElected
 		result.Winner = top.noble.ID
@@ -454,8 +590,9 @@ func (ctx *resolutionContext) concludeElection(open *election) {
 	})
 }
 
-// investWinterTitles confers the titles won this winter. A winner that left
-// play or was excommunicated since the count gets nothing.
+// investWinterTitles confers the titles won this winter, the crown included:
+// the king is crowned here, so his crown gives no voice before next winter. A
+// winner that left play or was excommunicated since the count gets nothing.
 func (ctx *resolutionContext) investWinterTitles() {
 	pending := ctx.pendingTitles
 	ctx.pendingTitles = nil
@@ -473,6 +610,12 @@ func (ctx *resolutionContext) investWinterTitles() {
 		case models.ElectionPope:
 			id := noble.ID
 			ctx.state.Pope = &id
+		case models.ElectionKing:
+			if ctx.state.King != nil {
+				continue
+			}
+			id := noble.ID
+			ctx.state.King = &id
 		}
 		ctx.events = append(ctx.events, Event{
 			Type:      EventTypeInvestiture,

@@ -30,6 +30,9 @@ qu'il voit des autres.
 > place. L'ordre de résolution est repris dans `gdd.md`
 > (§ Phase d'hiver) et dans les règles joueurs
 > ([#377](https://github.com/fogfactory/crown-and-borough/issues/377)).
+> L'élection royale (`K R` / `V R`, [politique.md](politique.md#élection)) suit
+> le conclave à l'étape 6 et la couronne est conférée à l'investiture
+> ([#404](https://github.com/fogfactory/crown-and-borough/issues/404)).
 
 ## Principes
 
@@ -161,7 +164,9 @@ condition ne prélève jamais.
 - Éligibilité évaluée à l'étape 6 : homme, célibataire, libre (ni `hostage`
   ni `dungeon`), non excommunié. Élection épiscopale : en outre pas déjà
   évêque. Conclave : **évêque ou cardinal** en titre à l'instantané (un
-  titre gagné cet hiver ne compte pas).
+  titre gagné cet hiver ne compte pas). Trône : homme libre, non excommunié,
+  non bâtard, titulaire d'au moins un fief ; l'état civil est indifférent
+  (le candidat peut être marié).
 - Un siège absent du registre de l'étape 0 rejette toute candidature
   (`election_not_open`).
 
@@ -178,13 +183,20 @@ condition ne prélève jamais.
   strictement plus de la moitié de **tous** les cardinaux en titre, y compris
   ceux dont la voix est suspendue (cachot). Un cardinal au cachot bloque donc
   la majorité tant qu'il n'est pas libéré.
+- Trône : chaque noble titré (fief, évêché, cardinalat, papauté) donne 1 voix
+  à son propriétaire, quel que soit le nombre de ses titres ; le cachot
+  suspend la voix. Le trône n'est ouvert que s'il est vacant, que 3 nobles
+  titrés au moins peuvent voter et que parmi eux deux évêques (ou plus) ou un
+  cardinal ou le pape peuvent oindre.
 - Le conclave n'est ouvert que si le trône est vacant et qu'au moins deux
   cardinaux sont en titre à l'instantané.
 
 ### Résultat
 
-- Majorité relative (évêque) ou absolue (pape). Égalité au sommet ou aucun
-  candidat éligible : siège vacant, réévalué à l'hiver suivant.
+- Majorité relative (évêque), absolue (pape), ou relative avec au moins 3 voix
+  et l'onction (roi : `no_majority` sous 3 voix, `no_anointment` sans
+  onction). Égalité au sommet ou aucun candidat éligible : siège vacant,
+  réévalué à l'hiver suivant.
 - Les voix ne dépendent pas de l'ordre des élections ; seule l'éligibilité des
   candidats en dépend (ci-dessus). Un vote pour un candidat écarté est rejeté
   (`unknown_candidate`).
@@ -223,8 +235,4 @@ saisons d'action sont déjà dans l'instantané. Au jugement :
 
 - L'ordre actuel des transferts `G` (par identifiant de joueur) n'est pas
   modifié.
-- L'élection royale ([politique.md](politique.md#élection)) réutilise le moteur
-  générique ([#374](https://github.com/fogfactory/crown-and-borough/issues/374)) ;
-  elle suit le conclave à l'étape 6, la couronne étant conférée à l'investiture
-  (étape 7).
 - La syntaxe `N C` (achat de cardinal) et `X D` (dissolution) est confirmée.

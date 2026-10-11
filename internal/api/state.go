@@ -41,6 +41,9 @@ type StateView struct {
 	Cardinals      []models.NobleCode    `json:"cardinals"`
 	Pope           *models.NobleCode     `json:"pope,omitempty"`
 	Excommunicated []ExcommunicationView `json:"excommunicated"`
+	// King is the noble who holds the crown, absent while the throne is
+	// vacant; it is public (specs/politique.md § Roi).
+	King *models.NobleCode `json:"king,omitempty"`
 	// HandLimit is special_orders.hand_limit: the cap on the cards a player
 	// holds, special-orders hand and noble hand together.
 	HandLimit        int               `json:"handLimit"`
@@ -545,6 +548,10 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 		view.Deceased = append(view.Deceased, DeceasedView{Code: models.NobleCode(removed.Code), Name: removed.Name, Owner: removed.OwnerID, Sex: removed.Sex, Cause: removed.Cause, Turn: removed.Turn})
 	}
 	view.Bishoprics, view.Cardinals, view.Pope, view.Excommunicated = projectReligion(state, nobleCodesByID)
+	if state.King != nil {
+		code := nobleCodesByID[*state.King]
+		view.King = &code
+	}
 	for i, noble := range view.Nobles {
 		view.Nobles[i].ReligiousTitle = state.ReligiousTitleOf(noble.ID)
 	}

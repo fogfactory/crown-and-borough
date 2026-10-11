@@ -639,6 +639,12 @@ function NobleDeckSection({
 }
 
 function voiceSourceLabel(source: VoiceSource, t: Translate): string {
+  if (source.kind === 'fief') {
+    return t('orders.voiceFief', {
+      name: source.nobleName ?? source.noble ?? '',
+      votes: source.votes,
+    })
+  }
   if (source.kind === 'title') {
     return t('orders.voiceTitle', {
       name: source.nobleName ?? source.noble ?? '',
@@ -686,9 +692,12 @@ function OpenElectionsSection({
             state.bishoprics?.find((bishopric) => bishopric.region === election.region)
               ?.name ?? election.region ?? ''
           const isPope = election.kind === 'pope'
+          const isKing = election.kind === 'king'
+          const noSeat = isPope || isKing
+          const kind = isKing ? 'R' : 'P'
           const seat = election.seat ?? ''
           const filable = election.candidates.filter((candidate) => {
-            const line = isPope ? `K P ${candidate.code}` : `K E ${candidate.code} ${seat}`
+            const line = noSeat ? `K ${kind} ${candidate.code}` : `K E ${candidate.code} ${seat}`
             return !lines.includes(line.toUpperCase())
           })
           return (
@@ -698,16 +707,32 @@ function OpenElectionsSection({
               className="rounded-md border border-[#c9dcea] bg-white/60 px-2 py-1.5 text-xs text-[#2c5b7d]"
             >
               <summary className="cursor-pointer font-semibold">
-                {isPope
-                  ? t('orders.electionPopeHeading')
-                  : t('orders.electionBishopHeading', { name, seat })}
+                {isKing
+                  ? t('orders.electionKingHeading')
+                  : isPope
+                    ? t('orders.electionPopeHeading')
+                    : t('orders.electionBishopHeading', { name, seat })}
               </summary>
               <div className="mt-1.5 space-y-1.5">
                 <p className="text-[#55738a]">
-                  {isPope
-                    ? t('orders.electionPopeRule', { required: election.required ?? 0 })
-                    : t('orders.electionBishopRule', { seat })}
+                  {isKing
+                    ? t('orders.electionKingRule', { minVotes: election.minVotes ?? 0 })
+                    : isPope
+                      ? t('orders.electionPopeRule', { required: election.required ?? 0 })
+                      : t('orders.electionBishopRule', { seat })}
                 </p>
+                {isKing && (
+                  <p className="text-[#55738a]">
+                    {t('orders.electionKingClergy', {
+                      count: election.voiceSources.filter((source) => source.title).length,
+                      cardinal: election.voiceSources.some(
+                        (source) => source.title === 'cardinal' || source.title === 'pope',
+                      )
+                        ? t('orders.electionKingCardinalYes')
+                        : t('orders.electionKingCardinalNo'),
+                    })}
+                  </p>
+                )}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span
@@ -731,7 +756,11 @@ function OpenElectionsSection({
                   <OrderLauncher
                     label={t('orders.electionCandidacyLaunch')}
                     title={`${t('orders.electionCandidacyLaunch')} · ${
-                      isPope ? t('orders.electionPopeHeading') : name
+                      isKing
+                        ? t('orders.electionKingHeading')
+                        : isPope
+                          ? t('orders.electionPopeHeading')
+                          : name
                     }`}
                     disabled={filable.length === 0}
                     fields={[
@@ -748,8 +777,8 @@ function OpenElectionsSection({
                       const candidate = filable.find((entry) => entry.code === values.noble)
                       if (!candidate) return null
                       return {
-                        line: isPope
-                          ? `K P ${candidate.code}`
+                        line: noSeat
+                          ? `K ${kind} ${candidate.code}`
                           : `K E ${candidate.code} ${seat}`,
                         comment: t('orders.electionCandidacyComment', { name: candidate.name }),
                       }
@@ -759,7 +788,11 @@ function OpenElectionsSection({
                   <OrderLauncher
                     label={t('orders.electionVoteLaunch')}
                     title={`${t('orders.electionVoteLaunch')} · ${
-                      isPope ? t('orders.electionPopeHeading') : name
+                      isKing
+                        ? t('orders.electionKingHeading')
+                        : isPope
+                          ? t('orders.electionPopeHeading')
+                          : name
                     }`}
                     disabled={election.voices === 0 || election.eligible.length === 0}
                     fields={[
@@ -779,7 +812,7 @@ function OpenElectionsSection({
                       const code = values.noble.trim().toUpperCase()
                       if (!/^[A-Z]{3}$/.test(code)) return null
                       return {
-                        line: isPope ? `V P ${code}` : `V E ${code} ${seat}`,
+                        line: noSeat ? `V ${kind} ${code}` : `V E ${code} ${seat}`,
                         comment: t('orders.comment.vote', {
                           name:
                             state.nobles.find((noble) => noble.code === code)?.name ?? code,

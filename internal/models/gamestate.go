@@ -67,6 +67,9 @@ type GameState struct {
 	Cardinals        []NobleID         `json:"cardinals,omitempty"`
 	Pope             *NobleID          `json:"pope,omitempty"`
 	Excommunications []Excommunication `json:"excommunications,omitempty"`
+	// King is the noble who holds the crown, nil while the throne is vacant
+	// (specs/politique.md § Roi).
+	King *NobleID `json:"king,omitempty"`
 }
 
 // NewGameState returns a fresh empty state at turn 1, spring of year 1, with

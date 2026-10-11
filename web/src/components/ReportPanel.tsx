@@ -1369,7 +1369,9 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                   <p className="font-semibold">
                     {election.kind === 'bishop'
                       ? t('reports.electionBishop', { seat })
-                      : t('reports.electionPope')}
+                      : election.kind === 'king'
+                        ? t('reports.electionKing')
+                        : t('reports.electionPope')}
                     {' — '}
                     {t(`reports.electionResult.${election.result}`, {
                       noble: winner
@@ -1382,11 +1384,15 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                       {election.candidates
                         .map(
                           (candidate) =>
-                            `${candidate.nobleName} (${candidate.owner}) : ${candidate.votes}`,
+                            `${candidate.nobleName} (${candidate.owner}) : ${candidate.votes}${
+                              candidate.anointed ? ` ${t('reports.electionAnointed')}` : ''
+                            }`,
                         )
                         .join(' · ')}
-                      {election.required
-                        ? ` — ${t('reports.electionRequired', { count: election.required })}`
+                      {election.required || election.minVotes
+                        ? ` — ${t('reports.electionRequired', {
+                            count: election.required ?? election.minVotes ?? 0,
+                          })}`
                         : ''}
                     </p>
                   )}
