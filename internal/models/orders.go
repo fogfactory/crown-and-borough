@@ -210,9 +210,14 @@ type DeckOrder struct {
 	Kind              CardKind      `json:"kind,omitempty"`
 	RegionSeed        TerritoryID   `json:"regionSeed,omitempty"`
 	TargetTerritoryID TerritoryID   `json:"targetTerritory,omitempty"`
-	// TargetNobleID is the noble a trial card puts on trial, or the cleric
-	// issuing a revolt appeasement.
+	// TargetNobleID is the noble a trial card puts on trial, the cleric
+	// issuing a revolt appeasement, or the detained noble a tunnel card helps
+	// escape.
 	TargetNobleID NobleID `json:"targetNoble,omitempty"`
+	// SourceTerritoryID is, with TargetTerritoryID, the attack a tunnel card
+	// designates: from this origin to the target (specs/ordres-speciaux.md
+	// § Souterrain).
+	SourceTerritoryID TerritoryID `json:"sourceTerritory,omitempty"`
 	// Tithe marks a Tax card played as a tithe on a bishopric rather than a
 	// seigneurial tax on a fief, which only the order can tell when the target
 	// is both a fief capital and a bishopric seed (religieux.md "Dîme").

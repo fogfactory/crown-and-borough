@@ -24,7 +24,8 @@ de déplacement nulle : le bonus de commandement ne l'en sort pas.
 ## Roi
 
 Le roi est un **noble masculin** (un [bâtard](succession.md#bâtard) ne peut pas
-l'être) qui détient la couronne. Il n'y a jamais plus d'un roi. La couronne est
+l'être) qui détient la couronne. Il n'y a jamais plus d'un roi, et un même
+noble ne peut pas être roi et pape. La couronne est
 un titre du noble : elle compte pour 1 point de score
 ([titres.md](titres.md#score-de-titres)) et pour le rang de titre 5 du poids
 d'alliance ([succession.md](succession.md#poids-dalliance)). Elle se cumule
@@ -42,7 +43,7 @@ dès le début de la partie suit la même règle.
 
 **Candidature.** `K R NNN` (gratuit) : le joueur présente le noble `NNN`. Il
 doit être un homme, libre (ni `hostage` ni `dungeon`), non excommunié, non
-bâtard, et détenir au moins un titre de fief (baronnie, comté, marquisat,
+bâtard, ni pape ni élu pape cet hiver, et détenir au moins un titre de fief (baronnie, comté, marquisat,
 duché) à l'instantané ; son état civil est indifférent. Un joueur ne présente
 qu'une candidature par élection (la première valide de la feuille).
 
@@ -55,8 +56,8 @@ détiennent un fief (vacant exclu : un fief vacant n'a pas de titulaire), un
 évêché, le cardinalat ou la papauté, dames comprises pour les fiefs. Les voix
 se lisent sur l'instantané des titres : un titre gagné cet hiver ne vote pas
 (principe 3 de [hiver.md](hiver.md#principes)) ; un noble excommunié a perdu
-ses titres religieux ; un noble au cachot ne vote pas ; un otage vote pour
-son propriétaire.
+ses titres religieux ; un noble au cachot ne vote pas ; la voix d'un otage revient à la famille qui l'a joué,
+jamais à son geôlier.
 
 **Victoire.** Le candidat arrivé en tête est élu si **toutes** les conditions
 suivantes sont vraies :
@@ -245,16 +246,11 @@ immédiatement à la couronne** s'il y a un roi ou une régente :
 
 Points d'interprétation à confirmer ou à calibrer pendant l'implémentation :
 
-1. Les dames titrées votent-elles au trône (fiefs ouverts aux deux sexes), en
-   dépit de la piste « réservé aux titres masculins » de
-   [dames.md](dames.md#réseau-et-influence-de-cour) ? Ce document suppose que
-   oui, la piste visant les titres religieux.
-2. Le coût du changement de rang payant (2 R × taille totale) et la limite
+1. Le coût du changement de rang payant (2 R × taille totale) et la limite
    `royal.orders_per_winter` sont à calibrer.
-3. Un fief annexé à un autre joueur par accord royal est une expropriation :
+2. Un fief annexé à un autre joueur par accord royal est une expropriation :
    faut-il une contrepartie ou un droit de réponse ?
-4. Le même noble peut-il être roi et pape ? Aucune exclusion n'est posée.
-5. Les fiefs de la couronne offrent au joueur du roi une grande source de
+3. Les fiefs de la couronne offrent au joueur du roi une grande source de
    score et de revenu via la rente et la capitale : à valider en équilibrage.
-6. Joueur éliminé : le sort d'une couronne, d'un fief de la couronne ou d'une
+4. Joueur éliminé : le sort d'une couronne, d'un fief de la couronne ou d'une
    régence d'un joueur éliminé n'est pas traité ici.

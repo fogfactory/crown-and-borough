@@ -12,6 +12,7 @@ const PLAYABLE_KINDS: CardKind[] = [
   'revolt',
   'seigneurial_tax',
   'trial',
+  'tunnel',
 ]
 
 function nobleOption(noble: Noble): OrderFieldOption {
@@ -774,6 +775,13 @@ export function SpecialCardOrders({
             <span key={kind}>{launcher}</span>
           ) : null
         }
+        if (kind === 'tunnel') {
+          return (
+            <span key={kind} className="contents">
+              {tunnelLaunchers({ state, player, t, lines, copies: copies(kind), add: (line) => onChange(appendDraftLine(draft, line)) })}
+            </span>
+          )
+        }
         const target = specialTargetField(kind, state, regions, t, draft)
         if (target.options.length === 0) return null
         return (
@@ -936,6 +944,77 @@ function taxLauncher({
   )
 }
 
+/**
+ * The Tunnel card has two forms: `P SO NNN` frees one of the player's detained
+ * nobles, `P SO AAA - BBB` designates the player's attack from AAA to BBB,
+ * which ignores the fortifications of BBB.
+ */
+function tunnelLaunchers({
+  state,
+  player,
+  t,
+  lines,
+  copies,
+  add,
+}: {
+  state: StateData
+  player?: PlayerId
+  t: Translate
+  lines: string[]
+  copies: number
+  add: (line: string) => void
+}) {
+  const card = formatCardLabel('tunnel', t)
+  const prefix = `P ${shortCode('tunnel')}`
+  const spent = lines.filter((line) => line.startsWith(prefix)).length >= copies
+  const detained = state.nobles.filter((noble) => noble.owner === player && noble.status !== 'free')
+  const origins = state.territories
+    .filter((territory) => territory.army?.owner === player)
+    .map((territory) => codeOption(territory.id))
+  const targets = state.territories.map((territory) => codeOption(territory.id)).sort((a, b) => a.value.localeCompare(b.value))
+  return (
+    <>
+      {detained.length > 0 && (
+        <OrderLauncher
+          label={t('orders.playTunnelEscape', { card })}
+          title={t('orders.playTunnelEscape', { card })}
+          disabled={spent}
+          fields={[{ key: 'noble', label: t('orders.field.tunnelNoble'), options: detained.map(nobleOption) }]}
+          buildOrder={(values) =>
+            values.noble
+              ? {
+                  line: `${prefix} ${values.noble}`,
+                  comment: t('orders.comment.tunnelEscape', { card, target: values.noble }),
+                }
+              : null
+          }
+          onConfirm={add}
+        />
+      )}
+      {origins.length > 0 && (
+        <OrderLauncher
+          label={t('orders.playTunnelAttack', { card })}
+          title={t('orders.playTunnelAttack', { card })}
+          disabled={spent}
+          fields={[
+            { key: 'origin', label: t('orders.field.tunnelOrigin'), options: origins },
+            { key: 'target', label: t('orders.field.tunnelDestination'), options: targets },
+          ]}
+          buildOrder={(values) =>
+            values.origin && values.target
+              ? {
+                  line: `${prefix} ${values.origin} - ${values.target}`,
+                  comment: t('orders.comment.tunnelAttack', { card, origin: values.origin, target: values.target }),
+                }
+              : null
+          }
+          onConfirm={add}
+        />
+      )}
+    </>
+  )
+}
+
 const SHORT_CODES: Record<CardKind, string> = {
   fair_weather: 'BT',
   abundant_harvest: 'RA',
@@ -945,6 +1024,7 @@ const SHORT_CODES: Record<CardKind, string> = {
   famine: 'FA',
   seigneurial_tax: 'TX',
   trial: 'PR',
+  tunnel: 'SO',
 }
 
 export function shortCode(kind: CardKind): string {

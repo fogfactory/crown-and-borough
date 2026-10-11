@@ -759,6 +759,17 @@ describe('OrdersPanel winter elections', () => {
                 ],
               },
               { kind: 'pope', required: 2, voices: 0, voiceSources: [], candidates: [], eligible: [] },
+              {
+                kind: 'king',
+                minVotes: 3,
+                voices: 2,
+                voiceSources: [
+                  { kind: 'title', noble: 'HUG', nobleName: 'Sieur Hugues de Ros', title: 'bishop', territory: 'AAA', votes: 1 },
+                  { kind: 'fief', noble: 'OTO', nobleName: 'Baron Oton', territory: 'BBB', votes: 1 },
+                ],
+                candidates: [{ code: 'OTO', name: 'Baron Oton', owner: 'P1' }],
+                eligible: [{ code: 'OTO', name: 'Baron Oton', owner: 'P1' }],
+              },
             ],
           }}
           player="P1"
@@ -805,6 +816,17 @@ describe('OrdersPanel winter elections', () => {
     fireEvent.change(screen.getByLabelText('Candidate code'), { target: { value: 'ZEM' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
     expect(onWinterChange).toHaveBeenCalledWith('V E ZEM AAA # vote ZEM\n')
+  })
+
+  it('helps the royal election with K R and V R lines and the clergy count', () => {
+    const onWinterChange = vi.fn()
+    renderElections(onWinterChange)
+    expect(screen.getByText('Royal election')).toBeTruthy()
+    expect(screen.getByText(/at least 3 voices and the blessing of the clergy/)).toBeTruthy()
+    expect(screen.getByText(/Clergy among your voices: 1 \(cardinal or pope: no\)/)).toBeTruthy()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Candidacy (K)' })[2])
+    fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
+    expect(onWinterChange).toHaveBeenCalledWith('K R OTO # candidacy Baron Oton\n')
   })
 
   it('disables a candidate already on the sheet', () => {
@@ -1084,6 +1106,27 @@ describe('OrdersPanel title and card order dialogs', () => {
         .getAllByRole('option')
         .map((o) => o.textContent),
     ).toEqual(['CCC', 'FFF', 'GGG', 'HHH'])
+  })
+
+  it('writes the tunneled attack and the escape of a detained noble', () => {
+    const territory = (id: string, owner: string | null, army: { owner: string; size: number; chain: null } | null) => ({
+      id, owner, resources: 0, army, infrastructures: [],
+    })
+    const onSpecialChange = renderAction({
+      specialHand: ['tunnel'],
+      territories: [
+        territory('AAA', 'P1', { owner: 'P1', size: 2, chain: null }),
+        territory('BBB', 'P2', null),
+      ],
+      nobles: [{ ...nobles[0], id: 'N9', code: 'JAI', owner: 'P1', status: 'hostage' }],
+    })
+    fireEvent.click(screen.getByRole('button', { name: /^Play Tunnel \(SO\): tunneled attack/ }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.change(within(dialog).getByLabelText('Attack origin'), { target: { value: 'AAA' } })
+    fireEvent.change(within(dialog).getByLabelText('Attack target'), { target: { value: 'BBB' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
+    expect(onSpecialChange).toHaveBeenCalledWith(expect.stringMatching(/^P SO AAA - BBB/))
+    expect(screen.getByRole('button', { name: /^Play Tunnel \(SO\): free a noble/ })).toBeTruthy()
   })
 
   it('hides the revolt card when no territory is eligible', () => {

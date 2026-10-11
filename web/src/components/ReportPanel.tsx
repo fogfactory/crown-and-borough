@@ -749,6 +749,21 @@ function seasonEffectLine(
               })
             : t('reports.trialUnfounded', { noble: nobleLabel(effect.noble, effect.nobleName) }),
       }
+    case 'tunnel':
+      return {
+        key,
+        label:
+          effect.reason === 'tunnel_escape'
+            ? t('reports.tunnelEscape', {
+                noble: nobleLabel(effect.noble, effect.nobleName),
+                source: territoryLabel(map, effect.target, t),
+                territory: territoryLabel(map, effect.territory, t),
+              })
+            : t(effect.reason === 'tunnel_bypass' ? 'reports.tunnelBypass' : 'reports.tunnelVoid', {
+                source: territoryLabel(map, effect.target, t),
+                territory: territoryLabel(map, effect.territory, t),
+              }),
+      }
     case 'plague_noble_survived':
       return {
         key,
@@ -870,6 +885,7 @@ function groupSeasonEffects(
       case 'plague_noble_death':
       case 'plague_noble_survived':
       case 'trial':
+      case 'tunnel':
       case 'eon_unmasked':
       case 'dignity_revealed':
       case 'excommunication':
@@ -1007,7 +1023,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                         : (combat.contenders ?? [])
                             .map(
                               (contender) =>
-                                `${contender.force ?? '—'}${contender.defender ? ` ${t('reports.defense')}` : ''}${
+                                `${contender.force ?? '—'}${contender.defender ? ` ${t('reports.defense')}` : ''}${contender.tunnel ? t('reports.tunnelAttack') : ''}${
                                   contender.nobleBonus
                                     ? t('reports.nobleBonus', {
                                         bonus: contender.nobleBonus,
@@ -1387,7 +1403,9 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                   <p className="font-semibold">
                     {election.kind === 'bishop'
                       ? t('reports.electionBishop', { seat })
-                      : t('reports.electionPope')}
+                      : election.kind === 'king'
+                        ? t('reports.electionKing')
+                        : t('reports.electionPope')}
                     {' — '}
                     {t(`reports.electionResult.${election.result}`, {
                       noble: winner
@@ -1400,11 +1418,15 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                       {election.candidates
                         .map(
                           (candidate) =>
-                            `${candidate.nobleName} (${candidate.owner}) : ${candidate.votes}`,
+                            `${candidate.nobleName} (${candidate.owner}) : ${candidate.votes}${
+                              candidate.anointed ? ` ${t('reports.electionAnointed')}` : ''
+                            }`,
                         )
                         .join(' · ')}
-                      {election.required
-                        ? ` — ${t('reports.electionRequired', { count: election.required })}`
+                      {election.required || election.minVotes
+                        ? ` — ${t('reports.electionRequired', {
+                            count: election.required ?? election.minVotes ?? 0,
+                          })}`
                         : ''}
                     </p>
                   )}

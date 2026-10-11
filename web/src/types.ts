@@ -15,6 +15,7 @@ export type CardKind =
   | 'famine'
   | 'seigneurial_tax'
   | 'trial'
+  | 'tunnel'
 
 export type OrderType =
   'attack' | 'support' | 'hold' | 'join' | 'pillage' | 'disperse' | 'transfer'
@@ -50,6 +51,7 @@ export type EventType =
   | 'plague_noble_death'
   | 'plague_noble_survived'
   | 'trial'
+  | 'tunnel'
   | 'bad_weather_blocked'
   | 'famine_loss'
   | 'bad_weather_loss'
@@ -256,12 +258,14 @@ export interface WinterAids {
 
 /** An election the winter announces, read for the viewing player. */
 export interface OpenElection {
-  kind: 'bishop' | 'pope'
+  kind: 'bishop' | 'pope' | 'king'
   region?: string
   /** Seed village the orders name (bishop elections only). */
   seat?: string
   /** Voices an absolute majority needs; absent for a relative majority. */
   required?: number
+  /** Least voices a winner needs (royal election only). */
+  minVotes?: number
   /** The viewer's own voices in this election. */
   voices: number
   /** What gives the viewer those voices. */
@@ -273,7 +277,7 @@ export interface OpenElection {
 }
 
 export interface VoiceSource {
-  kind: 'seat' | 'territory' | 'title' | 'abbey'
+  kind: 'seat' | 'territory' | 'title' | 'abbey' | 'fief'
   territory?: string
   noble?: string
   nobleName?: string
@@ -497,6 +501,8 @@ export interface StateData {
   bishoprics?: Bishopric[]
   cardinals?: string[]
   pope?: string
+  /** Code of the noble who holds the crown; absent while the throne is vacant. */
+  king?: string
   excommunicated?: Excommunication[]
   specialHand?: CardKind[]
   /** Winter only: next calamities of the draw pile, revealed by a free astrologue. */
@@ -828,6 +834,8 @@ export interface CombatContender {
   force?: number
   nobleBonus?: number
   defender?: boolean
+  /** The attack was carried by a tunnel card: it ignored the target's fortifications. */
+  tunnel?: boolean
 }
 
 export interface CombatReport {
@@ -1012,6 +1020,8 @@ export interface SeasonEffectReport {
   reason?: string
   cost?: number
   dignity?: Dignity
+  /** Player whose army held the noble a tunnel card freed. */
+  holder?: PlayerId
 }
 
 export interface AuguryReport {
@@ -1098,16 +1108,19 @@ export interface ElectionCandidateReport {
   nobleName: string
   owner: PlayerId
   votes: number
+  /** The voices include the blessing of the clergy (royal election only). */
+  anointed?: boolean
 }
 
 /** Public outcome of one winter election: totals only, never the ballots. */
 export interface ElectionReport {
-  kind: 'bishop' | 'pope'
+  kind: 'bishop' | 'pope' | 'king'
   region?: string
   seat?: string
-  result: 'elected' | 'tie' | 'no_candidate' | 'no_majority'
+  result: 'elected' | 'tie' | 'no_candidate' | 'no_majority' | 'no_anointment'
   winner?: string
   required?: number
+  minVotes?: number
   cast: number
   candidates: ElectionCandidateReport[]
 }
