@@ -23,6 +23,7 @@ type OpenElection struct {
 	Region       models.RegionID     `json:"region,omitempty"`
 	Seat         models.TerritoryID  `json:"seat,omitempty"`
 	Required     int                 `json:"required,omitempty"`
+	MinVotes     int                 `json:"minVotes,omitempty"`
 	Voices       int                 `json:"voices"`
 	VoiceSources []VoiceSource       `json:"voiceSources"`
 	Candidates   []ElectionNoble     `json:"candidates"`
@@ -38,8 +39,8 @@ type ElectionNoble struct {
 }
 
 // ForecastWinterElections returns the elections open when the winter begins,
-// bishoprics by region identifier then the conclave, with the viewer's own
-// voices and eligible nobles. It returns nil outside winter. It reads no
+// bishoprics by region identifier, then the conclave, then the royal election,
+// with the viewer's own voices and eligible nobles. It returns nil outside winter. It reads no
 // order and no ballot: nothing private to another player leaks.
 func ForecastWinterElections(state *models.GameState, balance assetgen.Balance, viewer models.PlayerID) []OpenElection {
 	if state == nil || state.Season != models.SeasonWinter {
@@ -53,6 +54,7 @@ func ForecastWinterElections(state *models.GameState, balance assetgen.Balance, 
 			Kind:         election.key.kind,
 			Region:       election.key.region,
 			Seat:         election.seat,
+			MinVotes:     election.minVotes,
 			VoiceSources: []VoiceSource{},
 			Candidates:   []ElectionNoble{},
 			Eligible:     []ElectionNoble{},

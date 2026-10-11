@@ -238,12 +238,14 @@ export interface WinterAids {
 
 /** An election the winter announces, read for the viewing player. */
 export interface OpenElection {
-  kind: 'bishop' | 'pope'
+  kind: 'bishop' | 'pope' | 'king'
   region?: string
   /** Seed village the orders name (bishop elections only). */
   seat?: string
   /** Voices an absolute majority needs; absent for a relative majority. */
   required?: number
+  /** Least voices a winner needs (royal election only). */
+  minVotes?: number
   /** The viewer's own voices in this election. */
   voices: number
   /** What gives the viewer those voices. */
@@ -255,7 +257,7 @@ export interface OpenElection {
 }
 
 export interface VoiceSource {
-  kind: 'seat' | 'territory' | 'title' | 'abbey'
+  kind: 'seat' | 'territory' | 'title' | 'abbey' | 'fief'
   territory?: string
   noble?: string
   nobleName?: string
@@ -479,6 +481,8 @@ export interface StateData {
   bishoprics?: Bishopric[]
   cardinals?: string[]
   pope?: string
+  /** Code of the noble who holds the crown; absent while the throne is vacant. */
+  king?: string
   excommunicated?: Excommunication[]
   specialHand?: CardKind[]
   /** Winter only: next calamities of the draw pile, revealed by a free astrologue. */
@@ -1078,16 +1082,19 @@ export interface ElectionCandidateReport {
   nobleName: string
   owner: PlayerId
   votes: number
+  /** The voices include the blessing of the clergy (royal election only). */
+  anointed?: boolean
 }
 
 /** Public outcome of one winter election: totals only, never the ballots. */
 export interface ElectionReport {
-  kind: 'bishop' | 'pope'
+  kind: 'bishop' | 'pope' | 'king'
   region?: string
   seat?: string
-  result: 'elected' | 'tie' | 'no_candidate' | 'no_majority'
+  result: 'elected' | 'tie' | 'no_candidate' | 'no_majority' | 'no_anointment'
   winner?: string
   required?: number
+  minVotes?: number
   cast: number
   candidates: ElectionCandidateReport[]
 }

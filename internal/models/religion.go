@@ -47,10 +47,14 @@ const (
 	ElectionBishop ElectionKind = "bishop"
 	// ElectionPope fills the papal throne (the conclave).
 	ElectionPope ElectionKind = "pope"
+	// ElectionKing fills the throne (specs/politique.md § Élection).
+	ElectionKing ElectionKind = "king"
 )
 
 // IsValid reports whether the election kind is a known value.
-func (k ElectionKind) IsValid() bool { return k == ElectionBishop || k == ElectionPope }
+func (k ElectionKind) IsValid() bool {
+	return k == ElectionBishop || k == ElectionPope || k == ElectionKing
+}
 
 // ExcommunicationReason tells how a noble was excommunicated.
 type ExcommunicationReason string
@@ -104,6 +108,9 @@ func (g *GameState) IsCardinal(id NobleID) bool { return slices.Contains(g.Cardi
 
 // IsPope reports whether the noble is the pope.
 func (g *GameState) IsPope(id NobleID) bool { return g.Pope != nil && *g.Pope == id }
+
+// IsKing reports whether the noble holds the crown.
+func (g *GameState) IsKing(id NobleID) bool { return g.King != nil && *g.King == id }
 
 // BishopricOf returns the bishopric the noble is bishop of, if any.
 func (g *GameState) BishopricOf(id NobleID) (RegionID, bool) {
@@ -208,9 +215,11 @@ func (g *GameState) LiftExcommunication(id NobleID) {
 }
 
 // DropReligiousTitlesOfMissingNobles clears the religious titles and
-// excommunications bound to nobles who left play: a dead noble's titles are
-// vacant, an excommunication ends with its subject, and a papal excommunication
-// ends with the pope who pronounced it.
+// excommunications bound to nobles who left play, and the crown of a dead king
+// (the throne is vacant until the next election; the heir of a Claim on the
+// royal couple is crowned by the succession, specs/politique.md). A dead
+// noble's titles are vacant, an excommunication ends with its subject, and a
+// papal excommunication ends with the pope who pronounced it.
 func (g *GameState) DropReligiousTitlesOfMissingNobles() {
 	living := make(map[NobleID]bool, len(g.Nobles))
 	for _, noble := range g.Nobles {
@@ -220,6 +229,9 @@ func (g *GameState) DropReligiousTitlesOfMissingNobles() {
 	g.Cardinals = slices.DeleteFunc(g.Cardinals, func(id NobleID) bool { return !living[id] })
 	if g.Pope != nil && !living[*g.Pope] {
 		g.Pope = nil
+	}
+	if g.King != nil && !living[*g.King] {
+		g.King = nil
 	}
 	g.Excommunications = slices.DeleteFunc(g.Excommunications, func(e Excommunication) bool {
 		return !living[e.Noble] || (e.Reason == ExcommunicationPapal && !living[e.By])
@@ -277,6 +289,12 @@ func (g *GameState) validateReligion(nobles map[NobleID]bool) error {
 		if !bishops[*g.Pope] && !cardinals[*g.Pope] {
 			return fmt.Errorf("models: pope %q: must be a bishop or a cardinal", *g.Pope)
 		}
+	}
+	if g.King != nil && !nobles[*g.King] {
+		return fmt.Errorf("models: king %q: unknown noble", *g.King)
+	}
+	if g.King != nil && g.IsPope(*g.King) {
+		return fmt.Errorf("models: noble %q: cannot be both king and pope", *g.King)
 	}
 	excommunicated := make(map[NobleID]bool, len(g.Excommunications))
 	for _, excommunication := range g.Excommunications {

@@ -80,6 +80,10 @@ func cloneGameState(source *models.GameState) *models.GameState {
 		pope := *source.Pope
 		clone.Pope = &pope
 	}
+	if source.King != nil {
+		king := *source.King
+		clone.King = &king
+	}
 	if source.Excommunications != nil {
 		clone.Excommunications = cloneSlice(source.Excommunications)
 	}

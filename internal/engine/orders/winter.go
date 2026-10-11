@@ -520,10 +520,10 @@ func parseClaimOrderLine(fields []string, lineNumber int, indexes gameIndexes) (
 	}, nil
 }
 
-// parseElectionOrderLine handles K E NNN BBB / K P NNN (candidacy) and
-// V E NNN BBB / V P NNN (vote): NNN is the candidate, BBB the seed village of
-// the bishopric. Whether the election is open, who owns the noble and whether
-// it may run are engine rejects (see election.go).
+// parseElectionOrderLine handles K E NNN BBB / K P NNN / K R NNN (candidacy)
+// and V E NNN BBB / V P NNN / V R NNN (vote): NNN is the candidate, BBB the
+// seed village of the bishopric. Whether the election is open, who owns the
+// noble and whether it may run are engine rejects (see election.go).
 func parseElectionOrderLine(fields []string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
 	orderType, shape := models.WinterOrderTypeCandidacy, i18n.WinterCandidacyShape
 	if fields[0] == "V" {
@@ -536,6 +536,8 @@ func parseElectionOrderLine(fields []string, lineNumber int, indexes gameIndexes
 		election, wantFields = models.ElectionBishop, 4
 	case "P":
 		election, wantFields = models.ElectionPope, 3
+	case "R":
+		election, wantFields = models.ElectionKing, 3
 	default:
 		return models.WinterOrder{}, unknownWinterSubtype(lineNumber, fields[0], fields[1])
 	}
