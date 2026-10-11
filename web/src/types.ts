@@ -15,6 +15,7 @@ export type CardKind =
   | 'famine'
   | 'seigneurial_tax'
   | 'trial'
+  | 'tunnel'
 
 export type OrderType =
   'attack' | 'support' | 'hold' | 'join' | 'pillage' | 'disperse' | 'transfer'
@@ -50,6 +51,7 @@ export type EventType =
   | 'plague_noble_death'
   | 'plague_noble_survived'
   | 'trial'
+  | 'tunnel'
   | 'bad_weather_blocked'
   | 'famine_loss'
   | 'bad_weather_loss'
@@ -810,6 +812,8 @@ export interface CombatContender {
   force?: number
   nobleBonus?: number
   defender?: boolean
+  /** The attack was carried by a tunnel card: it ignored the target's fortifications. */
+  tunnel?: boolean
 }
 
 export interface CombatReport {
@@ -992,6 +996,8 @@ export interface SeasonEffectReport {
   reason?: string
   cost?: number
   dignity?: Dignity
+  /** Player whose army held the noble a tunnel card freed. */
+  holder?: PlayerId
 }
 
 export interface AuguryReport {

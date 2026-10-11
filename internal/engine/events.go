@@ -72,6 +72,7 @@ const (
 	EventTypeNobleDraw          EventType = "noble_draw"
 	EventTypeDignity            EventType = "dignity"
 	EventTypeTrial              EventType = "trial"
+	EventTypeTunnel             EventType = "tunnel"
 	// EventTypeCalamityVeto is private: no report section lists it.
 	EventTypeCalamityVeto EventType = "calamity_veto"
 	EventTypeNobleDiscard EventType = "noble_discard"
@@ -133,6 +134,9 @@ type CombatContender struct {
 	Force      int             `json:"force"`
 	NobleBonus int             `json:"nobleBonus,omitempty"`
 	Defender   bool            `json:"defender"`
+	// Tunnel marks an attack carried by a tunnel card: it ignored the
+	// fortifications of its target.
+	Tunnel bool `json:"tunnel,omitempty"`
 }
 
 // Event is a value-only report of one resolution decision. Fields irrelevant

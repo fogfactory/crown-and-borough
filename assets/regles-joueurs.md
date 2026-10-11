@@ -993,6 +993,10 @@ dans la feuille `winter`.
   « Apaisement de révolte » plus bas) ;
 - `P PR NNN` : jouer Procès sur le noble de code NNN — adverse ou non —, jugé
   à la fin du tour (voir plus bas) ;
+- `P SO NNN` : jouer Souterrain pour évader votre noble NNN, détenu (otage ou
+  cachot) par l'armée d'un autre joueur ; `P SO AAA - BBB` : jouer Souterrain
+  sur votre attaque de AAA vers BBB, qui ignore les fortifications (voir plus
+  bas) ;
 - `P TX BRU` : jouer la Taxe seigneuriale sur BRU, à condition que BRU soit
   la capitale d'un fief que le joueur détient (vacant compris) — c'est la
   seule exception où la cible n'est pas le village seed d'une région ;
@@ -1036,7 +1040,8 @@ mauvais temps, **{{special_orders.card.famine}}** mauvaise récolte,
 **{{special_orders.card.abundant_harvest}}** bonne récolte,
 **{{special_orders.card.revolt}}** révolte,
 **{{special_orders.card.seigneurial_tax}}** impôts (taxe seigneuriale ou dîme) et
-**{{special_orders.card.trial}}** procès. La main est limitée à
+**{{special_orders.card.trial}}** procès, **{{special_orders.card.tunnel}}**
+souterrain. La main est limitée à
 **{{special_orders.hand_limit}} cartes**, cartes de noble et de dignité
 comprises. Après ses ordres d'hiver et ses défausses, chaque joueur reçoit
 automatiquement des cartes bonus, jusqu'à
@@ -1125,7 +1130,21 @@ ne se résout en hiver.
   procès **révèle** sa dignité et elle est **exécutée** sans retour, et la Révolte devient jouable sur
   tout territoire de la région où elle se trouvait pendant la saison d'action
   suivante. Tout autre procès est non fondé : la carte est consommée et rien
-  d'autre ne se passe.
+  d'autre ne se passe ;
+- le Souterrain se joue au printemps, en été ou en automne, gratuitement, et sa
+  pose est vérifiée à la soumission. Sa forme distingue ses deux usages.
+  **Évasion** (`P SO NNN`) : NNN est un de vos nobles détenu (otage ou cachot)
+  par l'armée d'un autre joueur, sinon l'ordre est rejeté et la carte conservée.
+  Il s'échappe avant le ravitaillement et les ordres d'armée, et réapparaît
+  libre sur votre capitale ou, si elle n'est plus contrôlée (ou tenue par une
+  armée adverse), sur votre château contrôlé de plus petit code ; sans aucun
+  refuge, l'ordre est rejeté. Seuls vous et son geôlier voyez l'évasion dans le
+  rapport. **Attaque par souterrain** (`P SO AAA - BBB`) : votre armée sur AAA
+  doit avoir pour ordre en cours une attaque vers BBB, sinon l'ordre est rejeté
+  et la carte conservée. Cette attaque, et elle seule, ignore les fortifications
+  de BBB (château, cité ou village fortifié) ; les autres attaquants affrontent
+  la défense normalement. Si l'attaque n'a finalement pas lieu, la carte est
+  consommée sans effet.
 
 Les rumeurs publiques sont recalculées dans chaque rapport à partir des
 mains bonus actuelles de tous les joueurs. Elles apparaissent lorsqu'au
