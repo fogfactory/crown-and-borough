@@ -43,6 +43,9 @@ func parseDeckOrderLine(line string, lineNumber int, game *models.GameState) (mo
 		error := parseMessage(lineNumber, ParseCodeMissingTarget, i18n.DeckOrderShape)
 		return models.DeckOrder{}, &error
 	}
+	if len(fields) == 5 && fields[0] == "P" && isTunnelCode(fields[1]) {
+		return parseTunnelAttackLine(fields, lineNumber, game)
+	}
 	if len(fields) > 4 || (len(fields) == 4 && !isTaxCode(fields[1]) && !isTitheCode(fields[1])) {
 		error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.DeckOrderShape)
 		return models.DeckOrder{}, &error
@@ -101,11 +104,41 @@ func parseDeckOrderLine(line string, lineNumber int, game *models.GameState) (mo
 		}
 		return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: kind, TargetNobleID: nobleID}, nil
 	}
+	if kind == models.CardKindTunnel {
+		// "P SO NNN" frees the detained noble NNN (the attack form, with a
+		// dash, is parsed by parseTunnelAttackLine).
+		nobleID, found := nobleIDByCode(game, fields[2])
+		if !found {
+			error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderNobleUnknown, fields[2])
+			return models.DeckOrder{}, &error
+		}
+		return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: kind, TargetNobleID: nobleID}, nil
+	}
 	if !isSpecialRegionSeed(game, target) {
 		error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderRegionUnknown, fields[2])
 		return models.DeckOrder{}, &error
 	}
 	return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: kind, RegionSeed: target}, nil
+}
+
+func isTunnelCode(code string) bool { return code == "SO" || code == "TU" }
+
+// parseTunnelAttackLine parses "P SO AAA - BBB": the tunnel card played on the
+// attack from AAA to BBB (specs/ordres-speciaux.md § Souterrain). Whether the
+// player really plans that attack is checked later by CanPlay.
+func parseTunnelAttackLine(fields []string, lineNumber int, game *models.GameState) (models.DeckOrder, *ParseError) {
+	if fields[3] != "-" {
+		error := parseMessage(lineNumber, ParseCodeUnknownSymbol, i18n.DeckOrderShape)
+		return models.DeckOrder{}, &error
+	}
+	source, target := models.TerritoryID(fields[2]), models.TerritoryID(fields[4])
+	for _, code := range []models.TerritoryID{source, target} {
+		if !isTerritory(game, code) {
+			error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderRegionUnknown, string(code))
+			return models.DeckOrder{}, &error
+		}
+	}
+	return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: models.CardKindTunnel, SourceTerritoryID: source, TargetTerritoryID: target}, nil
 }
 
 func isTaxCode(code string) bool { return code == "TX" || code == "ST" }
@@ -200,6 +233,8 @@ func parseSpecialKind(value string, lineNumber int) (models.CardKind, *ParseErro
 		"TT": models.CardKindSeigneurialTax,
 		"PR": models.CardKindTrial,
 		"TR": models.CardKindTrial,
+		"SO": models.CardKindTunnel,
+		"TU": models.CardKindTunnel,
 	}[value]
 	if !exists {
 		error := parseMessage(lineNumber, ParseCodeSpecialKind, i18n.DeckOrderKindUnknown, value)

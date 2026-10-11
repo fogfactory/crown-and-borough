@@ -99,6 +99,7 @@ func resolveFromControl(game *models.GameState, balance assetgen.Balance, deckOr
 	// Chains are attached before Resolve is called; this function only handles
 	// the simultaneous resolution core.
 	enumerateIntentions(ctx)
+	applyPendingTunnels(ctx)
 	cancelAttackedOriginPeaceful(ctx)
 	calculateSupports(ctx)
 	if err := resolveContests(ctx); err != nil {

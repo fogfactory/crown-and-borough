@@ -533,7 +533,7 @@ func projectReport(report engine.TurnReport, viewer models.PlayerID, privacy *mo
 		Orders:        make([]OrderReportView, 0, len(report.Orders)),
 		Moves:         append([]engine.MoveReport{}, report.Moves...),
 		Nobles:        append([]engine.NobleReport{}, report.Nobles...),
-		SeasonEffects: append([]engine.SeasonEffectReport{}, report.SeasonEffects...),
+		SeasonEffects: visibleSeasonEffects(report.SeasonEffects, viewer),
 		Rumors:        append([]engine.RumorReport{}, report.Rumors...),
 		Cards:         append([]engine.CardReport{}, report.Cards...),
 		Announcements: append([]engine.AnnouncementReport{}, report.Announcements...),
@@ -775,4 +775,20 @@ func revealsHiddenDignity(investment engine.WinterInvestmentReport) bool {
 	}
 	dignity, known := models.DignityForCardCode(investment.Order.CardCode)
 	return known && dignity.Effect().Hidden
+}
+
+// visibleSeasonEffects drops, for a viewer, the season effects that are private:
+// a tunnel escape is known only to the player who played the card and to the
+// holder of the freed noble (specs/ordres-speciaux.md § Souterrain). Every other
+// effect is public.
+func visibleSeasonEffects(effects []engine.SeasonEffectReport, viewer models.PlayerID) []engine.SeasonEffectReport {
+	visible := make([]engine.SeasonEffectReport, 0, len(effects))
+	for _, effect := range effects {
+		if effect.Kind == engine.EventTypeTunnel && effect.Reason == engine.TunnelEscapeReason &&
+			viewer != models.SpectatorViewer && viewer != effect.Owner && viewer != effect.Holder {
+			continue
+		}
+		visible = append(visible, effect)
+	}
+	return visible
 }

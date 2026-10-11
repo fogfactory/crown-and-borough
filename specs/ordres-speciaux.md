@@ -157,17 +157,26 @@ Assassinat, Justice, puis (pendant la résolution des mouvements) Embuscade.
 
 ### Souterrain
 
-Carte `tunnel`, code `SO`. Elle a deux usages, distingués par l'argument.
+Carte `tunnel`, code `SO`. Elle a deux usages, distingués par la forme de
+l'ordre.
 
 - **Évasion** `P SO NNN` : `NNN` est un noble du joueur détenu (`hostage` ou
   `dungeon`) par l'armée d'un autre joueur (`noble_not_held` sinon). Il
   s'échappe et réapparaît libre sur la capitale du joueur ; si elle n'est plus
   contrôlée, sur son château contrôlé de plus petit code (`tunnel_no_refuge`
-  s'il n'en a aucun). Le détenteur voit l'évasion dans son rapport ; les autres
-  joueurs ne voient aucune rumeur nominative.
-- **Sape** `P SO XXX` : `XXX` porte un château ou une cité
-  (`tunnel_no_castle` sinon). Pour tout le tour, le bonus défensif de cette case
-  (château ou cité) est annulé dans tous les combats qui s'y livrent.
+  s'il n'en a aucun). Un refuge tenu par l'armée d'un autre joueur est écarté,
+  pour que le noble ne se retrouve jamais avec une armée étrangère. Le détenteur
+  voit l'évasion dans son rapport ; les autres joueurs ne voient aucune rumeur
+  nominative.
+- **Attaque par souterrain** `P SO AAA - BBB` : désigne l'attaque que le joueur
+  a prévue ce tour depuis `AAA` vers `BBB` (`tunnel_no_attack` si l'ordre en
+  cours de l'armée du joueur sur `AAA` n'est pas une attaque vers `BBB` ; il est
+  vérifié à la soumission). Cette attaque, et elle seule, ignore les
+  fortifications de `BBB` (bonus du château, de la cité ou du village fortifié) :
+  les autres attaquants sur `BBB` les affrontent normalement. Si l'attaque n'a
+  finalement pas lieu (ordre annulé ou invalide à la résolution), la carte est
+  consommée sans effet. Le rapport de combat signale l'attaque menée par
+  souterrain.
 
 ### Assassinat
 

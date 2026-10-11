@@ -1066,6 +1066,27 @@ describe('OrdersPanel title and card order dialogs', () => {
     ).toEqual(['CCC', 'FFF', 'GGG', 'HHH'])
   })
 
+  it('writes the tunneled attack and the escape of a detained noble', () => {
+    const territory = (id: string, owner: string | null, army: { owner: string; size: number; chain: null } | null) => ({
+      id, owner, resources: 0, army, infrastructures: [],
+    })
+    const onSpecialChange = renderAction({
+      specialHand: ['tunnel'],
+      territories: [
+        territory('AAA', 'P1', { owner: 'P1', size: 2, chain: null }),
+        territory('BBB', 'P2', null),
+      ],
+      nobles: [{ ...nobles[0], id: 'N9', code: 'JAI', owner: 'P1', status: 'hostage' }],
+    })
+    fireEvent.click(screen.getByRole('button', { name: /^Play Tunnel \(SO\): tunneled attack/ }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.change(within(dialog).getByLabelText('Attack origin'), { target: { value: 'AAA' } })
+    fireEvent.change(within(dialog).getByLabelText('Attack target'), { target: { value: 'BBB' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
+    expect(onSpecialChange).toHaveBeenCalledWith(expect.stringMatching(/^P SO AAA - BBB/))
+    expect(screen.getByRole('button', { name: /^Play Tunnel \(SO\): free a noble/ })).toBeTruthy()
+  })
+
   it('hides the revolt card when no territory is eligible', () => {
     renderAction({ specialHand: ['revolt'], revoltTargets: [] })
     expect(screen.queryByRole('button', { name: /^Play Revolt/ })).toBeNull()

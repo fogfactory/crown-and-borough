@@ -160,6 +160,7 @@ func (adj *adjudicator) contestResults() map[models.TerritoryID]contestResult {
 			attacker := ctx.startArmiesByID[armyID]
 			result.contenders = append(result.contenders, CombatContender{
 				ArmyID: armyID, OwnerID: attacker.OwnerID, Force: force, NobleBonus: nobleCommandBonus(ctx, attacker),
+				Tunnel: ctx.tunneledAttacks[armyID],
 			})
 			if adj.moves(armyID) {
 				result.winnerID = armyID
@@ -226,7 +227,7 @@ func (adj *adjudicator) voidedSupports() map[models.ArmyID]bool {
 			continue
 		}
 		force, _ := adj.attackForce(armyID, "")
-		if force <= adj.holdStrength(*defender) {
+		if force <= adj.holdStrengthAgainst(*defender, armyID) {
 			continue
 		}
 		outmatched := true

@@ -476,10 +476,10 @@ func (adj *adjudicator) adjudicateMove(armyID models.ArmyID) bool {
 		}
 		force, help := adj.attackForce(armyID, defender.OwnerID)
 		strength = force - help
-		threshold = adj.holdStrength(*defender)
+		threshold = adj.holdStrengthAgainst(*defender, armyID)
 	} else {
 		strength, _ = adj.attackForce(armyID, "")
-		if bonus := ctx.fortificationBonus(attack.target); bonus > 0 && !ctx.castleOwnedByAllAttackers(attack.target) {
+		if bonus := ctx.fortificationBonus(attack.target); bonus > 0 && !ctx.tunneledAttacks[armyID] && !ctx.castleOwnedByAllAttackers(attack.target) {
 			threshold = bonus
 		}
 	}
@@ -553,6 +553,16 @@ func (adj *adjudicator) supportCounts(supportID models.ArmyID) bool {
 func (adj *adjudicator) holdStrength(defender models.Army) int {
 	base, supported := adj.defenseStrength(defender)
 	return base + supported
+}
+
+// holdStrengthAgainst is holdStrength as the given attack faces it: an attack
+// carried by a tunnel card ignores the fortifications of its target.
+func (adj *adjudicator) holdStrengthAgainst(defender models.Army, attackerID models.ArmyID) int {
+	strength := adj.holdStrength(defender)
+	if adj.ctx.tunneledAttacks[attackerID] {
+		strength -= adj.ctx.fortificationBonus(defender.TerritoryID)
+	}
+	return strength
 }
 
 // defenseStrength returns the defense of an army that stays on its origin

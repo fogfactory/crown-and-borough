@@ -449,3 +449,21 @@ func TestCombatParticipationSkipsNeutralOwner(t *testing.T) {
 		t.Fatalf("state with revolt combat participation = %v, want a valid state", err)
 	}
 }
+
+func TestTunnelEscapeIsKnownOnlyToItsPlayerAndTheHolder(t *testing.T) {
+	report := engine.TurnReport{SeasonEffects: []engine.SeasonEffectReport{
+		{Kind: engine.EventTypeTunnel, CardKind: models.CardKindTunnel, Reason: engine.TunnelEscapeReason, Owner: "P1", Holder: "P2", Noble: "ONE"},
+		{Kind: engine.EventTypeTunnel, CardKind: models.CardKindTunnel, Reason: engine.TunnelBypassReason, Owner: "P1", Territory: "AAA", Target: "BBB"},
+	}}
+	want := map[models.PlayerID]int{"P1": 2, "P2": 2, "P3": 1, models.SpectatorViewer: 2}
+	for viewer, count := range want {
+		if got := len(ProjectReport(report, viewer, nil).SeasonEffects); got != count {
+			t.Errorf("viewer %q sees %d season effects, want %d", viewer, got, count)
+		}
+	}
+	for _, effect := range ProjectReport(report, "P3", nil).SeasonEffects {
+		if effect.Reason == "tunnel_escape" {
+			t.Fatalf("P3 sees the escape: %#v", effect)
+		}
+	}
+}

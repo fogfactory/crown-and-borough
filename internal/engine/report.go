@@ -291,6 +291,10 @@ type SeasonEffectReport struct {
 	RationsLost    int                `json:"rationsLost,omitempty"`
 	Reason         string             `json:"reason,omitempty"`
 	Cost           int                `json:"cost,omitempty"`
+	// Holder is the player whose army held the noble that a tunnel card freed
+	// (Target is where it was held, Territory where it reappeared): only that
+	// player and the card's owner see the escape (api.projectReport).
+	Holder models.PlayerID `json:"holder,omitempty"`
 	// Dignity is the dignity a trial revealed on the executed lady.
 	Dignity models.Dignity `json:"dignity,omitempty"`
 	// Fief is the title (e.g. "Baronnie") of the fief the effect applies to,
@@ -649,13 +653,14 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 				}
 				report.Winter.Cards = append(report.Winter.Cards, card)
 			}
-		case EventTypeCalamityApplied, EventTypeCalamityCanceled, EventTypeBonusEffect, EventTypeNeutralArmy, EventTypeRevoltAppeased, EventTypePlagueDeath, EventTypePlagueSurvived, EventTypeBadWeatherBlocked, EventTypeFamineLoss, EventTypeBadWeatherLoss, EventTypeTrial, EventTypeEonUnmasked, EventTypeDignityRevealed, EventTypeExcommunication, EventTypeExcommunicationLifted:
+		case EventTypeCalamityApplied, EventTypeCalamityCanceled, EventTypeBonusEffect, EventTypeNeutralArmy, EventTypeRevoltAppeased, EventTypePlagueDeath, EventTypePlagueSurvived, EventTypeBadWeatherBlocked, EventTypeFamineLoss, EventTypeBadWeatherLoss, EventTypeTrial, EventTypeTunnel, EventTypeEonUnmasked, EventTypeDignityRevealed, EventTypeExcommunication, EventTypeExcommunicationLifted:
 			report.SeasonEffects = append(report.SeasonEffects, SeasonEffectReport{
 				Kind: event.Type, CardKind: event.CardKind, Region: event.RegionSeed, Season: event.Season,
 				Owner: event.OwnerID, Army: event.ArmyID, Noble: event.NobleCode, NobleName: event.NobleName,
 				Territory: event.TerritoryID, Target: event.TargetID, Troops: event.Troops, SizeBefore: event.SizeBefore,
 				SizeAfter: event.SizeAfter, ProductionLost: event.Production, RationsLost: event.RationsLost,
 				Reason: event.Reason, Dignity: event.Dignity, Fief: event.FiefTitle, Cost: event.Cost,
+				Holder: event.CaptorPlayerID,
 			})
 		case EventTypeWinterStock, EventTypeRecruit, EventTypeBuild, EventTypeUpgrade, EventTypeFortify,
 			EventTypeRejected, EventTypeRitual, EventTypeCapitalElected, EventTypeNobleDraw, EventTypeNobleDiscard, EventTypeDignity, EventTypeClaim, EventTypeCardinalPurchase, EventTypeInquiry, EventTypeTrialFiled, EventTypeFiefFounded, EventTypeFiefAssigned, EventTypeFiefAutoAssigned:

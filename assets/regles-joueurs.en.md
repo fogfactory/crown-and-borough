@@ -941,6 +941,9 @@ from noble chains and requiring no noble. Winter discards are written in the
   appeasement" below);
 - `P TR NNN`: play Trial on the noble with code NNN — an opponent's or not —,
   judged at the end of the turn (see below);
+- `P SO NNN`: play Tunnel to free your noble NNN, held (hostage or dungeon) by
+  another player's army; `P SO AAA - BBB`: play Tunnel on your attack from AAA
+  to BBB, which ignores fortifications (see below);
 - `P TX BRU`: play the Seigneurial tax on BRU, provided BRU is the capital of
   a fief the player controls (a vacant fief included) — the one exception
   where the target is not a region's seed village;
@@ -982,7 +985,8 @@ bad weather, **{{special_orders.card.famine}}** bad harvest,
 **{{special_orders.card.abundant_harvest}}** abundant harvest,
 **{{special_orders.card.revolt}}** revolt,
 **{{special_orders.card.seigneurial_tax}}** tax (seigneurial tax or tithe), and
-**{{special_orders.card.trial}}** trial cards. A hand is limited to
+**{{special_orders.card.trial}}** trial and **{{special_orders.card.tunnel}}**
+tunnel cards. A hand is limited to
 **{{special_orders.hand_limit}} cards**, noble and dignity cards included.
 After their winter orders and discards, each player automatically receives
 bonus cards, up to **{{special_orders.draw_orders_limit}} per winter** across
@@ -1061,7 +1065,20 @@ countered. No calamity resolves in winter.
   hidden or not, other than the Abbess, can be tried: the trial **reveals** her
   dignity and she is **executed**, gone for good, and Revolt becomes playable on any territory of the region
   where she stood during the following action season. Any other trial is
-  unfounded: the card is consumed and nothing else happens.
+  unfounded: the card is consumed and nothing else happens;
+- Tunnel is played in spring, summer, or autumn, for free, and its play is
+  checked at submission. Its form tells its two uses apart. **Escape**
+  (`P SO NNN`): NNN is one of your nobles held (hostage or dungeon) by another
+  player's army, otherwise the order is rejected and the card kept. The noble
+  escapes before supply and army orders, and reappears free on your capital or,
+  if you no longer control it (or an enemy army holds it), on your controlled
+  castle of smallest code; with no refuge at all the order is rejected. Only you
+  and the captor see the escape in the report. **Tunneled attack**
+  (`P SO AAA - BBB`): your army on AAA must have an attack on BBB as its current
+  order, otherwise the order is rejected and the card kept. That attack, and
+  only that one, ignores the fortifications of BBB (castle, city or fortified
+  village); other attackers face the defense as usual. If the attack does not
+  take place after all, the card is consumed with no effect.
 
 Public rumors are recalculated in every report from the current bonus hands of
 all players. They appear when at least two players hold a card, without

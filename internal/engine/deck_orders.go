@@ -20,6 +20,7 @@ var cardDefinitions = map[models.CardKind]CardDefinition{
 	models.CardKindRevolt:          revoltCardDefinition{},
 	models.CardKindSeigneurialTax:  seigneurialTaxCardDefinition{},
 	models.CardKindTrial:           trialCardDefinition{},
+	models.CardKindTunnel:          tunnelCardDefinition{},
 }
 
 type deckOrderIntent struct {
@@ -130,10 +131,12 @@ func resolveDeckOrders(ctx *resolutionContext, deckOrders map[models.PlayerID][]
 	}
 }
 
-func (ctx *resolutionContext) applyDeckCardOrder(playerID models.PlayerID, order models.DeckOrder) {
+// applyDeckCardOrder consumes the played card and records the play. It reports
+// false, after rejecting the order, when the player holds no such card.
+func (ctx *resolutionContext) applyDeckCardOrder(playerID models.PlayerID, order models.DeckOrder) bool {
 	if !ctx.consumeDeckCardForPlay(playerID, order.Kind) {
 		ctx.rejectDeckOrder(playerID, order)
-		return
+		return false
 	}
 	regionSeed := order.RegionSeed
 	if order.Kind == models.CardKindRevolt || order.Kind == models.CardKindSeigneurialTax {
@@ -141,6 +144,7 @@ func (ctx *resolutionContext) applyDeckCardOrder(playerID models.PlayerID, order
 	}
 	ctx.deckIntents = append(ctx.deckIntents, deckOrderIntent{playerID: playerID, order: order})
 	ctx.events = append(ctx.events, Event{Type: EventTypeDeckOrderPlayed, Phase: phaseForSeason(ctx.state.Season), OwnerID: playerID, CardKind: order.Kind, RegionSeed: regionSeed, Season: ctx.state.Season, Year: ctx.state.Year()})
+	return true
 }
 
 func phaseForSeason(season models.Season) int {
