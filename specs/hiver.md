@@ -165,8 +165,8 @@ condition ne prélève jamais.
   ni `dungeon`), non excommunié. Élection épiscopale : en outre pas déjà
   évêque. Conclave : **évêque ou cardinal** en titre à l'instantané (un
   titre gagné cet hiver ne compte pas). Trône : homme libre, non excommunié,
-  non bâtard, titulaire d'au moins un fief ; l'état civil est indifférent
-  (le candidat peut être marié).
+  non bâtard, ni pape ni élu pape cet hiver, titulaire d'au moins un fief ;
+  l'état civil est indifférent (le candidat peut être marié).
 - Un siège absent du registre de l'étape 0 rejette toute candidature
   (`election_not_open`).
 
@@ -183,8 +183,8 @@ condition ne prélève jamais.
   strictement plus de la moitié de **tous** les cardinaux en titre, y compris
   ceux dont la voix est suspendue (cachot). Un cardinal au cachot bloque donc
   la majorité tant qu'il n'est pas libéré.
-- Trône : chaque noble titré (fief, évêché, cardinalat, papauté) donne 1 voix
-  à son propriétaire, quel que soit le nombre de ses titres ; le cachot
+- Trône : chaque noble titré (fief, évêché, cardinalat, papauté), dames
+  titulaires de fief comprises, donne 1 voix à son propriétaire, quel que soit le nombre de ses titres ; le cachot
   suspend la voix. Le trône n'est ouvert que s'il est vacant, que 3 nobles
   titrés au moins peuvent voter et que parmi eux deux évêques (ou plus) ou un
   cardinal ou le pape peuvent oindre.

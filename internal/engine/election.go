@@ -228,10 +228,8 @@ func (ctx *resolutionContext) bishopCandidateRejection(noble *models.Noble) stri
 	}
 	// Elected to another bishopric earlier this winter: the title is not
 	// conferred yet, but the noble cannot hold a second one.
-	for _, title := range ctx.pendingTitles {
-		if title.noble == noble.ID && title.kind == models.ElectionBishop {
-			return "candidate_not_eligible"
-		}
+	if ctx.pendingTitle(noble.ID, models.ElectionBishop) {
+		return "candidate_not_eligible"
 	}
 	return ""
 }
@@ -252,7 +250,21 @@ func (ctx *resolutionContext) kingCandidateRejection(noble *models.Noble) string
 	if ctx.state.HighestHeldFief(noble.ID) == nil {
 		return "candidate_not_eligible"
 	}
+	// The crown and the tiara never go to the same noble: neither the pope nor
+	// the noble elected pope earlier this winter (the conclave comes first).
+	if ctx.state.IsPope(noble.ID) || ctx.pendingTitle(noble.ID, models.ElectionPope) {
+		return "candidate_not_eligible"
+	}
 	return ""
+}
+
+// pendingTitle reports whether the noble won an election of the kind earlier
+// this winter: the title is conferred at the investiture only, but the noble
+// cannot stand for an incompatible one.
+func (ctx *resolutionContext) pendingTitle(id models.NobleID, kind models.ElectionKind) bool {
+	return slices.ContainsFunc(ctx.pendingTitles, func(title pendingTitle) bool {
+		return title.noble == id && title.kind == kind
+	})
 }
 
 // royalVoiceSources lists, for every player, the titled nobles that give it a
@@ -315,6 +327,10 @@ func (ctx *resolutionContext) popeCandidateRejection(noble *models.Noble) string
 		return reason
 	}
 	if !ctx.state.IsBishop(noble.ID) && !ctx.state.IsCardinal(noble.ID) {
+		return "candidate_not_eligible"
+	}
+	// A king cannot become pope.
+	if ctx.state.IsKing(noble.ID) {
 		return "candidate_not_eligible"
 	}
 	return ""

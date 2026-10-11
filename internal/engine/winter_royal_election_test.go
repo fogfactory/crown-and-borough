@@ -258,3 +258,66 @@ func TestBastardCardPlayedOnCandidateRemovesHimFromTheRace(t *testing.T) {
 		t.Fatalf("result = %q, want no_candidate", got)
 	}
 }
+
+func TestKingAndPopeAreNeverTheSameNoble(t *testing.T) {
+	t.Run("the pope cannot stand for the throne", func(t *testing.T) {
+		state := royalTestState(t)
+		pope := models.NobleID("N1")
+		state.Pope = &pope
+		resolution := resolveElectionSheets(t, state, map[models.PlayerID][]models.WinterOrder{
+			"P1": {royalCandidacy("O1", "HUG")},
+		})
+		if reason := electionRejections(resolution.Events)["O1"]; reason != "candidate_not_eligible" {
+			t.Fatalf("pope candidacy for the throne rejected with %q", reason)
+		}
+	})
+	t.Run("the king cannot stand for the conclave", func(t *testing.T) {
+		state := conclaveTestState(t)
+		king := models.NobleID("N1")
+		state.King = &king
+		resolution := resolveElectionSheets(t, state, map[models.PlayerID][]models.WinterOrder{
+			"P1": {candidacy("O1", "HUG", "")},
+		})
+		if reason := electionRejections(resolution.Events)["O1"]; reason != "candidate_not_eligible" {
+			t.Fatalf("king candidacy for the conclave rejected with %q", reason)
+		}
+	})
+	t.Run("a noble elected pope this winter cannot be elected king", func(t *testing.T) {
+		state := royalTestState(t)
+		state.Cardinals = []models.NobleID{"N1", "N2"}
+		resolution := resolveElectionSheets(t, state, map[models.PlayerID][]models.WinterOrder{
+			"P1": {candidacy("O1", "HUG", ""), ballot("O2", "HUG", ""), royalCandidacy("O3", "HUG"), royalBallot("O4", "HUG")},
+			"P2": {ballot("O1", "HUG", ""), royalBallot("O2", "HUG")},
+			"P3": {royalBallot("O1", "HUG")},
+		})
+		if resolution.State.Pope == nil || *resolution.State.Pope != "N1" {
+			t.Fatalf("pope = %v, want N1", resolution.State.Pope)
+		}
+		if resolution.State.King != nil {
+			t.Fatalf("king = %v, the new pope cannot be crowned", *resolution.State.King)
+		}
+		if reason := electionRejections(resolution.Events)["O3"]; reason != "candidate_not_eligible" {
+			t.Fatalf("rejections = %#v, want the royal candidacy refused", electionRejections(resolution.Events))
+		}
+	})
+}
+
+func TestRoyalTitledLadyHoldsAVoice(t *testing.T) {
+	state := royalTestState(t)
+	addNoble(state, "N5", "MAH", "P1", "AAA")
+	for index := range state.Nobles {
+		if state.Nobles[index].ID == "N5" {
+			state.Nobles[index].Sex = models.SexFemale
+		}
+	}
+	holdFief(state, "N5")
+	resolution := resolveElectionSheets(t, state, map[models.PlayerID][]models.WinterOrder{
+		"P3": {royalCandidacy("O1", "ABE")},
+		"P1": {royalBallot("O1", "ABE")},
+	})
+	// HUG (baron and bishop) and the baroness MAH each give P1 one voice.
+	result := royalResult(t, resolution.Events)
+	if len(result.Candidates) != 1 || result.Candidates[0].Votes != 2 {
+		t.Fatalf("candidates = %#v, want 2 voices from P1 (a baron-bishop and a baroness)", result.Candidates)
+	}
+}

@@ -293,6 +293,9 @@ func (g *GameState) validateReligion(nobles map[NobleID]bool) error {
 	if g.King != nil && !nobles[*g.King] {
 		return fmt.Errorf("models: king %q: unknown noble", *g.King)
 	}
+	if g.King != nil && g.IsPope(*g.King) {
+		return fmt.Errorf("models: noble %q: cannot be both king and pope", *g.King)
+	}
 	excommunicated := make(map[NobleID]bool, len(g.Excommunications))
 	for _, excommunication := range g.Excommunications {
 		id := excommunication.Noble
