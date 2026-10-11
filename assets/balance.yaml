@@ -43,6 +43,10 @@ costs:
   supply_depot: 3
   # Per territory, paid by a T F winter order (titres.md).
   fief_per_territory: 2
+  # Per territory annexed by a T X winter order (politique.md).
+  annex_per_territory: 2
+  # Per territory of the fief, paid by a T R winter order (politique.md).
+  rank_per_territory: 2
 
 # Title-score supremacy thresholds (titres.md § Seuil de victoire et fin de
 # partie). Each threshold is the share of the game territories (8 per player)

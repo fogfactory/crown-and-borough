@@ -156,6 +156,10 @@ type Costs struct {
 	Troop            int   `json:"troop" yaml:"troop"`
 	SupplyDepot      int   `json:"supply_depot" yaml:"supply_depot"`
 	FiefPerTerritory int   `json:"fief_per_territory" yaml:"fief_per_territory"`
+	// AnnexPerTerritory is paid per territory annexed by a T X order.
+	AnnexPerTerritory int `json:"annex_per_territory" yaml:"annex_per_territory"`
+	// RankPerTerritory is paid, per territory of the fief, by a T R order.
+	RankPerTerritory int `json:"rank_per_territory" yaml:"rank_per_territory"`
 }
 
 type rawBalance struct {
@@ -249,11 +253,13 @@ type rawSpecialOrderEffects struct {
 }
 
 type rawCosts struct {
-	Castle           *int   `yaml:"castle"`
-	MillLevels       []*int `yaml:"mill_levels"`
-	Troop            *int   `yaml:"troop"`
-	SupplyDepot      *int   `yaml:"supply_depot"`
-	FiefPerTerritory *int   `yaml:"fief_per_territory"`
+	Castle            *int   `yaml:"castle"`
+	MillLevels        []*int `yaml:"mill_levels"`
+	Troop             *int   `yaml:"troop"`
+	SupplyDepot       *int   `yaml:"supply_depot"`
+	FiefPerTerritory  *int   `yaml:"fief_per_territory"`
+	AnnexPerTerritory *int   `yaml:"annex_per_territory"`
+	RankPerTerritory  *int   `yaml:"rank_per_territory"`
 }
 
 var balanceTerrains = [...]models.Terrain{
@@ -632,12 +638,22 @@ func (raw rawBalance) costs(path string) (Costs, error) {
 	if err != nil {
 		return Costs{}, err
 	}
+	annexPerTerritory, err := requiredNonNegativeInt(path, "costs.annex_per_territory", raw.Costs.AnnexPerTerritory)
+	if err != nil {
+		return Costs{}, err
+	}
+	rankPerTerritory, err := requiredNonNegativeInt(path, "costs.rank_per_territory", raw.Costs.RankPerTerritory)
+	if err != nil {
+		return Costs{}, err
+	}
 	return Costs{
-		Castle:           castle,
-		MillLevels:       millLevels,
-		Troop:            troop,
-		SupplyDepot:      supplyDepot,
-		FiefPerTerritory: fiefPerTerritory,
+		AnnexPerTerritory: annexPerTerritory,
+		RankPerTerritory:  rankPerTerritory,
+		Castle:            castle,
+		MillLevels:        millLevels,
+		Troop:             troop,
+		SupplyDepot:       supplyDepot,
+		FiefPerTerritory:  fiefPerTerritory,
 	}, nil
 }
 

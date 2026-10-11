@@ -974,6 +974,48 @@ describe('OrdersPanel title and card order dialogs', () => {
     )
   })
 
+  const ownFief = {
+    capital: 'AAA',
+    holder: 'POP',
+    title: 'barony' as const,
+    territories: ['AAA', 'BBB', 'CCC'],
+    annexable: ['DDD', 'EEE'],
+    nextTitle: 'county' as const,
+    rankCost: 6,
+  }
+
+  it('annexes a free territory to a fief and prices it', () => {
+    const onWinterChange = renderWinter({
+      winterAids: { ...aids, ownFiefs: [ownFief], annexCostPerTerritory: 2, rankCostPerTerritory: 2 },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Annex a territory (T X)' }))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText('Annex DDD · cost 2 R')).toBeTruthy()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
+    expect(onWinterChange).toHaveBeenCalledWith('T X POP AAA DDD # annex DDD to fief AAA\n')
+  })
+
+  it('raises a fief by one rank, once per fief', () => {
+    const onWinterChange = renderWinter({
+      winterAids: { ...aids, ownFiefs: [ownFief], annexCostPerTerritory: 2, rankCostPerTerritory: 2 },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Raise a fief by one rank (T R)' }))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText('Barony → County · 3 territories · cost 6 R')).toBeTruthy()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
+    expect(onWinterChange).toHaveBeenCalledWith('T R POP AAA # raise fief AAA to County\n')
+  })
+
+  it('offers no rank change once the fief rose in the draft', () => {
+    renderWinter(
+      { winterAids: { ...aids, ownFiefs: [ownFief], annexCostPerTerritory: 2, rankCostPerTerritory: 2 } },
+      vi.fn(),
+      'winter',
+      'T R POP AAA # raise fief AAA to County\n',
+    )
+    expect(screen.queryByRole('button', { name: /Raise a fief by one rank/ })).toBeNull()
+  })
+
   it('hides the buy-cardinal order once it is on the sheet', () => {
     renderWinter({
       winterAids: { ...aids, buyableCardinals: ['POP'] },

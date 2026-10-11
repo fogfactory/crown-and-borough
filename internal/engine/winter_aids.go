@@ -33,6 +33,12 @@ type WinterAids struct {
 	// FiefSites are the groups of territories a fief can be founded on.
 	FiefSites            []FiefSite `json:"fiefSites"`
 	FiefCostPerTerritory int        `json:"fiefCostPerTerritory"`
+	// OwnFiefs are the viewer's fiefs with a titulaire, with what T X and T R
+	// can do for each; the two costs are the per-territory prices of those
+	// orders.
+	OwnFiefs              []FiefAid `json:"ownFiefs"`
+	AnnexCostPerTerritory int       `json:"annexCostPerTerritory"`
+	RankCostPerTerritory  int       `json:"rankCostPerTerritory"`
 	// Rituals are the Witches of the viewer that can order a ritual, with the
 	// region (seed village) the calamity would fall on.
 	Rituals []RitualOption `json:"rituals"`
@@ -59,6 +65,22 @@ type ExcommunicationTarget struct {
 	Blocker models.NobleCode `json:"blocker,omitempty"`
 }
 
+// FiefAid describes what the viewer can do to one of their fiefs this winter.
+// Annexable are the territories a T X could take without a royal accord (free
+// of any fief, next to the fief, held by an army of the viewer alone);
+// NextTitle is the title a T R would confer, empty when the fief cannot rise
+// (already a duchy, or the titulaire blocked by the line of succession, or
+// the title already raised in the draft by the client).
+type FiefAid struct {
+	Capital     models.TerritoryID   `json:"capital"`
+	Holder      models.NobleCode     `json:"holder"`
+	Title       models.FiefTitle     `json:"title"`
+	Territories []models.TerritoryID `json:"territories"`
+	Annexable   []models.TerritoryID `json:"annexable"`
+	NextTitle   models.FiefTitle     `json:"nextTitle,omitempty"`
+	RankCost    int                  `json:"rankCost"`
+}
+
 // FiefSite is a connected group of territories the viewer controls, free of
 // fiefs and of foreign armies, that holds at least three territories and a
 // castle. Edges are the crossable borders inside the group.
@@ -75,23 +97,27 @@ func ForecastWinterAids(state *models.GameState, balance assetgen.Balance, viewe
 	}
 	ctx := newResolutionContext(cloneGameState(state), balance)
 	aids := &WinterAids{
-		Excommunicable:       []ExcommunicationTarget{},
-		Liftable:             []models.NobleCode{},
-		BuyableCardinals:     []models.NobleCode{},
-		CardinalCost:         balance.Religion.CardinalCost,
-		Inquirers:            []models.NobleCode{},
-		InquiryCosts:         map[models.NobleCode]int{},
-		TrialJudges:          []models.NobleCode{},
-		Dissolvable:          []DissolvableMarriage{},
-		FiefSites:            []FiefSite{},
-		FiefCostPerTerritory: balance.Costs.FiefPerTerritory,
-		Rituals:              []RitualOption{},
+		Excommunicable:        []ExcommunicationTarget{},
+		Liftable:              []models.NobleCode{},
+		BuyableCardinals:      []models.NobleCode{},
+		CardinalCost:          balance.Religion.CardinalCost,
+		Inquirers:             []models.NobleCode{},
+		InquiryCosts:          map[models.NobleCode]int{},
+		TrialJudges:           []models.NobleCode{},
+		Dissolvable:           []DissolvableMarriage{},
+		FiefSites:             []FiefSite{},
+		FiefCostPerTerritory:  balance.Costs.FiefPerTerritory,
+		OwnFiefs:              []FiefAid{},
+		AnnexCostPerTerritory: balance.Costs.AnnexPerTerritory,
+		RankCostPerTerritory:  balance.Costs.RankPerTerritory,
+		Rituals:               []RitualOption{},
 	}
 	ctx.papalAids(viewer, aids)
 	ctx.cardinalAids(viewer, aids)
 	ctx.inquiryAids(viewer, aids)
 	ctx.dissolutionAids(viewer, aids)
 	ctx.fiefAids(viewer, aids)
+	ctx.ownFiefAids(viewer, aids)
 	ctx.ritualAids(viewer, aids)
 	return aids
 }
@@ -204,6 +230,42 @@ func (ctx *resolutionContext) fiefAids(viewer models.PlayerID, aids *WinterAids)
 		if len(site.Territories) >= models.FiefMinTerritories && len(site.Castles) > 0 {
 			aids.FiefSites = append(aids.FiefSites, site)
 		}
+	}
+}
+
+// ownFiefAids lists the viewer's fiefs that have a titulaire, with the free
+// territories they could annex and the next title they could reach.
+func (ctx *resolutionContext) ownFiefAids(viewer models.PlayerID, aids *WinterAids) {
+	for i := range ctx.state.Fiefs {
+		fief := &ctx.state.Fiefs[i]
+		if fief.OwnerID != viewer || fief.HolderNobleID == nil {
+			continue
+		}
+		holder := ctx.noblesByID[*fief.HolderNobleID]
+		if holder == nil {
+			continue
+		}
+		aid := FiefAid{
+			Capital:     fief.CapitalTerritoryID,
+			Holder:      models.NobleCode(holder.Code),
+			Title:       fief.Title,
+			Territories: append([]models.TerritoryID(nil), fief.Territories...),
+			Annexable:   []models.TerritoryID{},
+			RankCost:    ctx.balance.Costs.RankPerTerritory * len(fief.Territories),
+		}
+		for _, territory := range ctx.state.Territories {
+			id := territory.ID
+			if ctx.fiefContaining(id) != nil || !fiefAdjacentTo(ctx, fief, id) {
+				continue
+			}
+			if army := ctx.currentArmyAt(id); army != nil && army.OwnerID == viewer {
+				aid.Annexable = append(aid.Annexable, id)
+			}
+		}
+		if next, ok := fief.Title.Next(); ok && ctx.state.CanReceiveTitle(holder.ID, next) {
+			aid.NextTitle = next
+		}
+		aids.OwnFiefs = append(aids.OwnFiefs, aid)
 	}
 }
 

@@ -50,6 +50,8 @@ const (
 	WinterOrderTypeTransfer            WinterOrderType = "transfer"
 	WinterOrderTypeFoundFief           WinterOrderType = "found_fief"
 	WinterOrderTypeAssignFief          WinterOrderType = "assign_fief"
+	WinterOrderTypeAnnexTerritory      WinterOrderType = "annex_territory"
+	WinterOrderTypeChangeRank          WinterOrderType = "change_rank"
 	WinterOrderTypeMarriage            WinterOrderType = "marriage"
 	WinterOrderTypeDrawNoble           WinterOrderType = "draw_noble"
 	WinterOrderTypeDignity             WinterOrderType = "play_dignity"
@@ -73,7 +75,7 @@ func (t WinterOrderType) IsValid() bool {
 	case WinterOrderTypeRecruitNoble, WinterOrderTypeRecruitTroop, WinterOrderTypeBuild,
 		WinterOrderTypeElectCapital, WinterOrderTypeTransferNoble,
 		WinterOrderTypeHostage, WinterOrderTypeDungeon, WinterOrderTypeTransfer,
-		WinterOrderTypeFoundFief, WinterOrderTypeAssignFief, WinterOrderTypeMarriage,
+		WinterOrderTypeFoundFief, WinterOrderTypeAssignFief, WinterOrderTypeAnnexTerritory, WinterOrderTypeChangeRank, WinterOrderTypeMarriage,
 		WinterOrderTypeDrawNoble, WinterOrderTypeDignity, WinterOrderTypeDiscardNoble,
 		WinterOrderTypeClaim, WinterOrderTypeCalamityVeto,
 		WinterOrderTypeCandidacy, WinterOrderTypeVote, WinterOrderTypeBuyCardinal,
@@ -131,7 +133,11 @@ type Order struct {
 // TerritoryID holds the capital (also TerritoryIDs[0]) and TerritoryIDs holds
 // the whole group in source order; NobleCode is the titleholder. For
 // WinterOrderTypeAssignFief, TerritoryID is the fief's capital and NobleCode
-// is the noble it is attributed to. For WinterOrderTypeMarriage, NobleCode is
+// is the noble it is attributed to. For WinterOrderTypeAnnexTerritory,
+// TerritoryID is the capital of the annexing fief, TargetID the annexed
+// territory and NobleCode the fief's titleholder; for WinterOrderTypeChangeRank,
+// TerritoryID is the fief's capital and NobleCode its titleholder
+// (specs/politique.md § Seigneurie et annexion). For WinterOrderTypeMarriage, NobleCode is
 // the player's own noble and SpouseCode the other player's noble it asks to
 // marry (specs/succession.md § Conclusion d'un mariage). For
 // WinterOrderTypeRecruitNoble, CardCode is the noble card played from the

@@ -572,7 +572,7 @@ func (g *GameState) Validate() error {
 			return fmt.Errorf("models: player %q: capital castle %q is not controlled by its owner", player.ID, *player.CapitalCastleID)
 		}
 	}
-	// 10. Fiefs: unique id, a title matching the group size, the capital first
+	// 10. Fiefs: unique id, a valid title (annexation never changes it), the capital first
 	// in a territory group without duplicates or overlap with another fief, a
 	// known owner, and an optional holder noble owned by the same player. A
 	// castle on the capital is NOT required here:
@@ -592,9 +592,8 @@ func (g *GameState) Validate() error {
 		if len(fief.Territories) < FiefMinTerritories {
 			return fmt.Errorf("models: fief %q: must have at least %d territories, got %d", fief.ID, FiefMinTerritories, len(fief.Territories))
 		}
-		wantTitle, ok := FiefTitleForSize(len(fief.Territories))
-		if !ok || fief.Title != wantTitle {
-			return fmt.Errorf("models: fief %q: title %q does not match its %d territories (want %q)", fief.ID, fief.Title, len(fief.Territories), wantTitle)
+		if !fief.Title.IsValid() {
+			return fmt.Errorf("models: fief %q: invalid title %q", fief.ID, fief.Title)
 		}
 		if len(fief.Territories) == 0 || fief.Territories[0] != fief.CapitalTerritoryID {
 			return fmt.Errorf("models: fief %q: first territory must be the capital %q", fief.ID, fief.CapitalTerritoryID)

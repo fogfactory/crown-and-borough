@@ -279,9 +279,11 @@ func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (mod
 	}
 }
 
-// parseFiefOrderLine handles the two T subtypes: F (found, T F NNN XXX YYY
-// ZZZ …, the titleholder noble then the group with the capital first) and A
-// (assign, T A NNN XXX, a free noble then the vacant fief's capital). It only
+// parseFiefOrderLine handles the T subtypes: F (found, T F NNN XXX YYY
+// ZZZ …, the titleholder noble then the group with the capital first), A
+// (assign, T A NNN XXX, a free noble then the vacant fief's capital), X
+// (annex, T X NNN XXX YYY, the titleholder, the fief's capital and the
+// annexed territory) and R (rank change, T R NNN XXX). It only
 // checks syntax: group size, duplicate territories, and contiguity are
 // explicit engine rejects (see winter_found_fief_order.go).
 func parseFiefOrderLine(fields []string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
@@ -324,6 +326,45 @@ func parseFiefOrderLine(fields []string, lineNumber int, indexes gameIndexes) (m
 			Type:        models.WinterOrderTypeAssignFief,
 			NobleCode:   models.NobleCode(fields[2]),
 			TerritoryID: territoryID,
+		}, nil
+	case "X":
+		if len(fields) != 5 {
+			error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.WinterFiefAnnexShape)
+			return models.WinterOrder{}, &error
+		}
+		if parseError := winterNobleCode(fields[2], lineNumber, indexes); parseError != nil {
+			return models.WinterOrder{}, parseError
+		}
+		capitalID, parseError := winterTerritoryID(fields[3], lineNumber, indexes)
+		if parseError != nil {
+			return models.WinterOrder{}, parseError
+		}
+		annexedID, parseError := winterTerritoryID(fields[4], lineNumber, indexes)
+		if parseError != nil {
+			return models.WinterOrder{}, parseError
+		}
+		return models.WinterOrder{
+			Type:        models.WinterOrderTypeAnnexTerritory,
+			NobleCode:   models.NobleCode(fields[2]),
+			TerritoryID: capitalID,
+			TargetID:    annexedID,
+		}, nil
+	case "R":
+		if len(fields) != 4 {
+			error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.WinterFiefRankShape)
+			return models.WinterOrder{}, &error
+		}
+		if parseError := winterNobleCode(fields[2], lineNumber, indexes); parseError != nil {
+			return models.WinterOrder{}, parseError
+		}
+		capitalID, parseError := winterTerritoryID(fields[3], lineNumber, indexes)
+		if parseError != nil {
+			return models.WinterOrder{}, parseError
+		}
+		return models.WinterOrder{
+			Type:        models.WinterOrderTypeChangeRank,
+			NobleCode:   models.NobleCode(fields[2]),
+			TerritoryID: capitalID,
 		}, nil
 	default:
 		error := parseMessage(lineNumber, ParseCodeUnknownSymbol, i18n.WinterFiefShape)

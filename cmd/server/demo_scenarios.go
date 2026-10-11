@@ -42,6 +42,10 @@ var demoScenarios = map[string]struct {
 		description: "winter (see the winter scenario): P1's pope (also a cardinal) and P2's cardinal can file the same J trial on P2's excommunicated noble",
 		apply:       forgeWinter,
 	},
+	"annexation": {
+		description: "winter (see the winter scenario), plus a barony of P1 held by its first noble, with three free territories next to it each held by a one-troop P1 army: try T X (annex) and T R (raise by one rank)",
+		apply:       forgeAnnexation,
+	},
 	"appeasement": {
 		description: "spring, P1 has a bishop, a cardinal and an abbess; rebel armies of 1 to 3 troops stand in their regions and elsewhere; P1 has plenty of R",
 		apply:       forgeAppeasement,
@@ -219,6 +223,80 @@ func forgeElection(state *models.GameState) error {
 		})
 	}
 	fmt.Printf("demo election: bishopric %s (seat %s) is vacant and fully held; candidates ZEL (P1) and ZEM (P2)\n", region.ID, region.Seed)
+	return nil
+}
+
+// forgeAnnexation gives P1 a barony on its capital castle and two neighbours,
+// held by the first noble of P1 (head of its line of succession), and puts a
+// one-troop P1 army on up to three free territories next to the barony. The
+// orders to try: `T X <noble> <capital> <territory>` and `T R <noble> <capital>`.
+func forgeAnnexation(state *models.GameState) error {
+	if err := forgeWinter(state); err != nil {
+		return err
+	}
+	var capitalID models.TerritoryID
+	for _, player := range state.Players {
+		if player.ID != "P1" || player.CapitalCastleID == nil {
+			continue
+		}
+		for _, infrastructure := range state.Infrastructures {
+			if infrastructure.ID == *player.CapitalCastleID {
+				capitalID = infrastructure.TerritoryID
+			}
+		}
+	}
+	if capitalID == "" {
+		return fmt.Errorf("P1 has no capital castle")
+	}
+	adjacencies := make(map[models.TerritoryID][]models.TerritoryID, len(state.Territories))
+	for _, territory := range state.Territories {
+		adjacencies[territory.ID] = territory.Adjacencies
+	}
+	free := func(id models.TerritoryID) bool {
+		_, controlled := state.TerritoryController(id)
+		return !controlled && state.TerritoryStates[id].Army == nil
+	}
+	ownedByP1 := func(id models.TerritoryID) bool {
+		owner, controlled := state.TerritoryController(id)
+		return controlled && owner == "P1"
+	}
+	members := []models.TerritoryID{capitalID}
+	for _, wantFree := range []bool{false, true} {
+		for _, id := range adjacencies[capitalID] {
+			if len(members) == models.FiefMinTerritories {
+				break
+			}
+			if containsTerritory(members, id) || (!wantFree && !ownedByP1(id)) || (wantFree && !free(id)) {
+				continue
+			}
+			members = append(members, id)
+		}
+	}
+	if len(members) < models.FiefMinTerritories {
+		return fmt.Errorf("no room for a barony around %s", capitalID)
+	}
+	holder := state.Nobles[ownedNobles(state, "P1")[0]].ID
+	state.Fiefs = append(state.Fiefs, models.Fief{
+		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: capitalID,
+		Territories: members, OwnerID: "P1", HolderNobleID: &holder,
+	})
+	var annexable []models.TerritoryID
+	for _, member := range members {
+		for _, id := range adjacencies[member] {
+			if len(annexable) < 3 && !containsTerritory(members, id) && !containsTerritory(annexable, id) && free(id) {
+				annexable = append(annexable, id)
+			}
+		}
+	}
+	for index, id := range annexable {
+		armyID := models.ArmyID(fmt.Sprintf("ZX%d", index+1))
+		state.Armies = append(state.Armies, models.Army{ID: armyID, OwnerID: "P1", TerritoryID: id, Size: 1})
+		territoryState := state.TerritoryStates[id]
+		territoryState.Army = &armyID
+		state.TerritoryStates[id] = territoryState
+	}
+	state.NextArmyID += len(annexable)
+	fmt.Printf("demo annexation: barony %v (holder %s); annexable territories %v\n", members, state.Nobles[ownedNobles(state, "P1")[0]].Code, annexable)
 	return nil
 }
 

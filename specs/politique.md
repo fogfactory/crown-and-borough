@@ -150,7 +150,7 @@ est un ordre distinct.
 
 **Annexion.** `T X NNN XXX YYY`, ordre d'hiver de gestion (étape 2) : le
 noble `NNN`, titulaire du fief de capitale `XXX`, annexe le territoire `YYY`.
-Coût : `fief_per_territory` (2 R), payé comme un investissement d'hiver ciblé
+Coût : `costs.annex_per_territory` (2 R), payé comme un investissement d'hiver ciblé
 sur `YYY`. Conditions, vérifiées avant tout paiement :
 
 - `NNN` appartient au joueur et est le titulaire du fief `XXX`
@@ -172,18 +172,23 @@ désormais à `XXX`. Aucun titre n'est modifié, y compris celui du fief cédant
 Un fief sans roi ne peut donc annexer que des territoires hors fief.
 
 **Changement de rang.** `T R NNN XXX` (étape 2) : le titulaire `NNN` du fief
-`XXX` ajuste le titre au barème de [titres.md](titres.md#constitution-dun-fief)
-pour sa taille actuelle. Le titre ne fait que monter (`rank_unchanged` si le
-rang correspondant n'est pas supérieur). Deux voies :
+`XXX` monte le titre du fief d'**un rang** (baronnie → comté → marquisat →
+duché), quelle que soit la taille du fief. Conditions, vérifiées avant tout
+paiement :
+
+- `NNN` appartient au joueur et est le titulaire du fief (`rank_not_titular`) ;
+- le fief n'a pas déjà changé de rang cet hiver (`rank_already_changed`) : un
+  seul `T R` par fief et par hiver ;
+- le fief n'est pas déjà un duché (`rank_max`) ;
+- la ligne de succession s'applique au titre atteint
+  (`succession_rank_blocked`).
+
+Deux voies :
 
 - **accord royal** : si un `W R KKK XXX` est présent cet hiver (donc seulement
   tant qu'il y a un roi ou une régente), le changement est gratuit ;
-- **paiement** : sans accord, le joueur paie `fief_per_territory` pour
-  **chaque** territoire du fief (réseau de paiement d'hiver habituel), comme
-  pour la constitution d'un fief de cette taille.
-
-Dans les deux cas, la ligne de succession s'applique au titre atteint
-(`succession_rank_blocked`).
+- **paiement** : sans accord, le joueur paie `costs.rank_per_territory` (2 R)
+  pour **chaque** territoire du fief (réseau de paiement d'hiver habituel).
 
 **Octroi gratuit de fief.** À la constitution d'un fief par `T F`, le roi peut
 prendre le coût à sa charge par `W F KKK XXX` : le joueur ne paie rien.

@@ -437,6 +437,105 @@ export function TitleOrdersSection({
     )
   }
 
+  // T X: annex a free territory the player holds next to one of their fiefs.
+  const annexFiefs = (aids.ownFiefs ?? []).filter((fief) => fief.annexable.length > 0)
+  if (annexFiefs.length > 0) {
+    const annexCost = aids.annexCostPerTerritory ?? 0
+    const annexedInDraft = new Set(
+      lines.filter((line) => line.startsWith('T X ')).map((line) => line.split(/\s+/)[4]),
+    )
+    const annexable = (capital: string | undefined) =>
+      (annexFiefs.find((fief) => fief.capital === capital)?.annexable ?? []).filter(
+        (code) => !annexedInDraft.has(code),
+      )
+    launchers.push(
+      <OrderLauncher
+        key="t-x"
+        label={t('orders.annexTerritory')}
+        title={t('orders.annexTerritory')}
+        description={t('orders.annexTerritoryHelp')}
+        hint={(values) =>
+          values.territory
+            ? t('orders.hint.annexCost', { territory: values.territory, cost: annexCost })
+            : ''
+        }
+        fields={[
+          {
+            key: 'fief',
+            label: t('orders.field.fief'),
+            options: annexFiefs
+              .filter((fief) => annexable(fief.capital).length > 0)
+              .map((fief) => codeOption(fief.capital)),
+          },
+          {
+            key: 'territory',
+            label: t('orders.field.annexedTerritory'),
+            options: (values) => annexable(values.fief).map(codeOption),
+          },
+        ]}
+        buildOrder={(values) => {
+          const fief = annexFiefs.find((candidate) => candidate.capital === values.fief)
+          if (!fief || !values.territory) return null
+          return {
+            line: `T X ${fief.holder} ${fief.capital} ${values.territory}`,
+            comment: t('orders.comment.annexTerritory', {
+              territory: values.territory,
+              capital: fief.capital,
+            }),
+          }
+        }}
+        onConfirm={add}
+      />,
+    )
+  }
+
+  // T R: raise a fief by one rank, once per winter and per fief.
+  const rankFiefs = (aids.ownFiefs ?? []).filter(
+    (fief) => fief.nextTitle && !lines.some((line) => line.startsWith(`T R ${fief.holder} ${fief.capital}`)),
+  )
+  if (rankFiefs.length > 0) {
+    launchers.push(
+      <OrderLauncher
+        key="t-r"
+        label={t('orders.changeRank')}
+        title={t('orders.changeRank')}
+        description={t('orders.changeRankHelp')}
+        hint={(values) => {
+          const fief = rankFiefs.find((candidate) => candidate.capital === values.fief)
+          if (!fief?.nextTitle) return ''
+          return t('orders.hint.rankCost', {
+            from: t(`fief.title.${fief.title}` as MessageKey),
+            to: t(`fief.title.${fief.nextTitle}` as MessageKey),
+            count: fief.territories.length,
+            cost: fief.rankCost,
+          })
+        }}
+        fields={[
+          {
+            key: 'fief',
+            label: t('orders.field.fief'),
+            options: rankFiefs.map((fief) => ({
+              value: fief.capital,
+              label: `${fief.capital} · ${t(`fief.title.${fief.title}` as MessageKey)}`,
+            })),
+          },
+        ]}
+        buildOrder={(values) => {
+          const fief = rankFiefs.find((candidate) => candidate.capital === values.fief)
+          if (!fief?.nextTitle) return null
+          return {
+            line: `T R ${fief.holder} ${fief.capital}`,
+            comment: t('orders.comment.changeRank', {
+              capital: fief.capital,
+              title: t(`fief.title.${fief.nextTitle}` as MessageKey),
+            }),
+          }
+        }}
+        onConfirm={add}
+      />,
+    )
+  }
+
   if (vacantFiefs.length > 0 && own.length > 0) {
     launchers.push(
       <OrderLauncher

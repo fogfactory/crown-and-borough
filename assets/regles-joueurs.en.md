@@ -675,6 +675,8 @@ per line, applied in the entered order.
 | Transfer resources | `G XXX YYY N` | `XXX` is a castle or village controlled by the donor; `YYY` is a castle or village controlled by another player | 0 |
 | Found a fief | `T F NNN XXX YYY ZZZ …` | `NNN` is a player noble, even a hostage or prisoner; `XXX` (capital) and the rest of the group are controlled, contiguous, and need no castle outside the capital; no territory already in a fief; no enemy or revolt army on the group | {{costs.fief_per_territory}} per territory |
 | Assign a vacant fief | `T A NNN XXX` | `NNN` is a player noble, even a hostage or prisoner; `XXX` is the capital of a vacant fief the player holds | 0 |
+| Annex a territory | `T X NNN XXX YYY` | `NNN` is the titulaire of the fief whose capital is `XXX`; `YYY` borders the fief across a crossable border, holds one of your armies with no enemy or revolt army, and is the capital of no fief; if it already belongs to a fief, the king's accord is needed and the ceding fief keeps at least 3 territories | {{costs.annex_per_territory}} |
+| Raise a fief by one rank | `T R NNN XXX` | `NNN` is the titulaire of the fief whose capital is `XXX`; the fief is not a duchy and has not already risen this winter; the title reached follows the line of succession | {{costs.rank_per_territory}} per territory of the fief, free with the king's accord |
 | Marry two nobles | `M N NNN MMM` | `NNN` is a free player noble, `MMM` a free noble of another player, of the opposite sex, both unmarried; the other player must submit `M N MMM NNN` the same winter, otherwise the marriage is refused | 0 |
 
 **Winter resolution order.** Orders are not all applied in the order of your
@@ -828,6 +830,13 @@ The title depends on the group's size: barony (3), county (4), marquisate
 bonus, not stacking with it). The title belongs to the designated titulaire
 noble, who must be free at the time of founding; a single noble may hold
 several titles, and a player may hold several fiefs.
+
+`T X` enlarges an existing fief by a territory you occupy next to it. A
+fief's title never changes by itself: `T R` raises it by one rank (barony,
+county, marquisate, duchy), whatever the fief's size, once per winter and per
+fief. The title reached follows the line of succession, as at founding. A
+territory that is already a member of another fief, or of yours, can only be
+annexed with the king's accord.
 
 A fief's titulaire is addressed by form of address (shown in French) —
 Baron/Baronne (barony), Comte/Comtesse (county), Marquis/Marquise

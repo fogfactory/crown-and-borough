@@ -203,6 +203,16 @@ const REASON_KEYS: Record<string, MessageKey> = {
   fief_not_found: 'reports.reason.fief_not_found',
   fief_not_owned: 'reports.reason.fief_not_owned',
   fief_not_vacant: 'reports.reason.fief_not_vacant',
+  annex_not_titular: 'reports.reason.annex_not_titular',
+  annex_already_member: 'reports.reason.annex_already_member',
+  annex_not_adjacent: 'reports.reason.annex_not_adjacent',
+  annex_not_occupied: 'reports.reason.annex_not_occupied',
+  annex_capital: 'reports.reason.annex_capital',
+  annex_royal_accord_required: 'reports.reason.annex_royal_accord_required',
+  annex_donor_too_small: 'reports.reason.annex_donor_too_small',
+  rank_not_titular: 'reports.reason.rank_not_titular',
+  rank_max: 'reports.reason.rank_max',
+  rank_already_changed: 'reports.reason.rank_already_changed',
   capital_castle_lost: 'reports.reason.capital_castle_lost',
   fief_auto_assigned_default_holder: 'reports.reason.fief_auto_assigned_default_holder',
   prosperity_fief: 'reports.reason.prosperity_fief',
@@ -392,6 +402,10 @@ function winterOrderLabel(order: WinterOrder, map: MapData | null, t: Translate)
     }
     case 'assign_fief':
       return `T A ${order.nobleCode ?? '—'} ${territory}`
+    case 'annex_territory':
+      return `T X ${order.nobleCode ?? '—'} ${territory} ${territoryCode(map, order.target, t)}`
+    case 'change_rank':
+      return `T R ${order.nobleCode ?? '—'} ${territory}`
     case 'marriage':
       return `M N ${order.nobleCode ?? '—'} ${order.spouseCode ?? '—'}`
   }
@@ -449,6 +463,10 @@ function investmentLabel(
     case 'fief_assigned':
     case 'fief_auto_assigned':
       return `T A ${investment.nobleCode ?? '—'} ${territory}`
+    case 'fief_annexed':
+      return `T X ${investment.nobleCode ?? '—'} ${territoryCode(map, investment.territories?.[0], t)} ${territory}`
+    case 'fief_rank_changed':
+      return `T R ${investment.nobleCode ?? '—'} ${territory}`
     case 'marriage_refused':
       return `M N ${investment.nobleCode ?? '—'}`
     case 'noble_draw':

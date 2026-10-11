@@ -122,6 +122,12 @@ type resolutionContext struct {
 	// whose capital changed hands this same turn (#208) rather than crediting
 	// a stale doubling to the wrong income line.
 	taxedFiefOwnerAtApply map[models.FiefID]models.PlayerID
+	// royalAccords are the royal authorizations granted this winter, read by
+	// the annexation and rank-change orders (royal_accord.go).
+	royalAccords royalAccords
+	// rankChangedFiefs holds the fiefs whose title a T R order already raised
+	// this winter.
+	rankChangedFiefs map[models.FiefID]bool
 }
 
 func newResolutionContext(state *models.GameState, balance assetgen.Balance) *resolutionContext {
@@ -157,6 +163,7 @@ func newResolutionContext(state *models.GameState, balance assetgen.Balance) *re
 		taxedFiefsThisTurn:    make(map[models.FiefID]bool),
 		pendingTaxWindowFiefs: make(map[models.FiefID]bool),
 		taxedFiefOwnerAtApply: make(map[models.FiefID]models.PlayerID),
+		rankChangedFiefs:      make(map[models.FiefID]bool),
 		tithesThisTurn:        make(map[models.TerritoryID][]models.PlayerID),
 		pendingTitheRegions:   make(map[models.TerritoryID]bool),
 	}

@@ -56,3 +56,30 @@ func TestForecastRevoltTargetsFollowFamineTaxAndSeason(t *testing.T) {
 		t.Errorf("targets in winter = %v, want nil", got)
 	}
 }
+
+func TestWinterAidsOwnFiefs(t *testing.T) {
+	state := annexTestState(t)
+	// DDD (held by P1) is annexable; EEE is not adjacent; FFF is held by P2.
+	placeArmyAt(state, "AX", "P2", "FFF", 3)
+	aids := ForecastWinterAids(state, testBalance(), "P1")
+	if len(aids.OwnFiefs) != 1 {
+		t.Fatalf("own fiefs = %+v, want F1 only", aids.OwnFiefs)
+	}
+	fief := aids.OwnFiefs[0]
+	if fief.Capital != "AAA" || fief.Holder != "HUG" || fief.Title != models.FiefTitleBarony {
+		t.Errorf("fief = %+v", fief)
+	}
+	if want := []models.TerritoryID{"DDD"}; !reflect.DeepEqual(fief.Annexable, want) {
+		t.Errorf("annexable = %v, want %v", fief.Annexable, want)
+	}
+	if fief.NextTitle != models.FiefTitleCounty || fief.RankCost != 3*testBalance().Costs.RankPerTerritory {
+		t.Errorf("next title/cost = %q/%d", fief.NextTitle, fief.RankCost)
+	}
+	if aids.AnnexCostPerTerritory != testBalance().Costs.AnnexPerTerritory || aids.RankCostPerTerritory != testBalance().Costs.RankPerTerritory {
+		t.Errorf("per-territory costs = %d/%d", aids.AnnexCostPerTerritory, aids.RankCostPerTerritory)
+	}
+	state.Fiefs[0].Title = models.FiefTitleDuchy
+	if got := ForecastWinterAids(state, testBalance(), "P1").OwnFiefs[0].NextTitle; got != "" {
+		t.Errorf("duchy next title = %q, want none", got)
+	}
+}

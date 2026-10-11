@@ -60,6 +60,8 @@ export type EventType =
   | 'rumor'
   | 'fief_founded'
   | 'fief_assigned'
+  | 'fief_annexed'
+  | 'fief_rank_changed'
   | 'fief_conquered'
   | 'fief_vacated'
   | 'fief_dissolved'
@@ -218,6 +220,19 @@ export interface FiefSite {
   edges: Array<[string, string]>
 }
 
+/** One of the viewer's fiefs with a titulaire, and what `T X` / `T R` can do for it. */
+export interface FiefAid {
+  capital: string
+  holder: string
+  title: FiefTitle
+  territories: string[]
+  /** Free territories next to the fief held by an army of the viewer alone. */
+  annexable: string[]
+  /** Title a `T R` would confer; absent when the fief cannot rise. */
+  nextTitle?: FiefTitle
+  rankCost: number
+}
+
 /** Winter orders that can succeed for the viewer, with their prices. */
 export interface WinterAids {
   excommunicable: ExcommunicationTarget[]
@@ -234,6 +249,9 @@ export interface WinterAids {
   dissolvable?: { noble: string; spouse: string }[]
   fiefSites: FiefSite[]
   fiefCostPerTerritory: number
+  ownFiefs?: FiefAid[]
+  annexCostPerTerritory?: number
+  rankCostPerTerritory?: number
   /** The viewer's Witches able to perform a ritual, with the region it would hit. */
   rituals: Array<{ noble: string; region: string }>
 }
@@ -897,7 +915,7 @@ export interface WinterInvestmentReport {
   noble?: string
   nobleCode?: string
   nobleName?: string
-  /** Present only for `fief_founded`/`fief_assigned`/`fief_auto_assigned`. */
+  /** Present only for the fief winter events (`fief_founded`, `fief_assigned`, `fief_annexed`, `fief_rank_changed`, `fief_auto_assigned`). */
   title?: FiefTitle
   territories?: string[]
   reason?: string
@@ -920,6 +938,8 @@ export type WinterOrderType =
   | 'transfer'
   | 'found_fief'
   | 'assign_fief'
+  | 'annex_territory'
+  | 'change_rank'
   | 'marriage'
   | 'draw_noble'
   | 'play_dignity'

@@ -45,6 +45,8 @@ costs:
   troop: 1
   supply_depot: 3
   fief_per_territory: 2
+  annex_per_territory: 2
+  rank_per_territory: 2
 victory:
   solo_territory_percent: 50
   alliance_territory_percent: 66
