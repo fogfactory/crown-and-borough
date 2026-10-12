@@ -984,6 +984,29 @@ function LineageTree({
                             ✝ {t(`lineage.cause.${member.cause}` as MessageKey)}
                           </Badge>
                         )}
+                        {member.commissioner && (
+                          <Badge
+                            className="border-[#8a2f2f] bg-[#f8e6e6] text-[#6b2020]"
+                            data-testid="assassination-commissioner"
+                          >
+                            {t('lineage.assassinatedBy', {
+                              name: member.commissioner.name,
+                              code: member.commissioner.code,
+                            })}
+                          </Badge>
+                        )}
+                        {member.commissioned.map((victim) => (
+                          <Badge
+                            key={`commissioned-${victim.code}`}
+                            className="border-[#8a2f2f] bg-[#f8e6e6] text-[#6b2020]"
+                            data-testid="assassination-victim"
+                          >
+                            {t('lineage.commissionedKilling', {
+                              name: victim.name,
+                              code: victim.code,
+                            })}
+                          </Badge>
+                        ))}
                         {member.religious.map((held) => (
                           <Badge
                             key={`${held.title}-${held.seat ?? ''}`}

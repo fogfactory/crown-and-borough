@@ -16,12 +16,13 @@ const (
 	CardKindSeigneurialTax  CardKind = "seigneurial_tax"
 	CardKindTunnel          CardKind = "tunnel"
 	CardKindAmbush          CardKind = "ambush"
+	CardKindAssassination   CardKind = "assassination"
 )
 
 func (k CardKind) IsValid() bool {
 	switch k {
 	case CardKindFairWeather, CardKindAbundantHarvest, CardKindPlague,
-		CardKindBadWeather, CardKindRevolt, CardKindFamine, CardKindSeigneurialTax, CardKindTunnel, CardKindAmbush:
+		CardKindBadWeather, CardKindRevolt, CardKindFamine, CardKindSeigneurialTax, CardKindTunnel, CardKindAssassination, CardKindAmbush:
 		return true
 	}
 	return false
@@ -29,7 +30,7 @@ func (k CardKind) IsValid() bool {
 
 func (k CardKind) IsBonus() bool {
 	switch k {
-	case CardKindFairWeather, CardKindAbundantHarvest, CardKindRevolt, CardKindSeigneurialTax, CardKindTunnel, CardKindAmbush:
+	case CardKindFairWeather, CardKindAbundantHarvest, CardKindRevolt, CardKindSeigneurialTax, CardKindTunnel, CardKindAssassination, CardKindAmbush:
 		return true
 	default:
 		return false

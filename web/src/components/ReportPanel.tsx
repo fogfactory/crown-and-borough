@@ -625,6 +625,14 @@ function cardEventLabel(card: CardReport, map: MapData | null, t: Translate): st
     case 'deck_discard':
       return t('reports.cardDiscarded', { card: label, player })
     case 'deck_order_played':
+      if (card.noble) {
+        return t(card.commissioner ? 'reports.cardPlayedAssassination' : 'reports.cardPlayedOnNoble', {
+          card: label,
+          player,
+          noble: nobleLabel(card.noble, card.nobleName),
+          commissioner: nobleLabel(card.commissioner, card.commissionerName),
+        })
+      }
       return card.region
         ? t('reports.cardPlayed', { card: label, player, region })
         : t('reports.cardPlayedBare', { card: label, player })
@@ -779,6 +787,23 @@ function seasonEffectLine(
                 territory: territoryLabel(map, effect.territory, t),
               }),
       }
+    case 'assassination':
+      return {
+        key,
+        label: t(effect.commissioner ? 'reports.assassinationCommissioner' : 'reports.assassinationPublic', {
+          noble: nobleLabel(effect.noble, effect.nobleName),
+          territory: territoryLabel(map, effect.territory, t),
+          commissioner: effect.commissioner ?? '',
+        }),
+      }
+    case 'assassination_revealed':
+      return {
+        key,
+        label: t('reports.assassinationRevealed', {
+          noble: nobleLabel(effect.noble, effect.nobleName),
+          commissioner: nobleLabel(effect.commissioner, effect.commissionerName),
+        }),
+      }
     case 'tunnel':
       return {
         key,
@@ -917,6 +942,8 @@ function groupSeasonEffects(
       case 'trial':
       case 'tunnel':
       case 'ambush':
+      case 'assassination':
+      case 'assassination_revealed':
       case 'eon_unmasked':
       case 'dignity_revealed':
       case 'excommunication':

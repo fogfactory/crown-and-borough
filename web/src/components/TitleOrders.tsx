@@ -13,6 +13,7 @@ const PLAYABLE_KINDS: CardKind[] = [
   'seigneurial_tax',
   'tunnel',
   'ambush',
+  'assassination',
 ]
 
 function nobleOption(noble: Noble): OrderFieldOption {
@@ -31,7 +32,11 @@ function regionOptions(regions: Region[]): OrderFieldOption[] {
 }
 
 function nobleName(state: StateData, code: string): string {
-  return state.nobles.find((noble) => noble.code === code)?.name ?? code
+  return (
+    state.nobles.find((noble) => noble.code === code)?.name ??
+    state.deceased?.find((noble) => noble.code === code)?.name ??
+    code
+  )
 }
 
 const FIEF_TITLE_BY_SIZE: Array<[number, MessageKey]> = [
@@ -291,7 +296,15 @@ export function TitleOrdersSection({
               .map((noble) => ({
                 ...nobleOption(noble),
                 label: `${nobleOption(noble).label} — ${aids.inquiryCosts[noble.code] ?? 0} R`,
-              })),
+              }))
+              // The lineage of the dead can be inquired into, at the cost of
+              // the title they bore.
+              .concat(
+                (state.deceased ?? []).map((noble) => ({
+                  value: noble.code,
+                  label: `✝ ${noble.name} (${noble.code}) · ${noble.owner} — ${aids.inquiryCosts[noble.code] ?? 0} R`,
+                })),
+              ),
           },
         ]}
         buildOrder={(values) =>
@@ -911,6 +924,10 @@ export function SpecialCardOrders({
             </span>
           )
         }
+        if (kind === 'assassination') {
+          const launcher = assassinationLauncher({ state, player, t, lines, copies: copies(kind), add: (line) => onChange(appendDraftLine(draft, line)) })
+          return launcher ? <span key={kind}>{launcher}</span> : null
+        }
         const target = specialTargetField(kind, state, regions, t, draft)
         if (target.options.length === 0) return null
         return (
@@ -1162,6 +1179,55 @@ function tunnelLaunchers({
 }
 
 /**
+ * The Assassination card, `P AS HHH NNN`: the free noble HHH of the player
+ * commissions the death of the noble NNN of another player.
+ */
+export function assassinationLauncher({
+  state,
+  player,
+  t,
+  lines,
+  copies,
+  add,
+  label,
+}: {
+  state: StateData
+  player?: PlayerId
+  t: Translate
+  lines: string[]
+  copies: number
+  add: (line: string) => void
+  /** Text of the button; defaults to the "play" label. */
+  label?: string
+}) {
+  const card = formatCardLabel('assassination', t)
+  const prefix = `P ${shortCode('assassination')}`
+  const commissioners = state.nobles.filter((noble) => noble.owner === player && noble.status === 'free')
+  const victims = state.nobles.filter((noble) => noble.owner !== player)
+  if (commissioners.length === 0 || victims.length === 0) return null
+  return (
+    <OrderLauncher
+      label={label ?? t('orders.playAssassination', { card })}
+      title={t('orders.playAssassination', { card })}
+      disabled={lines.filter((line) => line.startsWith(prefix)).length >= copies}
+      fields={[
+        { key: 'commissioner', label: t('orders.field.commissioner'), options: commissioners.map(nobleOption) },
+        { key: 'victim', label: t('orders.field.assassinationTarget'), options: victims.map(nobleOption) },
+      ]}
+      buildOrder={(values) =>
+        values.commissioner && values.victim
+          ? {
+              line: `${prefix} ${values.commissioner} ${values.victim}`,
+              comment: t('orders.comment.assassination', { card, commissioner: values.commissioner, target: values.victim }),
+            }
+          : null
+      }
+      onConfirm={add}
+    />
+  )
+}
+
+/**
  * The Ambush card, `P EM AAA BBB`, designates the attack from AAA to BBB (the
  * player's own, or another player's as advice): if it wins and the defending
  * army retreats with a noble, the first noble of its owner's line of
@@ -1218,6 +1284,7 @@ const SHORT_CODES: Record<CardKind, string> = {
   seigneurial_tax: 'TX',
   tunnel: 'SO',
   ambush: 'EM',
+  assassination: 'AS',
 }
 
 export function shortCode(kind: CardKind): string {

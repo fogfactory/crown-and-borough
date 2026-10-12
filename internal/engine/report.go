@@ -271,6 +271,13 @@ type CardReport struct {
 	Outcome   Outcome            `json:"outcome"`
 	Reason    string             `json:"reason,omitempty"`
 	Ritual    bool               `json:"ritual,omitempty"`
+	// Noble, NobleName, Commissioner and CommissionerName name the victim and
+	// the commissioner of a played assassination card; the projection keeps
+	// them (and the entry itself) for the card's player only.
+	Noble            models.NobleCode `json:"noble,omitempty"`
+	NobleName        string           `json:"nobleName,omitempty"`
+	Commissioner     models.NobleCode `json:"commissioner,omitempty"`
+	CommissionerName string           `json:"commissionerName,omitempty"`
 }
 
 type SeasonEffectReport struct {
@@ -295,6 +302,13 @@ type SeasonEffectReport struct {
 	// (Target is where it was held, Territory where it reappeared): only that
 	// player and the card's owner see the escape (api.projectReport).
 	Holder models.PlayerID `json:"holder,omitempty"`
+	// VictimOwner, Commissioner and CommissionerName describe an assassination:
+	// the owner of the victim (Noble), and the noble who commissioned the
+	// killing, whom only the card's owner may see
+	// (api.visibleSeasonEffects). Owner is the player who played the card.
+	VictimOwner      models.PlayerID  `json:"victimOwner,omitempty"`
+	Commissioner     models.NobleCode `json:"commissioner,omitempty"`
+	CommissionerName string           `json:"commissionerName,omitempty"`
 	// Dignity is the dignity a trial revealed on the executed lady.
 	Dignity models.Dignity `json:"dignity,omitempty"`
 	// Fief is the title (e.g. "Baronnie") of the fief the effect applies to,
@@ -645,7 +659,8 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 			}
 			report.Winter.Rumors = append(report.Winter.Rumors, RumorReport{Kind: event.CardKind, Key: event.RumorKey, Level: event.RumorLevel})
 		case EventTypeCalamityScheduled, EventTypeDeckDiscard, EventTypeDeckOrderPlayed, EventTypeDeckRestore:
-			card := CardReport{EventType: event.Type, Kind: event.CardKind, Player: event.OwnerID, Region: event.RegionSeed, Season: event.Season, Outcome: OutcomeSuccess, Ritual: event.Ritual}
+			card := CardReport{EventType: event.Type, Kind: event.CardKind, Player: event.OwnerID, Region: event.RegionSeed, Season: event.Season, Outcome: OutcomeSuccess, Ritual: event.Ritual,
+				Noble: event.NobleCode, NobleName: event.NobleName, Commissioner: event.CommissionerCode, CommissionerName: event.CommissionerName}
 			report.Cards = append(report.Cards, card)
 			if event.Phase == winterPhase {
 				if report.Winter == nil {
@@ -653,15 +668,20 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 				}
 				report.Winter.Cards = append(report.Winter.Cards, card)
 			}
-		case EventTypeCalamityApplied, EventTypeCalamityCanceled, EventTypeBonusEffect, EventTypeNeutralArmy, EventTypeRevoltAppeased, EventTypePlagueDeath, EventTypePlagueSurvived, EventTypeBadWeatherBlocked, EventTypeFamineLoss, EventTypeBadWeatherLoss, EventTypeTrial, EventTypeTunnel, EventTypeAmbush, EventTypeEonUnmasked, EventTypeDignityRevealed, EventTypeExcommunication, EventTypeExcommunicationLifted:
+		case EventTypeCalamityApplied, EventTypeCalamityCanceled, EventTypeBonusEffect, EventTypeNeutralArmy, EventTypeRevoltAppeased, EventTypePlagueDeath, EventTypePlagueSurvived, EventTypeBadWeatherBlocked, EventTypeFamineLoss, EventTypeBadWeatherLoss, EventTypeTrial, EventTypeTunnel, EventTypeAmbush, EventTypeAssassination, EventTypeAssassinationRevealed, EventTypeEonUnmasked, EventTypeDignityRevealed, EventTypeExcommunication, EventTypeExcommunicationLifted:
 			report.SeasonEffects = append(report.SeasonEffects, SeasonEffectReport{
 				Kind: event.Type, CardKind: event.CardKind, Region: event.RegionSeed, Season: event.Season,
 				Owner: event.OwnerID, Army: event.ArmyID, Noble: event.NobleCode, NobleName: event.NobleName,
 				Territory: event.TerritoryID, Target: event.TargetID, Troops: event.Troops, SizeBefore: event.SizeBefore,
 				SizeAfter: event.SizeAfter, ProductionLost: event.Production, RationsLost: event.RationsLost,
 				Reason: event.Reason, Dignity: event.Dignity, Fief: event.FiefTitle, Cost: event.Cost,
-				Holder: event.CaptorPlayerID,
+				Holder: event.CaptorPlayerID, VictimOwner: event.PreviousOwnerID,
+				Commissioner: event.CommissionerCode, CommissionerName: event.CommissionerName,
 			})
+			if event.Type == EventTypeAssassination {
+				// The public rumor tells that a killing took place, never who ordered it.
+				report.Rumors = append(report.Rumors, RumorReport{Kind: models.CardKindAssassination, Key: "rumor.assassination.killing"})
+			}
 		case EventTypeWinterStock, EventTypeRecruit, EventTypeBuild, EventTypeUpgrade, EventTypeFortify,
 			EventTypeRejected, EventTypeRitual, EventTypeCapitalElected, EventTypeNobleDraw, EventTypeNobleDiscard, EventTypeDignity, EventTypeClaim, EventTypeCardinalPurchase, EventTypeInquiry, EventTypeTrialFiled, EventTypeFiefFounded, EventTypeFiefAssigned, EventTypeFiefAnnexed, EventTypeFiefRankChanged, EventTypeFiefAutoAssigned, EventTypeRoyalAccord, EventTypeFiefGranted:
 			if report.Winter == nil {

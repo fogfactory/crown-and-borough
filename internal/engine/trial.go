@@ -61,11 +61,12 @@ func (ctx *resolutionContext) executeNoble(noble models.Noble) {
 
 // removeNoble removes a dead noble from play with the aftermath of any death.
 func (ctx *resolutionContext) removeNoble(noble models.Noble, cause models.DeathCause) {
+	inquiryCost := InquiryCost(ctx.state, ctx.balance.Religion.InquiryCost, noble.ID)
 	ctx.state.Nobles = removeNoble(ctx.state.Nobles, noble.ID)
 	ctx.releaseNobleCards(noble)
 	ctx.state.RemovedNobles = append(ctx.state.RemovedNobles, models.RemovedNoble{
 		ID: noble.ID, Code: noble.Code, Name: noble.Name, Sex: noble.Sex, OwnerID: noble.OwnerID,
-		Cause: cause, Turn: ctx.state.Turn,
+		Cause: cause, Turn: ctx.state.Turn, InquiryCost: inquiryCost,
 	})
 	ctx.rebuildIndexes()
 	ctx.settleAfterDeaths()

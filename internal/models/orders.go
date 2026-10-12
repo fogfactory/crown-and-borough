@@ -235,6 +235,10 @@ type DeckOrder struct {
 	// ambush card designates: from this origin to the target
 	// (specs/ordres-speciaux.md § Cartes jouées sur une attaque).
 	SourceTerritoryID TerritoryID `json:"sourceTerritory,omitempty"`
+	// CommissionerNobleID is the free noble who commissions the assassination
+	// an assassination card plays on TargetNobleID (specs/ordres-speciaux.md
+	// § Assassinat).
+	CommissionerNobleID NobleID `json:"commissionerNoble,omitempty"`
 	// Tithe marks a Tax card played as a tithe on a bishopric rather than a
 	// seigneurial tax on a fief, which only the order can tell when the target
 	// is both a fief capital and a bishopric seed (religieux.md "Dîme").

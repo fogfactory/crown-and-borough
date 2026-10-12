@@ -39,7 +39,7 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 	})
 	played := make(map[models.TerritoryID]map[models.CardKind]int)
 	for _, intent := range intents {
-		if intent.order.Kind == models.CardKindRevolt || intent.order.Kind == models.CardKindSeigneurialTax || intent.order.Kind == models.CardKindTunnel || intent.order.Kind == models.CardKindAmbush {
+		if intent.order.Kind == models.CardKindRevolt || intent.order.Kind == models.CardKindSeigneurialTax || intent.order.Kind == models.CardKindTunnel || intent.order.Kind == models.CardKindAssassination || intent.order.Kind == models.CardKindAmbush {
 			continue
 		}
 		seed := intent.order.RegionSeed
@@ -49,7 +49,7 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 		played[seed][intent.order.Kind]++
 	}
 	for _, intent := range intents {
-		if intent.order.Kind == models.CardKindRevolt || intent.order.Kind == models.CardKindSeigneurialTax || intent.order.Kind == models.CardKindTunnel || intent.order.Kind == models.CardKindAmbush {
+		if intent.order.Kind == models.CardKindRevolt || intent.order.Kind == models.CardKindSeigneurialTax || intent.order.Kind == models.CardKindTunnel || intent.order.Kind == models.CardKindAssassination || intent.order.Kind == models.CardKindAmbush {
 			continue
 		}
 		seed := intent.order.RegionSeed
@@ -785,6 +785,10 @@ func resolvePlagueMortalityFor(ctx *resolutionContext, plagueRegions map[models.
 	if len(dead) == 0 {
 		return
 	}
+	inquiryCosts := make(map[models.NobleID]int, len(dead))
+	for id := range dead {
+		inquiryCosts[id] = InquiryCost(ctx.state, ctx.balance.Religion.InquiryCost, id)
+	}
 	remainingNobles := ctx.state.Nobles[:0]
 	for _, noble := range ctx.state.Nobles {
 		if !dead[noble.ID] {
@@ -804,6 +808,8 @@ func resolvePlagueMortalityFor(ctx *resolutionContext, plagueRegions map[models.
 			OwnerID: noble.OwnerID,
 			Cause:   models.DeathCauseNatural,
 			Turn:    ctx.state.Turn,
+
+			InquiryCost: inquiryCosts[noble.ID],
 		})
 	}
 	for _, chain := range ctx.state.Chains {

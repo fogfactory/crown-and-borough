@@ -21,7 +21,10 @@ const noble = (
   ...extra,
 })
 
-function renderDialog(simulationRequest?: (actions: SimulationAction[]) => Promise<VictorySimulation>) {
+function renderDialog(
+  simulationRequest?: (actions: SimulationAction[]) => Promise<VictorySimulation>,
+  link = false,
+) {
   render(
     <LanguageProvider initialLanguage="en">
       <LineageDialog
@@ -32,12 +35,24 @@ function renderDialog(simulationRequest?: (actions: SimulationAction[]) => Promi
           { id: 'P2', name: 'Bob', color: '#2f6f9f', succession: ['ANN', 'EVE'] },
         ]}
         nobles={[
-          noble('JEA', 'P1', 'Duc Jean', { sex: 'male', dignities: ['bastard'] }),
+          noble('JEA', 'P1', 'Duc Jean', {
+            sex: 'male',
+            dignities: ['bastard'],
+            commissioned: link ? ['VIC'] : undefined,
+          }),
           noble('ANN', 'P2', 'Duchesse Anne', { sex: 'female' }),
           noble('EVE', 'P2', 'Dame Eve', { sex: 'female' }),
         ]}
         deceased={[
           { code: 'OLD', name: 'Vieux Hugon', owner: 'P1', cause: 'execution', turn: 2 },
+          {
+            code: 'VIC',
+            name: 'Victor',
+            owner: 'P2',
+            cause: 'assassination',
+            turn: 3,
+            commissioner: link ? 'JEA' : undefined,
+          },
         ]}
         fiefs={[
           {
@@ -102,6 +117,23 @@ describe('LineageDialog', () => {
     expect(screen.getByRole('region', { name: 'Bob' })).toHaveTextContent(
       'Claimant to Duchy · ROC #1',
     )
+  })
+
+  it('links the commissioner and its victim only when the state carries the link', () => {
+    renderDialog(undefined, true)
+    expect(screen.getByRole('region', { name: 'Bob' })).toHaveTextContent(
+      'Killed on the orders of Duc Jean (JEA)',
+    )
+    expect(screen.getByRole('region', { name: 'Alice' })).toHaveTextContent(
+      'Had Victor (VIC) killed',
+    )
+  })
+
+  it('names no commissioner without the link', () => {
+    renderDialog()
+    expect(screen.getByRole('region', { name: 'Bob' })).toHaveTextContent('Victor')
+    expect(screen.queryByTestId('assassination-commissioner')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('assassination-victim')).not.toBeInTheDocument()
   })
 
   it('filters families and ended marriages', () => {

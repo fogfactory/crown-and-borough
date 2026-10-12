@@ -9,6 +9,7 @@ type gameIndexes struct {
 	territoriesByID map[models.TerritoryID]*models.Territory
 	noblesByCode    map[string]models.NobleID
 	noblesByID      map[models.NobleID]*models.Noble
+	removedByCode   map[string]models.NobleID
 	armiesByID      map[models.ArmyID]*models.Army
 }
 
@@ -17,6 +18,7 @@ func indexGame(game *models.GameState) gameIndexes {
 		territoriesByID: map[models.TerritoryID]*models.Territory{},
 		noblesByCode:    map[string]models.NobleID{},
 		noblesByID:      map[models.NobleID]*models.Noble{},
+		removedByCode:   map[string]models.NobleID{},
 		armiesByID:      map[models.ArmyID]*models.Army{},
 	}
 	if game == nil {
@@ -35,6 +37,11 @@ func indexGame(game *models.GameState) gameIndexes {
 		}
 		if _, exists := indexes.noblesByCode[noble.Code]; !exists {
 			indexes.noblesByCode[noble.Code] = noble.ID
+		}
+	}
+	for _, removed := range game.RemovedNobles {
+		if _, exists := indexes.removedByCode[removed.Code]; !exists {
+			indexes.removedByCode[removed.Code] = removed.ID
 		}
 	}
 	for i := range game.Armies {

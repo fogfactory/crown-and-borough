@@ -78,6 +78,11 @@ const (
 	EventTypeTrial              EventType = "trial"
 	EventTypeTunnel             EventType = "tunnel"
 	EventTypeAmbush             EventType = "ambush"
+	EventTypeAssassination      EventType = "assassination"
+	// EventTypeAssassinationRevealed is private to its owner, the inquirer: an
+	// inquiry taught them who commissioned an assassination (NobleCode: the
+	// victim, CommissionerCode: the commissioner).
+	EventTypeAssassinationRevealed EventType = "assassination_revealed"
 	// EventTypeCalamityVeto is private: no report section lists it.
 	EventTypeCalamityVeto EventType = "calamity_veto"
 	EventTypeNobleDiscard EventType = "noble_discard"
@@ -242,6 +247,11 @@ type Event struct {
 	IndexBefore     int                 `json:"indexBefore,omitempty"`
 	IndexAfter      int                 `json:"indexAfter,omitempty"`
 	WinterOrder     *models.WinterOrder `json:"winterOrder,omitempty"`
+
+	// CommissionerCode and CommissionerName identify the noble who commissioned
+	// an assassination (PreviousOwnerID is then the victim's owner).
+	CommissionerCode models.NobleCode `json:"commissionerCode,omitempty"`
+	CommissionerName string           `json:"commissionerName,omitempty"`
 
 	// Dignity is the dignity a EventTypeDignity event confers.
 	Dignity models.Dignity `json:"dignity,omitempty"`

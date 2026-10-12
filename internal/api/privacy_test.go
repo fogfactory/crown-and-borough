@@ -467,3 +467,129 @@ func TestTunnelEscapeIsKnownOnlyToItsPlayerAndTheHolder(t *testing.T) {
 		}
 	}
 }
+
+func TestAssassinationNamesNoCulpritAndShowsTheCommissionerToTheAuthorOnly(t *testing.T) {
+	report := engine.TurnReport{
+		SeasonEffects: []engine.SeasonEffectReport{{
+			Kind: engine.EventTypeAssassination, CardKind: models.CardKindAssassination, Reason: engine.AssassinationReason,
+			Owner: "P1", VictimOwner: "P2", Noble: "TWO", Commissioner: "ONE", CommissionerName: "One",
+		}},
+		Cards: []engine.CardReport{
+			{EventType: engine.EventTypeDeckOrderPlayed, Kind: models.CardKindAssassination, Player: "P1"},
+			{EventType: engine.EventTypeDeckOrderPlayed, Kind: models.CardKindTunnel, Player: "P1"},
+		},
+	}
+	want := map[models.PlayerID]struct {
+		owner        models.PlayerID
+		commissioner models.NobleCode
+		cards        int
+	}{
+		"P1":                   {"P1", "ONE", 2},
+		"P2":                   {"", "", 0},
+		"P3":                   {"", "", 0},
+		models.SpectatorViewer: {"P1", "ONE", 2},
+	}
+	for viewer, expected := range want {
+		view := ProjectReport(report, viewer, nil)
+		if len(view.SeasonEffects) != 1 {
+			t.Fatalf("viewer %q sees %d season effects, want the public death", viewer, len(view.SeasonEffects))
+		}
+		effect := view.SeasonEffects[0]
+		if effect.Noble != "TWO" || effect.Owner != expected.owner || effect.Commissioner != expected.commissioner ||
+			(expected.commissioner == "" && effect.CommissionerName != "") {
+			t.Errorf("viewer %q sees %#v, want owner %q and commissioner %q", viewer, effect, expected.owner, expected.commissioner)
+		}
+		if len(view.Cards) != expected.cards {
+			t.Errorf("viewer %q sees %d cards, want %d", viewer, len(view.Cards), expected.cards)
+		}
+	}
+}
+
+func TestStateLinksTheCommissionerOnlyForThoseWhoKnowIt(t *testing.T) {
+	state := models.NewGameState()
+	state.Players = []models.Player{{ID: "P1", Name: "One"}, {ID: "P2", Name: "Two"}, {ID: "P3", Name: "Three"}, {ID: "P4", Name: "Four"}}
+	state.Nobles = []models.Noble{
+		{ID: "N1", Code: "ONE", OwnerID: "P1", Sex: models.SexMale, Status: models.NobleStatusFree},
+	}
+	state.RemovedNobles = []models.RemovedNoble{{
+		ID: "N2", Code: "TWO", OwnerID: "P2", Sex: models.SexMale, Cause: models.DeathCauseAssassination,
+		Commissioner: "N1", Author: "P1",
+	}}
+	// P3 inquired on the commissioner; P4 inquired on nobody.
+	state.RecordInquiry("P3", "N1")
+	known := map[models.PlayerID]bool{"P1": true, "P2": false, "P3": true, "P4": false, models.SpectatorViewer: true}
+	for viewer, want := range known {
+		view := ProjectStateForPlayer(state, viewer, assetgen.Balance{})
+		if got := view.Deceased[0].Commissioner != nil; got != want {
+			t.Errorf("viewer %q sees the commissioner = %v, want %v", viewer, got, want)
+		}
+		if want && (*view.Deceased[0].Commissioner != "ONE" || len(view.Nobles[0].Commissioned) != 1 || view.Nobles[0].Commissioned[0] != "TWO") {
+			t.Errorf("viewer %q sees %#v / %#v, want ONE <-> TWO", viewer, view.Deceased[0], view.Nobles[0])
+		}
+		if !want && len(view.Nobles[0].Commissioned) != 0 {
+			t.Errorf("viewer %q sees victims %v of ONE", viewer, view.Nobles[0].Commissioned)
+		}
+	}
+	if view := ProjectState(state, assetgen.Balance{}); view.Deceased[0].Commissioner != nil || len(view.Nobles[0].Commissioned) != 0 {
+		t.Errorf("the public projection reveals the commissioner: %#v", view)
+	}
+}
+
+func TestAssassinationRevealedByAnInquiryIsReadByTheInquirerOnly(t *testing.T) {
+	report := engine.TurnReport{SeasonEffects: []engine.SeasonEffectReport{{
+		Kind: engine.EventTypeAssassinationRevealed, Owner: "P3", Noble: "TWO", Commissioner: "ONE", CommissionerName: "One",
+	}}}
+	want := map[models.PlayerID]int{"P1": 0, "P2": 0, "P3": 1, "": 0, models.SpectatorViewer: 1}
+	for viewer, count := range want {
+		if got := len(ProjectReport(report, viewer, nil).SeasonEffects); got != count {
+			t.Errorf("viewer %q sees %d revelations, want %d", viewer, got, count)
+		}
+	}
+}
+
+func TestWinterAssassinationCardIsHiddenFromOtherPlayers(t *testing.T) {
+	report := engine.TurnReport{Winter: &engine.WinterReport{Cards: []engine.CardReport{
+		{EventType: engine.EventTypeDeckOrderPlayed, Kind: models.CardKindAssassination, Player: "P1"},
+	}}}
+	want := map[models.PlayerID]int{"P1": 1, "P2": 0, "": 0, models.SpectatorViewer: 1}
+	for viewer, count := range want {
+		if got := len(ProjectReport(report, viewer, nil).Winter.Cards); got != count {
+			t.Errorf("viewer %q sees %d winter cards, want %d", viewer, got, count)
+		}
+	}
+}
+
+func TestRejectedWinterOrdersOfOthersLoseTheirPrivateTargets(t *testing.T) {
+	report := engine.TurnReport{Winter: &engine.WinterReport{Investments: []engine.WinterInvestmentReport{{
+		Kind: engine.EventTypeRejected, Player: "P1", Outcome: engine.OutcomeFailure, Reason: "card_not_in_hand",
+		Noble: "N1", NobleCode: "ONE", NobleName: "One", Dignity: models.DignityBastard,
+		Order: &models.WinterOrder{Type: models.WinterOrderTypeDignity, CardCode: "BAS"},
+	}}}}
+	own := ProjectReport(report, "P1", nil).Winter.Investments[0]
+	if own.Order == nil || own.NobleCode != "ONE" {
+		t.Fatalf("the author lost her rejection details: %#v", own)
+	}
+	for _, viewer := range []models.PlayerID{"P2", ""} {
+		got := ProjectReport(report, viewer, nil).Winter.Investments
+		if len(got) != 1 || got[0].Reason != "card_not_in_hand" || got[0].Order != nil || got[0].NobleCode != "" || got[0].Dignity != "" {
+			t.Errorf("viewer %q sees %#v, want only the bare rejection", viewer, got)
+		}
+	}
+	if spectator := ProjectReport(report, models.SpectatorViewer, nil).Winter.Investments[0]; spectator.Order == nil {
+		t.Errorf("the spectator must see the whole rejection")
+	}
+}
+
+func TestAssassinationCardEntryNamesVictimAndCommissionerToItsAuthor(t *testing.T) {
+	report := engine.TurnReport{Cards: []engine.CardReport{{
+		EventType: engine.EventTypeDeckOrderPlayed, Kind: models.CardKindAssassination, Player: "P1",
+		Noble: "TWO", NobleName: "Two", Commissioner: "ONE", CommissionerName: "One",
+	}}}
+	cards := ProjectReport(report, "P1", nil).Cards
+	if len(cards) != 1 || cards[0].Noble != "TWO" || cards[0].Commissioner != "ONE" {
+		t.Fatalf("author sees %#v", cards)
+	}
+	if got := ProjectReport(report, "P2", nil).Cards; len(got) != 0 {
+		t.Fatalf("P2 sees %#v", got)
+	}
+}

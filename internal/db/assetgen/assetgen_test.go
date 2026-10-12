@@ -115,6 +115,7 @@ special_orders:
     seigneurial_tax: 2
     tunnel: 1
     ambush: 1
+    assassination: 1
   effects:
     plague_army_divisor: 2
     plague_noble_mortality_percentage: 50

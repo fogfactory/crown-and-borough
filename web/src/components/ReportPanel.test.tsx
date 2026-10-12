@@ -443,6 +443,62 @@ describe('ReportPanel', () => {
     expect(text).not.toMatch(/O\d+/)
   })
 
+  it('reports the victim of a public assassination and the commissioner an inquiry revealed', () => {
+    const { container } = render(
+      <LanguageProvider initialLanguage="en">
+        <ReportPanel
+          report={{
+            ...report,
+            seasonEffects: [
+              { kind: 'assassination', cardKind: 'assassination', noble: 'TWO', nobleName: 'Two', territory: 'AAA' },
+              { kind: 'assassination_revealed', owner: 'P1', noble: 'TWO', nobleName: 'Two', commissioner: 'ONE', commissionerName: 'One' },
+            ],
+          }}
+          map={map}
+          players={players}
+        />
+      </LanguageProvider>,
+    )
+    const text = container.textContent ?? ''
+    expect(text).toContain('Two (TWO) was assassinated')
+    expect(text).toContain('nobody claims the deed')
+    expect(text).toContain('Your inquiry reveals that One (ONE) commissioned the assassination of Two (TWO)')
+  })
+
+  it('names the victim and the commissioner on the assassination card entry of its author', () => {
+    const { container } = render(
+      <LanguageProvider initialLanguage="en">
+        <ReportPanel
+          report={{
+            ...report,
+            cards: [
+              { kind: 'assassination', eventType: 'deck_order_played', player: 'P1', outcome: 'success', noble: 'TWO', nobleName: 'Two', commissioner: 'ONE', commissionerName: 'One' },
+            ],
+          }}
+          map={map}
+          players={players}
+        />
+      </LanguageProvider>,
+    )
+    expect(container.textContent).toContain('played on Two (TWO), commissioned by One (ONE)')
+  })
+
+  it('renders a rejected winter order stripped of its order and noble', () => {
+    const { container } = render(
+      <LanguageProvider initialLanguage="en">
+        <ReportPanel
+          report={{
+            ...report,
+            winter: { investments: [{ kind: 'rejected', player: 'P2', outcome: 'failure', cost: 0, reason: 'card_not_in_hand' }], stocks: [], cards: [], rumors: [] },
+          }}
+          map={map}
+          players={players}
+        />
+      </LanguageProvider>,
+    )
+    expect(container.textContent).toContain('P2')
+  })
+
   it('localizes the mill maximum-level rejection reason', () => {
     const capReport: TurnReport = {
       ...report,

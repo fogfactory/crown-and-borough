@@ -87,6 +87,15 @@ de calamité ne peuvent pas être joués comme ordres de joueur. Lorsqu’un ord
 main du joueur et la place dans la défausse ; l’effet est ensuite enregistré pour
 une résolution simultanée par région.
 
+## Visibilité des ordres dans le rapport
+
+Un ordre refusé d'un joueur apparaît aux autres joueurs comme un simple refus
+motivé : l'ordre, le noble, la dignité et la cible d'une prétention n'y figurent
+pas, car ils trahiraient une carte de sa main privée. Le joueur et le
+spectateur voient le refus complet. La section des cartes ne montre aux autres
+joueurs ni la pose d'un Assassinat ni celle d'un Souterrain ; l'auteur lit, pour
+l'Assassinat, la victime `NNN` et le commanditaire `HHH`.
+
 ## Rumeurs publiques
 
 Les rumeurs publiques sont recalculées dans chaque rapport à partir des mains
@@ -142,7 +151,8 @@ joueur.
 
 Quatre cartes tirées du jeu de plateau *Fief* rejoignent le deck d'ordres
 spéciaux, au même titre que Beau temps ou Impôts. Chacune se joue au
-printemps, en été ou en automne par un ordre `P`, est gratuite, est consommée à
+printemps, en été ou en automne par un ordre `P` (l'Assassinat se joue en toute
+saison, hiver compris, voir ci-dessous), est gratuite, est consommée à
 la pose (donc défaussée même si l'effet s'avère nul) et a son effet appliqué
 avant le ravitaillement et la résolution des ordres d'armée, sauf l'Embuscade
 dont l'effet est appliqué à la résolution du combat visé. Leurs poids de
@@ -199,12 +209,65 @@ Carte `assassination`, code `AS`. `P AS HHH NNN` : `HHH` est le **commanditaire*
 un noble libre du joueur (ni `hostage` ni `dungeon`), et `NNN` un noble d'un
 autre joueur, où qu'il soit et quel que soit son statut. `NNN` meurt sans jet
 de dé : mort normale ([succession.md](succession.md)) avec fiefs, prétentions,
-chaîne émise ce tour supprimée, et couronne si c'est le roi.
+chaîne émise ce tour supprimée, et couronne si c'est le roi. La mort est
+enregistrée avec la cause `assassination`. Les motifs de rejet sont
+`assassination_commissioner_invalid` (`HHH` inconnu, d'un autre joueur ou non
+libre), `assassination_unknown_noble` (`NNN` inconnu ou déjà mort) et
+`assassination_own_noble` (`NNN` appartient au joueur) ; la carte n'est alors
+pas consommée. La carte se joue en **toute saison**. Au printemps, en été et en
+automne, l'ordre `P AS HHH NNN` est écrit dans les ordres spéciaux et la mort
+s'applique à la pose, avant le ravitaillement et les ordres d'armée. En hiver
+il est écrit sur la feuille d'hiver et s'applique à l'étape 9 de
+[hiver.md](hiver.md#ordre-de-résolution), après les verdicts des procès : la
+carte est consommée au début de l'étape 8, avant le remplissage des mains, et
+la mort est appliquée à l'étape 9 (joueurs par identifiant, puis ordre de la
+feuille). Un ordre dont la victime ou le commanditaire a quitté le jeu entre
+temps (exécuté par un procès du même hiver, par exemple) est rejeté à l'étape 9
+et la carte, déjà consommée, est perdue sans effet. Une carte rejetée à l'étape 8 (motifs ci-dessus ou `no_card_for_kind`)
+n'est pas consommée et ne fait pas échouer l'hiver. Les ordres sont vérifiés à la soumission ; une seconde carte
+visant un noble déjà tué ce tour est rejetée à la résolution.
 
-Le commanditaire est enregistré avec l'assassinat. Le rapport public annonce
-la mort de `NNN` sans nommer de coupable ; le **seul** propriétaire de `NNN`
-apprend le nom de `HHH`. Une rumeur publique signale qu'un assassinat a eu
-lieu.
+Le commanditaire et le joueur qui a posé la carte sont enregistrés avec
+l'assassinat, dans l'entrée de lignée du noble tué (`RemovedNoble.Commissioner`,
+l'identifiant de `HHH`, et `RemovedNoble.Author`) ; la carte Justice lit le
+commanditaire. Le rapport public annonce la mort de `NNN` sans nommer de
+coupable (ni le joueur qui a joué la carte), y compris au propriétaire de `NNN`,
+qui apprend la mort mais pas le commanditaire ; seul le joueur qui a posé la
+carte lit le nom de `HHH` dans le rapport. Une
+rumeur publique signale qu'un assassinat a eu lieu.
+
+**Rapport de l'enquêteur.** Lorsqu'une enquête (`Q`) apprend à un joueur le lien
+commanditaire ↔ victime (enquête sur la victime ou le commanditaire, vivant ou
+mort), son rapport — et lui seul, avec la vue spectateur — porte un événement
+`assassination_revealed` : « votre enquête révèle que HHH a commandité
+l'assassinat de NNN ». Il est émis une seule fois par lien et par joueur, y
+compris quand le lien est appris à la pose d'un assassinat par une enquête
+antérieure sur la future victime ou son commanditaire , y compris pour le
+propriétaire de la victime ; le joueur qui a posé la carte, déjà informé par
+l'événement d'assassinat, n'en reçoit pas. Aucune rumeur pour les autres joueurs.
+
+**Qui connaît le lien commanditaire ↔ victime.** Le lien est connu de :
+1. le joueur qui a posé la carte ;
+2. tout joueur ayant mené une [enquête](religieux.md#enquête) (`Q HHH NNN`) sur
+   la victime **ou** sur le commanditaire, que l'enquête ait eu lieu avant ou
+   après l'assassinat.
+
+Modèle : chaque enquête réussie est consignée côté serveur dans un registre
+(`GameState.Inquiries`, un couple joueur / noble par cible, sans doublon) ; la
+connaissance n'est pas stockée par assassinat mais déduite à la lecture
+(`GameState.KnowsAssassination`) de l'auteur de l'entrée de
+lignée et de ce registre. Le propriétaire de la victime n'est pas informé
+d'office : il doit enquêter comme tout autre joueur. Une enquête antérieure sur `HHH` ou `NNN` donne donc
+le lien dès que l'assassinat a lieu, et une enquête postérieure le révèle.
+
+**Dans l'état (`state.json`).** Pour un joueur qui connaît le lien, la
+projection (`internal/api`) renseigne `deceased[].commissioner` (code de `HHH`
+sur la victime) et `commissioned` (codes des victimes) sur le commanditaire,
+vivant (`nobles[]`) ou mort (`deceased[]`). Aucun autre joueur ne voit ces
+champs ; la projection publique (sans joueur) non plus ; un spectateur voit
+tous les liens. Le web affiche le lien sur l'entrée de la victime et sur celle
+du commanditaire dans la vue Lignée, et sur le commanditaire présent dans le
+poste de commandement du territoire.
 
 ### Justice
 
@@ -215,8 +278,8 @@ assassinat, quelle qu'en soit la victime, il est exécuté : mort normale
 (fiefs, prétentions, cartes). Sinon la carte est consommée sans effet. Une
 cible déjà morte est rejetée.
 
-Seul le propriétaire d'une victime connaît le commanditaire : les autres
-joueurs jouent Justice à l'aveugle, sur un soupçon. Le rapport public nomme
+Seuls les joueurs qui connaissent le lien (voir « Assassinat ») savent qui est
+un commanditaire : les autres jouent Justice à l'aveugle, sur un soupçon. Le rapport public nomme
 le noble exécuté comme « justice rendue pour un assassinat » ; un échec n'est
 visible que du joueur qui a joué la carte (« aucun effet »), sans rumeur
 publique.
