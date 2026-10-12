@@ -903,6 +903,25 @@ couronne à un noble de n'importe quel joueur. L'accord d'un `W X`, `W R` ou
 `W F` n'a d'effet que si l'ordre qu'il autorise figure sur une feuille du même
 hiver ; sinon il est consommé sans effet, avec un rapport explicite.
 
+**Reine et régente.** La reine est la conjointe du roi en place ; elle
+appartient à un autre joueur que lui et n'a aucun pouvoir d'ordre : son seul
+effet est sa rente. Veuve, elle garde son titre (reine douairière). Elle cesse
+d'être reine à sa mort, quand elle se remarie (sauf avec le roi en place),
+quand le pape dissout son mariage, ou quand un roi marié monte sur le trône :
+sa conjointe devient alors la reine. La régente est la reine qui exerce les
+pouvoirs royaux (ordres `W` et taxe royale) à la place du roi :
+
+- tant que le roi est au donjon et qu'elle est libre ou otage ; elle les rend
+  dès qu'il est libéré ;
+- quand le roi meurt sans héritier éligible, jusqu'au couronnement d'un nouveau
+  roi ; elle les perd si elle meurt, est mise au donjon ou se remarie. Le trône
+  reste vacant, et une femme ne peut pas être élue.
+
+La régente ne cumule pas la couronne. Pendant la captivité du roi, sa
+rente reste versée à son joueur et la régente touche celle de la reine ; à la
+mort du roi, la régente perçoit la rente du roi en plus de celle de la reine,
+jusqu'au couronnement.
+
 Le titulaire d'un fief est désigné par sa forme d'adresse — Baron/Baronne
 (baronnie), Comte/Comtesse (comté), Marquis/Marquise (marquisat),
 Duc/Duchesse (duché) — suivie de son prénom et de la capitale du fief ; un
@@ -1154,7 +1173,8 @@ ne se résout en hiver.
   le suivant ;
 - la **rente royale** est versée à chaque tour d'action sans carte : **1 R par
   fief constitué** sur la carte, vacants compris, créé et livré à la capitale du
-  joueur du roi (un roi capturé la garde ; un trône vacant n'en verse pas). La
+  joueur du roi (un roi capturé la garde ; un trône vacant la verse à la
+  régente, sinon elle n'est pas versée). La
   reine, douairière comprise, reçoit la moitié, arrondie au supérieur, à la
   capitale de son joueur. Le rapport de tour les indique séparément ;
 - la **dîme** est la carte Impôts jouée par un ecclésiastique (`P DI HHH XXX`,

@@ -149,7 +149,9 @@ le roi gagne **1 R par fief constitué** sur la carte, quel que soit son
 propriétaire, vacants et fiefs du roi compris. La rente est créée, jamais
 prélevée sur les fiefs, et livrée à la capitale du joueur du roi. Elle ne
 dépend pas de l'état du roi : un roi capturé continue de la percevoir pour son
-joueur. Le trône vacant ne perçoit aucune rente.
+joueur. Quand le trône est vacant, la rente du roi est versée à la
+[régente](#reine-et-régente), en plus de celle de la reine ; sans régente (reine
+morte, au cachot ou remariée), elle n'est pas versée.
 
 La reine gagne en plus la **moitié de la rente, arrondie au supérieur**, livrée
 à la capitale du joueur de la reine. Sa rente ne diminue pas celle du roi. Elle
@@ -245,9 +247,9 @@ nom, dans deux cas :
 
 Les ordres royaux (`W …`) et la taxe royale sont émis par le noble de la
 régente. Elle ne cumule pas la couronne. Pendant la captivité du roi, la rente du roi
-et la moitié de la reine continuent d'être versées ; pendant la vacance, il n'y
-a plus de rente du roi, mais la régente, qui est reine douairière, continue de
-percevoir celle de la reine.
+et la moitié de la reine continuent d'être versées ; pendant la vacance, la
+régente, qui est reine douairière, perçoit la rente du roi en plus de celle de
+la reine.
 
 ## Héritage d'un fief sans héritier
 
