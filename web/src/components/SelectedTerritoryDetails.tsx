@@ -121,7 +121,8 @@ export function SelectedTerritoryDetails({
     cardinals: state.cardinals,
     pope: state.pope,
     king: state.king,
-    marriages: state.marriages,
+    queen: state.queen,
+    queenDowager: state.queenDowager,
   })
   const excommunicatedCodes = new Set((state.excommunicated ?? []).map((entry) => entry.noble))
   const presentNobles = state.nobles.filter(

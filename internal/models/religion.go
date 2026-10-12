@@ -248,6 +248,9 @@ func (g *GameState) DropReligiousTitlesOfMissingNobles() {
 	if g.King != nil && !living[*g.King] {
 		g.King = nil
 	}
+	if g.Queen != nil && !living[*g.Queen] {
+		g.Queen = nil
+	}
 	g.Excommunications = slices.DeleteFunc(g.Excommunications, func(e Excommunication) bool {
 		return !living[e.Noble] || (e.Reason == ExcommunicationPapal && !living[e.By])
 	})
@@ -307,6 +310,9 @@ func (g *GameState) validateReligion(nobles map[NobleID]bool) error {
 	}
 	if g.King != nil && !nobles[*g.King] {
 		return fmt.Errorf("models: king %q: unknown noble", *g.King)
+	}
+	if g.Queen != nil && !nobles[*g.Queen] {
+		return fmt.Errorf("models: queen %q: unknown noble", *g.Queen)
 	}
 	if g.King != nil && g.IsPope(*g.King) {
 		return fmt.Errorf("models: noble %q: cannot be both king and pope", *g.King)

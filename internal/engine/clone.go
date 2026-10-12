@@ -87,6 +87,10 @@ func cloneGameState(source *models.GameState) *models.GameState {
 		king := *source.King
 		clone.King = &king
 	}
+	if source.Queen != nil {
+		queen := *source.Queen
+		clone.Queen = &queen
+	}
 	if source.Excommunications != nil {
 		clone.Excommunications = cloneSlice(source.Excommunications)
 	}

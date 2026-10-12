@@ -45,6 +45,11 @@ type StateView struct {
 	// King is the noble who holds the crown, absent while the throne is
 	// vacant; it is public (specs/politique.md § Roi).
 	King *models.NobleCode `json:"king,omitempty"`
+	// Queen is the noble who holds the queen's title, a dowager queen included
+	// (the widow of a king while no married king is in place); QueenDowager
+	// tells she is not the spouse of the king in place.
+	Queen        *models.NobleCode `json:"queen,omitempty"`
+	QueenDowager bool              `json:"queenDowager,omitempty"`
 	// HandLimit is special_orders.hand_limit: the cap on the cards a player
 	// holds, special-orders hand and noble hand together.
 	HandLimit        int               `json:"handLimit"`
@@ -557,6 +562,11 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 	if state.King != nil {
 		code := nobleCodesByID[*state.King]
 		view.King = &code
+	}
+	if state.Queen != nil {
+		code := nobleCodesByID[*state.Queen]
+		view.Queen = &code
+		view.QueenDowager = state.IsDowagerQueen(*state.Queen)
 	}
 	for i, noble := range view.Nobles {
 		view.Nobles[i].ReligiousTitle = state.ReligiousTitleOf(noble.ID)

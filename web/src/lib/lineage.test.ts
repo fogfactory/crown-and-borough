@@ -10,7 +10,6 @@ import {
   GAP_X,
   layoutColumns,
   PITCH,
-  queenOf,
 } from '@/lib/lineage'
 import type { Noble, Player } from '@/types'
 
@@ -82,19 +81,18 @@ describe('lineage', () => {
     ])
   })
 
-  it('lists the king and the queen, the spouse of the king in an active marriage', () => {
-    const marriages = [
-      { nobleA: 'MAR', nobleB: 'EVE', turn: 1, active: false },
-      { nobleA: 'ANN', nobleB: 'MAR', turn: 2, active: true },
-    ]
-    const houses = buildHouses(players, nobles, [], [], [], { king: 'MAR', marriages })
-    const titles = (house: number, code: string) =>
-      houses[house].members.find((entry) => entry.code === code)?.religious
-    expect(titles(2, 'MAR')).toEqual([{ title: 'king' }])
-    expect(titles(1, 'ANN')).toEqual([{ title: 'queen' }])
-    expect(titles(1, 'EVE')).toEqual([])
-    expect(queenOf('MAR', [marriages[0]])).toBeUndefined()
-    expect(queenOf(undefined, marriages)).toBeUndefined()
+  it('lists the king, the queen and the dowager queen', () => {
+    const titles = (house: number, code: string, religion: Parameters<typeof buildHouses>[5]) =>
+      buildHouses(players, nobles, [], [], [], religion)[house].members.find(
+        (entry) => entry.code === code,
+      )?.religious
+    expect(titles(2, 'MAR', { king: 'MAR', queen: 'ANN' })).toEqual([{ title: 'king' }])
+    expect(titles(1, 'ANN', { king: 'MAR', queen: 'ANN' })).toEqual([{ title: 'queen' }])
+    expect(titles(1, 'EVE', { king: 'MAR', queen: 'ANN' })).toEqual([])
+    // The widow of a dead king keeps the title, as a dowager.
+    expect(titles(1, 'ANN', { queen: 'ANN', queenDowager: true })).toEqual([
+      { title: 'dowager_queen' },
+    ])
   })
 
   it('keeps ended claims on the heir, a live one taking precedence', () => {

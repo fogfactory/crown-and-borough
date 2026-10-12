@@ -16,7 +16,7 @@ import type {
 
 /** A religious or royal title a noble holds; `seat` names the bishopric of a bishop. */
 export interface HeldReligiousTitle {
-  title: ReligiousTitle | 'king' | 'queen'
+  title: ReligiousTitle | 'king' | 'queen' | 'dowager_queen'
   seat?: string
 }
 
@@ -27,20 +27,10 @@ export interface Religion {
   pope?: string
   /** Code of the noble who holds the crown. */
   king?: string
-  /** Read with `king` to find the queen: the spouse of the king. */
-  marriages?: Marriage[]
+  /** Code of the queen; a dowager queen is not the spouse of the king in place. */
+  queen?: string
+  queenDowager?: boolean
   excommunicated?: Excommunication[]
-}
-
-/** The queen is the spouse of the king in their active marriage. */
-export function queenOf(king: string | undefined, marriages: Marriage[] = []): string | undefined {
-  if (!king) return undefined
-  const marriage = marriages.find(
-    (candidate) =>
-      candidate.active !== false && (candidate.nobleA === king || candidate.nobleB === king),
-  )
-  if (!marriage) return undefined
-  return marriage.nobleA === king ? marriage.nobleB : marriage.nobleA
 }
 
 export interface HeldFief {
@@ -128,7 +118,7 @@ export function religiousTitlesByHolder(religion: Religion): Map<string, HeldRel
     byHolder.set(code, [...(byHolder.get(code) ?? []), held])
   }
   add(religion.king, { title: 'king' })
-  add(queenOf(religion.king, religion.marriages), { title: 'queen' })
+  add(religion.queen, { title: religion.queenDowager ? 'dowager_queen' : 'queen' })
   add(religion.pope, { title: 'pope' })
   for (const code of religion.cardinals ?? []) add(code, { title: 'cardinal' })
   for (const bishopric of religion.bishoprics ?? [])

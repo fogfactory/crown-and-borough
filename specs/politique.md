@@ -99,14 +99,16 @@ dans le classement habituel des Claims (ancienneté, famille de l'épouse
 d'abord, puis ordre de jeu, les Claims sur le roi et sur sa reine étant
 classés ensemble) qui peut être roi (homme, non bâtard, pas pape) ; un héritier
 qui ne le peut pas est sauté pour la couronne mais conserve son droit sur les
-fiefs. La reine est la conjointe du roi à sa mort (mariage non dissous). Le
-couronnement est un événement public d'investiture, et la prétention de
-l'héritier couronné est honorée : elle s'éteint. L'héritier couronné est roi sans élection ni onction, et sans condition
-de rang de succession. Une prétention sur la reine est donc aussi une
-prétention sur le trône : elle profite à la maison de l'héritier, y compris
-celle de la reine. La mort de la reine seule ne transmet que ses éventuels
-fiefs. Sans héritier éligible, la couronne reste vacante (reine régente,
-élection).
+fiefs. La reine est la conjointe du roi à sa mort (mariage non dissous) : un
+Claim sur une reine douairière ne vise pas la couronne d'un nouveau roi.
+
+L'héritier couronné est roi sans élection ni onction, et sans condition de rang
+de succession. Le couronnement est un événement public d'investiture, et la
+prétention de l'héritier couronné est honorée : elle s'éteint. Une prétention
+sur la reine est donc aussi une prétention sur le trône : elle profite à la
+maison de l'héritier, y compris celle de la reine. La mort de la reine seule
+ne transmet que ses éventuels fiefs. Sans héritier éligible, la couronne reste
+vacante (reine régente, élection).
 
 ## Pouvoirs royaux
 
@@ -137,10 +139,11 @@ le roi gagne **1 R par fief constitué** sur la carte, quel que soit son
 propriétaire, vacants et fiefs du roi compris. La rente est créée, jamais
 prélevée sur les fiefs, et livrée à la capitale du joueur du roi. Elle ne
 dépend pas de l'état du roi : un roi capturé continue de la percevoir pour son
-joueur. Aucune rente en l'absence de roi, pour le trône comme pour la reine.
+joueur. Le trône vacant ne perçoit aucune rente.
 
 La reine gagne en plus la **moitié de la rente, arrondie au supérieur**, livrée
-à la capitale du joueur de la reine. Sa rente ne diminue pas celle du roi. Le
+à la capitale du joueur de la reine. Sa rente ne diminue pas celle du roi. Elle
+la perçoit tant qu'elle est reine, douairière et trône vacant compris. Le
 rapport de fin de tour la mentionne séparément.
 
 ### Seigneurie et annexion
@@ -203,8 +206,18 @@ L'ordre `T F` reste soumis à toutes ses autres conditions.
 [titres.md](titres.md#titres-de-courtoisie) devient mécanique pour elle seule.
 Elle appartient à un autre joueur que le roi (un mariage lie toujours deux
 joueurs distincts). Elle n'a **aucun pouvoir d'ordre** ; son seul effet est sa
-[rente](#rente). Elle cesse d'être reine quand le mariage prend fin (mort du roi ou
-dissolution). Le roi se marie selon les règles
+[rente](#rente). Veuve, elle **garde son titre** : elle est dite **reine
+douairière** tant qu'elle n'est pas la conjointe du roi en place (trône vacant,
+ou roi non marié avec elle). Elle cesse d'être reine quand :
+
+- elle meurt ;
+- elle se remarie (sauf avec le roi en place, dont elle devient alors la
+  reine) ;
+- un roi marié est en place : sa conjointe est la reine, élu comme héritier de
+  Claim, dès son couronnement s'il est déjà marié, sinon à son mariage ;
+- le mariage prend fin de son vivant, par dissolution du pape.
+
+Le roi se marie selon les règles
 ordinaires de [succession.md](succession.md#conclusion-dun-mariage) ; il n'est
 pas tenu d'être célibataire.
 
@@ -223,7 +236,8 @@ nom, dans deux cas :
 Les ordres royaux (`W …`) et la taxe royale sont émis par le noble de la
 régente. Elle ne cumule pas la couronne. Pendant la captivité du roi, la rente du roi
 et la moitié de la reine continuent d'être versées ; pendant la vacance, il n'y
-a plus de rente, ni pour le roi ni pour la régente.
+a plus de rente du roi, mais la régente, qui est reine douairière, continue de
+percevoir celle de la reine.
 
 ## Héritage d'un fief sans héritier
 

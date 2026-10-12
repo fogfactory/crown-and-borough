@@ -71,6 +71,10 @@ type GameState struct {
 	// King is the noble who holds the crown, nil while the throne is vacant
 	// (specs/politique.md § Roi).
 	King *NobleID `json:"king,omitempty"`
+	// Queen is the noble who holds the queen's title: the spouse of the king,
+	// or the widow of a dead king while no married king is in place (dowager
+	// queen), see RefreshQueen (specs/politique.md § Reine et régente).
+	Queen *NobleID `json:"queen,omitempty"`
 }
 
 // NewGameState returns a fresh empty state at turn 1, spring of year 1, with

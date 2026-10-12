@@ -8,10 +8,12 @@ import "github.com/fogfactory/crown-and-borough/internal/models"
 // on the royal couple, religious titles of the dead end, and the claims left
 // without a living heir or target are settled.
 func (ctx *resolutionContext) settleAfterDeaths() {
+	ctx.state.RefreshQueen()
 	ctx.vacateFiefsOfMissingHolders()
 	ctx.passCrownOfDeadKing()
 	ctx.state.DropReligiousTitlesOfMissingNobles()
 	ctx.settleClaimsOfDead()
+	ctx.state.RefreshQueen()
 }
 
 // passCrownOfDeadKing crowns the heir of a claim on the dead king or his queen

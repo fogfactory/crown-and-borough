@@ -78,6 +78,8 @@ interface LineageDialogProps {
   cardinals?: string[]
   pope?: string
   king?: string
+  queen?: string
+  queenDowager?: boolean
   excommunicated?: Excommunication[]
   marriages?: Marriage[]
   claims?: Claim[]
@@ -229,10 +231,11 @@ export function LineageDialog(props: LineageDialogProps) {
         cardinals: data.cardinals,
         pope: data.pope,
         king: data.king,
-        marriages,
+        queen: data.queen,
+        queenDowager: data.queenDowager,
         excommunicated: data.excommunicated,
       }),
-    [props.players, nobles, deceased, fiefs, claimList, data.bishoprics, data.cardinals, data.pope, data.king, marriages, data.excommunicated, showEnded],
+    [props.players, nobles, deceased, fiefs, claimList, data.bishoprics, data.cardinals, data.pope, data.king, data.queen, data.queenDowager, data.excommunicated, showEnded],
   )
   const houses = useMemo(
     () => allHouses.filter((house) => !hidden.has(house.player.id)),

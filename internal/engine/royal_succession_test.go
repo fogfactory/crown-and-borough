@@ -178,3 +178,18 @@ func TestServedClaimsAreKeptAsHonouredAndTheOthersAsLapsed(t *testing.T) {
 	}
 	validateTestState(t, ctx.state)
 }
+
+func TestWidowOfAKingDiedByPlagueStaysQueen(t *testing.T) {
+	state := kingDeathState(t)
+	addNoble(state, "N4", "QUE", "P1", "BBB")
+	setSex(state, "N4", models.SexFemale)
+	state.Marriages = []models.Marriage{{NobleA: "N2", NobleB: "N4"}}
+	// No heir: the throne stays vacant, the widow keeps the queen's title.
+	state.Claims = nil
+	ctx := resolveClaimDeath(state)
+	requireKing(t, ctx.state, "")
+	if !ctx.state.IsQueen("N4") || !ctx.state.IsDowagerQueen("N4") {
+		t.Fatalf("queen = %v, want N4 as a dowager queen", ctx.state.Queen)
+	}
+	validateTestState(t, ctx.state)
+}

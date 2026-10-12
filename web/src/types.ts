@@ -507,6 +507,10 @@ export interface StateData {
   pope?: string
   /** Code of the noble who holds the crown; absent while the throne is vacant. */
   king?: string
+  /** Code of the queen, a dowager queen included. */
+  queen?: string
+  /** The queen is not the spouse of the king in place (widow of a former king). */
+  queenDowager?: boolean
   excommunicated?: Excommunication[]
   specialHand?: CardKind[]
   /** Winter only: next calamities of the draw pile, revealed by a free astrologue. */

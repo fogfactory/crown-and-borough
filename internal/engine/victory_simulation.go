@@ -98,6 +98,7 @@ func applySimulationAction(state *models.GameState, action SimulationAction) err
 	switch action.Kind {
 	case SimulationKill:
 		simulateDeath(state, *noble)
+		state.RefreshQueen()
 		return nil
 	case SimulationMarry, SimulationDivorce, SimulationClaim:
 	default:
@@ -129,6 +130,7 @@ func applySimulationAction(state *models.GameState, action SimulationAction) err
 	case SimulationClaim:
 		return simulateClaim(state, *noble, *other)
 	}
+	state.RefreshQueen()
 	return nil
 }
 

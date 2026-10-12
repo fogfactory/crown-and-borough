@@ -386,6 +386,8 @@ func forgeCrown(state *models.GameState) error {
 		})
 	}
 	state.Marriages = []models.Marriage{{NobleA: king, NobleB: "N930", Turn: 1}}
+	queen := models.NobleID("N930")
+	state.Queen = &queen
 	state.Claims = []models.Claim{
 		{Heir: "N931", Target: king, Spouse: "N930", Turn: 1},
 		{Heir: "N932", Target: "N930", Spouse: king, Turn: 2},
