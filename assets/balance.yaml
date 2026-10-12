@@ -75,6 +75,8 @@ alliance:
     county: 2
     marquisate: 3
     duchy: 4
+  # Weight of the crown; it stands in for the fief title when higher.
+  crown_rank: 5
   density_bonus: 1
 
 # Religious titles (religieux.md). cardinal_cost is the R paid for the winter

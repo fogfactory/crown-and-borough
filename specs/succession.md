@@ -252,7 +252,8 @@ poids(couple)  = min(poids(épouxA), poids(épouxB)) + bonus_densité
 
 rang_succession : tête de ligne = 3, second = 2, troisième et suivants = 1
 rang_titre      : sans titre = 0, baron = 1, comte = 2, marquis = 3, duc = 4,
-                  roi/pape = 5 (à ajouter avec la couronne)
+                  roi = 5 (la couronne remplace le rang du fief quand il est
+                  plus haut ; elle ne s'y ajoute pas)
 bonus_densité   : +1 par mariage supplémentaire déjà existant entre les deux
                   mêmes maisons, non plafonné
 ```
