@@ -176,6 +176,9 @@ func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (mod
 	if fields[0] == "T" {
 		return parseFiefOrderLine(fields, lineNumber, indexes)
 	}
+	if fields[0] == "W" {
+		return parseRoyalOrderLine(fields, lineNumber, indexes)
+	}
 	if fields[0] == "H" {
 		return parseTransferNobleLine(fields, lineNumber, indexes)
 	}
@@ -370,6 +373,61 @@ func parseFiefOrderLine(fields []string, lineNumber int, indexes gameIndexes) (m
 		error := parseMessage(lineNumber, ParseCodeUnknownSymbol, i18n.WinterFiefShape)
 		return models.WinterOrder{}, &error
 	}
+}
+
+// parseRoyalOrderLine handles the W subtypes, the royal orders of the king or
+// the regent: X (W X KKK XXX YYY, annexation accord), R (W R KKK XXX, rank
+// accord), F (W F KKK XXX, free fief) and G (W G KKK XXX NNN, crown fief
+// grant). KKK is the issuer, XXX the capital of the fief concerned. It only
+// checks syntax: whether KKK reigns is an engine reject (see
+// winter_royal_orders.go).
+func parseRoyalOrderLine(fields []string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
+	var orderType models.WinterOrderType
+	var shape string
+	var length int
+	switch fields[1] {
+	case "X":
+		orderType, shape, length = models.WinterOrderTypeRoyalAnnex, i18n.WinterRoyalAnnexShape, 5
+	case "R":
+		orderType, shape, length = models.WinterOrderTypeRoyalRank, i18n.WinterRoyalRankShape, 4
+	case "F":
+		orderType, shape, length = models.WinterOrderTypeRoyalFound, i18n.WinterRoyalFoundShape, 4
+	case "G":
+		orderType, shape, length = models.WinterOrderTypeRoyalGrant, i18n.WinterRoyalGrantShape, 5
+	default:
+		error := parseMessage(lineNumber, ParseCodeUnknownSymbol, i18n.WinterRoyalShape)
+		return models.WinterOrder{}, &error
+	}
+	if len(fields) != length {
+		code := ParseCodeTooManyTargets
+		if len(fields) < length {
+			code = ParseCodeMissingTarget
+		}
+		error := parseMessage(lineNumber, code, shape)
+		return models.WinterOrder{}, &error
+	}
+	if parseError := winterNobleCode(fields[2], lineNumber, indexes); parseError != nil {
+		return models.WinterOrder{}, parseError
+	}
+	capitalID, parseError := winterTerritoryID(fields[3], lineNumber, indexes)
+	if parseError != nil {
+		return models.WinterOrder{}, parseError
+	}
+	order := models.WinterOrder{Type: orderType, NobleCode: models.NobleCode(fields[2]), TerritoryID: capitalID}
+	switch orderType {
+	case models.WinterOrderTypeRoyalAnnex:
+		annexedID, parseError := winterTerritoryID(fields[4], lineNumber, indexes)
+		if parseError != nil {
+			return models.WinterOrder{}, parseError
+		}
+		order.TargetID = annexedID
+	case models.WinterOrderTypeRoyalGrant:
+		if parseError := winterNobleCode(fields[4], lineNumber, indexes); parseError != nil {
+			return models.WinterOrder{}, parseError
+		}
+		order.TargetCode = models.NobleCode(fields[4])
+	}
+	return order, nil
 }
 
 func winterTerritoryID(code string, lineNumber int, indexes gameIndexes) (models.TerritoryID, *ParseError) {

@@ -50,6 +50,10 @@ var demoScenarios = map[string]struct {
 		description: "winter (see the winter scenario), plus a barony of P1 held by its first noble, with three free territories next to it each held by a one-troop P1 army: try T X (annex) and T R (raise by one rank)",
 		apply:       forgeAnnexation,
 	},
+	"royal": {
+		description: "winter, annexation scenario plus a king (ZRK, P1), a barony of P2 held by ZRB, and a vacant crown fief of P3, who has no noble left: try W X, W R, W F, W G as P1 with the matching T X / T R / T F / T A from P1 and P2",
+		apply:       forgeRoyal,
+	},
 	"appeasement": {
 		description: "spring, P1 has a bishop, a cardinal and an abbess; rebel armies of 1 to 3 troops stand in their regions and elsewhere; P1 has plenty of R",
 		apply:       forgeAppeasement,
@@ -418,6 +422,89 @@ func forgeCrown(state *models.GameState) error {
 		Territories: group, OwnerID: "P2", HolderNobleID: &king,
 	})
 	fmt.Println("demo crown: the king is P2's excommunicated noble; try a J trial on him from P1's pope and P2's cardinal")
+	return nil
+}
+
+// forgeRoyal makes a free noble of P1 (ZRK) the king, on top of the annexation
+// scenario (P1 barony F1 with annexable territories), and adds a barony of P2
+// held by ZRB and a crown fief: vacant, attached to P3 who has no noble left.
+func forgeRoyal(state *models.GameState) error {
+	if err := forgeAnnexation(state); err != nil {
+		return err
+	}
+	location := state.Nobles[ownedNobles(state, "P1")[0]].LocationID
+	for _, noble := range []struct {
+		id, code, name, owner string
+	}{{"N940", "ZRK", "Robert", "P1"}, {"N941", "ZRB", "Bertrand", "P2"}} {
+		state.Nobles = append(state.Nobles, models.Noble{
+			ID: models.NobleID(noble.id), Code: noble.code, Name: noble.name, Sex: models.SexMale,
+			OwnerID: models.PlayerID(noble.owner), LocationID: location, Status: models.NobleStatusFree,
+		})
+	}
+	king := models.NobleID("N940")
+	state.King = &king
+	inFief := make(map[models.TerritoryID]bool)
+	for _, fief := range state.Fiefs {
+		for _, id := range fief.Territories {
+			inFief[id] = true
+		}
+	}
+	group := func(player models.PlayerID) ([]models.TerritoryID, error) {
+		var members []models.TerritoryID
+		for _, territory := range state.Territories {
+			owner, controlled := state.TerritoryController(territory.ID)
+			if controlled && owner == player && !inFief[territory.ID] && len(members) < models.FiefMinTerritories {
+				members = append(members, territory.ID)
+			}
+		}
+		if len(members) < models.FiefMinTerritories {
+			return nil, fmt.Errorf("%s controls fewer than %d free territories", player, models.FiefMinTerritories)
+		}
+		for _, id := range members {
+			inFief[id] = true
+		}
+		return members, nil
+	}
+	p2Members, err := group("P2")
+	if err != nil {
+		return err
+	}
+	holder := models.NobleID("N941")
+	state.Fiefs = append(state.Fiefs, models.Fief{
+		ID: "FZKROYAL2", Title: models.FiefTitleBarony, CapitalTerritoryID: p2Members[0],
+		Territories: p2Members, OwnerID: "P2", HolderNobleID: &holder,
+	})
+	// The crown fief gathers free territories next to nothing in particular:
+	// three one-troop armies of P3 take them, and P3 has no noble left.
+	remaining := state.Nobles[:0]
+	for _, noble := range state.Nobles {
+		if noble.OwnerID != "P3" {
+			remaining = append(remaining, noble)
+		}
+	}
+	state.Nobles = remaining
+	var crownMembers []models.TerritoryID
+	for _, territory := range state.Territories {
+		if _, controlled := state.TerritoryController(territory.ID); controlled || inFief[territory.ID] ||
+			state.TerritoryStates[territory.ID].Army != nil || len(crownMembers) == models.FiefMinTerritories {
+			continue
+		}
+		armyID := models.ArmyID(fmt.Sprintf("ZC%d", len(crownMembers)+1))
+		state.Armies = append(state.Armies, models.Army{ID: armyID, OwnerID: "P3", TerritoryID: territory.ID, Size: 1})
+		territoryState := state.TerritoryStates[territory.ID]
+		territoryState.Army = &armyID
+		state.TerritoryStates[territory.ID] = territoryState
+		crownMembers = append(crownMembers, territory.ID)
+	}
+	if len(crownMembers) < models.FiefMinTerritories {
+		return fmt.Errorf("not enough free territories for the crown fief")
+	}
+	state.NextArmyID += len(crownMembers)
+	state.Fiefs = append(state.Fiefs, models.Fief{
+		ID: "FZKCROWN", Title: models.FiefTitleBarony, CapitalTerritoryID: crownMembers[0],
+		Territories: crownMembers, OwnerID: "P3",
+	})
+	fmt.Printf("demo royal: king ZRK (P1); P2 barony %v (ZRB); crown fief %v\n", p2Members, crownMembers)
 	return nil
 }
 

@@ -61,6 +61,8 @@ export type EventType =
   | 'fief_assigned'
   | 'fief_annexed'
   | 'fief_rank_changed'
+  | 'royal_accord'
+  | 'fief_granted'
   | 'fief_conquered'
   | 'fief_vacated'
   | 'fief_dissolved'
@@ -253,6 +255,8 @@ export interface WinterAids {
   rankCostPerTerritory?: number
   /** The viewer's Witches able to perform a ritual, with the region it would hit. */
   rituals: Array<{ noble: string; region: string }>
+  /** Present when the viewer holds the royal powers (king's player, or regent's). */
+  royal?: { issuer: string; ordersPerWinter: number }
 }
 
 /** An election the winter announces, read for the viewing player. */
@@ -924,7 +928,7 @@ export interface WinterInvestmentReport {
   noble?: string
   nobleCode?: string
   nobleName?: string
-  /** Present only for the fief winter events (`fief_founded`, `fief_assigned`, `fief_annexed`, `fief_rank_changed`, `fief_auto_assigned`). */
+  /** Present only for the fief winter events (`fief_founded`, `fief_assigned`, `fief_annexed`, `fief_rank_changed`, `fief_auto_assigned`, `fief_granted`). */
   title?: FiefTitle
   territories?: string[]
   reason?: string
@@ -949,6 +953,10 @@ export type WinterOrderType =
   | 'assign_fief'
   | 'annex_territory'
   | 'change_rank'
+  | 'royal_annex'
+  | 'royal_rank'
+  | 'royal_found'
+  | 'royal_grant'
   | 'marriage'
   | 'draw_noble'
   | 'play_dignity'

@@ -122,6 +122,12 @@ religion:
     pope: 3
     abbess: 1
 
+# Royal powers (politique.md § Pouvoirs royaux). Maximum number of royal winter
+# orders of each type (W X, W R, W F, W G) a king or regent issues per winter.
+# To calibrate.
+royal:
+  orders_per_winter: 1
+
 # P1.7 game setup values.
 # Living nobles (free, hostage or in a dungeon) a player may own at once.
 # noble_limit is the base; game effects may raise it, never above

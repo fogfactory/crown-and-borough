@@ -62,10 +62,15 @@ func ResolveWinterWithDeckOrders(
 	ctx.openWinterElections()
 	// Stage 1: papal sanctions, before every other order.
 	ctx.resolvePapalSanctions(orders)
+	// Stage 2a: royal orders, before the management orders that read them.
+	ctx.resolveRoyalOrders(orders, firstNameRNG)
 	// Stage 2: management orders, players by identifier then sheet order.
 	// Candidacies and votes are only recorded here, they resolve in stage 6.
 	for _, playerID := range sortedPlayerIDs(state.Players) {
 		for _, order := range orders[playerID] {
+			if order.Type.IsRoyal() {
+				continue
+			}
 			executeWinterOrder(ctx, playerID, order, firstNameRNG)
 		}
 	}

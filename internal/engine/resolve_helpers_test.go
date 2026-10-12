@@ -49,6 +49,7 @@ func testBalance() assetgen.Balance {
 		StartingTroops:    1,
 		StartingResources: 10,
 		SpecialOrders:     assetgen.SpecialOrdersBalance{HandLimit: 4, DrawOrdersLimit: 2},
+		Royal:             assetgen.RoyalBalance{OrdersPerWinter: 1},
 		Religion: assetgen.ReligionBalance{
 			CardinalCost: 8, CardinalPurchaseBase: 1, CardinalPurchasePlayersPerExtra: 6, CardinalCardBase: 1, CardinalCardPlayersPerExtra: 3, ExcommunicationsPerWinter: 1, ExcommunicationsPerTargetPlayer: 1, AppeasementSuccessRolls: 3, AppeasementDeathRolls: 1, AppeasementCostBase: 2,
 			InquiryCost: assetgen.InquiryCost{Untitled: 1, Baron: 2, Count: 3, Marquis: 4, Duke: 5, King: 5, Pope: 5, Bishop: 3, Cardinal: 4},

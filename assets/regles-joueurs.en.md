@@ -677,6 +677,10 @@ per line, applied in the entered order.
 | Assign a vacant fief | `T A NNN XXX` | `NNN` is a player noble, even a hostage or prisoner; `XXX` is the capital of a vacant fief the player holds | 0 |
 | Annex a territory | `T X NNN XXX YYY` | `NNN` is the titulaire of the fief whose capital is `XXX`; `YYY` borders the fief across a crossable border, holds one of your armies with no enemy or revolt army, and is the capital of no fief; if it already belongs to a fief, the king's accord is needed and the ceding fief keeps at least 3 territories | {{costs.annex_per_territory}} |
 | Raise a fief by one rank | `T R NNN XXX` | `NNN` is the titulaire of the fief whose capital is `XXX`; the fief is not a duchy and has not already risen this winter; the title reached follows the line of succession | {{costs.rank_per_territory}} per territory of the fief, free with the king's accord |
+| Grant an annexation (king or regent) | `W X KKK XXX YYY` | `KKK` is the player's king, or the regent; `XXX` is the capital of the fief annexing `YYY`; a `T X` of that fief on `YYY` is on its player's sheet the same winter, otherwise the order is consumed without effect (`royal_accord_unused`) | 0 |
+| Grant a rank (king or regent) | `W R KKK XXX` | `KKK` as above; a `T R` of the titulaire of the fief whose capital is `XXX` is on their sheet the same winter, otherwise the order is consumed without effect. That `T R` is then free, whatever the fief's size | 0 |
+| Pay for the founding of a fief (king or regent) | `W F KKK XXX` | `KKK` as above; a `T F` with capital `XXX` is on a sheet the same winter, otherwise the order is consumed without effect. That `T F` costs its player nothing | 0 |
+| Grant a crown fief (king or regent) | `W G KKK XXX NNN` | `KKK` as above; `XXX` is the capital of a vacant fief whose player has no living noble left; `NNN` is a noble of any player whom the line of succession allows to receive the title. The fief passes to the player of `NNN` | 0 |
 | Marry two nobles | `M N NNN MMM` | `NNN` is a free player noble, `MMM` a free noble of another player, of the opposite sex, both unmarried; the other player must submit `M N MMM NNN` the same winter, otherwise the marriage is refused | 0 |
 
 **Winter resolution order.** Orders are not all applied in the order of your
@@ -686,8 +690,9 @@ steps, never of later ones.
 1. Snapshot: the game state and the open elections are frozen (a seat vacated
    this winter is only elected next winter).
 2. Papal sanctions: excommunications (`X E`) and lifts (`X L`).
-3. Management orders: the investments in the table below, the cardinal purchase
-   (`N C`) and the cardinal card (`D N NNN CAR`).
+3. Royal orders (`W X`, `W R`, `W F`, `W G`), then management orders: the
+   investments in the table below, the cardinal purchase (`N C`) and the
+   cardinal card (`D N NNN CAR`).
 4. Cardinals: inquiries (`Q`) and trial filings (`J`).
 5. Marriage dissolutions (`X D`).
 6. Marriages (`M N`).
@@ -837,6 +842,18 @@ county, marquisate, duchy), whatever the fief's size, once per winter and per
 fief. The title reached follows the line of succession, as at founding. A
 territory that is already a member of another fief, or of yours, can only be
 annexed with the king's accord.
+
+**Royal orders.** The king (the player's noble `KKK`, free or hostage, not in
+the dungeon) or, failing him, the regent (the queen of a king in the dungeon,
+or the dowager queen of a vacant throne) issues the `W` orders. They are free
+and resolve before the management orders they authorize. The crown's player
+issues at most {{royal.orders_per_winter}} order(s) of each type per winter
+(`royal_order_limit`). `W X` lets a fief annex a territory of another fief,
+`W R` makes a fief's one-rank rise free, `W F` makes the founding of a fief
+free, and `W G` gives a crown fief (a vacant fief whose player has no living noble left) to a noble of any player. The accord of a
+`W X`, `W R` or `W F` only has an effect if the order it authorizes is on a
+sheet the same winter; otherwise it is consumed without effect, with an
+explicit report.
 
 A fief's titulaire is addressed by form of address (shown in French) —
 Baron/Baronne (barony), Comte/Comtesse (county), Marquis/Marquise

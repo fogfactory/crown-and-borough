@@ -172,4 +172,21 @@ describe('buildWinterIntentions', () => {
     expect(rank).toMatchObject({ kind: 'fief_rank', valid: true, territory: 'ROS' })
     expect(refused).toMatchObject({ kind: 'error', valid: false, reason: 'annex_not_adjacent' })
   })
+
+  it('maps royal order lines to a royal marker, and flags a refused one', () => {
+    const lines: WinterLinePreview[] = [
+      { line: 1, status: 'applied', type: 'royal_rank', territory: 'ROS', noble: 'HUG', cost: 0 },
+      {
+        line: 2,
+        status: 'rejected',
+        type: 'royal_grant',
+        territory: 'FOU',
+        noble: 'HUG',
+        reason: 'royal_fief_not_crown',
+      },
+    ]
+    const [accord, refused] = buildWinterIntentions(lines, 'W R HUG ROS\nW G HUG FOU ANN')
+    expect(accord).toMatchObject({ kind: 'royal', valid: true, territory: 'ROS', noble: 'HUG' })
+    expect(refused).toMatchObject({ kind: 'error', valid: false, reason: 'royal_fief_not_crown' })
+  })
 })

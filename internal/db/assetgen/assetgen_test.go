@@ -87,6 +87,8 @@ religion:
     cardinal: 2
     pope: 3
     abbess: 1
+royal:
+  orders_per_winter: 1
 noble_limit: 4
 noble_limit_max: 6
 starting_nobles: 1

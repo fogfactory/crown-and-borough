@@ -131,3 +131,47 @@ func TestRefreshQueenFindsTheWidowOfAKingWhoJustDied(t *testing.T) {
 	killNoble(g, "K1") // Queen was never refreshed
 	requireQueen(t, g, "Q1")
 }
+
+func TestRoyalIssuerIsTheKingThenTheRegent(t *testing.T) {
+	g := queenState()
+	requireQueen(t, g, "Q1")
+	if issuer, ok := g.RoyalIssuer(); !ok || issuer.ID != "K1" {
+		t.Fatalf("issuer = %v/%v, want the king K1", issuer.ID, ok)
+	}
+	if _, ok := g.Regent(); ok {
+		t.Error("a reigning king leaves no regent")
+	}
+
+	// A hostage king still reigns.
+	g.Nobles[0].Status = models.NobleStatusHostage
+	if issuer, ok := g.RoyalIssuer(); !ok || issuer.ID != "K1" {
+		t.Fatalf("issuer = %v/%v, want the hostage king K1", issuer.ID, ok)
+	}
+
+	// A king in a dungeon is replaced by his queen, hostage or free.
+	g.Nobles[0].Status = models.NobleStatusDungeon
+	g.Nobles[1].Status = models.NobleStatusHostage
+	if issuer, ok := g.RoyalIssuer(); !ok || issuer.ID != "Q1" {
+		t.Fatalf("issuer = %v/%v, want the regent Q1", issuer.ID, ok)
+	}
+	g.Nobles[1].Status = models.NobleStatusDungeon
+	if _, ok := g.RoyalIssuer(); ok {
+		t.Error("a queen in a dungeon cannot be regent")
+	}
+
+	// A vacant throne is held by the dowager queen.
+	g.Nobles[1].Status = models.NobleStatusFree
+	killNoble(g, "K1")
+	g.King = nil
+	requireQueen(t, g, "Q1")
+	if issuer, ok := g.RoyalIssuer(); !ok || issuer.ID != "Q1" {
+		t.Fatalf("issuer = %v/%v, want the dowager regent Q1", issuer.ID, ok)
+	}
+
+	// She loses it when she remarries.
+	g.Marriages = append(g.Marriages, models.Marriage{NobleA: "Q1", NobleB: "X", Turn: 3})
+	requireQueen(t, g, "")
+	if _, ok := g.RoyalIssuer(); ok {
+		t.Error("a remarried widow is no regent")
+	}
+}

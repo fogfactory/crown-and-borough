@@ -39,6 +39,7 @@ type Balance struct {
 	StartingResources       int                    `json:"starting_resources" yaml:"starting_resources"`
 	SpecialOrders           SpecialOrdersBalance   `json:"special_orders" yaml:"special_orders"`
 	Religion                ReligionBalance        `json:"religion" yaml:"religion"`
+	Royal                   RoyalBalance           `json:"royal" yaml:"royal"`
 	FirstNames              []Asset                `json:"-" yaml:"-"`
 }
 
@@ -63,6 +64,13 @@ type AllianceBalance struct {
 	SuccessionRanks []int                    `json:"succession_ranks" yaml:"succession_ranks"`
 	TitleRanks      map[models.FiefTitle]int `json:"title_ranks" yaml:"title_ranks"`
 	DensityBonus    int                      `json:"density_bonus" yaml:"density_bonus"`
+}
+
+// RoyalBalance holds the royal power parameters (specs/politique.md § Pouvoirs
+// royaux). OrdersPerWinter caps the royal winter orders (W X, W R, W F, W G) a
+// king or regent issues each winter, for each order type.
+type RoyalBalance struct {
+	OrdersPerWinter int `json:"orders_per_winter" yaml:"orders_per_winter"`
 }
 
 // ReligionBalance holds the religious title parameters (specs/religieux.md).
@@ -188,6 +196,11 @@ type rawBalance struct {
 	StartingResources       *int              `yaml:"starting_resources"`
 	SpecialOrders           *rawSpecialOrders `yaml:"special_orders"`
 	Religion                *rawReligion      `yaml:"religion"`
+	Royal                   *rawRoyal         `yaml:"royal"`
+}
+
+type rawRoyal struct {
+	OrdersPerWinter *int `yaml:"orders_per_winter"`
 }
 
 type rawReligion struct {
@@ -421,6 +434,10 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 	if err != nil {
 		return Balance{}, err
 	}
+	royal, err := raw.royal(path)
+	if err != nil {
+		return Balance{}, err
+	}
 	return Balance{
 		TerritoryIncome:         territoryIncome,
 		VillageIncome:           villageIncome,
@@ -447,7 +464,19 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 		StartingResources:       startingResources,
 		SpecialOrders:           specialOrders,
 		Religion:                religion,
+		Royal:                   royal,
 	}, nil
+}
+
+func (raw rawBalance) royal(path string) (RoyalBalance, error) {
+	if raw.Royal == nil {
+		return RoyalBalance{}, missingBalanceValue(path, "royal")
+	}
+	ordersPerWinter, err := requiredPositiveInt(path, "royal.orders_per_winter", raw.Royal.OrdersPerWinter)
+	if err != nil {
+		return RoyalBalance{}, err
+	}
+	return RoyalBalance{OrdersPerWinter: ordersPerWinter}, nil
 }
 
 func (raw rawBalance) religion(path string) (ReligionBalance, error) {
