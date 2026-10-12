@@ -40,11 +40,20 @@ func parseDeckOrderLine(line string, lineNumber int, game *models.GameState) (mo
 		return models.DeckOrder{}, &error
 	}
 	if len(fields) == 3 && isTitheCode(fields[1]) {
-		error := parseMessage(lineNumber, ParseCodeMissingTarget, i18n.DeckOrderShape)
-		return models.DeckOrder{}, &error
+		// "P DI HHH" is the pope's tithe: it has no target, and covers every
+		// bishopric. Any other cleric needs one.
+		nobleID, found := nobleIDByCode(game, fields[2])
+		if fields[0] != "P" || !found || !game.IsPope(nobleID) {
+			error := parseMessage(lineNumber, ParseCodeMissingTarget, i18n.DeckOrderShape)
+			return models.DeckOrder{}, &error
+		}
+		return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: models.CardKindSeigneurialTax, TargetNobleID: nobleID, Tithe: true}, nil
 	}
 	if len(fields) == 5 && fields[0] == "P" && isTunnelCode(fields[1]) {
 		return parseTunnelAttackLine(fields, lineNumber, game)
+	}
+	if len(fields) == 4 && fields[0] == "P" && isAmbushCode(fields[1]) {
+		return parseAmbushLine(fields, lineNumber, game)
 	}
 	if len(fields) == 4 && fields[0] == "P" && isAssassinationCode(fields[1]) {
 		return parseAssassinationLine(fields, lineNumber, game)
@@ -156,6 +165,22 @@ func parseTunnelAttackLine(fields []string, lineNumber int, game *models.GameSta
 	return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: models.CardKindTunnel, SourceTerritoryID: source, TargetTerritoryID: target}, nil
 }
 
+func isAmbushCode(code string) bool { return code == "EM" || code == "AM" }
+
+// parseAmbushLine parses "P EM AAA BBB": the ambush card played on the attack
+// from AAA to BBB (specs/ordres-speciaux.md § Embuscade). Whether the player
+// really plans that attack is checked later by CanPlay.
+func parseAmbushLine(fields []string, lineNumber int, game *models.GameState) (models.DeckOrder, *ParseError) {
+	source, target := models.TerritoryID(fields[2]), models.TerritoryID(fields[3])
+	for _, code := range []models.TerritoryID{source, target} {
+		if !isTerritory(game, code) {
+			error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderRegionUnknown, string(code))
+			return models.DeckOrder{}, &error
+		}
+	}
+	return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: models.CardKindAmbush, SourceTerritoryID: source, TargetTerritoryID: target}, nil
+}
+
 func isTaxCode(code string) bool { return code == "TX" || code == "ST" }
 
 // isTitheCode reports the explicit tithe code ("P DI HHH XXX"), which keeps a
@@ -248,6 +273,8 @@ func parseSpecialKind(value string, lineNumber int) (models.CardKind, *ParseErro
 		"TT": models.CardKindSeigneurialTax,
 		"SO": models.CardKindTunnel,
 		"TU": models.CardKindTunnel,
+		"EM": models.CardKindAmbush,
+		"AM": models.CardKindAmbush,
 		"AS": models.CardKindAssassination,
 	}[value]
 	if !exists {

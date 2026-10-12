@@ -108,6 +108,11 @@ type IncomeReport struct {
 	Credited    int                `json:"credited"`
 	StockAfter  int                `json:"stockAfter,omitempty"`
 	Lost        bool               `json:"lost,omitempty"`
+	// Source tells a royal flow apart from territory income: "royal_tax" (the
+	// supplement of the king's tax), "royal_rent_king" or "royal_rent_queen".
+	// Taxed is, for a royal tax supplement, the capital of the taxed fief.
+	Source string             `json:"source,omitempty"`
+	Taxed  models.TerritoryID `json:"taxed,omitempty"`
 }
 
 // MillReport is one mill's harvest-and-weather-adjusted production and its
@@ -488,7 +493,7 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 				Territories: event.TerritoryCount, Villages: event.VillageCount,
 				Base: event.BaseProduction, Bonus: event.BonusProduction,
 				Suppressed: event.SuppressedProduction, Credited: event.Production,
-				StockAfter: event.StockAfter, Lost: event.Lost,
+				StockAfter: event.StockAfter, Lost: event.Lost, Source: event.Reason, Taxed: event.TerritoryID,
 			}
 			if event.FiefID != "" {
 				income.Fief = event.DestinationID
@@ -668,7 +673,7 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 				}
 				report.Winter.Cards = append(report.Winter.Cards, card)
 			}
-		case EventTypeCalamityApplied, EventTypeCalamityCanceled, EventTypeBonusEffect, EventTypeNeutralArmy, EventTypeRevoltAppeased, EventTypePlagueDeath, EventTypePlagueSurvived, EventTypeBadWeatherBlocked, EventTypeFamineLoss, EventTypeBadWeatherLoss, EventTypeTrial, EventTypeTunnel, EventTypeAssassination, EventTypeAssassinationRevealed, EventTypeEonUnmasked, EventTypeDignityRevealed, EventTypeExcommunication, EventTypeExcommunicationLifted:
+		case EventTypeCalamityApplied, EventTypeCalamityCanceled, EventTypeBonusEffect, EventTypeNeutralArmy, EventTypeRevoltAppeased, EventTypePlagueDeath, EventTypePlagueSurvived, EventTypeBadWeatherBlocked, EventTypeFamineLoss, EventTypeBadWeatherLoss, EventTypeTrial, EventTypeTunnel, EventTypeAmbush, EventTypeAssassination, EventTypeAssassinationRevealed, EventTypeEonUnmasked, EventTypeDignityRevealed, EventTypeExcommunication, EventTypeExcommunicationLifted:
 			report.SeasonEffects = append(report.SeasonEffects, SeasonEffectReport{
 				Kind: event.Type, CardKind: event.CardKind, Region: event.RegionSeed, Season: event.Season,
 				Owner: event.OwnerID, Army: event.ArmyID, Noble: event.NobleCode, NobleName: event.NobleName,

@@ -15,6 +15,7 @@ func allianceBalance() assetgen.Balance {
 			models.FiefTitleBarony: 1, models.FiefTitleCounty: 2,
 			models.FiefTitleMarquisate: 3, models.FiefTitleDuchy: 4,
 		},
+		CrownRank:    5,
 		DensityBonus: 1,
 	}}
 }
@@ -166,3 +167,38 @@ func TestActiveHeadMarriageIsHighestWeightAndRebasculates(t *testing.T) {
 }
 
 func ptrNoble(id models.NobleID) *models.NobleID { return &id }
+
+func TestCrownRankReplacesLowerFiefRankInTheWeight(t *testing.T) {
+	balance := allianceBalance()
+	state := allianceState() // N1: line head (3) and duke (4)
+	if got, _ := nobleAllianceWeight(state, balance.Alliance, "N1"); got != 7 {
+		t.Fatalf("duke weight = %d, want 7", got)
+	}
+	king := models.NobleID("N1")
+	state.King = &king
+	if got, _ := nobleAllianceWeight(state, balance.Alliance, "N1"); got != 8 {
+		t.Fatalf("king and duke weight = %d, want 3+5", got)
+	}
+	// A king with no fief uses the crown rank alone.
+	state.Fiefs = nil
+	if got, _ := nobleAllianceWeight(state, balance.Alliance, "N1"); got != 8 {
+		t.Fatalf("landless king weight = %d, want 3+5", got)
+	}
+}
+
+func TestCrownFlipsTheActiveHeadMarriage(t *testing.T) {
+	balance := allianceBalance()
+	state := allianceState()
+	// N2-N3: min(2, 3) + 1 = 3. N1-N4: min(7, 2) + 1 = 3, the older one wins.
+	state.Marriages = []models.Marriage{{NobleA: "N2", NobleB: "N3", Turn: 1}, {NobleA: "N1", NobleB: "N4", Turn: 2}}
+	active, ok := ActiveHeadMarriage(state, balance, "P1")
+	if !ok || active.NobleA != "N2" {
+		t.Fatalf("active before the crown = %+v, %v; want N2-N3", active, ok)
+	}
+	king := models.NobleID("N4")
+	state.King = &king
+	active, ok = ActiveHeadMarriage(state, balance, "P1")
+	if !ok || active.NobleA != "N1" {
+		t.Fatalf("active once N4 is king = %+v, %v; want N1-N4", active, ok)
+	}
+}

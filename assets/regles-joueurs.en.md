@@ -240,7 +240,7 @@ an action season.
 |---|---|---|
 | `A` | `XXX A YYY` | Attack or move to adjacent `YYY`. |
 | `S` | `XXX S YYY` | Defensive support for the army holding `YYY`. |
-| `S` | `XXX S YYY - ZZZ` | Offensive support for the attack from `YYY` to `ZZZ`. |
+| `S` | `XXX S YYY - ZZZ` | Offensive support for the attack from `YYY` to `ZZZ`. If the army on `YYY` is yours and this support opens the chain, it must have that attack as its current order, otherwise the order is rejected. |
 | `H` | `H XXX` | Hold on `XXX`. |
 | `J` | `XXX J YYY` | Peaceful join toward adjacent `YYY`; **must be the last order**. |
 | `P` | `P XXX` | Pillage the infrastructure on the occupied territory. |
@@ -289,7 +289,10 @@ supported army actually performs the announced action.
 - **offensive** (`XXX S YYY - ZZZ`): strengthens the attack from `YYY` to
   `ZZZ`; both `XXX` and `YYY` must be adjacent to `ZZZ`, and `YYY` must be the
   army that actually attacks `ZZZ` (that's the case for FOU in section 3,
-  adjacent to both ATL and ROS).
+  adjacent to both ATL and ROS). When `YYY` is one of your armies and this
+  support opens the chain, the order is rejected if that army does not have the
+  attack on `ZZZ` as its current order; supporting another player's army stays
+  free.
 
 **Edge cases**: a failed attack creates no additional penalty — the supported
 army follows the normal combat result, and its own chain continues or breaks
@@ -968,6 +971,7 @@ from noble chains and requiring no noble. Winter discards are written in the
 - `P SO NNN`: play Tunnel to free your noble NNN, held (hostage or dungeon) by
   another player's army; `P SO AAA - BBB`: play Tunnel on your attack from AAA
   to BBB, which ignores fortifications (see below);
+- `P EM AAA BBB`: play Ambush on your attack from AAA to BBB (see below);
 - `P AS HHH NNN`: play Assassination, where HHH is your free noble (the
   commissioner) and NNN a noble of another player (see below);
 - `P TX BRU`: play the Seigneurial tax on BRU, provided BRU is the capital of
@@ -978,6 +982,7 @@ from noble chains and requiring no noble. Winter discards are written in the
 - `P DI HHH XXX`: play the Tax card through a bishop, cardinal or pope HHH on
   the bishopric whose seed village is XXX: a **tithe** (see below). A noble who
   is both lord and bishop thus picks the tax or the tithe;
+- `P DI HHH`: the pope's tithe, with no target: it covers every bishopric;
 - `D C FW` or `D C AH`: discard a card, winter only.
 
 The hand is replenished automatically in winter after winter orders and discards; no draw order
@@ -1010,9 +1015,10 @@ bad weather, **{{special_orders.card.famine}}** bad harvest,
 **{{special_orders.card.fair_weather}}** fair weather,
 **{{special_orders.card.abundant_harvest}}** abundant harvest,
 **{{special_orders.card.revolt}}** revolt,
-**{{special_orders.card.seigneurial_tax}}** tax (seigneurial tax or tithe), and
-**{{special_orders.card.tunnel}}** tunnel and
-**{{special_orders.card.assassination}}** assassination cards. A hand is limited to
+**{{special_orders.card.seigneurial_tax}}** tax (seigneurial tax, royal tax or tithe),
+**{{special_orders.card.tunnel}}** tunnel,
+**{{special_orders.card.assassination}}** assassination, and
+**{{special_orders.card.ambush}}** ambush cards. A hand is limited to
 **{{special_orders.hand_limit}} cards**, noble and dignity cards included.
 After their winter orders and discards, each player automatically receives
 bonus cards, up to **{{special_orders.draw_orders_limit}} per winter** across
@@ -1074,11 +1080,26 @@ countered. No calamity resolves in winter.
   stack: the second is consumed with no effect. If the taxed fief's capital is
   captured during that same turn, the tax is canceled: nobody receives the
   doubling for that transition turn;
+- the **royal tax** is the Tax card played by the king (or the regent):
+  `P TX KKK XXX`, XXX being the capital of any fief he does not hold himself,
+  a vacant fief included. The fief keeps its territorial income and the same
+  amount is created for the capital of the king's player. If the fief's lord
+  taxes it the same turn, the lord's tax comes first and the royal tax is
+  consumed with no effect. A fief is taxed once per turn. Like any tax, it
+  makes every territory of the fief eligible for Revolt this turn and the next;
+- the **royal rent** is paid every action turn without any card: **1 R per
+  constituted fief** on the map, vacant ones included, created and delivered
+  to the capital of the king's player (a captured king keeps it; a vacant
+  throne pays none). The queen, dowager included, receives half of it, rounded
+  up, at the capital of her player. The turn report lists these amounts
+  separately;
 - the **tithe** is the Tax card played by a cleric (`P DI HHH XXX`, XXX being a
   bishopric's seed village): for the turn, it diverts the production of every
   mill of the bishopric to the capital of the player who plays it, and never
   touches territory income. A bishop taxes only their own bishopric; a
-  cardinal and the pope tax any bishopric, even one without a bishop. When
+  cardinal taxes any bishopric, even one without a bishop; the pope's tithe
+  names no bishopric and covers all of them (an outranked tithe still holds on
+  the other bishoprics). When
   several tithes target the same bishopric the same turn, the bishopric's
   bishop comes first, then the cardinals, then the pope; outranked tithes are
   consumed with no effect. If several players have a cardinal in the running,
@@ -1094,10 +1115,24 @@ countered. No calamity resolves in winter.
   castle of smallest code; with no refuge at all the order is rejected. Only you
   and the captor see the escape in the report. **Tunneled attack**
   (`P SO AAA - BBB`): your army on AAA must have an attack on BBB as its current
-  order, otherwise the order is rejected and the card kept. That attack, and
+  order, otherwise the order is rejected and the card kept; if the army on AAA
+  belongs to another player, no order is required but the attack must be
+  possible (AAA and BBB adjacent): it is tactical advice that profits the
+  attacker if they do attack. That attack, and
   only that one, ignores the fortifications of BBB (castle, city or fortified
   village); other attackers face the defense as usual. If the attack does not
   take place after all, the card is consumed with no effect;
+- Ambush (`P EM AAA BBB`) is played in spring, summer, or autumn, for free. Your
+  army on AAA must have an attack on BBB as its current order, otherwise the
+  order is rejected and the card kept; if the army on AAA belongs to another
+  player, no order is required but the attack must be possible (AAA and BBB
+  adjacent). If that attack is victorious and the
+  defending army retreats with at least one free noble, the one first in the
+  line of succession of its owner is captured: they become a hostage (or a
+  dungeon prisoner if a bastard) of the attacking army, on the conquered
+  territory, hence of its owner.
+  Without a victory, a retreat, or a noble in the retreating army, the card is
+  consumed with no effect.
 - Assassination is played in every season, winter included (on the winter
   sheet), for free, and its play is checked at submission. `P AS HHH NNN`: HHH is one of your free nobles
   (neither hostage nor in a dungeon), the **commissioner**, and NNN a noble of
@@ -1146,22 +1181,9 @@ player wins), or otherwise after the final winter of the chosen duration is
 resolved — the player with the highest score wins. An exact tie at the top has
 no winner.
 
-**Score**, recomputed after every turn and visible to everyone:
-
-| Element | Points |
-|---|---:|
-| Controlled territory | 1 |
-| Controlled village | 2 |
-| Controlled mill | 1 |
-| Controlled castle | 5 |
-| Held noble | 2 |
-| Troop | 1 per unit in their armies |
-| Resource `R` | 1 per unit in stock on their controlled territories |
-| Held fief | 1, vacant included, until dissolved |
-
-Infrastructure and resources only score on a controlled territory. A free
-noble counts for its owner. A captured noble, hostage or in the dungeon,
-counts for the player whose army physically holds it — the one stationed on
-its territory —, not for that territory's controller nor for its original
-owner: outside a fief, territorial control is ephemeral (section 6) and may
-have vanished while the capturing army still stands there.
+**Score**, recomputed after every turn and visible to everyone: each title
+held is worth 1 point whatever its rank — fief (vacant included, until
+dissolved), a lady's dignity and the crown. The king stacks the crown with his
+fiefs and dignities, and his player scores one point for each. Religious
+titles (bishop, cardinal, pope) score nothing. Territories, infrastructure,
+armies, nobles and resources are worth nothing by themselves.

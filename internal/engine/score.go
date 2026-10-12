@@ -28,15 +28,27 @@ type ScoreBreakdown struct {
 	Total int `json:"total"`
 }
 
+// crownHolder returns the player of the living king, whether or not the king
+// currently exercises the crown.
+func crownHolder(state *models.GameState) (models.PlayerID, bool) {
+	if state.King == nil {
+		return "", false
+	}
+	for _, noble := range state.Nobles {
+		if noble.ID == *state.King {
+			return noble.OwnerID, true
+		}
+	}
+	return "", false
+}
+
 // ComputeScores calculates the public score for every player in the state,
 // per the title score (titres.md § Score de titres): each title held is
 // worth 1 point regardless of rank, replacing the former GDD §9 formula
-// (territories, infrastructure, armies, nobles). For now the only title
-// source is state.Fiefs — a fief still counts while vacant, until it is
-// dissolved. Religious titles never score. Roi and dignité titles will add further
-// sources to this count once Succession & Couronnement lands (#243-266);
-// the loop below is structured so each source stays a self-contained pass
-// over state, without pulling in that machinery ahead of time.
+// (territories, infrastructure, armies, nobles). Title sources are
+// state.Fiefs — a fief still counts while vacant, until it is dissolved —,
+// the crown and the dignities of living nobles. Religious titles never score.
+// Each source stays a self-contained pass over state.
 func ComputeScores(state *models.GameState, balance assetgen.Balance) map[models.PlayerID]ScoreBreakdown {
 	scores := make(map[models.PlayerID]ScoreBreakdown)
 	if state == nil {
@@ -55,6 +67,16 @@ func ComputeScores(state *models.GameState, balance assetgen.Balance) map[models
 		}
 		score.Titles++
 		scores[fief.OwnerID] = score
+	}
+
+	// The crown is one title, held by the king's player whether or not the
+	// king currently exercises it (politique.md § Royauté); it stacks with
+	// the king's fiefs and dignities.
+	if holder, crowned := crownHolder(state); crowned {
+		if score, exists := scores[holder]; exists {
+			score.Titles++
+			scores[holder] = score
+		}
 	}
 
 	// Each dignity a living noble carries (the bastard, specs/succession.md
@@ -271,14 +293,12 @@ func victoryUnits(state *models.GameState, balance assetgen.Balance) []victoryUn
 		held[controller]++
 	}
 	var units []victoryUnit
-	// The crown has no engine state yet (titles of king are still to come);
-	// crownHolder stays empty until it does.
-	var crownHolder models.PlayerID
+	holder, _ := crownHolder(state)
 	seen := map[[2]models.PlayerID]bool{}
 	for _, player := range state.Players {
 		partner, locked := activeHeadPartner(state, balance, player.ID)
 		if _, known := scores[partner]; !locked || !known {
-			units = append(units, victoryUnit{players: []models.PlayerID{player.ID}, score: scores[player.ID].Total, required: solo, crown: crownHolder == player.ID, territories: held[player.ID]})
+			units = append(units, victoryUnit{players: []models.PlayerID{player.ID}, score: scores[player.ID].Total, required: solo, crown: holder != "" && holder == player.ID, territories: held[player.ID]})
 			continue
 		}
 		key := [2]models.PlayerID{player.ID, partner}
@@ -294,7 +314,7 @@ func victoryUnits(state *models.GameState, balance assetgen.Balance) []victoryUn
 			score:       scores[player.ID].Total, // already includes the ally's share
 			required:    alliance,
 			alliance:    true,
-			crown:       crownHolder != "" && (crownHolder == key[0] || crownHolder == key[1]),
+			crown:       holder != "" && (holder == key[0] || holder == key[1]),
 			territories: held[player.ID] + held[partner],
 		})
 	}

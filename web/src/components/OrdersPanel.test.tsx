@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { OrdersPanel } from '@/components/OrdersPanel'
 import { LanguageProvider } from '@/i18n/LanguageContext'
-import type { Noble, OrdersPreview, StateData, Territory } from '@/types'
+import type { Noble, OrdersPreview, Region, StateData, Territory } from '@/types'
 
 const state: StateData = {
   turn: 4,
@@ -1081,7 +1081,13 @@ describe('OrdersPanel title and card order dialogs', () => {
     expect(within(dialog).getByText(/^Cancels: Bad weather/)).toBeTruthy()
   })
 
-  function renderAction(extra: Partial<StateData>, specialDraft = '', onSpecialChange = vi.fn(), mapTerritories: Territory[] = []) {
+  function renderAction(
+    extra: Partial<StateData>,
+    specialDraft = '',
+    onSpecialChange = vi.fn(),
+    mapTerritories: Territory[] = [],
+    regions: Region[] = [],
+  ) {
     render(
       <LanguageProvider initialLanguage="en">
         <OrdersPanel
@@ -1091,6 +1097,7 @@ describe('OrdersPanel title and card order dialogs', () => {
           winterDraft=""
           specialDraft={specialDraft}
           mapTerritories={mapTerritories}
+          regions={regions}
           submitted={false}
           submitting={false}
           error={null}
@@ -1120,6 +1127,71 @@ describe('OrdersPanel title and card order dialogs', () => {
         .getAllByRole('option')
         .map((o) => o.textContent),
     ).toEqual(['CCC', 'FFF', 'GGG', 'HHH'])
+  })
+
+  const pope: Noble = { ...nobles[0], religiousTitle: 'pope' }
+  const bishoprics = [
+    { region: 'AAA', name: 'Ros', territories: ['AAA', 'BBB'], bishop: 'POP' },
+    { region: 'CCC', name: 'Cor', territories: ['CCC'] },
+  ]
+
+  it('writes the pope’s tithe without asking for a bishopric', () => {
+    const onSpecialChange = renderAction({
+      specialHand: ['seigneurial_tax'],
+      nobles: [pope],
+      bishoprics,
+    })
+    fireEvent.click(screen.getByRole('button', { name: /^Play Tax/ }))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText(/tithe on every bishopric/)).toBeTruthy()
+    expect(within(dialog).queryByText('Target (fief capital or bishopric)')).toBeNull()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
+    expect(onSpecialChange).toHaveBeenCalledWith(expect.stringMatching(/^P DI POP # .*every bishopric\n$/))
+  })
+
+  it('asks a cardinal which bishopric to tithe', () => {
+    const onSpecialChange = renderAction({
+      specialHand: ['seigneurial_tax'],
+      nobles: [{ ...pope, religiousTitle: 'cardinal' }],
+      bishoprics,
+    })
+    fireEvent.click(screen.getByRole('button', { name: /^Play Tax/ }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.change(within(dialog).getByLabelText('Target (fief capital or bishopric)'), { target: { value: 'CCC' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
+    expect(onSpecialChange).toHaveBeenCalledWith(expect.stringMatching(/^P DI POP CCC # /))
+  })
+
+  it('lets the king tax a fief he does not hold', () => {
+    const king: Noble = { ...nobles[0], id: 'n9', code: 'KNG', name: 'Roi', firstName: 'Robert' }
+    const fiefs = [
+      { capital: 'FFF', title: 'barony' as const, territories: ['FFF', 'GGG', 'HHH'], owner: 'P2', holder: 'LEO' },
+    ]
+    const onSpecialChange = renderAction({ specialHand: ['seigneurial_tax'], nobles: [king, ...nobles.slice(1)], king: 'KNG', fiefs })
+    fireEvent.click(screen.getByRole('button', { name: /^Play Tax/ }))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText(/royal tax on any fief/)).toBeTruthy()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
+    expect(onSpecialChange).toHaveBeenCalledWith(expect.stringMatching(/^P TX KNG FFF # /))
+  })
+
+  it('opens every territory of every bishopric to a revolt after the pope’s drafted tithe', () => {
+    renderAction(
+      { specialHand: ['revolt'], revoltTargets: ['ZZZ'], nobles: [pope], bishoprics },
+      'P DI POP # tithe\n',
+      vi.fn(),
+      [],
+      [
+        { id: 'R1', name: 'Ros', seed: 'AAA', territories: ['AAA', 'BBB'] },
+        { id: 'R2', name: 'Cor', seed: 'CCC', territories: ['CCC'] },
+      ],
+    )
+    fireEvent.click(screen.getByRole('button', { name: /^Play Revolt/ }))
+    expect(
+      within(screen.getByRole('dialog'))
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual(['AAA', 'BBB', 'CCC', 'ZZZ'])
   })
 
   it('writes the tunneled attack and the escape of a detained noble', () => {
@@ -1200,6 +1272,53 @@ describe('OrdersPanel title and card order dialogs', () => {
         .map((o) => o.textContent)
         .filter((text) => ['AAA', 'BBB', 'CCC'].includes(text ?? '')),
     ).toEqual(['AAA', 'BBB'])
+  })
+
+  it('writes the ambush on a planned attack', () => {
+    const territory = (id: string, owner: string | null, army: { owner: string; size: number; chain: null } | null) => ({
+      id, owner, resources: 0, army, infrastructures: [],
+    })
+    const onSpecialChange = renderAction({
+      specialHand: ['ambush'],
+      territories: [territory('AAA', 'P1', { owner: 'P1', size: 2, chain: null }), territory('BBB', 'P2', null)],
+    })
+    fireEvent.click(screen.getByRole('button', { name: /^Play Ambush \(EM\): ambush on an attack/ }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.change(within(dialog).getByLabelText('Attack origin'), { target: { value: 'AAA' } })
+    fireEvent.change(within(dialog).getByLabelText('Attack target'), { target: { value: 'BBB' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
+    expect(onSpecialChange).toHaveBeenCalledWith(expect.stringMatching(/^P EM AAA BBB/))
+  })
+
+  it('keeps every playable card of the hand in the launchers', () => {
+    renderAction({
+      specialHand: ['seigneurial_tax', 'tunnel', 'ambush'],
+      fiefs: [{ capital: 'FFF', title: 'barony', territories: ['FFF'], owner: 'P1' }],
+      territories: [
+        { id: 'AAA', owner: 'P1', resources: 0, army: { owner: 'P1', size: 2, chain: null }, infrastructures: [] },
+      ],
+    })
+    expect(screen.getByRole('button', { name: /^Play Tax \(TX\)/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^Play Tunnel \(SO\): tunneled attack/ })).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: /^Play Ambush \(EM\)/ })).toHaveLength(1)
+  })
+
+  it('offers the armies of other players, not the neutral ones, as the origin of an ambush', () => {
+    const territory = (id: string, owner: string, army: { owner: string; size: number; chain: null } | null) => ({
+      id, owner, resources: 0, army, infrastructures: [],
+    })
+    renderAction({
+      specialHand: ['ambush'],
+      territories: [
+        territory('AAA', 'P1', { owner: 'P1', size: 2, chain: null }),
+        territory('BBB', 'P2', { owner: 'P2', size: 1, chain: null }),
+        territory('CCC', 'NEUTRAL', { owner: 'NEUTRAL', size: 1, chain: null }),
+        territory('DDD', 'P2', null),
+      ],
+    })
+    fireEvent.click(screen.getByRole('button', { name: /^Play Ambush \(EM\)/ }))
+    const origin = within(screen.getByRole('dialog')).getByLabelText('Attack origin')
+    expect(within(origin).getAllByRole('option').map((o) => o.textContent)).toEqual(['AAA', 'BBB'])
   })
 
   it('hides the revolt card when no territory is eligible', () => {

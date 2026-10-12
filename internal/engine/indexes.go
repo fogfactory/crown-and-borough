@@ -101,6 +101,12 @@ type resolutionContext struct {
 	// fortifications of its target.
 	pendingTunnels  []deckOrderIntent
 	tunneledAttacks map[models.ArmyID]bool
+	// pendingAmbushes holds the ambush cards played on an attack, matched with
+	// the attack intents like the tunnels; ambushAttacks then holds, by
+	// attacking army, the ambush it carries (settled by settleAmbushes once the
+	// retreats are known).
+	pendingAmbushes []deckOrderIntent
+	ambushAttacks   map[models.ArmyID]deckOrderIntent
 	// taxedFiefsThisTurn holds the fiefs whose seigneurial tax successfully
 	// applied this turn (first play only, titres.md "Taxe seigneuriale"): it
 	// doubles their territory income (income.go) and widens revolt
@@ -126,6 +132,10 @@ type resolutionContext struct {
 	// whose capital changed hands this same turn (#208) rather than crediting
 	// a stale doubling to the wrong income line.
 	taxedFiefOwnerAtApply map[models.FiefID]models.PlayerID
+	// royalTaxedFiefs holds the fiefs the king's royal tax applied to this
+	// turn (titres.md "Taxe seigneuriale"), with the player who receives the
+	// supplement. A fief taxed by its lord the same turn is never in it.
+	royalTaxedFiefs map[models.FiefID]models.PlayerID
 	// royalAccords are the royal authorizations granted this winter, read by
 	// the annexation and rank-change orders (royal_accord.go).
 	royalAccords royalAccords
@@ -172,9 +182,11 @@ func newResolutionContext(state *models.GameState, balance assetgen.Balance) *re
 		poolRations:           make(map[models.TerritoryID]map[models.TerritoryID]int),
 		pendingRevoltSizes:    make(map[models.TerritoryID]int),
 		tunneledAttacks:       make(map[models.ArmyID]bool),
+		ambushAttacks:         make(map[models.ArmyID]deckOrderIntent),
 		taxedFiefsThisTurn:    make(map[models.FiefID]bool),
 		pendingTaxWindowFiefs: make(map[models.FiefID]bool),
 		taxedFiefOwnerAtApply: make(map[models.FiefID]models.PlayerID),
+		royalTaxedFiefs:       make(map[models.FiefID]models.PlayerID),
 		rankChangedFiefs:      make(map[models.FiefID]bool),
 		royalOrdersIssued:     make(map[models.WinterOrderType]int),
 		tithesThisTurn:        make(map[models.TerritoryID][]models.PlayerID),

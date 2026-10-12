@@ -1,10 +1,13 @@
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
+import { draftedTaxEffects } from '@/lib/projected-tax'
 import type { FiefTitle, PlayerId, StateData } from '@/types'
 
 interface ProjectedIncomeSummaryProps {
   state: StateData | null
   playerId: PlayerId | null
+  /** The viewer's drafted special-card orders, whose tax effects are included. */
+  specialDraft?: string
 }
 
 const FIEF_TITLE_KEYS: Record<FiefTitle, MessageKey> = {
@@ -27,7 +30,7 @@ const FIEF_TITLE_KEYS: Record<FiefTitle, MessageKey> = {
  * income routed outside any fief, since a single "→ capital" line would
  * otherwise hide where a fief's territories actually pay.
  */
-export function ProjectedIncomeSummary({ state, playerId }: ProjectedIncomeSummaryProps) {
+export function ProjectedIncomeSummary({ state, playerId, specialDraft }: ProjectedIncomeSummaryProps) {
   const { t } = useLanguage()
   if (!state || !playerId) {
     return null
@@ -42,6 +45,15 @@ export function ProjectedIncomeSummary({ state, playerId }: ProjectedIncomeSumma
     0,
   )
   const nonFiefIncome = (player.projectedIncome ?? 0) - fiefIncomeTotal
+  const taxes = draftedTaxEffects(state, playerId, specialDraft)
+  const royalRent = player.projectedRoyalRent ?? 0
+  const projectedTotal =
+    (player.projectedIncome ?? 0) +
+    Object.values(taxes.seigneurial).reduce((sum, extra) => sum + extra, 0) +
+    (player.projectedMillIncome ?? 0) +
+    royalRent +
+    taxes.royalSupplement +
+    taxes.tithe
   const totalResources = state.territories.reduce(
     (total, territory) => total + (territory.owner === playerId ? territory.resources : 0),
     0,
@@ -77,17 +89,36 @@ export function ProjectedIncomeSummary({ state, playerId }: ProjectedIncomeSumma
           </p>
           {playerFiefs.map((fief) => (
             <p key={fief.capital} className="mt-1 font-medium">
-              {t('app.projectedFiefIncomeAmount', {
-                title: t(FIEF_TITLE_KEYS[fief.title]),
-                capital: fief.capital,
-                amount: fief.projectedIncome ?? 0,
-              })}
+              {t(
+                fief.capital in taxes.seigneurial
+                  ? 'app.projectedFiefIncomeTaxedAmount'
+                  : 'app.projectedFiefIncomeAmount',
+                {
+                  title: t(FIEF_TITLE_KEYS[fief.title]),
+                  capital: fief.capital,
+                  amount: (fief.projectedIncome ?? 0) + (taxes.seigneurial[fief.capital] ?? 0),
+                },
+              )}
             </p>
           ))}
         </>
       )}
       <p className="mt-1 font-medium">
         {t('app.projectedMillIncomeAmount', { amount: player.projectedMillIncome ?? 0 })}
+      </p>
+      {royalRent > 0 && (
+        <p className="mt-1 font-medium">{t('app.projectedRoyalRentAmount', { amount: royalRent })}</p>
+      )}
+      {taxes.titheDrafted && (
+        <p className="mt-1 font-medium">{t('app.projectedTitheAmount', { amount: taxes.tithe })}</p>
+      )}
+      {taxes.royalDrafted && (
+        <p className="mt-1 font-medium">
+          {t('app.projectedRoyalTaxAmount', { amount: taxes.royalSupplement })}
+        </p>
+      )}
+      <p className="mt-2 border-t border-[#d4c4b0] pt-2 font-bold">
+        {t('app.projectedTotalAmount', { amount: projectedTotal })}
       </p>
       <p className="mt-2 border-t border-[#d4c4b0] pt-2 font-medium">
         {t('app.currentResourcesAmount', { amount: totalResources })}

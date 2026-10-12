@@ -493,3 +493,20 @@ func TestAllyShareIsPartnerOwnScoreWithoutRecursion(t *testing.T) {
 		t.Fatalf("P3 is solo, ally = %d, want 0", scores["P3"].Ally)
 	}
 }
+
+func TestComputeScoresCrownIsOneTitleStackedWithFiefs(t *testing.T) {
+	state := allianceState()
+	balance := allianceBalance()
+	if got := ComputeScores(state, balance)["P1"].Titles; got != 1 {
+		t.Fatalf("P1 titles without a king = %d, want 1", got)
+	}
+	king := models.NobleID("N1")
+	state.King = &king
+	scores := ComputeScores(state, balance)
+	if scores["P1"].Titles != 2 {
+		t.Fatalf("P1 titles with the king holding a duchy = %d, want 2", scores["P1"].Titles)
+	}
+	if scores["P2"].Titles != 0 {
+		t.Fatalf("P2 titles = %d, want 0", scores["P2"].Titles)
+	}
+}

@@ -30,9 +30,14 @@ func nobleAllianceWeight(state *models.GameState, balance assetgen.AllianceBalan
 			break
 		}
 	}
+	titleRank := 0
 	if fief := state.HighestHeldFief(nobleID); fief != nil {
-		weight += balance.TitleRanks[fief.Title]
+		titleRank = balance.TitleRanks[fief.Title]
 	}
+	if state.IsKing(nobleID) {
+		titleRank = max(titleRank, balance.CrownRank)
+	}
+	weight += titleRank
 	return weight, true
 }
 

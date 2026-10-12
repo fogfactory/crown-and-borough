@@ -63,7 +63,10 @@ type VictoryBalance struct {
 type AllianceBalance struct {
 	SuccessionRanks []int                    `json:"succession_ranks" yaml:"succession_ranks"`
 	TitleRanks      map[models.FiefTitle]int `json:"title_ranks" yaml:"title_ranks"`
-	DensityBonus    int                      `json:"density_bonus" yaml:"density_bonus"`
+	// CrownRank is the title rank of the king; it replaces the fief rank in
+	// the weight when higher.
+	CrownRank    int `json:"crown_rank" yaml:"crown_rank"`
+	DensityBonus int `json:"density_bonus" yaml:"density_bonus"`
 }
 
 // RoyalBalance holds the royal power parameters (specs/politique.md § Pouvoirs
@@ -238,6 +241,7 @@ type rawReligion struct {
 type rawAlliance struct {
 	SuccessionRanks []*int          `yaml:"succession_ranks"`
 	TitleRanks      map[string]*int `yaml:"title_ranks"`
+	CrownRank       *int            `yaml:"crown_rank"`
 	DensityBonus    *int            `yaml:"density_bonus"`
 }
 
@@ -630,11 +634,15 @@ func (raw rawBalance) alliance(path string) (AllianceBalance, error) {
 		}
 		titleRanks[title] = rank
 	}
+	crownRank, err := requiredNonNegativeInt(path, "alliance.crown_rank", raw.Alliance.CrownRank)
+	if err != nil {
+		return AllianceBalance{}, err
+	}
 	density, err := requiredNonNegativeInt(path, "alliance.density_bonus", raw.Alliance.DensityBonus)
 	if err != nil {
 		return AllianceBalance{}, err
 	}
-	return AllianceBalance{SuccessionRanks: ranks, TitleRanks: titleRanks, DensityBonus: density}, nil
+	return AllianceBalance{SuccessionRanks: ranks, TitleRanks: titleRanks, CrownRank: crownRank, DensityBonus: density}, nil
 }
 
 func (raw rawBalance) costs(path string) (Costs, error) {

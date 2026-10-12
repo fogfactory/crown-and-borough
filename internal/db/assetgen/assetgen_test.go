@@ -58,6 +58,7 @@ alliance:
     county: 2
     marquisate: 3
     duchy: 4
+  crown_rank: 5
   density_bonus: 1
 religion:
   cardinal_cost: 8
@@ -114,6 +115,7 @@ special_orders:
     revolt: 1
     seigneurial_tax: 2
     tunnel: 1
+    ambush: 1
     assassination: 1
   effects:
     plague_army_divisor: 2

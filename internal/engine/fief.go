@@ -81,7 +81,7 @@ func (ctx *resolutionContext) revoltEligibleByTax(territoryID models.TerritoryID
 	if fief == nil {
 		return false
 	}
-	if ctx.taxedFiefsThisTurn[fief.ID] || ctx.pendingTaxWindowFiefs[fief.ID] {
+	if ctx.taxedFiefsThisTurn[fief.ID] || ctx.royalTaxedFiefs[fief.ID] != "" || ctx.pendingTaxWindowFiefs[fief.ID] {
 		return true
 	}
 	return ctx.fiefTaxWindowActive(fief.ID)

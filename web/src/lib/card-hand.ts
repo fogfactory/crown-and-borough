@@ -6,6 +6,7 @@ const CARD_KIND_ORDER: CardKind[] = [
   'abundant_harvest',
   'seigneurial_tax',
   'tunnel',
+  'ambush',
   'assassination',
   'plague',
   'bad_weather',
@@ -22,6 +23,7 @@ const CARD_SHORT_KEYS: Record<CardKind, MessageKey> = {
   famine: 'card.short.famine',
   seigneurial_tax: 'card.short.seigneurial_tax',
   tunnel: 'card.short.tunnel',
+  ambush: 'card.short.ambush',
   assassination: 'card.short.assassination',
 }
 
@@ -34,6 +36,7 @@ const CARD_NAME_KEYS: Record<CardKind, MessageKey> = {
   famine: 'card.famine',
   seigneurial_tax: 'card.seigneurial_tax',
   tunnel: 'card.tunnel',
+  ambush: 'card.ambush',
   assassination: 'card.assassination',
 }
 

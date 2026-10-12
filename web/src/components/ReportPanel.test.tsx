@@ -719,6 +719,30 @@ describe('ReportPanel', () => {
     expect(screen.getByText('2 (+1 noble)')).toBeInTheDocument()
   })
 
+  it('reports an ambush capture and a card played with no region', () => {
+    const ambushReport: TurnReport = {
+      ...report,
+      cards: [{ eventType: 'deck_order_played', kind: 'ambush', player: 'P1', season: 'spring', outcome: 'success' }],
+      seasonEffects: [
+        {
+          kind: 'ambush', cardKind: 'ambush', season: 'spring', owner: 'P1', target: 'ROS', territory: 'BRU',
+          noble: 'JEN', nobleName: 'Jeanne de Ravinval', reason: 'ambush_capture',
+        },
+        { kind: 'ambush', cardKind: 'ambush', season: 'spring', owner: 'P1', target: 'ROS', territory: 'BRU', reason: 'ambush_void' },
+      ],
+    }
+
+    render(
+      <LanguageProvider initialLanguage="en">
+        <ReportPanel report={ambushReport} map={map} players={players} />
+      </LanguageProvider>,
+    )
+
+    expect(screen.getByText('P1: Ambush (EM) played')).toBeInTheDocument()
+    expect(screen.getByText(/^Ambush: .*JEN.* was captured when the army driven from/)).toBeInTheDocument()
+    expect(screen.getByText(/^The ambush played on the attack from .* had no effect$/)).toBeInTheDocument()
+  })
+
   it('shows the defense a tunneled attack faced without the fortifications', () => {
     const combatReport: TurnReport = {
       ...report,

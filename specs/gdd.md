@@ -588,6 +588,9 @@ Les ordres sont :
 Un soutien défensif renforce une armée qui tient sa case. Un soutien offensif
 renforce une attaque précise. Un soutien peut viser toute nationalité et ne
 produit aucun effet si l'armée soutenue n'accomplit pas l'action annoncée.
+Toutefois, un soutien offensif qui ouvre une chaîne reçue ce tour est rejeté à la
+soumission lorsque l'armée soutenue est au joueur lui-même et que son ordre en
+cours n'est pas l'attaque soutenue (`support_no_attack`).
 
 Une chaîne `single` se casse au premier échec. Une chaîne `loop` retente l'ordre
 jusqu'à sa réussite. Un maintien en boucle met l'armée en veille jusqu'à la
@@ -761,7 +764,7 @@ joueurs.
 ### Score de titres
 
 Le score d'un joueur est son score de titres : chaque titre détenu rapporte
-1 point, quel que soit son rang (baronnie, comté, marquisat, duché, dignité ; le roi suivra ;
+1 point, quel que soit son rang (baronnie, comté, marquisat, duché, dignité, couronne ;
 aucun titre religieux ne compte), y compris un fief vacant tant qu'il n'est pas dissolu.
 Territoire, infrastructure, armée, noble et ressource ne rapportent rien par
 eux-mêmes.

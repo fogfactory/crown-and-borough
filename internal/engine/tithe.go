@@ -42,11 +42,39 @@ func (ctx *resolutionContext) titheTier(nobleID models.NobleID, regionSeed model
 	return titheTierCardinal
 }
 
+// isPapalTithe reports whether the tithe is the pope's: it has no target, and
+// covers every bishopric (religieux.md "Dîme").
+func (ctx *resolutionContext) isPapalTithe(order models.DeckOrder) bool {
+	return ctx.isTitheOrder(order) && ctx.state.IsPope(order.TargetNobleID)
+}
+
+// titheSeeds lists the bishoprics a tithe order covers: every one for the
+// pope, the targeted one for anyone else.
+func (ctx *resolutionContext) titheSeeds(order models.DeckOrder) []models.TerritoryID {
+	if !ctx.isPapalTithe(order) {
+		return []models.TerritoryID{order.TargetTerritoryID}
+	}
+	seeds := make([]models.TerritoryID, 0, len(ctx.state.Regions))
+	for _, region := range ctx.state.Regions {
+		seeds = append(seeds, region.Seed)
+	}
+	return seeds
+}
+
 // titheRejection returns why the order cannot be played as a tithe, or "".
 func titheRejection(ctx *resolutionContext, playerID models.PlayerID, order models.DeckOrder) (bool, string) {
 	issuer := ctx.noblesByID[order.TargetNobleID]
 	if issuer == nil || issuer.OwnerID != playerID {
 		return false, "tithe_requires_own_cleric"
+	}
+	if ctx.isPapalTithe(order) {
+		switch {
+		case ctx.state.VotingReligiousTitle(issuer.ID) != models.ReligiousTitlePope:
+			return false, "tithe_requires_cleric"
+		case order.TargetTerritoryID != "":
+			return false, "tithe_pope_takes_no_target"
+		}
+		return true, ""
 	}
 	if !ctx.isRegionSeed(order.TargetTerritoryID) {
 		return false, "tithe_requires_bishopric"
@@ -85,11 +113,12 @@ func applyTithes(ctx *resolutionContext, intents []deckOrderIntent) {
 			})
 			continue
 		}
-		seed := intent.order.TargetTerritoryID
-		claims[seed] = append(claims[seed], titheClaim{
-			playerID: intent.playerID, order: intent.order,
-			tier: ctx.titheTier(intent.order.TargetNobleID, seed),
-		})
+		for _, seed := range ctx.titheSeeds(intent.order) {
+			claims[seed] = append(claims[seed], titheClaim{
+				playerID: intent.playerID, order: intent.order,
+				tier: ctx.titheTier(intent.order.TargetNobleID, seed),
+			})
+		}
 	}
 	seeds := make([]models.TerritoryID, 0, len(claims))
 	for seed := range claims {

@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/models"
@@ -112,13 +113,14 @@ func TestPopeTitheYieldsToACardinal(t *testing.T) {
 	pope := models.NobleID("N1")
 	state.Pope = &pope
 	resolution, err := ResolveWithDeckOrders(state, testBalance(), map[models.PlayerID][]models.DeckOrder{
-		"P1": tithe("N1", "QCP"), "P2": tithe("N2", "MIL"),
+		"P1": tithe("N1", ""), "P2": tithe("N2", "MIL"),
 	})
 	if err != nil {
 		t.Fatalf("ResolveWithDeckOrders: %v", err)
 	}
-	if len(eventsOfType(resolution.Events, EventTypeCardCanceled)) != 0 {
-		t.Errorf("tithes on different bishoprics must not conflict")
+	canceled := eventsOfType(resolution.Events, EventTypeCardCanceled)
+	if len(canceled) != 1 || canceled[0].OwnerID != "P1" || canceled[0].Reason != "tithe_outranked" {
+		t.Errorf("canceled = %#v, want the pope outranked on the cardinal's bishopric only", canceled)
 	}
 	if got := supplyProduction(resolution.Events, "QCP"); got != 3 {
 		t.Errorf("P2 capital production = %d, want the mill's 3 R", got)
@@ -144,5 +146,47 @@ func TestTitheOpensRevoltOnTheWholeBishopric(t *testing.T) {
 	ctx := newResolutionContext(next, testBalance())
 	if !ctx.revoltEligibleByTax("MIL") {
 		t.Errorf("a tithed bishopric must stay open to Révolte on the following turn")
+	}
+}
+
+func TestPopeTitheCoversEveryBishopric(t *testing.T) {
+	state := titheState(t)
+	pope := models.NobleID("N1")
+	state.Pope = &pope
+	resolution, err := ResolveWithDeckOrders(state, testBalance(), map[models.PlayerID][]models.DeckOrder{"P1": tithe("N1", "")})
+	if err != nil {
+		t.Fatalf("ResolveWithDeckOrders: %v", err)
+	}
+	if got := supplyProduction(resolution.Events, "PCP"); got != 3 {
+		t.Errorf("pope capital production = %d, want the mill's 3 R from an untargeted tithe", got)
+	}
+}
+
+func TestTitheWithoutTargetRequiresThePope(t *testing.T) {
+	state := titheState(t)
+	_, err := ResolveWithDeckOrders(state, testBalance(), map[models.PlayerID][]models.DeckOrder{"P1": tithe("N1", "")})
+	if err == nil {
+		t.Fatal("a cardinal's tithe without a bishopric must be rejected")
+	}
+}
+
+func TestPopeTitheTakesNoTarget(t *testing.T) {
+	state := titheState(t)
+	pope := models.NobleID("N1")
+	state.Pope = &pope
+	_, err := ResolveWithDeckOrders(state, testBalance(), map[models.PlayerID][]models.DeckOrder{"P1": tithe("N1", "MIL")})
+	if err == nil {
+		t.Fatal("a pope naming a bishopric must be rejected rather than silently tithing all of them")
+	}
+}
+
+func TestSuspendedPopeCannotTithe(t *testing.T) {
+	state := titheState(t)
+	pope := models.NobleID("N1")
+	state.Pope = &pope
+	setNobleStatus(state, "N1", models.NobleStatusDungeon)
+	_, err := ResolveWithDeckOrders(state, testBalance(), map[models.PlayerID][]models.DeckOrder{"P1": tithe("N1", "")})
+	if err == nil || !strings.Contains(err.Error(), "tithe_requires_cleric") {
+		t.Fatalf("err = %v, want tithe_requires_cleric for a pope held in a dungeon", err)
 	}
 }
