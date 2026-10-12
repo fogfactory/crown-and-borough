@@ -1,6 +1,7 @@
 # Charte graphique
 
-**Suivi :** une issue par phase, à créer (voir [Phasage](#phasage)).
+**Suivi :** milestone [Refonte graphique](https://github.com/fogfactory/crown-and-borough/milestone/27),
+une issue par phase (voir [Phasage](#phasage)).
 
 **Dépend de :** [architecture.md](architecture.md) pour la stack front et les
 contrats `map.json` / `state.json` ; [titres.md](titres.md#contrôle-et-occupation)
@@ -831,27 +832,27 @@ se cadre sur la maison choisie dans « Focus ».
 
 ## Phasage
 
-1. **Charte graphique :** ce document.
-2. **Tokens sans changement visible :** créer les tokens avec les valeurs
+1. **Charte graphique** ([#443](https://github.com/fogfactory/crown-and-borough/issues/443)) **:** ce document.
+2. **Tokens sans changement visible** ([#444](https://github.com/fogfactory/crown-and-borough/issues/444)) **:** créer les tokens avec les valeurs
    actuelles, remplacer les quelque 700 couleurs écrites en dur, puis refuser
    toute nouvelle valeur hexadécimale dans `web/src` hors du module des données
    de carte. Sortie : captures identiques et tests verts.
-3. **Nouvelle identité :** basculer les tokens sur cette charte, charger
+3. **Nouvelle identité** ([#445](https://github.com/fogfactory/crown-and-borough/issues/445)) **:** basculer les tokens sur cette charte, charger
    Cinzel, Alegreya et IBM Plex Mono, recolorer les composants shadcn, retirer
    Geist et le bloc `.dark`. Sortie : contrastes AA vérifiés.
-4. **Carte gravée :** terrain, icônes de frontière, évêchés, bannières, écus,
+4. **Carte gravée** ([#446](https://github.com/fogfactory/crown-and-borough/issues/446)) **:** terrain, icônes de frontière, évêchés, bannières, écus,
    pions de nobles et attributs de titre, bannières couronnées des fiefs,
    bâtiments, sélection, saisons, légende, teintures et
    armoiries générées des joueurs.
-5. **Ergonomie :** libellés complets et liens vers la carte, barre du haut
+5. **Ergonomie** ([#447](https://github.com/fogfactory/crown-and-borough/issues/447)) **:** libellés complets et liens vers la carte, barre du haut
    et menu « Partie », tiroir à signets et action collante, marque-page
    Royaume, ambiance de saison, onglets du téléphone avec l'écran partagé Ordres, textes d'aide réduits, poste de
    commandement (trésor, ordres de titres groupés et formulaires dans le
    tiroir, main en éventail), cartouche de territoire, rapport en cartes
    d'événements, scores restylés.
-6. **Saisie assistée des ordres :** coloration, autocomplétion, lien avec la
+6. **Saisie assistée des ordres** ([#448](https://github.com/fogfactory/crown-and-borough/issues/448)) **:** coloration, autocomplétion, lien avec la
    carte, validation en direct.
-7. **Emblème, lignée et pages annexes :** sceau, favicon, arbre
+7. **Emblème, lignée et pages annexes** ([#449](https://github.com/fogfactory/crown-and-borough/issues/449)) **:** sceau, favicon, arbre
    généalogique de la lignée, accueil, connexion, règles et FAQ.
 
 Viennent ensuite : le choix du blason par le joueur, puis, éventuellement,
