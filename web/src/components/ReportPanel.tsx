@@ -213,6 +213,11 @@ const REASON_KEYS: Record<string, MessageKey> = {
   rank_not_titular: 'reports.reason.rank_not_titular',
   rank_max: 'reports.reason.rank_max',
   rank_already_changed: 'reports.reason.rank_already_changed',
+  royal_fief_not_crown: 'reports.reason.royal_fief_not_crown',
+  royal_not_issuer: 'reports.reason.royal_not_issuer',
+  royal_order_limit: 'reports.reason.royal_order_limit',
+  royal_accord_unused: 'reports.reason.royal_accord_unused',
+  royal_accord_pending: 'reports.reason.royal_accord_pending',
   capital_castle_lost: 'reports.reason.capital_castle_lost',
   fief_auto_assigned_default_holder: 'reports.reason.fief_auto_assigned_default_holder',
   prosperity_fief: 'reports.reason.prosperity_fief',
@@ -406,6 +411,14 @@ function winterOrderLabel(order: WinterOrder, map: MapData | null, t: Translate)
       return `T X ${order.nobleCode ?? '—'} ${territory} ${territoryCode(map, order.target, t)}`
     case 'change_rank':
       return `T R ${order.nobleCode ?? '—'} ${territory}`
+    case 'royal_annex':
+      return `W X ${order.nobleCode ?? '—'} ${territory} ${territoryCode(map, order.target, t)}`
+    case 'royal_rank':
+      return `W R ${order.nobleCode ?? '—'} ${territory}`
+    case 'royal_found':
+      return `W F ${order.nobleCode ?? '—'} ${territory}`
+    case 'royal_grant':
+      return `W G ${order.nobleCode ?? '—'} ${territory} ${order.targetCode ?? '—'}`
     case 'marriage':
       return `M N ${order.nobleCode ?? '—'} ${order.spouseCode ?? '—'}`
   }
@@ -1050,7 +1063,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                         : (combat.contenders ?? [])
                             .map(
                               (contender) =>
-                                `${contender.force ?? '—'}${contender.defender ? ` ${t('reports.defense')}` : ''}${contender.tunnel ? t('reports.tunnelAttack') : ''}${
+                                `${contender.force ?? '—'}${contender.defender ? ` ${t('reports.defense')}` : ''}${contender.tunnelForce !== undefined ? t('reports.tunnelDefense', { force: contender.tunnelForce }) : ''}${contender.tunnel ? t('reports.tunnelAttack') : ''}${
                                   contender.nobleBonus
                                     ? t('reports.nobleBonus', {
                                         bonus: contender.nobleBonus,

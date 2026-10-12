@@ -83,3 +83,18 @@ func TestWinterAidsOwnFiefs(t *testing.T) {
 		t.Errorf("duchy next title = %q, want none", got)
 	}
 }
+
+func TestWinterAidsRoyalPowersBelongToThePlayerOfTheKing(t *testing.T) {
+	state := royalOrdersState(t)
+	aids := ForecastWinterAids(state, testBalance(), "P1")
+	if aids.Royal == nil || aids.Royal.Issuer != "HUG" || aids.Royal.OrdersPerWinter != testBalance().Royal.OrdersPerWinter {
+		t.Fatalf("royal aid of the king's player = %+v, want issuer HUG", aids.Royal)
+	}
+	if other := ForecastWinterAids(state, testBalance(), "P2"); other.Royal != nil {
+		t.Errorf("royal aid of another player = %+v, want none", other.Royal)
+	}
+	state.King = nil
+	if vacant := ForecastWinterAids(state, testBalance(), "P1"); vacant.Royal != nil {
+		t.Errorf("royal aid of a vacant throne = %+v, want none", vacant.Royal)
+	}
+}

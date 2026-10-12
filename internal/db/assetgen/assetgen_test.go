@@ -87,6 +87,8 @@ religion:
     cardinal: 2
     pope: 3
     abbess: 1
+royal:
+  orders_per_winter: 1
 noble_limit: 4
 noble_limit_max: 6
 starting_nobles: 1
@@ -111,7 +113,6 @@ special_orders:
     abundant_harvest: 3
     revolt: 1
     seigneurial_tax: 2
-    trial: 1
     tunnel: 1
     assassination: 1
   effects:

@@ -3,6 +3,7 @@ import type {
   DeceasedNoble,
   Bishopric,
   Dignity,
+  Excommunication,
   Fief,
   FiefTitle,
   ReligiousTitle,
@@ -13,17 +14,23 @@ import type {
   PlayerId,
 } from '@/types'
 
-/** A religious title a noble holds; `seat` names the bishopric of a bishop. */
+/** A religious or royal title a noble holds; `seat` names the bishopric of a bishop. */
 export interface HeldReligiousTitle {
-  title: ReligiousTitle
+  title: ReligiousTitle | 'king' | 'queen' | 'dowager_queen'
   seat?: string
 }
 
-/** The religious standings buildHouses reads titles from. */
+/** The religious and royal standings buildHouses reads titles from. */
 export interface Religion {
   bishoprics?: Bishopric[]
   cardinals?: string[]
   pope?: string
+  /** Code of the noble who holds the crown. */
+  king?: string
+  /** Code of the queen; a dowager queen is not the spouse of the king in place. */
+  queen?: string
+  queenDowager?: boolean
+  excommunicated?: Excommunication[]
 }
 
 export interface HeldFief {
@@ -45,10 +52,19 @@ export interface HouseMember {
   dignities: Dignity[]
   /** Every religious title the noble holds, highest first. */
   religious: HeldReligiousTitle[]
+  /** The noble is excommunicated (its religious titles are lost). */
+  excommunicated: boolean
   /** Every fief the noble holds, highest first. */
   fiefs: HeldFief[]
   /** The pretension this noble stakes as an heir, if any. */
-  claim?: { target: string; targetName: string; rank: number; targetFiefs: HeldFief[] }
+  claim?: {
+    target: string
+    targetName: string
+    rank: number
+    targetFiefs: HeldFief[]
+    /** Set once the claim ended: it got its way (honoured) or not (lapsed). */
+    outcome?: 'honoured' | 'lapsed'
+  }
   /** How many pretensions bear on this noble's titles. */
   claimedBy: number
 }
@@ -98,13 +114,15 @@ const FIEF_RANK: Record<FiefTitle, number> = {
   duchy: 4,
 }
 
-/** Religious titles by noble code, highest first (pope, cardinal, bishop). */
+/** Royal and religious titles by noble code, highest first (king, queen, pope, cardinal, bishop). */
 export function religiousTitlesByHolder(religion: Religion): Map<string, HeldReligiousTitle[]> {
   const byHolder = new Map<string, HeldReligiousTitle[]>()
   const add = (code: string | undefined, held: HeldReligiousTitle) => {
     if (!code) return
     byHolder.set(code, [...(byHolder.get(code) ?? []), held])
   }
+  add(religion.king, { title: 'king' })
+  add(religion.queen, { title: religion.queenDowager ? 'dowager_queen' : 'queen' })
   add(religion.pope, { title: 'pope' })
   for (const code of religion.cardinals ?? []) add(code, { title: 'cardinal' })
   for (const bishopric of religion.bishoprics ?? [])
@@ -126,6 +144,7 @@ export function buildHouses(
   religion: Religion = {},
 ): House[] {
   const religiousByHolder = religiousTitlesByHolder(religion)
+  const excommunicatedCodes = new Set((religion.excommunicated ?? []).map((entry) => entry.noble))
   const fiefsByHolder = new Map<string, HeldFief[]>()
   for (const fief of fiefs) {
     if (!fief.holder) continue
@@ -141,10 +160,15 @@ export function buildHouses(
   ])
   const namedCodes = (codes: string[] = []) =>
     codes.map((code) => ({ code, name: nameByCode.get(code) ?? code }))
-  const claimByHeir = new Map(claims.map((claim) => [claim.heir, claim]))
+  // An heir shows its live claim, else its latest ended one.
+  const claimByHeir = new Map<string, Claim>()
+  for (const claim of claims) {
+    const shown = claimByHeir.get(claim.heir)
+    if (!shown || shown.ended || !claim.ended) claimByHeir.set(claim.heir, claim)
+  }
   const claimedBy = new Map<string, number>()
   for (const claim of claims)
-    claimedBy.set(claim.target, (claimedBy.get(claim.target) ?? 0) + 1)
+    if (!claim.ended) claimedBy.set(claim.target, (claimedBy.get(claim.target) ?? 0) + 1)
 
   return players.map((player) => {
     const own = nobles.filter((noble) => noble.owner === player.id)
@@ -162,13 +186,15 @@ export function buildHouses(
         commissioned: namedCodes(noble.commissioned),
         dignities: noble.dignities ?? [],
         religious: religiousByHolder.get(noble.code) ?? [],
+        excommunicated: excommunicatedCodes.has(noble.code),
         fiefs: fiefsByHolder.get(noble.code) ?? [],
         claim: claim
           ? {
               target: claim.target,
               targetName: nameByCode.get(claim.target) ?? claim.target,
               rank: claim.rank,
-              targetFiefs: fiefsByHolder.get(claim.target) ?? [],
+              targetFiefs: claim.ended ? [] : (fiefsByHolder.get(claim.target) ?? []),
+              outcome: claim.ended ? (claim.outcome ?? 'lapsed') : undefined,
             }
           : undefined,
         claimedBy: claimedBy.get(noble.code) ?? 0,
@@ -190,6 +216,7 @@ export function buildHouses(
         commissioned: namedCodes(noble.commissioned),
         dignities: [],
         religious: [],
+        excommunicated: false,
         fiefs: [],
         claimedBy: 0,
       })

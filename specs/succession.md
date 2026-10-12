@@ -372,8 +372,8 @@ meurt, les titres de fief qu'il détient reviennent à l'héritier. Il n'existe
 pas d'ordre dédié d'annulation du Claim par le roi ou le pape : jouer une
 carte de bâtard sur l'héritier, y compris celui d'un adversaire, annule sa
 prétention (voir « Bâtard » ci-dessus et « Bâtard » plus bas) ; le pape
-dispose par ailleurs de l'excommunication (voir [dames.md § Carte de
-procès](dames.md#carte-de-procès)) pour les cas que le bâtard ne couvre pas.
+dispose par ailleurs de l'excommunication (voir
+[religieux.md § Excommunication](religieux.md#excommunication)) pour les cas que le bâtard ne couvre pas.
 
 **Ordre.** `C N HHH CCC` (gratuit) consomme une **carte de prétention** de la main de
 cartes de noble du joueur (`card_not_in_hand` sinon ; la carte reste sur
@@ -414,4 +414,7 @@ Une carte de bâtard jouée sur un noble « parent » (le noble visé ou son
 conjoint) n'annule pas la prétention.
 
 **Visibilité.** Une prétention est publique : elle figure dans le rapport de
-tous les joueurs dès qu'elle est jouée.
+tous les joueurs dès qu'elle est jouée. Une prétention éteinte reste visible
+dans la lignée, comme un mariage terminé : « honorée » si l'héritier a reçu un
+fief ou la couronne, « éteinte » sinon (bâtard, mort de l'héritier ou de la
+cible, autre héritier servi en premier).

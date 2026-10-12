@@ -96,14 +96,19 @@ il n'est plus candidat à aucune autre élection pour ce motif.
 Un Claim visant le roi **ou sa reine** cible, en plus des fiefs, la couronne. À
 la mort du roi, ses fiefs et la couronne passent au premier héritier vivant
 dans le classement habituel des Claims (ancienneté, famille de l'épouse
-d'abord, puis ordre de jeu) qui peut être roi (homme, non bâtard) ; un héritier
+d'abord, puis ordre de jeu, les Claims sur le roi et sur sa reine étant
+classés ensemble) qui peut être roi (homme, non bâtard, pas pape) ; un héritier
 qui ne le peut pas est sauté pour la couronne mais conserve son droit sur les
-fiefs. L'héritier couronné est roi sans élection ni onction, et sans condition
-de rang de succession. Une prétention sur la reine est donc aussi une
-prétention sur le trône : elle profite à la maison de l'héritier, y compris
-celle de la reine. La mort de la reine seule ne transmet que ses éventuels
-fiefs. Sans héritier éligible, la couronne reste vacante (reine régente,
-élection).
+fiefs. La reine est la conjointe du roi à sa mort (mariage non dissous) : un
+Claim sur une reine douairière ne vise pas la couronne d'un nouveau roi.
+
+L'héritier couronné est roi sans élection ni onction, et sans condition de rang
+de succession. Le couronnement est un événement public d'investiture, et la
+prétention de l'héritier couronné est honorée : elle s'éteint. Une prétention
+sur la reine est donc aussi une prétention sur le trône : elle profite à la
+maison de l'héritier, y compris celle de la reine. La mort de la reine seule
+ne transmet que ses éventuels fiefs. Sans héritier éligible, la couronne reste
+vacante (reine régente, élection).
 
 ## Pouvoirs royaux
 
@@ -119,13 +124,23 @@ autorise cet hiver est consommé sans effet (rapport explicite).
 |---|---|---|
 | `P TX HHH XXX` | **Taxe royale** | Carte Impôts du roi sur la capitale de n'importe quel fief constitué, vacant compris, non taxé par son seigneur ce tour ; le supplément va à la capitale du roi ([titres.md](titres.md#taxe-seigneuriale)). |
 | `W X KKK XXX YYY` | **Accord d'annexion** | Autorise le fief de capitale `XXX` à annexer le territoire `YYY` d'un autre fief ([Annexion](#seigneurie-et-annexion)). |
-| `W R KKK XXX` | **Accord de rang** | Accorde gratuitement au fief `XXX` le titre correspondant à sa taille. |
+| `W R KKK XXX` | **Accord de rang** | Rend gratuite la montée d'un rang (`T R`) demandée cet hiver par le titulaire du fief `XXX`, quelle que soit la taille du fief. |
 | `W F KKK XXX` | **Octroi gratuit de fief** | Le fief dont la capitale est `XXX`, constitué cet hiver par `T F`, ne coûte rien à son joueur. |
 | `W G KKK XXX NNN` | **Octroi d'un fief de la couronne** | Donne le fief de la couronne de capitale `XXX` au noble `NNN`, de n'importe quel joueur, sous réserve de la ligne de succession. |
 
-Un roi émet au plus `royal.orders_per_winter` ordres royaux par hiver (valeur
-de départ : un par type, à calibrer). Le roi peut octroyer à ses propres nobles
-comme à ceux des autres joueurs.
+Un roi émet au plus `royal.orders_per_winter` ordres royaux de chaque type par
+hiver (valeur de départ : un, à calibrer ; `royal_order_limit`). Le roi peut
+octroyer à ses propres nobles comme à ceux des autres joueurs.
+
+Rejets propres aux ordres royaux : `royal_not_issuer` (`KKK` n'est ni le roi
+ni la régente, ou n'appartient pas au joueur), `royal_order_limit`,
+`fief_not_found`, `unknown_noble`, `royal_fief_not_crown` (`W G` : le fief a un
+titulaire, ou son joueur a encore un noble vivant), `succession_rank_blocked` (`W G`),
+`royal_accord_unused` (`W X`, `W R`, `W F` : l'ordre autorisé est absent des
+feuilles de l'hiver). Un `W X` ou `W R` attend le `T X` / `T R` de la feuille du
+joueur propriétaire du fief `XXX` ; un `W F` attend un `T F` de capitale `XXX`
+sur n'importe quelle feuille. Un fief de la couronne est, pour `W G`, un fief vacant
+dont le joueur n'a plus aucun noble vivant.
 
 ### Rente
 
@@ -134,10 +149,11 @@ le roi gagne **1 R par fief constitué** sur la carte, quel que soit son
 propriétaire, vacants et fiefs du roi compris. La rente est créée, jamais
 prélevée sur les fiefs, et livrée à la capitale du joueur du roi. Elle ne
 dépend pas de l'état du roi : un roi capturé continue de la percevoir pour son
-joueur. Aucune rente en l'absence de roi, pour le trône comme pour la reine.
+joueur. Le trône vacant ne perçoit aucune rente.
 
 La reine gagne en plus la **moitié de la rente, arrondie au supérieur**, livrée
-à la capitale du joueur de la reine. Sa rente ne diminue pas celle du roi. Le
+à la capitale du joueur de la reine. Sa rente ne diminue pas celle du roi. Elle
+la perçoit tant qu'elle est reine, douairière et trône vacant compris. Le
 rapport de fin de tour la mentionne séparément.
 
 ### Seigneurie et annexion
@@ -200,8 +216,18 @@ L'ordre `T F` reste soumis à toutes ses autres conditions.
 [titres.md](titres.md#titres-de-courtoisie) devient mécanique pour elle seule.
 Elle appartient à un autre joueur que le roi (un mariage lie toujours deux
 joueurs distincts). Elle n'a **aucun pouvoir d'ordre** ; son seul effet est sa
-[rente](#rente). Elle cesse d'être reine quand le mariage prend fin (mort du roi ou
-dissolution). Le roi se marie selon les règles
+[rente](#rente). Veuve, elle **garde son titre** : elle est dite **reine
+douairière** tant qu'elle n'est pas la conjointe du roi en place (trône vacant,
+ou roi non marié avec elle). Elle cesse d'être reine quand :
+
+- elle meurt ;
+- elle se remarie (sauf avec le roi en place, dont elle devient alors la
+  reine) ;
+- un roi marié est en place : sa conjointe est la reine, élu comme héritier de
+  Claim, dès son couronnement s'il est déjà marié, sinon à son mariage ;
+- le mariage prend fin de son vivant, par dissolution du pape.
+
+Le roi se marie selon les règles
 ordinaires de [succession.md](succession.md#conclusion-dun-mariage) ; il n'est
 pas tenu d'être célibataire.
 
@@ -220,7 +246,8 @@ nom, dans deux cas :
 Les ordres royaux (`W …`) et la taxe royale sont émis par le noble de la
 régente. Elle ne cumule pas la couronne. Pendant la captivité du roi, la rente du roi
 et la moitié de la reine continuent d'être versées ; pendant la vacance, il n'y
-a plus de rente, ni pour le roi ni pour la régente.
+a plus de rente du roi, mais la régente, qui est reine douairière, continue de
+percevoir celle de la reine.
 
 ## Héritage d'un fief sans héritier
 

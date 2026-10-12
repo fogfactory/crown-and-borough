@@ -39,7 +39,7 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 	})
 	played := make(map[models.TerritoryID]map[models.CardKind]int)
 	for _, intent := range intents {
-		if intent.order.Kind == models.CardKindRevolt || intent.order.Kind == models.CardKindSeigneurialTax || intent.order.Kind == models.CardKindTrial || intent.order.Kind == models.CardKindTunnel || intent.order.Kind == models.CardKindAssassination {
+		if intent.order.Kind == models.CardKindRevolt || intent.order.Kind == models.CardKindSeigneurialTax || intent.order.Kind == models.CardKindTunnel || intent.order.Kind == models.CardKindAssassination {
 			continue
 		}
 		seed := intent.order.RegionSeed
@@ -49,7 +49,7 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 		played[seed][intent.order.Kind]++
 	}
 	for _, intent := range intents {
-		if intent.order.Kind == models.CardKindRevolt || intent.order.Kind == models.CardKindSeigneurialTax || intent.order.Kind == models.CardKindTrial || intent.order.Kind == models.CardKindTunnel || intent.order.Kind == models.CardKindAssassination {
+		if intent.order.Kind == models.CardKindRevolt || intent.order.Kind == models.CardKindSeigneurialTax || intent.order.Kind == models.CardKindTunnel || intent.order.Kind == models.CardKindAssassination {
 			continue
 		}
 		seed := intent.order.RegionSeed
@@ -831,9 +831,7 @@ func resolvePlagueMortalityFor(ctx *resolutionContext, plagueRegions map[models.
 		}
 	}
 	ctx.rebuildIndexes()
-	ctx.vacateFiefsOfMissingHolders()
-	ctx.state.DropReligiousTitlesOfMissingNobles()
-	ctx.settleClaimsOfDead()
+	ctx.settleAfterDeaths()
 }
 
 func newPlagueRNG(seed string, turn int, nobleID models.NobleID) *rand.Rand {

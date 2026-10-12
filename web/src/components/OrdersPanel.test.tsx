@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { OrdersPanel } from '@/components/OrdersPanel'
 import { LanguageProvider } from '@/i18n/LanguageContext'
-import type { Noble, OrdersPreview, StateData } from '@/types'
+import type { Noble, OrdersPreview, StateData, Territory } from '@/types'
 
 const state: StateData = {
   turn: 4,
@@ -1081,7 +1081,7 @@ describe('OrdersPanel title and card order dialogs', () => {
     expect(within(dialog).getByText(/^Cancels: Bad weather/)).toBeTruthy()
   })
 
-  function renderAction(extra: Partial<StateData>, specialDraft = '', onSpecialChange = vi.fn()) {
+  function renderAction(extra: Partial<StateData>, specialDraft = '', onSpecialChange = vi.fn(), mapTerritories: Territory[] = []) {
     render(
       <LanguageProvider initialLanguage="en">
         <OrdersPanel
@@ -1090,6 +1090,7 @@ describe('OrdersPanel title and card order dialogs', () => {
           chainDrafts={{}}
           winterDraft=""
           specialDraft={specialDraft}
+          mapTerritories={mapTerritories}
           submitted={false}
           submitting={false}
           error={null}
@@ -1172,6 +1173,33 @@ describe('OrdersPanel title and card order dialogs', () => {
     fireEvent.change(within(dialog).getByLabelText('Noble to assassinate'), { target: { value: 'JAI' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
     expect(onWinterChange).toHaveBeenCalledWith(expect.stringMatching(/^P AS AAA JAI/))
+  })
+
+  it('offers only the territories next to the origin as tunneled attack targets', () => {
+    const territory = (id: string, army: { owner: string; size: number; chain: null } | null) => ({
+      id, owner: 'P1', resources: 0, army, infrastructures: [],
+    })
+    const mapTerritory = (id: string, adjacencies: string[]) => ({
+      id, name: id, terrain: 'plain' as const, village: false, points: [], adjacencies, impassable: [],
+    })
+    renderAction(
+      {
+        specialHand: ['tunnel'],
+        territories: [territory('AAA', { owner: 'P1', size: 2, chain: null }), territory('BBB', null), territory('CCC', null)],
+      },
+      '',
+      vi.fn(),
+      [mapTerritory('AAA', ['BBB']), mapTerritory('BBB', ['AAA', 'CCC']), mapTerritory('CCC', ['BBB'])],
+    )
+    fireEvent.click(screen.getByRole('button', { name: /^Play Tunnel \(SO\): tunneled attack/ }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.change(within(dialog).getByLabelText('Attack origin'), { target: { value: 'AAA' } })
+    expect(
+      within(dialog)
+        .getAllByRole('option')
+        .map((o) => o.textContent)
+        .filter((text) => ['AAA', 'BBB', 'CCC'].includes(text ?? '')),
+    ).toEqual(['AAA', 'BBB'])
   })
 
   it('hides the revolt card when no territory is eligible', () => {

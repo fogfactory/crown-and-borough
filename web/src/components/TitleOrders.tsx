@@ -11,7 +11,6 @@ const PLAYABLE_KINDS: CardKind[] = [
   'abundant_harvest',
   'revolt',
   'seigneurial_tax',
-  'trial',
   'tunnel',
   'assassination',
 ]
@@ -549,6 +548,130 @@ export function TitleOrdersSection({
     )
   }
 
+  // W X, W R, W F, W G: royal orders of the king, or of the regent in his stead.
+  const royal = aids.royal
+  if (royal) {
+    const allFiefs = state.fiefs ?? []
+    const fiefOptions = (fiefs: typeof allFiefs): OrderFieldOption[] =>
+      fiefs.map((fief) => ({
+        value: fief.capital,
+        label: `${fief.capital} · ${t(`fief.title.${fief.title}` as MessageKey)} · ${fief.owner}`,
+      }))
+    const usedInDraft = (prefix: string) =>
+      lines.filter((line) => line.startsWith(prefix)).length >= royal.ordersPerWinter
+    // Territories of a fief other than the annexing one: the ones an accord opens.
+    const annexableFrom = (capital: string | undefined) =>
+      allFiefs
+        .filter((fief) => fief.capital !== capital)
+        .flatMap((fief) => fief.territories.filter((code) => code !== fief.capital))
+    if (allFiefs.length > 1 && !usedInDraft('W X ')) {
+      launchers.push(
+        <OrderLauncher
+          key="w-x"
+          label={t('orders.royalAnnex')}
+          title={t('orders.royalAnnex')}
+          description={t('orders.royalAnnexHelp')}
+          fields={[
+            { key: 'fief', label: t('orders.field.fief'), options: fiefOptions(allFiefs) },
+            {
+              key: 'territory',
+              label: t('orders.field.annexedTerritory'),
+              options: (values) => annexableFrom(values.fief).map(codeOption),
+            },
+          ]}
+          buildOrder={(values) =>
+            values.fief && values.territory
+              ? {
+                  line: `W X ${royal.issuer} ${values.fief} ${values.territory}`,
+                  comment: t('orders.comment.royalAnnex', {
+                    capital: values.fief,
+                    territory: values.territory,
+                  }),
+                }
+              : null
+          }
+          onConfirm={add}
+        />,
+      )
+    }
+    if (allFiefs.length > 0 && !usedInDraft('W R ')) {
+      launchers.push(
+        <OrderLauncher
+          key="w-r"
+          label={t('orders.royalRank')}
+          title={t('orders.royalRank')}
+          description={t('orders.royalRankHelp')}
+          fields={[{ key: 'fief', label: t('orders.field.fief'), options: fiefOptions(allFiefs) }]}
+          buildOrder={(values) =>
+            values.fief
+              ? {
+                  line: `W R ${royal.issuer} ${values.fief}`,
+                  comment: t('orders.comment.royalRank', { capital: values.fief }),
+                }
+              : null
+          }
+          onConfirm={add}
+        />,
+      )
+    }
+    if (!usedInDraft('W F ')) {
+      launchers.push(
+        <OrderLauncher
+          key="w-f"
+          label={t('orders.royalFound')}
+          title={t('orders.royalFound')}
+          description={t('orders.royalFoundHelp')}
+          fields={[
+            {
+              key: 'capital',
+              label: t('orders.field.capital'),
+              options: state.territories.map((territory) => codeOption(territory.id)),
+            },
+          ]}
+          buildOrder={(values) =>
+            values.capital
+              ? {
+                  line: `W F ${royal.issuer} ${values.capital}`,
+                  comment: t('orders.comment.royalFound', { capital: values.capital }),
+                }
+              : null
+          }
+          onConfirm={add}
+        />,
+      )
+    }
+    if (vacantFiefs.length > 0 && !usedInDraft('W G ')) {
+      launchers.push(
+        <OrderLauncher
+          key="w-g"
+          label={t('orders.royalGrant')}
+          title={t('orders.royalGrant')}
+          description={t('orders.royalGrantHelp')}
+          fields={[
+            { key: 'fief', label: t('orders.field.fief'), options: fiefOptions(vacantFiefs) },
+            {
+              key: 'noble',
+              label: t('orders.field.grantee'),
+              options: state.nobles.map(nobleOption),
+            },
+          ]}
+          buildOrder={(values) =>
+            values.fief && values.noble
+              ? {
+                  line: `W G ${royal.issuer} ${values.fief} ${values.noble}`,
+                  comment: t('orders.comment.royalGrant', {
+                    capital: values.fief,
+                    name: nobleName(state, values.noble),
+                  }),
+                }
+              : null
+          }
+          onConfirm={add}
+        />,
+      )
+    }
+  }
+
   if (vacantFiefs.length > 0 && own.length > 0) {
     launchers.push(
       <OrderLauncher
@@ -693,8 +816,6 @@ function specialTargetField(
         label: t('orders.field.fief'),
         options: (state.fiefs ?? []).map((fief) => codeOption(fief.capital)),
       }
-    case 'trial':
-      return { label: t('orders.field.trialTarget'), options: state.nobles.map(nobleOption) }
     default: {
       // Regions where the card cancels an announced calamity come first.
       const options = regionOptions(regions).map((option) =>
@@ -791,7 +912,7 @@ export function SpecialCardOrders({
         if (kind === 'tunnel') {
           return (
             <span key={kind} className="contents">
-              {tunnelLaunchers({ state, player, t, lines, copies: copies(kind), add: (line) => onChange(appendDraftLine(draft, line)) })}
+              {tunnelLaunchers({ state, player, mapTerritories, t, lines, copies: copies(kind), add: (line) => onChange(appendDraftLine(draft, line)) })}
             </span>
           )
         }
@@ -969,6 +1090,7 @@ function taxLauncher({
 function tunnelLaunchers({
   state,
   player,
+  mapTerritories,
   t,
   lines,
   copies,
@@ -976,6 +1098,7 @@ function tunnelLaunchers({
 }: {
   state: StateData
   player?: PlayerId
+  mapTerritories: Territory[]
   t: Translate
   lines: string[]
   copies: number
@@ -988,7 +1111,12 @@ function tunnelLaunchers({
   const origins = state.territories
     .filter((territory) => territory.army?.owner === player)
     .map((territory) => codeOption(territory.id))
-  const targets = state.territories.map((territory) => codeOption(territory.id)).sort((a, b) => a.value.localeCompare(b.value))
+  const allTargets = state.territories.map((territory) => codeOption(territory.id)).sort((a, b) => a.value.localeCompare(b.value))
+  // The attack goes from the origin to a territory next to it.
+  const targets = (values: Record<string, string>) => {
+    const origin = mapTerritories.find((territory) => territory.id === values.origin)
+    return origin ? allTargets.filter((option) => origin.adjacencies.includes(option.value)) : allTargets
+  }
   return (
     <>
       {detained.length > 0 && (
@@ -1089,7 +1217,6 @@ const SHORT_CODES: Record<CardKind, string> = {
   bad_weather: 'MT',
   famine: 'FA',
   seigneurial_tax: 'TX',
-  trial: 'PR',
   tunnel: 'SO',
   assassination: 'AS',
 }

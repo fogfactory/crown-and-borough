@@ -39,6 +39,7 @@ import type {
   Bishopric,
   Claim,
   DeceasedNoble,
+  Excommunication,
   Fief,
   Marriage,
   Noble,
@@ -76,6 +77,10 @@ interface LineageDialogProps {
   bishoprics?: Bishopric[]
   cardinals?: string[]
   pope?: string
+  king?: string
+  queen?: string
+  queenDowager?: boolean
+  excommunicated?: Excommunication[]
   marriages?: Marriage[]
   claims?: Claim[]
   scores?: Record<string, ScoreBreakdown>
@@ -221,12 +226,16 @@ export function LineageDialog(props: LineageDialogProps) {
     code
 
   const allHouses = useMemo(
-    () => buildHouses(props.players, nobles, deceased ?? [], fiefs ?? [], claimList ?? [], {
+    () => buildHouses(props.players, nobles, deceased ?? [], fiefs ?? [], (claimList ?? []).filter((claim) => showEnded || !claim.ended), {
         bishoprics: data.bishoprics,
         cardinals: data.cardinals,
         pope: data.pope,
+        king: data.king,
+        queen: data.queen,
+        queenDowager: data.queenDowager,
+        excommunicated: data.excommunicated,
       }),
-    [props.players, nobles, deceased, fiefs, claimList, data.bishoprics, data.cardinals, data.pope],
+    [props.players, nobles, deceased, fiefs, claimList, data.bishoprics, data.cardinals, data.pope, data.king, data.queen, data.queenDowager, data.excommunicated, showEnded],
   )
   const houses = useMemo(
     () => allHouses.filter((house) => !hidden.has(house.player.id)),
@@ -246,9 +255,10 @@ export function LineageDialog(props: LineageDialogProps) {
       houses.flatMap((house) => house.members.map((member) => member.code)),
     )
     return (claimList ?? []).filter(
-      (claim) => visible.has(claim.heir) && visible.has(claim.target),
+      (claim) =>
+        visible.has(claim.heir) && visible.has(claim.target) && (showEnded || !claim.ended),
     )
-  }, [houses, claimList, showClaims])
+  }, [houses, claimList, showClaims, showEnded])
   const focusId =
     focus && houses.some((house) => house.player.id === focus) ? focus : null
   const playerName = (house: House) => house.player.name || house.player.id
@@ -859,12 +869,13 @@ function LineageTree({
             const [start, corner, end] = claimRoute(heir, target, shown ? spouse : target)
             return (
               <path
-                key={`claim-${claim.heir}`}
+                key={`claim-${claim.heir}-${claim.turn}-${claim.target}`}
                 d={`M${start[0]},${start[1]} L${corner[0]},${corner[1]} L${end[0]},${end[1]}`}
                 fill="none"
                 stroke={CLAIM}
                 strokeWidth={2}
-                strokeDasharray="2 3"
+                strokeDasharray={claim.ended ? '1 6' : '2 3'}
+                opacity={claim.ended ? 0.55 : 1}
                 markerEnd="url(#lineage-arrow)"
               />
             )
@@ -1006,6 +1017,11 @@ function LineageTree({
                             })}
                           </Badge>
                         ))}
+                        {member.excommunicated && (
+                          <Badge className="border-[#a84632] bg-[#f8dcd5] text-[#7a2a1a]">
+                            {t('lineage.excommunicated')}
+                          </Badge>
+                        )}
                         {member.fiefs.map((fief) => (
                           <Badge key={fief.capital} className="border-[#b7a786]">
                             {titleLabel(t, fief)}
@@ -1019,7 +1035,17 @@ function LineageTree({
                             {t(`dignity.${dignity}` as MessageKey)}
                           </Badge>
                         ))}
-                        {member.claim && (
+                        {member.claim?.outcome && (
+                          <Badge className="border-[#7a4fa3] text-[#7a4fa3] opacity-70">
+                            {t(
+                              member.claim.outcome === 'honoured'
+                                ? 'lineage.claimHonoured'
+                                : 'lineage.claimLapsed',
+                              { target: member.claim.targetName },
+                            )}
+                          </Badge>
+                        )}
+                        {member.claim && !member.claim.outcome && (
                           <Badge
                             className="text-white"
                             style={{ backgroundColor: CLAIM, borderColor: CLAIM }}

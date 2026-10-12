@@ -30,6 +30,10 @@ var demoScenarios = map[string]struct {
 		description: "winter (see the winter scenario), vacant throne, plus a baron of P1 (ZRA), P2 (ZRB) and P3 (ZRC) holding a barony each: the royal election opens (K R / V R), P1's pope and bishop and P2's cardinal can anoint",
 		apply:       forgeKing,
 	},
+	"crown": {
+		description: "winter (see the winter scenario): P2's excommunicated noble is the king, married to ZQU (P3), and holds a barony; claims on the couple: ZAN (P3, a woman) then ZGA (P3) on the king, ZPI (P2) on the queen. P1's pope and P2's cardinal can file the J trial that kills the king: the crown goes to ZPI, the barony to ZAN",
+		apply:       forgeCrown,
+	},
 	"dissolution": {
 		description: "winter (see the winter scenario), plus two marriages: ZEL (P1, the pope's house) with ZRO (P2), and ZCA (P2) with ZGU (P3); P1 can marry free nobles of P4",
 		apply:       forgeDissolution,
@@ -46,6 +50,10 @@ var demoScenarios = map[string]struct {
 		description: "winter (see the winter scenario), plus a barony of P1 held by its first noble, with three free territories next to it each held by a one-troop P1 army: try T X (annex) and T R (raise by one rank)",
 		apply:       forgeAnnexation,
 	},
+	"royal": {
+		description: "winter, annexation scenario plus a king (ZRK, P1), a barony of P2 held by ZRB, and a vacant crown fief of P3, who has no noble left: try W X, W R, W F, W G as P1 with the matching T X / T R / T F / T A from P1 and P2",
+		apply:       forgeRoyal,
+	},
 	"appeasement": {
 		description: "spring, P1 has a bishop, a cardinal and an abbess; rebel armies of 1 to 3 troops stand in their regions and elsewhere; P1 has plenty of R",
 		apply:       forgeAppeasement,
@@ -57,6 +65,10 @@ var demoScenarios = map[string]struct {
 	"assassination": {
 		description: "winter (see the winter scenario), P1 holds two Assassination cards; P3's noble ZDE was already killed on the orders of P1's pope (lineage, inquiry on a dead noble); P1/P2 pope and cardinal can investigate",
 		apply:       forgeAssassination,
+	},
+	"tunnel": {
+		description: "spring, P1 holds a Tunnel card and an army (with its noble) next to P2's capital castle, exactly as strong as the fortified defense: it fails alone, wins with P SO <origin> - <target>; the report shows the defense faced",
+		apply:       forgeTunnel,
 	},
 	"action": {
 		description: "spring, P1 holds bonus cards; a famine is active, a bad weather is announced (one bent by a ritual)",
@@ -166,7 +178,7 @@ func forgeWinter(state *models.GameState) error {
 			state.TerritoryStates[territoryID] = territoryState
 		}
 	}
-	giveSpecialCards(state, "P1", models.CardKindFairWeather, models.CardKindRevolt, models.CardKindTrial, models.CardKindSeigneurialTax)
+	giveSpecialCards(state, "P1", models.CardKindFairWeather, models.CardKindRevolt, models.CardKindSeigneurialTax)
 	giveNobleCards(state, "P1",
 		models.NobleCard{Kind: models.NobleCardKindNoble, Code: "ZAL", Name: "Albert", Sex: models.SexMale},
 		models.NobleCard{Kind: models.NobleCardKindDignity, Code: models.DignityBastardCardCode, Dignity: models.DignityBastard},
@@ -354,6 +366,152 @@ func forgeKing(state *models.GameState) error {
 	return nil
 }
 
+// forgeCrown makes the excommunicated noble of P2 the king (an excommunicated
+// king keeps the crown), gives him a barony and a queen of P3, and stakes three
+// claims on the couple, each by a child of one of the spouses' houses: ZAN (P3,
+// a woman) then ZGA (P3) on the king, ZPI (P2) on the queen. The order to try: `J <pope or cardinal> <king>` from both P1's
+// pope and P2's cardinal. The trial is judged at the end of the winter; the
+// king dies, the barony goes to ZAN (first claim on the king) and the crown to
+// ZPI, the first heir who can reign (ZAN is a woman).
+func forgeCrown(state *models.GameState) error {
+	if err := forgeWinter(state); err != nil {
+		return err
+	}
+	if len(state.Excommunications) == 0 {
+		return fmt.Errorf("the winter scenario excommunicated nobody")
+	}
+	king := state.Excommunications[0].Noble
+	state.King = &king
+	location := state.Nobles[ownedNobles(state, "P1")[0]].LocationID
+	for _, noble := range []struct {
+		id, code, name, owner string
+		sex                   models.Sex
+	}{
+		{"N930", "ZQU", "Quitterie", "P3", models.SexFemale},
+		{"N931", "ZAN", "Anne", "P3", models.SexFemale},
+		{"N932", "ZPI", "Pierre", "P2", models.SexMale},
+		{"N933", "ZGA", "Gaspard", "P3", models.SexMale},
+	} {
+		state.Nobles = append(state.Nobles, models.Noble{
+			ID: models.NobleID(noble.id), Code: noble.code, Name: noble.name, Sex: noble.sex,
+			OwnerID: models.PlayerID(noble.owner), LocationID: location, Status: models.NobleStatusFree,
+		})
+	}
+	state.Marriages = []models.Marriage{{NobleA: king, NobleB: "N930", Turn: 1}}
+	queen := models.NobleID("N930")
+	state.Queen = &queen
+	state.Claims = []models.Claim{
+		{Heir: "N931", Target: king, Spouse: "N930", Turn: 1},
+		{Heir: "N932", Target: "N930", Spouse: king, Turn: 2},
+		{Heir: "N933", Target: king, Spouse: "N930", Turn: 3},
+	}
+	inFief := make(map[models.TerritoryID]bool)
+	for _, fief := range state.Fiefs {
+		for _, id := range fief.Territories {
+			inFief[id] = true
+		}
+	}
+	var group []models.TerritoryID
+	for _, territory := range state.Territories {
+		owner, controlled := state.TerritoryController(territory.ID)
+		if controlled && owner == "P2" && !inFief[territory.ID] && len(group) < models.FiefMinTerritories {
+			group = append(group, territory.ID)
+		}
+	}
+	if len(group) < models.FiefMinTerritories {
+		return fmt.Errorf("P2 controls fewer than %d free territories", models.FiefMinTerritories)
+	}
+	state.Fiefs = append(state.Fiefs, models.Fief{
+		ID: "FZKKING", Title: models.FiefTitleBarony, CapitalTerritoryID: group[0],
+		Territories: group, OwnerID: "P2", HolderNobleID: &king,
+	})
+	fmt.Println("demo crown: the king is P2's excommunicated noble; try a J trial on him from P1's pope and P2's cardinal")
+	return nil
+}
+
+// forgeRoyal makes a free noble of P1 (ZRK) the king, on top of the annexation
+// scenario (P1 barony F1 with annexable territories), and adds a barony of P2
+// held by ZRB and a crown fief: vacant, attached to P3 who has no noble left.
+func forgeRoyal(state *models.GameState) error {
+	if err := forgeAnnexation(state); err != nil {
+		return err
+	}
+	location := state.Nobles[ownedNobles(state, "P1")[0]].LocationID
+	for _, noble := range []struct {
+		id, code, name, owner string
+	}{{"N940", "ZRK", "Robert", "P1"}, {"N941", "ZRB", "Bertrand", "P2"}} {
+		state.Nobles = append(state.Nobles, models.Noble{
+			ID: models.NobleID(noble.id), Code: noble.code, Name: noble.name, Sex: models.SexMale,
+			OwnerID: models.PlayerID(noble.owner), LocationID: location, Status: models.NobleStatusFree,
+		})
+	}
+	king := models.NobleID("N940")
+	state.King = &king
+	inFief := make(map[models.TerritoryID]bool)
+	for _, fief := range state.Fiefs {
+		for _, id := range fief.Territories {
+			inFief[id] = true
+		}
+	}
+	group := func(player models.PlayerID) ([]models.TerritoryID, error) {
+		var members []models.TerritoryID
+		for _, territory := range state.Territories {
+			owner, controlled := state.TerritoryController(territory.ID)
+			if controlled && owner == player && !inFief[territory.ID] && len(members) < models.FiefMinTerritories {
+				members = append(members, territory.ID)
+			}
+		}
+		if len(members) < models.FiefMinTerritories {
+			return nil, fmt.Errorf("%s controls fewer than %d free territories", player, models.FiefMinTerritories)
+		}
+		for _, id := range members {
+			inFief[id] = true
+		}
+		return members, nil
+	}
+	p2Members, err := group("P2")
+	if err != nil {
+		return err
+	}
+	holder := models.NobleID("N941")
+	state.Fiefs = append(state.Fiefs, models.Fief{
+		ID: "FZKROYAL2", Title: models.FiefTitleBarony, CapitalTerritoryID: p2Members[0],
+		Territories: p2Members, OwnerID: "P2", HolderNobleID: &holder,
+	})
+	// The crown fief gathers free territories next to nothing in particular:
+	// three one-troop armies of P3 take them, and P3 has no noble left.
+	remaining := state.Nobles[:0]
+	for _, noble := range state.Nobles {
+		if noble.OwnerID != "P3" {
+			remaining = append(remaining, noble)
+		}
+	}
+	state.Nobles = remaining
+	var crownMembers []models.TerritoryID
+	for _, territory := range state.Territories {
+		if _, controlled := state.TerritoryController(territory.ID); controlled || inFief[territory.ID] ||
+			state.TerritoryStates[territory.ID].Army != nil || len(crownMembers) == models.FiefMinTerritories {
+			continue
+		}
+		armyID := models.ArmyID(fmt.Sprintf("ZC%d", len(crownMembers)+1))
+		state.Armies = append(state.Armies, models.Army{ID: armyID, OwnerID: "P3", TerritoryID: territory.ID, Size: 1})
+		territoryState := state.TerritoryStates[territory.ID]
+		territoryState.Army = &armyID
+		state.TerritoryStates[territory.ID] = territoryState
+		crownMembers = append(crownMembers, territory.ID)
+	}
+	if len(crownMembers) < models.FiefMinTerritories {
+		return fmt.Errorf("not enough free territories for the crown fief")
+	}
+	state.NextArmyID += len(crownMembers)
+	state.Fiefs = append(state.Fiefs, models.Fief{
+		ID: "FZKCROWN", Title: models.FiefTitleBarony, CapitalTerritoryID: crownMembers[0],
+		Territories: crownMembers, OwnerID: "P3",
+	})
+	fmt.Printf("demo royal: king ZRK (P1); P2 barony %v (ZRB); crown fief %v\n", p2Members, crownMembers)
+	return nil
+}
+
 func forgeDissolution(state *models.GameState) error {
 	if err := forgeWinter(state); err != nil {
 		return err
@@ -416,6 +574,77 @@ func forgeAssassination(state *models.GameState) error {
 		ID: "N950", Code: "ZDE", Name: "Denis", Sex: models.SexMale, OwnerID: "P3",
 		Cause: models.DeathCauseAssassination, Turn: 3, Commissioner: pope, Author: "P1",
 	})
+	return nil
+}
+
+// forgeTunnel puts a P1 army, with P1's first noble, on a free territory next
+// to P2's capital castle, with exactly the force of the defense there
+// (troops, castle bonus and the commanding noble). The attack then ties
+// against the fortifications and wins when the Tunnel card ignores them. The
+// orders to try, with the codes printed by the game:
+//
+//	A <origin> <target>          lost on its own (tie)
+//	P SO <origin> - <target>     the same attack, tunneled
+func forgeTunnel(state *models.GameState) error {
+	var capitalID models.TerritoryID
+	for _, player := range state.Players {
+		if player.ID != "P2" || player.CapitalCastleID == nil {
+			continue
+		}
+		for _, infrastructure := range state.Infrastructures {
+			if infrastructure.ID == *player.CapitalCastleID {
+				capitalID = infrastructure.TerritoryID
+			}
+		}
+	}
+	p1 := ownedNobles(state, "P1")
+	if capitalID == "" || len(p1) == 0 {
+		return fmt.Errorf("the base game lacks a P2 capital or a P1 noble")
+	}
+	defense := 1 // castle bonus
+	for _, army := range state.Armies {
+		if army.TerritoryID == capitalID {
+			defense += army.Size
+		}
+	}
+	for _, noble := range state.Nobles {
+		if noble.OwnerID == "P2" && noble.LocationID == capitalID && noble.Status == models.NobleStatusFree {
+			defense++
+			break
+		}
+	}
+	var originID models.TerritoryID
+	for _, territory := range state.Territories {
+		if territory.ID != capitalID {
+			continue
+		}
+		for _, id := range territory.Adjacencies {
+			if _, controlled := state.TerritoryController(id); !controlled && state.TerritoryStates[id].Army == nil {
+				originID = id
+				break
+			}
+		}
+	}
+	if originID == "" {
+		return fmt.Errorf("no free territory next to %s", capitalID)
+	}
+	armyID := models.ArmyID("ZT1")
+	state.Armies = append(state.Armies, models.Army{ID: armyID, OwnerID: "P1", TerritoryID: originID, Size: defense - 1})
+	territoryState := state.TerritoryStates[originID]
+	territoryState.Army = &armyID
+	state.TerritoryStates[originID] = territoryState
+	state.NextArmyID++
+	// A village with a large stock keeps the army supplied: a famished army
+	// attacks with no force at all.
+	state.Infrastructures = append(state.Infrastructures, models.Infrastructure{ID: "ZTV", Type: models.InfraTypeVillage, Level: 1, TerritoryID: originID})
+	villageID := models.InfraID("ZTV")
+	territoryState = state.TerritoryStates[originID]
+	territoryState.Infrastructures = &villageID
+	territoryState.Resources = 40
+	state.TerritoryStates[originID] = territoryState
+	state.Nobles[p1[0]].LocationID = originID
+	giveSpecialCards(state, "P1", models.CardKindTunnel)
+	fmt.Printf("demo tunnel: P1 army of %d (+ noble) on %s attacks the P2 castle on %s (defense %d)\n", defense-1, originID, capitalID, defense)
 	return nil
 }
 

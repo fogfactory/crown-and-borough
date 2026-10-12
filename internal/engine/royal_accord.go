@@ -11,12 +11,35 @@ type annexAccordKey struct {
 
 // royalAccords holds the royal authorizations in force this winter
 // (politique.md § Pouvoirs royaux): W X lets the fief of a capital annex a
-// territory of another fief, W R makes a rank change free. The royal orders
-// fill it before the management orders that read it; while no king or regent
-// grants any, it stays empty and every order needing an accord is rejected.
+// territory of another fief, W R makes a rank change free, W F makes the
+// founding of a fief free. The royal orders fill it before the management
+// orders that read it; while no king or regent grants any, it stays empty and
+// every order needing an accord is rejected.
 type royalAccords struct {
 	annex map[annexAccordKey]bool
 	rank  map[models.TerritoryID]bool
+	found map[models.TerritoryID]bool
+}
+
+func (accords *royalAccords) grantAnnex(capitalID, territoryID models.TerritoryID) {
+	if accords.annex == nil {
+		accords.annex = make(map[annexAccordKey]bool)
+	}
+	accords.annex[annexAccordKey{capital: capitalID, territory: territoryID}] = true
+}
+
+func (accords *royalAccords) grantRank(capitalID models.TerritoryID) {
+	if accords.rank == nil {
+		accords.rank = make(map[models.TerritoryID]bool)
+	}
+	accords.rank[capitalID] = true
+}
+
+func (accords *royalAccords) grantFound(capitalID models.TerritoryID) {
+	if accords.found == nil {
+		accords.found = make(map[models.TerritoryID]bool)
+	}
+	accords.found[capitalID] = true
 }
 
 func (ctx *resolutionContext) hasAnnexAccord(capitalID, territoryID models.TerritoryID) bool {
@@ -25,4 +48,8 @@ func (ctx *resolutionContext) hasAnnexAccord(capitalID, territoryID models.Terri
 
 func (ctx *resolutionContext) hasRankAccord(capitalID models.TerritoryID) bool {
 	return ctx.royalAccords.rank[capitalID]
+}
+
+func (ctx *resolutionContext) hasFoundAccord(capitalID models.TerritoryID) bool {
+	return ctx.royalAccords.found[capitalID]
 }

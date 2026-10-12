@@ -71,7 +71,7 @@ qu'il voit des autres.
 7. **Les morts d'hiver arrivent en dernier.** Les ordres d'hiver qui tuent sont
    le procès à deux cardinaux et la carte Assassinat, résolus à l'étape 9 après
    toute autre résolution, les verdicts des procès d'abord, puis les
-   assassinats (comme la carte de procès l'est à la fin d'un tour d'action).
+   assassinats.
    Aucun ne peut donc influencer les élections de l'hiver.
 
 ## Ordre de résolution
@@ -88,7 +88,7 @@ qu'il voit des autres.
 | 6 | **Élections** | Candidatures `K E` / `K P`, votes `V E` / `V P` : évêchés par identifiant de région croissant, puis conclave, puis trône (`K R` / `V R`). Résolues dans cet ordre ; voix lues sur l'instantané des titres. | [religieux.md](religieux.md) |
 | 7 | **Investiture** | Les élus deviennent évêque ou pape ; les achats de cardinal de l'étape 2 prennent effet. | ce document |
 | 8 | **Fin d'hiver** | Défausses et remplissage des mains, fiefs vacants attribués par défaut, conservation des stocks, prospérité, rapatriement, territoires sans ancre redevenus neutres, rapports. | GDD § Phase d'hiver |
-| 9 | **Jugement des procès, puis assassinats** | Procès `J` déposés à l'étape 3, jugés dans l'ordre croissant du code de la cible. Mort normale (lignée, fiefs, Claims). Puis les cartes Assassinat `P AS HHH NNN` de la feuille d'hiver, joueurs par identifiant puis ordre de la feuille : la carte a été consommée au début de l'étape 8, avant le remplissage des mains ; un ordre dont la victime ou le commanditaire est mort entre temps est rejeté, carte perdue. | [dames.md](dames.md#carte-de-procès) |
+| 9 | **Jugement des procès, puis assassinats** | Procès `J` déposés à l'étape 3, jugés dans l'ordre croissant du code de la cible. Mort normale (lignée, fiefs, Claims). Puis les cartes Assassinat `P AS HHH NNN` de la feuille d'hiver, joueurs par identifiant puis ordre de la feuille : la carte a été consommée au début de l'étape 8, avant le remplissage des mains ; un ordre dont la victime ou le commanditaire est mort entre temps est rejeté, carte perdue. | [dames.md](dames.md#procès) |
 
 Deux conséquences directes du tableau :
 

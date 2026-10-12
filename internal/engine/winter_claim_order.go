@@ -125,8 +125,19 @@ func (ctx *resolutionContext) wifeFamily(playerID models.PlayerID, target *model
 // voidClaimOf cancels the claim the heir holds once a dignity forbids it
 // (specs/succession.md § Bâtard).
 func (ctx *resolutionContext) voidClaimOf(heirID models.NobleID) {
-	ctx.state.Claims = slices.DeleteFunc(ctx.state.Claims, func(claim models.Claim) bool { return claim.Heir == heirID })
+	ctx.state.ExpireClaims(func(claim models.Claim) (models.ClaimOutcome, bool) {
+		return models.ClaimLapsed, claim.Heir == heirID
+	})
 	ctx.discardClaimCard(heirID)
+}
+
+// honourClaimOf records that the heir received what its claim bore on (a fief
+// or the crown): settleClaimsOfDead then ends the claim as honoured.
+func (ctx *resolutionContext) honourClaimOf(heirID models.NobleID) {
+	if ctx.honouredHeirs == nil {
+		ctx.honouredHeirs = make(map[models.NobleID]bool)
+	}
+	ctx.honouredHeirs[heirID] = true
 }
 
 // discardClaimCard sends the claim card played on the heir back to the
@@ -148,18 +159,27 @@ func (ctx *resolutionContext) discardClaimCard(heirID models.NobleID) {
 	}
 }
 
-// settleClaimsOfDead drops the claims whose heir or target left play, after
-// the dead nobles were removed and the indexes rebuilt. A claim on a dead
-// noble has been honoured by vacateFiefsOfMissingHolders first.
+// settleClaimsOfDead ends the claims whose heir or target left play and those
+// whose heir was served (a fief or the crown), after the dead nobles were
+// removed and the indexes rebuilt: the first end as lapsed unless the heir
+// was served, the second as honoured. Ended claims are kept in ExpiredClaims.
+// A claim on a dead noble has been honoured by vacateFiefsOfMissingHolders
+// first.
 func (ctx *resolutionContext) settleClaimsOfDead() {
-	ctx.state.Claims = slices.DeleteFunc(ctx.state.Claims, func(claim models.Claim) bool {
-		if ctx.noblesByID[claim.Heir] != nil && ctx.noblesByID[claim.Target] != nil {
-			return false
+	honoured := ctx.honouredHeirs
+	ctx.honouredHeirs = nil
+	ctx.state.ExpireClaims(func(claim models.Claim) (models.ClaimOutcome, bool) {
+		heirAlive := ctx.noblesByID[claim.Heir] != nil
+		if !heirAlive || ctx.noblesByID[claim.Target] == nil || honoured[claim.Heir] {
+			if heirAlive {
+				// A living heir gets its card back; a dead one already released it.
+				ctx.discardClaimCard(claim.Heir)
+			}
+			if honoured[claim.Heir] {
+				return models.ClaimHonoured, true
+			}
+			return models.ClaimLapsed, true
 		}
-		// A living heir gets its card back; a dead one already released it.
-		if ctx.noblesByID[claim.Heir] != nil {
-			ctx.discardClaimCard(claim.Heir)
-		}
-		return true
+		return "", false
 	})
 }

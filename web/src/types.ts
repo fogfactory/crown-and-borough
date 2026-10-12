@@ -14,7 +14,6 @@ export type CardKind =
   | 'bad_weather'
   | 'famine'
   | 'seigneurial_tax'
-  | 'trial'
   | 'tunnel'
   | 'assassination'
 
@@ -65,6 +64,8 @@ export type EventType =
   | 'fief_assigned'
   | 'fief_annexed'
   | 'fief_rank_changed'
+  | 'royal_accord'
+  | 'fief_granted'
   | 'fief_conquered'
   | 'fief_vacated'
   | 'fief_dissolved'
@@ -263,6 +264,8 @@ export interface WinterAids {
   rankCostPerTerritory?: number
   /** The viewer's Witches able to perform a ritual, with the region it would hit. */
   rituals: Array<{ noble: string; region: string }>
+  /** Present when the viewer holds the royal powers (king's player, or regent's). */
+  royal?: { issuer: string; ordersPerWinter: number }
 }
 
 /** An election the winter announces, read for the viewing player. */
@@ -485,8 +488,12 @@ export interface Claim {
   spouse: string
   turn: number
   wifeSide?: boolean
-  /** Position among the claims on the same target; 1 inherits first. */
+  /** Position among the claims on the same target; 1 inherits first (0 once ended). */
   rank: number
+  /** The claim ended: kept, like an ended marriage, with how and when. */
+  ended?: boolean
+  endedTurn?: number
+  outcome?: 'honoured' | 'lapsed'
 }
 
 export interface StateData {
@@ -512,6 +519,10 @@ export interface StateData {
   pope?: string
   /** Code of the noble who holds the crown; absent while the throne is vacant. */
   king?: string
+  /** Code of the queen, a dowager queen included. */
+  queen?: string
+  /** The queen is not the spouse of the king in place (widow of a former king). */
+  queenDowager?: boolean
   excommunicated?: Excommunication[]
   specialHand?: CardKind[]
   /** Winter only: next calamities of the draw pile, revealed by a free astrologue. */
@@ -845,6 +856,8 @@ export interface CombatContender {
   defender?: boolean
   /** The attack was carried by a tunnel card: it ignored the target's fortifications. */
   tunnel?: boolean
+  /** On the defender: the force a tunneled attack faced, without the fortification bonus. */
+  tunnelForce?: number
 }
 
 export interface CombatReport {
@@ -924,7 +937,7 @@ export interface WinterInvestmentReport {
   noble?: string
   nobleCode?: string
   nobleName?: string
-  /** Present only for the fief winter events (`fief_founded`, `fief_assigned`, `fief_annexed`, `fief_rank_changed`, `fief_auto_assigned`). */
+  /** Present only for the fief winter events (`fief_founded`, `fief_assigned`, `fief_annexed`, `fief_rank_changed`, `fief_auto_assigned`, `fief_granted`). */
   title?: FiefTitle
   territories?: string[]
   reason?: string
@@ -949,6 +962,10 @@ export type WinterOrderType =
   | 'assign_fief'
   | 'annex_territory'
   | 'change_rank'
+  | 'royal_annex'
+  | 'royal_rank'
+  | 'royal_found'
+  | 'royal_grant'
   | 'marriage'
   | 'draw_noble'
   | 'play_dignity'

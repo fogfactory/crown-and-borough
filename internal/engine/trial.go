@@ -4,65 +4,9 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
-// trialCardDefinition is the "P PR HHH" order (specs/dames.md § Carte de
-// procès, #260): HHH is the code of the noble put on trial, not necessarily
-// an adversary's. The card is consumed when it is played; whether the trial is
-// well founded is only decided at the very end of the turn (resolveTrials),
-// once every other effect of the turn has taken place.
-type trialCardDefinition struct{}
-
-type trialOrder struct {
-	playerID models.PlayerID
-	order    models.DeckOrder
-}
-
-func (trialCardDefinition) Kind() models.CardKind { return models.CardKindTrial }
-
-func (trialCardDefinition) CanPlay(ctx *ExecutionContext, order models.DeckOrder) (bool, string) {
-	if ctx.season == models.SeasonWinter {
-		return false, "deck_order_out_of_season"
-	}
-	if ctx.resolution.noblesByID[order.TargetNobleID] == nil {
-		return false, "trial_requires_noble"
-	}
-	return true, ""
-}
-
-func (trialCardDefinition) NewOrder(playerID models.PlayerID, order models.DeckOrder) ExecutableOrder {
-	return trialOrder{playerID: playerID, order: order}
-}
-
-func (order trialOrder) Apply(ctx *ExecutionContext) {
-	definition := trialCardDefinition{}
-	if applicable, reason := definition.CanPlay(ctx, order.order); !applicable {
-		ctx.resolution.rejectDeckOrderReason(order.playerID, order.order, reason)
-		return
-	}
-	ctx.resolution.applyDeckCardOrder(order.playerID, order.order)
-}
-
-// resolveTrials judges the trial cards played this turn, in submission order.
-// A trial on a noble who can be tried executes her and opens a revolt
-// opportunity on the region where she stood, from the next action season; any
-// other trial, including one on a noble already gone, is unfounded: the card
-// is spent and nothing else happens.
-func resolveTrials(ctx *resolutionContext) {
-	for _, intent := range ctx.deckIntents {
-		if intent.order.Kind != models.CardKindTrial {
-			continue
-		}
-		event := Event{
-			Type: EventTypeTrial, Phase: phaseForSeason(ctx.state.Season), OwnerID: intent.playerID,
-			OrderID: intent.order.ID, CardKind: models.CardKindTrial, NobleID: intent.order.TargetNobleID,
-			Season: ctx.state.Season, Year: ctx.state.Year(),
-		}
-		ctx.judgeTrial(event, ctx.noblesByID[intent.order.TargetNobleID])
-	}
-}
-
 // trialVerdict returns the dignity a trial reveals when the noble can be put
 // to death: a lady liable to the direct trial, or any excommunicated noble
-// (specs/dames.md § Carte de procès). The dignity is empty for a noble who
+// (specs/dames.md § Procès). The dignity is empty for a noble who
 // holds none.
 func (ctx *resolutionContext) trialVerdict(noble *models.Noble) (models.Dignity, bool) {
 	_, married := ctx.state.MarriageOf(noble.ID)
@@ -125,9 +69,7 @@ func (ctx *resolutionContext) removeNoble(noble models.Noble, cause models.Death
 		Cause: cause, Turn: ctx.state.Turn, InquiryCost: inquiryCost,
 	})
 	ctx.rebuildIndexes()
-	ctx.vacateFiefsOfMissingHolders()
-	ctx.state.DropReligiousTitlesOfMissingNobles()
-	ctx.settleClaimsOfDead()
+	ctx.settleAfterDeaths()
 }
 
 func removeNoble(nobles []models.Noble, id models.NobleID) []models.Noble {

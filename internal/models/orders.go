@@ -67,7 +67,23 @@ const (
 	WinterOrderTypeInquiry             WinterOrderType = "inquiry"
 	WinterOrderTypeDissolveMarriage    WinterOrderType = "dissolve_marriage"
 	WinterOrderTypeTrial               WinterOrderType = "trial"
+	// Royal orders (W X, W R, W F, W G), issued by the king or the regent and
+	// resolved at stage 2a (specs/politique.md § Pouvoirs royaux).
+	WinterOrderTypeRoyalAnnex WinterOrderType = "royal_annex"
+	WinterOrderTypeRoyalRank  WinterOrderType = "royal_rank"
+	WinterOrderTypeRoyalFound WinterOrderType = "royal_found"
+	WinterOrderTypeRoyalGrant WinterOrderType = "royal_grant"
 )
+
+// IsRoyal reports whether the winter order is a royal order (W X, W R, W F or
+// W G), resolved before the management orders.
+func (t WinterOrderType) IsRoyal() bool {
+	switch t {
+	case WinterOrderTypeRoyalAnnex, WinterOrderTypeRoyalRank, WinterOrderTypeRoyalFound, WinterOrderTypeRoyalGrant:
+		return true
+	}
+	return false
+}
 
 // IsValid reports whether a winter order type is known to the winter resolver.
 func (t WinterOrderType) IsValid() bool {
@@ -79,7 +95,8 @@ func (t WinterOrderType) IsValid() bool {
 		WinterOrderTypeDrawNoble, WinterOrderTypeDignity, WinterOrderTypeDiscardNoble,
 		WinterOrderTypeClaim, WinterOrderTypeCalamityVeto,
 		WinterOrderTypeCandidacy, WinterOrderTypeVote, WinterOrderTypeBuyCardinal,
-		WinterOrderTypeExcommunicate, WinterOrderTypeLiftExcommunication, WinterOrderTypeRitual, WinterOrderTypeInquiry, WinterOrderTypeTrial:
+		WinterOrderTypeExcommunicate, WinterOrderTypeLiftExcommunication, WinterOrderTypeRitual, WinterOrderTypeInquiry, WinterOrderTypeTrial,
+		WinterOrderTypeRoyalAnnex, WinterOrderTypeRoyalRank, WinterOrderTypeRoyalFound, WinterOrderTypeRoyalGrant:
 		return true
 	}
 	return false
@@ -210,7 +227,7 @@ type DeckOrder struct {
 	Kind              CardKind      `json:"kind,omitempty"`
 	RegionSeed        TerritoryID   `json:"regionSeed,omitempty"`
 	TargetTerritoryID TerritoryID   `json:"targetTerritory,omitempty"`
-	// TargetNobleID is the noble a trial card puts on trial, the cleric
+	// TargetNobleID is the cleric
 	// issuing a revolt appeasement, or the detained noble a tunnel card helps
 	// escape.
 	TargetNobleID NobleID `json:"targetNoble,omitempty"`

@@ -698,6 +698,10 @@ function AppContent() {
                   bishoprics={state.bishoprics}
                   cardinals={state.cardinals}
                   pope={state.pope}
+                  king={state.king}
+                  queen={state.queen}
+                  queenDowager={state.queenDowager}
+                  excommunicated={state.excommunicated}
                   marriages={state.marriages}
                   scores={state.scores}
                   victory={state.victory}

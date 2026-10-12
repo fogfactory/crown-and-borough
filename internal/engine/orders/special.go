@@ -97,16 +97,6 @@ func parseDeckOrderLine(line string, lineNumber int, game *models.GameState) (mo
 		}
 		return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: kind, TargetTerritoryID: target}, nil
 	}
-	if kind == models.CardKindTrial {
-		// HHH is a noble code here, by exception to the usual "TER is a
-		// region's seed village" rule (specs/dames.md § Carte de procès).
-		nobleID, found := nobleIDByCode(game, fields[2])
-		if !found {
-			error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderNobleUnknown, fields[2])
-			return models.DeckOrder{}, &error
-		}
-		return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: kind, TargetNobleID: nobleID}, nil
-	}
 	if kind == models.CardKindTunnel {
 		// "P SO NNN" frees the detained noble NNN (the attack form, with a
 		// dash, is parsed by parseTunnelAttackLine).
@@ -256,8 +246,6 @@ func parseSpecialKind(value string, lineNumber int) (models.CardKind, *ParseErro
 		"ST": models.CardKindSeigneurialTax,
 		"DI": models.CardKindSeigneurialTax,
 		"TT": models.CardKindSeigneurialTax,
-		"PR": models.CardKindTrial,
-		"TR": models.CardKindTrial,
 		"SO": models.CardKindTunnel,
 		"TU": models.CardKindTunnel,
 		"AS": models.CardKindAssassination,

@@ -48,9 +48,6 @@ Aucun noble n'est requis :
 - `P AG HHH TER` (rite gratuit, risqué) et `P AP HHH TER` (payant, sûr) font jouer
   à un ecclésiastique l'apaisement de révolte, sans carte : voir
   [religieux.md § Apaisement de révolte](religieux.md#apaisement-de-révolte) ;
-- `P PR HHH` joue un Procès sur le noble HHH, par exception à la règle « `TER` est
-  le village seed d'une région » ci-dessous ; la carte est consommée à la pose et
-  le procès est jugé en fin de tour (dames.md § Carte de procès) ;
 - `P TX HHH XXX` joue la carte Impôts (titres.md, religieux.md) au printemps, en
   été ou en automne ; HHH est le **noble émetteur** et XXX la cible, par
   exception à la règle « `TER` est le village seed d'une région » ci-dessous :
@@ -186,7 +183,8 @@ l'ordre.
   les autres attaquants sur `BBB` les affrontent normalement. Si l'attaque n'a
   finalement pas lieu (ordre annulé ou invalide à la résolution), la carte est
   consommée sans effet. Le rapport de combat signale l'attaque menée par
-  souterrain.
+  souterrain et indique, pour le défenseur, la force affrontée sans le bonus de
+  fortification en plus de sa force totale.
 
 ### Assassinat
 
@@ -268,6 +266,10 @@ un commanditaire : les autres jouent Justice à l'aveugle, sur un soupçon. Le r
 le noble exécuté comme « justice rendue pour un assassinat » ; un échec n'est
 visible que du joueur qui a joué la carte (« aucun effet »), sans rumeur
 publique.
+
+Le commanditaire d'un assassinat peut aussi être exécuté par un procès à deux
+cardinaux ([dames.md § Procès](dames.md#procès)), sans excommunication
+préalable et sans fenêtre de révolte. Le Roi y échappe.
 
 ### Embuscade
 

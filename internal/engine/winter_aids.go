@@ -42,6 +42,17 @@ type WinterAids struct {
 	// Rituals are the Witches of the viewer that can order a ritual, with the
 	// region (seed village) the calamity would fall on.
 	Rituals []RitualOption `json:"rituals"`
+	// Royal is set when the viewer holds the royal powers this winter, as the
+	// player of the king or of the regent.
+	Royal *RoyalAid `json:"royal,omitempty"`
+}
+
+// RoyalAid describes the royal orders (W X, W R, W F, W G) the viewer can
+// issue: Issuer is the king or regent noble to name in them, OrdersPerWinter
+// the number of orders of each type allowed this winter.
+type RoyalAid struct {
+	Issuer          models.NobleCode `json:"issuer"`
+	OrdersPerWinter int              `json:"ordersPerWinter"`
 }
 
 // DissolvableMarriage is an active marriage an X D order can target; Noble is
@@ -119,6 +130,7 @@ func ForecastWinterAids(state *models.GameState, balance assetgen.Balance, viewe
 	ctx.fiefAids(viewer, aids)
 	ctx.ownFiefAids(viewer, aids)
 	ctx.ritualAids(viewer, aids)
+	ctx.royalAids(viewer, aids)
 	return aids
 }
 
@@ -270,6 +282,14 @@ func (ctx *resolutionContext) ownFiefAids(viewer models.PlayerID, aids *WinterAi
 		}
 		aids.OwnFiefs = append(aids.OwnFiefs, aid)
 	}
+}
+
+func (ctx *resolutionContext) royalAids(viewer models.PlayerID, aids *WinterAids) {
+	issuer, reigns := ctx.state.RoyalIssuer()
+	if !reigns || issuer.OwnerID != viewer {
+		return
+	}
+	aids.Royal = &RoyalAid{Issuer: models.NobleCode(issuer.Code), OrdersPerWinter: ctx.balance.Royal.OrdersPerWinter}
 }
 
 func (ctx *resolutionContext) ritualAids(viewer models.PlayerID, aids *WinterAids) {
