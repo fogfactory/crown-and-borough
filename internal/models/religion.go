@@ -112,6 +112,21 @@ func (g *GameState) IsPope(id NobleID) bool { return g.Pope != nil && *g.Pope ==
 // IsKing reports whether the noble holds the crown.
 func (g *GameState) IsKing(id NobleID) bool { return g.King != nil && *g.King == id }
 
+// ReigningKing returns the king when he can exercise the royal powers: a king
+// held as a hostage keeps them, one in a dungeon has them suspended while he
+// keeps the crown (specs/politique.md § Mandat, capture et mort).
+func (g *GameState) ReigningKing() (Noble, bool) {
+	if g.King == nil {
+		return Noble{}, false
+	}
+	for _, noble := range g.Nobles {
+		if noble.ID == *g.King {
+			return noble, noble.Status != NobleStatusDungeon
+		}
+	}
+	return Noble{}, false
+}
+
 // BishopricOf returns the bishopric the noble is bishop of, if any.
 func (g *GameState) BishopricOf(id NobleID) (RegionID, bool) {
 	for _, bishop := range g.Bishops {

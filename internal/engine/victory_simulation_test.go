@@ -33,3 +33,28 @@ func TestSimulateVictoryClaimThenKillHandsTheFiefToTheHeir(t *testing.T) {
 		t.Fatal("simulation mutated the source state")
 	}
 }
+
+func TestSimulateVictoryKillOfTheKingCrownsTheHeirOfAClaim(t *testing.T) {
+	state := allianceState()
+	state.Marriages = []models.Marriage{{NobleA: "N1", NobleB: "N3", Turn: 1}}
+	king := models.NobleID("N3")
+	state.King = &king
+	for index := range state.Nobles {
+		state.Nobles[index].Code = "C" + string(state.Nobles[index].ID)
+		state.Nobles[index].Sex = models.SexMale
+	}
+
+	simulation, err := SimulateVictory(state, allianceBalance(), []SimulationAction{
+		{Kind: SimulationClaim, Noble: "CN2", Other: "CN3"},
+		{Kind: SimulationKill, Noble: "CN3"},
+	})
+	if err != nil {
+		t.Fatalf("SimulateVictory: %v", err)
+	}
+	if got := simulation.State.King; got == nil || *got != "N2" {
+		t.Fatalf("king after the claimed king died = %v, want N2", got)
+	}
+	if state.King == nil || *state.King != "N3" {
+		t.Fatal("simulation mutated the source state")
+	}
+}

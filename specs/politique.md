@@ -96,9 +96,11 @@ il n'est plus candidat à aucune autre élection pour ce motif.
 Un Claim visant le roi **ou sa reine** cible, en plus des fiefs, la couronne. À
 la mort du roi, ses fiefs et la couronne passent au premier héritier vivant
 dans le classement habituel des Claims (ancienneté, famille de l'épouse
-d'abord, puis ordre de jeu) qui peut être roi (homme, non bâtard) ; un héritier
+d'abord, puis ordre de jeu, les Claims sur le roi et sur sa reine étant
+classés ensemble) qui peut être roi (homme, non bâtard, pas pape) ; un héritier
 qui ne le peut pas est sauté pour la couronne mais conserve son droit sur les
-fiefs. L'héritier couronné est roi sans élection ni onction, et sans condition
+fiefs. La reine est la conjointe du roi à sa mort (mariage non dissous). Le
+couronnement est un événement public d'investiture. L'héritier couronné est roi sans élection ni onction, et sans condition
 de rang de succession. Une prétention sur la reine est donc aussi une
 prétention sur le trône : elle profite à la maison de l'héritier, y compris
 celle de la reine. La mort de la reine seule ne transmet que ses éventuels

@@ -171,6 +171,7 @@ func simulateClaim(state *models.GameState, heir, target models.Noble) error {
 
 // simulateDeath removes the noble from play: fiefs they hold go to the living
 // heir of the first claim on them, otherwise stay vacant with their owner;
+// the crown of a king goes to the heir of a claim on the royal couple;
 // claims bearing on them are settled.
 func simulateDeath(state *models.GameState, dead models.Noble) {
 	claims := state.ClaimsOn(dead.ID)
@@ -194,10 +195,11 @@ func simulateDeath(state *models.GameState, dead models.Noble) {
 			}
 		}
 	}
+	state.Nobles = slices.DeleteFunc(state.Nobles, func(n models.Noble) bool { return n.ID == dead.ID })
+	state.PassCrownOfMissingKing()
 	state.Claims = slices.DeleteFunc(state.Claims, func(claim models.Claim) bool {
 		return claim.Heir == dead.ID || claim.Target == dead.ID
 	})
-	state.Nobles = slices.DeleteFunc(state.Nobles, func(n models.Noble) bool { return n.ID == dead.ID })
 	state.RemovedNobles = append(state.RemovedNobles, models.RemovedNoble{
 		ID: dead.ID, Code: dead.Code, Name: dead.Name, Sex: dead.Sex, OwnerID: dead.OwnerID,
 		Cause: models.DeathCauseNatural, Turn: state.Turn,

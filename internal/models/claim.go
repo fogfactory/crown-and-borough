@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 )
 
@@ -23,9 +24,15 @@ type Claim struct {
 // ClaimsOn returns the claims staked on the noble, by priority: oldest first,
 // the wife's family first within a winter, then in play order.
 func (g *GameState) ClaimsOn(target NobleID) []Claim {
+	return g.claimsOnAny(target)
+}
+
+// claimsOnAny returns the claims staked on any of the nobles, ranked like
+// ClaimsOn.
+func (g *GameState) claimsOnAny(targets ...NobleID) []Claim {
 	var claims []Claim
 	for _, claim := range g.Claims {
-		if claim.Target == target {
+		if slices.Contains(targets, claim.Target) {
 			claims = append(claims, claim)
 		}
 	}
@@ -36,6 +43,45 @@ func (g *GameState) ClaimsOn(target NobleID) []Claim {
 		return claims[i].WifeSide && !claims[j].WifeSide
 	})
 	return claims
+}
+
+// CrownHeirOf returns the noble who inherits the crown of the dead king
+// (specs/politique.md § Claim sur le couple royal): the first living heir, in
+// the usual claim ranking, of a claim on the king or on his queen (the spouse
+// of any marriage of his that the pope did not dissolve) who can be king. An
+// heir who cannot (a woman, a bastard, the pope) is skipped for the crown but
+// keeps his claim on the fiefs. Call before the claims are settled.
+func (g *GameState) CrownHeirOf(kingID NobleID) (NobleID, bool) {
+	targets := []NobleID{kingID}
+	for _, marriage := range g.Marriages {
+		if !marriage.Dissolved && (marriage.NobleA == kingID || marriage.NobleB == kingID) {
+			targets = append(targets, marriage.SpouseOf(kingID))
+		}
+	}
+	for _, claim := range g.claimsOnAny(targets...) {
+		for _, heir := range g.Nobles {
+			if heir.ID == claim.Heir && heir.Sex.CanHoldReligiousOrRoyalTitle() && heir.CanBeKing() && !g.IsPope(heir.ID) {
+				return heir.ID, true
+			}
+		}
+	}
+	return "", false
+}
+
+// PassCrownOfMissingKing crowns the heir of the king who left play, if the
+// crown is held by a noble missing from Nobles and a claim on the royal couple
+// names an eligible heir, and returns him. Otherwise it changes nothing: the
+// throne stays vacant once DropReligiousTitlesOfMissingNobles runs. Call after
+// the dead were removed and before the claims are settled.
+func (g *GameState) PassCrownOfMissingKing() (NobleID, bool) {
+	if g.King == nil || slices.ContainsFunc(g.Nobles, func(noble Noble) bool { return noble.ID == *g.King }) {
+		return "", false
+	}
+	heir, found := g.CrownHeirOf(*g.King)
+	if found {
+		g.King = &heir
+	}
+	return heir, found
 }
 
 func hasClaim(claims []Claim, heir NobleID) bool {
