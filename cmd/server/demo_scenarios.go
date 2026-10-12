@@ -30,6 +30,10 @@ var demoScenarios = map[string]struct {
 		description: "winter (see the winter scenario), vacant throne, plus a baron of P1 (ZRA), P2 (ZRB) and P3 (ZRC) holding a barony each: the royal election opens (K R / V R), P1's pope and bishop and P2's cardinal can anoint",
 		apply:       forgeKing,
 	},
+	"crown": {
+		description: "winter (see the winter scenario): P2's excommunicated noble is the king, married to ZQU (P3), and holds a barony; claims on the couple: ZAN (P3, a woman) then ZGA (P3) on the king, ZPI (P2) on the queen. P1's pope and P2's cardinal can file the J trial that kills the king: the crown goes to ZPI, the barony to ZAN",
+		apply:       forgeCrown,
+	},
 	"dissolution": {
 		description: "winter (see the winter scenario), plus two marriages: ZEL (P1, the pope's house) with ZRO (P2), and ZCA (P2) with ZGU (P3); P1 can marry free nobles of P4",
 		apply:       forgeDissolution,
@@ -347,6 +351,67 @@ func forgeKing(state *models.GameState) error {
 		})
 	}
 	fmt.Println("demo king: the throne is vacant; candidates ZRA (P1), ZRB (P2), ZRC (P3), or the pope and cardinal houses' nobles")
+	return nil
+}
+
+// forgeCrown makes the excommunicated noble of P2 the king (an excommunicated
+// king keeps the crown), gives him a barony and a queen of P3, and stakes three
+// claims on the couple, each by a child of one of the spouses' houses: ZAN (P3,
+// a woman) then ZGA (P3) on the king, ZPI (P2) on the queen. The order to try: `J <pope or cardinal> <king>` from both P1's
+// pope and P2's cardinal. The trial is judged at the end of the winter; the
+// king dies, the barony goes to ZAN (first claim on the king) and the crown to
+// ZPI, the first heir who can reign (ZAN is a woman).
+func forgeCrown(state *models.GameState) error {
+	if err := forgeWinter(state); err != nil {
+		return err
+	}
+	if len(state.Excommunications) == 0 {
+		return fmt.Errorf("the winter scenario excommunicated nobody")
+	}
+	king := state.Excommunications[0].Noble
+	state.King = &king
+	location := state.Nobles[ownedNobles(state, "P1")[0]].LocationID
+	for _, noble := range []struct {
+		id, code, name, owner string
+		sex                   models.Sex
+	}{
+		{"N930", "ZQU", "Quitterie", "P3", models.SexFemale},
+		{"N931", "ZAN", "Anne", "P3", models.SexFemale},
+		{"N932", "ZPI", "Pierre", "P2", models.SexMale},
+		{"N933", "ZGA", "Gaspard", "P3", models.SexMale},
+	} {
+		state.Nobles = append(state.Nobles, models.Noble{
+			ID: models.NobleID(noble.id), Code: noble.code, Name: noble.name, Sex: noble.sex,
+			OwnerID: models.PlayerID(noble.owner), LocationID: location, Status: models.NobleStatusFree,
+		})
+	}
+	state.Marriages = []models.Marriage{{NobleA: king, NobleB: "N930", Turn: 1}}
+	state.Claims = []models.Claim{
+		{Heir: "N931", Target: king, Spouse: "N930", Turn: 1},
+		{Heir: "N932", Target: "N930", Spouse: king, Turn: 2},
+		{Heir: "N933", Target: king, Spouse: "N930", Turn: 3},
+	}
+	inFief := make(map[models.TerritoryID]bool)
+	for _, fief := range state.Fiefs {
+		for _, id := range fief.Territories {
+			inFief[id] = true
+		}
+	}
+	var group []models.TerritoryID
+	for _, territory := range state.Territories {
+		owner, controlled := state.TerritoryController(territory.ID)
+		if controlled && owner == "P2" && !inFief[territory.ID] && len(group) < models.FiefMinTerritories {
+			group = append(group, territory.ID)
+		}
+	}
+	if len(group) < models.FiefMinTerritories {
+		return fmt.Errorf("P2 controls fewer than %d free territories", models.FiefMinTerritories)
+	}
+	state.Fiefs = append(state.Fiefs, models.Fief{
+		ID: "FZKKING", Title: models.FiefTitleBarony, CapitalTerritoryID: group[0],
+		Territories: group, OwnerID: "P2", HolderNobleID: &king,
+	})
+	fmt.Println("demo crown: the king is P2's excommunicated noble; try a J trial on him from P1's pope and P2's cardinal")
 	return nil
 }
 
