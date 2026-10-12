@@ -49,3 +49,17 @@ describe('CrownPanel', () => {
     expect(container).toBeEmptyDOMElement()
   })
 })
+
+describe('CrownPanel regency', () => {
+  it('shows a dowager queen as regent of a vacant throne', () => {
+    const { container } = renderPanel({ ...state, king: undefined, queenDowager: true, fiefs: [] })
+    expect(screen.getByText('Reine douairière')).toBeInTheDocument()
+    expect(container.querySelector('[data-crown-regent]')).not.toBeNull()
+  })
+
+  it('shows no regent while the king rules', () => {
+    const free = { ...state, nobles: [noble('KIN', 'Louis', 'P1'), noble('QUE', 'Aliénor', 'P2')] }
+    const { container } = renderPanel(free)
+    expect(container.querySelector('[data-crown-regent]')).toBeNull()
+  })
+})

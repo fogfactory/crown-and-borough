@@ -332,7 +332,9 @@ adressé par sa capitale (`capital`) ; **aucun identifiant interne** n'est
 exposé — l'ID de fief reste un détail d'implémentation du moteur, utile pour
 l'unicité et le corpus de test. `territories` liste le groupe dans l'ordre de
 constitution, capitale en premier. `holder` est le code du noble titulaire, ou
-absent lorsque le fief est vacant. `projectedIncome` somme le revenu
+absent lorsque le fief est vacant. `crown` vaut `true` pour un fief de la
+couronne (vacant, revenu à la couronne, voir [politique.md](politique.md)).
+`projectedIncome` somme le revenu
 territorial prévisionnel (`engine.ForecastTerritoryIncome`) de tous les
 membres du fief, capitale comprise : la projection du fief lui-même, distincte
 de celle de la seule case capitale.

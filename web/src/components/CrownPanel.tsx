@@ -1,6 +1,7 @@
+import { NobleHolder } from '@/components/NobleHolder'
 import { useLanguage } from '@/i18n/LanguageContext'
 import { royalIssuerOf } from '@/lib/royal'
-import type { Noble, Player, StateData } from '@/types'
+import type { StateData } from '@/types'
 
 /** Throne, king, queen, regent and crown fiefs (politique.md). */
 export function CrownPanel({ state }: { state: StateData }) {
@@ -8,26 +9,9 @@ export function CrownPanel({ state }: { state: StateData }) {
   const crownFiefs = (state.fiefs ?? []).filter((fief) => fief.crown)
   if (!state.king && !state.queen && crownFiefs.length === 0) return null
 
-  const nobleByCode = new Map(state.nobles.map((noble) => [noble.code, noble]))
-  const playerById = new Map(state.players.map((player) => [player.id, player]))
-
-  const holder = (code: string | undefined) => {
-    const noble: Noble | undefined = code ? nobleByCode.get(code) : undefined
-    if (!noble) return <span className="italic text-[#806f57]">{t('map.hierarchyVacant')}</span>
-    const owner: Player | undefined = playerById.get(noble.owner)
-    return (
-      <span className="inline-flex items-center gap-1">
-        <span
-          aria-hidden="true"
-          className="inline-block size-2.5 rounded-full border border-[#30291f]/40"
-          style={{ backgroundColor: owner?.color ?? '#6b7280' }}
-        />
-        {noble.name} ({noble.code}) · {owner?.name ?? noble.owner}
-        {noble.status === 'dungeon' && ` · ${t('crown.dungeon')}`}
-      </span>
-    )
-  }
-
+  const holder = (code: string | undefined) => (
+    <NobleHolder code={code} nobles={state.nobles} players={state.players} />
+  )
   const issuer = royalIssuerOf(state)
   const regent = issuer && issuer.code !== state.king ? issuer : undefined
 
