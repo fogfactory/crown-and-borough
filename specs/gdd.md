@@ -87,6 +87,12 @@ liste d'investissements directs, traités dans l'ordre saisi :
   ([politique.md](politique.md#seigneurie-et-annexion)) ;
 - `T R NNN XXX` — monter d'un rang le titre du fief de capitale `XXX`, une
   fois par hiver et par fief ([politique.md](politique.md#seigneurie-et-annexion)).
+- `K R NNN` / `V R NNN` — présenter la candidature du noble `NNN` au trône, ou
+  voter pour un candidat déclaré ([politique.md](politique.md#élection)) ;
+- `W X KKK XXX YYY`, `W R KKK XXX`, `W F KKK XXX`, `W G KKK XXX NNN` — ordres
+  royaux gratuits du roi ou de la régente : accord d'annexion, de rang,
+  octroi gratuit de fief, octroi d'un fief de la couronne
+  ([politique.md](politique.md#pouvoirs-royaux)) ;
 - `M N XXX YYY` — marier le noble `XXX` du joueur au noble `YYY` d'un autre
   joueur ; l'ordre n'est conclu que si l'autre joueur soumet `M N YYY XXX`
   le même hiver (voir [succession.md](succession.md#conclusion-dun-mariage)).
@@ -211,19 +217,22 @@ ceux du début de l'hiver pendant toutes les étapes.
 1. **Sanctions pontificales** — `X E NNN` (excommunier) et `X L NNN` (lever),
    dans l'ordre de la feuille du pape.
 2. **Ordres de gestion** — les ordres listés ci-dessus, ainsi que l'achat de
-   cardinal `N C NNN` et la carte de cardinal `D N NNN CAR`. Les coûts en R sont
+   cardinal `N C NNN` et la carte de cardinal `D N NNN CAR`, précédés des ordres
+   royaux `W …` (étape 2a de [hiver.md](hiver.md#ordre-de-résolution)) que ces
+   ordres lisent. Les coûts en R sont
    prélevés à cette étape, sans prélèvement partiel ; un ordre rejeté pour une
    condition ne prélève jamais.
 3. **Actions des cardinaux** — enquêtes `Q HHH NNN`, puis dépôt des ordres de
    procès `J HHH NNN` (jugés à l'étape 9).
 4. **Dissolutions de mariage** — `X D NNN`, par couple.
 5. **Mariages** — ordres `M N` réciproques.
-6. **Élections** — candidatures `K E` / `K P` et votes `V E` / `V P` : les
-   évêchés par identifiant de région croissant, puis le conclave. Les voix se
+6. **Élections** — candidatures `K E` / `K P` / `K R` et votes `V E` / `V P` /
+   `V R` : les évêchés par identifiant de région croissant, puis le conclave,
+   puis l'élection royale. Les voix se
    lisent toutes sur l'instantané des titres ; seule l'éligibilité dépend de
    l'ordre (un noble élu à un évêché n'est plus éligible aux évêchés suivants du
    même hiver).
-7. **Investiture** — les élus deviennent évêque ou pape ; les achats de cardinal
+7. **Investiture** — les élus deviennent évêque, pape ou roi ; les achats de cardinal
    prennent effet.
 8. **Fin d'hiver** — défausses et remplissage des mains, fiefs vacants attribués
    par défaut, conservation et rapatriement des stocks, prospérité, territoires
@@ -247,6 +256,60 @@ procès direct ; un noble excommunié ou démasqué cet hiver peut être jugé l
 hiver. Le détail de chaque ordre est dans [religieux.md](religieux.md),
 [dames.md](dames.md) et [succession.md](succession.md), le détail de l'ordre dans
 [hiver.md](hiver.md).
+
+### Royauté
+
+Le **roi** est un noble masculin, non bâtard, qui détient la couronne ; il n'y
+en a jamais plus d'un et il ne peut pas être pape. La couronne est un titre
+comme un autre pour le score (1 point) et le poids d'alliance (rang 5), et se
+cumule avec les fiefs et les titres religieux du même noble. Le détail complet
+est dans [politique.md](politique.md).
+
+- **Élection.** Quand le trône est vacant au début de l'hiver, qu'au moins 3
+  nobles titrés peuvent voter et que le clergé peut oindre, l'élection est
+  ouverte (réévaluée chaque hiver tant que ces conditions tiennent). Un
+  candidat `K R NNN` est un homme libre, non excommunié, non bâtard, ni pape ni
+  élu pape cet hiver, qui détient au moins un fief. Chaque noble titré donne
+  une voix (`V R NNN`), une seule quel que soit son nombre de titres ; les
+  voix se lisent sur l'instantané des titres. Pour être élu, un candidat doit
+  arriver seul en tête, avec au moins 3 voix dont l'**onction** (deux voix
+  d'évêques ou plus, ou une d'un cardinal ou du pape). Sans élu, le trône reste
+  vacant jusqu'à l'hiver suivant. L'élu est couronné à l'investiture et ne
+  règne qu'à partir de l'hiver suivant.
+- **Mandat.** Le roi règne à vie. Aucune destitution, aucune perte de la
+  couronne par excommunication. Un roi `hostage` garde ses pouvoirs ; un roi au
+  `dungeon` ne peut émettre aucun ordre royal ni jouer de taxe royale, mais
+  garde la couronne, son score et sa rente, et la reine libre ou otage exerce
+  la régence.
+- **Mort et héritage.** Un Claim sur le roi ou sur sa reine cible aussi la
+  couronne : le premier héritier éligible (homme, non bâtard, pas pape) est
+  couronné sans élection ni onction. Sans héritier éligible, la reine devient
+  régente et le trône est vacant.
+- **Pouvoirs.** Le roi ou la régente joue la **taxe royale** (`P TX`, carte
+  Impôts sur la capitale de n'importe quel fief constitué non taxé par son
+  seigneur) et émet les ordres royaux `W` d'hiver, au plus
+  `royal.orders_per_winter` de chaque type par hiver ; un accord `W X`, `W R`
+  ou `W F` dont l'ordre autorisé est absent est consommé sans effet.
+- **Rente.** À la fin de chaque tour, le roi gagne 1 R par fief constitué sur la
+  carte (vacants et siens compris), créé et livré à la capitale de son joueur,
+  même capturé. La reine gagne la moitié de cette rente, arrondie au supérieur,
+  tant qu'elle est reine, douairière et trône vacant compris. Quand le trône
+  est vacant, la régente perçoit aussi la rente du roi.
+- **Reine et régente.** La reine est la conjointe du roi ; elle appartient à un
+  autre joueur, n'a aucun pouvoir d'ordre, et garde son titre veuve (reine
+  douairière). Elle exerce la régence tant que le roi est au cachot, ou jusqu'au
+  couronnement quand le roi meurt sans héritier éligible ; elle la perd si elle
+  meurt, est mise au cachot ou se remarie.
+- **Fief de la couronne.** Quand un fief perd son titulaire et que son joueur
+  n'a plus aucun noble vivant ni héritier de Claim, il revient immédiatement au
+  joueur de la couronne (roi ou régente), vacant. Il produit et compte son point
+  jusqu'à son octroi (`W G` du roi), et n'est jamais attribué par défaut. Sans roi ni
+  régente, il reste vacant chez son joueur et fait retour à la couronne au
+  couronnement d'un roi.
+- **Seigneurie.** L'annexion `T X` et la montée de rang `T R` sont décrites dans
+  [politique.md](politique.md#seigneurie-et-annexion) : le titre d'un fief ne
+  change jamais par annexion ; le fief cédant par accord royal garde au moins 3
+  territoires.
 
 ### Cartes bonus et calamités
 
