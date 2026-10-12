@@ -1195,5 +1195,7 @@ export interface VictorySimulation {
 
 /** One hypothetical change; nobles are given by code. */
 export type SimulationAction =
-  | { type: 'kill'; noble: string }
+  | { type: 'kill' | 'crown'; noble: string }
+  | { type: 'dethrone' }
+  | { type: 'rank'; fief: string }
   | { type: 'marry' | 'divorce' | 'claim'; noble: string; other: string }

@@ -10,12 +10,14 @@ import (
 )
 
 // simulationActionRequest is one hypothetical change: kill (noble), marry or
-// divorce (noble, other), claim (noble is the heir, other the target). Nobles
-// are given by code.
+// divorce (noble, other), claim (noble is the heir, other the target), rank
+// (fief is the capital of the fief), crown (noble), dethrone. Nobles are given
+// by code.
 type simulationActionRequest struct {
 	Type  engine.SimulationActionKind `json:"type"`
 	Noble models.NobleCode            `json:"noble"`
 	Other models.NobleCode            `json:"other,omitempty"`
+	Fief  models.TerritoryID          `json:"fief,omitempty"`
 }
 
 type victorySimulationRequest struct {
@@ -68,7 +70,7 @@ func (h *GamesHandler) simulateVictory(w http.ResponseWriter, r *http.Request, a
 	}
 	actions := make([]engine.SimulationAction, 0, len(request.Actions))
 	for _, action := range request.Actions {
-		actions = append(actions, engine.SimulationAction{Kind: action.Type, Noble: action.Noble, Other: action.Other})
+		actions = append(actions, engine.SimulationAction{Kind: action.Type, Noble: action.Noble, Other: action.Other, Fief: action.Fief})
 	}
 	simulation, err := engine.SimulateVictory(snapshot.State, h.balance, actions)
 	if err != nil {

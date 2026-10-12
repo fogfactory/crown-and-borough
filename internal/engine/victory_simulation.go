@@ -32,6 +32,18 @@ const (
 	// SimulationClaim: Noble, the heir, stakes a claim on Other, a married
 	// noble of another house (specs/succession.md § Prétentions).
 	SimulationClaim SimulationActionKind = "claim"
+	// SimulationRank: the fief with capital Fief rises by one rank, as a
+	// winter T R order would (specs/titres.md § Lisibilité et simulateur).
+	// Neither the cost nor the once-per-winter limit is simulated, so a fief
+	// can rise several ranks in a row.
+	SimulationRank SimulationActionKind = "rank"
+	// SimulationCrown: Noble is crowned, replacing any king in place.
+	SimulationCrown SimulationActionKind = "crown"
+	// SimulationDethrone: the throne becomes vacant while the king stays
+	// alive. This is a what-if with no counterpart in play: the tenure is for
+	// life and a captured king keeps the crown (specs/politique.md § Mandat,
+	// capture et mort), so the throne only empties through a kill.
+	SimulationDethrone SimulationActionKind = "dethrone"
 )
 
 // SimulationAction is one hypothetical change, nobles given by code.
@@ -39,6 +51,8 @@ type SimulationAction struct {
 	Kind  SimulationActionKind
 	Noble models.NobleCode
 	Other models.NobleCode
+	// Fief is the capital territory of the fief of a rank action.
+	Fief models.TerritoryID
 }
 
 // VictoryReading is a player's title score, the threshold they are evaluated
@@ -91,6 +105,17 @@ func noblePointer(state *models.GameState, code models.NobleCode) (*models.Noble
 }
 
 func applySimulationAction(state *models.GameState, action SimulationAction) error {
+	switch action.Kind {
+	case SimulationRank:
+		return simulateRank(state, action)
+	case SimulationDethrone:
+		if state.King == nil {
+			return fmt.Errorf("the throne is already vacant")
+		}
+		state.King = nil
+		state.RefreshQueen()
+		return nil
+	}
 	noble, err := noblePointer(state, action.Noble)
 	if err != nil {
 		return err
@@ -98,6 +123,12 @@ func applySimulationAction(state *models.GameState, action SimulationAction) err
 	switch action.Kind {
 	case SimulationKill:
 		simulateDeath(state, *noble)
+		state.RefreshQueen()
+		return nil
+	case SimulationCrown:
+		if err := simulateCrown(state, *noble); err != nil {
+			return err
+		}
 		state.RefreshQueen()
 		return nil
 	case SimulationMarry, SimulationDivorce, SimulationClaim:
@@ -131,6 +162,47 @@ func applySimulationAction(state *models.GameState, action SimulationAction) err
 		return simulateClaim(state, *noble, *other)
 	}
 	state.RefreshQueen()
+	return nil
+}
+
+// simulateRank raises the fief by one rank. The holder must be able to carry
+// the higher title in the succession line; the winter cost and the
+// once-per-winter limit are not simulated.
+func simulateRank(state *models.GameState, action SimulationAction) error {
+	for index := range state.Fiefs {
+		fief := &state.Fiefs[index]
+		if fief.CapitalTerritoryID != action.Fief {
+			continue
+		}
+		title, ok := fief.Title.Next()
+		if !ok {
+			return fmt.Errorf("fief %q is already of the highest rank", action.Fief)
+		}
+		if fief.HolderNobleID == nil {
+			return fmt.Errorf("fief %q has no holder", action.Fief)
+		}
+		if !state.CanReceiveTitle(*fief.HolderNobleID, title) {
+			return fmt.Errorf("the holder of fief %q cannot receive the title of %s", action.Fief, title)
+		}
+		fief.Title = title
+		return nil
+	}
+	return fmt.Errorf("unknown fief %q", action.Fief)
+}
+
+// simulateCrown crowns the noble under the conditions of a king's election.
+func simulateCrown(state *models.GameState, noble models.Noble) error {
+	switch {
+	case state.IsKing(noble.ID):
+		return fmt.Errorf("noble %q is already king", noble.Code)
+	case !noble.Sex.CanHoldReligiousOrRoyalTitle() || !noble.CanBeKing() || state.IsPope(noble.ID):
+		return fmt.Errorf("noble %q cannot be king", noble.Code)
+	}
+	if _, excommunicated := state.ExcommunicationOf(noble.ID); excommunicated {
+		return fmt.Errorf("noble %q is excommunicated", noble.Code)
+	}
+	id := noble.ID
+	state.King = &id
 	return nil
 }
 
