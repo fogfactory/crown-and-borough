@@ -373,6 +373,8 @@ export interface Fief {
   territories: string[]
   owner: PlayerId
   holder?: string
+  /** Vacant fief returned to the crown player; only a `W G` order grants it. */
+  crown?: boolean
   projectedIncome?: number
 }
 

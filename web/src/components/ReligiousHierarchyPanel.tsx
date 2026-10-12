@@ -30,7 +30,7 @@ export function ReligiousHierarchyPanel({ state }: { state: StateData }) {
   return (
     <details
       data-religious-hierarchy
-      className="absolute left-3 top-3 z-10 max-w-[18rem] rounded-lg border border-[#b7a786] bg-[#fffaf0]/95 p-2 text-xs text-[#594b3c] shadow-md"
+      className="max-w-[18rem] rounded-lg border border-[#b7a786] bg-[#fffaf0]/95 p-2 text-xs text-[#594b3c] shadow-md"
     >
       <summary className="cursor-pointer font-bold uppercase tracking-[0.12em]">
         {t('map.hierarchyTitle')}

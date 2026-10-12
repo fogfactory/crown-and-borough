@@ -10,6 +10,7 @@ import {
   ImpassableBorderChain,
 } from '@/components/MapIconLayers'
 import { IntentionsOverlay } from '@/components/MapIntentionsOverlay'
+import { CrownPanel } from '@/components/CrownPanel'
 import { ReligiousHierarchyPanel } from '@/components/ReligiousHierarchyPanel'
 import {
   RegionBadges,
@@ -537,7 +538,10 @@ export function MapViewer({
 
         <MapControls onZoom={zoomBy} />
 
-        <ReligiousHierarchyPanel state={state} />
+        <div className="absolute left-3 top-3 z-10 flex flex-col items-start gap-2">
+          <CrownPanel state={state} />
+          <ReligiousHierarchyPanel state={state} />
+        </div>
 
         {(onToggleIntentions ||
           onToggleOwnership ||
