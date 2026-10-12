@@ -44,6 +44,11 @@ servent.
    passent par les tokens du thème (`web/src/index.css`). Les composants
    n'écrivent aucune valeur hexadécimale ; les données de rendu de la carte
    (teintures, symboles) sont centralisées dans un module dédié.
+6. **Le nom d'abord, le code ensuite.** Un trigramme ou un code seul n'a sa
+   place que dans une feuille d'ordres ou, sur la carte, pour un territoire
+   sans particularité. Partout ailleurs, on écrit le libellé complet suivi du
+   code entre parenthèses, et ce libellé mène à la carte (voir
+   [Identifiants et liens vers la carte](#identifiants-et-liens-vers-la-carte)).
 
 ## Décisions
 
@@ -81,6 +86,8 @@ servent.
 | 30 | Fiche de territoire | Cartouche posé sur la carte | Sections repliables, marque-page Territoire, infobulle et tiroir |
 | 31 | Lignée et alliances | Arbre généalogique | Maisons compactes, page dédiée, restyle de l'actuel |
 | 32 | Résultats répétitifs du rapport | Carte de synthèse et encadré des rumeurs | Filtrage seul, « chez vous » d'abord, tableau |
+| 33 | Identifiants hors des ordres | Libellé complet suivi du code entre parenthèses ; code seul uniquement dans les feuilles d'ordres et pour les territoires ordinaires de la carte | Codes seuls partout |
+| 34 | Liens vers la carte | Un clic sur un territoire ou un noble cité dans le rapport ou le poste de commandement cadre la carte sur lui | Aucun lien |
 
 ## Couleurs
 
@@ -476,20 +483,69 @@ isolé disparaît.
   (un seul sur 465 communes aujourd'hui : Fougères-du-Marais).
 - **Code :** Cinzel 700, 8 unités, espacé de 0,08 em, sous le nom. Le
   trigramme reste visible, puisque les ordres s'écrivent avec lui.
+- **Territoire ordinaire et territoire particulier :** un territoire sans
+  particularité peut ne montrer que son trigramme, en vue synthétique. Un
+  territoire particulier (capitale d'un joueur, capitale de fief, chef-lieu
+  d'évêché, fief de la couronne) montre toujours son nom complet au-dessus de
+  son code, à tous les niveaux de zoom.
+- Les autres pièces de la carte (bannières, écus, pions, bâtiments) ne
+  s'étiquettent pas d'un code : leur infobulle donne le libellé complet et le
+  code entre parenthèses (« Baron Rainaud de Rochevent (RAI) »). Seul le
+  trigramme de rattachement d'un fief reste écrit sous la bannière, en vue
+  synthétique.
 
-**Précision.** Quand le nom rendu fait moins de 10 px à l'écran, seul le code
-s'affiche. Les seuils sont à régler sur des cartes réelles : 52 territoires à
+**Précision.** Quand le nom d'un territoire ordinaire rendu fait moins de
+10 px à l'écran, seul le code s'affiche. Les seuils sont à régler sur des cartes réelles : 52 territoires à
 4 joueurs, près de 200 en hotseat à 16.
 
 ### Légende
 
 La légende montre des échantillons de symboles au lieu de pastilles de couleur :
 les cinq terrains, les icônes de frontière infranchissable et le pointillé
-franchissable, la bannière, la bannière couronnée d'un fief, l'écu, le pion de noble (libre, otage, au cachot,
-excommunié, et ses attributs de titre) et les bâtiments. Les boutons des calques (intentions, contrôle, évêchés, calamités,
-cartes) sont conservés.
+franchissable, la bannière, la bannière couronnée d'un fief, l'écu, le pion
+de noble (libre, otage, au cachot, excommunié, et ses attributs de titre) et
+les bâtiments. Les boutons des calques (intentions, contrôle, évêchés,
+calamités, cartes) sont conservés.
 
 ## Écrans et composants
+
+### Identifiants et liens vers la carte
+
+Les trigrammes de territoire et de noble, les codes de carte (`BT`, `TX`),
+de dignité (`BAS`) et d'ordre (`W X`) sont la langue des feuilles d'ordres.
+Ailleurs, ils accompagnent un nom, ils ne le remplacent pas.
+
+- **Feuilles d'ordres :** les codes s'écrivent seuls. Toute ligne produite
+  par une aide (formulaire d'ordre de titre, carte jouée depuis la main,
+  modèle de saisie) porte un commentaire en libellés complets :
+  `W X ZRK RVE RVN # Sieur Robert (ZRK) accorde à la baronnie de Rochevent
+  (RVE) l'annexion de Ravinval (RVN)`.
+- **Carte :** code seul admis pour un territoire ordinaire (voir
+  [Étiquettes](#étiquettes)) ; libellé complet et code pour un territoire
+  particulier et dans toutes les infobulles.
+- **Partout ailleurs** (rapport, poste de commandement, fiche de territoire,
+  marque-page Royaume, lignée, scores, menus et listes déroulantes des
+  formulaires, messages d'erreur) : libellé complet, puis le code entre
+  parenthèses en IBM Plex Mono `ink-500` : « Rochevent (RVE) »,
+  « Baron Rainaud de Rochevent (RAI) », « Beau temps (BT) ». Un libellé
+  long peut se réduire au nom propre (« Rainaud (RAI) ») dans une cellule
+  étroite, jamais au code seul.
+- **Lien vers la carte :** dans le rapport et dans le poste de commandement
+  (hors zone de saisie), un territoire ou un noble cité est un lien. Le clic
+  cadre la carte sur le territoire, ou sur le territoire où se trouve le
+  noble, le sélectionne et ouvre sa fiche ; le pion du noble cliqué reçoit
+  le halo de sélection. Sur téléphone, le toucher bascule sur l'onglet
+  Carte.
+- **Style du lien :** le texte garde sa couleur, souligné d'un pointillé
+  `brass-700` ; au survol, le soulignement devient plein et le territoire
+  visé s'éclaire sur la carte.
+
+**Précision.** Un noble dont la position n'est pas connue du joueur (vue
+privée, [information.md](information.md)) ou mort n'a pas de lien : son nom
+s'écrit en texte simple, avec une infobulle « position inconnue » ou
+« décédé ». Dans la zone de saisie, le comportement reste celui de
+[Saisie des ordres](#saisie-des-ordres) : un trigramme complet et valide
+recentre la carte, sans clic.
 
 ### Disposition sur ordinateur
 
@@ -602,7 +658,9 @@ cartes, saisie des ordres, pied collant d'envoi.
   « Consommation prévue » : stock, revenu par tour d'action, consommation et,
   s'il y en a un, le risque de famine en `warning-700`
   (« ⚖ 20 R · +10 R / tour · −1 R · famine : aucune »). Un clic le déplie
-  sur le détail actuel (hors fief, fiefs, moulins, rente royale, taxes…).
+  sur le détail actuel (hors fief, fiefs, moulins, rente royale, taxes…),
+  où chaque fief et territoire s'écrit en toutes lettres
+  (« Baronnie de Rochevent (RVE) : +3 R »).
 - **Ordres de titres :** groupés par titulaire. Chaque noble qui peut émettre
   un ordre de titre a une ligne : son pion avec ses attributs, son nom et ses
   titres en texte court, puis ses actions en boutons secondaires au libellé
@@ -614,8 +672,9 @@ cartes, saisie des ordres, pied collant d'envoi.
   sous la ligne du titulaire, au lieu de la fenêtre modale actuelle
   (`OrderDialog.tsx`). La carte reste visible : un clic sur un territoire ou
   un noble remplit le champ actif, signalé par un anneau `brass-700`. Le
-  formulaire montre la ligne d'ordre produite en IBM Plex Mono, puis
-  « Annuler » et « Ajouter l'ordre ». Un seul formulaire est ouvert à la fois.
+  formulaire montre la ligne d'ordre produite en IBM Plex Mono, avec son
+  commentaire en libellés complets, puis « Annuler » et « Ajouter l'ordre ».
+  Ses listes déroulantes proposent « Ravinval (RVN) », pas « RVN ». Un seul formulaire est ouvert à la fois.
 - **Main de cartes :** un éventail de petites cartes à jouer (56 × 80 px) :
   pictogramme à l'encre, nom, code en pied. Trois familles se distinguent
   par le filet et la pièce d'angle, pas par une couleur vive : cartes
@@ -643,8 +702,10 @@ flotte aujourd'hui sur la carte (`CrownPanel.tsx`,
   couronne avec leur nombre de territoires.
 - **Église :** pape, cardinaux, puis un évêque par évêché, « vacant » en
   italique `ink-500`.
-- Chaque titulaire s'écrit avec son pion à attributs, son nom, son code et la
-  teinture de son joueur en pastille.
+- Chaque titulaire s'écrit avec son pion à attributs, son nom complet suivi
+  de son code entre parenthèses, et la teinture de son joueur en pastille ;
+  un fief de la couronne s'écrit « Baronnie de Rochevent (RVE) · 4
+  territoires ». Noms et fiefs sont des liens vers la carte.
 - En pied : un bouton « Ouvrir la lignée et les alliances ».
 
 Plus rien ne se pose sur la carte en dehors de la légende et des contrôles de
@@ -655,7 +716,8 @@ zoom.
 Sélectionner un territoire ouvre un **cartouche** posé sur la carte, relié au
 territoire par un trait d'encre ; le tiroir reste consacré aux ordres.
 
-- **En-tête :** nom en Alegreya italique, code, bannière, terrain.
+- **En-tête :** nom en Alegreya italique suivi du code entre parenthèses,
+  bannière, terrain.
 - **Une ligne par sujet,** absente quand elle est vide : fief et rang (avec la
   couronne), titulaire, capitale ou cité et sa défense, ressources et revenu
   du territoire, armée (écu, effectif, ordre), nobles présents (une rangée de
@@ -716,7 +778,8 @@ se cadre sur la maison choisie dans « Focus ».
   suivante.
 - **Résultats répétitifs :** les résultats d'une même nature (conservation
   d'hiver, revenus, production…) forment une seule carte de synthèse
-  (« Conservation : 4 stocks divisés par deux »), dépliable sur la liste. Les
+  (« Conservation : 4 stocks divisés par deux »), dépliable sur la liste
+  (« Rochevent (RVE) : 40 → 20 R »). Les
   lignes sans effet (« 0 → 0 ») ne s'affichent pas.
 - **Rumeurs :** un encadré « On dit au marché… » en Alegreya italique, sur
   `paper-100` avec un filet `line` ; les cartes jouées et calamités à venir
@@ -780,9 +843,9 @@ se cadre sur la maison choisie dans « Focus ».
    pions de nobles et attributs de titre, bannières couronnées des fiefs,
    bâtiments, sélection, saisons, légende, teintures et
    armoiries générées des joueurs.
-5. **Ergonomie :** barre du haut et menu « Partie », tiroir à signets et
-   action collante, marque-page Royaume, ambiance de saison, onglets du
-   téléphone avec l'écran partagé Ordres, textes d'aide réduits, poste de
+5. **Ergonomie :** libellés complets et liens vers la carte, barre du haut
+   et menu « Partie », tiroir à signets et action collante, marque-page
+   Royaume, ambiance de saison, onglets du téléphone avec l'écran partagé Ordres, textes d'aide réduits, poste de
    commandement (trésor, ordres de titres groupés et formulaires dans le
    tiroir, main en éventail), cartouche de territoire, rapport en cartes
    d'événements, scores restylés.
