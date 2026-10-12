@@ -181,6 +181,7 @@ L'état projeté sépare la couche dynamique du `GameState` de stockage :
       "capitalTerritory": "ROS",
       "projectedIncome": 6,
       "projectedMillIncome": 2,
+      "projectedRoyalRent": 3,
       "projectedConsumption": 4,
       "armiesAtRisk": [{ "territoryId": "MOR", "size": 2, "deficit": 1 }]
     }
@@ -271,6 +272,14 @@ passe pas par la capitale et, depuis
 [#195](https://github.com/fogfactory/crown-and-borough/issues/195), ne
 crédite plus qu'une seule destination (voir la section Moulins) ; il vaut `0`
 en hiver.
+
+`projectedRoyalRent` est la rente ([politique.md](politique.md#rente)) que ce
+joueur recevrait en fin de tour comme joueur du roi (1 R par fief constitué)
+ou de la reine (la moitié, arrondie au supérieur), créditée à sa capitale ; le
+champ est absent quand il vaut `0`. Les projections du serveur ignorent les
+cartes Impôts en cours de rédaction : l'interface ajoute elle-même l'effet des
+taxes (seigneuriale, royale) et des dîmes rédigées au « Revenu prévu » du
+joueur.
 
 `millProduction` et `millDestination` ne sont présents que sur la case d'un
 moulin : `millProduction` est sa production projetée (harmonisée avec la

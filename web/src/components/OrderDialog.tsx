@@ -19,6 +19,8 @@ export interface OrderField {
   multi?: boolean
   placeholder?: string
   maxLength?: number
+  /** Skips the field, and its value, while the other values make it pointless. */
+  hidden?: (values: Record<string, string>) => boolean
 }
 
 /** The order a dialog produces: its line and the inline comment that recalls it. */
@@ -88,6 +90,7 @@ function OrderDialogBody({
           {description ?? title}
         </Dialog.Description>
         {fields.map((field) => {
+          if (field.hidden?.(values)) return null
           const options = fieldOptions(field, values)
           if (field.multi && options) {
             const chosen = values[field.key].split(' ').filter(Boolean)

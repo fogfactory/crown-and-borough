@@ -982,6 +982,7 @@ from noble chains and requiring no noble. Winter discards are written in the
 - `P DI HHH XXX`: play the Tax card through a bishop, cardinal or pope HHH on
   the bishopric whose seed village is XXX: a **tithe** (see below). A noble who
   is both lord and bishop thus picks the tax or the tithe;
+- `P DI HHH`: the pope's tithe, with no target: it covers every bishopric;
 - `D C FW` or `D C AH`: discard a card, winter only.
 
 The hand is replenished automatically in winter after winter orders and discards; no draw order
@@ -1014,7 +1015,7 @@ bad weather, **{{special_orders.card.famine}}** bad harvest,
 **{{special_orders.card.fair_weather}}** fair weather,
 **{{special_orders.card.abundant_harvest}}** abundant harvest,
 **{{special_orders.card.revolt}}** revolt,
-**{{special_orders.card.seigneurial_tax}}** tax (seigneurial tax or tithe),
+**{{special_orders.card.seigneurial_tax}}** tax (seigneurial tax, royal tax or tithe),
 **{{special_orders.card.tunnel}}** tunnel,
 **{{special_orders.card.assassination}}** assassination, and
 **{{special_orders.card.ambush}}** ambush cards. A hand is limited to
@@ -1079,11 +1080,26 @@ countered. No calamity resolves in winter.
   stack: the second is consumed with no effect. If the taxed fief's capital is
   captured during that same turn, the tax is canceled: nobody receives the
   doubling for that transition turn;
+- the **royal tax** is the Tax card played by the king (or the regent):
+  `P TX KKK XXX`, XXX being the capital of any fief he does not hold himself,
+  a vacant fief included. The fief keeps its territorial income and the same
+  amount is created for the capital of the king's player. If the fief's lord
+  taxes it the same turn, the lord's tax comes first and the royal tax is
+  consumed with no effect. A fief is taxed once per turn. Like any tax, it
+  makes every territory of the fief eligible for Revolt this turn and the next;
+- the **royal rent** is paid every action turn without any card: **1 R per
+  constituted fief** on the map, vacant ones included, created and delivered
+  to the capital of the king's player (a captured king keeps it; a vacant
+  throne pays none). The queen, dowager included, receives half of it, rounded
+  up, at the capital of her player. The turn report lists these amounts
+  separately;
 - the **tithe** is the Tax card played by a cleric (`P DI HHH XXX`, XXX being a
   bishopric's seed village): for the turn, it diverts the production of every
   mill of the bishopric to the capital of the player who plays it, and never
   touches territory income. A bishop taxes only their own bishopric; a
-  cardinal and the pope tax any bishopric, even one without a bishop. When
+  cardinal taxes any bishopric, even one without a bishop; the pope's tithe
+  names no bishopric and covers all of them (an outranked tithe still holds on
+  the other bishoprics). When
   several tithes target the same bishopric the same turn, the bishopric's
   bishop comes first, then the cardinals, then the pope; outranked tithes are
   consumed with no effect. If several players have a cardinal in the running,

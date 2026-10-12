@@ -54,8 +54,8 @@ Aucun noble n'est requis :
   la **capitale d'un fief** (taxe seigneuriale ou royale, vacant compris) ou le
   **village seed d'un évêché** (dîme). L'émetteur détermine ce qui est permis :
   seigneur titré sur ses fiefs, roi (ou régente) sur tout fief constitué, évêque sur son
-  évêché, cardinal et pape sur tout évêché (priorité évêque, puis cardinaux, puis
-  pape). Pour la taxe seigneuriale, `HHH` est le titulaire du fief (il peut être omis pour un fief vacant : `P TX XXX`). `P DI HHH XXX` joue explicitement une dîme. La taxe double le revenu
+  évêché, cardinal sur tout évêché, pape sur tous les évêchés (priorité évêque, puis cardinaux, puis
+  pape). Pour la taxe seigneuriale, `HHH` est le titulaire du fief (il peut être omis pour un fief vacant : `P TX XXX`). `P DI HHH XXX` joue explicitement une dîme ; la dîme du pape s'écrit `P DI HHH`, sans cible, et vise tous les évêchés. La taxe double le revenu
   territorial du fief pour le tour, village inclus, sans jamais toucher la
   production des moulins ; la dîme détourne la production des moulins de
   l'évêché. Deux cartes jouées sur le même fief le même tour ne se cumulent pas,

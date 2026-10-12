@@ -40,8 +40,14 @@ func parseDeckOrderLine(line string, lineNumber int, game *models.GameState) (mo
 		return models.DeckOrder{}, &error
 	}
 	if len(fields) == 3 && isTitheCode(fields[1]) {
-		error := parseMessage(lineNumber, ParseCodeMissingTarget, i18n.DeckOrderShape)
-		return models.DeckOrder{}, &error
+		// "P DI HHH" is the pope's tithe: it has no target, and covers every
+		// bishopric. Any other cleric needs one.
+		nobleID, found := nobleIDByCode(game, fields[2])
+		if fields[0] != "P" || !found || !game.IsPope(nobleID) {
+			error := parseMessage(lineNumber, ParseCodeMissingTarget, i18n.DeckOrderShape)
+			return models.DeckOrder{}, &error
+		}
+		return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: models.CardKindSeigneurialTax, TargetNobleID: nobleID, Tithe: true}, nil
 	}
 	if len(fields) == 5 && fields[0] == "P" && isTunnelCode(fields[1]) {
 		return parseTunnelAttackLine(fields, lineNumber, game)

@@ -1,5 +1,7 @@
 import { OrderLauncher, type OrderFieldOption } from '@/components/OrderDialog'
 import { formatCardLabel } from '@/lib/card-hand'
+import { parseDraftTaxLine } from '@/lib/projected-tax'
+import { royalIssuerOf } from '@/lib/royal'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { appendDraftLine, draftLines } from '@/lib/winter-draft'
 import { useLanguage } from '@/i18n/LanguageContext'
@@ -789,12 +791,26 @@ function revoltOptions(
   draft: string,
 ): OrderFieldOption[] {
   const targets = new Set(state.revoltTargets ?? [])
-  for (const line of draftLines(draft)) {
-    const match = /^P (?:TX|ST|DI|TT) (?:[A-Z]{3} )?([A-Z]{3})\b/.exec(line)
-    if (!match) continue
-    const fief = (state.fiefs ?? []).find((entry) => entry.capital === match[1])
-    const region = regions.find((entry) => entry.seed === match[1])
-    for (const code of fief?.territories ?? region?.territories ?? []) targets.add(code)
+  for (const raw of draftLines(draft)) {
+    const line = parseDraftTaxLine(raw)
+    if (!line) continue
+    const fief = line.tithe
+      ? undefined
+      : (state.fiefs ?? []).find((entry) => entry.capital === line.target)
+    if (fief) {
+      for (const code of fief.territories) targets.add(code)
+      continue
+    }
+    // A tithe opens the bishopric it names, or every bishopric for the pope's
+    // untargeted one.
+    const papal =
+      !line.target &&
+      state.nobles.some((noble) => noble.code === line.issuer && noble.religiousTitle === 'pope')
+    for (const region of regions) {
+      if (papal || region.seed === line.target) {
+        for (const code of region.territories) targets.add(code)
+      }
+    }
   }
   return [...targets].sort().map(codeOption)
 }
@@ -1033,18 +1049,37 @@ function taxLauncher({
     issuers.push({ value: VACANT_FIEF, label: t('orders.issuer.vacantFief') })
   }
   const hasLord = issuers.length > 0
+  // The king, or the regent in his place, may tax any fief he does not hold
+  // himself (politique.md "Pouvoirs royaux").
+  const royalIssuer = royalIssuerOf(state)
+  const royalFiefs = (state.fiefs ?? []).filter(
+    (fief) => !(fief.owner === player && (!fief.holder || fief.holder === royalIssuer?.code)),
+  )
+  if (royalIssuer && royalIssuer.owner === player && royalFiefs.length > 0) {
+    issuers.push({
+      value: `royal:${royalIssuer.code}`,
+      label: t('orders.issuer.royal', { noble: nobleLabel(royalIssuer) }),
+    })
+  }
   for (const cleric of clerics) {
     if (bishopricOptions(cleric).length === 0) continue
     issuers.push({
       value: `tithe:${cleric.code}`,
       label: t(
-        cleric.religiousTitle === 'bishop' ? 'orders.issuer.ownBishopric' : 'orders.issuer.allBishoprics',
+        cleric.religiousTitle === 'bishop'
+          ? 'orders.issuer.ownBishopric'
+          : cleric.religiousTitle === 'pope'
+            ? 'orders.issuer.allBishoprics'
+            : 'orders.issuer.anyBishopric',
         { noble: `${nobleLabel(cleric)} (${t(`orders.holder.${cleric.religiousTitle}` as MessageKey, { name: '' }).trim()})` },
       ),
     })
   }
-  const hasTithe = issuers.length > (hasLord ? issuers.filter((issuer) => issuer.value.startsWith('tax:')).length : 0)
-  const help: MessageKey = hasLord
+  const hasTithe = issuers.some((issuer) => issuer.value.startsWith('tithe:'))
+  const hasRoyal = issuers.some((issuer) => issuer.value.startsWith('royal:'))
+  const help: MessageKey = hasRoyal
+    ? 'orders.taxHelp.royal'
+    : hasLord
     ? hasTithe
       ? 'orders.taxHelp.both'
       : 'orders.taxHelp.lord'
@@ -1053,10 +1088,17 @@ function taxLauncher({
   const targetOptions = (values: Record<string, string>) => {
     const [kind, code] = (values.issuer ?? '').split(':')
     if (kind === 'tithe') return bishopricOptions(clerics.find((cleric) => cleric.code === code))
+    if (kind === 'royal') return royalFiefs.map(fiefOption)
     return ownFiefs.filter((fief) => (fief.holder ?? '') === code).map(fiefOption)
+  }
+  // The pope's tithe names no bishopric: it covers all of them.
+  const isPope = (values: Record<string, string>) => {
+    const [kind, code] = (values.issuer ?? '').split(':')
+    return kind === 'tithe' && clerics.find((cleric) => cleric.code === code)?.religiousTitle === 'pope'
   }
   const lineFor = (values: Record<string, string>) => {
     const [kind, code] = values.issuer.split(':')
+    if (kind === 'tithe' && isPope(values)) return `P DI ${code}`
     return kind === 'tithe'
       ? `P DI ${code} ${values.target}`
       : code
@@ -1075,13 +1117,17 @@ function taxLauncher({
           key: 'target',
           label: t('orders.field.taxTarget'),
           options: targetOptions,
+          hidden: isPope,
         },
       ]}
       buildOrder={(values) =>
-        values.target
+        values.target || isPope(values)
           ? {
               line: lineFor(values),
-              comment: t('orders.comment.playSpecial', { card, target: values.target }),
+              comment: t('orders.comment.playSpecial', {
+                card,
+                target: isPope(values) ? t('orders.tax.allBishoprics') : values.target,
+              }),
             }
           : null
       }

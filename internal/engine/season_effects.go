@@ -135,10 +135,21 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 	ctx.state.TrialRevoltWindows = pruneTrialRevoltWindows(ctx.state.TrialRevoltWindows, ctx.state.Turn)
 	ctx.state.TithedRegions = pruneTithedRegions(ctx.state.TithedRegions, ctx.state.Turn)
 	applyTithes(ctx, intents)
+	// Royal taxes come last: the lord's own tax has priority on a fief
+	// whatever the order of the submissions.
+	var royalTaxes []deckOrderIntent
 	for _, intent := range intents {
-		if intent.order.Kind == models.CardKindSeigneurialTax && !ctx.isTitheOrder(intent.order) {
-			applySeigneurialTax(ctx, intent.playerID, intent.order)
+		if intent.order.Kind != models.CardKindSeigneurialTax || ctx.isTitheOrder(intent.order) {
+			continue
 		}
+		if ctx.isRoyalTax(intent.playerID, intent.order) {
+			royalTaxes = append(royalTaxes, intent)
+			continue
+		}
+		applySeigneurialTax(ctx, intent.playerID, intent.order)
+	}
+	for _, intent := range royalTaxes {
+		applyRoyalTax(ctx, intent.playerID, intent.order)
 	}
 	for _, intent := range intents {
 		if intent.order.Kind == models.CardKindRevolt {
@@ -342,6 +353,60 @@ func applySeigneurialTax(ctx *resolutionContext, playerID models.PlayerID, order
 		RegionSeed: fief.CapitalTerritoryID, FiefID: fief.ID, FiefTitle: fief.Title, OwnerID: playerID,
 		Season: ctx.state.Season, Year: ctx.state.Year(),
 	})
+}
+
+// applyRoyalTax consumes one royal tax card (titres.md "Taxe seigneuriale"):
+// the king's tax on a fief his lord did not tax this turn. The fief keeps its
+// base income; the same amount again is created for the king's player
+// (income.go). A second royal tax on the same fief is consumed without effect.
+func applyRoyalTax(ctx *resolutionContext, playerID models.PlayerID, order models.DeckOrder) {
+	fief := ctx.fiefByCapital(order.TargetTerritoryID)
+	if fief == nil { // isRoyalTax found it a moment ago
+		return
+	}
+	reason := ""
+	switch {
+	case ctx.taxedFiefsThisTurn[fief.ID]:
+		reason = "royal_tax_fief_already_taxed"
+	case ctx.royalTaxedFiefs[fief.ID] != "":
+		reason = "seigneurial_tax_already_applied"
+	}
+	if reason != "" {
+		ctx.events = append(ctx.events, Event{
+			Type: EventTypeCardCanceled, Phase: phaseForSeason(ctx.state.Season),
+			CardKind: models.CardKindSeigneurialTax, TerritoryID: fief.CapitalTerritoryID,
+			FiefID: fief.ID, FiefTitle: fief.Title, OwnerID: playerID,
+			Reason: reason, Season: ctx.state.Season, Year: ctx.state.Year(),
+		})
+		return
+	}
+	ctx.royalTaxedFiefs[fief.ID] = playerID
+	ctx.state.TaxedFiefs = append(ctx.state.TaxedFiefs, models.TaxedFief{FiefID: fief.ID, Turn: ctx.state.Turn})
+	ctx.events = append(ctx.events, Event{
+		Type: EventTypeBonusEffect, Phase: phaseForSeason(ctx.state.Season),
+		CardKind: models.CardKindSeigneurialTax, TerritoryID: fief.CapitalTerritoryID,
+		RegionSeed: fief.CapitalTerritoryID, FiefID: fief.ID, FiefTitle: fief.Title, OwnerID: playerID,
+		Reason: "royal_tax", Season: ctx.state.Season, Year: ctx.state.Year(),
+	})
+}
+
+// isRoyalTax reports whether a tax order played by playerID is a royal tax:
+// its issuer is the king (or the regent) and the targeted fief is not one he
+// holds himself, in which case it is an ordinary seigneurial tax.
+func (ctx *resolutionContext) isRoyalTax(playerID models.PlayerID, order models.DeckOrder) bool {
+	if order.TargetNobleID == "" {
+		return false
+	}
+	issuer, ok := ctx.state.RoyalIssuer()
+	if !ok || issuer.ID != order.TargetNobleID || issuer.OwnerID != playerID {
+		return false
+	}
+	fief := ctx.fiefByCapital(order.TargetTerritoryID)
+	if fief == nil {
+		return false
+	}
+	ownsIt := fief.OwnerID == playerID && (fief.HolderNobleID == nil || *fief.HolderNobleID == issuer.ID)
+	return !ownsIt
 }
 
 // applyRevolt consumes one revolt card on the target territory: it rolls for
