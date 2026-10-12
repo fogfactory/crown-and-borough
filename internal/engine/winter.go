@@ -74,12 +74,15 @@ func ResolveWinterWithDeckOrders(
 	ctx.fileWinterTrials(orders)
 	// Stage 4: marriage dissolutions of the pope.
 	ctx.resolveDissolutions(orders)
+	ctx.state.RefreshQueen()
 	// Stage 5: marriages.
 	ctx.resolveMarriages()
+	ctx.state.RefreshQueen()
 	// Stage 6: elections, counted on one snapshot; stage 7: investiture.
 	ctx.resolveWinterElections()
 	ctx.investWinterTitles()
 	ctx.investPurchasedCardinals()
+	ctx.state.RefreshQueen()
 	// Stage 8: end of winter (hands, vacant fiefs, stocks, prosperity).
 	resolveWinterDeckOrders(ctx, deckOrders)
 	// No calamity resolves in winter: the winter turn draws and schedules the

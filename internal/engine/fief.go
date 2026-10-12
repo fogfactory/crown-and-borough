@@ -211,6 +211,7 @@ func (ctx *resolutionContext) passFiefToHeir(fief *models.Fief, heir models.Nobl
 		ctx.clearCapitalOnControlLoss(previousOwnerID, memberID)
 	}
 	heirID := heir.ID
+	ctx.honourClaimOf(heirID)
 	fief.OwnerID = heir.OwnerID
 	fief.HolderNobleID = &heirID
 	ctx.events = append(ctx.events, Event{

@@ -81,6 +81,41 @@ describe('lineage', () => {
     ])
   })
 
+  it('lists the king, the queen and the dowager queen', () => {
+    const titles = (house: number, code: string, religion: Parameters<typeof buildHouses>[5]) =>
+      buildHouses(players, nobles, [], [], [], religion)[house].members.find(
+        (entry) => entry.code === code,
+      )?.religious
+    expect(titles(2, 'MAR', { king: 'MAR', queen: 'ANN' })).toEqual([{ title: 'king' }])
+    expect(titles(1, 'ANN', { king: 'MAR', queen: 'ANN' })).toEqual([{ title: 'queen' }])
+    expect(titles(1, 'EVE', { king: 'MAR', queen: 'ANN' })).toEqual([])
+    // The widow of a dead king keeps the title, as a dowager.
+    expect(titles(1, 'ANN', { queen: 'ANN', queenDowager: true })).toEqual([
+      { title: 'dowager_queen' },
+    ])
+  })
+
+  it('keeps ended claims on the heir, a live one taking precedence', () => {
+    const ended = { heir: 'ANN', target: 'JEA', spouse: 'EVE', turn: 1, rank: 0, ended: true, endedTurn: 3, outcome: 'honoured' as const }
+    const live = { heir: 'MAR', target: 'EVE', spouse: 'JEA', turn: 2, rank: 1 }
+    const houses = buildHouses(players, nobles, [], [], [ended, live])
+    const claimOf = (code: string) =>
+      houses.flatMap((house) => house.members).find((m) => m.code === code)?.claim
+    expect(claimOf('ANN')).toMatchObject({ target: 'JEA', outcome: 'honoured' })
+    expect(claimOf('MAR')?.outcome).toBeUndefined()
+    // Only live claims count as claiming a noble.
+    const claimed = houses.flatMap((house) => house.members).map((m) => [m.code, m.claimedBy])
+    expect(claimed.filter(([, count]) => count)).toEqual([['EVE', 1]])
+  })
+
+  it('flags the excommunicated nobles', () => {
+    const houses = buildHouses(players, nobles, [], [], [], {
+      excommunicated: [{ noble: 'ANN', reason: 'papal', turn: 1 }],
+    })
+    const flags = houses.flatMap((house) => house.members.map((m) => [m.code, m.excommunicated]))
+    expect(flags.filter(([, flag]) => flag)).toEqual([['ANN', true]])
+  })
+
   it('classifies marriages: active head, secondary, ended', () => {
     const houses = buildHouses(players, nobles, [], [])
     const links = buildLinks(houses, [

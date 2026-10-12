@@ -825,9 +825,7 @@ func resolvePlagueMortalityFor(ctx *resolutionContext, plagueRegions map[models.
 		}
 	}
 	ctx.rebuildIndexes()
-	ctx.vacateFiefsOfMissingHolders()
-	ctx.state.DropReligiousTitlesOfMissingNobles()
-	ctx.settleClaimsOfDead()
+	ctx.settleAfterDeaths()
 }
 
 func newPlagueRNG(seed string, turn int, nobleID models.NobleID) *rand.Rand {

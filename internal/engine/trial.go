@@ -68,9 +68,7 @@ func (ctx *resolutionContext) removeNoble(noble models.Noble, cause models.Death
 		Cause: cause, Turn: ctx.state.Turn,
 	})
 	ctx.rebuildIndexes()
-	ctx.vacateFiefsOfMissingHolders()
-	ctx.state.DropReligiousTitlesOfMissingNobles()
-	ctx.settleClaimsOfDead()
+	ctx.settleAfterDeaths()
 }
 
 func removeNoble(nobles []models.Noble, id models.NobleID) []models.Noble {

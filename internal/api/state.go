@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"maps"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
@@ -44,6 +45,11 @@ type StateView struct {
 	// King is the noble who holds the crown, absent while the throne is
 	// vacant; it is public (specs/politique.md § Roi).
 	King *models.NobleCode `json:"king,omitempty"`
+	// Queen is the noble who holds the queen's title, a dowager queen included
+	// (the widow of a king while no married king is in place); QueenDowager
+	// tells she is not the spouse of the king in place.
+	Queen        *models.NobleCode `json:"queen,omitempty"`
+	QueenDowager bool              `json:"queenDowager,omitempty"`
 	// HandLimit is special_orders.hand_limit: the cap on the cards a player
 	// holds, special-orders hand and noble hand together.
 	HandLimit        int               `json:"handLimit"`
@@ -305,13 +311,18 @@ type MarriageRef struct {
 // ClaimView is a pretension staked by Heir on the titles of Target
 // (specs/succession.md § Prétentions), public to every viewer. Rank is the
 // heir's position among the claims on Target, 1 being the first to inherit.
+// An ended claim is kept with Ended set, the turn it ended on and its outcome,
+// and no rank.
 type ClaimView struct {
-	Heir     models.NobleCode `json:"heir"`
-	Target   models.NobleCode `json:"target"`
-	Spouse   models.NobleCode `json:"spouse"`
-	Turn     int              `json:"turn"`
-	WifeSide bool             `json:"wifeSide,omitempty"`
-	Rank     int              `json:"rank"`
+	Heir      models.NobleCode    `json:"heir"`
+	Target    models.NobleCode    `json:"target"`
+	Spouse    models.NobleCode    `json:"spouse"`
+	Turn      int                 `json:"turn"`
+	WifeSide  bool                `json:"wifeSide,omitempty"`
+	Rank      int                 `json:"rank"`
+	Ended     bool                `json:"ended,omitempty"`
+	EndedTurn int                 `json:"endedTurn,omitempty"`
+	Outcome   models.ClaimOutcome `json:"outcome,omitempty"`
 }
 
 // DeceasedView is a noble that has left the game, public to every viewer
@@ -552,6 +563,11 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 		code := nobleCodesByID[*state.King]
 		view.King = &code
 	}
+	if state.Queen != nil {
+		code := nobleCodesByID[*state.Queen]
+		view.Queen = &code
+		view.QueenDowager = state.IsDowagerQueen(*state.Queen)
+	}
 	for i, noble := range view.Nobles {
 		view.Nobles[i].ReligiousTitle = state.ReligiousTitleOf(noble.ID)
 	}
@@ -564,6 +580,19 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 			}
 		}
 		view.Claims = append(view.Claims, ClaimView{Heir: nobleCodesByID[claim.Heir], Target: nobleCodesByID[claim.Target], Spouse: nobleCodesByID[claim.Spouse], Turn: claim.Turn, WifeSide: claim.WifeSide, Rank: rank})
+	}
+	if len(state.ExpiredClaims) != 0 {
+		codes := make(map[models.NobleID]models.NobleCode, len(nobleCodesByID)+len(state.RemovedNobles))
+		for _, removed := range state.RemovedNobles {
+			codes[removed.ID] = models.NobleCode(removed.Code)
+		}
+		maps.Copy(codes, nobleCodesByID)
+		for _, expired := range state.ExpiredClaims {
+			view.Claims = append(view.Claims, ClaimView{
+				Heir: codes[expired.Heir], Target: codes[expired.Target], Spouse: codes[expired.Spouse],
+				Turn: expired.Turn, WifeSide: expired.WifeSide, Ended: true, EndedTurn: expired.EndedTurn, Outcome: expired.Outcome,
+			})
+		}
 	}
 	view.Marriages = []MarriageView{}
 	if len(state.Marriages) != 0 {
