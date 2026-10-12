@@ -65,7 +65,8 @@ func TestRoyalRentPaidToKingAndQueen(t *testing.T) {
 	}
 }
 
-// TestRoyalRentVacantThrone: no king, no king's rent; the dowager queen keeps hers.
+// TestRoyalRentVacantThrone: the regent, a dowager queen, receives the king's
+// rent on top of the queen's.
 func TestRoyalRentVacantThrone(t *testing.T) {
 	state := royalIncomeTestState(t)
 	state.King = nil
@@ -74,11 +75,30 @@ func TestRoyalRentVacantThrone(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveWithDeckOrders: %v", err)
 	}
-	if _, ok := royalSource(resolution.Events, incomeSourceRoyalRentKing); ok {
-		t.Error("vacant throne paid a king's rent")
+	king, ok := royalSource(resolution.Events, incomeSourceRoyalRentKing)
+	if !ok || king.OwnerID != "P3" || king.Production != 1 {
+		t.Errorf("king rent = %#v, want 1 R to the regent's player P3", king)
 	}
-	if queen, ok := royalSource(resolution.Events, incomeSourceRoyalRentQueen); !ok || queen.Production != 1 {
-		t.Errorf("queen rent = %#v, want 1 R", queen)
+	if queen, ok := royalSource(resolution.Events, incomeSourceRoyalRentQueen); !ok || queen.OwnerID != "P3" || queen.Production != 1 {
+		t.Errorf("queen rent = %#v, want 1 R to P3", queen)
+	}
+}
+
+// TestRoyalRentVacantThroneWithRegentInDungeon: no regent, no king's rent.
+func TestRoyalRentVacantThroneWithRegentInDungeon(t *testing.T) {
+	state := royalIncomeTestState(t)
+	state.King = nil
+	for index := range state.Nobles {
+		if state.Nobles[index].ID == *state.Queen {
+			state.Nobles[index].Status = models.NobleStatusDungeon
+		}
+	}
+	resolution, err := ResolveWithDeckOrders(state, testBalance(), nil)
+	if err != nil {
+		t.Fatalf("ResolveWithDeckOrders: %v", err)
+	}
+	if _, ok := royalSource(resolution.Events, incomeSourceRoyalRentKing); ok {
+		t.Error("a vacant throne without regent paid a king's rent")
 	}
 }
 

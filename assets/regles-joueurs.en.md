@@ -859,6 +859,25 @@ free, and `W G` gives a crown fief (a vacant fief whose player has no living nob
 sheet the same winter; otherwise it is consumed without effect, with an
 explicit report.
 
+**Queen and regent.** The queen is the spouse of the king in place; she
+belongs to a different player than he does and has no power to give orders:
+her only effect is her rent. As a widow she keeps her title (dowager queen).
+She stops being queen when she dies, when she remarries (except to the king in
+place), when the pope dissolves her marriage, or when a married king takes the
+throne: his spouse then becomes the queen. The regent is the queen who
+exercises the royal powers (`W` orders and the royal tax) in the king's place:
+
+- while the king is in the dungeon and she is free or a hostage; she gives them
+  back as soon as he is released;
+- when the king dies without an eligible heir, until a new king is crowned; she
+  loses them if she dies, is put in the dungeon or remarries. The throne stays
+  vacant, and a woman cannot be elected.
+
+The regent does not hold the crown as well. While the king is captive, his rent
+keeps going to his player and the regent receives the queen's; when the king
+dies, the regent receives the king's rent on top of the queen's, until a king
+is crowned.
+
 A fief's titulaire is addressed by form of address (shown in French) —
 Baron/Baronne (barony), Comte/Comtesse (county), Marquis/Marquise
 (marquisate), Duc/Duchesse (duchy) — followed by their first name and the fief's capital;
@@ -1093,7 +1112,7 @@ countered. No calamity resolves in winter.
 - the **royal rent** is paid every action turn without any card: **1 R per
   constituted fief** on the map, vacant ones included, created and delivered
   to the capital of the king's player (a captured king keeps it; a vacant
-  throne pays none). The queen, dowager included, receives half of it, rounded
+  throne pays it to the regent, otherwise it is not paid). The queen, dowager included, receives half of it, rounded
   up, at the capital of her player. The turn report lists these amounts
   separately;
 - the **tithe** is the Tax card played by a cleric (`P DI HHH XXX`, XXX being a

@@ -48,8 +48,8 @@ type royalRent struct {
 
 // royalRents lists the rents of the turn: 1 R per constituted fief to the
 // king's player, and half of it, rounded up, to the queen's player. A held
-// king keeps his rent; a vacant throne pays none, but a dowager queen still
-// gets hers.
+// king keeps his rent; on a vacant throne the king's rent goes to the regent's
+// player, on top of the queen's, and is not paid while no regent holds it.
 func royalRents(state *models.GameState) []royalRent {
 	rent := len(state.Fiefs)
 	if rent == 0 {
@@ -63,6 +63,11 @@ func royalRents(state *models.GameState) []royalRent {
 	if state.King != nil {
 		if owner, ok := owners[*state.King]; ok {
 			rents = append(rents, royalRent{owner, rent, incomeSourceRoyalRentKing})
+		}
+	}
+	if state.King == nil {
+		if regent, ok := state.Regent(); ok {
+			rents = append(rents, royalRent{regent.OwnerID, rent, incomeSourceRoyalRentKing})
 		}
 	}
 	if state.Queen != nil {
