@@ -81,3 +81,59 @@ func TestVictorySimulationRejectsImpossibleAction(t *testing.T) {
 		}
 	}
 }
+
+func TestVictorySimulationCrownsThenDethrones(t *testing.T) {
+	handler, gameStore, id, _ := simulationFixture(t)
+	snapshot, err := gameStore.State(context.Background(), store.Actor{ID: "P1", Development: true}, id)
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	var candidate string
+	for _, noble := range snapshot.State.Nobles {
+		if noble.Sex.CanHoldReligiousOrRoyalTitle() && noble.CanBeKing() {
+			candidate = noble.Code
+			break
+		}
+	}
+	if candidate == "" {
+		t.Skip("the seed has no noble who can be king")
+	}
+	path := "/api/games/" + string(id) + "/victory/simulate?player=P1"
+	simulate := func(body string) *http.Response {
+		return requestGames(t, handler, http.MethodPost, path, body).Result()
+	}
+	read := func(response *http.Response) VictorySimulationView {
+		t.Helper()
+		defer response.Body.Close()
+		var view VictorySimulationView
+		if err := json.NewDecoder(response.Body).Decode(&view); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		return view
+	}
+
+	response := simulate(`{"actions":[{"type":"crown","noble":"` + candidate + `"}]}`)
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("crown = %d", response.StatusCode)
+	}
+	if view := read(response); view.State.King == nil || string(*view.State.King) != candidate {
+		t.Fatalf("projected king = %v, want %s", view.State.King, candidate)
+	}
+
+	response = simulate(`{"actions":[{"type":"crown","noble":"` + candidate + `"},{"type":"dethrone"}]}`)
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("dethrone = %d", response.StatusCode)
+	}
+	if view := read(response); view.State.King != nil {
+		t.Fatalf("projected king after dethrone = %v, want none", *view.State.King)
+	}
+
+	for _, body := range []string{
+		`{"actions":[{"type":"dethrone"}]}`,
+		`{"actions":[{"type":"rank","fief":"ZZZ"}]}`,
+	} {
+		if response := simulate(body); response.StatusCode != http.StatusUnprocessableEntity {
+			t.Fatalf("%s = %d", body, response.StatusCode)
+		}
+	}
+}

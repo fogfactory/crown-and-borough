@@ -404,6 +404,8 @@ export function LineageDialog(props: LineageDialogProps) {
                 simulating={simulating}
                 view={view}
                 nobles={nobles}
+                fiefs={fiefs ?? []}
+                king={data.king}
                 selection={selection}
                 pending={pending}
                 actions={history.actions}
@@ -479,6 +481,8 @@ function SimulationBar({
   simulating,
   view,
   nobles,
+  fiefs,
+  king,
   selection,
   pending,
   actions,
@@ -500,6 +504,8 @@ function SimulationBar({
   simulating: boolean
   view: View
   nobles: Noble[]
+  fiefs: Fief[]
+  king?: string
   selection: Selection | null
   pending: Pending | null
   actions: SimulationAction[]
@@ -533,10 +539,12 @@ function SimulationBar({
   }
   const noble = selection?.type === 'noble' ? nobles.find((n) => n.code === selection.code) : undefined
   const alive = noble !== undefined
+  const heldFiefs = noble ? fiefs.filter((fief) => fief.holder === noble.code) : []
   const log = (action: SimulationAction) =>
     t(`sim.log.${action.type}` as MessageKey, {
-      noble: nameOf(action.noble),
+      noble: 'noble' in action ? nameOf(action.noble) : '',
       other: 'other' in action ? nameOf(action.other) : '',
+      fief: 'fief' in action ? action.fief : '',
     })
   return (
     <div className="flex w-full flex-col gap-2 rounded-lg border border-[#b8860b]/60 bg-[#f8e8ae]/40 p-2 text-xs">
@@ -597,6 +605,31 @@ function SimulationBar({
           >
             {t('sim.claim')}
           </button>
+          {heldFiefs.map((fief) => (
+            <button
+              key={fief.capital}
+              type="button"
+              className={button}
+              disabled={fief.title === 'duchy'}
+              onClick={() => onAction({ type: 'rank', fief: fief.capital })}
+            >
+              {t('sim.rank', { fief: fief.capital })}
+            </button>
+          ))}
+          {noble && noble.code !== king && (
+            <button
+              type="button"
+              className={button}
+              onClick={() => onAction({ type: 'crown', noble: selection.code })}
+            >
+              {t('sim.crown')}
+            </button>
+          )}
+          {noble && noble.code === king && (
+            <button type="button" className={button} onClick={() => onAction({ type: 'dethrone' })}>
+              {t('sim.dethrone')}
+            </button>
+          )}
           <button type="button" className={button} onClick={onCancel}>
             {t('sim.cancel')}
           </button>

@@ -205,6 +205,29 @@ describe('LineageDialog', () => {
       expect(screen.queryByText('Duc Jean dies')).not.toBeInTheDocument()
     })
 
+    it('raises a fief by one rank and crowns a noble', async () => {
+      const request = vi.fn(async () => projection(false))
+      renderDialog(request)
+      fireEvent.click(screen.getByRole('button', { name: 'Simulate' }))
+      fireEvent.click(screen.getByRole('region', { name: 'Alice' }).querySelector('[data-noble="JEA"]')!)
+      expect(screen.getByRole('button', { name: 'Raise ROC one rank' })).toBeDisabled()
+      fireEvent.click(screen.getByRole('button', { name: 'Raise AAA one rank' }))
+      await waitFor(() =>
+        expect(request).toHaveBeenLastCalledWith([{ type: 'rank', fief: 'AAA' }], expect.anything()),
+      )
+      fireEvent.click(screen.getByRole('region', { name: 'Bob' }).querySelector('[data-noble="ANN"]')!)
+      fireEvent.click(screen.getByRole('button', { name: 'Crown' }))
+      await waitFor(() =>
+        expect(request).toHaveBeenLastCalledWith(
+          [
+            { type: 'rank', fief: 'AAA' },
+            { type: 'crown', noble: 'ANN' },
+          ],
+          expect.anything(),
+        ),
+      )
+    })
+
     it('asks for a second click to marry two nobles', async () => {
       const request = vi.fn(async () => projection(false))
       renderDialog(request)
