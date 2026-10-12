@@ -82,11 +82,11 @@ function OrderDialogBody({
   return (
     <Dialog.Portal>
       <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40" />
-      <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(92vw,26rem)] -translate-x-1/2 -translate-y-1/2 space-y-3 rounded-xl border border-[#9bbbd3] bg-[#f7fbff] p-4 text-[#263f52] shadow-xl">
-        <Dialog.Title className="font-serif text-base font-bold text-[#2c5b7d]">
+      <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(92vw,26rem)] -translate-x-1/2 -translate-y-1/2 space-y-3 rounded-xl border border-winter-300 bg-winter-50 p-4 text-winter-800 shadow-xl">
+        <Dialog.Title className="font-display text-base font-bold text-winter-700">
           {title}
         </Dialog.Title>
-        <Dialog.Description className="text-xs leading-relaxed text-[#55738a]">
+        <Dialog.Description className="text-xs leading-relaxed text-winter-600">
           {description ?? title}
         </Dialog.Description>
         {fields.map((field) => {
@@ -129,7 +129,7 @@ function OrderDialogBody({
                   onChange={(event) =>
                     setValues({ ...values, [field.key]: event.target.value })
                   }
-                  className="block w-full rounded border border-[#9bbbd3] bg-white px-2 py-1 font-normal"
+                  className="block w-full rounded border border-winter-300 bg-white px-2 py-1 font-normal"
                 >
                   {options.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -145,18 +145,18 @@ function OrderDialogBody({
                   onChange={(event) =>
                     setValues({ ...values, [field.key]: event.target.value })
                   }
-                  className="block w-full rounded border border-[#9bbbd3] bg-white px-2 py-1 font-normal uppercase"
+                  className="block w-full rounded border border-winter-300 bg-white px-2 py-1 font-normal uppercase"
                 />
               )}
             </label>
           )
         })}
         {hint && hint(values) && (
-          <p className="rounded border border-[#c9dcea] bg-white/70 px-2 py-1 text-xs text-[#2c5b7d]">
+          <p className="rounded border border-winter-200 bg-white/70 px-2 py-1 text-xs text-winter-700">
             {hint(values)}
           </p>
         )}
-        <p className="rounded bg-white/70 px-2 py-1 font-mono text-xs text-[#55738a]">
+        <p className="rounded bg-white/70 px-2 py-1 font-mono text-xs text-winter-600">
           {order ? `${order.line} # ${order.comment}` : '—'}
         </p>
         <div className="flex justify-end gap-2">

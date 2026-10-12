@@ -755,11 +755,11 @@ export function TitleOrdersSection({
 
   if (launchers.length === 0) return null
   return (
-    <section className="space-y-2 rounded-lg border border-[#9bbbd3] bg-[#f7fbff] p-3">
-      <h4 className="font-serif text-base font-semibold text-[#2c5b7d]">
+    <section className="space-y-2 rounded-lg border border-winter-300 bg-winter-50 p-3">
+      <h4 className="font-display text-base font-semibold text-winter-700">
         {t('orders.titlesTitle')}
       </h4>
-      <p className="text-xs leading-relaxed text-[#55738a]">{t('orders.titlesDescription')}</p>
+      <p className="text-xs leading-relaxed text-winter-600">{t('orders.titlesDescription')}</p>
       <div className="flex flex-wrap gap-1.5">{launchers}</div>
     </section>
   )

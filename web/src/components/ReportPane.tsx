@@ -32,7 +32,7 @@ export function ReportPane({
   return (
     <div className="space-y-4">
       {summaries.length > 0 && onSelectReport && (
-        <label className="block space-y-1.5 text-sm font-semibold text-[#594b3c]">
+        <label className="block space-y-1.5 text-sm font-semibold text-ink-700">
           <span>{t('online.reportHistory')}</span>
           <select
             value={
@@ -42,7 +42,7 @@ export function ReportPane({
                 : ''
             }
             onChange={(event) => onSelectReport(Number(event.target.value))}
-            className="h-10 w-full rounded-lg border border-[#b7a786] bg-[#f8f0e2] px-3 text-sm"
+            className="h-10 w-full rounded-lg border border-line bg-paper-80 px-3 text-sm"
           >
             {summaries.map((item) => (
               <option key={item.index} value={item.index}>
@@ -57,15 +57,15 @@ export function ReportPane({
       )}
 
       {loading ? (
-        <p className="text-sm italic text-[#806f57]">{t('online.loading')}</p>
+        <p className="text-sm italic text-ink-500">{t('online.loading')}</p>
       ) : error ? (
-        <p role="alert" className="text-sm text-[#8d321e]">
+        <p role="alert" className="text-sm text-vermilion-700">
           {error}
         </p>
       ) : report ? (
         <ReportPanel report={report} map={map} players={players} />
       ) : (
-        <p className="rounded-lg border border-dashed border-[#b7a786] bg-[#f8f0e2] px-4 py-8 text-center font-serif italic text-[#806f57]">
+        <p className="rounded-lg border border-dashed border-line bg-paper-80 px-4 py-8 text-center font-display italic text-ink-500">
           {t('app.noReport')}
         </p>
       )}

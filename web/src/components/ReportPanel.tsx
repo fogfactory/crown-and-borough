@@ -21,6 +21,7 @@ import type {
   WinterInvestmentReport,
   WinterOrder,
 } from '@/types'
+import { DEFAULT_PLAYER_COLOR } from '@/lib/map-palette'
 
 const FIEF_TITLE_KEYS: Record<FiefTitle, MessageKey> = {
   barony: 'fief.title.barony',
@@ -281,7 +282,7 @@ function playerLabel(
 }
 
 function playerColor(players: Player[], playerId?: PlayerId): string {
-  return players.find((player) => player.id === playerId)?.color ?? '#b7a786'
+  return players.find((player) => player.id === playerId)?.color ?? DEFAULT_PLAYER_COLOR
 }
 
 /**
@@ -308,7 +309,7 @@ function playerMarker(players: Player[], playerId: PlayerId | undefined, t: Tran
   return (
     <span
       role="img"
-      className="inline-block size-2.5 shrink-0 rounded-full border border-[#30291f]/30 shadow-inner"
+      className="inline-block size-2.5 shrink-0 rounded-full border border-ink-900/30 shadow-inner"
       style={{ backgroundColor: playerColor(players, playerId) }}
       aria-label={t('app.colorOf', { player: playerLabel(players, playerId, t) })}
     />
@@ -316,7 +317,7 @@ function playerMarker(players: Player[], playerId: PlayerId | undefined, t: Tran
 }
 
 function outcomeClass(outcome: Outcome): string {
-  return outcome === 'success' ? 'text-[#376341]' : 'text-[#a84632]'
+  return outcome === 'success' ? 'text-success-700' : 'text-brass-700'
 }
 
 function outcomeLabel(outcome: Outcome, t: Translate): string {
@@ -325,7 +326,7 @@ function outcomeLabel(outcome: Outcome, t: Translate): string {
 
 function emptyMessage(label: string, t: Translate) {
   return (
-    <p className="text-sm italic text-[#806f57]">{t('reports.noEvents', { label })}</p>
+    <p className="text-sm italic text-ink-500">{t('reports.noEvents', { label })}</p>
   )
 }
 
@@ -997,16 +998,16 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
   return (
     <section className="min-w-0 space-y-4">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#a84632]">
+        <p className="text-3xs font-semibold uppercase tracking-[0.2em] text-brass-700">
           {t('reports.title', { turn: report.header.turn })}
         </p>
-        <h3 className="font-serif text-xl font-semibold">
+        <h3 className="font-display text-xl font-semibold">
           {t('reports.resolutionComplete')}
         </h3>
       </div>
 
       <div className="space-y-2">
-        <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
+        <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
           {t('reports.receptions')}
         </h4>
         {receptions.length === 0 ? (
@@ -1016,7 +1017,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
             {receptions.map((reception, index) => (
               <div
                 key={`${reception.player}-${reception.noble}-${index}`}
-                className="flex items-center justify-between gap-3 rounded-md bg-[#f3ead9] px-3 py-2"
+                className="flex items-center justify-between gap-3 rounded-md bg-paper-100 px-3 py-2"
               >
                 <span className="flex min-w-0 items-center gap-2">
                   {playerMarker(players, reception.player, t)}
@@ -1027,8 +1028,8 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                 <span
                   className={
                     reception.received
-                      ? 'shrink-0 text-[#376341]'
-                      : 'shrink-0 text-[#a84632]'
+                      ? 'shrink-0 text-success-700'
+                      : 'shrink-0 text-brass-700'
                   }
                 >
                   {reception.received
@@ -1052,15 +1053,15 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
       </div>
 
       <div className="space-y-2">
-        <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
+        <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
           {t('reports.combats')}
         </h4>
         {combats.length === 0 ? (
           emptyMessage(t('reports.combats').toLowerCase(), t)
         ) : (
-          <div className="overflow-x-auto rounded-md border border-[#b7a786]/60">
+          <div className="overflow-x-auto rounded-md border border-line/60">
             <table className="w-full min-w-[24rem] text-left text-xs">
-              <thead className="bg-[#f3ead9] text-[#806f57]">
+              <thead className="bg-paper-100 text-ink-500">
                 <tr>
                   <th className="px-2 py-2">{t('reports.square')}</th>
                   <th className="px-2 py-2">{t('reports.issue')}</th>
@@ -1071,7 +1072,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                 {combats.map((combat, index) => (
                   <tr
                     key={`${combat.territory}-${index}`}
-                    className="border-t border-[#b7a786]/40"
+                    className="border-t border-line/40"
                   >
                     <td className="px-2 py-2 font-semibold">
                       {territoryLabel(map, combat.territory, t)}
@@ -1112,7 +1113,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
       </div>
 
       <div className="space-y-2">
-        <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
+        <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
           {t('reports.incomeTitle')}
         </h4>
         {income.length === 0 ? (
@@ -1122,13 +1123,13 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
             {income.map((line, index) => (
               <div
                 key={`${line.owner}-${line.destination ?? 'lost'}-${index}`}
-                className="rounded-md bg-[#f3ead9] px-3 py-2"
+                className="rounded-md bg-paper-100 px-3 py-2"
               >
                 <div className="flex items-center justify-between gap-3">
                   <span className="flex min-w-0 items-center gap-2">
                     {playerMarker(players, line.owner, t)}
                     {line.destination ? (
-                      <span className="text-xs text-[#806f57]">
+                      <span className="text-xs text-ink-500">
                         {incomeDestinationLabel(line, map, t)}
                       </span>
                     ) : null}
@@ -1136,8 +1137,8 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                   <span
                     className={
                       line.lost
-                        ? 'shrink-0 text-xs font-semibold text-[#a84632]'
-                        : 'shrink-0 text-xs font-semibold text-[#376341]'
+                        ? 'shrink-0 text-xs font-semibold text-brass-700'
+                        : 'shrink-0 text-xs font-semibold text-success-700'
                     }
                   >
                     {line.lost
@@ -1145,7 +1146,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                       : t('reports.incomeCredited', { count: line.credited })}
                   </span>
                 </div>
-                <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-[#806f57]">
+                <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-2xs text-ink-500">
                   {line.source ? (
                     <span>
                       {t(`reports.incomeSource.${line.source}`, {
@@ -1161,7 +1162,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                     <span>{t('reports.incomeVillages', { count: line.villages })}</span>
                   )}
                   {(line.suppressed ?? 0) > 0 && (
-                    <span className="font-semibold text-[#8d321e]">
+                    <span className="font-semibold text-vermilion-700">
                       {t('reports.incomeSuppressed', { count: line.suppressed ?? 0 })}
                     </span>
                   )}
@@ -1173,7 +1174,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
       </div>
 
       <div className="space-y-2">
-        <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
+        <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
           {t('reports.millsTitle')}
         </h4>
         {mills.length === 0 ? (
@@ -1186,19 +1187,19 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
               return (
                 <div
                   key={`${line.territory}-${index}`}
-                  className="flex items-center justify-between gap-3 rounded-md bg-[#f3ead9] px-3 py-2"
+                  className="flex items-center justify-between gap-3 rounded-md bg-paper-100 px-3 py-2"
                 >
                   <span className="flex min-w-0 items-center gap-2">
                     {playerMarker(players, line.owner, t)}
-                    <span className="text-xs text-[#806f57]">
+                    <span className="text-xs text-ink-500">
                       {territoryLabel(map, line.territory, t)}
                     </span>
                   </span>
                   <span
                     className={
                       stopped
-                        ? 'shrink-0 text-xs font-semibold text-[#a84632]'
-                        : 'shrink-0 text-xs font-semibold text-[#376341]'
+                        ? 'shrink-0 text-xs font-semibold text-brass-700'
+                        : 'shrink-0 text-xs font-semibold text-success-700'
                     }
                   >
                     {stopped
@@ -1218,7 +1219,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
       </div>
 
       <div className="space-y-2">
-        <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
+        <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
           {t('reports.productionTitle')}
         </h4>
         {production.length === 0 ? (
@@ -1256,7 +1257,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                 (line.stockConsumed ?? 0) > 0 ||
                 (line.stockAfter ?? 0) > 0
               return (
-                <div key={line.territory} className="rounded-md bg-[#f3ead9] px-3 py-2">
+                <div key={line.territory} className="rounded-md bg-paper-100 px-3 py-2">
                   <div className="flex items-center justify-between gap-3">
                     <span className="flex min-w-0 items-center gap-2">
                       {playerMarker(players, line.owner, t)}
@@ -1264,12 +1265,12 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                         {territoryLabel(map, line.territory, t)}
                       </span>
                     </span>
-                    <span className="shrink-0 text-xs font-semibold text-[#376341]">
+                    <span className="shrink-0 text-xs font-semibold text-success-700">
                       {t('reports.productionProduced', { count: line.produced })}
                     </span>
                   </div>
                   {chips.length > 0 && (
-                    <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-[#806f57]">
+                    <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-2xs text-ink-500">
                       {chips.map((chip) => (
                         <span key={chip.label}>
                           {chip.label} {chip.value}
@@ -1278,12 +1279,12 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                     </p>
                   )}
                   {suppressed > 0 && (
-                    <p className="mt-1 text-[11px] font-semibold text-[#8d321e]">
+                    <p className="mt-1 text-2xs font-semibold text-vermilion-700">
                       {t('reports.productionSuppressed', { count: suppressed })}
                     </p>
                   )}
                   {(sentDestinations.length > 0 || hasStock) && (
-                    <p className="mt-1 text-[11px] text-[#806f57]">
+                    <p className="mt-1 text-2xs text-ink-500">
                       {sentDestinations
                         .map((destination) =>
                           t('reports.productionSent', {
@@ -1313,7 +1314,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
       </div>
 
       <div className="space-y-2">
-        <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
+        <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
           {t('reports.consumptionTitle')}
         </h4>
         {consumption.length === 0 ? (
@@ -1325,8 +1326,8 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                 key={line.army}
                 className={`rounded-md px-3 py-2 ${
                   line.famine
-                    ? 'border border-[#a84632]/30 bg-[#f8e5dd] text-xs text-[#8d321e]'
-                    : 'bg-[#f3ead9] text-xs'
+                    ? 'border border-vermilion-600/30 bg-vermilion-100 text-xs text-vermilion-700'
+                    : 'bg-paper-100 text-xs'
                 }`}
               >
                 <div className="flex items-center justify-between gap-3">
@@ -1336,14 +1337,14 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                       {line.owner} · {territoryLabel(map, line.territory, t)}
                     </span>
                   </span>
-                  <span className="shrink-0 text-[#806f57]">
+                  <span className="shrink-0 text-ink-500">
                     {t(line.size === 1 ? 'app.troop' : 'app.troops', {
                       count: line.size,
                     })}{' '}
                     · {t('reports.consumptionDemand', { count: line.demand })}
                   </span>
                 </div>
-                <p className="mt-1 text-[11px]">
+                <p className="mt-1 text-2xs">
                   {line.source
                     ? `${t('reports.consumptionSource', { source: line.source })} · `
                     : ''}
@@ -1385,7 +1386,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
 
       {report.winter && (
         <div className="space-y-2">
-          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
+          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
             {t(
               report.header.season === 'winter' ? 'reports.winter' : 'reports.nobleCards',
             )}
@@ -1398,8 +1399,8 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                   key={`${investment.kind}-${investment.player}-${index}`}
                   className={`flex items-start justify-between gap-3 rounded-md px-3 py-2 ${
                     isAutoAssignedWarning
-                      ? 'border border-[#e07a30] bg-[#fdecd9]'
-                      : 'bg-[#f3ead9]'
+                      ? 'border border-warning-500 bg-warning-150'
+                      : 'bg-paper-100'
                   }`}
                 >
                   <span className="flex min-w-0 items-start gap-2">
@@ -1409,11 +1410,11 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                         {investmentLabel(investment, map, t)}
                       </strong>
                       {isAutoAssignedWarning && (
-                        <span className="mt-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#a8541a]">
+                        <span className="mt-0.5 block text-3xs font-bold uppercase tracking-wide text-warning-600">
                           {t('reports.fiefAutoAssignedWarning')}
                         </span>
                       )}
-                      <span className="mt-1 block text-xs text-[#806f57]">
+                      <span className="mt-1 block text-xs text-ink-500">
                         {investment.player} · {winterDetails(investment, map, t)}
                       </span>
                     </span>
@@ -1423,7 +1424,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                   >
                     {outcomeLabel(investment.outcome, t)}
                     {investment.outcome === 'success' && (
-                      <span className="mt-1 block text-right text-[10px] text-[#806f57]">
+                      <span className="mt-1 block text-right text-3xs text-ink-500">
                         {investment.cost > 0
                           ? t('reports.cost', { cost: investment.cost })
                           : t('reports.noCost')}
@@ -1436,7 +1437,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
             {winterStocks.map((stock) => (
               <div
                 key={stock.territory}
-                className="flex items-center justify-between gap-3 rounded-md bg-[#e8f1e3] px-3 py-2 text-xs text-[#376341]"
+                className="flex items-center justify-between gap-3 rounded-md bg-success-100 px-3 py-2 text-xs text-success-700"
               >
                 <span>
                   {t('reports.conservation', {
@@ -1463,11 +1464,11 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
       )}
 
       {elections.length > 0 && (
-        <div className="space-y-2 rounded-lg border border-[#c9b688] bg-[#fbf3df] p-3">
-          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#7a5a20]">
+        <div className="space-y-2 rounded-lg border border-line-soft bg-paper-70 p-3">
+          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-gold-700">
             {t('reports.elections')}
           </h4>
-          <ul className="space-y-1 text-sm text-[#7a5a20]">
+          <ul className="space-y-1 text-sm text-gold-700">
             {elections.map((election, index) => {
               const winner = election.candidates.find(
                 (candidate) => candidate.noble === election.winner,
@@ -1516,11 +1517,11 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
       )}
 
       {marriages.length > 0 && (
-        <div className="space-y-2 rounded-lg border border-[#c9b688] bg-[#fbf3df] p-3">
-          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#7a5a20]">
+        <div className="space-y-2 rounded-lg border border-line-soft bg-paper-70 p-3">
+          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-gold-700">
             {t('reports.marriages')}
           </h4>
-          <ul className="space-y-1 text-sm text-[#7a5a20]">
+          <ul className="space-y-1 text-sm text-gold-700">
             {marriages.map((marriage, index) => (
               <li
                 key={`${marriage.outcome}-${marriage.noble}-${marriage.spouse}-${index}`}
@@ -1533,17 +1534,17 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
       )}
 
       {fiefs.length > 0 && (
-        <div className="space-y-2 rounded-lg border border-[#c9b688] bg-[#fbf3df] p-3">
-          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#7a5a20]">
+        <div className="space-y-2 rounded-lg border border-line-soft bg-paper-70 p-3">
+          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-gold-700">
             {t('reports.fiefs')}
           </h4>
-          <ul className="space-y-1 text-sm text-[#7a5a20]">
+          <ul className="space-y-1 text-sm text-gold-700">
             {fiefs.map((fief, index) => (
               <li
                 key={`${fief.kind}-${fief.capital}-${index}`}
                 className={
                   fief.kind === 'fief_member_occupied'
-                    ? 'font-semibold text-[#8d321e]'
+                    ? 'font-semibold text-vermilion-700'
                     : undefined
                 }
               >
@@ -1555,11 +1556,11 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
       )}
 
       {rumors.length > 0 && (
-        <div className="space-y-2 rounded-lg border border-[#c8b0d9] bg-[#fbf5ff] p-3">
-          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#684b7d]">
+        <div className="space-y-2 rounded-lg border border-claim-300 bg-claim-50 p-3">
+          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-claim-700">
             {t('reports.rumors')}
           </h4>
-          <ul className="space-y-1 text-sm text-[#684b7d]">
+          <ul className="space-y-1 text-sm text-claim-700">
             {rumors.map((rumor, index) => (
               <li key={`${rumor.key}-${index}`}>{t(rumor.key as MessageKey)}</li>
             ))}
@@ -1568,11 +1569,11 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
       )}
 
       {cards.length > 0 && (
-        <div className="space-y-2 rounded-lg border border-[#c8b0d9] bg-[#fbf5ff] p-3">
-          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#684b7d]">
+        <div className="space-y-2 rounded-lg border border-claim-300 bg-claim-50 p-3">
+          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-claim-700">
             {t('reports.cards')}
           </h4>
-          <ol className="space-y-1 text-sm text-[#684b7d]">
+          <ol className="space-y-1 text-sm text-claim-700">
             {cards.map((card, index) => (
               <li key={`${card.eventType}-${card.kind}-${index}`}>
                 {cardEventLabel(card, map, t)}
@@ -1583,13 +1584,13 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
       )}
 
       {seasonEffects.length > 0 && (
-        <div className="space-y-2 rounded-lg border border-[#e4b4a4] bg-[#fff5f0] p-3">
-          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#8d321e]">
+        <div className="space-y-2 rounded-lg border border-vermilion-300 bg-vermilion-50 p-3">
+          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-vermilion-700">
             {t('reports.seasonEffects')}
           </h4>
-          <ol className="space-y-2 text-sm text-[#8d321e]">
+          <ol className="space-y-2 text-sm text-vermilion-700">
             {seasonEffectView.flat.map((line) => (
-              <li key={line.key} className={line.muted ? 'text-[#806f57]' : undefined}>
+              <li key={line.key} className={line.muted ? 'text-ink-500' : undefined}>
                 {line.label}
               </li>
             ))}
@@ -1597,11 +1598,11 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
               <li key={group.key} className="space-y-1">
                 {group.header && <p className="font-semibold">{group.header}</p>}
                 {group.lines.length > 0 && (
-                  <ul className="space-y-1 border-l-2 border-[#e4b4a4] pl-3">
+                  <ul className="space-y-1 border-l-2 border-vermilion-300 pl-3">
                     {group.lines.map((line) => (
                       <li
                         key={line.key}
-                        className={`flex items-center gap-2 ${line.muted ? 'text-[#806f57]' : ''}`}
+                        className={`flex items-center gap-2 ${line.muted ? 'text-ink-500' : ''}`}
                       >
                         {line.owner ? playerMarker(players, line.owner, t) : null}
                         <span>{line.label}</span>
@@ -1616,7 +1617,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
       )}
 
       <div className="space-y-2">
-        <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
+        <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
           {t('reports.ordersExecuted')}
         </h4>
         {orders.length === 0 ? (
@@ -1626,11 +1627,11 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
             {orders.map((order, index) => (
               <div
                 key={`${order.chain ?? 'hidden'}-${order.order ?? index}-${index}`}
-                className="rounded-md bg-[#f3ead9] px-3 py-2"
+                className="rounded-md bg-paper-100 px-3 py-2"
               >
                 {order.visibility === 'hidden' ? (
                   <div className="flex items-center justify-between gap-3">
-                    <span className="italic text-[#806f57]">
+                    <span className="italic text-ink-500">
                       {t('reports.hiddenOrder')}
                     </span>
                     <span className={`shrink-0 ${outcomeClass(order.outcome)}`}>
@@ -1645,7 +1646,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                         <strong className="font-mono text-sm">
                           {formatReportOrderLabel(order, map, t)}
                         </strong>
-                        <span className="mt-1 block text-[#806f57]">
+                        <span className="mt-1 block text-ink-500">
                           {order.owner || t('reports.unknownPlayer')} ·{' '}
                           {t('reports.noble', {
                             noble: nobleLabel(order.noble, order.nobleName),
@@ -1658,7 +1659,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                     >
                       {outcomeLabel(order.outcome, t)}
                       {order.reason ? (
-                        <span className="block max-w-36 text-[10px] leading-tight">
+                        <span className="block max-w-36 text-3xs leading-tight">
                           {reportReason(order.reason, t)}
                         </span>
                       ) : null}

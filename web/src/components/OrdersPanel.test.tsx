@@ -80,7 +80,7 @@ describe('OrdersPanel seasonal presentation', () => {
     expect(
       screen.getByRole('button', { name: "Soumettre les ordres d'hiver" }),
     ).toBeInTheDocument()
-    expect(container.querySelector('section')).toHaveClass('bg-[#eaf3ff]/80')
+    expect(container.querySelector('section')).toHaveClass('bg-winter-80/80')
   })
 
   it('shows the server winter cost against the controlled stock', () => {
@@ -93,7 +93,7 @@ describe('OrdersPanel seasonal presentation', () => {
 
     const estimate = screen.getByRole('status')
     expect(estimate).toHaveTextContent('Coût estimé : 21 / 25 ressources')
-    expect(estimate).toHaveClass('text-[#376341]')
+    expect(estimate).toHaveClass('text-success-700')
   })
 
   it('marks the cost when the sheet exceeds the available stock', () => {
@@ -105,7 +105,7 @@ describe('OrdersPanel seasonal presentation', () => {
 
     const estimate = screen.getByRole('status')
     expect(estimate).toHaveTextContent('Estimated cost: 26 / 25 resources')
-    expect(estimate).toHaveClass('text-[#8d321e]')
+    expect(estimate).toHaveClass('text-vermilion-700')
   })
 
   it('lists the server messages of malformed winter lines', () => {

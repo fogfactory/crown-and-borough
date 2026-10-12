@@ -17,10 +17,10 @@ const STATUS_KEYS: Record<VictoryProjectionStatus, MessageKey> = {
 }
 
 const STATUS_STYLES: Record<VictoryProjectionStatus, string> = {
-  major: 'border-[#b8860b] bg-[#f8e8ae] text-[#6b4e0a]',
-  minor: 'border-[#8a929b] bg-[#e4e7ea] text-[#3f464d]',
-  failure: 'border-[#a84632]/50 bg-[#f4d9d2] text-[#7a2b1c]',
-  ongoing: 'border-[#b7a786] bg-[#f3ead9] text-[#594b3c]',
+  major: 'border-gold-500 bg-gold-100 text-gold-850',
+  minor: 'border-steel-400 bg-steel-100 text-steel-700',
+  failure: 'border-brass-700/50 bg-vermilion-250 text-vermilion-800',
+  ongoing: 'border-line bg-paper-100 text-ink-700',
 }
 
 /** The simulation of every player, before and after the hypothetical actions. */
@@ -34,7 +34,7 @@ function StatusBadge({ status, testId }: { status: VictoryProjectionStatus; test
   return (
     <span
       data-testid={testId}
-      className={`rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] ${STATUS_STYLES[status]}`}
+      className={`rounded border px-1.5 py-0.5 text-3xs font-bold uppercase tracking-[0.1em] ${STATUS_STYLES[status]}`}
     >
       {t(STATUS_KEYS[status])}
     </span>
@@ -62,7 +62,7 @@ export function VictoryStatusPanel({
   return (
     <section
       aria-label={t('sim.panel')}
-      className="border-t border-[#b7a786]/60 bg-[#f8f0e2] px-4 py-2"
+      className="border-t border-line/60 bg-paper-80 px-4 py-2"
     >
       <ul className="grid gap-x-6 gap-y-1.5 sm:grid-cols-2 xl:grid-cols-4">
         {players.map((player) => {
@@ -83,20 +83,20 @@ export function VictoryStatusPanel({
               <span className="font-semibold">{player.name || player.id}</span>
               <span
                 data-testid={`panel-score-${player.id}`}
-                className="font-serif text-sm font-semibold text-[#a84632]"
+                className="font-display text-sm font-semibold text-brass-700"
               >
                 {score.total}
-                <span className="text-xs text-[#806f57]">/{goal.required}</span>
+                <span className="text-xs text-ink-500">/{goal.required}</span>
               </span>
               {delta !== 0 && (
                 <span
                   data-testid={`panel-delta-${player.id}`}
-                  className={delta > 0 ? 'font-semibold text-[#2f6f3f]' : 'font-semibold text-[#7a2b1c]'}
+                  className={delta > 0 ? 'font-semibold text-success-600' : 'font-semibold text-vermilion-800'}
                 >
                   {delta > 0 ? `+${delta}` : delta}
                 </span>
               )}
-              <span className="rounded border border-[#b7a786] bg-[#fffaf0] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-[#594b3c]">
+              <span className="rounded border border-line bg-paper-50 px-1.5 py-0.5 text-3xs font-bold uppercase tracking-[0.1em] text-ink-700">
                 {t(goal.mode === 'alliance' ? 'score.modeAlliance' : 'score.modeSolo')}
                 {goal.mode === 'alliance' && goal.partner ? ` · ${playerName(goal.partner)}` : ''}
               </span>
@@ -111,7 +111,7 @@ export function VictoryStatusPanel({
                   <StatusBadge status={after.status} testId={`panel-status-${player.id}`} />
                 </>
               ) : null}
-              <span className="text-[#806f57]">
+              <span className="text-ink-500">
                 {missing > 0 ? t('sim.missing', { count: missing }) : t('sim.reached')}
               </span>
             </li>

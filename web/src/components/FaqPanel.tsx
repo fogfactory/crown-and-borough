@@ -34,10 +34,10 @@ export function FaqPanel({ showHeading = true }: { showHeading?: boolean }) {
     >
       {showHeading && (
         <div className="mb-6 max-w-3xl">
-          <h2 id="faq-title" className="font-serif text-2xl font-semibold text-[#30291f]">
+          <h2 id="faq-title" className="font-display text-2xl font-semibold text-ink-900">
             {t('faq.title')}
           </h2>
-          <p className="mt-2 text-sm leading-relaxed text-[#806f57]">{t('faq.intro')}</p>
+          <p className="mt-2 text-sm leading-relaxed text-ink-500">{t('faq.intro')}</p>
         </div>
       )}
 
@@ -46,14 +46,14 @@ export function FaqPanel({ showHeading = true }: { showHeading?: boolean }) {
           <details
             key={entry.question}
             open
-            className="group rounded-xl border border-[#b7a786]/70 bg-[#f8f0e2] px-4 py-3 shadow-sm sm:px-5"
+            className="group rounded-xl border border-line/70 bg-paper-80 px-4 py-3 shadow-sm sm:px-5"
           >
-            <summary className="cursor-pointer list-none pr-7 font-serif text-base font-semibold text-[#30291f] marker:hidden group-open:text-[#a84632] [&::-webkit-details-marker]:hidden">
-              <span className="relative block after:absolute after:right-0 after:top-1/2 after:size-2 after:-translate-y-1/2 after:rotate-45 after:border-r-2 after:border-t-2 after:border-[#a84632] after:transition-transform group-open:after:rotate-[135deg]">
+            <summary className="cursor-pointer list-none pr-7 font-display text-base font-semibold text-ink-900 marker:hidden group-open:text-brass-700 [&::-webkit-details-marker]:hidden">
+              <span className="relative block after:absolute after:right-0 after:top-1/2 after:size-2 after:-translate-y-1/2 after:rotate-45 after:border-r-2 after:border-t-2 after:border-brass-700 after:transition-transform group-open:after:rotate-[135deg]">
                 {t(entry.question)}
               </span>
             </summary>
-            <div className="mt-3 border-t border-[#b7a786]/50 pt-3 text-sm leading-relaxed text-[#594b3c]">
+            <div className="mt-3 border-t border-line/50 pt-3 text-sm leading-relaxed text-ink-700">
               <ReactMarkdown
                 components={{
                   p: ({ children }) => <p className="mt-2 first:mt-0">{children}</p>,
@@ -65,12 +65,12 @@ export function FaqPanel({ showHeading = true }: { showHeading?: boolean }) {
                   ),
                   li: ({ children }) => <li className="pl-1">{children}</li>,
                   code: ({ children }) => (
-                    <code className="rounded bg-[#f3ead9] px-1.5 py-0.5 font-mono text-[0.85em] text-[#8d321e]">
+                    <code className="rounded bg-paper-100 px-1.5 py-0.5 font-mono text-[0.85em] text-vermilion-700">
                       {children}
                     </code>
                   ),
                   strong: ({ children }) => (
-                    <strong className="font-semibold text-[#30291f]">{children}</strong>
+                    <strong className="font-semibold text-ink-900">{children}</strong>
                   ),
                 }}
               >

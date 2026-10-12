@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { MapViewer } from '@/components/MapViewer'
-import { DRAFT_INTENTION_COLOR } from '@/components/MapMarkers'
+import { DRAFT_INTENTION_COLOR } from '@/lib/map-palette'
 import { HERALDIC_COLORS } from '@/lib/region-color'
 import { buildIntentions } from '@/lib/intent-overlay'
 import { draftOrders } from '@/test/parse-orders'

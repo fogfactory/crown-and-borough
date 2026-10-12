@@ -64,7 +64,7 @@ export function CommandReportRulesTabs({
     <div
       role="tablist"
       aria-label={t('app.panelViews')}
-      className="mt-2 grid grid-cols-3 gap-1 rounded-lg bg-[#f3ead9] p-1"
+      className="mt-2 grid grid-cols-3 gap-1 rounded-lg bg-paper-100 p-1"
     >
       {PANEL_ORDER.map((panel) => (
         <button
@@ -75,7 +75,7 @@ export function CommandReportRulesTabs({
           aria-controls={`${panel}-panel`}
           tabIndex={activePanel === panel ? 0 : -1}
           data-panel-tab={panel}
-          className={`rounded-md px-2 py-1.5 text-xs font-semibold transition ${activePanel === panel ? 'bg-[#fffaf0] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:text-[#30291f]'}`}
+          className={`rounded-md px-2 py-1.5 text-xs font-semibold transition ${activePanel === panel ? 'bg-paper-50 text-brass-700 shadow-sm' : 'text-ink-500 hover:text-ink-900'}`}
           onClick={() => onPanelChange(panel)}
           onKeyDown={handlePanelKeyDown}
         >

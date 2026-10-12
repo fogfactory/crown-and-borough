@@ -837,6 +837,13 @@ se cadre sur la maison choisie dans « Focus ».
    actuelles, remplacer les quelque 700 couleurs écrites en dur, puis refuser
    toute nouvelle valeur hexadécimale dans `web/src` hors du module des données
    de carte. Sortie : captures identiques et tests verts.
+   **Précision :** chaque usage reçoit le token de son rôle dans la charte ;
+   quand un rôle couvre aujourd'hui plusieurs nuances, des paliers
+   intermédiaires (`paper-60`, `vermilion-150`…) et des familles d'attente
+   (`gold`, `claim`, `steel`) les conservent, à fusionner en phase 3. Les
+   couleurs des dessins SVG (carte, lignée, emblème) vivent dans
+   `web/src/lib/map-palette.ts` ; une règle ESLint refuse tout littéral
+   hexadécimal ailleurs dans `web/src`, hors tests et fixtures.
 3. **Nouvelle identité** ([#445](https://github.com/fogfactory/crown-and-borough/issues/445)) **:** basculer les tokens sur cette charte, charger
    Cinzel, Alegreya et IBM Plex Mono, recolorer les composants shadcn, retirer
    Geist et le bloc `.dark`. Sortie : contrastes AA vérifiés.

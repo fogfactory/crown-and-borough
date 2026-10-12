@@ -5,6 +5,14 @@ import type { RegionStyle } from '@/lib/region-color'
 import { fitLabelFontSize, type RegionOutlineResult } from '@/lib/region-geometry'
 import type { RegionBand } from '@/lib/region-layout'
 import type { ActiveRegionEffect, CardKind, Point, Region, Territory } from '@/types'
+import {
+  DEFAULT_REGION_COLOR,
+  MAP_INK,
+  MAP_PAPER,
+  MAP_PARCHMENT,
+  REGION_BLESSING_COLOR,
+  REGION_CALAMITY_COLOR,
+} from '@/lib/map-palette'
 
 /** Width of the gradient liseré hugging each region boundary, in map units. */
 const REGION_BORDER_WIDTH = 10
@@ -44,9 +52,9 @@ export function RegionBands({
           key={`region-band-${regionId}-${bandIndex}`}
           data-region-band={regionId}
           d={piecePath}
-          fill={regionStyleByID.get(regionId)?.fill ?? '#315a75'}
+          fill={regionStyleByID.get(regionId)?.fill ?? DEFAULT_REGION_COLOR}
           fillOpacity="0.6"
-          stroke="#30291f"
+          stroke={MAP_INK}
           strokeOpacity="0.25"
           strokeWidth="1"
           vectorEffect="non-scaling-stroke"
@@ -67,12 +75,12 @@ export function RegionBands({
             key={`region-band-label-${regionId}-${bandIndex}`}
             data-region-label={regionId}
             transform={`translate(${labelX} ${labelY}) rotate(${labelAngle})`}
-            fill="#fff8e7"
+            fill={MAP_PARCHMENT}
             fontSize={fitLabelFontSize(label, labelWidth * 0.85)}
             fontWeight="800"
             textAnchor="middle"
             dominantBaseline="central"
-            stroke="#30291f"
+            stroke={MAP_INK}
             strokeOpacity="0.45"
             strokeWidth={3}
             paintOrder="stroke"
@@ -102,7 +110,7 @@ export function RegionRings({
   return (
     <g aria-label={t('map.regions')} pointerEvents="none">
       {[...(outlines?.outlines.entries() ?? [])].map(([regionId, outline]) => {
-        const color = regionStyleByID.get(regionId)?.fill ?? '#315a75'
+        const color = regionStyleByID.get(regionId)?.fill ?? DEFAULT_REGION_COLOR
         const isHole = regionHoleTesters.get(regionId) ?? (() => false)
         return (
           <g key={`region-ring-${regionId}`} data-region-ring={regionId}>
@@ -153,7 +161,7 @@ export function RegionBadges({
           )
           if (!seedTerritory) return null
           const [centerX, centerY] = centroid(seedTerritory.points)
-          const color = regionStyleByID.get(region.id)?.fill ?? '#315a75'
+          const color = regionStyleByID.get(region.id)?.fill ?? DEFAULT_REGION_COLOR
           const label = t('map.regionLabel', {
             name: seedTerritory.name,
             seed: region.seed,
@@ -175,7 +183,7 @@ export function RegionBadges({
                 width={width}
                 height={height}
                 rx={height / 2}
-                fill="#fffaf0"
+                fill={MAP_PAPER}
                 fillOpacity="0.94"
                 stroke={color}
                 strokeWidth={1.8 * scale}
@@ -226,7 +234,7 @@ export function RegionEffectMarkers({
             ?.slice(0, index)
             .filter((candidate) => candidate.regionSeed === effect.regionSeed).length ?? 0
         const isCalamity = CALAMITY_KINDS.includes(effect.kind)
-        const effectColor = isCalamity ? '#b91c1c' : '#15803d'
+        const effectColor = isCalamity ? REGION_CALAMITY_COLOR : REGION_BLESSING_COLOR
         const cardLabel = formatCardLabel(effect.kind, t)
         return (
           <g
@@ -242,7 +250,7 @@ export function RegionEffectMarkers({
             </title>
             <circle
               r={10 * annotationScale}
-              fill="#fffaf0"
+              fill={MAP_PAPER}
               stroke={effectColor}
               strokeWidth={3 * annotationScale}
               vectorEffect="non-scaling-stroke"

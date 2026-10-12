@@ -1,5 +1,4 @@
 import {
-  DRAFT_INTENTION_COLOR,
   InfrastructureMarker,
   OwnershipBadge,
   WinterBadge,
@@ -12,9 +11,11 @@ import { useLanguage } from '@/i18n/LanguageContext'
 import { centroid } from '@/lib/map-svg-geometry'
 import type { WinterIntention } from '@/lib/winter-overlay'
 import type { Territory } from '@/types'
-
-const WINTER_ERROR_COLOR = '#c43b2a'
-const WINTER_WARNING_COLOR = '#e07a30'
+import {
+  DRAFT_INTENTION_COLOR,
+  WINTER_ERROR_COLOR,
+  WINTER_WARNING_COLOR,
+} from '@/lib/map-palette'
 
 /**
  * Winter order drafts on the map: ghost builds, recruit/noble badges,

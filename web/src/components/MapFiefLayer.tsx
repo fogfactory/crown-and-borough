@@ -3,6 +3,7 @@ import type { MessageKey } from '@/i18n/messages'
 import { centroid } from '@/lib/map-svg-geometry'
 import { fitLabelFontSize } from '@/lib/region-geometry'
 import type { Fief, FiefTitle, PlayerId, Territory } from '@/types'
+import { MAP_PAPER, PLAYER_RED } from '@/lib/map-palette'
 
 const FIEF_TITLE_KEYS: Record<FiefTitle, MessageKey> = {
   barony: 'fief.title.barony',
@@ -33,7 +34,7 @@ export function MapFiefLayer({
   return (
     <g aria-label={t('map.fiefs')} pointerEvents="none">
       {fiefs.map((fief) => {
-        const color = playerColors.get(fief.owner) ?? '#a84632'
+        const color = playerColors.get(fief.owner) ?? PLAYER_RED
         const capitalTerritory = territories.find(
           (territory) => territory.id === fief.capital,
         )
@@ -58,7 +59,7 @@ export function MapFiefLayer({
                 width={width}
                 height={height}
                 rx={height / 2}
-                fill="#fffaf0"
+                fill={MAP_PAPER}
                 fillOpacity="0.94"
                 stroke={color}
                 strokeWidth={1.6 * annotationScale}

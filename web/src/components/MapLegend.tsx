@@ -3,6 +3,17 @@ import { useLanguage } from '@/i18n/LanguageContext'
 import { HERALDIC_COLORS } from '@/lib/region-color'
 import type { MessageKey } from '@/i18n/messages'
 import type { Terrain } from '@/types'
+import {
+  LEGEND_SWATCH_BACKGROUND,
+  MAP_INK,
+  MAP_PARCHMENT,
+  MARKER_BRASS,
+  MARKER_GLINT,
+  PLAYER_RED,
+  PRISONER_RING_COLOR,
+  TERRAIN_COLORS,
+  TERRAIN_PATTERN_STROKES,
+} from '@/lib/map-palette'
 
 export const TERRAIN_LABEL_KEYS: Record<Terrain, MessageKey> = {
   plain: 'terrain.plain',
@@ -12,19 +23,11 @@ export const TERRAIN_LABEL_KEYS: Record<Terrain, MessageKey> = {
   swamp: 'terrain.swamp',
 }
 
-export const TERRAIN_COLORS: Record<Terrain, string> = {
-  plain: '#d4e8b4',
-  forest: '#85b092',
-  hill: '#cfb694',
-  mountain: '#aab3bc',
-  swamp: '#90c6c0',
-}
-
 const TERRAIN_ORDER: Terrain[] = ['plain', 'forest', 'hill', 'mountain', 'swamp']
 
 /** Sample owner color shown on legend settlement glyphs. */
-const LEGEND_SAMPLE_OWNER = '#a84632'
-const LEGEND_CASING = '#30291f'
+const LEGEND_SAMPLE_OWNER = PLAYER_RED
+const LEGEND_CASING = MAP_INK
 
 /**
  * Heater-shield silhouette shared by the map ownership badges and this
@@ -49,8 +52,8 @@ function LegendSettlement({ type }: { type: 'castle' | 'village' }) {
     <svg className="size-3.5 shrink-0" viewBox="0 0 512 512" aria-hidden="true">
       <path
         d={LEGEND_MARKER_PATHS[type]}
-        fill="#fff8e7"
-        stroke="#fff8e7"
+        fill={MAP_PARCHMENT}
+        stroke={MAP_PARCHMENT}
         strokeWidth={20}
         opacity={0.9}
       />
@@ -79,7 +82,7 @@ function TerrainSwatch({ terrain }: { terrain: Terrain }) {
             height="6"
             patternUnits="userSpaceOnUse"
           >
-            <g stroke="#5a7a34" strokeWidth="0.5" opacity="0.22">
+            <g stroke={TERRAIN_PATTERN_STROKES.plain} strokeWidth="0.5" opacity="0.22">
               <line x1="1.4" y1="3.6" x2="2.2" y2="2.8" />
               <line x1="2.6" y1="3.6" x2="3.4" y2="2.8" />
               <line x1="3.8" y1="3.6" x2="4.6" y2="2.8" />
@@ -93,8 +96,16 @@ function TerrainSwatch({ terrain }: { terrain: Terrain }) {
             height="12"
             patternUnits="userSpaceOnUse"
           >
-            <path d="M0 6.8 L2 0.4 L4 6.8 Z" fill="#14291d" opacity="0.25" />
-            <path d="M6 11.2 L8 4.8 L10 11.2 Z" fill="#14291d" opacity="0.18" />
+            <path
+              d="M0 6.8 L2 0.4 L4 6.8 Z"
+              fill={TERRAIN_PATTERN_STROKES.forest}
+              opacity="0.25"
+            />
+            <path
+              d="M6 11.2 L8 4.8 L10 11.2 Z"
+              fill={TERRAIN_PATTERN_STROKES.forest}
+              opacity="0.18"
+            />
           </pattern>
         )}
         {terrain === 'hill' && (
@@ -107,7 +118,7 @@ function TerrainSwatch({ terrain }: { terrain: Terrain }) {
             <path
               d="M0 6 Q 3.5 1.2 7 6 T 14 6"
               fill="none"
-              stroke="#6b4a30"
+              stroke={TERRAIN_PATTERN_STROKES.hill}
               strokeWidth="1.3"
               opacity="0.25"
             />
@@ -123,7 +134,7 @@ function TerrainSwatch({ terrain }: { terrain: Terrain }) {
             <path
               d="M0 4.8 L3 0.8 L6 4.8 M6 9.6 L9 5.8 L12 9.6"
               fill="none"
-              stroke="#4d565e"
+              stroke={TERRAIN_PATTERN_STROKES.mountain}
               strokeWidth="1.3"
               opacity="0.28"
             />
@@ -141,7 +152,7 @@ function TerrainSwatch({ terrain }: { terrain: Terrain }) {
               y1="1.8"
               x2="3.2"
               y2="1.8"
-              stroke="#2e5f5a"
+              stroke={TERRAIN_PATTERN_STROKES.swamp}
               strokeWidth="0.9"
               opacity="0.28"
             />
@@ -150,7 +161,7 @@ function TerrainSwatch({ terrain }: { terrain: Terrain }) {
               y1="4.4"
               x2="6.4"
               y2="4.4"
-              stroke="#2e5f5a"
+              stroke={TERRAIN_PATTERN_STROKES.swamp}
               strokeWidth="0.9"
               opacity="0.28"
             />
@@ -191,43 +202,41 @@ export function MapLegend({
   return (
     <Card
       aria-label={t('legend.title')}
-      className="w-full border-[#b7a786] bg-[#fffaf0] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)]"
+      className="w-full border-line bg-paper-50 shadow-panel"
     >
       <CardHeader className="gap-0 pb-2">
-        <CardTitle className="text-sm uppercase tracking-[0.16em] text-[#594b3c]">
+        <CardTitle className="text-sm uppercase tracking-[0.16em] text-ink-700">
           {t('legend.title')}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-2 text-xs text-[#594b3c]">
+      <CardContent className="space-y-2 text-xs text-ink-700">
         {onToggleIntentions && (
-          <label className="flex items-center gap-2 rounded-md bg-[#f3ead9] px-2 py-1.5">
+          <label className="flex items-center gap-2 rounded-md bg-paper-100 px-2 py-1.5">
             <input
               type="checkbox"
               checked={showIntentions}
               onChange={(event) => onToggleIntentions(event.target.checked)}
-              className="size-3.5 shrink-0 accent-[#a84632]"
+              className="size-3.5 shrink-0 accent-brass-700"
             />
             <span className="flex min-w-0 flex-col gap-0.5">
               <span className="font-semibold">{t('legend.intentions')}</span>
-              <span className="text-[10px] text-[#806f57]">
-                {t('legend.intentionsHint')}
-              </span>
+              <span className="text-3xs text-ink-500">{t('legend.intentionsHint')}</span>
             </span>
           </label>
         )}
         {onToggleOwnership && (
-          <label className="flex items-center gap-2 rounded-md bg-[#f3ead9] px-2 py-1.5">
+          <label className="flex items-center gap-2 rounded-md bg-paper-100 px-2 py-1.5">
             <input
               type="checkbox"
               checked={showOwnership}
               onChange={(event) => onToggleOwnership(event.target.checked)}
-              className="size-3.5 shrink-0 accent-[#a84632]"
+              className="size-3.5 shrink-0 accent-brass-700"
             />
             <span>{t('legend.ownership')}</span>
           </label>
         )}
         {onToggleRegions && (
-          <label className="flex items-center gap-2 rounded-md bg-[#eef3f7] px-2 py-1.5">
+          <label className="flex items-center gap-2 rounded-md bg-winter-75 px-2 py-1.5">
             <input
               type="checkbox"
               checked={showRegions}
@@ -237,7 +246,7 @@ export function MapLegend({
           </label>
         )}
         {onToggleCalamities && (
-          <label className="flex items-center gap-2 rounded-md bg-[#f3ead9] px-2 py-1.5">
+          <label className="flex items-center gap-2 rounded-md bg-paper-100 px-2 py-1.5">
             <input
               type="checkbox"
               checked={showCalamities}
@@ -247,7 +256,7 @@ export function MapLegend({
           </label>
         )}
         {onToggleCards && (
-          <label className="flex items-center gap-2 rounded-md bg-[#f3ead9] px-2 py-1.5">
+          <label className="flex items-center gap-2 rounded-md bg-paper-100 px-2 py-1.5">
             <input
               type="checkbox"
               checked={showCards}
@@ -258,14 +267,14 @@ export function MapLegend({
         )}
         {onToggleRegions && (
           <div
-            className="flex flex-wrap gap-1.5 rounded-md bg-[#eef3f7] px-2 py-1.5"
+            className="flex flex-wrap gap-1.5 rounded-md bg-winter-75 px-2 py-1.5"
             data-region-swatches
           >
             {HERALDIC_COLORS.map((color, index) => (
               <span
                 key={`region-color-${index}`}
                 data-region-color={index}
-                className="size-4 rounded-sm border border-[#1f3a4d]/40"
+                className="size-4 rounded-sm border border-winter-900/40"
                 style={{ backgroundColor: color }}
               />
             ))}
@@ -287,18 +296,18 @@ export function MapLegend({
             <span>{t('legend.castle')}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="size-3 shrink-0 rounded-full border-2 border-[#fff8e7] bg-[#a84632]" />
+            <span className="size-3 shrink-0 rounded-full border-2 border-paper-60 bg-brass-400" />
             <span>{t('legend.army')}</span>
           </div>
           <div className="flex items-center gap-2">
             <svg className="size-4 shrink-0" viewBox="-11 -13 22 26" aria-hidden="true">
               <path
                 d={OWNERSHIP_SHIELD_PATH}
-                fill="#fff8e7"
-                stroke="#fff8e7"
+                fill={MAP_PARCHMENT}
+                stroke={MAP_PARCHMENT}
                 strokeWidth={5}
               />
-              <path d={OWNERSHIP_SHIELD_PATH} fill="#a84632" />
+              <path d={OWNERSHIP_SHIELD_PATH} fill={PLAYER_RED} />
               <path
                 d={OWNERSHIP_SHIELD_PATH}
                 fill="none"
@@ -307,7 +316,7 @@ export function MapLegend({
               />
               <text
                 y={-5.5}
-                fill="#fff8e7"
+                fill={MAP_PARCHMENT}
                 fontSize={7}
                 fontWeight="800"
                 textAnchor="middle"
@@ -322,11 +331,11 @@ export function MapLegend({
             <svg className="size-3 shrink-0" viewBox="-10 -10 20 20" aria-hidden="true">
               <path
                 d="M0-8L8 0L0 8L-8 0Z"
-                fill="#a84632"
-                stroke="#815f1e"
+                fill={PLAYER_RED}
+                stroke={MARKER_BRASS}
                 strokeWidth="1.5"
               />
-              <circle cx="0" cy="0" r="2" fill="#fff3c4" />
+              <circle cx="0" cy="0" r="2" fill={MARKER_GLINT} />
             </svg>
             <span>{t('legend.noble')}</span>
           </div>
@@ -334,8 +343,8 @@ export function MapLegend({
             <svg className="size-3 shrink-0" viewBox="-10 -10 20 20" aria-hidden="true">
               <path
                 d="M0-8L8 0L0 8L-8 0Z"
-                fill="#a84632"
-                stroke="#8d321e"
+                fill={PLAYER_RED}
+                stroke={PRISONER_RING_COLOR}
                 strokeWidth="1.5"
               />
               <circle
@@ -343,7 +352,7 @@ export function MapLegend({
                 cy="0"
                 r="4.5"
                 fill="none"
-                stroke="#8d321e"
+                stroke={PRISONER_RING_COLOR}
                 strokeWidth="1.5"
               />
             </svg>
@@ -353,12 +362,12 @@ export function MapLegend({
             <svg className="size-3 shrink-0" viewBox="-13 -15 26 30" aria-hidden="true">
               <path
                 d={OWNERSHIP_SHIELD_PATH}
-                fill="#fff8e7"
-                stroke="#fff8e7"
+                fill={MAP_PARCHMENT}
+                stroke={MAP_PARCHMENT}
                 strokeWidth={2}
                 opacity={0.9}
               />
-              <path d={OWNERSHIP_SHIELD_PATH} fill="#a84632" />
+              <path d={OWNERSHIP_SHIELD_PATH} fill={PLAYER_RED} />
               <path
                 d={OWNERSHIP_SHIELD_PATH}
                 fill="none"
@@ -370,7 +379,7 @@ export function MapLegend({
           </div>
           <div className="flex items-center gap-2">
             <svg className="size-3 shrink-0" viewBox="0 0 12 12" aria-hidden="true">
-              <rect width="12" height="12" fill="#f8f0e2" />
+              <rect width="12" height="12" fill={LEGEND_SWATCH_BACKGROUND} />
               <rect width="12" height="12" fill="url(#legend-occupied-hatch)" />
               <defs>
                 <pattern
@@ -385,7 +394,7 @@ export function MapLegend({
                     y1="0"
                     x2="2"
                     y2="4"
-                    stroke="#a84632"
+                    stroke={PLAYER_RED}
                     strokeWidth="1.2"
                     strokeOpacity="0.6"
                   />
@@ -395,7 +404,7 @@ export function MapLegend({
             <span>{t('legend.occupied')}</span>
           </div>
         </div>
-        <p className="border-t border-[#b7a786]/60 pt-2 leading-relaxed">
+        <p className="border-t border-line/60 pt-2 leading-relaxed">
           {t('legend.passable')}
         </p>
       </CardContent>

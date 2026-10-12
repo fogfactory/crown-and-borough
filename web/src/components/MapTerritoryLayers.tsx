@@ -9,6 +9,13 @@ import { centroid, pointsToPath } from '@/lib/map-svg-geometry'
 import { isOccupiedAgainstController } from '@/lib/occupation'
 import type { RegionStyle } from '@/lib/region-color'
 import type { Fief, Region, StateData, Territory } from '@/types'
+import {
+  MAP_BROWN_FILL,
+  MAP_HALO,
+  MAP_INK,
+  MAP_PARCHMENT,
+  UNKNOWN_OWNER_COLOR,
+} from '@/lib/map-palette'
 
 /**
  * Owner shields under each controlled territory's center. A territory that
@@ -81,7 +88,7 @@ export function OwnershipLayer({
             ownerId={owner}
             x={centerX + (territoryState.army ? -32 : -9) * annotationScale}
             y={centerY + 26 * annotationScale}
-            color={playerColors.get(owner) ?? '#475569'}
+            color={playerColors.get(owner) ?? UNKNOWN_OWNER_COLOR}
             scale={annotationScale}
             code={fiefCapital}
             label={label}
@@ -167,11 +174,11 @@ export function LiveLayer({
               <text
                 x={centerX + 30 * annotationScale}
                 y={centerY - 20 * annotationScale}
-                fill="#59401f"
+                fill={MAP_BROWN_FILL}
                 fontSize={11 * annotationScale}
                 fontWeight="700"
                 textAnchor="middle"
-                stroke="#fff8e7"
+                stroke={MAP_PARCHMENT}
                 strokeWidth={3 * annotationScale}
                 paintOrder="stroke"
               >
@@ -213,14 +220,16 @@ export function LiveLayer({
                   cx={centerX - 9 * annotationScale}
                   cy={centerY + 26 * annotationScale}
                   r={9 * annotationScale}
-                  fill={playerColors.get(territoryState.army.owner) ?? '#475569'}
-                  stroke="#fff8e7"
+                  fill={
+                    playerColors.get(territoryState.army.owner) ?? UNKNOWN_OWNER_COLOR
+                  }
+                  stroke={MAP_PARCHMENT}
                   strokeWidth={2 * annotationScale}
                 />
                 <text
                   x={centerX - 9 * annotationScale}
                   y={centerY + 29 * annotationScale}
-                  fill="#fff8e7"
+                  fill={MAP_PARCHMENT}
                   fontSize={9 * annotationScale}
                   fontWeight="800"
                   textAnchor="middle"
@@ -242,7 +251,7 @@ export function LiveLayer({
                 noble={noble}
                 x={centerX + (28 + index * 16) * annotationScale}
                 y={centerY + 20 * annotationScale}
-                color={playerColors.get(noble.owner) ?? '#475569'}
+                color={playerColors.get(noble.owner) ?? UNKNOWN_OWNER_COLOR}
                 scale={annotationScale}
               />
             ))}
@@ -278,14 +287,14 @@ export function TerritoryLabels({
         const [centerX, centerY] = centroid(territory.points)
         const chefRegion = regionsActive ? regionBySeed.get(territory.id) : undefined
         const chefFill = chefRegion
-          ? (regionStyleByID.get(chefRegion.id)?.fill ?? '#30291f')
-          : '#30291f'
+          ? (regionStyleByID.get(chefRegion.id)?.fill ?? MAP_INK)
+          : MAP_INK
         const labelProps = {
           fontSize: 13 * annotationScale,
           fontWeight: '800' as const,
           letterSpacing: 0.5 * annotationScale,
           textAnchor: 'middle' as const,
-          stroke: '#f5ecd9',
+          stroke: MAP_HALO,
           strokeWidth: 3 * annotationScale,
           paintOrder: 'stroke' as const,
         }
@@ -305,7 +314,7 @@ export function TerritoryLabels({
               {...labelProps}
               x={centerX}
               y={centerY + 11 * annotationScale}
-              fill="#30291f"
+              fill={MAP_INK}
             >
               {territory.id}
             </text>
@@ -316,7 +325,7 @@ export function TerritoryLabels({
             x={centerX}
             y={centerY + 4 * annotationScale}
             {...labelProps}
-            fill="#30291f"
+            fill={MAP_INK}
           >
             {territory.id}
           </text>

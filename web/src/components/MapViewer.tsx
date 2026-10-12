@@ -1,6 +1,6 @@
 import { useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 
-import { MapLegend, TERRAIN_COLORS, TERRAIN_LABEL_KEYS } from '@/components/MapLegend'
+import { MapLegend, TERRAIN_LABEL_KEYS } from '@/components/MapLegend'
 import { MapControls } from '@/components/MapControls'
 import { MapFiefLayer } from '@/components/MapFiefLayer'
 import { snowPatternVariant } from '@/components/MapDecorations'
@@ -43,14 +43,21 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import type { MapData, PlayerId, StateData, SupplyLine } from '@/types'
+import {
+  MAP_AMBER_STROKE,
+  MAP_BACKGROUND,
+  MAP_BORDER_DARK,
+  MAP_BORDER_STROKE,
+  MAP_PARCHMENT,
+  NEUTRAL_ARMY_COLOR,
+  PLAYER_PALETTE,
+  PLAYER_RED,
+  SNOW_FILL,
+  TERRAIN_COLORS,
+} from '@/lib/map-palette'
 
 const OUTER_BORDER_WIDTH = 2
 const PASSABLE_BORDER_WIDTH = 2
-
-const PLAYER_PALETTE = ['#a84632', '#2d5f9e', '#7052a1', '#0e7490', '#ad7a25']
-
-/** Rebel armies answer to no crown: they render in a neutral gray. */
-const NEUTRAL_ARMY_COLOR = '#6b7280'
 
 interface MapViewerProps {
   map: MapData
@@ -82,7 +89,7 @@ export function MapViewer({
   intentions = [],
   winterIntentions = [],
   showIntentions = false,
-  intentionsColor = '#a84632',
+  intentionsColor = PLAYER_RED,
   onToggleIntentions,
   showOwnership = true,
   onToggleOwnership,
@@ -192,7 +199,7 @@ export function MapViewer({
       ? supply
       : null
   const supplyReachable = new Set(selectedSupply?.reachable ?? [])
-  const supplyColor = playerColors.get(selectedSupply?.armyOwner ?? '') ?? '#a84632'
+  const supplyColor = playerColors.get(selectedSupply?.armyOwner ?? '') ?? PLAYER_RED
   const supplyPathPoints = (selectedSupply?.path ?? []).flatMap((territoryID) => {
     const territory = map.territories.find((candidate) => candidate.id === territoryID)
     return territory ? [centroid(territory.points)] : []
@@ -219,7 +226,7 @@ export function MapViewer({
           {...pointerHandlers}
           style={{ touchAction: 'none' }}
         >
-          <rect width={mapWidth} height={mapHeight} fill="#e6d8bb" />
+          <rect width={mapWidth} height={mapHeight} fill={MAP_BACKGROUND} />
           <g transform={`translate(${view.x} ${view.y}) scale(${view.k})`}>
             <MapSvgDefs
               territories={map.territories}
@@ -305,7 +312,7 @@ export function MapViewer({
                   y={-bandMarginY}
                   width={viewWidth}
                   height={viewHeight}
-                  fill="#eaf3ff"
+                  fill={SNOW_FILL}
                   opacity="0.2"
                 />
               </g>
@@ -381,7 +388,7 @@ export function MapViewer({
                       <path
                         d={solidPath}
                         fill="none"
-                        stroke="#d28b22"
+                        stroke={MAP_AMBER_STROKE}
                         strokeWidth="5"
                         strokeLinecap="round"
                         clipPath={`url(#territory-clip-${territory.id})`}
@@ -392,7 +399,7 @@ export function MapViewer({
                       <path
                         d={passablePath}
                         fill="none"
-                        stroke="#d28b22"
+                        stroke={MAP_AMBER_STROKE}
                         strokeWidth="5"
                         strokeDasharray={passableBorderDots}
                         strokeLinecap="round"
@@ -413,7 +420,7 @@ export function MapViewer({
                   y1={border.from[1]}
                   x2={border.to[0]}
                   y2={border.to[1]}
-                  stroke="#594b3c"
+                  stroke={MAP_BORDER_STROKE}
                   strokeOpacity="0.85"
                   strokeWidth={OUTER_BORDER_WIDTH}
                   strokeLinecap="round"
@@ -432,7 +439,7 @@ export function MapViewer({
                     y1={border.from[1]}
                     x2={border.to[0]}
                     y2={border.to[1]}
-                    stroke="#39271b"
+                    stroke={MAP_BORDER_DARK}
                     strokeOpacity="0.85"
                     strokeWidth={PASSABLE_BORDER_WIDTH}
                     strokeDasharray={passableBorderDots}
@@ -459,7 +466,7 @@ export function MapViewer({
                   cx={supplyPathPoints[0][0]}
                   cy={supplyPathPoints[0][1]}
                   r={7 * annotationScale}
-                  fill="#fff8e7"
+                  fill={MAP_PARCHMENT}
                   stroke={supplyColor}
                   strokeWidth="3"
                   vectorEffect="non-scaling-stroke"
@@ -554,7 +561,7 @@ export function MapViewer({
               aria-expanded={legendOpen}
               aria-label={t(legendOpen ? 'legend.hide' : 'legend.show')}
               title={t(legendOpen ? 'legend.hide' : 'legend.show')}
-              className="flex size-9 items-center justify-center rounded-lg border border-[#b7a786] bg-[#fffaf0] text-[#594b3c] shadow-md transition hover:bg-[#f3ead9] hover:text-[#30291f] focus-visible:ring-2 focus-visible:ring-[#a84632]/40 focus-visible:outline-none"
+              className="flex size-9 items-center justify-center rounded-lg border border-line bg-paper-50 text-ink-700 shadow-md transition hover:bg-paper-100 hover:text-ink-900 focus-visible:ring-2 focus-visible:ring-brass-700/40 focus-visible:outline-none"
               onClick={() => setLegendOpen((open) => !open)}
             >
               <svg

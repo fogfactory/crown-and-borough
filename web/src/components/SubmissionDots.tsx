@@ -65,9 +65,9 @@ export function SubmissionDots({ players }: { players: SubmissionDotPlayer[] }) 
                   aria-label={`${player.name} · ${t(STATUS_LABEL_KEY[status])}`}
                   className={cn(
                     'size-2.5 rounded-full border',
-                    status === 'submitted' && 'border-[#30291f]/30',
+                    status === 'submitted' && 'border-ink-900/30',
                     status === 'waiting' && 'border-dashed opacity-80',
-                    status === 'notRequired' && 'border-[#806f57]/30 opacity-40',
+                    status === 'notRequired' && 'border-ink-500/30 opacity-40',
                   )}
                   style={
                     status === 'submitted'

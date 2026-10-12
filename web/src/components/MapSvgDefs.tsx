@@ -6,9 +6,10 @@ import {
   WINTER_SNOW_TILE,
   WINTER_SNOW_VARIANT_ROTATIONS,
 } from '@/components/MapDecorations'
-import { DRAFT_INTENTION_COLOR, INTENT_OUTLINE_COLOR } from '@/components/MapMarkers'
+import { DRAFT_INTENTION_COLOR, INTENT_OUTLINE_COLOR } from '@/lib/map-palette'
 import { pointsToPath } from '@/lib/map-svg-geometry'
 import type { Territory } from '@/types'
+import { MAP_NEUTRAL_STROKE, PLAYER_RED, SNOW_STROKE } from '@/lib/map-palette'
 
 /**
  * Shared SVG definitions referenced by the map layers: per-territory clip
@@ -55,7 +56,7 @@ export function MapSvgDefs({
           y1="0"
           x2={4 * annotationScale}
           y2={8 * annotationScale}
-          stroke="#808080"
+          stroke={MAP_NEUTRAL_STROKE}
           strokeWidth={2 * annotationScale}
           strokeOpacity="0.5"
         />
@@ -75,7 +76,7 @@ export function MapSvgDefs({
           y1="0"
           x2={4 * annotationScale}
           y2={8 * annotationScale}
-          stroke="#a84632"
+          stroke={PLAYER_RED}
           strokeWidth={2 * annotationScale}
           strokeOpacity="0.55"
         />
@@ -94,7 +95,7 @@ export function MapSvgDefs({
         >
           {/* Hand-scattered six-spoke snowflakes, three per tile. */}
           <g
-            stroke="#f8fbff"
+            stroke={SNOW_STROKE}
             strokeWidth={0.9 * annotationScale}
             strokeOpacity={0.8}
             strokeLinecap="round"
