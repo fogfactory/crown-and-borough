@@ -39,6 +39,7 @@ import type {
   Bishopric,
   Claim,
   DeceasedNoble,
+  Excommunication,
   Fief,
   Marriage,
   Noble,
@@ -76,6 +77,8 @@ interface LineageDialogProps {
   bishoprics?: Bishopric[]
   cardinals?: string[]
   pope?: string
+  king?: string
+  excommunicated?: Excommunication[]
   marriages?: Marriage[]
   claims?: Claim[]
   scores?: Record<string, ScoreBreakdown>
@@ -225,8 +228,11 @@ export function LineageDialog(props: LineageDialogProps) {
         bishoprics: data.bishoprics,
         cardinals: data.cardinals,
         pope: data.pope,
+        king: data.king,
+        marriages,
+        excommunicated: data.excommunicated,
       }),
-    [props.players, nobles, deceased, fiefs, claimList, data.bishoprics, data.cardinals, data.pope],
+    [props.players, nobles, deceased, fiefs, claimList, data.bishoprics, data.cardinals, data.pope, data.king, marriages, data.excommunicated],
   )
   const houses = useMemo(
     () => allHouses.filter((house) => !hidden.has(house.player.id)),
@@ -983,6 +989,11 @@ function LineageTree({
                             })}
                           </Badge>
                         ))}
+                        {member.excommunicated && (
+                          <Badge className="border-[#a84632] bg-[#f8dcd5] text-[#7a2a1a]">
+                            {t('lineage.excommunicated')}
+                          </Badge>
+                        )}
                         {member.fiefs.map((fief) => (
                           <Badge key={fief.capital} className="border-[#b7a786]">
                             {titleLabel(t, fief)}

@@ -10,6 +10,7 @@ import {
   GAP_X,
   layoutColumns,
   PITCH,
+  queenOf,
 } from '@/lib/lineage'
 import type { Noble, Player } from '@/types'
 
@@ -79,6 +80,29 @@ describe('lineage', () => {
       { title: 'cardinal' },
       { title: 'bishop', seat: 'Alpilles' },
     ])
+  })
+
+  it('lists the king and the queen, the spouse of the king in an active marriage', () => {
+    const marriages = [
+      { nobleA: 'MAR', nobleB: 'EVE', turn: 1, active: false },
+      { nobleA: 'ANN', nobleB: 'MAR', turn: 2, active: true },
+    ]
+    const houses = buildHouses(players, nobles, [], [], [], { king: 'MAR', marriages })
+    const titles = (house: number, code: string) =>
+      houses[house].members.find((entry) => entry.code === code)?.religious
+    expect(titles(2, 'MAR')).toEqual([{ title: 'king' }])
+    expect(titles(1, 'ANN')).toEqual([{ title: 'queen' }])
+    expect(titles(1, 'EVE')).toEqual([])
+    expect(queenOf('MAR', [marriages[0]])).toBeUndefined()
+    expect(queenOf(undefined, marriages)).toBeUndefined()
+  })
+
+  it('flags the excommunicated nobles', () => {
+    const houses = buildHouses(players, nobles, [], [], [], {
+      excommunicated: [{ noble: 'ANN', reason: 'papal', turn: 1 }],
+    })
+    const flags = houses.flatMap((house) => house.members.map((m) => [m.code, m.excommunicated]))
+    expect(flags.filter(([, flag]) => flag)).toEqual([['ANN', true]])
   })
 
   it('classifies marriages: active head, secondary, ended', () => {

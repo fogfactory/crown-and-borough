@@ -887,6 +887,8 @@ export function GamePage() {
   bishoprics={state.bishoprics}
   cardinals={state.cardinals}
   pope={state.pope}
+  king={state.king}
+  excommunicated={state.excommunicated}
   marriages={state.marriages}
   scores={state.scores ?? summary.scores}
   victory={state.victory}

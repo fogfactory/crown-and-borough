@@ -3,6 +3,7 @@ import type {
   DeceasedNoble,
   Bishopric,
   Dignity,
+  Excommunication,
   Fief,
   FiefTitle,
   ReligiousTitle,
@@ -13,17 +14,33 @@ import type {
   PlayerId,
 } from '@/types'
 
-/** A religious title a noble holds; `seat` names the bishopric of a bishop. */
+/** A religious or royal title a noble holds; `seat` names the bishopric of a bishop. */
 export interface HeldReligiousTitle {
-  title: ReligiousTitle
+  title: ReligiousTitle | 'king' | 'queen'
   seat?: string
 }
 
-/** The religious standings buildHouses reads titles from. */
+/** The religious and royal standings buildHouses reads titles from. */
 export interface Religion {
   bishoprics?: Bishopric[]
   cardinals?: string[]
   pope?: string
+  /** Code of the noble who holds the crown. */
+  king?: string
+  /** Read with `king` to find the queen: the spouse of the king. */
+  marriages?: Marriage[]
+  excommunicated?: Excommunication[]
+}
+
+/** The queen is the spouse of the king in their active marriage. */
+export function queenOf(king: string | undefined, marriages: Marriage[] = []): string | undefined {
+  if (!king) return undefined
+  const marriage = marriages.find(
+    (candidate) =>
+      candidate.active !== false && (candidate.nobleA === king || candidate.nobleB === king),
+  )
+  if (!marriage) return undefined
+  return marriage.nobleA === king ? marriage.nobleB : marriage.nobleA
 }
 
 export interface HeldFief {
@@ -41,6 +58,8 @@ export interface HouseMember {
   dignities: Dignity[]
   /** Every religious title the noble holds, highest first. */
   religious: HeldReligiousTitle[]
+  /** The noble is excommunicated (its religious titles are lost). */
+  excommunicated: boolean
   /** Every fief the noble holds, highest first. */
   fiefs: HeldFief[]
   /** The pretension this noble stakes as an heir, if any. */
@@ -94,13 +113,15 @@ const FIEF_RANK: Record<FiefTitle, number> = {
   duchy: 4,
 }
 
-/** Religious titles by noble code, highest first (pope, cardinal, bishop). */
+/** Royal and religious titles by noble code, highest first (king, queen, pope, cardinal, bishop). */
 export function religiousTitlesByHolder(religion: Religion): Map<string, HeldReligiousTitle[]> {
   const byHolder = new Map<string, HeldReligiousTitle[]>()
   const add = (code: string | undefined, held: HeldReligiousTitle) => {
     if (!code) return
     byHolder.set(code, [...(byHolder.get(code) ?? []), held])
   }
+  add(religion.king, { title: 'king' })
+  add(queenOf(religion.king, religion.marriages), { title: 'queen' })
   add(religion.pope, { title: 'pope' })
   for (const code of religion.cardinals ?? []) add(code, { title: 'cardinal' })
   for (const bishopric of religion.bishoprics ?? [])
@@ -122,6 +143,7 @@ export function buildHouses(
   religion: Religion = {},
 ): House[] {
   const religiousByHolder = religiousTitlesByHolder(religion)
+  const excommunicatedCodes = new Set((religion.excommunicated ?? []).map((entry) => entry.noble))
   const fiefsByHolder = new Map<string, HeldFief[]>()
   for (const fief of fiefs) {
     if (!fief.holder) continue
@@ -152,6 +174,7 @@ export function buildHouses(
         dead: false,
         dignities: noble.dignities ?? [],
         religious: religiousByHolder.get(noble.code) ?? [],
+        excommunicated: excommunicatedCodes.has(noble.code),
         fiefs: fiefsByHolder.get(noble.code) ?? [],
         claim: claim
           ? {
@@ -176,6 +199,7 @@ export function buildHouses(
         cause: noble.cause,
         dignities: [],
         religious: [],
+        excommunicated: false,
         fiefs: [],
         claimedBy: 0,
       })

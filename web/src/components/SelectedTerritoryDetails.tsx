@@ -120,7 +120,10 @@ export function SelectedTerritoryDetails({
     bishoprics: state.bishoprics,
     cardinals: state.cardinals,
     pope: state.pope,
+    king: state.king,
+    marriages: state.marriages,
   })
+  const excommunicatedCodes = new Set((state.excommunicated ?? []).map((entry) => entry.noble))
   const presentNobles = state.nobles.filter(
     (noble) => noble.location === selectedTerritory.id,
   )
@@ -299,7 +302,8 @@ export function SelectedTerritoryDetails({
                         (fief) => fief.holder === noble.code,
                       )
                       const religious = religiousTitles.get(noble.code) ?? []
-                      if (fiefTitles.length === 0 && religious.length === 0) return null
+                      const excommunicated = excommunicatedCodes.has(noble.code)
+                      if (fiefTitles.length === 0 && religious.length === 0 && !excommunicated) return null
                       return (
                         <>
                           <dt>{t('app.titles')}</dt>
@@ -314,6 +318,11 @@ export function SelectedTerritoryDetails({
                                 })}
                               </span>
                             ))}
+                            {excommunicated && (
+                              <span className="rounded bg-[#f8dcd5] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[#7a2a1a]">
+                                {t('lineage.excommunicated')}
+                              </span>
+                            )}
                             {fiefTitles.map((fief) => (
                               <span
                                 key={fief.capital}
