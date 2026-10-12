@@ -11,7 +11,6 @@ const PLAYABLE_KINDS: CardKind[] = [
   'abundant_harvest',
   'revolt',
   'seigneurial_tax',
-  'trial',
   'tunnel',
 ]
 
@@ -680,8 +679,6 @@ function specialTargetField(
         label: t('orders.field.fief'),
         options: (state.fiefs ?? []).map((fief) => codeOption(fief.capital)),
       }
-    case 'trial':
-      return { label: t('orders.field.trialTarget'), options: state.nobles.map(nobleOption) }
     default: {
       // Regions where the card cancels an announced calamity come first.
       const options = regionOptions(regions).map((option) =>
@@ -1023,7 +1020,6 @@ const SHORT_CODES: Record<CardKind, string> = {
   bad_weather: 'MT',
   famine: 'FA',
   seigneurial_tax: 'TX',
-  trial: 'PR',
   tunnel: 'SO',
 }
 
