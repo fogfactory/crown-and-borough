@@ -60,27 +60,27 @@ async function copyText(value: string): Promise<boolean> {
 function GameCard({ game }: { game: GameSummary }) {
   const { t } = useLanguage()
   return (
-    <Card className="border-[#b7a786] bg-[#fffaf0] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)]">
+    <Card className="border-line bg-paper-50 shadow-panel">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <CardTitle className="font-serif text-xl text-[#30291f]">
+            <CardTitle className="font-display text-xl text-ink-900">
               {game.name}
             </CardTitle>
-            <CardDescription className="mt-1 text-[#806f57]">
+            <CardDescription className="mt-1 text-ink-500">
               {t('online.currentTurn', {
                 turn: game.turn,
                 season: seasonLabels[game.season],
               })}
             </CardDescription>
-            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#a84632]">
+            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-brass-700">
               {t('app.year', {
                 year:
                   1000 +
                   internalYear(game.turn, game.status === 'finished', game.yearCount),
               })}
             </p>
-            <p className="mt-1 text-xs text-[#806f57]">
+            <p className="mt-1 text-xs text-ink-500">
               {t('app.remainingYearsTurns', {
                 years: remainingYears(
                   game.turn,
@@ -94,11 +94,11 @@ function GameCard({ game }: { game: GameSummary }) {
                 ),
               })}
             </p>
-            <p className="mt-1 font-mono text-xs text-[#806f57]">
+            <p className="mt-1 font-mono text-xs text-ink-500">
               {t('home.seed')}: {game.seed || '-'}
             </p>
           </div>
-          <span className="rounded-full border border-[#376341]/30 bg-[#e8f1e3] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#376341]">
+          <span className="rounded-full border border-success-700/30 bg-success-100 px-2 py-1 text-3xs font-semibold uppercase tracking-[0.12em] text-success-700">
             {game.status === 'finished'
               ? t('home.statusFinished')
               : t('home.statusPlaying')}
@@ -110,27 +110,27 @@ function GameCard({ game }: { game: GameSummary }) {
           {game.players.map((player) => (
             <li
               key={player.id}
-              className="flex items-center gap-2 rounded-md bg-[#f3ead9] px-3 py-2 text-sm"
+              className="flex items-center gap-2 rounded-md bg-paper-100 px-3 py-2 text-sm"
             >
               <span
                 aria-hidden="true"
-                className="size-3 shrink-0 rounded-full border border-[#30291f]/30"
+                className="size-3 shrink-0 rounded-full border border-ink-900/30"
                 style={{ backgroundColor: player.color }}
               />
               <span className="min-w-0 flex-1 truncate">
                 {player.name || t('online.emptySlot')}
               </span>
-              <span className="shrink-0 font-semibold text-[#a84632]">
+              <span className="shrink-0 font-semibold text-brass-700">
                 {game.scores?.[player.id]?.total ?? 0}
               </span>
-              <span className="shrink-0 text-[10px] uppercase tracking-[0.08em] text-[#806f57]">
+              <span className="shrink-0 text-3xs uppercase tracking-[0.08em] text-ink-500">
                 {player.submitted ? t('home.submitted') : t('home.notSubmitted')}
               </span>
             </li>
           ))}
         </ul>
         {game.winner && (
-          <p className="rounded-md border border-[#815f1e]/40 bg-[#f8e8ae]/60 px-3 py-2 text-sm font-semibold text-[#6d5118]">
+          <p className="rounded-md border border-gold-600/40 bg-gold-100/60 px-3 py-2 text-sm font-semibold text-gold-800">
             {t('online.victory')}:{' '}
             {game.players.find((player) => player.id === game.winner)?.name ??
               game.winner}
@@ -209,34 +209,34 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
   return (
     <form className="space-y-4" onSubmit={(event) => void handleSubmit(event)}>
       <label className="block space-y-1.5">
-        <span className="text-sm font-semibold text-[#594b3c]">{t('home.gameName')}</span>
+        <span className="text-sm font-semibold text-ink-700">{t('home.gameName')}</span>
         <input
           type="text"
           value={name}
           onChange={(event) => setName(event.target.value)}
           placeholder={t('home.gameNamePlaceholder')}
-          className="h-10 w-full rounded-lg border border-[#b7a786] bg-[#f8f0e2] px-3 text-sm outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20"
+          className="h-10 w-full rounded-lg border border-line bg-paper-80 px-3 text-sm outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
         />
       </label>
       <div className="grid gap-4 sm:grid-cols-[1fr_auto_auto]">
         <label className="block space-y-1.5">
-          <span className="text-sm font-semibold text-[#594b3c]">{t('home.seed')}</span>
+          <span className="text-sm font-semibold text-ink-700">{t('home.seed')}</span>
           <input
             type="text"
             value={seed}
             onChange={(event) => setSeed(event.target.value)}
             placeholder={t('home.seedPlaceholder')}
-            className="h-10 w-full rounded-lg border border-[#b7a786] bg-[#f8f0e2] px-3 text-sm outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20"
+            className="h-10 w-full rounded-lg border border-line bg-paper-80 px-3 text-sm outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
           />
         </label>
         <label className="block space-y-1.5">
-          <span className="text-sm font-semibold text-[#594b3c]">
+          <span className="text-sm font-semibold text-ink-700">
             {t('home.playerCount')}
           </span>
           <select
             value={players}
             onChange={(event) => setPlayers(Number(event.target.value))}
-            className="h-10 rounded-lg border border-[#b7a786] bg-[#f8f0e2] px-3 text-sm outline-none focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20"
+            className="h-10 rounded-lg border border-line bg-paper-80 px-3 text-sm outline-none focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
           >
             {Array.from({ length: 7 }, (_, index) => index + 2).map((count) => (
               <option key={count} value={count}>
@@ -246,7 +246,7 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
           </select>
         </label>
         <label className="block space-y-1.5">
-          <span className="text-sm font-semibold text-[#594b3c]">
+          <span className="text-sm font-semibold text-ink-700">
             {t('home.gameYears')}
           </span>
           <input
@@ -255,26 +255,26 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
             max={50}
             value={years}
             onChange={(event) => setYears(Number(event.target.value))}
-            className="h-10 w-24 rounded-lg border border-[#b7a786] bg-[#f8f0e2] px-3 text-sm outline-none focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20"
+            className="h-10 w-24 rounded-lg border border-line bg-paper-80 px-3 text-sm outline-none focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
           />
         </label>
       </div>
       <label
         htmlFor="observe-only"
-        className="flex items-start gap-3 rounded-lg border border-[#b7a786]/70 bg-[#f8f0e2] px-3 py-3 text-sm"
+        className="flex items-start gap-3 rounded-lg border border-line/70 bg-paper-80 px-3 py-3 text-sm"
       >
         <input
           id="observe-only"
           type="checkbox"
           checked={spectate}
           onChange={(event) => setSpectate(event.target.checked)}
-          className="mt-0.5 size-4 accent-[#a84632]"
+          className="mt-0.5 size-4 accent-brass-700"
         />
         <span>
-          <span className="block font-semibold text-[#594b3c]">
+          <span className="block font-semibold text-ink-700">
             {t('home.observeOnly')}
           </span>
-          <span className="mt-1 block text-xs text-[#806f57]">
+          <span className="mt-1 block text-xs text-ink-500">
             {t('home.observeOnlyDescription')}
           </span>
         </span>
@@ -282,7 +282,7 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
       {error && (
         <p
           role="alert"
-          className="rounded-lg border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 text-sm text-[#8d321e]"
+          className="rounded-lg border border-vermilion-600/30 bg-vermilion-100 px-3 py-2 text-sm text-vermilion-700"
         >
           {error}
         </p>
@@ -303,19 +303,19 @@ function InvitationCard({ invitation }: { invitation: Invitation }) {
   }
 
   return (
-    <Card className="border-[#815f1e]/50 bg-[#fffaf0] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)]">
+    <Card className="border-gold-600/50 bg-paper-50 shadow-panel">
       <CardHeader>
-        <CardTitle className="font-serif text-2xl text-[#30291f]">
+        <CardTitle className="font-display text-2xl text-ink-900">
           {t('home.invitationTitle')}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#806f57]">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">
             {t('home.invitationCode')}
           </p>
           <div className="mt-1 flex items-center gap-2">
-            <code className="flex-1 rounded-md bg-[#f3ead9] px-3 py-2 font-mono text-lg tracking-[0.2em]">
+            <code className="flex-1 rounded-md bg-paper-100 px-3 py-2 font-mono text-lg tracking-[0.2em]">
               {invitation.inviteCode}
             </code>
             <Button
@@ -329,7 +329,7 @@ function InvitationCard({ invitation }: { invitation: Invitation }) {
           </div>
         </div>
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#806f57]">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">
             {t('home.invitationLink')}
           </p>
           <div className="mt-1 flex items-center gap-2">
@@ -337,7 +337,7 @@ function InvitationCard({ invitation }: { invitation: Invitation }) {
               readOnly
               value={invitation.inviteUrl}
               aria-label={t('home.invitationLink')}
-              className="min-w-0 flex-1 rounded-md border border-[#b7a786] bg-[#f8f0e2] px-3 py-2 text-xs"
+              className="min-w-0 flex-1 rounded-md border border-line bg-paper-80 px-3 py-2 text-xs"
             />
             <Button
               type="button"
@@ -407,10 +407,10 @@ export function HomePage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#a84632]">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brass-700">
             Crown &amp; Borough
           </p>
-          <h1 className="mt-1 font-serif text-4xl font-semibold text-[#30291f]">
+          <h1 className="mt-1 font-display text-4xl font-semibold text-ink-900">
             {t('home.title')}
           </h1>
         </div>
@@ -426,9 +426,9 @@ export function HomePage() {
       </div>
 
       {showCreate && (
-        <Card className="border-[#b7a786] bg-[#fffaf0]">
+        <Card className="border-line bg-paper-50">
           <CardHeader>
-            <CardTitle className="font-serif text-2xl">{t('home.create')}</CardTitle>
+            <CardTitle className="font-display text-2xl">{t('home.create')}</CardTitle>
           </CardHeader>
           <CardContent>
             {invitation ? (
@@ -448,18 +448,18 @@ export function HomePage() {
       {combinedError && (
         <p
           role="alert"
-          className="rounded-lg border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 text-sm text-[#8d321e]"
+          className="rounded-lg border border-vermilion-600/30 bg-vermilion-100 px-3 py-2 text-sm text-vermilion-700"
         >
           {combinedError}
         </p>
       )}
       {loading && games.length === 0 ? (
-        <p className="py-16 text-center font-serif text-lg italic text-[#806f57]">
+        <p className="py-16 text-center font-display text-lg italic text-ink-500">
           {t('online.loading')}
         </p>
       ) : games.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-[#b7a786] bg-[#f8f0e2] px-6 py-16 text-center">
-          <p className="font-serif text-lg italic text-[#806f57]">{t('home.empty')}</p>
+        <div className="rounded-xl border border-dashed border-line bg-paper-80 px-6 py-16 text-center">
+          <p className="font-display text-lg italic text-ink-500">{t('home.empty')}</p>
         </div>
       ) : (
         <section

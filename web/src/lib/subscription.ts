@@ -20,6 +20,7 @@ import type {
   Season,
   StateData,
 } from '@/types'
+import { DEFAULT_PLAYER_COLOR } from '@/lib/map-palette'
 
 export interface SubscriptionError {
   code: string
@@ -120,7 +121,7 @@ function slotsFromData(data: DocumentData, currentUID?: string): GameSlot[] {
       {
         id,
         name: stringValue(player.name, id),
-        color: stringValue(player.color, '#b7a786'),
+        color: stringValue(player.color, DEFAULT_PLAYER_COLOR),
         actorId: currentActorId,
         submitted:
           player.submitted === true ||

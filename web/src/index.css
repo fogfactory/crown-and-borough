@@ -5,6 +5,121 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Theme tokens (specs/charte-graphique.md, principle 5). Names follow the
+ * graphic charter; values are still the current interface's so that phase 2
+ * changes nothing visible. Intermediate steps (paper-60, vermilion-150...)
+ * hold shades the charter merges: phase 3 retargets the values and folds them.
+ * Components never write hex values: they use these tokens, and SVG rendering
+ * data lives in src/lib/map-palette.ts.
+ */
+@theme {
+  --font-display: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
+
+  --text-3xs: 10px;
+  --text-2xs: 11px;
+
+  --shadow-panel: 0 18px 50px -30px rgba(67, 46, 24, 0.7);
+  --shadow-panel-strong: 0 18px 50px -30px rgba(67, 46, 24, 0.9);
+  --shadow-sheet: 0 -12px 40px -20px rgba(67, 46, 24, 0.6);
+
+  /* Papers */
+  --color-paper-50: #fffaf0;
+  --color-paper-60: #fff8e7;
+  --color-paper-70: #fbf3df;
+  --color-paper-80: #f8f0e2;
+  --color-paper-100: #f3ead9;
+  --color-paper-200: #efe7d8;
+  --color-paper-250: #e8d9b8;
+  --color-paper-300: #e6d8bb;
+
+  /* Inks */
+  --color-ink-950: #17120f;
+  --color-ink-900: #30291f;
+  --color-ink-700: #594b3c;
+  --color-ink-500: #806f57;
+
+  /* Rules */
+  --color-line-strong: #9a8f7c;
+  --color-line: #b7a786;
+  --color-line-soft: #c9b688;
+  --color-line-faint: #d4c4b0;
+
+  /* Brass: action (primary button, active tab, links, focus, selection) */
+  --color-brass-400: #a84632;
+  --color-brass-700: #a84632;
+
+  /* Gold: crowns, notices, major victory */
+  --color-gold-100: #f8e8ae;
+  --color-gold-500: #b8860b;
+  --color-gold-600: #815f1e;
+  --color-gold-700: #7a5a20;
+  --color-gold-800: #6d5118;
+  --color-gold-850: #6b4e0a;
+  --color-gold-900: #4a360f;
+
+  /* Vermilion: errors and destructive actions */
+  --color-vermilion-50: #fff5f0;
+  --color-vermilion-100: #f8e5dd;
+  --color-vermilion-150: #f8e6e6;
+  --color-vermilion-200: #f8dcd5;
+  --color-vermilion-225: #f8dcd4;
+  --color-vermilion-250: #f4d9d2;
+  --color-vermilion-300: #e4b4a4;
+  --color-vermilion-600: #a84632;
+  --color-vermilion-700: #8d321e;
+  --color-vermilion-750: #8a2f2f;
+  --color-vermilion-800: #7a2b1c;
+  --color-vermilion-850: #7a2a1a;
+  --color-vermilion-900: #6b2020;
+
+  /* Warning: non-blocking diagnostics */
+  --color-warning-100: #fdf0e3;
+  --color-warning-150: #fdecd9;
+  --color-warning-500: #e07a30;
+  --color-warning-600: #a8541a;
+  --color-warning-700: #8a5216;
+
+  /* Success */
+  --color-success-100: #e8f1e3;
+  --color-success-600: #2f6f3f;
+  --color-success-700: #376341;
+
+  /* Winter and order sheets */
+  --color-winter-50: #f7fbff;
+  --color-winter-75: #eef3f7;
+  --color-winter-80: #eaf3ff;
+  --color-winter-100: #d8ebfa;
+  --color-winter-150: #c8e1f2;
+  --color-winter-200: #c9dcea;
+  --color-winter-250: #b8d3e8;
+  --color-winter-300: #9bbbd3;
+  --color-winter-400: #6f9fc1;
+  --color-winter-500: #5c94bd;
+  --color-winter-600: #55738a;
+  --color-winter-650: #2f6f9f;
+  --color-winter-700: #2c5b7d;
+  --color-winter-750: #244c68;
+  --color-winter-800: #263f52;
+  --color-winter-850: #1d3e56;
+  --color-winter-900: #1f3a4d;
+
+  /* Claim: titles, claims and the Church */
+  --color-claim-50: #fbf5ff;
+  --color-claim-100: #efe6f8;
+  --color-claim-300: #c8b0d9;
+  --color-claim-500: #8a5ba6;
+  --color-claim-600: #7a4fa3;
+  --color-claim-650: #6b4f8a;
+  --color-claim-700: #684b7d;
+  --color-claim-900: #4d3569;
+
+  /* Steel: minor victory */
+  --color-steel-100: #e4e7ea;
+  --color-steel-400: #8a929b;
+  --color-steel-700: #3f464d;
+}
+
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: 'Geist Variable', sans-serif;

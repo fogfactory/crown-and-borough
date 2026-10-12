@@ -15,6 +15,7 @@ import type {
   SupplyLine,
   TransferLine,
 } from '@/types'
+import { DEFAULT_PLAYER_COLOR } from '@/lib/map-palette'
 
 const TERRAIN_LABEL_KEYS: Record<MapData['territories'][number]['terrain'], MessageKey> =
   {
@@ -89,8 +90,8 @@ export function SelectedTerritoryDetails({
 
   if (!state || !selectedTerritory) {
     return (
-      <div className="flex min-h-24 items-center justify-center rounded-lg border border-dashed border-[#b7a786] bg-[#f8f0e2] px-6 text-center">
-        <p className="font-serif text-base italic text-[#806f57]">
+      <div className="flex min-h-24 items-center justify-center rounded-lg border border-dashed border-line bg-paper-80 px-6 text-center">
+        <p className="font-display text-base italic text-ink-500">
           {t('app.selectTerritory')}
         </p>
       </div>
@@ -103,7 +104,7 @@ export function SelectedTerritoryDetails({
   const displayOwner = (playerID: PlayerId | null | undefined, fallback: string) =>
     playerDisplayName(playerID, playerLists, fallback)
   const playerColor = (playerID: PlayerId) =>
-    state.players.find((player) => player.id === playerID)?.color || '#b7a786'
+    state.players.find((player) => player.id === playerID)?.color || DEFAULT_PLAYER_COLOR
   const selectedCapitalPlayer = state.players.find(
     (player) => player.capitalTerritory === selectedTerritory.id,
   )
@@ -141,26 +142,26 @@ export function SelectedTerritoryDetails({
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#a84632]">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-brass-700">
           {selectedTerritory.id}
         </p>
-        <h2 className="mt-1 font-serif text-2xl font-semibold leading-tight">
+        <h2 className="mt-1 font-display text-2xl font-semibold leading-tight">
           {selectedTerritory.name}
         </h2>
         {selectedCapitalPlayer && (
-          <p className="mt-2 inline-flex items-center rounded-full border border-[#815f1e]/40 bg-[#f8e8ae]/60 px-2.5 py-1 text-xs font-semibold text-[#6d5118]">
+          <p className="mt-2 inline-flex items-center rounded-full border border-gold-600/40 bg-gold-100/60 px-2.5 py-1 text-xs font-semibold text-gold-800">
             {t('app.capitalOf', {
               player: displayOwner(selectedCapitalPlayer.id, selectedCapitalPlayer.name),
             })}
           </p>
         )}
         {isFiefCapital && (
-          <p className="mt-2 ml-2 inline-flex items-center rounded-full border border-[#a84632]/40 bg-[#f8dcd4]/60 px-2.5 py-1 text-xs font-semibold text-[#8d321e]">
+          <p className="mt-2 ml-2 inline-flex items-center rounded-full border border-vermilion-600/40 bg-vermilion-225/60 px-2.5 py-1 text-xs font-semibold text-vermilion-700">
             {t('app.cityBonus')}
           </p>
         )}
         {occupied && (
-          <p className="mt-2 ml-2 inline-flex items-center rounded-full border border-[#a84632]/40 bg-[#f8dcd4]/60 px-2.5 py-1 text-xs font-semibold text-[#8d321e]">
+          <p className="mt-2 ml-2 inline-flex items-center rounded-full border border-vermilion-600/40 bg-vermilion-225/60 px-2.5 py-1 text-xs font-semibold text-vermilion-700">
             {t('app.occupiedBy', {
               player: displayOwner(
                 selectedState?.army?.owner,
@@ -172,16 +173,16 @@ export function SelectedTerritoryDetails({
       </div>
 
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-3 text-sm">
-        <dt className="text-[#806f57]">{t('app.terrain')}</dt>
+        <dt className="text-ink-500">{t('app.terrain')}</dt>
         <dd className="font-medium">
           {t(TERRAIN_LABEL_KEYS[selectedTerritory.terrain])}
         </dd>
         {selectedRegion && (
           <>
-            <dt className="text-[#806f57]">{t('app.region')}</dt>
+            <dt className="text-ink-500">{t('app.region')}</dt>
             <dd className="font-medium">
               <span>{selectedRegion.seed}</span>
-              <span className="ml-2 text-xs font-semibold text-[#684b7d]">
+              <span className="ml-2 text-xs font-semibold text-claim-700">
                 {t('app.regionSeedLabel', { seed: selectedRegion.seed })}
               </span>
             </dd>
@@ -189,12 +190,12 @@ export function SelectedTerritoryDetails({
         )}
         {selectedFief && (
           <>
-            <dt className="text-[#806f57]">{t('app.fiefTitle')}</dt>
+            <dt className="text-ink-500">{t('app.fiefTitle')}</dt>
             <dd className="font-medium">
               {t(FIEF_TITLE_KEYS[selectedFief.title])} —{' '}
               {territoryLabel(selectedFief.capital)}
             </dd>
-            <dt className="text-[#806f57]">{t('app.fiefHolder')}</dt>
+            <dt className="text-ink-500">{t('app.fiefHolder')}</dt>
             <dd className="font-medium">
               {selectedFiefHolder
                 ? `${selectedFiefHolder.name} (${selectedFiefHolder.code})`
@@ -202,7 +203,7 @@ export function SelectedTerritoryDetails({
             </dd>
             {selectedFief.projectedIncome !== undefined && (
               <>
-                <dt className="text-[#806f57]">{t('app.fiefProjectedIncome')}</dt>
+                <dt className="text-ink-500">{t('app.fiefProjectedIncome')}</dt>
                 <dd className="font-medium">
                   {t('app.fiefProjectedIncomeAmount', {
                     amount: selectedFief.projectedIncome,
@@ -214,15 +215,15 @@ export function SelectedTerritoryDetails({
         )}
         {selectedState && (
           <>
-            <dt className="text-[#806f57]">{t('app.control')}</dt>
+            <dt className="text-ink-500">{t('app.control')}</dt>
             <dd className="font-medium">
               {displayOwner(selectedState.owner, t('app.noOwner'))}
             </dd>
-            <dt className="text-[#806f57]">{t('app.resources')}</dt>
+            <dt className="text-ink-500">{t('app.resources')}</dt>
             <dd className="font-medium">{selectedState.resources} R</dd>
             {selectedState.owner && selectedState.projectedIncome !== undefined && (
               <>
-                <dt className="text-[#806f57]">{t('app.projectedIncome')}</dt>
+                <dt className="text-ink-500">{t('app.projectedIncome')}</dt>
                 <dd className="font-medium">
                   {selectedState.incomeDestination
                     ? t('app.territoryIncome', {
@@ -238,8 +239,8 @@ export function SelectedTerritoryDetails({
       </dl>
 
       {activeRegionEffects.length > 0 && (
-        <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">
-          <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
+        <div className="space-y-2 border-t border-line/50 pt-4">
+          <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
             {t('app.activeEffects')}
           </h3>
           <ul className="space-y-1.5 text-sm">
@@ -248,12 +249,12 @@ export function SelectedTerritoryDetails({
               return (
                 <li
                   key={`${effect.kind}-${effect.season}-${index}`}
-                  className="rounded-md bg-[#f3ead9] px-3 py-2"
+                  className="rounded-md bg-paper-100 px-3 py-2"
                 >
                   <span className={current ? 'font-bold' : 'font-medium'}>
                     {formatCardLabel(effect.kind, t)}
                   </span>
-                  <span className="mt-1 block text-xs text-[#806f57]">
+                  <span className="mt-1 block text-xs text-ink-500">
                     {t('app.effectSeason', {
                       season: t(SEASON_LABEL_KEYS[effect.season]),
                     })}
@@ -265,8 +266,8 @@ export function SelectedTerritoryDetails({
         </div>
       )}
 
-      <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">
-        <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
+      <div className="space-y-2 border-t border-line/50 pt-4">
+        <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
           {t('app.noblesPresent')}
         </h3>
         {presentNobles.length > 0 ? (
@@ -275,11 +276,11 @@ export function SelectedTerritoryDetails({
               const holder =
                 noble.status !== 'free' ? (selectedState?.army?.owner ?? null) : null
               return (
-                <li key={noble.id} className="rounded-md bg-[#f3ead9] px-3 py-2 text-sm">
+                <li key={noble.id} className="rounded-md bg-paper-100 px-3 py-2 text-sm">
                   <div className="flex items-center justify-between gap-3">
                     <span className="min-w-0">
                       <span
-                        className="mr-2 inline-block size-3 shrink-0 rounded-full border border-[#30291f]/30 align-[-1px]"
+                        className="mr-2 inline-block size-3 shrink-0 rounded-full border border-ink-900/30 align-[-1px]"
                         style={{ backgroundColor: playerColor(noble.owner) }}
                         aria-label={t('app.colorOf', {
                           player: displayOwner(noble.owner, noble.owner),
@@ -288,14 +289,14 @@ export function SelectedTerritoryDetails({
                       <strong>{noble.name}</strong> ({noble.code})
                     </span>
                     <span
-                      className={`shrink-0 text-xs ${noble.status === 'dungeon' ? 'text-[#a84632]' : 'text-[#376341]'}`}
+                      className={`shrink-0 text-xs ${noble.status === 'dungeon' ? 'text-brass-700' : 'text-success-700'}`}
                     >
                       {t(`orders.nobleStatus.${noble.status}` as MessageKey)}
                     </span>
                   </div>
-                  <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 border-t border-[#b7a786]/40 pt-1 text-xs text-[#806f57]">
+                  <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 border-t border-line/40 pt-1 text-xs text-ink-500">
                     <dt>{t('app.owner')}</dt>
-                    <dd className="font-medium text-[#594b3c]">
+                    <dd className="font-medium text-ink-700">
                       {displayOwner(noble.owner, noble.owner)}
                     </dd>
                     {(() => {
@@ -308,11 +309,11 @@ export function SelectedTerritoryDetails({
                       return (
                         <>
                           <dt>{t('app.titles')}</dt>
-                          <dd className="flex flex-wrap gap-1 font-medium text-[#594b3c]">
+                          <dd className="flex flex-wrap gap-1 font-medium text-ink-700">
                             {religious.map((held) => (
                               <span
                                 key={`${held.title}-${held.seat ?? ''}`}
-                                className="rounded bg-[#efe6f8] px-1.5 py-0.5 text-[10px] uppercase tracking-wide"
+                                className="rounded bg-claim-100 px-1.5 py-0.5 text-3xs uppercase tracking-wide"
                               >
                                 {t(`lineage.religious.${held.title}` as MessageKey, {
                                   seat: held.seat ?? '',
@@ -320,14 +321,14 @@ export function SelectedTerritoryDetails({
                               </span>
                             ))}
                             {excommunicated && (
-                              <span className="rounded bg-[#f8dcd5] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[#7a2a1a]">
+                              <span className="rounded bg-vermilion-200 px-1.5 py-0.5 text-3xs uppercase tracking-wide text-vermilion-850">
                                 {t('lineage.excommunicated')}
                               </span>
                             )}
                             {fiefTitles.map((fief) => (
                               <span
                                 key={fief.capital}
-                                className="rounded bg-[#e8d9b8] px-1.5 py-0.5 text-[10px] uppercase tracking-wide"
+                                className="rounded bg-paper-250 px-1.5 py-0.5 text-3xs uppercase tracking-wide"
                               >
                                 {t(FIEF_TITLE_KEYS[fief.title])} · {fief.capital}
                               </span>
@@ -339,11 +340,11 @@ export function SelectedTerritoryDetails({
                     {noble.dignities && noble.dignities.length > 0 && (
                       <>
                         <dt>{t('app.dignity')}</dt>
-                        <dd className="flex flex-wrap gap-1 font-medium text-[#594b3c]">
+                        <dd className="flex flex-wrap gap-1 font-medium text-ink-700">
                           {noble.dignities.map((dignity) => (
                             <span
                               key={dignity}
-                              className="rounded bg-[#e8d9b8] px-1.5 py-0.5 text-[10px] uppercase tracking-wide"
+                              className="rounded bg-paper-250 px-1.5 py-0.5 text-3xs uppercase tracking-wide"
                             >
                               {t(`dignity.${dignity}` as MessageKey)}
                             </span>
@@ -354,7 +355,7 @@ export function SelectedTerritoryDetails({
                     {noble.secret && (
                       <>
                         <dt>{t('app.secretIdentity')}</dt>
-                        <dd className="font-medium text-[#594b3c]">
+                        <dd className="font-medium text-ink-700">
                           {noble.secret.name} ({noble.secret.code})
                         </dd>
                       </>
@@ -363,7 +364,7 @@ export function SelectedTerritoryDetails({
                       <>
                         <dt>{t('app.commissionedKilling')}</dt>
                         <dd
-                          className="font-medium text-[#6b2020]"
+                          className="font-medium text-vermilion-900"
                           data-testid="assassination-victim"
                         >
                           {noble.commissioned
@@ -380,7 +381,7 @@ export function SelectedTerritoryDetails({
                     {noble.spouse && (
                       <>
                         <dt>{t('app.marriage')}</dt>
-                        <dd className="font-medium text-[#594b3c]">
+                        <dd className="font-medium text-ink-700">
                           {t(noble.sex === 'female' ? 'app.wifeOf' : 'app.husbandOf', {
                             spouse: noble.spouse,
                           })}
@@ -390,7 +391,7 @@ export function SelectedTerritoryDetails({
                     {holder && (
                       <>
                         <dt>{t('app.holder')}</dt>
-                        <dd className="font-medium text-[#594b3c]">
+                        <dd className="font-medium text-ink-700">
                           {noble.status === 'hostage'
                             ? t('app.hostageBy', {
                                 player: displayOwner(holder, holder),
@@ -407,36 +408,36 @@ export function SelectedTerritoryDetails({
             })}
           </ul>
         ) : (
-          <p className="text-sm italic text-[#806f57]">{t('app.noNoble')}</p>
+          <p className="text-sm italic text-ink-500">{t('app.noNoble')}</p>
         )}
       </div>
 
       {selectedState && (
         <>
-          <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">
-            <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
+          <div className="space-y-2 border-t border-line/50 pt-4">
+            <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
               {t('app.army')}
             </h3>
             {selectedState.army ? (
-              <div className="rounded-md bg-[#f3ead9] px-3 py-2 text-sm">
+              <div className="rounded-md bg-paper-100 px-3 py-2 text-sm">
                 <div className="flex items-center justify-between gap-3">
                   <span className="font-semibold">
                     {displayOwner(selectedState.army.owner, selectedState.army.owner)}
                   </span>
-                  <span className="shrink-0 text-xs text-[#806f57]">
+                  <span className="shrink-0 text-xs text-ink-500">
                     {t(selectedState.army.size === 1 ? 'app.troop' : 'app.troops', {
                       count: selectedState.army.size,
                     })}
                   </span>
                 </div>
                 {selectedState.army.starving && (
-                  <p className="mt-2 text-xs font-semibold text-[#8d321e]">
+                  <p className="mt-2 text-xs font-semibold text-vermilion-700">
                     {t('app.armyStarving')}
                   </p>
                 )}
-                <div className="mt-2 border-t border-[#b7a786]/40 pt-2 text-xs text-[#806f57]">
+                <div className="mt-2 border-t border-line/40 pt-2 text-xs text-ink-500">
                   {selectedChain?.visibility === 'hidden' ? (
-                    <p className="rounded-md border border-[#b7a786]/50 bg-[#fffaf0] px-2 py-1.5 italic">
+                    <p className="rounded-md border border-line/50 bg-paper-50 px-2 py-1.5 italic">
                       {t('app.hiddenChain')}
                     </p>
                   ) : selectedChain ? (
@@ -454,7 +455,7 @@ export function SelectedTerritoryDetails({
                         </strong>
                       </p>
                       <div className="mt-2 space-y-1.5">
-                        <p className="font-semibold uppercase tracking-[0.12em] text-[#806f57]">
+                        <p className="font-semibold uppercase tracking-[0.12em] text-ink-500">
                           {t('app.orderStack')}
                         </p>
                         <ol className="space-y-1.5">
@@ -464,7 +465,7 @@ export function SelectedTerritoryDetails({
                               <li
                                 key={`${order.type}-${order.position}-${index}`}
                                 aria-current={current ? 'step' : undefined}
-                                className={`rounded-md border px-2 py-1.5 ${current ? 'border-[#a84632]/60 bg-[#f8e5dd] text-[#8d321e]' : 'border-[#b7a786]/40 bg-[#fffaf0]'}`}
+                                className={`rounded-md border px-2 py-1.5 ${current ? 'border-vermilion-600/60 bg-vermilion-100 text-vermilion-700' : 'border-line/40 bg-paper-50'}`}
                               >
                                 <span className="mr-1.5 font-semibold">{index + 1}.</span>
                                 <span>{formatOrderLabel(order)}</span>
@@ -485,26 +486,26 @@ export function SelectedTerritoryDetails({
                 </div>
               </div>
             ) : (
-              <p className="text-sm italic text-[#806f57]">{t('app.noArmy')}</p>
+              <p className="text-sm italic text-ink-500">{t('app.noArmy')}</p>
             )}
             {selectedState.army && state.season === 'winter' && (
-              <p className="rounded-md border border-[#b7a786]/50 bg-[#fffaf0] px-3 py-2 text-xs text-[#806f57]">
+              <p className="rounded-md border border-line/50 bg-paper-50 px-3 py-2 text-xs text-ink-500">
                 {t('app.noSupplyWinter')}
               </p>
             )}
             {selectedState.army && state.season !== 'winter' && (
-              <div className="rounded-md border border-[#b7a786]/50 bg-[#fffaf0] px-3 py-2 text-xs text-[#594b3c]">
-                <p className="font-semibold uppercase tracking-[0.12em] text-[#806f57]">
+              <div className="rounded-md border border-line/50 bg-paper-50 px-3 py-2 text-xs text-ink-700">
+                <p className="font-semibold uppercase tracking-[0.12em] text-ink-500">
                   {t('app.supply')}
                 </p>
                 {supplyLoading ? (
-                  <p className="mt-1 italic text-[#806f57]">
+                  <p className="mt-1 italic text-ink-500">
                     {t('app.supplyCalculating')}
                   </p>
                 ) : supplyError ? (
-                  <p className="mt-1 text-[#8d321e]">{supplyError}</p>
+                  <p className="mt-1 text-vermilion-700">{supplyError}</p>
                 ) : selectedSupplyLine?.selfSupplied ? (
-                  <p className="mt-1 text-[#376341]">{t('app.localRationsSufficient')}</p>
+                  <p className="mt-1 text-success-700">{t('app.localRationsSufficient')}</p>
                 ) : selectedSupplyLine?.source ? (
                   <>
                     <p className="mt-1">
@@ -525,14 +526,14 @@ export function SelectedTerritoryDetails({
                     </p>
                   </>
                 ) : selectedSupplyLine ? (
-                  <p className="mt-1 text-[#8d321e]">{t('app.noAccessibleSource')}</p>
+                  <p className="mt-1 text-vermilion-700">{t('app.noAccessibleSource')}</p>
                 ) : null}
                 {selectedSupplyLine && (
-                  <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t border-[#b7a786]/40 pt-2">
-                    <dt className="text-[#806f57]">{t('app.localProduction')}</dt>
+                  <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t border-line/40 pt-2">
+                    <dt className="text-ink-500">{t('app.localProduction')}</dt>
                     <dd className="font-medium">
                       {selectedSupplyLine.localProduction}{' '}
-                      <span className="text-xs font-normal text-[#806f57]">
+                      <span className="text-xs font-normal text-ink-500">
                         ({t(TERRAIN_LABEL_KEYS[selectedTerritory.terrain])}{' '}
                         {selectedSupplyLine.terrainProduction}
                         {(selectedSupplyLine.famineRations ?? 0) > 0
@@ -544,13 +545,13 @@ export function SelectedTerritoryDetails({
                         )
                       </span>
                     </dd>
-                    <dt className="text-[#806f57]">{t('app.demand')}</dt>
+                    <dt className="text-ink-500">{t('app.demand')}</dt>
                     <dd className="font-medium">{selectedSupplyLine.totalDemand}</dd>
-                    <dt className="text-[#806f57]">{t('app.toCover')}</dt>
+                    <dt className="text-ink-500">{t('app.toCover')}</dt>
                     <dd
                       className={
                         selectedSupplyLine.demand > 0
-                          ? 'font-semibold text-[#8d321e]'
+                          ? 'font-semibold text-vermilion-700'
                           : 'font-medium'
                       }
                     >
@@ -561,20 +562,20 @@ export function SelectedTerritoryDetails({
               </div>
             )}
             {!selectedState.army && hasSupplySource(selectedState) && (
-              <div className="rounded-md border border-[#b7a786]/50 bg-[#fffaf0] px-3 py-2 text-xs text-[#594b3c]">
-                <p className="font-semibold uppercase tracking-[0.12em] text-[#806f57]">
+              <div className="rounded-md border border-line/50 bg-paper-50 px-3 py-2 text-xs text-ink-700">
+                <p className="font-semibold uppercase tracking-[0.12em] text-ink-500">
                   {t('app.supplyZone')}
                 </p>
                 {state.season === 'winter' ? (
-                  <p className="mt-1 italic text-[#806f57]">{t('app.noSupplyWinter')}</p>
+                  <p className="mt-1 italic text-ink-500">{t('app.noSupplyWinter')}</p>
                 ) : supplyLoading ? (
-                  <p className="mt-1 italic text-[#806f57]">
+                  <p className="mt-1 italic text-ink-500">
                     {t('app.supplyCalculating')}
                   </p>
                 ) : supplyError ? (
-                  <p className="mt-1 text-[#8d321e]">{supplyError}</p>
+                  <p className="mt-1 text-vermilion-700">{supplyError}</p>
                 ) : selectedSupplyLine ? (
-                  <p className="mt-1 text-[#376341]">
+                  <p className="mt-1 text-success-700">
                     {t(
                       selectedSupplyLine.reachable.length > 1
                         ? 'app.reachablePlural'
@@ -588,13 +589,13 @@ export function SelectedTerritoryDetails({
             {state.season !== 'winter' &&
               selectedState.army &&
               transferTargets.length > 0 && (
-                <div className="rounded-md border border-[#b7a786]/50 bg-[#fffaf0] px-3 py-2 text-xs text-[#594b3c]">
-                  <p className="font-semibold uppercase tracking-[0.12em] text-[#806f57]">
+                <div className="rounded-md border border-line/50 bg-paper-50 px-3 py-2 text-xs text-ink-700">
+                  <p className="font-semibold uppercase tracking-[0.12em] text-ink-500">
                     {t('app.transferPreview')}
                   </p>
                   <label
                     htmlFor="transfer-preview-target"
-                    className="mt-2 block text-[#806f57]"
+                    className="mt-2 block text-ink-500"
                   >
                     {t('app.transferTarget')}
                   </label>
@@ -603,7 +604,7 @@ export function SelectedTerritoryDetails({
                     aria-label={t('app.transferTarget')}
                     value={selectedTransferTarget ?? transferTargets[0]}
                     onChange={(event) => onTransferTargetChange(event.target.value)}
-                    className="mt-1 w-full rounded-md border border-[#b7a786] bg-[#fffaf0] px-2 py-1.5 text-xs text-[#30291f] outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20"
+                    className="mt-1 w-full rounded-md border border-line bg-paper-50 px-2 py-1.5 text-xs text-ink-900 outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
                   >
                     {transferTargets.map((target) => (
                       <option key={target} value={target}>
@@ -612,34 +613,34 @@ export function SelectedTerritoryDetails({
                     ))}
                   </select>
                   {transferLoading ? (
-                    <p className="mt-2 italic text-[#806f57]">
+                    <p className="mt-2 italic text-ink-500">
                       {t('app.supplyCalculating')}
                     </p>
                   ) : transferError ? (
-                    <p className="mt-2 text-[#8d321e]">{transferError}</p>
+                    <p className="mt-2 text-vermilion-700">{transferError}</p>
                   ) : transferLine ? (
                     <>
                       <p
-                        className={`mt-2 font-semibold ${transferLine.reachable ? 'text-[#376341]' : 'text-[#8d321e]'}`}
+                        className={`mt-2 font-semibold ${transferLine.reachable ? 'text-success-700' : 'text-vermilion-700'}`}
                         role="status"
                       >
                         {transferLine.reachable
                           ? t('app.transferReachable')
                           : t('reports.reason.transfer_path_blocked')}
                       </p>
-                      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t border-[#b7a786]/40 pt-2">
-                        <dt className="text-[#806f57]">{t('app.sourceLabel')}</dt>
+                      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t border-line/40 pt-2">
+                        <dt className="text-ink-500">{t('app.sourceLabel')}</dt>
                         <dd className="font-medium">
                           {territoryLabel(transferLine.source)}
                         </dd>
-                        <dt className="text-[#806f57]">{t('app.transferTarget')}</dt>
+                        <dt className="text-ink-500">{t('app.transferTarget')}</dt>
                         <dd className="font-medium">
                           {territoryLabel(transferLine.target)}
                         </dd>
                         {transferLine.reachable &&
                           transferLine.distance !== undefined && (
                             <>
-                              <dt className="text-[#806f57]">{t('app.distanceLabel')}</dt>
+                              <dt className="text-ink-500">{t('app.distanceLabel')}</dt>
                               <dd className="font-medium">
                                 {t(
                                   transferLine.distance > 1
@@ -652,8 +653,8 @@ export function SelectedTerritoryDetails({
                           )}
                       </dl>
                       {transferLine.path.length > 0 && (
-                        <p className="mt-2 border-t border-[#b7a786]/40 pt-2">
-                          <span className="text-[#806f57]">
+                        <p className="mt-2 border-t border-line/40 pt-2">
+                          <span className="text-ink-500">
                             {t('app.transferPath')}:{' '}
                           </span>
                           <span className="font-medium">
@@ -667,8 +668,8 @@ export function SelectedTerritoryDetails({
               )}
           </div>
 
-          <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">
-            <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
+          <div className="space-y-2 border-t border-line/50 pt-4">
+            <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
               {t('app.infrastructure')}
             </h3>
             {selectedState.infrastructures.length > 0 ? (
@@ -676,23 +677,23 @@ export function SelectedTerritoryDetails({
                 {selectedState.infrastructures.map((infrastructure, index) => (
                   <li
                     key={`${infrastructure.type}-${index}`}
-                    className="rounded-md bg-[#f3ead9] px-3 py-2"
+                    className="rounded-md bg-paper-100 px-3 py-2"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <span className="flex min-w-0 items-center gap-2 font-medium">
                         <span>{t(INFRASTRUCTURE_LABEL_KEYS[infrastructure.type])}</span>
                         {infrastructure.type === 'castle' && selectedCapitalPlayer && (
-                          <span className="shrink-0 rounded-full bg-[#f8e8ae] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#6d5118]">
+                          <span className="shrink-0 rounded-full bg-gold-100 px-1.5 py-0.5 text-3xs font-bold uppercase tracking-wide text-gold-800">
                             {t('app.capital')}
                           </span>
                         )}
                       </span>
-                      <span className="shrink-0 text-xs text-[#806f57]">
+                      <span className="shrink-0 text-xs text-ink-500">
                         {t('app.level', { level: infrastructure.level })}
                       </span>
                     </div>
                     {infrastructure.type === 'mill' && selectedState.millDestination && (
-                      <p className="mt-1 text-xs text-[#806f57]">
+                      <p className="mt-1 text-xs text-ink-500">
                         {selectedState.millDestination === selectedState.id
                           ? t('app.millKeptInPlace')
                           : t('app.millDestination', {
@@ -704,7 +705,7 @@ export function SelectedTerritoryDetails({
                 ))}
               </ul>
             ) : (
-              <p className="text-sm italic text-[#806f57]">{t('app.noInfrastructure')}</p>
+              <p className="text-sm italic text-ink-500">{t('app.noInfrastructure')}</p>
             )}
           </div>
         </>

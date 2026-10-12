@@ -62,7 +62,7 @@ export function GameSetupMenu({
           type="button"
           aria-label={t('app.gameSetup')}
           title={t('app.gameSetup')}
-          className="flex size-9 items-center justify-center rounded-lg border border-[#b7a786] bg-[#fffaf0] text-[#594b3c] transition hover:bg-[#f3ead9] hover:text-[#30291f] focus-visible:ring-2 focus-visible:ring-[#a84632]/40 focus-visible:outline-none"
+          className="flex size-9 items-center justify-center rounded-lg border border-line bg-paper-50 text-ink-700 transition hover:bg-paper-100 hover:text-ink-900 focus-visible:ring-2 focus-visible:ring-brass-700/40 focus-visible:outline-none"
         >
           <IconAdjustmentsHorizontal aria-hidden="true" className="size-4" />
         </button>
@@ -71,16 +71,16 @@ export function GameSetupMenu({
         <Popover.Content
           align="end"
           sideOffset={8}
-          className="z-50 w-64 rounded-xl border border-[#b7a786] bg-[#fffaf0] p-4 shadow-[0_18px_50px_-30px_rgba(67,46,24,0.9)] data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95"
+          className="z-50 w-64 rounded-xl border border-line bg-paper-50 p-4 shadow-panel-strong data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95"
         >
-          <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#806f57]">
+          <p className="mb-3 text-3xs font-semibold uppercase tracking-[0.2em] text-ink-500">
             {t('app.gameSetup')}
           </p>
           <div className="space-y-3">
             <div>
               <label
                 htmlFor="setup-player-count"
-                className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#806f57]"
+                className="block text-3xs font-semibold uppercase tracking-[0.2em] text-ink-500"
               >
                 {t('app.players')}
               </label>
@@ -90,7 +90,7 @@ export function GameSetupMenu({
               >
                 <SelectTrigger
                   id="setup-player-count"
-                  className="mt-1 w-full border-[#b7a786] bg-[#fffaf0] text-[#30291f]"
+                  className="mt-1 w-full border-line bg-paper-50 text-ink-900"
                 >
                   <SelectValue placeholder={t('app.players')} />
                 </SelectTrigger>
@@ -106,7 +106,7 @@ export function GameSetupMenu({
             <div>
               <label
                 htmlFor="setup-game-seed"
-                className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#806f57]"
+                className="block text-3xs font-semibold uppercase tracking-[0.2em] text-ink-500"
               >
                 {t('app.seed')}
               </label>
@@ -116,13 +116,13 @@ export function GameSetupMenu({
                 value={seed}
                 onChange={(event) => onSeedChange(event.target.value)}
                 placeholder={t('app.seedPlaceholder')}
-                className="mt-1 h-8 w-full rounded-lg border border-[#b7a786] bg-[#fffaf0] px-2.5 text-sm text-[#30291f] outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20"
+                className="mt-1 h-8 w-full rounded-lg border border-line bg-paper-50 px-2.5 text-sm text-ink-900 outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
               />
             </div>
             <div>
               <label
                 htmlFor="setup-game-years"
-                className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#806f57]"
+                className="block text-3xs font-semibold uppercase tracking-[0.2em] text-ink-500"
               >
                 {t('home.gameYears')}
               </label>
@@ -133,7 +133,7 @@ export function GameSetupMenu({
                 max={50}
                 value={years}
                 onChange={(event) => onYearsChange(Number(event.target.value))}
-                className="mt-1 h-8 w-full rounded-lg border border-[#b7a786] bg-[#fffaf0] px-2.5 text-sm text-[#30291f] outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20"
+                className="mt-1 h-8 w-full rounded-lg border border-line bg-paper-50 px-2.5 text-sm text-ink-900 outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
               />
             </div>
             <Button
@@ -150,7 +150,7 @@ export function GameSetupMenu({
             {createError && (
               <p
                 role="alert"
-                className="rounded-md border border-[#a84632]/30 bg-[#f8e5dd] px-2 py-1 text-xs text-[#8d321e]"
+                className="rounded-md border border-vermilion-600/30 bg-vermilion-100 px-2 py-1 text-xs text-vermilion-700"
               >
                 {createError}
               </p>

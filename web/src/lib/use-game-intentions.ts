@@ -10,8 +10,9 @@ import type {
   StateData,
   SubmittedOrdersResponse,
 } from '@/types'
+import { PLAYER_RED } from '@/lib/map-palette'
 
-const DEFAULT_INTENTIONS_COLOR = '#a84632'
+const DEFAULT_INTENTIONS_COLOR = PLAYER_RED
 
 export interface UseGameIntentionsOptions {
   state: StateData | null

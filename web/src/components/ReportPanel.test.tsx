@@ -636,7 +636,7 @@ describe('ReportPanel', () => {
 
     const occupiedLine = screen.getByText('Bruyères (BRU) (fief of Rosemont (ROS)) occupied by P2')
     expect(occupiedLine).toBeInTheDocument()
-    expect(occupiedLine).toHaveClass('text-[#8d321e]')
+    expect(occupiedLine).toHaveClass('text-vermilion-700')
   })
 
   it('warns distinctly about a fief automatically assigned at the end of winter', () => {

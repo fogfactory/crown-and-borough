@@ -1,10 +1,7 @@
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { Intention } from '@/lib/intent-overlay'
-import {
-  DRAFT_INTENTION_COLOR,
-  INTENT_OUTLINE_COLOR,
-  IntentBadge,
-} from '@/components/MapMarkers'
+import { IntentBadge } from '@/components/MapMarkers'
+import { DRAFT_INTENTION_COLOR, INTENT_OUTLINE_COLOR } from '@/lib/map-palette'
 
 export function IntentionsOverlay({
   intentions,

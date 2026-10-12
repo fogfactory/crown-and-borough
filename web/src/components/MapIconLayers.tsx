@@ -3,6 +3,7 @@ import { useLanguage } from '@/i18n/LanguageContext'
 import { GAME_ICON_GLYPHS } from '@/lib/game-icon-glyphs'
 import type { ImpassableBorderIcon } from '@/lib/map-borders'
 import type { CalamityIcon, ScatteredIcon } from '@/lib/region-effect-icons'
+import { MAP_HALO, MAP_INK, PLAYER_RED } from '@/lib/map-palette'
 
 /** Mountain glyphs strung along the impassable frontiers. */
 export function ImpassableBorderChain({ icons }: { icons: ImpassableBorderIcon[] }) {
@@ -15,8 +16,8 @@ export function ImpassableBorderChain({ icons }: { icons: ImpassableBorderIcon[]
           x={icon.placement.x - icon.placement.size / 2}
           y={icon.placement.y - icon.placement.size / 2}
           size={icon.placement.size}
-          fill="#30291f"
-          stroke="#f5ecd9"
+          fill={MAP_INK}
+          stroke={MAP_HALO}
           strokeWidth={20}
           opacity={0.92}
           rotation={(icon.placement.rotation * 180) / Math.PI}
@@ -53,7 +54,7 @@ export function CalamityIconLayer({ icons }: { icons: CalamityIcon[] }) {
                 cy={icon.placement.y}
                 r={icon.placement.size * 0.55}
                 fill="none"
-                stroke="#a84632"
+                stroke={PLAYER_RED}
                 strokeWidth={icon.placement.size * 0.16}
                 opacity={0.95}
               />
@@ -62,7 +63,7 @@ export function CalamityIconLayer({ icons }: { icons: CalamityIcon[] }) {
                 y1={icon.placement.y - icon.placement.size * 0.4}
                 x2={icon.placement.x + icon.placement.size * 0.4}
                 y2={icon.placement.y + icon.placement.size * 0.4}
-                stroke="#a84632"
+                stroke={PLAYER_RED}
                 strokeWidth={icon.placement.size * 0.16}
                 opacity={0.95}
               />

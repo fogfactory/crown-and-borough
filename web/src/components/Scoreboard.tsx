@@ -33,12 +33,12 @@ export function Scoreboard({
   return (
     <section
       aria-labelledby="scoreboard-title"
-      className="rounded-xl border border-[#b7a786]/60 bg-[#f8f0e2] p-3"
+      className="rounded-xl border border-line/60 bg-paper-80 p-3"
     >
       <div className="flex items-center justify-between gap-3">
         <h2
           id="scoreboard-title"
-          className="font-serif text-lg font-semibold text-[#30291f] sm:text-xl"
+          className="font-display text-lg font-semibold text-ink-900 sm:text-xl"
         >
           {t('app.scores')}
         </h2>
@@ -62,18 +62,18 @@ export function Scoreboard({
           return (
             <li
               key={player.id}
-              className="rounded-lg border border-[#b7a786]/50 bg-[#fffaf0] p-2.5"
+              className="rounded-lg border border-line/50 bg-paper-50 p-2.5"
             >
               <div className="flex items-center gap-2">
                 <span
                   aria-hidden="true"
-                  className="size-3 shrink-0 rounded-full border border-[#30291f]/30"
+                  className="size-3 shrink-0 rounded-full border border-ink-900/30"
                   style={{ backgroundColor: player.color }}
                 />
                 <span className="min-w-0 flex-1 truncate text-sm font-semibold">
                   {player.name || player.id}
                 </span>
-                <span className="shrink-0 font-serif text-lg font-semibold text-[#a84632]">
+                <span className="shrink-0 font-display text-lg font-semibold text-brass-700">
                   {score.total}
                 </span>
               </div>
@@ -82,13 +82,13 @@ export function Scoreboard({
                   .filter(([key]) => key !== 'alliance' || (score.alliance ?? 0) > 0)
                   .map(([key, labelKey]) => (
                     <div key={key} className="contents">
-                      <dt className="text-[#806f57]">{t(labelKey)}</dt>
+                      <dt className="text-ink-500">{t(labelKey)}</dt>
                       <dd className="text-right font-medium">{score[key] ?? 0}</dd>
                     </div>
                   ))}
                 {goal?.mode === 'alliance' && goal.partner && (
                   <div className="contents" data-testid={`ally-${player.id}`}>
-                    <dt className="text-[#806f57]">
+                    <dt className="text-ink-500">
                       {t('score.ally', { partner: playerName(goal.partner) })}
                     </dt>
                     <dd className="text-right font-medium">{score.ally ?? 0}</dd>
@@ -97,15 +97,15 @@ export function Scoreboard({
               </dl>
               {goal && (
                 <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                  <span className="text-[#806f57]">
+                  <span className="text-ink-500">
                     {t('score.goal', { required: goal.required })}
                   </span>
                   <span
                     data-testid={`victory-mode-${player.id}`}
-                    className={`rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] ${
+                    className={`rounded border px-1.5 py-0.5 text-3xs font-bold uppercase tracking-[0.1em] ${
                       goal.mode === 'alliance'
-                        ? 'border-[#8a929b] bg-[#e4e7ea] text-[#3f464d]'
-                        : 'border-[#b8860b] bg-[#f8e8ae] text-[#6b4e0a]'
+                        ? 'border-steel-400 bg-steel-100 text-steel-700'
+                        : 'border-gold-500 bg-gold-100 text-gold-850'
                     }`}
                   >
                     {t(
@@ -115,12 +115,12 @@ export function Scoreboard({
                   {outcome && (
                     <span
                       data-testid={`victory-status-${player.id}`}
-                      className={`rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] ${
+                      className={`rounded border px-1.5 py-0.5 text-3xs font-bold uppercase tracking-[0.1em] ${
                         outcome === 'Major'
-                          ? 'border-[#b8860b] bg-[#f8e8ae] text-[#6b4e0a]'
+                          ? 'border-gold-500 bg-gold-100 text-gold-850'
                           : outcome === 'Failure'
-                            ? 'border-[#a84632]/50 bg-[#f4d9d2] text-[#7a2b1c]'
-                            : 'border-[#8a929b] bg-[#e4e7ea] text-[#3f464d]'
+                            ? 'border-brass-700/50 bg-vermilion-250 text-vermilion-800'
+                            : 'border-steel-400 bg-steel-100 text-steel-700'
                       }`}
                     >
                       {t(

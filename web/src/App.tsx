@@ -60,6 +60,7 @@ import type {
   OrdersResponse,
   OrdersPreview,
 } from '@/types'
+import { DEFAULT_PLAYER_COLOR } from '@/lib/map-palette'
 
 type HotseatView = 'game' | 'rules' | 'faq'
 
@@ -462,7 +463,7 @@ function AppContent() {
           role="alert"
           className="flex h-full items-center justify-center px-6 text-center"
         >
-          <p className="font-serif text-lg text-[#a84632]">
+          <p className="font-display text-lg text-brass-700">
             {t('app.mapLoadFailed', { message: loadError })}
           </p>
         </div>
@@ -494,7 +495,7 @@ function AppContent() {
     }
     return (
       <div className="flex h-full items-center justify-center px-6 text-center">
-        <p className="font-serif text-lg italic text-[#806f57]">{t('app.mapLoading')}</p>
+        <p className="font-display text-lg italic text-ink-500">{t('app.mapLoading')}</p>
       </div>
     )
   }
@@ -609,19 +610,19 @@ function AppContent() {
   return (
     <div
       lang={language}
-      className={`flex flex-col bg-[#efe7d8] text-[#30291f] ${
+      className={`flex flex-col bg-paper-200 text-ink-900 ${
         view === 'game' ? 'h-dvh overflow-hidden' : 'min-h-screen'
       }`}
     >
-      <header className="z-30 shrink-0 border-b border-[#b7a786]/60 bg-[#fffaf0]/95 px-3 py-2 shadow-sm backdrop-blur-sm sm:px-6">
+      <header className="z-30 shrink-0 border-b border-line/60 bg-paper-50/95 px-3 py-2 shadow-sm backdrop-blur-sm sm:px-6">
         <div className="mx-auto flex max-w-[1800px] flex-wrap items-center gap-x-3 gap-y-2">
           <div className="flex items-center gap-2.5">
             <BrandMark className="size-9 sm:size-11" />
             <div className="min-w-0">
-              <h1 className="truncate font-serif text-base font-semibold tracking-tight sm:text-xl">
+              <h1 className="truncate font-display text-base font-semibold tracking-tight sm:text-xl">
                 Crown &amp; Borough
               </h1>
-              <p className="hidden text-[10px] uppercase tracking-[0.18em] text-[#806f57] min-[420px]:block">
+              <p className="hidden text-3xs uppercase tracking-[0.18em] text-ink-500 min-[420px]:block">
                 {t('app.tagline')}
               </p>
             </div>
@@ -637,7 +638,7 @@ function AppContent() {
                 key={nextView}
                 type="button"
                 aria-current={view === nextView ? 'page' : undefined}
-                className={`rounded-md px-2.5 py-1.5 text-sm font-semibold transition ${view === nextView ? 'bg-[#f3ead9] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:bg-[#f3ead9] hover:text-[#30291f]'}`}
+                className={`rounded-md px-2.5 py-1.5 text-sm font-semibold transition ${view === nextView ? 'bg-paper-100 text-brass-700 shadow-sm' : 'text-ink-500 hover:bg-paper-100 hover:text-ink-900'}`}
                 onClick={() => setView(nextView)}
               >
                 {t(`nav.${nextView}`)}
@@ -656,7 +657,7 @@ function AppContent() {
                   : t('app.loading')}
               </p>
               {state && (
-                <p className="text-[10px] leading-tight text-[#806f57]">
+                <p className="text-3xs leading-tight text-ink-500">
                   {t('app.year', { year: 1000 + internalYear(state) })} ·{' '}
                   {t('app.remainingYearsTurns', {
                     years: remainingYears(state),
@@ -723,11 +724,11 @@ function AppContent() {
             <div className="flex items-center gap-1.5">
               <span
                 role="img"
-                className="size-3 shrink-0 rounded-full border border-[#30291f]/30 shadow-inner"
+                className="size-3 shrink-0 rounded-full border border-ink-900/30 shadow-inner"
                 style={{
                   backgroundColor:
                     state?.players.find((player) => player.id === selectedPlayer)
-                      ?.color ?? '#b7a786',
+                      ?.color ?? DEFAULT_PLAYER_COLOR,
                 }}
                 aria-label={t('app.colorOf', {
                   player: ownerLabel(selectedPlayer, state, t),
@@ -739,7 +740,7 @@ function AppContent() {
               <Select value={selectedPlayer} onValueChange={setSelectedPlayer}>
                 <SelectTrigger
                   id="player-view"
-                  className="w-32 border-[#b7a786] bg-[#fffaf0] text-[#30291f] sm:w-44"
+                  className="w-32 border-line bg-paper-50 text-ink-900 sm:w-44"
                 >
                   <SelectValue placeholder={t('app.choosePlayer')} />
                 </SelectTrigger>
@@ -768,7 +769,7 @@ function AppContent() {
               <div>
                 <label
                   htmlFor="player-count"
-                  className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#806f57]"
+                  className="block text-3xs font-semibold uppercase tracking-[0.2em] text-ink-500"
                 >
                   {t('app.players')}
                 </label>
@@ -778,7 +779,7 @@ function AppContent() {
                 >
                   <SelectTrigger
                     id="player-count"
-                    className="w-[76px] border-[#b7a786] bg-[#fffaf0] text-[#30291f]"
+                    className="w-[76px] border-line bg-paper-50 text-ink-900"
                   >
                     <SelectValue placeholder={t('app.players')} />
                   </SelectTrigger>
@@ -794,7 +795,7 @@ function AppContent() {
               <div>
                 <label
                   htmlFor="game-seed"
-                  className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#806f57]"
+                  className="block text-3xs font-semibold uppercase tracking-[0.2em] text-ink-500"
                 >
                   {t('app.seed')}
                 </label>
@@ -804,13 +805,13 @@ function AppContent() {
                   value={seed}
                   onChange={(event) => setSeed(event.target.value)}
                   placeholder={t('app.seedPlaceholder')}
-                  className="h-8 w-44 rounded-lg border border-[#b7a786] bg-[#fffaf0] px-2.5 text-sm text-[#30291f] outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20 sm:w-52"
+                  className="h-8 w-44 rounded-lg border border-line bg-paper-50 px-2.5 text-sm text-ink-900 outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20 sm:w-52"
                 />
               </div>
               <div>
                 <label
                   htmlFor="game-years"
-                  className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#806f57]"
+                  className="block text-3xs font-semibold uppercase tracking-[0.2em] text-ink-500"
                 >
                   {t('home.gameYears')}
                 </label>
@@ -821,7 +822,7 @@ function AppContent() {
                   max={50}
                   value={years}
                   onChange={(event) => setYears(Number(event.target.value))}
-                  className="h-8 w-20 rounded-lg border border-[#b7a786] bg-[#fffaf0] px-2.5 text-sm text-[#30291f] outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20"
+                  className="h-8 w-20 rounded-lg border border-line bg-paper-50 px-2.5 text-sm text-ink-900 outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
                 />
               </div>
               <Button
@@ -854,7 +855,7 @@ function AppContent() {
       </header>
 
       {view === 'game' && state?.finished && (
-        <div className="mx-auto mt-2 w-full max-w-[1800px] shrink-0 rounded-xl border border-[#815f1e]/50 bg-[#f8e8ae]/60 px-4 py-2 text-center text-sm font-semibold text-[#6d5118] sm:mx-6">
+        <div className="mx-auto mt-2 w-full max-w-[1800px] shrink-0 rounded-xl border border-gold-600/50 bg-gold-100/60 px-4 py-2 text-center text-sm font-semibold text-gold-800 sm:mx-6">
           {state.winner
             ? `${t('online.victory')}: ${ownerLabel(state.winner, state, t)}`
             : t('app.finished')}
@@ -870,7 +871,7 @@ function AppContent() {
               subtitle={t('app.selectedPlayer', { player: selectedPlayer })}
               reportLabelExtra={
                 report && viewedReportTurn !== report.header.turn ? (
-                  <span className="ml-1 rounded-full bg-[#a84632] px-1.5 py-0.5 text-[10px] text-[#fffaf0]">
+                  <span className="ml-1 rounded-full bg-brass-400 px-1.5 py-0.5 text-3xs text-paper-50">
                     {t('app.reportNew')}
                   </span>
                 ) : null

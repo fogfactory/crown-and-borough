@@ -16,7 +16,7 @@ export function MapControls({ onZoom }: { onZoom: (zoomFactor: number) => void }
         type="button"
         aria-label={t('map.zoomIn')}
         title={t('map.zoomIn')}
-        className="flex size-9 items-center justify-center rounded-lg border border-[#b7a786] bg-[#fffaf0] text-[#594b3c] shadow-md transition hover:bg-[#f3ead9] hover:text-[#30291f] focus-visible:ring-2 focus-visible:ring-[#a84632]/40 focus-visible:outline-none"
+        className="flex size-9 items-center justify-center rounded-lg border border-line bg-paper-50 text-ink-700 shadow-md transition hover:bg-paper-100 hover:text-ink-900 focus-visible:ring-2 focus-visible:ring-brass-700/40 focus-visible:outline-none"
         onClick={() => onZoom(ZOOM_BUTTON_FACTOR)}
       >
         <IconPlus aria-hidden="true" className="size-4" />
@@ -25,7 +25,7 @@ export function MapControls({ onZoom }: { onZoom: (zoomFactor: number) => void }
         type="button"
         aria-label={t('map.zoomOut')}
         title={t('map.zoomOut')}
-        className="flex size-9 items-center justify-center rounded-lg border border-[#b7a786] bg-[#fffaf0] text-[#594b3c] shadow-md transition hover:bg-[#f3ead9] hover:text-[#30291f] focus-visible:ring-2 focus-visible:ring-[#a84632]/40 focus-visible:outline-none"
+        className="flex size-9 items-center justify-center rounded-lg border border-line bg-paper-50 text-ink-700 shadow-md transition hover:bg-paper-100 hover:text-ink-900 focus-visible:ring-2 focus-visible:ring-brass-700/40 focus-visible:outline-none"
         onClick={() => onZoom(1 / ZOOM_BUTTON_FACTOR)}
       >
         <IconMinus aria-hidden="true" className="size-4" />
@@ -34,7 +34,7 @@ export function MapControls({ onZoom }: { onZoom: (zoomFactor: number) => void }
         type="button"
         aria-label={t('map.recenter')}
         title={t('map.recenter')}
-        className="flex size-9 items-center justify-center rounded-lg border border-[#b7a786] bg-[#fffaf0] text-[#594b3c] shadow-md transition hover:bg-[#f3ead9] hover:text-[#30291f] focus-visible:ring-2 focus-visible:ring-[#a84632]/40 focus-visible:outline-none"
+        className="flex size-9 items-center justify-center rounded-lg border border-line bg-paper-50 text-ink-700 shadow-md transition hover:bg-paper-100 hover:text-ink-900 focus-visible:ring-2 focus-visible:ring-brass-700/40 focus-visible:outline-none"
         onClick={() => onZoom(0)}
       >
         <IconFocus2 aria-hidden="true" className="size-4" />

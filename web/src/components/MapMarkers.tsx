@@ -4,11 +4,19 @@ import type { WinterIntention } from '@/lib/winter-overlay'
 import { GAME_ICON_GLYPHS, type GameIconGlyph as GameIconGlyphSpec } from '@/lib/game-icon-glyphs'
 import { OWNERSHIP_SHIELD_PATH } from '@/components/MapLegend'
 import type { Infrastructure, Noble, Point } from '@/types'
+import {
+  FAMINE_MARKER_COLOR,
+  FORTIFICATION_WALL_FILL,
+  INTENT_OUTLINE_COLOR,
+  MAP_INK,
+  MAP_PARCHMENT,
+  MARKER_BRASS,
+  MARKER_BROWN,
+  MARKER_GLINT,
+  NEUTRAL_MARKER_FILL,
+  PRISONER_RING_COLOR,
+} from '@/lib/map-palette'
 
-/** Outline color shared by every intention/order annotation on the map. */
-export const INTENT_OUTLINE_COLOR = '#17120f'
-/** Fill used for a drafted (not yet submitted) order's markers. */
-export const DRAFT_INTENTION_COLOR = '#d4a39b'
 
 // Map marker artwork from game-icons.net (CC BY 3.0, icons by Delapouite):
 // https://game-icons.net/1x1/delapouite/castle.html
@@ -43,16 +51,13 @@ const CROWN_PATH = 'M12 6l4 6l5 -4l-2 10h-14l-2 -10l5 4l4 -6'
  */
 const FORTIFICATION_WALL_GLYPH =
   'M25 41v110h462V41h-21v55h-36V41h-60v55h-36V41h-60v55h-36V41h-60v55h-36V41H82v55H46V41H25zm0 128v206h62v-46H64v-18h71v-46H96v-18h96v18h-39v46h71v18h-7v46h270V169h-30v39h-18v-39H329v39h-18v-39H201v39h-18v-39H73v39H55v-39H25zm247 78h176v18h-87v55h-18v-55h-71v-18zm-167 82v46h94v-46h-94zm-80 64v94h47.973l14.297-57.184 17.46 4.368L91.527 487h328.946l-13.203-52.816 17.46-4.368L439.027 487H487v-94H346.98l13.846 69.234-17.652 3.532L328.62 393H183.38l-14.554 72.766-17.652-3.532L165.02 393H25z'
-const FORTIFICATION_WALL_FILL = '#b8b8b4'
 /** Bottom-aligned, full-width, one-third-height transform for the wall
  * overlay: squashing scaleY (not scaleX too) keeps it spanning the glyph's
  * full width as a low course, and dy pushes the squashed copy's bottom back
  * down to the glyph's own bottom edge. */
 const FORTIFICATION_WALL_TRANSFORM = `translate(0 ${512 - 512 / 3}) scale(1 ${1 / 3})`
 
-/** Neutral fill/stroke for infrastructure without a controlling player. */
-const NEUTRAL_MARKER_FILL = '#efe6d0'
-const MARKER_CASING_COLOR = '#30291f'
+const MARKER_CASING_COLOR = MAP_INK
 
 const INFRASTRUCTURE_LABEL_KEYS: Record<Infrastructure['type'], MessageKey> = {
   mill: 'infrastructure.mill',
@@ -124,11 +129,11 @@ export function InfrastructureMarker({
             strokeWidth="2"
           />
           <g transform="translate(-13 -13) scale(0.05078125)">
-            <path d={glyph} fill="#fff8e7" />
+            <path d={glyph} fill={MAP_PARCHMENT} />
             <path d={glyph} fill="none" stroke={INTENT_OUTLINE_COLOR} strokeWidth={10} />
             {fortified && (
               <g transform={FORTIFICATION_WALL_TRANSFORM}>
-                <path d={FORTIFICATION_WALL_GLYPH} fill="#fff8e7" />
+                <path d={FORTIFICATION_WALL_GLYPH} fill={MAP_PARCHMENT} />
                 <path
                   d={FORTIFICATION_WALL_GLYPH}
                   fill="none"
@@ -144,8 +149,8 @@ export function InfrastructureMarker({
           {/* Light halo keeps the glyph readable on any terrain fill. */}
           <path
             d={glyph}
-            fill="#fff8e7"
-            stroke="#fff8e7"
+            fill={MAP_PARCHMENT}
+            stroke={MAP_PARCHMENT}
             strokeWidth={20}
             opacity={0.9}
           />
@@ -159,8 +164,8 @@ export function InfrastructureMarker({
             <g transform={FORTIFICATION_WALL_TRANSFORM}>
               <path
                 d={FORTIFICATION_WALL_GLYPH}
-                fill="#fff8e7"
-                stroke="#fff8e7"
+                fill={MAP_PARCHMENT}
+                stroke={MAP_PARCHMENT}
                 strokeWidth={20}
                 opacity={0.9}
               />
@@ -181,10 +186,10 @@ export function InfrastructureMarker({
           transform="translate(0 -20) scale(0.5)"
           pointerEvents="none"
         >
-          <g stroke="#fff8e7" strokeWidth={4} opacity={0.85}>
+          <g stroke={MAP_PARCHMENT} strokeWidth={4} opacity={0.85}>
             <TablerMarkerPaths paths={[CROWN_PATH]} />
           </g>
-          <g stroke="#815f1e" strokeWidth={2}>
+          <g stroke={MARKER_BRASS} strokeWidth={2}>
             <TablerMarkerPaths paths={[CROWN_PATH]} />
           </g>
         </g>
@@ -193,7 +198,7 @@ export function InfrastructureMarker({
         <text
           x="14"
           y="-9"
-          fill="#4e3828"
+          fill={MARKER_BROWN}
           fontSize="10"
           fontWeight="700"
           textAnchor="middle"
@@ -226,12 +231,12 @@ export function NobleMarker({
       <path
         d="M0-8L8 0L0 8L-8 0Z"
         fill={color}
-        stroke={prisoner ? '#8d321e' : '#815f1e'}
+        stroke={prisoner ? PRISONER_RING_COLOR : MARKER_BRASS}
         strokeWidth="1.5"
       />
-      <circle cx="0" cy="0" r="2" fill="#fff3c4" />
+      <circle cx="0" cy="0" r="2" fill={MARKER_GLINT} />
       {prisoner && (
-        <circle cx="0" cy="0" r="4.5" fill="none" stroke="#8d321e" strokeWidth="1.5" />
+        <circle cx="0" cy="0" r="4.5" fill="none" stroke={PRISONER_RING_COLOR} strokeWidth="1.5" />
       )}
     </g>
   )
@@ -240,7 +245,6 @@ export function NobleMarker({
 /** Danger red shared with every other "unfed"/risk indicator in the app
  * (command post's famine risk text, SelectedTerritoryDetails' unreachable
  * source warning). */
-const FAMINE_MARKER_COLOR = '#8d321e'
 
 /** Same "desert-skull" glyph as the famine calamity overlay (game-icons.net,
  * CC BY 3.0, Delapouite), reused here so a starving army reads at a glance
@@ -266,7 +270,7 @@ export function FamineMarker({ x, y, scale }: { x: number; y: number; scale: num
         y={y - size / 2}
         size={size}
         fill={FAMINE_MARKER_COLOR}
-        stroke="#fff8e7"
+        stroke={MAP_PARCHMENT}
         strokeWidth={20}
         opacity={1}
       />
@@ -305,8 +309,8 @@ export function OwnershipBadge({
       <title>{label}</title>
       <path
         d={OWNERSHIP_SHIELD_PATH}
-        fill="#fff8e7"
-        stroke="#fff8e7"
+        fill={MAP_PARCHMENT}
+        stroke={MAP_PARCHMENT}
         strokeWidth={5}
         opacity={0.9}
       />
@@ -320,7 +324,7 @@ export function OwnershipBadge({
       {code && (
         <text
           y={-5.5}
-          fill="#fff8e7"
+          fill={MAP_PARCHMENT}
           fontSize={7}
           fontWeight="800"
           textAnchor="middle"
@@ -350,7 +354,7 @@ export function IntentBadge({
   scale: number
   isDraft: boolean
 }) {
-  const foreground = isDraft ? '#30291f' : '#fff8e7'
+  const foreground = isDraft ? MAP_INK : MAP_PARCHMENT
 
   return (
     <g transform={`translate(${x} ${y})`}>
@@ -359,7 +363,7 @@ export function IntentBadge({
         cy="0"
         r={8 * scale}
         fill={color}
-        stroke="#fff8e7"
+        stroke={MAP_PARCHMENT}
         strokeWidth={1.5 * scale}
       />
       <text
@@ -376,11 +380,11 @@ export function IntentBadge({
       <text
         x={11 * scale}
         y={-1 * scale}
-        fill={isDraft ? '#30291f' : color}
+        fill={isDraft ? MAP_INK : color}
         fontSize={9 * scale}
         fontWeight="700"
         textAnchor="middle"
-        stroke="#fff8e7"
+        stroke={MAP_PARCHMENT}
         strokeWidth={2.5 * scale}
         paintOrder="stroke"
       >
@@ -416,13 +420,13 @@ export function WinterBadge({
         r={9 * scale}
         fill={color}
         fillOpacity="0.48"
-        stroke="#fff8e7"
+        stroke={MAP_PARCHMENT}
         strokeWidth={2 * scale}
       />
       <text
         x="0"
         y="0"
-        fill="#30291f"
+        fill={MAP_INK}
         fontSize={label.length > 2 ? 6.5 * scale : 8 * scale}
         fontWeight="800"
         textAnchor="middle"
@@ -434,11 +438,11 @@ export function WinterBadge({
         <text
           x={13 * scale}
           y={-1 * scale}
-          fill="#30291f"
+          fill={MAP_INK}
           fontSize={8 * scale}
           fontWeight="800"
           textAnchor="start"
-          stroke="#fff8e7"
+          stroke={MAP_PARCHMENT}
           strokeWidth={2.5 * scale}
           paintOrder="stroke"
         >
@@ -482,7 +486,7 @@ export function WinterMarkerTriangle({
       <text
         x="0"
         y={3 * scale}
-        fill="#fff8e7"
+        fill={MAP_PARCHMENT}
         fontSize={7 * scale}
         fontWeight="800"
         textAnchor="middle"

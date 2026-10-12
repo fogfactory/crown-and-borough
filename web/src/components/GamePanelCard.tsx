@@ -40,16 +40,16 @@ export function GamePanelCard({
   const { t } = useLanguage()
 
   return (
-    <Card className="border-[#b7a786] bg-[#fffaf0] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)]">
-      <CardHeader className="border-b border-[#b7a786]/50 pb-3">
-        <CardTitle className="font-serif text-lg text-[#30291f] sm:text-xl">
+    <Card className="border-line bg-paper-50 shadow-panel">
+      <CardHeader className="border-b border-line/50 pb-3">
+        <CardTitle className="font-display text-lg text-ink-900 sm:text-xl">
           {activePanel === 'command'
             ? t('app.commandPost')
             : activePanel === 'report'
               ? t('app.turnReport')
               : t('app.rules')}
         </CardTitle>
-        <CardDescription className="text-[#806f57]">{subtitle}</CardDescription>
+        <CardDescription className="text-ink-500">{subtitle}</CardDescription>
         <CommandReportRulesTabs
           activePanel={activePanel}
           onPanelChange={onPanelChange}

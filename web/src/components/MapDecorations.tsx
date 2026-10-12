@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 
 import type { Terrain } from '@/types'
+import { TERRAIN_PATTERN_STROKES } from '@/lib/map-palette'
 
 /**
  * Cartographic texture per terrain: a repeating symbol in a darker shade of
@@ -74,14 +75,6 @@ export const TERRAIN_PATTERNS: TerrainPatternSpec[] = [
   },
 ]
 
-const TERRAIN_PATTERN_STROKES: Record<Terrain, string> = {
-  plain: '#5a7a34',
-  forest: '#14291d',
-  hill: '#6b4a30',
-  mountain: '#4d565e',
-  swamp: '#2e5f5a',
-}
-
 export function TerrainPattern({
   terrain,
   scale,
@@ -100,7 +93,7 @@ export function TerrainPattern({
         stroke={TERRAIN_PATTERN_STROKES[terrain.terrain]}
         strokeWidth={(terrain.strokeWidth ?? 1.3) * scale}
         strokeOpacity={0.22}
-        fill={terrain.terrain === 'forest' ? '#14291d' : 'none'}
+        fill={terrain.terrain === 'forest' ? TERRAIN_PATTERN_STROKES.forest : 'none'}
         fillOpacity={0.18}
       >
         {terrain.render(scale)}

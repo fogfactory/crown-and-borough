@@ -73,7 +73,7 @@ export function PanelSheet({ children, className, focusSignal = 0 }: PanelSheetP
       data-sheet-snap={snap}
       data-testid="panel-sheet"
       className={cn(
-        'fixed inset-x-0 bottom-0 z-40 flex flex-col rounded-t-2xl border-t border-[#b7a786] bg-[#efe7d8] shadow-[0_-12px_40px_-20px_rgba(67,46,24,0.6)] transition-[height] duration-200 ease-out lg:static lg:z-auto lg:h-full lg:min-h-0 lg:rounded-none lg:border-0 lg:bg-transparent lg:shadow-none',
+        'fixed inset-x-0 bottom-0 z-40 flex flex-col rounded-t-2xl border-t border-line bg-paper-200 shadow-sheet transition-[height] duration-200 ease-out lg:static lg:z-auto lg:h-full lg:min-h-0 lg:rounded-none lg:border-0 lg:bg-transparent lg:shadow-none',
         SHEET_HEIGHTS[snap],
         className,
       )}
@@ -84,11 +84,11 @@ export function PanelSheet({ children, className, focusSignal = 0 }: PanelSheetP
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
       >
-        <div className="h-1.5 w-12 rounded-full bg-[#b7a786]" aria-hidden="true" />
+        <div className="h-1.5 w-12 rounded-full bg-line" aria-hidden="true" />
         <button
           type="button"
           aria-label={t(snap === 'full' ? 'panel.collapse' : 'panel.expand')}
-          className="absolute right-3 top-1.5 flex size-7 items-center justify-center rounded-md text-[#806f57] transition hover:bg-[#f3ead9] hover:text-[#30291f] focus-visible:ring-2 focus-visible:ring-[#a84632]/40 focus-visible:outline-none"
+          className="absolute right-3 top-1.5 flex size-7 items-center justify-center rounded-md text-ink-500 transition hover:bg-paper-100 hover:text-ink-900 focus-visible:ring-2 focus-visible:ring-brass-700/40 focus-visible:outline-none"
           onClick={() => setSnap(nextSheetSnap)}
           onKeyDown={handleChevronKeyDown}
         >

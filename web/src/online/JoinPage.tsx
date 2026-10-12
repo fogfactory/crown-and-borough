@@ -78,22 +78,22 @@ export function JoinPage() {
   ])
 
   return (
-    <Card className="mx-auto max-w-xl border-[#b7a786] bg-[#fffaf0] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)]">
+    <Card className="mx-auto max-w-xl border-line bg-paper-50 shadow-panel">
       <CardHeader>
-        <CardTitle className="font-serif text-3xl text-[#30291f]">
+        <CardTitle className="font-display text-3xl text-ink-900">
           {t('join.title')}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {joining ? (
-          <p className="text-sm italic text-[#806f57]" role="status">
+          <p className="text-sm italic text-ink-500" role="status">
             {t('join.validating')}
           </p>
         ) : error ? (
           <>
             <p
               role="alert"
-              className="rounded-lg border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-3 text-sm text-[#8d321e]"
+              className="rounded-lg border border-vermilion-600/30 bg-vermilion-100 px-3 py-3 text-sm text-vermilion-700"
             >
               {error}
             </p>

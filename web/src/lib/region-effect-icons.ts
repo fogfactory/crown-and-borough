@@ -7,6 +7,7 @@ import {
   parseSpecialOrderPlacements,
 } from '@/lib/game-icons'
 import type { ActiveRegionEffect, PlayerId, Region, StateData, Territory } from '@/types'
+import { UNKNOWN_OWNER_COLOR } from '@/lib/map-palette'
 
 export interface SpecialOrderDraft {
   player: PlayerId
@@ -194,7 +195,7 @@ export function cardIconItems(
           scatterItems.push({
             key: `${seedKey}-${placement2.x.toFixed(1)}-${placement2.y.toFixed(1)}`,
             glyph: style.glyph,
-            fill: colorsByPlayer.get(player) ?? '#475569',
+            fill: colorsByPlayer.get(player) ?? UNKNOWN_OWNER_COLOR,
             stroke: style.stroke,
             strokeWidth: style.strokeWidth,
             opacity: style.opacity,

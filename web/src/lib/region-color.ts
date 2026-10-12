@@ -1,11 +1,6 @@
-export const HERALDIC_COLORS = [
-  '#1d4ed8',
-  '#b91c1c',
-  '#15803d',
-  '#d97706',
-  '#7c3aed',
-  '#374151',
-] as const
+import { HERALDIC_COLORS } from '@/lib/map-palette'
+
+export { HERALDIC_COLORS }
 
 export const REGION_PATTERNS = [
   'diagonal',

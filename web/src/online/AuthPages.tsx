@@ -55,25 +55,25 @@ export function SignInPage() {
   }
 
   return (
-    <Card className="mx-auto max-w-md border-[#b7a786] bg-[#fffaf0] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)]">
+    <Card className="mx-auto max-w-md border-line bg-paper-50 shadow-panel">
       <CardHeader>
         <Link
           to="/"
-          className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-[#a84632]"
+          className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-brass-700"
         >
           Crown &amp; Borough
         </Link>
-        <CardTitle className="font-serif text-3xl text-[#30291f]">
+        <CardTitle className="font-display text-3xl text-ink-900">
           {t('auth.title')}
         </CardTitle>
-        <CardDescription className="text-[#806f57]">
+        <CardDescription className="text-ink-500">
           {sent ? t('auth.linkSentHint') : t('profile.description')}
         </CardDescription>
       </CardHeader>
       <CardContent>
         {sent ? (
           <div className="space-y-4" role="status" aria-live="polite">
-            <p className="rounded-lg border border-[#376341]/30 bg-[#e8f1e3] px-3 py-3 text-sm text-[#376341]">
+            <p className="rounded-lg border border-success-700/30 bg-success-100 px-3 py-3 text-sm text-success-700">
               {t('auth.linkSent')}: <strong>{email}</strong>
             </p>
             <Button
@@ -88,7 +88,7 @@ export function SignInPage() {
         ) : (
           <form className="space-y-4" onSubmit={(event) => void handleSubmit(event)}>
             <label className="block space-y-1.5">
-              <span className="text-sm font-semibold text-[#594b3c]">
+              <span className="text-sm font-semibold text-ink-700">
                 {t('auth.email')}
               </span>
               <input
@@ -97,13 +97,13 @@ export function SignInPage() {
                 required
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className="h-11 w-full rounded-lg border border-[#b7a786] bg-[#f8f0e2] px-3 text-sm outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20"
+                className="h-11 w-full rounded-lg border border-line bg-paper-80 px-3 text-sm outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
               />
             </label>
             {error && (
               <p
                 role="alert"
-                className="rounded-lg border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 text-sm text-[#8d321e]"
+                className="rounded-lg border border-vermilion-600/30 bg-vermilion-100 px-3 py-2 text-sm text-vermilion-700"
               >
                 {error}
               </p>
@@ -163,9 +163,9 @@ export function FinishPage() {
   }, [finishSignIn, navigate, redirect, status])
 
   return (
-    <Card className="mx-auto max-w-md border-[#b7a786] bg-[#fffaf0] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)]">
+    <Card className="mx-auto max-w-md border-line bg-paper-50 shadow-panel">
       <CardHeader>
-        <CardTitle className="font-serif text-2xl text-[#30291f]">
+        <CardTitle className="font-display text-2xl text-ink-900">
           {t('auth.verifyLink')}
         </CardTitle>
       </CardHeader>
@@ -173,7 +173,7 @@ export function FinishPage() {
         {error && (
           <p
             role="alert"
-            className="mb-4 rounded-lg border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 text-sm text-[#8d321e]"
+            className="mb-4 rounded-lg border border-vermilion-600/30 bg-vermilion-100 px-3 py-2 text-sm text-vermilion-700"
           >
             {error}
           </p>
@@ -187,7 +187,7 @@ export function FinishPage() {
             }}
           >
             <label className="block space-y-1.5">
-              <span className="text-sm font-semibold text-[#594b3c]">
+              <span className="text-sm font-semibold text-ink-700">
                 {t('auth.emailMissing')}
               </span>
               <input
@@ -196,7 +196,7 @@ export function FinishPage() {
                 required
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className="h-11 w-full rounded-lg border border-[#b7a786] bg-[#f8f0e2] px-3 text-sm outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20"
+                className="h-11 w-full rounded-lg border border-line bg-paper-80 px-3 text-sm outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
               />
             </label>
             <Button type="submit" className="w-full" disabled={retrying || !email.trim()}>
@@ -208,14 +208,14 @@ export function FinishPage() {
           <div className="mt-4">
             <Link
               to="/signin"
-              className="block text-center text-sm font-semibold text-[#a84632] underline underline-offset-4"
+              className="block text-center text-sm font-semibold text-brass-700 underline underline-offset-4"
             >
               {t('auth.backToSignIn')}
             </Link>
           </div>
         )}
         {!error && !emailRequired && (
-          <p className="text-sm text-[#806f57]">{t('online.loading')}</p>
+          <p className="text-sm text-ink-500">{t('online.loading')}</p>
         )}
       </CardContent>
     </Card>
@@ -238,7 +238,7 @@ export function ProfilePage() {
 
   if (profileLoading && !profile) {
     return (
-      <p className="py-20 text-center font-serif text-lg italic text-[#806f57]">
+      <p className="py-20 text-center font-display text-lg italic text-ink-500">
         {t('online.loading')}
       </p>
     )
@@ -259,19 +259,19 @@ export function ProfilePage() {
   }
 
   return (
-    <Card className="mx-auto max-w-xl border-[#b7a786] bg-[#fffaf0] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)]">
+    <Card className="mx-auto max-w-xl border-line bg-paper-50 shadow-panel">
       <CardHeader>
-        <CardTitle className="font-serif text-3xl text-[#30291f]">
+        <CardTitle className="font-display text-3xl text-ink-900">
           {t('profile.title')}
         </CardTitle>
-        <CardDescription className="text-[#806f57]">
+        <CardDescription className="text-ink-500">
           {t('profile.description')}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form className="space-y-4" onSubmit={(event) => void handleSubmit(event)}>
           <label className="block space-y-1.5">
-            <span className="text-sm font-semibold text-[#594b3c]">
+            <span className="text-sm font-semibold text-ink-700">
               {t('profile.displayName')}
             </span>
             <input
@@ -282,13 +282,13 @@ export function ProfilePage() {
               value={displayName}
               placeholder={t('profile.displayNamePlaceholder')}
               onChange={(event) => setDisplayName(event.target.value)}
-              className="h-11 w-full rounded-lg border border-[#b7a786] bg-[#f8f0e2] px-3 text-sm outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20"
+              className="h-11 w-full rounded-lg border border-line bg-paper-80 px-3 text-sm outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
             />
           </label>
           {error && (
             <p
               role="alert"
-              className="rounded-lg border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 text-sm text-[#8d321e]"
+              className="rounded-lg border border-vermilion-600/30 bg-vermilion-100 px-3 py-2 text-sm text-vermilion-700"
             >
               {error}
             </p>

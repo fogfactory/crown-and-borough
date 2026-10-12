@@ -144,14 +144,14 @@ function Lobby({
 }) {
   const { t } = useLanguage()
   return (
-    <Card className="border-[#b7a786] bg-[#fffaf0]">
+    <Card className="border-line bg-paper-50">
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <CardTitle className="font-serif text-2xl text-[#30291f]">
+            <CardTitle className="font-display text-2xl text-ink-900">
               {t('online.lobby')}
             </CardTitle>
-            <CardDescription className="mt-1 text-[#806f57]">
+            <CardDescription className="mt-1 text-ink-500">
               {summary.players.length} {t('app.players').toLowerCase()}
             </CardDescription>
           </div>
@@ -171,23 +171,23 @@ function Lobby({
       <CardContent className="space-y-4">
         <ul className="grid gap-2 sm:grid-cols-2">
           {summary.players.map((player) => (
-            <li key={player.id} className="rounded-md bg-[#f3ead9] px-3 py-2 text-sm">
+            <li key={player.id} className="rounded-md bg-paper-100 px-3 py-2 text-sm">
               <div className="flex items-center gap-2">
                 <span
                   aria-hidden="true"
-                  className="size-3 shrink-0 rounded-full border border-[#30291f]/30"
+                  className="size-3 shrink-0 rounded-full border border-ink-900/30"
                   style={{ backgroundColor: player.color }}
                 />
                 <span className="min-w-0 flex-1 truncate">
                   {player.name || t('online.emptySlot')}
                 </span>
                 {(player.actorId === uid || player.id === currentPlayer) && (
-                  <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#a84632]">
+                  <span className="shrink-0 text-3xs font-semibold uppercase tracking-[0.1em] text-brass-700">
                     {t('online.you')}
                   </span>
                 )}
               </div>
-              <p className="mt-1 text-[10px] uppercase tracking-[0.1em] text-[#806f57]">
+              <p className="mt-1 text-3xs uppercase tracking-[0.1em] text-ink-500">
                 {player.submitted ? t('online.submitted') : t('online.waiting')}
               </p>
             </li>
@@ -195,11 +195,11 @@ function Lobby({
         </ul>
         <Scoreboard players={summary.players} scores={scores} victory={victory} />
         {invitation && (
-          <div className="rounded-lg border border-[#815f1e]/40 bg-[#f8e8ae]/50 px-3 py-3 text-sm">
-            <p className="font-semibold text-[#6d5118]">
+          <div className="rounded-lg border border-gold-600/40 bg-gold-100/50 px-3 py-3 text-sm">
+            <p className="font-semibold text-gold-800">
               {t('home.invitationCode')}: {invitation.inviteCode}
             </p>
-            <p className="mt-1 break-all text-xs text-[#806f57]">
+            <p className="mt-1 break-all text-xs text-ink-500">
               {invitation.inviteUrl}
             </p>
           </div>
@@ -791,13 +791,13 @@ export function GamePage() {
       <div className="space-y-4">
         <Link
           to="/"
-          className="inline-flex items-center gap-2 text-sm font-semibold text-[#a84632]"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-brass-700"
         >
           <IconArrowLeft aria-hidden="true" className="size-4" /> {t('online.backHome')}
         </Link>
         <p
           role="alert"
-          className="rounded-lg border border-[#a84632]/30 bg-[#f8e5dd] px-4 py-3 text-sm text-[#8d321e]"
+          className="rounded-lg border border-vermilion-600/30 bg-vermilion-100 px-4 py-3 text-sm text-vermilion-700"
         >
           {loadError}
         </p>
@@ -813,13 +813,13 @@ export function GamePage() {
       <div className="space-y-4">
         <Link
           to="/"
-          className="inline-flex items-center gap-2 text-sm font-semibold text-[#a84632]"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-brass-700"
         >
           <IconArrowLeft aria-hidden="true" className="size-4" /> {t('online.backHome')}
         </Link>
         <p
           role="alert"
-          className="rounded-lg border border-[#a84632]/30 bg-[#f8e5dd] px-4 py-3 text-sm text-[#8d321e]"
+          className="rounded-lg border border-vermilion-600/30 bg-vermilion-100 px-4 py-3 text-sm text-vermilion-700"
         >
           {t('online.accessRevoked')}
         </p>
@@ -829,7 +829,7 @@ export function GamePage() {
 
   if (!summary || !map || !state) {
     return (
-      <p className="py-20 text-center font-serif text-lg italic text-[#806f57]">
+      <p className="py-20 text-center font-display text-lg italic text-ink-500">
         {t('online.loading')}
       </p>
     )
@@ -841,15 +841,15 @@ export function GamePage() {
         <Link
           to="/"
           aria-label={t('online.backHome')}
-          className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-[#a84632]"
+          className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-brass-700"
         >
           <IconArrowLeft aria-hidden="true" className="size-4" />
           <span className="hidden min-[420px]:inline">{t('online.backHome')}</span>
         </Link>
-        <h1 className="min-w-0 flex-1 truncate font-serif text-lg font-semibold text-[#30291f] sm:flex-none sm:text-2xl">
+        <h1 className="min-w-0 flex-1 truncate font-display text-lg font-semibold text-ink-900 sm:flex-none sm:text-2xl">
           {summary.name}
         </h1>
-        <p className="text-xs font-semibold text-[#30291f]">
+        <p className="text-xs font-semibold text-ink-900">
           {t('online.currentTurn', {
             turn: state.turn,
             season: t(SEASON_LABEL_KEYS[state.season]),
@@ -924,7 +924,7 @@ export function GamePage() {
             }))}
           />
           <span
-            className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs font-semibold ${offline ? 'border-[#a84632]/30 bg-[#f8e5dd] text-[#8d321e]' : 'border-[#376341]/30 bg-[#e8f1e3] text-[#376341]'}`}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs font-semibold ${offline ? 'border-vermilion-600/30 bg-vermilion-100 text-vermilion-700' : 'border-success-700/30 bg-success-100 text-success-700'}`}
           >
             {offline ? (
               <IconWifiOff aria-hidden="true" className="size-3.5" />
@@ -934,13 +934,13 @@ export function GamePage() {
             {offline ? t('online.networkOffline') : t('online.realtime')}
           </span>
           {summary.status === 'finished' && (
-            <span className="rounded-full border border-[#815f1e]/40 bg-[#f8e8ae]/60 px-2 py-1 text-xs font-semibold text-[#6d5118]">
+            <span className="rounded-full border border-gold-600/40 bg-gold-100/60 px-2 py-1 text-xs font-semibold text-gold-800">
               {t('online.finished')}
             </span>
           )}
         </div>
       </div>
-      <p className="shrink-0 text-[11px] text-[#806f57]">
+      <p className="shrink-0 text-2xs text-ink-500">
         {t('app.year', { year: 1000 + internalYear(state) })} ·{' '}
         {t('app.remainingYearsTurns', {
           years: remainingYears(state, summary.yearCount),
@@ -953,7 +953,7 @@ export function GamePage() {
         subscription.error.code !== 'not-member' && (
           <p
             role="status"
-            className="rounded-lg border border-[#815f1e]/40 bg-[#f8e8ae]/50 px-3 py-2 text-sm text-[#6d5118]"
+            className="rounded-lg border border-gold-600/40 bg-gold-100/50 px-3 py-2 text-sm text-gold-800"
           >
             {t('online.realtimeError')}
           </p>
@@ -961,19 +961,19 @@ export function GamePage() {
       {actionError && (
         <p
           role="alert"
-          className="rounded-lg border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 text-sm text-[#8d321e]"
+          className="rounded-lg border border-vermilion-600/30 bg-vermilion-100 px-3 py-2 text-sm text-vermilion-700"
         >
           {actionError}
         </p>
       )}
       {spectator && (
-        <div className="rounded-xl border border-[#815f1e]/50 bg-[#f8e8ae]/60 px-4 py-3 text-sm text-[#6d5118]">
+        <div className="rounded-xl border border-gold-600/50 bg-gold-100/60 px-4 py-3 text-sm text-gold-800">
           <p className="font-semibold">{t('online.spectatorBanner')}</p>
           <p className="mt-1">{t('online.spectatorDescription')}</p>
         </div>
       )}
       {summary.winner && (
-        <div className="rounded-xl border border-[#815f1e]/50 bg-[#f8e8ae]/60 px-4 py-3 text-center text-sm font-semibold text-[#6d5118]">
+        <div className="rounded-xl border border-gold-600/50 bg-gold-100/60 px-4 py-3 text-center text-sm font-semibold text-gold-800">
           {t('online.victory')}:{' '}
           {ownerName(summary.winner, state, summary.players, summary.winner)}
         </div>
@@ -1020,7 +1020,7 @@ export function GamePage() {
           }
           reportLabelExtra={
             report ? (
-              <span className="ml-1 text-[#806f57]">· {report.header.turn}</span>
+              <span className="ml-1 text-ink-500">· {report.header.turn}</span>
             ) : null
           }
           command={
@@ -1069,19 +1069,19 @@ export function GamePage() {
                   onRestoreFromServer={restoreFromServer}
                 />
               ) : spectator ? (
-                <p className="rounded-lg border border-[#815f1e]/40 bg-[#f8e8ae]/50 px-3 py-2 text-sm text-[#6d5118]">
+                <p className="rounded-lg border border-gold-600/40 bg-gold-100/50 px-3 py-2 text-sm text-gold-800">
                   {t('online.spectatorReadOnly')}
                 </p>
               ) : (
                 <p
                   role="alert"
-                  className="rounded-lg border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 text-sm text-[#8d321e]"
+                  className="rounded-lg border border-vermilion-600/30 bg-vermilion-100 px-3 py-2 text-sm text-vermilion-700"
                 >
                   {t('online.accessRevoked')}
                 </p>
               )}
               {summary.status !== 'finished' && summary.canInvite && (
-                <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">
+                <div className="space-y-2 border-t border-line/50 pt-4">
                   {!confirmResolve ? (
                     <Button
                       type="button"
@@ -1093,7 +1093,7 @@ export function GamePage() {
                       {t('online.forceResolve')}
                     </Button>
                   ) : (
-                    <div className="rounded-lg border border-[#815f1e]/40 bg-[#f8e8ae]/50 p-3 text-sm text-[#6d5118]">
+                    <div className="rounded-lg border border-gold-600/40 bg-gold-100/50 p-3 text-sm text-gold-800">
                       <p>{t('online.forceResolveConfirm')}</p>
                       <div className="mt-3 flex gap-2">
                         <Button

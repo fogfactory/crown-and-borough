@@ -171,7 +171,7 @@ describe('SelectedTerritoryDetails', () => {
     expect(screen.getByText('Demand').nextElementSibling).toHaveTextContent('8')
     const toCover = screen.getByText('To cover').nextElementSibling
     expect(toCover).toHaveTextContent('3')
-    expect(toCover).toHaveClass('text-[#8d321e]')
+    expect(toCover).toHaveClass('text-vermilion-700')
     expect(screen.getByText('Castle')).toBeInTheDocument()
     expect(screen.getByText('Capital', { exact: true })).toBeInTheDocument()
 

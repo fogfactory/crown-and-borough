@@ -49,10 +49,20 @@ import type {
   SimulationAction,
   VictoryStatus,
 } from '@/types'
+import {
+  LINEAGE_CLAIM,
+  LINEAGE_GOLD,
+  LINEAGE_PATTERN_STROKE,
+  LINEAGE_SECONDARY_LINK,
+  LINEAGE_SILVER,
+  MAP_INK,
+  MAP_PAPER,
+  PLAYER_RED,
+} from '@/lib/map-palette'
 
-const GOLD = '#b8860b'
-const SILVER = '#9aa3ad'
-const CLAIM = '#7a4fa3'
+const GOLD = LINEAGE_GOLD
+const SILVER = LINEAGE_SILVER
+const CLAIM = LINEAGE_CLAIM
 
 /** Stroke of a marriage by kind: gold bold head, thin silver secondary, hatched ended. */
 const EDGE_STYLE: Record<EdgeKind, { stroke: string; width: number; dash?: string }> = {
@@ -124,8 +134,8 @@ function HatchDefs() {
         height="6"
         patternTransform="rotate(45)"
       >
-        <rect width="6" height="6" fill="#fffaf0" />
-        <line x1="0" y1="0" x2="0" y2="6" stroke="#8c8372" strokeWidth="3" />
+        <rect width="6" height="6" fill={MAP_PAPER} />
+        <line x1="0" y1="0" x2="0" y2="6" stroke={LINEAGE_PATTERN_STROKE} strokeWidth="3" />
       </pattern>
       <marker
         id="lineage-arrow"
@@ -278,24 +288,24 @@ export function LineageDialog(props: LineageDialogProps) {
           type="button"
           aria-label={t('lineage.open')}
           title={t('lineage.open')}
-          className="inline-flex h-8 shrink-0 items-center rounded-lg border border-[#b7a786] bg-[#fffaf0] px-2 text-[#594b3c] transition hover:bg-[#f3ead9] hover:text-[#30291f] focus-visible:ring-2 focus-visible:ring-[#a84632]/40 focus-visible:outline-none"
+          className="inline-flex h-8 shrink-0 items-center rounded-lg border border-line bg-paper-50 px-2 text-ink-700 transition hover:bg-paper-100 hover:text-ink-900 focus-visible:ring-2 focus-visible:ring-brass-700/40 focus-visible:outline-none"
         >
           <IconHierarchy2 aria-hidden="true" className="size-4" />
         </button>
       </Dialog.Trigger>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-[#30291f]/50" />
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-ink-900/50" />
         <Dialog.Content
           aria-describedby={undefined}
-          className="fixed inset-2 z-50 flex flex-col overflow-hidden rounded-xl border border-[#b7a786] bg-[#fffaf0] shadow-xl sm:inset-6"
+          className="fixed inset-2 z-50 flex flex-col overflow-hidden rounded-xl border border-line bg-paper-50 shadow-xl sm:inset-6"
         >
-          <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-[#b7a786]/60 px-4 py-3">
-            <Dialog.Title className="font-serif text-lg font-semibold text-[#30291f]">
+          <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line/60 px-4 py-3">
+            <Dialog.Title className="font-display text-lg font-semibold text-ink-900">
               {t('lineage.title')}
             </Dialog.Title>
             <div
               role="tablist"
-              className="flex rounded-lg border border-[#b7a786] p-0.5 text-sm"
+              className="flex rounded-lg border border-line p-0.5 text-sm"
             >
               {(['tree', 'graph'] as const).map((key) => (
                 <button
@@ -307,8 +317,8 @@ export function LineageDialog(props: LineageDialogProps) {
                   className={cn(
                     'rounded-md px-3 py-1 font-semibold',
                     view === key
-                      ? 'bg-[#a84632] text-white'
-                      : 'text-[#594b3c] hover:bg-[#f3ead9]',
+                      ? 'bg-brass-400 text-white'
+                      : 'text-ink-700 hover:bg-paper-100',
                   )}
                 >
                   {t(key === 'tree' ? 'lineage.tree' : 'lineage.graph')}
@@ -319,18 +329,18 @@ export function LineageDialog(props: LineageDialogProps) {
               <button
                 type="button"
                 aria-label={t('lineage.close')}
-                className="ml-auto rounded-lg p-1.5 text-[#594b3c] hover:bg-[#f3ead9]"
+                className="ml-auto rounded-lg p-1.5 text-ink-700 hover:bg-paper-100"
               >
                 <IconX aria-hidden="true" className="size-5" />
               </button>
             </Dialog.Close>
-            <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[#594b3c]">
+            <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 text-xs text-ink-700">
               <label className="flex items-center gap-1.5">
                 {t('lineage.focus')}
                 <select
                   value={focusId ?? ''}
                   onChange={(event) => setFocus(event.target.value || null)}
-                  className="rounded-md border border-[#b7a786] bg-[#fffaf0] px-1.5 py-1"
+                  className="rounded-md border border-line bg-paper-50 px-1.5 py-1"
                 >
                   <option value="">{t('lineage.focusNone')}</option>
                   {houses.map((house) => (
@@ -356,8 +366,8 @@ export function LineageDialog(props: LineageDialogProps) {
                       className={cn(
                         'inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-semibold',
                         on
-                          ? 'border-[#30291f]/40 bg-[#f3ead9]'
-                          : 'border-[#b7a786]/60 opacity-50',
+                          ? 'border-ink-900/40 bg-paper-100'
+                          : 'border-line/60 opacity-50',
                       )}
                     >
                       <span
@@ -392,7 +402,7 @@ export function LineageDialog(props: LineageDialogProps) {
                     type="button"
                     disabled={Object.keys(moves).length === 0}
                     onClick={() => setMoves({})}
-                    className="rounded-md border border-[#b7a786] px-2 py-0.5 font-semibold enabled:hover:bg-[#f3ead9] disabled:opacity-40"
+                    className="rounded-md border border-line px-2 py-0.5 font-semibold enabled:hover:bg-paper-100 disabled:opacity-40"
                   >
                     {t('lineage.resetLayout')}
                   </button>
@@ -526,7 +536,7 @@ function SimulationBar({
 }) {
   const { t } = useLanguage()
   const button =
-    'rounded-md border border-[#b7a786] bg-[#fffaf0] px-2 py-0.5 text-xs font-semibold enabled:hover:bg-[#f3ead9] disabled:opacity-40'
+    'rounded-md border border-line bg-paper-50 px-2 py-0.5 text-xs font-semibold enabled:hover:bg-paper-100 disabled:opacity-40'
   if (!simulating) {
     return (
       <div className="flex w-full">
@@ -547,9 +557,9 @@ function SimulationBar({
       fief: 'fief' in action ? action.fief : '',
     })
   return (
-    <div className="flex w-full flex-col gap-2 rounded-lg border border-[#b8860b]/60 bg-[#f8e8ae]/40 p-2 text-xs">
+    <div className="flex w-full flex-col gap-2 rounded-lg border border-gold-500/60 bg-gold-100/40 p-2 text-xs">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-semibold text-[#6b4e0a]">{t('sim.banner')}</span>
+        <span className="font-semibold text-gold-850">{t('sim.banner')}</span>
         <button type="button" className={button} disabled={!canUndo} onClick={onUndo}>
           {t('sim.undo')}
         </button>
@@ -654,20 +664,20 @@ function SimulationBar({
         <p>{t('sim.hint')}</p>
       )}
       {rejection && (
-        <p role="alert" className="font-semibold text-[#7a2b1c]">
+        <p role="alert" className="font-semibold text-vermilion-800">
           {t('sim.rejected', { reason: rejection })}
         </p>
       )}
       {failed && (
-        <p role="alert" className="font-semibold text-[#7a2b1c]">
+        <p role="alert" className="font-semibold text-vermilion-800">
           {t('sim.failed')}
         </p>
       )}
-      {loading && <p className="text-[#806f57]">{t('sim.loading')}</p>}
+      {loading && <p className="text-ink-500">{t('sim.loading')}</p>}
       {actions.length > 0 && (
         <ol className="flex flex-wrap gap-1.5" aria-label={t('sim.panel')}>
           {actions.map((action, index) => (
-            <li key={index} className="rounded-full border border-[#b8860b]/60 bg-[#fffaf0] px-2 py-0.5">
+            <li key={index} className="rounded-full border border-gold-500/60 bg-paper-50 px-2 py-0.5">
               {log(action)}
             </li>
           ))}
@@ -705,7 +715,7 @@ function Legend({ withClaims }: { withClaims: boolean }) {
   ]
   if (withClaims) kinds.push(['claim', 'lineage.legend.claim'])
   return (
-    <footer className="flex flex-wrap gap-x-4 gap-y-1 border-t border-[#b7a786]/60 px-4 py-2 text-xs text-[#594b3c]">
+    <footer className="flex flex-wrap gap-x-4 gap-y-1 border-t border-line/60 px-4 py-2 text-xs text-ink-700">
       {kinds.map(([kind, label]) => (
         <span key={kind} className="inline-flex items-center gap-1.5">
           <Swatch kind={kind} />
@@ -739,7 +749,7 @@ function Badge({
   return (
     <span
       className={cn(
-        'rounded border px-1 text-[10px] font-semibold uppercase leading-4',
+        'rounded border px-1 text-3xs font-semibold uppercase leading-4',
         className,
       )}
       style={style}
@@ -859,7 +869,7 @@ function LineageTree({
                   <path
                     d={segment(from, to)}
                     fill="none"
-                    stroke="#a84632"
+                    stroke={PLAYER_RED}
                     strokeWidth={style.width + 6}
                     strokeOpacity={0.35}
                   />
@@ -924,8 +934,8 @@ function LineageTree({
             >
               <h3
                 className={cn(
-                  'absolute top-0 flex items-center gap-2 rounded-md px-2 py-1 text-sm font-semibold text-[#30291f]',
-                  house.player.id === focus && 'bg-[#f3ead9] ring-1 ring-[#30291f]/30',
+                  'absolute top-0 flex items-center gap-2 rounded-md px-2 py-1 text-sm font-semibold text-ink-900',
+                  house.player.id === focus && 'bg-paper-100 ring-1 ring-ink-900/30',
                 )}
                 style={{
                   left: columnIndex * (CARD_W + GAP_X),
@@ -935,7 +945,7 @@ function LineageTree({
               >
                 <span
                   aria-hidden="true"
-                  className="size-3 rounded-full border border-[#30291f]/30"
+                  className="size-3 rounded-full border border-ink-900/30"
                   style={{ backgroundColor: house.player.color }}
                 />
                 {house.player.name || house.player.id}
@@ -952,17 +962,17 @@ function LineageTree({
                       key={member.code}
                       data-noble={member.code}
                       className={cn(
-                        'pointer-events-auto absolute overflow-y-auto rounded-lg border bg-[#f8f0e2] p-2 text-xs',
+                        'pointer-events-auto absolute overflow-y-auto rounded-lg border bg-paper-80 p-2 text-xs',
                         member.dead
-                          ? 'border-dashed border-[#b7a786]/70 opacity-60'
-                          : 'border-[#b7a786]',
+                          ? 'border-dashed border-line/70 opacity-60'
+                          : 'border-line',
                         moves[member.code] && 'z-20 shadow-md',
                         edit && 'cursor-pointer',
                         edit?.selected?.type === 'noble' &&
                           edit.selected.code === member.code &&
-                          'ring-2 ring-[#a84632]',
+                          'ring-2 ring-brass-700',
                         edit?.pending?.from === member.code &&
-                          'outline-2 outline-dashed outline-[#7a4fa3]',
+                          'outline-2 outline-dashed outline-claim-600',
                       )}
                       onClick={edit ? () => edit.onNoble(member.code) : undefined}
                       style={{
@@ -983,11 +993,11 @@ function LineageTree({
                           onPointerMove={dragTo}
                           onPointerUp={() => (drag.current = null)}
                           onPointerCancel={() => (drag.current = null)}
-                          className="-ml-1 cursor-grab touch-none px-0.5 leading-none text-[#806f57] active:cursor-grabbing"
+                          className="-ml-1 cursor-grab touch-none px-0.5 leading-none text-ink-500 active:cursor-grabbing"
                         >
                           ⠿
                         </button>
-                        <span className="font-serif text-sm text-[#806f57]">
+                        <span className="font-display text-sm text-ink-500">
                           {index + 1}
                         </span>
                         <span
@@ -1003,8 +1013,8 @@ function LineageTree({
                             aria-label={member.sex}
                             className={
                               member.sex === 'female'
-                                ? 'text-[#a84632]'
-                                : 'text-[#2f6f9f]'
+                                ? 'text-brass-700'
+                                : 'text-winter-650'
                             }
                           >
                             {member.sex === 'female' ? '♀' : '♂'}
@@ -1013,13 +1023,13 @@ function LineageTree({
                       </div>
                       <div className="mt-1 flex flex-wrap gap-1">
                         {member.dead && member.cause && (
-                          <Badge className="border-[#9a8f7c]">
+                          <Badge className="border-line-strong">
                             ✝ {t(`lineage.cause.${member.cause}` as MessageKey)}
                           </Badge>
                         )}
                         {member.commissioner && (
                           <Badge
-                            className="border-[#8a2f2f] bg-[#f8e6e6] text-[#6b2020]"
+                            className="border-vermilion-750 bg-vermilion-150 text-vermilion-900"
                             data-testid="assassination-commissioner"
                           >
                             {t('lineage.assassinatedBy', {
@@ -1031,7 +1041,7 @@ function LineageTree({
                         {member.commissioned.map((victim) => (
                           <Badge
                             key={`commissioned-${victim.code}`}
-                            className="border-[#8a2f2f] bg-[#f8e6e6] text-[#6b2020]"
+                            className="border-vermilion-750 bg-vermilion-150 text-vermilion-900"
                             data-testid="assassination-victim"
                           >
                             {t('lineage.commissionedKilling', {
@@ -1043,7 +1053,7 @@ function LineageTree({
                         {member.religious.map((held) => (
                           <Badge
                             key={`${held.title}-${held.seat ?? ''}`}
-                            className="border-[#6b4f8a] bg-[#efe6f8] text-[#4d3569]"
+                            className="border-claim-650 bg-claim-100 text-claim-900"
                           >
                             {t(`lineage.religious.${held.title}` as MessageKey, {
                               seat: held.seat ?? '',
@@ -1051,25 +1061,25 @@ function LineageTree({
                           </Badge>
                         ))}
                         {member.excommunicated && (
-                          <Badge className="border-[#a84632] bg-[#f8dcd5] text-[#7a2a1a]">
+                          <Badge className="border-brass-700 bg-vermilion-200 text-vermilion-850">
                             {t('lineage.excommunicated')}
                           </Badge>
                         )}
                         {member.fiefs.map((fief) => (
-                          <Badge key={fief.capital} className="border-[#b7a786]">
+                          <Badge key={fief.capital} className="border-line">
                             {titleLabel(t, fief)}
                           </Badge>
                         ))}
                         {member.dignities.map((dignity) => (
                           <Badge
                             key={dignity}
-                            className="border-[#815f1e] bg-[#f8e8ae] text-[#6b4e0a]"
+                            className="border-gold-600 bg-gold-100 text-gold-850"
                           >
                             {t(`dignity.${dignity}` as MessageKey)}
                           </Badge>
                         ))}
                         {member.claim?.outcome && (
-                          <Badge className="border-[#7a4fa3] text-[#7a4fa3] opacity-70">
+                          <Badge className="border-claim-600 text-claim-600 opacity-70">
                             {t(
                               member.claim.outcome === 'honoured'
                                 ? 'lineage.claimHonoured'
@@ -1092,7 +1102,7 @@ function LineageTree({
                           </Badge>
                         )}
                         {member.claimedBy > 0 && (
-                          <Badge className="border-[#7a4fa3] text-[#7a4fa3]">
+                          <Badge className="border-claim-600 text-claim-600">
                             {t('lineage.claimedBadge', { count: member.claimedBy })}
                           </Badge>
                         )}
@@ -1100,11 +1110,11 @@ function LineageTree({
                           <Badge
                             key={link.key}
                             className={
-                              link.kind === 'secondary' ? 'text-[#30291f]' : 'text-white'
+                              link.kind === 'secondary' ? 'text-ink-900' : 'text-white'
                             }
                             style={{
                               backgroundColor:
-                                link.kind === 'secondary' ? '#dfe3e7' : GOLD,
+                                link.kind === 'secondary' ? LINEAGE_SECONDARY_LINK : GOLD,
                               borderColor: link.kind === 'secondary' ? SILVER : GOLD,
                             }}
                           >
@@ -1212,8 +1222,8 @@ function AllianceGraph({
                 x={(a.x + b.x) / 2}
                 y={(a.y + b.y) / 2 - 6}
                 textAnchor="middle"
-                className="fill-[#30291f] text-[10px] font-bold"
-                stroke="#fffaf0"
+                className="fill-ink-900 text-3xs font-bold"
+                stroke={MAP_PAPER}
                 strokeWidth={3}
                 paintOrder="stroke"
               >
@@ -1248,7 +1258,7 @@ function AllianceGraph({
                 cy={p.y}
                 r={isFocus ? 28 : 24}
                 fill={house.player.color}
-                stroke={isFocus ? '#30291f' : '#fffaf0'}
+                stroke={isFocus ? MAP_INK : MAP_PAPER}
                 strokeWidth={isFocus ? 4 : 3}
               />
               <text
@@ -1264,7 +1274,7 @@ function AllianceGraph({
                 x={p.x}
                 y={p.y + 42}
                 textAnchor="middle"
-                className="fill-[#30291f] text-[11px] font-semibold"
+                className="fill-ink-900 text-2xs font-semibold"
               >
                 {house.player.name || house.player.id}
               </text>
@@ -1273,11 +1283,11 @@ function AllianceGraph({
         })}
       </svg>
       <div className="grid content-start gap-3">
-        <h3 className="font-serif text-base font-semibold text-[#30291f]">
+        <h3 className="font-display text-base font-semibold text-ink-900">
           {t('lineage.alliances')}
         </h3>
         {pairs.length === 0 && (
-          <p className="text-sm text-[#806f57]">{t('lineage.noAlliance')}</p>
+          <p className="text-sm text-ink-500">{t('lineage.noAlliance')}</p>
         )}
         <ul className="grid gap-2">
           {pairs.map((pair) => {
@@ -1287,31 +1297,31 @@ function AllianceGraph({
               <li
                 key={pair.key}
                 className={cn(
-                  'rounded-lg border bg-[#f8f0e2] p-2.5 text-sm',
+                  'rounded-lg border bg-paper-80 p-2.5 text-sm',
                   focus && pair.houses.includes(focus)
-                    ? 'border-[#30291f]'
-                    : 'border-[#b7a786]/60',
+                    ? 'border-ink-900'
+                    : 'border-line/60',
                   dim(pair) && 'opacity-50',
                 )}
               >
                 <div className="flex flex-wrap items-center gap-2 font-semibold">
                   <Swatch kind={pair.kind} />
                   {houseName(pair.houses[0])} ⟷ {houseName(pair.houses[1])}
-                  <span className="text-xs font-normal text-[#806f57]">
+                  <span className="text-xs font-normal text-ink-500">
                     {t(kindLabel(carrier))} ·{' '}
                     {t('lineage.weight', { weight: pair.weight })}
                   </span>
                 </div>
                 <dl className="mt-1.5 grid gap-1 text-xs">
                   <div>
-                    <dt className="inline text-[#806f57]">{t('lineage.toCancel')} : </dt>
+                    <dt className="inline text-ink-500">{t('lineage.toCancel')} : </dt>
                     <dd className="inline font-medium">
                       {marriageName(carrier.a, carrier.b)}
                     </dd>
                   </div>
                   {carrier.headSuccessors.map((successor) => (
                     <div key={successor.player}>
-                      <dt className="inline text-[#806f57]">
+                      <dt className="inline text-ink-500">
                         {successor.marriage
                           ? t('lineage.takesOver', { house: houseName(successor.player) })
                           : t('lineage.noSuccessor', {
@@ -1331,7 +1341,7 @@ function AllianceGraph({
                   ))}
                   {others.length > 0 && (
                     <div>
-                      <dt className="inline text-[#806f57]">
+                      <dt className="inline text-ink-500">
                         {t('lineage.otherMarriages')} :{' '}
                       </dt>
                       <dd className="inline">
@@ -1354,18 +1364,18 @@ function AllianceGraph({
               >
                 <span
                   aria-hidden="true"
-                  className="size-3 rounded-full border border-[#30291f]/30"
+                  className="size-3 rounded-full border border-ink-900/30"
                   style={{ backgroundColor: house.player.color }}
                 />
                 <span className="font-semibold">
                   {house.player.name || house.player.id}
                 </span>
-                <span className="font-serif text-[#a84632]">
+                <span className="font-display text-brass-700">
                   {scores?.[house.player.id]?.total ?? 0}
                   {goal ? ` / ${goal.required}` : ''}
                 </span>
                 {goal && (
-                  <span className="rounded border border-[#b8860b] bg-[#f8e8ae] px-1.5 text-[10px] font-bold uppercase text-[#6b4e0a]">
+                  <span className="rounded border border-gold-500 bg-gold-100 px-1.5 text-3xs font-bold uppercase text-gold-850">
                     {t(
                       goal.mode === 'alliance' ? 'score.modeAlliance' : 'score.modeSolo',
                     )}

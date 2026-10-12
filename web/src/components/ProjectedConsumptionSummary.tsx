@@ -26,14 +26,14 @@ export function ProjectedConsumptionSummary({ state, playerId }: ProjectedConsum
   const armiesAtRisk = player.armiesAtRisk ?? []
 
   return (
-    <div className="rounded-lg border border-[#b7a786] bg-[#f8f0e2] px-3 py-2 text-sm">
-      <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
+    <div className="rounded-lg border border-line bg-paper-80 px-3 py-2 text-sm">
+      <p className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
         {t('app.projectedConsumption')}
       </p>
       <p className="mt-1 font-medium">
         {t('app.projectedConsumptionAmount', { amount: player.projectedConsumption ?? 0 })}
       </p>
-      <p className="mt-2 text-xs font-bold uppercase tracking-[0.16em] text-[#806f57]">
+      <p className="mt-2 text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
         {t('app.armiesAtRiskTitle')}
       </p>
       {armiesAtRisk.length > 0 ? (
@@ -49,7 +49,7 @@ export function ProjectedConsumptionSummary({ state, playerId }: ProjectedConsum
           ))}
         </ul>
       ) : (
-        <p className="mt-1 italic text-[#806f57]">{t('app.noArmyAtRisk')}</p>
+        <p className="mt-1 italic text-ink-500">{t('app.noArmyAtRisk')}</p>
       )}
     </div>
   )

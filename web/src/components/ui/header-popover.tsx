@@ -32,7 +32,7 @@ export function HeaderPopover({
           type="button"
           aria-label={label}
           title={label}
-          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-[#b7a786] bg-[#fffaf0] px-2 text-[#594b3c] transition hover:bg-[#f3ead9] hover:text-[#30291f] focus-visible:ring-2 focus-visible:ring-[#a84632]/40 focus-visible:outline-none aria-expanded:bg-[#f3ead9] aria-expanded:text-[#30291f]"
+          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-line bg-paper-50 px-2 text-ink-700 transition hover:bg-paper-100 hover:text-ink-900 focus-visible:ring-2 focus-visible:ring-brass-700/40 focus-visible:outline-none aria-expanded:bg-paper-100 aria-expanded:text-ink-900"
         >
           {icon}
           {hint && <span className="text-xs font-semibold tabular-nums">{hint}</span>}
@@ -43,7 +43,7 @@ export function HeaderPopover({
           align="end"
           sideOffset={8}
           className={cn(
-            'z-50 max-h-[min(70dvh,32rem)] w-72 max-w-[calc(100vw-1.5rem)] overflow-y-auto rounded-xl border border-[#b7a786] bg-[#fffaf0] p-3 shadow-[0_18px_50px_-30px_rgba(67,46,24,0.9)] data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95',
+            'z-50 max-h-[min(70dvh,32rem)] w-72 max-w-[calc(100vw-1.5rem)] overflow-y-auto rounded-xl border border-line bg-paper-50 p-3 shadow-panel-strong data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95',
             contentClassName,
           )}
         >
