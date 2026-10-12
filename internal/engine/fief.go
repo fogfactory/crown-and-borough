@@ -158,6 +158,7 @@ func (ctx *resolutionContext) transferFiefOnCapitalCapture(territoryID models.Te
 	previousOwnerID := fief.OwnerID
 	fief.OwnerID = newOwnerID
 	fief.HolderNobleID = nil
+	fief.Crown = false
 	ctx.events = append(ctx.events, Event{
 		Type:            EventTypeFiefConquered,
 		Phase:           5,
@@ -261,6 +262,32 @@ func (ctx *resolutionContext) vacateFiefsOfMissingHolders() {
 	}
 }
 
+// returnOrphanFiefsToCrown applies GameState.ReturnOrphanFiefsToCrown and its
+// aftermath: the former owner loses the capital designation of any territory
+// of the fief, and one fief_conquered event with the reason "crown" reports it.
+// Call once claims are settled and the queen refreshed, and again after a
+// coronation, which brings the vacant fiefs back that no crown player could
+// take.
+func (ctx *resolutionContext) returnOrphanFiefsToCrown() {
+	for _, reversion := range ctx.state.ReturnOrphanFiefsToCrown() {
+		fief := reversion.Fief
+		for _, memberID := range fief.Territories {
+			ctx.clearCapitalOnControlLoss(reversion.PreviousOwner, memberID)
+		}
+		ctx.events = append(ctx.events, Event{
+			Type:            EventTypeFiefConquered,
+			Phase:           phaseForSeason(ctx.state.Season),
+			TerritoryID:     fief.CapitalTerritoryID,
+			FiefID:          fief.ID,
+			FiefTitle:       fief.Title,
+			FiefTerritories: append([]models.TerritoryID(nil), fief.Territories...),
+			PreviousOwnerID: reversion.PreviousOwner,
+			OwnerID:         fief.OwnerID,
+			Reason:          "crown",
+		})
+	}
+}
+
 // dissolveFiefOnCapitalCastleLoss dissolves the fief anchored on territoryID
 // immediately when its capital's castle disappears (pillage or automatic
 // famine pillage): titres.md deliberately chose immediate dissolution over
@@ -282,11 +309,12 @@ func (ctx *resolutionContext) dissolveFiefOnCapitalCastleLoss(territoryID models
 // player to take back manual attribution next turn. An owner without any
 // living noble leaves the fief vacant: it keeps producing and scoring until
 // attributed or dissolved by its capital's castle falling
-// (dissolveFiefOnCapitalCastleLoss, unaffected by this function).
+// (dissolveFiefOnCapitalCastleLoss, unaffected by this function). A crown
+// fief is skipped: only a W G order (or its owner's T A) attributes it.
 func (ctx *resolutionContext) resolveVacantFiefsAtWinterEnd() {
 	for i := range ctx.state.Fiefs {
 		fief := &ctx.state.Fiefs[i]
-		if fief.HolderNobleID != nil {
+		if fief.HolderNobleID != nil || fief.Crown {
 			continue
 		}
 		line := ctx.state.SuccessionLine(fief.OwnerID)

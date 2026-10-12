@@ -42,6 +42,7 @@ func (order assignFiefOrder) Apply(ctx *ExecutionContext) {
 
 	holderNobleID := nobleID
 	fief.HolderNobleID = &holderNobleID
+	fief.Crown = false
 	resolution.events = append(resolution.events, Event{
 		Type:            EventTypeFiefAssigned,
 		Phase:           winterPhase,

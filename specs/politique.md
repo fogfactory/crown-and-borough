@@ -135,12 +135,12 @@ octroyer à ses propres nobles comme à ceux des autres joueurs.
 Rejets propres aux ordres royaux : `royal_not_issuer` (`KKK` n'est ni le roi
 ni la régente, ou n'appartient pas au joueur), `royal_order_limit`,
 `fief_not_found`, `unknown_noble`, `royal_fief_not_crown` (`W G` : le fief a un
-titulaire, ou son joueur a encore un noble vivant), `succession_rank_blocked` (`W G`),
+titulaire, ou n'est pas revenu à la couronne), `succession_rank_blocked` (`W G`),
 `royal_accord_unused` (`W X`, `W R`, `W F` : l'ordre autorisé est absent des
 feuilles de l'hiver). Un `W X` ou `W R` attend le `T X` / `T R` de la feuille du
 joueur propriétaire du fief `XXX` ; un `W F` attend un `T F` de capitale `XXX`
 sur n'importe quelle feuille. Un fief de la couronne est, pour `W G`, un fief vacant
-dont le joueur n'a plus aucun noble vivant.
+revenu à la couronne ([Héritage d'un fief sans héritier](#héritage-dun-fief-sans-héritier)).
 
 ### Rente
 
@@ -264,10 +264,12 @@ immédiatement à la couronne** s'il y a un roi ou une régente :
   d'une capitale, [titres.md](titres.md#perte-et-vacance-dun-fief)) ;
 - c'est un **fief de la couronne** : il n'est jamais attribué par défaut en fin
   d'hiver à la ligne du joueur de la couronne ; il reste vacant, continue de
-  produire et de compter son point, jusqu'à un `W G` ;
+  produire et de compter son point, jusqu'à un `W G`. La prise de sa capitale
+  en fait un fief vacant ordinaire de son conquérant ;
 - sans roi ni régente, le fief reste vacant chez son joueur. Au couronnement
   d'un roi, tous les fiefs vacants dont le joueur est sans noble vivant font
-  retour à la couronne dans la même passe.
+  retour à la couronne dans la même passe, y compris les fiefs de la couronne
+  restés chez un ancien joueur de la couronne devenu sans noble.
 
 ## À trancher
 
@@ -281,3 +283,9 @@ Points d'interprétation à confirmer ou à calibrer pendant l'implémentation :
    score et de revenu via la rente et la capitale : à valider en équilibrage.
 4. Joueur éliminé : le sort d'une couronne, d'un fief de la couronne ou d'une
    régence d'un joueur éliminé n'est pas traité ici.
+5. Un `T A` du joueur de la couronne sur un fief de la couronne l'attribue à
+   l'un de ses nobles sans `W G`, donc hors de la limite `royal.orders_per_winter`,
+   et le fief cesse d'être un fief de la couronne : faut-il le réserver au `W G` ?
+6. Un roi au cachot sans régente reste le joueur de la couronne : les fiefs
+   sans noble vivant lui reviennent, et seul le `W G` d'un roi libéré peut les
+   octroyer.

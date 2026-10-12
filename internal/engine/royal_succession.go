@@ -14,6 +14,7 @@ func (ctx *resolutionContext) settleAfterDeaths() {
 	ctx.state.DropReligiousTitlesOfMissingNobles()
 	ctx.settleClaimsOfDead()
 	ctx.state.RefreshQueen()
+	ctx.returnOrphanFiefsToCrown()
 }
 
 // passCrownOfDeadKing crowns the heir of a claim on the dead king or his queen
