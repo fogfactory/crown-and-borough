@@ -17,6 +17,7 @@ export type CardKind =
   | 'tunnel'
   | 'ambush'
   | 'assassination'
+  | 'justice'
 
 export type OrderType =
   'attack' | 'support' | 'hold' | 'join' | 'pillage' | 'disperse' | 'transfer'
@@ -55,6 +56,7 @@ export type EventType =
   | 'tunnel'
   | 'ambush'
   | 'assassination'
+  | 'justice'
   | 'assassination_revealed'
   | 'bad_weather_blocked'
   | 'famine_loss'

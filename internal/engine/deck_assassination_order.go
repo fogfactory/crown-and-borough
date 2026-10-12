@@ -47,6 +47,10 @@ func (assassinationCardDefinition) NewOrder(playerID models.PlayerID, order mode
 	return assassinationOrder{playerID: playerID, order: order}
 }
 
+func (assassinationCardDefinition) applyWinterEffect(ctx *resolutionContext, playerID models.PlayerID, order models.DeckOrder) {
+	ctx.assassinate(playerID, order)
+}
+
 func (order assassinationOrder) Apply(ctx *ExecutionContext) {
 	definition := assassinationCardDefinition{}
 	if applicable, reason := definition.CanPlay(ctx, order.order); !applicable {

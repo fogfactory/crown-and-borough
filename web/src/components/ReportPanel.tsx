@@ -70,6 +70,8 @@ const REASON_KEYS: Record<string, MessageKey> = {
   noble_deck_empty: 'reports.reason.noble_deck_empty',
   hand_limit_reached: 'reports.reason.hand_limit_reached',
   card_not_in_hand: 'reports.reason.card_not_in_hand',
+  justice_king: 'reports.reason.justice_king',
+  justice_unknown_noble: 'reports.reason.justice_unknown_noble',
   noble_already_bastard: 'reports.reason.noble_already_bastard',
   claim_requires_marriage: 'reports.reason.claim_requires_marriage',
   claim_on_own_noble: 'reports.reason.claim_on_own_noble',
@@ -796,6 +798,15 @@ function seasonEffectLine(
           commissioner: effect.commissioner ?? '',
         }),
       }
+    case 'justice':
+      return {
+        key,
+        label: t(effect.reason === 'justice_executed' ? 'reports.justiceExecuted' : 'reports.justiceNoEffect', {
+          player: effect.owner ?? t('reports.unknownPlayer'),
+          noble: nobleLabel(effect.noble, effect.nobleName),
+          territory: territoryLabel(map, effect.territory, t),
+        }),
+      }
     case 'assassination_revealed':
       return {
         key,
@@ -943,6 +954,7 @@ function groupSeasonEffects(
       case 'tunnel':
       case 'ambush':
       case 'assassination':
+      case 'justice':
       case 'assassination_revealed':
       case 'eon_unmasked':
       case 'dignity_revealed':

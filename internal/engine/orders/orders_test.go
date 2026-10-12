@@ -799,6 +799,44 @@ func TestParseInquiryOnADeadNoble(t *testing.T) {
 	}
 }
 
+func TestParseJusticeCard(t *testing.T) {
+	game := orderTestState()
+	deck, parseErrors := ParseDeckOrders("P JU BOB\np ju jea", game)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseDeckOrders errors = %#v", parseErrors)
+	}
+	want := []models.DeckOrder{
+		{ID: "O1", Type: models.DeckOrderTypePlay, Kind: models.CardKindJustice, TargetNobleID: "N3"},
+		{ID: "O2", Type: models.DeckOrderTypePlay, Kind: models.CardKindJustice, TargetNobleID: "N1"},
+	}
+	if !reflect.DeepEqual(deck, want) {
+		t.Fatalf("deck orders = %#v, want %#v", deck, want)
+	}
+	for _, line := range []string{"P JU", "P JU ZZZ", "P JU BOB JEA", "P JU BOI"} {
+		if _, parseErrors := ParseDeckOrders(line, game); len(parseErrors) == 0 {
+			t.Errorf("ParseDeckOrders(%q) accepted a malformed justice order", line)
+		}
+	}
+}
+
+func TestParseJusticeCardOnTheWinterSheet(t *testing.T) {
+	game := orderTestState()
+	winter, deck, parseErrors := ParseWinterOrdersWithDeckOrders("R T ROS\nP JU BOB", game)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseWinterOrdersWithDeckOrders errors = %#v", parseErrors)
+	}
+	if len(winter) != 1 || len(deck) != 1 || deck[0].Kind != models.CardKindJustice || deck[0].TargetNobleID != "N3" {
+		t.Fatalf("winter orders = %#v, deck orders = %#v, want the troop and the justice card", winter, deck)
+	}
+	lines := ParseWinterSheetLines("P JU BOB\nP JU ZZZ\nP JU BOB JEA", game)
+	if lines[0].Deck == nil || lines[0].Error != nil {
+		t.Errorf("line 1 = %#v, want a justice deck order", lines[0])
+	}
+	if lines[1].Error == nil || lines[2].Error == nil {
+		t.Errorf("lines = %#v, want an unknown noble and a shape error", lines)
+	}
+}
+
 func TestParseTrialWinterOrder(t *testing.T) {
 	game := orderTestState()
 	orders, parseErrors := ParseWinterOrders("J JEA BOB", game)

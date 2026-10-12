@@ -17,12 +17,13 @@ const (
 	CardKindTunnel          CardKind = "tunnel"
 	CardKindAmbush          CardKind = "ambush"
 	CardKindAssassination   CardKind = "assassination"
+	CardKindJustice         CardKind = "justice"
 )
 
 func (k CardKind) IsValid() bool {
 	switch k {
 	case CardKindFairWeather, CardKindAbundantHarvest, CardKindPlague,
-		CardKindBadWeather, CardKindRevolt, CardKindFamine, CardKindSeigneurialTax, CardKindTunnel, CardKindAssassination, CardKindAmbush:
+		CardKindBadWeather, CardKindRevolt, CardKindFamine, CardKindSeigneurialTax, CardKindTunnel, CardKindAssassination, CardKindJustice, CardKindAmbush:
 		return true
 	}
 	return false
@@ -30,11 +31,18 @@ func (k CardKind) IsValid() bool {
 
 func (k CardKind) IsBonus() bool {
 	switch k {
-	case CardKindFairWeather, CardKindAbundantHarvest, CardKindRevolt, CardKindSeigneurialTax, CardKindTunnel, CardKindAssassination, CardKindAmbush:
+	case CardKindFairWeather, CardKindAbundantHarvest, CardKindRevolt, CardKindSeigneurialTax, CardKindTunnel, CardKindAssassination, CardKindJustice, CardKindAmbush:
 		return true
 	default:
 		return false
 	}
+}
+
+// IsRegionalBonus reports whether the card is played on a region and applies
+// as a regional bonus (fair weather, abundant harvest), as opposed to the cards
+// that name their own target (a territory, a noble or an attack).
+func (k CardKind) IsRegionalBonus() bool {
+	return k == CardKindFairWeather || k == CardKindAbundantHarvest
 }
 
 func (k CardKind) IsCalamity() bool {

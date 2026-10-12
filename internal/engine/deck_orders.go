@@ -22,6 +22,7 @@ var cardDefinitions = map[models.CardKind]CardDefinition{
 	models.CardKindTunnel:          tunnelCardDefinition{},
 	models.CardKindAmbush:          ambushCardDefinition{},
 	models.CardKindAssassination:   assassinationCardDefinition{},
+	models.CardKindJustice:         justiceCardDefinition{},
 }
 
 type deckOrderIntent struct {
@@ -122,11 +123,14 @@ func markPendingTaxWindowFiefs(ctx *resolutionContext, deckOrders map[models.Pla
 }
 
 // deckOrderRank orders the event cards played the same turn: Tunnel, then
-// Assassination (specs/ordres-speciaux.md § Cartes d'événement). Every other
+// Assassination, then Justice (specs/ordres-speciaux.md § Cartes d'événement). Every other
 // card keeps its submission order, ahead of them.
 func deckOrderRank(order models.DeckOrder) int {
 	if order.Type == models.DeckOrderTypePlay && order.Kind == models.CardKindAssassination {
 		return 1
+	}
+	if order.Type == models.DeckOrderTypePlay && order.Kind == models.CardKindJustice {
+		return 2
 	}
 	return 0
 }
@@ -166,6 +170,11 @@ func (ctx *resolutionContext) applyDeckCardOrder(playerID models.PlayerID, order
 	}
 	ctx.deckIntents = append(ctx.deckIntents, deckOrderIntent{playerID: playerID, order: order})
 	played := Event{Type: EventTypeDeckOrderPlayed, Phase: phaseForSeason(ctx.state.Season), OwnerID: playerID, CardKind: order.Kind, RegionSeed: regionSeed, Season: ctx.state.Season, Year: ctx.state.Year()}
+	if order.Kind == models.CardKindJustice {
+		if target := ctx.noblesByID[order.TargetNobleID]; target != nil {
+			played.NobleCode, played.NobleName = models.NobleCode(target.Code), ctx.state.NobleDisplayName(*target)
+		}
+	}
 	if order.Kind == models.CardKindAssassination {
 		// The author reads the victim and the commissioner in the report.
 		if victim := ctx.noblesByID[order.TargetNobleID]; victim != nil {

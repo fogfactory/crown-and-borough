@@ -186,6 +186,17 @@ func (g *GameState) Inquired(player PlayerID, noble NobleID) bool {
 	return slices.Contains(g.Inquiries, InquiryRecord{Player: player, Noble: noble})
 }
 
+// IsCommissioner reports whether the noble commissioned at least one
+// assassination, whoever the victim (specs/ordres-speciaux.md § Justice).
+func (g *GameState) IsCommissioner(id NobleID) bool {
+	for _, removed := range g.RemovedNobles {
+		if removed.Cause == DeathCauseAssassination && removed.Commissioner == id {
+			return true
+		}
+	}
+	return false
+}
+
 // KnowsAssassination reports whether the player knows who commissioned the
 // death of the removed noble (specs/ordres-speciaux.md § Assassinat): the
 // player who played the card and every player who conducted an inquiry on the

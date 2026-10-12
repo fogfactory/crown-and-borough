@@ -659,6 +659,11 @@ func redactHiddenDignities(winter *engine.WinterReport, viewer models.PlayerID) 
 			continue
 		}
 		if investment.Player != viewer && investment.Kind == engine.EventTypeRejected {
+			if investment.Order == nil {
+				// A rejected card play carries no winter order: its reason
+				// names the card, which is private to its player.
+				investment.Reason = ""
+			}
 			investment = stripRejectedOrder(investment)
 		}
 		redacted.Investments = append(redacted.Investments, investment)
@@ -669,7 +674,7 @@ func redactHiddenDignities(winter *engine.WinterReport, viewer models.PlayerID) 
 }
 
 // stripRejectedOrder keeps from another player's rejected winter order only
-// the fact and the reason: the order, the noble, the dignity and the claim
+// the fact and, for a winter order, the reason: the order, the noble, the dignity and the claim
 // target would give away a card of a private hand.
 func stripRejectedOrder(investment engine.WinterInvestmentReport) engine.WinterInvestmentReport {
 	investment.Order = nil
@@ -794,11 +799,13 @@ func revealsHiddenDignity(investment engine.WinterInvestmentReport) bool {
 
 // visibleSeasonEffects drops, for a viewer, the season effects that are private:
 // a tunnel escape is known only to the player who played the card and to the
-// holder of the freed noble (specs/ordres-speciaux.md § Souterrain). An
-// assassination is public but names no culprit: the player who played the card
-// and the commissioner are revealed only to the card's owner (§ Assassinat). Every other
-// effect is public, except the revelation of a commissioner by an inquiry,
-// which only the inquirer reads (§ Assassinat).
+// holder of the freed noble (specs/ordres-speciaux.md § Souterrain). A justice
+// that executes is public, naming its player; one that fails is told to that
+// player alone (§ Justice). An assassination is public but names no culprit:
+// the player who played the card and the commissioner are revealed only to the
+// card's owner (§ Assassinat). Every other effect is public, except the
+// revelation of a commissioner by an inquiry, which only the inquirer reads
+// (§ Assassinat).
 func visibleSeasonEffects(effects []engine.SeasonEffectReport, viewer models.PlayerID) []engine.SeasonEffectReport {
 	visible := make([]engine.SeasonEffectReport, 0, len(effects))
 	for _, effect := range effects {
@@ -811,6 +818,12 @@ func visibleSeasonEffects(effects []engine.SeasonEffectReport, viewer models.Pla
 		}
 		if effect.Kind == engine.EventTypeAssassination {
 			effect = redactAssassination(effect, viewer)
+		}
+		if effect.Kind == engine.EventTypeJustice && effect.Reason == engine.JusticeNoEffectReason &&
+			viewer != models.SpectatorViewer && viewer != effect.Owner {
+			// A failed justice is told to its player alone; an execution is
+			// public, with the player who obtained it (§ Justice).
+			continue
 		}
 		visible = append(visible, effect)
 	}
@@ -831,14 +844,16 @@ func redactAssassination(effect engine.SeasonEffectReport, viewer models.PlayerI
 }
 
 // privateCardPlay reports whether the play of a card of this kind is told to
-// its player alone: an assassination names no culprit, a tunnel escape or
-// attack is no nominative rumor (specs/ordres-speciaux.md).
+// its player alone: an assassination names no culprit, a justice that fails
+// stays secret (an execution is public through its season effect), a tunnel
+// escape or attack is no nominative rumor (specs/ordres-speciaux.md).
 func privateCardPlay(kind models.CardKind) bool {
-	return kind == models.CardKindAssassination || kind == models.CardKindTunnel
+	return kind == models.CardKindAssassination || kind == models.CardKindJustice || kind == models.CardKindTunnel
 }
 
-// visibleCards drops, for a viewer, the play of an assassination or tunnel
-// card by another player: the report must name no culprit.
+// visibleCards drops, for a viewer, the play of an assassination, justice or
+// tunnel card by another player: the report must name no culprit and keep the
+// failures secret.
 func visibleCards(cards []engine.CardReport, viewer models.PlayerID) []engine.CardReport {
 	visible := make([]engine.CardReport, 0, len(cards))
 	for _, card := range cards {

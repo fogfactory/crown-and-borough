@@ -71,9 +71,9 @@ func TestTrialVerdictOfTheDirectTrial(t *testing.T) {
 				addNoble(state, "N2", "GUY", "P1", "AAA")
 				state.Marriages = []models.Marriage{{NobleA: "N1", NobleB: "N2"}}
 			}
-			dignity, liable := (&resolutionContext{state: state}).trialVerdict(&state.Nobles[0])
+			dignity, liable := (&resolutionContext{state: state}).directTrialVerdict(&state.Nobles[0])
 			if liable != test.liable || liable && dignity != test.dignity {
-				t.Fatalf("trialVerdict = %q/%t, want %q/%t", dignity, liable, test.dignity, test.liable)
+				t.Fatalf("directTrialVerdict = %q/%t, want %q/%t", dignity, liable, test.dignity, test.liable)
 			}
 		})
 	}

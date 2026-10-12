@@ -70,6 +70,10 @@ var demoScenarios = map[string]struct {
 		description: "winter (see the winter scenario), P1 holds two Assassination cards; P3's noble ZDE was already killed on the orders of P1's pope (lineage, inquiry on a dead noble); P1/P2 pope and cardinal can investigate",
 		apply:       forgeAssassination,
 	},
+	"justice": {
+		description: "winter (see the winter scenario), P1 holds two Justice cards; P3's noble ZDE was killed on the orders of P2's first noble (the commissioner, to try with P JU <code>); any other target is a failed, private justice; P1/P2 cardinals can also file a trial",
+		apply:       forgeJustice,
+	},
 	"tunnel": {
 		description: "spring, P1 holds a Tunnel card and an army (with its noble) next to P2's capital castle, exactly as strong as the fortified defense: it fails alone, wins with P SO <origin> - <target>; the report shows the defense faced",
 		apply:       forgeTunnel,
@@ -581,6 +585,23 @@ func forgeAssassination(state *models.GameState) error {
 	state.RemovedNobles = append(state.RemovedNobles, models.RemovedNoble{
 		ID: "N950", Code: "ZDE", Name: "Denis", Sex: models.SexMale, OwnerID: "P3",
 		Cause: models.DeathCauseAssassination, Turn: 3, Commissioner: pope, Author: "P1",
+	})
+	return nil
+}
+
+// forgeJustice gives P1 two Justice cards and records a past assassination
+// commissioned by P2's first noble: `P JU <that noble's code>` executes them
+// (publicly), `P JU <any other code>` is consumed with no effect and only P1
+// reads it. The winter sheet plays the card too.
+func forgeJustice(state *models.GameState) error {
+	if err := forgeWinter(state); err != nil {
+		return err
+	}
+	commissioner := state.Nobles[ownedNobles(state, "P2")[0]].ID
+	giveSpecialCards(state, "P1", models.CardKindJustice, models.CardKindJustice)
+	state.RemovedNobles = append(state.RemovedNobles, models.RemovedNoble{
+		ID: "N950", Code: "ZDE", Name: "Denis", Sex: models.SexMale, OwnerID: "P3",
+		Cause: models.DeathCauseAssassination, Turn: 3, Commissioner: commissioner, Author: "P2",
 	})
 	return nil
 }

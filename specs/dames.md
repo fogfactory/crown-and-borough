@@ -310,9 +310,11 @@ ces trois conditions :
 **Commanditaire d'assassinat** : un noble qui a commandité au moins un
 assassinat ([ordres-speciaux.md § Assassinat](ordres-speciaux.md#assassinat))
 peut être jugé et exécuté, quels que soient son sexe, son statut marital, ses
-dignités, et même s'il n'est pas excommunié. Le Roi est le seul à y échapper.
+dignités, et même s'il n'est pas excommunié. Le Roi échappe toujours au procès.
 La victime de l'assassinat n'entre pas en compte. L'exécution d'un commanditaire
-n'ouvre **pas** de fenêtre de révolte, et ne révèle aucune dignité.
+n'ouvre **pas** de fenêtre de révolte, et ne révèle aucune dignité, même si la
+cible remplirait aussi les conditions du procès direct ou serait excommuniée : le
+motif de commanditaire prime.
 
 **Tous les autres personnages** (hommes, dames sans dignité, dames mariées,
 Abbesse) doivent d'abord être **excommuniés** par le pape pour être jugés. Le
@@ -356,9 +358,9 @@ déclenchement par deux cardinaux (`J HHH NNN`,
 [hiver.md](hiver.md#ordre-de-résolution) étapes 3 et 9). Une dignité cachée ne
 protège pas du procès direct : elle est révélée par l'exécution.
 
-À livrer avec la carte Justice (#415) : le procès d'un commanditaire
-d'assassinat, qui suppose le registre des commanditaires de la carte Assassinat
-(#414).
+Livré aussi (#415) : le procès d'un commanditaire d'assassinat, qui lit le
+registre des commanditaires de la carte Assassinat. Le Roi y échappe toujours ; il
+n'ouvre pas de fenêtre de révolte et ne révèle aucune dignité.
 
 ## Pouvoirs requis ailleurs
 

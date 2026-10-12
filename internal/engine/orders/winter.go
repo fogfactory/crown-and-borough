@@ -48,7 +48,7 @@ func ParseWinterOrdersWithDeckOrders(text string, game *models.GameState) ([]mod
 			continue
 		}
 		fields := strings.Fields(line)
-		if isSpecialDiscardLine(fields) || isWinterAssassinationLine(fields) {
+		if isSpecialDiscardLine(fields) || isWinterEventCardLine(fields) {
 			order, parseError := parseDeckOrderLine(line, lineNumber+1, game)
 			if parseError != nil {
 				parseErrors = append(parseErrors, *parseError)
@@ -94,7 +94,7 @@ func ParseWinterSheetLines(text string, game *models.GameState) []WinterSheetLin
 		}
 		parsed := WinterSheetLine{Line: lineNumber + 1}
 		fields := strings.Fields(line)
-		if isSpecialDiscardLine(fields) || isWinterAssassinationLine(fields) {
+		if isSpecialDiscardLine(fields) || isWinterEventCardLine(fields) {
 			order, parseError := parseDeckOrderLine(line, lineNumber+1, game)
 			if parseError != nil {
 				parsed.Error = parseError
@@ -114,10 +114,19 @@ func ParseWinterSheetLines(text string, game *models.GameState) []WinterSheetLin
 	return lines
 }
 
-// isWinterAssassinationLine tells the assassination card (P AS HHH NNN), the
-// only special card played on a winter sheet.
-func isWinterAssassinationLine(fields []string) bool {
-	return len(fields) == 4 && fields[0] == "P" && isAssassinationCode(fields[1])
+// isWinterEventCardLine tells the assassination (P AS HHH NNN) and justice
+// (P JU HHH) cards, the only special cards played on a winter sheet.
+func isWinterEventCardLine(fields []string) bool {
+	if len(fields) == 0 || fields[0] != "P" {
+		return false
+	}
+	switch len(fields) {
+	case 3:
+		return isJusticeCode(fields[1])
+	case 4:
+		return isAssassinationCode(fields[1])
+	}
+	return false
 }
 
 // isSpecialDiscardLine tells a special-card discard (D C KIND, a two-letter

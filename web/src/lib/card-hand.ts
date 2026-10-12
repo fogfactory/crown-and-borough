@@ -8,6 +8,7 @@ const CARD_KIND_ORDER: CardKind[] = [
   'tunnel',
   'ambush',
   'assassination',
+  'justice',
   'plague',
   'bad_weather',
   'revolt',
@@ -25,6 +26,7 @@ const CARD_SHORT_KEYS: Record<CardKind, MessageKey> = {
   tunnel: 'card.short.tunnel',
   ambush: 'card.short.ambush',
   assassination: 'card.short.assassination',
+  justice: 'card.short.justice',
 }
 
 const CARD_NAME_KEYS: Record<CardKind, MessageKey> = {
@@ -38,6 +40,7 @@ const CARD_NAME_KEYS: Record<CardKind, MessageKey> = {
   tunnel: 'card.tunnel',
   ambush: 'card.ambush',
   assassination: 'card.assassination',
+  justice: 'card.justice',
 }
 
 export function formatCardLabel(kind: CardKind, t: Translate): string {

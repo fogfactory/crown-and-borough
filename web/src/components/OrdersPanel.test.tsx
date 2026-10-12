@@ -1247,6 +1247,44 @@ describe('OrdersPanel title and card order dialogs', () => {
     expect(onWinterChange).toHaveBeenCalledWith(expect.stringMatching(/^P AS AAA JAI/))
   })
 
+  it('writes the justice order on any noble but the King', () => {
+    const onSpecialChange = renderAction({
+      specialHand: ['justice'],
+      king: 'KIN',
+      nobles: [
+        { ...nobles[0], id: 'N8', code: 'AAA', owner: 'P1', status: 'free' },
+        { ...nobles[0], id: 'N9', code: 'JAI', owner: 'P2', status: 'hostage' },
+        { ...nobles[0], id: 'N7', code: 'KIN', owner: 'P3', status: 'free' },
+      ],
+    })
+    fireEvent.click(screen.getByRole('button', { name: /^Play Justice \(JU\): try a noble/ }))
+    const dialog = screen.getByRole('dialog')
+    const options = within(dialog)
+      .getAllByRole('option')
+      .map((option) => (option as HTMLOptionElement).value)
+    expect(options).toContain('AAA')
+    expect(options).toContain('JAI')
+    expect(options).not.toContain('KIN')
+    fireEvent.change(within(dialog).getByLabelText('Noble to try'), { target: { value: 'JAI' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
+    expect(onSpecialChange).toHaveBeenCalledWith(expect.stringMatching(/^P JU JAI/))
+  })
+
+  it('writes the justice order on the winter sheet', () => {
+    const onWinterChange = renderWinter({
+      specialHand: ['justice'],
+      nobles: [
+        { ...nobles[0], id: 'N8', code: 'AAA', owner: 'P1', status: 'free' },
+        { ...nobles[0], id: 'N9', code: 'JAI', owner: 'P2', status: 'hostage' },
+      ],
+    })
+    fireEvent.click(screen.getByRole('button', { name: /^Justice \(JU\)/ }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.change(within(dialog).getByLabelText('Noble to try'), { target: { value: 'JAI' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
+    expect(onWinterChange).toHaveBeenCalledWith(expect.stringMatching(/^P JU JAI/))
+  })
+
   it('offers only the territories next to the origin as tunneled attack targets', () => {
     const territory = (id: string, army: { owner: string; size: number; chain: null } | null) => ({
       id, owner: 'P1', resources: 0, army, infrastructures: [],

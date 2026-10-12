@@ -4,11 +4,21 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
-// trialVerdict returns the dignity a trial reveals when the noble can be put
-// to death: a lady liable to the direct trial, or any excommunicated noble
-// (specs/dames.md § Procès). The dignity is empty for a noble who
-// holds none.
-func (ctx *resolutionContext) trialVerdict(noble *models.Noble) (models.Dignity, bool) {
+// liableAsCommissioner reports whether the noble can be tried for having
+// commissioned an assassination: any sex, marital status or dignity, with no
+// excommunication needed, and the King always escapes it. These grounds take
+// precedence over the direct ones: they reveal no dignity and open no revolt
+// window.
+func (ctx *resolutionContext) liableAsCommissioner(noble *models.Noble) bool {
+	return !ctx.state.IsKing(noble.ID) && ctx.state.IsCommissioner(noble.ID)
+}
+
+// directTrialVerdict returns the dignity a trial reveals when the noble can be
+// put to death for being a lady liable to the direct trial or an
+// excommunicated noble (specs/dames.md § Procès); the dignity is empty for a
+// noble who holds none. These grounds reveal the dignity and open a revolt
+// window.
+func (ctx *resolutionContext) directTrialVerdict(noble *models.Noble) (models.Dignity, bool) {
 	_, married := ctx.state.MarriageOf(noble.ID)
 	if dignity, liable := noble.TrialDignity(married); liable {
 		return dignity, true
@@ -35,7 +45,16 @@ func (ctx *resolutionContext) judgeTrial(event Event, noble *models.Noble) {
 	event.NobleCode = models.NobleCode(noble.Code)
 	event.NobleName = ctx.state.NobleDisplayName(*noble)
 	event.TerritoryID = noble.LocationID
-	dignity, liable := ctx.trialVerdict(noble)
+	if ctx.liableAsCommissioner(noble) {
+		// Justice comes first: the commissioner of an assassination is
+		// executed with no dignity revealed and no revolt window, whatever
+		// other grounds the trial would have.
+		event.Reason = "trial_executed"
+		ctx.events = append(ctx.events, event)
+		ctx.executeNoble(*noble)
+		return
+	}
+	dignity, liable := ctx.directTrialVerdict(noble)
 	if !liable {
 		event.Reason = "trial_unfounded"
 		ctx.events = append(ctx.events, event)

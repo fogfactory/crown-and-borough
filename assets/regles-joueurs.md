@@ -742,7 +742,8 @@ résultat des étapes précédentes, jamais des suivantes.
    région croissante puis conclave.
 8. Investiture : les élus et les cardinaux achetés reçoivent leur titre.
 9. Fin d'hiver : mains, fiefs vacants, stocks, rapports.
-10. Jugement des procès, seul ordre d'hiver qui tue.
+10. Jugement des procès, puis cartes Assassinat et Justice : les seuls ordres
+    d'hiver qui tuent.
 
 Dans une étape, les joueurs passent par identifiant croissant, puis tes ordres
 dans l'ordre de ta feuille. Un titre perdu cesse de servir immédiatement ; un
@@ -1028,6 +1029,8 @@ dans la feuille `winter`.
   plus bas) ;
 - `P AS HHH NNN` : jouer Assassinat, où HHH est votre noble libre (le
   commanditaire) et NNN un noble d'un autre joueur (voir plus bas) ;
+- `P JU HHH` : jouer Justice sur le noble HHH, de n'importe quel joueur (voir
+  plus bas) ;
 - `P TX BRU` : jouer la Taxe seigneuriale sur BRU, à condition que BRU soit
   la capitale d'un fief que le joueur détient (vacant compris) — c'est la
   seule exception où la cible n'est pas le village seed d'une région ;
@@ -1073,7 +1076,8 @@ mauvais temps, **{{special_orders.card.famine}}** mauvaise récolte,
 **{{special_orders.card.revolt}}** révolte,
 **{{special_orders.card.seigneurial_tax}}** impôts (taxe seigneuriale, taxe royale ou dîme),
 **{{special_orders.card.tunnel}}** souterrain,
-**{{special_orders.card.assassination}}** assassinat et
+**{{special_orders.card.assassination}}** assassinat,
+**{{special_orders.card.justice}}** justice et
 **{{special_orders.card.ambush}}** embuscade. La main est limitée à
 **{{special_orders.hand_limit}} cartes**, cartes de noble et de dignité
 comprises. Après ses ordres d'hiver et ses défausses, chaque joueur reçoit
@@ -1217,6 +1221,26 @@ ne se résout en hiver.
   NNN, sans rumeur pour les autres. Ces joueurs voient le lien entre
   le commanditaire et sa victime dans la vue Lignée et, pour le commanditaire,
   dans le poste de commandement du territoire où il se trouve.
+- la Justice (`P JU HHH`) se joue en toute saison, hiver compris (sur la
+  feuille d'hiver), gratuitement. HHH est n'importe quel noble vivant, de n'importe quel joueur
+  (le vôtre compris), où qu'il soit et quel que soit son statut, sauf le roi,
+  toujours protégé ; une cible déjà morte ou le roi est rejeté et la carte
+  conservée. Si HHH a été le commanditaire d'au moins un assassinat, quelle
+  qu'en soit la victime, il est exécuté avant le ravitaillement et les ordres
+  d'armée (en hiver, à la fin, après les verdicts des procès et les
+  assassinats), comme toute mort de noble (fiefs vacants, prétentions
+  réglées). Sinon la
+  carte est consommée sans effet. Seuls les joueurs qui connaissent le lien
+  entre un commanditaire et sa victime savent qui viser : les autres jouent
+  Justice sur un soupçon. Le rapport annonce publiquement l'exécution comme
+  une justice rendue pour un assassinat, en nommant le joueur qui a joué la
+  carte et le noble exécuté ; un échec n'est visible que de ce joueur. Les cartes d'un même tour
+  se résolvent dans l'ordre : Souterrain, Assassinat, puis Justice.
+  Un commanditaire d'assassinat peut aussi être exécuté par un procès à deux
+  cardinaux, quels que soient son sexe, son statut marital et ses dignités, même
+  sans excommunication ; ce procès ne révèle aucune dignité et n'ouvre pas de
+  fenêtre de révolte, même si le noble est aussi excommunié ou jugeable en
+  procès direct. Le roi échappe toujours au procès.
 
 Les rumeurs publiques sont recalculées dans chaque rapport à partir des
 mains bonus actuelles de tous les joueurs. Elles apparaissent lorsqu'au
