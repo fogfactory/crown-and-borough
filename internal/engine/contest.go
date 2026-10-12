@@ -152,10 +152,12 @@ func (adj *adjudicator) contestResults() map[models.TerritoryID]contestResult {
 				NobleBonus: defenderNobleBonus, Defender: true,
 			})
 		}
+		tunneled := false
 		for _, armyID := range adj.attacksByTarget[territoryID] {
 			if adj.retiredGhost(armyID) {
 				continue
 			}
+			tunneled = tunneled || ctx.tunneledAttacks[armyID]
 			force, _ := adj.attackForce(armyID, "")
 			attacker := ctx.startArmiesByID[armyID]
 			result.contenders = append(result.contenders, CombatContender{
@@ -169,6 +171,10 @@ func (adj *adjudicator) contestResults() map[models.TerritoryID]contestResult {
 					result.attackerOriginID = ctx.attacks[armyID].source
 				}
 			}
+		}
+		if tunneled && result.castleBonus > 0 && len(result.contenders) > 0 && result.contenders[0].Defender {
+			faced := result.contenders[0].Force - result.castleBonus
+			result.contenders[0].TunnelForce = &faced
 		}
 		result.standoff = result.winnerID == "" && result.hasAttackStandoff()
 		for _, supportID := range sortedArmyMap(ctx.supports) {

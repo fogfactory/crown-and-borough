@@ -58,6 +58,10 @@ var demoScenarios = map[string]struct {
 		description: "spring, P1 has a bishop and a cardinal (see the appeasement scenario) and two Tax cards: tithe orders on bishoprics",
 		apply:       forgeTithe,
 	},
+	"tunnel": {
+		description: "spring, P1 holds a Tunnel card and an army (with its noble) next to P2's capital castle, exactly as strong as the fortified defense: it fails alone, wins with P SO <origin> - <target>; the report shows the defense faced",
+		apply:       forgeTunnel,
+	},
 	"action": {
 		description: "spring, P1 holds bonus cards; a famine is active, a bad weather is announced (one bent by a ritual)",
 		apply:       forgeAction,
@@ -166,7 +170,7 @@ func forgeWinter(state *models.GameState) error {
 			state.TerritoryStates[territoryID] = territoryState
 		}
 	}
-	giveSpecialCards(state, "P1", models.CardKindFairWeather, models.CardKindRevolt, models.CardKindTrial, models.CardKindSeigneurialTax)
+	giveSpecialCards(state, "P1", models.CardKindFairWeather, models.CardKindRevolt, models.CardKindSeigneurialTax)
 	giveNobleCards(state, "P1",
 		models.NobleCard{Kind: models.NobleCardKindNoble, Code: "ZAL", Name: "Albert", Sex: models.SexMale},
 		models.NobleCard{Kind: models.NobleCardKindDignity, Code: models.DignityBastardCardCode, Dignity: models.DignityBastard},
@@ -462,6 +466,77 @@ func forgeInquiry(state *models.GameState) error {
 			LocationID: location, Status: models.NobleStatusFree, Dignities: []models.Dignity{lady.dignity},
 		})
 	}
+	return nil
+}
+
+// forgeTunnel puts a P1 army, with P1's first noble, on a free territory next
+// to P2's capital castle, with exactly the force of the defense there
+// (troops, castle bonus and the commanding noble). The attack then ties
+// against the fortifications and wins when the Tunnel card ignores them. The
+// orders to try, with the codes printed by the game:
+//
+//	A <origin> <target>          lost on its own (tie)
+//	P SO <origin> - <target>     the same attack, tunneled
+func forgeTunnel(state *models.GameState) error {
+	var capitalID models.TerritoryID
+	for _, player := range state.Players {
+		if player.ID != "P2" || player.CapitalCastleID == nil {
+			continue
+		}
+		for _, infrastructure := range state.Infrastructures {
+			if infrastructure.ID == *player.CapitalCastleID {
+				capitalID = infrastructure.TerritoryID
+			}
+		}
+	}
+	p1 := ownedNobles(state, "P1")
+	if capitalID == "" || len(p1) == 0 {
+		return fmt.Errorf("the base game lacks a P2 capital or a P1 noble")
+	}
+	defense := 1 // castle bonus
+	for _, army := range state.Armies {
+		if army.TerritoryID == capitalID {
+			defense += army.Size
+		}
+	}
+	for _, noble := range state.Nobles {
+		if noble.OwnerID == "P2" && noble.LocationID == capitalID && noble.Status == models.NobleStatusFree {
+			defense++
+			break
+		}
+	}
+	var originID models.TerritoryID
+	for _, territory := range state.Territories {
+		if territory.ID != capitalID {
+			continue
+		}
+		for _, id := range territory.Adjacencies {
+			if _, controlled := state.TerritoryController(id); !controlled && state.TerritoryStates[id].Army == nil {
+				originID = id
+				break
+			}
+		}
+	}
+	if originID == "" {
+		return fmt.Errorf("no free territory next to %s", capitalID)
+	}
+	armyID := models.ArmyID("ZT1")
+	state.Armies = append(state.Armies, models.Army{ID: armyID, OwnerID: "P1", TerritoryID: originID, Size: defense - 1})
+	territoryState := state.TerritoryStates[originID]
+	territoryState.Army = &armyID
+	state.TerritoryStates[originID] = territoryState
+	state.NextArmyID++
+	// A village with a large stock keeps the army supplied: a famished army
+	// attacks with no force at all.
+	state.Infrastructures = append(state.Infrastructures, models.Infrastructure{ID: "ZTV", Type: models.InfraTypeVillage, Level: 1, TerritoryID: originID})
+	villageID := models.InfraID("ZTV")
+	territoryState = state.TerritoryStates[originID]
+	territoryState.Infrastructures = &villageID
+	territoryState.Resources = 40
+	state.TerritoryStates[originID] = territoryState
+	state.Nobles[p1[0]].LocationID = originID
+	giveSpecialCards(state, "P1", models.CardKindTunnel)
+	fmt.Printf("demo tunnel: P1 army of %d (+ noble) on %s attacks the P2 castle on %s (defense %d)\n", defense-1, originID, capitalID, defense)
 	return nil
 }
 

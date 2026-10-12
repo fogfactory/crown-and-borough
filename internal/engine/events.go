@@ -139,6 +139,10 @@ type CombatContender struct {
 	// Tunnel marks an attack carried by a tunnel card: it ignored the
 	// fortifications of its target.
 	Tunnel bool `json:"tunnel,omitempty"`
+	// TunnelForce is, on the defender, the force a tunneled attack faced:
+	// Force without the fortification bonus. Set (possibly to 0) only when a
+	// tunneled attack contested a fortified territory.
+	TunnelForce *int `json:"tunnelForce,omitempty"`
 }
 
 // Event is a value-only report of one resolution decision. Fields irrelevant

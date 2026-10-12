@@ -252,3 +252,57 @@ func TestTunnelIsParsedByItsArgument(t *testing.T) {
 		}
 	}
 }
+
+// Only the designated attack ignores the fortifications: a second attacker on
+// the same castle, with no card, still faces them. The rival has to be
+// strictly weaker than the tunneled attack (force 2 against 3) and carry no
+// noble, otherwise it would also prevent the designated attack; and it must
+// beat the defense without fortifications (1) to tell the two attacks apart.
+func TestTunnelAttackOnlyBypassesTheFortificationsForTheDesignatedAttack(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{territory("AAA", "AAA", "BBB", "CCC"), territory("BBB", "BBB", "AAA"), territory("CCC", "CCC", "AAA")},
+		[]models.Army{
+			{ID: "A1", OwnerID: "P2", TerritoryID: "BBB", Size: 2},
+			{ID: "A3", OwnerID: "P3", TerritoryID: "CCC", Size: 2},
+		},
+	)
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+	setCapital(state, "P1", "I1")
+	addAnchorArmy(t, state, "A2", "P1", "AAA")
+	keepTestArmiesSupplied(state)
+	addNoble(state, "N1", "ONE", "P2", "BBB")
+	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"AAA"}})
+	// The rival's noble is elsewhere, so it commands nothing.
+	addNoble(state, "N3", "TRI", "P3", "BBB")
+	addChain(t, state, "A3", "N3", models.Order{Type: models.OrderTypeAttack, PositionID: "CCC", TargetIDs: []models.TerritoryID{"AAA"}})
+	state.SpecialDeck = &models.SpecialDeck{
+		Cards:    []models.SpecialCard{{ID: "C1", Kind: models.CardKindTunnel}},
+		DrawPile: []models.SpecialCardID{}, Discard: []models.SpecialCardID{},
+		Hands: map[models.PlayerID][]models.SpecialCardID{"P2": {"C1"}},
+	}
+	validateTestState(t, state)
+	resolution, err := ResolveWithDeckOrders(state, testBalance(), tunnelAttackOrders(true))
+	if err != nil {
+		t.Fatalf("ResolveWithDeckOrders: %v", err)
+	}
+	if got := armyByID(t, resolution.State, "A1").TerritoryID; got != "AAA" {
+		t.Fatalf("A1 is on %s, want the tunneled attack to take AAA", got)
+	}
+	if got := armyByID(t, resolution.State, "A3").TerritoryID; got != "CCC" {
+		t.Fatalf("A3 is on %s, want the rival attack to stay home", got)
+	}
+	combat, found := combatAt(resolution.Events, "AAA")
+	if !found {
+		t.Fatalf("no combat reported at AAA")
+	}
+	for _, contender := range combat.Contenders {
+		switch {
+		case contender.ArmyID == "A1" && !contender.Tunnel:
+			t.Errorf("designated attack %#v not flagged as tunneled", contender)
+		case contender.ArmyID == "A3" && contender.Tunnel:
+			t.Errorf("rival attack %#v flagged as tunneled", contender)
+		case contender.Defender && (contender.Force != 2 || contender.TunnelForce == nil || *contender.TunnelForce != 1):
+			t.Errorf("defender %#v, want force 2 (castle bonus included) and 1 against a tunnel", contender)
+		}
+	}
+}

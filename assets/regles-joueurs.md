@@ -1000,8 +1000,6 @@ dans la feuille `winter`.
 - `P AG HHH BRU` et `P AP HHH BRU` : faire apaiser par l'ecclésiastique HHH
   (pape, cardinal, évêque ou abbesse) la révolte de BRU, sans carte (voir
   « Apaisement de révolte » plus bas) ;
-- `P PR NNN` : jouer Procès sur le noble de code NNN — adverse ou non —, jugé
-  à la fin du tour (voir plus bas) ;
 - `P SO NNN` : jouer Souterrain pour évader votre noble NNN, détenu (otage ou
   cachot) par l'armée d'un autre joueur ; `P SO AAA - BBB` : jouer Souterrain
   sur votre attaque de AAA vers BBB, qui ignore les fortifications (voir plus
@@ -1019,7 +1017,7 @@ dans la feuille `winter`.
 La main est reconstituée automatiquement en hiver après les ordres d'hiver et
 les défausses ; aucun ordre de pioche n'est nécessaire.
 
-Beau temps, Bonne récolte, Révolte, Impôts et Procès sont jouables au
+Beau temps, Bonne récolte, Révolte et Impôts sont jouables au
 printemps, en été et en automne, mais pas en hiver. Les cartes jouées sont
 consommées avant la résolution des ordres d'armée. Beau temps annule
 uniquement le mauvais temps, Bonne récolte annule uniquement la mauvaise
@@ -1049,8 +1047,7 @@ mauvais temps, **{{special_orders.card.famine}}** mauvaise récolte,
 **{{special_orders.card.abundant_harvest}}** bonne récolte,
 **{{special_orders.card.revolt}}** révolte,
 **{{special_orders.card.seigneurial_tax}}** impôts (taxe seigneuriale ou dîme) et
-**{{special_orders.card.trial}}** procès, **{{special_orders.card.tunnel}}**
-souterrain. La main est limitée à
+**{{special_orders.card.tunnel}}** souterrain. La main est limitée à
 **{{special_orders.hand_limit}} cartes**, cartes de noble et de dignité
 comprises. Après ses ordres d'hiver et ses défausses, chaque joueur reçoit
 automatiquement des cartes bonus, jusqu'à
@@ -1084,7 +1081,7 @@ ne se résout en hiver.
   d'action, à condition que sa région subisse une mauvaise récolte, ou
   qu'une Taxe seigneuriale ait été jouée sur la capitale du fief du
   territoire ce tour-ci ou le tour précédent — tout territoire du fief est
-  alors éligible, pas seulement sa capitale taxée —, ou qu'un Procès ait
+  alors éligible, pas seulement sa capitale taxée —, ou qu'un procès ait
   exécuté une dame dans sa région : tout territoire de cette région est alors
   éligible pendant la saison d'action qui suit l'exécution. Chaque
   carte ajoute un jet entre **{{special_orders.effects.revolt_army_min_size}}**
@@ -1132,14 +1129,6 @@ ne se résout en hiver.
   entre eux, en unités entières ; le reste de la division demeure sur le
   moulin. Comme toute taxe, la dîme rend tous les territoires de l'évêché
   éligibles à la Révolte ce tour-ci et le suivant ;
-- le Procès se joue sur un noble (`P PR NNN`), le vôtre ou celui d'un
-  adversaire, au printemps, en été ou en automne. Il est jugé en toute fin de
-  tour, une fois tous les autres effets résolus. Seule une **dame non mariée
-  portant une dignité**, cachée ou non, hors Abbesse, peut être jugée : le
-  procès **révèle** sa dignité et elle est **exécutée** sans retour, et la Révolte devient jouable sur
-  tout territoire de la région où elle se trouvait pendant la saison d'action
-  suivante. Tout autre procès est non fondé : la carte est consommée et rien
-  d'autre ne se passe ;
 - le Souterrain se joue au printemps, en été ou en automne, gratuitement, et sa
   pose est vérifiée à la soumission. Sa forme distingue ses deux usages.
   **Évasion** (`P SO NNN`) : NNN est un de vos nobles détenu (otage ou cachot)

@@ -163,7 +163,7 @@ L'évêché de l'abbaye est **choisi à la pose** de la dignité et définitif.
   d'ordres démarrées** dans cet évêché, même si elles se poursuivent
   ailleurs.
 
-Elle est la seule dame que le [procès direct](#carte-de-procès) ne peut pas
+Elle est la seule dame que le [procès direct](#procès) ne peut pas
 viser : elle ne peut être jugée qu'après excommunication.
 
 #### Herboriste
@@ -200,7 +200,7 @@ Il est **démasqué** si :
 
 Un Éon démasqué est **excommunié d'office** et perd les titres devenus
 incompatibles, qui deviennent vacants. Son excommunication ouvre droit au
-procès (voir [Carte de procès](#carte-de-procès)).
+procès (voir [Procès](#procès)).
 
 #### Correspondante [cachée]
 
@@ -291,7 +291,7 @@ Précisions retenues :
   bénéficiaire sur sa case ; l'Empoisonneuse augmente de 1 celle des armées d'un
   autre propriétaire dans sa région (les alliances n'existent pas encore).
 
-## Carte de procès
+## Procès
 
 Un procès **tue** sa cible. Il fait écho, sans jamais recourir à une
 mécanique surnaturelle, à la persécution historique des femmes savantes :
@@ -307,6 +307,13 @@ ces trois conditions :
 - elle n'est **pas mariée** ;
 - elle n'est pas l'Abbesse.
 
+**Commanditaire d'assassinat** : un noble qui a commandité au moins un
+assassinat ([ordres-speciaux.md § Assassinat](ordres-speciaux.md#assassinat))
+peut être jugé et exécuté, quels que soient son sexe, son statut marital, ses
+dignités, et même s'il n'est pas excommunié. Le Roi est le seul à y échapper.
+La victime de l'assassinat n'entre pas en compte. L'exécution d'un commanditaire
+n'ouvre **pas** de fenêtre de révolte, et ne révèle aucune dignité.
+
 **Tous les autres personnages** (hommes, dames sans dignité, dames mariées,
 Abbesse) doivent d'abord être **excommuniés** par le pape pour être jugés. Le
 mariage est donc une protection pour les dignités qui le permettent
@@ -314,38 +321,44 @@ mariage est donc une protection pour les dignités qui le permettent
 
 ### Déclenchement
 
-- une **carte événement** de procès, tirée dans le deck ;
-- ou **deux cardinaux distincts d'accord**, qui déposent chacun `J HHH NNN`
-  (`HHH` : le cardinal qui porte le procès, `NNN` : la cible ; ordre de procès sans carte, voir
-  [religieux.md § Procès à deux cardinaux](religieux.md#procès-à-deux-cardinaux))
-  le même hiver ; le pape seul ne suffit jamais, et les deux cardinaux peuvent
-  appartenir au même joueur.
+Le procès n'existe qu'en hiver : **deux cardinaux distincts d'accord** déposent
+chacun `J HHH NNN` (`HHH` : le cardinal qui porte le procès, `NNN` : la cible ;
+voir [religieux.md § Procès à deux cardinaux](religieux.md#procès-à-deux-cardinaux))
+le même hiver ; le pape seul ne suffit jamais, et les deux cardinaux peuvent
+appartenir au même joueur. Le deck des ordres spéciaux ne contient pas de
+carte de procès ; la carte [Justice](ordres-speciaux.md#justice) vise
+spécifiquement les commanditaires d'assassinat.
 
 ### Jugement et conséquences
 
-Le procès est jugé en **toute fin de tour**, une fois tous les autres effets
-du tour résolus. Pour un procès à deux cardinaux, l'ordre précis par rapport aux
-excommunications, enquêtes, mariages et élections du même hiver est fixé par
-[hiver.md](hiver.md#ordre-de-résolution) : un noble excommunié ou démasqué
-cet hiver est jugeable, une dame mariée cet hiver ne l'est plus. Si la cible remplit les conditions du procès direct, ou si elle est
-excommuniée, elle est exécutée, et sa dignité éventuelle, cachée ou non, est révélée à tous : elle quitte le jeu définitivement (cause « exécution » dans la
-lignée) et ses fiefs, prétentions et cartes sont réglés comme pour toute
-mort. L'exécution ouvre l'opportunité de jouer une **carte révolte** (les
-armées `NEUTRAL` de révolte du GDD, § Cartes bonus et calamités) sur tout
-territoire de la région (évêché) où se trouvait la dame, pendant la saison
-d'action suivante.
+Le procès est jugé en dernier, à l'étape 9 de l'hiver. L'ordre précis par
+rapport aux excommunications, enquêtes, mariages et élections du même hiver est
+fixé par [hiver.md](hiver.md#ordre-de-résolution) : un noble excommunié ou
+démasqué cet hiver est jugeable, une dame mariée cet hiver ne l'est plus.
+
+Si la cible remplit les conditions du procès direct, ou si elle est
+excommuniée, elle est exécutée et sa dignité éventuelle, cachée ou non, est
+révélée à tous : elle quitte le jeu définitivement (cause « exécution » dans la
+lignée) et ses fiefs, prétentions et cartes sont réglés comme pour toute mort.
+Cette exécution ouvre l'opportunité de jouer une **carte révolte** (les armées
+`NEUTRAL` de révolte du GDD, § Cartes bonus et calamités) sur tout territoire
+de la région (évêché) où se trouvait la cible, pendant la saison d'action
+suivante.
 
 Un procès dont la cible n'est pas éligible au moment du jugement (déjà
 exécutée par un autre procès, mariée entre-temps, Abbesse, sans dignité, etc.)
-est non fondé : la carte est consommée et rien d'autre ne se passe.
+est non fondé : il ne se passe rien.
 
 ### Statut d'implémentation
 
-Livré : la carte événement de procès (`P PR HHH`, deck des ordres spéciaux), le
-procès direct, le procès sur un noble excommunié et le déclenchement par deux
-cardinaux (`J HHH NNN`, [hiver.md](hiver.md#ordre-de-résolution) étapes 3 et 9).
-Une dignité cachée ne protège pas du procès direct : elle est révélée par
-l'exécution.
+Livré : le procès direct, le procès sur un noble excommunié et le
+déclenchement par deux cardinaux (`J HHH NNN`,
+[hiver.md](hiver.md#ordre-de-résolution) étapes 3 et 9). Une dignité cachée ne
+protège pas du procès direct : elle est révélée par l'exécution.
+
+À livrer avec la carte Justice (#415) : le procès d'un commanditaire
+d'assassinat, qui suppose le registre des commanditaires de la carte Assassinat
+(#414).
 
 ## Pouvoirs requis ailleurs
 

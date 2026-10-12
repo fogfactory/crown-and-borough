@@ -8,7 +8,17 @@ import (
 )
 
 var calamityKinds = []models.CardKind{models.CardKindPlague, models.CardKindBadWeather, models.CardKindFamine}
-var bonusKinds = []models.CardKind{models.CardKindFairWeather, models.CardKindAbundantHarvest, models.CardKindRevolt, models.CardKindSeigneurialTax, models.CardKindTrial, models.CardKindTunnel}
+var bonusKinds = []models.CardKind{models.CardKindFairWeather, models.CardKindAbundantHarvest, models.CardKindRevolt, models.CardKindSeigneurialTax, models.CardKindTunnel}
+
+// CalamityCardKinds returns the calamity kinds of the special deck in
+// canonical order. It is the single list shared by the balance weights, the
+// rules rendering and the deck builder.
+func CalamityCardKinds() []models.CardKind { return append([]models.CardKind(nil), calamityKinds...) }
+
+// BonusCardKinds returns the bonus kinds of the special deck in canonical
+// order. It is the single list shared by the balance weights, the rules
+// rendering and the deck builder.
+func BonusCardKinds() []models.CardKind { return append([]models.CardKind(nil), bonusKinds...) }
 
 func (raw rawBalance) specialOrders(path string) (SpecialOrdersBalance, error) {
 	if raw.SpecialOrders == nil {

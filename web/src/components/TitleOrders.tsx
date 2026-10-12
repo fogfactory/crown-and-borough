@@ -11,7 +11,6 @@ const PLAYABLE_KINDS: CardKind[] = [
   'abundant_harvest',
   'revolt',
   'seigneurial_tax',
-  'trial',
   'tunnel',
 ]
 
@@ -680,8 +679,6 @@ function specialTargetField(
         label: t('orders.field.fief'),
         options: (state.fiefs ?? []).map((fief) => codeOption(fief.capital)),
       }
-    case 'trial':
-      return { label: t('orders.field.trialTarget'), options: state.nobles.map(nobleOption) }
     default: {
       // Regions where the card cancels an announced calamity come first.
       const options = regionOptions(regions).map((option) =>
@@ -778,7 +775,7 @@ export function SpecialCardOrders({
         if (kind === 'tunnel') {
           return (
             <span key={kind} className="contents">
-              {tunnelLaunchers({ state, player, t, lines, copies: copies(kind), add: (line) => onChange(appendDraftLine(draft, line)) })}
+              {tunnelLaunchers({ state, player, mapTerritories, t, lines, copies: copies(kind), add: (line) => onChange(appendDraftLine(draft, line)) })}
             </span>
           )
         }
@@ -952,6 +949,7 @@ function taxLauncher({
 function tunnelLaunchers({
   state,
   player,
+  mapTerritories,
   t,
   lines,
   copies,
@@ -959,6 +957,7 @@ function tunnelLaunchers({
 }: {
   state: StateData
   player?: PlayerId
+  mapTerritories: Territory[]
   t: Translate
   lines: string[]
   copies: number
@@ -971,7 +970,12 @@ function tunnelLaunchers({
   const origins = state.territories
     .filter((territory) => territory.army?.owner === player)
     .map((territory) => codeOption(territory.id))
-  const targets = state.territories.map((territory) => codeOption(territory.id)).sort((a, b) => a.value.localeCompare(b.value))
+  const allTargets = state.territories.map((territory) => codeOption(territory.id)).sort((a, b) => a.value.localeCompare(b.value))
+  // The attack goes from the origin to a territory next to it.
+  const targets = (values: Record<string, string>) => {
+    const origin = mapTerritories.find((territory) => territory.id === values.origin)
+    return origin ? allTargets.filter((option) => origin.adjacencies.includes(option.value)) : allTargets
+  }
   return (
     <>
       {detained.length > 0 && (
@@ -1023,7 +1027,6 @@ const SHORT_CODES: Record<CardKind, string> = {
   bad_weather: 'MT',
   famine: 'FA',
   seigneurial_tax: 'TX',
-  trial: 'PR',
   tunnel: 'SO',
 }
 

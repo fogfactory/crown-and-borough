@@ -663,6 +663,37 @@ describe('ReportPanel', () => {
     expect(screen.getByText('2 (+1 noble)')).toBeInTheDocument()
   })
 
+  it('shows the defense a tunneled attack faced without the fortifications', () => {
+    const combatReport: TurnReport = {
+      ...report,
+      combats: [
+        {
+          territory: 'BRU',
+          baseDefense: 2,
+          defense: 2,
+          castleBonus: 1,
+          contenders: [
+            { army: 'A2', owner: 'P2', force: 2, defender: true, tunnelForce: 1 },
+            { army: 'A1', owner: 'P1', force: 2, defender: false, tunnel: true },
+          ],
+          cutSupporters: [],
+          reason: 'standoff',
+          standoff: true,
+        },
+      ],
+    }
+
+    render(
+      <LanguageProvider initialLanguage="fr">
+        <ReportPanel report={combatReport} map={map} players={players} />
+      </LanguageProvider>,
+    )
+
+    expect(
+      screen.getByText(/2 défense \(1 face à un souterrain\) · 2 \(souterrain\)/),
+    ).toBeInTheDocument()
+  })
+
   it('renders a general combat without exposing forces', () => {
     const generalReport: TurnReport = {
       ...report,
