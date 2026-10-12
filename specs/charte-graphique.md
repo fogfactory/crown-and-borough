@@ -5,10 +5,14 @@
 **Dépend de :** [architecture.md](architecture.md) pour la stack front et les
 contrats `map.json` / `state.json` ; [titres.md](titres.md#contrôle-et-occupation)
 pour les notions de territoire contrôlé et occupé ;
-[cartographie.md](cartographie.md) pour les futures rivières.
+[cartographie.md](cartographie.md) pour les futures rivières ;
+[politique.md](politique.md) et [succession.md](succession.md) pour la
+couronne, la lignée et les prétentions.
 
-Les décisions ci-dessous ont été actées lors de l'audit graphique du
-27 septembre 2026. Elles ne sont pas encore implémentées : l'interface actuelle
+Les décisions 1 à 20 ont été actées lors de l'audit graphique du
+27 septembre 2026, les décisions 21 à 32 lors de l'audit du 12 octobre 2026
+qui a suivi le milestone Royauté (fiefs, couronne, ordres royaux, cartes de
+fief). Elles ne sont pas encore implémentées : l'interface actuelle
 reste la référence tant que la phase correspondante n'est pas livrée. Les
 paragraphes marqués **Précision** traduisent une décision en règle applicable ;
 ils peuvent être amendés en revue sans remettre en cause le choix qu'ils
@@ -29,9 +33,10 @@ servent.
 2. **L'encre décrit le monde, le laiton désigne l'action.** Le terrain, les
    frontières et le texte sont à l'encre sépia. Le bouton principal, l'onglet
    actif, le focus et la sélection sont en laiton.
-3. **Une information, un canal visuel.** Contrôle : bannière. Occupation : écu
-   de l'armée présente. Évêché : cadre et liseré. Terrain : symboles d'encre.
-   Saison : voile de la carte. Deux informations ne partagent jamais un canal.
+3. **Une information, un canal visuel.** Contrôle : bannière. Fief : couronne
+   sur la bannière. Occupation : écu de l'armée présente. Évêché : cadre et
+   liseré. Terrain : symboles d'encre. Saison : voile de la carte.
+   Deux informations ne partagent jamais un canal.
 4. **Jamais la couleur seule.** Toute information portée par une couleur a un
    second repère : pièce héraldique, symbole de terrain, trait de frontière,
    forme ou texte.
@@ -64,6 +69,18 @@ servent.
 | 18 | Emblème | Sceau de cire | Cartouche, blason écartelé, emblème actuel |
 | 19 | Mouvement | Aucune animation | Micro-animations, sons, résolution animée |
 | 20 | Phasage | Fondations d'abord | Carte, ergonomie ou écran complet d'abord |
+| 21 | Fiefs sur la carte | Bannière couronnée sur la capitale ; trigramme de la capitale sur les bannières des autres territoires du fief | Cartouche gravé, contour du fief, capitale seule |
+| 22 | Couronne et Église | Marque-page « Royaume » du tiroir | Médaillons sur la carte, boutons de la barre du haut, section de la lignée |
+| 23 | Titres d'un noble dans les fiches | Pion et attributs, puis titres en texte | Étiquettes unifiées, texte seul, pictogrammes seuls |
+| 24 | Scores et victoire | Popover actuel restylé | Piste de score, tableau compact, scores dans la barre |
+| 25 | Textes d'aide | Une ligne de résumé et un « ? » qui ouvre le texte complet | Mode apprenti, ligne d'aide unique, renvoi aux règles |
+| 26 | Ordres de titres | Groupés par titulaire | Menu « Ajouter un ordre », depuis la carte, autocomplétion seule |
+| 27 | Réglage d'un ordre de titre | Formulaire déplié dans le tiroir, carte cliquable | Ciblage sur la carte, modale restylée, modèle de ligne |
+| 28 | Main de cartes | Éventail de cartes à jouer | Liste compacte, jetons restylés, main repliée |
+| 29 | Trésor | Bandeau d'une ligne, dépliable | Barre du haut, blocs repliés, livre de comptes |
+| 30 | Fiche de territoire | Cartouche posé sur la carte | Sections repliables, marque-page Territoire, infobulle et tiroir |
+| 31 | Lignée et alliances | Arbre généalogique | Maisons compactes, page dédiée, restyle de l'actuel |
+| 32 | Résultats répétitifs du rapport | Carte de synthèse et encadré des rumeurs | Filtrage seul, « chez vous » d'abord, tableau |
 
 ## Couleurs
 
@@ -91,7 +108,7 @@ dur dans les classes Tailwind.
 | Token | Valeur | Usage |
 |---|---|---|
 | `brass-300` | `#e2c47a` | Filets décoratifs : cadre de la carte, cartouches |
-| `brass-400` | `#c9a24a` | Fond du bouton principal, halo de sélection, couronnes des nobles titrés |
+| `brass-400` | `#c9a24a` | Fond du bouton principal, halo de sélection, couronnes des nobles titrés et des fiefs |
 | `brass-500` | `#b8923f` | Survol du bouton principal |
 | `brass-700` | `#7d5a1c` | Texte en laiton (onglet actif, liens), anneau de focus, trait de sélection |
 | `vermilion-700` | `#a4301c` | Texte et icône d'erreur |
@@ -360,6 +377,25 @@ L'affichage actuel est conservé et restylé :
 **Précision.** La bannière se plante à gauche du nom, le pied du mât sur sa
 ligne de base ; mât `ink-900`, drapeau de 12 × 8 unités.
 
+### Fiefs : bannière couronnée
+
+- La capitale d'un fief porte la bannière de son joueur surmontée de la
+  couronne du rang du fief (baronnie, comté, marquisat, duché ; mêmes dessins
+  que les couronnes des nobles), en `brass-400` cernée d'encre.
+- Les autres territoires du fief gardent leur bannière ordinaire, marquée du
+  trigramme de la capitale en petites capitales Cinzel sous le drapeau : on
+  lit d'un coup d'œil à quel fief appartient une case.
+- Un fief de la couronne ([politique.md](politique.md)) porte la couronne
+  fermée du roi sur sa capitale.
+- Le nom du fief (« Baronnie de Rochevent ») ne s'écrit plus sur la carte :
+  il passe dans l'infobulle de la bannière et dans la fiche du territoire.
+  L'étiquette ovale de `MapFiefLayer.tsx` et le mini-écu marqué du trigramme
+  (`OwnershipBadge`) disparaissent.
+
+**Précision.** La couronne de fief mesure 10 × 6 unités, posée sur le haut
+du mât ; le trigramme de rattachement fait 6 unités. Un fief vacant garde sa
+couronne au-dessus d'une bannière `neutral`.
+
 ### Armées : écu chiffré
 
 - L'armée est un écu de 15 × 19 unités aux armes de son joueur, avec son
@@ -393,15 +429,21 @@ ligne de base ; mât `ink-900`, drapeau de 12 × 8 unités.
   qui reste visible sur le socle.
 - Otage : pion grisé (cendré). Au cachot : pion grisé derrière des barreaux à
   l'encre. Les attributs restent visibles.
+- **Précision.** Un titre de courtoisie (baronne, comtesse, duchesse, reine ;
+  [titres.md](titres.md#titres-de-courtoisie)) se montre par la couronne du
+  titre en simple filet `brass-700`, sans remplissage : il se lit sans se
+  confondre avec un titre réel. Un noble excommunié porte un socle cerné d'un
+  pointillé `ink-900`. Les dignités (bâtard, sorcière, astrologue, espion…)
+  ne figurent pas sur la carte : publiques, elles sont écrites dans les
+  fiches ; secrètes, seul leur propriétaire les voit.
 - Plusieurs nobles sur une case se placent côte à côte, espacés de 12 unités.
 - Le pion remplace le losange de `NobleMarker`.
 
-Les titres ne sont pas encore livrés dans `develop` : ceux des fiefs sont en
-cours ([titres.md](titres.md)), les titres religieux ([religieux.md](religieux.md))
-et royaux ([politique.md](politique.md)) viendront par itérations. Chaque
-attribut arrive avec le titre qu'il représente ; tant qu'aucun titre n'existe,
-tous les nobles sont des pions simples. La liste des titres séculiers suit
-celle que les specs retiendront (le marquisat y est encore à trancher).
+Les titres de fief ([titres.md](titres.md)), religieux
+([religieux.md](religieux.md)) et royaux ([politique.md](politique.md)) sont
+livrés dans `develop`, marquisat compris : les attributs sont donc tous dus
+dès la phase 4. Ils remplacent les pastilles de titre actuelles
+(`NobleHolder.tsx`, fiches de nobles) partout où un noble est représenté.
 
 ### Bâtiments
 
@@ -443,8 +485,8 @@ s'affiche. Les seuils sont à régler sur des cartes réelles : 52 territoires �
 
 La légende montre des échantillons de symboles au lieu de pastilles de couleur :
 les cinq terrains, les icônes de frontière infranchissable et le pointillé
-franchissable, la bannière, l'écu, le pion de noble (libre, otage, au cachot,
-puis les attributs de titre à mesure qu'ils existent) et les bâtiments. Les boutons des calques (intentions, contrôle, évêchés, calamités,
+franchissable, la bannière, la bannière couronnée d'un fief, l'écu, le pion de noble (libre, otage, au cachot,
+excommunié, et ses attributs de titre) et les bâtiments. Les boutons des calques (intentions, contrôle, évêchés, calamités,
 cartes) sont conservés.
 
 ## Écrans et composants
@@ -455,11 +497,11 @@ La carte occupe toute la largeur ; les panneaux passent dans un tiroir :
 
 - **Barre du haut, fine et sur une ligne :** sceau et « Crown & Borough » en
   Cinzel ; saison, année et tour en texte (« Automne 1002 · tour 7 sur 40 ») ;
-  scores ; pastilles de soumission ; joueur actif en hotseat ; navigation
+  scores (voir [Scores et victoire](#scores-et-victoire)) ; lignée ; pastilles de soumission ; joueur actif en hotseat ; navigation
   Règles et FAQ ; un menu « Partie » qui regroupe la création d'une partie
   (joueurs, graine, années), la résolution forcée et la langue.
 - **Tiroir à droite :** posé sur la carte, avec des onglets en marque-pages
-  (Ordres, Rapport, Règles) qui dépassent de son bord gauche. Il se replie
+  (Ordres, Rapport, Royaume, Règles) qui dépassent de son bord gauche. Il se replie
   pour rendre toute la carte ; le marque-page actif est en `brass-400`. Les
   onglets tiennent lieu de titre : le titre qui répète l'onglet actif
   (`GamePanelCard.tsx`) disparaît.
@@ -474,9 +516,11 @@ légende.
 ### Téléphone
 
 - Navigation d'application par une barre d'onglets en bas : Carte, Ordres,
-  Rapport, Règles. Chaque vue a tout l'écran ; le panneau glissant actuel
+  Rapport, Royaume, Règles. Chaque vue a tout l'écran ; le panneau glissant actuel
   (`web/src/components/ui/panel-sheet.tsx`) disparaît.
-- **Carte :** plein écran, ouverte sur les territoires du joueur.
+- **Carte :** plein écran, ouverte sur les territoires du joueur. La fiche
+  d'un territoire touché s'ouvre en bas de l'écran, sur la même largeur que
+  le cartouche de l'ordinateur (voir [Fiche de territoire](#fiche-de-territoire)).
 - **Ordres :** écran partagé, la carte en haut et la saisie en bas. La carte
   suit la saisie : taper ou compléter un trigramme la recentre sur ce
   territoire et le sélectionne ; toucher un territoire sur la carte insère
@@ -528,6 +572,140 @@ utilisés par la surcouche d'intentions (`web/src/lib/intent-overlay.ts`).
 - La saison, l'année et le tour restent écrits en toutes lettres dans la
   barre du haut, pour ne jamais dépendre de la couleur seule.
 
+### Textes d'aide
+
+Les explications occupent aujourd'hui une bonne part du poste de
+commandement (ordres d'hiver, cartes spéciales, ordres de titres, main,
+chaînes d'ordres, en-têtes des fenêtres d'ordre).
+
+- Chaque section garde **une seule ligne** de résumé sous son titre, en
+  `ink-500`.
+- Un bouton « ? » (cercle `line-strong`, 24 px, cible de 44 px sur téléphone)
+  à droite du titre ouvre un popover avec le texte complet et un lien
+  « Voir la règle » vers la section correspondante du marque-page Règles.
+- Les syntaxes d'ordre (`D C KIND`, `R N CCC XXX`…) ne s'écrivent plus dans
+  les phrases : elles apparaissent dans les modèles de saisie et dans
+  l'autocomplétion.
+- Une information d'état (calamités prévues par l'astrologue, deck restant,
+  limite de main) n'est pas une aide : elle reste visible, sous forme de
+  donnée courte (« Deck : 43 · Main : 5/6 »).
+
+**Précision.** Le résumé tient en 80 caractères au plus. Le popover se ferme
+par Échap ou un clic à l'extérieur ; il n'est jamais ouvert par défaut.
+
+### Poste de commandement
+
+De haut en bas, sous les marque-pages : trésor, ordres de titres, main de
+cartes, saisie des ordres, pied collant d'envoi.
+
+- **Trésor :** un bandeau d'une ligne remplace les blocs « Revenu prévu » et
+  « Consommation prévue » : stock, revenu par tour d'action, consommation et,
+  s'il y en a un, le risque de famine en `warning-700`
+  (« ⚖ 20 R · +10 R / tour · −1 R · famine : aucune »). Un clic le déplie
+  sur le détail actuel (hors fief, fiefs, moulins, rente royale, taxes…).
+- **Ordres de titres :** groupés par titulaire. Chaque noble qui peut émettre
+  un ordre de titre a une ligne : son pion avec ses attributs, son nom et ses
+  titres en texte court, puis ses actions en boutons secondaires au libellé
+  court (« Excommunier », « Accorder une annexion »). Les ordres de fief vont
+  sous le titulaire du fief, ceux de la couronne sous le roi ou le régent,
+  ceux des dames sous la dame. Le code de l'ordre (`X E`, `W X`) reste dans
+  l'infobulle du bouton.
+- **Réglage d'un ordre :** le bouton déplie un formulaire dans le tiroir,
+  sous la ligne du titulaire, au lieu de la fenêtre modale actuelle
+  (`OrderDialog.tsx`). La carte reste visible : un clic sur un territoire ou
+  un noble remplit le champ actif, signalé par un anneau `brass-700`. Le
+  formulaire montre la ligne d'ordre produite en IBM Plex Mono, puis
+  « Annuler » et « Ajouter l'ordre ». Un seul formulaire est ouvert à la fois.
+- **Main de cartes :** un éventail de petites cartes à jouer (56 × 80 px) :
+  pictogramme à l'encre, nom, code en pied. Trois familles se distinguent
+  par le filet et la pièce d'angle, pas par une couleur vive : cartes
+  spéciales (filet `brass-700`), cartes de noble et de prétention (filet
+  `ink-900`, pion en angle), dignités (double filet). Un clic sur une carte
+  ouvre « Jouer » et « Défausser », qui insèrent la ligne dans la saisie ; la
+  croix permanente disparaît. Une carte défaussée ce tour passe en grisé
+  barré. Le deck et la limite de main s'écrivent sous l'éventail.
+- **Calamités à venir :** l'encadré rouge actuel passe en `warning-100` et
+  `warning-700` : une prévision n'est pas une erreur.
+- **Saisie :** une zone par noble au printemps, en été et en automne, la zone
+  des cartes de noble au-dessus ; une seule zone en hiver (voir
+  [Saisie des ordres](#saisie-des-ordres)).
+
+**Précision.** Sur téléphone, l'éventail défile horizontalement et chaque
+carte mesure au moins 64 × 88 px.
+
+### Marque-page Royaume
+
+Le marque-page « Royaume » regroupe ce qui concerne tout le royaume et qui
+flotte aujourd'hui sur la carte (`CrownPanel.tsx`,
+`ReligiousHierarchyPanel.tsx`) :
+
+- **Couronne :** roi, reine (ou reine douairière), régent, fiefs de la
+  couronne avec leur nombre de territoires.
+- **Église :** pape, cardinaux, puis un évêque par évêché, « vacant » en
+  italique `ink-500`.
+- Chaque titulaire s'écrit avec son pion à attributs, son nom, son code et la
+  teinture de son joueur en pastille.
+- En pied : un bouton « Ouvrir la lignée et les alliances ».
+
+Plus rien ne se pose sur la carte en dehors de la légende et des contrôles de
+zoom.
+
+### Fiche de territoire
+
+Sélectionner un territoire ouvre un **cartouche** posé sur la carte, relié au
+territoire par un trait d'encre ; le tiroir reste consacré aux ordres.
+
+- **En-tête :** nom en Alegreya italique, code, bannière, terrain.
+- **Une ligne par sujet,** absente quand elle est vide : fief et rang (avec la
+  couronne), titulaire, capitale ou cité et sa défense, ressources et revenu
+  du territoire, armée (écu, effectif, ordre), nobles présents (une rangée de
+  pions à attributs, leurs noms au survol ou au toucher), bâtiments.
+- Les doublons actuels fusionnent : un seul « revenu », sous la forme
+  « 40 R · +3 R / tour ».
+- Le cartouche se ferme par Échap, par la croix ou en sélectionnant ailleurs.
+
+**Précision.** Le cartouche mesure 280 px de large au plus et se place du côté
+du territoire le plus éloigné du tiroir ; il ne cache jamais le territoire
+sélectionné. Le détail d'un noble (statut, propriétaire, dignités) s'ouvre en
+popover depuis son pion.
+
+### Scores et victoire
+
+Le popover actuel des scores (`Scoreboard.tsx`) est conservé et restylé : une
+carte par joueur, avec ses armoiries, son score de titres en Alegreya 700,
+l'objectif, le mode (seul ou allié) et, en fin de partie, la victoire. Les
+étiquettes « SOLO » deviennent du texte (« seul ») ; le score du joueur actif
+est en `brass-700`.
+
+### Lignée et alliances
+
+La fenêtre « Lignée et alliances » (`LineageDialog.tsx`) devient un **arbre
+généalogique** dessiné à l'encre sur parchemin.
+
+- Chaque maison s'ouvre sous ses armoiries. Ses nobles sont des médaillons
+  (pion à attributs, nom, rang de succession en chiffre) rangés dans l'ordre
+  de succession.
+- Un mariage est un double trait horizontal entre deux médaillons : le
+  mariage de tête en `brass-700`, un mariage secondaire en `ink-700`, un
+  mariage terminé en hachures `ink-500`.
+- Une prétention descend du couple vers l'héritier qui la porte, en trait
+  pointillé, comme une filiation.
+- Les titres s'écrivent en texte sous le nom (décision 23) ; plus aucune
+  étiquette n'est coupée.
+- Le score et le statut de victoire de chaque maison restent en pied de
+  fenêtre, sur une ligne par joueur.
+- Le graphe d'alliances actuel devient un encart de l'arbre (les maisons et
+  leurs alliances en vue d'ensemble), plus une vue séparée.
+- **Simulation :** le mode « Simuler » garde son bandeau
+  (annuler, rétablir, réinitialiser, quitter) en `warning-100` ; l'arbre
+  simulé porte un filigrane « Hypothèse » en Cinzel `ink-500` à 15 %, pour
+  qu'aucune capture ne se confonde avec l'état réel.
+
+**Précision.** Le modèle ne connaît pas de filiation au-delà des prétentions
+([succession.md](succession.md)) : l'arbre ne dessine que l'ordre de
+succession, les mariages et les prétentions. Il défile dans les deux sens et
+se cadre sur la maison choisie dans « Focus ».
+
 ### Rapport de tour
 
 - Chaque événement devient une carte (pictogramme à l'encre, titre, détail),
@@ -536,6 +714,13 @@ utilisés par la surcouche d'intentions (`web/src/lib/intent-overlay.ts`).
   événement le sélectionne, cadre la carte sur les territoires concernés et y
   dessine l'événement (déplacement, combat, retraite…) jusqu'à la sélection
   suivante.
+- **Résultats répétitifs :** les résultats d'une même nature (conservation
+  d'hiver, revenus, production…) forment une seule carte de synthèse
+  (« Conservation : 4 stocks divisés par deux »), dépliable sur la liste. Les
+  lignes sans effet (« 0 → 0 ») ne s'affichent pas.
+- **Rumeurs :** un encadré « On dit au marché… » en Alegreya italique, sur
+  `paper-100` avec un filet `line` ; les cartes jouées et calamités à venir
+  forment un encadré voisin, en texte droit.
 - Ces cartes remplacent les listes actuelles de `ReportPanel.tsx`.
 
 ### Composants de base
@@ -592,18 +777,22 @@ utilisés par la surcouche d'intentions (`web/src/lib/intent-overlay.ts`).
    Cinzel, Alegreya et IBM Plex Mono, recolorer les composants shadcn, retirer
    Geist et le bloc `.dark`. Sortie : contrastes AA vérifiés.
 4. **Carte gravée :** terrain, icônes de frontière, évêchés, bannières, écus,
-   pions de nobles, bâtiments, sélection, saisons, légende, teintures et
+   pions de nobles et attributs de titre, bannières couronnées des fiefs,
+   bâtiments, sélection, saisons, légende, teintures et
    armoiries générées des joueurs.
 5. **Ergonomie :** barre du haut et menu « Partie », tiroir à signets et
-   action collante, ambiance de saison, onglets du téléphone avec l'écran
-   partagé Ordres, rapport en cartes d'événements.
+   action collante, marque-page Royaume, ambiance de saison, onglets du
+   téléphone avec l'écran partagé Ordres, textes d'aide réduits, poste de
+   commandement (trésor, ordres de titres groupés et formulaires dans le
+   tiroir, main en éventail), cartouche de territoire, rapport en cartes
+   d'événements, scores restylés.
 6. **Saisie assistée des ordres :** coloration, autocomplétion, lien avec la
    carte, validation en direct.
-7. **Emblème et pages annexes :** sceau, favicon, accueil, connexion, règles
-   et FAQ.
+7. **Emblème, lignée et pages annexes :** sceau, favicon, arbre
+   généalogique de la lignée, accueil, connexion, règles et FAQ.
 
-Viennent ensuite, au rythme des specs : les attributs de titre des nobles,
-le choix du blason par le joueur, puis, éventuellement, les cartes d'ordres.
+Viennent ensuite : le choix du blason par le joueur, puis, éventuellement,
+les cartes d'ordres.
 
 ## Questions ouvertes
 
@@ -616,12 +805,11 @@ le choix du blason par le joueur, puis, éventuellement, les cartes d'ordres.
 - **Palette du moteur :** `internal/engine/game.go` attribue aujourd'hui
   16 couleurs. Passer aux teintures change les valeurs de `players[].color`
   des nouvelles parties ; le schéma, lui, ne change pas.
-- **Fiefs** ([titres.md](titres.md),
-  [#194](https://github.com/fogfactory/crown-and-borough/issues/194)) : le
-  liseré est réservé aux évêchés et la bannière au contrôle, donc la
-  représentation d'un fief et de son titre reste à définir. Piste : une
-  bannière couronnée sur la capitale du fief et le titre dans la fiche du
-  territoire.
+- **Arbre de la lignée :** la disposition automatique d'un arbre avec des
+  mariages entre maisons et des prétentions croisées reste à prototyper sur
+  le scénario de démonstration `crown` (`scripts/demo.sh crown`) avant la
+  phase 7 ; la disposition manuelle actuelle (« Réinitialiser la
+  disposition ») pourra être conservée si l'automatique ne suffit pas.
 - **Rivières** ([cartographie.md](cartographie.md)) : le symbole de fleuve est
   prévu ; le dessin des ponts reste à définir.
 - **Niveau de détail des étiquettes :** seuils à régler sur des cartes réelles
