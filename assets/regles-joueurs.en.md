@@ -703,7 +703,8 @@ steps, never of later ones.
    increasing region, then the conclave.
 8. Investiture: winners and purchased cardinals receive their title.
 9. End of winter: hands, vacant fiefs, stocks, reports.
-10. Trial judgment, the only winter order that kills.
+10. Trial judgment, then the Assassination and Justice cards: the only winter
+    orders that kill.
 
 Within a step, players go by increasing id, then your orders in sheet order. A
 lost title stops working immediately; a title gained by election or cardinal
@@ -974,6 +975,7 @@ from noble chains and requiring no noble. Winter discards are written in the
 - `P EM AAA BBB`: play Ambush on your attack from AAA to BBB (see below);
 - `P AS HHH NNN`: play Assassination, where HHH is your free noble (the
   commissioner) and NNN a noble of another player (see below);
+- `P JU HHH`: play Justice on the noble HHH, of any player (see below);
 - `P TX BRU`: play the Seigneurial tax on BRU, provided BRU is the capital of
   a fief the player controls (a vacant fief included) — the one exception
   where the target is not a region's seed village;
@@ -1017,7 +1019,8 @@ bad weather, **{{special_orders.card.famine}}** bad harvest,
 **{{special_orders.card.revolt}}** revolt,
 **{{special_orders.card.seigneurial_tax}}** tax (seigneurial tax, royal tax or tithe),
 **{{special_orders.card.tunnel}}** tunnel,
-**{{special_orders.card.assassination}}** assassination, and
+**{{special_orders.card.assassination}}** assassination,
+**{{special_orders.card.justice}}** justice, and
 **{{special_orders.card.ambush}}** ambush cards. A hand is limited to
 **{{special_orders.hand_limit}} cards**, noble and dignity cards included.
 After their winter orders and discards, each player automatically receives
@@ -1154,6 +1157,26 @@ countered. No calamity resolves in winter.
   with no rumor for the others. These players see the link between the
   commissioner and the victim in the Lineage view and, for the commissioner, in
   the command post of the territory where they stand.
+- Justice (`P JU HHH`) is played in every season, winter included (on the
+  winter sheet), for free. HHH is
+  any living noble of any player (your own included), wherever they are and
+  whatever their status, except the king, who is always protected; a target
+  already dead or the king is rejected and the card kept.
+  If HHH commissioned at least one assassination, whoever the victim, they are
+  executed before supply and army orders (in winter, at the end, after the
+  trial verdicts and the assassinations), like any noble's death (fiefs
+  vacant, claims settled). Otherwise the
+  card is consumed with no effect. Only players who know the link between a
+  commissioner and their victim know whom to target: the others play Justice
+  on a hunch. The report publicly announces the execution as justice done for
+  an assassination, naming the player who played the card and the executed
+  noble; a failure is visible to that player alone. Cards played the same turn resolve in
+  order: Tunnel, Assassination, then Justice.
+  An assassination's commissioner may also be executed by a two-cardinal trial,
+  whatever their sex, marital status and dignities, even without
+  excommunication; that trial reveals no dignity and opens no revolt window, even if the noble
+  is also excommunicated or liable to the direct trial.
+  The king always escapes trial.
 
 Public rumors are recalculated in every report from the current bonus hands of
 all players. They appear when at least two players hold a card, without

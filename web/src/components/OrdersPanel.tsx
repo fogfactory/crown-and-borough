@@ -3,7 +3,7 @@ import { IconBook, IconSnowflake, IconX } from '@tabler/icons-react'
 
 import { Button } from '@/components/ui/button'
 import { OrderLauncher } from '@/components/OrderDialog'
-import { AppeasementOrders, SpecialCardOrders, assassinationLauncher, TitleOrdersSection, shortCode } from '@/components/TitleOrders'
+import { AppeasementOrders, SpecialCardOrders, assassinationLauncher, justiceLauncher, TitleOrdersSection, shortCode } from '@/components/TitleOrders'
 import {
   Tooltip,
   TooltipContent,
@@ -488,20 +488,23 @@ function SpecialCardRow({
     new RegExp(`^D\\s+C\\s+${code}(\\s|$)`).test(line),
   ).length
   const cardLabel = copies > 1 ? `${card} ×${copies}` : card
-  // The Assassination card is played in every season, winter included: its
-  // label is the button that plays it.
-  const playButton =
-    !cardsOnly && kind === 'assassination'
-      ? assassinationLauncher({
-          state,
-          player,
-          t,
-          lines: draftLines(winterDraft),
-          copies,
-          add: (line) => onWinterChange(appendDraftLine(winterDraft, line)),
-          label: cardLabel,
-        })
-      : null
+  // The Assassination and Justice cards are played in every season, winter
+  // included: the label is the button that plays them.
+  const launcherProps = {
+    state,
+    t,
+    lines: draftLines(winterDraft),
+    copies,
+    add: (line: string) => onWinterChange(appendDraftLine(winterDraft, line)),
+    label: cardLabel,
+  }
+  const playButton = cardsOnly
+    ? null
+    : kind === 'assassination'
+      ? assassinationLauncher({ ...launcherProps, player })
+      : kind === 'justice'
+        ? justiceLauncher(launcherProps)
+        : null
   return (
     <li className="flex items-center gap-1.5 text-xs text-[#263f52]">
       {playButton ?? (

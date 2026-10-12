@@ -593,3 +593,59 @@ func TestAssassinationCardEntryNamesVictimAndCommissionerToItsAuthor(t *testing.
 		t.Fatalf("P2 sees %#v", got)
 	}
 }
+
+func TestJusticeExecutionIsPublicAndNamesItsPlayer(t *testing.T) {
+	report := engine.TurnReport{
+		SeasonEffects: []engine.SeasonEffectReport{{
+			Kind: engine.EventTypeJustice, CardKind: models.CardKindJustice, Reason: engine.JusticeExecutedReason,
+			Owner: "P1", VictimOwner: "P2", Noble: "TWO", NobleName: "Two",
+		}},
+		Cards: []engine.CardReport{
+			{EventType: engine.EventTypeDeckOrderPlayed, Kind: models.CardKindJustice, Player: "P1", Noble: "TWO"},
+		},
+	}
+	want := map[models.PlayerID]int{"P1": 1, "P2": 0, "P3": 0, models.SpectatorViewer: 1}
+	for viewer, cards := range want {
+		view := ProjectReport(report, viewer, nil)
+		if len(view.SeasonEffects) != 1 || view.SeasonEffects[0].Owner != "P1" || view.SeasonEffects[0].Noble != "TWO" {
+			t.Errorf("viewer %q sees %#v, want the execution naming P1 and TWO", viewer, view.SeasonEffects)
+		}
+		if len(view.Cards) != cards {
+			t.Errorf("viewer %q sees %d card plays, want %d", viewer, len(view.Cards), cards)
+		}
+	}
+}
+
+func TestJusticeWithoutEffectIsToldToItsPlayerAlone(t *testing.T) {
+	report := engine.TurnReport{
+		SeasonEffects: []engine.SeasonEffectReport{{
+			Kind: engine.EventTypeJustice, CardKind: models.CardKindJustice, Reason: engine.JusticeNoEffectReason,
+			Owner: "P1", VictimOwner: "P2", Noble: "TWO", NobleName: "Two",
+		}},
+		Winter: &engine.WinterReport{Cards: []engine.CardReport{
+			{EventType: engine.EventTypeDeckOrderPlayed, Kind: models.CardKindJustice, Player: "P1", Noble: "TWO"},
+		}},
+	}
+	want := map[models.PlayerID]int{"P1": 1, "P2": 0, "P3": 0, models.SpectatorViewer: 1}
+	for viewer, count := range want {
+		view := ProjectReport(report, viewer, nil)
+		if len(view.SeasonEffects) != count {
+			t.Errorf("viewer %q sees %d failed justices, want %d", viewer, len(view.SeasonEffects), count)
+		}
+		if view.Winter == nil || len(view.Winter.Cards) != count {
+			t.Errorf("viewer %q sees the winter cards %#v, want %d", viewer, view.Winter, count)
+		}
+	}
+}
+
+func TestRejectedCardPlaysOfOthersLoseTheirReason(t *testing.T) {
+	report := engine.TurnReport{Winter: &engine.WinterReport{Investments: []engine.WinterInvestmentReport{{
+		Kind: engine.EventTypeRejected, Player: "P1", Outcome: engine.OutcomeFailure, Reason: engine.JusticeKingReason,
+	}}}}
+	if own := ProjectReport(report, "P1", nil).Winter.Investments[0]; own.Reason != engine.JusticeKingReason {
+		t.Fatalf("the author sees %#v", own)
+	}
+	if other := ProjectReport(report, "P2", nil).Winter.Investments; len(other) != 1 || other[0].Reason != "" {
+		t.Fatalf("P2 sees %#v, want the bare rejection", other)
+	}
+}

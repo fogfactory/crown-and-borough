@@ -229,8 +229,9 @@ ceux du début de l'hiver pendant toutes les étapes.
    par défaut, conservation et rapatriement des stocks, prospérité, territoires
    sans ancre redevenus neutres, rapports (voir ci-dessous).
 9. **Jugement des procès** — les procès `J` déposés à l'étape 3 sont jugés dans
-    l'ordre croissant du code de la cible. C'est le seul ordre d'hiver qui tue ;
-    la mort suit les règles ordinaires (lignée, fiefs, prétentions).
+    l'ordre croissant du code de la cible. Avec les cartes Assassinat et Justice
+    (jouées ensuite, dans cet ordre), ce sont les seuls ordres d'hiver qui
+    tuent ; la mort suit les règles ordinaires (lignée, fiefs, prétentions).
 
 Un titre religieux perdu (excommunication, démasquage) cesse aussitôt de
 produire voix, pouvoirs et candidature. Un titre *gagné* par élection ou par

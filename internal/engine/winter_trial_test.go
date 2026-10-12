@@ -177,10 +177,10 @@ func TestTrialJudgedInIncreasingTargetCode(t *testing.T) {
 
 func TestCardTrialOnExcommunicatedNoble(t *testing.T) {
 	state := winterTrialState(t)
-	if _, liable := (&resolutionContext{state: state}).trialVerdict(&state.Nobles[1]); !liable {
+	if _, liable := (&resolutionContext{state: state}).directTrialVerdict(&state.Nobles[1]); !liable {
 		t.Fatalf("an excommunicated noble is liable to the trial")
 	}
-	if _, liable := (&resolutionContext{state: state}).trialVerdict(&state.Nobles[2]); liable {
+	if _, liable := (&resolutionContext{state: state}).directTrialVerdict(&state.Nobles[2]); liable {
 		t.Fatalf("a free man is not liable")
 	}
 }
@@ -265,5 +265,70 @@ func TestWinterAssassinationDoesNotChangeTheElectionsOfTheWinter(t *testing.T) {
 	}
 	if len(eventsOfType(resolution.Events, EventTypeElectionResult)) != len(eventsOfType(plain.Events, EventTypeElectionResult)) {
 		t.Fatalf("elections changed by an assassination of the same winter")
+	}
+}
+
+func TestTrialExecutesACommissionerWithoutRevoltWindowOrDignity(t *testing.T) {
+	state := winterTrialState(t)
+	// ABE (N3, P3) is a free man who commissioned an assassination.
+	state.RemovedNobles = append(state.RemovedNobles, models.RemovedNoble{
+		ID: "N9", Code: "DED", Name: "Dead", Sex: models.SexMale, OwnerID: "P2", Cause: models.DeathCauseAssassination,
+		Commissioner: "N3", Author: "P3", Turn: 1,
+	})
+	resolution := resolveElectionSheets(t, state, map[models.PlayerID][]models.WinterOrder{
+		"P1": {trialBy("O1", "HUG", "ABE"), trialBy("O2", "OTO", "ABE")},
+	})
+	if hasNoble(resolution.State, "N3") {
+		t.Fatalf("the commissioner must be executed")
+	}
+	trials := eventsOfType(resolution.Events, EventTypeTrial)
+	if len(trials) != 1 || trials[0].Reason != "trial_executed" || trials[0].Dignity != "" {
+		t.Fatalf("trial events = %#v", trials)
+	}
+	if len(resolution.State.TrialRevoltWindows) != 0 {
+		t.Fatalf("revolt windows = %#v, want none", resolution.State.TrialRevoltWindows)
+	}
+}
+
+func TestTrialSparesTheKingCommissioner(t *testing.T) {
+	state := winterTrialState(t)
+	king := models.NobleID("N3")
+	state.King = &king
+	state.RemovedNobles = append(state.RemovedNobles, models.RemovedNoble{
+		ID: "N9", Code: "DED", Name: "Dead", Sex: models.SexMale, OwnerID: "P2", Cause: models.DeathCauseAssassination,
+		Commissioner: "N3", Author: "P3", Turn: 1,
+	})
+	resolution := resolveElectionSheets(t, state, map[models.PlayerID][]models.WinterOrder{
+		"P1": {trialBy("O1", "HUG", "ABE"), trialBy("O2", "OTO", "ABE")},
+	})
+	if !hasNoble(resolution.State, "N3") {
+		t.Fatalf("the King must survive the trial of a commissioner")
+	}
+	trials := eventsOfType(resolution.Events, EventTypeTrial)
+	if len(trials) != 1 || trials[0].Reason != "trial_unfounded" {
+		t.Fatalf("trial events = %#v, want an unfounded trial", trials)
+	}
+}
+
+func TestTrialOfACommissionerWhoIsAlsoExcommunicatedHasNoRevoltWindow(t *testing.T) {
+	state := winterTrialState(t)
+	// LEO (N2) is excommunicated and commissioned an assassination: the
+	// commissioner ground comes first.
+	state.RemovedNobles = append(state.RemovedNobles, models.RemovedNoble{
+		ID: "N9", Code: "DED", Name: "Dead", Sex: models.SexMale, OwnerID: "P3", Cause: models.DeathCauseAssassination,
+		Commissioner: "N2", Author: "P2", Turn: 1,
+	})
+	state.Nobles[1].Dignities = []models.Dignity{models.DignityBastard}
+	resolution := resolveElectionSheets(t, state, map[models.PlayerID][]models.WinterOrder{
+		"P1": {trialBy("O1", "HUG", "LEO"), trialBy("O2", "OTO", "LEO")},
+	})
+	if hasNoble(resolution.State, "N2") {
+		t.Fatalf("the noble must be executed")
+	}
+	if trials := eventsOfType(resolution.Events, EventTypeTrial); len(trials) != 1 || trials[0].Dignity != "" {
+		t.Fatalf("trial events = %#v, want no dignity revealed", trials)
+	}
+	if len(resolution.State.TrialRevoltWindows) != 0 {
+		t.Fatalf("revolt windows = %#v, want none", resolution.State.TrialRevoltWindows)
 	}
 }

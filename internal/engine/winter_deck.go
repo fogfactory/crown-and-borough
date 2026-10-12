@@ -51,7 +51,7 @@ func validateDeckOrders(game *models.GameState, balance assetgen.Balance, deckOr
 			case models.DeckOrderTypeAppeaseRite, models.DeckOrderTypeAppeasePaid:
 				// Rejected at submission; ignored here rather than failing the winter.
 			case models.DeckOrderTypePlay:
-				if order.Kind == models.CardKindAssassination {
+				if isWinterEventCard(order.Kind) {
 					// Played in winter too; an illegal play is rejected alone
 					// when applied, never by failing the winter.
 					continue
@@ -95,43 +95,69 @@ func retireCurrentAugury(ctx *resolutionContext) {
 	delete(ctx.state.Auguries, year)
 }
 
-// reserveWinterAssassinations takes, before the hands are refilled (start of
-// stage 8 of specs/hiver.md), the assassination cards of the winter sheets:
-// players by identifier, then sheet order. An order that is illegal now is
-// rejected and keeps its card; the others consume it and wait for stage 9.
-// Every other card kind is only played in an action season.
-func reserveWinterAssassinations(ctx *resolutionContext, deckOrders map[models.PlayerID][]models.DeckOrder) {
+// winterEventCard is a card played on the winter sheet (Assassination,
+// Justice): its card is consumed at the start of stage 8, before the hands are
+// refilled, and its effect applies at stage 9, after the trial verdicts. The
+// effects of the cards played the same winter follow deckOrderRank.
+type winterEventCard interface {
+	CardDefinition
+	// applyWinterEffect applies the effect of a play whose card is already
+	// consumed and whose order is still playable.
+	applyWinterEffect(ctx *resolutionContext, playerID models.PlayerID, order models.DeckOrder)
+}
+
+var winterEventCards = map[models.CardKind]winterEventCard{
+	models.CardKindAssassination: assassinationCardDefinition{},
+	models.CardKindJustice:       justiceCardDefinition{},
+}
+
+// isWinterEventCard tells the cards played on a winter sheet besides the
+// discards (specs/ordres-speciaux.md).
+func isWinterEventCard(kind models.CardKind) bool {
+	return winterEventCards[kind] != nil
+}
+
+// reserveWinterEventCards takes, before the hands are refilled (start of
+// stage 8 of specs/hiver.md), the event cards of the winter sheets: players by
+// identifier, then sheet order. An order that is illegal now is rejected and
+// keeps its card; the others consume it and wait for stage 9. Every other card
+// kind is only played in an action season.
+func reserveWinterEventCards(ctx *resolutionContext, deckOrders map[models.PlayerID][]models.DeckOrder) {
 	for _, playerID := range sortedPlayerIDs(ctx.state.Players) {
 		for _, order := range deckOrders[playerID] {
-			if order.Type != models.DeckOrderTypePlay || order.Kind != models.CardKindAssassination {
+			if order.Type != models.DeckOrderTypePlay || !isWinterEventCard(order.Kind) {
 				continue
 			}
 			execution := &ExecutionContext{resolution: ctx, playerID: playerID, season: ctx.state.Season}
-			if playable, reason := (assassinationCardDefinition{}).CanPlay(execution, order); !playable {
+			if playable, reason := winterEventCards[order.Kind].CanPlay(execution, order); !playable {
 				ctx.rejectDeckOrderReason(playerID, order, reason)
 				continue
 			}
 			if ctx.applyDeckCardOrder(playerID, order) {
-				ctx.winterAssassinations = append(ctx.winterAssassinations, deckOrderIntent{playerID: playerID, order: order})
+				ctx.winterEventPlays = append(ctx.winterEventPlays, deckOrderIntent{playerID: playerID, order: order})
 			}
 		}
 	}
 }
 
-// resolveWinterAssassinations applies, at stage 9 after the trial verdicts, the
-// assassinations reserved at stage 8. The card is already consumed: an order
-// whose victim or commissioner has left the game since (executed by a trial,
-// for instance) is rejected and the card is spent without effect.
-func (ctx *resolutionContext) resolveWinterAssassinations() {
-	for _, intent := range ctx.winterAssassinations {
-		execution := &ExecutionContext{resolution: ctx, playerID: intent.playerID, season: ctx.state.Season}
-		if playable, reason := (assassinationCardDefinition{}).CanPlay(execution, intent.order); !playable {
-			ctx.rejectDeckOrderReason(intent.playerID, intent.order, reason)
+// resolveWinterEventCards applies, at stage 9 after the trial verdicts, the
+// cards reserved at stage 8: assassinations, then justice (deckOrderRank). The
+// card is already consumed: an order whose target or commissioner has left the
+// game since (executed by a trial, for instance) is rejected and the card is
+// spent without effect.
+func (ctx *resolutionContext) resolveWinterEventCards() {
+	plays := ctx.winterEventPlays
+	ctx.winterEventPlays = nil
+	sort.SliceStable(plays, func(i, j int) bool { return deckOrderRank(plays[i].order) < deckOrderRank(plays[j].order) })
+	for _, play := range plays {
+		card := winterEventCards[play.order.Kind]
+		execution := &ExecutionContext{resolution: ctx, playerID: play.playerID, season: ctx.state.Season}
+		if playable, reason := card.CanPlay(execution, play.order); !playable {
+			ctx.rejectDeckOrderReason(play.playerID, play.order, reason)
 			continue
 		}
-		ctx.assassinate(intent.playerID, intent.order)
+		card.applyWinterEffect(ctx, play.playerID, play.order)
 	}
-	ctx.winterAssassinations = nil
 }
 
 func resolveWinterDeckOrders(ctx *resolutionContext, deckOrders map[models.PlayerID][]models.DeckOrder) {

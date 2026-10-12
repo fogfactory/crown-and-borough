@@ -244,6 +244,9 @@ func projectSupplyZone(ctx *resolutionContext, territoryID models.TerritoryID) (
 // the current season's calamities and the given deck cards applied, as they
 // are before supply at resolution. Revolt cards are left out: their roll must
 // not be revealed before the turn resolves, and they do not change rations.
+// Justice cards are left out for the same reason: the execution of a liable
+// target would show in the rations (a noble's dignity changes an army's
+// demand) before the card is played.
 func supplyQueryContext(
 	game *models.GameState,
 	balance assetgen.Balance,
@@ -266,7 +269,7 @@ func supplyQueryContext(
 	playable := make(map[models.PlayerID][]models.DeckOrder, len(deckOrders))
 	for playerID, playerOrders := range deckOrders {
 		for _, order := range playerOrders {
-			if order.Type == models.DeckOrderTypePlay && order.Kind != models.CardKindRevolt {
+			if order.Type == models.DeckOrderTypePlay && order.Kind != models.CardKindRevolt && order.Kind != models.CardKindJustice {
 				playable[playerID] = append(playable[playerID], order)
 			}
 		}

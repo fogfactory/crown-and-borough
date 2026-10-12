@@ -284,7 +284,9 @@ actif de cardinal (`not_cardinal`) ou déjà engagé (`trial_limit`). Un procès
 n'a lieu que si un second cardinal dépose le même : un ordre isolé reste sans
 effet. La cible suit le périmètre du procès
 ([dames.md § Procès](dames.md#procès)) : procès direct pour
-une dame éligible, excommunication préalable pour tout autre personnage. Le
+une dame éligible, aucune condition préalable pour le commanditaire d'un
+assassinat (le Roi y échappe toujours), excommunication préalable pour tout
+autre personnage. Le
 jugement a lieu en dernier, après les élections et la fin
 d'hiver ([hiver.md](hiver.md#ordre-de-résolution)) ; un noble excommunié le
 même hiver est jugeable. Deux ordres sur des cibles différentes

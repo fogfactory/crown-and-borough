@@ -465,6 +465,27 @@ describe('ReportPanel', () => {
     expect(text).toContain('Your inquiry reveals that One (ONE) commissioned the assassination of Two (TWO)')
   })
 
+  it('names the player and the noble of a justice done, and tells a failure to its player', () => {
+    const { container } = render(
+      <LanguageProvider initialLanguage="en">
+        <ReportPanel
+          report={{
+            ...report,
+            seasonEffects: [
+              { kind: 'justice', cardKind: 'justice', owner: 'P1', reason: 'justice_executed', noble: 'TWO', nobleName: 'Two', territory: 'AAA' },
+              { kind: 'justice', cardKind: 'justice', owner: 'P1', reason: 'justice_no_effect', noble: 'ONE', nobleName: 'One' },
+            ],
+          }}
+          map={map}
+          players={players}
+        />
+      </LanguageProvider>,
+    )
+    const text = container.textContent ?? ''
+    expect(text).toContain('Justice is done: P1 had noble Two (TWO) executed')
+    expect(text).toContain('One (ONE) has no assassination to answer for')
+  })
+
   it('names the victim and the commissioner on the assassination card entry of its author', () => {
     const { container } = render(
       <LanguageProvider initialLanguage="en">

@@ -109,6 +109,15 @@ func PreviewOrders(game *models.GameState, balance assetgen.Balance, playerID mo
 	return preview, nil
 }
 
+// hidesJusticeOutcome tells a rejection the draft preview must keep silent: a
+// Justice card whose target is gone at stage 9, because a card or a trial of
+// the same sheet executed them first. The parser only accepts living nobles, so
+// showing it would tell the drafting player that the target was liable, which
+// is what the card gambles on (specs/ordres-speciaux.md § Justice).
+func hidesJusticeOutcome(play models.DeckOrder, event Event) bool {
+	return play.Kind == models.CardKindJustice && event.Reason == JusticeUnknownNobleReason
+}
+
 func previewWinter(preview *OrdersPreview, game *models.GameState, balance assetgen.Balance, playerID models.PlayerID, text string) error {
 	winterOrders := []models.WinterOrder{}
 	deckOrders := []models.DeckOrder{}
@@ -182,7 +191,7 @@ func previewWinter(preview *OrdersPreview, game *models.GameState, balance asset
 		if entry.Play != nil {
 			// A card played on the winter sheet is valid unless its resolution rejects it.
 			entry.Applied = true
-			if event, ok := outcomes[entry.Play.ID]; ok && event.Type == EventTypeRejected {
+			if event, ok := outcomes[entry.Play.ID]; ok && event.Type == EventTypeRejected && !hidesJusticeOutcome(*entry.Play, event) {
 				entry.Applied, entry.Reason = false, event.Reason
 			}
 			continue

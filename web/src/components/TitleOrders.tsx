@@ -16,6 +16,7 @@ const PLAYABLE_KINDS: CardKind[] = [
   'tunnel',
   'ambush',
   'assassination',
+  'justice',
 ]
 
 function nobleOption(noble: Noble): OrderFieldOption {
@@ -944,6 +945,10 @@ export function SpecialCardOrders({
           const launcher = assassinationLauncher({ state, player, t, lines, copies: copies(kind), add: (line) => onChange(appendDraftLine(draft, line)) })
           return launcher ? <span key={kind}>{launcher}</span> : null
         }
+        if (kind === 'justice') {
+          const launcher = justiceLauncher({ state, t, lines, copies: copies(kind), add: (line) => onChange(appendDraftLine(draft, line)) })
+          return launcher ? <span key={kind}>{launcher}</span> : null
+        }
         const target = specialTargetField(kind, state, regions, t, draft)
         if (target.options.length === 0) return null
         return (
@@ -1274,6 +1279,47 @@ export function assassinationLauncher({
 }
 
 /**
+ * The Justice card, `P JU HHH`: any noble, of any player, is tried; they are
+ * executed if they commissioned an assassination.
+ */
+export function justiceLauncher({
+  state,
+  t,
+  lines,
+  copies,
+  add,
+  label,
+}: {
+  state: StateData
+  t: Translate
+  lines: string[]
+  copies: number
+  add: (line: string) => void
+  /** Text of the button; defaults to the "play" label. */
+  label?: string
+}) {
+  const card = formatCardLabel('justice', t)
+  const prefix = `P ${shortCode('justice')}`
+  // The King is never tried: the order would be rejected.
+  const targets = state.nobles.filter((noble) => noble.code !== state.king)
+  if (targets.length === 0) return null
+  return (
+    <OrderLauncher
+      label={label ?? t('orders.playJustice', { card })}
+      title={t('orders.playJustice', { card })}
+      disabled={lines.filter((line) => line.startsWith(prefix)).length >= copies}
+      fields={[{ key: 'target', label: t('orders.field.justiceTarget'), options: targets.map(nobleOption) }]}
+      buildOrder={(values) =>
+        values.target
+          ? { line: `${prefix} ${values.target}`, comment: t('orders.comment.justice', { card, target: values.target }) }
+          : null
+      }
+      onConfirm={add}
+    />
+  )
+}
+
+/**
  * The Ambush card, `P EM AAA BBB`, designates the attack from AAA to BBB (the
  * player's own, or another player's as advice): if it wins and the defending
  * army retreats with a noble, the first noble of its owner's line of
@@ -1331,6 +1377,7 @@ const SHORT_CODES: Record<CardKind, string> = {
   tunnel: 'SO',
   ambush: 'EM',
   assassination: 'AS',
+  justice: 'JU',
 }
 
 export function shortCode(kind: CardKind): string {

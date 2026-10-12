@@ -69,9 +69,9 @@ qu'il voit des autres.
    voix d'aucune autre élection. Seule l'éligibilité en tient compte : un noble
    élu à un évêché n'est plus éligible aux évêchés suivants du même hiver.
 7. **Les morts d'hiver arrivent en dernier.** Les ordres d'hiver qui tuent sont
-   le procès à deux cardinaux et la carte Assassinat, résolus à l'étape 9 après
-   toute autre résolution, les verdicts des procès d'abord, puis les
-   assassinats.
+   le procès à deux cardinaux et les cartes Assassinat et Justice, résolus à
+   l'étape 9 après toute autre résolution, les verdicts des procès d'abord,
+   puis les assassinats, puis les justices.
    Aucun ne peut donc influencer les élections de l'hiver.
 
 ## Ordre de résolution
@@ -88,7 +88,7 @@ qu'il voit des autres.
 | 6 | **Élections** | Candidatures `K E` / `K P`, votes `V E` / `V P` : évêchés par identifiant de région croissant, puis conclave, puis trône (`K R` / `V R`). Résolues dans cet ordre ; voix lues sur l'instantané des titres. | [religieux.md](religieux.md) |
 | 7 | **Investiture** | Les élus deviennent évêque ou pape ; les achats de cardinal de l'étape 2 prennent effet. | ce document |
 | 8 | **Fin d'hiver** | Défausses et remplissage des mains, fiefs vacants attribués par défaut, conservation des stocks, prospérité, rapatriement, territoires sans ancre redevenus neutres, rapports. | GDD § Phase d'hiver |
-| 9 | **Jugement des procès, puis assassinats** | Procès `J` déposés à l'étape 3, jugés dans l'ordre croissant du code de la cible. Mort normale (lignée, fiefs, Claims). Puis les cartes Assassinat `P AS HHH NNN` de la feuille d'hiver, joueurs par identifiant puis ordre de la feuille : la carte a été consommée au début de l'étape 8, avant le remplissage des mains ; un ordre dont la victime ou le commanditaire est mort entre temps est rejeté, carte perdue. | [dames.md](dames.md#procès) |
+| 9 | **Jugement des procès, puis assassinats** | Procès `J` déposés à l'étape 3, jugés dans l'ordre croissant du code de la cible. Mort normale (lignée, fiefs, Claims). Puis les cartes Assassinat `P AS HHH NNN`, puis Justice `P JU HHH`, de la feuille d'hiver, joueurs par identifiant puis ordre de la feuille : la carte a été consommée au début de l'étape 8, avant le remplissage des mains ; un ordre dont la victime, le commanditaire ou la cible est mort entre temps est rejeté, carte perdue. | [dames.md](dames.md#procès) |
 
 Deux conséquences directes du tableau :
 
@@ -221,17 +221,18 @@ condition ne prélève jamais.
 
 ## Morts et leurs suites
 
-Seuls le procès à deux cardinaux et la carte Assassinat tuent en hiver. Les morts
-survenues pendant les saisons d'action sont déjà dans l'instantané. Au jugement
-d'un procès :
+Seuls le procès à deux cardinaux et les cartes Assassinat et Justice tuent en
+hiver. Les morts survenues pendant les saisons d'action sont déjà dans
+l'instantané. Au jugement d'un procès :
 
 - fiefs, prétentions et cartes de la cible sont réglés comme pour toute mort
   ([succession.md](succession.md)) ; un fief laissé vacant l'est jusqu'à un
   `T A` ou à l'attribution par défaut de la fin de l'hiver suivant ;
-- les titres religieux de la cible sont vacants (en pratique aucun : une cible
-  non-dame doit être excommuniée, donc sans titre) ;
-- l'exécution d'une dame ouvre l'éligibilité des révoltes de sa région pour le
-  printemps ([ordres-speciaux.md](ordres-speciaux.md)) ;
+- les titres religieux de la cible sont vacants (un excommunié n'en porte plus ;
+  un commanditaire d'assassinat, jugé sans excommunication, peut en porter) ;
+- l'exécution d'une dame ou d'un excommunié ouvre l'éligibilité des révoltes de
+  sa région pour le printemps ([ordres-speciaux.md](ordres-speciaux.md)) ;
+  celle d'un commanditaire d'assassinat n'en ouvre pas ;
 - aucune élection n'est tenue sur un siège libéré ce jour.
 
 ## Hors périmètre

@@ -106,9 +106,10 @@ func parseDeckOrderLine(line string, lineNumber int, game *models.GameState) (mo
 		}
 		return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: kind, TargetTerritoryID: target}, nil
 	}
-	if kind == models.CardKindTunnel {
+	if kind == models.CardKindTunnel || kind == models.CardKindJustice {
 		// "P SO NNN" frees the detained noble NNN (the attack form, with a
-		// dash, is parsed by parseTunnelAttackLine).
+		// dash, is parsed by parseTunnelAttackLine); "P JU HHH" tries the
+		// noble HHH, whoever owns them.
 		nobleID, found := nobleIDByCode(game, fields[2])
 		if !found {
 			error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderNobleUnknown, fields[2])
@@ -124,6 +125,8 @@ func parseDeckOrderLine(line string, lineNumber int, game *models.GameState) (mo
 }
 
 func isAssassinationCode(code string) bool { return code == "AS" }
+
+func isJusticeCode(code string) bool { return code == "JU" }
 
 // parseAssassinationLine parses "P AS HHH NNN": the assassination card played
 // by the commissioner HHH on the noble NNN (specs/ordres-speciaux.md
@@ -276,6 +279,7 @@ func parseSpecialKind(value string, lineNumber int) (models.CardKind, *ParseErro
 		"EM": models.CardKindAmbush,
 		"AM": models.CardKindAmbush,
 		"AS": models.CardKindAssassination,
+		"JU": models.CardKindJustice,
 	}[value]
 	if !exists {
 		error := parseMessage(lineNumber, ParseCodeSpecialKind, i18n.DeckOrderKindUnknown, value)

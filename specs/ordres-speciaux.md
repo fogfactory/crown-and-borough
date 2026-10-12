@@ -151,8 +151,8 @@ joueur.
 
 Quatre cartes tirées du jeu de plateau *Fief* rejoignent le deck d'ordres
 spéciaux, au même titre que Beau temps ou Impôts. Chacune se joue au
-printemps, en été ou en automne par un ordre `P` (l'Assassinat se joue en toute
-saison, hiver compris, voir ci-dessous), est gratuite, est consommée à
+printemps, en été ou en automne par un ordre `P` (l'Assassinat et la Justice se
+jouent en toute saison, hiver compris, voir ci-dessous), est gratuite, est consommée à
 la pose (donc défaussée même si l'effet s'avère nul) et a son effet appliqué
 avant le ravitaillement et la résolution des ordres d'armée, sauf l'Embuscade
 dont l'effet est appliqué à la résolution du combat visé. Leurs poids de
@@ -273,20 +273,32 @@ poste de commandement du territoire.
 
 Carte `justice`, code `JU`. `P JU HHH` cible n'importe quel noble `HHH`, de
 n'importe quel joueur (le sien compris), où qu'il soit et quel que soit son
-statut (libre, otage, cachot). Si `HHH` a été le commanditaire d'au moins un
-assassinat, quelle qu'en soit la victime, il est exécuté : mort normale
-(fiefs, prétentions, cartes). Sinon la carte est consommée sans effet. Une
-cible déjà morte est rejetée.
+statut (libre, otage, cachot), à l'exception du Roi, toujours protégé. Si `HHH`
+a été le commanditaire d'au moins un assassinat, quelle qu'en soit la victime,
+il est exécuté : mort normale (fiefs, prétentions, cartes), enregistrée avec la
+cause `execution`. Sinon la carte est consommée sans effet. Les motifs de rejet
+sont `justice_unknown_noble` (`HHH` déjà mort) et `justice_king` (`HHH` est le
+Roi) ; la carte n'est alors pas consommée.
+
+La carte se joue en **toute saison**. Au printemps, en été et en automne, l'ordre
+`P JU HHH` est écrit dans les ordres spéciaux et l'exécution s'applique à la
+pose, après les assassinats du tour. En hiver il est écrit sur la feuille
+d'hiver et s'applique à l'étape 9 de [hiver.md](hiver.md#ordre-de-résolution),
+après les verdicts des procès puis les assassinats : la carte est consommée au
+début de l'étape 8, et un ordre dont la cible est morte entre temps est rejeté,
+carte perdue.
 
 Seuls les joueurs qui connaissent le lien (voir « Assassinat ») savent qui est
-un commanditaire : les autres jouent Justice à l'aveugle, sur un soupçon. Le rapport public nomme
-le noble exécuté comme « justice rendue pour un assassinat » ; un échec n'est
-visible que du joueur qui a joué la carte (« aucun effet »), sans rumeur
-publique.
+un commanditaire : les autres jouent Justice à l'aveugle, sur un soupçon. Ni
+l'aperçu de la feuille d'hiver ni la projection du ravitaillement ne révèlent
+l'issue d'une Justice avant sa résolution. Le rapport public nomme le joueur qui
+a joué la carte et le noble exécuté (« justice rendue pour un assassinat ») ; un
+échec n'est visible que du joueur qui a joué la carte (« aucun effet »), sans
+rumeur publique.
 
 Le commanditaire d'un assassinat peut aussi être exécuté par un procès à deux
 cardinaux ([dames.md § Procès](dames.md#procès)), sans excommunication
-préalable et sans fenêtre de révolte. Le Roi y échappe.
+préalable et sans fenêtre de révolte. Le Roi échappe toujours au procès.
 
 ### Embuscade
 

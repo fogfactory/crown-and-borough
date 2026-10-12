@@ -88,9 +88,9 @@ func ResolveWinterWithDeckOrders(
 	ctx.investWinterTitles()
 	ctx.investPurchasedCardinals()
 	ctx.state.RefreshQueen()
-	// Assassination cards are consumed before the hands are refilled; their
-	// death is applied at stage 9.
-	reserveWinterAssassinations(ctx, deckOrders)
+	// Assassination and justice cards are consumed before the hands are
+	// refilled; their death is applied at stage 9.
+	reserveWinterEventCards(ctx, deckOrders)
 	// Stage 8: end of winter (hands, vacant fiefs, stocks, prosperity).
 	resolveWinterDeckOrders(ctx, deckOrders)
 	// No calamity resolves in winter: the winter turn draws and schedules the
@@ -111,8 +111,8 @@ func ResolveWinterWithDeckOrders(
 	ctx.emitWinterStockEvents(stockBefore)
 	// Stage 9: trials filed at stage 3, after everything else of the winter.
 	ctx.judgeWinterTrials()
-	// Still stage 9: assassinations come after the trial verdicts.
-	ctx.resolveWinterAssassinations()
+	// Still stage 9: assassinations, then justice, come after the trial verdicts.
+	ctx.resolveWinterEventCards()
 
 	if err := state.Validate(); err != nil {
 		return Resolution{}, fmt.Errorf("engine: resolve winter: invalid result: %w", err)
