@@ -1,6 +1,6 @@
 # Politique royale
 
-**Milestone lié :** [Royauté](https://github.com/fogfactory/crown-and-borough/milestone/25) (parent : [#17](https://github.com/fogfactory/crown-and-borough/issues/17)). Le commandement noble relève de l'ancien milestone [Politique royale](https://github.com/fogfactory/crown-and-borough/milestone/6).
+**Milestone lié :** [Royauté](https://github.com/fogfactory/crown-and-borough/milestone/25) (parent : [#17](https://github.com/fogfactory/crown-and-borough/issues/17)).
 
 **Dépend de :** [Titres & Victoire](titres.md), [Religieux](religieux.md),
 [Succession](succession.md) (mariages, Claims) et [Hiver](hiver.md) : les titres
@@ -160,9 +160,8 @@ rapport de fin de tour la mentionne séparément.
 
 ### Seigneurie et annexion
 
-L'annexion agrandit un fief existant. Elle s'ajoute à la constitution
-([titres.md](titres.md#constitution-dun-fief)) et la remplace pour
-l'agrandissement différé qui y était mentionné. Le titre du fief ne change
+L'annexion agrandit un fief existant, après sa
+[constitution](titres.md#constitution-dun-fief). Le titre du fief ne change
 **jamais** automatiquement : annexer ajoute des territoires, changer de rang
 est un ordre distinct.
 
@@ -184,9 +183,8 @@ sur `YYY`. Conditions, vérifiées avant tout paiement :
   territoires (`annex_donor_too_small`) ; sinon `YYY` est un territoire
   contrôlé hors fief.
 
-Effet : `YYY` rejoint le fief, quitte son ancien fief le cas échéant (avec son
-contrôle transféré au propriétaire du fief annexant), et son revenu va
-désormais à `XXX`. Aucun titre n'est modifié, y compris celui du fief cédant.
+Effet : `YYY` rejoint le fief, quitte le fief qui le détenait le cas échéant (avec son
+contrôle transféré au propriétaire du fief annexant), et son revenu va à `XXX`. Aucun titre n'est modifié, y compris celui du fief cédant.
 Un fief sans roi ne peut donc annexer que des territoires hors fief.
 
 **Changement de rang.** `T R NNN XXX` (étape 2) : le titulaire `NNN` du fief
@@ -214,8 +212,8 @@ L'ordre `T F` reste soumis à toutes ses autres conditions.
 
 ## Reine et régente
 
-**Reine.** La reine est la conjointe du roi : le titre de courtoisie de
-[titres.md](titres.md#titres-de-courtoisie) devient mécanique pour elle seule.
+**Reine.** La reine est la conjointe du roi : son titre de courtoisie
+([titres.md](titres.md#titres-de-courtoisie)) est le seul à avoir un effet mécanique.
 Elle appartient à un autre joueur que le roi (un mariage lie toujours deux
 joueurs distincts). Elle n'a **aucun pouvoir d'ordre** ; son seul effet est sa
 [rente](#rente). Veuve, elle **garde son titre** : elle est dite **reine
@@ -272,22 +270,3 @@ immédiatement à la couronne** s'il y a un roi ou une régente :
   d'un roi, tous les fiefs vacants dont le joueur est sans noble vivant font
   retour à la couronne dans la même passe, y compris les fiefs de la couronne
   restés chez un ancien joueur de la couronne devenu sans noble.
-
-## À trancher
-
-Points d'interprétation à confirmer ou à calibrer pendant l'implémentation :
-
-1. Le coût du changement de rang payant (2 R × taille totale) et la limite
-   `royal.orders_per_winter` sont à calibrer.
-2. Un fief annexé à un autre joueur par accord royal est une expropriation :
-   faut-il une contrepartie ou un droit de réponse ?
-3. Les fiefs de la couronne offrent au joueur du roi une grande source de
-   score et de revenu via la rente et la capitale : à valider en équilibrage.
-4. Joueur éliminé : le sort d'une couronne, d'un fief de la couronne ou d'une
-   régence d'un joueur éliminé n'est pas traité ici.
-5. Un `T A` du joueur de la couronne sur un fief de la couronne l'attribue à
-   l'un de ses nobles sans `W G`, donc hors de la limite `royal.orders_per_winter`,
-   et le fief cesse d'être un fief de la couronne : faut-il le réserver au `W G` ?
-6. Un roi au cachot sans régente reste le joueur de la couronne : les fiefs
-   sans noble vivant lui reviennent, et seul le `W G` d'un roi libéré peut les
-   octroyer.

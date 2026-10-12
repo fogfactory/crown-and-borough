@@ -39,6 +39,7 @@ online à réaliser et à suivre par issue.
 | Logistique | Rations de terrain, ravitaillement BFS, portée, dépôts de vivres, coûts exponentiels, stocks et famine | Fait |
 | Hiver | Recrutement, constructions v1, capitale, libération des nobles, conservation et rapatriement des stocks | Fait |
 | Fiefs | Constitution (`T F`), attribution (`T A`), annexion (`T X`) et changement de rang (`T R`) par ordre d'hiver, bonus de cité, contrôle transitif et occupation, conquête, vacance avec attribution par défaut (plus de dissolution faute d'attribution), dissolution par perte du château capitale, revenu vers la capitale du fief, score dédié (voir [`titres.md`](titres.md)) | Fait |
+| Royauté | Élection du roi (`K R`/`V R`, onction), mandat viager, couronne et Claim sur le couple royal, taxe et rente royales, ordres royaux `W X/R/F/G`, reine et régente, fiefs de la couronne (voir [`politique.md`](politique.md)) | Fait |
 | Boucle de jeu | Cycle printemps/été/automne/hiver, rapport de tour, partie initiale déterministe | Fait |
 | Front | Carte interactive, poste de commandement, sélection de joueur, ordres par noble, rapport et signalisation de l'hiver | Fait |
 | Online v1 | Session unique en mémoire, création/réinitialisation de partie, soumission par joueur, résolution synchrone, résolution forcée, endpoint de ravitaillement, hôte observateur sans slot | Fait |

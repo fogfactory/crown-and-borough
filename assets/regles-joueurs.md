@@ -738,9 +738,10 @@ résultat des étapes précédentes, jamais des suivantes.
 4. Cardinaux : enquêtes (`Q`) et dépôt des procès (`J`).
 5. Dissolutions de mariage (`X D`).
 6. Mariages (`M N`).
-7. Élections : candidatures (`K E`, `K P`) et votes (`V E`, `V P`), évêchés par
-   région croissante puis conclave.
-8. Investiture : les élus et les cardinaux achetés reçoivent leur titre.
+7. Élections : candidatures (`K E`, `K P`, `K R`) et votes (`V E`, `V P`,
+   `V R`), évêchés par région croissante, puis conclave, puis trône.
+8. Investiture : les élus (évêque, pape, roi) et les cardinaux achetés
+   reçoivent leur titre.
 9. Fin d'hiver : mains, fiefs vacants, stocks, rapports.
 10. Jugement des procès, puis cartes Assassinat et Justice : les seuls ordres
     d'hiver qui tuent.
@@ -922,6 +923,45 @@ La régente ne cumule pas la couronne. Pendant la captivité du roi, sa
 rente reste versée à son joueur et la régente touche celle de la reine ; à la
 mort du roi, la régente perçoit la rente du roi en plus de celle de la reine,
 jusqu'au couronnement.
+
+**Le roi.** Le roi est un noble masculin, non bâtard, qui détient la couronne ;
+il n'y en a jamais plus d'un, et il ne peut pas être pape. La couronne rapporte
+1 point de score et se cumule avec les fiefs et les titres religieux du même
+noble. Le roi règne à vie : aucune destitution, et l'excommunication ne lui
+retire que ses titres religieux. Un roi otage garde ses pouvoirs ; un roi au
+donjon les voit suspendus (ni ordre royal, ni taxe royale), mais il garde la
+couronne, son score et sa rente, et la reine exerce la régence.
+
+**Élire un roi.** Quand le trône est vacant au début de l'hiver, qu'au moins 3
+nobles titrés peuvent voter et que le clergé peut oindre (deux évêques ou un
+cardinal en titre), une élection a lieu ; sinon elle est réévaluée à chaque
+hiver. `K R NNN` présente le noble `NNN` : un homme libre, non excommunié, non
+bâtard, ni pape ni élu pape cet hiver, qui détient au moins un fief (une
+candidature par joueur et par élection, la première valide de la feuille).
+`V R NNN` vote pour un candidat déclaré, de n'importe quel joueur (premier vote
+valide de la feuille). Chaque noble titré — fief, évêché, cardinalat, papauté —
+donne une voix à son propriétaire, une seule même s'il cumule plusieurs titres ;
+un fief vacant ne vote pas, un noble au donjon non plus, et un otage vote pour
+la famille qui l'a joué. Les titres gagnés cet hiver ne votent pas encore. Le
+candidat est élu s'il arrive seul en tête, avec au moins **3 voix** dont
+l'**onction** : au moins deux voix d'évêques (ou plus), ou une d'un cardinal ou
+du pape. Sans élu, le trône reste vacant jusqu'à l'hiver suivant. Les bulletins
+restent privés ; le rapport publie le total par candidat et la mention de
+l'onction. L'élu est couronné à l'investiture et n'a ni voix ni pouvoir avant
+l'hiver suivant.
+
+**Mort du roi et fiefs de la couronne.** Un Claim visant le roi ou sa reine
+cible aussi la couronne. À la mort du roi, le premier héritier éligible dans
+l'ordre des Claims (homme, non bâtard, pas pape) reçoit ses fiefs et la
+couronne, sans élection ni onction, et sa prétention s'éteint ; un héritier qui
+ne peut pas être roi garde ses droits sur les fiefs. Sans héritier éligible, la
+reine devient régente et le trône est vacant. Un fief dont le titulaire meurt
+alors que son joueur n'a plus aucun noble vivant, sans héritier de Claim, passe
+aussitôt à la couronne s'il y a un roi ou une régente : c'est un **fief de la
+couronne**. Il reste vacant, produit et compte son point, et est octroyé
+par un `W G` ou perdu par la prise de sa capitale ; il n'est jamais attribué par
+défaut. Sans roi ni régente, il reste vacant chez son joueur et fait retour à
+la couronne au couronnement d'un roi.
 
 Le titulaire d'un fief est désigné par sa forme d'adresse — Baron/Baronne
 (baronnie), Comte/Comtesse (comté), Marquis/Marquise (marquisat),

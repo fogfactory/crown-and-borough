@@ -699,9 +699,10 @@ steps, never of later ones.
 4. Cardinals: inquiries (`Q`) and trial filings (`J`).
 5. Marriage dissolutions (`X D`).
 6. Marriages (`M N`).
-7. Elections: candidacies (`K E`, `K P`) and votes (`V E`, `V P`), bishoprics by
-   increasing region, then the conclave.
-8. Investiture: winners and purchased cardinals receive their title.
+7. Elections: candidacies (`K E`, `K P`, `K R`) and votes (`V E`, `V P`,
+   `V R`), bishoprics by increasing region, then the conclave, then the throne.
+8. Investiture: winners (bishop, pope, king) and purchased cardinals receive
+   their title.
 9. End of winter: hands, vacant fiefs, stocks, reports.
 10. Trial judgment, then the Assassination and Justice cards: the only winter
     orders that kill.
@@ -877,6 +878,44 @@ The regent does not hold the crown as well. While the king is captive, his rent
 keeps going to his player and the regent receives the queen's; when the king
 dies, the regent receives the king's rent on top of the queen's, until a king
 is crowned.
+
+**The king.** The king is a male noble, not a bastard, who holds the crown;
+there is never more than one, and he cannot be pope. The crown is worth 1 score
+point and stacks with the same noble's fiefs and religious titles. The king
+reigns for life: no deposition, and excommunication only strips his religious
+titles. A hostage king keeps his powers; a king in the dungeon has them
+suspended (no royal order, no royal tax), but keeps the crown, his score and
+his rent, and the queen exercises the regency.
+
+**Electing a king.** When the throne is vacant at the start of winter, at least
+3 titled nobles can vote and the clergy can anoint (two bishops or one
+cardinal in title), an election takes place; otherwise it is re-evaluated every
+winter. `K R NNN` puts forward noble `NNN`: a free man, not excommunicated, not
+a bastard, neither pope nor elected pope this winter, who holds at least one
+fief (one candidacy per player per election, the first valid one on the
+sheet). `V R NNN` votes for a declared candidate of any player (first valid
+vote on the sheet). Every titled noble — fief, bishopric, cardinalate,
+papacy — gives their owner one vote, only one even with several titles; a
+vacant fief does not vote, nor does a noble in the dungeon, and a hostage votes
+for the family that played him. Titles gained this winter do not vote yet. A
+candidate is elected if they are alone in the lead with at least **3 votes**
+including the **anointing**: at least two votes from bishops (or higher), or
+one from a cardinal or the pope. With no winner the throne stays vacant until
+next winter. Ballots stay private; the report publishes each candidate's total
+and whether anointing was met. The winner is crowned at the investiture and has
+no vote or power before next winter.
+
+**The king's death and crown fiefs.** A claim aimed at the king or his queen
+also targets the crown. When the king dies, the first eligible heir in claim
+order (male, not a bastard, not pope) receives his fiefs and the crown, with no
+election or anointing, and their claim is spent; an heir who cannot be king
+keeps their rights over the fiefs. With no eligible heir, the queen becomes
+regent and the throne is vacant. A fief whose titulaire dies while their player
+has no living noble left, with no claim heir, passes at once to the crown if
+there is a king or regent: it is a **crown fief**. It stays vacant, produces and
+counts its point, and is granted through a `W G` or lost by capturing its
+capital; it is never assigned by default. With no king or regent it stays vacant
+with its player and returns to the crown when a king is crowned.
 
 A fief's titulaire is addressed by form of address (shown in French) —
 Baron/Baronne (barony), Comte/Comtesse (county), Marquis/Marquise
