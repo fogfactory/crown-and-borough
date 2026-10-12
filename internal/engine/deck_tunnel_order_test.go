@@ -109,8 +109,17 @@ func TestTunnelIsRejectedWithItsReasonAndKeepsTheCard(t *testing.T) {
 			order:   models.DeckOrder{TargetNobleID: "N1"},
 			reason:  "tunnel_no_refuge",
 		},
-		"no planned attack": {
-			order:  models.DeckOrder{SourceTerritoryID: "BBB", TargetTerritoryID: "AAA"},
+		"own army without a planned attack": {
+			prepare: func(state *models.GameState) { addAnchorArmy(t, state, "A2", "P1", "AAA") },
+			order:   models.DeckOrder{SourceTerritoryID: "AAA", TargetTerritoryID: "BBB"},
+			reason:  "tunnel_no_attack",
+		},
+		"another player's army, territories not adjacent": {
+			order:  models.DeckOrder{SourceTerritoryID: "BBB", TargetTerritoryID: "BBB"},
+			reason: "tunnel_no_attack",
+		},
+		"no army on the origin": {
+			order:  models.DeckOrder{SourceTerritoryID: "CCC", TargetTerritoryID: "BBB"},
 			reason: "tunnel_no_attack",
 		},
 	}
@@ -304,5 +313,24 @@ func TestTunnelAttackOnlyBypassesTheFortificationsForTheDesignatedAttack(t *test
 		case contender.Defender && (contender.Force != 2 || contender.TunnelForce == nil || *contender.TunnelForce != 1):
 			t.Errorf("defender %#v, want force 2 (castle bonus included) and 1 against a tunnel", contender)
 		}
+	}
+}
+
+func TestTunnelOnAnotherPlayersAttackNeedsNoPlannedAttack(t *testing.T) {
+	state := tunnelAttackState(t, 1, true)
+	state.SpecialDeck.Hands = map[models.PlayerID][]models.SpecialCardID{"P3": {"C1"}}
+	validateTestState(t, state)
+	orders := tunnelAttackOrders(true)
+	orders["P3"], orders["P2"] = orders["P2"], nil
+	resolution, err := ResolveWithDeckOrders(state, testBalance(), orders)
+	if err != nil {
+		t.Fatalf("ResolveWithDeckOrders: %v", err)
+	}
+	if got := armyByID(t, resolution.State, "A1").TerritoryID; got != "AAA" {
+		t.Fatalf("A1 is on %s, want the advised attack to bypass the fortifications", got)
+	}
+	events := eventsOfType(resolution.Events, EventTypeTunnel)
+	if len(events) != 1 || events[0].Reason != TunnelBypassReason || events[0].OwnerID != "P3" {
+		t.Fatalf("tunnel events = %#v", events)
 	}
 }

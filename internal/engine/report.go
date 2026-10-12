@@ -653,7 +653,7 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 				}
 				report.Winter.Cards = append(report.Winter.Cards, card)
 			}
-		case EventTypeCalamityApplied, EventTypeCalamityCanceled, EventTypeBonusEffect, EventTypeNeutralArmy, EventTypeRevoltAppeased, EventTypePlagueDeath, EventTypePlagueSurvived, EventTypeBadWeatherBlocked, EventTypeFamineLoss, EventTypeBadWeatherLoss, EventTypeTrial, EventTypeTunnel, EventTypeEonUnmasked, EventTypeDignityRevealed, EventTypeExcommunication, EventTypeExcommunicationLifted:
+		case EventTypeCalamityApplied, EventTypeCalamityCanceled, EventTypeBonusEffect, EventTypeNeutralArmy, EventTypeRevoltAppeased, EventTypePlagueDeath, EventTypePlagueSurvived, EventTypeBadWeatherBlocked, EventTypeFamineLoss, EventTypeBadWeatherLoss, EventTypeTrial, EventTypeTunnel, EventTypeAmbush, EventTypeEonUnmasked, EventTypeDignityRevealed, EventTypeExcommunication, EventTypeExcommunicationLifted:
 			report.SeasonEffects = append(report.SeasonEffects, SeasonEffectReport{
 				Kind: event.Type, CardKind: event.CardKind, Region: event.RegionSeed, Season: event.Season,
 				Owner: event.OwnerID, Army: event.ArmyID, Noble: event.NobleCode, NobleName: event.NobleName,

@@ -15,6 +15,7 @@ export type CardKind =
   | 'famine'
   | 'seigneurial_tax'
   | 'tunnel'
+  | 'ambush'
 
 export type OrderType =
   'attack' | 'support' | 'hold' | 'join' | 'pillage' | 'disperse' | 'transfer'
@@ -51,6 +52,7 @@ export type EventType =
   | 'plague_noble_survived'
   | 'trial'
   | 'tunnel'
+  | 'ambush'
   | 'bad_weather_blocked'
   | 'famine_loss'
   | 'bad_weather_loss'

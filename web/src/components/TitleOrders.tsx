@@ -4,7 +4,7 @@ import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { appendDraftLine, draftLines } from '@/lib/winter-draft'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
-import type { CardKind, Dignity, Noble, PlayerId, Region, Season, StateData, Territory } from '@/types'
+import { NEUTRAL_PLAYER_ID, type CardKind, type Dignity, type Noble, type PlayerId, type Region, type Season, type StateData, type Territory } from '@/types'
 
 const PLAYABLE_KINDS: CardKind[] = [
   'fair_weather',
@@ -12,6 +12,7 @@ const PLAYABLE_KINDS: CardKind[] = [
   'revolt',
   'seigneurial_tax',
   'tunnel',
+  'ambush',
 ]
 
 function nobleOption(noble: Noble): OrderFieldOption {
@@ -903,6 +904,13 @@ export function SpecialCardOrders({
             </span>
           )
         }
+        if (kind === 'ambush') {
+          return (
+            <span key={kind} className="contents">
+              {ambushLauncher({ state, mapTerritories, t, lines, copies: copies(kind), add: (line) => onChange(appendDraftLine(draft, line)) })}
+            </span>
+          )
+        }
         const target = specialTargetField(kind, state, regions, t, draft)
         if (target.options.length === 0) return null
         return (
@@ -1066,6 +1074,24 @@ function taxLauncher({
 }
 
 /**
+ * The origin and target options of a card played on an attack: an origin holds
+ * an army (the player's own, which must then plan that attack, or another
+ * player's, whose attack is only advised), a target is a territory next to the
+ * chosen origin.
+ */
+function attackFieldOptions(state: StateData, mapTerritories: Territory[]) {
+  const origins = state.territories
+    .filter((territory) => territory.army && territory.army.owner !== NEUTRAL_PLAYER_ID)
+    .map((territory) => codeOption(territory.id))
+  const allTargets = state.territories.map((territory) => codeOption(territory.id)).sort((a, b) => a.value.localeCompare(b.value))
+  const targets = (values: Record<string, string>) => {
+    const origin = mapTerritories.find((territory) => territory.id === values.origin)
+    return origin ? allTargets.filter((option) => origin.adjacencies.includes(option.value)) : allTargets
+  }
+  return { origins, targets }
+}
+
+/**
  * The Tunnel card has two forms: `P SO NNN` frees one of the player's detained
  * nobles, `P SO AAA - BBB` designates the player's attack from AAA to BBB,
  * which ignores the fortifications of BBB.
@@ -1091,15 +1117,7 @@ function tunnelLaunchers({
   const prefix = `P ${shortCode('tunnel')}`
   const spent = lines.filter((line) => line.startsWith(prefix)).length >= copies
   const detained = state.nobles.filter((noble) => noble.owner === player && noble.status !== 'free')
-  const origins = state.territories
-    .filter((territory) => territory.army?.owner === player)
-    .map((territory) => codeOption(territory.id))
-  const allTargets = state.territories.map((territory) => codeOption(territory.id)).sort((a, b) => a.value.localeCompare(b.value))
-  // The attack goes from the origin to a territory next to it.
-  const targets = (values: Record<string, string>) => {
-    const origin = mapTerritories.find((territory) => territory.id === values.origin)
-    return origin ? allTargets.filter((option) => origin.adjacencies.includes(option.value)) : allTargets
-  }
+  const { origins, targets } = attackFieldOptions(state, mapTerritories)
   return (
     <>
       {detained.length > 0 && (
@@ -1143,6 +1161,53 @@ function tunnelLaunchers({
   )
 }
 
+/**
+ * The Ambush card, `P EM AAA BBB`, designates the attack from AAA to BBB (the
+ * player's own, or another player's as advice): if it wins and the defending
+ * army retreats with a noble, the first noble of its owner's line of
+ * succession is captured.
+ */
+function ambushLauncher({
+  state,
+  mapTerritories,
+  t,
+  lines,
+  copies,
+  add,
+}: {
+  state: StateData
+  mapTerritories: Territory[]
+  t: Translate
+  lines: string[]
+  copies: number
+  add: (line: string) => void
+}) {
+  const card = formatCardLabel('ambush', t)
+  const prefix = `P ${shortCode('ambush')}`
+  const { origins, targets } = attackFieldOptions(state, mapTerritories)
+  if (origins.length === 0) return null
+  return (
+    <OrderLauncher
+      label={t('orders.playAmbush', { card })}
+      title={t('orders.playAmbush', { card })}
+      disabled={lines.filter((line) => line.startsWith(prefix)).length >= copies}
+      fields={[
+        { key: 'origin', label: t('orders.field.tunnelOrigin'), options: origins },
+        { key: 'target', label: t('orders.field.tunnelDestination'), options: targets },
+      ]}
+      buildOrder={(values) =>
+        values.origin && values.target
+          ? {
+              line: `${prefix} ${values.origin} ${values.target}`,
+              comment: t('orders.comment.ambush', { card, origin: values.origin, target: values.target }),
+            }
+          : null
+      }
+      onConfirm={add}
+    />
+  )
+}
+
 const SHORT_CODES: Record<CardKind, string> = {
   fair_weather: 'BT',
   abundant_harvest: 'RA',
@@ -1152,6 +1217,7 @@ const SHORT_CODES: Record<CardKind, string> = {
   famine: 'FA',
   seigneurial_tax: 'TX',
   tunnel: 'SO',
+  ambush: 'EM',
 }
 
 export function shortCode(kind: CardKind): string {

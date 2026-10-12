@@ -36,6 +36,7 @@ const (
 	ErrorNobleNotOwned       = "error.noble_not_owned"
 	ErrorDuplicateEmission   = "error.duplicate_emission"
 	ErrorTransferPathBlocked = "error.transfer_path_blocked"
+	ErrorSupportNoAttack     = "error.support_no_attack"
 
 	ParseNoHeader                    = "error.parse.no_header"
 	ParseBadHeader                   = "error.parse.bad_header"
@@ -164,6 +165,7 @@ func init() {
 	register(ErrorNobleNotOwned, "noble %q belongs to player %q", "le noble %q appartient au joueur %q")
 	register(ErrorDuplicateEmission, "noble %q appears more than once", "le noble %q apparaît plusieurs fois")
 	register(ErrorTransferPathBlocked, "the transfer route from %q to %q is blocked", "la route de transfert de %q vers %q est bloquée")
+	register(ErrorSupportNoAttack, "the army on %q does not attack %q this turn: its support has nothing to support", "l'armée en %q n'attaque pas %q ce tour : le soutien n'a rien à soutenir")
 
 	register(ParseNoHeader, "an order chain requires a noble header", "une chaîne d'ordres doit commencer par un en-tête de noble")
 	register(ParseBadHeader, "the first content line must contain exactly one noble code", "la première ligne de contenu doit contenir exactement un code de noble")

@@ -77,6 +77,7 @@ const (
 	EventTypeDignity            EventType = "dignity"
 	EventTypeTrial              EventType = "trial"
 	EventTypeTunnel             EventType = "tunnel"
+	EventTypeAmbush             EventType = "ambush"
 	// EventTypeCalamityVeto is private: no report section lists it.
 	EventTypeCalamityVeto EventType = "calamity_veto"
 	EventTypeNobleDiscard EventType = "noble_discard"

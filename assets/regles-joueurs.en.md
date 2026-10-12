@@ -240,7 +240,7 @@ an action season.
 |---|---|---|
 | `A` | `XXX A YYY` | Attack or move to adjacent `YYY`. |
 | `S` | `XXX S YYY` | Defensive support for the army holding `YYY`. |
-| `S` | `XXX S YYY - ZZZ` | Offensive support for the attack from `YYY` to `ZZZ`. |
+| `S` | `XXX S YYY - ZZZ` | Offensive support for the attack from `YYY` to `ZZZ`. If the army on `YYY` is yours and this support opens the chain, it must have that attack as its current order, otherwise the order is rejected. |
 | `H` | `H XXX` | Hold on `XXX`. |
 | `J` | `XXX J YYY` | Peaceful join toward adjacent `YYY`; **must be the last order**. |
 | `P` | `P XXX` | Pillage the infrastructure on the occupied territory. |
@@ -289,7 +289,10 @@ supported army actually performs the announced action.
 - **offensive** (`XXX S YYY - ZZZ`): strengthens the attack from `YYY` to
   `ZZZ`; both `XXX` and `YYY` must be adjacent to `ZZZ`, and `YYY` must be the
   army that actually attacks `ZZZ` (that's the case for FOU in section 3,
-  adjacent to both ATL and ROS).
+  adjacent to both ATL and ROS). When `YYY` is one of your armies and this
+  support opens the chain, the order is rejected if that army does not have the
+  attack on `ZZZ` as its current order; supporting another player's army stays
+  free.
 
 **Edge cases**: a failed attack creates no additional penalty — the supported
 army follows the normal combat result, and its own chain continues or breaks
@@ -968,6 +971,7 @@ from noble chains and requiring no noble. Winter discards are written in the
 - `P SO NNN`: play Tunnel to free your noble NNN, held (hostage or dungeon) by
   another player's army; `P SO AAA - BBB`: play Tunnel on your attack from AAA
   to BBB, which ignores fortifications (see below);
+- `P EM AAA BBB`: play Ambush on your attack from AAA to BBB (see below);
 - `P TX BRU`: play the Seigneurial tax on BRU, provided BRU is the capital of
   a fief the player controls (a vacant fief included) — the one exception
   where the target is not a region's seed village;
@@ -1008,8 +1012,9 @@ bad weather, **{{special_orders.card.famine}}** bad harvest,
 **{{special_orders.card.fair_weather}}** fair weather,
 **{{special_orders.card.abundant_harvest}}** abundant harvest,
 **{{special_orders.card.revolt}}** revolt,
-**{{special_orders.card.seigneurial_tax}}** tax (seigneurial tax or tithe), and
-**{{special_orders.card.tunnel}}** tunnel cards. A hand is limited to
+**{{special_orders.card.seigneurial_tax}}** tax (seigneurial tax or tithe),
+**{{special_orders.card.tunnel}}** tunnel, and
+**{{special_orders.card.ambush}}** ambush cards. A hand is limited to
 **{{special_orders.hand_limit}} cards**, noble and dignity cards included.
 After their winter orders and discards, each player automatically receives
 bonus cards, up to **{{special_orders.draw_orders_limit}} per winter** across
@@ -1091,10 +1096,24 @@ countered. No calamity resolves in winter.
   castle of smallest code; with no refuge at all the order is rejected. Only you
   and the captor see the escape in the report. **Tunneled attack**
   (`P SO AAA - BBB`): your army on AAA must have an attack on BBB as its current
-  order, otherwise the order is rejected and the card kept. That attack, and
+  order, otherwise the order is rejected and the card kept; if the army on AAA
+  belongs to another player, no order is required but the attack must be
+  possible (AAA and BBB adjacent): it is tactical advice that profits the
+  attacker if they do attack. That attack, and
   only that one, ignores the fortifications of BBB (castle, city or fortified
   village); other attackers face the defense as usual. If the attack does not
-  take place after all, the card is consumed with no effect.
+  take place after all, the card is consumed with no effect;
+- Ambush (`P EM AAA BBB`) is played in spring, summer, or autumn, for free. Your
+  army on AAA must have an attack on BBB as its current order, otherwise the
+  order is rejected and the card kept; if the army on AAA belongs to another
+  player, no order is required but the attack must be possible (AAA and BBB
+  adjacent). If that attack is victorious and the
+  defending army retreats with at least one free noble, the one first in the
+  line of succession of its owner is captured: they become a hostage (or a
+  dungeon prisoner if a bastard) of the attacking army, on the conquered
+  territory, hence of its owner.
+  Without a victory, a retreat, or a noble in the retreating army, the card is
+  consumed with no effect.
 
 Public rumors are recalculated in every report from the current bonus hands of
 all players. They appear when at least two players hold a card, without
