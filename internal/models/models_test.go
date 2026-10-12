@@ -685,6 +685,10 @@ func TestValidateFiefErrors(t *testing.T) {
 		{"unknown holder noble", func(g *models.GameState) {
 			g.Fiefs[0].HolderNobleID = ptrNobleID("N9")
 		}, "unknown holder noble"},
+		{"crown fief held by a noble", func(g *models.GameState) {
+			g.Fiefs[0].HolderNobleID = ptrNobleID("N1")
+			g.Fiefs[0].Crown = true
+		}, "crown fief held"},
 		{"holder noble owned by another player", func(g *models.GameState) {
 			g.Nobles = append(g.Nobles, models.Noble{Sex: models.SexMale, ID: "N2", Code: "ANN", Name: "Anne", OwnerID: "P2", LocationID: "BCL", Status: models.NobleStatusFree})
 			g.Fiefs[0].HolderNobleID = ptrNobleID("N2")

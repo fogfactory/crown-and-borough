@@ -20,6 +20,68 @@ type Fief struct {
 	Territories        []TerritoryID `json:"territories"`
 	OwnerID            PlayerID      `json:"owner"`
 	HolderNobleID      *NobleID      `json:"holderNoble,omitempty"`
+	// Crown marks a crown fief: a vacant fief returned to the crown player
+	// when its player had no noble left (politique.md "Héritage d'un fief sans
+	// héritier"). It is never attributed by default and is granted by a W G
+	// order. Only a vacant fief can be a crown fief: any attribution, or a
+	// conquest, clears the mark.
+	Crown bool `json:"crown,omitempty"`
+}
+
+// FiefReversion is a vacant fief handed to the crown player by
+// ReturnOrphanFiefsToCrown. Fief points into GameState.Fiefs and stays valid
+// until that slice changes.
+type FiefReversion struct {
+	Fief          *Fief
+	PreviousOwner PlayerID
+}
+
+// CrownPlayer returns the player the crown fiefs return to: the one of the
+// royal issuer (the king, else the regent), or of a king held in a dungeon
+// when no regent acts in his name. It is false while the throne is vacant and
+// no regent stands in.
+func (g *GameState) CrownPlayer() (PlayerID, bool) {
+	if issuer, ok := g.RoyalIssuer(); ok {
+		return issuer.OwnerID, true
+	}
+	if g.King == nil {
+		return "", false
+	}
+	for _, noble := range g.Nobles {
+		if noble.ID == *g.King {
+			return noble.OwnerID, true
+		}
+	}
+	return "", false
+}
+
+// ReturnOrphanFiefsToCrown hands every vacant fief whose player has no living
+// noble to the crown player, as a crown fief (politique.md "Héritage d'un fief
+// sans héritier"). Control is derived from the fief owner (control.go), so
+// every territory of a returned fief changes hands with it. Nothing happens
+// while nobody holds the crown, and a crown fief left with a player who lost
+// all their nobles moves on to the new crown player. Call once the dead nobles
+// are removed and the queen refreshed.
+func (g *GameState) ReturnOrphanFiefsToCrown() []FiefReversion {
+	crownPlayer, ok := g.CrownPlayer()
+	if !ok {
+		return nil
+	}
+	living := make(map[PlayerID]bool, len(g.Nobles))
+	for _, noble := range g.Nobles {
+		living[noble.OwnerID] = true
+	}
+	var returned []FiefReversion
+	for i := range g.Fiefs {
+		fief := &g.Fiefs[i]
+		if fief.HolderNobleID != nil || living[fief.OwnerID] {
+			continue
+		}
+		returned = append(returned, FiefReversion{Fief: fief, PreviousOwner: fief.OwnerID})
+		fief.OwnerID = crownPlayer
+		fief.Crown = true
+	}
+	return returned
 }
 
 // TaxedFief records one turn a fief's capital was played the seigneurial tax

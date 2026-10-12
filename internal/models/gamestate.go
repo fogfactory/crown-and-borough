@@ -650,6 +650,9 @@ func (g *GameState) Validate() error {
 			if nobleOwners[*fief.HolderNobleID] != fief.OwnerID {
 				return fmt.Errorf("models: fief %q: holder noble %q belongs to %q, not owner %q", fief.ID, *fief.HolderNobleID, nobleOwners[*fief.HolderNobleID], fief.OwnerID)
 			}
+			if fief.Crown {
+				return fmt.Errorf("models: fief %q: crown fief held by noble %q", fief.ID, *fief.HolderNobleID)
+			}
 		}
 	}
 	if err := validateSpecialDeck(g.SpecialDeck, g.Auguries, players); err != nil {

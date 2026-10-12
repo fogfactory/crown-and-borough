@@ -339,3 +339,183 @@ func TestRegentIssuesTheRoyalOrders(t *testing.T) {
 		})
 	}
 }
+
+func TestOrphanFiefReturnsToTheCrownPlayer(t *testing.T) {
+	state := crownFiefState(t)
+	ctx := newResolutionContext(state, testBalance())
+	ctx.returnOrphanFiefsToCrown()
+
+	fief := ctx.fiefByCapital("AAA")
+	if fief.OwnerID != "P1" || !fief.Crown || fief.HolderNobleID != nil {
+		t.Fatalf("fief = %#v, want a vacant crown fief of P1", fief)
+	}
+	if events := eventsOfType(ctx.events, EventTypeFiefConquered); len(events) != 1 || events[0].Reason != "crown" || events[0].PreviousOwnerID != "P3" || events[0].OwnerID != "P1" {
+		t.Fatalf("events = %#v, want one crown reversion from P3 to P1", ctx.events)
+	}
+	for _, memberID := range fief.Territories {
+		if got, _ := state.TerritoryController(memberID); got != "P1" {
+			t.Errorf("%s controller = %q, want P1", memberID, got)
+		}
+	}
+
+	ctx.resolveVacantFiefsAtWinterEnd()
+	if fief.HolderNobleID != nil {
+		t.Errorf("holder = %v, want the crown fief never attributed by default", fief.HolderNobleID)
+	}
+	if err := state.Validate(); err != nil {
+		t.Errorf("Validate() after the reversion = %v", err)
+	}
+}
+
+func TestOrphanFiefStaysWithItsPlayerWithoutKing(t *testing.T) {
+	state := crownFiefState(t)
+	state.King = nil
+	state.Queen = nil
+	ctx := newResolutionContext(state, testBalance())
+	ctx.returnOrphanFiefsToCrown()
+	if fief := ctx.fiefByCapital("AAA"); fief.OwnerID != "P3" || fief.Crown {
+		t.Fatalf("fief = %#v, want it vacant with P3", fief)
+	}
+}
+
+func TestOrphanFiefReturnsToTheRegentPlayerOrTheKingInADungeon(t *testing.T) {
+	cases := []struct {
+		name      string
+		mutate    func(state *models.GameState)
+		wantOwner models.PlayerID
+	}{
+		{name: "regent of a king in a dungeon", mutate: func(s *models.GameState) { setNobleStatus(s, "N1", models.NobleStatusDungeon) }, wantOwner: "P2"},
+		{name: "dowager regent of a vacant throne", mutate: func(s *models.GameState) { s.King = nil }, wantOwner: "P2"},
+		{name: "king in a dungeon with no regent", mutate: func(s *models.GameState) {
+			setNobleStatus(s, "N1", models.NobleStatusDungeon)
+			setNobleStatus(s, "Q1", models.NobleStatusDungeon)
+		}, wantOwner: "P1"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			state := crownFiefState(t)
+			addNoble(state, "Q1", "MAH", "P2", "GGG")
+			state.Marriages = []models.Marriage{{NobleA: "N1", NobleB: "Q1", Turn: 1}}
+			queen := models.NobleID("Q1")
+			state.Queen = &queen
+			tc.mutate(state)
+			ctx := newResolutionContext(state, testBalance())
+			ctx.returnOrphanFiefsToCrown()
+			if fief := ctx.fiefByCapital("AAA"); fief.OwnerID != tc.wantOwner || !fief.Crown {
+				t.Fatalf("fief = %#v, want a crown fief of %s", fief, tc.wantOwner)
+			}
+		})
+	}
+}
+
+// A death that leaves the dead titleholder's player without a noble sends the
+// fief back to the crown in the same pass, after the claims were settled.
+func TestDeathOfTheLastNobleReturnsTheFiefToTheCrown(t *testing.T) {
+	state := royalOrdersState(t)
+	addNoble(state, "N3", "BOB", "P3", "DDD")
+	state.Fiefs[0].OwnerID = "P3"
+	state.Fiefs[0].HolderNobleID = nobleIDPtr("N3")
+	state.Players[0].CapitalCastleID = nil
+	ctx := newResolutionContext(state, testBalance())
+	ctx.removeNoble(state.Nobles[len(state.Nobles)-1], models.DeathCauseNatural)
+
+	fief := ctx.fiefByCapital("AAA")
+	if fief.OwnerID != "P1" || !fief.Crown || fief.HolderNobleID != nil {
+		t.Fatalf("fief = %#v, want a vacant crown fief of P1", fief)
+	}
+	if len(eventsOfType(ctx.events, EventTypeFiefVacated)) != 1 || len(eventsOfType(ctx.events, EventTypeFiefConquered)) != 1 {
+		t.Fatalf("events = %#v, want the fief vacated then returned to the crown", ctx.events)
+	}
+}
+
+func TestDeathOfANobleWithOthersLeftKeepsTheFiefWithItsPlayer(t *testing.T) {
+	state := royalOrdersState(t)
+	addNoble(state, "N3", "BOB", "P3", "DDD")
+	addNoble(state, "N4", "CAT", "P3", "DDD")
+	state.Fiefs[0].OwnerID = "P3"
+	state.Fiefs[0].HolderNobleID = nobleIDPtr("N3")
+	ctx := newResolutionContext(state, testBalance())
+	ctx.removeNoble(state.Nobles[len(state.Nobles)-2], models.DeathCauseNatural)
+
+	if fief := ctx.fiefByCapital("AAA"); fief.OwnerID != "P3" || fief.Crown || fief.HolderNobleID != nil {
+		t.Fatalf("fief = %#v, want an ordinary vacant fief of P3", fief)
+	}
+}
+
+// The coronation brings back the vacant fiefs no crown player could take, and
+// the crown fiefs of a player who lost every noble move on to the new crown.
+func TestCoronationReturnsOrphanFiefsToTheNewCrown(t *testing.T) {
+	cases := []struct {
+		name   string
+		mutate func(state *models.GameState)
+	}{
+		{name: "fief left vacant by a player without noble", mutate: func(s *models.GameState) {}},
+		{name: "crown fief of a former crown player without noble", mutate: func(s *models.GameState) { s.Fiefs[0].Crown = true }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			state := crownFiefState(t)
+			state.King = nil
+			state.Queen = nil
+			tc.mutate(state)
+			ctx := newResolutionContext(state, testBalance())
+			ctx.pendingTitles = []pendingTitle{{noble: "N1", kind: models.ElectionKing}}
+			ctx.investWinterTitles()
+
+			if state.King == nil || *state.King != "N1" {
+				t.Fatalf("king = %v, want N1 crowned", state.King)
+			}
+			if fief := ctx.fiefByCapital("AAA"); fief.OwnerID != "P1" || !fief.Crown {
+				t.Fatalf("fief = %#v, want a crown fief of P1", fief)
+			}
+		})
+	}
+}
+
+func TestConquestOfACrownFiefClearsTheCrownMark(t *testing.T) {
+	state := crownFiefState(t)
+	state.Fiefs[0].OwnerID = "P1"
+	state.Fiefs[0].Crown = true
+	ctx := newResolutionContext(state, testBalance())
+	ctx.transferFiefOnCapitalCapture("AAA", "P2", ctx.snapshotControlNow())
+
+	fief := ctx.fiefByCapital("AAA")
+	if fief.OwnerID != "P2" || fief.Crown {
+		t.Fatalf("fief = %#v, want an ordinary vacant fief of the conqueror", fief)
+	}
+	ctx.resolveVacantFiefsAtWinterEnd()
+	if fief.HolderNobleID == nil || *fief.HolderNobleID != "N2" {
+		t.Errorf("holder = %v, want the conqueror's default attribution to N2", fief.HolderNobleID)
+	}
+	ctx = resolveRoyal(state, royalSheets{"P1": {grantOrder(nil)}})
+	requireRejected(t, ctx, "O1", "royal_fief_not_crown")
+}
+
+func TestAssigningACrownFiefClearsTheCrownMark(t *testing.T) {
+	state := assignFiefTestState(t)
+	state.Fiefs[0].Crown = true
+	ctx, event := applyAssignFief(state, models.WinterOrder{NobleCode: "ANN", TerritoryID: "AAA"})
+	if event.Type != EventTypeFiefAssigned {
+		t.Fatalf("event = %#v, want fief_assigned", event)
+	}
+	if ctx.state.Fiefs[0].Crown {
+		t.Errorf("fief = %#v, want the crown mark cleared once held", ctx.state.Fiefs[0])
+	}
+	if err := state.Validate(); err != nil {
+		t.Errorf("Validate() after assignment = %v", err)
+	}
+}
+
+func TestRoyalGrantOfAReturnedCrownFief(t *testing.T) {
+	state := crownFiefState(t)
+	state.Fiefs[0].OwnerID = "P1"
+	state.Fiefs[0].Crown = true
+	ctx := resolveRoyal(state, royalSheets{"P1": {grantOrder(nil)}})
+	fief := ctx.fiefByCapital("AAA")
+	if event := eventOfOrder(t, ctx, "O1"); event.Type != EventTypeFiefGranted || fief.OwnerID != "P2" || fief.Crown {
+		t.Fatalf("event = %#v, fief = %#v, want the crown fief granted to P2's noble", event, fief)
+	}
+	if err := state.Validate(); err != nil {
+		t.Errorf("Validate() after the grant = %v", err)
+	}
+}

@@ -59,6 +59,29 @@ func TestSimulateVictoryKillOfTheKingCrownsTheHeirOfAClaim(t *testing.T) {
 	}
 }
 
+func TestSimulateVictoryKillOfTheLastNobleReturnsTheFiefToTheCrown(t *testing.T) {
+	state := allianceState()
+	king := models.NobleID("N1")
+	state.King = &king
+	holder := models.NobleID("N3")
+	state.Nobles = state.Nobles[:3]
+	state.Fiefs = append(state.Fiefs, models.Fief{ID: "F2", OwnerID: "P2", HolderNobleID: &holder, Title: models.FiefTitleBarony})
+	for index := range state.Nobles {
+		state.Nobles[index].Code = "C" + string(state.Nobles[index].ID)
+	}
+
+	simulation, err := SimulateVictory(state, allianceBalance(), []SimulationAction{{Kind: SimulationKill, Noble: "CN3"}})
+	if err != nil {
+		t.Fatalf("SimulateVictory: %v", err)
+	}
+	if got := simulation.State.Fiefs[1]; got.OwnerID != "P1" || !got.Crown || got.HolderNobleID != nil {
+		t.Fatalf("fief after the last noble of P2 died = %#v, want a vacant crown fief of P1", got)
+	}
+	if state.Fiefs[1].OwnerID != "P2" || state.Fiefs[1].Crown {
+		t.Fatal("simulation mutated the source state")
+	}
+}
+
 func rankSimulationState() *models.GameState {
 	state := allianceState()
 	state.Fiefs = nil

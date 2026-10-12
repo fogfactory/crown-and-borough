@@ -93,12 +93,12 @@ func (order royalOrder) Apply(ctx *ExecutionContext) {
 }
 
 // grantCrownFief gives a crown fief to a noble of any player (W G): the fief
-// must be vacant with no noble left alive in the family of its player, who
-// cannot receive it, and the grantee must be able to receive its title in his
-// line of succession.
+// must be vacant and marked as a crown fief (or, for a state that predates the
+// mark, belong to a player with no noble left alive), and the grantee must be
+// able to receive its title in his line of succession.
 func (order royalOrder) grantCrownFief(resolution *resolutionContext, playerID models.PlayerID, fief *models.Fief, issuer *models.Noble) {
 	winterOrder := order.order
-	if fief.HolderNobleID != nil || resolution.playerHasNoble(fief.OwnerID) {
+	if fief.HolderNobleID != nil || (!fief.Crown && resolution.playerHasNoble(fief.OwnerID)) {
 		resolution.rejectWinterOrder(playerID, winterOrder, "royal_fief_not_crown")
 		return
 	}
@@ -122,6 +122,7 @@ func (order royalOrder) grantCrownFief(resolution *resolutionContext, playerID m
 	}
 	holderID := granteeID
 	fief.HolderNobleID = &holderID
+	fief.Crown = false
 	resolution.royalOrdersIssued[winterOrder.Type]++
 	orderCopy := winterOrder
 	resolution.events = append(resolution.events, Event{

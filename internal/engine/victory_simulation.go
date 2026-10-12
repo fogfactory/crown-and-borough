@@ -23,7 +23,8 @@ type SimulationActionKind string
 const (
 	// SimulationKill: Noble dies. Their marriage ends, their dignities are
 	// lost and their fiefs pass to the living heir of a claim on them, or are
-	// left vacant with their owner.
+	// left vacant with their owner, then returned to the crown when that owner
+	// has no noble left.
 	SimulationKill SimulationActionKind = "kill"
 	// SimulationMarry: Noble and Other marry.
 	SimulationMarry SimulationActionKind = "marry"
@@ -37,7 +38,8 @@ const (
 	// Neither the cost nor the once-per-winter limit is simulated, so a fief
 	// can rise several ranks in a row.
 	SimulationRank SimulationActionKind = "rank"
-	// SimulationCrown: Noble is crowned, replacing any king in place.
+	// SimulationCrown: Noble is crowned, replacing any king in place; the vacant
+	// fiefs of players without a noble return to the new crown player.
 	SimulationCrown SimulationActionKind = "crown"
 	// SimulationDethrone: the throne becomes vacant while the king stays
 	// alive. This is a what-if with no counterpart in play: the tenure is for
@@ -124,12 +126,14 @@ func applySimulationAction(state *models.GameState, action SimulationAction) err
 	case SimulationKill:
 		simulateDeath(state, *noble)
 		state.RefreshQueen()
+		state.ReturnOrphanFiefsToCrown()
 		return nil
 	case SimulationCrown:
 		if err := simulateCrown(state, *noble); err != nil {
 			return err
 		}
 		state.RefreshQueen()
+		state.ReturnOrphanFiefsToCrown()
 		return nil
 	case SimulationMarry, SimulationDivorce, SimulationClaim:
 	default:

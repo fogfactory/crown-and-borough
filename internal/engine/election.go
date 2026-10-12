@@ -632,6 +632,11 @@ func (ctx *resolutionContext) investWinterTitles() {
 			}
 			id := noble.ID
 			ctx.state.King = &id
+			// The coronation brings back the fiefs left vacant by players
+			// without a noble (politique.md "Héritage d'un fief sans
+			// héritier"); the queen must be current to find a regent.
+			ctx.state.RefreshQueen()
+			ctx.returnOrphanFiefsToCrown()
 		}
 		ctx.events = append(ctx.events, Event{
 			Type:      EventTypeInvestiture,
