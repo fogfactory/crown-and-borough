@@ -51,6 +51,7 @@ func resolveTerritoryIncome(ctx *resolutionContext) {
 	reports, _ := computeTerritoryIncome(ctx)
 	creditTerritoryIncome(ctx, reports)
 	emitTerritoryIncomeEvents(ctx, reports)
+	resolveRoyalIncome(ctx)
 }
 
 // computeTerritoryIncome computes, but does not credit, every controlled

@@ -98,14 +98,17 @@ type StateView struct {
 // resolution (see engine.ForecastFamineRisk). Both are zero-valued in
 // winter, since ravitaillement never happens then.
 type PlayerView struct {
-	ID                   models.PlayerID     `json:"id"`
-	Name                 string              `json:"name"`
-	Color                string              `json:"color"`
-	CapitalTerritory     *models.TerritoryID `json:"capitalTerritory,omitempty"`
-	ProjectedIncome      int                 `json:"projectedIncome"`
-	ProjectedMillIncome  int                 `json:"projectedMillIncome"`
-	ProjectedConsumption int                 `json:"projectedConsumption"`
-	ArmiesAtRisk         []ArmyRiskView      `json:"armiesAtRisk,omitempty"`
+	ID                  models.PlayerID     `json:"id"`
+	Name                string              `json:"name"`
+	Color               string              `json:"color"`
+	CapitalTerritory    *models.TerritoryID `json:"capitalTerritory,omitempty"`
+	ProjectedIncome     int                 `json:"projectedIncome"`
+	ProjectedMillIncome int                 `json:"projectedMillIncome"`
+	// ProjectedRoyalRent is the rent of the king or of the queen the player
+	// would receive this turn (see engine.ForecastRoyalRent).
+	ProjectedRoyalRent   int            `json:"projectedRoyalRent,omitempty"`
+	ProjectedConsumption int            `json:"projectedConsumption"`
+	ArmiesAtRisk         []ArmyRiskView `json:"armiesAtRisk,omitempty"`
 	// Succession lists the codes of the player's living nobles in line of
 	// succession order (specs/succession.md § Lignée).
 	Succession []models.NobleCode `json:"succession"`
@@ -417,6 +420,7 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 	territoryIncome := engine.ForecastTerritoryIncome(state, balance)
 	projectedIncomeByPlayer := make(map[models.PlayerID]int, len(state.Players))
 	millIncomeByPlayer := engine.ForecastMillIncome(state, balance)
+	royalRentByPlayer := engine.ForecastRoyalRent(state)
 	millProduction := engine.ForecastMillProduction(state, balance)
 	famineRiskByPlayer := engine.ForecastFamineRisk(state, balance)
 
@@ -480,7 +484,7 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 		view.Territories = append(view.Territories, territoryView)
 	}
 	for _, player := range state.Players {
-		playerView := PlayerView{ID: player.ID, Name: player.Name, Color: player.Color, ProjectedIncome: projectedIncomeByPlayer[player.ID], ProjectedMillIncome: millIncomeByPlayer[player.ID]}
+		playerView := PlayerView{ID: player.ID, Name: player.Name, Color: player.Color, ProjectedIncome: projectedIncomeByPlayer[player.ID], ProjectedMillIncome: millIncomeByPlayer[player.ID], ProjectedRoyalRent: royalRentByPlayer[player.ID]}
 		if famineRisk, ok := famineRiskByPlayer[player.ID]; ok {
 			playerView.ProjectedConsumption = famineRisk.NetConsumption
 			for _, risk := range famineRisk.ArmiesAtRisk {

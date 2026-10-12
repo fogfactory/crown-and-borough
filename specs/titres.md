@@ -212,7 +212,8 @@ de l'impôt :
   l'émetteur ne détient pas le fief ;
 - émetteur **roi** et cible la capitale de n'importe quel fief constitué :
   **taxe royale** (voir ci-dessous) ;
-- émetteur **évêque, cardinal ou pape** et cible un évêché : **dîme** (voir
+- émetteur **évêque ou cardinal** et cible un évêché, ou émetteur **pape** sans
+  cible (tous les évêchés) : **dîme** (voir
   [religieux.md § Dîme](religieux.md#dîme)).
 
 `XXX` est donc, par exception à la règle « `TER` est le village seed d'une
@@ -224,11 +225,14 @@ Révolte (voir [ordres-speciaux.md](ordres-speciaux.md)) sur **tout territoire
 du fief ou de l'évêché ciblé**, pas seulement sa capitale, la saison où il est
 joué et la saison suivante, indépendamment de toute famine.
 
-Le **roi** peut taxer n'importe quel fief constitué, mais seulement celui
-qui n'est pas déjà taxé par son seigneur ce tour-là (priorité au titulaire
-local) ; le supplément est alors détourné vers la capitale du roi au lieu de
-la capitale du fief. Cette taxe royale est suivie dans le milestone
-[Royauté](politique.md#pouvoirs-royaux).
+Le **roi** (ou la régente), par son noble `KKK`, peut taxer n'importe quel fief
+constitué, vacant compris, qu'il ne détient pas lui-même, à condition qu'il
+ne soit pas déjà taxé par son seigneur ce tour-là : la taxe du seigneur a
+priorité quel que soit l'ordre des soumissions, et la taxe royale est alors
+consommée sans effet, avec un rapport explicite. Le fief garde son revenu de
+base ; un supplément de même montant est créé pour la capitale du joueur du
+roi, au lieu de doubler le revenu du fief. Voir
+[politique.md](politique.md#pouvoirs-royaux).
 
 Le détail du calcul (montant par territoire, avec et sans village) est défini
 dans [economie.md](economie.md).

@@ -384,6 +384,8 @@ export interface Player {
    * receive.
    */
   projectedMillIncome?: number
+  /** Rent of the king or of the queen the player receives each action turn. */
+  projectedRoyalRent?: number
   /** Codes of the player's living nobles in line-of-succession order. */
   succession?: string[]
   /**
@@ -781,6 +783,10 @@ export interface IncomeReport {
   credited: number
   stockAfter?: number
   lost?: boolean
+  /** Royal flow: royal tax supplement or the king's / queen's rent. */
+  source?: 'royal_tax' | 'royal_rent_king' | 'royal_rent_queen'
+  /** For a royal tax supplement, the capital of the taxed fief. */
+  taxed?: string
 }
 
 /**

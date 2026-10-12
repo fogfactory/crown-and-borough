@@ -54,6 +54,10 @@ var demoScenarios = map[string]struct {
 		description: "winter, annexation scenario plus a king (ZRK, P1), a barony of P2 held by ZRB, and a vacant crown fief of P3, who has no noble left: try W X, W R, W F, W G as P1 with the matching T X / T R / T F / T A from P1 and P2",
 		apply:       forgeRoyal,
 	},
+	"royal-tax": {
+		description: "spring, P1's ZRK is the king and ZQN (P2) a dowager queen; one barony each for P1, P2, P3. P1 holds three Tax cards, P2 one: P TX ZRK <P2 or P3 fief capital> is a royal tax; with P2 taxing its own fief the same turn, the lord wins. The report shows the king's and queen's rent",
+		apply:       forgeRoyalTax,
+	},
 	"appeasement": {
 		description: "spring, P1 has a bishop, a cardinal and an abbess; rebel armies of 1 to 3 troops stand in their regions and elsewhere; P1 has plenty of R",
 		apply:       forgeAppeasement,
@@ -792,4 +796,27 @@ func containsTerritory(list []models.TerritoryID, target models.TerritoryID) boo
 		}
 	}
 	return false
+}
+
+// forgeRoyalTax puts the throne in P1's hands in spring with a barony per
+// player (see forgeKing), a dowager queen of P2, and Tax cards: P1 has three
+// (the winter scenario's one plus two more, for royal taxes on other players'
+// fiefs), P2 one (a seigneurial tax, which takes priority over a royal tax on
+// the same fief).
+func forgeRoyalTax(state *models.GameState) error {
+	if err := forgeKing(state); err != nil {
+		return err
+	}
+	state.Season = models.SeasonSpring
+	state.Turn = 1
+	location := state.Nobles[ownedNobles(state, "P1")[0]].LocationID
+	state.Nobles = append(state.Nobles,
+		models.Noble{ID: "N950", Code: "ZRK", Name: "Robert", Sex: models.SexMale, OwnerID: "P1", LocationID: location, Status: models.NobleStatusFree},
+		models.Noble{ID: "N951", Code: "ZQN", Name: "Quitterie", Sex: models.SexFemale, OwnerID: "P2", LocationID: state.Nobles[ownedNobles(state, "P2")[0]].LocationID, Status: models.NobleStatusFree},
+	)
+	king, queen := models.NobleID("N950"), models.NobleID("N951")
+	state.King, state.Queen = &king, &queen
+	giveSpecialCards(state, "P1", models.CardKindSeigneurialTax, models.CardKindSeigneurialTax)
+	giveSpecialCards(state, "P2", models.CardKindSeigneurialTax)
+	return nil
 }

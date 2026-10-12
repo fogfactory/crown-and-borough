@@ -877,7 +877,11 @@ function AppContent() {
               }
               command={
                 <>
-                  <ProjectedIncomeSummary state={state} playerId={selectedPlayer} />
+                  <ProjectedIncomeSummary
+                    state={state}
+                    playerId={selectedPlayer}
+                    specialDraft={specialDrafts[selectedPlayer]}
+                  />
                   <ProjectedConsumptionSummary state={state} playerId={selectedPlayer} />
                   <SelectedTerritoryDetails
                     state={state}

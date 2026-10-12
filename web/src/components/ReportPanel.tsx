@@ -1089,9 +1089,17 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                   </span>
                 </div>
                 <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-[#806f57]">
-                  <span>
-                    {t('reports.incomeTerritories', { count: line.territories })}
-                  </span>
+                  {line.source ? (
+                    <span>
+                      {t(`reports.incomeSource.${line.source}`, {
+                        fief: territoryLabel(map, line.taxed, t),
+                      })}
+                    </span>
+                  ) : (
+                    <span>
+                      {t('reports.incomeTerritories', { count: line.territories })}
+                    </span>
+                  )}
                   {line.villages > 0 && (
                     <span>{t('reports.incomeVillages', { count: line.villages })}</span>
                   )}

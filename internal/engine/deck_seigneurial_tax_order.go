@@ -30,6 +30,9 @@ func (seigneurialTaxCardDefinition) CanPlay(ctx *ExecutionContext, order models.
 		}
 	}
 	fief := ctx.resolution.fiefByCapital(order.TargetTerritoryID)
+	if fief != nil && ctx.resolution.isRoyalTax(ctx.playerID, order) {
+		return true, ""
+	}
 	if fief != nil && order.TargetNobleID != "" && fief.HolderNobleID != nil && *fief.HolderNobleID != order.TargetNobleID {
 		return false, "seigneurial_tax_requires_fief_holder"
 	}

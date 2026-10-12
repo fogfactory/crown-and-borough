@@ -1029,6 +1029,7 @@ dans la feuille `winter`.
 - `P DI HHH XXX` : jouer la carte Impôts par un évêque, un cardinal ou le pape
   HHH sur l'évêché dont XXX est le village seed : c'est une **dîme** (voir plus
   bas). Un noble à la fois seigneur et évêque choisit ainsi la taxe ou la dîme ;
+- `P DI HHH` : la dîme du pape, sans cible : elle vise tous les évêchés ;
 - `D C BT` ou `D C RA` : défausser une carte, en hiver uniquement.
 
 La main est reconstituée automatiquement en hiver après les ordres d'hiver et
@@ -1063,7 +1064,7 @@ mauvais temps, **{{special_orders.card.famine}}** mauvaise récolte,
 **{{special_orders.card.fair_weather}}** beau temps,
 **{{special_orders.card.abundant_harvest}}** bonne récolte,
 **{{special_orders.card.revolt}}** révolte,
-**{{special_orders.card.seigneurial_tax}}** impôts (taxe seigneuriale ou dîme) et
+**{{special_orders.card.seigneurial_tax}}** impôts (taxe seigneuriale, taxe royale ou dîme) et
 **{{special_orders.card.tunnel}}** souterrain. La main est limitée à
 **{{special_orders.hand_limit}} cartes**, cartes de noble et de dignité
 comprises. Après ses ordres d'hiver et ses défausses, chaque joueur reçoit
@@ -1134,12 +1135,26 @@ ne se résout en hiver.
   cumulent pas : la seconde est consommée sans effet. Si la capitale du fief
   taxé est capturée pendant ce même tour, la taxe est annulée : personne ne
   touche le doublement pour ce tour de transition ;
+- la **taxe royale** est la carte Impôts jouée par le roi (ou la régente) :
+  `P TX KKK XXX`, XXX étant la capitale de n'importe quel fief qu'il ne détient
+  pas lui-même, vacant compris. Le fief garde son revenu territorial et le même
+  montant est créé pour la capitale du joueur du roi. Si le seigneur du fief le
+  taxe le même tour, la taxe du seigneur passe en premier et la taxe royale est
+  consommée sans effet. Un fief est taxé une fois par tour. Comme toute taxe,
+  elle rend tous les territoires du fief éligibles à la Révolte ce tour-ci et
+  le suivant ;
+- la **rente royale** est versée à chaque tour d'action sans carte : **1 R par
+  fief constitué** sur la carte, vacants compris, créé et livré à la capitale du
+  joueur du roi (un roi capturé la garde ; un trône vacant n'en verse pas). La
+  reine, douairière comprise, reçoit la moitié, arrondie au supérieur, à la
+  capitale de son joueur. Le rapport de tour les indique séparément ;
 - la **dîme** est la carte Impôts jouée par un ecclésiastique (`P DI HHH XXX`,
   XXX étant le village seed d'un évêché) : elle détourne, pour le tour, la
   production de tous les moulins de l'évêché vers la capitale du joueur qui la
   joue, sans jamais toucher le revenu de territoire. Un évêque ne taxe que son
-  évêché ; un cardinal et le pape taxent n'importe quel évêché, même sans
-  évêque. Quand plusieurs dîmes visent le même évêché le même tour, la
+  évêché ; un cardinal taxe n'importe quel évêché, même sans évêque ; la dîme
+  du pape ne désigne aucun évêché et les vise tous (battue sur un évêché, elle
+  reste valable sur les autres). Quand plusieurs dîmes visent le même évêché le même tour, la
   priorité va à l'évêque de cet évêché, puis aux cardinaux, puis au pape ; les
   dîmes battues sont consommées sans effet. Si plusieurs joueurs ont un
   cardinal en lice, la production de chaque moulin est partagée équitablement

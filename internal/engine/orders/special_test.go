@@ -148,3 +148,22 @@ func TestParseTitheOnAFiefCapitalSeed(t *testing.T) {
 		t.Fatalf("a tithe without issuer must be rejected")
 	}
 }
+
+func TestParsePapalTitheHasNoTarget(t *testing.T) {
+	pope := models.NobleID("N1")
+	game := &models.GameState{
+		Pope:    &pope,
+		Nobles:  []models.Noble{{ID: "N1", Code: "AAA"}, {ID: "N2", Code: "BBB"}},
+		Regions: []models.Region{{ID: "R1", Seed: "MIL"}},
+	}
+	order, parseError := parseDeckOrderLine("P DI AAA", 1, game)
+	if parseError != nil || !order.Tithe || order.TargetNobleID != "N1" || order.TargetTerritoryID != "" {
+		t.Fatalf("P DI <pope> = %#v, %v, want an untargeted tithe issued by the pope", order, parseError)
+	}
+	if _, parseError := parseDeckOrderLine("P DI BBB", 1, game); parseError == nil {
+		t.Fatal("a tithe of a cleric who is not the pope needs a bishopric")
+	}
+	if _, parseError := parseDeckOrderLine("P DI AAA", 1, nil); parseError == nil {
+		t.Fatal("an untargeted tithe cannot be read without a game state")
+	}
+}

@@ -212,10 +212,12 @@ flux de ressource dans [economie.md](economie.md)). Elle ne touche jamais le
 revenu de territoire des fiefs, qui relève exclusivement de la taxe.
 
 - l'**évêque** ne cible que son propre évêché ;
-- le **cardinal** et le **pape** peuvent cibler n'importe quel évêché.
+- le **cardinal** peut cibler n'importe quel évêché ;
+- le **pape** ne cible pas : sa dîme s'applique à **tous** les évêchés.
 
 Syntaxe : `P DI HHH XXX` dans la soumission `special`, `HHH` étant le noble
-émetteur et `XXX` le village seed de l'évêché visé. `P TX HHH XXX` sur un village
+émetteur et `XXX` le village seed de l'évêché visé ; la dîme du pape s'écrit
+`P DI HHH`, sans cible. `P TX HHH XXX` sur un village
 seed qui n'est la capitale d'aucun fief est aussi une dîme ; le code `DI` lève
 l'ambiguïté lorsque `XXX` est à la fois la capitale d'un fief et le seed d'un
 évêché : un même noble peut être seigneur et évêque et choisir, pour la même
@@ -224,7 +226,8 @@ carte, la taxe ou la dîme.
 - **Priorité** : lorsque plusieurs dîmes visent le même évêché le même tour,
   l'**évêque** de cet évêché l'emporte sur les cardinaux et sur le pape ; les
   **cardinaux** l'emportent sur le pape. Le pape ne récupère donc que la dîme
-  des évêchés sur lesquels aucune autre dîme n'a été posée. Les dîmes
+  des évêchés sur lesquels aucune autre dîme n'a été posée (la dîme battue
+  sur certains évêchés reste valable sur les autres). Les dîmes
   battues par une priorité sont consommées sans effet.
 - **Plusieurs cardinaux sur un même évêché** (sans dîme de l'évêque) : la
   production des moulins de l'évêché est répartie **équitablement** entre les
@@ -388,3 +391,11 @@ titre obtenu par alliance et les bonus de score s'éteignent
 retire aucune prétention (Claim), y compris celles que le mariage a
 justifiées, et n'affecte pas la succession déjà ouverte ; le mariage reste
 enregistré dans la lignée.
+
+## À trancher
+
+1. La dîme du pape vise tous les évêchés : elle détourne vers la capitale de son
+   joueur la production des moulins de toute la carte (sauf là où une dîme de
+   rang supérieur est posée) et ouvre la Révolte sur tous les territoires,
+   la saison où elle est jouée et la suivante. Son poids en équilibrage
+   (revenu, Révolte) est à valider.

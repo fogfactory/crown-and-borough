@@ -1025,7 +1025,7 @@ export function GamePage() {
           }
           command={
             <>
-              <ProjectedIncomeSummary state={state} playerId={playerID} />
+              <ProjectedIncomeSummary state={state} playerId={playerID} specialDraft={specialDraft} />
               <ProjectedConsumptionSummary state={state} playerId={playerID} />
               <SelectedTerritoryDetails
                 state={state}
