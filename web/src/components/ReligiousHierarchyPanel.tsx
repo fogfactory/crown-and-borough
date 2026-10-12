@@ -1,5 +1,6 @@
+import { NobleHolder } from '@/components/NobleHolder'
 import { useLanguage } from '@/i18n/LanguageContext'
-import type { Noble, Player, StateData } from '@/types'
+import type { StateData } from '@/types'
 
 /** Pope, cardinals and bishops in place, with the player owning each title. */
 export function ReligiousHierarchyPanel({ state }: { state: StateData }) {
@@ -8,29 +9,13 @@ export function ReligiousHierarchyPanel({ state }: { state: StateData }) {
   const cardinals = state.cardinals ?? []
   if (bishoprics.length === 0 && cardinals.length === 0 && !state.pope) return null
 
-  const nobleByCode = new Map(state.nobles.map((noble) => [noble.code, noble]))
-  const playerById = new Map(state.players.map((player) => [player.id, player]))
-
-  const holder = (code: string | undefined) => {
-    const noble: Noble | undefined = code ? nobleByCode.get(code) : undefined
-    if (!noble) return <span className="italic text-[#806f57]">{t('map.hierarchyVacant')}</span>
-    const owner: Player | undefined = playerById.get(noble.owner)
-    return (
-      <span className="inline-flex items-center gap-1">
-        <span
-          aria-hidden="true"
-          className="inline-block size-2.5 rounded-full border border-[#30291f]/40"
-          style={{ backgroundColor: owner?.color ?? '#6b7280' }}
-        />
-        {noble.name} ({noble.code}) · {owner?.name ?? noble.owner}
-      </span>
-    )
-  }
-
+  const holder = (code: string | undefined) => (
+    <NobleHolder code={code} nobles={state.nobles} players={state.players} />
+  )
   return (
     <details
       data-religious-hierarchy
-      className="absolute left-3 top-3 z-10 max-w-[18rem] rounded-lg border border-[#b7a786] bg-[#fffaf0]/95 p-2 text-xs text-[#594b3c] shadow-md"
+      className="max-w-[18rem] rounded-lg border border-[#b7a786] bg-[#fffaf0]/95 p-2 text-xs text-[#594b3c] shadow-md"
     >
       <summary className="cursor-pointer font-bold uppercase tracking-[0.12em]">
         {t('map.hierarchyTitle')}

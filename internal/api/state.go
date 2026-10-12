@@ -271,12 +271,14 @@ type ExcommunicationView struct {
 // the capital territory's own projected income since it also receives every
 // other member's income (titres.md, #196).
 type FiefView struct {
-	Capital         models.TerritoryID   `json:"capital"`
-	Title           models.FiefTitle     `json:"title"`
-	Territories     []models.TerritoryID `json:"territories"`
-	Owner           models.PlayerID      `json:"owner"`
-	Holder          *models.NobleCode    `json:"holder,omitempty"`
-	ProjectedIncome int                  `json:"projectedIncome"`
+	Capital     models.TerritoryID   `json:"capital"`
+	Title       models.FiefTitle     `json:"title"`
+	Territories []models.TerritoryID `json:"territories"`
+	Owner       models.PlayerID      `json:"owner"`
+	Holder      *models.NobleCode    `json:"holder,omitempty"`
+	// Crown marks a vacant fief returned to the crown player (politique.md).
+	Crown           bool `json:"crown,omitempty"`
+	ProjectedIncome int  `json:"projectedIncome"`
 }
 
 // MarriageView is one concluded marriage, public to every viewer
@@ -554,6 +556,7 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 			Title:       fief.Title,
 			Territories: append([]models.TerritoryID(nil), fief.Territories...),
 			Owner:       fief.OwnerID,
+			Crown:       fief.Crown,
 		}
 		if fief.HolderNobleID != nil {
 			if code, exists := nobleCodesByID[*fief.HolderNobleID]; exists {
