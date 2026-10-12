@@ -101,6 +101,12 @@ type resolutionContext struct {
 	// fortifications of its target.
 	pendingTunnels  []deckOrderIntent
 	tunneledAttacks map[models.ArmyID]bool
+	// pendingAmbushes holds the ambush cards played on an attack, matched with
+	// the attack intents like the tunnels; ambushAttacks then holds, by
+	// attacking army, the ambush it carries (settled by settleAmbushes once the
+	// retreats are known).
+	pendingAmbushes []deckOrderIntent
+	ambushAttacks   map[models.ArmyID]deckOrderIntent
 	// taxedFiefsThisTurn holds the fiefs whose seigneurial tax successfully
 	// applied this turn (first play only, titres.md "Taxe seigneuriale"): it
 	// doubles their territory income (income.go) and widens revolt
@@ -172,6 +178,7 @@ func newResolutionContext(state *models.GameState, balance assetgen.Balance) *re
 		poolRations:           make(map[models.TerritoryID]map[models.TerritoryID]int),
 		pendingRevoltSizes:    make(map[models.TerritoryID]int),
 		tunneledAttacks:       make(map[models.ArmyID]bool),
+		ambushAttacks:         make(map[models.ArmyID]deckOrderIntent),
 		taxedFiefsThisTurn:    make(map[models.FiefID]bool),
 		pendingTaxWindowFiefs: make(map[models.FiefID]bool),
 		taxedFiefOwnerAtApply: make(map[models.FiefID]models.PlayerID),

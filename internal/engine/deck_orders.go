@@ -20,6 +20,7 @@ var cardDefinitions = map[models.CardKind]CardDefinition{
 	models.CardKindRevolt:          revoltCardDefinition{},
 	models.CardKindSeigneurialTax:  seigneurialTaxCardDefinition{},
 	models.CardKindTunnel:          tunnelCardDefinition{},
+	models.CardKindAmbush:          ambushCardDefinition{},
 	models.CardKindAssassination:   assassinationCardDefinition{},
 }
 

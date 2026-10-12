@@ -231,9 +231,9 @@ type DeckOrder struct {
 	// issuing a revolt appeasement, or the detained noble a tunnel card helps
 	// escape.
 	TargetNobleID NobleID `json:"targetNoble,omitempty"`
-	// SourceTerritoryID is, with TargetTerritoryID, the attack a tunnel card
-	// designates: from this origin to the target (specs/ordres-speciaux.md
-	// § Souterrain).
+	// SourceTerritoryID is, with TargetTerritoryID, the attack a tunnel or
+	// ambush card designates: from this origin to the target
+	// (specs/ordres-speciaux.md § Cartes jouées sur une attaque).
 	SourceTerritoryID TerritoryID `json:"sourceTerritory,omitempty"`
 	// CommissionerNobleID is the free noble who commissions the assassination
 	// an assassination card plays on TargetNobleID (specs/ordres-speciaux.md

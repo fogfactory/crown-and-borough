@@ -535,6 +535,7 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 
 	working := cloneGameState(game)
 	receptions := make([]ReceptionReport, 0, len(parsedChains))
+	received := make([]receivedChain, 0, len(parsedChains))
 	// Find target collisions before AssignChain can replace a previous chain or
 	// consume an emitter's capacity.
 	receivingArmies := make([]*models.Army, len(parsedChains))
@@ -596,11 +597,16 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 			receptions = append(receptions, reception)
 			continue
 		}
+		received = append(received, receivedChain{player: submission.input.Player, noble: models.NobleCode(submission.noble.Code), chain: submission.chain})
 		receptions = append(receptions, ReceptionReport{
 			Player:   submission.input.Player,
 			Noble:    models.NobleCode(submission.noble.Code),
 			Received: true,
 		})
+	}
+
+	if supportErrors := unplannedSupports(working, balance, received); len(supportErrors) != 0 {
+		return TurnReport{}, &InputErrors{Errors: supportErrors}
 	}
 
 	var resolution Resolution

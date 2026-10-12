@@ -70,6 +70,10 @@ var demoScenarios = map[string]struct {
 		description: "spring, P1 holds a Tunnel card and an army (with its noble) next to P2's capital castle, exactly as strong as the fortified defense: it fails alone, wins with P SO <origin> - <target>; the report shows the defense faced",
 		apply:       forgeTunnel,
 	},
+	"ambush": {
+		description: "spring, P1 holds an Ambush card and an army (with its noble) stronger than the defense of P2's capital; the winning attack captures the first noble of P2's line of succession with P EM <origin> <target>",
+		apply:       forgeAmbush,
+	},
 	"action": {
 		description: "spring, P1 holds bonus cards; a famine is active, a bad weather is announced (one bent by a ritual)",
 		apply:       forgeAction,
@@ -645,6 +649,25 @@ func forgeTunnel(state *models.GameState) error {
 	state.Nobles[p1[0]].LocationID = originID
 	giveSpecialCards(state, "P1", models.CardKindTunnel)
 	fmt.Printf("demo tunnel: P1 army of %d (+ noble) on %s attacks the P2 castle on %s (defense %d)\n", defense-1, originID, capitalID, defense)
+	return nil
+}
+
+// forgeAmbush builds the tunnel situation with an attacking army that beats
+// the defense of P2's capital outright, so that the defenders retreat with
+// their nobles. The orders to try:
+//
+//	A <origin> <target>          the winning attack, no capture
+//	P EM <origin> <target>       the same attack, with the ambush
+func forgeAmbush(state *models.GameState) error {
+	if err := forgeTunnel(state); err != nil {
+		return err
+	}
+	for index := range state.Armies {
+		if state.Armies[index].ID == "ZT1" {
+			state.Armies[index].Size += 4
+		}
+	}
+	giveSpecialCards(state, "P1", models.CardKindAmbush)
 	return nil
 }
 

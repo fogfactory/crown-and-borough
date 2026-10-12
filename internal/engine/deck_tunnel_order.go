@@ -19,8 +19,8 @@ const (
 //   - "P SO NNN" (TargetNobleID) frees the player's noble NNN, detained by
 //     another player's army;
 //   - "P SO AAA - BBB" (SourceTerritoryID, TargetTerritoryID) designates the
-//     attack the player plans from AAA to BBB, which ignores the fortifications
-//     of BBB.
+//     attack from AAA to BBB (the player's own plan, or the possible attack of
+//     another player's army), which ignores the fortifications of BBB.
 //
 // The card is consumed when it is played. An escape applies on the spot, before
 // supply and the army orders; an attack is only matched with the enumerated
@@ -40,7 +40,7 @@ func (tunnelCardDefinition) CanPlay(ctx *ExecutionContext, order models.DeckOrde
 	}
 	resolution := ctx.resolution
 	if order.SourceTerritoryID != "" {
-		if !resolution.plannedAttack(ctx.playerID, order.SourceTerritoryID, order.TargetTerritoryID) {
+		if !resolution.designatedAttackPossible(ctx.playerID, order.SourceTerritoryID, order.TargetTerritoryID) {
 			return false, "tunnel_no_attack"
 		}
 		return true, ""
@@ -76,38 +76,16 @@ func (order tunnelOrder) Apply(ctx *ExecutionContext) {
 	resolution.tunnelEscape(order.playerID, order.order)
 }
 
-// plannedAttack reports whether the player has an army on source whose current
-// order is an attack on target.
-func (ctx *resolutionContext) plannedAttack(playerID models.PlayerID, source, target models.TerritoryID) bool {
-	army := ctx.startArmyAt(source)
-	if army == nil || army.OwnerID != playerID || army.ChainID == nil {
-		return false
-	}
-	chain := ctx.chainsByID[*army.ChainID]
-	if chain == nil || chain.PendingDisperse != nil || chain.CurrentIndex < 0 || chain.CurrentIndex >= len(chain.Orders) {
-		return false
-	}
-	order := chain.Orders[chain.CurrentIndex]
-	return order.Type == models.OrderTypeAttack && order.PositionID == source && len(order.TargetIDs) > 0 && order.TargetIDs[0] == target
-}
-
 // applyPendingTunnels matches each tunnel card played on an attack with the
 // attack intents enumerated for the turn: the attack then ignores the
 // fortifications of its target. An attack that did not materialize (a canceled
 // or invalid order) leaves the card consumed with no effect.
 func applyPendingTunnels(ctx *resolutionContext) {
 	for _, pending := range ctx.pendingTunnels {
-		event := Event{
-			Type: EventTypeTunnel, Phase: phaseForSeason(ctx.state.Season), OwnerID: pending.playerID, OrderID: pending.order.ID,
-			CardKind: models.CardKindTunnel, Reason: TunnelVoidReason, SourceID: pending.order.SourceTerritoryID,
-			TargetID: pending.order.SourceTerritoryID, TerritoryID: pending.order.TargetTerritoryID,
-			Season: ctx.state.Season, Year: ctx.state.Year(),
-		}
-		if army := ctx.startArmyAt(pending.order.SourceTerritoryID); army != nil && army.OwnerID == pending.playerID {
-			if attack := ctx.attacks[army.ID]; attack != nil && attack.target == pending.order.TargetTerritoryID {
-				ctx.tunneledAttacks[army.ID] = true
-				event.Reason, event.ArmyID = TunnelBypassReason, army.ID
-			}
+		event := ctx.attackCardEvent(EventTypeTunnel, models.CardKindTunnel, pending, TunnelVoidReason)
+		if army := ctx.designatedAttacker(pending.order); army != nil {
+			ctx.tunneledAttacks[army.ID] = true
+			event.Reason, event.ArmyID = TunnelBypassReason, army.ID
 		}
 		ctx.events = append(ctx.events, event)
 	}

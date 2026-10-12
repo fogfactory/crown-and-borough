@@ -162,6 +162,24 @@ n'est pas remplie est rejeté avec le motif indiqué et ne consomme pas la
 carte. Les cartes jouées le même tour se résolvent dans l'ordre : Souterrain,
 Assassinat, Justice, puis (pendant la résolution des mouvements) Embuscade.
 
+### Cartes jouées sur une attaque
+
+Souterrain (`P SO AAA - BBB`) et Embuscade (`P EM AAA BBB`) désignent une
+attaque de `AAA` vers `BBB`, contrôlée à la soumission :
+
+- si l'armée sur `AAA` appartient au joueur, son ordre en cours doit être une
+  attaque vers `BBB` ;
+- si elle appartient à un autre joueur, aucun ordre n'est exigé (celui de
+  l'autre joueur est inconnu) mais l'attaque doit être possible : `AAA` et
+  `BBB` sont adjacents et l'armée n'est pas neutre. La carte est un conseil
+  tactique : l'effet profite à l'attaquant s'il attaque effectivement, sinon la
+  carte est consommée sans effet.
+
+La même règle s'applique aux soutiens offensifs `XXX S YYY - ZZZ` qui ouvrent
+une chaîne reçue ce tour : si l'armée sur `YYY` appartient au joueur, elle doit
+avoir pour ordre en cours une attaque vers `ZZZ` (`support_no_attack`) ; le
+soutien d'une armée d'un autre joueur reste libre.
+
 ### Souterrain
 
 Carte `tunnel`, code `SO`. Elle a deux usages, distingués par la forme de
@@ -175,10 +193,9 @@ l'ordre.
   pour que le noble ne se retrouve jamais avec une armée étrangère. Le détenteur
   voit l'évasion dans son rapport ; les autres joueurs ne voient aucune rumeur
   nominative.
-- **Attaque par souterrain** `P SO AAA - BBB` : désigne l'attaque que le joueur
-  a prévue ce tour depuis `AAA` vers `BBB` (`tunnel_no_attack` si l'ordre en
-  cours de l'armée du joueur sur `AAA` n'est pas une attaque vers `BBB` ; il est
-  vérifié à la soumission). Cette attaque, et elle seule, ignore les
+- **Attaque par souterrain** `P SO AAA - BBB` : désigne l'attaque depuis `AAA`
+  vers `BBB`, vérifiée à la soumission (`tunnel_no_attack`) selon la règle des
+  [cartes jouées sur une attaque](#cartes-jouées-sur-une-attaque). Cette attaque, et elle seule, ignore les
   fortifications de `BBB` (bonus du château, de la cité ou du village fortifié) :
   les autres attaquants sur `BBB` les affrontent normalement. Si l'attaque n'a
   finalement pas lieu (ordre annulé ou invalide à la résolution), la carte est
@@ -273,15 +290,16 @@ préalable et sans fenêtre de révolte. Le Roi y échappe.
 
 ### Embuscade
 
-Carte `ambush`, code `EM`. `P EM AAA BBB` désigne l'attaque prévue ce tour par
-le joueur, de l'origine `AAA` vers la cible `BBB` (`ambush_no_attack` si aucun
-ordre d'attaque de ce joueur ne correspond ; il est vérifié à la soumission
-et relu à la résolution). Si cette attaque est **victorieuse** et que
-l'armée défenseuse bat en retraite avec au moins un noble, un noble adverse
-de cette armée est capturé : celui qui arrive en tête de la ligne de
+Carte `ambush`, code `EM`. `P EM AAA BBB` désigne l'attaque de l'origine `AAA`
+vers la cible `BBB`, vérifiée à la soumission (`ambush_no_attack`) selon la règle
+des [cartes jouées sur une attaque](#cartes-jouées-sur-une-attaque) et relue à
+la résolution. Si cette attaque est **victorieuse** et que
+l'armée défenseuse bat en retraite avec au moins un noble libre, un noble libre
+adverse de cette armée est capturé : celui qui arrive en tête de la ligne de
 succession de son propriétaire. Il est capturé comme à la destruction d'une
 armée ([gdd.md](gdd.md), nobles `hostage` par défaut, bâtard au `dungeon`) et
-placé chez le joueur de l'embuscade. Sans victoire, sans retraite ou sans noble
+détenu par l'armée attaquante, donc par son propriétaire (le joueur de la carte
+lorsque l'attaque est la sienne). Sans victoire, sans retraite ou sans noble
 dans l'armée en retraite, la carte est consommée sans effet.
 
 ## Cartes prévues

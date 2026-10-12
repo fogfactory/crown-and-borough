@@ -77,6 +77,7 @@ const (
 	EventTypeDignity            EventType = "dignity"
 	EventTypeTrial              EventType = "trial"
 	EventTypeTunnel             EventType = "tunnel"
+	EventTypeAmbush             EventType = "ambush"
 	EventTypeAssassination      EventType = "assassination"
 	// EventTypeAssassinationRevealed is private to its owner, the inquirer: an
 	// inquiry taught them who commissioned an assassination (NobleCode: the
