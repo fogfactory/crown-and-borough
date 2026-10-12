@@ -214,15 +214,16 @@ condition ne prélève jamais.
 | `S R` | 2 (déclaration) / 8 (effet) | Propriétaire d'une Sorcière libre (pas au cachot) | Un rituel par hiver ; la calamité ou la saison visée est lue au tirage des calamités de la fin d'hiver ; région de la Sorcière lue à l'étape 2. |
 | `N C NNN` (achat de cardinal) | 2 | Joueur propriétaire d'un évêque | Évêque non excommunié ; plafond `N - 1` incluant les achats en attente ; coût `religious.cardinal_cost` (balance). |
 | `Q HHH NNN` | 3 | Cardinal ou pape titré à l'instantané, ni excommunié ni au cachot à l'étape 3 | 1 par cardinal ou pape et par hiver ; coût selon le rang de la cible lu après l'étape 2 ; consommé sans effet si aucune dignité cachée. |
-| `J HHH NNN` | 3 (dépôt) / 9 (jugement) | Deux cardinaux distincts, titrés à l'instantané, ni excommuniés ni au cachot à l'étape 3 | 1 par cardinal et par hiver (`trial_limit`) ; mêmes cible et motif pour les deux ; mêmes règles d'éligibilité de cible que la carte de procès, relues au jugement. |
+| `J HHH NNN` | 3 (dépôt) / 9 (jugement) | Deux cardinaux distincts, titrés à l'instantané, ni excommuniés ni au cachot à l'étape 3 | 1 par cardinal et par hiver (`trial_limit`) ; mêmes cible et motif pour les deux ; éligibilité de la cible relue au jugement ([dames.md](dames.md#procès)). |
 | `X D NNN` | 4 | Pape + un époux | Le pape et le propriétaire d'un des époux soumettent chacun `X D NNN` pour le même couple (un seul ordre si le pape est lui-même propriétaire d'un époux). Les deux nobles doivent être mariés à l'étape 4. |
 | `M N` | 5 | Les deux propriétaires | Inchangé. |
 | `K` / `V` | 6 | Voir ci-dessus | Voir ci-dessus. |
 
 ## Morts et leurs suites
 
-Seul le procès à deux cardinaux tue en hiver. Les morts survenues pendant les
-saisons d'action sont déjà dans l'instantané. Au jugement :
+Seuls le procès à deux cardinaux et la carte Assassinat tuent en hiver. Les morts
+survenues pendant les saisons d'action sont déjà dans l'instantané. Au jugement
+d'un procès :
 
 - fiefs, prétentions et cartes de la cible sont réglés comme pour toute mort
   ([succession.md](succession.md)) ; un fief laissé vacant l'est jusqu'à un
