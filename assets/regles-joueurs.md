@@ -1245,23 +1245,10 @@ reste en lice (il gagne), ou sinon après la résolution du dernier hiver de
 la durée choisie — le joueur au score le plus élevé gagne. Une égalité
 parfaite au sommet ne désigne aucun gagnant.
 
-**Score**, recalculé après chaque tour et visible par tous :
-
-| Élément | Points |
-|---|---:|
-| Territoire contrôlé | 1 |
-| Village contrôlé | 2 |
-| Moulin contrôlé | 1 |
-| Château contrôlé | 5 |
-| Noble détenu | 2 |
-| Troupe | 1 par unité dans ses armées |
-| Ressource `R` | 1 par unité en stock sur ses territoires contrôlés |
-| Fief détenu | 1, vacant compris, jusqu'à sa dissolution |
-
-Les infrastructures et les ressources ne rapportent des points que sur un
-territoire contrôlé. Un noble libre compte pour son propriétaire ; un noble
-capturé, otage ou au donjon, compte pour le joueur dont une armée le détient
-physiquement — celle qui stationne sur sa case —, et non pour le contrôleur
-de cette case ni pour son propriétaire d'origine : hors fief, le contrôle
-territorial est éphémère (section 6) et peut avoir disparu alors que
-l'armée captrice y stationne toujours.
+**Score**, recalculé après chaque tour et visible par tous : chaque titre
+détenu rapporte 1 point, quel que soit son rang — fief (vacant compris,
+jusqu'à sa dissolution), dignité d'une dame et couronne. Le roi cumule la
+couronne avec ses fiefs et ses dignités, et son joueur marque un point pour
+chacun. Les titres religieux (évêque, cardinal, pape) ne rapportent rien.
+Territoires, infrastructures, armées, nobles et ressources ne rapportent rien
+par eux-mêmes.

@@ -58,3 +58,44 @@ func TestSimulateVictoryKillOfTheKingCrownsTheHeirOfAClaim(t *testing.T) {
 		t.Fatal("simulation mutated the source state")
 	}
 }
+
+func TestSimulateVictoryCrownedHeirChangesTheHeadMarriage(t *testing.T) {
+	state := allianceState()
+	for index := range state.Nobles {
+		state.Nobles[index].Code = "C" + string(state.Nobles[index].ID)
+		state.Nobles[index].Sex = models.SexMale
+	}
+	king := models.NobleID("N3")
+	state.King = &king
+	state.Fiefs = append(state.Fiefs,
+		models.Fief{ID: "F2", OwnerID: "P2", HolderNobleID: ptrNoble("N4"), Title: models.FiefTitleDuchy},
+		models.Fief{ID: "F3", OwnerID: "P2", HolderNobleID: ptrNoble("N5"), Title: models.FiefTitleCounty})
+	state.Marriages = []models.Marriage{
+		{NobleA: "N1", NobleB: "N3", Turn: 1},
+		{NobleA: "N2", NobleB: "N4", Turn: 2},
+		{NobleA: "N1", NobleB: "N5", Turn: 3},
+	}
+	balance := allianceBalance()
+
+	vacant, err := SimulateVictory(state, balance, []SimulationAction{{Kind: SimulationKill, Noble: "CN3"}})
+	if err != nil {
+		t.Fatalf("SimulateVictory: %v", err)
+	}
+	if head, _ := ActiveHeadMarriage(vacant.State, balance, "P1"); head.NobleB != "N5" {
+		t.Fatalf("head with a vacant throne = %+v, want N1-N5", head)
+	}
+
+	crowned, err := SimulateVictory(state, balance, []SimulationAction{
+		{Kind: SimulationClaim, Noble: "CN2", Other: "CN3"},
+		{Kind: SimulationKill, Noble: "CN3"},
+	})
+	if err != nil {
+		t.Fatalf("SimulateVictory: %v", err)
+	}
+	if head, _ := ActiveHeadMarriage(crowned.State, balance, "P1"); head.NobleA != "N2" {
+		t.Fatalf("head once N2 is crowned = %+v, want N2-N4", head)
+	}
+	if got, want := crowned.Projected["P1"].Score.Titles, vacant.Projected["P1"].Score.Titles+1; got != want {
+		t.Fatalf("P1 titles = %d, want %d (the crown)", got, want)
+	}
+}

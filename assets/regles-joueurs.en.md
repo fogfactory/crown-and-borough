@@ -1181,22 +1181,9 @@ player wins), or otherwise after the final winter of the chosen duration is
 resolved — the player with the highest score wins. An exact tie at the top has
 no winner.
 
-**Score**, recomputed after every turn and visible to everyone:
-
-| Element | Points |
-|---|---:|
-| Controlled territory | 1 |
-| Controlled village | 2 |
-| Controlled mill | 1 |
-| Controlled castle | 5 |
-| Held noble | 2 |
-| Troop | 1 per unit in their armies |
-| Resource `R` | 1 per unit in stock on their controlled territories |
-| Held fief | 1, vacant included, until dissolved |
-
-Infrastructure and resources only score on a controlled territory. A free
-noble counts for its owner. A captured noble, hostage or in the dungeon,
-counts for the player whose army physically holds it — the one stationed on
-its territory —, not for that territory's controller nor for its original
-owner: outside a fief, territorial control is ephemeral (section 6) and may
-have vanished while the capturing army still stands there.
+**Score**, recomputed after every turn and visible to everyone: each title
+held is worth 1 point whatever its rank — fief (vacant included, until
+dissolved), a lady's dignity and the crown. The king stacks the crown with his
+fiefs and dignities, and his player scores one point for each. Religious
+titles (bishop, cardinal, pope) score nothing. Territories, infrastructure,
+armies, nobles and resources are worth nothing by themselves.

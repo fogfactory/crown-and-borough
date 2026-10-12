@@ -58,6 +58,7 @@ alliance:
     county: 2
     marquisate: 3
     duchy: 4
+  crown_rank: 5
   density_bonus: 1
 religion:
   cardinal_cost: 8
