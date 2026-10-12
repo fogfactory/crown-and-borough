@@ -6,6 +6,7 @@ const CARD_KIND_ORDER: CardKind[] = [
   'abundant_harvest',
   'seigneurial_tax',
   'tunnel',
+  'assassination',
   'plague',
   'bad_weather',
   'revolt',
@@ -21,6 +22,7 @@ const CARD_SHORT_KEYS: Record<CardKind, MessageKey> = {
   famine: 'card.short.famine',
   seigneurial_tax: 'card.short.seigneurial_tax',
   tunnel: 'card.short.tunnel',
+  assassination: 'card.short.assassination',
 }
 
 const CARD_NAME_KEYS: Record<CardKind, MessageKey> = {
@@ -32,6 +34,7 @@ const CARD_NAME_KEYS: Record<CardKind, MessageKey> = {
   famine: 'card.famine',
   seigneurial_tax: 'card.seigneurial_tax',
   tunnel: 'card.tunnel',
+  assassination: 'card.assassination',
 }
 
 export function formatCardLabel(kind: CardKind, t: Translate): string {

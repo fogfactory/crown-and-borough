@@ -178,6 +178,9 @@ func (ctx *resolutionContext) cardinalAids(viewer models.PlayerID, aids *WinterA
 }
 
 func (ctx *resolutionContext) inquiryAids(viewer models.PlayerID, aids *WinterAids) {
+	for _, removed := range ctx.state.RemovedNobles {
+		aids.InquiryCosts[models.NobleCode(removed.Code)] = max(removed.InquiryCost, ctx.balance.Religion.InquiryCost.Untitled)
+	}
 	for i := range ctx.state.Nobles {
 		noble := &ctx.state.Nobles[i]
 		code := models.NobleCode(noble.Code)

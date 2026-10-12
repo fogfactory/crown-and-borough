@@ -968,6 +968,8 @@ from noble chains and requiring no noble. Winter discards are written in the
 - `P SO NNN`: play Tunnel to free your noble NNN, held (hostage or dungeon) by
   another player's army; `P SO AAA - BBB`: play Tunnel on your attack from AAA
   to BBB, which ignores fortifications (see below);
+- `P AS HHH NNN`: play Assassination, where HHH is your free noble (the
+  commissioner) and NNN a noble of another player (see below);
 - `P TX BRU`: play the Seigneurial tax on BRU, provided BRU is the capital of
   a fief the player controls (a vacant fief included) — the one exception
   where the target is not a region's seed village;
@@ -1009,7 +1011,8 @@ bad weather, **{{special_orders.card.famine}}** bad harvest,
 **{{special_orders.card.abundant_harvest}}** abundant harvest,
 **{{special_orders.card.revolt}}** revolt,
 **{{special_orders.card.seigneurial_tax}}** tax (seigneurial tax or tithe), and
-**{{special_orders.card.tunnel}}** tunnel cards. A hand is limited to
+**{{special_orders.card.tunnel}}** tunnel and
+**{{special_orders.card.assassination}}** assassination cards. A hand is limited to
 **{{special_orders.hand_limit}} cards**, noble and dignity cards included.
 After their winter orders and discards, each player automatically receives
 bonus cards, up to **{{special_orders.draw_orders_limit}} per winter** across
@@ -1094,7 +1097,28 @@ countered. No calamity resolves in winter.
   order, otherwise the order is rejected and the card kept. That attack, and
   only that one, ignores the fortifications of BBB (castle, city or fortified
   village); other attackers face the defense as usual. If the attack does not
-  take place after all, the card is consumed with no effect.
+  take place after all, the card is consumed with no effect;
+- Assassination is played in every season, winter included (on the winter
+  sheet), for free, and its play is checked at submission. `P AS HHH NNN`: HHH is one of your free nobles
+  (neither hostage nor in a dungeon), the **commissioner**, and NNN a noble of
+  another player, wherever they are and whatever their status; otherwise the
+  order is rejected and the card kept. NNN dies without a dice roll, before
+  supply and army orders (in winter, at the very end, after the trial verdicts; the
+  card is spent before the hands are refilled), like any noble's death: their fiefs become vacant,
+  their claims are settled, the chain they issued this turn is removed, and the
+  crown is vacant if they were the king. If several cards target the same
+  noble, the first is applied and the others are rejected. Cards played the
+  same turn resolve in order: Tunnel, then Assassination. The report publicly
+  announces NNN's death without naming a culprit, and a rumor tells that an
+  assassination took place. The commissioner's name
+  is known only to two kinds of players: the one who played the card and
+  any player who conducted an inquiry (`Q`) on NNN or on HHH,
+  before or after the assassination (an inquiry may target a dead noble, at the
+  cost of the title they bore at death). The owner of NNN learns the death but not the commissioner unless they inquire too. The inquirer's report alone then states
+  that their inquiry revealed that HHH commissioned the assassination of NNN,
+  with no rumor for the others. These players see the link between the
+  commissioner and the victim in the Lineage view and, for the commissioner, in
+  the command post of the territory where they stand.
 
 Public rumors are recalculated in every report from the current bonus hands of
 all players. They appear when at least two players hold a card, without

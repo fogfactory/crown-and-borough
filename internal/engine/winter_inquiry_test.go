@@ -165,3 +165,113 @@ func TestInquiryEventCarriesCostWhenNothingIsHidden(t *testing.T) {
 		t.Fatalf("inquiry events = %#v, want one for O1 costing 1 (untitled)", events)
 	}
 }
+
+// assassinatedVictim adds the dead noble VIC (N9, P2), killed on the order of
+// P3 through its noble ABE (N3).
+func assassinatedVictim(state *models.GameState, inquiryCost int) {
+	state.RemovedNobles = append(state.RemovedNobles, models.RemovedNoble{
+		ID: "N9", Code: "VIC", Name: "Victor", Sex: models.SexMale, OwnerID: "P2",
+		Cause: models.DeathCauseAssassination, Turn: 0, InquiryCost: inquiryCost,
+		Commissioner: "N3", Author: "P3",
+	})
+}
+
+func TestInquiryOnADeadNobleCostsTheTitleItBore(t *testing.T) {
+	state := inquiryTestState(t)
+	assassinatedVictim(state, 4)
+	resolution := resolveElectionSheets(t, state, map[models.PlayerID][]models.WinterOrder{"P1": {inquiry("O1", "VIC")}})
+	if reasons := electionRejections(resolution.Events); len(reasons) != 0 {
+		t.Fatalf("rejections = %#v", reasons)
+	}
+	events := eventsOfType(resolution.Events, EventTypeInquiry)
+	if len(events) != 1 || events[0].ResourceSpent != 4 || events[0].NobleCode != "VIC" {
+		t.Fatalf("inquiry events = %#v, want one on VIC costing 4", events)
+	}
+	if !resolution.State.Inquired("P1", "N9") {
+		t.Fatalf("inquiries = %#v, want P1 on N9", resolution.State.Inquiries)
+	}
+	if !resolution.State.KnowsAssassination("P1", resolution.State.RemovedNobles[0]) {
+		t.Fatalf("the inquirer must know the commissioner")
+	}
+	if resolution.State.KnowsAssassination("P3", models.RemovedNoble{Cause: models.DeathCauseNatural}) {
+		t.Fatalf("a natural death has no commissioner")
+	}
+}
+
+func TestInquiryOnADeadNobleWithoutRecordedTitleCostsAnUntitledNoble(t *testing.T) {
+	state := inquiryTestState(t)
+	assassinatedVictim(state, 0)
+	resolution := resolveElectionSheets(t, state, map[models.PlayerID][]models.WinterOrder{"P1": {inquiry("O1", "VIC")}})
+	events := eventsOfType(resolution.Events, EventTypeInquiry)
+	if len(events) != 1 || events[0].ResourceSpent != 1 {
+		t.Fatalf("inquiry events = %#v, want one costing 1", events)
+	}
+}
+
+func TestInquiryOnAnUnknownCodeIsRejected(t *testing.T) {
+	state := inquiryTestState(t)
+	resolution := resolveElectionSheets(t, state, map[models.PlayerID][]models.WinterOrder{"P1": {inquiry("O1", "ZZZ")}})
+	if got := electionRejections(resolution.Events)["O1"]; got != "unknown_noble" {
+		t.Fatalf("reason = %q, want unknown_noble", got)
+	}
+}
+
+func TestAssassinationKnowledgeFollowsAuthorAndInquirers(t *testing.T) {
+	state := inquiryTestState(t)
+	assassinatedVictim(state, 0)
+	removed := state.RemovedNobles[0]
+	for player, want := range map[models.PlayerID]bool{"P1": false, "P2": false, "P3": true} {
+		if got := state.KnowsAssassination(player, removed); got != want {
+			t.Errorf("KnowsAssassination(%s) = %v, want %v", player, got, want)
+		}
+	}
+	// An inquiry on the commissioner, whenever it happened, reveals the killing.
+	state.RecordInquiry("P1", "N3")
+	state.RecordInquiry("P1", "N3")
+	if !state.KnowsAssassination("P1", removed) || len(state.Inquiries) != 1 {
+		t.Fatalf("inquiries = %#v, want one record revealing the killing", state.Inquiries)
+	}
+	validateTestState(t, state)
+}
+
+func TestInquiryRevealingAnAssassinationEmitsAPrivateEventOnce(t *testing.T) {
+	state := inquiryTestState(t)
+	assassinatedVictim(state, 4)
+	resolution := resolveElectionSheets(t, state, map[models.PlayerID][]models.WinterOrder{"P1": {inquiry("O1", "VIC")}})
+	events := eventsOfType(resolution.Events, EventTypeAssassinationRevealed)
+	if len(events) != 1 || events[0].OwnerID != "P1" || events[0].NobleCode != "VIC" || events[0].CommissionerCode != "ABE" {
+		t.Fatalf("revelations = %#v, want one for P1: ABE commissioned VIC", events)
+	}
+	report := BuildTurnReportWithBalance(state, resolution.State, resolution.Events, nil, 4, testBalance())
+	revealed := 0
+	for _, effect := range report.SeasonEffects {
+		if effect.Kind == EventTypeAssassinationRevealed {
+			revealed++
+		}
+	}
+	if revealed != 1 || len(report.Rumors) != 0 {
+		t.Fatalf("season effects = %#v, rumors = %#v, want one revelation and no rumor", report.SeasonEffects, report.Rumors)
+	}
+	// The author already knows the link: an inquiry teaches nothing new.
+	again := inquiryTestState(t)
+	assassinatedVictim(again, 4)
+	again.RecordInquiry("P1", "N9")
+	resolution = resolveElectionSheets(t, again, map[models.PlayerID][]models.WinterOrder{"P1": {inquiry("O1", "VIC")}})
+	if len(eventsOfType(resolution.Events, EventTypeAssassinationRevealed)) != 0 {
+		t.Fatalf("a link already known must not be announced again: %#v", resolution.Events)
+	}
+}
+
+func TestAssassinationTellsAPriorInquirerPrivately(t *testing.T) {
+	state := assassinationTestState(t)
+	addNoble(state, "N3", "THR", "P3", "CCC")
+	state.RecordInquiry("P3", "N1")
+	resolution, err := ResolveWithDeckOrders(state, testBalance(), playAssassination("N1", "N2"))
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	events := eventsOfType(resolution.Events, EventTypeAssassinationRevealed)
+	if len(events) != 1 || events[0].OwnerID != "P3" || events[0].NobleCode != "TWO" || events[0].CommissionerCode != "ONE" {
+		t.Fatalf("revelations = %#v, want one for P3", events)
+	}
+}

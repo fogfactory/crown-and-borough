@@ -786,6 +786,19 @@ func TestParseInquiryWinterOrder(t *testing.T) {
 	}
 }
 
+func TestParseInquiryOnADeadNoble(t *testing.T) {
+	game := orderTestState()
+	game.RemovedNobles = append(game.RemovedNobles, models.RemovedNoble{ID: "N9", Code: "DED"})
+	orders, parseErrors := ParseWinterOrders("Q JEA DED", game)
+	if len(parseErrors) != 0 || len(orders) != 1 || orders[0].TargetCode != "DED" {
+		t.Fatalf("orders = %#v, errors = %#v, want an inquiry on DED", orders, parseErrors)
+	}
+	// The investigating noble must be alive.
+	if _, parseErrors := ParseWinterOrders("Q DED JEA", game); len(parseErrors) == 0 {
+		t.Errorf("a dead noble must not conduct an inquiry")
+	}
+}
+
 func TestParseTrialWinterOrder(t *testing.T) {
 	game := orderTestState()
 	orders, parseErrors := ParseWinterOrders("J JEA BOB", game)

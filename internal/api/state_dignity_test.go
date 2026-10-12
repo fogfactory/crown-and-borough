@@ -43,8 +43,8 @@ func TestProjectReportDropsOthersHiddenDignityNomination(t *testing.T) {
 		t.Errorf("owner investments = %d, want 4", got)
 	}
 	other := ProjectReport(report, "P2", nil).Winter.Investments
-	if len(other) != 2 || other[0].Dignity != models.DignityDArc || other[1].Order.CardCode != "ARC" {
-		t.Errorf("other investments = %+v, want only the public dignity", other)
+	if len(other) != 2 || other[0].Dignity != models.DignityDArc || other[1].Kind != engine.EventTypeRejected || other[1].Order != nil {
+		t.Errorf("other investments = %+v, want the public dignity and a bare rejection", other)
 	}
 	if len(report.Winter.Investments) != 4 {
 		t.Error("projection mutated the source report")

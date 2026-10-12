@@ -3,7 +3,7 @@ import { IconBook, IconSnowflake, IconX } from '@tabler/icons-react'
 
 import { Button } from '@/components/ui/button'
 import { OrderLauncher } from '@/components/OrderDialog'
-import { AppeasementOrders, SpecialCardOrders, TitleOrdersSection, shortCode } from '@/components/TitleOrders'
+import { AppeasementOrders, SpecialCardOrders, assassinationLauncher, TitleOrdersSection, shortCode } from '@/components/TitleOrders'
 import {
   Tooltip,
   TooltipContent,
@@ -465,12 +465,16 @@ function NobleCardRow({
 
 /** A special card of the hand, with the button that discards it (`D C KIND`). */
 function SpecialCardRow({
+  state,
+  player,
   kind,
   copies,
   winterDraft,
   onWinterChange,
   cardsOnly,
 }: {
+  state: StateData
+  player: PlayerId
   kind: CardKind
   copies: number
   winterDraft: string
@@ -483,11 +487,26 @@ function SpecialCardRow({
   const discarded = draftLines(winterDraft).filter((line) =>
     new RegExp(`^D\\s+C\\s+${code}(\\s|$)`).test(line),
   ).length
+  const cardLabel = copies > 1 ? `${card} ×${copies}` : card
+  // The Assassination card is played in every season, winter included: its
+  // label is the button that plays it.
+  const playButton =
+    !cardsOnly && kind === 'assassination'
+      ? assassinationLauncher({
+          state,
+          player,
+          t,
+          lines: draftLines(winterDraft),
+          copies,
+          add: (line) => onWinterChange(appendDraftLine(winterDraft, line)),
+          label: cardLabel,
+        })
+      : null
   return (
     <li className="flex items-center gap-1.5 text-xs text-[#263f52]">
-      <span className="rounded border border-[#c8b0d9] bg-[#fbf5ff] px-2 py-1">
-        {copies > 1 ? `${card} ×${copies}` : card}
-      </span>
+      {playButton ?? (
+        <span className="rounded border border-[#c8b0d9] bg-[#fbf5ff] px-2 py-1">{cardLabel}</span>
+      )}
       {!cardsOnly && (
         <Button
           type="button"
@@ -613,6 +632,8 @@ function NobleDeckSection({
           {specialKinds.map((kind) => (
             <SpecialCardRow
               key={kind}
+              state={state}
+              player={player}
               kind={kind}
               copies={specialHand.filter((card) => card === kind).length}
               winterDraft={winterDraft}
