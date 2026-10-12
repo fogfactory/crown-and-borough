@@ -459,6 +459,14 @@ func forgeTunnel(state *models.GameState) error {
 	territoryState.Army = &armyID
 	state.TerritoryStates[originID] = territoryState
 	state.NextArmyID++
+	// A village with a large stock keeps the army supplied: a famished army
+	// attacks with no force at all.
+	state.Infrastructures = append(state.Infrastructures, models.Infrastructure{ID: "ZTV", Type: models.InfraTypeVillage, Level: 1, TerritoryID: originID})
+	villageID := models.InfraID("ZTV")
+	territoryState = state.TerritoryStates[originID]
+	territoryState.Infrastructures = &villageID
+	territoryState.Resources = 40
+	state.TerritoryStates[originID] = territoryState
 	state.Nobles[p1[0]].LocationID = originID
 	giveSpecialCards(state, "P1", models.CardKindTunnel)
 	fmt.Printf("demo tunnel: P1 army of %d (+ noble) on %s attacks the P2 castle on %s (defense %d)\n", defense-1, originID, capitalID, defense)
