@@ -44,7 +44,7 @@ type TithedRegion struct {
 
 // TrialRevoltWindow records the revolt opportunity an executed trial opens
 // on the region (bishopric) where the executed noble stood (specs/dames.md
-// § Carte de procès): a revolt card may target any territory of the region
+// § Procès): a revolt card may target any territory of the region
 // during the action season of turn FromTurn, the first one after the
 // execution. Turn is the absolute GameState.Turn counter.
 type TrialRevoltWindow struct {

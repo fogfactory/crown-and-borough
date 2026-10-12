@@ -111,3 +111,36 @@ func TestResolveActionAppliesDeckOrderWithoutNoble(t *testing.T) {
 		t.Fatalf("card events = played %d/discarded %d, want one played event only", played, discarded)
 	}
 }
+
+// The deck is built from the same kind lists as the rules rendering, so every
+// weighted kind enters it with the announced count..
+func TestBuildSpecialDeckContainsEveryWeightedKind(t *testing.T) {
+	balance := specialDeckTestBalance()
+	balance.SpecialOrders.CalamityWeights = map[models.CardKind]int{models.CardKindPlague: 1, models.CardKindBadWeather: 6, models.CardKindFamine: 6}
+	balance.SpecialOrders.BonusWeights = map[models.CardKind]int{
+		models.CardKindFairWeather: 3, models.CardKindAbundantHarvest: 3, models.CardKindRevolt: 1,
+		models.CardKindSeigneurialTax: 2, models.CardKindTunnel: 1,
+	}
+	deck, err := buildSpecialDeck("deck-seed", balance)
+	if err != nil {
+		t.Fatalf("buildSpecialDeck = %v", err)
+	}
+	counts := map[models.CardKind]int{}
+	for _, card := range deck.Cards {
+		counts[card.Kind]++
+	}
+	config := balance.SpecialOrders
+	calamityCount := config.DeckSize * config.CalamityPercentage / 100
+	want := assetgen.WeightedCardCounts(calamityCount, config.CalamityWeights, assetgen.CalamityCardKinds())
+	for kind, count := range assetgen.WeightedCardCounts(config.DeckSize-calamityCount, config.BonusWeights, assetgen.BonusCardKinds()) {
+		want[kind] = count
+	}
+	for kind, count := range want {
+		if counts[kind] != count {
+			t.Errorf("deck holds %d %s cards, want %d", counts[kind], kind, count)
+		}
+	}
+	if counts[models.CardKindTunnel] == 0 {
+		t.Errorf("no Tunnel card in the deck: %#v", counts)
+	}
+}

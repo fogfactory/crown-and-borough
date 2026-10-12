@@ -69,8 +69,7 @@ qu'il voit des autres.
    voix d'aucune autre élection. Seule l'éligibilité en tient compte : un noble
    élu à un évêché n'est plus éligible aux évêchés suivants du même hiver.
 7. **Les morts d'hiver arrivent en dernier.** Le seul ordre d'hiver qui tue est
-   le procès à deux cardinaux, jugé après toute autre résolution (comme la
-   carte de procès l'est à la fin d'un tour d'action).
+   le procès à deux cardinaux, jugé après toute autre résolution.
 
 ## Ordre de résolution
 
@@ -86,7 +85,7 @@ qu'il voit des autres.
 | 6 | **Élections** | Candidatures `K E` / `K P`, votes `V E` / `V P` : évêchés par identifiant de région croissant, puis conclave, puis trône (`K R` / `V R`). Résolues dans cet ordre ; voix lues sur l'instantané des titres. | [religieux.md](religieux.md) |
 | 7 | **Investiture** | Les élus deviennent évêque ou pape ; les achats de cardinal de l'étape 2 prennent effet. | ce document |
 | 8 | **Fin d'hiver** | Défausses et remplissage des mains, fiefs vacants attribués par défaut, conservation des stocks, prospérité, rapatriement, territoires sans ancre redevenus neutres, rapports. | GDD § Phase d'hiver |
-| 9 | **Jugement des procès** | Procès `J` déposés à l'étape 3, jugés dans l'ordre croissant du code de la cible. Mort normale (lignée, fiefs, Claims). | [dames.md](dames.md#carte-de-procès) |
+| 9 | **Jugement des procès** | Procès `J` déposés à l'étape 3, jugés dans l'ordre croissant du code de la cible. Mort normale (lignée, fiefs, Claims). | [dames.md](dames.md#procès) |
 
 Deux conséquences directes du tableau :
 

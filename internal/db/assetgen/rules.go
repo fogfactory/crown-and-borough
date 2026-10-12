@@ -137,7 +137,6 @@ func renderRules(document []byte, balance Balance) ([]byte, error) {
 		"special_orders.card.abundant_harvest":        stringValue(bonusCounts[models.CardKindAbundantHarvest]),
 		"special_orders.card.revolt":                  stringValue(bonusCounts[models.CardKindRevolt]),
 		"special_orders.card.seigneurial_tax":         stringValue(bonusCounts[models.CardKindSeigneurialTax]),
-		"special_orders.card.trial":                   stringValue(bonusCounts[models.CardKindTrial]),
 		"special_orders.card.tunnel":                  stringValue(bonusCounts[models.CardKindTunnel]),
 		"special_orders.effects.plague_army_divisor":  stringValue(balance.SpecialOrders.Effects.PlagueArmyDivisor),
 		"special_orders.effects.revolt_army_min_size": stringValue(balance.SpecialOrders.Effects.RevoltArmyMinSize),

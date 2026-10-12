@@ -341,7 +341,7 @@ func (n Noble) SeesHostHand() bool {
 // to the direct trial, hidden ones included: a trial reveals it. It reports
 // false for a noble who cannot be tried directly: not a lady, married, without
 // a dignity of the ladies, or exempt from the direct trial (the Abbess,
-// specs/dames.md § Carte de procès). A chevalier d'Éon is a lady under her
+// specs/dames.md § Procès). A chevalier d'Éon is a lady under her
 // public male identity.
 func (n Noble) TrialDignity(married bool) (Dignity, bool) {
 	if married || (n.Sex != SexFemale && n.SecretSex != SexFemale) {
