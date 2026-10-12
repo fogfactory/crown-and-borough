@@ -147,11 +147,19 @@ func (m Marriage) SpouseOf(nobleID NobleID) NobleID {
 }
 
 // validateClaims checks every claim: an heir holds at most one claim, on a
-// living noble of another player, bearing on a known spouse.
+// living noble of another player, bearing on a known spouse whose house is the
+// heir's (an heir is born of the alliance between the target and the spouse).
 func (g *GameState) validateClaims(nobles, removedNobles map[NobleID]bool) error {
 	owners := make(map[NobleID]PlayerID, len(g.Nobles))
 	for _, noble := range g.Nobles {
 		owners[noble.ID] = noble.OwnerID
+	}
+	spouseOwners := make(map[NobleID]PlayerID, len(g.Nobles)+len(g.RemovedNobles))
+	for _, removed := range g.RemovedNobles {
+		spouseOwners[removed.ID] = removed.OwnerID
+	}
+	for _, noble := range g.Nobles {
+		spouseOwners[noble.ID] = noble.OwnerID
 	}
 	heirs := make(map[NobleID]bool, len(g.Claims))
 	for _, claim := range g.Claims {
@@ -166,6 +174,8 @@ func (g *GameState) validateClaims(nobles, removedNobles map[NobleID]bool) error
 			return fmt.Errorf("models: claim %q on %q: unknown spouse %q", claim.Heir, claim.Target, claim.Spouse)
 		case heirOwner == targetOwner:
 			return fmt.Errorf("models: claim %q on %q: heir and target belong to the same player", claim.Heir, claim.Target)
+		case spouseOwners[claim.Spouse] != heirOwner:
+			return fmt.Errorf("models: claim %q on %q: the heir must belong to the house of the spouse %q", claim.Heir, claim.Target, claim.Spouse)
 		case heirs[claim.Heir]:
 			return fmt.Errorf("models: claim: heir %q holds more than one claim", claim.Heir)
 		case claim.Turn < 0 || claim.Turn > g.Turn:

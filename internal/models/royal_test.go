@@ -1,6 +1,7 @@
 package models_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/models"
@@ -68,5 +69,21 @@ func TestCrownHeirOfRanksClaimsOnTheKingAndTheQueenTogether(t *testing.T) {
 	g.Marriages[0].Dissolved = true
 	if heir, _ := g.CrownHeirOf("N1"); heir != "N3" {
 		t.Fatalf("heir = %q, want N3: a dissolved marriage leaves no queen", heir)
+	}
+}
+
+func TestValidateRejectsAClaimFromOutsideTheSpousesHouse(t *testing.T) {
+	g := religiousState()
+	g.Players = append(g.Players, models.Player{ID: "P3"})
+	g.Nobles[1].Sex = models.SexFemale
+	g.Nobles[2].OwnerID = "P3"
+	g.Marriages = []models.Marriage{{NobleA: "N1", NobleB: "N2"}}
+	g.Claims = []models.Claim{{Heir: "N3", Target: "N1", Spouse: "N2"}}
+	if err := g.Validate(); err == nil || !strings.Contains(err.Error(), "house of the spouse") {
+		t.Fatalf("a claim by a third house must be rejected, got %v", err)
+	}
+	g.Nobles[2].OwnerID = "P2"
+	if err := g.Validate(); err != nil {
+		t.Fatalf("a claim by the spouse's house is valid: %v", err)
 	}
 }
