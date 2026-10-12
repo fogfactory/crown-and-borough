@@ -196,6 +196,12 @@ func previewWinter(preview *OrdersPreview, game *models.GameState, balance asset
 			entry.Applied = true
 			entry.Reason = "marriage_pending"
 		}
+		if event.Reason == "royal_accord_unused" && royalAccordOnOtherSheet(game, playerID, *entry.Order) {
+			// The order an accord authorizes sits on its owner's private sheet:
+			// the preview cannot know whether it will be there.
+			entry.Applied = true
+			entry.Reason = "royal_accord_pending"
+		}
 		if event.Reason == "unknown_candidate" && entry.Order.Type == models.WinterOrderTypeVote && votesForOtherPlayer(game, playerID, entry.Order.NobleCode) {
 			// Candidacies are filed on the other players' private sheets: the
 			// preview cannot know whether this noble will stand.
@@ -213,6 +219,24 @@ func previewWinter(preview *OrdersPreview, game *models.GameState, balance asset
 		}
 	}
 	return nil
+}
+
+// royalAccordOnOtherSheet reports whether the order a royal accord authorizes
+// belongs to another player's sheet: the owner of the fief for W X and W R,
+// the controller of the capital for W F.
+func royalAccordOnOtherSheet(game *models.GameState, playerID models.PlayerID, order models.WinterOrder) bool {
+	switch order.Type {
+	case models.WinterOrderTypeRoyalAnnex, models.WinterOrderTypeRoyalRank:
+		for _, fief := range game.Fiefs {
+			if fief.CapitalTerritoryID == order.TerritoryID {
+				return fief.OwnerID != playerID
+			}
+		}
+	case models.WinterOrderTypeRoyalFound:
+		controller, controlled := game.TerritoryController(order.TerritoryID)
+		return !controlled || controller != playerID
+	}
+	return false
 }
 
 // winterPaymentReserves is the stock a player can spend on winter orders: the

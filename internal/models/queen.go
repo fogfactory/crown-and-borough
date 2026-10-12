@@ -77,3 +77,35 @@ func (g *GameState) hasNoble(id NobleID) bool {
 	}
 	return false
 }
+
+// Regent returns the queen exercising the royal powers in the king's name: the
+// queen of a king held in a dungeon, or the dowager queen of a vacant throne.
+// She must be alive and out of the dungeon (free or hostage).
+func (g *GameState) Regent() (Noble, bool) {
+	if g.Queen == nil {
+		return Noble{}, false
+	}
+	if g.King != nil {
+		if _, reigning := g.ReigningKing(); reigning {
+			return Noble{}, false
+		}
+		if !g.hasNoble(*g.King) || g.IsDowagerQueen(*g.Queen) {
+			return Noble{}, false
+		}
+	}
+	for _, noble := range g.Nobles {
+		if noble.ID == *g.Queen {
+			return noble, noble.Status != NobleStatusDungeon
+		}
+	}
+	return Noble{}, false
+}
+
+// RoyalIssuer returns the noble who issues the royal orders: the king while he
+// can reign, else the regent (specs/politique.md § Pouvoirs royaux).
+func (g *GameState) RoyalIssuer() (Noble, bool) {
+	if king, reigning := g.ReigningKing(); reigning {
+		return king, true
+	}
+	return g.Regent()
+}

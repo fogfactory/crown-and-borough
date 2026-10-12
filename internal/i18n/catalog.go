@@ -77,6 +77,11 @@ const (
 	WinterFiefAnnexShape         = "error.winter.fief_annex_shape"
 	WinterFiefRankShape          = "error.winter.fief_rank_shape"
 	WinterFiefAssignShape        = "error.winter.fief_assign_shape"
+	WinterRoyalShape             = "error.winter.royal_shape"
+	WinterRoyalAnnexShape        = "error.winter.royal_annex_shape"
+	WinterRoyalRankShape         = "error.winter.royal_rank_shape"
+	WinterRoyalFoundShape        = "error.winter.royal_found_shape"
+	WinterRoyalGrantShape        = "error.winter.royal_grant_shape"
 	WinterMarriageShape          = "error.winter.marriage_shape"
 	WinterTransferNobleShape     = "error.winter.transfer_noble_shape"
 	WinterNobleDrawShape         = "error.winter.noble_draw_shape"
@@ -216,6 +221,11 @@ func init() {
 	register(WinterFiefAnnexShape, "T X requires a noble, the fief capital code and the annexed territory code", "T X exige un noble, le code de la capitale du fief et le code du territoire annexé")
 	register(WinterFiefRankShape, "T R requires a noble and the fief capital code", "T R exige un noble et le code de la capitale du fief")
 	register(WinterFiefAssignShape, "T A requires a noble and one fief capital code", "T A exige un noble et un code de capitale de fief")
+	register(WinterRoyalShape, "W requires a subtype (X, R, F or G)", "W exige un sous-type (X, R, F ou G)")
+	register(WinterRoyalAnnexShape, "W X requires the king or regent, the fief capital code and the annexed territory code", "W X exige le roi ou la régente, le code de la capitale du fief et le code du territoire annexé")
+	register(WinterRoyalRankShape, "W R requires the king or regent and the fief capital code", "W R exige le roi ou la régente et le code de la capitale du fief")
+	register(WinterRoyalFoundShape, "W F requires the king or regent and the capital code of the fief being founded", "W F exige le roi ou la régente et le code de la capitale du fief constitué")
+	register(WinterRoyalGrantShape, "W G requires the king or regent, the crown fief capital code and the noble receiving it", "W G exige le roi ou la régente, le code de la capitale du fief de la couronne et le noble qui le reçoit")
 	register(DeckOrderShape, "a special order has an invalid shape", "la forme de l'ordre spécial est invalide")
 	register(DeckOrderKindUnknown, "unknown special card kind %q", "kind de carte spéciale inconnu : %q")
 	register(DeckOrderKindNotPlayable, "card kind %q cannot be used as a player order", "le kind %q ne peut pas être joué comme ordre de joueur")

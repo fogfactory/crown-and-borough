@@ -78,7 +78,12 @@ func (order foundFiefOrder) Apply(ctx *ExecutionContext) {
 		return
 	}
 
+	// A royal W F on the capital pays the constitution (politique.md § Octroi
+	// gratuit de fief).
 	cost := resolution.balance.Costs.FiefPerTerritory * len(territories)
+	if resolution.hasFoundAccord(capitalID) {
+		cost = 0
+	}
 	spent, paid := resolution.payWinterCost(playerID, capitalID, cost)
 	if !paid {
 		resolution.rejectWinterOrder(playerID, winterOrder, "insufficient_resources")

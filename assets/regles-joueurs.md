@@ -716,6 +716,10 @@ investissements directs, une ligne par ordre, appliqués dans l'ordre saisi.
 | Attribuer un fief vacant | `T A NNN XXX` | `NNN` est un noble du joueur, même otage ou prisonnier ; `XXX` est la capitale d'un fief vacant qu'il détient | 0 |
 | Annexer un territoire | `T X NNN XXX YYY` | `NNN` est le titulaire du fief de capitale `XXX` ; `YYY` touche le fief par une frontière franchissable, porte une de tes armées sans armée adverse ou de révolte, et n'est la capitale d'aucun fief ; s'il appartient déjà à un fief, l'accord du roi est nécessaire et le fief cédant garde au moins 3 territoires | {{costs.annex_per_territory}} |
 | Monter un fief d'un rang | `T R NNN XXX` | `NNN` est le titulaire du fief de capitale `XXX` ; le fief n'est pas un duché et n'a pas déjà monté cet hiver ; le titre atteint respecte la ligne de succession | {{costs.rank_per_territory}} par territoire du fief, gratuit avec l'accord du roi |
+| Accorder une annexion (roi ou régente) | `W X KKK XXX YYY` | `KKK` est le roi du joueur, ou sa régente ; `XXX` est la capitale du fief qui annexe `YYY` ; un `T X` de ce fief sur `YYY` figure sur la feuille de son joueur le même hiver, sinon l'ordre est consommé sans effet (`royal_accord_unused`) | 0 |
+| Accorder un rang (roi ou régente) | `W R KKK XXX` | `KKK` comme ci-dessus ; un `T R` du titulaire du fief de capitale `XXX` figure sur sa feuille le même hiver, sinon l'ordre est consommé sans effet. Ce `T R` est alors gratuit, quelle que soit la taille du fief | 0 |
+| Offrir la constitution d'un fief (roi ou régente) | `W F KKK XXX` | `KKK` comme ci-dessus ; un `T F` de capitale `XXX` figure sur une feuille le même hiver, sinon l'ordre est consommé sans effet. Ce `T F` ne coûte rien à son joueur | 0 |
+| Octroyer un fief de la couronne (roi ou régente) | `W G KKK XXX NNN` | `KKK` comme ci-dessus ; `XXX` est la capitale d'un fief vacant dont le joueur n'a plus aucun noble vivant ; `NNN` est un noble de n'importe quel joueur, que la ligne de succession autorise à recevoir le titre. Le fief passe au joueur de `NNN` | 0 |
 | Marier deux nobles | `M N NNN MMM` | `NNN` est un noble libre du joueur, `MMM` un noble libre d'un autre joueur, de sexe différent, tous deux non mariés ; l'autre joueur doit soumettre `M N MMM NNN` le même hiver, sinon le mariage est refusé | 0 |
 
 **Ordre de résolution de l'hiver.** Les ordres ne sont pas tous appliqués dans
@@ -725,8 +729,9 @@ résultat des étapes précédentes, jamais des suivantes.
 1. Instantané : l'état de la partie et les élections ouvertes sont figés (un
    siège rendu vacant cet hiver ne s'élit qu'à l'hiver suivant).
 2. Sanctions du pape : excommunications (`X E`) et levées (`X L`).
-3. Ordres de gestion : les investissements du tableau ci-dessous, l'achat de
-   cardinal (`N C`) et la carte de cardinal (`D N NNN CAR`).
+3. Ordres royaux (`W X`, `W R`, `W F`, `W G`), puis ordres de gestion : les
+   investissements du tableau ci-dessous, l'achat de cardinal (`N C`) et la
+   carte de cardinal (`D N NNN CAR`).
 4. Cardinaux : enquêtes (`Q`) et dépôt des procès (`J`).
 5. Dissolutions de mariage (`X D`).
 6. Mariages (`M N`).
@@ -882,6 +887,18 @@ Le titre du fief ne change jamais tout seul : `T R` le monte d'un rang
 seule fois par hiver et par fief. Le titre atteint obéit à la ligne de
 succession, comme à la constitution. Un territoire déjà membre d'un autre
 fief, ou du tien, ne peut être annexé qu'avec l'accord du roi.
+
+**Ordres royaux.** Le roi (le noble `KKK` du joueur, libre ou otage, pas au
+donjon) ou, à défaut, la régente (reine d'un roi au donjon, ou reine
+douairière d'un trône vacant) émet les ordres `W`. Ils sont gratuits et se
+résolvent avant les ordres de gestion qu'ils autorisent. Un joueur de la
+couronne émet au plus {{royal.orders_per_winter}} ordre(s) de chaque type par
+hiver (`royal_order_limit`). `W X` autorise l'annexion d'un territoire d'un
+autre fief par un fief, `W R` rend gratuite la montée d'un rang d'un fief,
+`W F` rend gratuite la constitution d'un fief, et `W G` donne un fief de la
+couronne à un noble de n'importe quel joueur. L'accord d'un `W X`, `W R` ou
+`W F` n'a d'effet que si l'ordre qu'il autorise figure sur une feuille du même
+hiver ; sinon il est consommé sans effet, avec un rapport explicite.
 
 Le titulaire d'un fief est désigné par sa forme d'adresse — Baron/Baronne
 (baronnie), Comte/Comtesse (comté), Marquis/Marquise (marquisat),

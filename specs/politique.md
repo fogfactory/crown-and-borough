@@ -124,13 +124,23 @@ autorise cet hiver est consommé sans effet (rapport explicite).
 |---|---|---|
 | `P TX HHH XXX` | **Taxe royale** | Carte Impôts du roi sur la capitale de n'importe quel fief constitué, vacant compris, non taxé par son seigneur ce tour ; le supplément va à la capitale du roi ([titres.md](titres.md#taxe-seigneuriale)). |
 | `W X KKK XXX YYY` | **Accord d'annexion** | Autorise le fief de capitale `XXX` à annexer le territoire `YYY` d'un autre fief ([Annexion](#seigneurie-et-annexion)). |
-| `W R KKK XXX` | **Accord de rang** | Accorde gratuitement au fief `XXX` le titre correspondant à sa taille. |
+| `W R KKK XXX` | **Accord de rang** | Rend gratuite la montée d'un rang (`T R`) demandée cet hiver par le titulaire du fief `XXX`, quelle que soit la taille du fief. |
 | `W F KKK XXX` | **Octroi gratuit de fief** | Le fief dont la capitale est `XXX`, constitué cet hiver par `T F`, ne coûte rien à son joueur. |
 | `W G KKK XXX NNN` | **Octroi d'un fief de la couronne** | Donne le fief de la couronne de capitale `XXX` au noble `NNN`, de n'importe quel joueur, sous réserve de la ligne de succession. |
 
-Un roi émet au plus `royal.orders_per_winter` ordres royaux par hiver (valeur
-de départ : un par type, à calibrer). Le roi peut octroyer à ses propres nobles
-comme à ceux des autres joueurs.
+Un roi émet au plus `royal.orders_per_winter` ordres royaux de chaque type par
+hiver (valeur de départ : un, à calibrer ; `royal_order_limit`). Le roi peut
+octroyer à ses propres nobles comme à ceux des autres joueurs.
+
+Rejets propres aux ordres royaux : `royal_not_issuer` (`KKK` n'est ni le roi
+ni la régente, ou n'appartient pas au joueur), `royal_order_limit`,
+`fief_not_found`, `unknown_noble`, `royal_fief_not_crown` (`W G` : le fief a un
+titulaire, ou son joueur a encore un noble vivant), `succession_rank_blocked` (`W G`),
+`royal_accord_unused` (`W X`, `W R`, `W F` : l'ordre autorisé est absent des
+feuilles de l'hiver). Un `W X` ou `W R` attend le `T X` / `T R` de la feuille du
+joueur propriétaire du fief `XXX` ; un `W F` attend un `T F` de capitale `XXX`
+sur n'importe quelle feuille. Un fief de la couronne est, pour `W G`, un fief vacant
+dont le joueur n'a plus aucun noble vivant.
 
 ### Rente
 

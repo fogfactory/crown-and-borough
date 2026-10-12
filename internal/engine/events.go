@@ -62,6 +62,8 @@ const (
 	EventTypeFiefAssigned       EventType = "fief_assigned"
 	EventTypeFiefAnnexed        EventType = "fief_annexed"
 	EventTypeFiefRankChanged    EventType = "fief_rank_changed"
+	EventTypeRoyalAccord        EventType = "royal_accord"
+	EventTypeFiefGranted        EventType = "fief_granted"
 	EventTypeFiefConquered      EventType = "fief_conquered"
 	EventTypeFiefVacated        EventType = "fief_vacated"
 	EventTypeFiefDissolved      EventType = "fief_dissolved"

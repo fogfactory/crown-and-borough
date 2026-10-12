@@ -13,6 +13,7 @@ export type WinterIntentionKind =
   | 'fief_assign'
   | 'fief_annex'
   | 'fief_rank'
+  | 'royal'
   | 'error'
 
 export type WinterIntentionSource = 'draft' | 'submitted'
@@ -78,6 +79,11 @@ function kindOf(preview: WinterLinePreview): WinterIntentionKind {
       return 'fief_annex'
     case 'change_rank':
       return 'fief_rank'
+    case 'royal_annex':
+    case 'royal_rank':
+    case 'royal_found':
+    case 'royal_grant':
+      return 'royal'
     default:
       return 'error'
   }

@@ -131,6 +131,11 @@ type resolutionContext struct {
 	// rankChangedFiefs holds the fiefs whose title a T R order already raised
 	// this winter.
 	rankChangedFiefs map[models.FiefID]bool
+	// winterSheets are the winter orders of the sheets being resolved, read by
+	// the royal orders to find the order they authorize (winter_royal_orders.go).
+	winterSheets map[models.PlayerID][]models.WinterOrder
+	// royalOrdersIssued counts the royal orders accepted this winter, by type.
+	royalOrdersIssued map[models.WinterOrderType]int
 }
 
 func newResolutionContext(state *models.GameState, balance assetgen.Balance) *resolutionContext {
@@ -167,6 +172,7 @@ func newResolutionContext(state *models.GameState, balance assetgen.Balance) *re
 		pendingTaxWindowFiefs: make(map[models.FiefID]bool),
 		taxedFiefOwnerAtApply: make(map[models.FiefID]models.PlayerID),
 		rankChangedFiefs:      make(map[models.FiefID]bool),
+		royalOrdersIssued:     make(map[models.WinterOrderType]int),
 		tithesThisTurn:        make(map[models.TerritoryID][]models.PlayerID),
 		pendingTitheRegions:   make(map[models.TerritoryID]bool),
 	}
