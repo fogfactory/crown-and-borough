@@ -100,7 +100,8 @@ d'abord, puis ordre de jeu, les Claims sur le roi et sur sa reine étant
 classés ensemble) qui peut être roi (homme, non bâtard, pas pape) ; un héritier
 qui ne le peut pas est sauté pour la couronne mais conserve son droit sur les
 fiefs. La reine est la conjointe du roi à sa mort (mariage non dissous). Le
-couronnement est un événement public d'investiture. L'héritier couronné est roi sans élection ni onction, et sans condition
+couronnement est un événement public d'investiture, et la prétention de
+l'héritier couronné est honorée : elle s'éteint. L'héritier couronné est roi sans élection ni onction, et sans condition
 de rang de succession. Une prétention sur la reine est donc aussi une
 prétention sur le trône : elle profite à la maison de l'héritier, y compris
 celle de la reine. La mort de la reine seule ne transmet que ses éventuels

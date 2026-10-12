@@ -24,6 +24,7 @@ func (ctx *resolutionContext) passCrownOfDeadKing() {
 	if !crowned {
 		return
 	}
+	ctx.honourClaimOf(heirID)
 	heir := ctx.noblesByID[heirID]
 	ctx.events = append(ctx.events, Event{
 		Type:      EventTypeInvestiture,

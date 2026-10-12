@@ -70,6 +70,9 @@ func cloneGameState(source *models.GameState) *models.GameState {
 	if source.Claims != nil {
 		clone.Claims = cloneSlice(source.Claims)
 	}
+	if source.ExpiredClaims != nil {
+		clone.ExpiredClaims = cloneSlice(source.ExpiredClaims)
+	}
 	if source.Bishops != nil {
 		clone.Bishops = cloneSlice(source.Bishops)
 	}

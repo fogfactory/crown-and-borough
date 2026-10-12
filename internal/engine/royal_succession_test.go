@@ -133,3 +133,48 @@ func TestAnotherNoblesDeathDoesNotTouchTheCrown(t *testing.T) {
 	ctx := resolveClaimDeath(state)
 	requireKing(t, ctx.state, "N1")
 }
+
+func expiredOutcomes(state *models.GameState) map[models.NobleID]models.ClaimOutcome {
+	outcomes := make(map[models.NobleID]models.ClaimOutcome, len(state.ExpiredClaims))
+	for _, expired := range state.ExpiredClaims {
+		outcomes[expired.Heir] = expired.Outcome
+	}
+	return outcomes
+}
+
+func TestServedClaimsAreKeptAsHonouredAndTheOthersAsLapsed(t *testing.T) {
+	state := kingDeathState(t)
+	addNoble(state, "N4", "QUE", "P1", "BBB")
+	setSex(state, "N4", models.SexFemale)
+	addNoble(state, "N5", "RAL", "P2", "BBB")
+	addNoble(state, "N6", "GUY", "P1", "BBB")
+	state.Marriages = []models.Marriage{{NobleA: "N2", NobleB: "N4"}}
+	// N3 (a woman) gets the fief, N5 (claim on the queen) the crown, N6 is
+	// served by nothing: its claim comes after N3's on the same fief.
+	setSex(state, "N3", models.SexFemale)
+	state.Claims = []models.Claim{
+		{Heir: "N3", Target: "N2", Spouse: "N4", Turn: 0},
+		{Heir: "N5", Target: "N4", Spouse: "N2", Turn: 1},
+		{Heir: "N6", Target: "N2", Spouse: "N4", Turn: 1},
+	}
+	ctx := resolveClaimDeath(state)
+	if len(ctx.state.Claims) != 0 {
+		t.Errorf("claims = %+v, want none left alive", ctx.state.Claims)
+	}
+	want := map[models.NobleID]models.ClaimOutcome{"N3": models.ClaimHonoured, "N5": models.ClaimHonoured, "N6": models.ClaimLapsed}
+	got := expiredOutcomes(ctx.state)
+	if len(got) != len(want) {
+		t.Fatalf("expired = %+v, want %+v", ctx.state.ExpiredClaims, want)
+	}
+	for heir, outcome := range want {
+		if got[heir] != outcome {
+			t.Errorf("claim of %s = %q, want %q", heir, got[heir], outcome)
+		}
+	}
+	for _, expired := range ctx.state.ExpiredClaims {
+		if expired.EndedTurn != ctx.state.Turn {
+			t.Errorf("expired %+v: ended turn, want %d", expired, ctx.state.Turn)
+		}
+	}
+	validateTestState(t, ctx.state)
+}

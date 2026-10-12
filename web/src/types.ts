@@ -476,8 +476,12 @@ export interface Claim {
   spouse: string
   turn: number
   wifeSide?: boolean
-  /** Position among the claims on the same target; 1 inherits first. */
+  /** Position among the claims on the same target; 1 inherits first (0 once ended). */
   rank: number
+  /** The claim ended: kept, like an ended marriage, with how and when. */
+  ended?: boolean
+  endedTurn?: number
+  outcome?: 'honoured' | 'lapsed'
 }
 
 export interface StateData {

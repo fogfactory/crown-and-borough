@@ -125,6 +125,9 @@ type resolutionContext struct {
 	// royalAccords are the royal authorizations granted this winter, read by
 	// the annexation and rank-change orders (royal_accord.go).
 	royalAccords royalAccords
+	// honouredHeirs holds the heirs of a claim who received a fief or the crown
+	// since the last settleClaimsOfDead: their claim ends as honoured.
+	honouredHeirs map[models.NobleID]bool
 	// rankChangedFiefs holds the fiefs whose title a T R order already raised
 	// this winter.
 	rankChangedFiefs map[models.FiefID]bool

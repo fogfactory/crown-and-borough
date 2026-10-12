@@ -175,6 +175,7 @@ func simulateClaim(state *models.GameState, heir, target models.Noble) error {
 // claims bearing on them are settled.
 func simulateDeath(state *models.GameState, dead models.Noble) {
 	claims := state.ClaimsOn(dead.ID)
+	served := make(map[models.NobleID]bool)
 	for index := range state.Fiefs {
 		fief := &state.Fiefs[index]
 		if fief.HolderNobleID == nil || *fief.HolderNobleID != dead.ID {
@@ -185,6 +186,7 @@ func simulateDeath(state *models.GameState, dead models.Noble) {
 			for _, heir := range state.Nobles {
 				if heir.ID == claim.Heir {
 					heirID := heir.ID
+					served[heirID] = true
 					fief.OwnerID = heir.OwnerID
 					fief.HolderNobleID = &heirID
 					break
@@ -196,9 +198,19 @@ func simulateDeath(state *models.GameState, dead models.Noble) {
 		}
 	}
 	state.Nobles = slices.DeleteFunc(state.Nobles, func(n models.Noble) bool { return n.ID == dead.ID })
-	state.PassCrownOfMissingKing()
-	state.Claims = slices.DeleteFunc(state.Claims, func(claim models.Claim) bool {
-		return claim.Heir == dead.ID || claim.Target == dead.ID
+	if crowned, passed := state.PassCrownOfMissingKing(); passed {
+		served[crowned] = true
+	}
+	state.ExpireClaims(func(claim models.Claim) (models.ClaimOutcome, bool) {
+		switch {
+		case claim.Heir == dead.ID:
+			return models.ClaimLapsed, true
+		case served[claim.Heir]:
+			return models.ClaimHonoured, true
+		case claim.Target == dead.ID:
+			return models.ClaimLapsed, true
+		}
+		return "", false
 	})
 	state.RemovedNobles = append(state.RemovedNobles, models.RemovedNoble{
 		ID: dead.ID, Code: dead.Code, Name: dead.Name, Sex: dead.Sex, OwnerID: dead.OwnerID,

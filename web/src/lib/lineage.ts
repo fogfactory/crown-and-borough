@@ -63,7 +63,14 @@ export interface HouseMember {
   /** Every fief the noble holds, highest first. */
   fiefs: HeldFief[]
   /** The pretension this noble stakes as an heir, if any. */
-  claim?: { target: string; targetName: string; rank: number; targetFiefs: HeldFief[] }
+  claim?: {
+    target: string
+    targetName: string
+    rank: number
+    targetFiefs: HeldFief[]
+    /** Set once the claim ended: it got its way (honoured) or not (lapsed). */
+    outcome?: 'honoured' | 'lapsed'
+  }
   /** How many pretensions bear on this noble's titles. */
   claimedBy: number
 }
@@ -153,11 +160,19 @@ export function buildHouses(
   }
   for (const held of fiefsByHolder.values())
     held.sort((a, b) => FIEF_RANK[b.title] - FIEF_RANK[a.title])
-  const nameByCode = new Map(nobles.map((noble) => [noble.code, noble.name]))
-  const claimByHeir = new Map(claims.map((claim) => [claim.heir, claim]))
+  const nameByCode = new Map([
+    ...deceased.map((noble): [string, string] => [noble.code, noble.name]),
+    ...nobles.map((noble): [string, string] => [noble.code, noble.name]),
+  ])
+  // An heir shows its live claim, else its latest ended one.
+  const claimByHeir = new Map<string, Claim>()
+  for (const claim of claims) {
+    const shown = claimByHeir.get(claim.heir)
+    if (!shown || shown.ended || !claim.ended) claimByHeir.set(claim.heir, claim)
+  }
   const claimedBy = new Map<string, number>()
   for (const claim of claims)
-    claimedBy.set(claim.target, (claimedBy.get(claim.target) ?? 0) + 1)
+    if (!claim.ended) claimedBy.set(claim.target, (claimedBy.get(claim.target) ?? 0) + 1)
 
   return players.map((player) => {
     const own = nobles.filter((noble) => noble.owner === player.id)
@@ -181,7 +196,8 @@ export function buildHouses(
               target: claim.target,
               targetName: nameByCode.get(claim.target) ?? claim.target,
               rank: claim.rank,
-              targetFiefs: fiefsByHolder.get(claim.target) ?? [],
+              targetFiefs: claim.ended ? [] : (fiefsByHolder.get(claim.target) ?? []),
+              outcome: claim.ended ? (claim.outcome ?? 'lapsed') : undefined,
             }
           : undefined,
         claimedBy: claimedBy.get(noble.code) ?? 0,

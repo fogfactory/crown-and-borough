@@ -414,4 +414,7 @@ Une carte de bâtard jouée sur un noble « parent » (le noble visé ou son
 conjoint) n'annule pas la prétention.
 
 **Visibilité.** Une prétention est publique : elle figure dans le rapport de
-tous les joueurs dès qu'elle est jouée.
+tous les joueurs dès qu'elle est jouée. Une prétention éteinte reste visible
+dans la lignée, comme un mariage terminé : « honorée » si l'héritier a reçu un
+fief ou la couronne, « éteinte » sinon (bâtard, mort de l'héritier ou de la
+cible, autre héritier servi en premier).

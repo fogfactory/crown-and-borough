@@ -61,6 +61,7 @@ type GameState struct {
 	TrialRevoltWindows  []TrialRevoltWindow            `json:"trialRevoltWindows,omitempty"`
 	Marriages           []Marriage                     `json:"marriages,omitempty"`
 	Claims              []Claim                        `json:"claims,omitempty"`
+	ExpiredClaims       []ExpiredClaim                 `json:"expiredClaims,omitempty"`
 	// Bishops, Cardinals, Pope and Excommunications hold the religious titles
 	// (specs/religieux.md). Bishoprics are the Regions.
 	Bishops          []Bishop          `json:"bishops,omitempty"`

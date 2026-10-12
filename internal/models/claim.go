@@ -21,6 +21,40 @@ type Claim struct {
 	WifeSide bool    `json:"wifeSide,omitempty"`
 }
 
+// ClaimOutcome tells how a claim ended.
+type ClaimOutcome string
+
+const (
+	// ClaimHonoured: the heir received a fief or the crown of the target.
+	ClaimHonoured ClaimOutcome = "honoured"
+	// ClaimLapsed: the claim ended without effect (a dignity voided it, the
+	// heir or the target died, another heir was served first).
+	ClaimLapsed ClaimOutcome = "lapsed"
+)
+
+// ExpiredClaim is a claim that ended, kept like an ended marriage so the
+// lineage still tells it (specs/succession.md § Prétentions). EndedTurn is
+// the absolute GameState.Turn it ended on.
+type ExpiredClaim struct {
+	Claim
+	EndedTurn int          `json:"endedTurn"`
+	Outcome   ClaimOutcome `json:"outcome"`
+}
+
+// ExpireClaims moves to ExpiredClaims every claim for which outcomeOf returns
+// true, with the outcome it gives, ended on the current turn.
+func (g *GameState) ExpireClaims(outcomeOf func(Claim) (ClaimOutcome, bool)) {
+	kept := g.Claims[:0:0]
+	for _, claim := range g.Claims {
+		if outcome, ended := outcomeOf(claim); ended {
+			g.ExpiredClaims = append(g.ExpiredClaims, ExpiredClaim{Claim: claim, EndedTurn: g.Turn, Outcome: outcome})
+		} else {
+			kept = append(kept, claim)
+		}
+	}
+	g.Claims = kept
+}
+
 // ClaimsOn returns the claims staked on the noble, by priority: oldest first,
 // the wife's family first within a winter, then in play order.
 func (g *GameState) ClaimsOn(target NobleID) []Claim {

@@ -97,6 +97,19 @@ describe('lineage', () => {
     expect(queenOf(undefined, marriages)).toBeUndefined()
   })
 
+  it('keeps ended claims on the heir, a live one taking precedence', () => {
+    const ended = { heir: 'ANN', target: 'JEA', spouse: 'EVE', turn: 1, rank: 0, ended: true, endedTurn: 3, outcome: 'honoured' as const }
+    const live = { heir: 'MAR', target: 'EVE', spouse: 'JEA', turn: 2, rank: 1 }
+    const houses = buildHouses(players, nobles, [], [], [ended, live])
+    const claimOf = (code: string) =>
+      houses.flatMap((house) => house.members).find((m) => m.code === code)?.claim
+    expect(claimOf('ANN')).toMatchObject({ target: 'JEA', outcome: 'honoured' })
+    expect(claimOf('MAR')?.outcome).toBeUndefined()
+    // Only live claims count as claiming a noble.
+    const claimed = houses.flatMap((house) => house.members).map((m) => [m.code, m.claimedBy])
+    expect(claimed.filter(([, count]) => count)).toEqual([['EVE', 1]])
+  })
+
   it('flags the excommunicated nobles', () => {
     const houses = buildHouses(players, nobles, [], [], [], {
       excommunicated: [{ noble: 'ANN', reason: 'papal', turn: 1 }],
