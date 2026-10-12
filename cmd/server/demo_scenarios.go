@@ -162,7 +162,7 @@ func forgeWinter(state *models.GameState) error {
 			state.TerritoryStates[territoryID] = territoryState
 		}
 	}
-	giveSpecialCards(state, "P1", models.CardKindFairWeather, models.CardKindRevolt, models.CardKindTrial, models.CardKindSeigneurialTax)
+	giveSpecialCards(state, "P1", models.CardKindFairWeather, models.CardKindRevolt, models.CardKindSeigneurialTax)
 	giveNobleCards(state, "P1",
 		models.NobleCard{Kind: models.NobleCardKindNoble, Code: "ZAL", Name: "Albert", Sex: models.SexMale},
 		models.NobleCard{Kind: models.NobleCardKindDignity, Code: models.DignityBastardCardCode, Dignity: models.DignityBastard},

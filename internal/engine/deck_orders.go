@@ -19,7 +19,6 @@ var cardDefinitions = map[models.CardKind]CardDefinition{
 	models.CardKindAbundantHarvest: abundantHarvestCardDefinition{},
 	models.CardKindRevolt:          revoltCardDefinition{},
 	models.CardKindSeigneurialTax:  seigneurialTaxCardDefinition{},
-	models.CardKindTrial:           trialCardDefinition{},
 	models.CardKindTunnel:          tunnelCardDefinition{},
 }
 

@@ -948,8 +948,6 @@ from noble chains and requiring no noble. Winter discards are written in the
 - `P FQ HHH BRU` and `P PQ HHH BRU`: have the cleric HHH (pope, cardinal,
   bishop or abbess) appease the revolt at BRU, with no card (see "Revolt
   appeasement" below);
-- `P TR NNN`: play Trial on the noble with code NNN — an opponent's or not —,
-  judged at the end of the turn (see below);
 - `P SO NNN`: play Tunnel to free your noble NNN, held (hostage or dungeon) by
   another player's army; `P SO AAA - BBB`: play Tunnel on your attack from AAA
   to BBB, which ignores fortifications (see below);
@@ -966,7 +964,7 @@ from noble chains and requiring no noble. Winter discards are written in the
 The hand is replenished automatically in winter after winter orders and discards; no draw order
 is needed.
 
-Fair weather, Abundant harvest, Revolt, the Seigneurial tax, and Trial can be played
+Fair weather, Abundant harvest, Revolt, and the Seigneurial tax can be played
 in spring, summer, and autumn, but not winter. Played cards are consumed
 before army-order resolution. Fair weather cancels only bad weather, and
 Abundant harvest cancels only bad harvest; a card that cancels a calamity does
@@ -994,8 +992,7 @@ bad weather, **{{special_orders.card.famine}}** bad harvest,
 **{{special_orders.card.abundant_harvest}}** abundant harvest,
 **{{special_orders.card.revolt}}** revolt,
 **{{special_orders.card.seigneurial_tax}}** tax (seigneurial tax or tithe), and
-**{{special_orders.card.trial}}** trial and **{{special_orders.card.tunnel}}**
-tunnel cards. A hand is limited to
+**{{special_orders.card.tunnel}}** tunnel cards. A hand is limited to
 **{{special_orders.hand_limit}} cards**, noble and dignity cards included.
 After their winter orders and discards, each player automatically receives
 bonus cards, up to **{{special_orders.draw_orders_limit}} per winter** across
@@ -1025,7 +1022,7 @@ countered. No calamity resolves in winter.
   provided its region suffers a bad harvest, or a Seigneurial tax was played
   on the capital of the territory's fief this turn or the previous one —
   every territory of the fief is then eligible, not only its taxed capital —
-  or a Trial executed a lady in its region: every territory of that region is
+  or a trial executed a lady in its region: every territory of that region is
   then eligible during the action season that follows the execution. Each card adds a roll between
   **{{special_orders.effects.revolt_army_min_size}}** and
   **{{special_orders.effects.revolt_army_max_size}}** troops to the
@@ -1068,13 +1065,6 @@ countered. No calamity resolves in winter.
   each mill's production is split equally among them in whole units; the
   remainder of the division stays on the mill. Like any tax, the tithe makes
   every territory of the bishopric eligible for Revolt this turn and the next;
-- Trial is played on a noble (`P TR NNN`), yours or an opponent's, in spring,
-  summer, or autumn. It is judged at the very end of the turn, once every
-  other effect has resolved. Only an **unmarried lady carrying a dignity**,
-  hidden or not, other than the Abbess, can be tried: the trial **reveals** her
-  dignity and she is **executed**, gone for good, and Revolt becomes playable on any territory of the region
-  where she stood during the following action season. Any other trial is
-  unfounded: the card is consumed and nothing else happens;
 - Tunnel is played in spring, summer, or autumn, for free, and its play is
   checked at submission. Its form tells its two uses apart. **Escape**
   (`P SO NNN`): NNN is one of your nobles held (hostage or dungeon) by another

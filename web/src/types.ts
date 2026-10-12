@@ -14,7 +14,6 @@ export type CardKind =
   | 'bad_weather'
   | 'famine'
   | 'seigneurial_tax'
-  | 'trial'
   | 'tunnel'
 
 export type OrderType =
@@ -836,6 +835,8 @@ export interface CombatContender {
   defender?: boolean
   /** The attack was carried by a tunnel card: it ignored the target's fortifications. */
   tunnel?: boolean
+  /** On the defender: the force a tunneled attack faced, without the fortification bonus. */
+  tunnelForce?: number
 }
 
 export interface CombatReport {

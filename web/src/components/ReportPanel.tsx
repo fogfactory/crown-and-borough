@@ -1023,7 +1023,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                         : (combat.contenders ?? [])
                             .map(
                               (contender) =>
-                                `${contender.force ?? '—'}${contender.defender ? ` ${t('reports.defense')}` : ''}${contender.tunnel ? t('reports.tunnelAttack') : ''}${
+                                `${contender.force ?? '—'}${contender.defender ? ` ${t('reports.defense')}` : ''}${contender.tunnelForce !== undefined ? t('reports.tunnelDefense', { force: contender.tunnelForce }) : ''}${contender.tunnel ? t('reports.tunnelAttack') : ''}${
                                   contender.nobleBonus
                                     ? t('reports.nobleBonus', {
                                         bonus: contender.nobleBonus,
