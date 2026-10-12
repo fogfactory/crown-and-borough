@@ -221,6 +221,10 @@ type NobleView struct {
 	ReligiousTitle models.ReligiousTitle `json:"religiousTitle,omitempty"`
 	// Secret is the private identity a chevalier d'Éon replaced; owner only.
 	Secret *SecretIdentityView `json:"secret,omitempty"`
+	// Commissioned are the victims of the assassinations this noble
+	// commissioned, listed only to the viewers who know the link (see
+	// models.GameState.KnowsAssassination).
+	Commissioned []models.NobleCode `json:"commissioned,omitempty"`
 }
 
 // NobleCardView is one card of the viewer's own noble hand. The hands of the
@@ -323,6 +327,11 @@ type DeceasedView struct {
 	Sex   models.Sex        `json:"sex"`
 	Cause models.DeathCause `json:"cause"`
 	Turn  int               `json:"turn"`
+	// Commissioner is the noble who commissioned this noble's assassination,
+	// and Commissioned the victims of those a dead noble commissioned; both
+	// are set only for the viewers who know the link.
+	Commissioner *models.NobleCode  `json:"commissioner,omitempty"`
+	Commissioned []models.NobleCode `json:"commissioned,omitempty"`
 }
 
 func projectState(state *models.GameState, balance assetgen.Balance) StateView {
@@ -547,6 +556,7 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 	for _, removed := range state.RemovedNobles {
 		view.Deceased = append(view.Deceased, DeceasedView{Code: models.NobleCode(removed.Code), Name: removed.Name, Owner: removed.OwnerID, Sex: removed.Sex, Cause: removed.Cause, Turn: removed.Turn})
 	}
+	projectAssassinationKnowledge(&view, state, viewer)
 	view.Bishoprics, view.Cardinals, view.Pope, view.Excommunicated = projectReligion(state, nobleCodesByID)
 	if state.King != nil {
 		code := nobleCodesByID[*state.King]
@@ -786,4 +796,37 @@ func projectReligion(state *models.GameState, codes map[models.NobleID]models.No
 		excommunicated = append(excommunicated, ExcommunicationView{Noble: codes[excommunication.Noble], Reason: excommunication.Reason, Turn: excommunication.Turn})
 	}
 	return bishoprics, cardinals, pope, excommunicated
+}
+
+// projectAssassinationKnowledge links, for the viewers who know it, each
+// assassinated noble to its commissioner (specs/ordres-speciaux.md
+// § Assassinat): the player who played the card and every player who inquired
+// on the victim or the commissioner. A spectator knows
+// every link; an anonymous viewer none.
+func projectAssassinationKnowledge(view *StateView, state *models.GameState, viewer *models.PlayerID) {
+	if viewer == nil {
+		return
+	}
+	codes := make(map[models.NobleID]models.NobleCode, len(state.Nobles)+len(state.RemovedNobles))
+	for _, noble := range state.Nobles {
+		codes[noble.ID] = models.NobleCode(noble.Code)
+	}
+	for _, removed := range state.RemovedNobles {
+		codes[removed.ID] = models.NobleCode(removed.Code)
+	}
+	commissioned := map[models.NobleCode][]models.NobleCode{}
+	for index, removed := range state.RemovedNobles {
+		if removed.Commissioner == "" || (*viewer != models.SpectatorViewer && !state.KnowsAssassination(*viewer, removed)) {
+			continue
+		}
+		commissioner := codes[removed.Commissioner]
+		view.Deceased[index].Commissioner = &commissioner
+		commissioned[commissioner] = append(commissioned[commissioner], models.NobleCode(removed.Code))
+	}
+	for index := range view.Nobles {
+		view.Nobles[index].Commissioned = commissioned[view.Nobles[index].Code]
+	}
+	for index := range view.Deceased {
+		view.Deceased[index].Commissioned = commissioned[view.Deceased[index].Code]
+	}
 }

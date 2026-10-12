@@ -14,7 +14,10 @@ func (inquiryOrderEntry) Apply(*ExecutionContext) {}
 // resolveInquiries is winter stage 3 (specs/religieux.md § Enquête): the
 // Q HHH NNN orders, players by identifier then sheet order. HHH is a cardinal
 // or the pope of the player with an active title, who investigates once per
-// winter. The cost is taken here, even when the target hides nothing.
+// winter. The cost is taken here, even when the target hides nothing. The
+// target may be a dead noble of the lineage, at the cost of the title it bore
+// at death; every inquiry is recorded in the ledger that reveals the
+// commissioner of an assassination (models.GameState.KnowsAssassination).
 func (ctx *resolutionContext) resolveInquiries(orders map[models.PlayerID][]models.WinterOrder) {
 	for _, playerID := range sortedPlayerIDs(ctx.state.Players) {
 		inquired := map[models.NobleID]bool{}
@@ -24,8 +27,12 @@ func (ctx *resolutionContext) resolveInquiries(orders map[models.PlayerID][]mode
 			}
 			inquirer := ctx.noblesByID[ctx.noblesByCode[order.NobleCode]]
 			target := ctx.noblesByID[ctx.noblesByCode[order.TargetCode]]
+			var dead *models.RemovedNoble
+			if target == nil {
+				dead = ctx.removedNobleByCode(string(order.TargetCode))
+			}
 			switch {
-			case inquirer == nil || target == nil:
+			case inquirer == nil || (target == nil && dead == nil):
 				ctx.rejectWinterOrder(playerID, order, "unknown_noble")
 				continue
 			case inquirer.OwnerID != playerID:
@@ -42,26 +49,54 @@ func (ctx *resolutionContext) resolveInquiries(orders map[models.PlayerID][]mode
 			if capitalID, _, hasCapital := ctx.capitalTerritory(playerID); hasCapital {
 				payFrom = capitalID
 			}
-			cost := InquiryCost(ctx.state, ctx.balance.Religion.InquiryCost, target.ID)
+			targetID, cost := models.NobleID(""), 0
+			if target != nil {
+				targetID = target.ID
+				cost = InquiryCost(ctx.state, ctx.balance.Religion.InquiryCost, targetID)
+			} else {
+				targetID = dead.ID
+				cost = max(dead.InquiryCost, ctx.balance.Religion.InquiryCost.Untitled)
+			}
 			spent, paid := ctx.payWinterCost(playerID, payFrom, cost)
 			if !paid {
 				ctx.rejectWinterOrder(playerID, order, "insufficient_resources")
 				continue
 			}
 			inquired[inquirer.ID] = true
-			ctx.events = append(ctx.events, Event{
+			knew := ctx.knownAssassinations(playerID)
+			ctx.state.RecordInquiry(playerID, targetID)
+			ctx.revealAssassinations(playerID, knew)
+			event := Event{
 				Type:          EventTypeInquiry,
 				Phase:         winterPhase,
 				OwnerID:       playerID,
 				OrderID:       order.ID,
-				NobleID:       target.ID,
-				NobleCode:     models.NobleCode(target.Code),
-				NobleName:     ctx.state.NobleDisplayName(*target),
+				NobleID:       targetID,
 				ResourceSpent: spent,
-			})
+			}
+			if target == nil {
+				// A dead noble hides no dignity; the inquiry only digs into the
+				// lineage (assassination knowledge, see KnowsAssassination).
+				event.NobleCode, event.NobleName = models.NobleCode(dead.Code), dead.Name
+				ctx.events = append(ctx.events, event)
+				continue
+			}
+			event.NobleCode, event.NobleName = models.NobleCode(target.Code), ctx.state.NobleDisplayName(*target)
+			ctx.events = append(ctx.events, event)
 			ctx.revealHiddenDignity(target, spent)
 		}
 	}
+}
+
+// removedNobleByCode is the lineage entry of a dead noble, nil when none bears
+// the code.
+func (ctx *resolutionContext) removedNobleByCode(code string) *models.RemovedNoble {
+	for i := range ctx.state.RemovedNobles {
+		if ctx.state.RemovedNobles[i].Code == code {
+			return &ctx.state.RemovedNobles[i]
+		}
+	}
+	return nil
 }
 
 // canInquire reports whether the noble is a cardinal or the pope with an
@@ -148,4 +183,45 @@ func (ctx *resolutionContext) revealHiddenDignity(noble *models.Noble, spent int
 			Cost:      spent,
 		})
 	}
+}
+
+// knownAssassinations is the set of assassinated nobles whose commissioner the
+// player already knows.
+func (ctx *resolutionContext) knownAssassinations(playerID models.PlayerID) map[models.NobleID]bool {
+	known := map[models.NobleID]bool{}
+	for _, removed := range ctx.state.RemovedNobles {
+		if ctx.state.KnowsAssassination(playerID, removed) {
+			known[removed.ID] = true
+		}
+	}
+	return known
+}
+
+// revealAssassinations tells the inquirer, privately, about every assassination
+// whose commissioner the last inquiry taught them (the inquiry covers the
+// victim or the commissioner, living or dead).
+func (ctx *resolutionContext) revealAssassinations(playerID models.PlayerID, knew map[models.NobleID]bool) {
+	for _, removed := range ctx.state.RemovedNobles {
+		if !knew[removed.ID] && ctx.state.KnowsAssassination(playerID, removed) {
+			ctx.emitAssassinationRevealed(playerID, removed)
+		}
+	}
+}
+
+func (ctx *resolutionContext) emitAssassinationRevealed(playerID models.PlayerID, removed models.RemovedNoble) {
+	event := Event{
+		Type: EventTypeAssassinationRevealed, Phase: phaseForSeason(ctx.state.Season), OwnerID: playerID,
+		NobleID: removed.ID, NobleCode: models.NobleCode(removed.Code), NobleName: removed.Name,
+		Season: ctx.state.Season, Year: ctx.state.Year(),
+	}
+	if commissioner := ctx.noblesByID[removed.Commissioner]; commissioner != nil {
+		event.CommissionerCode, event.CommissionerName = models.NobleCode(commissioner.Code), ctx.state.NobleDisplayName(*commissioner)
+	} else {
+		for _, dead := range ctx.state.RemovedNobles {
+			if dead.ID == removed.Commissioner {
+				event.CommissionerCode, event.CommissionerName = models.NobleCode(dead.Code), dead.Name
+			}
+		}
+	}
+	ctx.events = append(ctx.events, event)
 }

@@ -349,6 +349,24 @@ export function SelectedTerritoryDetails({
                         </dd>
                       </>
                     )}
+                    {noble.commissioned && noble.commissioned.length > 0 && (
+                      <>
+                        <dt>{t('app.commissionedKilling')}</dt>
+                        <dd
+                          className="font-medium text-[#6b2020]"
+                          data-testid="assassination-victim"
+                        >
+                          {noble.commissioned
+                            .map((code) => {
+                              const name =
+                                state.nobles.find((other) => other.code === code)?.name ??
+                                state.deceased?.find((other) => other.code === code)?.name
+                              return name ? `${name} (${code})` : code
+                            })
+                            .join(', ')}
+                        </dd>
+                      </>
+                    )}
                     {noble.spouse && (
                       <>
                         <dt>{t('app.marriage')}</dt>

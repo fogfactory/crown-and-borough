@@ -612,6 +612,14 @@ function cardEventLabel(card: CardReport, map: MapData | null, t: Translate): st
     case 'deck_discard':
       return t('reports.cardDiscarded', { card: label, player })
     case 'deck_order_played':
+      if (card.noble) {
+        return t(card.commissioner ? 'reports.cardPlayedAssassination' : 'reports.cardPlayedOnNoble', {
+          card: label,
+          player,
+          noble: nobleLabel(card.noble, card.nobleName),
+          commissioner: nobleLabel(card.commissioner, card.commissionerName),
+        })
+      }
       return t('reports.cardPlayed', { card: label, player, region })
     case 'deck_restore':
       return t('reports.cardRestored', { card: label, player })
@@ -748,6 +756,23 @@ function seasonEffectLine(
                 dignity: t(`dignity.${effect.dignity ?? 'bastard'}`),
               })
             : t('reports.trialUnfounded', { noble: nobleLabel(effect.noble, effect.nobleName) }),
+      }
+    case 'assassination':
+      return {
+        key,
+        label: t(effect.commissioner ? 'reports.assassinationCommissioner' : 'reports.assassinationPublic', {
+          noble: nobleLabel(effect.noble, effect.nobleName),
+          territory: territoryLabel(map, effect.territory, t),
+          commissioner: effect.commissioner ?? '',
+        }),
+      }
+    case 'assassination_revealed':
+      return {
+        key,
+        label: t('reports.assassinationRevealed', {
+          noble: nobleLabel(effect.noble, effect.nobleName),
+          commissioner: nobleLabel(effect.commissioner, effect.commissionerName),
+        }),
       }
     case 'tunnel':
       return {
@@ -886,6 +911,8 @@ function groupSeasonEffects(
       case 'plague_noble_survived':
       case 'trial':
       case 'tunnel':
+      case 'assassination':
+      case 'assassination_revealed':
       case 'eon_unmasked':
       case 'dignity_revealed':
       case 'excommunication':

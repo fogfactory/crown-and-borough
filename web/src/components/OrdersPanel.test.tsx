@@ -936,6 +936,19 @@ describe('OrdersPanel title and card order dialogs', () => {
     expect(onWinterChange).toHaveBeenCalledWith('Q POP LEO # investigate Leon\n')
   })
 
+  it('lets a cardinal inquire into a dead noble at the cost of the title it bore', () => {
+    const onWinterChange = renderWinter({
+      cardinals: ['POP'],
+      deceased: [{ code: 'VIC', name: 'Victor', owner: 'P2', cause: 'assassination', turn: 1 }],
+      winterAids: { ...aids, inquirers: ['POP'], inquiryCosts: { ...aids.inquiryCosts, VIC: 4 } },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Cardinal Pie · Investigate a noble (Q)' }))
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'VIC' } })
+    expect(screen.getByText('Cost: 4 R')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
+    expect(onWinterChange).toHaveBeenCalledWith('Q POP VIC # investigate Victor\n')
+  })
+
   it('lets a cardinal file a trial order and warns a second one is needed', () => {
     const onWinterChange = renderWinter({
       cardinals: ['POP'],
@@ -1127,6 +1140,38 @@ describe('OrdersPanel title and card order dialogs', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
     expect(onSpecialChange).toHaveBeenCalledWith(expect.stringMatching(/^P SO AAA - BBB/))
     expect(screen.getByRole('button', { name: /^Play Tunnel \(SO\): free a noble/ })).toBeTruthy()
+  })
+
+  it('writes the assassination order from a free noble on a noble of another player', () => {
+    const onSpecialChange = renderAction({
+      specialHand: ['assassination'],
+      nobles: [
+        { ...nobles[0], id: 'N8', code: 'AAA', owner: 'P1', status: 'free' },
+        { ...nobles[0], id: 'N9', code: 'JAI', owner: 'P2', status: 'hostage' },
+      ],
+    })
+    fireEvent.click(screen.getByRole('button', { name: /^Play Assassination \(AS\): assassinate a noble/ }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.change(within(dialog).getByLabelText('Commissioner (your free noble)'), { target: { value: 'AAA' } })
+    fireEvent.change(within(dialog).getByLabelText('Noble to assassinate'), { target: { value: 'JAI' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
+    expect(onSpecialChange).toHaveBeenCalledWith(expect.stringMatching(/^P AS AAA JAI/))
+  })
+
+  it('writes the assassination order on the winter sheet', () => {
+    const onWinterChange = renderWinter({
+      specialHand: ['assassination'],
+      nobles: [
+        { ...nobles[0], id: 'N8', code: 'AAA', owner: 'P1', status: 'free' },
+        { ...nobles[0], id: 'N9', code: 'JAI', owner: 'P2', status: 'hostage' },
+      ],
+    })
+    fireEvent.click(screen.getByRole('button', { name: /^Assassination \(AS\)/ }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.change(within(dialog).getByLabelText('Commissioner (your free noble)'), { target: { value: 'AAA' } })
+    fireEvent.change(within(dialog).getByLabelText('Noble to assassinate'), { target: { value: 'JAI' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
+    expect(onWinterChange).toHaveBeenCalledWith(expect.stringMatching(/^P AS AAA JAI/))
   })
 
   it('hides the revolt card when no territory is eligible', () => {

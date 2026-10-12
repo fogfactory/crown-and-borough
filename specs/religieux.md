@@ -285,14 +285,15 @@ une dame éligible, excommunication préalable pour tout autre personnage. Le
 jugement a lieu en toute fin de tour, après les élections et la fin
 d'hiver ([hiver.md](hiver.md#ordre-de-résolution)) ; un noble excommunié le
 même hiver est jugeable. Deux ordres sur des cibles différentes
-ne s'additionnent pas : ils sont sans effet.
+ne s'additionnent pas : ils sont sans effet. Le dépôt d'un ordre `J` n'est
+connu que de son auteur ; seul le verdict est public.
 
 ### Enquête
 
 Un cardinal ou le pape `HHH` d'un joueur, au titre actif (ni excommunié ni au
 cachot), peut jouer `Q HHH NNN` en hiver : une enquête par cardinal ou pape et
-par hiver, `NNN` étant le noble enquêté. Elle cible un noble ou une dame de n'importe quel joueur
-et révèle sa dignité cachée (Éon, Correspondante, Espionne, Empoisonneuse,
+par hiver, `NNN` étant le noble enquêté. Elle cible un noble ou une dame de n'importe quel joueur,
+vivant ou mort (un noble de la lignée des morts), et révèle sa dignité cachée (Éon, Correspondante, Espionne, Empoisonneuse,
 Sorcière) à tous les joueurs, avec les conséquences de [dames.md](dames.md).
 La dignité reste portée par la dame ; seule sa visibilité change. Un ordre dont
 `HHH` n'est pas un noble du joueur est rejeté (`noble_not_owned`), de même qu'un
@@ -306,6 +307,18 @@ jugé le même hiver ; la Correspondante, l'Espionne et l'Empoisonneuse gardent
 leurs bonus. Une cible sans dignité cachée, ou déjà révélée, consomme le coût
 sans effet et sans information. Le coût est prélevé sur les réserves de la
 capitale du joueur, sans prélèvement partiel (`insufficient_resources`).
+L'enquête elle-même (qui enquête, sur qui, pour quel coût) n'est connue que de
+son auteur ; seule la dignité révélée est publique.
+
+Une cible morte n'a plus de dignité à révéler, mais l'enquête est tout de même
+payée, au coût du titre qu'elle portait à sa mort (enregistré dans l'entrée de
+lignée, `RemovedNoble.InquiryCost` ; un noble mort sans titre coûte comme un
+noble sans titre). Toute enquête menée à terme est consignée dans le registre
+`GameState.Inquiries` : enquêter sur la victime d'un assassinat ou sur son
+commanditaire, avant ou après le meurtre, révèle au joueur le lien
+commanditaire ↔ victime ([ordres-speciaux.md](ordres-speciaux.md#assassinat)) :
+son rapport, et lui seul, l'annonce par un événement `assassination_revealed`,
+sans rumeur pour les autres joueurs.
 
 Le coût, en R, est proportionnel au rang de la cible. Il se lit dans
 `assets/balance.yaml` (bloc `religion.inquiry_cost`) :

@@ -40,6 +40,7 @@ type WinterLinePreview struct {
 	Line        int
 	Order       *models.WinterOrder
 	Discard     *models.DeckOrder
+	Play        *models.DeckOrder
 	ParseError  *InputError
 	Applied     bool
 	Reason      string
@@ -121,7 +122,11 @@ func previewWinter(preview *OrdersPreview, game *models.GameState, balance asset
 			deck := *line.Deck
 			deck.ID = models.OrderID(fmt.Sprintf("D%d", line.Line))
 			deckOrders = append(deckOrders, deck)
-			entry.Discard = &deck
+			if deck.Type == models.DeckOrderTypePlay {
+				entry.Play = &deck
+			} else {
+				entry.Discard = &deck
+			}
 		default:
 			order := *line.Winter
 			order.ID = models.OrderID(fmt.Sprintf("W%d", line.Line))
@@ -174,6 +179,14 @@ func previewWinter(preview *OrdersPreview, game *models.GameState, balance asset
 	}
 	for index := range preview.Winter {
 		entry := &preview.Winter[index]
+		if entry.Play != nil {
+			// A card played on the winter sheet is valid unless its resolution rejects it.
+			entry.Applied = true
+			if event, ok := outcomes[entry.Play.ID]; ok && event.Type == EventTypeRejected {
+				entry.Applied, entry.Reason = false, event.Reason
+			}
+			continue
+		}
 		if entry.Order == nil {
 			continue
 		}

@@ -140,6 +140,12 @@ func winterLineView(line engine.WinterLinePreview, language i18n.Language) Winte
 		view.Message = localizedInputError(*line.ParseError, language).Message
 	case line.Discard != nil:
 		view.Status = winterLineDiscard
+	case line.Play != nil:
+		view.Status = winterLineRejected
+		if line.Applied {
+			view.Status = winterLineApplied
+		}
+		view.Reason = line.Reason
 	case line.Order != nil:
 		order := line.Order
 		view.Status = winterLineRejected

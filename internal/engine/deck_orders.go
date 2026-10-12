@@ -21,6 +21,7 @@ var cardDefinitions = map[models.CardKind]CardDefinition{
 	models.CardKindSeigneurialTax:  seigneurialTaxCardDefinition{},
 	models.CardKindTrial:           trialCardDefinition{},
 	models.CardKindTunnel:          tunnelCardDefinition{},
+	models.CardKindAssassination:   assassinationCardDefinition{},
 }
 
 type deckOrderIntent struct {
@@ -118,16 +119,35 @@ func markPendingTaxWindowFiefs(ctx *resolutionContext, deckOrders map[models.Pla
 	}
 }
 
+// deckOrderRank orders the event cards played the same turn: Tunnel, then
+// Assassination (specs/ordres-speciaux.md § Cartes d'événement). Every other
+// card keeps its submission order, ahead of them.
+func deckOrderRank(order models.DeckOrder) int {
+	if order.Type == models.DeckOrderTypePlay && order.Kind == models.CardKindAssassination {
+		return 1
+	}
+	return 0
+}
+
 func resolveDeckOrders(ctx *resolutionContext, deckOrders map[models.PlayerID][]models.DeckOrder) {
+	type playedOrder struct {
+		playerID models.PlayerID
+		order    models.DeckOrder
+	}
+	var queue []playedOrder
 	for _, playerID := range sortedDeckPlayerIDs(deckOrders) {
 		for _, order := range deckOrders[playerID] {
-			executable := newExecutableDeckOrder(playerID, order)
-			if executable == nil {
-				ctx.rejectDeckOrderReason(playerID, order, "invalid_deck_order")
-				continue
-			}
-			executable.Apply(&ExecutionContext{resolution: ctx, playerID: playerID, season: ctx.state.Season})
+			queue = append(queue, playedOrder{playerID: playerID, order: order})
 		}
+	}
+	sort.SliceStable(queue, func(i, j int) bool { return deckOrderRank(queue[i].order) < deckOrderRank(queue[j].order) })
+	for _, played := range queue {
+		executable := newExecutableDeckOrder(played.playerID, played.order)
+		if executable == nil {
+			ctx.rejectDeckOrderReason(played.playerID, played.order, "invalid_deck_order")
+			continue
+		}
+		executable.Apply(&ExecutionContext{resolution: ctx, playerID: played.playerID, season: ctx.state.Season})
 	}
 }
 
@@ -143,7 +163,17 @@ func (ctx *resolutionContext) applyDeckCardOrder(playerID models.PlayerID, order
 		regionSeed = order.TargetTerritoryID
 	}
 	ctx.deckIntents = append(ctx.deckIntents, deckOrderIntent{playerID: playerID, order: order})
-	ctx.events = append(ctx.events, Event{Type: EventTypeDeckOrderPlayed, Phase: phaseForSeason(ctx.state.Season), OwnerID: playerID, CardKind: order.Kind, RegionSeed: regionSeed, Season: ctx.state.Season, Year: ctx.state.Year()})
+	played := Event{Type: EventTypeDeckOrderPlayed, Phase: phaseForSeason(ctx.state.Season), OwnerID: playerID, CardKind: order.Kind, RegionSeed: regionSeed, Season: ctx.state.Season, Year: ctx.state.Year()}
+	if order.Kind == models.CardKindAssassination {
+		// The author reads the victim and the commissioner in the report.
+		if victim := ctx.noblesByID[order.TargetNobleID]; victim != nil {
+			played.NobleCode, played.NobleName = models.NobleCode(victim.Code), ctx.state.NobleDisplayName(*victim)
+		}
+		if commissioner := ctx.noblesByID[order.CommissionerNobleID]; commissioner != nil {
+			played.CommissionerCode, played.CommissionerName = models.NobleCode(commissioner.Code), ctx.state.NobleDisplayName(*commissioner)
+		}
+	}
+	ctx.events = append(ctx.events, played)
 	return true
 }
 

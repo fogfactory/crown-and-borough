@@ -33,6 +33,10 @@ type resolutionContext struct {
 	// winterTrials holds the two-cardinal trials filed at stage 3 and judged
 	// at the very end of the winter.
 	winterTrials []winterTrial
+	// winterAssassinations holds the assassination cards played on the winter
+	// sheets: the card is consumed before the hands are refilled (stage 8),
+	// the death is applied at stage 9, after the trial verdicts.
+	winterAssassinations []deckOrderIntent
 	// nobleDraws holds the players who already drew a noble card this winter
 	// (one draw per player per winter, specs/succession.md § Deck de nobles).
 	nobleDraws map[models.PlayerID]bool

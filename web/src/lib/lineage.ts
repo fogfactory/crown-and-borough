@@ -37,6 +37,10 @@ export interface HouseMember {
   sex?: 'male' | 'female'
   dead: boolean
   cause?: DeceasedNoble['cause']
+  /** Commissioner of this noble's assassination, when the viewer knows it. */
+  commissioner?: { code: string; name: string }
+  /** Victims of the assassinations this noble commissioned, when the viewer knows them. */
+  commissioned: { code: string; name: string }[]
   /** Every dignity the noble carries (each counts as a title). */
   dignities: Dignity[]
   /** Every religious title the noble holds, highest first. */
@@ -131,7 +135,12 @@ export function buildHouses(
   }
   for (const held of fiefsByHolder.values())
     held.sort((a, b) => FIEF_RANK[b.title] - FIEF_RANK[a.title])
-  const nameByCode = new Map(nobles.map((noble) => [noble.code, noble.name]))
+  const nameByCode = new Map([
+    ...deceased.map((noble): [string, string] => [noble.code, noble.name]),
+    ...nobles.map((noble): [string, string] => [noble.code, noble.name]),
+  ])
+  const namedCodes = (codes: string[] = []) =>
+    codes.map((code) => ({ code, name: nameByCode.get(code) ?? code }))
   const claimByHeir = new Map(claims.map((claim) => [claim.heir, claim]))
   const claimedBy = new Map<string, number>()
   for (const claim of claims)
@@ -150,6 +159,7 @@ export function buildHouses(
         name: noble.name,
         sex: noble.sex,
         dead: false,
+        commissioned: namedCodes(noble.commissioned),
         dignities: noble.dignities ?? [],
         religious: religiousByHolder.get(noble.code) ?? [],
         fiefs: fiefsByHolder.get(noble.code) ?? [],
@@ -174,6 +184,10 @@ export function buildHouses(
         sex: noble.sex,
         dead: true,
         cause: noble.cause,
+        commissioner: noble.commissioner
+          ? { code: noble.commissioner, name: nameByCode.get(noble.commissioner) ?? noble.commissioner }
+          : undefined,
+        commissioned: namedCodes(noble.commissioned),
         dignities: [],
         religious: [],
         fiefs: [],

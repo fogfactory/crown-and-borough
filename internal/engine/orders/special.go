@@ -46,6 +46,9 @@ func parseDeckOrderLine(line string, lineNumber int, game *models.GameState) (mo
 	if len(fields) == 5 && fields[0] == "P" && isTunnelCode(fields[1]) {
 		return parseTunnelAttackLine(fields, lineNumber, game)
 	}
+	if len(fields) == 4 && fields[0] == "P" && isAssassinationCode(fields[1]) {
+		return parseAssassinationLine(fields, lineNumber, game)
+	}
 	if len(fields) > 4 || (len(fields) == 4 && !isTaxCode(fields[1]) && !isTitheCode(fields[1])) {
 		error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.DeckOrderShape)
 		return models.DeckOrder{}, &error
@@ -119,6 +122,28 @@ func parseDeckOrderLine(line string, lineNumber int, game *models.GameState) (mo
 		return models.DeckOrder{}, &error
 	}
 	return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: kind, RegionSeed: target}, nil
+}
+
+func isAssassinationCode(code string) bool { return code == "AS" }
+
+// parseAssassinationLine parses "P AS HHH NNN": the assassination card played
+// by the commissioner HHH on the noble NNN (specs/ordres-speciaux.md
+// § Assassinat). Whose nobles they are is checked later by CanPlay.
+func parseAssassinationLine(fields []string, lineNumber int, game *models.GameState) (models.DeckOrder, *ParseError) {
+	order := models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: models.CardKindAssassination}
+	for index, code := range fields[2:] {
+		nobleID, found := nobleIDByCode(game, code)
+		if !found {
+			error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderNobleUnknown, code)
+			return models.DeckOrder{}, &error
+		}
+		if index == 0 {
+			order.CommissionerNobleID = nobleID
+		} else {
+			order.TargetNobleID = nobleID
+		}
+	}
+	return order, nil
 }
 
 func isTunnelCode(code string) bool { return code == "SO" || code == "TU" }
@@ -235,6 +260,7 @@ func parseSpecialKind(value string, lineNumber int) (models.CardKind, *ParseErro
 		"TR": models.CardKindTrial,
 		"SO": models.CardKindTunnel,
 		"TU": models.CardKindTunnel,
+		"AS": models.CardKindAssassination,
 	}[value]
 	if !exists {
 		error := parseMessage(lineNumber, ParseCodeSpecialKind, i18n.DeckOrderKindUnknown, value)

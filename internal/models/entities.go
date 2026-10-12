@@ -1,5 +1,7 @@
 package models
 
+import "slices"
+
 // ID types. UUIDs are not needed yet: short, readable identifiers such as
 // "ROS", "A1", "N1" identify the entities (architecture §4). Distinct named
 // string types keep the domain explicit and prevent cross-type mixups.
@@ -112,6 +114,25 @@ type RemovedNoble struct {
 	OwnerID PlayerID   `json:"owner"`
 	Cause   DeathCause `json:"cause"`
 	Turn    int        `json:"turn"`
+	// InquiryCost is the R an inquiry on this dead noble costs: the cost of the
+	// title it bore at death (engine.InquiryCost), 0 when unrecorded.
+	InquiryCost int `json:"inquiryCost,omitempty"`
+	// Commissioner is the noble who commissioned an assassination, and Author
+	// the player who played the card (specs/ordres-speciaux.md § Assassinat).
+	// Both are server-side knowledge: the client sees the link only through
+	// GameState.KnowsAssassination (api projection), and the Justice card reads
+	// it.
+	Commissioner NobleID  `json:"commissioner,omitempty"`
+	Author       PlayerID `json:"author,omitempty"`
+}
+
+// InquiryRecord remembers that Player conducted an inquiry on Noble, living or
+// dead (specs/religieux.md § Enquête). The ledger is server-side only; it
+// grants the knowledge of an assassination whenever the inquiry targeted the
+// victim or the commissioner, before or after the killing.
+type InquiryRecord struct {
+	Player PlayerID `json:"player"`
+	Noble  NobleID  `json:"noble"`
 }
 
 // Infrastructure is a buildable structure. Level is >= 1: a mill yields +1 R
@@ -146,4 +167,34 @@ type TerritoryState struct {
 	Resources       int      `json:"resources"`
 	Army            *ArmyID  `json:"army"`            // nil = no army
 	Infrastructures *InfraID `json:"infrastructures"` // nil = no infrastructure (GDD §3)
+}
+
+// RecordInquiry notes that the player conducted an inquiry on the noble; a
+// repeated inquiry is not recorded twice.
+func (g *GameState) RecordInquiry(player PlayerID, noble NobleID) {
+	record := InquiryRecord{Player: player, Noble: noble}
+	for _, existing := range g.Inquiries {
+		if existing == record {
+			return
+		}
+	}
+	g.Inquiries = append(g.Inquiries, record)
+}
+
+// Inquired reports whether the player ever conducted an inquiry on the noble.
+func (g *GameState) Inquired(player PlayerID, noble NobleID) bool {
+	return slices.Contains(g.Inquiries, InquiryRecord{Player: player, Noble: noble})
+}
+
+// KnowsAssassination reports whether the player knows who commissioned the
+// death of the removed noble (specs/ordres-speciaux.md § Assassinat): the
+// player who played the card and every player who conducted an inquiry on the
+// victim or on the commissioner, whenever the inquiry took place. The owner of
+// the victim learns the death, not the commissioner.
+func (g *GameState) KnowsAssassination(player PlayerID, removed RemovedNoble) bool {
+	if removed.Cause != DeathCauseAssassination || removed.Commissioner == "" {
+		return false
+	}
+	return player == removed.Author ||
+		g.Inquired(player, removed.ID) || g.Inquired(player, removed.Commissioner)
 }

@@ -16,6 +16,7 @@ export type CardKind =
   | 'seigneurial_tax'
   | 'trial'
   | 'tunnel'
+  | 'assassination'
 
 export type OrderType =
   'attack' | 'support' | 'hold' | 'join' | 'pillage' | 'disperse' | 'transfer'
@@ -52,6 +53,8 @@ export type EventType =
   | 'plague_noble_survived'
   | 'trial'
   | 'tunnel'
+  | 'assassination'
+  | 'assassination_revealed'
   | 'bad_weather_blocked'
   | 'famine_loss'
   | 'bad_weather_loss'
@@ -195,6 +198,12 @@ export interface Noble {
   religiousTitle?: ReligiousTitle
   /** Private identity replaced by a chevalier d'Éon; sent to its owner only. */
   secret?: { code: string; name: string; sex: 'male' | 'female' }
+  /**
+   * Codes of the nobles whose assassination this noble commissioned; sent only
+   * to the viewers who know the link (the card's player and those who
+   * inquired on the victim or on this noble).
+   */
+  commissioned?: string[]
 }
 
 export type ReligiousTitle = 'bishop' | 'cardinal' | 'pope'
@@ -993,6 +1002,11 @@ export interface CardReport {
   reason?: string
   /** A calamity bent by a ritual: worded differently, without saying why. */
   ritual?: boolean
+  /** Assassination played: the victim, and the commissioner (author only). */
+  noble?: string
+  nobleName?: string
+  commissioner?: string
+  commissionerName?: string
 }
 
 export interface RumorReport {
@@ -1022,6 +1036,11 @@ export interface SeasonEffectReport {
   dignity?: Dignity
   /** Player whose army held the noble a tunnel card freed. */
   holder?: PlayerId
+  /** Owner of the noble an assassination killed. */
+  victimOwner?: PlayerId
+  /** Noble who commissioned an assassination: only its two owners are told. */
+  commissioner?: string
+  commissionerName?: string
 }
 
 export interface AuguryReport {
@@ -1133,6 +1152,10 @@ export interface DeceasedNoble {
   sex?: 'male' | 'female'
   cause: 'natural' | 'execution' | 'assassination' | 'martyr'
   turn: number
+  /** Code of the noble who commissioned this assassination, for the viewers who know it. */
+  commissioner?: string
+  /** Victims of the assassinations this dead noble commissioned, for the viewers who know them. */
+  commissioned?: string[]
 }
 
 export type VictoryProjectionStatus = 'major' | 'minor' | 'failure' | 'ongoing'

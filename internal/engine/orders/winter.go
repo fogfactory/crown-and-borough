@@ -48,7 +48,7 @@ func ParseWinterOrdersWithDeckOrders(text string, game *models.GameState) ([]mod
 			continue
 		}
 		fields := strings.Fields(line)
-		if isSpecialDiscardLine(fields) {
+		if isSpecialDiscardLine(fields) || isWinterAssassinationLine(fields) {
 			order, parseError := parseDeckOrderLine(line, lineNumber+1, game)
 			if parseError != nil {
 				parseErrors = append(parseErrors, *parseError)
@@ -94,7 +94,7 @@ func ParseWinterSheetLines(text string, game *models.GameState) []WinterSheetLin
 		}
 		parsed := WinterSheetLine{Line: lineNumber + 1}
 		fields := strings.Fields(line)
-		if isSpecialDiscardLine(fields) {
+		if isSpecialDiscardLine(fields) || isWinterAssassinationLine(fields) {
 			order, parseError := parseDeckOrderLine(line, lineNumber+1, game)
 			if parseError != nil {
 				parsed.Error = parseError
@@ -112,6 +112,12 @@ func ParseWinterSheetLines(text string, game *models.GameState) []WinterSheetLin
 		lines = append(lines, parsed)
 	}
 	return lines
+}
+
+// isWinterAssassinationLine tells the assassination card (P AS HHH NNN), the
+// only special card played on a winter sheet.
+func isWinterAssassinationLine(fields []string) bool {
+	return len(fields) == 4 && fields[0] == "P" && isAssassinationCode(fields[1])
 }
 
 // isSpecialDiscardLine tells a special-card discard (D C KIND, a two-letter
@@ -618,14 +624,19 @@ func parseBuyCardinalLine(fields []string, lineNumber int, indexes gameIndexes) 
 }
 
 // parseInquiryLine handles Q HHH NNN: HHH is the investigating cardinal or
-// pope, NNN the investigated noble. Ownership and the title are engine rejects.
+// pope, NNN the investigated noble, living or dead. Ownership and the title are engine rejects.
 func parseInquiryLine(fields []string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
 	if len(fields) != 3 {
 		error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.WinterInquiryShape)
 		return models.WinterOrder{}, &error
 	}
-	for _, code := range fields[1:] {
-		if parseError := winterNobleCode(code, lineNumber, indexes); parseError != nil {
+	if parseError := winterNobleCode(fields[1], lineNumber, indexes); parseError != nil {
+		return models.WinterOrder{}, parseError
+	}
+	// The investigated noble may have left the game: the lineage of the dead
+	// can be inquired into.
+	if _, dead := indexes.removedByCode[fields[2]]; !dead {
+		if parseError := winterNobleCode(fields[2], lineNumber, indexes); parseError != nil {
 			return models.WinterOrder{}, parseError
 		}
 	}

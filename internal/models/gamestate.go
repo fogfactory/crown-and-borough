@@ -61,6 +61,9 @@ type GameState struct {
 	TrialRevoltWindows  []TrialRevoltWindow            `json:"trialRevoltWindows,omitempty"`
 	Marriages           []Marriage                     `json:"marriages,omitempty"`
 	Claims              []Claim                        `json:"claims,omitempty"`
+	// Inquiries is the ledger of the inquiries conducted so far, one record per
+	// player and target noble (see InquiryRecord).
+	Inquiries []InquiryRecord `json:"inquiries,omitempty"`
 	// Bishops, Cardinals, Pope and Excommunications hold the religious titles
 	// (specs/religieux.md). Bishoprics are the Regions.
 	Bishops          []Bishop          `json:"bishops,omitempty"`
@@ -309,10 +312,30 @@ func (g *GameState) Validate() error {
 		if !r.Cause.IsValid() {
 			return fmt.Errorf("models: removed noble %q: invalid death cause %q", r.ID, r.Cause)
 		}
+		if r.Commissioner != "" && r.Cause != DeathCauseAssassination {
+			return fmt.Errorf("models: removed noble %q: commissioner %q on a death by %q", r.ID, r.Commissioner, r.Cause)
+		}
+		if r.InquiryCost < 0 {
+			return fmt.Errorf("models: removed noble %q: negative inquiry cost %d", r.ID, r.InquiryCost)
+		}
+		if r.Author != "" && (r.Commissioner == "" || !players[r.Author]) {
+			return fmt.Errorf("models: removed noble %q: invalid assassination author %q", r.ID, r.Author)
+		}
 		if r.Turn < 0 || r.Turn > g.Turn {
 			return fmt.Errorf("models: removed noble %q: turn %d must be between 0 and %d", r.ID, r.Turn, g.Turn)
 		}
 		removedNobles[r.ID] = true
+	}
+
+	for _, r := range g.RemovedNobles {
+		if r.Commissioner != "" && !nobles[r.Commissioner] && !removedNobles[r.Commissioner] {
+			return fmt.Errorf("models: removed noble %q: unknown commissioner %q", r.ID, r.Commissioner)
+		}
+	}
+	for _, record := range g.Inquiries {
+		if !players[record.Player] || (!nobles[record.Noble] && !removedNobles[record.Noble]) {
+			return fmt.Errorf("models: inquiry record (%q, %q): unknown player or noble", record.Player, record.Noble)
+		}
 	}
 
 	// 6c. Marriages: concluded between a living or removed noble of each of two

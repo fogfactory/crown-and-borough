@@ -54,6 +54,10 @@ var demoScenarios = map[string]struct {
 		description: "spring, P1 has a bishop and a cardinal (see the appeasement scenario) and two Tax cards: tithe orders on bishoprics",
 		apply:       forgeTithe,
 	},
+	"assassination": {
+		description: "winter (see the winter scenario), P1 holds two Assassination cards; P3's noble ZDE was already killed on the orders of P1's pope (lineage, inquiry on a dead noble); P1/P2 pope and cardinal can investigate",
+		apply:       forgeAssassination,
+	},
 	"action": {
 		description: "spring, P1 holds bonus cards; a famine is active, a bad weather is announced (one bent by a ritual)",
 		apply:       forgeAction,
@@ -395,6 +399,23 @@ func forgeInquiry(state *models.GameState) error {
 			LocationID: location, Status: models.NobleStatusFree, Dignities: []models.Dignity{lady.dignity},
 		})
 	}
+	return nil
+}
+
+// forgeAssassination adds Assassination cards to P1's hand and a past
+// assassination to the lineage: P3's ZDE died on the orders of P1's pope, so
+// only P1 (who played the card) sees the link at once; P2, and P3 who owned
+// ZDE, learn it with `Q <cardinal> ZDE` (or by investigating the pope). Try `P AS <free P1 noble> <P2/P3/P4 noble>`.
+func forgeAssassination(state *models.GameState) error {
+	if err := forgeWinter(state); err != nil {
+		return err
+	}
+	pope := state.Nobles[ownedNobles(state, "P1")[0]].ID
+	giveSpecialCards(state, "P1", models.CardKindAssassination, models.CardKindAssassination)
+	state.RemovedNobles = append(state.RemovedNobles, models.RemovedNoble{
+		ID: "N950", Code: "ZDE", Name: "Denis", Sex: models.SexMale, OwnerID: "P3",
+		Cause: models.DeathCauseAssassination, Turn: 3, Commissioner: pope, Author: "P1",
+	})
 	return nil
 }
 
