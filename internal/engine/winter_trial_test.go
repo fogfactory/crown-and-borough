@@ -195,3 +195,75 @@ func TestAcceptedTrialOrderIsAcknowledgedEvenWithoutSecondCardinal(t *testing.T)
 		t.Fatalf("trial_filed events = %#v", filed)
 	}
 }
+
+func winterAssassinationState(t *testing.T) *models.GameState {
+	t.Helper()
+	state := winterTrialState(t)
+	state.SpecialDeck = &models.SpecialDeck{
+		Cards:    []models.SpecialCard{{ID: "C1", Kind: models.CardKindAssassination}},
+		DrawPile: []models.SpecialCardID{},
+		Discard:  []models.SpecialCardID{},
+		Hands:    map[models.PlayerID][]models.SpecialCardID{"P1": {"C1"}},
+	}
+	return state
+}
+
+func eventIndex(events []Event, eventType EventType) int {
+	for index, event := range events {
+		if event.Type == eventType {
+			return index
+		}
+	}
+	return -1
+}
+
+func TestWinterAssassinationResolvesAfterTheTrialVerdicts(t *testing.T) {
+	state := winterAssassinationState(t)
+	resolution, err := ResolveWinterWithDeckOrders(state, winterDeckBalance(),
+		map[models.PlayerID][]models.WinterOrder{"P1": {trialBy("O1", "HUG", "LEO"), trialBy("O2", "OTO", "LEO")}},
+		playAssassination("N1", "N3"))
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	if hasNoble(resolution.State, "N2") || hasNoble(resolution.State, "N3") {
+		t.Fatalf("both the tried and the assassinated noble must be dead")
+	}
+	trial, killing := eventIndex(resolution.Events, EventTypeTrial), eventIndex(resolution.Events, EventTypeAssassination)
+	if trial < 0 || killing < trial {
+		t.Fatalf("trial at %d, assassination at %d: the verdicts come first", trial, killing)
+	}
+	if len(eventsOfType(resolution.Events, EventTypeDeckOrderPlayed)) != 1 {
+		t.Fatalf("the card must be played (consumed) once")
+	}
+}
+
+func TestWinterAssassinationOfATriedNobleIsRejectedAndTheCardSpent(t *testing.T) {
+	state := winterAssassinationState(t)
+	resolution, err := ResolveWinterWithDeckOrders(state, winterDeckBalance(),
+		map[models.PlayerID][]models.WinterOrder{"P1": {trialBy("O1", "HUG", "LEO"), trialBy("O2", "OTO", "LEO")}},
+		playAssassination("N1", "N2"))
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	if len(eventsOfType(resolution.Events, EventTypeAssassination)) != 0 {
+		t.Fatalf("the executed noble cannot be assassinated")
+	}
+	if reasons := electionRejections(resolution.Events); reasons["O1"] != "assassination_unknown_noble" {
+		t.Fatalf("rejections = %#v", reasons)
+	}
+	if len(eventsOfType(resolution.Events, EventTypeDeckOrderPlayed)) != 1 {
+		t.Fatalf("the card is consumed even though the order has no effect")
+	}
+}
+
+func TestWinterAssassinationDoesNotChangeTheElectionsOfTheWinter(t *testing.T) {
+	plain := resolveElectionSheets(t, winterTrialState(t), nil)
+	state := winterAssassinationState(t)
+	resolution, err := ResolveWinterWithDeckOrders(state, winterDeckBalance(), nil, playAssassination("N1", "N3"))
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	if len(eventsOfType(resolution.Events, EventTypeElectionResult)) != len(eventsOfType(plain.Events, EventTypeElectionResult)) {
+		t.Fatalf("elections changed by an assassination of the same winter")
+	}
+}

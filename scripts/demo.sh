@@ -5,7 +5,7 @@
 #   scripts/demo.sh [scenario] [--fg] [--skip-web]
 #
 # Scenarios live in cmd/server/demo_scenarios.go (built with -tags demo, so the
-# production binary never carries them): `winter` (default) and `action`.
+# production binary never carries them): `winter` (default), `action`, `assassination` and others.
 # Without --fg the server runs in the background (log in tmp/demo-server.log,
 # pid in tmp/demo-server.pid) and a previous demo server is stopped first.
 set -euo pipefail

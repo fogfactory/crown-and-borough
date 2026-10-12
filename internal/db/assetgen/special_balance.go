@@ -8,7 +8,7 @@ import (
 )
 
 var calamityKinds = []models.CardKind{models.CardKindPlague, models.CardKindBadWeather, models.CardKindFamine}
-var bonusKinds = []models.CardKind{models.CardKindFairWeather, models.CardKindAbundantHarvest, models.CardKindRevolt, models.CardKindSeigneurialTax, models.CardKindTunnel}
+var bonusKinds = []models.CardKind{models.CardKindFairWeather, models.CardKindAbundantHarvest, models.CardKindRevolt, models.CardKindSeigneurialTax, models.CardKindTunnel, models.CardKindAssassination, models.CardKindAmbush}
 
 // CalamityCardKinds returns the calamity kinds of the special deck in
 // canonical order. It is the single list shared by the balance weights, the

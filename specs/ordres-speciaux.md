@@ -87,6 +87,15 @@ de calamité ne peuvent pas être joués comme ordres de joueur. Lorsqu’un ord
 main du joueur et la place dans la défausse ; l’effet est ensuite enregistré pour
 une résolution simultanée par région.
 
+## Visibilité des ordres dans le rapport
+
+Un ordre refusé d'un joueur apparaît aux autres joueurs comme un simple refus
+motivé : l'ordre, le noble, la dignité et la cible d'une prétention n'y figurent
+pas, car ils trahiraient une carte de sa main privée. Le joueur et le
+spectateur voient le refus complet. La section des cartes ne montre aux autres
+joueurs ni la pose d'un Assassinat ni celle d'un Souterrain ; l'auteur lit, pour
+l'Assassinat, la victime `NNN` et le commanditaire `HHH`.
+
 ## Rumeurs publiques
 
 Les rumeurs publiques sont recalculées dans chaque rapport à partir des mains
@@ -142,7 +151,8 @@ joueur.
 
 Quatre cartes tirées du jeu de plateau *Fief* rejoignent le deck d'ordres
 spéciaux, au même titre que Beau temps ou Impôts. Chacune se joue au
-printemps, en été ou en automne par un ordre `P`, est gratuite, est consommée à
+printemps, en été ou en automne par un ordre `P` (l'Assassinat se joue en toute
+saison, hiver compris, voir ci-dessous), est gratuite, est consommée à
 la pose (donc défaussée même si l'effet s'avère nul) et a son effet appliqué
 avant le ravitaillement et la résolution des ordres d'armée, sauf l'Embuscade
 dont l'effet est appliqué à la résolution du combat visé. Leurs poids de
@@ -151,6 +161,24 @@ tirage sont des entrées de `special_orders.bonus_weights` (`tunnel`,
 n'est pas remplie est rejeté avec le motif indiqué et ne consomme pas la
 carte. Les cartes jouées le même tour se résolvent dans l'ordre : Souterrain,
 Assassinat, Justice, puis (pendant la résolution des mouvements) Embuscade.
+
+### Cartes jouées sur une attaque
+
+Souterrain (`P SO AAA - BBB`) et Embuscade (`P EM AAA BBB`) désignent une
+attaque de `AAA` vers `BBB`, contrôlée à la soumission :
+
+- si l'armée sur `AAA` appartient au joueur, son ordre en cours doit être une
+  attaque vers `BBB` ;
+- si elle appartient à un autre joueur, aucun ordre n'est exigé (celui de
+  l'autre joueur est inconnu) mais l'attaque doit être possible : `AAA` et
+  `BBB` sont adjacents et l'armée n'est pas neutre. La carte est un conseil
+  tactique : l'effet profite à l'attaquant s'il attaque effectivement, sinon la
+  carte est consommée sans effet.
+
+La même règle s'applique aux soutiens offensifs `XXX S YYY - ZZZ` qui ouvrent
+une chaîne reçue ce tour : si l'armée sur `YYY` appartient au joueur, elle doit
+avoir pour ordre en cours une attaque vers `ZZZ` (`support_no_attack`) ; le
+soutien d'une armée d'un autre joueur reste libre.
 
 ### Souterrain
 
@@ -165,10 +193,9 @@ l'ordre.
   pour que le noble ne se retrouve jamais avec une armée étrangère. Le détenteur
   voit l'évasion dans son rapport ; les autres joueurs ne voient aucune rumeur
   nominative.
-- **Attaque par souterrain** `P SO AAA - BBB` : désigne l'attaque que le joueur
-  a prévue ce tour depuis `AAA` vers `BBB` (`tunnel_no_attack` si l'ordre en
-  cours de l'armée du joueur sur `AAA` n'est pas une attaque vers `BBB` ; il est
-  vérifié à la soumission). Cette attaque, et elle seule, ignore les
+- **Attaque par souterrain** `P SO AAA - BBB` : désigne l'attaque depuis `AAA`
+  vers `BBB`, vérifiée à la soumission (`tunnel_no_attack`) selon la règle des
+  [cartes jouées sur une attaque](#cartes-jouées-sur-une-attaque). Cette attaque, et elle seule, ignore les
   fortifications de `BBB` (bonus du château, de la cité ou du village fortifié) :
   les autres attaquants sur `BBB` les affrontent normalement. Si l'attaque n'a
   finalement pas lieu (ordre annulé ou invalide à la résolution), la carte est
@@ -182,12 +209,65 @@ Carte `assassination`, code `AS`. `P AS HHH NNN` : `HHH` est le **commanditaire*
 un noble libre du joueur (ni `hostage` ni `dungeon`), et `NNN` un noble d'un
 autre joueur, où qu'il soit et quel que soit son statut. `NNN` meurt sans jet
 de dé : mort normale ([succession.md](succession.md)) avec fiefs, prétentions,
-chaîne émise ce tour supprimée, et couronne si c'est le roi.
+chaîne émise ce tour supprimée, et couronne si c'est le roi. La mort est
+enregistrée avec la cause `assassination`. Les motifs de rejet sont
+`assassination_commissioner_invalid` (`HHH` inconnu, d'un autre joueur ou non
+libre), `assassination_unknown_noble` (`NNN` inconnu ou déjà mort) et
+`assassination_own_noble` (`NNN` appartient au joueur) ; la carte n'est alors
+pas consommée. La carte se joue en **toute saison**. Au printemps, en été et en
+automne, l'ordre `P AS HHH NNN` est écrit dans les ordres spéciaux et la mort
+s'applique à la pose, avant le ravitaillement et les ordres d'armée. En hiver
+il est écrit sur la feuille d'hiver et s'applique à l'étape 9 de
+[hiver.md](hiver.md#ordre-de-résolution), après les verdicts des procès : la
+carte est consommée au début de l'étape 8, avant le remplissage des mains, et
+la mort est appliquée à l'étape 9 (joueurs par identifiant, puis ordre de la
+feuille). Un ordre dont la victime ou le commanditaire a quitté le jeu entre
+temps (exécuté par un procès du même hiver, par exemple) est rejeté à l'étape 9
+et la carte, déjà consommée, est perdue sans effet. Une carte rejetée à l'étape 8 (motifs ci-dessus ou `no_card_for_kind`)
+n'est pas consommée et ne fait pas échouer l'hiver. Les ordres sont vérifiés à la soumission ; une seconde carte
+visant un noble déjà tué ce tour est rejetée à la résolution.
 
-Le commanditaire est enregistré avec l'assassinat. Le rapport public annonce
-la mort de `NNN` sans nommer de coupable ; le **seul** propriétaire de `NNN`
-apprend le nom de `HHH`. Une rumeur publique signale qu'un assassinat a eu
-lieu.
+Le commanditaire et le joueur qui a posé la carte sont enregistrés avec
+l'assassinat, dans l'entrée de lignée du noble tué (`RemovedNoble.Commissioner`,
+l'identifiant de `HHH`, et `RemovedNoble.Author`) ; la carte Justice lit le
+commanditaire. Le rapport public annonce la mort de `NNN` sans nommer de
+coupable (ni le joueur qui a joué la carte), y compris au propriétaire de `NNN`,
+qui apprend la mort mais pas le commanditaire ; seul le joueur qui a posé la
+carte lit le nom de `HHH` dans le rapport. Une
+rumeur publique signale qu'un assassinat a eu lieu.
+
+**Rapport de l'enquêteur.** Lorsqu'une enquête (`Q`) apprend à un joueur le lien
+commanditaire ↔ victime (enquête sur la victime ou le commanditaire, vivant ou
+mort), son rapport — et lui seul, avec la vue spectateur — porte un événement
+`assassination_revealed` : « votre enquête révèle que HHH a commandité
+l'assassinat de NNN ». Il est émis une seule fois par lien et par joueur, y
+compris quand le lien est appris à la pose d'un assassinat par une enquête
+antérieure sur la future victime ou son commanditaire , y compris pour le
+propriétaire de la victime ; le joueur qui a posé la carte, déjà informé par
+l'événement d'assassinat, n'en reçoit pas. Aucune rumeur pour les autres joueurs.
+
+**Qui connaît le lien commanditaire ↔ victime.** Le lien est connu de :
+1. le joueur qui a posé la carte ;
+2. tout joueur ayant mené une [enquête](religieux.md#enquête) (`Q HHH NNN`) sur
+   la victime **ou** sur le commanditaire, que l'enquête ait eu lieu avant ou
+   après l'assassinat.
+
+Modèle : chaque enquête réussie est consignée côté serveur dans un registre
+(`GameState.Inquiries`, un couple joueur / noble par cible, sans doublon) ; la
+connaissance n'est pas stockée par assassinat mais déduite à la lecture
+(`GameState.KnowsAssassination`) de l'auteur de l'entrée de
+lignée et de ce registre. Le propriétaire de la victime n'est pas informé
+d'office : il doit enquêter comme tout autre joueur. Une enquête antérieure sur `HHH` ou `NNN` donne donc
+le lien dès que l'assassinat a lieu, et une enquête postérieure le révèle.
+
+**Dans l'état (`state.json`).** Pour un joueur qui connaît le lien, la
+projection (`internal/api`) renseigne `deceased[].commissioner` (code de `HHH`
+sur la victime) et `commissioned` (codes des victimes) sur le commanditaire,
+vivant (`nobles[]`) ou mort (`deceased[]`). Aucun autre joueur ne voit ces
+champs ; la projection publique (sans joueur) non plus ; un spectateur voit
+tous les liens. Le web affiche le lien sur l'entrée de la victime et sur celle
+du commanditaire dans la vue Lignée, et sur le commanditaire présent dans le
+poste de commandement du territoire.
 
 ### Justice
 
@@ -198,8 +278,8 @@ assassinat, quelle qu'en soit la victime, il est exécuté : mort normale
 (fiefs, prétentions, cartes). Sinon la carte est consommée sans effet. Une
 cible déjà morte est rejetée.
 
-Seul le propriétaire d'une victime connaît le commanditaire : les autres
-joueurs jouent Justice à l'aveugle, sur un soupçon. Le rapport public nomme
+Seuls les joueurs qui connaissent le lien (voir « Assassinat ») savent qui est
+un commanditaire : les autres jouent Justice à l'aveugle, sur un soupçon. Le rapport public nomme
 le noble exécuté comme « justice rendue pour un assassinat » ; un échec n'est
 visible que du joueur qui a joué la carte (« aucun effet »), sans rumeur
 publique.
@@ -210,15 +290,16 @@ préalable et sans fenêtre de révolte. Le Roi y échappe.
 
 ### Embuscade
 
-Carte `ambush`, code `EM`. `P EM AAA BBB` désigne l'attaque prévue ce tour par
-le joueur, de l'origine `AAA` vers la cible `BBB` (`ambush_no_attack` si aucun
-ordre d'attaque de ce joueur ne correspond ; il est vérifié à la soumission
-et relu à la résolution). Si cette attaque est **victorieuse** et que
-l'armée défenseuse bat en retraite avec au moins un noble, un noble adverse
-de cette armée est capturé : celui qui arrive en tête de la ligne de
+Carte `ambush`, code `EM`. `P EM AAA BBB` désigne l'attaque de l'origine `AAA`
+vers la cible `BBB`, vérifiée à la soumission (`ambush_no_attack`) selon la règle
+des [cartes jouées sur une attaque](#cartes-jouées-sur-une-attaque) et relue à
+la résolution. Si cette attaque est **victorieuse** et que
+l'armée défenseuse bat en retraite avec au moins un noble libre, un noble libre
+adverse de cette armée est capturé : celui qui arrive en tête de la ligne de
 succession de son propriétaire. Il est capturé comme à la destruction d'une
 armée ([gdd.md](gdd.md), nobles `hostage` par défaut, bâtard au `dungeon`) et
-placé chez le joueur de l'embuscade. Sans victoire, sans retraite ou sans noble
+détenu par l'armée attaquante, donc par son propriétaire (le joueur de la carte
+lorsque l'attaque est la sienne). Sans victoire, sans retraite ou sans noble
 dans l'armée en retraite, la carte est consommée sans effet.
 
 ## Cartes prévues

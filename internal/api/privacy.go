@@ -535,7 +535,7 @@ func projectReport(report engine.TurnReport, viewer models.PlayerID, privacy *mo
 		Nobles:        append([]engine.NobleReport{}, report.Nobles...),
 		SeasonEffects: visibleSeasonEffects(report.SeasonEffects, viewer),
 		Rumors:        append([]engine.RumorReport{}, report.Rumors...),
-		Cards:         append([]engine.CardReport{}, report.Cards...),
+		Cards:         visibleCards(report.Cards, viewer),
 		Announcements: append([]engine.AnnouncementReport{}, report.Announcements...),
 		Augury:        report.Augury,
 		Winter:        report.Winter,
@@ -658,9 +658,24 @@ func redactHiddenDignities(winter *engine.WinterReport, viewer models.PlayerID) 
 		if investment.Player != viewer && (revealsHiddenDignity(investment) || isPrivateBallot(investment)) {
 			continue
 		}
+		if investment.Player != viewer && investment.Kind == engine.EventTypeRejected {
+			investment = stripRejectedOrder(investment)
+		}
 		redacted.Investments = append(redacted.Investments, investment)
 	}
+	// A winter-sheet assassination card stays as private as the action one.
+	redacted.Cards = visibleCards(winter.Cards, viewer)
 	return &redacted
+}
+
+// stripRejectedOrder keeps from another player's rejected winter order only
+// the fact and the reason: the order, the noble, the dignity and the claim
+// target would give away a card of a private hand.
+func stripRejectedOrder(investment engine.WinterInvestmentReport) engine.WinterInvestmentReport {
+	investment.Order = nil
+	investment.Noble, investment.NobleCode, investment.NobleName = "", "", ""
+	investment.Dignity, investment.ClaimTarget, investment.ClaimTargetName = "", "", ""
+	return investment
 }
 
 // recordDignityKnowledge gives the owners of the information dignities the
@@ -779,8 +794,11 @@ func revealsHiddenDignity(investment engine.WinterInvestmentReport) bool {
 
 // visibleSeasonEffects drops, for a viewer, the season effects that are private:
 // a tunnel escape is known only to the player who played the card and to the
-// holder of the freed noble (specs/ordres-speciaux.md § Souterrain). Every other
-// effect is public.
+// holder of the freed noble (specs/ordres-speciaux.md § Souterrain). An
+// assassination is public but names no culprit: the player who played the card
+// and the commissioner are revealed only to the card's owner (§ Assassinat). Every other
+// effect is public, except the revelation of a commissioner by an inquiry,
+// which only the inquirer reads (§ Assassinat).
 func visibleSeasonEffects(effects []engine.SeasonEffectReport, viewer models.PlayerID) []engine.SeasonEffectReport {
 	visible := make([]engine.SeasonEffectReport, 0, len(effects))
 	for _, effect := range effects {
@@ -788,7 +806,46 @@ func visibleSeasonEffects(effects []engine.SeasonEffectReport, viewer models.Pla
 			viewer != models.SpectatorViewer && viewer != effect.Owner && viewer != effect.Holder {
 			continue
 		}
+		if effect.Kind == engine.EventTypeAssassinationRevealed && viewer != models.SpectatorViewer && viewer != effect.Owner {
+			continue
+		}
+		if effect.Kind == engine.EventTypeAssassination {
+			effect = redactAssassination(effect, viewer)
+		}
 		visible = append(visible, effect)
+	}
+	return visible
+}
+
+// redactAssassination hides who ordered an assassination, and the commissioner,
+// from every viewer but the player who played the card and the spectator. The
+// owner of the victim, like everyone else, only learns the death; the players
+// who inquired are told by their own assassination_revealed event.
+func redactAssassination(effect engine.SeasonEffectReport, viewer models.PlayerID) engine.SeasonEffectReport {
+	switch {
+	case viewer == models.SpectatorViewer || viewer == effect.Owner:
+		return effect
+	}
+	effect.Owner, effect.Commissioner, effect.CommissionerName = "", "", ""
+	return effect
+}
+
+// privateCardPlay reports whether the play of a card of this kind is told to
+// its player alone: an assassination names no culprit, a tunnel escape or
+// attack is no nominative rumor (specs/ordres-speciaux.md).
+func privateCardPlay(kind models.CardKind) bool {
+	return kind == models.CardKindAssassination || kind == models.CardKindTunnel
+}
+
+// visibleCards drops, for a viewer, the play of an assassination or tunnel
+// card by another player: the report must name no culprit.
+func visibleCards(cards []engine.CardReport, viewer models.PlayerID) []engine.CardReport {
+	visible := make([]engine.CardReport, 0, len(cards))
+	for _, card := range cards {
+		if privateCardPlay(card.Kind) && card.EventType == engine.EventTypeDeckOrderPlayed && viewer != models.SpectatorViewer && viewer != card.Player {
+			continue
+		}
+		visible = append(visible, card)
 	}
 	return visible
 }

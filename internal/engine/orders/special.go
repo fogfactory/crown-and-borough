@@ -52,6 +52,12 @@ func parseDeckOrderLine(line string, lineNumber int, game *models.GameState) (mo
 	if len(fields) == 5 && fields[0] == "P" && isTunnelCode(fields[1]) {
 		return parseTunnelAttackLine(fields, lineNumber, game)
 	}
+	if len(fields) == 4 && fields[0] == "P" && isAmbushCode(fields[1]) {
+		return parseAmbushLine(fields, lineNumber, game)
+	}
+	if len(fields) == 4 && fields[0] == "P" && isAssassinationCode(fields[1]) {
+		return parseAssassinationLine(fields, lineNumber, game)
+	}
 	if len(fields) > 4 || (len(fields) == 4 && !isTaxCode(fields[1]) && !isTitheCode(fields[1])) {
 		error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.DeckOrderShape)
 		return models.DeckOrder{}, &error
@@ -117,6 +123,28 @@ func parseDeckOrderLine(line string, lineNumber int, game *models.GameState) (mo
 	return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: kind, RegionSeed: target}, nil
 }
 
+func isAssassinationCode(code string) bool { return code == "AS" }
+
+// parseAssassinationLine parses "P AS HHH NNN": the assassination card played
+// by the commissioner HHH on the noble NNN (specs/ordres-speciaux.md
+// § Assassinat). Whose nobles they are is checked later by CanPlay.
+func parseAssassinationLine(fields []string, lineNumber int, game *models.GameState) (models.DeckOrder, *ParseError) {
+	order := models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: models.CardKindAssassination}
+	for index, code := range fields[2:] {
+		nobleID, found := nobleIDByCode(game, code)
+		if !found {
+			error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderNobleUnknown, code)
+			return models.DeckOrder{}, &error
+		}
+		if index == 0 {
+			order.CommissionerNobleID = nobleID
+		} else {
+			order.TargetNobleID = nobleID
+		}
+	}
+	return order, nil
+}
+
 func isTunnelCode(code string) bool { return code == "SO" || code == "TU" }
 
 // parseTunnelAttackLine parses "P SO AAA - BBB": the tunnel card played on the
@@ -135,6 +163,22 @@ func parseTunnelAttackLine(fields []string, lineNumber int, game *models.GameSta
 		}
 	}
 	return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: models.CardKindTunnel, SourceTerritoryID: source, TargetTerritoryID: target}, nil
+}
+
+func isAmbushCode(code string) bool { return code == "EM" || code == "AM" }
+
+// parseAmbushLine parses "P EM AAA BBB": the ambush card played on the attack
+// from AAA to BBB (specs/ordres-speciaux.md § Embuscade). Whether the player
+// really plans that attack is checked later by CanPlay.
+func parseAmbushLine(fields []string, lineNumber int, game *models.GameState) (models.DeckOrder, *ParseError) {
+	source, target := models.TerritoryID(fields[2]), models.TerritoryID(fields[3])
+	for _, code := range []models.TerritoryID{source, target} {
+		if !isTerritory(game, code) {
+			error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderRegionUnknown, string(code))
+			return models.DeckOrder{}, &error
+		}
+	}
+	return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: models.CardKindAmbush, SourceTerritoryID: source, TargetTerritoryID: target}, nil
 }
 
 func isTaxCode(code string) bool { return code == "TX" || code == "ST" }
@@ -229,6 +273,9 @@ func parseSpecialKind(value string, lineNumber int) (models.CardKind, *ParseErro
 		"TT": models.CardKindSeigneurialTax,
 		"SO": models.CardKindTunnel,
 		"TU": models.CardKindTunnel,
+		"EM": models.CardKindAmbush,
+		"AM": models.CardKindAmbush,
+		"AS": models.CardKindAssassination,
 	}[value]
 	if !exists {
 		error := parseMessage(lineNumber, ParseCodeSpecialKind, i18n.DeckOrderKindUnknown, value)

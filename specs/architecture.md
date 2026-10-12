@@ -549,6 +549,13 @@ contrôleur
 (`internal/api`) le calcule au vol avec `GameState.TerritoryController`, comme
 les scores et les rapports (`GameState.TerritoryControllers`).
 
+Le lien commanditaire ↔ victime d'un assassinat est une donnée privée de
+`state.json` : `nobles[].commissioned` et `deceased[].commissioner` /
+`deceased[].commissioned` ne sont renseignés que pour les joueurs qui le
+connaissent (auteur, enquêteurs ; spectateur : tous ; le propriétaire de la victime ne le connaît pas d'office),
+calculés par la projection à partir de `RemovedNoble.Commissioner` / `Author` et
+du registre `GameState.Inquiries` (voir `specs/ordres-speciaux.md` § Assassinat).
+
 Dans une résolution, le moteur lit le contrôle à deux moments, qui ne sont pas
 interchangeables puisque les armées bougent et que les fiefs peuvent se
 dissoudre pendant le tour : `controllerAtStart` est l'instantané du contrôle

@@ -100,6 +100,7 @@ func resolveFromControl(game *models.GameState, balance assetgen.Balance, deckOr
 	// the simultaneous resolution core.
 	enumerateIntentions(ctx)
 	applyPendingTunnels(ctx)
+	applyPendingAmbushes(ctx)
 	cancelAttackedOriginPeaceful(ctx)
 	calculateSupports(ctx)
 	if err := resolveContests(ctx); err != nil {

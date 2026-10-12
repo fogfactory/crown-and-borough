@@ -112,7 +112,7 @@ func (order appeaseOrder) Apply(ctx *ExecutionContext) {
 	case roll > 6-religion.AppeasementDeathRolls:
 		event.Reason = "failed_death"
 		resolution.events = append(resolution.events, event)
-		resolution.removeNobleInAction(noble)
+		resolution.removeNobleInAction(noble, models.DeathCauseMartyr)
 	default:
 		event.Reason = "failed"
 		resolution.events = append(resolution.events, event)
@@ -144,7 +144,7 @@ func (ctx *resolutionContext) removeRebelArmy(armyID models.ArmyID) {
 // removeNobleInAction kills a noble during an action season, before the
 // movement phases: the chain they emitted this turn is dropped like a plague
 // victim's.
-func (ctx *resolutionContext) removeNobleInAction(noble models.Noble) {
+func (ctx *resolutionContext) removeNobleInAction(noble models.Noble, cause models.DeathCause) {
 	chains := ctx.state.Chains[:0]
 	dropped := make(map[models.ChainID]bool)
 	for _, chain := range ctx.state.Chains {
@@ -160,7 +160,7 @@ func (ctx *resolutionContext) removeNobleInAction(noble models.Noble) {
 			ctx.state.Armies[index].ChainID = nil
 		}
 	}
-	ctx.removeNoble(noble, models.DeathCauseMartyr)
+	ctx.removeNoble(noble, cause)
 }
 
 func newAppeasementRNG(seed string, turn int, nobleID models.NobleID) *rand.Rand {

@@ -1556,6 +1556,7 @@ func executeRetreats(ctx *resolutionContext) error {
 			ctx.captureNoblesAfterDestruction(plan)
 		}
 	}
+	ctx.settleAmbushes(plans)
 	return nil
 }
 

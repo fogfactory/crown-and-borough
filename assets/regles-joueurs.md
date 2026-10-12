@@ -257,7 +257,7 @@ noble. Aucun ne coûte de ressource en saison d'action.
 |---|---|---|
 | `A` | `XXX A YYY` | Attaque ou déplacement vers `YYY` adjacente. |
 | `S` | `XXX S YYY` | Soutien défensif de l'armée qui tient `YYY`. |
-| `S` | `XXX S YYY - ZZZ` | Soutien offensif de l'attaque de `YYY` vers `ZZZ`. |
+| `S` | `XXX S YYY - ZZZ` | Soutien offensif de l'attaque de `YYY` vers `ZZZ`. Si l'armée sur `YYY` est la vôtre et que ce soutien ouvre la chaîne, elle doit avoir pour ordre en cours cette attaque, sinon l'ordre est rejeté. |
 | `H` | `H XXX` | Maintien sur `XXX`. |
 | `J` | `XXX J YYY` | Jonction pacifique vers `YYY` adjacente ; **doit être le dernier ordre**. |
 | `P` | `P XXX` | Pillage de l'infrastructure de la case occupée. |
@@ -308,7 +308,10 @@ l'action annoncée.
 - **offensif** (`XXX S YYY - ZZZ`) : renforce l'attaque de `YYY` vers `ZZZ` ;
   `XXX` et `YYY` doivent chacun être adjacents à `ZZZ`, et `YYY` doit être
   l'armée qui attaque effectivement `ZZZ` (c'est le cas de FOU en section 3,
-  adjacent à la fois à ATL et à ROS).
+  adjacent à la fois à ATL et à ROS). Lorsque `YYY` est une de vos armées et
+  que ce soutien ouvre la chaîne, l'ordre est rejeté si cette armée n'a pas
+  pour ordre en cours l'attaque vers `ZZZ` ; soutenir l'armée d'un autre
+  joueur reste libre.
 
 **Cas particuliers** : une attaque ratée ne crée pas de malus supplémentaire
 — l'armée soutenue reste soumise au résultat normal du combat, et sa propre
@@ -1021,6 +1024,10 @@ dans la feuille `winter`.
   cachot) par l'armée d'un autre joueur ; `P SO AAA - BBB` : jouer Souterrain
   sur votre attaque de AAA vers BBB, qui ignore les fortifications (voir plus
   bas) ;
+- `P EM AAA BBB` : jouer Embuscade sur votre attaque de AAA vers BBB (voir
+  plus bas) ;
+- `P AS HHH NNN` : jouer Assassinat, où HHH est votre noble libre (le
+  commanditaire) et NNN un noble d'un autre joueur (voir plus bas) ;
 - `P TX BRU` : jouer la Taxe seigneuriale sur BRU, à condition que BRU soit
   la capitale d'un fief que le joueur détient (vacant compris) — c'est la
   seule exception où la cible n'est pas le village seed d'une région ;
@@ -1064,8 +1071,10 @@ mauvais temps, **{{special_orders.card.famine}}** mauvaise récolte,
 **{{special_orders.card.fair_weather}}** beau temps,
 **{{special_orders.card.abundant_harvest}}** bonne récolte,
 **{{special_orders.card.revolt}}** révolte,
-**{{special_orders.card.seigneurial_tax}}** impôts (taxe seigneuriale, taxe royale ou dîme) et
-**{{special_orders.card.tunnel}}** souterrain. La main est limitée à
+**{{special_orders.card.seigneurial_tax}}** impôts (taxe seigneuriale, taxe royale ou dîme),
+**{{special_orders.card.tunnel}}** souterrain,
+**{{special_orders.card.assassination}}** assassinat et
+**{{special_orders.card.ambush}}** embuscade. La main est limitée à
 **{{special_orders.hand_limit}} cartes**, cartes de noble et de dignité
 comprises. Après ses ordres d'hiver et ses défausses, chaque joueur reçoit
 automatiquement des cartes bonus, jusqu'à
@@ -1171,10 +1180,43 @@ ne se résout en hiver.
   refuge, l'ordre est rejeté. Seuls vous et son geôlier voyez l'évasion dans le
   rapport. **Attaque par souterrain** (`P SO AAA - BBB`) : votre armée sur AAA
   doit avoir pour ordre en cours une attaque vers BBB, sinon l'ordre est rejeté
-  et la carte conservée. Cette attaque, et elle seule, ignore les fortifications
+  et la carte conservée ; si l'armée sur AAA appartient à un autre joueur,
+  aucun ordre n'est exigé mais l'attaque doit être possible (AAA et BBB
+  adjacentes) : c'est un conseil tactique qui profite à l'attaquant s'il
+  attaque effectivement. Cette attaque, et elle seule, ignore les fortifications
   de BBB (château, cité ou village fortifié) ; les autres attaquants affrontent
   la défense normalement. Si l'attaque n'a finalement pas lieu, la carte est
-  consommée sans effet.
+  consommée sans effet ;
+- l'Embuscade (`P EM AAA BBB`) se joue au printemps, en été ou en automne,
+  gratuitement. Votre armée sur AAA doit avoir pour ordre en cours une attaque
+  vers BBB, sinon l'ordre est rejeté et la carte conservée ; si l'armée sur AAA
+  appartient à un autre joueur, aucun ordre n'est exigé mais l'attaque doit être
+  possible (AAA et BBB adjacentes). Si cette attaque est victorieuse et que l'armée défenseuse bat en retraite avec au moins un noble
+  libre, celui qui arrive en tête de la ligne de succession de son propriétaire
+  est capturé : il devient otage (ou prisonnier du cachot s'il est bâtard) de
+  l'armée attaquante, sur le territoire conquis, donc de son propriétaire. Sans victoire, sans retraite ou sans
+  noble dans l'armée en retraite, la carte est consommée sans effet.
+- l'Assassinat se joue en toute saison, hiver compris (sur la feuille d'hiver),
+  gratuitement, et sa pose est vérifiée à la soumission. `P AS HHH NNN` : HHH est un de vos nobles
+  libres (ni otage ni cachot), le **commanditaire**, et NNN un noble d'un autre
+  joueur, où qu'il soit et quel que soit son statut ; sinon l'ordre est rejeté
+  et la carte conservée. NNN meurt sans jet de dé, avant le ravitaillement et
+  les ordres d'armée (en hiver, en toute fin, après les verdicts des procès ; la
+  carte est dépensée avant le remplissage des mains), comme toute mort de noble : ses fiefs deviennent vacants,
+  ses prétentions sont réglées, la chaîne qu'il a émise ce tour est supprimée,
+  et la couronne est vacante si c'était le roi. Si plusieurs cartes visent le
+  même noble, la première est appliquée et les suivantes sont rejetées. Les
+  cartes d'un même tour se résolvent dans l'ordre : Souterrain, puis
+  Assassinat. Le rapport annonce publiquement la mort de NNN sans nommer de
+  coupable, et une rumeur signale qu'un assassinat a eu lieu. Le nom du commanditaire
+  n'est connu que de deux catégories de joueurs : celui qui a joué la carte
+  et tout joueur qui a mené une enquête (`Q`) sur NNN ou
+  sur HHH, avant ou après l'assassinat (une enquête peut viser un noble mort,
+  au coût du titre qu'il portait à sa mort). Le propriétaire de NNN apprend la mort mais pas le commanditaire, sauf s'il enquête lui aussi. Le rapport de l'enquêteur seul
+  indique alors que son enquête a révélé que HHH a commandité l'assassinat de
+  NNN, sans rumeur pour les autres. Ces joueurs voient le lien entre
+  le commanditaire et sa victime dans la vue Lignée et, pour le commanditaire,
+  dans le poste de commandement du territoire où il se trouve.
 
 Les rumeurs publiques sont recalculées dans chaque rapport à partir des
 mains bonus actuelles de tous les joueurs. Elles apparaissent lorsqu'au

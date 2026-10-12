@@ -190,6 +190,32 @@ describe('SelectedTerritoryDetails', () => {
     expect(within(noblesSection).queryByText('P2')).not.toBeInTheDocument()
   })
 
+  it('links a commissioner to its victim in the command post only when the state carries it', () => {
+    const withLink: StateData = {
+      ...state,
+      nobles: [{ ...state.nobles[0], commissioned: ['VIC'] }, state.nobles[1]],
+      deceased: [{ code: 'VIC', name: 'Victor', owner: 'P1', cause: 'assassination', turn: 1 }],
+    }
+    const renderWith = (current: StateData) =>
+      render(
+        <SelectedTerritoryDetails
+          state={current}
+          selectedTerritory={map.territories[0]}
+          selectedState={current.territories[0]}
+          selectedSupplyLine={null}
+          sourceTerritory={null}
+          supplyLoading={false}
+          supplyError={null}
+        />,
+      )
+    const { unmount } = renderWith(withLink)
+    expect(screen.getByText('Commissioned the killing of')).toBeInTheDocument()
+    expect(screen.getByTestId('assassination-victim')).toHaveTextContent('Victor (VIC)')
+    unmount()
+    renderWith(state)
+    expect(screen.queryByText('Commissioned the killing of')).not.toBeInTheDocument()
+  })
+
   it('renders the supply zone for an army-less territory', () => {
     const sourceState: StateData = {
       ...state,

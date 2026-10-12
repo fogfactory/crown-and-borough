@@ -33,6 +33,10 @@ type resolutionContext struct {
 	// winterTrials holds the two-cardinal trials filed at stage 3 and judged
 	// at the very end of the winter.
 	winterTrials []winterTrial
+	// winterAssassinations holds the assassination cards played on the winter
+	// sheets: the card is consumed before the hands are refilled (stage 8),
+	// the death is applied at stage 9, after the trial verdicts.
+	winterAssassinations []deckOrderIntent
 	// nobleDraws holds the players who already drew a noble card this winter
 	// (one draw per player per winter, specs/succession.md § Deck de nobles).
 	nobleDraws map[models.PlayerID]bool
@@ -97,6 +101,12 @@ type resolutionContext struct {
 	// fortifications of its target.
 	pendingTunnels  []deckOrderIntent
 	tunneledAttacks map[models.ArmyID]bool
+	// pendingAmbushes holds the ambush cards played on an attack, matched with
+	// the attack intents like the tunnels; ambushAttacks then holds, by
+	// attacking army, the ambush it carries (settled by settleAmbushes once the
+	// retreats are known).
+	pendingAmbushes []deckOrderIntent
+	ambushAttacks   map[models.ArmyID]deckOrderIntent
 	// taxedFiefsThisTurn holds the fiefs whose seigneurial tax successfully
 	// applied this turn (first play only, titres.md "Taxe seigneuriale"): it
 	// doubles their territory income (income.go) and widens revolt
@@ -172,6 +182,7 @@ func newResolutionContext(state *models.GameState, balance assetgen.Balance) *re
 		poolRations:           make(map[models.TerritoryID]map[models.TerritoryID]int),
 		pendingRevoltSizes:    make(map[models.TerritoryID]int),
 		tunneledAttacks:       make(map[models.ArmyID]bool),
+		ambushAttacks:         make(map[models.ArmyID]deckOrderIntent),
 		taxedFiefsThisTurn:    make(map[models.FiefID]bool),
 		pendingTaxWindowFiefs: make(map[models.FiefID]bool),
 		taxedFiefOwnerAtApply: make(map[models.FiefID]models.PlayerID),
