@@ -622,7 +622,7 @@ function AppContent() {
               <h1 className="truncate font-display text-base font-semibold tracking-tight sm:text-xl">
                 Crown &amp; Borough
               </h1>
-              <p className="hidden text-3xs uppercase tracking-[0.18em] text-ink-500 min-[420px]:block">
+              <p className="hidden text-2xs uppercase tracking-[0.18em] text-ink-500 min-[420px]:block">
                 {t('app.tagline')}
               </p>
             </div>
@@ -657,7 +657,7 @@ function AppContent() {
                   : t('app.loading')}
               </p>
               {state && (
-                <p className="text-3xs leading-tight text-ink-500">
+                <p className="text-2xs leading-tight text-ink-500">
                   {t('app.year', { year: 1000 + internalYear(state) })} ·{' '}
                   {t('app.remainingYearsTurns', {
                     years: remainingYears(state),
@@ -769,7 +769,7 @@ function AppContent() {
               <div>
                 <label
                   htmlFor="player-count"
-                  className="block text-3xs font-semibold uppercase tracking-[0.2em] text-ink-500"
+                  className="block text-2xs font-semibold uppercase tracking-[0.2em] text-ink-500"
                 >
                   {t('app.players')}
                 </label>
@@ -795,7 +795,7 @@ function AppContent() {
               <div>
                 <label
                   htmlFor="game-seed"
-                  className="block text-3xs font-semibold uppercase tracking-[0.2em] text-ink-500"
+                  className="block text-2xs font-semibold uppercase tracking-[0.2em] text-ink-500"
                 >
                   {t('app.seed')}
                 </label>
@@ -805,13 +805,13 @@ function AppContent() {
                   value={seed}
                   onChange={(event) => setSeed(event.target.value)}
                   placeholder={t('app.seedPlaceholder')}
-                  className="h-8 w-44 rounded-lg border border-line bg-paper-50 px-2.5 text-sm text-ink-900 outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20 sm:w-52"
+                  className="h-8 w-44 rounded-lg border border-line-strong bg-paper-50 px-2.5 text-sm text-ink-900 outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20 sm:w-52"
                 />
               </div>
               <div>
                 <label
                   htmlFor="game-years"
-                  className="block text-3xs font-semibold uppercase tracking-[0.2em] text-ink-500"
+                  className="block text-2xs font-semibold uppercase tracking-[0.2em] text-ink-500"
                 >
                   {t('home.gameYears')}
                 </label>
@@ -822,7 +822,7 @@ function AppContent() {
                   max={50}
                   value={years}
                   onChange={(event) => setYears(Number(event.target.value))}
-                  className="h-8 w-20 rounded-lg border border-line bg-paper-50 px-2.5 text-sm text-ink-900 outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
+                  className="h-8 w-20 rounded-lg border border-line-strong bg-paper-50 px-2.5 text-sm text-ink-900 outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
                 />
               </div>
               <Button
@@ -855,7 +855,7 @@ function AppContent() {
       </header>
 
       {view === 'game' && state?.finished && (
-        <div className="mx-auto mt-2 w-full max-w-[1800px] shrink-0 rounded-xl border border-gold-600/50 bg-gold-100/60 px-4 py-2 text-center text-sm font-semibold text-gold-800 sm:mx-6">
+        <div className="mx-auto mt-2 w-full max-w-[1800px] shrink-0 rounded-xl border border-brass-700/50 bg-brass-300/30 px-4 py-2 text-center text-sm font-semibold text-brass-700 sm:mx-6">
           {state.winner
             ? `${t('online.victory')}: ${ownerLabel(state.winner, state, t)}`
             : t('app.finished')}
@@ -871,7 +871,7 @@ function AppContent() {
               subtitle={t('app.selectedPlayer', { player: selectedPlayer })}
               reportLabelExtra={
                 report && viewedReportTurn !== report.header.turn ? (
-                  <span className="ml-1 rounded-full bg-brass-400 px-1.5 py-0.5 text-3xs text-paper-50">
+                  <span className="ml-1 rounded-full bg-brass-400 px-1.5 py-0.5 text-2xs text-ink-900">
                     {t('app.reportNew')}
                   </span>
                 ) : null

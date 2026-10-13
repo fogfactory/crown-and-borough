@@ -317,7 +317,7 @@ export function LineageDialog(props: LineageDialogProps) {
                   className={cn(
                     'rounded-md px-3 py-1 font-semibold',
                     view === key
-                      ? 'bg-brass-400 text-white'
+                      ? 'bg-brass-400 text-ink-900'
                       : 'text-ink-700 hover:bg-paper-100',
                   )}
                 >
@@ -557,9 +557,9 @@ function SimulationBar({
       fief: 'fief' in action ? action.fief : '',
     })
   return (
-    <div className="flex w-full flex-col gap-2 rounded-lg border border-gold-500/60 bg-gold-100/40 p-2 text-xs">
+    <div className="flex w-full flex-col gap-2 rounded-lg border border-brass-500/60 bg-brass-300/30 p-2 text-xs">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-semibold text-gold-850">{t('sim.banner')}</span>
+        <span className="font-semibold text-brass-700">{t('sim.banner')}</span>
         <button type="button" className={button} disabled={!canUndo} onClick={onUndo}>
           {t('sim.undo')}
         </button>
@@ -664,12 +664,12 @@ function SimulationBar({
         <p>{t('sim.hint')}</p>
       )}
       {rejection && (
-        <p role="alert" className="font-semibold text-vermilion-800">
+        <p role="alert" className="font-semibold text-vermilion-700">
           {t('sim.rejected', { reason: rejection })}
         </p>
       )}
       {failed && (
-        <p role="alert" className="font-semibold text-vermilion-800">
+        <p role="alert" className="font-semibold text-vermilion-700">
           {t('sim.failed')}
         </p>
       )}
@@ -677,7 +677,7 @@ function SimulationBar({
       {actions.length > 0 && (
         <ol className="flex flex-wrap gap-1.5" aria-label={t('sim.panel')}>
           {actions.map((action, index) => (
-            <li key={index} className="rounded-full border border-gold-500/60 bg-paper-50 px-2 py-0.5">
+            <li key={index} className="rounded-full border border-brass-500/60 bg-paper-50 px-2 py-0.5">
               {log(action)}
             </li>
           ))}
@@ -749,7 +749,7 @@ function Badge({
   return (
     <span
       className={cn(
-        'rounded border px-1 text-3xs font-semibold uppercase leading-4',
+        'rounded border px-1 text-2xs font-semibold uppercase leading-4',
         className,
       )}
       style={style}
@@ -962,7 +962,7 @@ function LineageTree({
                       key={member.code}
                       data-noble={member.code}
                       className={cn(
-                        'pointer-events-auto absolute overflow-y-auto rounded-lg border bg-paper-80 p-2 text-xs',
+                        'pointer-events-auto absolute overflow-y-auto rounded-lg border bg-paper-100 p-2 text-xs',
                         member.dead
                           ? 'border-dashed border-line/70 opacity-60'
                           : 'border-line',
@@ -972,7 +972,7 @@ function LineageTree({
                           edit.selected.code === member.code &&
                           'ring-2 ring-brass-700',
                         edit?.pending?.from === member.code &&
-                          'outline-2 outline-dashed outline-claim-600',
+                          'outline-2 outline-dashed outline-ink-700',
                       )}
                       onClick={edit ? () => edit.onNoble(member.code) : undefined}
                       style={{
@@ -1014,7 +1014,7 @@ function LineageTree({
                             className={
                               member.sex === 'female'
                                 ? 'text-brass-700'
-                                : 'text-winter-650'
+                                : 'text-winter-700'
                             }
                           >
                             {member.sex === 'female' ? '♀' : '♂'}
@@ -1029,7 +1029,7 @@ function LineageTree({
                         )}
                         {member.commissioner && (
                           <Badge
-                            className="border-vermilion-750 bg-vermilion-150 text-vermilion-900"
+                            className="border-vermilion-700 bg-vermilion-100 text-vermilion-700"
                             data-testid="assassination-commissioner"
                           >
                             {t('lineage.assassinatedBy', {
@@ -1041,7 +1041,7 @@ function LineageTree({
                         {member.commissioned.map((victim) => (
                           <Badge
                             key={`commissioned-${victim.code}`}
-                            className="border-vermilion-750 bg-vermilion-150 text-vermilion-900"
+                            className="border-vermilion-700 bg-vermilion-100 text-vermilion-700"
                             data-testid="assassination-victim"
                           >
                             {t('lineage.commissionedKilling', {
@@ -1053,7 +1053,7 @@ function LineageTree({
                         {member.religious.map((held) => (
                           <Badge
                             key={`${held.title}-${held.seat ?? ''}`}
-                            className="border-claim-650 bg-claim-100 text-claim-900"
+                            className="border-ink-700 bg-paper-100 text-ink-900"
                           >
                             {t(`lineage.religious.${held.title}` as MessageKey, {
                               seat: held.seat ?? '',
@@ -1061,7 +1061,7 @@ function LineageTree({
                           </Badge>
                         ))}
                         {member.excommunicated && (
-                          <Badge className="border-brass-700 bg-vermilion-200 text-vermilion-850">
+                          <Badge className="border-brass-700 bg-vermilion-700/30 text-vermilion-700">
                             {t('lineage.excommunicated')}
                           </Badge>
                         )}
@@ -1073,13 +1073,13 @@ function LineageTree({
                         {member.dignities.map((dignity) => (
                           <Badge
                             key={dignity}
-                            className="border-gold-600 bg-gold-100 text-gold-850"
+                            className="border-brass-700 bg-brass-300 text-ink-900"
                           >
                             {t(`dignity.${dignity}` as MessageKey)}
                           </Badge>
                         ))}
                         {member.claim?.outcome && (
-                          <Badge className="border-claim-600 text-claim-600 opacity-70">
+                          <Badge className="border-ink-700 text-ink-700 opacity-70">
                             {t(
                               member.claim.outcome === 'honoured'
                                 ? 'lineage.claimHonoured'
@@ -1090,7 +1090,7 @@ function LineageTree({
                         )}
                         {member.claim && !member.claim.outcome && (
                           <Badge
-                            className="text-white"
+                            className="text-ink-900"
                             style={{ backgroundColor: CLAIM, borderColor: CLAIM }}
                           >
                             {t('lineage.claimBadge', {
@@ -1102,7 +1102,7 @@ function LineageTree({
                           </Badge>
                         )}
                         {member.claimedBy > 0 && (
-                          <Badge className="border-claim-600 text-claim-600">
+                          <Badge className="border-ink-700 text-ink-700">
                             {t('lineage.claimedBadge', { count: member.claimedBy })}
                           </Badge>
                         )}
@@ -1110,7 +1110,7 @@ function LineageTree({
                           <Badge
                             key={link.key}
                             className={
-                              link.kind === 'secondary' ? 'text-ink-900' : 'text-white'
+                              link.kind === 'secondary' ? 'text-ink-900' : 'text-ink-900'
                             }
                             style={{
                               backgroundColor:
@@ -1222,7 +1222,7 @@ function AllianceGraph({
                 x={(a.x + b.x) / 2}
                 y={(a.y + b.y) / 2 - 6}
                 textAnchor="middle"
-                className="fill-ink-900 text-3xs font-bold"
+                className="fill-ink-900 text-2xs font-bold"
                 stroke={MAP_PAPER}
                 strokeWidth={3}
                 paintOrder="stroke"
@@ -1297,7 +1297,7 @@ function AllianceGraph({
               <li
                 key={pair.key}
                 className={cn(
-                  'rounded-lg border bg-paper-80 p-2.5 text-sm',
+                  'rounded-lg border bg-paper-100 p-2.5 text-sm',
                   focus && pair.houses.includes(focus)
                     ? 'border-ink-900'
                     : 'border-line/60',
@@ -1375,7 +1375,7 @@ function AllianceGraph({
                   {goal ? ` / ${goal.required}` : ''}
                 </span>
                 {goal && (
-                  <span className="rounded border border-gold-500 bg-gold-100 px-1.5 text-3xs font-bold uppercase text-gold-850">
+                  <span className="rounded border border-brass-500 bg-brass-300 px-1.5 text-2xs font-bold uppercase text-ink-900">
                     {t(
                       goal.mode === 'alliance' ? 'score.modeAlliance' : 'score.modeSolo',
                     )}

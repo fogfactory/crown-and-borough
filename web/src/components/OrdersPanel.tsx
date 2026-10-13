@@ -146,7 +146,7 @@ function OrderError({ error }: { error: string | null }) {
   return (
     <p
       role="alert"
-      className="rounded-md border border-vermilion-600/30 bg-vermilion-100 px-3 py-2 text-xs text-vermilion-700"
+      className="rounded-md border border-vermilion-700/30 bg-vermilion-100 px-3 py-2 text-xs text-vermilion-700"
     >
       {error}
     </p>
@@ -167,7 +167,7 @@ function PreviewErrors({
     <ul
       role="alert"
       aria-label={label}
-      className="max-h-32 list-disc space-y-1 overflow-y-auto rounded-md border border-vermilion-600/30 bg-vermilion-100 px-3 py-2 pl-7 text-xs text-vermilion-700"
+      className="max-h-32 list-disc space-y-1 overflow-y-auto rounded-md border border-vermilion-700/30 bg-vermilion-100 px-3 py-2 pl-7 text-xs text-vermilion-700"
     >
       {errors.map((error, index) => (
         <li key={`${error.line ?? 0}-${index}`}>
@@ -188,7 +188,7 @@ function CalamityWarnings({ state }: { state: StateData }) {
   return (
     <div
       role="alert"
-      className="space-y-1 rounded-md border border-vermilion-600/30 bg-vermilion-100 px-3 py-2 text-xs text-vermilion-700"
+      className="space-y-1 rounded-md border border-vermilion-700/30 bg-vermilion-100 px-3 py-2 text-xs text-vermilion-700"
     >
       <p className="font-semibold">{t('orders.calamityWarningTitle')}</p>
       <ul className="list-disc space-y-0.5 pl-4">
@@ -226,14 +226,14 @@ function DeckOrdersSection({
   const { t } = useLanguage()
   const hand = state.specialHand ?? []
   return (
-    <section className="space-y-2 rounded-lg border border-claim-300 bg-claim-50 p-3">
-      <h4 className="font-display text-base font-semibold text-claim-700">
+    <section className="space-y-2 rounded-lg border border-line bg-paper-100 p-3">
+      <h4 className="font-display text-base font-semibold text-ink-700">
         {t('orders.deckTitle')}
       </h4>
       <p className="text-xs leading-relaxed text-ink-500">
         {t('orders.deckDescription')}
       </p>
-      <p className="text-xs text-claim-700">
+      <p className="text-xs text-ink-700">
         {t('orders.deckHand')}: {formatCardHand(hand, t)}
       </p>
       <CalamityWarnings state={state} />
@@ -254,7 +254,7 @@ function DeckOrdersSection({
       <textarea
         value={specialDraft}
         onChange={(event) => onSpecialChange(event.target.value)}
-        className="min-h-20 w-full resize-y rounded-lg border border-claim-300 bg-white p-3 font-mono text-xs text-ink-900 outline-none focus:border-claim-500 focus:ring-2 focus:ring-claim-500/20"
+        className="min-h-20 w-full resize-y rounded-lg border border-line bg-paper-50 p-3 font-mono text-xs text-ink-900 outline-none focus:border-ink-700 focus:ring-2 focus:ring-ink-700/20"
         placeholder={t('orders.deckPlaceholder')}
         aria-label={t('orders.deckAria')}
       />
@@ -422,7 +422,7 @@ function NobleCardRow({
     }
   }
   return (
-    <li className="flex items-center gap-1.5 text-xs text-winter-800">
+    <li className="flex items-center gap-1.5 text-xs text-winter-700">
       {!missingOptions && (
         <OrderLauncher
           label={label}
@@ -434,7 +434,7 @@ function NobleCardRow({
         />
       )}
       {missingOptions && (
-        <span className="rounded border border-dashed border-winter-300 px-2 py-1 text-winter-600">
+        <span className="rounded border border-dashed border-winter-700/30 px-2 py-1 text-winter-700">
           {label}
         </span>
       )}
@@ -443,7 +443,7 @@ function NobleCardRow({
           type="button"
           variant="outline"
           size="icon-sm"
-          className="border-vermilion-600/50 text-vermilion-600 hover:bg-vermilion-100 hover:text-vermilion-700"
+          className="border-vermilion-700/50 text-vermilion-700 hover:bg-vermilion-100 hover:text-vermilion-700"
           disabled={used}
           aria-label={t('orders.nobleHandDiscardAria', { code: card.code })}
           title={t('orders.nobleHandDiscardAria', { code: card.code })}
@@ -506,16 +506,16 @@ function SpecialCardRow({
         ? justiceLauncher(launcherProps)
         : null
   return (
-    <li className="flex items-center gap-1.5 text-xs text-winter-800">
+    <li className="flex items-center gap-1.5 text-xs text-winter-700">
       {playButton ?? (
-        <span className="rounded border border-claim-300 bg-claim-50 px-2 py-1">{cardLabel}</span>
+        <span className="rounded border border-line bg-paper-100 px-2 py-1">{cardLabel}</span>
       )}
       {!cardsOnly && (
         <Button
           type="button"
           variant="outline"
           size="icon-sm"
-          className="border-vermilion-600/50 text-vermilion-600 hover:bg-vermilion-100 hover:text-vermilion-700"
+          className="border-vermilion-700/50 text-vermilion-700 hover:bg-vermilion-100 hover:text-vermilion-700"
           disabled={discarded >= copies}
           aria-label={t('orders.discardSpecialCard', { card })}
           title={t('orders.discardSpecialCard', { card })}
@@ -563,7 +563,7 @@ function NobleDeckSection({
     specialCount + hand.length - draftNobleDiscardCount(winterDraft) >= handLimit
   const drawDisabled = drawn || deckSize === 0 || handFull
   return (
-    <section className="space-y-2 rounded-lg border border-winter-300 bg-winter-50 p-3">
+    <section className="space-y-2 rounded-lg border border-winter-700/30 bg-winter-100 p-3">
       <h4 className="font-display text-base font-semibold text-winter-700">
         {t('orders.handTitle')}
       </h4>
@@ -587,7 +587,7 @@ function NobleDeckSection({
           })}
         </p>
       )}
-      <p className="text-xs leading-relaxed text-winter-600">
+      <p className="text-xs leading-relaxed text-winter-700">
         {t(
           cardsOnly
             ? 'orders.nobleCardsActionDescription'
@@ -605,11 +605,11 @@ function NobleDeckSection({
           >
             {t('orders.nobleDraw')}
           </Button>
-          <span className="text-xs text-winter-600">
+          <span className="text-xs text-winter-700">
             {t('orders.nobleDeckSize', { count: deckSize })}
           </span>
           {drawn && (
-            <span className="text-xs text-winter-600">{t('orders.nobleDrawUsed')}</span>
+            <span className="text-xs text-winter-700">{t('orders.nobleDrawUsed')}</span>
           )}
           {!drawn && deckSize === 0 && (
             <span className="text-xs text-vermilion-700">{t('orders.nobleDeckEmpty')}</span>
@@ -619,7 +619,7 @@ function NobleDeckSection({
           )}
         </div>
       )}
-      <p className="text-xs text-winter-600">
+      <p className="text-xs text-winter-700">
         {t('orders.handCounter', {
           count: specialCount + hand.length,
           limit: handLimit,
@@ -629,7 +629,7 @@ function NobleDeckSection({
       </p>
       <p className="text-xs font-semibold text-winter-700">{t('orders.hand')}</p>
       {hand.length === 0 && specialKinds.length === 0 ? (
-        <p className="text-xs text-winter-600">{t('orders.handEmpty')}</p>
+        <p className="text-xs text-winter-700">{t('orders.handEmpty')}</p>
       ) : (
         <ul className="space-y-1" aria-label={t('orders.hand')}>
           {specialKinds.map((kind) => (
@@ -703,11 +703,11 @@ function OpenElectionsSection({
   const lines = draftLines(winterDraft)
 
   return (
-    <section className="space-y-2 rounded-lg border border-winter-300 bg-winter-50 p-3">
+    <section className="space-y-2 rounded-lg border border-winter-700/30 bg-winter-100 p-3">
       <h4 className="font-display text-base font-semibold text-winter-700">
         {t('orders.electionsTitle')}
       </h4>
-      <p className="text-xs leading-relaxed text-winter-600">
+      <p className="text-xs leading-relaxed text-winter-700">
         {t('orders.electionsTimingNote')}
       </p>
       <TooltipProvider delayDuration={100}>
@@ -728,7 +728,7 @@ function OpenElectionsSection({
             <details
               key={`${election.kind}-${election.region ?? ''}`}
               open
-              className="rounded-md border border-winter-200 bg-white/60 px-2 py-1.5 text-xs text-winter-700"
+              className="rounded-md border border-winter-700/30 bg-paper-50 px-2 py-1.5 text-xs text-winter-700"
             >
               <summary className="cursor-pointer font-semibold">
                 {isKing
@@ -738,7 +738,7 @@ function OpenElectionsSection({
                     : t('orders.electionBishopHeading', { name, seat })}
               </summary>
               <div className="mt-1.5 space-y-1.5">
-                <p className="text-winter-600">
+                <p className="text-winter-700">
                   {isKing
                     ? t('orders.electionKingRule', { minVotes: election.minVotes ?? 0 })
                     : isPope
@@ -746,7 +746,7 @@ function OpenElectionsSection({
                       : t('orders.electionBishopRule', { seat })}
                 </p>
                 {isKing && (
-                  <p className="text-winter-600">
+                  <p className="text-winter-700">
                     {t('orders.electionKingClergy', {
                       count: election.voiceSources.filter((source) => source.title).length,
                       cardinal: election.voiceSources.some(
@@ -761,7 +761,7 @@ function OpenElectionsSection({
                   <TooltipTrigger asChild>
                     <span
                       tabIndex={0}
-                      className="inline-block cursor-help border-b border-dotted border-winter-500 font-medium"
+                      className="inline-block cursor-help border-b border-dotted border-winter-700 font-medium"
                     >
                       {t('orders.electionVoices', { voices: election.voices })}
                     </span>
@@ -847,7 +847,7 @@ function OpenElectionsSection({
                   />
                 </div>
                 {election.candidates.length === 0 && (
-                  <p className="text-winter-600">{t('orders.electionNoCandidate')}</p>
+                  <p className="text-winter-700">{t('orders.electionNoCandidate')}</p>
                 )}
               </div>
             </details>
@@ -862,8 +862,8 @@ function DeckHandSummary({ state }: { state: StateData }) {
   const { t } = useLanguage()
 
   return (
-    <section className="space-y-2 rounded-lg border border-claim-300 bg-claim-50 p-3">
-      <h4 className="font-display text-base font-semibold text-claim-700">
+    <section className="space-y-2 rounded-lg border border-line bg-paper-100 p-3">
+      <h4 className="font-display text-base font-semibold text-ink-700">
         {t('orders.deckTitle')}
       </h4>
       <p className="text-xs leading-relaxed text-ink-500">
@@ -887,7 +887,7 @@ function WinterOrderDiagnostics({
     <ul
       role="status"
       aria-label={t('orders.winterDiagnosticsAria')}
-      className="max-h-32 list-disc space-y-1 overflow-y-auto rounded-md border border-warning-500/40 bg-warning-100 px-3 py-2 pl-7 text-xs text-warning-700"
+      className="max-h-32 list-disc space-y-1 overflow-y-auto rounded-md border border-warning-700/40 bg-warning-100 px-3 py-2 pl-7 text-xs text-warning-700"
     >
       {diagnostics.map((diagnostic) => (
         <li
@@ -947,23 +947,23 @@ export function OrdersPanel({
     const winterDiagnostics = winterLines.filter((line) => line.status === 'rejected')
     const winterEstimate = preview?.winterCost ?? null
     return (
-      <section className="space-y-3 rounded-xl border border-winter-300 bg-winter-80/80 p-4 shadow-inner shadow-winter-250/40">
+      <section className="space-y-3 rounded-xl border border-winter-700/30 bg-winter-100/80 p-4 shadow-inner shadow-winter-700/40">
         <div>
           <h3 className="flex items-center gap-2 font-display text-lg font-bold text-winter-700">
-            <IconSnowflake aria-hidden="true" className="size-5 text-winter-500" />
+            <IconSnowflake aria-hidden="true" className="size-5 text-winter-700" />
             <span>{t('orders.winterTitle')}</span>
           </h3>
-          <p className="mt-1 text-xs leading-relaxed text-winter-600">
+          <p className="mt-1 text-xs leading-relaxed text-winter-700">
             {t('orders.winterDescription')}
           </p>
         </div>
         {draftDiffers?.winter && (
-          <div className="flex items-center justify-between gap-2 rounded-lg border border-gold-600/40 bg-gold-100/60 px-3 py-2 text-xs text-gold-800">
+          <div className="flex items-center justify-between gap-2 rounded-lg border border-brass-700/40 bg-brass-300/30 px-3 py-2 text-xs text-brass-700">
             <span>{t('orders.draftDiffers')}</span>
             {onRestoreFromServer && (
               <button
                 type="button"
-                className="font-semibold underline hover:text-gold-900"
+                className="font-semibold underline hover:text-brass-700"
                 onClick={() => onRestoreFromServer('winter')}
               >
                 {t('orders.restoreFromServer')}
@@ -993,7 +993,7 @@ export function OrdersPanel({
         <textarea
           value={winterDraft}
           onChange={(event) => onWinterChange(event.target.value)}
-          className="min-h-28 w-full resize-y rounded-lg border border-winter-300 bg-winter-50 p-3 font-mono text-xs text-winter-800 outline-none transition focus:border-winter-500 focus:ring-2 focus:ring-winter-500/20"
+          className="min-h-28 w-full resize-y rounded-lg border border-winter-700/30 bg-winter-100 p-3 font-mono text-xs text-winter-700 outline-none transition focus:border-winter-700 focus:ring-2 focus:ring-winter-700/20"
           placeholder={t('orders.winterPlaceholder')}
           aria-label={t('orders.winterAria', { player })}
         />
@@ -1017,7 +1017,7 @@ export function OrdersPanel({
         <Button
           type="button"
           variant="outline"
-          className="w-full border-winter-400 bg-winter-100 text-winter-750 hover:bg-winter-150 hover:text-winter-850"
+          className="w-full border-winter-700 bg-winter-100 text-winter-700 hover:bg-winter-100 hover:text-winter-700"
           disabled={submitting}
           onClick={onSubmit}
         >
@@ -1064,7 +1064,7 @@ export function OrdersPanel({
           <textarea
             value={winterDraft}
             onChange={(event) => onWinterChange(event.target.value)}
-            className="min-h-16 w-full resize-y rounded-lg border border-winter-300 bg-winter-50 p-3 font-mono text-xs text-winter-800 outline-none transition focus:border-winter-500 focus:ring-2 focus:ring-winter-500/20"
+            className="min-h-16 w-full resize-y rounded-lg border border-winter-700/30 bg-winter-100 p-3 font-mono text-xs text-winter-700 outline-none transition focus:border-winter-700 focus:ring-2 focus:ring-winter-700/20"
             placeholder={t('orders.nobleCardsPlaceholder')}
             aria-label={t('orders.nobleCardsAria', { player })}
           />
@@ -1083,7 +1083,7 @@ export function OrdersPanel({
         </>
       )}
       {nobles.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-line bg-paper-80 p-3 text-sm italic text-ink-500">
+        <p className="rounded-lg border border-dashed border-line bg-paper-100 p-3 text-sm italic text-ink-500">
           {t('orders.noNobleAvailable')}
         </p>
       ) : (
@@ -1102,12 +1102,12 @@ export function OrdersPanel({
               </span>
             </span>
             {draftDiffers?.chains?.[noble.code] && (
-              <div className="flex items-center justify-between gap-2 rounded-lg border border-gold-600/40 bg-gold-100/60 px-3 py-2 text-xs text-gold-800">
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-brass-700/40 bg-brass-300/30 px-3 py-2 text-xs text-brass-700">
                 <span>{t('orders.draftDiffers')}</span>
                 {onRestoreFromServer && (
                   <button
                     type="button"
-                    className="font-semibold underline hover:text-gold-900"
+                    className="font-semibold underline hover:text-brass-700"
                     onClick={() => onRestoreFromServer(noble.code)}
                   >
                     {t('orders.restoreFromServer')}
@@ -1119,7 +1119,7 @@ export function OrdersPanel({
               value={chainDrafts[noble.code] ?? ''}
               onChange={handleChainChange(noble)}
               disabled={noble.status === 'dungeon'}
-              className="min-h-24 w-full resize-y rounded-lg border border-line bg-paper-80 p-3 font-mono text-xs text-ink-900 outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20 disabled:cursor-not-allowed disabled:opacity-50"
+              className="min-h-24 w-full resize-y rounded-lg border border-line-strong bg-paper-50 p-3 font-mono text-xs text-ink-900 outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20 disabled:cursor-not-allowed disabled:opacity-50"
               placeholder={chainPlaceholder()}
               aria-label={t('orders.chainAria', { noble: noble.code })}
             />
@@ -1134,7 +1134,7 @@ export function OrdersPanel({
         <p className="text-xs text-success-700">{t('orders.submittedEditable')}</p>
       )}
       {!hasEmittingNoble && (
-        <p className="rounded-lg border border-dashed border-line bg-paper-80 p-3 text-sm italic text-ink-500">
+        <p className="rounded-lg border border-dashed border-line bg-paper-100 p-3 text-sm italic text-ink-500">
           {t('orders.noEmittingNoble')}
         </p>
       )}

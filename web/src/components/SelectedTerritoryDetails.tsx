@@ -90,7 +90,7 @@ export function SelectedTerritoryDetails({
 
   if (!state || !selectedTerritory) {
     return (
-      <div className="flex min-h-24 items-center justify-center rounded-lg border border-dashed border-line bg-paper-80 px-6 text-center">
+      <div className="flex min-h-24 items-center justify-center rounded-lg border border-dashed border-line bg-paper-100 px-6 text-center">
         <p className="font-display text-base italic text-ink-500">
           {t('app.selectTerritory')}
         </p>
@@ -149,19 +149,19 @@ export function SelectedTerritoryDetails({
           {selectedTerritory.name}
         </h2>
         {selectedCapitalPlayer && (
-          <p className="mt-2 inline-flex items-center rounded-full border border-gold-600/40 bg-gold-100/60 px-2.5 py-1 text-xs font-semibold text-gold-800">
+          <p className="mt-2 inline-flex items-center rounded-full border border-brass-700/40 bg-brass-300/30 px-2.5 py-1 text-xs font-semibold text-brass-700">
             {t('app.capitalOf', {
               player: displayOwner(selectedCapitalPlayer.id, selectedCapitalPlayer.name),
             })}
           </p>
         )}
         {isFiefCapital && (
-          <p className="mt-2 ml-2 inline-flex items-center rounded-full border border-vermilion-600/40 bg-vermilion-225/60 px-2.5 py-1 text-xs font-semibold text-vermilion-700">
+          <p className="mt-2 ml-2 inline-flex items-center rounded-full border border-vermilion-700/40 bg-vermilion-100/60 px-2.5 py-1 text-xs font-semibold text-vermilion-700">
             {t('app.cityBonus')}
           </p>
         )}
         {occupied && (
-          <p className="mt-2 ml-2 inline-flex items-center rounded-full border border-vermilion-600/40 bg-vermilion-225/60 px-2.5 py-1 text-xs font-semibold text-vermilion-700">
+          <p className="mt-2 ml-2 inline-flex items-center rounded-full border border-vermilion-700/40 bg-vermilion-100/60 px-2.5 py-1 text-xs font-semibold text-vermilion-700">
             {t('app.occupiedBy', {
               player: displayOwner(
                 selectedState?.army?.owner,
@@ -182,7 +182,7 @@ export function SelectedTerritoryDetails({
             <dt className="text-ink-500">{t('app.region')}</dt>
             <dd className="font-medium">
               <span>{selectedRegion.seed}</span>
-              <span className="ml-2 text-xs font-semibold text-claim-700">
+              <span className="ml-2 text-xs font-semibold text-ink-700">
                 {t('app.regionSeedLabel', { seed: selectedRegion.seed })}
               </span>
             </dd>
@@ -313,7 +313,7 @@ export function SelectedTerritoryDetails({
                             {religious.map((held) => (
                               <span
                                 key={`${held.title}-${held.seat ?? ''}`}
-                                className="rounded bg-claim-100 px-1.5 py-0.5 text-3xs uppercase tracking-wide"
+                                className="rounded bg-paper-100 px-1.5 py-0.5 text-2xs uppercase tracking-wide"
                               >
                                 {t(`lineage.religious.${held.title}` as MessageKey, {
                                   seat: held.seat ?? '',
@@ -321,14 +321,14 @@ export function SelectedTerritoryDetails({
                               </span>
                             ))}
                             {excommunicated && (
-                              <span className="rounded bg-vermilion-200 px-1.5 py-0.5 text-3xs uppercase tracking-wide text-vermilion-850">
+                              <span className="rounded bg-vermilion-700/30 px-1.5 py-0.5 text-2xs uppercase tracking-wide text-vermilion-700">
                                 {t('lineage.excommunicated')}
                               </span>
                             )}
                             {fiefTitles.map((fief) => (
                               <span
                                 key={fief.capital}
-                                className="rounded bg-paper-250 px-1.5 py-0.5 text-3xs uppercase tracking-wide"
+                                className="rounded bg-paper-300 px-1.5 py-0.5 text-2xs uppercase tracking-wide"
                               >
                                 {t(FIEF_TITLE_KEYS[fief.title])} · {fief.capital}
                               </span>
@@ -344,7 +344,7 @@ export function SelectedTerritoryDetails({
                           {noble.dignities.map((dignity) => (
                             <span
                               key={dignity}
-                              className="rounded bg-paper-250 px-1.5 py-0.5 text-3xs uppercase tracking-wide"
+                              className="rounded bg-paper-300 px-1.5 py-0.5 text-2xs uppercase tracking-wide"
                             >
                               {t(`dignity.${dignity}` as MessageKey)}
                             </span>
@@ -364,7 +364,7 @@ export function SelectedTerritoryDetails({
                       <>
                         <dt>{t('app.commissionedKilling')}</dt>
                         <dd
-                          className="font-medium text-vermilion-900"
+                          className="font-medium text-vermilion-700"
                           data-testid="assassination-victim"
                         >
                           {noble.commissioned
@@ -465,7 +465,7 @@ export function SelectedTerritoryDetails({
                               <li
                                 key={`${order.type}-${order.position}-${index}`}
                                 aria-current={current ? 'step' : undefined}
-                                className={`rounded-md border px-2 py-1.5 ${current ? 'border-vermilion-600/60 bg-vermilion-100 text-vermilion-700' : 'border-line/40 bg-paper-50'}`}
+                                className={`rounded-md border px-2 py-1.5 ${current ? 'border-vermilion-700/60 bg-vermilion-100 text-vermilion-700' : 'border-line/40 bg-paper-50'}`}
                               >
                                 <span className="mr-1.5 font-semibold">{index + 1}.</span>
                                 <span>{formatOrderLabel(order)}</span>
@@ -604,7 +604,7 @@ export function SelectedTerritoryDetails({
                     aria-label={t('app.transferTarget')}
                     value={selectedTransferTarget ?? transferTargets[0]}
                     onChange={(event) => onTransferTargetChange(event.target.value)}
-                    className="mt-1 w-full rounded-md border border-line bg-paper-50 px-2 py-1.5 text-xs text-ink-900 outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
+                    className="mt-1 w-full rounded-md border border-line-strong bg-paper-50 px-2 py-1.5 text-xs text-ink-900 outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
                   >
                     {transferTargets.map((target) => (
                       <option key={target} value={target}>
@@ -683,7 +683,7 @@ export function SelectedTerritoryDetails({
                       <span className="flex min-w-0 items-center gap-2 font-medium">
                         <span>{t(INFRASTRUCTURE_LABEL_KEYS[infrastructure.type])}</span>
                         {infrastructure.type === 'castle' && selectedCapitalPlayer && (
-                          <span className="shrink-0 rounded-full bg-gold-100 px-1.5 py-0.5 text-3xs font-bold uppercase tracking-wide text-gold-800">
+                          <span className="shrink-0 rounded-full bg-brass-300 px-1.5 py-0.5 text-2xs font-bold uppercase tracking-wide text-ink-900">
                             {t('app.capital')}
                           </span>
                         )}

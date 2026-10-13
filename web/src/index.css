@@ -1,141 +1,77 @@
 @import 'tailwindcss';
-@import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
-@import '@fontsource-variable/geist';
-
-@custom-variant dark (&:is(.dark *));
+@import '@fontsource-variable/cinzel/wght.css';
+@import '@fontsource-variable/alegreya/wght.css';
+@import '@fontsource-variable/alegreya/wght-italic.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
 
 /*
- * Theme tokens (specs/charte-graphique.md, principle 5). Names follow the
- * graphic charter; values are still the current interface's so that phase 2
- * changes nothing visible. Intermediate steps (paper-60, vermilion-150...)
- * hold shades the charter merges: phase 3 retargets the values and folds them.
- * Components never write hex values: they use these tokens, and SVG rendering
- * data lives in src/lib/map-palette.ts.
+ * Theme tokens (specs/charte-graphique.md, principle 5): names and values
+ * follow the graphic charter. Components never write hex values: they use
+ * these tokens, and SVG rendering data lives in src/lib/map-palette.ts.
  */
-@theme {
-  --font-display: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
+@theme static {
+  --font-display: 'Cinzel Variable', ui-serif, Georgia, serif;
+  --font-sans: 'Alegreya Variable', ui-serif, Georgia, serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
-  --text-3xs: 10px;
   --text-2xs: 11px;
+  --text-2xs--line-height: 14px;
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+  --text-sm: 14px;
+  --text-sm--line-height: 20px;
+  --text-base: 16px;
+  --text-base--line-height: 24px;
+  --text-lg: 18px;
+  --text-lg--line-height: 24px;
+  --text-xl: 22px;
+  --text-xl--line-height: 28px;
+  --text-2xl: 28px;
+  --text-2xl--line-height: 34px;
+  --text-3xl: 36px;
+  --text-3xl--line-height: 42px;
 
-  --shadow-panel: 0 18px 50px -30px rgba(67, 46, 24, 0.7);
-  --shadow-panel-strong: 0 18px 50px -30px rgba(67, 46, 24, 0.9);
-  --shadow-sheet: 0 -12px 40px -20px rgba(67, 46, 24, 0.6);
+  --shadow-panel: 0 8px 24px -12px rgba(48, 41, 31, 0.4);
+  --shadow-panel-strong: var(--shadow-panel);
+  --shadow-sheet: var(--shadow-panel);
 
   /* Papers */
-  --color-paper-50: #fffaf0;
-  --color-paper-60: #fff8e7;
-  --color-paper-70: #fbf3df;
-  --color-paper-80: #f8f0e2;
+  --color-paper-50: #fbf7ee;
   --color-paper-100: #f3ead9;
   --color-paper-200: #efe7d8;
-  --color-paper-250: #e8d9b8;
   --color-paper-300: #e6d8bb;
+  --color-paper-map: #f1e6cb;
 
   /* Inks */
-  --color-ink-950: #17120f;
   --color-ink-900: #30291f;
   --color-ink-700: #594b3c;
-  --color-ink-500: #806f57;
+  --color-ink-500: #74644d;
 
   /* Rules */
-  --color-line-strong: #9a8f7c;
+  --color-line-strong: #8f7d5c;
   --color-line: #b7a786;
-  --color-line-soft: #c9b688;
-  --color-line-faint: #d4c4b0;
+  --color-line-soft: #d9cfba;
 
   /* Brass: action (primary button, active tab, links, focus, selection) */
-  --color-brass-400: #a84632;
-  --color-brass-700: #a84632;
+  --color-brass-300: #e2c47a;
+  --color-brass-400: #c9a24a;
+  --color-brass-500: #b8923f;
+  --color-brass-700: #7d5a1c;
 
-  /* Gold: crowns, notices, major victory */
-  --color-gold-100: #f8e8ae;
-  --color-gold-500: #b8860b;
-  --color-gold-600: #815f1e;
-  --color-gold-700: #7a5a20;
-  --color-gold-800: #6d5118;
-  --color-gold-850: #6b4e0a;
-  --color-gold-900: #4a360f;
-
-  /* Vermilion: errors and destructive actions */
-  --color-vermilion-50: #fff5f0;
-  --color-vermilion-100: #f8e5dd;
-  --color-vermilion-150: #f8e6e6;
-  --color-vermilion-200: #f8dcd5;
-  --color-vermilion-225: #f8dcd4;
-  --color-vermilion-250: #f4d9d2;
-  --color-vermilion-300: #e4b4a4;
-  --color-vermilion-600: #a84632;
-  --color-vermilion-700: #8d321e;
-  --color-vermilion-750: #8a2f2f;
-  --color-vermilion-800: #7a2b1c;
-  --color-vermilion-850: #7a2a1a;
-  --color-vermilion-900: #6b2020;
-
-  /* Warning: non-blocking diagnostics */
-  --color-warning-100: #fdf0e3;
-  --color-warning-150: #fdecd9;
-  --color-warning-500: #e07a30;
-  --color-warning-600: #a8541a;
+  /* Status colors */
+  --color-vermilion-700: #a4301c;
+  --color-vermilion-100: #f6e1d6;
   --color-warning-700: #8a5216;
-
-  /* Success */
-  --color-success-100: #e8f1e3;
-  --color-success-600: #2f6f3f;
+  --color-warning-100: #fbeedd;
   --color-success-700: #376341;
-
-  /* Winter and order sheets */
-  --color-winter-50: #f7fbff;
-  --color-winter-75: #eef3f7;
-  --color-winter-80: #eaf3ff;
-  --color-winter-100: #d8ebfa;
-  --color-winter-150: #c8e1f2;
-  --color-winter-200: #c9dcea;
-  --color-winter-250: #b8d3e8;
-  --color-winter-300: #9bbbd3;
-  --color-winter-400: #6f9fc1;
-  --color-winter-500: #5c94bd;
-  --color-winter-600: #55738a;
-  --color-winter-650: #2f6f9f;
   --color-winter-700: #2c5b7d;
-  --color-winter-750: #244c68;
-  --color-winter-800: #263f52;
-  --color-winter-850: #1d3e56;
-  --color-winter-900: #1f3a4d;
-
-  /* Claim: titles, claims and the Church */
-  --color-claim-50: #fbf5ff;
-  --color-claim-100: #efe6f8;
-  --color-claim-300: #c8b0d9;
-  --color-claim-500: #8a5ba6;
-  --color-claim-600: #7a4fa3;
-  --color-claim-650: #6b4f8a;
-  --color-claim-700: #684b7d;
-  --color-claim-900: #4d3569;
-
-  /* Steel: minor victory */
-  --color-steel-100: #e4e7ea;
-  --color-steel-400: #8a929b;
-  --color-steel-700: #3f464d;
+  --color-winter-100: #eaf1f7;
 }
 
 @theme inline {
-  --font-heading: var(--font-sans);
-  --font-sans: 'Geist Variable', sans-serif;
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
+  --font-heading: var(--font-display);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -154,92 +90,58 @@
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 4px;
+  --radius-xl: 6px;
+  --radius-2xl: 6px;
+  --radius-3xl: 6px;
+  --radius-4xl: 6px;
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: var(--color-paper-200);
+  --foreground: var(--color-ink-900);
+  --card: var(--color-paper-50);
+  --card-foreground: var(--color-ink-900);
+  --popover: var(--color-paper-50);
+  --popover-foreground: var(--color-ink-900);
+  --primary: var(--color-brass-400);
+  --primary-foreground: var(--color-ink-900);
+  --secondary: var(--color-paper-100);
+  --secondary-foreground: var(--color-ink-900);
+  --muted: var(--color-paper-100);
+  --muted-foreground: var(--color-ink-500);
+  --accent: var(--color-paper-100);
+  --accent-foreground: var(--color-ink-900);
+  --destructive: var(--color-vermilion-700);
+  --border: var(--color-line);
+  --input: var(--color-line-strong);
+  --ring: var(--color-brass-700);
+  --radius: 0.25rem;
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
   body {
     @apply bg-background text-foreground;
   }
   html {
     @apply font-sans;
+    font-variant-numeric: lining-nums;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
   }
 }

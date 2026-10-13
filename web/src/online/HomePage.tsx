@@ -98,7 +98,7 @@ function GameCard({ game }: { game: GameSummary }) {
               {t('home.seed')}: {game.seed || '-'}
             </p>
           </div>
-          <span className="rounded-full border border-success-700/30 bg-success-100 px-2 py-1 text-3xs font-semibold uppercase tracking-[0.12em] text-success-700">
+          <span className="rounded-full border border-success-700/30 bg-paper-100 px-2 py-1 text-2xs font-semibold uppercase tracking-[0.12em] text-success-700">
             {game.status === 'finished'
               ? t('home.statusFinished')
               : t('home.statusPlaying')}
@@ -123,14 +123,14 @@ function GameCard({ game }: { game: GameSummary }) {
               <span className="shrink-0 font-semibold text-brass-700">
                 {game.scores?.[player.id]?.total ?? 0}
               </span>
-              <span className="shrink-0 text-3xs uppercase tracking-[0.08em] text-ink-500">
+              <span className="shrink-0 text-2xs uppercase tracking-[0.08em] text-ink-500">
                 {player.submitted ? t('home.submitted') : t('home.notSubmitted')}
               </span>
             </li>
           ))}
         </ul>
         {game.winner && (
-          <p className="rounded-md border border-gold-600/40 bg-gold-100/60 px-3 py-2 text-sm font-semibold text-gold-800">
+          <p className="rounded-md border border-brass-700/40 bg-brass-300/30 px-3 py-2 text-sm font-semibold text-brass-700">
             {t('online.victory')}:{' '}
             {game.players.find((player) => player.id === game.winner)?.name ??
               game.winner}
@@ -215,7 +215,7 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
           value={name}
           onChange={(event) => setName(event.target.value)}
           placeholder={t('home.gameNamePlaceholder')}
-          className="h-10 w-full rounded-lg border border-line bg-paper-80 px-3 text-sm outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
+          className="h-10 w-full rounded-lg border border-line-strong bg-paper-50 px-3 text-sm outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
         />
       </label>
       <div className="grid gap-4 sm:grid-cols-[1fr_auto_auto]">
@@ -226,7 +226,7 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
             value={seed}
             onChange={(event) => setSeed(event.target.value)}
             placeholder={t('home.seedPlaceholder')}
-            className="h-10 w-full rounded-lg border border-line bg-paper-80 px-3 text-sm outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
+            className="h-10 w-full rounded-lg border border-line-strong bg-paper-50 px-3 text-sm outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
           />
         </label>
         <label className="block space-y-1.5">
@@ -236,7 +236,7 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
           <select
             value={players}
             onChange={(event) => setPlayers(Number(event.target.value))}
-            className="h-10 rounded-lg border border-line bg-paper-80 px-3 text-sm outline-none focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
+            className="h-10 rounded-lg border border-line-strong bg-paper-50 px-3 text-sm outline-none focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
           >
             {Array.from({ length: 7 }, (_, index) => index + 2).map((count) => (
               <option key={count} value={count}>
@@ -255,13 +255,13 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
             max={50}
             value={years}
             onChange={(event) => setYears(Number(event.target.value))}
-            className="h-10 w-24 rounded-lg border border-line bg-paper-80 px-3 text-sm outline-none focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
+            className="h-10 w-24 rounded-lg border border-line-strong bg-paper-50 px-3 text-sm outline-none focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
           />
         </label>
       </div>
       <label
         htmlFor="observe-only"
-        className="flex items-start gap-3 rounded-lg border border-line/70 bg-paper-80 px-3 py-3 text-sm"
+        className="flex items-start gap-3 rounded-lg border border-line/70 bg-paper-100 px-3 py-3 text-sm"
       >
         <input
           id="observe-only"
@@ -282,7 +282,7 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
       {error && (
         <p
           role="alert"
-          className="rounded-lg border border-vermilion-600/30 bg-vermilion-100 px-3 py-2 text-sm text-vermilion-700"
+          className="rounded-lg border border-vermilion-700/30 bg-vermilion-100 px-3 py-2 text-sm text-vermilion-700"
         >
           {error}
         </p>
@@ -303,7 +303,7 @@ function InvitationCard({ invitation }: { invitation: Invitation }) {
   }
 
   return (
-    <Card className="border-gold-600/50 bg-paper-50 shadow-panel">
+    <Card className="border-brass-700/50 bg-paper-50 shadow-panel">
       <CardHeader>
         <CardTitle className="font-display text-2xl text-ink-900">
           {t('home.invitationTitle')}
@@ -337,7 +337,7 @@ function InvitationCard({ invitation }: { invitation: Invitation }) {
               readOnly
               value={invitation.inviteUrl}
               aria-label={t('home.invitationLink')}
-              className="min-w-0 flex-1 rounded-md border border-line bg-paper-80 px-3 py-2 text-xs"
+              className="min-w-0 flex-1 rounded-md border border-line bg-paper-100 px-3 py-2 text-xs"
             />
             <Button
               type="button"
@@ -448,7 +448,7 @@ export function HomePage() {
       {combinedError && (
         <p
           role="alert"
-          className="rounded-lg border border-vermilion-600/30 bg-vermilion-100 px-3 py-2 text-sm text-vermilion-700"
+          className="rounded-lg border border-vermilion-700/30 bg-vermilion-100 px-3 py-2 text-sm text-vermilion-700"
         >
           {combinedError}
         </p>
@@ -458,7 +458,7 @@ export function HomePage() {
           {t('online.loading')}
         </p>
       ) : games.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-line bg-paper-80 px-6 py-16 text-center">
+        <div className="rounded-xl border border-dashed border-line bg-paper-100 px-6 py-16 text-center">
           <p className="font-display text-lg italic text-ink-500">{t('home.empty')}</p>
         </div>
       ) : (

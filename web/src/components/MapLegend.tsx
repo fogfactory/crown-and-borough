@@ -220,7 +220,7 @@ export function MapLegend({
             />
             <span className="flex min-w-0 flex-col gap-0.5">
               <span className="font-semibold">{t('legend.intentions')}</span>
-              <span className="text-3xs text-ink-500">{t('legend.intentionsHint')}</span>
+              <span className="text-2xs text-ink-500">{t('legend.intentionsHint')}</span>
             </span>
           </label>
         )}
@@ -236,7 +236,7 @@ export function MapLegend({
           </label>
         )}
         {onToggleRegions && (
-          <label className="flex items-center gap-2 rounded-md bg-winter-75 px-2 py-1.5">
+          <label className="flex items-center gap-2 rounded-md bg-winter-100 px-2 py-1.5">
             <input
               type="checkbox"
               checked={showRegions}
@@ -267,14 +267,14 @@ export function MapLegend({
         )}
         {onToggleRegions && (
           <div
-            className="flex flex-wrap gap-1.5 rounded-md bg-winter-75 px-2 py-1.5"
+            className="flex flex-wrap gap-1.5 rounded-md bg-winter-100 px-2 py-1.5"
             data-region-swatches
           >
             {HERALDIC_COLORS.map((color, index) => (
               <span
                 key={`region-color-${index}`}
                 data-region-color={index}
-                className="size-4 rounded-sm border border-winter-900/40"
+                className="size-4 rounded-sm border border-winter-700/40"
                 style={{ backgroundColor: color }}
               />
             ))}
@@ -296,7 +296,7 @@ export function MapLegend({
             <span>{t('legend.castle')}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="size-3 shrink-0 rounded-full border-2 border-paper-60 bg-brass-400" />
+            <span className="size-3 shrink-0 rounded-full border-2 border-paper-50 bg-brass-400" />
             <span>{t('legend.army')}</span>
           </div>
           <div className="flex items-center gap-2">

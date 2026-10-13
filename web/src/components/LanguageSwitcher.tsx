@@ -14,7 +14,7 @@ export function LanguageSwitcher() {
           key={option}
           type="button"
           aria-pressed={language === option}
-          className={`rounded-md px-2 py-1 text-3xs font-bold uppercase tracking-[0.12em] transition ${language === option ? 'bg-paper-50 text-brass-700 shadow-sm' : 'text-ink-500 hover:text-ink-900'}`}
+          className={`rounded-md px-2 py-1 text-2xs font-bold uppercase tracking-[0.12em] transition ${language === option ? 'bg-paper-50 text-brass-700 shadow-sm' : 'text-ink-500 hover:text-ink-900'}`}
           onClick={() => setLanguage(option)}
         >
           {option}

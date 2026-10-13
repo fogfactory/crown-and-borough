@@ -12,7 +12,7 @@ export function VersionBadge() {
 
   return (
     <span
-      className="block font-mono text-3xs text-ink-500"
+      className="block font-mono text-2xs text-ink-500"
       title={t('app.versionTitle', { version })}
     >
       {t('app.version', { version })}

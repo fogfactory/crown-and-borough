@@ -43,7 +43,7 @@ function OnlineHeader() {
             <span className="block font-display text-base font-semibold tracking-tight sm:text-xl">
               Crown &amp; Borough
             </span>
-            <span className="hidden text-3xs uppercase tracking-[0.18em] text-ink-500 min-[420px]:block">
+            <span className="hidden text-2xs uppercase tracking-[0.18em] text-ink-500 min-[420px]:block">
               {t('app.tagline')}
             </span>
             <VersionBadge />

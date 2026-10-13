@@ -46,7 +46,7 @@ export function FaqPanel({ showHeading = true }: { showHeading?: boolean }) {
           <details
             key={entry.question}
             open
-            className="group rounded-xl border border-line/70 bg-paper-80 px-4 py-3 shadow-sm sm:px-5"
+            className="group rounded-xl border border-line/70 bg-paper-100 px-4 py-3 shadow-sm sm:px-5"
           >
             <summary className="cursor-pointer list-none pr-7 font-display text-base font-semibold text-ink-900 marker:hidden group-open:text-brass-700 [&::-webkit-details-marker]:hidden">
               <span className="relative block after:absolute after:right-0 after:top-1/2 after:size-2 after:-translate-y-1/2 after:rotate-45 after:border-r-2 after:border-t-2 after:border-brass-700 after:transition-transform group-open:after:rotate-[135deg]">

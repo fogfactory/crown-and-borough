@@ -117,7 +117,7 @@ export function RulesPanel({
     <section aria-label={t('app.rules')} className="min-w-0">
       <div className="mb-4 flex items-start justify-between gap-3">
         <p className="text-xs leading-relaxed text-ink-500">{t('rules.reference')}</p>
-        <span className="shrink-0 rounded-md border border-line bg-paper-100 px-2 py-1 text-3xs font-bold uppercase tracking-[0.14em] text-ink-500">
+        <span className="shrink-0 rounded-md border border-line bg-paper-100 px-2 py-1 text-2xs font-bold uppercase tracking-[0.14em] text-ink-500">
           {language.toUpperCase()}
         </span>
       </div>
@@ -125,7 +125,7 @@ export function RulesPanel({
       {error ? (
         <p
           role="alert"
-          className="rounded-lg border border-vermilion-600/30 bg-vermilion-100 px-3 py-3 text-sm text-vermilion-700"
+          className="rounded-lg border border-vermilion-700/30 bg-vermilion-100 px-3 py-3 text-sm text-vermilion-700"
         >
           {error}
         </p>
@@ -167,7 +167,7 @@ export function RulesPanel({
               ),
               li: ({ children }) => <li className="pl-1">{children}</li>,
               blockquote: ({ children }) => (
-                <blockquote className="mt-3 border-l-4 border-brass-700/50 bg-paper-80 px-3 py-2 italic text-ink-500">
+                <blockquote className="mt-3 border-l-4 border-brass-700/50 bg-paper-100 px-3 py-2 italic text-ink-500">
                   {children}
                 </blockquote>
               ),
@@ -218,7 +218,7 @@ export function RulesPanel({
           </ReactMarkdown>
         </div>
       ) : (
-        <p className="rounded-lg border border-dashed border-line bg-paper-80 px-3 py-4 text-sm italic text-ink-500">
+        <p className="rounded-lg border border-dashed border-line bg-paper-100 px-3 py-4 text-sm italic text-ink-500">
           {t('rules.loading')}
         </p>
       )}

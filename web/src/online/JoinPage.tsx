@@ -93,7 +93,7 @@ export function JoinPage() {
           <>
             <p
               role="alert"
-              className="rounded-lg border border-vermilion-600/30 bg-vermilion-100 px-3 py-3 text-sm text-vermilion-700"
+              className="rounded-lg border border-vermilion-700/30 bg-vermilion-100 px-3 py-3 text-sm text-vermilion-700"
             >
               {error}
             </p>

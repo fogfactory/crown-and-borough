@@ -71,16 +71,16 @@ export function GameSetupMenu({
         <Popover.Content
           align="end"
           sideOffset={8}
-          className="z-50 w-64 rounded-xl border border-line bg-paper-50 p-4 shadow-panel-strong data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95"
+          className="z-50 w-64 rounded-xl border border-line bg-paper-50 p-4 shadow-panel-strong"
         >
-          <p className="mb-3 text-3xs font-semibold uppercase tracking-[0.2em] text-ink-500">
+          <p className="mb-3 text-2xs font-semibold uppercase tracking-[0.2em] text-ink-500">
             {t('app.gameSetup')}
           </p>
           <div className="space-y-3">
             <div>
               <label
                 htmlFor="setup-player-count"
-                className="block text-3xs font-semibold uppercase tracking-[0.2em] text-ink-500"
+                className="block text-2xs font-semibold uppercase tracking-[0.2em] text-ink-500"
               >
                 {t('app.players')}
               </label>
@@ -106,7 +106,7 @@ export function GameSetupMenu({
             <div>
               <label
                 htmlFor="setup-game-seed"
-                className="block text-3xs font-semibold uppercase tracking-[0.2em] text-ink-500"
+                className="block text-2xs font-semibold uppercase tracking-[0.2em] text-ink-500"
               >
                 {t('app.seed')}
               </label>
@@ -116,13 +116,13 @@ export function GameSetupMenu({
                 value={seed}
                 onChange={(event) => onSeedChange(event.target.value)}
                 placeholder={t('app.seedPlaceholder')}
-                className="mt-1 h-8 w-full rounded-lg border border-line bg-paper-50 px-2.5 text-sm text-ink-900 outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
+                className="mt-1 h-8 w-full rounded-lg border border-line-strong bg-paper-50 px-2.5 text-sm text-ink-900 outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
               />
             </div>
             <div>
               <label
                 htmlFor="setup-game-years"
-                className="block text-3xs font-semibold uppercase tracking-[0.2em] text-ink-500"
+                className="block text-2xs font-semibold uppercase tracking-[0.2em] text-ink-500"
               >
                 {t('home.gameYears')}
               </label>
@@ -133,7 +133,7 @@ export function GameSetupMenu({
                 max={50}
                 value={years}
                 onChange={(event) => onYearsChange(Number(event.target.value))}
-                className="mt-1 h-8 w-full rounded-lg border border-line bg-paper-50 px-2.5 text-sm text-ink-900 outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
+                className="mt-1 h-8 w-full rounded-lg border border-line-strong bg-paper-50 px-2.5 text-sm text-ink-900 outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
               />
             </div>
             <Button
@@ -150,7 +150,7 @@ export function GameSetupMenu({
             {createError && (
               <p
                 role="alert"
-                className="rounded-md border border-vermilion-600/30 bg-vermilion-100 px-2 py-1 text-xs text-vermilion-700"
+                className="rounded-md border border-vermilion-700/30 bg-vermilion-100 px-2 py-1 text-xs text-vermilion-700"
               >
                 {createError}
               </p>
