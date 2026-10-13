@@ -1,5 +1,6 @@
 import { hashSeed, mulberry32 } from '@/lib/chaotic-icons'
 import { centroid } from '@/lib/map-svg-geometry'
+import { polygonContains } from '@/lib/region-geometry'
 import type { Point, Terrain, Territory } from '@/types'
 
 /** Spacing between two terrain symbols, in map units (graphic charter). */
@@ -24,22 +25,6 @@ export interface TerrainSymbolPlacement {
   y: number
   /** Size multiplier around 1, so the scatter never reads as a grid. */
   scale: number
-}
-
-function insidePolygon([x, y]: Point, points: Point[]): boolean {
-  let inside = false
-  for (
-    let index = 0, previous = points.length - 1;
-    index < points.length;
-    previous = index++
-  ) {
-    const [xi, yi] = points[index]
-    const [xj, yj] = points[previous]
-    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) {
-      inside = !inside
-    }
-  }
-  return inside
 }
 
 function distanceToSegment([x, y]: Point, [ax, ay]: Point, [bx, by]: Point): number {
@@ -107,7 +92,7 @@ export function terrainSymbolPlacements(
         ((point[0] - centerX) / radiusX) ** 2 + ((point[1] - centerY) / radiusY) ** 2
       if (
         ellipse < 1 ||
-        !insidePolygon(point, points) ||
+        !polygonContains(points, point) ||
         distanceToBoundary(point, points) < clearance
       ) {
         continue

@@ -65,8 +65,8 @@ export const HERALDIC_TEXT_COLORS = [
   '#6b617e',
   '#536c5a',
 ] as const
-/** Fill of a region with no assigned heraldic color. */
-export const DEFAULT_REGION_COLOR = '#5f7d8c'
+/** Fill of a region with no assigned tint: `line-strong`, outside the tints. */
+export const DEFAULT_REGION_COLOR = '#8f7d5c'
 
 // Seasons
 

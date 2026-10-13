@@ -2,18 +2,36 @@ import { useLanguage } from '@/i18n/LanguageContext'
 import { formatCardCode, formatCardLabel } from '@/lib/card-hand'
 import { centroid, regionRingPath } from '@/lib/map-svg-geometry'
 import type { RegionStyle } from '@/lib/region-color'
-import { fitLabelFontSize, type RegionOutlineResult } from '@/lib/region-geometry'
+import type { RegionOutlineResult } from '@/lib/region-geometry'
 import { REGION_BAND_MARGIN, type RegionBand } from '@/lib/region-layout'
 import type { ActiveRegionEffect, CardKind, Point, Region, Territory } from '@/types'
 import { DEFAULT_REGION_COLOR, FRAME_RULE, MAP_INK, MAP_PAPER } from '@/lib/map-palette'
 
-/** Width of the liseré hugging each region boundary, in map units. */
+/** Width of the tinted edging along each region boundary, in map units. */
 const REGION_BORDER_WIDTH = 10
 const REGION_BORDER_OPACITY = 0.5
 /** Inset of the brass rule inside the frame's outer ink rule, in map units. */
 const FRAME_RULE_INSET = 3.5
 
 const CALAMITY_KINDS: CardKind[] = ['plague', 'bad_weather', 'famine']
+
+/** Glyph advance and letter spacing of the capitals, as a share of the font size. */
+const CARTOUCHE_CHAR_WIDTH = 0.74
+const CARTOUCHE_LETTER_SPACING = 0.12
+/** Side padding of the cartouche, in font sizes. */
+const CARTOUCHE_PADDING = 1.4
+
+function cartoucheWidth(label: string, fontSize: number): number {
+  return (
+    label.length * fontSize * (CARTOUCHE_CHAR_WIDTH + CARTOUCHE_LETTER_SPACING) +
+    fontSize * CARTOUCHE_PADDING
+  )
+}
+
+/** Largest font size, up to `base`, whose cartouche fits in `maxWidth`. */
+function fitCartoucheFontSize(label: string, maxWidth: number, base = 9): number {
+  return Math.min(base, maxWidth / cartoucheWidth(label, 1))
+}
 
 /** A bishopric's name in a paper cartouche with an ink rule. */
 function RegionCartouche({
@@ -27,8 +45,8 @@ function RegionCartouche({
   transform: string
   regionId: string
 }) {
-  const letterSpacing = fontSize * 0.12
-  const width = label.length * (fontSize * 0.74 + letterSpacing) + fontSize * 1.4
+  const letterSpacing = fontSize * CARTOUCHE_LETTER_SPACING
+  const width = cartoucheWidth(label, fontSize)
   const height = fontSize * 1.75
   return (
     <g transform={transform} data-region-label={regionId}>
@@ -133,7 +151,7 @@ export function RegionBands({
             key={`region-band-label-${regionId}-${bandIndex}`}
             regionId={regionId}
             label={label}
-            fontSize={Math.min(9, fitLabelFontSize(label, labelWidth * 0.62))}
+            fontSize={fitCartoucheFontSize(label, labelWidth * 0.85)}
             transform={`translate(${labelX} ${labelY}) rotate(${labelAngle})`}
           />
         )
@@ -142,7 +160,7 @@ export function RegionBands({
   )
 }
 
-/** Flat liseré in the bishopric's tint along the inside of its boundary. */
+/** Flat edging in the bishopric's tint along the inside of its boundary. */
 export function RegionRings({
   outlines,
   regionStyleByID,

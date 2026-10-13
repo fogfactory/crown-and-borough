@@ -1,10 +1,6 @@
 import { borderIconPlacements, type IconPlacement } from '@/lib/chaotic-icons'
-import {
-  centroid,
-  edgeKey,
-  meanTerritoryArea,
-  polygonEdges,
-} from '@/lib/map-svg-geometry'
+import { edgeKey, meanTerritoryArea, polygonEdges } from '@/lib/map-svg-geometry'
+import { polygonContains } from '@/lib/region-geometry'
 import type { MapData, Point, Terrain, Territory } from '@/types'
 
 const REFERENCE_MAP_PLAYERS = 4
@@ -214,14 +210,19 @@ export function impassableBorderIcons(
     const kind = impassableBorderKind(first.terrain, second.terrain)
     let rotation = 0
     if (kind === 'cliff') {
-      // Turn the frame so +y points from the border into the lower side.
-      const [lowX, lowY] = centroid(lowerTerritory(first, second).points)
+      // Turn the frame so +y points from the border into the lower side:
+      // probe just off the segment's left normal, which stays right even
+      // when the lower territory is concave (its centroid may lie anywhere).
+      const lower = lowerTerritory(first, second)
       const dx = border.to[0] - border.from[0]
       const dy = border.to[1] - border.from[1]
-      const midX = (border.from[0] + border.to[0]) / 2
-      const midY = (border.from[1] + border.to[1]) / 2
-      const facing = (lowX - midX) * -dy + (lowY - midY) * dx >= 0 ? 1 : -1
-      rotation = Math.atan2(dy, dx) + (facing === 1 ? 0 : Math.PI)
+      const length = Math.hypot(dx, dy) || 1
+      const probe: Point = [
+        (border.from[0] + border.to[0]) / 2 + (-dy / length) * 0.5,
+        (border.from[1] + border.to[1]) / 2 + (dx / length) * 0.5,
+      ]
+      const facesLeft = polygonContains(lower.points, probe)
+      rotation = Math.atan2(dy, dx) + (facesLeft ? 0 : Math.PI)
     }
     const placements = borderIconPlacements(
       border.from,

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 
 import type { ImpassableBorderKind } from '@/lib/map-borders'
 import { terrainSymbolPlacements } from '@/lib/terrain-engraving'
@@ -75,9 +75,10 @@ export function TerrainSymbol({ terrain }: { terrain: Terrain }) {
 
 /**
  * Engraved terrain: every territory scatters the ink symbol of its terrain
- * over the common paper. Placements only recompute when the map changes.
+ * over the common paper. Memoized so panning and zooming, which re-render
+ * the map, never rebuild its thousands of `<use>` nodes.
  */
-export function EngravedTerrainLayer({
+export const EngravedTerrainLayer = memo(function EngravedTerrainLayer({
   territories,
   annotationScale,
   label,
@@ -112,7 +113,7 @@ export function EngravedTerrainLayer({
       ))}
     </g>
   )
-}
+})
 
 /**
  * Border icons drawn in a 16-unit box centred on the origin. The frontier
