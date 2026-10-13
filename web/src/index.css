@@ -68,6 +68,12 @@
   --color-success-700: #376341;
   --color-winter-700: #2c5b7d;
   --color-winter-100: #eaf1f7;
+
+  /* Season interface tints: decorative only, never behind text */
+  --color-season-spring: #9cc36b;
+  --color-season-summer: #e3b341;
+  --color-season-autumn: #c0703a;
+  --color-season-winter: #bcd3e6;
 }
 
 @theme inline {

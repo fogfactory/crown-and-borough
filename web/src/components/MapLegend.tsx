@@ -312,6 +312,7 @@ export function MapLegend({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2 text-xs text-ink-700">
+        <p className="text-2xs text-ink-500">{t('app.mapInstructions')}</p>
         {onToggleIntentions && (
           <label className="flex items-center gap-2 rounded-md bg-paper-100 px-2 py-1.5">
             <input
@@ -424,7 +425,11 @@ export function MapLegend({
         >
           {PAWN_LEGEND.map(({ key, label, status, attributes }) => (
             <div key={key} className="flex items-center gap-2" data-legend-pawn={key}>
-              <svg className="h-5 w-4 shrink-0" viewBox="-11 -14 18 23" aria-hidden="true">
+              <svg
+                className="h-5 w-4 shrink-0"
+                viewBox="-11 -14 18 23"
+                aria-hidden="true"
+              >
                 <NoblePawn color={PLAYER_RED} status={status} attributes={attributes} />
               </svg>
               <span>{t(label)}</span>

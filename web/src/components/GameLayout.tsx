@@ -1,51 +1,40 @@
 import type { ReactNode } from 'react'
 
-import { PanelSheet } from '@/components/ui/panel-sheet'
 import { useLanguage } from '@/i18n/LanguageContext'
 import { cn } from '@/lib/utils'
 
 interface GameLayoutProps {
   /** The interactive map (already includes its own overlays). */
   map: ReactNode
-  /** Sidebar content: command post card, popovers, ... */
+  /** The game drawer (`GameDrawer`). */
   children: ReactNode
-  /** Increment to bring the mobile sheet to its half snap. */
-  focusSignal?: number
-  /** Extra classes for the layout row (e.g. max width). */
+  /** Extra classes for the layout row. */
   className?: string
 }
 
 /**
- * Shared game screen shell: a viewport-fitting row with the map on one side
- * and the panel sheet on the other. The parent provides the height context
- * (h-dvh + overflow-hidden) and the page padding; on phones the map fills the
- * free space and the panels float as a bottom sheet.
+ * Shared game screen shell: the map takes the whole width and the drawer
+ * sits on its right edge (a bottom sheet on phones). The parent provides the
+ * height context (h-dvh + overflow-hidden); the map reframes itself when the
+ * drawer opens or folds.
  */
-export function GameLayout({ map, children, focusSignal, className }: GameLayoutProps) {
+export function GameLayout({ map, children, className }: GameLayoutProps) {
   const { t } = useLanguage()
 
   return (
     <div
       className={cn(
-        'flex min-h-0 flex-1 flex-col lg:min-w-0 lg:flex-row lg:items-stretch lg:gap-4',
+        'flex min-h-0 flex-1 flex-col lg:min-w-0 lg:flex-row lg:items-stretch',
         className,
       )}
     >
       <section
         aria-label={t('map.territories')}
-        className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-2xl border border-line bg-paper-300 shadow-panel"
+        className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-paper-300"
       >
-        <div className="pointer-events-none absolute left-4 top-3 z-10 sm:left-5 sm:top-5">
-          <p className="text-2xs font-semibold uppercase tracking-[0.22em] text-ink-500">
-            {t('app.mapPublic')}
-          </p>
-          <p className="mt-1 text-xs text-ink-700">{t('app.mapInstructions')}</p>
-        </div>
         {map}
       </section>
-      <PanelSheet focusSignal={focusSignal} className="lg:w-96 lg:shrink-0 xl:w-[27rem]">
-        {children}
-      </PanelSheet>
+      {children}
     </div>
   )
 }

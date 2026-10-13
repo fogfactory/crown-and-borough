@@ -585,9 +585,15 @@ La carte occupe toute la largeur ; les panneaux passent dans un tiroir :
   tiroir collant, toujours visible. Libellé proposé : « Sceller les ordres ».
 
 **Précision.** Le tiroir mesure 384 à 416 px comme la colonne actuelle ; la
-carte se recadre quand il s'ouvre ou se replie. Le bandeau « Carte publique ·
-vue commune » posé sur la carte disparaît ; l'aide aux gestes rejoint la
-légende.
+carte se recadre quand il s'ouvre ou se replie. Un bouton sous les
+marque-pages le replie ; un marque-page le rouvre. Le bandeau « Carte
+publique · vue commune » posé sur la carte disparaît ; l'aide aux gestes
+rejoint la légende, dont le bouton passe en haut à gauche de la carte pour
+laisser le bord droit aux marque-pages. Le bouton de navigation qui ramène à
+la partie depuis les Règles ou la FAQ s'appelle « Carte », pour ne pas se
+confondre avec le menu « Partie ». Une erreur d'envoi s'affiche dans le pied
+collant, au-dessus de « Sceller les ordres ». En ligne, la résolution forcée
+rejoint aussi le menu « Partie », avec sa confirmation.
 
 ### Téléphone
 

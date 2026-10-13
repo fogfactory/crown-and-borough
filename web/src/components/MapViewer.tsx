@@ -10,8 +10,6 @@ import {
   ImpassableBorderChain,
 } from '@/components/MapIconLayers'
 import { IntentionsOverlay } from '@/components/MapIntentionsOverlay'
-import { CrownPanel } from '@/components/CrownPanel'
-import { ReligiousHierarchyPanel } from '@/components/ReligiousHierarchyPanel'
 import {
   RegionBadges,
   RegionBands,
@@ -560,17 +558,12 @@ export function MapViewer({
 
         <MapControls onZoom={zoomBy} />
 
-        <div className="absolute left-3 top-3 z-10 flex flex-col items-start gap-2">
-          <CrownPanel state={state} />
-          <ReligiousHierarchyPanel state={state} />
-        </div>
-
         {(onToggleIntentions ||
           onToggleOwnership ||
           onToggleRegions ||
           onToggleCalamities ||
           onToggleCards) && (
-          <div className="absolute right-3 top-3 z-10">
+          <div className="absolute left-3 top-3 z-10">
             <button
               type="button"
               aria-expanded={legendOpen}
@@ -597,7 +590,7 @@ export function MapViewer({
               </svg>
             </button>
             {legendOpen && (
-              <div className="absolute right-0 top-11 w-72 max-w-[calc(100vw-1.5rem)]">
+              <div className="absolute left-0 top-11 w-72 max-w-[calc(100vw-1.5rem)]">
                 <MapLegend
                   showIntentions={showIntentions}
                   onToggleIntentions={onToggleIntentions}

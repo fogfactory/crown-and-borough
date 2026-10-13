@@ -80,6 +80,9 @@ interface Offset {
 }
 
 interface LineageDialogProps {
+  /** Controlled opening, for a trigger outside the header (Realm bookmark). */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
   players: Player[]
   nobles: Noble[]
   deceased?: DeceasedNoble[]
@@ -166,6 +169,13 @@ export function LineageDialog(props: LineageDialogProps) {
   const [showEnded, setShowEnded] = useState(true)
   const [showClaims, setShowClaims] = useState(true)
   const [moves, setMoves] = useState<Record<string, Offset>>({})
+  const [ownOpen, setOwnOpen] = useState(false)
+  const open = props.open ?? ownOpen
+  const handleOpenChange = (next: boolean) => {
+    if (!next) setMoves({})
+    setOwnOpen(next)
+    props.onOpenChange?.(next)
+  }
 
   const [simulating, setSimulating] = useState(false)
   const [selection, setSelection] = useState<Selection | null>(null)
@@ -282,7 +292,7 @@ export function LineageDialog(props: LineageDialogProps) {
     })
 
   return (
-    <Dialog.Root onOpenChange={(open) => !open && setMoves({})}>
+    <Dialog.Root open={open} onOpenChange={handleOpenChange}>
       <Dialog.Trigger asChild>
         <button
           type="button"
