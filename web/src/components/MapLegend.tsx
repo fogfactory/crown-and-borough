@@ -1,5 +1,5 @@
 import { BorderGlyph, TerrainGlyph } from '@/components/MapDecorations'
-import { ArmsField, BannerGlyph } from '@/components/MapHeraldry'
+import { ArmsField, BannerGlyph, NoblePawn } from '@/components/MapHeraldry'
 import { GameIconGlyph } from '@/components/MapMarkers'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useLanguage } from '@/i18n/LanguageContext'
@@ -15,19 +15,17 @@ import {
   type ResolvedArms,
 } from '@/lib/heraldry'
 import type { ImpassableBorderKind } from '@/lib/map-borders'
+import type { NobleAttributes } from '@/lib/noble-attributes'
 import { HERALDIC_COLORS } from '@/lib/region-color'
 import type { MessageKey } from '@/i18n/messages'
-import type { Terrain } from '@/types'
+import type { NobleStatus, Terrain } from '@/types'
 import {
   MAP_HALO,
   MAP_INK,
   MAP_PAPER_FILL,
   MAP_PARCHMENT,
   METAL_COLORS,
-  MARKER_BRASS,
-  MARKER_GLINT,
   PLAYER_RED,
-  PRISONER_RING_COLOR,
   RIVER_BLUE,
   SHIELD_NUMBER,
 } from '@/lib/map-palette'
@@ -219,6 +217,70 @@ function LegendShield() {
   )
 }
 
+const NO_ATTRIBUTES: NobleAttributes = { crosier: false, excommunicated: false }
+
+/** Noble pawn samples: statuses, then title attributes. */
+const PAWN_LEGEND: Array<{
+  key: string
+  label: MessageKey
+  status?: NobleStatus
+  attributes?: NobleAttributes
+}> = [
+  { key: 'free', label: 'legend.noble' },
+  { key: 'hostage', label: 'legend.pawn.hostage', status: 'hostage' },
+  { key: 'dungeon', label: 'legend.pawn.dungeon', status: 'dungeon' },
+  {
+    key: 'excommunicated',
+    label: 'legend.pawn.excommunicated',
+    attributes: { ...NO_ATTRIBUTES, excommunicated: true },
+  },
+  {
+    key: 'baron',
+    label: 'legend.pawn.baron',
+    attributes: { ...NO_ATTRIBUTES, crown: 'barony' },
+  },
+  {
+    key: 'count',
+    label: 'legend.pawn.count',
+    attributes: { ...NO_ATTRIBUTES, crown: 'county' },
+  },
+  {
+    key: 'marquis',
+    label: 'legend.pawn.marquis',
+    attributes: { ...NO_ATTRIBUTES, crown: 'marquisate' },
+  },
+  {
+    key: 'duke',
+    label: 'legend.pawn.duke',
+    attributes: { ...NO_ATTRIBUTES, crown: 'duchy' },
+  },
+  {
+    key: 'king',
+    label: 'legend.pawn.king',
+    attributes: { ...NO_ATTRIBUTES, crown: 'king' },
+  },
+  {
+    key: 'courtesy',
+    label: 'legend.pawn.courtesy',
+    attributes: { ...NO_ATTRIBUTES, courtesyCrown: 'county' },
+  },
+  {
+    key: 'bishop',
+    label: 'legend.pawn.bishop',
+    attributes: { ...NO_ATTRIBUTES, crosier: true },
+  },
+  {
+    key: 'cardinal',
+    label: 'legend.pawn.cardinal',
+    attributes: { ...NO_ATTRIBUTES, robe: 'cardinal' },
+  },
+  {
+    key: 'pope',
+    label: 'legend.pawn.pope',
+    attributes: { ...NO_ATTRIBUTES, robe: 'pope' },
+  },
+]
+
 interface MapLegendProps {
   showIntentions?: boolean
   onToggleIntentions?: (show: boolean) => void
@@ -359,40 +421,22 @@ export function MapLegend({
             <span>{t('legend.army')}</span>
           </div>
           <div className="flex items-center gap-2">
-            <svg className="size-3 shrink-0" viewBox="-10 -10 20 20" aria-hidden="true">
-              <path
-                d="M0-8L8 0L0 8L-8 0Z"
-                fill={PLAYER_RED}
-                stroke={MARKER_BRASS}
-                strokeWidth="1.5"
-              />
-              <circle cx="0" cy="0" r="2" fill={MARKER_GLINT} />
-            </svg>
-            <span>{t('legend.noble')}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <svg className="size-3 shrink-0" viewBox="-10 -10 20 20" aria-hidden="true">
-              <path
-                d="M0-8L8 0L0 8L-8 0Z"
-                fill={PLAYER_RED}
-                stroke={PRISONER_RING_COLOR}
-                strokeWidth="1.5"
-              />
-              <circle
-                cx="0"
-                cy="0"
-                r="4.5"
-                fill="none"
-                stroke={PRISONER_RING_COLOR}
-                strokeWidth="1.5"
-              />
-            </svg>
-            <span>{t('legend.prisoner')}</span>
-          </div>
-          <div className="flex items-center gap-2">
             <span className="w-6 shrink-0 text-center font-bold text-ink-900">R</span>
             <span>{t('legend.stock')}</span>
           </div>
+        </div>
+        <div
+          className="grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-line/60 pt-2"
+          data-legend-nobles
+        >
+          {PAWN_LEGEND.map(({ key, label, status, attributes }) => (
+            <div key={key} className="flex items-center gap-2" data-legend-pawn={key}>
+              <svg className="h-5 w-4 shrink-0" viewBox="-11 -14 18 23" aria-hidden="true">
+                <NoblePawn color={PLAYER_RED} status={status} attributes={attributes} />
+              </svg>
+              <span>{t(label)}</span>
+            </div>
+          ))}
         </div>
         <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-line/60 pt-2">
           {BORDER_LEGEND.map(({ kind, label }) => (

@@ -3,6 +3,7 @@ import { FamineMarker, InfrastructureMarker, NobleMarker } from '@/components/Ma
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
 import type { ResolvedArms } from '@/lib/heraldry'
+import type { NobleAttributes } from '@/lib/noble-attributes'
 import { centroid } from '@/lib/map-svg-geometry'
 import { isOccupiedAgainstController } from '@/lib/occupation'
 import type { RegionStyle } from '@/lib/region-color'
@@ -29,6 +30,9 @@ const FIEF_TITLE_KEYS: Record<FiefTitle, MessageKey> = {
   marquisate: 'fief.title.marquisate',
   duchy: 'fief.title.duchy',
 }
+
+/** Nobles sharing a territory stand side by side, this far apart. */
+const NOBLE_SPACING = 12
 
 /** The banner's foot sits left of the territory code, on its baseline. */
 const BANNER_FOOT_X = -33
@@ -156,12 +160,14 @@ export function LiveLayer({
   state,
   playerColors,
   armsByOwner,
+  nobleAttributes,
   annotationScale,
 }: {
   territories: Territory[]
   state: StateData
   playerColors: Map<string, string>
   armsByOwner: Map<string, ResolvedArms>
+  nobleAttributes: Map<string, NobleAttributes>
   annotationScale: number
 }) {
   const { t } = useLanguage()
@@ -268,10 +274,11 @@ export function LiveLayer({
               <NobleMarker
                 key={noble.id}
                 noble={noble}
-                x={centerX + (28 + index * 16) * annotationScale}
+                x={centerX + (28 + index * NOBLE_SPACING) * annotationScale}
                 y={centerY + 20 * annotationScale}
                 color={playerColors.get(noble.owner) ?? UNKNOWN_OWNER_COLOR}
                 scale={annotationScale}
+                attributes={nobleAttributes.get(noble.code)}
               />
             ))}
           </g>

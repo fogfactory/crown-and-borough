@@ -21,15 +21,24 @@ describe('MapLegend', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('documents noble affiliation and prisoner marks', () => {
-    render(
+  it('samples the noble pawns: statuses and title attributes', () => {
+    const { container } = render(
       <LanguageProvider initialLanguage="fr">
         <MapLegend />
       </LanguageProvider>,
     )
 
     expect(screen.getByText('Noble (couleur du propriétaire)')).toBeInTheDocument()
-    expect(screen.getByText('Noble prisonnier (otage / donjon)')).toBeInTheDocument()
+    expect(screen.getByText('Au cachot')).toBeInTheDocument()
+    expect(screen.getByText('Titre de courtoisie (conjoint)')).toBeInTheDocument()
+    const pawn = (key: string) => container.querySelector(`[data-legend-pawn="${key}"]`)
+    expect(pawn('dungeon')?.querySelector('[data-attribute="dungeon"]')).not.toBeNull()
+    expect(
+      pawn('courtesy')?.querySelector('[data-attribute="courtesy-crown"]'),
+    ).not.toBeNull()
+    expect(pawn('king')?.querySelector('[data-crown="king"]')).not.toBeNull()
+    expect(pawn('pope')?.querySelector('[data-attribute="tiara"]')).not.toBeNull()
+    expect(pawn('bishop')?.querySelector('[data-attribute="crosier"]')).not.toBeNull()
   })
   it('samples the engraved terrain symbols and the border series', () => {
     const { container } = render(

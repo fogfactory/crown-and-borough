@@ -1168,30 +1168,77 @@ describe('MapViewer noble affiliation', () => {
     const markers = nobleMarkers(svg)
 
     expect(markers).toHaveLength(2)
-    expect(markers[0].querySelector('path')).toHaveAttribute('fill', '#a84632')
-    expect(markers[1].querySelector('path')).toHaveAttribute('fill', '#2d5f9e')
+    expect(markers[0].querySelector('[data-part="base"]')).toHaveAttribute(
+      'fill',
+      '#a84632',
+    )
+    // A hostage's pawn turns ashen.
+    expect(markers[1].querySelector('[data-part="base"]')).toHaveAttribute(
+      'fill',
+      '#7d766a',
+    )
   })
 
-  it('marks prisoner nobles with a red ring, stroke, and status tooltip', () => {
+  it('greys a hostage pawn and names both nobles by code in their tooltips', () => {
     const { svg } = renderMap(map, nobleState)
     const [freeMarker, prisonerMarker] = nobleMarkers(svg)
 
-    expect(prisonerMarker.querySelector('path')).toHaveAttribute('stroke', '#8d321e')
-    expect(prisonerMarker.querySelector('circle[stroke="#8d321e"]')).toBeInTheDocument()
-    expect(prisonerMarker.querySelector('title')).toHaveTextContent(
-      'Robert de Rosemont (N2) · Hostage',
+    expect(prisonerMarker.querySelector('[data-noble-pawn]')).toHaveAttribute(
+      'data-noble-pawn',
+      'hostage',
     )
-    expect(freeMarker.querySelector('path')).toHaveAttribute('stroke', '#7d5a1c')
-    expect(freeMarker.querySelector('circle[stroke="#8d321e"]')).not.toBeInTheDocument()
-    expect(freeMarker.querySelector('title')).toHaveTextContent('Jean de Rosemont (N1)')
+    expect(prisonerMarker.querySelector('title')).toHaveTextContent(
+      'Robert de Rosemont (BOB) · Hostage',
+    )
+    expect(freeMarker.querySelector('[data-noble-pawn]')).toHaveAttribute(
+      'data-noble-pawn',
+      'free',
+    )
+    expect(freeMarker.querySelector('[data-attribute="dungeon"]')).toBeNull()
+    expect(freeMarker.querySelector('title')).toHaveTextContent('Jean de Rosemont (JEA)')
+  })
+
+  it('dresses a titled pawn with its crown, crosier and robe', () => {
+    const { svg } = renderMap(map, {
+      ...nobleState,
+      nobles: nobleState.nobles.map((noble) =>
+        noble.code === 'BOB' ? { ...noble, status: 'dungeon' as const } : noble,
+      ),
+      fiefs: [
+        {
+          capital: 'ROS',
+          title: 'duchy',
+          territories: ['ROS'],
+          owner: 'P1',
+          holder: 'JEA',
+        },
+      ],
+      cardinals: ['JEA'],
+      bishoprics: [{ region: 'R1', name: 'Ros', territories: [], bishop: 'JEA' }],
+    })
+    const [titled, prisoner] = nobleMarkers(svg)
+
+    expect(
+      titled.querySelector('[data-attribute="crown"] [data-crown="duchy"]'),
+    ).not.toBeNull()
+    expect(titled.querySelector('[data-attribute="crosier"]')).not.toBeNull()
+    expect(titled.querySelector('[data-part="body"]')).toHaveAttribute('fill', '#a4231c')
+    expect(titled.querySelector('[data-attribute="cardinal-hat"]')).not.toBeNull()
+    expect(prisoner.querySelector('[data-attribute="dungeon"]')).not.toBeNull()
   })
 
   it('falls back to the tinctures when the state has no player color', () => {
     const { svg } = renderMap(map, { ...nobleState, players: [] })
     const markers = nobleMarkers(svg)
 
-    expect(markers[0].querySelector('path')).toHaveAttribute('fill', '#b3322b')
-    expect(markers[1].querySelector('path')).toHaveAttribute('fill', '#2b5c9e')
+    expect(markers[0].querySelector('[data-part="base"]')).toHaveAttribute(
+      'fill',
+      '#b3322b',
+    )
+    expect(markers[1].querySelector('[data-part="body"]')).toHaveAttribute(
+      'fill',
+      '#7d766a',
+    )
   })
 
   it('prefers the state color over the palette', () => {
@@ -1201,8 +1248,10 @@ describe('MapViewer noble affiliation', () => {
     })
     const markers = nobleMarkers(svg)
 
-    expect(markers[0].querySelector('path')).toHaveAttribute('fill', '#123456')
-    expect(markers[1].querySelector('path')).toHaveAttribute('fill', '#2b5c9e')
+    expect(markers[0].querySelector('[data-part="base"]')).toHaveAttribute(
+      'fill',
+      '#123456',
+    )
   })
 })
 

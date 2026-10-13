@@ -56,6 +56,9 @@ export const NEUTRAL_ARMY_COLOR = '#7d766a'
 export const METAL_COLORS = { or: '#d8ab35', argent: '#f1ede3' } as const
 /** Crowns of titled nobles and fiefs (`brass-400`). */
 export const CROWN_FILL = '#c9a24a'
+/** Robes of the cardinal and of the pope on a noble's pawn. */
+export const CARDINAL_ROBE = '#a4231c'
+export const POPE_ROBE = '#f1ede3'
 /** Number on an army shield. */
 export const SHIELD_NUMBER = '#ffffff'
 
@@ -109,11 +112,7 @@ export const FORTIFICATION_WALL_FILL = '#b8b8b4'
 export const NEUTRAL_MARKER_FILL = '#fbf7ee'
 /** Capital crown over a castle (`brass-700`). */
 export const MARKER_BRASS = '#7d5a1c'
-export const MARKER_BROWN = '#4e3828'
-export const MARKER_GLINT = '#fff3c4'
 export const FAMINE_MARKER_COLOR = '#8d321e'
-/** Ring around a captive noble's pawn. */
-export const PRISONER_RING_COLOR = '#8d321e'
 
 // Game icons
 

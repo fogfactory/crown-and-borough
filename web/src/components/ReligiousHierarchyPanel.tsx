@@ -1,16 +1,26 @@
+import { useMemo } from 'react'
+
 import { NobleHolder } from '@/components/NobleHolder'
 import { useLanguage } from '@/i18n/LanguageContext'
+import { nobleAttributesByCode } from '@/lib/noble-attributes'
 import type { StateData } from '@/types'
 
 /** Pope, cardinals and bishops in place, with the player owning each title. */
 export function ReligiousHierarchyPanel({ state }: { state: StateData }) {
   const { t } = useLanguage()
+  // Memoized: the panel re-renders with the map on every pan and zoom.
+  const attributes = useMemo(() => nobleAttributesByCode(state), [state])
   const bishoprics = state.bishoprics ?? []
   const cardinals = state.cardinals ?? []
   if (bishoprics.length === 0 && cardinals.length === 0 && !state.pope) return null
 
   const holder = (code: string | undefined) => (
-    <NobleHolder code={code} nobles={state.nobles} players={state.players} />
+    <NobleHolder
+      code={code}
+      nobles={state.nobles}
+      players={state.players}
+      attributes={attributes}
+    />
   )
   return (
     <details
