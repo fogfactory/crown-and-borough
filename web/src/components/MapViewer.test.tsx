@@ -2,8 +2,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { MapViewer } from '@/components/MapViewer'
-import { DRAFT_INTENTION_COLOR } from '@/lib/map-palette'
-import { HERALDIC_COLORS } from '@/lib/region-color'
+import { DRAFT_INTENTION_OPACITY } from '@/lib/map-palette'
+import { HERALDIC_TEXT_COLORS } from '@/lib/region-color'
 import { buildIntentions } from '@/lib/intent-overlay'
 import { draftOrders } from '@/test/parse-orders'
 import type { Intention } from '@/lib/intent-overlay'
@@ -291,7 +291,7 @@ describe('MapViewer winter overlay', () => {
     expect(ghost).toBeInTheDocument()
     expect(ghost?.querySelector('circle')).toHaveAttribute('r', '18.5')
     expect(ghost?.querySelector('path[fill="#fff8e7"]')).toBeInTheDocument()
-    const liseré = ghost?.querySelector('path[stroke="#17120f"]')
+    const liseré = ghost?.querySelector('path[stroke="#30291f"]')
     expect(liseré).toHaveAttribute('stroke-width', '10')
     expect(liseré).not.toHaveAttribute('stroke-opacity')
     expect(overlay?.textContent).toContain('+1')
@@ -474,7 +474,7 @@ describe('MapViewer territorial overlays', () => {
 
     const chefLieu = screen.getByText('Alpilles')
     expect(chefLieu.getAttribute('data-chef-lieu')).toBe('ROS')
-    expect(chefLieu.getAttribute('fill')).toBe(HERALDIC_COLORS[0])
+    expect(chefLieu.getAttribute('fill')).toBe(HERALDIC_TEXT_COLORS[0])
     expect(screen.getByText('ROS')).toBeInTheDocument()
     expect(screen.getByText('BRU')).toBeInTheDocument()
   })
@@ -518,7 +518,8 @@ describe('MapViewer territorial overlays', () => {
 
     const badge = svg.querySelector('[data-region-label="RCORE"]')
     expect(badge).toBeInTheDocument()
-    expect(badge?.querySelector('text')?.textContent).toBe('Bishopric of EEE (EEE)')
+    expect(badge?.querySelector('title')?.textContent).toBe('Bishopric of EEE (EEE)')
+    expect(badge?.querySelector('text')?.textContent).toBe('BISHOPRIC OF EEE (EEE)')
     expect(svg.querySelectorAll('[data-region-ring="RCORE"]').length).toBe(1)
   })
 
@@ -812,11 +813,11 @@ describe('MapViewer territorial overlays', () => {
     )
     expect(svg.querySelector('#supply-zone-hatch line')).toHaveAttribute(
       'stroke-opacity',
-      '0.5',
+      '0.35',
     )
     expect(svg.querySelector('#supply-zone-hatch line')).toHaveAttribute(
       'stroke',
-      '#808080',
+      '#30291f',
     )
     expect(supplyPath).toBeInTheDocument()
     expect(supplyPath?.querySelector('polyline')).toHaveAttribute('points', '75,25 25,25')
@@ -954,13 +955,13 @@ describe('MapViewer territorial overlays', () => {
     expect(svg.querySelector('g[aria-label="Supply line"]')).not.toBeInTheDocument()
   })
 
-  it('adds a light winter veil without changing the non-winter map', () => {
+  it('veils the map in the season tint and only snows in winter', () => {
     const { svg: winterSvg } = renderMap(map, { ...state, season: 'winter' })
     const winterVeil = winterSvg.querySelector('g[aria-label="Winter veil"]')
 
     expect(winterVeil).toBeInTheDocument()
-    expect(winterVeil?.querySelector('rect')).toHaveAttribute('fill', '#eaf3ff')
-    expect(winterVeil?.querySelector('rect')).toHaveAttribute('opacity', '0.2')
+    expect(winterVeil?.querySelector('rect')).toHaveAttribute('fill', '#e3edf7')
+    expect(winterVeil?.querySelector('rect')).toHaveAttribute('opacity', '0.42')
     expect(winterVeil).toHaveAttribute('pointer-events', 'none')
     expect(winterVeil?.querySelector('rect')).toHaveAttribute('x', '0')
     expect(winterVeil?.querySelector('rect')).toHaveAttribute('width', '100')
@@ -975,19 +976,17 @@ describe('MapViewer territorial overlays', () => {
     expect(winterSvg.querySelector('pattern[id^="winter-snow-"]')).toBeInTheDocument()
 
     const { svg: springSvg } = renderMap()
+    const springVeil = springSvg.querySelector('g[aria-label="Season veil"]')
+    expect(springVeil).toHaveAttribute('data-season-veil', 'spring')
+    expect(springVeil?.querySelector('rect')).toHaveAttribute('fill', '#9cc36b')
+    expect(springVeil?.querySelector('rect')).toHaveAttribute('opacity', '0.14')
     expect(springSvg.querySelector('g[aria-label="Winter veil"]')).not.toBeInTheDocument()
     expect(springSvg.querySelector('g[aria-label="Winter snow"]')).not.toBeInTheDocument()
   })
 
-  it.each([
-    ['plain', '#d4e8b4'],
-    ['forest', '#85b092'],
-    ['hill', '#cfb694'],
-    ['mountain', '#aab3bc'],
-    ['swamp', '#90c6c0'],
-  ] as const)(
-    'keeps the %s terrain readable through the winter veil',
-    (terrain, color) => {
+  it.each(['plain', 'forest', 'hill', 'mountain', 'swamp'] as const)(
+    'engraves the %s terrain under the winter veil',
+    (terrain) => {
       const testMap: MapData = {
         territories: [{ ...map.territories[0], terrain }],
       }
@@ -997,10 +996,20 @@ describe('MapViewer territorial overlays', () => {
         territories: [state.territories[0]],
       }
       const { svg } = renderMap(testMap, testState)
-      const terrainPath = svg.querySelector('[data-territory-id="ROS"]')
+      const symbols = svg.querySelector(`[data-terrain-symbols="${terrain}"]`)
+      const winterVeil = svg.querySelector('g[aria-label="Winter veil"]')
 
-      expect(terrainPath).toHaveAttribute('fill', color)
-      expect(svg.querySelector('g[aria-label="Winter veil"]')).toBeInTheDocument()
+      expect(svg.querySelector('[data-territory-id="ROS"]')).toHaveAttribute(
+        'fill',
+        '#f1e6cb',
+      )
+      expect(symbols?.querySelector('use')).toHaveAttribute(
+        'href',
+        `#terrain-symbol-${terrain}`,
+      )
+      expect(symbols?.compareDocumentPosition(winterVeil as Node)).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      )
     },
   )
 
@@ -1034,7 +1043,7 @@ describe('MapViewer territorial overlays', () => {
     expect(Number(veilRect.getAttribute('height'))).toBe(50 + 2 * 26)
   })
 
-  it('renders clipped interior selection strokes above terrain and ownership badges', () => {
+  it('draws the brass selection above the borders and ownership badges', () => {
     const { firstTerritory, svg } = renderMap(map, { ...state, season: 'winter' })
     const referenceMeanArea = (1000 * 700) / (8 * 4 + 4 * (4 + 1))
     const expectedScale = Math.sqrt((50 * 50) / referenceMeanArea)
@@ -1052,26 +1061,32 @@ describe('MapViewer territorial overlays', () => {
     )
 
     clickTarget(svg, firstTerritory)
-    const selectionPath = svg.querySelector('g[aria-label="Selection"] path')
+    const [halo, stroke] = Array.from(
+      svg.querySelectorAll('g[aria-label="Selection"] path'),
+    )
 
-    if (!selectionPath) {
+    if (!halo || !stroke) {
       throw new Error('Map test fixture did not render the selection stroke')
     }
 
-    expect(selectionPath).toHaveAttribute('fill', 'none')
-    expect(selectionPath).toHaveAttribute('clip-path', 'url(#territory-clip-ROS)')
-    expect(
-      svg.querySelector('g[aria-label="Selection"] path[stroke-dasharray]'),
-    ).toHaveAttribute('stroke-dasharray', expectedDots)
+    expect(halo).toHaveAttribute('fill', 'none')
+    expect(halo).toHaveAttribute('stroke', '#c9a24a')
+    expect(halo).toHaveAttribute('stroke-opacity', '0.3')
+    expect(halo).toHaveAttribute('clip-path', 'url(#territory-clip-ROS)')
+    expect(Number(halo.getAttribute('stroke-width'))).toBeCloseTo(16 * expectedScale)
+    expect(stroke).toHaveAttribute('stroke', '#7d5a1c')
+    expect(stroke).toHaveAttribute('stroke-width', '2.5')
+    expect(stroke).toHaveAttribute('vector-effect', 'non-scaling-stroke')
 
     const borderGroup = svg.querySelector('g[aria-label="Borders"]')
     const passableBorder = borderGroup?.querySelector('line')
     const outerBorder = svg.querySelector('g[aria-label="Outer borders"] line')
-    expect(borderGroup).toBeInTheDocument()
-    expect(passableBorder).toHaveAttribute('stroke-width', '2')
+    expect(passableBorder).toHaveAttribute('stroke', '#30291f')
+    expect(passableBorder).toHaveAttribute('stroke-opacity', '0.75')
+    expect(passableBorder).toHaveAttribute('stroke-width', '1.7')
     expect(passableBorder).toHaveAttribute('stroke-dasharray', expectedDots)
-    expect(outerBorder).toHaveAttribute('stroke-width', '2')
-    expect(selectionPath.compareDocumentPosition(borderGroup as Node)).toBe(
+    expect(outerBorder).toHaveAttribute('stroke-width', '2.2')
+    expect(borderGroup?.compareDocumentPosition(halo)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     )
     expect(ownershipBadge.compareDocumentPosition(borderGroup as Node)).toBe(
@@ -1079,7 +1094,7 @@ describe('MapViewer territorial overlays', () => {
     )
   })
 
-  it('uses a thicker continuous stroke for impassable borders', () => {
+  it('strings an icon series along impassable borders, by adjacent terrain', () => {
     const impassableMap: MapData = {
       ...map,
       territories: map.territories.map((territory) => ({
@@ -1094,7 +1109,11 @@ describe('MapViewer territorial overlays', () => {
     const winterVeil = svg.querySelector('g[aria-label="Winter veil"]')
 
     expect(mountainChain).toBeInTheDocument()
-    expect(mountainChain?.querySelectorAll('svg').length).toBeGreaterThan(0)
+    // A plain against a forest: an escarpment, drawn from its shared symbol.
+    const cliffs = mountainChain?.querySelectorAll('use[data-border-kind="cliff"]') ?? []
+    expect(cliffs.length).toBeGreaterThan(0)
+    expect(cliffs[0]).toHaveAttribute('href', '#border-symbol-cliff')
+    expect(svg.querySelector('symbol#border-symbol-cliff')).toBeInTheDocument()
     expect(bordersGroup?.querySelector('line[stroke-width="4"]')).toBeNull()
     expect(winterVeil).toBeInTheDocument()
     expect(winterVeil?.compareDocumentPosition(mountainChain as Node)).toBe(
@@ -1241,26 +1260,27 @@ describe('MapViewer intentions overlay', () => {
     const group = svg.querySelector('g[aria-label="Intentions overlay"]')
     const line = group?.querySelector('line:not([data-intent-outline])')
     const outline = group?.querySelector('line[data-intent-outline]')
-    const marker = svg.querySelector('#intent-arrow-draft')
+    const marker = svg.querySelector('#intent-arrow')
     const outlineMarker = svg.querySelector('#intent-arrow-outline')
     const referenceMeanArea = (1000 * 700) / (8 * 4 + 4 * (4 + 1))
     const expectedScale = Math.sqrt((50 * 50) / referenceMeanArea)
 
     expect(group).toBeInTheDocument()
     expect(group).toHaveAttribute('pointer-events', 'none')
-    expect(line).toHaveAttribute('marker-end', 'url(#intent-arrow-draft)')
-    expect(line).toHaveAttribute('stroke', DRAFT_INTENTION_COLOR)
+    expect(line).toHaveAttribute('marker-end', 'url(#intent-arrow)')
+    expect(line).toHaveAttribute('stroke', '#a84632')
     expect(line).toHaveAttribute('stroke-width', `${4 * expectedScale}`)
-    expect(outline).toHaveAttribute('stroke', '#17120f')
+    expect(outline).toHaveAttribute('stroke', '#30291f')
     expect(outline).toHaveAttribute('stroke-width', `${6 * expectedScale}`)
-    expect(line).not.toHaveAttribute('stroke-dasharray')
-    expect(marker?.querySelector('path')).toHaveAttribute('fill', DRAFT_INTENTION_COLOR)
-    expect(outlineMarker?.querySelector('path')).toHaveAttribute('fill', '#17120f')
+    // A draft attack keeps its arrow, dashed.
+    expect(line).toHaveAttribute('stroke-dasharray')
+    expect(marker?.querySelector('path')).toHaveAttribute('fill', '#a84632')
+    expect(outlineMarker?.querySelector('path')).toHaveAttribute('fill', '#30291f')
     expect(line?.getAttribute('x2')).toEqual('75')
     expect(line?.getAttribute('y2')).toEqual('25')
   })
 
-  it('uses a pastel color for drafts and the player color for installed chains', () => {
+  it('fades and dashes drafts in the player color, like installed chains', () => {
     const installedState: StateData = {
       ...armedState,
       territories: armedState.territories.map((territory) =>
@@ -1301,14 +1321,16 @@ describe('MapViewer intentions overlay', () => {
 
     expect(lines).toHaveLength(2)
     expect(lines.map((line) => line.getAttribute('stroke'))).toEqual([
-      DRAFT_INTENTION_COLOR,
+      '#a84632',
       '#a84632',
     ])
+    expect(lines[0]).toHaveAttribute('stroke-dasharray')
+    expect(lines[1]).not.toHaveAttribute('stroke-dasharray')
     // The draft is still tentative, so its whole group (line, outline,
     // badge) renders lighter than the installed chain's full-strength group.
     const groups = svg.querySelectorAll('g[aria-label="Intentions overlay"] > g')
     expect(Array.from(groups).map((group) => group.getAttribute('opacity'))).toEqual([
-      '0.6',
+      String(DRAFT_INTENTION_OPACITY),
       '1',
     ])
   })
@@ -1328,11 +1350,11 @@ describe('MapViewer intentions overlay', () => {
       'g[aria-label="Intentions overlay"] line[data-intent-outline]',
     )
 
-    expect(line).toHaveAttribute('marker-end', 'url(#intent-circle-draft)')
+    expect(line).toHaveAttribute('marker-end', 'url(#intent-circle)')
     expect(line).toHaveAttribute('stroke-dasharray')
-    expect(outline).toHaveAttribute('stroke', '#17120f')
+    expect(outline).toHaveAttribute('stroke', '#30291f')
     expect(outline).toHaveAttribute('marker-end', 'url(#intent-circle-outline)')
-    expect(svg.querySelector('#intent-circle-draft circle')).toBeInTheDocument()
+    expect(svg.querySelector('#intent-circle circle')).toBeInTheDocument()
     expect(svg.querySelector('#intent-circle-outline circle')).toBeInTheDocument()
   })
 
@@ -1348,7 +1370,7 @@ describe('MapViewer intentions overlay', () => {
       'g[aria-label="Intentions overlay"] line:not([data-intent-outline])',
     )
 
-    expect(line).toHaveAttribute('marker-end', 'url(#intent-arrow-draft)')
+    expect(line).toHaveAttribute('marker-end', 'url(#intent-arrow)')
     expect(line).toHaveAttribute('stroke-dasharray')
   })
 
@@ -1366,7 +1388,7 @@ describe('MapViewer intentions overlay', () => {
     expect(group?.querySelector('path:not([data-intent-outline])')).not.toBeNull()
     expect(group?.querySelector('path:not([data-intent-outline])')).toHaveAttribute(
       'marker-end',
-      'url(#intent-arrow-draft)',
+      'url(#intent-arrow)',
     )
     expect(group?.querySelector('path[data-intent-outline]')).toHaveAttribute(
       'marker-end',

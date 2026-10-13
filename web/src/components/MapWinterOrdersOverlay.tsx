@@ -12,7 +12,7 @@ import { centroid } from '@/lib/map-svg-geometry'
 import type { WinterIntention } from '@/lib/winter-overlay'
 import type { Territory } from '@/types'
 import {
-  DRAFT_INTENTION_COLOR,
+  DEFAULT_PLAYER_COLOR,
   WINTER_ERROR_COLOR,
   WINTER_WARNING_COLOR,
 } from '@/lib/map-palette'
@@ -71,7 +71,7 @@ export function WinterOrdersOverlay({
                     y={buildY}
                     isCapital={false}
                     scale={annotationScale}
-                    ownerColor={intention.color ?? DRAFT_INTENTION_COLOR}
+                    ownerColor={intention.color ?? DEFAULT_PLAYER_COLOR}
                     variant="winterGhost"
                   />
                   {intention.warning && (
@@ -126,7 +126,7 @@ export function WinterOrdersOverlay({
                     label={label}
                     detail={detail}
                     title={intention.label}
-                    color={intention.color ?? DRAFT_INTENTION_COLOR}
+                    color={intention.color ?? DEFAULT_PLAYER_COLOR}
                     scale={annotationScale}
                   />
                   {intention.warning && (
@@ -193,7 +193,7 @@ export function WinterOrdersOverlay({
                 to={centroid(target.points)}
                 amount={intention.amount}
                 title={intention.label}
-                color={intention.color ?? DRAFT_INTENTION_COLOR}
+                color={intention.color ?? DEFAULT_PLAYER_COLOR}
                 scale={annotationScale}
               />
               {intention.warning && (
@@ -221,7 +221,7 @@ export function WinterOrdersOverlay({
           )
           if (!capital) return []
           const capitalCenter = centroid(capital.points)
-          const color = intention.color ?? DRAFT_INTENTION_COLOR
+          const color = intention.color ?? DEFAULT_PLAYER_COLOR
           const members = (intention.territories ?? []).slice(1)
           return members.flatMap((memberId) => {
             const member = territories.find((territory) => territory.id === memberId)

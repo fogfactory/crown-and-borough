@@ -182,6 +182,9 @@ carte ; la pièce le distingue encore en niveaux de gris et pour un daltonien.
   pièce.
 - L'ordre d'attribution suit l'ordre des sièges, comme la palette actuelle
   d'`internal/engine/game.go`.
+- Le moteur attribue la teinture du siège dans `players[].color` et publie
+  les armoiries (champ, métal, pièce) dans `state.json` dès la création de
+  la partie ; le front ne les recalcule pas.
 - **Deux étapes.** D'abord, chaque joueur reçoit les armoiries générées
   ci-dessus. Ensuite, un joueur pourra choisir son propre blason (champ,
   pièce, meuble) dans son profil ; ce choix se superpose aux armoiries
@@ -194,9 +197,10 @@ Six teintes terreuses, hors de la palette des joueurs, remplacent les couleurs
 Tailwind de `web/src/lib/region-color.ts`. Au-delà de six évêchés, les motifs
 existants (`REGION_PATTERNS`) s'ajoutent, dessinés à l'encre à 30 %.
 
-| Ocre | Ardoise | Olive | Brique | Lavande | Sauge |
-|---|---|---|---|---|---|
-| `#a9803a` | `#5f7d8c` | `#7b7d47` | `#9a5f4b` | `#7f7496` | `#6b8a74` |
+| | Ocre | Ardoise | Olive | Brique | Lavande | Sauge |
+|---|---|---|---|---|---|---|
+| Teinte | `#a9803a` | `#5f7d8c` | `#7b7d47` | `#9a5f4b` | `#7f7496` | `#6b8a74` |
+| Texte du chef-lieu (4,6:1 sur `paper-map`) | `#80612c` | `#516a77` | `#67693c` | `#8f5846` | `#6b617e` | `#536c5a` |
 
 Un évêché ne remplit jamais l'intérieur d'un territoire, et un joueur ne
 dessine jamais de liseré : c'est ce qui évite de confondre les deux.
@@ -322,7 +326,8 @@ une gravure.
 
 **Précision.** La dispersion est déterministe, semée par le trigramme du
 territoire avec le même générateur que `web/src/lib/chaotic-icons.ts`. Les
-symboles restent à 6,5 unités des frontières et hors d'une ellipse de
+symboles, posés sur une grille en quinconce au pas du terrain et décalés au
+hasard, restent à 6,5 unités des frontières et hors d'une ellipse de demi-axes
 30 × 27 unités autour du centroïde, réservée aux étiquettes et aux pièces.
 Chaque symbole est défini une fois (`<symbol>`) et instancié par `<use>` pour
 limiter la taille du DOM.
@@ -340,10 +345,9 @@ limiter la taille du DOM.
      touffes de roseaux serrées sur des traits d'eau ;
   3. sinon, si l'un est une montagne, **montagnes** : la chaîne de pics
      actuelle (glyphe `peaks`), redessinée à l'encre `ink-900` ;
-  4. sinon, **escarpement** : petits blocs de falaise en profil, tournés vers
-     le territoire le plus bas (montagne > colline > forêt > plaine >
-     marécage ; à égalité, vers le trigramme le plus grand). Si le dessin
-     reste illisible à la taille des icônes, la chaîne de pics le remplace.
+  4. sinon, **escarpement** : une ligne de crête dont les dents de falaise
+     tombent vers le territoire le plus bas (montagne > colline > forêt >
+     plaine > marécage ; à égalité, vers le trigramme le plus grand).
 - **Contour extérieur :** `ink-900`, 2,2 px.
 
 **Précision.** Les icônes gardent l'espacement, la taille et la rotation de
@@ -867,15 +871,6 @@ les cartes d'ordres.
 
 ## Questions ouvertes
 
-- **Armoiries des joueurs :** les armoiries générées peuvent être dérivées
-  côté front de l'ordre du siège, sans changement de contrat. Le blason
-  choisi par le joueur, lui, doit être stocké (profil) et publié dans
-  `state.json`, ce qui change le contrat. À trancher dans l'issue de la
-  phase 4 : dériver d'abord côté front, ou introduire le champ dès la
-  génération pour préparer le choix.
-- **Palette du moteur :** `internal/engine/game.go` attribue aujourd'hui
-  16 couleurs. Passer aux teintures change les valeurs de `players[].color`
-  des nouvelles parties ; le schéma, lui, ne change pas.
 - **Arbre de la lignée :** la disposition automatique d'un arbre avec des
   mariages entre maisons et des prétentions croisées reste à prototyper sur
   le scénario de démonstration `crown` (`scripts/demo.sh crown`) avant la
@@ -883,5 +878,6 @@ les cartes d'ordres.
   disposition ») pourra être conservée si l'automatique ne suffit pas.
 - **Rivières** ([cartographie.md](cartographie.md)) : le symbole de fleuve est
   prévu ; le dessin des ponts reste à définir.
-- **Niveau de détail des étiquettes :** seuils à régler sur des cartes réelles
-  (voir [Étiquettes](#étiquettes)).
+- **Niveau de détail des étiquettes :** le seuil de 10 px est retenu comme
+  point de départ ; il reste à vérifier sur des cartes réelles (voir
+  [Étiquettes](#étiquettes)).

@@ -1,18 +1,23 @@
+import { BorderGlyph, TerrainGlyph } from '@/components/MapDecorations'
+import { GameIconGlyph } from '@/components/MapMarkers'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useLanguage } from '@/i18n/LanguageContext'
+import { GAME_ICON_GLYPHS } from '@/lib/game-icon-glyphs'
+import type { ImpassableBorderKind } from '@/lib/map-borders'
 import { HERALDIC_COLORS } from '@/lib/region-color'
 import type { MessageKey } from '@/i18n/messages'
 import type { Terrain } from '@/types'
 import {
   LEGEND_SWATCH_BACKGROUND,
+  MAP_HALO,
   MAP_INK,
+  MAP_PAPER_FILL,
   MAP_PARCHMENT,
   MARKER_BRASS,
   MARKER_GLINT,
   PLAYER_RED,
   PRISONER_RING_COLOR,
-  TERRAIN_COLORS,
-  TERRAIN_PATTERN_STROKES,
+  RIVER_BLUE,
 } from '@/lib/map-palette'
 
 export const TERRAIN_LABEL_KEYS: Record<Terrain, MessageKey> = {
@@ -68,109 +73,72 @@ function LegendSettlement({ type }: { type: 'castle' | 'village' }) {
   )
 }
 
-/** Terrain swatch with the same texture pattern as the map layer. */
+/** Terrain sample: the engraved symbol on the map paper. */
 function TerrainSwatch({ terrain }: { terrain: Terrain }) {
   return (
-    <svg className="size-3 shrink-0" viewBox="0 0 12 12" aria-hidden="true">
-      <rect width="12" height="12" fill={TERRAIN_COLORS[terrain]} />
-      <rect fill={`url(#legend-terrain-${terrain})`} width="12" height="12" />
-      <defs>
-        {terrain === 'plain' && (
-          <pattern
-            id="legend-terrain-plain"
-            width="6"
-            height="6"
-            patternUnits="userSpaceOnUse"
-          >
-            <g stroke={TERRAIN_PATTERN_STROKES.plain} strokeWidth="0.5" opacity="0.22">
-              <line x1="1.4" y1="3.6" x2="2.2" y2="2.8" />
-              <line x1="2.6" y1="3.6" x2="3.4" y2="2.8" />
-              <line x1="3.8" y1="3.6" x2="4.6" y2="2.8" />
-            </g>
-          </pattern>
-        )}
-        {terrain === 'forest' && (
-          <pattern
-            id="legend-terrain-forest"
-            width="12"
-            height="12"
-            patternUnits="userSpaceOnUse"
-          >
-            <path
-              d="M0 6.8 L2 0.4 L4 6.8 Z"
-              fill={TERRAIN_PATTERN_STROKES.forest}
-              opacity="0.25"
-            />
-            <path
-              d="M6 11.2 L8 4.8 L10 11.2 Z"
-              fill={TERRAIN_PATTERN_STROKES.forest}
-              opacity="0.18"
-            />
-          </pattern>
-        )}
-        {terrain === 'hill' && (
-          <pattern
-            id="legend-terrain-hill"
-            width="14"
-            height="7"
-            patternUnits="userSpaceOnUse"
-          >
-            <path
-              d="M0 6 Q 3.5 1.2 7 6 T 14 6"
-              fill="none"
-              stroke={TERRAIN_PATTERN_STROKES.hill}
-              strokeWidth="1.3"
-              opacity="0.25"
-            />
-          </pattern>
-        )}
-        {terrain === 'mountain' && (
-          <pattern
-            id="legend-terrain-mountain"
-            width="12"
-            height="12"
-            patternUnits="userSpaceOnUse"
-          >
-            <path
-              d="M0 4.8 L3 0.8 L6 4.8 M6 9.6 L9 5.8 L12 9.6"
-              fill="none"
-              stroke={TERRAIN_PATTERN_STROKES.mountain}
-              strokeWidth="1.3"
-              opacity="0.28"
-            />
-          </pattern>
-        )}
-        {terrain === 'swamp' && (
-          <pattern
-            id="legend-terrain-swamp"
-            width="7"
-            height="6"
-            patternUnits="userSpaceOnUse"
-          >
-            <line
-              x1="0.6"
-              y1="1.8"
-              x2="3.2"
-              y2="1.8"
-              stroke={TERRAIN_PATTERN_STROKES.swamp}
-              strokeWidth="0.9"
-              opacity="0.28"
-            />
-            <line
-              x1="3.8"
-              y1="4.4"
-              x2="6.4"
-              y2="4.4"
-              stroke={TERRAIN_PATTERN_STROKES.swamp}
-              strokeWidth="0.9"
-              opacity="0.28"
-            />
-          </pattern>
-        )}
-      </defs>
+    <svg
+      className="size-4 shrink-0"
+      viewBox="-6.5 -6.5 13 13"
+      aria-hidden="true"
+      data-legend-terrain={terrain}
+    >
+      <rect x="-6.5" y="-6.5" width="13" height="13" fill={MAP_PAPER_FILL} />
+      <TerrainGlyph terrain={terrain} />
     </svg>
   )
 }
+
+/** Border sample on the map paper: dotted passable line or icon series. */
+function BorderSwatch({ kind }: { kind: 'passable' | ImpassableBorderKind }) {
+  return (
+    <svg
+      className="h-4 w-6 shrink-0"
+      viewBox="-12 -8 24 16"
+      aria-hidden="true"
+      data-legend-border={kind}
+    >
+      <rect x="-12" y="-8" width="24" height="16" fill={MAP_PAPER_FILL} />
+      {kind === 'passable' ? (
+        <line
+          x1="-10"
+          y1="0"
+          x2="10"
+          y2="0"
+          stroke={MAP_INK}
+          strokeOpacity="0.75"
+          strokeWidth="1.7"
+          strokeDasharray="0.1 4.5"
+          strokeLinecap="round"
+        />
+      ) : kind === 'peaks' ? (
+        <GameIconGlyph
+          glyph={GAME_ICON_GLYPHS['peaks']}
+          x={-7}
+          y={-7}
+          size={14}
+          fill={MAP_INK}
+          stroke={MAP_HALO}
+          strokeWidth={20}
+          opacity={1}
+        />
+      ) : (
+        <g transform="scale(0.85)">
+          <BorderGlyph kind={kind} color={kind === 'river' ? RIVER_BLUE : MAP_INK} />
+        </g>
+      )}
+    </svg>
+  )
+}
+
+const BORDER_LEGEND: Array<{
+  kind: 'passable' | ImpassableBorderKind
+  label: MessageKey
+}> = [
+  { kind: 'passable', label: 'legend.borderPassable' },
+  { kind: 'peaks', label: 'legend.borderPeaks' },
+  { kind: 'marsh', label: 'legend.borderMarsh' },
+  { kind: 'cliff', label: 'legend.borderCliff' },
+]
 
 interface MapLegendProps {
   showIntentions?: boolean
@@ -404,9 +372,14 @@ export function MapLegend({
             <span>{t('legend.occupied')}</span>
           </div>
         </div>
-        <p className="border-t border-line/60 pt-2 leading-relaxed">
-          {t('legend.passable')}
-        </p>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-line/60 pt-2">
+          {BORDER_LEGEND.map(({ kind, label }) => (
+            <div key={kind} className="flex items-center gap-2">
+              <BorderSwatch kind={kind} />
+              <span>{t(label)}</span>
+            </div>
+          ))}
+        </div>
       </CardContent>
     </Card>
   )

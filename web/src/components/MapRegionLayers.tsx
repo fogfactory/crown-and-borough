@@ -3,44 +3,84 @@ import { formatCardCode, formatCardLabel } from '@/lib/card-hand'
 import { centroid, regionRingPath } from '@/lib/map-svg-geometry'
 import type { RegionStyle } from '@/lib/region-color'
 import { fitLabelFontSize, type RegionOutlineResult } from '@/lib/region-geometry'
-import type { RegionBand } from '@/lib/region-layout'
+import { REGION_BAND_MARGIN, type RegionBand } from '@/lib/region-layout'
 import type { ActiveRegionEffect, CardKind, Point, Region, Territory } from '@/types'
-import {
-  DEFAULT_REGION_COLOR,
-  MAP_INK,
-  MAP_PAPER,
-  MAP_PARCHMENT,
-  REGION_BLESSING_COLOR,
-  REGION_CALAMITY_COLOR,
-} from '@/lib/map-palette'
+import { DEFAULT_REGION_COLOR, FRAME_RULE, MAP_INK, MAP_PAPER } from '@/lib/map-palette'
 
-/** Width of the gradient liseré hugging each region boundary, in map units. */
+/** Width of the liseré hugging each region boundary, in map units. */
 const REGION_BORDER_WIDTH = 10
-/** Stepped falloff of the regional liseré: inset fractions and opacities. */
-const REGION_BORDER_STEPS = [
-  { fraction: 1, opacity: 0.18 },
-  { fraction: 0.55, opacity: 0.42 },
-  { fraction: 0.32, opacity: 0.72 },
-  { fraction: 0.18, opacity: 1 },
-]
+const REGION_BORDER_OPACITY = 0.5
+/** Inset of the brass rule inside the frame's outer ink rule, in map units. */
+const FRAME_RULE_INSET = 3.5
 
 const CALAMITY_KINDS: CardKind[] = ['plague', 'bad_weather', 'famine']
 
-/** Colored frame slices around the map, each carrying its region's name. */
+/** A bishopric's name in a paper cartouche with an ink rule. */
+function RegionCartouche({
+  label,
+  fontSize,
+  transform,
+  regionId,
+}: {
+  label: string
+  fontSize: number
+  transform: string
+  regionId: string
+}) {
+  const letterSpacing = fontSize * 0.12
+  const width = label.length * (fontSize * 0.74 + letterSpacing) + fontSize * 1.4
+  const height = fontSize * 1.75
+  return (
+    <g transform={transform} data-region-label={regionId}>
+      <title>{label}</title>
+      <rect
+        x={-width / 2}
+        y={-height / 2}
+        width={width}
+        height={height}
+        fill={MAP_PAPER}
+        stroke={MAP_INK}
+        strokeWidth="1"
+        vectorEffect="non-scaling-stroke"
+      />
+      <text
+        fill={MAP_INK}
+        fontFamily="var(--font-display)"
+        fontSize={fontSize}
+        fontWeight="700"
+        letterSpacing={letterSpacing}
+        textAnchor="middle"
+        dominantBaseline="central"
+      >
+        {label.toUpperCase()}
+      </text>
+    </g>
+  )
+}
+
+/**
+ * Frame slices around the map in each bishopric's tint, between an outer ink
+ * rule and an inner brass rule, each carrying its name in a cartouche.
+ */
 export function RegionBands({
   bands,
   regionStyleByID,
   regionsById,
   territories,
+  mapWidth,
+  mapHeight,
 }: {
   bands: RegionBand[]
   regionStyleByID: Map<string, RegionStyle>
   regionsById: Map<string, Region>
   territories: Territory[]
+  mapWidth: number
+  mapHeight: number
 }) {
   const { t } = useLanguage()
   if (bands.length === 0) return null
 
+  const margin = REGION_BAND_MARGIN
   return (
     <g
       aria-label={t('map.regionBands')}
@@ -53,13 +93,31 @@ export function RegionBands({
           data-region-band={regionId}
           d={piecePath}
           fill={regionStyleByID.get(regionId)?.fill ?? DEFAULT_REGION_COLOR}
-          fillOpacity="0.6"
           stroke={MAP_INK}
-          strokeOpacity="0.25"
           strokeWidth="1"
           vectorEffect="non-scaling-stroke"
         />
       ))}
+      <rect
+        x={-margin}
+        y={-margin}
+        width={mapWidth + margin * 2}
+        height={mapHeight + margin * 2}
+        fill="none"
+        stroke={MAP_INK}
+        strokeWidth="3"
+        vectorEffect="non-scaling-stroke"
+      />
+      <rect
+        x={-margin + FRAME_RULE_INSET}
+        y={-margin + FRAME_RULE_INSET}
+        width={mapWidth + (margin - FRAME_RULE_INSET) * 2}
+        height={mapHeight + (margin - FRAME_RULE_INSET) * 2}
+        fill="none"
+        stroke={FRAME_RULE}
+        strokeWidth="1.2"
+        vectorEffect="non-scaling-stroke"
+      />
       {bands.map(({ regionId, labelX, labelY, labelAngle, labelWidth }, bandIndex) => {
         const region = regionsById.get(regionId)
         const seedTerritory = region
@@ -71,29 +129,20 @@ export function RegionBands({
           seed: region.seed,
         })
         return (
-          <text
+          <RegionCartouche
             key={`region-band-label-${regionId}-${bandIndex}`}
-            data-region-label={regionId}
+            regionId={regionId}
+            label={label}
+            fontSize={Math.min(9, fitLabelFontSize(label, labelWidth * 0.62))}
             transform={`translate(${labelX} ${labelY}) rotate(${labelAngle})`}
-            fill={MAP_PARCHMENT}
-            fontSize={fitLabelFontSize(label, labelWidth * 0.85)}
-            fontWeight="800"
-            textAnchor="middle"
-            dominantBaseline="central"
-            stroke={MAP_INK}
-            strokeOpacity="0.45"
-            strokeWidth={3}
-            paintOrder="stroke"
-          >
-            {label}
-          </text>
+          />
         )
       })}
     </g>
   )
 }
 
-/** Stepped gradient liseré along the inside of each region boundary. */
+/** Flat liseré in the bishopric's tint along the inside of its boundary. */
 export function RegionRings({
   outlines,
   regionStyleByID,
@@ -109,44 +158,35 @@ export function RegionRings({
 
   return (
     <g aria-label={t('map.regions')} pointerEvents="none">
-      {[...(outlines?.outlines.entries() ?? [])].map(([regionId, outline]) => {
-        const color = regionStyleByID.get(regionId)?.fill ?? DEFAULT_REGION_COLOR
-        const isHole = regionHoleTesters.get(regionId) ?? (() => false)
-        return (
-          <g key={`region-ring-${regionId}`} data-region-ring={regionId}>
-            {REGION_BORDER_STEPS.map((step) => (
-              <path
-                key={step.fraction}
-                d={regionRingPath(
-                  outline.loops,
-                  REGION_BORDER_WIDTH * step.fraction * annotationScale,
-                  isHole,
-                )}
-                fill={color}
-                fillOpacity={step.opacity}
-                fillRule="evenodd"
-                stroke="none"
-              />
-            ))}
-          </g>
-        )
-      })}
+      {[...(outlines?.outlines.entries() ?? [])].map(([regionId, outline]) => (
+        <path
+          key={`region-ring-${regionId}`}
+          data-region-ring={regionId}
+          d={regionRingPath(
+            outline.loops,
+            REGION_BORDER_WIDTH * annotationScale,
+            regionHoleTesters.get(regionId) ?? (() => false),
+          )}
+          fill={regionStyleByID.get(regionId)?.fill ?? DEFAULT_REGION_COLOR}
+          fillOpacity={REGION_BORDER_OPACITY}
+          fillRule="evenodd"
+          stroke="none"
+        />
+      ))}
     </g>
   )
 }
 
-/** Name badges for regions that never reach the frame (no band to carry it). */
+/** Name cartouches for regions that never reach the frame (no band to carry it). */
 export function RegionBadges({
   regions,
   interiorRegionIDs,
   territories,
-  regionStyleByID,
   annotationScale,
 }: {
   regions: Region[]
   interiorRegionIDs: Set<string>
   territories: Territory[]
-  regionStyleByID: Map<string, RegionStyle>
   annotationScale: number
 }) {
   const { t } = useLanguage()
@@ -161,45 +201,17 @@ export function RegionBadges({
           )
           if (!seedTerritory) return null
           const [centerX, centerY] = centroid(seedTerritory.points)
-          const color = regionStyleByID.get(region.id)?.fill ?? DEFAULT_REGION_COLOR
-          const label = t('map.regionLabel', {
-            name: seedTerritory.name,
-            seed: region.seed,
-          })
-          const scale = annotationScale
-          const fontSize = 9.5 * scale
-          const width = label.length * fontSize * 0.62 + 10 * scale
-          const height = 15 * scale
           return (
-            <g
+            <RegionCartouche
               key={`region-badge-${region.id}`}
-              data-region-label={region.id}
-              transform={`translate(${centerX} ${centerY - 56 * scale})`}
-            >
-              <title>{label}</title>
-              <rect
-                x={-width / 2}
-                y={-height / 2}
-                width={width}
-                height={height}
-                rx={height / 2}
-                fill={MAP_PAPER}
-                fillOpacity="0.94"
-                stroke={color}
-                strokeWidth={1.8 * scale}
-                vectorEffect="non-scaling-stroke"
-              />
-              <text
-                y={0.5 * scale}
-                fill={color}
-                fontSize={fontSize}
-                fontWeight="800"
-                textAnchor="middle"
-                dominantBaseline="central"
-              >
-                {label}
-              </text>
-            </g>
+              regionId={region.id}
+              label={t('map.regionLabel', {
+                name: seedTerritory.name,
+                seed: region.seed,
+              })}
+              fontSize={7 * annotationScale}
+              transform={`translate(${centerX} ${centerY - 56 * annotationScale})`}
+            />
           )
         })}
     </g>
@@ -234,7 +246,6 @@ export function RegionEffectMarkers({
             ?.slice(0, index)
             .filter((candidate) => candidate.regionSeed === effect.regionSeed).length ?? 0
         const isCalamity = CALAMITY_KINDS.includes(effect.kind)
-        const effectColor = isCalamity ? REGION_CALAMITY_COLOR : REGION_BLESSING_COLOR
         const cardLabel = formatCardLabel(effect.kind, t)
         return (
           <g
@@ -248,16 +259,26 @@ export function RegionEffectMarkers({
                 region: effect.regionSeed,
               })}
             </title>
+            {/* Ink and paper only: a calamity's roundel is doubled. */}
             <circle
               r={10 * annotationScale}
               fill={MAP_PAPER}
-              stroke={effectColor}
-              strokeWidth={3 * annotationScale}
+              stroke={MAP_INK}
+              strokeWidth={isCalamity ? 3 : 1.5}
               vectorEffect="non-scaling-stroke"
             />
+            {isCalamity && (
+              <circle
+                r={7 * annotationScale}
+                fill="none"
+                stroke={MAP_INK}
+                strokeWidth="1"
+                vectorEffect="non-scaling-stroke"
+              />
+            )}
             <text
               y={4 * annotationScale}
-              fill={effectColor}
+              fill={MAP_INK}
               fontSize={8 * annotationScale}
               fontWeight="900"
               textAnchor="middle"

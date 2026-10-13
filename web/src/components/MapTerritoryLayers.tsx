@@ -287,7 +287,7 @@ export function TerritoryLabels({
         const [centerX, centerY] = centroid(territory.points)
         const chefRegion = regionsActive ? regionBySeed.get(territory.id) : undefined
         const chefFill = chefRegion
-          ? (regionStyleByID.get(chefRegion.id)?.fill ?? MAP_INK)
+          ? (regionStyleByID.get(chefRegion.id)?.text ?? MAP_INK)
           : MAP_INK
         const labelProps = {
           fontSize: 13 * annotationScale,

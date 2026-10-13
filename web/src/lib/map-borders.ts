@@ -1,6 +1,11 @@
 import { borderIconPlacements, type IconPlacement } from '@/lib/chaotic-icons'
-import { edgeKey, meanTerritoryArea, polygonEdges } from '@/lib/map-svg-geometry'
-import type { MapData, Point, Territory } from '@/types'
+import {
+  centroid,
+  edgeKey,
+  meanTerritoryArea,
+  polygonEdges,
+} from '@/lib/map-svg-geometry'
+import type { MapData, Point, Terrain, Territory } from '@/types'
 
 const REFERENCE_MAP_PLAYERS = 4
 const REFERENCE_MAP_WIDTH = 1000
@@ -21,6 +26,8 @@ export interface SharedBorder {
   from: Point
   to: Point
   passable: boolean
+  /** Codes of the two territories the border separates, sorted. */
+  between: [string, string]
 }
 
 export interface MapBorders {
@@ -30,13 +37,49 @@ export interface MapBorders {
   outerBorders: OuterBorder[]
   /** Edges shared by two declared neighbours, passable or not. */
   sharedBorders: SharedBorder[]
-  /** Edge keys of the passable shared borders, for the selection outline. */
-  passableBoundaryKeys: Set<string>
 }
+
+/** Icon series drawn along an impassable frontier, by adjacent terrains. */
+export type ImpassableBorderKind = 'river' | 'marsh' | 'peaks' | 'cliff'
 
 export interface ImpassableBorderIcon {
   key: string
+  kind: ImpassableBorderKind
+  /** Rotation in radians; a cliff faces +y of its rotated frame. */
   placement: IconPlacement
+}
+
+/** Relief rank used to turn an escarpment towards the lower territory. */
+const RELIEF_RANK: Record<Terrain, number> = {
+  mountain: 4,
+  hill: 3,
+  forest: 2,
+  plain: 1,
+  swamp: 0,
+}
+
+/**
+ * Icon series of an impassable frontier, from the two terrains it separates:
+ * marsh if either side is a swamp, peaks if either is a mountain, otherwise
+ * an escarpment. Rivers (cartographie.md) are not generated yet.
+ */
+export function impassableBorderKind(
+  first: Terrain,
+  second: Terrain,
+): ImpassableBorderKind {
+  if (first === 'swamp' || second === 'swamp') return 'marsh'
+  if (first === 'mountain' || second === 'mountain') return 'peaks'
+  return 'cliff'
+}
+
+/**
+ * The territory an escarpment faces: the lower relief, or on a tie the
+ * larger territory code.
+ */
+export function lowerTerritory(first: Territory, second: Territory): Territory {
+  const difference = RELIEF_RANK[first.terrain] - RELIEF_RANK[second.terrain]
+  if (difference !== 0) return difference < 0 ? first : second
+  return first.id > second.id ? first : second
 }
 
 /**
@@ -134,6 +177,7 @@ export function computeMapBorders(map: MapData): MapBorders {
         from,
         to,
         passable: pair.passable,
+        between: pair.ids,
       })
     }
   }
@@ -143,27 +187,41 @@ export function computeMapBorders(map: MapData): MapBorders {
     mapHeight: Number.isFinite(minY) ? maxY + minY : 1,
     outerBorders,
     sharedBorders,
-    passableBoundaryKeys: new Set(
-      sharedBorders
-        .filter((border) => border.passable)
-        .map((border) => edgeKey(border.from, border.to)),
-    ),
   }
 }
 
 /**
- * Impassable frontiers render as a chaotic chain of mountain icons along
- * each shared border segment instead of a plain stroke. Deterministic per
- * segment so the chains never jump between renders.
+ * Impassable frontiers render as a chaotic chain of icons along each shared
+ * border segment instead of a plain stroke, the series chosen from the
+ * adjacent terrains. Deterministic per segment so the chains never jump
+ * between renders.
  */
 export function impassableBorderIcons(
   sharedBorders: SharedBorder[],
+  territories: Territory[],
   annotationScale: number,
 ): ImpassableBorderIcon[] {
+  const territoriesById = new Map(
+    territories.map((territory) => [territory.id, territory]),
+  )
   const items: ImpassableBorderIcon[] = []
   for (const border of sharedBorders) {
-    if (border.passable) {
+    const first = territoriesById.get(border.between[0])
+    const second = territoriesById.get(border.between[1])
+    if (border.passable || !first || !second) {
       continue
+    }
+    const kind = impassableBorderKind(first.terrain, second.terrain)
+    let rotation = 0
+    if (kind === 'cliff') {
+      // Turn the frame so +y points from the border into the lower side.
+      const [lowX, lowY] = centroid(lowerTerritory(first, second).points)
+      const dx = border.to[0] - border.from[0]
+      const dy = border.to[1] - border.from[1]
+      const midX = (border.from[0] + border.to[0]) / 2
+      const midY = (border.from[1] + border.to[1]) / 2
+      const facing = (lowX - midX) * -dy + (lowY - midY) * dx >= 0 ? 1 : -1
+      rotation = Math.atan2(dy, dx) + (facing === 1 ? 0 : Math.PI)
     }
     const placements = borderIconPlacements(
       border.from,
@@ -173,7 +231,11 @@ export function impassableBorderIcons(
       17 * annotationScale,
     )
     placements.forEach((placement, index) => {
-      items.push({ key: `${border.key}-${index}`, placement })
+      items.push({
+        key: `${border.key}-${index}`,
+        kind,
+        placement: { ...placement, rotation },
+      })
     })
   }
   // Depth-sort by canvas position: icons lower on the map paint over the
