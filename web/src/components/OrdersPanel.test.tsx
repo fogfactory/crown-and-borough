@@ -967,7 +967,11 @@ describe('OrdersPanel title and card order dialogs', () => {
           {
             territories: ['AAA', 'BBB', 'CCC', 'DDD'],
             castles: ['AAA'],
-            edges: [['AAA', 'BBB'], ['BBB', 'CCC'], ['CCC', 'DDD']],
+            edges: [
+              { from: 'AAA', to: 'BBB' },
+              { from: 'BBB', to: 'CCC' },
+              { from: 'CCC', to: 'DDD' },
+            ],
           },
         ],
       },

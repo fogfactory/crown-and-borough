@@ -3,6 +3,7 @@ package firestorestore
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -186,7 +187,44 @@ func jsonMap(value interface{}) (map[string]interface{}, error) {
 	if result == nil {
 		result = make(map[string]interface{})
 	}
+	if path, found := nestedArrayPath(result, ""); found {
+		return nil, fmt.Errorf("firestore cannot store the nested array at %s", path)
+	}
 	return result, nil
+}
+
+// nestedArrayPath returns the path of the first array held directly by another
+// array. Firestore rejects such documents, and inside a transaction the
+// rejection surfaces only as a lock timeout, so the encoder fails first.
+func nestedArrayPath(value interface{}, path string) (string, bool) {
+	switch typed := value.(type) {
+	case map[string]interface{}:
+		keys := make([]string, 0, len(typed))
+		for key := range typed {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			child := key
+			if path != "" {
+				child = path + "." + key
+			}
+			if found, ok := nestedArrayPath(typed[key], child); ok {
+				return found, true
+			}
+		}
+	case []interface{}:
+		for index, item := range typed {
+			child := fmt.Sprintf("%s[%d]", path, index)
+			if _, isArray := item.([]interface{}); isArray {
+				return child, true
+			}
+			if found, ok := nestedArrayPath(item, child); ok {
+				return found, true
+			}
+		}
+	}
+	return "", false
 }
 
 func decodeJSONMap(source map[string]interface{}, target interface{}) error {

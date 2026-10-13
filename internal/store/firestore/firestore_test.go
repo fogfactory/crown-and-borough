@@ -3,9 +3,11 @@ package firestorestore
 import (
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/fogfactory/crown-and-borough/internal/api"
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
@@ -34,17 +36,18 @@ func TestJSONMapRoundTripPreservesCanonicalState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("encode state map: %v", err)
 	}
-	mapMap, err := jsonMap(mapData)
+	// The map is stored as a JSON string: its polygons are nested arrays.
+	mapJSON, err := jsonString(mapData)
 	if err != nil {
-		t.Fatalf("encode map map: %v", err)
+		t.Fatalf("encode map json: %v", err)
 	}
 	var decodedState models.GameState
 	if err := decodeJSONMap(stateMap, &decodedState); err != nil {
 		t.Fatalf("decode state map: %v", err)
 	}
 	var decodedMap mapgen.MapData
-	if err := decodeJSONMap(mapMap, &decodedMap); err != nil {
-		t.Fatalf("decode map map: %v", err)
+	if err := decodeJSONString(mapJSON, &decodedMap); err != nil {
+		t.Fatalf("decode map json: %v", err)
 	}
 	if !reflect.DeepEqual(state, &decodedState) {
 		t.Fatalf("state round trip changed value")
@@ -54,6 +57,43 @@ func TestJSONMapRoundTripPreservesCanonicalState(t *testing.T) {
 	mapData.Starts = nil
 	if !reflect.DeepEqual(mapData, decodedMap) {
 		t.Fatalf("map round trip changed value")
+	}
+}
+
+func TestJSONMapRejectsNestedArrays(t *testing.T) {
+	_, err := jsonMap(map[string]interface{}{"sites": []interface{}{map[string]interface{}{"edges": [][2]string{{"AAA", "BBB"}}}}})
+	if err == nil || !strings.Contains(err.Error(), "sites[0].edges[0]") {
+		t.Fatalf("err = %v, want the nested array at sites[0].edges[0]", err)
+	}
+}
+
+func TestWinterViewsEncodeWithoutNestedArrays(t *testing.T) {
+	assets, err := loadFirestoreTestAssets()
+	if err != nil {
+		t.Fatalf("load assets: %v", err)
+	}
+	balance, err := assetgen.LoadBalance(testFirestoreAssetDir())
+	if err != nil {
+		t.Fatalf("load balance: %v", err)
+	}
+	state, err := engine.CreateGame("winter-view", []engine.PlayerInit{{Name: "Alice"}, {Name: "Bob"}, {Name: "Carol"}, {Name: "Dave"}}, balance, assets)
+	if err != nil {
+		t.Fatalf("create state: %v", err)
+	}
+	state.Season = models.SeasonWinter
+	for _, player := range state.Players {
+		view := api.ProjectStateForPlayer(state, player.ID, balance)
+		// A starting house holds a connected castle group: its fief site carries
+		// the edges that once reached Firestore as nested arrays.
+		if view.WinterAids == nil || len(view.WinterAids.FiefSites) == 0 || len(view.WinterAids.FiefSites[0].Edges) == 0 {
+			t.Fatalf("player %s: winter aids = %+v, want a fief site with edges", player.ID, view.WinterAids)
+		}
+		if _, err := jsonMap(view); err != nil {
+			t.Fatalf("player %s: encode winter view: %v", player.ID, err)
+		}
+	}
+	if _, err := jsonMap(api.ProjectState(state, balance)); err != nil {
+		t.Fatalf("encode observer winter view: %v", err)
 	}
 }
 

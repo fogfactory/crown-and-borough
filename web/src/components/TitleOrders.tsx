@@ -6,7 +6,7 @@ import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { appendDraftLine, draftLines } from '@/lib/winter-draft'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
-import { NEUTRAL_PLAYER_ID, type CardKind, type Dignity, type Noble, type PlayerId, type Region, type Season, type StateData, type Territory } from '@/types'
+import { NEUTRAL_PLAYER_ID, type CardKind, type Dignity, type FiefEdge, type Noble, type PlayerId, type Region, type Season, type StateData, type Territory } from '@/types'
 
 const PLAYABLE_KINDS: CardKind[] = [
   'fair_weather',
@@ -54,14 +54,14 @@ function fiefTitleKey(size: number): MessageKey {
 }
 
 /** True when every territory of the group is reachable from the first one over the edges. */
-function groupConnected(group: string[], edges: Array<[string, string]>): boolean {
+function groupConnected(group: string[], edges: FiefEdge[]): boolean {
   const inGroup = new Set(group)
   const seen = new Set([group[0]])
   const queue = [group[0]]
   while (queue.length > 0) {
     const current = queue.shift() as string
-    for (const [a, b] of edges) {
-      const next = a === current ? b : b === current ? a : null
+    for (const { from, to } of edges) {
+      const next = from === current ? to : to === current ? from : null
       if (next && inGroup.has(next) && !seen.has(next)) {
         seen.add(next)
         queue.push(next)

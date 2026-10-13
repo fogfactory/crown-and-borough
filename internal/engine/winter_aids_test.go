@@ -22,8 +22,8 @@ func TestWinterAidsFiefSiteIsAConnectedGroupWithACastle(t *testing.T) {
 	if want := []models.TerritoryID{"AAA"}; !reflect.DeepEqual(site.Castles, want) {
 		t.Errorf("castles = %v, want %v", site.Castles, want)
 	}
-	if len(site.Edges) != 2 {
-		t.Errorf("edges = %v, want AAA-BBB and BBB-CCC", site.Edges)
+	if want := []FiefEdge{{From: "AAA", To: "BBB"}, {From: "BBB", To: "CCC"}}; !reflect.DeepEqual(site.Edges, want) {
+		t.Errorf("edges = %v, want %v", site.Edges, want)
 	}
 	if aids.FiefCostPerTerritory != testBalance().Costs.FiefPerTerritory {
 		t.Errorf("cost per territory = %d", aids.FiefCostPerTerritory)

@@ -96,9 +96,17 @@ type FiefAid struct {
 // fiefs and of foreign armies, that holds at least three territories and a
 // castle. Edges are the crossable borders inside the group.
 type FiefSite struct {
-	Territories []models.TerritoryID    `json:"territories"`
-	Castles     []models.TerritoryID    `json:"castles"`
-	Edges       [][2]models.TerritoryID `json:"edges"`
+	Territories []models.TerritoryID `json:"territories"`
+	Castles     []models.TerritoryID `json:"castles"`
+	Edges       []FiefEdge           `json:"edges"`
+}
+
+// FiefEdge is a crossable border between two territories of a fief site, with
+// From < To. It is an object rather than a pair because the Firestore views
+// that carry winter aids cannot hold nested arrays.
+type FiefEdge struct {
+	From models.TerritoryID `json:"from"`
+	To   models.TerritoryID `json:"to"`
 }
 
 // ForecastWinterAids returns the aids of the viewer; nil outside winter.
@@ -217,7 +225,7 @@ func (ctx *resolutionContext) fiefAids(viewer models.PlayerID, aids *WinterAids)
 		if visited[start] {
 			continue
 		}
-		site := FiefSite{Territories: []models.TerritoryID{}, Castles: []models.TerritoryID{}, Edges: [][2]models.TerritoryID{}}
+		site := FiefSite{Territories: []models.TerritoryID{}, Castles: []models.TerritoryID{}, Edges: []FiefEdge{}}
 		visited[start] = true
 		queue := []models.TerritoryID{start}
 		for len(queue) > 0 {
@@ -232,7 +240,7 @@ func (ctx *resolutionContext) fiefAids(viewer models.PlayerID, aids *WinterAids)
 					continue
 				}
 				if current < neighbor {
-					site.Edges = append(site.Edges, [2]models.TerritoryID{current, neighbor})
+					site.Edges = append(site.Edges, FiefEdge{From: current, To: neighbor})
 				}
 				if !visited[neighbor] {
 					visited[neighbor] = true

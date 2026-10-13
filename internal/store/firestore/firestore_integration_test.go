@@ -16,6 +16,7 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/api"
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
+	"github.com/fogfactory/crown-and-borough/internal/models"
 	"github.com/fogfactory/crown-and-borough/internal/store"
 )
 
@@ -193,6 +194,96 @@ func TestFirestoreStorePersistsAndRestoresATurn(t *testing.T) {
 	}
 	if _, err := first.LookupInvitation(ctx, created.Invitation.Code); !errors.Is(err, store.ErrInvalidInvitation) {
 		t.Fatalf("deleted invitation error = %v, want invalid invitation", err)
+	}
+}
+
+// The views written when a year enters winter carry the winter aids, whose
+// fief sites must stay storable: Firestore rejects nested arrays.
+func TestFirestoreStoreResolvesIntoWinter(t *testing.T) {
+	if os.Getenv("FIRESTORE_EMULATOR_HOST") == "" {
+		t.Skip("FIRESTORE_EMULATOR_HOST is not configured")
+	}
+	projectID := os.Getenv("FIREBASE_PROJECT_ID")
+	if projectID == "" {
+		projectID = "crown-and-borough-integration"
+	}
+	assets, err := assetgen.Load("../../../assets")
+	if err != nil {
+		t.Fatalf("load assets: %v", err)
+	}
+	balance, err := assetgen.LoadBalance("../../../assets")
+	if err != nil {
+		t.Fatalf("load balance: %v", err)
+	}
+	ctx := context.Background()
+	client, err := cloudfirestore.NewClient(ctx, projectID)
+	if err != nil {
+		t.Fatalf("create emulator client: %v", err)
+	}
+	defer client.Close()
+	s := NewWithClient(balance, assets, Options{Client: client, StrictMembership: true})
+	for _, uid := range []string{"winter-alice", "winter-bob"} {
+		if _, err := s.EnsureProfile(ctx, store.Actor{ID: uid, Email: uid + "@example.com"}); err != nil {
+			t.Fatalf("ensure %s: %v", uid, err)
+		}
+		if _, err := s.UpdateProfile(ctx, uid, uid); err != nil {
+			t.Fatalf("profile %s: %v", uid, err)
+		}
+	}
+	created, err := s.CreateWithInvitation(ctx, store.Actor{ID: "winter-alice"}, store.CreateRequest{
+		Name:    "Winter game",
+		Seed:    "firestore-winter",
+		Players: []engine.PlayerInit{{Name: "winter-alice"}, {}},
+	})
+	if err != nil {
+		t.Fatalf("create game: %v", err)
+	}
+	id := created.Snapshot.ID
+	defer func() {
+		if err := s.deleteGame(ctx, id); err != nil {
+			t.Errorf("delete game subtree: %v", err)
+		}
+	}()
+	if _, err := s.Join(ctx, store.Actor{ID: "winter-bob"}, id, created.Invitation.Code); err != nil {
+		t.Fatalf("join game: %v", err)
+	}
+	for turn := 1; turn <= 3; turn++ {
+		resolved := false
+		for _, uid := range []string{"winter-alice", "winter-bob"} {
+			snapshot, err := s.Get(ctx, store.Actor{ID: uid}, id)
+			if err != nil {
+				t.Fatalf("turn %d: read game as %s: %v", turn, uid, err)
+			}
+			if snapshot.State.Turn != turn {
+				break
+			}
+			result, err := s.Submit(ctx, store.Actor{ID: uid}, id, store.SubmitRequest{ExpectedRevision: snapshot.Revision})
+			if err != nil {
+				t.Fatalf("turn %d: submit as %s: %v", turn, uid, err)
+			}
+			resolved = result.Status == "resolved"
+		}
+		if !resolved {
+			t.Fatalf("turn %d did not resolve", turn)
+		}
+	}
+	viewSnapshot, err := viewRef(s.client, id, "winter-alice").Get(ctx)
+	if err != nil {
+		t.Fatalf("read winter view: %v", err)
+	}
+	var view viewDocument
+	if err := viewSnapshot.DataTo(&view); err != nil {
+		t.Fatalf("decode winter view: %v", err)
+	}
+	var state api.StateView
+	if err := decodeJSONMap(view.State, &state); err != nil {
+		t.Fatalf("decode winter state: %v", err)
+	}
+	if state.Season != models.SeasonWinter || state.WinterAids == nil || len(state.WinterAids.FiefSites) == 0 {
+		t.Fatalf("winter view = season %s aids %+v, want winter with a fief site", state.Season, state.WinterAids)
+	}
+	if len(state.WinterAids.FiefSites[0].Edges) == 0 {
+		t.Fatalf("fief site %+v has no edges", state.WinterAids.FiefSites[0])
 	}
 }
 
