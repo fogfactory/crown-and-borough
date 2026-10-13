@@ -14,9 +14,8 @@ describe('MapLegend', () => {
 
     expect(screen.getByText('Légende')).toBeInTheDocument()
     expect(screen.getByText('Plaine')).toBeInTheDocument()
-    expect(
-      screen.getByText(/Icônes de montagnes = frontière infranchissable/),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Frontière franchissable')).toBeInTheDocument()
+    expect(screen.getByText('Escarpement (infranchissable)')).toBeInTheDocument()
     expect(
       container.querySelector('svg[aria-label="Carte des territoires"]'),
     ).not.toBeInTheDocument()
@@ -32,7 +31,7 @@ describe('MapLegend', () => {
     expect(screen.getByText('Noble (couleur du propriétaire)')).toBeInTheDocument()
     expect(screen.getByText('Noble prisonnier (otage / donjon)')).toBeInTheDocument()
   })
-  it('draws terrain swatches with the map texture patterns', () => {
+  it('samples the engraved terrain symbols and the border series', () => {
     const { container } = render(
       <LanguageProvider initialLanguage="en">
         <MapLegend />
@@ -40,9 +39,14 @@ describe('MapLegend', () => {
     )
 
     for (const terrain of ['plain', 'forest', 'hill', 'mountain', 'swamp']) {
-      const pattern = container.querySelector(`#legend-terrain-${terrain}`)
-      expect(pattern).toBeInTheDocument()
-      expect(pattern?.querySelectorAll('path, circle, line').length).toBeGreaterThan(0)
+      const swatch = container.querySelector(`[data-legend-terrain="${terrain}"]`)
+      expect(swatch?.querySelector('rect')).toHaveAttribute('fill', '#f1e6cb')
+      expect(swatch?.querySelector('path[stroke="#30291f"]')).toBeInTheDocument()
+    }
+    for (const kind of ['passable', 'peaks', 'marsh', 'cliff']) {
+      expect(
+        container.querySelector(`[data-legend-border="${kind}"]`),
+      ).toBeInTheDocument()
     }
   })
 

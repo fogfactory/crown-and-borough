@@ -1,20 +1,26 @@
 import {
+  BorderSymbol,
   Snowflake,
-  TERRAIN_PATTERNS,
-  TerrainPattern,
+  TERRAIN_SYMBOL_PATHS,
+  TerrainSymbol,
   WINTER_SNOW_FLAKES,
   WINTER_SNOW_TILE,
   WINTER_SNOW_VARIANT_ROTATIONS,
 } from '@/components/MapDecorations'
-import { DRAFT_INTENTION_COLOR, INTENT_OUTLINE_COLOR } from '@/lib/map-palette'
 import { pointsToPath } from '@/lib/map-svg-geometry'
-import type { Territory } from '@/types'
-import { MAP_NEUTRAL_STROKE, PLAYER_RED, SNOW_STROKE } from '@/lib/map-palette'
+import type { Terrain, Territory } from '@/types'
+import {
+  INTENT_OUTLINE_COLOR,
+  MAP_INK,
+  PLAYER_RED,
+  RIVER_BLUE,
+  SNOW_STROKE,
+} from '@/lib/map-palette'
 
 /**
  * Shared SVG definitions referenced by the map layers: per-territory clip
- * paths, the supply hatch, terrain and snow patterns, the region frame clip
- * and the intention arrow/circle markers.
+ * paths, the supply hatch, engraved terrain and border symbols, snow
+ * patterns, the region frame clip and the intention arrow/circle markers.
  */
 export function MapSvgDefs({
   territories,
@@ -56,9 +62,9 @@ export function MapSvgDefs({
           y1="0"
           x2={4 * annotationScale}
           y2={8 * annotationScale}
-          stroke={MAP_NEUTRAL_STROKE}
-          strokeWidth={2 * annotationScale}
-          strokeOpacity="0.5"
+          stroke={MAP_INK}
+          strokeWidth={1.4 * annotationScale}
+          strokeOpacity="0.35"
         />
       </pattern>
       {/* Opposite diagonal and a distinct color from the supply hatch, for a
@@ -81,9 +87,12 @@ export function MapSvgDefs({
           strokeOpacity="0.55"
         />
       </pattern>
-      {TERRAIN_PATTERNS.map((terrain) => (
-        <TerrainPattern key={terrain.terrain} terrain={terrain} scale={annotationScale} />
+      {(Object.keys(TERRAIN_SYMBOL_PATHS) as Terrain[]).map((terrain) => (
+        <TerrainSymbol key={terrain} terrain={terrain} />
       ))}
+      <BorderSymbol kind="marsh" color={MAP_INK} />
+      <BorderSymbol kind="cliff" color={MAP_INK} />
+      <BorderSymbol kind="river" color={RIVER_BLUE} />
       {WINTER_SNOW_VARIANT_ROTATIONS.map((rotation, index) => (
         <pattern
           key={rotation}
@@ -136,17 +145,6 @@ export function MapSvgDefs({
         <path d="M0 0 L10 5 L0 10 Z" fill={intentionsColor} />
       </marker>
       <marker
-        id="intent-arrow-draft"
-        viewBox="0 0 10 10"
-        refX="8.5"
-        refY="5"
-        markerWidth="3.2"
-        markerHeight="3.2"
-        orient="auto"
-      >
-        <path d="M0 0 L10 5 L0 10 Z" fill={DRAFT_INTENTION_COLOR} />
-      </marker>
-      <marker
         id="intent-circle-outline"
         viewBox="0 0 10 10"
         refX="5"
@@ -162,24 +160,6 @@ export function MapSvgDefs({
           fill="none"
           stroke={INTENT_OUTLINE_COLOR}
           strokeWidth="2.8"
-        />
-      </marker>
-      <marker
-        id="intent-circle-draft"
-        viewBox="0 0 10 10"
-        refX="5"
-        refY="5"
-        markerWidth="3.4"
-        markerHeight="3.4"
-        orient="auto"
-      >
-        <circle
-          cx="5"
-          cy="5"
-          r="3.8"
-          fill="none"
-          stroke={DRAFT_INTENTION_COLOR}
-          strokeWidth="2"
         />
       </marker>
       <marker

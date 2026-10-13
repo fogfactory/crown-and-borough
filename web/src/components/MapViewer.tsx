@@ -3,7 +3,7 @@ import { useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { MapLegend, TERRAIN_LABEL_KEYS } from '@/components/MapLegend'
 import { MapControls } from '@/components/MapControls'
 import { MapFiefLayer } from '@/components/MapFiefLayer'
-import { snowPatternVariant } from '@/components/MapDecorations'
+import { EngravedTerrainLayer, snowPatternVariant } from '@/components/MapDecorations'
 import {
   CalamityIconLayer,
   CardIconLayer,
@@ -30,7 +30,7 @@ import { useLanguage } from '@/i18n/LanguageContext'
 import type { Intention } from '@/lib/intent-overlay'
 import type { WinterIntention } from '@/lib/winter-overlay'
 import { NEUTRAL_PLAYER_ID } from '@/types'
-import { centroid, pointsToPath, splitBoundaryPaths } from '@/lib/map-svg-geometry'
+import { centroid, pointsToPath } from '@/lib/map-svg-geometry'
 import { hasSupplySource } from '@/lib/supply'
 import { useMapBorders } from '@/lib/use-map-borders'
 import { useMapGestures } from '@/lib/use-map-gestures'
@@ -44,20 +44,23 @@ import {
 } from '@/components/ui/tooltip'
 import type { MapData, PlayerId, StateData, SupplyLine } from '@/types'
 import {
-  MAP_AMBER_STROKE,
   MAP_BACKGROUND,
-  MAP_BORDER_DARK,
-  MAP_BORDER_STROKE,
+  MAP_INK,
+  MAP_PAPER_FILL,
   MAP_PARCHMENT,
   NEUTRAL_ARMY_COLOR,
   PLAYER_PALETTE,
   PLAYER_RED,
-  SNOW_FILL,
-  TERRAIN_COLORS,
+  SEASON_VEILS,
+  SELECTION_HALO,
+  SELECTION_STROKE,
 } from '@/lib/map-palette'
 
-const OUTER_BORDER_WIDTH = 2
-const PASSABLE_BORDER_WIDTH = 2
+const OUTER_BORDER_WIDTH = 2.2
+const PASSABLE_BORDER_WIDTH = 1.7
+const SELECTION_STROKE_WIDTH = 2.5
+/** Width of the brass halo inside a selected territory, in map units. */
+const SELECTION_HALO_WIDTH = 8
 
 interface MapViewerProps {
   map: MapData
@@ -110,7 +113,6 @@ export function MapViewer({
     mapHeight,
     outerBorders,
     sharedBorders,
-    passableBoundaryKeys,
     annotationScale,
     impassableBorderIcons,
   } = useMapBorders(map)
@@ -243,6 +245,8 @@ export function MapViewer({
               regionStyleByID={regionStyleByID}
               regionsById={regionsById}
               territories={map.territories}
+              mapWidth={mapWidth}
+              mapHeight={mapHeight}
             />
 
             <g aria-label={t('map.terrains')}>
@@ -252,7 +256,7 @@ export function MapViewer({
                     <path
                       data-territory-id={territory.id}
                       d={pointsToPath(territory.points)}
-                      fill={TERRAIN_COLORS[territory.terrain]}
+                      fill={MAP_PAPER_FILL}
                       stroke="none"
                       tabIndex={0}
                       role="button"
@@ -274,15 +278,11 @@ export function MapViewer({
               ))}
             </g>
 
-            <g aria-label={t('map.terrainTextures')} pointerEvents="none">
-              {map.territories.map((territory) => (
-                <path
-                  key={territory.id}
-                  d={pointsToPath(territory.points)}
-                  fill={`url(#terrain-${territory.terrain})`}
-                />
-              ))}
-            </g>
+            <EngravedTerrainLayer
+              territories={map.territories}
+              annotationScale={annotationScale}
+              label={t('map.terrainTextures')}
+            />
             {regionsActive && (
               <RegionRings
                 outlines={regionOutlines}
@@ -301,22 +301,23 @@ export function MapViewer({
               />
             )}
 
-            {state.season === 'winter' && (
-              <g
-                aria-label={t('map.winterVeil')}
-                data-winter-veil-overlay="true"
-                pointerEvents="none"
-              >
-                <rect
-                  x={-bandMarginX}
-                  y={-bandMarginY}
-                  width={viewWidth}
-                  height={viewHeight}
-                  fill={SNOW_FILL}
-                  opacity="0.2"
-                />
-              </g>
-            )}
+            <g
+              aria-label={t(
+                state.season === 'winter' ? 'map.winterVeil' : 'map.seasonVeil',
+              )}
+              data-season-veil={state.season}
+              data-winter-veil-overlay={state.season === 'winter' || undefined}
+              pointerEvents="none"
+            >
+              <rect
+                x={-bandMarginX}
+                y={-bandMarginY}
+                width={viewWidth}
+                height={viewHeight}
+                fill={SEASON_VEILS[state.season].color}
+                opacity={SEASON_VEILS[state.season].opacity}
+              />
+            </g>
             {state.season === 'winter' && (
               <g aria-label={t('map.winterSnow')} pointerEvents="none">
                 {map.territories.map((territory) => (
@@ -371,47 +372,6 @@ export function MapViewer({
               </g>
             )}
 
-            <g aria-label={t('map.selection')} pointerEvents="none">
-              {map.territories.map((territory) => {
-                if (territory.id !== selectedId) {
-                  return null
-                }
-
-                const { solidPath, passablePath } = splitBoundaryPaths(
-                  territory.points,
-                  passableBoundaryKeys,
-                )
-
-                return (
-                  <g key={territory.id}>
-                    {solidPath && (
-                      <path
-                        d={solidPath}
-                        fill="none"
-                        stroke={MAP_AMBER_STROKE}
-                        strokeWidth="5"
-                        strokeLinecap="round"
-                        clipPath={`url(#territory-clip-${territory.id})`}
-                        vectorEffect="non-scaling-stroke"
-                      />
-                    )}
-                    {passablePath && (
-                      <path
-                        d={passablePath}
-                        fill="none"
-                        stroke={MAP_AMBER_STROKE}
-                        strokeWidth="5"
-                        strokeDasharray={passableBorderDots}
-                        strokeLinecap="round"
-                        clipPath={`url(#territory-clip-${territory.id})`}
-                        vectorEffect="non-scaling-stroke"
-                      />
-                    )}
-                  </g>
-                )
-              })}
-            </g>
-
             <g aria-label={t('map.outerBorders')} pointerEvents="none">
               {outerBorders.map((border) => (
                 <line
@@ -420,8 +380,7 @@ export function MapViewer({
                   y1={border.from[1]}
                   x2={border.to[0]}
                   y2={border.to[1]}
-                  stroke={MAP_BORDER_STROKE}
-                  strokeOpacity="0.85"
+                  stroke={MAP_INK}
                   strokeWidth={OUTER_BORDER_WIDTH}
                   strokeLinecap="round"
                   vectorEffect="non-scaling-stroke"
@@ -439,8 +398,8 @@ export function MapViewer({
                     y1={border.from[1]}
                     x2={border.to[0]}
                     y2={border.to[1]}
-                    stroke={MAP_BORDER_DARK}
-                    strokeOpacity="0.85"
+                    stroke={MAP_INK}
+                    strokeOpacity="0.75"
                     strokeWidth={PASSABLE_BORDER_WIDTH}
                     strokeDasharray={passableBorderDots}
                     strokeLinecap="round"
@@ -448,6 +407,37 @@ export function MapViewer({
                   />
                 ))}
               <ImpassableBorderChain icons={impassableBorderIcons} />
+            </g>
+
+            <g aria-label={t('map.selection')} pointerEvents="none">
+              {map.territories.map((territory) => {
+                if (territory.id !== selectedId) {
+                  return null
+                }
+
+                const outline = pointsToPath(territory.points)
+                return (
+                  <g key={territory.id} data-selected-territory={territory.id}>
+                    <path
+                      d={outline}
+                      fill="none"
+                      stroke={SELECTION_HALO}
+                      strokeOpacity="0.3"
+                      strokeWidth={SELECTION_HALO_WIDTH * 2 * annotationScale}
+                      strokeLinejoin="round"
+                      clipPath={`url(#territory-clip-${territory.id})`}
+                    />
+                    <path
+                      d={outline}
+                      fill="none"
+                      stroke={SELECTION_STROKE}
+                      strokeWidth={SELECTION_STROKE_WIDTH}
+                      strokeLinejoin="round"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  </g>
+                )
+              })}
             </g>
 
             {supplyPathPoints.length > 0 && (
@@ -508,7 +498,6 @@ export function MapViewer({
                 regions={map.regions ?? []}
                 interiorRegionIDs={interiorRegionIDs}
                 territories={map.territories}
-                regionStyleByID={regionStyleByID}
                 annotationScale={annotationScale}
               />
             )}

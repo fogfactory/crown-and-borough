@@ -4,27 +4,15 @@
  * this module is the only production file allowed to hold hex literals
  * (enforced by ESLint).
  */
-import type { Terrain } from '@/types'
+import type { Season } from '@/types'
 
 // Terrain
 
-/** Territory fill per terrain. */
-export const TERRAIN_COLORS: Record<Terrain, string> = {
-  plain: '#d4e8b4',
-  forest: '#85b092',
-  hill: '#cfb694',
-  mountain: '#aab3bc',
-  swamp: '#90c6c0',
-}
+/** Common paper of the engraved map, shared by every territory. */
+export const MAP_PAPER_FILL = '#f1e6cb'
 
-/** Stroke of the hatching drawn over each terrain. */
-export const TERRAIN_PATTERN_STROKES: Record<Terrain, string> = {
-  plain: '#5a7a34',
-  forest: '#14291d',
-  hill: '#6b4a30',
-  mountain: '#4d565e',
-  swamp: '#2e5f5a',
-}
+/** Water of a river frontier (cartographie.md). */
+export const RIVER_BLUE = '#3d76a6'
 
 // Map canvas and shared ink/paper tones
 
@@ -35,11 +23,12 @@ export const MAP_INK = '#30291f'
 export const MAP_PARCHMENT = '#fff8e7'
 export const MAP_PAPER = '#fffaf0'
 /** Halo around labels and icon casings. */
-export const MAP_HALO = '#f5ecd9'
-export const MAP_BORDER_STROKE = '#594b3c'
-export const MAP_BORDER_DARK = '#39271b'
-export const MAP_AMBER_STROKE = '#d28b22'
-export const MAP_NEUTRAL_STROKE = '#808080'
+export const MAP_HALO = MAP_PAPER_FILL
+/** Selection halo (`brass-400`) and stroke (`brass-700`). */
+export const SELECTION_HALO = '#c9a24a'
+export const SELECTION_STROKE = '#7d5a1c'
+/** Fine inner rule of the bishopric frame (`brass-300`). */
+export const FRAME_RULE = '#e2c47a'
 export const MAP_BROWN_FILL = '#59401f'
 
 // Players, owners and fallbacks
@@ -55,22 +44,39 @@ export const NEUTRAL_ARMY_COLOR = '#6b7280'
 
 // Regions (bishoprics)
 
+/** Earthy bishopric tints: ochre, slate, olive, brick, lavender, sage. */
 export const HERALDIC_COLORS = [
-  '#1d4ed8',
-  '#b91c1c',
-  '#15803d',
-  '#d97706',
-  '#7c3aed',
-  '#374151',
+  '#a9803a',
+  '#5f7d8c',
+  '#7b7d47',
+  '#9a5f4b',
+  '#7f7496',
+  '#6b8a74',
 ] as const
-/** Fill of a region with no assigned heraldic color. */
-export const DEFAULT_REGION_COLOR = '#315a75'
-export const REGION_CALAMITY_COLOR = '#b91c1c'
-export const REGION_BLESSING_COLOR = '#15803d'
+/**
+ * Each tint darkened to reach 4.5:1 on the map paper, for the name of the
+ * bishopric's chef-lieu.
+ */
+export const HERALDIC_TEXT_COLORS = [
+  '#80612c',
+  '#516a77',
+  '#67693c',
+  '#8f5846',
+  '#6b617e',
+  '#536c5a',
+] as const
+/** Fill of a region with no assigned tint: `line-strong`, outside the tints. */
+export const DEFAULT_REGION_COLOR = '#8f7d5c'
 
 // Seasons
 
-export const SNOW_FILL = '#eaf3ff'
+/** Veil laid over the whole map, announcing the season. */
+export const SEASON_VEILS: Record<Season, { color: string; opacity: number }> = {
+  spring: { color: '#9cc36b', opacity: 0.14 },
+  summer: { color: '#e3b341', opacity: 0.14 },
+  autumn: { color: '#c0703a', opacity: 0.17 },
+  winter: { color: '#e3edf7', opacity: 0.42 },
+}
 export const SNOW_STROKE = '#f8fbff'
 export const WINTER_ERROR_COLOR = '#c43b2a'
 export const WINTER_WARNING_COLOR = '#e07a30'
@@ -78,9 +84,9 @@ export const WINTER_WARNING_COLOR = '#e07a30'
 // Markers
 
 /** Outline color shared by every intention/order annotation on the map. */
-export const INTENT_OUTLINE_COLOR = '#17120f'
-/** Fill used for a drafted (not yet submitted) order's markers. */
-export const DRAFT_INTENTION_COLOR = '#d4a39b'
+export const INTENT_OUTLINE_COLOR = MAP_INK
+/** Opacity of a drafted (not yet submitted) order's arrows and badges. */
+export const DRAFT_INTENTION_OPACITY = 0.45
 export const FORTIFICATION_WALL_FILL = '#b8b8b4'
 /** Neutral fill for infrastructure without a controlling player. */
 export const NEUTRAL_MARKER_FILL = '#efe6d0'

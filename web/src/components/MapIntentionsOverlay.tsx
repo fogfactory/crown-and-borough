@@ -1,7 +1,7 @@
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { Intention } from '@/lib/intent-overlay'
 import { IntentBadge } from '@/components/MapMarkers'
-import { DRAFT_INTENTION_COLOR, INTENT_OUTLINE_COLOR } from '@/lib/map-palette'
+import { DRAFT_INTENTION_OPACITY, INTENT_OUTLINE_COLOR } from '@/lib/map-palette'
 
 export function IntentionsOverlay({
   intentions,
@@ -21,13 +21,17 @@ export function IntentionsOverlay({
     <g aria-label={t('map.intentionsOverlay')} pointerEvents="none">
       {intentions.map((intention, index) => {
         const isDraft = intention.source === 'draft'
-        const intentionColor =
-          intention.color ?? (isDraft ? DRAFT_INTENTION_COLOR : intentionsColor)
-        const markerEndFor = (kind: 'arrow' | 'circle') =>
-          `url(#intent-${kind}${isDraft ? '-draft' : ''})`
+        const intentionColor = intention.color ?? intentionsColor
+        const markerEndFor = (kind: 'arrow' | 'circle') => `url(#intent-${kind})`
+        // A draft keeps the same arrow, faded and dashed.
+        const draftDash = isDraft ? passableBorderDash : undefined
 
         return (
-          <g key={`${intention.armyTerritory}-${index}`} opacity={isDraft ? 0.6 : 1}>
+          <g
+            key={`${intention.armyTerritory}-${index}`}
+            opacity={isDraft ? DRAFT_INTENTION_OPACITY : 1}
+            data-intent-draft={isDraft || undefined}
+          >
             <title>
               {intention.nobleCode ? `${intention.nobleCode} · ` : ''}
               {intention.label}
@@ -52,6 +56,7 @@ export function IntentionsOverlay({
                       fill="none"
                       stroke={INTENT_OUTLINE_COLOR}
                       strokeWidth={4.5 * annotationScale}
+                      strokeDasharray={draftDash}
                       strokeLinecap="round"
                       markerEnd="url(#intent-arrow-outline)"
                     />
@@ -60,6 +65,7 @@ export function IntentionsOverlay({
                       fill="none"
                       stroke={intentionColor}
                       strokeWidth={2.5 * annotationScale}
+                      strokeDasharray={draftDash}
                       strokeLinecap="round"
                       markerEnd={markerEndFor('arrow')}
                     />
@@ -70,7 +76,6 @@ export function IntentionsOverlay({
                       turnLabel={intention.turnLabel}
                       color={intentionColor}
                       scale={annotationScale}
-                      isDraft={isDraft}
                     />
                   </g>
                 )
@@ -81,7 +86,7 @@ export function IntentionsOverlay({
                 segment.kind === 'support-defensive' ||
                 segment.kind === 'support-offensive'
                   ? passableBorderDash
-                  : undefined
+                  : draftDash
               const markerKind = segment.kind === 'support-defensive' ? 'circle' : 'arrow'
               const outlineMarkerEnd =
                 markerKind === 'circle'
@@ -114,7 +119,6 @@ export function IntentionsOverlay({
                     turnLabel={intention.turnLabel}
                     color={intentionColor}
                     scale={annotationScale}
-                    isDraft={isDraft}
                   />
                 </g>
               )
@@ -127,7 +131,6 @@ export function IntentionsOverlay({
                 turnLabel={intention.turnLabel}
                 color={intentionColor}
                 scale={annotationScale}
-                isDraft={isDraft}
               />
             )}
           </g>

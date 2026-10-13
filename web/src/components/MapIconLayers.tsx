@@ -3,31 +3,46 @@ import { useLanguage } from '@/i18n/LanguageContext'
 import { GAME_ICON_GLYPHS } from '@/lib/game-icon-glyphs'
 import type { ImpassableBorderIcon } from '@/lib/map-borders'
 import type { CalamityIcon, ScatteredIcon } from '@/lib/region-effect-icons'
-import { MAP_HALO, MAP_INK, PLAYER_RED } from '@/lib/map-palette'
+import { BORDER_SYMBOL_BOX, borderSymbolId } from '@/components/MapDecorations'
+import { MAP_HALO, MAP_INK, MAP_PAPER_FILL } from '@/lib/map-palette'
 
-/** Mountain glyphs strung along the impassable frontiers. */
+/**
+ * Icon series strung along the impassable frontiers: peaks, dense marsh or
+ * escarpment, by the terrains the frontier separates.
+ */
 export function ImpassableBorderChain({ icons }: { icons: ImpassableBorderIcon[] }) {
   return (
     <g data-impassable-chain="true">
-      {icons.map((icon) => (
-        <GameIconGlyph
-          key={icon.key}
-          glyph={GAME_ICON_GLYPHS['peaks']}
-          x={icon.placement.x - icon.placement.size / 2}
-          y={icon.placement.y - icon.placement.size / 2}
-          size={icon.placement.size}
-          fill={MAP_INK}
-          stroke={MAP_HALO}
-          strokeWidth={20}
-          opacity={0.92}
-          rotation={(icon.placement.rotation * 180) / Math.PI}
-        />
-      ))}
+      {icons.map(({ key, kind, placement }) =>
+        kind === 'peaks' ? (
+          <g key={key} data-border-kind={kind}>
+            <GameIconGlyph
+              glyph={GAME_ICON_GLYPHS['peaks']}
+              x={placement.x - placement.size / 2}
+              y={placement.y - placement.size / 2}
+              size={placement.size}
+              fill={MAP_INK}
+              stroke={MAP_HALO}
+              strokeWidth={20}
+              opacity={1}
+            />
+          </g>
+        ) : (
+          <use
+            key={key}
+            href={`#${borderSymbolId(kind)}`}
+            data-border-kind={kind}
+            transform={`translate(${placement.x} ${placement.y}) rotate(${
+              (placement.rotation * 180) / Math.PI
+            }) scale(${placement.size / BORDER_SYMBOL_BOX})`}
+          />
+        ),
+      )}
     </g>
   )
 }
 
-/** Active calamities, with a circle-slash badge when a card counters them. */
+/** Active calamities, struck through in ink when a card counters them. */
 export function CalamityIconLayer({ icons }: { icons: CalamityIcon[] }) {
   const { t } = useLanguage()
   if (icons.length === 0) return null
@@ -48,24 +63,22 @@ export function CalamityIconLayer({ icons }: { icons: CalamityIcon[] }) {
             rotation={(icon.placement.rotation * 180) / Math.PI}
           />
           {icon.canceled && (
-            <g pointerEvents="none">
-              <circle
-                cx={icon.placement.x}
-                cy={icon.placement.y}
-                r={icon.placement.size * 0.55}
-                fill="none"
-                stroke={PLAYER_RED}
-                strokeWidth={icon.placement.size * 0.16}
-                opacity={0.95}
+            <g pointerEvents="none" data-calamity-canceled="true" strokeLinecap="round">
+              <line
+                x1={icon.placement.x - icon.placement.size * 0.45}
+                y1={icon.placement.y - icon.placement.size * 0.45}
+                x2={icon.placement.x + icon.placement.size * 0.45}
+                y2={icon.placement.y + icon.placement.size * 0.45}
+                stroke={MAP_PAPER_FILL}
+                strokeWidth={icon.placement.size * 0.2}
               />
               <line
-                x1={icon.placement.x - icon.placement.size * 0.4}
-                y1={icon.placement.y - icon.placement.size * 0.4}
-                x2={icon.placement.x + icon.placement.size * 0.4}
-                y2={icon.placement.y + icon.placement.size * 0.4}
-                stroke={PLAYER_RED}
-                strokeWidth={icon.placement.size * 0.16}
-                opacity={0.95}
+                x1={icon.placement.x - icon.placement.size * 0.45}
+                y1={icon.placement.y - icon.placement.size * 0.45}
+                x2={icon.placement.x + icon.placement.size * 0.45}
+                y2={icon.placement.y + icon.placement.size * 0.45}
+                stroke={MAP_INK}
+                strokeWidth={icon.placement.size * 0.1}
               />
             </g>
           )}

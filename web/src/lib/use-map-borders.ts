@@ -16,7 +16,7 @@ export interface MapBordersLayout extends MapBorders {
 }
 
 /**
- * Map extent, border segments and the mountain chains drawn along the
+ * Map extent, border segments and the icon chains drawn along the
  * impassable ones. Borders only recompute when the map changes; the chains
  * also follow the annotation scale.
  */
@@ -25,8 +25,8 @@ export function useMapBorders(map: MapData): MapBordersLayout {
   const annotationScale = mapAnnotationScale(map.territories)
   const { sharedBorders } = borders
   const impassableBorderIcons = useMemo(
-    () => computeImpassableBorderIcons(sharedBorders, annotationScale),
-    [sharedBorders, annotationScale],
+    () => computeImpassableBorderIcons(sharedBorders, map.territories, annotationScale),
+    [sharedBorders, map.territories, annotationScale],
   )
   return { ...borders, annotationScale, impassableBorderIcons }
 }

@@ -344,7 +344,6 @@ export function IntentBadge({
   turnLabel,
   color,
   scale,
-  isDraft,
 }: {
   x: number
   y: number
@@ -352,10 +351,7 @@ export function IntentBadge({
   turnLabel: string
   color: string
   scale: number
-  isDraft: boolean
 }) {
-  const foreground = isDraft ? MAP_INK : MAP_PARCHMENT
-
   return (
     <g transform={`translate(${x} ${y})`}>
       <circle
@@ -369,7 +365,7 @@ export function IntentBadge({
       <text
         x="0"
         y="0"
-        fill={foreground}
+        fill={MAP_PARCHMENT}
         fontSize={9 * scale}
         fontWeight="800"
         textAnchor="middle"
@@ -380,7 +376,7 @@ export function IntentBadge({
       <text
         x={11 * scale}
         y={-1 * scale}
-        fill={isDraft ? MAP_INK : color}
+        fill={color}
         fontSize={9 * scale}
         fontWeight="700"
         textAnchor="middle"

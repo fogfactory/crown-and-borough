@@ -25,7 +25,7 @@ export interface ScatteredIcon {
 }
 
 export interface CalamityIcon extends ScatteredIcon {
-  /** A single drafted card counters this calamity: draw a circle-slash badge. */
+  /** A single drafted card counters this calamity: strike it through. */
   canceled: boolean
 }
 

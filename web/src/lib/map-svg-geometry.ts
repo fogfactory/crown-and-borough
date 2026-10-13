@@ -51,34 +51,6 @@ export function polygonEdges(points: Point[]): Array<[Point, Point]> {
   ])
 }
 
-export function segmentsToPath(segments: Array<[Point, Point]>): string {
-  return segments
-    .map(([[fromX, fromY], [toX, toY]]) => `M ${fromX},${fromY} L ${toX},${toY}`)
-    .join(' ')
-}
-
-export function splitBoundaryPaths(
-  points: Point[],
-  passableBoundaryKeys: Set<string>,
-): { solidPath: string; passablePath: string } {
-  const solidSegments: Array<[Point, Point]> = []
-  const passableSegments: Array<[Point, Point]> = []
-
-  for (const segment of polygonEdges(points)) {
-    const [from, to] = segment
-    if (passableBoundaryKeys.has(edgeKey(from, to))) {
-      passableSegments.push(segment)
-    } else {
-      solidSegments.push(segment)
-    }
-  }
-
-  return {
-    solidPath: segmentsToPath(solidSegments),
-    passablePath: segmentsToPath(passableSegments),
-  }
-}
-
 export function centroid(points: Point[]): Point {
   if (points.length === 0) {
     return [0, 0]
