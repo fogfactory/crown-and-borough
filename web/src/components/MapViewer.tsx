@@ -2,7 +2,7 @@ import { useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 
 import { MapLegend, TERRAIN_LABEL_KEYS } from '@/components/MapLegend'
 import { MapControls } from '@/components/MapControls'
-import { MapFiefLayer } from '@/components/MapFiefLayer'
+import { HeraldryDefs } from '@/components/MapHeraldry'
 import { EngravedTerrainLayer, snowPatternVariant } from '@/components/MapDecorations'
 import {
   CalamityIconLayer,
@@ -21,7 +21,6 @@ import {
 import { MapSvgDefs } from '@/components/MapSvgDefs'
 import {
   LiveLayer,
-  OccupiedHatchLayer,
   OwnershipLayer,
   TerritoryLabels,
 } from '@/components/MapTerritoryLayers'
@@ -31,6 +30,7 @@ import type { Intention } from '@/lib/intent-overlay'
 import type { WinterIntention } from '@/lib/winter-overlay'
 import { NEUTRAL_PLAYER_ID } from '@/types'
 import { centroid, pointsToPath } from '@/lib/map-svg-geometry'
+import { resolveArmsByOwner } from '@/lib/heraldry'
 import { hasSupplySource } from '@/lib/supply'
 import { useMapBorders } from '@/lib/use-map-borders'
 import { useMapGestures } from '@/lib/use-map-gestures'
@@ -189,6 +189,7 @@ export function MapViewer({
         : (colorsByPlayer.get(owner) ?? PLAYER_PALETTE[index % PLAYER_PALETTE.length]),
     ]),
   )
+  const armsByOwner = resolveArmsByOwner(state, playerColors)
   const selectedTerritoryState = state.territories.find(
     (territoryState) => territoryState.id === selectedId,
   )
@@ -239,6 +240,9 @@ export function MapViewer({
               viewHeight={viewHeight}
               intentionsColor={intentionsColor}
             />
+            <defs>
+              <HeraldryDefs armsByOwner={armsByOwner} />
+            </defs>
 
             <RegionBands
               bands={regionBands}
@@ -328,29 +332,6 @@ export function MapViewer({
                   />
                 ))}
               </g>
-            )}
-
-            {showOwnership && (
-              <OwnershipLayer
-                territories={map.territories}
-                state={state}
-                playerColors={playerColors}
-                annotationScale={annotationScale}
-                fiefs={state.fiefs ?? []}
-              />
-            )}
-
-            {showOwnership && (state.fiefs?.length ?? 0) > 0 && (
-              <MapFiefLayer
-                territories={map.territories}
-                fiefs={state.fiefs ?? []}
-                playerColors={playerColors}
-                annotationScale={annotationScale}
-              />
-            )}
-
-            {showOwnership && (
-              <OccupiedHatchLayer territories={map.territories} state={state} />
             )}
 
             {supplyReachable.size > 0 && (
@@ -478,10 +459,19 @@ export function MapViewer({
 
             <CalamityIconLayer icons={calamityIcons} />
             <CardIconLayer icons={cardIcons} />
+            {showOwnership && (
+              <OwnershipLayer
+                territories={map.territories}
+                state={state}
+                annotationScale={annotationScale}
+                fiefs={state.fiefs ?? []}
+              />
+            )}
             <LiveLayer
               territories={map.territories}
               state={state}
               playerColors={playerColors}
+              armsByOwner={armsByOwner}
               annotationScale={annotationScale}
             />
 

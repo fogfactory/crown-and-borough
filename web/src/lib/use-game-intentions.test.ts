@@ -208,6 +208,6 @@ describe('useGameIntentions', () => {
     const { result } = buildHook({ playerID: null, preview: null })
 
     expect(result.current.intentions).toHaveLength(0)
-    expect(result.current.intentionsColor).toBe('#a84632')
+    expect(result.current.intentionsColor).toBe('#b3322b')
   })
 })

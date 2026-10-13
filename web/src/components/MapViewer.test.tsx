@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { MapViewer } from '@/components/MapViewer'
@@ -8,7 +8,7 @@ import { buildIntentions } from '@/lib/intent-overlay'
 import { draftOrders } from '@/test/parse-orders'
 import type { Intention } from '@/lib/intent-overlay'
 import type { WinterIntention } from '@/lib/winter-overlay'
-import type { MapData, StateData, SupplyLine } from '@/types'
+import type { Fief, MapData, StateData, SupplyLine } from '@/types'
 
 const map: MapData = {
   territories: [
@@ -548,33 +548,77 @@ describe('MapViewer territorial overlays', () => {
     expect(svg.querySelectorAll('[data-ownership-badge]').length).toBe(0)
   })
 
-  it('prints the fief capital trigram on each member territory ownership badge', () => {
+  it('crowns the fief capital banner and marks members with its trigram', () => {
     const fiefState: StateData = {
       ...state,
       players: [{ id: 'P1', name: 'One', color: '#123456' }],
+      territories: [
+        { id: 'ROS', owner: 'P1', resources: 0, army: null, infrastructures: [] },
+        { id: 'BRU', owner: 'P1', resources: 0, army: null, infrastructures: [] },
+      ],
       fiefs: [
-        { capital: 'ROS', title: 'barony', territories: ['ROS', 'BRU'], owner: 'P1' },
+        {
+          capital: 'ROS',
+          title: 'county',
+          territories: ['ROS', 'BRU'],
+          owner: 'P1',
+          holder: 'HUG',
+        },
       ],
     }
     const { svg } = renderMap(map, fiefState)
 
-    // The capital label tag still shows.
-    expect(svg.querySelector('g[aria-label="Fiefs"]')).not.toBeNull()
-    // No boundary outline is drawn anymore: the badges below suffice.
-    expect(svg.querySelector('[data-fief-outline]')).toBeNull()
-
-    const controlLayer = svg.querySelector('g[aria-label="Territorial control"]')
-    const rosBadge = controlLayer?.querySelector('[data-ownership-badge="P1"]')
-    expect(rosBadge?.querySelector('text')?.textContent).toBe('ROS')
-  })
-
-  it('omits the fief layer when the game has no fiefs', () => {
-    const { svg } = renderMap()
-
+    // The fief name moves from a map tag to the banner tooltip.
     expect(svg.querySelector('g[aria-label="Fiefs"]')).toBeNull()
+    const capital = svg.querySelector('[data-fief-capital="ROS"]')
+    expect(capital?.querySelector('[data-crown="county"]')).toBeInTheDocument()
+    expect(capital?.querySelector('[data-banner-owner]')).toHaveAttribute(
+      'data-banner-owner',
+      'P1',
+    )
+    expect(capital?.querySelector('title')?.textContent).toBe(
+      'County of Alpilles (ROS) · One controls this territory',
+    )
+    const member = Array.from(svg.querySelectorAll('[data-ownership-badge="P1"]')).find(
+      (badge) => !badge.hasAttribute('data-fief-capital'),
+    )
+    expect(member?.querySelector('[data-fief-attachment]')?.textContent).toBe('ROS')
+    expect(member?.querySelector('[data-crown]')).toBeNull()
   })
 
-  it('hatches a fief member controlled but occupied by another army', () => {
+  it('crowns a crown fief with the closed crown and a vacant fief over a neutral banner', () => {
+    const fiefState = (fief: Partial<Fief>): StateData => ({
+      ...state,
+      players: [{ id: 'P1', name: 'One', color: '#123456' }],
+      territories: [
+        { id: 'ROS', owner: null, resources: 0, army: null, infrastructures: [] },
+        { id: 'BRU', owner: null, resources: 0, army: null, infrastructures: [] },
+      ],
+      fiefs: [
+        { capital: 'ROS', title: 'barony', territories: ['ROS'], owner: 'P1', ...fief },
+      ],
+    })
+
+    const crownFief = renderMap(map, fiefState({ crown: true })).svg
+    const crowned = crownFief.querySelector('[data-fief-capital="ROS"]')
+    expect(crowned?.querySelector('[data-crown="king"]')).toBeInTheDocument()
+    expect(crowned?.querySelector('[data-banner-owner]')).toHaveAttribute(
+      'data-banner-owner',
+      'P1',
+    )
+    cleanup()
+
+    const vacant = renderMap(map, fiefState({})).svg.querySelector(
+      '[data-fief-capital="ROS"]',
+    )
+    expect(vacant?.querySelector('[data-crown="barony"]')).toBeInTheDocument()
+    expect(vacant?.querySelector('[data-banner-owner]')).toHaveAttribute(
+      'data-banner-owner',
+      'NEUTRAL',
+    )
+  })
+
+  it('marks no occupation: the occupant army shows, the banner tooltip names it', () => {
     const occupiedState: StateData = {
       ...state,
       players: [
@@ -592,22 +636,22 @@ describe('MapViewer territorial overlays', () => {
         },
       ],
       fiefs: [
-        { capital: 'ROS', title: 'barony', territories: ['ROS', 'BRU'], owner: 'P1' },
+        {
+          capital: 'ROS',
+          title: 'barony',
+          territories: ['ROS', 'BRU'],
+          owner: 'P1',
+          holder: 'HUG',
+        },
       ],
     }
 
     const { svg } = renderMap(map, occupiedState)
 
-    const occupiedZone = svg.querySelector('g[aria-label="Occupied territories"]')
-    expect(occupiedZone).toBeInTheDocument()
-    expect(occupiedZone?.querySelectorAll('[data-occupied-territory-id]')).toHaveLength(1)
-    expect(occupiedZone?.querySelector('path')).toHaveAttribute(
-      'data-occupied-territory-id',
-      'BRU',
-    )
-    expect(occupiedZone?.querySelector('path')).toHaveAttribute(
-      'fill',
-      'url(#occupied-hatch)',
+    expect(svg.querySelector('g[aria-label="Occupied territories"]')).toBeNull()
+    expect(svg.querySelector('[data-army-owner="P2"]')).toHaveAttribute(
+      'href',
+      '#arms-shield-P2',
     )
     const badgeTitles = svg.querySelectorAll('[data-ownership-badge="P1"] title')
     const occupiedBadgeTitle = Array.from(badgeTitles).find((title) =>
@@ -616,43 +660,6 @@ describe('MapViewer territorial overlays', () => {
     expect(occupiedBadgeTitle).toHaveTextContent(
       'One controls this territory, part of the fief of ROS, occupied by Two',
     )
-  })
-
-  it('omits the occupied hatch when the player control layer is off', () => {
-    const occupiedState: StateData = {
-      ...state,
-      players: [
-        { id: 'P1', name: 'One', color: '#123456' },
-        { id: 'P2', name: 'Two', color: '#2d5f9e' },
-      ],
-      territories: [
-        { id: 'ROS', owner: 'P1', resources: 0, army: null, infrastructures: [] },
-        {
-          id: 'BRU',
-          owner: 'P1',
-          resources: 0,
-          army: { owner: 'P2', size: 2, chain: null },
-          infrastructures: [],
-        },
-      ],
-      fiefs: [
-        { capital: 'ROS', title: 'barony', territories: ['ROS', 'BRU'], owner: 'P1' },
-      ],
-    }
-
-    const { svg } = renderMap(
-      map,
-      occupiedState,
-      vi.fn(),
-      null,
-      [],
-      true,
-      '#a84632',
-      false,
-      false,
-    )
-
-    expect(svg.querySelector('g[aria-label="Occupied territories"]')).toBeNull()
   })
 
   it('scales map annotations with the mean territory area', () => {
@@ -694,9 +701,9 @@ describe('MapViewer territorial overlays', () => {
     const { svg } = renderMap(map, scaledState)
     const livingLayer = svg.querySelector('g[aria-label="Live layer"]')
     const resourceLabel = Array.from(livingLayer?.querySelectorAll('text') ?? []).find(
-      (element) => element.textContent === '×3',
+      (element) => element.textContent === '3 R',
     )
-    const armyMarker = livingLayer?.querySelector('circle')
+    const armyMarker = livingLayer?.querySelector('use[data-army-owner]')
     const infrastructureMarker = livingLayer?.querySelector('g[transform*="scale("]')
     const codeLabel = svg.querySelector('g[aria-label="Territory identifiers"] text')
     const referenceMeanArea = (1000 * 700) / (8 * 4 + 4 * (4 + 1))
@@ -708,10 +715,7 @@ describe('MapViewer territorial overlays', () => {
     expect(Number(resourceLabel?.getAttribute('stroke-width'))).toBeCloseTo(
       3 * expectedScale,
     )
-    expect(Number(armyMarker?.getAttribute('r'))).toBeCloseTo(9 * expectedScale)
-    expect(Number(armyMarker?.getAttribute('stroke-width'))).toBeCloseTo(
-      2 * expectedScale,
-    )
+    expect(armyMarker?.getAttribute('transform')).toContain(`scale(${expectedScale})`)
     expect(infrastructureMarker?.getAttribute('transform')).toContain(
       `scale(${expectedScale})`,
     )
@@ -1089,7 +1093,8 @@ describe('MapViewer territorial overlays', () => {
     expect(borderGroup?.compareDocumentPosition(halo)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     )
-    expect(ownershipBadge.compareDocumentPosition(borderGroup as Node)).toBe(
+    // Banners are pieces: they stand above the borders.
+    expect(borderGroup?.compareDocumentPosition(ownershipBadge)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     )
   })
@@ -1173,17 +1178,17 @@ describe('MapViewer noble affiliation', () => {
     expect(prisonerMarker.querySelector('title')).toHaveTextContent(
       'Robert de Rosemont (N2) · Hostage',
     )
-    expect(freeMarker.querySelector('path')).toHaveAttribute('stroke', '#815f1e')
+    expect(freeMarker.querySelector('path')).toHaveAttribute('stroke', '#7d5a1c')
     expect(freeMarker.querySelector('circle[stroke="#8d321e"]')).not.toBeInTheDocument()
     expect(freeMarker.querySelector('title')).toHaveTextContent('Jean de Rosemont (N1)')
   })
 
-  it('falls back to the local palette when the state has no player color', () => {
+  it('falls back to the tinctures when the state has no player color', () => {
     const { svg } = renderMap(map, { ...nobleState, players: [] })
     const markers = nobleMarkers(svg)
 
-    expect(markers[0].querySelector('path')).toHaveAttribute('fill', '#a84632')
-    expect(markers[1].querySelector('path')).toHaveAttribute('fill', '#2d5f9e')
+    expect(markers[0].querySelector('path')).toHaveAttribute('fill', '#b3322b')
+    expect(markers[1].querySelector('path')).toHaveAttribute('fill', '#2b5c9e')
   })
 
   it('prefers the state color over the palette', () => {
@@ -1194,7 +1199,7 @@ describe('MapViewer noble affiliation', () => {
     const markers = nobleMarkers(svg)
 
     expect(markers[0].querySelector('path')).toHaveAttribute('fill', '#123456')
-    expect(markers[1].querySelector('path')).toHaveAttribute('fill', '#2d5f9e')
+    expect(markers[1].querySelector('path')).toHaveAttribute('fill', '#2b5c9e')
   })
 })
 

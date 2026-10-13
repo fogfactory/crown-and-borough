@@ -179,16 +179,16 @@ describe('MapViewer infrastructure ownership', () => {
     expect(markerFillPath(svg, 'M255.95 27.11', '#a84632')).toBeDefined()
   })
 
-  it('keeps unowned settlements in the neutral parchment tone', () => {
+  it('keeps unowned settlements on the paper tone', () => {
     const { svg } = renderMap(vi.fn(), {}, { map, state: ownedState })
 
-    expect(markerFillPath(svg, 'M109.902 35.87', '#efe6d0')).toBeDefined()
+    expect(markerFillPath(svg, 'M109.902 35.87', '#fbf7ee')).toBeDefined()
   })
 
   it('renders the village glyph from game-icons', () => {
     const { svg } = renderMap(vi.fn(), {}, { map, state: ownedState })
 
-    expect(markerFillPath(svg, 'M109.902 35.87', '#efe6d0')).toBeInTheDocument()
+    expect(markerFillPath(svg, 'M109.902 35.87', '#fbf7ee')).toBeInTheDocument()
   })
 
   it('renders settlement glyphs at the enlarged marker size', () => {
@@ -236,17 +236,36 @@ describe('MapViewer infrastructure ownership', () => {
     expect(fills).toEqual(['url(#winter-snow-1)', 'url(#winter-snow-2)'])
   })
 
-  it('fills the ownership shield with the player color over a dark casing', () => {
-    const { svg } = renderMap(vi.fn(), {}, { map, state: ownedState })
+  it('plants a banner in the controller arms on each controlled territory', () => {
+    const armedState: StateData = {
+      ...ownedState,
+      players: [
+        {
+          id: 'P1',
+          name: 'One',
+          color: '#b3322b',
+          arms: { field: 'gules', metal: 'or', charge: 'bend' },
+        },
+        { id: 'P2', name: 'Two', color: '#2b5c9e' },
+      ],
+    }
+    const { svg } = renderMap(vi.fn(), {}, { map, state: armedState })
     const badge = svg.querySelector('[data-ownership-badge="P1"]')
-    const paths = badge?.querySelectorAll('path') ?? []
 
-    expect(paths).toHaveLength(3)
-    expect(paths[1]).toHaveAttribute('fill', '#a84632')
-    expect(paths[2]).toHaveAttribute('stroke', '#30291f')
-    expect(badge?.querySelector('title')?.textContent).toBe(
-      'One controls this territory',
+    expect(badge?.querySelector('use')).toHaveAttribute('href', '#arms-banner-P1')
+    expect(badge?.querySelector('title')?.textContent).toBe('One controls this territory')
+    // The banner symbol: gules field, a bend or, an ink casing.
+    const flag = svg.querySelector('symbol#arms-banner-P1')
+    expect(flag?.querySelector('path[fill="#b3322b"]')).toBeInTheDocument()
+    expect(flag?.querySelector('[data-charge="bend"] path')).toHaveAttribute(
+      'stroke',
+      '#d8ab35',
     )
+    expect(flag?.querySelector('path[stroke="#30291f"]')).toBeInTheDocument()
+    // A player without arms (older game) flies a plain field.
+    expect(svg.querySelector('symbol#arms-banner-P2 [data-charge]')).toBeNull()
+    // Neutral territories fly no banner.
+    expect(svg.querySelector('[data-ownership-badge="NEUTRAL"]')).toBeNull()
   })
 })
 

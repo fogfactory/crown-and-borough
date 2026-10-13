@@ -177,7 +177,8 @@ L'état projeté sépare la couche dynamique du `GameState` de stockage :
     {
       "id": "P1",
       "name": "Joueur 1",
-      "color": "#a84632",
+      "color": "#b3322b",
+      "arms": { "field": "gules", "metal": "or", "charge": "bend" },
       "capitalTerritory": "ROS",
       "projectedIncome": 6,
       "projectedMillIncome": 2,
@@ -326,6 +327,14 @@ vue d'état. Les positions et les cibles des ordres utilisent les trigrammes
 territoriaux.
 `capitalTerritory` désigne le territoire du château actuellement choisi comme
 capitale par le joueur ; le champ est absent lorsqu'il n'a pas de capitale.
+
+`color` est la teinture héraldique du siège et `arms` ses armoiries générées
+à la création de la partie ([charte-graphique.md](charte-graphique.md#joueurs)) :
+`field` vaut `gules`, `azure`, `vert`, `purpure`, `sable`, `tenne`, `celeste`
+ou `murrey` ; `metal` vaut `or` ou `argent` ; `charge` vaut `bend`, `fess`,
+`chevron`, `cross`, `saltire`, `pale`, `chief` ou `bordure`. Le champ est
+absent pour une partie créée sans armoiries : l'interface dessine alors un
+champ plein de la couleur du joueur.
 
 `fiefs` liste les fiefs constitués (voir [titres.md](titres.md)). Un fief est
 adressé par sa capitale (`capital`) ; **aucun identifiant interne** n'est

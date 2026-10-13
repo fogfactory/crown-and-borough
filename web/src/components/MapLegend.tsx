@@ -1,23 +1,35 @@
 import { BorderGlyph, TerrainGlyph } from '@/components/MapDecorations'
+import { ArmsField, BannerGlyph } from '@/components/MapHeraldry'
 import { GameIconGlyph } from '@/components/MapMarkers'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useLanguage } from '@/i18n/LanguageContext'
 import { GAME_ICON_GLYPHS } from '@/lib/game-icon-glyphs'
+import {
+  BANNER_HEIGHT,
+  BANNER_PATH,
+  BANNER_WIDTH,
+  SHIELD_HEIGHT,
+  SHIELD_PATH,
+  SHIELD_WIDTH,
+  type CrownKind,
+  type ResolvedArms,
+} from '@/lib/heraldry'
 import type { ImpassableBorderKind } from '@/lib/map-borders'
 import { HERALDIC_COLORS } from '@/lib/region-color'
 import type { MessageKey } from '@/i18n/messages'
 import type { Terrain } from '@/types'
 import {
-  LEGEND_SWATCH_BACKGROUND,
   MAP_HALO,
   MAP_INK,
   MAP_PAPER_FILL,
   MAP_PARCHMENT,
+  METAL_COLORS,
   MARKER_BRASS,
   MARKER_GLINT,
   PLAYER_RED,
   PRISONER_RING_COLOR,
   RIVER_BLUE,
+  SHIELD_NUMBER,
 } from '@/lib/map-palette'
 
 export const TERRAIN_LABEL_KEYS: Record<Terrain, MessageKey> = {
@@ -139,6 +151,73 @@ const BORDER_LEGEND: Array<{
   { kind: 'marsh', label: 'legend.borderMarsh' },
   { kind: 'cliff', label: 'legend.borderCliff' },
 ]
+
+const LEGEND_ARMS: ResolvedArms = {
+  field: PLAYER_RED,
+  charge: { kind: 'bend', metal: METAL_COLORS.or },
+}
+
+/** Banner sample in the sample arms, crowned or marked with a fief trigram. */
+function LegendBanner({ crown, attachedTo }: { crown?: CrownKind; attachedTo?: string }) {
+  const id = `legend-banner-${crown ?? attachedTo ?? 'plain'}`
+  return (
+    <svg
+      className="h-5 w-6 shrink-0"
+      viewBox="-3 -24 20 26"
+      aria-hidden="true"
+      data-legend-banner={crown ?? attachedTo ?? 'plain'}
+    >
+      <defs>
+        <symbol id={`${id}-flag`} overflow="visible">
+          <ArmsField
+            arms={LEGEND_ARMS}
+            outline={BANNER_PATH}
+            clipId={`${id}-clip`}
+            box={[0, 0, BANNER_WIDTH, BANNER_HEIGHT]}
+          />
+        </symbol>
+      </defs>
+      <BannerGlyph
+        owner="legend"
+        flagHref={`#${id}-flag`}
+        crown={crown}
+        attachedTo={attachedTo}
+      />
+    </svg>
+  )
+}
+
+/** Army sample: the shield of the sample arms, with its strength. */
+function LegendShield() {
+  return (
+    <svg
+      className="h-5 w-6 shrink-0"
+      viewBox="-10 -11 20 22"
+      aria-hidden="true"
+      data-legend-shield
+    >
+      <ArmsField
+        arms={LEGEND_ARMS}
+        outline={SHIELD_PATH}
+        clipId="legend-shield-clip"
+        box={[-SHIELD_WIDTH / 2, -SHIELD_HEIGHT / 2, SHIELD_WIDTH, SHIELD_HEIGHT]}
+      />
+      <text
+        fill={SHIELD_NUMBER}
+        fontSize={10}
+        fontWeight="700"
+        textAnchor="middle"
+        dominantBaseline="central"
+        stroke={MAP_INK}
+        strokeWidth={2.4}
+        strokeLinejoin="round"
+        paintOrder="stroke"
+      >
+        3
+      </text>
+    </svg>
+  )
+}
 
 interface MapLegendProps {
   showIntentions?: boolean
@@ -264,36 +343,20 @@ export function MapLegend({
             <span>{t('legend.castle')}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="size-3 shrink-0 rounded-full border-2 border-paper-50 bg-brass-400" />
-            <span>{t('legend.army')}</span>
+            <LegendBanner />
+            <span>{t('legend.control')}</span>
           </div>
           <div className="flex items-center gap-2">
-            <svg className="size-4 shrink-0" viewBox="-11 -13 22 26" aria-hidden="true">
-              <path
-                d={OWNERSHIP_SHIELD_PATH}
-                fill={MAP_PARCHMENT}
-                stroke={MAP_PARCHMENT}
-                strokeWidth={5}
-              />
-              <path d={OWNERSHIP_SHIELD_PATH} fill={PLAYER_RED} />
-              <path
-                d={OWNERSHIP_SHIELD_PATH}
-                fill="none"
-                stroke={LEGEND_CASING}
-                strokeWidth={1.6}
-              />
-              <text
-                y={-5.5}
-                fill={MAP_PARCHMENT}
-                fontSize={7}
-                fontWeight="800"
-                textAnchor="middle"
-                dominantBaseline="central"
-              >
-                ROS
-              </text>
-            </svg>
+            <LegendBanner crown="barony" />
+            <span>{t('legend.fiefCapital')}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <LegendBanner attachedTo="ROS" />
             <span>{t('legend.fief')}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <LegendShield />
+            <span>{t('legend.army')}</span>
           </div>
           <div className="flex items-center gap-2">
             <svg className="size-3 shrink-0" viewBox="-10 -10 20 20" aria-hidden="true">
@@ -327,49 +390,8 @@ export function MapLegend({
             <span>{t('legend.prisoner')}</span>
           </div>
           <div className="flex items-center gap-2">
-            <svg className="size-3 shrink-0" viewBox="-13 -15 26 30" aria-hidden="true">
-              <path
-                d={OWNERSHIP_SHIELD_PATH}
-                fill={MAP_PARCHMENT}
-                stroke={MAP_PARCHMENT}
-                strokeWidth={2}
-                opacity={0.9}
-              />
-              <path d={OWNERSHIP_SHIELD_PATH} fill={PLAYER_RED} />
-              <path
-                d={OWNERSHIP_SHIELD_PATH}
-                fill="none"
-                stroke={LEGEND_CASING}
-                strokeWidth={1.4}
-              />
-            </svg>
-            <span>{t('legend.control')}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <svg className="size-3 shrink-0" viewBox="0 0 12 12" aria-hidden="true">
-              <rect width="12" height="12" fill={LEGEND_SWATCH_BACKGROUND} />
-              <rect width="12" height="12" fill="url(#legend-occupied-hatch)" />
-              <defs>
-                <pattern
-                  id="legend-occupied-hatch"
-                  width="4"
-                  height="4"
-                  patternUnits="userSpaceOnUse"
-                  patternTransform="rotate(-45)"
-                >
-                  <line
-                    x1="2"
-                    y1="0"
-                    x2="2"
-                    y2="4"
-                    stroke={PLAYER_RED}
-                    strokeWidth="1.2"
-                    strokeOpacity="0.6"
-                  />
-                </pattern>
-              </defs>
-            </svg>
-            <span>{t('legend.occupied')}</span>
+            <span className="w-6 shrink-0 text-center font-bold text-ink-900">R</span>
+            <span>{t('legend.stock')}</span>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-line/60 pt-2">

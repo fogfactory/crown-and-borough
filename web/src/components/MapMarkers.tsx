@@ -8,10 +8,10 @@ import {
   FAMINE_MARKER_COLOR,
   FORTIFICATION_WALL_FILL,
   INTENT_OUTLINE_COLOR,
+  MAP_HALO,
   MAP_INK,
   MAP_PARCHMENT,
   MARKER_BRASS,
-  MARKER_BROWN,
   MARKER_GLINT,
   NEUTRAL_MARKER_FILL,
   PRISONER_RING_COLOR,
@@ -146,15 +146,9 @@ export function InfrastructureMarker({
         </>
       ) : (
         <g transform="translate(-13 -13) scale(0.05078125)" data-fortified-marker={fortified || undefined}>
-          {/* Light halo keeps the glyph readable on any terrain fill. */}
-          <path
-            d={glyph}
-            fill={MAP_PARCHMENT}
-            stroke={MAP_PARCHMENT}
-            strokeWidth={20}
-            opacity={0.9}
-          />
-          {/* Owner color fills the building, dark casing defines its shape. */}
+          {/* Paper halo keeps the glyph readable over the terrain symbols. */}
+          <path d={glyph} fill={MAP_HALO} stroke={MAP_HALO} strokeWidth={28} />
+          {/* Owner tincture fills the building, ink casing defines its shape. */}
           <path d={glyph} fill={fill} />
           <path d={glyph} fill="none" stroke={MARKER_CASING_COLOR} strokeWidth={8} />
           {fortified && (
@@ -164,10 +158,9 @@ export function InfrastructureMarker({
             <g transform={FORTIFICATION_WALL_TRANSFORM}>
               <path
                 d={FORTIFICATION_WALL_GLYPH}
-                fill={MAP_PARCHMENT}
-                stroke={MAP_PARCHMENT}
-                strokeWidth={20}
-                opacity={0.9}
+                fill={MAP_HALO}
+                stroke={MAP_HALO}
+                strokeWidth={28}
               />
               <path d={FORTIFICATION_WALL_GLYPH} fill={FORTIFICATION_WALL_FILL} />
               <path
@@ -186,7 +179,7 @@ export function InfrastructureMarker({
           transform="translate(0 -20) scale(0.5)"
           pointerEvents="none"
         >
-          <g stroke={MAP_PARCHMENT} strokeWidth={4} opacity={0.85}>
+          <g stroke={MAP_HALO} strokeWidth={4}>
             <TablerMarkerPaths paths={[CROWN_PATH]} />
           </g>
           <g stroke={MARKER_BRASS} strokeWidth={2}>
@@ -198,10 +191,14 @@ export function InfrastructureMarker({
         <text
           x="14"
           y="-9"
-          fill={MARKER_BROWN}
+          fill={MAP_INK}
           fontSize="10"
           fontWeight="700"
           textAnchor="middle"
+          stroke={MAP_HALO}
+          strokeWidth={2.5}
+          paintOrder="stroke"
+          data-infrastructure-level={infrastructure.level}
         >
           {infrastructure.level}
         </text>

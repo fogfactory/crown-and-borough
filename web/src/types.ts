@@ -383,10 +383,39 @@ export interface MapData {
   regions?: Region[]
 }
 
+export type Tincture =
+  | 'gules'
+  | 'azure'
+  | 'vert'
+  | 'purpure'
+  | 'sable'
+  | 'tenne'
+  | 'celeste'
+  | 'murrey'
+export type Metal = 'or' | 'argent'
+export type Charge =
+  | 'bend'
+  | 'fess'
+  | 'chevron'
+  | 'cross'
+  | 'saltire'
+  | 'pale'
+  | 'chief'
+  | 'bordure'
+
+/** A player's generated coat of arms: a field of a tincture, a charge of a metal. */
+export interface Arms {
+  field: Tincture
+  metal: Metal
+  charge: Charge
+}
+
 export interface Player {
   id: PlayerId
   name: string
   color: string
+  /** Absent from games created before arms existed. */
+  arms?: Arms
   capitalTerritory?: string
   /** Territory income projected for the next action turn (never in winter). */
   projectedIncome?: number
