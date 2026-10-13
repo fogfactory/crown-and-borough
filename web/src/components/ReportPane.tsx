@@ -42,7 +42,7 @@ export function ReportPane({
                 : ''
             }
             onChange={(event) => onSelectReport(Number(event.target.value))}
-            className="h-10 w-full rounded-lg border border-line bg-paper-80 px-3 text-sm"
+            className="h-10 w-full rounded-lg border border-line bg-paper-100 px-3 text-sm"
           >
             {summaries.map((item) => (
               <option key={item.index} value={item.index}>
@@ -65,7 +65,7 @@ export function ReportPane({
       ) : report ? (
         <ReportPanel report={report} map={map} players={players} />
       ) : (
-        <p className="rounded-lg border border-dashed border-line bg-paper-80 px-4 py-8 text-center font-display italic text-ink-500">
+        <p className="rounded-lg border border-dashed border-line bg-paper-100 px-4 py-8 text-center font-display italic text-ink-500">
           {t('app.noReport')}
         </p>
       )}

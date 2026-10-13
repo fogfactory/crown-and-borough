@@ -43,7 +43,7 @@ export function HeaderPopover({
           align="end"
           sideOffset={8}
           className={cn(
-            'z-50 max-h-[min(70dvh,32rem)] w-72 max-w-[calc(100vw-1.5rem)] overflow-y-auto rounded-xl border border-line bg-paper-50 p-3 shadow-panel-strong data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95',
+            'z-50 max-h-[min(70dvh,32rem)] w-72 max-w-[calc(100vw-1.5rem)] overflow-y-auto rounded-xl border border-line bg-paper-50 p-3 shadow-panel-strong',
             contentClassName,
           )}
         >

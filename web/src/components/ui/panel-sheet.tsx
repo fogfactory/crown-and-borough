@@ -73,7 +73,7 @@ export function PanelSheet({ children, className, focusSignal = 0 }: PanelSheetP
       data-sheet-snap={snap}
       data-testid="panel-sheet"
       className={cn(
-        'fixed inset-x-0 bottom-0 z-40 flex flex-col rounded-t-2xl border-t border-line bg-paper-200 shadow-sheet transition-[height] duration-200 ease-out lg:static lg:z-auto lg:h-full lg:min-h-0 lg:rounded-none lg:border-0 lg:bg-transparent lg:shadow-none',
+        'fixed inset-x-0 bottom-0 z-40 flex flex-col rounded-t-2xl border-t border-line bg-paper-200 shadow-sheet transition-[height] duration-150 ease-out lg:static lg:z-auto lg:h-full lg:min-h-0 lg:rounded-none lg:border-0 lg:bg-transparent lg:shadow-none',
         SHEET_HEIGHTS[snap],
         className,
       )}

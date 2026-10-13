@@ -60,7 +60,7 @@ export function ProjectedIncomeSummary({ state, playerId, specialDraft }: Projec
   )
 
   return (
-    <div className="rounded-lg border border-line bg-paper-80 px-3 py-2 text-sm">
+    <div className="rounded-lg border border-line bg-paper-100 px-3 py-2 text-sm">
       <p className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
         {t('app.projectedIncome')}
       </p>
@@ -117,10 +117,10 @@ export function ProjectedIncomeSummary({ state, playerId, specialDraft }: Projec
           {t('app.projectedRoyalTaxAmount', { amount: taxes.royalSupplement })}
         </p>
       )}
-      <p className="mt-2 border-t border-line-faint pt-2 font-bold">
+      <p className="mt-2 border-t border-line-soft pt-2 font-bold">
         {t('app.projectedTotalAmount', { amount: projectedTotal })}
       </p>
-      <p className="mt-2 border-t border-line-faint pt-2 font-medium">
+      <p className="mt-2 border-t border-line-soft pt-2 font-medium">
         {t('app.currentResourcesAmount', { amount: totalResources })}
       </p>
     </div>

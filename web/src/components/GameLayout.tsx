@@ -36,7 +36,7 @@ export function GameLayout({ map, children, focusSignal, className }: GameLayout
         className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-2xl border border-line bg-paper-300 shadow-panel"
       >
         <div className="pointer-events-none absolute left-4 top-3 z-10 sm:left-5 sm:top-5">
-          <p className="text-3xs font-semibold uppercase tracking-[0.22em] text-ink-500">
+          <p className="text-2xs font-semibold uppercase tracking-[0.22em] text-ink-500">
             {t('app.mapPublic')}
           </p>
           <p className="mt-1 text-xs text-ink-700">{t('app.mapInstructions')}</p>

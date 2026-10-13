@@ -26,7 +26,7 @@ export function ProjectedConsumptionSummary({ state, playerId }: ProjectedConsum
   const armiesAtRisk = player.armiesAtRisk ?? []
 
   return (
-    <div className="rounded-lg border border-line bg-paper-80 px-3 py-2 text-sm">
+    <div className="rounded-lg border border-line bg-paper-100 px-3 py-2 text-sm">
       <p className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
         {t('app.projectedConsumption')}
       </p>

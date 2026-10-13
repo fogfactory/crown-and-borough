@@ -73,7 +73,7 @@ export function SignInPage() {
       <CardContent>
         {sent ? (
           <div className="space-y-4" role="status" aria-live="polite">
-            <p className="rounded-lg border border-success-700/30 bg-success-100 px-3 py-3 text-sm text-success-700">
+            <p className="rounded-lg border border-success-700/30 bg-paper-100 px-3 py-3 text-sm text-success-700">
               {t('auth.linkSent')}: <strong>{email}</strong>
             </p>
             <Button
@@ -97,13 +97,13 @@ export function SignInPage() {
                 required
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className="h-11 w-full rounded-lg border border-line bg-paper-80 px-3 text-sm outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
+                className="h-11 w-full rounded-lg border border-line-strong bg-paper-50 px-3 text-sm outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
               />
             </label>
             {error && (
               <p
                 role="alert"
-                className="rounded-lg border border-vermilion-600/30 bg-vermilion-100 px-3 py-2 text-sm text-vermilion-700"
+                className="rounded-lg border border-vermilion-700/30 bg-vermilion-100 px-3 py-2 text-sm text-vermilion-700"
               >
                 {error}
               </p>
@@ -173,7 +173,7 @@ export function FinishPage() {
         {error && (
           <p
             role="alert"
-            className="mb-4 rounded-lg border border-vermilion-600/30 bg-vermilion-100 px-3 py-2 text-sm text-vermilion-700"
+            className="mb-4 rounded-lg border border-vermilion-700/30 bg-vermilion-100 px-3 py-2 text-sm text-vermilion-700"
           >
             {error}
           </p>
@@ -196,7 +196,7 @@ export function FinishPage() {
                 required
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className="h-11 w-full rounded-lg border border-line bg-paper-80 px-3 text-sm outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
+                className="h-11 w-full rounded-lg border border-line-strong bg-paper-50 px-3 text-sm outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
               />
             </label>
             <Button type="submit" className="w-full" disabled={retrying || !email.trim()}>
@@ -282,13 +282,13 @@ export function ProfilePage() {
               value={displayName}
               placeholder={t('profile.displayNamePlaceholder')}
               onChange={(event) => setDisplayName(event.target.value)}
-              className="h-11 w-full rounded-lg border border-line bg-paper-80 px-3 text-sm outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
+              className="h-11 w-full rounded-lg border border-line-strong bg-paper-50 px-3 text-sm outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
             />
           </label>
           {error && (
             <p
               role="alert"
-              className="rounded-lg border border-vermilion-600/30 bg-vermilion-100 px-3 py-2 text-sm text-vermilion-700"
+              className="rounded-lg border border-vermilion-700/30 bg-vermilion-100 px-3 py-2 text-sm text-vermilion-700"
             >
               {error}
             </p>

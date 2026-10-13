@@ -33,7 +33,7 @@ export function Scoreboard({
   return (
     <section
       aria-labelledby="scoreboard-title"
-      className="rounded-xl border border-line/60 bg-paper-80 p-3"
+      className="rounded-xl border border-line/60 bg-paper-100 p-3"
     >
       <div className="flex items-center justify-between gap-3">
         <h2
@@ -102,10 +102,10 @@ export function Scoreboard({
                   </span>
                   <span
                     data-testid={`victory-mode-${player.id}`}
-                    className={`rounded border px-1.5 py-0.5 text-3xs font-bold uppercase tracking-[0.1em] ${
+                    className={`rounded border px-1.5 py-0.5 text-2xs font-bold uppercase tracking-[0.1em] ${
                       goal.mode === 'alliance'
-                        ? 'border-steel-400 bg-steel-100 text-steel-700'
-                        : 'border-gold-500 bg-gold-100 text-gold-850'
+                        ? 'border-line-strong bg-paper-100 text-ink-700'
+                        : 'border-brass-500 bg-brass-300 text-ink-900'
                     }`}
                   >
                     {t(
@@ -115,12 +115,12 @@ export function Scoreboard({
                   {outcome && (
                     <span
                       data-testid={`victory-status-${player.id}`}
-                      className={`rounded border px-1.5 py-0.5 text-3xs font-bold uppercase tracking-[0.1em] ${
+                      className={`rounded border px-1.5 py-0.5 text-2xs font-bold uppercase tracking-[0.1em] ${
                         outcome === 'Major'
-                          ? 'border-gold-500 bg-gold-100 text-gold-850'
+                          ? 'border-brass-500 bg-brass-300 text-ink-900'
                           : outcome === 'Failure'
-                            ? 'border-brass-700/50 bg-vermilion-250 text-vermilion-800'
-                            : 'border-steel-400 bg-steel-100 text-steel-700'
+                            ? 'border-brass-700/50 bg-vermilion-700/30 text-vermilion-700'
+                            : 'border-line-strong bg-paper-100 text-ink-700'
                       }`}
                     >
                       {t(

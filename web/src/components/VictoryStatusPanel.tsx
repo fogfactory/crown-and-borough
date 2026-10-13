@@ -17,9 +17,9 @@ const STATUS_KEYS: Record<VictoryProjectionStatus, MessageKey> = {
 }
 
 const STATUS_STYLES: Record<VictoryProjectionStatus, string> = {
-  major: 'border-gold-500 bg-gold-100 text-gold-850',
-  minor: 'border-steel-400 bg-steel-100 text-steel-700',
-  failure: 'border-brass-700/50 bg-vermilion-250 text-vermilion-800',
+  major: 'border-brass-500 bg-brass-300 text-ink-900',
+  minor: 'border-line-strong bg-paper-100 text-ink-700',
+  failure: 'border-brass-700/50 bg-vermilion-700/30 text-vermilion-700',
   ongoing: 'border-line bg-paper-100 text-ink-700',
 }
 
@@ -34,7 +34,7 @@ function StatusBadge({ status, testId }: { status: VictoryProjectionStatus; test
   return (
     <span
       data-testid={testId}
-      className={`rounded border px-1.5 py-0.5 text-3xs font-bold uppercase tracking-[0.1em] ${STATUS_STYLES[status]}`}
+      className={`rounded border px-1.5 py-0.5 text-2xs font-bold uppercase tracking-[0.1em] ${STATUS_STYLES[status]}`}
     >
       {t(STATUS_KEYS[status])}
     </span>
@@ -62,7 +62,7 @@ export function VictoryStatusPanel({
   return (
     <section
       aria-label={t('sim.panel')}
-      className="border-t border-line/60 bg-paper-80 px-4 py-2"
+      className="border-t border-line/60 bg-paper-100 px-4 py-2"
     >
       <ul className="grid gap-x-6 gap-y-1.5 sm:grid-cols-2 xl:grid-cols-4">
         {players.map((player) => {
@@ -91,12 +91,12 @@ export function VictoryStatusPanel({
               {delta !== 0 && (
                 <span
                   data-testid={`panel-delta-${player.id}`}
-                  className={delta > 0 ? 'font-semibold text-success-600' : 'font-semibold text-vermilion-800'}
+                  className={delta > 0 ? 'font-semibold text-success-700' : 'font-semibold text-vermilion-700'}
                 >
                   {delta > 0 ? `+${delta}` : delta}
                 </span>
               )}
-              <span className="rounded border border-line bg-paper-50 px-1.5 py-0.5 text-3xs font-bold uppercase tracking-[0.1em] text-ink-700">
+              <span className="rounded border border-line bg-paper-50 px-1.5 py-0.5 text-2xs font-bold uppercase tracking-[0.1em] text-ink-700">
                 {t(goal.mode === 'alliance' ? 'score.modeAlliance' : 'score.modeSolo')}
                 {goal.mode === 'alliance' && goal.partner ? ` · ${playerName(goal.partner)}` : ''}
               </span>

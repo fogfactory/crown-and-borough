@@ -80,7 +80,7 @@ describe('OrdersPanel seasonal presentation', () => {
     expect(
       screen.getByRole('button', { name: "Soumettre les ordres d'hiver" }),
     ).toBeInTheDocument()
-    expect(container.querySelector('section')).toHaveClass('bg-winter-80/80')
+    expect(container.querySelector('section')).toHaveClass('bg-winter-100/80')
   })
 
   it('shows the server winter cost against the controlled stock', () => {
