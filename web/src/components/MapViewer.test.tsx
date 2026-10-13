@@ -298,7 +298,8 @@ describe('MapViewer winter overlay', () => {
 
     const actionOverlay = svg.querySelector('g[aria-label="Intentions overlay"]')
     const winterVeil = svg.querySelector('g[aria-label="Winter veil"]')
-    expect(actionOverlay?.compareDocumentPosition(winterVeil as Node)).toBe(
+    // Installed chains and winter orders both read above the winter veil.
+    expect(winterVeil?.compareDocumentPosition(actionOverlay as Node)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     )
     expect(winterVeil?.compareDocumentPosition(overlay as Node)).toBe(
@@ -464,6 +465,34 @@ describe('MapViewer territorial overlays', () => {
     }
   })
 
+  it('keeps only the code of an ordinary territory whose name would read under 10 px', () => {
+    // A 100 × 50 map drawn 60 px wide: names would render at about 3 px.
+    const rect = vi
+      .spyOn(SVGElement.prototype, 'getBoundingClientRect')
+      .mockReturnValue({
+        width: 60,
+        height: 30,
+        top: 0,
+        left: 0,
+        right: 60,
+        bottom: 30,
+      } as DOMRect)
+    try {
+      const capitalState: StateData = {
+        ...state,
+        players: [{ id: 'P1', name: 'One', color: '#a84632', capitalTerritory: 'ROS' }],
+      }
+      const { svg } = renderMap(map, capitalState)
+
+      // ROS is a player's capital: its name always shows; BRU is ordinary.
+      expect(svg.querySelector('[data-territory-name="ROS"]')).not.toBeNull()
+      expect(svg.querySelector('[data-territory-name="BRU"]')).toBeNull()
+      expect(svg.querySelector('[data-territory-code="BRU"]')).not.toBeNull()
+    } finally {
+      rect.mockRestore()
+    }
+  })
+
   it('colors the chef-lieu territory label with its region color', () => {
     const regionMap: MapData = {
       ...map,
@@ -472,7 +501,7 @@ describe('MapViewer territorial overlays', () => {
     }
     renderMap(regionMap, state, vi.fn(), null, [], true, '#a84632', true)
 
-    const chefLieu = screen.getByText('Alpilles')
+    const chefLieu = screen.getByText('Alpilles').closest('text') as SVGTextElement
     expect(chefLieu.getAttribute('data-chef-lieu')).toBe('ROS')
     expect(chefLieu.getAttribute('fill')).toBe(HERALDIC_TEXT_COLORS[0])
     expect(screen.getByText('ROS')).toBeInTheDocument()
@@ -708,7 +737,8 @@ describe('MapViewer territorial overlays', () => {
     )
     const armyMarker = livingLayer?.querySelector('use[data-army-owner]')
     const infrastructureMarker = livingLayer?.querySelector('g[transform*="scale("]')
-    const codeLabel = svg.querySelector('g[aria-label="Territory identifiers"] text')
+    const codeLabel = svg.querySelector('[data-territory-code="ROS"]')
+    const nameLabel = svg.querySelector('[data-territory-name="ROS"]')
     const referenceMeanArea = (1000 * 700) / (8 * 4 + 4 * (4 + 1))
     const expectedScale = Math.sqrt((50 * 50) / referenceMeanArea)
 
@@ -722,10 +752,13 @@ describe('MapViewer territorial overlays', () => {
     expect(infrastructureMarker?.getAttribute('transform')).toContain(
       `scale(${expectedScale})`,
     )
-    expect(Number(codeLabel?.getAttribute('font-size'))).toBeCloseTo(13 * expectedScale)
-    expect(Number(codeLabel?.getAttribute('stroke-width'))).toBeCloseTo(3 * expectedScale)
+    // Name: Alegreya italic, 12 units; code: Cinzel, 8 units, spaced 0.08 em.
+    expect(Number(nameLabel?.getAttribute('font-size'))).toBeCloseTo(12 * expectedScale)
+    expect(nameLabel).toHaveAttribute('font-style', 'italic')
+    expect(Number(nameLabel?.getAttribute('stroke-width'))).toBeCloseTo(3 * expectedScale)
+    expect(Number(codeLabel?.getAttribute('font-size'))).toBeCloseTo(8 * expectedScale)
     expect(Number(codeLabel?.getAttribute('letter-spacing'))).toBeCloseTo(
-      0.5 * expectedScale,
+      0.64 * expectedScale,
     )
   })
 

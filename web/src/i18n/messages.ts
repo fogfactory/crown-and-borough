@@ -295,6 +295,7 @@ const englishMessages = {
   'map.territoryLabel': '{name}, {terrain}',
   'map.resourcesMarker': 'Resources: {count}',
   'map.armyMarker': 'Army of {owner}, size {size}',
+  'map.rebelArmyMarker': 'Rebel army, size {size}',
   'map.armyMarkerStarving': 'Army of {owner}, size {size} — starving: fights at strength 0 this turn',
   'map.armyStarvingBadge': 'Starving: will fight at strength 0 this turn',
   'orders.winterTitle': 'Winter orders',
@@ -1511,6 +1512,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'map.territoryLabel': '{name}, {terrain}',
   'map.resourcesMarker': 'Ressources : {count}',
   'map.armyMarker': 'Armée de {owner}, taille {size}',
+  'map.rebelArmyMarker': 'Armée rebelle, taille {size}',
   'map.armyMarkerStarving':
     'Armée de {owner}, taille {size} — affamée : combat à force 0 ce tour-ci',
   'map.armyStarvingBadge': 'Affamée : combattra à force 0 ce tour-ci',

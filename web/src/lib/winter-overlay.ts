@@ -1,4 +1,4 @@
-import type { WinterLinePreview } from '@/types'
+import type { PlayerId, WinterLinePreview } from '@/types'
 
 export type WinterIntentionKind =
   | 'build'
@@ -24,6 +24,8 @@ export interface WinterIntention {
   valid: boolean
   source: WinterIntentionSource
   color?: string
+  /** Player whose arms draw the intention's pieces. */
+  player?: PlayerId
   territory?: string
   /** Present only for `fief_found`: the whole group, capital first. */
   territories?: string[]
@@ -45,6 +47,7 @@ export interface WinterIntention {
 export interface WinterOverlayOptions {
   source?: WinterIntentionSource
   color?: string
+  player?: PlayerId
 }
 
 const INSUFFICIENT_RESOURCES = 'insufficient_resources'
@@ -115,7 +118,13 @@ export function buildWinterIntentions(
       return []
     }
     const label = lineText(draft, preview.line)
-    const common = { line: preview.line, source, color: options.color, label }
+    const common = {
+      line: preview.line,
+      source,
+      color: options.color,
+      player: options.player,
+      label,
+    }
     if (preview.status === 'invalid') {
       return [{ ...common, kind: 'error', valid: false, message: preview.message }]
     }

@@ -1,4 +1,5 @@
 import { BannerGlyph, shieldSymbolId } from '@/components/MapHeraldry'
+import { BANNER_WIDTH } from '@/lib/heraldry'
 import { FamineMarker, InfrastructureMarker, NobleMarker } from '@/components/MapMarkers'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
@@ -8,12 +9,19 @@ import { centroid } from '@/lib/map-svg-geometry'
 import { isOccupiedAgainstController } from '@/lib/occupation'
 import type { RegionStyle } from '@/lib/region-color'
 import {
+  CODE_FONT_SIZE,
+  CODE_LETTER_SPACING,
+  NAME_FONT_SIZE,
+  type TerritoryLabelLayout,
+} from '@/lib/territory-labels'
+import {
   NEUTRAL_PLAYER_ID,
   type Fief,
   type FiefTitle,
   type Region,
   type StateData,
   type Territory,
+  type TerritoryState,
 } from '@/types'
 import {
   MAP_BROWN_FILL,
@@ -34,25 +42,8 @@ const FIEF_TITLE_KEYS: Record<FiefTitle, MessageKey> = {
 /** Nobles sharing a territory stand side by side, this far apart. */
 const NOBLE_SPACING = 12
 
-/** The banner's foot sits left of the territory code, on its baseline. */
-const BANNER_FOOT_X = -33
-const BANNER_FOOT_Y = 4
-/** Half advance of a chef-lieu name glyph (12 units, weight 800), in units. */
-const CHEF_LIEU_HALF_ADVANCE = 3.9
-/** Room between the banner's foot and the end of its flag, plus a gap. */
-const BANNER_CLEARANCE = 15
-
-/**
- * Horizontal offset of the banner's foot: left of the code, or left of the
- * chef-lieu name written above it when that name is wider.
- */
-function bannerFootX(territory: Territory, chefLieu: boolean): number {
-  if (!chefLieu) return BANNER_FOOT_X
-  return Math.min(
-    BANNER_FOOT_X,
-    -(territory.name.length * CHEF_LIEU_HALF_ADVANCE + BANNER_CLEARANCE),
-  )
-}
+/** From a label's left edge to the banner's foot: the flag and a gap. */
+const BANNER_REACH = BANNER_WIDTH + 3
 
 /**
  * A banner on every controlled territory, in its controller's arms. A fief
@@ -67,14 +58,14 @@ export function OwnershipLayer({
   state,
   annotationScale,
   fiefs = [],
-  chefLieuIds = new Set(),
+  labelLayouts,
 }: {
   territories: Territory[]
   state: StateData
   annotationScale: number
   fiefs?: Fief[]
-  /** Territories whose label also writes the chef-lieu name. */
-  chefLieuIds?: Set<string>
+  /** Each territory's label, which its banner stands beside. */
+  labelLayouts: Map<string, TerritoryLabelLayout>
 }) {
   const { t } = useLanguage()
   const fiefByTerritory = new Map<string, Fief>()
@@ -103,6 +94,9 @@ export function OwnershipLayer({
         const vacant = isCapital && fief && !fief.holder && !fief.crown
         const bannerOwner = vacant ? NEUTRAL_PLAYER_ID : owner
         const [centerX, centerY] = centroid(territory.points)
+        const anchor = labelLayouts.get(territory.id)?.bannerAnchor ?? { x: 0, y: 0 }
+        const footX = anchor.x - BANNER_REACH
+        const footY = anchor.y
         const ownerName = playerName(owner)
         const fiefCapital = fief && !isCapital ? fief.capital : undefined
         const occupantName = isOccupiedAgainstController(territoryState)
@@ -136,10 +130,9 @@ export function OwnershipLayer({
             key={territory.id}
             data-ownership-badge={owner}
             data-fief-capital={isCapital ? territory.id : undefined}
-            transform={`translate(${
-              centerX +
-              bannerFootX(territory, chefLieuIds.has(territory.id)) * annotationScale
-            } ${centerY + BANNER_FOOT_Y * annotationScale}) scale(${annotationScale})`}
+            transform={`translate(${centerX + footX * annotationScale} ${
+              centerY + footY * annotationScale
+            }) scale(${annotationScale})`}
           >
             <title>{label}</title>
             <BannerGlyph
@@ -171,6 +164,18 @@ export function LiveLayer({
   annotationScale: number
 }) {
   const { t } = useLanguage()
+  // Full label: the owner's name and code, or the rebels.
+  const armyLabel = (army: NonNullable<TerritoryState['army']>) => {
+    if (army.owner === NEUTRAL_PLAYER_ID) {
+      return t('map.rebelArmyMarker', { size: army.size })
+    }
+    const name = state.players.find((player) => player.id === army.owner)?.name
+    const owner = name && name !== army.owner ? `${name} (${army.owner})` : army.owner
+    return t(army.starving ? 'map.armyMarkerStarving' : 'map.armyMarker', {
+      owner,
+      size: army.size,
+    })
+  }
 
   return (
     <g aria-label={t('map.liveLayer')} pointerEvents="none">
@@ -209,7 +214,7 @@ export function LiveLayer({
                 key={`${territory.id}-${infrastructure.type}-${index}`}
                 infrastructure={infrastructure}
                 x={centerX + (index * 24 - 9) * annotationScale}
-                y={centerY - 25 * annotationScale}
+                y={centerY - 30 * annotationScale}
                 isCapital={
                   infrastructure.type === 'castle' &&
                   state.players.some((player) => player.capitalTerritory === territory.id)
@@ -224,17 +229,7 @@ export function LiveLayer({
             ))}
             {territoryState.army && (
               <g key={`${territory.id}-army`}>
-                <title>
-                  {territoryState.army.starving
-                    ? t('map.armyMarkerStarving', {
-                        owner: territoryState.army.owner,
-                        size: territoryState.army.size,
-                      })
-                    : t('map.armyMarker', {
-                        owner: territoryState.army.owner,
-                        size: territoryState.army.size,
-                      })}
-                </title>
+                <title>{armyLabel(territoryState.army)}</title>
                 <use
                   href={`#${shieldSymbolId(
                     armsByOwner.has(territoryState.army.owner)
@@ -289,72 +284,85 @@ export function LiveLayer({
 }
 
 /**
- * Territory codes at each centroid. While regions are shown, a region's
- * seed (chef-lieu) also carries its name in the region color.
+ * Territory labels at each centroid: the name in Alegreya italic above the
+ * code in Cinzel capitals, or the code alone for an ordinary territory in the
+ * synthetic view. While regions are shown, a chef-lieu writes its name in its
+ * bishopric's tint.
  */
 export function TerritoryLabels({
   territories,
+  labelLayouts,
   regionsActive,
   regionBySeed,
   regionStyleByID,
   annotationScale,
 }: {
   territories: Territory[]
+  labelLayouts: Map<string, TerritoryLabelLayout>
   regionsActive: boolean
   regionBySeed: Map<string, Region>
   regionStyleByID: Map<string, RegionStyle>
   annotationScale: number
 }) {
   const { t } = useLanguage()
+  const halo = {
+    stroke: MAP_HALO,
+    strokeLinejoin: 'round' as const,
+    paintOrder: 'stroke' as const,
+    textAnchor: 'middle' as const,
+  }
 
   return (
     <g aria-label={t('map.territoryLabels')} pointerEvents="none">
       {territories.map((territory) => {
+        const layout = labelLayouts.get(territory.id)
+        if (!layout) return null
         const [centerX, centerY] = centroid(territory.points)
         const chefRegion = regionsActive ? regionBySeed.get(territory.id) : undefined
-        const chefFill = chefRegion
+        const nameFill = chefRegion
           ? (regionStyleByID.get(chefRegion.id)?.text ?? MAP_INK)
           : MAP_INK
-        const labelProps = {
-          fontSize: 13 * annotationScale,
-          fontWeight: '800' as const,
-          letterSpacing: 0.5 * annotationScale,
-          textAnchor: 'middle' as const,
-          stroke: MAP_HALO,
-          strokeWidth: 3 * annotationScale,
-          paintOrder: 'stroke' as const,
-        }
-        return chefRegion ? (
-          <g key={territory.id}>
+        return (
+          <g key={territory.id} data-territory-label={territory.id}>
+            {layout.nameLines.length > 0 && (
+              <text
+                {...halo}
+                x={centerX}
+                fill={nameFill}
+                fontFamily="var(--font-sans)"
+                fontStyle="italic"
+                fontWeight="500"
+                fontSize={NAME_FONT_SIZE * annotationScale}
+                strokeWidth={3 * annotationScale}
+                data-territory-name={territory.id}
+                data-chef-lieu={chefRegion ? territory.id : undefined}
+              >
+                {layout.nameLines.map((line, index) => (
+                  <tspan
+                    key={line}
+                    x={centerX}
+                    y={centerY + layout.nameBaselines[index] * annotationScale}
+                  >
+                    {line}
+                  </tspan>
+                ))}
+              </text>
+            )}
             <text
-              {...labelProps}
+              {...halo}
               x={centerX}
-              y={centerY - 5 * annotationScale}
-              fill={chefFill}
-              fontSize={12 * annotationScale}
-              data-chef-lieu={territory.id}
-            >
-              {territory.name}
-            </text>
-            <text
-              {...labelProps}
-              x={centerX}
-              y={centerY + 11 * annotationScale}
+              y={centerY + layout.codeBaseline * annotationScale}
               fill={MAP_INK}
+              fontFamily="var(--font-display)"
+              fontWeight="700"
+              fontSize={CODE_FONT_SIZE * annotationScale}
+              letterSpacing={CODE_FONT_SIZE * CODE_LETTER_SPACING * annotationScale}
+              strokeWidth={2.5 * annotationScale}
+              data-territory-code={territory.id}
             >
               {territory.id}
             </text>
           </g>
-        ) : (
-          <text
-            key={territory.id}
-            x={centerX}
-            y={centerY + 4 * annotationScale}
-            {...labelProps}
-            fill={MAP_INK}
-          >
-            {territory.id}
-          </text>
         )
       })}
     </g>

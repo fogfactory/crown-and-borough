@@ -44,13 +44,6 @@ const TERRAIN_ORDER: Terrain[] = ['plain', 'forest', 'hill', 'mountain', 'swamp'
 const LEGEND_SAMPLE_OWNER = PLAYER_RED
 const LEGEND_CASING = MAP_INK
 
-/**
- * Heater-shield silhouette shared by the map ownership badges and this
- * legend swatch.
- */
-export const OWNERSHIP_SHIELD_PATH =
-  'M -10 -12 L 10 -12 L 10 -2 C 10 5 5.5 10.5 0 13 C -5.5 10.5 -10 5 -10 -2 Z'
-
 // Map marker artwork from game-icons.net (CC BY 3.0, icons by Delapouite):
 // https://game-icons.net/1x1/delapouite/castle.html
 // https://game-icons.net/1x1/delapouite/village.html
