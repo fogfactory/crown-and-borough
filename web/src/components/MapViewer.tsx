@@ -465,6 +465,7 @@ export function MapViewer({
                 state={state}
                 annotationScale={annotationScale}
                 fiefs={state.fiefs ?? []}
+                chefLieuIds={regionsActive ? new Set(regionBySeed.keys()) : undefined}
               />
             )}
             <LiveLayer

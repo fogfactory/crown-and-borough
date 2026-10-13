@@ -272,6 +272,7 @@ const englishMessages = {
   'fief.title.marquisate': 'Marquisate',
   'fief.title.duchy': 'Duchy',
   'map.ownershipBadge': '{owner} controls this territory',
+  'map.fiefVacant': 'Vacant fief, no lord holds it',
   'map.ownershipBadgeFief':
     '{owner} controls this territory, part of the fief of {capital}',
   'map.ownershipBadgeOccupied': '{owner} controls this territory, occupied by {occupant}',
@@ -1477,6 +1478,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'fief.title.marquisate': 'Marquisat',
   'fief.title.duchy': 'Duché',
   'map.ownershipBadge': '{owner} contrôle ce territoire',
+  'map.fiefVacant': 'Fief vacant, sans seigneur',
   'map.ownershipBadgeFief': '{owner} contrôle ce territoire, membre du fief de {capital}',
   'map.ownershipBadgeOccupied': '{owner} contrôle ce territoire, occupé par {occupant}',
   'map.ownershipBadgeFiefOccupied':

@@ -33,6 +33,22 @@ const FIEF_TITLE_KEYS: Record<FiefTitle, MessageKey> = {
 /** The banner's foot sits left of the territory code, on its baseline. */
 const BANNER_FOOT_X = -33
 const BANNER_FOOT_Y = 4
+/** Half advance of a chef-lieu name glyph (12 units, weight 800), in units. */
+const CHEF_LIEU_HALF_ADVANCE = 3.9
+/** Room between the banner's foot and the end of its flag, plus a gap. */
+const BANNER_CLEARANCE = 15
+
+/**
+ * Horizontal offset of the banner's foot: left of the code, or left of the
+ * chef-lieu name written above it when that name is wider.
+ */
+function bannerFootX(territory: Territory, chefLieu: boolean): number {
+  if (!chefLieu) return BANNER_FOOT_X
+  return Math.min(
+    BANNER_FOOT_X,
+    -(territory.name.length * CHEF_LIEU_HALF_ADVANCE + BANNER_CLEARANCE),
+  )
+}
 
 /**
  * A banner on every controlled territory, in its controller's arms. A fief
@@ -47,11 +63,14 @@ export function OwnershipLayer({
   state,
   annotationScale,
   fiefs = [],
+  chefLieuIds = new Set(),
 }: {
   territories: Territory[]
   state: StateData
   annotationScale: number
   fiefs?: Fief[]
+  /** Territories whose label also writes the chef-lieu name. */
+  chefLieuIds?: Set<string>
 }) {
   const { t } = useLanguage()
   const fiefByTerritory = new Map<string, Fief>()
@@ -85,20 +104,22 @@ export function OwnershipLayer({
         const occupantName = isOccupiedAgainstController(territoryState)
           ? playerName(territoryState?.army?.owner)
           : null
-        const control = occupantName
-          ? fiefCapital
-            ? t('map.ownershipBadgeFiefOccupied', {
-                owner: ownerName,
-                capital: fiefCapital,
-                occupant: occupantName,
-              })
-            : t('map.ownershipBadgeOccupied', {
-                owner: ownerName,
-                occupant: occupantName,
-              })
-          : fiefCapital
-            ? t('map.ownershipBadgeFief', { owner: ownerName, capital: fiefCapital })
-            : t('map.ownershipBadge', { owner: ownerName })
+        const control = vacant
+          ? t('map.fiefVacant')
+          : occupantName
+            ? fiefCapital
+              ? t('map.ownershipBadgeFiefOccupied', {
+                  owner: ownerName,
+                  capital: fiefCapital,
+                  occupant: occupantName,
+                })
+              : t('map.ownershipBadgeOccupied', {
+                  owner: ownerName,
+                  occupant: occupantName,
+                })
+            : fiefCapital
+              ? t('map.ownershipBadgeFief', { owner: ownerName, capital: fiefCapital })
+              : t('map.ownershipBadge', { owner: ownerName })
         const label =
           isCapital && fief
             ? `${t('map.fiefLabel', {
@@ -111,9 +132,10 @@ export function OwnershipLayer({
             key={territory.id}
             data-ownership-badge={owner}
             data-fief-capital={isCapital ? territory.id : undefined}
-            transform={`translate(${centerX + BANNER_FOOT_X * annotationScale} ${
-              centerY + BANNER_FOOT_Y * annotationScale
-            }) scale(${annotationScale})`}
+            transform={`translate(${
+              centerX +
+              bannerFootX(territory, chefLieuIds.has(territory.id)) * annotationScale
+            } ${centerY + BANNER_FOOT_Y * annotationScale}) scale(${annotationScale})`}
           >
             <title>{label}</title>
             <BannerGlyph

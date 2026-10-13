@@ -616,6 +616,9 @@ describe('MapViewer territorial overlays', () => {
       'data-banner-owner',
       'NEUTRAL',
     )
+    expect(vacant?.querySelector('title')?.textContent).toBe(
+      'Barony of Alpilles (ROS) · Vacant fief, no lord holds it',
+    )
   })
 
   it('marks no occupation: the occupant army shows, the banner tooltip names it', () => {
