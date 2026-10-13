@@ -1,16 +1,26 @@
+import { useMemo } from 'react'
+
 import { NobleHolder } from '@/components/NobleHolder'
 import { useLanguage } from '@/i18n/LanguageContext'
+import { nobleAttributesByCode } from '@/lib/noble-attributes'
 import { royalIssuerOf } from '@/lib/royal'
 import type { StateData } from '@/types'
 
 /** Throne, king, queen, regent and crown fiefs (politique.md). */
 export function CrownPanel({ state }: { state: StateData }) {
   const { t } = useLanguage()
+  // Memoized: the panel re-renders with the map on every pan and zoom.
+  const attributes = useMemo(() => nobleAttributesByCode(state), [state])
   const crownFiefs = (state.fiefs ?? []).filter((fief) => fief.crown)
   if (!state.king && !state.queen && crownFiefs.length === 0) return null
 
   const holder = (code: string | undefined) => (
-    <NobleHolder code={code} nobles={state.nobles} players={state.players} />
+    <NobleHolder
+      code={code}
+      nobles={state.nobles}
+      players={state.players}
+      attributes={attributes}
+    />
   )
   const issuer = royalIssuerOf(state)
   const regent = issuer && issuer.code !== state.king ? issuer : undefined

@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useMemo, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 
 import { MapLegend, TERRAIN_LABEL_KEYS } from '@/components/MapLegend'
 import { MapControls } from '@/components/MapControls'
@@ -31,6 +31,7 @@ import type { WinterIntention } from '@/lib/winter-overlay'
 import { NEUTRAL_PLAYER_ID } from '@/types'
 import { centroid, pointsToPath } from '@/lib/map-svg-geometry'
 import { resolveArmsByOwner } from '@/lib/heraldry'
+import { nobleAttributesByCode } from '@/lib/noble-attributes'
 import { hasSupplySource } from '@/lib/supply'
 import { useMapBorders } from '@/lib/use-map-borders'
 import { useMapGestures } from '@/lib/use-map-gestures'
@@ -190,6 +191,7 @@ export function MapViewer({
     ]),
   )
   const armsByOwner = resolveArmsByOwner(state, playerColors)
+  const nobleAttributes = useMemo(() => nobleAttributesByCode(state), [state])
   const selectedTerritoryState = state.territories.find(
     (territoryState) => territoryState.id === selectedId,
   )
@@ -473,6 +475,7 @@ export function MapViewer({
               state={state}
               playerColors={playerColors}
               armsByOwner={armsByOwner}
+              nobleAttributes={nobleAttributes}
               annotationScale={annotationScale}
             />
 

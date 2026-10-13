@@ -2,7 +2,9 @@ import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
 import { formatOrderLabel } from '@/lib/order-label'
 import { formatCardLabel } from '@/lib/card-hand'
+import { NoblePawnIcon } from '@/components/NobleHolder'
 import { religiousTitlesByHolder } from '@/lib/lineage'
+import { nobleAttributesByCode } from '@/lib/noble-attributes'
 import { playerDisplayName, type PlayerName } from '@/lib/player-label'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { isOccupiedAgainstController } from '@/lib/occupation'
@@ -126,6 +128,7 @@ export function SelectedTerritoryDetails({
     queenDowager: state.queenDowager,
   })
   const excommunicatedCodes = new Set((state.excommunicated ?? []).map((entry) => entry.noble))
+  const pawnAttributes = nobleAttributesByCode(state)
   const presentNobles = state.nobles.filter(
     (noble) => noble.location === selectedTerritory.id,
   )
@@ -279,13 +282,16 @@ export function SelectedTerritoryDetails({
                 <li key={noble.id} className="rounded-md bg-paper-100 px-3 py-2 text-sm">
                   <div className="flex items-center justify-between gap-3">
                     <span className="min-w-0">
-                      <span
-                        className="mr-2 inline-block size-3 shrink-0 rounded-full border border-ink-900/30 align-[-1px]"
-                        style={{ backgroundColor: playerColor(noble.owner) }}
-                        aria-label={t('app.colorOf', {
-                          player: displayOwner(noble.owner, noble.owner),
-                        })}
-                      />
+                      <span className="mr-1.5">
+                        <NoblePawnIcon
+                          noble={noble}
+                          color={playerColor(noble.owner)}
+                          attributes={pawnAttributes.get(noble.code)}
+                          label={t('app.colorOf', {
+                            player: displayOwner(noble.owner, noble.owner),
+                          })}
+                        />
+                      </span>
                       <strong>{noble.name}</strong> ({noble.code})
                     </span>
                     <span
@@ -309,30 +315,23 @@ export function SelectedTerritoryDetails({
                       return (
                         <>
                           <dt>{t('app.titles')}</dt>
-                          <dd className="flex flex-wrap gap-1 font-medium text-ink-700">
-                            {religious.map((held) => (
-                              <span
-                                key={`${held.title}-${held.seat ?? ''}`}
-                                className="rounded bg-paper-100 px-1.5 py-0.5 text-2xs uppercase tracking-wide"
-                              >
-                                {t(`lineage.religious.${held.title}` as MessageKey, {
+                          <dd className="font-medium text-ink-700" data-noble-titles>
+                            {[
+                              ...religious.map((held) =>
+                                t(`lineage.religious.${held.title}` as MessageKey, {
                                   seat: held.seat ?? '',
-                                })}
-                              </span>
-                            ))}
+                                }),
+                              ),
+                              ...fiefTitles.map(
+                                (fief) => `${t(FIEF_TITLE_KEYS[fief.title])} · ${fief.capital}`,
+                              ),
+                            ].join(', ')}
                             {excommunicated && (
-                              <span className="rounded bg-vermilion-700/30 px-1.5 py-0.5 text-2xs uppercase tracking-wide text-vermilion-700">
+                              <span className="text-vermilion-700" data-excommunicated>
+                                {religious.length + fiefTitles.length > 0 ? ' · ' : ''}
                                 {t('lineage.excommunicated')}
                               </span>
                             )}
-                            {fiefTitles.map((fief) => (
-                              <span
-                                key={fief.capital}
-                                className="rounded bg-paper-300 px-1.5 py-0.5 text-2xs uppercase tracking-wide"
-                              >
-                                {t(FIEF_TITLE_KEYS[fief.title])} · {fief.capital}
-                              </span>
-                            ))}
                           </dd>
                         </>
                       )

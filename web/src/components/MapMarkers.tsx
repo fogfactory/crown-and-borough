@@ -3,6 +3,8 @@ import type { MessageKey, Translate } from '@/i18n/messages'
 import type { WinterIntention } from '@/lib/winter-overlay'
 import { GAME_ICON_GLYPHS, type GameIconGlyph as GameIconGlyphSpec } from '@/lib/game-icon-glyphs'
 import { OWNERSHIP_SHIELD_PATH } from '@/components/MapLegend'
+import { NoblePawn } from '@/components/MapHeraldry'
+import type { NobleAttributes } from '@/lib/noble-attributes'
 import type { Infrastructure, Noble, Point } from '@/types'
 import {
   FAMINE_MARKER_COLOR,
@@ -12,9 +14,7 @@ import {
   MAP_INK,
   MAP_PARCHMENT,
   MARKER_BRASS,
-  MARKER_GLINT,
   NEUTRAL_MARKER_FILL,
-  PRISONER_RING_COLOR,
 } from '@/lib/map-palette'
 
 
@@ -207,34 +207,28 @@ export function InfrastructureMarker({
   )
 }
 
+/** A noble's pawn with its title attributes; its tooltip names it in full. */
 export function NobleMarker({
   noble,
   x,
   y,
   color,
   scale,
+  attributes,
 }: {
   noble: Noble
   x: number
   y: number
   color: string
   scale: number
+  attributes?: NobleAttributes
 }) {
   const { t } = useLanguage()
   const prisoner = noble.status !== 'free'
   return (
     <g transform={`translate(${x} ${y}) scale(${scale})`} pointerEvents="none">
-      <title>{`${noble.name} (${noble.id})${prisoner ? ` · ${t(`orders.nobleStatus.${noble.status}` as MessageKey)}` : ''}`}</title>
-      <path
-        d="M0-8L8 0L0 8L-8 0Z"
-        fill={color}
-        stroke={prisoner ? PRISONER_RING_COLOR : MARKER_BRASS}
-        strokeWidth="1.5"
-      />
-      <circle cx="0" cy="0" r="2" fill={MARKER_GLINT} />
-      {prisoner && (
-        <circle cx="0" cy="0" r="4.5" fill="none" stroke={PRISONER_RING_COLOR} strokeWidth="1.5" />
-      )}
+      <title>{`${noble.name} (${noble.code})${prisoner ? ` · ${t(`orders.nobleStatus.${noble.status}` as MessageKey)}` : ''}`}</title>
+      <NoblePawn color={color} attributes={attributes} status={noble.status} />
     </g>
   )
 }

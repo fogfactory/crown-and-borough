@@ -388,7 +388,8 @@ describe('App command/report tabs', () => {
     expect(
       screen.getByRole('button', { name: 'Afficher la légende' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Jean de Rosemont (JEA)')).toBeInTheDocument()
+    // The pawn's tooltip on the map names the noble too.
+    expect(screen.getAllByText('Jean de Rosemont (JEA)')).not.toHaveLength(0)
     expect(screen.getAllByText(/Robert de Rosemont/)).not.toHaveLength(0)
     expect(screen.getByText('Otage')).toBeInTheDocument()
     const noblesSection = screen.getByText('Nobles présents').closest('div')

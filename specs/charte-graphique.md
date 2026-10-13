@@ -453,13 +453,20 @@ couronne au-dessus d'une bannière `neutral`.
   ne figurent pas sur la carte : publiques, elles sont écrites dans les
   fiches ; secrètes, seul leur propriétaire les voit.
 - Plusieurs nobles sur une case se placent côte à côte, espacés de 12 unités.
+- **Précision.** La crosse se tient à gauche du pion : les pions voisins se
+  peignent de gauche à droite et couvriraient une crosse tenue à droite. Le
+  chapeau du cardinal et la tiare du pape coiffent la tête ; la couronne
+  séculière se pose au-dessus. Le cachot dessine trois barreaux et deux
+  traverses à l'encre par-dessus le pion.
 - Le pion remplace le losange de `NobleMarker`.
 
 Les titres de fief ([titres.md](titres.md)), religieux
 ([religieux.md](religieux.md)) et royaux ([politique.md](politique.md)) sont
 livrés dans `develop`, marquisat compris : les attributs sont donc tous dus
-dès la phase 4. Ils remplacent les pastilles de titre actuelles
-(`NobleHolder.tsx`, fiches de nobles) partout où un noble est représenté.
+dès la phase 4. Ils remplacent les pastilles de titre (`NobleHolder.tsx`,
+fiches de nobles) partout où un noble est représenté : la fiche montre le pion
+puis les titres en texte. L'arbre de la lignée garde son dessin jusqu'à sa
+refonte (phase 7).
 
 ### Bâtiments
 
