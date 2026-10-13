@@ -1,16 +1,16 @@
 import {
   InfrastructureMarker,
-  OwnershipBadge,
   WinterBadge,
   WinterMarkerTriangle,
   WinterTransferArrow,
   winterMarkerTitle,
   winterReasonText,
 } from '@/components/MapMarkers'
+import { BannerGlyph } from '@/components/MapHeraldry'
 import { useLanguage } from '@/i18n/LanguageContext'
 import { centroid } from '@/lib/map-svg-geometry'
 import type { WinterIntention } from '@/lib/winter-overlay'
-import type { Territory } from '@/types'
+import { NEUTRAL_PLAYER_ID, type Territory } from '@/types'
 import {
   DEFAULT_PLAYER_COLOR,
   WINTER_ERROR_COLOR,
@@ -230,6 +230,7 @@ export function WinterOrdersOverlay({
             return [
               <line
                 key={`fief-group-line-${intention.line}-${memberId}`}
+                data-fief-group-line={memberId}
                 x1={capitalCenter[0]}
                 y1={capitalCenter[1]}
                 x2={x2}
@@ -239,19 +240,24 @@ export function WinterOrdersOverlay({
                 strokeDasharray={`${annotationScale * 4} ${annotationScale * 3}`}
                 strokeOpacity={intention.valid ? 0.9 : 0.4}
               />,
-              // A blazon on each non-capital member echoes the ownership
-              // badge pattern so the drafted group reads at a glance, since
-              // membership does not yet change control or income (#196).
-              <OwnershipBadge
+              // A faded banner on each non-capital member, marked with the
+              // capital's trigram like a founded fief, so the drafted group
+              // reads at a glance before it changes control (#196).
+              <g
                 key={`fief-group-badge-${intention.line}-${memberId}`}
-                ownerId={memberId}
-                x={x2}
-                y={y2 - 18 * annotationScale}
-                color={color}
-                scale={annotationScale}
+                data-fief-group-member={memberId}
+                transform={`translate(${x2 - 6 * annotationScale} ${
+                  y2 - 10 * annotationScale
+                }) scale(${annotationScale})`}
                 opacity={0.6}
-                label={t('map.fiefGroupMember', { capital: capital.name })}
-              />,
+                pointerEvents="none"
+              >
+                <title>{t('map.fiefGroupMember', { capital: capital.name })}</title>
+                <BannerGlyph
+                  owner={intention.player ?? NEUTRAL_PLAYER_ID}
+                  attachedTo={capital.id}
+                />
+              </g>,
             ]
           })
         })}

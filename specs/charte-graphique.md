@@ -511,8 +511,12 @@ isolé disparaît.
   synthétique.
 
 **Précision.** Quand le nom d'un territoire ordinaire rendu fait moins de
-10 px à l'écran, seul le code s'affiche. Les seuils sont à régler sur des cartes réelles : 52 territoires à
-4 joueurs, près de 200 en hotseat à 16.
+10 px à l'écran, seul le code s'affiche ; le seuil suit le zoom. Sur la carte
+à 4 joueurs (52 territoires), la vue d'ensemble montre les seuls territoires
+particuliers et le premier cran de zoom tous les noms. Un nom coupé l'est au
+trait d'union le plus proche de son milieu. La bannière se plante à gauche
+de la ligne la plus large de l'étiquette (nom ou code), sur la dernière ligne
+de base du nom, ou sur celle du code quand le nom est masqué.
 
 ### Légende
 
@@ -889,6 +893,6 @@ les cartes d'ordres.
   disposition ») pourra être conservée si l'automatique ne suffit pas.
 - **Rivières** ([cartographie.md](cartographie.md)) : le symbole de fleuve est
   prévu ; le dessin des ponts reste à définir.
-- **Niveau de détail des étiquettes :** le seuil de 10 px est retenu comme
-  point de départ ; il reste à vérifier sur des cartes réelles (voir
-  [Étiquettes](#étiquettes)).
+- **Niveau de détail des étiquettes :** le seuil de 10 px convient à la carte
+  à 4 joueurs ; il reste à vérifier sur une carte hotseat à 16 joueurs (près
+  de 200 territoires, voir [Étiquettes](#étiquettes)).

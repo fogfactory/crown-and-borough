@@ -116,6 +116,7 @@ export function useGameIntentions({
           {
             source: 'submitted',
             color: state.players.find((player) => player.id === submission.player)?.color,
+            player: submission.player,
           },
         ),
       )
@@ -123,6 +124,7 @@ export function useGameIntentions({
     if (!playerID) return []
     return buildWinterIntentions(preview?.winter ?? [], winterText, {
       color: state.players.find((player) => player.id === playerID)?.color,
+      player: playerID,
     })
   }, [playerID, preview, spectator, state, submittedOrders, winterText])
 

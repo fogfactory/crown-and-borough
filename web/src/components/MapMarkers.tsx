@@ -2,7 +2,6 @@ import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
 import type { WinterIntention } from '@/lib/winter-overlay'
 import { GAME_ICON_GLYPHS, type GameIconGlyph as GameIconGlyphSpec } from '@/lib/game-icon-glyphs'
-import { OWNERSHIP_SHIELD_PATH } from '@/components/MapLegend'
 import { NoblePawn } from '@/components/MapHeraldry'
 import type { NobleAttributes } from '@/lib/noble-attributes'
 import type { Infrastructure, Noble, Point } from '@/types'
@@ -265,65 +264,6 @@ export function FamineMarker({ x, y, scale }: { x: number; y: number; scale: num
         strokeWidth={20}
         opacity={1}
       />
-    </g>
-  )
-}
-
-export function OwnershipBadge({
-  ownerId,
-  x,
-  y,
-  color,
-  scale,
-  label,
-  code,
-  opacity = 1,
-}: {
-  ownerId: string
-  x: number
-  y: number
-  color: string
-  scale: number
-  label: string
-  /** Short code (e.g. a fief's capital trigram) printed on the shield to
-   * tell apart several badges that would otherwise share the same color. */
-  code?: string
-  opacity?: number
-}) {
-  return (
-    <g
-      data-ownership-badge={ownerId}
-      transform={`translate(${x} ${y}) scale(${scale})`}
-      opacity={opacity}
-      pointerEvents="none"
-    >
-      <title>{label}</title>
-      <path
-        d={OWNERSHIP_SHIELD_PATH}
-        fill={MAP_PARCHMENT}
-        stroke={MAP_PARCHMENT}
-        strokeWidth={5}
-        opacity={0.9}
-      />
-      <path d={OWNERSHIP_SHIELD_PATH} fill={color} />
-      <path
-        d={OWNERSHIP_SHIELD_PATH}
-        fill="none"
-        stroke={MARKER_CASING_COLOR}
-        strokeWidth={1.6}
-      />
-      {code && (
-        <text
-          y={-5.5}
-          fill={MAP_PARCHMENT}
-          fontSize={7}
-          fontWeight="800"
-          textAnchor="middle"
-          dominantBaseline="central"
-        >
-          {code}
-        </text>
-      )}
     </g>
   )
 }

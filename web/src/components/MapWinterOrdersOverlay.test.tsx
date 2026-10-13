@@ -55,25 +55,25 @@ describe('WinterOrdersOverlay found_fief group', () => {
     label: 'T F HUG AAA BBB CCC',
   }
 
-  it('draws a translucent ownership-style blazon on each non-capital member in the intention color', () => {
-    const { container } = renderOverlay([foundFief])
+  it('plants a faded banner, marked with the capital, on each non-capital member', () => {
+    const { container } = renderOverlay([{ ...foundFief, player: 'P1' }])
 
-    const badges = container.querySelectorAll('[data-ownership-badge]')
+    const members = container.querySelectorAll('[data-fief-group-member]')
     expect(
-      Array.from(badges).map((badge) => badge.getAttribute('data-ownership-badge')),
+      Array.from(members).map((member) => member.getAttribute('data-fief-group-member')),
     ).toEqual(['BBB', 'CCC'])
-    for (const badge of badges) {
-      // OwnershipBadge stacks 3 shield paths: background, owner fill, casing.
-      expect(badge.querySelectorAll('path')[1]?.getAttribute('fill')).toBe('#a84632')
-      // Lighter than a real, settled ownership badge since this is only a draft.
-      expect(badge.getAttribute('opacity')).toBe('0.6')
+    for (const member of members) {
+      expect(member.querySelector('use')).toHaveAttribute('href', '#arms-banner-P1')
+      expect(member.querySelector('[data-fief-attachment]')?.textContent).toBe('AAA')
+      // Lighter than a settled banner since this is only a draft.
+      expect(member.getAttribute('opacity')).toBe('0.6')
     }
   })
 
   it('draws one connecting line per member from the capital, colored per player', () => {
     const { container } = renderOverlay([foundFief])
 
-    const lines = container.querySelectorAll('line')
+    const lines = container.querySelectorAll('line[data-fief-group-line]')
     expect(lines).toHaveLength(2)
     for (const line of lines) {
       expect(line.getAttribute('stroke')).toBe('#a84632')

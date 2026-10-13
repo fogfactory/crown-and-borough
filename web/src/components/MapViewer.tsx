@@ -33,7 +33,14 @@ import { centroid, pointsToPath } from '@/lib/map-svg-geometry'
 import { resolveArmsByOwner } from '@/lib/heraldry'
 import { nobleAttributesByCode } from '@/lib/noble-attributes'
 import { hasSupplySource } from '@/lib/supply'
+import {
+  NAME_MIN_SCREEN_PX,
+  nameScreenSize,
+  particularTerritoryIds,
+  territoryLabelLayout,
+} from '@/lib/territory-labels'
 import { useMapBorders } from '@/lib/use-map-borders'
+import { useElementSize } from '@/lib/use-element-size'
 import { useMapGestures } from '@/lib/use-map-gestures'
 import { useRegionEffectIcons } from '@/lib/use-region-effect-icons'
 import { useRegionLayout } from '@/lib/use-region-layout'
@@ -168,6 +175,38 @@ export function MapViewer({
     mapHeight,
     onTap: selectTerritory,
   })
+  const svgSize = useElementSize(svgRef)
+  // "meet": the viewBox fits the narrower side of the element.
+  const pixelsPerUnit =
+    svgSize.width > 0 && svgSize.height > 0
+      ? Math.min(svgSize.width / viewWidth, svgSize.height / viewHeight) * view.k
+      : 0
+  // Ordinary territories show their name once it reads at 10 px; until the
+  // element is measured, names show.
+  const showOrdinaryNames =
+    pixelsPerUnit === 0 ||
+    nameScreenSize(annotationScale, pixelsPerUnit) >= NAME_MIN_SCREEN_PX
+  const particularIds = useMemo(
+    () =>
+      particularTerritoryIds(
+        state,
+        (map.regions ?? []).map((region) => region.seed),
+      ),
+    [state, map.regions],
+  )
+  const labelLayouts = useMemo(
+    () =>
+      new Map(
+        map.territories.map((territory) => [
+          territory.id,
+          territoryLabelLayout(
+            territory,
+            showOrdinaryNames || particularIds.has(territory.id),
+          ),
+        ]),
+      ),
+    [map.territories, particularIds, showOrdinaryNames],
+  )
 
   const colorsByPlayer = new Map(state.players.map((player) => [player.id, player.color]))
   const owners = Array.from(
@@ -295,15 +334,6 @@ export function MapViewer({
                 regionStyleByID={regionStyleByID}
                 regionHoleTesters={regionHoleTesters}
                 annotationScale={annotationScale}
-              />
-            )}
-
-            {state.season === 'winter' && showIntentions && (
-              <IntentionsOverlay
-                intentions={intentions}
-                annotationScale={annotationScale}
-                passableBorderDash={passableBorderDash}
-                intentionsColor={intentionsColor}
               />
             )}
 
@@ -467,7 +497,7 @@ export function MapViewer({
                 state={state}
                 annotationScale={annotationScale}
                 fiefs={state.fiefs ?? []}
-                chefLieuIds={regionsActive ? new Set(regionBySeed.keys()) : undefined}
+                labelLayouts={labelLayouts}
               />
             )}
             <LiveLayer
@@ -481,6 +511,7 @@ export function MapViewer({
 
             <TerritoryLabels
               territories={map.territories}
+              labelLayouts={labelLayouts}
               regionsActive={regionsActive}
               regionBySeed={regionBySeed}
               regionStyleByID={regionStyleByID}
@@ -505,7 +536,8 @@ export function MapViewer({
               />
             )}
 
-            {state.season !== 'winter' && showIntentions && (
+            {/* Intentions draw on top in every season (layer order, charter). */}
+            {showIntentions && (
               <IntentionsOverlay
                 intentions={intentions}
                 annotationScale={annotationScale}

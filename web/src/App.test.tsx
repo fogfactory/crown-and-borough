@@ -424,13 +424,14 @@ describe('App command/report tabs', () => {
       'aria-selected',
       'true',
     )
-    expect(
-      await screen.findByText('Les ordres sont résolus simultanément.'),
-    ).toBeInTheDocument()
+    // findByText is the assertion: the rules panel may re-render its
+    // markdown right after, detaching the node it returned.
+    await screen.findByText('Les ordres sont résolus simultanément.')
 
     fireEvent.click(screen.getByRole('tab', { name: /Poste de commandement/ }))
     expect(screen.getByLabelText('Chaîne de JEA')).toHaveValue('ROS A BRU')
-    expect(screen.getByText('Rosemont')).toBeInTheDocument()
+    // The selected territory's card is still open (the map writes the name too).
+    expect(screen.getByRole('heading', { name: 'Rosemont' })).toBeInTheDocument()
   })
 
   it('requests a transfer overlay for a drafted action transfer', async () => {
