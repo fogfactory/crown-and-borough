@@ -101,6 +101,7 @@ type PlayerView struct {
 	ID                  models.PlayerID     `json:"id"`
 	Name                string              `json:"name"`
 	Color               string              `json:"color"`
+	Arms                *models.Arms        `json:"arms,omitempty"`
 	CapitalTerritory    *models.TerritoryID `json:"capitalTerritory,omitempty"`
 	ProjectedIncome     int                 `json:"projectedIncome"`
 	ProjectedMillIncome int                 `json:"projectedMillIncome"`
@@ -495,7 +496,7 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 		view.Territories = append(view.Territories, territoryView)
 	}
 	for _, player := range state.Players {
-		playerView := PlayerView{ID: player.ID, Name: player.Name, Color: player.Color, ProjectedIncome: projectedIncomeByPlayer[player.ID], ProjectedMillIncome: millIncomeByPlayer[player.ID], ProjectedRoyalRent: royalRentByPlayer[player.ID]}
+		playerView := PlayerView{ID: player.ID, Name: player.Name, Color: player.Color, Arms: player.Arms, ProjectedIncome: projectedIncomeByPlayer[player.ID], ProjectedMillIncome: millIncomeByPlayer[player.ID], ProjectedRoyalRent: royalRentByPlayer[player.ID]}
 		if famineRisk, ok := famineRiskByPlayer[player.ID]; ok {
 			playerView.ProjectedConsumption = famineRisk.NetConsumption
 			for _, risk := range famineRisk.ArmiesAtRisk {

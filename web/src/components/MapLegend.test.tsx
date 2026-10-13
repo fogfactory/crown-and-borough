@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { MapLegend, OWNERSHIP_SHIELD_PATH } from '@/components/MapLegend'
+import { MapLegend } from '@/components/MapLegend'
 import { LanguageProvider } from '@/i18n/LanguageContext'
 
 describe('MapLegend', () => {
@@ -57,7 +57,7 @@ describe('MapLegend', () => {
       </LanguageProvider>,
     )
 
-    const filledGlyphs = container.querySelectorAll('svg path[fill="#a84632"]')
+    const filledGlyphs = container.querySelectorAll('svg path[fill="#b3322b"]')
     expect(filledGlyphs.length).toBeGreaterThanOrEqual(2)
   })
 
@@ -111,28 +111,29 @@ describe('MapLegend', () => {
     expect(onToggle).toHaveBeenCalledWith(true)
   })
 
-  it('describes territorial control with the shield vignette', () => {
+  it('samples the banners, the crowned fief capital and the army shield', () => {
     const { container } = render(
       <LanguageProvider initialLanguage="en">
         <MapLegend />
       </LanguageProvider>,
     )
 
-    expect(screen.getByText('Colored shield = territorial control')).toBeInTheDocument()
-    const vignette = container.querySelector('svg[viewBox="-13 -15 26 30"]')
-    expect(vignette?.querySelector(`path[d="${OWNERSHIP_SHIELD_PATH}"]`)).not.toBeNull()
-  })
-
-  it('shows the occupied fief member hatch swatch', () => {
-    const { container } = render(
-      <LanguageProvider initialLanguage="en">
-        <MapLegend />
-      </LanguageProvider>,
-    )
-
+    expect(screen.getByText('Banner = controlled territory')).toBeInTheDocument()
+    expect(screen.getByText('Fief capital (crown of its rank)')).toBeInTheDocument()
+    expect(screen.getByText('R = resources in stock')).toBeInTheDocument()
     expect(
-      screen.getByText('Occupied (controlled, held by another army)'),
+      container.querySelector('[data-legend-banner="barony"] [data-crown="barony"]'),
     ).toBeInTheDocument()
-    expect(container.querySelector('#legend-occupied-hatch')).toBeInTheDocument()
+    expect(
+      container.querySelector('[data-legend-banner="ROS"] [data-fief-attachment="ROS"]'),
+    ).toBeInTheDocument()
+    // Gules with a bend or: the field and its charge, in the shield too.
+    const shield = container.querySelector('[data-legend-shield]')
+    expect(shield?.querySelector('path[fill="#b3322b"]')).toBeInTheDocument()
+    expect(shield?.querySelector('[data-charge="bend"] path')).toHaveAttribute(
+      'stroke',
+      '#d8ab35',
+    )
+    expect(container.querySelector('#legend-occupied-hatch')).not.toBeInTheDocument()
   })
 })

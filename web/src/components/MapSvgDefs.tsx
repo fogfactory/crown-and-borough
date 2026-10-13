@@ -9,13 +9,7 @@ import {
 } from '@/components/MapDecorations'
 import { pointsToPath } from '@/lib/map-svg-geometry'
 import type { Terrain, Territory } from '@/types'
-import {
-  INTENT_OUTLINE_COLOR,
-  MAP_INK,
-  PLAYER_RED,
-  RIVER_BLUE,
-  SNOW_STROKE,
-} from '@/lib/map-palette'
+import { INTENT_OUTLINE_COLOR, MAP_INK, RIVER_BLUE, SNOW_STROKE } from '@/lib/map-palette'
 
 /**
  * Shared SVG definitions referenced by the map layers: per-territory clip
@@ -65,26 +59,6 @@ export function MapSvgDefs({
           stroke={MAP_INK}
           strokeWidth={1.4 * annotationScale}
           strokeOpacity="0.35"
-        />
-      </pattern>
-      {/* Opposite diagonal and a distinct color from the supply hatch, for a
-          fief member controlled but held by another army (titres.md,
-          issue #196). */}
-      <pattern
-        id="occupied-hatch"
-        width={8 * annotationScale}
-        height={8 * annotationScale}
-        patternUnits="userSpaceOnUse"
-        patternTransform="rotate(-45)"
-      >
-        <line
-          x1={4 * annotationScale}
-          y1="0"
-          x2={4 * annotationScale}
-          y2={8 * annotationScale}
-          stroke={PLAYER_RED}
-          strokeWidth={2 * annotationScale}
-          strokeOpacity="0.55"
         />
       </pattern>
       {(Object.keys(TERRAIN_SYMBOL_PATHS) as Terrain[]).map((terrain) => (

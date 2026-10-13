@@ -183,8 +183,10 @@ carte ; la pièce le distingue encore en niveaux de gris et pour un daltonien.
 - L'ordre d'attribution suit l'ordre des sièges, comme la palette actuelle
   d'`internal/engine/game.go`.
 - Le moteur attribue la teinture du siège dans `players[].color` et publie
-  les armoiries (champ, métal, pièce) dans `state.json` dès la création de
-  la partie ; le front ne les recalcule pas.
+  les armoiries (champ, métal, pièce) dans `players[].arms` dès la création
+  de la partie ([architecture.md](architecture.md#statejson)) ; le front ne
+  les recalcule pas. Une partie sans armoiries montre un champ plein de la
+  couleur du joueur.
 - **Deux étapes.** D'abord, chaque joueur reçoit les armoiries générées
   ci-dessus. Ensuite, un joueur pourra choisir son propre blason (champ,
   pièce, meuble) dans son profil ; ce choix se superpose aux armoiries
@@ -387,7 +389,9 @@ L'affichage actuel est conservé et restylé :
   légende « Contrôle joueur » l'affiche ou la masque.
 
 **Précision.** La bannière se plante à gauche du nom, le pied du mât sur sa
-ligne de base ; mât `ink-900`, drapeau de 12 × 8 unités.
+ligne de base ; mât `ink-900` de 14 unités, drapeau de 12 × 8 unités. Chaque
+joueur a un drapeau et un écu définis une fois (`<symbol>`), instanciés par
+`<use>` sur chaque pièce.
 
 ### Fiefs : bannière couronnée
 

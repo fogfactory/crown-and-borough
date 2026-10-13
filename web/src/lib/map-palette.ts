@@ -33,14 +33,31 @@ export const MAP_BROWN_FILL = '#59401f'
 
 // Players, owners and fallbacks
 
-export const PLAYER_RED = '#a84632'
-export const PLAYER_PALETTE = [PLAYER_RED, '#2d5f9e', '#7052a1', '#0e7490', '#ad7a25']
+/** Player tinctures in seat order (the engine's `players[].color`). */
+export const PLAYER_PALETTE = [
+  '#b3322b',
+  '#2b5c9e',
+  '#3f7d3c',
+  '#6e3f8f',
+  '#2f2b27',
+  '#c8651b',
+  '#4fa3c7',
+  '#8c2f5a',
+]
+/** Gules, the first seat's tincture: default and sample player color. */
+export const PLAYER_RED = PLAYER_PALETTE[0]
 /** Color of a player with no color set. */
 export const DEFAULT_PLAYER_COLOR = '#b7a786'
 /** Color of an owner missing from the player list. */
 export const UNKNOWN_OWNER_COLOR = '#475569'
-/** Rebel armies answer to no crown: they render in a neutral gray. */
-export const NEUTRAL_ARMY_COLOR = '#6b7280'
+/** Rebel armies answer to no crown: an ashen shield with no charge. */
+export const NEUTRAL_ARMY_COLOR = '#7d766a'
+/** Heraldic metals of the player charges. */
+export const METAL_COLORS = { or: '#d8ab35', argent: '#f1ede3' } as const
+/** Crowns of titled nobles and fiefs (`brass-400`). */
+export const CROWN_FILL = '#c9a24a'
+/** Number on an army shield. */
+export const SHIELD_NUMBER = '#ffffff'
 
 // Regions (bishoprics)
 
@@ -88,15 +105,15 @@ export const INTENT_OUTLINE_COLOR = MAP_INK
 /** Opacity of a drafted (not yet submitted) order's arrows and badges. */
 export const DRAFT_INTENTION_OPACITY = 0.45
 export const FORTIFICATION_WALL_FILL = '#b8b8b4'
-/** Neutral fill for infrastructure without a controlling player. */
-export const NEUTRAL_MARKER_FILL = '#efe6d0'
-export const MARKER_BRASS = '#815f1e'
+/** Neutral fill for infrastructure without a controlling player (`paper-50`). */
+export const NEUTRAL_MARKER_FILL = '#fbf7ee'
+/** Capital crown over a castle (`brass-700`). */
+export const MARKER_BRASS = '#7d5a1c'
 export const MARKER_BROWN = '#4e3828'
 export const MARKER_GLINT = '#fff3c4'
 export const FAMINE_MARKER_COLOR = '#8d321e'
 /** Ring around a captive noble's pawn. */
 export const PRISONER_RING_COLOR = '#8d321e'
-export const LEGEND_SWATCH_BACKGROUND = '#f8f0e2'
 
 // Game icons
 

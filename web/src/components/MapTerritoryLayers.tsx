@@ -1,52 +1,87 @@
-import {
-  FamineMarker,
-  InfrastructureMarker,
-  NobleMarker,
-  OwnershipBadge,
-} from '@/components/MapMarkers'
+import { BannerGlyph, shieldSymbolId } from '@/components/MapHeraldry'
+import { FamineMarker, InfrastructureMarker, NobleMarker } from '@/components/MapMarkers'
 import { useLanguage } from '@/i18n/LanguageContext'
-import { centroid, pointsToPath } from '@/lib/map-svg-geometry'
+import type { MessageKey } from '@/i18n/messages'
+import type { ResolvedArms } from '@/lib/heraldry'
+import { centroid } from '@/lib/map-svg-geometry'
 import { isOccupiedAgainstController } from '@/lib/occupation'
 import type { RegionStyle } from '@/lib/region-color'
-import type { Fief, Region, StateData, Territory } from '@/types'
+import {
+  NEUTRAL_PLAYER_ID,
+  type Fief,
+  type FiefTitle,
+  type Region,
+  type StateData,
+  type Territory,
+} from '@/types'
 import {
   MAP_BROWN_FILL,
   MAP_HALO,
   MAP_INK,
   MAP_PARCHMENT,
+  SHIELD_NUMBER,
   UNKNOWN_OWNER_COLOR,
 } from '@/lib/map-palette'
 
+const FIEF_TITLE_KEYS: Record<FiefTitle, MessageKey> = {
+  barony: 'fief.title.barony',
+  county: 'fief.title.county',
+  marquisate: 'fief.title.marquisate',
+  duchy: 'fief.title.duchy',
+}
+
+/** The banner's foot sits left of the territory code, on its baseline. */
+const BANNER_FOOT_X = -33
+const BANNER_FOOT_Y = 4
+/** Half advance of a chef-lieu name glyph (12 units, weight 800), in units. */
+const CHEF_LIEU_HALF_ADVANCE = 3.9
+/** Room between the banner's foot and the end of its flag, plus a gap. */
+const BANNER_CLEARANCE = 15
+
 /**
- * Owner shields under each controlled territory's center. A territory that
- * belongs to a fief prints its capital's trigram on the shield instead of a
- * plain color, so several fiefs held by the same player stay tellable apart
- * (titres.md, issue #194). Since #196, control is transitive within a fief:
- * a non-capital member stays under its fief's control even while an enemy
- * (or NEUTRAL revolt) army sits on it, so the shield keeps the controller's
- * color and the tooltip names the occupant instead; `OccupiedHatchLayer`
- * paints the hatch overlay for that same case.
+ * Horizontal offset of the banner's foot: left of the code, or left of the
+ * chef-lieu name written above it when that name is wider.
+ */
+function bannerFootX(territory: Territory, chefLieu: boolean): number {
+  if (!chefLieu) return BANNER_FOOT_X
+  return Math.min(
+    BANNER_FOOT_X,
+    -(territory.name.length * CHEF_LIEU_HALF_ADVANCE + BANNER_CLEARANCE),
+  )
+}
+
+/**
+ * A banner on every controlled territory, in its controller's arms. A fief
+ * capital crowns its banner with the fief's rank (the king's closed crown for
+ * a crown fief, over a neutral banner while the fief is vacant); the other
+ * members write the capital's trigram under the flag, so a glance tells
+ * which fief a territory belongs to. Occupation needs no mark: the army
+ * present carries its own shield, and the tooltip names the occupant.
  */
 export function OwnershipLayer({
   territories,
   state,
-  playerColors,
   annotationScale,
   fiefs = [],
+  chefLieuIds = new Set(),
 }: {
   territories: Territory[]
   state: StateData
-  playerColors: Map<string, string>
   annotationScale: number
   fiefs?: Fief[]
+  /** Territories whose label also writes the chef-lieu name. */
+  chefLieuIds?: Set<string>
 }) {
   const { t } = useLanguage()
-  const fiefCapitalByTerritory = new Map<string, string>()
+  const fiefByTerritory = new Map<string, Fief>()
   for (const fief of fiefs) {
     for (const territoryId of fief.territories) {
-      fiefCapitalByTerritory.set(territoryId, fief.capital)
+      fiefByTerritory.set(territoryId, fief)
     }
+    fiefByTerritory.set(fief.capital, fief)
   }
+  const playerName = (id: string | undefined) =>
+    state.players.find((player) => player.id === id)?.name ?? id ?? ''
 
   return (
     <g aria-label={t('map.control')} pointerEvents="none">
@@ -54,85 +89,61 @@ export function OwnershipLayer({
         const territoryState = state.territories.find(
           (candidate) => candidate.id === territory.id,
         )
-        const owner = territoryState?.owner
+        const fief = fiefByTerritory.get(territory.id)
+        const isCapital = fief?.capital === territory.id
+        const owner = territoryState?.owner ?? (isCapital ? fief?.owner : undefined)
         if (!owner) {
           return null
         }
 
+        const vacant = isCapital && fief && !fief.holder && !fief.crown
+        const bannerOwner = vacant ? NEUTRAL_PLAYER_ID : owner
         const [centerX, centerY] = centroid(territory.points)
-        const ownerName =
-          state.players.find((player) => player.id === owner)?.name ?? owner
-        const fiefCapital = fiefCapitalByTerritory.get(territory.id)
-        const armyOwnerID = territoryState.army?.owner
+        const ownerName = playerName(owner)
+        const fiefCapital = fief && !isCapital ? fief.capital : undefined
         const occupantName = isOccupiedAgainstController(territoryState)
-          ? (state.players.find((player) => player.id === armyOwnerID)?.name ??
-            armyOwnerID)
+          ? playerName(territoryState?.army?.owner)
           : null
-        const label = occupantName
-          ? fiefCapital
-            ? t('map.ownershipBadgeFiefOccupied', {
-                owner: ownerName,
-                capital: fiefCapital,
-                occupant: occupantName,
-              })
-            : t('map.ownershipBadgeOccupied', {
-                owner: ownerName,
-                occupant: occupantName,
-              })
-          : fiefCapital
-            ? t('map.ownershipBadgeFief', { owner: ownerName, capital: fiefCapital })
-            : t('map.ownershipBadge', { owner: ownerName })
+        const control = vacant
+          ? t('map.fiefVacant')
+          : occupantName
+            ? fiefCapital
+              ? t('map.ownershipBadgeFiefOccupied', {
+                  owner: ownerName,
+                  capital: fiefCapital,
+                  occupant: occupantName,
+                })
+              : t('map.ownershipBadgeOccupied', {
+                  owner: ownerName,
+                  occupant: occupantName,
+                })
+            : fiefCapital
+              ? t('map.ownershipBadgeFief', { owner: ownerName, capital: fiefCapital })
+              : t('map.ownershipBadge', { owner: ownerName })
+        const label =
+          isCapital && fief
+            ? `${t('map.fiefLabel', {
+                title: t(FIEF_TITLE_KEYS[fief.title]),
+                capital: territory.name,
+              })} (${fief.capital}) · ${control}`
+            : control
         return (
-          <OwnershipBadge
+          <g
             key={territory.id}
-            ownerId={owner}
-            x={centerX + (territoryState.army ? -32 : -9) * annotationScale}
-            y={centerY + 26 * annotationScale}
-            color={playerColors.get(owner) ?? UNKNOWN_OWNER_COLOR}
-            scale={annotationScale}
-            code={fiefCapital}
-            label={label}
-          />
-        )
-      })}
-    </g>
-  )
-}
-
-/**
- * Diagonal hatch over a territory that is controlled but currently occupied
- * against its controller (titres.md, issue #196): a non-capital fief member
- * under enemy or revolt garrison, but also a plain (non-fief) territory held
- * against a NEUTRAL revolt, since positional control elsewhere changes owner
- * immediately for any other army. Rendered under `OwnershipLayer`'s badges,
- * whose tooltip already names the occupant.
- */
-export function OccupiedHatchLayer({
-  territories,
-  state,
-}: {
-  territories: Territory[]
-  state: StateData
-}) {
-  const { t } = useLanguage()
-
-  return (
-    <g aria-label={t('map.occupiedZone')} pointerEvents="none">
-      {territories.map((territory) => {
-        const territoryState = state.territories.find(
-          (candidate) => candidate.id === territory.id,
-        )
-        if (!isOccupiedAgainstController(territoryState)) {
-          return null
-        }
-
-        return (
-          <path
-            key={territory.id}
-            data-occupied-territory-id={territory.id}
-            d={pointsToPath(territory.points)}
-            fill="url(#occupied-hatch)"
-          />
+            data-ownership-badge={owner}
+            data-fief-capital={isCapital ? territory.id : undefined}
+            transform={`translate(${
+              centerX +
+              bannerFootX(territory, chefLieuIds.has(territory.id)) * annotationScale
+            } ${centerY + BANNER_FOOT_Y * annotationScale}) scale(${annotationScale})`}
+          >
+            <title>{label}</title>
+            <BannerGlyph
+              owner={bannerOwner}
+              crown={isCapital && fief ? (fief.crown ? 'king' : fief.title) : undefined}
+              attachedTo={fiefCapital}
+            />
+          </g>
         )
       })}
     </g>
@@ -144,11 +155,13 @@ export function LiveLayer({
   territories,
   state,
   playerColors,
+  armsByOwner,
   annotationScale,
 }: {
   territories: Territory[]
   state: StateData
   playerColors: Map<string, string>
+  armsByOwner: Map<string, ResolvedArms>
   annotationScale: number
 }) {
   const { t } = useLanguage()
@@ -182,7 +195,7 @@ export function LiveLayer({
                 strokeWidth={3 * annotationScale}
                 paintOrder="stroke"
               >
-                {`×${territoryState.resources}`}
+                {t('map.stock', { amount: territoryState.resources })}
               </text>
             )}
             {territoryState.infrastructures.map((infrastructure, index) => (
@@ -216,30 +229,36 @@ export function LiveLayer({
                         size: territoryState.army.size,
                       })}
                 </title>
-                <circle
-                  cx={centerX - 9 * annotationScale}
-                  cy={centerY + 26 * annotationScale}
-                  r={9 * annotationScale}
-                  fill={
-                    playerColors.get(territoryState.army.owner) ?? UNKNOWN_OWNER_COLOR
-                  }
-                  stroke={MAP_PARCHMENT}
-                  strokeWidth={2 * annotationScale}
+                <use
+                  href={`#${shieldSymbolId(
+                    armsByOwner.has(territoryState.army.owner)
+                      ? territoryState.army.owner
+                      : NEUTRAL_PLAYER_ID,
+                  )}`}
+                  data-army-owner={territoryState.army.owner}
+                  transform={`translate(${centerX - 9 * annotationScale} ${
+                    centerY + 26 * annotationScale
+                  }) scale(${annotationScale})`}
                 />
                 <text
                   x={centerX - 9 * annotationScale}
-                  y={centerY + 29 * annotationScale}
-                  fill={MAP_PARCHMENT}
-                  fontSize={9 * annotationScale}
-                  fontWeight="800"
+                  y={centerY + 26 * annotationScale}
+                  fill={SHIELD_NUMBER}
+                  fontSize={10 * annotationScale}
+                  fontWeight="700"
                   textAnchor="middle"
+                  dominantBaseline="central"
+                  stroke={MAP_INK}
+                  strokeWidth={2.4 * annotationScale}
+                  strokeLinejoin="round"
+                  paintOrder="stroke"
                 >
                   {territoryState.army.size}
                 </text>
                 {territoryState.army.starving && (
                   <FamineMarker
-                    x={centerX - 9 * annotationScale + 7 * annotationScale}
-                    y={centerY + 26 * annotationScale - 7 * annotationScale}
+                    x={centerX - 9 * annotationScale + 8 * annotationScale}
+                    y={centerY + 26 * annotationScale - 9 * annotationScale}
                     scale={annotationScale}
                   />
                 )}

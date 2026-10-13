@@ -19,11 +19,58 @@ type InfraID string
 
 // Player is a human participant. CapitalCastleID identifies the castle it
 // designates as its stronghold, or is nil when it has no designated capital.
+// Arms are the player's generated coat of arms (graphic charter); games
+// created before arms existed have none.
 type Player struct {
 	ID              PlayerID `json:"id"`
 	Name            string   `json:"name"`
 	Color           string   `json:"color"`
+	Arms            *Arms    `json:"arms,omitempty"`
 	CapitalCastleID *InfraID `json:"capitalCastle,omitempty"`
+}
+
+// Tincture is the heraldic color of a player's field.
+type Tincture string
+
+const (
+	TinctureGules   Tincture = "gules"
+	TinctureAzure   Tincture = "azure"
+	TinctureVert    Tincture = "vert"
+	TincturePurpure Tincture = "purpure"
+	TinctureSable   Tincture = "sable"
+	TinctureTenne   Tincture = "tenne"
+	TinctureCeleste Tincture = "celeste"
+	TinctureMurrey  Tincture = "murrey"
+)
+
+// Metal is the heraldic metal of a player's charge.
+type Metal string
+
+const (
+	MetalOr     Metal = "or"
+	MetalArgent Metal = "argent"
+)
+
+// Charge is the geometric piece laid over a player's field.
+type Charge string
+
+const (
+	ChargeBend    Charge = "bend"
+	ChargeFess    Charge = "fess"
+	ChargeChevron Charge = "chevron"
+	ChargeCross   Charge = "cross"
+	ChargeSaltire Charge = "saltire"
+	ChargePale    Charge = "pale"
+	ChargeChief   Charge = "chief"
+	ChargeBordure Charge = "bordure"
+)
+
+// Arms is a simple coat of arms: a field of a tincture and a charge of a
+// metal, so a player stays recognizable in grayscale and to color-blind eyes.
+type Arms struct {
+	Field  Tincture `json:"field"`
+	Metal  Metal    `json:"metal"`
+	Charge Charge   `json:"charge"`
 }
 
 // Territory is the static geography of the map: the walkable adjacency graph
