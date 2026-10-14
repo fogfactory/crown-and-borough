@@ -81,20 +81,81 @@ func TestWinterViewsEncodeWithoutNestedArrays(t *testing.T) {
 		t.Fatalf("create state: %v", err)
 	}
 	state.Season = models.SeasonWinter
-	for _, player := range state.Players {
-		view := api.ProjectStateForPlayer(state, player.ID, balance)
-		// A starting house holds a connected castle group: its fief site carries
-		// the edges that once reached Firestore as nested arrays.
-		if view.WinterAids == nil || len(view.WinterAids.FiefSites) == 0 || len(view.WinterAids.FiefSites[0].Edges) == 0 {
-			t.Fatalf("player %s: winter aids = %+v, want a fief site with edges", player.ID, view.WinterAids)
-		}
-		if _, err := jsonMap(view); err != nil {
-			t.Fatalf("player %s: encode winter view: %v", player.ID, err)
-		}
+	players := make([]playerDocument, len(state.Players))
+	for index, player := range state.Players {
+		players[index] = playerDocument{ID: player.ID, Name: player.Name, ActorID: "uid-" + string(player.ID)}
 	}
-	if _, err := jsonMap(api.ProjectState(state, balance)); err != nil {
+	// The documents the store writes when a turn enters winter, built by the
+	// store itself: the player views carry the winter aids.
+	s := NewWithClient(balance, assets, Options{})
+	views, err := s.viewProjections("winter-view", players, 1, state, time.Now())
+	if err != nil {
+		t.Fatalf("encode winter views: %v", err)
+	}
+	if _, err := s.observerDocument("winter-view", "host", 1, state, time.Now(), 0); err != nil {
 		t.Fatalf("encode observer winter view: %v", err)
 	}
+	// A starting house holds a connected castle group: its fief site carries
+	// the edges that once reached Firestore as nested arrays.
+	var view api.StateView
+	if err := decodeJSONMap(views[0].document.State, &view); err != nil {
+		t.Fatalf("decode winter view: %v", err)
+	}
+	if view.WinterAids == nil || len(view.WinterAids.FiefSites) == 0 || len(view.WinterAids.FiefSites[0].Edges) == 0 {
+		t.Fatalf("winter aids = %+v, want a fief site with edges", view.WinterAids)
+	}
+}
+
+// Fields that only fill in rare game situations escape the encoding tests
+// above: every type the store encodes through jsonMap is checked for an array
+// held directly by another array, whatever its content.
+func TestPersistedTypesHoldNoNestedArrays(t *testing.T) {
+	for name, value := range map[string]interface{}{
+		"GameState":      models.GameState{},
+		"PrivacyMeta":    models.PrivacyMeta{},
+		"StateView":      api.StateView{},
+		"TurnReport":     engine.TurnReport{},
+		"TurnReportView": api.TurnReportView{},
+	} {
+		if path := nestedArrayType(reflect.TypeOf(value), name, false, map[reflect.Type]bool{}); path != "" {
+			t.Errorf("%s holds a nested array", path)
+		}
+	}
+}
+
+func nestedArrayType(typ reflect.Type, path string, inArray bool, visiting map[reflect.Type]bool) string {
+	for typ.Kind() == reflect.Pointer {
+		typ = typ.Elem()
+	}
+	switch typ.Kind() {
+	case reflect.Slice, reflect.Array:
+		if typ.Elem().Kind() == reflect.Uint8 {
+			return "" // []byte encodes as a string
+		}
+		if inArray {
+			return path
+		}
+		return nestedArrayType(typ.Elem(), path+"[]", true, visiting)
+	case reflect.Map:
+		return nestedArrayType(typ.Elem(), path+"{}", false, visiting)
+	case reflect.Struct:
+		// A struct encodes as an object, even inside an array.
+		if visiting[typ] {
+			return ""
+		}
+		visiting[typ] = true
+		defer delete(visiting, typ)
+		for index := 0; index < typ.NumField(); index++ {
+			field := typ.Field(index)
+			if !field.IsExported() || field.Tag.Get("json") == "-" {
+				continue
+			}
+			if found := nestedArrayType(field.Type, path+"."+field.Name, false, visiting); found != "" {
+				return found
+			}
+		}
+	}
+	return ""
 }
 
 func TestFirestoreSchemaVersionIsExplicit(t *testing.T) {
