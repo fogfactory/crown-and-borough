@@ -104,9 +104,11 @@ export function OnlineFrame({ children }: { children: ReactNode }) {
     >
       <OnlineHeader />
       <main
-        className={`mx-auto flex w-full min-h-0 max-w-[1500px] flex-1 flex-col p-3 sm:p-4 lg:p-6 ${
-          isGame ? 'overflow-hidden' : ''
-        }`}
+        className={
+          isGame
+            ? 'flex w-full min-h-0 flex-1 flex-col overflow-hidden'
+            : 'mx-auto flex w-full min-h-0 max-w-[1500px] flex-1 flex-col p-3 sm:p-4 lg:p-6'
+        }
       >
         {children}
       </main>

@@ -3,11 +3,11 @@ import { IconTrophy } from '@tabler/icons-react'
 
 import { GameLayout } from '@/components/GameLayout'
 import { BrandMark } from '@/components/BrandMark'
-import { GameSetupMenu } from '@/components/GameSetupMenu'
+import { GameMenu } from '@/components/GameMenu'
 import { MapViewer } from '@/components/MapViewer'
 import { SelectedTerritoryDetails } from '@/components/SelectedTerritoryDetails'
-import { LanguageSwitcher } from '@/components/LanguageSwitcher'
-import { OrdersPanel } from '@/components/OrdersPanel'
+import { OrdersPanel, SealOrders } from '@/components/OrdersPanel'
+import { RealmPanel } from '@/components/RealmPanel'
 import { ProjectedConsumptionSummary } from '@/components/ProjectedConsumptionSummary'
 import { ProjectedIncomeSummary } from '@/components/ProjectedIncomeSummary'
 import { ReportPane } from '@/components/ReportPane'
@@ -20,27 +20,19 @@ import {
 import { SubmissionDots } from '@/components/SubmissionDots'
 import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
 import { InfoPage } from '@/components/InfoPage'
-import { GamePanelCard } from '@/components/GamePanelCard'
-import type { Panel } from '@/components/CommandReportRulesTabs'
+import { GameDrawer, type Panel } from '@/components/GameDrawer'
 import { buildOrdersBody } from '@/lib/orders-body'
 import { draftOrdersByNoble } from '@/lib/transfer-preview'
 import { useOrdersPreview, type OrdersPreviewRequest } from '@/lib/use-orders-preview'
-import {
-  internalYear,
-  ownerName,
-  remainingTurns,
-  remainingYears,
-} from '@/lib/game-progress'
+import { internalYear, ownerName, totalTurns } from '@/lib/game-progress'
 import { useGameIntentions } from '@/lib/use-game-intentions'
 import { useSupplyAndTransfer } from '@/lib/use-supply-and-transfer'
-import { SEASON_LABEL_KEYS } from '@/lib/season'
+import { SEASON_LABEL_KEYS, SEASON_TINT_BG } from '@/lib/season'
 import { useLocalStorageState, useLocalStorageText } from '@/lib/storage'
-import { VersionBadge } from '@/components/VersionBadge'
 import { LanguageProvider, useLanguage } from '@/i18n/LanguageContext'
 import { firebaseConfigured } from '@/lib/firebase'
 import { OnlineApp } from '@/online/OnlineApp'
 import type { Language, Translate } from '@/i18n/messages'
-import { Button } from '@/components/ui/button'
 import { HeaderPopover } from '@/components/ui/header-popover'
 import {
   Select,
@@ -88,13 +80,6 @@ function postJSON(path: string, body: unknown): Promise<Response> {
     body: JSON.stringify(body),
   })
 }
-
-const MIN_PLAYERS = 2
-const MAX_PLAYERS = 16
-const PLAYER_COUNT_OPTIONS = Array.from(
-  { length: MAX_PLAYERS - MIN_PLAYERS + 1 },
-  (_, index) => MIN_PLAYERS + index,
-)
 
 function ownerLabel(
   owner: PlayerId | null,
@@ -146,7 +131,7 @@ function AppContent() {
   const [years, setYears] = useState(10)
   const [seed, setSeed] = useState('')
   const [view, setView] = useState<HotseatView>('game')
-  const [activePanel, setActivePanel] = useState<Panel>('command')
+  const [activePanel, setActivePanel] = useState<Panel>('orders')
   const [showOwnership, setShowOwnership] = useLocalStorageState(
     'cb.ownershipOverlay',
     true,
@@ -154,6 +139,7 @@ function AppContent() {
   const [showRegions, setShowRegions] = useLocalStorageState('cb.regionsOverlay', true)
   const [viewedReportTurn, setViewedReportTurn] = useState<number | null>(null)
   const [mapFocusSignal, setMapFocusSignal] = useState(0)
+  const [lineageOpen, setLineageOpen] = useState(false)
   const [rulesNavigation, setRulesNavigation] = useState<{
     section: RulesSection
     key: number
@@ -315,7 +301,9 @@ function AppContent() {
         signal,
       })
       if (response.status === 422) {
-        const payload = (await response.json().catch(() => null)) as { message?: string } | null
+        const payload = (await response.json().catch(() => null)) as {
+          message?: string
+        } | null
         throw new SimulationRejectedError(payload?.message ?? 'rejected')
       }
       if (!response.ok) throw new Error(`simulation failed (${response.status})`)
@@ -597,7 +585,7 @@ function AppContent() {
       setSelectedId(null)
       setSelectedPlayer(HOTSEAT_HOST)
       setView('game')
-      setActivePanel('command')
+      setActivePanel('orders')
     } catch (error) {
       setCreateError(
         error instanceof Error ? error.message : t('error.gameCreationFailed'),
@@ -607,6 +595,18 @@ function AppContent() {
     }
   }
 
+  const hotseatNav = (['game', 'rules', 'faq'] as const).map((nextView) => (
+    <button
+      key={nextView}
+      type="button"
+      aria-current={view === nextView ? 'page' : undefined}
+      className={`rounded-md px-2 py-1 text-sm font-semibold transition ${view === nextView ? 'bg-paper-100 text-brass-700' : 'text-ink-500 hover:bg-paper-100 hover:text-ink-900'}`}
+      onClick={() => setView(nextView)}
+    >
+      {t(`nav.${nextView}`)}
+    </button>
+  ))
+
   return (
     <div
       lang={language}
@@ -614,58 +614,29 @@ function AppContent() {
         view === 'game' ? 'h-dvh overflow-hidden' : 'min-h-screen'
       }`}
     >
-      <header className="z-30 shrink-0 border-b border-line/60 bg-paper-50/95 px-3 py-2 shadow-sm backdrop-blur-sm sm:px-6">
-        <div className="mx-auto flex max-w-[1800px] flex-wrap items-center gap-x-3 gap-y-2">
-          <div className="flex items-center gap-2.5">
-            <BrandMark className="size-9 sm:size-11" />
-            <div className="min-w-0">
-              <h1 className="truncate font-display text-base font-semibold tracking-tight sm:text-xl">
-                Crown &amp; Borough
-              </h1>
-              <p className="hidden text-2xs uppercase tracking-[0.18em] text-ink-500 min-[420px]:block">
-                {t('app.tagline')}
-              </p>
-            </div>
-            <VersionBadge />
+      <header className="z-30 shrink-0 bg-paper-50">
+        <div className="flex h-12 items-center gap-2 px-3 sm:gap-3 sm:px-4">
+          <div className="flex shrink-0 items-center gap-2">
+            <BrandMark className="size-8" />
+            <h1 className="hidden font-display text-base font-semibold tracking-tight lg:block">
+              Crown &amp; Borough
+            </h1>
           </div>
-
-          <nav
-            aria-label={t('nav.primary')}
-            className="order-3 flex w-full items-center justify-center gap-1 min-[420px]:order-none min-[420px]:w-auto"
+          <p
+            data-game-progress
+            className="min-w-0 truncate text-sm font-semibold text-ink-900"
           >
-            {(['game', 'rules', 'faq'] as const).map((nextView) => (
-              <button
-                key={nextView}
-                type="button"
-                aria-current={view === nextView ? 'page' : undefined}
-                className={`rounded-md px-2.5 py-1.5 text-sm font-semibold transition ${view === nextView ? 'bg-paper-100 text-brass-700 shadow-sm' : 'text-ink-500 hover:bg-paper-100 hover:text-ink-900'}`}
-                onClick={() => setView(nextView)}
-              >
-                {t(`nav.${nextView}`)}
-              </button>
-            ))}
-          </nav>
+            {state
+              ? t('app.progress', {
+                  season: t(SEASON_LABEL_KEYS[state.season]),
+                  year: 1000 + internalYear(state),
+                  turn: state.turn,
+                  total: totalTurns(state),
+                })
+              : t('app.loading')}
+          </p>
 
-          <div className="ml-auto flex items-center gap-2 sm:gap-3">
-            <div className="hidden text-right min-[420px]:block">
-              <p className="text-xs font-semibold leading-tight">
-                {state
-                  ? t('app.turn', {
-                      turn: state.turn,
-                      season: t(SEASON_LABEL_KEYS[state.season]),
-                    })
-                  : t('app.loading')}
-              </p>
-              {state && (
-                <p className="text-2xs leading-tight text-ink-500">
-                  {t('app.year', { year: 1000 + internalYear(state) })} ·{' '}
-                  {t('app.remainingYearsTurns', {
-                    years: remainingYears(state),
-                    turns: remainingTurns(state),
-                  })}
-                </p>
-              )}
-            </div>
+          <div className="ml-auto flex shrink-0 items-center gap-2">
             {state && (
               <>
                 <HeaderPopover
@@ -690,6 +661,8 @@ function AppContent() {
                   />
                 </HeaderPopover>
                 <LineageDialog
+                  open={lineageOpen}
+                  onOpenChange={setLineageOpen}
                   players={state.players}
                   nobles={state.nobles}
                   deceased={state.deceased}
@@ -711,16 +684,18 @@ function AppContent() {
                 />
               </>
             )}
-            <SubmissionDots
-              players={(state?.players ?? []).map((player) => ({
-                id: player.id,
-                name: player.name || player.id,
-                color: player.color,
-                submitted: submittedPlayers.includes(player.id),
-                required: requiredPlayers.includes(player.id),
-                isYou: player.id === selectedPlayer,
-              }))}
-            />
+            <div className="hidden sm:block">
+              <SubmissionDots
+                players={(state?.players ?? []).map((player) => ({
+                  id: player.id,
+                  name: player.name || player.id,
+                  color: player.color,
+                  submitted: submittedPlayers.includes(player.id),
+                  required: requiredPlayers.includes(player.id),
+                  isYou: player.id === selectedPlayer,
+                }))}
+              />
+            </div>
             <div className="flex items-center gap-1.5">
               <span
                 role="img"
@@ -740,7 +715,7 @@ function AppContent() {
               <Select value={selectedPlayer} onValueChange={setSelectedPlayer}>
                 <SelectTrigger
                   id="player-view"
-                  className="w-32 border-line bg-paper-50 text-ink-900 sm:w-44"
+                  className="h-8 w-28 border-line bg-paper-50 text-ink-900 sm:w-40"
                 >
                   <SelectValue placeholder={t('app.choosePlayer')} />
                 </SelectTrigger>
@@ -753,109 +728,48 @@ function AppContent() {
                 </SelectContent>
               </Select>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={resolving || !state}
-              title={t('app.resolveTitle')}
-              onClick={() => void submitOrders(true)}
-            >
-              {t('app.resolve')}
-            </Button>
-            <LanguageSwitcher />
 
-            <div className="hidden items-end gap-3 md:flex">
-              <div>
-                <label
-                  htmlFor="player-count"
-                  className="block text-2xs font-semibold uppercase tracking-[0.2em] text-ink-500"
-                >
-                  {t('app.players')}
-                </label>
-                <Select
-                  value={String(playerCount)}
-                  onValueChange={(value) => setPlayerCount(Number(value))}
-                >
-                  <SelectTrigger
-                    id="player-count"
-                    className="w-[76px] border-line bg-paper-50 text-ink-900"
-                  >
-                    <SelectValue placeholder={t('app.players')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PLAYER_COUNT_OPTIONS.map((count) => (
-                      <SelectItem key={count} value={String(count)}>
-                        {count}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label
-                  htmlFor="game-seed"
-                  className="block text-2xs font-semibold uppercase tracking-[0.2em] text-ink-500"
-                >
-                  {t('app.seed')}
-                </label>
-                <input
-                  id="game-seed"
-                  type="text"
-                  value={seed}
-                  onChange={(event) => setSeed(event.target.value)}
-                  placeholder={t('app.seedPlaceholder')}
-                  className="h-8 w-44 rounded-lg border border-line-strong bg-paper-50 px-2.5 text-sm text-ink-900 outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20 sm:w-52"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="game-years"
-                  className="block text-2xs font-semibold uppercase tracking-[0.2em] text-ink-500"
-                >
-                  {t('home.gameYears')}
-                </label>
-                <input
-                  id="game-years"
-                  type="number"
-                  min={1}
-                  max={50}
-                  value={years}
-                  onChange={(event) => setYears(Number(event.target.value))}
-                  className="h-8 w-20 rounded-lg border border-line-strong bg-paper-50 px-2.5 text-sm text-ink-900 outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
-                />
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={creating || !state || seed.trim() === ''}
-                title={t('app.newGameTitle')}
-                onClick={() => void startNewGame()}
-              >
-                {creating ? t('app.creating') : t('app.newGame')}
-              </Button>
-            </div>
-            <div className="md:hidden">
-              <GameSetupMenu
-                playerCount={playerCount}
-                years={years}
-                seed={seed}
-                creating={creating}
-                createError={createError}
-                canCreate={Boolean(state) && seed.trim() !== ''}
-                onPlayerCountChange={setPlayerCount}
-                onYearsChange={setYears}
-                onSeedChange={setSeed}
-                onCreate={startNewGame}
-              />
-            </div>
+            <nav
+              aria-label={t('nav.primary')}
+              className="hidden items-center gap-1 md:flex"
+            >
+              {hotseatNav}
+            </nav>
+            <GameMenu
+              language
+              navigation={hotseatNav}
+              resolution={{
+                disabled: resolving || !state,
+                onResolve: () => submitOrders(true),
+              }}
+              creation={{
+                playerCount,
+                years,
+                seed,
+                creating,
+                error: createError,
+                canCreate: Boolean(state) && seed.trim() !== '',
+                onPlayerCountChange: setPlayerCount,
+                onYearsChange: setYears,
+                onSeedChange: setSeed,
+                onCreate: startNewGame,
+              }}
+            />
           </div>
         </div>
+        {state ? (
+          <div
+            aria-hidden="true"
+            data-season-rule={state.season}
+            className={`h-[3px] ${SEASON_TINT_BG[state.season]}`}
+          />
+        ) : (
+          <div aria-hidden="true" className="h-px bg-line" />
+        )}
       </header>
 
       {view === 'game' && state?.finished && (
-        <div className="mx-auto mt-2 w-full max-w-[1800px] shrink-0 rounded-xl border border-brass-700/50 bg-brass-300/30 px-4 py-2 text-center text-sm font-semibold text-brass-700 sm:mx-6">
+        <div className="shrink-0 border-b border-brass-700/50 bg-brass-300/30 px-4 py-1.5 text-center text-sm font-semibold text-brass-700">
           {state.winner
             ? `${t('online.victory')}: ${ownerLabel(state.winner, state, t)}`
             : t('app.finished')}
@@ -863,75 +777,98 @@ function AppContent() {
       )}
 
       {view === 'game' ? (
-        <main className="mx-auto flex min-h-0 w-full max-w-[1800px] flex-1 flex-col p-3 sm:p-4 lg:p-6">
-          <GameLayout map={renderMap()} focusSignal={mapFocusSignal}>
-            <GamePanelCard
+        <main className="flex min-h-0 w-full flex-1 flex-col">
+          <GameLayout map={renderMap()}>
+            <GameDrawer
               activePanel={activePanel}
               onPanelChange={setActivePanel}
-              subtitle={t('app.selectedPlayer', { player: selectedPlayer })}
+              season={state?.season}
+              focusSignal={mapFocusSignal}
               reportLabelExtra={
                 report && viewedReportTurn !== report.header.turn ? (
-                  <span className="ml-1 rounded-full bg-brass-400 px-1.5 py-0.5 text-2xs text-ink-900">
+                  <span className="rounded-full bg-paper-50 px-1.5 py-0.5 text-2xs text-brass-700">
                     {t('app.reportNew')}
                   </span>
                 ) : null
               }
-              command={
-                <>
-                  <ProjectedIncomeSummary
+              footer={
+                state ? (
+                  <SealOrders
                     state={state}
-                    playerId={selectedPlayer}
-                    specialDraft={specialDrafts[selectedPlayer]}
+                    player={selectedPlayer}
+                    winterDraft={winterDrafts[selectedPlayer] ?? ''}
+                    specialDraft={specialDrafts[selectedPlayer] ?? ''}
+                    submitted={submittedPlayers.includes(selectedPlayer)}
+                    submitting={resolving}
+                    error={actionError}
+                    onSubmit={() => void submitOrders()}
                   />
-                  <ProjectedConsumptionSummary state={state} playerId={selectedPlayer} />
-                  <SelectedTerritoryDetails
-                    state={state}
-                    selectedTerritory={selectedTerritory}
-                    selectedState={selectedState}
-                    mapTerritories={map?.territories ?? []}
-                    selectedRegion={selectedRegion}
-                    selectedSupplyLine={selectedSupplyLine}
-                    sourceTerritory={supplySourceTerritory}
-                    supplyLoading={supplyLoading}
-                    supplyError={supplyError}
-                    transferTargets={transferTargets}
-                    selectedTransferTarget={transferTarget}
-                    onTransferTargetChange={setSelectedTransferTarget}
-                    transferLine={transferLine}
-                    transferLoading={transferLoading}
-                    transferError={transferError}
-                  />
-                  {state && (
-                    <OrdersPanel
- regions={map?.regions}
- mapTerritories={map?.territories}
+                ) : null
+              }
+              panels={{
+                orders: (
+                  <>
+                    <ProjectedIncomeSummary
                       state={state}
-                      player={selectedPlayer}
-                      chainDrafts={chainDrafts[selectedPlayer] ?? {}}
-                      winterDraft={winterDrafts[selectedPlayer] ?? ''}
-                      preview={preview}
-                      specialDraft={specialDrafts[selectedPlayer] ?? ''}
-                      submitted={submittedPlayers.includes(selectedPlayer)}
-                      submitting={resolving}
-                      error={actionError}
-                      onChainChange={updateChainDraft}
-                      onWinterChange={updateWinterDraft}
-                      onSpecialChange={updateSpecialDraft}
-                      onSubmit={() => void submitOrders()}
-                      onOpenRules={openRules}
+                      playerId={selectedPlayer}
+                      specialDraft={specialDrafts[selectedPlayer]}
                     />
-                  )}
-                </>
-              }
-              report={
-                <ReportPane report={report} map={map} players={state?.players ?? []} />
-              }
-              rules={
-                <RulesPanel
-                  targetSection={rulesNavigation?.section}
-                  navigationKey={rulesNavigation?.key}
-                />
-              }
+                    <ProjectedConsumptionSummary
+                      state={state}
+                      playerId={selectedPlayer}
+                    />
+                    <SelectedTerritoryDetails
+                      state={state}
+                      selectedTerritory={selectedTerritory}
+                      selectedState={selectedState}
+                      mapTerritories={map?.territories ?? []}
+                      selectedRegion={selectedRegion}
+                      selectedSupplyLine={selectedSupplyLine}
+                      sourceTerritory={supplySourceTerritory}
+                      supplyLoading={supplyLoading}
+                      supplyError={supplyError}
+                      transferTargets={transferTargets}
+                      selectedTransferTarget={transferTarget}
+                      onTransferTargetChange={setSelectedTransferTarget}
+                      transferLine={transferLine}
+                      transferLoading={transferLoading}
+                      transferError={transferError}
+                    />
+                    {state && (
+                      <OrdersPanel
+                        regions={map?.regions}
+                        mapTerritories={map?.territories}
+                        state={state}
+                        player={selectedPlayer}
+                        chainDrafts={chainDrafts[selectedPlayer] ?? {}}
+                        winterDraft={winterDrafts[selectedPlayer] ?? ''}
+                        preview={preview}
+                        specialDraft={specialDrafts[selectedPlayer] ?? ''}
+                        onChainChange={updateChainDraft}
+                        onWinterChange={updateWinterDraft}
+                        onSpecialChange={updateSpecialDraft}
+                        onOpenRules={openRules}
+                      />
+                    )}
+                  </>
+                ),
+                report: (
+                  <ReportPane report={report} map={map} players={state?.players ?? []} />
+                ),
+                realm: state ? (
+                  <RealmPanel
+                    state={state}
+                    territories={map?.territories}
+                    onOpenLineage={() => setLineageOpen(true)}
+                  />
+                ) : null,
+                rules: (
+                  <RulesPanel
+                    targetSection={rulesNavigation?.section}
+                    navigationKey={rulesNavigation?.key}
+                  />
+                ),
+              }}
             />
           </GameLayout>
         </main>

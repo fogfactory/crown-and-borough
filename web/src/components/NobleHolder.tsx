@@ -31,7 +31,11 @@ export function NoblePawnIcon({
   )
 }
 
-/** A title holder line: pawn, name, code and owner, or "vacant". */
+/**
+ * A title holder line: pawn, name and code, then the owner's tincture as a
+ * pastille (the owner's name stays readable for screen readers and on
+ * hover), or "vacant".
+ */
 export function NobleHolder({
   code,
   nobles,
@@ -48,15 +52,28 @@ export function NobleHolder({
   if (!noble)
     return <span className="italic text-ink-500">{t('map.hierarchyVacant')}</span>
   const owner = players.find((player) => player.id === noble.owner)
+  const ownerName = owner?.name ?? noble.owner
   return (
-    <span className="inline-flex items-center gap-1">
+    <span className="inline-flex flex-wrap items-center gap-x-1.5">
       <NoblePawnIcon
         noble={noble}
         color={owner?.color ?? NEUTRAL_ARMY_COLOR}
         attributes={attributes.get(noble.code)}
       />
-      {noble.name} ({noble.code}) · {owner?.name ?? noble.owner}
-      {noble.status === 'dungeon' && ` · ${t('crown.dungeon')}`}
+      <span>
+        {noble.name} <span className="font-mono text-ink-500">({noble.code})</span>
+      </span>
+      <span
+        title={ownerName}
+        aria-hidden="true"
+        data-owner-pastille={noble.owner}
+        className="size-2.5 shrink-0 rounded-full border border-ink-900/30"
+        style={{ backgroundColor: owner?.color ?? NEUTRAL_ARMY_COLOR }}
+      />
+      <span className="sr-only">· {ownerName}</span>
+      {noble.status === 'dungeon' && (
+        <span className="text-ink-500">· {t('crown.dungeon')}</span>
+      )}
     </span>
   )
 }

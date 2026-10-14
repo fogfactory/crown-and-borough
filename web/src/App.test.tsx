@@ -185,7 +185,7 @@ describe('App command/report tabs', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     render(<App initialLanguage="fr" />)
-    await screen.findByText('Tour 1 · Printemps')
+    await screen.findByText('Printemps 1001 · tour 1 sur 40')
 
     fireEvent.click(screen.getByRole('button', { name: /^Règles$/ }))
     expect(
@@ -199,7 +199,7 @@ describe('App command/report tabs', () => {
     ).toBeInTheDocument()
     expect(screen.getByText(/Quel est l’effet des moulins/)).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /^Partie$/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Carte$/ }))
     expect(await screen.findByRole('tablist')).toBeInTheDocument()
   })
 
@@ -214,7 +214,7 @@ describe('App command/report tabs', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     render(<App initialLanguage="fr" />)
-    await screen.findByText('Tour 1 · Printemps')
+    await screen.findByText('Printemps 1001 · tour 1 sur 40')
 
     fireEvent.click(screen.getByRole('combobox', { name: 'Joueur actif' }))
     fireEvent.click(await screen.findByRole('option', { name: /P2 · Two/ }))
@@ -368,14 +368,14 @@ describe('App command/report tabs', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const { container } = render(<App initialLanguage="fr" />)
-    const commandTab = await screen.findByRole('tab', { name: /Poste de commandement/ })
-    fireEvent.keyDown(commandTab, { key: 'ArrowRight' })
+    const ordersTab = await screen.findByRole('tab', { name: /Ordres/ })
+    fireEvent.keyDown(ordersTab, { key: 'ArrowRight' })
     expect(screen.getByRole('tab', { name: /Rapport/ })).toHaveAttribute(
       'aria-selected',
       'true',
     )
     fireEvent.keyDown(screen.getByRole('tab', { name: /Rapport/ }), { key: 'ArrowLeft' })
-    expect(commandTab).toHaveAttribute('aria-selected', 'true')
+    expect(ordersTab).toHaveAttribute('aria-selected', 'true')
 
     const firstTerritory = await waitFor(() => {
       const territory = container.querySelector('[data-territory-id="ROS"]')
@@ -418,7 +418,7 @@ describe('App command/report tabs', () => {
     fireEvent.click(screen.getByRole('tab', { name: /Rapport/ }))
     expect(screen.getByText('Aucun rapport disponible')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('tab', { name: /Poste de commandement/ }))
+    fireEvent.click(screen.getByRole('tab', { name: /Ordres/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Aide-mémoire des ordres' }))
     expect(screen.getByRole('tab', { name: /Règles/ })).toHaveAttribute(
       'aria-selected',
@@ -428,7 +428,7 @@ describe('App command/report tabs', () => {
     // markdown right after, detaching the node it returned.
     await screen.findByText('Les ordres sont résolus simultanément.')
 
-    fireEvent.click(screen.getByRole('tab', { name: /Poste de commandement/ }))
+    fireEvent.click(screen.getByRole('tab', { name: /Ordres/ }))
     expect(screen.getByLabelText('Chaîne de JEA')).toHaveValue('ROS A BRU')
     // The selected territory's card is still open (the map writes the name too).
     expect(screen.getByRole('heading', { name: 'Rosemont' })).toBeInTheDocument()
@@ -522,7 +522,7 @@ describe('App command/report tabs', () => {
 
     render(<App initialLanguage="fr" />)
     await screen.findByLabelText('Chaîne de JEA')
-    fireEvent.click(screen.getByRole('button', { name: 'Soumettre' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sceller les ordres' }))
 
     await waitFor(() => {
       expect(screen.getByRole('tab', { name: /Rapport/ })).toHaveAttribute(
@@ -608,15 +608,16 @@ describe('App command/report tabs', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     render(<App initialLanguage="en" />)
-    await screen.findByText('Turn 1 · Spring')
-    fireEvent.click(screen.getByRole('button', { name: 'Resolve' }))
+    await screen.findByText('Spring 1001 · turn 1 of 40')
+    fireEvent.click(screen.getByRole('button', { name: 'Game' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Resolve' }))
 
     expect(await screen.findByText('Turn report 1')).toBeInTheDocument()
     expect(screen.getByText('Forces')).toBeInTheDocument()
     expect(screen.getAllByText('ROS A BRU').length).toBeGreaterThanOrEqual(1)
   })
 
-  it('shows order validation errors above the order rules shortcut', async () => {
+  it('shows order validation errors next to the seal button', async () => {
     const fetchMock = hotseatFetch((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
       if (init?.method === 'POST') {
@@ -638,19 +639,16 @@ describe('App command/report tabs', () => {
 
     render(<App initialLanguage="fr" />)
     await screen.findByLabelText('Chaîne de JEA')
-    fireEvent.click(screen.getByRole('button', { name: 'Soumettre' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sceller les ordres' }))
 
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('Ligne 2 : ordre invalide')
 
-    const rulesShortcut = screen.getByRole('button', {
-      name: 'Aide-mémoire des ordres',
-    })
+    const footer = alert.closest('[data-drawer-footer]')
+    expect(footer).not.toBeNull()
     expect(
-      Boolean(
-        alert.compareDocumentPosition(rulesShortcut) & Node.DOCUMENT_POSITION_FOLLOWING,
-      ),
-    ).toBe(true)
+      within(footer as HTMLElement).getByRole('button', { name: 'Sceller les ordres' }),
+    ).toBeInTheDocument()
   })
 
   it('loads the reachable zone when a controlled source is selected', async () => {
@@ -810,9 +808,10 @@ describe('App command/report tabs', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const { container } = render(<App initialLanguage="fr" />)
-    await screen.findByText('Tour 1 · Printemps')
+    await screen.findByText('Printemps 1001 · tour 1 sur 40')
 
-    const newGameButton = screen.getByRole('button', { name: 'Nouvelle partie' })
+    fireEvent.click(screen.getByRole('button', { name: 'Partie' }))
+    const newGameButton = await screen.findByRole('button', { name: 'Nouvelle partie' })
     expect(newGameButton).toBeDisabled()
 
     fireEvent.change(screen.getByLabelText('Graine'), {
@@ -884,10 +883,11 @@ describe('App command/report tabs', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     render(<App initialLanguage="fr" />)
-    await screen.findByText('Tour 1 · Printemps')
+    await screen.findByText('Printemps 1001 · tour 1 sur 40')
     fireEvent.click(screen.getByRole('combobox', { name: 'Joueur actif' }))
     fireEvent.click(await screen.findByRole('option', { name: /P2 · Two/ }))
-    fireEvent.click(screen.getByRole('button', { name: 'Résoudre' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Partie' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Résoudre' }))
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
@@ -920,7 +920,7 @@ describe('App command/report tabs', () => {
     const remembered = serve(['first', 'second'])
     vi.stubGlobal('fetch', remembered)
     const { unmount } = render(<App initialLanguage="fr" />)
-    await screen.findByText('Tour 1 · Printemps')
+    await screen.findByText('Printemps 1001 · tour 1 sur 40')
     expect(remembered).toHaveBeenCalledWith(
       '/api/games/second/map?player=P1',
       expect.anything(),
@@ -931,7 +931,7 @@ describe('App command/report tabs', () => {
     const fallback = serve(['first'])
     vi.stubGlobal('fetch', fallback)
     render(<App initialLanguage="fr" />)
-    await screen.findByText('Tour 1 · Printemps')
+    await screen.findByText('Printemps 1001 · tour 1 sur 40')
     expect(fallback).toHaveBeenCalledWith(
       '/api/games/first/map?player=P1',
       expect.anything(),

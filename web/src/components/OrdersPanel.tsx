@@ -44,9 +44,6 @@ interface OrdersPanelProps {
   /** Map territories, for the commune names of the Tax card targets. */
   mapTerritories?: Territory[]
   specialDraft: string
-  submitted: boolean
-  submitting: boolean
-  error: string | null
   draftDiffers?: {
     chains?: Record<string, boolean>
     winter?: boolean
@@ -54,7 +51,6 @@ interface OrdersPanelProps {
   onChainChange: (noble: string, text: string) => void
   onWinterChange: (text: string) => void
   onSpecialChange: (text: string) => void
-  onSubmit: () => void
   onOpenRules: (section: RulesSection) => void
   onRestoreFromServer?: (target?: string) => void
 }
@@ -91,6 +87,10 @@ function canReceiveDignity(noble: Noble, dignity: Dignity): boolean {
 
 function ownedNobles(state: StateData, player: PlayerId): Noble[] {
   return state.nobles.filter((noble) => noble.owner === player)
+}
+
+function hasEmittingNobleOf(state: StateData, player: PlayerId): boolean {
+  return ownedNobles(state, player).some((noble) => noble.status !== 'dungeon')
 }
 
 // Nobles of other players married to one of the player's living nobles: the
@@ -922,14 +922,10 @@ export function OrdersPanel({
   regions = [],
   mapTerritories,
   specialDraft,
-  submitted,
-  submitting,
-  error,
   draftDiffers,
   onChainChange,
   onWinterChange,
   onSpecialChange,
-  onSubmit,
   onOpenRules,
   onRestoreFromServer,
 }: OrdersPanelProps) {
@@ -1011,30 +1007,13 @@ export function OrdersPanel({
         )}
         <PreviewErrors errors={winterErrors} label={t('orders.winterErrorsAria')} />
         <WinterOrderDiagnostics diagnostics={winterDiagnostics} t={t} />
-        {submitted && (
-          <p className="text-xs text-success-700">{t('orders.submittedEditable')}</p>
-        )}
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full border-winter-700 bg-winter-100 text-winter-700 hover:bg-winter-100 hover:text-winter-700"
-          disabled={submitting}
-          onClick={onSubmit}
-        >
-          {submitting
-            ? t('orders.sending')
-            : submitted
-              ? t('orders.editWinter')
-              : t('orders.submitWinter')}
-        </Button>
-        <OrderError error={error} />
         <RulesButton section="winter-orders" onOpenRules={onOpenRules} />
       </section>
     )
   }
 
   const nobles = ownedNobles(state, player)
-  const hasEmittingNoble = nobles.some((noble) => noble.status !== 'dungeon')
+  const hasEmittingNoble = hasEmittingNobleOf(state, player)
   return (
     <section className="space-y-3 border-t border-line/50 pt-5">
       <div>
@@ -1130,31 +1109,73 @@ export function OrdersPanel({
         errors={chainErrors(preview?.errors ?? [])}
         label={t('orders.chainErrorsAria')}
       />
-      {submitted && (
-        <p className="text-xs text-success-700">{t('orders.submittedEditable')}</p>
-      )}
       {!hasEmittingNoble && (
         <p className="rounded-lg border border-dashed border-line bg-paper-100 p-3 text-sm italic text-ink-500">
           {t('orders.noEmittingNoble')}
         </p>
       )}
-      <Button
-        type="button"
-        className="w-full"
-        disabled={
-          submitting ||
-          (!hasEmittingNoble && specialDraft.trim() === '' && winterDraft.trim() === '')
-        }
-        onClick={onSubmit}
-      >
-        {submitting
-          ? t('orders.sending')
-          : submitted
-            ? t('orders.edit')
-            : t('orders.submit')}
-      </Button>
-      <OrderError error={error} />
       <RulesButton section="action-orders" onOpenRules={onOpenRules} />
     </section>
+  )
+}
+
+interface SealOrdersProps {
+  state: StateData
+  player: PlayerId
+  winterDraft: string
+  specialDraft: string
+  submitted: boolean
+  submitting: boolean
+  error: string | null
+  onSubmit: () => void
+}
+
+/**
+ * Sticky drawer footer that seals the orders (charte-graphique.md
+ * § Disposition sur ordinateur): always visible, whatever the bookmark.
+ */
+export function SealOrders({
+  state,
+  player,
+  winterDraft,
+  specialDraft,
+  submitted,
+  submitting,
+  error,
+  onSubmit,
+}: SealOrdersProps) {
+  const { t } = useLanguage()
+  const winter = state.season === 'winter'
+  const nothingToSeal =
+    !winter &&
+    !hasEmittingNobleOf(state, player) &&
+    specialDraft.trim() === '' &&
+    winterDraft.trim() === ''
+  const label = submitting
+    ? t('orders.sending')
+    : winter
+      ? t(submitted ? 'orders.editWinter' : 'orders.submitWinter')
+      : t(submitted ? 'orders.edit' : 'orders.submit')
+
+  return (
+    <>
+      <OrderError error={error} />
+      {submitted && (
+        <p className="text-xs text-success-700">{t('orders.submittedEditable')}</p>
+      )}
+      <Button
+        type="button"
+        variant={winter ? 'outline' : 'default'}
+        className={
+          winter
+            ? 'w-full border-winter-700 bg-winter-100 text-winter-700 hover:bg-winter-100 hover:text-winter-700'
+            : 'w-full'
+        }
+        disabled={submitting || nothingToSeal}
+        onClick={onSubmit}
+      >
+        {label}
+      </Button>
+    </>
   )
 }

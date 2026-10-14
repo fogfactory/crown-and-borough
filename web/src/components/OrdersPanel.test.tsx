@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { OrdersPanel } from '@/components/OrdersPanel'
+import { OrdersPanel, SealOrders } from '@/components/OrdersPanel'
 import { LanguageProvider } from '@/i18n/LanguageContext'
 import type { Noble, OrdersPreview, Region, StateData, Territory } from '@/types'
 
@@ -27,14 +27,20 @@ function renderOrdersPanel(
         chainDrafts={{}}
         winterDraft=""
         specialDraft={specialDraft}
-        submitted={false}
-        submitting={false}
-        error={null}
         onChainChange={vi.fn()}
         onWinterChange={vi.fn()}
         onSpecialChange={vi.fn()}
-        onSubmit={vi.fn()}
         onOpenRules={onOpenRules}
+      />
+      <SealOrders
+        state={{ ...state, season, nobles }}
+        player="P1"
+        winterDraft=""
+        specialDraft={specialDraft}
+        submitted={false}
+        submitting={false}
+        error={null}
+        onSubmit={vi.fn()}
       />
     </LanguageProvider>,
   )
@@ -54,13 +60,9 @@ function renderWithPreview(
         winterDraft=""
         preview={preview}
         specialDraft=""
-        submitted={false}
-        submitting={false}
-        error={null}
         onChainChange={vi.fn()}
         onWinterChange={vi.fn()}
         onSpecialChange={vi.fn()}
-        onSubmit={vi.fn()}
         onOpenRules={vi.fn()}
       />
     </LanguageProvider>,
@@ -78,7 +80,7 @@ describe('OrdersPanel seasonal presentation', () => {
     expect(screen.queryByLabelText('Ordres de cartes spéciales')).not.toBeInTheDocument()
     expect(screen.getByPlaceholderText(/D C BT/)).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: "Soumettre les ordres d'hiver" }),
+      screen.getByRole('button', { name: "Sceller les ordres d'hiver" }),
     ).toBeInTheDocument()
     expect(container.querySelector('section')).toHaveClass('bg-winter-100/80')
   })
@@ -188,9 +190,9 @@ describe('OrdersPanel seasonal presentation', () => {
     renderOrdersPanel('spring')
 
     expect(screen.getByRole('heading', { name: "Chaînes d'ordres" })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Soumettre' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sceller les ordres' })).toBeInTheDocument()
     expect(
-      screen.queryByRole('button', { name: "Soumettre les ordres d'hiver" }),
+      screen.queryByRole('button', { name: "Sceller les ordres d'hiver" }),
     ).not.toBeInTheDocument()
     expect(
       screen.queryByText(/Investissements directs uniquement/),
@@ -237,7 +239,7 @@ describe('OrdersPanel seasonal presentation', () => {
 
     expect(screen.getByText(/Aucun noble apte à émettre/)).toBeInTheDocument()
     expect(screen.getByLabelText('Ordres de cartes spéciales')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Soumettre' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Sceller les ordres' })).toBeDisabled()
   })
 
   it('allows a deck-only submission without an emitting noble', () => {
@@ -257,7 +259,7 @@ describe('OrdersPanel seasonal presentation', () => {
       'P BT ROS',
     )
 
-    expect(screen.getByRole('button', { name: 'Soumettre' })).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Sceller les ordres' })).not.toBeDisabled()
   })
 
   it('shows short card labels and aggregates duplicate cards', () => {
@@ -274,13 +276,9 @@ describe('OrdersPanel seasonal presentation', () => {
           chainDrafts={{}}
           winterDraft=""
           specialDraft=""
-          submitted={false}
-          submitting={false}
-          error={null}
           onChainChange={vi.fn()}
           onWinterChange={vi.fn()}
           onSpecialChange={vi.fn()}
-          onSubmit={vi.fn()}
           onOpenRules={vi.fn()}
         />
       </LanguageProvider>,
@@ -308,13 +306,9 @@ describe('OrdersPanel seasonal presentation', () => {
           chainDrafts={{}}
           winterDraft=""
           specialDraft=""
-          submitted={false}
-          submitting={false}
-          error={null}
           onChainChange={vi.fn()}
           onWinterChange={vi.fn()}
           onSpecialChange={vi.fn()}
-          onSubmit={vi.fn()}
           onOpenRules={vi.fn()}
         />
       </LanguageProvider>,
@@ -342,13 +336,9 @@ describe('OrdersPanel seasonal presentation', () => {
           chainDrafts={{}}
           winterDraft=""
           specialDraft=""
-          submitted={false}
-          submitting={false}
-          error={null}
           onChainChange={vi.fn()}
           onWinterChange={vi.fn()}
           onSpecialChange={vi.fn()}
-          onSubmit={vi.fn()}
           onOpenRules={vi.fn()}
         />
       </LanguageProvider>,
@@ -388,14 +378,10 @@ describe('OrdersPanel seasonal presentation', () => {
           chainDrafts={{}}
           winterDraft="R T ROS"
           specialDraft=""
-          submitted={true}
-          submitting={false}
-          error={null}
           draftDiffers={{ winter: true }}
           onChainChange={vi.fn()}
           onWinterChange={vi.fn()}
           onSpecialChange={vi.fn()}
-          onSubmit={vi.fn()}
           onOpenRules={vi.fn()}
           onRestoreFromServer={onRestore}
         />
@@ -432,14 +418,10 @@ describe('OrdersPanel seasonal presentation', () => {
           chainDrafts={{ GUI: 'ROS A BT' }}
           winterDraft=""
           specialDraft=""
-          submitted={true}
-          submitting={false}
-          error={null}
           draftDiffers={{ chains: { GUI: true } }}
           onChainChange={vi.fn()}
           onWinterChange={vi.fn()}
           onSpecialChange={vi.fn()}
-          onSubmit={vi.fn()}
           onOpenRules={vi.fn()}
           onRestoreFromServer={onRestore}
         />
@@ -475,14 +457,10 @@ describe('OrdersPanel seasonal presentation', () => {
           chainDrafts={{ GUI: 'ROS A BT' }}
           winterDraft=""
           specialDraft=""
-          submitted={true}
-          submitting={false}
-          error={null}
           draftDiffers={undefined}
           onChainChange={vi.fn()}
           onWinterChange={vi.fn()}
           onSpecialChange={vi.fn()}
-          onSubmit={vi.fn()}
           onOpenRules={vi.fn()}
         />
       </LanguageProvider>,
@@ -542,13 +520,9 @@ describe('OrdersPanel noble deck (winter)', () => {
           chainDrafts={{}}
           winterDraft={winterDraft}
           specialDraft=""
-          submitted={false}
-          submitting={false}
-          error={null}
           onChainChange={vi.fn()}
           onWinterChange={onWinterChange}
           onSpecialChange={vi.fn()}
-          onSubmit={vi.fn()}
           onOpenRules={vi.fn()}
         />
       </LanguageProvider>,
@@ -776,13 +750,9 @@ describe('OrdersPanel winter elections', () => {
           chainDrafts={{}}
           winterDraft={winterDraft}
           specialDraft=""
-          submitted={false}
-          submitting={false}
-          error={null}
           onChainChange={vi.fn()}
           onWinterChange={onWinterChange}
           onSpecialChange={vi.fn()}
-          onSubmit={vi.fn()}
           onOpenRules={vi.fn()}
         />
       </LanguageProvider>,
@@ -873,13 +843,9 @@ describe('OrdersPanel title and card order dialogs', () => {
           chainDrafts={{}}
           winterDraft={winterDraft}
           specialDraft=""
-          submitted={false}
-          submitting={false}
-          error={null}
           onChainChange={vi.fn()}
           onWinterChange={onWinterChange}
           onSpecialChange={vi.fn()}
-          onSubmit={vi.fn()}
           onOpenRules={vi.fn()}
         />
       </LanguageProvider>,
@@ -1066,13 +1032,9 @@ describe('OrdersPanel title and card order dialogs', () => {
           chainDrafts={{}}
           winterDraft=""
           specialDraft=""
-          submitted={false}
-          submitting={false}
-          error={null}
           onChainChange={vi.fn()}
           onWinterChange={vi.fn()}
           onSpecialChange={vi.fn()}
-          onSubmit={vi.fn()}
           onOpenRules={vi.fn()}
         />
       </LanguageProvider>,
@@ -1102,13 +1064,9 @@ describe('OrdersPanel title and card order dialogs', () => {
           specialDraft={specialDraft}
           mapTerritories={mapTerritories}
           regions={regions}
-          submitted={false}
-          submitting={false}
-          error={null}
           onChainChange={vi.fn()}
           onWinterChange={vi.fn()}
           onSpecialChange={onSpecialChange}
-          onSubmit={vi.fn()}
           onOpenRules={vi.fn()}
         />
       </LanguageProvider>,
@@ -1451,13 +1409,9 @@ describe('OrdersPanel title and card order dialogs', () => {
           chainDrafts={{}}
           winterDraft=""
           specialDraft=""
-          submitted={false}
-          submitting={false}
-          error={null}
           onChainChange={vi.fn()}
           onWinterChange={vi.fn()}
           onSpecialChange={onSpecialChange}
-          onSubmit={vi.fn()}
           onOpenRules={vi.fn()}
         />
       </LanguageProvider>,
@@ -1516,13 +1470,9 @@ describe('revolt appeasement orders', () => {
           chainDrafts={{}}
           winterDraft=""
           specialDraft=""
-          submitted={false}
-          submitting={false}
-          error={null}
           onChainChange={vi.fn()}
           onWinterChange={vi.fn()}
           onSpecialChange={onSpecialChange}
-          onSubmit={vi.fn()}
           onOpenRules={vi.fn()}
         />
       </LanguageProvider>,
