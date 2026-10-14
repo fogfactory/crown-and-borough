@@ -680,7 +680,7 @@ describe('App command/report tabs', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Resolve' }))
 
     expect(await screen.findByText('Turn report 1')).toBeInTheDocument()
-    expect(screen.getByText('Forces')).toBeInTheDocument()
+    expect(screen.getByText(/^Forces :/)).toBeInTheDocument()
     expect(screen.getAllByText('ROS A BRU').length).toBeGreaterThanOrEqual(1)
   })
 

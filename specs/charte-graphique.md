@@ -859,6 +859,15 @@ se cadre sur la maison choisie dans « Focus ».
   forment un encadré voisin, en texte droit.
 - Ces cartes remplacent les listes actuelles de `ReportPanel.tsx`.
 
+**Précision.** Le rapport se range en catégories : combats, événements
+(effets de saison, famines, fiefs, mariages, élections), hiver ou cartes de
+noble, économie, ordres exécutés. L'économie ne montre que des cartes de
+synthèse repliées : revenus, moulins, production, ravitaillement,
+conservation et réceptions. Une famine reste un événement à part entière.
+« Voir » cadre la carte sur les territoires de l'événement, les entoure et
+trace les ordres d'une flèche ; le dessin disparaît à la sélection suivante.
+Un tour sans rien de tout cela écrit « Rien à signaler ce tour. ».
+
 ### Composants de base
 
 - **Boutons :** principal sur `brass-400`, texte `ink-900`, filet `brass-700`,

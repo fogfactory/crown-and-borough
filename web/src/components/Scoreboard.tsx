@@ -1,4 +1,6 @@
+import { ShieldIcon } from '@/components/ArmsIcons'
 import { useLanguage } from '@/i18n/LanguageContext'
+import { playerArms } from '@/lib/heraldry'
 import type { MessageKey } from '@/i18n/messages'
 import type { Player, ScoreBreakdown, VictoryStatus } from '@/types'
 
@@ -20,6 +22,7 @@ export function Scoreboard({
   finished,
   winners,
   minorWinner,
+  activePlayer,
 }: {
   players: Player[]
   scores?: Record<string, ScoreBreakdown>
@@ -27,23 +30,20 @@ export function Scoreboard({
   finished?: boolean
   winners?: string[]
   minorWinner?: string | null
+  /** The viewer: its score reads in brass. */
+  activePlayer?: string | null
 }) {
   const { t } = useLanguage()
   const playerName = (id: string) => players.find((p) => p.id === id)?.name || id
   return (
-    <section
-      aria-labelledby="scoreboard-title"
-      className="rounded-xl border border-line/60 bg-paper-100 p-3"
-    >
-      <div className="flex items-center justify-between gap-3">
-        <h2
-          id="scoreboard-title"
-          className="font-display text-lg font-semibold text-ink-900 sm:text-xl"
-        >
-          {t('app.scores')}
-        </h2>
-      </div>
-      <ul className="mt-2 grid gap-2 min-[420px]:grid-cols-2">
+    <section aria-labelledby="scoreboard-title" className="space-y-2">
+      <h2
+        id="scoreboard-title"
+        className="font-display text-base font-semibold text-ink-900"
+      >
+        {t('app.scores')}
+      </h2>
+      <ul className="grid gap-2 min-[420px]:grid-cols-2">
         {players.map((player) => {
           const score = scores?.[player.id] ?? emptyScore
           const goal = victory?.players[player.id]
@@ -59,21 +59,22 @@ export function Scoreboard({
             : goal && goal.required >= 1 && score.total >= goal.required
               ? 'Reached'
               : null
+          const active = player.id === activePlayer
           return (
             <li
               key={player.id}
-              className="rounded-lg border border-line/50 bg-paper-50 p-2.5"
+              data-score-card={player.id}
+              className={`rounded-md border bg-paper-50 p-2.5 ${active ? 'border-brass-700' : 'border-line'}`}
             >
               <div className="flex items-center gap-2">
-                <span
-                  aria-hidden="true"
-                  className="size-3 shrink-0 rounded-full border border-ink-900/30"
-                  style={{ backgroundColor: player.color }}
-                />
+                <ShieldIcon id={`score-arms-${player.id}`} arms={playerArms(player)} />
                 <span className="min-w-0 flex-1 truncate text-sm font-semibold">
                   {player.name || player.id}
                 </span>
-                <span className="shrink-0 font-display text-lg font-semibold text-brass-700">
+                <span
+                  data-score-total
+                  className={`shrink-0 text-2xl font-bold leading-none ${active ? 'text-brass-700' : 'text-ink-900'}`}
+                >
                   {score.total}
                 </span>
               </div>
@@ -96,39 +97,34 @@ export function Scoreboard({
                 )}
               </dl>
               {goal && (
-                <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                  <span className="text-ink-500">
-                    {t('score.goal', { required: goal.required })}
-                  </span>
-                  <span
-                    data-testid={`victory-mode-${player.id}`}
-                    className={`rounded border px-1.5 py-0.5 text-2xs font-bold uppercase tracking-[0.1em] ${
-                      goal.mode === 'alliance'
-                        ? 'border-line-strong bg-paper-100 text-ink-700'
-                        : 'border-brass-500 bg-brass-300 text-ink-900'
-                    }`}
-                  >
+                <p className="mt-2 text-xs text-ink-500">
+                  {t('score.goal', { required: goal.required })}
+                  {' · '}
+                  <span data-testid={`victory-mode-${player.id}`}>
                     {t(
                       goal.mode === 'alliance' ? 'score.modeAlliance' : 'score.modeSolo',
                     )}
                   </span>
                   {outcome && (
-                    <span
-                      data-testid={`victory-status-${player.id}`}
-                      className={`rounded border px-1.5 py-0.5 text-2xs font-bold uppercase tracking-[0.1em] ${
-                        outcome === 'Major'
-                          ? 'border-brass-500 bg-brass-300 text-ink-900'
-                          : outcome === 'Failure'
-                            ? 'border-brass-700/50 bg-vermilion-700/30 text-vermilion-700'
-                            : 'border-line-strong bg-paper-100 text-ink-700'
-                      }`}
-                    >
-                      {t(
-                        `score.${outcome === 'Reached' ? 'goalReached' : `outcome${outcome}`}` as MessageKey,
-                      )}
-                    </span>
+                    <>
+                      {' · '}
+                      <span
+                        data-testid={`victory-status-${player.id}`}
+                        className={`font-semibold ${
+                          outcome === 'Major' || outcome === 'Reached'
+                            ? 'text-brass-700'
+                            : outcome === 'Failure'
+                              ? 'text-vermilion-700'
+                              : 'text-ink-700'
+                        }`}
+                      >
+                        {t(
+                          `score.${outcome === 'Reached' ? 'goalReached' : `outcome${outcome}`}` as MessageKey,
+                        )}
+                      </span>
+                    </>
                   )}
-                </div>
+                </p>
               )}
             </li>
           )

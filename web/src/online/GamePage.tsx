@@ -807,6 +807,9 @@ export function GamePage() {
       // Phones show the territory on the map tab (charte § Identifiants).
       if (!desktop) setActivePanel('map')
     },
+    onShowEvent: () => {
+      if (!desktop) setActivePanel('map')
+    },
   })
 
   if (loadError) {
@@ -931,6 +934,7 @@ export function GamePage() {
               finished={state.finished}
               winners={state.winners}
               minorWinner={state.minorWinner}
+              activePlayer={playerID}
             />
           </HeaderPopover>
           {/* On phones the lineage opens from the Realm tab only. */}
@@ -1090,6 +1094,7 @@ export function GamePage() {
                 frame={linkState.frame}
                 highlightedId={linkState.highlightedId}
                 selectedNoble={linkState.selectedNoble}
+                eventMarks={linkState.eventMarks}
                 intentions={intentions}
                 winterIntentions={winterIntentions}
                 showIntentions={showIntentions}

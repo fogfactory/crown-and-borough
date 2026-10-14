@@ -84,10 +84,13 @@ describe('Scoreboard', () => {
       </LanguageProvider>,
     )
 
-    expect(screen.getByText('Goal: 4 influence')).toBeInTheDocument()
-    expect(screen.getByTestId('victory-mode-P1')).toHaveTextContent('Solo')
-    expect(screen.getByText('Goal: 6 influence')).toBeInTheDocument()
-    expect(screen.getByTestId('victory-mode-P2')).toHaveTextContent(/^Alliance$/)
+    // The mode reads as text, not as a badge.
+    expect(screen.getByTestId('victory-mode-P1').parentElement).toHaveTextContent(
+      'Goal: 4 influence · alone',
+    )
+    expect(screen.getByTestId('victory-mode-P2').parentElement).toHaveTextContent(
+      'Goal: 6 influence · allied',
+    )
     expect(screen.getByTestId('ally-P2')).toHaveTextContent('Ally (Alice)')
     expect(screen.getByTestId('ally-P2')).toHaveTextContent('1')
   })
@@ -121,5 +124,26 @@ describe('Scoreboard', () => {
     expect(screen.getByTestId('victory-status-P1')).toHaveTextContent('Major victory')
     expect(screen.getByTestId('victory-status-P2')).toHaveTextContent('Minor victory')
     expect(screen.getByTestId('victory-status-P3')).toHaveTextContent('Defeat')
+  })
+
+  it("writes the viewer's score in brass, over its arms", () => {
+    const { container } = render(
+      <LanguageProvider initialLanguage="en">
+        <Scoreboard
+          players={[
+            { id: 'P1', name: 'Alice', color: '#a84632' },
+            { id: 'P2', name: 'Bob', color: '#2f6f9f' },
+          ]}
+          scores={{ P1: { titles: 1, total: 1 }, P2: { titles: 2, total: 2 } }}
+          activePlayer="P2"
+        />
+      </LanguageProvider>,
+    )
+
+    const total = (id: string) =>
+      container.querySelector(`[data-score-card="${id}"] [data-score-total]`)
+    expect(total('P2')).toHaveClass('text-brass-700')
+    expect(total('P1')).toHaveClass('text-ink-900')
+    expect(container.querySelectorAll('[data-shield-icon]')).toHaveLength(2)
   })
 })

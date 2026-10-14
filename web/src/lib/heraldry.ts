@@ -1,5 +1,11 @@
 import { METAL_COLORS, NEUTRAL_ARMY_COLOR } from '@/lib/map-palette'
-import { NEUTRAL_PLAYER_ID, type Charge, type FiefTitle, type StateData } from '@/types'
+import {
+  NEUTRAL_PLAYER_ID,
+  type Charge,
+  type FiefTitle,
+  type Player,
+  type StateData,
+} from '@/types'
 
 /** Arms ready to draw: the field color, and the charge in its metal if any. */
 export interface ResolvedArms {
@@ -19,17 +25,28 @@ export function resolveArmsByOwner(
   const armsByPlayer = new Map(state.players.map((player) => [player.id, player.arms]))
   const resolved = new Map<string, ResolvedArms>()
   for (const [owner, color] of playerColors) {
-    const arms = owner === NEUTRAL_PLAYER_ID ? undefined : armsByPlayer.get(owner)
-    resolved.set(owner, {
-      field: owner === NEUTRAL_PLAYER_ID ? NEUTRAL_ARMY_COLOR : color,
-      charge: arms ? { kind: arms.charge, metal: METAL_COLORS[arms.metal] } : null,
-    })
+    resolved.set(
+      owner,
+      owner === NEUTRAL_PLAYER_ID
+        ? { field: NEUTRAL_ARMY_COLOR, charge: null }
+        : playerArms({ color, arms: armsByPlayer.get(owner) }),
+    )
   }
   // A vacant fief flies a neutral banner even when no rebel is on the map.
   if (!resolved.has(NEUTRAL_PLAYER_ID)) {
     resolved.set(NEUTRAL_PLAYER_ID, { field: NEUTRAL_ARMY_COLOR, charge: null })
   }
   return resolved
+}
+
+/** A player's arms: its colour as the field, and its charge if it has one. */
+export function playerArms(player: Pick<Player, 'color' | 'arms'>): ResolvedArms {
+  return {
+    field: player.color,
+    charge: player.arms
+      ? { kind: player.arms.charge, metal: METAL_COLORS[player.arms.metal] }
+      : null,
+  }
 }
 
 /** A rank crown, or the king's closed crown. */

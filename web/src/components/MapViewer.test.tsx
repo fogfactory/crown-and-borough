@@ -1634,3 +1634,18 @@ describe('MapViewer selection overlay', () => {
     expect(screen.queryByText('cartouche')).toBeNull()
   })
 })
+
+describe('MapViewer report events', () => {
+  it('outlines the event territories and arrows its moves', () => {
+    const { container } = render(
+      <MapViewer
+        map={map}
+        state={state}
+        eventMarks={{ territories: ['ROS', 'BRU'], arrows: [['ROS', 'BRU']] }}
+      />,
+    )
+
+    expect(container.querySelectorAll('[data-event-territory]')).toHaveLength(2)
+    expect(container.querySelector('[data-event-arrow="ROS-BRU"]')).not.toBeNull()
+  })
+})

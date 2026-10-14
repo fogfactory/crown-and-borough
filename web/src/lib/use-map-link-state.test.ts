@@ -77,3 +77,46 @@ describe('useMapLinkState', () => {
     expect(result.current.frame).toEqual(own('g:P2'))
   })
 })
+
+describe('useMapLinkState report events', () => {
+  it('frames an event, draws it, and drops it at the next selection', () => {
+    const onShowEvent = vi.fn()
+    const { result, rerender } = renderHook(
+      ({ selectedId }: { selectedId: string | null }) =>
+        useMapLinkState({ map, state, selectedId, onSelect: vi.fn(), onShowEvent }),
+      { initialProps: { selectedId: null as string | null } },
+    )
+
+    act(() =>
+      result.current.links.showEvent({
+        territories: ['ROS', 'BRU'],
+        arrows: [['ROS', 'BRU']],
+      }),
+    )
+    expect(onShowEvent).toHaveBeenCalledOnce()
+    expect(result.current.frame?.territories).toEqual(['ROS', 'BRU'])
+    expect(result.current.eventMarks?.arrows).toEqual([['ROS', 'BRU']])
+
+    rerender({ selectedId: 'ROS' })
+    expect(result.current.eventMarks).toBeNull()
+  })
+
+  it('drops the event once the turn is resolved', () => {
+    const { result, rerender } = renderHook(
+      ({ turn }: { turn: number }) =>
+        useMapLinkState({
+          map,
+          state: { ...state, turn },
+          selectedId: null,
+          onSelect: vi.fn(),
+        }),
+      { initialProps: { turn: state.turn } },
+    )
+
+    act(() => result.current.links.showEvent({ territories: ['ROS'] }))
+    expect(result.current.eventMarks).not.toBeNull()
+
+    rerender({ turn: state.turn + 1 })
+    expect(result.current.eventMarks).toBeNull()
+  })
+})

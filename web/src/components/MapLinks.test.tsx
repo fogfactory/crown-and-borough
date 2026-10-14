@@ -12,6 +12,7 @@ import { LanguageProvider } from '@/i18n/LanguageContext'
 function links(overrides: Partial<MapLinks> = {}): MapLinks {
   return {
     focus: vi.fn(),
+    showEvent: vi.fn(),
     highlight: vi.fn(),
     hasTerritory: (id) => ['RVE', 'RVN'].includes(id),
     territoryName: (id) => ({ RVE: 'Rochevent', RVN: 'Ravinval' })[id],

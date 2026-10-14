@@ -8,6 +8,13 @@ export interface MapFrame {
   padding?: number
 }
 
+/** What a report event draws on the map: its territories and its moves. */
+export interface EventMarks {
+  territories: string[]
+  /** Moves from one territory to another (an attack, a support, a retreat). */
+  arrows?: Array<[string, string]>
+}
+
 /** Margin of a frame on one territory: room for its neighbours. */
 export const FOCUS_FRAME_PADDING = 0.12
 
