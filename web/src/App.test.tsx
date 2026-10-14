@@ -6,6 +6,7 @@ vi.mock('@/lib/firebase', () => ({
 }))
 
 import App from '@/App'
+import { stubPhoneViewport } from '@/test/viewport'
 import type {
   MapData,
   OrdersPreview,
@@ -353,6 +354,56 @@ describe('App command/report tabs', () => {
 
     expect(await screen.findByText('Capitale de One')).toBeInTheDocument()
     expect(screen.getByText('Capitale', { exact: true })).toBeInTheDocument()
+  })
+
+  it('opens on the map with a tab bar and a one-line header on phones', async () => {
+    stubPhoneViewport()
+    const fetchMock = hotseatFetch((input: RequestInfo | URL) => {
+      const url = String(input)
+      return Promise.resolve({
+        ok: true,
+        json: async () =>
+          url.includes('/map') ? map : url.includes('/supply') ? supplyLine : state,
+        text: async () => rulesDocument,
+      } as Response)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { container } = render(<App initialLanguage="fr" />)
+    expect(await screen.findByText('Printemps 1001 · 1/40')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Carte' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    // The active player and the navigation move to the menu.
+    expect(screen.queryByRole('combobox', { name: 'Joueur actif' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Partie' })).toHaveClass('size-11')
+
+    // A tapped territory opens its card over the map, which closes again.
+    const territory = await waitFor(() => {
+      const element = container.querySelector('[data-territory-id="ROS"]')
+      if (!element) throw new Error('territory did not render')
+      return element
+    })
+    fireEvent.keyDown(territory, { key: 'Enter', code: 'Enter' })
+    const card = container.querySelector('[data-map-overlay]') as HTMLElement
+    expect(await within(card).findByText('Nobles présents')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Fermer la fiche du territoire' }))
+    expect(container.querySelector('[data-map-overlay]')).toBeNull()
+    expect(territory).toHaveAttribute('aria-pressed', 'false')
+
+    // The orders share the screen with the map.
+    fireEvent.click(screen.getByRole('tab', { name: 'Ordres' }))
+    expect(container.querySelector('section[data-map-size]')).toHaveAttribute(
+      'data-map-size',
+      'split',
+    )
+    expect(screen.getByRole('button', { name: 'Sceller les ordres' })).toBeVisible()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Partie' }))
+    expect(
+      await screen.findByRole('combobox', { name: 'Joueur actif' }),
+    ).toBeInTheDocument()
   })
 
   it('keeps selection and drafts while switching between tabs', async () => {

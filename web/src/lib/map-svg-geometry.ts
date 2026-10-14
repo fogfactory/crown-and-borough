@@ -51,6 +51,24 @@ export function polygonEdges(points: Point[]): Array<[Point, Point]> {
   ])
 }
 
+/** Bounding box [minX, minY, maxX, maxY] of point lists, or null when empty. */
+export function boundsOf(pointLists: Point[][]): [number, number, number, number] | null {
+  let bounds: [number, number, number, number] | null = null
+  for (const points of pointLists) {
+    for (const [x, y] of points) {
+      bounds = bounds
+        ? [
+            Math.min(bounds[0], x),
+            Math.min(bounds[1], y),
+            Math.max(bounds[2], x),
+            Math.max(bounds[3], y),
+          ]
+        : [x, y, x, y]
+    }
+  }
+  return bounds
+}
+
 export function centroid(points: Point[]): Point {
   if (points.length === 0) {
     return [0, 0]

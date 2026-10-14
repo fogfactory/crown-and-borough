@@ -23,6 +23,7 @@ import { VersionBadge } from '@/components/VersionBadge'
 import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/i18n/LanguageContext'
 import { firebaseConfigured } from '@/lib/firebase'
+import { useIsDesktop } from '@/lib/use-media-query'
 
 function OnlineHeader() {
   const { profile, signOut } = useAuth()
@@ -95,6 +96,7 @@ export function OnlineFrame({ children }: { children: ReactNode }) {
   const { language } = useLanguage()
   const location = useLocation()
   const isGame = /^\/games\//.test(location.pathname)
+  const desktop = useIsDesktop()
   return (
     <div
       lang={language}
@@ -102,7 +104,8 @@ export function OnlineFrame({ children }: { children: ReactNode }) {
         isGame ? 'h-dvh overflow-hidden' : 'min-h-dvh'
       }`}
     >
-      <OnlineHeader />
+      {/* On phones a game keeps a single bar: its own (charte § Téléphone). */}
+      {(!isGame || desktop) && <OnlineHeader />}
       <main
         className={
           isGame

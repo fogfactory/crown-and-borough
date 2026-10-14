@@ -32,7 +32,7 @@ export function HeaderPopover({
           type="button"
           aria-label={label}
           title={label}
-          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-line bg-paper-50 px-2 text-ink-700 transition hover:bg-paper-100 hover:text-ink-900 focus-visible:ring-2 focus-visible:ring-brass-700/40 focus-visible:outline-none aria-expanded:bg-paper-100 aria-expanded:text-ink-900"
+          className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg max-lg:h-11 max-lg:min-w-11 border border-line bg-paper-50 px-2 text-ink-700 transition hover:bg-paper-100 hover:text-ink-900 focus-visible:ring-2 focus-visible:ring-brass-700/40 focus-visible:outline-none aria-expanded:bg-paper-100 aria-expanded:text-ink-900"
         >
           {icon}
           {hint && <span className="text-xs font-semibold tabular-nums">{hint}</span>}

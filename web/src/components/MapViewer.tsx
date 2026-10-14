@@ -1,4 +1,10 @@
-import { useMemo, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react'
 
 import { MapLegend, TERRAIN_LABEL_KEYS } from '@/components/MapLegend'
 import { MapControls } from '@/components/MapControls'
@@ -27,7 +33,8 @@ import { useLanguage } from '@/i18n/LanguageContext'
 import type { Intention } from '@/lib/intent-overlay'
 import type { WinterIntention } from '@/lib/winter-overlay'
 import { NEUTRAL_PLAYER_ID } from '@/types'
-import { centroid, pointsToPath } from '@/lib/map-svg-geometry'
+import type { MapFrame } from '@/lib/map-frame'
+import { boundsOf, centroid, pointsToPath } from '@/lib/map-svg-geometry'
 import { resolveArmsByOwner } from '@/lib/heraldry'
 import { nobleAttributesByCode } from '@/lib/noble-attributes'
 import { hasSupplySource } from '@/lib/supply'
@@ -72,6 +79,10 @@ interface MapViewerProps {
   map: MapData
   state: StateData
   onSelect?: (id: string | null) => void
+  /** Selected territory, when the page controls the selection. */
+  selectedId?: string | null
+  /** Pans and zooms onto these territories each time its key changes. */
+  frame?: MapFrame
   supply?: SupplyLine | null
   intentions?: Intention[]
   winterIntentions?: WinterIntention[]
@@ -94,6 +105,8 @@ export function MapViewer({
   map,
   state,
   onSelect,
+  selectedId: controlledSelectedId,
+  frame,
   supply,
   intentions = [],
   winterIntentions = [],
@@ -111,7 +124,9 @@ export function MapViewer({
   specialOrders = [],
 }: MapViewerProps) {
   const { t } = useLanguage()
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [ownSelectedId, setSelectedId] = useState<string | null>(null)
+  const selectedId =
+    controlledSelectedId === undefined ? ownSelectedId : controlledSelectedId
   const [legendOpen, setLegendOpen] = useState(false)
 
   const {
@@ -164,7 +179,7 @@ export function MapViewer({
     selectTerritory(id)
   }
 
-  const { svgRef, view, isDragging, pointerHandlers, zoomBy } = useMapGestures({
+  const { svgRef, view, isDragging, pointerHandlers, zoomBy, frameOn } = useMapGestures({
     viewWidth,
     viewHeight,
     bandMarginX,
@@ -174,6 +189,20 @@ export function MapViewer({
     onTap: selectTerritory,
   })
   const svgSize = useElementSize(svgRef)
+  // Frame once per key, after the SVG has its size.
+  const framedKey = useRef<string | number | null>(null)
+  useEffect(() => {
+    if (!frame || frame.key === framedKey.current) return
+    if (svgSize.width === 0 || svgSize.height === 0) return
+    framedKey.current = frame.key
+    const wanted = new Set(frame.territories)
+    const bounds = boundsOf(
+      map.territories
+        .filter((territory) => wanted.has(territory.id))
+        .map((territory) => territory.points),
+    )
+    if (bounds) frameOn(bounds, Math.max(mapWidth, mapHeight) * 0.04)
+  })
   // "meet": the viewBox fits the narrower side of the element.
   const pixelsPerUnit =
     svgSize.width > 0 && svgSize.height > 0

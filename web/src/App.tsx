@@ -5,6 +5,7 @@ import { GameLayout } from '@/components/GameLayout'
 import { BrandMark } from '@/components/BrandMark'
 import { GameMenu } from '@/components/GameMenu'
 import { MapViewer } from '@/components/MapViewer'
+import { ownTerritoriesFrame } from '@/lib/map-frame'
 import { SelectedTerritoryDetails } from '@/components/SelectedTerritoryDetails'
 import { OrdersPanel, SealOrders } from '@/components/OrdersPanel'
 import { RealmPanel } from '@/components/RealmPanel'
@@ -21,6 +22,7 @@ import { SubmissionDots } from '@/components/SubmissionDots'
 import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
 import { InfoPage } from '@/components/InfoPage'
 import { GameDrawer, type Panel } from '@/components/GameDrawer'
+import { useIsDesktop } from '@/lib/use-media-query'
 import { buildOrdersBody } from '@/lib/orders-body'
 import { draftOrdersByNoble } from '@/lib/transfer-preview'
 import { useOrdersPreview, type OrdersPreviewRequest } from '@/lib/use-orders-preview'
@@ -107,6 +109,7 @@ async function responseError(response: Response, t: Translate): Promise<string> 
 
 function AppContent() {
   const { language, t } = useLanguage()
+  const desktop = useIsDesktop()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerId>('P1')
   const [gameId, setGameId] = useLocalStorageText('cb.hotseatGame')
@@ -131,14 +134,13 @@ function AppContent() {
   const [years, setYears] = useState(10)
   const [seed, setSeed] = useState('')
   const [view, setView] = useState<HotseatView>('game')
-  const [activePanel, setActivePanel] = useState<Panel>('orders')
+  const [activePanel, setActivePanel] = useState<Panel>(desktop ? 'orders' : 'map')
   const [showOwnership, setShowOwnership] = useLocalStorageState(
     'cb.ownershipOverlay',
     true,
   )
   const [showRegions, setShowRegions] = useLocalStorageState('cb.regionsOverlay', true)
   const [viewedReportTurn, setViewedReportTurn] = useState<number | null>(null)
-  const [mapFocusSignal, setMapFocusSignal] = useState(0)
   const [lineageOpen, setLineageOpen] = useState(false)
   const [rulesNavigation, setRulesNavigation] = useState<{
     section: RulesSection
@@ -423,10 +425,14 @@ function AppContent() {
 
   const handleTerritorySelect = (id: string | null) => {
     setSelectedId(id)
-    if (id) {
-      setMapFocusSignal((signal) => signal + 1)
-    }
   }
+
+  const mapFrame =
+    desktop || !state
+      ? undefined
+      : ownTerritoriesFrame(state, selectedPlayer, `${gameId}:${selectedPlayer}`)
+  // On the phone map view the details show in a card over the map instead.
+  const detailsOnMap = !desktop && activePanel === 'map' && Boolean(selectedTerritory)
 
   const updateWinterDraft = (text: string) => {
     setWinterDrafts((drafts) => ({ ...drafts, [selectedPlayer]: text }))
@@ -464,6 +470,8 @@ function AppContent() {
           state={state}
           supply={selectedSupplyLine}
           onSelect={handleTerritorySelect}
+          selectedId={selectedId}
+          frame={mapFrame}
           intentions={intentions}
           winterIntentions={winterIntentions}
           showIntentions={showIntentions}
@@ -585,7 +593,7 @@ function AppContent() {
       setSelectedId(null)
       setSelectedPlayer(HOTSEAT_HOST)
       setView('game')
-      setActivePanel('orders')
+      setActivePanel(desktop ? 'orders' : 'map')
     } catch (error) {
       setCreateError(
         error instanceof Error ? error.message : t('error.gameCreationFailed'),
@@ -594,6 +602,61 @@ function AppContent() {
       setCreating(false)
     }
   }
+
+  const territoryDetails = (
+    <SelectedTerritoryDetails
+      state={state}
+      selectedTerritory={selectedTerritory}
+      selectedState={selectedState}
+      mapTerritories={map?.territories ?? []}
+      selectedRegion={selectedRegion}
+      selectedSupplyLine={selectedSupplyLine}
+      sourceTerritory={supplySourceTerritory}
+      supplyLoading={supplyLoading}
+      supplyError={supplyError}
+      transferTargets={transferTargets}
+      selectedTransferTarget={transferTarget}
+      onTransferTargetChange={setSelectedTransferTarget}
+      transferLine={transferLine}
+      transferLoading={transferLoading}
+      transferError={transferError}
+    />
+  )
+
+  const playerPicker = (
+    <div className="flex items-center gap-1.5">
+      <span
+        role="img"
+        className="size-3 shrink-0 rounded-full border border-ink-900/30 shadow-inner"
+        style={{
+          backgroundColor:
+            state?.players.find((player) => player.id === selectedPlayer)?.color ??
+            DEFAULT_PLAYER_COLOR,
+        }}
+        aria-label={t('app.colorOf', {
+          player: ownerLabel(selectedPlayer, state, t),
+        })}
+      />
+      <label htmlFor="player-view" className="sr-only">
+        {t('app.activePlayer')}
+      </label>
+      <Select value={selectedPlayer} onValueChange={setSelectedPlayer}>
+        <SelectTrigger
+          id="player-view"
+          className="h-8 w-28 border-line bg-paper-50 text-ink-900 sm:w-40"
+        >
+          <SelectValue placeholder={t('app.choosePlayer')} />
+        </SelectTrigger>
+        <SelectContent>
+          {state?.players.map((player) => (
+            <SelectItem key={player.id} value={player.id}>
+              {player.id} · {player.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
 
   const hotseatNav = (['game', 'rules', 'faq'] as const).map((nextView) => (
     <button
@@ -615,7 +678,9 @@ function AppContent() {
       }`}
     >
       <header className="z-30 shrink-0 bg-paper-50">
-        <div className="flex h-12 items-center gap-2 px-3 sm:gap-3 sm:px-4">
+        <div
+          className={`flex items-center gap-2 px-3 sm:gap-3 sm:px-4 ${desktop ? 'h-12' : 'h-14'}`}
+        >
           <div className="flex shrink-0 items-center gap-2">
             <BrandMark className="size-8" />
             <h1 className="hidden font-display text-base font-semibold tracking-tight lg:block">
@@ -627,7 +692,7 @@ function AppContent() {
             className="min-w-0 truncate text-sm font-semibold text-ink-900"
           >
             {state
-              ? t('app.progress', {
+              ? t(desktop ? 'app.progress' : 'app.progressShort', {
                   season: t(SEASON_LABEL_KEYS[state.season]),
                   year: 1000 + internalYear(state),
                   turn: state.turn,
@@ -660,31 +725,34 @@ function AppContent() {
                     minorWinner={state.minorWinner}
                   />
                 </HeaderPopover>
-                <LineageDialog
-                  open={lineageOpen}
-                  onOpenChange={setLineageOpen}
-                  players={state.players}
-                  nobles={state.nobles}
-                  deceased={state.deceased}
-                  claims={state.claims}
-                  defaultFocus={selectedPlayer}
-                  fiefs={state.fiefs}
-                  bishoprics={state.bishoprics}
-                  cardinals={state.cardinals}
-                  pope={state.pope}
-                  king={state.king}
-                  queen={state.queen}
-                  queenDowager={state.queenDowager}
-                  excommunicated={state.excommunicated}
-                  marriages={state.marriages}
-                  scores={state.scores}
-                  victory={state.victory}
-                  simulationRequest={simulationRequest}
-                  simulationKey={`${state.turn}-${state.season}`}
-                />
+                {/* On phones the lineage opens from the Realm tab only. */}
+                <span className={desktop ? 'contents' : 'hidden'}>
+                  <LineageDialog
+                    open={lineageOpen}
+                    onOpenChange={setLineageOpen}
+                    players={state.players}
+                    nobles={state.nobles}
+                    deceased={state.deceased}
+                    claims={state.claims}
+                    defaultFocus={selectedPlayer}
+                    fiefs={state.fiefs}
+                    bishoprics={state.bishoprics}
+                    cardinals={state.cardinals}
+                    pope={state.pope}
+                    king={state.king}
+                    queen={state.queen}
+                    queenDowager={state.queenDowager}
+                    excommunicated={state.excommunicated}
+                    marriages={state.marriages}
+                    scores={state.scores}
+                    victory={state.victory}
+                    simulationRequest={simulationRequest}
+                    simulationKey={`${state.turn}-${state.season}`}
+                  />
+                </span>
               </>
             )}
-            <div className="hidden sm:block">
+            {desktop && (
               <SubmissionDots
                 players={(state?.players ?? []).map((player) => ({
                   id: player.id,
@@ -695,49 +763,23 @@ function AppContent() {
                   isYou: player.id === selectedPlayer,
                 }))}
               />
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span
-                role="img"
-                className="size-3 shrink-0 rounded-full border border-ink-900/30 shadow-inner"
-                style={{
-                  backgroundColor:
-                    state?.players.find((player) => player.id === selectedPlayer)
-                      ?.color ?? DEFAULT_PLAYER_COLOR,
-                }}
-                aria-label={t('app.colorOf', {
-                  player: ownerLabel(selectedPlayer, state, t),
-                })}
-              />
-              <label htmlFor="player-view" className="sr-only">
-                {t('app.activePlayer')}
-              </label>
-              <Select value={selectedPlayer} onValueChange={setSelectedPlayer}>
-                <SelectTrigger
-                  id="player-view"
-                  className="h-8 w-28 border-line bg-paper-50 text-ink-900 sm:w-40"
-                >
-                  <SelectValue placeholder={t('app.choosePlayer')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {state?.players.map((player) => (
-                    <SelectItem key={player.id} value={player.id}>
-                      {player.id} · {player.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <nav
-              aria-label={t('nav.primary')}
-              className="hidden items-center gap-1 md:flex"
-            >
-              {hotseatNav}
-            </nav>
+            )}
+            {desktop && playerPicker}
+            {desktop && (
+              <nav aria-label={t('nav.primary')} className="flex items-center gap-1">
+                {hotseatNav}
+              </nav>
+            )}
             <GameMenu
               language
-              navigation={hotseatNav}
+              compact={
+                <>
+                  <nav aria-label={t('nav.primary')} className="flex gap-1">
+                    {hotseatNav}
+                  </nav>
+                  {playerPicker}
+                </>
+              }
               resolution={{
                 disabled: resolving || !state,
                 onResolve: () => submitOrders(true),
@@ -778,12 +820,16 @@ function AppContent() {
 
       {view === 'game' ? (
         <main className="flex min-h-0 w-full flex-1 flex-col">
-          <GameLayout map={renderMap()}>
+          <GameLayout
+            map={renderMap()}
+            view={activePanel}
+            mapOverlay={detailsOnMap ? territoryDetails : undefined}
+            onCloseOverlay={() => setSelectedId(null)}
+          >
             <GameDrawer
               activePanel={activePanel}
               onPanelChange={setActivePanel}
               season={state?.season}
-              focusSignal={mapFocusSignal}
               reportLabelExtra={
                 report && viewedReportTurn !== report.header.turn ? (
                   <span className="rounded-full bg-paper-50 px-1.5 py-0.5 text-2xs text-brass-700">
@@ -817,23 +863,7 @@ function AppContent() {
                       state={state}
                       playerId={selectedPlayer}
                     />
-                    <SelectedTerritoryDetails
-                      state={state}
-                      selectedTerritory={selectedTerritory}
-                      selectedState={selectedState}
-                      mapTerritories={map?.territories ?? []}
-                      selectedRegion={selectedRegion}
-                      selectedSupplyLine={selectedSupplyLine}
-                      sourceTerritory={supplySourceTerritory}
-                      supplyLoading={supplyLoading}
-                      supplyError={supplyError}
-                      transferTargets={transferTargets}
-                      selectedTransferTarget={transferTarget}
-                      onTransferTargetChange={setSelectedTransferTarget}
-                      transferLine={transferLine}
-                      transferLoading={transferLoading}
-                      transferError={transferError}
-                    />
+                    {!detailsOnMap && territoryDetails}
                     {state && (
                       <OrdersPanel
                         regions={map?.regions}

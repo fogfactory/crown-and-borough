@@ -10,7 +10,7 @@ export function MapControls({ onZoom }: { onZoom: (zoomFactor: number) => void }
     <div
       role="group"
       aria-label={t('map.zoomControls')}
-      className="absolute bottom-28 right-3 z-10 flex flex-col gap-1.5 lg:bottom-3"
+      className="absolute bottom-3 right-3 z-10 flex flex-col gap-1.5"
     >
       <button
         type="button"

@@ -11,8 +11,10 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthProvider'
 import { GameLayout } from '@/components/GameLayout'
 import { GameDrawer, type Panel } from '@/components/GameDrawer'
+import { useIsDesktop } from '@/lib/use-media-query'
 import { GameMenu } from '@/components/GameMenu'
 import { MapViewer } from '@/components/MapViewer'
+import { ownTerritoriesFrame } from '@/lib/map-frame'
 import { SelectedTerritoryDetails } from '@/components/SelectedTerritoryDetails'
 import { ProjectedConsumptionSummary } from '@/components/ProjectedConsumptionSummary'
 import { ProjectedIncomeSummary } from '@/components/ProjectedIncomeSummary'
@@ -226,7 +228,8 @@ export function GamePage() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [lineageOpen, setLineageOpen] = useState(false)
-  const [activePanel, setActivePanel] = useState<Panel>('orders')
+  const desktop = useIsDesktop()
+  const [activePanel, setActivePanel] = useState<Panel>(desktop ? 'orders' : 'map')
   const [showOwnership, setShowOwnership] = useLocalStorageState(
     'cb.ownershipOverlay',
     true,
@@ -252,7 +255,6 @@ export function GamePage() {
     true,
   )
   const [showCards, setShowCards] = useLocalStorageState('cb.cardsOverlay', true)
-  const [mapFocusSignal, setMapFocusSignal] = useState(0)
   const lastTurn = useRef<number | null>(null)
   const hydratedTurnRef = useRef<number | null>(null)
   const submittedOrdersContextRef = useRef<string | null>(null)
@@ -774,9 +776,6 @@ export function GamePage() {
 
   const handleTerritorySelect = (id: string | null) => {
     setSelectedId(id)
-    if (id) {
-      setMapFocusSignal((signal) => signal + 1)
-    }
   }
 
   if (loadError) {
@@ -828,29 +827,63 @@ export function GamePage() {
     )
   }
 
+  const mapFrame =
+    desktop || !playerID
+      ? undefined
+      : ownTerritoriesFrame(state, playerID, `${gameId}:${playerID}`)
+  // On the phone map view the details show in a card over the map instead.
+  const detailsOnMap = !desktop && activePanel === 'map' && Boolean(selectedTerritory)
+  const territoryDetails = (
+    <SelectedTerritoryDetails
+      state={state}
+      selectedTerritory={selectedTerritory}
+      selectedState={selectedState}
+      selectedRegion={selectedRegion}
+      preferredPlayers={summary.players}
+      mapTerritories={map.territories}
+      selectedSupplyLine={selectedSupplyLine}
+      sourceTerritory={sourceTerritory}
+      supplyLoading={supplyLoading}
+      supplyError={supplyError}
+      transferTargets={transferTargets}
+      selectedTransferTarget={transferTarget}
+      onTransferTargetChange={setSelectedTransferTarget}
+      transferLine={transferLine}
+      transferLoading={transferLoading}
+      transferError={transferError}
+    />
+  )
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 bg-paper-50 px-3 py-1.5 sm:px-4">
+      <div
+        className={`flex shrink-0 items-center gap-x-3 gap-y-1 bg-paper-50 px-3 sm:px-4 ${desktop ? 'flex-wrap py-1.5' : 'h-14 gap-x-2'}`}
+      >
         <Link
           to="/"
           aria-label={t('online.backHome')}
-          className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-brass-700"
+          className={`inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-brass-700 ${desktop ? '' : 'size-11 justify-center'}`}
         >
           <IconArrowLeft aria-hidden="true" className="size-4" />
-          <span className="hidden min-[420px]:inline">{t('online.backHome')}</span>
+          {desktop && <span>{t('online.backHome')}</span>}
         </Link>
-        <h1 className="min-w-0 flex-1 truncate font-display text-lg font-semibold text-ink-900 sm:flex-none sm:text-2xl">
-          {summary.name}
-        </h1>
-        <p data-game-progress className="text-sm font-semibold text-ink-900">
-          {t('app.progress', {
+        {desktop && (
+          <h1 className="min-w-0 truncate font-display text-2xl font-semibold text-ink-900">
+            {summary.name}
+          </h1>
+        )}
+        <p
+          data-game-progress
+          className="min-w-0 truncate text-sm font-semibold text-ink-900"
+        >
+          {t(desktop ? 'app.progress' : 'app.progressShort', {
             season: t(SEASON_LABEL_KEYS[state.season]),
             year: 1000 + internalYear(state),
             turn: state.turn,
             total: totalTurns(state, summary.yearCount),
           })}
         </p>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           <HeaderPopover
             label={t('app.scores')}
             icon={<IconTrophy aria-hidden="true" className="size-4" />}
@@ -872,28 +905,31 @@ export function GamePage() {
               minorWinner={state.minorWinner}
             />
           </HeaderPopover>
-          <LineageDialog
-            open={lineageOpen}
-            onOpenChange={setLineageOpen}
-            players={state.players}
-            nobles={state.nobles}
-            deceased={state.deceased}
-            claims={state.claims}
-            defaultFocus={playerID}
-            fiefs={state.fiefs}
-            bishoprics={state.bishoprics}
-            cardinals={state.cardinals}
-            pope={state.pope}
-            king={state.king}
-            queen={state.queen}
-            queenDowager={state.queenDowager}
-            excommunicated={state.excommunicated}
-            marriages={state.marriages}
-            scores={state.scores ?? summary.scores}
-            victory={state.victory}
-            simulationRequest={simulationRequest}
-            simulationKey={`${state.turn}-${state.season}`}
-          />
+          {/* On phones the lineage opens from the Realm tab only. */}
+          <span className={desktop ? 'contents' : 'hidden'}>
+            <LineageDialog
+              open={lineageOpen}
+              onOpenChange={setLineageOpen}
+              players={state.players}
+              nobles={state.nobles}
+              deceased={state.deceased}
+              claims={state.claims}
+              defaultFocus={playerID}
+              fiefs={state.fiefs}
+              bishoprics={state.bishoprics}
+              cardinals={state.cardinals}
+              pope={state.pope}
+              king={state.king}
+              queen={state.queen}
+              queenDowager={state.queenDowager}
+              excommunicated={state.excommunicated}
+              marriages={state.marriages}
+              scores={state.scores ?? summary.scores}
+              victory={state.victory}
+              simulationRequest={simulationRequest}
+              simulationKey={`${state.turn}-${state.season}`}
+            />
+          </span>
           <HeaderPopover
             label={t('online.lobby')}
             icon={<IconUsersGroup aria-hidden="true" className="size-4" />}
@@ -910,38 +946,47 @@ export function GamePage() {
               victory={state.victory}
             />
           </HeaderPopover>
-          <SubmissionDots
-            players={summary.players.map((player) => ({
-              id: player.id,
-              name: player.name || player.id,
-              color: player.color,
-              submitted: player.submitted,
-              required: player.required,
-              isYou: player.id === playerID,
-            }))}
-          />
-          <span
-            className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs font-semibold ${offline ? 'border-vermilion-700/30 bg-vermilion-100 text-vermilion-700' : 'border-success-700/30 bg-paper-100 text-success-700'}`}
-          >
-            {offline ? (
-              <IconWifiOff aria-hidden="true" className="size-3.5" />
-            ) : (
-              <IconWifi aria-hidden="true" className="size-3.5" />
-            )}
-            {offline ? t('online.networkOffline') : t('online.realtime')}
-          </span>
-          {summary.status === 'finished' && (
+          {desktop && (
+            <SubmissionDots
+              players={summary.players.map((player) => ({
+                id: player.id,
+                name: player.name || player.id,
+                color: player.color,
+                submitted: player.submitted,
+                required: player.required,
+                isYou: player.id === playerID,
+              }))}
+            />
+          )}
+          {(desktop || offline) && (
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs font-semibold ${offline ? 'border-vermilion-700/30 bg-vermilion-100 text-vermilion-700' : 'border-success-700/30 bg-paper-100 text-success-700'}`}
+            >
+              {offline ? (
+                <IconWifiOff aria-hidden="true" className="size-3.5" />
+              ) : (
+                <IconWifi aria-hidden="true" className="size-3.5" />
+              )}
+              {offline ? t('online.networkOffline') : t('online.realtime')}
+            </span>
+          )}
+          {desktop && summary.status === 'finished' && (
             <span className="rounded-full border border-brass-700/40 bg-brass-300/30 px-2 py-1 text-xs font-semibold text-brass-700">
               {t('online.finished')}
             </span>
           )}
-          {summary.status !== 'finished' && summary.canInvite && (
+          {(!desktop || (summary.status !== 'finished' && summary.canInvite)) && (
             <GameMenu
-              resolution={{
-                disabled: submitting,
-                confirm: true,
-                onResolve: () => submitOrders(true),
-              }}
+              language={!desktop}
+              resolution={
+                summary.status !== 'finished' && summary.canInvite
+                  ? {
+                      disabled: submitting,
+                      confirm: true,
+                      onResolve: () => submitOrders(true),
+                    }
+                  : undefined
+              }
             />
           )}
         </div>
@@ -985,12 +1030,17 @@ export function GamePage() {
       </div>
 
       <GameLayout
+        view={activePanel}
+        mapOverlay={detailsOnMap ? territoryDetails : undefined}
+        onCloseOverlay={() => setSelectedId(null)}
         map={
           <MapViewer
             map={map}
             state={state}
             supply={selectedSupplyLine}
             onSelect={handleTerritorySelect}
+            selectedId={selectedId}
+            frame={mapFrame}
             intentions={intentions}
             winterIntentions={winterIntentions}
             showIntentions={showIntentions}
@@ -1016,7 +1066,6 @@ export function GamePage() {
           activePanel={activePanel}
           onPanelChange={setActivePanel}
           season={state.season}
-          focusSignal={mapFocusSignal}
           reportLabelExtra={
             report ? <span className="text-ink-500">· {report.header.turn}</span> : null
           }
@@ -1043,24 +1092,7 @@ export function GamePage() {
                   specialDraft={specialDraft}
                 />
                 <ProjectedConsumptionSummary state={state} playerId={playerID} />
-                <SelectedTerritoryDetails
-                  state={state}
-                  selectedTerritory={selectedTerritory}
-                  selectedState={selectedState}
-                  selectedRegion={selectedRegion}
-                  preferredPlayers={summary.players}
-                  mapTerritories={map.territories}
-                  selectedSupplyLine={selectedSupplyLine}
-                  sourceTerritory={sourceTerritory}
-                  supplyLoading={supplyLoading}
-                  supplyError={supplyError}
-                  transferTargets={transferTargets}
-                  selectedTransferTarget={transferTarget}
-                  onTransferTargetChange={setSelectedTransferTarget}
-                  transferLine={transferLine}
-                  transferLoading={transferLoading}
-                  transferError={transferError}
-                />
+                {!detailsOnMap && territoryDetails}
                 {playerID ? (
                   <OrdersPanel
                     regions={map?.regions}

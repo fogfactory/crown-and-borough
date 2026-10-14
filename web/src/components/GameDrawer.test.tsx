@@ -1,20 +1,21 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { useState, type ReactNode } from 'react'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { GameDrawer, type Panel } from '@/components/GameDrawer'
 import { LanguageProvider } from '@/i18n/LanguageContext'
+import { stubPhoneViewport } from '@/test/viewport'
 
 function Harness({
+  initial = 'orders',
   reportLabelExtra,
   footer,
-  focusSignal,
 }: {
+  initial?: Panel
   reportLabelExtra?: ReactNode
   footer?: ReactNode
-  focusSignal?: number
 }) {
-  const [panel, setPanel] = useState<Panel>('orders')
+  const [panel, setPanel] = useState<Panel>(initial)
   return (
     <LanguageProvider initialLanguage="en">
       <GameDrawer
@@ -23,7 +24,6 @@ function Harness({
         season="autumn"
         reportLabelExtra={reportLabelExtra}
         footer={footer}
-        focusSignal={focusSignal}
         panels={{
           orders: <p>orders content</p>,
           report: <p>report content</p>,
@@ -31,11 +31,16 @@ function Harness({
           rules: <p>rules content</p>,
         }}
       />
+      <output data-testid="active">{panel}</output>
     </LanguageProvider>
   )
 }
 
-describe('GameDrawer', () => {
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
+describe('GameDrawer on desktop', () => {
   it('renders the four bookmarks and only the active panel', () => {
     render(<Harness />)
 
@@ -49,6 +54,7 @@ describe('GameDrawer', () => {
       expect(tab).toHaveAttribute('data-panel-tab', panel)
       expect(tab).toHaveAttribute('aria-controls', `${panel}-panel`)
     }
+    expect(screen.queryByRole('tab', { name: 'Map' })).toBeNull()
     expect(screen.getByRole('tab', { name: 'Orders' })).toHaveAttribute(
       'aria-selected',
       'true',
@@ -57,6 +63,16 @@ describe('GameDrawer', () => {
     expect(screen.getByText('realm content')).not.toBeVisible()
     // The bookmarks stand for the title: no heading repeats the active one.
     expect(screen.queryByRole('heading')).toBeNull()
+  })
+
+  it('shows the orders when the phone left the map tab active', () => {
+    render(<Harness initial="map" />)
+
+    expect(screen.getByRole('tab', { name: 'Orders' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(screen.getByText('orders content')).toBeVisible()
   })
 
   it('marks the active bookmark with the season tint', () => {
@@ -113,33 +129,47 @@ describe('GameDrawer', () => {
     expect(seal).toBeVisible()
     expect(seal.closest('[role="tabpanel"]')).toBeNull()
   })
+})
 
-  it('snaps the phone sheet with the chevron, the arrows and a drag', () => {
-    render(<Harness />)
-    const drawer = screen.getByTestId('game-drawer')
-    expect(drawer).toHaveAttribute('data-sheet-snap', 'half')
+describe('GameDrawer on a phone', () => {
+  it('switches between five full-screen views with a bottom tab bar', () => {
+    stubPhoneViewport()
+    render(<Harness initial="map" />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Expand panel' }))
-    expect(drawer).toHaveAttribute('data-sheet-snap', 'full')
-    fireEvent.keyDown(screen.getByRole('button', { name: 'Collapse panel' }), {
-      key: 'ArrowDown',
-    })
-    expect(drawer).toHaveAttribute('data-sheet-snap', 'peek')
+    const tabs = screen.getAllByRole('tab').map((tab) => tab.textContent)
+    expect(tabs).toEqual(['Map', 'Orders', 'Report', 'Realm', 'Rules'])
+    expect(screen.queryByRole('button', { name: 'Fold the drawer' })).toBeNull()
+    // The map view hides the whole panel.
+    expect(screen.getByTestId('game-drawer')).not.toBeVisible()
 
-    const handle = drawer.querySelector('div[aria-hidden="true"]') as HTMLElement
-    fireEvent.pointerDown(handle, { pointerId: 1, clientY: 300 })
-    fireEvent.pointerUp(handle, { pointerId: 1, clientY: 180 })
-    expect(drawer).toHaveAttribute('data-sheet-snap', 'half')
+    fireEvent.click(screen.getByRole('tab', { name: 'Report' }))
+    expect(screen.getByTestId('active')).toHaveTextContent('report')
+    expect(screen.getByTestId('game-drawer')).toBeVisible()
+    expect(screen.getByText('report content')).toBeVisible()
+
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Report' }), { key: 'ArrowLeft' })
+    expect(screen.getByRole('tab', { name: 'Orders' })).toHaveFocus()
   })
 
-  it('brings the phone sheet back to half when the focus signal increments', () => {
-    const { rerender } = render(<Harness focusSignal={0} />)
-    const drawer = screen.getByTestId('game-drawer')
+  it('gives every tab a 44 px touch target and tints the active one', () => {
+    stubPhoneViewport()
+    render(<Harness initial="map" />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Expand panel' }))
-    expect(drawer).toHaveAttribute('data-sheet-snap', 'full')
+    for (const tab of screen.getAllByRole('tab')) {
+      expect(tab.className).toContain('min-h-14')
+      expect(tab.className).toContain('min-w-11')
+    }
+    expect(
+      screen.getByRole('tab', { name: 'Map' }).querySelector('[data-season-tint]'),
+    ).not.toBeNull()
+  })
 
-    rerender(<Harness focusSignal={1} />)
-    expect(drawer).toHaveAttribute('data-sheet-snap', 'half')
+  it('shows the seal footer under the orders only', () => {
+    stubPhoneViewport()
+    render(<Harness footer={<button type="button">Seal orders</button>} />)
+
+    expect(screen.getByRole('button', { name: 'Seal orders' })).toBeVisible()
+    fireEvent.click(screen.getByRole('tab', { name: 'Realm' }))
+    expect(screen.queryByRole('button', { name: 'Seal orders' })).toBeNull()
   })
 })
