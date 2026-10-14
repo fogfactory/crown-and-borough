@@ -72,6 +72,14 @@ import {
 const OUTER_BORDER_WIDTH = 2.2
 const PASSABLE_BORDER_WIDTH = 1.7
 const SELECTION_STROKE_WIDTH = 2.5
+/** Selected territory's box on screen, in pixels from the map's top left. */
+export interface ScreenBox {
+  left: number
+  top: number
+  right: number
+  bottom: number
+}
+
 /** Width of the brass halo inside a selected territory, in map units. */
 const SELECTION_HALO_WIDTH = 8
 
@@ -93,6 +101,14 @@ interface MapViewerProps {
   highlightedId?: string | null
   /** Noble whose pawn wears the selection halo. */
   selectedNoble?: string | null
+  /**
+   * Drawn over the map next to the selected territory (its cartouche), given
+   * the territory's box on screen and the map's size.
+   */
+  selectionOverlay?: (
+    anchor: ScreenBox,
+    size: { width: number; height: number },
+  ) => React.ReactNode
   supply?: SupplyLine | null
   intentions?: Intention[]
   winterIntentions?: WinterIntention[]
@@ -120,6 +136,7 @@ export function MapViewer({
   frame,
   highlightedId = null,
   selectedNoble = null,
+  selectionOverlay,
   supply,
   intentions = [],
   winterIntentions = [],
@@ -272,6 +289,35 @@ export function MapViewer({
   )
   const armsByOwner = resolveArmsByOwner(state, playerColors)
   const nobleAttributes = useMemo(() => nobleAttributesByCode(state), [state])
+  // Where the selected territory sits on screen: map units through the pan
+  // and zoom, then the "meet" fit of the viewBox in the element.
+  const selectedAnchor = useMemo<ScreenBox | null>(() => {
+    if (!selectionOverlay || !selectedId || svgSize.width === 0) return null
+    const territory = map.territories.find((candidate) => candidate.id === selectedId)
+    const bounds = territory ? boundsOf([territory.points]) : null
+    if (!bounds) return null
+    const scale = Math.min(svgSize.width / viewWidth, svgSize.height / viewHeight)
+    const offsetX = (svgSize.width - viewWidth * scale) / 2
+    const offsetY = (svgSize.height - viewHeight * scale) / 2
+    const toX = (x: number) => offsetX + (x * view.k + view.x + bandMarginX) * scale
+    const toY = (y: number) => offsetY + (y * view.k + view.y + bandMarginY) * scale
+    return {
+      left: toX(bounds[0]),
+      top: toY(bounds[1]),
+      right: toX(bounds[2]),
+      bottom: toY(bounds[3]),
+    }
+  }, [
+    selectionOverlay,
+    selectedId,
+    svgSize,
+    map.territories,
+    viewWidth,
+    viewHeight,
+    view,
+    bandMarginX,
+    bandMarginY,
+  ])
   const selectedTerritoryState = state.territories.find(
     (territoryState) => territoryState.id === selectedId,
   )
@@ -617,6 +663,8 @@ export function MapViewer({
         </svg>
 
         <MapControls onZoom={zoomBy} />
+
+        {selectionOverlay && selectedAnchor && selectionOverlay(selectedAnchor, svgSize)}
 
         {(onToggleIntentions ||
           onToggleOwnership ||

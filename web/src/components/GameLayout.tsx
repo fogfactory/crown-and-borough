@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import { IconX } from '@tabler/icons-react'
 
 import type { Panel } from '@/components/GameDrawer'
 import { useLanguage } from '@/i18n/LanguageContext'
@@ -18,8 +17,6 @@ interface GameLayoutProps {
   view?: Panel
   /** Card laid over the bottom of the map (phones, map view). */
   mapOverlay?: ReactNode
-  /** Closes the card over the map. */
-  onCloseOverlay?: () => void
   /** Extra classes for the layout row. */
   className?: string
 }
@@ -36,7 +33,6 @@ export function GameLayout({
   children,
   view = 'orders',
   mapOverlay,
-  onCloseOverlay,
   className,
 }: GameLayoutProps) {
   const { t } = useLanguage()
@@ -71,17 +67,6 @@ export function GameLayout({
             data-map-overlay
             className="absolute bottom-2 left-2 right-14 z-20 max-h-[55%] overflow-y-auto rounded-md border border-line bg-paper-50 p-3 shadow-panel"
           >
-            {onCloseOverlay && (
-              <button
-                type="button"
-                aria-label={t('map.closeCard')}
-                title={t('map.closeCard')}
-                className="float-right -mt-1 -mr-1 ml-2 flex size-11 items-center justify-center rounded-md text-ink-500 transition hover:bg-paper-100 hover:text-ink-900"
-                onClick={onCloseOverlay}
-              >
-                <IconX aria-hidden="true" className="size-4" />
-              </button>
-            )}
             {mapOverlay}
           </div>
         )}

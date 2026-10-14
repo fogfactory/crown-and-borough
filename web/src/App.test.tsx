@@ -353,8 +353,7 @@ describe('App command/report tabs', () => {
     })
     fireEvent.keyDown(firstTerritory, { key: 'Enter', code: 'Enter' })
 
-    expect(await screen.findByText('Capitale de One')).toBeInTheDocument()
-    expect(screen.getByText('Capitale', { exact: true })).toBeInTheDocument()
+    expect(await screen.findByText(/Capitale de One/)).toBeInTheDocument()
   })
 
   it('opens on the map with a tab bar and a one-line header on phones', async () => {
@@ -443,24 +442,22 @@ describe('App command/report tabs', () => {
     // The pawn's tooltip on the map names the noble too.
     expect(screen.getAllByText('Jean de Rosemont (JEA)')).not.toHaveLength(0)
     expect(screen.getAllByText(/Robert de Rosemont/)).not.toHaveLength(0)
-    expect(screen.getByText('Otage')).toBeInTheDocument()
-    const noblesSection = screen.getByText('Nobles présents').closest('div')
-    if (!noblesSection) {
-      throw new Error('nobles section did not render')
-    }
-    expect(within(noblesSection).getAllByText('Propriétaire')).toHaveLength(3)
-    expect(within(noblesSection).getAllByText('Détenteur')).toHaveLength(2)
-    expect(within(noblesSection).getAllByText('One')).toHaveLength(1)
-    expect(within(noblesSection).getAllByText('Two')).toHaveLength(2)
-    expect(within(noblesSection).getByText('invité par One')).toBeInTheDocument()
-    expect(within(noblesSection).getByText('emprisonné par One')).toBeInTheDocument()
-    expect(within(noblesSection).queryByText('—')).not.toBeInTheDocument()
-    expect(within(noblesSection).getAllByText('Détenteur')).toHaveLength(2)
-    expect(screen.getAllByLabelText('Couleur de One')).toHaveLength(2)
-    expect(screen.getAllByLabelText('Couleur de Two')).toHaveLength(2)
+    // The cartouche shows the nobles present as pawns; a pawn opens its detail.
+    const cartouche = document.querySelector('[data-territory-cartouche="ROS"]') as HTMLElement
+    expect(cartouche.querySelectorAll('[data-noble-chip]')).toHaveLength(3)
+    fireEvent.click(within(cartouche).getByRole('button', { name: /\(BOB\)/ }))
+    expect(await screen.findByText('Otage')).toBeInTheDocument()
+    expect(screen.getByText('invité par One')).toBeInTheDocument()
+    expect(screen.getByText('Propriétaire')).toBeInTheDocument()
+    fireEvent.click(within(cartouche).getByRole('button', { name: /\(KAR\)/ }))
+    expect(await screen.findByText('emprisonné par One')).toBeInTheDocument()
     expect(screen.getAllByText('ROS A BRU').length).toBeGreaterThanOrEqual(1)
+    // The army line names the current order; the details keep the stack.
     expect(
-      screen.getByText('(H ROS)', { selector: 'span' }).closest('li'),
+      screen
+        .getAllByText('(H ROS)', { selector: 'span' })
+        .map((span) => span.closest('li'))
+        .find(Boolean),
     ).toHaveAttribute('aria-current', 'step')
     expect(await screen.findByText(/Source :/)).toBeInTheDocument()
     expect(screen.getAllByText(withText(/^Rosemont \(ROS\)$/)).length).toBeGreaterThan(0)
@@ -483,7 +480,7 @@ describe('App command/report tabs', () => {
     fireEvent.click(screen.getByRole('tab', { name: /Ordres/ }))
     expect(screen.getByLabelText('Chaîne de JEA')).toHaveValue('ROS A BRU')
     // The selected territory's card is still open (the map writes the name too).
-    expect(screen.getByRole('heading', { name: 'Rosemont' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Rosemont (ROS)' })).toBeInTheDocument()
   })
 
   it('requests a transfer overlay for a drafted action transfer', async () => {
