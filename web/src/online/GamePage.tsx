@@ -1094,7 +1094,7 @@ export function GamePage() {
                 frame={linkState.frame}
                 highlightedId={linkState.highlightedId}
                 selectedNoble={linkState.selectedNoble}
-          eventMarks={linkState.eventMarks}
+                eventMarks={linkState.eventMarks}
                 intentions={intentions}
                 winterIntentions={winterIntentions}
                 showIntentions={showIntentions}

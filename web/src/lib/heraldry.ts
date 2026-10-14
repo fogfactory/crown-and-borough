@@ -25,11 +25,12 @@ export function resolveArmsByOwner(
   const armsByPlayer = new Map(state.players.map((player) => [player.id, player.arms]))
   const resolved = new Map<string, ResolvedArms>()
   for (const [owner, color] of playerColors) {
-    const arms = owner === NEUTRAL_PLAYER_ID ? undefined : armsByPlayer.get(owner)
-    resolved.set(owner, {
-      field: owner === NEUTRAL_PLAYER_ID ? NEUTRAL_ARMY_COLOR : color,
-      charge: arms ? { kind: arms.charge, metal: METAL_COLORS[arms.metal] } : null,
-    })
+    resolved.set(
+      owner,
+      owner === NEUTRAL_PLAYER_ID
+        ? { field: NEUTRAL_ARMY_COLOR, charge: null }
+        : playerArms({ color, arms: armsByPlayer.get(owner) }),
+    )
   }
   // A vacant fief flies a neutral banner even when no rebel is on the map.
   if (!resolved.has(NEUTRAL_PLAYER_ID)) {

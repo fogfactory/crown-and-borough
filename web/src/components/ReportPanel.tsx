@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useId, type ReactNode } from 'react'
 
 import {
   IconBell,
@@ -720,6 +720,8 @@ interface SeasonEffectLine {
 interface SeasonEffectGroup {
   key: string
   header?: ReactNode
+  /** Territories of the header line, shown with the lines' own by « Voir ». */
+  headerTerritories?: string[]
   lines: SeasonEffectLine[]
 }
 
@@ -1017,7 +1019,9 @@ function groupSeasonEffects(
         if (effect.army) {
           groupFor(effect).lines.push(line)
         } else {
-          groupFor(effect).header = line.label
+          const group = groupFor(effect)
+          group.header = line.label
+          group.headerTerritories = line.territories
         }
         break
       case 'bad_weather_blocked':
@@ -1191,6 +1195,11 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
               icon={<IconCloudStorm />}
               tone="alert"
               title={group.header ?? group.lines[0]?.label}
+              owner={
+                !group.header && group.lines[0]?.owner
+                  ? playerMarker(players, group.lines[0].owner, t)
+                  : undefined
+              }
               detail={
                 group.lines.length > (group.header ? 0 : 1) ? (
                   <ul className="space-y-0.5">
@@ -1208,7 +1217,10 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
               }
               marks={(() => {
                 const territories = [
-                  ...new Set(group.lines.flatMap((line) => line.territories ?? [])),
+                  ...new Set([
+                    ...(group.headerTerritories ?? []),
+                    ...group.lines.flatMap((line) => line.territories ?? []),
+                  ]),
                 ]
                 return territories.length > 0 ? { territories } : undefined
               })()}
@@ -1755,15 +1767,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                   territories.length > 0
                     ? {
                         territories: [...new Set(territories)],
-                        arrows:
-                          order.source &&
-                          order.type !== 'hold' &&
-                          order.type !== 'pillage'
-                            ? targets.map((target): [string, string] => [
-                                order.source!,
-                                target,
-                              ])
-                            : undefined,
+                        arrows: orderArrows(order.type, order.source, targets),
                       }
                     : undefined
                 }
@@ -1811,6 +1815,30 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
       )}
     </section>
   )
+}
+
+/**
+ * The moves an order draws on the map. A support points at the destination it
+ * backs, and the supported army's own move is drawn too; it never points at
+ * the supported army itself.
+ */
+function orderArrows(
+  type: TurnReport['orders'][number]['type'],
+  source: string | undefined,
+  targets: string[],
+): Array<[string, string]> | undefined {
+  if (!source || !type || type === 'hold' || type === 'pillage') return undefined
+  if (type === 'support') {
+    const [supported, destination] = targets
+    if (!supported) return undefined
+    return destination
+      ? [
+          [supported, destination],
+          [source, destination],
+        ]
+      : [[source, supported]]
+  }
+  return targets.map((target): [string, string] => [source, target])
 }
 
 /** A category of the report; the caller leaves out an empty one. */
@@ -1868,6 +1896,7 @@ function EventCard({
 }) {
   const { t } = useLanguage()
   const links = useMapLinks()
+  const titleId = useId()
   return (
     <article
       data-event-card
@@ -1882,7 +1911,9 @@ function EventCard({
       <div className="min-w-0 flex-1">
         <div className="flex items-start gap-2">
           {owner && <span className="mt-1.5">{owner}</span>}
-          <div className="min-w-0 font-medium">{title}</div>
+          <div id={titleId} className="min-w-0 font-medium">
+            {title}
+          </div>
         </div>
         {detail && <div className="mt-0.5 text-xs opacity-80">{detail}</div>}
       </div>
@@ -1891,6 +1922,7 @@ function EventCard({
         <button
           type="button"
           data-show-event
+          aria-describedby={titleId}
           className="shrink-0 rounded px-1 text-xs font-semibold text-brass-700 underline decoration-dotted underline-offset-2 hover:decoration-solid max-lg:min-h-11"
           onClick={() => links.showEvent(marks)}
         >

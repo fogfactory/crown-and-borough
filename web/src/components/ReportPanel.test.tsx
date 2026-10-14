@@ -897,7 +897,7 @@ describe('ReportPanel event cards', () => {
     expect(container).not.toHaveTextContent('0 → 0')
   })
 
-  it('shows an order on the map with its arrows', () => {
+  it('draws a support toward the destination it backs', () => {
     render(
       <LanguageProvider initialLanguage="en">
         <MapLinksProvider value={links}>
@@ -910,8 +910,9 @@ describe('ReportPanel event cards', () => {
     fireEvent.click(within(orders).getAllByRole('button', { name: 'Show' })[0])
     expect(links.showEvent).toHaveBeenCalledWith({
       territories: ['ROS', 'BRU', 'CHA'],
+      // ROS supports BRU into CHA: no arrow from ROS onto its ally.
       arrows: [
-        ['ROS', 'BRU'],
+        ['BRU', 'CHA'],
         ['ROS', 'CHA'],
       ],
     })

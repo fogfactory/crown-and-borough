@@ -50,17 +50,34 @@ export function useMapLinkState({
 }: MapLinkStateOptions): MapLinkState {
   const [focus, setFocus] = useState<Focus | null>(null)
   const [highlightedId, setHighlightedId] = useState<string | null>(null)
-  const [shown, setShown] = useState<{ marks: EventMarks; selectedId: string | null } | null>(
-    null,
-  )
+  const [shown, setShown] = useState<{
+    marks: EventMarks
+    selectedId: string | null
+    turn: number | undefined
+  } | null>(null)
   const followed = useRef(0)
   // Latest page values, read when a link is followed, so the context value
   // stays the same object between renders.
-  const latest = useRef({ baseKey: baseFrame?.key, onSelect, onShowEvent, selectedId })
-  latest.current = { baseKey: baseFrame?.key, onSelect, onShowEvent, selectedId }
+  const latest = useRef({
+    baseKey: baseFrame?.key,
+    onSelect,
+    onShowEvent,
+    selectedId,
+    turn: state?.turn,
+  })
+  latest.current = {
+    baseKey: baseFrame?.key,
+    onSelect,
+    onShowEvent,
+    selectedId,
+    turn: state?.turn,
+  }
 
   const territoryNames = useMemo(
-    () => new Map((map?.territories ?? []).map((territory) => [territory.id, territory.name])),
+    () =>
+      new Map(
+        (map?.territories ?? []).map((territory) => [territory.id, territory.name]),
+      ),
     [map],
   )
   const nobles = useMemo(
@@ -100,7 +117,11 @@ export function useMapLinkState({
           },
           baseKey: latest.current.baseKey,
         })
-        setShown({ marks, selectedId: latest.current.selectedId })
+        setShown({
+          marks,
+          selectedId: latest.current.selectedId,
+          turn: latest.current.turn,
+        })
         setHighlightedId(null)
         latest.current.onShowEvent?.()
       },
@@ -123,8 +144,11 @@ export function useMapLinkState({
     links,
     frame: current?.frame ?? baseFrame,
     highlightedId,
-    // The event stays drawn until the selection changes.
-    eventMarks: shown && shown.selectedId === selectedId ? shown.marks : null,
+    // The event stays drawn until the selection or the turn changes.
+    eventMarks:
+      shown && shown.selectedId === selectedId && shown.turn === state?.turn
+        ? shown.marks
+        : null,
     selectedNoble:
       current?.noble && selectedId === current.frame.territories[0]
         ? current.noble
