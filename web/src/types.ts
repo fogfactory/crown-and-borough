@@ -231,7 +231,13 @@ export interface ExcommunicationTarget {
 export interface FiefSite {
   territories: string[]
   castles: string[]
-  edges: Array<[string, string]>
+  edges: FiefEdge[]
+}
+
+/** A crossable border inside a fief site, with `from` < `to`. */
+export interface FiefEdge {
+  from: string
+  to: string
 }
 
 /** One of the viewer's fiefs with a titulaire, and what `T X` / `T R` can do for it. */

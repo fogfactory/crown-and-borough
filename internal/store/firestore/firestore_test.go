@@ -3,9 +3,11 @@ package firestorestore
 import (
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/fogfactory/crown-and-borough/internal/api"
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
@@ -34,17 +36,18 @@ func TestJSONMapRoundTripPreservesCanonicalState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("encode state map: %v", err)
 	}
-	mapMap, err := jsonMap(mapData)
+	// The map is stored as a JSON string: its polygons are nested arrays.
+	mapJSON, err := jsonString(mapData)
 	if err != nil {
-		t.Fatalf("encode map map: %v", err)
+		t.Fatalf("encode map json: %v", err)
 	}
 	var decodedState models.GameState
 	if err := decodeJSONMap(stateMap, &decodedState); err != nil {
 		t.Fatalf("decode state map: %v", err)
 	}
 	var decodedMap mapgen.MapData
-	if err := decodeJSONMap(mapMap, &decodedMap); err != nil {
-		t.Fatalf("decode map map: %v", err)
+	if err := decodeJSONString(mapJSON, &decodedMap); err != nil {
+		t.Fatalf("decode map json: %v", err)
 	}
 	if !reflect.DeepEqual(state, &decodedState) {
 		t.Fatalf("state round trip changed value")
@@ -55,6 +58,104 @@ func TestJSONMapRoundTripPreservesCanonicalState(t *testing.T) {
 	if !reflect.DeepEqual(mapData, decodedMap) {
 		t.Fatalf("map round trip changed value")
 	}
+}
+
+func TestJSONMapRejectsNestedArrays(t *testing.T) {
+	_, err := jsonMap(map[string]interface{}{"sites": []interface{}{map[string]interface{}{"edges": [][2]string{{"AAA", "BBB"}}}}})
+	if err == nil || !strings.Contains(err.Error(), "sites[0].edges[0]") {
+		t.Fatalf("err = %v, want the nested array at sites[0].edges[0]", err)
+	}
+}
+
+func TestWinterViewsEncodeWithoutNestedArrays(t *testing.T) {
+	assets, err := loadFirestoreTestAssets()
+	if err != nil {
+		t.Fatalf("load assets: %v", err)
+	}
+	balance, err := assetgen.LoadBalance(testFirestoreAssetDir())
+	if err != nil {
+		t.Fatalf("load balance: %v", err)
+	}
+	state, err := engine.CreateGame("winter-view", []engine.PlayerInit{{Name: "Alice"}, {Name: "Bob"}, {Name: "Carol"}, {Name: "Dave"}}, balance, assets)
+	if err != nil {
+		t.Fatalf("create state: %v", err)
+	}
+	state.Season = models.SeasonWinter
+	players := make([]playerDocument, len(state.Players))
+	for index, player := range state.Players {
+		players[index] = playerDocument{ID: player.ID, Name: player.Name, ActorID: "uid-" + string(player.ID)}
+	}
+	// The documents the store writes when a turn enters winter, built by the
+	// store itself: the player views carry the winter aids.
+	s := NewWithClient(balance, assets, Options{})
+	views, err := s.viewProjections("winter-view", players, 1, state, time.Now())
+	if err != nil {
+		t.Fatalf("encode winter views: %v", err)
+	}
+	if _, err := s.observerDocument("winter-view", "host", 1, state, time.Now(), 0); err != nil {
+		t.Fatalf("encode observer winter view: %v", err)
+	}
+	// A starting house holds a connected castle group: its fief site carries
+	// the edges that once reached Firestore as nested arrays.
+	var view api.StateView
+	if err := decodeJSONMap(views[0].document.State, &view); err != nil {
+		t.Fatalf("decode winter view: %v", err)
+	}
+	if view.WinterAids == nil || len(view.WinterAids.FiefSites) == 0 || len(view.WinterAids.FiefSites[0].Edges) == 0 {
+		t.Fatalf("winter aids = %+v, want a fief site with edges", view.WinterAids)
+	}
+}
+
+// Fields that only fill in rare game situations escape the encoding tests
+// above: every type the store encodes through jsonMap is checked for an array
+// held directly by another array, whatever its content.
+func TestPersistedTypesHoldNoNestedArrays(t *testing.T) {
+	for name, value := range map[string]interface{}{
+		"GameState":      models.GameState{},
+		"PrivacyMeta":    models.PrivacyMeta{},
+		"StateView":      api.StateView{},
+		"TurnReport":     engine.TurnReport{},
+		"TurnReportView": api.TurnReportView{},
+	} {
+		if path := nestedArrayType(reflect.TypeOf(value), name, false, map[reflect.Type]bool{}); path != "" {
+			t.Errorf("%s holds a nested array", path)
+		}
+	}
+}
+
+func nestedArrayType(typ reflect.Type, path string, inArray bool, visiting map[reflect.Type]bool) string {
+	for typ.Kind() == reflect.Pointer {
+		typ = typ.Elem()
+	}
+	switch typ.Kind() {
+	case reflect.Slice, reflect.Array:
+		if typ.Elem().Kind() == reflect.Uint8 {
+			return "" // []byte encodes as a string
+		}
+		if inArray {
+			return path
+		}
+		return nestedArrayType(typ.Elem(), path+"[]", true, visiting)
+	case reflect.Map:
+		return nestedArrayType(typ.Elem(), path+"{}", false, visiting)
+	case reflect.Struct:
+		// A struct encodes as an object, even inside an array.
+		if visiting[typ] {
+			return ""
+		}
+		visiting[typ] = true
+		defer delete(visiting, typ)
+		for index := 0; index < typ.NumField(); index++ {
+			field := typ.Field(index)
+			if !field.IsExported() || field.Tag.Get("json") == "-" {
+				continue
+			}
+			if found := nestedArrayType(field.Type, path+"."+field.Name, false, visiting); found != "" {
+				return found
+			}
+		}
+	}
+	return ""
 }
 
 func TestFirestoreSchemaVersionIsExplicit(t *testing.T) {

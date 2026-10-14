@@ -309,11 +309,11 @@ func (s *FirestoreStore) resolveInternal(ctx context.Context, actor store.Actor,
 	}
 	snapshot, err := s.loadSnapshot(operationContext, actor, id, true)
 	if err != nil {
-		_ = s.releaseResolution(operationContext, id, claim.Claim)
+		s.releaseFailedResolution(ctx, id, claim.Claim)
 		return store.SubmitResult{}, err
 	}
 	if snapshot.Revision != store.Revision(claim.Claim.BaseRevision) {
-		_ = s.releaseResolution(operationContext, id, claim.Claim)
+		s.releaseFailedResolution(ctx, id, claim.Claim)
 		return store.SubmitResult{}, store.ErrRevisionConflict
 	}
 	submitted, remaining := turn.Progress(snapshot.State, func(playerID models.PlayerID) bool {
@@ -322,11 +322,14 @@ func (s *FirestoreStore) resolveInternal(ctx context.Context, actor store.Actor,
 	})
 	resolution, err := turn.Resolve(snapshot.State, s.balance, snapshot.Submissions, s.privacyTracker)
 	if err != nil {
-		_ = s.releaseResolution(operationContext, id, claim.Claim)
+		s.releaseFailedResolution(ctx, id, claim.Claim)
 		return store.SubmitResult{}, err
 	}
 	report := resolution.Report
 	if err := s.commitResolution(operationContext, claim, snapshot, report); err != nil {
+		// Without a release the game would stay locked, every order and
+		// resolution answering a revision conflict, until the lease expires.
+		s.releaseFailedResolution(ctx, id, claim.Claim)
 		return store.SubmitResult{}, err
 	}
 	updated, err := s.Get(operationContext, actor, id)
@@ -422,6 +425,11 @@ func (s *FirestoreStore) commitResolution(ctx context.Context, claim resolutionC
 	canonicalRefValue := canonicalRef(s.client, snapshot.ID)
 	s.recordTransaction()
 	return wrapTransactionResult(s.client.RunTransaction(ctx, func(tx context.Context, transaction *cloudfirestore.Transaction) error {
+		if s.commitFault != nil {
+			if err := s.commitFault(); err != nil {
+				return err
+			}
+		}
 		gameSnapshot, err := transaction.Get(gameRefValue)
 		s.recordReads(1)
 		if err != nil {
@@ -578,6 +586,17 @@ func (s *FirestoreStore) commitResolution(ctx context.Context, claim resolutionC
 		s.recordProjectionWrites(len(views)*2 + observerWrites)
 		return nil
 	}))
+}
+
+// releaseFailedResolution clears the claim of a resolution that did not
+// commit. It runs on a fresh deadline because the failure may be the
+// operation's own deadline. It only clears this operation's claim, so it is
+// a no-op when an ambiguous commit did land or another operation took over;
+// if it fails too, the lease still expires.
+func (s *FirestoreStore) releaseFailedResolution(ctx context.Context, id store.GameID, claim resolutionClaim) {
+	releaseContext, cancel := s.operationContext(context.WithoutCancel(ctx))
+	defer cancel()
+	_ = s.releaseResolution(releaseContext, id, claim)
 }
 
 func (s *FirestoreStore) releaseResolution(ctx context.Context, id store.GameID, claim resolutionClaim) error {

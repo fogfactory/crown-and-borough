@@ -493,6 +493,13 @@ d'un hôte qui ne joue pas. Le document observateur ne contient qu'un pointeur
 vers le dernier rapport ; le rapport complet reste servi par REST. Les règles
 refusent les documents canoniques, les soumissions, les rapports non filtrés et
 les écritures clientes.
+Ces projections étant le contrat lu par le front, l'état projeté et les
+rapports ne contiennent jamais de tableau directement imbriqué dans un tableau,
+que Firestore refuse : une paire s'écrit en objet, par exemple les frontières
+d'un site de fief `winterAids.fiefSites[].edges` en `{ "from": "AAA", "to":
+"BBB" }` avec `from` < `to`. L'encodeur du store rejette un tel tableau avant
+l'écriture. Seule la carte, stockée en chaîne JSON (`mapJson`) dans le document
+canonique, garde ses polygones en tableaux de points.
 Les listeners remplacent le polling régulier ; les routes REST restent la
 source des commandes, des rapports et le fallback d'initialisation ou de
 reconnexion. Un hôte observateur est aussi ajouté à `memberUids` pour pouvoir
