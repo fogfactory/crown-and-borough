@@ -263,6 +263,73 @@ func TestFirestoreStoreResolvesIntoWinter(t *testing.T) {
 	}
 }
 
+// A resolution whose commit fails must not keep the game locked until the
+// lease expires: the next resolution goes through at once.
+func TestFirestoreStoreReleasesTheClaimWhenTheCommitFails(t *testing.T) {
+	if os.Getenv("FIRESTORE_EMULATOR_HOST") == "" {
+		t.Skip("FIRESTORE_EMULATOR_HOST is not configured")
+	}
+	projectID := os.Getenv("FIREBASE_PROJECT_ID")
+	if projectID == "" {
+		projectID = "crown-and-borough-integration"
+	}
+	assets, err := assetgen.Load("../../../assets")
+	if err != nil {
+		t.Fatalf("load assets: %v", err)
+	}
+	balance, err := assetgen.LoadBalance("../../../assets")
+	if err != nil {
+		t.Fatalf("load balance: %v", err)
+	}
+	ctx := context.Background()
+	client, err := cloudfirestore.NewClient(ctx, projectID)
+	if err != nil {
+		t.Fatalf("create emulator client: %v", err)
+	}
+	defer client.Close()
+	// A lease far longer than the test: only an explicit release frees the game.
+	s := NewWithClient(balance, assets, Options{Client: client, StrictMembership: true, LeaseTimeout: time.Hour})
+	alice := store.Actor{ID: "commit-alice"}
+	created, err := s.Create(ctx, alice, store.CreateRequest{
+		Name:    "Failed commit",
+		Seed:    "firestore-failed-commit",
+		Players: []engine.PlayerInit{{Name: "Alice"}, {Name: "Bob"}},
+	})
+	if err != nil {
+		t.Fatalf("create game: %v", err)
+	}
+	id := created.ID
+	defer func() {
+		if err := s.deleteGame(ctx, id); err != nil {
+			t.Errorf("delete game subtree: %v", err)
+		}
+	}()
+	commitErr := errors.New("commit refused")
+	s.commitFault = func() error { return commitErr }
+	if _, err := s.Resolve(ctx, alice, id); !errors.Is(err, commitErr) {
+		t.Fatalf("resolve with a failing commit error = %v, want %v", err, commitErr)
+	}
+	canonicalSnapshot, err := canonicalRef(s.client, id).Get(ctx)
+	if err != nil {
+		t.Fatalf("read canonical: %v", err)
+	}
+	canonical, err := decodeCanonicalDocument(canonicalSnapshot)
+	if err != nil {
+		t.Fatalf("decode canonical: %v", err)
+	}
+	if canonical.Resolution != nil || canonical.Turn != 1 {
+		t.Fatalf("canonical after the failed commit = turn %d claim %+v, want turn 1 and no claim", canonical.Turn, canonical.Resolution)
+	}
+	s.commitFault = nil
+	resolved, err := s.Resolve(ctx, alice, id)
+	if err != nil {
+		t.Fatalf("resolve after the failed commit: %v", err)
+	}
+	if resolved.Snapshot.State.Turn != 2 {
+		t.Fatalf("turn after resolution = %d, want 2", resolved.Snapshot.State.Turn)
+	}
+}
+
 func TestFirestoreStoreReadinessAcceptsAReachableMissingDocument(t *testing.T) {
 	if os.Getenv("FIRESTORE_EMULATOR_HOST") == "" {
 		t.Skip("FIRESTORE_EMULATOR_HOST is not configured")
