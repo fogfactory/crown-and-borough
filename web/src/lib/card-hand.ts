@@ -47,6 +47,10 @@ export function formatCardLabel(kind: CardKind, t: Translate): string {
   return `${t(CARD_NAME_KEYS[kind])} (${t(CARD_SHORT_KEYS[kind])})`
 }
 
+export function formatCardName(kind: CardKind, t: Translate): string {
+  return t(CARD_NAME_KEYS[kind])
+}
+
 export function formatCardCode(kind: CardKind, t: Translate): string {
   return t(CARD_SHORT_KEYS[kind])
 }

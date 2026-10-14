@@ -740,6 +740,14 @@ cartes, saisie des ordres, pied collant d'envoi.
 **Précision.** Sur téléphone, l'éventail défile horizontalement et chaque
 carte mesure au moins 64 × 88 px.
 
+**Précision.** En hiver, le bandeau de trésor n'écrit que le stock et le
+revenu : il n'y a ni ravitaillement ni famine à prévoir. Le risque de famine
+compte les armées menacées (« famine : 2 armées »). La main réunit cartes
+spéciales et cartes de noble dans un seul éventail, en toute saison ; les
+commandes de la carte choisie (« Jouer », « Défausser », ou les ordres d'une
+carte spéciale en saison d'action) s'affichent sous l'éventail. Une carte
+spéciale en plusieurs exemplaires porte un « ×2 » en coin.
+
 ### Marque-page Royaume
 
 Le marque-page « Royaume » regroupe ce qui concerne tout le royaume et qui

@@ -4,7 +4,17 @@ import { describe, expect, it, vi } from 'vitest'
 import { OrdersPanel, SealOrders } from '@/components/OrdersPanel'
 import { LanguageProvider } from '@/i18n/LanguageContext'
 import type { Noble, OrdersPreview, Region, StateData, Territory } from '@/types'
+import { withText } from '@/test/text'
 
+
+/** Picks the first card of the hand fan, which shows its play controls. */
+function pickHandCard(code?: string) {
+  const card = document.querySelector<HTMLElement>(
+    code ? `[data-hand-card="${code}"]` : '[data-hand-card]',
+  )
+  if (!card) throw new Error('no card in the hand fan')
+  fireEvent.click(card)
+}
 const state: StateData = {
   turn: 4,
   season: 'spring',
@@ -292,9 +302,9 @@ describe('OrdersPanel seasonal presentation', () => {
       </LanguageProvider>,
     )
 
-    expect(
-      screen.getByText(/Beau temps \(BT\)x2, Bonne récolte \(RA\)/),
-    ).toBeInTheDocument()
+    // The hand fan shows each card once, with its copies.
+    expect(screen.getByRole('button', { name: 'Beau temps (BT) ×2' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Bonne récolte (RA)' })).toBeInTheDocument()
   })
 
   it('warns about scheduled calamities in the deck panel', () => {
@@ -322,11 +332,11 @@ describe('OrdersPanel seasonal presentation', () => {
       </LanguageProvider>,
     )
 
-    expect(screen.getByRole('alert')).toBeInTheDocument()
-    expect(screen.getByText('Calamités à venir')).toBeInTheDocument()
-    expect(screen.getByText(/Peste \(PE\) — Été dans ROS/)).toBeInTheDocument()
+    // A forecast is a warning, not an alert.
+    expect(screen.getByText('Calamités à venir').closest('[data-calamity-forecast]')).toHaveClass('bg-warning-100')
+    expect(screen.getByText(withText(/Peste \(PE\) — Été dans ROS/))).toBeInTheDocument()
     expect(
-      screen.getByText(/Mauvaise récolte \(MR\) — Hiver dans BOI/),
+      screen.getByText(withText(/Mauvaise récolte \(MR\) — Hiver dans BOI/)),
     ).toBeInTheDocument()
   })
 
@@ -354,7 +364,7 @@ describe('OrdersPanel seasonal presentation', () => {
 
     expect(screen.getByText('Calamités à venir')).toBeInTheDocument()
     expect(
-      screen.getByText(/Mauvais temps \(MT\) — Printemps dans ROS/),
+      screen.getByText(withText(/Mauvais temps \(MT\) — Printemps dans ROS/)),
     ).toBeInTheDocument()
   })
 
@@ -540,7 +550,7 @@ describe('OrdersPanel noble deck (winter)', () => {
 
   it('draws a card and shows the deck size', () => {
     const onWinterChange = renderDeck('')
-    expect(screen.getByText('Deck : 5 carte(s) restante(s)')).toBeInTheDocument()
+    expect(screen.getByText(/^Deck : 5 · Main : 2\//)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Piocher une carte de noble/ }))
     expect(onWinterChange).toHaveBeenCalledWith('T N\n')
   })
@@ -557,9 +567,7 @@ describe('OrdersPanel noble deck (winter)', () => {
       ...deckState,
       specialHand: ['fair_weather', 'fair_weather'],
     })
-    expect(
-      screen.getByText('Main : 4/4 cartes (spéciales : 2, nobles : 2)'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Deck : 5 · Main : 4/4')).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: /Piocher une carte de noble/ }),
     ).toBeDisabled()
@@ -568,9 +576,7 @@ describe('OrdersPanel noble deck (winter)', () => {
 
   it('keeps the draw enabled while the shared hand has room', () => {
     renderDeck('', vi.fn(), { ...deckState, specialHand: ['fair_weather'] })
-    expect(
-      screen.getByText('Main : 3/4 cartes (spéciales : 1, nobles : 2)'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Deck : 5 · Main : 3/4')).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: /Piocher une carte de noble/ }),
     ).toBeEnabled()
@@ -585,7 +591,8 @@ describe('OrdersPanel noble deck (winter)', () => {
 
   it('plays a noble card only on controlled settlements with an army', () => {
     const onWinterChange = renderDeck('')
-    fireEvent.click(screen.getByRole('button', { name: 'Albert (ALB, homme)' }))
+    pickHandCard('ALB')
+    fireEvent.click(screen.getByRole('button', { name: 'Jouer' }))
     const dialog = screen.getByRole('dialog')
     expect(
       within(dialog)
@@ -598,7 +605,8 @@ describe('OrdersPanel noble deck (winter)', () => {
 
   it('plays a dignity card on an own noble', () => {
     const onWinterChange = renderDeck('# note')
-    fireEvent.click(screen.getByRole('button', { name: 'Dignité : Bâtard (BAS)' }))
+    pickHandCard('BAS')
+    fireEvent.click(screen.getByRole('button', { name: 'Jouer' }))
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: "Ajouter l'ordre" }))
     expect(onWinterChange).toHaveBeenCalledWith('# note\nD N HUG BAS # Bâtard pour Hugues\n')
   })
@@ -612,7 +620,8 @@ describe('OrdersPanel noble deck (winter)', () => {
         ...deckState.nobles,
       ],
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Dignité : Bâtard (BAS)' }))
+    pickHandCard('BAS')
+    fireEvent.click(screen.getByRole('button', { name: 'Jouer' }))
     const dialog = screen.getByRole('dialog')
     expect(
       within(dialog)
@@ -635,7 +644,8 @@ describe('OrdersPanel noble deck (winter)', () => {
       ],
       nobleHand: [{ id: 'c9', kind: 'dignity', code: 'SOR', dignity: 'witch' }],
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Dignité : Sorcière (SOR)' }))
+    pickHandCard('SOR')
+    fireEvent.click(screen.getByRole('button', { name: 'Jouer' }))
     expect(
       within(screen.getByRole('dialog'))
         .getAllByRole('option')
@@ -668,7 +678,8 @@ describe('OrdersPanel noble deck (winter)', () => {
       marriages: [{ nobleA: 'HUG', nobleB: 'ANN', turn: 1 }],
       nobleHand: [{ id: 'c3', kind: 'claim', code: 'CLM' }],
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Prétention (CLM)' }))
+    pickHandCard('CLM')
+    fireEvent.click(screen.getByRole('button', { name: 'Jouer' }))
     const dialog = screen.getByRole('dialog')
     expect(
       within(screen.getByLabelText('Noble visé'))
@@ -681,27 +692,32 @@ describe('OrdersPanel noble deck (winter)', () => {
 
   it('offers the card orders outside winter, without draw nor discard', () => {
     renderDeck('', vi.fn(), { ...deckState, season: 'spring' })
-    expect(
-      screen.getByRole('button', { name: 'Albert (ALB, homme)' }),
-    ).toBeInTheDocument()
+    pickHandCard('ALB')
+    expect(screen.getByRole('button', { name: 'Jouer' })).toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: /Piocher une carte de noble/ }),
     ).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Défausser la carte ALB' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Défausser' })).toBeNull()
   })
 
   it('discards a noble or dignity card from the hand', () => {
     const onWinterChange = renderDeck('')
-    fireEvent.click(screen.getByRole('button', { name: 'Défausser la carte ALB' }))
+    pickHandCard('ALB')
+    fireEvent.click(screen.getByRole('button', { name: 'Défausser' }))
     expect(onWinterChange).toHaveBeenCalledWith('D C ALB # défausser Albert\n')
-    fireEvent.click(screen.getByRole('button', { name: 'Défausser la carte BAS' }))
+    pickHandCard('BAS')
+    fireEvent.click(screen.getByRole('button', { name: 'Défausser' }))
     expect(onWinterChange).toHaveBeenLastCalledWith('D C BAS # défausser BAS\n')
   })
 
   it('disables the discard of a card already used by a draft line', () => {
     renderDeck('D C ALB\nD N HUG BAS\n')
-    expect(screen.getByRole('button', { name: 'Défausser la carte ALB' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Défausser la carte BAS' })).toBeDisabled()
+    // A card discarded by the sheet is greyed and struck through in the fan.
+    expect(document.querySelector('[data-hand-card="ALB"]')).toHaveAttribute('data-discarded', 'true')
+    pickHandCard('ALB')
+    expect(screen.getByRole('button', { name: 'Défausser' })).toBeDisabled()
+    pickHandCard('BAS')
+    expect(screen.getByRole('button', { name: 'Défausser' })).toBeDisabled()
   })
 
   it('lets a drafted discard free a slot for the draw', () => {
@@ -1019,7 +1035,8 @@ describe('OrdersPanel title and card order dialogs', () => {
 
   it('plays a special card on a region and discards it in winter', () => {
     const onWinterChange = renderWinter({ specialHand: ['fair_weather'] })
-    fireEvent.click(screen.getByRole('button', { name: /Discard Fair weather|Discard Beau temps/ }))
+    pickHandCard()
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }))
     expect(onWinterChange).toHaveBeenCalledWith(expect.stringMatching(/^D C BT # discard /))
   })
 
@@ -1049,6 +1066,7 @@ describe('OrdersPanel title and card order dialogs', () => {
         />
       </LanguageProvider>,
     )
+    pickHandCard()
     fireEvent.click(screen.getByRole('button', { name: /^Play .*\(P\)$/ }))
     const dialog = screen.getByRole('dialog')
     const options = within(dialog).getAllByRole('option').map((o) => o.textContent)
@@ -1093,6 +1111,7 @@ describe('OrdersPanel title and card order dialogs', () => {
       },
       'P TX FFF\n',
     )
+    pickHandCard()
     fireEvent.click(screen.getByRole('button', { name: /^Play Revolt/ }))
     expect(
       within(screen.getByRole('dialog'))
@@ -1113,6 +1132,7 @@ describe('OrdersPanel title and card order dialogs', () => {
       nobles: [pope],
       bishoprics,
     })
+    pickHandCard()
     fireEvent.click(screen.getByRole('button', { name: /^Play Tax/ }))
     const dialog = screen.getByRole('dialog')
     expect(within(dialog).getByText(/tithe on every bishopric/)).toBeTruthy()
@@ -1127,6 +1147,7 @@ describe('OrdersPanel title and card order dialogs', () => {
       nobles: [{ ...pope, religiousTitle: 'cardinal' }],
       bishoprics,
     })
+    pickHandCard()
     fireEvent.click(screen.getByRole('button', { name: /^Play Tax/ }))
     const dialog = screen.getByRole('dialog')
     fireEvent.change(within(dialog).getByLabelText('Target (fief capital or bishopric)'), { target: { value: 'CCC' } })
@@ -1140,6 +1161,7 @@ describe('OrdersPanel title and card order dialogs', () => {
       { capital: 'FFF', title: 'barony' as const, territories: ['FFF', 'GGG', 'HHH'], owner: 'P2', holder: 'LEO' },
     ]
     const onSpecialChange = renderAction({ specialHand: ['seigneurial_tax'], nobles: [king, ...nobles.slice(1)], king: 'KNG', fiefs })
+    pickHandCard()
     fireEvent.click(screen.getByRole('button', { name: /^Play Tax/ }))
     const dialog = screen.getByRole('dialog')
     expect(within(dialog).getByText(/royal tax on any fief/)).toBeTruthy()
@@ -1158,6 +1180,7 @@ describe('OrdersPanel title and card order dialogs', () => {
         { id: 'R2', name: 'Cor', seed: 'CCC', territories: ['CCC'] },
       ],
     )
+    pickHandCard()
     fireEvent.click(screen.getByRole('button', { name: /^Play Revolt/ }))
     expect(
       within(screen.getByRole('dialog'))
@@ -1178,6 +1201,7 @@ describe('OrdersPanel title and card order dialogs', () => {
       ],
       nobles: [{ ...nobles[0], id: 'N9', code: 'JAI', owner: 'P1', status: 'hostage' }],
     })
+    pickHandCard()
     fireEvent.click(screen.getByRole('button', { name: /^Play Tunnel \(SO\): tunneled attack/ }))
     const dialog = screen.getByRole('dialog')
     fireEvent.change(within(dialog).getByLabelText('Attack origin'), { target: { value: 'AAA' } })
@@ -1195,6 +1219,7 @@ describe('OrdersPanel title and card order dialogs', () => {
         { ...nobles[0], id: 'N9', code: 'JAI', owner: 'P2', status: 'hostage' },
       ],
     })
+    pickHandCard()
     fireEvent.click(screen.getByRole('button', { name: /^Play Assassination \(AS\): assassinate a noble/ }))
     const dialog = screen.getByRole('dialog')
     fireEvent.change(within(dialog).getByLabelText('Commissioner (your free noble)'), { target: { value: 'AAA' } })
@@ -1212,6 +1237,7 @@ describe('OrdersPanel title and card order dialogs', () => {
       ],
     })
     fireEvent.click(screen.getByRole('button', { name: /^Assassination \(AS\)/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }))
     const dialog = screen.getByRole('dialog')
     fireEvent.change(within(dialog).getByLabelText('Commissioner (your free noble)'), { target: { value: 'AAA' } })
     fireEvent.change(within(dialog).getByLabelText('Noble to assassinate'), { target: { value: 'JAI' } })
@@ -1229,6 +1255,7 @@ describe('OrdersPanel title and card order dialogs', () => {
         { ...nobles[0], id: 'N7', code: 'KIN', owner: 'P3', status: 'free' },
       ],
     })
+    pickHandCard()
     fireEvent.click(screen.getByRole('button', { name: /^Play Justice \(JU\): try a noble/ }))
     const dialog = screen.getByRole('dialog')
     const options = within(dialog)
@@ -1251,6 +1278,7 @@ describe('OrdersPanel title and card order dialogs', () => {
       ],
     })
     fireEvent.click(screen.getByRole('button', { name: /^Justice \(JU\)/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }))
     const dialog = screen.getByRole('dialog')
     fireEvent.change(within(dialog).getByLabelText('Noble to try'), { target: { value: 'JAI' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
@@ -1273,6 +1301,7 @@ describe('OrdersPanel title and card order dialogs', () => {
       vi.fn(),
       [mapTerritory('AAA', ['BBB']), mapTerritory('BBB', ['AAA', 'CCC']), mapTerritory('CCC', ['BBB'])],
     )
+    pickHandCard()
     fireEvent.click(screen.getByRole('button', { name: /^Play Tunnel \(SO\): tunneled attack/ }))
     const dialog = screen.getByRole('dialog')
     fireEvent.change(within(dialog).getByLabelText('Attack origin'), { target: { value: 'AAA' } })
@@ -1292,12 +1321,19 @@ describe('OrdersPanel title and card order dialogs', () => {
       specialHand: ['ambush'],
       territories: [territory('AAA', 'P1', { owner: 'P1', size: 2, chain: null }), territory('BBB', 'P2', null)],
     })
+    pickHandCard()
     fireEvent.click(screen.getByRole('button', { name: /^Play Ambush \(EM\): ambush on an attack/ }))
     const dialog = screen.getByRole('dialog')
     fireEvent.change(within(dialog).getByLabelText('Attack origin'), { target: { value: 'AAA' } })
     fireEvent.change(within(dialog).getByLabelText('Attack target'), { target: { value: 'BBB' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
     expect(onSpecialChange).toHaveBeenCalledWith(expect.stringMatching(/^P EM AAA BBB/))
+  })
+
+  it('says when a picked special card cannot be played now', () => {
+    renderAction({ specialHand: ['plague'] })
+    pickHandCard('PE')
+    expect(screen.getByText('No possible target this turn')).toBeInTheDocument()
   })
 
   it('keeps every playable card of the hand in the launchers', () => {
@@ -1308,8 +1344,12 @@ describe('OrdersPanel title and card order dialogs', () => {
         { id: 'AAA', owner: 'P1', resources: 0, army: { owner: 'P1', size: 2, chain: null }, infrastructures: [] },
       ],
     })
+    // Each card of the fan offers its own play orders once picked.
+    pickHandCard('TX')
     expect(screen.getByRole('button', { name: /^Play Tax \(TX\)/ })).toBeTruthy()
+    pickHandCard('SO')
     expect(screen.getByRole('button', { name: /^Play Tunnel \(SO\): tunneled attack/ })).toBeTruthy()
+    pickHandCard('EM')
     expect(screen.getAllByRole('button', { name: /^Play Ambush \(EM\)/ })).toHaveLength(1)
   })
 
@@ -1326,6 +1366,7 @@ describe('OrdersPanel title and card order dialogs', () => {
         territory('DDD', 'P2', null),
       ],
     })
+    pickHandCard()
     fireEvent.click(screen.getByRole('button', { name: /^Play Ambush \(EM\)/ }))
     const origin = within(screen.getByRole('dialog')).getByLabelText('Attack origin')
     expect(within(origin).getAllByRole('option').map((o) => o.textContent)).toEqual(['AAA', 'BBB'])
@@ -1383,8 +1424,8 @@ describe('OrdersPanel title and card order dialogs', () => {
         { kind: 'famine', season: 'autumn', region: 'BBB', year: 1001 },
       ],
     })
-    expect(screen.getByText(/AAA \(unusual omens\)/)).toBeTruthy()
-    expect(screen.getAllByText(/unusual omens/)).toHaveLength(1)
+    expect(screen.getByText(withText(/AAA \(unusual omens\)/))).toBeTruthy()
+    expect(screen.getAllByText(withText(/unusual omens/))).toHaveLength(1)
   })
 
   it('offers no title order outside winter, even with aids on the state', () => {
@@ -1426,6 +1467,7 @@ describe('OrdersPanel title and card order dialogs', () => {
         />
       </LanguageProvider>,
     )
+    pickHandCard()
     fireEvent.click(screen.getByRole('button', { name: /^Play .*\(P\)$/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
     expect(onSpecialChange).toHaveBeenCalledWith(expect.stringMatching(/^P BT AAA # .* on AAA\n$/))

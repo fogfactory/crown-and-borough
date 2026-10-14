@@ -18,8 +18,7 @@ import { ownTerritoriesFrame } from '@/lib/map-frame'
 import { useMapLinkState } from '@/lib/use-map-link-state'
 import { MapLinksProvider } from '@/components/MapLinks'
 import { SelectedTerritoryDetails } from '@/components/SelectedTerritoryDetails'
-import { ProjectedConsumptionSummary } from '@/components/ProjectedConsumptionSummary'
-import { ProjectedIncomeSummary } from '@/components/ProjectedIncomeSummary'
+import { TreasuryBar } from '@/components/TreasuryBar'
 import { OrdersPanel, SealOrders } from '@/components/OrdersPanel'
 import { RealmPanel } from '@/components/RealmPanel'
 import { ReportPane, type ReportSummary } from '@/components/ReportPane'
@@ -1103,12 +1102,11 @@ export function GamePage() {
             panels={{
               orders: (
                 <>
-                  <ProjectedIncomeSummary
+                  <TreasuryBar
                     state={state}
                     playerId={playerID}
                     specialDraft={specialDraft}
                   />
-                  <ProjectedConsumptionSummary state={state} playerId={playerID} />
                   {!detailsOnMap && territoryDetails}
                   {playerID ? (
                     <OrdersPanel

@@ -1,8 +1,8 @@
 import { TerritoryRef } from '@/components/MapLinks'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
-import { draftedTaxEffects } from '@/lib/projected-tax'
 import { richTranslate } from '@/lib/rich-text'
+import { treasuryOf, type Treasury } from '@/lib/treasury'
 import type { FiefTitle, PlayerId, StateData } from '@/types'
 
 interface ProjectedIncomeSummaryProps {
@@ -10,6 +10,8 @@ interface ProjectedIncomeSummaryProps {
   playerId: PlayerId | null
   /** The viewer's drafted special-card orders, whose tax effects are included. */
   specialDraft?: string
+  /** Treasury already computed by the caller (the treasury bar). */
+  treasury?: Treasury | null
 }
 
 const FIEF_TITLE_KEYS: Record<FiefTitle, MessageKey> = {
@@ -20,7 +22,7 @@ const FIEF_TITLE_KEYS: Record<FiefTitle, MessageKey> = {
 }
 
 /**
- * Command post lines showing the selected player's normal territory and mill
+ * Income detail of the treasury bar (charte § Poste de commandement), showing the selected player's normal territory and mill
  * income for the next action turn (never in winter): territories, villages,
  * and mills already credit their destinations before ravitaillement, so this
  * is a steady-state projection, not last turn's actual result. The two are
@@ -36,13 +38,15 @@ export function ProjectedIncomeSummary({
   state,
   playerId,
   specialDraft,
+  treasury: givenTreasury,
 }: ProjectedIncomeSummaryProps) {
   const { t } = useLanguage()
   if (!state || !playerId) {
     return null
   }
   const player = state.players.find((candidate) => candidate.id === playerId)
-  if (!player) {
+  const treasury = givenTreasury ?? treasuryOf(state, playerId, specialDraft)
+  if (!player || !treasury) {
     return null
   }
   const playerFiefs = (state.fiefs ?? []).filter((fief) => fief.owner === playerId)
@@ -51,23 +55,11 @@ export function ProjectedIncomeSummary({
     0,
   )
   const nonFiefIncome = (player.projectedIncome ?? 0) - fiefIncomeTotal
-  const taxes = draftedTaxEffects(state, playerId, specialDraft)
+  const { taxes } = treasury
   const royalRent = player.projectedRoyalRent ?? 0
-  const projectedTotal =
-    (player.projectedIncome ?? 0) +
-    Object.values(taxes.seigneurial).reduce((sum, extra) => sum + extra, 0) +
-    (player.projectedMillIncome ?? 0) +
-    royalRent +
-    taxes.royalSupplement +
-    taxes.tithe
-  const totalResources = state.territories.reduce(
-    (total, territory) =>
-      total + (territory.owner === playerId ? territory.resources : 0),
-    0,
-  )
 
   return (
-    <div className="rounded-lg border border-line bg-paper-100 px-3 py-2 text-sm">
+    <div className="text-sm">
       <p className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
         {t('app.projectedIncome')}
       </p>
@@ -138,11 +130,8 @@ export function ProjectedIncomeSummary({
           {t('app.projectedRoyalTaxAmount', { amount: taxes.royalSupplement })}
         </p>
       )}
-      <p className="mt-2 border-t border-line-soft pt-2 font-bold">
-        {t('app.projectedTotalAmount', { amount: projectedTotal })}
-      </p>
-      <p className="mt-2 border-t border-line-soft pt-2 font-medium">
-        {t('app.currentResourcesAmount', { amount: totalResources })}
+      <p className="mt-1 border-t border-line-soft pt-1 font-bold">
+        {t('app.projectedTotalAmount', { amount: treasury.income })}
       </p>
     </div>
   )
