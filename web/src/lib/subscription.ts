@@ -192,13 +192,19 @@ export function normalizeStateData(value: unknown): StateData | null {
   ) {
     return null
   }
+  // Every projected field is forwarded as the server sent it (winter aids,
+  // fiefs, titles, elections…); only the fields below get a type check or a
+  // default, so a field added to the projection reaches the UI without an
+  // entry here.
+  const { victory, ...projected } = state
   return {
+    ...projected,
     turn: state.turn,
     season: seasonValue(state.season),
     year: numberValue(state.year, Math.floor((state.turn - 1) / 4) + 1),
     yearCount: numberValue(state.yearCount, 10),
     scores: scoresFromData(state.scores),
-    ...(state.victory && typeof state.victory === 'object' ? { victory: state.victory } : {}),
+    ...(victory && typeof victory === 'object' ? { victory } : {}),
     finished: state.finished === true,
     winner: typeof state.winner === 'string' ? state.winner : null,
     players: state.players,
