@@ -1,6 +1,7 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen, within } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 
+import { MapLinksProvider } from '@/components/MapLinks'
 import { ReportPanel } from '@/components/ReportPanel'
 import { LanguageProvider } from '@/i18n/LanguageContext'
 import type { MapData, StateData, TurnReport } from '@/types'
@@ -637,7 +638,7 @@ describe('ReportPanel', () => {
 
     const occupiedLine = screen.getByText(withText('Bruyères (BRU) (fief of Rosemont (ROS)) occupied by P2'))
     expect(occupiedLine).toBeInTheDocument()
-    expect(occupiedLine).toHaveClass('text-vermilion-700')
+    expect(occupiedLine.closest('[data-event-card]')).toHaveClass('text-vermilion-700')
   })
 
   it('warns distinctly about a fief automatically assigned at the end of winter', () => {
@@ -738,7 +739,7 @@ describe('ReportPanel', () => {
       </LanguageProvider>,
     )
 
-    expect(screen.getByText('2 (+1 noble)')).toBeInTheDocument()
+    expect(screen.getByText(/2 \(\+1 noble\)/)).toBeInTheDocument()
   })
 
   it('reports an ambush capture and a card played with no region', () => {
@@ -836,7 +837,9 @@ describe('ReportPanel', () => {
     )
 
     expect(screen.getByText('Resolution complete')).toBeInTheDocument()
-    expect(screen.getByText('No chain reception events.')).toBeInTheDocument()
+    // Empty categories are left out rather than announced.
+    expect(document.querySelector('[data-report-category="combats"]')).toBeNull()
+    expect(document.querySelector('[data-report-category="orders"]')).toBeNull()
   })
 
   it('renders the same report in English with translated reason labels', () => {
@@ -850,5 +853,83 @@ describe('ReportPanel', () => {
     expect(screen.getAllByText('Success')).not.toHaveLength(0)
     expect(screen.getByText(/Insufficient resources/)).toBeInTheDocument()
     expect(screen.getByText('The destination is not adjacent.')).toBeInTheDocument()
+  })
+})
+
+describe('ReportPanel event cards', () => {
+  const links = {
+    focus: vi.fn(),
+    showEvent: vi.fn(),
+    highlight: vi.fn(),
+    hasTerritory: () => true,
+    territoryName: () => undefined,
+    nobleName: () => undefined,
+    nobleTerritory: () => undefined,
+    isDeceased: () => false,
+  }
+
+  it('folds repetitive results into summary cards and leaves empty lines out', () => {
+    const { container } = render(
+      <LanguageProvider initialLanguage="en">
+        <ReportPanel
+          report={{
+            ...report,
+            winter: {
+              ...(report.winter ?? { investments: [], cards: [], rumors: [] }),
+              stocks: [
+                { territory: 'ROS', stockBefore: 40, stockAfter: 20 },
+                { territory: 'BRU', stockBefore: 0, stockAfter: 0 },
+              ],
+            },
+          }}
+          map={map}
+          players={players}
+        />
+      </LanguageProvider>,
+    )
+
+    const summaries = Array.from(container.querySelectorAll('[data-summary-card] summary')).map(
+      (summary) => summary.textContent,
+    )
+    expect(summaries).toContain('Conservation: 1 stocks halved')
+    expect(summaries.some((summary) => summary?.startsWith('Income:'))).toBe(true)
+    expect(container.querySelector('[data-summary-card]')).not.toHaveAttribute('open')
+    expect(container).not.toHaveTextContent('0 → 0')
+  })
+
+  it('shows an order on the map with its arrows', () => {
+    render(
+      <LanguageProvider initialLanguage="en">
+        <MapLinksProvider value={links}>
+          <ReportPanel report={report} map={map} players={players} />
+        </MapLinksProvider>
+      </LanguageProvider>,
+    )
+
+    const orders = document.querySelector('[data-report-category="orders"]') as HTMLElement
+    fireEvent.click(within(orders).getAllByRole('button', { name: 'Show' })[0])
+    expect(links.showEvent).toHaveBeenCalledWith({
+      territories: ['ROS', 'BRU', 'CHA'],
+      arrows: [
+        ['ROS', 'BRU'],
+        ['ROS', 'CHA'],
+      ],
+    })
+  })
+
+  it('sets the rumors apart, in italics', () => {
+    const { container } = render(
+      <LanguageProvider initialLanguage="fr">
+        <ReportPanel
+          report={{ ...report, rumors: [{ kind: 'famine', key: 'reports.rumors' }] }}
+          map={map}
+          players={players}
+        />
+      </LanguageProvider>,
+    )
+
+    const box = container.querySelector('[data-report-rumors]')
+    expect(box).toHaveTextContent('On dit au marché…')
+    expect(box?.querySelector('ul')).toHaveClass('italic')
   })
 })

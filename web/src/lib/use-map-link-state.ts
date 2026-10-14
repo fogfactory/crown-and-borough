@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 
 import type { MapLinks } from '@/components/MapLinks'
-import { FOCUS_FRAME_PADDING, type MapFrame } from '@/lib/map-frame'
+import { FOCUS_FRAME_PADDING, type EventMarks, type MapFrame } from '@/lib/map-frame'
 import type { MapData, StateData } from '@/types'
 
 interface MapLinkStateOptions {
@@ -13,6 +13,8 @@ interface MapLinkStateOptions {
   baseFrame?: MapFrame
   /** Selects a territory, as a click on the map would. */
   onSelect: (territory: string) => void
+  /** Called when a report event is shown (phones switch to the map). */
+  onShowEvent?: () => void
 }
 
 interface MapLinkState {
@@ -21,6 +23,8 @@ interface MapLinkState {
   frame?: MapFrame
   highlightedId: string | null
   selectedNoble: string | null
+  /** Report event drawn on the map, until the selection changes. */
+  eventMarks: EventMarks | null
 }
 
 interface Focus {
@@ -42,14 +46,18 @@ export function useMapLinkState({
   selectedId,
   baseFrame,
   onSelect,
+  onShowEvent,
 }: MapLinkStateOptions): MapLinkState {
   const [focus, setFocus] = useState<Focus | null>(null)
   const [highlightedId, setHighlightedId] = useState<string | null>(null)
+  const [shown, setShown] = useState<{ marks: EventMarks; selectedId: string | null } | null>(
+    null,
+  )
   const followed = useRef(0)
   // Latest page values, read when a link is followed, so the context value
   // stays the same object between renders.
-  const latest = useRef({ baseKey: baseFrame?.key, onSelect })
-  latest.current = { baseKey: baseFrame?.key, onSelect }
+  const latest = useRef({ baseKey: baseFrame?.key, onSelect, onShowEvent, selectedId })
+  latest.current = { baseKey: baseFrame?.key, onSelect, onShowEvent, selectedId }
 
   const territoryNames = useMemo(
     () => new Map((map?.territories ?? []).map((territory) => [territory.id, territory.name])),
@@ -78,7 +86,23 @@ export function useMapLinkState({
           baseKey: latest.current.baseKey,
         })
         setHighlightedId(null)
+        setShown(null)
         latest.current.onSelect(territory)
+      },
+      showEvent: (marks) => {
+        if (marks.territories.length === 0) return
+        followed.current += 1
+        setFocus({
+          frame: {
+            territories: marks.territories,
+            key: `event:${followed.current}`,
+            padding: FOCUS_FRAME_PADDING,
+          },
+          baseKey: latest.current.baseKey,
+        })
+        setShown({ marks, selectedId: latest.current.selectedId })
+        setHighlightedId(null)
+        latest.current.onShowEvent?.()
       },
       highlight: setHighlightedId,
       hasTerritory: (id) => territoryNames.has(id),
@@ -99,6 +123,8 @@ export function useMapLinkState({
     links,
     frame: current?.frame ?? baseFrame,
     highlightedId,
+    // The event stays drawn until the selection changes.
+    eventMarks: shown && shown.selectedId === selectedId ? shown.marks : null,
     selectedNoble:
       current?.noble && selectedId === current.frame.territories[0]
         ? current.noble

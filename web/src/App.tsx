@@ -456,6 +456,9 @@ function AppContent() {
       // Phones show the territory on the map tab (charte § Identifiants).
       if (!desktop) setActivePanel('map')
     },
+    onShowEvent: () => {
+      if (!desktop) setActivePanel('map')
+    },
   })
   // On the phone map view the details show in a card over the map instead.
   const detailsOnMap = !desktop && activePanel === 'map' && Boolean(selectedTerritory)
@@ -514,6 +517,7 @@ function AppContent() {
           frame={linkState.frame}
           highlightedId={linkState.highlightedId}
           selectedNoble={linkState.selectedNoble}
+          eventMarks={linkState.eventMarks}
           intentions={intentions}
           winterIntentions={winterIntentions}
           showIntentions={showIntentions}
@@ -766,6 +770,7 @@ function AppContent() {
                     finished={state.finished}
                     winners={state.winners}
                     minorWinner={state.minorWinner}
+                    activePlayer={selectedPlayer}
                   />
                 </HeaderPopover>
                 {/* On phones the lineage opens from the Realm tab only. */}

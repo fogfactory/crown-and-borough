@@ -1,5 +1,11 @@
 import { METAL_COLORS, NEUTRAL_ARMY_COLOR } from '@/lib/map-palette'
-import { NEUTRAL_PLAYER_ID, type Charge, type FiefTitle, type StateData } from '@/types'
+import {
+  NEUTRAL_PLAYER_ID,
+  type Charge,
+  type FiefTitle,
+  type Player,
+  type StateData,
+} from '@/types'
 
 /** Arms ready to draw: the field color, and the charge in its metal if any. */
 export interface ResolvedArms {
@@ -30,6 +36,16 @@ export function resolveArmsByOwner(
     resolved.set(NEUTRAL_PLAYER_ID, { field: NEUTRAL_ARMY_COLOR, charge: null })
   }
   return resolved
+}
+
+/** A player's arms: its colour as the field, and its charge if it has one. */
+export function playerArms(player: Pick<Player, 'color' | 'arms'>): ResolvedArms {
+  return {
+    field: player.color,
+    charge: player.arms
+      ? { kind: player.arms.charge, metal: METAL_COLORS[player.arms.metal] }
+      : null,
+  }
 }
 
 /** A rank crown, or the king's closed crown. */

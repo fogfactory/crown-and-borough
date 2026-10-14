@@ -33,7 +33,7 @@ import { useLanguage } from '@/i18n/LanguageContext'
 import type { Intention } from '@/lib/intent-overlay'
 import type { WinterIntention } from '@/lib/winter-overlay'
 import { NEUTRAL_PLAYER_ID } from '@/types'
-import type { MapFrame } from '@/lib/map-frame'
+import type { EventMarks, MapFrame } from '@/lib/map-frame'
 import { boundsOf, centroid, pointsToPath } from '@/lib/map-svg-geometry'
 import { resolveArmsByOwner } from '@/lib/heraldry'
 import { nobleAttributesByCode } from '@/lib/noble-attributes'
@@ -101,6 +101,8 @@ interface MapViewerProps {
   highlightedId?: string | null
   /** Noble whose pawn wears the selection halo. */
   selectedNoble?: string | null
+  /** Report event drawn on the map: its territories outlined, its moves arrowed. */
+  eventMarks?: EventMarks | null
   /**
    * Drawn over the map next to the selected territory (its cartouche), given
    * the territory's box on screen and the map's size.
@@ -136,6 +138,7 @@ export function MapViewer({
   frame,
   highlightedId = null,
   selectedNoble = null,
+  eventMarks = null,
   selectionOverlay,
   supply,
   intentions = [],
@@ -555,6 +558,60 @@ export function MapViewer({
                 )
               })}
             </g>
+
+            {eventMarks && (
+              <g aria-label={t('map.reportEvent')} pointerEvents="none" data-event-marks>
+                <defs>
+                  <marker
+                    id="event-arrow"
+                    viewBox="0 0 10 10"
+                    refX="9"
+                    refY="5"
+                    markerWidth="5"
+                    markerHeight="5"
+                    orient="auto-start-reverse"
+                  >
+                    <path d="M0,0 L10,5 L0,10 z" fill={SELECTION_STROKE} />
+                  </marker>
+                </defs>
+                {map.territories
+                  .filter((territory) => eventMarks.territories.includes(territory.id))
+                  .map((territory) => (
+                    <path
+                      key={territory.id}
+                      data-event-territory={territory.id}
+                      d={pointsToPath(territory.points)}
+                      fill={SELECTION_HALO}
+                      fillOpacity="0.25"
+                      stroke={SELECTION_STROKE}
+                      strokeWidth={SELECTION_STROKE_WIDTH * 1.4}
+                      strokeLinejoin="round"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  ))}
+                {(eventMarks.arrows ?? []).map(([from, to], index) => {
+                  const start = map.territories.find((territory) => territory.id === from)
+                  const end = map.territories.find((territory) => territory.id === to)
+                  if (!start || !end) return null
+                  const [x1, y1] = centroid(start.points)
+                  const [x2, y2] = centroid(end.points)
+                  return (
+                    <line
+                      key={`${from}-${to}-${index}`}
+                      data-event-arrow={`${from}-${to}`}
+                      x1={x1}
+                      y1={y1}
+                      x2={x2}
+                      y2={y2}
+                      stroke={SELECTION_STROKE}
+                      strokeWidth={3 * annotationScale}
+                      strokeLinecap="round"
+                      markerEnd="url(#event-arrow)"
+                    />
+                  )
+                })}
+              </g>
+            )}
 
             {supplyPathPoints.length > 0 && (
               <g aria-label={t('map.supplyLine')} pointerEvents="none">

@@ -1,6 +1,25 @@
 import type { ReactNode } from 'react'
 
-import { NobleRef, TerritoryRef } from '@/components/MapLinks'
+import {
+  IconBell,
+  IconBread,
+  IconBuildingChurch,
+  IconBuildingWarehouse,
+  IconBuildingWindTurbine,
+  IconCloudStorm,
+  IconCoins,
+  IconCrown,
+  IconHeart,
+  IconLink,
+  IconPlant,
+  IconScript,
+  IconSkull,
+  IconSnowflake,
+  IconSwords,
+} from '@tabler/icons-react'
+
+import { NobleRef, TerritoryRef, useMapLinks } from '@/components/MapLinks'
+import type { EventMarks } from '@/lib/map-frame'
 import { formatOrderLabel } from '@/lib/order-label'
 import { joinNodes, richTranslate } from '@/lib/rich-text'
 import { formatCardLabel } from '@/lib/card-hand'
@@ -330,12 +349,6 @@ function outcomeLabel(outcome: Outcome, t: Translate): string {
   return t(OUTCOME_KEYS[outcome])
 }
 
-function emptyMessage(label: string, t: Translate) {
-  return (
-    <p className="text-sm italic text-ink-500">{t('reports.noEvents', { label })}</p>
-  )
-}
-
 function armyDescription(
   report: TurnReport,
   map: MapData | null,
@@ -556,9 +569,13 @@ function winterDetails(
   t: Translate,
 ): ReactNode {
   if (investment.kind === 'ritual') {
-    return richTranslate(t, `reports.ritual.${investment.reason ?? 'declared'}` as MessageKey, {
-      region: territoryLabel(map, investment.territory, t),
-    })
+    return richTranslate(
+      t,
+      `reports.ritual.${investment.reason ?? 'declared'}` as MessageKey,
+      {
+        region: territoryLabel(map, investment.territory, t),
+      },
+    )
   }
   if (investment.reason) return reportReason(investment.reason, t) ?? investment.reason
   if (investment.kind === 'claim' && investment.nobleName) {
@@ -579,7 +596,8 @@ function marriageLabel(
   players: Player[],
   t: Translate,
 ): ReactNode {
-  return richTranslate(t, 
+  return richTranslate(
+    t,
     marriage.outcome === 'success'
       ? 'reports.marriageConcluded'
       : marriage.outcome === 'dissolved'
@@ -639,12 +657,18 @@ function cardEventLabel(card: CardReport, map: MapData | null, t: Translate): Re
       return t('reports.cardDiscarded', { card: label, player })
     case 'deck_order_played':
       if (card.noble) {
-        return richTranslate(t, card.commissioner ? 'reports.cardPlayedAssassination' : 'reports.cardPlayedOnNoble', {
-          card: label,
-          player,
-          noble: nobleLabel(card.noble, card.nobleName),
-          commissioner: nobleLabel(card.commissioner, card.commissionerName),
-        })
+        return richTranslate(
+          t,
+          card.commissioner
+            ? 'reports.cardPlayedAssassination'
+            : 'reports.cardPlayedOnNoble',
+          {
+            card: label,
+            player,
+            noble: nobleLabel(card.noble, card.nobleName),
+            commissioner: nobleLabel(card.commissioner, card.commissionerName),
+          },
+        )
       }
       return card.region
         ? richTranslate(t, 'reports.cardPlayed', { card: label, player, region })
@@ -652,11 +676,15 @@ function cardEventLabel(card: CardReport, map: MapData | null, t: Translate): Re
     case 'deck_restore':
       return t('reports.cardRestored', { card: label, player })
     case 'calamity_scheduled':
-      return richTranslate(t, card.ritual ? 'reports.cardScheduledOmens' : 'reports.cardScheduled', {
-        card: label,
-        region,
-        season: card.season ? t(SEASON_LABEL_KEYS[card.season]) : '—',
-      })
+      return richTranslate(
+        t,
+        card.ritual ? 'reports.cardScheduledOmens' : 'reports.cardScheduled',
+        {
+          card: label,
+          region,
+          season: card.season ? t(SEASON_LABEL_KEYS[card.season]) : '—',
+        },
+      )
     default:
       return label
   }
@@ -683,6 +711,8 @@ interface SeasonEffectLine {
   key: string
   owner?: PlayerId
   label: ReactNode
+  /** Territories the effect touches, shown on the map by « Voir ». */
+  territories?: string[]
   /** Neutral-army lines render in a muted gray instead of the section red. */
   muted?: boolean
 }
@@ -783,7 +813,9 @@ function seasonEffectLine(
                 territory: territoryLabel(map, effect.territory, t),
                 dignity: t(`dignity.${effect.dignity ?? 'bastard'}`),
               })
-            : richTranslate(t, 'reports.trialUnfounded', { noble: nobleLabel(effect.noble, effect.nobleName) }),
+            : richTranslate(t, 'reports.trialUnfounded', {
+                noble: nobleLabel(effect.noble, effect.nobleName),
+              }),
       }
     case 'ambush':
       return {
@@ -803,20 +835,32 @@ function seasonEffectLine(
     case 'assassination':
       return {
         key,
-        label: richTranslate(t, effect.commissioner ? 'reports.assassinationCommissioner' : 'reports.assassinationPublic', {
-          noble: nobleLabel(effect.noble, effect.nobleName),
-          territory: territoryLabel(map, effect.territory, t),
-          commissioner: effect.commissioner ?? '',
-        }),
+        label: richTranslate(
+          t,
+          effect.commissioner
+            ? 'reports.assassinationCommissioner'
+            : 'reports.assassinationPublic',
+          {
+            noble: nobleLabel(effect.noble, effect.nobleName),
+            territory: territoryLabel(map, effect.territory, t),
+            commissioner: effect.commissioner ?? '',
+          },
+        ),
       }
     case 'justice':
       return {
         key,
-        label: richTranslate(t, effect.reason === 'justice_executed' ? 'reports.justiceExecuted' : 'reports.justiceNoEffect', {
-          player: effect.owner ?? t('reports.unknownPlayer'),
-          noble: nobleLabel(effect.noble, effect.nobleName),
-          territory: territoryLabel(map, effect.territory, t),
-        }),
+        label: richTranslate(
+          t,
+          effect.reason === 'justice_executed'
+            ? 'reports.justiceExecuted'
+            : 'reports.justiceNoEffect',
+          {
+            player: effect.owner ?? t('reports.unknownPlayer'),
+            noble: nobleLabel(effect.noble, effect.nobleName),
+            territory: territoryLabel(map, effect.territory, t),
+          },
+        ),
       }
     case 'assassination_revealed':
       return {
@@ -836,10 +880,16 @@ function seasonEffectLine(
                 source: territoryLabel(map, effect.target, t),
                 territory: territoryLabel(map, effect.territory, t),
               })
-            : richTranslate(t, effect.reason === 'tunnel_bypass' ? 'reports.tunnelBypass' : 'reports.tunnelVoid', {
-                source: territoryLabel(map, effect.target, t),
-                territory: territoryLabel(map, effect.territory, t),
-              }),
+            : richTranslate(
+                t,
+                effect.reason === 'tunnel_bypass'
+                  ? 'reports.tunnelBypass'
+                  : 'reports.tunnelVoid',
+                {
+                  source: territoryLabel(map, effect.target, t),
+                  territory: territoryLabel(map, effect.territory, t),
+                },
+              ),
       }
     case 'plague_noble_survived':
       return {
@@ -853,9 +903,15 @@ function seasonEffectLine(
     case 'excommunication_lifted':
       return {
         key,
-        label: richTranslate(t, effect.kind === 'excommunication' ? 'reports.excommunication' : 'reports.excommunicationLifted', {
-          noble: nobleLabel(effect.noble, effect.nobleName),
-        }),
+        label: richTranslate(
+          t,
+          effect.kind === 'excommunication'
+            ? 'reports.excommunication'
+            : 'reports.excommunicationLifted',
+          {
+            noble: nobleLabel(effect.noble, effect.nobleName),
+          },
+        ),
       }
     case 'dignity_revealed':
       return {
@@ -868,7 +924,9 @@ function seasonEffectLine(
     case 'eon_unmasked':
       return {
         key,
-        label: richTranslate(t, 'reports.eonUnmasked', { noble: nobleLabel(effect.noble, effect.nobleName) }),
+        label: richTranslate(t, 'reports.eonUnmasked', {
+          noble: nobleLabel(effect.noble, effect.nobleName),
+        }),
       }
     case 'famine':
       return {
@@ -896,7 +954,8 @@ function seasonEffectLine(
       return {
         key,
         muted: true,
-        label: richTranslate(t, 
+        label: richTranslate(
+          t,
           count === 1 ? 'reports.neutralArmyCreatedTroop' : 'reports.neutralArmyCreated',
           { count, territory: territoryLabel(map, effect.territory, t) },
         ),
@@ -947,7 +1006,12 @@ function groupSeasonEffects(
     return group
   }
   effects.forEach((effect, index) => {
-    const line = seasonEffectLine(effect, map, t, index)
+    const line = {
+      ...seasonEffectLine(effect, map, t, index),
+      territories: [effect.territory, effect.target, effect.region].filter(
+        (id): id is string => Boolean(id),
+      ),
+    }
     switch (effect.kind) {
       case 'calamity_applied':
         if (effect.army) {
@@ -1005,6 +1069,49 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
   const marriages = report.marriages ?? []
   const elections = report.elections ?? []
 
+  // Repetitive results fold into one summary card each; lines without
+  // effect (nothing credited, a stock unchanged) are left out.
+  const incomeLines = income.filter(
+    (line) => line.lost || line.credited > 0 || (line.suppressed ?? 0) > 0,
+  )
+  const millLines = mills.filter(
+    (line) => line.production > 0 || (line.suppressed ?? 0) > 0,
+  )
+  const productionLines = production.filter(
+    (line) =>
+      line.produced > 0 ||
+      (line.suppressedRations ?? 0) + (line.suppressedProduction ?? 0) > 0 ||
+      (line.stockBefore ?? 0) !== (line.stockAfter ?? 0),
+  )
+  const famines = consumption.filter((line) => line.famine)
+  const fedArmies = consumption.filter((line) => !line.famine)
+  const stockLines = winterStocks.filter(
+    (stock) => stock.stockBefore !== stock.stockAfter,
+  )
+  const sum = (values: number[]) => values.reduce((total, value) => total + value, 0)
+
+  const hasEvents =
+    seasonEffects.length > 0 ||
+    famines.length > 0 ||
+    fiefs.length > 0 ||
+    marriages.length > 0 ||
+    elections.length > 0
+  const hasEconomy =
+    incomeLines.length > 0 ||
+    millLines.length > 0 ||
+    productionLines.length > 0 ||
+    fedArmies.length > 0 ||
+    stockLines.length > 0 ||
+    receptions.length > 0
+  const empty =
+    combats.length === 0 &&
+    orders.length === 0 &&
+    winterInvestments.length === 0 &&
+    !hasEvents &&
+    !hasEconomy &&
+    rumors.length === 0 &&
+    cards.length === 0
+
   return (
     <section className="min-w-0 space-y-4">
       <div>
@@ -1016,601 +1123,78 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
         </h3>
       </div>
 
-      <div className="space-y-2">
-        <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
-          {t('reports.receptions')}
-        </h4>
-        {receptions.length === 0 ? (
-          emptyMessage(t('reports.receptions').toLowerCase(), t)
-        ) : (
-          <div className="space-y-1 text-sm">
-            {receptions.map((reception, index) => (
-              <div
-                key={`${reception.player}-${reception.noble}-${index}`}
-                className="flex items-center justify-between gap-3 rounded-md bg-paper-100 px-3 py-2"
-              >
-                <span className="flex min-w-0 items-center gap-2">
-                  {playerMarker(players, reception.player, t)}
-                  <span>
-                    {reception.player} · {reception.noble}
-                  </span>
-                </span>
-                <span
-                  className={
-                    reception.received
-                      ? 'shrink-0 text-success-700'
-                      : 'shrink-0 text-brass-700'
-                  }
-                >
-                  {reception.received
-                    ? t('reports.receptionReceived')
-                    : reception.reason
-                      ? richTranslate(t, 'reports.receptionLost', {
-                          reason:
-                            reportReason(
-                              reception.reason,
-                              t,
-                              reception.reasonKey,
-                              reception.reasonArgs,
-                              map,
-                            ) ?? reception.reason,
-                        })
-                      : t('reports.receptionLostPlain')}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
-          {t('reports.combats')}
-        </h4>
-        {combats.length === 0 ? (
-          emptyMessage(t('reports.combats').toLowerCase(), t)
-        ) : (
-          <div className="overflow-x-auto rounded-md border border-line/60">
-            <table className="w-full min-w-[24rem] text-left text-xs">
-              <thead className="bg-paper-100 text-ink-500">
-                <tr>
-                  <th className="px-2 py-2">{t('reports.square')}</th>
-                  <th className="px-2 py-2">{t('reports.issue')}</th>
-                  <th className="px-2 py-2">{t('reports.forces')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {combats.map((combat, index) => (
-                  <tr
-                    key={`${combat.territory}-${index}`}
-                    className="border-t border-line/40"
-                  >
-                    <td className="px-2 py-2 font-semibold">
-                      {territoryLabel(map, combat.territory, t)}
-                    </td>
-                    <td className="px-2 py-2">
-                      {combat.visibility === 'general'
-                        ? combat.summary
-                        : combat.standoff
-                          ? t('reports.standoff')
-                          : combat.winner
-                            ? richTranslate(t, 'reports.victory', {
-                                army: armyDescription(report, map, combat.winner, t),
-                              })
-                            : (reportReason(combat.reason, t) ?? combat.reason)}
-                    </td>
-                    <td className="px-2 py-2">
-                      {combat.visibility === 'general'
-                        ? '—'
-                        : (combat.contenders ?? [])
-                            .map(
-                              (contender) =>
-                                `${contender.force ?? '—'}${contender.defender ? ` ${t('reports.defense')}` : ''}${contender.tunnelForce !== undefined ? t('reports.tunnelDefense', { force: contender.tunnelForce }) : ''}${contender.tunnel ? t('reports.tunnelAttack') : ''}${
-                                  contender.nobleBonus
-                                    ? t('reports.nobleBonus', {
-                                        bonus: contender.nobleBonus,
-                                      })
-                                    : ''
-                                }`,
-                            )
-                            .join(' · ') || '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
-          {t('reports.incomeTitle')}
-        </h4>
-        {income.length === 0 ? (
-          emptyMessage(t('reports.incomeTitle').toLowerCase(), t)
-        ) : (
-          <div className="space-y-1 text-sm">
-            {income.map((line, index) => (
-              <div
-                key={`${line.owner}-${line.destination ?? 'lost'}-${index}`}
-                className="rounded-md bg-paper-100 px-3 py-2"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="flex min-w-0 items-center gap-2">
-                    {playerMarker(players, line.owner, t)}
-                    {line.destination ? (
-                      <span className="text-xs text-ink-500">
-                        {incomeDestinationLabel(line, map, t)}
-                      </span>
-                    ) : null}
-                  </span>
-                  <span
-                    className={
-                      line.lost
-                        ? 'shrink-0 text-xs font-semibold text-brass-700'
-                        : 'shrink-0 text-xs font-semibold text-success-700'
-                    }
-                  >
-                    {line.lost
-                      ? t('reports.incomeLost')
-                      : t('reports.incomeCredited', { count: line.credited })}
-                  </span>
-                </div>
-                <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-2xs text-ink-500">
-                  {line.source ? (
-                    <span>
-                      {richTranslate(t, `reports.incomeSource.${line.source}`, {
-                        fief: territoryLabel(map, line.taxed, t),
-                      })}
-                    </span>
-                  ) : (
-                    <span>
-                      {t('reports.incomeTerritories', { count: line.territories })}
-                    </span>
-                  )}
-                  {line.villages > 0 && (
-                    <span>{t('reports.incomeVillages', { count: line.villages })}</span>
-                  )}
-                  {(line.suppressed ?? 0) > 0 && (
-                    <span className="font-semibold text-vermilion-700">
-                      {t('reports.incomeSuppressed', { count: line.suppressed ?? 0 })}
-                    </span>
-                  )}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
-          {t('reports.millsTitle')}
-        </h4>
-        {mills.length === 0 ? (
-          emptyMessage(t('reports.millsTitle').toLowerCase(), t)
-        ) : (
-          <div className="space-y-1 text-sm">
-            {mills.map((line, index) => {
-              const stopped = line.production === 0 && (line.suppressed ?? 0) > 0
-              const keptInPlace = line.destination === line.territory
-              return (
-                <div
-                  key={`${line.territory}-${index}`}
-                  className="flex items-center justify-between gap-3 rounded-md bg-paper-100 px-3 py-2"
-                >
-                  <span className="flex min-w-0 items-center gap-2">
-                    {playerMarker(players, line.owner, t)}
-                    <span className="text-xs text-ink-500">
-                      {territoryLabel(map, line.territory, t)}
-                    </span>
-                  </span>
-                  <span
-                    className={
-                      stopped
-                        ? 'shrink-0 text-xs font-semibold text-brass-700'
-                        : 'shrink-0 text-xs font-semibold text-success-700'
-                    }
-                  >
-                    {stopped
-                      ? t('reports.millStopped')
-                      : keptInPlace
-                        ? t('reports.millKept', { count: line.production })
-                        : richTranslate(t, 'reports.millCredited', {
-                            count: line.production,
-                            destination: territoryLabel(map, line.destination, t),
-                          })}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
-          {t('reports.productionTitle')}
-        </h4>
-        {production.length === 0 ? (
-          emptyMessage(t('reports.productionTitle').toLowerCase(), t)
-        ) : (
-          <div className="space-y-1 text-sm">
-            {production.map((line) => {
-              const chips: Array<{ label: string; value: number }> = [
-                {
-                  label: t('reports.productionTerrainRations'),
-                  value: line.terrainRations,
-                },
-                {
-                  label: t('reports.productionBonusRations'),
-                  value: line.bonusRations ?? 0,
-                },
-                {
-                  label: t('reports.productionBaseProduction'),
-                  value: line.baseProduction ?? 0,
-                },
-                {
-                  label: t('reports.productionMillProduction'),
-                  value: line.millProduction ?? 0,
-                },
-                {
-                  label: t('reports.productionBonusProduction'),
-                  value: line.bonusProduction ?? 0,
-                },
-              ].filter((chip) => chip.value > 0)
-              const suppressed =
-                (line.suppressedRations ?? 0) + (line.suppressedProduction ?? 0)
-              const sentDestinations = Object.keys(line.sentToRations ?? {}).sort()
-              const hasStock =
-                (line.stockBefore ?? 0) > 0 ||
-                (line.stockConsumed ?? 0) > 0 ||
-                (line.stockAfter ?? 0) > 0
-              return (
-                <div key={line.territory} className="rounded-md bg-paper-100 px-3 py-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="flex min-w-0 items-center gap-2">
-                      {playerMarker(players, line.owner, t)}
-                      <span className="text-xs">
-                        {territoryLabel(map, line.territory, t)}
-                      </span>
-                    </span>
-                    <span className="shrink-0 text-xs font-semibold text-success-700">
-                      {t('reports.productionProduced', { count: line.produced })}
-                    </span>
-                  </div>
-                  {chips.length > 0 && (
-                    <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-2xs text-ink-500">
-                      {chips.map((chip) => (
-                        <span key={chip.label}>
-                          {chip.label} {chip.value}
-                        </span>
-                      ))}
-                    </p>
-                  )}
-                  {suppressed > 0 && (
-                    <p className="mt-1 text-2xs font-semibold text-vermilion-700">
-                      {t('reports.productionSuppressed', { count: suppressed })}
-                    </p>
-                  )}
-                  {(sentDestinations.length > 0 || hasStock) && (
-                    <p className="mt-1 text-2xs text-ink-500">
-                      {joinNodes(
-                        sentDestinations
-                          .map((destination) =>
-                            richTranslate(t, 'reports.productionSent', {
-                              count: line.sentToRations?.[destination] ?? 0,
-                              territory: territoryLabel(map, destination, t),
-                            }),
-                          )
-                          .concat(
-                            hasStock
-                              ? [
-                                  t('reports.productionStockLine', {
-                                    before: line.stockBefore ?? 0,
-                                    consumed: line.stockConsumed ?? 0,
-                                    after: line.stockAfter ?? 0,
-                                  }),
-                                ]
-                              : [],
-                          ),
-                        ' · ',
-                      )}
-                    </p>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
-          {t('reports.consumptionTitle')}
-        </h4>
-        {consumption.length === 0 ? (
-          emptyMessage(t('reports.consumptionTitle').toLowerCase(), t)
-        ) : (
-          <div className="space-y-1 text-sm">
-            {consumption.map((line) => (
-              <div
-                key={line.army}
-                className={`rounded-md px-3 py-2 ${
-                  line.famine
-                    ? 'border border-vermilion-700/30 bg-vermilion-100 text-xs text-vermilion-700'
-                    : 'bg-paper-100 text-xs'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="flex min-w-0 items-center gap-2">
-                    {playerMarker(players, line.owner, t)}
-                    <span>
-                      {line.owner} · {territoryLabel(map, line.territory, t)}
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-ink-500">
-                    {t(line.size === 1 ? 'app.troop' : 'app.troops', {
-                      count: line.size,
-                    })}{' '}
-                    · {t('reports.consumptionDemand', { count: line.demand })}
-                  </span>
-                </div>
-                <p className="mt-1 text-2xs">
-                  {line.source
-                    ? `${t('reports.consumptionSource', { source: line.source })} · `
-                    : ''}
-                  {t('reports.consumptionLine', {
-                    local: line.receivedLocal,
-                    transfer: line.receivedTransfer,
-                    total: line.totalReceived,
-                    missing: line.missing,
-                  })}
-                </p>
-                {line.famine && line.warned && (
-                  <p className="mt-1 font-semibold">{t('reports.famineWarning')}</p>
-                )}
-                {line.famine && !line.warned && (
-                  <p className="mt-1 font-semibold">
-                    {line.savedByPillage ? t('reports.savedByPillage') : ''}
-                    {(line.troopsLost ?? 0) > 0
-                      ? t(
-                          line.troopsLost === 1
-                            ? 'reports.lostTroop'
-                            : 'reports.lostTroops',
-                          { count: line.troopsLost ?? 0 },
-                        )
-                      : ''}
-                    {(line.resourceCredit ?? 0) > 0
-                      ? ' ' +
-                        richTranslate(t, 'reports.consumptionPillageCredit', {
-                          count: line.resourceCredit ?? 0,
-                          territory: territoryLabel(map, line.creditTerritory, t),
-                        })
-                      : ''}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {report.winter && (
-        <div className="space-y-2">
-          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
-            {t(
-              report.header.season === 'winter' ? 'reports.winter' : 'reports.nobleCards',
-            )}
-          </h4>
-          <div className="space-y-1 text-sm">
-            {winterInvestments.map((investment, index) => {
-              const isAutoAssignedWarning = investment.kind === 'fief_auto_assigned'
-              return (
-                <div
-                  key={`${investment.kind}-${investment.player}-${index}`}
-                  className={`flex items-start justify-between gap-3 rounded-md px-3 py-2 ${
-                    isAutoAssignedWarning
-                      ? 'border border-warning-700 bg-warning-100'
-                      : 'bg-paper-100'
-                  }`}
-                >
-                  <span className="flex min-w-0 items-start gap-2">
-                    {playerMarker(players, investment.player, t)}
-                    <span>
-                      <strong className="font-mono text-xs">
-                        {investmentLabel(investment, map, t)}
-                      </strong>
-                      {isAutoAssignedWarning && (
-                        <span className="mt-0.5 block text-2xs font-bold uppercase tracking-wide text-warning-700">
-                          {t('reports.fiefAutoAssignedWarning')}
-                        </span>
-                      )}
-                      <span className="mt-1 block text-xs text-ink-500">
-                        {investment.player} · {winterDetails(investment, map, t)}
-                      </span>
-                    </span>
-                  </span>
-                  <span
-                    className={`shrink-0 text-xs ${outcomeClass(investment.outcome)}`}
-                  >
-                    {outcomeLabel(investment.outcome, t)}
-                    {investment.outcome === 'success' && (
-                      <span className="mt-1 block text-right text-2xs text-ink-500">
-                        {investment.cost > 0
-                          ? t('reports.cost', { cost: investment.cost })
-                          : t('reports.noCost')}
-                      </span>
-                    )}
-                  </span>
-                </div>
-              )
-            })}
-            {winterStocks.map((stock) => (
-              <div
-                key={stock.territory}
-                className="flex items-center justify-between gap-3 rounded-md bg-paper-100 px-3 py-2 text-xs text-success-700"
-              >
-                <span>
-                  {richTranslate(t, 'reports.conservation', {
-                    territory: territoryLabel(map, stock.territory, t),
-                  })}
-                </span>
-                <span>
-                  {stock.stockBefore} → {stock.stockAfter}
-                </span>
-              </div>
-            ))}
-            {winterInvestments.length === 0 &&
-              winterStocks.length === 0 &&
-              emptyMessage(
-                t(
-                  report.header.season === 'winter'
-                    ? 'reports.winter'
-                    : 'reports.nobleCards',
-                ).toLowerCase(),
-                t,
-              )}
-          </div>
-        </div>
+      {empty && (
+        <p className="text-sm italic text-ink-500">{t('reports.nothingToReport')}</p>
       )}
 
-      {elections.length > 0 && (
-        <div className="space-y-2 rounded-lg border border-line-soft bg-paper-100 p-3">
-          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-brass-700">
-            {t('reports.elections')}
-          </h4>
-          <ul className="space-y-1 text-sm text-brass-700">
-            {elections.map((election, index) => {
-              const winner = election.candidates.find(
-                (candidate) => candidate.noble === election.winner,
-              )
-              const seat =
-                election.kind === 'bishop'
-                  ? territoryLabel(map, election.seat, t)
-                  : ''
-              return (
-                <li key={`${election.kind}-${election.region ?? ''}-${index}`}>
-                  <p className="font-semibold">
-                    {election.kind === 'bishop'
-                      ? richTranslate(t, 'reports.electionBishop', { seat })
-                      : election.kind === 'king'
-                        ? t('reports.electionKing')
-                        : t('reports.electionPope')}
-                    {' — '}
-                    {richTranslate(t, `reports.electionResult.${election.result}`, {
-                      noble: winner ? nobleLabel(winner.nobleCode, winner.nobleName) : '—',
-                    })}
-                  </p>
-                  {election.candidates.length > 0 && (
-                    <p className="text-xs">
-                      {election.candidates
-                        .map(
-                          (candidate) =>
-                            `${candidate.nobleName} (${candidate.owner}) : ${candidate.votes}${
-                              candidate.anointed ? ` ${t('reports.electionAnointed')}` : ''
-                            }`,
-                        )
-                        .join(' · ')}
-                      {election.required || election.minVotes
-                        ? ` — ${t('reports.electionRequired', {
-                            count: election.required ?? election.minVotes ?? 0,
-                          })}`
-                        : ''}
-                    </p>
-                  )}
-                </li>
-              )
-            })}
-          </ul>
-        </div>
-      )}
-
-      {marriages.length > 0 && (
-        <div className="space-y-2 rounded-lg border border-line-soft bg-paper-100 p-3">
-          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-brass-700">
-            {t('reports.marriages')}
-          </h4>
-          <ul className="space-y-1 text-sm text-brass-700">
-            {marriages.map((marriage, index) => (
-              <li
-                key={`${marriage.outcome}-${marriage.noble}-${marriage.spouse}-${index}`}
-              >
-                {marriageLabel(marriage, players, t)}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {fiefs.length > 0 && (
-        <div className="space-y-2 rounded-lg border border-line-soft bg-paper-100 p-3">
-          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-brass-700">
-            {t('reports.fiefs')}
-          </h4>
-          <ul className="space-y-1 text-sm text-brass-700">
-            {fiefs.map((fief, index) => (
-              <li
-                key={`${fief.kind}-${fief.capital}-${index}`}
-                className={
-                  fief.kind === 'fief_member_occupied'
-                    ? 'font-semibold text-vermilion-700'
-                    : undefined
+      {combats.length > 0 && (
+        <EventCategory id="combats" title={t('reports.combats')} icon={<IconSwords />}>
+          {combats.map((combat, index) => {
+            const forces =
+              combat.visibility === 'general'
+                ? ''
+                : (combat.contenders ?? [])
+                    .map(
+                      (contender) =>
+                        `${contender.force ?? '—'}${contender.defender ? ` ${t('reports.defense')}` : ''}${contender.tunnelForce !== undefined ? t('reports.tunnelDefense', { force: contender.tunnelForce }) : ''}${contender.tunnel ? t('reports.tunnelAttack') : ''}${
+                          contender.nobleBonus
+                            ? t('reports.nobleBonus', { bonus: contender.nobleBonus })
+                            : ''
+                        }`,
+                    )
+                    .join(' · ')
+            return (
+              <EventCard
+                key={`${combat.territory}-${index}`}
+                icon={<IconSwords />}
+                title={territoryLabel(map, combat.territory, t)}
+                detail={
+                  combat.visibility === 'general'
+                    ? combat.summary
+                    : combat.standoff
+                      ? t('reports.standoff')
+                      : combat.winner
+                        ? richTranslate(t, 'reports.victory', {
+                            army: armyDescription(report, map, combat.winner, t),
+                          })
+                        : (reportReason(combat.reason, t) ?? combat.reason)
                 }
-              >
-                {fiefEventLabel(fief, players, map, t)}
-              </li>
-            ))}
-          </ul>
-        </div>
+                aside={forces ? `${t('reports.forces')} : ${forces}` : undefined}
+                marks={{ territories: [combat.territory] }}
+              />
+            )
+          })}
+        </EventCategory>
       )}
 
-      {rumors.length > 0 && (
-        <div className="space-y-2 rounded-lg border border-line bg-paper-100 p-3">
-          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-700">
-            {t('reports.rumors')}
-          </h4>
-          <ul className="space-y-1 text-sm text-ink-700">
-            {rumors.map((rumor, index) => (
-              <li key={`${rumor.key}-${index}`}>{t(rumor.key as MessageKey)}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {cards.length > 0 && (
-        <div className="space-y-2 rounded-lg border border-line bg-paper-100 p-3">
-          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-700">
-            {t('reports.cards')}
-          </h4>
-          <ol className="space-y-1 text-sm text-ink-700">
-            {cards.map((card, index) => (
-              <li key={`${card.eventType}-${card.kind}-${index}`}>
-                {cardEventLabel(card, map, t)}
-              </li>
-            ))}
-          </ol>
-        </div>
-      )}
-
-      {seasonEffects.length > 0 && (
-        <div className="space-y-2 rounded-lg border border-vermilion-700/30 bg-vermilion-100 p-3">
-          <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-vermilion-700">
-            {t('reports.seasonEffects')}
-          </h4>
-          <ol className="space-y-2 text-sm text-vermilion-700">
-            {seasonEffectView.flat.map((line) => (
-              <li key={line.key} className={line.muted ? 'text-ink-500' : undefined}>
-                {line.label}
-              </li>
-            ))}
-            {seasonEffectView.groups.map((group) => (
-              <li key={group.key} className="space-y-1">
-                {group.header && <p className="font-semibold">{group.header}</p>}
-                {group.lines.length > 0 && (
-                  <ul className="space-y-1 border-l-2 border-vermilion-700/30 pl-3">
-                    {group.lines.map((line) => (
+      {hasEvents && (
+        <EventCategory
+          id="events"
+          title={t('reports.category.events')}
+          icon={<IconBell />}
+        >
+          {seasonEffectView.flat.map((line) => (
+            <EventCard
+              key={line.key}
+              icon={<IconCloudStorm />}
+              tone={line.muted ? 'muted' : 'alert'}
+              title={line.label}
+              owner={line.owner ? playerMarker(players, line.owner, t) : undefined}
+              marks={
+                line.territories?.length ? { territories: line.territories } : undefined
+              }
+            />
+          ))}
+          {seasonEffectView.groups.map((group) => (
+            <EventCard
+              key={group.key}
+              icon={<IconCloudStorm />}
+              tone="alert"
+              title={group.header ?? group.lines[0]?.label}
+              detail={
+                group.lines.length > (group.header ? 0 : 1) ? (
+                  <ul className="space-y-0.5">
+                    {group.lines.slice(group.header ? 0 : 1).map((line) => (
                       <li
                         key={line.key}
                         className={`flex items-center gap-2 ${line.muted ? 'text-ink-500' : ''}`}
@@ -1620,68 +1204,725 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                       </li>
                     ))}
                   </ul>
-                )}
-              </li>
-            ))}
-          </ol>
-        </div>
+                ) : undefined
+              }
+              marks={(() => {
+                const territories = [
+                  ...new Set(group.lines.flatMap((line) => line.territories ?? [])),
+                ]
+                return territories.length > 0 ? { territories } : undefined
+              })()}
+            />
+          ))}
+          {famines.map((line) => (
+            <EventCard
+              key={line.army}
+              icon={<IconSkull />}
+              tone="alert"
+              owner={playerMarker(players, line.owner, t)}
+              title={
+                <>
+                  {line.owner} · {territoryLabel(map, line.territory, t)}
+                </>
+              }
+              detail={
+                <>
+                  <span className="block">
+                    {line.source
+                      ? `${t('reports.consumptionSource', { source: line.source })} · `
+                      : ''}
+                    {t('reports.consumptionLine', {
+                      local: line.receivedLocal,
+                      transfer: line.receivedTransfer,
+                      total: line.totalReceived,
+                      missing: line.missing,
+                    })}
+                  </span>
+                  {line.warned ? (
+                    <span className="block font-semibold">
+                      {t('reports.famineWarning')}
+                    </span>
+                  ) : (
+                    <span className="block font-semibold">
+                      {line.savedByPillage ? t('reports.savedByPillage') : ''}
+                      {(line.troopsLost ?? 0) > 0
+                        ? t(
+                            line.troopsLost === 1
+                              ? 'reports.lostTroop'
+                              : 'reports.lostTroops',
+                            {
+                              count: line.troopsLost ?? 0,
+                            },
+                          )
+                        : ''}
+                      {(line.resourceCredit ?? 0) > 0 && (
+                        <>
+                          {' '}
+                          {richTranslate(t, 'reports.consumptionPillageCredit', {
+                            count: line.resourceCredit ?? 0,
+                            territory: territoryLabel(map, line.creditTerritory, t),
+                          })}
+                        </>
+                      )}
+                    </span>
+                  )}
+                </>
+              }
+              marks={{ territories: [line.territory] }}
+            />
+          ))}
+          {fiefs.map((fief, index) => (
+            <EventCard
+              key={`${fief.kind}-${fief.capital}-${index}`}
+              icon={<IconCrown />}
+              tone={fief.kind === 'fief_member_occupied' ? 'alert' : undefined}
+              title={fiefEventLabel(fief, players, map, t)}
+              marks={{
+                territories: [fief.capital, fief.territory].filter((id): id is string =>
+                  Boolean(id),
+                ),
+              }}
+            />
+          ))}
+          {marriages.map((marriage, index) => (
+            <EventCard
+              key={`${marriage.outcome}-${marriage.noble}-${marriage.spouse}-${index}`}
+              icon={<IconHeart />}
+              title={marriageLabel(marriage, players, t)}
+            />
+          ))}
+          {elections.map((election, index) => {
+            const winner = election.candidates.find(
+              (candidate) => candidate.noble === election.winner,
+            )
+            const seat =
+              election.kind === 'bishop' ? territoryLabel(map, election.seat, t) : ''
+            return (
+              <EventCard
+                key={`${election.kind}-${election.region ?? ''}-${index}`}
+                icon={<IconBuildingChurch />}
+                title={
+                  <>
+                    {election.kind === 'bishop'
+                      ? richTranslate(t, 'reports.electionBishop', { seat })
+                      : election.kind === 'king'
+                        ? t('reports.electionKing')
+                        : t('reports.electionPope')}
+                    {' — '}
+                    {richTranslate(t, `reports.electionResult.${election.result}`, {
+                      noble: winner
+                        ? nobleLabel(winner.nobleCode, winner.nobleName)
+                        : '—',
+                    })}
+                  </>
+                }
+                detail={
+                  election.candidates.length > 0
+                    ? `${election.candidates
+                        .map(
+                          (candidate) =>
+                            `${candidate.nobleName} (${candidate.owner}) : ${candidate.votes}${
+                              candidate.anointed
+                                ? ` ${t('reports.electionAnointed')}`
+                                : ''
+                            }`,
+                        )
+                        .join(' · ')}${
+                        election.required || election.minVotes
+                          ? ` — ${t('reports.electionRequired', {
+                              count: election.required ?? election.minVotes ?? 0,
+                            })}`
+                          : ''
+                      }`
+                    : undefined
+                }
+                marks={election.seat ? { territories: [election.seat] } : undefined}
+              />
+            )
+          })}
+        </EventCategory>
       )}
 
-      <div className="space-y-2">
-        <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
-          {t('reports.ordersExecuted')}
-        </h4>
-        {orders.length === 0 ? (
-          emptyMessage(t('reports.ordersExecuted').toLowerCase(), t)
-        ) : (
-          <div className="space-y-1 text-xs">
-            {orders.map((order, index) => (
-              <div
-                key={`${order.chain ?? 'hidden'}-${order.order ?? index}-${index}`}
-                className="rounded-md bg-paper-100 px-3 py-2"
-              >
-                {order.visibility === 'hidden' ? (
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="italic text-ink-500">
-                      {t('reports.hiddenOrder')}
-                    </span>
-                    <span className={`shrink-0 ${outcomeClass(order.outcome)}`}>
-                      {outcomeLabel(order.outcome, t)}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex items-start justify-between gap-3">
-                    <span className="flex min-w-0 items-start gap-2">
-                      {playerMarker(players, order.owner, t)}
-                      <span className="min-w-0">
-                        <strong className="font-mono text-sm">
-                          {formatReportOrderLabel(order, map, t)}
-                        </strong>
-                        <span className="mt-1 block text-ink-500">
-                          {order.owner || t('reports.unknownPlayer')} ·{' '}
-                          {richTranslate(t, 'reports.noble', {
-                            noble: nobleLabel(order.noble, order.nobleName),
-                          })}
-                        </span>
+      {winterInvestments.length > 0 && (
+        <EventCategory
+          id="winter"
+          title={t(
+            report.header.season === 'winter' ? 'reports.winter' : 'reports.nobleCards',
+          )}
+          icon={<IconSnowflake />}
+        >
+          {winterInvestments.map((investment, index) => {
+            const isAutoAssignedWarning = investment.kind === 'fief_auto_assigned'
+            const territories = [
+              investment.territory,
+              investment.target,
+              investment.source,
+              ...(investment.territories ?? []),
+            ].filter((id): id is string => Boolean(id))
+            return (
+              <EventCard
+                key={`${investment.kind}-${investment.player}-${index}`}
+                icon={<IconSnowflake />}
+                tone={isAutoAssignedWarning ? 'warning' : undefined}
+                owner={playerMarker(players, investment.player, t)}
+                title={
+                  <>
+                    <strong className="font-mono text-xs">
+                      {investmentLabel(investment, map, t)}
+                    </strong>
+                    {isAutoAssignedWarning && (
+                      <span className="mt-0.5 block text-2xs font-bold uppercase tracking-wide text-warning-700">
+                        {t('reports.fiefAutoAssignedWarning')}
                       </span>
-                    </span>
-                    <span
-                      className={`shrink-0 text-right ${outcomeClass(order.outcome)}`}
-                    >
-                      {outcomeLabel(order.outcome, t)}
-                      {order.reason ? (
-                        <span className="block max-w-36 text-2xs leading-tight">
-                          {reportReason(order.reason, t)}
+                    )}
+                  </>
+                }
+                detail={
+                  <>
+                    {investment.player} · {winterDetails(investment, map, t)}
+                  </>
+                }
+                aside={
+                  <span className={outcomeClass(investment.outcome)}>
+                    {outcomeLabel(investment.outcome, t)}
+                    {investment.outcome === 'success' && (
+                      <span className="mt-1 block text-2xs text-ink-500">
+                        {investment.cost > 0
+                          ? t('reports.cost', { cost: investment.cost })
+                          : t('reports.noCost')}
+                      </span>
+                    )}
+                  </span>
+                }
+                marks={
+                  territories.length > 0
+                    ? { territories: [...new Set(territories)] }
+                    : undefined
+                }
+              />
+            )
+          })}
+        </EventCategory>
+      )}
+
+      {hasEconomy && (
+        <EventCategory
+          id="economy"
+          title={t('reports.category.economy')}
+          icon={<IconCoins />}
+        >
+          {incomeLines.length > 0 && (
+            <SummaryCard
+              icon={<IconCoins />}
+              summary={t('reports.summary.income', {
+                count: incomeLines.length,
+                total: sum(incomeLines.map((line) => (line.lost ? 0 : line.credited))),
+              })}
+            >
+              {incomeLines.map((line, index) => (
+                <li
+                  key={`${line.owner}-${line.destination ?? 'lost'}-${index}`}
+                  className="space-y-0.5"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="flex min-w-0 items-center gap-2">
+                      {playerMarker(players, line.owner, t)}
+                      {line.destination ? (
+                        <span className="text-xs text-ink-500">
+                          {incomeDestinationLabel(line, map, t)}
                         </span>
                       ) : null}
                     </span>
+                    <span
+                      className={`shrink-0 text-xs font-semibold ${line.lost ? 'text-brass-700' : 'text-success-700'}`}
+                    >
+                      {line.lost
+                        ? t('reports.incomeLost')
+                        : t('reports.incomeCredited', { count: line.credited })}
+                    </span>
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+                  <p className="flex flex-wrap gap-x-3 gap-y-0.5 text-2xs text-ink-500">
+                    {line.source ? (
+                      <span>
+                        {richTranslate(t, `reports.incomeSource.${line.source}`, {
+                          fief: territoryLabel(map, line.taxed, t),
+                        })}
+                      </span>
+                    ) : (
+                      <span>
+                        {t('reports.incomeTerritories', { count: line.territories })}
+                      </span>
+                    )}
+                    {line.villages > 0 && (
+                      <span>{t('reports.incomeVillages', { count: line.villages })}</span>
+                    )}
+                    {(line.suppressed ?? 0) > 0 && (
+                      <span className="font-semibold text-vermilion-700">
+                        {t('reports.incomeSuppressed', { count: line.suppressed ?? 0 })}
+                      </span>
+                    )}
+                  </p>
+                </li>
+              ))}
+            </SummaryCard>
+          )}
+          {millLines.length > 0 && (
+            <SummaryCard
+              icon={<IconBuildingWindTurbine />}
+              summary={t('reports.summary.mills', {
+                count: millLines.length,
+                total: sum(millLines.map((line) => line.production)),
+              })}
+            >
+              {millLines.map((line, index) => {
+                const stopped = line.production === 0 && (line.suppressed ?? 0) > 0
+                const keptInPlace = line.destination === line.territory
+                return (
+                  <li
+                    key={`${line.territory}-${index}`}
+                    className="flex items-center justify-between gap-3"
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      {playerMarker(players, line.owner, t)}
+                      <span className="text-xs text-ink-500">
+                        {territoryLabel(map, line.territory, t)}
+                      </span>
+                    </span>
+                    <span
+                      className={`shrink-0 text-xs font-semibold ${stopped ? 'text-brass-700' : 'text-success-700'}`}
+                    >
+                      {stopped
+                        ? t('reports.millStopped')
+                        : keptInPlace
+                          ? t('reports.millKept', { count: line.production })
+                          : richTranslate(t, 'reports.millCredited', {
+                              count: line.production,
+                              destination: territoryLabel(map, line.destination, t),
+                            })}
+                    </span>
+                  </li>
+                )
+              })}
+            </SummaryCard>
+          )}
+          {productionLines.length > 0 && (
+            <SummaryCard
+              icon={<IconPlant />}
+              summary={t('reports.summary.production', {
+                count: productionLines.length,
+                total: sum(productionLines.map((line) => line.produced)),
+              })}
+            >
+              {productionLines.map((line) => {
+                const chips: Array<{ label: string; value: number }> = [
+                  {
+                    label: t('reports.productionTerrainRations'),
+                    value: line.terrainRations,
+                  },
+                  {
+                    label: t('reports.productionBonusRations'),
+                    value: line.bonusRations ?? 0,
+                  },
+                  {
+                    label: t('reports.productionBaseProduction'),
+                    value: line.baseProduction ?? 0,
+                  },
+                  {
+                    label: t('reports.productionMillProduction'),
+                    value: line.millProduction ?? 0,
+                  },
+                  {
+                    label: t('reports.productionBonusProduction'),
+                    value: line.bonusProduction ?? 0,
+                  },
+                ].filter((chip) => chip.value > 0)
+                const suppressed =
+                  (line.suppressedRations ?? 0) + (line.suppressedProduction ?? 0)
+                const sentDestinations = Object.keys(line.sentToRations ?? {}).sort()
+                const hasStock =
+                  (line.stockBefore ?? 0) > 0 ||
+                  (line.stockConsumed ?? 0) > 0 ||
+                  (line.stockAfter ?? 0) > 0
+                return (
+                  <li key={line.territory} className="space-y-0.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="flex min-w-0 items-center gap-2">
+                        {playerMarker(players, line.owner, t)}
+                        <span className="text-xs">
+                          {territoryLabel(map, line.territory, t)}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-xs font-semibold text-success-700">
+                        {t('reports.productionProduced', { count: line.produced })}
+                      </span>
+                    </div>
+                    {chips.length > 0 && (
+                      <p className="flex flex-wrap gap-x-3 gap-y-0.5 text-2xs text-ink-500">
+                        {chips.map((chip) => (
+                          <span key={chip.label}>
+                            {chip.label} {chip.value}
+                          </span>
+                        ))}
+                      </p>
+                    )}
+                    {suppressed > 0 && (
+                      <p className="text-2xs font-semibold text-vermilion-700">
+                        {t('reports.productionSuppressed', { count: suppressed })}
+                      </p>
+                    )}
+                    {(sentDestinations.length > 0 || hasStock) && (
+                      <p className="text-2xs text-ink-500">
+                        {joinNodes(
+                          sentDestinations
+                            .map((destination) =>
+                              richTranslate(t, 'reports.productionSent', {
+                                count: line.sentToRations?.[destination] ?? 0,
+                                territory: territoryLabel(map, destination, t),
+                              }),
+                            )
+                            .concat(
+                              hasStock
+                                ? [
+                                    t('reports.productionStockLine', {
+                                      before: line.stockBefore ?? 0,
+                                      consumed: line.stockConsumed ?? 0,
+                                      after: line.stockAfter ?? 0,
+                                    }),
+                                  ]
+                                : [],
+                            ),
+                          ' · ',
+                        )}
+                      </p>
+                    )}
+                  </li>
+                )
+              })}
+            </SummaryCard>
+          )}
+          {fedArmies.length > 0 && (
+            <SummaryCard
+              icon={<IconBread />}
+              summary={t('reports.summary.consumption', { count: fedArmies.length })}
+            >
+              {fedArmies.map((line) => (
+                <li key={line.army} className="space-y-0.5 text-xs">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="flex min-w-0 items-center gap-2">
+                      {playerMarker(players, line.owner, t)}
+                      <span>
+                        {line.owner} · {territoryLabel(map, line.territory, t)}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-ink-500">
+                      {t(line.size === 1 ? 'app.troop' : 'app.troops', {
+                        count: line.size,
+                      })}{' '}
+                      · {t('reports.consumptionDemand', { count: line.demand })}
+                    </span>
+                  </div>
+                  <p className="text-2xs text-ink-500">
+                    {line.source
+                      ? `${t('reports.consumptionSource', { source: line.source })} · `
+                      : ''}
+                    {t('reports.consumptionLine', {
+                      local: line.receivedLocal,
+                      transfer: line.receivedTransfer,
+                      total: line.totalReceived,
+                      missing: line.missing,
+                    })}
+                  </p>
+                </li>
+              ))}
+            </SummaryCard>
+          )}
+          {stockLines.length > 0 && (
+            <SummaryCard
+              icon={<IconBuildingWarehouse />}
+              summary={t('reports.summary.conservation', { count: stockLines.length })}
+            >
+              {stockLines.map((stock) => (
+                <li key={stock.territory} className="text-xs">
+                  {richTranslate(t, 'reports.conservationLine', {
+                    territory: territoryLabel(map, stock.territory, t),
+                    before: stock.stockBefore,
+                    after: stock.stockAfter,
+                  })}
+                </li>
+              ))}
+            </SummaryCard>
+          )}
+          {receptions.length > 0 && (
+            <SummaryCard
+              icon={<IconLink />}
+              summary={t('reports.summary.receptions', {
+                received: receptions.filter((reception) => reception.received).length,
+                total: receptions.length,
+              })}
+            >
+              {receptions.map((reception, index) => (
+                <li
+                  key={`${reception.player}-${reception.noble}-${index}`}
+                  className="flex items-center justify-between gap-3"
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    {playerMarker(players, reception.player, t)}
+                    <span>
+                      {reception.player} · {reception.noble}
+                    </span>
+                  </span>
+                  <span
+                    className={
+                      reception.received
+                        ? 'shrink-0 text-success-700'
+                        : 'shrink-0 text-brass-700'
+                    }
+                  >
+                    {reception.received
+                      ? t('reports.receptionReceived')
+                      : reception.reason
+                        ? richTranslate(t, 'reports.receptionLost', {
+                            reason:
+                              reportReason(
+                                reception.reason,
+                                t,
+                                reception.reasonKey,
+                                reception.reasonArgs,
+                                map,
+                              ) ?? reception.reason,
+                          })
+                        : t('reports.receptionLostPlain')}
+                  </span>
+                </li>
+              ))}
+            </SummaryCard>
+          )}
+        </EventCategory>
+      )}
+
+      {orders.length > 0 && (
+        <EventCategory
+          id="orders"
+          title={t('reports.ordersExecuted')}
+          icon={<IconScript />}
+        >
+          {orders.map((order, index) => {
+            const targets = order.targets ?? (order.target ? [order.target] : [])
+            const territories = [order.source, ...targets].filter((id): id is string =>
+              Boolean(id),
+            )
+            return order.visibility === 'hidden' ? (
+              <EventCard
+                key={`${order.chain ?? 'hidden'}-${order.order ?? index}-${index}`}
+                icon={<IconScript />}
+                tone="muted"
+                title={<span className="italic">{t('reports.hiddenOrder')}</span>}
+                aside={
+                  <span className={outcomeClass(order.outcome)}>
+                    {outcomeLabel(order.outcome, t)}
+                  </span>
+                }
+              />
+            ) : (
+              <EventCard
+                key={`${order.chain ?? 'hidden'}-${order.order ?? index}-${index}`}
+                icon={<IconScript />}
+                owner={playerMarker(players, order.owner, t)}
+                title={
+                  <strong className="font-mono text-sm">
+                    {formatReportOrderLabel(order, map, t)}
+                  </strong>
+                }
+                detail={
+                  <>
+                    {order.owner || t('reports.unknownPlayer')} ·{' '}
+                    {richTranslate(t, 'reports.noble', {
+                      noble: nobleLabel(order.noble, order.nobleName),
+                    })}
+                  </>
+                }
+                aside={
+                  <span className={outcomeClass(order.outcome)}>
+                    {outcomeLabel(order.outcome, t)}
+                    {order.reason ? (
+                      <span className="block max-w-36 text-2xs leading-tight">
+                        {reportReason(order.reason, t)}
+                      </span>
+                    ) : null}
+                  </span>
+                }
+                marks={
+                  territories.length > 0
+                    ? {
+                        territories: [...new Set(territories)],
+                        arrows:
+                          order.source &&
+                          order.type !== 'hold' &&
+                          order.type !== 'pillage'
+                            ? targets.map((target): [string, string] => [
+                                order.source!,
+                                target,
+                              ])
+                            : undefined,
+                      }
+                    : undefined
+                }
+              />
+            )
+          })}
+        </EventCategory>
+      )}
+
+      {(rumors.length > 0 || cards.length > 0) && (
+        <div className="grid gap-3">
+          {rumors.length > 0 && (
+            <aside
+              data-report-rumors
+              className="space-y-1.5 rounded-md border border-line bg-paper-100 p-3"
+            >
+              <h4 className="text-sm font-semibold italic text-ink-900">
+                {t('reports.rumorsMarket')}
+              </h4>
+              <ul className="space-y-1 text-sm italic text-ink-700">
+                {rumors.map((rumor, index) => (
+                  <li key={`${rumor.key}-${index}`}>{t(rumor.key as MessageKey)}</li>
+                ))}
+              </ul>
+            </aside>
+          )}
+          {cards.length > 0 && (
+            <aside
+              data-report-cards
+              className="space-y-1.5 rounded-md border border-line bg-paper-50 p-3"
+            >
+              <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-700">
+                {t('reports.cards')}
+              </h4>
+              <ol className="space-y-1 text-sm text-ink-700">
+                {cards.map((card, index) => (
+                  <li key={`${card.eventType}-${card.kind}-${index}`}>
+                    {cardEventLabel(card, map, t)}
+                  </li>
+                ))}
+              </ol>
+            </aside>
+          )}
+        </div>
+      )}
     </section>
+  )
+}
+
+/** A category of the report; the caller leaves out an empty one. */
+function EventCategory({
+  id,
+  title,
+  icon,
+  children,
+}: {
+  id: string
+  title: ReactNode
+  icon: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <section data-report-category={id} className="space-y-1.5">
+      <h4 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.16em] text-ink-500 [&_svg]:size-3.5">
+        {icon}
+        {title}
+      </h4>
+      <div className="space-y-1.5">{children}</div>
+    </section>
+  )
+}
+
+const CARD_TONES = {
+  plain: 'border-line bg-paper-50',
+  alert: 'border-vermilion-700/30 bg-vermilion-100 text-vermilion-700',
+  warning: 'border-warning-700/40 bg-warning-100',
+  muted: 'border-line-soft bg-paper-100 text-ink-500',
+} as const
+
+/**
+ * One event of the report as a card (charte-graphique.md § Rapport de tour):
+ * ink pictogram, title, detail; « Voir » frames the map on its territories
+ * and draws it there.
+ */
+function EventCard({
+  icon,
+  title,
+  detail,
+  aside,
+  owner,
+  tone = 'plain',
+  marks,
+}: {
+  icon: ReactNode
+  title: ReactNode
+  detail?: ReactNode
+  aside?: ReactNode
+  /** The player's colour, before the title. */
+  owner?: ReactNode
+  tone?: keyof typeof CARD_TONES
+  marks?: EventMarks
+}) {
+  const { t } = useLanguage()
+  const links = useMapLinks()
+  return (
+    <article
+      data-event-card
+      className={`flex items-start gap-2 rounded-md border px-3 py-2 text-sm ${CARD_TONES[tone]}`}
+    >
+      <span
+        aria-hidden="true"
+        className="mt-0.5 flex size-4 shrink-0 items-center justify-center [&_svg]:size-4"
+      >
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start gap-2">
+          {owner && <span className="mt-1.5">{owner}</span>}
+          <div className="min-w-0 font-medium">{title}</div>
+        </div>
+        {detail && <div className="mt-0.5 text-xs opacity-80">{detail}</div>}
+      </div>
+      {aside && <div className="shrink-0 text-right text-xs">{aside}</div>}
+      {marks && links && marks.territories.length > 0 && (
+        <button
+          type="button"
+          data-show-event
+          className="shrink-0 rounded px-1 text-xs font-semibold text-brass-700 underline decoration-dotted underline-offset-2 hover:decoration-solid max-lg:min-h-11"
+          onClick={() => links.showEvent(marks)}
+        >
+          {t('reports.show')}
+        </button>
+      )}
+    </article>
+  )
+}
+
+/** Results of one kind folded into a single card, unfolding on the list. */
+function SummaryCard({
+  icon,
+  summary,
+  children,
+}: {
+  icon: ReactNode
+  summary: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <details
+      data-summary-card
+      className="rounded-md border border-line bg-paper-50 text-sm"
+    >
+      <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 font-medium [&_svg]:size-4">
+        <span aria-hidden="true" className="flex shrink-0">
+          {icon}
+        </span>
+        {summary}
+      </summary>
+      <ul className="space-y-1.5 border-t border-line-soft px-3 py-2">{children}</ul>
+    </details>
   )
 }

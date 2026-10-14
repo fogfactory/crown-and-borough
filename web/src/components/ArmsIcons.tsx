@@ -54,7 +54,7 @@ export function BannerIcon({
   )
 }
 
-/** An army's shield in the given arms, with its strength. */
+/** A shield in the given arms, with an army's strength when given. */
 export function ShieldIcon({
   id,
   arms,
@@ -62,7 +62,7 @@ export function ShieldIcon({
 }: {
   id: string
   arms: ResolvedArms
-  size: number
+  size?: number
 }) {
   return (
     <svg
@@ -77,19 +77,21 @@ export function ShieldIcon({
         clipId={`${id}-clip`}
         box={[-SHIELD_WIDTH / 2, -SHIELD_HEIGHT / 2, SHIELD_WIDTH, SHIELD_HEIGHT]}
       />
-      <text
-        fill={SHIELD_NUMBER}
-        fontSize={10}
-        fontWeight="700"
-        textAnchor="middle"
-        dominantBaseline="central"
-        stroke={MAP_INK}
-        strokeWidth={2.4}
-        strokeLinejoin="round"
-        paintOrder="stroke"
-      >
-        {size}
-      </text>
+      {size !== undefined && (
+        <text
+          fill={SHIELD_NUMBER}
+          fontSize={10}
+          fontWeight="700"
+          textAnchor="middle"
+          dominantBaseline="central"
+          stroke={MAP_INK}
+          strokeWidth={2.4}
+          strokeLinejoin="round"
+          paintOrder="stroke"
+        >
+          {size}
+        </text>
+      )}
     </svg>
   )
 }

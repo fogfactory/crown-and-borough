@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, type ReactNode } from 'react'
 
 import { useLanguage } from '@/i18n/LanguageContext'
+import type { EventMarks } from '@/lib/map-frame'
 import { cn } from '@/lib/utils'
 
 /**
@@ -11,6 +12,11 @@ import { cn } from '@/lib/utils'
 export interface MapLinks {
   /** Frames and selects the territory; `noble` also gets the pawn halo. */
   focus: (territory: string, noble?: string) => void
+  /**
+   * Frames the map on a report event and draws it there until the next
+   * selection (charte-graphique.md § Rapport de tour).
+   */
+  showEvent: (marks: EventMarks) => void
   /** Lights the territory on the map, or nothing with null. */
   highlight: (territory: string | null) => void
   /** Whether the territory exists on the map. */
