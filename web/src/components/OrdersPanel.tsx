@@ -1,5 +1,5 @@
 import { type ChangeEvent } from 'react'
-import { IconBook, IconSnowflake, IconX } from '@tabler/icons-react'
+import { IconBook, IconSnowflake } from '@tabler/icons-react'
 
 import { Button } from '@/components/ui/button'
 import { OrderLauncher } from '@/components/OrderDialog'
@@ -12,7 +12,11 @@ import {
 } from '@/components/ui/tooltip'
 import type { RulesSection } from '@/components/RulesPanel'
 import { SectionHeading } from '@/components/SectionHeading'
-import { formatCardHand, formatCardLabel } from '@/lib/card-hand'
+import { TerritoryRef } from '@/components/MapLinks'
+import { richTranslate } from '@/lib/rich-text'
+import { formatCardLabel, formatCardName } from '@/lib/card-hand'
+import { CardPictogram } from '@/components/CardPictogram'
+import { HandFan, type FanCard } from '@/components/HandFan'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { appendDraftLine, draftLines } from '@/lib/winter-draft'
 import { useLanguage } from '@/i18n/LanguageContext'
@@ -187,9 +191,11 @@ function CalamityWarnings({ state }: { state: StateData }) {
   if (announcements.length === 0) return null
 
   return (
+    // A forecast is not an error: warning tones, not the vermilion of alerts.
     <div
-      role="alert"
-      className="space-y-1 rounded-md border border-vermilion-700/30 bg-vermilion-100 px-3 py-2 text-xs text-vermilion-700"
+      role="status"
+      data-calamity-forecast
+      className="space-y-1 rounded-md border border-warning-700/40 bg-warning-100 px-3 py-2 text-xs text-warning-700"
     >
       <p className="font-semibold">{t('orders.calamityWarningTitle')}</p>
       <ul className="list-disc space-y-0.5 pl-4">
@@ -197,10 +203,10 @@ function CalamityWarnings({ state }: { state: StateData }) {
           <li
             key={`${announcement.year}-${announcement.season}-${announcement.kind}-${index}`}
           >
-            {t(announcement.ritual ? 'orders.calamityWarningItemOmens' : 'orders.calamityWarningItem', {
+            {richTranslate(t, announcement.ritual ? 'orders.calamityWarningItemOmens' : 'orders.calamityWarningItem', {
               card: formatCardLabel(announcement.kind, t),
               season: t(SEASON_LABEL_KEYS[announcement.season]),
-              region: announcement.region,
+              region: <TerritoryRef id={announcement.region} />,
             })}
           </li>
         ))}
@@ -209,25 +215,21 @@ function CalamityWarnings({ state }: { state: StateData }) {
   )
 }
 
+/** The special-card sheet: appeasement orders and the typed card orders. */
 function DeckOrdersSection({
   state,
   player,
-  regions,
-  mapTerritories,
   specialDraft,
   onSpecialChange,
   onOpenRules,
 }: {
   state: StateData
   player: PlayerId
-  regions: Region[]
-  mapTerritories?: Territory[]
   onOpenRules?: (section: RulesSection) => void
   specialDraft: string
   onSpecialChange: (text: string) => void
 }) {
   const { t } = useLanguage()
-  const hand = state.specialHand ?? []
   return (
     <section className="space-y-2 rounded-lg border border-line bg-paper-100 p-3">
       <SectionHeading
@@ -238,18 +240,6 @@ function DeckOrdersSection({
         rulesSection="action-orders"
         onOpenRules={onOpenRules}
         titleClassName="font-display text-base font-semibold text-ink-700"
-      />
-      <p className="text-xs text-ink-700">
-        {t('orders.deckHand')}: {formatCardHand(hand, t)}
-      </p>
-      <CalamityWarnings state={state} />
-      <SpecialCardOrders
-        state={state}
-        player={player}
-        mapTerritories={mapTerritories}
-        regions={regions}
-        draft={specialDraft}
-        onChange={onSpecialChange}
       />
       <AppeasementOrders
         state={state}
@@ -266,6 +256,12 @@ function DeckOrdersSection({
       />
     </section>
   )
+}
+
+/** Number of `D C CODE` lines of the draft discarding this card. */
+function draftDiscardCount(lines: string[], code: string): number {
+  const discard = new RegExp(`^D\\s+C\\s+${code}(\\s|$)`)
+  return lines.filter((line) => discard.test(line)).length
 }
 
 /** True when the draft already carries a `T N` draw order. */
@@ -295,7 +291,8 @@ function draftMentionsCard(draft: string, code: string): boolean {
   })
 }
 
-function NobleCardRow({
+/** Play and discard controls of a noble, claim or dignity card of the hand. */
+function NobleCardActions({
   card,
   player,
   state,
@@ -428,10 +425,12 @@ function NobleCardRow({
     }
   }
   return (
-    <li className="flex items-center gap-1.5 text-xs text-winter-700">
-      {!missingOptions && (
+    <>
+      {missingOptions ? (
+        <span className="text-xs italic text-ink-500">{t('hand.noTarget')}</span>
+      ) : (
         <OrderLauncher
-          label={label}
+          label={t('hand.play')}
           title={label}
           disabled={used}
           fields={fields}
@@ -439,19 +438,12 @@ function NobleCardRow({
           onConfirm={(line) => onWinterChange(appendDraftLine(winterDraft, line))}
         />
       )}
-      {missingOptions && (
-        <span className="rounded border border-dashed border-winter-700/30 px-2 py-1 text-winter-700">
-          {label}
-        </span>
-      )}
       {!cardsOnly && (
         <Button
           type="button"
           variant="outline"
-          size="icon-sm"
-          className="border-vermilion-700/50 text-vermilion-700 hover:bg-vermilion-100 hover:text-vermilion-700"
+          size="sm"
           disabled={used}
-          aria-label={t('orders.nobleHandDiscardAria', { code: card.code })}
           title={t('orders.nobleHandDiscardAria', { code: card.code })}
           onClick={() =>
             onWinterChange(
@@ -462,15 +454,19 @@ function NobleCardRow({
             )
           }
         >
-          <IconX aria-hidden="true" className="size-4" />
+          {t('hand.discard')}
         </Button>
       )}
-    </li>
+    </>
   )
 }
 
-/** A special card of the hand, with the button that discards it (`D C KIND`). */
-function SpecialCardRow({
+/**
+ * Controls of a special card of the hand: in winter, play the cards played in
+ * every season and discard (`D C KIND`); in an action season, the card's own
+ * play orders.
+ */
+function SpecialCardActions({
   state,
   player,
   kind,
@@ -478,6 +474,10 @@ function SpecialCardRow({
   winterDraft,
   onWinterChange,
   cardsOnly,
+  regions,
+  mapTerritories,
+  specialDraft,
+  onSpecialChange,
 }: {
   state: StateData
   player: PlayerId
@@ -486,13 +486,29 @@ function SpecialCardRow({
   winterDraft: string
   onWinterChange: (text: string) => void
   cardsOnly: boolean
+  regions: Region[]
+  mapTerritories?: Territory[]
+  specialDraft?: string
+  onSpecialChange?: (text: string) => void
 }) {
   const { t } = useLanguage()
+  if (cardsOnly) {
+    if (specialDraft === undefined || !onSpecialChange) return null
+    return (
+      <SpecialCardOrders
+        only={kind}
+        state={state}
+        player={player}
+        mapTerritories={mapTerritories}
+        regions={regions}
+        draft={specialDraft}
+        onChange={onSpecialChange}
+      />
+    )
+  }
   const card = formatCardLabel(kind, t)
   const code = shortCode(kind)
-  const discarded = draftLines(winterDraft).filter((line) =>
-    new RegExp(`^D\\s+C\\s+${code}(\\s|$)`).test(line),
-  ).length
+  const discarded = draftDiscardCount(draftLines(winterDraft), code)
   const cardLabel = copies > 1 ? `${card} ×${copies}` : card
   // The Assassination and Justice cards are played in every season, winter
   // included: the label is the button that plays them.
@@ -502,59 +518,65 @@ function SpecialCardRow({
     lines: draftLines(winterDraft),
     copies,
     add: (line: string) => onWinterChange(appendDraftLine(winterDraft, line)),
-    label: cardLabel,
+    label: t('hand.play'),
   }
-  const playButton = cardsOnly
-    ? null
-    : kind === 'assassination'
+  const playButton =
+    kind === 'assassination'
       ? assassinationLauncher({ ...launcherProps, player })
       : kind === 'justice'
         ? justiceLauncher(launcherProps)
         : null
   return (
-    <li className="flex items-center gap-1.5 text-xs text-winter-700">
-      {playButton ?? (
-        <span className="rounded border border-line bg-paper-100 px-2 py-1">{cardLabel}</span>
-      )}
-      {!cardsOnly && (
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          className="border-vermilion-700/50 text-vermilion-700 hover:bg-vermilion-100 hover:text-vermilion-700"
-          disabled={discarded >= copies}
-          aria-label={t('orders.discardSpecialCard', { card })}
-          title={t('orders.discardSpecialCard', { card })}
-          onClick={() =>
-            onWinterChange(
-              appendDraftLine(
-                winterDraft,
-                `D C ${code} # ${t('orders.comment.discardSpecial', { card })}`,
-              ),
-            )
-          }
-        >
-          <IconX aria-hidden="true" className="size-4" />
-        </Button>
-      )}
-    </li>
+    <>
+      {playButton}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={discarded >= copies}
+        title={t('orders.discardSpecialCard', { card: cardLabel })}
+        onClick={() =>
+          onWinterChange(
+            appendDraftLine(
+              winterDraft,
+              `D C ${code} # ${t('orders.comment.discardSpecial', { card })}`,
+            ),
+          )
+        }
+      >
+        {t('hand.discard')}
+      </Button>
+    </>
   )
 }
 
-function NobleDeckSection({
+/**
+ * The hand of cards (charte-graphique.md § Poste de commandement): special,
+ * noble, claim and dignity cards as a fan; a picked card shows its play and
+ * discard controls. Winter adds the noble draw; the deck and the hand limit
+ * are written under the fan.
+ */
+function HandSection({
   state,
   player,
   regions,
+  mapTerritories,
   winterDraft,
   onWinterChange,
+  specialDraft,
+  onSpecialChange,
   cardsOnly = false,
   onOpenRules,
 }: {
   state: StateData
   player: PlayerId
   regions: Region[]
+  mapTerritories?: Territory[]
   winterDraft: string
   onWinterChange: (text: string) => void
+  /** Action seasons: the special-card sheet, where special cards are played. */
+  specialDraft?: string
+  onSpecialChange?: (text: string) => void
   /** Outside winter: play the cards of the hand, no draw nor discard. */
   cardsOnly?: boolean
   onOpenRules?: (section: RulesSection) => void
@@ -570,31 +592,92 @@ function NobleDeckSection({
   const handFull =
     specialCount + hand.length - draftNobleDiscardCount(winterDraft) >= handLimit
   const drawDisabled = drawn || deckSize === 0 || handFull
+  const lines = draftLines(winterDraft)
+  const nobleName = (card: NobleCard) =>
+    card.kind === 'claim'
+      ? t('hand.claimCard')
+      : card.kind === 'dignity'
+        ? t(`dignity.${card.dignity ?? 'bastard'}` as MessageKey)
+        : (card.name ?? card.code)
+
+  const cards: FanCard[] = [
+    ...specialKinds.map((kind): FanCard => {
+      const copies = specialHand.filter((card) => card === kind).length
+      const code = shortCode(kind)
+      const discarded = draftDiscardCount(lines, code)
+      return {
+        key: `special:${kind}`,
+        family: 'special',
+        name: formatCardName(kind, t),
+        code,
+        icon: <CardPictogram kind={kind} />,
+        copies,
+        discarded: discarded > 0 && discarded >= copies,
+        actions: (
+          <SpecialCardActions
+            state={state}
+            player={player}
+            kind={kind}
+            copies={copies}
+            winterDraft={winterDraft}
+            onWinterChange={onWinterChange}
+            cardsOnly={cardsOnly}
+            regions={regions}
+            mapTerritories={mapTerritories}
+            specialDraft={specialDraft}
+            onSpecialChange={onSpecialChange}
+          />
+        ),
+      }
+    }),
+    ...hand.map(
+      (card): FanCard => ({
+        key: `noble:${card.id}`,
+        family: card.kind === 'dignity' ? 'dignity' : 'noble',
+        name: nobleName(card),
+        code: card.code,
+        icon: <CardPictogram kind={card.kind} />,
+        discarded: draftDiscardCount(lines, card.code) > 0,
+        actions: (
+          <NobleCardActions
+            card={card}
+            player={player}
+            state={state}
+            regions={regions}
+            winterDraft={winterDraft}
+            onWinterChange={onWinterChange}
+            cardsOnly={cardsOnly}
+          />
+        ),
+      }),
+    ),
+  ]
+
   return (
-    <section className="space-y-2 rounded-lg border border-winter-700/30 bg-winter-100 p-3">
+    <section className="space-y-2 rounded-lg border border-line bg-paper-100 p-3">
       <SectionHeading
-        tone="winter"
         title={t('orders.handTitle')}
         topic={t('orders.handTitle')}
         summary={t(cardsOnly ? 'orders.nobleCardsActionDescription' : 'orders.nobleDeckSummary')}
         help={t('orders.nobleDeckDescription')}
         rulesSection={cardsOnly ? 'action-orders' : 'winter-orders'}
         onOpenRules={onOpenRules}
-        titleClassName="font-display text-base font-semibold text-winter-700"
+        titleClassName="font-display text-base font-semibold text-ink-700"
       />
-      {(state.spiedHands ?? []).map((hand) => (
-        <p key={hand.player} className="text-xs font-medium text-winter-700">
+      <CalamityWarnings state={state} />
+      {(state.spiedHands ?? []).map((spied) => (
+        <p key={spied.player} className="text-xs font-medium text-ink-700">
           {t('orders.spiedHand', {
-            player: hand.player,
+            player: spied.player,
             cards: [
-              ...hand.specialHand.map((kind) => t(`card.${kind}` as MessageKey)),
-              ...hand.nobleHand.map((card) => card.name ?? card.code),
+              ...spied.specialHand.map((kind) => t(`card.${kind}` as MessageKey)),
+              ...spied.nobleHand.map((card) => card.name ?? card.code),
             ].join(', '),
           })}
         </p>
       ))}
       {(state.calamityForecast ?? []).length > 0 && (
-        <p className="text-xs font-medium text-winter-700">
+        <p className="text-xs font-medium text-warning-700">
           {t('orders.calamityForecast', {
             kinds: (state.calamityForecast ?? [])
               .map((kind) => t(`card.${kind}` as MessageKey))
@@ -602,70 +685,39 @@ function NobleDeckSection({
           })}
         </p>
       )}
-      {!cardsOnly && (
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={drawDisabled}
-            onClick={() => onWinterChange(appendDraftLine(winterDraft, 'T N'))}
-          >
-            {t('orders.nobleDraw')}
-          </Button>
-          <span className="text-xs text-winter-700">
-            {t('orders.nobleDeckSize', { count: deckSize })}
-          </span>
-          {drawn && (
-            <span className="text-xs text-winter-700">{t('orders.nobleDrawUsed')}</span>
-          )}
-          {!drawn && deckSize === 0 && (
-            <span className="text-xs text-vermilion-700">{t('orders.nobleDeckEmpty')}</span>
-          )}
-          {!drawn && deckSize > 0 && handFull && (
-            <span className="text-xs text-vermilion-700">{t('orders.nobleHandFull')}</span>
-          )}
-        </div>
-      )}
-      <p className="text-xs text-winter-700">
-        {t('orders.handCounter', {
-          count: specialCount + hand.length,
-          limit: handLimit,
-          special: specialCount,
-          noble: hand.length,
-        })}
-      </p>
-      <p className="text-xs font-semibold text-winter-700">{t('orders.hand')}</p>
-      {hand.length === 0 && specialKinds.length === 0 ? (
-        <p className="text-xs text-winter-700">{t('orders.handEmpty')}</p>
-      ) : (
-        <ul className="space-y-1" aria-label={t('orders.hand')}>
-          {specialKinds.map((kind) => (
-            <SpecialCardRow
-              key={kind}
-              state={state}
-              player={player}
-              kind={kind}
-              copies={specialHand.filter((card) => card === kind).length}
-              winterDraft={winterDraft}
-              onWinterChange={onWinterChange}
-              cardsOnly={cardsOnly}
-            />
-          ))}
-          {hand.map((card) => (
-            <NobleCardRow
-              key={card.id}
-              card={card}
-              player={player}
-              state={state}
-              regions={regions}
-              winterDraft={winterDraft}
-              onWinterChange={onWinterChange}
-              cardsOnly={cardsOnly}
-            />
-          ))}
-        </ul>
-      )}
+      <HandFan
+        cards={cards}
+        label={t('orders.hand')}
+        footer={
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-500">
+            <span data-hand-counter>
+              {t('hand.counter', {
+                deck: deckSize,
+                count: specialCount + hand.length,
+                limit: handLimit,
+              })}
+            </span>
+            {!cardsOnly && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={drawDisabled}
+                onClick={() => onWinterChange(appendDraftLine(winterDraft, 'T N'))}
+              >
+                {t('orders.nobleDraw')}
+              </Button>
+            )}
+            {!cardsOnly && drawn && <span>{t('orders.nobleDrawUsed')}</span>}
+            {!cardsOnly && !drawn && deckSize === 0 && (
+              <span className="text-warning-700">{t('orders.nobleDeckEmpty')}</span>
+            )}
+            {!cardsOnly && !drawn && deckSize > 0 && handFull && (
+              <span className="text-warning-700">{t('orders.nobleHandFull')}</span>
+            )}
+          </div>
+        }
+      />
     </section>
   )
 }
@@ -872,31 +924,6 @@ function OpenElectionsSection({
   )
 }
 
-function DeckHandSummary({
-  state,
-  onOpenRules,
-}: {
-  state: StateData
-  onOpenRules?: (section: RulesSection) => void
-}) {
-  const { t } = useLanguage()
-
-  return (
-    <section className="space-y-2 rounded-lg border border-line bg-paper-100 p-3">
-      <SectionHeading
-        title={t('orders.deckTitle')}
-        topic={t('orders.deckTitle')}
-        summary={t('orders.deckWinterSummary')}
-        help={t('orders.deckWinterDescription')}
-        rulesSection="winter-orders"
-        onOpenRules={onOpenRules}
-        titleClassName="font-display text-base font-semibold text-ink-700"
-      />
-      <CalamityWarnings state={state} />
-    </section>
-  )
-}
-
 function WinterOrderDiagnostics({
   diagnostics,
   t,
@@ -997,7 +1024,6 @@ export function OrdersPanel({
             )}
           </div>
         )}
-        <DeckHandSummary state={state} onOpenRules={onOpenRules} />
         <TitleOrdersSection
           state={state}
           player={player}
@@ -1011,10 +1037,11 @@ export function OrdersPanel({
           onWinterChange={onWinterChange}
           onOpenRules={onOpenRules}
         />
-        <NobleDeckSection
+        <HandSection
           state={state}
           player={player}
           regions={regions}
+          mapTerritories={mapTerritories}
           winterDraft={winterDraft}
           onWinterChange={onWinterChange}
           onOpenRules={onOpenRules}
@@ -1059,26 +1086,27 @@ export function OrdersPanel({
         onOpenRules={onOpenRules}
         titleClassName="font-display text-lg font-semibold"
       />
-      <DeckOrdersSection
+      <HandSection
         state={state}
         player={player}
         regions={regions}
         mapTerritories={mapTerritories}
+        winterDraft={winterDraft}
+        onWinterChange={onWinterChange}
+        specialDraft={specialDraft}
+        onSpecialChange={onSpecialChange}
+        cardsOnly
+        onOpenRules={onOpenRules}
+      />
+      <DeckOrdersSection
+        state={state}
+        player={player}
         specialDraft={specialDraft}
         onSpecialChange={onSpecialChange}
         onOpenRules={onOpenRules}
       />
       {(state.nobleHand ?? []).length > 0 && (
         <>
-          <NobleDeckSection
-            state={state}
-            player={player}
-            regions={regions}
-            winterDraft={winterDraft}
-            onWinterChange={onWinterChange}
-            cardsOnly
-            onOpenRules={onOpenRules}
-          />
           <textarea
             value={winterDraft}
             onChange={(event) => onWinterChange(event.target.value)}

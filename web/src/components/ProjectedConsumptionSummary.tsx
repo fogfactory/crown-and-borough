@@ -1,4 +1,6 @@
+import { TerritoryRef } from '@/components/MapLinks'
 import { useLanguage } from '@/i18n/LanguageContext'
+import { richTranslate } from '@/lib/rich-text'
 import type { PlayerId, StateData } from '@/types'
 
 interface ProjectedConsumptionSummaryProps {
@@ -7,7 +9,8 @@ interface ProjectedConsumptionSummaryProps {
 }
 
 /**
- * Command post line showing the selected player's projected ration
+ * Consumption detail of the treasury bar (charte § Poste de commandement),
+ * showing the selected player's projected ration
  * consumption for the next action turn, and the armies that would starve if
  * nothing changes before resolution (see the FAQ for the two things this
  * can't foresee: an undrawn calamity card, and any order change before
@@ -26,7 +29,7 @@ export function ProjectedConsumptionSummary({ state, playerId }: ProjectedConsum
   const armiesAtRisk = player.armiesAtRisk ?? []
 
   return (
-    <div className="rounded-lg border border-line bg-paper-100 px-3 py-2 text-sm">
+    <div className="text-sm">
       <p className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
         {t('app.projectedConsumption')}
       </p>
@@ -40,8 +43,8 @@ export function ProjectedConsumptionSummary({ state, playerId }: ProjectedConsum
         <ul className="mt-1 space-y-0.5">
           {armiesAtRisk.map((risk) => (
             <li key={risk.territoryId}>
-              {t('app.armyAtRisk', {
-                territory: risk.territoryId,
+              {richTranslate(t, 'app.armyAtRisk', {
+                territory: <TerritoryRef id={risk.territoryId} />,
                 size: risk.size,
                 deficit: risk.deficit,
               })}

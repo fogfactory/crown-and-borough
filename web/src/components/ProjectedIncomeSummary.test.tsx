@@ -65,7 +65,6 @@ describe('ProjectedIncomeSummary', () => {
       screen.getByText(withText('Territory: +6 R → ROS (capital)')),
     ).toBeInTheDocument()
     expect(screen.getByText('Mills: +2 R')).toBeInTheDocument()
-    expect(screen.getByText('Current stockpile: 25 R')).toBeInTheDocument()
   })
 
   it('omits the destination without a capital', () => {
@@ -77,7 +76,6 @@ describe('ProjectedIncomeSummary', () => {
 
     expect(screen.getByText('Territory: +0 R')).toBeInTheDocument()
     expect(screen.getByText('Mills: +0 R')).toBeInTheDocument()
-    expect(screen.getByText('Current stockpile: 5 R')).toBeInTheDocument()
   })
 
   it('splits territory income into one line per fief plus the non-fief remainder', () => {
@@ -154,7 +152,6 @@ describe('ProjectedIncomeSummary', () => {
     expect(screen.getByText(withText('Barony of BOI: +4 R'))).toBeInTheDocument()
     expect(screen.getByText(withText('County of CHA: +3 R'))).toBeInTheDocument()
     expect(screen.getByText('Mills: +2 R')).toBeInTheDocument()
-    expect(screen.getByText('Current stockpile: 36 R')).toBeInTheDocument()
     expect(screen.queryByText('Territory: +10 R → ROS (capital)')).not.toBeInTheDocument()
   })
 

@@ -11,8 +11,7 @@ import { MapLinksProvider } from '@/components/MapLinks'
 import { SelectedTerritoryDetails } from '@/components/SelectedTerritoryDetails'
 import { OrdersPanel, SealOrders } from '@/components/OrdersPanel'
 import { RealmPanel } from '@/components/RealmPanel'
-import { ProjectedConsumptionSummary } from '@/components/ProjectedConsumptionSummary'
-import { ProjectedIncomeSummary } from '@/components/ProjectedIncomeSummary'
+import { TreasuryBar } from '@/components/TreasuryBar'
 import { ReportPane } from '@/components/ReportPane'
 import { LineageDialog } from '@/components/LineageDialog'
 import { Scoreboard } from '@/components/Scoreboard'
@@ -870,14 +869,10 @@ function AppContent() {
                 panels={{
                   orders: (
                     <>
-                      <ProjectedIncomeSummary
+                      <TreasuryBar
                         state={state}
                         playerId={selectedPlayer}
                         specialDraft={specialDrafts[selectedPlayer]}
-                      />
-                      <ProjectedConsumptionSummary
-                        state={state}
-                        playerId={selectedPlayer}
                       />
                       {!detailsOnMap && territoryDetails}
                       {state && (

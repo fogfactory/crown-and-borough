@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { LanguageProvider } from '@/i18n/LanguageContext'
 import { ProjectedConsumptionSummary } from '@/components/ProjectedConsumptionSummary'
 import type { StateData } from '@/types'
+import { withText } from '@/test/text'
 
 const state: StateData = {
   turn: 1,
@@ -34,7 +35,7 @@ describe('ProjectedConsumptionSummary', () => {
 
     expect(screen.getByText('Projected consumption')).toBeInTheDocument()
     expect(screen.getByText('−6 R per action turn')).toBeInTheDocument()
-    expect(screen.getByText('MOR (2 troops): −1 R short')).toBeInTheDocument()
+    expect(screen.getByText(withText('MOR (2 troops): −1 R short'))).toBeInTheDocument()
   })
 
   it('shows no army at risk when none is flagged', () => {

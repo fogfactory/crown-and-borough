@@ -908,6 +908,7 @@ export function SpecialCardOrders({
   draft,
   onChange,
   discard = false,
+  only,
 }: {
   state: StateData
   /** Map territories, for the commune names shown in the Tax card targets. */
@@ -919,18 +920,24 @@ export function SpecialCardOrders({
   onChange: (text: string) => void
   /** Winter: the cards are discarded rather than played. */
   discard?: boolean
+  /** Offers this card only (the card picked in the hand fan). */
+  only?: CardKind
 }) {
   const { t } = useLanguage()
-  const hand = (state.specialHand ?? []).filter((kind) => PLAYABLE_KINDS.includes(kind))
-  if (hand.length === 0) return null
+  const hand = (state.specialHand ?? []).filter(
+    (kind) => PLAYABLE_KINDS.includes(kind) && (!only || kind === only),
+  )
+  // The card picked in the hand fan says so when it cannot be played now.
+  const nothingToPlay = only ? (
+    <span className="text-xs italic text-ink-500">{t('hand.noTarget')}</span>
+  ) : null
+  if (hand.length === 0) return nothingToPlay
   const lines = draftLines(draft)
   const used = (kind: CardKind, prefix: string) =>
     lines.filter((line) => line.startsWith(`${prefix} ${shortCode(kind)}`)).length
   const copies = (kind: CardKind) => hand.filter((card) => card === kind).length
 
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {[...new Set(hand)].map((kind) => {
+  const launchers = [...new Set(hand)].map((kind) => {
         const card = formatCardLabel(kind, t)
         if (discard) {
           return (
@@ -997,9 +1004,9 @@ export function SpecialCardOrders({
             onConfirm={(line) => onChange(appendDraftLine(draft, line))}
           />
         )
-      })}
-    </div>
-  )
+      })
+  if (launchers.every((launcher) => launcher === null)) return nothingToPlay
+  return <div className="flex flex-wrap gap-1.5">{launchers}</div>
 }
 
 /** Issuer values: `tax:HHH` (lord), `tax:` (vacant fief, no noble), `tithe:HHH` (cleric). */
