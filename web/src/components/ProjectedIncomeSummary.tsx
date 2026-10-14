@@ -1,6 +1,8 @@
+import { TerritoryRef } from '@/components/MapLinks'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
 import { draftedTaxEffects } from '@/lib/projected-tax'
+import { richTranslate } from '@/lib/rich-text'
 import type { FiefTitle, PlayerId, StateData } from '@/types'
 
 interface ProjectedIncomeSummaryProps {
@@ -30,7 +32,11 @@ const FIEF_TITLE_KEYS: Record<FiefTitle, MessageKey> = {
  * income routed outside any fief, since a single "→ capital" line would
  * otherwise hide where a fief's territories actually pay.
  */
-export function ProjectedIncomeSummary({ state, playerId, specialDraft }: ProjectedIncomeSummaryProps) {
+export function ProjectedIncomeSummary({
+  state,
+  playerId,
+  specialDraft,
+}: ProjectedIncomeSummaryProps) {
   const { t } = useLanguage()
   if (!state || !playerId) {
     return null
@@ -55,7 +61,8 @@ export function ProjectedIncomeSummary({ state, playerId, specialDraft }: Projec
     taxes.royalSupplement +
     taxes.tithe
   const totalResources = state.territories.reduce(
-    (total, territory) => total + (territory.owner === playerId ? territory.resources : 0),
+    (total, territory) =>
+      total + (territory.owner === playerId ? territory.resources : 0),
     0,
   )
 
@@ -69,34 +76,44 @@ export function ProjectedIncomeSummary({ state, playerId, specialDraft }: Projec
           {t('app.projectedTerritoryIncomeAmount', {
             amount: player.projectedIncome ?? 0,
           })}
-          {player.capitalTerritory
-            ? ' ' +
-              t('app.projectedIncomeDestination', {
-                destination: player.capitalTerritory,
-              })
-            : ''}
+          {player.capitalTerritory ? (
+            <>
+              {' '}
+              {richTranslate(t, 'app.projectedIncomeDestination', {
+                destination: <TerritoryRef id={player.capitalTerritory} />,
+              })}
+            </>
+          ) : (
+            ''
+          )}
         </p>
       ) : (
         <>
           <p className="mt-1 font-medium">
             {t('app.projectedNonFiefIncomeAmount', { amount: nonFiefIncome })}
-            {player.capitalTerritory
-              ? ' ' +
-                t('app.projectedIncomeDestination', {
-                  destination: player.capitalTerritory,
-                })
-              : ''}
+            {player.capitalTerritory ? (
+              <>
+                {' '}
+                {richTranslate(t, 'app.projectedIncomeDestination', {
+                  destination: <TerritoryRef id={player.capitalTerritory} />,
+                })}
+              </>
+            ) : (
+              ''
+            )}
           </p>
           {playerFiefs.map((fief) => (
             <p key={fief.capital} className="mt-1 font-medium">
-              {t(
+              {richTranslate(
+                t,
                 fief.capital in taxes.seigneurial
                   ? 'app.projectedFiefIncomeTaxedAmount'
                   : 'app.projectedFiefIncomeAmount',
                 {
                   title: t(FIEF_TITLE_KEYS[fief.title]),
-                  capital: fief.capital,
-                  amount: (fief.projectedIncome ?? 0) + (taxes.seigneurial[fief.capital] ?? 0),
+                  capital: <TerritoryRef id={fief.capital} />,
+                  amount:
+                    (fief.projectedIncome ?? 0) + (taxes.seigneurial[fief.capital] ?? 0),
                 },
               )}
             </p>
@@ -107,10 +124,14 @@ export function ProjectedIncomeSummary({ state, playerId, specialDraft }: Projec
         {t('app.projectedMillIncomeAmount', { amount: player.projectedMillIncome ?? 0 })}
       </p>
       {royalRent > 0 && (
-        <p className="mt-1 font-medium">{t('app.projectedRoyalRentAmount', { amount: royalRent })}</p>
+        <p className="mt-1 font-medium">
+          {t('app.projectedRoyalRentAmount', { amount: royalRent })}
+        </p>
       )}
       {taxes.titheDrafted && (
-        <p className="mt-1 font-medium">{t('app.projectedTitheAmount', { amount: taxes.tithe })}</p>
+        <p className="mt-1 font-medium">
+          {t('app.projectedTitheAmount', { amount: taxes.tithe })}
+        </p>
       )}
       {taxes.royalDrafted && (
         <p className="mt-1 font-medium">

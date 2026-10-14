@@ -83,6 +83,10 @@ interface MapViewerProps {
   selectedId?: string | null
   /** Pans and zooms onto these territories each time its key changes. */
   frame?: MapFrame
+  /** Territory lit while a link to it is hovered (charte § Identifiants). */
+  highlightedId?: string | null
+  /** Noble whose pawn wears the selection halo. */
+  selectedNoble?: string | null
   supply?: SupplyLine | null
   intentions?: Intention[]
   winterIntentions?: WinterIntention[]
@@ -107,6 +111,8 @@ export function MapViewer({
   onSelect,
   selectedId: controlledSelectedId,
   frame,
+  highlightedId = null,
+  selectedNoble = null,
   supply,
   intentions = [],
   winterIntentions = [],
@@ -201,7 +207,7 @@ export function MapViewer({
         .filter((territory) => wanted.has(territory.id))
         .map((territory) => territory.points),
     )
-    if (bounds) frameOn(bounds, Math.max(mapWidth, mapHeight) * 0.04)
+    if (bounds) frameOn(bounds, Math.max(mapWidth, mapHeight) * (frame.padding ?? 0.04))
   })
   // "meet": the viewBox fits the narrower side of the element.
   const pixelsPerUnit =
@@ -451,6 +457,22 @@ export function MapViewer({
 
             <g aria-label={t('map.selection')} pointerEvents="none">
               {map.territories.map((territory) => {
+                if (territory.id === highlightedId && territory.id !== selectedId) {
+                  return (
+                    <path
+                      key={territory.id}
+                      data-highlighted-territory={territory.id}
+                      d={pointsToPath(territory.points)}
+                      fill={SELECTION_HALO}
+                      fillOpacity="0.18"
+                      stroke={SELECTION_STROKE}
+                      strokeWidth={SELECTION_STROKE_WIDTH}
+                      strokeDasharray="4 3"
+                      strokeLinejoin="round"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  )
+                }
                 if (territory.id !== selectedId) {
                   return null
                 }
@@ -534,6 +556,7 @@ export function MapViewer({
               armsByOwner={armsByOwner}
               nobleAttributes={nobleAttributes}
               annotationScale={annotationScale}
+              selectedNoble={selectedNoble}
             />
 
             <TerritoryLabels

@@ -6,6 +6,8 @@ import { BrandMark } from '@/components/BrandMark'
 import { GameMenu } from '@/components/GameMenu'
 import { MapViewer } from '@/components/MapViewer'
 import { ownTerritoriesFrame } from '@/lib/map-frame'
+import { useMapLinkState } from '@/lib/use-map-link-state'
+import { MapLinksProvider } from '@/components/MapLinks'
 import { SelectedTerritoryDetails } from '@/components/SelectedTerritoryDetails'
 import { OrdersPanel, SealOrders } from '@/components/OrdersPanel'
 import { RealmPanel } from '@/components/RealmPanel'
@@ -431,6 +433,17 @@ function AppContent() {
     desktop || !state
       ? undefined
       : ownTerritoriesFrame(state, selectedPlayer, `${gameId}:${selectedPlayer}`)
+  const linkState = useMapLinkState({
+    map,
+    state,
+    selectedId,
+    baseFrame: mapFrame,
+    onSelect: (id) => {
+      setSelectedId(id)
+      // Phones show the territory on the map tab (charte § Identifiants).
+      if (!desktop) setActivePanel('map')
+    },
+  })
   // On the phone map view the details show in a card over the map instead.
   const detailsOnMap = !desktop && activePanel === 'map' && Boolean(selectedTerritory)
 
@@ -471,7 +484,9 @@ function AppContent() {
           supply={selectedSupplyLine}
           onSelect={handleTerritorySelect}
           selectedId={selectedId}
-          frame={mapFrame}
+          frame={linkState.frame}
+          highlightedId={linkState.highlightedId}
+          selectedNoble={linkState.selectedNoble}
           intentions={intentions}
           winterIntentions={winterIntentions}
           showIntentions={showIntentions}
@@ -820,87 +835,93 @@ function AppContent() {
 
       {view === 'game' ? (
         <main className="flex min-h-0 w-full flex-1 flex-col">
-          <GameLayout
-            map={renderMap()}
-            view={activePanel}
-            mapOverlay={detailsOnMap ? territoryDetails : undefined}
-            onCloseOverlay={() => setSelectedId(null)}
-          >
-            <GameDrawer
-              activePanel={activePanel}
-              onPanelChange={setActivePanel}
-              season={state?.season}
-              reportLabelExtra={
-                report && viewedReportTurn !== report.header.turn ? (
-                  <span className="rounded-full bg-paper-50 px-1.5 py-0.5 text-2xs text-brass-700">
-                    {t('app.reportNew')}
-                  </span>
-                ) : null
-              }
-              footer={
-                state ? (
-                  <SealOrders
-                    state={state}
-                    player={selectedPlayer}
-                    winterDraft={winterDrafts[selectedPlayer] ?? ''}
-                    specialDraft={specialDrafts[selectedPlayer] ?? ''}
-                    submitted={submittedPlayers.includes(selectedPlayer)}
-                    submitting={resolving}
-                    error={actionError}
-                    onSubmit={() => void submitOrders()}
-                  />
-                ) : null
-              }
-              panels={{
-                orders: (
-                  <>
-                    <ProjectedIncomeSummary
+          <MapLinksProvider value={linkState.links}>
+            <GameLayout
+              map={renderMap()}
+              view={activePanel}
+              mapOverlay={detailsOnMap ? territoryDetails : undefined}
+              onCloseOverlay={() => setSelectedId(null)}
+            >
+              <GameDrawer
+                activePanel={activePanel}
+                onPanelChange={setActivePanel}
+                season={state?.season}
+                reportLabelExtra={
+                  report && viewedReportTurn !== report.header.turn ? (
+                    <span className="rounded-full bg-paper-50 px-1.5 py-0.5 text-2xs text-brass-700">
+                      {t('app.reportNew')}
+                    </span>
+                  ) : null
+                }
+                footer={
+                  state ? (
+                    <SealOrders
                       state={state}
-                      playerId={selectedPlayer}
-                      specialDraft={specialDrafts[selectedPlayer]}
+                      player={selectedPlayer}
+                      winterDraft={winterDrafts[selectedPlayer] ?? ''}
+                      specialDraft={specialDrafts[selectedPlayer] ?? ''}
+                      submitted={submittedPlayers.includes(selectedPlayer)}
+                      submitting={resolving}
+                      error={actionError}
+                      onSubmit={() => void submitOrders()}
                     />
-                    <ProjectedConsumptionSummary
-                      state={state}
-                      playerId={selectedPlayer}
-                    />
-                    {!detailsOnMap && territoryDetails}
-                    {state && (
-                      <OrdersPanel
-                        regions={map?.regions}
-                        mapTerritories={map?.territories}
+                  ) : null
+                }
+                panels={{
+                  orders: (
+                    <>
+                      <ProjectedIncomeSummary
                         state={state}
-                        player={selectedPlayer}
-                        chainDrafts={chainDrafts[selectedPlayer] ?? {}}
-                        winterDraft={winterDrafts[selectedPlayer] ?? ''}
-                        preview={preview}
-                        specialDraft={specialDrafts[selectedPlayer] ?? ''}
-                        onChainChange={updateChainDraft}
-                        onWinterChange={updateWinterDraft}
-                        onSpecialChange={updateSpecialDraft}
-                        onOpenRules={openRules}
+                        playerId={selectedPlayer}
+                        specialDraft={specialDrafts[selectedPlayer]}
                       />
-                    )}
-                  </>
-                ),
-                report: (
-                  <ReportPane report={report} map={map} players={state?.players ?? []} />
-                ),
-                realm: state ? (
-                  <RealmPanel
-                    state={state}
-                    territories={map?.territories}
-                    onOpenLineage={() => setLineageOpen(true)}
-                  />
-                ) : null,
-                rules: (
-                  <RulesPanel
-                    targetSection={rulesNavigation?.section}
-                    navigationKey={rulesNavigation?.key}
-                  />
-                ),
-              }}
-            />
-          </GameLayout>
+                      <ProjectedConsumptionSummary
+                        state={state}
+                        playerId={selectedPlayer}
+                      />
+                      {!detailsOnMap && territoryDetails}
+                      {state && (
+                        <OrdersPanel
+                          regions={map?.regions}
+                          mapTerritories={map?.territories}
+                          state={state}
+                          player={selectedPlayer}
+                          chainDrafts={chainDrafts[selectedPlayer] ?? {}}
+                          winterDraft={winterDrafts[selectedPlayer] ?? ''}
+                          preview={preview}
+                          specialDraft={specialDrafts[selectedPlayer] ?? ''}
+                          onChainChange={updateChainDraft}
+                          onWinterChange={updateWinterDraft}
+                          onSpecialChange={updateSpecialDraft}
+                          onOpenRules={openRules}
+                        />
+                      )}
+                    </>
+                  ),
+                  report: (
+                    <ReportPane
+                      report={report}
+                      map={map}
+                      players={state?.players ?? []}
+                    />
+                  ),
+                  realm: state ? (
+                    <RealmPanel
+                      state={state}
+                      territories={map?.territories}
+                      onOpenLineage={() => setLineageOpen(true)}
+                    />
+                  ) : null,
+                  rules: (
+                    <RulesPanel
+                      targetSection={rulesNavigation?.section}
+                      navigationKey={rulesNavigation?.key}
+                    />
+                  ),
+                }}
+              />
+            </GameLayout>
+          </MapLinksProvider>
         </main>
       ) : (
         <main className="mx-auto w-full max-w-[1200px] flex-1 p-4 sm:p-6">

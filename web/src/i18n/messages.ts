@@ -292,7 +292,7 @@ const englishMessages = {
   'map.armyStarvingBadge': 'Starving: will fight at strength 0 this turn',
   'orders.winterTitle': 'Winter orders',
   'orders.winterDescription':
-    'Direct investments only, without chains or military movement. Use D C KIND to discard a card; the hand is replenished automatically. Orders are applied in the order entered. Resolution waits for every player.',
+    'Direct investments only, without chains or military movement. Discarding a card frees room before the hand is replenished automatically. Orders are applied in the order entered. Resolution waits for every player.',
   'orders.winterPlaceholder':
     'R T ROS\nD C BT\nO N NNN\nP N NNN\nH N NNN ROS\nT F NNN ROS BOI BRU\nT A NNN ROS\nM N NNN MMM',
   'orders.winterAria': 'Winter orders for {player}',
@@ -362,7 +362,7 @@ const englishMessages = {
   'orders.handEmpty': 'No card in hand.',
   'orders.nobleDeckTitle': 'Noble deck',
   'orders.nobleDeckDescription':
-    'Draw the top card of the shared deck (T N), then play noble cards on a castle or village where you hold an army (R N CCC XXX) claim cards for an heir against a noble married into your family (C N HHH CCC) and dignity cards on one of your nobles (D N NNN CCC). The hand limit is shared between special cards and noble cards; at most 2 cards are drawn per winter across both decks, and at most one of them from the noble deck.',
+    'Draw the top card of the shared deck, then play noble cards on a castle or village where you hold an army, claim cards for an heir against a noble married into your family, and dignity cards on one of your nobles. The hand limit is shared between special cards and noble cards; at most 2 cards are drawn per winter across both decks, and at most one of them from the noble deck.',
   'orders.nobleDraw': 'Draw a noble card (T N)',
   'orders.nobleDeckSize': 'Deck: {count} card(s) left',
   'orders.handCounter': 'Hand: {count}/{limit} cards (special: {special}, noble: {noble})',
@@ -560,9 +560,9 @@ const englishMessages = {
     'The claim is lost: it targeted a married chevalier d’Éon, now unmasked.',
   'orders.deckTitle': 'Special cards',
   'orders.deckDescription':
-    'Play cards independently of noble chains. Use P KIND TER during action seasons.',
+    'Play cards independently of noble chains, during action seasons, on the region or territory each card names.',
   'orders.deckWinterDescription':
-    'The hand is replenished automatically in winter. Use D C KIND to discard cards before the refill.',
+    'The hand is replenished automatically in winter. Discard the cards you do not want to keep before the refill.',
   'orders.deckHand': 'Hand',
   'orders.deckEmpty': 'Empty',
   'orders.deckPlaceholder': 'P BT ROS',
@@ -1223,6 +1223,17 @@ const englishMessages = {
   'realm.fiefTerritories': '{count} territories',
   'realm.openLineage': 'Open lineage and alliances',
   'realm.empty': 'The kingdom has neither crown nor church yet.',
+  'links.positionUnknown': 'position unknown',
+  'links.deceased': 'deceased',
+  'help.about': 'Help: {topic}',
+  'help.seeRule': 'See the rule',
+  'orders.winterSummary': 'Direct investments only: no chains, no troop movement.',
+  'orders.actionSummary': 'One chain per noble; an empty chain leaves the noble idle.',
+  'orders.titlesSummary': 'Orders of your titles: each button opens a form.',
+  'orders.deckSummary': 'Cards are played apart from the noble chains.',
+  'orders.deckWinterSummary': 'The hand refills by itself in winter.',
+  'orders.nobleDeckSummary': 'Draw a noble card, then play nobles, claims and dignities.',
+  'orders.electionsSummary': 'A title won this winter serves from next winter on.',
 } as const
 
 const frenchMessages: Record<keyof typeof englishMessages, string> = {
@@ -1516,7 +1527,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'map.armyStarvingBadge': 'Affamée : combattra à force 0 ce tour-ci',
   'orders.winterTitle': "Ordres d'hiver",
   'orders.winterDescription':
-    "Investissements directs uniquement, sans chaînes ni mouvements militaires. Utilisez D C KIND pour défausser une carte ; la main est reconstituée automatiquement. Les ordres sont appliqués dans l'ordre saisi. La résolution attend tous les joueurs.",
+    "Investissements directs uniquement, sans chaînes ni mouvements militaires. Défausser une carte libère de la place avant que la main soit reconstituée automatiquement. Les ordres sont appliqués dans l'ordre saisi. La résolution attend tous les joueurs.",
   'orders.winterPlaceholder':
     'R T ROS\nD C BT\nO N NNN\nP N NNN\nH N NNN ROS\nT F NNN ROS BOI BRU\nT A NNN ROS\nM N NNN MMM',
   'orders.winterAria': "Ordres d'hiver de {player}",
@@ -1586,7 +1597,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'orders.handEmpty': 'Aucune carte en main.',
   'orders.nobleDeckTitle': 'Deck de nobles',
   'orders.nobleDeckDescription':
-    'Piochez la carte du dessus du deck commun (T N), puis jouez les cartes de noble sur un château ou village où vous avez une armée (R N CCC XXX) les prétentions d’un héritier contre un noble marié dans votre famille (C N HHH CCC) et les dignités sur l’un de vos nobles (D N NNN CCC). La limite de main est partagée entre cartes spéciales et cartes de noble ; au plus 2 cartes sont piochées par hiver, tous decks confondus, dont une seule dans le deck de nobles.',
+    'Piochez la carte du dessus du deck commun, puis jouez les cartes de noble sur un château ou village où vous avez une armée, les prétentions d’un héritier contre un noble marié dans votre famille et les dignités sur l’un de vos nobles. La limite de main est partagée entre cartes spéciales et cartes de noble ; au plus 2 cartes sont piochées par hiver, tous decks confondus, dont une seule dans le deck de nobles.',
   'orders.nobleDraw': 'Piocher une carte de noble (T N)',
   'orders.nobleDeckSize': 'Deck : {count} carte(s) restante(s)',
   'orders.handCounter': 'Main : {count}/{limit} cartes (spéciales : {special}, nobles : {noble})',
@@ -1784,9 +1795,9 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     'Le Claim est perdu : il visait un chevalier d’Éon marié, désormais démasqué.',
   'orders.deckTitle': 'Cartes spéciales',
   'orders.deckDescription':
-    'Jouez les cartes indépendamment des chaînes de nobles. Utilisez P KIND TER pendant les saisons d’action.',
+    'Jouez les cartes indépendamment des chaînes de nobles, pendant les saisons d’action, sur la région ou le territoire que chaque carte désigne.',
   'orders.deckWinterDescription':
-    'La main est reconstituée automatiquement en hiver. Utilisez D C KIND pour défausser des cartes avant la reconstitution.',
+    'La main est reconstituée automatiquement en hiver. Défaussez les cartes que vous ne voulez pas garder avant la reconstitution.',
   'orders.deckHand': 'Main',
   'orders.deckEmpty': 'Vide',
   'orders.deckPlaceholder': 'P BT ROS',
@@ -2462,6 +2473,17 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'realm.fiefTerritories': '{count} territoires',
   'realm.openLineage': 'Ouvrir la lignée et les alliances',
   'realm.empty': "Le royaume n'a encore ni couronne ni Église.",
+  'links.positionUnknown': 'position inconnue',
+  'links.deceased': 'décédé',
+  'help.about': 'Aide : {topic}',
+  'help.seeRule': 'Voir la règle',
+  'orders.winterSummary': 'Investissements directs seulement : ni chaînes ni mouvement de troupes.',
+  'orders.actionSummary': 'Une chaîne par noble ; une chaîne vide laisse le noble inactif.',
+  'orders.titlesSummary': 'Ordres de vos titres : chaque bouton ouvre un formulaire.',
+  'orders.deckSummary': 'Les cartes se jouent à part des chaînes de nobles.',
+  'orders.deckWinterSummary': "La main se complète d'elle-même en hiver.",
+  'orders.nobleDeckSummary': 'Piochez une carte de noble, puis jouez nobles, prétentions et dignités.',
+  'orders.electionsSummary': "Un titre acquis cet hiver ne sert qu'à partir de l'hiver suivant.",
 }
 
 export type MessageKey = keyof typeof englishMessages

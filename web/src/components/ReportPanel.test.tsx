@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { ReportPanel } from '@/components/ReportPanel'
 import { LanguageProvider } from '@/i18n/LanguageContext'
 import type { MapData, StateData, TurnReport } from '@/types'
+import { withText } from '@/test/text'
 
 const map: MapData = {
   territories: [
@@ -362,7 +363,7 @@ describe('ReportPanel', () => {
     )
 
     expect(screen.getByText('(ROS S BRU - CHA)')).toBeInTheDocument()
-    expect(screen.getAllByText('P1 · Noble JEA')).not.toHaveLength(0)
+    expect(screen.getAllByText(withText('P1 · Noble JEA'))).not.toHaveLength(0)
     expect(screen.getAllByText('Réussi')).not.toHaveLength(0)
     expect(screen.getAllByText('Échec')).not.toHaveLength(0)
     expect(screen.getAllByText('Invalidé')).not.toHaveLength(0)
@@ -386,7 +387,7 @@ describe('ReportPanel', () => {
     expect(screen.getByText(/moulins 2/)).toBeInTheDocument()
     expect(screen.getByText(/bonus régional 1/)).toBeInTheDocument()
     expect(screen.getByText(/stock : 5 → 3 \(consommé 2\)/)).toBeInTheDocument()
-    expect(screen.getByText(/envoyé 3 vers Bruyères \(BRU\)/)).toBeInTheDocument()
+    expect(screen.getByText(withText(/envoyé 3 vers Bruyères \(BRU\)/))).toBeInTheDocument()
     expect(screen.getByText(/1 supprimés par une calamité/)).toBeInTheDocument()
     expect(screen.getByText(/demande 2/)).toBeInTheDocument()
     expect(
@@ -401,32 +402,32 @@ describe('ReportPanel', () => {
       screen.getByText(/manque de vivres — agis avant le tour suivant/),
     ).toBeInTheDocument()
     expect(screen.getByText(/Un bel ensoleillement gagne le royaume/)).toBeInTheDocument()
-    expect(screen.getByText(/Beau temps \(BT\) jouée sur Rosemont \(ROS\)/)).toBeInTheDocument()
-    expect(screen.getByText(/Peste \(PE\) à venir en Été dans Rosemont \(ROS\)/)).toBeInTheDocument()
-    expect(screen.getByText(/P1 : Révolte \(RE\) annulée à Bruyères \(BRU\)/)).toBeInTheDocument()
+    expect(screen.getByText(withText(/Beau temps \(BT\) jouée sur Rosemont \(ROS\)/))).toBeInTheDocument()
+    expect(screen.getByText(withText(/Peste \(PE\) à venir en Été dans Rosemont \(ROS\)/))).toBeInTheDocument()
+    expect(screen.getByText(withText(/P1 : Révolte \(RE\) annulée à Bruyères \(BRU\)/))).toBeInTheDocument()
     expect(screen.getByText(/P1 : Révolte \(RE\) récupérée/)).toBeInTheDocument()
     expect(
-      screen.getByText(/Mauvaise récolte \(MR\) active dans Rosemont \(ROS\)/),
+      screen.getByText(withText(/Mauvaise récolte \(MR\) active dans Rosemont \(ROS\)/)),
     ).toBeInTheDocument()
-    expect(screen.getByText(/Beau temps \(BT\) actif dans Rosemont \(ROS\)/)).toBeInTheDocument()
-    expect(screen.getByText('Peste (PE) active dans Rosemont (ROS)')).toBeInTheDocument()
-    expect(screen.getByText(/Armée de P1 à Rosemont \(ROS\) : 5 → 2 troupes/)).toBeInTheDocument()
-    expect(screen.getByText('Le noble Robert de Rosemont (ROB) meurt de la peste à Rosemont (ROS)')).toBeInTheDocument()
-    expect(screen.getByText('Le noble Jean de Rosemont (JEA) à Rosemont (ROS) survit à la peste')).toBeInTheDocument()
+    expect(screen.getByText(withText(/Beau temps \(BT\) actif dans Rosemont \(ROS\)/))).toBeInTheDocument()
+    expect(screen.getByText(withText('Peste (PE) active dans Rosemont (ROS)'))).toBeInTheDocument()
+    expect(screen.getByText(withText(/Armée de P1 à Rosemont \(ROS\) : 5 → 2 troupes/))).toBeInTheDocument()
+    expect(screen.getByText(withText('Le noble Robert de Rosemont (ROB) meurt de la peste à Rosemont (ROS)'))).toBeInTheDocument()
+    expect(screen.getByText(withText('Le noble Jean de Rosemont (JEA) à Rosemont (ROS) survit à la peste'))).toBeInTheDocument()
     expect(
-      screen.getByText(/Armée de P1 à Rosemont \(ROS\) : mouvement vers Bruyères \(BRU\) bloqué/),
+      screen.getByText(withText(/Armée de P1 à Rosemont \(ROS\) : mouvement vers Bruyères \(BRU\) bloqué/)),
     ).toBeInTheDocument()
     expect(
       screen.getByText(/2 R de production supprimées, 2 rations/),
     ).toBeInTheDocument()
-    expect(screen.getByText(/Bruyères \(BRU\) : 1 R non produites/)).toBeInTheDocument()
+    expect(screen.getByText(withText(/Bruyères \(BRU\) : 1 R non produites/))).toBeInTheDocument()
     expect(
       screen.getByText(/3 R de production des moulins supprimées/),
     ).toBeInTheDocument()
     expect(
-      screen.getByText(/Moulin à Bruyères \(BRU\) à l’arrêt : 3 R non produites/),
+      screen.getByText(withText(/Moulin à Bruyères \(BRU\) à l’arrêt : 3 R non produites/)),
     ).toBeInTheDocument()
-    expect(screen.getByText('Armée neutre de 2 troupes créée à Bruyères (BRU)')).toBeInTheDocument()
+    expect(screen.getByText(withText('Armée neutre de 2 troupes créée à Bruyères (BRU)'))).toBeInTheDocument()
   })
 
   it('does not display storage identifiers in visible report text', () => {
@@ -580,7 +581,7 @@ describe('ReportPanel', () => {
 
     expect(screen.getByText('C N JUL JEN')).toBeInTheDocument()
     expect(
-      screen.getByText(/Dame Julienne \(JUL\) revendique les titres de Dame Jeanne \(JEN\)/),
+      screen.getByText(withText(/Dame Julienne \(JUL\) revendique les titres de Dame Jeanne \(JEN\)/)),
     ).toBeInTheDocument()
     expect(screen.getByText('Cartes de noble')).toBeInTheDocument()
     expect(screen.queryByText('Hiver')).toBeNull()
@@ -609,7 +610,7 @@ describe('ReportPanel', () => {
       </LanguageProvider>,
     )
 
-    expect(screen.getByText('Barony of Bruyères (BRU)')).toBeInTheDocument()
+    expect(screen.getByText(withText('Barony of Bruyères (BRU)'))).toBeInTheDocument()
   })
 
   it('reports a fief member occupied by an enemy army', () => {
@@ -634,7 +635,7 @@ describe('ReportPanel', () => {
       </LanguageProvider>,
     )
 
-    const occupiedLine = screen.getByText('Bruyères (BRU) (fief of Rosemont (ROS)) occupied by P2')
+    const occupiedLine = screen.getByText(withText('Bruyères (BRU) (fief of Rosemont (ROS)) occupied by P2'))
     expect(occupiedLine).toBeInTheDocument()
     expect(occupiedLine).toHaveClass('text-vermilion-700')
   })
@@ -760,7 +761,7 @@ describe('ReportPanel', () => {
     )
 
     expect(screen.getByText('P1: Ambush (EM) played')).toBeInTheDocument()
-    expect(screen.getByText(/^Ambush: .*JEN.* was captured when the army driven from/)).toBeInTheDocument()
+    expect(screen.getByText(withText(/^Ambush: .*JEN.* was captured when the army driven from/))).toBeInTheDocument()
     expect(screen.getByText(/^The ambush played on the attack from .* had no effect$/)).toBeInTheDocument()
   })
 

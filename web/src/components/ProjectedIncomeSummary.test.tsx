@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { LanguageProvider } from '@/i18n/LanguageContext'
 import { ProjectedIncomeSummary } from '@/components/ProjectedIncomeSummary'
 import type { StateData } from '@/types'
+import { withText } from '@/test/text'
 
 const state: StateData = {
   turn: 1,
@@ -61,7 +62,7 @@ describe('ProjectedIncomeSummary', () => {
 
     expect(screen.getByText('Projected income')).toBeInTheDocument()
     expect(
-      screen.getByText('Territory: +6 R → ROS (capital)'),
+      screen.getByText(withText('Territory: +6 R → ROS (capital)')),
     ).toBeInTheDocument()
     expect(screen.getByText('Mills: +2 R')).toBeInTheDocument()
     expect(screen.getByText('Current stockpile: 25 R')).toBeInTheDocument()
@@ -148,15 +149,13 @@ describe('ProjectedIncomeSummary', () => {
     )
 
     expect(
-      screen.getByText('Outside fief: +3 R → ROS (capital)'),
+      screen.getByText(withText('Outside fief: +3 R → ROS (capital)')),
     ).toBeInTheDocument()
-    expect(screen.getByText('Barony of BOI: +4 R')).toBeInTheDocument()
-    expect(screen.getByText('County of CHA: +3 R')).toBeInTheDocument()
+    expect(screen.getByText(withText('Barony of BOI: +4 R'))).toBeInTheDocument()
+    expect(screen.getByText(withText('County of CHA: +3 R'))).toBeInTheDocument()
     expect(screen.getByText('Mills: +2 R')).toBeInTheDocument()
     expect(screen.getByText('Current stockpile: 36 R')).toBeInTheDocument()
-    expect(
-      screen.queryByText('Territory: +10 R → ROS (capital)'),
-    ).not.toBeInTheDocument()
+    expect(screen.queryByText('Territory: +10 R → ROS (capital)')).not.toBeInTheDocument()
   })
 
   describe('royal income and drafted taxes', () => {
@@ -164,24 +163,68 @@ describe('ProjectedIncomeSummary', () => {
       ...state,
       king: 'KNG',
       nobles: [
-        { id: 'n1', code: 'KNG', name: 'Robert', owner: 'P1', location: 'ROS', status: 'free' },
-        { id: 'n2', code: 'JEA', name: 'Jean', owner: 'P1', location: 'BOI', status: 'free' },
-        { id: 'n3', code: 'LEO', name: 'Leon', owner: 'P2', location: 'BRU', status: 'free' },
+        {
+          id: 'n1',
+          code: 'KNG',
+          name: 'Robert',
+          owner: 'P1',
+          location: 'ROS',
+          status: 'free',
+        },
+        {
+          id: 'n2',
+          code: 'JEA',
+          name: 'Jean',
+          owner: 'P1',
+          location: 'BOI',
+          status: 'free',
+        },
+        {
+          id: 'n3',
+          code: 'LEO',
+          name: 'Leon',
+          owner: 'P2',
+          location: 'BRU',
+          status: 'free',
+        },
       ],
       players: [
-        { ...state.players[0], projectedIncome: 4, projectedMillIncome: 0, projectedRoyalRent: 3 },
+        {
+          ...state.players[0],
+          projectedIncome: 4,
+          projectedMillIncome: 0,
+          projectedRoyalRent: 3,
+        },
         state.players[1],
       ],
       fiefs: [
-        { capital: 'BOI', title: 'barony', territories: ['BOI'], owner: 'P1', holder: 'JEA', projectedIncome: 4 },
-        { capital: 'BRU', title: 'barony', territories: ['BRU'], owner: 'P2', holder: 'LEO', projectedIncome: 3 },
+        {
+          capital: 'BOI',
+          title: 'barony',
+          territories: ['BOI'],
+          owner: 'P1',
+          holder: 'JEA',
+          projectedIncome: 4,
+        },
+        {
+          capital: 'BRU',
+          title: 'barony',
+          territories: ['BRU'],
+          owner: 'P2',
+          holder: 'LEO',
+          projectedIncome: 3,
+        },
       ],
     }
 
     function renderSummary(specialDraft?: string) {
       render(
         <LanguageProvider initialLanguage="en">
-          <ProjectedIncomeSummary state={royalState} playerId="P1" specialDraft={specialDraft} />
+          <ProjectedIncomeSummary
+            state={royalState}
+            playerId="P1"
+            specialDraft={specialDraft}
+          />
         </LanguageProvider>,
       )
     }
@@ -189,13 +232,13 @@ describe('ProjectedIncomeSummary', () => {
     it('adds the royal rent to the total', () => {
       renderSummary()
       expect(screen.getByText('Royal rent: +3 R')).toBeInTheDocument()
-      expect(screen.getByText('Barony of BOI: +4 R')).toBeInTheDocument()
+      expect(screen.getByText(withText('Barony of BOI: +4 R'))).toBeInTheDocument()
       expect(screen.getByText('Total: +7 R per action turn')).toBeInTheDocument()
     })
 
     it('marks a taxed fief and counts the doubling and the royal supplement in the total', () => {
       renderSummary('P TX JEA BOI # Tax\nP TX KNG BRU # Tax')
-      expect(screen.getByText('Barony of BOI: +8 R (Tax)')).toBeInTheDocument()
+      expect(screen.getByText(withText('Barony of BOI: +8 R (Tax)'))).toBeInTheDocument()
       expect(screen.getByText('Royal tax: +3 R')).toBeInTheDocument()
       // 4 territory + 4 doubling + 3 rent + 3 royal supplement
       expect(screen.getByText('Total: +14 R per action turn')).toBeInTheDocument()
@@ -206,13 +249,25 @@ describe('ProjectedIncomeSummary', () => {
         ...royalState,
         nobles: [
           ...royalState.nobles,
-          { id: 'n4', code: 'POP', name: 'Pie', owner: 'P1', location: 'ROS', status: 'free', religiousTitle: 'pope' },
+          {
+            id: 'n4',
+            code: 'POP',
+            name: 'Pie',
+            owner: 'P1',
+            location: 'ROS',
+            status: 'free',
+            religiousTitle: 'pope',
+          },
         ],
         bishoprics: [{ region: 'BRU', name: 'Bru', territories: ['BRU'] }],
       }
       render(
         <LanguageProvider initialLanguage="en">
-          <ProjectedIncomeSummary state={popeState} playerId="P1" specialDraft="P DI POP # Tax" />
+          <ProjectedIncomeSummary
+            state={popeState}
+            playerId="P1"
+            specialDraft="P DI POP # Tax"
+          />
         </LanguageProvider>,
       )
       expect(screen.getByText('Tithe: +0 R')).toBeInTheDocument()

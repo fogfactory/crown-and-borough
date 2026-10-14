@@ -2,7 +2,9 @@ import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
 import { formatOrderLabel } from '@/lib/order-label'
 import { formatCardLabel } from '@/lib/card-hand'
+import { NobleRef, TerritoryRef } from '@/components/MapLinks'
 import { NoblePawnIcon } from '@/components/NobleHolder'
+import { richTranslate } from '@/lib/rich-text'
 import { religiousTitlesByHolder } from '@/lib/lineage'
 import { nobleAttributesByCode } from '@/lib/noble-attributes'
 import { playerDisplayName, type PlayerName } from '@/lib/player-label'
@@ -132,10 +134,18 @@ export function SelectedTerritoryDetails({
   const presentNobles = state.nobles.filter(
     (noble) => noble.location === selectedTerritory.id,
   )
+  // Text label, for the transfer target options (no markup inside <option>).
   const territoryLabel = (territoryID: string) => {
     const territory = mapTerritories.find((candidate) => candidate.id === territoryID)
     return territory ? `${territory.name} (${territory.id})` : territoryID
   }
+  // Another territory named in the sheet: full label linked to the map.
+  const territoryRef = (territoryID: string) => (
+    <TerritoryRef
+      id={territoryID}
+      name={mapTerritories.find((candidate) => candidate.id === territoryID)?.name}
+    />
+  )
   const activeRegionEffects = selectedRegion
     ? (state.activeRegionEffects ?? []).filter(
         (effect) => effect.regionSeed === selectedRegion.seed,
@@ -196,13 +206,15 @@ export function SelectedTerritoryDetails({
             <dt className="text-ink-500">{t('app.fiefTitle')}</dt>
             <dd className="font-medium">
               {t(FIEF_TITLE_KEYS[selectedFief.title])} —{' '}
-              {territoryLabel(selectedFief.capital)}
+              {territoryRef(selectedFief.capital)}
             </dd>
             <dt className="text-ink-500">{t('app.fiefHolder')}</dt>
             <dd className="font-medium">
-              {selectedFiefHolder
-                ? `${selectedFiefHolder.name} (${selectedFiefHolder.code})`
-                : t('app.fiefVacant')}
+              {selectedFiefHolder ? (
+                <NobleRef code={selectedFiefHolder.code} name={selectedFiefHolder.name} />
+              ) : (
+                t('app.fiefVacant')
+              )}
             </dd>
             {selectedFief.projectedIncome !== undefined && (
               <>
@@ -229,9 +241,9 @@ export function SelectedTerritoryDetails({
                 <dt className="text-ink-500">{t('app.projectedIncome')}</dt>
                 <dd className="font-medium">
                   {selectedState.incomeDestination
-                    ? t('app.territoryIncome', {
+                    ? richTranslate(t, 'app.territoryIncome', {
                         amount: selectedState.projectedIncome,
-                        destination: territoryLabel(selectedState.incomeDestination),
+                        destination: territoryRef(selectedState.incomeDestination),
                       })
                     : t('app.territoryIncomeLost')}
                 </dd>
@@ -510,9 +522,11 @@ export function SelectedTerritoryDetails({
                     <p className="mt-1">
                       {t('app.sourceLabel')}{' '}
                       <strong>
-                        {sourceTerritory
-                          ? `${sourceTerritory.name} (${sourceTerritory.id})`
-                          : selectedSupplyLine.source}
+                        {sourceTerritory ? (
+                          <TerritoryRef id={sourceTerritory.id} name={sourceTerritory.name} />
+                        ) : (
+                          territoryRef(selectedSupplyLine.source)
+                        )}
                       </strong>
                     </p>
                     <p className="mt-1">
@@ -630,11 +644,11 @@ export function SelectedTerritoryDetails({
                       <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t border-line/40 pt-2">
                         <dt className="text-ink-500">{t('app.sourceLabel')}</dt>
                         <dd className="font-medium">
-                          {territoryLabel(transferLine.source)}
+                          {territoryRef(transferLine.source)}
                         </dd>
                         <dt className="text-ink-500">{t('app.transferTarget')}</dt>
                         <dd className="font-medium">
-                          {territoryLabel(transferLine.target)}
+                          {territoryRef(transferLine.target)}
                         </dd>
                         {transferLine.reachable &&
                           transferLine.distance !== undefined && (
@@ -695,8 +709,8 @@ export function SelectedTerritoryDetails({
                       <p className="mt-1 text-xs text-ink-500">
                         {selectedState.millDestination === selectedState.id
                           ? t('app.millKeptInPlace')
-                          : t('app.millDestination', {
-                              destination: territoryLabel(selectedState.millDestination),
+                          : richTranslate(t, 'app.millDestination', {
+                              destination: territoryRef(selectedState.millDestination),
                             })}
                       </p>
                     )}

@@ -1,4 +1,5 @@
 import { NoblePawn } from '@/components/MapHeraldry'
+import { NobleRef } from '@/components/MapLinks'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { NobleAttributes } from '@/lib/noble-attributes'
 import type { Noble, Player } from '@/types'
@@ -60,9 +61,7 @@ export function NobleHolder({
         color={owner?.color ?? NEUTRAL_ARMY_COLOR}
         attributes={attributes.get(noble.code)}
       />
-      <span>
-        {noble.name} <span className="font-mono text-ink-500">({noble.code})</span>
-      </span>
+      <NobleRef code={noble.code} name={noble.name} />
       <span
         title={ownerName}
         aria-hidden="true"

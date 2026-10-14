@@ -1,4 +1,8 @@
+import type { ReactNode } from 'react'
+
+import { NobleRef, TerritoryRef } from '@/components/MapLinks'
 import { formatOrderLabel } from '@/lib/order-label'
+import { joinNodes, richTranslate } from '@/lib/rich-text'
 import { formatCardLabel } from '@/lib/card-hand'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { useLanguage } from '@/i18n/LanguageContext'
@@ -254,22 +258,24 @@ function territoryCode(
   )
 }
 
-// Display label: full commune name, trigram only as a complement.
+// Display label: full commune name, trigram as a complement, linked to the
+// map (charte-graphique.md § Identifiants et liens vers la carte).
 function territoryLabel(
   map: MapData | null,
   id: string | undefined,
   t: Translate,
-): string {
+): ReactNode {
   if (!id) return '—'
   const territory = map?.territories.find((candidate) => candidate.id === id)
   if (!territory) return t('reports.unknownTerritory')
-  return territory.name ? `${territory.name} (${territory.id})` : territory.id
+  return <TerritoryRef id={territory.id} name={territory.name} />
 }
 
-// Display label of a noble: full name first, trigram only as a complement.
-function nobleLabel(code: string | undefined, name: string | undefined): string {
+// Display label of a noble: full name first, trigram as a complement, linked
+// to the territory where it stands when the viewer knows it.
+function nobleLabel(code: string | undefined, name: string | undefined): ReactNode {
   if (!code) return name || '—'
-  return name ? `${name} (${code})` : code
+  return <NobleRef code={code} name={name} />
 }
 
 function playerLabel(
@@ -295,9 +301,9 @@ function incomeDestinationLabel(
   line: IncomeReport,
   map: MapData | null,
   t: Translate,
-): string {
+): ReactNode {
   if (line.fief && line.title) {
-    return t('map.fiefLabel', {
+    return richTranslate(t, 'map.fiefLabel', {
       title: t(FIEF_TITLE_KEYS[line.title]),
       capital: territoryLabel(map, line.fief, t),
     })
@@ -335,12 +341,12 @@ function armyDescription(
   map: MapData | null,
   armyID: string,
   t: Translate,
-): string {
+): ReactNode {
   const army: ReportArmy | undefined = report.players
     .flatMap((player) => player.armies)
     .find((candidate) => candidate.id === armyID)
   if (!army) return t('reports.unknownArmy')
-  return t('reports.armyDescription', {
+  return richTranslate(t, 'reports.armyDescription', {
     owner: army.owner,
     territory: territoryLabel(map, army.territory, t),
   })
@@ -512,11 +518,15 @@ function reportReason(
   t: Translate,
   reasonKey?: string,
   reasonArgs?: unknown[],
-): string | undefined {
+  map: MapData | null = null,
+): ReactNode {
   if (!reason && !reasonKey) return undefined
+  // Reception reasons name a territory by its code: write it in full.
+  const territory = () =>
+    reasonArgs?.[0] ? territoryLabel(map, String(reasonArgs[0]), t) : '—'
   if (reasonKey === 'error.reception.concurrent') {
-    return t('reports.reason.reception.concurrent', {
-      territory: String(reasonArgs?.[0] ?? '—'),
+    return richTranslate(t, 'reports.reason.reception.concurrent', {
+      territory: territory(),
       count: Number(reasonArgs?.[1] ?? 0),
       turn: Number(reasonArgs?.[2] ?? 0),
     })
@@ -527,7 +537,7 @@ function reportReason(
       key === 'reports.reason.reception.noArmy' ||
       key === 'reports.reason.reception.armyNotOwned'
     ) {
-      return t(key, { territory: String(reasonArgs?.[0] ?? '—') })
+      return richTranslate(t, key, { territory: territory() })
     }
     return t(key)
   }
@@ -544,15 +554,15 @@ function winterDetails(
   investment: WinterInvestmentReport,
   map: MapData | null,
   t: Translate,
-): string {
+): ReactNode {
   if (investment.kind === 'ritual') {
-    return t(`reports.ritual.${investment.reason ?? 'declared'}` as MessageKey, {
+    return richTranslate(t, `reports.ritual.${investment.reason ?? 'declared'}` as MessageKey, {
       region: territoryLabel(map, investment.territory, t),
     })
   }
   if (investment.reason) return reportReason(investment.reason, t) ?? investment.reason
   if (investment.kind === 'claim' && investment.nobleName) {
-    return t('reports.claimDetails', {
+    return richTranslate(t, 'reports.claimDetails', {
       heir: nobleLabel(investment.nobleCode, investment.nobleName),
       target: nobleLabel(investment.claimTarget, investment.claimTargetName),
     })
@@ -568,8 +578,8 @@ function marriageLabel(
   marriage: MarriageReport,
   players: Player[],
   t: Translate,
-): string {
-  return t(
+): ReactNode {
+  return richTranslate(t, 
     marriage.outcome === 'success'
       ? 'reports.marriageConcluded'
       : marriage.outcome === 'dissolved'
@@ -589,26 +599,26 @@ function fiefEventLabel(
   players: Player[],
   map: MapData | null,
   t: Translate,
-): string {
+): ReactNode {
   const capital = territoryLabel(map, fief.capital, t)
   const owner = playerLabel(players, fief.owner, t)
   switch (fief.kind) {
     case 'fief_conquered':
-      return t('reports.fiefConquered', {
+      return richTranslate(t, 'reports.fiefConquered', {
         capital,
         previousOwner: playerLabel(players, fief.previousOwner, t),
         owner,
       })
     case 'fief_vacated':
-      return t('reports.fiefVacated', { capital, owner })
+      return richTranslate(t, 'reports.fiefVacated', { capital, owner })
     case 'fief_dissolved':
-      return t('reports.fiefDissolved', {
+      return richTranslate(t, 'reports.fiefDissolved', {
         capital,
         owner,
         reason: reportReason(fief.reason, t) ?? fief.reason ?? '—',
       })
     case 'fief_member_occupied':
-      return t('reports.fiefMemberOccupied', {
+      return richTranslate(t, 'reports.fiefMemberOccupied', {
         territory: territoryLabel(map, fief.territory, t),
         capital,
         occupant: playerLabel(players, fief.occupant, t),
@@ -618,7 +628,7 @@ function fiefEventLabel(
   }
 }
 
-function cardEventLabel(card: CardReport, map: MapData | null, t: Translate): string {
+function cardEventLabel(card: CardReport, map: MapData | null, t: Translate): ReactNode {
   const label = formatCardLabel(card.kind, t)
   const region = territoryLabel(map, card.region, t)
   const player = card.player ?? t('reports.unknownPlayer')
@@ -629,7 +639,7 @@ function cardEventLabel(card: CardReport, map: MapData | null, t: Translate): st
       return t('reports.cardDiscarded', { card: label, player })
     case 'deck_order_played':
       if (card.noble) {
-        return t(card.commissioner ? 'reports.cardPlayedAssassination' : 'reports.cardPlayedOnNoble', {
+        return richTranslate(t, card.commissioner ? 'reports.cardPlayedAssassination' : 'reports.cardPlayedOnNoble', {
           card: label,
           player,
           noble: nobleLabel(card.noble, card.nobleName),
@@ -637,12 +647,12 @@ function cardEventLabel(card: CardReport, map: MapData | null, t: Translate): st
         })
       }
       return card.region
-        ? t('reports.cardPlayed', { card: label, player, region })
+        ? richTranslate(t, 'reports.cardPlayed', { card: label, player, region })
         : t('reports.cardPlayedBare', { card: label, player })
     case 'deck_restore':
       return t('reports.cardRestored', { card: label, player })
     case 'calamity_scheduled':
-      return t(card.ritual ? 'reports.cardScheduledOmens' : 'reports.cardScheduled', {
+      return richTranslate(t, card.ritual ? 'reports.cardScheduledOmens' : 'reports.cardScheduled', {
         card: label,
         region,
         season: card.season ? t(SEASON_LABEL_KEYS[card.season]) : '—',
@@ -656,14 +666,14 @@ function seasonEffectLabel(
   effect: SeasonEffectReport,
   map: MapData | null,
   t: Translate,
-): string {
+): ReactNode {
   const region = territoryLabel(map, effect.region, t)
   const card = effect.cardKind ? formatCardLabel(effect.cardKind, t) : ''
   switch (effect.kind) {
     case 'calamity_canceled':
-      return t('reports.calamityCanceled', { card, bonus: card, region })
+      return richTranslate(t, 'reports.calamityCanceled', { card, bonus: card, region })
     case 'bonus_effect':
-      return t('reports.bonusEffect', { card, region })
+      return richTranslate(t, 'reports.bonusEffect', { card, region })
     default:
       return card || effect.kind
   }
@@ -672,14 +682,14 @@ function seasonEffectLabel(
 interface SeasonEffectLine {
   key: string
   owner?: PlayerId
-  label: string
+  label: ReactNode
   /** Neutral-army lines render in a muted gray instead of the section red. */
   muted?: boolean
 }
 
 interface SeasonEffectGroup {
   key: string
-  header?: string
+  header?: ReactNode
   lines: SeasonEffectLine[]
 }
 
@@ -699,7 +709,7 @@ function seasonEffectLine(
         return {
           key,
           owner: effect.owner,
-          label: t('reports.calamityPlagueArmy', {
+          label: richTranslate(t, 'reports.calamityPlagueArmy', {
             owner,
             territory: territoryLabel(map, effect.territory, t),
             before: effect.sizeBefore ?? 0,
@@ -707,7 +717,7 @@ function seasonEffectLine(
           }),
         }
       }
-      return { key, label: t('reports.calamityApplied', { card, region }) }
+      return { key, label: richTranslate(t, 'reports.calamityApplied', { card, region }) }
     case 'bad_weather_blocked': {
       const base = {
         owner,
@@ -717,18 +727,18 @@ function seasonEffectLine(
         key,
         owner: effect.owner,
         label: effect.target
-          ? t('reports.calamityBadWeatherBlocked', {
+          ? richTranslate(t, 'reports.calamityBadWeatherBlocked', {
               ...base,
               target: territoryLabel(map, effect.target, t),
             })
-          : t('reports.calamityBadWeatherBlockedNoTarget', base),
+          : richTranslate(t, 'reports.calamityBadWeatherBlockedNoTarget', base),
       }
     }
     case 'famine_loss':
       if (!effect.territory) {
         return {
           key,
-          label: t('reports.calamityFamineRegion', {
+          label: richTranslate(t, 'reports.calamityFamineRegion', {
             region,
             production: effect.productionLost ?? 0,
             rations: effect.rationsLost ?? 0,
@@ -737,7 +747,7 @@ function seasonEffectLine(
       }
       return {
         key,
-        label: t('reports.calamityFamineSettlement', {
+        label: richTranslate(t, 'reports.calamityFamineSettlement', {
           territory: territoryLabel(map, effect.territory, t),
           production: effect.productionLost ?? 0,
         }),
@@ -746,11 +756,11 @@ function seasonEffectLine(
       return {
         key,
         label: effect.territory
-          ? t('reports.calamityBadWeatherMill', {
+          ? richTranslate(t, 'reports.calamityBadWeatherMill', {
               territory: territoryLabel(map, effect.territory, t),
               production: effect.productionLost ?? 0,
             })
-          : t('reports.calamityBadWeatherRegion', {
+          : richTranslate(t, 'reports.calamityBadWeatherRegion', {
               region,
               production: effect.productionLost ?? 0,
             }),
@@ -758,7 +768,7 @@ function seasonEffectLine(
     case 'plague_noble_death':
       return {
         key,
-        label: t('reports.plagueDeath', {
+        label: richTranslate(t, 'reports.plagueDeath', {
           noble: nobleLabel(effect.noble, effect.nobleName),
           territory: territoryLabel(map, effect.territory, t),
         }),
@@ -768,24 +778,24 @@ function seasonEffectLine(
         key,
         label:
           effect.reason === 'trial_executed'
-            ? t('reports.trialExecuted', {
+            ? richTranslate(t, 'reports.trialExecuted', {
                 noble: nobleLabel(effect.noble, effect.nobleName),
                 territory: territoryLabel(map, effect.territory, t),
                 dignity: t(`dignity.${effect.dignity ?? 'bastard'}`),
               })
-            : t('reports.trialUnfounded', { noble: nobleLabel(effect.noble, effect.nobleName) }),
+            : richTranslate(t, 'reports.trialUnfounded', { noble: nobleLabel(effect.noble, effect.nobleName) }),
       }
     case 'ambush':
       return {
         key,
         label:
           effect.reason === 'ambush_capture'
-            ? t('reports.ambushCapture', {
+            ? richTranslate(t, 'reports.ambushCapture', {
                 noble: nobleLabel(effect.noble, effect.nobleName),
                 source: territoryLabel(map, effect.target, t),
                 territory: territoryLabel(map, effect.territory, t),
               })
-            : t('reports.ambushVoid', {
+            : richTranslate(t, 'reports.ambushVoid', {
                 source: territoryLabel(map, effect.target, t),
                 territory: territoryLabel(map, effect.territory, t),
               }),
@@ -793,7 +803,7 @@ function seasonEffectLine(
     case 'assassination':
       return {
         key,
-        label: t(effect.commissioner ? 'reports.assassinationCommissioner' : 'reports.assassinationPublic', {
+        label: richTranslate(t, effect.commissioner ? 'reports.assassinationCommissioner' : 'reports.assassinationPublic', {
           noble: nobleLabel(effect.noble, effect.nobleName),
           territory: territoryLabel(map, effect.territory, t),
           commissioner: effect.commissioner ?? '',
@@ -802,7 +812,7 @@ function seasonEffectLine(
     case 'justice':
       return {
         key,
-        label: t(effect.reason === 'justice_executed' ? 'reports.justiceExecuted' : 'reports.justiceNoEffect', {
+        label: richTranslate(t, effect.reason === 'justice_executed' ? 'reports.justiceExecuted' : 'reports.justiceNoEffect', {
           player: effect.owner ?? t('reports.unknownPlayer'),
           noble: nobleLabel(effect.noble, effect.nobleName),
           territory: territoryLabel(map, effect.territory, t),
@@ -811,7 +821,7 @@ function seasonEffectLine(
     case 'assassination_revealed':
       return {
         key,
-        label: t('reports.assassinationRevealed', {
+        label: richTranslate(t, 'reports.assassinationRevealed', {
           noble: nobleLabel(effect.noble, effect.nobleName),
           commissioner: nobleLabel(effect.commissioner, effect.commissionerName),
         }),
@@ -821,12 +831,12 @@ function seasonEffectLine(
         key,
         label:
           effect.reason === 'tunnel_escape'
-            ? t('reports.tunnelEscape', {
+            ? richTranslate(t, 'reports.tunnelEscape', {
                 noble: nobleLabel(effect.noble, effect.nobleName),
                 source: territoryLabel(map, effect.target, t),
                 territory: territoryLabel(map, effect.territory, t),
               })
-            : t(effect.reason === 'tunnel_bypass' ? 'reports.tunnelBypass' : 'reports.tunnelVoid', {
+            : richTranslate(t, effect.reason === 'tunnel_bypass' ? 'reports.tunnelBypass' : 'reports.tunnelVoid', {
                 source: territoryLabel(map, effect.target, t),
                 territory: territoryLabel(map, effect.territory, t),
               }),
@@ -834,7 +844,7 @@ function seasonEffectLine(
     case 'plague_noble_survived':
       return {
         key,
-        label: t('reports.plagueSurvived', {
+        label: richTranslate(t, 'reports.plagueSurvived', {
           noble: nobleLabel(effect.noble, effect.nobleName),
           territory: territoryLabel(map, effect.territory, t),
         }),
@@ -843,14 +853,14 @@ function seasonEffectLine(
     case 'excommunication_lifted':
       return {
         key,
-        label: t(effect.kind === 'excommunication' ? 'reports.excommunication' : 'reports.excommunicationLifted', {
+        label: richTranslate(t, effect.kind === 'excommunication' ? 'reports.excommunication' : 'reports.excommunicationLifted', {
           noble: nobleLabel(effect.noble, effect.nobleName),
         }),
       }
     case 'dignity_revealed':
       return {
         key,
-        label: t('reports.dignityRevealed', {
+        label: richTranslate(t, 'reports.dignityRevealed', {
           noble: nobleLabel(effect.noble, effect.nobleName),
           dignity: t(`dignity.${effect.dignity ?? 'bastard'}`),
         }),
@@ -858,13 +868,13 @@ function seasonEffectLine(
     case 'eon_unmasked':
       return {
         key,
-        label: t('reports.eonUnmasked', { noble: nobleLabel(effect.noble, effect.nobleName) }),
+        label: richTranslate(t, 'reports.eonUnmasked', { noble: nobleLabel(effect.noble, effect.nobleName) }),
       }
     case 'famine':
       return {
         key,
         muted: true,
-        label: t('reports.neutralFamine', {
+        label: richTranslate(t, 'reports.neutralFamine', {
           territory: territoryLabel(map, effect.territory, t),
           before: effect.sizeBefore ?? 0,
           after: effect.sizeAfter ?? 0,
@@ -873,7 +883,7 @@ function seasonEffectLine(
     case 'card_canceled': {
       const card = effect.cardKind ? formatCardLabel(effect.cardKind, t) : ''
       const target = effect.territory
-        ? t('reports.cardCanceled', {
+        ? richTranslate(t, 'reports.cardCanceled', {
             player: effect.owner ?? t('reports.unknownPlayer'),
             card,
             territory: territoryLabel(map, effect.territory, t),
@@ -886,7 +896,7 @@ function seasonEffectLine(
       return {
         key,
         muted: true,
-        label: t(
+        label: richTranslate(t, 
           count === 1 ? 'reports.neutralArmyCreatedTroop' : 'reports.neutralArmyCreated',
           { count, territory: territoryLabel(map, effect.territory, t) },
         ),
@@ -896,7 +906,7 @@ function seasonEffectLine(
       return {
         key,
         owner: effect.owner,
-        label: t(revoltAppeasedKey(effect.reason), {
+        label: richTranslate(t, revoltAppeasedKey(effect.reason), {
           noble: nobleLabel(effect.noble, effect.nobleName),
           territory: territoryLabel(map, effect.territory, t),
           cost: effect.cost ?? 0,
@@ -1035,13 +1045,14 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                   {reception.received
                     ? t('reports.receptionReceived')
                     : reception.reason
-                      ? t('reports.receptionLost', {
+                      ? richTranslate(t, 'reports.receptionLost', {
                           reason:
                             reportReason(
                               reception.reason,
                               t,
                               reception.reasonKey,
                               reception.reasonArgs,
+                              map,
                             ) ?? reception.reason,
                         })
                       : t('reports.receptionLostPlain')}
@@ -1083,7 +1094,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                         : combat.standoff
                           ? t('reports.standoff')
                           : combat.winner
-                            ? t('reports.victory', {
+                            ? richTranslate(t, 'reports.victory', {
                                 army: armyDescription(report, map, combat.winner, t),
                               })
                             : (reportReason(combat.reason, t) ?? combat.reason)}
@@ -1149,7 +1160,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                 <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-2xs text-ink-500">
                   {line.source ? (
                     <span>
-                      {t(`reports.incomeSource.${line.source}`, {
+                      {richTranslate(t, `reports.incomeSource.${line.source}`, {
                         fief: territoryLabel(map, line.taxed, t),
                       })}
                     </span>
@@ -1206,7 +1217,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                       ? t('reports.millStopped')
                       : keptInPlace
                         ? t('reports.millKept', { count: line.production })
-                        : t('reports.millCredited', {
+                        : richTranslate(t, 'reports.millCredited', {
                             count: line.production,
                             destination: territoryLabel(map, line.destination, t),
                           })}
@@ -1285,25 +1296,27 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                   )}
                   {(sentDestinations.length > 0 || hasStock) && (
                     <p className="mt-1 text-2xs text-ink-500">
-                      {sentDestinations
-                        .map((destination) =>
-                          t('reports.productionSent', {
-                            count: line.sentToRations?.[destination] ?? 0,
-                            territory: territoryLabel(map, destination, t),
-                          }),
-                        )
-                        .concat(
-                          hasStock
-                            ? [
-                                t('reports.productionStockLine', {
-                                  before: line.stockBefore ?? 0,
-                                  consumed: line.stockConsumed ?? 0,
-                                  after: line.stockAfter ?? 0,
-                                }),
-                              ]
-                            : [],
-                        )
-                        .join(' · ')}
+                      {joinNodes(
+                        sentDestinations
+                          .map((destination) =>
+                            richTranslate(t, 'reports.productionSent', {
+                              count: line.sentToRations?.[destination] ?? 0,
+                              territory: territoryLabel(map, destination, t),
+                            }),
+                          )
+                          .concat(
+                            hasStock
+                              ? [
+                                  t('reports.productionStockLine', {
+                                    before: line.stockBefore ?? 0,
+                                    consumed: line.stockConsumed ?? 0,
+                                    after: line.stockAfter ?? 0,
+                                  }),
+                                ]
+                              : [],
+                          ),
+                        ' · ',
+                      )}
                     </p>
                   )}
                 </div>
@@ -1371,7 +1384,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                       : ''}
                     {(line.resourceCredit ?? 0) > 0
                       ? ' ' +
-                        t('reports.consumptionPillageCredit', {
+                        richTranslate(t, 'reports.consumptionPillageCredit', {
                           count: line.resourceCredit ?? 0,
                           territory: territoryLabel(map, line.creditTerritory, t),
                         })
@@ -1440,7 +1453,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                 className="flex items-center justify-between gap-3 rounded-md bg-paper-100 px-3 py-2 text-xs text-success-700"
               >
                 <span>
-                  {t('reports.conservation', {
+                  {richTranslate(t, 'reports.conservation', {
                     territory: territoryLabel(map, stock.territory, t),
                   })}
                 </span>
@@ -1481,15 +1494,13 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                 <li key={`${election.kind}-${election.region ?? ''}-${index}`}>
                   <p className="font-semibold">
                     {election.kind === 'bishop'
-                      ? t('reports.electionBishop', { seat })
+                      ? richTranslate(t, 'reports.electionBishop', { seat })
                       : election.kind === 'king'
                         ? t('reports.electionKing')
                         : t('reports.electionPope')}
                     {' — '}
-                    {t(`reports.electionResult.${election.result}`, {
-                      noble: winner
-                        ? `${winner.nobleName} (${winner.nobleCode})`
-                        : '—',
+                    {richTranslate(t, `reports.electionResult.${election.result}`, {
+                      noble: winner ? nobleLabel(winner.nobleCode, winner.nobleName) : '—',
                     })}
                   </p>
                   {election.candidates.length > 0 && (
@@ -1648,7 +1659,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                         </strong>
                         <span className="mt-1 block text-ink-500">
                           {order.owner || t('reports.unknownPlayer')} ·{' '}
-                          {t('reports.noble', {
+                          {richTranslate(t, 'reports.noble', {
                             noble: nobleLabel(order.noble, order.nobleName),
                           })}
                         </span>

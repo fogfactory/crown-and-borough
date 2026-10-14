@@ -75,8 +75,16 @@ describe('OrdersPanel seasonal presentation', () => {
 
     const heading = screen.getByRole('heading', { name: "Ordres d'hiver" })
     expect(heading.querySelector('svg')).toBeInTheDocument()
+    // One summary line; the full help waits behind the "?" button.
+    expect(
+      screen.getByText('Investissements directs seulement : ni chaînes ni mouvement de troupes.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/Investissements directs uniquement/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: "Aide : Ordres d'hiver" }))
     expect(screen.getByText(/Investissements directs uniquement/)).toBeInTheDocument()
     expect(screen.getByText(/sans chaînes ni mouvements militaires/)).toBeInTheDocument()
+    // The full help names no order syntax: it lives in the input templates.
+    expect(screen.getByText(/Investissements directs uniquement/)).not.toHaveTextContent(/D C/)
     expect(screen.queryByLabelText('Ordres de cartes spéciales')).not.toBeInTheDocument()
     expect(screen.getByPlaceholderText(/D C BT/)).toBeInTheDocument()
     expect(
@@ -766,6 +774,8 @@ describe('OrdersPanel winter elections', () => {
     expect(screen.getByText('Relative majority. Candidacy: K E NNN AAA. Vote: V E NNN AAA')).toBeTruthy()
     expect(screen.getByText('Your voices: 3')).toBeTruthy()
     expect(screen.getByText(/Absolute majority: 2 voices/)).toBeTruthy()
+    expect(screen.getByText('A title won this winter serves from next winter on.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Help: Elections this winter' }))
     expect(screen.getByText(/can only be used next winter/)).toBeTruthy()
   })
 
