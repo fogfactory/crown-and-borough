@@ -1,12 +1,14 @@
 import { useMemo, type ReactNode } from 'react'
 import { IconBuildingChurch, IconCrown, IconHierarchy2 } from '@tabler/icons-react'
 
+import { TerritoryRef } from '@/components/MapLinks'
 import { NobleHolder } from '@/components/NobleHolder'
 import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
 import { nobleAttributesByCode } from '@/lib/noble-attributes'
 import { royalIssuerOf } from '@/lib/royal'
+import { richTranslate } from '@/lib/rich-text'
 import type { FiefTitle, StateData, Territory } from '@/types'
 
 const FIEF_TITLE_KEYS: Record<FiefTitle, MessageKey> = {
@@ -51,7 +53,7 @@ export function RealmPanel({ state, territories = [], onOpenLineage }: RealmPane
   const hasChurch = Boolean(state.pope || bishoprics.length > 0 || cardinals.length > 0)
 
   const territoryName = (id: string) =>
-    territories.find((territory) => territory.id === id)?.name ?? id
+    territories.find((territory) => territory.id === id)?.name
 
   return (
     <div className="space-y-5">
@@ -82,11 +84,15 @@ export function RealmPanel({ state, territories = [], onOpenLineage }: RealmPane
               <ul className="space-y-0.5">
                 {crownFiefs.map((fief) => (
                   <li key={fief.capital} data-crown-fief={fief.capital}>
-                    {t('map.fiefLabel', {
+                    {richTranslate(t, 'map.fiefLabel', {
                       title: t(FIEF_TITLE_KEYS[fief.title]),
-                      capital: territoryName(fief.capital),
-                    })}{' '}
-                    <span className="font-mono text-ink-500">({fief.capital})</span>
+                      capital: (
+                        <TerritoryRef
+                          id={fief.capital}
+                          name={territoryName(fief.capital)}
+                        />
+                      ),
+                    })}
                     {' · '}
                     {t('realm.fiefTerritories', { count: fief.territories.length })}
                   </li>

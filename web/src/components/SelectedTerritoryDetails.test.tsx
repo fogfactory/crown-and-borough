@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { SelectedTerritoryDetails } from '@/components/SelectedTerritoryDetails'
 import type { MapData, StateData, SupplyLine, TransferLine } from '@/types'
+import { withText } from '@/test/text'
 
 const map: MapData = {
   territories: [
@@ -162,7 +163,7 @@ describe('SelectedTerritoryDetails', () => {
     expect(screen.getAllByText('Bob').length).toBeGreaterThan(0)
     expect(screen.getByText('4 troops')).toBeInTheDocument()
     expect(screen.getByText(/Source:/)).toBeInTheDocument()
-    expect(screen.getByText(/Brisecote \(BRU\)/)).toBeInTheDocument()
+    expect(screen.getByText(withText(/Brisecote \(BRU\)/))).toBeInTheDocument()
     expect(screen.getByText('Distance: 2 territories')).toBeInTheDocument()
     expect(screen.getByText('Local production')).toBeInTheDocument()
     expect(screen.getByText('Demand')).toBeInTheDocument()
@@ -292,7 +293,7 @@ describe('SelectedTerritoryDetails', () => {
     expect(screen.getByRole('status')).toHaveTextContent(
       'The transfer route is reachable.',
     )
-    expect(screen.getByText('Rosemont (ROS) -> Brisecote (BRU)')).toBeInTheDocument()
+    expect(screen.getByText(withText('Rosemont (ROS) -> Brisecote (BRU)'))).toBeInTheDocument()
 
     fireEvent.change(screen.getByRole('combobox', { name: 'Destination' }), {
       target: { value: 'ROS' },
@@ -322,7 +323,7 @@ describe('SelectedTerritoryDetails', () => {
     expect(screen.getByRole('status')).toHaveTextContent(
       'The supply path is blocked by an enemy army.',
     )
-    expect(screen.queryByText(/Rosemont \(ROS\) -> Brisecote/)).not.toBeInTheDocument()
+    expect(screen.queryByText(withText(/Rosemont \(ROS\) -> Brisecote/))).not.toBeInTheDocument()
   })
 
   it('renders active effects for the selected region', () => {
@@ -414,7 +415,7 @@ describe('SelectedTerritoryDetails', () => {
     )
 
     expect(screen.getByText('Projected income')).toBeInTheDocument()
-    expect(screen.getByText('Yields 2 R to Brisecote (BRU)')).toBeInTheDocument()
+    expect(screen.getByText(withText('Yields 2 R to Brisecote (BRU)'))).toBeInTheDocument()
   })
 
   it('shows the territory income as lost when it has no destination', () => {
@@ -469,8 +470,8 @@ describe('SelectedTerritoryDetails', () => {
     )
 
     expect(screen.getByText('City (+2 defense)')).toBeInTheDocument()
-    expect(screen.getByText('Barony — ROS')).toBeInTheDocument()
-    expect(screen.getByText('Jean de Rosemont (JEA)')).toBeInTheDocument()
+    expect(screen.getByText(withText('Barony — ROS'))).toBeInTheDocument()
+    expect(screen.getAllByText(withText('Jean de Rosemont (JEA)')).length).toBeGreaterThan(0)
   })
 
   it('shows the projected fief income next to the titulaire', () => {

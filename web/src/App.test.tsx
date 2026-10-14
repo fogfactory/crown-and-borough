@@ -6,6 +6,7 @@ vi.mock('@/lib/firebase', () => ({
 }))
 
 import App from '@/App'
+import { withText } from '@/test/text'
 import { stubPhoneViewport } from '@/test/viewport'
 import type {
   MapData,
@@ -462,7 +463,7 @@ describe('App command/report tabs', () => {
       screen.getByText('(H ROS)', { selector: 'span' }).closest('li'),
     ).toHaveAttribute('aria-current', 'step')
     expect(await screen.findByText(/Source :/)).toBeInTheDocument()
-    expect(screen.getByText(/Rosemont \(ROS\)/)).toBeInTheDocument()
+    expect(screen.getAllByText(withText(/^Rosemont \(ROS\)$/)).length).toBeGreaterThan(0)
 
     const draft = screen.getByLabelText('Chaîne de JEA')
     fireEvent.change(draft, { target: { value: 'ROS A BRU' } })
@@ -557,7 +558,10 @@ describe('App command/report tabs', () => {
             status: 'resolved',
             submitted: [],
             remaining: [],
-            report: resolvedReport,
+            report: {
+              ...resolvedReport,
+              combats: [{ territory: 'ROS', visibility: 'general', summary: '—' }],
+            },
             state,
           }),
         } as Response)
@@ -585,6 +589,21 @@ describe('App command/report tabs', () => {
     await waitFor(() => {
       expect(screen.queryByText('Nouveau')).not.toBeInTheDocument()
     })
+
+    // A territory named in the report is a link: hovering lights it on the
+    // map, following it selects it there.
+    const link = within(screen.getByRole('tabpanel', { name: 'Rapport' }))
+      .getAllByRole('button')
+      .find((button) => button.dataset.mapLink === 'ROS') as HTMLElement
+    expect(link).toHaveTextContent('Rosemont (ROS)')
+    fireEvent.mouseEnter(link)
+    expect(document.querySelector('[data-highlighted-territory="ROS"]')).not.toBeNull()
+    fireEvent.click(link)
+    expect(document.querySelector('[data-territory-id="ROS"]')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(document.querySelector('[data-highlighted-territory]')).toBeNull()
   })
 
   it('renders a resolved private response containing combat and order details', async () => {

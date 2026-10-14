@@ -2,11 +2,14 @@ import { useState, type ReactNode } from 'react'
 import { Dialog } from 'radix-ui'
 
 import { Button } from '@/components/ui/button'
+import { useMapLinks } from '@/components/MapLinks'
 import { useLanguage } from '@/i18n/LanguageContext'
 
 export interface OrderFieldOption {
   value: string
   label: string
+  /** The value is a territory code: the list writes « Ravinval (RVN) ». */
+  territory?: boolean
 }
 
 /** One input of an order dialog: a choice among options, or a short free code. */
@@ -67,6 +70,13 @@ function OrderDialogBody({
   onClose,
 }: OrderDialogProps) {
   const { t } = useLanguage()
+  const links = useMapLinks()
+  // A territory option reads « Ravinval (RVN) », not its bare code
+  // (charte-graphique.md § Identifiants et liens vers la carte).
+  const optionLabel = (option: OrderFieldOption) => {
+    const name = option.territory ? links?.territoryName(option.value) : undefined
+    return name ? `${name} (${option.value})` : option.label
+  }
   const [chosen, setValues] = useState(() => initialValues(fields))
   // A select whose options changed with another field falls back to its first
   // option when its previous value is no longer offered.
@@ -133,7 +143,7 @@ function OrderDialogBody({
                 >
                   {options.map((option) => (
                     <option key={option.value} value={option.value}>
-                      {option.label}
+                      {optionLabel(option)}
                     </option>
                   ))}
                 </select>

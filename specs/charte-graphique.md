@@ -567,6 +567,17 @@ s'écrit en texte simple, avec une infobulle « position inconnue » ou
 [Saisie des ordres](#saisie-des-ordres) : un trigramme complet et valide
 recentre la carte, sans clic.
 
+**Précision.** Sur ordinateur, suivre un lien laisse le tiroir sur son
+marque-page : la carte se cadre sur le territoire et ses voisins, le
+sélectionne, et la fiche reste au poste de commandement jusqu'au cartouche
+([Fiche de territoire](#fiche-de-territoire)). Le territoire survolé par un
+lien prend un liseré `brass-700` en tirets sur un voile `brass-400`. Dans
+les listes déroulantes des formulaires, une région s'écrit comme un
+territoire (« Alpilles (ALP) ») et un fief comme dans le marque-page Royaume
+(« Baronnie de Rochevent (RVE) »). Les commentaires en libellés complets des
+lignes produites par une aide arrivent avec les formulaires dans le tiroir
+([Poste de commandement](#poste-de-commandement)).
+
 ### Disposition sur ordinateur
 
 La carte occupe toute la largeur ; les panneaux passent dans un tiroir :

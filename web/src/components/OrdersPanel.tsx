@@ -11,6 +11,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import type { RulesSection } from '@/components/RulesPanel'
+import { SectionHeading } from '@/components/SectionHeading'
 import { formatCardHand, formatCardLabel } from '@/lib/card-hand'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { appendDraftLine, draftLines } from '@/lib/winter-draft'
@@ -215,11 +216,13 @@ function DeckOrdersSection({
   mapTerritories,
   specialDraft,
   onSpecialChange,
+  onOpenRules,
 }: {
   state: StateData
   player: PlayerId
   regions: Region[]
   mapTerritories?: Territory[]
+  onOpenRules?: (section: RulesSection) => void
   specialDraft: string
   onSpecialChange: (text: string) => void
 }) {
@@ -227,12 +230,15 @@ function DeckOrdersSection({
   const hand = state.specialHand ?? []
   return (
     <section className="space-y-2 rounded-lg border border-line bg-paper-100 p-3">
-      <h4 className="font-display text-base font-semibold text-ink-700">
-        {t('orders.deckTitle')}
-      </h4>
-      <p className="text-xs leading-relaxed text-ink-500">
-        {t('orders.deckDescription')}
-      </p>
+      <SectionHeading
+        title={t('orders.deckTitle')}
+        topic={t('orders.deckTitle')}
+        summary={t('orders.deckSummary')}
+        help={t('orders.deckDescription')}
+        rulesSection="action-orders"
+        onOpenRules={onOpenRules}
+        titleClassName="font-display text-base font-semibold text-ink-700"
+      />
       <p className="text-xs text-ink-700">
         {t('orders.deckHand')}: {formatCardHand(hand, t)}
       </p>
@@ -349,7 +355,7 @@ function NobleCardRow({
     .map((territory) => ({ value: territory.id, label: territory.id }))
   const regionOptions = regions.map((region) => ({
     value: region.seed,
-    label: region.name ? `${region.seed} · ${region.name}` : region.seed,
+    label: region.name ? `${region.name} (${region.seed})` : region.seed,
   }))
   const label = isClaim
     ? t('orders.nobleHandClaim', { code: card.code })
@@ -542,6 +548,7 @@ function NobleDeckSection({
   winterDraft,
   onWinterChange,
   cardsOnly = false,
+  onOpenRules,
 }: {
   state: StateData
   player: PlayerId
@@ -550,6 +557,7 @@ function NobleDeckSection({
   onWinterChange: (text: string) => void
   /** Outside winter: play the cards of the hand, no draw nor discard. */
   cardsOnly?: boolean
+  onOpenRules?: (section: RulesSection) => void
 }) {
   const { t } = useLanguage()
   const hand = state.nobleHand ?? []
@@ -564,9 +572,16 @@ function NobleDeckSection({
   const drawDisabled = drawn || deckSize === 0 || handFull
   return (
     <section className="space-y-2 rounded-lg border border-winter-700/30 bg-winter-100 p-3">
-      <h4 className="font-display text-base font-semibold text-winter-700">
-        {t('orders.handTitle')}
-      </h4>
+      <SectionHeading
+        tone="winter"
+        title={t('orders.handTitle')}
+        topic={t('orders.handTitle')}
+        summary={t(cardsOnly ? 'orders.nobleCardsActionDescription' : 'orders.nobleDeckSummary')}
+        help={t('orders.nobleDeckDescription')}
+        rulesSection={cardsOnly ? 'action-orders' : 'winter-orders'}
+        onOpenRules={onOpenRules}
+        titleClassName="font-display text-base font-semibold text-winter-700"
+      />
       {(state.spiedHands ?? []).map((hand) => (
         <p key={hand.player} className="text-xs font-medium text-winter-700">
           {t('orders.spiedHand', {
@@ -587,13 +602,6 @@ function NobleDeckSection({
           })}
         </p>
       )}
-      <p className="text-xs leading-relaxed text-winter-700">
-        {t(
-          cardsOnly
-            ? 'orders.nobleCardsActionDescription'
-            : 'orders.nobleDeckDescription',
-        )}
-      </p>
       {!cardsOnly && (
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -692,10 +700,12 @@ function OpenElectionsSection({
   state,
   winterDraft,
   onWinterChange,
+  onOpenRules,
 }: {
   state: StateData
   winterDraft: string
   onWinterChange: (value: string) => void
+  onOpenRules?: (section: RulesSection) => void
 }) {
   const { t } = useLanguage()
   const elections = state.openElections ?? []
@@ -704,12 +714,16 @@ function OpenElectionsSection({
 
   return (
     <section className="space-y-2 rounded-lg border border-winter-700/30 bg-winter-100 p-3">
-      <h4 className="font-display text-base font-semibold text-winter-700">
-        {t('orders.electionsTitle')}
-      </h4>
-      <p className="text-xs leading-relaxed text-winter-700">
-        {t('orders.electionsTimingNote')}
-      </p>
+      <SectionHeading
+        tone="winter"
+        title={t('orders.electionsTitle')}
+        topic={t('orders.electionsTitle')}
+        summary={t('orders.electionsSummary')}
+        help={t('orders.electionsTimingNote')}
+        rulesSection="winter-orders"
+        onOpenRules={onOpenRules}
+        titleClassName="font-display text-base font-semibold text-winter-700"
+      />
       <TooltipProvider delayDuration={100}>
         {elections.map((election) => {
           const name =
@@ -858,17 +872,26 @@ function OpenElectionsSection({
   )
 }
 
-function DeckHandSummary({ state }: { state: StateData }) {
+function DeckHandSummary({
+  state,
+  onOpenRules,
+}: {
+  state: StateData
+  onOpenRules?: (section: RulesSection) => void
+}) {
   const { t } = useLanguage()
 
   return (
     <section className="space-y-2 rounded-lg border border-line bg-paper-100 p-3">
-      <h4 className="font-display text-base font-semibold text-ink-700">
-        {t('orders.deckTitle')}
-      </h4>
-      <p className="text-xs leading-relaxed text-ink-500">
-        {t('orders.deckWinterDescription')}
-      </p>
+      <SectionHeading
+        title={t('orders.deckTitle')}
+        topic={t('orders.deckTitle')}
+        summary={t('orders.deckWinterSummary')}
+        help={t('orders.deckWinterDescription')}
+        rulesSection="winter-orders"
+        onOpenRules={onOpenRules}
+        titleClassName="font-display text-base font-semibold text-ink-700"
+      />
       <CalamityWarnings state={state} />
     </section>
   )
@@ -944,15 +967,22 @@ export function OrdersPanel({
     const winterEstimate = preview?.winterCost ?? null
     return (
       <section className="space-y-3 rounded-xl border border-winter-700/30 bg-winter-100/80 p-4 shadow-inner shadow-winter-700/40">
-        <div>
-          <h3 className="flex items-center gap-2 font-display text-lg font-bold text-winter-700">
-            <IconSnowflake aria-hidden="true" className="size-5 text-winter-700" />
-            <span>{t('orders.winterTitle')}</span>
-          </h3>
-          <p className="mt-1 text-xs leading-relaxed text-winter-700">
-            {t('orders.winterDescription')}
-          </p>
-        </div>
+        <SectionHeading
+          level="h3"
+          tone="winter"
+          title={
+            <>
+              <IconSnowflake aria-hidden="true" className="size-5 text-winter-700" />
+              <span>{t('orders.winterTitle')}</span>
+            </>
+          }
+          topic={t('orders.winterTitle')}
+          summary={t('orders.winterSummary')}
+          help={t('orders.winterDescription')}
+          rulesSection="winter-orders"
+          onOpenRules={onOpenRules}
+          titleClassName="flex items-center gap-2 font-display text-lg font-bold text-winter-700"
+        />
         {draftDiffers?.winter && (
           <div className="flex items-center justify-between gap-2 rounded-lg border border-brass-700/40 bg-brass-300/30 px-3 py-2 text-xs text-brass-700">
             <span>{t('orders.draftDiffers')}</span>
@@ -967,17 +997,19 @@ export function OrdersPanel({
             )}
           </div>
         )}
-        <DeckHandSummary state={state} />
+        <DeckHandSummary state={state} onOpenRules={onOpenRules} />
         <TitleOrdersSection
           state={state}
           player={player}
           winterDraft={winterDraft}
           onWinterChange={onWinterChange}
+          onOpenRules={onOpenRules}
         />
         <OpenElectionsSection
           state={state}
           winterDraft={winterDraft}
           onWinterChange={onWinterChange}
+          onOpenRules={onOpenRules}
         />
         <NobleDeckSection
           state={state}
@@ -985,6 +1017,7 @@ export function OrdersPanel({
           regions={regions}
           winterDraft={winterDraft}
           onWinterChange={onWinterChange}
+          onOpenRules={onOpenRules}
         />
         <textarea
           value={winterDraft}
@@ -1016,12 +1049,16 @@ export function OrdersPanel({
   const hasEmittingNoble = hasEmittingNobleOf(state, player)
   return (
     <section className="space-y-3 border-t border-line/50 pt-5">
-      <div>
-        <h3 className="font-display text-lg font-semibold">{t('orders.actionTitle')}</h3>
-        <p className="mt-1 text-xs leading-relaxed text-ink-500">
-          {t('orders.actionDescription')}
-        </p>
-      </div>
+      <SectionHeading
+        level="h3"
+        title={t('orders.actionTitle')}
+        topic={t('orders.actionTitle')}
+        summary={t('orders.actionSummary')}
+        help={t('orders.actionDescription')}
+        rulesSection="action-orders"
+        onOpenRules={onOpenRules}
+        titleClassName="font-display text-lg font-semibold"
+      />
       <DeckOrdersSection
         state={state}
         player={player}
@@ -1029,6 +1066,7 @@ export function OrdersPanel({
         mapTerritories={mapTerritories}
         specialDraft={specialDraft}
         onSpecialChange={onSpecialChange}
+        onOpenRules={onOpenRules}
       />
       {(state.nobleHand ?? []).length > 0 && (
         <>
@@ -1039,6 +1077,7 @@ export function OrdersPanel({
             winterDraft={winterDraft}
             onWinterChange={onWinterChange}
             cardsOnly
+            onOpenRules={onOpenRules}
           />
           <textarea
             value={winterDraft}

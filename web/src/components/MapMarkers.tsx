@@ -14,6 +14,8 @@ import {
   MAP_PARCHMENT,
   MARKER_BRASS,
   NEUTRAL_MARKER_FILL,
+  SELECTION_HALO,
+  SELECTION_STROKE,
 } from '@/lib/map-palette'
 
 
@@ -214,6 +216,7 @@ export function NobleMarker({
   color,
   scale,
   attributes,
+  selected = false,
 }: {
   noble: Noble
   x: number
@@ -221,11 +224,29 @@ export function NobleMarker({
   color: string
   scale: number
   attributes?: NobleAttributes
+  /** Draws the brass selection halo behind the pawn. */
+  selected?: boolean
 }) {
   const { t } = useLanguage()
   const prisoner = noble.status !== 'free'
   return (
-    <g transform={`translate(${x} ${y}) scale(${scale})`} pointerEvents="none">
+    <g
+      transform={`translate(${x} ${y}) scale(${scale})`}
+      pointerEvents="none"
+      data-noble-marker={noble.code}
+      data-selected={selected || undefined}
+    >
+      {selected && (
+        <circle
+          cx={-2}
+          cy={-4}
+          r={13}
+          fill={SELECTION_HALO}
+          fillOpacity="0.45"
+          stroke={SELECTION_STROKE}
+          strokeWidth={1.5}
+        />
+      )}
       <title>{`${noble.name} (${noble.code})${prisoner ? ` · ${t(`orders.nobleStatus.${noble.status}` as MessageKey)}` : ''}`}</title>
       <NoblePawn color={color} attributes={attributes} status={noble.status} />
     </g>

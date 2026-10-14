@@ -6,7 +6,10 @@ import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { appendDraftLine, draftLines } from '@/lib/winter-draft'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
-import { NEUTRAL_PLAYER_ID, type CardKind, type Dignity, type FiefEdge, type Noble, type PlayerId, type Region, type Season, type StateData, type Territory } from '@/types'
+import { useMapLinks } from '@/components/MapLinks'
+import type { RulesSection } from '@/components/RulesPanel'
+import { SectionHeading } from '@/components/SectionHeading'
+import { NEUTRAL_PLAYER_ID, type CardKind, type Dignity, type FiefEdge, type FiefTitle, type Noble, type PlayerId, type Region, type Season, type StateData, type Territory } from '@/types'
 
 const PLAYABLE_KINDS: CardKind[] = [
   'fair_weather',
@@ -23,15 +26,29 @@ function nobleOption(noble: Noble): OrderFieldOption {
   return { value: noble.code, label: `${noble.name} (${noble.code}) · ${noble.owner}` }
 }
 
+/** A territory option; the order dialog writes its commune name. */
 function codeOption(code: string): OrderFieldOption {
-  return { value: code, label: code }
+  return { value: code, label: code, territory: true }
 }
 
 function regionOptions(regions: Region[]): OrderFieldOption[] {
   return regions.map((region) => ({
     value: region.seed,
-    label: region.name ? `${region.seed} · ${region.name}` : region.seed,
+    label: region.name ? `${region.name} (${region.seed})` : region.seed,
   }))
+}
+
+/** « Baronnie de Rochevent (RVE) », for a fief option of a form. */
+function fiefOptionLabel(
+  fief: { capital: string; title: FiefTitle },
+  territoryName: (id: string) => string | undefined,
+  t: Translate,
+): string {
+  const name = territoryName(fief.capital)
+  return t('map.fiefLabel', {
+    title: t(`fief.title.${fief.title}` as MessageKey),
+    capital: name ? `${name} (${fief.capital})` : fief.capital,
+  })
 }
 
 function nobleName(state: StateData, code: string): string {
@@ -83,13 +100,17 @@ export function TitleOrdersSection({
   player,
   winterDraft,
   onWinterChange,
+  onOpenRules,
 }: {
   state: StateData
   player: PlayerId
   winterDraft: string
   onWinterChange: (text: string) => void
+  onOpenRules?: (section: RulesSection) => void
 }) {
   const { t } = useLanguage()
+  const links = useMapLinks()
+  const territoryName = (id: string) => links?.territoryName(id)
   const aids = state.winterAids
   // Every order below is a winter order: nothing is offered in the other seasons.
   if (state.season !== 'winter' || !aids) return null
@@ -98,7 +119,7 @@ export function TitleOrdersSection({
   const byCode = new Map(state.nobles.map((noble) => [noble.code, noble]))
   const toOption = (code: string): OrderFieldOption => {
     const noble = byCode.get(code)
-    return noble ? nobleOption(noble) : codeOption(code)
+    return noble ? nobleOption(noble) : { value: code, label: code }
   }
   const own = state.nobles.filter((noble) => noble.owner === player)
   // A power button names the title or the dignity that grants the power: a
@@ -532,7 +553,7 @@ export function TitleOrdersSection({
             label: t('orders.field.fief'),
             options: rankFiefs.map((fief) => ({
               value: fief.capital,
-              label: `${fief.capital} · ${t(`fief.title.${fief.title}` as MessageKey)}`,
+              label: fiefOptionLabel(fief, territoryName, t),
             })),
           },
         ]}
@@ -559,7 +580,7 @@ export function TitleOrdersSection({
     const fiefOptions = (fiefs: typeof allFiefs): OrderFieldOption[] =>
       fiefs.map((fief) => ({
         value: fief.capital,
-        label: `${fief.capital} · ${t(`fief.title.${fief.title}` as MessageKey)} · ${fief.owner}`,
+        label: `${fiefOptionLabel(fief, territoryName, t)} · ${fief.owner}`,
       }))
     const usedInDraft = (prefix: string) =>
       lines.filter((line) => line.startsWith(prefix)).length >= royal.ordersPerWinter
@@ -756,10 +777,16 @@ export function TitleOrdersSection({
   if (launchers.length === 0) return null
   return (
     <section className="space-y-2 rounded-lg border border-winter-700/30 bg-winter-100 p-3">
-      <h4 className="font-display text-base font-semibold text-winter-700">
-        {t('orders.titlesTitle')}
-      </h4>
-      <p className="text-xs leading-relaxed text-winter-700">{t('orders.titlesDescription')}</p>
+      <SectionHeading
+        tone="winter"
+        title={t('orders.titlesTitle')}
+        topic={t('orders.titlesTitle')}
+        summary={t('orders.titlesSummary')}
+        help={t('orders.titlesDescription')}
+        rulesSection="winter-orders"
+        onOpenRules={onOpenRules}
+        titleClassName="font-display text-base font-semibold text-winter-700"
+      />
       <div className="flex flex-wrap gap-1.5">{launchers}</div>
     </section>
   )

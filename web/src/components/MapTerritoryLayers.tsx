@@ -155,6 +155,7 @@ export function LiveLayer({
   armsByOwner,
   nobleAttributes,
   annotationScale,
+  selectedNoble = null,
 }: {
   territories: Territory[]
   state: StateData
@@ -162,6 +163,8 @@ export function LiveLayer({
   armsByOwner: Map<string, ResolvedArms>
   nobleAttributes: Map<string, NobleAttributes>
   annotationScale: number
+  /** Noble whose pawn wears the selection halo. */
+  selectedNoble?: string | null
 }) {
   const { t } = useLanguage()
   // Full label: the owner's name and code, or the rebels.
@@ -274,6 +277,7 @@ export function LiveLayer({
                 color={playerColors.get(noble.owner) ?? UNKNOWN_OWNER_COLOR}
                 scale={annotationScale}
                 attributes={nobleAttributes.get(noble.code)}
+                selected={noble.code === selectedNoble}
               />
             ))}
           </g>
