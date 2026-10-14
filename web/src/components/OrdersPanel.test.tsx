@@ -885,7 +885,15 @@ describe('OrdersPanel title and card order dialogs', () => {
       excommunicated: [{ noble: 'ABE', reason: 'papal', turn: 3 }],
       winterAids: { ...aids, excommunicable: [{ code: 'LEO' }], liftable: ['ABE'] },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Pope Pie · Excommunicate (X E)' }))
+    // The pope's orders sit on the pope's line, the code in the tooltip.
+    const popeLine = document.querySelector('[data-holder-orders="POP"]') as HTMLElement
+    expect(popeLine).toHaveTextContent('Pope')
+    const excommunicate = within(popeLine).getByRole('button', { name: 'Excommunicate' })
+    expect(excommunicate).toHaveAttribute('title', expect.stringContaining('(X E)'))
+    expect(
+      within(popeLine).getByRole('button', { name: 'Lift an excommunication' }),
+    ).toBeInTheDocument()
+    fireEvent.click(excommunicate)
     const options = within(screen.getByRole('dialog'))
       .getAllByRole('option')
       .map((o) => o.textContent)
@@ -893,7 +901,7 @@ describe('OrdersPanel title and card order dialogs', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
     expect(onWinterChange).toHaveBeenCalledWith('X E LEO # excommunicate Leon\n')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Pope Pie · Lift an excommunication (X L)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Lift an excommunication' }))
     fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
     expect(onWinterChange).toHaveBeenLastCalledWith('X L ABE # lift excommunication of Abel\n')
   })
@@ -911,7 +919,7 @@ describe('OrdersPanel title and card order dialogs', () => {
       bishoprics: [{ region: 'R1', name: 'Ros', territories: ['AAA'], bishop: 'POP' }],
       winterAids: { ...aids, buyableCardinals: ['POP'] },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Bishop Pie · Buy a cardinal (N C)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Buy a cardinal' }))
     expect(screen.getByText('Cost: 8 R')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
     expect(onWinterChange).toHaveBeenCalledWith('N C POP # buy cardinal Sieur Pie\n')
@@ -922,7 +930,7 @@ describe('OrdersPanel title and card order dialogs', () => {
       cardinals: ['POP'],
       winterAids: { ...aids, inquirers: ['POP'] },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Cardinal Pie · Investigate a noble (Q)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Investigate a noble' }))
     expect(screen.getByText('Cost: 3 R')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
     expect(onWinterChange).toHaveBeenCalledWith('Q POP LEO # investigate Leon\n')
@@ -934,7 +942,7 @@ describe('OrdersPanel title and card order dialogs', () => {
       deceased: [{ code: 'VIC', name: 'Victor', owner: 'P2', cause: 'assassination', turn: 1 }],
       winterAids: { ...aids, inquirers: ['POP'], inquiryCosts: { ...aids.inquiryCosts, VIC: 4 } },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Cardinal Pie · Investigate a noble (Q)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Investigate a noble' }))
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'VIC' } })
     expect(screen.getByText('Cost: 4 R')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
@@ -946,7 +954,7 @@ describe('OrdersPanel title and card order dialogs', () => {
       cardinals: ['POP'],
       winterAids: { ...aids, trialJudges: ['POP'] },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Put a noble on trial (J)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Put a noble on trial' }))
     fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
     expect(onWinterChange).toHaveBeenCalledWith(expect.stringMatching(/^J POP [A-Z]{3} # put .* on trial\n$/))
   })
@@ -968,7 +976,7 @@ describe('OrdersPanel title and card order dialogs', () => {
         ],
       },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Found a fief (T F)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Found a fief' }))
     const dialog = screen.getByRole('dialog')
     const confirm = within(dialog).getByRole('button', { name: 'Add the order' })
     expect(confirm).toBeDisabled()
@@ -997,7 +1005,7 @@ describe('OrdersPanel title and card order dialogs', () => {
     const onWinterChange = renderWinter({
       winterAids: { ...aids, ownFiefs: [ownFief], annexCostPerTerritory: 2, rankCostPerTerritory: 2 },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Annex a territory (T X)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Annex a territory' }))
     const dialog = screen.getByRole('dialog')
     expect(within(dialog).getByText('Annex DDD · cost 2 R')).toBeTruthy()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
@@ -1008,7 +1016,7 @@ describe('OrdersPanel title and card order dialogs', () => {
     const onWinterChange = renderWinter({
       winterAids: { ...aids, ownFiefs: [ownFief], annexCostPerTerritory: 2, rankCostPerTerritory: 2 },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Raise a fief by one rank (T R)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Raise a fief by one rank' }))
     const dialog = screen.getByRole('dialog')
     expect(within(dialog).getByText('Barony → County · 3 territories · cost 6 R')).toBeTruthy()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
@@ -1383,7 +1391,7 @@ describe('OrdersPanel title and card order dialogs', () => {
       calamityForecast: ['plague', 'famine', 'bad_weather'],
       winterAids: aids,
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Astrologer (Sieur Pie) · Strike a calamity off (V C)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Strike a calamity off' }))
     const dialog = screen.getByRole('dialog')
     expect(within(dialog).getAllByRole('option')).toHaveLength(3)
     fireEvent.change(within(dialog).getByLabelText('Calamity to strike'), { target: { value: '2' } })
@@ -1395,14 +1403,14 @@ describe('OrdersPanel title and card order dialogs', () => {
     const onWinterChange = renderWinter({
       winterAids: { ...aids, rituals: [{ noble: 'POP', region: 'AAA' }] },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Witch (Sieur Pie) · Ritual (S R)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Ritual' }))
     const dialog = screen.getByRole('dialog')
     expect(within(dialog).getByText('It would strike the region of AAA.')).toBeTruthy()
     fireEvent.change(within(dialog).getByLabelText('Calamity or season'), { target: { value: 'MT' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
     expect(onWinterChange).toHaveBeenCalledWith('S R POP MT # ritual: call Bad weather\n')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Witch (Sieur Pie) · Ritual (S R)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Ritual' }))
     const second = screen.getByRole('dialog')
     fireEvent.change(within(second).getByLabelText('Effect'), { target: { value: 'season' } })
     expect(

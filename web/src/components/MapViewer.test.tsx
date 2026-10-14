@@ -1589,3 +1589,18 @@ describe('MapViewer framing and controlled selection', () => {
     expect(territory('BRU')).toHaveAttribute('aria-pressed', 'false')
   })
 })
+
+describe('MapViewer picks', () => {
+  it('lets an open form take a click, the selected territory included', () => {
+    const onSelect = vi.fn()
+    const onPick = vi.fn(() => true)
+    render(
+      <MapViewer map={map} state={state} selectedId="ROS" onSelect={onSelect} onPick={onPick} />,
+    )
+    const territory = document.querySelector('[data-territory-id="ROS"]') as Element
+
+    fireEvent.keyDown(territory, { key: 'Enter' })
+    expect(onPick).toHaveBeenCalledWith('ROS')
+    expect(onSelect).not.toHaveBeenCalled()
+  })
+})

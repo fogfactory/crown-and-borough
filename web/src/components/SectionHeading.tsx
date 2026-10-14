@@ -11,7 +11,7 @@ interface SectionHeadingProps {
   /** Text of the title, naming the "?" button for screen readers. */
   topic: string
   /** One line under the title, 80 characters at most. */
-  summary: string
+  summary?: string
   /** Full explanation, shown by the "?" button. */
   help: string
   /** Rules section the popover links to. */
@@ -89,14 +89,16 @@ export function SectionHeading({
           </Popover.Portal>
         </Popover.Root>
       </div>
-      <p
-        className={cn(
-          'mt-0.5 text-xs',
-          tone === 'winter' ? 'text-winter-700' : 'text-ink-500',
-        )}
-      >
-        {summary}
-      </p>
+      {summary && (
+        <p
+          className={cn(
+            'mt-0.5 text-xs',
+            tone === 'winter' ? 'text-winter-700' : 'text-ink-500',
+          )}
+        >
+          {summary}
+        </p>
+      )}
     </div>
   )
 }

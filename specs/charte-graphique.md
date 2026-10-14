@@ -740,6 +740,16 @@ cartes, saisie des ordres, pied collant d'envoi.
 **Précision.** Sur téléphone, l'éventail défile horizontalement et chaque
 carte mesure au moins 64 × 88 px.
 
+**Précision.** Les ordres qui engagent toute la maison (mariage, dissolution,
+procès, fondation ou attribution d'un fief) ferment la liste sous « Ordres de
+la maison » ; les ordres de fief vont sous le titulaire quand ils ne
+concernent que ses fiefs. Le formulaire déplié prend pour champ actif le
+premier champ qui accepte un territoire ou un noble, ou le dernier que le
+joueur a touché ; un clic sur un territoire y met ce territoire, ou le noble
+qui s'y trouve, et ne change pas la sélection de la carte. Le commentaire
+d'une ligne écrit chaque territoire « Rochevent (RVE) ». Le formulaire garde
+le texte d'aide de l'ordre derrière son « ? ».
+
 **Précision.** En hiver, le bandeau de trésor n'écrit que le stock et le
 revenu : il n'y a ni ravitaillement ni famine à prévoir. Le risque de famine
 compte les armées menacées (« famine : 2 armées »). La main réunit cartes
