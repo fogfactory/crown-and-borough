@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Popover } from 'radix-ui'
-import { IconChevronDown } from '@tabler/icons-react'
+import { IconChevronDown, IconMenu2 } from '@tabler/icons-react'
 
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { VersionBadge } from '@/components/VersionBadge'
@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useLanguage } from '@/i18n/LanguageContext'
+import { useIsDesktop } from '@/lib/use-media-query'
 
 const MIN_PLAYERS = 2
 const MAX_PLAYERS = 16
@@ -48,8 +49,8 @@ interface GameMenuProps {
   resolution?: GameMenuResolution
   /** Show the language switcher (when the page header does not). */
   language?: boolean
-  /** Page navigation, repeated here when the bar is too narrow for it. */
-  navigation?: ReactNode
+  /** Bar items moved here when the bar is narrow (phones, tablets). */
+  compact?: ReactNode
 }
 
 const SECTION_TITLE =
@@ -67,9 +68,10 @@ export function GameMenu({
   creation,
   resolution,
   language = false,
-  navigation,
+  compact,
 }: GameMenuProps) {
   const { t } = useLanguage()
+  const desktop = useIsDesktop()
   const [open, setOpen] = useState(false)
   const [confirming, setConfirming] = useState(false)
 
@@ -96,13 +98,24 @@ export function GameMenu({
   return (
     <Popover.Root open={open} onOpenChange={handleOpenChange}>
       <Popover.Trigger asChild>
-        <button
-          type="button"
-          className="inline-flex h-8 shrink-0 items-center gap-1 rounded-md border border-line-strong bg-paper-50 px-2.5 text-sm font-semibold text-ink-700 transition hover:bg-paper-100 hover:text-ink-900"
-        >
-          {t('app.gameMenu')}
-          <IconChevronDown aria-hidden="true" className="size-3.5" />
-        </button>
+        {desktop ? (
+          <button
+            type="button"
+            className="inline-flex h-8 shrink-0 items-center gap-1 rounded-md border border-line-strong bg-paper-50 px-2.5 text-sm font-semibold text-ink-700 transition hover:bg-paper-100 hover:text-ink-900"
+          >
+            {t('app.gameMenu')}
+            <IconChevronDown aria-hidden="true" className="size-3.5" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            aria-label={t('app.gameMenu')}
+            title={t('app.gameMenu')}
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-md border border-line-strong bg-paper-50 text-ink-700 transition hover:bg-paper-100 hover:text-ink-900"
+          >
+            <IconMenu2 aria-hidden="true" className="size-5" />
+          </button>
+        )}
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
@@ -111,11 +124,7 @@ export function GameMenu({
           aria-label={t('app.gameMenu')}
           className="z-50 w-64 space-y-4 rounded-md border border-line bg-paper-50 p-4 shadow-panel"
         >
-          {navigation && (
-            <nav aria-label={t('nav.primary')} className="flex gap-1 md:hidden">
-              {navigation}
-            </nav>
-          )}
+          {compact && !desktop && <section className="space-y-3">{compact}</section>}
           {resolution && (
             <section>
               <Button

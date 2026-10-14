@@ -618,6 +618,17 @@ au-dessus du clavier virtuel ; la synchronisation ne se déclenche que sur un
 trigramme complet et valide, pour ne pas faire sauter la carte à chaque
 frappe.
 
+**Précision.** Le téléphone s'ouvre sur l'onglet Carte. Le cadrage sur les
+territoires du joueur garde la carte pleine : il ne montre jamais de papier
+vide au-delà de son bord. La barre du haut écrit la saison et le tour en
+abrégé (« Automne 1002 · 7/40 ») ; le joueur actif du hotseat, la navigation
+et la langue passent dans le menu « Partie », la lignée s'ouvre depuis le
+marque-page Royaume. En ligne, la partie ne garde que sa propre barre :
+retour, saison et tour, scores, salon et menu ; l'état du réseau n'y apparaît
+que hors ligne. Le pied « Sceller les ordres » n'accompagne que l'onglet
+Ordres. Le lien entre la carte et la saisie suit la phase 6, le toucher d'un
+événement du rapport la refonte du rapport.
+
 ### Saisie des ordres
 
 La saisie reste textuelle, assistée :

@@ -6,10 +6,9 @@ import {
   clamp,
   clientToMapPoint,
   distanceBetween,
+  frameView,
   midpointOf,
-  nextSheetSnap,
   pinchView,
-  snapFromDrag,
   viewportScale,
   zoomAtCenter,
   zoomAtPoint,
@@ -149,23 +148,46 @@ describe('pinchView', () => {
   })
 })
 
-describe('sheet snapping', () => {
-  it('expands on an upward drag and collapses on a downward drag', () => {
-    expect(snapFromDrag('half', -100)).toBe('full')
-    expect(snapFromDrag('half', 100)).toBe('peek')
-    expect(snapFromDrag('half', -10)).toBe('half')
-    expect(snapFromDrag('peek', -100)).toBe('half')
-    expect(snapFromDrag('full', 100)).toBe('half')
+describe('frameView', () => {
+  it('centers and zooms on the framed bounds', () => {
+    // A 100 × 100 viewBox on a square element: a 20-unit box padded by 5
+    // fills it at 100 / 30, and a tiny box stops at the maximum zoom.
+    const view = frameView([40, 40, 60, 60], 100, 100, 100, 100, 400, 400, 5)
+
+    expect(view.k).toBeCloseTo(100 / 30)
+    expect(frameView([49, 49, 50, 50], 100, 100, 100, 100, 400, 400).k).toBe(MAX_ZOOM)
+    // The center of the box lands on the center of the map.
+    expect(50 * view.k + view.x).toBeCloseTo(50)
+    expect(50 * view.k + view.y).toBeCloseTo(50)
   })
 
-  it('never leaves the snap range', () => {
-    expect(snapFromDrag('full', -100)).toBe('full')
-    expect(snapFromDrag('peek', 100)).toBe('peek')
+  it('uses the extra height of a portrait element', () => {
+    // A tall box framed in a landscape viewBox shown on a phone.
+    const landscape = frameView([0, 0, 50, 100], 200, 100, 200, 100, 0, 0)
+    const portrait = frameView([0, 0, 50, 100], 200, 100, 200, 100, 375, 600)
+
+    expect(landscape.k).toBe(1)
+    expect(portrait.k).toBeGreaterThan(landscape.k)
   })
 
-  it('toggles between peek and full with the chevron', () => {
-    expect(nextSheetSnap('half')).toBe('full')
-    expect(nextSheetSnap('peek')).toBe('full')
-    expect(nextSheetSnap('full')).toBe('peek')
+  it('keeps the map filling the screen when the box is at its edge', () => {
+    // A box in the bottom-right corner of a 100 × 100 map, zoomed × 2.5.
+    const view = frameView([80, 80, 100, 100], 100, 100, 100, 100, 400, 400, 10)
+
+    // The map's bottom-right corner stays on the viewport's corner.
+    expect(100 * view.k + view.x).toBeCloseTo(100)
+    expect(100 * view.k + view.y).toBeCloseTo(100)
+  })
+
+  it('centers the map on an axis where it is smaller than the screen', () => {
+    // A box near the top of a square map shown on a tall phone, at zoom 1.
+    const view = frameView([0, 0, 100, 40], 100, 100, 100, 100, 300, 900)
+
+    expect(view.k).toBe(1)
+    expect(view.y).toBe(0)
+  })
+
+  it('never zooms out below the whole map', () => {
+    expect(frameView([0, 0, 500, 500], 100, 100, 100, 100, 100, 100).k).toBe(1)
   })
 })

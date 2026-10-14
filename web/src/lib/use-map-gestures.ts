@@ -10,11 +10,13 @@ import {
   DRAG_THRESHOLD,
   WHEEL_ZOOM_FACTOR,
   distanceBetween,
+  frameView,
   midpointOf,
   pinchView,
   viewportScale,
   zoomAtCenter,
   zoomAtPoint,
+  type MapBounds,
   type MapPoint,
   type ViewState,
 } from '@/lib/map-gestures'
@@ -65,6 +67,8 @@ export interface MapGestures {
   }
   /** Zoom around the map center; a factor of 0 resets the view. */
   zoomBy: (zoomFactor: number) => void
+  /** Pan and zoom so the bounds (map units) fill the viewport. */
+  frameOn: (bounds: MapBounds, padding?: number) => void
 }
 
 /**
@@ -283,6 +287,22 @@ export function useMapGestures({
     setView((current) => zoomAtCenter(current, mapWidth, mapHeight, zoomFactor))
   }
 
+  const frameOn = (bounds: MapBounds, padding = 0) => {
+    const element = svgRef.current?.getBoundingClientRect()
+    setView(
+      frameView(
+        bounds,
+        viewWidth,
+        viewHeight,
+        mapWidth,
+        mapHeight,
+        element?.width ?? 0,
+        element?.height ?? 0,
+        padding,
+      ),
+    )
+  }
+
   return {
     svgRef,
     view,
@@ -294,5 +314,6 @@ export function useMapGestures({
       onPointerCancel: handlePointerCancel,
     },
     zoomBy,
+    frameOn,
   }
 }

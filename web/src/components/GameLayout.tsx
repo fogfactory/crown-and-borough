@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react'
+import { IconX } from '@tabler/icons-react'
 
+import type { Panel } from '@/components/GameDrawer'
 import { useLanguage } from '@/i18n/LanguageContext'
+import { useIsDesktop } from '@/lib/use-media-query'
 import { cn } from '@/lib/utils'
 
 interface GameLayoutProps {
@@ -8,18 +11,43 @@ interface GameLayoutProps {
   map: ReactNode
   /** The game drawer (`GameDrawer`). */
   children: ReactNode
+  /**
+   * Active view, which sizes the map on phones: the whole screen for the
+   * map, the top 40 % for the orders, nothing for the other panels.
+   */
+  view?: Panel
+  /** Card laid over the bottom of the map (phones, map view). */
+  mapOverlay?: ReactNode
+  /** Closes the card over the map. */
+  onCloseOverlay?: () => void
   /** Extra classes for the layout row. */
   className?: string
 }
 
 /**
- * Shared game screen shell: the map takes the whole width and the drawer
- * sits on its right edge (a bottom sheet on phones). The parent provides the
- * height context (h-dvh + overflow-hidden); the map reframes itself when the
- * drawer opens or folds.
+ * Shared game screen shell (charte-graphique.md § Disposition sur ordinateur
+ * and § Téléphone). On desktop the map takes the whole width and the drawer
+ * sits on its right edge; on phones the map, the panel and the tab bar stack.
+ * The parent provides the height context (h-dvh + overflow-hidden); the map
+ * reframes itself when its box changes.
  */
-export function GameLayout({ map, children, className }: GameLayoutProps) {
+export function GameLayout({
+  map,
+  children,
+  view = 'orders',
+  mapOverlay,
+  onCloseOverlay,
+  className,
+}: GameLayoutProps) {
   const { t } = useLanguage()
+  const desktop = useIsDesktop()
+  const phoneMap = desktop
+    ? 'full'
+    : view === 'map'
+      ? 'full'
+      : view === 'orders'
+        ? 'split'
+        : 'none'
 
   return (
     <div
@@ -30,9 +58,33 @@ export function GameLayout({ map, children, className }: GameLayoutProps) {
     >
       <section
         aria-label={t('map.territories')}
-        className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-paper-300"
+        data-map-size={phoneMap}
+        hidden={phoneMap === 'none'}
+        className={cn(
+          'relative min-h-0 min-w-0 overflow-hidden bg-paper-300',
+          phoneMap === 'split' ? 'h-[40%] shrink-0' : 'flex-1',
+        )}
       >
         {map}
+        {mapOverlay && (
+          <div
+            data-map-overlay
+            className="absolute bottom-2 left-2 right-14 z-20 max-h-[55%] overflow-y-auto rounded-md border border-line bg-paper-50 p-3 shadow-panel"
+          >
+            {onCloseOverlay && (
+              <button
+                type="button"
+                aria-label={t('map.closeCard')}
+                title={t('map.closeCard')}
+                className="float-right -mt-1 -mr-1 ml-2 flex size-11 items-center justify-center rounded-md text-ink-500 transition hover:bg-paper-100 hover:text-ink-900"
+                onClick={onCloseOverlay}
+              >
+                <IconX aria-hidden="true" className="size-4" />
+              </button>
+            )}
+            {mapOverlay}
+          </div>
+        )}
       </section>
       {children}
     </div>

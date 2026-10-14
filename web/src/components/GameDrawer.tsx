@@ -1,34 +1,35 @@
 import {
-  useEffect,
-  useRef,
   useState,
   type ComponentType,
   type KeyboardEvent as ReactKeyboardEvent,
-  type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react'
 import {
   IconBook,
-  IconChevronDown,
-  IconChevronUp,
   IconCrown,
   IconFeather,
   IconLayoutSidebarRightCollapse,
   IconLayoutSidebarRightExpand,
+  IconMap,
   IconNews,
 } from '@tabler/icons-react'
 
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
-import { nextSheetSnap, snapFromDrag, type SheetSnap } from '@/lib/map-gestures'
+import { useIsDesktop } from '@/lib/use-media-query'
 import { SEASON_TINT_BG } from '@/lib/season'
 import { cn } from '@/lib/utils'
 import type { Season } from '@/types'
 
+/** Bookmarks of the desktop drawer. */
 export const PANEL_ORDER = ['orders', 'report', 'realm', 'rules'] as const
-export type Panel = (typeof PANEL_ORDER)[number]
+/** Tabs of the phone tab bar: the map has its own screen there. */
+export const PHONE_TAB_ORDER = ['map', ...PANEL_ORDER] as const
+export type DrawerPanel = (typeof PANEL_ORDER)[number]
+export type Panel = (typeof PHONE_TAB_ORDER)[number]
 
 const PANEL_LABEL_KEYS: Record<Panel, MessageKey> = {
+  map: 'drawer.map',
   orders: 'drawer.orders',
   report: 'drawer.report',
   realm: 'drawer.realm',
@@ -39,186 +40,182 @@ const PANEL_ICONS: Record<
   Panel,
   ComponentType<{ className?: string; 'aria-hidden'?: boolean }>
 > = {
+  map: IconMap,
   orders: IconFeather,
   report: IconNews,
   realm: IconCrown,
   rules: IconBook,
 }
 
-/** Phone sheet heights; the drawer ignores them from lg up. */
-const SHEET_HEIGHTS: Record<SheetSnap, string> = {
-  peek: 'h-28',
-  half: 'h-[55dvh]',
-  full: 'h-[92dvh]',
+/** The drawer panel shown for a tab: on desktop the map is not a panel. */
+export function drawerPanelOf(panel: Panel): DrawerPanel {
+  return panel === 'map' ? 'orders' : panel
 }
 
 export interface GameDrawerProps {
   activePanel: Panel
   onPanelChange: (panel: Panel) => void
   /** Panel contents, owned by the mode pages. */
-  panels: Record<Panel, ReactNode>
+  panels: Record<DrawerPanel, ReactNode>
   /** Extra node inside the report bookmark (turn badge, "new" marker, …). */
   reportLabelExtra?: ReactNode
-  /** Sticky footer, visible whatever the bookmark (the main action). */
+  /** Sticky footer: the main action (always on desktop, under Orders on phones). */
   footer?: ReactNode
   /** Current season: its interface tint marks the active bookmark. */
   season?: Season
-  /** Increment to bring the phone sheet to its half snap. */
-  focusSignal?: number
 }
 
 /**
- * Game drawer (charte-graphique.md § Disposition sur ordinateur): from lg up,
- * a foldable column on the right of the map whose bookmarks stick out of its
- * left edge; on phones, a bottom sheet with snap points and a row of tabs.
- * The bookmarks stand for the title, so no heading repeats the active one.
+ * Game drawer (charte-graphique.md § Disposition sur ordinateur and
+ * § Téléphone). From lg up, a foldable column on the right of the map whose
+ * bookmarks stick out of its left edge. On phones, each view takes the whole
+ * screen and a tab bar at the bottom switches between the map and the panels.
+ * The bookmarks and tabs stand for the title, so no heading repeats them.
  */
-export function GameDrawer({
+export function GameDrawer(props: GameDrawerProps) {
+  const desktop = useIsDesktop()
+  return desktop ? <DesktopDrawer {...props} /> : <PhoneDrawer {...props} />
+}
+
+/** Roving keyboard focus over a row or column of tabs. */
+function tabKeyHandler(
+  order: readonly Panel[],
+  active: Panel,
+  select: (panel: Panel) => void,
+) {
+  return (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    const currentIndex = Math.max(0, order.indexOf(active))
+    let nextIndex: number | null = null
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      nextIndex = (currentIndex + 1) % order.length
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      nextIndex = (currentIndex - 1 + order.length) % order.length
+    } else if (event.key === 'Home') {
+      nextIndex = 0
+    } else if (event.key === 'End') {
+      nextIndex = order.length - 1
+    }
+    if (nextIndex === null) return
+
+    event.preventDefault()
+    const nextPanel = order[nextIndex]
+    select(nextPanel)
+    event.currentTarget.parentElement
+      ?.querySelector<HTMLButtonElement>(`[data-panel-tab="${nextPanel}"]`)
+      ?.focus()
+  }
+}
+
+function SeasonTint({ season, vertical }: { season?: Season; vertical: boolean }) {
+  if (!season) return null
+  return (
+    <span
+      aria-hidden="true"
+      data-season-tint={season}
+      className={cn(
+        'absolute rounded-full',
+        vertical ? 'inset-y-1 right-0 w-[3px]' : 'inset-x-2 top-0 h-[3px]',
+        SEASON_TINT_BG[season],
+      )}
+    />
+  )
+}
+
+function PanelContents({
+  panels,
+  visible,
+}: {
+  panels: Record<DrawerPanel, ReactNode>
+  visible: DrawerPanel | null
+}) {
+  const { t } = useLanguage()
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto px-3 pt-3 pb-4 sm:px-4 lg:pt-4">
+      {PANEL_ORDER.map((panel) => (
+        <div
+          key={panel}
+          id={`${panel}-panel`}
+          role="tabpanel"
+          aria-label={t(PANEL_LABEL_KEYS[panel])}
+          hidden={visible !== panel}
+          className="min-w-0 space-y-4"
+        >
+          {panels[panel]}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function Footer({ children }: { children: ReactNode }) {
+  return (
+    <div
+      data-drawer-footer
+      className="shrink-0 space-y-2 border-t border-line bg-paper-50 px-3 py-3 sm:px-4"
+    >
+      {children}
+    </div>
+  )
+}
+
+function DesktopDrawer({
   activePanel,
   onPanelChange,
   panels,
   reportLabelExtra,
   footer,
   season,
-  focusSignal = 0,
 }: GameDrawerProps) {
   const { t } = useLanguage()
   const [collapsed, setCollapsed] = useState(false)
-  const [snap, setSnap] = useState<SheetSnap>('half')
-  const dragStartY = useRef<number | null>(null)
-
-  useEffect(() => {
-    if (focusSignal > 0) {
-      setSnap('half')
-    }
-  }, [focusSignal])
+  const active = drawerPanelOf(activePanel)
 
   const selectPanel = (panel: Panel) => {
     onPanelChange(panel)
     setCollapsed(false)
   }
-
-  const handleTabKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
-    const currentIndex = PANEL_ORDER.indexOf(activePanel)
-    let nextIndex: number | null = null
-    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-      nextIndex = (currentIndex + 1) % PANEL_ORDER.length
-    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-      nextIndex = (currentIndex - 1 + PANEL_ORDER.length) % PANEL_ORDER.length
-    } else if (event.key === 'Home') {
-      nextIndex = 0
-    } else if (event.key === 'End') {
-      nextIndex = PANEL_ORDER.length - 1
-    }
-    if (nextIndex === null) return
-
-    event.preventDefault()
-    const nextPanel = PANEL_ORDER[nextIndex]
-    selectPanel(nextPanel)
-    event.currentTarget.parentElement
-      ?.querySelector<HTMLButtonElement>(`[data-panel-tab="${nextPanel}"]`)
-      ?.focus()
-  }
-
-  const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    dragStartY.current = event.clientY
-    event.currentTarget.setPointerCapture?.(event.pointerId)
-  }
-
-  const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (dragStartY.current === null) return
-    const deltaY = event.clientY - dragStartY.current
-    dragStartY.current = null
-    setSnap((current) => snapFromDrag(current, deltaY))
-  }
-
-  const handleChevronKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
-    if (event.key === 'ArrowUp') {
-      event.preventDefault()
-      setSnap('full')
-    } else if (event.key === 'ArrowDown') {
-      event.preventDefault()
-      setSnap('peek')
-    }
-  }
+  const handleTabKeyDown = tabKeyHandler(PANEL_ORDER, active, selectPanel)
 
   return (
     <aside
       id="game-drawer"
       data-testid="game-drawer"
-      data-sheet-snap={snap}
       data-collapsed={collapsed || undefined}
       aria-label={t('app.panelViews')}
       className={cn(
-        'fixed inset-x-0 bottom-0 z-40 flex flex-col rounded-t-xl border-t border-line bg-paper-50 shadow-sheet transition-[height] duration-150 ease-out motion-reduce:transition-none',
-        SHEET_HEIGHTS[snap],
-        'lg:relative lg:inset-auto lg:z-20 lg:h-auto lg:shrink-0 lg:rounded-none lg:border-t-0 lg:border-l lg:transition-[width]',
-        collapsed ? 'lg:w-0 lg:border-l-0' : 'lg:w-96 xl:w-[26rem]',
+        'relative z-20 flex shrink-0 flex-col border-l border-line bg-paper-50 shadow-sheet transition-[width] duration-150 ease-out motion-reduce:transition-none',
+        collapsed ? 'w-0 border-l-0' : 'w-96 xl:w-[26rem]',
       )}
     >
-      <div
-        className="relative flex shrink-0 touch-none items-center justify-center py-2 lg:hidden"
-        onPointerDown={handlePointerDown}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={() => {
-          dragStartY.current = null
-        }}
-      >
-        <div className="h-1.5 w-12 rounded-full bg-line" aria-hidden="true" />
-        <button
-          type="button"
-          aria-label={t(snap === 'full' ? 'panel.collapse' : 'panel.expand')}
-          className="absolute right-3 top-1 flex size-8 items-center justify-center rounded-md text-ink-500 transition hover:bg-paper-100 hover:text-ink-900"
-          onClick={() => setSnap(nextSheetSnap)}
-          onKeyDown={handleChevronKeyDown}
-        >
-          {snap === 'full' ? (
-            <IconChevronDown aria-hidden="true" className="size-4" />
-          ) : (
-            <IconChevronUp aria-hidden="true" className="size-4" />
-          )}
-        </button>
-      </div>
-
-      <div className="flex shrink-0 flex-col px-3 pb-2 lg:absolute lg:right-full lg:top-4 lg:gap-1.5 lg:p-0">
+      <div className="absolute right-full top-4 flex flex-col gap-1.5">
         <div
           role="tablist"
           aria-label={t('app.panelViews')}
-          className="flex gap-1 lg:flex-col lg:gap-1.5"
+          className="flex flex-col gap-1.5"
         >
           {PANEL_ORDER.map((panel) => {
-            const active = activePanel === panel
+            const selected = active === panel
             const Icon = PANEL_ICONS[panel]
             return (
               <button
                 key={panel}
                 type="button"
                 role="tab"
-                aria-selected={active}
+                aria-selected={selected}
                 aria-controls={`${panel}-panel`}
-                tabIndex={active ? 0 : -1}
+                tabIndex={selected ? 0 : -1}
                 data-panel-tab={panel}
                 className={cn(
-                  'relative inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-semibold transition',
-                  'lg:flex-none lg:rounded-r-none lg:border-r-0 lg:px-1.5 lg:py-3 lg:shadow-panel lg:[writing-mode:vertical-rl] lg:rotate-180',
-                  active
+                  'relative inline-flex rotate-180 items-center justify-center gap-1.5 rounded-md rounded-r-none border border-r-0 px-1.5 py-3 text-xs font-semibold shadow-panel transition [writing-mode:vertical-rl]',
+                  selected
                     ? 'border-brass-700 bg-brass-400 text-ink-900'
                     : 'border-line bg-paper-100 text-ink-700 hover:bg-paper-50 hover:text-ink-900',
                 )}
                 onClick={() => selectPanel(panel)}
                 onKeyDown={handleTabKeyDown}
               >
-                {active && season && (
-                  <span
-                    aria-hidden="true"
-                    data-season-tint={season}
-                    className={cn(
-                      'absolute inset-x-1 bottom-0 h-[3px] rounded-full lg:inset-x-auto lg:inset-y-1 lg:right-0 lg:h-auto lg:w-[3px]',
-                      SEASON_TINT_BG[season],
-                    )}
-                  />
-                )}
-                <Icon aria-hidden={true} className="size-3.5 shrink-0 lg:rotate-180" />
+                {selected && <SeasonTint season={season} vertical />}
+                <Icon aria-hidden={true} className="size-3.5 shrink-0 rotate-180" />
                 <span>{t(PANEL_LABEL_KEYS[panel])}</span>
                 {panel === 'report' && reportLabelExtra}
               </button>
@@ -231,7 +228,7 @@ export function GameDrawer({
           aria-expanded={!collapsed}
           aria-label={t(collapsed ? 'drawer.expand' : 'drawer.collapse')}
           title={t(collapsed ? 'drawer.expand' : 'drawer.collapse')}
-          className="hidden items-center justify-center rounded-l-md border border-r-0 border-line bg-paper-100 py-2 text-ink-700 shadow-panel transition hover:bg-paper-50 hover:text-ink-900 lg:flex"
+          className="flex items-center justify-center rounded-l-md border border-r-0 border-line bg-paper-100 py-2 text-ink-700 shadow-panel transition hover:bg-paper-50 hover:text-ink-900"
           onClick={() => setCollapsed((current) => !current)}
         >
           {collapsed ? (
@@ -245,35 +242,80 @@ export function GameDrawer({
       <div
         id="game-drawer-content"
         className={cn(
-          'flex min-h-0 flex-1 flex-col lg:overflow-hidden',
-          collapsed && 'lg:invisible',
+          'flex min-h-0 flex-1 flex-col overflow-hidden',
+          collapsed && 'invisible',
         )}
       >
-        <div className="flex min-h-0 flex-1 flex-col lg:w-96 xl:w-[26rem]">
-          <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4 sm:px-4 lg:pt-4">
-            {PANEL_ORDER.map((panel) => (
-              <div
-                key={panel}
-                id={`${panel}-panel`}
-                role="tabpanel"
-                aria-label={t(PANEL_LABEL_KEYS[panel])}
-                hidden={activePanel !== panel}
-                className="min-w-0 space-y-4"
-              >
-                {panels[panel]}
-              </div>
-            ))}
-          </div>
-          {footer && (
-            <div
-              data-drawer-footer
-              className="shrink-0 space-y-2 border-t border-line bg-paper-50 px-3 py-3 sm:px-4"
-            >
-              {footer}
-            </div>
-          )}
+        <div className="flex min-h-0 w-96 flex-1 flex-col xl:w-[26rem]">
+          <PanelContents panels={panels} visible={active} />
+          {footer && <Footer>{footer}</Footer>}
         </div>
       </div>
     </aside>
+  )
+}
+
+function PhoneDrawer({
+  activePanel,
+  onPanelChange,
+  panels,
+  reportLabelExtra,
+  footer,
+  season,
+}: GameDrawerProps) {
+  const { t } = useLanguage()
+  const handleTabKeyDown = tabKeyHandler(PHONE_TAB_ORDER, activePanel, onPanelChange)
+  const onMap = activePanel === 'map'
+
+  return (
+    <>
+      <aside
+        id="game-drawer"
+        data-testid="game-drawer"
+        aria-label={t('app.panelViews')}
+        hidden={onMap}
+        className="flex min-h-0 flex-1 flex-col border-t border-line bg-paper-50"
+      >
+        <PanelContents panels={panels} visible={onMap ? null : activePanel} />
+        {footer && activePanel === 'orders' && <Footer>{footer}</Footer>}
+      </aside>
+      <div
+        role="tablist"
+        aria-label={t('app.panelViews')}
+        data-phone-tabs
+        className="flex shrink-0 border-t border-line bg-paper-50 pb-[env(safe-area-inset-bottom)]"
+      >
+        {PHONE_TAB_ORDER.map((panel) => {
+          const selected = activePanel === panel
+          const Icon = PANEL_ICONS[panel]
+          return (
+            <button
+              key={panel}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              aria-controls={panel === 'map' ? undefined : `${panel}-panel`}
+              tabIndex={selected ? 0 : -1}
+              data-panel-tab={panel}
+              className={cn(
+                'relative flex min-h-14 min-w-11 flex-1 flex-col items-center justify-center gap-0.5 px-1 text-2xs font-semibold transition',
+                selected
+                  ? 'bg-brass-400 text-ink-900'
+                  : 'text-ink-700 hover:bg-paper-100',
+              )}
+              onClick={() => onPanelChange(panel)}
+              onKeyDown={handleTabKeyDown}
+            >
+              {selected && <SeasonTint season={season} vertical={false} />}
+              <Icon aria-hidden={true} className="size-5 shrink-0" />
+              <span className="inline-flex items-center gap-1">
+                {t(PANEL_LABEL_KEYS[panel])}
+                {panel === 'report' && reportLabelExtra}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </>
   )
 }

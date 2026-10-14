@@ -467,16 +467,14 @@ describe('MapViewer territorial overlays', () => {
 
   it('keeps only the code of an ordinary territory whose name would read under 10 px', () => {
     // A 100 × 50 map drawn 60 px wide: names would render at about 3 px.
-    const rect = vi
-      .spyOn(SVGElement.prototype, 'getBoundingClientRect')
-      .mockReturnValue({
-        width: 60,
-        height: 30,
-        top: 0,
-        left: 0,
-        right: 60,
-        bottom: 30,
-      } as DOMRect)
+    const rect = vi.spyOn(SVGElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 60,
+      height: 30,
+      top: 0,
+      left: 0,
+      right: 60,
+      bottom: 30,
+    } as DOMRect)
     try {
       const capitalState: StateData = {
         ...state,
@@ -1548,5 +1546,46 @@ describe('MapViewer intentions overlay', () => {
     expect(labels?.compareDocumentPosition(overlay as Node)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     )
+  })
+})
+
+describe('MapViewer framing and controlled selection', () => {
+  const mapGroupTransform = (container: HTMLElement) =>
+    container.querySelector('svg g[transform]')?.getAttribute('transform')
+
+  it('frames the given territories once per key', () => {
+    const { container, rerender } = render(
+      <MapViewer map={map} state={state} frame={{ territories: ['ROS'], key: 'P1' }} />,
+    )
+    const framed = mapGroupTransform(container)
+    expect(framed).not.toBe('translate(0 0) scale(1)')
+    expect(framed).toMatch(/scale\((?!1\))/)
+
+    // Same key: the view stays where the player left it.
+    fireEvent.click(
+      screen.getByRole('button', { name: /Recenter the map|Recadrer la carte/ }),
+    )
+    rerender(
+      <MapViewer map={map} state={state} frame={{ territories: ['ROS'], key: 'P1' }} />,
+    )
+    expect(mapGroupTransform(container)).toBe('translate(0 0) scale(1)')
+
+    // A new key frames again.
+    rerender(
+      <MapViewer map={map} state={state} frame={{ territories: ['BRU'], key: 'P2' }} />,
+    )
+    expect(mapGroupTransform(container)).not.toBe('translate(0 0) scale(1)')
+  })
+
+  it('follows the selection of the page when it is controlled', () => {
+    const { rerender } = render(<MapViewer map={map} state={state} selectedId="BRU" />)
+    const territory = (id: string) =>
+      document.querySelector(`[data-territory-id="${id}"]`) as Element
+
+    expect(territory('BRU')).toHaveAttribute('aria-pressed', 'true')
+    expect(territory('ROS')).toHaveAttribute('aria-pressed', 'false')
+
+    rerender(<MapViewer map={map} state={state} selectedId={null} />)
+    expect(territory('BRU')).toHaveAttribute('aria-pressed', 'false')
   })
 })
