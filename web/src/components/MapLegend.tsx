@@ -1,16 +1,11 @@
 import { BorderGlyph, TerrainGlyph } from '@/components/MapDecorations'
-import { ArmsField, BannerGlyph, NoblePawn } from '@/components/MapHeraldry'
+import { BannerIcon, ShieldIcon } from '@/components/ArmsIcons'
+import { NoblePawn } from '@/components/MapHeraldry'
 import { GameIconGlyph } from '@/components/MapMarkers'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useLanguage } from '@/i18n/LanguageContext'
 import { GAME_ICON_GLYPHS } from '@/lib/game-icon-glyphs'
 import {
-  BANNER_HEIGHT,
-  BANNER_PATH,
-  BANNER_WIDTH,
-  SHIELD_HEIGHT,
-  SHIELD_PATH,
-  SHIELD_WIDTH,
   type CrownKind,
   type ResolvedArms,
 } from '@/lib/heraldry'
@@ -27,7 +22,6 @@ import {
   METAL_COLORS,
   PLAYER_RED,
   RIVER_BLUE,
-  SHIELD_NUMBER,
 } from '@/lib/map-palette'
 
 export const TERRAIN_LABEL_KEYS: Record<Terrain, MessageKey> = {
@@ -150,63 +144,24 @@ const LEGEND_ARMS: ResolvedArms = {
 
 /** Banner sample in the sample arms, crowned or marked with a fief trigram. */
 function LegendBanner({ crown, attachedTo }: { crown?: CrownKind; attachedTo?: string }) {
-  const id = `legend-banner-${crown ?? attachedTo ?? 'plain'}`
   return (
-    <svg
-      className="h-5 w-6 shrink-0"
-      viewBox="-3 -24 20 26"
-      aria-hidden="true"
-      data-legend-banner={crown ?? attachedTo ?? 'plain'}
-    >
-      <defs>
-        <symbol id={`${id}-flag`} overflow="visible">
-          <ArmsField
-            arms={LEGEND_ARMS}
-            outline={BANNER_PATH}
-            clipId={`${id}-clip`}
-            box={[0, 0, BANNER_WIDTH, BANNER_HEIGHT]}
-          />
-        </symbol>
-      </defs>
-      <BannerGlyph
-        owner="legend"
-        flagHref={`#${id}-flag`}
+    <span data-legend-banner={crown ?? attachedTo ?? 'plain'} className="contents">
+      <BannerIcon
+        id={`legend-banner-${crown ?? attachedTo ?? 'plain'}`}
+        arms={LEGEND_ARMS}
         crown={crown}
         attachedTo={attachedTo}
       />
-    </svg>
+    </span>
   )
 }
 
 /** Army sample: the shield of the sample arms, with its strength. */
 function LegendShield() {
   return (
-    <svg
-      className="h-5 w-6 shrink-0"
-      viewBox="-10 -11 20 22"
-      aria-hidden="true"
-      data-legend-shield
-    >
-      <ArmsField
-        arms={LEGEND_ARMS}
-        outline={SHIELD_PATH}
-        clipId="legend-shield-clip"
-        box={[-SHIELD_WIDTH / 2, -SHIELD_HEIGHT / 2, SHIELD_WIDTH, SHIELD_HEIGHT]}
-      />
-      <text
-        fill={SHIELD_NUMBER}
-        fontSize={10}
-        fontWeight="700"
-        textAnchor="middle"
-        dominantBaseline="central"
-        stroke={MAP_INK}
-        strokeWidth={2.4}
-        strokeLinejoin="round"
-        paintOrder="stroke"
-      >
-        3
-      </text>
-    </svg>
+    <span data-legend-shield className="contents">
+      <ShieldIcon id="legend-shield" arms={LEGEND_ARMS} size={3} />
+    </span>
   )
 }
 

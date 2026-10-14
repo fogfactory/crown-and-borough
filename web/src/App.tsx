@@ -10,6 +10,7 @@ import { useMapLinkState } from '@/lib/use-map-link-state'
 import { MapLinksProvider } from '@/components/MapLinks'
 import { OrderFormProvider } from '@/components/OrderDialog'
 import { SelectedTerritoryDetails } from '@/components/SelectedTerritoryDetails'
+import { TerritoryCartouche } from '@/components/TerritoryCartouche'
 import { OrdersPanel, SealOrders } from '@/components/OrdersPanel'
 import { RealmPanel } from '@/components/RealmPanel'
 import { TreasuryBar } from '@/components/TreasuryBar'
@@ -496,6 +497,19 @@ function AppContent() {
           supply={selectedSupplyLine}
           onSelect={handleTerritorySelect}
           onPick={handleMapPick}
+          selectionOverlay={
+            desktop && selectedTerritory
+              ? (anchor, size) => (
+                  <TerritoryCartouche
+                    anchor={anchor}
+                    size={size}
+                    onClose={() => setSelectedId(null)}
+                  >
+                    {territoryDetails}
+                  </TerritoryCartouche>
+                )
+              : undefined
+          }
           selectedId={selectedId}
           frame={linkState.frame}
           highlightedId={linkState.highlightedId}
@@ -648,6 +662,7 @@ function AppContent() {
       transferLine={transferLine}
       transferLoading={transferLoading}
       transferError={transferError}
+      onClose={() => setSelectedId(null)}
     />
   )
 
@@ -858,7 +873,6 @@ function AppContent() {
                 map={renderMap()}
                 view={activePanel}
                 mapOverlay={detailsOnMap ? territoryDetails : undefined}
-                onCloseOverlay={() => setSelectedId(null)}
               >
                 <GameDrawer
                   activePanel={activePanel}
@@ -893,7 +907,6 @@ function AppContent() {
                           playerId={selectedPlayer}
                           specialDraft={specialDrafts[selectedPlayer]}
                         />
-                        {!detailsOnMap && territoryDetails}
                         {state && (
                           <OrdersPanel
                             regions={map?.regions}

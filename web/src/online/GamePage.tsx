@@ -19,6 +19,7 @@ import { useMapLinkState } from '@/lib/use-map-link-state'
 import { MapLinksProvider } from '@/components/MapLinks'
 import { OrderFormProvider } from '@/components/OrderDialog'
 import { SelectedTerritoryDetails } from '@/components/SelectedTerritoryDetails'
+import { TerritoryCartouche } from '@/components/TerritoryCartouche'
 import { TreasuryBar } from '@/components/TreasuryBar'
 import { OrdersPanel, SealOrders } from '@/components/OrdersPanel'
 import { RealmPanel } from '@/components/RealmPanel'
@@ -877,6 +878,7 @@ export function GamePage() {
       transferLine={transferLine}
       transferLoading={transferLoading}
       transferError={transferError}
+      onClose={() => setSelectedId(null)}
     />
   )
 
@@ -1064,7 +1066,6 @@ export function GamePage() {
           <GameLayout
             view={activePanel}
             mapOverlay={detailsOnMap ? territoryDetails : undefined}
-            onCloseOverlay={() => setSelectedId(null)}
             map={
               <MapViewer
                 map={map}
@@ -1072,6 +1073,19 @@ export function GamePage() {
                 supply={selectedSupplyLine}
                 onSelect={handleTerritorySelect}
                 onPick={handleMapPick}
+                selectionOverlay={
+                  desktop && selectedTerritory
+                    ? (anchor, size) => (
+                        <TerritoryCartouche
+                          anchor={anchor}
+                          size={size}
+                          onClose={() => setSelectedId(null)}
+                        >
+                          {territoryDetails}
+                        </TerritoryCartouche>
+                      )
+                    : undefined
+                }
                 selectedId={selectedId}
                 frame={linkState.frame}
                 highlightedId={linkState.highlightedId}
@@ -1128,7 +1142,6 @@ export function GamePage() {
                       playerId={playerID}
                       specialDraft={specialDraft}
                     />
-                    {!detailsOnMap && territoryDetails}
                     {playerID ? (
                       <OrdersPanel
                         regions={map?.regions}

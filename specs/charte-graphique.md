@@ -797,6 +797,13 @@ du territoire le plus éloigné du tiroir ; il ne cache jamais le territoire
 sélectionné. Le détail d'un noble (statut, propriétaire, dignités) s'ouvre en
 popover depuis son pion.
 
+**Précision.** Un « Détails » replié en pied du cartouche porte ce qui sert à
+préparer les ordres sans tenir dans une ligne : la région et son chef-lieu,
+le revenu du fief, les effets actifs, la pile d'ordres de l'armée, le
+ravitaillement (source, distance, besoins) et l'aperçu de transfert. Sur
+téléphone, la même fiche s'ouvre en bas de l'onglet Carte. Le tiroir ne
+montre plus la fiche : il reste consacré aux ordres.
+
 ### Scores et victoire
 
 Le popover actuel des scores (`Scoreboard.tsx`) est conservé et restylé : une

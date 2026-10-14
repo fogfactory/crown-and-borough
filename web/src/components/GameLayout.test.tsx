@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { GameLayout } from '@/components/GameLayout'
@@ -62,23 +62,15 @@ describe('GameLayout', () => {
     expect(mapSection(container)).not.toBeVisible()
   })
 
-  it('lays a closable card over the map', () => {
-    const onClose = vi.fn()
+  it('lays a card over the map', () => {
     render(
       <LanguageProvider initialLanguage="fr">
-        <GameLayout
-          map={<p>Map body</p>}
-          view="map"
-          mapOverlay={<p>Rochevent</p>}
-          onCloseOverlay={onClose}
-        >
+        <GameLayout map={<p>Map body</p>} view="map" mapOverlay={<p>Rochevent</p>}>
           <aside>Drawer body</aside>
         </GameLayout>
       </LanguageProvider>,
     )
 
     expect(screen.getByText('Rochevent').closest('[data-map-overlay]')).not.toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Fermer la fiche du territoire' }))
-    expect(onClose).toHaveBeenCalledOnce()
   })
 })

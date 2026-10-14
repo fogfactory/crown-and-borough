@@ -1604,3 +1604,33 @@ describe('MapViewer picks', () => {
     expect(onSelect).not.toHaveBeenCalled()
   })
 })
+
+describe('MapViewer selection overlay', () => {
+  it('draws the overlay next to the selected territory, from its box on screen', () => {
+    const overlay = vi.fn(() => <p>cartouche</p>)
+    render(<MapViewer map={map} state={state} selectedId="BRU" selectionOverlay={overlay} />)
+
+    expect(screen.getByText('cartouche')).toBeInTheDocument()
+    const [anchor, size] = overlay.mock.calls.at(-1) as unknown as [
+      { left: number; right: number; top: number; bottom: number },
+      { width: number; height: number },
+    ]
+    expect(size).toEqual({ width: 1000, height: 700 })
+    // BRU is the right half of the map: its box sits right of ROS's.
+    expect(anchor.left).toBeGreaterThan(0)
+    expect(anchor.right).toBeGreaterThan(anchor.left)
+    expect(anchor.bottom).toBeGreaterThan(anchor.top)
+  })
+
+  it('draws nothing without a selection', () => {
+    render(
+      <MapViewer
+        map={map}
+        state={state}
+        selectedId={null}
+        selectionOverlay={() => <p>cartouche</p>}
+      />,
+    )
+    expect(screen.queryByText('cartouche')).toBeNull()
+  })
+})

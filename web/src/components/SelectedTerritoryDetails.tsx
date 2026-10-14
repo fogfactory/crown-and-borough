@@ -1,8 +1,13 @@
+import { Popover } from 'radix-ui'
+import { IconCrown, IconX } from '@tabler/icons-react'
+
+import { BannerIcon, ShieldIcon } from '@/components/ArmsIcons'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
 import { formatOrderLabel } from '@/lib/order-label'
 import { formatCardLabel } from '@/lib/card-hand'
-import { NobleRef, TerritoryRef } from '@/components/MapLinks'
+import { CodeTag, NobleRef, TerritoryRef } from '@/components/MapLinks'
+import { resolveArmsByOwner } from '@/lib/heraldry'
 import { NoblePawnIcon } from '@/components/NobleHolder'
 import { richTranslate } from '@/lib/rich-text'
 import { religiousTitlesByHolder } from '@/lib/lineage'
@@ -70,6 +75,8 @@ interface SelectedTerritoryDetailsProps {
   transferLine?: TransferLine | null
   transferLoading?: boolean
   transferError?: string | null
+  /** Closes the cartouche (its cross). */
+  onClose?: () => void
 }
 
 export function SelectedTerritoryDetails({
@@ -89,6 +96,7 @@ export function SelectedTerritoryDetails({
   transferLine = null,
   transferLoading = false,
   transferError = null,
+  onClose,
 }: SelectedTerritoryDetailsProps) {
   const { t } = useLanguage()
 
@@ -109,6 +117,10 @@ export function SelectedTerritoryDetails({
     playerDisplayName(playerID, playerLists, fallback)
   const playerColor = (playerID: PlayerId) =>
     state.players.find((player) => player.id === playerID)?.color || DEFAULT_PLAYER_COLOR
+  const armsByOwner = resolveArmsByOwner(
+    state,
+    new Map(state.players.map((player) => [player.id, player.color])),
+  )
   const selectedCapitalPlayer = state.players.find(
     (player) => player.capitalTerritory === selectedTerritory.id,
   )
@@ -129,7 +141,9 @@ export function SelectedTerritoryDetails({
     queen: state.queen,
     queenDowager: state.queenDowager,
   })
-  const excommunicatedCodes = new Set((state.excommunicated ?? []).map((entry) => entry.noble))
+  const excommunicatedCodes = new Set(
+    (state.excommunicated ?? []).map((entry) => entry.noble),
+  )
   const pawnAttributes = nobleAttributesByCode(state)
   const presentNobles = state.nobles.filter(
     (noble) => noble.location === selectedTerritory.id,
@@ -151,64 +165,88 @@ export function SelectedTerritoryDetails({
         (effect) => effect.regionSeed === selectedRegion.seed,
       )
     : []
+  const controller = selectedState?.owner ?? null
+  const controllerArms = controller ? armsByOwner.get(controller) : undefined
+  const army = selectedState?.army ?? null
+  const armyArms = army ? armsByOwner.get(army.owner) : undefined
+  const currentOrder =
+    selectedChain && selectedChain.visibility !== 'hidden'
+      ? selectedChain.orders?.[selectedChain.currentIndex ?? 0]
+      : undefined
+  const settlementLine = [
+    selectedCapitalPlayer
+      ? t('app.capitalOf', {
+          player: displayOwner(selectedCapitalPlayer.id, selectedCapitalPlayer.name),
+        })
+      : null,
+    isFiefCapital ? t('app.cityBonus') : null,
+  ].filter(Boolean)
+  const hasDetails = Boolean(
+    selectedRegion ||
+    activeRegionEffects.length > 0 ||
+    army ||
+    (selectedState && hasSupplySource(selectedState)) ||
+    selectedState?.infrastructures.some((infra) => infra.type === 'mill'),
+  )
 
   return (
-    <div className="space-y-5">
-      <div>
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-brass-700">
-          {selectedTerritory.id}
-        </p>
-        <h2 className="mt-1 font-display text-2xl font-semibold leading-tight">
-          {selectedTerritory.name}
-        </h2>
-        {selectedCapitalPlayer && (
-          <p className="mt-2 inline-flex items-center rounded-full border border-brass-700/40 bg-brass-300/30 px-2.5 py-1 text-xs font-semibold text-brass-700">
-            {t('app.capitalOf', {
-              player: displayOwner(selectedCapitalPlayer.id, selectedCapitalPlayer.name),
-            })}
-          </p>
+    <div className="space-y-3 text-sm" data-territory-cartouche={selectedTerritory.id}>
+      <div className="flex items-start gap-2">
+        {controller && controllerArms && (
+          <BannerIcon
+            id={`cartouche-${selectedTerritory.id}`}
+            arms={controllerArms}
+            crown={isFiefCapital ? selectedFief?.title : undefined}
+          />
         )}
-        {isFiefCapital && (
-          <p className="mt-2 ml-2 inline-flex items-center rounded-full border border-vermilion-700/40 bg-vermilion-100/60 px-2.5 py-1 text-xs font-semibold text-vermilion-700">
-            {t('app.cityBonus')}
+        <div className="min-w-0 flex-1">
+          <h2 className="text-lg font-semibold italic leading-tight text-ink-900">
+            {selectedTerritory.name} <CodeTag code={selectedTerritory.id} />
+          </h2>
+          <p className="text-xs text-ink-500">
+            {t(TERRAIN_LABEL_KEYS[selectedTerritory.terrain])}
+            {' · '}
+            {displayOwner(controller, t('app.noOwner'))}
+            {occupied && (
+              <span className="text-vermilion-700">
+                {' · '}
+                {t('app.occupiedBy', {
+                  player: displayOwner(army?.owner, army?.owner ?? ''),
+                })}
+              </span>
+            )}
           </p>
-        )}
-        {occupied && (
-          <p className="mt-2 ml-2 inline-flex items-center rounded-full border border-vermilion-700/40 bg-vermilion-100/60 px-2.5 py-1 text-xs font-semibold text-vermilion-700">
-            {t('app.occupiedBy', {
-              player: displayOwner(
-                selectedState?.army?.owner,
-                selectedState?.army?.owner ?? '',
-              ),
-            })}
-          </p>
+        </div>
+        {onClose && (
+          <button
+            type="button"
+            aria-label={t('map.closeCard')}
+            title={t('map.closeCard')}
+            className="-mt-1 -mr-1 flex size-11 shrink-0 items-center justify-center rounded-md text-ink-500 transition hover:bg-paper-100 hover:text-ink-900 lg:size-7"
+            onClick={onClose}
+          >
+            <IconX aria-hidden="true" className="size-4" />
+          </button>
         )}
       </div>
 
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-3 text-sm">
-        <dt className="text-ink-500">{t('app.terrain')}</dt>
-        <dd className="font-medium">
-          {t(TERRAIN_LABEL_KEYS[selectedTerritory.terrain])}
-        </dd>
-        {selectedRegion && (
-          <>
-            <dt className="text-ink-500">{t('app.region')}</dt>
-            <dd className="font-medium">
-              <span>{selectedRegion.seed}</span>
-              <span className="ml-2 text-xs font-semibold text-ink-700">
-                {t('app.regionSeedLabel', { seed: selectedRegion.seed })}
-              </span>
-            </dd>
-          </>
-        )}
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
         {selectedFief && (
           <>
-            <dt className="text-ink-500">{t('app.fiefTitle')}</dt>
-            <dd className="font-medium">
-              {t(FIEF_TITLE_KEYS[selectedFief.title])} —{' '}
-              {territoryRef(selectedFief.capital)}
+            <dt className="text-xs text-ink-500">{t('app.fiefTitle')}</dt>
+            <dd className="flex items-center gap-1 font-medium">
+              <IconCrown
+                aria-hidden="true"
+                className="size-3.5 shrink-0 text-brass-700"
+              />
+              <span>
+                {richTranslate(t, 'map.fiefLabel', {
+                  title: t(FIEF_TITLE_KEYS[selectedFief.title]),
+                  capital: territoryRef(selectedFief.capital),
+                })}
+              </span>
             </dd>
-            <dt className="text-ink-500">{t('app.fiefHolder')}</dt>
+            <dt className="text-xs text-ink-500">{t('app.fiefHolder')}</dt>
             <dd className="font-medium">
               {selectedFiefHolder ? (
                 <NobleRef code={selectedFiefHolder.code} name={selectedFiefHolder.name} />
@@ -216,236 +254,319 @@ export function SelectedTerritoryDetails({
                 t('app.fiefVacant')
               )}
             </dd>
-            {selectedFief.projectedIncome !== undefined && (
-              <>
-                <dt className="text-ink-500">{t('app.fiefProjectedIncome')}</dt>
-                <dd className="font-medium">
-                  {t('app.fiefProjectedIncomeAmount', {
-                    amount: selectedFief.projectedIncome,
-                  })}
-                </dd>
-              </>
-            )}
+          </>
+        )}
+        {settlementLine.length > 0 && (
+          <>
+            <dt className="text-xs text-ink-500">{t('app.settlement')}</dt>
+            <dd className="font-medium">{settlementLine.join(' · ')}</dd>
           </>
         )}
         {selectedState && (
           <>
-            <dt className="text-ink-500">{t('app.control')}</dt>
-            <dd className="font-medium">
-              {displayOwner(selectedState.owner, t('app.noOwner'))}
+            <dt className="text-xs text-ink-500">{t('app.resources')}</dt>
+            <dd className="font-medium" data-territory-income>
+              {selectedState.resources} R
+              {selectedState.owner && selectedState.projectedIncome !== undefined && (
+                <>
+                  {' · '}
+                  {selectedState.incomeDestination ? (
+                    <>
+                      {t('treasury.income', { amount: selectedState.projectedIncome })}
+                      {selectedState.incomeDestination !== selectedState.id && (
+                        <> → {territoryRef(selectedState.incomeDestination)}</>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-vermilion-700">
+                      {t('app.territoryIncomeLost')}
+                    </span>
+                  )}
+                </>
+              )}
             </dd>
-            <dt className="text-ink-500">{t('app.resources')}</dt>
-            <dd className="font-medium">{selectedState.resources} R</dd>
-            {selectedState.owner && selectedState.projectedIncome !== undefined && (
-              <>
-                <dt className="text-ink-500">{t('app.projectedIncome')}</dt>
-                <dd className="font-medium">
-                  {selectedState.incomeDestination
-                    ? richTranslate(t, 'app.territoryIncome', {
-                        amount: selectedState.projectedIncome,
-                        destination: territoryRef(selectedState.incomeDestination),
-                      })
-                    : t('app.territoryIncomeLost')}
-                </dd>
-              </>
-            )}
           </>
         )}
-      </dl>
-
-      {activeRegionEffects.length > 0 && (
-        <div className="space-y-2 border-t border-line/50 pt-4">
-          <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
-            {t('app.activeEffects')}
-          </h3>
-          <ul className="space-y-1.5 text-sm">
-            {activeRegionEffects.map((effect, index) => {
-              const current = effect.season === state.season
-              return (
-                <li
-                  key={`${effect.kind}-${effect.season}-${index}`}
-                  className="rounded-md bg-paper-100 px-3 py-2"
-                >
-                  <span className={current ? 'font-bold' : 'font-medium'}>
-                    {formatCardLabel(effect.kind, t)}
-                  </span>
-                  <span className="mt-1 block text-xs text-ink-500">
-                    {t('app.effectSeason', {
-                      season: t(SEASON_LABEL_KEYS[effect.season]),
-                    })}
-                  </span>
-                </li>
-              )
-            })}
-          </ul>
-        </div>
-      )}
-
-      <div className="space-y-2 border-t border-line/50 pt-4">
-        <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
-          {t('app.noblesPresent')}
-        </h3>
-        {presentNobles.length > 0 ? (
-          <ul className="space-y-1.5 text-sm">
-            {presentNobles.map((noble) => {
-              const holder =
-                noble.status !== 'free' ? (selectedState?.army?.owner ?? null) : null
-              return (
-                <li key={noble.id} className="rounded-md bg-paper-100 px-3 py-2 text-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="min-w-0">
-                      <span className="mr-1.5">
+        {army && (
+          <>
+            <dt className="text-xs text-ink-500">{t('app.army')}</dt>
+            <dd className="flex flex-wrap items-center gap-x-1.5 font-medium">
+              {armyArms && (
+                <ShieldIcon
+                  id={`cartouche-army-${selectedTerritory.id}`}
+                  arms={armyArms}
+                  size={army.size}
+                />
+              )}
+              <span>{displayOwner(army.owner, army.owner)}</span>
+              <span className="text-xs text-ink-500">
+                {t(army.size === 1 ? 'app.troop' : 'app.troops', { count: army.size })}
+                {' · '}
+                {selectedChain?.visibility === 'hidden' ? (
+                  t('app.hiddenChain')
+                ) : currentOrder ? (
+                  <span className="font-mono">{formatOrderLabel(currentOrder)}</span>
+                ) : (
+                  t('app.noOrders')
+                )}
+              </span>
+              {army.starving && (
+                <span className="basis-full text-xs font-semibold text-vermilion-700">
+                  {t('app.armyStarving')}
+                </span>
+              )}
+            </dd>
+          </>
+        )}
+        {presentNobles.length > 0 && (
+          <>
+            <dt className="text-xs text-ink-500">{t('app.noblesPresent')}</dt>
+            <dd className="flex flex-wrap gap-1">
+              {presentNobles.map((noble) => {
+                const holder =
+                  noble.status !== 'free' ? (selectedState?.army?.owner ?? null) : null
+                return (
+                  <Popover.Root key={noble.id}>
+                    <Popover.Trigger asChild>
+                      <button
+                        type="button"
+                        aria-label={`${noble.name} (${noble.code})`}
+                        title={`${noble.name} (${noble.code})`}
+                        data-noble-chip={noble.code}
+                        className="flex size-11 items-center justify-center rounded-md border border-line bg-paper-50 text-base transition hover:bg-paper-100 lg:size-8"
+                      >
                         <NoblePawnIcon
                           noble={noble}
                           color={playerColor(noble.owner)}
                           attributes={pawnAttributes.get(noble.code)}
-                          label={t('app.colorOf', {
-                            player: displayOwner(noble.owner, noble.owner),
-                          })}
                         />
-                      </span>
-                      <strong>{noble.name}</strong> ({noble.code})
-                    </span>
-                    <span
-                      className={`shrink-0 text-xs ${noble.status === 'dungeon' ? 'text-brass-700' : 'text-success-700'}`}
-                    >
-                      {t(`orders.nobleStatus.${noble.status}` as MessageKey)}
-                    </span>
-                  </div>
-                  <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 border-t border-line/40 pt-1 text-xs text-ink-500">
-                    <dt>{t('app.owner')}</dt>
-                    <dd className="font-medium text-ink-700">
-                      {displayOwner(noble.owner, noble.owner)}
-                    </dd>
-                    {(() => {
-                      const fiefTitles = (state.fiefs ?? []).filter(
-                        (fief) => fief.holder === noble.code,
-                      )
-                      const religious = religiousTitles.get(noble.code) ?? []
-                      const excommunicated = excommunicatedCodes.has(noble.code)
-                      if (fiefTitles.length === 0 && religious.length === 0 && !excommunicated) return null
-                      return (
-                        <>
-                          <dt>{t('app.titles')}</dt>
-                          <dd className="font-medium text-ink-700" data-noble-titles>
-                            {[
-                              ...religious.map((held) =>
-                                t(`lineage.religious.${held.title}` as MessageKey, {
-                                  seat: held.seat ?? '',
-                                }),
-                              ),
-                              ...fiefTitles.map(
-                                (fief) => `${t(FIEF_TITLE_KEYS[fief.title])} · ${fief.capital}`,
-                              ),
-                            ].join(', ')}
-                            {excommunicated && (
-                              <span className="text-vermilion-700" data-excommunicated>
-                                {religious.length + fiefTitles.length > 0 ? ' · ' : ''}
-                                {t('lineage.excommunicated')}
-                              </span>
-                            )}
+                      </button>
+                    </Popover.Trigger>
+                    <Popover.Portal>
+                      <Popover.Content
+                        align="start"
+                        sideOffset={6}
+                        className="z-50 w-64 max-w-[calc(100vw-1.5rem)] space-y-2 rounded-md border border-line bg-paper-50 p-3 text-sm shadow-panel"
+                      >
+                        <p className="flex items-center justify-between gap-2">
+                          <NobleRef
+                            code={noble.code}
+                            name={noble.name}
+                            className="font-semibold"
+                          />
+                          <span
+                            className={`shrink-0 text-xs ${noble.status === 'dungeon' ? 'text-brass-700' : 'text-success-700'}`}
+                          >
+                            {t(`orders.nobleStatus.${noble.status}` as MessageKey)}
+                          </span>
+                        </p>
+                        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs text-ink-500">
+                          <dt>{t('app.owner')}</dt>
+                          <dd className="font-medium text-ink-700">
+                            {displayOwner(noble.owner, noble.owner)}
                           </dd>
-                        </>
-                      )
-                    })()}
-                    {noble.dignities && noble.dignities.length > 0 && (
-                      <>
-                        <dt>{t('app.dignity')}</dt>
-                        <dd className="flex flex-wrap gap-1 font-medium text-ink-700">
-                          {noble.dignities.map((dignity) => (
-                            <span
-                              key={dignity}
-                              className="rounded bg-paper-300 px-1.5 py-0.5 text-2xs uppercase tracking-wide"
-                            >
-                              {t(`dignity.${dignity}` as MessageKey)}
-                            </span>
-                          ))}
-                        </dd>
-                      </>
-                    )}
-                    {noble.secret && (
-                      <>
-                        <dt>{t('app.secretIdentity')}</dt>
-                        <dd className="font-medium text-ink-700">
-                          {noble.secret.name} ({noble.secret.code})
-                        </dd>
-                      </>
-                    )}
-                    {noble.commissioned && noble.commissioned.length > 0 && (
-                      <>
-                        <dt>{t('app.commissionedKilling')}</dt>
-                        <dd
-                          className="font-medium text-vermilion-700"
-                          data-testid="assassination-victim"
-                        >
-                          {noble.commissioned
-                            .map((code) => {
-                              const name =
-                                state.nobles.find((other) => other.code === code)?.name ??
-                                state.deceased?.find((other) => other.code === code)?.name
-                              return name ? `${name} (${code})` : code
-                            })
-                            .join(', ')}
-                        </dd>
-                      </>
-                    )}
-                    {noble.spouse && (
-                      <>
-                        <dt>{t('app.marriage')}</dt>
-                        <dd className="font-medium text-ink-700">
-                          {t(noble.sex === 'female' ? 'app.wifeOf' : 'app.husbandOf', {
-                            spouse: noble.spouse,
-                          })}
-                        </dd>
-                      </>
-                    )}
-                    {holder && (
-                      <>
-                        <dt>{t('app.holder')}</dt>
-                        <dd className="font-medium text-ink-700">
-                          {noble.status === 'hostage'
-                            ? t('app.hostageBy', {
-                                player: displayOwner(holder, holder),
-                              })
-                            : t('app.dungeonBy', {
-                                player: displayOwner(holder, holder),
-                              })}
-                        </dd>
-                      </>
-                    )}
-                  </dl>
-                </li>
-              )
-            })}
-          </ul>
-        ) : (
-          <p className="text-sm italic text-ink-500">{t('app.noNoble')}</p>
+                          {(() => {
+                            const fiefTitles = (state.fiefs ?? []).filter(
+                              (fief) => fief.holder === noble.code,
+                            )
+                            const religious = religiousTitles.get(noble.code) ?? []
+                            const excommunicated = excommunicatedCodes.has(noble.code)
+                            if (
+                              fiefTitles.length === 0 &&
+                              religious.length === 0 &&
+                              !excommunicated
+                            )
+                              return null
+                            return (
+                              <>
+                                <dt>{t('app.titles')}</dt>
+                                <dd
+                                  className="font-medium text-ink-700"
+                                  data-noble-titles
+                                >
+                                  {[
+                                    ...religious.map((held) =>
+                                      t(`lineage.religious.${held.title}` as MessageKey, {
+                                        seat: held.seat ?? '',
+                                      }),
+                                    ),
+                                    ...fiefTitles.map(
+                                      (fief) =>
+                                        `${t(FIEF_TITLE_KEYS[fief.title])} · ${fief.capital}`,
+                                    ),
+                                  ].join(', ')}
+                                  {excommunicated && (
+                                    <span
+                                      className="text-vermilion-700"
+                                      data-excommunicated
+                                    >
+                                      {religious.length + fiefTitles.length > 0
+                                        ? ' · '
+                                        : ''}
+                                      {t('lineage.excommunicated')}
+                                    </span>
+                                  )}
+                                </dd>
+                              </>
+                            )
+                          })()}
+                          {noble.dignities && noble.dignities.length > 0 && (
+                            <>
+                              <dt>{t('app.dignity')}</dt>
+                              <dd className="flex flex-wrap gap-1 font-medium text-ink-700">
+                                {noble.dignities.map((dignity) => (
+                                  <span
+                                    key={dignity}
+                                    className="rounded bg-paper-300 px-1.5 py-0.5 text-2xs uppercase tracking-wide"
+                                  >
+                                    {t(`dignity.${dignity}` as MessageKey)}
+                                  </span>
+                                ))}
+                              </dd>
+                            </>
+                          )}
+                          {noble.secret && (
+                            <>
+                              <dt>{t('app.secretIdentity')}</dt>
+                              <dd className="font-medium text-ink-700">
+                                {noble.secret.name} ({noble.secret.code})
+                              </dd>
+                            </>
+                          )}
+                          {noble.commissioned && noble.commissioned.length > 0 && (
+                            <>
+                              <dt>{t('app.commissionedKilling')}</dt>
+                              <dd
+                                className="font-medium text-vermilion-700"
+                                data-testid="assassination-victim"
+                              >
+                                {noble.commissioned
+                                  .map((code) => {
+                                    const name =
+                                      state.nobles.find((other) => other.code === code)
+                                        ?.name ??
+                                      state.deceased?.find((other) => other.code === code)
+                                        ?.name
+                                    return name ? `${name} (${code})` : code
+                                  })
+                                  .join(', ')}
+                              </dd>
+                            </>
+                          )}
+                          {noble.spouse && (
+                            <>
+                              <dt>{t('app.marriage')}</dt>
+                              <dd className="font-medium text-ink-700">
+                                {t(
+                                  noble.sex === 'female' ? 'app.wifeOf' : 'app.husbandOf',
+                                  {
+                                    spouse: noble.spouse,
+                                  },
+                                )}
+                              </dd>
+                            </>
+                          )}
+                          {holder && (
+                            <>
+                              <dt>{t('app.holder')}</dt>
+                              <dd className="font-medium text-ink-700">
+                                {noble.status === 'hostage'
+                                  ? t('app.hostageBy', {
+                                      player: displayOwner(holder, holder),
+                                    })
+                                  : t('app.dungeonBy', {
+                                      player: displayOwner(holder, holder),
+                                    })}
+                              </dd>
+                            </>
+                          )}
+                        </dl>
+                      </Popover.Content>
+                    </Popover.Portal>
+                  </Popover.Root>
+                )
+              })}
+            </dd>
+          </>
         )}
-      </div>
+        {selectedState && selectedState.infrastructures.length > 0 && (
+          <>
+            <dt className="text-xs text-ink-500">{t('app.infrastructure')}</dt>
+            <dd className="font-medium">
+              {selectedState.infrastructures
+                .map(
+                  (infrastructure) =>
+                    `${t(INFRASTRUCTURE_LABEL_KEYS[infrastructure.type])} ${infrastructure.level}`,
+                )
+                .join(' · ')}
+            </dd>
+          </>
+        )}
+      </dl>
 
-      {selectedState && (
-        <>
-          <div className="space-y-2 border-t border-line/50 pt-4">
-            <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
-              {t('app.army')}
-            </h3>
-            {selectedState.army ? (
-              <div className="rounded-md bg-paper-100 px-3 py-2 text-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="font-semibold">
-                    {displayOwner(selectedState.army.owner, selectedState.army.owner)}
-                  </span>
-                  <span className="shrink-0 text-xs text-ink-500">
-                    {t(selectedState.army.size === 1 ? 'app.troop' : 'app.troops', {
-                      count: selectedState.army.size,
-                    })}
-                  </span>
-                </div>
-                {selectedState.army.starving && (
-                  <p className="mt-2 text-xs font-semibold text-vermilion-700">
-                    {t('app.armyStarving')}
-                  </p>
-                )}
+      {hasDetails && (
+        <details className="group border-t border-line-soft pt-2" data-territory-details>
+          <summary className="cursor-pointer text-xs font-semibold text-ink-700">
+            {t('app.details')}
+          </summary>
+          <div className="mt-2 space-y-3">
+            {selectedRegion && (
+              <p className="text-xs text-ink-700">
+                <span className="text-ink-500">{t('app.region')} </span>
+                <span>{selectedRegion.seed}</span>
+                <span className="ml-2 text-ink-500">
+                  {t('app.regionSeedLabel', { seed: selectedRegion.seed })}
+                </span>
+              </p>
+            )}
+            {selectedFief?.projectedIncome !== undefined && (
+              <p className="text-xs text-ink-700">
+                <span className="text-ink-500">{t('app.fiefProjectedIncome')} </span>
+                {t('app.fiefProjectedIncomeAmount', {
+                  amount: selectedFief.projectedIncome,
+                })}
+              </p>
+            )}
+            {activeRegionEffects.length > 0 && (
+              <div className="space-y-2 border-t border-line/50 pt-4">
+                <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
+                  {t('app.activeEffects')}
+                </h3>
+                <ul className="space-y-1.5 text-sm">
+                  {activeRegionEffects.map((effect, index) => {
+                    const current = effect.season === state.season
+                    return (
+                      <li
+                        key={`${effect.kind}-${effect.season}-${index}`}
+                        className="rounded-md bg-paper-100 px-3 py-2"
+                      >
+                        <span className={current ? 'font-bold' : 'font-medium'}>
+                          {formatCardLabel(effect.kind, t)}
+                        </span>
+                        <span className="mt-1 block text-xs text-ink-500">
+                          {t('app.effectSeason', {
+                            season: t(SEASON_LABEL_KEYS[effect.season]),
+                          })}
+                        </span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            )}
+            {selectedState?.infrastructures.map((infrastructure, index) =>
+              infrastructure.type === 'mill' && selectedState.millDestination ? (
+                <p key={`mill-${index}`} className="text-xs text-ink-700">
+                  {selectedState.millDestination === selectedState.id
+                    ? t('app.millKeptInPlace')
+                    : richTranslate(t, 'app.millDestination', {
+                        destination: territoryRef(selectedState.millDestination),
+                      })}
+                </p>
+              ) : null,
+            )}
+            {army && (
+              <div className="rounded-md bg-paper-100 px-3 py-2">
                 <div className="mt-2 border-t border-line/40 pt-2 text-xs text-ink-500">
                   {selectedChain?.visibility === 'hidden' ? (
                     <p className="rounded-md border border-line/50 bg-paper-50 px-2 py-1.5 italic">
@@ -496,232 +617,204 @@ export function SelectedTerritoryDetails({
                   )}
                 </div>
               </div>
-            ) : (
-              <p className="text-sm italic text-ink-500">{t('app.noArmy')}</p>
             )}
-            {selectedState.army && state.season === 'winter' && (
-              <p className="rounded-md border border-line/50 bg-paper-50 px-3 py-2 text-xs text-ink-500">
-                {t('app.noSupplyWinter')}
-              </p>
-            )}
-            {selectedState.army && state.season !== 'winter' && (
-              <div className="rounded-md border border-line/50 bg-paper-50 px-3 py-2 text-xs text-ink-700">
-                <p className="font-semibold uppercase tracking-[0.12em] text-ink-500">
-                  {t('app.supply')}
-                </p>
-                {supplyLoading ? (
-                  <p className="mt-1 italic text-ink-500">
-                    {t('app.supplyCalculating')}
+            {selectedState && (
+              <>
+                {selectedState.army && state.season === 'winter' && (
+                  <p className="rounded-md border border-line/50 bg-paper-50 px-3 py-2 text-xs text-ink-500">
+                    {t('app.noSupplyWinter')}
                   </p>
-                ) : supplyError ? (
-                  <p className="mt-1 text-vermilion-700">{supplyError}</p>
-                ) : selectedSupplyLine?.selfSupplied ? (
-                  <p className="mt-1 text-success-700">{t('app.localRationsSufficient')}</p>
-                ) : selectedSupplyLine?.source ? (
-                  <>
-                    <p className="mt-1">
-                      {t('app.sourceLabel')}{' '}
-                      <strong>
-                        {sourceTerritory ? (
-                          <TerritoryRef id={sourceTerritory.id} name={sourceTerritory.name} />
-                        ) : (
-                          territoryRef(selectedSupplyLine.source)
-                        )}
-                      </strong>
-                    </p>
-                    <p className="mt-1">
-                      {t(
-                        selectedSupplyLine.distance > 1
-                          ? 'app.distances'
-                          : 'app.distance',
-                        { distance: selectedSupplyLine.distance },
-                      )}
-                    </p>
-                  </>
-                ) : selectedSupplyLine ? (
-                  <p className="mt-1 text-vermilion-700">{t('app.noAccessibleSource')}</p>
-                ) : null}
-                {selectedSupplyLine && (
-                  <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t border-line/40 pt-2">
-                    <dt className="text-ink-500">{t('app.localProduction')}</dt>
-                    <dd className="font-medium">
-                      {selectedSupplyLine.localProduction}{' '}
-                      <span className="text-xs font-normal text-ink-500">
-                        ({t(TERRAIN_LABEL_KEYS[selectedTerritory.terrain])}{' '}
-                        {selectedSupplyLine.terrainProduction}
-                        {(selectedSupplyLine.famineRations ?? 0) > 0
-                          ? ` − ${t('app.localFamineRations')} ${selectedSupplyLine.famineRations}`
-                          : ''}
-                        {(selectedSupplyLine.bonusRations ?? 0) > 0
-                          ? ` + ${t('app.localBonusRations')} ${selectedSupplyLine.bonusRations}`
-                          : ''}
-                        )
-                      </span>
-                    </dd>
-                    <dt className="text-ink-500">{t('app.demand')}</dt>
-                    <dd className="font-medium">{selectedSupplyLine.totalDemand}</dd>
-                    <dt className="text-ink-500">{t('app.toCover')}</dt>
-                    <dd
-                      className={
-                        selectedSupplyLine.demand > 0
-                          ? 'font-semibold text-vermilion-700'
-                          : 'font-medium'
-                      }
-                    >
-                      {selectedSupplyLine.demand}
-                    </dd>
-                  </dl>
                 )}
-              </div>
-            )}
-            {!selectedState.army && hasSupplySource(selectedState) && (
-              <div className="rounded-md border border-line/50 bg-paper-50 px-3 py-2 text-xs text-ink-700">
-                <p className="font-semibold uppercase tracking-[0.12em] text-ink-500">
-                  {t('app.supplyZone')}
-                </p>
-                {state.season === 'winter' ? (
-                  <p className="mt-1 italic text-ink-500">{t('app.noSupplyWinter')}</p>
-                ) : supplyLoading ? (
-                  <p className="mt-1 italic text-ink-500">
-                    {t('app.supplyCalculating')}
-                  </p>
-                ) : supplyError ? (
-                  <p className="mt-1 text-vermilion-700">{supplyError}</p>
-                ) : selectedSupplyLine ? (
-                  <p className="mt-1 text-success-700">
-                    {t(
-                      selectedSupplyLine.reachable.length > 1
-                        ? 'app.reachablePlural'
-                        : 'app.reachable',
-                      { count: selectedSupplyLine.reachable.length },
-                    )}
-                  </p>
-                ) : null}
-              </div>
-            )}
-            {state.season !== 'winter' &&
-              selectedState.army &&
-              transferTargets.length > 0 && (
-                <div className="rounded-md border border-line/50 bg-paper-50 px-3 py-2 text-xs text-ink-700">
-                  <p className="font-semibold uppercase tracking-[0.12em] text-ink-500">
-                    {t('app.transferPreview')}
-                  </p>
-                  <label
-                    htmlFor="transfer-preview-target"
-                    className="mt-2 block text-ink-500"
-                  >
-                    {t('app.transferTarget')}
-                  </label>
-                  <select
-                    id="transfer-preview-target"
-                    aria-label={t('app.transferTarget')}
-                    value={selectedTransferTarget ?? transferTargets[0]}
-                    onChange={(event) => onTransferTargetChange(event.target.value)}
-                    className="mt-1 w-full rounded-md border border-line-strong bg-paper-50 px-2 py-1.5 text-xs text-ink-900 outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
-                  >
-                    {transferTargets.map((target) => (
-                      <option key={target} value={target}>
-                        {territoryLabel(target)}
-                      </option>
-                    ))}
-                  </select>
-                  {transferLoading ? (
-                    <p className="mt-2 italic text-ink-500">
-                      {t('app.supplyCalculating')}
+                {selectedState.army && state.season !== 'winter' && (
+                  <div className="rounded-md border border-line/50 bg-paper-50 px-3 py-2 text-xs text-ink-700">
+                    <p className="font-semibold uppercase tracking-[0.12em] text-ink-500">
+                      {t('app.supply')}
                     </p>
-                  ) : transferError ? (
-                    <p className="mt-2 text-vermilion-700">{transferError}</p>
-                  ) : transferLine ? (
-                    <>
-                      <p
-                        className={`mt-2 font-semibold ${transferLine.reachable ? 'text-success-700' : 'text-vermilion-700'}`}
-                        role="status"
-                      >
-                        {transferLine.reachable
-                          ? t('app.transferReachable')
-                          : t('reports.reason.transfer_path_blocked')}
+                    {supplyLoading ? (
+                      <p className="mt-1 italic text-ink-500">
+                        {t('app.supplyCalculating')}
                       </p>
-                      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t border-line/40 pt-2">
-                        <dt className="text-ink-500">{t('app.sourceLabel')}</dt>
-                        <dd className="font-medium">
-                          {territoryRef(transferLine.source)}
-                        </dd>
-                        <dt className="text-ink-500">{t('app.transferTarget')}</dt>
-                        <dd className="font-medium">
-                          {territoryRef(transferLine.target)}
-                        </dd>
-                        {transferLine.reachable &&
-                          transferLine.distance !== undefined && (
-                            <>
-                              <dt className="text-ink-500">{t('app.distanceLabel')}</dt>
-                              <dd className="font-medium">
-                                {t(
-                                  transferLine.distance > 1
-                                    ? 'app.distances'
-                                    : 'app.distance',
-                                  { distance: transferLine.distance },
-                                )}
-                              </dd>
-                            </>
-                          )}
-                      </dl>
-                      {transferLine.path.length > 0 && (
-                        <p className="mt-2 border-t border-line/40 pt-2">
-                          <span className="text-ink-500">
-                            {t('app.transferPath')}:{' '}
-                          </span>
-                          <span className="font-medium">
-                            {transferLine.path.map(territoryLabel).join(' -> ')}
-                          </span>
+                    ) : supplyError ? (
+                      <p className="mt-1 text-vermilion-700">{supplyError}</p>
+                    ) : selectedSupplyLine?.selfSupplied ? (
+                      <p className="mt-1 text-success-700">
+                        {t('app.localRationsSufficient')}
+                      </p>
+                    ) : selectedSupplyLine?.source ? (
+                      <>
+                        <p className="mt-1">
+                          {t('app.sourceLabel')}{' '}
+                          <strong>
+                            {sourceTerritory ? (
+                              <TerritoryRef
+                                id={sourceTerritory.id}
+                                name={sourceTerritory.name}
+                              />
+                            ) : (
+                              territoryRef(selectedSupplyLine.source)
+                            )}
+                          </strong>
                         </p>
-                      )}
-                    </>
-                  ) : null}
-                </div>
-              )}
-          </div>
-
-          <div className="space-y-2 border-t border-line/50 pt-4">
-            <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-500">
-              {t('app.infrastructure')}
-            </h3>
-            {selectedState.infrastructures.length > 0 ? (
-              <ul className="space-y-1.5 text-sm">
-                {selectedState.infrastructures.map((infrastructure, index) => (
-                  <li
-                    key={`${infrastructure.type}-${index}`}
-                    className="rounded-md bg-paper-100 px-3 py-2"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="flex min-w-0 items-center gap-2 font-medium">
-                        <span>{t(INFRASTRUCTURE_LABEL_KEYS[infrastructure.type])}</span>
-                        {infrastructure.type === 'castle' && selectedCapitalPlayer && (
-                          <span className="shrink-0 rounded-full bg-brass-300 px-1.5 py-0.5 text-2xs font-bold uppercase tracking-wide text-ink-900">
-                            {t('app.capital')}
-                          </span>
-                        )}
-                      </span>
-                      <span className="shrink-0 text-xs text-ink-500">
-                        {t('app.level', { level: infrastructure.level })}
-                      </span>
-                    </div>
-                    {infrastructure.type === 'mill' && selectedState.millDestination && (
-                      <p className="mt-1 text-xs text-ink-500">
-                        {selectedState.millDestination === selectedState.id
-                          ? t('app.millKeptInPlace')
-                          : richTranslate(t, 'app.millDestination', {
-                              destination: territoryRef(selectedState.millDestination),
-                            })}
+                        <p className="mt-1">
+                          {t(
+                            selectedSupplyLine.distance > 1
+                              ? 'app.distances'
+                              : 'app.distance',
+                            { distance: selectedSupplyLine.distance },
+                          )}
+                        </p>
+                      </>
+                    ) : selectedSupplyLine ? (
+                      <p className="mt-1 text-vermilion-700">
+                        {t('app.noAccessibleSource')}
                       </p>
+                    ) : null}
+                    {selectedSupplyLine && (
+                      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t border-line/40 pt-2">
+                        <dt className="text-ink-500">{t('app.localProduction')}</dt>
+                        <dd className="font-medium">
+                          {selectedSupplyLine.localProduction}{' '}
+                          <span className="text-xs font-normal text-ink-500">
+                            ({t(TERRAIN_LABEL_KEYS[selectedTerritory.terrain])}{' '}
+                            {selectedSupplyLine.terrainProduction}
+                            {(selectedSupplyLine.famineRations ?? 0) > 0
+                              ? ` − ${t('app.localFamineRations')} ${selectedSupplyLine.famineRations}`
+                              : ''}
+                            {(selectedSupplyLine.bonusRations ?? 0) > 0
+                              ? ` + ${t('app.localBonusRations')} ${selectedSupplyLine.bonusRations}`
+                              : ''}
+                            )
+                          </span>
+                        </dd>
+                        <dt className="text-ink-500">{t('app.demand')}</dt>
+                        <dd className="font-medium">{selectedSupplyLine.totalDemand}</dd>
+                        <dt className="text-ink-500">{t('app.toCover')}</dt>
+                        <dd
+                          className={
+                            selectedSupplyLine.demand > 0
+                              ? 'font-semibold text-vermilion-700'
+                              : 'font-medium'
+                          }
+                        >
+                          {selectedSupplyLine.demand}
+                        </dd>
+                      </dl>
                     )}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm italic text-ink-500">{t('app.noInfrastructure')}</p>
+                  </div>
+                )}
+                {!selectedState.army && hasSupplySource(selectedState) && (
+                  <div className="rounded-md border border-line/50 bg-paper-50 px-3 py-2 text-xs text-ink-700">
+                    <p className="font-semibold uppercase tracking-[0.12em] text-ink-500">
+                      {t('app.supplyZone')}
+                    </p>
+                    {state.season === 'winter' ? (
+                      <p className="mt-1 italic text-ink-500">
+                        {t('app.noSupplyWinter')}
+                      </p>
+                    ) : supplyLoading ? (
+                      <p className="mt-1 italic text-ink-500">
+                        {t('app.supplyCalculating')}
+                      </p>
+                    ) : supplyError ? (
+                      <p className="mt-1 text-vermilion-700">{supplyError}</p>
+                    ) : selectedSupplyLine ? (
+                      <p className="mt-1 text-success-700">
+                        {t(
+                          selectedSupplyLine.reachable.length > 1
+                            ? 'app.reachablePlural'
+                            : 'app.reachable',
+                          { count: selectedSupplyLine.reachable.length },
+                        )}
+                      </p>
+                    ) : null}
+                  </div>
+                )}
+                {state.season !== 'winter' &&
+                  selectedState.army &&
+                  transferTargets.length > 0 && (
+                    <div className="rounded-md border border-line/50 bg-paper-50 px-3 py-2 text-xs text-ink-700">
+                      <p className="font-semibold uppercase tracking-[0.12em] text-ink-500">
+                        {t('app.transferPreview')}
+                      </p>
+                      <label
+                        htmlFor="transfer-preview-target"
+                        className="mt-2 block text-ink-500"
+                      >
+                        {t('app.transferTarget')}
+                      </label>
+                      <select
+                        id="transfer-preview-target"
+                        aria-label={t('app.transferTarget')}
+                        value={selectedTransferTarget ?? transferTargets[0]}
+                        onChange={(event) => onTransferTargetChange(event.target.value)}
+                        className="mt-1 w-full rounded-md border border-line-strong bg-paper-50 px-2 py-1.5 text-xs text-ink-900 outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
+                      >
+                        {transferTargets.map((target) => (
+                          <option key={target} value={target}>
+                            {territoryLabel(target)}
+                          </option>
+                        ))}
+                      </select>
+                      {transferLoading ? (
+                        <p className="mt-2 italic text-ink-500">
+                          {t('app.supplyCalculating')}
+                        </p>
+                      ) : transferError ? (
+                        <p className="mt-2 text-vermilion-700">{transferError}</p>
+                      ) : transferLine ? (
+                        <>
+                          <p
+                            className={`mt-2 font-semibold ${transferLine.reachable ? 'text-success-700' : 'text-vermilion-700'}`}
+                            role="status"
+                          >
+                            {transferLine.reachable
+                              ? t('app.transferReachable')
+                              : t('reports.reason.transfer_path_blocked')}
+                          </p>
+                          <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t border-line/40 pt-2">
+                            <dt className="text-ink-500">{t('app.sourceLabel')}</dt>
+                            <dd className="font-medium">
+                              {territoryRef(transferLine.source)}
+                            </dd>
+                            <dt className="text-ink-500">{t('app.transferTarget')}</dt>
+                            <dd className="font-medium">
+                              {territoryRef(transferLine.target)}
+                            </dd>
+                            {transferLine.reachable &&
+                              transferLine.distance !== undefined && (
+                                <>
+                                  <dt className="text-ink-500">
+                                    {t('app.distanceLabel')}
+                                  </dt>
+                                  <dd className="font-medium">
+                                    {t(
+                                      transferLine.distance > 1
+                                        ? 'app.distances'
+                                        : 'app.distance',
+                                      { distance: transferLine.distance },
+                                    )}
+                                  </dd>
+                                </>
+                              )}
+                          </dl>
+                          {transferLine.path.length > 0 && (
+                            <p className="mt-2 border-t border-line/40 pt-2">
+                              <span className="text-ink-500">
+                                {t('app.transferPath')}:{' '}
+                              </span>
+                              <span className="font-medium">
+                                {transferLine.path.map(territoryLabel).join(' -> ')}
+                              </span>
+                            </p>
+                          )}
+                        </>
+                      ) : null}
+                    </div>
+                  )}
+              </>
             )}
           </div>
-        </>
+        </details>
       )}
     </div>
   )

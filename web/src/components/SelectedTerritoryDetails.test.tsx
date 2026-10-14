@@ -157,11 +157,11 @@ describe('SelectedTerritoryDetails', () => {
     )
 
     expect(screen.getByText('Capital of Alice')).toBeInTheDocument()
-    expect(screen.getByText('Plain')).toBeInTheDocument()
+    expect(screen.getByText(/^Plain · /)).toBeInTheDocument()
     expect(screen.getByText('Region')).toBeInTheDocument()
     expect(screen.getByText('regional seat / card target: ROS')).toBeInTheDocument()
     expect(screen.getAllByText('Bob').length).toBeGreaterThan(0)
-    expect(screen.getByText('4 troops')).toBeInTheDocument()
+    expect(screen.getByText(/4 troops/)).toBeInTheDocument()
     expect(screen.getByText(/Source:/)).toBeInTheDocument()
     expect(screen.getByText(withText(/Brisecote \(BRU\)/))).toBeInTheDocument()
     expect(screen.getByText('Distance: 2 territories')).toBeInTheDocument()
@@ -173,22 +173,16 @@ describe('SelectedTerritoryDetails', () => {
     const toCover = screen.getByText('To cover').nextElementSibling
     expect(toCover).toHaveTextContent('3')
     expect(toCover).toHaveClass('text-vermilion-700')
-    expect(screen.getByText('Castle')).toBeInTheDocument()
-    expect(screen.getByText('Capital', { exact: true })).toBeInTheDocument()
+    expect(screen.getByText(/^Castle \d/)).toBeInTheDocument()
 
-    const noblesSection = screen.getByText('Nobles present').closest('div')
-    if (!noblesSection) throw new Error('nobles section did not render')
-    const nobleItems = Array.from(noblesSection.querySelectorAll('li'))
-    expect(
-      nobleItems.some((item) => item.textContent?.includes('Jean de Rosemont (JEA)')),
-    ).toBe(true)
-    expect(
-      nobleItems.some((item) => item.textContent?.includes('Robert de Rosemont (ROB)')),
-    ).toBe(true)
-    expect(within(noblesSection).getAllByText('Owner')).toHaveLength(2)
-    expect(within(noblesSection).getByText('Bob')).toBeInTheDocument()
-    expect(within(noblesSection).getByText('held by Bob')).toBeInTheDocument()
-    expect(within(noblesSection).queryByText('P2')).not.toBeInTheDocument()
+    // Nobles present show as pawns; each opens its detail in a popover.
+    expect(screen.getByRole('button', { name: 'Jean de Rosemont (JEA)' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Robert de Rosemont (ROB)' }))
+    const detail = screen.getByRole('dialog')
+    expect(within(detail).getByText('Owner')).toBeInTheDocument()
+    expect(detail).toHaveTextContent('Bob')
+    expect(within(detail).getByText('held by Bob')).toBeInTheDocument()
+    expect(within(detail).queryByText('P2')).not.toBeInTheDocument()
   })
 
   it('links a commissioner to its victim in the command post only when the state carries it', () => {
@@ -210,10 +204,12 @@ describe('SelectedTerritoryDetails', () => {
         />,
       )
     const { unmount } = renderWith(withLink)
+    fireEvent.click(screen.getByRole('button', { name: /\(JEA\)/ }))
     expect(screen.getByText('Commissioned the killing of')).toBeInTheDocument()
     expect(screen.getByTestId('assassination-victim')).toHaveTextContent('Victor (VIC)')
     unmount()
     renderWith(state)
+    fireEvent.click(screen.getByRole('button', { name: /\(JEA\)/ }))
     expect(screen.queryByText('Commissioned the killing of')).not.toBeInTheDocument()
   })
 
@@ -261,7 +257,7 @@ describe('SelectedTerritoryDetails', () => {
 
     expect(screen.getByText('Supply zone')).toBeInTheDocument()
     expect(screen.getByText('2 territories reachable.')).toBeInTheDocument()
-    expect(screen.getByText('Village')).toBeInTheDocument()
+    expect(screen.getByText(/^Village \d/)).toBeInTheDocument()
     expect(
       screen.queryByText('There is no supply phase in winter.'),
     ).not.toBeInTheDocument()
@@ -414,8 +410,10 @@ describe('SelectedTerritoryDetails', () => {
       />,
     )
 
-    expect(screen.getByText('Projected income')).toBeInTheDocument()
-    expect(screen.getByText(withText('Yields 2 R to Brisecote (BRU)'))).toBeInTheDocument()
+    // Resources and income share one line.
+    expect(document.querySelector('[data-territory-income]')).toHaveTextContent(
+      /^\d+ R · \+2 R \/ turn → Brisecote \(BRU\)$/,
+    )
   })
 
   it('shows the territory income as lost when it has no destination', () => {
@@ -469,8 +467,8 @@ describe('SelectedTerritoryDetails', () => {
       />,
     )
 
-    expect(screen.getByText('City (+2 defense)')).toBeInTheDocument()
-    expect(screen.getByText(withText('Barony — ROS'))).toBeInTheDocument()
+    expect(screen.getByText(/City \(\+2 defense\)/)).toBeInTheDocument()
+    expect(screen.getByText(withText('Barony of ROS'))).toBeInTheDocument()
     expect(screen.getAllByText(withText('Jean de Rosemont (JEA)')).length).toBeGreaterThan(0)
   })
 
@@ -533,7 +531,7 @@ describe('SelectedTerritoryDetails', () => {
       />,
     )
 
-    expect(screen.getByText('Occupied by Bob')).toBeInTheDocument()
+    expect(screen.getByText(/Occupied by Bob/)).toBeInTheDocument()
   })
 
   it('omits the occupied badge when the controller owns the army present', () => {
