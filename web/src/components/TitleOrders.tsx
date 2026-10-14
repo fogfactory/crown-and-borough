@@ -1,4 +1,14 @@
-import { OrderLauncher, type OrderFieldOption } from '@/components/OrderDialog'
+import { cloneElement } from 'react'
+
+import {
+  OrderLauncher,
+  type OrderFieldOption,
+  type OrderLauncherProps,
+} from '@/components/OrderDialog'
+import { NoblePawnIcon } from '@/components/NobleHolder'
+import { religiousTitlesByHolder } from '@/lib/lineage'
+import { nobleAttributesByCode } from '@/lib/noble-attributes'
+import { NEUTRAL_ARMY_COLOR } from '@/lib/map-palette'
 import { formatCardLabel } from '@/lib/card-hand'
 import { parseDraftTaxLine } from '@/lib/projected-tax'
 import { royalIssuerOf } from '@/lib/royal'
@@ -6,7 +16,7 @@ import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { appendDraftLine, draftLines } from '@/lib/winter-draft'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
-import { useMapLinks } from '@/components/MapLinks'
+import { NobleRef, useMapLinks } from '@/components/MapLinks'
 import type { RulesSection } from '@/components/RulesPanel'
 import { SectionHeading } from '@/components/SectionHeading'
 import { NEUTRAL_PLAYER_ID, type CardKind, type Dignity, type FiefEdge, type FiefTitle, type Noble, type PlayerId, type Region, type Season, type StateData, type Territory } from '@/types'
@@ -21,6 +31,14 @@ const PLAYABLE_KINDS: CardKind[] = [
   'assassination',
   'justice',
 ]
+
+/** Key of the orders issued by the whole house rather than one titled noble. */
+const HOUSE = 'house'
+
+/** A button label without its trailing order code: « Excommunier (X E) » → « Excommunier ». */
+function shortOrderLabel(label: string): string {
+  return label.replace(/\s*\([A-Z](?: [A-Z])*\)$/, '')
+}
 
 function nobleOption(noble: Noble): OrderFieldOption {
   return { value: noble.code, label: `${noble.name} (${noble.code}) · ${noble.owner}` }
@@ -158,10 +176,22 @@ export function TitleOrdersSection({
   const sites = aids.fiefSites
   const castles = [...new Set(sites.flatMap((site) => site.castles))].sort()
 
-  const launchers: React.ReactNode[] = []
+  // Each order goes under the noble who issues it (charte § Poste de
+  // commandement); orders of the whole house (marriages, trials, new fiefs)
+  // close the list. Under a holder, a button keeps its action only, the full
+  // label and the order code going to its tooltip.
+  const groups = new Map<string, React.ReactElement<OrderLauncherProps>[]>()
+  const pushFor = (holder: string | undefined, launcher: React.ReactElement<OrderLauncherProps>) => {
+    const key = holder || HOUSE
+    const full = String(launcher.props.label)
+    const short = shortOrderLabel(holder ? (full.split(' · ').at(-1) ?? full) : full)
+    groups.set(key, [...(groups.get(key) ?? []), cloneElement(launcher, { label: short, tooltip: full })])
+  }
+  const sameHolder = (fiefs: { holder: string }[]) =>
+    fiefs.every((fief) => fief.holder === fiefs[0]?.holder) ? fiefs[0]?.holder : undefined
 
   if (canExcommunicate) {
-    launchers.push(
+    pushFor(state.pope, 
       <OrderLauncher
         key="x-e"
         label={`${titleHolder(state.pope ?? '', 'pope')} · ${t('orders.excommunicate')}`}
@@ -194,7 +224,7 @@ export function TitleOrdersSection({
     (noble) => canMarry(noble) && !lines.some((line) => line.startsWith(`M N ${noble.code} `)),
   )
   if (fiances.length > 0) {
-    launchers.push(
+    pushFor(undefined, 
       <OrderLauncher
         key="m-n"
         label={t('orders.marriage')}
@@ -241,7 +271,7 @@ export function TitleOrdersSection({
       byCode.get(marriage.noble)?.owner === player && state.pope !== marriage.noble
         ? t('orders.dissolveRequest')
         : t('orders.dissolve')
-    launchers.push(
+    pushFor(undefined, 
       <OrderLauncher
         key={`x-d-${marriage.noble}`}
         label={`${nobleName(state, marriage.noble)} & ${nobleName(state, marriage.spouse)} · ${label}`}
@@ -261,7 +291,7 @@ export function TitleOrdersSection({
   }
 
   if (liftable.length > 0) {
-    launchers.push(
+    pushFor(state.pope, 
       <OrderLauncher
         key="x-l"
         label={`${titleHolder(state.pope ?? '', 'pope')} · ${t('orders.liftExcommunication')}`}
@@ -283,7 +313,7 @@ export function TitleOrdersSection({
   }
 
   for (const code of buyable) {
-    launchers.push(
+    pushFor(code, 
       <OrderLauncher
         key={`n-c-${code}`}
         label={`${titleHolder(code, 'bishop')} · ${t('orders.buyCardinal')}`}
@@ -302,7 +332,7 @@ export function TitleOrdersSection({
   for (const code of aids.inquirers) {
     if (lines.some((line) => line.startsWith(`Q ${code} `))) continue
     const title = state.pope === code ? 'pope' : 'cardinal'
-    launchers.push(
+    pushFor(code, 
       <OrderLauncher
         key={`q-${code}`}
         label={`${titleHolder(code, title)} · ${t('orders.inquiry')}`}
@@ -350,7 +380,7 @@ export function TitleOrdersSection({
   // or of another, must file the same trial for it to take place.
   const judges = aids.trialJudges.filter((code) => !lines.some((line) => line.startsWith(`J ${code} `)))
   if (judges.length > 0) {
-    launchers.push(
+    pushFor(undefined, 
       <OrderLauncher
         key="trial"
         label={t('orders.trial')}
@@ -395,7 +425,7 @@ export function TitleOrdersSection({
       label: `${index + 1} · ${t(`card.${kind}` as MessageKey)}`,
     }))
     for (const astrologer of astrologers) {
-      launchers.push(
+      pushFor(astrologer.code, 
         <OrderLauncher
           key={`v-c-${astrologer.code}`}
           label={`${dignityHolder(astrologer.code, 'astrologer')} · ${t('orders.calamityVeto')}`}
@@ -425,7 +455,7 @@ export function TitleOrdersSection({
       const chosen = site.territories.filter((code) => picked.has(code))
       return [values.capital, ...chosen.filter((code) => code !== values.capital)]
     }
-    launchers.push(
+    pushFor(undefined, 
       <OrderLauncher
         key="t-f"
         label={t('orders.foundFief')}
@@ -485,7 +515,7 @@ export function TitleOrdersSection({
       (annexFiefs.find((fief) => fief.capital === capital)?.annexable ?? []).filter(
         (code) => !annexedInDraft.has(code),
       )
-    launchers.push(
+    pushFor(sameHolder(annexFiefs), 
       <OrderLauncher
         key="t-x"
         label={t('orders.annexTerritory')}
@@ -531,7 +561,7 @@ export function TitleOrdersSection({
     (fief) => fief.nextTitle && !lines.some((line) => line.startsWith(`T R ${fief.holder} ${fief.capital}`)),
   )
   if (rankFiefs.length > 0) {
-    launchers.push(
+    pushFor(sameHolder(rankFiefs), 
       <OrderLauncher
         key="t-r"
         label={t('orders.changeRank')}
@@ -590,7 +620,7 @@ export function TitleOrdersSection({
         .filter((fief) => fief.capital !== capital)
         .flatMap((fief) => fief.territories.filter((code) => code !== fief.capital))
     if (allFiefs.length > 1 && !usedInDraft('W X ')) {
-      launchers.push(
+      pushFor(royal.issuer, 
         <OrderLauncher
           key="w-x"
           label={t('orders.royalAnnex')}
@@ -620,7 +650,7 @@ export function TitleOrdersSection({
       )
     }
     if (allFiefs.length > 0 && !usedInDraft('W R ')) {
-      launchers.push(
+      pushFor(royal.issuer, 
         <OrderLauncher
           key="w-r"
           label={t('orders.royalRank')}
@@ -640,7 +670,7 @@ export function TitleOrdersSection({
       )
     }
     if (!usedInDraft('W F ')) {
-      launchers.push(
+      pushFor(royal.issuer, 
         <OrderLauncher
           key="w-f"
           label={t('orders.royalFound')}
@@ -666,7 +696,7 @@ export function TitleOrdersSection({
       )
     }
     if (vacantFiefs.length > 0 && !usedInDraft('W G ')) {
-      launchers.push(
+      pushFor(royal.issuer, 
         <OrderLauncher
           key="w-g"
           label={t('orders.royalGrant')}
@@ -698,7 +728,7 @@ export function TitleOrdersSection({
   }
 
   if (vacantFiefs.length > 0 && own.length > 0) {
-    launchers.push(
+    pushFor(undefined, 
       <OrderLauncher
         key="t-a"
         label={t('orders.assignFief')}
@@ -732,7 +762,7 @@ export function TitleOrdersSection({
       ['2', 'summer'],
       ['3', 'autumn'],
     ]
-    launchers.push(
+    pushFor(ritual.noble, 
       <OrderLauncher
         key="s-r"
         label={`${dignityHolder(ritual.noble, 'witch')} · ${t('orders.ritual')}`}
@@ -774,9 +804,23 @@ export function TitleOrdersSection({
     )
   }
 
-  if (launchers.length === 0) return null
+  if (groups.size === 0) return null
+  const attributes = nobleAttributesByCode(state)
+  const religious = religiousTitlesByHolder(state)
+  // Titles in short text: royal and religious ones, then the fiefs held.
+  const titlesOf = (code: string) =>
+    [
+      ...(religious.get(code) ?? []).map((held) =>
+        t(`lineage.religious.${held.title}` as MessageKey, { seat: held.seat ?? '' }),
+      ),
+      ...(state.fiefs ?? [])
+        .filter((fief) => fief.holder === code)
+        .map((fief) => fiefOptionLabel(fief, territoryName, t)),
+    ].join(' · ')
+  const holders = [...groups.keys()].filter((key) => key !== HOUSE)
+  const house = groups.get(HOUSE)
   return (
-    <section className="space-y-2 rounded-lg border border-winter-700/30 bg-winter-100 p-3">
+    <section className="space-y-3 rounded-lg border border-winter-700/30 bg-winter-100 p-3">
       <SectionHeading
         tone="winter"
         title={t('orders.titlesTitle')}
@@ -787,7 +831,33 @@ export function TitleOrdersSection({
         onOpenRules={onOpenRules}
         titleClassName="font-display text-base font-semibold text-winter-700"
       />
-      <div className="flex flex-wrap gap-1.5">{launchers}</div>
+      {holders.map((code) => {
+        const noble = byCode.get(code)
+        const color = state.players.find((candidate) => candidate.id === noble?.owner)?.color
+        const titles = titlesOf(code)
+        return (
+          <div key={code} data-holder-orders={code} className="space-y-1.5">
+            <p className="flex flex-wrap items-center gap-x-1.5 text-sm text-ink-900">
+              {noble && (
+                <NoblePawnIcon
+                  noble={noble}
+                  color={color ?? NEUTRAL_ARMY_COLOR}
+                  attributes={attributes.get(code)}
+                />
+              )}
+              <NobleRef code={code} name={noble?.name} className="font-semibold" />
+              {titles && <span className="text-xs text-ink-500">· {titles}</span>}
+            </p>
+            <div className="flex flex-wrap gap-1.5">{groups.get(code)}</div>
+          </div>
+        )
+      })}
+      {house && (
+        <div data-holder-orders="house" className="space-y-1.5">
+          <p className="text-sm font-semibold text-ink-900">{t('orders.houseOrders')}</p>
+          <div className="flex flex-wrap gap-1.5">{house}</div>
+        </div>
+      )}
     </section>
   )
 }
@@ -958,7 +1028,7 @@ export function SpecialCardOrders({
         if (kind === 'seigneurial_tax') {
           const launcher = taxLauncher({ state, player, mapTerritories, t, lines, add: (line) => onChange(appendDraftLine(draft, line)) })
           return launcher ? (
-            <span key={kind}>{launcher}</span>
+            <span key={kind} className="contents">{launcher}</span>
           ) : null
         }
         if (kind === 'tunnel') {
@@ -977,11 +1047,11 @@ export function SpecialCardOrders({
         }
         if (kind === 'assassination') {
           const launcher = assassinationLauncher({ state, player, t, lines, copies: copies(kind), add: (line) => onChange(appendDraftLine(draft, line)) })
-          return launcher ? <span key={kind}>{launcher}</span> : null
+          return launcher ? <span key={kind} className="contents">{launcher}</span> : null
         }
         if (kind === 'justice') {
           const launcher = justiceLauncher({ state, t, lines, copies: copies(kind), add: (line) => onChange(appendDraftLine(draft, line)) })
-          return launcher ? <span key={kind}>{launcher}</span> : null
+          return launcher ? <span key={kind} className="contents">{launcher}</span> : null
         }
         const target = specialTargetField(kind, state, regions, t, draft)
         if (target.options.length === 0) return null

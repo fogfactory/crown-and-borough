@@ -81,6 +81,12 @@ interface MapViewerProps {
   onSelect?: (id: string | null) => void
   /** Selected territory, when the page controls the selection. */
   selectedId?: string | null
+  /**
+   * Offered every territory clicked before it is selected; returning true
+   * takes the click (an open order form filling its field), and the
+   * selection stays as it is.
+   */
+  onPick?: (id: string) => boolean
   /** Pans and zooms onto these territories each time its key changes. */
   frame?: MapFrame
   /** Territory lit while a link to it is hovered (charte § Identifiants). */
@@ -110,6 +116,7 @@ export function MapViewer({
   state,
   onSelect,
   selectedId: controlledSelectedId,
+  onPick,
   frame,
   highlightedId = null,
   selectedNoble = null,
@@ -168,6 +175,7 @@ export function MapViewer({
   const viewHeight = mapHeight + bandMarginY * 2
 
   const selectTerritory = (id: string | null) => {
+    if (id !== null && onPick?.(id)) return
     const nextId = id !== null && id !== selectedId ? id : null
     setSelectedId(nextId)
     onSelect?.(nextId)
