@@ -24,6 +24,8 @@ cloud.google.com/go/firestore v1.27.0 h1:zGcfBV2AwUGYsqj3+KcAx9MMWOiGYsAS8Xche13
 cloud.google.com/go/firestore v1.27.0/go.mod h1:igzGLe8KqzF6LwK3n5skIqtozEmRJ3DXxJk10JgZZkc=
 cloud.google.com/go/firestore v1.28.0 h1:5/LmeAk6My5WCSkLZGVPPC5I0opkNrseA8nkUpTbc9w=
 cloud.google.com/go/firestore v1.28.0/go.mod h1:igzGLe8KqzF6LwK3n5skIqtozEmRJ3DXxJk10JgZZkc=
+cloud.google.com/go/firestore v1.29.0 h1:fplxMS69zAV4PWnRV9iWtqjsMSYOCpAa4LA8Tb1JaVw=
+cloud.google.com/go/firestore v1.29.0/go.mod h1:igzGLe8KqzF6LwK3n5skIqtozEmRJ3DXxJk10JgZZkc=
 cloud.google.com/go/iam v1.11.0 h1:KieQ9Pb+LLPak1O3Rv3GgCxhnmkYf7Xyh0P5HfF1jFM=
 cloud.google.com/go/iam v1.11.0/go.mod h1:KP+nKGugNJW4LcLx1uEZcq1ok5sQHFaQehQNl4QDgV4=
 cloud.google.com/go/iam v1.12.0 h1:Aki3bX9aHUDKPHfnRJfDcTdVedvy6quGBQcTqx3DRXk=
