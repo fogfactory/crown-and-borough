@@ -5,7 +5,7 @@ go 1.26.0
 require gopkg.in/yaml.v3 v3.0.1
 
 require (
-	cloud.google.com/go/firestore v1.29.1
+	cloud.google.com/go/firestore v1.29.2
 	firebase.google.com/go/v4 v4.22.0
 	golang.org/x/text v0.43.0
 	google.golang.org/api v0.310.0
