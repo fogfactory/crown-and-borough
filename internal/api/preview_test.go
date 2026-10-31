@@ -49,6 +49,9 @@ func TestOrdersPreviewReturnsParsedChainsAndLocalizedErrors(t *testing.T) {
 	if len(preview.Errors) != 1 || preview.Errors[0].Line != 3 || preview.Errors[0].Message == "" {
 		t.Fatalf("errors = %#v, want one localized error on line 3", preview.Errors)
 	}
+	if preview.Errors[0].Source != "chain" {
+		t.Errorf("preview error source = %q, want chain", preview.Errors[0].Source)
+	}
 	english := requestGames(t, handler, http.MethodPost, strings.Replace(path, "lang=fr", "lang=en", 1), `{"chains":[{"noble":"`+noble.Code+`","text":"`+text+`"}],"winter":[]}`)
 	var englishPreview OrdersPreviewView
 	if err := json.Unmarshal(english.Body.Bytes(), &englishPreview); err != nil || len(englishPreview.Errors) != 1 {

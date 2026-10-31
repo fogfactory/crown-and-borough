@@ -659,6 +659,13 @@ La saisie reste textuelle, assistée :
 - Le même principe s'applique aux investissements d'hiver et aux cartes
   spéciales.
 
+**Précision.** La coloration est lexicale : mot de trois lettres (trigramme),
+verbe d'une lettre, nombre, commentaire. Elle ne juge jamais un ordre, qu'il
+soit valide ou non. Une erreur de la prévisualisation est soulignée en vague
+`vermilion-700` sur la ligne fautive de la zone qui la contient (chaîne d'un
+noble, ordres d'hiver ou cartes spéciales), avec son message sous cette zone ;
+une erreur sans ligne n'apparaît que comme message.
+
 **Évolution possible.** Des cartes d'ordres (choisir un verbe, puis la cible
 sur la carte, et réordonner les cartes) pourront s'ajouter plus tard, comme
 une seconde vue de la même chaîne, sans retirer le texte assisté. Elles

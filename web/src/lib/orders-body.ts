@@ -17,7 +17,7 @@ export interface OrdersDrafts {
 const CARD_ORDER = /^\s*(R\s+N|C\s+N|D\s+N)\s/i
 
 /** Keeps the lines that play a noble-deck card: the only winter-sheet orders accepted outside winter. */
-function keepCardOrders(draft: string): string {
+export function keepCardOrders(draft: string): string {
   return draft
     .split('\n')
     .filter((line) => CARD_ORDER.test(line))

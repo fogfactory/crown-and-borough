@@ -60,14 +60,15 @@ function renderWithPreview(
   season: StateData['season'],
   preview: OrdersPreview,
   language: 'fr' | 'en' = 'fr',
+  drafts: { nobles?: Noble[]; chainDrafts?: Record<string, string>; winterDraft?: string } = {},
 ) {
   return render(
     <LanguageProvider initialLanguage={language}>
       <OrdersPanel
-        state={{ ...state, season }}
+        state={{ ...state, season, nobles: drafts.nobles ?? state.nobles }}
         player="P1"
-        chainDrafts={{}}
-        winterDraft=""
+        chainDrafts={drafts.chainDrafts ?? {}}
+        winterDraft={drafts.winterDraft ?? ''}
         preview={preview}
         specialDraft=""
         onChainChange={vi.fn()}
@@ -138,7 +139,7 @@ describe('OrdersPanel seasonal presentation', () => {
         { line: 3, status: 'invalid', message: 'Code de territoire inconnu : ZZZ' },
       ],
       winterCost: { spent: 1, available: 25 },
-    })
+    }, 'fr', { winterDraft: 'X\nR ROS\nB ZZZ' })
 
     const errors = screen.getByRole('alert', {
       name: "Erreurs de syntaxe des ordres d'hiver",
@@ -195,13 +196,21 @@ describe('OrdersPanel seasonal presentation', () => {
       ],
       chains: [],
       winter: [],
+    }, 'fr', {
+      nobles: [
+        { id: 'N1', code: 'HUG', name: 'Hugues', owner: 'P1', location: 'ROS', status: 'free' },
+      ],
+      // Sent as "HUG\nM BRU\nH ROS": the server line 2 is the draft line 1.
+      chainDrafts: { HUG: 'M BRU\nH ROS' },
     })
 
     const errors = screen.getByRole('alert', {
       name: "Erreurs dans les chaînes d'ordres",
     })
     expect(within(errors).getAllByRole('listitem')).toHaveLength(1)
-    expect(errors).toHaveTextContent(/Ligne 2 .*BRU n’est pas adjacent/)
+    expect(errors).toHaveTextContent(/Ligne 1 .*BRU n’est pas adjacent/)
+    expect(screen.getByLabelText('Chaîne de HUG')).toHaveAttribute('aria-invalid', 'true')
+    expect(document.querySelectorAll('[data-order-error-line]')).toHaveLength(1)
   })
 
   it('keeps the ordinary command panel outside winter', () => {

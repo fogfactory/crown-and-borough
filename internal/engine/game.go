@@ -61,12 +61,21 @@ type OrdersInput struct {
 	Special []DeckSubmission   `json:"special"`
 }
 
+// Draft of the submission an InputError comes from.
+const (
+	InputSourceChain   = "chain"
+	InputSourceWinter  = "winter"
+	InputSourceSpecial = "special"
+)
+
 // InputError identifies a client-side submission error. Line is the source
 // line in the submitted chain or winter text, and is zero for batch errors.
+// Source names the draft that holds the error (InputSource*).
 type InputError struct {
 	Player      models.PlayerID  `json:"player,omitempty"`
 	Noble       models.NobleCode `json:"noble,omitempty"`
 	Line        int              `json:"line,omitempty"`
+	Source      string           `json:"source,omitempty"`
 	Code        string           `json:"code"`
 	Message     string           `json:"message"`
 	MessageKey  string           `json:"-"`
@@ -90,6 +99,13 @@ func newInputError(player models.PlayerID, noble models.NobleCode, line int, cod
 		Message:     i18n.EnglishText(message),
 		MessageKey:  key,
 		MessageArgs: append([]any(nil), args...),
+	}
+}
+
+// markSource sets the source of the errors found since index start.
+func markSource(errs []InputError, start int, source string) {
+	for index := start; index < len(errs); index++ {
+		errs[index].Source = source
 	}
 }
 
@@ -385,6 +401,7 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 	inputErrors := &InputErrors{Errors: []InputError{}}
 	if game.Season == models.SeasonWinter && len(input.Chains) != 0 {
 		inputErrors.Errors = append(inputErrors.Errors, newInputError("", "", 0, "chains_in_winter", i18n.ErrorChainsInWinter))
+		markSource(inputErrors.Errors, 0, InputSourceChain)
 	}
 
 	players := make(map[models.PlayerID]bool, len(game.Players))
@@ -398,6 +415,7 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 		noble          models.Noble
 		receptionError error
 	}
+	chainErrorsStart := len(inputErrors.Errors)
 	parsedChains := make([]parsedSubmission, 0, len(input.Chains))
 	seenNobles := make(map[models.NobleID]bool)
 	for _, submission := range input.Chains {
@@ -465,6 +483,9 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 		})
 	}
 
+	markSource(inputErrors.Errors, chainErrorsStart, InputSourceChain)
+
+	winterErrorsStart := len(inputErrors.Errors)
 	winterOrders := make(map[models.PlayerID][]models.WinterOrder)
 	deckOrders := make(map[models.PlayerID][]models.DeckOrder)
 	for _, submission := range input.Winter {
@@ -493,6 +514,8 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 			deckOrders[submission.Player] = append(deckOrders[submission.Player], parsedDeck...)
 		}
 	}
+	markSource(inputErrors.Errors, winterErrorsStart, InputSourceWinter)
+	specialErrorsStart := len(inputErrors.Errors)
 	for _, submission := range input.Special {
 		if !players[submission.Player] {
 			inputErrors.Errors = append(inputErrors.Errors, newInputError(submission.Player, "", 0, "unknown_player", i18n.ErrorUnknownPlayer, submission.Player))
@@ -506,6 +529,8 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 			deckOrders[submission.Player] = append(deckOrders[submission.Player], parsed...)
 		}
 	}
+
+	markSource(inputErrors.Errors, specialErrorsStart, InputSourceSpecial)
 
 	if len(inputErrors.Errors) != 0 {
 		return TurnReport{}, inputErrors
@@ -584,6 +609,7 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 	}
 
 	if supportErrors := unplannedSupports(working, balance, received); len(supportErrors) != 0 {
+		markSource(supportErrors, 0, InputSourceChain)
 		return TurnReport{}, &InputErrors{Errors: supportErrors}
 	}
 
