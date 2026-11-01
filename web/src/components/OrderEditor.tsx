@@ -1,5 +1,6 @@
 import {
   forwardRef,
+  useEffect,
   useId,
   useImperativeHandle,
   useLayoutEffect,
@@ -13,7 +14,7 @@ import {
 } from 'react'
 
 import { useLanguage } from '@/i18n/LanguageContext'
-import { wordAtCursor, type CodeSuggestion } from '@/lib/order-suggestions'
+import { wordAtCursor, type CodeSuggester, type CodeSuggestion } from '@/lib/order-suggestions'
 import { cn } from '@/lib/utils'
 
 export type OrderTokenKind = 'comment' | 'trigram' | 'verb' | 'number' | 'punctuation' | 'text'
@@ -102,8 +103,8 @@ interface OrderEditorProps {
   'aria-label': string
   /** Classes of the textarea sizing (height), for instance `min-h-24`. */
   className?: string
-  /** Codes that complete the typed word, given the line before it. */
-  suggest?: (word: string, lineBefore: string) => CodeSuggestion[]
+  /** Codes that complete the typed word, given the text of the zone before it. */
+  suggest?: CodeSuggester
 }
 
 /**
@@ -139,6 +140,8 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
     const [active, setActive] = useState(0)
     // Word whose suggestions Escape closed, until the player types on.
     const [dismissed, setDismissed] = useState<string | null>(null)
+    // Start of the word Ctrl+Space asked suggestions for, even without letters.
+    const [requested, setRequested] = useState<number | null>(null)
     const pendingCursor = useRef<number | null>(null)
     const styles = TONES[tone]
     const faultyKey = errorLines.join(',')
@@ -165,17 +168,25 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [value, faultyKey, styles.trigram])
 
-    const word = suggest && cursor !== null ? wordAtCursor(value, cursor) : null
+    const typed = suggest && cursor !== null ? wordAtCursor(value, cursor, 0) : null
+    const word = typed && (typed.text.length >= 2 || typed.start === requested) ? typed : null
     const wordKey = word ? `${word.start}:${word.text}` : null
     const suggestions = useMemo(() => {
       if (!suggest || !word) return []
-      const lineStart = value.lastIndexOf('\n', word.start - 1) + 1
-      return suggest(word.text, value.slice(lineStart, word.start))
+      return suggest(word.text, value.slice(0, word.start))
       // `wordKey` stands for `word`.
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [suggest, value, wordKey])
     const open = suggestions.length > 0 && wordKey !== dismissed
     const highlighted = Math.min(active, suggestions.length - 1)
+
+    // Brings the list, then the highlighted option, into the scrolling panel.
+    useEffect(() => {
+      if (!open) return
+      const list = document.getElementById(listId)
+      list?.scrollIntoView?.({ block: 'nearest' })
+      document.getElementById(`${listId}-${highlighted}`)?.scrollIntoView?.({ block: 'nearest' })
+    }, [open, highlighted, listId])
 
     useLayoutEffect(() => {
       const textarea = textareaRef.current
@@ -190,9 +201,18 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
       pendingCursor.current = word.start + suggestion.code.length
       onChange(value.slice(0, word.start) + suggestion.code + value.slice(word.end))
       setActive(0)
+      setRequested(null)
     }
 
     const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+      if (suggest && event.key === ' ' && event.ctrlKey) {
+        event.preventDefault()
+        const at = wordAtCursor(value, event.currentTarget.selectionStart, 0)
+        setRequested(at?.start ?? null)
+        setDismissed(null)
+        setActive(0)
+        return
+      }
       if (!open) return
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
         event.preventDefault()
@@ -204,6 +224,7 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
       } else if (event.key === 'Escape') {
         event.preventDefault()
         setDismissed(wordKey)
+        setRequested(null)
       }
     }
 

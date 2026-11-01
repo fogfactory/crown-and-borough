@@ -118,4 +118,18 @@ describe('OrderEditor', () => {
     fireEvent.keyDown(textarea, { key: 'Escape' })
     expect(screen.queryByRole('listbox')).toBeNull()
   })
+
+  it('opens the suggestions on Ctrl+Space without any letter', () => {
+    const suggest = vi.fn(() => [{ code: 'ECP', name: 'Escarpelle', kind: 'territory' as const }])
+    render(<OrderEditor value="RVE A " onChange={() => {}} suggest={suggest} aria-label="orders" />)
+    const textarea = screen.getByLabelText('orders') as HTMLTextAreaElement
+    textarea.focus()
+    textarea.setSelectionRange(6, 6)
+    fireEvent.select(textarea)
+    expect(screen.queryByRole('listbox')).toBeNull()
+
+    fireEvent.keyDown(textarea, { key: ' ', ctrlKey: true })
+    expect(suggest).toHaveBeenCalledWith('', 'RVE A ')
+    expect(screen.getByRole('option', { name: 'Escarpelle (ECP)' })).toBeInTheDocument()
+  })
 })
