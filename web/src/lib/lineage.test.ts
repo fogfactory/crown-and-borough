@@ -4,14 +4,16 @@ import {
   buildAlliancePairs,
   buildHouses,
   buildLinks,
-  CARD_H,
-  CARD_W,
-  claimRoute,
-  GAP_X,
-  layoutColumns,
-  PITCH,
+  countLines,
+  layoutTree,
+  MEDALLION_LINE_H,
+  MEDALLION_W,
+  placeTree,
+  TREE_LANE,
+  type ClaimRef,
+  type TreeLayout,
 } from '@/lib/lineage'
-import type { Noble, Player } from '@/types'
+import type { Marriage, Noble, Player } from '@/types'
 
 const players: Player[] = [
   { id: 'P1', name: 'Alice', color: '#a00', succession: ['LUC', 'JEA'] },
@@ -82,7 +84,11 @@ describe('lineage', () => {
   })
 
   it('lists the king, the queen and the dowager queen', () => {
-    const titles = (house: number, code: string, religion: Parameters<typeof buildHouses>[5]) =>
+    const titles = (
+      house: number,
+      code: string,
+      religion: Parameters<typeof buildHouses>[5],
+    ) =>
       buildHouses(players, nobles, [], [], [], religion)[house].members.find(
         (entry) => entry.code === code,
       )?.religious
@@ -96,7 +102,16 @@ describe('lineage', () => {
   })
 
   it('keeps ended claims on the heir, a live one taking precedence', () => {
-    const ended = { heir: 'ANN', target: 'JEA', spouse: 'EVE', turn: 1, rank: 0, ended: true, endedTurn: 3, outcome: 'honoured' as const }
+    const ended = {
+      heir: 'ANN',
+      target: 'JEA',
+      spouse: 'EVE',
+      turn: 1,
+      rank: 0,
+      ended: true,
+      endedTurn: 3,
+      outcome: 'honoured' as const,
+    }
     const live = { heir: 'MAR', target: 'EVE', spouse: 'JEA', turn: 2, rank: 1 }
     const houses = buildHouses(players, nobles, [], [], [ended, live])
     const claimOf = (code: string) =>
@@ -104,7 +119,9 @@ describe('lineage', () => {
     expect(claimOf('ANN')).toMatchObject({ target: 'JEA', outcome: 'honoured' })
     expect(claimOf('MAR')?.outcome).toBeUndefined()
     // Only live claims count as claiming a noble.
-    const claimed = houses.flatMap((house) => house.members).map((m) => [m.code, m.claimedBy])
+    const claimed = houses
+      .flatMap((house) => house.members)
+      .map((m) => [m.code, m.claimedBy])
     expect(claimed.filter(([, count]) => count)).toEqual([['EVE', 1]])
   })
 
@@ -112,7 +129,9 @@ describe('lineage', () => {
     const houses = buildHouses(players, nobles, [], [], [], {
       excommunicated: [{ noble: 'ANN', reason: 'papal', turn: 1 }],
     })
-    const flags = houses.flatMap((house) => house.members.map((m) => [m.code, m.excommunicated]))
+    const flags = houses.flatMap((house) =>
+      house.members.map((m) => [m.code, m.excommunicated]),
+    )
     expect(flags.filter(([, flag]) => flag)).toEqual([['ANN', true]])
   })
 
@@ -152,155 +171,244 @@ describe('lineage', () => {
     expect(pairs[0]).toMatchObject({ weight: 10, kind: 'head', head: true })
     expect(pairs[0].carrier.key).toBe('JEA-ANN')
   })
+})
 
-  it('centres the focus house and aligns linked spouses on the same row', () => {
-    const houses = buildHouses(players, nobles, [], [])
-    const links = buildLinks(houses, [
-      {
-        nobleA: 'JEA',
-        nobleB: 'ANN',
-        turn: 1,
-        active: true,
-        category: 'head',
-        weight: 5,
-        activeHeadFor: ['P1', 'P2'],
-      },
-      {
-        nobleA: 'EVE',
-        nobleB: 'MAR',
-        turn: 3,
-        active: true,
-        category: 'secondary',
-        weight: 3,
-      },
-    ])
-    const { columns } = layoutColumns(houses, links, 'P2')
-    expect(columns.map((c) => c.house.player.id)).toEqual(['P3', 'P2', 'P1'])
-    const row = (house: number, code: string) =>
-      columns[house].offset +
-      columns[house].house.members.findIndex((m) => m.code === code)
-    expect(row(2, 'JEA')).toBe(row(1, 'ANN'))
-    expect(row(0, 'MAR')).toBe(row(1, 'EVE'))
-    expect(Math.min(...columns.map((c) => c.offset))).toBe(0)
-  })
+/** Houses from `{ P1: ['A1', 'A2'] }`: nobles in succession order. */
+function world(spec: Record<string, string[]>) {
+  const ids = Object.keys(spec)
+  const people: Player[] = ids.map((id) => ({
+    id,
+    name: id,
+    color: '#888',
+    succession: spec[id],
+  }))
+  const all = ids.flatMap((id) => spec[id].map((code) => noble(code, id)))
+  return buildHouses(people, all, [], [])
+}
+const marriage = (
+  a: string,
+  b: string,
+  kind: 'head' | 'secondary' | 'ended' = 'secondary',
+  weight = 1,
+): Marriage => ({
+  nobleA: a,
+  nobleB: b,
+  turn: 1,
+  active: kind !== 'ended',
+  category: kind === 'ended' ? undefined : kind,
+  weight,
+  activeHeadFor: kind === 'head' ? ['P1'] : [],
+})
 
-  it('keeps straight links clear of the cards in the columns between their ends', () => {
-    const ring = [
-      ...players,
-      { id: 'P4', name: 'Dan', color: '#aa0', succession: ['DAN', 'DOM'] },
+describe('layoutTree', () => {
+  const rowsOf = (layout: TreeLayout) => Object.fromEntries(layout.rowOf)
+  const columnIds = (layout: TreeLayout) => layout.columns.map((house) => house.player.id)
+
+  it('puts the couple of the crown on one row with the heirs below it', () => {
+    const houses = world({ P1: ['POP'], P2: ['KIN', 'PIE'], P3: ['QUE', 'ANN', 'GAS'] })
+    const links = buildLinks(houses, [marriage('KIN', 'QUE', 'head', 5)])
+    const claims: ClaimRef[] = [
+      { heir: 'ANN', target: 'KIN', spouse: 'QUE' },
+      { heir: 'PIE', target: 'QUE', spouse: 'KIN' },
+      { heir: 'GAS', target: 'KIN', spouse: 'QUE' },
     ]
-    const all = [...nobles, noble('DAN', 'P4'), noble('DOM', 'P4')]
-    const houses = buildHouses(ring, all, [], [])
+    const layout = layoutTree(houses, links, 'P2', claims)
+    const rows = rowsOf(layout)
+    expect(columnIds(layout)).toContain('P1')
+    expect(rows.KIN).toBe(rows.QUE)
+    expect(layout.marriages[0].aligned).toBe(true)
+    expect(rows.PIE).toBeGreaterThan(rows.KIN)
+    expect(rows.ANN).toBeGreaterThan(rows.QUE)
+    expect(rows.GAS).toBeGreaterThan(rows.ANN)
+    // One stem per couple: the three claims share a lane of the same gap.
+    expect(new Set(layout.stems.map((stem) => `${stem.gap}:${stem.lane}`)).size).toBe(1)
+  })
+
+  it('keeps rows strictly increasing down a house, whatever the marriages', () => {
+    const houses = world({ P1: ['A1', 'A2', 'A3'], P2: ['B1', 'B2', 'B3'] })
     const links = buildLinks(houses, [
-      {
-        nobleA: 'JEA',
-        nobleB: 'ANN',
-        turn: 1,
-        active: true,
-        category: 'secondary',
-        weight: 1,
-      },
-      {
-        nobleA: 'EVE',
-        nobleB: 'MAR',
-        turn: 1,
-        active: true,
-        category: 'secondary',
-        weight: 1,
-      },
-      {
-        nobleA: 'DAN',
-        nobleB: 'MAR',
-        turn: 1,
-        active: true,
-        category: 'secondary',
-        weight: 1,
-      },
-      {
-        nobleA: 'DOM',
-        nobleB: 'LUC',
-        turn: 1,
-        active: true,
-        category: 'secondary',
-        weight: 1,
-      },
+      marriage('A3', 'B1'),
+      marriage('A1', 'B3'),
+      marriage('A2', 'B2'),
     ])
-    const { columns } = layoutColumns(houses, links, 'P1')
-    const columnOf = new Map<string, number>()
-    const topOf = new Map<string, number>()
-    columns.forEach((column, index) =>
-      column.house.members.forEach((member, i) => {
-        columnOf.set(member.code, index)
-        topOf.set(member.code, (column.offset + i) * PITCH)
-      }),
+    const layout = layoutTree(houses, links, null)
+    for (const house of layout.columns)
+      house.members.forEach((member, index) => {
+        if (index > 0)
+          expect(layout.rowOf.get(member.code)!).toBeGreaterThan(
+            layout.rowOf.get(house.members[index - 1].code)!,
+          )
+      })
+  })
+
+  it('aligns two marriages between the same houses at different ranks', () => {
+    const houses = world({ P1: ['A1', 'A2', 'A3'], P2: ['B1', 'B2', 'B3'] })
+    const links = buildLinks(houses, [marriage('A1', 'B2'), marriage('A3', 'B3')])
+    const layout = layoutTree(houses, links, null)
+    const rows = rowsOf(layout)
+    expect(layout.marriages.every((m) => m.aligned)).toBe(true)
+    expect(rows.A1).toBe(rows.B2)
+    expect(rows.A3).toBe(rows.B3)
+  })
+
+  it('refuses the weakest of two contradictory marriages and bends its line', () => {
+    const houses = world({ P1: ['A1', 'A2'], P2: ['B1', 'B2'] })
+    // A1 x B2 and A2 x B1 cannot both be level: the head one wins.
+    const links = buildLinks(houses, [
+      marriage('A2', 'B1', 'secondary', 9),
+      marriage('A1', 'B2', 'head', 1),
+    ])
+    const layout = layoutTree(houses, links, null)
+    const aligned = Object.fromEntries(
+      layout.marriages.map((m) => [m.link.key, m.aligned]),
     )
-    for (const link of links) {
-      const [l, r] =
-        columnOf.get(link.a)! < columnOf.get(link.b)!
-          ? [link.a, link.b]
-          : [link.b, link.a]
-      const cl = columnOf.get(l)!
-      const cr = columnOf.get(r)!
-      const x1 = cl * (CARD_W + GAP_X) + CARD_W
-      const x2 = cr * (CARD_W + GAP_X)
-      const y1 = topOf.get(l)! + CARD_H / 2
-      const y2 = topOf.get(r)! + CARD_H / 2
-      for (let k = cl + 1; k < cr; k++) {
-        const ys = [k * (CARD_W + GAP_X), k * (CARD_W + GAP_X) + CARD_W].map(
-          (x) => y1 + ((y2 - y1) * (x - x1)) / (x2 - x1),
-        )
-        for (const member of columns[k].house.members) {
-          const top = topOf.get(member.code)!
-          expect(Math.max(...ys) > top && Math.min(...ys) < top + CARD_H).toBe(false)
-        }
-      }
+    expect(aligned).toEqual({ 'A1-B2': true, 'A2-B1': false })
+    expect(layout.rowOf.get('A1')).toBe(layout.rowOf.get('B2'))
+    expect(layout.bendLane.has('A2-B1')).toBe(true)
+    const placed = placeTree(layout, () => 0)
+    const bent = placed.marriages.find((m) => !m.aligned)!
+    expect(bent.d).toMatch(/^M[\d.]+,[\d.]+ H[\d.]+ V[\d.]+ H[\d.]+$/)
+  })
+
+  it('refuses to level a noble with two spouses of the same house', () => {
+    const houses = world({ P1: ['A1'], P2: ['B1', 'B2'] })
+    const links = buildLinks(houses, [marriage('A1', 'B1', 'head'), marriage('A1', 'B2')])
+    const layout = layoutTree(houses, links, null)
+    expect(layout.marriages.map((m) => m.aligned)).toEqual([true, false])
+  })
+
+  it('clears the row of a marriage line in the columns it runs over', () => {
+    const houses = world({
+      P1: ['A1', 'A2', 'A3'],
+      P2: ['B1', 'B2', 'B3'],
+      P3: ['C1', 'C2', 'C3'],
+    })
+    const links = buildLinks(houses, [
+      marriage('A1', 'B1', 'head', 5),
+      marriage('B3', 'C3', 'head', 5),
+      marriage('A2', 'C2', 'secondary', 1),
+    ])
+    const layout = layoutTree(houses, links, 'P2')
+    expect(columnIds(layout)[1]).toBe('P2')
+    const spanning = layout.marriages.filter(
+      (m) =>
+        layout.columns.findIndex((h) => h.members.some((x) => x.code === m.right)) -
+          layout.columns.findIndex((h) => h.members.some((x) => x.code === m.left)) >
+        1,
+    )
+    expect(spanning).toHaveLength(1)
+    const middle = layout.columns[1].members.map((m) => layout.rowOf.get(m.code))
+    expect(middle).not.toContain(layout.rowOf.get(spanning[0].left))
+    for (const house of layout.columns)
+      house.members.forEach((member, index) => {
+        if (index > 0)
+          expect(layout.rowOf.get(member.code)!).toBeGreaterThan(
+            layout.rowOf.get(house.members[index - 1].code)!,
+          )
+      })
+    // Every aligned marriage is still level.
+    for (const m of layout.marriages)
+      if (m.aligned) expect(layout.rowOf.get(m.left)).toBe(layout.rowOf.get(m.right))
+  })
+
+  it('orders nine and more houses without trying every permutation', () => {
+    const ids = Array.from({ length: 10 }, (_, i) => `H${i}`)
+    const spec: Record<string, string[]> = {}
+    for (const id of ids) spec[id] = [`${id}a`, `${id}b`]
+    // Houses given in a scrambled order, married in a ring.
+    const scrambled = ['H0', 'H5', 'H1', 'H6', 'H2', 'H7', 'H3', 'H8', 'H4', 'H9']
+    const houses = world(Object.fromEntries(scrambled.map((id) => [id, spec[id]])))
+    const pairs = ids.map((id, i): [string, string] => [
+      `${id}b`,
+      `${ids[(i + 1) % 10]}a`,
+    ])
+    const links = buildLinks(
+      houses,
+      pairs.map(([a, b]) => marriage(a, b)),
+    )
+    const skipped = (order: string[]) => {
+      const at = new Map(order.map((id, i) => [id, i]))
+      return pairs.reduce((sum, [a, b]) => {
+        const d = Math.abs(at.get(a.slice(0, 2))! - at.get(b.slice(0, 2))!)
+        return sum + Math.max(0, d - 1)
+      }, 0)
+    }
+    const layout = layoutTree(houses, links, null)
+    expect([...columnIds(layout)].sort()).toEqual([...ids].sort())
+    expect(skipped(columnIds(layout))).toBeLessThan(skipped(scrambled))
+  })
+
+  it('is deterministic, whatever the order of the marriages', () => {
+    const houses = world({
+      P1: ['A1', 'A2', 'A3'],
+      P2: ['B1', 'B2', 'B3'],
+      P3: ['C1', 'C2'],
+      P4: ['D1', 'D2'],
+    })
+    const raw = [
+      marriage('A1', 'B2', 'head', 4),
+      marriage('A2', 'B1', 'secondary', 4),
+      marriage('B3', 'C1', 'secondary', 2),
+      marriage('A3', 'D2', 'secondary', 2),
+      marriage('C2', 'D1', 'ended'),
+    ]
+    const claims: ClaimRef[] = [{ heir: 'D2', target: 'A3', spouse: 'D2' }]
+    const dump = (marriages: Marriage[]) => {
+      const layout = layoutTree(houses, buildLinks(houses, marriages), 'P1', claims)
+      return JSON.stringify([
+        columnIds(layout),
+        [...layout.rowOf].sort(),
+        layout.marriages.map((m) => [m.link.key, m.aligned]).sort(),
+        layout.stems,
+      ])
+    }
+    expect(dump(raw)).toBe(dump(raw))
+    expect(dump([...raw].reverse())).toBe(dump(raw))
+  })
+})
+
+describe('placeTree', () => {
+  it('draws level spouses on one line, in rows as tall as their tallest medallion', () => {
+    const houses = world({ P1: ['A1', 'A2'], P2: ['B1', 'B2'] })
+    const links = buildLinks(houses, [marriage('A2', 'B2')])
+    const layout = layoutTree(houses, links, null)
+    const lines = new Map([['B1', 3]])
+    const placed = placeTree(layout, (code) => lines.get(code) ?? 0)
+    const a2 = placed.boxes.get('A2')!
+    const b2 = placed.boxes.get('B2')!
+    expect(a2.y).toBe(b2.y)
+    const [{ d }] = placed.marriages
+    expect(d).toBe(`M${a2.x + MEDALLION_W},${a2.y + 22} L${b2.x},${b2.y + 22}`)
+    // The tall B1 pushes the second row down in both houses.
+    const a1 = placed.boxes.get('A1')!
+    const b1 = placed.boxes.get('B1')!
+    expect(b1.h - a1.h).toBe(3 * MEDALLION_LINE_H + 4)
+    expect(a2.y).toBeGreaterThanOrEqual(a1.y + b1.h)
+  })
+
+  it('gives each couple of a gap its own lane, 8px apart, and widens the gap', () => {
+    const houses = world({ P1: ['A1', 'A2', 'A3'], P2: ['B1', 'B2', 'B3'] })
+    const links = buildLinks(houses, [marriage('A1', 'B1'), marriage('A2', 'B2')])
+    const claims: ClaimRef[] = [
+      { heir: 'B3', target: 'A1', spouse: 'B1' },
+      { heir: 'A3', target: 'B2', spouse: 'A2' },
+    ]
+    const layout = layoutTree(houses, links, null, claims)
+    expect(layout.lanes).toEqual([2])
+    const placed = placeTree(layout, () => 0)
+    const stemX = placed.claims.map((c) => Number(/^M([\d.]+),/.exec(c.d)![1]))
+    expect(Math.abs(stemX[0] - stemX[1])).toBe(TREE_LANE)
+    const gap = placed.columnX[1] - (placed.columnX[0] + MEDALLION_W)
+    expect(gap).toBeGreaterThanOrEqual(24 + 2 * TREE_LANE)
+    for (const x of stemX) {
+      expect(x).toBeGreaterThan(placed.columnX[0] + MEDALLION_W)
+      expect(x).toBeLessThan(placed.columnX[1])
     }
   })
 
-  it('routes a claim as a filiation into the marriage line without crossing a card', () => {
-    const houses = buildHouses(players, nobles, [], [])
-    const links = buildLinks(houses, [
-      {
-        nobleA: 'ANN',
-        nobleB: 'MAR',
-        turn: 1,
-        active: true,
-        category: 'secondary',
-        weight: 1,
-      },
-    ])
-    const claim = { heir: 'LUC', target: 'ANN', spouse: 'MAR' }
-    const { columns } = layoutColumns(houses, links, 'P2', [claim])
-    const box = new Map<string, { x: number; y: number }>()
-    columns.forEach((column, index) =>
-      column.house.members.forEach((member, i) =>
-        box.set(member.code, {
-          x: index * (CARD_W + GAP_X),
-          y: (column.offset + i) * PITCH,
-        }),
-      ),
-    )
-    const [start, corner, end] = claimRoute(
-      box.get('LUC')!,
-      box.get('ANN')!,
-      box.get('MAR')!,
-    )
-    expect(corner[1]).toBe(start[1])
-    expect(end[0]).toBe(corner[0])
-    const marriageY = (box.get('ANN')!.y + box.get('MAR')!.y) / 2 + CARD_H / 2
-    expect(end[1]).toBe(marriageY)
-    for (const [code, at] of box) {
-      if (code === 'LUC') continue
-      const hit =
-        (Math.min(start[0], corner[0]) < at.x + CARD_W &&
-          Math.max(start[0], corner[0]) > at.x &&
-          start[1] > at.y &&
-          start[1] < at.y + CARD_H) ||
-        (corner[0] > at.x &&
-          corner[0] < at.x + CARD_W &&
-          Math.min(corner[1], end[1]) < at.y + CARD_H &&
-          Math.max(corner[1], end[1]) > at.y)
-      expect(hit).toBe(false)
-    }
+  it('counts every wrapped line of a long title', () => {
+    expect(countLines(['Duchy · ROC'])).toBe(1)
+    expect(countLines(['Bishop of Saint-Rémy-de-Provence-en-Alpilles'])).toBe(2)
+    expect(countLines(['a', 'b'])).toBe(2)
   })
 })

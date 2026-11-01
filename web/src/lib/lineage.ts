@@ -10,6 +10,7 @@ import type {
   Marriage,
   MarriageCategory,
   Noble,
+  NobleStatus,
   Player,
   PlayerId,
 } from '@/types'
@@ -42,6 +43,8 @@ export interface HouseMember {
   code: string
   name: string
   sex?: 'male' | 'female'
+  /** Captivity of a living noble; the deceased have none. */
+  status?: NobleStatus
   dead: boolean
   cause?: DeceasedNoble['cause']
   /** Commissioner of this noble's assassination, when the viewer knows it. */
@@ -115,7 +118,9 @@ const FIEF_RANK: Record<FiefTitle, number> = {
 }
 
 /** Royal and religious titles by noble code, highest first (king, queen, pope, cardinal, bishop). */
-export function religiousTitlesByHolder(religion: Religion): Map<string, HeldReligiousTitle[]> {
+export function religiousTitlesByHolder(
+  religion: Religion,
+): Map<string, HeldReligiousTitle[]> {
   const byHolder = new Map<string, HeldReligiousTitle[]>()
   const add = (code: string | undefined, held: HeldReligiousTitle) => {
     if (!code) return
@@ -144,7 +149,9 @@ export function buildHouses(
   religion: Religion = {},
 ): House[] {
   const religiousByHolder = religiousTitlesByHolder(religion)
-  const excommunicatedCodes = new Set((religion.excommunicated ?? []).map((entry) => entry.noble))
+  const excommunicatedCodes = new Set(
+    (religion.excommunicated ?? []).map((entry) => entry.noble),
+  )
   const fiefsByHolder = new Map<string, HeldFief[]>()
   for (const fief of fiefs) {
     if (!fief.holder) continue
@@ -182,6 +189,7 @@ export function buildHouses(
         code: noble.code,
         name: noble.name,
         sex: noble.sex,
+        status: noble.status,
         dead: false,
         commissioned: namedCodes(noble.commissioned),
         dignities: noble.dignities ?? [],
@@ -211,7 +219,10 @@ export function buildHouses(
         dead: true,
         cause: noble.cause,
         commissioner: noble.commissioner
-          ? { code: noble.commissioner, name: nameByCode.get(noble.commissioner) ?? noble.commissioner }
+          ? {
+              code: noble.commissioner,
+              name: nameByCode.get(noble.commissioner) ?? noble.commissioner,
+            }
           : undefined,
         commissioned: namedCodes(noble.commissioned),
         dignities: [],
@@ -291,126 +302,316 @@ export function buildAlliancePairs(links: LineageLink[]): AlliancePair[] {
   return [...pairs.values()]
 }
 
-export const CARD_W = 208
-export const CARD_H = 100
-export const GAP_X = 80
-export const PITCH = 112
-
-/** Top-left corner of a card, in pixels. */
-export interface Box {
-  x: number
-  y: number
-}
-
-/** The straight line of a marriage, from the right edge of the left card to the left edge of the right one. */
-export function marriageSegment(a: Box, b: Box) {
-  const [left, right] = a.x <= b.x ? [a, b] : [b, a]
-  return {
-    x1: left.x + CARD_W,
-    y1: left.y + CARD_H / 2,
-    x2: right.x,
-    y2: right.y + CARD_H / 2,
-  }
-}
-
-/**
- * Route of a claim, drawn as a filiation: from the heir's card, horizontally
- * to the middle of the marriage line between the target and the spouse, then
- * vertically into that line. Only horizontal and vertical strokes.
- */
-export function claimRoute(heir: Box, target: Box, spouse: Box): Array<[number, number]> {
-  const { x1, y1, x2, y2 } = marriageSegment(target, spouse)
-  const midX = (x1 + x2) / 2
-  const midY = (y1 + y2) / 2
-  const startY = heir.y + CARD_H / 2
-  const startX = midX <= heir.x ? heir.x : heir.x + CARD_W
-  return [
-    [startX, startY],
-    [midX, startY],
-    [midX, midY],
-  ]
-}
-
+/** A claim as the tree draws it: a stem from the couple (target and spouse) down to the heir. */
 export interface ClaimRef {
   heir: string
   target: string
   spouse: string
+  ended?: boolean
 }
 
-export interface ColumnLayout {
-  house: House
-  /** Row of the house's first member, so linked spouses share a row. */
-  offset: number
+/** A marriage between two nobles of the tree, left column first. */
+export interface TreeMarriage {
+  link: LineageLink
+  /** Both spouses stand on the same row; otherwise the line bends in a gap. */
+  aligned: boolean
+  left: string
+  right: string
 }
+
+/** The stem of a claim: it leaves its couple in a gap and runs down to the heir. */
+export interface ClaimStem {
+  /** Index of the claim in the list given to `layoutTree`. */
+  claim: number
+  /** Stems of the same couple share a lane. */
+  couple: string
+  /** Gap `g` lies between columns `g` and `g + 1`. */
+  gap: number
+  lane: number
+  heir: string
+  target: string
+  /** Noble whose row the stem leaves from (the marriage line or the target). */
+  anchor: string
+  /** No marriage line is drawn for the couple: the stem leaves the target itself. */
+  fromTarget: boolean
+}
+
+export interface TreeLayout {
+  /** The houses, one column each, in drawing order. */
+  columns: House[]
+  /** Integer row of every noble; strictly increasing down a house. */
+  rowOf: Map<string, number>
+  rows: number
+  marriages: TreeMarriage[]
+  stems: ClaimStem[]
+  /** Lanes taken in each gap, claims and bent marriages together. */
+  lanes: number[]
+  /** Lane of the vertical stroke of each bent marriage, by link key, in its gap. */
+  bendLane: Map<string, number>
+}
+
+const KIND_ORDER: Record<EdgeKind, number> = { head: 3, secondary: 2, ended: 1 }
 
 /**
- * Orders the houses as columns and places each on rows:
+ * Lays the houses out as columns and the nobles on integer rows:
  *
- * 1. With a focus house, the houses linked to it by a marriage surround it by
- *    distance, and each house is shifted so that the spouse of its strongest
- *    marriage towards an already placed house stands on that spouse's row.
- *    Without a focus, houses keep their order and start on row 0.
- * 2. The column order is then permuted (for up to 7 houses) to minimise the
- *    links that skip a column, preferring the order of step 1 on ties.
- * 3. Finally, a straight link that would cross a card of a column in between
- *    pushes that column one row down, repeatedly, until it passes through a
- *    gap. The focus house never moves.
- *
- * Claims are drawn as filiations (see `claimRoute`): when one would run over
- * a card, the column of that card moves down by half a row, which lets the
- * stroke pass between two cards.
+ * 1. The columns: with a focus house, the houses linked to it by a marriage
+ *    surround it by distance; the order is then improved to minimise the links
+ *    that skip a column (all permutations up to 7 houses, a barycentre sweep
+ *    and adjacent swaps beyond), keeping the first order on ties.
+ * 2. Rows grow strictly down a house, in succession order. Marriages are taken
+ *    strongest first (active head, secondary, ended, then weight) and put both
+ *    spouses on one row when that keeps the rows consistent; a marriage that
+ *    would contradict stronger ones stays `aligned: false`. An heir is put
+ *    below its parents' row when that contradicts nothing.
+ * 3. A marriage line running over columns in between needs its row to be free
+ *    there: the nobles in the way are pushed down.
+ * 4. One stem per couple leaves in the gap beside its heir's column, each
+ *    couple on its own lane.
  */
-export function layoutColumns(
+export function layoutTree(
   houses: House[],
   links: LineageLink[],
   focus: PlayerId | null,
   claims: ClaimRef[] = [],
-): { columns: ColumnLayout[]; rows: number } {
+): TreeLayout {
+  const houseOf = new Map<string, House>()
+  for (const house of houses)
+    for (const member of house.members) houseOf.set(member.code, house)
+
+  const columns = orderColumns(houses, links, focus, claims, houseOf)
+  const columnOf = new Map<string, number>()
+  columns.forEach((house, index) => {
+    for (const member of house.members) columnOf.set(member.code, index)
+  })
+
+  // Nodes in drawing order; a node's index decides which one roots a merged group.
+  const nodes: string[] = []
+  for (const house of columns) for (const member of house.members) nodes.push(member.code)
+  const nodeIndex = new Map(nodes.map((code, index) => [code, index]))
+  const chain: Array<[string, string]> = []
+  for (const house of columns)
+    for (let i = 1; i < house.members.length; i++)
+      chain.push([house.members[i - 1].code, house.members[i].code])
+
+  /** Groups of nobles sharing a row, or null when the constraints contradict each other. */
+  const groupsOf = (merged: Array<[string, string]>, below: Array<[string, string]>) => {
+    const parent = new Map(nodes.map((code) => [code, code]))
+    const find = (code: string): string => {
+      let root = code
+      while (parent.get(root) !== root) root = parent.get(root)!
+      return root
+    }
+    for (const [a, b] of merged) {
+      const ra = find(a)
+      const rb = find(b)
+      if (ra === rb) continue
+      if (nodeIndex.get(ra)! < nodeIndex.get(rb)!) parent.set(rb, ra)
+      else parent.set(ra, rb)
+    }
+    const roots = nodes.filter((code) => find(code) === code)
+    const successors = new Map<string, Set<string>>(
+      roots.map((root) => [root, new Set()]),
+    )
+    const indegree = new Map<string, number>(roots.map((root) => [root, 0]))
+    for (const [a, b] of [...chain, ...below]) {
+      const from = find(a)
+      const to = find(b)
+      if (successors.get(from)!.has(to)) continue
+      successors.get(from)!.add(to)
+      indegree.set(to, indegree.get(to)! + 1)
+    }
+    const order: string[] = []
+    const ready = roots.filter((root) => indegree.get(root) === 0)
+    while (ready.length > 0) {
+      const root = ready.shift()!
+      order.push(root)
+      for (const next of successors.get(root)!) {
+        indegree.set(next, indegree.get(next)! - 1)
+        if (indegree.get(next) === 0) ready.push(next)
+      }
+    }
+    if (order.length < roots.length) return null
+    return { find, order, successors }
+  }
+
+  // Marriages, strongest first.
+  const merged: Array<[string, string]> = []
+  const aligned = new Set<string>()
+  const candidates = links
+    .filter((link) => columnOf.has(link.a) && columnOf.has(link.b))
+    .sort(
+      (x, y) =>
+        KIND_ORDER[y.kind] - KIND_ORDER[x.kind] ||
+        (y.weight ?? 0) - (x.weight ?? 0) ||
+        (x.key < y.key ? -1 : x.key > y.key ? 1 : 0),
+    )
+  for (const link of candidates) {
+    if (columnOf.get(link.a) === columnOf.get(link.b)) continue
+    if (groupsOf([...merged, [link.a, link.b]], [])) {
+      merged.push([link.a, link.b])
+      aligned.add(link.key)
+    }
+  }
+
+  // Heirs below the couple they claim through, when nothing forbids it.
+  const below: Array<[string, string]> = []
+  for (const claim of claims) {
+    for (const parent of [claim.spouse, claim.target]) {
+      if (!columnOf.has(parent) || !columnOf.has(claim.heir)) continue
+      if (groupsOf(merged, [...below, [parent, claim.heir]]))
+        below.push([parent, claim.heir])
+    }
+  }
+
+  const marriages: TreeMarriage[] = links
+    .filter((link) => columnOf.has(link.a) && columnOf.has(link.b))
+    .map((link) => {
+      const [left, right] =
+        columnOf.get(link.a)! <= columnOf.get(link.b)!
+          ? [link.a, link.b]
+          : [link.b, link.a]
+      return { link, aligned: aligned.has(link.key), left, right }
+    })
+
+  // Rows: longest path, then sources pulled down against their successors; the
+  // nobles in the way of a marriage line over intermediate columns are pushed down.
+  const groups = groupsOf(merged, below)!
+  const rowOfRoot = new Map<string, number>()
+  const predecessors = new Map<string, string[]>()
+  for (const [from, to] of groups.successors)
+    for (const next of to)
+      predecessors.set(next, [...(predecessors.get(next) ?? []), from])
+  for (const root of groups.order) {
+    rowOfRoot.set(
+      root,
+      Math.max(
+        0,
+        ...(predecessors.get(root) ?? []).map((from) => rowOfRoot.get(from)! + 1),
+      ),
+    )
+  }
+  for (const root of [...groups.order].reverse()) {
+    const next = [...groups.successors.get(root)!]
+    if (next.length === 0) continue
+    rowOfRoot.set(
+      root,
+      Math.max(
+        rowOfRoot.get(root)!,
+        Math.min(...next.map((to) => rowOfRoot.get(to)!)) - 1,
+      ),
+    )
+  }
+  // A marriage line running over intermediate columns needs a free row there:
+  // a blank row opens under it, every group but the marriage's own moving down
+  // by one (groups move whole, so alignments and orders hold).
+  for (let guard = 0; guard < 200; guard++) {
+    const blocked = marriages.find(({ left, right }) => {
+      const row = rowOfRoot.get(groups.find(left))!
+      for (let c = columnOf.get(left)! + 1; c < columnOf.get(right)!; c++)
+        for (const member of columns[c].members)
+          if (
+            rowOfRoot.get(groups.find(member.code)) === row &&
+            groups.find(member.code) !== groups.find(left)
+          )
+            return true
+      return false
+    })
+    if (!blocked) break
+    const own = groups.find(blocked.left)
+    const row = rowOfRoot.get(own)!
+    for (const [root, at] of rowOfRoot)
+      if (root !== own && at >= row) rowOfRoot.set(root, at + 1)
+  }
+  const rowOf = new Map<string, number>()
+  for (const code of nodes) rowOf.set(code, rowOfRoot.get(groups.find(code))!)
+  const rows = Math.max(-1, ...rowOf.values()) + 1
+
+  // Lanes: bent marriages first, then one per couple that stakes claims.
+  const lanes = new Array<number>(Math.max(0, columns.length - 1)).fill(0)
+  const bendLane = new Map<string, number>()
+  for (const marriage of marriages) {
+    const from = columnOf.get(marriage.left)!
+    const to = columnOf.get(marriage.right)!
+    if (marriage.aligned || from === to) continue
+    bendLane.set(marriage.link.key, lanes[to - 1]++)
+  }
+  const stems: ClaimStem[] = []
+  const laneOfCouple = new Map<string, number>()
+  claims.forEach((claim, index) => {
+    const heir = columnOf.get(claim.heir)
+    const target = columnOf.get(claim.target)
+    if (heir === undefined || target === undefined || heir === target) return
+    const couple = [claim.target, claim.spouse].sort().join('-')
+    const marriage = marriages.find(
+      ({ link }) =>
+        (link.a === claim.target && link.b === claim.spouse) ||
+        (link.b === claim.target && link.a === claim.spouse),
+    )
+    const gap = heir < target ? heir : heir - 1
+    let anchor = claim.target
+    if (marriage) {
+      const near = (code: string) => Math.abs(columnOf.get(code)! - heir)
+      anchor =
+        near(marriage.left) <= near(marriage.right) ? marriage.left : marriage.right
+    }
+    const id = `${gap}:${couple}`
+    if (!laneOfCouple.has(id)) laneOfCouple.set(id, lanes[gap]++)
+    stems.push({
+      claim: index,
+      couple,
+      gap,
+      lane: laneOfCouple.get(id)!,
+      heir: claim.heir,
+      target: claim.target,
+      anchor,
+      fromTarget: !marriage,
+    })
+  })
+
+  return { columns, rowOf, rows, marriages, stems, lanes, bendLane }
+}
+
+/**
+ * Orders the houses as columns: around the focus house by marriage distance,
+ * then improved to skip as few columns as possible.
+ */
+function orderColumns(
+  houses: House[],
+  links: LineageLink[],
+  focus: PlayerId | null,
+  claims: ClaimRef[],
+  houseOf: Map<string, House>,
+): House[] {
   const pairs: Array<{ a: string; b: string; weight: number }> = [
     ...links.map((link) => ({ a: link.a, b: link.b, weight: link.active ? 3 : 1 })),
     ...claims.map(({ heir, target }) => ({ a: heir, b: target, weight: 1 })),
   ]
-  const linkPairs = pairs.slice(0, links.length)
-  const houseOf = new Map<string, House>()
-  for (const house of houses)
-    for (const member of house.members) houseOf.set(member.code, house)
   const focusHouse = houses.find((house) => house.player.id === focus)
-  const offsets = new Map<PlayerId, number>(houses.map((house) => [house.player.id, 0]))
   let sequence = houses
-
   if (focusHouse) {
-    const rowOf = new Map<string, number>()
-    const place = (house: House) => {
-      const base = offsets.get(house.player.id) ?? 0
-      house.members.forEach((member, index) => rowOf.set(member.code, base + index))
-    }
-    place(focusHouse)
+    // Ties go to the first key, not to the first link received.
+    const byKey = [...links].sort((x, y) => (x.key < y.key ? -1 : x.key > y.key ? 1 : 0))
     const order: House[] = []
     const placed = new Set<PlayerId>([focusHouse.player.id])
-    const strength = (link: LineageLink) => (link.active ? 1000 : 0) + (link.weight ?? 0)
+    // Breadth first: the houses married to the placed ones, strongest link first.
     for (;;) {
-      let best:
-        { link: LineageLink; fromCode: string; house: House; toCode: string } | undefined
-      for (const link of links) {
+      let best: { weight: number; house: House } | undefined
+      for (const link of byKey) {
         const ha = houseOf.get(link.a)
         const hb = houseOf.get(link.b)
         if (!ha || !hb) continue
-        for (const [from, to, fromCode, toCode] of [
-          [ha, hb, link.a, link.b],
-          [hb, ha, link.b, link.a],
-        ] as const) {
+        const weight = (link.active ? 1000 : 0) + (link.weight ?? 0)
+        for (const [from, to] of [
+          [ha, hb],
+          [hb, ha],
+        ]) {
           if (!placed.has(from.player.id) || placed.has(to.player.id)) continue
-          if (!best || strength(link) > strength(best.link))
-            best = { link, fromCode, house: to, toCode }
+          if (!best || weight > best.weight) best = { weight, house: to }
         }
       }
       if (!best) break
-      const spouseIndex = best.house.members.findIndex(
-        (member) => member.code === best!.toCode,
-      )
-      offsets.set(best.house.player.id, (rowOf.get(best.fromCode) ?? 0) - spouseIndex)
       placed.add(best.house.player.id)
-      place(best.house)
       order.push(best.house)
     }
     const unlinked = houses.filter((house) => !placed.has(house.player.id))
@@ -419,114 +620,10 @@ export function layoutColumns(
     order.forEach((house, index) => (index % 2 === 0 ? right : left).push(house))
     sequence = [...left.reverse(), focusHouse, ...right, ...unlinked]
   }
-
-  sequence = leastSkippingOrder(sequence, pairs, houseOf)
-
-  const column = new Map<PlayerId, number>(
-    sequence.map((house, index) => [house.player.id, index]),
-  )
-  const rowOfCode = (code: string) => {
-    const house = houseOf.get(code)!
-    const index = house.members.findIndex((member) => member.code === code)
-    return (offsets.get(house.player.id) ?? 0) + index
-  }
-  const cardTop = (row: number) => row * PITCH
-  for (let guard = 0; guard < 60; guard++) {
-    let blocked: PlayerId | undefined
-    let step = 1
-    for (const { a, b } of linkPairs) {
-      const ha = houseOf.get(a)
-      const hb = houseOf.get(b)
-      if (!ha || !hb) continue
-      const ca = column.get(ha.player.id)!
-      const cb = column.get(hb.player.id)!
-      if (Math.abs(ca - cb) < 2) continue
-      const [left, right, leftCode, rightCode] = ca < cb ? [ca, cb, a, b] : [cb, ca, b, a]
-      const x1 = left * (CARD_W + GAP_X) + CARD_W
-      const y1 = cardTop(rowOfCode(leftCode)) + CARD_H / 2
-      const x2 = right * (CARD_W + GAP_X)
-      const y2 = cardTop(rowOfCode(rightCode)) + CARD_H / 2
-      const yAt = (x: number) => y1 + ((y2 - y1) * (x - x1)) / (x2 - x1)
-      for (let k = left + 1; k < right && !blocked; k++) {
-        const mid = sequence[k]
-        if (mid.player.id === focusHouse?.player.id) continue
-        const spanFrom = yAt(k * (CARD_W + GAP_X))
-        const spanTo = yAt(k * (CARD_W + GAP_X) + CARD_W)
-        const lo = Math.min(spanFrom, spanTo) - 4
-        const hi = Math.max(spanFrom, spanTo) + 4
-        const base = offsets.get(mid.player.id) ?? 0
-        const hit = mid.members.some((_, index) => {
-          const top = cardTop(base + index)
-          return hi > top && lo < top + CARD_H
-        })
-        if (hit) blocked = mid.player.id
-      }
-      if (blocked) break
-    }
-    if (!blocked) {
-      const boxOf = (code: string): Box | undefined => {
-        const house = houseOf.get(code)
-        if (!house) return undefined
-        return {
-          x: column.get(house.player.id)! * (CARD_W + GAP_X),
-          y: cardTop(rowOfCode(code)),
-        }
-      }
-      for (const claim of claims) {
-        const heir = boxOf(claim.heir)
-        const target = boxOf(claim.target)
-        const spouse = boxOf(claim.spouse)
-        const heirHouse = houseOf.get(claim.heir)
-        if (!heir || !target || !spouse || !heirHouse) continue
-        if (
-          !links.some(
-            (l) =>
-              (l.a === claim.target && l.b === claim.spouse) ||
-              (l.b === claim.target && l.a === claim.spouse),
-          )
-        )
-          continue
-        const [start, corner, end] = claimRoute(heir, target, spouse)
-        for (let k = 0; k < sequence.length && !blocked; k++) {
-          const mid = sequence[k]
-          if (mid === heirHouse) continue
-          const midIsFocus = mid.player.id === focusHouse?.player.id
-          // The focus house never moves: its heir's house moves instead.
-          if (midIsFocus && heirHouse.player.id === focusHouse?.player.id) continue
-          const left = k * (CARD_W + GAP_X)
-          const base = offsets.get(mid.player.id) ?? 0
-          const hit = mid.members.some((_, index) => {
-            const top = cardTop(base + index)
-            const inY = (y: number) => y > top - 4 && y < top + CARD_H + 4
-            const inX = (x: number) => x > left - 4 && x < left + CARD_W + 4
-            const hRun =
-              Math.min(start[0], corner[0]) < left + CARD_W &&
-              Math.max(start[0], corner[0]) > left
-            const vRun =
-              Math.min(corner[1], end[1]) < top + CARD_H &&
-              Math.max(corner[1], end[1]) > top
-            return (hRun && inY(start[1])) || (vRun && inX(corner[0]))
-          })
-          if (hit) {
-            blocked = midIsFocus ? heirHouse.player.id : mid.player.id
-            step = 0.5
-          }
-        }
-        if (blocked) break
-      }
-    }
-    if (!blocked) break
-    offsets.set(blocked, (offsets.get(blocked) ?? 0) + step)
-  }
-
-  const min = Math.min(...sequence.map((house) => offsets.get(house.player.id) ?? 0))
-  const columns = sequence.map((house) => ({
-    house,
-    offset: (offsets.get(house.player.id) ?? 0) - min,
-  }))
-  const rows = Math.max(1, ...columns.map((c) => c.offset + c.house.members.length))
-  return { columns, rows }
+  return leastSkippingOrder(sequence, pairs, houseOf)
 }
+
+const MAX_PERMUTED_HOUSES = 7
 
 /** The column order with the fewest skipped columns, keeping `start` when equally good. */
 function leastSkippingOrder(
@@ -534,7 +631,7 @@ function leastSkippingOrder(
   pairs: Array<{ a: string; b: string; weight: number }>,
   houseOf: Map<string, House>,
 ): House[] {
-  if (start.length < 3 || start.length > 7) return start
+  if (start.length < 3) return start
   const cost = (order: House[]) => {
     const column = new Map(order.map((house, index) => [house.player.id, index]))
     let total = 0
@@ -548,26 +645,228 @@ function leastSkippingOrder(
     }
     return total
   }
-  const displacement = (order: House[]) =>
-    order.reduce((sum, house, index) => sum + Math.abs(index - start.indexOf(house)), 0)
   let best = start
   let bestCost = cost(start)
-  let bestMove = 0
-  const permute = (rest: House[], chosen: House[]) => {
-    if (rest.length === 0) {
-      const c = cost(chosen)
-      const move = displacement(chosen)
-      if (c < bestCost || (c === bestCost && move < bestMove)) {
-        best = chosen
-        bestCost = c
-        bestMove = move
+  if (start.length <= MAX_PERMUTED_HOUSES) {
+    const displacement = (order: House[]) =>
+      order.reduce((sum, house, index) => sum + Math.abs(index - start.indexOf(house)), 0)
+    let bestMove = 0
+    const permute = (rest: House[], chosen: House[]) => {
+      if (rest.length === 0) {
+        const c = cost(chosen)
+        const move = displacement(chosen)
+        if (c < bestCost || (c === bestCost && move < bestMove)) {
+          best = chosen
+          bestCost = c
+          bestMove = move
+        }
+        return
       }
-      return
+      rest.forEach((house, index) =>
+        permute([...rest.slice(0, index), ...rest.slice(index + 1)], [...chosen, house]),
+      )
     }
-    rest.forEach((house, index) =>
-      permute([...rest.slice(0, index), ...rest.slice(index + 1)], [...chosen, house]),
-    )
+    permute(start, [])
+    return best
   }
-  permute(start, [])
+
+  // Too many houses to try every order: sweep by barycentre of the linked
+  // houses, then swap neighbours while that helps.
+  const weights = new Map<PlayerId, Map<PlayerId, number>>()
+  for (const { a, b, weight } of pairs) {
+    const ha = houseOf.get(a)?.player.id
+    const hb = houseOf.get(b)?.player.id
+    if (!ha || !hb || ha === hb) continue
+    for (const [x, y] of [
+      [ha, hb],
+      [hb, ha],
+    ]) {
+      const row = weights.get(x) ?? new Map<PlayerId, number>()
+      row.set(y, (row.get(y) ?? 0) + weight)
+      weights.set(x, row)
+    }
+  }
+  for (let sweep = 0; sweep < 12; sweep++) {
+    const position = new Map(best.map((house, index) => [house.player.id, index]))
+    const barycentre = (house: House) => {
+      const row = weights.get(house.player.id)
+      if (!row || row.size === 0) return position.get(house.player.id)!
+      let sum = 0
+      let total = 0
+      for (const [other, weight] of row) {
+        sum += weight * position.get(other)!
+        total += weight
+      }
+      return sum / total
+    }
+    const candidate = [...best].sort(
+      (x, y) =>
+        barycentre(x) - barycentre(y) ||
+        position.get(x.player.id)! - position.get(y.player.id)!,
+    )
+    const c = cost(candidate)
+    if (c >= bestCost) break
+    best = candidate
+    bestCost = c
+  }
+  for (let pass = 0; pass < 50; pass++) {
+    let improved = false
+    for (let i = 0; i + 1 < best.length; i++) {
+      const swapped = [...best]
+      ;[swapped[i], swapped[i + 1]] = [swapped[i + 1], swapped[i]]
+      const c = cost(swapped)
+      if (c < bestCost) {
+        best = swapped
+        bestCost = c
+        improved = true
+      }
+    }
+    if (!improved) break
+  }
   return best
+}
+
+/** Width of a medallion, in pixels. */
+export const MEDALLION_W = 176
+/** Height of a medallion with no text line under its name. */
+export const MEDALLION_BASE_H = 48
+/** Height of one text line under the name. */
+export const MEDALLION_LINE_H = 16
+/** Characters of a text line that fit in a medallion before it wraps. */
+export const MEDALLION_LINE_CHARS = 24
+/** Room above the first row for the arms and name of each house. */
+export const TREE_HEADER_H = 52
+/** Vertical position of the lines (marriages, stems) in a medallion. */
+export const MEDALLION_ANCHOR_Y = 22
+export const TREE_ROW_GAP = 14
+export const TREE_LANE = 8
+const TREE_GAP_MIN = 56
+
+/** Lines taken by texts of the given lengths once wrapped to `perLine` characters. */
+export function countLines(texts: string[], perLine = MEDALLION_LINE_CHARS): number {
+  return texts.reduce(
+    (sum, text) => sum + Math.max(1, Math.ceil(text.length / perLine)),
+    0,
+  )
+}
+
+export interface TreeBox {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+export interface PlacedMarriage {
+  link: LineageLink
+  aligned: boolean
+  /** Centre line of the marriage, as an SVG path. */
+  d: string
+}
+
+export interface PlacedClaim {
+  /** Index of the claim in the list given to `layoutTree`. */
+  claim: number
+  d: string
+}
+
+export interface TreePlacement {
+  width: number
+  height: number
+  /** Left edge of each column, in layout order. */
+  columnX: number[]
+  boxes: Map<string, TreeBox>
+  marriages: PlacedMarriage[]
+  claims: PlacedClaim[]
+}
+
+/**
+ * Turns a layout into pixels. A row is as tall as its tallest medallion, so
+ * spouses on one row share the height of their marriage line; the height of a
+ * medallion comes from the number of text lines under its name
+ * (`medallionLines`), never from the DOM.
+ */
+export function placeTree(
+  layout: TreeLayout,
+  medallionLines: (code: string) => number,
+): TreePlacement {
+  const { columns, rowOf, rows, lanes } = layout
+  const heightOf = (code: string) =>
+    MEDALLION_BASE_H +
+    medallionLines(code) * MEDALLION_LINE_H +
+    (medallionLines(code) > 0 ? 4 : 0)
+
+  const rowHeight = new Array<number>(rows).fill(0)
+  for (const house of columns)
+    for (const member of house.members) {
+      const row = rowOf.get(member.code)!
+      rowHeight[row] = Math.max(rowHeight[row], heightOf(member.code))
+    }
+  const rowTop: number[] = []
+  let top = TREE_HEADER_H
+  for (let row = 0; row < rows; row++) {
+    rowTop.push(top)
+    top += rowHeight[row] + (rowHeight[row] > 0 ? TREE_ROW_GAP : 0)
+  }
+
+  const gapWidth = lanes.map((count) => Math.max(TREE_GAP_MIN, 24 + TREE_LANE * count))
+  const columnX: number[] = []
+  let x = 0
+  columns.forEach((_, index) => {
+    columnX.push(x)
+    x += MEDALLION_W + (gapWidth[index] ?? 0)
+  })
+
+  const columnOf = new Map<string, number>()
+  const boxes = new Map<string, TreeBox>()
+  columns.forEach((house, index) => {
+    for (const member of house.members) {
+      columnOf.set(member.code, index)
+      boxes.set(member.code, {
+        x: columnX[index],
+        y: rowTop[rowOf.get(member.code)!],
+        w: MEDALLION_W,
+        h: heightOf(member.code),
+      })
+    }
+  })
+  const lineY = (code: string) => boxes.get(code)!.y + MEDALLION_ANCHOR_Y
+  const laneX = (gap: number, lane: number) =>
+    columnX[gap] +
+    MEDALLION_W +
+    (gapWidth[gap] - TREE_LANE * (lanes[gap] - 1)) / 2 +
+    TREE_LANE * lane
+
+  const marriages: PlacedMarriage[] = []
+  for (const { link, aligned, left, right } of layout.marriages) {
+    const from = columnOf.get(left)!
+    const to = columnOf.get(right)!
+    if (from === to) continue
+    const x1 = columnX[from] + MEDALLION_W
+    const x2 = columnX[to]
+    const y1 = lineY(left)
+    const y2 = lineY(right)
+    const bend = laneX(to - 1, layout.bendLane.get(link.key) ?? 0)
+    marriages.push({
+      link,
+      aligned,
+      d: aligned ? `M${x1},${y1} L${x2},${y2}` : `M${x1},${y1} H${bend} V${y2} H${x2}`,
+    })
+  }
+
+  const claims: PlacedClaim[] = layout.stems.map((stem) => {
+    const heir = boxes.get(stem.heir)!
+    const heirColumn = columnOf.get(stem.heir)!
+    // The stem reaches the heir from the side of the gap it runs in.
+    const heirX = stem.gap === heirColumn ? heir.x + heir.w : heir.x
+    const stemX = laneX(stem.gap, stem.lane)
+    const heirY = lineY(stem.heir)
+    let start = `M${stemX},${lineY(stem.anchor)}`
+    if (stem.fromTarget) {
+      const target = boxes.get(stem.target)!
+      start = `M${columnOf.get(stem.target)! < heirColumn ? target.x + target.w : target.x},${lineY(stem.target)} H${stemX}`
+    }
+    return { claim: stem.claim, d: `${start} V${heirY} H${heirX}` }
+  })
+  return { width: x, height: top, columnX, boxes, marriages, claims }
 }

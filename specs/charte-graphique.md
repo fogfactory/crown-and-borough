@@ -891,6 +891,26 @@ généalogique** dessiné à l'encre sur parchemin.
 succession, les mariages et les prétentions. Il défile dans les deux sens et
 se cadre sur la maison choisie dans « Focus ».
 
+**Disposition.** Une colonne par maison ; chaque noble occupe une ligne
+entière, et les lignes croissent strictement vers le bas d'une maison selon
+l'ordre de succession. Autour de la maison choisie dans « Focus », les
+maisons unies à elle par un mariage sont rangées par distance ; l'ordre des
+colonnes cherche ensuite à épargner aux mariages le franchissement de
+colonnes intermédiaires. Les mariages se placent du plus fort au plus faible
+(tête actif, secondaire, terminé, puis poids) : les deux époux d'un mariage
+partagent la même ligne tant que cela ne contredit pas un mariage plus fort ;
+sinon la ligne d'union se coude dans l'espace entre les deux colonnes. Un
+héritier se range sous la ligne de ses parents quand l'ordre de succession le
+permet. Un mariage qui traverse des colonnes intermédiaires y laisse sa ligne
+libre : les nobles qui s'y trouveraient descendent. Chaque couple dont un
+noble porte une prétention a une seule tige pointillée, dans l'espace voisin
+de la colonne de l'héritier, sur une voie de 8 px qui lui est propre ; la
+tige d'une prétention éteinte est plus pâle. La hauteur d'un médaillon se
+calcule à partir de ses lignes de texte, jamais du rendu. L'arbre n'offre ni
+déplacement manuel des médaillons, ni étiquette de mariage ou de prétention :
+les lignes et les tiges disent tout. Le graphe d'alliances est un encart replié
+par défaut.
+
 ### Rapport de tour
 
 - Chaque événement devient une carte (pictogramme à l'encre, titre, détail),
@@ -998,11 +1018,6 @@ les cartes d'ordres.
 
 ## Questions ouvertes
 
-- **Arbre de la lignée :** la disposition automatique d'un arbre avec des
-  mariages entre maisons et des prétentions croisées reste à prototyper sur
-  le scénario de démonstration `crown` (`scripts/demo.sh crown`) avant la
-  phase 7 ; la disposition manuelle actuelle (« Réinitialiser la
-  disposition ») pourra être conservée si l'automatique ne suffit pas.
 - **Rivières** ([cartographie.md](cartographie.md)) : le symbole de fleuve est
   prévu ; le dessin des ponts reste à définir.
 - **Niveau de détail des étiquettes :** le seuil de 10 px convient à la carte

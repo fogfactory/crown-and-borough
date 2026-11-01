@@ -1,33 +1,34 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type PointerEvent as ReactPointerEvent,
-  type ReactNode,
-} from 'react'
-import { IconFlask, IconHierarchy2, IconX } from '@tabler/icons-react'
+  IconChevronDown,
+  IconChevronUp,
+  IconFlask,
+  IconHierarchy2,
+  IconX,
+} from '@tabler/icons-react'
 import { Dialog } from 'radix-ui'
 
+import { BannerIcon } from '@/components/ArmsIcons'
+import { NoblePawnIcon } from '@/components/NobleHolder'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
+import { playerArms } from '@/lib/heraldry'
 import {
   buildAlliancePairs,
   buildHouses,
   buildLinks,
-  CARD_H,
-  CARD_W,
-  claimRoute,
-  GAP_X,
-  layoutColumns,
-  marriageSegment,
-  PITCH,
+  countLines,
+  layoutTree,
+  MEDALLION_ANCHOR_Y,
+  placeTree,
   type AlliancePair,
+  type ClaimRef,
   type EdgeKind,
   type House,
   type HouseMember,
   type LineageLink,
 } from '@/lib/lineage'
+import { nobleAttributesByCode, type NobleAttributes } from '@/lib/noble-attributes'
 import { useSimulationHistory } from '@/lib/simulation-history'
 import {
   useVictorySimulation,
@@ -51,33 +52,26 @@ import type {
 } from '@/types'
 import {
   LINEAGE_CLAIM,
-  LINEAGE_GOLD,
-  LINEAGE_PATTERN_STROKE,
-  LINEAGE_SECONDARY_LINK,
-  LINEAGE_SILVER,
+  LINEAGE_ENDED,
+  LINEAGE_HEAD,
+  LINEAGE_PAPER,
+  LINEAGE_SECONDARY,
   MAP_INK,
   MAP_PAPER,
-  PLAYER_RED,
+  NEUTRAL_ARMY_COLOR,
+  SELECTION_HALO,
 } from '@/lib/map-palette'
 
-const GOLD = LINEAGE_GOLD
-const SILVER = LINEAGE_SILVER
-const CLAIM = LINEAGE_CLAIM
-
-/** Stroke of a marriage by kind: gold bold head, thin silver secondary, hatched ended. */
-const EDGE_STYLE: Record<EdgeKind, { stroke: string; width: number; dash?: string }> = {
-  head: { stroke: GOLD, width: 5 },
-  secondary: { stroke: SILVER, width: 1.5 },
-  ended: { stroke: 'url(#lineage-hatch)', width: 7 },
+/**
+ * Stroke of a marriage by kind. Head and secondary marriages are double lines
+ * (a wide stroke with a thin paper line over it); an ended one is hatched.
+ */
+const EDGE_STYLE: Record<EdgeKind, { stroke: string; double: boolean }> = {
+  head: { stroke: LINEAGE_HEAD, double: true },
+  secondary: { stroke: LINEAGE_SECONDARY, double: true },
+  ended: { stroke: 'url(#lineage-hatch)', double: false },
 }
-
-const HEADER_H = 44
-
-/** A card dragged away from its automatic place, in pixels. */
-interface Offset {
-  dx: number
-  dy: number
-}
+const LINE_WIDTH = 5
 
 interface LineageDialogProps {
   /** Controlled opening, for a trigger outside the header (Realm bookmark). */
@@ -107,9 +101,7 @@ interface LineageDialogProps {
 }
 
 /** What a click selected while simulating. */
-type Selection =
-  | { type: 'noble'; code: string }
-  | { type: 'link'; a: string; b: string }
+type Selection = { type: 'noble'; code: string } | { type: 'link'; a: string; b: string }
 
 /** A started two-step action waiting for the second click. */
 interface Pending {
@@ -125,8 +117,6 @@ interface TreeEdit {
   onLink: (a: string, b: string) => void
 }
 
-type View = 'tree' | 'graph'
-
 function HatchDefs() {
   return (
     <defs>
@@ -137,20 +127,9 @@ function HatchDefs() {
         height="6"
         patternTransform="rotate(45)"
       >
-        <rect width="6" height="6" fill={MAP_PAPER} />
-        <line x1="0" y1="0" x2="0" y2="6" stroke={LINEAGE_PATTERN_STROKE} strokeWidth="3" />
+        <rect width="6" height="6" fill={LINEAGE_PAPER} />
+        <line x1="0" y1="0" x2="0" y2="6" stroke={LINEAGE_ENDED} strokeWidth="3" />
       </pattern>
-      <marker
-        id="lineage-arrow"
-        viewBox="0 0 10 10"
-        refX="9"
-        refY="5"
-        markerWidth="7"
-        markerHeight="7"
-        orient="auto"
-      >
-        <path d="M0,0 L10,5 L0,10 z" fill={CLAIM} />
-      </marker>
     </defs>
   )
 }
@@ -158,21 +137,17 @@ function HatchDefs() {
 /**
  * Header button opening a full-screen dialog on the houses' lineage: a tree
  * (one column per house, joined by their marriages and claims) to understand
- * the whole board, and an alliance graph to plan the victory. The focus house
- * and the filters apply to both views.
+ * the whole board, with the alliance graph as an inset to plan the victory.
  */
 export function LineageDialog(props: LineageDialogProps) {
   const { t } = useLanguage()
-  const [view, setView] = useState<View>('tree')
   const [focus, setFocus] = useState<PlayerId | null>(props.defaultFocus ?? null)
   const [hidden, setHidden] = useState<Set<PlayerId>>(new Set())
   const [showEnded, setShowEnded] = useState(true)
   const [showClaims, setShowClaims] = useState(true)
-  const [moves, setMoves] = useState<Record<string, Offset>>({})
   const [ownOpen, setOwnOpen] = useState(false)
   const open = props.open ?? ownOpen
   const handleOpenChange = (next: boolean) => {
-    if (!next) setMoves({})
     setOwnOpen(next)
     props.onOpenChange?.(next)
   }
@@ -246,16 +221,38 @@ export function LineageDialog(props: LineageDialogProps) {
     code
 
   const allHouses = useMemo(
-    () => buildHouses(props.players, nobles, deceased ?? [], fiefs ?? [], (claimList ?? []).filter((claim) => showEnded || !claim.ended), {
-        bishoprics: data.bishoprics,
-        cardinals: data.cardinals,
-        pope: data.pope,
-        king: data.king,
-        queen: data.queen,
-        queenDowager: data.queenDowager,
-        excommunicated: data.excommunicated,
-      }),
-    [props.players, nobles, deceased, fiefs, claimList, data.bishoprics, data.cardinals, data.pope, data.king, data.queen, data.queenDowager, data.excommunicated, showEnded],
+    () =>
+      buildHouses(
+        props.players,
+        nobles,
+        deceased ?? [],
+        fiefs ?? [],
+        (claimList ?? []).filter((claim) => showEnded || !claim.ended),
+        {
+          bishoprics: data.bishoprics,
+          cardinals: data.cardinals,
+          pope: data.pope,
+          king: data.king,
+          queen: data.queen,
+          queenDowager: data.queenDowager,
+          excommunicated: data.excommunicated,
+        },
+      ),
+    [
+      props.players,
+      nobles,
+      deceased,
+      fiefs,
+      claimList,
+      data.bishoprics,
+      data.cardinals,
+      data.pope,
+      data.king,
+      data.queen,
+      data.queenDowager,
+      data.excommunicated,
+      showEnded,
+    ],
   )
   const houses = useMemo(
     () => allHouses.filter((house) => !hidden.has(house.player.id)),
@@ -276,9 +273,36 @@ export function LineageDialog(props: LineageDialogProps) {
     )
     return (claimList ?? []).filter(
       (claim) =>
-        visible.has(claim.heir) && visible.has(claim.target) && (showEnded || !claim.ended),
+        visible.has(claim.heir) &&
+        visible.has(claim.target) &&
+        (showEnded || !claim.ended),
     )
   }, [houses, claimList, showClaims, showEnded])
+  const attributes = useMemo(
+    () =>
+      nobleAttributesByCode({
+        nobles,
+        fiefs,
+        bishoprics: data.bishoprics,
+        cardinals: data.cardinals,
+        pope: data.pope,
+        king: data.king,
+        queen: data.queen,
+        queenDowager: data.queenDowager,
+        excommunicated: data.excommunicated,
+      }),
+    [
+      nobles,
+      fiefs,
+      data.bishoprics,
+      data.cardinals,
+      data.pope,
+      data.king,
+      data.queen,
+      data.queenDowager,
+      data.excommunicated,
+    ],
+  )
   const focusId =
     focus && houses.some((house) => house.player.id === focus) ? focus : null
   const playerName = (house: House) => house.player.name || house.player.id
@@ -313,28 +337,6 @@ export function LineageDialog(props: LineageDialogProps) {
             <Dialog.Title className="font-display text-lg font-semibold text-ink-900">
               {t('lineage.title')}
             </Dialog.Title>
-            <div
-              role="tablist"
-              className="flex rounded-lg border border-line p-0.5 text-sm"
-            >
-              {(['tree', 'graph'] as const).map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  role="tab"
-                  aria-selected={view === key}
-                  onClick={() => setView(key)}
-                  className={cn(
-                    'rounded-md px-3 py-1 font-semibold',
-                    view === key
-                      ? 'bg-brass-400 text-ink-900'
-                      : 'text-ink-700 hover:bg-paper-100',
-                  )}
-                >
-                  {t(key === 'tree' ? 'lineage.tree' : 'lineage.graph')}
-                </button>
-              ))}
-            </div>
             <Dialog.Close asChild>
               <button
                 type="button"
@@ -390,39 +392,26 @@ export function LineageDialog(props: LineageDialogProps) {
                   )
                 })}
               </div>
-              {view === 'tree' && (
-                <>
-                  <label className="flex items-center gap-1.5">
-                    <input
-                      type="checkbox"
-                      checked={showEnded}
-                      onChange={(e) => setShowEnded(e.target.checked)}
-                    />
-                    {t('lineage.showEnded')}
-                  </label>
-                  <label className="flex items-center gap-1.5">
-                    <input
-                      type="checkbox"
-                      checked={showClaims}
-                      onChange={(e) => setShowClaims(e.target.checked)}
-                    />
-                    {t('lineage.showClaims')}
-                  </label>
-                  <button
-                    type="button"
-                    disabled={Object.keys(moves).length === 0}
-                    onClick={() => setMoves({})}
-                    className="rounded-md border border-line px-2 py-0.5 font-semibold enabled:hover:bg-paper-100 disabled:opacity-40"
-                  >
-                    {t('lineage.resetLayout')}
-                  </button>
-                </>
-              )}
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={showEnded}
+                  onChange={(e) => setShowEnded(e.target.checked)}
+                />
+                {t('lineage.showEnded')}
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={showClaims}
+                  onChange={(e) => setShowClaims(e.target.checked)}
+                />
+                {t('lineage.showClaims')}
+              </label>
             </div>
             {props.simulationRequest && (
               <SimulationBar
                 simulating={simulating}
-                view={view}
                 nobles={nobles}
                 fiefs={fiefs ?? []}
                 king={data.king}
@@ -458,24 +447,29 @@ export function LineageDialog(props: LineageDialogProps) {
               />
             )}
           </header>
-          {view === 'tree' ? (
+          <div className="relative flex min-h-0 flex-1 flex-col">
             <LineageTree
               houses={houses}
               links={links}
               claims={claims}
               focus={focusId}
+              attributes={attributes}
               edit={
-                simulating
-                  ? { selected: selection, pending, onNoble, onLink }
-                  : undefined
-              }
-              moves={moves}
-              onMove={(code, offset) =>
-                setMoves((current) => ({ ...current, [code]: offset }))
+                simulating ? { selected: selection, pending, onNoble, onLink } : undefined
               }
             />
-          ) : (
-            <AllianceGraph
+            {simulating && (
+              <div
+                aria-hidden="true"
+                data-testid="lineage-watermark"
+                className="pointer-events-none absolute inset-0 z-20 flex select-none items-center justify-center overflow-hidden"
+              >
+                <span className="-rotate-12 font-display text-[min(16vw,8rem)] font-semibold uppercase tracking-widest text-ink-500/15">
+                  {t('lineage.watermark')}
+                </span>
+              </div>
+            )}
+            <AllianceInset
               houses={houses}
               links={links}
               focus={focusId}
@@ -483,14 +477,14 @@ export function LineageDialog(props: LineageDialogProps) {
               scores={scores}
               victory={victory}
             />
-          )}
+          </div>
           <VictoryStatusPanel
             players={props.players}
             scores={scores}
             victory={victory}
             simulation={projected}
           />
-          <Legend withClaims={view === 'tree'} />
+          <Legend />
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
@@ -499,7 +493,6 @@ export function LineageDialog(props: LineageDialogProps) {
 
 function SimulationBar({
   simulating,
-  view,
   nobles,
   fiefs,
   king,
@@ -522,7 +515,6 @@ function SimulationBar({
   onCancel,
 }: {
   simulating: boolean
-  view: View
   nobles: Noble[]
   fiefs: Fief[]
   king?: string
@@ -550,14 +542,21 @@ function SimulationBar({
   if (!simulating) {
     return (
       <div className="flex w-full">
-        <button type="button" onClick={onStart} className={cn(button, 'inline-flex items-center gap-1')}>
+        <button
+          type="button"
+          onClick={onStart}
+          className={cn(button, 'inline-flex items-center gap-1')}
+        >
           <IconFlask aria-hidden="true" className="size-4" />
           {t('sim.start')}
         </button>
       </div>
     )
   }
-  const noble = selection?.type === 'noble' ? nobles.find((n) => n.code === selection.code) : undefined
+  const noble =
+    selection?.type === 'noble'
+      ? nobles.find((n) => n.code === selection.code)
+      : undefined
   const alive = noble !== undefined
   const heldFiefs = noble ? fiefs.filter((fief) => fief.holder === noble.code) : []
   const log = (action: SimulationAction) =>
@@ -576,16 +575,19 @@ function SimulationBar({
         <button type="button" className={button} disabled={!canRedo} onClick={onRedo}>
           {t('sim.redo')}
         </button>
-        <button type="button" className={button} disabled={actions.length === 0} onClick={onReset}>
+        <button
+          type="button"
+          className={button}
+          disabled={actions.length === 0}
+          onClick={onReset}
+        >
           {t('sim.reset')}
         </button>
         <button type="button" className={cn(button, 'ml-auto')} onClick={onStop}>
           {t('sim.stop')}
         </button>
       </div>
-      {view === 'graph' ? (
-        <p>{t('sim.graphHint')}</p>
-      ) : pending ? (
+      {pending ? (
         <div className="flex flex-wrap items-center gap-2" role="status">
           <span className="font-semibold">
             {t(pending.kind === 'marry' ? 'sim.pickSpouse' : 'sim.pickTarget', {
@@ -646,7 +648,11 @@ function SimulationBar({
             </button>
           )}
           {noble && noble.code === king && (
-            <button type="button" className={button} onClick={() => onAction({ type: 'dethrone' })}>
+            <button
+              type="button"
+              className={button}
+              onClick={() => onAction({ type: 'dethrone' })}
+            >
               {t('sim.dethrone')}
             </button>
           )}
@@ -662,7 +668,9 @@ function SimulationBar({
           <button
             type="button"
             className={button}
-            onClick={() => onAction({ type: 'divorce', noble: selection.a, other: selection.b })}
+            onClick={() =>
+              onAction({ type: 'divorce', noble: selection.a, other: selection.b })
+            }
           >
             {t('sim.divorce')}
           </button>
@@ -687,7 +695,10 @@ function SimulationBar({
       {actions.length > 0 && (
         <ol className="flex flex-wrap gap-1.5" aria-label={t('sim.panel')}>
           {actions.map((action, index) => (
-            <li key={index} className="rounded-full border border-brass-500/60 bg-paper-50 px-2 py-0.5">
+            <li
+              key={index}
+              className="rounded-full border border-brass-500/60 bg-paper-50 px-2 py-0.5"
+            >
               {log(action)}
             </li>
           ))}
@@ -698,32 +709,47 @@ function SimulationBar({
 }
 
 function Swatch({ kind }: { kind: EdgeKind | 'claim' }) {
-  const style =
-    kind === 'claim' ? { stroke: CLAIM, width: 2, dash: '2 3' } : EDGE_STYLE[kind]
   return (
     <svg aria-hidden="true" width="28" height="10" className="shrink-0">
       <HatchDefs />
-      <line
-        x1="1"
-        y1="5"
-        x2="27"
-        y2="5"
-        stroke={style.stroke}
-        strokeWidth={Math.min(style.width, 8)}
-        strokeDasharray={style.dash}
-      />
+      {kind === 'claim' ? (
+        <line
+          x1="1"
+          y1="5"
+          x2="27"
+          y2="5"
+          stroke={LINEAGE_CLAIM}
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeDasharray="1 4"
+        />
+      ) : (
+        <>
+          <line
+            x1="0"
+            y1="5"
+            x2="28"
+            y2="5"
+            stroke={EDGE_STYLE[kind].stroke}
+            strokeWidth={LINE_WIDTH}
+          />
+          {EDGE_STYLE[kind].double && (
+            <line x1="0" y1="5" x2="28" y2="5" stroke={LINEAGE_PAPER} strokeWidth="1.5" />
+          )}
+        </>
+      )}
     </svg>
   )
 }
 
-function Legend({ withClaims }: { withClaims: boolean }) {
+function Legend() {
   const { t } = useLanguage()
   const kinds: Array<[EdgeKind | 'claim', MessageKey]> = [
     ['head', 'lineage.legend.head'],
     ['secondary', 'lineage.legend.secondary'],
     ['ended', 'lineage.legend.ended'],
+    ['claim', 'lineage.legend.claim'],
   ]
-  if (withClaims) kinds.push(['claim', 'lineage.legend.claim'])
   return (
     <footer className="flex flex-wrap gap-x-4 gap-y-1 border-t border-line/60 px-4 py-2 text-xs text-ink-700">
       {kinds.map(([kind, label]) => (
@@ -747,26 +773,67 @@ function titleLabel(
   return `${t(`fief.title.${member.title}` as MessageKey)} · ${member.capital}`
 }
 
-function Badge({
-  children,
-  className,
-  style,
-}: {
-  children: ReactNode
-  className?: string
-  style?: React.CSSProperties
-}) {
-  return (
-    <span
-      className={cn(
-        'rounded border px-1 text-2xs font-semibold uppercase leading-4',
-        className,
-      )}
-      style={style}
-    >
-      {children}
-    </span>
-  )
+type Translate = ReturnType<typeof useLanguage>['t']
+
+/** One text line under a noble's name. */
+interface MedallionLine {
+  key: string
+  text: string
+  /** Assassinations and excommunication are written in the error ink. */
+  alert?: boolean
+  testId?: string
+}
+
+/** Characters of a name that fit beside the pawn and the rank before it wraps. */
+const NAME_LINE_CHARS = 13
+
+/** The titles, standing and deaths of a member, one text line each. */
+function medallionTexts(member: HouseMember, t: Translate): MedallionLine[] {
+  const lines: MedallionLine[] = []
+  if (member.dead && member.cause)
+    lines.push({
+      key: 'cause',
+      text: `✝ ${t(`lineage.cause.${member.cause}` as MessageKey)}`,
+    })
+  if (member.commissioner)
+    lines.push({
+      key: 'commissioner',
+      alert: true,
+      testId: 'assassination-commissioner',
+      text: t('lineage.assassinatedBy', {
+        name: member.commissioner.name,
+        code: member.commissioner.code,
+      }),
+    })
+  for (const victim of member.commissioned)
+    lines.push({
+      key: `commissioned-${victim.code}`,
+      alert: true,
+      testId: 'assassination-victim',
+      text: t('lineage.commissionedKilling', { name: victim.name, code: victim.code }),
+    })
+  for (const held of member.religious)
+    lines.push({
+      key: `religious-${held.title}-${held.seat ?? ''}`,
+      text: t(`lineage.religious.${held.title}` as MessageKey, { seat: held.seat ?? '' }),
+    })
+  if (member.excommunicated)
+    lines.push({ key: 'excommunicated', alert: true, text: t('lineage.excommunicated') })
+  for (const fief of member.fiefs)
+    lines.push({ key: `fief-${fief.capital}`, text: titleLabel(t, fief) })
+  for (const dignity of member.dignities)
+    lines.push({ key: `dignity-${dignity}`, text: t(`dignity.${dignity}` as MessageKey) })
+  if (member.claim?.outcome)
+    lines.push({
+      key: 'claim-outcome',
+      text: t(
+        member.claim.outcome === 'honoured'
+          ? 'lineage.claimHonoured'
+          : 'lineage.claimLapsed',
+        { target: member.claim.targetName },
+      ),
+    })
+  return lines
 }
 
 function LineageTree({
@@ -774,85 +841,64 @@ function LineageTree({
   links,
   claims,
   focus,
+  attributes,
   edit,
-  moves,
-  onMove,
 }: {
   houses: House[]
   links: LineageLink[]
   claims: Claim[]
   focus: PlayerId | null
+  attributes: Map<string, NobleAttributes>
   edit?: TreeEdit
-  moves: Record<string, Offset>
-  onMove: (code: string, offset: Offset) => void
 }) {
   const { t } = useLanguage()
   const scroller = useRef<HTMLDivElement>(null)
-  const drag = useRef<{ code: string; x: number; y: number; from: Offset } | null>(null)
-  const claimRefs = useMemo(
-    () => claims.map(({ heir, target, spouse }) => ({ heir, target, spouse })),
+  const claimRefs = useMemo<ClaimRef[]>(
+    () =>
+      claims.map(({ heir, target, spouse, ended }) => ({ heir, target, spouse, ended })),
     [claims],
   )
-  const { columns, rows } = useMemo(
-    () => layoutColumns(houses, links, focus, claimRefs),
+  const layout = useMemo(
+    () => layoutTree(houses, links, focus, claimRefs),
     [houses, links, focus, claimRefs],
   )
-
-  // Automatic position of each card, then the user's own displacement.
-  const home = new Map<string, { x: number; y: number }>()
-  columns.forEach((column, columnIndex) => {
-    column.house.members.forEach((member, index) =>
-      home.set(member.code, {
-        x: columnIndex * (CARD_W + GAP_X),
-        y: HEADER_H + (column.offset + index) * PITCH,
-      }),
+  const texts = useMemo(() => {
+    const byCode = new Map<string, MedallionLine[]>()
+    for (const house of houses)
+      for (const member of house.members)
+        byCode.set(member.code, medallionTexts(member, t))
+    return byCode
+  }, [houses, t])
+  const placement = useMemo(() => {
+    const names = new Map<string, number>()
+    for (const house of houses)
+      for (const member of house.members)
+        names.set(
+          member.code,
+          Math.max(0, Math.ceil(member.name.length / NAME_LINE_CHARS) - 1),
+        )
+    return placeTree(
+      layout,
+      (code) =>
+        (names.get(code) ?? 0) +
+        countLines((texts.get(code) ?? []).map((line) => line.text)),
     )
-  })
-  const position = new Map<string, { x: number; y: number }>()
-  for (const [code, at] of home) {
-    const moved = moves[code]
-    position.set(code, { x: at.x + (moved?.dx ?? 0), y: at.y + (moved?.dy ?? 0) })
-  }
-  const width = Math.max(
-    columns.length * (CARD_W + GAP_X) - GAP_X,
-    ...[...position.values()].map((at) => at.x + CARD_W),
-  )
-  const height = Math.max(
-    HEADER_H + rows * PITCH,
-    ...[...position.values()].map((at) => at.y + CARD_H + 8),
-  )
+  }, [layout, houses, texts])
+  const { width, height, boxes, columnX } = placement
 
   useEffect(() => {
     const element = scroller.current
     if (!element || !focus) return
-    const index = columns.findIndex((column) => column.house.player.id === focus)
+    const index = layout.columns.findIndex((house) => house.player.id === focus)
     if (index < 0) return
-    element.scrollLeft = index * (CARD_W + GAP_X) + CARD_W / 2 - element.clientWidth / 2
-  }, [focus, columns])
+    element.scrollLeft = columnX[index] + 88 - element.clientWidth / 2
+    element.scrollTop = 0
+  }, [focus, layout, columnX])
 
-  const segment = (from: { x: number; y: number }, to: { x: number; y: number }) => {
-    const { x1, y1, x2, y2 } = marriageSegment(from, to)
-    return `M${x1},${y1} L${x2},${y2}`
-  }
-
-  const startDrag = (event: ReactPointerEvent<HTMLButtonElement>, code: string) => {
-    event.currentTarget.setPointerCapture(event.pointerId)
-    drag.current = {
-      code,
-      x: event.clientX,
-      y: event.clientY,
-      from: { dx: moves[code]?.dx ?? 0, dy: moves[code]?.dy ?? 0 },
-    }
-  }
-  const dragTo = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    const current = drag.current
-    const at = current && home.get(current.code)
-    if (!current || !at) return
-    onMove(current.code, {
-      dx: Math.max(-at.x, current.from.dx + event.clientX - current.x),
-      dy: Math.max(-at.y, current.from.dy + event.clientY - current.y),
-    })
-  }
+  const isSelected = (link: LineageLink) =>
+    edit?.selected?.type === 'link' &&
+    ((edit.selected.a === link.a && edit.selected.b === link.b) ||
+      (edit.selected.a === link.b && edit.selected.b === link.a))
 
   return (
     <div ref={scroller} className="min-h-0 flex-1 overflow-auto p-4">
@@ -864,36 +910,31 @@ function LineageTree({
           height={height}
         >
           <HatchDefs />
-          {links.map((link) => {
-            const from = position.get(link.a)
-            const to = position.get(link.b)
-            if (!from || !to) return null
+          {placement.marriages.map(({ link, aligned, d }) => {
             const style = EDGE_STYLE[link.kind]
-            const selected =
-              edit?.selected?.type === 'link' &&
-              ((edit.selected.a === link.a && edit.selected.b === link.b) ||
-                (edit.selected.a === link.b && edit.selected.b === link.a))
             return (
-              <g key={link.key}>
-                {selected && (
+              <g
+                key={link.key}
+                data-marriage={link.key}
+                data-kind={link.kind}
+                data-aligned={aligned}
+              >
+                {isSelected(link) && (
                   <path
-                    d={segment(from, to)}
+                    d={d}
                     fill="none"
-                    stroke={PLAYER_RED}
-                    strokeWidth={style.width + 6}
-                    strokeOpacity={0.35}
+                    stroke={SELECTION_HALO}
+                    strokeWidth={LINE_WIDTH + 8}
+                    strokeOpacity={0.6}
                   />
                 )}
-                <path
-                  d={segment(from, to)}
-                  fill="none"
-                  stroke={style.stroke}
-                  strokeWidth={style.width}
-                  strokeDasharray={style.dash}
-                />
+                <path d={d} fill="none" stroke={style.stroke} strokeWidth={LINE_WIDTH} />
+                {style.double && (
+                  <path d={d} fill="none" stroke={LINEAGE_PAPER} strokeWidth={1.5} />
+                )}
                 {edit && link.active && (
                   <path
-                    d={segment(from, to)}
+                    d={d}
                     data-testid={`link-${link.a}-${link.b}`}
                     role="button"
                     aria-label={`${link.a} - ${link.b}`}
@@ -907,244 +948,166 @@ function LineageTree({
               </g>
             )
           })}
-          {claims.map((claim) => {
-            const heir = position.get(claim.heir)
-            const target = position.get(claim.target)
-            const spouse = position.get(claim.spouse)
-            if (!heir || !target || !spouse) return null
-            // Without a visible marriage line (ended marriages hidden), the
-            // filiation points at the target's card instead.
-            const shown = links.some(
-              (l) =>
-                (l.a === claim.target && l.b === claim.spouse) ||
-                (l.b === claim.target && l.a === claim.spouse),
-            )
-            const [start, corner, end] = claimRoute(heir, target, shown ? spouse : target)
+          {placement.claims.map(({ claim: index, d }) => {
+            const claim = claims[index]
             return (
               <path
                 key={`claim-${claim.heir}-${claim.turn}-${claim.target}`}
-                d={`M${start[0]},${start[1]} L${corner[0]},${corner[1]} L${end[0]},${end[1]}`}
+                data-claim={`${claim.heir}>${claim.target}`}
+                data-ended={Boolean(claim.ended)}
+                d={d}
                 fill="none"
-                stroke={CLAIM}
-                strokeWidth={2}
-                strokeDasharray={claim.ended ? '1 6' : '2 3'}
-                opacity={claim.ended ? 0.55 : 1}
-                markerEnd="url(#lineage-arrow)"
+                stroke={LINEAGE_CLAIM}
+                strokeWidth={1.5}
+                strokeLinecap="round"
+                strokeDasharray="1 4"
+                opacity={claim.ended ? 0.4 : 1}
               />
             )
           })}
         </svg>
-        {columns.map((column, columnIndex) => {
-          const house = column.house
-          return (
-            <section
-              key={house.player.id}
-              aria-label={house.player.name || house.player.id}
-              className="pointer-events-none absolute inset-0 z-10"
+        {layout.columns.map((house, columnIndex) => (
+          <section
+            key={house.player.id}
+            aria-label={house.player.name || house.player.id}
+            className="pointer-events-none absolute inset-0 z-10"
+          >
+            <h3
+              className={cn(
+                'absolute top-0 flex items-center gap-2 rounded-md px-2 py-1 text-sm font-semibold text-ink-900',
+                house.player.id === focus && 'bg-paper-100 ring-1 ring-ink-900/30',
+              )}
+              style={{ left: columnX[columnIndex], width: 176 }}
             >
-              <h3
-                className={cn(
-                  'absolute top-0 flex items-center gap-2 rounded-md px-2 py-1 text-sm font-semibold text-ink-900',
-                  house.player.id === focus && 'bg-paper-100 ring-1 ring-ink-900/30',
-                )}
-                style={{
-                  left: columnIndex * (CARD_W + GAP_X),
-                  width: CARD_W,
-                  height: HEADER_H - 8,
-                }}
-              >
-                <span
-                  aria-hidden="true"
-                  className="size-3 rounded-full border border-ink-900/30"
-                  style={{ backgroundColor: house.player.color }}
-                />
-                {house.player.name || house.player.id}
-              </h3>
-              <ol>
-                {house.members.map((member, index) => {
-                  const at = position.get(member.code)!
-                  const memberLinks = links.filter(
-                    (l) =>
-                      l.kind !== 'ended' && (l.a === member.code || l.b === member.code),
-                  )
-                  return (
-                    <li
-                      key={member.code}
-                      data-noble={member.code}
-                      className={cn(
-                        'pointer-events-auto absolute overflow-y-auto rounded-lg border bg-paper-100 p-2 text-xs',
-                        member.dead
-                          ? 'border-dashed border-line/70 opacity-60'
-                          : 'border-line',
-                        moves[member.code] && 'z-20 shadow-md',
-                        edit && 'cursor-pointer',
-                        edit?.selected?.type === 'noble' &&
-                          edit.selected.code === member.code &&
-                          'ring-2 ring-brass-700',
-                        edit?.pending?.from === member.code &&
-                          'outline-2 outline-dashed outline-ink-700',
-                      )}
-                      onClick={edit ? () => edit.onNoble(member.code) : undefined}
-                      style={{
-                        width: CARD_W,
-                        height: CARD_H,
-                        left: at.x,
-                        top: at.y,
-                        borderTopColor: house.player.color,
-                        borderTopWidth: 4,
-                      }}
+              <BannerIcon
+                id={`lineage-arms-${house.player.id}`}
+                arms={playerArms(house.player)}
+              />
+              {house.player.name || house.player.id}
+            </h3>
+            <ol>
+              {house.members.map((member, index) => {
+                const box = boxes.get(member.code)!
+                const lines = texts.get(member.code) ?? []
+                return (
+                  <li
+                    key={member.code}
+                    data-noble={member.code}
+                    className={cn(
+                      'pointer-events-auto absolute rounded-xl border bg-paper-50 px-2 pb-1.5 pt-1 text-xs',
+                      member.dead
+                        ? 'border-dashed border-line/70 opacity-60'
+                        : 'border-line',
+                      edit && 'cursor-pointer',
+                      edit?.selected?.type === 'noble' &&
+                        edit.selected.code === member.code &&
+                        'ring-2 ring-brass-700',
+                      edit?.pending?.from === member.code &&
+                        'outline-2 outline-dashed outline-ink-700',
+                    )}
+                    onClick={edit ? () => edit.onNoble(member.code) : undefined}
+                    style={{ left: box.x, top: box.y, width: box.w, minHeight: box.h }}
+                  >
+                    <div
+                      className="flex items-start gap-1.5"
+                      style={{ minHeight: MEDALLION_ANCHOR_Y * 2 - 4 }}
                     >
-                      <div className="flex items-start gap-1.5">
-                        <button
-                          type="button"
-                          aria-label={t('lineage.move', { name: member.name })}
-                          title={t('lineage.move', { name: member.name })}
-                          onPointerDown={(event) => startDrag(event, member.code)}
-                          onPointerMove={dragTo}
-                          onPointerUp={() => (drag.current = null)}
-                          onPointerCancel={() => (drag.current = null)}
-                          className="-ml-1 cursor-grab touch-none px-0.5 leading-none text-ink-500 active:cursor-grabbing"
-                        >
-                          ⠿
-                        </button>
-                        <span className="font-display text-sm text-ink-500">
+                      <span className="text-2xl leading-none">
+                        <NoblePawnIcon
+                          noble={{ status: member.status ?? 'free' }}
+                          color={house.player.color || NEUTRAL_ARMY_COLOR}
+                          attributes={attributes.get(member.code)}
+                        />
+                      </span>
+                      {!member.dead && (
+                        <span className="w-3 shrink-0 pt-1.5 text-right font-display text-sm leading-4 text-ink-500">
                           {index + 1}
                         </span>
+                      )}
+                      <span
+                        className={cn(
+                          'min-w-0 flex-1 break-words pt-1.5 text-sm font-semibold leading-4',
+                          member.dead && 'line-through',
+                        )}
+                      >
+                        {member.name}
+                      </span>
+                      {member.sex && (
                         <span
+                          aria-label={member.sex}
                           className={cn(
-                            'min-w-0 flex-1 font-semibold',
-                            member.dead && 'line-through',
+                            'pt-1.5 leading-4',
+                            member.sex === 'female'
+                              ? 'text-brass-700'
+                              : 'text-winter-700',
                           )}
                         >
-                          {member.name}
+                          {member.sex === 'female' ? '♀' : '♂'}
                         </span>
-                        {member.sex && (
-                          <span
-                            aria-label={member.sex}
-                            className={
-                              member.sex === 'female'
-                                ? 'text-brass-700'
-                                : 'text-winter-700'
-                            }
-                          >
-                            {member.sex === 'female' ? '♀' : '♂'}
-                          </span>
+                      )}
+                    </div>
+                    {lines.map((line) => (
+                      <p
+                        key={line.key}
+                        data-testid={line.testId}
+                        className={cn(
+                          'break-words leading-4',
+                          line.alert ? 'text-vermilion-700' : 'text-ink-700',
                         )}
-                      </div>
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {member.dead && member.cause && (
-                          <Badge className="border-line-strong">
-                            ✝ {t(`lineage.cause.${member.cause}` as MessageKey)}
-                          </Badge>
-                        )}
-                        {member.commissioner && (
-                          <Badge
-                            className="border-vermilion-700 bg-vermilion-100 text-vermilion-700"
-                            data-testid="assassination-commissioner"
-                          >
-                            {t('lineage.assassinatedBy', {
-                              name: member.commissioner.name,
-                              code: member.commissioner.code,
-                            })}
-                          </Badge>
-                        )}
-                        {member.commissioned.map((victim) => (
-                          <Badge
-                            key={`commissioned-${victim.code}`}
-                            className="border-vermilion-700 bg-vermilion-100 text-vermilion-700"
-                            data-testid="assassination-victim"
-                          >
-                            {t('lineage.commissionedKilling', {
-                              name: victim.name,
-                              code: victim.code,
-                            })}
-                          </Badge>
-                        ))}
-                        {member.religious.map((held) => (
-                          <Badge
-                            key={`${held.title}-${held.seat ?? ''}`}
-                            className="border-ink-700 bg-paper-100 text-ink-900"
-                          >
-                            {t(`lineage.religious.${held.title}` as MessageKey, {
-                              seat: held.seat ?? '',
-                            })}
-                          </Badge>
-                        ))}
-                        {member.excommunicated && (
-                          <Badge className="border-brass-700 bg-vermilion-700/30 text-vermilion-700">
-                            {t('lineage.excommunicated')}
-                          </Badge>
-                        )}
-                        {member.fiefs.map((fief) => (
-                          <Badge key={fief.capital} className="border-line">
-                            {titleLabel(t, fief)}
-                          </Badge>
-                        ))}
-                        {member.dignities.map((dignity) => (
-                          <Badge
-                            key={dignity}
-                            className="border-brass-700 bg-brass-300 text-ink-900"
-                          >
-                            {t(`dignity.${dignity}` as MessageKey)}
-                          </Badge>
-                        ))}
-                        {member.claim?.outcome && (
-                          <Badge className="border-ink-700 text-ink-700 opacity-70">
-                            {t(
-                              member.claim.outcome === 'honoured'
-                                ? 'lineage.claimHonoured'
-                                : 'lineage.claimLapsed',
-                              { target: member.claim.targetName },
-                            )}
-                          </Badge>
-                        )}
-                        {member.claim && !member.claim.outcome && (
-                          <Badge
-                            className="text-ink-900"
-                            style={{ backgroundColor: CLAIM, borderColor: CLAIM }}
-                          >
-                            {t('lineage.claimBadge', {
-                              target: member.claim.targetFiefs[0]
-                                ? titleLabel(t, member.claim.targetFiefs[0])
-                                : member.claim.targetName,
-                              rank: member.claim.rank,
-                            })}
-                          </Badge>
-                        )}
-                        {member.claimedBy > 0 && (
-                          <Badge className="border-ink-700 text-ink-700">
-                            {t('lineage.claimedBadge', { count: member.claimedBy })}
-                          </Badge>
-                        )}
-                        {memberLinks.map((link) => (
-                          <Badge
-                            key={link.key}
-                            className={
-                              link.kind === 'secondary' ? 'text-ink-900' : 'text-ink-900'
-                            }
-                            style={{
-                              backgroundColor:
-                                link.kind === 'secondary' ? LINEAGE_SECONDARY_LINK : GOLD,
-                              borderColor: link.kind === 'secondary' ? SILVER : GOLD,
-                            }}
-                          >
-                            {t('lineage.marriageBadge', {
-                              kind: t(kindLabel(link)),
-                              weight: link.weight ?? 0,
-                            })}
-                            {link.activeHeadFor.length > 0 ? ' ★' : ''}
-                          </Badge>
-                        ))}
-                      </div>
-                    </li>
-                  )
-                })}
-              </ol>
-            </section>
-          )
-        })}
+                      >
+                        {line.text}
+                      </p>
+                    ))}
+                  </li>
+                )
+              })}
+            </ol>
+          </section>
+        ))}
       </div>
     </div>
+  )
+}
+
+/**
+ * The alliance graph as a corner inset of the tree: folded by default so
+ * the tree keeps the room.
+ */
+function AllianceInset(props: {
+  houses: House[]
+  links: LineageLink[]
+  focus: PlayerId | null
+  onFocus: (id: PlayerId | null) => void
+  scores?: Record<string, ScoreBreakdown>
+  victory?: VictoryStatus
+}) {
+  const { t } = useLanguage()
+  const [open, setOpen] = useState(false)
+  return (
+    <aside className="pointer-events-none absolute bottom-3 right-3 z-30 flex max-h-[70%] w-[min(26rem,calc(100%-1.5rem))] flex-col items-end gap-1">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls="lineage-alliances"
+        onClick={() => setOpen((current) => !current)}
+        className="pointer-events-auto inline-flex items-center gap-1.5 rounded-lg border border-line bg-paper-50 px-2.5 py-1 text-xs font-semibold text-ink-700 shadow-sm hover:bg-paper-100"
+      >
+        {open ? (
+          <IconChevronDown aria-hidden="true" className="size-3.5" />
+        ) : (
+          <IconChevronUp aria-hidden="true" className="size-3.5" />
+        )}
+        {t('lineage.alliances')}
+      </button>
+      {open && (
+        <div
+          id="lineage-alliances"
+          className="pointer-events-auto min-h-0 w-full overflow-auto rounded-xl border border-line bg-paper-50/95 p-3 shadow-lg"
+        >
+          <AllianceGraph {...props} />
+        </div>
+      )}
+    </aside>
   )
 }
 
@@ -1203,11 +1166,11 @@ function AllianceGraph({
   const dim = (pair: AlliancePair) => focus !== null && !pair.houses.includes(focus)
 
   return (
-    <div className="grid min-h-0 flex-1 gap-4 overflow-auto p-4 lg:grid-cols-[minmax(0,28rem)_1fr]">
+    <div className="grid gap-3">
       <svg
         viewBox="0 0 400 330"
         role="img"
-        aria-label={t('lineage.graph')}
+        aria-label={t('lineage.alliances')}
         className="w-full self-start"
       >
         <HatchDefs />
@@ -1224,10 +1187,18 @@ function AllianceGraph({
                 x2={b.x}
                 y2={b.y}
                 stroke={style.stroke}
-                strokeWidth={style.width + 1}
-                strokeDasharray={style.dash}
-                strokeLinecap={style.dash ? 'butt' : 'round'}
+                strokeWidth={LINE_WIDTH}
               />
+              {style.double && (
+                <line
+                  x1={a.x}
+                  y1={a.y}
+                  x2={b.x}
+                  y2={b.y}
+                  stroke={LINEAGE_PAPER}
+                  strokeWidth={1.5}
+                />
+              )}
               <text
                 x={(a.x + b.x) / 2}
                 y={(a.y + b.y) / 2 - 6}
@@ -1293,9 +1264,6 @@ function AllianceGraph({
         })}
       </svg>
       <div className="grid content-start gap-3">
-        <h3 className="font-display text-base font-semibold text-ink-900">
-          {t('lineage.alliances')}
-        </h3>
         {pairs.length === 0 && (
           <p className="text-sm text-ink-500">{t('lineage.noAlliance')}</p>
         )}

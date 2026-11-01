@@ -121,11 +121,15 @@ export const ICON_GREEN = '#4e7d3b'
 
 // Lineage tree
 
-export const LINEAGE_GOLD = '#b8860b'
-export const LINEAGE_SILVER = '#9aa3ad'
-export const LINEAGE_CLAIM = '#7a4fa3'
-export const LINEAGE_PATTERN_STROKE = '#8c8372'
-export const LINEAGE_SECONDARY_LINK = '#dfe3e7'
+/** Head marriage (`brass-700`). */
+export const LINEAGE_HEAD = '#7d5a1c'
+/** Secondary marriage and claim stems (`ink-700`). */
+export const LINEAGE_SECONDARY = '#594b3c'
+export const LINEAGE_CLAIM = LINEAGE_SECONDARY
+/** Ended marriage hatching (`ink-500`). */
+export const LINEAGE_ENDED = '#74644d'
+/** Parchment of the tree and its hatching (`paper-50`). */
+export const LINEAGE_PAPER = '#fbf7ee'
 
 // Brand mark
 

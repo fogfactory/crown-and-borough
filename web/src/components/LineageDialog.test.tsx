@@ -110,13 +110,27 @@ describe('LineageDialog', () => {
     expect(alice).toHaveTextContent('Duchy · ROC')
     expect(alice).toHaveTextContent('Barony · AAA')
     expect(alice).toHaveTextContent('Bastard')
-    expect(alice).toHaveTextContent('Claimed ×1')
     expect(alice).toHaveTextContent('Vieux Hugon')
     expect(alice).toHaveTextContent('Executed')
-    expect(alice).toHaveTextContent('Head · 5 ★')
-    expect(screen.getByRole('region', { name: 'Bob' })).toHaveTextContent(
-      'Claimant to Duchy · ROC #1',
+    expect(screen.getByRole('region', { name: 'Bob' })).toHaveTextContent('Victor')
+  })
+
+  it('draws the head marriage and the claim as lines between medallions', () => {
+    renderDialog()
+    const marriage = document.querySelector('[data-marriage="JEA-ANN"]')!
+    expect(marriage).toHaveAttribute('data-kind', 'head')
+    expect(marriage).toHaveAttribute('data-aligned', 'true')
+    expect(document.querySelector('[data-marriage="OLD-EVE"]')).toHaveAttribute(
+      'data-kind',
+      'ended',
     )
+    const claim = document.querySelector('[data-claim="EVE>JEA"]')!
+    expect(claim).toHaveAttribute('data-ended', 'false')
+    expect(claim).toHaveAttribute('stroke-dasharray')
+    // No badge repeats what the lines say, and cards cannot be dragged.
+    expect(screen.queryByText(/Claimed ×/)).not.toBeInTheDocument()
+    expect(screen.queryByText('Reset layout')).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument()
   })
 
   it('links the commissioner and its victim only when the state carries the link', () => {
@@ -138,22 +152,40 @@ describe('LineageDialog', () => {
 
   it('filters families and ended marriages', () => {
     renderDialog()
-    fireEvent.click(screen.getByRole('button', { name: 'Bob' }))
+    fireEvent.click(
+      within(screen.getByRole('group', { name: 'Families' })).getByRole('button', {
+        name: 'Bob',
+      }),
+    )
     expect(screen.queryByRole('region', { name: 'Bob' })).not.toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Alice' })).toBeInTheDocument()
   })
 
-  it('lists the marriage to cancel and the one taking over in the graph', () => {
+  it('unfolds the alliance inset and lists the marriage to cancel and the one taking over', () => {
     renderDialog()
-    fireEvent.click(screen.getByRole('tab', { name: 'Graph' }))
+    const toggle = screen.getByRole('button', { name: 'Alliances' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText('Duc Jean × Duchesse Anne')).not.toBeInTheDocument()
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByText('Duc Jean × Duchesse Anne')).toBeInTheDocument()
     expect(screen.getByText(/Takes over for Bob/)).toBeInTheDocument()
     expect(screen.getByText('Duc Jean × Dame Eve')).toBeInTheDocument()
     expect(screen.getByText(/Alice would have no head/)).toBeInTheDocument()
   })
 
+  it('shows no watermark outside the simulation', () => {
+    renderDialog(async () => {
+      throw new Error('unused')
+    })
+    expect(screen.queryByTestId('lineage-watermark')).not.toBeInTheDocument()
+  })
+
   describe('simulation', () => {
-    const reading = (total: number, status: VictoryReading['status']): VictoryReading => ({
+    const reading = (
+      total: number,
+      status: VictoryReading['status'],
+    ): VictoryReading => ({
       score: { titles: total, total },
       victory: { mode: 'solo', required: 3 },
       status,
@@ -184,18 +216,35 @@ describe('LineageDialog', () => {
       } as unknown as VictorySimulation['state'],
     })
 
+    it('watermarks the tree as a hypothesis while simulating only', async () => {
+      renderDialog(async () => projection(false))
+      fireEvent.click(screen.getByRole('button', { name: 'Simulate' }))
+      expect(screen.getByTestId('lineage-watermark')).toHaveTextContent('Hypothesis')
+      fireEvent.click(screen.getByRole('button', { name: 'Exit simulation' }))
+      expect(screen.queryByTestId('lineage-watermark')).not.toBeInTheDocument()
+    })
+
     it('kills a noble, updates the board and the status panel, then undoes it', async () => {
-      const request = vi.fn(async (actions: SimulationAction[]) => projection(actions.length > 0))
+      const request = vi.fn(async (actions: SimulationAction[]) =>
+        projection(actions.length > 0),
+      )
       renderDialog(request)
       fireEvent.click(screen.getByRole('button', { name: 'Simulate' }))
-      const card = screen.getByRole('region', { name: 'Alice' }).querySelector('[data-noble="JEA"]')!
+      const card = screen
+        .getByRole('region', { name: 'Alice' })
+        .querySelector('[data-noble="JEA"]')!
       fireEvent.click(card)
       fireEvent.click(screen.getByRole('button', { name: 'Kill' }))
 
       await waitFor(() =>
-        expect(request).toHaveBeenLastCalledWith([{ type: 'kill', noble: 'JEA' }], expect.anything()),
+        expect(request).toHaveBeenLastCalledWith(
+          [{ type: 'kill', noble: 'JEA' }],
+          expect.anything(),
+        ),
       )
-      expect(await screen.findByTestId('panel-status-P1')).toHaveTextContent('Major victory')
+      expect(await screen.findByTestId('panel-status-P1')).toHaveTextContent(
+        'Major victory',
+      )
       expect(screen.getByTestId('panel-delta-P1')).toHaveTextContent('+1')
       expect(screen.getByTestId('panel-status-P2')).toHaveTextContent('Defeat')
       expect(screen.getByText('Duc Jean dies')).toBeInTheDocument()
@@ -209,13 +258,22 @@ describe('LineageDialog', () => {
       const request = vi.fn(async () => projection(false))
       renderDialog(request)
       fireEvent.click(screen.getByRole('button', { name: 'Simulate' }))
-      fireEvent.click(screen.getByRole('region', { name: 'Alice' }).querySelector('[data-noble="JEA"]')!)
+      fireEvent.click(
+        screen
+          .getByRole('region', { name: 'Alice' })
+          .querySelector('[data-noble="JEA"]')!,
+      )
       expect(screen.getByRole('button', { name: 'Raise ROC one rank' })).toBeDisabled()
       fireEvent.click(screen.getByRole('button', { name: 'Raise AAA one rank' }))
       await waitFor(() =>
-        expect(request).toHaveBeenLastCalledWith([{ type: 'rank', fief: 'AAA' }], expect.anything()),
+        expect(request).toHaveBeenLastCalledWith(
+          [{ type: 'rank', fief: 'AAA' }],
+          expect.anything(),
+        ),
       )
-      fireEvent.click(screen.getByRole('region', { name: 'Bob' }).querySelector('[data-noble="ANN"]')!)
+      fireEvent.click(
+        screen.getByRole('region', { name: 'Bob' }).querySelector('[data-noble="ANN"]')!,
+      )
       fireEvent.click(screen.getByRole('button', { name: 'Crown' }))
       await waitFor(() =>
         expect(request).toHaveBeenLastCalledWith(
@@ -232,10 +290,16 @@ describe('LineageDialog', () => {
       const request = vi.fn(async () => projection(false))
       renderDialog(request)
       fireEvent.click(screen.getByRole('button', { name: 'Simulate' }))
-      fireEvent.click(screen.getByRole('region', { name: 'Bob' }).querySelector('[data-noble="EVE"]')!)
+      fireEvent.click(
+        screen.getByRole('region', { name: 'Bob' }).querySelector('[data-noble="EVE"]')!,
+      )
       fireEvent.click(screen.getByRole('button', { name: 'Marry to…' }))
       expect(screen.getByRole('status')).toHaveTextContent('Click the spouse of Dame Eve')
-      fireEvent.click(screen.getByRole('region', { name: 'Alice' }).querySelector('[data-noble="JEA"]')!)
+      fireEvent.click(
+        screen
+          .getByRole('region', { name: 'Alice' })
+          .querySelector('[data-noble="JEA"]')!,
+      )
       await waitFor(() =>
         expect(request).toHaveBeenLastCalledWith(
           [{ type: 'marry', noble: 'EVE', other: 'JEA' }],
@@ -245,18 +309,30 @@ describe('LineageDialog', () => {
     })
 
     it('drops an action the server refuses and says why', async () => {
-      const request = vi.fn(async (actions: SimulationAction[]): Promise<VictorySimulation> => {
-        if (actions.length > 0) throw new SimulationRejectedError('noble "JEA" is already married')
-        return projection(false)
-      })
+      const request = vi.fn(
+        async (actions: SimulationAction[]): Promise<VictorySimulation> => {
+          if (actions.length > 0)
+            throw new SimulationRejectedError('noble "JEA" is already married')
+          return projection(false)
+        },
+      )
       renderDialog(request)
       fireEvent.click(screen.getByRole('button', { name: 'Simulate' }))
-      const card = screen.getByRole('region', { name: 'Alice' }).querySelector('[data-noble="JEA"]')!
+      const card = screen
+        .getByRole('region', { name: 'Alice' })
+        .querySelector('[data-noble="JEA"]')!
       fireEvent.click(card)
       fireEvent.click(screen.getByRole('button', { name: 'Kill' }))
       expect(await screen.findByRole('alert')).toHaveTextContent('already married')
-      await waitFor(() => expect(screen.queryByText('Duc Jean dies')).not.toBeInTheDocument())
-      expect(within(screen.getByRole('button', { name: 'Reset' }).parentElement!).getByRole('button', { name: 'Reset' })).toBeDisabled()
+      await waitFor(() =>
+        expect(screen.queryByText('Duc Jean dies')).not.toBeInTheDocument(),
+      )
+      expect(
+        within(screen.getByRole('button', { name: 'Reset' }).parentElement!).getByRole(
+          'button',
+          { name: 'Reset' },
+        ),
+      ).toBeDisabled()
     })
   })
 })

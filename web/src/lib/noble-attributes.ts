@@ -26,7 +26,20 @@ function highest(kinds: CrownKind[]): CrownKind | undefined {
 }
 
 /** Pawn attributes of every noble who wears at least one, by noble code. */
-export function nobleAttributesByCode(state: StateData): Map<string, NobleAttributes> {
+export function nobleAttributesByCode(
+  state: Pick<
+    StateData,
+    | 'nobles'
+    | 'fiefs'
+    | 'bishoprics'
+    | 'cardinals'
+    | 'pope'
+    | 'king'
+    | 'queen'
+    | 'queenDowager'
+    | 'excommunicated'
+  >,
+): Map<string, NobleAttributes> {
   const religious = religiousTitlesByHolder({
     bishoprics: state.bishoprics,
     cardinals: state.cardinals,
