@@ -802,14 +802,10 @@ export function GamePage() {
     state,
     selectedId,
     baseFrame: mapFrame,
-    onSelect: (id) => {
-      setSelectedId(id)
-      // Phones show the territory on the map tab (charte § Identifiants).
-      if (!desktop) setActivePanel('map')
-    },
-    // A code typed in an order keeps the Orders tab (charte § Saisie des ordres).
-    onFollow: setSelectedId,
-    onShowEvent: () => {
+    onSelect: setSelectedId,
+    // Phones show a linked territory or event on the map tab (charte
+    // § Identifiants); a code typed in an order keeps the Orders tab.
+    onShowMap: () => {
       if (!desktop) setActivePanel('map')
     },
   })

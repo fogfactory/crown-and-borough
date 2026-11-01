@@ -14,7 +14,7 @@ import {
 
 import { IconListSearch } from '@tabler/icons-react'
 
-import { useEditorMapTarget } from '@/components/OrderDialog'
+import { MAP_TARGET_RING, MapPickHint, useEditorMapTarget } from '@/components/OrderDialog'
 import { useLanguage } from '@/i18n/LanguageContext'
 import { wordAtCursor, type CodeSuggester, type CodeSuggestion } from '@/lib/order-suggestions'
 import { cn } from '@/lib/utils'
@@ -41,6 +41,11 @@ export function tokenizeOrderLine(line: string): OrderToken[] {
     kind: GROUP_KINDS[match.slice(1).findIndex((group) => group !== undefined)],
     text: match[0],
   }))
+}
+
+/** Whether a word can be a code being typed: a single letter is a verb. */
+function isCodeStart(word: string): boolean {
+  return word.length >= 2
 }
 
 export type OrderEditorTone = 'default' | 'winter'
@@ -120,8 +125,11 @@ interface OrderEditorProps {
   className?: string
   /** Codes that complete the typed word, given the text of the zone before it. */
   suggest?: CodeSuggester
-  /** Told each three-letter word finished or chosen, to follow it on the map. */
-  onCodeTyped?: (code: string) => void
+  /**
+   * Told each three-letter word finished or code chosen, to follow it on the
+   * map; `kind` is known for a chosen code.
+   */
+  onCodeTyped?: (code: string, kind?: CodeSuggestion['kind']) => void
 }
 
 /**
@@ -189,8 +197,8 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
 
     const typed = suggest && cursor !== null ? wordAtCursor(value, cursor) : null
     const current = typed && list?.start === typed.start ? list : null
-    // A single letter is a verb: the list waits for two, unless asked.
-    const word = typed && (typed.text.length >= 2 || current?.requested) ? typed : null
+    // A single letter is a verb: the list waits for a code, unless asked.
+    const word = typed && (isCodeStart(typed.text) || current?.requested) ? typed : null
     const wordText = word?.text ?? null
     const textBefore = word ? value.slice(0, word.start) : ''
     const suggestions = useMemo(
@@ -218,15 +226,29 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
       if (requested) listBox?.scrollIntoView?.({ block: 'nearest' })
     }, [open, highlighted, listId, requested])
 
+    /** Writes `text` over `from`-`to`, the cursor after it, as the player would. */
+    const replaceRange = (textarea: HTMLTextAreaElement, text: string, from: number, to: number) => {
+      textarea.setRangeText(text, from, to, 'end')
+      onChange(textarea.value)
+      selection.current = { start: textarea.selectionStart, end: textarea.selectionEnd }
+    }
+
+    // The code last told to `onCodeTyped` and where, so that the space typed
+    // after a chosen code does not follow it a second time.
+    const followed = useRef<{ code: string; start: number } | null>(null)
+    const follow = (code: string, start: number, kind?: CodeSuggestion['kind']) => {
+      if (followed.current?.code === code && followed.current.start === start) return
+      followed.current = { code, start }
+      onCodeTyped?.(code, kind)
+    }
+
     const accept = (suggestion: CodeSuggestion) => {
       const textarea = textareaRef.current
       if (!word || !textarea) return
-      // The textarea puts the cursor after the code itself.
-      textarea.setRangeText(suggestion.code, word.start, word.end, 'end')
-      onChange(textarea.value)
+      replaceRange(textarea, suggestion.code, word.start, word.end)
       setCursor(textarea.selectionStart)
       setList(null)
-      onCodeTyped?.(suggestion.code)
+      follow(suggestion.code, word.start, suggestion.kind)
     }
 
     /**
@@ -240,26 +262,22 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
       const { start, end } = selection.current ?? { start: text.length, end: text.length }
       const typedWord = start === end ? wordAtCursor(text, start) : null
       // A code being typed gives way; a one-letter verb stays.
-      const from = typedWord && typedWord.text.length >= 2 ? typedWord.start : start
+      const from = typedWord && isCodeStart(typedWord.text) ? typedWord.start : start
       const before = text.slice(0, from)
       const after = text.slice(end)
       const inserted =
         (before && !/[\s(]$/.test(before) ? ' ' : '') +
         code +
         (after && !/^[\s)]/.test(after) ? ' ' : '')
-      textarea.setRangeText(inserted, from, end, 'end')
-      onChange(textarea.value)
-      selection.current = { start: textarea.selectionStart, end: textarea.selectionEnd }
+      replaceRange(textarea, inserted, from, end)
       // Back to typing where a mouse clicked; a touch leaves the phone
       // keyboard closed, over the map the player is tapping.
-      if (window.matchMedia?.('(pointer: fine)').matches) textarea.focus({ preventScroll: true })
+      if (mapTarget?.byMouse()) textarea.focus({ preventScroll: true })
     }
     const insertRef = useRef(insertFromMap)
     insertRef.current = insertFromMap
-    const releaseRef = useRef(mapTarget?.release)
-    releaseRef.current = mapTarget?.release
-    // An editor that goes away takes its map clicks with it, if it held them.
-    useEffect(() => () => releaseRef.current?.(), [])
+    // One picker for the life of the editor; it reaches the latest insert.
+    const [pickFromMap] = useState(() => (code: string) => insertRef.current(code))
 
     /** Opens the suggestions at `position`, even before any letter. */
     const request = (position: number) => {
@@ -276,7 +294,11 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
         request(event.currentTarget.selectionStart)
         return
       }
-      if (!open || !word) return
+      if (!open || !word) {
+        // Escape with no list open gives the map its clicks back.
+        if (event.key === 'Escape') mapTarget?.release()
+        return
+      }
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
         event.preventDefault()
         const step = event.key === 'ArrowDown' ? 1 : -1
@@ -296,11 +318,6 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
         event.preventDefault()
         setList({ start: word.start, requested: false, active: -1, dismissed: word.text })
       }
-    }
-
-    const handleEscape = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-      // Escape with no list open gives the map its clicks back.
-      if (event.key === 'Escape' && !open) mapTarget?.release()
     }
 
     const trackCursor = (event: { currentTarget: HTMLTextAreaElement }) => {
@@ -332,7 +349,7 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
             styles.frame,
             disabled && 'cursor-not-allowed opacity-50',
             // The field the map clicks fill (charte § Poste de commandement).
-            mapTarget?.targeted && 'ring-2 ring-brass-700',
+            mapTarget?.targeted && MAP_TARGET_RING,
           )}
         >
           <pre
@@ -355,11 +372,13 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
               // Text inserted without keys (paste, phone keyboards) fires no select.
               trackCursor(event)
               // A three-letter word just finished by a space, a line break or
-              // a bracket: the map follows it, not a prefix still being typed.
+              // a bracket: the map follows it, not a prefix still being typed
+              // nor what a deletion leaves.
               const { value: text, selectionStart: at } = event.target
-              if (at > 0 && /[\s)]/.test(text[at - 1])) {
+              const deleting = (event.nativeEvent as InputEvent).inputType?.startsWith('delete')
+              if (!deleting && at > 0 && /[\s)]/.test(text[at - 1])) {
                 const finished = wordAtCursor(text, at - 1)
-                if (finished?.text.length === 3) onCodeTyped?.(finished.text.toUpperCase())
+                if (finished?.text.length === 3) follow(finished.text.toUpperCase(), finished.start)
               }
               // A new letter: the choice made among the old suggestions lapses.
               setList((state) => state && { ...state, active: state.requested ? 0 : -1 })
@@ -367,16 +386,13 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
             onSelect={trackCursor}
             onFocus={(event) => {
               trackCursor(event)
-              if (!disabled) mapTarget?.take((code) => insertRef.current(code))
+              if (!disabled) mapTarget?.take(pickFromMap)
             }}
             onBlur={() => {
               setCursor(null)
               setList(null)
             }}
-            onKeyDown={(event) => {
-              handleKeyDown(event)
-              handleEscape(event)
-            }}
+            onKeyDown={handleKeyDown}
             onScroll={syncScroll}
             role={suggest ? 'combobox' : undefined}
             aria-autocomplete={suggest ? 'list' : undefined}
@@ -449,15 +465,7 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
             </ul>
           )}
         </div>
-        {mapTarget && !disabled && (
-          // The line keeps its place, so the zones below never shift.
-          <p
-            aria-hidden={!mapTarget.targeted}
-            className={cn('text-2xs text-ink-500', !mapTarget.targeted && 'invisible')}
-          >
-            {t('orders.form.mapPick')}
-          </p>
-        )}
+        {mapTarget && !disabled && <MapPickHint visible={mapTarget.targeted} reserve />}
       </>
     )
   },

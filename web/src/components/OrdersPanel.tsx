@@ -11,6 +11,7 @@ import {
   SPECIAL_SLOTS,
   WINTER_SLOTS,
   type CodeSuggester,
+  type CodeSuggestion,
 } from '@/lib/order-suggestions'
 import { AppeasementOrders, SpecialCardOrders, assassinationLauncher, justiceLauncher, TitleOrdersSection } from '@/components/TitleOrders'
 import {
@@ -204,17 +205,20 @@ function PreviewErrors({
 
 /**
  * Frames and selects on the map each territory code the player finishes
- * typing (charte-graphique.md § Saisie des ordres); nobles and cards are left
- * alone.
+ * typing or chooses (charte-graphique.md § Saisie des ordres). A chosen code
+ * tells its kind; a typed one that also names a noble may mean the noble and
+ * is left alone.
  */
-function useFollowOnMap(): ((code: string) => void) | undefined {
+function useFollowOnMap(): ((code: string, kind?: CodeSuggestion['kind']) => void) | undefined {
   const links = useMapLinks()
   return useMemo(
     () =>
       links
-        ? (code: string) => {
-            // A code that also names a noble may mean the noble: left alone.
-            if (links.hasTerritory(code) && !links.nobleName(code)) links.follow(code)
+        ? (code: string, kind?: CodeSuggestion['kind']) => {
+            const territory = kind
+              ? kind === 'territory'
+              : links.hasTerritory(code) && !links.nobleName(code)
+            if (territory) links.follow(code)
           }
         : undefined,
     [links],

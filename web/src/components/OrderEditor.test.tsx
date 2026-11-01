@@ -202,9 +202,9 @@ describe('OrderEditor', () => {
     type('ecp')
     type('ecp ')
     type('ecp  ')
-    expect(onCodeTyped.mock.calls).toEqual([['ECP']])
+    expect(onCodeTyped.mock.calls).toEqual([['ECP', undefined]])
     type('ecp  (rve s abc)')
-    expect(onCodeTyped).toHaveBeenLastCalledWith('ABC')
+    expect(onCodeTyped).toHaveBeenLastCalledWith('ABC', undefined)
   })
 
   it('writes the territory clicked on the map at the cursor, until the focus leaves', () => {
@@ -214,7 +214,7 @@ describe('OrderEditor', () => {
       const [second, setSecond] = useState('')
       return (
         <OrderFormProvider onPickerChange={(next) => (picker = next)}>
-          <section data-map-size="split">
+          <section data-map-area>
             <button type="button">map</button>
           </section>
           <OrderEditor value={first} onChange={setFirst} aria-label="first" />

@@ -13,10 +13,11 @@ interface MapLinkStateOptions {
   baseFrame?: MapFrame
   /** Selects a territory, as a click on the map would. */
   onSelect: (territory: string) => void
-  /** Selects a territory typed in an order; defaults to `onSelect`. */
-  onFollow?: (territory: string) => void
-  /** Called when a report event is shown (phones switch to the map). */
-  onShowEvent?: () => void
+  /**
+   * Called when a link or a report event asks to see the map (phones switch
+   * to the map); a code typed in an order leaves the view as it is.
+   */
+  onShowMap?: () => void
 }
 
 interface MapLinkState {
@@ -48,8 +49,7 @@ export function useMapLinkState({
   selectedId,
   baseFrame,
   onSelect,
-  onFollow,
-  onShowEvent,
+  onShowMap,
 }: MapLinkStateOptions): MapLinkState {
   const [focus, setFocus] = useState<Focus | null>(null)
   const [highlightedId, setHighlightedId] = useState<string | null>(null)
@@ -64,16 +64,14 @@ export function useMapLinkState({
   const latest = useRef({
     baseKey: baseFrame?.key,
     onSelect,
-    onFollow,
-    onShowEvent,
+    onShowMap,
     selectedId,
     turn: state?.turn,
   })
   latest.current = {
     baseKey: baseFrame?.key,
     onSelect,
-    onFollow,
-    onShowEvent,
+    onShowMap,
     selectedId,
     turn: state?.turn,
   }
@@ -95,47 +93,39 @@ export function useMapLinkState({
   )
 
   const links = useMemo<MapLinks>(() => {
-    const frameOn = (territory: string, noble?: string) => {
+    const frameOn = (territories: string[], prefix: 'link' | 'event', noble?: string) => {
       followed.current += 1
       setFocus({
         frame: {
-          territories: [territory],
-          key: `link:${followed.current}`,
+          territories,
+          key: `${prefix}:${followed.current}`,
           padding: FOCUS_FRAME_PADDING,
         },
         noble,
         baseKey: latest.current.baseKey,
       })
       setHighlightedId(null)
+    }
+    const select = (territory: string, noble?: string) => {
+      frameOn([territory], 'link', noble)
       setShown(null)
+      latest.current.onSelect(territory)
     }
     return {
       focus: (territory, noble) => {
-        frameOn(territory, noble)
-        latest.current.onSelect(territory)
+        select(territory, noble)
+        latest.current.onShowMap?.()
       },
-      follow: (territory) => {
-        frameOn(territory)
-        ;(latest.current.onFollow ?? latest.current.onSelect)(territory)
-      },
+      follow: (territory) => select(territory),
       showEvent: (marks) => {
         if (marks.territories.length === 0) return
-        followed.current += 1
-        setFocus({
-          frame: {
-            territories: marks.territories,
-            key: `event:${followed.current}`,
-            padding: FOCUS_FRAME_PADDING,
-          },
-          baseKey: latest.current.baseKey,
-        })
+        frameOn(marks.territories, 'event')
         setShown({
           marks,
           selectedId: latest.current.selectedId,
           turn: latest.current.turn,
         })
-        setHighlightedId(null)
-        latest.current.onShowEvent?.()
+        latest.current.onShowMap?.()
       },
       highlight: setHighlightedId,
       hasTerritory: (id) => territoryNames.has(id),

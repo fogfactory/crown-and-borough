@@ -5,6 +5,12 @@ import { useLanguage } from '@/i18n/LanguageContext'
 import { useIsDesktop } from '@/lib/use-media-query'
 import { cn } from '@/lib/utils'
 
+/**
+ * The map's area on the page, for whatever must tell a click on the map from
+ * one elsewhere (the order editors, charte-graphique.md § Saisie des ordres).
+ */
+export const MAP_AREA_SELECTOR = '[data-map-area]'
+
 interface GameLayoutProps {
   /** The interactive map (already includes its own overlays). */
   map: ReactNode
@@ -54,6 +60,7 @@ export function GameLayout({
     >
       <section
         aria-label={t('map.territories')}
+        data-map-area
         data-map-size={phoneMap}
         hidden={phoneMap === 'none'}
         className={cn(
