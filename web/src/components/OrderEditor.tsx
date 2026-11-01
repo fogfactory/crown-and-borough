@@ -13,6 +13,8 @@ import {
   type UIEvent,
 } from 'react'
 
+import { IconListSearch } from '@tabler/icons-react'
+
 import { useLanguage } from '@/i18n/LanguageContext'
 import { wordAtCursor, type CodeSuggester, type CodeSuggestion } from '@/lib/order-suggestions'
 import { cn } from '@/lib/utils'
@@ -25,12 +27,12 @@ export interface OrderToken {
 }
 
 // One group per kind, in the order of OrderTokenKind; text matches the rest.
-const TOKEN_PATTERN = /(#.*)|(\p{L}{3}(?!\p{L}))|(\p{L}(?!\p{L}))|(\d+)|([()-])|(\p{L}+|[^\p{L}\d#()-]+)/gu
+const TOKEN_PATTERN = /(#.*)|(\p{L}{2,3}(?!\p{L}))|(\p{L}(?!\p{L}))|(\d+)|([()-])|(\p{L}+|[^\p{L}\d#()-]+)/gu
 const GROUP_KINDS: OrderTokenKind[] = ['comment', 'trigram', 'verb', 'number', 'punctuation', 'text']
 
 /**
- * Splits one line of orders into lexical tokens: a comment, a word of three
- * letters (a code), a one-letter verb, a number or a bracket and hyphen. It
+ * Splits one line of orders into lexical tokens: a comment, a word of two or
+ * three letters (a code: a card, a territory, a noble), a one-letter verb, a number or a bracket and hyphen. It
  * only looks at the shape of the words, never at what an order means, and the
  * tokens joined give the line back.
  */
@@ -45,6 +47,8 @@ export type OrderEditorTone = 'default' | 'winter'
 
 // Shared by the textarea and its mirror: any difference shifts the colors.
 const TEXT_LAYOUT = 'block w-full border p-3 font-mono text-xs whitespace-pre-wrap break-words'
+// Right padding that keeps the text clear of the suggestion button.
+const SUGGEST_ROOM = 'pr-12 sm:pr-10'
 
 const TONES: Record<
   OrderEditorTone,
@@ -142,6 +146,8 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
     const [dismissed, setDismissed] = useState<string | null>(null)
     // Start of the word Ctrl+Space asked suggestions for, even without letters.
     const [requested, setRequested] = useState<number | null>(null)
+    // The player went through the list with the arrows.
+    const [browsed, setBrowsed] = useState(false)
     const pendingCursor = useRef<number | null>(null)
     const styles = TONES[tone]
     const faultyKey = errorLines.join(',')
@@ -180,13 +186,19 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
     const open = suggestions.length > 0 && wordKey !== dismissed
     const highlighted = Math.min(active, suggestions.length - 1)
 
-    // Brings the list, then the highlighted option, into the scrolling panel.
+    // Keeps the highlighted option visible in the list; the panel itself only
+    // scrolls to a list the player asked for, not while they type.
     useEffect(() => {
       if (!open) return
       const list = document.getElementById(listId)
-      list?.scrollIntoView?.({ block: 'nearest' })
-      document.getElementById(`${listId}-${highlighted}`)?.scrollIntoView?.({ block: 'nearest' })
-    }, [open, highlighted, listId])
+      const option = document.getElementById(`${listId}-${highlighted}`)
+      if (list && option) {
+        if (option.offsetTop < list.scrollTop) list.scrollTop = option.offsetTop
+        const bottom = option.offsetTop + option.offsetHeight
+        if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight
+      }
+      if (requested !== null) list?.scrollIntoView?.({ block: 'nearest' })
+    }, [open, highlighted, listId, requested])
 
     useLayoutEffect(() => {
       const textarea = textareaRef.current
@@ -202,15 +214,24 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
       onChange(value.slice(0, word.start) + suggestion.code + value.slice(word.end))
       setActive(0)
       setRequested(null)
+      setBrowsed(false)
+    }
+
+    /** Opens the suggestions at `position`, even before any letter. */
+    const request = (position: number) => {
+      setRequested(wordAtCursor(value, position, 0)?.start ?? null)
+      setDismissed(null)
+      setActive(0)
+      setBrowsed(false)
     }
 
     const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-      if (suggest && event.key === ' ' && event.ctrlKey) {
+      // Ctrl+Space, or Alt+Down where the system takes Ctrl+Space (macOS).
+      const asks =
+        (event.key === ' ' && event.ctrlKey) || (event.key === 'ArrowDown' && event.altKey)
+      if (suggest && asks) {
         event.preventDefault()
-        const at = wordAtCursor(value, event.currentTarget.selectionStart, 0)
-        setRequested(at?.start ?? null)
-        setDismissed(null)
-        setActive(0)
+        request(event.currentTarget.selectionStart)
         return
       }
       if (!open) return
@@ -218,19 +239,27 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
         event.preventDefault()
         const step = event.key === 'ArrowDown' ? 1 : -1
         setActive((highlighted + step + suggestions.length) % suggestions.length)
+        setBrowsed(true)
       } else if (event.key === 'Enter' || event.key === 'Tab') {
+        // A list that opened by itself never takes the key: Enter still
+        // breaks the line and Tab leaves the field.
+        if (requested === null && !browsed) return
         event.preventDefault()
         accept(suggestions[highlighted])
       } else if (event.key === 'Escape') {
         event.preventDefault()
         setDismissed(wordKey)
         setRequested(null)
+        setBrowsed(false)
       }
     }
 
     const trackCursor = (event: { currentTarget: HTMLTextAreaElement }) => {
-      const { selectionStart, selectionEnd } = event.currentTarget
+      const { selectionStart, selectionEnd, value: text } = event.currentTarget
       setCursor(selectionStart === selectionEnd ? selectionStart : null)
+      // A request holds for its word only.
+      const start = wordAtCursor(text, selectionStart, 0)?.start
+      setRequested((current) => (current === start ? current : null))
     }
 
     const syncScroll = (event: UIEvent<HTMLTextAreaElement>) => {
@@ -254,6 +283,7 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
           data-order-mirror
           className={cn(
             TEXT_LAYOUT,
+            suggest && SUGGEST_ROOM,
             'pointer-events-none absolute inset-0 m-0 overflow-y-auto border-transparent [scrollbar-color:transparent_transparent]',
             styles.base,
           )}
@@ -268,10 +298,15 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
             // Text inserted without keys (paste, phone keyboards) fires no select.
             trackCursor(event)
             setActive(0)
+            setBrowsed(false)
           }}
           onSelect={trackCursor}
           onFocus={trackCursor}
-          onBlur={() => setCursor(null)}
+          onBlur={() => {
+            setCursor(null)
+            setRequested(null)
+            setBrowsed(false)
+          }}
           onKeyDown={handleKeyDown}
           onScroll={syncScroll}
           role={suggest ? 'combobox' : undefined}
@@ -287,12 +322,31 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
           spellCheck={false}
           className={cn(
             TEXT_LAYOUT,
+            suggest && SUGGEST_ROOM,
             'relative min-h-16 resize-y overflow-y-auto rounded-lg bg-transparent text-transparent outline-none transition selection:bg-brass-300/40 focus:ring-2 disabled:cursor-not-allowed',
             styles.field,
             styles.caret,
             className,
           )}
         />
+        {suggest && !disabled && (
+          <button
+            type="button"
+            aria-label={t('orders.suggestionsOpen')}
+            title={t('orders.suggestionsOpen')}
+            // Keep the focus, and the phone keyboard, in the textarea.
+            onPointerDown={(event) => event.preventDefault()}
+            onClick={() => {
+              const textarea = textareaRef.current
+              if (!textarea) return
+              textarea.focus()
+              request(textarea.selectionStart)
+            }}
+            className="absolute right-1 top-1 z-10 flex size-11 items-center justify-center rounded-md text-ink-500 hover:bg-paper-100 hover:text-ink-900 sm:size-8"
+          >
+            <IconListSearch aria-hidden="true" className="size-4" />
+          </button>
+        )}
         {open && (
           <ul
             id={listId}

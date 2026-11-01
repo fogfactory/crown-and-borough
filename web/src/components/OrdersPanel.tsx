@@ -12,7 +12,7 @@ import {
   WINTER_SLOTS,
   type CodeSuggester,
 } from '@/lib/order-suggestions'
-import { AppeasementOrders, SpecialCardOrders, assassinationLauncher, justiceLauncher, TitleOrdersSection, shortCode } from '@/components/TitleOrders'
+import { AppeasementOrders, SpecialCardOrders, assassinationLauncher, justiceLauncher, TitleOrdersSection } from '@/components/TitleOrders'
 import {
   Tooltip,
   TooltipContent,
@@ -23,7 +23,7 @@ import type { RulesSection } from '@/components/RulesPanel'
 import { SectionHeading } from '@/components/SectionHeading'
 import { TerritoryRef } from '@/components/MapLinks'
 import { richTranslate } from '@/lib/rich-text'
-import { formatCardLabel, formatCardName } from '@/lib/card-hand'
+import { formatCardLabel, formatCardName, shortCode } from '@/lib/card-hand'
 import { CardPictogram } from '@/components/CardPictogram'
 import { HandFan, type FanCard } from '@/components/HandFan'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
@@ -1076,6 +1076,9 @@ function usePreviewDraftErrors(
   }, [state, player, chainDrafts, winterDraft, specialDraft, preview, ordersBody, previewedBody])
 }
 
+/** Calamities a Witch's ritual can call (`S R NNN CAL`). */
+const WITCH_CALAMITIES: CardKind[] = ['plague', 'bad_weather', 'famine']
+
 /**
  * Code completion of the order editors, from the map, the known nobles and
  * the cards of the hand: each sheet reads the places of its own orders.
@@ -1105,6 +1108,11 @@ function useCodeSuggesters(
         code: shortCode(kind),
         name: formatCardName(kind, t),
       })),
+      calamities: WITCH_CALAMITIES.map((kind) => ({
+        code: shortCode(kind),
+        name: formatCardName(kind, t),
+      })),
+      aids: state.winterAids,
     })
     return {
       chain: chainSuggester(index),

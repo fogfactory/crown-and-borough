@@ -659,8 +659,9 @@ La saisie reste textuelle, assistée :
 - Le même principe s'applique aux investissements d'hiver et aux cartes
   spéciales.
 
-**Précision.** La coloration est lexicale : mot de trois lettres (trigramme),
-verbe d'une lettre, nombre, commentaire. Elle ne juge jamais un ordre, qu'il
+**Précision.** La coloration est lexicale : mot de deux ou trois lettres (code
+d'une carte, d'un territoire ou d'un noble), verbe d'une lettre, nombre,
+commentaire. Elle ne juge jamais un ordre, qu'il
 soit valide ou non. Une erreur de la prévisualisation est soulignée en vague
 `vermilion-700` sur la ligne fautive de la zone qui la contient (chaîne d'un
 noble, ordres d'hiver ou cartes spéciales), avec son message sous cette zone ;
@@ -669,8 +670,9 @@ la dernière prévisualisation garde ses messages, sans numéro de ligne ni
 soulignement, jusqu'à la prévisualisation suivante.
 
 **Précision.** L'autocomplétion s'ouvre sous la zone dès deux lettres tapées
-hors d'un commentaire, une seule lettre restant un verbe, ou sur Ctrl+Espace,
-même sans lettre. Elle cherche par code ou par nom, sans tenir compte des
+hors d'un commentaire, une seule lettre restant un verbe, ou à la demande,
+même sans lettre : Ctrl+Espace, Alt+↓ (Ctrl+Espace est pris par macOS) ou le
+bouton loupe en haut à droite de la zone, seul moyen sur téléphone. Elle cherche par code ou par nom, sans tenir compte des
 accents (« reve » trouve « Révelin (REV) »), parmi les territoires de la carte,
 les nobles connus et les cartes de la main. Les codes que la place attend
 viennent d'abord, puis ceux du joueur, puis les autres, douze au plus ; sans
@@ -683,8 +685,14 @@ spéciales, chaque ordre a ses places : une carte de noble puis un château ou u
 village du joueur pour `R N`, un noble d'un autre joueur pour `O N`, les cartes
 de la main après `P`, puis la cible de chaque carte (le village seed d'une
 région pour Beau temps, un territoire en révolte possible pour Révolte…). Les
-flèches choisissent, Entrée ou Tab insèrent le code, Échap ferme la liste
-jusqu'à la lettre suivante ; un code déjà complet n'ouvre rien.
+ordres de titres lisent leurs places dans les aides d'hiver du serveur
+(nobles excommuniables, enquêteurs, juges, Sorcières…). Les flèches
+choisissent ; Entrée ou Tab insèrent le code d'une liste demandée ou parcourue
+aux flèches, et gardent sinon leur rôle (aller à la ligne, quitter la zone),
+pour qu'un mot de deux lettres ne soit jamais remplacé à l'insu du joueur.
+Échap ferme la liste jusqu'à la lettre suivante ; un code déjà complet n'ouvre
+rien. Seule l'option choisie défile dans la liste : le panneau ne défile que
+vers une liste demandée.
 
 **Évolution possible.** Des cartes d'ordres (choisir un verbe, puis la cible
 sur la carte, et réordonner les cartes) pourront s'ajouter plus tard, comme

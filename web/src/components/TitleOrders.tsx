@@ -9,7 +9,7 @@ import { NoblePawnIcon } from '@/components/NobleHolder'
 import { religiousTitlesByHolder } from '@/lib/lineage'
 import { nobleAttributesByCode } from '@/lib/noble-attributes'
 import { NEUTRAL_ARMY_COLOR } from '@/lib/map-palette'
-import { formatCardLabel } from '@/lib/card-hand'
+import { formatCardLabel, shortCode } from '@/lib/card-hand'
 import { parseDraftTaxLine } from '@/lib/projected-tax'
 import { royalIssuerOf } from '@/lib/royal'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
@@ -1468,24 +1468,6 @@ function ambushLauncher({
       onConfirm={add}
     />
   )
-}
-
-const SHORT_CODES: Record<CardKind, string> = {
-  fair_weather: 'BT',
-  abundant_harvest: 'RA',
-  revolt: 'RE',
-  plague: 'PE',
-  bad_weather: 'MT',
-  famine: 'FA',
-  seigneurial_tax: 'TX',
-  tunnel: 'SO',
-  ambush: 'EM',
-  assassination: 'AS',
-  justice: 'JU',
-}
-
-export function shortCode(kind: CardKind): string {
-  return SHORT_CODES[kind]
 }
 
 /** Region seed of a territory, from the bishoprics (a region is a bishopric). */

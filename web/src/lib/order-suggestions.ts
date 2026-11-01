@@ -1,4 +1,5 @@
-import type { NobleCardKind, PlayerId, Region, StateData, Territory } from '@/types'
+import { shortCode } from '@/lib/card-hand'
+import type { CardKind, NobleCardKind, PlayerId, Region, StateData, Territory, WinterAids } from '@/types'
 
 /** A code the order editor can offer, with the name that explains it. */
 export interface CodeSuggestion {
@@ -42,6 +43,7 @@ function fold(text: string): string {
  * What an order expects at one of its places, as far as suggestions go:
  * territories by who holds them or what stands there, nobles by owner, or the
  * cards of the hand. `adjacent` is a neighbour of the territory just before.
+ * The title orders read their places in the winter aids the server sends.
  */
 export type SlotKind =
   | 'territory'
@@ -60,6 +62,15 @@ export type SlotKind =
   | 'dignityCard'
   | 'handCard'
   | 'specialCard'
+  | 'calamity'
+  | 'excommunicable'
+  | 'liftable'
+  | 'dissolvable'
+  | 'buyableCardinal'
+  | 'inquirer'
+  | 'trialJudge'
+  | 'witch'
+  | 'royalIssuer'
 
 /** A card of the hand, with its code and its name in the player's language. */
 export interface HandCard {
@@ -75,6 +86,9 @@ export interface SuggestionSources {
   regions?: readonly Region[]
   nobleCards?: ReadonlyArray<HandCard & { kind: NobleCardKind }>
   specialCards?: readonly HandCard[]
+  /** Calamities a Witch can call (`S R NNN CAL`). */
+  calamities?: readonly HandCard[]
+  aids?: WinterAids
 }
 
 interface IndexedCode extends CodeSuggestion {
@@ -99,6 +113,8 @@ export function buildCodeIndex({
   regions = [],
   nobleCards = [],
   specialCards = [],
+  calamities = [],
+  aids,
 }: SuggestionSources): CodeIndex {
   const owned = state.territories.filter(
     (territory) => territory.owner === player || territory.army?.owner === player,
@@ -144,6 +160,7 @@ export function buildCodeIndex({
       })),
       ...nobleCards.map(card),
       ...specialCards.map(card),
+      ...calamities.map(card),
     ],
     neighbours: new Map(territories.map((territory) => [territory.id, territory.adjacencies])),
     armies: ids([...ownArmies, ...foreignArmies]),
@@ -164,6 +181,15 @@ export function buildCodeIndex({
       dignityCard: codesOf(nobleCards.filter((entry) => entry.kind === 'dignity')),
       handCard: codesOf([...nobleCards, ...specialCards]),
       specialCard: codesOf(specialCards),
+      calamity: codesOf(calamities),
+      excommunicable: codesOf(aids?.excommunicable ?? []),
+      liftable: [...(aids?.liftable ?? [])],
+      dissolvable: (aids?.dissolvable ?? []).map((marriage) => marriage.noble),
+      buyableCardinal: [...(aids?.buyableCardinals ?? [])],
+      inquirer: [...(aids?.inquirers ?? [])],
+      trialJudge: [...(aids?.trialJudges ?? [])],
+      witch: (aids?.rituals ?? []).map((ritual) => ritual.noble),
+      royalIssuer: aids?.royal ? [aids.royal.issuer] : [],
     },
   }
 }
@@ -218,12 +244,16 @@ export function chainSlotCodes(index: CodeIndex, textBefore: string): string[] |
   return undefined
 }
 
-/** Places of the winter orders after their verb (specs/gdd.md § Phase d'hiver). */
+/**
+ * Places of the winter orders after their verb (specs/gdd.md § Phase d'hiver,
+ * titres.md, politique.md). The preview judges the orders: these tables only
+ * steer the suggestions.
+ */
 export const WINTER_SLOTS: Record<string, SlotKind[]> = {
   'R N': ['nobleCard', 'ownSettlement'],
   'C N': ['ownNoble', 'otherNoble'],
   'D N': ['noble', 'dignityCard', 'region'],
-  'S R': ['ownNoble'],
+  'S R': ['witch', 'calamity'],
   'D C': ['handCard'],
   'A N': ['ownArmy'],
   'R T': ['own'],
@@ -241,28 +271,39 @@ export const WINTER_SLOTS: Record<string, SlotKind[]> = {
   'T R': ['ownNoble', 'ownSettlement'],
   'K R': ['ownNoble'],
   'V R': ['noble'],
-  'W X': ['ownNoble', 'territory', 'adjacent'],
-  'W R': ['ownNoble', 'territory'],
-  'W F': ['ownNoble', 'territory'],
-  'W G': ['ownNoble', 'territory', 'noble'],
+  'V C': ['ownNoble'],
+  'W X': ['royalIssuer', 'territory', 'adjacent'],
+  'W R': ['royalIssuer', 'territory'],
+  'W F': ['royalIssuer', 'territory'],
+  'W G': ['royalIssuer', 'territory', 'noble'],
   'M N': ['ownNoble', 'otherNoble'],
+  'X E': ['excommunicable'],
+  'X L': ['liftable'],
+  'X D': ['dissolvable'],
+  'N C': ['buyableCardinal'],
+  Q: ['inquirer', 'noble'],
+  J: ['trialJudge', 'noble'],
 }
+
+/** `P` and a card code, as the special card orders write it. */
+const play = (kind: CardKind) => `P ${shortCode(kind)}`
 
 /** Places of the special card orders after `P` and the card (specs/ordres-speciaux.md). */
 export const SPECIAL_SLOTS: Record<string, SlotKind[]> = {
   P: ['specialCard'],
   'D C': ['specialCard'],
-  'P BT': ['region'],
-  'P RA': ['region'],
-  'P RE': ['revoltTarget'],
+  [play('fair_weather')]: ['region'],
+  [play('abundant_harvest')]: ['region'],
+  [play('revolt')]: ['revoltTarget'],
+  [play('seigneurial_tax')]: ['ownNoble', 'territory'],
+  [play('tunnel')]: ['noble'],
+  [play('assassination')]: ['ownNoble', 'otherNoble'],
+  [play('justice')]: ['ownNoble'],
+  [play('ambush')]: ['ownArmy', 'adjacent'],
+  // Revolt appeasement and tithe: no card of their own.
   'P AG': ['ownNoble', 'region'],
   'P AP': ['ownNoble', 'region'],
-  'P TX': ['ownNoble', 'territory'],
   'P DI': ['ownNoble', 'region'],
-  'P SO': ['noble'],
-  'P AS': ['ownNoble', 'otherNoble'],
-  'P JU': ['ownNoble'],
-  'P EM': ['ownArmy', 'adjacent'],
 }
 
 /** Orders whose last place repeats: the territories of a new fief. */

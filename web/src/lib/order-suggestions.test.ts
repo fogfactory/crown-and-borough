@@ -9,7 +9,7 @@ import {
   WINTER_SLOTS,
   wordAtCursor,
 } from '@/lib/order-suggestions'
-import type { StateData, Territory } from '@/types'
+import type { StateData, Territory, WinterAids } from '@/types'
 
 function territory(id: string, name: string, adjacencies: string[] = [], village = false): Territory {
   return { id, name, terrain: 'plain', village, points: [], adjacencies, impassable: [] }
@@ -50,6 +50,11 @@ const index = buildCodeIndex({
     { code: 'BT', name: 'Beau temps' },
     { code: 'RE', name: 'Révolte' },
   ],
+  calamities: [{ code: 'PE', name: 'Peste' }],
+  aids: {
+    excommunicable: [{ code: 'ROB' }],
+    rituals: [{ noble: 'RAI', region: 'R1' }],
+  } as unknown as WinterAids,
 })
 const codes = (word: string, slot?: string[]) =>
   suggestCodes(index, word, slot).map((suggestion) => suggestion.code)
@@ -134,6 +139,13 @@ describe('winter suggestions', () => {
     expect(winterCodes('D N ROB ')).toEqual(['BAS'])
     expect(winterCodes('G RVE ')).toEqual(['REV'])
     expect(winterCodes('H N RAI ')).toEqual(['REV'])
+  })
+
+  it('reads the title orders in the winter aids', () => {
+    expect(winterCodes('X E ')).toEqual(['ROB'])
+    expect(winterCodes('S R ')).toEqual(['RAI'])
+    expect(winterCodes('S R RAI ')).toEqual(['PE'])
+    expect(winterCodes('S R RAI ', 'PE')).toEqual([])
   })
 
   it('repeats the territories of a new fief and offers neighbours to annex', () => {
