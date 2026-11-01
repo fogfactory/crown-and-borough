@@ -34,6 +34,10 @@ var demoScenarios = map[string]struct {
 		description: "winter (see the winter scenario): P2's excommunicated noble is the king, married to ZQU (P3), and holds a barony; claims on the couple: ZAN (P3, a woman) then ZGA (P3) on the king, ZPI (P2) on the queen. P1's pope and P2's cardinal can file the J trial that kills the king: the crown goes to ZPI, the barony to ZAN",
 		apply:       forgeCrown,
 	},
+	"lineage": {
+		description: "winter (see the winter scenario), four houses to try the lineage tree: P1 is married to P2 (twice, at different ranks), P3 and P4, an ended marriage joins P3 and P4, and four claims whose stems cross",
+		apply:       forgeLineage,
+	},
 	"dissolution": {
 		description: "winter (see the winter scenario), plus two marriages: ZEL (P1, the pope's house) with ZRO (P2), and ZCA (P2) with ZGU (P3); P1 can marry free nobles of P4",
 		apply:       forgeDissolution,
@@ -521,6 +525,60 @@ func forgeRoyal(state *models.GameState) error {
 		Territories: crownMembers, OwnerID: "P3",
 	})
 	fmt.Printf("demo royal: king ZRK (P1); P2 barony %v (ZRB); crown fief %v\n", p2Members, crownMembers)
+	return nil
+}
+
+// forgeLineage fills the four houses with nobles, marriages and claims to try
+// the lineage tree. P1 is the hub: it is married twice to P2 (ZLA x ZMA and
+// ZLB x ZMC, at different ranks of both houses), once to P3 (ZLC x ZNB) and
+// once to P4 (ZLD x ZOA), so one of these marriages crosses a column whatever
+// the order of the houses. An ended marriage joins P3 and P4 (ZNA x ZOB,
+// dissolved). Each claim is staked by a noble of the spouse's house: ZMD (P2)
+// on ZLA, ZLE (P1) on ZMC, ZNC (P3) on ZLC and ZOC (P4) on ZLD; two of them
+// share the gap between P1 and P2 with stems that cross.
+func forgeLineage(state *models.GameState) error {
+	if err := forgeWinter(state); err != nil {
+		return err
+	}
+	location := state.Nobles[ownedNobles(state, "P1")[0]].LocationID
+	for _, noble := range []struct {
+		id, code, name, owner string
+		sex                   models.Sex
+	}{
+		{"N950", "ZLA", "Alix", "P1", models.SexFemale},
+		{"N951", "ZLB", "Aliénor", "P1", models.SexFemale},
+		{"N952", "ZLC", "Adélaïde", "P1", models.SexFemale},
+		{"N953", "ZLD", "Aude", "P1", models.SexFemale},
+		{"N954", "ZLE", "Aymeric", "P1", models.SexMale},
+		{"N955", "ZMA", "Baudouin", "P2", models.SexMale},
+		{"N956", "ZMC", "Bertrand", "P2", models.SexMale},
+		{"N957", "ZMD", "Mathilde", "P2", models.SexFemale},
+		{"N958", "ZNA", "Clovis", "P3", models.SexMale},
+		{"N959", "ZNB", "Clotaire", "P3", models.SexMale},
+		{"N960", "ZNC", "Clémence", "P3", models.SexFemale},
+		{"N961", "ZOA", "Dagobert", "P4", models.SexMale},
+		{"N962", "ZOB", "Denise", "P4", models.SexFemale},
+		{"N963", "ZOC", "Didier", "P4", models.SexMale},
+	} {
+		state.Nobles = append(state.Nobles, models.Noble{
+			ID: models.NobleID(noble.id), Code: noble.code, Name: noble.name, Sex: noble.sex,
+			OwnerID: models.PlayerID(noble.owner), LocationID: location, Status: models.NobleStatusFree,
+		})
+	}
+	state.Marriages = []models.Marriage{
+		{NobleA: "N950", NobleB: "N955", Turn: 1},
+		{NobleA: "N951", NobleB: "N956", Turn: 2},
+		{NobleA: "N952", NobleB: "N959", Turn: 2},
+		{NobleA: "N953", NobleB: "N961", Turn: 3},
+		{NobleA: "N958", NobleB: "N962", Turn: 1, Dissolved: true, DissolvedTurn: 3},
+	}
+	state.Claims = []models.Claim{
+		{Heir: "N957", Target: "N950", Spouse: "N955", Turn: 3},
+		{Heir: "N954", Target: "N956", Spouse: "N951", Turn: 3},
+		{Heir: "N960", Target: "N952", Spouse: "N959", Turn: 4},
+		{Heir: "N963", Target: "N953", Spouse: "N961", Turn: 4},
+	}
+	fmt.Println("demo lineage: open the lineage window; P1 is married to P2 (twice), P3 and P4, P3-P4 ended, four claims")
 	return nil
 }
 
