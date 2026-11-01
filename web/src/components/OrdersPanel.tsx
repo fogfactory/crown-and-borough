@@ -4,6 +4,7 @@ import { IconBook, IconSnowflake } from '@tabler/icons-react'
 import { Button } from '@/components/ui/button'
 import { OrderLauncher } from '@/components/OrderDialog'
 import { OrderEditor, type OrderEditorTone } from '@/components/OrderEditor'
+import { buildCodeIndex, suggestCodes, type CodeSuggestion } from '@/lib/order-suggestions'
 import { AppeasementOrders, SpecialCardOrders, assassinationLauncher, justiceLauncher, TitleOrdersSection, shortCode } from '@/components/TitleOrders'
 import {
   Tooltip,
@@ -204,6 +205,7 @@ function EditorZone({
   placeholder,
   ariaLabel,
   className,
+  suggest,
 }: {
   value: string
   onChange: (value: string) => void
@@ -214,6 +216,7 @@ function EditorZone({
   placeholder: string
   ariaLabel: string
   className?: string
+  suggest?: (word: string, lineBefore: string) => CodeSuggestion[]
 }) {
   const errorsId = useId()
   const errorLines = errors.flatMap((error) => (error.line ? [error.line] : []))
@@ -230,6 +233,7 @@ function EditorZone({
         placeholder={placeholder}
         aria-label={ariaLabel}
         className={className}
+        suggest={suggest}
       />
       <PreviewErrors id={errorsId} errors={errors} label={errorsLabel} />
     </div>
@@ -272,6 +276,7 @@ function DeckOrdersSection({
   player,
   specialDraft,
   errors,
+  suggest,
   onSpecialChange,
   onOpenRules,
 }: {
@@ -280,6 +285,7 @@ function DeckOrdersSection({
   onOpenRules?: (section: RulesSection) => void
   specialDraft: string
   errors: DraftError[]
+  suggest?: (word: string, lineBefore: string) => CodeSuggestion[]
   onSpecialChange: (text: string) => void
 }) {
   const { t } = useLanguage()
@@ -304,6 +310,7 @@ function DeckOrdersSection({
         value={specialDraft}
         onChange={onSpecialChange}
         errors={errors}
+        suggest={suggest}
         errorsLabel={t('orders.specialErrorsAria')}
         className="min-h-20"
         placeholder={t('orders.deckPlaceholder')}
@@ -1062,6 +1069,19 @@ function usePreviewDraftErrors(
   }, [state, player, chainDrafts, winterDraft, specialDraft, preview, ordersBody, previewedBody])
 }
 
+/** Code completion of the order editors, from the map and the known nobles. */
+function useCodeSuggest(
+  state: StateData,
+  player: PlayerId,
+  mapTerritories: Territory[] | undefined,
+): ((word: string, lineBefore: string) => CodeSuggestion[]) | undefined {
+  return useMemo(() => {
+    if (!mapTerritories) return undefined
+    const index = buildCodeIndex(mapTerritories, state, player)
+    return (word: string, lineBefore: string) => suggestCodes(index, word, lineBefore)
+  }, [mapTerritories, state, player])
+}
+
 export function OrdersPanel({
   state,
   player,
@@ -1089,6 +1109,7 @@ export function OrdersPanel({
     ordersBody,
     previewedBody,
   )
+  const suggest = useCodeSuggest(state, player, mapTerritories)
 
   if (state.season === 'winter') {
     const winterLines = preview?.winter ?? []
@@ -1152,6 +1173,7 @@ export function OrdersPanel({
           value={winterDraft}
           onChange={onWinterChange}
           errors={draftErrors.winter}
+          suggest={suggest}
           errorsLabel={t('orders.winterErrorsAria')}
           tone="winter"
           className="min-h-28"
@@ -1207,6 +1229,7 @@ export function OrdersPanel({
         player={player}
         specialDraft={specialDraft}
         errors={draftErrors.special}
+        suggest={suggest}
         onSpecialChange={onSpecialChange}
         onOpenRules={onOpenRules}
       />
@@ -1216,6 +1239,7 @@ export function OrdersPanel({
             value={winterDraft}
             onChange={onWinterChange}
             errors={draftErrors.winter}
+            suggest={suggest}
             errorsLabel={t('orders.winterErrorsAria')}
             tone="winter"
             placeholder={t('orders.nobleCardsPlaceholder')}
@@ -1266,6 +1290,7 @@ export function OrdersPanel({
               value={chainDrafts[noble.code] ?? ''}
               onChange={(text) => onChainChange(noble.code, text)}
               errors={draftErrors.chains[noble.code] ?? []}
+              suggest={suggest}
               errorsLabel={t('orders.chainErrorsOfAria', { noble: `${noble.name} (${noble.code})` })}
               disabled={noble.status === 'dungeon'}
               className="min-h-24"

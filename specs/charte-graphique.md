@@ -668,6 +668,15 @@ une erreur sans ligne n'apparaît que comme message. Une zone modifiée depuis
 la dernière prévisualisation garde ses messages, sans numéro de ligne ni
 soulignement, jusqu'à la prévisualisation suivante.
 
+**Précision.** L'autocomplétion s'ouvre sous la zone dès deux lettres tapées
+hors d'un commentaire, une seule lettre restant un verbe. Elle cherche par code
+ou par nom, sans tenir compte des accents (« reve » trouve « Révelin (REV) »),
+parmi les territoires de la carte et les nobles connus. Les voisins
+franchissables du dernier territoire écrit sur la ligne viennent d'abord, puis
+les territoires et nobles du joueur, puis les autres, huit au plus. Les flèches
+choisissent, Entrée ou Tab insèrent le code, Échap ferme la liste jusqu'à la
+lettre suivante ; un code déjà complet n'ouvre rien.
+
 **Évolution possible.** Des cartes d'ordres (choisir un verbe, puis la cible
 sur la carte, et réordonner les cartes) pourront s'ajouter plus tard, comme
 une seconde vue de la même chaîne, sans retirer le texte assisté. Elles
