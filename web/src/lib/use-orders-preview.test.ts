@@ -79,4 +79,16 @@ describe('useOrdersPreview', () => {
     })
     expect(result.current.preview).toBeNull()
   })
+
+  it('shows nothing for a reply that is not a preview', async () => {
+    const request = vi.fn<OrdersPreviewRequest>(() =>
+      Promise.resolve({ turn: 1, season: 'spring' } as unknown as OrdersPreview),
+    )
+    const { result } = renderHook(() => useOrdersPreview(body('HUG\nROS H'), request))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300)
+    })
+    expect(request).toHaveBeenCalledOnce()
+    expect(result.current.preview).toBeNull()
+  })
 })
