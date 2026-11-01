@@ -1,4 +1,6 @@
 import { shortCode } from '@/lib/card-hand'
+import { isSettlement } from '@/lib/supply'
+import { cleanOrderLine } from '@/lib/winter-draft'
 import type { CardKind, NobleCardKind, PlayerId, Region, StateData, Territory, WinterAids } from '@/types'
 
 /** A code the order editor can offer, with the name that explains it. */
@@ -9,7 +11,7 @@ export interface CodeSuggestion {
 }
 
 /** The word being typed: its bounds in the text and its letters. */
-export interface TypedWord {
+interface TypedWord {
   start: number
   end: number
   text: string
@@ -21,15 +23,13 @@ export type CodeSuggester = (word: string, textBefore: string) => CodeSuggestion
 const LETTER = /\p{L}/u
 
 /**
- * The word the cursor stands at the end of, when it is long enough to look a
- * code up and is not in a comment. Two letters by default, since a single
- * letter is a verb; an explicit request (Ctrl+Space) takes even an empty word.
+ * The word the cursor stands at the end of, possibly empty, unless the cursor
+ * is inside a word or a comment. The editor decides how long it must be.
  */
-export function wordAtCursor(value: string, cursor: number, minLength = 2): TypedWord | null {
+export function wordAtCursor(value: string, cursor: number): TypedWord | null {
   if (cursor < value.length && LETTER.test(value[cursor])) return null
   let start = cursor
   while (start > 0 && LETTER.test(value[start - 1])) start--
-  if (cursor - start < minLength) return null
   const lineStart = value.lastIndexOf('\n', start - 1) + 1
   if (value.slice(lineStart, start).includes('#')) return null
   return { start, end: cursor, text: value.slice(start, cursor) }
@@ -73,13 +73,13 @@ export type SlotKind =
   | 'royalIssuer'
 
 /** A card of the hand, with its code and its name in the player's language. */
-export interface HandCard {
+interface HandCard {
   code: string
   name: string
 }
 
 /** What the suggestions are drawn from. */
-export interface SuggestionSources {
+interface SuggestionSources {
   territories: readonly Territory[]
   state: Pick<StateData, 'territories' | 'nobles' | 'revoltTargets'>
   player: PlayerId
@@ -98,12 +98,12 @@ interface IndexedCode extends CodeSuggestion {
 }
 
 /** Codes the editors can offer, and the lists each kind of place draws from. */
-export interface CodeIndex {
+interface CodeIndex {
   codes: IndexedCode[]
+  byCode: Map<string, IndexedCode>
   neighbours: Map<string, readonly string[]>
-  /** Territories holding an army, the player's first. */
-  armies: string[]
-  slots: Record<Exclude<SlotKind, 'territory' | 'adjacent'>, string[]>
+  /** `army`: every territory holding an army, the player's first. */
+  slots: Record<Exclude<SlotKind, 'territory' | 'adjacent'> | 'army', readonly string[]>
 }
 
 export function buildCodeIndex({
@@ -116,56 +116,46 @@ export function buildCodeIndex({
   calamities = [],
   aids,
 }: SuggestionSources): CodeIndex {
+  const villages = new Set(territories.filter((territory) => territory.village).map((t) => t.id))
+  const settled = state.territories.filter(
+    (territory) => villages.has(territory.id) || isSettlement(territory),
+  )
   const owned = state.territories.filter(
     (territory) => territory.owner === player || territory.army?.owner === player,
   )
-  const villages = new Set(territories.filter((territory) => territory.village).map((t) => t.id))
-  const settled = state.territories
-    .filter(
-      (territory) =>
-        villages.has(territory.id) ||
-        territory.infrastructures.some((infra) => infra.type === 'castle' || infra.type === 'village'),
-    )
-  const withArmy = state.territories.filter((territory) => territory.army)
-  const ownArmies = withArmy.filter((territory) => territory.army?.owner === player)
-  const foreignArmies = withArmy.filter((territory) => territory.army?.owner !== player)
-  const ids = (list: ReadonlyArray<{ id: string }>) => list.map((item) => item.id)
-  const codesOf = (list: ReadonlyArray<{ code: string }>) => list.map((item) => item.code)
+  const ownArmies = state.territories.filter((territory) => territory.army?.owner === player)
+  const foreignArmies = state.territories.filter(
+    (territory) => territory.army && territory.army.owner !== player,
+  )
   const ownNobles = state.nobles.filter((noble) => noble.owner === player)
   const otherNobles = state.nobles.filter((noble) => noble.owner !== player)
-  const ownIds = new Set(ids(owned))
+  const ids = (list: ReadonlyArray<{ id: string }>) => list.map((item) => item.id)
+  const codesOf = (list: ReadonlyArray<{ code: string }>) => list.map((item) => item.code)
+  const ownIds = ids(owned)
+  const ownSet = new Set(ownIds)
 
-  const card = (entry: HandCard): IndexedCode => ({
-    code: entry.code,
-    name: entry.name,
-    kind: 'card',
-    folded: fold(entry.name),
-    own: true,
+  const entry = (code: string, name: string, kind: CodeSuggestion['kind'], own: boolean) => ({
+    code,
+    name,
+    kind,
+    folded: fold(name),
+    own,
   })
+  const codes: IndexedCode[] = [
+    ...territories.map((t) => entry(t.id, t.name, 'territory', ownSet.has(t.id))),
+    ...state.nobles.map((noble) => entry(noble.code, noble.name, 'noble', noble.owner === player)),
+    ...[...nobleCards, ...specialCards, ...calamities].map((card) =>
+      entry(card.code, card.name, 'card', true),
+    ),
+  ]
   return {
-    codes: [
-      ...territories.map<IndexedCode>((territory) => ({
-        code: territory.id,
-        name: territory.name,
-        kind: 'territory',
-        folded: fold(territory.name),
-        own: ownIds.has(territory.id),
-      })),
-      ...state.nobles.map<IndexedCode>((noble) => ({
-        code: noble.code,
-        name: noble.name,
-        kind: 'noble',
-        folded: fold(noble.name),
-        own: noble.owner === player,
-      })),
-      ...nobleCards.map(card),
-      ...specialCards.map(card),
-      ...calamities.map(card),
-    ],
+    codes,
+    // The first entry of a code wins: a territory before a card of the same code.
+    byCode: new Map([...codes].reverse().map((code) => [code.code, code])),
     neighbours: new Map(territories.map((territory) => [territory.id, territory.adjacencies])),
-    armies: ids([...ownArmies, ...foreignArmies]),
     slots: {
-      own: ids(owned),
+      army: ids([...ownArmies, ...foreignArmies]),
+      own: ownIds,
       ownSettlement: ids(settled.filter((territory) => territory.owner === player)),
       foreignSettlement: ids(
         settled.filter((territory) => territory.owner && territory.owner !== player),
@@ -173,21 +163,21 @@ export function buildCodeIndex({
       ownArmy: ids(ownArmies),
       foreignArmy: ids(foreignArmies),
       region: regions.map((region) => region.seed),
-      revoltTarget: [...(state.revoltTargets ?? [])],
+      revoltTarget: state.revoltTargets ?? [],
       noble: codesOf([...ownNobles, ...otherNobles]),
       ownNoble: codesOf(ownNobles),
       otherNoble: codesOf(otherNobles),
-      nobleCard: codesOf(nobleCards.filter((entry) => entry.kind === 'noble')),
-      dignityCard: codesOf(nobleCards.filter((entry) => entry.kind === 'dignity')),
+      nobleCard: codesOf(nobleCards.filter((card) => card.kind === 'noble')),
+      dignityCard: codesOf(nobleCards.filter((card) => card.kind === 'dignity')),
       handCard: codesOf([...nobleCards, ...specialCards]),
       specialCard: codesOf(specialCards),
       calamity: codesOf(calamities),
       excommunicable: codesOf(aids?.excommunicable ?? []),
-      liftable: [...(aids?.liftable ?? [])],
+      liftable: aids?.liftable ?? [],
       dissolvable: (aids?.dissolvable ?? []).map((marriage) => marriage.noble),
-      buyableCardinal: [...(aids?.buyableCardinals ?? [])],
-      inquirer: [...(aids?.inquirers ?? [])],
-      trialJudge: [...(aids?.trialJudges ?? [])],
+      buyableCardinal: aids?.buyableCardinals ?? [],
+      inquirer: aids?.inquirers ?? [],
+      trialJudge: aids?.trialJudges ?? [],
       witch: (aids?.rituals ?? []).map((ritual) => ritual.noble),
       royalIssuer: aids?.royal ? [aids.royal.issuer] : [],
     },
@@ -196,13 +186,7 @@ export function buildCodeIndex({
 
 /** Words of an order line, without its comment, brackets and hyphens. */
 function lineWords(line: string): string[] {
-  return line
-    .replace(/#.*$/, '')
-    .replace(/[()-]/g, ' ')
-    .trim()
-    .toUpperCase()
-    .split(/\s+/)
-    .filter(Boolean)
+  return cleanOrderLine(line).replace(/[()-]/g, ' ').split(/\s+/).filter(Boolean)
 }
 
 const STAYING_VERBS = new Set(['H', 'P'])
@@ -228,19 +212,19 @@ function chainPosition(lines: string[]): string | undefined {
  * position or a neighbour in a dispersion. Undefined where the words say
  * nothing (a verb, a number, a transfer target): any code may come.
  */
-export function chainSlotCodes(index: CodeIndex, textBefore: string): string[] | undefined {
+function chainSlotCodes(index: CodeIndex, textBefore: string): readonly string[] | undefined {
   const lines = textBefore.split('\n')
   const current = lineWords(lines.pop() ?? '')
   const position = chainPosition(lines)
   const around = (territory: string) => index.neighbours.get(territory) ?? []
   if (current.length === 0 || (current.length === 1 && STAYING_VERBS.has(current[0]))) {
-    return position ? [position, ...around(position)] : index.armies
+    return position ? [position, ...around(position)] : index.slots.army
   }
   const [origin, verb] = current
-  if (current.length === 2 && (MOVING_VERBS.has(verb) || verb === 'S')) return [...around(origin)]
+  if (current.length === 2 && (MOVING_VERBS.has(verb) || verb === 'S')) return around(origin)
   if (verb === 'D') return [origin, ...around(origin)]
   // `XXX S YYY - ZZZ`: the attack of YYY goes to one of its neighbours.
-  if (verb === 'S' && current.length === 3 && /-\s*$/.test(textBefore)) return [...around(current[2])]
+  if (verb === 'S' && current.length === 3 && /-\s*$/.test(textBefore)) return around(current[2])
   return undefined
 }
 
@@ -314,11 +298,11 @@ const REPEATING = new Set(['T F'])
  * already written after it: the longest verb of `table` the line starts with
  * gives the places, the number of words after it the place being typed.
  */
-export function sheetSlotCodes(
+function sheetSlotCodes(
   index: CodeIndex,
   table: Record<string, SlotKind[]>,
   textBefore: string,
-): string[] | undefined {
+): readonly string[] | undefined {
   const words = lineWords(textBefore.slice(textBefore.lastIndexOf('\n') + 1))
   const verb = [words.slice(0, 2).join(' '), words[0]].find(
     (candidate) => candidate !== undefined && candidate in table,
@@ -330,7 +314,7 @@ export function sheetSlotCodes(
   if (!place || place === 'territory') return undefined
   if (place === 'adjacent') {
     const before = args.at(-1)
-    return before ? [...(index.neighbours.get(before) ?? [])] : undefined
+    return before ? index.neighbours.get(before) : undefined
   }
   return index.slots[place]
 }
@@ -349,28 +333,27 @@ export function suggestCodes(
   limit = 12,
 ): CodeSuggestion[] {
   const upper = word.toUpperCase()
-  if (slot?.includes(upper)) return []
-  if (upper.length === 3 && index.codes.some((entry) => entry.code === upper)) return []
-  if (word === '' && !slot) return []
-  const folded = fold(word)
   const slotRank = new Map((slot ?? []).map((code, position) => [code, position]))
-  const rank = (entry: IndexedCode) =>
-    slotRank.has(entry.code)
-      ? (slotRank.get(entry.code) ?? 0) - slotRank.size
-      : entry.own
-        ? 1
-        : 2
+  if (slotRank.has(upper) || (upper.length === 3 && index.byCode.has(upper))) return []
+  const pick = ({ code, name, kind }: IndexedCode): CodeSuggestion => ({ code, name, kind })
+  if (word === '') {
+    // The slot is already in rank order.
+    return [...slotRank.keys()]
+      .flatMap((code) => index.byCode.get(code) ?? [])
+      .slice(0, limit)
+      .map(pick)
+  }
+  const folded = fold(word)
+  // Rank once per code: the slot in its order, then own codes, then the others.
+  const others = slotRank.size
   const seen = new Set<string>()
   return index.codes
-    .filter((entry) =>
-      word === ''
-        ? slotRank.has(entry.code)
-        : entry.code.startsWith(upper) || entry.folded.startsWith(folded),
-    )
-    .sort((a, b) => rank(a) - rank(b) || a.code.localeCompare(b.code))
+    .filter((entry) => entry.code.startsWith(upper) || entry.folded.startsWith(folded))
     .filter((entry) => !seen.has(entry.code) && Boolean(seen.add(entry.code)))
+    .map((entry) => ({ entry, rank: slotRank.get(entry.code) ?? others + (entry.own ? 0 : 1) }))
+    .sort((a, b) => a.rank - b.rank || (a.entry.code < b.entry.code ? -1 : 1))
     .slice(0, limit)
-    .map(({ code, name, kind }) => ({ code, name, kind }))
+    .map(({ entry }) => pick(entry))
 }
 
 /** Suggester of a chain: the codes its orders expect at the cursor come first. */

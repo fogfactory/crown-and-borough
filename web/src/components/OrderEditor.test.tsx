@@ -107,6 +107,9 @@ describe('OrderEditor', () => {
     fireEvent.change(textarea, { target: { value: 'RVE A es', selectionStart: 8, selectionEnd: 8 } })
 
     expect(suggest).toHaveBeenCalledWith('es', 'RVE A ')
+    // A list that opened by itself has no option chosen yet.
+    expect(screen.getByRole('option', { name: 'Escarpelle (ECP)' })).toHaveAttribute('aria-selected', 'false')
+    fireEvent.keyDown(textarea, { key: 'ArrowDown' })
     expect(screen.getByRole('option', { name: 'Escarpelle (ECP)' })).toHaveAttribute('aria-selected', 'true')
     fireEvent.keyDown(textarea, { key: 'ArrowDown' })
     expect(screen.getByRole('option', { name: 'Escalade (ESC)' })).toHaveAttribute('aria-selected', 'true')
