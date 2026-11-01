@@ -1,10 +1,10 @@
 import { useLanguage } from '@/i18n/LanguageContext'
-import { formatCardCode, formatCardLabel } from '@/lib/card-hand'
+import { CALAMITY_KINDS, formatCardCode, formatCardLabel } from '@/lib/card-hand'
 import { centroid, regionRingPath } from '@/lib/map-svg-geometry'
 import type { RegionStyle } from '@/lib/region-color'
 import type { RegionOutlineResult } from '@/lib/region-geometry'
 import { REGION_BAND_MARGIN, type RegionBand } from '@/lib/region-layout'
-import type { ActiveRegionEffect, CardKind, Point, Region, Territory } from '@/types'
+import type { ActiveRegionEffect, Point, Region, Territory } from '@/types'
 import { DEFAULT_REGION_COLOR, FRAME_RULE, MAP_INK, MAP_PAPER } from '@/lib/map-palette'
 
 /** Width of the tinted edging along each region boundary, in map units. */
@@ -12,8 +12,6 @@ const REGION_BORDER_WIDTH = 10
 const REGION_BORDER_OPACITY = 0.5
 /** Inset of the brass rule inside the frame's outer ink rule, in map units. */
 const FRAME_RULE_INSET = 3.5
-
-const CALAMITY_KINDS: CardKind[] = ['plague', 'bad_weather', 'famine']
 
 /** Glyph advance and letter spacing of the capitals, as a share of the font size. */
 const CARTOUCHE_CHAR_WIDTH = 0.74

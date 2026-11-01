@@ -3,7 +3,6 @@ import {
   useEffect,
   useId,
   useImperativeHandle,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -92,6 +91,17 @@ function renderLine(line: string, trigramClass: string): ReactNode {
   ))
 }
 
+/** What the player did with the suggestions of the word starting at `start`. */
+interface ListState {
+  start: number
+  /** Asked with Ctrl+Space, Alt+Down or the button: open even before two letters. */
+  requested: boolean
+  /** Chosen option, -1 for none. */
+  active: number
+  /** Text of the word Escape closed the list on, until it changes. */
+  dismissed?: string
+}
+
 interface OrderEditorProps {
   value: string
   onChange: (value: string) => void
@@ -141,14 +151,8 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
     const listId = useId()
     // Cursor of a focused textarea; null while the focus is elsewhere.
     const [cursor, setCursor] = useState<number | null>(null)
-    const [active, setActive] = useState(0)
-    // Word whose suggestions Escape closed, until the player types on.
-    const [dismissed, setDismissed] = useState<string | null>(null)
-    // Start of the word Ctrl+Space asked suggestions for, even without letters.
-    const [requested, setRequested] = useState<number | null>(null)
-    // The player went through the list with the arrows.
-    const [browsed, setBrowsed] = useState(false)
-    const pendingCursor = useRef<number | null>(null)
+    // What the player did with the list of one word; it lapses when they leave it.
+    const [list, setList] = useState<ListState | null>(null)
     const styles = TONES[tone]
     const faultyKey = errorLines.join(',')
     // Re-tokenized only when the text, its faulty lines or the tone change.
@@ -174,55 +178,51 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [value, faultyKey, styles.trigram])
 
-    const typed = suggest && cursor !== null ? wordAtCursor(value, cursor, 0) : null
-    const word = typed && (typed.text.length >= 2 || typed.start === requested) ? typed : null
-    const wordKey = word ? `${word.start}:${word.text}` : null
-    const suggestions = useMemo(() => {
-      if (!suggest || !word) return []
-      return suggest(word.text, value.slice(0, word.start))
-      // `wordKey` stands for `word`.
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [suggest, value, wordKey])
-    const open = suggestions.length > 0 && wordKey !== dismissed
-    const highlighted = Math.min(active, suggestions.length - 1)
+    const typed = suggest && cursor !== null ? wordAtCursor(value, cursor) : null
+    const current = typed && list?.start === typed.start ? list : null
+    // A single letter is a verb: the list waits for two, unless asked.
+    const word = typed && (typed.text.length >= 2 || current?.requested) ? typed : null
+    const wordText = word?.text ?? null
+    const textBefore = word ? value.slice(0, word.start) : ''
+    const suggestions = useMemo(
+      () => (suggest && wordText !== null ? suggest(wordText, textBefore) : []),
+      [suggest, wordText, textBefore],
+    )
+    const open = suggestions.length > 0 && current?.dismissed !== wordText
+    // No option is chosen until the player asks for the list or uses the arrows.
+    const highlighted = current ? Math.min(current.active, suggestions.length - 1) : -1
+    const requested = Boolean(current?.requested)
 
     // Keeps the highlighted option visible in the list; the panel itself only
     // scrolls to a list the player asked for, not while they type.
     useEffect(() => {
       if (!open) return
-      const list = document.getElementById(listId)
+      const listBox = document.getElementById(listId)
       const option = document.getElementById(`${listId}-${highlighted}`)
-      if (list && option) {
-        if (option.offsetTop < list.scrollTop) list.scrollTop = option.offsetTop
+      if (listBox && option) {
+        if (option.offsetTop < listBox.scrollTop) listBox.scrollTop = option.offsetTop
         const bottom = option.offsetTop + option.offsetHeight
-        if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight
+        if (bottom > listBox.scrollTop + listBox.clientHeight) {
+          listBox.scrollTop = bottom - listBox.clientHeight
+        }
       }
-      if (requested !== null) list?.scrollIntoView?.({ block: 'nearest' })
+      if (requested) listBox?.scrollIntoView?.({ block: 'nearest' })
     }, [open, highlighted, listId, requested])
 
-    useLayoutEffect(() => {
-      const textarea = textareaRef.current
-      if (pendingCursor.current === null || !textarea) return
-      textarea.setSelectionRange(pendingCursor.current, pendingCursor.current)
-      setCursor(pendingCursor.current)
-      pendingCursor.current = null
-    }, [value])
-
     const accept = (suggestion: CodeSuggestion) => {
-      if (!word) return
-      pendingCursor.current = word.start + suggestion.code.length
-      onChange(value.slice(0, word.start) + suggestion.code + value.slice(word.end))
-      setActive(0)
-      setRequested(null)
-      setBrowsed(false)
+      const textarea = textareaRef.current
+      if (!word || !textarea) return
+      // The textarea puts the cursor after the code itself.
+      textarea.setRangeText(suggestion.code, word.start, word.end, 'end')
+      onChange(textarea.value)
+      setCursor(textarea.selectionStart)
+      setList(null)
     }
 
     /** Opens the suggestions at `position`, even before any letter. */
     const request = (position: number) => {
-      setRequested(wordAtCursor(value, position, 0)?.start ?? null)
-      setDismissed(null)
-      setActive(0)
-      setBrowsed(false)
+      const at = wordAtCursor(value, position)
+      setList(at ? { start: at.start, requested: true, active: 0 } : null)
     }
 
     const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -234,33 +234,38 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
         request(event.currentTarget.selectionStart)
         return
       }
-      if (!open) return
+      if (!open || !word) return
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
         event.preventDefault()
         const step = event.key === 'ArrowDown' ? 1 : -1
-        setActive((highlighted + step + suggestions.length) % suggestions.length)
-        setBrowsed(true)
+        const next =
+          highlighted < 0
+            ? step > 0
+              ? 0
+              : suggestions.length - 1
+            : (highlighted + step + suggestions.length) % suggestions.length
+        setList({ start: word.start, requested, active: next })
       } else if (event.key === 'Enter' || event.key === 'Tab') {
-        // A list that opened by itself never takes the key: Enter still
-        // breaks the line and Tab leaves the field.
-        if (requested === null && !browsed) return
+        // Without a chosen option, Enter breaks the line and Tab leaves the field.
+        if (highlighted < 0) return
         event.preventDefault()
         accept(suggestions[highlighted])
       } else if (event.key === 'Escape') {
         event.preventDefault()
-        setDismissed(wordKey)
-        setRequested(null)
-        setBrowsed(false)
+        setList({ start: word.start, requested: false, active: -1, dismissed: word.text })
       }
     }
 
     const trackCursor = (event: { currentTarget: HTMLTextAreaElement }) => {
       const { selectionStart, selectionEnd, value: text } = event.currentTarget
       setCursor(selectionStart === selectionEnd ? selectionStart : null)
-      // A request holds for its word only.
-      const start = wordAtCursor(text, selectionStart, 0)?.start
-      setRequested((current) => (current === start ? current : null))
+      // Leaving the word forgets what was done with its list.
+      const start = wordAtCursor(text, selectionStart)?.start
+      setList((state) => (state?.start === start ? state : null))
     }
+
+    // Shared by the textarea and its mirror, like TEXT_LAYOUT.
+    const layout = cn(TEXT_LAYOUT, suggest && SUGGEST_ROOM)
 
     const syncScroll = (event: UIEvent<HTMLTextAreaElement>) => {
       const mirror = mirrorRef.current
@@ -282,8 +287,7 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
           aria-hidden="true"
           data-order-mirror
           className={cn(
-            TEXT_LAYOUT,
-            suggest && SUGGEST_ROOM,
+            layout,
             'pointer-events-none absolute inset-0 m-0 overflow-y-auto border-transparent [scrollbar-color:transparent_transparent]',
             styles.base,
           )}
@@ -297,15 +301,14 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
             onChange(event.target.value)
             // Text inserted without keys (paste, phone keyboards) fires no select.
             trackCursor(event)
-            setActive(0)
-            setBrowsed(false)
+            // A new letter: the choice made among the old suggestions lapses.
+            setList((state) => state && { ...state, active: state.requested ? 0 : -1 })
           }}
           onSelect={trackCursor}
           onFocus={trackCursor}
           onBlur={() => {
             setCursor(null)
-            setRequested(null)
-            setBrowsed(false)
+            setList(null)
           }}
           onKeyDown={handleKeyDown}
           onScroll={syncScroll}
@@ -313,7 +316,7 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
           aria-autocomplete={suggest ? 'list' : undefined}
           aria-expanded={suggest ? open : undefined}
           aria-controls={open ? listId : undefined}
-          aria-activedescendant={open ? `${listId}-${highlighted}` : undefined}
+          aria-activedescendant={open && highlighted >= 0 ? `${listId}-${highlighted}` : undefined}
           disabled={disabled}
           placeholder={placeholder}
           aria-label={ariaLabel}
@@ -321,8 +324,7 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
           aria-describedby={invalid ? errorsId : undefined}
           spellCheck={false}
           className={cn(
-            TEXT_LAYOUT,
-            suggest && SUGGEST_ROOM,
+            layout,
             'relative min-h-16 resize-y overflow-y-auto rounded-lg bg-transparent text-transparent outline-none transition selection:bg-brass-300/40 focus:ring-2 disabled:cursor-not-allowed',
             styles.field,
             styles.caret,

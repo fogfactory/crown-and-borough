@@ -23,7 +23,8 @@ import type { RulesSection } from '@/components/RulesPanel'
 import { SectionHeading } from '@/components/SectionHeading'
 import { TerritoryRef } from '@/components/MapLinks'
 import { richTranslate } from '@/lib/rich-text'
-import { formatCardLabel, formatCardName, shortCode } from '@/lib/card-hand'
+import { CALAMITY_KINDS, formatCardLabel, formatCardName, nobleCardName, shortCode } from '@/lib/card-hand'
+import { isSettlement } from '@/lib/supply'
 import { CardPictogram } from '@/components/CardPictogram'
 import { HandFan, type FanCard } from '@/components/HandFan'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
@@ -414,9 +415,7 @@ function NobleCardActions({
       (territory) =>
         territory.owner === player &&
         territory.army?.owner === player &&
-        territory.infrastructures.some(
-          (infra) => infra.type === 'castle' || infra.type === 'village',
-        ),
+        isSettlement(territory),
     )
     .map((territory) => ({ value: territory.id, label: territory.id }))
   const regionOptions = regions.map((region) => ({
@@ -662,12 +661,7 @@ function HandSection({
     specialCount + hand.length - draftNobleDiscardCount(winterDraft) >= handLimit
   const drawDisabled = drawn || deckSize === 0 || handFull
   const lines = draftLines(winterDraft)
-  const nobleName = (card: NobleCard) =>
-    card.kind === 'claim'
-      ? t('hand.claimCard')
-      : card.kind === 'dignity'
-        ? t(`dignity.${card.dignity ?? 'bastard'}` as MessageKey)
-        : (card.name ?? card.code)
+  const nobleName = (card: NobleCard) => nobleCardName(card, t)
 
   const cards: FanCard[] = [
     ...specialKinds.map((kind): FanCard => {
@@ -1076,9 +1070,6 @@ function usePreviewDraftErrors(
   }, [state, player, chainDrafts, winterDraft, specialDraft, preview, ordersBody, previewedBody])
 }
 
-/** Calamities a Witch's ritual can call (`S R NNN CAL`). */
-const WITCH_CALAMITIES: CardKind[] = ['plague', 'bad_weather', 'famine']
-
 /**
  * Code completion of the order editors, from the map, the known nobles and
  * the cards of the hand: each sheet reads the places of its own orders.
@@ -1100,15 +1091,13 @@ function useCodeSuggesters(
       nobleCards: (state.nobleHand ?? []).map((card) => ({
         code: card.code,
         kind: card.kind,
-        name:
-          card.name ??
-          (card.dignity ? t(`dignity.${card.dignity}` as MessageKey) : card.code),
+        name: nobleCardName(card, t),
       })),
       specialCards: [...new Set(state.specialHand ?? [])].map((kind) => ({
         code: shortCode(kind),
         name: formatCardName(kind, t),
       })),
-      calamities: WITCH_CALAMITIES.map((kind) => ({
+      calamities: CALAMITY_KINDS.map((kind) => ({
         code: shortCode(kind),
         name: formatCardName(kind, t),
       })),

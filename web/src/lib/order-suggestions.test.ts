@@ -69,14 +69,10 @@ const specialCodes = (textBefore: string, word = '') =>
   special(word, textBefore).map((suggestion) => suggestion.code)
 
 describe('wordAtCursor', () => {
-  it('finds the word the cursor ends, from two letters on', () => {
+  it('finds the word the cursor ends, even empty, but not inside a word', () => {
     expect(wordAtCursor('RVE A EC', 8)).toEqual({ start: 6, end: 8, text: 'EC' })
-    expect(wordAtCursor('RVE A', 5)).toBeNull()
+    expect(wordAtCursor('RVE A ', 6)).toEqual({ start: 6, end: 6, text: '' })
     expect(wordAtCursor('RVE A ECP', 7)).toBeNull()
-  })
-
-  it('takes an empty word on request', () => {
-    expect(wordAtCursor('RVE A ', 6, 0)).toEqual({ start: 6, end: 6, text: '' })
   })
 
   it('ignores comments', () => {
