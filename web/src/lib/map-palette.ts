@@ -128,8 +128,19 @@ export const LINEAGE_SECONDARY = '#594b3c'
 export const LINEAGE_CLAIM = LINEAGE_SECONDARY
 /** Ended marriage hatching (`ink-500`). */
 export const LINEAGE_ENDED = '#74644d'
-/** Parchment of the tree and its hatching (`paper-50`). */
+/** Parchment of the roundels and the legend (`paper-50`). */
 export const LINEAGE_PAPER = '#fbf7ee'
+/** Cloth of the tapestry the tree is woven on (`paper-100`). */
+export const LINEAGE_CLOTH = '#f3ead9'
+/** Threads of the weave, barely darker than the cloth (`line-soft`). */
+export const LINEAGE_WEAVE = '#d9cfba'
+/** Woven band of the tapestry border (`paper-300`). */
+export const LINEAGE_BAND = '#e6d8bb'
+/** Outer rule of the border and ring of the roundels (`ink-900`). */
+export const LINEAGE_INK = MAP_INK
+/** Inner rule, corner ornaments and rank discs (`brass-700` / `brass-400`). */
+export const LINEAGE_BRASS = '#7d5a1c'
+export const LINEAGE_BRASS_LIGHT = '#c9a24a'
 
 // Brand mark
 

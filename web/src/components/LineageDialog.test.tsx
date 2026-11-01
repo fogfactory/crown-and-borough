@@ -127,6 +127,15 @@ describe('LineageDialog', () => {
     const claim = document.querySelector('[data-claim="EVE>JEA"]')!
     expect(claim).toHaveAttribute('data-ended', 'false')
     expect(claim).toHaveAttribute('stroke-dasharray')
+    // Vines end in a leaf; each marriage is tied by a knot of its kind.
+    expect(claim.parentElement!.querySelectorAll('path')).toHaveLength(2)
+    expect(
+      document.querySelector('[data-marriage="JEA-ANN"] [data-knot]'),
+    ).toHaveAttribute('data-knot', 'head')
+    expect(
+      document.querySelector('[data-marriage="OLD-EVE"] [data-knot]'),
+    ).toHaveAttribute('data-knot', 'ended')
+    expect(screen.getByTestId('lineage-tapestry')).toBeInTheDocument()
     // No badge repeats what the lines say, and cards cannot be dragged.
     expect(screen.queryByText(/Claimed ×/)).not.toBeInTheDocument()
     expect(screen.queryByText('Reset layout')).not.toBeInTheDocument()

@@ -864,23 +864,43 @@ est en `brass-700`.
 
 ### Lignée et alliances
 
-La fenêtre « Lignée et alliances » (`LineageDialog.tsx`) devient un **arbre
-généalogique** dessiné à l'encre sur parchemin.
+La fenêtre « Lignée et alliances » (`LineageDialog.tsx`) est un **arbre
+généalogique** tissé en tapisserie : de l'encre sur parchemin, du laiton pour
+les liens, la couleur vive réservée aux joueurs. Aucune boîte à bordure ni
+ombre portée n'y figure.
 
-- Chaque maison s'ouvre sous ses armoiries. Ses nobles sont des médaillons
-  (pion à attributs, nom, rang de succession en chiffre) rangés dans l'ordre
-  de succession.
-- Un mariage est un double trait horizontal entre deux médaillons : le
-  mariage de tête en `brass-700`, un mariage secondaire en `ink-700`, un
-  mariage terminé en hachures `ink-500`.
-- Une prétention descend du couple vers l'héritier qui la porte, en trait
-  pointillé, comme une filiation.
-- Les titres s'écrivent en texte sous le nom (décision 23) ; plus aucune
+- **Toile.** L'arbre est tendu sur une toile `paper-100` au tissage discret
+  (fils `line-soft`), encadrée d'une bordure à double filet : filet d'encre
+  `ink-900` à l'extérieur, bande `paper-300` piquée de points, filet `brass-700`
+  à l'intérieur, rosace de laiton à chaque coin. Les couleurs de ce dessin
+  sont les constantes `LINEAGE_*` de `map-palette.ts`.
+- **Maison.** Chaque colonne est coiffée d'une bannière en forme de fanion
+  (queue d'aronde) suspendue à une tringle : `paper-50` bordé d'un liseré
+  d'encre et de la teinture du joueur, armoiries et nom au centre. La tringle
+  de la maison choisie dans « Focus » est en `brass-700`, plus épaisse, et le
+  fanion se teinte de laiton.
+- **Noble.** Un médaillon rond : anneau d'encre, anneau de la teinture du
+  joueur (le canal « à qui »), pion à attributs au centre, rang de succession
+  en chiffre d'encre sur un disque `brass-400` ; un noble mort a un anneau
+  d'encre en pointillés et pas de rang. Le nom (avec ♂ ou ♀ en `ink-700`) et
+  les titres s'écrivent en texte centré sous le médaillon, rangés dans l'ordre
+  de succession ; ils ne portent ni cadre ni fond. En simulation, la sélection
+  double le médaillon d'un halo `brass-400` et d'un filet `brass-700`, et un
+  noble en attente de second clic est cerclé de tirets `ink-700`.
+- **Mariage.** Un double trait horizontal relie deux médaillons, noué en son
+  milieu par un anneau : mariage de tête en `brass-700`, mariage secondaire en
+  `ink-700`, mariage terminé en hachures `ink-500` avec un anneau brisé barré
+  d'un trait.
+- **Prétention.** Une prétention est une vigne : un trait pointillé `ink-700`
+  aux angles arrondis, qui part du couple, suit sa voie dans l'espace voisin de
+  la colonne de l'héritier et s'achève sur une feuille au bord du médaillon de
+  l'héritier. Une prétention éteinte est plus pâle et sa feuille est vide.
+- Les titres s'écrivent en texte sous le nom (décision 23) ; aucune
   étiquette n'est coupée.
 - Le score et le statut de victoire de chaque maison restent en pied de
   fenêtre, sur une ligne par joueur.
-- Le graphe d'alliances actuel devient un encart de l'arbre (les maisons et
-  leurs alliances en vue d'ensemble), plus une vue séparée.
+- Le graphe d'alliances est un encart de l'arbre (les maisons et leurs
+  alliances en vue d'ensemble).
 - **Simulation :** le mode « Simuler » garde son bandeau
   (annuler, rétablir, réinitialiser, quitter) en `warning-100` ; l'arbre
   simulé porte un filigrane « Hypothèse » en Cinzel `ink-500` à 15 %, pour
@@ -899,13 +919,13 @@ colonnes cherche ensuite à épargner aux mariages le franchissement de
 colonnes intermédiaires. Les mariages se placent du plus fort au plus faible
 (tête actif, secondaire, terminé, puis poids) : les deux époux d'un mariage
 partagent la même ligne tant que cela ne contredit pas un mariage plus fort ;
-sinon la ligne d'union se coude dans l'espace entre les deux colonnes. Un
+sinon la ligne d'union se coude dans l'espace entre les deux colonnes, aux angles arrondis. Un
 héritier se range sous la ligne de ses parents quand l'ordre de succession le
 permet. Un mariage qui traverse des colonnes intermédiaires y laisse sa ligne
 libre : les nobles qui s'y trouveraient descendent. Chaque couple dont un
 noble porte une prétention a une seule tige pointillée, dans l'espace voisin
 de la colonne de l'héritier, sur une voie de 8 px qui lui est propre ; la
-tige d'une prétention éteinte est plus pâle. La hauteur d'un médaillon se
+tige d'une prétention éteinte est plus pâle. La hauteur d'un médaillon (rond et nom compris) se
 calcule à partir de ses lignes de texte, jamais du rendu. L'arbre n'offre ni
 déplacement manuel des médaillons, ni étiquette de mariage ou de prétention :
 les lignes et les tiges disent tout. Le graphe d'alliances est un encart replié

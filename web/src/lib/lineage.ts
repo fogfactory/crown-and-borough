@@ -728,15 +728,17 @@ function leastSkippingOrder(
 
 /** Width of a medallion, in pixels. */
 export const MEDALLION_W = 176
-/** Height of a medallion with no text line under its name. */
-export const MEDALLION_BASE_H = 48
+/** Height of a medallion with no text line under its name: roundel and name. */
+export const MEDALLION_BASE_H = 64
+/** Radius of the roundel drawn around a noble's pawn. */
+export const MEDALLION_ROUNDEL_R = 21
 /** Height of one text line under the name. */
 export const MEDALLION_LINE_H = 16
 /** Characters of a text line that fit in a medallion before it wraps. */
 export const MEDALLION_LINE_CHARS = 24
 /** Room above the first row for the arms and name of each house. */
 export const TREE_HEADER_H = 52
-/** Vertical position of the lines (marriages, stems) in a medallion. */
+/** Vertical position of the lines (marriages, stems): the roundel's centre. */
 export const MEDALLION_ANCHOR_Y = 22
 export const TREE_ROW_GAP = 14
 export const TREE_LANE = 8
