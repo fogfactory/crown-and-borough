@@ -62,6 +62,18 @@ describe('useMapLinkState', () => {
     expect(result.current.selectedNoble).toBeNull()
   })
 
+  it('frames a typed territory and selects it through onFollow', () => {
+    const onSelect = vi.fn()
+    const onFollow = vi.fn()
+    const { result } = renderHook(() =>
+      useMapLinkState({ map, state, selectedId: null, onSelect, onFollow }),
+    )
+    act(() => result.current.links.follow('ROS'))
+    expect(onFollow).toHaveBeenCalledWith('ROS')
+    expect(onSelect).not.toHaveBeenCalled()
+    expect(result.current.frame?.territories).toEqual(['ROS'])
+  })
+
   it('gives the frame back to a new base frame', () => {
     const own = (key: string): MapFrame => ({ territories: ['ROS'], key })
     const { result, rerender } = renderHook(

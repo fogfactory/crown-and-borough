@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/tooltip'
 import type { RulesSection } from '@/components/RulesPanel'
 import { SectionHeading } from '@/components/SectionHeading'
-import { TerritoryRef } from '@/components/MapLinks'
+import { TerritoryRef, useMapLinks } from '@/components/MapLinks'
 import { richTranslate } from '@/lib/rich-text'
 import { CALAMITY_KINDS, formatCardLabel, formatCardName, nobleCardName, shortCode } from '@/lib/card-hand'
 import { isSettlement } from '@/lib/supply'
@@ -202,6 +202,23 @@ function PreviewErrors({
   )
 }
 
+/**
+ * Frames and selects on the map each territory code the player types
+ * (charte-graphique.md § Saisie des ordres); nobles and cards are left alone.
+ */
+function useFollowOnMap(): ((code: string) => void) | undefined {
+  const links = useMapLinks()
+  return useMemo(
+    () =>
+      links
+        ? (code: string) => {
+            if (links.hasTerritory(code)) links.follow(code)
+          }
+        : undefined,
+    [links],
+  )
+}
+
 /** An orders editor with the errors of its draft, underlined on their line and explained under it. */
 function EditorZone({
   value,
@@ -227,6 +244,7 @@ function EditorZone({
   suggest?: CodeSuggester
 }) {
   const errorsId = useId()
+  const follow = useFollowOnMap()
   const errorLines = errors.flatMap((error) => (error.line ? [error.line] : []))
   return (
     <div className="space-y-1.5">
@@ -242,6 +260,7 @@ function EditorZone({
         aria-label={ariaLabel}
         className={className}
         suggest={suggest}
+        onCodeTyped={follow}
       />
       <PreviewErrors id={errorsId} errors={errors} label={errorsLabel} />
     </div>

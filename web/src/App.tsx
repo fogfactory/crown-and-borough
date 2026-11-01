@@ -456,6 +456,8 @@ function AppContent() {
       // Phones show the territory on the map tab (charte § Identifiants).
       if (!desktop) setActivePanel('map')
     },
+    // A code typed in an order keeps the Orders tab (charte § Saisie des ordres).
+    onFollow: setSelectedId,
     onShowEvent: () => {
       if (!desktop) setActivePanel('map')
     },

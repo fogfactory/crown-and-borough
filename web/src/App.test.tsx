@@ -479,8 +479,8 @@ describe('App command/report tabs', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: /Ordres/ }))
     expect(screen.getByLabelText('Chaîne de JEA')).toHaveValue('ROS A BRU')
-    // The selected territory's card is still open (the map writes the name too).
-    expect(screen.getByRole('heading', { name: 'Rosemont (ROS)' })).toBeInTheDocument()
+    // The last code typed in the chain took the selection; its card stays open.
+    expect(screen.getByRole('heading', { name: 'Bruyères (BRU)' })).toBeInTheDocument()
   })
 
   it('requests a transfer overlay for a drafted action transfer', async () => {

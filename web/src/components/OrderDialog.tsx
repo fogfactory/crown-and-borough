@@ -69,12 +69,17 @@ function initialValues(fields: OrderField[]): Record<string, string> {
   return values
 }
 
+/** A function that takes the territory clicked on the map. */
+type MapPicker = (territory: string) => void
+
 /** Shares the open form and the map picks between the order forms of a page. */
 interface OrderFormHub {
   openId: string | null
   setOpenId: (id: string | null) => void
   /** Hands map clicks to the open form's active field, or stops with null. */
-  setPicker: (picker: ((territory: string) => void) | null) => void
+  setPicker: (picker: MapPicker | null) => void
+  /** Hands map clicks to an order editor when no form is open, or stops with null. */
+  setEditorPicker: (picker: MapPicker | null) => void
 }
 
 const OrderFormContext = createContext<OrderFormHub | null>(null)
@@ -82,27 +87,44 @@ const OrderFormContext = createContext<OrderFormHub | null>(null)
 /**
  * Lets the order forms of a page share one opening at a time and receive the
  * territory clicked on the map (charte-graphique.md § Poste de commandement).
- * `onPickerChange` gets the open form's picker, or null when none listens.
+ * An order editor takes the clicks no open form takes (§ Saisie des ordres).
+ * `onPickerChange` gets the picker in charge, or null when none listens.
  */
 export function OrderFormProvider({
   children,
   onPickerChange,
 }: {
   children: ReactNode
-  onPickerChange: (picker: ((territory: string) => void) | null) => void
+  onPickerChange: (picker: MapPicker | null) => void
 }) {
   const [openId, setOpenId] = useState<string | null>(null)
   const pickerChange = useRef(onPickerChange)
   pickerChange.current = onPickerChange
-  const hub = useMemo<OrderFormHub>(
-    () => ({
+  const pickers = useRef<{ form: MapPicker | null; editor: MapPicker | null }>({
+    form: null,
+    editor: null,
+  })
+  const hub = useMemo<OrderFormHub>(() => {
+    const report = () => pickerChange.current(pickers.current.form ?? pickers.current.editor)
+    return {
       openId,
       setOpenId,
-      setPicker: (picker) => pickerChange.current(picker),
-    }),
-    [openId],
-  )
+      setPicker: (picker) => {
+        pickers.current.form = picker
+        report()
+      },
+      setEditorPicker: (picker) => {
+        pickers.current.editor = picker
+        report()
+      },
+    }
+  }, [openId])
   return <OrderFormContext.Provider value={hub}>{children}</OrderFormContext.Provider>
+}
+
+/** Lets an order editor take the map clicks while no form is open; null outside a page. */
+export function useEditorMapPicker(): ((picker: MapPicker | null) => void) | null {
+  return useContext(OrderFormContext)?.setEditorPicker ?? null
 }
 
 /** A territory code followed by nothing that already names it. */

@@ -14,6 +14,7 @@ import {
 
 import { IconListSearch } from '@tabler/icons-react'
 
+import { useEditorMapPicker } from '@/components/OrderDialog'
 import { useLanguage } from '@/i18n/LanguageContext'
 import { wordAtCursor, type CodeSuggester, type CodeSuggestion } from '@/lib/order-suggestions'
 import { cn } from '@/lib/utils'
@@ -119,6 +120,8 @@ interface OrderEditorProps {
   className?: string
   /** Codes that complete the typed word, given the text of the zone before it. */
   suggest?: CodeSuggester
+  /** Told each three-letter word typed or chosen, to follow it on the map. */
+  onCodeTyped?: (code: string) => void
 }
 
 /**
@@ -141,6 +144,7 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
       'aria-label': ariaLabel,
       className,
       suggest,
+      onCodeTyped,
     },
     forwardedRef,
   ) {
@@ -153,6 +157,14 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
     const [cursor, setCursor] = useState<number | null>(null)
     // What the player did with the list of one word; it lapses when they leave it.
     const [list, setList] = useState<ListState | null>(null)
+    const frameRef = useRef<HTMLDivElement>(null)
+    // Where a territory clicked on the map goes: the last selection, kept
+    // through the blur that the click causes.
+    const selection = useRef<{ start: number; end: number } | null>(null)
+    // The last code told to `onCodeTyped`, so a code is followed once.
+    const lastCode = useRef<string | null>(null)
+    const setEditorPicker = useEditorMapPicker()
+    const [mapTarget, setMapTarget] = useState(false)
     const styles = TONES[tone]
     const faultyKey = errorLines.join(',')
     // Re-tokenized only when the text, its faulty lines or the tone change.
@@ -217,7 +229,47 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
       onChange(textarea.value)
       setCursor(textarea.selectionStart)
       setList(null)
+      lastCode.current = suggestion.code
+      onCodeTyped?.(suggestion.code)
     }
+
+    /**
+     * Inserts the territory clicked on the map at the kept selection: over
+     * the code being typed, spaced from its neighbours.
+     */
+    const insertFromMap = (code: string) => {
+      const textarea = textareaRef.current
+      if (!textarea) return
+      const text = textarea.value
+      const { start, end } = selection.current ?? { start: text.length, end: text.length }
+      const typedWord = start === end ? wordAtCursor(text, start) : null
+      // A code being typed gives way; a one-letter verb stays.
+      const from = typedWord && typedWord.text.length >= 2 ? typedWord.start : start
+      const before = text.slice(0, from)
+      const after = text.slice(end)
+      const inserted =
+        (before && !/[\s(]$/.test(before) ? ' ' : '') +
+        code +
+        (after && !/^[\s)]/.test(after) ? ' ' : '')
+      textarea.setRangeText(inserted, from, end, 'end')
+      onChange(textarea.value)
+      selection.current = { start: textarea.selectionStart, end: textarea.selectionEnd }
+      lastCode.current = code
+      textarea.focus({ preventScroll: true })
+    }
+    const insertRef = useRef(insertFromMap)
+    insertRef.current = insertFromMap
+
+    /** Hands the map clicks to this editor, or takes them back. */
+    const targetMap = (on: boolean) => {
+      if (!setEditorPicker || disabled) return
+      setEditorPicker(on ? (code) => insertRef.current(code) : null)
+      setMapTarget(on)
+    }
+    const release = useRef<(() => void) | null>(null)
+    release.current = mapTarget ? () => setEditorPicker?.(null) : null
+    // An editor that goes away takes its map clicks with it.
+    useEffect(() => () => release.current?.(), [])
 
     /** Opens the suggestions at `position`, even before any letter. */
     const request = (position: number) => {
@@ -256,9 +308,15 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
       }
     }
 
+    const handleEscape = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+      // Escape with no list open gives the map its clicks back.
+      if (event.key === 'Escape' && !open && mapTarget) targetMap(false)
+    }
+
     const trackCursor = (event: { currentTarget: HTMLTextAreaElement }) => {
       const { selectionStart, selectionEnd, value: text } = event.currentTarget
       setCursor(selectionStart === selectionEnd ? selectionStart : null)
+      selection.current = { start: selectionStart, end: selectionEnd }
       // Leaving the word forgets what was done with its list.
       const start = wordAtCursor(text, selectionStart)?.start
       setList((state) => (state?.start === start ? state : null))
@@ -275,114 +333,137 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
     }
 
     return (
-      <div
-        className={cn(
-          'relative rounded-lg',
-          styles.frame,
-          disabled && 'cursor-not-allowed opacity-50',
-        )}
-      >
-        <pre
-          ref={mirrorRef}
-          aria-hidden="true"
-          data-order-mirror
+      <>
+        <div
+          ref={frameRef}
+          data-map-target={mapTarget || undefined}
           className={cn(
-            layout,
-            'pointer-events-none absolute inset-0 m-0 overflow-y-auto border-transparent [scrollbar-color:transparent_transparent]',
-            styles.base,
+            'relative rounded-lg',
+            styles.frame,
+            disabled && 'cursor-not-allowed opacity-50',
+            // The field the map clicks fill (charte § Poste de commandement).
+            mapTarget && 'ring-2 ring-brass-700',
           )}
         >
-          {mirrorLines}
-        </pre>
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
-            onChange(event.target.value)
-            // Text inserted without keys (paste, phone keyboards) fires no select.
-            trackCursor(event)
-            // A new letter: the choice made among the old suggestions lapses.
-            setList((state) => state && { ...state, active: state.requested ? 0 : -1 })
-          }}
-          onSelect={trackCursor}
-          onFocus={trackCursor}
-          onBlur={() => {
-            setCursor(null)
-            setList(null)
-          }}
-          onKeyDown={handleKeyDown}
-          onScroll={syncScroll}
-          role={suggest ? 'combobox' : undefined}
-          aria-autocomplete={suggest ? 'list' : undefined}
-          aria-expanded={suggest ? open : undefined}
-          aria-controls={open ? listId : undefined}
-          aria-activedescendant={open && highlighted >= 0 ? `${listId}-${highlighted}` : undefined}
-          disabled={disabled}
-          placeholder={placeholder}
-          aria-label={ariaLabel}
-          aria-invalid={invalid || undefined}
-          aria-describedby={invalid ? errorsId : undefined}
-          spellCheck={false}
-          className={cn(
-            layout,
-            'relative min-h-16 resize-y overflow-y-auto rounded-lg bg-transparent text-transparent outline-none transition selection:bg-brass-300/40 focus:ring-2 disabled:cursor-not-allowed',
-            styles.field,
-            styles.caret,
-            className,
-          )}
-        />
-        {suggest && !disabled && (
-          <button
-            type="button"
-            aria-label={t('orders.suggestionsOpen')}
-            title={t('orders.suggestionsOpen')}
-            // Keep the focus, and the phone keyboard, in the textarea.
-            onPointerDown={(event) => event.preventDefault()}
-            onClick={() => {
-              const textarea = textareaRef.current
-              if (!textarea) return
-              textarea.focus()
-              request(textarea.selectionStart)
+          <pre
+            ref={mirrorRef}
+            aria-hidden="true"
+            data-order-mirror
+            className={cn(
+              layout,
+              'pointer-events-none absolute inset-0 m-0 overflow-y-auto border-transparent [scrollbar-color:transparent_transparent]',
+              styles.base,
+            )}
+          >
+            {mirrorLines}
+          </pre>
+          <textarea
+            ref={textareaRef}
+            value={value}
+            onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
+              onChange(event.target.value)
+              // Text inserted without keys (paste, phone keyboards) fires no select.
+              trackCursor(event)
+              // A whole three-letter word just typed: the map follows it once.
+              const typedNow = wordAtCursor(event.target.value, event.target.selectionStart)
+              const code = typedNow?.text.length === 3 ? typedNow.text.toUpperCase() : null
+              if (code && code !== lastCode.current) onCodeTyped?.(code)
+              lastCode.current = code
+              // A new letter: the choice made among the old suggestions lapses.
+              setList((state) => state && { ...state, active: state.requested ? 0 : -1 })
             }}
-            className="absolute right-1 top-1 z-10 flex size-11 items-center justify-center rounded-md text-ink-500 hover:bg-paper-100 hover:text-ink-900 sm:size-8"
-          >
-            <IconListSearch aria-hidden="true" className="size-4" />
-          </button>
-        )}
-        {open && (
-          <ul
-            id={listId}
-            role="listbox"
-            aria-label={t('orders.suggestionsAria')}
-            className="absolute inset-x-0 top-full z-30 mt-1 max-h-48 overflow-y-auto rounded-md border border-line bg-paper-50 py-1 shadow-panel"
-          >
-            {suggestions.map((suggestion, index) => (
-              <li
-                key={suggestion.code}
-                id={`${listId}-${index}`}
-                role="option"
-                aria-label={`${suggestion.name} (${suggestion.code})`}
-                aria-selected={index === highlighted}
-                // Keep the focus in the textarea: the click only picks.
-                onMouseDown={(event) => {
-                  event.preventDefault()
-                  accept(suggestion)
-                }}
-                className={cn(
-                  'flex cursor-pointer items-baseline gap-2 px-3 py-1.5 text-sm text-ink-900 sm:py-1',
-                  index === highlighted && 'bg-paper-100',
-                )}
-              >
-                <span className="font-mono text-xs font-semibold">{suggestion.code}</span>
-                <span className="truncate">{suggestion.name}</span>
-                {suggestion.kind === 'noble' && (
-                  <span className="ml-auto text-xs text-ink-500">{t('orders.suggestionNoble')}</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+            onSelect={trackCursor}
+            onFocus={(event) => {
+              trackCursor(event)
+              targetMap(true)
+            }}
+            onBlur={(event) => {
+              setCursor(null)
+              setList(null)
+              // A click on the map keeps the clicks here; any other focus takes them back.
+              const next = event.relatedTarget
+              if (next && !next.closest('[data-map-size]') && !frameRef.current?.contains(next)) {
+                targetMap(false)
+              }
+            }}
+            onKeyDown={(event) => {
+              handleKeyDown(event)
+              handleEscape(event)
+            }}
+            onScroll={syncScroll}
+            role={suggest ? 'combobox' : undefined}
+            aria-autocomplete={suggest ? 'list' : undefined}
+            aria-expanded={suggest ? open : undefined}
+            aria-controls={open ? listId : undefined}
+            aria-activedescendant={open && highlighted >= 0 ? `${listId}-${highlighted}` : undefined}
+            disabled={disabled}
+            placeholder={placeholder}
+            aria-label={ariaLabel}
+            aria-invalid={invalid || undefined}
+            aria-describedby={invalid ? errorsId : undefined}
+            spellCheck={false}
+            className={cn(
+              layout,
+              'relative min-h-16 resize-y overflow-y-auto rounded-lg bg-transparent text-transparent outline-none transition selection:bg-brass-300/40 focus:ring-2 disabled:cursor-not-allowed',
+              styles.field,
+              styles.caret,
+              className,
+            )}
+          />
+          {suggest && !disabled && (
+            <button
+              type="button"
+              aria-label={t('orders.suggestionsOpen')}
+              title={t('orders.suggestionsOpen')}
+              // Keep the focus, and the phone keyboard, in the textarea.
+              onPointerDown={(event) => event.preventDefault()}
+              onClick={() => {
+                const textarea = textareaRef.current
+                if (!textarea) return
+                textarea.focus()
+                request(textarea.selectionStart)
+              }}
+              className="absolute right-1 top-1 z-10 flex size-11 items-center justify-center rounded-md text-ink-500 hover:bg-paper-100 hover:text-ink-900 sm:size-8"
+            >
+              <IconListSearch aria-hidden="true" className="size-4" />
+            </button>
+          )}
+          {open && (
+            <ul
+              id={listId}
+              role="listbox"
+              aria-label={t('orders.suggestionsAria')}
+              className="absolute inset-x-0 top-full z-30 mt-1 max-h-48 overflow-y-auto rounded-md border border-line bg-paper-50 py-1 shadow-panel"
+            >
+              {suggestions.map((suggestion, index) => (
+                <li
+                  key={suggestion.code}
+                  id={`${listId}-${index}`}
+                  role="option"
+                  aria-label={`${suggestion.name} (${suggestion.code})`}
+                  aria-selected={index === highlighted}
+                  // Keep the focus in the textarea: the click only picks.
+                  onMouseDown={(event) => {
+                    event.preventDefault()
+                    accept(suggestion)
+                  }}
+                  className={cn(
+                    'flex cursor-pointer items-baseline gap-2 px-3 py-1.5 text-sm text-ink-900 sm:py-1',
+                    index === highlighted && 'bg-paper-100',
+                  )}
+                >
+                  <span className="font-mono text-xs font-semibold">{suggestion.code}</span>
+                  <span className="truncate">{suggestion.name}</span>
+                  {suggestion.kind === 'noble' && (
+                    <span className="ml-auto text-xs text-ink-500">{t('orders.suggestionNoble')}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        {mapTarget && <p className="text-2xs text-ink-500">{t('orders.mapPickHint')}</p>}
+      </>
     )
   },
 )

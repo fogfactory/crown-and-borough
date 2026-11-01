@@ -1,7 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { createRef, useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { OrderFormProvider } from '@/components/OrderDialog'
 import { OrderEditor, tokenizeOrderLine } from '@/components/OrderEditor'
 
 describe('tokenizeOrderLine', () => {
@@ -180,5 +181,59 @@ describe('OrderEditor', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Ctrl\+Space/ }))
     expect(screen.getByRole('listbox')).toBeInTheDocument()
+  })
+
+  it('tells each whole three-letter word once, to follow it on the map', () => {
+    const onCodeTyped = vi.fn()
+    function Editor() {
+      const [value, setValue] = useState('')
+      return <OrderEditor value={value} onChange={setValue} onCodeTyped={onCodeTyped} aria-label="orders" />
+    }
+    render(<Editor />)
+    const textarea = screen.getByLabelText('orders') as HTMLTextAreaElement
+    const type = (value: string) =>
+      fireEvent.change(textarea, { target: { value, selectionStart: value.length, selectionEnd: value.length } })
+    type('rv')
+    type('rve')
+    type('rve ')
+    type('rve A')
+    expect(onCodeTyped.mock.calls).toEqual([['RVE']])
+    type('rve A ecp')
+    expect(onCodeTyped).toHaveBeenLastCalledWith('ECP')
+  })
+
+  it('writes the territory clicked on the map at the cursor', () => {
+    let picker: ((territory: string) => void) | null = null
+    function Page() {
+      const [value, setValue] = useState('RVE A\nH RVE')
+      return (
+        <OrderFormProvider onPickerChange={(next) => (picker = next)}>
+          <section data-map-size="split">
+            <button type="button">map</button>
+          </section>
+          <OrderEditor value={value} onChange={setValue} aria-label="orders" />
+          <button type="button">elsewhere</button>
+        </OrderFormProvider>
+      )
+    }
+    render(<Page />)
+    const textarea = screen.getByLabelText('orders') as HTMLTextAreaElement
+    fireEvent.focus(textarea)
+    textarea.setSelectionRange(5, 5)
+    fireEvent.select(textarea)
+    // A click on the map blurs the textarea toward the map: it stays the target.
+    fireEvent.blur(textarea, { relatedTarget: screen.getByRole('button', { name: 'map' }) })
+    expect(picker).not.toBeNull()
+    act(() => picker?.('ECP'))
+    expect(textarea.value).toBe('RVE A ECP\nH RVE')
+    // A code being typed gives way to the one clicked.
+    textarea.setSelectionRange(16, 16)
+    fireEvent.change(textarea, { target: { value: 'RVE A ECP\nH RVE\nEC', selectionStart: 19, selectionEnd: 19 } })
+    act(() => picker?.('ECP'))
+    expect(textarea.value).toBe('RVE A ECP\nH RVE\nECP')
+
+    // Any other focus gives the map its clicks back.
+    fireEvent.blur(textarea, { relatedTarget: screen.getByRole('button', { name: 'elsewhere' }) })
+    expect(picker).toBeNull()
   })
 })

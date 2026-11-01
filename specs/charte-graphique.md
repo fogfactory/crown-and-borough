@@ -694,6 +694,17 @@ pour qu'un mot de deux lettres ne soit jamais remplacé à l'insu du joueur.
 rien. Seule l'option choisie défile dans la liste : le panneau ne défile que
 vers une liste demandée.
 
+**Précision.** Une zone de saisie qui prend le focus devient la cible de la
+carte : un anneau `brass-700` l'entoure et une ligne d'aide l'annonce. Un clic
+sur un territoire y écrit son code à la position du curseur, espacé de ses
+voisins, à la place du code en cours de frappe (un verbe d'une lettre reste) ;
+il ne change pas la sélection de la carte. Un formulaire déplié dans le tiroir
+passe avant la zone de saisie. La zone reste la cible tant que le focus ne
+part que vers la carte ; un autre champ ou Échap (sans liste ouverte) rendent
+ses clics à la carte. À l'inverse, chaque code de territoire de trois lettres
+tapé ou choisi dans la liste cadre la carte sur ce territoire et le
+sélectionne, une fois par code, sans quitter l'onglet Ordres sur téléphone.
+
 **Évolution possible.** Des cartes d'ordres (choisir un verbe, puis la cible
 sur la carte, et réordonner les cartes) pourront s'ajouter plus tard, comme
 une seconde vue de la même chaîne, sans retirer le texte assisté. Elles
