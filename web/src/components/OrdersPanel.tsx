@@ -4,7 +4,15 @@ import { IconBook, IconSnowflake } from '@tabler/icons-react'
 import { Button } from '@/components/ui/button'
 import { OrderLauncher } from '@/components/OrderDialog'
 import { OrderEditor, type OrderEditorTone } from '@/components/OrderEditor'
-import { AppeasementOrders, SpecialCardOrders, assassinationLauncher, justiceLauncher, TitleOrdersSection, shortCode } from '@/components/TitleOrders'
+import {
+  buildCodeIndex,
+  chainSuggester,
+  sheetSuggester,
+  SPECIAL_SLOTS,
+  WINTER_SLOTS,
+  type CodeSuggester,
+} from '@/lib/order-suggestions'
+import { AppeasementOrders, SpecialCardOrders, assassinationLauncher, justiceLauncher, TitleOrdersSection } from '@/components/TitleOrders'
 import {
   Tooltip,
   TooltipContent,
@@ -15,7 +23,7 @@ import type { RulesSection } from '@/components/RulesPanel'
 import { SectionHeading } from '@/components/SectionHeading'
 import { TerritoryRef } from '@/components/MapLinks'
 import { richTranslate } from '@/lib/rich-text'
-import { formatCardLabel, formatCardName } from '@/lib/card-hand'
+import { formatCardLabel, formatCardName, shortCode } from '@/lib/card-hand'
 import { CardPictogram } from '@/components/CardPictogram'
 import { HandFan, type FanCard } from '@/components/HandFan'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
@@ -204,6 +212,7 @@ function EditorZone({
   placeholder,
   ariaLabel,
   className,
+  suggest,
 }: {
   value: string
   onChange: (value: string) => void
@@ -214,6 +223,7 @@ function EditorZone({
   placeholder: string
   ariaLabel: string
   className?: string
+  suggest?: CodeSuggester
 }) {
   const errorsId = useId()
   const errorLines = errors.flatMap((error) => (error.line ? [error.line] : []))
@@ -230,6 +240,7 @@ function EditorZone({
         placeholder={placeholder}
         aria-label={ariaLabel}
         className={className}
+        suggest={suggest}
       />
       <PreviewErrors id={errorsId} errors={errors} label={errorsLabel} />
     </div>
@@ -272,6 +283,7 @@ function DeckOrdersSection({
   player,
   specialDraft,
   errors,
+  suggest,
   onSpecialChange,
   onOpenRules,
 }: {
@@ -280,6 +292,7 @@ function DeckOrdersSection({
   onOpenRules?: (section: RulesSection) => void
   specialDraft: string
   errors: DraftError[]
+  suggest?: CodeSuggester
   onSpecialChange: (text: string) => void
 }) {
   const { t } = useLanguage()
@@ -304,6 +317,7 @@ function DeckOrdersSection({
         value={specialDraft}
         onChange={onSpecialChange}
         errors={errors}
+        suggest={suggest}
         errorsLabel={t('orders.specialErrorsAria')}
         className="min-h-20"
         placeholder={t('orders.deckPlaceholder')}
@@ -1062,6 +1076,55 @@ function usePreviewDraftErrors(
   }, [state, player, chainDrafts, winterDraft, specialDraft, preview, ordersBody, previewedBody])
 }
 
+/** Calamities a Witch's ritual can call (`S R NNN CAL`). */
+const WITCH_CALAMITIES: CardKind[] = ['plague', 'bad_weather', 'famine']
+
+/**
+ * Code completion of the order editors, from the map, the known nobles and
+ * the cards of the hand: each sheet reads the places of its own orders.
+ */
+function useCodeSuggesters(
+  state: StateData,
+  player: PlayerId,
+  mapTerritories: Territory[] | undefined,
+  regions: Region[],
+): { chain?: CodeSuggester; winter?: CodeSuggester; special?: CodeSuggester } {
+  const { t } = useLanguage()
+  return useMemo(() => {
+    if (!mapTerritories) return {}
+    const index = buildCodeIndex({
+      territories: mapTerritories,
+      state,
+      player,
+      regions,
+      nobleCards: (state.nobleHand ?? []).map((card) => ({
+        code: card.code,
+        kind: card.kind,
+        name:
+          card.name ??
+          (card.dignity ? t(`dignity.${card.dignity}` as MessageKey) : card.code),
+      })),
+      specialCards: [...new Set(state.specialHand ?? [])].map((kind) => ({
+        code: shortCode(kind),
+        name: formatCardName(kind, t),
+      })),
+      calamities: WITCH_CALAMITIES.map((kind) => ({
+        code: shortCode(kind),
+        name: formatCardName(kind, t),
+      })),
+      aids: state.winterAids,
+    })
+    return {
+      chain: chainSuggester(index),
+      winter: sheetSuggester(index, WINTER_SLOTS),
+      special: sheetSuggester(index, SPECIAL_SLOTS),
+    }
+  }, [mapTerritories, state, player, regions, t])
+}
+
+// A stable default, so the code suggestions are not rebuilt on every render.
+const NO_REGIONS: Region[] = []
+
 export function OrdersPanel({
   state,
   player,
@@ -1070,7 +1133,7 @@ export function OrdersPanel({
   preview = null,
   ordersBody = null,
   previewedBody = null,
-  regions = [],
+  regions = NO_REGIONS,
   mapTerritories,
   specialDraft,
   draftDiffers,
@@ -1089,6 +1152,7 @@ export function OrdersPanel({
     ordersBody,
     previewedBody,
   )
+  const suggesters = useCodeSuggesters(state, player, mapTerritories, regions)
 
   if (state.season === 'winter') {
     const winterLines = preview?.winter ?? []
@@ -1152,6 +1216,7 @@ export function OrdersPanel({
           value={winterDraft}
           onChange={onWinterChange}
           errors={draftErrors.winter}
+          suggest={suggesters.winter}
           errorsLabel={t('orders.winterErrorsAria')}
           tone="winter"
           className="min-h-28"
@@ -1207,6 +1272,7 @@ export function OrdersPanel({
         player={player}
         specialDraft={specialDraft}
         errors={draftErrors.special}
+        suggest={suggesters.special}
         onSpecialChange={onSpecialChange}
         onOpenRules={onOpenRules}
       />
@@ -1216,6 +1282,7 @@ export function OrdersPanel({
             value={winterDraft}
             onChange={onWinterChange}
             errors={draftErrors.winter}
+            suggest={suggesters.winter}
             errorsLabel={t('orders.winterErrorsAria')}
             tone="winter"
             placeholder={t('orders.nobleCardsPlaceholder')}
@@ -1266,6 +1333,7 @@ export function OrdersPanel({
               value={chainDrafts[noble.code] ?? ''}
               onChange={(text) => onChainChange(noble.code, text)}
               errors={draftErrors.chains[noble.code] ?? []}
+              suggest={suggesters.chain}
               errorsLabel={t('orders.chainErrorsOfAria', { noble: `${noble.name} (${noble.code})` })}
               disabled={noble.status === 'dungeon'}
               className="min-h-24"

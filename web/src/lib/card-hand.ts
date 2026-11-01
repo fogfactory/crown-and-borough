@@ -15,6 +15,25 @@ const CARD_KIND_ORDER: CardKind[] = [
   'famine',
 ]
 
+/** Code of a card kind in the order sheets (`P BT TER`, `D C BT`). */
+const SHORT_CODES: Record<CardKind, string> = {
+  fair_weather: 'BT',
+  abundant_harvest: 'RA',
+  revolt: 'RE',
+  plague: 'PE',
+  bad_weather: 'MT',
+  famine: 'FA',
+  seigneurial_tax: 'TX',
+  tunnel: 'SO',
+  ambush: 'EM',
+  assassination: 'AS',
+  justice: 'JU',
+}
+
+export function shortCode(kind: CardKind): string {
+  return SHORT_CODES[kind]
+}
+
 const CARD_SHORT_KEYS: Record<CardKind, MessageKey> = {
   fair_weather: 'card.short.fair_weather',
   abundant_harvest: 'card.short.abundant_harvest',

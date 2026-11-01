@@ -1,10 +1,20 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { createRef } from 'react'
+import { createRef, useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { OrderEditor, tokenizeOrderLine } from '@/components/OrderEditor'
 
 describe('tokenizeOrderLine', () => {
+  it('colors card codes of two letters like the other codes', () => {
+    expect(tokenizeOrderLine('P BT RLG').map((token) => token.kind)).toEqual([
+      'verb',
+      'text',
+      'trigram',
+      'text',
+      'trigram',
+    ])
+  })
+
   it('classifies the words by their shape, in either case', () => {
     expect(tokenizeOrderLine('a ABC (def) 12 - x')).toEqual([
       { kind: 'verb', text: 'a' },
@@ -75,5 +85,97 @@ describe('OrderEditor', () => {
     const ref = createRef<HTMLTextAreaElement>()
     render(<OrderEditor ref={ref} value="" onChange={() => {}} aria-label="orders" />)
     expect(ref.current).toBe(screen.getByLabelText('orders'))
+  })
+
+  it('completes the typed word from the suggestions with the keyboard', () => {
+    // Like suggestCodes, nothing for a whole code.
+    const suggest = vi.fn((word: string) =>
+      word.length === 3
+        ? []
+        : [
+            { code: 'ECP', name: 'Escarpelle', kind: 'territory' as const },
+            { code: 'ESC', name: 'Escalade', kind: 'territory' as const },
+          ],
+    )
+    function Editor() {
+      const [value, setValue] = useState('RVE A ')
+      return <OrderEditor value={value} onChange={setValue} suggest={suggest} aria-label="orders" />
+    }
+    render(<Editor />)
+    const textarea = screen.getByLabelText('orders') as HTMLTextAreaElement
+    textarea.focus()
+    fireEvent.change(textarea, { target: { value: 'RVE A es', selectionStart: 8, selectionEnd: 8 } })
+
+    expect(suggest).toHaveBeenCalledWith('es', 'RVE A ')
+    expect(screen.getByRole('option', { name: 'Escarpelle (ECP)' })).toHaveAttribute('aria-selected', 'true')
+    fireEvent.keyDown(textarea, { key: 'ArrowDown' })
+    expect(screen.getByRole('option', { name: 'Escalade (ESC)' })).toHaveAttribute('aria-selected', 'true')
+    fireEvent.keyDown(textarea, { key: 'Enter' })
+
+    expect(textarea.value).toBe('RVE A ESC')
+    expect(textarea.selectionStart).toBe(9)
+    expect(screen.queryByRole('listbox')).toBeNull()
+  })
+
+  it('closes the suggestions with Escape until the word changes', () => {
+    const suggest = () => [{ code: 'ECP', name: 'Escarpelle', kind: 'territory' as const }]
+    render(<OrderEditor value="es" onChange={() => {}} suggest={suggest} aria-label="orders" />)
+    const textarea = screen.getByLabelText('orders') as HTMLTextAreaElement
+    textarea.focus()
+    textarea.setSelectionRange(2, 2)
+    fireEvent.select(textarea)
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+    fireEvent.keyDown(textarea, { key: 'Escape' })
+    expect(screen.queryByRole('listbox')).toBeNull()
+  })
+
+  it('opens the suggestions on Ctrl+Space without any letter', () => {
+    const suggest = vi.fn(() => [{ code: 'ECP', name: 'Escarpelle', kind: 'territory' as const }])
+    render(<OrderEditor value="RVE A " onChange={() => {}} suggest={suggest} aria-label="orders" />)
+    const textarea = screen.getByLabelText('orders') as HTMLTextAreaElement
+    textarea.focus()
+    textarea.setSelectionRange(6, 6)
+    fireEvent.select(textarea)
+    expect(screen.queryByRole('listbox')).toBeNull()
+
+    fireEvent.keyDown(textarea, { key: ' ', ctrlKey: true })
+    expect(suggest).toHaveBeenCalledWith('', 'RVE A ')
+    expect(screen.getByRole('option', { name: 'Escarpelle (ECP)' })).toBeInTheDocument()
+  })
+
+  it('leaves Enter and Tab to the textarea while the list only opened by itself', () => {
+    const suggest = () => [{ code: 'PEL', name: 'Pellerin', kind: 'territory' as const }]
+    const onChange = vi.fn()
+    render(<OrderEditor value="S R ABC PE" onChange={onChange} suggest={suggest} aria-label="orders" />)
+    const textarea = screen.getByLabelText('orders') as HTMLTextAreaElement
+    textarea.focus()
+    textarea.setSelectionRange(10, 10)
+    fireEvent.select(textarea)
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+
+    expect(fireEvent.keyDown(textarea, { key: 'Enter' })).toBe(true)
+    expect(fireEvent.keyDown(textarea, { key: 'Tab' })).toBe(true)
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('opens the list on Alt+Down and on its button, and forgets the request elsewhere', () => {
+    const suggest = vi.fn(() => [{ code: 'ECP', name: 'Escarpelle', kind: 'territory' as const }])
+    render(<OrderEditor value={'RVE A \nH'} onChange={() => {}} suggest={suggest} aria-label="orders" />)
+    const textarea = screen.getByLabelText('orders') as HTMLTextAreaElement
+    textarea.focus()
+    textarea.setSelectionRange(6, 6)
+    fireEvent.select(textarea)
+    fireEvent.keyDown(textarea, { key: 'ArrowDown', altKey: true })
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+
+    // Moving away drops the request: coming back does not reopen the list.
+    textarea.setSelectionRange(9, 9)
+    fireEvent.select(textarea)
+    textarea.setSelectionRange(6, 6)
+    fireEvent.select(textarea)
+    expect(screen.queryByRole('listbox')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: /Ctrl\+Space/ }))
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
   })
 })
