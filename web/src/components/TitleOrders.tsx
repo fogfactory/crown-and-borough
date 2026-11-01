@@ -9,7 +9,7 @@ import { NoblePawnIcon } from '@/components/NobleHolder'
 import { religiousTitlesByHolder } from '@/lib/lineage'
 import { nobleAttributesByCode } from '@/lib/noble-attributes'
 import { NEUTRAL_ARMY_COLOR } from '@/lib/map-palette'
-import { formatCardLabel, shortCode } from '@/lib/card-hand'
+import { CALAMITY_KINDS, formatCardLabel, shortCode } from '@/lib/card-hand'
 import { parseDraftTaxLine } from '@/lib/projected-tax'
 import { royalIssuerOf } from '@/lib/royal'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
@@ -755,8 +755,6 @@ export function TitleOrdersSection({
 
   const ritual = aids.rituals.find((option) => !lines.some((line) => line.startsWith(`S R ${option.noble} `)))
   if (ritual && !lines.some((line) => line.startsWith('S R '))) {
-    const kinds: CardKind[] = ['plague', 'bad_weather', 'famine']
-    const kindCodes: Record<string, string> = { plague: 'PE', bad_weather: 'MT', famine: 'FA' }
     const seasons: Array<[string, Season]> = [
       ['1', 'spring'],
       ['2', 'summer'],
@@ -784,7 +782,7 @@ export function TitleOrdersSection({
             options: (values) =>
               values.mode === 'season'
                 ? seasons.map(([value, season]) => ({ value, label: t(SEASON_LABEL_KEYS[season]) }))
-                : kinds.map((kind) => ({ value: kindCodes[kind], label: t(`card.${kind}` as MessageKey) })),
+                : CALAMITY_KINDS.map((kind) => ({ value: shortCode(kind), label: t(`card.${kind}` as MessageKey) })),
           },
         ]}
         buildOrder={(values) => {
@@ -795,7 +793,7 @@ export function TitleOrdersSection({
             comment: season
               ? t('orders.comment.ritualSeason', { season: t(SEASON_LABEL_KEYS[season[1]]) })
               : t('orders.comment.ritualCalamity', {
-                  card: t(`card.${kinds.find((kind) => kindCodes[kind] === values.choice) ?? 'plague'}` as MessageKey),
+                  card: t(`card.${CALAMITY_KINDS.find((kind) => shortCode(kind) === values.choice) ?? 'plague'}` as MessageKey),
                 }),
           }
         }}

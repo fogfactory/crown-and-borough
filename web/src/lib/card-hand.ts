@@ -1,5 +1,5 @@
 import type { Translate, MessageKey } from '@/i18n/messages'
-import type { CardKind } from '@/types'
+import type { CardKind, NobleCard } from '@/types'
 
 const CARD_KIND_ORDER: CardKind[] = [
   'fair_weather',
@@ -14,6 +14,16 @@ const CARD_KIND_ORDER: CardKind[] = [
   'revolt',
   'famine',
 ]
+
+/** Calamities: the cards a Witch's ritual can call (`S R NNN CAL`). */
+export const CALAMITY_KINDS: CardKind[] = ['plague', 'bad_weather', 'famine']
+
+/** Name of a card of the noble deck: the noble, the dignity, or a claim. */
+export function nobleCardName(card: NobleCard, t: Translate): string {
+  if (card.kind === 'claim') return t('hand.claimCard')
+  if (card.kind === 'dignity') return t(`dignity.${card.dignity ?? 'bastard'}` as MessageKey)
+  return card.name ?? card.code
+}
 
 /** Code of a card kind in the order sheets (`P BT TER`, `D C BT`). */
 const SHORT_CODES: Record<CardKind, string> = {

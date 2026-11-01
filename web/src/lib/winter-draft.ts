@@ -4,10 +4,15 @@ export function appendDraftLine(draft: string, line: string): string {
   return trimmed === '' ? `${line}\n` : `${trimmed}\n${line}\n`
 }
 
+/** An order line upper-cased and stripped of its `# comment`. */
+export function cleanOrderLine(line: string): string {
+  return line.replace(/#.*$/, '').trim().toUpperCase()
+}
+
 /** Order lines of a draft, upper-cased and stripped of their `# comment`. */
 export function draftLines(draft: string): string[] {
   return draft
     .split('\n')
-    .map((line) => line.replace(/#.*$/, '').trim().toUpperCase())
+    .map(cleanOrderLine)
     .filter((line) => line !== '')
 }

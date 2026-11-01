@@ -2,6 +2,11 @@ import type { InfraType, TerritoryState } from '@/types'
 
 const SUPPLY_SOURCE_TYPES: InfraType[] = ['castle', 'village']
 
+/** Whether a castle or a village stands on the territory. */
+export function isSettlement(territory: Pick<TerritoryState, 'infrastructures'>): boolean {
+  return territory.infrastructures.some((infra) => SUPPLY_SOURCE_TYPES.includes(infra.type))
+}
+
 export function hasSupplySource(territory: TerritoryState | undefined): boolean {
   const infrastructure = territory?.infrastructures[0]
   return Boolean(
