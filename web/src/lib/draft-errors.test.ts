@@ -54,34 +54,47 @@ describe('mapPreviewErrors', () => {
     expect(result.chains).toEqual({
       ABC: [{ line: 4, message: 'bad' }, { line: undefined, message: 'lost' }],
     })
+    expect(result.other).toEqual([{ message: 'other player' }])
   })
 
-  it('splits the joined winter text between the winter and special drafts', () => {
+  it('splits the joined winter text, telling special lines in the winter zone', () => {
     const result = mapPreviewErrors(
       stateOf('winter'),
       'P1',
-      { ...drafts, winterDraft: 'A\nB', specialDraft: 'C\nD' },
+      { ...drafts, winterDraft: 'A\nB\n', specialDraft: 'C\nD' },
       previewOf(
-        [{ source: 'winter', line: 4, code: 'x', message: 'in special' }],
+        [{ source: 'winter', line: 5, code: 'x', message: 'in special' }],
         [
           { line: 2, status: 'invalid', message: 'in winter' },
-          { line: 4, status: 'invalid', message: 'in special' },
+          { line: 5, status: 'invalid', message: 'in special' },
           { line: 1, status: 'applied' },
         ],
       ),
     )
-    expect(result.winter).toEqual([{ line: 2, message: 'in winter' }])
-    expect(result.special).toEqual([{ line: 2, message: 'in special' }])
+    // No special editor in winter: its errors come without a line.
+    expect(result.winter).toEqual([{ message: 'in special' }, { line: 2, message: 'in winter' }])
+    expect(result.special).toEqual([])
   })
 
-  it('starts the special draft at the first line when the winter draft is empty', () => {
+  it('starts the sheet with the special draft when the winter draft is empty', () => {
     const result = mapPreviewErrors(
       stateOf('winter'),
       'P1',
       { ...drafts, winterDraft: '  \n', specialDraft: 'C' },
-      previewOf([{ source: 'winter', line: 1, code: 'x', message: 'bad' }]),
+      previewOf([], [{ line: 1, status: 'invalid', message: 'bad' }]),
     )
-    expect(result.special).toEqual([{ line: 1, message: 'bad' }])
+    expect(result.winter).toEqual([{ message: 'bad' }])
+  })
+
+  it('keeps chain errors of a noble the player does not own as plain messages', () => {
+    const result = mapPreviewErrors(
+      stateOf('spring'),
+      'P1',
+      drafts,
+      previewOf([{ noble: 'DEF', line: 2, code: 'x', message: 'elsewhere' }]),
+    )
+    expect(result.chains).toEqual({})
+    expect(result.other).toEqual([{ message: 'elsewhere' }])
   })
 
   it('maps the card orders kept outside winter back to the winter draft', () => {

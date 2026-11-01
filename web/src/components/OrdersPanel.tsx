@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { IconBook, IconSnowflake } from '@tabler/icons-react'
 
 import { Button } from '@/components/ui/button'
@@ -19,7 +19,8 @@ import { formatCardLabel, formatCardName } from '@/lib/card-hand'
 import { CardPictogram } from '@/components/CardPictogram'
 import { HandFan, type FanCard } from '@/components/HandFan'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
-import { mapPreviewErrors, type DraftError } from '@/lib/draft-errors'
+import { mapPreviewErrors, type DraftError, type DraftErrors } from '@/lib/draft-errors'
+import { buildOrdersBody, type OrdersBody } from '@/lib/orders-body'
 import { appendDraftLine, draftLines } from '@/lib/winter-draft'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
@@ -1009,6 +1010,57 @@ function WinterOrderDiagnostics({
   )
 }
 
+/** Errors of a zone whose sent text changed since the preview: messages without their stale line. */
+function withoutLines(errors: DraftError[], stale: boolean): DraftError[] {
+  return stale ? errors.map(({ message }) => ({ message })) : errors
+}
+
+/**
+ * Preview errors sorted by draft (see `mapPreviewErrors`). A zone whose sent
+ * text changed since the request keeps its messages but loses their lines,
+ * which would point at the wrong line until the next preview arrives.
+ */
+function usePreviewDraftErrors(
+  state: StateData,
+  player: PlayerId,
+  chainDrafts: Record<string, string>,
+  winterDraft: string,
+  specialDraft: string,
+  preview: OrdersPreview | null,
+): DraftErrors {
+  const drafts = useMemo(
+    () => ({ chainDrafts, winterDraft, specialDraft }),
+    [chainDrafts, winterDraft, specialDraft],
+  )
+  const body = useMemo(() => buildOrdersBody(state, player, drafts), [state, player, drafts])
+  // The body the preview answers: a draft change aborts the pending request,
+  // so a new preview always arrives with the body it was computed from.
+  const [previewed, setPreviewed] = useState<{ preview: OrdersPreview | null; body: OrdersBody }>({
+    preview,
+    body,
+  })
+  if (previewed.preview !== preview) setPreviewed({ preview, body })
+  const previewedBody = previewed.preview === preview ? previewed.body : body
+  return useMemo(() => {
+    const errors = mapPreviewErrors(state, player, drafts, preview)
+    const chainText = (sent: OrdersBody, noble: string) =>
+      sent.chains.find((chain) => chain.noble === noble)?.text ?? ''
+    const winterStale = body.winter[0]?.lines !== previewedBody.winter[0]?.lines
+    const specialStale = winterStale || body.special[0]?.text !== previewedBody.special[0]?.text
+    return {
+      chains: Object.fromEntries(
+        Object.entries(errors.chains).map(([noble, list]) => [
+          noble,
+          withoutLines(list, chainText(body, noble) !== chainText(previewedBody, noble)),
+        ]),
+      ),
+      winter: withoutLines(errors.winter, winterStale),
+      special: withoutLines(errors.special, specialStale),
+      other: errors.other,
+    }
+  }, [state, player, drafts, preview, body, previewedBody])
+}
+
 export function OrdersPanel({
   state,
   player,
@@ -1026,12 +1078,7 @@ export function OrdersPanel({
   onRestoreFromServer,
 }: OrdersPanelProps) {
   const { t } = useLanguage()
-  const draftErrors = mapPreviewErrors(
-    state,
-    player,
-    { chainDrafts, winterDraft, specialDraft },
-    preview,
-  )
+  const draftErrors = usePreviewDraftErrors(state, player, chainDrafts, winterDraft, specialDraft, preview)
 
   if (state.season === 'winter') {
     const winterLines = preview?.winter ?? []
@@ -1209,7 +1256,7 @@ export function OrdersPanel({
               value={chainDrafts[noble.code] ?? ''}
               onChange={(text) => onChainChange(noble.code, text)}
               errors={draftErrors.chains[noble.code] ?? []}
-              errorsLabel={t('orders.chainErrorsAria')}
+              errorsLabel={t('orders.chainErrorsOfAria', { noble: `${noble.name} (${noble.code})` })}
               disabled={noble.status === 'dungeon'}
               className="min-h-24"
               placeholder={chainPlaceholder()}
@@ -1218,6 +1265,7 @@ export function OrdersPanel({
           </div>
         ))
       )}
+      <PreviewErrors errors={draftErrors.other} label={t('orders.chainErrorsAria')} />
       {!hasEmittingNoble && (
         <p className="rounded-lg border border-dashed border-line bg-paper-100 p-3 text-sm italic text-ink-500">
           {t('orders.noEmittingNoble')}

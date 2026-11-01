@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildOrdersBody, isEmptyOrdersBody } from '@/lib/orders-body'
+import { buildOrdersBody, isEmptyOrdersBody, winterSheet } from '@/lib/orders-body'
 import type { StateData } from '@/types'
 
 const state: StateData = {
@@ -66,5 +66,33 @@ describe('buildOrdersBody', () => {
     })
 
     expect(isEmptyOrdersBody(body)).toBe(true)
+  })
+})
+
+describe('winterSheet', () => {
+  const at = (season: StateData['season']) => ({ season, nobles: [] }) as unknown as StateData
+
+  it('joins the winter and special drafts in winter, line by line', () => {
+    expect(winterSheet(at('winter'), { winterDraft: 'A\nB\n', specialDraft: 'C' })).toEqual({
+      lines: 'A\nB\n\nC',
+      origins: [
+        { draft: 'winter', line: 1 },
+        { draft: 'winter', line: 2 },
+        { draft: 'winter', line: 3 },
+        { draft: 'special', line: 1 },
+      ],
+    })
+  })
+
+  it('keeps only the card orders outside winter', () => {
+    expect(
+      winterSheet(at('spring'), { winterDraft: 'R T AAA\nR N XYZ AAA\n\nd n AAA BAS', specialDraft: 'C' }),
+    ).toEqual({
+      lines: 'R N XYZ AAA\nd n AAA BAS',
+      origins: [
+        { draft: 'winter', line: 2 },
+        { draft: 'winter', line: 4 },
+      ],
+    })
   })
 })

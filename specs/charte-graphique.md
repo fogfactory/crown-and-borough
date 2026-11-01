@@ -664,7 +664,9 @@ verbe d'une lettre, nombre, commentaire. Elle ne juge jamais un ordre, qu'il
 soit valide ou non. Une erreur de la prévisualisation est soulignée en vague
 `vermilion-700` sur la ligne fautive de la zone qui la contient (chaîne d'un
 noble, ordres d'hiver ou cartes spéciales), avec son message sous cette zone ;
-une erreur sans ligne n'apparaît que comme message.
+une erreur sans ligne n'apparaît que comme message. Une zone modifiée depuis
+la dernière prévisualisation garde ses messages, sans numéro de ligne ni
+soulignement, jusqu'à la prévisualisation suivante.
 
 **Évolution possible.** Des cartes d'ordres (choisir un verbe, puis la cible
 sur la carte, et réordonner les cartes) pourront s'ajouter plus tard, comme

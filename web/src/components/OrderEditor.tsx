@@ -50,13 +50,14 @@ const TEXT_LAYOUT = 'block w-full border p-3 font-mono text-xs whitespace-pre-wr
 
 const TONES: Record<
   OrderEditorTone,
-  { frame: string; field: string; base: string; trigram: string }
+  { frame: string; field: string; base: string; caret: string; trigram: string }
 > = {
   default: {
     frame: 'bg-paper-50',
     field:
       'border-line-strong focus:border-brass-700 focus:ring-brass-700/20 placeholder:text-ink-500',
     base: 'text-ink-900',
+    caret: 'caret-ink-900',
     trigram: 'bg-paper-100',
   },
   winter: {
@@ -64,6 +65,7 @@ const TONES: Record<
     field:
       'border-winter-700/30 focus:border-winter-700 focus:ring-winter-700/20 placeholder:text-winter-700/60',
     base: 'text-winter-700',
+    caret: 'caret-winter-700',
     trigram: 'bg-winter-700/10',
   },
 }
@@ -195,8 +197,9 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
           spellCheck={false}
           className={cn(
             TEXT_LAYOUT,
-            'relative min-h-16 resize-y overflow-y-auto rounded-lg bg-transparent text-transparent caret-ink-900 outline-none transition selection:bg-brass-300/40 focus:ring-2 disabled:cursor-not-allowed',
+            'relative min-h-16 resize-y overflow-y-auto rounded-lg bg-transparent text-transparent outline-none transition selection:bg-brass-300/40 focus:ring-2 disabled:cursor-not-allowed',
             styles.field,
+            styles.caret,
             className,
           )}
         />

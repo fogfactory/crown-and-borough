@@ -183,6 +183,41 @@ describe('OrdersPanel seasonal presentation', () => {
     expect(diagnostics).toHaveTextContent(/Ligne 2 .*Ressources insuffisantes/)
   })
 
+  it('drops the line of an error once its chain changed, until the next preview', () => {
+    const nobles: Noble[] = [
+      { id: 'N1', code: 'HUG', name: 'Hugues', owner: 'P1', location: 'ROS', status: 'free' },
+    ]
+    const preview: OrdersPreview = {
+      errors: [{ source: 'chain', noble: 'HUG', line: 2, code: 'not_adjacent', message: 'pas adjacent' }],
+      chains: [],
+      winter: [],
+    }
+    const panel = (draft: string) => (
+      <LanguageProvider initialLanguage="fr">
+        <OrdersPanel
+          state={{ ...state, season: 'spring', nobles }}
+          player="P1"
+          chainDrafts={{ HUG: draft }}
+          winterDraft=""
+          preview={preview}
+          specialDraft=""
+          onChainChange={vi.fn()}
+          onWinterChange={vi.fn()}
+          onSpecialChange={vi.fn()}
+          onOpenRules={vi.fn()}
+        />
+      </LanguageProvider>
+    )
+    const { rerender } = render(panel('M BRU'))
+    expect(document.querySelectorAll('[data-order-error-line]')).toHaveLength(1)
+
+    rerender(panel('H ROS\nM BRU'))
+    expect(document.querySelectorAll('[data-order-error-line]')).toHaveLength(0)
+    const errors = screen.getByRole('alert', { name: 'Erreurs de la chaîne de Hugues (HUG)' })
+    expect(errors).toHaveTextContent('pas adjacent')
+    expect(errors).not.toHaveTextContent('Ligne')
+  })
+
   it('shows chain errors found by the server while the player types', () => {
     renderWithPreview('spring', {
       errors: [
@@ -205,7 +240,7 @@ describe('OrdersPanel seasonal presentation', () => {
     })
 
     const errors = screen.getByRole('alert', {
-      name: "Erreurs dans les chaînes d'ordres",
+      name: 'Erreurs de la chaîne de Hugues (HUG)',
     })
     expect(within(errors).getAllByRole('listitem')).toHaveLength(1)
     expect(errors).toHaveTextContent(/Ligne 1 .*BRU n’est pas adjacent/)

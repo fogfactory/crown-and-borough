@@ -16,12 +16,39 @@ export interface OrdersDrafts {
 
 const CARD_ORDER = /^\s*(R\s+N|C\s+N|D\s+N)\s/i
 
-/** Keeps the lines that play a noble-deck card: the only winter-sheet orders accepted outside winter. */
-export function keepCardOrders(draft: string): string {
-  return draft
-    .split('\n')
-    .filter((line) => CARD_ORDER.test(line))
-    .join('\n')
+/** Draft and 1-based line that a line of the winter sheet comes from. */
+export interface WinterLineOrigin {
+  draft: 'winter' | 'special'
+  line: number
+}
+
+/**
+ * The winter sheet sent for the drafts, one origin per line: in winter the
+ * winter draft then the special one (card discards share the sheet), otherwise
+ * only the lines that play a noble-deck card, the only winter-sheet orders
+ * accepted outside winter.
+ */
+export function winterSheet(
+  state: StateData,
+  { winterDraft, specialDraft }: Pick<OrdersDrafts, 'winterDraft' | 'specialDraft'>,
+): { lines: string; origins: WinterLineOrigin[] } {
+  const parts: Array<[string, WinterLineOrigin['draft']]> =
+    state.season === 'winter'
+      ? [
+          [winterDraft, 'winter'],
+          [specialDraft, 'special'],
+        ]
+      : [[winterDraft, 'winter']]
+  const kept = parts
+    .filter(([text]) => text.trim() !== '')
+    .flatMap(([text, draft]) =>
+      text.split('\n').map((line, index) => ({ text: line, origin: { draft, line: index + 1 } })),
+    )
+    .filter(({ text }) => state.season === 'winter' || CARD_ORDER.test(text))
+  return {
+    lines: kept.map(({ text }) => text).join('\n'),
+    origins: kept.map(({ origin }) => origin),
+  }
 }
 
 /**
@@ -44,13 +71,7 @@ export function buildOrdersBody(
           text: addNobleHeader(noble.code, chainDrafts[noble.code] ?? ''),
         }))
         .filter((chain) => hasChainContent(chain.noble, chain.text))
-  // Outside winter the sheet only carries the noble-deck card orders.
-  const winterLines = [
-    winterSeason ? winterDraft : keepCardOrders(winterDraft),
-    winterSeason ? specialDraft : '',
-  ]
-    .filter((text) => text.trim() !== '')
-    .join('\n')
+  const winterLines = winterSheet(state, { winterDraft, specialDraft }).lines
   return {
     chains,
     winter: winterLines !== '' ? [{ lines: winterLines }] : [],

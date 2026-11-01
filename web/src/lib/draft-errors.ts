@@ -1,5 +1,5 @@
 import { typedHeaderIndex } from '@/lib/order-text'
-import { keepCardOrders, type OrdersDrafts } from '@/lib/orders-body'
+import { winterSheet, type OrdersDrafts } from '@/lib/orders-body'
 import type { OrdersPreview, OrdersPreviewError, PlayerId, StateData } from '@/types'
 
 /** An error of a draft; `line` is the 1-based line of that draft, absent when it cannot be pinned down. */
@@ -13,6 +13,8 @@ export interface DraftErrors {
   chains: Record<string, DraftError[]>
   winter: DraftError[]
   special: DraftError[]
+  /** Chain errors naming no noble of the player: no editor holds them. */
+  other: DraftError[]
 }
 
 /**
@@ -32,21 +34,6 @@ export function chainDraftLine(
   return (headerIndex >= 0 && kept >= headerIndex ? kept + 1 : kept) + 1
 }
 
-/** Draft line (1-based) of the line `serverLine` of the card orders `keepCardOrders` kept. */
-function cardDraftLine(draft: string, serverLine: number): number | undefined {
-  const cardLines = keepCardOrders(draft).split('\n')
-  const kept = cardLines[serverLine - 1]
-  if (kept === undefined) return undefined
-  let seen = 0
-  const lines = draft.split('\n')
-  for (let index = 0; index < lines.length; index++) {
-    if (keepCardOrders(lines[index]) === '') continue
-    seen++
-    if (seen === serverLine) return index + 1
-  }
-  return undefined
-}
-
 function pushUnique(list: DraftError[], error: DraftError) {
   if (!list.some((known) => known.line === error.line && known.message === error.message)) {
     list.push(error)
@@ -56,36 +43,32 @@ function pushUnique(list: DraftError[], error: DraftError) {
 /**
  * Sorts the errors of a preview by draft, with the line numbers of the draft
  * rather than those of the text `buildOrdersBody` sent: the noble header added
- * to a chain, the winter and special drafts joined in winter, and the lines
- * `keepCardOrders` dropped outside winter all shift the server lines.
+ * to a chain, and the winter sheet `winterSheet` builds from the winter and
+ * special drafts, shift the server lines. `drafts` must be the drafts the
+ * preview was computed from.
  */
 export function mapPreviewErrors(
   state: StateData,
   player: PlayerId,
-  { chainDrafts, winterDraft }: OrdersDrafts,
+  drafts: OrdersDrafts,
   preview: OrdersPreview | null | undefined,
 ): DraftErrors {
-  const result: DraftErrors = { chains: {}, winter: [], special: [] }
+  const result: DraftErrors = { chains: {}, winter: [], special: [], other: [] }
   if (!preview) return result
-  const winterSeason = state.season === 'winter'
   const ownedNobles = new Set(
     state.nobles.filter((noble) => noble.owner === player).map((noble) => noble.code),
   )
-  // A text sent as winter lines: the winter draft, then in winter the special one.
-  const winterHasText = winterDraft.trim() !== ''
-  const winterLength = winterHasText ? winterDraft.split('\n').length : 0
+  const { origins } = winterSheet(state, drafts)
 
   const addWinter = (serverLine: number | undefined, message: string) => {
-    if (!serverLine || serverLine < 1) {
+    const origin = serverLine ? origins[serverLine - 1] : undefined
+    if (!origin) {
       pushUnique(result.winter, { message })
-    } else if (winterSeason) {
-      if (serverLine <= winterLength) {
-        pushUnique(result.winter, { line: serverLine, message })
-      } else {
-        pushUnique(result.special, { line: serverLine - winterLength, message })
-      }
+    } else if (origin.draft === 'special' && state.season === 'winter') {
+      // No special editor in winter: the winter zone tells the error.
+      pushUnique(result.winter, { message })
     } else {
-      pushUnique(result.winter, { line: cardDraftLine(winterDraft, serverLine), message })
+      pushUnique(result[origin.draft], { line: origin.line, message })
     }
   }
 
@@ -93,10 +76,13 @@ export function mapPreviewErrors(
   for (const error of preview.errors) {
     switch (sourceOf(error)) {
       case 'chain': {
-        if (!error.noble || !ownedNobles.has(error.noble)) break
+        if (!error.noble || !ownedNobles.has(error.noble)) {
+          pushUnique(result.other, { message: error.message })
+          break
+        }
         const list = (result.chains[error.noble] ??= [])
         pushUnique(list, {
-          line: chainDraftLine(error.noble, chainDrafts[error.noble] ?? '', error.line),
+          line: chainDraftLine(error.noble, drafts.chainDrafts[error.noble] ?? '', error.line),
           message: error.message,
         })
         break
@@ -105,7 +91,10 @@ export function mapPreviewErrors(
         addWinter(error.line, error.message)
         break
       case 'special':
-        pushUnique(result.special, { line: error.line || undefined, message: error.message })
+        pushUnique(state.season === 'winter' ? result.winter : result.special, {
+          line: state.season === 'winter' ? undefined : error.line || undefined,
+          message: error.message,
+        })
         break
     }
   }
