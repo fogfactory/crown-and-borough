@@ -203,8 +203,9 @@ function PreviewErrors({
 }
 
 /**
- * Frames and selects on the map each territory code the player types
- * (charte-graphique.md § Saisie des ordres); nobles and cards are left alone.
+ * Frames and selects on the map each territory code the player finishes
+ * typing (charte-graphique.md § Saisie des ordres); nobles and cards are left
+ * alone.
  */
 function useFollowOnMap(): ((code: string) => void) | undefined {
   const links = useMapLinks()
@@ -212,7 +213,8 @@ function useFollowOnMap(): ((code: string) => void) | undefined {
     () =>
       links
         ? (code: string) => {
-            if (links.hasTerritory(code)) links.follow(code)
+            // A code that also names a noble may mean the noble: left alone.
+            if (links.hasTerritory(code) && !links.nobleName(code)) links.follow(code)
           }
         : undefined,
     [links],

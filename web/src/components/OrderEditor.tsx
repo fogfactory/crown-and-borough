@@ -14,7 +14,7 @@ import {
 
 import { IconListSearch } from '@tabler/icons-react'
 
-import { useEditorMapPicker } from '@/components/OrderDialog'
+import { useEditorMapTarget } from '@/components/OrderDialog'
 import { useLanguage } from '@/i18n/LanguageContext'
 import { wordAtCursor, type CodeSuggester, type CodeSuggestion } from '@/lib/order-suggestions'
 import { cn } from '@/lib/utils'
@@ -120,7 +120,7 @@ interface OrderEditorProps {
   className?: string
   /** Codes that complete the typed word, given the text of the zone before it. */
   suggest?: CodeSuggester
-  /** Told each three-letter word typed or chosen, to follow it on the map. */
+  /** Told each three-letter word finished or chosen, to follow it on the map. */
   onCodeTyped?: (code: string) => void
 }
 
@@ -157,14 +157,11 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
     const [cursor, setCursor] = useState<number | null>(null)
     // What the player did with the list of one word; it lapses when they leave it.
     const [list, setList] = useState<ListState | null>(null)
-    const frameRef = useRef<HTMLDivElement>(null)
     // Where a territory clicked on the map goes: the last selection, kept
     // through the blur that the click causes.
     const selection = useRef<{ start: number; end: number } | null>(null)
-    // The last code told to `onCodeTyped`, so a code is followed once.
-    const lastCode = useRef<string | null>(null)
-    const setEditorPicker = useEditorMapPicker()
-    const [mapTarget, setMapTarget] = useState(false)
+    const editorId = useId()
+    const mapTarget = useEditorMapTarget(editorId)
     const styles = TONES[tone]
     const faultyKey = errorLines.join(',')
     // Re-tokenized only when the text, its faulty lines or the tone change.
@@ -229,7 +226,6 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
       onChange(textarea.value)
       setCursor(textarea.selectionStart)
       setList(null)
-      lastCode.current = suggestion.code
       onCodeTyped?.(suggestion.code)
     }
 
@@ -254,22 +250,16 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
       textarea.setRangeText(inserted, from, end, 'end')
       onChange(textarea.value)
       selection.current = { start: textarea.selectionStart, end: textarea.selectionEnd }
-      lastCode.current = code
-      textarea.focus({ preventScroll: true })
+      // Back to typing where a mouse clicked; a touch leaves the phone
+      // keyboard closed, over the map the player is tapping.
+      if (window.matchMedia?.('(pointer: fine)').matches) textarea.focus({ preventScroll: true })
     }
     const insertRef = useRef(insertFromMap)
     insertRef.current = insertFromMap
-
-    /** Hands the map clicks to this editor, or takes them back. */
-    const targetMap = (on: boolean) => {
-      if (!setEditorPicker || disabled) return
-      setEditorPicker(on ? (code) => insertRef.current(code) : null)
-      setMapTarget(on)
-    }
-    const release = useRef<(() => void) | null>(null)
-    release.current = mapTarget ? () => setEditorPicker?.(null) : null
-    // An editor that goes away takes its map clicks with it.
-    useEffect(() => () => release.current?.(), [])
+    const releaseRef = useRef(mapTarget?.release)
+    releaseRef.current = mapTarget?.release
+    // An editor that goes away takes its map clicks with it, if it held them.
+    useEffect(() => () => releaseRef.current?.(), [])
 
     /** Opens the suggestions at `position`, even before any letter. */
     const request = (position: number) => {
@@ -310,7 +300,7 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
 
     const handleEscape = (event: KeyboardEvent<HTMLTextAreaElement>) => {
       // Escape with no list open gives the map its clicks back.
-      if (event.key === 'Escape' && !open && mapTarget) targetMap(false)
+      if (event.key === 'Escape' && !open) mapTarget?.release()
     }
 
     const trackCursor = (event: { currentTarget: HTMLTextAreaElement }) => {
@@ -335,14 +325,14 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
     return (
       <>
         <div
-          ref={frameRef}
-          data-map-target={mapTarget || undefined}
+          data-order-editor={editorId}
+          data-map-target={mapTarget?.targeted || undefined}
           className={cn(
             'relative rounded-lg',
             styles.frame,
             disabled && 'cursor-not-allowed opacity-50',
             // The field the map clicks fill (charte § Poste de commandement).
-            mapTarget && 'ring-2 ring-brass-700',
+            mapTarget?.targeted && 'ring-2 ring-brass-700',
           )}
         >
           <pre
@@ -364,27 +354,24 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
               onChange(event.target.value)
               // Text inserted without keys (paste, phone keyboards) fires no select.
               trackCursor(event)
-              // A whole three-letter word just typed: the map follows it once.
-              const typedNow = wordAtCursor(event.target.value, event.target.selectionStart)
-              const code = typedNow?.text.length === 3 ? typedNow.text.toUpperCase() : null
-              if (code && code !== lastCode.current) onCodeTyped?.(code)
-              lastCode.current = code
+              // A three-letter word just finished by a space, a line break or
+              // a bracket: the map follows it, not a prefix still being typed.
+              const { value: text, selectionStart: at } = event.target
+              if (at > 0 && /[\s)]/.test(text[at - 1])) {
+                const finished = wordAtCursor(text, at - 1)
+                if (finished?.text.length === 3) onCodeTyped?.(finished.text.toUpperCase())
+              }
               // A new letter: the choice made among the old suggestions lapses.
               setList((state) => state && { ...state, active: state.requested ? 0 : -1 })
             }}
             onSelect={trackCursor}
             onFocus={(event) => {
               trackCursor(event)
-              targetMap(true)
+              if (!disabled) mapTarget?.take((code) => insertRef.current(code))
             }}
-            onBlur={(event) => {
+            onBlur={() => {
               setCursor(null)
               setList(null)
-              // A click on the map keeps the clicks here; any other focus takes them back.
-              const next = event.relatedTarget
-              if (next && !next.closest('[data-map-size]') && !frameRef.current?.contains(next)) {
-                targetMap(false)
-              }
             }}
             onKeyDown={(event) => {
               handleKeyDown(event)
@@ -462,7 +449,15 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
             </ul>
           )}
         </div>
-        {mapTarget && <p className="text-2xs text-ink-500">{t('orders.mapPickHint')}</p>}
+        {mapTarget && !disabled && (
+          // The line keeps its place, so the zones below never shift.
+          <p
+            aria-hidden={!mapTarget.targeted}
+            className={cn('text-2xs text-ink-500', !mapTarget.targeted && 'invisible')}
+          >
+            {t('orders.form.mapPick')}
+          </p>
+        )}
       </>
     )
   },

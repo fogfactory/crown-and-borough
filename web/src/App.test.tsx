@@ -479,8 +479,9 @@ describe('App command/report tabs', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: /Ordres/ }))
     expect(screen.getByLabelText('Chaîne de JEA')).toHaveValue('ROS A BRU')
-    // The last code typed in the chain took the selection; its card stays open.
-    expect(screen.getByRole('heading', { name: 'Bruyères (BRU)' })).toBeInTheDocument()
+    // The selected territory's card is still open (the map writes the name too):
+    // `BRU`, typed without a space or a line break after it, is not followed yet.
+    expect(screen.getByRole('heading', { name: 'Rosemont (ROS)' })).toBeInTheDocument()
   })
 
   it('requests a transfer overlay for a drafted action transfer', async () => {

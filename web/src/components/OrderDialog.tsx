@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useId,
@@ -78,8 +79,12 @@ interface OrderFormHub {
   setOpenId: (id: string | null) => void
   /** Hands map clicks to the open form's active field, or stops with null. */
   setPicker: (picker: MapPicker | null) => void
-  /** Hands map clicks to an order editor when no form is open, or stops with null. */
-  setEditorPicker: (picker: MapPicker | null) => void
+  /** The order editor that takes the map clicks no form takes, if any. */
+  editorId: string | null
+  /** Makes the editor `id` the map's target, picking with `picker`. */
+  targetEditor: (id: string, picker: MapPicker) => void
+  /** Gives the map its clicks back, if the editor `id` still holds them. */
+  releaseEditor: (id: string) => void
 }
 
 const OrderFormContext = createContext<OrderFormHub | null>(null)
@@ -87,7 +92,8 @@ const OrderFormContext = createContext<OrderFormHub | null>(null)
 /**
  * Lets the order forms of a page share one opening at a time and receive the
  * territory clicked on the map (charte-graphique.md § Poste de commandement).
- * An order editor takes the clicks no open form takes (§ Saisie des ordres).
+ * One order editor at most takes the clicks no open form takes (§ Saisie des
+ * ordres), until the focus or a click lands outside the map and that editor.
  * `onPickerChange` gets the picker in charge, or null when none listens.
  */
 export function OrderFormProvider({
@@ -98,33 +104,87 @@ export function OrderFormProvider({
   onPickerChange: (picker: MapPicker | null) => void
 }) {
   const [openId, setOpenId] = useState<string | null>(null)
+  const [editorId, setEditorId] = useState<string | null>(null)
   const pickerChange = useRef(onPickerChange)
   pickerChange.current = onPickerChange
   const pickers = useRef<{ form: MapPicker | null; editor: MapPicker | null }>({
     form: null,
     editor: null,
   })
-  const hub = useMemo<OrderFormHub>(() => {
-    const report = () => pickerChange.current(pickers.current.form ?? pickers.current.editor)
-    return {
+  const report = useCallback(
+    () => pickerChange.current(pickers.current.form ?? pickers.current.editor),
+    [],
+  )
+  // The target editor, read by the listeners without waiting for a render.
+  const target = useRef<string | null>(null)
+  const releaseEditor = useCallback(
+    (id: string) => {
+      if (target.current !== id) return
+      target.current = null
+      pickers.current.editor = null
+      report()
+      setEditorId(null)
+    },
+    [report],
+  )
+
+  // Anything that takes the focus or a click outside the map and the target
+  // editor gives the map its clicks back.
+  useEffect(() => {
+    if (editorId === null) return
+    const leave = (event: Event) => {
+      const element = event.target
+      if (!(element instanceof Element)) return
+      if (element.closest('[data-map-size]')) return
+      if (element.closest('[data-order-editor]')?.getAttribute('data-order-editor') === editorId) return
+      releaseEditor(editorId)
+    }
+    document.addEventListener('focusin', leave)
+    document.addEventListener('pointerdown', leave)
+    return () => {
+      document.removeEventListener('focusin', leave)
+      document.removeEventListener('pointerdown', leave)
+    }
+  }, [editorId, releaseEditor])
+
+  const hub = useMemo<OrderFormHub>(
+    () => ({
       openId,
       setOpenId,
       setPicker: (picker) => {
         pickers.current.form = picker
         report()
       },
-      setEditorPicker: (picker) => {
+      editorId,
+      targetEditor: (id, picker) => {
+        target.current = id
         pickers.current.editor = picker
         report()
+        setEditorId(id)
       },
-    }
-  }, [openId])
+      releaseEditor,
+    }),
+    [openId, editorId, report, releaseEditor],
+  )
   return <OrderFormContext.Provider value={hub}>{children}</OrderFormContext.Provider>
 }
 
-/** Lets an order editor take the map clicks while no form is open; null outside a page. */
-export function useEditorMapPicker(): ((picker: MapPicker | null) => void) | null {
-  return useContext(OrderFormContext)?.setEditorPicker ?? null
+/**
+ * The map target of an order editor: whether the editor `id` holds the map
+ * clicks, and how it takes or gives them back. Null outside a page.
+ */
+export function useEditorMapTarget(id: string): {
+  targeted: boolean
+  take: (picker: MapPicker) => void
+  release: () => void
+} | null {
+  const hub = useContext(OrderFormContext)
+  if (!hub) return null
+  return {
+    targeted: hub.editorId === id,
+    take: (picker) => hub.targetEditor(id, picker),
+    release: () => hub.releaseEditor(id),
+  }
 }
 
 /** A territory code followed by nothing that already names it. */

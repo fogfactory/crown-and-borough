@@ -183,7 +183,7 @@ describe('OrderEditor', () => {
     expect(screen.getByRole('listbox')).toBeInTheDocument()
   })
 
-  it('tells each whole three-letter word once, to follow it on the map', () => {
+  it('tells each three-letter word once finished, to follow it on the map', () => {
     const onCodeTyped = vi.fn()
     function Editor() {
       const [value, setValue] = useState('')
@@ -193,47 +193,71 @@ describe('OrderEditor', () => {
     const textarea = screen.getByLabelText('orders') as HTMLTextAreaElement
     const type = (value: string) =>
       fireEvent.change(textarea, { target: { value, selectionStart: value.length, selectionEnd: value.length } })
-    type('rv')
-    type('rve')
-    type('rve ')
-    type('rve A')
-    expect(onCodeTyped.mock.calls).toEqual([['RVE']])
-    type('rve A ecp')
-    expect(onCodeTyped).toHaveBeenLastCalledWith('ECP')
+    // `roc` is a prefix of a name being typed: nothing until the word ends.
+    type('rve a roc')
+    type('rve a roch')
+    expect(onCodeTyped).not.toHaveBeenCalled()
+    type('rve a roch ')
+    expect(onCodeTyped).not.toHaveBeenCalled()
+    type('ecp')
+    type('ecp ')
+    type('ecp  ')
+    expect(onCodeTyped.mock.calls).toEqual([['ECP']])
+    type('ecp  (rve s abc)')
+    expect(onCodeTyped).toHaveBeenLastCalledWith('ABC')
   })
 
-  it('writes the territory clicked on the map at the cursor', () => {
+  it('writes the territory clicked on the map at the cursor, until the focus leaves', () => {
     let picker: ((territory: string) => void) | null = null
     function Page() {
-      const [value, setValue] = useState('RVE A\nH RVE')
+      const [first, setFirst] = useState('RVE A\nH RVE')
+      const [second, setSecond] = useState('')
       return (
         <OrderFormProvider onPickerChange={(next) => (picker = next)}>
           <section data-map-size="split">
             <button type="button">map</button>
           </section>
-          <OrderEditor value={value} onChange={setValue} aria-label="orders" />
+          <OrderEditor value={first} onChange={setFirst} aria-label="first" />
+          <OrderEditor value={second} onChange={setSecond} aria-label="second" />
           <button type="button">elsewhere</button>
         </OrderFormProvider>
       )
     }
     render(<Page />)
-    const textarea = screen.getByLabelText('orders') as HTMLTextAreaElement
-    fireEvent.focus(textarea)
-    textarea.setSelectionRange(5, 5)
-    fireEvent.select(textarea)
-    // A click on the map blurs the textarea toward the map: it stays the target.
-    fireEvent.blur(textarea, { relatedTarget: screen.getByRole('button', { name: 'map' }) })
-    expect(picker).not.toBeNull()
+    const first = screen.getByLabelText('first') as HTMLTextAreaElement
+    act(() => first.focus())
+    first.setSelectionRange(5, 5)
+    fireEvent.select(first)
+    expect(first.closest('[data-map-target]')).not.toBeNull()
+    // The click on the map moves the focus there: the editor stays the target.
+    act(() => screen.getByRole('button', { name: 'map' }).focus())
     act(() => picker?.('ECP'))
-    expect(textarea.value).toBe('RVE A ECP\nH RVE')
+    expect(first.value).toBe('RVE A ECP\nH RVE')
     // A code being typed gives way to the one clicked.
-    textarea.setSelectionRange(16, 16)
-    fireEvent.change(textarea, { target: { value: 'RVE A ECP\nH RVE\nEC', selectionStart: 19, selectionEnd: 19 } })
+    act(() => first.focus())
+    fireEvent.change(first, { target: { value: 'RVE A ECP\nH RVE\nEC', selectionStart: 19, selectionEnd: 19 } })
     act(() => picker?.('ECP'))
-    expect(textarea.value).toBe('RVE A ECP\nH RVE\nECP')
+    expect(first.value).toBe('RVE A ECP\nH RVE\nECP')
+
+    // Another editor takes the target, and the first one drops its ring.
+    const second = screen.getByLabelText('second') as HTMLTextAreaElement
+    act(() => second.focus())
+    expect(first.closest('[data-map-target]')).toBeNull()
+    expect(second.closest('[data-map-target]')).not.toBeNull()
+    act(() => picker?.('RVE'))
+    expect(second.value).toBe('RVE')
+
+    // A click on a part of the page that takes no focus gives the clicks back
+    // too (the browser then moves the focus to the body).
+    fireEvent.pointerDown(document.body)
+    act(() => second.blur())
+    expect(picker).toBeNull()
+    act(() => second.focus())
+    expect(picker).not.toBeNull()
 
     // Any other focus gives the map its clicks back.
-    fireEvent.blur(textarea, { relatedTarget: screen.getByRole('button', { name: 'elsewhere' }) })
+    act(() => screen.getByRole('button', { name: 'elsewhere' }).focus())
     expect(picker).toBeNull()
+    expect(second.closest('[data-map-target]')).toBeNull()
   })
 })
