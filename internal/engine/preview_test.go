@@ -45,6 +45,9 @@ func TestPreviewOrdersKeepsValidChainLinesNextToErrors(t *testing.T) {
 	if len(preview.Errors) != 1 || preview.Errors[0].Line != 3 {
 		t.Fatalf("errors = %#v, want one error on line 3", preview.Errors)
 	}
+	if preview.Errors[0].Source != InputSourceChain {
+		t.Errorf("chain parse error source = %q, want %q", preview.Errors[0].Source, InputSourceChain)
+	}
 	if preview.WinterCost != nil || len(preview.Winter) != 0 {
 		t.Fatalf("action preview has winter data: %#v", preview)
 	}
@@ -67,6 +70,9 @@ func TestPreviewOrdersReportsChainsTheEngineWouldNotReceive(t *testing.T) {
 	}
 	if len(preview.Errors) != 1 || preview.Errors[0].Code != "not_received" || preview.Errors[0].MessageKey == "" {
 		t.Fatalf("errors = %#v, want one not_received error with a message key", preview.Errors)
+	}
+	if preview.Errors[0].Source != InputSourceChain {
+		t.Errorf("not_received source = %q, want %q", preview.Errors[0].Source, InputSourceChain)
 	}
 }
 
@@ -176,5 +182,45 @@ func TestWinterPaymentReservesCountsAnIsolatedMillTargetedForUpgrade(t *testing.
 	})
 	if targeted != 5 {
 		t.Errorf("reserves with the mill targeted for upgrade = %d, want 5 (its own stock)", targeted)
+	}
+}
+
+func TestPreviewOrdersTagsParseErrorsWithTheirDraft(t *testing.T) {
+	game := previewTestGame(t, "preview-sources")
+	game.Turn = 4
+	game.Season = models.SeasonForTurn(game.Turn)
+
+	winter, err := PreviewOrders(game, testBalance(), "P1", OrdersInput{
+		Winter: []WinterSubmission{{Player: "P1", Lines: "NOT A LINE"}},
+	})
+	if err != nil {
+		t.Fatalf("PreviewOrders winter: %v", err)
+	}
+	if len(winter.Errors) == 0 {
+		t.Fatal("winter preview has no error")
+	}
+	for _, inputError := range winter.Errors {
+		if inputError.Source != InputSourceWinter {
+			t.Errorf("winter error %#v, want source %q", inputError, InputSourceWinter)
+		}
+	}
+	if len(winter.Winter) != 1 || winter.Winter[0].ParseError == nil || winter.Winter[0].ParseError.Source != InputSourceWinter {
+		t.Errorf("winter lines = %#v, want a parse error tagged %q", winter.Winter, InputSourceWinter)
+	}
+
+	game = previewTestGame(t, "preview-sources-special")
+	special, err := PreviewOrders(game, testBalance(), "P1", OrdersInput{
+		Special: []DeckSubmission{{Player: "P1", Text: "NOT A LINE"}},
+	})
+	if err != nil {
+		t.Fatalf("PreviewOrders special: %v", err)
+	}
+	if len(special.Errors) == 0 {
+		t.Fatal("special preview has no error")
+	}
+	for _, inputError := range special.Errors {
+		if inputError.Source != InputSourceSpecial || inputError.Line != 1 {
+			t.Errorf("special error %#v, want source %q on line 1", inputError, InputSourceSpecial)
+		}
 	}
 }

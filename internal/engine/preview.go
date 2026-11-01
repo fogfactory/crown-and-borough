@@ -79,6 +79,7 @@ func PreviewOrders(game *models.GameState, balance assetgen.Balance, playerID mo
 			preview.Errors = append(preview.Errors, InputError{
 				Player:      reception.Player,
 				Noble:       reception.Noble,
+				Source:      InputSourceChain,
 				Code:        "not_received",
 				Message:     reception.Reason,
 				MessageKey:  reception.ReasonKey,
@@ -87,7 +88,9 @@ func PreviewOrders(game *models.GameState, balance assetgen.Balance, playerID mo
 		}
 	}
 
-	preview.Errors = append(preview.Errors, ValidateAppeasements(game, balance, input)...)
+	appeasementErrors := ValidateAppeasements(game, balance, input)
+	markSource(appeasementErrors, 0, InputSourceSpecial)
+	preview.Errors = append(preview.Errors, appeasementErrors...)
 
 	if game.Season != models.SeasonWinter {
 		for _, submission := range input.Chains {
@@ -126,6 +129,7 @@ func previewWinter(preview *OrdersPreview, game *models.GameState, balance asset
 		switch {
 		case line.Error != nil:
 			parseError := newInputError(playerID, "", line.Line, "parse_"+line.Error.Code, line.Error.MessageKey, line.Error.MessageArgs...)
+			parseError.Source = InputSourceWinter
 			entry.ParseError = &parseError
 		case line.Deck != nil:
 			deck := *line.Deck

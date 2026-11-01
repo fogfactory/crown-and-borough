@@ -1,8 +1,9 @@
-import { type ChangeEvent } from 'react'
+import { useId, useMemo } from 'react'
 import { IconBook, IconSnowflake } from '@tabler/icons-react'
 
 import { Button } from '@/components/ui/button'
 import { OrderLauncher } from '@/components/OrderDialog'
+import { OrderEditor, type OrderEditorTone } from '@/components/OrderEditor'
 import { AppeasementOrders, SpecialCardOrders, assassinationLauncher, justiceLauncher, TitleOrdersSection, shortCode } from '@/components/TitleOrders'
 import {
   Tooltip,
@@ -18,6 +19,8 @@ import { formatCardLabel, formatCardName } from '@/lib/card-hand'
 import { CardPictogram } from '@/components/CardPictogram'
 import { HandFan, type FanCard } from '@/components/HandFan'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
+import { mapPreviewErrors, type DraftError, type DraftErrors } from '@/lib/draft-errors'
+import type { OrdersBody, OrdersDrafts } from '@/lib/orders-body'
 import { appendDraftLine, draftLines } from '@/lib/winter-draft'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
@@ -28,7 +31,6 @@ import type {
   Noble,
   NobleCard,
   OrdersPreview,
-  OrdersPreviewError,
   PlayerId,
   Region,
   Territory,
@@ -44,6 +46,9 @@ interface OrdersPanelProps {
   winterDraft: string
   /** Server dry run of the drafts; null until the first preview arrives. */
   preview?: OrdersPreview | null
+  /** Body the drafts send now, and the body `preview` answered. */
+  ordersBody?: OrdersBody | null
+  previewedBody?: OrdersBody | null
   /** Regions of the map (seed villages), for the orders that name one. */
   regions?: Region[]
   /** Map territories, for the commune names of the Tax card targets. */
@@ -161,15 +166,18 @@ function OrderError({ error }: { error: string | null }) {
 function PreviewErrors({
   errors,
   label,
+  id,
 }: {
-  errors: Array<{ line?: number; message: string }>
+  errors: DraftError[]
   label: string
+  id?: string
 }) {
   const { t } = useLanguage()
   if (errors.length === 0) return null
 
   return (
     <ul
+      id={id}
       role="alert"
       aria-label={label}
       className="max-h-32 list-disc space-y-1 overflow-y-auto rounded-md border border-vermilion-700/30 bg-vermilion-100 px-3 py-2 pl-7 text-xs text-vermilion-700"
@@ -182,6 +190,49 @@ function PreviewErrors({
         </li>
       ))}
     </ul>
+  )
+}
+
+/** An orders editor with the errors of its draft, underlined on their line and explained under it. */
+function EditorZone({
+  value,
+  onChange,
+  errors,
+  errorsLabel,
+  tone,
+  disabled,
+  placeholder,
+  ariaLabel,
+  className,
+}: {
+  value: string
+  onChange: (value: string) => void
+  errors: DraftError[]
+  errorsLabel: string
+  tone?: OrderEditorTone
+  disabled?: boolean
+  placeholder: string
+  ariaLabel: string
+  className?: string
+}) {
+  const errorsId = useId()
+  const errorLines = errors.flatMap((error) => (error.line ? [error.line] : []))
+  return (
+    <div className="space-y-1.5">
+      <OrderEditor
+        value={value}
+        onChange={onChange}
+        errorLines={errorLines}
+        errorsId={errorsId}
+        invalid={errors.length > 0}
+        tone={tone}
+        disabled={disabled}
+        placeholder={placeholder}
+        aria-label={ariaLabel}
+        className={className}
+      />
+      <PreviewErrors id={errorsId} errors={errors} label={errorsLabel} />
+    </div>
   )
 }
 
@@ -220,6 +271,7 @@ function DeckOrdersSection({
   state,
   player,
   specialDraft,
+  errors,
   onSpecialChange,
   onOpenRules,
 }: {
@@ -227,6 +279,7 @@ function DeckOrdersSection({
   player: PlayerId
   onOpenRules?: (section: RulesSection) => void
   specialDraft: string
+  errors: DraftError[]
   onSpecialChange: (text: string) => void
 }) {
   const { t } = useLanguage()
@@ -247,12 +300,14 @@ function DeckOrdersSection({
         draft={specialDraft}
         onChange={onSpecialChange}
       />
-      <textarea
+      <EditorZone
         value={specialDraft}
-        onChange={(event) => onSpecialChange(event.target.value)}
-        className="min-h-20 w-full resize-y rounded-lg border border-line bg-paper-50 p-3 font-mono text-xs text-ink-900 outline-none focus:border-ink-700 focus:ring-2 focus:ring-ink-700/20"
+        onChange={onSpecialChange}
+        errors={errors}
+        errorsLabel={t('orders.specialErrorsAria')}
+        className="min-h-20"
         placeholder={t('orders.deckPlaceholder')}
-        aria-label={t('orders.deckAria')}
+        ariaLabel={t('orders.deckAria')}
       />
     </section>
   )
@@ -958,9 +1013,53 @@ function WinterOrderDiagnostics({
   )
 }
 
-/** Chain errors, as opposed to line errors of the winter sheet. */
-function chainErrors(errors: OrdersPreviewError[]): OrdersPreviewError[] {
-  return errors.filter((error) => error.noble)
+/** Errors of a zone whose sent text changed since the preview: messages without their stale line. */
+function withoutLines(errors: DraftError[], stale: boolean): DraftError[] {
+  return stale ? errors.map(({ message }) => ({ message })) : errors
+}
+
+/** Text a body sends for each zone, to tell which zones changed since a preview. */
+function sentTexts(body: OrdersBody) {
+  return {
+    chain: (noble: string) => body.chains.find((chain) => chain.noble === noble)?.text ?? '',
+    winter: body.winter[0]?.lines ?? '',
+    special: body.special[0]?.text ?? '',
+  }
+}
+
+/**
+ * Preview errors sorted by draft (see `mapPreviewErrors`). A zone whose sent
+ * text differs from the body the preview answered keeps its messages but
+ * loses their lines, which would point at the wrong line until the next
+ * preview arrives.
+ */
+function usePreviewDraftErrors(
+  state: StateData,
+  player: PlayerId,
+  drafts: OrdersDrafts,
+  preview: OrdersPreview | null,
+  ordersBody: OrdersBody | null,
+  previewedBody: OrdersBody | null,
+): DraftErrors {
+  const { chainDrafts, winterDraft, specialDraft } = drafts
+  return useMemo(() => {
+    const errors = mapPreviewErrors(state, player, { chainDrafts, winterDraft, specialDraft }, preview)
+    if (!ordersBody || !previewedBody) return errors
+    const now = sentTexts(ordersBody)
+    const then = sentTexts(previewedBody)
+    const winterStale = now.winter !== then.winter
+    return {
+      chains: Object.fromEntries(
+        Object.entries(errors.chains).map(([noble, list]) => [
+          noble,
+          withoutLines(list, now.chain(noble) !== then.chain(noble)),
+        ]),
+      ),
+      winter: withoutLines(errors.winter, winterStale),
+      special: withoutLines(errors.special, now.special !== then.special),
+      other: errors.other,
+    }
+  }, [state, player, chainDrafts, winterDraft, specialDraft, preview, ordersBody, previewedBody])
 }
 
 export function OrdersPanel({
@@ -969,6 +1068,8 @@ export function OrdersPanel({
   chainDrafts,
   winterDraft,
   preview = null,
+  ordersBody = null,
+  previewedBody = null,
   regions = [],
   mapTerritories,
   specialDraft,
@@ -980,16 +1081,17 @@ export function OrdersPanel({
   onRestoreFromServer,
 }: OrdersPanelProps) {
   const { t } = useLanguage()
-  const handleChainChange =
-    (noble: Noble) => (event: ChangeEvent<HTMLTextAreaElement>) => {
-      onChainChange(noble.code, event.target.value)
-    }
+  const draftErrors = usePreviewDraftErrors(
+    state,
+    player,
+    { chainDrafts, winterDraft, specialDraft },
+    preview,
+    ordersBody,
+    previewedBody,
+  )
 
   if (state.season === 'winter') {
     const winterLines = preview?.winter ?? []
-    const winterErrors = winterLines
-      .filter((line) => line.status === 'invalid')
-      .map((line) => ({ line: line.line, message: line.message ?? '' }))
     const winterDiagnostics = winterLines.filter((line) => line.status === 'rejected')
     const winterEstimate = preview?.winterCost ?? null
     return (
@@ -1046,12 +1148,15 @@ export function OrdersPanel({
           onWinterChange={onWinterChange}
           onOpenRules={onOpenRules}
         />
-        <textarea
+        <EditorZone
           value={winterDraft}
-          onChange={(event) => onWinterChange(event.target.value)}
-          className="min-h-28 w-full resize-y rounded-lg border border-winter-700/30 bg-winter-100 p-3 font-mono text-xs text-winter-700 outline-none transition focus:border-winter-700 focus:ring-2 focus:ring-winter-700/20"
+          onChange={onWinterChange}
+          errors={draftErrors.winter}
+          errorsLabel={t('orders.winterErrorsAria')}
+          tone="winter"
+          className="min-h-28"
           placeholder={t('orders.winterPlaceholder')}
-          aria-label={t('orders.winterAria', { player })}
+          ariaLabel={t('orders.winterAria', { player })}
         />
         {winterEstimate && (
           <p
@@ -1065,7 +1170,6 @@ export function OrdersPanel({
             })}
           </p>
         )}
-        <PreviewErrors errors={winterErrors} label={t('orders.winterErrorsAria')} />
         <WinterOrderDiagnostics diagnostics={winterDiagnostics} t={t} />
         <RulesButton section="winter-orders" onOpenRules={onOpenRules} />
       </section>
@@ -1102,23 +1206,20 @@ export function OrdersPanel({
         state={state}
         player={player}
         specialDraft={specialDraft}
+        errors={draftErrors.special}
         onSpecialChange={onSpecialChange}
         onOpenRules={onOpenRules}
       />
       {(state.nobleHand ?? []).length > 0 && (
         <>
-          <textarea
+          <EditorZone
             value={winterDraft}
-            onChange={(event) => onWinterChange(event.target.value)}
-            className="min-h-16 w-full resize-y rounded-lg border border-winter-700/30 bg-winter-100 p-3 font-mono text-xs text-winter-700 outline-none transition focus:border-winter-700 focus:ring-2 focus:ring-winter-700/20"
+            onChange={onWinterChange}
+            errors={draftErrors.winter}
+            errorsLabel={t('orders.winterErrorsAria')}
+            tone="winter"
             placeholder={t('orders.nobleCardsPlaceholder')}
-            aria-label={t('orders.nobleCardsAria', { player })}
-          />
-          <PreviewErrors
-            errors={(preview?.winter ?? [])
-              .filter((line) => line.status === 'invalid')
-              .map((line) => ({ line: line.line, message: line.message ?? '' }))}
-            label={t('orders.winterErrorsAria')}
+            ariaLabel={t('orders.nobleCardsAria', { player })}
           />
           <WinterOrderDiagnostics
             diagnostics={(preview?.winter ?? []).filter(
@@ -1161,21 +1262,20 @@ export function OrdersPanel({
                 )}
               </div>
             )}
-            <textarea
+            <EditorZone
               value={chainDrafts[noble.code] ?? ''}
-              onChange={handleChainChange(noble)}
+              onChange={(text) => onChainChange(noble.code, text)}
+              errors={draftErrors.chains[noble.code] ?? []}
+              errorsLabel={t('orders.chainErrorsOfAria', { noble: `${noble.name} (${noble.code})` })}
               disabled={noble.status === 'dungeon'}
-              className="min-h-24 w-full resize-y rounded-lg border border-line-strong bg-paper-50 p-3 font-mono text-xs text-ink-900 outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20 disabled:cursor-not-allowed disabled:opacity-50"
+              className="min-h-24"
               placeholder={chainPlaceholder()}
-              aria-label={t('orders.chainAria', { noble: noble.code })}
+              ariaLabel={t('orders.chainAria', { noble: noble.code })}
             />
           </div>
         ))
       )}
-      <PreviewErrors
-        errors={chainErrors(preview?.errors ?? [])}
-        label={t('orders.chainErrorsAria')}
-      />
+      <PreviewErrors errors={draftErrors.other} label={t('orders.chainErrorsAria')} />
       {!hasEmittingNoble && (
         <p className="rounded-lg border border-dashed border-line bg-paper-100 p-3 text-sm italic text-ink-500">
           {t('orders.noEmittingNoble')}

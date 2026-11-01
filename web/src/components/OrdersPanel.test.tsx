@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { OrdersPanel, SealOrders } from '@/components/OrdersPanel'
 import { LanguageProvider } from '@/i18n/LanguageContext'
+import { buildOrdersBody } from '@/lib/orders-body'
 import type { Noble, OrdersPreview, Region, StateData, Territory } from '@/types'
 import { withText } from '@/test/text'
 
@@ -60,14 +61,15 @@ function renderWithPreview(
   season: StateData['season'],
   preview: OrdersPreview,
   language: 'fr' | 'en' = 'fr',
+  drafts: { nobles?: Noble[]; chainDrafts?: Record<string, string>; winterDraft?: string } = {},
 ) {
   return render(
     <LanguageProvider initialLanguage={language}>
       <OrdersPanel
-        state={{ ...state, season }}
+        state={{ ...state, season, nobles: drafts.nobles ?? state.nobles }}
         player="P1"
-        chainDrafts={{}}
-        winterDraft=""
+        chainDrafts={drafts.chainDrafts ?? {}}
+        winterDraft={drafts.winterDraft ?? ''}
         preview={preview}
         specialDraft=""
         onChainChange={vi.fn()}
@@ -138,7 +140,7 @@ describe('OrdersPanel seasonal presentation', () => {
         { line: 3, status: 'invalid', message: 'Code de territoire inconnu : ZZZ' },
       ],
       winterCost: { spent: 1, available: 25 },
-    })
+    }, 'fr', { winterDraft: 'X\nR ROS\nB ZZZ' })
 
     const errors = screen.getByRole('alert', {
       name: "Erreurs de syntaxe des ordres d'hiver",
@@ -182,26 +184,75 @@ describe('OrdersPanel seasonal presentation', () => {
     expect(diagnostics).toHaveTextContent(/Ligne 2 .*Ressources insuffisantes/)
   })
 
+  it('drops the line of an error once its chain changed, until the next preview', () => {
+    const nobles: Noble[] = [
+      { id: 'N1', code: 'HUG', name: 'Hugues', owner: 'P1', location: 'ROS', status: 'free' },
+    ]
+    const preview: OrdersPreview = {
+      errors: [{ source: 'chain', noble: 'HUG', line: 2, code: 'not_adjacent', message: 'pas adjacent' }],
+      chains: [],
+      winter: [],
+    }
+    const spring: StateData = { ...state, season: 'spring', nobles }
+    const sent = (draft: string) =>
+      buildOrdersBody(spring, 'P1', { chainDrafts: { HUG: draft }, winterDraft: '', specialDraft: '' })
+    const panel = (draft: string) => (
+      <LanguageProvider initialLanguage="fr">
+        <OrdersPanel
+          state={spring}
+          player="P1"
+          chainDrafts={{ HUG: draft }}
+          winterDraft=""
+          preview={preview}
+          ordersBody={sent(draft)}
+          previewedBody={sent('M BRU')}
+          specialDraft=""
+          onChainChange={vi.fn()}
+          onWinterChange={vi.fn()}
+          onSpecialChange={vi.fn()}
+          onOpenRules={vi.fn()}
+        />
+      </LanguageProvider>
+    )
+    const { rerender } = render(panel('M BRU'))
+    expect(document.querySelectorAll('[data-order-error-line]')).toHaveLength(1)
+
+    rerender(panel('H ROS\nM BRU'))
+    expect(document.querySelectorAll('[data-order-error-line]')).toHaveLength(0)
+    const errors = screen.getByRole('alert', { name: 'Erreurs de la chaîne de Hugues (HUG)' })
+    expect(errors).toHaveTextContent('pas adjacent')
+    expect(errors).not.toHaveTextContent('Ligne')
+  })
+
   it('shows chain errors found by the server while the player types', () => {
     renderWithPreview('spring', {
       errors: [
         {
+          source: 'chain',
           noble: 'HUG',
           line: 2,
           code: 'not_adjacent',
           message: 'BRU n’est pas adjacent',
         },
-        { line: 1, code: 'winter_out_of_season', message: 'hors saison' },
+        { source: 'winter', code: 'winter_out_of_season', message: 'hors saison' },
       ],
       chains: [],
       winter: [],
+    }, 'fr', {
+      nobles: [
+        { id: 'N1', code: 'HUG', name: 'Hugues', owner: 'P1', location: 'ROS', status: 'free' },
+      ],
+      // Sent as "HUG\nM BRU\nH ROS": the server line 2 is the draft line 1.
+      chainDrafts: { HUG: 'M BRU\nH ROS' },
     })
 
     const errors = screen.getByRole('alert', {
-      name: "Erreurs dans les chaînes d'ordres",
+      name: 'Erreurs de la chaîne de Hugues (HUG)',
     })
     expect(within(errors).getAllByRole('listitem')).toHaveLength(1)
-    expect(errors).toHaveTextContent(/Ligne 2 .*BRU n’est pas adjacent/)
+    expect(errors).toHaveTextContent(/Ligne 1 .*BRU n’est pas adjacent/)
+    expect(screen.getByLabelText('Chaîne de HUG')).toHaveAttribute('aria-invalid', 'true')
+    expect(document.querySelectorAll('[data-order-error-line]')).toHaveLength(1)
   })
 
   it('keeps the ordinary command panel outside winter', () => {
