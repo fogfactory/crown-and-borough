@@ -20,6 +20,18 @@ export interface AnsweredPreview {
 
 const NO_PREVIEW: AnsweredPreview = { preview: null, body: null }
 
+/** Whether a reply has the shape of a preview the panel can read. */
+function isOrdersPreview(reply: unknown): reply is OrdersPreview {
+  const preview = reply as Partial<OrdersPreview> | null
+  return (
+    typeof preview === 'object' &&
+    preview !== null &&
+    Array.isArray(preview.errors) &&
+    Array.isArray(preview.chains) &&
+    Array.isArray(preview.winter)
+  )
+}
+
 /**
  * Asks the server to dry-run the current draft once the player stops typing.
  * The previous preview stays visible while a new one is computed, next to the
@@ -43,7 +55,9 @@ export function useOrdersPreview(
     const timer = window.setTimeout(() => {
       request(body, controller.signal)
         .then((next) => {
-          if (!controller.signal.aborted) setAnswered({ preview: next, body })
+          if (controller.signal.aborted) return
+          // A reply without the lists of a preview is no preview: nothing is shown.
+          setAnswered(isOrdersPreview(next) ? { preview: next, body } : NO_PREVIEW)
         })
         .catch(() => {
           if (!controller.signal.aborted) setAnswered(NO_PREVIEW)
