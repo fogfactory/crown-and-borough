@@ -59,6 +59,7 @@ describe('OrderEditor', () => {
         onChange={() => {}}
         errorLines={[2]}
         errorsId="errors"
+        invalid
         aria-label="orders"
       />,
     )

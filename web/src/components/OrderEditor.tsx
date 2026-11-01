@@ -1,6 +1,6 @@
 import {
   forwardRef,
-  useCallback,
+  useMemo,
   useRef,
   type ChangeEvent,
   type ReactNode,
@@ -16,13 +16,9 @@ export interface OrderToken {
   text: string
 }
 
-const TOKEN_PATTERN = /#.*|\p{L}+|\d+|[()-]|[^\p{L}\d#()-]+/gu
-
-function wordKind(word: string): OrderTokenKind {
-  if (word.length === 1) return 'verb'
-  if (word.length === 3) return 'trigram'
-  return 'text'
-}
+// One group per kind, in the order of OrderTokenKind; text matches the rest.
+const TOKEN_PATTERN = /(#.*)|(\p{L}{3}(?!\p{L}))|(\p{L}(?!\p{L}))|(\d+)|([()-])|(\p{L}+|[^\p{L}\d#()-]+)/gu
+const GROUP_KINDS: OrderTokenKind[] = ['comment', 'trigram', 'verb', 'number', 'punctuation', 'text']
 
 /**
  * Splits one line of orders into lexical tokens: a comment, a word of three
@@ -31,16 +27,10 @@ function wordKind(word: string): OrderTokenKind {
  * tokens joined give the line back.
  */
 export function tokenizeOrderLine(line: string): OrderToken[] {
-  const tokens: OrderToken[] = []
-  for (const [text] of line.matchAll(TOKEN_PATTERN)) {
-    let kind: OrderTokenKind = 'text'
-    if (text.startsWith('#')) kind = 'comment'
-    else if (/^\p{L}/u.test(text)) kind = wordKind(text)
-    else if (/^\d/.test(text)) kind = 'number'
-    else if (/^[()-]$/.test(text)) kind = 'punctuation'
-    tokens.push({ kind, text })
-  }
-  return tokens
+  return [...line.matchAll(TOKEN_PATTERN)].map((match) => ({
+    kind: GROUP_KINDS[match.slice(1).findIndex((group) => group !== undefined)],
+    text: match[0],
+  }))
 }
 
 export type OrderEditorTone = 'default' | 'winter'
@@ -97,7 +87,7 @@ interface OrderEditorProps {
   errorLines?: readonly number[]
   /** Id of the list that explains the errors of the zone. */
   errorsId?: string
-  /** Marks the zone invalid even when no line can be underlined. */
+  /** Marks the zone invalid, even when no line can be underlined. */
   invalid?: boolean
   tone?: OrderEditorTone
   disabled?: boolean
@@ -131,16 +121,29 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
   ) {
     const mirrorRef = useRef<HTMLPreElement>(null)
     const styles = TONES[tone]
-    const faulty = new Set(errorLines)
-    const isInvalid = invalid ?? faulty.size > 0
-
-    const setRefs = useCallback(
-      (node: HTMLTextAreaElement | null) => {
-        if (typeof forwardedRef === 'function') forwardedRef(node)
-        else if (forwardedRef) forwardedRef.current = node
-      },
-      [forwardedRef],
-    )
+    const faultyKey = errorLines.join(',')
+    // Re-tokenized only when the text, its faulty lines or the tone change.
+    const mirrorLines = useMemo(() => {
+      const faulty = new Set(errorLines)
+      return value.split('\n').map((line, index, lines) => (
+        <span key={index}>
+          {faulty.has(index + 1) ? (
+            <span
+              data-order-error-line
+              className="underline decoration-vermilion-700 decoration-wavy"
+            >
+              {renderLine(line, styles.trigram)}
+            </span>
+          ) : (
+            renderLine(line, styles.trigram)
+          )}
+          {/* The space gives the last empty line its height. */}
+          {index < lines.length - 1 ? '\n' : ' '}
+        </span>
+      ))
+      // `faultyKey` stands for the content of `errorLines`.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [value, faultyKey, styles.trigram])
 
     const syncScroll = (event: UIEvent<HTMLTextAreaElement>) => {
       const mirror = mirrorRef.current
@@ -167,33 +170,18 @@ export const OrderEditor = forwardRef<HTMLTextAreaElement, OrderEditorProps>(
             styles.base,
           )}
         >
-          {value.split('\n').map((line, index, lines) => (
-            <span key={index}>
-              {faulty.has(index + 1) ? (
-                <span
-                  data-order-error-line
-                  className="underline decoration-vermilion-700 decoration-wavy"
-                >
-                  {renderLine(line, styles.trigram)}
-                </span>
-              ) : (
-                renderLine(line, styles.trigram)
-              )}
-              {/* The space gives the last empty line its height. */}
-              {index < lines.length - 1 ? '\n' : ' '}
-            </span>
-          ))}
+          {mirrorLines}
         </pre>
         <textarea
-          ref={setRefs}
+          ref={forwardedRef}
           value={value}
           onChange={(event: ChangeEvent<HTMLTextAreaElement>) => onChange(event.target.value)}
           onScroll={syncScroll}
           disabled={disabled}
           placeholder={placeholder}
           aria-label={ariaLabel}
-          aria-invalid={isInvalid || undefined}
-          aria-describedby={isInvalid ? errorsId : undefined}
+          aria-invalid={invalid || undefined}
+          aria-describedby={invalid ? errorsId : undefined}
           spellCheck={false}
           className={cn(
             TEXT_LAYOUT,

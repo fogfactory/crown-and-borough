@@ -528,7 +528,7 @@ export function GamePage() {
         signal,
       })
   }, [gameId, getIdToken, language, playerID])
-  const preview = useOrdersPreview(ordersBody, previewRequest)
+  const { preview, body: previewedBody } = useOrdersPreview(ordersBody, previewRequest)
   const simulationRequest = useMemo<VictorySimulationRequest | null>(() => {
     if (!gameId || !playerID) return null
     const path = `/api/games/${encodeURIComponent(gameId)}/victory/simulate`
@@ -1157,6 +1157,8 @@ export function GamePage() {
                         winterDraft={winterDraft}
                         specialDraft={specialDraft}
                         preview={preview}
+                        ordersBody={ordersBody}
+                        previewedBody={previewedBody}
                         draftDiffers={draftDiffers}
                         onChainChange={(noble, text) =>
                           setChainDrafts((current) => ({ ...current, [noble]: text }))

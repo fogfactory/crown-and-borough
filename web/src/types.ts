@@ -695,8 +695,8 @@ export interface OrdersPreviewError {
   player?: PlayerId
   noble?: string
   line?: number
-  /** Draft that holds the error; absent on servers older than the field. */
-  source?: 'chain' | 'winter' | 'special'
+  /** Draft that holds the error. */
+  source: 'chain' | 'winter' | 'special'
   code: string
   message: string
 }

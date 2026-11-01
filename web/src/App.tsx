@@ -373,7 +373,7 @@ function AppContent() {
       return (await response.json()) as OrdersPreview
     }
   }, [gameId, language, selectedPlayer, t])
-  const preview = useOrdersPreview(ordersBody, previewRequest)
+  const { preview, body: previewedBody } = useOrdersPreview(ordersBody, previewRequest)
   const draftOrders = useMemo(() => draftOrdersByNoble(preview?.chains), [preview])
 
   const {
@@ -921,6 +921,8 @@ function AppContent() {
                             chainDrafts={chainDrafts[selectedPlayer] ?? {}}
                             winterDraft={winterDrafts[selectedPlayer] ?? ''}
                             preview={preview}
+                            ordersBody={ordersBody}
+                            previewedBody={previewedBody}
                             specialDraft={specialDrafts[selectedPlayer] ?? ''}
                             onChainChange={updateChainDraft}
                             onWinterChange={updateWinterDraft}

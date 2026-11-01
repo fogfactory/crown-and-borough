@@ -401,7 +401,6 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 	inputErrors := &InputErrors{Errors: []InputError{}}
 	if game.Season == models.SeasonWinter && len(input.Chains) != 0 {
 		inputErrors.Errors = append(inputErrors.Errors, newInputError("", "", 0, "chains_in_winter", i18n.ErrorChainsInWinter))
-		markSource(inputErrors.Errors, 0, InputSourceChain)
 	}
 
 	players := make(map[models.PlayerID]bool, len(game.Players))
@@ -415,7 +414,6 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 		noble          models.Noble
 		receptionError error
 	}
-	chainErrorsStart := len(inputErrors.Errors)
 	parsedChains := make([]parsedSubmission, 0, len(input.Chains))
 	seenNobles := make(map[models.NobleID]bool)
 	for _, submission := range input.Chains {
@@ -483,7 +481,7 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 		})
 	}
 
-	markSource(inputErrors.Errors, chainErrorsStart, InputSourceChain)
+	markSource(inputErrors.Errors, 0, InputSourceChain)
 
 	winterErrorsStart := len(inputErrors.Errors)
 	winterOrders := make(map[models.PlayerID][]models.WinterOrder)

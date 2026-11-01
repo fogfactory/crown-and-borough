@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { OrdersPanel, SealOrders } from '@/components/OrdersPanel'
 import { LanguageProvider } from '@/i18n/LanguageContext'
+import { buildOrdersBody } from '@/lib/orders-body'
 import type { Noble, OrdersPreview, Region, StateData, Territory } from '@/types'
 import { withText } from '@/test/text'
 
@@ -192,14 +193,19 @@ describe('OrdersPanel seasonal presentation', () => {
       chains: [],
       winter: [],
     }
+    const spring: StateData = { ...state, season: 'spring', nobles }
+    const sent = (draft: string) =>
+      buildOrdersBody(spring, 'P1', { chainDrafts: { HUG: draft }, winterDraft: '', specialDraft: '' })
     const panel = (draft: string) => (
       <LanguageProvider initialLanguage="fr">
         <OrdersPanel
-          state={{ ...state, season: 'spring', nobles }}
+          state={spring}
           player="P1"
           chainDrafts={{ HUG: draft }}
           winterDraft=""
           preview={preview}
+          ordersBody={sent(draft)}
+          previewedBody={sent('M BRU')}
           specialDraft=""
           onChainChange={vi.fn()}
           onWinterChange={vi.fn()}
@@ -222,12 +228,13 @@ describe('OrdersPanel seasonal presentation', () => {
     renderWithPreview('spring', {
       errors: [
         {
+          source: 'chain',
           noble: 'HUG',
           line: 2,
           code: 'not_adjacent',
           message: 'BRU n’est pas adjacent',
         },
-        { line: 1, code: 'winter_out_of_season', message: 'hors saison' },
+        { source: 'winter', code: 'winter_out_of_season', message: 'hors saison' },
       ],
       chains: [],
       winter: [],

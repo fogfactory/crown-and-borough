@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from 'react'
+import { useId, useMemo } from 'react'
 import { IconBook, IconSnowflake } from '@tabler/icons-react'
 
 import { Button } from '@/components/ui/button'
@@ -20,7 +20,7 @@ import { CardPictogram } from '@/components/CardPictogram'
 import { HandFan, type FanCard } from '@/components/HandFan'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { mapPreviewErrors, type DraftError, type DraftErrors } from '@/lib/draft-errors'
-import { buildOrdersBody, type OrdersBody } from '@/lib/orders-body'
+import type { OrdersBody, OrdersDrafts } from '@/lib/orders-body'
 import { appendDraftLine, draftLines } from '@/lib/winter-draft'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
@@ -46,6 +46,9 @@ interface OrdersPanelProps {
   winterDraft: string
   /** Server dry run of the drafts; null until the first preview arrives. */
   preview?: OrdersPreview | null
+  /** Body the drafts send now, and the body `preview` answered. */
+  ordersBody?: OrdersBody | null
+  previewedBody?: OrdersBody | null
   /** Regions of the map (seed villages), for the orders that name one. */
   regions?: Region[]
   /** Map territories, for the commune names of the Tax card targets. */
@@ -1015,50 +1018,48 @@ function withoutLines(errors: DraftError[], stale: boolean): DraftError[] {
   return stale ? errors.map(({ message }) => ({ message })) : errors
 }
 
+/** Text a body sends for each zone, to tell which zones changed since a preview. */
+function sentTexts(body: OrdersBody) {
+  return {
+    chain: (noble: string) => body.chains.find((chain) => chain.noble === noble)?.text ?? '',
+    winter: body.winter[0]?.lines ?? '',
+    special: body.special[0]?.text ?? '',
+  }
+}
+
 /**
  * Preview errors sorted by draft (see `mapPreviewErrors`). A zone whose sent
- * text changed since the request keeps its messages but loses their lines,
- * which would point at the wrong line until the next preview arrives.
+ * text differs from the body the preview answered keeps its messages but
+ * loses their lines, which would point at the wrong line until the next
+ * preview arrives.
  */
 function usePreviewDraftErrors(
   state: StateData,
   player: PlayerId,
-  chainDrafts: Record<string, string>,
-  winterDraft: string,
-  specialDraft: string,
+  drafts: OrdersDrafts,
   preview: OrdersPreview | null,
+  ordersBody: OrdersBody | null,
+  previewedBody: OrdersBody | null,
 ): DraftErrors {
-  const drafts = useMemo(
-    () => ({ chainDrafts, winterDraft, specialDraft }),
-    [chainDrafts, winterDraft, specialDraft],
-  )
-  const body = useMemo(() => buildOrdersBody(state, player, drafts), [state, player, drafts])
-  // The body the preview answers: a draft change aborts the pending request,
-  // so a new preview always arrives with the body it was computed from.
-  const [previewed, setPreviewed] = useState<{ preview: OrdersPreview | null; body: OrdersBody }>({
-    preview,
-    body,
-  })
-  if (previewed.preview !== preview) setPreviewed({ preview, body })
-  const previewedBody = previewed.preview === preview ? previewed.body : body
+  const { chainDrafts, winterDraft, specialDraft } = drafts
   return useMemo(() => {
-    const errors = mapPreviewErrors(state, player, drafts, preview)
-    const chainText = (sent: OrdersBody, noble: string) =>
-      sent.chains.find((chain) => chain.noble === noble)?.text ?? ''
-    const winterStale = body.winter[0]?.lines !== previewedBody.winter[0]?.lines
-    const specialStale = winterStale || body.special[0]?.text !== previewedBody.special[0]?.text
+    const errors = mapPreviewErrors(state, player, { chainDrafts, winterDraft, specialDraft }, preview)
+    if (!ordersBody || !previewedBody) return errors
+    const now = sentTexts(ordersBody)
+    const then = sentTexts(previewedBody)
+    const winterStale = now.winter !== then.winter
     return {
       chains: Object.fromEntries(
         Object.entries(errors.chains).map(([noble, list]) => [
           noble,
-          withoutLines(list, chainText(body, noble) !== chainText(previewedBody, noble)),
+          withoutLines(list, now.chain(noble) !== then.chain(noble)),
         ]),
       ),
       winter: withoutLines(errors.winter, winterStale),
-      special: withoutLines(errors.special, specialStale),
+      special: withoutLines(errors.special, now.special !== then.special),
       other: errors.other,
     }
-  }, [state, player, drafts, preview, body, previewedBody])
+  }, [state, player, chainDrafts, winterDraft, specialDraft, preview, ordersBody, previewedBody])
 }
 
 export function OrdersPanel({
@@ -1067,6 +1068,8 @@ export function OrdersPanel({
   chainDrafts,
   winterDraft,
   preview = null,
+  ordersBody = null,
+  previewedBody = null,
   regions = [],
   mapTerritories,
   specialDraft,
@@ -1078,7 +1081,14 @@ export function OrdersPanel({
   onRestoreFromServer,
 }: OrdersPanelProps) {
   const { t } = useLanguage()
-  const draftErrors = usePreviewDraftErrors(state, player, chainDrafts, winterDraft, specialDraft, preview)
+  const draftErrors = usePreviewDraftErrors(
+    state,
+    player,
+    { chainDrafts, winterDraft, specialDraft },
+    preview,
+    ordersBody,
+    previewedBody,
+  )
 
   if (state.season === 'winter') {
     const winterLines = preview?.winter ?? []

@@ -91,7 +91,7 @@ describe('mapPreviewErrors', () => {
       stateOf('spring'),
       'P1',
       drafts,
-      previewOf([{ noble: 'DEF', line: 2, code: 'x', message: 'elsewhere' }]),
+      previewOf([{ source: 'chain', noble: 'DEF', line: 2, code: 'x', message: 'elsewhere' }]),
     )
     expect(result.chains).toEqual({})
     expect(result.other).toEqual([{ message: 'elsewhere' }])

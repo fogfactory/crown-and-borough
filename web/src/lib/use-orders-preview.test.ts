@@ -38,7 +38,8 @@ describe('useOrdersPreview', () => {
 
     expect(request).toHaveBeenCalledTimes(1)
     expect(request.mock.calls[0][0]).toEqual(body('HUG\nROS A BRU'))
-    expect(result.current).toBe(preview)
+    expect(result.current.preview).toBe(preview)
+    expect(result.current.body).toEqual(body('HUG\nROS A BRU'))
   })
 
   it('does not refetch for an equal draft', async () => {
@@ -66,16 +67,16 @@ describe('useOrdersPreview', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(300)
     })
-    expect(result.current).toBe(preview)
+    expect(result.current.preview).toBe(preview)
 
     rerender({ draft: { chains: [], winter: [], special: [] }, send: request })
-    expect(result.current).toBeNull()
+    expect(result.current.preview).toBeNull()
 
     const failing = vi.fn<OrdersPreviewRequest>(() => Promise.reject(new Error('down')))
     rerender({ draft: body('HUG\nROS A BRU'), send: failing })
     await act(async () => {
       await vi.advanceTimersByTimeAsync(300)
     })
-    expect(result.current).toBeNull()
+    expect(result.current.preview).toBeNull()
   })
 })
