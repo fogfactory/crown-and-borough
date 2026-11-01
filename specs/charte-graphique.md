@@ -637,8 +637,7 @@ et la langue passent dans le menu « Partie », la lignée s'ouvre depuis le
 marque-page Royaume. En ligne, la partie ne garde que sa propre barre :
 retour, saison et tour, scores, salon et menu ; l'état du réseau n'y apparaît
 que hors ligne. Le pied « Sceller les ordres » n'accompagne que l'onglet
-Ordres. Le lien entre la carte et la saisie suit la phase 6, le toucher d'un
-événement du rapport la refonte du rapport.
+Ordres.
 
 ### Saisie des ordres
 
