@@ -13,6 +13,12 @@ export interface MapLinks {
   /** Frames and selects the territory; `noble` also gets the pawn halo. */
   focus: (territory: string, noble?: string) => void
   /**
+   * Frames and selects the territory a player types in an order, staying in
+   * the current view: phones keep their Orders tab (charte-graphique.md
+   * § Saisie des ordres).
+   */
+  follow: (territory: string) => void
+  /**
    * Frames the map on a report event and draws it there until the next
    * selection (charte-graphique.md § Rapport de tour).
    */

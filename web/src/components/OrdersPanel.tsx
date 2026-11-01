@@ -11,6 +11,7 @@ import {
   SPECIAL_SLOTS,
   WINTER_SLOTS,
   type CodeSuggester,
+  type CodeSuggestion,
 } from '@/lib/order-suggestions'
 import { AppeasementOrders, SpecialCardOrders, assassinationLauncher, justiceLauncher, TitleOrdersSection } from '@/components/TitleOrders'
 import {
@@ -21,7 +22,7 @@ import {
 } from '@/components/ui/tooltip'
 import type { RulesSection } from '@/components/RulesPanel'
 import { SectionHeading } from '@/components/SectionHeading'
-import { TerritoryRef } from '@/components/MapLinks'
+import { TerritoryRef, useMapLinks } from '@/components/MapLinks'
 import { richTranslate } from '@/lib/rich-text'
 import { CALAMITY_KINDS, formatCardLabel, formatCardName, nobleCardName, shortCode } from '@/lib/card-hand'
 import { isSettlement } from '@/lib/supply'
@@ -202,6 +203,28 @@ function PreviewErrors({
   )
 }
 
+/**
+ * Frames and selects on the map each territory code the player finishes
+ * typing or chooses (charte-graphique.md § Saisie des ordres). A chosen code
+ * tells its kind; a typed one that also names a noble may mean the noble and
+ * is left alone.
+ */
+function useFollowOnMap(): ((code: string, kind?: CodeSuggestion['kind']) => void) | undefined {
+  const links = useMapLinks()
+  return useMemo(
+    () =>
+      links
+        ? (code: string, kind?: CodeSuggestion['kind']) => {
+            const territory = kind
+              ? kind === 'territory'
+              : links.hasTerritory(code) && !links.nobleName(code)
+            if (territory) links.follow(code)
+          }
+        : undefined,
+    [links],
+  )
+}
+
 /** An orders editor with the errors of its draft, underlined on their line and explained under it. */
 function EditorZone({
   value,
@@ -227,6 +250,7 @@ function EditorZone({
   suggest?: CodeSuggester
 }) {
   const errorsId = useId()
+  const follow = useFollowOnMap()
   const errorLines = errors.flatMap((error) => (error.line ? [error.line] : []))
   return (
     <div className="space-y-1.5">
@@ -242,6 +266,7 @@ function EditorZone({
         aria-label={ariaLabel}
         className={className}
         suggest={suggest}
+        onCodeTyped={follow}
       />
       <PreviewErrors id={errorsId} errors={errors} label={errorsLabel} />
     </div>

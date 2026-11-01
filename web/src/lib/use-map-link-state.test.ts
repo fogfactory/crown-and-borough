@@ -62,6 +62,21 @@ describe('useMapLinkState', () => {
     expect(result.current.selectedNoble).toBeNull()
   })
 
+  it('frames and selects a typed territory without asking for the map', () => {
+    const onSelect = vi.fn()
+    const onShowMap = vi.fn()
+    const { result } = renderHook(() =>
+      useMapLinkState({ map, state, selectedId: null, onSelect, onShowMap }),
+    )
+    act(() => result.current.links.follow('ROS'))
+    expect(onSelect).toHaveBeenCalledWith('ROS')
+    expect(onShowMap).not.toHaveBeenCalled()
+    expect(result.current.frame?.territories).toEqual(['ROS'])
+
+    act(() => result.current.links.focus('BRU'))
+    expect(onShowMap).toHaveBeenCalledOnce()
+  })
+
   it('gives the frame back to a new base frame', () => {
     const own = (key: string): MapFrame => ({ territories: ['ROS'], key })
     const { result, rerender } = renderHook(
@@ -80,10 +95,10 @@ describe('useMapLinkState', () => {
 
 describe('useMapLinkState report events', () => {
   it('frames an event, draws it, and drops it at the next selection', () => {
-    const onShowEvent = vi.fn()
+    const onShowMap = vi.fn()
     const { result, rerender } = renderHook(
       ({ selectedId }: { selectedId: string | null }) =>
-        useMapLinkState({ map, state, selectedId, onSelect: vi.fn(), onShowEvent }),
+        useMapLinkState({ map, state, selectedId, onSelect: vi.fn(), onShowMap }),
       { initialProps: { selectedId: null as string | null } },
     )
 
@@ -93,7 +108,7 @@ describe('useMapLinkState report events', () => {
         arrows: [['ROS', 'BRU']],
       }),
     )
-    expect(onShowEvent).toHaveBeenCalledOnce()
+    expect(onShowMap).toHaveBeenCalledOnce()
     expect(result.current.frame?.territories).toEqual(['ROS', 'BRU'])
     expect(result.current.eventMarks?.arrows).toEqual([['ROS', 'BRU']])
 

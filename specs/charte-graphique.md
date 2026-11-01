@@ -694,6 +694,22 @@ pour qu'un mot de deux lettres ne soit jamais remplacé à l'insu du joueur.
 rien. Seule l'option choisie défile dans la liste : le panneau ne défile que
 vers une liste demandée.
 
+**Précision.** Une zone de saisie qui prend le focus devient la seule cible
+de la carte : un anneau `brass-700` l'entoure et la ligne d'aide des
+formulaires l'annonce, à une place réservée pour que rien ne bouge en
+dessous. Un clic sur un territoire y écrit son code à la position du curseur,
+espacé de ses voisins, à la place du code en cours de frappe (un verbe d'une
+lettre reste) ; il ne change pas la sélection de la carte. Avec une souris, le
+curseur revient dans la zone ; au toucher, le clavier du téléphone reste fermé
+au-dessus de la carte. Un formulaire déplié dans le tiroir passe avant la
+zone de saisie. Tout focus ou clic ailleurs que sur la carte et dans cette
+zone, ou Échap sans liste ouverte, rend ses clics à la carte. À l'inverse, un
+code de territoire de trois lettres cadre la carte sur ce territoire et le
+sélectionne quand il est fini (suivi d'une espace, d'un retour à la ligne ou
+d'une parenthèse) ou choisi dans la liste, jamais pendant la frappe d'un nom ;
+un code qui désigne aussi un noble ne bouge pas la carte. Sur téléphone,
+l'onglet Ordres reste affiché.
+
 **Évolution possible.** Des cartes d'ordres (choisir un verbe, puis la cible
 sur la carte, et réordonner les cartes) pourront s'ajouter plus tard, comme
 une seconde vue de la même chaîne, sans retirer le texte assisté. Elles

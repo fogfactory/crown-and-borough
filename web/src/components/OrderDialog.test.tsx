@@ -11,6 +11,7 @@ import { LanguageProvider } from '@/i18n/LanguageContext'
 
 const links: MapLinks = {
   focus: vi.fn(),
+  follow: vi.fn(),
   showEvent: vi.fn(),
   highlight: vi.fn(),
   hasTerritory: (id) => ['ROS', 'RVN'].includes(id),

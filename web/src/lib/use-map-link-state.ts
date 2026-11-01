@@ -13,8 +13,11 @@ interface MapLinkStateOptions {
   baseFrame?: MapFrame
   /** Selects a territory, as a click on the map would. */
   onSelect: (territory: string) => void
-  /** Called when a report event is shown (phones switch to the map). */
-  onShowEvent?: () => void
+  /**
+   * Called when a link or a report event asks to see the map (phones switch
+   * to the map); a code typed in an order leaves the view as it is.
+   */
+  onShowMap?: () => void
 }
 
 interface MapLinkState {
@@ -46,7 +49,7 @@ export function useMapLinkState({
   selectedId,
   baseFrame,
   onSelect,
-  onShowEvent,
+  onShowMap,
 }: MapLinkStateOptions): MapLinkState {
   const [focus, setFocus] = useState<Focus | null>(null)
   const [highlightedId, setHighlightedId] = useState<string | null>(null)
@@ -61,14 +64,14 @@ export function useMapLinkState({
   const latest = useRef({
     baseKey: baseFrame?.key,
     onSelect,
-    onShowEvent,
+    onShowMap,
     selectedId,
     turn: state?.turn,
   })
   latest.current = {
     baseKey: baseFrame?.key,
     onSelect,
-    onShowEvent,
+    onShowMap,
     selectedId,
     turn: state?.turn,
   }
@@ -89,41 +92,40 @@ export function useMapLinkState({
     [state],
   )
 
-  const links = useMemo<MapLinks>(
-    () => ({
+  const links = useMemo<MapLinks>(() => {
+    const frameOn = (territories: string[], prefix: 'link' | 'event', noble?: string) => {
+      followed.current += 1
+      setFocus({
+        frame: {
+          territories,
+          key: `${prefix}:${followed.current}`,
+          padding: FOCUS_FRAME_PADDING,
+        },
+        noble,
+        baseKey: latest.current.baseKey,
+      })
+      setHighlightedId(null)
+    }
+    const select = (territory: string, noble?: string) => {
+      frameOn([territory], 'link', noble)
+      setShown(null)
+      latest.current.onSelect(territory)
+    }
+    return {
       focus: (territory, noble) => {
-        followed.current += 1
-        setFocus({
-          frame: {
-            territories: [territory],
-            key: `link:${followed.current}`,
-            padding: FOCUS_FRAME_PADDING,
-          },
-          noble,
-          baseKey: latest.current.baseKey,
-        })
-        setHighlightedId(null)
-        setShown(null)
-        latest.current.onSelect(territory)
+        select(territory, noble)
+        latest.current.onShowMap?.()
       },
+      follow: (territory) => select(territory),
       showEvent: (marks) => {
         if (marks.territories.length === 0) return
-        followed.current += 1
-        setFocus({
-          frame: {
-            territories: marks.territories,
-            key: `event:${followed.current}`,
-            padding: FOCUS_FRAME_PADDING,
-          },
-          baseKey: latest.current.baseKey,
-        })
+        frameOn(marks.territories, 'event')
         setShown({
           marks,
           selectedId: latest.current.selectedId,
           turn: latest.current.turn,
         })
-        setHighlightedId(null)
-        latest.current.onShowEvent?.()
+        latest.current.onShowMap?.()
       },
       highlight: setHighlightedId,
       hasTerritory: (id) => territoryNames.has(id),
@@ -134,9 +136,8 @@ export function useMapLinkState({
         return location && territoryNames.has(location) ? location : undefined
       },
       isDeceased: (code) => deceased.has(code),
-    }),
-    [territoryNames, nobles, deceased],
-  )
+    }
+  }, [territoryNames, nobles, deceased])
 
   // A new base frame (another game or hotseat player) supersedes the link.
   const current = focus && focus.baseKey === baseFrame?.key ? focus : null

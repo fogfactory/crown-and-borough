@@ -1,7 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { createRef, useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { OrderFormProvider } from '@/components/OrderDialog'
 import { OrderEditor, tokenizeOrderLine } from '@/components/OrderEditor'
 
 describe('tokenizeOrderLine', () => {
@@ -180,5 +181,83 @@ describe('OrderEditor', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Ctrl\+Space/ }))
     expect(screen.getByRole('listbox')).toBeInTheDocument()
+  })
+
+  it('tells each three-letter word once finished, to follow it on the map', () => {
+    const onCodeTyped = vi.fn()
+    function Editor() {
+      const [value, setValue] = useState('')
+      return <OrderEditor value={value} onChange={setValue} onCodeTyped={onCodeTyped} aria-label="orders" />
+    }
+    render(<Editor />)
+    const textarea = screen.getByLabelText('orders') as HTMLTextAreaElement
+    const type = (value: string) =>
+      fireEvent.change(textarea, { target: { value, selectionStart: value.length, selectionEnd: value.length } })
+    // `roc` is a prefix of a name being typed: nothing until the word ends.
+    type('rve a roc')
+    type('rve a roch')
+    expect(onCodeTyped).not.toHaveBeenCalled()
+    type('rve a roch ')
+    expect(onCodeTyped).not.toHaveBeenCalled()
+    type('ecp')
+    type('ecp ')
+    type('ecp  ')
+    expect(onCodeTyped.mock.calls).toEqual([['ECP', undefined]])
+    type('ecp  (rve s abc)')
+    expect(onCodeTyped).toHaveBeenLastCalledWith('ABC', undefined)
+  })
+
+  it('writes the territory clicked on the map at the cursor, until the focus leaves', () => {
+    let picker: ((territory: string) => void) | null = null
+    function Page() {
+      const [first, setFirst] = useState('RVE A\nH RVE')
+      const [second, setSecond] = useState('')
+      return (
+        <OrderFormProvider onPickerChange={(next) => (picker = next)}>
+          <section data-map-area>
+            <button type="button">map</button>
+          </section>
+          <OrderEditor value={first} onChange={setFirst} aria-label="first" />
+          <OrderEditor value={second} onChange={setSecond} aria-label="second" />
+          <button type="button">elsewhere</button>
+        </OrderFormProvider>
+      )
+    }
+    render(<Page />)
+    const first = screen.getByLabelText('first') as HTMLTextAreaElement
+    act(() => first.focus())
+    first.setSelectionRange(5, 5)
+    fireEvent.select(first)
+    expect(first.closest('[data-map-target]')).not.toBeNull()
+    // The click on the map moves the focus there: the editor stays the target.
+    act(() => screen.getByRole('button', { name: 'map' }).focus())
+    act(() => picker?.('ECP'))
+    expect(first.value).toBe('RVE A ECP\nH RVE')
+    // A code being typed gives way to the one clicked.
+    act(() => first.focus())
+    fireEvent.change(first, { target: { value: 'RVE A ECP\nH RVE\nEC', selectionStart: 19, selectionEnd: 19 } })
+    act(() => picker?.('ECP'))
+    expect(first.value).toBe('RVE A ECP\nH RVE\nECP')
+
+    // Another editor takes the target, and the first one drops its ring.
+    const second = screen.getByLabelText('second') as HTMLTextAreaElement
+    act(() => second.focus())
+    expect(first.closest('[data-map-target]')).toBeNull()
+    expect(second.closest('[data-map-target]')).not.toBeNull()
+    act(() => picker?.('RVE'))
+    expect(second.value).toBe('RVE')
+
+    // A click on a part of the page that takes no focus gives the clicks back
+    // too (the browser then moves the focus to the body).
+    fireEvent.pointerDown(document.body)
+    act(() => second.blur())
+    expect(picker).toBeNull()
+    act(() => second.focus())
+    expect(picker).not.toBeNull()
+
+    // Any other focus gives the map its clicks back.
+    act(() => screen.getByRole('button', { name: 'elsewhere' }).focus())
+    expect(picker).toBeNull()
+    expect(second.closest('[data-map-target]')).toBeNull()
   })
 })

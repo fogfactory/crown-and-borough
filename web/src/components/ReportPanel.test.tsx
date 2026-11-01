@@ -859,6 +859,7 @@ describe('ReportPanel', () => {
 describe('ReportPanel event cards', () => {
   const links = {
     focus: vi.fn(),
+    follow: vi.fn(),
     showEvent: vi.fn(),
     highlight: vi.fn(),
     hasTerritory: () => true,
