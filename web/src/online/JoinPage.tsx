@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { useAuth } from '@/auth/AuthProvider'
+import { Seal } from '@/components/Seal'
+import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ApiError, apiRequest } from '@/lib/api'
@@ -78,9 +80,10 @@ export function JoinPage() {
   ])
 
   return (
-    <Card className="mx-auto max-w-xl border-line bg-paper-50 shadow-panel">
+    <Card className="mx-auto max-w-xl rounded-xl border-line bg-paper-50">
       <CardHeader>
-        <CardTitle className="font-display text-3xl text-ink-900">
+        <Seal variant="full" className="mx-auto mb-2 size-32" />
+        <CardTitle className="font-display text-3xl font-bold text-ink-900">
           {t('join.title')}
         </CardTitle>
       </CardHeader>
@@ -91,12 +94,7 @@ export function JoinPage() {
           </p>
         ) : error ? (
           <>
-            <p
-              role="alert"
-              className="rounded-lg border border-vermilion-700/30 bg-vermilion-100 px-3 py-3 text-sm text-vermilion-700"
-            >
-              {error}
-            </p>
+            <Alert role="alert">{error}</Alert>
             <Button type="button" variant="outline" onClick={() => navigate('/')}>
               {t('online.backHome')}
             </Button>

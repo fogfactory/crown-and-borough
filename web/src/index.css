@@ -127,6 +127,13 @@
   --radius: 0.25rem;
 }
 
+/* Cinzel label in spaced capitals (specs/charte-graphique.md, Typographie). */
+@utility label-caps {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 @layer base {
   * {
     @apply border-border;

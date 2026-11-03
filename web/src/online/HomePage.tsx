@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { useAuth } from '@/auth/AuthProvider'
+import { PageHeader } from '@/components/PageHeader'
 import { Seal } from '@/components/Seal'
 import { Button } from '@/components/ui/button'
+import { Alert } from '@/components/ui/alert'
+import { Input, fieldClassName } from '@/components/ui/input'
 import {
   Card,
   CardContent,
@@ -61,7 +64,7 @@ async function copyText(value: string): Promise<boolean> {
 function GameCard({ game }: { game: GameSummary }) {
   const { t } = useLanguage()
   return (
-    <Card className="border-line bg-paper-50 shadow-panel">
+    <Card className="rounded-xl border-line bg-paper-50">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -74,7 +77,7 @@ function GameCard({ game }: { game: GameSummary }) {
                 season: seasonLabels[game.season],
               })}
             </CardDescription>
-            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-brass-700">
+            <p className="mt-1 text-xs font-semibold label-caps text-brass-700">
               {t('app.year', {
                 year:
                   1000 +
@@ -99,7 +102,7 @@ function GameCard({ game }: { game: GameSummary }) {
               {t('home.seed')}: {game.seed || '-'}
             </p>
           </div>
-          <span className="rounded-full border border-success-700/30 bg-paper-100 px-2 py-1 text-2xs font-semibold uppercase tracking-[0.12em] text-success-700">
+          <span className="rounded-full border border-success-700/30 bg-paper-100 px-2 py-1 text-2xs font-semibold label-caps text-success-700">
             {game.status === 'finished'
               ? t('home.statusFinished')
               : t('home.statusPlaying')}
@@ -124,7 +127,7 @@ function GameCard({ game }: { game: GameSummary }) {
               <span className="shrink-0 font-semibold text-brass-700">
                 {game.scores?.[player.id]?.total ?? 0}
               </span>
-              <span className="shrink-0 text-2xs uppercase tracking-[0.08em] text-ink-500">
+              <span className="shrink-0 text-2xs label-caps text-ink-500">
                 {player.submitted ? t('home.submitted') : t('home.notSubmitted')}
               </span>
             </li>
@@ -211,23 +214,21 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
     <form className="space-y-4" onSubmit={(event) => void handleSubmit(event)}>
       <label className="block space-y-1.5">
         <span className="text-sm font-semibold text-ink-700">{t('home.gameName')}</span>
-        <input
+        <Input
           type="text"
           value={name}
           onChange={(event) => setName(event.target.value)}
           placeholder={t('home.gameNamePlaceholder')}
-          className="h-10 w-full rounded-lg border border-line-strong bg-paper-50 px-3 text-sm outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
         />
       </label>
       <div className="grid gap-4 sm:grid-cols-[1fr_auto_auto]">
         <label className="block space-y-1.5">
           <span className="text-sm font-semibold text-ink-700">{t('home.seed')}</span>
-          <input
+          <Input
             type="text"
             value={seed}
             onChange={(event) => setSeed(event.target.value)}
             placeholder={t('home.seedPlaceholder')}
-            className="h-10 w-full rounded-lg border border-line-strong bg-paper-50 px-3 text-sm outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
           />
         </label>
         <label className="block space-y-1.5">
@@ -237,7 +238,7 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
           <select
             value={players}
             onChange={(event) => setPlayers(Number(event.target.value))}
-            className="h-10 rounded-lg border border-line-strong bg-paper-50 px-3 text-sm outline-none focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
+            className={fieldClassName}
           >
             {Array.from({ length: 7 }, (_, index) => index + 2).map((count) => (
               <option key={count} value={count}>
@@ -250,13 +251,13 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
           <span className="text-sm font-semibold text-ink-700">
             {t('home.gameYears')}
           </span>
-          <input
+          <Input
             type="number"
             min={1}
             max={50}
             value={years}
             onChange={(event) => setYears(Number(event.target.value))}
-            className="h-10 w-24 rounded-lg border border-line-strong bg-paper-50 px-3 text-sm outline-none focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
+            className="w-24"
           />
         </label>
       </div>
@@ -280,14 +281,7 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
           </span>
         </span>
       </label>
-      {error && (
-        <p
-          role="alert"
-          className="rounded-lg border border-vermilion-700/30 bg-vermilion-100 px-3 py-2 text-sm text-vermilion-700"
-        >
-          {error}
-        </p>
-      )}
+      {error && <Alert role="alert">{error}</Alert>}
       <Button type="submit" className="w-full" disabled={creating}>
         {creating ? t('app.creating') : t('home.createSubmit')}
       </Button>
@@ -304,7 +298,7 @@ function InvitationCard({ invitation }: { invitation: Invitation }) {
   }
 
   return (
-    <Card className="border-brass-700/50 bg-paper-50 shadow-panel">
+    <Card className="rounded-xl border-brass-700/50 bg-paper-50">
       <CardHeader>
         <CardTitle className="font-display text-2xl text-ink-900">
           {t('home.invitationTitle')}
@@ -312,7 +306,7 @@ function InvitationCard({ invitation }: { invitation: Invitation }) {
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">
+          <p className="text-xs font-semibold label-caps text-ink-500">
             {t('home.invitationCode')}
           </p>
           <div className="mt-1 flex items-center gap-2">
@@ -330,7 +324,7 @@ function InvitationCard({ invitation }: { invitation: Invitation }) {
           </div>
         </div>
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">
+          <p className="text-xs font-semibold label-caps text-ink-500">
             {t('home.invitationLink')}
           </p>
           <div className="mt-1 flex items-center gap-2">
@@ -406,28 +400,25 @@ export function HomePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Seal variant="full" className="size-32" />
-          <div>
-            <h1 className="font-display text-4xl font-semibold text-ink-900">
-              {t('home.title')}
-            </h1>
-          </div>
-        </div>
-        <Button
-          type="button"
-          onClick={() => {
-            setInvitation(null)
-            setShowCreate((current) => !current)
-          }}
-        >
-          {t('home.create')}
-        </Button>
-      </div>
+      <PageHeader
+        size="landing"
+        title={t('home.title')}
+        leading={<Seal variant="full" className="size-32" />}
+        actions={
+          <Button
+            type="button"
+            onClick={() => {
+              setInvitation(null)
+              setShowCreate((current) => !current)
+            }}
+          >
+            {t('home.create')}
+          </Button>
+        }
+      />
 
       {showCreate && (
-        <Card className="border-line bg-paper-50">
+        <Card className="rounded-xl border-line bg-paper-50">
           <CardHeader>
             <CardTitle className="font-display text-2xl">{t('home.create')}</CardTitle>
           </CardHeader>
@@ -446,14 +437,7 @@ export function HomePage() {
         </Card>
       )}
 
-      {combinedError && (
-        <p
-          role="alert"
-          className="rounded-lg border border-vermilion-700/30 bg-vermilion-100 px-3 py-2 text-sm text-vermilion-700"
-        >
-          {combinedError}
-        </p>
-      )}
+      {combinedError && <Alert role="alert">{combinedError}</Alert>}
       {loading && games.length === 0 ? (
         <p className="py-16 text-center font-display text-lg italic text-ink-500">
           {t('online.loading')}

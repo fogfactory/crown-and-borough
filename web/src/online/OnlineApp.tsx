@@ -13,6 +13,7 @@ import {
 
 import { AuthProvider, useAuth } from '@/auth/AuthProvider'
 import { Seal } from '@/components/Seal'
+import { Alert } from '@/components/ui/alert'
 import { FinishPage, ProfilePage, SignInPage } from '@/online/AuthPages'
 import { GamePage } from '@/online/GamePage'
 import { HomePage } from '@/online/HomePage'
@@ -44,7 +45,7 @@ function OnlineHeader() {
             <span className="block font-display text-base font-semibold tracking-tight sm:text-xl">
               Crown &amp; Borough
             </span>
-            <span className="hidden text-2xs uppercase tracking-[0.18em] text-ink-500 min-[420px]:block">
+            <span className="hidden text-2xs label-caps text-ink-500 min-[420px]:block">
               {t('app.tagline')}
             </span>
             <VersionBadge />
@@ -156,12 +157,9 @@ function RequireProfile() {
   if (profileError && !profile) {
     return (
       <OnlineFrame>
-        <p
-          role="alert"
-          className="mx-auto max-w-xl rounded-lg bg-vermilion-100 p-4 text-vermilion-700"
-        >
+        <Alert role="alert" className="mx-auto max-w-xl">
           {profileError}
-        </p>
+        </Alert>
       </OnlineFrame>
     )
   }
