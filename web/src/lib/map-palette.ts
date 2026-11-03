@@ -1,6 +1,6 @@
 /**
  * Raw colors for SVG drawings and inline styles (map, markers, lineage tree,
- * brand mark). UI chrome colors are Tailwind theme tokens in `src/index.css`;
+ * seal). UI chrome colors are Tailwind theme tokens in `src/index.css`;
  * this module is the only production file allowed to hold hex literals
  * (enforced by ESLint).
  */
@@ -150,17 +150,10 @@ export const LINEAGE_RANK_DIGIT = MAP_PAPER
 /** Shaded face and inner curl of a roll (`paper-200`). */
 export const LINEAGE_SCROLL_SHADE = '#efe7d8'
 
-// Brand mark
+// Seal (emblem). The wax red is not an interface color.
 
-export const BRAND_BLACK = '#000000'
-export const BRAND_LEAF_LIGHT = '#7ed321'
-export const BRAND_LEAF_DARK = '#417505'
-export const BRAND_GOLD_LIGHT = '#f8e71c'
-export const BRAND_GOLD_DARK = '#f5a623'
-export const BRAND_PARCHMENT = '#ebc893'
-export const BRAND_PARCHMENT_EDGE = '#e0aa58'
-export const BRAND_TERRACOTTA = '#c87137'
-export const BRAND_CREAM = '#f6e7d0'
-export const BRAND_SAND = '#f2dbb9'
-export const BRAND_TAN = '#eed3a4'
-export const BRAND_BRASS = '#b57204'
+export const SEAL_WAX_LIGHT = '#c8433a'
+export const SEAL_WAX_DARK = '#6d1210'
+export const SEAL_WAX_RIM = '#8f2420'
+export const SEAL_WAX_SHADOW = '#4a0b0a'
+export const SEAL_LETTER = '#f6e7d0'

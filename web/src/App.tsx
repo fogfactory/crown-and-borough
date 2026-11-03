@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { IconTrophy } from '@tabler/icons-react'
 
 import { GameLayout } from '@/components/GameLayout'
-import { BrandMark } from '@/components/BrandMark'
+import { Seal } from '@/components/Seal'
 import { GameMenu } from '@/components/GameMenu'
 import { MapViewer } from '@/components/MapViewer'
 import { ownTerritoriesFrame } from '@/lib/map-frame'
@@ -727,7 +727,7 @@ function AppContent() {
           className={`flex items-center gap-2 px-3 sm:gap-3 sm:px-4 ${desktop ? 'h-12' : 'h-14'}`}
         >
           <div className="flex shrink-0 items-center gap-2">
-            <BrandMark className="size-8" />
+            <Seal className="size-8" />
             <h1 className="hidden font-display text-base font-semibold tracking-tight lg:block">
               Crown &amp; Borough
             </h1>

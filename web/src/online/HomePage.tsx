@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { useAuth } from '@/auth/AuthProvider'
+import { Seal } from '@/components/Seal'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -406,13 +407,13 @@ export function HomePage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brass-700">
-            Crown &amp; Borough
-          </p>
-          <h1 className="mt-1 font-display text-4xl font-semibold text-ink-900">
-            {t('home.title')}
-          </h1>
+        <div className="flex items-center gap-4">
+          <Seal variant="full" className="size-32" />
+          <div>
+            <h1 className="font-display text-4xl font-semibold text-ink-900">
+              {t('home.title')}
+            </h1>
+          </div>
         </div>
         <Button
           type="button"
