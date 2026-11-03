@@ -80,7 +80,7 @@ export function JoinPage() {
   ])
 
   return (
-    <Card className="mx-auto max-w-xl rounded-xl border-line bg-paper-50">
+    <Card className="mx-auto max-w-xl border-line">
       <CardHeader>
         <Seal variant="full" className="mx-auto mb-2 size-32" />
         <CardTitle className="font-display text-3xl font-bold text-ink-900">

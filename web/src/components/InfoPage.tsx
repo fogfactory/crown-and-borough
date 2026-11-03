@@ -17,7 +17,7 @@ export function InfoPage({ kind }: { kind: InfoPageKind }) {
         intro={isRules ? t('rules.pageIntro') : t('faq.intro')}
       />
 
-      <Card className="rounded-xl border-line bg-paper-50">
+      <Card className="border-line">
         <CardContent className="p-4 sm:p-8">
           {isRules ? <RulesPanel variant="page" /> : <FaqPanel showHeading={false} />}
         </CardContent>

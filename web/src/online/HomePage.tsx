@@ -64,7 +64,7 @@ async function copyText(value: string): Promise<boolean> {
 function GameCard({ game }: { game: GameSummary }) {
   const { t } = useLanguage()
   return (
-    <Card className="rounded-xl border-line bg-paper-50">
+    <Card className="border-line">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -77,7 +77,7 @@ function GameCard({ game }: { game: GameSummary }) {
                 season: seasonLabels[game.season],
               })}
             </CardDescription>
-            <p className="mt-1 text-xs font-semibold label-caps text-brass-700">
+            <p className="mt-1 label-caps text-2xs font-bold text-brass-700">
               {t('app.year', {
                 year:
                   1000 +
@@ -102,7 +102,7 @@ function GameCard({ game }: { game: GameSummary }) {
               {t('home.seed')}: {game.seed || '-'}
             </p>
           </div>
-          <span className="rounded-full border border-success-700/30 bg-paper-100 px-2 py-1 text-2xs font-semibold label-caps text-success-700">
+          <span className="rounded-full border border-success-700/30 bg-paper-100 px-2 py-1 label-caps text-2xs font-bold text-success-700">
             {game.status === 'finished'
               ? t('home.statusFinished')
               : t('home.statusPlaying')}
@@ -127,7 +127,7 @@ function GameCard({ game }: { game: GameSummary }) {
               <span className="shrink-0 font-semibold text-brass-700">
                 {game.scores?.[player.id]?.total ?? 0}
               </span>
-              <span className="shrink-0 text-2xs label-caps text-ink-500">
+              <span className="label-caps shrink-0 text-2xs text-ink-500">
                 {player.submitted ? t('home.submitted') : t('home.notSubmitted')}
               </span>
             </li>
@@ -298,7 +298,7 @@ function InvitationCard({ invitation }: { invitation: Invitation }) {
   }
 
   return (
-    <Card className="rounded-xl border-brass-700/50 bg-paper-50">
+    <Card className="border-brass-700/50">
       <CardHeader>
         <CardTitle className="font-display text-2xl text-ink-900">
           {t('home.invitationTitle')}
@@ -306,7 +306,7 @@ function InvitationCard({ invitation }: { invitation: Invitation }) {
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <p className="text-xs font-semibold label-caps text-ink-500">
+          <p className="label-caps text-2xs font-bold text-ink-500">
             {t('home.invitationCode')}
           </p>
           <div className="mt-1 flex items-center gap-2">
@@ -324,7 +324,7 @@ function InvitationCard({ invitation }: { invitation: Invitation }) {
           </div>
         </div>
         <div>
-          <p className="text-xs font-semibold label-caps text-ink-500">
+          <p className="label-caps text-2xs font-bold text-ink-500">
             {t('home.invitationLink')}
           </p>
           <div className="mt-1 flex items-center gap-2">
@@ -418,7 +418,7 @@ export function HomePage() {
       />
 
       {showCreate && (
-        <Card className="rounded-xl border-line bg-paper-50">
+        <Card className="border-line">
           <CardHeader>
             <CardTitle className="font-display text-2xl">{t('home.create')}</CardTitle>
           </CardHeader>

@@ -58,12 +58,9 @@ export function SignInPage() {
   }
 
   return (
-    <Card className="mx-auto max-w-md rounded-xl border-line bg-paper-50">
+    <Card className="mx-auto max-w-md border-line">
       <CardHeader>
         <Seal variant="full" className="mx-auto mb-2 size-32" />
-        <Link to="/" className="label-caps mb-3 text-2xs font-bold text-brass-700">
-          Crown &amp; Borough
-        </Link>
         <CardTitle className="font-display text-3xl font-bold text-ink-900">
           {t('auth.title')}
         </CardTitle>
@@ -157,14 +154,18 @@ export function FinishPage() {
   }, [finishSignIn, navigate, redirect, status])
 
   return (
-    <Card className="mx-auto max-w-md rounded-xl border-line bg-paper-50">
+    <Card className="mx-auto max-w-md border-line">
       <CardHeader>
         <CardTitle className="font-display text-2xl text-ink-900">
           {t('auth.verifyLink')}
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {error && <Alert role="alert">{error}</Alert>}
+        {error && (
+          <Alert role="alert" className="mb-4">
+            {error}
+          </Alert>
+        )}
         {emailRequired && (
           <form
             className="space-y-4"
@@ -246,7 +247,7 @@ export function ProfilePage() {
   }
 
   return (
-    <Card className="mx-auto max-w-xl rounded-xl border-line bg-paper-50">
+    <Card className="mx-auto max-w-xl border-line">
       <CardHeader>
         <CardTitle className="font-display text-3xl font-bold text-ink-900">
           {t('profile.title')}

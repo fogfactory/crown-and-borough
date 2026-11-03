@@ -1063,9 +1063,10 @@ hors partie. Elles partagent un seul gabarit, posé sur le papier de la page.
   l'accueil), phrase d'introduction en `text-sm` `ink-500`,
   puis un double filet (`line-strong`) qui sépare l'en-tête du contenu
   (composant `PageHeader`, utilisé par l'accueil, les règles et la FAQ). Les
-  pages en carte centrée (connexion, invitation, profil) portent le même
-  titre Cinzel 700 `text-3xl` et la même étiquette dans l'en-tête de la
-  carte, sans filet. Le titre est l'unique `h1` de la page.
+  pages en carte centrée (connexion, invitation, profil) n'ont ni étiquette
+  ni filet, pour rester serrées : le sceau (sauf au profil) puis le titre
+  Cinzel 700 `text-3xl` dans l'en-tête de la carte. Le titre est l'unique
+  `h1` de la page.
 - **Feuilles :** les panneaux (liste de parties, formulaires, règles, entrées
   de FAQ) sont en `paper-50` ou `paper-100`, bordure `line`, rayon de 6 px,
   sans ombre : l'ombre est réservée aux éléments flottants.
@@ -1074,8 +1075,8 @@ hors partie. Elles partagent un seul gabarit, posé sur le papier de la page.
   de l'application orne déjà.
 - **Titres de section :** Cinzel 500, `text-lg` ; sous-titres en Alegreya 700.
   Le texte courant des règles et de la FAQ est en `text-base`.
-- **Étiquettes et pastilles :** Cinzel en capitales espacées de 0,08 em
-  (`label-caps`), jamais d'autre espacement.
+- **Étiquettes et pastilles :** Cinzel 700 en capitales espacées de 0,08 em
+  (`label-caps`, `text-2xs`), jamais d'autre espacement ni d'autre taille.
 - **Champs et alertes :** composants `Input`, `Select` natif aligné et
   `Alert` (voir [Composants de base](#composants-de-base)).
 - **Règles et FAQ :** le rendu Markdown suit l'échelle typographique ; les
