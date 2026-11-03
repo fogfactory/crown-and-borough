@@ -850,13 +850,13 @@ describe('placeTree', () => {
     const links = buildLinks(houses, [
       marriage('A1', 'B1', 'ended'),
       { ...marriage('A1', 'B1', 'head'), turn: 7 },
+      { ...marriage('A1', 'B1', 'head'), turn: 7 },
     ])
-    expect(new Set(links.map((link) => link.key)).size).toBe(2)
-    expect(links[0].key).toBe('A1-B1')
+    expect(links.map((link) => link.key)).toEqual(['A1-B1', 'A1-B1#2', 'A1-B1#3'])
     const layout = layoutTree(houses, links, null, [])
     const placed = placeTree(layout, () => 0)
-    expect(layout.marriages).toHaveLength(2)
-    expect(new Set(placed.marriages.map((m) => m.d)).size).toBe(2)
+    expect(layout.marriages).toHaveLength(3)
+    expect(new Set(placed.marriages.map((m) => m.d)).size).toBe(3)
   })
 
   it('shows the spouse of every claim it keeps when a house is focused', () => {

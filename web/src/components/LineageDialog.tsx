@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   IconChevronDown,
   IconChevronUp,
@@ -31,6 +31,7 @@ import {
   type TreeBox,
 } from '@/lib/lineage'
 import { useSimulationHistory } from '@/lib/simulation-history'
+import { useElementSize } from '@/lib/use-element-size'
 import {
   useVictorySimulation,
   type VictorySimulationRequest,
@@ -63,15 +64,12 @@ import {
   LINEAGE_BRASS,
   LINEAGE_BRASS_LIGHT,
   LINEAGE_RANK_DIGIT,
-  LINEAGE_CLAIM,
   LINEAGE_CLOTH,
   LINEAGE_ENDED,
-  LINEAGE_HEAD,
   LINEAGE_HEAD_BROWN,
   LINEAGE_INK,
   LINEAGE_IVY,
   LINEAGE_PAPER,
-  LINEAGE_SCROLL_ROLL,
   LINEAGE_SCROLL_SHADE,
   LINEAGE_SECONDARY,
   LINEAGE_WEAVE,
@@ -85,11 +83,12 @@ import {
 /**
  * Stroke of a marriage by kind. The head marriage is a brown outlined bar
  * filled with gold, grown over with ivy; the secondary one is a double line (a
- * wide ink stroke with a thin paper line over it); an ended one is hatched.
+ * wide ink stroke with a thin line in the colour of the ground over it, a null
+ * inner colour); an ended one is hatched.
  */
 const EDGE_STYLE: Record<
   EdgeKind,
-  { stroke: string; width: number; inner: { color: string; width: number } | null }
+  { stroke: string; width: number; inner: { color: string | null; width: number } | null }
 > = {
   head: {
     stroke: LINEAGE_HEAD_BROWN,
@@ -99,7 +98,7 @@ const EDGE_STYLE: Record<
   secondary: {
     stroke: LINEAGE_SECONDARY,
     width: 5,
-    inner: { color: LINEAGE_PAPER, width: 1.5 },
+    inner: { color: null, width: 1.5 },
   },
   ended: { stroke: 'url(#lineage-hatch)', width: 5, inner: null },
 }
@@ -147,6 +146,37 @@ interface TreeEdit {
   pending: Pending | null
   onNoble: (code: string) => void
   onLink: (a: string, b: string) => void
+}
+
+type EdgeShape = { d: string } | { x1: number; y1: number; x2: number; y2: number }
+
+/**
+ * A marriage drawn as its main stroke and, when its kind has one, the thin
+ * inner stroke over it; `ground` is the colour of what the bond lies on, which
+ * the inner line of a secondary marriage takes.
+ */
+function EdgeStroke({
+  kind,
+  shape,
+  ground = LINEAGE_PAPER,
+}: {
+  kind: EdgeKind
+  shape: EdgeShape
+  ground?: string
+}) {
+  const style = EDGE_STYLE[kind]
+  const draw = (stroke: string, strokeWidth: number) =>
+    'd' in shape ? (
+      <path d={shape.d} fill="none" stroke={stroke} strokeWidth={strokeWidth} />
+    ) : (
+      <line {...shape} stroke={stroke} strokeWidth={strokeWidth} />
+    )
+  return (
+    <>
+      {draw(style.stroke, style.width)}
+      {style.inner && draw(style.inner.color ?? ground, style.inner.width)}
+    </>
+  )
 }
 
 function HatchDefs() {
@@ -378,20 +408,33 @@ export function LineageDialog(props: LineageDialogProps) {
     history.push(action)
     clearTransient()
   }
-  const onNoble = (code: string) => {
-    setRejection(null)
-    if (pending) {
-      if (code === pending.from) return
-      apply({ type: pending.kind, noble: pending.from, other: code })
-      return
-    }
-    setSelection({ type: 'noble', code })
-  }
-  const onLink = (a: string, b: string) => {
-    if (pending) return
-    setRejection(null)
-    setSelection({ type: 'link', a, b })
-  }
+  const { push: pushAction } = history
+  const onNoble = useCallback(
+    (code: string) => {
+      setRejection(null)
+      if (pending) {
+        if (code === pending.from) return
+        pushAction({ type: pending.kind, noble: pending.from, other: code })
+        setSelection(null)
+        setPending(null)
+        return
+      }
+      setSelection({ type: 'noble', code })
+    },
+    [pending, pushAction],
+  )
+  const onLink = useCallback(
+    (a: string, b: string) => {
+      if (pending) return
+      setRejection(null)
+      setSelection({ type: 'link', a, b })
+    },
+    [pending],
+  )
+  const edit = useMemo<TreeEdit | undefined>(
+    () => (simulating ? { selected: selection, pending, onNoble, onLink } : undefined),
+    [simulating, selection, pending, onNoble, onLink],
+  )
   const stopSimulating = () => {
     setSimulating(false)
     clearTransient()
@@ -565,9 +608,7 @@ export function LineageDialog(props: LineageDialogProps) {
               claims={claims}
               ranks={ranks}
               focus={focusId}
-              edit={
-                simulating ? { selected: selection, pending, onNoble, onLink } : undefined
-              }
+              edit={edit}
             />
             {simulating && (
               <div
@@ -824,12 +865,12 @@ function Swatch({ kind }: { kind: EdgeKind | 'claim' | 'noble' }) {
     return (
       <svg aria-hidden="true" width="44" height="16" className="shrink-0">
         <g transform="scale(0.55)">
-          <ScrollShape w={80} h={29} color={LINEAGE_HEAD} />
+          <ScrollShape w={80} h={29} color={LINEAGE_BRASS} />
         </g>
         <path
           d={SHIELD_PATH}
           transform="translate(11 8) scale(0.5)"
-          fill={LINEAGE_HEAD}
+          fill={LINEAGE_BRASS}
           stroke={LINEAGE_INK}
           strokeWidth="1.2"
         />
@@ -849,33 +890,16 @@ function Swatch({ kind }: { kind: EdgeKind | 'claim' | 'noble' }) {
           <path
             d="M1,11 C12,11 14,4 26,4"
             fill="none"
-            stroke={LINEAGE_CLAIM}
+            stroke={LINEAGE_SECONDARY}
             strokeWidth="1.8"
             strokeLinecap="round"
             strokeDasharray="1 4"
           />
-          <path d={LEAF} transform="translate(35 4)" fill={LINEAGE_CLAIM} />
+          <path d={LEAF} transform="translate(35 4)" fill={LINEAGE_SECONDARY} />
         </>
       ) : (
         <>
-          <line
-            x1="0"
-            y1="7"
-            x2="36"
-            y2="7"
-            stroke={EDGE_STYLE[kind].stroke}
-            strokeWidth={EDGE_STYLE[kind].width}
-          />
-          {EDGE_STYLE[kind].inner && (
-            <line
-              x1="0"
-              y1="7"
-              x2="36"
-              y2="7"
-              stroke={EDGE_STYLE[kind].inner.color}
-              strokeWidth={EDGE_STYLE[kind].inner.width}
-            />
-          )}
+          <EdgeStroke kind={kind} shape={{ x1: 0, y1: 7, x2: 36, y2: 7 }} />
           {kind === 'head' && (
             <IvyLeaves
               points={[
@@ -1009,6 +1033,10 @@ function LineageTree({
 }) {
   const { t } = useLanguage()
   const scroller = useRef<HTMLDivElement>(null)
+  const armsOf = useMemo(
+    () => new Map(houses.map((house) => [house.player.id, playerArms(house.player)])),
+    [houses],
+  )
   const claimRefs = useMemo<ClaimRef[]>(
     () =>
       claims.map(({ heir, target, spouse, ended, turn }) => ({
@@ -1024,28 +1052,28 @@ function LineageTree({
     () => layoutTree(houses, links, focus, claimRefs),
     [houses, links, focus, claimRefs],
   )
-  const texts = useMemo(() => {
-    const byCode = new Map<string, MedallionLine[]>()
+  // The text lines of every member, and how many lines past the first its
+  // cartouche takes (a wrapped name, then the written titles).
+  const { texts, extraLines } = useMemo(() => {
+    const texts = new Map<string, MedallionLine[]>()
+    const extraLines = new Map<string, number>()
     for (const house of houses)
-      for (const member of house.members)
-        byCode.set(member.code, medallionTexts(member, t))
-    return byCode
-  }, [houses, t])
-  const placement = useMemo(() => {
-    const names = new Map<string, number>()
-    for (const house of houses)
-      for (const member of house.members)
-        names.set(
+      for (const member of house.members) {
+        const lines = medallionTexts(member, t)
+        texts.set(member.code, lines)
+        extraLines.set(
           member.code,
-          wrapLines(`${member.name}${member.sex ? ' ♂' : ''}`, NAME_LINE_CHARS) - 1,
+          wrapLines(`${member.name}${member.sex ? ' ♂' : ''}`, NAME_LINE_CHARS) -
+            1 +
+            countLines(lines.map((line) => line.text)),
         )
-    return placeTree(
-      layout,
-      (code) =>
-        (names.get(code) ?? 0) +
-        countLines((texts.get(code) ?? []).map((line) => line.text)),
-    )
-  }, [layout, houses, texts])
+      }
+    return { texts, extraLines }
+  }, [houses, t])
+  const placement = useMemo(
+    () => placeTree(layout, (code) => extraLines.get(code) ?? 0),
+    [layout, extraLines],
+  )
   const { width, height, boxes } = placement
 
   // The frame follows the focus (and the opening), not the edits of a simulation:
@@ -1117,7 +1145,7 @@ function LineageTree({
                     data-ended={ended}
                     d={roundedPath(points, 28)}
                     fill="none"
-                    stroke={LINEAGE_CLAIM}
+                    stroke={LINEAGE_SECONDARY}
                     strokeWidth={1.8}
                     strokeLinecap="round"
                     strokeDasharray="1 4"
@@ -1126,8 +1154,8 @@ function LineageTree({
                     <path
                       d={LEAF}
                       transform={`translate(${end.x} ${end.y}) rotate(${angle})`}
-                      fill={ended ? LINEAGE_CLOTH : LINEAGE_CLAIM}
-                      stroke={LINEAGE_CLAIM}
+                      fill={ended ? LINEAGE_CLOTH : LINEAGE_SECONDARY}
+                      stroke={LINEAGE_SECONDARY}
                       strokeWidth={1.2}
                       strokeLinejoin="round"
                     />
@@ -1136,7 +1164,6 @@ function LineageTree({
               )
             })}
             {placement.marriages.map(({ link, aligned, d: edge }, position) => {
-              const style = EDGE_STYLE[link.kind]
               const points = pathPoints(edge)
               const d = roundedPath(points, 10)
               const knot = knotPosition(points, aligned)
@@ -1156,24 +1183,7 @@ function LineageTree({
                       strokeOpacity={0.6}
                     />
                   )}
-                  <path
-                    d={d}
-                    fill="none"
-                    stroke={style.stroke}
-                    strokeWidth={style.width}
-                  />
-                  {style.inner && (
-                    <path
-                      d={d}
-                      fill="none"
-                      stroke={
-                        style.inner.color === LINEAGE_PAPER
-                          ? LINEAGE_CLOTH
-                          : style.inner.color
-                      }
-                      strokeWidth={style.inner.width}
-                    />
-                  )}
+                  <EdgeStroke kind={link.kind} shape={{ d }} ground={LINEAGE_CLOTH} />
                   {link.kind === 'head' && <IvyLeaves points={points} radius={10} />}
                   {knot && <MarriageKnot x={knot.x} y={knot.y} kind={link.kind} />}
                   {edit && link.active && (
@@ -1215,7 +1225,7 @@ function LineageTree({
                     key={member.code}
                     member={member}
                     rank={ranks.get(member.code) ?? index + 1}
-                    arms={playerArms(house.player)}
+                    arms={armsOf.get(house.player.id)!}
                     color={house.player.color || NEUTRAL_ARMY_COLOR}
                     box={boxes.get(member.code)!}
                     lines={texts.get(member.code) ?? []}
@@ -1236,28 +1246,14 @@ const ROLL = 18
 /** Heading of a cartouche: the blazon, then the name beside it. */
 const CARTOUCHE_PAD_X = ROLL + 8
 
-/**
- * The parchment scroll of a noble: a sheet unrolled between two curled ends,
- * inked at its edges, with a rule in the house colour along its top and bottom.
- */
-function ScrollShape({
-  w,
-  h,
-  color,
-  dead = false,
-}: {
-  w: number
-  h: number
-  color: string
-  dead?: boolean
-}) {
+/** One curled end of a scroll, `x` from its left edge. */
+function ScrollRoll({ x, h, dash }: { x: number; h: number; dash?: string }) {
   const half = ROLL / 2
-  const dash = dead ? '4 3' : undefined
-  const roll = (x: number) => (
+  return (
     <g transform={`translate(${x} 0)`}>
       <path
         d={`M0,5 A${half},4 0 0 1 ${ROLL},5 V${h - 5} A${half},4 0 0 1 0,${h - 5} Z`}
-        fill={LINEAGE_SCROLL_ROLL}
+        fill={LINEAGE_BAND}
         stroke={LINEAGE_INK}
         strokeWidth="1.4"
         strokeDasharray={dash}
@@ -1286,6 +1282,25 @@ function ScrollShape({
       />
     </g>
   )
+}
+
+/**
+ * The parchment scroll of a noble: a sheet unrolled between two curled ends,
+ * inked at its edges, with a rule in the house colour along its top and bottom.
+ */
+function ScrollShape({
+  w,
+  h,
+  color,
+  dead = false,
+}: {
+  w: number
+  h: number
+  color: string
+  dead?: boolean
+}) {
+  const half = ROLL / 2
+  const dash = dead ? '4 3' : undefined
   return (
     <g opacity={dead ? 0.65 : 1}>
       <path
@@ -1301,8 +1316,8 @@ function ScrollShape({
         strokeWidth="2"
         strokeLinecap="round"
       />
-      {roll(0)}
-      {roll(w - ROLL)}
+      <ScrollRoll x={0} h={h} dash={dash} />
+      <ScrollRoll x={w - ROLL} h={h} dash={dash} />
     </g>
   )
 }
@@ -1312,7 +1327,7 @@ function ScrollShape({
  * player, the name, the titles written beneath, and the succession rank on a
  * seal in the colour of the house.
  */
-function Cartouche({
+const Cartouche = memo(function Cartouche({
   member,
   rank,
   arms,
@@ -1335,17 +1350,7 @@ function Cartouche({
   // The estimated height holds unless the text wraps further than expected: the
   // parchment then follows the text, so nothing spills outside the scroll.
   const content = useRef<HTMLDivElement>(null)
-  const [measured, setMeasured] = useState(0)
-  useLayoutEffect(() => {
-    const element = content.current
-    if (!element || typeof ResizeObserver === 'undefined') return
-    const read = () => setMeasured(Math.ceil(element.offsetHeight))
-    read()
-    const observer = new ResizeObserver(read)
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [])
-  const h = Math.max(box.h, measured)
+  const h = Math.max(box.h, Math.ceil(useElementSize(content).height))
   const choose = edit ? () => edit.onNoble(member.code) : undefined
   return (
     <li
@@ -1488,13 +1493,13 @@ function Cartouche({
       </div>
     </li>
   )
-}
+})
 
 /**
  * The alliance graph as a corner inset of the tree: folded by default so
  * the tree keeps the room.
  */
-function AllianceInset(props: {
+const AllianceInset = memo(function AllianceInset(props: {
   houses: House[]
   links: LineageLink[]
   focus: PlayerId | null
@@ -1530,9 +1535,9 @@ function AllianceInset(props: {
       )}
     </aside>
   )
-}
+})
 
-function AllianceGraph({
+const AllianceGraph = memo(function AllianceGraph({
   houses,
   links,
   focus,
@@ -1549,41 +1554,42 @@ function AllianceGraph({
 }) {
   const { t } = useLanguage()
   const pairs = useMemo(() => buildAlliancePairs(links), [links])
-  const houseName = (id: PlayerId) => {
-    const house = houses.find((h) => h.player.id === id)
-    return house?.player.name || id
-  }
-  const nobleName = (code: string) => {
-    for (const house of houses) {
-      const member = house.members.find((m) => m.code === code)
-      if (member) return member.name
-    }
-    return code
-  }
+  const houseById = useMemo(
+    () => new Map(houses.map((house) => [house.player.id, house])),
+    [houses],
+  )
+  const nameByCode = useMemo(() => {
+    const byCode = new Map<string, string>()
+    for (const house of houses)
+      for (const member of house.members)
+        if (!byCode.has(member.code)) byCode.set(member.code, member.name)
+    return byCode
+  }, [houses])
+  const houseName = (id: PlayerId) => houseById.get(id)?.player.name || id
+  const nobleName = (code: string) => nameByCode.get(code) ?? code
   const marriageName = (a: string, b: string) => `${nobleName(a)} × ${nobleName(b)}`
 
-  const cx = 200
-  const cy = 160
-  const others = houses.filter((house) => house.player.id !== focus)
-  const position = new Map<PlayerId, { x: number; y: number }>()
-  if (focus) {
-    position.set(focus, { x: cx, y: cy })
-    others.forEach((house, index) => {
-      const angle = (2 * Math.PI * index) / others.length - Math.PI / 2
-      position.set(house.player.id, {
-        x: cx + 125 * Math.cos(angle),
-        y: cy + 115 * Math.sin(angle),
+  const position = useMemo(() => {
+    const cx = 200
+    const cy = 160
+    const ring = (list: House[], at: Map<PlayerId, { x: number; y: number }>) =>
+      list.forEach((house, index) => {
+        const angle = (2 * Math.PI * index) / list.length - Math.PI / 2
+        at.set(house.player.id, {
+          x: cx + 125 * Math.cos(angle),
+          y: cy + 115 * Math.sin(angle),
+        })
       })
-    })
-  } else {
-    houses.forEach((house, index) => {
-      const angle = (2 * Math.PI * index) / houses.length - Math.PI / 2
-      position.set(house.player.id, {
-        x: cx + 125 * Math.cos(angle),
-        y: cy + 115 * Math.sin(angle),
-      })
-    })
-  }
+    const at = new Map<PlayerId, { x: number; y: number }>()
+    if (focus) {
+      at.set(focus, { x: cx, y: cy })
+      ring(
+        houses.filter((house) => house.player.id !== focus),
+        at,
+      )
+    } else ring(houses, at)
+    return at
+  }, [houses, focus])
   const dim = (pair: AlliancePair) => focus !== null && !pair.houses.includes(focus)
 
   return (
@@ -1599,27 +1605,12 @@ function AllianceGraph({
           const a = position.get(pair.houses[0])
           const b = position.get(pair.houses[1])
           if (!a || !b) return null
-          const style = EDGE_STYLE[pair.kind]
           return (
             <g key={pair.key} opacity={dim(pair) ? 0.2 : 1}>
-              <line
-                x1={a.x}
-                y1={a.y}
-                x2={b.x}
-                y2={b.y}
-                stroke={style.stroke}
-                strokeWidth={style.width}
+              <EdgeStroke
+                kind={pair.kind}
+                shape={{ x1: a.x, y1: a.y, x2: b.x, y2: b.y }}
               />
-              {style.inner && (
-                <line
-                  x1={a.x}
-                  y1={a.y}
-                  x2={b.x}
-                  y2={b.y}
-                  stroke={style.inner.color}
-                  strokeWidth={style.inner.width}
-                />
-              )}
               {pair.kind === 'head' && (
                 <IvyLeaves
                   points={[
@@ -1798,4 +1789,4 @@ function AllianceGraph({
       </div>
     </div>
   )
-}
+})

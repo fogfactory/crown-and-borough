@@ -177,8 +177,21 @@ export function buildHouses(
   for (const claim of claims)
     if (!claim.ended) claimedBy.set(claim.target, (claimedBy.get(claim.target) ?? 0) + 1)
 
+  const noblesByOwner = new Map<string, Noble[]>()
+  for (const noble of nobles) {
+    const owned = noblesByOwner.get(noble.owner) ?? []
+    owned.push(noble)
+    noblesByOwner.set(noble.owner, owned)
+  }
+  const deceasedByOwner = new Map<string, DeceasedNoble[]>()
+  for (const noble of deceased) {
+    const owned = deceasedByOwner.get(noble.owner) ?? []
+    owned.push(noble)
+    deceasedByOwner.set(noble.owner, owned)
+  }
+
   return players.map((player) => {
-    const own = nobles.filter((noble) => noble.owner === player.id)
+    const own = noblesByOwner.get(player.id) ?? []
     const order = new Map((player.succession ?? []).map((code, index) => [code, index]))
     const living = [...own].sort(
       (a, b) => (order.get(a.code) ?? order.size) - (order.get(b.code) ?? order.size),
@@ -208,9 +221,7 @@ export function buildHouses(
         claimedBy: claimedBy.get(noble.code) ?? 0,
       }
     })
-    const dead = deceased
-      .filter((noble) => noble.owner === player.id)
-      .sort((a, b) => a.turn - b.turn)
+    const dead = [...(deceasedByOwner.get(player.id) ?? [])].sort((a, b) => a.turn - b.turn)
     for (const noble of dead) {
       members.push({
         code: noble.code,
@@ -241,13 +252,13 @@ export function buildLinks(houses: House[], marriages: Marriage[]): LineageLink[
   for (const house of houses) {
     for (const member of house.members) houseByCode.set(member.code, house.player.id)
   }
-  const keys = new Set<string>()
+  const seen = new Map<string, number>()
   return marriages.map((marriage) => {
-    // A pair married again keeps the first key; the next ones add their turn.
-    let key = `${marriage.nobleA}-${marriage.nobleB}`
-    if (keys.has(key)) key += `@${marriage.turn}`
-    while (keys.has(key)) key += '+'
-    keys.add(key)
+    // A pair married again keeps the first key; the next ones are numbered.
+    const pair = `${marriage.nobleA}-${marriage.nobleB}`
+    const count = (seen.get(pair) ?? 0) + 1
+    seen.set(pair, count)
+    const key = count === 1 ? pair : `${pair}#${count}`
     const active = marriage.active ?? true
     const activeHeadFor = marriage.activeHeadFor ?? []
     const isActiveHead = activeHeadFor.length > 0
@@ -721,9 +732,11 @@ export function layoutTree(
       .filter(({ code }) => inTree(unitOf.get(code)!))
     const lineAbove: string[] = []
     const lineBelow: string[] = []
+    let nextLiving = 0
     for (const member of house.members) {
+      // Position among the living; the dead have none.
+      const index = member.dead ? -1 : nextLiving++
       if (inTree(unitOf.get(member.code)!)) continue
-      const index = living.indexOf(member)
       const earlier = anchors.filter((anchor) => anchor.index < index)
       if (anchors.length === 0) lineAbove.push(member.code)
       else if (member.dead || index < 0) lineBelow.push(member.code)
@@ -828,9 +841,9 @@ export function layoutTree(
   const arrange = (tree: TreeBlock) => {
     const everyone = [...tree.units, ...tree.slots]
     const treeJoins = joinsOfTree.get(tree) ?? []
-    let state: Unit[][] = Array.from({ length: tree.depth }, (_, row) =>
-      everyone.filter((unit) => unit.row === row).sort((a, b) => a.ord - b.ord),
-    )
+    let state: Unit[][] = Array.from({ length: tree.depth }, () => [])
+    for (const unit of everyone) state[unit.row]?.push(unit)
+    for (const row of state) row.sort((a, b) => a.ord - b.ord)
     const assign = (rows: Unit[][]) => {
       for (const row of rows) {
         let prev: Unit | null = null
@@ -1262,9 +1275,11 @@ function cachedColumns(
     links.map((link) => [link.key, link.a, link.b, link.active, link.weight ?? 0]),
     claims.map((claim) => [claim.heir, claim.target]),
   ])
-  const byId = new Map(houses.map((house) => [house.player.id, house]))
   const known = columnCache.get(signature)
-  if (known) return known.map((id) => byId.get(id)!)
+  if (known) {
+    const byId = new Map(houses.map((house) => [house.player.id, house]))
+    return known.map((id) => byId.get(id)!)
+  }
   const columns = orderColumns(houses, links, focus, claims, houseOf)
   columnCache.set(signature, columns.map((house) => house.player.id))
   if (columnCache.size > COLUMN_CACHE_SIZE)
@@ -1467,10 +1482,10 @@ export function placeTree(
   medallionLines: (code: string) => number,
 ): TreePlacement {
   const { rows, rowOf } = layout
-  const heightOf = (code: string) =>
-    MEDALLION_BASE_H +
-    medallionLines(code) * MEDALLION_LINE_H +
-    (medallionLines(code) > 0 ? 4 : 0)
+  const heightOf = (code: string) => {
+    const extra = medallionLines(code)
+    return MEDALLION_BASE_H + extra * MEDALLION_LINE_H + (extra > 0 ? 4 : 0)
+  }
 
   const rowHeight = new Array<number>(rows).fill(0)
   for (const [code, row] of rowOf) rowHeight[row] = Math.max(rowHeight[row], heightOf(code))

@@ -34,6 +34,32 @@ export function pathPoints(d: string): Point[] {
 }
 
 /**
+ * The two ends of the rounded corner at `here`, as wide as the neighbouring
+ * segments allow (at most `radius`), or null when the corner is too tight to round.
+ */
+function corner(
+  prev: Point,
+  here: Point,
+  next: Point,
+  radius: number,
+): { before: Point; after: Point } | null {
+  const back = Math.hypot(here.x - prev.x, here.y - prev.y)
+  const forth = Math.hypot(next.x - here.x, next.y - here.y)
+  const r = Math.min(radius, back / 2, forth / 2)
+  if (r < 0.5) return null
+  return {
+    before: {
+      x: here.x + ((prev.x - here.x) / back) * r,
+      y: here.y + ((prev.y - here.y) / back) * r,
+    },
+    after: {
+      x: here.x + ((next.x - here.x) / forth) * r,
+      y: here.y + ((next.y - here.y) / forth) * r,
+    },
+  }
+}
+
+/**
  * Smooth path through the points: every corner is rounded by a quadratic
  * curve, as wide as the neighbouring segments allow (at most `radius`).
  */
@@ -47,22 +73,12 @@ export function roundedPath(points: Point[], radius = 18): string {
       d += ` L${here.x},${here.y}`
       break
     }
-    const prev = points[i - 1]
-    const back = Math.hypot(here.x - prev.x, here.y - prev.y)
-    const forth = Math.hypot(next.x - here.x, next.y - here.y)
-    const r = Math.min(radius, back / 2, forth / 2)
-    if (r < 0.5) {
+    const round = corner(points[i - 1], here, next, radius)
+    if (!round) {
       d += ` L${here.x},${here.y}`
       continue
     }
-    const before = {
-      x: here.x + ((prev.x - here.x) / back) * r,
-      y: here.y + ((prev.y - here.y) / back) * r,
-    }
-    const after = {
-      x: here.x + ((next.x - here.x) / forth) * r,
-      y: here.y + ((next.y - here.y) / forth) * r,
-    }
+    const { before, after } = round
     d += ` L${before.x},${before.y} Q${here.x},${here.y} ${after.x},${after.y}`
   }
   return d
@@ -95,24 +111,13 @@ export function roundedPolyline(points: Point[], radius = 18, steps = 6): Point[
   if (points.length < 3) return points.slice()
   const out: Point[] = [points[0]]
   for (let i = 1; i < points.length - 1; i++) {
-    const prev = points[i - 1]
     const here = points[i]
-    const next = points[i + 1]
-    const back = Math.hypot(here.x - prev.x, here.y - prev.y)
-    const forth = Math.hypot(next.x - here.x, next.y - here.y)
-    const r = Math.min(radius, back / 2, forth / 2)
-    if (r < 0.5) {
+    const round = corner(points[i - 1], here, points[i + 1], radius)
+    if (!round) {
       out.push(here)
       continue
     }
-    const before = {
-      x: here.x + ((prev.x - here.x) / back) * r,
-      y: here.y + ((prev.y - here.y) / back) * r,
-    }
-    const after = {
-      x: here.x + ((next.x - here.x) / forth) * r,
-      y: here.y + ((next.y - here.y) / forth) * r,
-    }
+    const { before, after } = round
     for (let k = 0; k <= steps; k++) {
       const t = k / steps
       const u = 1 - t
