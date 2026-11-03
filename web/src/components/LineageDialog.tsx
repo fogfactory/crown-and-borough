@@ -8,19 +8,16 @@ import {
 } from '@tabler/icons-react'
 import { Dialog } from 'radix-ui'
 
-import { BannerIcon } from '@/components/ArmsIcons'
-import { NoblePawnIcon } from '@/components/NobleHolder'
+import { ShieldIcon } from '@/components/ArmsIcons'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
-import { playerArms } from '@/lib/heraldry'
+import { playerArms, SHIELD_PATH } from '@/lib/heraldry'
 import {
   buildAlliancePairs,
   buildHouses,
   buildLinks,
   countLines,
   layoutTree,
-  MEDALLION_ANCHOR_Y,
-  MEDALLION_ROUNDEL_R,
   MEDALLION_W,
   placeTree,
   type AlliancePair,
@@ -31,7 +28,6 @@ import {
   type LineageLink,
   type TreeBox,
 } from '@/lib/lineage'
-import { nobleAttributesByCode, type NobleAttributes } from '@/lib/noble-attributes'
 import { useSimulationHistory } from '@/lib/simulation-history'
 import {
   useVictorySimulation,
@@ -56,13 +52,10 @@ import type {
 import {
   endAngle,
   pathPoints,
-  reachInto,
   roundedPath,
   type Point,
-  type Roundel,
 } from '@/lib/lineage-art'
 import {
-  DEFAULT_PLAYER_COLOR,
   LINEAGE_BAND,
   LINEAGE_BRASS,
   LINEAGE_BRASS_LIGHT,
@@ -72,6 +65,8 @@ import {
   LINEAGE_HEAD,
   LINEAGE_INK,
   LINEAGE_PAPER,
+  LINEAGE_SCROLL_ROLL,
+  LINEAGE_SCROLL_SHADE,
   LINEAGE_SECONDARY,
   LINEAGE_WEAVE,
   MAP_INK,
@@ -232,7 +227,7 @@ function TapestryFrame({ width, height }: { width: number; height: number }) {
 }
 
 /**
- * The knot tying two roundels: a ring in the colour of the bond (brass for the
+ * The knot tying two cartouches: a ring in the colour of the bond (brass for the
  * head marriage, ink for a secondary one); an ended marriage has a broken ring
  * crossed by a slash.
  */
@@ -267,19 +262,20 @@ function MarriageKnot({
   )
 }
 
-/** Where the knot of a marriage sits: the middle of its gap. */
+/** Where the knot of a marriage sits: the middle of its line, or of its arch. */
 function knotPosition(points: Point[], aligned: boolean) {
   if (points.length < 2) return null
   const [first, last] = [points[0], points[points.length - 1]]
   if (aligned || points.length < 4)
     return { x: (first.x + last.x) / 2, y: (first.y + last.y) / 2 }
-  return { x: points[1].x, y: (points[1].y + points[2].y) / 2 }
+  return { x: (points[1].x + points[2].x) / 2, y: points[1].y }
 }
 
 /**
- * Header button opening a full-screen dialog on the houses' lineage: a tree
- * (one column per house, joined by their marriages and claims) to understand
- * the whole board, with the alliance graph as an inset to plan the victory.
+ * Header button opening a full-screen dialog on the houses' lineage: a
+ * genealogical tree (couples side by side, the heirs of a claim hung under
+ * their couple) to understand the whole board, with the alliance graph as an
+ * inset to plan the victory.
  */
 export function LineageDialog(props: LineageDialogProps) {
   const { t } = useLanguage()
@@ -420,31 +416,6 @@ export function LineageDialog(props: LineageDialogProps) {
         (showEnded || !claim.ended),
     )
   }, [houses, claimList, showClaims, showEnded])
-  const attributes = useMemo(
-    () =>
-      nobleAttributesByCode({
-        nobles,
-        fiefs,
-        bishoprics: data.bishoprics,
-        cardinals: data.cardinals,
-        pope: data.pope,
-        king: data.king,
-        queen: data.queen,
-        queenDowager: data.queenDowager,
-        excommunicated: data.excommunicated,
-      }),
-    [
-      nobles,
-      fiefs,
-      data.bishoprics,
-      data.cardinals,
-      data.pope,
-      data.king,
-      data.queen,
-      data.queenDowager,
-      data.excommunicated,
-    ],
-  )
   const focusId =
     focus && houses.some((house) => house.player.id === focus) ? focus : null
   const playerName = (house: House) => house.player.name || house.player.id
@@ -595,7 +566,6 @@ export function LineageDialog(props: LineageDialogProps) {
               links={links}
               claims={claims}
               focus={focusId}
-              attributes={attributes}
               edit={
                 simulating ? { selected: selection, pending, onNoble, onLink } : undefined
               }
@@ -850,7 +820,22 @@ function SimulationBar({
   )
 }
 
-function Swatch({ kind }: { kind: EdgeKind | 'claim' }) {
+function Swatch({ kind }: { kind: EdgeKind | 'claim' | 'noble' }) {
+  if (kind === 'noble')
+    return (
+      <svg aria-hidden="true" width="44" height="16" className="shrink-0">
+        <g transform="scale(0.55)">
+          <ScrollShape w={80} h={29} color={LINEAGE_HEAD} />
+        </g>
+        <path
+          d={SHIELD_PATH}
+          transform="translate(11 8) scale(0.5)"
+          fill={LINEAGE_HEAD}
+          stroke={LINEAGE_INK}
+          strokeWidth="1.2"
+        />
+      </svg>
+    )
   return (
     <svg aria-hidden="true" width="36" height="14" className="shrink-0">
       <HatchDefs />
@@ -888,7 +873,8 @@ function Swatch({ kind }: { kind: EdgeKind | 'claim' }) {
 
 function Legend() {
   const { t } = useLanguage()
-  const kinds: Array<[EdgeKind | 'claim', MessageKey]> = [
+  const kinds: Array<[EdgeKind | 'claim' | 'noble', MessageKey]> = [
+    ['noble', 'lineage.legend.noble'],
     ['head', 'lineage.legend.head'],
     ['secondary', 'lineage.legend.secondary'],
     ['ended', 'lineage.legend.ended'],
@@ -928,8 +914,8 @@ interface MedallionLine {
   testId?: string
 }
 
-/** Characters of a name that fit under a roundel before it wraps. */
-const NAME_LINE_CHARS = 20
+/** Characters of a name that fit beside the blazon of a cartouche before it wraps. */
+const NAME_LINE_CHARS = 15
 
 /** The titles, standing and deaths of a member, one text line each. */
 function medallionTexts(member: HouseMember, t: Translate): MedallionLine[] {
@@ -938,6 +924,11 @@ function medallionTexts(member: HouseMember, t: Translate): MedallionLine[] {
     lines.push({
       key: 'cause',
       text: `✝ ${t(`lineage.cause.${member.cause}` as MessageKey)}`,
+    })
+  if (member.status && member.status !== 'free')
+    lines.push({
+      key: 'status',
+      text: t(`orders.nobleStatus.${member.status}` as MessageKey),
     })
   if (member.commissioner)
     lines.push({
@@ -985,21 +976,25 @@ function LineageTree({
   links,
   claims,
   focus,
-  attributes,
   edit,
 }: {
   houses: House[]
   links: LineageLink[]
   claims: Claim[]
   focus: PlayerId | null
-  attributes: Map<string, NobleAttributes>
   edit?: TreeEdit
 }) {
   const { t } = useLanguage()
   const scroller = useRef<HTMLDivElement>(null)
   const claimRefs = useMemo<ClaimRef[]>(
     () =>
-      claims.map(({ heir, target, spouse, ended }) => ({ heir, target, spouse, ended })),
+      claims.map(({ heir, target, spouse, ended, turn }) => ({
+        heir,
+        target,
+        spouse,
+        ended,
+        turn,
+      })),
     [claims],
   )
   const layout = useMemo(
@@ -1028,26 +1023,28 @@ function LineageTree({
         countLines((texts.get(code) ?? []).map((line) => line.text)),
     )
   }, [layout, houses, texts])
-  const { width, height, boxes, columnX } = placement
-  const roundels = useMemo<Roundel[]>(
-    () =>
-      [...boxes.values()].map((box) => ({
-        x: box.x + MEDALLION_W / 2,
-        y: box.y + MEDALLION_ANCHOR_Y,
-        r: MEDALLION_ROUNDEL_R,
-        half: MEDALLION_W / 2,
-      })),
-    [boxes],
-  )
+  const { width, height, boxes } = placement
 
   useEffect(() => {
     const element = scroller.current
     if (!element || !focus) return
-    const index = layout.columns.findIndex((house) => house.player.id === focus)
-    if (index < 0) return
-    element.scrollLeft = FRAME_PAD + columnX[index] + 88 - element.clientWidth / 2
-    element.scrollTop = 0
-  }, [focus, layout, columnX])
+    const house = houses.find((entry) => entry.player.id === focus)
+    const lefts = (house?.members ?? [])
+      .map((member) => layout.x.get(member.code))
+      .filter((left): left is number => left !== undefined)
+    if (lefts.length === 0) return
+    const first = Math.min(...lefts)
+    const last = Math.max(...lefts) + MEDALLION_W
+    // The house's cards centred, or its first card at the edge when they do not fit.
+    element.scrollLeft = Math.min(
+      FRAME_PAD + (first + last) / 2 - element.clientWidth / 2,
+      FRAME_PAD + first - 24,
+    )
+    // The house's first row at the top, unless it already shows without scrolling.
+    const tops = (house?.members ?? []).map((member) => boxes.get(member.code)?.y ?? Infinity)
+    const top = FRAME_PAD + Math.min(...tops) - 24
+    element.scrollTop = Number.isFinite(top) && top > element.clientHeight - 160 ? top : 0
+  }, [focus, houses, layout, boxes])
 
   const isSelected = (link: LineageLink) =>
     edit?.selected?.type === 'link' &&
@@ -1074,7 +1071,7 @@ function LineageTree({
             <HatchDefs />
             {placement.claims.map(({ claim: index, d }) => {
               const claim = claims[index]
-              const points = reachInto(pathPoints(d), roundels)
+              const points = pathPoints(d)
               const end = points[points.length - 1]
               const angle = (endAngle(points) * 180) / Math.PI
               const ended = Boolean(claim.ended)
@@ -1108,7 +1105,7 @@ function LineageTree({
             })}
             {placement.marriages.map(({ link, aligned, d: edge }) => {
               const style = EDGE_STYLE[link.kind]
-              const points = reachInto(pathPoints(edge), roundels)
+              const points = pathPoints(edge)
               const d = roundedPath(points, 10)
               const knot = knotPosition(points, aligned)
               return (
@@ -1154,27 +1151,23 @@ function LineageTree({
               )
             })}
           </svg>
-          {layout.columns.map((house, columnIndex) => (
+          {houses.map((house) => (
             <section
               key={house.player.id}
               aria-label={house.player.name || house.player.id}
+              data-focused={house.player.id === focus}
               className="pointer-events-none absolute inset-0 z-10"
             >
-              <HouseBanner
-                house={house}
-                focused={house.player.id === focus}
-                left={columnX[columnIndex]}
-              />
               <ol>
                 {house.members.map((member, index) => (
-                  <Medallion
+                  <Cartouche
                     key={member.code}
                     member={member}
                     rank={index + 1}
+                    arms={playerArms(house.player)}
                     color={house.player.color || NEUTRAL_ARMY_COLOR}
                     box={boxes.get(member.code)!}
                     lines={texts.get(member.code) ?? []}
-                    attributes={attributes.get(member.code)}
                     edit={edit}
                   />
                 ))}
@@ -1187,101 +1180,104 @@ function LineageTree({
   )
 }
 
-/** The pennant hung from a brass rod at the head of a house's column. */
-function HouseBanner({
-  house,
-  focused,
-  left,
+/** Rolls of a scroll: the width of each curled end. */
+const ROLL = 18
+/** Heading of a cartouche: the blazon, then the name beside it. */
+const CARTOUCHE_PAD_X = ROLL + 8
+
+/**
+ * The parchment scroll of a noble: a sheet unrolled between two curled ends,
+ * inked at its edges, with a rule in the house colour along its top and bottom.
+ */
+function ScrollShape({
+  w,
+  h,
+  color,
+  dead = false,
 }: {
-  house: House
-  focused: boolean
-  left: number
+  w: number
+  h: number
+  color: string
+  dead?: boolean
 }) {
-  const color = house.player.color || DEFAULT_PLAYER_COLOR
-  const cloth = 'M10,6 H166 V40 L88,32 L10,40 Z'
+  const half = ROLL / 2
+  const dash = dead ? '4 3' : undefined
+  const roll = (x: number) => (
+    <g transform={`translate(${x} 0)`}>
+      <path
+        d={`M0,5 A${half},4 0 0 1 ${ROLL},5 V${h - 5} A${half},4 0 0 1 0,${h - 5} Z`}
+        fill={LINEAGE_SCROLL_ROLL}
+        stroke={LINEAGE_INK}
+        strokeWidth="1.4"
+        strokeDasharray={dash}
+      />
+      <ellipse
+        cx={half}
+        cy="5"
+        rx={half}
+        ry="4"
+        fill={LINEAGE_SCROLL_SHADE}
+        stroke={LINEAGE_INK}
+        strokeWidth="1.2"
+      />
+      <path
+        d={`M${half - 4},5 A4,2 0 1 1 ${half + 1},6.6 M${half},5 H${half + 4}`}
+        fill="none"
+        stroke={LINEAGE_INK}
+        strokeWidth="0.8"
+      />
+      <path
+        d={`M${half - 3},${h - 5} V10 M${half + 3.5},${h - 6} V12`}
+        fill="none"
+        stroke={LINEAGE_SCROLL_SHADE}
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+    </g>
+  )
   return (
-    <h3
-      data-focused={focused}
-      className="absolute top-0 text-sm font-semibold leading-4 text-ink-900"
-      style={{ left, width: MEDALLION_W, height: 46 }}
-    >
-      <svg
-        aria-hidden="true"
-        className="absolute inset-0"
-        width={MEDALLION_W}
-        height={46}
-        viewBox={`0 0 ${MEDALLION_W} 46`}
-      >
-        <path d={cloth} fill={LINEAGE_PAPER} />
-        {focused && <path d={cloth} fill={LINEAGE_BRASS_LIGHT} fillOpacity={0.3} />}
-        <path
-          d={cloth}
-          fill="none"
-          stroke={LINEAGE_INK}
-          strokeWidth={4}
-          strokeLinejoin="round"
-        />
-        <path
-          d={cloth}
-          fill="none"
-          stroke={color}
-          strokeWidth={2}
-          strokeLinejoin="round"
-        />
-        <line
-          x1="2"
-          y1="4"
-          x2={MEDALLION_W - 2}
-          y2="4"
-          stroke={focused ? LINEAGE_BRASS : LINEAGE_SECONDARY}
-          strokeWidth={focused ? 4 : 3}
-          strokeLinecap="round"
-        />
-        {[2, MEDALLION_W - 2].map((x) => (
-          <circle
-            key={x}
-            cx={x}
-            cy="4"
-            r="3"
-            fill={LINEAGE_BRASS_LIGHT}
-            stroke={LINEAGE_INK}
-            strokeWidth="1"
-          />
-        ))}
-      </svg>
-      <span className="absolute inset-x-5 top-2 flex h-6 items-center justify-center gap-1.5">
-        <BannerIcon
-          id={`lineage-arms-${house.player.id}`}
-          arms={playerArms(house.player)}
-        />
-        <span className="min-w-0 truncate">{house.player.name || house.player.id}</span>
-      </span>
-    </h3>
+    <g opacity={dead ? 0.65 : 1}>
+      <path
+        d={`M${half},6 H${w - half} V${h - 6} H${half} Z`}
+        fill={LINEAGE_PAPER}
+        stroke={LINEAGE_INK}
+        strokeWidth="1.4"
+        strokeDasharray={dash}
+      />
+      <path
+        d={`M${ROLL + 4},9.5 H${w - ROLL - 4} M${ROLL + 4},${h - 9.5} H${w - ROLL - 4}`}
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      {roll(0)}
+      {roll(w - ROLL)}
+    </g>
   )
 }
 
 /**
- * A noble: a roundel (pawn in a ring of the house's colour, succession rank
- * on a brass disc) with the name and every title written beneath on the cloth.
+ * A noble: a parchment scroll carrying the house blazon in the colours of the
+ * player, the name, the titles written beneath, and the succession rank on a
+ * brass seal.
  */
-function Medallion({
+function Cartouche({
   member,
   rank,
+  arms,
   color,
   box,
   lines,
-  attributes,
   edit,
 }: {
   member: HouseMember
   rank: number
+  arms: ReturnType<typeof playerArms>
   color: string
   box: TreeBox
   lines: MedallionLine[]
-  attributes?: NobleAttributes
   edit?: TreeEdit
 }) {
-  const size = MEDALLION_ANCHOR_Y * 2
   const selected = edit?.selected?.type === 'noble' && edit.selected.code === member.code
   const pending = edit?.pending?.from === member.code
   return (
@@ -1289,139 +1285,114 @@ function Medallion({
       data-noble={member.code}
       data-dead={member.dead || undefined}
       className={cn(
-        'pointer-events-none absolute flex flex-col items-center text-center text-xs',
+        'pointer-events-none absolute text-center text-xs',
         edit && 'cursor-pointer',
       )}
       onClick={edit ? () => edit.onNoble(member.code) : undefined}
       style={{ left: box.x, top: box.y, width: box.w, minHeight: box.h }}
     >
-      <div
-        className="pointer-events-auto relative shrink-0"
-        style={{ width: size, height: size }}
+      <svg
+        aria-hidden="true"
+        className="absolute inset-0 overflow-visible"
+        width={box.w}
+        height={box.h}
+        viewBox={`0 0 ${box.w} ${box.h}`}
       >
-        <svg
-          aria-hidden="true"
-          className="absolute inset-0 overflow-visible"
-          width={size}
-          height={size}
-          viewBox={`0 0 ${size} ${size}`}
-        >
-          {selected && (
-            <>
-              <circle
-                cx="22"
-                cy="22"
-                r="26.5"
-                fill="none"
-                stroke={SELECTION_HALO}
-                strokeWidth="3"
-              />
-              <circle
-                cx="22"
-                cy="22"
-                r="24.5"
-                fill="none"
-                stroke={SELECTION_STROKE}
-                strokeWidth="1.5"
-              />
-            </>
-          )}
-          {pending && (
-            <circle
-              cx="22"
-              cy="22"
-              r="25"
+        {selected && (
+          <>
+            <rect
+              x="-5"
+              y="-1"
+              width={box.w + 10}
+              height={box.h + 2}
+              rx="12"
               fill="none"
-              stroke={LINEAGE_SECONDARY}
-              strokeWidth="2"
-              strokeDasharray="4 3"
+              stroke={SELECTION_HALO}
+              strokeWidth="3"
             />
-          )}
-          <g opacity={member.dead ? 0.65 : 1}>
-            <circle
-              cx="22"
-              cy="22"
-              r={MEDALLION_ROUNDEL_R}
-              fill={LINEAGE_PAPER}
-              stroke={LINEAGE_INK}
+            <rect
+              x="-3"
+              y="1"
+              width={box.w + 6}
+              height={box.h - 2}
+              rx="10"
+              fill="none"
+              stroke={SELECTION_STROKE}
               strokeWidth="1.5"
-              strokeDasharray={member.dead ? '4 3' : undefined}
             />
-            <circle
-              cx="22"
-              cy="22"
-              r="17.5"
-              fill="none"
-              stroke={color}
-              strokeWidth="3.5"
-            />
-            <circle
-              cx="22"
-              cy="22"
-              r="15.5"
-              fill="none"
-              stroke={LINEAGE_INK}
-              strokeWidth="0.8"
-            />
-          </g>
-          {!member.dead && (
-            <g transform="translate(37 37)">
-              <circle
-                r="8"
-                fill={LINEAGE_BRASS_LIGHT}
-                stroke={LINEAGE_INK}
-                strokeWidth="1"
-              />
-              <text
-                textAnchor="middle"
-                dy="4"
-                className="font-display text-2xs font-bold"
-                fill={LINEAGE_INK}
-              >
-                {rank}
-              </text>
-            </g>
-          )}
-        </svg>
-        <span
-          className={cn(
-            'absolute inset-0 flex items-center justify-center text-lg leading-none',
-            member.dead && 'opacity-60',
-          )}
-        >
-          <NoblePawnIcon
-            noble={{ status: member.status ?? 'free' }}
-            color={color}
-            attributes={attributes}
+          </>
+        )}
+        {pending && (
+          <rect
+            x="-4"
+            y="-1"
+            width={box.w + 8}
+            height={box.h + 2}
+            rx="11"
+            fill="none"
+            stroke={LINEAGE_SECONDARY}
+            strokeWidth="2"
+            strokeDasharray="4 3"
           />
-        </span>
-      </div>
-      <div className="pointer-events-auto mt-0.5 w-full px-1">
-        <p
-          className={cn(
-            'break-words text-sm font-semibold leading-4',
-            member.dead ? 'text-ink-700 line-through' : 'text-ink-900',
-          )}
-        >
-          {member.name}
-          {member.sex && (
-            <span aria-label={member.sex} className="ml-1 font-normal text-ink-700">
-              {member.sex === 'female' ? '♀' : '♂'}
-            </span>
-          )}
-        </p>
-        {lines.map((line) => (
-          <p
-            key={line.key}
-            data-testid={line.testId}
+        )}
+        <ScrollShape w={box.w} h={box.h} color={color} dead={member.dead} />
+        {!member.dead && (
+          <g transform={`translate(${box.w - CARTOUCHE_PAD_X - 4} 6)`}>
+            <circle r="8" fill={LINEAGE_BRASS_LIGHT} stroke={LINEAGE_INK} strokeWidth="1" />
+            <text
+              textAnchor="middle"
+              dy="3.5"
+              className="font-display text-2xs font-bold"
+              fill={LINEAGE_INK}
+            >
+              {rank}
+            </text>
+          </g>
+        )}
+      </svg>
+      <div
+        className="pointer-events-auto relative flex flex-col"
+        style={{ minHeight: box.h, padding: `12px ${CARTOUCHE_PAD_X}px` }}
+      >
+        <div className="flex min-h-8 items-center gap-1.5">
+          <span
             className={cn(
-              'break-words leading-4',
-              line.alert ? 'text-vermilion-700' : 'text-ink-700',
+              'shrink-0 [&>svg]:h-8 [&>svg]:w-7',
+              member.dead && 'opacity-60',
             )}
           >
-            {line.text}
+            <ShieldIcon id={`lineage-arms-${member.code}`} arms={arms} />
+          </span>
+          <p
+            className={cn(
+              'min-w-0 flex-1 break-words text-sm font-semibold leading-4',
+              member.dead ? 'text-ink-700 line-through' : 'text-ink-900',
+            )}
+          >
+            {member.name}
+            {member.sex && (
+              <span aria-label={member.sex} className="ml-1 font-normal text-ink-700">
+                {member.sex === 'female' ? '♀' : '♂'}
+              </span>
+            )}
           </p>
-        ))}
+        </div>
+        {lines.length > 0 && (
+          <div className="mt-1">
+            {lines.map((line) => (
+              <p
+                key={line.key}
+                data-testid={line.testId}
+                className={cn(
+                  'break-words leading-4',
+                  line.alert ? 'text-vermilion-700' : 'text-ink-700',
+                )}
+              >
+                {line.text}
+              </p>
+            ))}
+          </div>
+        )}
       </div>
     </li>
   )

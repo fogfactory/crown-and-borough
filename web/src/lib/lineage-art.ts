@@ -3,14 +3,6 @@
  * right-angled stems; these turn them into the curved vines drawn on the cloth.
  */
 
-/** A roundel: its centre, its radius and half the width of its box. */
-export interface Roundel {
-  x: number
-  y: number
-  r: number
-  half: number
-}
-
 export interface Point {
   x: number
   y: number
@@ -39,32 +31,6 @@ export function pathPoints(d: string): Point[] {
     points.push({ x, y })
   }
   return points
-}
-
-/**
- * Pulls the ends of a line that stops at the edge of a noble's box in to the
- * rim of its roundel, so a stem or a vine visibly reaches the figure.
- */
-export function reachInto(points: Point[], roundels: Roundel[]): Point[] {
-  const moved = points.map((point) => ({ ...point }))
-  const reach = (index: number) => {
-    const point = moved[index]
-    for (const roundel of roundels) {
-      const dx = roundel.x - point.x
-      if (
-        Math.abs(point.y - roundel.y) > 0.5 ||
-        Math.abs(Math.abs(dx) - roundel.half) > 0.5
-      )
-        continue
-      moved[index] = { x: roundel.x - Math.sign(dx) * roundel.r, y: point.y }
-      return
-    }
-  }
-  if (moved.length > 1) {
-    reach(0)
-    reach(moved.length - 1)
-  }
-  return moved
 }
 
 /**

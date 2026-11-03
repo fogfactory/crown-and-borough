@@ -465,8 +465,8 @@ Les titres de fief ([titres.md](titres.md)), religieux
 livrés dans `develop`, marquisat compris : les attributs sont donc tous dus
 dès la phase 4. Ils remplacent les pastilles de titre (`NobleHolder.tsx`,
 fiches de nobles) partout où un noble est représenté : la fiche montre le pion
-puis les titres en texte. L'arbre de la lignée garde son dessin jusqu'à sa
-refonte (phase 7).
+puis les titres en texte. L'arbre de la lignée ne montre pas le pion : la
+captivité d'un noble y est écrite en texte, avec ses titres.
 
 ### Bâtiments
 
@@ -874,26 +874,28 @@ ombre portée n'y figure.
   `ink-900` à l'extérieur, bande `paper-300` piquée de points, filet `brass-700`
   à l'intérieur, rosace de laiton à chaque coin. Les couleurs de ce dessin
   sont les constantes `LINEAGE_*` de `map-palette.ts`.
-- **Maison.** Chaque colonne est coiffée d'une bannière en forme de fanion
-  (queue d'aronde) suspendue à une tringle : `paper-50` bordé d'un liseré
-  d'encre et de la teinture du joueur, armoiries et nom au centre. La tringle
-  de la maison choisie dans « Focus » est en `brass-700`, plus épaisse, et le
-  fanion se teinte de laiton.
-- **Noble.** Un médaillon rond : anneau d'encre, anneau de la teinture du
-  joueur (le canal « à qui »), pion à attributs au centre, rang de succession
-  en chiffre d'encre sur un disque `brass-400` ; un noble mort a un anneau
-  d'encre en pointillés et pas de rang. Le nom (avec ♂ ou ♀ en `ink-700`) et
-  les titres s'écrivent en texte centré sous le médaillon, rangés dans l'ordre
-  de succession ; ils ne portent ni cadre ni fond. En simulation, la sélection
-  double le médaillon d'un halo `brass-400` et d'un filet `brass-700`, et un
-  noble en attente de second clic est cerclé de tirets `ink-700`.
-- **Mariage.** Un double trait horizontal relie deux médaillons, noué en son
-  milieu par un anneau : mariage de tête en `brass-700`, mariage secondaire en
-  `ink-700`, mariage terminé en hachures `ink-500` avec un anneau brisé barré
-  d'un trait.
+- **Noble.** Un cartouche en parchemin déroulé entre deux rouleaux aux bords
+  enroulés (SVG) : feuille `paper-50`, rouleaux `paper-300` à la face ombrée
+  `paper-200`, contour d'encre `ink-900`, et un filet de la teinture du joueur
+  (le canal « à qui ») le long du bord haut et du bord bas. L'écu de la
+maison (`ShieldIcon`, le même écu que celui des armées sur la carte, aux armes
+du joueur) se tient à gauche du nom : c'est lui qui dit à quelle maison
+appartient un noble, l'arbre ne regroupant pas les maisons. Le nom (avec ♂ ou
+♀ en `ink-700`), puis les titres, la captivité et les décès s'écrivent en
+texte sous l'écu, rangés dans l'ordre de succession, jamais coupés ; le rang
+de succession est un sceau
+  `brass-400` serti d'un chiffre d'encre sur le bord haut. Un noble mort a un
+  contour d'encre en pointillés, un nom barré et pas de rang. En simulation,
+  la sélection double le cartouche d'un halo `brass-400` et d'un filet
+  `brass-700`, et un noble en attente de second clic est cerclé de tirets
+  `ink-700`.
+- **Mariage.** Un double trait horizontal relie deux cartouches voisins, noué
+  en son milieu par un anneau : mariage de tête en `brass-700`, mariage
+  secondaire en `ink-700`, mariage terminé en hachures `ink-500` avec un
+  anneau brisé barré d'un trait.
 - **Prétention.** Une prétention est une vigne : un trait pointillé `ink-700`
-  aux angles arrondis, qui part du couple, suit sa voie dans l'espace voisin de
-  la colonne de l'héritier et s'achève sur une feuille au bord du médaillon de
+  aux angles arrondis, qui part de l'anneau du couple, descend dans l'espace
+  entre les rangées et s'achève sur une feuille au bord haut du cartouche de
   l'héritier. Une prétention éteinte est plus pâle et sa feuille est vide.
 - Les titres s'écrivent en texte sous le nom (décision 23) ; aucune
   étiquette n'est coupée.
@@ -907,29 +909,65 @@ ombre portée n'y figure.
   qu'aucune capture ne se confonde avec l'état réel.
 
 **Précision.** Le modèle ne connaît pas de filiation au-delà des prétentions
-([succession.md](succession.md)) : l'arbre ne dessine que l'ordre de
-succession, les mariages et les prétentions. Il défile dans les deux sens et
-se cadre sur la maison choisie dans « Focus ».
+([succession.md](succession.md)) : l'arbre ne dessine que les mariages et les
+prétentions, et les générations ne se déduisent que d'elles. Il défile dans
+les deux sens.
 
-**Disposition.** Une colonne par maison ; chaque noble occupe une ligne
-entière, et les lignes croissent strictement vers le bas d'une maison selon
-l'ordre de succession. Autour de la maison choisie dans « Focus », les
-maisons unies à elle par un mariage sont rangées par distance ; l'ordre des
-colonnes cherche ensuite à épargner aux mariages le franchissement de
-colonnes intermédiaires. Les mariages se placent du plus fort au plus faible
-(tête actif, secondaire, terminé, puis poids) : les deux époux d'un mariage
-partagent la même ligne tant que cela ne contredit pas un mariage plus fort ;
-sinon la ligne d'union se coude dans l'espace entre les deux colonnes, aux angles arrondis. Un
-héritier se range sous la ligne de ses parents quand l'ordre de succession le
-permet. Un mariage qui traverse des colonnes intermédiaires y laisse sa ligne
-libre : les nobles qui s'y trouveraient descendent. Chaque couple dont un
-noble porte une prétention a une seule tige pointillée, dans l'espace voisin
-de la colonne de l'héritier, sur une voie de 8 px qui lui est propre ; la
-tige d'une prétention éteinte est plus pâle. La hauteur d'un médaillon (rond et nom compris) se
-calcule à partir de ses lignes de texte, jamais du rendu. L'arbre n'offre ni
-déplacement manuel des médaillons, ni étiquette de mariage ou de prétention :
-les lignes et les tiges disent tout. Le graphe d'alliances est un encart replié
-par défaut.
+**Disposition.** Un **arbre de mariage** est un couple et les héritiers qui
+pendent sous son anneau, génération après génération ; les nobles sans
+mariage ni prétention n'en font pas partie et se rangent en **lignes de
+maison**.
+
+- *Arbre.* Les générations sont des rangées horizontales. Les époux d'un
+  mariage, terminé ou non, se tiennent côte à côte sur une même rangée ; un
+  noble qui a deux conjoints se tient entre eux, et un mariage de plus s'arque
+  au-dessus des cartouches qui séparent ses époux. Une prétention va du couple
+  (le noble visé et son conjoint) à l'héritier, qui se range sur la rangée
+  suivante, centré sous l'anneau du couple ; l'héritier qui se marie ou qui
+  porte à son tour une prétention fonde une génération de plus, et un couple se
+  range sous le plus profond de ses ancêtres. Chaque arbre est ordonné par
+  barycentre (vers les parents en descendant, vers les héritiers en remontant)
+  pour croiser le moins de tiges possible, à égalité selon l'ordre des maisons
+  puis l'ordre de succession.
+- *Lignes de maison.* Les nobles d'une maison qui n'ont ni mariage ni
+  prétention forment une ligne, dans l'ordre de succession vivant, à l'écart
+  d'une fratrie (20 px). Ceux qui précèdent, dans cet ordre, le premier noble
+  de la maison pris dans un arbre se rangent dans une ligne **au-dessus** de
+  tous les arbres ; ceux qui suivent le dernier, dans une ligne **au-dessous**.
+  Un noble qui se trouve entre deux nobles de sa maison pris dans des arbres
+  se range dans l'arbre, en frère ou sœur du plus proche qui le précède : sur
+  la même rangée, à côté de lui, du côté extérieur s'il est marié (jamais entre
+  les époux). Les morts d'une maison qui a un arbre se rangent au-dessous ; une
+  maison sans arbre n'a qu'une ligne, au-dessus. Les lignes de plusieurs
+  maisons partagent une rangée quand elles y tiennent, séparées d'un écart de
+  maison (44 px) ; une ligne plus large que la largeur visée passe à la rangée
+  suivante.
+- *Mise en page.* Les arbres se rangent par étagères de largeur au plus égale
+  à la largeur visée, de 1 280 px (la place que laisse la fenêtre plein écran
+  sur un écran de 1 440 px) ; un arbre plus large occupe une étagère à lui
+  seul. De haut en bas : les lignes du dessus, les étagères d'arbres, les
+  lignes du dessous ; chaque ligne et chaque étagère est centrée. Sur la
+  lignée de démonstration (quatre maisons, cinq mariages, quatre
+  prétentions), l'arbre mesure 1 084 px de large ; il ne défile horizontalement que sur une
+  fenêtre plus étroite ou devant un arbre plus large que la fenêtre, et
+  verticalement dès que les rangées dépassent sa hauteur.
+
+Les tiges d'un même couple partent de son anneau et se partagent une barre
+dans l'espace entre rangées, les couples dont les barres se chevauchent ayant
+chacun sa voie de 8 px ; un héritier plus bas que la rangée suivante y traverse
+les rangées intermédiaires par un emplacement laissé vide. Une prétention
+sans mariage reliant ses deux époux part du noble visé seul. Une prétention
+qui ferait descendre un couple de lui-même (l'héritier est le couple, ou
+l'ancêtre de ses propres ancêtres) ne détermine aucune rangée : sa tige est
+tracée du couple à l'héritier là où ils se trouvent, et peut alors traverser
+d'autres cartouches. Les arbres et les lignes suivent l'ordre des maisons,
+celles que des mariages unissent étant voisines ; le résultat ne dépend pas
+de l'ordre des données. La hauteur d'un cartouche se calcule à partir de
+ses lignes de texte, jamais du rendu. À l'ouverture, la fenêtre se cadre sur
+la maison choisie dans « Focus » : horizontalement, et verticalement si sa
+première rangée n'est pas visible d'emblée. Il n'y a ni déplacement manuel
+des cartouches, ni étiquette de mariage ou de prétention : les lignes et les
+tiges disent tout. Le graphe d'alliances est un encart replié par défaut.
 
 ### Rapport de tour
 

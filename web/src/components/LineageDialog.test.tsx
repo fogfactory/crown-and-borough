@@ -103,7 +103,7 @@ function renderDialog(
 }
 
 describe('LineageDialog', () => {
-  it('shows each family as a column with every title, the deceased and the claims', () => {
+  it('lists the nobles of each family with every title and the deceased', () => {
     renderDialog()
     const alice = screen.getByRole('region', { name: 'Alice' })
     expect(alice).toHaveTextContent('Duc Jean')
@@ -115,7 +115,34 @@ describe('LineageDialog', () => {
     expect(screen.getByRole('region', { name: 'Bob' })).toHaveTextContent('Victor')
   })
 
-  it('draws the head marriage and the claim as lines between medallions', () => {
+  it('gives every noble a scroll with the blazon of its house, its name and its rank', () => {
+    renderDialog()
+    // No column banner, no pawn: the shield on each scroll tells the house.
+    expect(screen.queryByRole('heading', { level: 3 })).not.toBeInTheDocument()
+    const jean = document.querySelector('[data-noble="JEA"]')!
+    expect(jean.querySelector('[data-shield-icon]')).toBeInTheDocument()
+    expect(jean).toHaveTextContent('Duc Jean')
+    expect(jean.querySelector('svg text')).toHaveTextContent('1')
+    const ids = [...document.querySelectorAll('[data-noble] [data-shield-icon] symbol')].map(
+      (symbol) => symbol.id,
+    )
+    expect(new Set(ids).size).toBe(ids.length)
+    // The dead have no rank.
+    expect(document.querySelector('[data-noble="OLD"] svg text')).toBeNull()
+  })
+
+  it('hangs the heir below the couple that carries the claim, side by side', () => {
+    renderDialog()
+    const top = (code: string) =>
+      parseFloat((document.querySelector(`[data-noble="${code}"]`) as HTMLElement).style.top)
+    const left = (code: string) =>
+      parseFloat((document.querySelector(`[data-noble="${code}"]`) as HTMLElement).style.left)
+    expect(top('JEA')).toBe(top('ANN'))
+    expect(Math.abs(left('JEA') - left('ANN'))).toBeGreaterThan(190)
+    expect(top('EVE')).toBeGreaterThan(top('JEA'))
+  })
+
+  it('draws the head marriage and the claim as lines between the scrolls', () => {
     renderDialog()
     const marriage = document.querySelector('[data-marriage="JEA-ANN"]')!
     expect(marriage).toHaveAttribute('data-kind', 'head')

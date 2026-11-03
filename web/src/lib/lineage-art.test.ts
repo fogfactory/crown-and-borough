@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { endAngle, pathPoints, reachInto, roundedPath } from './lineage-art'
+import { endAngle, pathPoints, roundedPath } from './lineage-art'
 
 describe('lineage art', () => {
   it('reads the points of a stem path', () => {
@@ -17,14 +17,6 @@ describe('lineage art', () => {
     // The 10px drop only leaves a 5px radius.
     expect(roundedPath(points, 18)).toBe('M0,0 L0,5 Q0,10 5,10 L100,10')
     expect(roundedPath(pathPoints('M0,0 H40'))).toBe('M0,0 L40,0')
-  })
-
-  it('pulls the end of a line from a box edge to the rim of its roundel', () => {
-    const roundel = { x: 88, y: 22, r: 21, half: 88 }
-    const moved = reachInto(pathPoints('M-30,0 V22 H0'), [roundel])
-    expect(moved[2]).toEqual({ x: 67, y: 22 })
-    // A start on a lane, away from any box edge, stays put.
-    expect(moved[0]).toEqual({ x: -30, y: 0 })
   })
 
   it('gives the direction of the last segment', () => {
