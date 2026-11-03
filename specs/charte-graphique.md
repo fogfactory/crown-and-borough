@@ -389,8 +389,9 @@ L'évêché se lit par trois éléments :
 - Un territoire neutre n'a pas de blason.
 - Le bouton de légende « Contrôle joueur » affiche ou masque les blasons.
 
-**Précision.** Le blason mesure 12 × 18 unités ; il se plante à gauche du
-nom, sa pointe sur la ligne de base. Chaque joueur a un blason défini une
+**Précision.** Le blason est l'écu de 15 × 19 unités réduit à 80 %, soit
+12 × 15 unités ; il se plante à gauche du nom, sa pointe sur la ligne de
+base. Chaque joueur a un blason défini une
 fois (`<symbol>`), instancié par `<use>` sur chaque pièce ; le blason grisé
 est un second symbole, dérivé du premier.
 
@@ -429,10 +430,9 @@ sa couronne au-dessus d'un blason `neutral`.
 - Le fanion est porté par la figurine la plus à gauche du paquet : son mât
   est le prolongement de sa lance. Le fanion se place au-dessus de la tête la
   plus haute du paquet, ombres comprises, avec dix unités de marge, sans
-  jamais recouvrir une figurine. Il porte le champ de la teinture, deux
-  filets de métal et l'effectif exact en Alegreya 700 blanc cerné d'encre
-  (`paint-order: stroke`) ; il mesure 11 × 7 unités, 14 × 7 à partir de deux
-  chiffres.
+  jamais recouvrir une figurine. Il est la bannière à queue d'aronde de
+  12 × 8 unités aux armes du joueur et porte l'effectif exact en Alegreya 700
+  blanc cerné d'encre (`paint-order: stroke`).
 - Une armée rebelle porte des figurines, un surcot et un fanion cendrés, sans
   pièce.
 - En vue d'ensemble, le paquet se réduit à la seule figurine porte-fanion ;
