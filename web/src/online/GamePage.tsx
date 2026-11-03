@@ -28,7 +28,7 @@ import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
 import { LineageDialog } from '@/components/LineageDialog'
 import { Scoreboard } from '@/components/Scoreboard'
 import { SubmissionDots } from '@/components/SubmissionDots'
-import { Alert } from '@/components/ui/alert'
+import { Alert, alertToneClassName } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { HeaderPopover } from '@/components/ui/header-popover'
 import {
@@ -189,7 +189,7 @@ function Lobby({
                   </span>
                 )}
               </div>
-              <p className="mt-1 label-caps text-2xs font-bold text-ink-500">
+              <p className="mt-1 label-caps text-2xs font-medium text-ink-500">
                 {player.submitted ? t('online.submitted') : t('online.waiting')}
               </p>
             </li>
@@ -197,7 +197,7 @@ function Lobby({
         </ul>
         <Scoreboard players={summary.players} scores={scores} victory={victory} />
         {invitation && (
-          <Alert tone="info" className="py-3">
+          <Alert tone="info" size="banner">
             <p className="font-semibold">
               {t('home.invitationCode')}: {invitation.inviteCode}
             </p>
@@ -820,7 +820,9 @@ export function GamePage() {
         >
           <IconArrowLeft aria-hidden="true" className="size-4" /> {t('online.backHome')}
         </Link>
-        <Alert role="alert">{loadError}</Alert>
+        <Alert role="alert" size="banner">
+          {loadError}
+        </Alert>
       </div>
     )
   }
@@ -837,7 +839,9 @@ export function GamePage() {
         >
           <IconArrowLeft aria-hidden="true" className="size-4" /> {t('online.backHome')}
         </Link>
-        <Alert role="alert">{t('online.accessRevoked')}</Alert>
+        <Alert role="alert" size="banner">
+          {t('online.accessRevoked')}
+        </Alert>
       </div>
     )
   }
@@ -981,7 +985,7 @@ export function GamePage() {
           )}
           {(desktop || offline) && (
             <span
-              className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs font-semibold ${offline ? 'border-vermilion-700/30 bg-vermilion-100 text-vermilion-700' : 'border-success-700/30 bg-paper-100 text-success-700'}`}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs font-semibold ${offline ? alertToneClassName.error : alertToneClassName.success}`}
             >
               {offline ? (
                 <IconWifiOff aria-hidden="true" className="size-3.5" />
@@ -992,7 +996,9 @@ export function GamePage() {
             </span>
           )}
           {desktop && summary.status === 'finished' && (
-            <span className="rounded-full border border-brass-700/40 bg-brass-300/30 px-2 py-1 text-xs font-semibold text-brass-700">
+            <span
+              className={`rounded-full border px-2 py-1 text-xs font-semibold ${alertToneClassName.info}`}
+            >
               {t('online.finished')}
             </span>
           )}
@@ -1027,13 +1033,13 @@ export function GamePage() {
           )}
         {actionError && <Alert role="alert">{actionError}</Alert>}
         {spectator && (
-          <Alert tone="info" className="py-3">
+          <Alert tone="info" size="banner">
             <p className="font-semibold">{t('online.spectatorBanner')}</p>
             <p className="mt-1">{t('online.spectatorDescription')}</p>
           </Alert>
         )}
         {summary.winner && (
-          <Alert tone="info" className="py-3 text-center font-semibold">
+          <Alert tone="info" size="banner" className="text-center font-semibold">
             {t('online.victory')}:{' '}
             {ownerName(summary.winner, state, summary.players, summary.winner)}
           </Alert>

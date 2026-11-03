@@ -358,7 +358,7 @@ marais.
 
 ### Évêchés
 
-Trois éléments les montrent :
+L'évêché se lit par trois éléments :
 
 - **Cadre :** les bandes autour de la carte (géométrie de
   `useRegionLayout`) prennent la teinte de leur évêché, bordées d'un filet
@@ -412,7 +412,7 @@ couronne au-dessus d'une bannière `neutral`.
   effectif au centre en Alegreya 700 blanc cerné d'encre
   (`paint-order: stroke`), lisible sur la teinture comme sur le métal.
 - Une armée rebelle porte l'écu cendré plein.
-- Il est dessiné par `LiveLayer`
+- L'écu d'armée est dessiné par `LiveLayer`
   (`web/src/components/MapTerritoryLayers.tsx`).
 
 ### Nobles : pion et attributs de titre
@@ -518,7 +518,7 @@ les cinq terrains, les icônes de frontière infranchissable et le pointillé
 franchissable, la bannière, la bannière couronnée d'un fief, l'écu, le pion
 de noble (libre, otage, au cachot, excommunié, et ses attributs de titre) et
 les bâtiments. Les boutons des calques (intentions, contrôle, évêchés,
-calamités, cartes) complètent la légende.
+calamités, cartes) accompagnent la légende.
 
 ## Écrans et composants
 

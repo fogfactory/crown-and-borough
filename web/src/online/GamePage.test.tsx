@@ -580,3 +580,47 @@ describe('GamePage submission rehydration and divergence', () => {
     })
   })
 })
+
+describe('GamePage notices', () => {
+  function renderGame() {
+    return render(
+      <LanguageProvider initialLanguage="en">
+        <MemoryRouter initialEntries={['/games/GAME1']}>
+          <Routes>
+            <Route path="/games/:gameId" element={<GamePage />} />
+          </Routes>
+        </MemoryRouter>
+      </LanguageProvider>,
+    )
+  }
+
+  it('announces a load failure as an alert', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('boom', { status: 500 })),
+    )
+    renderGame()
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+  })
+
+  it('shows the observer banner as a plain notice, not an alert', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.endsWith('/api/games/GAME1')) {
+          return Promise.resolve(jsonResponse({ spectator: true }))
+        }
+        if (url.endsWith('/api/games/GAME1/map'))
+          return Promise.resolve(jsonResponse(map))
+        if (url.endsWith('/api/games/GAME1/state')) {
+          return Promise.resolve(jsonResponse({ ...state, revision: 1 }))
+        }
+        return Promise.resolve(jsonResponse({}))
+      }),
+    )
+    renderGame()
+    expect(await screen.findByText('You are observing this game.')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+})
