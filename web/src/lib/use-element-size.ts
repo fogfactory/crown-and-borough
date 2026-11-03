@@ -18,6 +18,8 @@ export function useElementSize(ref: RefObject<Element | null>): {
       )
     }
     measure()
+    // Without ResizeObserver (jsdom), the size read once is all there is.
+    if (typeof ResizeObserver === 'undefined') return
     const observer = new ResizeObserver(measure)
     observer.observe(element)
     return () => observer.disconnect()

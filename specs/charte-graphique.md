@@ -465,8 +465,8 @@ Les titres de fief ([titres.md](titres.md)), religieux
 livrés dans `develop`, marquisat compris : les attributs sont donc tous dus
 dès la phase 4. Ils remplacent les pastilles de titre (`NobleHolder.tsx`,
 fiches de nobles) partout où un noble est représenté : la fiche montre le pion
-puis les titres en texte. L'arbre de la lignée garde son dessin jusqu'à sa
-refonte (phase 7).
+puis les titres en texte. L'arbre de la lignée ne montre pas le pion : la
+captivité d'un noble y est écrite en texte, avec ses titres.
 
 ### Bâtiments
 
@@ -864,32 +864,152 @@ est en `brass-700`.
 
 ### Lignée et alliances
 
-La fenêtre « Lignée et alliances » (`LineageDialog.tsx`) devient un **arbre
-généalogique** dessiné à l'encre sur parchemin.
+La fenêtre « Lignée et alliances » (`LineageDialog.tsx`) est un **arbre
+généalogique** tissé en tapisserie : de l'encre sur parchemin, une barre d'or feuillue pour
+le mariage de tête, la couleur vive réservée aux joueurs. Aucune boîte à bordure ni
+ombre portée n'y figure.
 
-- Chaque maison s'ouvre sous ses armoiries. Ses nobles sont des médaillons
-  (pion à attributs, nom, rang de succession en chiffre) rangés dans l'ordre
-  de succession.
-- Un mariage est un double trait horizontal entre deux médaillons : le
-  mariage de tête en `brass-700`, un mariage secondaire en `ink-700`, un
-  mariage terminé en hachures `ink-500`.
-- Une prétention descend du couple vers l'héritier qui la porte, en trait
-  pointillé, comme une filiation.
-- Les titres s'écrivent en texte sous le nom (décision 23) ; plus aucune
+- **Toile.** L'arbre est tendu sur une toile `paper-100` au tissage discret
+  (fils `line-soft`), encadrée d'une bordure à double filet : filet d'encre
+  `ink-900` à l'extérieur, bande `paper-300` piquée de points, filet `brass-700`
+  à l'intérieur, rosace de laiton à chaque coin. Les couleurs de ce dessin
+  sont les constantes `LINEAGE_*` de `map-palette.ts`.
+- **Noble.** Un cartouche en parchemin déroulé entre deux rouleaux aux bords
+  enroulés (SVG) : feuille `paper-50`, rouleaux `paper-300` à la face ombrée
+  `paper-200`, contour d'encre `ink-900`, et un filet de la teinture du joueur
+  (le canal « à qui ») le long du bord haut et du bord bas. L'écu de la
+maison (`ShieldIcon`, le même écu que celui des armées sur la carte, aux armes
+du joueur) se tient à gauche du nom : c'est lui qui dit à quelle maison
+appartient un noble, l'arbre ne regroupant pas les maisons. Le nom (avec ♂ ou
+♀ en `ink-700`), puis les titres, la captivité et les décès s'écrivent en
+texte sous l'écu, rangés dans l'ordre de succession, jamais coupés ; le rang
+  de succession est un sceau de la couleur du joueur (celle du filet), sur le
+  bord haut, portant un chiffre Cinzel blanc cerné d'encre `ink-900`, lisible
+  sur toute couleur de joueur. Un noble mort a un
+  contour d'encre en pointillés, un nom barré et pas de rang. En simulation,
+  la sélection double le cartouche d'un halo `brass-400` et d'un filet
+  `brass-700`, et un noble en attente de second clic est cerclé de tirets
+  `ink-700`.
+- **Mariage.** Un trait horizontal relie deux cartouches voisins, noué en son
+  milieu par un anneau ; l'écart entre deux conjoints (88 px) laisse la place
+  au lierre. Le mariage de tête est un **lierre** posé sur une barre d'or : un
+  trait brun large (`LINEAGE_HEAD_BROWN`, `#4a3417`) fait le contour d'un trait
+  `brass-400` plus fin (`LINEAGE_BRASS_LIGHT`), comme un lingot cerné ; l'anneau
+  est brun, au cœur d'or. De petites feuilles olive pointues (`LINEAGE_IVY`,
+  `#4a5526`, 6 px de long) poussent sur les deux bords de la barre, en dessus et
+  en dessous, une paire tous les 8 px environ (au moins deux paires), penchées
+  vers l'avant avec une légère variation d'angle fixe (aucun tirage aléatoire) ;
+  il n'y en a ni près de l'anneau ni dans les angles, et elles suivent aussi bien
+  un lien droit qu'un lien arqué. Le mariage secondaire est un double trait
+  `ink-700` nu, le mariage terminé des hachures `ink-500` avec un anneau brisé
+  barré d'un trait. La tête se distingue donc par la forme (barre d'or et
+  feuilles), pas par la seule couleur (principe 4). L'olive est plus jaune et
+  plus sombre que le vert des joueurs (`#3f7d3c`) et que `success-700` ;
+  réservé à ce lierre, il ne sert à aucune teinture. La même barre feuillue orne
+  la pastille « Mariage de tête (actif) » de la légende et le lien de tête du
+  graphe d'alliances.
+- **Prétention.** Une prétention est une vigne : un trait pointillé `ink-700`
+  aux angles arrondis, qui part de l'anneau du couple, descend dans l'espace
+  entre les rangées et s'achève sur une feuille au bord haut du cartouche de
+  l'héritier. Une prétention éteinte est plus pâle et sa feuille est vide.
+- Les titres s'écrivent en texte sous le nom (décision 23) ; aucune
   étiquette n'est coupée.
+- **Focus.** Le seul réglage de la fenêtre est le sélecteur « Focus », qui
+  propose « Toutes les maisons » ou une maison. Les mariages terminés et les
+  prétentions éteintes sont toujours dessinés. Sans focus, tous les nobles
+  figurent dans l'arbre. Avec un focus, l'arbre ne montre que les nobles de la
+  maison choisie et ceux qui leur sont directement liés : leurs conjoints
+  (mariage terminé ou non) et les nobles liés par une prétention, dans les deux
+  sens (les héritiers d'un couple dont l'un des époux est de la maison, et le
+  couple visé par la prétention d'un noble de la maison). Toute prétention
+  dessinée montre aussi le conjoint de son couple. Les autres nobles
+  sont absents et la disposition ne porte que sur les nobles visibles. Un noble
+  lié d'une autre maison garde l'écu de sa maison et son rang de succession
+  dans celle-ci. La maison choisie est centrée, et sert de repère de
+  départage dans l'ordre des maisons. En simulation, le focus s'applique à
+  l'état simulé.
 - Le score et le statut de victoire de chaque maison restent en pied de
-  fenêtre, sur une ligne par joueur.
-- Le graphe d'alliances actuel devient un encart de l'arbre (les maisons et
-  leurs alliances en vue d'ensemble), plus une vue séparée.
+  fenêtre, sur une ligne par joueur, quel que soit le focus ; l'encart des
+  alliances garde aussi toutes les maisons.
+- Le graphe d'alliances est un encart de l'arbre (les maisons et leurs
+  alliances en vue d'ensemble).
 - **Simulation :** le mode « Simuler » garde son bandeau
   (annuler, rétablir, réinitialiser, quitter) en `warning-100` ; l'arbre
   simulé porte un filigrane « Hypothèse » en Cinzel `ink-500` à 15 %, pour
   qu'aucune capture ne se confonde avec l'état réel.
 
 **Précision.** Le modèle ne connaît pas de filiation au-delà des prétentions
-([succession.md](succession.md)) : l'arbre ne dessine que l'ordre de
-succession, les mariages et les prétentions. Il défile dans les deux sens et
-se cadre sur la maison choisie dans « Focus ».
+([succession.md](succession.md)) : l'arbre ne dessine que les mariages et les
+prétentions, et les générations ne se déduisent que d'elles. Il défile dans
+les deux sens.
+
+**Disposition.** Un **arbre de mariage** est un couple et les héritiers qui
+pendent sous son anneau, génération après génération ; les nobles sans
+mariage ni prétention n'en font pas partie et se rangent en **lignes de
+maison**.
+
+- *Arbre.* Les générations sont des rangées horizontales. Les époux d'un
+  mariage, terminé ou non, se tiennent côte à côte sur une même rangée ; un
+  noble qui a deux conjoints se tient entre eux, et un mariage de plus s'arque
+  au-dessus des cartouches qui séparent ses époux. Une prétention va du couple
+  (le noble visé et son conjoint) à l'héritier, qui se range sur la rangée
+  suivante, centré sous l'anneau du couple ; l'héritier qui se marie ou qui
+  porte à son tour une prétention fonde une génération de plus, et un couple se
+  range sous le plus profond de ses ancêtres. Chaque arbre est ordonné par
+  barycentre (vers les parents en descendant, vers les héritiers en remontant)
+  pour croiser le moins de tiges possible, à égalité selon l'ordre des maisons
+  puis l'ordre de succession.
+- *Lignes de maison.* Les nobles d'une maison qui n'ont ni mariage ni
+  prétention forment une ligne, dans l'ordre de succession vivant, à l'écart
+  d'une fratrie (20 px). Ceux qui précèdent, dans cet ordre, le premier noble
+  de la maison pris dans un arbre se rangent dans une ligne **au-dessus** de
+  tous les arbres ; ceux qui suivent le dernier, dans une ligne **au-dessous**.
+  Un noble qui se trouve entre deux nobles de sa maison pris dans des arbres
+  se range dans l'arbre, en frère ou sœur du plus proche qui le précède : sur
+  la même rangée, à côté de lui, du côté extérieur s'il est marié (jamais entre
+  les époux). Les morts d'une maison qui a un arbre se rangent au-dessous ; une
+  maison sans arbre n'a qu'une ligne, au-dessus. Les lignes de plusieurs
+  maisons partagent une rangée quand elles y tiennent, séparées d'un écart de
+  maison (44 px) ; une ligne plus large que la largeur visée passe à la rangée
+  suivante.
+- *Mise en page.* Les arbres se rangent par étagères de largeur au plus égale
+  à la largeur visée, de 1 280 px (la place que laisse la fenêtre plein écran
+  sur un écran de 1 440 px) ; un arbre plus large occupe une étagère à lui
+  seul. De haut en bas : les lignes du dessus, les étagères d'arbres, les
+  lignes du dessous ; chaque ligne et chaque étagère est centrée. Sur la
+  lignée de démonstration (quatre maisons, cinq mariages, quatre
+  prétentions), l'arbre mesure 1 084 px de large ; il ne défile horizontalement que sur une
+  fenêtre plus étroite ou devant un arbre plus large que la fenêtre, et
+  verticalement dès que les rangées dépassent sa hauteur.
+
+Les tiges d'un même couple partent de son anneau et se partagent une barre
+dans l'espace entre rangées, les couples dont les barres se chevauchent ayant
+chacun sa voie de 8 px ; un héritier plus bas que la rangée suivante y traverse
+les rangées intermédiaires par un emplacement laissé vide. Une prétention
+sans mariage reliant ses deux époux part du noble visé seul. Une prétention
+qui ferait descendre un couple de lui-même (l'héritier est le couple, ou
+l'ancêtre de ses propres ancêtres) ne détermine aucune rangée : sa tige
+contourne les cartouches : elle descend de l'anneau du couple (ou du noble
+visé) jusqu'à une barre sous sa rangée, longe cette barre jusqu'à une ligne
+verticale tracée dans la marge, à gauche ou à droite des cartouches selon le
+côté le plus proche, suit cette ligne jusqu'à l'espace voisin de la rangée de
+l'héritier, puis le rejoint par une barre. Chaque tige de ce genre a sa propre
+ligne de marge, à 8 px de la suivante ; la marge n'élargit l'arbre que s'il y
+en a une. Les arbres et les lignes suivent l'ordre des maisons,
+celles que des mariages unissent étant voisines ; le résultat ne dépend pas
+de l'ordre des données. La place d'un cartouche se calcule à partir de
+ses lignes de texte (largeur des caractères estimée, lignes comptées par
+excès), jamais du rendu ; si le texte dépasse malgré tout cette estimation, le
+parchemin s'allonge à la hauteur réelle du texte sans changer la disposition.
+À l'ouverture et à chaque changement de « Focus », la fenêtre se cadre sur
+la maison choisie : horizontalement, et verticalement si sa première rangée
+n'est pas visible d'emblée ; les actions de la simulation ne la déplacent pas. Le rang de chaque noble vivant est aussi écrit en
+texte masqué (« Rang de succession N ») ; en simulation, les cartouches et les
+traits de mariage sont des boutons que le clavier atteint (Tab) et active
+(Entrée ou Espace). Un couple remarié a un trait par mariage, décalés de 13 px.
+Il n'y a ni déplacement manuel
+des cartouches, ni étiquette de mariage ou de prétention : les lignes et les
+tiges disent tout. Le graphe d'alliances est un encart replié par défaut.
 
 ### Rapport de tour
 
@@ -998,11 +1118,6 @@ les cartes d'ordres.
 
 ## Questions ouvertes
 
-- **Arbre de la lignée :** la disposition automatique d'un arbre avec des
-  mariages entre maisons et des prétentions croisées reste à prototyper sur
-  le scénario de démonstration `crown` (`scripts/demo.sh crown`) avant la
-  phase 7 ; la disposition manuelle actuelle (« Réinitialiser la
-  disposition ») pourra être conservée si l'automatique ne suffit pas.
 - **Rivières** ([cartographie.md](cartographie.md)) : le symbole de fleuve est
   prévu ; le dessin des ponts reste à définir.
 - **Niveau de détail des étiquettes :** le seuil de 10 px convient à la carte

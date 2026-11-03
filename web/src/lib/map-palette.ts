@@ -121,11 +121,34 @@ export const ICON_GREEN = '#4e7d3b'
 
 // Lineage tree
 
-export const LINEAGE_GOLD = '#b8860b'
-export const LINEAGE_SILVER = '#9aa3ad'
-export const LINEAGE_CLAIM = '#7a4fa3'
-export const LINEAGE_PATTERN_STROKE = '#8c8372'
-export const LINEAGE_SECONDARY_LINK = '#dfe3e7'
+/** Brown outline of the head marriage bond, filled with brass gold (`ink-700` warmed). */
+export const LINEAGE_HEAD_BROWN = '#4a3417'
+/**
+ * Ivy of the head marriage: a dark olive, yellower and darker than the green
+ * player tincture (`#3f7d3c`), so that it never reads as a player colour.
+ */
+export const LINEAGE_IVY = '#4a5526'
+/** Secondary marriage, claim stems and pending selection (`ink-700`). */
+export const LINEAGE_SECONDARY = '#594b3c'
+/** Ended marriage hatching (`ink-500`). */
+export const LINEAGE_ENDED = '#74644d'
+/** Parchment of the cartouches and the legend (`paper-50`). */
+export const LINEAGE_PAPER = '#fbf7ee'
+/** Cloth of the tapestry the tree is woven on (`paper-100`). */
+export const LINEAGE_CLOTH = '#f3ead9'
+/** Threads of the weave, barely darker than the cloth (`line-soft`). */
+export const LINEAGE_WEAVE = '#d9cfba'
+/** Woven band of the tapestry border and rolled ends of a noble's scroll (`paper-300`). */
+export const LINEAGE_BAND = '#e6d8bb'
+/** Outer rule of the border and outline of the cartouches (`ink-900`). */
+export const LINEAGE_INK = MAP_INK
+/** Head marriage, inner rule and corner ornaments (`brass-700` / `brass-400`). */
+export const LINEAGE_BRASS = '#7d5a1c'
+export const LINEAGE_BRASS_LIGHT = '#c9a24a'
+/** Digit of a rank seal, outlined in ink on the house colour (near-white). */
+export const LINEAGE_RANK_DIGIT = MAP_PAPER
+/** Shaded face and inner curl of a roll (`paper-200`). */
+export const LINEAGE_SCROLL_SHADE = '#efe7d8'
 
 // Brand mark
 
