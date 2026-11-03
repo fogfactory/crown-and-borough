@@ -13,12 +13,9 @@ couronne, la lignée et les prétentions.
 Les décisions 1 à 20 ont été actées lors de l'audit graphique du
 27 septembre 2026, les décisions 21 à 32 lors de l'audit du 12 octobre 2026
 qui a suivi le milestone Royauté (fiefs, couronne, ordres royaux, cartes de
-fief). Les sept phases du [Phasage](#phasage) sont livrées. Les passages qui
-comparent à l'interface d'avant (« actuel », « remplace », « passe en »)
-datent de la rédaction : ils racontent le choix, et la règle qu'ils servent
-est celle de la phrase qui les suit ou les précède. Les paragraphes marqués
-**Précision** traduisent une décision en règle applicable ; ils peuvent être
-amendés en revue sans remettre en cause le choix qu'ils servent.
+fief). Les sept phases du [Phasage](#phasage) sont livrées. Les paragraphes
+marqués **Précision** traduisent une décision en règle applicable ; ils
+peuvent être amendés en revue sans remettre en cause le choix qu'ils servent.
 
 ## Objectifs
 
@@ -63,11 +60,11 @@ amendés en revue sans remettre en cause le choix qu'ils servent.
 | 5 | Contrôle | Bannière sur chaque territoire contrôlé ; l'occupation se lit à l'armée présente | Lavis, liseré intérieur, vues à bascule |
 | 6 | Terrain | Carte gravée : symboles d'encre sur un papier commun | Aquarelle, aplats pastel, tuiles de plateau |
 | 7 | Frontières infranchissables | Série d'icônes choisie selon les terrains adjacents : montagnes, escarpement, marais dense, rivière | Lignes stylisées (crête hachurée, rempart, fleuve dessiné en trait) |
-| 8 | Évêchés | Affichage actuel restylé : cadre, liseré et calque | Tiret-point et blason |
+| 8 | Évêchés | Cadre, liseré et calque | Tiret-point et blason |
 | 9 | Armées | Écu chiffré | Bloc de régiment, meeple, pile de jetons |
 | 10 | Nobles | Pion simple, enrichi d'attributs cumulatifs selon les titres | Sceau de cire, blason personnel, pastille |
 | 11 | Identité des joueurs | Teinture et blason générés, puis blason choisi par le joueur (deuxième étape) | Hachures héraldiques, couleur seule |
-| 12 | Bâtiments | Silhouettes actuelles recolorées | Tampons à l'encre, maquettes, jetons |
+| 12 | Bâtiments | Silhouettes game-icons.net recolorées | Tampons à l'encre, maquettes, jetons |
 | 13 | Disposition sur ordinateur | Carte maximale et tiroir à signets | Disposition actuelle améliorée, trois colonnes, table de jeu |
 | 14 | Saisie des ordres | Texte assisté ; cartes d'ordres possibles plus tard, le texte assisté restant disponible | Constructeur seul, texte seul |
 | 15 | Saison | Ambiance seule : la teinte de la carte et de l'interface annonce la saison | Roue des saisons, piste du temps |
@@ -79,7 +76,7 @@ amendés en revue sans remettre en cause le choix qu'ils servent.
 | 21 | Fiefs sur la carte | Bannière couronnée sur la capitale ; trigramme de la capitale sur les bannières des autres territoires du fief | Cartouche gravé, contour du fief, capitale seule |
 | 22 | Couronne et Église | Marque-page « Royaume » du tiroir | Médaillons sur la carte, boutons de la barre du haut, section de la lignée |
 | 23 | Titres d'un noble dans les fiches | Pion et attributs, puis titres en texte | Étiquettes unifiées, texte seul, pictogrammes seuls |
-| 24 | Scores et victoire | Popover actuel restylé | Piste de score, tableau compact, scores dans la barre |
+| 24 | Scores et victoire | Popover des scores | Piste de score, tableau compact, scores dans la barre |
 | 25 | Textes d'aide | Une ligne de résumé et un « ? » qui ouvre le texte complet | Mode apprenti, ligne d'aide unique, renvoi aux règles |
 | 26 | Ordres de titres | Groupés par titulaire | Menu « Ajouter un ordre », depuis la carte, autocomplétion seule |
 | 27 | Réglage d'un ordre de titre | Formulaire déplié dans le tiroir, carte cliquable | Ciblage sur la carte, modale restylée, modèle de ligne |
@@ -95,22 +92,22 @@ amendés en revue sans remettre en cause le choix qu'ils servent.
 
 ### Papiers, encres et filets
 
-Cinq papiers et trois encres remplacent les nuances actuellement écrites en
-dur dans les classes Tailwind.
+Cinq papiers et trois encres fournissent toutes les nuances de l'interface,
+exposées en tokens Tailwind plutôt qu'écrites en dur dans les classes.
 
-| Token | Valeur | Usage | Remplace |
-|---|---|---|---|
-| `paper-50` | `#fbf7ee` | Surfaces : panneaux, cartes, menus, champs | `#fffaf0`, `#fff8e7`, `#fbf6ea` |
-| `paper-100` | `#f3ead9` | Creux : piste d'onglets, lignes de liste, blocs de code | `#f3ead9`, `#f8f0e2` |
-| `paper-200` | `#efe7d8` | Fond de page | `#efe7d8` |
-| `paper-300` | `#e6d8bb` | Pourtour de la carte, séparateurs pleins | `#e6d8bb` |
-| `paper-map` | `#f1e6cb` | Papier de la carte gravée | aplats de terrain |
-| `ink-900` | `#30291f` | Texte principal, traits et symboles de la carte | `#30291f`, `#17120f` |
-| `ink-700` | `#594b3c` | Texte secondaire | `#594b3c` |
-| `ink-500` | `#74644d` | Texte atténué | `#806f57`, sous le seuil AA sur `paper-100` |
-| `line-strong` | `#8f7d5c` | Bordure des champs et des boutons secondaires | — |
-| `line` | `#b7a786` | Bordure des panneaux | `#b7a786` |
-| `line-soft` | `#d9cfba` | Séparateurs discrets | `#b7a786` à 50 % |
+| Token | Valeur | Usage |
+|---|---|---|
+| `paper-50` | `#fbf7ee` | Surfaces : panneaux, cartes, menus, champs |
+| `paper-100` | `#f3ead9` | Creux : piste d'onglets, lignes de liste, blocs de code |
+| `paper-200` | `#efe7d8` | Fond de page |
+| `paper-300` | `#e6d8bb` | Pourtour de la carte, séparateurs pleins |
+| `paper-map` | `#f1e6cb` | Papier de la carte gravée |
+| `ink-900` | `#30291f` | Texte principal, traits et symboles de la carte |
+| `ink-700` | `#594b3c` | Texte secondaire |
+| `ink-500` | `#74644d` | Texte atténué (au moins AA sur `paper-100`) |
+| `line-strong` | `#8f7d5c` | Bordure des champs et des boutons secondaires |
+| `line` | `#b7a786` | Bordure des panneaux |
+| `line-soft` | `#d9cfba` | Séparateurs discrets |
 
 ### Laiton et couleurs d'état
 
@@ -153,8 +150,8 @@ couleurs au cas par cas.
 | `--ring` | `brass-700` |
 | `--radius` | `0.25rem` |
 
-Le thème sombre n'est pas retenu : le bloc `.dark` de `web/src/index.css`
-disparaît avec la phase 3.
+Le thème sombre n'est pas retenu : `web/src/index.css` ne définit aucun bloc
+`.dark`.
 
 ### Joueurs
 
@@ -181,7 +178,7 @@ carte ; la pièce le distingue encore en niveaux de gris et pour un daltonien.
   d'or, et ainsi de suite.
 - Les rebelles (`NEUTRAL`) sont cendrés (`#7d766a`), sur un écu plein sans
   pièce.
-- L'ordre d'attribution suit l'ordre des sièges, comme la palette actuelle
+- L'ordre d'attribution suit l'ordre des sièges, dans la palette
   d'`internal/engine/game.go`.
 - Le moteur attribue la teinture du siège dans `players[].color` et publie
   les armoiries (champ, métal, pièce) dans `players[].arms` dès la création
@@ -196,8 +193,8 @@ carte ; la pièce le distingue encore en niveaux de gris et pour un daltonien.
 
 ### Évêchés
 
-Six teintes terreuses, hors de la palette des joueurs, remplacent les couleurs
-Tailwind de `web/src/lib/region-color.ts`. Au-delà de six évêchés, les motifs
+Six teintes terreuses, hors de la palette des joueurs, sont définies dans
+`web/src/lib/region-color.ts`. Au-delà de six évêchés, les motifs
 existants (`REGION_PATTERNS`) s'ajoutent, dessinés à l'encre à 30 %.
 
 | | Ocre | Ardoise | Olive | Brique | Lavande | Sauge |
@@ -215,7 +212,7 @@ dessine jamais de liseré : c'est ce qui évite de confondre les deux.
 | Printemps | `#9cc36b` | `#9cc36b` à 14 % |
 | Été | `#e3b341` | `#e3b341` à 14 % |
 | Automne | `#c0703a` | `#c0703a` à 17 % |
-| Hiver | `#bcd3e6` | `#e3edf7` à 42 %, avec la neige actuelle |
+| Hiver | `#bcd3e6` | `#e3edf7` à 42 %, avec la neige |
 
 La teinte d'interface est décorative : elle n'est jamais le fond d'un texte
 et ne remplace pas le laiton des actions.
@@ -260,9 +257,8 @@ panneaux, jamais aux champs.
 | Ordres : saisie, cartes d'ordres, extraits cités | IBM Plex Mono | 400, 500 | `@fontsource/ibm-plex-mono` |
 
 Les polices sont embarquées avec Fontsource, sans requête vers Google Fonts ;
-toutes trois sont sous licence SIL Open Font License. Geist
-(`@fontsource-variable/geist`) est retiré, et `font-serif` (police système)
-laisse la place à un token `font-display`.
+toutes trois sont sous licence SIL Open Font License. Le token
+`font-display` désigne Cinzel.
 
 ### Échelle
 
@@ -277,8 +273,8 @@ laisse la place à un token `font-display`.
 | `text-2xl` | 28 / 34 px | Titres de page |
 | `text-3xl` | 36 / 42 px | Accueil et connexion |
 
-Ces tokens remplacent l'échelle par défaut de Tailwind, dont ils reprennent
-les noms.
+Ces tokens constituent l'échelle de Tailwind du projet et en reprennent les
+noms.
 
 ### Règles
 
@@ -293,21 +289,21 @@ les noms.
 ## Carte
 
 Les dimensions ci-dessous sont en unités de carte, multipliées par
-`annotationScale` comme les annotations actuelles ; les épaisseurs de trait
+`annotationScale`, comme les annotations ; les épaisseurs de trait
 notées en px ne varient pas avec le zoom (`vector-effect: non-scaling-stroke`).
 
 ### Ordre des calques
 
 De bas en haut :
 
-1. Papier (`paper-map`), qui remplace les aplats `TERRAIN_COLORS`
-   (`web/src/components/MapLegend.tsx`).
-2. Terrain gravé, qui remplace les motifs de `MapDecorations.tsx`.
+1. Papier (`paper-map`), commun à tous les terrains ; la légende
+   (`web/src/components/MapLegend.tsx`) le montre.
+2. Terrain gravé (`MapDecorations.tsx`).
 3. Évêchés : cadre et liseré (`MapRegionLayers.tsx`).
 4. Voile de saison, et neige en hiver.
 5. Zone de ravitaillement.
 6. Frontières franchissables, frontières infranchissables, contour extérieur.
-7. Sélection, désormais au-dessus des frontières pour ne jamais être masquée.
+7. Sélection, au-dessus des frontières pour ne jamais être masquée.
 8. Ligne de ravitaillement, calamités et cartes jouées.
 9. Pièces : bâtiments, bannières, armées, nobles.
 10. Étiquettes : noms, codes, chefs-lieux.
@@ -337,24 +333,23 @@ limiter la taille du DOM.
 
 ### Frontières
 
-- **Franchissable :** pointillé rond `ink-900` à 75 %, 1,7 px, comme
-  aujourd'hui.
+- **Franchissable :** pointillé rond `ink-900` à 75 %, 1,7 px.
 - **Infranchissable :** une série d'icônes posées le long de la frontière,
-  comme la chaîne de pics actuelle, jamais une ligne stylisée. L'icône dépend
+  en chaîne de pics, jamais une ligne stylisée. L'icône dépend
   des deux territoires qu'elle sépare, dans cet ordre :
   1. si la frontière appartient à une rivière (voir ci-dessous), **rivière** :
      tronçons d'eau ondulés bleus (`#3d76a6`) ;
   2. sinon, si l'un des territoires est un marécage, **marais dense** :
      touffes de roseaux serrées sur des traits d'eau ;
   3. sinon, si l'un est une montagne, **montagnes** : la chaîne de pics
-     actuelle (glyphe `peaks`), redessinée à l'encre `ink-900` ;
+     (glyphe `peaks`), dessinée à l'encre `ink-900` ;
   4. sinon, **escarpement** : une ligne de crête dont les dents de falaise
      tombent vers le territoire le plus bas (montagne > colline > forêt >
      plaine > marécage ; à égalité, vers le trigramme le plus grand).
 - **Contour extérieur :** `ink-900`, 2,2 px.
 
 **Précision.** Les icônes gardent l'espacement, la taille et la rotation de
-l'actuelle `ImpassableBorderChain` (`web/src/components/MapIconLayers.tsx`),
+`ImpassableBorderChain` (`web/src/components/MapIconLayers.tsx`),
 avec un halo `paper-map` pour rester lisibles sur les symboles de terrain.
 Toutes sont monochromes à l'encre, sauf la rivière. Les rivières de
 [cartographie.md](cartographie.md) (suites de frontières infranchissables
@@ -363,19 +358,19 @@ marais.
 
 ### Évêchés
 
-L'affichage actuel est conservé et restylé :
+Trois éléments les montrent :
 
-- **Cadre :** les bandes autour de la carte (géométrie actuelle de
+- **Cadre :** les bandes autour de la carte (géométrie de
   `useRegionLayout`) prennent la teinte de leur évêché, bordées d'un filet
   `ink-900` et d'un filet intérieur `brass-300`. Le nom figure dans un
   cartouche `paper-50` à filet `ink-900`, en Cinzel 700 et capitales espacées ;
-  il remplace le libellé « Évêché de … (XXX) » écrit dans la bande.
+  la bande n'écrit pas de libellé « Évêché de … (XXX) ».
 - **Liseré :** une bande de 10 unités longe l'intérieur de la limite de
-  l'évêché, dans sa teinte à 50 %, découpée par l'évêché comme les anneaux
-  actuels, sans halo lumineux.
+  l'évêché, dans sa teinte à 50 %, découpée par l'évêché, sans halo
+  lumineux.
 - **Chef-lieu :** son nom s'écrit dans la teinte de l'évêché assombrie, avec
   un contraste d'au moins 4,5:1 sur `paper-map`.
-- **Calque :** activable depuis la légende comme aujourd'hui
+- **Calque :** activable depuis la légende
   (`cb.regionsOverlay`), affiché par défaut.
 
 ### Contrôle : bannières
@@ -386,8 +381,7 @@ L'affichage actuel est conservé et restylé :
 - Aucun marqueur d'occupation : l'écu de l'armée présente suffit, puisqu'une
   case ne porte qu'une armée.
 - Un territoire neutre n'a pas de bannière.
-- La bannière remplace l'écu de contrôle (`OwnershipBadge`) ; le bouton de
-  légende « Contrôle joueur » l'affiche ou la masque.
+- Le bouton de légende « Contrôle joueur » affiche ou masque les bannières.
 
 **Précision.** La bannière se plante à gauche du nom, le pied du mât sur sa
 ligne de base ; mât `ink-900` de 14 unités, drapeau de 12 × 8 unités. Chaque
@@ -404,10 +398,9 @@ joueur a un drapeau et un écu définis une fois (`<symbol>`), instanciés par
   lit d'un coup d'œil à quel fief appartient une case.
 - Un fief de la couronne ([politique.md](politique.md)) porte la couronne
   fermée du roi sur sa capitale.
-- Le nom du fief (« Baronnie de Rochevent ») ne s'écrit plus sur la carte :
-  il passe dans l'infobulle de la bannière et dans la fiche du territoire.
-  L'étiquette ovale de `MapFiefLayer.tsx` et le mini-écu marqué du trigramme
-  (`OwnershipBadge`) disparaissent.
+- Le nom du fief (« Baronnie de Rochevent ») ne s'écrit pas sur la carte :
+  il figure dans l'infobulle de la bannière et dans la fiche du territoire.
+  `MapFiefLayer.tsx` ne dessine ni étiquette ovale ni mini-écu.
 
 **Précision.** La couronne de fief mesure 10 × 6 unités, posée sur le haut
 du mât ; le trigramme de rattachement fait 6 unités. Un fief vacant garde sa
@@ -419,7 +412,7 @@ couronne au-dessus d'une bannière `neutral`.
   effectif au centre en Alegreya 700 blanc cerné d'encre
   (`paint-order: stroke`), lisible sur la teinture comme sur le métal.
 - Une armée rebelle porte l'écu cendré plein.
-- L'écu remplace le disque numéroté de `LiveLayer`
+- Il est dessiné par `LiveLayer`
   (`web/src/components/MapTerritoryLayers.tsx`).
 
 ### Nobles : pion et attributs de titre
@@ -442,8 +435,8 @@ couronne au-dessus d'une bannière `neutral`.
   Un noble porte la couronne de son plus haut titre séculier et y ajoute ses
   attributs religieux : un duc évêque porte la couronne de duc et la crosse.
   Les couronnes sont en `brass-400` cernées d'encre ; la robe du cardinal
-  (`#a4231c`) et celle du pape (`#f1ede3`) remplacent la teinture du corps,
-  qui reste visible sur le socle.
+  (`#a4231c`) et celle du pape (`#f1ede3`) tiennent lieu de teinture du corps ;
+  la teinture reste visible sur le socle.
 - Otage : pion grisé (cendré). Au cachot : pion grisé derrière des barreaux à
   l'encre. Les attributs restent visibles.
 - **Précision.** Un titre de courtoisie (baronne, comtesse, duchesse, reine ;
@@ -459,45 +452,44 @@ couronne au-dessus d'une bannière `neutral`.
   chapeau du cardinal et la tiare du pape coiffent la tête ; la couronne
   séculière se pose au-dessus. Le cachot dessine trois barreaux et deux
   traverses à l'encre par-dessus le pion.
-- Le pion remplace le losange de `NobleMarker`.
+- Le pion est dessiné par `NobleMarker`.
 
 Les titres de fief ([titres.md](titres.md)), religieux
 ([religieux.md](religieux.md)) et royaux ([politique.md](politique.md)) sont
-livrés dans `develop`, marquisat compris : les attributs sont donc tous dus
-dès la phase 4. Ils remplacent les pastilles de titre (`NobleHolder.tsx`,
-fiches de nobles) partout où un noble est représenté : la fiche montre le pion
-puis les titres en texte. L'arbre de la lignée ne montre pas le pion : la
+livrés, marquisat compris : tous les attributs existent. Partout où un noble
+est représenté (`NobleHolder.tsx`, fiches de nobles), la fiche montre le pion
+puis les titres en texte, sans pastille de titre. L'arbre de la lignée ne
+montre pas le pion : la
 captivité d'un noble y est écrite en texte, avec ses titres.
 
 ### Bâtiments
 
-- Les silhouettes game-icons.net actuelles (`web/src/components/MapMarkers.tsx`)
+- Les silhouettes game-icons.net (`web/src/components/MapMarkers.tsx`)
   sont remplies de la teinture du joueur qui contrôle la case, ou de
   `paper-50` si la case est neutre ; cerne `ink-900`, halo `paper-map`.
-- La couronne de la capitale passe en `brass-700` ; le niveau reste un chiffre
+- La couronne de la capitale est en `brass-700` ; le niveau reste un chiffre
   en haut à droite, en Alegreya 700.
 
 **Précision.** Le stock d'un château ou d'un village s'affiche « 10 R » à côté
-du bâtiment, et la légende rappelle que R désigne les ressources ; le « ×10 »
-isolé disparaît.
+du bâtiment, et la légende rappelle que R désigne les ressources ; aucun
+« ×10 » isolé n'est affiché.
 
 ### Sélection, ravitaillement, intentions et calamités
 
 - **Sélection :** halo `brass-400` de 8 unités à 30 % et trait `brass-700`
-  de 2,5 px ; remplace l'orange `#d28b22`.
-- **Ravitaillement :** zone en hachures `ink-900` à 35 % (au lieu de
-  `#808080`) ; ligne en tirets à la teinture du joueur.
-- **Intentions :** flèches à la teinture du joueur, cernées d'`ink-900` (au lieu
-  de `#17120f`) ; un brouillon garde la même flèche à 45 % d'opacité, en
-  tirets (au lieu de `#d4a39b`).
-- **Calamités et cartes :** pictogrammes actuels à l'encre et au papier ; une
+  de 2,5 px.
+- **Ravitaillement :** zone en hachures `ink-900` à 35 % ; ligne en tirets
+  à la teinture du joueur.
+- **Intentions :** flèches à la teinture du joueur, cernées d'`ink-900` ; un
+  brouillon garde la même flèche à 45 % d'opacité, en tirets.
+- **Calamités et cartes :** pictogrammes à l'encre et au papier ; une
   calamité annulée est barrée d'un trait `ink-900`, pas de rouge.
 
 ### Étiquettes
 
 - **Nom :** Alegreya italique 500, 12 unités, `ink-900`, halo `paper-map` de
   3 unités. Les noms de plus de 14 caractères se coupent au trait d'union
-  (un seul sur 465 communes aujourd'hui : Fougères-du-Marais).
+  (un seul parmi les 465 communes : Fougères-du-Marais).
 - **Code :** Cinzel 700, 8 unités, espacé de 0,08 em, sous le nom. Le
   trigramme reste visible, puisque les ordres s'écrivent avec lui.
 - **Territoire ordinaire et territoire particulier :** un territoire sans
@@ -521,12 +513,12 @@ de base du nom, ou sur celle du code quand le nom est masqué.
 
 ### Légende
 
-La légende montre des échantillons de symboles au lieu de pastilles de couleur :
+La légende montre des échantillons de symboles, non des pastilles de couleur :
 les cinq terrains, les icônes de frontière infranchissable et le pointillé
 franchissable, la bannière, la bannière couronnée d'un fief, l'écu, le pion
 de noble (libre, otage, au cachot, excommunié, et ses attributs de titre) et
 les bâtiments. Les boutons des calques (intentions, contrôle, évêchés,
-calamités, cartes) sont conservés.
+calamités, cartes) complètent la légende.
 
 ## Écrans et composants
 
@@ -591,27 +583,27 @@ La carte occupe toute la largeur ; les panneaux passent dans un tiroir :
 - **Tiroir à droite :** posé sur la carte, avec des onglets en marque-pages
   (Ordres, Rapport, Royaume, Règles) qui dépassent de son bord gauche. Il se replie
   pour rendre toute la carte ; le marque-page actif est en `brass-400`. Les
-  onglets tiennent lieu de titre : le titre qui répète l'onglet actif
-  (`GamePanelCard.tsx`) disparaît.
+  onglets tiennent lieu de titre : aucun titre ne répète l'onglet actif
+  (`GamePanelCard.tsx`).
 - **Action principale :** le bouton d'envoi des ordres vit dans un pied de
   tiroir collant, toujours visible. Libellé proposé : « Sceller les ordres ».
 
-**Précision.** Le tiroir mesure 384 à 416 px comme la colonne actuelle ; la
+**Précision.** Le tiroir mesure 384 à 416 px ; la
 carte se recadre quand il s'ouvre ou se replie. Un bouton sous les
-marque-pages le replie ; un marque-page le rouvre. Le bandeau « Carte
-publique · vue commune » posé sur la carte disparaît ; l'aide aux gestes
-rejoint la légende, dont le bouton passe en haut à gauche de la carte pour
+marque-pages le replie ; un marque-page le rouvre. Aucun bandeau « Carte
+publique · vue commune » n'est posé sur la carte ; l'aide aux gestes
+est dans la légende, dont le bouton se trouve en haut à gauche de la carte pour
 laisser le bord droit aux marque-pages. Le bouton de navigation qui ramène à
 la partie depuis les Règles ou la FAQ s'appelle « Carte », pour ne pas se
 confondre avec le menu « Partie ». Une erreur d'envoi s'affiche dans le pied
 collant, au-dessus de « Sceller les ordres ». En ligne, la résolution forcée
-rejoint aussi le menu « Partie », avec sa confirmation.
+figure aussi dans le menu « Partie », avec sa confirmation.
 
 ### Téléphone
 
 - Navigation d'application par une barre d'onglets en bas : Carte, Ordres,
-  Rapport, Royaume, Règles. Chaque vue a tout l'écran ; le panneau glissant actuel
-  (`web/src/components/ui/panel-sheet.tsx`) disparaît.
+  Rapport, Royaume, Règles. Chaque vue a tout l'écran ; aucun panneau glissant
+  (`web/src/components/ui/panel-sheet.tsx`) ne recouvre la carte.
 - **Carte :** plein écran, ouverte sur les territoires du joueur. La fiche
   d'un territoire touché s'ouvre en bas de l'écran, sur la même largeur que
   le cartouche de l'ordinateur (voir [Fiche de territoire](#fiche-de-territoire)).
@@ -622,7 +614,7 @@ rejoint aussi le menu « Partie », avec sa confirmation.
 - **Rapport :** toucher un événement bascule sur la carte, cadrée sur
   l'événement.
 - L'en-tête tient sur une ligne : sceau, saison et tour, scores et un menu
-  pour la langue et les réglages. Plus rien ne déborde.
+  pour la langue et les réglages. Rien ne déborde.
 - Toute cible tactile mesure au moins 44 × 44 px.
 
 **Précision.** Dans l'onglet Ordres, la carte prend environ 40 % de la hauteur,
@@ -722,23 +714,23 @@ utilisés par la surcouche d'intentions (`web/src/lib/intent-overlay.ts`).
   de la saison (tableau [Saisons](#saisons)) ; l'interface en reprend la
   teinte d'interface sur un filet sous la barre du haut et sur le marque-page
   actif du tiroir.
-- En hiver s'ajoutent la neige actuelle et le panneau d'ordres d'hiver en
+- En hiver s'ajoutent la neige et le panneau d'ordres d'hiver en
   `winter-100` et `winter-700`.
 - La saison, l'année et le tour restent écrits en toutes lettres dans la
   barre du haut, pour ne jamais dépendre de la couleur seule.
 
 ### Textes d'aide
 
-Les explications occupent aujourd'hui une bonne part du poste de
-commandement (ordres d'hiver, cartes spéciales, ordres de titres, main,
-chaînes d'ordres, en-têtes des fenêtres d'ordre).
+Les explications du poste de commandement (ordres d'hiver, cartes
+spéciales, ordres de titres, main, chaînes d'ordres, en-têtes des fenêtres
+d'ordre) sont réduites à un résumé et à un texte complet à la demande.
 
-- Chaque section garde **une seule ligne** de résumé sous son titre, en
+- Chaque section porte **une seule ligne** de résumé sous son titre, en
   `ink-500`.
 - Un bouton « ? » (cercle `line-strong`, 24 px, cible de 44 px sur téléphone)
   à droite du titre ouvre un popover avec le texte complet et un lien
   « Voir la règle » vers la section correspondante du marque-page Règles.
-- Les syntaxes d'ordre (`D C KIND`, `R N CCC XXX`…) ne s'écrivent plus dans
+- Les syntaxes d'ordre (`D C KIND`, `R N CCC XXX`…) ne s'écrivent pas dans
   les phrases : elles apparaissent dans les modèles de saisie et dans
   l'autocomplétion.
 - Une information d'état (calamités prévues par l'astrologue, deck restant,
@@ -753,11 +745,10 @@ par Échap ou un clic à l'extérieur ; il n'est jamais ouvert par défaut.
 De haut en bas, sous les marque-pages : trésor, ordres de titres, main de
 cartes, saisie des ordres, pied collant d'envoi.
 
-- **Trésor :** un bandeau d'une ligne remplace les blocs « Revenu prévu » et
-  « Consommation prévue » : stock, revenu par tour d'action, consommation et,
-  s'il y en a un, le risque de famine en `warning-700`
+- **Trésor :** un bandeau d'une ligne donne stock, revenu par tour d'action,
+  consommation et, s'il y en a un, le risque de famine en `warning-700`
   (« ⚖ 20 R · +10 R / tour · −1 R · famine : aucune »). Un clic le déplie
-  sur le détail actuel (hors fief, fiefs, moulins, rente royale, taxes…),
+  sur le détail (hors fief, fiefs, moulins, rente royale, taxes…),
   où chaque fief et territoire s'écrit en toutes lettres
   (« Baronnie de Rochevent (RVE) : +3 R »).
 - **Ordres de titres :** groupés par titulaire. Chaque noble qui peut émettre
@@ -768,22 +759,22 @@ cartes, saisie des ordres, pied collant d'envoi.
   ceux des dames sous la dame. Le code de l'ordre (`X E`, `W X`) reste dans
   l'infobulle du bouton.
 - **Réglage d'un ordre :** le bouton déplie un formulaire dans le tiroir,
-  sous la ligne du titulaire, au lieu de la fenêtre modale actuelle
-  (`OrderDialog.tsx`). La carte reste visible : un clic sur un territoire ou
-  un noble remplit le champ actif, signalé par un anneau `brass-700`. Le
+  sous la ligne du titulaire (`OrderDialog.tsx`), sans fenêtre modale. La carte reste visible : un clic sur un territoire
+  ou un noble remplit le champ actif, signalé par un anneau `brass-700`. Le
   formulaire montre la ligne d'ordre produite en IBM Plex Mono, avec son
   commentaire en libellés complets, puis « Annuler » et « Ajouter l'ordre ».
-  Ses listes déroulantes proposent « Ravinval (RVN) », pas « RVN ». Un seul formulaire est ouvert à la fois.
+  Ses listes déroulantes proposent « Ravinval (RVN) », pas « RVN ».
+  Un seul formulaire est ouvert à la fois.
 - **Main de cartes :** un éventail de petites cartes à jouer (56 × 80 px) :
   pictogramme à l'encre, nom, code en pied. Trois familles se distinguent
   par le filet et la pièce d'angle, pas par une couleur vive : cartes
   spéciales (filet `brass-700`), cartes de noble et de prétention (filet
   `ink-900`, pion en angle), dignités (double filet). Un clic sur une carte
-  ouvre « Jouer » et « Défausser », qui insèrent la ligne dans la saisie ; la
-  croix permanente disparaît. Une carte défaussée ce tour passe en grisé
-  barré. Le deck et la limite de main s'écrivent sous l'éventail.
-- **Calamités à venir :** l'encadré rouge actuel passe en `warning-100` et
-  `warning-700` : une prévision n'est pas une erreur.
+  ouvre « Jouer » et « Défausser », qui insèrent la ligne dans la saisie ;
+  aucune croix permanente n'est affichée. Une carte défaussée ce tour est
+  grisée et barrée. Le deck et la limite de main s'écrivent sous l'éventail.
+- **Calamités à venir :** l'encadré est en `warning-100` et
+  `warning-700`, non en rouge : une prévision n'est pas une erreur.
 - **Saisie :** une zone par noble au printemps, en été et en automne, la zone
   des cartes de noble au-dessus ; une seule zone en hiver (voir
   [Saisie des ordres](#saisie-des-ordres)).
@@ -811,9 +802,8 @@ spéciale en plusieurs exemplaires porte un « ×2 » en coin.
 
 ### Marque-page Royaume
 
-Le marque-page « Royaume » regroupe ce qui concerne tout le royaume et qui
-flotte aujourd'hui sur la carte (`CrownPanel.tsx`,
-`ReligiousHierarchyPanel.tsx`) :
+Le marque-page « Royaume » regroupe ce qui concerne tout le royaume
+(`CrownPanel.tsx`, `ReligiousHierarchyPanel.tsx`) :
 
 - **Couronne :** roi, reine (ou reine douairière), régent, fiefs de la
   couronne avec leur nombre de territoires.
@@ -825,7 +815,7 @@ flotte aujourd'hui sur la carte (`CrownPanel.tsx`,
   territoires ». Noms et fiefs sont des liens vers la carte.
 - En pied : un bouton « Ouvrir la lignée et les alliances ».
 
-Plus rien ne se pose sur la carte en dehors de la légende et des contrôles de
+Rien d'autre ne se pose sur la carte en dehors de la légende et des contrôles de
 zoom.
 
 ### Fiche de territoire
@@ -839,8 +829,7 @@ territoire par un trait d'encre ; le tiroir reste consacré aux ordres.
   couronne), titulaire, capitale ou cité et sa défense, ressources et revenu
   du territoire, armée (écu, effectif, ordre), nobles présents (une rangée de
   pions à attributs, leurs noms au survol ou au toucher), bâtiments.
-- Les doublons actuels fusionnent : un seul « revenu », sous la forme
-  « 40 R · +3 R / tour ».
+- Le revenu s'écrit une seule fois, sous la forme « 40 R · +3 R / tour ».
 - Le cartouche se ferme par Échap, par la croix ou en sélectionnant ailleurs.
 
 **Précision.** Le cartouche mesure 280 px de large au plus et se place du côté
@@ -853,14 +842,14 @@ préparer les ordres sans tenir dans une ligne : la région et son chef-lieu,
 le revenu du fief, les effets actifs, la pile d'ordres de l'armée, le
 ravitaillement (source, distance, besoins) et l'aperçu de transfert. Sur
 téléphone, la même fiche s'ouvre en bas de l'onglet Carte. Le tiroir ne
-montre plus la fiche : il reste consacré aux ordres.
+montre pas la fiche : il reste consacré aux ordres.
 
 ### Scores et victoire
 
-Le popover actuel des scores (`Scoreboard.tsx`) est conservé et restylé : une
+Le popover des scores (`Scoreboard.tsx`) montre une
 carte par joueur, avec ses armoiries, son score de titres en Alegreya 700,
-l'objectif, le mode (seul ou allié) et, en fin de partie, la victoire. Les
-étiquettes « SOLO » deviennent du texte (« seul ») ; le score du joueur actif
+l'objectif, le mode (seul ou allié) et, en fin de partie, la victoire. Le mode
+s'écrit en texte (« seul »), jamais en étiquette « SOLO » ; le score du joueur actif
 est en `brass-700`.
 
 ### Lignée et alliances
@@ -1028,7 +1017,7 @@ tiges disent tout. Le graphe d'alliances est un encart replié par défaut.
 - **Rumeurs :** un encadré « On dit au marché… » en Alegreya italique, sur
   `paper-100` avec un filet `line` ; les cartes jouées et calamités à venir
   forment un encadré voisin, en texte droit.
-- Ces cartes remplacent les listes actuelles de `ReportPanel.tsx`.
+- `ReportPanel.tsx` affiche ces cartes.
 
 **Précision.** Le rapport se range en catégories : combats, événements
 (effets de saison, famines, fiefs, mariages, élections), hiver ou cartes de
@@ -1102,15 +1091,15 @@ hors partie. Elles partagent un seul gabarit, posé sur le papier de la page.
 - Aucune animation décorative : ni apparition animée des menus et popovers
   (`tw-animate-css`), ni déplacement animé des pièces, ni son.
 - **Précision.** Seules restent les transitions fonctionnelles qui évitent un
-  saut brutal, comme l'ouverture du tiroir (150 ms au plus). Elles sont désactivées quand le système demande de réduire les
-  animations (`prefers-reduced-motion`).
+  saut brutal, comme l'ouverture du tiroir (150 ms au plus). Elles sont
+  désactivées quand le système demande de réduire les animations (`prefers-reduced-motion`).
 
 ## Accessibilité
 
 - Les contrastes suivent le tableau [Contrastes](#contrastes).
 - Le focus est visible partout : anneau `brass-700` de 2 px, décalé de 2 px.
 - La carte reste utilisable au clavier : territoires focalisables et
-  sélection par Entrée ou Espace, comme aujourd'hui.
+  sélection par Entrée ou Espace.
 - Chaque pièce garde un libellé accessible (joueur, effectif, statut du
   noble, niveau du bâtiment).
 - La couleur n'est jamais le seul repère (principe 4).

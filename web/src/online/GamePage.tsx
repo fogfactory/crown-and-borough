@@ -28,6 +28,7 @@ import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
 import { LineageDialog } from '@/components/LineageDialog'
 import { Scoreboard } from '@/components/Scoreboard'
 import { SubmissionDots } from '@/components/SubmissionDots'
+import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { HeaderPopover } from '@/components/ui/header-popover'
 import {
@@ -183,12 +184,12 @@ function Lobby({
                   {player.name || t('online.emptySlot')}
                 </span>
                 {(player.actorId === uid || player.id === currentPlayer) && (
-                  <span className="shrink-0 text-2xs font-semibold uppercase tracking-[0.1em] text-brass-700">
+                  <span className="shrink-0 label-caps text-2xs font-bold text-brass-700">
                     {t('online.you')}
                   </span>
                 )}
               </div>
-              <p className="mt-1 text-2xs uppercase tracking-[0.1em] text-ink-500">
+              <p className="mt-1 label-caps text-2xs font-bold text-ink-500">
                 {player.submitted ? t('online.submitted') : t('online.waiting')}
               </p>
             </li>
@@ -196,12 +197,12 @@ function Lobby({
         </ul>
         <Scoreboard players={summary.players} scores={scores} victory={victory} />
         {invitation && (
-          <div className="rounded-lg border border-brass-700/40 bg-brass-300/30 px-3 py-3 text-sm">
-            <p className="font-semibold text-brass-700">
+          <Alert tone="info" className="py-3">
+            <p className="font-semibold">
               {t('home.invitationCode')}: {invitation.inviteCode}
             </p>
             <p className="mt-1 break-all text-xs text-ink-500">{invitation.inviteUrl}</p>
-          </div>
+          </Alert>
         )}
       </CardContent>
     </Card>
@@ -819,12 +820,7 @@ export function GamePage() {
         >
           <IconArrowLeft aria-hidden="true" className="size-4" /> {t('online.backHome')}
         </Link>
-        <p
-          role="alert"
-          className="rounded-lg border border-vermilion-700/30 bg-vermilion-100 px-4 py-3 text-sm text-vermilion-700"
-        >
-          {loadError}
-        </p>
+        <Alert role="alert">{loadError}</Alert>
       </div>
     )
   }
@@ -841,12 +837,7 @@ export function GamePage() {
         >
           <IconArrowLeft aria-hidden="true" className="size-4" /> {t('online.backHome')}
         </Link>
-        <p
-          role="alert"
-          className="rounded-lg border border-vermilion-700/30 bg-vermilion-100 px-4 py-3 text-sm text-vermilion-700"
-        >
-          {t('online.accessRevoked')}
-        </p>
+        <Alert role="alert">{t('online.accessRevoked')}</Alert>
       </div>
     )
   }
@@ -1030,32 +1021,22 @@ export function GamePage() {
         {subscription.error &&
           subscription.error.code !== 'permission-denied' &&
           subscription.error.code !== 'not-member' && (
-            <p
-              role="status"
-              className="rounded-lg border border-brass-700/40 bg-brass-300/30 px-3 py-2 text-sm text-brass-700"
-            >
+            <Alert tone="info" role="status">
               {t('online.realtimeError')}
-            </p>
+            </Alert>
           )}
-        {actionError && (
-          <p
-            role="alert"
-            className="rounded-lg border border-vermilion-700/30 bg-vermilion-100 px-3 py-2 text-sm text-vermilion-700"
-          >
-            {actionError}
-          </p>
-        )}
+        {actionError && <Alert role="alert">{actionError}</Alert>}
         {spectator && (
-          <div className="rounded-xl border border-brass-700/50 bg-brass-300/30 px-4 py-3 text-sm text-brass-700">
+          <Alert tone="info" className="py-3">
             <p className="font-semibold">{t('online.spectatorBanner')}</p>
             <p className="mt-1">{t('online.spectatorDescription')}</p>
-          </div>
+          </Alert>
         )}
         {summary.winner && (
-          <div className="rounded-xl border border-brass-700/50 bg-brass-300/30 px-4 py-3 text-center text-sm font-semibold text-brass-700">
+          <Alert tone="info" className="py-3 text-center font-semibold">
             {t('online.victory')}:{' '}
             {ownerName(summary.winner, state, summary.players, summary.winner)}
-          </div>
+          </Alert>
         )}
       </div>
 
@@ -1167,16 +1148,9 @@ export function GamePage() {
                         onRestoreFromServer={restoreFromServer}
                       />
                     ) : spectator ? (
-                      <p className="rounded-lg border border-brass-700/40 bg-brass-300/30 px-3 py-2 text-sm text-brass-700">
-                        {t('online.spectatorReadOnly')}
-                      </p>
+                      <Alert tone="info">{t('online.spectatorReadOnly')}</Alert>
                     ) : (
-                      <p
-                        role="alert"
-                        className="rounded-lg border border-vermilion-700/30 bg-vermilion-100 px-3 py-2 text-sm text-vermilion-700"
-                      >
-                        {t('online.accessRevoked')}
-                      </p>
+                      <Alert role="alert">{t('online.accessRevoked')}</Alert>
                     )}
                   </>
                 ),
