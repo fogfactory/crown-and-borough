@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
 import remarkGfm from 'remark-gfm'
 
+import { Alert } from '@/components/ui/alert'
 import { useLanguage } from '@/i18n/LanguageContext'
 import { apiTextRequest, type TokenProvider } from '@/lib/api'
 
@@ -117,18 +118,13 @@ export function RulesPanel({
     <section aria-label={t('app.rules')} className="min-w-0">
       <div className="mb-4 flex items-start justify-between gap-3">
         <p className="text-xs leading-relaxed text-ink-500">{t('rules.reference')}</p>
-        <span className="shrink-0 rounded-md border border-line bg-paper-100 px-2 py-1 text-2xs font-bold uppercase tracking-[0.14em] text-ink-500">
+        <span className="shrink-0 rounded-md border border-line bg-paper-100 px-2 py-1 label-caps text-2xs font-bold text-ink-500">
           {language.toUpperCase()}
         </span>
       </div>
 
       {error ? (
-        <p
-          role="alert"
-          className="rounded-lg border border-vermilion-700/30 bg-vermilion-100 px-3 py-3 text-sm text-vermilion-700"
-        >
-          {error}
-        </p>
+        <Alert role="alert">{error}</Alert>
       ) : rulesMarkdown ? (
         <div
           ref={rulesContainerRef}
@@ -143,20 +139,20 @@ export function RulesPanel({
             rehypePlugins={[rehypeRaw]}
             components={{
               h1: ({ children }) => (
-                <h2 className="mb-4 font-display text-2xl font-semibold leading-tight text-ink-900">
+                <h2 className="mb-4 font-display text-2xl font-bold text-ink-900">
                   {children}
                 </h2>
               ),
               h2: ({ children }) => (
                 <h3
                   id={sectionAnchor(children)}
-                  className="mt-7 border-t border-line/60 pt-4 font-display text-lg font-semibold text-ink-900 first:mt-0 first:border-t-0 first:pt-0"
+                  className="mt-7 border-t border-line/60 pt-4 font-display text-lg font-medium text-ink-900 first:mt-0 first:border-t-0 first:pt-0"
                 >
                   {children}
                 </h3>
               ),
               h3: ({ children }) => (
-                <h4 className="mt-5 font-semibold text-ink-500">{children}</h4>
+                <h4 className="mt-5 font-bold text-ink-700">{children}</h4>
               ),
               p: ({ children }) => <p className="mt-2 first:mt-0">{children}</p>,
               ul: ({ children }) => (

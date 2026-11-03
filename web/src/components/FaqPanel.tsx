@@ -34,7 +34,7 @@ export function FaqPanel({ showHeading = true }: { showHeading?: boolean }) {
     >
       {showHeading && (
         <div className="mb-6 max-w-3xl">
-          <h2 id="faq-title" className="font-display text-2xl font-semibold text-ink-900">
+          <h2 id="faq-title" className="font-display text-2xl font-bold text-ink-900">
             {t('faq.title')}
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-ink-500">{t('faq.intro')}</p>
@@ -46,14 +46,14 @@ export function FaqPanel({ showHeading = true }: { showHeading?: boolean }) {
           <details
             key={entry.question}
             open
-            className="group rounded-xl border border-line/70 bg-paper-100 px-4 py-3 shadow-sm sm:px-5"
+            className="group rounded-xl border border-line bg-paper-100 px-4 py-3 sm:px-5"
           >
-            <summary className="cursor-pointer list-none pr-7 font-display text-base font-semibold text-ink-900 marker:hidden group-open:text-brass-700 [&::-webkit-details-marker]:hidden">
+            <summary className="cursor-pointer list-none pr-7 font-display text-base font-medium text-ink-900 marker:hidden group-open:text-brass-700 [&::-webkit-details-marker]:hidden">
               <span className="relative block after:absolute after:right-0 after:top-1/2 after:size-2 after:-translate-y-1/2 after:rotate-45 after:border-r-2 after:border-t-2 after:border-brass-700 after:transition-transform group-open:after:rotate-[135deg]">
                 {t(entry.question)}
               </span>
             </summary>
-            <div className="mt-3 border-t border-line/50 pt-3 text-sm leading-relaxed text-ink-700">
+            <div className="mt-3 border-t border-line/50 pt-3 text-base leading-relaxed text-ink-700">
               <ReactMarkdown
                 components={{
                   p: ({ children }) => <p className="mt-2 first:mt-0">{children}</p>,

@@ -3,6 +3,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { MISSING_EMAIL_ERROR, useAuth } from '@/auth/AuthProvider'
 import { Seal } from '@/components/Seal'
+import { Alert } from '@/components/ui/alert'
+import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -56,16 +58,10 @@ export function SignInPage() {
   }
 
   return (
-    <Card className="mx-auto max-w-md border-line bg-paper-50 shadow-panel">
+    <Card className="mx-auto max-w-md border-line">
       <CardHeader>
         <Seal variant="full" className="mx-auto mb-2 size-32" />
-        <Link
-          to="/"
-          className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-brass-700"
-        >
-          Crown &amp; Borough
-        </Link>
-        <CardTitle className="font-display text-3xl text-ink-900">
+        <CardTitle className="font-display text-3xl font-bold text-ink-900">
           {t('auth.title')}
         </CardTitle>
         <CardDescription className="text-ink-500">
@@ -75,9 +71,9 @@ export function SignInPage() {
       <CardContent>
         {sent ? (
           <div className="space-y-4" role="status" aria-live="polite">
-            <p className="rounded-lg border border-success-700/30 bg-paper-100 px-3 py-3 text-sm text-success-700">
+            <Alert tone="success">
               {t('auth.linkSent')}: <strong>{email}</strong>
-            </p>
+            </Alert>
             <Button
               type="button"
               variant="outline"
@@ -93,23 +89,16 @@ export function SignInPage() {
               <span className="text-sm font-semibold text-ink-700">
                 {t('auth.email')}
               </span>
-              <input
+              <Input
                 type="email"
                 autoComplete="email"
                 required
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className="h-11 w-full rounded-lg border border-line-strong bg-paper-50 px-3 text-sm outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
+                className="h-11"
               />
             </label>
-            {error && (
-              <p
-                role="alert"
-                className="rounded-lg border border-vermilion-700/30 bg-vermilion-100 px-3 py-2 text-sm text-vermilion-700"
-              >
-                {error}
-              </p>
-            )}
+            {error && <Alert role="alert">{error}</Alert>}
             <Button type="submit" className="w-full" disabled={sending || !email.trim()}>
               {sending ? t('auth.sendingLink') : t('auth.sendLink')}
             </Button>
@@ -165,7 +154,7 @@ export function FinishPage() {
   }, [finishSignIn, navigate, redirect, status])
 
   return (
-    <Card className="mx-auto max-w-md border-line bg-paper-50 shadow-panel">
+    <Card className="mx-auto max-w-md border-line">
       <CardHeader>
         <CardTitle className="font-display text-2xl text-ink-900">
           {t('auth.verifyLink')}
@@ -173,12 +162,9 @@ export function FinishPage() {
       </CardHeader>
       <CardContent>
         {error && (
-          <p
-            role="alert"
-            className="mb-4 rounded-lg border border-vermilion-700/30 bg-vermilion-100 px-3 py-2 text-sm text-vermilion-700"
-          >
+          <Alert role="alert" className="mb-4">
             {error}
-          </p>
+          </Alert>
         )}
         {emailRequired && (
           <form
@@ -192,13 +178,13 @@ export function FinishPage() {
               <span className="text-sm font-semibold text-ink-700">
                 {t('auth.emailMissing')}
               </span>
-              <input
+              <Input
                 type="email"
                 autoComplete="email"
                 required
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className="h-11 w-full rounded-lg border border-line-strong bg-paper-50 px-3 text-sm outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
+                className="h-11"
               />
             </label>
             <Button type="submit" className="w-full" disabled={retrying || !email.trim()}>
@@ -261,9 +247,9 @@ export function ProfilePage() {
   }
 
   return (
-    <Card className="mx-auto max-w-xl border-line bg-paper-50 shadow-panel">
+    <Card className="mx-auto max-w-xl border-line">
       <CardHeader>
-        <CardTitle className="font-display text-3xl text-ink-900">
+        <CardTitle className="font-display text-3xl font-bold text-ink-900">
           {t('profile.title')}
         </CardTitle>
         <CardDescription className="text-ink-500">
@@ -276,7 +262,7 @@ export function ProfilePage() {
             <span className="text-sm font-semibold text-ink-700">
               {t('profile.displayName')}
             </span>
-            <input
+            <Input
               type="text"
               required
               minLength={1}
@@ -284,17 +270,10 @@ export function ProfilePage() {
               value={displayName}
               placeholder={t('profile.displayNamePlaceholder')}
               onChange={(event) => setDisplayName(event.target.value)}
-              className="h-11 w-full rounded-lg border border-line-strong bg-paper-50 px-3 text-sm outline-none transition focus:border-brass-700 focus:ring-2 focus:ring-brass-700/20"
+              className="h-11"
             />
           </label>
-          {error && (
-            <p
-              role="alert"
-              className="rounded-lg border border-vermilion-700/30 bg-vermilion-100 px-3 py-2 text-sm text-vermilion-700"
-            >
-              {error}
-            </p>
-          )}
+          {error && <Alert role="alert">{error}</Alert>}
           <Button
             type="submit"
             className="w-full"

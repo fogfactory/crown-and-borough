@@ -1047,9 +1047,41 @@ Un tour sans rien de tout cela écrit « Rien à signaler ce tour. ».
   `brass-700`.
 - **Alertes :** fond `vermilion-100` ou `warning-100`, texte et filet dans la
   teinture `-700` correspondante.
+- **Composants :** `Alert` (erreur, succès, information) et `Input`
+  portent ces styles ; les pages ne les reproduisent pas à la main.
 - **Rayons :** 4 px pour les contrôles, 6 px pour les panneaux.
 - **Ombres :** une seule ombre douce, réservée aux éléments flottants (menus,
   popovers, tiroir).
+
+### Pages annexes
+
+Accueil, connexion, invitation, profil, règles et FAQ forment les pages
+hors partie. Elles partagent un seul gabarit, posé sur le papier de la page.
+
+- **En-tête de page :** étiquette Cinzel en capitales (« Crown & Borough »,
+  `brass-700`, `text-2xs`), titre Cinzel 700 (`text-2xl` ; `text-3xl` sur
+  l'accueil), phrase d'introduction en `text-sm` `ink-500`,
+  puis un double filet (`line-strong`) qui sépare l'en-tête du contenu
+  (composant `PageHeader`, utilisé par l'accueil, les règles et la FAQ). Les
+  pages en carte centrée (connexion, invitation, profil) n'ont ni étiquette
+  ni filet, pour rester serrées : le sceau (sauf au profil) puis le titre
+  Cinzel 700 `text-3xl` dans l'en-tête de la carte. Le titre est l'unique
+  `h1` de la page.
+- **Feuilles :** les panneaux (liste de parties, formulaires, règles, entrées
+  de FAQ) sont en `paper-50` ou `paper-100`, bordure `line`, rayon de 6 px,
+  sans ombre : l'ombre est réservée aux éléments flottants.
+- **Sceau :** variante `full` (128 px) sur l'accueil, la connexion et
+  l'invitation ; aucune sur le profil, la FAQ et les règles, que l'en-tête
+  de l'application orne déjà.
+- **Titres de section :** Cinzel 500, `text-lg` ; sous-titres en Alegreya 700.
+  Le texte courant des règles et de la FAQ est en `text-base`.
+- **Étiquettes et pastilles :** Cinzel 700 en capitales espacées de 0,08 em
+  (`label-caps`, `text-2xs`), jamais d'autre espacement ni d'autre taille.
+- **Champs et alertes :** composants `Input`, `Select` natif aligné et
+  `Alert` (voir [Composants de base](#composants-de-base)).
+- **Règles et FAQ :** le rendu Markdown suit l'échelle typographique ; les
+  tableaux, citations et blocs de code ont une bordure `line` et un rayon de
+  4 px ; une entrée de FAQ est une feuille dépliable (chevron `brass-700`).
 
 ### Emblème
 
