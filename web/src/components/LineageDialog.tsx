@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   IconChevronDown,
   IconChevronUp,
@@ -20,6 +20,8 @@ import {
   layoutTree,
   MEDALLION_W,
   placeTree,
+  visibleNobles,
+  wrapLines,
   type AlliancePair,
   type ClaimRef,
   type EdgeKind,
@@ -250,11 +252,11 @@ const IVY_LEAF = 'M0,0 C1,-2.4 3.6,-3 6,0 C3.6,3 1,2.4 0,0Z'
  * sides of the stem, rooted at its edge and tilted forward. The shape (not the
  * colour alone) tells the head marriage from the others.
  */
-function IvyLeaves({ points }: { points: Point[] }) {
+function IvyLeaves({ points, radius = 10 }: { points: Point[]; radius?: number }) {
   const edge = EDGE_STYLE.head.width / 2 - 0.5
   return (
     <g data-ivy="">
-      {ivyLeaves(points).map((leaf, i) => {
+      {ivyLeaves(points, radius).map((leaf, i) => {
         const nx = -Math.sin(leaf.angle) * leaf.side * edge
         const ny = Math.cos(leaf.angle) * leaf.side * edge
         return (
@@ -313,41 +315,6 @@ function knotPosition(points: Point[], aligned: boolean) {
   if (aligned || points.length < 4)
     return { x: (first.x + last.x) / 2, y: (first.y + last.y) / 2 }
   return { x: (points[1].x + points[2].x) / 2, y: points[1].y }
-}
-
-/**
- * Codes of the nobles shown when a house is focused: its own, their spouses
- * (ended marriages included) and the nobles tied to them by a claim, in either
- * direction. `null` without a focus: everyone is shown.
- */
-function visibleNobles(
-  houses: House[],
-  links: LineageLink[],
-  claims: Claim[],
-  focus: PlayerId | null,
-): Set<string> | null {
-  if (!focus) return null
-  const own = new Set(
-    houses
-      .filter((h) => h.player.id === focus)
-      .flatMap((h) => h.members.map((m) => m.code)),
-  )
-  const shown = new Set(own)
-  for (const link of links) {
-    if (own.has(link.a)) shown.add(link.b)
-    if (own.has(link.b)) shown.add(link.a)
-  }
-  for (const claim of claims) {
-    if (own.has(claim.heir)) {
-      shown.add(claim.target)
-      shown.add(claim.spouse)
-    } else if (own.has(claim.target) || own.has(claim.spouse)) {
-      shown.add(claim.heir)
-      shown.add(claim.target)
-      shown.add(claim.spouse)
-    }
-  }
-  return shown
 }
 
 /**
@@ -1070,7 +1037,7 @@ function LineageTree({
       for (const member of house.members)
         names.set(
           member.code,
-          Math.max(0, Math.ceil(member.name.length / NAME_LINE_CHARS) - 1),
+          wrapLines(`${member.name}${member.sex ? ' ♂' : ''}`, NAME_LINE_CHARS) - 1,
         )
     return placeTree(
       layout,
@@ -1081,9 +1048,16 @@ function LineageTree({
   }, [layout, houses, texts])
   const { width, height, boxes } = placement
 
+  // The frame follows the focus (and the opening), not the edits of a simulation:
+  // the latest layout is read from a ref so a new one never moves the scroll.
+  const latest = useRef({ houses, layout, boxes })
+  useEffect(() => {
+    latest.current = { houses, layout, boxes }
+  })
   useEffect(() => {
     const element = scroller.current
     if (!element || !focus) return
+    const { houses, layout, boxes } = latest.current
     const house = houses.find((entry) => entry.player.id === focus)
     const lefts = (house?.members ?? [])
       .map((member) => layout.x.get(member.code))
@@ -1102,7 +1076,7 @@ function LineageTree({
     )
     const top = FRAME_PAD + Math.min(...tops) - 24
     element.scrollTop = Number.isFinite(top) && top > element.clientHeight - 160 ? top : 0
-  }, [focus, houses, layout, boxes])
+  }, [focus])
 
   const isSelected = (link: LineageLink) =>
     edit?.selected?.type === 'link' &&
@@ -1121,7 +1095,7 @@ function LineageTree({
           style={{ left: FRAME_PAD, top: FRAME_PAD, width, height }}
         >
           <svg
-            aria-hidden="true"
+            aria-hidden={edit ? undefined : true}
             className="pointer-events-none absolute inset-0 z-0"
             width={width}
             height={height}
@@ -1135,7 +1109,7 @@ function LineageTree({
               const ended = Boolean(claim.ended)
               return (
                 <g
-                  key={`claim-${claim.heir}-${claim.turn}-${claim.target}`}
+                  key={`claim-${index}-${claim.heir}-${claim.target}`}
                   opacity={ended ? 0.45 : 1}
                 >
                   <path
@@ -1161,14 +1135,14 @@ function LineageTree({
                 </g>
               )
             })}
-            {placement.marriages.map(({ link, aligned, d: edge }) => {
+            {placement.marriages.map(({ link, aligned, d: edge }, position) => {
               const style = EDGE_STYLE[link.kind]
               const points = pathPoints(edge)
               const d = roundedPath(points, 10)
               const knot = knotPosition(points, aligned)
               return (
                 <g
-                  key={link.key}
+                  key={`${position}-${link.key}`}
                   data-marriage={link.key}
                   data-kind={link.kind}
                   data-aligned={aligned}
@@ -1200,7 +1174,7 @@ function LineageTree({
                       strokeWidth={style.inner.width}
                     />
                   )}
-                  {link.kind === 'head' && <IvyLeaves points={points} />}
+                  {link.kind === 'head' && <IvyLeaves points={points} radius={10} />}
                   {knot && <MarriageKnot x={knot.x} y={knot.y} kind={link.kind} />}
                   {edit && link.active && (
                     <path
@@ -1211,8 +1185,17 @@ function LineageTree({
                       fill="none"
                       stroke="transparent"
                       strokeWidth={16}
+                      tabIndex={0}
+                      aria-pressed={isSelected(link)}
+                      className="outline-none focus-visible:stroke-brass-700/60"
                       style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
                       onClick={() => edit.onLink(link.a, link.b)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          edit.onLink(link.a, link.b)
+                        }
+                      }}
                     />
                   )}
                 </g>
@@ -1346,8 +1329,24 @@ function Cartouche({
   lines: MedallionLine[]
   edit?: TreeEdit
 }) {
+  const { t } = useLanguage()
   const selected = edit?.selected?.type === 'noble' && edit.selected.code === member.code
   const pending = edit?.pending?.from === member.code
+  // The estimated height holds unless the text wraps further than expected: the
+  // parchment then follows the text, so nothing spills outside the scroll.
+  const content = useRef<HTMLDivElement>(null)
+  const [measured, setMeasured] = useState(0)
+  useLayoutEffect(() => {
+    const element = content.current
+    if (!element || typeof ResizeObserver === 'undefined') return
+    const read = () => setMeasured(Math.ceil(element.offsetHeight))
+    read()
+    const observer = new ResizeObserver(read)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
+  const h = Math.max(box.h, measured)
+  const choose = edit ? () => edit.onNoble(member.code) : undefined
   return (
     <li
       data-noble={member.code}
@@ -1363,8 +1362,8 @@ function Cartouche({
         aria-hidden="true"
         className="absolute inset-0 overflow-visible"
         width={box.w}
-        height={box.h}
-        viewBox={`0 0 ${box.w} ${box.h}`}
+        height={h}
+        viewBox={`0 0 ${box.w} ${h}`}
       >
         {selected && (
           <>
@@ -1372,7 +1371,7 @@ function Cartouche({
               x="-5"
               y="-1"
               width={box.w + 10}
-              height={box.h + 2}
+              height={h + 2}
               rx="12"
               fill="none"
               stroke={SELECTION_HALO}
@@ -1382,7 +1381,7 @@ function Cartouche({
               x="-3"
               y="1"
               width={box.w + 6}
-              height={box.h - 2}
+              height={h - 2}
               rx="10"
               fill="none"
               stroke={SELECTION_STROKE}
@@ -1395,7 +1394,7 @@ function Cartouche({
             x="-4"
             y="-1"
             width={box.w + 8}
-            height={box.h + 2}
+            height={h + 2}
             rx="11"
             fill="none"
             stroke={LINEAGE_SECONDARY}
@@ -1403,7 +1402,7 @@ function Cartouche({
             strokeDasharray="4 3"
           />
         )}
-        <ScrollShape w={box.w} h={box.h} color={color} dead={member.dead} />
+        <ScrollShape w={box.w} h={h} color={color} dead={member.dead} />
         {!member.dead && (
           <g transform={`translate(${box.w - CARTOUCHE_PAD_X - 4} 6)`}>
             <circle r="8.5" fill={color} stroke={LINEAGE_INK} strokeWidth="1.25" />
@@ -1423,9 +1422,30 @@ function Cartouche({
         )}
       </svg>
       <div
-        className="pointer-events-auto relative flex flex-col"
+        ref={content}
+        className={cn(
+          'pointer-events-auto relative flex flex-col',
+          edit && 'rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brass-700/60',
+        )}
         style={{ minHeight: box.h, padding: `12px ${CARTOUCHE_PAD_X}px` }}
+        role={edit ? 'button' : undefined}
+        tabIndex={edit ? 0 : undefined}
+        aria-pressed={edit ? selected : undefined}
+        onKeyDown={
+          choose
+            ? (event) => {
+                if (event.target !== event.currentTarget) return
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  choose()
+                }
+              }
+            : undefined
+        }
       >
+        {!member.dead && (
+          <span className="sr-only">{t('lineage.rank', { rank })}</span>
+        )}
         <div className="flex min-h-8 items-center gap-1.5">
           <span
             className={cn(

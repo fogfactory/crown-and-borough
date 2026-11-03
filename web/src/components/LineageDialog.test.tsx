@@ -124,9 +124,9 @@ describe('LineageDialog', () => {
     expect(jean.querySelector('[data-shield-icon]')).toBeInTheDocument()
     expect(jean).toHaveTextContent('Duc Jean')
     expect(jean.querySelector('svg text')).toHaveTextContent('1')
-    const ids = [...document.querySelectorAll('[data-noble] [data-shield-icon] symbol')].map(
-      (symbol) => symbol.id,
-    )
+    const ids = [
+      ...document.querySelectorAll('[data-noble] [data-shield-icon] symbol'),
+    ].map((symbol) => symbol.id)
     expect(new Set(ids).size).toBe(ids.length)
     // The dead have no rank.
     expect(document.querySelector('[data-noble="OLD"] svg text')).toBeNull()
@@ -135,9 +135,13 @@ describe('LineageDialog', () => {
   it('hangs the heir below the couple that carries the claim, side by side', () => {
     renderDialog()
     const top = (code: string) =>
-      parseFloat((document.querySelector(`[data-noble="${code}"]`) as HTMLElement).style.top)
+      parseFloat(
+        (document.querySelector(`[data-noble="${code}"]`) as HTMLElement).style.top,
+      )
     const left = (code: string) =>
-      parseFloat((document.querySelector(`[data-noble="${code}"]`) as HTMLElement).style.left)
+      parseFloat(
+        (document.querySelector(`[data-noble="${code}"]`) as HTMLElement).style.left,
+      )
     expect(top('JEA')).toBe(top('ANN'))
     expect(Math.abs(left('JEA') - left('ANN'))).toBeGreaterThan(190)
     expect(top('EVE')).toBeGreaterThan(top('JEA'))
@@ -219,9 +223,7 @@ describe('LineageDialog', () => {
     expect(document.querySelector('[data-noble="VIC"]')).toBeNull()
     // Linked nobles keep the blazon of their own house, and their succession rank.
     expect(screen.getByRole('region', { name: 'Bob' })).toHaveTextContent('Duchesse Anne')
-    expect(
-      document.querySelector('[data-noble="EVE"] svg text'),
-    ).toHaveTextContent('2')
+    expect(document.querySelector('[data-noble="EVE"] svg text')).toHaveTextContent('2')
     expect(document.querySelector('[data-marriage="OLD-EVE"]')).toBeInTheDocument()
     expect(document.querySelector('[data-claim="EVE>JEA"]')).toBeInTheDocument()
     // The footer and the inset keep every house.
@@ -315,9 +317,7 @@ describe('LineageDialog', () => {
       expect(document.querySelector('[data-noble="ANN"]')).toBeInTheDocument()
       fireEvent.click(screen.getByRole('button', { name: 'Simulate' }))
       // The simulated state has no marriage left: only Alice's own nobles remain.
-      await waitFor(() =>
-        expect(document.querySelector('[data-noble="ANN"]')).toBeNull(),
-      )
+      await waitFor(() => expect(document.querySelector('[data-noble="ANN"]')).toBeNull())
       expect(document.querySelector('[data-noble="JEA"]')).toBeInTheDocument()
     })
 
@@ -357,6 +357,41 @@ describe('LineageDialog', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
       await waitFor(() => expect(request).toHaveBeenLastCalledWith([], expect.anything()))
       expect(screen.queryByText('Duc Jean dies')).not.toBeInTheDocument()
+    })
+
+    it('lets the keyboard pick a noble, and gives its rank to assistive tech', async () => {
+      const request = vi.fn(async () => projection(false))
+      renderDialog(request)
+      const jean = document.querySelector('[data-noble="JEA"]')!
+      expect(jean).toHaveTextContent('Succession rank 1')
+      // Without simulation, nothing is a button.
+      expect(jean.querySelector('[role="button"]')).toBeNull()
+      fireEvent.click(screen.getByRole('button', { name: 'Simulate' }))
+      const button = document.querySelector('[data-noble="JEA"] [role="button"]')!
+      expect(button).toHaveAttribute('tabindex', '0')
+      fireEvent.keyDown(button, { key: 'Enter' })
+      expect(screen.getByRole('button', { name: 'Kill' })).toBeInTheDocument()
+      expect(button).toHaveAttribute('aria-pressed', 'true')
+    })
+
+    it('keeps the scroll where it is while an action changes the simulated tree', async () => {
+      const request = vi.fn(async (actions: SimulationAction[]) =>
+        projection(actions.length > 0),
+      )
+      renderDialog(request, false, 'P1')
+      fireEvent.click(screen.getByRole('button', { name: 'Simulate' }))
+      const scroller = document.querySelector('.overflow-auto') as HTMLElement
+      scroller.scrollTop = 123
+      fireEvent.click(document.querySelector('[data-noble="JEA"]')!)
+      fireEvent.click(screen.getByRole('button', { name: 'Kill' }))
+      await waitFor(() =>
+        expect(request).toHaveBeenLastCalledWith(
+          [{ type: 'kill', noble: 'JEA' }],
+          expect.anything(),
+        ),
+      )
+      await screen.findByText('Duc Jean dies')
+      expect(scroller.scrollTop).toBe(123)
     })
 
     it('raises a fief by one rank and crowns a noble', async () => {

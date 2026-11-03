@@ -87,47 +87,85 @@ export interface IvyLeaf extends Point {
 }
 
 /**
- * Leaves of the ivy along a polyline, on both sides of the stem. They are spread
- * evenly over the length (about `spacing` apart, at least two stations), each
- * station bearing one leaf per side, so the count follows the bond and the
- * placement is deterministic. A small tilt varies from station to station
- * (a fixed cycle, no randomness). A leaf never sits within `clearAround` of the
- * middle (the knot) or of a corner (rounded in the drawing).
+ * The polyline `roundedPath` draws, with every quadratic corner sampled into
+ * `steps` short segments (same radius rule), so measures made on it follow the
+ * curve actually drawn.
  */
-export function ivyLeaves(points: Point[], spacing = 8, clearAround = 11): IvyLeaf[] {
-  if (points.length < 2) return []
+export function roundedPolyline(points: Point[], radius = 18, steps = 6): Point[] {
+  if (points.length < 3) return points.slice()
+  const out: Point[] = [points[0]]
+  for (let i = 1; i < points.length - 1; i++) {
+    const prev = points[i - 1]
+    const here = points[i]
+    const next = points[i + 1]
+    const back = Math.hypot(here.x - prev.x, here.y - prev.y)
+    const forth = Math.hypot(next.x - here.x, next.y - here.y)
+    const r = Math.min(radius, back / 2, forth / 2)
+    if (r < 0.5) {
+      out.push(here)
+      continue
+    }
+    const before = {
+      x: here.x + ((prev.x - here.x) / back) * r,
+      y: here.y + ((prev.y - here.y) / back) * r,
+    }
+    const after = {
+      x: here.x + ((next.x - here.x) / forth) * r,
+      y: here.y + ((next.y - here.y) / forth) * r,
+    }
+    for (let k = 0; k <= steps; k++) {
+      const t = k / steps
+      const u = 1 - t
+      out.push({
+        x: u * u * before.x + 2 * u * t * here.x + t * t * after.x,
+        y: u * u * before.y + 2 * u * t * here.y + t * t * after.y,
+      })
+    }
+  }
+  out.push(points[points.length - 1])
+  return out
+}
+
+/**
+ * Leaves of the ivy along the path as drawn (corners rounded by `radius`, like
+ * `roundedPath`), on both sides of the stem. They are spread evenly over the
+ * length (about `spacing` apart, at least two stations), each station bearing
+ * one leaf per side, so the count follows the bond and the placement is
+ * deterministic. A small tilt varies from station to station (a fixed cycle,
+ * no randomness). A leaf never sits within `clearAround` of the middle (the
+ * knot); on a short bond the clearance shrinks with it so some leaves remain.
+ */
+export function ivyLeaves(
+  points: Point[],
+  radius = 10,
+  spacing = 8,
+  clearAround = 11,
+): IvyLeaf[] {
+  const path = roundedPolyline(points, radius)
+  if (path.length < 2) return []
   const lengths: number[] = []
   let total = 0
-  for (let i = 1; i < points.length; i++) {
-    const length = Math.hypot(
-      points[i].x - points[i - 1].x,
-      points[i].y - points[i - 1].y,
-    )
+  for (let i = 1; i < path.length; i++) {
+    const length = Math.hypot(path[i].x - path[i - 1].x, path[i].y - path[i - 1].y)
     lengths.push(length)
     total += length
   }
-  if (total < 2 * clearAround) return []
+  if (total < 6) return []
   const count = Math.max(2, Math.floor(total / spacing))
-  const corners: number[] = []
-  let walked = 0
-  for (let i = 0; i < lengths.length - 1; i++) {
-    walked += lengths[i]
-    corners.push(walked)
-  }
+  const clear = Math.min(clearAround, total * 0.24)
   const tilts = [0, 9, -6, 12, -10, 4]
   const leaves: IvyLeaf[] = []
   for (let n = 0; n < count; n++) {
     const at = ((n + 0.5) / count) * total
-    if (Math.abs(at - total / 2) < clearAround) continue
-    if (corners.some((c) => Math.abs(at - c) < clearAround * 0.8)) continue
+    if (Math.abs(at - total / 2) < clear) continue
     let segment = 0
     let start = 0
     while (segment < lengths.length - 1 && start + lengths[segment] < at) {
       start += lengths[segment]
       segment++
     }
-    const from = points[segment]
-    const to = points[segment + 1]
+    const from = path[segment]
+    const to = path[segment + 1]
     const ratio = lengths[segment] === 0 ? 0 : (at - start) / lengths[segment]
     const base = {
       x: from.x + (to.x - from.x) * ratio,

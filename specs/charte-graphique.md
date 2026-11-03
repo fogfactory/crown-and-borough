@@ -921,7 +921,8 @@ texte sous l'écu, rangés dans l'ordre de succession, jamais coupés ; le rang
   maison choisie et ceux qui leur sont directement liés : leurs conjoints
   (mariage terminé ou non) et les nobles liés par une prétention, dans les deux
   sens (les héritiers d'un couple dont l'un des époux est de la maison, et le
-  couple visé par la prétention d'un noble de la maison). Les autres nobles
+  couple visé par la prétention d'un noble de la maison). Toute prétention
+  dessinée montre aussi le conjoint de son couple. Les autres nobles
   sont absents et la disposition ne porte que sur les nobles visibles. Un noble
   lié d'une autre maison garde l'écu de sa maison et son rang de succession
   dans celle-ci. La maison choisie est centrée, et sert de repère de
@@ -987,14 +988,26 @@ chacun sa voie de 8 px ; un héritier plus bas que la rangée suivante y travers
 les rangées intermédiaires par un emplacement laissé vide. Une prétention
 sans mariage reliant ses deux époux part du noble visé seul. Une prétention
 qui ferait descendre un couple de lui-même (l'héritier est le couple, ou
-l'ancêtre de ses propres ancêtres) ne détermine aucune rangée : sa tige est
-tracée du couple à l'héritier là où ils se trouvent, et peut alors traverser
-d'autres cartouches. Les arbres et les lignes suivent l'ordre des maisons,
+l'ancêtre de ses propres ancêtres) ne détermine aucune rangée : sa tige
+contourne les cartouches : elle descend de l'anneau du couple (ou du noble
+visé) jusqu'à une barre sous sa rangée, longe cette barre jusqu'à une ligne
+verticale tracée dans la marge, à gauche ou à droite des cartouches selon le
+côté le plus proche, suit cette ligne jusqu'à l'espace voisin de la rangée de
+l'héritier, puis le rejoint par une barre. Chaque tige de ce genre a sa propre
+ligne de marge, à 8 px de la suivante ; la marge n'élargit l'arbre que s'il y
+en a une. Les arbres et les lignes suivent l'ordre des maisons,
 celles que des mariages unissent étant voisines ; le résultat ne dépend pas
-de l'ordre des données. La hauteur d'un cartouche se calcule à partir de
-ses lignes de texte, jamais du rendu. À l'ouverture, la fenêtre se cadre sur
-la maison choisie dans « Focus » : horizontalement, et verticalement si sa
-première rangée n'est pas visible d'emblée. Il n'y a ni déplacement manuel
+de l'ordre des données. La place d'un cartouche se calcule à partir de
+ses lignes de texte (largeur des caractères estimée, lignes comptées par
+excès), jamais du rendu ; si le texte dépasse malgré tout cette estimation, le
+parchemin s'allonge à la hauteur réelle du texte sans changer la disposition.
+À l'ouverture et à chaque changement de « Focus », la fenêtre se cadre sur
+la maison choisie : horizontalement, et verticalement si sa première rangée
+n'est pas visible d'emblée ; les actions de la simulation ne la déplacent pas. Le rang de chaque noble vivant est aussi écrit en
+texte masqué (« Rang de succession N ») ; en simulation, les cartouches et les
+traits de mariage sont des boutons que le clavier atteint (Tab) et active
+(Entrée ou Espace). Un couple remarié a un trait par mariage, décalés de 13 px.
+Il n'y a ni déplacement manuel
 des cartouches, ni étiquette de mariage ou de prétention : les lignes et les
 tiges disent tout. Le graphe d'alliances est un encart replié par défaut.
 

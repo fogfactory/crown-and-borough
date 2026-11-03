@@ -13,6 +13,8 @@ import {
   placeTree,
   TREE_BUDGET,
   TREE_LANE,
+  visibleNobles,
+  wrapLines,
   type ClaimRef,
   type TreeLayout,
   type TreePlacement,
@@ -272,8 +274,12 @@ function expectSound(
       (c) => codes.includes(c.heir) && codes.includes(c.target) && c.heir !== c.target,
     ).length,
   )
+  // Only the margins of the stems that go round the cards add to the cards' width.
+  const margin = layout.stems.filter((stem) => stem.detour).length * 8 + 8
   expect(layout.width).toBeLessThanOrEqual(
-    Math.max(...[...placed.boxes.values()].map((box) => box.x + box.w)) + 1,
+    Math.max(...[...placed.boxes.values()].map((box) => box.x + box.w)) +
+      1 +
+      (layout.stems.some((stem) => stem.detour) ? margin : 0),
   )
 }
 
@@ -471,6 +477,49 @@ describe('layoutTree', () => {
     const d = placed.claims[2].d
     expect(d).toMatch(/^M[\d.]+,[\d.]+ V[\d.]+ H[\d.]+ V[\d.]+$/)
     expectSound(layout, placed, ['A1', 'B1', 'C1', 'D1'], claims)
+  })
+
+  it('routes a claim that cannot hang round the cards, through a margin and the channels', () => {
+    // B hangs under A, C under B; A, heir of C, cannot hang: its stem goes up two rows.
+    const claims: ClaimRef[] = [
+      { heir: 'B1', target: 'A1', spouse: 'A1', turn: 1 },
+      { heir: 'C1', target: 'B1', spouse: 'B1', turn: 2 },
+      { heir: 'A1', target: 'C1', spouse: 'C1', turn: 3 },
+    ]
+    const { layout, placed } = build({ P1: ['A1'], P2: ['B1'], P3: ['C1'] }, [], claims)
+    expect(layout.stems.map((stem) => stem.hangs)).toEqual([true, true, false])
+    const detour = layout.stems[2].detour
+    expect(detour).toBeDefined()
+    // The vertical line is outside every card, inside the layout.
+    const lefts = [...placed.boxes.values()].map((box) => box.x)
+    const rights = [...placed.boxes.values()].map((box) => box.x + box.w)
+    expect(detour!.x < Math.min(...lefts) || detour!.x > Math.max(...rights)).toBe(true)
+    expect(detour!.x).toBeGreaterThan(0)
+    expect(detour!.x).toBeLessThan(placed.width)
+    // No segment of the stem goes through the inside of a card.
+    const nums = placed.claims[2].d.match(/[MVH][-\d.]+(,[-\d.]+)?/g)!
+    let cx = 0
+    let cy = 0
+    const segments: Array<[number, number, number, number]> = []
+    for (const token of nums) {
+      const [px, py] = token.slice(1).split(',').map(Number)
+      const [nx, ny] =
+        token[0] === 'M' ? [px, py] : token[0] === 'V' ? [cx, px] : [px, cy]
+      if (token[0] !== 'M') segments.push([cx, cy, nx, ny])
+      cx = nx
+      cy = ny
+    }
+    expect(segments.length).toBeGreaterThanOrEqual(4)
+    for (const [x1, y1, x2, y2] of segments)
+      for (const box of placed.boxes.values()) {
+        const crosses =
+          Math.max(x1, x2) > box.x &&
+          Math.min(x1, x2) < box.x + box.w &&
+          Math.max(y1, y2) > box.y &&
+          Math.min(y1, y2) < box.y + box.h
+        expect(crosses).toBe(false)
+      }
+    expectSound(layout, placed, ['A1', 'B1', 'C1'], claims)
   })
 
   it('leaves a free slot for a stem that skips a row', () => {
@@ -794,6 +843,45 @@ describe('placeTree', () => {
     )
     for (const { d } of [...placed.claims, ...placed.marriages])
       expect(d).toMatch(/^M[-\d.]+,[-\d.]+( [VHL][-\d.,]+)+$/)
+  })
+
+  it('keeps the keys of a pair married again unique and draws its lines apart', () => {
+    const houses = world({ P1: ['A1'], P2: ['B1'] })
+    const links = buildLinks(houses, [
+      marriage('A1', 'B1', 'ended'),
+      { ...marriage('A1', 'B1', 'head'), turn: 7 },
+    ])
+    expect(new Set(links.map((link) => link.key)).size).toBe(2)
+    expect(links[0].key).toBe('A1-B1')
+    const layout = layoutTree(houses, links, null, [])
+    const placed = placeTree(layout, () => 0)
+    expect(layout.marriages).toHaveLength(2)
+    expect(new Set(placed.marriages.map((m) => m.d)).size).toBe(2)
+  })
+
+  it('shows the spouse of every claim it keeps when a house is focused', () => {
+    const houses = world({ P1: ['A1', 'A2'], P2: ['B1', 'B2'], P3: ['C1'], P4: ['D1'] })
+    const links = buildLinks(houses, [marriage('A1', 'B1'), marriage('A2', 'B2')])
+    const shown = visibleNobles(
+      houses,
+      links,
+      [
+        // Heir and target are tied to the house by marriage; the spouse is not.
+        { heir: 'B1', target: 'B2', spouse: 'C1' },
+        // Kept once C1 is shown: its heir is the spouse just added.
+        { heir: 'C1', target: 'B1', spouse: 'D1' },
+        { heir: 'D1', target: 'B2', spouse: 'D1' },
+      ],
+      'P1',
+    )!
+    expect([...shown].sort()).toEqual(['A1', 'A2', 'B1', 'B2', 'C1', 'D1'])
+    expect(visibleNobles(houses, links, [], null)).toBeNull()
+  })
+
+  it('counts wider capitals as more text than thin letters', () => {
+    expect(wrapLines('iiiiiiiiiiiiiiiiiiiiiiiiii')).toBe(1)
+    expect(wrapLines('WWWWWWWWWWWWWWWWWW')).toBe(2)
+    expect(wrapLines('')).toBe(1)
   })
 
   it('counts every wrapped line of a long title', () => {
